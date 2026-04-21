@@ -27,6 +27,7 @@ export default function Game() {
   const winCardCount = location.state?.winCardCount ?? 10;
   const lobbyId = location.state?.lobbyId ?? null;
   const myPlayerName = location.state?.myPlayerName ?? null;
+  const currentQuestionIdFromState = location.state?.currentQuestionId ?? null;
 
   const [selectedZone, setSelectedZone] = useState(null);
   const [feedback, setFeedback] = useState(null);
@@ -83,8 +84,8 @@ export default function Game() {
       const newLobbyData = {
         players: initialPlayers,
         current_player_index: 0,
-        current_question_id: initialPlayers[0]?.cards?.[0]?.id || null,
-        used_question_ids: initialPlayers.flatMap(p => p.cards?.map(c => c.id) || [])
+        current_question_id: currentQuestionIdFromState,
+        used_question_ids: [currentQuestionIdFromState, ...initialPlayers.flatMap(p => p.cards?.map(c => c.id) || [])].filter(Boolean)
       };
       console.log('[Game] Setting lobbyData from initialPlayers:', {
         players_count: newLobbyData.players.length,

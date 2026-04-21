@@ -313,6 +313,7 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
       state: {
         playerNames: playersWithCards.map(p => p.name),
         initialPlayers: playersWithCards,
+        currentQuestionId: firstQ.id,
         category: settings.category,
         yearStart: settings.year_start,
         yearEnd: settings.year_end,
