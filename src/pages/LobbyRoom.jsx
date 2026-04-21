@@ -290,12 +290,20 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
       current_player_index: 0,
       players: playersWithCards
     };
-    console.log('[LobbyRoom] Updating lobby with:', { cards_per_player: 2, total_players: playersWithCards.length });
+    console.log('[LobbyRoom] Updating lobby with:', { 
+      cards_per_player: 2, 
+      total_players: playersWithCards.length,
+      first_player_cards: playersWithCards[0]?.cards?.map(c => ({ id: c.id, year: c.year })) || []
+    });
     
-    await base44.entities.Lobby.update(lobby.id, updateData);
-    console.log('[LobbyRoom] Lobby updated successfully');
+    const updatedLobby = await base44.entities.Lobby.update(lobby.id, updateData);
+    console.log('[LobbyRoom] Lobby updated response:', {
+      players: updatedLobby.players?.length,
+      first_player_cards_from_response: updatedLobby.players?.[0]?.cards?.map(c => ({ id: c.id, year: c.year })) || []
+    });
     
     // Navigate immediately with playersWithCards
+    console.log('[LobbyRoom] Navigating to /game with initialPlayers:', playersWithCards.map(p => ({ name: p.name, cards: p.cards?.length || 0 })));
     navigate('/game', {
       state: {
         playerNames: playersWithCards.map(p => p.name),

@@ -66,26 +66,45 @@ export default function Game() {
     if (!lobbyId || allQuestions.length === 0) return;
     
     console.log('[Game] Online mode - setup with lobbyId:', lobbyId);
-    console.log('[Game] initialPlayers:', initialPlayers?.map(p => ({ name: p.name, cards: p.cards?.length || 0 })));
+    console.log('[Game] initialPlayers from navigate:', initialPlayers?.map(p => ({ 
+      name: p.name, 
+      cards: p.cards?.map(c => ({ id: c.id, year: c.year })) || [] 
+    })));
     
     // İlk yükleme — initialPlayers ile başla, sonra lobby'den fetch et
     if (initialPlayers && initialPlayers.length > 0) {
-      console.log('[Game] Initializing with local state:', { players: initialPlayers.length, cards: initialPlayers[0].cards?.length || 0 });
+      console.log('[Game] Initializing with local state:', { 
+        players: initialPlayers.length, 
+        first_player_card_count: initialPlayers[0].cards?.length || 0,
+        all_players_cards: initialPlayers.map(p => ({ name: p.name, cards: p.cards?.length || 0 }))
+      });
       const newLobbyData = {
         players: initialPlayers,
         current_player_index: 0,
         current_question_id: initialPlayers[0]?.cards?.[0]?.id || null,
         used_question_ids: initialPlayers.flatMap(p => p.cards?.map(c => c.id) || [])
       };
-      console.log('[Game] Setting lobbyData:', newLobbyData);
+      console.log('[Game] Setting lobbyData from initialPlayers:', {
+        players_count: newLobbyData.players.length,
+        current_question_id: newLobbyData.current_question_id,
+        used_ids_count: newLobbyData.used_question_ids.length,
+        first_player_cards: newLobbyData.players[0]?.cards?.length || 0
+      });
       setLobbyData(newLobbyData);
     } else {
-      console.log('[Game] No initialPlayers, waiting for server fetch...');
+      console.log('[Game] No initialPlayers from navigate, fetching from DB...');
     }
     
     base44.entities.Lobby.get(lobbyId)
       .then(data => {
-        console.log('[Game] Initial lobby load:', { players: data.players?.length, status: data.status, first_player_cards: data.players?.[0]?.cards?.length });
+        console.log('[Game] Fetched lobby from DB:', { 
+          players: data.players?.length, 
+          status: data.status, 
+          first_player_cards_from_db: data.players?.[0]?.cards?.map(c => ({ id: c.id, year: c.year })) || [],
+          current_question_id: data.current_question_id,
+          used_question_ids_count: data.used_question_ids?.length || 0
+        });
+        console.log('[Game] Setting lobbyData from DB fetch');
         setLobbyData(data);
       })
       .catch(err => console.error('[Game] Lobby load error:', err));
@@ -93,7 +112,13 @@ export default function Game() {
     // Subscribe for updates
     const unsub = base44.entities.Lobby.subscribe((event) => {
       if (event.id === lobbyId && event.type !== 'delete') {
-        console.log('[Game] Lobby updated:', { players: event.data.players?.length, status: event.data.status });
+        console.log('[Game] Lobby subscription update:', { 
+          players: event.data.players?.length, 
+          status: event.data.status,
+          first_player_cards: event.data.players?.[0]?.cards?.map(c => ({ id: c.id, year: c.year })) || [],
+          current_question_id: event.data.current_question_id,
+          used_question_ids_count: event.data.used_question_ids?.length || 0
+        });
         setLobbyData(event.data);
       }
     });
