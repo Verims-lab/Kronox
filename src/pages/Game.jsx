@@ -373,13 +373,19 @@ export default function Game() {
 
   const advanceTurn = useCallback(() => {
     // Guard: don't advance if no players yet
-    if (players.length === 0) {
-      console.log('[Game] advanceTurn: No players, skipping');
+    if (!lobbyData || players.length === 0) {
+      console.log('[Game] advanceTurn: Missing data', { hasLobbyData: !!lobbyData, playersCount: players.length });
       return;
     }
 
+    console.log('[Game] advanceTurn starting:', { 
+      currentIndex: lobbyData.current_player_index, 
+      totalPlayers: players.length,
+      nextIndexWillBe: (lobbyData.current_player_index + 1) % players.length
+    });
+
     // IMPORTANT: Use CURRENT lobbyData.current_player_index, not stale closure var
-    const currentIndex = lobbyData?.current_player_index ?? 0;
+    const currentIndex = lobbyData.current_player_index ?? 0;
     const nextIndex = (currentIndex + 1) % players.length;
     
     setSelectedZone(null);
@@ -414,7 +420,7 @@ export default function Game() {
       };
       attemptUpdate();
     }
-  }, [players.length, lobbyData?.current_player_index, usedQuestionIds, pickQuestion, lobbyId, questionPool]);
+  }, [lobbyData, players.length, usedQuestionIds, pickQuestion, lobbyId, questionPool]);
 
   const handleFeedbackDone = useCallback(() => {
     console.log('[Game] handleFeedbackDone - calling advanceTurn');
