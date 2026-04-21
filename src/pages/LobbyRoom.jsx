@@ -236,10 +236,14 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
   const handleStart = async () => {
     // Pick first question
     const allQuestions = await base44.entities.Question.list('-created_date', 200);
+    console.log('[LobbyRoom] handleStart - Total questions loaded:', allQuestions.length);
+    
     const filtered = allQuestions
       .filter(q => q.type === 'metin')
       .filter(q => q.year >= settings.year_start && q.year <= settings.year_end)
       .filter(q => settings.category === 'karisik' || q.category === settings.category);
+    
+    console.log('[LobbyRoom] Filtered questions:', filtered.length);
     
     if (filtered.length === 0) {
       alert('Soru bulunamadı');
@@ -247,13 +251,18 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
     }
     
     const firstQ = filtered[Math.floor(Math.random() * filtered.length)];
+    console.log('[LobbyRoom] Selected first question:', firstQ.id, firstQ.question);
     
-    await base44.entities.Lobby.update(lobby.id, { 
+    const updateData = { 
       status: 'starting',
       current_question_id: firstQ.id,
       used_question_ids: [firstQ.id],
       current_player_index: 0
-    });
+    };
+    console.log('[LobbyRoom] Updating lobby with:', updateData);
+    
+    await base44.entities.Lobby.update(lobby.id, updateData);
+    console.log('[LobbyRoom] Lobby updated successfully');
   };
 
   return (
