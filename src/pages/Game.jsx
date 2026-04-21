@@ -67,7 +67,7 @@ export default function Game() {
       for (let j = 0; j < 2; j++) {
         const q = pickQuestion(used, filteredQuestions);
         if (q) {
-          cards.push({ id: q.id, year: q.year, question: q.question });
+          cards.push({ id: q.id, year: q.year, question: q.question, type: q.type, media_url: q.media_url });
           used.add(q.id);
         }
       }
@@ -114,7 +114,7 @@ export default function Game() {
       const newPlayers = [...players];
       newPlayers[currentPlayerIndex] = {
         ...player,
-        cards: [...player.cards, { id: currentQuestion.id, year: questionYear, question: currentQuestion.question }]
+        cards: [...player.cards, { id: currentQuestion.id, year: questionYear, question: currentQuestion.question, type: currentQuestion.type, media_url: currentQuestion.media_url }]
       };
       setPlayers(newPlayers);
 
@@ -260,7 +260,7 @@ export default function Game() {
         {/* Question card + confirm button */}
         <div className="space-y-4 mt-4">
           {currentQuestion && (
-            <QuestionCard question={currentQuestion.question} />
+            <QuestionCard question={currentQuestion} />
           )}
 
           <motion.div

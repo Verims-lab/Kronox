@@ -22,10 +22,42 @@
       ],
       "default": "genel",
       "description": "Question category"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "metin",
+        "gorsel",
+        "isitsel"
+      ],
+      "default": "metin",
+      "description": "Question type: text, visual or audio"
+    },
+    "media_url": {
+      "type": "string",
+      "description": "URL for image (gorsel) or audio file (isitsel)"
     }
   },
   "required": [
     "question",
     "year"
-  ]
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {},
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
 }

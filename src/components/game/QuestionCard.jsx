@@ -1,25 +1,86 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { HelpCircle } from 'lucide-react';
+import { HelpCircle, Image, Volume2, Play, Pause } from 'lucide-react';
 
 export default function QuestionCard({ question }) {
+  const [playing, setPlaying] = useState(false);
+  const audioRef = useRef(null);
+
+  const toggleAudio = () => {
+    if (!audioRef.current) return;
+    if (playing) {
+      audioRef.current.pause();
+      setPlaying(false);
+    } else {
+      audioRef.current.play();
+      setPlaying(true);
+    }
+  };
+
+  const handleAudioEnd = () => setPlaying(false);
+
   return (
     <motion.div
       initial={{ rotateY: 180, opacity: 0 }}
       animate={{ rotateY: 0, opacity: 1 }}
       transition={{ type: 'spring', stiffness: 200, damping: 20 }}
       className="relative flex flex-col items-center justify-center 
-        w-full max-w-xs mx-auto p-5 rounded-xl
+        w-full max-w-xs mx-auto p-5 rounded-xl gap-3
         border-2 border-primary/50 bg-gradient-to-br from-primary/15 to-primary/5
         shadow-xl shadow-primary/20"
     >
       <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-lg">
         <HelpCircle className="w-5 h-5 text-primary-foreground" />
       </div>
+
+      {/* Visual */}
+      {question.type === 'gorsel' && question.media_url && (
+        <div className="w-full rounded-lg overflow-hidden border border-primary/20">
+          <img
+            src={question.media_url}
+            alt="Soru görseli"
+            className="w-full max-h-48 object-cover"
+          />
+        </div>
+      )}
+
+      {/* Audio */}
+      {question.type === 'isitsel' && question.media_url && (
+        <div className="flex flex-col items-center gap-2 w-full">
+          <audio
+            ref={audioRef}
+            src={question.media_url}
+            onEnded={handleAudioEnd}
+          />
+          <button
+            onClick={toggleAudio}
+            className="w-16 h-16 rounded-full bg-primary/20 border-2 border-primary/50 flex items-center justify-center hover:bg-primary/30 transition-all"
+          >
+            {playing
+              ? <Pause className="w-7 h-7 text-primary" />
+              : <Play className="w-7 h-7 text-primary ml-1" />
+            }
+          </button>
+          <p className="text-xs font-inter text-muted-foreground flex items-center gap-1">
+            <Volume2 className="w-3 h-3" />
+            Sesi dinle
+          </p>
+        </div>
+      )}
+
+      {/* Text badge for visual/audio types */}
+      {question.type === 'gorsel' && !question.media_url && (
+        <div className="flex items-center gap-1 text-muted-foreground text-xs">
+          <Image className="w-4 h-4" />
+          <span>Görsel yok</span>
+        </div>
+      )}
+
       <p className="font-inter text-foreground text-center text-sm leading-relaxed">
-        {question}
+        {question.question}
       </p>
-      <div className="mt-3 text-primary/40 text-xs font-cinzel tracking-widest">
+
+      <div className="text-primary/40 text-xs font-cinzel tracking-widest">
         KRONOS
       </div>
     </motion.div>
