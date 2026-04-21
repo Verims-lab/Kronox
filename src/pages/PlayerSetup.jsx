@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Clock, Users, Play, Layers, BookOpen, FlaskConical, Trophy, Sparkles, CalendarRange } from 'lucide-react';
+import { Clock, Users, Play, Layers, BookOpen, FlaskConical, Trophy, Sparkles, CalendarRange, Wifi } from 'lucide-react';
 
 export default function PlayerSetup() {
   const navigate = useNavigate();
@@ -186,6 +186,20 @@ export default function PlayerSetup() {
             
             <Play className="w-5 h-5" />
             OYUNU BAŞLAT
+          </Button>
+        </motion.div>
+
+        {/* Online lobby button */}
+        <motion.div
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}>
+          <Button
+            onClick={() => navigate('/lobby')}
+            size="lg"
+            variant="outline"
+            className="w-full h-12 font-cinzel tracking-wider gap-2 border-primary/30 text-primary hover:bg-primary/10">
+            <Wifi className="w-4 h-4" />
+            ÇEVRİMİÇİ LOBİ
           </Button>
         </motion.div>
       </motion.div>

@@ -1,0 +1,79 @@
+{
+  "name": "Lobby",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "description": "6-character unique lobby code"
+    },
+    "host_email": {
+      "type": "string",
+      "description": "Email of the lobby host"
+    },
+    "host_name": {
+      "type": "string",
+      "description": "Display name of the host"
+    },
+    "players": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ready": {
+            "type": "boolean"
+          }
+        }
+      },
+      "description": "List of players in the lobby"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "waiting",
+        "starting",
+        "in_game",
+        "finished"
+      ],
+      "default": "waiting"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "karisik",
+        "tarih",
+        "bilim",
+        "spor",
+        "sanat"
+      ],
+      "default": "karisik"
+    },
+    "year_start": {
+      "type": "number",
+      "default": 1900
+    },
+    "year_end": {
+      "type": "number",
+      "default": 2020
+    },
+    "turn_duration": {
+      "type": "number",
+      "default": 60,
+      "description": "Seconds per turn"
+    },
+    "win_card_count": {
+      "type": "number",
+      "default": 10,
+      "description": "Number of cards needed to win"
+    }
+  },
+  "required": [
+    "code",
+    "host_email"
+  ]
+}

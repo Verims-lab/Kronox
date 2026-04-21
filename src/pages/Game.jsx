@@ -21,6 +21,8 @@ export default function Game() {
   const category = location.state?.category || 'karisik';
   const yearStart = location.state?.yearStart ?? 0;
   const yearEnd = location.state?.yearEnd ?? new Date().getFullYear();
+  const turnDuration = location.state?.turnDuration ?? 60;
+  const winCardCount = location.state?.winCardCount ?? 10;
 
   const [players, setPlayers] = useState([]);
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
@@ -119,7 +121,7 @@ export default function Game() {
       setPlayers(newPlayers);
 
       // Check win condition
-      if (newPlayers[currentPlayerIndex].cards.length >= 10) {
+      if (newPlayers[currentPlayerIndex].cards.length >= winCardCount) {
         setFeedback({ result: 'correct', year: questionYear });
         setTimeout(() => {
           setFeedback(null);
@@ -225,7 +227,7 @@ export default function Game() {
           </Button>
           <div className="flex items-center gap-2">
             <h1 className="font-cinzel text-xl text-primary tracking-widest">KRONOS</h1>
-            <TurnTimer key={timerKey} active={!feedback && !winner && gameReady} onTimeUp={handleTimeUp} />
+            <TurnTimer key={timerKey} active={!feedback && !winner && gameReady} onTimeUp={handleTimeUp} duration={turnDuration} />
           </div>
           <Button
             variant="ghost"

@@ -2,14 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Timer } from 'lucide-react';
 
-const TOTAL = 60;
-
-export default function TurnTimer({ onTimeUp, active }) {
-  const [seconds, setSeconds] = useState(TOTAL);
+export default function TurnTimer({ onTimeUp, active, duration = 60 }) {
+  const [seconds, setSeconds] = useState(duration);
 
   useEffect(() => {
-    setSeconds(TOTAL);
-  }, [active]);
+    setSeconds(duration);
+  }, [active, duration]);
 
   useEffect(() => {
     if (!active) return;
@@ -21,7 +19,7 @@ export default function TurnTimer({ onTimeUp, active }) {
     return () => clearTimeout(id);
   }, [seconds, active, onTimeUp]);
 
-  const pct = seconds / TOTAL;
+  const pct = seconds / duration;
   const color = seconds > 20 ? '#c9a227' : seconds > 10 ? '#f97316' : '#ef4444';
   const r = 20;
   const circ = 2 * Math.PI * r;
