@@ -114,7 +114,9 @@ export default function Game() {
     }
     
     // Subscribe for updates
+    console.log('[Game] Setting up Lobby subscription for ID:', lobbyId);
     const unsub = base44.entities.Lobby.subscribe((event) => {
+      console.log('[Game] Subscription event received:', { event_id: event.id, event_type: event.type, lobbyId });
       if (event.id === lobbyId && event.type !== 'delete') {
         console.log('[Game] Lobby subscription update:', { 
           players: event.data.players?.length, 
