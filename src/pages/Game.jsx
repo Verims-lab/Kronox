@@ -195,6 +195,10 @@ export default function Game() {
       };
       setPlayers(newPlayers);
 
+      // Soruyu kullanılan sorular listesine ekle
+      const newUsed = new Set([...usedQuestionIds, currentQuestion.id]);
+      setUsedQuestionIds(newUsed);
+
       // Online modda oyuncuları lobbyye yaz
       if (lobbyId) {
         const lobbyPlayers = newPlayers.map(p => ({
@@ -203,7 +207,7 @@ export default function Game() {
           ready: true,
           cards: p.cards
         }));
-        base44.entities.Lobby.update(lobbyId, { players: lobbyPlayers }).catch(() => {});
+        base44.entities.Lobby.update(lobbyId, { players: lobbyPlayers, used_question_ids: [...newUsed] }).catch(() => {});
       }
 
       // Check win condition
