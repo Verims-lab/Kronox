@@ -216,6 +216,9 @@ export default function Game() {
       // Soruyu kullanılan sorular listesine ekle
       const newUsed = new Set([...usedQuestionIds, currentQuestion.id]);
 
+      // Check win condition BEFORE updating
+      const hasWon = newPlayers[currentPlayerIndex].cards.length >= winCardCount;
+
       // Online modda lobbyye yaz, offline modda lobbyData'yı update et
       if (lobbyId) {
         const lobbyPlayers = newPlayers.map(p => ({
@@ -224,7 +227,11 @@ export default function Game() {
           ready: true,
           cards: p.cards
         }));
-        base44.entities.Lobby.update(lobbyId, { players: lobbyPlayers, used_question_ids: [...newUsed] }).catch(() => {});
+        base44.entities.Lobby.update(lobbyId, { 
+          players: lobbyPlayers, 
+          used_question_ids: [...newUsed],
+          status: hasWon ? 'finished' : 'in_game'
+        }).catch(() => {});
       } else {
         // Offline modda lobbyData'yı manuel update et
         setLobbyData(prev => ({
@@ -234,12 +241,11 @@ export default function Game() {
         }));
       }
 
-      // Check win condition
-      if (newPlayers[currentPlayerIndex].cards.length >= winCardCount) {
+      if (hasWon) {
         setFeedback({ result: 'correct', year: questionYear });
         setTimeout(() => {
           setFeedback(null);
-          setWinner(currentPlayer.name);
+          setWinner(newPlayers[currentPlayerIndex].name);
         }, 1800);
         return;
       }
@@ -278,10 +284,10 @@ export default function Game() {
     }
   }, [currentPlayerIndex, players.length, category, allQuestions, usedQuestionIds, pickQuestion, lobbyId]);
 
-  const handleFeedbackDone = () => {
+  const handleFeedbackDone = useCallback(() => {
     setFeedback(null);
     advanceTurn();
-  };
+  }, [advanceTurn]);
 
   const handleImageError = useCallback(() => {
     // Görseli yüklenemeyen soruyu atla, yeni soru çek
