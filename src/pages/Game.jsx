@@ -118,8 +118,10 @@ export default function Game() {
     return available[Math.floor(Math.random() * available.length)];
   }, []);
 
-  // Initialize game
+  // Initialize game — sadece offline modda (no lobbyId)
   useEffect(() => {
+    if (lobbyId) return; // Online modda bu logic çalışmaz
+    
     try {
       const filteredQuestions = allQuestions
         .filter(q => q.type === 'metin')
@@ -161,15 +163,6 @@ export default function Game() {
       }
 
       setGameReady(true);
-
-      // Online modda ilk soruyu lobby'ye yaz (sadece host / ilk player)
-      if (lobbyId && firstQ) {
-        const usedArr = [...used];
-        base44.entities.Lobby.update(lobbyId, {
-          current_question_id: firstQ.id,
-          used_question_ids: usedArr,
-        }).catch(() => {});
-      }
     } catch (err) {
       setError('Oyun başlatılırken hata: ' + (err?.message || 'Bilinmeyen hata'));
     }
@@ -332,7 +325,10 @@ export default function Game() {
   const isMyTurn = !isOnline || (myPlayerName && currentPlayer?.name === myPlayerName);
   isMyTurnRef.current = isMyTurn;
 
-  if (gameReady && (!players.length || !currentPlayer || !currentQuestion)) {
+  // Online modda oyuncular lobbydan gelecek, game sadece lobbyId varsa hazır
+  const isGameReady = lobbyId ? players.length > 0 && currentQuestion : gameReady && players.length > 0 && currentQuestion;
+  
+  if (!isGameReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-6">
         <div className="text-center space-y-4">
