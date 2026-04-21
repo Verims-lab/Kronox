@@ -272,19 +272,16 @@ export default function Game() {
           ready: true,
           cards: p.cards
         }));
-        console.log('[Game] Update payload:', {
-          players_count: lobbyPlayers.length,
-          current_player_cards_after: lobbyPlayers[currentPlayerIndex]?.cards?.length,
-          used_ids: newUsed.size,
+        console.log('[Game] Card placed - DB update:', {
+          player: currentPlayer.name,
+          cards_after: lobbyPlayers[currentPlayerIndex]?.cards?.length,
           has_won: hasWon
         });
         base44.entities.Lobby.update(lobbyId, { 
           players: lobbyPlayers, 
           used_question_ids: [...newUsed],
           status: hasWon ? 'finished' : 'in_game'
-        }).then(() => {
-          console.log('[Game] DB update successful, waiting for subscription');
-        }).catch((err) => console.error('[Game] DB update failed:', err));
+        }).catch((err) => console.error('[Game] Card placement DB update failed:', err));
       } else {
         // Offline modda lobbyData'yı manuel update et
         setLobbyData(prev => ({
@@ -331,17 +328,12 @@ export default function Game() {
     });
 
     if (lobbyId) {
-      // Online: local update first (optimistic), then DB
-      setLobbyData(prev => ({
-        ...prev,
-        current_player_index: nextIndex,
-        current_question_id: nextQ?.id || prev.current_question_id,
-        used_question_ids: [...newUsed]
-      }));
+      // Online: DB'ye yaz, subscription'dan güncelle
+      console.log('[Game] advanceTurn - DB update:', { nextIndex, nextQuestionId: nextQ?.id });
       base44.entities.Lobby.update(lobbyId, {
         current_player_index: nextIndex,
         ...(nextQ ? { current_question_id: nextQ.id, used_question_ids: [...newUsed] } : {}),
-      }).then(() => console.log('[Game] advanceTurn DB update successful')).catch((err) => console.error('[Game] advanceTurn DB update failed:', err));
+      }).catch((err) => console.error('[Game] advanceTurn DB update failed:', err));
     } else {
       // Offline: lobbyData'yı manuel update et
       setLobbyData(prev => ({
