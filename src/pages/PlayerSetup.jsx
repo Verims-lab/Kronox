@@ -28,7 +28,10 @@ export default function PlayerSetup() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center" style={{ padding: '1.5rem', paddingTop: 'calc(1.5rem + env(safe-area-inset-top))', paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))', paddingLeft: 'calc(1.5rem + env(safe-area-inset-left))', paddingRight: 'calc(1.5rem + env(safe-area-inset-right))' }}>
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center" style={{ padding: '1.5rem', paddingTop: 'calc(1.5rem + env(safe-area-inset-top))', paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}>
+      {/* Decorative: only visible on desktop */}
+      <div className="hidden md:block fixed left-0 top-0 bottom-0 w-1/3 bg-gradient-to-r from-primary/5 to-transparent pointer-events-none" />
+      <div className="hidden md:block fixed right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-primary/5 to-transparent pointer-events-none" />
       {/* Background decorative elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-primary/5 rounded-full blur-3xl" />

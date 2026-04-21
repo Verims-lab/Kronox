@@ -36,7 +36,7 @@ export default function QuestionCard({ question, onImageError }) {
       animate={{ rotateY: 0, opacity: 1 }}
       transition={{ type: 'spring', stiffness: 200, damping: 20 }}
       className="relative flex flex-col items-center justify-center 
-        w-full max-w-xs mx-auto p-5 rounded-xl gap-3
+        w-full mx-auto p-5 rounded-xl gap-3
         border-2 border-primary/50 bg-gradient-to-br from-primary/15 to-primary/5
         shadow-xl shadow-primary/20"
     >
@@ -50,7 +50,7 @@ export default function QuestionCard({ question, onImageError }) {
           <img
             src={question.media_url}
             alt="Soru görseli"
-            className="w-full max-h-48 object-cover"
+            className="w-full max-h-48 md:max-h-64 object-cover"
             referrerPolicy="no-referrer"
             crossOrigin="anonymous"
             onError={handleImgError}

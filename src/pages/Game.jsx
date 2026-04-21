@@ -251,7 +251,7 @@ export default function Game() {
   const isMyTurn = !isOnline || (myPlayerName && currentPlayer?.name === myPlayerName);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col items-center">
       {/* Winner overlay */}
       {winner && <GameOver winner={winner} onRestart={handleRestart} />}
 
@@ -271,82 +271,84 @@ export default function Game() {
         {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       </AnimatePresence>
 
-      {/* Header */}
-      <div
-        className="pb-2 px-4 space-y-3"
-        style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}
-      >
-        <div className="flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate('/')}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div className="flex items-center gap-2">
-            <h1 className="font-cinzel text-xl text-primary tracking-widest">KRONOS</h1>
-            <TurnTimer key={timerKey} active={!feedback && !winner && gameReady} onTimeUp={handleTimeUp} duration={turnDuration} />
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setShowSettings(true)}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <Settings className="w-5 h-5" />
-          </Button>
-        </div>
-        <PlayerIndicator players={players} currentPlayerIndex={currentPlayerIndex} />
-      </div>
-
-      {/* Current player's timeline */}
-      <div className="flex-1 flex flex-col justify-between px-2" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
-        <div className="space-y-2">
-          <p className="text-center text-xs font-inter text-muted-foreground">
-            <span className="text-primary font-semibold">{currentPlayer?.name}</span> — Kartını doğru yere yerleştir
-          </p>
-          
-          {currentPlayer && (
-            <div className="overflow-x-auto">
-              <Timeline
-                cards={currentPlayer.cards}
-                selectedZone={selectedZone}
-                onSelectZone={isMyTurn ? handleSelectZone : undefined}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Question card + confirm button */}
-        <div className="space-y-4 mt-4">
-          {currentQuestion && (
-            <QuestionCard question={currentQuestion} onImageError={handleImageError} />
-          )}
-
-          {isOnline && !isMyTurn ? (
-            <div className="w-full h-12 flex items-center justify-center rounded-xl border border-border/40 bg-secondary/20">
-              <p className="font-inter text-sm text-muted-foreground">
-                <span className="text-primary font-semibold">{currentPlayer?.name}</span> oynuyor, bekliyorsunuz…
-              </p>
-            </div>
-          ) : (
-            <motion.div
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+      {/* Inner container — max width on desktop */}
+      <div className="w-full max-w-2xl flex flex-col flex-1">
+        {/* Header */}
+        <div
+          className="pb-2 px-4 space-y-3"
+          style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}
+        >
+          <div className="flex items-center justify-between">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate('/')}
+              className="text-muted-foreground hover:text-foreground"
             >
-              <Button
-                onClick={handleConfirmPlacement}
-                disabled={selectedZone === null || !!feedback}
-                size="lg"
-                className="w-full h-12 bg-primary text-primary-foreground hover:bg-primary/90 font-cinzel tracking-wider gap-2 disabled:opacity-30"
-              >
-                <Check className="w-5 h-5" />
-                YERLEŞTIR
-              </Button>
-            </motion.div>
-          )}
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div className="flex items-center gap-2">
+              <h1 className="font-cinzel text-xl text-primary tracking-widest">KRONOS</h1>
+              <TurnTimer key={timerKey} active={!feedback && !winner && gameReady} onTimeUp={handleTimeUp} duration={turnDuration} />
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowSettings(true)}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Settings className="w-5 h-5" />
+            </Button>
+          </div>
+          <PlayerIndicator players={players} currentPlayerIndex={currentPlayerIndex} />
+        </div>
+
+        {/* Desktop: side-by-side layout. Mobile: stacked */}
+        <div className="flex-1 flex flex-col md:flex-row md:items-start gap-4 px-2 md:px-4"
+          style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
+
+          {/* Timeline area */}
+          <div className="flex-1 space-y-2 md:mt-4">
+            <p className="text-center text-xs font-inter text-muted-foreground">
+              <span className="text-primary font-semibold">{currentPlayer?.name}</span> — Kartını doğru yere yerleştir
+            </p>
+            {currentPlayer && (
+              <div className="overflow-x-auto">
+                <Timeline
+                  cards={currentPlayer.cards}
+                  selectedZone={selectedZone}
+                  onSelectZone={isMyTurn ? handleSelectZone : undefined}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Question card + confirm button */}
+          <div className="space-y-3 md:w-72 md:mt-4 md:flex-shrink-0">
+            {currentQuestion && (
+              <QuestionCard question={currentQuestion} onImageError={handleImageError} />
+            )}
+
+            {isOnline && !isMyTurn ? (
+              <div className="w-full h-12 flex items-center justify-center rounded-xl border border-border/40 bg-secondary/20">
+                <p className="font-inter text-sm text-muted-foreground">
+                  <span className="text-primary font-semibold">{currentPlayer?.name}</span> oynuyor, bekliyorsunuz…
+                </p>
+              </div>
+            ) : (
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button
+                  onClick={handleConfirmPlacement}
+                  disabled={selectedZone === null || !!feedback}
+                  size="lg"
+                  className="w-full h-12 bg-primary text-primary-foreground hover:bg-primary/90 font-cinzel tracking-wider gap-2 disabled:opacity-30"
+                >
+                  <Check className="w-5 h-5" />
+                  YERLEŞTIR
+                </Button>
+              </motion.div>
+            )}
+          </div>
         </div>
       </div>
     </div>

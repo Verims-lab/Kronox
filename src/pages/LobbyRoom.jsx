@@ -150,7 +150,7 @@ export default function LobbyRoom() {
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6"
       style={{ paddingTop: 'calc(1.5rem + env(safe-area-inset-top))', paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}>
-      <div className="w-full max-w-sm space-y-8">
+      <div className="w-full max-w-md space-y-8">
         <div className="text-center space-y-2">
           <div className="w-14 h-14 mx-auto border-2 border-primary/40 rounded-full flex items-center justify-center">
             <Clock className="w-7 h-7 text-primary" />
@@ -237,9 +237,9 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col"
+    <div className="min-h-screen bg-background flex flex-col items-center"
       style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))', paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
-      <div className="px-4 pb-4 space-y-4 flex-1 overflow-y-auto">
+      <div className="w-full max-w-lg px-4 pb-4 space-y-4 flex-1 overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between">
           <Button variant="ghost" size="icon" onClick={onLeave} className="text-muted-foreground">
@@ -380,7 +380,7 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
 
       {/* Start button (host only) */}
       {isHost && (
-        <div className="px-4 pt-2" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
+        <div className="w-full max-w-lg px-4 pt-2" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
           <Button
             onClick={handleStart}
             disabled={!canStart}
