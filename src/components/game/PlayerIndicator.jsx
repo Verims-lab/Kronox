@@ -8,31 +8,41 @@ const playerColors = [
   'from-violet-500/20 to-violet-600/10 border-violet-500/50 text-violet-400',
 ];
 
-export default function PlayerIndicator({ players, currentPlayerIndex }) {
+export default function PlayerIndicator({ players, currentPlayerIndex, myPlayerName }) {
   return (
     <div className="flex gap-2 justify-center flex-wrap px-2">
-      {players.map((player, i) => (
-        <div
-          key={i}
-          className={`
-            flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-inter font-medium
-            bg-gradient-to-r transition-all duration-300
-            ${playerColors[i]}
-            ${i === currentPlayerIndex ? 'ring-2 ring-primary scale-105 shadow-lg' : 'opacity-60'}
-          `}
-        >
-          {i === currentPlayerIndex ? (
-            <Crown className="w-3 h-3" />
-          ) : (
-            <User className="w-3 h-3" />
-          )}
-          <span>{player.name}</span>
-          <span className="bg-background/50 px-1.5 py-0.5 rounded-full text-foreground/70"
-                style={{ fontSize: '10px' }}>
-            {player.cards.length}/10
-          </span>
-        </div>
-      ))}
+      {players.map((player, i) => {
+        const isActive = i === currentPlayerIndex;
+        const isMe = myPlayerName && player.name === myPlayerName;
+        return (
+          <div
+            key={i}
+            className={`
+              flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-inter font-medium
+              bg-gradient-to-r transition-all duration-300
+              ${playerColors[i]}
+              ${isActive ? 'ring-2 ring-primary scale-105 shadow-lg' : 'opacity-60'}
+            `}
+          >
+            {isActive ? (
+              <Crown className="w-3 h-3" />
+            ) : (
+              <User className="w-3 h-3" />
+            )}
+            <span>{player.name}</span>
+            {isMe && !isActive && (
+              <span className="text-[9px] bg-background/40 px-1 rounded-full text-foreground/50">(sen)</span>
+            )}
+            {isMe && isActive && (
+              <span className="text-[9px] bg-primary/30 px-1 rounded-full text-primary font-bold">SENIN SIRAN!</span>
+            )}
+            <span className="bg-background/50 px-1.5 py-0.5 rounded-full text-foreground/70"
+                  style={{ fontSize: '10px' }}>
+              {player.cards.length}/10
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }

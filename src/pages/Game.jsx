@@ -327,7 +327,7 @@ export default function Game() {
               <Settings className="w-5 h-5" />
             </Button>
           </div>
-          <PlayerIndicator players={players} currentPlayerIndex={currentPlayerIndex} />
+          <PlayerIndicator players={players} currentPlayerIndex={currentPlayerIndex} myPlayerName={myPlayerName} />
         </div>
 
         {/* Landscape + desktop: side-by-side. Portrait mobile: stacked */}
@@ -335,20 +335,51 @@ export default function Game() {
           className="flex-1 flex flex-col landscape:flex-row md:flex-row items-start gap-3 px-2 md:px-4 landscape:px-3"
           style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
         >
-          {/* Timeline area */}
-          <div className="flex-1 space-y-1 landscape:mt-2 md:mt-4 min-w-0">
-            <p className="text-center text-xs font-inter text-muted-foreground">
-              <span className="text-primary font-semibold">{currentPlayer?.name}</span> — Kartını doğru yere yerleştir
-            </p>
-            {currentPlayer && (
-              <div className="overflow-x-auto">
-                <Timeline
-                  cards={currentPlayer.cards}
-                  selectedZone={selectedZone}
-                  onSelectZone={isMyTurn ? handleSelectZone : undefined}
-                />
+          {/* Timeline area — iki bölüm: sıradaki oyuncu + benim kartlarım */}
+          <div className="flex-1 space-y-3 landscape:mt-2 md:mt-4 min-w-0">
+
+            {/* SIRADAKI OYUNCUNUN KARTlARI (büyük/aktif görünüm) */}
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                <p className="text-xs font-inter text-primary font-semibold">
+                  {currentPlayer?.name} — oynuyor
+                </p>
+                <span className="text-xs font-inter text-muted-foreground">
+                  ({currentPlayer?.cards?.length || 0} kart)
+                </span>
               </div>
-            )}
+              <div className="rounded-xl border-2 border-primary/50 bg-primary/5 p-2 overflow-x-auto">
+                {currentPlayer && (
+                  <Timeline
+                    cards={currentPlayer.cards}
+                    selectedZone={isMyTurn ? selectedZone : null}
+                    onSelectZone={isMyTurn ? handleSelectZone : undefined}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* BENİM KARTlARIM — sadece online modda ve ben sıradaki değilsem göster */}
+            {isOnline && myPlayerName && currentPlayer?.name !== myPlayerName && (() => {
+              const myPlayer = players.find(p => p.name === myPlayerName);
+              if (!myPlayer) return null;
+              return (
+                <div className="space-y-1">
+                  <p className="text-xs font-inter text-muted-foreground">
+                    Senin kartların ({myPlayer.cards.length})
+                  </p>
+                  <div className="rounded-xl border border-border/40 bg-secondary/10 p-2 overflow-x-auto opacity-80">
+                    <Timeline
+                      cards={myPlayer.cards}
+                      selectedZone={null}
+                      onSelectZone={undefined}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
+
           </div>
 
           {/* Question card + confirm button */}
