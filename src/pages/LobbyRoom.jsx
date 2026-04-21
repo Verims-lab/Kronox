@@ -234,7 +234,26 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
   };
 
   const handleStart = async () => {
-    await base44.entities.Lobby.update(lobby.id, { status: 'starting' });
+    // Pick first question
+    const allQuestions = await base44.entities.Question.list('-created_date', 200);
+    const filtered = allQuestions
+      .filter(q => q.type === 'metin')
+      .filter(q => q.year >= settings.year_start && q.year <= settings.year_end)
+      .filter(q => settings.category === 'karisik' || q.category === settings.category);
+    
+    if (filtered.length === 0) {
+      alert('Soru bulunamadı');
+      return;
+    }
+    
+    const firstQ = filtered[Math.floor(Math.random() * filtered.length)];
+    
+    await base44.entities.Lobby.update(lobby.id, { 
+      status: 'starting',
+      current_question_id: firstQ.id,
+      used_question_ids: [firstQ.id],
+      current_player_index: 0
+    });
   };
 
   return (
