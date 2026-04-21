@@ -70,6 +70,11 @@
       "type": "number",
       "default": 10,
       "description": "Number of cards needed to win"
+    },
+    "current_player_index": {
+      "type": "number",
+      "default": 0,
+      "description": "Index of the player whose turn it is (for online multiplayer)"
     }
   },
   "required": [

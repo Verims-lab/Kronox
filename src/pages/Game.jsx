@@ -23,6 +23,7 @@ export default function Game() {
   const yearEnd = location.state?.yearEnd ?? new Date().getFullYear();
   const turnDuration = location.state?.turnDuration ?? 60;
   const winCardCount = location.state?.winCardCount ?? 10;
+  const lobbyId = location.state?.lobbyId ?? null;
 
   const [players, setPlayers] = useState([]);
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
@@ -34,6 +35,8 @@ export default function Game() {
   const [gameReady, setGameReady] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [timerKey, setTimerKey] = useState(0);
+  const [myPlayerName, setMyPlayerName] = useState(null);
+  const [lobbyData, setLobbyData] = useState(null);
 
   const { data: allQuestions, isLoading } = useQuery({
     queryKey: ['questions'],
@@ -47,6 +50,38 @@ export default function Game() {
       navigate('/');
     }
   }, [playerNames, navigate]);
+
+  // Online: kendi adımızı bul
+  useEffect(() => {
+    if (!lobbyId) return;
+    base44.auth.me().then(u => {
+      if (u) setMyPlayerName(u.full_name || u.email);
+    }).catch(() => {});
+  }, [lobbyId]);
+
+  // Online: lobby'yi dinle ve currentPlayerIndex'i senkronize et
+  useEffect(() => {
+    if (!lobbyId) return;
+    const unsub = base44.entities.Lobby.subscribe((event) => {
+      if (event.id !== lobbyId) return;
+      if (event.type === 'delete') return;
+      const data = event.data;
+      setLobbyData(data);
+      if (typeof data.current_player_index === 'number') {
+        setCurrentPlayerIndex(data.current_player_index);
+      }
+    });
+    // İlk yükleme
+    base44.entities.Lobby.filter({ id: lobbyId }).then(res => {
+      if (res?.[0]) {
+        setLobbyData(res[0]);
+        if (typeof res[0].current_player_index === 'number') {
+          setCurrentPlayerIndex(res[0].current_player_index);
+        }
+      }
+    }).catch(() => {});
+    return () => unsub();
+  }, [lobbyId]);
 
   // Pick a random unused question
   const pickQuestion = useCallback((usedIds, questions) => {
@@ -141,6 +176,11 @@ export default function Game() {
     setSelectedZone(null);
     setTimerKey(k => k + 1);
 
+    // Online modda sırayı lobby'ye yaz
+    if (lobbyId) {
+      base44.entities.Lobby.update(lobbyId, { current_player_index: nextIndex }).catch(() => {});
+    }
+
     const pool = allQuestions
       .filter(q => q.year >= yearStart && q.year <= yearEnd)
       .filter(q => category === 'karisik' || q.category === category);
@@ -149,7 +189,7 @@ export default function Game() {
       setCurrentQuestion(nextQ);
       setUsedQuestionIds(prev => new Set([...prev, nextQ.id]));
     }
-  }, [currentPlayerIndex, players.length, category, allQuestions, usedQuestionIds, pickQuestion]);
+  }, [currentPlayerIndex, players.length, category, allQuestions, usedQuestionIds, pickQuestion, lobbyId]);
 
   const handleFeedbackDone = () => {
     setFeedback(null);
@@ -189,6 +229,10 @@ export default function Game() {
   }
 
   const currentPlayer = players[currentPlayerIndex];
+
+  // Online modda sadece sırası gelen oyuncu seçim yapabilir
+  const isOnline = !!lobbyId;
+  const isMyTurn = !isOnline || (myPlayerName && currentPlayer?.name === myPlayerName);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -253,7 +297,7 @@ export default function Game() {
               <Timeline
                 cards={currentPlayer.cards}
                 selectedZone={selectedZone}
-                onSelectZone={handleSelectZone}
+                onSelectZone={isMyTurn ? handleSelectZone : undefined}
               />
             </div>
           )}
@@ -265,20 +309,28 @@ export default function Game() {
             <QuestionCard question={currentQuestion} />
           )}
 
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <Button
-              onClick={handleConfirmPlacement}
-              disabled={selectedZone === null || !!feedback}
-              size="lg"
-              className="w-full h-12 bg-primary text-primary-foreground hover:bg-primary/90 font-cinzel tracking-wider gap-2 disabled:opacity-30"
+          {isOnline && !isMyTurn ? (
+            <div className="w-full h-12 flex items-center justify-center rounded-xl border border-border/40 bg-secondary/20">
+              <p className="font-inter text-sm text-muted-foreground">
+                <span className="text-primary font-semibold">{currentPlayer?.name}</span> oynuyor, bekliyorsunuz…
+              </p>
+            </div>
+          ) : (
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
             >
-              <Check className="w-5 h-5" />
-              YERLEŞTIR
-            </Button>
-          </motion.div>
+              <Button
+                onClick={handleConfirmPlacement}
+                disabled={selectedZone === null || !!feedback}
+                size="lg"
+                className="w-full h-12 bg-primary text-primary-foreground hover:bg-primary/90 font-cinzel tracking-wider gap-2 disabled:opacity-30"
+              >
+                <Check className="w-5 h-5" />
+                YERLEŞTIR
+              </Button>
+            </motion.div>
+          )}
         </div>
       </div>
     </div>
