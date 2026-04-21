@@ -149,10 +149,9 @@ export default function Game() {
   };
 
   const handleConfirmPlacement = () => {
-    if (selectedZone === null || !currentQuestion) return;
+    if (selectedZone === null || !currentQuestion || !currentPlayer) return;
 
-    const player = players[currentPlayerIndex];
-    const sortedCards = [...player.cards].sort((a, b) => a.year - b.year);
+    const sortedCards = [...currentPlayer.cards].sort((a, b) => a.year - b.year);
     const questionYear = currentQuestion.year;
 
     // Check if placement is correct
@@ -169,8 +168,8 @@ export default function Game() {
       // Add card to player's timeline
       const newPlayers = [...players];
       newPlayers[currentPlayerIndex] = {
-        ...player,
-        cards: [...player.cards, { id: currentQuestion.id, year: questionYear, question: currentQuestion.question, type: currentQuestion.type, media_url: currentQuestion.media_url }]
+        ...currentPlayer,
+        cards: [...currentPlayer.cards, { id: currentQuestion.id, year: questionYear, question: currentQuestion.question, type: currentQuestion.type, media_url: currentQuestion.media_url }]
       };
       setPlayers(newPlayers);
 
@@ -179,7 +178,7 @@ export default function Game() {
         setFeedback({ result: 'correct', year: questionYear });
         setTimeout(() => {
           setFeedback(null);
-          setWinner(player.name);
+          setWinner(currentPlayer.name);
         }, 1800);
         return;
       }
@@ -238,7 +237,7 @@ export default function Game() {
   }, [allQuestions, yearStart, yearEnd, category, usedQuestionIds, currentQuestion, pickQuestion]);
 
   const handleTimeUp = useCallback(() => {
-    if (feedback || winner) return;
+    if (feedback !== null || winner) return;
     advanceTurn();
   }, [feedback, winner, advanceTurn]);
 
