@@ -86,15 +86,11 @@ export default function Game() {
         setCurrentPlayerIndex(data.current_player_index);
       }
       
-      if (data.current_question_id) {
-        if (allQuestions.length > 0) {
-          const q = allQuestions.find(q => q.id === data.current_question_id);
-          if (q) {
-            console.log('[Game] Setting question:', q.question);
-            setCurrentQuestion(q);
-          }
-        } else {
-          console.log('[Game] Questions not loaded yet, will retry on next update');
+      if (data.current_question_id && allQuestions.length > 0) {
+        const q = allQuestions.find(q => q.id === data.current_question_id);
+        if (q) {
+          console.log('[Game] Setting question:', q.question);
+          setCurrentQuestion(q);
         }
       }
       
@@ -104,9 +100,9 @@ export default function Game() {
     });
     
     // İlk yükleme
-    base44.entities.Lobby.filter({ id: lobbyId }).then(res => {
-      if (res?.[0]) {
-        const data = res[0];
+    const fetchLobby = async () => {
+      try {
+        const data = await base44.entities.Lobby.get(lobbyId);
         console.log('[Game] Initial lobby load:', {
           players: data.players?.length,
           status: data.status,
@@ -136,10 +132,11 @@ export default function Game() {
             setCurrentQuestion(q);
           }
         }
+      } catch (err) {
+        console.error('[Game] Lobby load error:', err);
       }
-    }).catch(err => {
-      console.error('[Game] Lobby load error:', err);
-    });
+    };
+    fetchLobby();
     
     return () => unsub();
   }, [lobbyId, allQuestions]);
