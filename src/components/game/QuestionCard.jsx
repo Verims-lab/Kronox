@@ -1,10 +1,16 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { HelpCircle, Image, Volume2, Play, Pause } from 'lucide-react';
 
 export default function QuestionCard({ question }) {
   const [playing, setPlaying] = useState(false);
+  const [imgError, setImgError] = useState(false);
   const audioRef = useRef(null);
+
+  useEffect(() => {
+    setImgError(false);
+    setPlaying(false);
+  }, [question?.id]);
 
   const toggleAudio = () => {
     if (!audioRef.current) return;
@@ -34,13 +40,22 @@ export default function QuestionCard({ question }) {
       </div>
 
       {/* Visual */}
-      {question.type === 'gorsel' && question.media_url && (
+      {question.type === 'gorsel' && question.media_url && !imgError && (
         <div className="w-full rounded-lg overflow-hidden border border-primary/20">
           <img
             src={question.media_url}
             alt="Soru görseli"
             className="w-full max-h-48 object-cover"
+            referrerPolicy="no-referrer"
+            crossOrigin="anonymous"
+            onError={() => setImgError(true)}
           />
+        </div>
+      )}
+      {question.type === 'gorsel' && question.media_url && imgError && (
+        <div className="w-full rounded-lg border border-primary/20 bg-secondary/30 flex flex-col items-center justify-center py-6 gap-2">
+          <Image className="w-8 h-8 text-muted-foreground/50" />
+          <p className="text-xs font-inter text-muted-foreground">Görsel yüklenemedi</p>
         </div>
       )}
 
