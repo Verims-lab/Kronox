@@ -73,6 +73,7 @@ export default function Game() {
   }, [allQuestions, yearStart, yearEnd, category]);
 
   // Memoize my player for online mode
+  const isOnline = !!lobbyId;
   const myPlayer = useMemo(() => {
     if (!isOnline || !myPlayerName) return null;
     return players.find(p => p.name === myPlayerName);
@@ -455,7 +456,6 @@ export default function Game() {
   const currentPlayer = players.length > 0 ? players[currentPlayerIndex] : null;
 
   // Online modda sadece sırası gelen oyuncu seçim yapabilir
-  const isOnline = !!lobbyId;
   const isMyTurn = !isOnline || (myPlayerName && currentPlayer?.name === myPlayerName);
   isMyTurnRef.current = isMyTurn;
   
