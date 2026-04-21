@@ -87,22 +87,33 @@ export default function Game() {
   }, [playerNames, navigate]);
 
   // Process queued subscription events in order
-  const processEventQueue = useCallback(async () => {
+  const processEventQueue = useCallback(() => {
     if (processingQueueRef.current || eventQueueRef.current.length === 0) return;
     
     processingQueueRef.current = true;
+    // Process all queued events in batches
+    const batch = [];
     while (eventQueueRef.current.length > 0) {
-      const event = eventQueueRef.current.shift();
-      console.log('[Game] Processing queued event:', { players: event.players?.length, current_player_index: event.current_player_index });
-      setLobbyData(event);
-      await new Promise(resolve => setTimeout(resolve, 50)); // Small delay for state batching
+      batch.push(eventQueueRef.current.shift());
+    }
+    
+    if (batch.length > 0) {
+      // Use last event state (most recent)
+      const latestEvent = batch[batch.length - 1];
+      console.log('[Game] Processing batch of', batch.length, 'events, applying latest:', { 
+        players: latestEvent.players?.length, 
+        current_player_index: latestEvent.current_player_index 
+      });
+      setLobbyData(latestEvent);
     }
     processingQueueRef.current = false;
   }, []);
 
   // Process queue when it has items
   useEffect(() => {
-    processEventQueue();
+    if (eventQueueRef.current.length > 0) {
+      processEventQueue();
+    }
   }, [processEventQueue]);
 
   // Online: lobby'yi dinle — questions'tan bağımsız fetch et
