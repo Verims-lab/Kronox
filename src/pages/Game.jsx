@@ -12,6 +12,7 @@ import QuestionCard from '@/components/game/QuestionCard';
 import FeedbackOverlay from '@/components/game/FeedbackOverlay';
 import GameOver from '@/components/game/GameOver';
 import SettingsModal from '@/components/game/SettingsModal';
+import TurnTimer from '@/components/game/TurnTimer';
 
 export default function Game() {
   const location = useLocation();
@@ -28,6 +29,7 @@ export default function Game() {
   const [winner, setWinner] = useState(null);
   const [gameReady, setGameReady] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [timerKey, setTimerKey] = useState(0);
 
   const { data: allQuestions, isLoading } = useQuery({
     queryKey: ['questions'],
@@ -129,21 +131,29 @@ export default function Game() {
     setSelectedZone(null);
   };
 
-  const handleFeedbackDone = () => {
-    setFeedback(null);
-
-    // Move to next player
+  const advanceTurn = useCallback(() => {
     const nextIndex = (currentPlayerIndex + 1) % players.length;
     setCurrentPlayerIndex(nextIndex);
+    setSelectedZone(null);
+    setTimerKey(k => k + 1);
 
-    // Pick next question
     const pool = category === 'karisik' ? allQuestions : allQuestions.filter(q => q.category === category);
     const nextQ = pickQuestion(usedQuestionIds, pool);
     if (nextQ) {
       setCurrentQuestion(nextQ);
       setUsedQuestionIds(prev => new Set([...prev, nextQ.id]));
     }
+  }, [currentPlayerIndex, players.length, category, allQuestions, usedQuestionIds, pickQuestion]);
+
+  const handleFeedbackDone = () => {
+    setFeedback(null);
+    advanceTurn();
   };
+
+  const handleTimeUp = useCallback(() => {
+    if (feedback || winner) return;
+    advanceTurn();
+  }, [feedback, winner, advanceTurn]);
 
   const handleRestart = () => {
     navigate('/');
@@ -209,7 +219,10 @@ export default function Game() {
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <h1 className="font-cinzel text-xl text-primary tracking-widest">KRONOS</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="font-cinzel text-xl text-primary tracking-widest">KRONOS</h1>
+            <TurnTimer key={timerKey} active={!feedback && !winner && gameReady} onTimeUp={handleTimeUp} />
+          </div>
           <Button
             variant="ghost"
             size="icon"
