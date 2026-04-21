@@ -50,7 +50,7 @@ export default function LobbyRoom() {
               yearEnd: event.data.year_end,
               turnDuration: event.data.turn_duration,
               winCardCount: event.data.win_card_count,
-              lobbyId: lobby.id,
+              lobbyId: event.data.id,
               myPlayerName: playerName.trim(),
             }
           });
@@ -59,7 +59,7 @@ export default function LobbyRoom() {
     });
     unsubRef.current = unsub;
     return () => unsub();
-  }, [lobby?.id, navigate]);
+  }, [lobby?.id, playerName, navigate]);
 
   const handleCreate = async () => {
     if (!playerName.trim()) return setError('İsim girin.');
