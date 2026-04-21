@@ -64,22 +64,17 @@ export default function Game() {
     }
   }, [playerNames, navigate]);
 
-  // Online: lobby'yi dinle — sadece lobbyData'yı update et
+  // Online: lobby'yi dinle — questions'tan bağımsız fetch et
   useEffect(() => {
-    if (!lobbyId || allQuestions.length === 0) return;
+    if (!lobbyId) return;
     
     console.log('[Game] Online mode - setup with lobbyId:', lobbyId);
-    console.log('[Game] initialPlayers from navigate:', initialPlayers?.map(p => ({ 
-      name: p.name, 
-      cards: p.cards?.map(c => ({ id: c.id, year: c.year })) || [] 
-    })));
     
-    // İlk yükleme — initialPlayers ile başla, sonra lobby'den fetch et
+    // İlk yükleme — initialPlayers ile başla
     if (initialPlayers && initialPlayers.length > 0) {
       console.log('[Game] Initializing with local state:', { 
         players: initialPlayers.length, 
-        first_player_card_count: initialPlayers[0].cards?.length || 0,
-        all_players_cards: initialPlayers.map(p => ({ name: p.name, cards: p.cards?.length || 0 }))
+        first_player_card_count: initialPlayers[0].cards?.length || 0
       });
       const newLobbyData = {
         players: initialPlayers,
@@ -87,50 +82,29 @@ export default function Game() {
         current_question_id: currentQuestionIdFromState,
         used_question_ids: [currentQuestionIdFromState, ...initialPlayers.flatMap(p => p.cards?.map(c => c.id) || [])].filter(Boolean)
       };
-      console.log('[Game] Setting lobbyData from initialPlayers:', {
-        players_count: newLobbyData.players.length,
-        current_question_id: newLobbyData.current_question_id,
-        used_ids_count: newLobbyData.used_question_ids.length,
-        first_player_cards: newLobbyData.players[0]?.cards?.length || 0
-      });
       setLobbyData(newLobbyData);
     } else {
+      // Oyuncu 2+: DB'den fetch et (questions'tan bağımsız)
       console.log('[Game] No initialPlayers from navigate, fetching from DB...');
-    }
-    
-    // Sadece initialPlayers boşsa DB'den fetch et
-    if (!initialPlayers || initialPlayers.length === 0) {
       base44.entities.Lobby.get(lobbyId)
         .then(data => {
           console.log('[Game] Fetched lobby from DB:', { 
             players: data.players?.length, 
-            status: data.status, 
-            first_player_cards_from_db: data.players?.[0]?.cards?.map(c => ({ id: c.id, year: c.year })) || [],
-            current_question_id: data.current_question_id,
-            used_question_ids_count: data.used_question_ids?.length || 0
+            current_question_id: data.current_question_id
           });
-          console.log('[Game] Setting lobbyData from DB fetch');
           setLobbyData(data);
         })
         .catch(err => console.error('[Game] Lobby load error:', err));
     }
     
     // Subscribe for updates
-    console.log('[Game] Setting up Lobby subscription for ID:', lobbyId);
-    
-    // Cleanup previous subscription
     if (unsubRef.current) unsubRef.current();
     
     const unsub = base44.entities.Lobby.subscribe((event) => {
-      console.log('[Game] Subscription event received:', { event_id: event.id, event_type: event.type, lobbyId });
       if (event.id === lobbyId && event.type !== 'delete') {
         console.log('[Game] Lobby subscription update:', { 
           players: event.data.players?.length, 
-          status: event.data.status,
-          current_player_index: event.data.current_player_index,
-          first_player_cards: event.data.players?.[0]?.cards?.map(c => ({ id: c.id, year: c.year })) || [],
-          current_question_id: event.data.current_question_id,
-          used_question_ids_count: event.data.used_question_ids?.length || 0
+          current_player_index: event.data.current_player_index
         });
         setLobbyData(event.data);
       }
@@ -140,7 +114,7 @@ export default function Game() {
     return () => {
       if (unsubRef.current) unsubRef.current();
     };
-  }, [lobbyId, allQuestions, initialPlayers]);
+  }, [lobbyId, initialPlayers]);
 
   // Pick a random unused question
   const pickQuestion = useCallback((usedIds, questions) => {
