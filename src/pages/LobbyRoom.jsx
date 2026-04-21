@@ -49,6 +49,11 @@ export default function LobbyRoom() {
       const isCurrentUserHost = event.data.host_email === (user?.email || '');
       const isGuestCurrentHost = !user && event.data.players?.[0]?.name === playerName.trim();
       if (event.data.status === 'starting' && !isCurrentUserHost && !isGuestCurrentHost) {
+        console.log('[LobbyRoom] Non-host subscription navigate:', { 
+          playerName: playerName.trim(),
+          allPlayers: event.data.players.map(p => p.name),
+          lobbyId: event.data.id
+        });
         navigate('/game', {
           state: {
             playerNames: event.data.players.map(p => p.name),
