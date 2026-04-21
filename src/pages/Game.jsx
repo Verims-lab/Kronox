@@ -495,7 +495,7 @@ export default function Game() {
             </Button>
             <div className="flex items-center gap-2">
               <h1 className="font-cinzel text-xl text-primary tracking-widest">KRONOS</h1>
-              <TurnTimer key={timerKey} active={!feedback && !winner && isGameReady && isMyTurn} onTimeUp={handleTimeUp} duration={turnDuration} />
+              <TurnTimer key={timerKey} active={!feedback && !winner && isGameReady} onTimeUp={isMyTurn ? handleTimeUp : undefined} duration={turnDuration} />
             </div>
             <Button
               variant="ghost"
