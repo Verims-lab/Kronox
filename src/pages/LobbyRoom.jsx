@@ -250,16 +250,37 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
       return;
     }
     
+    // Deal 2 cards to each player
+    const used = new Set();
+    const playersWithCards = lobby.players.map(p => {
+      const cards = [];
+      for (let i = 0; i < 2; i++) {
+        let q;
+        do {
+          q = filtered[Math.floor(Math.random() * filtered.length)];
+        } while (used.has(q.id) && used.size < filtered.length);
+        
+        if (!used.has(q.id)) {
+          cards.push({ id: q.id, year: q.year, question: q.question, type: q.type, media_url: q.media_url });
+          used.add(q.id);
+        }
+      }
+      return { ...p, cards };
+    });
+    
     const firstQ = filtered[Math.floor(Math.random() * filtered.length)];
+    used.add(firstQ.id);
+    
     console.log('[LobbyRoom] Selected first question:', firstQ.id, firstQ.question);
     
     const updateData = { 
       status: 'starting',
       current_question_id: firstQ.id,
-      used_question_ids: [firstQ.id],
-      current_player_index: 0
+      used_question_ids: [...used],
+      current_player_index: 0,
+      players: playersWithCards
     };
-    console.log('[LobbyRoom] Updating lobby with:', updateData);
+    console.log('[LobbyRoom] Updating lobby with:', { cards_per_player: 2, total_players: playersWithCards.length });
     
     await base44.entities.Lobby.update(lobby.id, updateData);
     console.log('[LobbyRoom] Lobby updated successfully');
