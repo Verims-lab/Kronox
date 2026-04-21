@@ -396,6 +396,14 @@ export default function Game() {
   const isOnline = !!lobbyId;
   const isMyTurn = !isOnline || (myPlayerName && currentPlayer?.name === myPlayerName);
   isMyTurnRef.current = isMyTurn;
+  
+  console.log('[Game] isMyTurn check:', {
+    isOnline,
+    myPlayerName,
+    currentPlayerName: currentPlayer?.name,
+    isMyTurn,
+    currentPlayerIndex
+  });
 
   // Online modda lobbyData'dan, offline modda playerNames'den
   const isGameReady = lobbyId
