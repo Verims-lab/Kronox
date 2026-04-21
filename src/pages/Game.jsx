@@ -100,11 +100,15 @@ export default function Game() {
     if (batch.length > 0) {
       // Use last event state (most recent)
       const latestEvent = batch[batch.length - 1];
-      console.log('[Game] Processing batch of', batch.length, 'events, applying latest:', { 
-        players: latestEvent.players?.length, 
-        current_player_index: latestEvent.current_player_index 
+      console.log('[Game] Processing batch:', {
+        batch_size: batch.length,
+        latest_event_index: batch.length - 1,
+        players: latestEvent.players?.length,
+        current_player_index: latestEvent.current_player_index,
+        timestamp: new Date().toISOString()
       });
       setLobbyData(latestEvent);
+      console.log('[Game] Batch processing complete, state updated');
     }
     processingQueueRef.current = false;
   }, []);
@@ -154,11 +158,13 @@ export default function Game() {
     
     const unsub = base44.entities.Lobby.subscribe((event) => {
       if (event.id === lobbyId && event.type !== 'delete') {
-        console.log('[Game] Subscription event received, queueing:', { 
+        console.log('[Game] Subscription event received:', { 
           players: event.data.players?.length, 
-          current_player_index: event.data.current_player_index
+          current_player_index: event.data.current_player_index,
+          queue_length_before: eventQueueRef.current.length
         });
         eventQueueRef.current.push(event.data);
+        console.log('[Game] Event queued, queue_length:', eventQueueRef.current.length);
         // Trigger processing
         setTimeout(processEventQueue, 0);
       }
