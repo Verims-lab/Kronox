@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
@@ -37,6 +37,7 @@ export default function Game() {
   const [showSettings, setShowSettings] = useState(false);
   const [timerKey, setTimerKey] = useState(0);
   const [lobbyData, setLobbyData] = useState(null);
+  const isMyTurnRef = React.useRef(true);
 
   const { data: allQuestions, isLoading } = useQuery({
     queryKey: ['questions'],
@@ -51,9 +52,9 @@ export default function Game() {
     }
   }, [playerNames, navigate]);
 
-  // Online: lobby'yi dinle ve currentPlayerIndex'i senkronize et
+  // Online: lobby'yi dinle — currentPlayerIndex ve currentQuestion senkronize et
   useEffect(() => {
-    if (!lobbyId) return;
+    if (!lobbyId || allQuestions.length === 0) return;
     const unsub = base44.entities.Lobby.subscribe((event) => {
       if (event.id !== lobbyId) return;
       if (event.type === 'delete') return;
@@ -62,18 +63,34 @@ export default function Game() {
       if (typeof data.current_player_index === 'number') {
         setCurrentPlayerIndex(data.current_player_index);
       }
+      // Soruyu lobby'den senkronize et
+      if (data.current_question_id) {
+        const q = allQuestions.find(q => q.id === data.current_question_id);
+        if (q) setCurrentQuestion(q);
+      }
+      if (data.used_question_ids) {
+        setUsedQuestionIds(new Set(data.used_question_ids));
+      }
     });
     // İlk yükleme
     base44.entities.Lobby.filter({ id: lobbyId }).then(res => {
       if (res?.[0]) {
-        setLobbyData(res[0]);
-        if (typeof res[0].current_player_index === 'number') {
-          setCurrentPlayerIndex(res[0].current_player_index);
+        const data = res[0];
+        setLobbyData(data);
+        if (typeof data.current_player_index === 'number') {
+          setCurrentPlayerIndex(data.current_player_index);
+        }
+        if (data.current_question_id) {
+          const q = allQuestions.find(q => q.id === data.current_question_id);
+          if (q) setCurrentQuestion(q);
+        }
+        if (data.used_question_ids) {
+          setUsedQuestionIds(new Set(data.used_question_ids));
         }
       }
     }).catch(() => {});
     return () => unsub();
-  }, [lobbyId]);
+  }, [lobbyId, allQuestions]);
 
   // Pick a random unused question
   const pickQuestion = useCallback((usedIds, questions) => {
@@ -116,7 +133,16 @@ export default function Game() {
     }
 
     setGameReady(true);
-  }, [playerNames, allQuestions, category, pickQuestion, gameReady]);
+
+    // Online modda ilk soruyu lobby'ye yaz (sadece host / ilk player)
+    if (lobbyId && firstQ) {
+      const usedArr = [...used];
+      base44.entities.Lobby.update(lobbyId, {
+        current_question_id: firstQ.id,
+        used_question_ids: usedArr,
+      }).catch(() => {});
+    }
+  }, [playerNames, allQuestions, category, pickQuestion, gameReady, lobbyId]);
 
   const handleSelectZone = (index) => {
     setSelectedZone(index);
@@ -169,19 +195,26 @@ export default function Game() {
     setSelectedZone(null);
     setTimerKey(k => k + 1);
 
-    // Online modda sırayı lobby'ye yaz
-    if (lobbyId) {
-      base44.entities.Lobby.update(lobbyId, { current_player_index: nextIndex }).catch(() => {});
-    }
-
     const pool = allQuestions
       .filter(q => q.type === 'metin')
       .filter(q => q.year >= yearStart && q.year <= yearEnd)
       .filter(q => category === 'karisik' || q.category === category);
     const nextQ = pickQuestion(usedQuestionIds, pool);
+    const newUsed = nextQ ? new Set([...usedQuestionIds, nextQ.id]) : usedQuestionIds;
+
     if (nextQ) {
       setCurrentQuestion(nextQ);
-      setUsedQuestionIds(prev => new Set([...prev, nextQ.id]));
+      setUsedQuestionIds(newUsed);
+    }
+
+    // Online modda sırayı ve soruyu lobby'ye yaz (sadece aktif oyuncu yapar)
+    if (lobbyId && isMyTurnRef.current) {
+      base44.entities.Lobby.update(lobbyId, {
+        current_player_index: nextIndex,
+        ...(nextQ ? { current_question_id: nextQ.id, used_question_ids: [...newUsed] } : {}),
+      }).catch(() => {});
+    } else if (!lobbyId) {
+      // offline — zaten local state güncellendi
     }
   }, [currentPlayerIndex, players.length, category, allQuestions, usedQuestionIds, pickQuestion, lobbyId]);
 
@@ -241,6 +274,8 @@ export default function Game() {
   // Online modda sadece sırası gelen oyuncu seçim yapabilir
   const isOnline = !!lobbyId;
   const isMyTurn = !isOnline || (myPlayerName && currentPlayer?.name === myPlayerName);
+  isMyTurnRef.current = isMyTurn;
+
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center">

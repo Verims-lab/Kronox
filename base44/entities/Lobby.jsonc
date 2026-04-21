@@ -74,7 +74,18 @@
     "current_player_index": {
       "type": "number",
       "default": 0,
-      "description": "Index of the player whose turn it is (for online multiplayer)"
+      "description": "Index of the player whose turn it is"
+    },
+    "current_question_id": {
+      "type": "string",
+      "description": "ID of the current question shown to all players"
+    },
+    "used_question_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of already used question IDs"
     }
   },
   "required": [
