@@ -22,8 +22,8 @@ export default function TimelineCard({ card, index, isDragging, compact = false 
         {card.year}
       </span>
       {!compact && (
-        <p className="text-muted-foreground text-center px-1 leading-tight mt-1" style={{ fontSize: '6px' }}>
-          {card.question?.length > 30 ? card.question.slice(0, 30) + '…' : card.question}
+        <p className="text-muted-foreground text-center px-1 leading-tight mt-1 text-xs">
+          {card.question?.length > 20 ? card.question.slice(0, 20) + '…' : card.question}
         </p>
       )}
     </motion.div>

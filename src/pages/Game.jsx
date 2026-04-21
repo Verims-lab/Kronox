@@ -4,13 +4,14 @@ import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Loader2, Check } from 'lucide-react';
+import { Loader2, Check, ArrowLeft, Settings } from 'lucide-react';
 
 import PlayerIndicator from '@/components/game/PlayerIndicator';
 import Timeline from '@/components/game/Timeline';
 import QuestionCard from '@/components/game/QuestionCard';
 import FeedbackOverlay from '@/components/game/FeedbackOverlay';
 import GameOver from '@/components/game/GameOver';
+import SettingsModal from '@/components/game/SettingsModal';
 
 export default function Game() {
   const location = useLocation();
@@ -25,6 +26,7 @@ export default function Game() {
   const [feedback, setFeedback] = useState(null);
   const [winner, setWinner] = useState(null);
   const [gameReady, setGameReady] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   const { data: allQuestions, isLoading } = useQuery({
     queryKey: ['questions'],
@@ -182,9 +184,35 @@ export default function Game() {
         )}
       </AnimatePresence>
 
+      {/* Settings modal */}
+      <AnimatePresence>
+        {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      </AnimatePresence>
+
       {/* Header */}
-      <div className="pt-4 pb-2 px-4 space-y-3">
-        <h1 className="font-cinzel text-xl text-primary text-center tracking-widest">KRONOS</h1>
+      <div
+        className="pb-2 px-4 space-y-3"
+        style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}
+      >
+        <div className="flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate('/')}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <h1 className="font-cinzel text-xl text-primary tracking-widest">KRONOS</h1>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowSettings(true)}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <Settings className="w-5 h-5" />
+          </Button>
+        </div>
         <PlayerIndicator players={players} currentPlayerIndex={currentPlayerIndex} />
       </div>
 
