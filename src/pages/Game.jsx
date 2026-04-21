@@ -255,11 +255,22 @@ export default function Game() {
           cards_after: lobbyPlayers[currentPlayerIndex]?.cards?.length,
           has_won: hasWon
         });
-        base44.entities.Lobby.update(lobbyId, { 
+        const updateData = { 
           players: lobbyPlayers, 
           used_question_ids: [...newUsed],
           status: hasWon ? 'finished' : 'in_game'
-        }).catch((err) => console.error('[Game] Card placement DB update failed:', err));
+        };
+        
+        const attemptUpdate = (retries = 0) => {
+          base44.entities.Lobby.update(lobbyId, updateData)
+            .catch((err) => {
+              console.error(`[Game] Card placement DB update failed (attempt ${retries + 1}):`, err);
+              if (retries < 2) {
+                setTimeout(() => attemptUpdate(retries + 1), 500);
+              }
+            });
+        };
+        attemptUpdate();
       } else {
         // Offline modda lobbyData'yı manuel update et
         setLobbyData(prev => ({
@@ -304,12 +315,23 @@ export default function Game() {
       used_question_ids: [...newUsed]
     }));
 
-    // Online: DB'ye de senkronize et
+    // Online: DB'ye de senkronize et (with retry)
     if (lobbyId) {
-      base44.entities.Lobby.update(lobbyId, {
+      const updateData = {
         current_player_index: nextIndex,
         ...(nextQ ? { current_question_id: nextQ.id, used_question_ids: [...newUsed] } : {}),
-      }).catch((err) => console.error('[Game] advanceTurn DB update failed:', err));
+      };
+      
+      const attemptUpdate = (retries = 0) => {
+        base44.entities.Lobby.update(lobbyId, updateData)
+          .catch((err) => {
+            console.error(`[Game] advanceTurn DB update failed (attempt ${retries + 1}):`, err);
+            if (retries < 2) {
+              setTimeout(() => attemptUpdate(retries + 1), 500);
+            }
+          });
+      };
+      attemptUpdate();
     }
   }, [currentPlayerIndex, players.length, category, allQuestions, usedQuestionIds, pickQuestion, lobbyId]);
 
