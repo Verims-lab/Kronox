@@ -265,8 +265,11 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
       return;
     }
     
+    // Pick first question FIRST
+    const firstQ = filtered[Math.floor(Math.random() * filtered.length)];
+    const used = new Set([firstQ.id]);
+    
     // Deal 2 cards to each player
-    const used = new Set();
     const playersWithCards = lobby.players.map(p => {
       const cards = [];
       for (let i = 0; i < 2; i++) {
@@ -282,10 +285,6 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
       }
       return { ...p, cards };
     });
-    
-    const available = filtered.filter(q => !used.has(q.id));
-    const firstQ = available[Math.floor(Math.random() * available.length)];
-    used.add(firstQ.id);
     
     console.log('[LobbyRoom] Selected first question:', firstQ.id, firstQ.question);
     
