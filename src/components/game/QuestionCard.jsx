@@ -50,7 +50,7 @@ export default function QuestionCard({ question, onImageError }) {
           <img
             src={question.media_url}
             alt="Soru görseli"
-            className="w-full max-h-48 md:max-h-64 object-cover"
+            className="w-full max-h-36 landscape:max-h-28 md:max-h-64 object-cover"
             referrerPolicy="no-referrer"
             crossOrigin="anonymous"
             onError={handleImgError}

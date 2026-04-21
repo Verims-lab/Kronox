@@ -272,11 +272,11 @@ export default function Game() {
       </AnimatePresence>
 
       {/* Inner container — max width on desktop */}
-      <div className="w-full max-w-2xl flex flex-col flex-1">
-        {/* Header */}
+      <div className="w-full max-w-2xl md:max-w-4xl flex flex-col flex-1">
+        {/* Header — compact in landscape */}
         <div
-          className="pb-2 px-4 space-y-3"
-          style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}
+          className="pb-1 px-4 space-y-2 landscape:space-y-1 landscape:pb-1"
+          style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top))' }}
         >
           <div className="flex items-center justify-between">
             <Button
@@ -303,12 +303,13 @@ export default function Game() {
           <PlayerIndicator players={players} currentPlayerIndex={currentPlayerIndex} />
         </div>
 
-        {/* Desktop: side-by-side layout. Mobile: stacked */}
-        <div className="flex-1 flex flex-col md:flex-row md:items-start gap-4 px-2 md:px-4"
-          style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
-
+        {/* Landscape + desktop: side-by-side. Portrait mobile: stacked */}
+        <div
+          className="flex-1 flex flex-col landscape:flex-row md:flex-row items-start gap-3 px-2 md:px-4 landscape:px-3"
+          style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+        >
           {/* Timeline area */}
-          <div className="flex-1 space-y-2 md:mt-4">
+          <div className="flex-1 space-y-1 landscape:mt-2 md:mt-4 min-w-0">
             <p className="text-center text-xs font-inter text-muted-foreground">
               <span className="text-primary font-semibold">{currentPlayer?.name}</span> — Kartını doğru yere yerleştir
             </p>
@@ -324,15 +325,15 @@ export default function Game() {
           </div>
 
           {/* Question card + confirm button */}
-          <div className="space-y-3 md:w-72 md:mt-4 md:flex-shrink-0">
+          <div className="space-y-2 landscape:w-56 landscape:mt-2 landscape:flex-shrink-0 md:w-72 md:mt-4 md:flex-shrink-0 w-full">
             {currentQuestion && (
               <QuestionCard question={currentQuestion} onImageError={handleImageError} />
             )}
 
             {isOnline && !isMyTurn ? (
-              <div className="w-full h-12 flex items-center justify-center rounded-xl border border-border/40 bg-secondary/20">
+              <div className="w-full h-10 flex items-center justify-center rounded-xl border border-border/40 bg-secondary/20">
                 <p className="font-inter text-sm text-muted-foreground">
-                  <span className="text-primary font-semibold">{currentPlayer?.name}</span> oynuyor, bekliyorsunuz…
+                  <span className="text-primary font-semibold">{currentPlayer?.name}</span> oynuyor…
                 </p>
               </div>
             ) : (
@@ -341,7 +342,7 @@ export default function Game() {
                   onClick={handleConfirmPlacement}
                   disabled={selectedZone === null || !!feedback}
                   size="lg"
-                  className="w-full h-12 bg-primary text-primary-foreground hover:bg-primary/90 font-cinzel tracking-wider gap-2 disabled:opacity-30"
+                  className="w-full h-11 bg-primary text-primary-foreground hover:bg-primary/90 font-cinzel tracking-wider gap-2 disabled:opacity-30"
                 >
                   <Check className="w-5 h-5" />
                   YERLEŞTIR

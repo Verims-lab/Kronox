@@ -2,6 +2,7 @@
 module.exports = {
     darkMode: ["class"],
     content: ["./index.html", "./src/**/*.{ts,tsx,js,jsx}"],
+
     safelist: [
       'from-blue-500/20', 'to-blue-600/10', 'border-blue-500/50', 'text-blue-400',
       'from-rose-500/20', 'to-rose-600/10', 'border-rose-500/50', 'text-rose-400',
