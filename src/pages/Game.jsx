@@ -55,65 +55,61 @@ export default function Game() {
 
   // Online: lobby'yi dinle — currentPlayerIndex ve currentQuestion senkronize et
   useEffect(() => {
-    if (!lobbyId || allQuestions.length === 0) return;
+    if (!lobbyId) return;
+    
     const unsub = base44.entities.Lobby.subscribe((event) => {
       if (event.id !== lobbyId) return;
       if (event.type === 'delete') return;
+      
       const data = event.data;
       setLobbyData(data);
+      
+      // Oyuncu listesini senkronize et (kartlar hariç)
+      if (data.players && Array.isArray(data.players)) {
+        setPlayers(data.players.map(p => ({
+          name: p.name,
+          email: p.email,
+          cards: p.cards || []
+        })));
+      }
+      
       if (typeof data.current_player_index === 'number') {
         setCurrentPlayerIndex(data.current_player_index);
       }
-      // Soruyu lobby'den senkronize et
-      if (data.current_question_id) {
+      
+      if (data.current_question_id && allQuestions.length > 0) {
         const q = allQuestions.find(q => q.id === data.current_question_id);
         if (q) setCurrentQuestion(q);
       }
+      
       if (data.used_question_ids) {
         setUsedQuestionIds(new Set(data.used_question_ids));
       }
-      // Oyuncu kartlarını senkronize et
-      if (data.players && Array.isArray(data.players)) {
-        const updatedPlayers = players.map(p => {
-          const lobbyPlayer = data.players.find(lp => lp.name === p.name);
-          if (lobbyPlayer && lobbyPlayer.cards) {
-            return { ...p, cards: lobbyPlayer.cards.filter(c => !allQuestions.find(q => q.id === c.id && q.type !== 'metin')) };
-          }
-          return p;
-        });
-        setPlayers(updatedPlayers);
-      }
     });
+    
     // İlk yükleme
     base44.entities.Lobby.filter({ id: lobbyId }).then(res => {
       if (res?.[0]) {
         const data = res[0];
         setLobbyData(data);
+        
+        // Oyuncu listesini hemen set et
+        if (data.players && Array.isArray(data.players)) {
+          setPlayers(data.players.map(p => ({
+            name: p.name,
+            email: p.email,
+            cards: p.cards || []
+          })));
+        }
+        
         if (typeof data.current_player_index === 'number') {
           setCurrentPlayerIndex(data.current_player_index);
         }
-        if (data.current_question_id) {
-          const q = allQuestions.find(q => q.id === data.current_question_id);
-          if (q) setCurrentQuestion(q);
-        }
-        if (data.used_question_ids) {
-          setUsedQuestionIds(new Set(data.used_question_ids));
-        }
-        // Oyuncu kartlarını senkronize et
-        if (data.players && Array.isArray(data.players)) {
-          const updatedPlayers = players.map(p => {
-            const lobbyPlayer = data.players.find(lp => lp.name === p.name);
-            if (lobbyPlayer && lobbyPlayer.cards) {
-              return { ...p, cards: lobbyPlayer.cards.filter(c => !allQuestions.find(q => q.id === c.id && q.type !== 'metin')) };
-            }
-            return p;
-          });
-          setPlayers(updatedPlayers);
-        }
       }
     }).catch(() => {});
+    
     return () => unsub();
-  }, [lobbyId, allQuestions]);
+  }, [lobbyId]);
 
   // Pick a random unused question
   const pickQuestion = useCallback((usedIds, questions) => {
