@@ -541,6 +541,7 @@ export default function Game() {
 
             {/* BENİM KARTlARIM — sadece online modda ve ben sıradaki değilsem göster */}
             {isOnline && myPlayerName && currentPlayer?.name !== myPlayerName && (() => {
+              console.log('[Game] Showing opponent cards:', { myPlayerName, currentPlayerName: currentPlayer?.name, shouldShow: currentPlayer?.name !== myPlayerName });
               const myPlayer = players.find(p => p.name === myPlayerName);
               if (!myPlayer) return null;
               return (
