@@ -240,7 +240,7 @@ export default function Game() {
       </div>
 
       {/* Current player's timeline */}
-      <div className="flex-1 flex flex-col justify-between px-2 pb-4">
+      <div className="flex-1 flex flex-col justify-between px-2" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
         <div className="space-y-2">
           <p className="text-center text-xs font-inter text-muted-foreground">
             <span className="text-primary font-semibold">{currentPlayer?.name}</span> — Kartını doğru yere yerleştir
