@@ -306,6 +306,11 @@ export default function Game() {
     advanceTurn();
   }, [feedback, winner, advanceTurn]);
 
+  // Reset timer when current player changes (from subscription or local update)
+  useEffect(() => {
+    setTimerKey(k => k + 1);
+  }, [currentPlayerIndex]);
+
   const handleRestart = () => {
     navigate('/');
   };
