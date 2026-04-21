@@ -86,11 +86,17 @@ export default function Game() {
         setCurrentPlayerIndex(data.current_player_index);
       }
       
-      if (data.current_question_id && allQuestions.length > 0) {
-        const q = allQuestions.find(q => q.id === data.current_question_id);
-        if (q) {
-          console.log('[Game] Setting question:', q.question);
-          setCurrentQuestion(q);
+      if (data.current_question_id) {
+        if (allQuestions.length > 0) {
+          const q = allQuestions.find(q => q.id === data.current_question_id);
+          if (q) {
+            console.log('[Game] Setting question from subscription:', q.question);
+            setCurrentQuestion(q);
+          } else {
+            console.log('[Game] Question not found in allQuestions from subscription');
+          }
+        } else {
+          console.log('[Game] allQuestions not ready in subscription');
         }
       }
       
@@ -106,7 +112,8 @@ export default function Game() {
         console.log('[Game] Initial lobby load:', {
           players: data.players?.length,
           status: data.status,
-          hasQuestion: !!data.current_question_id,
+          current_question_id: data.current_question_id,
+          allQuestionsLoaded: allQuestions.length,
         });
         setLobbyData(data);
         
@@ -125,11 +132,18 @@ export default function Game() {
           setCurrentPlayerIndex(data.current_player_index);
         }
         
-        if (data.current_question_id && allQuestions.length > 0) {
-          const q = allQuestions.find(q => q.id === data.current_question_id);
-          if (q) {
-            console.log('[Game] Initial question set:', q.question);
-            setCurrentQuestion(q);
+        if (data.current_question_id) {
+          console.log('[Game] Question ID exists:', data.current_question_id, 'allQuestions:', allQuestions.length);
+          if (allQuestions.length > 0) {
+            const q = allQuestions.find(q => q.id === data.current_question_id);
+            if (q) {
+              console.log('[Game] Initial question set:', q.question);
+              setCurrentQuestion(q);
+            } else {
+              console.log('[Game] Question not found in allQuestions');
+            }
+          } else {
+            console.log('[Game] allQuestions not loaded yet');
           }
         }
       } catch (err) {
