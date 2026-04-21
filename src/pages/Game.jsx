@@ -242,7 +242,14 @@ export default function Game() {
         lobbyPlayersSnapshot: newPlayers.map(p => ({ name: p.name, cards: p.cards.length }))
       });
 
-      // Online modda lobbyye yaz, offline modda lobbyData'yı update et
+      // OPTIMISTIC UPDATE FIRST—state immediately reflects the card
+      setLobbyData(prev => ({
+        ...prev,
+        players: newPlayers,
+        used_question_ids: [...newUsed]
+      }));
+
+      // Online modda DB'ye async write (with retry)
       if (lobbyId) {
         const lobbyPlayers = newPlayers.map(p => ({
           email: p.email || `player_${p.name}`,
@@ -266,18 +273,11 @@ export default function Game() {
             .catch((err) => {
               console.error(`[Game] Card placement DB update failed (attempt ${retries + 1}):`, err);
               if (retries < 2) {
-                setTimeout(() => attemptUpdate(retries + 1), 500);
+                setTimeout(() => attemptUpdate(retries + 1), 1000);
               }
             });
         };
         attemptUpdate();
-      } else {
-        // Offline modda lobbyData'yı manuel update et
-        setLobbyData(prev => ({
-          ...prev,
-          players: newPlayers,
-          used_question_ids: [...newUsed]
-        }));
       }
 
       if (hasWon) {
@@ -327,7 +327,7 @@ export default function Game() {
           .catch((err) => {
             console.error(`[Game] advanceTurn DB update failed (attempt ${retries + 1}):`, err);
             if (retries < 2) {
-              setTimeout(() => attemptUpdate(retries + 1), 500);
+              setTimeout(() => attemptUpdate(retries + 1), 1000);
             }
           });
       };
