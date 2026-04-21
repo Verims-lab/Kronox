@@ -272,11 +272,19 @@ export default function Game() {
           ready: true,
           cards: p.cards
         }));
+        console.log('[Game] Update payload:', {
+          players_count: lobbyPlayers.length,
+          current_player_cards_after: lobbyPlayers[currentPlayerIndex]?.cards?.length,
+          used_ids: newUsed.size,
+          has_won: hasWon
+        });
         base44.entities.Lobby.update(lobbyId, { 
           players: lobbyPlayers, 
           used_question_ids: [...newUsed],
           status: hasWon ? 'finished' : 'in_game'
-        }).then(() => console.log('[Game] Lobby update successful')).catch((err) => console.error('[Game] Lobby update failed:', err));
+        }).then(() => {
+          console.log('[Game] DB update successful, waiting for subscription');
+        }).catch((err) => console.error('[Game] DB update failed:', err));
       } else {
         // Offline modda lobbyData'yı manuel update et
         setLobbyData(prev => ({
