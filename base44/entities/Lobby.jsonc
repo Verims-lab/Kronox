@@ -27,6 +27,29 @@
           },
           "ready": {
             "type": "boolean"
+          },
+          "cards": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "year": {
+                  "type": "number"
+                },
+                "question": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "media_url": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       },
