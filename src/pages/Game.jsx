@@ -196,6 +196,19 @@ export default function Game() {
     advanceTurn();
   };
 
+  const handleImageError = useCallback(() => {
+    // Görseli yüklenemeyen soruyu atla, yeni soru çek
+    const pool = allQuestions
+      .filter(q => q.year >= yearStart && q.year <= yearEnd)
+      .filter(q => category === 'karisik' || q.category === category);
+    const newUsed = new Set([...usedQuestionIds, currentQuestion?.id].filter(Boolean));
+    const nextQ = pickQuestion(newUsed, pool);
+    if (nextQ) {
+      setCurrentQuestion(nextQ);
+      setUsedQuestionIds(new Set([...newUsed, nextQ.id]));
+    }
+  }, [allQuestions, yearStart, yearEnd, category, usedQuestionIds, currentQuestion, pickQuestion]);
+
   const handleTimeUp = useCallback(() => {
     if (feedback || winner) return;
     advanceTurn();
@@ -306,7 +319,7 @@ export default function Game() {
         {/* Question card + confirm button */}
         <div className="space-y-4 mt-4">
           {currentQuestion && (
-            <QuestionCard question={currentQuestion} />
+            <QuestionCard question={currentQuestion} onImageError={handleImageError} />
           )}
 
           {isOnline && !isMyTurn ? (

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { HelpCircle, Image, Volume2, Play, Pause } from 'lucide-react';
 
-export default function QuestionCard({ question }) {
+export default function QuestionCard({ question, onImageError }) {
   const [playing, setPlaying] = useState(false);
   const [imgError, setImgError] = useState(false);
   const audioRef = useRef(null);
@@ -11,6 +11,11 @@ export default function QuestionCard({ question }) {
     setImgError(false);
     setPlaying(false);
   }, [question?.id]);
+
+  const handleImgError = () => {
+    setImgError(true);
+    if (onImageError) onImageError();
+  };
 
   const toggleAudio = () => {
     if (!audioRef.current) return;
@@ -48,7 +53,7 @@ export default function QuestionCard({ question }) {
             className="w-full max-h-48 object-cover"
             referrerPolicy="no-referrer"
             crossOrigin="anonymous"
-            onError={() => setImgError(true)}
+            onError={handleImgError}
           />
         </div>
       )}
