@@ -264,7 +264,8 @@ export default function Game() {
       player: snapshotPlayer.name,
       selectedZone,
       questionYear,
-      playerCardsBefore: snapshotPlayer.cards.length
+      playerCardsBefore: snapshotPlayer.cards.length,
+      isMyTurn
     });
 
     // Check if placement is correct
@@ -277,7 +278,12 @@ export default function Game() {
       isCorrect = questionYear >= sortedCards[selectedZone - 1].year && questionYear <= sortedCards[selectedZone].year;
     }
 
-    console.log('[Game] isCorrect:', isCorrect);
+    console.log('[Game] isCorrect check:', {
+      isCorrect,
+      sortedCardLength: sortedCards.length,
+      selectedZone,
+      questionYear
+    });
 
     if (isCorrect) {
       // Add card to player's timeline
@@ -346,6 +352,9 @@ export default function Game() {
         
         const attemptUpdate = (retries = 0) => {
           base44.entities.Lobby.update(lobbyId, updateData)
+            .then(() => {
+              console.log('[Game] Card placement DB update SUCCESS');
+            })
             .catch((err) => {
               console.error(`[Game] Card placement DB update failed (attempt ${retries + 1}):`, err);
               if (retries < 2) {
@@ -387,43 +396,64 @@ export default function Game() {
     // IMPORTANT: Use CURRENT lobbyData.current_player_index, not stale closure var
     const currentIndex = lobbyData.current_player_index ?? 0;
     const nextIndex = (currentIndex + 1) % players.length;
-    
+
+    console.log('[Game] advanceTurn calculating turn:', {
+    currentIndex,
+    nextIndex,
+    playersCount: players.length
+    });
+
     setSelectedZone(null);
     setTimerKey(k => k + 1);
 
     const nextQ = pickQuestion(usedQuestionIds, questionPool);
     const newUsed = nextQ ? new Set([...usedQuestionIds, nextQ.id]) : usedQuestionIds;
 
+    console.log('[Game] advanceTurn picked next question:', {
+    nextQId: nextQ?.id,
+    nextQYear: nextQ?.year,
+    usedCount: newUsed.size
+    });
+
     // Optimistic update—her durumda state'i güncelle
     setLobbyData(prev => ({
-      ...prev,
-      current_player_index: nextIndex,
-      current_question_id: nextQ?.id || prev.current_question_id,
-      used_question_ids: [...newUsed]
+    ...prev,
+    current_player_index: nextIndex,
+    current_question_id: nextQ?.id || prev.current_question_id,
+    used_question_ids: [...newUsed]
     }));
 
     // Online: DB'ye de senkronize et (with retry)
     if (lobbyId) {
-      const updateData = {
-        current_player_index: nextIndex,
-        ...(nextQ ? { current_question_id: nextQ.id, used_question_ids: [...newUsed] } : {}),
-      };
-      
-      const attemptUpdate = (retries = 0) => {
-        base44.entities.Lobby.update(lobbyId, updateData)
-          .catch((err) => {
-            console.error(`[Game] advanceTurn DB update failed (attempt ${retries + 1}):`, err);
-            if (retries < 2) {
-              setTimeout(() => attemptUpdate(retries + 1), 1000);
-            }
-          });
-      };
-      attemptUpdate();
+    const updateData = {
+      current_player_index: nextIndex,
+      ...(nextQ ? { current_question_id: nextQ.id, used_question_ids: [...newUsed] } : {}),
+    };
+
+    console.log('[Game] advanceTurn DB update payload:', {
+      nextIndex,
+      hasNewQuestion: !!nextQ,
+      lobbyId
+    });
+
+    const attemptUpdate = (retries = 0) => {
+      base44.entities.Lobby.update(lobbyId, updateData)
+        .then(() => {
+          console.log('[Game] advanceTurn DB update SUCCESS, nextIndex:', nextIndex);
+        })
+        .catch((err) => {
+          console.error(`[Game] advanceTurn DB update failed (attempt ${retries + 1}):`, err);
+          if (retries < 2) {
+            setTimeout(() => attemptUpdate(retries + 1), 1000);
+          }
+        });
+    };
+    attemptUpdate();
     }
   }, [lobbyData, players.length, usedQuestionIds, pickQuestion, lobbyId, questionPool]);
 
   const handleFeedbackDone = useCallback(() => {
-    console.log('[Game] handleFeedbackDone - calling advanceTurn');
+    console.log('[Game] handleFeedbackDone called, isMyTurn:', isMyTurnRef.current);
     setFeedback(null);
     advanceTurn();
   }, [advanceTurn]);
