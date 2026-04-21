@@ -85,7 +85,7 @@ export default function Game() {
   // Initialize game
   useEffect(() => {
     const filteredQuestions = allQuestions
-      .filter(q => q.type !== 'isitsel')
+      .filter(q => q.type === 'metin')
       .filter(q => q.year >= yearStart && q.year <= yearEnd)
       .filter(q => category === 'karisik' || q.category === category);
 
@@ -175,7 +175,7 @@ export default function Game() {
     }
 
     const pool = allQuestions
-      .filter(q => q.type !== 'isitsel')
+      .filter(q => q.type === 'metin')
       .filter(q => q.year >= yearStart && q.year <= yearEnd)
       .filter(q => category === 'karisik' || q.category === category);
     const nextQ = pickQuestion(usedQuestionIds, pool);
@@ -193,7 +193,7 @@ export default function Game() {
   const handleImageError = useCallback(() => {
     // Görseli yüklenemeyen soruyu atla, yeni soru çek
     const pool = allQuestions
-      .filter(q => q.type !== 'isitsel')
+      .filter(q => q.type === 'metin')
       .filter(q => q.year >= yearStart && q.year <= yearEnd)
       .filter(q => category === 'karisik' || q.category === category);
     const newUsed = new Set([...usedQuestionIds, currentQuestion?.id].filter(Boolean));
