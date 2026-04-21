@@ -268,7 +268,13 @@ export default function Game() {
     const newUsed = nextQ ? new Set([...usedQuestionIds, nextQ.id]) : usedQuestionIds;
 
     if (lobbyId) {
-      // Online: lobby'ye yaz, derived state otomatik takip edecek
+      // Online: local update first (optimistic), then DB
+      setLobbyData(prev => ({
+        ...prev,
+        current_player_index: nextIndex,
+        current_question_id: nextQ?.id || prev.current_question_id,
+        used_question_ids: [...newUsed]
+      }));
       base44.entities.Lobby.update(lobbyId, {
         current_player_index: nextIndex,
         ...(nextQ ? { current_question_id: nextQ.id, used_question_ids: [...newUsed] } : {}),
