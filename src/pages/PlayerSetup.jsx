@@ -3,13 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Clock, Users, Play, Plus, Minus, Layers, BookOpen, FlaskConical, Trophy, Sparkles } from 'lucide-react';
+import { Clock, Users, Play, Layers, BookOpen, FlaskConical, Trophy, Sparkles, CalendarRange } from 'lucide-react';
 
 export default function PlayerSetup() {
   const navigate = useNavigate();
   const [playerCount, setPlayerCount] = useState(2);
   const [names, setNames] = useState(['', '', '', '']);
   const [selectedCategory, setSelectedCategory] = useState('karisik');
+  const [yearStart, setYearStart] = useState(1900);
+  const [yearEnd, setYearEnd] = useState(2020);
 
   const categories = [
   { value: 'karisik', label: 'Karışık', icon: Layers },
@@ -21,7 +23,7 @@ export default function PlayerSetup() {
 
   const handleStart = () => {
     const playerNames = names.slice(0, playerCount).map((n, i) => n.trim() || `Oyuncu ${i + 1}`);
-    navigate('/game', { state: { playerNames, category: selectedCategory } });
+    navigate('/game', { state: { playerNames, category: selectedCategory, yearStart, yearEnd } });
   };
 
   return (
@@ -102,6 +104,51 @@ export default function PlayerSetup() {
               </button>
             )}
           </div>
+        </div>
+
+        {/* Year range */}
+        <div className="space-y-3">
+          <label className="font-inter text-sm text-muted-foreground flex items-center gap-2">
+            <CalendarRange className="w-4 h-4" />
+            Yıl Aralığı
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <p className="font-inter text-xs text-muted-foreground/70 text-center">Başlangıç</p>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setYearStart(y => Math.max(0, y - 10))}
+                  className="w-8 h-8 rounded-lg border border-border/50 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground transition-all text-sm font-bold"
+                >−</button>
+                <span className="flex-1 text-center font-cinzel text-base font-bold text-foreground">
+                  {yearStart}
+                </span>
+                <button
+                  onClick={() => setYearStart(y => Math.min(yearEnd - 10, y + 10))}
+                  className="w-8 h-8 rounded-lg border border-border/50 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground transition-all text-sm font-bold"
+                >+</button>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <p className="font-inter text-xs text-muted-foreground/70 text-center">Bitiş</p>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setYearEnd(y => Math.max(yearStart + 10, y - 10))}
+                  className="w-8 h-8 rounded-lg border border-border/50 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground transition-all text-sm font-bold"
+                >−</button>
+                <span className="flex-1 text-center font-cinzel text-base font-bold text-foreground">
+                  {yearEnd}
+                </span>
+                <button
+                  onClick={() => setYearEnd(y => Math.min(new Date().getFullYear(), y + 10))}
+                  className="w-8 h-8 rounded-lg border border-border/50 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground transition-all text-sm font-bold"
+                >+</button>
+              </div>
+            </div>
+          </div>
+          <p className="font-inter text-xs text-muted-foreground/60 text-center">
+            {yearStart} – {yearEnd} yılları arası sorular
+          </p>
         </div>
 
         {/* Player names */}

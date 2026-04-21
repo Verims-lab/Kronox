@@ -19,6 +19,8 @@ export default function Game() {
   const navigate = useNavigate();
   const playerNames = location.state?.playerNames;
   const category = location.state?.category || 'karisik';
+  const yearStart = location.state?.yearStart ?? 0;
+  const yearEnd = location.state?.yearEnd ?? new Date().getFullYear();
 
   const [players, setPlayers] = useState([]);
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
@@ -53,9 +55,9 @@ export default function Game() {
 
   // Initialize game
   useEffect(() => {
-    const filteredQuestions = category === 'karisik'
-      ? allQuestions
-      : allQuestions.filter(q => q.category === category);
+    const filteredQuestions = allQuestions
+      .filter(q => q.year >= yearStart && q.year <= yearEnd)
+      .filter(q => category === 'karisik' || q.category === category);
 
     if (!playerNames || filteredQuestions.length === 0 || gameReady) return;
 
@@ -137,7 +139,9 @@ export default function Game() {
     setSelectedZone(null);
     setTimerKey(k => k + 1);
 
-    const pool = category === 'karisik' ? allQuestions : allQuestions.filter(q => q.category === category);
+    const pool = allQuestions
+      .filter(q => q.year >= yearStart && q.year <= yearEnd)
+      .filter(q => category === 'karisik' || q.category === category);
     const nextQ = pickQuestion(usedQuestionIds, pool);
     if (nextQ) {
       setCurrentQuestion(nextQ);
