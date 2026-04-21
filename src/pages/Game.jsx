@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Loader2, Check, ArrowLeft, Settings } from 'lucide-react';
+import { Loader2, Check, ArrowLeft, Settings, X } from 'lucide-react';
 
 import PlayerIndicator from '@/components/game/PlayerIndicator';
 import Timeline from '@/components/game/Timeline';
@@ -33,9 +33,11 @@ export default function Game() {
   const [feedback, setFeedback] = useState(null);
   const [winner, setWinner] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showLogs, setShowLogs] = useState(false);
   const [timerKey, setTimerKey] = useState(0);
   const [lobbyData, setLobbyData] = useState(null);
   const [error, setError] = useState(null);
+  const logsRef = React.useRef([]);
   const isMyTurnRef = React.useRef(true);
   const unsubRef = React.useRef(null);
   const eventQueueRef = React.useRef([]);
@@ -46,6 +48,20 @@ export default function Game() {
     queryFn: () => base44.entities.Question.list('-created_date', 200),
     initialData: [],
   });
+
+  // Capture logs
+  React.useEffect(() => {
+    const originalLog = console.log;
+    console.log = (...args) => {
+      originalLog(...args);
+      const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+      if (msg.includes('[Game]')) {
+        logsRef.current.push(`${new Date().toLocaleTimeString()}: ${msg}`);
+        if (logsRef.current.length > 50) logsRef.current.shift();
+      }
+    };
+    return () => { console.log = originalLog; };
+  }, []);
 
   // Derive all state from lobbyData
   const players = useMemo(() => 
@@ -523,7 +539,45 @@ export default function Game() {
 
       {/* Settings modal */}
       <AnimatePresence>
-        {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      </AnimatePresence>
+
+      {/* Logs modal */}
+      <AnimatePresence>
+      {showLogs && (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-end justify-center bg-background/80 backdrop-blur-sm"
+        onClick={() => setShowLogs(false)}
+      >
+        <motion.div
+          initial={{ y: 100, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 100, opacity: 0 }}
+          className="w-full max-w-md bg-card border border-border rounded-t-2xl p-4 space-y-2"
+          onClick={(e) => e.stopPropagation()}
+          style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', maxHeight: '60vh' }}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-inter text-sm font-semibold">Game Logs</h3>
+            <Button variant="ghost" size="icon" onClick={() => setShowLogs(false)}>
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+          <div className="overflow-y-auto space-y-1 text-xs font-mono text-muted-foreground bg-secondary/30 p-2 rounded-lg">
+            {logsRef.current.length === 0 ? (
+              <p>No logs yet</p>
+            ) : (
+              logsRef.current.map((log, i) => (
+                <div key={i} className="break-words">{log}</div>
+              ))
+            )}
+          </div>
+        </motion.div>
+      </motion.div>
+      )}
       </AnimatePresence>
 
       {/* Inner container — max width on desktop */}
@@ -546,14 +600,25 @@ export default function Game() {
               <h1 className="font-cinzel text-xl text-primary tracking-widest">KRONOS</h1>
               <TurnTimer key={timerKey} active={!feedback && !winner && isGameReady} onTimeUp={isMyTurn ? handleTimeUp : undefined} duration={turnDuration} />
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowSettings(true)}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <Settings className="w-5 h-5" />
-            </Button>
+            <div className="flex gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowLogs(true)}
+                className="text-muted-foreground hover:text-foreground text-xs"
+                title="View logs"
+              >
+                Logs
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowSettings(true)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <Settings className="w-5 h-5" />
+              </Button>
+            </div>
           </div>
           <PlayerIndicator players={players} currentPlayerIndex={currentPlayerIndex} myPlayerName={myPlayerName} />
         </div>
