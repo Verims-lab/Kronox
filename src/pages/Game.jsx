@@ -13,7 +13,7 @@ import FeedbackOverlay from '@/components/game/FeedbackOverlay';
 import GameOver from '@/components/game/GameOver';
 import SettingsModal from '@/components/game/SettingsModal';
 import TurnTimer from '@/components/game/TurnTimer';
-import DebugPanel from '@/components/game/DebugPanel';
+
 
 export default function Game() {
   const location = useLocation();
@@ -505,8 +505,7 @@ export default function Game() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center">
-      {/* Debug panel — dev only */}
-      {import.meta.env.DEV && <DebugPanel />}
+
 
       {/* Winner overlay */}
       {winner && <GameOver winner={winner} onRestart={handleRestart} />}
