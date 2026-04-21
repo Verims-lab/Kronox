@@ -229,10 +229,26 @@ export default function Game() {
     if (isCorrect) {
       // Add card to player's timeline
       const newPlayers = [...players];
+      const playerToUpdate = newPlayers[currentPlayerIndex];
+      
+      console.log('[Game] Before card add:', {
+        currentPlayerIndex,
+        playerName: playerToUpdate.name,
+        cardsBefore: playerToUpdate.cards.length,
+        allPlayersCards: newPlayers.map(p => ({ name: p.name, cards: p.cards.length }))
+      });
+      
       newPlayers[currentPlayerIndex] = {
-        ...currentPlayer,
-        cards: [...currentPlayer.cards, { id: currentQuestion.id, year: questionYear, question: currentQuestion.question, type: currentQuestion.type, media_url: currentQuestion.media_url }]
+        ...playerToUpdate,
+        cards: [...playerToUpdate.cards, { id: currentQuestion.id, year: questionYear, question: currentQuestion.question, type: currentQuestion.type, media_url: currentQuestion.media_url }]
       };
+
+      console.log('[Game] After card add:', {
+        currentPlayerIndex,
+        playerName: newPlayers[currentPlayerIndex].name,
+        cardsAfter: newPlayers[currentPlayerIndex].cards.length,
+        allPlayersCards: newPlayers.map(p => ({ name: p.name, cards: p.cards.length }))
+      });
 
       // Soruyu kullanılan sorular listesine ekle
       const newUsed = new Set([...usedQuestionIds, currentQuestion.id]);
@@ -241,9 +257,11 @@ export default function Game() {
       const hasWon = newPlayers[currentPlayerIndex].cards.length >= winCardCount;
 
       console.log('[Game] Writing to DB:', {
+        currentPlayerIndex,
         playerCardsAfter: newPlayers[currentPlayerIndex].cards.length,
         hasWon,
-        lobbyId
+        lobbyId,
+        lobbyPlayersSnapshot: newPlayers.map(p => ({ name: p.name, cards: p.cards.length }))
       });
 
       // Online modda lobbyye yaz, offline modda lobbyData'yı update et
