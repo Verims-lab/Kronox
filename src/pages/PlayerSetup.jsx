@@ -60,26 +60,21 @@ export default function PlayerSetup() {
             <Users className="w-4 h-4" />
             Oyuncu Sayısı
           </label>
-          <div className="flex items-center justify-center gap-4">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setPlayerCount(2)}
-              disabled={playerCount === 2}
-            >
-              <Minus className="w-4 h-4" />
-            </Button>
-            <span className="font-cinzel text-3xl text-primary font-bold w-12 text-center">
-              {playerCount}
-            </span>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setPlayerCount(4)}
-              disabled={playerCount === 4}
-            >
-              <Plus className="w-4 h-4" />
-            </Button>
+          <div className="flex items-center justify-center gap-3">
+            {[2, 3, 4].map((n) => (
+              <button
+                key={n}
+                onClick={() => setPlayerCount(n)}
+                className={`
+                  w-14 h-14 rounded-xl border-2 font-cinzel text-2xl font-bold transition-all duration-150
+                  ${playerCount === n
+                    ? 'border-primary bg-primary/15 text-primary'
+                    : 'border-border/50 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground'}
+                `}
+              >
+                {n}
+              </button>
+            ))}
           </div>
         </div>
 
