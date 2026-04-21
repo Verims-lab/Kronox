@@ -319,32 +319,22 @@ export default function Game() {
     const nextQ = pickQuestion(usedQuestionIds, pool);
     const newUsed = nextQ ? new Set([...usedQuestionIds, nextQ.id]) : usedQuestionIds;
 
-    console.log('[Game] advanceTurn:', {
-      currentIndex: currentPlayerIndex,
-      nextIndex,
-      nextPlayerName: players[nextIndex]?.name,
-      nextQuestionId: nextQ?.id,
-      nextQuestionYear: nextQ?.year,
-      lobbyId
-    });
+    // Optimistic update—her durumda state'i güncelle
+    setLobbyData(prev => ({
+      ...prev,
+      current_player_index: nextIndex,
+      current_question_id: nextQ?.id || prev.current_question_id,
+      used_question_ids: [...newUsed]
+    }));
 
+    // Online: DB'ye de senkronize et
     if (lobbyId) {
-      // Online: DB'ye yaz, subscription'dan güncelle
-      console.log('[Game] advanceTurn - DB update:', { nextIndex, nextQuestionId: nextQ?.id });
       base44.entities.Lobby.update(lobbyId, {
         current_player_index: nextIndex,
         ...(nextQ ? { current_question_id: nextQ.id, used_question_ids: [...newUsed] } : {}),
       }).catch((err) => console.error('[Game] advanceTurn DB update failed:', err));
-    } else {
-      // Offline: lobbyData'yı manuel update et
-      setLobbyData(prev => ({
-        ...prev,
-        current_player_index: nextIndex,
-        current_question_id: nextQ?.id || prev.current_question_id,
-        used_question_ids: [...newUsed]
-      }));
     }
-  }, [currentPlayerIndex, players.length, category, allQuestions, usedQuestionIds, pickQuestion, lobbyId, players]);
+  }, [currentPlayerIndex, players.length, category, allQuestions, usedQuestionIds, pickQuestion, lobbyId]);
 
   const handleFeedbackDone = useCallback(() => {
     console.log('[Game] handleFeedbackDone - calling advanceTurn');
