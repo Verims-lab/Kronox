@@ -51,6 +51,7 @@ export default function LobbyRoom() {
               turnDuration: event.data.turn_duration,
               winCardCount: event.data.win_card_count,
               lobbyId: lobby.id,
+              myPlayerName: playerName.trim(),
             }
           });
         }

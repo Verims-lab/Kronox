@@ -24,6 +24,7 @@ export default function Game() {
   const turnDuration = location.state?.turnDuration ?? 60;
   const winCardCount = location.state?.winCardCount ?? 10;
   const lobbyId = location.state?.lobbyId ?? null;
+  const myPlayerName = location.state?.myPlayerName ?? null;
 
   const [players, setPlayers] = useState([]);
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
@@ -35,7 +36,6 @@ export default function Game() {
   const [gameReady, setGameReady] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [timerKey, setTimerKey] = useState(0);
-  const [myPlayerName, setMyPlayerName] = useState(null);
   const [lobbyData, setLobbyData] = useState(null);
 
   const { data: allQuestions, isLoading } = useQuery({
@@ -50,14 +50,6 @@ export default function Game() {
       navigate('/');
     }
   }, [playerNames, navigate]);
-
-  // Online: kendi adımızı bul
-  useEffect(() => {
-    if (!lobbyId) return;
-    base44.auth.me().then(u => {
-      if (u) setMyPlayerName(u.full_name || u.email);
-    }).catch(() => {});
-  }, [lobbyId]);
 
   // Online: lobby'yi dinle ve currentPlayerIndex'i senkronize et
   useEffect(() => {
