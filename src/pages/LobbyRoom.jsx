@@ -293,6 +293,21 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
     
     await base44.entities.Lobby.update(lobby.id, updateData);
     console.log('[LobbyRoom] Lobby updated successfully');
+    
+    // Navigate immediately with playersWithCards
+    navigate('/game', {
+      state: {
+        playerNames: playersWithCards.map(p => p.name),
+        initialPlayers: playersWithCards,
+        category: settings.category,
+        yearStart: settings.year_start,
+        yearEnd: settings.year_end,
+        turnDuration: settings.turn_duration,
+        winCardCount: settings.win_card_count,
+        lobbyId: lobby.id,
+        myPlayerName: playerName.trim(),
+      }
+    });
   };
 
   return (
