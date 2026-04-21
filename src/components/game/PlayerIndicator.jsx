@@ -8,19 +8,27 @@ const playerColors = [
   'from-violet-500/20 to-violet-600/10 border-violet-500/50 text-violet-400',
 ];
 
-export default function PlayerIndicator({ players, currentPlayerIndex, myPlayerName }) {
+export default function PlayerIndicator({ players = [], currentPlayerIndex = 0, myPlayerName }) {
+  if (!players || players.length === 0) {
+    return <div className="text-xs text-muted-foreground">Oyuncular yükleniyor...</div>;
+  }
+
   return (
     <div className="flex gap-2 justify-center flex-wrap px-2">
       {players.map((player, i) => {
+        if (!player || !player.name) return null;
+        
         const isActive = i === currentPlayerIndex;
         const isMe = myPlayerName && player.name === myPlayerName;
+        const cardCount = player.cards?.length || 0;
+        
         return (
           <div
             key={i}
             className={`
               flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-inter font-medium
               bg-gradient-to-r transition-all duration-300
-              ${playerColors[i]}
+              ${playerColors[i % playerColors.length]}
               ${isActive ? 'ring-2 ring-primary scale-105 shadow-lg' : 'opacity-60'}
             `}
           >
@@ -38,7 +46,7 @@ export default function PlayerIndicator({ players, currentPlayerIndex, myPlayerN
             )}
             <span className="bg-background/50 px-1.5 py-0.5 rounded-full text-foreground/70"
                   style={{ fontSize: '10px' }}>
-              {player.cards.length}/10
+              {cardCount}/10
             </span>
           </div>
         );
