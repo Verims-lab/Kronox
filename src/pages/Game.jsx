@@ -118,6 +118,7 @@ export default function Game() {
         console.log('[Game] Lobby subscription update:', { 
           players: event.data.players?.length, 
           status: event.data.status,
+          current_player_index: event.data.current_player_index,
           first_player_cards: event.data.players?.[0]?.cards?.map(c => ({ id: c.id, year: c.year })) || [],
           current_question_id: event.data.current_question_id,
           used_question_ids_count: event.data.used_question_ids?.length || 0
@@ -195,6 +196,13 @@ export default function Game() {
     const sortedCards = [...currentPlayer.cards].sort((a, b) => a.year - b.year);
     const questionYear = currentQuestion.year;
 
+    console.log('[Game] handleConfirmPlacement:', {
+      player: currentPlayer.name,
+      selectedZone,
+      questionYear,
+      playerCardsBefore: currentPlayer.cards.length
+    });
+
     // Check if placement is correct
     let isCorrect = false;
     if (selectedZone === 0) {
@@ -204,6 +212,8 @@ export default function Game() {
     } else {
       isCorrect = questionYear >= sortedCards[selectedZone - 1].year && questionYear <= sortedCards[selectedZone].year;
     }
+
+    console.log('[Game] isCorrect:', isCorrect);
 
     if (isCorrect) {
       // Add card to player's timeline
@@ -219,6 +229,12 @@ export default function Game() {
       // Check win condition BEFORE updating
       const hasWon = newPlayers[currentPlayerIndex].cards.length >= winCardCount;
 
+      console.log('[Game] Writing to DB:', {
+        playerCardsAfter: newPlayers[currentPlayerIndex].cards.length,
+        hasWon,
+        lobbyId
+      });
+
       // Online modda lobbyye yaz, offline modda lobbyData'yı update et
       if (lobbyId) {
         const lobbyPlayers = newPlayers.map(p => ({
@@ -231,7 +247,7 @@ export default function Game() {
           players: lobbyPlayers, 
           used_question_ids: [...newUsed],
           status: hasWon ? 'finished' : 'in_game'
-        }).catch(() => {});
+        }).then(() => console.log('[Game] Lobby update successful')).catch((err) => console.error('[Game] Lobby update failed:', err));
       } else {
         // Offline modda lobbyData'yı manuel update et
         setLobbyData(prev => ({
@@ -251,6 +267,7 @@ export default function Game() {
       }
     }
 
+    console.log('[Game] Setting feedback:', { result: isCorrect ? 'correct' : 'wrong', year: questionYear });
     setFeedback({ result: isCorrect ? 'correct' : 'wrong', year: questionYear });
     setSelectedZone(null);
   };
@@ -267,6 +284,15 @@ export default function Game() {
     const nextQ = pickQuestion(usedQuestionIds, pool);
     const newUsed = nextQ ? new Set([...usedQuestionIds, nextQ.id]) : usedQuestionIds;
 
+    console.log('[Game] advanceTurn:', {
+      currentIndex: currentPlayerIndex,
+      nextIndex,
+      nextPlayerName: players[nextIndex]?.name,
+      nextQuestionId: nextQ?.id,
+      nextQuestionYear: nextQ?.year,
+      lobbyId
+    });
+
     if (lobbyId) {
       // Online: local update first (optimistic), then DB
       setLobbyData(prev => ({
@@ -278,7 +304,7 @@ export default function Game() {
       base44.entities.Lobby.update(lobbyId, {
         current_player_index: nextIndex,
         ...(nextQ ? { current_question_id: nextQ.id, used_question_ids: [...newUsed] } : {}),
-      }).catch(() => {});
+      }).then(() => console.log('[Game] advanceTurn DB update successful')).catch((err) => console.error('[Game] advanceTurn DB update failed:', err));
     } else {
       // Offline: lobbyData'yı manuel update et
       setLobbyData(prev => ({
@@ -288,9 +314,10 @@ export default function Game() {
         used_question_ids: [...newUsed]
       }));
     }
-  }, [currentPlayerIndex, players.length, category, allQuestions, usedQuestionIds, pickQuestion, lobbyId]);
+  }, [currentPlayerIndex, players.length, category, allQuestions, usedQuestionIds, pickQuestion, lobbyId, players]);
 
   const handleFeedbackDone = useCallback(() => {
+    console.log('[Game] handleFeedbackDone - calling advanceTurn');
     setFeedback(null);
     advanceTurn();
   }, [advanceTurn]);
