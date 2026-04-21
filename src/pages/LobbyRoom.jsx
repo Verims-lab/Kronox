@@ -31,17 +31,22 @@ export default function LobbyRoom() {
   // Subscribe to lobby changes
   useEffect(() => {
     if (!lobby?.id) return;
+    
     const unsub = base44.entities.Lobby.subscribe((event) => {
-      if (event.id === lobby.id) {
-        if (event.type === 'delete') {
-          setLobby(null);
-          setMode(null);
-          setError('Lobi kapatıldı.');
-          return;
-        }
-        setLobby(event.data);
-        // If host started the game
-        if (event.data.status === 'starting') {
+      if (event.id !== lobby.id) return;
+      
+      if (event.type === 'delete') {
+        setLobby(null);
+        setMode(null);
+        setError('Lobi kapatıldı.');
+        return;
+      }
+      
+      setLobby(event.data);
+      
+      // If host started the game — navigate after a small delay to let state settle
+      if (event.data.status === 'starting') {
+        setTimeout(() => {
           navigate('/game', {
             state: {
               playerNames: event.data.players.map(p => p.name),
@@ -54,11 +59,14 @@ export default function LobbyRoom() {
               myPlayerName: playerName.trim(),
             }
           });
-        }
+        }, 100);
       }
     });
+    
     unsubRef.current = unsub;
-    return () => unsub();
+    return () => {
+      if (unsubRef.current) unsubRef.current();
+    };
   }, [lobby?.id, playerName, navigate]);
 
   const handleCreate = async () => {
