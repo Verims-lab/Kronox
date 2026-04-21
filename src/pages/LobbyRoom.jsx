@@ -278,7 +278,8 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
       return { ...p, cards };
     });
     
-    const firstQ = filtered[Math.floor(Math.random() * filtered.length)];
+    const available = filtered.filter(q => !used.has(q.id));
+    const firstQ = available[Math.floor(Math.random() * available.length)];
     used.add(firstQ.id);
     
     console.log('[LobbyRoom] Selected first question:', firstQ.id, firstQ.question);
