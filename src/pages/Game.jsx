@@ -71,6 +71,14 @@ export default function Game() {
       if (data.used_question_ids) {
         setUsedQuestionIds(new Set(data.used_question_ids));
       }
+      // Oyuncu kartlarını senkronize et
+      if (data.players && Array.isArray(data.players)) {
+        const updatedPlayers = players.map(p => {
+          const lobbyPlayer = data.players.find(lp => lp.name === p.name);
+          return lobbyPlayer ? { ...p, cards: lobbyPlayer.cards || p.cards } : p;
+        });
+        setPlayers(updatedPlayers);
+      }
     });
     // İlk yükleme
     base44.entities.Lobby.filter({ id: lobbyId }).then(res => {
@@ -86,6 +94,14 @@ export default function Game() {
         }
         if (data.used_question_ids) {
           setUsedQuestionIds(new Set(data.used_question_ids));
+        }
+        // Oyuncu kartlarını senkronize et
+        if (data.players && Array.isArray(data.players)) {
+          const updatedPlayers = players.map(p => {
+            const lobbyPlayer = data.players.find(lp => lp.name === p.name);
+            return lobbyPlayer ? { ...p, cards: lobbyPlayer.cards || p.cards } : p;
+          });
+          setPlayers(updatedPlayers);
         }
       }
     }).catch(() => {});
@@ -172,6 +188,17 @@ export default function Game() {
         cards: [...currentPlayer.cards, { id: currentQuestion.id, year: questionYear, question: currentQuestion.question, type: currentQuestion.type, media_url: currentQuestion.media_url }]
       };
       setPlayers(newPlayers);
+
+      // Online modda oyuncuları lobbyye yaz
+      if (lobbyId) {
+        const lobbyPlayers = newPlayers.map(p => ({
+          email: p.email || `player_${p.name}`,
+          name: p.name,
+          ready: true,
+          cards: p.cards
+        }));
+        base44.entities.Lobby.update(lobbyId, { players: lobbyPlayers }).catch(() => {});
+      }
 
       // Check win condition
       if (newPlayers[currentPlayerIndex].cards.length >= winCardCount) {
