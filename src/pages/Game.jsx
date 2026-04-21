@@ -18,6 +18,7 @@ export default function Game() {
   const location = useLocation();
   const navigate = useNavigate();
   const playerNames = location.state?.playerNames;
+  const initialPlayers = location.state?.initialPlayers;
   const category = location.state?.category || 'karisik';
   const yearStart = location.state?.yearStart ?? 0;
   const yearEnd = location.state?.yearEnd ?? new Date().getFullYear();
@@ -66,10 +67,20 @@ export default function Game() {
     
     console.log('[Game] Online mode - setup with lobbyId:', lobbyId);
     
-    // İlk yükleme
+    // İlk yükleme — initialPlayers ile başla, sonra lobby'den fetch et
+    if (initialPlayers && initialPlayers.length > 0) {
+      console.log('[Game] Initializing with local state:', { players: initialPlayers.length, cards: initialPlayers[0].cards?.length || 0 });
+      setLobbyData({
+        players: initialPlayers,
+        current_player_index: 0,
+        current_question_id: initialPlayers[0]?.cards?.[0]?.id || null,
+        used_question_ids: initialPlayers.flatMap(p => p.cards?.map(c => c.id) || [])
+      });
+    }
+    
     base44.entities.Lobby.get(lobbyId)
       .then(data => {
-        console.log('[Game] Initial lobby load:', { players: data.players?.length, status: data.status });
+        console.log('[Game] Initial lobby load:', { players: data.players?.length, status: data.status, first_player_cards: data.players?.[0]?.cards?.length });
         setLobbyData(data);
       })
       .catch(err => console.error('[Game] Lobby load error:', err));
@@ -83,7 +94,7 @@ export default function Game() {
     });
     
     return () => unsub();
-  }, [lobbyId, allQuestions]);
+  }, [lobbyId, allQuestions, initialPlayers]);
 
   // Pick a random unused question
   const pickQuestion = useCallback((usedIds, questions) => {

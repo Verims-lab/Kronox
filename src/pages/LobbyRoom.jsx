@@ -50,6 +50,7 @@ export default function LobbyRoom() {
           navigate('/game', {
             state: {
               playerNames: event.data.players.map(p => p.name),
+              initialPlayers: event.data.players,
               category: event.data.category,
               yearStart: event.data.year_start,
               yearEnd: event.data.year_end,
