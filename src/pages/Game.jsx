@@ -57,20 +57,29 @@ export default function Game() {
   useEffect(() => {
     if (!lobbyId) return;
     
+    console.log('[Game] Online mode - lobbyId:', lobbyId);
+    
     const unsub = base44.entities.Lobby.subscribe((event) => {
       if (event.id !== lobbyId) return;
       if (event.type === 'delete') return;
       
       const data = event.data;
+      console.log('[Game] Lobby subscription update:', {
+        players: data.players?.length,
+        currentPlayerIndex: data.current_player_index,
+        hasQuestion: !!data.current_question_id,
+      });
       setLobbyData(data);
       
       // Oyuncu listesini senkronize et (kartlar hariç)
       if (data.players && Array.isArray(data.players)) {
-        setPlayers(data.players.map(p => ({
+        const mapped = data.players.map(p => ({
           name: p.name,
           email: p.email,
           cards: p.cards || []
-        })));
+        }));
+        console.log('[Game] Setting players:', mapped.length);
+        setPlayers(mapped);
       }
       
       if (typeof data.current_player_index === 'number') {
@@ -79,7 +88,10 @@ export default function Game() {
       
       if (data.current_question_id && allQuestions.length > 0) {
         const q = allQuestions.find(q => q.id === data.current_question_id);
-        if (q) setCurrentQuestion(q);
+        if (q) {
+          console.log('[Game] Setting question:', q.question);
+          setCurrentQuestion(q);
+        }
       }
       
       if (data.used_question_ids) {
@@ -91,22 +103,30 @@ export default function Game() {
     base44.entities.Lobby.filter({ id: lobbyId }).then(res => {
       if (res?.[0]) {
         const data = res[0];
+        console.log('[Game] Initial lobby load:', {
+          players: data.players?.length,
+          status: data.status,
+        });
         setLobbyData(data);
         
         // Oyuncu listesini hemen set et
         if (data.players && Array.isArray(data.players)) {
-          setPlayers(data.players.map(p => ({
+          const mapped = data.players.map(p => ({
             name: p.name,
             email: p.email,
             cards: p.cards || []
-          })));
+          }));
+          console.log('[Game] Initial players set:', mapped.length);
+          setPlayers(mapped);
         }
         
         if (typeof data.current_player_index === 'number') {
           setCurrentPlayerIndex(data.current_player_index);
         }
       }
-    }).catch(() => {});
+    }).catch(err => {
+      console.error('[Game] Lobby load error:', err);
+    });
     
     return () => unsub();
   }, [lobbyId]);
@@ -329,6 +349,12 @@ export default function Game() {
   const isGameReady = lobbyId ? players.length > 0 && currentQuestion : gameReady && players.length > 0 && currentQuestion;
   
   if (!isGameReady) {
+    console.log('[Game] Waiting for ready:', {
+      isOnline: !!lobbyId,
+      playersCount: players.length,
+      hasQuestion: !!currentQuestion,
+      gameReady: gameReady,
+    });
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-6">
         <div className="text-center space-y-4">
