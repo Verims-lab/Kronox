@@ -55,9 +55,9 @@ export default function Game() {
 
   // Online: lobby'yi dinle — currentPlayerIndex ve currentQuestion senkronize et
   useEffect(() => {
-    if (!lobbyId) return;
+    if (!lobbyId || allQuestions.length === 0) return;
     
-    console.log('[Game] Online mode - lobbyId:', lobbyId);
+    console.log('[Game] Online mode - lobbyId:', lobbyId, 'allQuestions:', allQuestions.length);
     
     const unsub = base44.entities.Lobby.subscribe((event) => {
       if (event.id !== lobbyId) return;
@@ -87,16 +87,10 @@ export default function Game() {
       }
       
       if (data.current_question_id) {
-        if (allQuestions.length > 0) {
-          const q = allQuestions.find(q => q.id === data.current_question_id);
-          if (q) {
-            console.log('[Game] Setting question from subscription:', q.question);
-            setCurrentQuestion(q);
-          } else {
-            console.log('[Game] Question not found in allQuestions from subscription');
-          }
-        } else {
-          console.log('[Game] allQuestions not ready in subscription');
+        const q = allQuestions.find(q => q.id === data.current_question_id);
+        if (q) {
+          console.log('[Game] Setting question:', q.question);
+          setCurrentQuestion(q);
         }
       }
       
@@ -132,18 +126,11 @@ export default function Game() {
           setCurrentPlayerIndex(data.current_player_index);
         }
         
-        if (data.current_question_id) {
-          console.log('[Game] Question ID exists:', data.current_question_id, 'allQuestions:', allQuestions.length);
-          if (allQuestions.length > 0) {
-            const q = allQuestions.find(q => q.id === data.current_question_id);
-            if (q) {
-              console.log('[Game] Initial question set:', q.question);
-              setCurrentQuestion(q);
-            } else {
-              console.log('[Game] Question not found in allQuestions');
-            }
-          } else {
-            console.log('[Game] allQuestions not loaded yet');
+        if (data.current_question_id && allQuestions.length > 0) {
+          const q = allQuestions.find(q => q.id === data.current_question_id);
+          if (q) {
+            console.log('[Game] Initial question set:', q.question);
+            setCurrentQuestion(q);
           }
         }
       } catch (err) {
