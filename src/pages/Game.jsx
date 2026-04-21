@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Loader2, Check, ArrowLeft, Settings, X } from 'lucide-react';
+import { Loader2, Check, ArrowLeft, Settings, X, Copy } from 'lucide-react';
 
 import PlayerIndicator from '@/components/game/PlayerIndicator';
 import Timeline from '@/components/game/Timeline';
@@ -568,9 +568,22 @@ export default function Game() {
         >
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-inter text-sm font-semibold">Game Logs</h3>
-            <Button variant="ghost" size="icon" onClick={() => setShowLogs(false)}>
-              <X className="w-4 h-4" />
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => {
+                  navigator.clipboard.writeText(logsRef.current.join('\n'));
+                  alert('Loglar kopyalandı!');
+                }}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <Copy className="w-4 h-4" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => setShowLogs(false)}>
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
           <div className="overflow-y-auto space-y-1 text-xs font-mono text-muted-foreground bg-secondary/30 p-2 rounded-lg">
             {logsRef.current.length === 0 ? (
