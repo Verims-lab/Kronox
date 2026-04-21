@@ -2,8 +2,8 @@ import React, { useRef, useEffect } from 'react';
 import TimelineCard from './TimelineCard';
 import DropZone from './DropZone';
 
-export default function Timeline({ cards, onPlaceCard, selectedZone, onSelectZone }) {
-  const sortedCards = [...cards].sort((a, b) => a.year - b.year);
+export default function Timeline({ cards = [], onPlaceCard, selectedZone, onSelectZone }) {
+  const sortedCards = cards && Array.isArray(cards) ? [...cards].sort((a, b) => a.year - b.year) : [];
   const scrollRef = useRef(null);
 
   // When selectedZone is 0, scroll to the far left so the user can see the first drop zone

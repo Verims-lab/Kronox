@@ -329,12 +329,25 @@ export default function Game() {
     );
   }
 
-  const currentPlayer = players[currentPlayerIndex];
+  const currentPlayer = players.length > 0 ? players[currentPlayerIndex] : null;
 
   // Online modda sadece sırası gelen oyuncu seçim yapabilir
   const isOnline = !!lobbyId;
   const isMyTurn = !isOnline || (myPlayerName && currentPlayer?.name === myPlayerName);
   isMyTurnRef.current = isMyTurn;
+
+  if (gameReady && (!players.length || !currentPlayer || !currentQuestion)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <div className="text-center space-y-4">
+          <p className="font-inter text-foreground">
+            Oyun başlatılıyor... {players.length === 0 && 'Oyuncular yükleniyor'}
+          </p>
+          <Button onClick={() => navigate('/')} variant="outline">Geri Dön</Button>
+        </div>
+      </div>
+    );
+  }
 
 
   return (
