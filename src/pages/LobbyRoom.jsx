@@ -44,23 +44,24 @@ export default function LobbyRoom() {
       
       setLobby(event.data);
       
-      // If host started the game — navigate after a small delay to let state settle
-      if (event.data.status === 'starting') {
-        setTimeout(() => {
-          navigate('/game', {
-            state: {
-              playerNames: event.data.players.map(p => p.name),
-              initialPlayers: event.data.players,
-              category: event.data.category,
-              yearStart: event.data.year_start,
-              yearEnd: event.data.year_end,
-              turnDuration: event.data.turn_duration,
-              winCardCount: event.data.win_card_count,
-              lobbyId: event.data.id,
-              myPlayerName: playerName.trim(),
-            }
-          });
-        }, 100);
+      // If host started the game — only non-hosts navigate via subscription
+      // Host navigates directly in handleStart with playersWithCards
+      const isCurrentUserHost = event.data.host_email === (user?.email || '');
+      const isGuestCurrentHost = !user && event.data.players?.[0]?.name === playerName.trim();
+      if (event.data.status === 'starting' && !isCurrentUserHost && !isGuestCurrentHost) {
+        navigate('/game', {
+          state: {
+            playerNames: event.data.players.map(p => p.name),
+            initialPlayers: event.data.players,
+            category: event.data.category,
+            yearStart: event.data.year_start,
+            yearEnd: event.data.year_end,
+            turnDuration: event.data.turn_duration,
+            winCardCount: event.data.win_card_count,
+            lobbyId: event.data.id,
+            myPlayerName: playerName.trim(),
+          }
+        });
       }
     });
     
