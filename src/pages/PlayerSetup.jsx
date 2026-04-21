@@ -3,16 +3,25 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Clock, Users, Play, Plus, Minus } from 'lucide-react';
+import { Clock, Users, Play, Plus, Minus, Layers, BookOpen, FlaskConical, Trophy, Sparkles } from 'lucide-react';
 
 export default function PlayerSetup() {
   const navigate = useNavigate();
   const [playerCount, setPlayerCount] = useState(2);
   const [names, setNames] = useState(['', '', '', '']);
+  const [selectedCategory, setSelectedCategory] = useState('karisik');
+
+  const categories = [
+    { value: 'karisik', label: 'Karışık', icon: Layers },
+    { value: 'tarih', label: 'Tarih', icon: BookOpen },
+    { value: 'bilim', label: 'Bilim', icon: FlaskConical },
+    { value: 'spor', label: 'Spor', icon: Trophy },
+    { value: 'sanat', label: 'Popüler Kültür', icon: Sparkles },
+  ];
 
   const handleStart = () => {
     const playerNames = names.slice(0, playerCount).map((n, i) => n.trim() || `Oyuncu ${i + 1}`);
-    navigate('/game', { state: { playerNames } });
+    navigate('/game', { state: { playerNames, category: selectedCategory } });
   };
 
   return (
@@ -71,6 +80,32 @@ export default function PlayerSetup() {
             >
               <Plus className="w-4 h-4" />
             </Button>
+          </div>
+        </div>
+
+        {/* Category selection */}
+        <div className="space-y-3">
+          <label className="font-inter text-sm text-muted-foreground flex items-center gap-2">
+            <Layers className="w-4 h-4" />
+            Kategori
+          </label>
+          <div className="grid grid-cols-3 gap-2">
+            {categories.map(({ value, label, icon: Icon }) => (
+              <button
+                key={value}
+                onClick={() => setSelectedCategory(value)}
+                className={`
+                  flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border-2
+                  font-inter text-xs font-medium transition-all duration-150
+                  ${selectedCategory === value
+                    ? 'border-primary bg-primary/15 text-primary'
+                    : 'border-border/50 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground'}
+                `}
+              >
+                <Icon className="w-4 h-4" />
+                {label}
+              </button>
+            ))}
           </div>
         </div>
 

@@ -17,6 +17,7 @@ export default function Game() {
   const location = useLocation();
   const navigate = useNavigate();
   const playerNames = location.state?.playerNames;
+  const category = location.state?.category || 'karisik';
 
   const [players, setPlayers] = useState([]);
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
@@ -50,13 +51,17 @@ export default function Game() {
 
   // Initialize game
   useEffect(() => {
-    if (!playerNames || allQuestions.length === 0 || gameReady) return;
+    const filteredQuestions = category === 'karisik'
+      ? allQuestions
+      : allQuestions.filter(q => q.category === category);
+
+    if (!playerNames || filteredQuestions.length === 0 || gameReady) return;
 
     const used = new Set();
     const newPlayers = playerNames.map((name) => {
       const cards = [];
       for (let j = 0; j < 2; j++) {
-        const q = pickQuestion(used, allQuestions);
+        const q = pickQuestion(used, filteredQuestions);
         if (q) {
           cards.push({ id: q.id, year: q.year, question: q.question });
           used.add(q.id);
@@ -69,7 +74,7 @@ export default function Game() {
     setUsedQuestionIds(used);
 
     // Pick first question
-    const firstQ = pickQuestion(used, allQuestions);
+    const firstQ = pickQuestion(used, filteredQuestions);
     if (firstQ) {
       setCurrentQuestion(firstQ);
       used.add(firstQ.id);
@@ -77,7 +82,7 @@ export default function Game() {
     }
 
     setGameReady(true);
-  }, [playerNames, allQuestions, pickQuestion, gameReady]);
+  }, [playerNames, allQuestions, category, pickQuestion, gameReady]);
 
   const handleSelectZone = (index) => {
     setSelectedZone(index);
@@ -132,7 +137,8 @@ export default function Game() {
     setCurrentPlayerIndex(nextIndex);
 
     // Pick next question
-    const nextQ = pickQuestion(usedQuestionIds, allQuestions);
+    const pool = category === 'karisik' ? allQuestions : allQuestions.filter(q => q.category === category);
+    const nextQ = pickQuestion(usedQuestionIds, pool);
     if (nextQ) {
       setCurrentQuestion(nextQ);
       setUsedQuestionIds(prev => new Set([...prev, nextQ.id]));
