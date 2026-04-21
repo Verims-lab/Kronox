@@ -26,14 +26,9 @@ export default function Game() {
   const lobbyId = location.state?.lobbyId ?? null;
   const myPlayerName = location.state?.myPlayerName ?? null;
 
-  const [players, setPlayers] = useState([]);
-  const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
-  const [currentQuestion, setCurrentQuestion] = useState(null);
-  const [usedQuestionIds, setUsedQuestionIds] = useState(new Set());
   const [selectedZone, setSelectedZone] = useState(null);
   const [feedback, setFeedback] = useState(null);
   const [winner, setWinner] = useState(null);
-  const [gameReady, setGameReady] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [timerKey, setTimerKey] = useState(0);
   const [lobbyData, setLobbyData] = useState(null);
@@ -46,6 +41,18 @@ export default function Game() {
     initialData: [],
   });
 
+  // Derive all state from lobbyData
+  const players = lobbyData?.players?.map(p => ({
+    name: p.name,
+    email: p.email,
+    cards: p.cards || []
+  })) || [];
+  const currentPlayerIndex = lobbyData?.current_player_index ?? 0;
+  const usedQuestionIds = new Set(lobbyData?.used_question_ids || []);
+  const currentQuestion = lobbyData?.current_question_id && allQuestions.length > 0
+    ? allQuestions.find(q => q.id === lobbyData.current_question_id)
+    : null;
+
   // Redirect if no player names
   useEffect(() => {
     if (!playerNames) {
@@ -53,91 +60,27 @@ export default function Game() {
     }
   }, [playerNames, navigate]);
 
-  // Online: lobby'yi dinle — currentPlayerIndex ve currentQuestion senkronize et
+  // Online: lobby'yi dinle — sadece lobbyData'yı update et
   useEffect(() => {
     if (!lobbyId || allQuestions.length === 0) return;
     
-    console.log('[Game] Online mode - lobbyId:', lobbyId, 'allQuestions:', allQuestions.length);
-    
-    const unsub = base44.entities.Lobby.subscribe((event) => {
-      if (event.id !== lobbyId) return;
-      if (event.type === 'delete') return;
-      
-      const data = event.data;
-      console.log('[Game] Lobby subscription update:', {
-        players: data.players?.length,
-        currentPlayerIndex: data.current_player_index,
-        hasQuestion: !!data.current_question_id,
-      });
-      setLobbyData(data);
-      
-      // Oyuncu listesini senkronize et (kartlar hariç)
-      if (data.players && Array.isArray(data.players)) {
-        const mapped = data.players.map(p => ({
-          name: p.name,
-          email: p.email,
-          cards: p.cards || []
-        }));
-        console.log('[Game] Setting players:', mapped.length);
-        setPlayers(mapped);
-      }
-      
-      if (typeof data.current_player_index === 'number') {
-        setCurrentPlayerIndex(data.current_player_index);
-      }
-      
-      if (data.current_question_id) {
-        const q = allQuestions.find(q => q.id === data.current_question_id);
-        if (q) {
-          console.log('[Game] Setting question:', q.question);
-          setCurrentQuestion(q);
-        }
-      }
-      
-      if (data.used_question_ids) {
-        setUsedQuestionIds(new Set(data.used_question_ids));
-      }
-    });
+    console.log('[Game] Online mode - setup with lobbyId:', lobbyId);
     
     // İlk yükleme
-    const fetchLobby = async () => {
-      try {
-        const data = await base44.entities.Lobby.get(lobbyId);
-        console.log('[Game] Initial lobby load:', {
-          players: data.players?.length,
-          status: data.status,
-          current_question_id: data.current_question_id,
-          allQuestionsLoaded: allQuestions.length,
-        });
+    base44.entities.Lobby.get(lobbyId)
+      .then(data => {
+        console.log('[Game] Initial lobby load:', { players: data.players?.length, status: data.status });
         setLobbyData(data);
-        
-        // Oyuncu listesini hemen set et
-        if (data.players && Array.isArray(data.players)) {
-          const mapped = data.players.map(p => ({
-            name: p.name,
-            email: p.email,
-            cards: p.cards || []
-          }));
-          console.log('[Game] Initial players set:', mapped.length);
-          setPlayers(mapped);
-        }
-        
-        if (typeof data.current_player_index === 'number') {
-          setCurrentPlayerIndex(data.current_player_index);
-        }
-        
-        if (data.current_question_id && allQuestions.length > 0) {
-          const q = allQuestions.find(q => q.id === data.current_question_id);
-          if (q) {
-            console.log('[Game] Initial question set:', q.question);
-            setCurrentQuestion(q);
-          }
-        }
-      } catch (err) {
-        console.error('[Game] Lobby load error:', err);
+      })
+      .catch(err => console.error('[Game] Lobby load error:', err));
+    
+    // Subscribe for updates
+    const unsub = base44.entities.Lobby.subscribe((event) => {
+      if (event.id === lobbyId && event.type !== 'delete') {
+        console.log('[Game] Lobby updated:', { players: event.data.players?.length, status: event.data.status });
+        setLobbyData(event.data);
       }
-    };
-    fetchLobby();
+    });
     
     return () => unsub();
   }, [lobbyId, allQuestions]);
@@ -151,7 +94,9 @@ export default function Game() {
 
   // Initialize game — sadece offline modda (no lobbyId)
   useEffect(() => {
-    if (lobbyId) return; // Online modda bu logic çalışmaz
+    if (lobbyId || !playerNames || players.length > 0) return;
+    
+    if (allQuestions.length === 0) return;
     
     try {
       const filteredQuestions = allQuestions
@@ -159,10 +104,8 @@ export default function Game() {
         .filter(q => q.year >= yearStart && q.year <= yearEnd)
         .filter(q => category === 'karisik' || q.category === category);
 
-      if (!playerNames || filteredQuestions.length === 0 || gameReady) return;
-
-      if (playerNames.length === 0) {
-        setError('Oyuncu bulunamadı');
+      if (filteredQuestions.length === 0) {
+        setError('Soru bulunamadı');
         return;
       }
 
@@ -176,28 +119,27 @@ export default function Game() {
             used.add(q.id);
           }
         }
-        return { name, cards };
+        return { name, email: `player_${name}`, cards };
       });
 
-      setPlayers(newPlayers);
-      setUsedQuestionIds(used);
-
-      // Pick first question
       const firstQ = pickQuestion(used, filteredQuestions);
-      if (firstQ) {
-        setCurrentQuestion(firstQ);
-        used.add(firstQ.id);
-        setUsedQuestionIds(new Set(used));
-      } else {
+      if (!firstQ) {
         setError('Soru bulunamadı');
         return;
       }
+      used.add(firstQ.id);
 
-      setGameReady(true);
+      // Set lobbyData manually for offline mode
+      setLobbyData({
+        players: newPlayers,
+        current_player_index: 0,
+        current_question_id: firstQ.id,
+        used_question_ids: [...used]
+      });
     } catch (err) {
       setError('Oyun başlatılırken hata: ' + (err?.message || 'Bilinmeyen hata'));
     }
-  }, [playerNames, allQuestions, category, pickQuestion, gameReady, lobbyId]);
+  }, [playerNames, allQuestions, category, pickQuestion, lobbyId]);
 
   const handleSelectZone = (index) => {
     setSelectedZone(index);
@@ -226,13 +168,11 @@ export default function Game() {
         ...currentPlayer,
         cards: [...currentPlayer.cards, { id: currentQuestion.id, year: questionYear, question: currentQuestion.question, type: currentQuestion.type, media_url: currentQuestion.media_url }]
       };
-      setPlayers(newPlayers);
 
       // Soruyu kullanılan sorular listesine ekle
       const newUsed = new Set([...usedQuestionIds, currentQuestion.id]);
-      setUsedQuestionIds(newUsed);
 
-      // Online modda oyuncuları lobbyye yaz
+      // Online modda lobbyye yaz, offline modda lobbyData'yı update et
       if (lobbyId) {
         const lobbyPlayers = newPlayers.map(p => ({
           email: p.email || `player_${p.name}`,
@@ -241,6 +181,13 @@ export default function Game() {
           cards: p.cards
         }));
         base44.entities.Lobby.update(lobbyId, { players: lobbyPlayers, used_question_ids: [...newUsed] }).catch(() => {});
+      } else {
+        // Offline modda lobbyData'yı manuel update et
+        setLobbyData(prev => ({
+          ...prev,
+          players: newPlayers,
+          used_question_ids: [...newUsed]
+        }));
       }
 
       // Check win condition
@@ -260,7 +207,6 @@ export default function Game() {
 
   const advanceTurn = useCallback(() => {
     const nextIndex = (currentPlayerIndex + 1) % players.length;
-    setCurrentPlayerIndex(nextIndex);
     setSelectedZone(null);
     setTimerKey(k => k + 1);
 
@@ -271,17 +217,20 @@ export default function Game() {
     const nextQ = pickQuestion(usedQuestionIds, pool);
     const newUsed = nextQ ? new Set([...usedQuestionIds, nextQ.id]) : usedQuestionIds;
 
-    if (nextQ) {
-      setCurrentQuestion(nextQ);
-      setUsedQuestionIds(newUsed);
-    }
-
-    // Online modda sırayı ve soruyu lobby'ye yaz (tüm oyuncular yazabilir — en son yazılan geçer)
     if (lobbyId) {
+      // Online: lobby'ye yaz, derived state otomatik takip edecek
       base44.entities.Lobby.update(lobbyId, {
         current_player_index: nextIndex,
         ...(nextQ ? { current_question_id: nextQ.id, used_question_ids: [...newUsed] } : {}),
       }).catch(() => {});
+    } else {
+      // Offline: lobbyData'yı manuel update et
+      setLobbyData(prev => ({
+        ...prev,
+        current_player_index: nextIndex,
+        current_question_id: nextQ?.id || prev.current_question_id,
+        used_question_ids: [...newUsed]
+      }));
     }
   }, [currentPlayerIndex, players.length, category, allQuestions, usedQuestionIds, pickQuestion, lobbyId]);
 
@@ -299,8 +248,12 @@ export default function Game() {
     const newUsed = new Set([...usedQuestionIds, currentQuestion?.id].filter(Boolean));
     const nextQ = pickQuestion(newUsed, pool);
     if (nextQ) {
-      setCurrentQuestion(nextQ);
-      setUsedQuestionIds(new Set([...newUsed, nextQ.id]));
+      const finalUsed = new Set([...newUsed, nextQ.id]);
+      setLobbyData(prev => ({
+        ...prev,
+        current_question_id: nextQ.id,
+        used_question_ids: [...finalUsed]
+      }));
     }
   }, [allQuestions, yearStart, yearEnd, category, usedQuestionIds, currentQuestion, pickQuestion]);
 
@@ -356,21 +309,17 @@ export default function Game() {
   const isMyTurn = !isOnline || (myPlayerName && currentPlayer?.name === myPlayerName);
   isMyTurnRef.current = isMyTurn;
 
-  // Online modda oyuncular lobbydan gelecek, game sadece lobbyId varsa hazır
-  const isGameReady = lobbyId ? players.length > 0 && currentQuestion : gameReady && players.length > 0 && currentQuestion;
+  // Online modda lobbyData'dan, offline modda playerNames'den
+  const isGameReady = lobbyId
+    ? players.length > 0 && currentQuestion
+    : playerNames && playerNames.length > 0 && players.length > 0 && currentQuestion;
   
   if (!isGameReady) {
-    console.log('[Game] Waiting for ready:', {
-      isOnline: !!lobbyId,
-      playersCount: players.length,
-      hasQuestion: !!currentQuestion,
-      gameReady: gameReady,
-    });
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-6">
         <div className="text-center space-y-4">
           <p className="font-inter text-foreground">
-            Oyun başlatılıyor... {players.length === 0 && 'Oyuncular yükleniyor'}
+            Oyun başlatılıyor...
           </p>
           <Button onClick={() => navigate('/')} variant="outline">Geri Dön</Button>
         </div>
@@ -418,7 +367,7 @@ export default function Game() {
             </Button>
             <div className="flex items-center gap-2">
               <h1 className="font-cinzel text-xl text-primary tracking-widest">KRONOS</h1>
-              <TurnTimer key={timerKey} active={!feedback && !winner && gameReady && isMyTurn} onTimeUp={handleTimeUp} duration={turnDuration} />
+              <TurnTimer key={timerKey} active={!feedback && !winner && isGameReady && isMyTurn} onTimeUp={handleTimeUp} duration={turnDuration} />
             </div>
             <Button
               variant="ghost"
