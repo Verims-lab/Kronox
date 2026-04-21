@@ -206,14 +206,12 @@ export default function Game() {
       setUsedQuestionIds(newUsed);
     }
 
-    // Online modda sırayı ve soruyu lobby'ye yaz (sadece aktif oyuncu yapar)
-    if (lobbyId && isMyTurnRef.current) {
+    // Online modda sırayı ve soruyu lobby'ye yaz (tüm oyuncular yazabilir — en son yazılan geçer)
+    if (lobbyId) {
       base44.entities.Lobby.update(lobbyId, {
         current_player_index: nextIndex,
         ...(nextQ ? { current_question_id: nextQ.id, used_question_ids: [...newUsed] } : {}),
       }).catch(() => {});
-    } else if (!lobbyId) {
-      // offline — zaten local state güncellendi
     }
   }, [currentPlayerIndex, players.length, category, allQuestions, usedQuestionIds, pickQuestion, lobbyId]);
 
