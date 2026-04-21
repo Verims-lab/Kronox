@@ -36,6 +36,7 @@ export default function Game() {
   const [lobbyData, setLobbyData] = useState(null);
   const [error, setError] = useState(null);
   const isMyTurnRef = React.useRef(true);
+  const unsubRef = React.useRef(null);
 
   const { data: allQuestions, isLoading } = useQuery({
     queryKey: ['questions'],
@@ -115,6 +116,10 @@ export default function Game() {
     
     // Subscribe for updates
     console.log('[Game] Setting up Lobby subscription for ID:', lobbyId);
+    
+    // Cleanup previous subscription
+    if (unsubRef.current) unsubRef.current();
+    
     const unsub = base44.entities.Lobby.subscribe((event) => {
       console.log('[Game] Subscription event received:', { event_id: event.id, event_type: event.type, lobbyId });
       if (event.id === lobbyId && event.type !== 'delete') {
@@ -129,8 +134,11 @@ export default function Game() {
         setLobbyData(event.data);
       }
     });
+    unsubRef.current = unsub;
     
-    return () => unsub();
+    return () => {
+      if (unsubRef.current) unsubRef.current();
+    };
   }, [lobbyId, allQuestions, initialPlayers]);
 
   // Pick a random unused question
