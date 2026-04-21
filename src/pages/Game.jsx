@@ -86,11 +86,15 @@ export default function Game() {
         setCurrentPlayerIndex(data.current_player_index);
       }
       
-      if (data.current_question_id && allQuestions.length > 0) {
-        const q = allQuestions.find(q => q.id === data.current_question_id);
-        if (q) {
-          console.log('[Game] Setting question:', q.question);
-          setCurrentQuestion(q);
+      if (data.current_question_id) {
+        if (allQuestions.length > 0) {
+          const q = allQuestions.find(q => q.id === data.current_question_id);
+          if (q) {
+            console.log('[Game] Setting question:', q.question);
+            setCurrentQuestion(q);
+          }
+        } else {
+          console.log('[Game] Questions not loaded yet, will retry on next update');
         }
       }
       
@@ -106,6 +110,7 @@ export default function Game() {
         console.log('[Game] Initial lobby load:', {
           players: data.players?.length,
           status: data.status,
+          hasQuestion: !!data.current_question_id,
         });
         setLobbyData(data);
         
@@ -123,13 +128,21 @@ export default function Game() {
         if (typeof data.current_player_index === 'number') {
           setCurrentPlayerIndex(data.current_player_index);
         }
+        
+        if (data.current_question_id && allQuestions.length > 0) {
+          const q = allQuestions.find(q => q.id === data.current_question_id);
+          if (q) {
+            console.log('[Game] Initial question set:', q.question);
+            setCurrentQuestion(q);
+          }
+        }
       }
     }).catch(err => {
       console.error('[Game] Lobby load error:', err);
     });
     
     return () => unsub();
-  }, [lobbyId]);
+  }, [lobbyId, allQuestions]);
 
   // Pick a random unused question
   const pickQuestion = useCallback((usedIds, questions) => {
