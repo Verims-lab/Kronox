@@ -38,6 +38,8 @@ export default function Game() {
   const [error, setError] = useState(null);
   const isMyTurnRef = React.useRef(true);
   const unsubRef = React.useRef(null);
+  const eventQueueRef = React.useRef([]);
+  const processingQueueRef = React.useRef(false);
 
   const { data: allQuestions, isLoading } = useQuery({
     queryKey: ['questions'],
@@ -46,17 +48,35 @@ export default function Game() {
   });
 
   // Derive all state from lobbyData
-  const players = lobbyData?.players?.map(p => ({
-    name: p.name,
-    email: p.email,
-    cards: p.cards || []
-  })) || [];
+  const players = useMemo(() => 
+    lobbyData?.players?.map(p => ({
+      name: p.name,
+      email: p.email,
+      cards: p.cards || []
+    })) || [],
+  [lobbyData?.players]);
+
   const currentPlayerIndex = lobbyData?.current_player_index ?? 0;
-  const usedQuestionIds = new Set(lobbyData?.used_question_ids || []);
+  const usedQuestionIds = useMemo(() => new Set(lobbyData?.used_question_ids || []), [lobbyData?.used_question_ids]);
+  
   const currentQuestion = useMemo(() => {
     if (!lobbyData?.current_question_id || allQuestions.length === 0) return null;
     return allQuestions.find(q => q.id === lobbyData.current_question_id);
   }, [lobbyData?.current_question_id, allQuestions]);
+
+  // Memoize question pool
+  const questionPool = useMemo(() => {
+    return allQuestions
+      .filter(q => q.type === 'metin')
+      .filter(q => q.year >= yearStart && q.year <= yearEnd)
+      .filter(q => category === 'karisik' || q.category === category);
+  }, [allQuestions, yearStart, yearEnd, category]);
+
+  // Memoize my player for online mode
+  const myPlayer = useMemo(() => {
+    if (!isOnline || !myPlayerName) return null;
+    return players.find(p => p.name === myPlayerName);
+  }, [players, myPlayerName, isOnline]);
 
   // Redirect if no player names
   useEffect(() => {
@@ -64,6 +84,25 @@ export default function Game() {
       navigate('/');
     }
   }, [playerNames, navigate]);
+
+  // Process queued subscription events in order
+  const processEventQueue = useCallback(async () => {
+    if (processingQueueRef.current || eventQueueRef.current.length === 0) return;
+    
+    processingQueueRef.current = true;
+    while (eventQueueRef.current.length > 0) {
+      const event = eventQueueRef.current.shift();
+      console.log('[Game] Processing queued event:', { players: event.players?.length, current_player_index: event.current_player_index });
+      setLobbyData(event);
+      await new Promise(resolve => setTimeout(resolve, 50)); // Small delay for state batching
+    }
+    processingQueueRef.current = false;
+  }, []);
+
+  // Process queue when it has items
+  useEffect(() => {
+    processEventQueue();
+  }, [processEventQueue]);
 
   // Online: lobby'yi dinle — questions'tan bağımsız fetch et
   useEffect(() => {
@@ -98,16 +137,18 @@ export default function Game() {
         .catch(err => console.error('[Game] Lobby load error:', err));
     }
     
-    // Subscribe for updates
+    // Subscribe for updates with event queue
     if (unsubRef.current) unsubRef.current();
     
     const unsub = base44.entities.Lobby.subscribe((event) => {
       if (event.id === lobbyId && event.type !== 'delete') {
-        console.log('[Game] Lobby subscription update:', { 
+        console.log('[Game] Subscription event received, queueing:', { 
           players: event.data.players?.length, 
           current_player_index: event.data.current_player_index
         });
-        setLobbyData(event.data);
+        eventQueueRef.current.push(event.data);
+        // Trigger processing
+        setTimeout(processEventQueue, 0);
       }
     });
     unsubRef.current = unsub;
@@ -115,7 +156,7 @@ export default function Game() {
     return () => {
       if (unsubRef.current) unsubRef.current();
     };
-  }, [lobbyId, initialPlayers]);
+  }, [lobbyId, initialPlayers, processEventQueue]);
 
   // Pick a random unused question
   const pickQuestion = useCallback((usedIds, questions) => {
@@ -249,7 +290,7 @@ export default function Game() {
         used_question_ids: [...newUsed]
       }));
 
-      // Online modda DB'ye async write (with retry)
+      // Online modda DB'ye ATOMIC write (card + turn if needed)
       if (lobbyId) {
         const lobbyPlayers = newPlayers.map(p => ({
           email: p.email || `player_${p.name}`,
@@ -262,6 +303,7 @@ export default function Game() {
           cards_after: lobbyPlayers[currentPlayerIndex]?.cards?.length,
           has_won: hasWon
         });
+        
         const updateData = { 
           players: lobbyPlayers, 
           used_question_ids: [...newUsed],
@@ -273,7 +315,7 @@ export default function Game() {
             .catch((err) => {
               console.error(`[Game] Card placement DB update failed (attempt ${retries + 1}):`, err);
               if (retries < 2) {
-                setTimeout(() => attemptUpdate(retries + 1), 1000);
+                setTimeout(() => attemptUpdate(retries + 1), 1200);
               }
             });
         };
@@ -296,15 +338,20 @@ export default function Game() {
   };
 
   const advanceTurn = useCallback(() => {
-    const nextIndex = (currentPlayerIndex + 1) % players.length;
+    // Guard: don't advance if no players yet
+    if (players.length === 0) {
+      console.log('[Game] advanceTurn: No players, skipping');
+      return;
+    }
+
+    // IMPORTANT: Use CURRENT lobbyData.current_player_index, not stale closure var
+    const currentIndex = lobbyData?.current_player_index ?? 0;
+    const nextIndex = (currentIndex + 1) % players.length;
+    
     setSelectedZone(null);
     setTimerKey(k => k + 1);
 
-    const pool = allQuestions
-      .filter(q => q.type === 'metin')
-      .filter(q => q.year >= yearStart && q.year <= yearEnd)
-      .filter(q => category === 'karisik' || q.category === category);
-    const nextQ = pickQuestion(usedQuestionIds, pool);
+    const nextQ = pickQuestion(usedQuestionIds, questionPool);
     const newUsed = nextQ ? new Set([...usedQuestionIds, nextQ.id]) : usedQuestionIds;
 
     // Optimistic update—her durumda state'i güncelle
@@ -333,7 +380,7 @@ export default function Game() {
       };
       attemptUpdate();
     }
-  }, [currentPlayerIndex, players.length, category, allQuestions, usedQuestionIds, pickQuestion, lobbyId]);
+  }, [players.length, lobbyData?.current_player_index, usedQuestionIds, pickQuestion, lobbyId, questionPool]);
 
   const handleFeedbackDone = useCallback(() => {
     console.log('[Game] handleFeedbackDone - calling advanceTurn');
@@ -343,12 +390,8 @@ export default function Game() {
 
   const handleImageError = useCallback(() => {
     // Görseli yüklenemeyen soruyu atla, yeni soru çek
-    const pool = allQuestions
-      .filter(q => q.type === 'metin')
-      .filter(q => q.year >= yearStart && q.year <= yearEnd)
-      .filter(q => category === 'karisik' || q.category === category);
     const newUsed = new Set([...usedQuestionIds, currentQuestion?.id].filter(Boolean));
-    const nextQ = pickQuestion(newUsed, pool);
+    const nextQ = pickQuestion(newUsed, questionPool);
     if (nextQ) {
       const finalUsed = new Set([...newUsed, nextQ.id]);
       setLobbyData(prev => ({
@@ -357,7 +400,7 @@ export default function Game() {
         used_question_ids: [...finalUsed]
       }));
     }
-  }, [allQuestions, yearStart, yearEnd, category, usedQuestionIds, currentQuestion, pickQuestion]);
+  }, [usedQuestionIds, currentQuestion, pickQuestion, questionPool]);
 
   const handleTimeUp = useCallback(() => {
     if (feedback !== null || winner) return;
@@ -530,25 +573,20 @@ export default function Game() {
             </div>
 
             {/* BENİM KARTlARIM — sadece online modda ve ben sıradaki değilsem göster */}
-            {isOnline && myPlayerName && currentPlayer?.name !== myPlayerName && (() => {
-              console.log('[Game] Showing opponent cards:', { myPlayerName, currentPlayerName: currentPlayer?.name, shouldShow: currentPlayer?.name !== myPlayerName });
-              const myPlayer = players.find(p => p.name === myPlayerName);
-              if (!myPlayer) return null;
-              return (
-                <div className="space-y-1">
-                  <p className="text-xs font-inter text-muted-foreground">
-                    Senin kartların ({myPlayer.cards.length})
-                  </p>
-                  <div className="rounded-xl border border-border/40 bg-secondary/10 p-2 overflow-x-auto opacity-80">
-                    <Timeline
-                      cards={myPlayer.cards}
-                      selectedZone={null}
-                      onSelectZone={undefined}
-                    />
-                  </div>
-                </div>
-              );
-            })()}
+            {isOnline && myPlayerName && currentPlayer?.name !== myPlayerName && myPlayer && (
+               <div className="space-y-1">
+                 <p className="text-xs font-inter text-muted-foreground">
+                   Senin kartların ({myPlayer.cards.length})
+                 </p>
+                 <div className="rounded-xl border border-border/40 bg-secondary/10 p-2 overflow-x-auto opacity-80">
+                   <Timeline
+                     cards={myPlayer.cards}
+                     selectedZone={null}
+                     onSelectZone={undefined}
+                   />
+                 </div>
+               </div>
+             )}
 
           </div>
 
