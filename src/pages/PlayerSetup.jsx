@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Clock, Users, Play, Layers, BookOpen, FlaskConical, Trophy, Sparkles, CalendarRange, Wifi } from 'lucide-react';
+import { Clock, Users, Play, Layers, BookOpen, FlaskConical, Trophy, Sparkles, CalendarRange, Wifi, Timer } from 'lucide-react';
 
 export default function PlayerSetup() {
   const navigate = useNavigate();
@@ -12,6 +12,7 @@ export default function PlayerSetup() {
   const [selectedCategory, setSelectedCategory] = useState('karisik');
   const [yearStart, setYearStart] = useState(1900);
   const [yearEnd, setYearEnd] = useState(2020);
+  const [turnDuration, setTurnDuration] = useState(60); // 0 = süresiz
 
   const categories = [
   { value: 'karisik', label: 'Karışık', icon: Layers },
@@ -23,7 +24,7 @@ export default function PlayerSetup() {
 
   const handleStart = () => {
     const playerNames = names.slice(0, playerCount).map((n, i) => n.trim() || `Oyuncu ${i + 1}`);
-    navigate('/game', { state: { playerNames, category: selectedCategory, yearStart, yearEnd } });
+    navigate('/game', { state: { playerNames, category: selectedCategory, yearStart, yearEnd, turnDuration } });
   };
 
   return (
@@ -148,6 +149,33 @@ export default function PlayerSetup() {
           </div>
           <p className="font-inter text-xs text-muted-foreground/60 text-center">
             {yearStart} – {yearEnd} yılları arası sorular
+          </p>
+        </div>
+
+        {/* Turn duration */}
+        <div className="space-y-3">
+          <label className="font-inter text-sm text-muted-foreground flex items-center gap-2">
+            <Timer className="w-4 h-4" />
+            Tur Süresi
+          </label>
+          <div className="flex gap-2 flex-wrap">
+            {[0, 10, 20, 30, 60].map((s) => (
+              <button
+                key={s}
+                onClick={() => setTurnDuration(s)}
+                className={`
+                  flex-1 min-w-[3.5rem] py-2 rounded-xl border-2 font-cinzel text-sm font-bold transition-all duration-150
+                  ${turnDuration === s
+                    ? 'border-primary bg-primary/15 text-primary'
+                    : 'border-border/50 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground'}
+                `}
+              >
+                {s === 0 ? '∞' : `${s}s`}
+              </button>
+            ))}
+          </div>
+          <p className="font-inter text-xs text-muted-foreground/60 text-center">
+            {turnDuration === 0 ? 'Süresiz — istediğin kadar düşün' : `Her tur ${turnDuration} saniye`}
           </p>
         </div>
 

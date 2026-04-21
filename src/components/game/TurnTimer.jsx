@@ -10,17 +10,20 @@ export default function TurnTimer({ onTimeUp, active, duration = 60 }) {
   }, [active, duration]);
 
   useEffect(() => {
-    if (!active) return;
+    if (!active || duration === 0) return;
     if (seconds <= 0) {
       onTimeUp();
       return;
     }
     const id = setTimeout(() => setSeconds(s => s - 1), 1000);
     return () => clearTimeout(id);
-  }, [seconds, active, onTimeUp]);
+  }, [seconds, active, onTimeUp, duration]);
+
+  // Süresiz mod — timer gösterme
+  if (duration === 0) return null;
 
   const pct = seconds / duration;
-  const color = seconds > 20 ? '#c9a227' : seconds > 10 ? '#f97316' : '#ef4444';
+  const color = seconds > duration * 0.33 ? '#c9a227' : seconds > duration * 0.17 ? '#f97316' : '#ef4444';
   const r = 20;
   const circ = 2 * Math.PI * r;
 
@@ -37,8 +40,6 @@ export default function TurnTimer({ onTimeUp, active, duration = 60 }) {
           transition={{ duration: 0.4 }}
         />
       </svg>
-      <div className="absolute" style={{ position: 'absolute', pointerEvents: 'none' }}>
-      </div>
       <span
         className="font-cinzel font-bold text-lg tabular-nums"
         style={{ color, minWidth: '2ch' }}
