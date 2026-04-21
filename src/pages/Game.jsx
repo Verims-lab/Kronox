@@ -401,7 +401,7 @@ export default function Game() {
 
   // Online modda lobbyData'dan, offline modda playerNames'den
   const isGameReady = lobbyId
-    ? players.length > 0 && currentQuestion
+    ? players.length > 0 && lobbyData?.current_question_id
     : playerNames && playerNames.length > 0 && players.length > 0 && currentQuestion;
   
   if (!isGameReady) {
