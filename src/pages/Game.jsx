@@ -66,16 +66,21 @@ export default function Game() {
     if (!lobbyId || allQuestions.length === 0) return;
     
     console.log('[Game] Online mode - setup with lobbyId:', lobbyId);
+    console.log('[Game] initialPlayers:', initialPlayers?.map(p => ({ name: p.name, cards: p.cards?.length || 0 })));
     
     // İlk yükleme — initialPlayers ile başla, sonra lobby'den fetch et
     if (initialPlayers && initialPlayers.length > 0) {
       console.log('[Game] Initializing with local state:', { players: initialPlayers.length, cards: initialPlayers[0].cards?.length || 0 });
-      setLobbyData({
+      const newLobbyData = {
         players: initialPlayers,
         current_player_index: 0,
         current_question_id: initialPlayers[0]?.cards?.[0]?.id || null,
         used_question_ids: initialPlayers.flatMap(p => p.cards?.map(c => c.id) || [])
-      });
+      };
+      console.log('[Game] Setting lobbyData:', newLobbyData);
+      setLobbyData(newLobbyData);
+    } else {
+      console.log('[Game] No initialPlayers, waiting for server fetch...');
     }
     
     base44.entities.Lobby.get(lobbyId)
