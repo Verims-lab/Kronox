@@ -37,6 +37,7 @@ export default function Game() {
   const [showSettings, setShowSettings] = useState(false);
   const [timerKey, setTimerKey] = useState(0);
   const [lobbyData, setLobbyData] = useState(null);
+  const [error, setError] = useState(null);
   const isMyTurnRef = React.useRef(true);
 
   const { data: allQuestions, isLoading } = useQuery({
@@ -123,46 +124,58 @@ export default function Game() {
 
   // Initialize game
   useEffect(() => {
-    const filteredQuestions = allQuestions
-      .filter(q => q.type === 'metin')
-      .filter(q => q.year >= yearStart && q.year <= yearEnd)
-      .filter(q => category === 'karisik' || q.category === category);
+    try {
+      const filteredQuestions = allQuestions
+        .filter(q => q.type === 'metin')
+        .filter(q => q.year >= yearStart && q.year <= yearEnd)
+        .filter(q => category === 'karisik' || q.category === category);
 
-    if (!playerNames || filteredQuestions.length === 0 || gameReady) return;
+      if (!playerNames || filteredQuestions.length === 0 || gameReady) return;
 
-    const used = new Set();
-    const newPlayers = playerNames.map((name) => {
-      const cards = [];
-      for (let j = 0; j < 2; j++) {
-        const q = pickQuestion(used, filteredQuestions);
-        if (q) {
-          cards.push({ id: q.id, year: q.year, question: q.question, type: q.type, media_url: q.media_url });
-          used.add(q.id);
-        }
+      if (playerNames.length === 0) {
+        setError('Oyuncu bulunamadı');
+        return;
       }
-      return { name, cards };
-    });
 
-    setPlayers(newPlayers);
-    setUsedQuestionIds(used);
+      const used = new Set();
+      const newPlayers = playerNames.map((name) => {
+        const cards = [];
+        for (let j = 0; j < 2; j++) {
+          const q = pickQuestion(used, filteredQuestions);
+          if (q) {
+            cards.push({ id: q.id, year: q.year, question: q.question, type: q.type, media_url: q.media_url });
+            used.add(q.id);
+          }
+        }
+        return { name, cards };
+      });
 
-    // Pick first question
-    const firstQ = pickQuestion(used, filteredQuestions);
-    if (firstQ) {
-      setCurrentQuestion(firstQ);
-      used.add(firstQ.id);
-      setUsedQuestionIds(new Set(used));
-    }
+      setPlayers(newPlayers);
+      setUsedQuestionIds(used);
 
-    setGameReady(true);
+      // Pick first question
+      const firstQ = pickQuestion(used, filteredQuestions);
+      if (firstQ) {
+        setCurrentQuestion(firstQ);
+        used.add(firstQ.id);
+        setUsedQuestionIds(new Set(used));
+      } else {
+        setError('Soru bulunamadı');
+        return;
+      }
 
-    // Online modda ilk soruyu lobby'ye yaz (sadece host / ilk player)
-    if (lobbyId && firstQ) {
-      const usedArr = [...used];
-      base44.entities.Lobby.update(lobbyId, {
-        current_question_id: firstQ.id,
-        used_question_ids: usedArr,
-      }).catch(() => {});
+      setGameReady(true);
+
+      // Online modda ilk soruyu lobby'ye yaz (sadece host / ilk player)
+      if (lobbyId && firstQ) {
+        const usedArr = [...used];
+        base44.entities.Lobby.update(lobbyId, {
+          current_question_id: firstQ.id,
+          used_question_ids: usedArr,
+        }).catch(() => {});
+      }
+    } catch (err) {
+      setError('Oyun başlatılırken hata: ' + (err?.message || 'Bilinmeyen hata'));
     }
   }, [playerNames, allQuestions, category, pickQuestion, gameReady, lobbyId]);
 
@@ -281,6 +294,19 @@ export default function Game() {
   };
 
   if (!playerNames) return null;
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <div className="text-center space-y-4">
+          <p className="font-inter text-destructive">
+            Hata: {error}
+          </p>
+          <Button onClick={() => navigate('/')} variant="outline">Geri Dön</Button>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
