@@ -104,7 +104,15 @@ export default function Game() {
 
   // Process queued subscription events in order
   const processEventQueue = useCallback(() => {
-    if (processingQueueRef.current || eventQueueRef.current.length === 0) return;
+    console.log('[Game] processEventQueue called:', {
+      isProcessing: processingQueueRef.current,
+      queueLength: eventQueueRef.current.length
+    });
+    
+    if (processingQueueRef.current || eventQueueRef.current.length === 0) {
+      console.log('[Game] processEventQueue skipped: isProcessing or no items');
+      return;
+    }
     
     processingQueueRef.current = true;
     // Process all queued events in batches
@@ -175,14 +183,24 @@ export default function Game() {
     const unsub = base44.entities.Lobby.subscribe((event) => {
       if (event.id === lobbyId && event.type !== 'delete') {
         console.log('[Game] Subscription event received:', { 
+          eventType: event.type,
+          eventId: event.id,
           players: event.data.players?.length, 
           current_player_index: event.data.current_player_index,
           queue_length_before: eventQueueRef.current.length
         });
         eventQueueRef.current.push(event.data);
-        console.log('[Game] Event queued, queue_length:', eventQueueRef.current.length);
+        console.log('[Game] Event queued, queue_length_after:', eventQueueRef.current.length);
         // Trigger processing
+        console.log('[Game] Triggering processEventQueue via setTimeout');
         setTimeout(processEventQueue, 0);
+      } else {
+        console.log('[Game] Subscription event IGNORED:', {
+          eventId: event.id,
+          lobbyId,
+          eventType: event.type,
+          isDelete: event.type === 'delete'
+        });
       }
     });
     unsubRef.current = unsub;
