@@ -95,19 +95,22 @@ export default function Game() {
       console.log('[Game] No initialPlayers from navigate, fetching from DB...');
     }
     
-    base44.entities.Lobby.get(lobbyId)
-      .then(data => {
-        console.log('[Game] Fetched lobby from DB:', { 
-          players: data.players?.length, 
-          status: data.status, 
-          first_player_cards_from_db: data.players?.[0]?.cards?.map(c => ({ id: c.id, year: c.year })) || [],
-          current_question_id: data.current_question_id,
-          used_question_ids_count: data.used_question_ids?.length || 0
-        });
-        console.log('[Game] Setting lobbyData from DB fetch');
-        setLobbyData(data);
-      })
-      .catch(err => console.error('[Game] Lobby load error:', err));
+    // Sadece initialPlayers boşsa DB'den fetch et
+    if (!initialPlayers || initialPlayers.length === 0) {
+      base44.entities.Lobby.get(lobbyId)
+        .then(data => {
+          console.log('[Game] Fetched lobby from DB:', { 
+            players: data.players?.length, 
+            status: data.status, 
+            first_player_cards_from_db: data.players?.[0]?.cards?.map(c => ({ id: c.id, year: c.year })) || [],
+            current_question_id: data.current_question_id,
+            used_question_ids_count: data.used_question_ids?.length || 0
+          });
+          console.log('[Game] Setting lobbyData from DB fetch');
+          setLobbyData(data);
+        })
+        .catch(err => console.error('[Game] Lobby load error:', err));
+    }
     
     // Subscribe for updates
     const unsub = base44.entities.Lobby.subscribe((event) => {
