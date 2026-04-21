@@ -75,7 +75,10 @@ export default function Game() {
       if (data.players && Array.isArray(data.players)) {
         const updatedPlayers = players.map(p => {
           const lobbyPlayer = data.players.find(lp => lp.name === p.name);
-          return lobbyPlayer ? { ...p, cards: lobbyPlayer.cards || p.cards } : p;
+          if (lobbyPlayer && lobbyPlayer.cards) {
+            return { ...p, cards: lobbyPlayer.cards.filter(c => !allQuestions.find(q => q.id === c.id && q.type !== 'metin')) };
+          }
+          return p;
         });
         setPlayers(updatedPlayers);
       }
@@ -99,7 +102,10 @@ export default function Game() {
         if (data.players && Array.isArray(data.players)) {
           const updatedPlayers = players.map(p => {
             const lobbyPlayer = data.players.find(lp => lp.name === p.name);
-            return lobbyPlayer ? { ...p, cards: lobbyPlayer.cards || p.cards } : p;
+            if (lobbyPlayer && lobbyPlayer.cards) {
+              return { ...p, cards: lobbyPlayer.cards.filter(c => !allQuestions.find(q => q.id === c.id && q.type !== 'metin')) };
+            }
+            return p;
           });
           setPlayers(updatedPlayers);
         }
