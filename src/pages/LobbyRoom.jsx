@@ -58,6 +58,7 @@ export default function LobbyRoom() {
           state: {
             playerNames: event.data.players.map(p => p.name),
             initialPlayers: event.data.players,
+            currentQuestionId: event.data.current_question_id,
             category: event.data.category,
             yearStart: event.data.year_start,
             yearEnd: event.data.year_end,

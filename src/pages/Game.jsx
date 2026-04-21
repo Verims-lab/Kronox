@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
@@ -53,9 +53,10 @@ export default function Game() {
   })) || [];
   const currentPlayerIndex = lobbyData?.current_player_index ?? 0;
   const usedQuestionIds = new Set(lobbyData?.used_question_ids || []);
-  const currentQuestion = lobbyData?.current_question_id && allQuestions.length > 0
-    ? allQuestions.find(q => q.id === lobbyData.current_question_id)
-    : null;
+  const currentQuestion = useMemo(() => {
+    if (!lobbyData?.current_question_id || allQuestions.length === 0) return null;
+    return allQuestions.find(q => q.id === lobbyData.current_question_id);
+  }, [lobbyData?.current_question_id, allQuestions]);
 
   // Redirect if no player names
   useEffect(() => {
@@ -179,14 +180,16 @@ export default function Game() {
   const handleConfirmPlacement = () => {
     if (selectedZone === null || !currentQuestion || !currentPlayer) return;
 
-    const sortedCards = [...currentPlayer.cards].sort((a, b) => a.year - b.year);
+    // SNAPSHOT: capture current player at time of click
+    const snapshotPlayer = { ...currentPlayer };
+    const sortedCards = [...snapshotPlayer.cards].sort((a, b) => a.year - b.year);
     const questionYear = currentQuestion.year;
 
     console.log('[Game] handleConfirmPlacement:', {
-      player: currentPlayer.name,
+      player: snapshotPlayer.name,
       selectedZone,
       questionYear,
-      playerCardsBefore: currentPlayer.cards.length
+      playerCardsBefore: snapshotPlayer.cards.length
     });
 
     // Check if placement is correct
@@ -208,14 +211,14 @@ export default function Game() {
       
       console.log('[Game] Before card add:', {
         currentPlayerIndex,
-        playerName: playerToUpdate.name,
-        cardsBefore: playerToUpdate.cards.length,
+        playerName: snapshotPlayer.name,
+        cardsBefore: snapshotPlayer.cards.length,
         allPlayersCards: newPlayers.map(p => ({ name: p.name, cards: p.cards.length }))
       });
       
       newPlayers[currentPlayerIndex] = {
-        ...playerToUpdate,
-        cards: [...playerToUpdate.cards, { id: currentQuestion.id, year: questionYear, question: currentQuestion.question, type: currentQuestion.type, media_url: currentQuestion.media_url }]
+        ...snapshotPlayer,
+        cards: [...snapshotPlayer.cards, { id: currentQuestion.id, year: questionYear, question: currentQuestion.question, type: currentQuestion.type, media_url: currentQuestion.media_url }]
       };
 
       console.log('[Game] After card add:', {
@@ -248,7 +251,7 @@ export default function Game() {
           cards: p.cards
         }));
         console.log('[Game] Card placed - DB update:', {
-          player: currentPlayer.name,
+          player: snapshotPlayer.name,
           cards_after: lobbyPlayers[currentPlayerIndex]?.cards?.length,
           has_won: hasWon
         });
@@ -420,8 +423,8 @@ export default function Game() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center">
-      {/* Debug panel */}
-      <DebugPanel />
+      {/* Debug panel — dev only */}
+      {import.meta.env.DEV && <DebugPanel />}
 
       {/* Winner overlay */}
       {winner && <GameOver winner={winner} onRestart={handleRestart} />}
