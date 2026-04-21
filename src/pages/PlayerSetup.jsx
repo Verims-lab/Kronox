@@ -7,7 +7,7 @@ import { Clock, Users, Play, Layers, BookOpen, FlaskConical, Trophy, Sparkles, C
 
 export default function PlayerSetup() {
   const navigate = useNavigate();
-  const [playerCount, setPlayerCount] = useState(2);
+  const [playerCount, setPlayerCount] = useState(1);
   const [names, setNames] = useState(['', '', '', '']);
   const [selectedCategory, setSelectedCategory] = useState('karisik');
   const [yearStart, setYearStart] = useState(1900);
@@ -63,7 +63,7 @@ export default function PlayerSetup() {
             Oyuncu Sayısı
           </label>
           <div className="flex items-center justify-center gap-3">
-            {[2, 3, 4].map((n) =>
+            {[1, 2, 3, 4].map((n) =>
             <button
               key={n}
               onClick={() => setPlayerCount(n)}
