@@ -5,6 +5,7 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Clock, Users, Plus, LogIn, ArrowLeft, Copy, Check } from 'lucide-react';
+import LobbyChat from '@/components/lobby/LobbyChat';
 
 function generateCode() {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -466,6 +467,9 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
             <p className="font-inter text-xs text-muted-foreground/60 text-center mt-2">Host oyunu başlatmasını bekliyor...</p>
           </div>
         )}
+
+        {/* Chat */}
+        <LobbyChat lobbyId={lobby.id} playerName={playerName} />
       </div>
 
       {/* Start button (host only) */}

@@ -1,0 +1,32 @@
+{
+  "name": "LobbyMessage",
+  "type": "object",
+  "properties": {
+    "lobby_id": {
+      "type": "string",
+      "description": "ID of the lobby this message belongs to"
+    },
+    "player_name": {
+      "type": "string",
+      "description": "Name of the player who sent the message"
+    },
+    "message": {
+      "type": "string",
+      "description": "Message content"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "chat",
+        "system"
+      ],
+      "default": "chat",
+      "description": "Message type: chat or system notification"
+    }
+  },
+  "required": [
+    "lobby_id",
+    "player_name",
+    "message"
+  ]
+}

@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Loader2, Check, ArrowLeft, Settings, X, Copy } from 'lucide-react';
+import { Loader2, Check, ArrowLeft, Settings, X, Copy, MessageCircle } from 'lucide-react';
 
 import PlayerIndicator from '@/components/game/PlayerIndicator';
 import Timeline from '@/components/game/Timeline';
@@ -14,6 +14,7 @@ import GameOver from '@/components/game/GameOver';
 import SettingsModal from '@/components/game/SettingsModal';
 import TurnTimer from '@/components/game/TurnTimer';
 import SimulationPanel from '@/components/game/SimulationPanel';
+import LobbyChat from '@/components/lobby/LobbyChat';
 
 
 export default function Game() {
@@ -36,6 +37,7 @@ export default function Game() {
   const [showSettings, setShowSettings] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
   const [showSim, setShowSim] = useState(false);
+  const [showChat, setShowChat] = useState(false);
   const [timerKey, setTimerKey] = useState(0);
   const [lobbyData, setLobbyData] = useState(null);
   const [error, setError] = useState(null);
@@ -589,6 +591,30 @@ export default function Game() {
       {showSim && <SimulationPanel onClose={() => setShowSim(false)} />}
       </AnimatePresence>
 
+      {/* Chat panel — only in online mode */}
+      <AnimatePresence>
+      {showChat && isOnline && (
+        <motion.div
+          initial={{ opacity: 0, x: '100%' }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: '100%' }}
+          transition={{ type: 'tween', duration: 0.2 }}
+          className="fixed right-0 top-0 bottom-0 z-40 w-72 flex flex-col bg-card border-l border-border shadow-2xl"
+          style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+        >
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+            <span className="font-cinzel text-sm text-primary tracking-wider">SOHBET</span>
+            <button onClick={() => setShowChat(false)} className="text-muted-foreground hover:text-foreground">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-hidden p-3">
+            <LobbyChat lobbyId={lobbyId} playerName={myPlayerName || 'Oyuncu'} compact={false} />
+          </div>
+        </motion.div>
+      )}
+      </AnimatePresence>
+
       {/* Logs modal */}
       <AnimatePresence>
       {showLogs && (
@@ -661,6 +687,17 @@ export default function Game() {
               <TurnTimer key={timerKey} active={!feedback && !winner && isGameReady} onTimeUp={isMyTurn ? handleTimeUp : undefined} duration={turnDuration} />
             </div>
             <div className="flex gap-1">
+              {isOnline && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowChat(c => !c)}
+                  className={`hover:text-foreground ${showChat ? 'text-primary' : 'text-muted-foreground'}`}
+                  title="Sohbet"
+                >
+                  <MessageCircle className="w-5 h-5" />
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="icon"
