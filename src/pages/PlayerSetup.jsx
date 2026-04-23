@@ -28,7 +28,7 @@ export default function PlayerSetup() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center" style={{ padding: '1.5rem', paddingTop: 'calc(1.5rem + env(safe-area-inset-top))', paddingBottom: 'calc(8rem + env(safe-area-inset-bottom))' }}>
+    <div className="min-h-screen bg-background flex flex-col items-center justify-start md:justify-center" style={{ padding: '1rem', paddingTop: 'calc(1rem + env(safe-area-inset-top))', paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
       {/* Decorative: only visible on desktop */}
       <div className="hidden md:block fixed left-0 top-0 bottom-0 w-1/3 bg-gradient-to-r from-primary/5 to-transparent pointer-events-none" />
       <div className="hidden md:block fixed right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-primary/5 to-transparent pointer-events-none" />
