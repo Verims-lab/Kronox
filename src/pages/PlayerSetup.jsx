@@ -240,7 +240,7 @@ export default function PlayerSetup() {
               turnDuration,
               timestamp: new Date().toISOString()
             }, null, 2)}
-            className="w-full h-32 bg-background border border-border rounded p-2 text-xs font-mono text-muted-foreground"
+            className="w-full h-48 bg-background border border-border rounded p-2 text-[10px] font-mono text-muted-foreground resize-none"
           />
         </div>
 
