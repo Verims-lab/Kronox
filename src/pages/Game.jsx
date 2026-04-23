@@ -432,6 +432,12 @@ export default function Game() {
     );
   }
 
+  const currentPlayer = players.length > 0 ? players[currentPlayerIndex] : null;
+
+  // Online modda sadece sırası gelen oyuncu seçim yapabilir
+  const isMyTurn = !isOnline || (myPlayerName && currentPlayer?.name === myPlayerName);
+  isMyTurnRef.current = isMyTurn;
+
   // Check available questions based on filters (offline mode only)
   const availableQuestions = allQuestions
     .filter(q => q.type === 'metin')
@@ -450,12 +456,6 @@ export default function Game() {
       </div>
     );
   }
-
-  const currentPlayer = players.length > 0 ? players[currentPlayerIndex] : null;
-
-  // Online modda sadece sırası gelen oyuncu seçim yapabilir
-  const isMyTurn = !isOnline || (myPlayerName && currentPlayer?.name === myPlayerName);
-  isMyTurnRef.current = isMyTurn;
 
   // Online modda lobbyData'dan, offline modda playerNames'den
   const isGameReady = lobbyId
