@@ -68,7 +68,8 @@ export default function Game() {
     initialData: [],
     retry: 3,
     retryDelay: 1000,
-    staleTime: 5 * 60 * 1000,
+    gcTime: 0,
+    staleTime: 0,
   });
 
 
