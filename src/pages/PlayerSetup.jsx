@@ -23,7 +23,9 @@ export default function PlayerSetup() {
 
 
   const handleStart = () => {
+    console.log('[PlayerSetup] handleStart called');
     const playerNames = names.slice(0, playerCount).map((n, i) => n.trim() || `Oyuncu ${i + 1}`);
+    console.log('[PlayerSetup] Navigating to /game with:', { playerNames, category: selectedCategory, yearStart, yearEnd, turnDuration });
     navigate('/game', { state: { playerNames, category: selectedCategory, yearStart, yearEnd, turnDuration } });
   };
 
