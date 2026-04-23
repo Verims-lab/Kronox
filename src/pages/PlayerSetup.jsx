@@ -227,6 +227,23 @@ export default function PlayerSetup() {
           ÇEVRİMİÇİ OYUN
         </Button>
 
+        {/* Debug textarea */}
+        <div className="mt-8 p-4 bg-secondary/20 rounded-lg border border-border/40">
+          <p className="text-xs text-muted-foreground mb-2">Debug State:</p>
+          <textarea
+            readOnly
+            value={JSON.stringify({
+              playerCount,
+              names: names.slice(0, playerCount),
+              category: selectedCategory,
+              yearRange: [yearStart, yearEnd],
+              turnDuration,
+              timestamp: new Date().toISOString()
+            }, null, 2)}
+            className="w-full h-32 bg-background border border-border rounded p-2 text-xs font-mono text-muted-foreground"
+          />
+        </div>
+
 
 
 
