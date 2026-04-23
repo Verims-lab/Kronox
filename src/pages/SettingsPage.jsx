@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Trash2, AlertTriangle, Settings, FileDown, Loader2, Lock } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Trash2, AlertTriangle, Settings, FileDown, Loader2, Lock, FlaskConical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import { useNavigate } from 'react-router-dom';
+import SimulationPanel from '@/components/game/SimulationPanel';
 
 const ADMIN_EMAIL = 'sariverim@gmail.com';
 
@@ -14,6 +15,7 @@ export default function SettingsPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [downloadingDoc, setDownloadingDoc] = useState(false);
+  const [showSim, setShowSim] = useState(false);
 
   useEffect(() => {
     base44.auth.me().then(u => {
@@ -101,7 +103,7 @@ export default function SettingsPage() {
         <h1 className="font-cinzel text-2xl text-foreground tracking-wider">Ayarlar</h1>
       </div>
 
-      {/* Teknik Döküman */}
+      {/* Admin Araçları */}
       <div className="space-y-3 mb-6">
         <p className="text-xs text-muted-foreground font-inter uppercase tracking-widest">Admin Araçları</p>
         <Button
@@ -113,7 +115,19 @@ export default function SettingsPage() {
           {downloadingDoc ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
           Teknik Dökümanı İndir (PDF)
         </Button>
+        <Button
+          variant="outline"
+          className="w-full gap-2"
+          onClick={() => setShowSim(true)}
+        >
+          <FlaskConical className="w-4 h-4" />
+          Online Oyun Simülasyonları
+        </Button>
       </div>
+
+      <AnimatePresence>
+        {showSim && <SimulationPanel onClose={() => setShowSim(false)} />}
+      </AnimatePresence>
 
       {/* Account section */}
       <div className="space-y-3">
