@@ -432,12 +432,18 @@ export default function Game() {
     );
   }
 
-  if (allQuestions.length < 10) {
+  // Check available questions based on filters (offline mode only)
+  const availableQuestions = allQuestions
+    .filter(q => q.type === 'metin')
+    .filter(q => q.year >= yearStart && q.year <= yearEnd)
+    .filter(q => category === 'karisik' || q.category === category);
+
+  if (!lobbyId && availableQuestions.length < 10) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-6">
         <div className="text-center space-y-4">
           <p className="font-inter text-foreground">
-            Oyun için en az 10 soru gerekli. Şu anda <span className="text-primary font-bold">{allQuestions.length}</span> soru var.
+            Oyun için en az 10 soru gerekli. Seçilen kategori ve yıl aralığında <span className="text-primary font-bold">{availableQuestions.length}</span> soru var.
           </p>
           <Button onClick={() => navigate('/')} variant="outline">Geri Dön</Button>
         </div>
