@@ -38,11 +38,7 @@ export default function PlayerSetup() {
         <div className="absolute bottom-1/4 right-1/4 w-48 h-48 bg-primary/3 rounded-full blur-3xl" />
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: -30 }}
-        animate={{ opacity: 1, y: 0 }}
-        style={{ pointerEvents: 'auto' }}
-        className="relative z-10 w-full max-w-md space-y-8">
+      <div className="relative z-10 w-full max-w-md space-y-8">
         
         {/* Logo */}
         <div className="text-center space-y-3">
@@ -211,41 +207,28 @@ export default function PlayerSetup() {
         </div>
 
         {/* Start button */}
-        <motion.div
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}>
-          
-          <Button
-            onClick={handleStart}
-            size="lg"
-            className="w-full h-14 bg-primary text-primary-foreground hover:bg-primary/90 font-cinzel text-lg tracking-wider gap-2"
-            style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}>
-            <Play className="w-5 h-5" />
-            OYUNU BAŞLAT
-          </Button>
-        </motion.div>
+        <Button
+          onClick={handleStart}
+          size="lg"
+          className="w-full h-14 bg-primary text-primary-foreground hover:bg-primary/90 font-cinzel text-lg tracking-wider gap-2">
+          <Play className="w-5 h-5" />
+          OYUNU BAŞLAT
+        </Button>
 
         {/* Online lobby button */}
-        <motion.div
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}>
-          <Button
-            onClick={() => navigate('/lobby')}
-            size="lg"
-            variant="outline"
-            className="w-full h-12 font-cinzel tracking-wider gap-2 border-primary/40 text-primary hover:bg-primary/10"
-            style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}>
-            <Globe className="w-5 h-5" />
-            ÇEVRİMİÇİ OYUN
-          </Button>
-        </motion.div>
+        <Button
+          onClick={() => navigate('/lobby')}
+          size="lg"
+          variant="outline"
+          className="w-full h-12 font-cinzel tracking-wider gap-2 border-primary/40 text-primary hover:bg-primary/10">
+          <Globe className="w-5 h-5" />
+          ÇEVRİMİÇİ OYUN
+        </Button>
 
 
 
 
-      </motion.div>
+    </div>
     </div>);
 
 }
