@@ -64,20 +64,19 @@ export default function PlayerSetup() {
             Oyuncu Sayısı
           </label>
           <div className="flex items-center justify-center gap-3">
-            {[1, 2, 3, 4].map((n) =>
+            {[1, 2, 3, 4].map((n) => (
             <button
               key={n}
-              onMouseDown={(e) => { e.preventDefault(); setPlayerCount(n); }}
-              onTouchStart={(e) => { e.preventDefault(); setPlayerCount(n); }}
+              onClick={() => setPlayerCount(n)}
               className={`
-                  w-14 h-14 rounded-xl border-2 font-cinzel text-2xl font-bold transition-all duration-150 cursor-pointer
+                  w-14 h-14 rounded-xl border-2 font-cinzel text-2xl font-bold transition-all duration-150 cursor-pointer active:scale-95
                   ${playerCount === n ?
               'border-primary bg-primary/15 text-primary' :
               'border-border/50 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground'}
                 `}>
               {n}
             </button>
-            )}
+            ))}
           </div>
         </div>
 
