@@ -27,16 +27,24 @@ export default function AppHeader() {
   const showBack = BACK_ROUTES.includes(location.pathname);
   const showHome = HOME_ROUTES.includes(location.pathname);
 
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/');
+    }
+  };
+
   if (showBack) {
     return (
       <div
-        className="fixed top-0 left-0 right-0 z-40 flex items-center px-4 h-14 bg-background/80 backdrop-blur-sm border-b border-border/30"
+        className="fixed top-0 left-0 right-0 z-[60] flex items-center px-4 h-14 bg-background/80 backdrop-blur-sm border-b border-border/30"
         style={{ paddingTop: 'env(safe-area-inset-top)', height: 'calc(3.5rem + env(safe-area-inset-top))' }}
       >
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => navigate(-1)}
+          onClick={handleBack}
           className="text-muted-foreground hover:text-foreground"
           style={{ userSelect: 'none' }}
         >
@@ -50,7 +58,7 @@ export default function AppHeader() {
   if (showHome) {
     return (
       <div
-        className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 bg-background/80 backdrop-blur-sm border-b border-border/30"
+        className="fixed top-0 left-0 right-0 z-[60] flex items-center justify-between px-4 bg-background/80 backdrop-blur-sm border-b border-border/30"
         style={{ paddingTop: 'env(safe-area-inset-top)', height: 'calc(3.5rem + env(safe-area-inset-top))' }}
       >
         <h1 className="font-cinzel text-lg text-primary tracking-widest">KRONOS</h1>

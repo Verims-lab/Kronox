@@ -19,7 +19,7 @@ export default function BottomNav() {
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-md border-t border-border/40 flex items-center justify-around"
+      className="fixed bottom-0 left-0 right-0 z-[60] bg-background/90 backdrop-blur-md border-t border-border/40 flex items-center justify-around"
       style={{
         paddingBottom: 'env(safe-area-inset-bottom)',
         height: 'calc(3.5rem + env(safe-area-inset-bottom))',
@@ -31,7 +31,7 @@ export default function BottomNav() {
         return (
           <button
             key={path}
-            onClick={() => navigate(path)}
+            onClick={() => navigate(path, { replace: isActive })}
             className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors"
             style={{ touchAction: 'manipulation' }}
           >
