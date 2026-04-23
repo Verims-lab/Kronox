@@ -451,22 +451,17 @@ export default function Game() {
 
   // Check available questions based on filters (offline mode only)
   const availableQuestions = allQuestions
-    .filter(q => q.type === 'metin')
+    .filter(q => q.type === 'metin' || !q.type) // Tip eksikse dahil et
     .filter(q => q.year >= yearStart && q.year <= yearEnd)
-    .filter(q => category === 'karisik' || q.category === category);
+    .filter(q => category === 'karisik' || !q.category || q.category === category); // Kategori eksikse dahil et
   
   // Debug: sorular nasıl filtreleniyor görmek için
-  if (availableQuestions.length === 0) {
-    const noTypeCount = allQuestions.filter(q => !q.type || q.type !== 'metin').length;
-    const noCategoryCount = allQuestions.filter(q => category !== 'karisik' && q.category !== category).length;
-    const noYearCount = allQuestions.filter(q => q.year < yearStart || q.year > yearEnd).length;
-    console.log('[Game] availableQuestions = 0:', {
+  if (availableQuestions.length === 0 && !lobbyId) {
+    console.log('[Game] DEBUG - availableQuestions = 0:', {
       totalQuestions: allQuestions.length,
-      wrongType: noTypeCount,
-      wrongCategory: noCategoryCount,
-      wrongYear: noYearCount,
       selectedCategory: category,
-      yearRange: `${yearStart}-${yearEnd}`
+      yearRange: `${yearStart}-${yearEnd}`,
+      sampleQuestions: allQuestions.slice(0, 3).map(q => ({ id: q.id, type: q.type, category: q.category, year: q.year }))
     });
   }
 
