@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trash2, AlertTriangle, Settings, FileDown, Loader2, Lock, FlaskConical } from 'lucide-react';
+import { Trash2, AlertTriangle, FileDown, Loader2, Lock, FlaskConical, ChevronRight, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import { useNavigate } from 'react-router-dom';
@@ -28,15 +28,12 @@ export default function SettingsPage() {
   const isAdmin = user?.email === ADMIN_EMAIL || user?.role === 'admin';
 
   const handleDeleteAccount = async () => {
-    if (!confirmDelete) {
-      setConfirmDelete(true);
-      return;
-    }
+    if (!confirmDelete) { setConfirmDelete(true); return; }
     setDeleting(true);
     try {
       await base44.auth.deleteAccount();
       base44.auth.logout('/');
-    } catch (e) {
+    } catch {
       setDeleting(false);
       setConfirmDelete(false);
     }
@@ -49,13 +46,21 @@ export default function SettingsPage() {
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = 'kronos-teknik-dokuman.pdf';
-      a.click();
+      a.href = url; a.download = 'kronos-teknik-dokuman.pdf'; a.click();
       URL.revokeObjectURL(url);
-    } finally {
-      setDownloadingDoc(false);
-    }
+    } finally { setDownloadingDoc(false); }
+  };
+
+  const handleDownloadWorkflow = async () => {
+    setDownloadingWorkflow(true);
+    try {
+      const res = await base44.functions.fetch('/generateWorkflowDoc', { method: 'POST' });
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'kronos-is-akisi.pdf'; a.click();
+      URL.revokeObjectURL(url);
+    } finally { setDownloadingWorkflow(false); }
   };
 
   if (loadingUser) {
@@ -68,13 +73,12 @@ export default function SettingsPage() {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 px-6"
-        style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
-        <div className="w-14 h-14 rounded-full bg-secondary/50 border border-border/50 flex items-center justify-center">
-          <Lock className="w-6 h-6 text-muted-foreground" />
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-6 px-6">
+        <div className="w-16 h-16 rounded-2xl bg-secondary/50 border border-border/50 flex items-center justify-center">
+          <Lock className="w-7 h-7 text-muted-foreground" />
         </div>
-        <div className="text-center space-y-1">
-          <p className="font-cinzel text-lg text-foreground">Erişim Kısıtlı</p>
+        <div className="text-center space-y-2">
+          <p className="font-cinzel text-xl text-foreground tracking-wide">Erişim Kısıtlı</p>
           <p className="font-inter text-sm text-muted-foreground">Bu sayfa yalnızca admin kullanıcılara açıktır.</p>
         </div>
         <Button variant="outline" onClick={() => navigate('/')}>Ana Sayfaya Dön</Button>
@@ -83,117 +87,133 @@ export default function SettingsPage() {
   }
 
   return (
-    <motion.div
-      initial={{ x: '100%', opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      exit={{ x: '100%', opacity: 0 }}
-      transition={{ type: 'tween', duration: 0.28, ease: 'easeInOut' }}
-      className="min-h-screen bg-background flex flex-col"
+    <div
+      className="min-h-screen bg-background"
       style={{
-        paddingTop: 'calc(1.5rem + env(safe-area-inset-top))',
-        paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))',
-        paddingLeft: '1.5rem',
-        paddingRight: '1.5rem',
+        paddingTop: 'calc(4rem + env(safe-area-inset-top))',
+        paddingBottom: 'calc(2rem + env(safe-area-inset-bottom))',
       }}
     >
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-8">
-        <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-          <Settings className="w-5 h-5 text-primary" />
+      {/* Hero bar */}
+      <div className="px-5 pb-6 pt-2">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center flex-shrink-0">
+            <Shield className="w-4 h-4 text-primary" />
+          </div>
+          <div>
+            <p className="font-cinzel text-lg text-foreground tracking-wider leading-tight">Admin Paneli</p>
+            <p className="font-inter text-xs text-muted-foreground">{user?.email}</p>
+          </div>
         </div>
-        <h1 className="font-cinzel text-2xl text-foreground tracking-wider">Ayarlar</h1>
       </div>
 
-      {/* Admin Araçları */}
-      <div className="space-y-3 mb-6">
-        <p className="text-xs text-muted-foreground font-inter uppercase tracking-widest">Admin Araçları</p>
-        <Button
-          variant="outline"
-          className="w-full gap-2"
-          onClick={handleDownloadDoc}
-          disabled={downloadingDoc}
-        >
-          {downloadingDoc ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
-          Teknik Dökümanı İndir (PDF)
-        </Button>
-        <Button
-          variant="outline"
-          className="w-full gap-2"
-          onClick={async () => {
-            setDownloadingWorkflow(true);
-            try {
-              const res = await base44.functions.fetch('/generateWorkflowDoc', { method: 'POST' });
-              const blob = await res.blob();
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = 'kronos-is-akisi.pdf';
-              a.click();
-              URL.revokeObjectURL(url);
-            } finally {
-              setDownloadingWorkflow(false);
-            }
-          }}
-          disabled={downloadingWorkflow}
-        >
-          {downloadingWorkflow ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
-          Is Akisi Dokumanini Indir (PDF)
-        </Button>
-        <Button
-          variant="outline"
-          className="w-full gap-2"
-          onClick={() => setShowSim(true)}
-        >
-          <FlaskConical className="w-4 h-4" />
-          Online Oyun Simülasyonları
-        </Button>
+      <div className="px-4 space-y-5">
+
+        {/* Admin Araçları */}
+        <Section label="Araçlar">
+          <ToolCard
+            icon={<FileDown className="w-4 h-4" />}
+            title="Teknik Döküman"
+            desc="Sistem mimarisi ve veri modeli"
+            loading={downloadingDoc}
+            onClick={handleDownloadDoc}
+          />
+          <ToolCard
+            icon={<FileDown className="w-4 h-4" />}
+            title="İş Akışı Dökümanı"
+            desc="Use case'ler ve süreç adımları"
+            loading={downloadingWorkflow}
+            onClick={handleDownloadWorkflow}
+          />
+          <ToolCard
+            icon={<FlaskConical className="w-4 h-4" />}
+            title="Online Simülasyonlar"
+            desc="22 test senaryosunu çalıştır"
+            onClick={() => setShowSim(true)}
+          />
+        </Section>
+
+        {/* Hesap */}
+        <Section label="Hesap">
+          <AnimatePresence mode="wait">
+            {!confirmDelete ? (
+              <motion.button
+                key="delete-btn"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={handleDeleteAccount}
+                className="w-full flex items-center gap-3 p-4 rounded-2xl border border-destructive/30 bg-destructive/5 hover:bg-destructive/10 transition-colors text-left"
+              >
+                <div className="w-8 h-8 rounded-xl bg-destructive/10 flex items-center justify-center flex-shrink-0">
+                  <Trash2 className="w-4 h-4 text-destructive" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-inter text-sm font-semibold text-destructive">Hesabı Sil</p>
+                  <p className="font-inter text-xs text-muted-foreground">Tüm veriler kalıcı olarak silinir</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-destructive/50" />
+              </motion.button>
+            ) : (
+              <motion.div
+                key="delete-confirm"
+                initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                className="p-4 rounded-2xl bg-destructive/10 border border-destructive/30 space-y-3"
+              >
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+                  <p className="font-inter text-sm text-destructive leading-relaxed">
+                    Bu işlem geri alınamaz. Tüm verileriniz silinecek.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline" size="sm" className="flex-1"
+                    onClick={() => setConfirmDelete(false)} disabled={deleting}
+                  >İptal</Button>
+                  <Button
+                    size="sm" disabled={deleting}
+                    className="flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                    onClick={handleDeleteAccount}
+                  >
+                    {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Evet, Sil'}
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </Section>
       </div>
 
       <AnimatePresence>
         {showSim && <SimulationPanel onClose={() => setShowSim(false)} />}
       </AnimatePresence>
+    </div>
+  );
+}
 
-      {/* Account section */}
-      <div className="space-y-3">
-        <p className="text-xs text-muted-foreground font-inter uppercase tracking-widest">Hesap</p>
+function Section({ label, children }) {
+  return (
+    <div className="space-y-2">
+      <p className="font-inter text-[10px] text-muted-foreground font-semibold uppercase tracking-widest px-1">{label}</p>
+      <div className="space-y-2">{children}</div>
+    </div>
+  );
+}
 
-        {!confirmDelete ? (
-          <Button
-            variant="outline"
-            className="w-full border-destructive/50 text-destructive hover:bg-destructive/10 gap-2"
-            onClick={handleDeleteAccount}
-          >
-            <Trash2 className="w-4 h-4" />
-            Hesabı Sil
-          </Button>
-        ) : (
-          <div className="space-y-3 p-4 rounded-xl bg-destructive/10 border border-destructive/30">
-            <div className="flex items-center gap-2 text-destructive text-sm font-inter">
-              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-              <span>Bu işlem geri alınamaz. Tüm verileriniz silinecek.</span>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1"
-                onClick={() => setConfirmDelete(false)}
-                disabled={deleting}
-              >
-                İptal
-              </Button>
-              <Button
-                size="sm"
-                className="flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-                onClick={handleDeleteAccount}
-                disabled={deleting}
-              >
-                {deleting ? 'Siliniyor…' : 'Evet, Sil'}
-              </Button>
-            </div>
-          </div>
-        )}
+function ToolCard({ icon, title, desc, loading, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={loading}
+      className="w-full flex items-center gap-3 p-4 rounded-2xl border border-border/40 bg-secondary/20 hover:bg-secondary/40 hover:border-border/70 transition-all text-left disabled:opacity-60"
+    >
+      <div className="w-8 h-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0 text-primary">
+        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : icon}
       </div>
-    </motion.div>
+      <div className="flex-1">
+        <p className="font-inter text-sm font-semibold text-foreground">{title}</p>
+        <p className="font-inter text-xs text-muted-foreground">{desc}</p>
+      </div>
+      <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
+    </button>
   );
 }

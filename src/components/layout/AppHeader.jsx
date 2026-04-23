@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 
 const ADMIN_EMAIL = 'sariverim@gmail.com';
-const BACK_ROUTES = ['/lobby', '/game'];
-const HOME_ROUTES = ['/', '/settings'];
+const BACK_ROUTES = ['/lobby', '/game', '/settings'];
+const HOME_ROUTES = ['/'];
 
 export default function AppHeader() {
   const location = useLocation();
