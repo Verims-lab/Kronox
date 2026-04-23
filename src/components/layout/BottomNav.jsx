@@ -1,16 +1,26 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Play, Settings } from 'lucide-react';
+import { base44 } from '@/api/base44Client';
+
+const ADMIN_EMAIL = 'sariverim@gmail.com';
 
 const TABS = [
-  { label: 'Oyna', icon: Play, path: '/' },
-  { label: 'Ayarlar', icon: Settings, path: '/settings' },
+  { label: 'Oyna', icon: Play, path: '/', adminOnly: false },
+  { label: 'Ayarlar', icon: Settings, path: '/settings', adminOnly: true },
 ];
 
 export default function BottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    base44.auth.me().then(u => {
+      setIsAdmin(u?.email === ADMIN_EMAIL || u?.role === 'admin');
+    }).catch(() => {});
+  }, []);
 
   // Only show on home and settings
   const showOn = ['/', '/settings'];
@@ -21,7 +31,7 @@ export default function BottomNav() {
       className="fixed bottom-0 left-0 right-0 z-50 bg-card/90 backdrop-blur-md border-t border-border/50 flex"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
-      {TABS.map((tab) => {
+      {TABS.filter(tab => !tab.adminOnly || isAdmin).map((tab) => {
         const isActive = location.pathname === tab.path;
         return (
           <button

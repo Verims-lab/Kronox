@@ -1,12 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Trash2, AlertTriangle, Settings } from 'lucide-react';
+import { Trash2, AlertTriangle, Settings, FileDown, Loader2, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
+import { useNavigate } from 'react-router-dom';
+
+const ADMIN_EMAIL = 'sariverim@gmail.com';
 
 export default function SettingsPage() {
+  const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+  const [loadingUser, setLoadingUser] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [downloadingDoc, setDownloadingDoc] = useState(false);
+
+  useEffect(() => {
+    base44.auth.me().then(u => {
+      setUser(u);
+      setLoadingUser(false);
+    }).catch(() => setLoadingUser(false));
+  }, []);
+
+  const isAdmin = user?.email === ADMIN_EMAIL || user?.role === 'admin';
 
   const handleDeleteAccount = async () => {
     if (!confirmDelete) {
@@ -22,6 +38,46 @@ export default function SettingsPage() {
       setConfirmDelete(false);
     }
   };
+
+  const handleDownloadDoc = async () => {
+    setDownloadingDoc(true);
+    try {
+      const res = await base44.functions.fetch('/generateTechDoc', { method: 'POST' });
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'kronos-teknik-dokuman.pdf';
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setDownloadingDoc(false);
+    }
+  };
+
+  if (loadingUser) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-6 h-6 text-primary animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 px-6"
+        style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
+        <div className="w-14 h-14 rounded-full bg-secondary/50 border border-border/50 flex items-center justify-center">
+          <Lock className="w-6 h-6 text-muted-foreground" />
+        </div>
+        <div className="text-center space-y-1">
+          <p className="font-cinzel text-lg text-foreground">Erişim Kısıtlı</p>
+          <p className="font-inter text-sm text-muted-foreground">Bu sayfa yalnızca admin kullanıcılara açıktır.</p>
+        </div>
+        <Button variant="outline" onClick={() => navigate('/')}>Ana Sayfaya Dön</Button>
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -43,6 +99,20 @@ export default function SettingsPage() {
           <Settings className="w-5 h-5 text-primary" />
         </div>
         <h1 className="font-cinzel text-2xl text-foreground tracking-wider">Ayarlar</h1>
+      </div>
+
+      {/* Teknik Döküman */}
+      <div className="space-y-3 mb-6">
+        <p className="text-xs text-muted-foreground font-inter uppercase tracking-widest">Admin Araçları</p>
+        <Button
+          variant="outline"
+          className="w-full gap-2"
+          onClick={handleDownloadDoc}
+          disabled={downloadingDoc}
+        >
+          {downloadingDoc ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+          Teknik Dökümanı İndir (PDF)
+        </Button>
       </div>
 
       {/* Account section */}
