@@ -13,6 +13,7 @@ import FeedbackOverlay from '@/components/game/FeedbackOverlay';
 import GameOver from '@/components/game/GameOver';
 import SettingsModal from '@/components/game/SettingsModal';
 import TurnTimer from '@/components/game/TurnTimer';
+import SimulationPanel from '@/components/game/SimulationPanel';
 
 
 export default function Game() {
@@ -34,14 +35,16 @@ export default function Game() {
   const [winner, setWinner] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
+  const [showSim, setShowSim] = useState(false);
   const [timerKey, setTimerKey] = useState(0);
   const [lobbyData, setLobbyData] = useState(null);
   const [error, setError] = useState(null);
   const logsRef = React.useRef([]);
   const isMyTurnRef = React.useRef(true);
   const unsubRef = React.useRef(null);
-  const eventQueueRef = React.useRef([]);
-  const processingQueueRef = React.useRef(false);
+  // Pending write: kendi yazdığımız DB güncellemesini subscription ezmesin
+  const pendingWriteRef = React.useRef(false);
+  const pendingWriteTimerRef = React.useRef(null);
 
   const { data: allQuestions, isLoading, isError } = useQuery({
     queryKey: ['questions'],
@@ -105,47 +108,18 @@ export default function Game() {
     }
   }, [playerNames, navigate]);
 
-  // Process queued subscription events in order
-  const processEventQueue = useCallback(() => {
-    console.log('[Game] processEventQueue called:', {
-      isProcessing: processingQueueRef.current,
-      queueLength: eventQueueRef.current.length
-    });
-    
-    if (processingQueueRef.current || eventQueueRef.current.length === 0) {
-      console.log('[Game] processEventQueue skipped: isProcessing or no items');
+  // Safely update lobbyData — subscription'dan gelen event kendi optimistic update'imizi ezmesin
+  const applySubscriptionEvent = useCallback((eventData) => {
+    if (pendingWriteRef.current) {
+      console.log('[Game] Subscription event SKIPPED (pending write in progress)');
       return;
     }
-    
-    processingQueueRef.current = true;
-    // Process all queued events in batches
-    const batch = [];
-    while (eventQueueRef.current.length > 0) {
-      batch.push(eventQueueRef.current.shift());
-    }
-    
-    if (batch.length > 0) {
-      // Use last event state (most recent)
-      const latestEvent = batch[batch.length - 1];
-      console.log('[Game] Processing batch:', {
-        batch_size: batch.length,
-        latest_event_index: batch.length - 1,
-        players: latestEvent.players?.length,
-        current_player_index: latestEvent.current_player_index,
-        timestamp: new Date().toISOString()
-      });
-      setLobbyData(latestEvent);
-      console.log('[Game] Batch processing complete, state updated');
-    }
-    processingQueueRef.current = false;
+    console.log('[Game] Applying subscription event:', {
+      players: eventData.players?.length,
+      current_player_index: eventData.current_player_index,
+    });
+    setLobbyData(eventData);
   }, []);
-
-  // Process queue when it has items
-  useEffect(() => {
-    if (eventQueueRef.current.length > 0) {
-      processEventQueue();
-    }
-  }, [processEventQueue]);
 
   // Online: lobby'yi dinle — questions'tan bağımsız fetch et
   useEffect(() => {
@@ -180,38 +154,28 @@ export default function Game() {
         .catch(err => console.error('[Game] Lobby load error:', err));
     }
     
-    // Subscribe for updates with event queue
+    // Subscribe for updates
     if (unsubRef.current) unsubRef.current();
     
     const unsub = base44.entities.Lobby.subscribe((event) => {
-      if (event.id === lobbyId && event.type !== 'delete') {
-        console.log('[Game] Subscription event received:', { 
-          eventType: event.type,
-          eventId: event.id,
-          players: event.data.players?.length, 
-          current_player_index: event.data.current_player_index,
-          queue_length_before: eventQueueRef.current.length
-        });
-        eventQueueRef.current.push(event.data);
-        console.log('[Game] Event queued, queue_length_after:', eventQueueRef.current.length);
-        // Trigger processing
-        console.log('[Game] Triggering processEventQueue via setTimeout');
-        setTimeout(processEventQueue, 0);
-      } else {
-        console.log('[Game] Subscription event IGNORED:', {
-          eventId: event.id,
-          lobbyId,
-          eventType: event.type,
-          isDelete: event.type === 'delete'
-        });
+      if (event.id !== lobbyId) return;
+      if (event.type === 'delete') {
+        setLobbyData(null);
+        setError('Lobi kapatıldı.');
+        return;
       }
+      console.log('[Game] Subscription event received:', { 
+        current_player_index: event.data.current_player_index,
+        pendingWrite: pendingWriteRef.current,
+      });
+      applySubscriptionEvent(event.data);
     });
     unsubRef.current = unsub;
     
     return () => {
       if (unsubRef.current) unsubRef.current();
     };
-  }, [lobbyId, initialPlayers, processEventQueue]);
+  }, [lobbyId, initialPlayers, applySubscriptionEvent]);
 
   // Pick a random unused question
   const pickQuestion = useCallback((usedIds, questions) => {
@@ -351,7 +315,7 @@ export default function Game() {
         used_question_ids: [...newUsed]
       }));
 
-      // Online modda DB'ye ATOMIC write (card + turn if needed)
+      // Online modda DB'ye ATOMIC write
       if (lobbyId) {
         const lobbyPlayers = newPlayers.map(p => ({
           email: p.email || `player_${p.name}`,
@@ -359,27 +323,32 @@ export default function Game() {
           ready: true,
           cards: p.cards
         }));
-        console.log('[Game] Card placed - DB update:', {
-          player: snapshotPlayer.name,
-          cards_after: lobbyPlayers[currentPlayerIndex]?.cards?.length,
-          has_won: hasWon
-        });
         
         const updateData = { 
           players: lobbyPlayers, 
           used_question_ids: [...newUsed],
           status: hasWon ? 'finished' : 'in_game'
         };
+
+        // Pending write: subscription bu sürede bizi ezmesin
+        pendingWriteRef.current = true;
+        clearTimeout(pendingWriteTimerRef.current);
         
         const attemptUpdate = (retries = 0) => {
           base44.entities.Lobby.update(lobbyId, updateData)
             .then(() => {
               console.log('[Game] Card placement DB update SUCCESS');
+              // 2sn sonra kilidi kaldır — subscription'ın gelmesi için yeterli süre
+              pendingWriteTimerRef.current = setTimeout(() => {
+                pendingWriteRef.current = false;
+              }, 2000);
             })
             .catch((err) => {
               console.error(`[Game] Card placement DB update failed (attempt ${retries + 1}):`, err);
               if (retries < 2) {
                 setTimeout(() => attemptUpdate(retries + 1), 1200);
+              } else {
+                pendingWriteRef.current = false;
               }
             });
         };
@@ -444,32 +413,35 @@ export default function Game() {
     used_question_ids: [...newUsed]
     }));
 
-    // Online: DB'ye de senkronize et (with retry)
+    // Online: DB'ye de senkronize et
     if (lobbyId) {
-    const updateData = {
-      current_player_index: nextIndex,
-      ...(nextQ ? { current_question_id: nextQ.id, used_question_ids: [...newUsed] } : {}),
-    };
+      const updateData = {
+        current_player_index: nextIndex,
+        ...(nextQ ? { current_question_id: nextQ.id, used_question_ids: [...newUsed] } : {}),
+      };
 
-    console.log('[Game] advanceTurn DB update payload:', {
-      nextIndex,
-      hasNewQuestion: !!nextQ,
-      lobbyId
-    });
+      // Pending write kilidi
+      pendingWriteRef.current = true;
+      clearTimeout(pendingWriteTimerRef.current);
 
-    const attemptUpdate = (retries = 0) => {
-      base44.entities.Lobby.update(lobbyId, updateData)
-        .then(() => {
-          console.log('[Game] advanceTurn DB update SUCCESS, nextIndex:', nextIndex);
-        })
-        .catch((err) => {
-          console.error(`[Game] advanceTurn DB update failed (attempt ${retries + 1}):`, err);
-          if (retries < 2) {
-            setTimeout(() => attemptUpdate(retries + 1), 1000);
-          }
-        });
-    };
-    attemptUpdate();
+      const attemptUpdate = (retries = 0) => {
+        base44.entities.Lobby.update(lobbyId, updateData)
+          .then(() => {
+            console.log('[Game] advanceTurn DB update SUCCESS, nextIndex:', nextIndex);
+            pendingWriteTimerRef.current = setTimeout(() => {
+              pendingWriteRef.current = false;
+            }, 2000);
+          })
+          .catch((err) => {
+            console.error(`[Game] advanceTurn DB update failed (attempt ${retries + 1}):`, err);
+            if (retries < 2) {
+              setTimeout(() => attemptUpdate(retries + 1), 1000);
+            } else {
+              pendingWriteRef.current = false;
+            }
+          });
+      };
+      attemptUpdate();
     }
   }, [lobbyData, players.length, usedQuestionIds, pickQuestion, lobbyId, questionPool]);
 
@@ -613,6 +585,11 @@ export default function Game() {
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       </AnimatePresence>
 
+      {/* Simulation panel */}
+      <AnimatePresence>
+      {showSim && <SimulationPanel onClose={() => setShowSim(false)} />}
+      </AnimatePresence>
+
       {/* Logs modal */}
       <AnimatePresence>
       {showLogs && (
@@ -685,6 +662,15 @@ export default function Game() {
               <TurnTimer key={timerKey} active={!feedback && !winner && isGameReady} onTimeUp={isMyTurn ? handleTimeUp : undefined} duration={turnDuration} />
             </div>
             <div className="flex gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowSim(true)}
+                className="text-muted-foreground hover:text-foreground text-xs"
+                title="Simülasyon"
+              >
+                Sim
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"
