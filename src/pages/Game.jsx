@@ -209,7 +209,7 @@ export default function Game() {
     } catch (err) {
       setError('Oyun başlatılırken hata: ' + (err?.message || 'Bilinmeyen hata'));
     }
-  }, [playerNames, allQuestions, category, pickQuestion, lobbyId]);
+  }, [playerNames, allQuestions, category, yearStart, yearEnd, pickQuestion, lobbyId]);
 
   const handleSelectZone = (index) => {
     setSelectedZone(index);
