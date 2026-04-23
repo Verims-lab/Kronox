@@ -561,7 +561,7 @@ export default function Game() {
         {/* Landscape + desktop: side-by-side. Portrait mobile: stacked */}
         <div
           className="flex-1 flex flex-col landscape:flex-row md:flex-row items-start gap-3 px-2 md:px-4 landscape:px-3"
-          style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+          style={{ paddingBottom: 'calc(1.25rem + env(safe-area-inset-bottom))' }}
         >
           {/* Timeline area — iki bölüm: sıradaki oyuncu + benim kartlarım */}
           <div className="flex-1 space-y-3 landscape:mt-2 md:mt-4 min-w-0">

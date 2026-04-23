@@ -67,6 +67,7 @@ const AuthenticatedApp = () => {
             <Route path="*" element={<PageNotFound />} />
           </Routes>
         </Suspense>
+        {/* BottomNav is hidden on /game internally */}
         <BottomNav />
       </motion.div>
     </AnimatePresence>
