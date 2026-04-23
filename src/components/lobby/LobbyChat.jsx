@@ -58,7 +58,7 @@ export default function LobbyChat({ lobbyId, playerName, compact = false }) {
   };
 
   return (
-    <div className={`flex flex-col border border-border/30 rounded-xl bg-secondary/10 overflow-hidden ${compact ? 'h-48' : 'h-64'}`}>
+    <div className={`flex flex-col border border-border/30 rounded-xl bg-secondary/10 overflow-hidden ${compact ? 'h-48' : 'h-full'}`}>
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border/20 bg-secondary/20">
         <MessageCircle className="w-3.5 h-3.5 text-muted-foreground" />
