@@ -94,9 +94,21 @@
     padding-right: env(safe-area-inset-right);
   }
 
-  button, [role="button"], .game-interactive {
+  button, [role="button"], .game-interactive, input, textarea, select, a {
     user-select: none;
     touch-action: manipulation;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    pointer-events: auto;
+    cursor: pointer;
+  }
+  
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  body {
+    cursor: auto;
   }
 }
 
