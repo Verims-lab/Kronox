@@ -443,6 +443,21 @@ export default function Game() {
     .filter(q => q.type === 'metin')
     .filter(q => q.year >= yearStart && q.year <= yearEnd)
     .filter(q => category === 'karisik' || q.category === category);
+  
+  // Debug: sorular nasıl filtreleniyor görmek için
+  if (availableQuestions.length === 0) {
+    const noTypeCount = allQuestions.filter(q => !q.type || q.type !== 'metin').length;
+    const noCategoryCount = allQuestions.filter(q => category !== 'karisik' && q.category !== category).length;
+    const noYearCount = allQuestions.filter(q => q.year < yearStart || q.year > yearEnd).length;
+    console.log('[Game] availableQuestions = 0:', {
+      totalQuestions: allQuestions.length,
+      wrongType: noTypeCount,
+      wrongCategory: noCategoryCount,
+      wrongYear: noYearCount,
+      selectedCategory: category,
+      yearRange: `${yearStart}-${yearEnd}`
+    });
+  }
 
   if (!lobbyId && availableQuestions.length < 10) {
     return (
