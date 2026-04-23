@@ -65,6 +65,10 @@
       ],
       "default": "waiting"
     },
+    "winner": {
+      "type": "string",
+      "description": "Name of the winning player"
+    },
     "category": {
       "type": "string",
       "enum": [

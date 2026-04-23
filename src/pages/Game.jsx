@@ -166,8 +166,14 @@ export default function Game() {
       }
       console.log('[Game] Subscription event received:', { 
         current_player_index: event.data.current_player_index,
+        status: event.data.status,
+        winner: event.data.winner,
         pendingWrite: pendingWriteRef.current,
       });
+      // Oyun bittiyse herkese winner ekranını göster
+      if (event.data.status === 'finished' && event.data.winner) {
+        setWinner(event.data.winner);
+      }
       applySubscriptionEvent(event.data);
     });
     unsubRef.current = unsub;
@@ -300,14 +306,6 @@ export default function Game() {
       // Check win condition BEFORE updating
       const hasWon = newPlayers[currentPlayerIndex].cards.length >= winCardCount;
 
-      console.log('[Game] Writing to DB:', {
-        currentPlayerIndex,
-        playerCardsAfter: newPlayers[currentPlayerIndex].cards.length,
-        hasWon,
-        lobbyId,
-        lobbyPlayersSnapshot: newPlayers.map(p => ({ name: p.name, cards: p.cards.length }))
-      });
-
       // OPTIMISTIC UPDATE FIRST—state immediately reflects the card
       setLobbyData(prev => ({
         ...prev,
@@ -327,7 +325,8 @@ export default function Game() {
         const updateData = { 
           players: lobbyPlayers, 
           used_question_ids: [...newUsed],
-          status: hasWon ? 'finished' : 'in_game'
+          status: hasWon ? 'finished' : 'in_game',
+          ...(hasWon ? { winner: newPlayers[currentPlayerIndex].name } : {})
         };
 
         // Pending write: subscription bu sürede bizi ezmesin
