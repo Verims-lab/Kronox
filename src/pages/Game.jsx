@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Loader2, Check, ArrowLeft, Settings, X, MessageCircle } from 'lucide-react';
+import { Loader2, Check, ArrowLeft, Settings, X, MessageCircle, FlaskConical } from 'lucide-react';
 
 import PlayerIndicator from '@/components/game/PlayerIndicator';
 import Timeline from '@/components/game/Timeline';
@@ -14,6 +14,7 @@ import GameOver from '@/components/game/GameOver';
 import SettingsModal from '@/components/game/SettingsModal';
 import TurnTimer from '@/components/game/TurnTimer';
 import LobbyChat from '@/components/lobby/LobbyChat';
+import SimulationPanel from '@/components/game/SimulationPanel';
 
 
 export default function Game() {
@@ -35,6 +36,7 @@ export default function Game() {
   const [winner, setWinner] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [showSim, setShowSim] = useState(false);
   const [timerKey, setTimerKey] = useState(0);
   const [lobbyData, setLobbyData] = useState(null);
   const [error, setError] = useState(null);
@@ -574,6 +576,11 @@ export default function Game() {
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       </AnimatePresence>
 
+      {/* Simulation panel (admin/dev only) */}
+      <AnimatePresence>
+      {showSim && <SimulationPanel onClose={() => setShowSim(false)} />}
+      </AnimatePresence>
+
       {/* Chat panel — only in online mode */}
       <AnimatePresence>
       {showChat && isOnline && (
@@ -633,6 +640,15 @@ export default function Game() {
                 </Button>
               )}
 
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowSim(s => !s)}
+                className="text-muted-foreground hover:text-foreground"
+                title="Simülasyon Testleri"
+              >
+                <FlaskConical className="w-5 h-5" />
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"
