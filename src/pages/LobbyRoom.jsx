@@ -168,7 +168,7 @@ export default function LobbyRoom() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6"
-      style={{ paddingTop: 'calc(1.5rem + env(safe-area-inset-top))', paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}>
+      style={{ paddingTop: 'calc(5rem + env(safe-area-inset-top))', paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}>
       <div className="w-full max-w-md space-y-8">
         <div className="text-center space-y-2">
           <div className="w-14 h-14 mx-auto border-2 border-primary/40 rounded-full flex items-center justify-center">
@@ -338,7 +338,7 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center"
-      style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))', paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
+      style={{ paddingTop: 'calc(4rem + env(safe-area-inset-top))', paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
       <div
         ref={waitingScrollRef}
         className="w-full max-w-lg px-4 pb-4 space-y-4 flex-1 overflow-y-auto"
@@ -351,11 +351,10 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
         )}
         {/* Header */}
         <div className="flex items-center justify-between">
-          <Button variant="ghost" size="icon" onClick={onLeave} className="text-muted-foreground">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <h1 className="font-cinzel text-xl text-primary tracking-widest">KRONOS</h1>
-          <div className="w-9" />
+          <h1 className="font-cinzel text-xl text-primary tracking-widest">Lobi</h1>
+          <button onClick={onLeave} className="text-xs font-inter text-muted-foreground hover:text-destructive transition-colors">
+            Ayrıl
+          </button>
         </div>
 
         {/* Lobby Code */}

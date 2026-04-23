@@ -8,10 +8,13 @@ import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import { Loader2 } from 'lucide-react';
+import BottomNav from '@/components/layout/BottomNav';
+import AppHeader from '@/components/layout/AppHeader';
 
 const PlayerSetup = lazy(() => import('./pages/PlayerSetup'));
 const Game = lazy(() => import('./pages/Game'));
 const LobbyRoom = lazy(() => import('./pages/LobbyRoom'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 
 function PageLoader() {
   return (
@@ -54,14 +57,17 @@ const AuthenticatedApp = () => {
         transition={{ type: 'tween', duration: 0.28, ease: 'easeInOut' }}
         style={{ position: 'absolute', width: '100%', minHeight: '100%' }}
       >
+        <AppHeader />
         <Suspense fallback={<PageLoader />}>
           <Routes location={location}>
             <Route path="/" element={<PlayerSetup />} />
+            <Route path="/settings" element={<SettingsPage />} />
             <Route path="/lobby" element={<LobbyRoom />} />
             <Route path="/game" element={<Game />} />
             <Route path="*" element={<PageNotFound />} />
           </Routes>
         </Suspense>
+        <BottomNav />
       </motion.div>
     </AnimatePresence>
   );

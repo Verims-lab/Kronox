@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Loader2, Check, ArrowLeft, Settings, X, MessageCircle, FlaskConical } from 'lucide-react';
+import { Loader2, Check, Settings, X, MessageCircle, FlaskConical } from 'lucide-react';
 
 import PlayerIndicator from '@/components/game/PlayerIndicator';
 import Timeline from '@/components/game/Timeline';
@@ -612,17 +612,10 @@ export default function Game() {
         {/* Header — compact in landscape */}
         <div
           className="pb-1 px-4 space-y-2 landscape:space-y-1 landscape:pb-1"
-          style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top))' }}
+          style={{ paddingTop: 'calc(3.5rem + env(safe-area-inset-top))' }}
         >
           <div className="flex items-center justify-between">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/')}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
+            <div className="w-9" />
             <div className="flex items-center gap-2">
               <h1 className="font-cinzel text-xl text-primary tracking-widest">KRONOS</h1>
               <TurnTimer key={timerKey} active={!feedback && !winner && isGameReady} onTimeUp={isMyTurn ? handleTimeUp : undefined} duration={turnDuration} />
