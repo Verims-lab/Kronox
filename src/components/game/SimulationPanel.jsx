@@ -10,6 +10,7 @@ const SCENARIOS = [
     items: [
       { key: '2p_normal', label: 'Normal Akış', desc: 'Sıralı hamle, kart birikimi, tur geçişi' },
       { key: '2p_win', label: 'Kazanma Koşulu', desc: 'P1 10 kart topluyor → status=finished' },
+      { key: '2p_rival_win', label: 'Rakip Kazanır', desc: 'P1=9 kart, P2=8 kart → P1 son kartla bitirir' },
       { key: '2p_delayed', label: 'Gecikmeli Yazma', desc: 'DB 1.5sn geç → race condition engeli' },
       { key: '2p_concurrent', label: 'Eş Zamanlı', desc: '2 oyuncu aynı anda yazar → last-write-wins' },
     ],
@@ -19,6 +20,8 @@ const SCENARIOS = [
     items: [
       { key: '3p_turn_order', label: 'Tur Sırası', desc: '0→1→2→0 doğru dönüyor mu? (2 tam tur)' },
       { key: '3p_spectate', label: 'Bekleme / İzleme', desc: 'Sıra olmayan oyuncular kart ekleyemiyor' },
+      { key: 'player_leave', label: 'Oyuncu Ayrılır', desc: 'P3 çıkar → kalan 2 oyuncu, index korunur' },
+      { key: 'host_leave', label: 'Host Ayrılır', desc: 'Host çıkar → lobi silinir, diğerleri bilgilendirilir' },
     ],
   },
   {
@@ -29,9 +32,37 @@ const SCENARIOS = [
     ],
   },
   {
+    group: 'Kart Yerleşim',
+    items: [
+      { key: 'placement_boundary', label: 'Sınır Koşulları', desc: 'Zone 0/N/orta, eşit yıl kenar değeri' },
+      { key: 'placement_empty_timeline', label: 'Boş Timeline', desc: '0 kartlı oyuncuya her yıl yerleştirilebilir' },
+    ],
+  },
+  {
+    group: 'Oyun Ayarları',
+    items: [
+      { key: 'win_thresholds', label: 'Kazanma Eşiği', desc: '5/7/10/15 kart eşiğinde winner doğru yazılır' },
+      { key: 'turn_duration_variants', label: 'Tur Süresi', desc: '0(süresiz)/10/30/60/120sn kaydedilir' },
+      { key: 'category_filter', label: 'Kategori Filtresi', desc: 'Tüm kategoriler DB\'ye doğru yazılır' },
+      { key: 'year_range', label: 'Yıl Aralığı', desc: 'Dar/geniş/antik aralıklar doğru kaydedilir' },
+      { key: 'category_year_combo', label: 'Kategori × Yıl', desc: 'Kombinasyon ayarları tutarlı kaydedilir' },
+    ],
+  },
+  {
+    group: 'Veri Bütünlüğü',
+    items: [
+      { key: 'lobby_state_transitions', label: 'Durum Geçişleri', desc: 'waiting→starting→in_game→finished' },
+      { key: 'pool_exhausted', label: 'Soru Tükenmesi', desc: '200 ID kullanıldığında DB tutarlı kalır' },
+      { key: 'dedup_questions', label: 'Soru Dedup', desc: 'Aynı soru ID iki kez girilmez (Set filtresi)' },
+      { key: 'player_name_edge', label: 'İsim Kenar Değerler', desc: 'Türkçe, XSS, uzun, tek karakter isimler' },
+      { key: 'lobby_chat', label: 'Lobi Sohbet', desc: 'Chat/system mesajları oluşturulur ve okunur' },
+      { key: 'game_restart', label: 'Oyun Yeniden Başlat', desc: 'Finished → waiting, kartlar ve soru geçmişi sıfırlanır' },
+    ],
+  },
+  {
     group: 'Hepsi',
     items: [
-      { key: 'all', label: 'Tümünü Çalıştır', desc: '8 senaryoyu sırayla çalıştır, özet raporla' },
+      { key: 'all', label: 'Tümünü Çalıştır', desc: '22 senaryoyu sırayla çalıştır, özet raporla' },
     ],
   },
 ];
@@ -120,7 +151,7 @@ export default function SimulationPanel({ onClose }) {
         {loading && (
           <div className="flex items-center gap-2 text-sm font-inter text-muted-foreground">
             <Loader2 className="w-4 h-4 animate-spin" />
-            <span>Simülasyon çalışıyor... ({activeScenario === 'all' ? '~15sn' : '~3sn'})</span>
+            <span>Simülasyon çalışıyor... ({activeScenario === 'all' ? '~45sn' : '~3sn'})</span>
           </div>
         )}
 
