@@ -91,6 +91,46 @@ Deno.serve(async (req) => {
     const results = {};
 
     // ══════════════════════════════════════════════════════════════════
+    // TEK OYUNCU OFFLINE — SORU HAVUZU KONTROLLERİ
+    // ══════════════════════════════════════════════════════════════════
+    if (scenario === 'single_player_offline' || scenario === 'all') {
+      results['single_player_offline'] = await (async () => {
+        const logs = [];
+        try {
+          const questions = await base44.asServiceRole.entities.Question.list('-created_date', 200);
+          const categoryFilters = [
+            { cat: 'karisik', text: 'mixed' },
+            { cat: 'tarih', text: 'history' },
+            { cat: 'bilim', text: 'science' },
+          ];
+          
+          for (const { cat, text } of categoryFilters) {
+            const filtered = questions
+              .filter(q => q.type === 'metin')
+              .filter(q => cat === 'karisik' || q.category === cat);
+            
+            // Minimum 10 soru gerekli
+            if (filtered.length < 10) {
+              logs.push(`⚠️  ${text.toUpperCase()} (${cat}): ${filtered.length} soru < 10 (hata verilmeli)`);
+            } else {
+              logs.push(`✅ ${text.toUpperCase()} (${cat}): ${filtered.length} ≥ 10 soru (oyun başlar)`);
+            }
+          }
+          
+          if (logs.some(l => l.includes('✅'))) {
+            logs.push('✅ Minimum 1 kategori 10+ soru içeriyor — offline oyun başlatılabilir');
+            return { status: 'PASS', logs };
+          } else {
+            logs.push('❌ Hiçbir kategori 10+ soru içermiyor — oyun başlamaz');
+            return { status: 'FAIL', logs };
+          }
+        } catch (err) {
+          return { status: 'ERROR', error: err.message };
+        }
+      })();
+    }
+
+    // ══════════════════════════════════════════════════════════════════
     // 2 OYUNCU — NORMAL AKIŞ
     // ══════════════════════════════════════════════════════════════════
     if (scenario === '2p_normal' || scenario === 'all') {

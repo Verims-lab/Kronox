@@ -174,8 +174,8 @@ export default function Game() {
         .filter(q => q.year >= yearStart && q.year <= yearEnd)
         .filter(q => category === 'karisik' || q.category === category);
 
-      if (filteredQuestions.length === 0) {
-        setError('Soru bulunamadı');
+      if (filteredQuestions.length < 10) {
+        setError(`Oyun için en az 10 soru gerekli. Seçilen kategori ve yıl aralığında ${filteredQuestions.length} soru var.`);
         return;
       }
 
