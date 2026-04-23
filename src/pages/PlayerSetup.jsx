@@ -41,6 +41,7 @@ export default function PlayerSetup() {
       <motion.div
         initial={{ opacity: 0, y: -30 }}
         animate={{ opacity: 1, y: 0 }}
+        style={{ pointerEvents: 'auto' }}
         className="relative z-10 w-full max-w-md space-y-8">
         
         {/* Logo */}
@@ -78,9 +79,8 @@ export default function PlayerSetup() {
               'border-primary bg-primary/15 text-primary' :
               'border-border/50 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground'}
                 `}>
-              
-                {n}
-              </button>
+              {n}
+            </button>
             )}
           </div>
         </div>
@@ -104,10 +104,9 @@ export default function PlayerSetup() {
               'border-primary bg-primary/15 text-primary' :
               'border-border/50 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground'}
                 `}>
-              
-                <Icon className="w-4 h-4" />
-                {label}
-              </button>
+              <Icon className="w-4 h-4" />
+              {label}
+            </button>
             )}
           </div>
         </div>
@@ -132,8 +131,8 @@ export default function PlayerSetup() {
                 </span>
                 <button
                   onClick={() => setYearStart(y => Math.min(yearEnd - 10, y + 10))}
-                  style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}
                   className="w-8 h-8 rounded-lg border border-border/50 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground transition-all text-sm font-bold"
+                  style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}
                 >+</button>
               </div>
             </div>
@@ -142,16 +141,16 @@ export default function PlayerSetup() {
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => setYearEnd(y => Math.max(yearStart + 10, y - 10))}
-                  style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}
                   className="w-8 h-8 rounded-lg border border-border/50 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground transition-all text-sm font-bold"
+                  style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}
                 >−</button>
                 <span className="flex-1 text-center font-cinzel text-base font-bold text-foreground">
                   {yearEnd}
                 </span>
                 <button
                   onClick={() => setYearEnd(y => Math.min(new Date().getFullYear(), y + 10))}
-                  style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}
                   className="w-8 h-8 rounded-lg border border-border/50 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground transition-all text-sm font-bold"
+                  style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}
                 >+</button>
               </div>
             </div>
@@ -179,7 +178,7 @@ export default function PlayerSetup() {
                     ? 'border-primary bg-primary/15 text-primary'
                     : 'border-border/50 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground'}
                 `}
-              >
+                style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}>
                 {s === 0 ? '∞' : `${s}s`}
               </button>
             ))}
@@ -196,7 +195,8 @@ export default function PlayerSetup() {
             key={i}
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: i * 0.1 }}>
+            transition={{ delay: i * 0.1 }}
+            style={{ pointerEvents: 'auto' }}>
             
               <Input
               placeholder={`Oyuncu ${i + 1} İsmi`}
@@ -216,7 +216,7 @@ export default function PlayerSetup() {
         <motion.div
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          style={{ pointerEvents: 'auto' }}>
+          style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}>
           
           <Button
             onClick={handleStart}
@@ -232,7 +232,7 @@ export default function PlayerSetup() {
         <motion.div
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          style={{ pointerEvents: 'auto' }}>
+          style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}>
           <Button
             onClick={() => navigate('/lobby')}
             size="lg"
