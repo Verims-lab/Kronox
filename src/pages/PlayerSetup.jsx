@@ -67,7 +67,7 @@ export default function PlayerSetup() {
             {[1, 2, 3, 4].map((n) =>
             <button
               key={n}
-              onClick={() => setPlayerCount(n)}
+              onClick={() => { console.log(`[BUTTON] Player count clicked: ${n}`); setPlayerCount(n); }}
               style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}
               className={`
                   w-14 h-14 rounded-xl border-2 font-cinzel text-2xl font-bold transition-all duration-150
