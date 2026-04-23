@@ -25,11 +25,11 @@ const AuthenticatedApp = () => {
 
   // Handle authentication errors
   if (authError) {
-    if (authError.type === 'user_not_registered') {
-      return <UserNotRegisteredError />;
-    } else if (authError.type === 'auth_required') {
-      // App is public — continue as guest, no redirect
-    }
+  if (authError.type === 'user_not_registered') {
+    return <UserNotRegisteredError />;
+  }
+  // For auth_required or any other error: app is public — continue as guest
+  // Do NOT block rendering or show error screen
   }
 
   // Render the main app
