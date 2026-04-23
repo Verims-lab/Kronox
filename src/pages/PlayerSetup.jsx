@@ -67,10 +67,10 @@ export default function PlayerSetup() {
             {[1, 2, 3, 4].map((n) =>
             <button
               key={n}
-              onClick={() => { console.log(`[BUTTON] Player count clicked: ${n}`); setPlayerCount(n); }}
-              style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}
+              onMouseDown={(e) => { e.preventDefault(); setPlayerCount(n); }}
+              onTouchStart={(e) => { e.preventDefault(); setPlayerCount(n); }}
               className={`
-                  w-14 h-14 rounded-xl border-2 font-cinzel text-2xl font-bold transition-all duration-150
+                  w-14 h-14 rounded-xl border-2 font-cinzel text-2xl font-bold transition-all duration-150 cursor-pointer
                   ${playerCount === n ?
               'border-primary bg-primary/15 text-primary' :
               'border-border/50 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground'}
