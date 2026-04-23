@@ -208,13 +208,14 @@ export default function PlayerSetup() {
         {/* Start button */}
         <motion.div
           whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}>
+          whileTap={{ scale: 0.98 }}
+          style={{ pointerEvents: 'auto' }}>
           
           <Button
             onClick={handleStart}
             size="lg"
-            className="w-full h-14 bg-primary text-primary-foreground hover:bg-primary/90 font-cinzel text-lg tracking-wider gap-2">
-            
+            className="w-full h-14 bg-primary text-primary-foreground hover:bg-primary/90 font-cinzel text-lg tracking-wider gap-2"
+            style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}>
             <Play className="w-5 h-5" />
             OYUNU BAŞLAT
           </Button>
@@ -223,12 +224,14 @@ export default function PlayerSetup() {
         {/* Online lobby button */}
         <motion.div
           whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}>
+          whileTap={{ scale: 0.98 }}
+          style={{ pointerEvents: 'auto' }}>
           <Button
             onClick={() => navigate('/lobby')}
             size="lg"
             variant="outline"
-            className="w-full h-12 font-cinzel tracking-wider gap-2 border-primary/40 text-primary hover:bg-primary/10">
+            className="w-full h-12 font-cinzel tracking-wider gap-2 border-primary/40 text-primary hover:bg-primary/10"
+            style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}>
             <Globe className="w-5 h-5" />
             ÇEVRİMİÇİ OYUN
           </Button>

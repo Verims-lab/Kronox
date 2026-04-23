@@ -76,12 +76,6 @@ const AuthenticatedApp = () => {
 
 
 function App() {
-  React.useEffect(() => {
-    // Web tarayıcısında click/touch event'lerini normal davranış ver
-    document.addEventListener('click', (e) => e.stopPropagation === undefined || true, true);
-    document.addEventListener('touchstart', (e) => e.stopPropagation === undefined || true, true);
-  }, []);
-
   return (
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>
