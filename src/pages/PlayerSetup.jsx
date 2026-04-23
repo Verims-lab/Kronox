@@ -71,6 +71,7 @@ export default function PlayerSetup() {
             <button
               key={n}
               onClick={() => setPlayerCount(n)}
+              style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}
               className={`
                   w-14 h-14 rounded-xl border-2 font-cinzel text-2xl font-bold transition-all duration-150
                   ${playerCount === n ?
@@ -95,6 +96,7 @@ export default function PlayerSetup() {
             <button
               key={value}
               onClick={() => setSelectedCategory(value)}
+              style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}
               className={`
                   flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border-2
                   font-inter text-xs font-medium transition-all duration-150
@@ -122,6 +124,7 @@ export default function PlayerSetup() {
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => setYearStart(y => Math.max(0, y - 10))}
+                  style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}
                   className="w-8 h-8 rounded-lg border border-border/50 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground transition-all text-sm font-bold"
                 >−</button>
                 <span className="flex-1 text-center font-cinzel text-base font-bold text-foreground">
@@ -129,6 +132,7 @@ export default function PlayerSetup() {
                 </span>
                 <button
                   onClick={() => setYearStart(y => Math.min(yearEnd - 10, y + 10))}
+                  style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}
                   className="w-8 h-8 rounded-lg border border-border/50 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground transition-all text-sm font-bold"
                 >+</button>
               </div>
@@ -138,6 +142,7 @@ export default function PlayerSetup() {
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => setYearEnd(y => Math.max(yearStart + 10, y - 10))}
+                  style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}
                   className="w-8 h-8 rounded-lg border border-border/50 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground transition-all text-sm font-bold"
                 >−</button>
                 <span className="flex-1 text-center font-cinzel text-base font-bold text-foreground">
@@ -145,6 +150,7 @@ export default function PlayerSetup() {
                 </span>
                 <button
                   onClick={() => setYearEnd(y => Math.min(new Date().getFullYear(), y + 10))}
+                  style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}
                   className="w-8 h-8 rounded-lg border border-border/50 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground transition-all text-sm font-bold"
                 >+</button>
               </div>
@@ -166,6 +172,7 @@ export default function PlayerSetup() {
               <button
                 key={s}
                 onClick={() => setTurnDuration(s)}
+                style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}
                 className={`
                   flex-1 min-w-[3.5rem] py-2 rounded-xl border-2 font-cinzel text-sm font-bold transition-all duration-150
                   ${turnDuration === s
