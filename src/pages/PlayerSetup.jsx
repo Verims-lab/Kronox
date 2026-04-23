@@ -242,11 +242,7 @@ export default function PlayerSetup() {
             className="w-full h-48 bg-background border border-border rounded p-2 text-[10px] font-mono text-muted-foreground resize-none"
           />
         </div>
-
-
-
-
+      </div>
     </div>
-    </div>);
-
+  );
 }
