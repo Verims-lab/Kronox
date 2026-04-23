@@ -56,13 +56,18 @@ export default function Game() {
   const { data: allQuestions, isLoading, isError } = useQuery({
     queryKey: ['questions'],
     queryFn: async () => {
-      const questions = await base44.entities.Question.list('-created_date', 200);
-      console.log('[Game] Questions loaded:', questions.length, questions.slice(0, 2));
-      return questions;
+      try {
+        const questions = await base44.entities.Question.list('-created_date', 200);
+        console.log('[Game] Questions loaded:', questions.length, questions.slice(0, 2));
+        return questions || [];
+      } catch (err) {
+        console.error('[Game] Questions query failed:', err);
+        throw err;
+      }
     },
     initialData: [],
-    retry: 2,
-    retryDelay: 1500,
+    retry: 3,
+    retryDelay: 1000,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -429,7 +434,8 @@ export default function Game() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-6">
         <div className="text-center space-y-4">
-          <p className="font-inter text-muted-foreground">Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.</p>
+          <p className="font-inter text-muted-foreground">Sorular yüklenemedi. Lütfen sayfayı yenile veya daha sonra tekrar dene.</p>
+          <Button onClick={() => window.location.reload()} variant="outline">Sayfayı Yenile</Button>
           <Button onClick={() => navigate('/')} variant="outline">Geri Dön</Button>
         </div>
       </div>
