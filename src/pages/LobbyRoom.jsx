@@ -51,11 +51,6 @@ export default function LobbyRoom() {
       const isCurrentUserHost = event.data.host_email === (user?.email || '');
       const isGuestCurrentHost = !user && event.data.players?.[0]?.name === playerName.trim();
       if (event.data.status === 'starting' && !isCurrentUserHost && !isGuestCurrentHost) {
-        console.log('[LobbyRoom] Non-host subscription navigate:', { 
-          playerName: playerName.trim(),
-          allPlayers: event.data.players.map(p => p.name),
-          lobbyId: event.data.id
-        });
         navigate('/game', {
           state: {
             playerNames: event.data.players.map(p => p.name),
@@ -262,14 +257,10 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
   const handleStart = async () => {
     // Pick first question
     const allQuestions = await base44.entities.Question.list('-created_date', 200);
-    console.log('[LobbyRoom] handleStart - Total questions loaded:', allQuestions.length);
-    
     const filtered = allQuestions
       .filter(q => q.type === 'metin')
       .filter(q => q.year >= settings.year_start && q.year <= settings.year_end)
       .filter(q => settings.category === 'karisik' || q.category === settings.category);
-    
-    console.log('[LobbyRoom] Filtered questions:', filtered.length);
     
     if (filtered.length === 0) {
       alert('Soru bulunamadı');
@@ -297,8 +288,6 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
       return { ...p, cards };
     });
     
-    console.log('[LobbyRoom] Selected first question:', firstQ.id, firstQ.question);
-    
     const updateData = { 
       status: 'starting',
       current_question_id: firstQ.id,
@@ -306,20 +295,7 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
       current_player_index: 0,
       players: playersWithCards
     };
-    console.log('[LobbyRoom] Updating lobby with:', { 
-      cards_per_player: 2, 
-      total_players: playersWithCards.length,
-      first_player_cards: playersWithCards[0]?.cards?.map(c => ({ id: c.id, year: c.year })) || []
-    });
-    
-    const updatedLobby = await base44.entities.Lobby.update(lobby.id, updateData);
-    console.log('[LobbyRoom] Lobby updated response:', {
-      players: updatedLobby.players?.length,
-      first_player_cards_from_response: updatedLobby.players?.[0]?.cards?.map(c => ({ id: c.id, year: c.year })) || []
-    });
-    
-    // Navigate immediately with playersWithCards
-    console.log('[LobbyRoom] Navigating to /game with initialPlayers:', playersWithCards.map(p => ({ name: p.name, cards: p.cards?.length || 0 })));
+    await base44.entities.Lobby.update(lobby.id, updateData);
     navigate('/game', {
       state: {
         playerNames: playersWithCards.map(p => p.name),

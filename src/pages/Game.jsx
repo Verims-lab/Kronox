@@ -40,9 +40,18 @@ export default function Game() {
   const [error, setError] = useState(null);
   const isMyTurnRef = React.useRef(true);
   const unsubRef = React.useRef(null);
-  // Pending write: kendi yazdığımız DB güncellemesini subscription ezmesin
   const pendingWriteRef = React.useRef(false);
   const pendingWriteTimerRef = React.useRef(null);
+  const winTimerRef = React.useRef(null);
+
+  // Cleanup tüm timer ve subscription'lar component unmount'ta
+  useEffect(() => {
+    return () => {
+      clearTimeout(pendingWriteTimerRef.current);
+      clearTimeout(winTimerRef.current);
+      if (unsubRef.current) unsubRef.current();
+    };
+  }, []);
 
   const { data: allQuestions, isLoading, isError } = useQuery({
     queryKey: ['questions'],
@@ -96,14 +105,7 @@ export default function Game() {
 
   // Safely update lobbyData — subscription'dan gelen event kendi optimistic update'imizi ezmesin
   const applySubscriptionEvent = useCallback((eventData) => {
-    if (pendingWriteRef.current) {
-      console.log('[Game] Subscription event SKIPPED (pending write in progress)');
-      return;
-    }
-    console.log('[Game] Applying subscription event:', {
-      players: eventData.players?.length,
-      current_player_index: eventData.current_player_index,
-    });
+    if (pendingWriteRef.current) return;
     setLobbyData(eventData);
   }, []);
 
@@ -111,14 +113,8 @@ export default function Game() {
   useEffect(() => {
     if (!lobbyId) return;
     
-    console.log('[Game] Online mode - setup with lobbyId:', lobbyId);
-    
     // İlk yükleme — initialPlayers ile başla
     if (initialPlayers && initialPlayers.length > 0) {
-      console.log('[Game] Initializing with local state:', { 
-        players: initialPlayers.length, 
-        first_player_card_count: initialPlayers[0].cards?.length || 0
-      });
       const newLobbyData = {
         players: initialPlayers,
         current_player_index: 0,
@@ -127,17 +123,9 @@ export default function Game() {
       };
       setLobbyData(newLobbyData);
     } else {
-      // Oyuncu 2+: DB'den fetch et (questions'tan bağımsız)
-      console.log('[Game] No initialPlayers from navigate, fetching from DB...');
       base44.entities.Lobby.get(lobbyId)
-        .then(data => {
-          console.log('[Game] Fetched lobby from DB:', { 
-            players: data.players?.length, 
-            current_question_id: data.current_question_id
-          });
-          setLobbyData(data);
-        })
-        .catch(err => console.error('[Game] Lobby load error:', err));
+        .then(data => setLobbyData(data))
+        .catch(err => setError('Lobi yüklenemedi: ' + err.message));
     }
     
     // Subscribe for updates
@@ -150,13 +138,6 @@ export default function Game() {
         setError('Lobi kapatıldı.');
         return;
       }
-      console.log('[Game] Subscription event received:', { 
-        current_player_index: event.data.current_player_index,
-        status: event.data.status,
-        winner: event.data.winner,
-        pendingWrite: pendingWriteRef.current,
-      });
-      // Oyun bittiyse herkese winner ekranını göster
       if (event.data.status === 'finished' && event.data.winner) {
         setWinner(event.data.winner);
       }
@@ -242,14 +223,6 @@ export default function Game() {
     const sortedCards = [...snapshotPlayer.cards].sort((a, b) => a.year - b.year);
     const questionYear = currentQuestion.year;
 
-    console.log('[Game] handleConfirmPlacement:', {
-      player: snapshotPlayer.name,
-      selectedZone,
-      questionYear,
-      playerCardsBefore: snapshotPlayer.cards.length,
-      isMyTurn
-    });
-
     // Check if placement is correct
     let isCorrect = false;
     if (selectedZone === 0) {
@@ -260,35 +233,12 @@ export default function Game() {
       isCorrect = questionYear >= sortedCards[selectedZone - 1].year && questionYear <= sortedCards[selectedZone].year;
     }
 
-    console.log('[Game] isCorrect check:', {
-      isCorrect,
-      sortedCardLength: sortedCards.length,
-      selectedZone,
-      questionYear
-    });
-
     if (isCorrect) {
-      // Add card to player's timeline
       const newPlayers = [...players];
-      
-      console.log('[Game] Before card add:', {
-        currentPlayerIndex,
-        playerName: snapshotPlayer.name,
-        cardsBefore: snapshotPlayer.cards.length,
-        allPlayersCards: newPlayers.map(p => ({ name: p.name, cards: p.cards.length }))
-      });
-      
       newPlayers[currentPlayerIndex] = {
         ...snapshotPlayer,
         cards: [...snapshotPlayer.cards, { id: currentQuestion.id, year: questionYear, question: currentQuestion.question, type: currentQuestion.type, media_url: currentQuestion.media_url }]
       };
-
-      console.log('[Game] After card add:', {
-        currentPlayerIndex,
-        playerName: newPlayers[currentPlayerIndex].name,
-        cardsAfter: newPlayers[currentPlayerIndex].cards.length,
-        allPlayersCards: newPlayers.map(p => ({ name: p.name, cards: p.cards.length }))
-      });
 
       // Soruyu kullanılan sorular listesine ekle
       const newUsed = new Set([...usedQuestionIds, currentQuestion.id]);
@@ -326,8 +276,6 @@ export default function Game() {
         const attemptUpdate = (retries = 0) => {
           base44.entities.Lobby.update(lobbyId, updateData)
             .then(() => {
-              console.log('[Game] Card placement DB update SUCCESS');
-              // 2sn sonra kilidi kaldır — subscription'ın gelmesi için yeterli süre
               pendingWriteTimerRef.current = setTimeout(() => {
                 pendingWriteRef.current = false;
               }, 2000);
@@ -346,7 +294,7 @@ export default function Game() {
 
       if (hasWon) {
         setFeedback({ result: 'correct', year: questionYear });
-        setTimeout(() => {
+        winTimerRef.current = setTimeout(() => {
           setFeedback(null);
           setWinner(newPlayers[currentPlayerIndex].name);
         }, 1800);
@@ -354,7 +302,7 @@ export default function Game() {
       }
     }
 
-    console.log('[Game] Setting feedback:', { result: isCorrect ? 'correct' : 'wrong', year: questionYear });
+
     setFeedback({ result: isCorrect ? 'correct' : 'wrong', year: questionYear });
     setSelectedZone(null);
   };
@@ -366,33 +314,14 @@ export default function Game() {
       return;
     }
 
-    console.log('[Game] advanceTurn starting:', { 
-      currentIndex: lobbyData.current_player_index, 
-      totalPlayers: players.length,
-      nextIndexWillBe: (lobbyData.current_player_index + 1) % players.length
-    });
-
-    // IMPORTANT: Use CURRENT lobbyData.current_player_index, not stale closure var
     const currentIndex = lobbyData.current_player_index ?? 0;
     const nextIndex = (currentIndex + 1) % players.length;
-
-    console.log('[Game] advanceTurn calculating turn:', {
-    currentIndex,
-    nextIndex,
-    playersCount: players.length
-    });
 
     setSelectedZone(null);
     setTimerKey(k => k + 1);
 
     const nextQ = pickQuestion(usedQuestionIds, questionPool);
     const newUsed = nextQ ? new Set([...usedQuestionIds, nextQ.id]) : usedQuestionIds;
-
-    console.log('[Game] advanceTurn picked next question:', {
-    nextQId: nextQ?.id,
-    nextQYear: nextQ?.year,
-    usedCount: newUsed.size
-    });
 
     // Optimistic update—her durumda state'i güncelle
     setLobbyData(prev => ({
@@ -416,7 +345,6 @@ export default function Game() {
       const attemptUpdate = (retries = 0) => {
         base44.entities.Lobby.update(lobbyId, updateData)
           .then(() => {
-            console.log('[Game] advanceTurn DB update SUCCESS, nextIndex:', nextIndex);
             pendingWriteTimerRef.current = setTimeout(() => {
               pendingWriteRef.current = false;
             }, 2000);
@@ -435,7 +363,6 @@ export default function Game() {
   }, [lobbyData, players.length, usedQuestionIds, pickQuestion, lobbyId, questionPool]);
 
   const handleFeedbackDone = useCallback(() => {
-    console.log('[Game] handleFeedbackDone called, isMyTurn:', isMyTurnRef.current);
     setFeedback(null);
     advanceTurn();
   }, [advanceTurn]);
@@ -523,14 +450,6 @@ export default function Game() {
   // Online modda sadece sırası gelen oyuncu seçim yapabilir
   const isMyTurn = !isOnline || (myPlayerName && currentPlayer?.name === myPlayerName);
   isMyTurnRef.current = isMyTurn;
-  
-  console.log('[Game] isMyTurn check:', {
-    isOnline,
-    myPlayerName,
-    currentPlayerName: currentPlayer?.name,
-    isMyTurn,
-    currentPlayerIndex
-  });
 
   // Online modda lobbyData'dan, offline modda playerNames'den
   const isGameReady = lobbyId
