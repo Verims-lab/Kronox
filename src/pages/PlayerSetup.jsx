@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Clock, Users, Play, Layers, BookOpen, FlaskConical, Trophy, Sparkles, CalendarRange, Timer, Globe } from 'lucide-react';
+import { Clock, Users, Play, Layers, BookOpen, FlaskConical, Trophy, Sparkles, CalendarRange, Timer, Globe, FileDown, Loader2 } from 'lucide-react';
+import { base44 } from '@/api/base44Client';
 
 export default function PlayerSetup() {
   const navigate = useNavigate();
   const [playerCount, setPlayerCount] = useState(1);
+  const [downloadingDoc, setDownloadingDoc] = useState(false);
   const [names, setNames] = useState(['', '', '', '']);
   const [selectedCategory, setSelectedCategory] = useState('karisik');
   const [yearStart, setYearStart] = useState(1900);
@@ -21,6 +23,22 @@ export default function PlayerSetup() {
   { value: 'spor', label: 'Spor', icon: Trophy },
   { value: 'sanat', label: 'Popüler Kültür', icon: Sparkles }];
 
+
+  const handleDownloadDoc = async () => {
+    setDownloadingDoc(true);
+    try {
+      const res = await base44.functions.fetch('/generateTechDoc', { method: 'POST' });
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'kronos-teknik-dokuman.pdf';
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setDownloadingDoc(false);
+    }
+  };
 
   const handleStart = () => {
     const playerNames = names.slice(0, playerCount).map((n, i) => n.trim() || `Oyuncu ${i + 1}`);
@@ -233,6 +251,19 @@ export default function PlayerSetup() {
             ÇEVRİMİÇİ OYUN
           </Button>
         </motion.div>
+
+        {/* Tech doc download */}
+        <button
+          onClick={handleDownloadDoc}
+          disabled={downloadingDoc}
+          className="w-full flex items-center justify-center gap-2 py-2 font-inter text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+        >
+          {downloadingDoc
+            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            : <FileDown className="w-3.5 h-3.5" />
+          }
+          Teknik Dökümanı İndir (PDF)
+        </button>
 
 
       </motion.div>
