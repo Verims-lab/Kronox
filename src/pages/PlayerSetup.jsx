@@ -40,7 +40,7 @@ export default function PlayerSetup() {
         <div className="absolute bottom-1/4 right-1/4 w-48 h-48 bg-primary/3 rounded-full blur-3xl" />
       </div>
 
-      <div className="relative z-10 w-full max-w-md space-y-8">
+      <div className="w-full max-w-md space-y-8">
         
         {/* Logo */}
         <div className="text-center space-y-3">
