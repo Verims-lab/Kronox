@@ -13,9 +13,14 @@ export default function AppHeader() {
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
 
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
   useEffect(() => {
     base44.auth.me().then(u => {
-      setIsAdmin(u?.email === ADMIN_EMAIL || u?.role === 'admin');
+      if (u) {
+        setIsAuthenticated(true);
+        setIsAdmin(u?.email === ADMIN_EMAIL || u?.role === 'admin');
+      }
     }).catch(() => {});
   }, []);
 
@@ -33,6 +38,7 @@ export default function AppHeader() {
           size="icon"
           onClick={() => navigate(-1)}
           className="text-muted-foreground hover:text-foreground"
+          style={{ userSelect: 'none' }}
         >
           <ArrowLeft className="w-5 h-5" />
         </Button>
@@ -48,15 +54,18 @@ export default function AppHeader() {
         style={{ paddingTop: 'env(safe-area-inset-top)', height: 'calc(3.5rem + env(safe-area-inset-top))' }}
       >
         <h1 className="font-cinzel text-lg text-primary tracking-widest">KRONOS</h1>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => { if (isAdmin) navigate('/settings'); }}
-          className={isAdmin ? 'text-muted-foreground hover:text-foreground' : 'text-muted-foreground/30 cursor-default'}
-          title={isAdmin ? 'Ayarlar' : ''}
-        >
-          <Settings className="w-5 h-5" />
-        </Button>
+        {isAuthenticated && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate('/settings')}
+            className="text-muted-foreground hover:text-foreground"
+            title="Ayarlar"
+            style={{ userSelect: 'none' }}
+          >
+            <Settings className="w-5 h-5" />
+          </Button>
+        )}
       </div>
     );
   }

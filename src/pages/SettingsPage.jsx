@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trash2, AlertTriangle, FileDown, Loader2, Lock, FlaskConical, ChevronRight, Shield } from 'lucide-react';
+import { Trash2, AlertTriangle, FileDown, Loader2, FlaskConical, ChevronRight, Shield, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import { useNavigate } from 'react-router-dom';
@@ -71,37 +71,25 @@ export default function SettingsPage() {
     );
   }
 
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-6 px-6">
-        <div className="w-16 h-16 rounded-2xl bg-secondary/50 border border-border/50 flex items-center justify-center">
-          <Lock className="w-7 h-7 text-muted-foreground" />
-        </div>
-        <div className="text-center space-y-2">
-          <p className="font-cinzel text-xl text-foreground tracking-wide">Erişim Kısıtlı</p>
-          <p className="font-inter text-sm text-muted-foreground">Bu sayfa yalnızca admin kullanıcılara açıktır.</p>
-        </div>
-        <Button variant="outline" onClick={() => navigate('/')}>Ana Sayfaya Dön</Button>
-      </div>
-    );
-  }
-
   return (
     <div
       className="min-h-screen bg-background"
       style={{
         paddingTop: 'calc(4rem + env(safe-area-inset-top))',
         paddingBottom: 'calc(2rem + env(safe-area-inset-bottom))',
+        userSelect: 'none',
       }}
     >
       {/* Hero bar */}
       <div className="px-5 pb-6 pt-2">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center flex-shrink-0">
-            <Shield className="w-4 h-4 text-primary" />
+            {isAdmin ? <Shield className="w-4 h-4 text-primary" /> : <Settings className="w-4 h-4 text-primary" />}
           </div>
           <div>
-            <p className="font-cinzel text-lg text-foreground tracking-wider leading-tight">Admin Paneli</p>
+            <p className="font-cinzel text-lg text-foreground tracking-wider leading-tight">
+              {isAdmin ? 'Admin Paneli' : 'Ayarlar'}
+            </p>
             <p className="font-inter text-xs text-muted-foreground">{user?.email}</p>
           </div>
         </div>
@@ -109,31 +97,33 @@ export default function SettingsPage() {
 
       <div className="px-4 space-y-5">
 
-        {/* Admin Araçları */}
-        <Section label="Araçlar">
-          <ToolCard
-            icon={<FileDown className="w-4 h-4" />}
-            title="Teknik Döküman"
-            desc="Sistem mimarisi ve veri modeli"
-            loading={downloadingDoc}
-            onClick={handleDownloadDoc}
-          />
-          <ToolCard
-            icon={<FileDown className="w-4 h-4" />}
-            title="İş Akışı Dökümanı"
-            desc="Use case'ler ve süreç adımları"
-            loading={downloadingWorkflow}
-            onClick={handleDownloadWorkflow}
-          />
-          <ToolCard
-            icon={<FlaskConical className="w-4 h-4" />}
-            title="Online Simülasyonlar"
-            desc="22 test senaryosunu çalıştır"
-            onClick={() => setShowSim(true)}
-          />
-        </Section>
+        {/* Admin Araçları — yalnızca admin */}
+        {isAdmin && (
+          <Section label="Araçlar">
+            <ToolCard
+              icon={<FileDown className="w-4 h-4" />}
+              title="Teknik Döküman"
+              desc="Sistem mimarisi ve veri modeli"
+              loading={downloadingDoc}
+              onClick={handleDownloadDoc}
+            />
+            <ToolCard
+              icon={<FileDown className="w-4 h-4" />}
+              title="İş Akışı Dökümanı"
+              desc="Use case'ler ve süreç adımları"
+              loading={downloadingWorkflow}
+              onClick={handleDownloadWorkflow}
+            />
+            <ToolCard
+              icon={<FlaskConical className="w-4 h-4" />}
+              title="Online Simülasyonlar"
+              desc="22 test senaryosunu çalıştır"
+              onClick={() => setShowSim(true)}
+            />
+          </Section>
+        )}
 
-        {/* Hesap */}
+        {/* Hesap — tüm kullanıcılar */}
         <Section label="Hesap">
           <AnimatePresence mode="wait">
             {!confirmDelete ? (
