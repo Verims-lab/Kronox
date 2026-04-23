@@ -1,8 +1,7 @@
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import React, { Suspense, lazy } from 'react';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
@@ -25,8 +24,7 @@ function PageLoader() {
 }
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
-  const location = useLocation();
+  const { isLoadingAuth, isLoadingPublicSettings, authError } = useAuth();
 
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
@@ -48,29 +46,19 @@ const AuthenticatedApp = () => {
 
   // Render the main app
   return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={location.pathname}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.15 }}
-        style={{ width: '100%', minHeight: '100%' }}
-      >
-        <AppHeader />
-        <Suspense fallback={<PageLoader />}>
-          <Routes location={location}>
-            <Route path="/" element={<PlayerSetup />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/lobby" element={<LobbyRoom />} />
-            <Route path="/game" element={<Game />} />
-            <Route path="*" element={<PageNotFound />} />
-          </Routes>
-        </Suspense>
-        {/* BottomNav is hidden on /game internally */}
-        <BottomNav />
-      </motion.div>
-    </AnimatePresence>
+    <div style={{ width: '100%', minHeight: '100%' }}>
+      <AppHeader />
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          <Route path="/" element={<PlayerSetup />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/lobby" element={<LobbyRoom />} />
+          <Route path="/game" element={<Game />} />
+          <Route path="*" element={<PageNotFound />} />
+        </Routes>
+      </Suspense>
+      <BottomNav />
+    </div>
   );
 };
 
