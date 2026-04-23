@@ -15,6 +15,7 @@ export default function SettingsPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [downloadingDoc, setDownloadingDoc] = useState(false);
+  const [downloadingWorkflow, setDownloadingWorkflow] = useState(false);
   const [showSim, setShowSim] = useState(false);
 
   useEffect(() => {
@@ -114,6 +115,29 @@ export default function SettingsPage() {
         >
           {downloadingDoc ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
           Teknik Dökümanı İndir (PDF)
+        </Button>
+        <Button
+          variant="outline"
+          className="w-full gap-2"
+          onClick={async () => {
+            setDownloadingWorkflow(true);
+            try {
+              const res = await base44.functions.fetch('/generateWorkflowDoc', { method: 'POST' });
+              const blob = await res.blob();
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'kronos-is-akisi.pdf';
+              a.click();
+              URL.revokeObjectURL(url);
+            } finally {
+              setDownloadingWorkflow(false);
+            }
+          }}
+          disabled={downloadingWorkflow}
+        >
+          {downloadingWorkflow ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+          Is Akisi Dokumanini Indir (PDF)
         </Button>
         <Button
           variant="outline"
