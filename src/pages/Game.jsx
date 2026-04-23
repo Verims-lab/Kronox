@@ -169,11 +169,16 @@ export default function Game() {
     };
   }, [lobbyId, initialPlayers, applySubscriptionEvent]);
 
-  // Pick a random unused question
+  // Pick a random unused question — shuffle to avoid bias
   const pickQuestion = useCallback((usedIds, questions) => {
     const available = questions.filter(q => !usedIds.has(q.id));
     if (available.length === 0) return null;
-    return available[Math.floor(Math.random() * available.length)];
+    // Fisher-Yates shuffle to ensure true randomness
+    for (let i = available.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [available[i], available[j]] = [available[j], available[i]];
+    }
+    return available[0];
   }, []);
 
   // Initialize game — sadece offline modda (no lobbyId)
