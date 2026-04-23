@@ -48,7 +48,7 @@ const AuthenticatedApp = () => {
 
   // Render the main app
   return (
-    <div style={{ width: '100%', minHeight: '100%' }}>
+    <div style={{ width: '100%', minHeight: '100%', pointerEvents: 'auto', touchAction: 'auto' }}>
       <AppHeader />
       <Suspense fallback={<PageLoader />}>
         <AnimatePresence mode="wait">
