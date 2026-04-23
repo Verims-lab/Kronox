@@ -81,11 +81,6 @@
 }
 
 @layer base {
-  html, body {
-    pointer-events: auto !important;
-    touch-action: auto !important;
-  }
-
   * {
     @apply border-border outline-ring/50;
   }
@@ -101,15 +96,6 @@
 
   * {
     -webkit-tap-highlight-color: transparent;
-  }
-  
-  body {
-    cursor: auto;
-  }
-
-  button, input, textarea, select, a {
-    pointer-events: auto !important;
-    touch-action: auto !important;
   }
 }
 
