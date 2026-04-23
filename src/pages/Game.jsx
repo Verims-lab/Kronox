@@ -431,6 +431,9 @@ export default function Game() {
     );
   }
 
+  // DEBUG: log all questions
+  console.log('[Game] All questions loaded:', allQuestions.length, allQuestions.slice(0, 5));
+
   if (isError) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-6">
@@ -451,9 +454,7 @@ export default function Game() {
 
   // Check available questions based on filters (offline mode only)
   const availableQuestions = allQuestions
-    .filter(q => q.type === 'metin' || !q.type) // Tip eksikse dahil et
-    .filter(q => q.year >= yearStart && q.year <= yearEnd)
-    .filter(q => category === 'karisik' || !q.category || q.category === category); // Kategori eksikse dahil et
+    .filter(q => q.year >= yearStart && q.year <= yearEnd);
   
   // Debug: sorular nasıl filtreleniyor görmek için
   if (availableQuestions.length === 0 && !lobbyId) {
