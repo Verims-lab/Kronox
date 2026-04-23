@@ -43,10 +43,13 @@ export default function Game() {
   const eventQueueRef = React.useRef([]);
   const processingQueueRef = React.useRef(false);
 
-  const { data: allQuestions, isLoading } = useQuery({
+  const { data: allQuestions, isLoading, isError } = useQuery({
     queryKey: ['questions'],
     queryFn: () => base44.entities.Question.list('-created_date', 200),
     initialData: [],
+    retry: 2,
+    retryDelay: 1500,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Capture logs
@@ -522,7 +525,21 @@ export default function Game() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        <div className="text-center space-y-4">
+          <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" />
+          <p className="font-inter text-sm text-muted-foreground">Sorular yükleniyor...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <div className="text-center space-y-4">
+          <p className="font-inter text-muted-foreground">Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.</p>
+          <Button onClick={() => navigate('/')} variant="outline">Geri Dön</Button>
+        </div>
       </div>
     );
   }
