@@ -55,7 +55,11 @@ export default function Game() {
 
   const { data: allQuestions, isLoading, isError } = useQuery({
     queryKey: ['questions'],
-    queryFn: () => base44.entities.Question.list('-created_date', 200),
+    queryFn: async () => {
+      const questions = await base44.entities.Question.list('-created_date', 200);
+      console.log('[Game] Questions loaded:', questions.length, questions.slice(0, 2));
+      return questions;
+    },
     initialData: [],
     retry: 2,
     retryDelay: 1500,
