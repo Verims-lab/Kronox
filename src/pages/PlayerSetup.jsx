@@ -230,7 +230,7 @@ export default function PlayerSetup() {
             variant="outline"
             className="w-full h-12 font-cinzel tracking-wider gap-2 border-primary/40 text-primary hover:bg-primary/10">
             <Globe className="w-5 h-5" />
-            ÇEVRİMİÇİ OYN
+            ÇEVRİMİÇİ OYUN
           </Button>
         </motion.div>
 
