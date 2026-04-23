@@ -76,7 +76,7 @@ export default function SettingsPage() {
       className="min-h-screen bg-background"
       style={{
         paddingTop: 'calc(4rem + env(safe-area-inset-top))',
-        paddingBottom: 'calc(2rem + env(safe-area-inset-bottom))',
+        paddingBottom: 'calc(4rem + env(safe-area-inset-bottom))',
         userSelect: 'none',
       }}
     >

@@ -314,7 +314,7 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center"
-      style={{ paddingTop: 'calc(4rem + env(safe-area-inset-top))', paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
+      style={{ paddingTop: 'calc(4rem + env(safe-area-inset-top))', paddingBottom: 'calc(4rem + env(safe-area-inset-bottom))' }}>
       <div
         ref={waitingScrollRef}
         className="w-full max-w-lg px-4 pb-4 space-y-4 flex-1 overflow-y-auto"

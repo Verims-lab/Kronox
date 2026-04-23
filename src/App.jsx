@@ -1,8 +1,9 @@
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 import React, { Suspense, lazy } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
@@ -25,6 +26,7 @@ function PageLoader() {
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError } = useAuth();
+  const location = useLocation();
 
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
@@ -49,13 +51,23 @@ const AuthenticatedApp = () => {
     <div style={{ width: '100%', minHeight: '100%' }}>
       <AppHeader />
       <Suspense fallback={<PageLoader />}>
-        <Routes>
-          <Route path="/" element={<PlayerSetup />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/lobby" element={<LobbyRoom />} />
-          <Route path="/game" element={<Game />} />
-          <Route path="*" element={<PageNotFound />} />
-        </Routes>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, x: 100 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -100 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          >
+            <Routes location={location}>
+              <Route path="/" element={<PlayerSetup />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/lobby" element={<LobbyRoom />} />
+              <Route path="/game" element={<Game />} />
+              <Route path="*" element={<PageNotFound />} />
+            </Routes>
+          </motion.div>
+        </AnimatePresence>
       </Suspense>
       <BottomNav />
     </div>
