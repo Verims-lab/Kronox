@@ -51,11 +51,11 @@ const AuthenticatedApp = () => {
     <AnimatePresence mode="wait">
       <motion.div
         key={location.pathname}
-        initial={{ x: '100%', opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        exit={{ x: '-100%', opacity: 0 }}
-        transition={{ type: 'tween', duration: 0.28, ease: 'easeInOut' }}
-        style={{ position: 'absolute', width: '100%', minHeight: '100%' }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.15 }}
+        style={{ width: '100%', minHeight: '100%' }}
       >
         <AppHeader />
         <Suspense fallback={<PageLoader />}>
