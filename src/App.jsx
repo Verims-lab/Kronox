@@ -3,12 +3,23 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
+import React, { Suspense, lazy } from 'react';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
-import PlayerSetup from './pages/PlayerSetup';
-import Game from './pages/Game';
-import LobbyRoom from './pages/LobbyRoom';
+import { Loader2 } from 'lucide-react';
+
+const PlayerSetup = lazy(() => import('./pages/PlayerSetup'));
+const Game = lazy(() => import('./pages/Game'));
+const LobbyRoom = lazy(() => import('./pages/LobbyRoom'));
+
+function PageLoader() {
+  return (
+    <div className="fixed inset-0 flex items-center justify-center bg-background">
+      <Loader2 className="w-8 h-8 text-primary animate-spin" />
+    </div>
+  );
+}
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -43,12 +54,14 @@ const AuthenticatedApp = () => {
         transition={{ type: 'tween', duration: 0.28, ease: 'easeInOut' }}
         style={{ position: 'absolute', width: '100%', minHeight: '100%' }}
       >
-        <Routes location={location}>
-          <Route path="/" element={<PlayerSetup />} />
-          <Route path="/lobby" element={<LobbyRoom />} />
-          <Route path="/game" element={<Game />} />
-          <Route path="*" element={<PageNotFound />} />
-        </Routes>
+        <Suspense fallback={<PageLoader />}>
+          <Routes location={location}>
+            <Route path="/" element={<PlayerSetup />} />
+            <Route path="/lobby" element={<LobbyRoom />} />
+            <Route path="/game" element={<Game />} />
+            <Route path="*" element={<PageNotFound />} />
+          </Routes>
+        </Suspense>
       </motion.div>
     </AnimatePresence>
   );

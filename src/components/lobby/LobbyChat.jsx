@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, MessageCircle } from 'lucide-react';
+import { Send, MessageCircle, Loader2 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 
 export default function LobbyChat({ lobbyId, playerName, compact = false }) {
   const [messages, setMessages] = useState([]);
@@ -10,16 +11,19 @@ export default function LobbyChat({ lobbyId, playerName, compact = false }) {
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
 
+  const fetchMessages = useCallback(async () => {
+    if (!lobbyId) return;
+    const msgs = await base44.entities.LobbyMessage.filter({ lobby_id: lobbyId }, 'created_date', 50);
+    setMessages(msgs || []);
+  }, [lobbyId]);
+
   // Initial load
   useEffect(() => {
     if (!lobbyId) return;
-    base44.entities.LobbyMessage.filter({ lobby_id: lobbyId }, 'created_date', 50)
-      .then(msgs => {
-        setMessages(msgs || []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, [lobbyId]);
+    fetchMessages().finally(() => setLoading(false));
+  }, [lobbyId, fetchMessages]);
+
+  const { containerRef: chatScrollRef, pullY, refreshing } = usePullToRefresh(fetchMessages);
 
   // Real-time subscription
   useEffect(() => {
@@ -66,7 +70,12 @@ export default function LobbyChat({ lobbyId, playerName, compact = false }) {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5">
+      <div ref={chatScrollRef} className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5" style={{ transform: pullY > 0 ? `translateY(${pullY}px)` : undefined, transition: pullY === 0 ? 'transform 0.2s' : undefined }}>
+        {refreshing && (
+          <div className="flex justify-center py-1">
+            <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />
+          </div>
+        )}
         {loading && (
           <p className="text-xs font-inter text-muted-foreground/50 text-center pt-4">Yükleniyor...</p>
         )}

@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Clock, Users, Plus, LogIn, ArrowLeft, Copy, Check } from 'lucide-react';
+import { Clock, Users, Plus, LogIn, ArrowLeft, Copy, Check, Loader2 } from 'lucide-react';
 import LobbyChat from '@/components/lobby/LobbyChat';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 
 function generateCode() {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -228,6 +229,14 @@ export default function LobbyRoom() {
 }
 
 function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLeave, onCopyCode, copied, navigate }) {
+  const refreshLobby = useCallback(async () => {
+    if (!lobby?.id) return;
+    const fresh = await base44.entities.Lobby.get(lobby.id);
+    if (fresh) setLobby(fresh);
+  }, [lobby?.id, setLobby]);
+
+  const { containerRef: waitingScrollRef, pullY, refreshing } = usePullToRefresh(refreshLobby);
+
   const [settings, setSettings] = useState({
     category: lobby.category,
     year_start: lobby.year_start,
@@ -330,7 +339,16 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
   return (
     <div className="min-h-screen bg-background flex flex-col items-center"
       style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))', paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
-      <div className="w-full max-w-lg px-4 pb-4 space-y-4 flex-1 overflow-y-auto">
+      <div
+        ref={waitingScrollRef}
+        className="w-full max-w-lg px-4 pb-4 space-y-4 flex-1 overflow-y-auto"
+        style={{ transform: pullY > 0 ? `translateY(${pullY}px)` : undefined, transition: pullY === 0 ? 'transform 0.2s' : undefined }}
+      >
+        {refreshing && (
+          <div className="flex justify-center py-1">
+            <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />
+          </div>
+        )}
         {/* Header */}
         <div className="flex items-center justify-between">
           <Button variant="ghost" size="icon" onClick={onLeave} className="text-muted-foreground">
