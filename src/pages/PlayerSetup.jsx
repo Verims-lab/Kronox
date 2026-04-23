@@ -53,9 +53,7 @@ export default function PlayerSetup() {
             
             <Clock className="w-8 h-8 text-primary" />
           </motion.div>
-          <h1 className="font-cinzel text-4xl font-bold text-primary tracking-wider">KRONOS
-
-          </h1>
+          <h1 className="font-cinzel text-4xl font-bold text-primary tracking-wider">KRONOTOP</h1>
           <p className="font-inter text-muted-foreground text-sm">
             Zaman Çizgisi Kart Oyunu
           </p>
