@@ -480,16 +480,18 @@ export default function Game() {
   }
 
   // Online modda lobbyData'dan, offline modda playerNames'den
+  // Her iki modda da allQuestions yüklenmiş olmalı
   const isGameReady = lobbyId
-    ? players.length > 0 && lobbyData?.current_question_id
+    ? players.length > 0 && lobbyData?.current_question_id && allQuestions.length > 0
     : playerNames && playerNames.length > 0 && players.length > 0 && currentQuestion && allQuestions.length > 0;
   
   if (!isGameReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-6">
         <div className="text-center space-y-4">
+          <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" />
           <p className="font-inter text-foreground">
-            Oyun başlatılıyor...
+            {allQuestions.length === 0 ? 'Sorular yükleniyor...' : 'Oyun başlatılıyor...'}
           </p>
           <Button onClick={() => navigate('/')} variant="outline">Geri Dön</Button>
         </div>
