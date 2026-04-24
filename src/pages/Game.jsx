@@ -466,7 +466,7 @@ export default function Game() {
     });
   }
 
-  if (!lobbyId && availableQuestions.length < 10) {
+  if (!lobbyId && allQuestions.length > 0 && availableQuestions.length < 10) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-6">
         <div className="text-center space-y-4">
@@ -482,7 +482,7 @@ export default function Game() {
   // Online modda lobbyData'dan, offline modda playerNames'den
   const isGameReady = lobbyId
     ? players.length > 0 && lobbyData?.current_question_id
-    : playerNames && playerNames.length > 0 && players.length > 0 && currentQuestion;
+    : playerNames && playerNames.length > 0 && players.length > 0 && currentQuestion && allQuestions.length > 0;
   
   if (!isGameReady) {
     return (
