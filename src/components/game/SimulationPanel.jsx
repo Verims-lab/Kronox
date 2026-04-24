@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { X, Play, CheckCircle2, XCircle, Loader2, AlertTriangle } from 'lucide-react';
@@ -67,27 +67,65 @@ const SCENARIOS = [
   },
 ];
 
+// Tüm senaryoların flat listesi
+const ALL_KEYS = SCENARIOS.flatMap(g => g.items.map(i => i.key)).filter(k => k !== 'all');
+const TOTAL_COUNT = ALL_KEYS.length;
+
+function getScenarioCount(key) {
+  if (key === 'all') return TOTAL_COUNT;
+  return 1;
+}
+
 export default function SimulationPanel({ onClose }) {
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState(null);
   const [results, setResults] = useState(null);
   const [activeScenario, setActiveScenario] = useState(null);
+  const [progress, setProgress] = useState(0);
+  const [currentLabel, setCurrentLabel] = useState('');
+  const progressTimerRef = useRef(null);
 
-  const runScenario = async (scenario) => {
+  const runScenario = async (scenarioKey) => {
     setLoading(true);
-    setActiveScenario(scenario);
+    setActiveScenario(scenarioKey);
     setResults(null);
     setSummary(null);
+    setProgress(0);
+
+    // Senaryo adını bul
+    const scenarioItem = SCENARIOS.flatMap(g => g.items).find(i => i.key === scenarioKey);
+    setCurrentLabel(scenarioItem?.label || scenarioKey);
+
+    const total = getScenarioCount(scenarioKey);
+    const estimatedMs = scenarioKey === 'all' ? 45000 : 3000;
+    const intervalMs = 200;
+    const steps = estimatedMs / intervalMs;
+    let tick = 0;
+
+    clearInterval(progressTimerRef.current);
+    progressTimerRef.current = setInterval(() => {
+      tick++;
+      // Progress 95'te takılır, gerisi sonuç gelince 100 olur
+      const pct = Math.min(95, Math.round((tick / steps) * 100));
+      setProgress(pct);
+    }, intervalMs);
+
     try {
-      const res = await base44.functions.invoke('simulateOnlineGame', { scenario });
+      const res = await base44.functions.invoke('simulateOnlineGame', { scenario: scenarioKey });
       setResults(res.data?.results || {});
       setSummary(res.data?.summary || null);
     } catch (err) {
       setResults({ error: err.message });
     } finally {
+      clearInterval(progressTimerRef.current);
+      setProgress(100);
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    return () => clearInterval(progressTimerRef.current);
+  }, []);
 
   const getStatusIcon = (status) => {
     if (status === 'PASS') return <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />;
@@ -149,9 +187,25 @@ export default function SimulationPanel({ onClose }) {
         ))}
 
         {loading && (
-          <div className="flex items-center gap-2 text-sm font-inter text-muted-foreground">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span>Simülasyon çalışıyor... ({activeScenario === 'all' ? '~45sn' : '~3sn'})</span>
+          <div className="space-y-2 p-3 rounded-xl border border-primary/30 bg-primary/5">
+            <div className="flex items-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin text-primary flex-shrink-0" />
+              <span className="font-inter text-sm text-foreground font-semibold">
+                {currentLabel} çalışıyor...
+              </span>
+              <span className="ml-auto font-cinzel text-sm text-primary font-bold">{progress}%</span>
+            </div>
+            <div className="w-full h-2 bg-secondary/50 rounded-full overflow-hidden">
+              <motion.div
+                className="h-full bg-primary rounded-full"
+                initial={{ width: 0 }}
+                animate={{ width: `${progress}%` }}
+                transition={{ duration: 0.2 }}
+              />
+            </div>
+            <p className="font-inter text-xs text-muted-foreground">
+              {activeScenario === 'all' ? `${TOTAL_COUNT} senaryo • tahmini ~45sn` : 'tahmini ~3sn'}
+            </p>
           </div>
         )}
 
