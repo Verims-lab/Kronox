@@ -31,7 +31,7 @@ export default function PlayerSetup() {
           <div className="w-16 h-16 mx-auto border-2 border-primary/40 rounded-full flex items-center justify-center">
             <Clock className="w-8 h-8 text-primary" />
           </div>
-          <h1 className="font-cinzel text-4xl font-bold text-primary tracking-wider">KRONOTOP</h1>
+          <h1 className="font-cinzel text-4xl font-bold text-primary tracking-wider">KRONOS</h1>
           <p className="font-inter text-muted-foreground text-sm">Zaman Çizgisi Kart Oyunu</p>
         </div>
 
