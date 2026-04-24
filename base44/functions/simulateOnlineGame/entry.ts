@@ -556,7 +556,9 @@ Deno.serve(async (req) => {
         const logs = [];
         const thresholds = [5, 7, 10, 15];
         for (const threshold of thresholds) {
+          await sleep(400);
           await base44.asServiceRole.entities.Lobby.update(lobbyId, { win_card_count: threshold });
+          await sleep(200);
           const lobby = await base44.asServiceRole.entities.Lobby.get(lobbyId);
           if (lobby.win_card_count !== threshold) {
             return { status: 'FAIL', logs: [...logs, `❌ win_card_count ${threshold} kaydedilemedi`] };
@@ -638,7 +640,9 @@ Deno.serve(async (req) => {
         const logs = [];
         const durations = [0, 10, 30, 60, 120]; // 0 = süresiz
         for (const d of durations) {
+          await sleep(400);
           await base44.asServiceRole.entities.Lobby.update(lobbyId, { turn_duration: d });
+          await sleep(200);
           const lobby = await base44.asServiceRole.entities.Lobby.get(lobbyId);
           if (lobby.turn_duration !== d) {
             return { status: 'FAIL', logs: [...logs, `❌ turn_duration=${d} kaydedilemedi, gerçek=${lobby.turn_duration}`] };
@@ -657,7 +661,9 @@ Deno.serve(async (req) => {
         const logs = [];
         const categories = ['karisik', 'tarih', 'bilim', 'spor', 'sanat'];
         for (const cat of categories) {
+          await sleep(400);
           await base44.asServiceRole.entities.Lobby.update(lobbyId, { category: cat });
+          await sleep(200);
           const lobby = await base44.asServiceRole.entities.Lobby.get(lobbyId);
           if (lobby.category !== cat) {
             return { status: 'FAIL', logs: [...logs, `❌ category=${cat} kaydedilemedi`] };
@@ -681,7 +687,9 @@ Deno.serve(async (req) => {
           { start: 1900, end: 2024 }, // geniş aralık
         ];
         for (const r of ranges) {
+          await sleep(400);
           await base44.asServiceRole.entities.Lobby.update(lobbyId, { year_start: r.start, year_end: r.end });
+          await sleep(200);
           const lobby = await base44.asServiceRole.entities.Lobby.get(lobbyId);
           if (lobby.year_start !== r.start || lobby.year_end !== r.end) {
             return { status: 'FAIL', logs: [...logs, `❌ Yıl aralığı ${r.start}-${r.end} hatalı kaydedildi`] };
@@ -761,9 +769,11 @@ Deno.serve(async (req) => {
           'A'.repeat(50),                   // uzun isim (50 karakter)
         ];
         for (const name of edgeNames) {
+          await sleep(400);
           let lobby = await base44.asServiceRole.entities.Lobby.get(lobbyId);
           const updated = lobby.players.map((p, i) => i === 0 ? { ...p, name } : p);
           await base44.asServiceRole.entities.Lobby.update(lobbyId, { players: updated });
+          await sleep(200);
           lobby = await base44.asServiceRole.entities.Lobby.get(lobbyId);
           if (lobby.players[0].name !== name) {
             return { status: 'FAIL', logs: [...logs, `❌ İsim "${name}" kaydedilemedi`] };
