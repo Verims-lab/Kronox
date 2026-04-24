@@ -53,19 +53,12 @@ export default function Game() {
     };
   }, []);
 
-  const { data: allQuestions, isLoading, isError } = useQuery({
+  const { data: allQuestions = [], isLoading, isError } = useQuery({
     queryKey: ['questions'],
     queryFn: async () => {
-      try {
-        const questions = await base44.entities.Question.list('-created_date', 200);
-        console.log('[Game] Questions loaded:', questions.length, questions.slice(0, 2));
-        return questions || [];
-      } catch (err) {
-        console.error('[Game] Questions query failed:', err);
-        throw err;
-      }
+      const questions = await base44.entities.Question.list('-created_date', 200);
+      return questions || [];
     },
-    initialData: [],
     retry: 3,
     retryDelay: 1000,
     gcTime: 0,
@@ -174,7 +167,7 @@ export default function Game() {
 
   // Initialize game — sadece offline modda (no lobbyId)
   useEffect(() => {
-    if (lobbyId || !playerNames || players.length > 0) return;
+    if (lobbyId || !playerNames || lobbyData !== null) return;
     
     if (allQuestions.length === 0) return;
     
@@ -431,9 +424,6 @@ export default function Game() {
     );
   }
 
-  // DEBUG: log all questions
-  console.log('[Game] All questions loaded:', allQuestions.length, allQuestions.slice(0, 5));
-
   if (isError) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-6">
@@ -456,16 +446,6 @@ export default function Game() {
   const availableQuestions = allQuestions
     .filter(q => q.year >= yearStart && q.year <= yearEnd);
   
-  // Debug: sorular nasıl filtreleniyor görmek için
-  if (availableQuestions.length === 0 && !lobbyId) {
-    console.log('[Game] DEBUG - availableQuestions = 0:', {
-      totalQuestions: allQuestions.length,
-      selectedCategory: category,
-      yearRange: `${yearStart}-${yearEnd}`,
-      sampleQuestions: allQuestions.slice(0, 3).map(q => ({ id: q.id, type: q.type, category: q.category, year: q.year }))
-    });
-  }
-
   if (!lobbyId && allQuestions.length > 0 && availableQuestions.length < 10) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-6">
