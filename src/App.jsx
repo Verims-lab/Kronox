@@ -10,6 +10,7 @@ import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import { Loader2 } from 'lucide-react';
 import BottomNav from '@/components/layout/BottomNav';
 import AppHeader from '@/components/layout/AppHeader';
+import { base44 } from '@/api/base44Client';
 
 const PlayerSetup = lazy(() => import('./pages/PlayerSetup'));
 const Game = lazy(() => import('./pages/Game'));
@@ -39,11 +40,13 @@ const AuthenticatedApp = () => {
 
   // Handle authentication errors
   if (authError) {
-  if (authError.type === 'user_not_registered') {
-    return <UserNotRegisteredError />;
-  }
-  // For auth_required or any other error: app is public — continue as guest
-  // Do NOT block rendering or show error screen
+    if (authError.type === 'user_not_registered') {
+      return <UserNotRegisteredError />;
+    }
+    if (authError.type === 'auth_required') {
+      base44.auth.redirectToLogin(window.location.href);
+      return null;
+    }
   }
 
   // Render the main app
