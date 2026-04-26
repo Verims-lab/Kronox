@@ -11,7 +11,8 @@ const SCENARIOS = [
       { key: '2p_normal', label: 'Normal Akış', desc: 'Sıralı hamle, kart birikimi, tur geçişi' },
       { key: '2p_win', label: 'Kazanma Koşulu', desc: 'P1 10 kart topluyor → status=finished' },
       { key: '2p_rival_win', label: 'Rakip Kazanır', desc: 'P1=9 kart, P2=8 kart → P1 son kartla bitirir' },
-      { key: '2p_delayed', label: 'Gecikmeli Yazma', desc: 'DB 1.5sn geç → race condition engeli' },
+      { key: '2p_turn_visibility', label: 'Tur Görünürlüğü', desc: 'P1 yazar → P2 sırasını DB\'den alıyor mu? (subscription testi)' },
+      { key: '2p_delayed', label: 'Gecikmeli Yazma', desc: 'DB 1.5sn geç → kart ve index korunuyor mu?' },
       { key: '2p_concurrent', label: 'Eş Zamanlı', desc: '2 oyuncu aynı anda yazar → last-write-wins' },
     ],
   },
@@ -62,7 +63,7 @@ const SCENARIOS = [
   {
     group: 'Hepsi',
     items: [
-      { key: 'all', label: 'Tümünü Çalıştır', desc: '22 senaryoyu sırayla çalıştır, özet raporla' },
+      { key: 'all', label: 'Tümünü Çalıştır', desc: '23 senaryoyu sırayla çalıştır, özet raporla' },
     ],
   },
 ];

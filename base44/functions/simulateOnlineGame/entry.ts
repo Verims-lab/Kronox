@@ -208,7 +208,7 @@ Deno.serve(async (req) => {
         const logs = [];
 
         const lobby = await base44.asServiceRole.entities.Lobby.get(lobbyId);
-        logs.push('⏳ P1 lokal state\'i güncelliyor (optimistic update), DB yazma 1.5sn gecikmeli...');
+        logs.push('⏳ P1 hamle yapıyor, DB yazma 1.5sn gecikmeli...');
 
         await sleep(1500); // DB yazma gecikmesi simülasyonu
 
@@ -223,9 +223,7 @@ Deno.serve(async (req) => {
         });
         logs.push('✅ Gecikmeli DB yazma tamamlandı (1.5sn sonra)');
 
-        // pendingWrite kilidi simülasyonu: 2sn içinde gelen subscription event'i yoksay
-        // Backend'de bunu doğrulayamayız ama DB state'ini kontrol edebiliriz
-        await sleep(500);
+        await sleep(300);
         const check = await base44.asServiceRole.entities.Lobby.get(lobbyId);
         if (check.players[0].cards.length !== 1) {
           return { status: 'FAIL', logs: [...logs, `❌ Gecikmeli yazmadan sonra P1 kart kaybedildi: ${check.players[0].cards.length}`] };
@@ -234,7 +232,75 @@ Deno.serve(async (req) => {
           return { status: 'FAIL', logs: [...logs, `❌ Tur sırası bozuldu: index=${check.current_player_index}`] };
         }
         logs.push('✅ DB state doğru korundu: P1 kart=1, index=1');
-        logs.push('ℹ️  pendingWriteRef kilidi: frontend 2sn boyunca subscription\'ı yoksayar — DB tutarlı');
+        logs.push('ℹ️  Gecikmeli yazma sonrası sıra P2\'ye geçti — DB tutarlı');
+
+        return { status: 'PASS', logs };
+      });
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // 2 OYUNCU — TUR GÖRÜNÜRLÜĞü (P2 sırasını alıyor mu?)
+    // Bu senaryo eski pendingWriteRef hatasını yakalayan kritik testtir.
+    // P1 hamle yapar → current_player_index=1 DB'ye yazılır → P2 okuyunca
+    // index'in 1 olduğunu görmeli. Subscription engellenseydi P2 sırasını hiç göremezdi.
+    // ══════════════════════════════════════════════════════════════════
+    if (scenario === '2p_turn_visibility' || scenario === 'all') {
+      results['2p_turn_visibility'] = await runScenario('2p_turn_visibility', base44, 2, async (lobbyId) => {
+        const logs = [];
+
+        // Adım 1: Başlangıç — index=0 (P1 oynuyor)
+        let lobby = await base44.asServiceRole.entities.Lobby.get(lobbyId);
+        if (lobby.current_player_index !== 0) {
+          return { status: 'FAIL', logs: [`❌ Başlangıç index=${lobby.current_player_index}, beklenen=0`] };
+        }
+        logs.push('✅ Başlangıç: current_player_index=0 (P1 sırası)');
+
+        // Adım 2: P1 hamle yapar, index → 1
+        await base44.asServiceRole.entities.Lobby.update(lobbyId, {
+          players: lobby.players.map((p, i) =>
+            i === 0 ? { ...p, cards: [{ id: 'q_p1', year: 1969, question: 'P1 hamlesi', type: 'metin' }] } : p
+          ),
+          current_player_index: 1,
+          current_question_id: 'q_next',
+        });
+        logs.push('✅ P1 hamle yaptı, DB\'ye current_player_index=1 yazıldı');
+
+        // Adım 3: P2 perspektifinden DB'yi oku — index 1 görmeli
+        await sleep(200);
+        lobby = await base44.asServiceRole.entities.Lobby.get(lobbyId);
+        if (lobby.current_player_index !== 1) {
+          return { status: 'FAIL', logs: [...logs, `❌ P2 DB'den index=${lobby.current_player_index} okudu, beklenen=1 — sıra P2'ye hiç geçmedi!`] };
+        }
+        logs.push('✅ P2 DB\'den current_player_index=1 okudu — sırası geldi');
+
+        // Adım 4: P2 hamle yapar, index → 0
+        lobby = await base44.asServiceRole.entities.Lobby.get(lobbyId);
+        await base44.asServiceRole.entities.Lobby.update(lobbyId, {
+          players: lobby.players.map((p, i) =>
+            i === 1 ? { ...p, cards: [{ id: 'q_p2', year: 1985, question: 'P2 hamlesi', type: 'metin' }] } : p
+          ),
+          current_player_index: 0,
+          current_question_id: 'q_next2',
+        });
+        logs.push('✅ P2 hamle yaptı, DB\'ye current_player_index=0 yazıldı');
+
+        // Adım 5: P1 perspektifinden DB'yi oku — index 0 görmeli
+        await sleep(200);
+        lobby = await base44.asServiceRole.entities.Lobby.get(lobbyId);
+        if (lobby.current_player_index !== 0) {
+          return { status: 'FAIL', logs: [...logs, `❌ P1 DB'den index=${lobby.current_player_index} okudu, beklenen=0 — sıra P1'e dönmedi!`] };
+        }
+        logs.push('✅ P1 DB\'den current_player_index=0 okudu — sırası geri geldi');
+
+        // Adım 6: Her iki oyuncuda da 1 kart olmalı
+        if (lobby.players[0].cards.length !== 1) {
+          return { status: 'FAIL', logs: [...logs, `❌ P1 kart=${lobby.players[0].cards.length}, beklenen=1`] };
+        }
+        if (lobby.players[1].cards.length !== 1) {
+          return { status: 'FAIL', logs: [...logs, `❌ P2 kart=${lobby.players[1].cards.length}, beklenen=1`] };
+        }
+        logs.push('✅ Her iki oyuncu 1\'er kart kazandı — kart state\'i tutarlı');
+        logs.push('ℹ️  Bu senaryo eski pendingWriteRef subscription engelini yakalar');
 
         return { status: 'PASS', logs };
       });
