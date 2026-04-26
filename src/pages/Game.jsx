@@ -218,8 +218,10 @@ export default function Game() {
   const handleConfirmPlacement = () => {
     if (selectedZone === null || !currentQuestion || !currentPlayer) return;
 
-    // SNAPSHOT: capture current player at time of click
     const snapshotPlayer = { ...currentPlayer };
+    const snapshotPlayers = [...players];
+    const snapshotIndex = currentPlayerIndex;
+    const snapshotUsed = new Set([...usedQuestionIds]);
     const sortedCards = [...snapshotPlayer.cards].sort((a, b) => a.year - b.year);
     const questionYear = currentQuestion.year;
 
@@ -233,118 +235,117 @@ export default function Game() {
       isCorrect = questionYear >= sortedCards[selectedZone - 1].year && questionYear <= sortedCards[selectedZone].year;
     }
 
+    let newPlayers = snapshotPlayers;
+    let newUsed = snapshotUsed;
+
     if (isCorrect) {
-      const newPlayers = [...players];
-      newPlayers[currentPlayerIndex] = {
+      newPlayers = [...snapshotPlayers];
+      newPlayers[snapshotIndex] = {
         ...snapshotPlayer,
         cards: [...snapshotPlayer.cards, { id: currentQuestion.id, year: questionYear, question: currentQuestion.question, type: currentQuestion.type, media_url: currentQuestion.media_url }]
       };
-
-      // Soruyu kullanılan sorular listesine ekle
-      const newUsed = new Set([...usedQuestionIds, currentQuestion.id]);
-
-      // Check win condition BEFORE updating
-      const hasWon = newPlayers[currentPlayerIndex].cards.length >= winCardCount;
-
-      // OPTIMISTIC UPDATE FIRST—state immediately reflects the card
-      setLobbyData(prev => ({
-        ...prev,
-        players: newPlayers,
-        used_question_ids: [...newUsed]
-      }));
-
-      // Online modda DB'ye ATOMIC write
-      if (lobbyId) {
-        const lobbyPlayers = newPlayers.map(p => ({
-          email: p.email || `player_${p.name}`,
-          name: p.name,
-          ready: true,
-          cards: p.cards
-        }));
-        
-        const updateData = { 
-          players: lobbyPlayers, 
-          used_question_ids: [...newUsed],
-          status: hasWon ? 'finished' : 'in_game',
-          ...(hasWon ? { winner: newPlayers[currentPlayerIndex].name } : {})
-        };
-
-        // Pending write: subscription bu sürede bizi ezmesin
-        const attemptUpdate = (retries = 0) => {
-          base44.entities.Lobby.update(lobbyId, updateData)
-            .catch((err) => {
-              console.error(`[Game] Card placement DB update failed (attempt ${retries + 1}):`, err);
-              if (retries < 2) {
-                setTimeout(() => attemptUpdate(retries + 1), 1200);
-              }
-            });
-        };
-        attemptUpdate();
-      }
-
-      if (hasWon) {
-        setFeedback({ result: 'correct', year: questionYear });
-        winTimerRef.current = setTimeout(() => {
-          setFeedback(null);
-          setWinner(newPlayers[currentPlayerIndex].name);
-        }, 1800);
-        return;
-      }
+      newUsed = new Set([...snapshotUsed, currentQuestion.id]);
     }
 
+    const hasWon = isCorrect && newPlayers[snapshotIndex].cards.length >= winCardCount;
 
-    setFeedback({ result: isCorrect ? 'correct' : 'wrong', year: questionYear });
-    setSelectedZone(null);
-  };
+    // Compute next turn values immediately
+    const nextIndex = (snapshotIndex + 1) % snapshotPlayers.length;
+    const nextQ = !hasWon ? pickQuestion(newUsed, questionPool) : null;
+    if (nextQ) newUsed.add(nextQ.id);
 
-  const advanceTurn = useCallback(() => {
-    // Guard: don't advance if no players yet
-    if (!lobbyData || players.length === 0) {
-      console.log('[Game] advanceTurn: Missing data', { hasLobbyData: !!lobbyData, playersCount: players.length });
-      return;
-    }
-
-    const currentIndex = lobbyData.current_player_index ?? 0;
-    const nextIndex = (currentIndex + 1) % players.length;
-
-    setSelectedZone(null);
-    setTimerKey(k => k + 1);
-
-    const nextQ = pickQuestion(usedQuestionIds, questionPool);
-    const newUsed = nextQ ? new Set([...usedQuestionIds, nextQ.id]) : usedQuestionIds;
-
-    // Optimistic update—her durumda state'i güncelle
+    // SINGLE optimistic update — includes card change + turn advance
     setLobbyData(prev => ({
-    ...prev,
-    current_player_index: nextIndex,
-    current_question_id: nextQ?.id || prev.current_question_id,
-    used_question_ids: [...newUsed]
+      ...prev,
+      players: newPlayers,
+      current_player_index: hasWon ? snapshotIndex : nextIndex,
+      current_question_id: hasWon ? prev.current_question_id : (nextQ?.id || prev.current_question_id),
+      used_question_ids: [...newUsed],
+      ...(hasWon ? { status: 'finished', winner: newPlayers[snapshotIndex].name } : {})
     }));
 
-    // Online: DB'ye de senkronize et
+    setSelectedZone(null);
+
+    // Online: single atomic DB write with everything
     if (lobbyId) {
+      const lobbyPlayers = newPlayers.map(p => ({
+        email: p.email || `player_${p.name}`,
+        name: p.name,
+        ready: true,
+        cards: p.cards
+      }));
+
       const updateData = {
-        current_player_index: nextIndex,
-        ...(nextQ ? { current_question_id: nextQ.id, used_question_ids: [...newUsed] } : {}),
+        players: lobbyPlayers,
+        used_question_ids: [...newUsed],
+        status: hasWon ? 'finished' : 'in_game',
+        ...(hasWon
+          ? { winner: newPlayers[snapshotIndex].name }
+          : {
+              current_player_index: nextIndex,
+              ...(nextQ ? { current_question_id: nextQ.id } : {})
+            }
+        )
       };
 
       const attemptUpdate = (retries = 0) => {
         base44.entities.Lobby.update(lobbyId, updateData)
           .catch((err) => {
-            console.error(`[Game] advanceTurn DB update failed (attempt ${retries + 1}):`, err);
-            if (retries < 2) {
-              setTimeout(() => attemptUpdate(retries + 1), 1000);
-            }
+            console.error(`[Game] DB update failed (attempt ${retries + 1}):`, err);
+            if (retries < 2) setTimeout(() => attemptUpdate(retries + 1), 1200);
           });
       };
       attemptUpdate();
     }
-  }, [lobbyData, players.length, usedQuestionIds, pickQuestion, lobbyId, questionPool]);
+
+    if (hasWon) {
+      setFeedback({ result: 'correct', year: questionYear });
+      winTimerRef.current = setTimeout(() => {
+        setFeedback(null);
+        setWinner(newPlayers[snapshotIndex].name);
+      }, 1800);
+      return;
+    }
+
+    setFeedback({ result: isCorrect ? 'correct' : 'wrong', year: questionYear });
+    setTimerKey(k => k + 1);
+  };
+
+  const advanceTurn = useCallback(() => {
+    // Sadece timer dolduğunda (tur atla) kullanılır — turn advance zaten handleConfirmPlacement'ta yapıldı
+    if (!lobbyData || players.length === 0) return;
+
+    const currentIndex = lobbyData.current_player_index ?? 0;
+    const nextIndex = (currentIndex + 1) % players.length;
+
+    const currentUsed = new Set(lobbyData.used_question_ids || []);
+    const nextQ = pickQuestion(currentUsed, questionPool);
+    if (nextQ) currentUsed.add(nextQ.id);
+
+    setSelectedZone(null);
+    setTimerKey(k => k + 1);
+
+    setLobbyData(prev => ({
+      ...prev,
+      current_player_index: nextIndex,
+      current_question_id: nextQ?.id || prev.current_question_id,
+      used_question_ids: [...currentUsed]
+    }));
+
+    if (lobbyId) {
+      const updateData = {
+        current_player_index: nextIndex,
+        ...(nextQ ? { current_question_id: nextQ.id, used_question_ids: [...currentUsed] } : {}),
+      };
+      base44.entities.Lobby.update(lobbyId, updateData)
+        .catch(err => console.error('[Game] advanceTurn DB update failed:', err));
+    }
+  }, [lobbyData, players.length, pickQuestion, lobbyId, questionPool]);
 
   const handleFeedbackDone = useCallback(() => {
     setFeedback(null);
-    advanceTurn();
-  }, [advanceTurn]);
+    // Turn was already advanced inside handleConfirmPlacement — nothing more to do here
+  }, []);
 
   const handleImageError = useCallback(() => {
     // Görseli yüklenemeyen soruyu atla, yeni soru çek
