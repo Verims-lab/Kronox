@@ -40,14 +40,11 @@ export default function Game() {
   const [error, setError] = useState(null);
   const isMyTurnRef = React.useRef(true);
   const unsubRef = React.useRef(null);
-  const pendingWriteRef = React.useRef(false);
-  const pendingWriteTimerRef = React.useRef(null);
   const winTimerRef = React.useRef(null);
 
   // Cleanup tüm timer ve subscription'lar component unmount'ta
   useEffect(() => {
     return () => {
-      clearTimeout(pendingWriteTimerRef.current);
       clearTimeout(winTimerRef.current);
       if (unsubRef.current) unsubRef.current();
     };
@@ -106,9 +103,9 @@ export default function Game() {
     }
   }, [playerNames, navigate]);
 
-  // Safely update lobbyData — subscription'dan gelen event kendi optimistic update'imizi ezmesin
+  // Online modda subscription her zaman uygulanır (diğer oyuncuların güncellemelerini almak için)
+  // Offline modda (lobbyId yok) subscription yoktur zaten
   const applySubscriptionEvent = useCallback((eventData) => {
-    if (pendingWriteRef.current) return;
     setLobbyData(eventData);
   }, []);
 
@@ -273,22 +270,12 @@ export default function Game() {
         };
 
         // Pending write: subscription bu sürede bizi ezmesin
-        pendingWriteRef.current = true;
-        clearTimeout(pendingWriteTimerRef.current);
-        
         const attemptUpdate = (retries = 0) => {
           base44.entities.Lobby.update(lobbyId, updateData)
-            .then(() => {
-              pendingWriteTimerRef.current = setTimeout(() => {
-                pendingWriteRef.current = false;
-              }, 2000);
-            })
             .catch((err) => {
               console.error(`[Game] Card placement DB update failed (attempt ${retries + 1}):`, err);
               if (retries < 2) {
                 setTimeout(() => attemptUpdate(retries + 1), 1200);
-              } else {
-                pendingWriteRef.current = false;
               }
             });
         };
@@ -341,23 +328,12 @@ export default function Game() {
         ...(nextQ ? { current_question_id: nextQ.id, used_question_ids: [...newUsed] } : {}),
       };
 
-      // Pending write kilidi
-      pendingWriteRef.current = true;
-      clearTimeout(pendingWriteTimerRef.current);
-
       const attemptUpdate = (retries = 0) => {
         base44.entities.Lobby.update(lobbyId, updateData)
-          .then(() => {
-            pendingWriteTimerRef.current = setTimeout(() => {
-              pendingWriteRef.current = false;
-            }, 2000);
-          })
           .catch((err) => {
             console.error(`[Game] advanceTurn DB update failed (attempt ${retries + 1}):`, err);
             if (retries < 2) {
               setTimeout(() => attemptUpdate(retries + 1), 1000);
-            } else {
-              pendingWriteRef.current = false;
             }
           });
       };
