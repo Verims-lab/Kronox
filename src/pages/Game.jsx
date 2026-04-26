@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Check, Settings, X, MessageCircle } from 'lucide-react';
 
 import PlayerIndicator from '@/components/game/PlayerIndicator';
+import GameDebugLog, { addGameLog } from '@/components/game/GameDebugLog';
 import Timeline from '@/components/game/Timeline';
 import QuestionCard from '@/components/game/QuestionCard';
 import FeedbackOverlay from '@/components/game/FeedbackOverlay';
@@ -133,6 +134,7 @@ export default function Game() {
     
     const unsub = base44.entities.Lobby.subscribe((event) => {
       if (event.id !== lobbyId) return;
+      addGameLog(`SUB event=${event.type} idx=${event.data?.current_player_index} status=${event.data?.status}`);
       if (event.type === 'delete') {
         setLobbyData(null);
         setError('Lobi kapatıldı.');
@@ -249,6 +251,8 @@ export default function Game() {
 
     const hasWon = isCorrect && newPlayers[snapshotIndex].cards.length >= winCardCount;
 
+    addGameLog(`PLACE correct=${isCorrect} zone=${selectedZone} year=${questionYear} player=${snapshotPlayer.name} cards=${newPlayers[snapshotIndex]?.cards?.length} hasWon=${hasWon}`);
+
     // Compute next turn values immediately
     const nextIndex = (snapshotIndex + 1) % snapshotPlayers.length;
     const nextQ = !hasWon ? pickQuestion(newUsed, questionPool) : null;
@@ -288,10 +292,12 @@ export default function Game() {
         )
       };
 
+      addGameLog(`DB_WRITE players idx=${updateData.current_player_index} status=${updateData.status} nextQ=${updateData.current_question_id}`);
       const attemptUpdate = (retries = 0) => {
         base44.entities.Lobby.update(lobbyId, updateData)
+          .then(() => addGameLog(`DB_WRITE OK`))
           .catch((err) => {
-            console.error(`[Game] DB update failed (attempt ${retries + 1}):`, err);
+            addGameLog(`DB_WRITE ERR attempt=${retries+1} ${err.message}`);
             if (retries < 2) setTimeout(() => attemptUpdate(retries + 1), 1200);
           });
       };
@@ -459,6 +465,7 @@ export default function Game() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center">
+      {isOnline && <GameDebugLog />}
 
 
       {/* Winner overlay */}
