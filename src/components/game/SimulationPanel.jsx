@@ -187,28 +187,53 @@ export default function SimulationPanel({ onClose }) {
           </div>
         ))}
 
-        {loading && (
-          <div className="space-y-2 p-3 rounded-xl border border-primary/30 bg-primary/5">
-            <div className="flex items-center gap-2">
-              <Loader2 className="w-4 h-4 animate-spin text-primary flex-shrink-0" />
-              <span className="font-inter text-sm text-foreground font-semibold">
-                {currentLabel} çalışıyor...
-              </span>
-              <span className="ml-auto font-cinzel text-sm text-primary font-bold">{progress}%</span>
-            </div>
-            <div className="w-full h-2 bg-secondary/50 rounded-full overflow-hidden">
+        {/* Running popup — full screen blocker */}
+        <AnimatePresence>
+          {loading && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[100] flex items-center justify-center bg-background/90 backdrop-blur-md"
+            >
               <motion.div
-                className="h-full bg-primary rounded-full"
-                initial={{ width: 0 }}
-                animate={{ width: `${progress}%` }}
-                transition={{ duration: 0.2 }}
-              />
-            </div>
-            <p className="font-inter text-xs text-muted-foreground">
-              {activeScenario === 'all' ? `${TOTAL_COUNT} senaryo • tahmini ~45sn` : 'tahmini ~3sn'}
-            </p>
-          </div>
-        )}
+                initial={{ scale: 0.85, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.85, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                className="w-80 bg-card border border-primary/40 rounded-2xl p-7 space-y-5 shadow-2xl"
+              >
+                <div className="flex flex-col items-center gap-3 text-center">
+                  <div className="w-14 h-14 rounded-full border-2 border-primary/30 bg-primary/10 flex items-center justify-center">
+                    <Loader2 className="w-7 h-7 animate-spin text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-cinzel text-base text-primary font-bold tracking-wider">SİMÜLASYON ÇALIŞIYOR</p>
+                    <p className="font-inter text-sm text-foreground mt-1">{currentLabel}</p>
+                    <p className="font-inter text-xs text-muted-foreground mt-0.5">
+                      {activeScenario === 'all' ? `${TOTAL_COUNT} senaryo • tahmini ~45sn` : 'tahmini ~3sn'}
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between font-inter text-xs text-muted-foreground">
+                    <span>İlerleme</span>
+                    <span className="font-cinzel text-primary font-bold">{progress}%</span>
+                  </div>
+                  <div className="w-full h-3 bg-secondary/50 rounded-full overflow-hidden">
+                    <motion.div
+                      className="h-full bg-primary rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${progress}%` }}
+                      transition={{ duration: 0.2 }}
+                    />
+                  </div>
+                </div>
+                <p className="font-inter text-xs text-muted-foreground text-center">Lütfen bekleyin, tamamlanana kadar çıkmayın.</p>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <AnimatePresence>
           {results && !loading && (
