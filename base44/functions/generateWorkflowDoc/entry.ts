@@ -238,15 +238,21 @@ Deno.serve(async (req) => {
 
   y -= 6;
   drawHeading2('4.4 Lobi Sohbeti');
-  drawBullet('Tum oyuncular ve izleyiciler lobi sohbetini kullanabilir.');
-  drawBullet('Sistem mesajlari (katilim, ayrilma) otomatik gonderilir.');
-  drawBullet('Mesajlar gercek zamanli abonelik ile guncellenir.');
+  drawBullet('Tum oyuncular lobi bekleme ekraninda ve oyun icinde (sag panel) sohbet edebilir.');
+  drawBullet('Mesajlar gercek zamanli abonelik ile guncellenir; pull-to-refresh ile manuel yenileme de desteklenir.');
+  drawBullet('LobbyMessage entity\'sine yazilir; lobby_id ile filtrele, 50 mesaj limiti.');
 
   y -= 6;
-  drawHeading2('4.5 Baglanti Kopuklugu Yonetimi');
-  drawBullet('Oyuncu yeniden baglanandiginda lobi durumunu DB den ceker.');
-  drawBullet('Pending write kilidi ile optimistic update ve subscription cakismasi onlenir.');
-  drawBullet('Kritik DB yazma islemleri 3 deneme ile yeniden denenir.');
+  drawHeading2('4.5 Lobi Ayarlari (Host)');
+  drawBullet('Host kategori, yil araligi, tur suresi ve kazanma kart sayisini WaitingRoom icerisinden degistirebilir.');
+  drawBullet('Hizli tiklama flood\'unu onlemek icin DB yazmalari 300ms debounce ile bekletilir.');
+  drawBullet('Non-host oyuncular ayarlari useEffect araciligiyla subscription\'dan okur (read-only).');
+
+  y -= 6;
+  drawHeading2('4.6 Baglanti Kopuklugu Yonetimi');
+  drawBullet('Oyuncu yeniden baglandiginda lobi durumunu DB\'den direkt ceker (base44.entities.Lobby.get).');
+  drawBullet('Subscription closure icinde useRef pattern ile stale user/playerName degerleri onlenir.');
+  drawBullet('Kritik DB yazma islemleri 3 deneme ile yeniden denenir (1.2sn aralikla).');
 
   // ─── SORU YONETIMI ──────────────────────────────────────────────────────────
   newPage();
@@ -266,9 +272,14 @@ Deno.serve(async (req) => {
   drawBullet('Havuz tukendikten sonra ayni soru yeniden cikmaz; "Soru bulunamadi" uyarisi gorulur.');
 
   drawHeading2('5.3 Soru Turleri');
-  drawBullet('Metin (metin): Yalnizca yazili soru. Aktif oyun modunda desteklenen tek tur.');
-  drawBullet('Gorsel (gorsel): Soru metnine ek gorsel icerik. (Gelecekte aktif edilebilir)');
-  drawBullet('Isitsel (isitsel): Ses dosyasi iceren soru. (Gelecekte aktif edilebilir)');
+  drawBullet('Metin (metin): Yalnizca yazili soru. Aktif oyun modunda tam desteklenmektedir.');
+  drawBullet('Gorsel (gorsel): Soru metnine ek gorsel icerik. QuestionCard bileseni gorsel turleri render edebilir; media_url zorunludur.');
+  drawBullet('Isitsel (isitsel): Ses dosyasi iceren soru. QuestionCard audio player ile destekler; media_url zorunludur.');
+
+  y -= 6;
+  drawHeading2('5.4 Soru Yetki Kontrolu (RLS)');
+  drawBullet('Okuma: Herkese acik (giris gerektirmez) — oyuncularin sorulari cekmesi icin.');
+  drawBullet('Olusturma / Guncelleme / Silme: Yalnizca role="admin" kullanicilar.');
 
   // ─── USE CASE SENARYOLARI ────────────────────────────────────────────────────
   drawHeading1('6. KULLANIM SENARYOLARI (USE CASES)');
@@ -298,9 +309,10 @@ Deno.serve(async (req) => {
   drawBullet('Akis: Ayarlar → Admin Araclari → "Teknik Dokumani Indir" veya "Is Akisi Dokumanini Indir" → PDF olarak cihaza indirilir.');
 
   y -= 4;
-  drawHeading2('UC-06: Simülasyon Testleri');
+  drawHeading2('UC-06: Simulasyon Testleri (42 Senaryo)');
   drawBullet('Kullanici: Admin.');
-  drawBullet('Akis: Ayarlar → Online Oyun Simulasyonlari → senaryo sec → sistem otomatik lobi olusturur, oynar, temizler → PASS/FAIL raporu goruntulenir.');
+  drawBullet('Akis: Ayarlar → Admin Araclari → "Online Simulasyonlar" → 42 senaryodan birini veya tamamini sec → sistem otomatik lobi olusturur, oynar, temizler → PASS/FAIL raporu goruntulenir.');
+  drawBullet('Senaryo gruplari: 2/3/4 oyuncu akislari, veri butunlugu, performans, UI gorunurluk, stabilite.', 1);
 
   // ─── VERI AKISI ─────────────────────────────────────────────────────────────
   newPage();
@@ -309,12 +321,12 @@ Deno.serve(async (req) => {
   drawHeading1('7. VERI AKISI DIAGRAMI (METIN)');
 
   drawHeading2('7.1 Cevrimici Oyun Veri Akisi');
-  drawText('Host Aksi → base44.entities.Lobby.update() → Veritabani → Subscription Event → Tum Oyuncular', { size: 9, color: rgb(0.6, 0.8, 0.6) });
+  drawText('Host Aksi → lobbyData optimistic guncelle → DB yazimi (tek atomik update) → Subscription Event → Diger Oyuncular', { size: 9, color: rgb(0.6, 0.8, 0.6) });
   y -= 8;
-  drawBullet('Host hamle yapar: kart eklenir, tur indeksi guncellenir → DB yazilir.');
-  drawBullet('Subscription: Diger tum oyuncular guncellemeyi aninda alir.');
-  drawBullet('Optimistic Update: Host ekrani anlinda guncellenir, DB yazmasi arka planda gerceklesir.');
-  drawBullet('Pending Write Kilidi: Kendi yazdigi guncelleme kendi subscription i ile ezilmez.');
+  drawBullet('Atomik DB yazimi: kart ekleme + tur gecisi + yeni soru TEK update() cagrisiyla gonderilir.');
+  drawBullet('Subscription: Diger tum oyuncular guncellemeyi WebSocket uzerinden aninda alir.');
+  drawBullet('Optimistic Update: Aktif oyuncu ekrani DB yanitini beklemeden anlinda guncellenir.');
+  drawBullet('useRef Closure Fix: Subscription icinde user ve playerName icin useRef kullanilir; stale deger hatasi onlenir.');
 
   y -= 6;
   drawHeading2('7.2 Soru Secim Akisi');
@@ -354,14 +366,16 @@ Deno.serve(async (req) => {
   // ─── GELECEK GELISTIRMELER ────────────────────────────────────────────────────
   drawHeading1('9. GELECEK GELISTIRMELER');
 
-  drawBullet('Gorsel ve isitsel soru turlerinin aktif oyuna dahil edilmesi.');
-  drawBullet('Oyuncu puanlama ve istatistik gecmisi.');
-  drawBullet('Turnuva modu: Eleme usulu cok turlü rekabet.');
-  drawBullet('Kategori genisetmesi: Muzik, cografya, edebiyat vb.');
+  drawBullet('Gorsel ve isitsel soru turlerinin aktif oyun havuzuna dahil edilmesi (altyapi hazir).');
+  drawBullet('Oyuncu puanlama ve istatistik gecmisi: dogru/yanlis orani, ortalama sure.');
+  drawBullet('Reconnect / state recovery: Baglanti kopunca otomatik yeniden baglanma.');
+  drawBullet('Turnuva modu: Eleme usulu cok turlu rekabet, kalici skor tablosu.');
+  drawBullet('Kategori genisletmesi: Muzik, cografya, edebiyat, sinema vb.');
   drawBullet('Soru onerme sistemi: Kayitli kullanicilar soru onerebilir, admin onaylar.');
+  drawBullet('Push bildirimler: Sira geldigi zaman uygulama arka plandayken bildirim.');
   drawBullet('Lokalizasyon: Ingilizce ve diger dil destegi.');
-  drawBullet('Mobil uygulama: iOS ve Android native yayin.');
-  drawBullet('Spektator modu: Oyunu izleyen ek kullanici destegi.');
+  drawBullet('Mobil uygulama: iOS ve Android native yayin (React kodu aynen kullanilir).');
+  drawBullet('Spektator modu: Aktif lobiye izleyici olarak katilma.');
 
   // ─── FINALIZE ───────────────────────────────────────────────────────────────
   const pdfBytes = await pdfDoc.save();

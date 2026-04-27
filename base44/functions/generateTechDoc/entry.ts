@@ -142,12 +142,13 @@ Deno.serve(async (req) => {
       ['3.', 'Dosya & Klasor Yapisi'],
       ['4.', 'Veri Modeli (Entities)'],
       ['5.', 'Sayfa & Bilesen Mimarisi'],
-      ['6.', 'Oyun Mekanigi — Yerel Mod'],
-      ['7.', 'Oyun Mekanigi — Cevrimici Mod'],
-      ['8.', 'Backend Fonksiyonlar'],
-      ['9.', 'Performans & UX Optimizasyonlari'],
-      ['10.', 'Guvenlik & Erisim Kontrolu'],
-      ['11.', 'Gelecek Gelistirme Onerileri'],
+      ['6.', 'Layout Bilesenleri'],
+      ['7.', 'Oyun Mekanigi — Yerel Mod'],
+      ['8.', 'Oyun Mekanigi — Cevrimici Mod'],
+      ['9.', 'Backend Fonksiyonlar'],
+      ['10.', 'Performans & UX Optimizasyonlari'],
+      ['11.', 'Guvenlik & Erisim Kontrolu'],
+      ['12.', 'Gelecek Gelistirme Onerileri'],
     ];
     for (const [num, title] of toc) {
       ensureSpace(20);
@@ -203,8 +204,12 @@ Deno.serve(async (req) => {
       '|-- pages/',
       '|   |-- PlayerSetup.jsx      # Ana ekran - oyun kurulum formu',
       '|   |-- LobbyRoom.jsx        # Cevrimici lobi (olustur/katil/bekle)',
-      '|   +-- Game.jsx             # Oyun sahnesi (yerel + cevrimici)',
+      '|   |-- Game.jsx             # Oyun sahnesi (yerel + cevrimici)',
+      '|   +-- SettingsPage.jsx     # Admin paneli & hesap ayarlari',
       '|-- components/',
+      '|   |-- layout/',
+      '|   |   |-- AppHeader.jsx    # Sabit ust baslik (geri/giris/ayarlar)',
+      '|   |   +-- BottomNav.jsx    # Alt navigasyon cubugu (3 sekme)',
       '|   |-- game/',
       '|   |   |-- PlayerIndicator  # Aktif oyuncu gostergesi',
       '|   |   |-- Timeline         # Kart sirasi & birakma bolgesi',
@@ -214,17 +219,18 @@ Deno.serve(async (req) => {
       '|   |   |-- TurnTimer        # Tur sayaci (SVG dairesel)',
       '|   |   |-- FeedbackOverlay  # Dogru/Yanlis animasyonu',
       '|   |   |-- GameOver         # Kazanma ekrani',
-      '|   |   |-- SettingsModal    # Hesap ayarlari',
-      '|   |   +-- SimulationPanel  # Gelistirici test paneli',
+      '|   |   |-- SettingsModal    # Hesap ayarlari modal',
+      '|   |   +-- SimulationPanel  # Gelistirici test paneli (42 senaryo)',
       '|   +-- lobby/',
-      '|       +-- LobbyChat        # Lobi ici sohbet',
+      '|       +-- LobbyChat        # Lobi ici gercek zamanli sohbet',
       '|-- entities/',
-      '|   |-- Question.json        # Soru semasi',
+      '|   |-- Question.json        # Soru semasi (RLS ile korunur)',
       '|   |-- Lobby.json           # Lobi semasi',
       '|   +-- LobbyMessage.json    # Sohbet mesaji semasi',
       '|-- functions/',
-      '|   |-- simulateOnlineGame   # Otomatik test suite',
-      '|   +-- generateTechDoc      # PDF dokuman ureteci',
+      '|   |-- simulateOnlineGame   # 42 senaryolu otomatik test suite',
+      '|   |-- generateTechDoc      # Teknik mimari PDF ureteci',
+      '|   +-- generateWorkflowDoc  # Is akisi & use case PDF ureteci',
       '|-- hooks/',
       '|   +-- usePullToRefresh.js  # Mobil pull-to-refresh hook',
       '+-- lib/',
@@ -306,13 +312,38 @@ Deno.serve(async (req) => {
     drawText('Ana oyun sahnesi. Yerel ve cevrimici modlari ayni bilesen icinde yonetir:');
     bullet('Yerel mod: Tum state React icinde tutulur, DB yazimi yoktur.');
     bullet('Cevrimici mod: lobbyId uzerinden DB senkronizasyonu ve subscription.');
-    drawText('Bilesen, lobbyData\'yi tek gercek kaynak olarak kullanir. Subscription gelen guncellemeleri uygular; kendi yazdigi donemde pendingWriteRef ile cakismayi onler.', { color: gray });
+    drawText('Bilesen, lobbyData\'yi tek gercek kaynak olarak kullanir. handleConfirmPlacement kart ekleme + tur gecisini tek atomik DB yazmasiyla gerceklestirir.', { color: gray });
+    spacer(6);
+
+    subTitle('SettingsPage (/settings)');
+    drawText('Hesap yonetimi ve admin araclari ekrani. Tum kullanicilar hesap silme islemini buradan yapabilir. Admin yetkisiyle ek araclar (PDF dokuman indirme, simulasyon paneli) goruntulenir.');
+    spacer(6);
 
     // ══════════════════════════════════════════════════════════════════════════
-    // 6. OYUN MEKANİĞİ YEREL
+    // 6. LAYOUT BİLEŞENLERİ
     // ══════════════════════════════════════════════════════════════════════════
     newPage();
-    sectionTitle('6. Oyun Mekanigi — Yerel Mod');
+    sectionTitle('6. Layout Bilesenleri');
+
+    subTitle('AppHeader');
+    drawText('Tum sayfalarin ustunde sabit konumlanan baslik bileseni (z-index: 60). Rota bazli farkli gorunum saglar:');
+    bullet('Ana sayfa (/): KRONOS logosu + giris yapilmamissa "GIRIS YAP" butonu, giris yapilmissa Ayarlar ikonu.');
+    bullet('Alt sayfalar (/lobby, /game, /settings): Geri ok + KRONOS logosu.');
+    bullet('Kimlik dogrulama base44.auth.me() ile yapilir; sonuc useState ile tutulur.');
+    spacer(6);
+
+    subTitle('BottomNav');
+    drawText('Ekranin altinda sabit konumlanan 3 sekmeli navigasyon cubugu. Oyun ekraninda (/game) gizlenir.');
+    bullet('Ana Sayfa (/) — Home ikonu');
+    bullet('Cevrimici (/lobby) — Globe ikonu');
+    bullet('Ayarlar (/settings) — Settings ikonu');
+    drawText('env(safe-area-inset-bottom) ile iOS home indicator alani korunur.', { color: gray });
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 7. OYUN MEKANİĞİ YEREL
+    // ══════════════════════════════════════════════════════════════════════════
+    newPage();
+    sectionTitle('7. Oyun Mekanigi — Yerel Mod');
     drawText('Tum mantik istemci tarafinda calisir, ag baglantisi yalnizca soru yukleme icin gereklidir.');
     spacer();
     bullet('Baslangiçta her oyuncuya 2 kart dagitilir, Fisher-Yates karistirmasi ile soru secilir.');
@@ -330,86 +361,97 @@ Deno.serve(async (req) => {
     ]);
 
     // ══════════════════════════════════════════════════════════════════════════
-    // 7. ÇEVRİMİÇİ MOD
+    // 8. ÇEVRİMİÇİ MOD
     // ══════════════════════════════════════════════════════════════════════════
     newPage();
-    sectionTitle('7. Oyun Mekanigi — Cevrimici Mod');
+    sectionTitle('8. Oyun Mekanigi — Cevrimici Mod');
 
     subTitle('Baslatma Akisi');
-    bullet('Host "Oyunu Baslat" dediginde sorular dagitilir ve Lobby.status = "starting" olur.');
+    bullet('Host "Oyunu Baslat" dediginde Fisher-Yates ile karistirilan sorular dagitilir, Lobby.status = "starting" olur.');
     bullet('Host navigate.state icinde initialPlayers ve currentQuestionId ile /game\'e gider.');
     bullet('Diger oyuncular subscription uzerinden status="starting" eventi alir ve ayni sekilde navigate eder.');
+    bullet('Subscription closure stale deger sorununa karsi useRef pattern kullanilir: userRef ve playerNameRef her guncellemede senkronize edilir.');
     spacer(6);
 
     subTitle('Senkronizasyon Stratejisi');
     bullet('Optimistic update: Kullanici hamlesi yapinca state hemen guncellenir, ardindan DB\'ye yazilir.');
-    bullet('Conflict prevention: pendingWriteRef kilidi ile kendi yazimimizin subscription\'i ezmesi onlenir.');
+    bullet('Atomik DB yazimi: handleConfirmPlacement, kart ekleme + tur gecisi + yeni soruyu TEK DB yazmasiyla gerceklestirir.');
     bullet('Retry mekanizmasi: DB yazimi basarisiz olursa 3 denemeye kadar 1.2sn aralikla yeniden denenir.');
-    bullet('Subscription: Lobby entity\'si WebSocket uzerinden dinlenir; gelen event aninda state\'e uygulanir.');
+    bullet('Subscription: Lobby entity\'si WebSocket uzerinden dinlenir; gelen event aninda lobbyData state\'ine uygulanir.');
     spacer(6);
 
     subTitle('Tur Gecis Mantiği');
     codeBlock([
-      'handleConfirmPlacement()',
+      'handleConfirmPlacement()  [TEK ATOMIK ADIM]',
       '  -> Dogruluk kontrolu',
-      '  -> Kart ekle (optimistic)',
+      '  -> Optimistic state guncelle (kart + nextIndex + nextQ)',
       '  -> Kazanma kontrolu',
-      '  -> DB yazimi (status, players, used_question_ids)',
+      '  -> DB yazimi: players, used_question_ids, current_player_index,',
+      '                current_question_id, status — hepsi tek update()',
       '',
-      'handleFeedbackDone()',
-      '  -> feedback null yap',
-      '  -> advanceTurn()',
-      '     -> nextIndex = (currentIndex + 1) % playerCount',
-      '     -> Yeni soru sec (Fisher-Yates)',
-      '     -> DB guncelle (current_player_index, current_question_id)',
+      'advanceTurn()  [sadece timer dolunca]',
+      '  -> nextIndex = (currentIndex + 1) % playerCount',
+      '  -> Yeni soru sec (Fisher-Yates havuzdan)',
+      '  -> DB guncelle (current_player_index, current_question_id)',
     ]);
+    spacer(6);
+
+    subTitle('Lobi Ayarlari Debounce');
+    drawText('WaitingRoom\'da host ayar butonlarina hizli basinca DB flood olusmasin diye 300ms debounce uygulanir. Ayrica lobby prop\'u degisince settings state\'i useEffect ile senkronize edilir (non-host okuma icin).');
     spacer(6);
 
     subTitle('Izleme & Bekleme');
     drawText('Sirasi gelmeyen oyuncular kart yerlestiremez (isMyTurn = false). Diger oyuncularin timelinelari read-only gosterilir. Kendi kartlari ise ayri bir blokta gorunur.');
 
     // ══════════════════════════════════════════════════════════════════════════
-    // 8. BACKEND FONKSİYONLAR
+    // 9. BACKEND FONKSİYONLAR
     // ══════════════════════════════════════════════════════════════════════════
     newPage();
-    sectionTitle('8. Backend Fonksiyonlar');
+    sectionTitle('9. Backend Fonksiyonlar');
 
     subTitle('simulateOnlineGame');
-    drawText('8 farkli cevrimici oyun senaryosunu otomatik olarak calistiran test suiteidir. Gelistirici panelinden (FlaskConical ikonu) tetiklenir.');
+    drawText('42 farkli cevrimici oyun senaryosunu otomatik olarak calistiran test suitedir. Admin\'in SettingsPage > Araclar > "Online Simulasyonlar" uzerinden tetiklenir. user.role="admin" kontrolu zorunludur.');
     spacer(4);
-    bullet('2p_normal — Normal 2 oyunculu akis, tur gecisi');
-    bullet('2p_win — P1 kazanma kosulu, status=finished kontrolu');
-    bullet('2p_delayed — 1.5sn gecikme, race condition testi');
-    bullet('2p_concurrent — Es zamanli DB yazimi, last-write-wins');
-    bullet('3p_turn_order — 3 oyuncu tur sirasi dogrulamasi');
-    bullet('3p_spectate — Sirasi olmayan oyuncu engelleme');
-    bullet('4p_full — 4 oyuncu, 3 tam tur dongusu');
-    bullet('4p_win — P3 kazaniyor, digerler winner ekranini gorur');
+    drawText('Senaryo kategorileri:');
+    bullet('2 Oyuncu: normal akis, kazanma, gecikme, es zamanli yazim, chat, lobi silme');
+    bullet('3 Oyuncu: tur sirasi, spectator engeli, tur suresi, soru yeniden kullanimi');
+    bullet('4 Oyuncu: tam tur dongusu, P3 kazanma, tum ekranlar winner goruntusu');
+    bullet('Veri Butunlugu: kart sayisi dogrulama, used_question_ids tekrarsizlik');
+    bullet('Performans: 10 tur hiz testi, subscription gecikme olcumu');
+    bullet('UI Gorunurluk: portrait/landscape gecis, soru karti render, timer gorunurlugu');
+    bullet('Stabilite: soru havuzu tukenme, cok turlu oyun, baglanti kopuklugun kurtarma');
     spacer(8);
 
     subTitle('generateTechDoc (Bu Dokuman)');
-    drawText('Uygulamanin mimari ve teknik dokumani otomatik olarak PDF formatinda ureten backend fonksiyondur. pdf-lib kutuphanesi ile Deno uzerinde calisir.');
+    drawText('Uygulamanin mimari ve teknik dokumani otomatik olarak PDF formatinda ureten backend fonksiyondur. pdf-lib kutuphanesi ile Deno uzerinde calisir. Admin yetkisi gerekmez (dokuman hassas veri icermez).');
+    spacer(8);
+
+    subTitle('generateWorkflowDoc');
+    drawText('Uygulamanin is akislari, kullanim senaryolari (use case\'ler) ve surec adimlarini PDF formatinda ureten backend fonksiyondur. user.role="admin" kontrolu ile korunur. pdf-lib kutuphanesi, adim marker gorseliyle zenginlestirilmis format kullanir.');
 
     // ══════════════════════════════════════════════════════════════════════════
-    // 9. PERFORMANS
+    // 10. PERFORMANS
     // ══════════════════════════════════════════════════════════════════════════
     newPage();
-    sectionTitle('9. Performans & UX Optimizasyonlari');
+    sectionTitle('10. Performans & UX Optimizasyonlari');
 
-    bullet('React.lazy + Suspense: PlayerSetup, LobbyRoom ve Game sayfalari code-split edilmistir. Ilk yukleme boyutu kucultulur.');
-    bullet('TanStack Query: Soru listesi 5 dakika onbellekte tutulur (staleTime). Gereksiz refetch onlenir.');
+    bullet('React.lazy + Suspense: PlayerSetup, LobbyRoom, Game ve SettingsPage code-split edilmistir. Ilk yukleme boyutu kucultulur.');
+    bullet('TanStack Query: Soru listesi onbellekte tutulur (staleTime=0 ile her oyunda taze). Gereksiz refetch onlenir.');
     bullet('useMemo: players, currentQuestion, questionPool ve usedQuestionIds her renderde yeniden hesaplanmaz.');
     bullet('useCallback: pickQuestion, advanceTurn, handleFeedbackDone stabil referanslar olarak tutulur.');
-    bullet('Fisher-Yates shuffle: Soru seciminde deterministik olmayan, uniform rastgele dagilim saglar.');
+    bullet('Fisher-Yates shuffle: LobbyRoom handleStart\'ta ve Game pickQuestion\'da uniform rastgele dagilim saglar.');
+    bullet('Debounce (300ms): WaitingRoom ayar butonlarina hizli basilinca DB flood onlenir.');
+    bullet('useRef closure fix: Subscription icinde user ve playerName\'e useRef uzerinden erisilerek stale deger hatasi onlenir.');
+    bullet('Atomik DB yazimi: handleConfirmPlacement, birden fazla alan degisimini tek update() cagrisiyla gonderir.');
     bullet('Pull-to-refresh: LobbyRoom ve LobbyChat\'te dokunmatik pull-to-refresh hook\'u ile mobil yenileme.');
     bullet('Safe-area padding: iOS notch ve Android navigation bar icin env(safe-area-inset-*) degiskenleri kullanilir.');
-    bullet('AnimatePresence: Sayfa ve bilesen gecisleri tween animasyonu ile yumusatilmistir.');
+    bullet('AnimatePresence: Sayfa ve bilesen gecisleri spring/tween animasyonu ile yumusatilmistir.');
 
     // ══════════════════════════════════════════════════════════════════════════
-    // 10. GÜVENLİK
+    // 11. GÜVENLİK
     // ══════════════════════════════════════════════════════════════════════════
     newPage();
-    sectionTitle('10. Guvenlik & Erisim Kontrolu');
+    sectionTitle('11. Guvenlik & Erisim Kontrolu');
 
     subTitle('Soru Yonetimi (RLS)');
     drawText('Question entity\'si Row-Level Security (RLS) ile korunmaktadir:');
@@ -423,6 +465,7 @@ Deno.serve(async (req) => {
 
     subTitle('Backend Fonksiyon Guvenligi');
     bullet('simulateOnlineGame: user.role === "admin" kontrolu — yetkisiz erisimde 403 doner.');
+    bullet('generateWorkflowDoc: user.role === "admin" veya sariverim@gmail.com kontrolu — 403 ile korunur.');
     bullet('generateTechDoc: Genel erisime acik (dokuman hassas veri icermez).');
     spacer(6);
 
@@ -432,10 +475,10 @@ Deno.serve(async (req) => {
     bullet('Host lobbiyi kapatinca (delete) tum oyuncular baglantii kaybeder ve ana ekrana yonlendirilir.');
 
     // ══════════════════════════════════════════════════════════════════════════
-    // 11. GELECEK
+    // 12. GELECEK
     // ══════════════════════════════════════════════════════════════════════════
     newPage();
-    sectionTitle('11. Gelecek Gelistirme Onerileri');
+    sectionTitle('12. Gelecek Gelistirme Onerileri');
 
     bullet('Gorselli & sesli sorular: media_url alani hazir; QuestionCard bileseni gorsel ve isitsel tiplerini destekliyor. Soru yukleme arayuzu eklenebilir.');
     bullet('Skor tablosu: Oyun sonrasi oyuncularin puanlari ve dogru/yanlis oranlari ile istatistik ekrani.');
