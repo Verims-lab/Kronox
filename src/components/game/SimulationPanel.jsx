@@ -11,7 +11,7 @@ const SCENARIOS = [
       { key: '2p_normal', label: 'Normal Akış', desc: 'Sıralı hamle, kart birikimi, tur geçişi' },
       { key: '2p_win', label: 'Kazanma Koşulu', desc: 'P1 10 kart topluyor → status=finished' },
       { key: '2p_rival_win', label: 'Rakip Kazanır', desc: 'P1=9 kart, P2=8 kart → P1 son kartla bitirir' },
-      { key: '2p_turn_visibility', label: 'Tur Görünürlüğü', desc: 'P1 yazar → P2 sırasını DB\'den alıyor mu? (subscription testi)' },
+      { key: '2p_turn_visibility', label: 'Tur Görünürlüğü', desc: 'P1 yazar → P2 sırasını DB\'den alıyor mu?' },
       { key: '2p_delayed', label: 'Gecikmeli Yazma', desc: 'DB 1.5sn geç → kart ve index korunuyor mu?' },
       { key: '2p_concurrent', label: 'Eş Zamanlı', desc: '2 oyuncu aynı anda yazar → last-write-wins' },
     ],
@@ -37,6 +37,8 @@ const SCENARIOS = [
     items: [
       { key: 'placement_boundary', label: 'Sınır Koşulları', desc: 'Zone 0/N/orta, eşit yıl kenar değeri' },
       { key: 'placement_empty_timeline', label: 'Boş Timeline', desc: '0 kartlı oyuncuya her yıl yerleştirilebilir' },
+      { key: 'placement_all_zones', label: 'Tüm Zone Mantığı', desc: '4 kartlı timeline üzerinde zone 0-4 kombinasyonları' },
+      { key: 'card_sort_accuracy', label: 'Kart Sıralama', desc: 'Yıllara göre sort ve eşit yıl kararlı sıralama' },
     ],
   },
   {
@@ -47,6 +49,7 @@ const SCENARIOS = [
       { key: 'category_filter', label: 'Kategori Filtresi', desc: 'Tüm kategoriler DB\'ye doğru yazılır' },
       { key: 'year_range', label: 'Yıl Aralığı', desc: 'Dar/geniş/antik aralıklar doğru kaydedilir' },
       { key: 'category_year_combo', label: 'Kategori × Yıl', desc: 'Kombinasyon ayarları tutarlı kaydedilir' },
+      { key: 'player_count_limits', label: 'Oyuncu Limiti', desc: '1-4 arası her oyuncu sayısı lobi oluşturabilir' },
     ],
   },
   {
@@ -58,12 +61,55 @@ const SCENARIOS = [
       { key: 'player_name_edge', label: 'İsim Kenar Değerler', desc: 'Türkçe, XSS, uzun, tek karakter isimler' },
       { key: 'lobby_chat', label: 'Lobi Sohbet', desc: 'Chat/system mesajları oluşturulur ve okunur' },
       { key: 'game_restart', label: 'Oyun Yeniden Başlat', desc: 'Finished → waiting, kartlar ve soru geçmişi sıfırlanır' },
+      { key: 'lobby_code_uniqueness', label: 'Lobi Kod Benzersizliği', desc: '10 lobi oluştur, kod çakışması kontrol et' },
+    ],
+  },
+  {
+    group: 'Soru Havuzu',
+    items: [
+      { key: 'single_player_offline', label: 'Offline Soru Havuzu', desc: 'Kategorilere göre min 10 metin soru kontrolü' },
+      { key: 'question_type_distribution', label: 'Tip Dağılımı', desc: 'Metin/görsel/ses soru sayıları ve oranları' },
+      { key: 'question_year_coverage', label: 'Yıl Kapsamı', desc: 'Antik→Güncel yıl aralıklarında soru dağılımı' },
+      { key: 'offline_game_init', label: 'Offline Başlatma', desc: 'Fisher-Yates shuffle, kart dağıtımı, tekrar yok' },
+    ],
+  },
+  {
+    group: 'Performans',
+    items: [
+      { key: 'perf_question_filter', label: 'Soru Filtreleme', desc: '200 soru fetch → filtre → Set lookup ms ölçümü' },
+      { key: 'perf_db_throughput', label: 'DB Yazma Hızı', desc: '10 ardışık update, ortalama ms/yazma ölçümü' },
+    ],
+  },
+  {
+    group: 'Stabilite',
+    items: [
+      { key: 'subscription_cleanup', label: 'Sub Temizliği', desc: '5 ardışık update → unsubscribe pattern doğrulaması' },
+      { key: 'multi_lobby_isolation', label: 'Çoklu Lobi', desc: '2 paralel lobi birbirini etkilemiyor mu?' },
+      { key: 'win_timer_race', label: 'Win + Timer Race', desc: 'Kazanma + timer dolması aynı anda → state tutarlı mı?' },
+    ],
+  },
+  {
+    group: 'Ekran & Görünürlük',
+    items: [
+      { key: 'question_card_rendering', label: 'Soru Kartı Tipi', desc: 'Metin/görsel/ses render mantığı ve fallback' },
+      { key: 'header_visibility', label: 'Header Durumları', desc: 'Rota bazlı back/home/login header mantığı' },
+      { key: 'bottomnav_visibility', label: 'BottomNav Gizleme', desc: 'Oyun içinde nav gizli, diğerlerinde görünür' },
+      { key: 'orientation_layout_logic', label: 'Landscape/Portrait', desc: 'CSS orientation media query & tailwind sınıf mantığı' },
+      { key: 'mobile_safe_area', label: 'Mobil Safe Area', desc: 'iOS/Android notch, navigation bar inset padding kontrolü' },
+    ],
+  },
+  {
+    group: 'Oynanabilirlik',
+    items: [
+      { key: 'timer_logic', label: 'Timer Mantığı', desc: 'Süresiz mod, yüzde, renk eşikleri doğrulaması' },
+      { key: 'auth_gate_online', label: 'Auth Kapısı', desc: 'Giriş olmadan çevrimiçi oyun engellenebiliyor mu?' },
+      { key: 'chat_edge_cases', label: 'Chat Kenar Durumları', desc: 'Boş/uzun/emoji/XSS mesaj DB davranışı' },
     ],
   },
   {
     group: 'Hepsi',
     items: [
-      { key: 'all', label: 'Tümünü Çalıştır', desc: '23 senaryoyu sırayla çalıştır, özet raporla' },
+      { key: 'all', label: 'Tümünü Çalıştır', desc: '42 senaryoyu sırayla çalıştır, özet raporla' },
     ],
   },
 ];
@@ -75,6 +121,13 @@ const TOTAL_COUNT = ALL_KEYS.length;
 function getScenarioCount(key) {
   if (key === 'all') return TOTAL_COUNT;
   return 1;
+}
+
+// Tümü için tahmini süre (yeni senaryolar dahil)
+function getEstimatedMs(key) {
+  if (key === 'all') return 120000; // ~2 dakika 42 senaryo için
+  if (['2p_delayed', 'perf_db_throughput', 'player_count_limits', 'lobby_code_uniqueness'].includes(key)) return 8000;
+  return 3000;
 }
 
 export default function SimulationPanel({ onClose }) {
@@ -98,7 +151,7 @@ export default function SimulationPanel({ onClose }) {
     setCurrentLabel(scenarioItem?.label || scenarioKey);
 
     const total = getScenarioCount(scenarioKey);
-    const estimatedMs = scenarioKey === 'all' ? 45000 : 3000;
+    const estimatedMs = getEstimatedMs(scenarioKey);
     const intervalMs = 200;
     const steps = estimatedMs / intervalMs;
     let tick = 0;
@@ -211,7 +264,7 @@ export default function SimulationPanel({ onClose }) {
                     <p className="font-cinzel text-base text-primary font-bold tracking-wider">SİMÜLASYON ÇALIŞIYOR</p>
                     <p className="font-inter text-sm text-foreground mt-1">{currentLabel}</p>
                     <p className="font-inter text-xs text-muted-foreground mt-0.5">
-                      {activeScenario === 'all' ? `${TOTAL_COUNT} senaryo • tahmini ~45sn` : 'tahmini ~3sn'}
+                      {activeScenario === 'all' ? `${TOTAL_COUNT} senaryo • tahmini ~2dk` : 'tahmini ~3sn'}
                     </p>
                   </div>
                 </div>
