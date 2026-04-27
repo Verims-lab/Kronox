@@ -31,6 +31,12 @@ export default function LobbyRoom() {
   }, []);
 
   // Subscribe to lobby changes
+  // user & playerName refs — subscription closure'da stale değer yakalanmasın
+  const userRef = useRef(user);
+  const playerNameRef = useRef(playerName);
+  useEffect(() => { userRef.current = user; }, [user]);
+  useEffect(() => { playerNameRef.current = playerName; }, [playerName]);
+
   useEffect(() => {
     if (!lobby?.id) return;
     
@@ -48,8 +54,10 @@ export default function LobbyRoom() {
       
       // If host started the game — only non-hosts navigate via subscription
       // Host navigates directly in handleStart with playersWithCards
-      const isCurrentUserHost = event.data.host_email === (user?.email || '');
-      const isGuestCurrentHost = !user && event.data.players?.[0]?.name === playerName.trim();
+      const currentUser = userRef.current;
+      const currentPlayerName = playerNameRef.current;
+      const isCurrentUserHost = event.data.host_email === (currentUser?.email || '');
+      const isGuestCurrentHost = !currentUser && event.data.players?.[0]?.name === currentPlayerName.trim();
       if (event.data.status === 'starting' && !isCurrentUserHost && !isGuestCurrentHost) {
         navigate('/game', {
           state: {
@@ -62,7 +70,7 @@ export default function LobbyRoom() {
             turnDuration: event.data.turn_duration,
             winCardCount: event.data.win_card_count,
             lobbyId: event.data.id,
-            myPlayerName: playerName.trim(),
+            myPlayerName: currentPlayerName.trim(),
           }
         });
       }
@@ -72,7 +80,7 @@ export default function LobbyRoom() {
     return () => {
       if (unsubRef.current) unsubRef.current();
     };
-  }, [lobby?.id, playerName, navigate]);
+  }, [lobby?.id, navigate]);
 
   const handleCreate = async () => {
     if (!playerName.trim()) return setError('İsim girin.');
@@ -232,6 +240,7 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
 
   const { containerRef: waitingScrollRef, pullY, refreshing } = usePullToRefresh(refreshLobby);
 
+  // settings, lobby prop'undan türetilir — dışarıdan gelen güncellemeler (subscription) yansısın
   const [settings, setSettings] = useState({
     category: lobby.category,
     year_start: lobby.year_start,
@@ -239,6 +248,22 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
     turn_duration: lobby.turn_duration,
     win_card_count: lobby.win_card_count,
   });
+
+  // Lobby subscription'dan gelen değişiklikleri settings'e yansıt (host olmayan için)
+  const prevLobbyId = useRef(lobby.id);
+  useEffect(() => {
+    if (lobby.id !== prevLobbyId.current) return; // farklı lobi — skip
+    setSettings({
+      category: lobby.category,
+      year_start: lobby.year_start,
+      year_end: lobby.year_end,
+      turn_duration: lobby.turn_duration,
+      win_card_count: lobby.win_card_count,
+    });
+  }, [lobby.category, lobby.year_start, lobby.year_end, lobby.turn_duration, lobby.win_card_count]);
+
+  // DB yazma debounce — hızlı tıklamada flood önlenir
+  const settingDebounceRef = useRef(null);
 
   const categories = [
     { value: 'karisik', label: 'Karışık' },
@@ -248,14 +273,18 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
     { value: 'sanat', label: 'Sanat' },
   ];
 
-  const handleSettingChange = async (key, value) => {
+  const handleSettingChange = (key, value) => {
     const updated = { ...settings, [key]: value };
     setSettings(updated);
-    await base44.entities.Lobby.update(lobby.id, { [key]: value });
+    // Debounce: ardışık hızlı tıklamalarda tek DB yazma
+    clearTimeout(settingDebounceRef.current);
+    settingDebounceRef.current = setTimeout(() => {
+      base44.entities.Lobby.update(lobby.id, { [key]: value }).catch(() => {});
+    }, 300);
   };
 
   const handleStart = async () => {
-    // Pick first question
+    // Soruları çek ve filtrele
     const allQuestions = await base44.entities.Question.list('-created_date', 200);
     const filtered = allQuestions
       .filter(q => q.type === 'metin')
@@ -266,29 +295,38 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
       alert('Soru bulunamadı');
       return;
     }
-    
-    // Pick first question FIRST
-    const firstQ = filtered[Math.floor(Math.random() * filtered.length)];
-    const used = new Set([firstQ.id]);
-    
-    // Deal 2 cards to each player
+
+    // Fisher-Yates shuffle — sonsuz döngü riski yok
+    const shuffled = [...filtered];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    // Sırayla soru dağıt: her oyuncuya 2 kart + 1 aktif soru
+    const neededCount = lobby.players.length * 2 + 1;
+    if (shuffled.length < neededCount) {
+      alert(`Yeterli soru yok. Gerekli: ${neededCount}, mevcut: ${shuffled.length}`);
+      return;
+    }
+
+    let cursor = 0;
+    const used = new Set();
+
     const playersWithCards = lobby.players.map(p => {
       const cards = [];
       for (let i = 0; i < 2; i++) {
-        let q;
-        do {
-          q = filtered[Math.floor(Math.random() * filtered.length)];
-        } while (used.has(q.id) && used.size < filtered.length);
-        
-        if (!used.has(q.id)) {
-          cards.push({ id: q.id, year: q.year, question: q.question, type: q.type, media_url: q.media_url });
-          used.add(q.id);
-        }
+        const q = shuffled[cursor++];
+        cards.push({ id: q.id, year: q.year, question: q.question, type: q.type, media_url: q.media_url });
+        used.add(q.id);
       }
       return { ...p, cards };
     });
+
+    const firstQ = shuffled[cursor];
+    used.add(firstQ.id);
     
-    const updateData = { 
+    const updateData = {
       status: 'starting',
       current_question_id: firstQ.id,
       used_question_ids: [...used],
