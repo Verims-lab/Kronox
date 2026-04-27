@@ -43,10 +43,8 @@ const AuthenticatedApp = () => {
     if (authError.type === 'user_not_registered') {
       return <UserNotRegisteredError />;
     }
-    if (authError.type === 'auth_required') {
-      base44.auth.redirectToLogin('/');
-      return null;
-    }
+    // auth_required: don't redirect here — causes mobile WebView loop
+    // PlayerSetup handles the login button
   }
 
   // Render the main app

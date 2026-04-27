@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Settings } from 'lucide-react';
+import { ArrowLeft, Settings, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 
@@ -62,7 +62,7 @@ export default function AppHeader() {
         style={{ paddingTop: 'env(safe-area-inset-top)', height: 'calc(3.5rem + env(safe-area-inset-top))' }}
       >
         <h1 className="font-cinzel text-lg text-primary tracking-widest">KRONOS</h1>
-        {isAuthenticated && (
+        {isAuthenticated ? (
           <Button
             variant="ghost"
             size="icon"
@@ -72,6 +72,17 @@ export default function AppHeader() {
             style={{ userSelect: 'none' }}
           >
             <Settings className="w-5 h-5" />
+          </Button>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => base44.auth.redirectToLogin('/')}
+            className="text-primary hover:text-primary font-cinzel text-xs tracking-wider gap-1"
+            style={{ userSelect: 'none' }}
+          >
+            <LogIn className="w-4 h-4" />
+            GİRİŞ YAP
           </Button>
         )}
       </div>

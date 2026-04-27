@@ -31,11 +31,10 @@ export const AuthProvider = ({ children }) => {
 
   const checkUserAuth = async () => {
     try {
-      // Now check if the user is authenticated
       setIsLoadingAuth(true);
       const currentUser = await base44.auth.me();
-      setUser(currentUser);
-      setIsAuthenticated(true);
+      setUser(currentUser || null);
+      setIsAuthenticated(!!currentUser);
       setIsLoadingAuth(false);
       setAuthChecked(true);
     } catch (error) {
@@ -43,14 +42,8 @@ export const AuthProvider = ({ children }) => {
       setIsLoadingAuth(false);
       setIsAuthenticated(false);
       setAuthChecked(true);
-      
-      // If user auth fails, it might be an expired token
-      if (error.status === 401 || error.status === 403) {
-        setAuthError({
-          type: 'auth_required',
-          message: 'Authentication required'
-        });
-      }
+      // Don't set auth_required error — let PlayerSetup handle login prompt
+      // to avoid redirect loops in mobile WebView
     }
   };
 
