@@ -10,11 +10,11 @@ export default function TimelineCard({ card, index, isDragging, compact = false 
       transition={{ delay: index * 0.05, type: 'spring', stiffness: 300 }}
       className={`
         relative flex flex-col items-center justify-center
-        ${compact ? 'w-20 h-28 min-w-20' : 'w-24 h-32 min-w-24'}
+        ${compact ? 'w-16 h-22 min-w-16 landscape:w-14 landscape:h-20 landscape:min-w-14' : 'w-24 h-32 min-w-24 landscape:w-16 landscape:h-24 landscape:min-w-16'}
         rounded-lg border-2 border-primary/60 bg-gradient-to-b from-secondary to-card
         shadow-lg shadow-primary/10
         ${isDragging ? 'ring-2 ring-primary scale-105' : ''}
-        select-none p-2
+        select-none p-1.5 landscape:p-1
       `}
     >
       <Clock className={`${compact ? 'w-4 h-4' : 'w-5 h-5'} text-primary/60 mb-1`} />

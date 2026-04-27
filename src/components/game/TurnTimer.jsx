@@ -28,8 +28,8 @@ export default function TurnTimer({ onTimeUp, active, duration = 60 }) {
   const circ = 2 * Math.PI * r;
 
   return (
-    <div className="flex items-center gap-2">
-      <svg width="52" height="52" className="-rotate-90">
+    <div className="flex items-center gap-1.5 landscape:gap-1">
+      <svg width="52" height="52" className="-rotate-90 landscape:w-9 landscape:h-9">
         <circle cx="26" cy="26" r={r} fill="none" stroke="hsl(var(--border))" strokeWidth="4" />
         <motion.circle
           cx="26" cy="26" r={r} fill="none"
@@ -41,12 +41,12 @@ export default function TurnTimer({ onTimeUp, active, duration = 60 }) {
         />
       </svg>
       <span
-        className="font-cinzel font-bold text-lg tabular-nums"
+        className="font-cinzel font-bold text-lg landscape:text-sm tabular-nums"
         style={{ color, minWidth: '2ch' }}
       >
         {seconds}
       </span>
-      <Timer className="w-4 h-4 text-muted-foreground" />
+      <Timer className="w-4 h-4 landscape:w-3 landscape:h-3 text-muted-foreground" />
     </div>
   );
 }

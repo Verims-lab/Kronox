@@ -515,15 +515,15 @@ export default function Game() {
 
       {/* Inner container — max width on desktop */}
       <div className="w-full max-w-2xl md:max-w-4xl flex flex-col flex-1">
-        {/* Header — compact in landscape */}
+        {/* Header */}
         <div
-          className="pb-1 px-4 space-y-2 landscape:space-y-1 landscape:pb-1"
-          style={{ paddingTop: 'calc(3.5rem + env(safe-area-inset-top))', paddingBottom: 'env(safe-area-inset-bottom)' }}
+          className="pb-1 px-4 space-y-2 landscape:space-y-0.5 landscape:pb-0.5"
+          style={{ paddingTop: 'calc(3.5rem + env(safe-area-inset-top))' }}
         >
           <div className="flex items-center justify-between">
             <div className="w-9" />
             <div className="flex items-center gap-2">
-              <h1 className="font-cinzel text-xl text-primary tracking-widest">KRONOS</h1>
+              <h1 className="font-cinzel text-xl landscape:text-base text-primary tracking-widest">KRONOS</h1>
               <TurnTimer key={timerKey} active={!feedback && !winner && isGameReady} onTimeUp={isMyTurn ? handleTimeUp : undefined} duration={turnDuration} />
             </div>
             <div className="flex gap-1">
@@ -538,7 +538,6 @@ export default function Game() {
                   <MessageCircle className="w-5 h-5" />
                 </Button>
               )}
-
               <Button
                 variant="ghost"
                 size="icon"
@@ -549,18 +548,47 @@ export default function Game() {
               </Button>
             </div>
           </div>
-          <PlayerIndicator players={players} currentPlayerIndex={currentPlayerIndex} myPlayerName={myPlayerName} />
+          {/* Portrait: PlayerIndicator normal, Landscape: gizle (sağ panelde gösterilecek) */}
+          <div className="landscape:hidden">
+            <PlayerIndicator players={players} currentPlayerIndex={currentPlayerIndex} myPlayerName={myPlayerName} />
+          </div>
         </div>
 
-        {/* Landscape + desktop: side-by-side. Portrait mobile: stacked */}
+        {/* Ana oyun alanı — Landscape: yatay 3 kolon, Portrait: dikey */}
         <div
-          className="flex-1 flex flex-col landscape:flex-row md:flex-row items-start gap-3 px-2 md:px-4 landscape:px-3"
+          className="flex-1 flex flex-col landscape:flex-row items-stretch gap-2 px-2 landscape:px-2 md:px-4 overflow-hidden"
           style={{ paddingBottom: 'calc(4rem + env(safe-area-inset-bottom))' }}
         >
-          {/* Timeline area — iki bölüm: sıradaki oyuncu + benim kartlarım */}
-          <div className="flex-1 space-y-3 landscape:mt-2 md:mt-4 min-w-0">
+          {/* Landscape sol kolon: PlayerIndicator + Soru kartı + Buton */}
+          <div className="hidden landscape:flex landscape:flex-col landscape:w-52 landscape:flex-shrink-0 landscape:gap-2 landscape:py-1 landscape:overflow-y-auto">
+            <PlayerIndicator players={players} currentPlayerIndex={currentPlayerIndex} myPlayerName={myPlayerName} />
+            {currentQuestion && (
+              <QuestionCard question={currentQuestion} onImageError={handleImageError} landscape />
+            )}
+            {isOnline && !isMyTurn ? (
+              <div className="w-full h-9 flex items-center justify-center rounded-xl border border-border/40 bg-secondary/20">
+                <p className="font-inter text-xs text-muted-foreground text-center">
+                  <span className="text-primary font-semibold">{currentPlayer?.name}</span> oynuyor…
+                </p>
+              </div>
+            ) : (
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button
+                  onClick={handleConfirmPlacement}
+                  disabled={selectedZone === null || !!feedback}
+                  className="w-full h-10 bg-primary text-primary-foreground hover:bg-primary/90 font-cinzel tracking-wider gap-2 disabled:opacity-30 text-sm"
+                >
+                  <Check className="w-4 h-4" />
+                  YERLEŞTIR
+                </Button>
+              </motion.div>
+            )}
+          </div>
 
-            {/* SIRADAKI OYUNCUNUN KARTlARI (büyük/aktif görünüm) */}
+          {/* Timeline alanı */}
+          <div className="flex-1 flex flex-col gap-2 landscape:gap-1 landscape:py-1 min-w-0 md:mt-4">
+
+            {/* Sıradaki oyuncunun kartları */}
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
@@ -571,7 +599,7 @@ export default function Game() {
                   ({currentPlayer?.cards?.length || 0} kart)
                 </span>
               </div>
-              <div className="rounded-xl border-2 border-primary/50 bg-primary/5 p-2 overflow-x-auto">
+              <div className="rounded-xl border-2 border-primary/50 bg-primary/5 p-1 overflow-x-auto">
                 {currentPlayer && (
                   <Timeline
                     cards={currentPlayer.cards}
@@ -582,30 +610,28 @@ export default function Game() {
               </div>
             </div>
 
-            {/* BENİM KARTlARIM — sadece online modda ve ben sıradaki değilsem göster */}
+            {/* Benim kartlarım — sadece online modda ve ben sıradaki değilsem */}
             {isOnline && myPlayerName && currentPlayer?.name !== myPlayerName && myPlayer && (
-               <div className="space-y-1">
-                 <p className="text-xs font-inter text-muted-foreground">
-                   Senin kartların ({myPlayer.cards.length})
-                 </p>
-                 <div className="rounded-xl border border-border/40 bg-secondary/10 p-2 overflow-x-auto opacity-80">
-                   <Timeline
-                     cards={myPlayer.cards}
-                     selectedZone={null}
-                     onSelectZone={undefined}
-                   />
-                 </div>
-               </div>
-             )}
-
+              <div className="space-y-1">
+                <p className="text-xs font-inter text-muted-foreground">
+                  Senin kartların ({myPlayer.cards.length})
+                </p>
+                <div className="rounded-xl border border-border/40 bg-secondary/10 p-1 overflow-x-auto opacity-80">
+                  <Timeline
+                    cards={myPlayer.cards}
+                    selectedZone={null}
+                    onSelectZone={undefined}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Question card + confirm button */}
-          <div className="space-y-2 landscape:w-56 landscape:mt-2 landscape:flex-shrink-0 md:w-72 md:mt-4 md:flex-shrink-0 w-full">
+          {/* Portrait sağ kolon: Soru kartı + Buton — landscape'de gizli */}
+          <div className="landscape:hidden space-y-2 md:w-72 md:mt-4 md:flex-shrink-0 w-full">
             {currentQuestion && (
               <QuestionCard question={currentQuestion} onImageError={handleImageError} />
             )}
-
             {isOnline && !isMyTurn ? (
               <div className="w-full h-10 flex items-center justify-center rounded-xl border border-border/40 bg-secondary/20">
                 <p className="font-inter text-sm text-muted-foreground">
