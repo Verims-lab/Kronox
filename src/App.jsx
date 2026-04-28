@@ -44,10 +44,7 @@ const AuthenticatedApp = () => {
     if (authError.type === 'user_not_registered') {
       return <UserNotRegisteredError />;
     }
-    if (authError.type === 'auth_required') {
-      base44.auth.redirectToLogin(window.location.pathname);
-      return null;
-    }
+    // auth_required: uygulama public — login olmadan da devam et
   }
 
   // Render the main app
