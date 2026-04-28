@@ -190,7 +190,7 @@ export default function PlayerSetup() {
             </div>
           ) : (
             <Button
-              onClick={() => base44.auth.redirectToLogin('/')}
+              onClick={() => base44.auth.redirectToLogin(window.location.pathname + window.location.search)}
               variant="ghost"
               className="w-full font-inter text-sm text-primary hover:text-primary gap-2"
             >
