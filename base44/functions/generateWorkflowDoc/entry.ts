@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
   page.drawText('Zaman Cizgisi Kart Oyunu', { x: 165, y: H / 2 + 8, size: 14, font: fontRegular, color: rgb(0.6, 0.5, 0.2) });
   page.drawLine({ start: { x: 150, y: H / 2 }, end: { x: W - 150, y: H / 2 }, thickness: 1, color: rgb(0.4, 0.3, 0.1) });
   page.drawText('IS AKISI & KULLANIM SENARYOLARI', { x: 115, y: H / 2 - 20, size: 13, font: fontBold, color: rgb(0.9, 0.85, 0.7) });
-  page.drawText('Dokuman Versiyonu: 1.0', { x: 215, y: 80, size: 10, font: fontRegular, color: rgb(0.4, 0.35, 0.2) });
+  page.drawText('Dokuman Versiyonu: 1.2', { x: 215, y: 80, size: 10, font: fontRegular, color: rgb(0.4, 0.35, 0.2) });
   page.drawText('Hazirlanma: Nisan 2026', { x: 210, y: 60, size: 10, font: fontRegular, color: rgb(0.4, 0.35, 0.2) });
 
   page.drawText('Kronos - Is Akisi Dokumani | Sayfa 1', {
@@ -309,10 +309,26 @@ Deno.serve(async (req) => {
   drawBullet('Akis: Ayarlar → Admin Araclari → "Teknik Dokumani Indir" veya "Is Akisi Dokumanini Indir" → PDF olarak cihaza indirilir.');
 
   y -= 4;
-  drawHeading2('UC-06: Simulasyon Testleri (42 Senaryo)');
+  drawHeading2('UC-06: Online Simulasyon Testleri (42 Senaryo)');
   drawBullet('Kullanici: Admin.');
   drawBullet('Akis: Ayarlar → Admin Araclari → "Online Simulasyonlar" → 42 senaryodan birini veya tamamini sec → sistem otomatik lobi olusturur, oynar, temizler → PASS/FAIL raporu goruntulenir.');
   drawBullet('Senaryo gruplari: 2/3/4 oyuncu akislari, veri butunlugu, performans, UI gorunurluk, stabilite.', 1);
+
+  y -= 4;
+  drawHeading2('UC-07: Test Suite Calistirma (41 Senaryo)');
+  drawBullet('Kullanici: Admin.');
+  drawBullet('Akis: Tarayicida /test-suite → Suite sec → "TESTLERI CALISTIR" → sonuclari goruntule.');
+  drawBullet('5 kategori: Unit, Black Box, Fonksiyonel, Performans, Oynanabilirlik.', 1);
+
+  y -= 4;
+  drawHeading2('UC-08: Landscape Modda Oyun');
+  drawBullet('Kullanici: Mobil oyuncu.');
+  drawBullet('Akis: Telefonu yatay cevir → Oyun 3 kolonlu landscape duzenine gecer → Sol: soru + buton, Orta: timeline, hicbir sey kaybolmaz.');
+
+  y -= 4;
+  drawHeading2('UC-09: APK\'da Google ile Giris');
+  drawBullet('Kullanici: Android APK kullanicisi.');
+  drawBullet('Akis: Uygulama acar → auth_required hatasi → WebView icinde Google OAuth sayfasina yonlendirilir → Giris tamamlanir → Ana ekrana donus.');
 
   // ─── VERI AKISI ─────────────────────────────────────────────────────────────
   newPage();
@@ -363,8 +379,75 @@ Deno.serve(async (req) => {
   drawBullet('Tetikleyici: Host lobiden ayrilir (delete tetikler).');
   drawBullet('Akis: Subscription "delete" eventi alir → Tum oyuncular bildirim alir → Lobi ekrani kapanir.');
 
+  // ─── APK & AUTH IS AKISI ─────────────────────────────────────────────────────
+  newPage();
+  y = H - MARGIN;
+
+  drawHeading1('9. MOBIL (APK) & KIMLIK DOGRULAMA IS AKISI');
+
+  drawHeading2('9.1 Genel Auth Akisi');
+  drawStep(1, 'Uygulama Acilisi', 'AuthProvider mount olur, base44.auth.me() cagrilir.');
+  drawStep(2, 'Basarili Giris', 'Kullanici bilgileri state\'e kaydedilir, uygulama render edilir.');
+  drawStep(3, 'auth_required Hatasi', 'base44.auth.redirectToLogin(pathname) tetiklenir, login sayfasina yonlendirilir.');
+  drawStep(4, 'user_not_registered', 'UserNotRegisteredError ekrani gosterilir.');
+  drawStep(5, 'Beklenmeyen Hata', 'authError state\'e atanir, fallback UI render edilir.');
+  y -= 6;
+
+  drawHeading2('9.2 APK (Android WebView) Google Login Duzeltmesi');
+  drawBullet('Sorun: Onceki surumde auth_required hatasi sessizce yutuluyordu; APK\'da Google giris calismiyordu.');
+  drawBullet('Cozum: AuthContext ve App.jsx\'te auth_required tipi acikca yakalanip redirectToLogin cagrisi yeniden devreye alindi.');
+  drawBullet('Etki: Web ve APK ortamlarinda Google OAuth yonlendirmesi duzgun calisir.');
+  y -= 6;
+
+  drawHeading2('9.3 Misafir (Giris Yapmamiş) Oyuncu Akisi');
+  drawStep(1, 'Giris Yok', 'Kullanici login yapmadan uygulamaya girer.');
+  drawStep(2, 'Tek Cihaz Oyun', 'Sorular cekilebilir (okuma herkese acik), oyun oynanabilir.');
+  drawStep(3, 'Cevrimici Oyun', 'Gecici e-posta (guest_TIMESTAMP@kronos.local) ile lobi olusturulabilir/katilabilir.');
+  drawStep(4, 'Kisitlamalar', 'Admin paneline, soru yonetimine erisim engellenir.');
+
+  // ─── LANDSCAPE IS AKISI ─────────────────────────────────────────────────────
+  y -= 8;
+  drawHeading1('10. LANDSCAPE MOD IS AKISI');
+
+  drawHeading2('10.1 Ekran Yonlendirmesi Algilama');
+  drawBullet('Tailwind landscape: screen tanimlanmistir: (orientation: landscape) and (max-height: 600px).');
+  drawBullet('Telefon yatay cevirildiginde (max-height 600px alti) landscape: prefix\'li siniflar aktif olur.');
+  drawBullet('Tablet ve masaustu bilgisayarlar bu kosulu saglamaz, normal duzen goruntulenir.');
+  y -= 6;
+
+  drawHeading2('10.2 Oyun Ekrani Landscape Duzeni');
+  drawStep(1, 'Sol Kolon (w-52)', 'PlayerIndicator (oyuncu sirasi), QuestionCard ve Yerlestir butonu gosterilir.');
+  drawStep(2, 'Orta Alan', 'Aktif oyuncunun kart zaman cetveli gosterilir (tam genislik).');
+  drawStep(3, 'Kucultme', 'TurnTimer, bosluklar ve bazi yazi boyutlari kucultulur (landscape:text-sm vb.).');
+  drawStep(4, 'Portrait Gizleme', 'Kart + buton blogu (portrait\'e ozel) landscape:hidden ile gizlenir.');
+  y -= 6;
+
+  drawHeading2('10.3 Safe-Area Padding');
+  drawBullet('iOS notch ve Android navigation bar icin env(safe-area-inset-*) kullanilir.');
+  drawBullet('index.css body elementinde padding olarak tanimlanidir.');
+  drawBullet('Oyun ve lobi sayfalari inline style ile safe-area padding\'e sahiptir.');
+
+  // ─── TEST SUITE IS AKISI ──────────────────────────────────────────────────────
+  y -= 8;
+  drawHeading1('11. TEST SUITE IS AKISI (41 SENARYO)');
+
+  drawHeading2('11.1 Erisim');
+  drawStep(1, 'Giris', 'Admin olarak giris yap.');
+  drawStep(2, 'Navigasyon', 'Tarayicida /test-suite adresine git veya Ayarlar > Admin Araclari.');
+  drawStep(3, 'Suite Sec', 'Unit / Black Box / Fonksiyonel / Performans / Oynanabilirlik veya Tum Testler.');
+  drawStep(4, 'Calistir', '"TESTLERI CALISTIR" butonuna tikla.');
+  drawStep(5, 'Sonuc', 'Her test icin PASS/FAIL, sure ve detay goruntulenir. Ozet istatistik ust kisimda yer alir.');
+  y -= 6;
+
+  drawHeading2('11.2 Test Kategorileri ve Amaci');
+  drawBullet('Unit (10 test): Izole mantik — shuffle, kart yerlesim, filtre, pickQuestion.');
+  drawBullet('Black Box (8 test): API/DB davranisi — lobi CRUD, mesaj, gecersiz islemler.');
+  drawBullet('Fonksiyonel (8 test): Oyun kurallari — kart dagitimi, tur dongusu, kazanma.');
+  drawBullet('Performans (5 test): Hiz & kapasite — 500 soru, 10 lobi, shuffle suresi.');
+  drawBullet('Oynanabilirlik (10 test): Kullanici deneyimi — kategori varlik, soru yeterliligi, sure secenekleri.');
+
   // ─── GELECEK GELISTIRMELER ────────────────────────────────────────────────────
-  drawHeading1('9. GELECEK GELISTIRMELER');
+  drawHeading1('12. GELECEK GELISTIRMELER');
 
   drawBullet('Gorsel ve isitsel soru turlerinin aktif oyun havuzuna dahil edilmesi (altyapi hazir).');
   drawBullet('Oyuncu puanlama ve istatistik gecmisi: dogru/yanlis orani, ortalama sure.');

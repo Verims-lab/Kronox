@@ -121,7 +121,7 @@ Deno.serve(async (req) => {
     page.drawText(tr('Zaman Cizgisi Kart Oyunu'), { x: marginL, y: H / 2 + 50, size: 18, font, color: rgb(0.85, 0.85, 0.9) });
     page.drawText(tr('Teknik Mimari Dokumani'), { x: marginL, y: H / 2 + 24, size: 14, font, color: gray });
 
-    page.drawText('v1.0', { x: marginL, y: H / 2 - 30, size: 11, font, color: gray });
+    page.drawText('v1.2', { x: marginL, y: H / 2 - 30, size: 11, font, color: gray });
     page.drawText('Nisan 2026', { x: marginL, y: H / 2 - 47, size: 11, font, color: gray });
     page.drawText('Platform: Base44 (React + Deno)', { x: marginL, y: H / 2 - 64, size: 11, font, color: gray });
 
@@ -146,9 +146,12 @@ Deno.serve(async (req) => {
       ['7.', 'Oyun Mekanigi — Yerel Mod'],
       ['8.', 'Oyun Mekanigi — Cevrimici Mod'],
       ['9.', 'Backend Fonksiyonlar'],
-      ['10.', 'Performans & UX Optimizasyonlari'],
-      ['11.', 'Guvenlik & Erisim Kontrolu'],
-      ['12.', 'Gelecek Gelistirme Onerileri'],
+      ['10.', 'Kimlik Dogrulama & Mobil (APK)'],
+      ['11.', 'Landscape Modu Destegi'],
+      ['12.', 'Test Suite (41 Senaryo)'],
+      ['13.', 'Performans & UX Optimizasyonlari'],
+      ['14.', 'Guvenlik & Erisim Kontrolu'],
+      ['15.', 'Gelecek Gelistirme Onerileri'],
     ];
     for (const [num, title] of toc) {
       ensureSpace(20);
@@ -205,18 +208,19 @@ Deno.serve(async (req) => {
       '|   |-- PlayerSetup.jsx      # Ana ekran - oyun kurulum formu',
       '|   |-- LobbyRoom.jsx        # Cevrimici lobi (olustur/katil/bekle)',
       '|   |-- Game.jsx             # Oyun sahnesi (yerel + cevrimici)',
-      '|   +-- SettingsPage.jsx     # Admin paneli & hesap ayarlari',
+      '|   |-- SettingsPage.jsx     # Admin paneli & hesap ayarlari',
+      '|   +-- TestSuite.jsx        # 41 senaryolu test paneli (admin)',
       '|-- components/',
       '|   |-- layout/',
       '|   |   |-- AppHeader.jsx    # Sabit ust baslik (geri/giris/ayarlar)',
       '|   |   +-- BottomNav.jsx    # Alt navigasyon cubugu (3 sekme)',
       '|   |-- game/',
       '|   |   |-- PlayerIndicator  # Aktif oyuncu gostergesi',
-      '|   |   |-- Timeline         # Kart sirasi & birakma bolgesi',
+      '|   |   |-- Timeline         # Kart sirasi & birakma bolgesi (landscape destekli)',
       '|   |   |-- TimelineCard     # Tekil kart bileseni',
       '|   |   |-- DropZone         # Kartin yerlestirilecegi alan',
-      '|   |   |-- QuestionCard     # Soruyu gosteren kart',
-      '|   |   |-- TurnTimer        # Tur sayaci (SVG dairesel)',
+      '|   |   |-- QuestionCard     # Soruyu gosteren kart (landscape destekli)',
+      '|   |   |-- TurnTimer        # Tur sayaci (SVG dairesel, landscape kucuk)',
       '|   |   |-- FeedbackOverlay  # Dogru/Yanlis animasyonu',
       '|   |   |-- GameOver         # Kazanma ekrani',
       '|   |   |-- SettingsModal    # Hesap ayarlari modal',
@@ -229,12 +233,13 @@ Deno.serve(async (req) => {
       '|   +-- LobbyMessage.json    # Sohbet mesaji semasi',
       '|-- functions/',
       '|   |-- simulateOnlineGame   # 42 senaryolu otomatik test suite',
+      '|   |-- runTestSuite         # 41 senaryolu birim/kara kutu/perf/oynanabilirlik',
       '|   |-- generateTechDoc      # Teknik mimari PDF ureteci',
       '|   +-- generateWorkflowDoc  # Is akisi & use case PDF ureteci',
       '|-- hooks/',
       '|   +-- usePullToRefresh.js  # Mobil pull-to-refresh hook',
       '+-- lib/',
-      '    |-- AuthContext.jsx       # Kimlik dogrulama baglami',
+      '    |-- AuthContext.jsx       # Kimlik dogrulama baglami (APK login fix)',
       '    +-- query-client.js      # TanStack Query yapilandirmasi',
     ]);
 
@@ -412,7 +417,6 @@ Deno.serve(async (req) => {
     subTitle('simulateOnlineGame');
     drawText('42 farkli cevrimici oyun senaryosunu otomatik olarak calistiran test suitedir. Admin\'in SettingsPage > Araclar > "Online Simulasyonlar" uzerinden tetiklenir. user.role="admin" kontrolu zorunludur.');
     spacer(4);
-    drawText('Senaryo kategorileri:');
     bullet('2 Oyuncu: normal akis, kazanma, gecikme, es zamanli yazim, chat, lobi silme');
     bullet('3 Oyuncu: tur sirasi, spectator engeli, tur suresi, soru yeniden kullanimi');
     bullet('4 Oyuncu: tam tur dongusu, P3 kazanma, tum ekranlar winner goruntusu');
@@ -420,20 +424,145 @@ Deno.serve(async (req) => {
     bullet('Performans: 10 tur hiz testi, subscription gecikme olcumu');
     bullet('UI Gorunurluk: portrait/landscape gecis, soru karti render, timer gorunurlugu');
     bullet('Stabilite: soru havuzu tukenme, cok turlu oyun, baglanti kopuklugun kurtarma');
-    spacer(8);
+    spacer(6);
+
+    subTitle('runTestSuite (YENİ)');
+    drawText('41 senaryolu kapsamli test suite. Unit, Black Box, Fonksiyonel, Performans ve Oynanabilirlik kategorilerini icerir. /test-suite adresindeki TestSuite sayfasindan interaktif olarak calistirilab ilir. Yalnizca admin erisimlidir.');
+    spacer(4);
+    bullet('Unit (10): shuffle, kart yerlesim mantiği, yil/kategori filtresi, pickQuestion');
+    bullet('Black Box (8): Lobby CRUD, LobbyMessage, gecersiz kod testi');
+    bullet('Fonksiyonel (8): kart dagitimi, tur dongusu, kazanma, offline mod, ayar guncelleme');
+    bullet('Performans (5): 500 soru yukleme, 10 lobi oluşturma, shuffle hizi, filtre suresi');
+    bullet('Oynanabilirlik (10): oyuncu sayisi, kategori varligi, sure ayari, soru havuzu yeterliligi');
+    spacer(6);
 
     subTitle('generateTechDoc (Bu Dokuman)');
-    drawText('Uygulamanin mimari ve teknik dokumani otomatik olarak PDF formatinda ureten backend fonksiyondur. pdf-lib kutuphanesi ile Deno uzerinde calisir. Admin yetkisi gerekmez (dokuman hassas veri icermez).');
-    spacer(8);
+    drawText('Uygulamanin mimari ve teknik dokumani otomatik olarak PDF formatinda ureten backend fonksiyondur. pdf-lib kutuphanesi ile Deno uzerinde calisir. Admin yetkisi gerekmez.');
+    spacer(6);
 
     subTitle('generateWorkflowDoc');
-    drawText('Uygulamanin is akislari, kullanim senaryolari (use case\'ler) ve surec adimlarini PDF formatinda ureten backend fonksiyondur. user.role="admin" kontrolu ile korunur. pdf-lib kutuphanesi, adim marker gorseliyle zenginlestirilmis format kullanir.');
+    drawText('Uygulamanin is akislari, kullanim senaryolari ve surec adimlarini PDF formatinda ureten fonksiyondur. user.role="admin" kontrolu ile korunur.');
 
     // ══════════════════════════════════════════════════════════════════════════
-    // 10. PERFORMANS
+    // 10. KİMLİK DOĞRULAMA & MOBİL
     // ══════════════════════════════════════════════════════════════════════════
     newPage();
-    sectionTitle('10. Performans & UX Optimizasyonlari');
+    sectionTitle('10. Kimlik Dogrulama & Mobil (APK)');
+
+    subTitle('AuthContext Yapisi');
+    drawText('base44.auth.me() ile oturum durumu kontrol edilir. Hata tipleri:');
+    bullet('auth_required: Giris gerekli → base44.auth.redirectToLogin() tetiklenir.');
+    bullet('user_not_registered: Kayitli olmayan kullanici → UserNotRegisteredError ekrani.');
+    bullet('unknown: Beklenmeyen hata → authError state\'ine atanir.');
+    spacer(6);
+
+    subTitle('APK (WebView) Google Login Duzeltmesi');
+    drawText('Android WebView icinde Google OAuth yonlendirmesi ozel dikkat gerektirir:');
+    bullet('Onceki surum: auth_required hatasi sessizce yutuluyordu; APK\'da giris calismiyor.');
+    bullet('Duzeltme: auth_required hata tipi acikca yakalanip redirectToLogin() cagrisi yapildi.');
+    bullet('App.jsx\'te authError.type === "auth_required" kontrolu ile login akisi yeniden devrede.');
+    spacer(6);
+
+    subTitle('Genel Auth Akisi');
+    codeBlock([
+      'AuthProvider mount → base44.auth.me()',
+      '  OK         → user state set, uygulama render',
+      '  auth_req   → redirectToLogin(pathname)',
+      '  not_reg    → UserNotRegisteredError ekrani',
+      '  unknown    → authError state, fallback UI',
+    ]);
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 11. LANDSCAPE MODU
+    // ══════════════════════════════════════════════════════════════════════════
+    newPage();
+    sectionTitle('11. Landscape Modu Destegi');
+
+    subTitle('Tailwind Custom Screen');
+    drawText('tailwind.config.js icinde "landscape" adli ozel bir screen tanimlanmistir:');
+    codeBlock([
+      'screens: {',
+      '  landscape: {',
+      '    raw: "(orientation: landscape) and (max-height: 600px)"',
+      '  }',
+      '}',
+    ]);
+    drawText('Bu sayede landscape: prefix\'i tum Tailwind siniflarinda kullanilabilir. Sadece telefon landscape modunda (max-height 600px) aktif olur; tablet/masaustu etkilenmez.');
+    spacer(6);
+
+    subTitle('Game.jsx Landscape Duzeni');
+    drawText('Portrait modda dikey, landscape modda yatay 3-kolon duzeni aktif olur:');
+    bullet('Sol kolon (landscape:w-52): PlayerIndicator + QuestionCard + Yerlestir butonu');
+    bullet('Orta alan: Timeline (aktif oyuncunun kart sirasi)');
+    bullet('Bazi UI elementleri landscape\'de kucultulur: TurnTimer, bosluklar, metin boyutu');
+    bullet('Portrait moduna ozel bolumler landscape:hidden, landscape\'e ozel bolumler hidden landscape:flex ile gizlenir/gosterilir');
+    spacer(6);
+
+    subTitle('CSS Safe-Area');
+    drawText('iOS/Android notch ve navigation bar icin env(safe-area-inset-*) degiskenleri tum sayfa ve header bilesenlerinde kullanilmaktadir. index.css body elementine padding olarak uygulanmistir.');
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 12. TEST SUITE
+    // ══════════════════════════════════════════════════════════════════════════
+    newPage();
+    sectionTitle('12. Test Suite (41 Senaryo)');
+
+    drawText('Son yapilan degisiklikleri kapsamak uzere 5 kategoride 41 otomatik test yazilmistir. Tum testler /test-suite sayfasindan veya runTestSuite backend fonksiyonundan calistirilab ilir.');
+    spacer(6);
+
+    subTitle('Unit Testler (10)');
+    bullet('UT-01: Lobby kodu 6 karakter olmali');
+    bullet('UT-02: Question entity alan dogrulama');
+    bullet('UT-03: Fisher-Yates shuffle calisma dogrulama');
+    bullet('UT-04..06: Kart yerlesim mantiği (basa/ortaya/yanlis zone)');
+    bullet('UT-07: Kazanma kosulu (win_card_count esigi)');
+    bullet('UT-08..10: Yil filtresi, kategori filtresi, pickQuestion tekrarsizlik');
+    spacer(4);
+
+    subTitle('Black Box Testler (8)');
+    bullet('BB-01: Lobby olusturma API');
+    bullet('BB-02: Lobby kod ile filtreleme');
+    bullet('BB-03: Oyuncu ekleme');
+    bullet('BB-04: Status guncelleme');
+    bullet('BB-05: Lobby silme');
+    bullet('BB-06: Gecersiz kod → bos sonuc');
+    bullet('BB-07: Question listesi erisimi');
+    bullet('BB-08: LobbyMessage olusturma/okuma');
+    spacer(4);
+
+    subTitle('Fonksiyonel Testler (8)');
+    bullet('FT-01: Oyun baslatma kart dagitim dogrulugu');
+    bullet('FT-02..03: 2 ve 4 oyunculu tur sirasi dongusu');
+    bullet('FT-04: Kazanma → status=finished yazimi');
+    bullet('FT-05: Soru tekrar edilmemesi');
+    bullet('FT-06: Offline mod minimum soru gereksinimi');
+    bullet('FT-07: Lobi ayarlari guncelleme');
+    bullet('FT-08: Yetkisiz erisim engeli');
+    spacer(4);
+
+    subTitle('Performans Testler (5)');
+    bullet('PERF-01: 500 soru yukleme < 5sn');
+    bullet('PERF-02: 10 lobi olusturma+silme < 10sn');
+    bullet('PERF-03: 500 soruda Fisher-Yates < 50ms');
+    bullet('PERF-04: Yil+kategori filtreleme < 10ms');
+    bullet('PERF-05: LobbyMessage okuma < 2sn');
+    spacer(4);
+
+    subTitle('Oynanabilirlik Testler (10)');
+    bullet('PLAY-01..02: 1 oyuncu ve minimum 3 soru offline');
+    bullet('PLAY-03: 4 oyunculu lobby kurulumu');
+    bullet('PLAY-04: Tum kategorilerde soru varligi');
+    bullet('PLAY-05: Gecersiz yil alanlari kontrolu');
+    bullet('PLAY-06: 1900-2020 araliginda minimum 20 soru');
+    bullet('PLAY-07..08: Suresiz tur ve kazanma kart sayisi secenekleri');
+    bullet('PLAY-09: Bos mesaj engeli');
+    bullet('PLAY-10: Tur gecisi → yeni soru secimi');
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 13. PERFORMANS
+    // ══════════════════════════════════════════════════════════════════════════
+    newPage();
+    sectionTitle('13. Performans & UX Optimizasyonlari');
 
     bullet('React.lazy + Suspense: PlayerSetup, LobbyRoom, Game ve SettingsPage code-split edilmistir. Ilk yukleme boyutu kucultulur.');
     bullet('TanStack Query: Soru listesi onbellekte tutulur (staleTime=0 ile her oyunda taze). Gereksiz refetch onlenir.');
@@ -448,10 +577,10 @@ Deno.serve(async (req) => {
     bullet('AnimatePresence: Sayfa ve bilesen gecisleri spring/tween animasyonu ile yumusatilmistir.');
 
     // ══════════════════════════════════════════════════════════════════════════
-    // 11. GÜVENLİK
+    // 14. GÜVENLİK
     // ══════════════════════════════════════════════════════════════════════════
     newPage();
-    sectionTitle('11. Guvenlik & Erisim Kontrolu');
+    sectionTitle('14. Guvenlik & Erisim Kontrolu');
 
     subTitle('Soru Yonetimi (RLS)');
     drawText('Question entity\'si Row-Level Security (RLS) ile korunmaktadir:');
@@ -475,10 +604,10 @@ Deno.serve(async (req) => {
     bullet('Host lobbiyi kapatinca (delete) tum oyuncular baglantii kaybeder ve ana ekrana yonlendirilir.');
 
     // ══════════════════════════════════════════════════════════════════════════
-    // 12. GELECEK
+    // 15. GELECEK
     // ══════════════════════════════════════════════════════════════════════════
     newPage();
-    sectionTitle('12. Gelecek Gelistirme Onerileri');
+    sectionTitle('15. Gelecek Gelistirme Onerileri');
 
     bullet('Gorselli & sesli sorular: media_url alani hazir; QuestionCard bileseni gorsel ve isitsel tiplerini destekliyor. Soru yukleme arayuzu eklenebilir.');
     bullet('Skor tablosu: Oyun sonrasi oyuncularin puanlari ve dogru/yanlis oranlari ile istatistik ekrani.');
