@@ -16,6 +16,7 @@ const PlayerSetup = lazy(() => import('./pages/PlayerSetup'));
 const Game = lazy(() => import('./pages/Game'));
 const LobbyRoom = lazy(() => import('./pages/LobbyRoom'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const TestSuite = lazy(() => import('./pages/TestSuite'));
 
 function PageLoader() {
   return (
@@ -67,6 +68,7 @@ const AuthenticatedApp = () => {
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/lobby" element={<LobbyRoom />} />
               <Route path="/game" element={<Game />} />
+              <Route path="/test-suite" element={<TestSuite />} />
               <Route path="*" element={<PageNotFound />} />
             </Routes>
           </motion.div>
