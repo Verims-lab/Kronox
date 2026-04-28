@@ -21,6 +21,15 @@ export default function LobbyRoom() {
   const [lobby, setLobby] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [nameError, setNameError] = useState('');
+
+  const validateName = (name) => {
+    const trimmed = name.trim();
+    if (trimmed.length < 3) return 'En az 3 karakter';
+    if (trimmed.length > 15) return 'En fazla 15 karakter';
+    if (!/^[a-zA-Z0-9çğıöşüÇĞİÖŞÜ]+$/.test(trimmed)) return 'Sadece harf ve rakam';
+    return '';
+  };
   const [copied, setCopied] = useState(false);
   const unsubRef = useRef(null);
 
@@ -83,7 +92,8 @@ export default function LobbyRoom() {
   }, [lobby?.id, navigate]);
 
   const handleCreate = async () => {
-    if (!playerName.trim()) return setError('İsim girin.');
+    const err = validateName(playerName);
+    if (err) return setNameError(err);
     setLoading(true);
     setError('');
     const code = generateCode();
@@ -105,7 +115,8 @@ export default function LobbyRoom() {
   };
 
   const handleJoin = async () => {
-    if (!playerName.trim()) return setError('İsim girin.');
+    const err = validateName(playerName);
+    if (err) return setNameError(err);
     if (!joinCode.trim()) return setError('Lobi kodu girin.');
     setLoading(true);
     setError('');
@@ -197,12 +208,16 @@ export default function LobbyRoom() {
 
         {mode && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-            <Input
-              placeholder="Oyuncu İsminiz"
-              value={playerName}
-              onChange={e => setPlayerName(e.target.value)}
-              className="h-12 bg-secondary/50 border-border/50 font-inter"
-            />
+            <div className="space-y-1">
+              <Input
+                placeholder="Oyuncu İsminiz"
+                value={playerName}
+                maxLength={15}
+                onChange={e => { setPlayerName(e.target.value); setNameError(''); }}
+                className={`h-12 bg-secondary/50 border-border/50 font-inter ${nameError ? 'border-destructive' : ''}`}
+              />
+              {nameError && <p className="font-inter text-xs text-destructive pl-1">{nameError}</p>}
+            </div>
             {mode === 'join' && (
               <Input
                 placeholder="Lobi Kodu (örn: ABC123)"

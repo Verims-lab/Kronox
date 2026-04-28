@@ -19,8 +19,21 @@ export default function PlayerSetup() {
   const [yearEnd, setYearEnd] = useState(2020);
   const [turnDuration, setTurnDuration] = useState(60);
 
+  const [nameErrors, setNameErrors] = useState([]);
+
+  const validateName = (name) => {
+    const trimmed = name.trim();
+    if (trimmed.length < 3) return 'En az 3 karakter';
+    if (trimmed.length > 15) return 'En fazla 15 karakter';
+    if (!/^[a-zA-Z0-9çğıöşüÇĞİÖŞÜ]+$/.test(trimmed)) return 'Sadece harf ve rakam';
+    return '';
+  };
+
   const handleStart = () => {
-    const playerNames = names.slice(0, playerCount).map((n, i) => n.trim() || `Oyuncu ${i + 1}`);
+    const errors = Array.from({ length: playerCount }).map((_, i) => validateName(names[i]));
+    setNameErrors(errors);
+    if (errors.some(e => e)) return;
+    const playerNames = names.slice(0, playerCount).map(n => n.trim());
     navigate('/game', { 
       state: { playerNames, category: selectedCategory, yearStart, yearEnd, turnDuration } 
     });
@@ -148,17 +161,25 @@ export default function PlayerSetup() {
         {/* Player names */}
         <div className="space-y-3">
           {Array.from({ length: playerCount }).map((_, i) => (
-            <Input
-              key={i}
-              placeholder={`Oyuncu ${i + 1} İsmi`}
-              value={names[i]}
-              onChange={(e) => {
-                const newNames = [...names];
-                newNames[i] = e.target.value;
-                setNames(newNames);
-              }}
-              className="bg-secondary/50 border-border/50 h-12"
-            />
+            <div key={i} className="space-y-1">
+              <Input
+                placeholder={`Oyuncu ${i + 1} İsmi`}
+                value={names[i]}
+                maxLength={15}
+                onChange={(e) => {
+                  const newNames = [...names];
+                  newNames[i] = e.target.value;
+                  setNames(newNames);
+                  if (nameErrors[i]) {
+                    const errs = [...nameErrors];
+                    errs[i] = '';
+                    setNameErrors(errs);
+                  }
+                }}
+                className={`bg-secondary/50 border-border/50 h-12 ${nameErrors[i] ? 'border-destructive' : ''}`}
+              />
+              {nameErrors[i] && <p className="font-inter text-xs text-destructive pl-1">{nameErrors[i]}</p>}
+            </div>
           ))}
         </div>
 
