@@ -51,14 +51,14 @@ export default function Game() {
     };
   }, []);
 
-  const { data: allQuestions = [], isLoading, isError } = useQuery({
+  const { data: allQuestions = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['questions'],
     queryFn: async () => {
       const questions = await base44.entities.Question.list('-created_date', 500);
       return questions || [];
     },
-    retry: 5,
-    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
+    retry: 3,
+    retryDelay: 2000,
     gcTime: 5 * 60 * 1000,
     staleTime: 5 * 60 * 1000,
   });
@@ -407,10 +407,11 @@ export default function Game() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-4">
+        <div className="text-center space-y-4 px-6">
           <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" />
           <p className="font-inter text-sm text-muted-foreground">Sorular yükleniyor...</p>
           <p className="font-inter text-xs text-muted-foreground/60">İlk yüklemede biraz sürebilir...</p>
+          <Button onClick={() => navigate('/')} variant="outline" size="sm" className="mt-2">Geri Dön</Button>
         </div>
       </div>
     );
@@ -420,9 +421,9 @@ export default function Game() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-6">
         <div className="text-center space-y-4">
-          <p className="font-inter text-muted-foreground">Sorular yüklenemedi. Lütfen sayfayı yenile veya daha sonra tekrar dene.</p>
-          <Button onClick={() => window.location.reload()} variant="outline">Sayfayı Yenile</Button>
-          <Button onClick={() => navigate('/')} variant="outline">Geri Dön</Button>
+          <p className="font-inter text-muted-foreground">Sorular yüklenemedi. Lütfen tekrar dene.</p>
+          <Button onClick={() => refetch()} className="w-full">Tekrar Dene</Button>
+          <Button onClick={() => navigate('/')} variant="outline" className="w-full">Geri Dön</Button>
         </div>
       </div>
     );
