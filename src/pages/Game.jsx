@@ -165,53 +165,61 @@ export default function Game() {
   }, []);
 
   // Initialize game — sadece offline modda (no lobbyId)
+  const lobbyDataRef = useRef(null);
+  useEffect(() => { lobbyDataRef.current = lobbyData; }, [lobbyData]);
+
   useEffect(() => {
-    if (lobbyId || !playerNames || lobbyData !== null) return;
-    
+    if (lobbyId || !playerNames) return;
     if (isLoading || allQuestions.length === 0) return;
+    // lobbyData ref ile kontrol et — stale closure'dan kaçın
+    if (lobbyDataRef.current !== null) return;
     
-    try {
-      const filteredQuestions = allQuestions
-        .filter(q => q.type === 'metin')
-        .filter(q => q.year >= yearStart && q.year <= yearEnd)
-        .filter(q => category === 'karisik' || q.category === category);
+    const filteredQuestions = allQuestions
+      .filter(q => q.type === 'metin')
+      .filter(q => q.year >= yearStart && q.year <= yearEnd)
+      .filter(q => category === 'karisik' || q.category === category);
 
-      if (filteredQuestions.length < 10) {
-        setError(`Oyun için en az 10 soru gerekli. Seçilen kategori ve yıl aralığında ${filteredQuestions.length} soru var.`);
-        return;
-      }
-
-      const used = new Set();
-      const newPlayers = playerNames.map((name) => {
-        const cards = [];
-        for (let j = 0; j < 2; j++) {
-          const q = pickQuestion(used, filteredQuestions);
-          if (q) {
-            cards.push({ id: q.id, year: q.year, question: q.question, type: q.type, media_url: q.media_url });
-            used.add(q.id);
-          }
-        }
-        return { name, email: `player_${name}`, cards };
-      });
-
-      const firstQ = pickQuestion(used, filteredQuestions);
-      if (!firstQ) {
-        setError('Soru bulunamadı');
-        return;
-      }
-      used.add(firstQ.id);
-
-      // Set lobbyData manually for offline mode
-      setLobbyData({
-        players: newPlayers,
-        current_player_index: 0,
-        current_question_id: firstQ.id,
-        used_question_ids: [...used]
-      });
-    } catch (err) {
-      setError('Oyun başlatılırken hata: ' + (err?.message || 'Bilinmeyen hata'));
+    if (filteredQuestions.length < 3) {
+      setError(`Yeterli soru yok. Seçilen kategori ve yıl aralığında ${filteredQuestions.length} soru var.`);
+      return;
     }
-  }, [playerNames, allQuestions, category, yearStart, yearEnd, pickQuestion, lobbyId]);
+
+    // Fisher-Yates shuffle
+    const shuffled = [...filteredQuestions];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    let cursor = 0;
+    const used = new Set();
+
+    const newPlayers = playerNames.map((name) => {
+      const cards = [];
+      for (let j = 0; j < 2; j++) {
+        if (cursor < shuffled.length) {
+          const q = shuffled[cursor++];
+          cards.push({ id: q.id, year: q.year, question: q.question, type: q.type, media_url: q.media_url });
+          used.add(q.id);
+        }
+      }
+      return { name, email: `player_${name}`, cards };
+    });
+
+    const firstQ = shuffled[cursor];
+    if (!firstQ) {
+      setError('İlk soru için yeterli soru yok');
+      return;
+    }
+    used.add(firstQ.id);
+
+    setLobbyData({
+      players: newPlayers,
+      current_player_index: 0,
+      current_question_id: firstQ.id,
+      used_question_ids: [...used]
+    });
+  }, [playerNames, allQuestions, isLoading, category, yearStart, yearEnd, lobbyId]);
 
   const handleSelectZone = (index) => {
     setSelectedZone(index);
@@ -444,10 +452,9 @@ export default function Game() {
   }
 
   // Online modda lobbyData'dan, offline modda playerNames'den
-  // Her iki modda da allQuestions yüklenmiş olmalı
   const isGameReady = lobbyId
     ? players.length > 0 && lobbyData?.current_question_id && allQuestions.length > 0
-    : playerNames && playerNames.length > 0 && players.length > 0 && currentQuestion && allQuestions.length > 0;
+    : players.length > 0 && currentQuestion != null;
   
   if (!isGameReady) {
     return (
