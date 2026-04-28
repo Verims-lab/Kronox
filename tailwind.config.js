@@ -3,6 +3,7 @@ module.exports = {
     darkMode: ["class"],
     content: ["./index.html", "./src/**/*.{ts,tsx,js,jsx}"],
 
+
     safelist: [
       'from-blue-500/20', 'to-blue-600/10', 'border-blue-500/50', 'text-blue-400',
       'from-rose-500/20', 'to-rose-600/10', 'border-rose-500/50', 'text-rose-400',
@@ -10,6 +11,14 @@ module.exports = {
       'from-violet-500/20', 'to-violet-600/10', 'border-violet-500/50', 'text-violet-400',
     ],
   theme: {
+    screens: {
+      'sm': '640px',
+      'md': '768px',
+      'lg': '1024px',
+      'xl': '1280px',
+      '2xl': '1536px',
+      'landscape': { 'raw': '(orientation: landscape) and (max-height: 600px)' },
+    },
   	extend: {
       fontFamily: {
         cinzel: ['var(--font-cinzel)'],
