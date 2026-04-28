@@ -54,8 +54,8 @@ export default function Game() {
   const { data: allQuestions = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['questions'],
     queryFn: async () => {
-      const questions = await base44.entities.Question.list('-created_date', 500);
-      return questions || [];
+      const res = await base44.functions.invoke('getQuestions', {});
+      return res.data?.questions || [];
     },
     retry: 3,
     retryDelay: 2000,
