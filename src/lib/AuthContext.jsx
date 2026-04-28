@@ -42,8 +42,9 @@ export const AuthProvider = ({ children }) => {
       setIsLoadingAuth(false);
       setIsAuthenticated(false);
       setAuthChecked(true);
-      // Don't set auth_required error — let PlayerSetup handle login prompt
-      // to avoid redirect loops in mobile WebView
+      if (error?.message?.includes('auth_required') || error?.type === 'auth_required' || error?.status === 401) {
+        setAuthError({ type: 'auth_required', message: 'Login required' });
+      }
     }
   };
 
