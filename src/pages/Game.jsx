@@ -54,13 +54,13 @@ export default function Game() {
   const { data: allQuestions = [], isLoading, isError } = useQuery({
     queryKey: ['questions'],
     queryFn: async () => {
-      const questions = await base44.entities.Question.list('-created_date', 200);
+      const questions = await base44.entities.Question.list('-created_date', 500);
       return questions || [];
     },
-    retry: 3,
-    retryDelay: 1000,
-    gcTime: 0,
-    staleTime: 0,
+    retry: 5,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
+    gcTime: 5 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
   });
 
 
@@ -168,7 +168,7 @@ export default function Game() {
   useEffect(() => {
     if (lobbyId || !playerNames || lobbyData !== null) return;
     
-    if (allQuestions.length === 0) return;
+    if (isLoading || allQuestions.length === 0) return;
     
     try {
       const filteredQuestions = allQuestions
@@ -402,6 +402,7 @@ export default function Game() {
         <div className="text-center space-y-4">
           <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" />
           <p className="font-inter text-sm text-muted-foreground">Sorular yükleniyor...</p>
+          <p className="font-inter text-xs text-muted-foreground/60">İlk yüklemede biraz sürebilir...</p>
         </div>
       </div>
     );

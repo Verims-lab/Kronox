@@ -1,12 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Clock, Users, Play, Globe } from 'lucide-react';
+import { Clock, Users, Play, Globe, LogIn, LogOut } from 'lucide-react';
+import { base44 } from '@/api/base44Client';
 
 export default function PlayerSetup() {
   const navigate = useNavigate();
   const [playerCount, setPlayerCount] = useState(1);
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    base44.auth.me().then(u => setUser(u || null)).catch(() => setUser(null));
+  }, []);
   const [names, setNames] = useState(['', '', '', '']);
   const [selectedCategory, setSelectedCategory] = useState('karisik');
   const [yearStart, setYearStart] = useState(1900);
@@ -166,6 +172,33 @@ export default function PlayerSetup() {
           <Globe className="w-5 h-5" />
           ÇEVRİMİÇİ OYUN
         </Button>
+
+        {/* Auth section */}
+        <div className="border-t border-border/30 pt-4">
+          {user ? (
+            <div className="flex items-center justify-between">
+              <p className="font-inter text-xs text-muted-foreground">
+                Giriş: <span className="text-foreground">{user.full_name || user.email}</span>
+              </p>
+              <button
+                onClick={() => base44.auth.logout('/')}
+                className="font-inter text-xs text-muted-foreground hover:text-destructive flex items-center gap-1 transition-colors"
+              >
+                <LogOut className="w-3 h-3" />
+                Çıkış
+              </button>
+            </div>
+          ) : (
+            <Button
+              onClick={() => base44.auth.redirectToLogin('/')}
+              variant="ghost"
+              className="w-full font-inter text-sm text-primary hover:text-primary gap-2"
+            >
+              <LogIn className="w-4 h-4" />
+              Google ile Giriş Yap
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
