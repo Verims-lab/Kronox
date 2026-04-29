@@ -24,6 +24,10 @@ export default function BottomNav() {
         paddingBottom: 'env(safe-area-inset-bottom)',
         height: 'calc(3.5rem + env(safe-area-inset-bottom))',
         userSelect: 'none',
+        left: 0,
+        right: 0,
+        width: '100%',
+        maxWidth: '100vw',
       }}
     >
       {TABS.map(({ label, icon: Icon, path }) => {

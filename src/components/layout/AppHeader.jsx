@@ -40,7 +40,7 @@ export default function AppHeader({ onBack } = {}) {
     return (
       <div
         className="fixed top-0 left-0 right-0 z-[60] flex items-center px-4 h-14 bg-background/80 backdrop-blur-sm border-b border-border/30"
-        style={{ paddingTop: 'env(safe-area-inset-top)', height: 'calc(3.5rem + env(safe-area-inset-top))' }}
+        style={{ paddingTop: 'env(safe-area-inset-top)', height: 'calc(3.5rem + env(safe-area-inset-top))', width: '100%', maxWidth: '100vw' }}
       >
         <Button
           variant="ghost"
@@ -64,7 +64,7 @@ export default function AppHeader({ onBack } = {}) {
     return (
       <div
         className="fixed top-0 left-0 right-0 z-[60] flex items-center justify-between px-4 bg-background/80 backdrop-blur-sm border-b border-border/30"
-        style={{ paddingTop: 'env(safe-area-inset-top)', height: 'calc(3.5rem + env(safe-area-inset-top))' }}
+        style={{ paddingTop: 'env(safe-area-inset-top)', height: 'calc(3.5rem + env(safe-area-inset-top))', width: '100%', maxWidth: '100vw' }}
       >
         <h1 className="font-cinzel text-lg text-primary tracking-widest">KRONOS</h1>
         {isAuthenticated ? (
