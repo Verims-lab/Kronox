@@ -41,10 +41,6 @@ export default function QuestionCard({ question, onImageError, landscape = false
         shadow-xl shadow-primary/20
         ${landscape ? 'p-3' : 'p-5 gap-3'}`}
     >
-      <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-lg">
-        <HelpCircle className="w-5 h-5 text-primary-foreground" />
-      </div>
-
       {/* Visual */}
       {question.type === 'gorsel' && question.media_url && !imgError && (
         <div className="w-full rounded-lg overflow-hidden border border-primary/20">
