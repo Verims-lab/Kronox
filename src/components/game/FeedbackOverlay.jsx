@@ -14,7 +14,8 @@ export default function FeedbackOverlay({ result, year, onDone }) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-40 flex items-center justify-center bg-background/70 backdrop-blur-sm"
+        onClick={onDone}
+        className="fixed inset-0 z-40 flex items-center justify-center bg-background/70 backdrop-blur-sm cursor-pointer"
       >
         <motion.div
           initial={{ scale: 0 }}
