@@ -51,7 +51,11 @@ export default function AppHeader({ onBack } = {}) {
         >
           <ArrowLeft className="w-5 h-5" />
         </Button>
-        <h1 className="font-cinzel text-lg text-primary tracking-widest ml-2">KRONOS</h1>
+        <h1
+          className="font-cinzel text-lg text-primary tracking-widest ml-2 cursor-pointer"
+          onClick={handleBack}
+          style={{ userSelect: 'none' }}
+        >KRONOS</h1>
       </div>
     );
   }
