@@ -182,6 +182,7 @@ export default function PlayerSetup() {
                 placeholder={`Oyuncu ${i + 1} İsmi`}
                 value={names[i]}
                 maxLength={15}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleStart(); }}
                 onChange={(e) => {
                   const newNames = [...names];
                   newNames[i] = e.target.value;
