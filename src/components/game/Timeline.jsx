@@ -1,12 +1,16 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import TimelineCard from './TimelineCard';
 import DropZone from './DropZone';
 
-export default function Timeline({ cards = [], onPlaceCard, selectedZone, onSelectZone }) {
+export default function Timeline({ cards = [], onPlaceCard, selectedZone, onSelectZone, isDragMode }) {
+  // onPlaceCard is used for drag-drop; onSelectZone is used for touch-drag within timeline
   const sortedCards = cards && Array.isArray(cards) ? [...cards].sort((a, b) => a.year - b.year) : [];
   const scrollRef = useRef(null);
+  const dropZoneRefs = useRef([]);
 
-  // When selectedZone is 0, scroll to the far left so the user can see the first drop zone
+  // Touch drag state
+  const [touchOverZone, setTouchOverZone] = useState(null);
+
   useEffect(() => {
     if (!scrollRef.current) return;
     if (selectedZone === 0) {
@@ -16,34 +20,66 @@ export default function Timeline({ cards = [], onPlaceCard, selectedZone, onSele
     }
   }, [selectedZone, sortedCards.length]);
 
-  // After a card is added, scroll to show the newly placed card
   useEffect(() => {
     if (!scrollRef.current) return;
     const el = scrollRef.current;
-    // small delay to let DOM update
     setTimeout(() => {
       el.scrollTo({ left: el.scrollWidth, behavior: 'smooth' });
     }, 50);
   }, [cards.length]);
 
+  // Touch drag: find which drop zone the finger is over
+  const getZoneAtPoint = useCallback((x, y) => {
+    for (let i = 0; i < dropZoneRefs.current.length; i++) {
+      const el = dropZoneRefs.current[i];
+      if (!el) continue;
+      const rect = el.getBoundingClientRect();
+      if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+        return i;
+      }
+    }
+    return null;
+  }, []);
+
+  const handleTouchMove = useCallback((e) => {
+    if (!onSelectZone) return;
+    const touch = e.touches[0];
+    const zone = getZoneAtPoint(touch.clientX, touch.clientY);
+    setTouchOverZone(zone);
+  }, [onSelectZone, getZoneAtPoint]);
+
+  const handleTouchEnd = useCallback((e) => {
+    if (!onSelectZone) return;
+    const touch = e.changedTouches[0];
+    const zone = getZoneAtPoint(touch.clientX, touch.clientY);
+    setTouchOverZone(null);
+    if (zone !== null) {
+      onSelectZone(zone);
+    }
+  }, [onSelectZone, getZoneAtPoint]);
+
   return (
     <div className="w-full">
-      <div ref={scrollRef} className="flex items-center justify-start gap-1 overflow-x-auto py-3 px-2">
-        {/* Drop zone before first card */}
-        <DropZone 
-          index={0} 
-          isActive={selectedZone === 0}
-          onDrop={onSelectZone}
-        />
-        
-        {sortedCards.map((card, i) => (
-          <React.Fragment key={card.id || i}>
-            <TimelineCard card={card} index={i} compact={cards.length > 4} />
-            <DropZone 
-              index={i + 1} 
-              isActive={selectedZone === i + 1}
-              onDrop={onSelectZone}
-            />
+      <div
+        ref={scrollRef}
+        className="flex items-center justify-start gap-1 overflow-x-auto py-3 px-2"
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* Drop zones and cards */}
+        {[...Array(sortedCards.length + 1)].map((_, i) => (
+          <React.Fragment key={i}>
+            <div ref={el => dropZoneRefs.current[i] = el}>
+              <DropZone
+                index={i}
+                isActive={selectedZone === i || touchOverZone === i}
+                onDrop={onPlaceCard || onSelectZone}
+                isDragMode={isDragMode}
+              />
+            </div>
+            {i < sortedCards.length && (
+              <TimelineCard card={sortedCards[i]} index={i} compact={cards.length > 4} />
+            )}
           </React.Fragment>
         ))}
       </div>

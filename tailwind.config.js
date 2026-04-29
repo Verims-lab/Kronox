@@ -5,10 +5,10 @@ module.exports = {
 
 
     safelist: [
-      'from-blue-500/20', 'to-blue-600/10', 'border-blue-500/50', 'text-blue-400',
-      'from-rose-500/20', 'to-rose-600/10', 'border-rose-500/50', 'text-rose-400',
-      'from-emerald-500/20', 'to-emerald-600/10', 'border-emerald-500/50', 'text-emerald-400',
-      'from-violet-500/20', 'to-violet-600/10', 'border-violet-500/50', 'text-violet-400',
+      'from-blue-500/20', 'to-blue-600/10', 'border-blue-500/50', 'text-blue-400', 'border-blue-500/60', 'bg-blue-500/10', 'bg-blue-500',
+      'from-rose-500/20', 'to-rose-600/10', 'border-rose-500/50', 'text-rose-400', 'border-rose-500/60', 'bg-rose-500/10', 'bg-rose-500',
+      'from-emerald-500/20', 'to-emerald-600/10', 'border-emerald-500/50', 'text-emerald-400', 'border-emerald-500/60', 'bg-emerald-500/10', 'bg-emerald-500',
+      'from-violet-500/20', 'to-violet-600/10', 'border-violet-500/50', 'text-violet-400', 'border-violet-500/60', 'bg-violet-500/10', 'bg-violet-500',
     ],
   theme: {
     screens: {

@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { HelpCircle, Image, Volume2, Play, Pause } from 'lucide-react';
+import { Image, Volume2, Play, Pause, GripHorizontal } from 'lucide-react';
 
-export default function QuestionCard({ question, onImageError, landscape = false }) {
+export default function QuestionCard({ question, onImageError, landscape = false, draggable = false, onDragStart, onDragEnd }) {
   const [playing, setPlaying] = useState(false);
   const [imgError, setImgError] = useState(false);
   const audioRef = useRef(null);
@@ -35,10 +35,14 @@ export default function QuestionCard({ question, onImageError, landscape = false
       initial={{ rotateY: 180, opacity: 0 }}
       animate={{ rotateY: 0, opacity: 1 }}
       transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+      draggable={draggable}
+      onDragStart={draggable ? onDragStart : undefined}
+      onDragEnd={draggable ? onDragEnd : undefined}
       className={`relative flex flex-col items-center justify-center 
         w-full mx-auto rounded-xl gap-2
         border-2 border-primary/50 bg-gradient-to-br from-primary/15 to-primary/5
         shadow-xl shadow-primary/20
+        ${draggable ? 'cursor-grab active:cursor-grabbing' : ''}
         ${landscape ? 'p-3' : 'p-5 gap-3'}`}
     >
       {/* Visual */}
@@ -95,7 +99,13 @@ export default function QuestionCard({ question, onImageError, landscape = false
         {question.question}
       </p>
 
-      {!landscape && (
+      {draggable && !landscape && (
+        <div className="flex items-center gap-1 text-primary/50">
+          <GripHorizontal className="w-4 h-4" />
+          <span className="text-xs font-inter text-primary/50">sürükle & bırak</span>
+        </div>
+      )}
+      {!draggable && !landscape && (
         <div className="text-primary/40 text-xs font-cinzel tracking-widest">
           KRONOS
         </div>

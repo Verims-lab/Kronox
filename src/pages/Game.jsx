@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Loader2, Check, Settings, X, MessageCircle } from 'lucide-react';
+import { Loader2, Settings, X, MessageCircle } from 'lucide-react';
 
 import AppHeader from '@/components/layout/AppHeader';
 import { playerBorderColors, playerBgColors, playerTextColors } from '@/components/game/playerColors';
@@ -35,6 +35,7 @@ export default function Game() {
   const currentQuestionIdFromState = location.state?.currentQuestionId ?? null;
 
   const [selectedZone, setSelectedZone] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [winner, setWinner] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
@@ -261,8 +262,18 @@ export default function Game() {
     setSelectedZone(index);
   };
 
+  // Called when a drop zone receives the dragged card
+  const handleDropOnZone = (zoneIndex) => {
+    doPlacement(zoneIndex);
+  };
+
   const handleConfirmPlacement = () => {
-    if (selectedZone === null || !currentQuestion || !currentPlayer) return;
+    if (selectedZone === null) return;
+    doPlacement(selectedZone);
+  };
+
+  const doPlacement = (zone) => {
+    if (zone === null || zone === undefined || !currentQuestion || !currentPlayer) return;
 
     const snapshotPlayer = { ...currentPlayer };
     const snapshotPlayers = [...players];
@@ -273,12 +284,12 @@ export default function Game() {
 
     // Check if placement is correct
     let isCorrect = false;
-    if (selectedZone === 0) {
+    if (zone === 0) {
       isCorrect = sortedCards.length === 0 || questionYear <= sortedCards[0].year;
-    } else if (selectedZone === sortedCards.length) {
+    } else if (zone === sortedCards.length) {
       isCorrect = questionYear >= sortedCards[sortedCards.length - 1].year;
     } else {
-      isCorrect = questionYear >= sortedCards[selectedZone - 1].year && questionYear <= sortedCards[selectedZone].year;
+      isCorrect = questionYear >= sortedCards[zone - 1].year && questionYear <= sortedCards[zone].year;
     }
 
     let newPlayers = snapshotPlayers;
@@ -295,7 +306,7 @@ export default function Game() {
 
     const hasWon = isCorrect && newPlayers[snapshotIndex].cards.length >= winCardCount;
 
-    addGameLog(`PLACE correct=${isCorrect} zone=${selectedZone} year=${questionYear} player=${snapshotPlayer.name} cards=${newPlayers[snapshotIndex]?.cards?.length} hasWon=${hasWon}`);
+    addGameLog(`PLACE correct=${isCorrect} zone=${zone} year=${questionYear} player=${snapshotPlayer.name} cards=${newPlayers[snapshotIndex]?.cards?.length} hasWon=${hasWon}`);
 
     // Compute next turn values immediately
     const nextIndex = (snapshotIndex + 1) % snapshotPlayers.length;
@@ -659,29 +670,25 @@ export default function Game() {
           className="flex-1 flex flex-col landscape:flex-row items-stretch gap-2 px-2 landscape:px-2 md:px-4 overflow-hidden"
           style={{ paddingBottom: 'calc(4rem + env(safe-area-inset-bottom))' }}
         >
-          {/* Landscape sol kolon: PlayerIndicator + Soru kartı + Buton */}
+          {/* Landscape sol kolon: PlayerIndicator + Soru kartı */}
           <div className="hidden landscape:flex landscape:flex-col landscape:w-52 landscape:flex-shrink-0 landscape:gap-2 landscape:py-1 landscape:overflow-y-auto">
             <PlayerIndicator players={players} currentPlayerIndex={currentPlayerIndex} myPlayerName={myPlayerName} />
             {currentQuestion && (
-              <QuestionCard question={currentQuestion} onImageError={handleImageError} landscape />
+              <QuestionCard
+                question={currentQuestion}
+                onImageError={handleImageError}
+                landscape
+                draggable={isMyTurn && !feedback && !winner}
+                onDragStart={() => setIsDragging(true)}
+                onDragEnd={() => setIsDragging(false)}
+              />
             )}
-            {isOnline && !isMyTurn ? (
+            {isOnline && !isMyTurn && (
               <div className="w-full h-9 flex items-center justify-center rounded-xl border border-border/40 bg-secondary/20">
                 <p className="font-inter text-xs text-muted-foreground text-center">
                   <span className="text-primary font-semibold">{currentPlayer?.name}</span> oynuyor…
                 </p>
               </div>
-            ) : (
-              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <Button
-                  onClick={handleConfirmPlacement}
-                  disabled={selectedZone === null || !!feedback}
-                  className="w-full h-10 bg-primary text-primary-foreground hover:bg-primary/90 font-cinzel tracking-wider gap-2 disabled:opacity-30 text-sm"
-                >
-                  <Check className="w-4 h-4" />
-                  YERLEŞTIR
-                </Button>
-              </motion.div>
             )}
           </div>
 
@@ -705,6 +712,8 @@ export default function Game() {
                     cards={currentPlayer.cards}
                     selectedZone={isMyTurn ? selectedZone : null}
                     onSelectZone={isMyTurn ? handleSelectZone : undefined}
+                    isDragMode={isDragging && isMyTurn}
+                    onPlaceCard={isMyTurn ? handleDropOnZone : undefined}
                   />
                 )}
               </div>
@@ -727,29 +736,23 @@ export default function Game() {
             )}
           </div>
 
-          {/* Portrait sağ kolon: Soru kartı + Buton — landscape'de gizli */}
+          {/* Portrait sağ kolon: Soru kartı — landscape'de gizli */}
           <div className="landscape:hidden space-y-2 md:w-72 md:mt-4 md:flex-shrink-0 w-full overflow-hidden">
             {currentQuestion && (
-              <QuestionCard question={currentQuestion} onImageError={handleImageError} />
+              <QuestionCard
+                question={currentQuestion}
+                onImageError={handleImageError}
+                draggable={isMyTurn && !feedback && !winner}
+                onDragStart={() => setIsDragging(true)}
+                onDragEnd={() => setIsDragging(false)}
+              />
             )}
-            {isOnline && !isMyTurn ? (
+            {isOnline && !isMyTurn && (
               <div className="w-full h-10 flex items-center justify-center rounded-xl border border-border/40 bg-secondary/20">
                 <p className="font-inter text-sm text-muted-foreground">
                   <span className="text-primary font-semibold">{currentPlayer?.name}</span> oynuyor…
                 </p>
               </div>
-            ) : (
-              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <Button
-                  onClick={handleConfirmPlacement}
-                  disabled={selectedZone === null || !!feedback}
-                  size="lg"
-                  className="w-full h-11 bg-primary text-primary-foreground hover:bg-primary/90 font-cinzel tracking-wider gap-2 disabled:opacity-30"
-                >
-                  <Check className="w-5 h-5" />
-                  YERLEŞTIR
-                </Button>
-              </motion.div>
             )}
           </div>
         </div>
