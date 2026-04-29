@@ -23,9 +23,9 @@ export default function PlayerSetup() {
 
   const validateName = (name) => {
     const trimmed = name.trim();
-    if (trimmed.length < 3) return 'En az 3 karakter';
-    if (trimmed.length > 15) return 'En fazla 15 karakter';
-    if (!/^[a-zA-Z0-9çğıöşüÇĞİÖŞÜ]+$/.test(trimmed)) return 'Sadece harf ve rakam';
+    if (trimmed.length < 3) return 'Lütfen en az 3 karakter girişi yapınız';
+    if (trimmed.length > 15) return 'Lütfen en fazla 15 karakter girişi yapınız';
+    if (!/^[a-zA-Z0-9çğıöşüÇĞİÖŞÜ]+$/.test(trimmed)) return 'Lütfen yalnızca harf ve rakam girişi yapınız';
     return '';
   };
 
