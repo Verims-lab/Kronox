@@ -297,9 +297,13 @@ export default function Game() {
 
     let isCorrect = false;
     if (sameYearExists) {
+      // Must be placed exactly ON the same year stack:
+      // zone points to the gap before groupedYears[zone], so the card at zone is groupedYears[zone]
+      // "on top of" means: groupedYears[zone] === questionYear (drop zone right before that card)
+      // OR groupedYears[zone-1] === questionYear (drop zone right after that card)
       const leftYear = zone > 0 ? groupedYears[zone - 1] : null;
       const rightYear = zone < groupedYears.length ? groupedYears[zone] : null;
-      isCorrect = leftYear === questionYear || rightYear === questionYear;
+      isCorrect = leftYear === questionYear && rightYear === questionYear;
     } else if (zone === 0) {
       isCorrect = groupedYears.length === 0 || questionYear <= groupedYears[0];
     } else if (zone === groupedYears.length) {
