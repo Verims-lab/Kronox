@@ -279,17 +279,33 @@ export default function Game() {
     const snapshotPlayers = [...players];
     const snapshotIndex = currentPlayerIndex;
     const snapshotUsed = new Set([...usedQuestionIds]);
-    const sortedCards = [...snapshotPlayer.cards].sort((a, b) => a.year - b.year);
+    const allSorted = [...snapshotPlayer.cards].sort((a, b) => a.year - b.year);
     const questionYear = currentQuestion.year;
 
+    // Build grouped cards (same structure as Timeline renders) to map zone indices correctly
+    const groupedYears = [];
+    for (const card of allSorted) {
+      const last = groupedYears[groupedYears.length - 1];
+      if (last && last === card.year) { /* already counted */ }
+      else groupedYears.push(card.year);
+    }
+
     // Check if placement is correct
+    // If the question year already exists in the timeline, only placing it exactly
+    // adjacent to that same year counts as correct (not before/after unrelated cards).
+    const sameYearExists = groupedYears.includes(questionYear);
+
     let isCorrect = false;
-    if (zone === 0) {
-      isCorrect = sortedCards.length === 0 || questionYear <= sortedCards[0].year;
-    } else if (zone === sortedCards.length) {
-      isCorrect = questionYear >= sortedCards[sortedCards.length - 1].year;
+    if (sameYearExists) {
+      const leftYear = zone > 0 ? groupedYears[zone - 1] : null;
+      const rightYear = zone < groupedYears.length ? groupedYears[zone] : null;
+      isCorrect = leftYear === questionYear || rightYear === questionYear;
+    } else if (zone === 0) {
+      isCorrect = groupedYears.length === 0 || questionYear <= groupedYears[0];
+    } else if (zone === groupedYears.length) {
+      isCorrect = questionYear >= groupedYears[groupedYears.length - 1];
     } else {
-      isCorrect = questionYear >= sortedCards[zone - 1].year && questionYear <= sortedCards[zone].year;
+      isCorrect = questionYear >= groupedYears[zone - 1] && questionYear <= groupedYears[zone];
     }
 
     let newPlayers = snapshotPlayers;

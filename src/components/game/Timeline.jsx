@@ -1,10 +1,25 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import TimelineCard from './TimelineCard';
 import DropZone from './DropZone';
 
 export default function Timeline({ cards = [], onPlaceCard, selectedZone, onSelectZone, isDragMode }) {
   // onPlaceCard is used for drag-drop; onSelectZone is used for touch-drag within timeline
   const sortedCards = cards && Array.isArray(cards) ? [...cards].sort((a, b) => a.year - b.year) : [];
+
+  // Group consecutive cards with the same year into stacks for display
+  // Each entry in groupedCards is the first card of that year + stackCount
+  const groupedCards = React.useMemo(() => {
+    const groups = [];
+    for (const card of sortedCards) {
+      const last = groups[groups.length - 1];
+      if (last && last.year === card.year) {
+        last.stackCount = (last.stackCount || 1) + 1;
+      } else {
+        groups.push({ ...card, stackCount: 1 });
+      }
+    }
+    return groups;
+  }, [sortedCards]);
   const scrollRef = useRef(null);
   const dropZoneRefs = useRef([]);
 
@@ -15,10 +30,10 @@ export default function Timeline({ cards = [], onPlaceCard, selectedZone, onSele
     if (!scrollRef.current) return;
     if (selectedZone === 0) {
       scrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
-    } else if (selectedZone === sortedCards.length) {
+    } else if (selectedZone === groupedCards.length) {
       scrollRef.current.scrollTo({ left: scrollRef.current.scrollWidth, behavior: 'smooth' });
     }
-  }, [selectedZone, sortedCards.length]);
+  }, [selectedZone, groupedCards.length]);
 
   useEffect(() => {
     if (!scrollRef.current) return;
@@ -67,7 +82,7 @@ export default function Timeline({ cards = [], onPlaceCard, selectedZone, onSele
         onTouchEnd={handleTouchEnd}
       >
         {/* Drop zones and cards */}
-        {[...Array(sortedCards.length + 1)].map((_, i) => (
+        {[...Array(groupedCards.length + 1)].map((_, i) => (
           <React.Fragment key={i}>
             <div ref={el => dropZoneRefs.current[i] = el}>
               <DropZone
@@ -77,8 +92,8 @@ export default function Timeline({ cards = [], onPlaceCard, selectedZone, onSele
                 isDragMode={isDragMode}
               />
             </div>
-            {i < sortedCards.length && (
-              <TimelineCard card={sortedCards[i]} index={i} compact={cards.length > 4} />
+            {i < groupedCards.length && (
+              <TimelineCard card={groupedCards[i]} index={i} compact={cards.length > 4} />
             )}
           </React.Fragment>
         ))}
