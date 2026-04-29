@@ -8,7 +8,7 @@ const ADMIN_EMAIL = 'sariverim@gmail.com';
 const BACK_ROUTES = ['/lobby', '/game', '/settings'];
 const HOME_ROUTES = ['/'];
 
-export default function AppHeader() {
+export default function AppHeader({ onBack } = {}) {
   const location = useLocation();
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
@@ -28,6 +28,7 @@ export default function AppHeader() {
   const showHome = HOME_ROUTES.includes(location.pathname);
 
   const handleBack = () => {
+    if (onBack) { onBack(); return; }
     if (window.history.length > 1) {
       navigate(-1);
     } else {

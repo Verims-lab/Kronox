@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Loader2, Check, Settings, X, MessageCircle } from 'lucide-react';
 
+import AppHeader from '@/components/layout/AppHeader';
 import PlayerIndicator from '@/components/game/PlayerIndicator';
 import GameDebugLog, { addGameLog } from '@/components/game/GameDebugLog';
 import Timeline from '@/components/game/Timeline';
@@ -422,10 +423,45 @@ export default function Game() {
     setTimerKey(k => k + 1);
   }, [currentPlayerIndex]);
 
+  // Tarayıcı kapatma/yenileme uyarısı
+  useEffect(() => {
+    if (winner) return;
+    const handleBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [winner]);
+
+  // Geri tuşu / popstate yakalama
+  useEffect(() => {
+    if (winner) return;
+    // Mevcut state'i history'e ekle (geri tuşunu yakalamak için)
+    window.history.pushState(null, '', window.location.href);
+    const handlePopState = () => {
+      if (window.confirm('Oyundan çıkmak istediğine emin misin? Oyun kaybolacak.')) {
+        navigate('/');
+      } else {
+        // Kullanıcı vazgeçti, history'yi geri koy
+        window.history.pushState(null, '', window.location.href);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [winner, navigate]);
+
   const handleRestart = () => {
     setOverallSeconds(0);
     setGameStarted(false);
     navigate('/');
+  };
+
+  const handleBackAttempt = () => {
+    if (winner) { navigate('/'); return; }
+    if (window.confirm('Oyundan çıkmak istediğine emin misin? Oyun kaybolacak.')) {
+      navigate('/');
+    }
   };
 
   if (!playerNames) return null;
@@ -513,6 +549,7 @@ export default function Game() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center">
+      <AppHeader onBack={handleBackAttempt} />
       <GameDebugLog />
       {/* Overall süre — sadece offline tek oyunculu mod */}
       {!lobbyId && (

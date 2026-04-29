@@ -10,6 +10,7 @@ import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import { Loader2 } from 'lucide-react';
 import BottomNav from '@/components/layout/BottomNav';
 import AppHeader from '@/components/layout/AppHeader';
+import { useLocation as useAppLocation } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 
 const PlayerSetup = lazy(() => import('./pages/PlayerSetup'));
@@ -48,9 +49,12 @@ const AuthenticatedApp = () => {
   }
 
   // Render the main app
+  const appLocation = useAppLocation();
+  const isGamePage = appLocation.pathname === '/game';
+
   return (
     <div style={{ width: '100%', minHeight: '100%' }}>
-      <AppHeader />
+      {!isGamePage && <AppHeader />}
       <Suspense fallback={<PageLoader />}>
         <AnimatePresence mode="wait">
           <motion.div
