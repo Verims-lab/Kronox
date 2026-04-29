@@ -95,7 +95,7 @@ export default function QuestionCard({ question, onImageError, landscape = false
         </div>
       )}
 
-      <p className={`font-inter text-foreground text-center leading-relaxed break-words w-full ${landscape ? 'text-xs' : 'text-sm'}`}>
+      <p className={`font-inter text-foreground text-center leading-relaxed break-words w-full ${landscape ? 'text-xs font-medium' : 'text-base font-semibold'}`}>
         {question.question}
       </p>
 
