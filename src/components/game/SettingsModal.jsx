@@ -15,7 +15,7 @@ export default function SettingsModal({ onClose }) {
     }
     setDeleting(true);
     try {
-      await base44.auth.deleteAccount();
+      await base44.functions.invoke('deleteAccount', {});
       base44.auth.logout('/');
     } catch (e) {
       setDeleting(false);
