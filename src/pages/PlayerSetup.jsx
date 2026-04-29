@@ -41,7 +41,7 @@ export default function PlayerSetup() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6" 
-      style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))', paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
+      style={{ paddingTop: 'calc(5rem + env(safe-area-inset-top))', paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
       
       <div className="w-full max-w-md space-y-8">
         
