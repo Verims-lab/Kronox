@@ -4,7 +4,7 @@ import { Trophy, RotateCcw, Clock, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatDuration } from './GameOverTimer';
 
-export default function GameOver({ winner, onRestart, durationSeconds, winCardCount }) {
+export default function GameOver({ winner, onRestart, durationSeconds, winCardCount, isSinglePlayer }) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.8 }}
@@ -24,7 +24,11 @@ export default function GameOver({ winner, onRestart, durationSeconds, winCardCo
             Tebrikler!
           </h1>
           <p className="font-inter text-foreground text-lg">
-            <span className="font-bold text-primary">{winner}</span> oyunu kazandı!
+            {isSinglePlayer ? (
+              "Oyunu kazandın!"
+            ) : (
+              <><span className="font-bold text-primary">{winner}</span> oyunu kazandı!</>
+            )}
           </p>
         </div>
 

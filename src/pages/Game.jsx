@@ -530,6 +530,7 @@ export default function Game() {
           durationSeconds={winner.durationSeconds}
           winCardCount={winCardCount}
           onRestart={handleRestart}
+          isSinglePlayer={!lobbyId && playerNames?.length === 1}
         />
       )}
 
