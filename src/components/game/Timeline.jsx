@@ -88,7 +88,8 @@ export default function Timeline({ cards = [], onPlaceCard, selectedZone, onSele
               <DropZone
                 index={i}
                 isActive={selectedZone === i || touchOverZone === i}
-                onDrop={onPlaceCard || onSelectZone}
+                onDrop={onPlaceCard}
+                onHover={onSelectZone}
                 isDragMode={isDragMode}
               />
             </div>

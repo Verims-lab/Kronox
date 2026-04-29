@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 
-export default function DropZone({ index, isActive, onDrop, isDragMode }) {
+export default function DropZone({ index, isActive, onDrop, onHover, isDragMode }) {
   const [isOver, setIsOver] = useState(false);
-  const disabled = !onDrop;
+  const disabled = !onDrop && !onHover;
 
   // ── HTML5 Drag & Drop ──
   const handleDragOver = (e) => {
-    if (disabled) return;
+    if (!onDrop) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     setIsOver(true);
@@ -16,12 +16,21 @@ export default function DropZone({ index, isActive, onDrop, isDragMode }) {
   const handleDrop = (e) => {
     e.preventDefault();
     setIsOver(false);
-    if (!disabled) onDrop(index);
+    if (onDrop) onDrop(index);
   };
 
-  // ── Touch events (mobile) ──
-  // Touch drag is handled externally; onDrop is called by Timeline on touch-end
-  // DropZone just needs to visually highlight when "touched over"
+  // ── Mouse hover → auto-select zone ──
+  const handleMouseEnter = () => {
+    if (onHover) onHover(index);
+    setIsOver(true);
+  };
+  const handleMouseLeave = () => setIsOver(false);
+
+  // ── Click → place card ──
+  const handleClick = () => {
+    if (onDrop) onDrop(index);
+    else if (onHover) onHover(index);
+  };
 
   const highlighted = isOver || isActive;
 
@@ -32,6 +41,9 @@ export default function DropZone({ index, isActive, onDrop, isDragMode }) {
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onClick={handleClick}
       className={`
         flex items-center justify-center
         w-8 h-20 min-w-8 landscape:w-6 landscape:h-16 landscape:min-w-6
