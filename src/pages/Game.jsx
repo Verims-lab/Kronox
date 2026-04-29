@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Check, Settings, X, MessageCircle } from 'lucide-react';
 
 import AppHeader from '@/components/layout/AppHeader';
+import { playerBorderColors, playerBgColors, playerTextColors } from '@/components/game/playerColors';
 import PlayerIndicator from '@/components/game/PlayerIndicator';
 import GameDebugLog, { addGameLog } from '@/components/game/GameDebugLog';
 import Timeline from '@/components/game/Timeline';
@@ -690,15 +691,15 @@ export default function Game() {
             {/* Sıradaki oyuncunun kartları */}
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                <p className="text-xs font-inter text-primary font-semibold">
+                <div className={`w-2 h-2 rounded-full animate-pulse ${playerTextColors[currentPlayerIndex % playerTextColors.length].replace('text-', 'bg-')}`} />
+                <p className={`text-xs font-inter font-semibold ${playerTextColors[currentPlayerIndex % playerTextColors.length]}`}>
                   {currentPlayer?.name} — oynuyor
                 </p>
                 <span className="text-xs font-inter text-muted-foreground">
                   ({currentPlayer?.cards?.length || 0} kart)
                 </span>
               </div>
-              <div className="rounded-xl border-2 border-primary/50 bg-primary/5 p-1 overflow-x-auto">
+              <div className={`rounded-xl border-2 p-1 overflow-x-auto transition-all duration-500 ${playerBorderColors[currentPlayerIndex % playerBorderColors.length]} ${playerBgColors[currentPlayerIndex % playerBgColors.length]}`}>
                 {currentPlayer && (
                   <Timeline
                     cards={currentPlayer.cards}
