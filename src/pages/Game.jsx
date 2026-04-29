@@ -637,7 +637,7 @@ export default function Game() {
           </div>
 
           {/* Portrait sağ kolon: Soru kartı + Buton — landscape'de gizli */}
-          <div className="landscape:hidden space-y-2 md:w-72 md:mt-4 md:flex-shrink-0 w-full">
+          <div className="landscape:hidden space-y-2 md:w-72 md:mt-4 md:flex-shrink-0 w-full overflow-hidden">
             {currentQuestion && (
               <QuestionCard question={currentQuestion} onImageError={handleImageError} />
             )}
