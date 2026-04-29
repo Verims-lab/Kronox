@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import { useNavigate } from 'react-router-dom';
 import SimulationPanel from '@/components/game/SimulationPanel';
+import TopScores from '@/components/game/TopScores';
 
 const ADMIN_EMAIL = 'sariverim@gmail.com';
 
@@ -120,6 +121,15 @@ export default function SettingsPage() {
               desc="42 test senaryosunu çalıştır"
               onClick={() => setShowSim(true)}
             />
+          </Section>
+        )}
+
+        {/* Top 5 — giriş yapmış tüm kullanıcılar */}
+        {user && (
+          <Section label="En İyi 5 Rekorun">
+            <div className="p-4 rounded-2xl border border-border/40 bg-secondary/20">
+              <TopScores user={user} />
+            </div>
           </Section>
         )}
 

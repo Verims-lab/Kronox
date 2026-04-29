@@ -1,9 +1,10 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, RotateCcw, Clock } from 'lucide-react';
+import { Trophy, RotateCcw, Clock, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { formatDuration } from './GameOverTimer';
 
-export default function GameOver({ winner, onRestart }) {
+export default function GameOver({ winner, onRestart, durationSeconds, winCardCount }) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.8 }}
@@ -27,9 +28,17 @@ export default function GameOver({ winner, onRestart }) {
           </p>
         </div>
 
-        <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm">
-          <Clock className="w-4 h-4" />
-          <span>10 kartı ilk tamamlayan oyuncu</span>
+        <div className="space-y-2">
+          <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm">
+            <Clock className="w-4 h-4" />
+            <span>{winCardCount || 10} kartı ilk tamamlayan oyuncu</span>
+          </div>
+          {durationSeconds != null && (
+            <div className="flex items-center justify-center gap-2 text-primary text-sm font-semibold">
+              <Timer className="w-4 h-4" />
+              <span>Süre: {formatDuration(durationSeconds)}</span>
+            </div>
+          )}
         </div>
 
         <Button

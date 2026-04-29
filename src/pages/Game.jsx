@@ -15,6 +15,7 @@ import GameOver from '@/components/game/GameOver';
 import SettingsModal from '@/components/game/SettingsModal';
 import TurnTimer from '@/components/game/TurnTimer';
 import LobbyChat from '@/components/lobby/LobbyChat';
+import GameOverTimer from '@/components/game/GameOverTimer';
 
 
 export default function Game() {
@@ -39,9 +40,13 @@ export default function Game() {
   const [timerKey, setTimerKey] = useState(0);
   const [lobbyData, setLobbyData] = useState(null);
   const [error, setError] = useState(null);
+  const [overallSeconds, setOverallSeconds] = useState(0);
+  const [gameStarted, setGameStarted] = useState(false);
+  const overallSecondsRef = useRef(0);
   const isMyTurnRef = React.useRef(true);
   const unsubRef = React.useRef(null);
   const winTimerRef = React.useRef(null);
+  overallSecondsRef.current = overallSeconds;
 
   // Cleanup tüm timer ve subscription'lar component unmount'ta
   useEffect(() => {
@@ -141,7 +146,7 @@ export default function Game() {
         return;
       }
       if (event.data.status === 'finished' && event.data.winner) {
-        setWinner(event.data.winner);
+        setWinner({ name: event.data.winner });
       }
       applySubscriptionEvent(event.data);
     });
@@ -163,6 +168,35 @@ export default function Game() {
     }
     return available[0];
   }, []);
+
+  // Oyun hazır olunca overall timer'ı başlat (sadece offline tek oyunculu mod)
+  useEffect(() => {
+    if (!lobbyId && players.length > 0 && currentQuestion != null && !gameStarted) {
+      setGameStarted(true);
+    }
+  }, [lobbyId, players.length, currentQuestion, gameStarted]);
+
+  // Kazanınca kaydet (sadece offline, giriş yapmış kullanıcı, tek oyuncu)
+  const saveGameRecord = useCallback(async (winnerName, durationSecs) => {
+    if (lobbyId) return; // online mod
+    if (!playerNames || playerNames.length !== 1) return; // sadece tek oyuncu
+    try {
+      const user = await base44.auth.me();
+      if (!user) return;
+      await base44.entities.GameRecord.create({
+        user_email: user.email,
+        player_name: winnerName,
+        duration_seconds: durationSecs,
+        cards_won: winCardCount,
+        win_card_count: winCardCount,
+        category,
+        year_start: yearStart,
+        year_end: yearEnd,
+      });
+    } catch (e) {
+      console.error('GameRecord save failed:', e);
+    }
+  }, [lobbyId, playerNames, winCardCount, category, yearStart, yearEnd]);
 
   // Initialize game — sadece offline modda (no lobbyId)
   const lobbyDataRef = useRef(null);
@@ -314,9 +348,12 @@ export default function Game() {
 
     if (hasWon) {
       setFeedback({ result: 'correct', year: questionYear });
+      setGameStarted(false); // overall timer'ı durdur
+      const finalSecs = overallSecondsRef.current;
+      saveGameRecord(newPlayers[snapshotIndex].name, finalSecs);
       winTimerRef.current = setTimeout(() => {
         setFeedback(null);
-        setWinner(newPlayers[snapshotIndex].name);
+        setWinner({ name: newPlayers[snapshotIndex].name, durationSeconds: finalSecs });
       }, 1800);
       return;
     }
@@ -386,6 +423,8 @@ export default function Game() {
   }, [currentPlayerIndex]);
 
   const handleRestart = () => {
+    setOverallSeconds(0);
+    setGameStarted(false);
     navigate('/');
   };
 
@@ -475,10 +514,24 @@ export default function Game() {
   return (
     <div className="min-h-screen bg-background flex flex-col items-center">
       <GameDebugLog />
+      {/* Overall süre — sadece offline tek oyunculu mod */}
+      {!lobbyId && (
+        <GameOverTimer
+          active={gameStarted && !winner}
+          onTick={(s) => setOverallSeconds(s)}
+        />
+      )}
 
 
       {/* Winner overlay */}
-      {winner && <GameOver winner={winner} onRestart={handleRestart} />}
+      {winner && (
+        <GameOver
+          winner={winner.name}
+          durationSeconds={winner.durationSeconds}
+          winCardCount={winCardCount}
+          onRestart={handleRestart}
+        />
+      )}
 
       {/* Feedback overlay */}
       <AnimatePresence>

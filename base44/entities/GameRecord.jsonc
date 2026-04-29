@@ -1,0 +1,42 @@
+{
+  "name": "GameRecord",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Email of the player"
+    },
+    "player_name": {
+      "type": "string",
+      "description": "Display name of the player"
+    },
+    "duration_seconds": {
+      "type": "number",
+      "description": "Total game duration in seconds"
+    },
+    "cards_won": {
+      "type": "number",
+      "description": "Number of cards won to achieve victory"
+    },
+    "win_card_count": {
+      "type": "number",
+      "description": "Target card count to win the game"
+    },
+    "category": {
+      "type": "string",
+      "description": "Game category"
+    },
+    "year_start": {
+      "type": "number"
+    },
+    "year_end": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "user_email",
+    "player_name",
+    "duration_seconds",
+    "cards_won"
+  ]
+}
