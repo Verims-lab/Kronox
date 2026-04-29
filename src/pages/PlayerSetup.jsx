@@ -114,7 +114,15 @@ export default function PlayerSetup() {
                   onClick={() => setYearStart(y => Math.max(0, y - 10))}
                   className="w-8 h-8 rounded-lg border border-border/50 bg-secondary/30 text-sm font-bold hover:bg-secondary"
                 >−</button>
-                <span className="flex-1 text-center font-cinzel font-bold">{yearStart}</span>
+                <input
+                  type="number"
+                  value={yearStart}
+                  onChange={e => {
+                    const val = parseInt(e.target.value);
+                    if (!isNaN(val)) setYearStart(Math.max(0, Math.min(yearEnd - 10, val)));
+                  }}
+                  className="flex-1 text-center font-cinzel font-bold bg-transparent border border-border/30 rounded-lg h-8 text-sm focus:outline-none focus:border-primary/60 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                />
                 <button
                   onClick={() => setYearStart(y => Math.min(yearEnd - 10, y + 10))}
                   className="w-8 h-8 rounded-lg border border-border/50 bg-secondary/30 text-sm font-bold hover:bg-secondary"
@@ -128,7 +136,15 @@ export default function PlayerSetup() {
                   onClick={() => setYearEnd(y => Math.max(yearStart + 10, y - 10))}
                   className="w-8 h-8 rounded-lg border border-border/50 bg-secondary/30 text-sm font-bold hover:bg-secondary"
                 >−</button>
-                <span className="flex-1 text-center font-cinzel font-bold">{yearEnd}</span>
+                <input
+                  type="number"
+                  value={yearEnd}
+                  onChange={e => {
+                    const val = parseInt(e.target.value);
+                    if (!isNaN(val)) setYearEnd(Math.max(yearStart + 10, Math.min(new Date().getFullYear(), val)));
+                  }}
+                  className="flex-1 text-center font-cinzel font-bold bg-transparent border border-border/30 rounded-lg h-8 text-sm focus:outline-none focus:border-primary/60 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                />
                 <button
                   onClick={() => setYearEnd(y => Math.min(new Date().getFullYear(), y + 10))}
                   className="w-8 h-8 rounded-lg border border-border/50 bg-secondary/30 text-sm font-bold hover:bg-secondary"
