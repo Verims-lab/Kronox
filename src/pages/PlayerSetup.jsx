@@ -7,7 +7,7 @@ import { base44 } from '@/api/base44Client';
 export default function PlayerSetup() {
   const navigate = useNavigate();
   const [playerCount, setPlayerCount] = useState(1);
-  const [user, setUser] = useState(undefined); // undefined = loading, null = not logged in
+  const [user, setUser] = useState(null);
   const [names, setNames] = useState(['', '', '', '']);
   const [selectedCategory, setSelectedCategory] = useState('karisik');
   const [yearStart, setYearStart] = useState(1900);
@@ -46,7 +46,7 @@ export default function PlayerSetup() {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-start px-5 pt-safe pb-safe overflow-y-auto"
+    <div className="min-h-screen flex flex-col items-center justify-start px-5 pt-safe pb-safe"
       style={{
         paddingTop: 'calc(1.5rem + env(safe-area-inset-top))',
         paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))',
@@ -56,16 +56,12 @@ export default function PlayerSetup() {
     >
       {/* Top row */}
       <div className="w-full flex items-center justify-between mb-6">
-        {user != null ? (
-          <button
-            onClick={() => navigate('/settings')}
-            className="w-10 h-10 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/70"
-          >
-            <Settings className="w-5 h-5" />
-          </button>
-        ) : (
-          <div className="w-10 h-10" />
-        )}
+        <button
+          onClick={() => navigate('/settings')}
+          className="w-10 h-10 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/70"
+        >
+          <Settings className="w-5 h-5" />
+        </button>
 
         {/* Logo */}
         <h1
@@ -84,7 +80,7 @@ export default function PlayerSetup() {
         </div>
       </div>
 
-      <div className="w-full max-w-md space-y-5 pb-safe">
+      <div className="w-full max-w-md space-y-5">
 
         {/* Player count */}
         <div className="space-y-2">
