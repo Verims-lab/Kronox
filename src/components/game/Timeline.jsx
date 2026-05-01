@@ -178,7 +178,7 @@ export default function Timeline({
       <div
         ref={scrollRef}
         className="flex flex-row items-center w-full overflow-x-auto py-2 px-2"
-        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', justifyContent: 'center' }}
       >
         <style>{`.timeline-scroll::-webkit-scrollbar { display: none; }`}</style>
         {/* Connection line */}
