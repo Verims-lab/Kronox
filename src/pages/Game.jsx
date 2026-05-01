@@ -10,8 +10,9 @@ import AppHeader from '@/components/layout/AppHeader';
 import { playerBorderColors, playerBgColors, playerTextColors } from '@/components/game/playerColors';
 import PlayerIndicator from '@/components/game/PlayerIndicator';
 import GameDebugLog, { addGameLog } from '@/components/game/GameDebugLog';
-import Timeline from '@/components/game/Timeline';
-import QuestionCard from '@/components/game/QuestionCard';
+import Timeline from '@/components/game/Timeline.jsx';
+import QuestionCard from '@/components/game/QuestionCard.jsx';
+// Note: DropZone no longer used directly in Game — only inside Timeline
 import FeedbackOverlay from '@/components/game/FeedbackOverlay';
 import GameOver from '@/components/game/GameOver';
 import SettingsModal from '@/components/game/SettingsModal';
@@ -581,17 +582,12 @@ export default function Game() {
 
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
       <AppHeader onBack={handleBackAttempt} />
       <GameDebugLog />
-      {/* Overall süre — sadece offline tek oyunculu mod */}
       {!lobbyId && (
-        <GameOverTimer
-          active={gameStarted && !winner}
-          onTick={(s) => setOverallSeconds(s)}
-        />
+        <GameOverTimer active={gameStarted && !winner} onTick={(s) => setOverallSeconds(s)} />
       )}
-
 
       {/* Winner overlay */}
       {winner && (
@@ -604,189 +600,158 @@ export default function Game() {
         />
       )}
 
-      {/* Feedback overlay */}
       <AnimatePresence>
         {feedback && (
-          <FeedbackOverlay
-            result={feedback.result}
-            year={feedback.year}
-            onDone={handleFeedbackDone}
-          />
+          <FeedbackOverlay result={feedback.result} year={feedback.year} onDone={handleFeedbackDone} />
         )}
       </AnimatePresence>
 
-      {/* Settings modal */}
       <AnimatePresence>
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+        {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       </AnimatePresence>
 
-      {/* Chat panel — only in online mode */}
       <AnimatePresence>
-      {showChat && isOnline && (
-        <motion.div
-          initial={{ opacity: 0, x: '100%' }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: '100%' }}
-          transition={{ type: 'tween', duration: 0.2 }}
-          className="fixed right-0 top-0 bottom-0 z-40 w-72 flex flex-col bg-card border-l border-border shadow-2xl"
-          style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
-        >
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-            <span className="font-cinzel text-sm text-primary tracking-wider">SOHBET</span>
-            <button onClick={() => setShowChat(false)} className="text-muted-foreground hover:text-foreground">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="flex-1 overflow-hidden p-3">
-            <LobbyChat lobbyId={lobbyId} playerName={myPlayerName || 'Oyuncu'} compact={false} />
-          </div>
-        </motion.div>
-      )}
+        {showChat && isOnline && (
+          <motion.div
+            initial={{ opacity: 0, x: '100%' }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: '100%' }}
+            transition={{ type: 'tween', duration: 0.2 }}
+            className="fixed right-0 top-0 bottom-0 z-40 w-72 flex flex-col bg-card border-l border-border shadow-2xl"
+            style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+              <span className="font-cinzel text-sm text-primary tracking-wider">SOHBET</span>
+              <button onClick={() => setShowChat(false)} className="text-muted-foreground hover:text-foreground">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden p-3">
+              <LobbyChat lobbyId={lobbyId} playerName={myPlayerName || 'Oyuncu'} compact={false} />
+            </div>
+          </motion.div>
+        )}
       </AnimatePresence>
 
-
-
-      {/* Inner container — max width on desktop */}
-      <div className="w-full max-w-2xl md:max-w-4xl flex flex-col flex-1">
-        {/* Header */}
-        <div
-          className="pb-1 px-4 space-y-2 landscape:space-y-0.5 landscape:pb-0.5"
-          style={{ paddingTop: 'calc(3.5rem + env(safe-area-inset-top))' }}
-        >
-          <div className="flex items-center justify-between">
-            <div className="w-9" />
-            <div className="flex items-center gap-2">
-              <TurnTimer key={timerKey} active={!feedback && !winner && isGameReady} onTimeUp={isMyTurn ? handleTimeUp : undefined} duration={turnDuration} />
+      {/* Ghost card — parmak/fare ile sürüklenen anlık kopyası */}
+      <AnimatePresence>
+        {isDragging && touchDragPos && (
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0.7 }}
+            animate={{ scale: 1.05, opacity: 0.9 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            className="fixed z-50 pointer-events-none"
+            style={{
+              left: touchDragPos.x - 120,
+              top: touchDragPos.y - 40,
+              width: 240,
+            }}
+          >
+            <div className="rounded-xl border-2 border-primary bg-gradient-to-br from-primary/30 to-card shadow-2xl shadow-primary/40 px-4 py-3 backdrop-blur-sm">
+              <p className="font-inter text-sm text-foreground/90 line-clamp-2 leading-snug">
+                {currentQuestion?.question}
+              </p>
+              <p className="font-cinzel text-xs text-primary/60 mt-1">↕ bırak</p>
             </div>
-            <div className="flex gap-1">
-              {isOnline && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setShowChat(c => !c)}
-                  className={`hover:text-foreground ${showChat ? 'text-primary' : 'text-muted-foreground'}`}
-                  title="Sohbet"
-                >
-                  <MessageCircle className="w-5 h-5" />
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowSettings(true)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <Settings className="w-5 h-5" />
-              </Button>
-            </div>
-          </div>
-          {/* Portrait: PlayerIndicator normal, Landscape: gizle (sağ panelde gösterilecek) */}
-          <div className="landscape:hidden">
-            <PlayerIndicator players={players} currentPlayerIndex={currentPlayerIndex} myPlayerName={myPlayerName} />
-          </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Üst bar */}
+      <div
+        className="flex-shrink-0 flex items-center justify-between px-4 gap-2"
+        style={{ paddingTop: 'calc(3.5rem + env(safe-area-inset-top))', paddingBottom: '0.5rem' }}
+      >
+        <PlayerIndicator players={players} currentPlayerIndex={currentPlayerIndex} myPlayerName={myPlayerName} />
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <TurnTimer key={timerKey} active={!feedback && !winner && isGameReady} onTimeUp={isMyTurn ? handleTimeUp : undefined} duration={turnDuration} />
+          {isOnline && (
+            <Button variant="ghost" size="icon" onClick={() => setShowChat(c => !c)}
+              className={`hover:text-foreground ${showChat ? 'text-primary' : 'text-muted-foreground'}`}>
+              <MessageCircle className="w-5 h-5" />
+            </Button>
+          )}
+          <Button variant="ghost" size="icon" onClick={() => setShowSettings(true)}
+            className="text-muted-foreground hover:text-foreground">
+            <Settings className="w-5 h-5" />
+          </Button>
         </div>
+      </div>
 
-        {/* Ana oyun alanı — Landscape: yatay 3 kolon, Portrait: dikey */}
-        <div
-          className="flex-1 flex flex-col landscape:flex-row items-stretch gap-2 px-2 landscape:px-2 md:px-4 overflow-hidden"
-          style={{ paddingBottom: 'calc(14rem + env(safe-area-inset-bottom))' }}
-        >
-          {/* Landscape sol kolon: PlayerIndicator + Soru kartı */}
-          <div className="hidden landscape:flex landscape:flex-col landscape:w-52 landscape:flex-shrink-0 landscape:gap-2 landscape:py-1 landscape:overflow-y-auto">
-            <PlayerIndicator players={players} currentPlayerIndex={currentPlayerIndex} myPlayerName={myPlayerName} />
-            {currentQuestion && (
-              <QuestionCard
-                question={currentQuestion}
-                onImageError={handleImageError}
-                landscape
-                draggable={isMyTurn && !feedback && !winner}
-                onDragStart={() => setIsDragging(true)}
-                onDragEnd={() => { setIsDragging(false); setTouchDragPos(null); }}
-                onTouchDragMove={(x, y) => { setIsDragging(true); setTouchDragPos({ x, y }); }}
-                onTouchDragEnd={(x, y) => { setTouchDragEnd({ x, y }); setTouchDragPos(null); setIsDragging(false); setTimeout(() => setTouchDragEnd(null), 50); }}
+      {/* Ana oyun alanı: Sol=Timeline, Sağ=Soru kartı */}
+      <div
+        className="flex-1 flex gap-3 px-3 overflow-hidden"
+        style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+      >
+        {/* SOL: Timeline */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          {/* Oyuncu başlığı */}
+          <div className="flex items-center gap-2 mb-2 flex-shrink-0">
+            <div className={`w-2 h-2 rounded-full animate-pulse ${
+              ['bg-blue-400','bg-rose-400','bg-emerald-400','bg-violet-400'][currentPlayerIndex % 4]
+            }`} />
+            <p className={`text-xs font-inter font-semibold ${playerTextColors[currentPlayerIndex % playerTextColors.length]}`}>
+              {currentPlayer?.name}
+            </p>
+            <span className="text-xs font-inter text-muted-foreground ml-auto">
+              {currentPlayer?.cards?.length || 0} / {winCardCount} kart
+            </span>
+          </div>
+
+          {/* Timeline scroll alanı */}
+          <div className={`flex-1 rounded-xl border-2 overflow-hidden transition-all duration-500 ${playerBorderColors[currentPlayerIndex % playerBorderColors.length]} ${playerBgColors[currentPlayerIndex % playerBgColors.length]}`}>
+            {currentPlayer && (
+              <Timeline
+                cards={currentPlayer.cards}
+                selectedZone={isMyTurn ? selectedZone : null}
+                onSelectZone={isMyTurn ? handleSelectZone : undefined}
+                isDragMode={isDragging && isMyTurn}
+                onPlaceCard={isMyTurn ? handleDropOnZone : undefined}
+                externalTouchX={isMyTurn ? touchDragPos?.x : null}
+                externalTouchY={isMyTurn ? touchDragPos?.y : null}
+                externalTouchEnd={isMyTurn ? touchDragEnd : null}
               />
             )}
-            {isOnline && !isMyTurn && (
-              <div className="w-full h-9 flex items-center justify-center rounded-xl border border-border/40 bg-secondary/20">
-                <p className="font-inter text-xs text-muted-foreground text-center">
-                  <span className="text-primary font-semibold">{currentPlayer?.name}</span> oynuyor…
-                </p>
-              </div>
-            )}
           </div>
 
-          {/* Timeline alanı */}
-          <div className="flex-1 flex flex-col gap-2 landscape:gap-1 landscape:py-1 min-w-0 md:mt-4">
-
-            {/* Sıradaki oyuncunun kartları */}
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full animate-pulse ${playerTextColors[currentPlayerIndex % playerTextColors.length].replace('text-', 'bg-')}`} />
-                <p className={`text-xs font-inter font-semibold ${playerTextColors[currentPlayerIndex % playerTextColors.length]}`}>
-                  {currentPlayer?.name} — oynuyor
-                </p>
-                <span className="text-xs font-inter text-muted-foreground">
-                  ({currentPlayer?.cards?.length || 0} kart)
-                </span>
-              </div>
-              <div className={`rounded-xl border-2 p-1 overflow-x-auto transition-all duration-500 ${playerBorderColors[currentPlayerIndex % playerBorderColors.length]} ${playerBgColors[currentPlayerIndex % playerBgColors.length]}`}>
-                {currentPlayer && (
-                  <Timeline
-                    cards={currentPlayer.cards}
-                    selectedZone={isMyTurn ? selectedZone : null}
-                    onSelectZone={isMyTurn ? handleSelectZone : undefined}
-                    isDragMode={isDragging && isMyTurn}
-                    onPlaceCard={isMyTurn ? handleDropOnZone : undefined}
-                    externalTouchX={isMyTurn ? touchDragPos?.x : null}
-                    externalTouchY={isMyTurn ? touchDragPos?.y : null}
-                    externalTouchEnd={isMyTurn ? touchDragEnd : null}
-                  />
-                )}
+          {/* Benim kartlarım — sadece online modda sıra bende değilse */}
+          {isOnline && myPlayerName && currentPlayer?.name !== myPlayerName && myPlayer && (
+            <div className="flex-shrink-0 mt-2 space-y-1">
+              <p className="text-xs font-inter text-muted-foreground">Senin kartların ({myPlayer.cards.length})</p>
+              <div className="rounded-xl border border-border/40 bg-secondary/10 overflow-hidden" style={{ maxHeight: 140 }}>
+                <Timeline cards={myPlayer.cards} selectedZone={null} onSelectZone={undefined} />
               </div>
             </div>
+          )}
+        </div>
 
-            {/* Benim kartlarım — sadece online modda ve ben sıradaki değilsem */}
-            {isOnline && myPlayerName && currentPlayer?.name !== myPlayerName && myPlayer && (
-              <div className="space-y-1">
-                <p className="text-xs font-inter text-muted-foreground">
-                  Senin kartların ({myPlayer.cards.length})
-                </p>
-                <div className="rounded-xl border border-border/40 bg-secondary/10 p-1 overflow-x-auto opacity-80">
-                  <Timeline
-                    cards={myPlayer.cards}
-                    selectedZone={null}
-                    onSelectZone={undefined}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Portrait: Soru kartı — ekranın altında sabit, landscape'de gizli */}
-          <div className="landscape:hidden fixed bottom-0 left-0 right-0 z-20 flex justify-center px-4 pb-4"
-            style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}
-          >
-            <div className="w-full max-w-xs">
-              {currentQuestion && (
-                <QuestionCard
-                  question={currentQuestion}
-                  onImageError={handleImageError}
-                  draggable={isMyTurn && !feedback && !winner}
-                  onDragStart={() => setIsDragging(true)}
-                  onDragEnd={() => { setIsDragging(false); setTouchDragPos(null); }}
-                  onTouchDragMove={(x, y) => { setIsDragging(true); setTouchDragPos({ x, y }); }}
-                  onTouchDragEnd={(x, y) => { setTouchDragEnd({ x, y }); setTouchDragPos(null); setIsDragging(false); setTimeout(() => setTouchDragEnd(null), 50); }}
-                />
-              )}
-              {isOnline && !isMyTurn && (
-                <div className="w-full h-10 flex items-center justify-center rounded-xl border border-border/40 bg-secondary/20">
-                  <p className="font-inter text-sm text-muted-foreground">
-                    <span className="text-primary font-semibold">{currentPlayer?.name}</span> oynuyor…
-                  </p>
-                </div>
-              )}
+        {/* SAĞ: Soru kartı */}
+        <div className="w-44 sm:w-52 flex-shrink-0 flex flex-col justify-center gap-3">
+          {currentQuestion && isMyTurn && !winner ? (
+            <QuestionCard
+              question={currentQuestion}
+              onImageError={handleImageError}
+              draggable={!feedback}
+              onDragStart={() => setIsDragging(true)}
+              onDragEnd={() => { setIsDragging(false); setTouchDragPos(null); }}
+              onTouchDragMove={(x, y) => { setIsDragging(true); setTouchDragPos({ x, y }); }}
+              onTouchDragEnd={(x, y) => { setTouchDragEnd({ x, y }); setTouchDragPos(null); setIsDragging(false); setTimeout(() => setTouchDragEnd(null), 50); }}
+            />
+          ) : currentQuestion && !isMyTurn ? (
+            <div className="rounded-xl border border-border/40 bg-secondary/20 flex flex-col items-center justify-center gap-2 p-4 text-center min-h-32">
+              <p className="font-inter text-xs text-muted-foreground">
+                <span className="text-primary font-semibold block mb-1">{currentPlayer?.name}</span>
+                oynuyor…
+              </p>
             </div>
-          </div>
+          ) : null}
+
+          {/* İpucu */}
+          {isMyTurn && !feedback && !winner && currentQuestion && (
+            <p className="text-center font-inter text-xs text-muted-foreground/60 leading-relaxed">
+              Kartı sol taraftaki<br />zaman çizgisine<br />sürükle
+            </p>
+          )}
         </div>
       </div>
     </div>

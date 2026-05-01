@@ -10,7 +10,6 @@ import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import { Loader2 } from 'lucide-react';
 import BottomNav from '@/components/layout/BottomNav';
 import AppHeader from '@/components/layout/AppHeader';
-import { base44 } from '@/api/base44Client';
 
 const PlayerSetup = lazy(() => import('./pages/PlayerSetup'));
 const Game = lazy(() => import('./pages/Game'));
