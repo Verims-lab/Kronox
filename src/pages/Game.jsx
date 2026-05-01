@@ -689,7 +689,7 @@ export default function Game() {
         {/* Ana oyun alanı — Landscape: yatay 3 kolon, Portrait: dikey */}
         <div
           className="flex-1 flex flex-col landscape:flex-row items-stretch gap-2 px-2 landscape:px-2 md:px-4 overflow-hidden"
-          style={{ paddingBottom: 'calc(4rem + env(safe-area-inset-bottom))' }}
+          style={{ paddingBottom: 'calc(14rem + env(safe-area-inset-bottom))' }}
         >
           {/* Landscape sol kolon: PlayerIndicator + Soru kartı */}
           <div className="hidden landscape:flex landscape:flex-col landscape:w-52 landscape:flex-shrink-0 landscape:gap-2 landscape:py-1 landscape:overflow-y-auto">
@@ -762,26 +762,30 @@ export default function Game() {
             )}
           </div>
 
-          {/* Portrait sağ kolon: Soru kartı — landscape'de gizli */}
-          <div className="landscape:hidden space-y-2 md:w-72 md:mt-4 md:flex-shrink-0 w-full overflow-hidden">
-            {currentQuestion && (
-              <QuestionCard
-                question={currentQuestion}
-                onImageError={handleImageError}
-                draggable={isMyTurn && !feedback && !winner}
-                onDragStart={() => setIsDragging(true)}
-                onDragEnd={() => { setIsDragging(false); setTouchDragPos(null); }}
-                onTouchDragMove={(x, y) => { setIsDragging(true); setTouchDragPos({ x, y }); }}
-                onTouchDragEnd={(x, y) => { setTouchDragEnd({ x, y }); setTouchDragPos(null); setIsDragging(false); setTimeout(() => setTouchDragEnd(null), 50); }}
-              />
-            )}
-            {isOnline && !isMyTurn && (
-              <div className="w-full h-10 flex items-center justify-center rounded-xl border border-border/40 bg-secondary/20">
-                <p className="font-inter text-sm text-muted-foreground">
-                  <span className="text-primary font-semibold">{currentPlayer?.name}</span> oynuyor…
-                </p>
-              </div>
-            )}
+          {/* Portrait: Soru kartı — ekranın altında sabit, landscape'de gizli */}
+          <div className="landscape:hidden fixed bottom-0 left-0 right-0 z-20 flex justify-center px-4 pb-4"
+            style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}
+          >
+            <div className="w-full max-w-xs">
+              {currentQuestion && (
+                <QuestionCard
+                  question={currentQuestion}
+                  onImageError={handleImageError}
+                  draggable={isMyTurn && !feedback && !winner}
+                  onDragStart={() => setIsDragging(true)}
+                  onDragEnd={() => { setIsDragging(false); setTouchDragPos(null); }}
+                  onTouchDragMove={(x, y) => { setIsDragging(true); setTouchDragPos({ x, y }); }}
+                  onTouchDragEnd={(x, y) => { setTouchDragEnd({ x, y }); setTouchDragPos(null); setIsDragging(false); setTimeout(() => setTouchDragEnd(null), 50); }}
+                />
+              )}
+              {isOnline && !isMyTurn && (
+                <div className="w-full h-10 flex items-center justify-center rounded-xl border border-border/40 bg-secondary/20">
+                  <p className="font-inter text-sm text-muted-foreground">
+                    <span className="text-primary font-semibold">{currentPlayer?.name}</span> oynuyor…
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

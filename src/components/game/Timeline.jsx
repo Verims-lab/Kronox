@@ -1,13 +1,26 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import TimelineCard from './TimelineCard';
 import DropZone from './DropZone';
+import { Clock } from 'lucide-react';
+
+// Mini preview card shown inline while dragging
+function PreviewCard({ compact }) {
+  return (
+    <div className={`flex-shrink-0 flex flex-col items-center justify-center
+      ${compact ? 'w-14 h-16' : 'w-20 h-20'}
+      rounded-lg border-2 border-dashed border-primary bg-primary/20
+      shadow-lg shadow-primary/30 animate-pulse`}
+    >
+      <Clock className={`${compact ? 'w-4 h-4' : 'w-5 h-5'} text-primary/70 mb-1`} />
+      <span className={`font-cinzel font-bold text-primary/70 ${compact ? 'text-xs' : 'text-sm'}`}>?</span>
+    </div>
+  );
+}
 
 export default function Timeline({ cards = [], onPlaceCard, selectedZone, onSelectZone, isDragMode, externalTouchX, externalTouchY, externalTouchEnd, onExternalZoneChange }) {
-  // onPlaceCard is used for drag-drop; onSelectZone is used for touch-drag within timeline
   const sortedCards = cards && Array.isArray(cards) ? [...cards].sort((a, b) => a.year - b.year) : [];
 
-  // Group consecutive cards with the same year into stacks for display
-  // Each entry in groupedCards is the first card of that year + stackCount
+  // Group consecutive cards with the same year into stacks
   const groupedCards = React.useMemo(() => {
     const groups = [];
     for (const card of sortedCards) {
@@ -20,13 +33,27 @@ export default function Timeline({ cards = [], onPlaceCard, selectedZone, onSele
     }
     return groups;
   }, [sortedCards]);
+
   const scrollRef = useRef(null);
   const dropZoneRefs = useRef([]);
-
-  // Touch drag state
   const [touchOverZone, setTouchOverZone] = useState(null);
 
-  // External touch (from QuestionCard drag) — coordinates piped in from Game.jsx
+  // Determine which zone to highlight/preview
+  const activeZone = touchOverZone !== null ? touchOverZone : (isDragMode ? selectedZone : null);
+
+  // External touch (from QuestionCard drag)
+  const getZoneAtPoint = useCallback((x, y) => {
+    for (let i = 0; i < dropZoneRefs.current.length; i++) {
+      const el = dropZoneRefs.current[i];
+      if (!el) continue;
+      const rect = el.getBoundingClientRect();
+      if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+        return i;
+      }
+    }
+    return null;
+  }, []);
+
   useEffect(() => {
     if (externalTouchX == null || externalTouchY == null) {
       setTouchOverZone(null);
@@ -44,15 +71,7 @@ export default function Timeline({ cards = [], onPlaceCard, selectedZone, onSele
     if (zone !== null && onPlaceCard) onPlaceCard(zone);
   }, [externalTouchEnd, getZoneAtPoint, onPlaceCard]);
 
-  useEffect(() => {
-    if (!scrollRef.current) return;
-    if (selectedZone === 0) {
-      scrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
-    } else if (selectedZone === groupedCards.length) {
-      scrollRef.current.scrollTo({ left: scrollRef.current.scrollWidth, behavior: 'smooth' });
-    }
-  }, [selectedZone, groupedCards.length]);
-
+  // Auto-scroll
   useEffect(() => {
     if (!scrollRef.current) return;
     const el = scrollRef.current;
@@ -61,18 +80,42 @@ export default function Timeline({ cards = [], onPlaceCard, selectedZone, onSele
     }, 50);
   }, [cards.length]);
 
-  // Touch drag: find which drop zone the finger is over
-  const getZoneAtPoint = useCallback((x, y) => {
-    for (let i = 0; i < dropZoneRefs.current.length; i++) {
-      const el = dropZoneRefs.current[i];
-      if (!el) continue;
-      const rect = el.getBoundingClientRect();
-      if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
-        return i;
-      }
+  const compact = cards.length > 4;
+
+  // Build the rendered list: interleave dropzones, cards, and preview
+  // When dragging (isDragMode || touchOverZone != null), show preview card at activeZone
+  const items = [];
+  const totalZones = groupedCards.length + 1;
+
+  for (let i = 0; i < totalZones; i++) {
+    // Drop zone hit area (invisible, only for detection)
+    items.push(
+      <div
+        key={`dz-${i}`}
+        ref={el => dropZoneRefs.current[i] = el}
+        className="relative flex-shrink-0"
+      >
+        {/* Show preview card inline at this position when hovered */}
+        {activeZone === i ? (
+          <PreviewCard compact={compact} />
+        ) : (
+          <DropZone
+            index={i}
+            isActive={selectedZone === i && !isDragMode}
+            onDrop={onPlaceCard}
+            onHover={onSelectZone}
+            isDragMode={isDragMode}
+          />
+        )}
+      </div>
+    );
+
+    if (i < groupedCards.length) {
+      items.push(
+        <TimelineCard key={`card-${i}`} card={groupedCards[i]} index={i} compact={compact} />
+      );
     }
-    return null;
-  }, []);
+  }
 
   const handleTouchMove = useCallback((e) => {
     if (!onSelectZone) return;
@@ -86,9 +129,7 @@ export default function Timeline({ cards = [], onPlaceCard, selectedZone, onSele
     const touch = e.changedTouches[0];
     const zone = getZoneAtPoint(touch.clientX, touch.clientY);
     setTouchOverZone(null);
-    if (zone !== null) {
-      onSelectZone(zone);
-    }
+    if (zone !== null) onSelectZone(zone);
   }, [onSelectZone, getZoneAtPoint]);
 
   return (
@@ -99,23 +140,7 @@ export default function Timeline({ cards = [], onPlaceCard, selectedZone, onSele
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        {/* Drop zones and cards */}
-        {[...Array(groupedCards.length + 1)].map((_, i) => (
-          <React.Fragment key={i}>
-            <div ref={el => dropZoneRefs.current[i] = el}>
-              <DropZone
-                index={i}
-                isActive={selectedZone === i || touchOverZone === i}
-                onDrop={onPlaceCard}
-                onHover={onSelectZone}
-                isDragMode={isDragMode}
-              />
-            </div>
-            {i < groupedCards.length && (
-              <TimelineCard card={groupedCards[i]} index={i} compact={cards.length > 4} />
-            )}
-          </React.Fragment>
-        ))}
+        {items}
       </div>
     </div>
   );

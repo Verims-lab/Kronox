@@ -126,9 +126,9 @@ export default function QuestionCard({ question, onImageError, landscape = false
       </p>
 
       {draggable && !landscape && (
-        <div className="flex items-center gap-1 text-primary/50">
+        <div className="flex items-center gap-1 text-primary/60 mt-1">
           <GripHorizontal className="w-4 h-4" />
-          <span className="text-xs font-inter text-primary/50">sürükle & bırak</span>
+          <span className="text-xs font-inter text-primary/60">↑ zaman çizgisine sürükle</span>
         </div>
       )}
       {!draggable && !landscape && (
