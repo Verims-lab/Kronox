@@ -154,26 +154,7 @@ export default function GameLayout({
         </div>
       </div>
 
-      {/* HAND CARDS (next cards preview) */}
-      {handCards.length > 0 && (
-        <div className="flex-shrink-0 px-3 py-1">
-          <div className="flex items-center gap-1 mb-1.5">
-            <span className="font-inter text-xs text-white/50 font-semibold">Sıradaki Kartlar</span>
-            <span className="text-xs text-white/30 ml-1">{handCards.length}</span>
-          </div>
-          <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-            {handCards.map((card, i) => (
-              <div key={card.id || i} className="flex-shrink-0 bg-white rounded-xl p-1.5 shadow" style={{ width: 64 }}>
-                <div className="text-center font-bangers text-sm text-gray-800 leading-none">{card.year}</div>
-                <div className="text-center text-lg my-0.5">
-                  {({ tarih:'🏰', bilim:'🔬', spor:'⚽', sanat:'🎨', teknoloji:'💡', genel:'🌍' })[card.category] || '🌍'}
-                </div>
-                <div className="text-center font-inter text-[8px] text-gray-600 leading-tight line-clamp-2">{card.question}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+
 
       {/* BOTTOM BUTTONS */}
       <div
