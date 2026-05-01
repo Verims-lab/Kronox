@@ -208,8 +208,8 @@ export default function PlayerSetup() {
         </button>
 
         <button
-          onClick={() => navigate('/lobby')}
-          className="w-full h-12 rounded-2xl font-bangers text-xl tracking-wider text-white active:scale-95 transition-all flex items-center justify-center gap-2"
+          disabled
+          className="w-full h-12 rounded-2xl font-bangers text-xl tracking-wider text-white active:scale-95 transition-all flex items-center justify-center gap-2 opacity-50 cursor-not-allowed"
           style={{ background: 'linear-gradient(135deg, #5b2d8e, #7c3abf)', boxShadow: '0 4px 20px rgba(124,58,191,0.4)' }}>
           
           <Globe className="w-5 h-5" />
