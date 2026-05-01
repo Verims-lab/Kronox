@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
       page = pdfDoc.addPage([W, H]);
       y = H - 60;
       page.drawLine({ start: { x: marginL, y: H - 45 }, end: { x: W - marginR, y: H - 45 }, thickness: 0.5, color: gold, opacity: 0.4 });
-      page.drawText(tr('KRONOS — Teknik Dokuman'), { x: marginL, y: H - 38, size: 8, font, color: gray });
+      page.drawText(tr('KRONOX — Teknik Dokuman'), { x: marginL, y: H - 38, size: 8, font, color: gray });
       page.drawText(`Sayfa ${pdfDoc.getPageCount()}`, { x: W - marginR - 40, y: H - 38, size: 8, font, color: gray });
     };
 
