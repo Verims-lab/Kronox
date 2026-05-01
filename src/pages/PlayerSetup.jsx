@@ -64,7 +64,7 @@ export default function PlayerSetup() {
         </button>
 
         {/* Logo */}
-        <h1 className="pt-1 pr-16 h-16 object-contain"
+        <h1 className="pr-8 h-16 object-contain"
 
         style={{ textShadow: '0 0 20px rgba(255,193,7,0.7), 0 4px 0 rgba(120,80,0,0.8), 0 2px 15px rgba(255,193,7,0.5)' }}>
           
