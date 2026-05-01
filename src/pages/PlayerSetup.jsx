@@ -64,11 +64,12 @@ export default function PlayerSetup() {
         </button>
 
         {/* Logo */}
-        <img
-          src="https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/d9d7b953d_Kronoxlogo1.png"
-          alt="Kronox"
-          className="h-16 object-contain"
-        />
+        <h1 className="pt-1 pr-16 h-16 object-contain"
+
+        style={{ textShadow: '0 0 20px rgba(255,193,7,0.7), 0 4px 0 rgba(120,80,0,0.8), 0 2px 15px rgba(255,193,7,0.5)' }}>
+          
+          KRONOX
+        </h1>
 
         {/* Crown / score placeholder */}
         
