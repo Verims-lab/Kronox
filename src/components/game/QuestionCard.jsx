@@ -80,12 +80,13 @@ export default function QuestionCard({
       onTouchEnd={handleTouchEnd}
       style={{ touchAction: draggable ? 'none' : 'auto' }}
       className={`
-        relative flex flex-col items-center w-full rounded-2xl
+        relative flex flex-col items-center rounded-2xl mx-auto
         bg-white text-gray-800
         shadow-2xl
         ${draggable ? 'cursor-grab active:cursor-grabbing active:scale-95 transition-transform duration-100' : ''}
         ${compact ? 'p-3 gap-2' : 'p-4 gap-3'}
       `}
+      style={{ width: 144, minHeight: 180 }}
     >
       {/* Help icon top right */}
       <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center">
@@ -93,7 +94,7 @@ export default function QuestionCard({
       </div>
 
       {/* Title */}
-      <p className={`font-inter font-bold text-gray-800 text-center leading-tight ${compact ? 'text-sm' : 'text-base'} pr-6`}>
+      <p className={`font-inter font-bold text-gray-800 text-center leading-tight ${compact ? 'text-xs' : 'text-xs'} pr-5`}>
         {question.question}
       </p>
 
@@ -103,7 +104,7 @@ export default function QuestionCard({
           <img
             src={question.media_url}
             alt="Soru görseli"
-            className={`object-contain rounded-xl ${compact ? 'max-h-20' : 'max-h-32'}`}
+            className={`object-contain rounded-xl ${compact ? 'max-h-12' : 'max-h-16'}`}
             referrerPolicy="no-referrer"
             crossOrigin="anonymous"
             onError={handleImgError}
@@ -117,7 +118,7 @@ export default function QuestionCard({
       )}
       {question.type === 'metin' && (
         <div className="flex items-center justify-center">
-          <span className={compact ? 'text-4xl' : 'text-6xl'}>{emoji}</span>
+          <span className={compact ? 'text-3xl' : 'text-4xl'}>{emoji}</span>
         </div>
       )}
 
@@ -140,7 +141,7 @@ export default function QuestionCard({
       {/* Bottom label */}
       {!compact && (
         <div className="w-full pt-1 border-t border-gray-100">
-          <p className="text-center text-xs font-inter text-gray-400">Bu olay ne zaman?</p>
+          <p className="text-center text-[10px] font-inter text-gray-400">Bu olay ne zaman?</p>
         </div>
       )}
     </motion.div>
