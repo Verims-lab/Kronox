@@ -7,9 +7,10 @@ import { AnimatePresence, motion } from 'framer-motion';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
-import { Loader2 } from 'lucide-react';
+
 import BottomNav from '@/components/layout/BottomNav';
 import AppHeader from '@/components/layout/AppHeader';
+import SplashScreen from '@/components/SplashScreen';
 
 const PlayerSetup = lazy(() => import('./pages/PlayerSetup'));
 const Game = lazy(() => import('./pages/Game'));
@@ -18,11 +19,7 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const TestSuite = lazy(() => import('./pages/TestSuite'));
 
 function PageLoader() {
-  return (
-    <div className="fixed inset-0 flex items-center justify-center bg-background">
-      <Loader2 className="w-8 h-8 text-primary animate-spin" />
-    </div>
-  );
+  return <SplashScreen />;
 }
 
 const AuthenticatedApp = () => {
@@ -33,11 +30,7 @@ const AuthenticatedApp = () => {
 
   // Show loading spinner while checking auth
   if (isLoadingAuth) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div>
-      </div>
-    );
+    return <SplashScreen />;
   }
 
   // Handle authentication errors
