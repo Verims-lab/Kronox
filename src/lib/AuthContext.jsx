@@ -36,15 +36,6 @@ export const AuthProvider = ({ children }) => {
       setUser(currentUser || null);
       setIsAuthenticated(!!currentUser);
       setAuthError(null);
-
-      // Giriş sonrası ?code= veya ?token= gibi OAuth parametrelerini URL'den temizle
-      const url = new URL(window.location.href);
-      if (url.searchParams.has('code') || url.searchParams.has('token') || url.searchParams.has('state')) {
-        url.searchParams.delete('code');
-        url.searchParams.delete('token');
-        url.searchParams.delete('state');
-        window.history.replaceState({}, '', url.pathname + (url.search !== '?' ? url.search : '') + url.hash);
-      }
     } catch (error) {
       console.error('User auth check failed:', error);
       setIsAuthenticated(false);
