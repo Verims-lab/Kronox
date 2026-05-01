@@ -313,7 +313,8 @@ export default function Game() {
     }
 
     let newPlayers = snapshotPlayers;
-    let newUsed = snapshotUsed;
+    // Her durumda (doğru veya yanlış) mevcut soruyu used'e ekle — tekrar gelmesin
+    let newUsed = new Set([...snapshotUsed, currentQuestion.id]);
 
     if (isCorrect) {
       newPlayers = [...snapshotPlayers];
@@ -321,7 +322,6 @@ export default function Game() {
         ...snapshotPlayer,
         cards: [...snapshotPlayer.cards, { id: currentQuestion.id, year: questionYear, question: currentQuestion.question, type: currentQuestion.type, media_url: currentQuestion.media_url }]
       };
-      newUsed = new Set([...snapshotUsed, currentQuestion.id]);
     }
 
     const hasWon = isCorrect && newPlayers[snapshotIndex].cards.length >= winCardCount;
