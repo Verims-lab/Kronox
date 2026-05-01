@@ -2,10 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Image, Volume2, Play, Pause, GripHorizontal } from 'lucide-react';
 
-export default function QuestionCard({ question, onImageError, landscape = false, draggable = false, onDragStart, onDragEnd }) {
+export default function QuestionCard({ question, onImageError, landscape = false, draggable = false, onDragStart, onDragEnd, onTouchDragMove, onTouchDragEnd }) {
   const [playing, setPlaying] = useState(false);
   const [imgError, setImgError] = useState(false);
   const audioRef = useRef(null);
+  const touchDragging = useRef(false);
 
   useEffect(() => {
     setImgError(false);
@@ -30,6 +31,27 @@ export default function QuestionCard({ question, onImageError, landscape = false
 
   const handleAudioEnd = () => setPlaying(false);
 
+  const handleTouchStart = (e) => {
+    if (!draggable) return;
+    touchDragging.current = true;
+    if (onDragStart) onDragStart();
+  };
+
+  const handleTouchMove = (e) => {
+    if (!draggable || !touchDragging.current) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    if (onTouchDragMove) onTouchDragMove(touch.clientX, touch.clientY);
+  };
+
+  const handleTouchEnd = (e) => {
+    if (!draggable || !touchDragging.current) return;
+    touchDragging.current = false;
+    const touch = e.changedTouches[0];
+    if (onTouchDragEnd) onTouchDragEnd(touch.clientX, touch.clientY);
+    if (onDragEnd) onDragEnd();
+  };
+
   return (
     <motion.div
       initial={{ rotateY: 180, opacity: 0 }}
@@ -38,6 +60,10 @@ export default function QuestionCard({ question, onImageError, landscape = false
       draggable={draggable}
       onDragStart={draggable ? onDragStart : undefined}
       onDragEnd={draggable ? onDragEnd : undefined}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      style={{ touchAction: draggable ? 'none' : 'auto' }}
       className={`relative flex flex-col items-center justify-center 
         w-full mx-auto rounded-xl gap-2
         border-2 border-primary/50 bg-gradient-to-br from-primary/15 to-primary/5

@@ -36,6 +36,8 @@ export default function Game() {
 
   const [selectedZone, setSelectedZone] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [touchDragPos, setTouchDragPos] = useState(null); // {x, y} while dragging from QuestionCard
+  const [touchDragEnd, setTouchDragEnd] = useState(null); // {x, y} on finger lift
   const [feedback, setFeedback] = useState(null);
   const [winner, setWinner] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
@@ -699,7 +701,9 @@ export default function Game() {
                 landscape
                 draggable={isMyTurn && !feedback && !winner}
                 onDragStart={() => setIsDragging(true)}
-                onDragEnd={() => setIsDragging(false)}
+                onDragEnd={() => { setIsDragging(false); setTouchDragPos(null); }}
+                onTouchDragMove={(x, y) => { setIsDragging(true); setTouchDragPos({ x, y }); }}
+                onTouchDragEnd={(x, y) => { setTouchDragEnd({ x, y }); setTouchDragPos(null); setIsDragging(false); setTimeout(() => setTouchDragEnd(null), 50); }}
               />
             )}
             {isOnline && !isMyTurn && (
@@ -733,6 +737,9 @@ export default function Game() {
                     onSelectZone={isMyTurn ? handleSelectZone : undefined}
                     isDragMode={isDragging && isMyTurn}
                     onPlaceCard={isMyTurn ? handleDropOnZone : undefined}
+                    externalTouchX={isMyTurn ? touchDragPos?.x : null}
+                    externalTouchY={isMyTurn ? touchDragPos?.y : null}
+                    externalTouchEnd={isMyTurn ? touchDragEnd : null}
                   />
                 )}
               </div>
@@ -763,7 +770,9 @@ export default function Game() {
                 onImageError={handleImageError}
                 draggable={isMyTurn && !feedback && !winner}
                 onDragStart={() => setIsDragging(true)}
-                onDragEnd={() => setIsDragging(false)}
+                onDragEnd={() => { setIsDragging(false); setTouchDragPos(null); }}
+                onTouchDragMove={(x, y) => { setIsDragging(true); setTouchDragPos({ x, y }); }}
+                onTouchDragEnd={(x, y) => { setTouchDragEnd({ x, y }); setTouchDragPos(null); setIsDragging(false); setTimeout(() => setTouchDragEnd(null), 50); }}
               />
             )}
             {isOnline && !isMyTurn && (

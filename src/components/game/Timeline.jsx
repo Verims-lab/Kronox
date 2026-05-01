@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
 import TimelineCard from './TimelineCard';
 import DropZone from './DropZone';
 
-export default function Timeline({ cards = [], onPlaceCard, selectedZone, onSelectZone, isDragMode }) {
+export default function Timeline({ cards = [], onPlaceCard, selectedZone, onSelectZone, isDragMode, externalTouchX, externalTouchY, externalTouchEnd, onExternalZoneChange }) {
   // onPlaceCard is used for drag-drop; onSelectZone is used for touch-drag within timeline
   const sortedCards = cards && Array.isArray(cards) ? [...cards].sort((a, b) => a.year - b.year) : [];
 
@@ -25,6 +25,24 @@ export default function Timeline({ cards = [], onPlaceCard, selectedZone, onSele
 
   // Touch drag state
   const [touchOverZone, setTouchOverZone] = useState(null);
+
+  // External touch (from QuestionCard drag) — coordinates piped in from Game.jsx
+  useEffect(() => {
+    if (externalTouchX == null || externalTouchY == null) {
+      setTouchOverZone(null);
+      return;
+    }
+    const zone = getZoneAtPoint(externalTouchX, externalTouchY);
+    setTouchOverZone(zone);
+    if (onExternalZoneChange) onExternalZoneChange(zone);
+  }, [externalTouchX, externalTouchY, getZoneAtPoint, onExternalZoneChange]);
+
+  useEffect(() => {
+    if (!externalTouchEnd) return;
+    const zone = getZoneAtPoint(externalTouchEnd.x, externalTouchEnd.y);
+    setTouchOverZone(null);
+    if (zone !== null && onPlaceCard) onPlaceCard(zone);
+  }, [externalTouchEnd, getZoneAtPoint, onPlaceCard]);
 
   useEffect(() => {
     if (!scrollRef.current) return;
