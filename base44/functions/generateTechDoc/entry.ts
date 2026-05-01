@@ -165,7 +165,7 @@ Deno.serve(async (req) => {
     // ══════════════════════════════════════════════════════════════════════════
     newPage(); y = H - 80;
     sectionTitle('1. Proje Genel Bakis');
-    drawText('Kronos, oyuncularin tarihi olaylari dogru kronolojik siraya yerlestirdigi bir kart oyunudur. Oyun yerel (ayni cihaz, birden fazla oyuncu) ve cevrimici (gercek zamanli lobi, WebSocket tabanli senkronizasyon) olmak uzere iki modda oynanabilir.');
+    drawText('Kronox, oyuncularin tarihi olaylari dogru kronolojik siraya yerlestirdigi bir kart oyunudur. Oyun yerel (ayni cihaz, birden fazla oyuncu) ve cevrimici (gercek zamanli lobi, WebSocket tabanli senkronizasyon) olmak uzere iki modda oynanabilir.');
     spacer();
     drawText('Temel hedefler:');
     bullet('Sezgisel ve hizli kurulum — oyuncular dakikalar icinde oyuna girebilmeli');
