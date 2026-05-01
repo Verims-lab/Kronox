@@ -7,7 +7,7 @@ import { base44 } from '@/api/base44Client';
 export default function PlayerSetup() {
   const navigate = useNavigate();
   const [playerCount, setPlayerCount] = useState(1);
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(undefined); // undefined = loading, null = not logged in
   const [names, setNames] = useState(['', '', '', '']);
   const [selectedCategory, setSelectedCategory] = useState('karisik');
   const [yearStart, setYearStart] = useState(1900);
@@ -56,7 +56,7 @@ export default function PlayerSetup() {
     >
       {/* Top row */}
       <div className="w-full flex items-center justify-between mb-6">
-        {user ? (
+        {user != null ? (
           <button
             onClick={() => navigate('/settings')}
             className="w-10 h-10 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/70"
