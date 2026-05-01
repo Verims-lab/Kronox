@@ -125,8 +125,8 @@ export default function GameLayout({
               onTouchDragMove={onTouchDragMove}
               onTouchDragEnd={onTouchDragEnd}
             />
-            {/* Hourglass + Timer — absolute, sağ üstünde */}
-            <div className="absolute -top-4 -right-8 flex flex-col items-center gap-0.5 pointer-events-none">
+            {/* Hourglass + Timer — absolute, sağ ortasında */}
+            <div className="absolute top-1/2 -translate-y-1/2 -right-10 flex flex-col items-center gap-0.5 pointer-events-none">
               <img
                 src="https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/7a67e9f80_kumsaati.png"
                 alt="kum saati"
