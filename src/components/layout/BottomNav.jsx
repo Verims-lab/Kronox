@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Home, Globe, Settings } from 'lucide-react';
+import { useNavigationStack } from '@/lib/NavigationStackContext';
 
 const TABS = [
   { label: 'Ana Sayfa', icon: Home, path: '/' },
@@ -14,13 +15,21 @@ const HIDDEN_ROUTES = ['/game', '/'];
 export default function BottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [tabStack, setTabStack] = useState({});
+  const { currentTab, switchTab, getStackForTab, resetStack } = useNavigationStack();
 
   if (HIDDEN_ROUTES.includes(location.pathname)) return null;
 
   const handleTabClick = (path) => {
-    setTabStack(prev => ({ ...prev, [path]: true }));
-    navigate(path, { replace: false });
+    if (currentTab === path) {
+      // Re-tapping current tab resets its stack
+      resetStack(path);
+      navigate(path, { replace: true });
+    } else {
+      // Switching to a different tab
+      switchTab(path);
+      const stack = getStackForTab(path);
+      navigate(stack[stack.length - 1], { replace: true });
+    }
   };
 
   return (
@@ -43,7 +52,9 @@ export default function BottomNav() {
             key={path}
             onClick={() => handleTabClick(path)}
             className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors"
-            style={{ touchAction: 'manipulation' }}
+            style={{ touchAction: 'manipulation', minHeight: '56px' }}
+            aria-label={`${label} sekmesi`}
+            aria-current={location.pathname === path ? 'page' : undefined}
           >
             <Icon
               className={`w-5 h-5 transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground'}`}

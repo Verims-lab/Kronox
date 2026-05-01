@@ -61,7 +61,8 @@ export default function GameLayout({
         {/* Left: Settings */}
         <button
           onClick={onToggleSettings}
-          className="w-10 h-10 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/70 hover:bg-white/20 transition-colors"
+          className="w-11 h-11 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/70 hover:bg-white/20 transition-colors"
+          aria-label="Oyun ayarları"
         >
           <Settings className="w-5 h-5" />
         </button>
@@ -96,14 +97,15 @@ export default function GameLayout({
           {isOnline && (
             <button
               onClick={onToggleChat}
-              className={`w-10 h-10 rounded-2xl border flex items-center justify-center transition-colors
+              className={`w-11 h-11 rounded-2xl border flex items-center justify-center transition-colors
                 ${showChat ? 'bg-primary/20 border-primary/60 text-primary' : 'bg-white/10 border-white/20 text-white/70'}`}
+              aria-label={showChat ? 'Sohbeti kapat' : 'Sohbeti aç'}
             >
               <MessageCircle className="w-5 h-5" />
             </button>
           )}
           {/* Placeholder so layout stays balanced when no chat and no timer */}
-          {!isOnline && !isMyTurn && <div className="w-10 h-10" />}
+          {!isOnline && !isMyTurn && <div className="w-11 h-11" />}
         </div>
       </div>
 
@@ -171,6 +173,7 @@ export default function GameLayout({
         <button
           onClick={onUndoPlacement}
           className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/60 hover:bg-white/20 transition-colors flex-shrink-0"
+          aria-label="Son hamlayı geri al"
         >
           <RotateCcw className="w-5 h-5" />
         </button>
@@ -192,6 +195,7 @@ export default function GameLayout({
         <button
           onClick={onSkipTurn}
           className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/60 hover:bg-white/20 transition-colors flex-shrink-0"
+          aria-label="Turunuzu atla"
         >
           <ChevronRight className="w-5 h-5" />
         </button>

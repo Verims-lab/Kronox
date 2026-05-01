@@ -59,11 +59,13 @@ export default function PlayerSetup() {
         {user ? (
           <button
             onClick={() => navigate('/settings')}
-            className="w-10 h-10 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/70">
+            className="w-11 h-11 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/70"
+            aria-label="Ayarlar"
+          >
             <Settings className="w-5 h-5" />
           </button>
         ) : (
-          <div className="w-10" />
+          <div className="w-11" />
         )}
 
         {/* Logo */}
@@ -91,11 +93,14 @@ export default function PlayerSetup() {
             <button
               key={n}
               onClick={() => setPlayerCount(n)}
-              className={`flex-1 h-12 rounded-2xl border-2 font-bangers text-2xl transition-all duration-150
+              className={`flex-1 h-12 rounded-2xl border-2 font-bangers text-2xl transition-all duration-150 min-h-[44px]
                   ${playerCount === n ?
               'border-primary bg-primary/20 text-primary shadow-lg shadow-primary/30' :
               'border-white/20 bg-white/5 text-white/50 hover:border-white/40'}
-                `}>
+                `}
+              aria-label={`${n} oyuncu seç`}
+              aria-pressed={playerCount === n}
+            >
               
                 {n}
               </button>
@@ -111,11 +116,14 @@ export default function PlayerSetup() {
             <button
               key={value}
               onClick={() => setSelectedCategory(value)}
-              className={`py-2 px-2 rounded-2xl border-2 transition-all flex flex-col items-center gap-0.5
+              className={`py-2 px-2 rounded-2xl border-2 transition-all flex flex-col items-center gap-0.5 min-h-[44px] justify-center
                   ${selectedCategory === value ?
               'border-primary bg-primary/20 text-primary' :
               'border-white/20 bg-white/5 text-white/50 hover:border-white/40'}
-                `}>
+                `}
+              aria-label={`${label} kategorisi seç`}
+              aria-pressed={selectedCategory === value}
+            >
               
                 <span className="text-xl">{emoji}</span>
                 <span className="font-inter text-xs font-semibold">{label}</span>
@@ -225,7 +233,9 @@ export default function PlayerSetup() {
               </p>
               <button
               onClick={() => base44.auth.logout('/')}
-              className="font-inter text-xs text-white/30 hover:text-red-400 flex items-center gap-1 transition-colors">
+              className="font-inter text-xs text-white/30 hover:text-red-400 flex items-center gap-1 transition-colors px-2 py-1 rounded min-h-[44px] justify-center"
+              aria-label="Hesaptan çıkış yap"
+            >
               
                 <LogOut className="w-3 h-3" />
                 Çıkış
@@ -234,7 +244,9 @@ export default function PlayerSetup() {
 
           <button
             onClick={() => base44.auth.redirectToLogin('/')}
-            className="w-full font-inter text-sm text-white/50 hover:text-primary flex items-center justify-center gap-2 py-2 transition-colors">
+            className="w-full font-inter text-sm text-white/50 hover:text-primary flex items-center justify-center gap-2 py-3 transition-colors rounded min-h-[44px]"
+            aria-label="Google ile giriş yap"
+          >
             
               <LogIn className="w-4 h-4" />
               Google ile Giriş Yap

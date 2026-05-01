@@ -11,6 +11,7 @@ import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import BottomNav from '@/components/layout/BottomNav';
 import AppHeader from '@/components/layout/AppHeader';
 import SplashScreen from '@/components/SplashScreen';
+import { NavigationStackProvider } from '@/lib/NavigationStackContext';
 
 const PlayerSetup = lazy(() => import('./pages/PlayerSetup'));
 const Game = lazy(() => import('./pages/Game'));
@@ -76,7 +77,9 @@ function App() {
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>
         <Router>
-          <AuthenticatedApp />
+          <NavigationStackProvider>
+            <AuthenticatedApp />
+          </NavigationStackProvider>
         </Router>
         <Toaster />
       </QueryClientProvider>

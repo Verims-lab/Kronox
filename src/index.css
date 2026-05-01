@@ -101,10 +101,12 @@
   html {
     overflow-x: hidden;
     overflow-y: auto;
+    overscroll-behavior-y: none;
   }
 
   body {
     overflow-y: auto;
+    overscroll-behavior-y: none;
   }
 
   * {
