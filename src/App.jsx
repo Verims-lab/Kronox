@@ -2,21 +2,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
-import React, { Suspense, lazy, useEffect } from 'react';
-
-// OAuth callback'ten dönerken URL'deki ?code= gibi parametreleri hemen temizle
-// Bu yapılmazsa React Router her location değişiminde yeniden render tetikler
-(function cleanOAuthParams() {
-  try {
-    const url = new URL(window.location.href);
-    const dirty = ['code', 'token', 'state', 'session_state', 'scope'];
-    if (dirty.some(p => url.searchParams.has(p))) {
-      dirty.forEach(p => url.searchParams.delete(p));
-      const clean = url.pathname + (url.search && url.search !== '?' ? url.search : '') + url.hash;
-      window.history.replaceState({}, '', clean);
-    }
-  } catch (_) {}
-})();
+import React, { Suspense, lazy } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
