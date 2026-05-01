@@ -60,7 +60,7 @@ export default function GameOver({ winner, onRestart, durationSeconds, winCardCo
           <button
             onClick={() => {
               if (navigator.share) {
-                navigator.share({ title: 'Kronos', text: `${winCardCount || 10} kartı doğru sıraladım!` });
+                navigator.share({ title: 'Kronox', text: `${winCardCount || 10} kartı doğru sıraladım!` });
               }
             }}
             className="w-12 h-12 rounded-2xl flex items-center justify-center border-2 border-white/20 bg-white/10 text-white hover:bg-white/20 transition-colors"

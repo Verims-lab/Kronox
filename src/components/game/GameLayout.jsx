@@ -69,7 +69,7 @@ export default function GameLayout({
         {/* Center: Logo + progress */}
         <div className="flex flex-col items-center flex-1 min-w-0">
           <h1 className="font-bangers text-3xl text-primary tracking-widest leading-none" style={{ textShadow: '0 2px 12px rgba(255,193,7,0.5), 0 0 30px rgba(255,193,7,0.3)' }}>
-            KRONOS
+            KRONOX
           </h1>
           {/* Progress bar */}
           <div className="w-32 mt-1">

@@ -37,7 +37,7 @@ export default function AppHeader({ onBack } = {}) {
         style={{ textShadow: '0 0 15px rgba(255,193,7,0.5)' }}
         onClick={handleBack}
       >
-        KRONOS
+        KRONOX
       </h1>
     </div>
   );
