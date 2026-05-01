@@ -69,7 +69,7 @@ export default function PlayerSetup() {
         {/* Logo */}
         <div className="flex-1 flex items-center justify-center">
           <img
-            src="https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/49e9885aa_Kronoxlogo1.png"
+            src="https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/49fc6f458_kronoxnobckgrnd.png"
             alt="Kronox"
             className="h-24 object-contain"
           />
