@@ -56,12 +56,16 @@ export default function PlayerSetup() {
     >
       {/* Top row */}
       <div className="w-full flex items-center justify-between mb-6">
-        <button
-          onClick={() => navigate('/settings')}
-          className="w-10 h-10 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/70"
-        >
-          <Settings className="w-5 h-5" />
-        </button>
+        {user ? (
+          <button
+            onClick={() => navigate('/settings')}
+            className="w-10 h-10 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/70"
+          >
+            <Settings className="w-5 h-5" />
+          </button>
+        ) : (
+          <div className="w-10 h-10" />
+        )}
 
         {/* Logo */}
         <h1
