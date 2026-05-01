@@ -11,11 +11,11 @@ const categoryEmoji = {
   genel: '🌍',
 };
 
-// Purple/violet cards for placed cards (like the screenshot)
+// Deep navy/indigo cards — matches KronoX reference
 const cardColors = [
-  { bg: 'from-violet-600 to-violet-800', border: 'border-violet-400', shadow: 'shadow-violet-500/40' },
-  { bg: 'from-blue-600 to-blue-800', border: 'border-blue-400', shadow: 'shadow-blue-500/40' },
-  { bg: 'from-indigo-600 to-indigo-800', border: 'border-indigo-400', shadow: 'shadow-indigo-500/40' },
+  { bg: 'from-indigo-700 to-indigo-900', border: 'border-indigo-400/70', shadow: 'shadow-indigo-500/40' },
+  { bg: 'from-violet-700 to-violet-900', border: 'border-violet-400/70', shadow: 'shadow-violet-500/40' },
+  { bg: 'from-blue-700 to-blue-900', border: 'border-blue-400/70', shadow: 'shadow-blue-500/40' },
 ];
 
 export default function TimelineCard({ card, index, isActive = false }) {

@@ -47,7 +47,12 @@ export default function PlayerSetup() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-start px-5 pt-safe pb-safe"
-      style={{ paddingTop: 'calc(1.5rem + env(safe-area-inset-top))', paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}
+      style={{
+        paddingTop: 'calc(1.5rem + env(safe-area-inset-top))',
+        paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))',
+        background: 'radial-gradient(ellipse at 50% 0%, #1a2a6e 0%, #0a0e2e 60%, #07091f 100%)',
+        minHeight: '100vh',
+      }}
     >
       {/* Top row */}
       <div className="w-full flex items-center justify-between mb-6">
@@ -206,7 +211,8 @@ export default function PlayerSetup() {
 
         <button
           onClick={() => navigate('/lobby')}
-          className="w-full h-12 rounded-2xl font-bangers text-xl tracking-wider border-2 border-white/25 bg-white/8 text-white/80 hover:bg-white/15 active:scale-95 transition-all flex items-center justify-center gap-2"
+          className="w-full h-12 rounded-2xl font-bangers text-xl tracking-wider text-white active:scale-95 transition-all flex items-center justify-center gap-2"
+          style={{ background: 'linear-gradient(135deg, #5b2d8e, #7c3abf)', boxShadow: '0 4px 20px rgba(124,58,191,0.4)' }}
         >
           <Globe className="w-5 h-5" />
           ÇEVRİMİÇİ OYUN

@@ -9,14 +9,15 @@ export default function GameOver({ winner, onRestart, durationSeconds, winCardCo
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-6"
+      className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md p-6"
+      style={{ background: 'radial-gradient(ellipse at 50% 30%, #1a2a6e88 0%, #07091fcc 100%)' }}
     >
       <motion.div
         initial={{ scale: 0.7, opacity: 0, y: 40 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 260, damping: 22, delay: 0.1 }}
         className="w-full max-w-xs rounded-3xl overflow-hidden shadow-2xl"
-        style={{ background: 'linear-gradient(160deg, hsl(226,50%,18%) 0%, hsl(226,45%,13%) 100%)', border: '2px solid rgba(255,193,7,0.4)' }}
+        style={{ background: 'linear-gradient(160deg, #12185e 0%, #0a0e2e 100%)', border: '2px solid rgba(255,193,7,0.5)' }}
       >
         {/* Header */}
         <div className="relative pt-10 pb-6 px-6 text-center" style={{ background: 'linear-gradient(180deg, rgba(255,193,7,0.12) 0%, transparent 100%)' }}>
