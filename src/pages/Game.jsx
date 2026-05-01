@@ -91,7 +91,7 @@ export default function Game() {
   // Memoize question pool
   const questionPool = useMemo(() => {
     return allQuestions
-      .filter(q => q.type === 'metin')
+      .filter(q => category === 'muzik' ? q.type === 'muzik' : q.type === 'metin')
       .filter(q => q.year >= yearStart && q.year <= yearEnd)
       .filter(q => category === 'karisik' || q.category === category);
   }, [allQuestions, yearStart, yearEnd, category]);
@@ -210,7 +210,7 @@ export default function Game() {
     if (lobbyDataRef.current !== null) return;
     
     const filteredQuestions = allQuestions
-      .filter(q => q.type === 'metin')
+      .filter(q => category === 'muzik' ? q.type === 'muzik' : q.type === 'metin')
       .filter(q => q.year >= yearStart && q.year <= yearEnd)
       .filter(q => category === 'karisik' || q.category === category);
 
