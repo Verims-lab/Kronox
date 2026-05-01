@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
       page = pdfDoc.addPage([W, H]);
       y = H - 60;
       page.drawLine({ start: { x: marginL, y: H - 45 }, end: { x: W - marginR, y: H - 45 }, thickness: 0.5, color: gold, opacity: 0.4 });
-      page.drawText(tr('KRONOX — Teknik Dokuman'), { x: marginL, y: H - 38, size: 8, font, color: gray });
+      page.drawText(tr('KRONOS — Teknik Dokuman'), { x: marginL, y: H - 38, size: 8, font, color: gray });
       page.drawText(`Sayfa ${pdfDoc.getPageCount()}`, { x: W - marginR - 40, y: H - 38, size: 8, font, color: gray });
     };
 
@@ -165,7 +165,7 @@ Deno.serve(async (req) => {
     // ══════════════════════════════════════════════════════════════════════════
     newPage(); y = H - 80;
     sectionTitle('1. Proje Genel Bakis');
-    drawText('Kronox, oyuncularin tarihi olaylari dogru kronolojik siraya yerlestirdigi bir kart oyunudur. Oyun yerel (ayni cihaz, birden fazla oyuncu) ve cevrimici (gercek zamanli lobi, WebSocket tabanli senkronizasyon) olmak uzere iki modda oynanabilir.');
+    drawText('Kronos, oyuncularin tarihi olaylari dogru kronolojik siraya yerlestirdigi bir kart oyunudur. Oyun yerel (ayni cihaz, birden fazla oyuncu) ve cevrimici (gercek zamanli lobi, WebSocket tabanli senkronizasyon) olmak uzere iki modda oynanabilir.');
     spacer();
     drawText('Temel hedefler:');
     bullet('Sezgisel ve hizli kurulum — oyuncular dakikalar icinde oyuna girebilmeli');

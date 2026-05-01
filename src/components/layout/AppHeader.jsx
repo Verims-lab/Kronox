@@ -32,12 +32,13 @@ export default function AppHeader({ onBack } = {}) {
       >
         <ArrowLeft className="w-5 h-5" />
       </button>
-      <img 
-        src="https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/ba8dc2ec6_Kronoxlogo.png" 
-        alt="Kronox" 
-        className="h-8 object-contain ml-3 cursor-pointer" 
+      <h1
+        className="font-bangers text-2xl text-primary tracking-widest ml-3 cursor-pointer"
+        style={{ textShadow: '0 0 15px rgba(255,193,7,0.5)' }}
         onClick={handleBack}
-      />
+      >
+        KRONOX
+      </h1>
     </div>
   );
 }

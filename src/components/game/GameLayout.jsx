@@ -68,7 +68,9 @@ export default function GameLayout({
 
         {/* Center: Logo + progress */}
         <div className="flex flex-col items-center flex-1 min-w-0">
-          <img src="https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/ba8dc2ec6_Kronoxlogo.png" alt="Kronox" className="h-12 object-contain" />
+          <h1 className="font-bangers text-3xl text-primary tracking-widest leading-none" style={{ textShadow: '0 2px 12px rgba(255,193,7,0.5), 0 0 30px rgba(255,193,7,0.3)' }}>
+            KRONOX
+          </h1>
           {/* Progress bar */}
           <div className="w-32 mt-1">
             <div className="text-center text-white/60 text-xs font-inter mb-0.5">
