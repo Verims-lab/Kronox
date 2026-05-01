@@ -55,7 +55,7 @@ export default function PlayerSetup() {
     }}>
       
       {/* Top row */}
-      <div className="w-full flex items-center justify-between mb-6">
+      <div className="w-full flex items-center justify-between mb-4">
         <button
           onClick={() => navigate('/settings')}
           className="w-10 h-10 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/70">
@@ -64,22 +64,18 @@ export default function PlayerSetup() {
         </button>
 
         {/* Logo */}
-        <img
-          src="https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/49e9885aa_Kronoxlogo1.png"
-          alt="Kronox"
-          className="h-32 object-contain"
-        />
+        <div className="flex-1 flex items-center justify-center">
+          <img
+            src="https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/49e9885aa_Kronoxlogo1.png"
+            alt="Kronox"
+            className="h-24 object-contain"
+          />
+        </div>
 
-        {/* Crown / score placeholder */}
-        
-
-
-
-
-        
+        <div className="w-10" />
       </div>
 
-      <div className="w-full max-w-md space-y-5">
+      <div className="w-full max-w-md space-y-3">
 
         {/* Player count */}
         <div className="space-y-2">

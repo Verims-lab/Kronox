@@ -100,11 +100,11 @@
 
   html {
     overflow-x: hidden;
-    overscroll-behavior: none;
+    overflow-y: auto;
   }
 
   body {
-    overscroll-behavior: none;
+    overflow-y: auto;
   }
 
   * {
