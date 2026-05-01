@@ -71,7 +71,7 @@ export default function GameLayout({
           <img
             src="https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/d9d7b953d_Kronoxlogo1.png"
             alt="Kronox"
-            className="h-12 object-contain"
+            className="h-16 object-contain mb-1"
           />
           {/* Progress bar */}
           <div className="w-32 mt-1">
