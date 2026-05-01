@@ -33,6 +33,7 @@ export default function Game() {
   const [isDragging, setIsDragging] = useState(false);
   const [touchDragPos, setTouchDragPos] = useState(null); // {x, y} while dragging from QuestionCard
   const [touchDragEnd, setTouchDragEnd] = useState(null); // {x, y} on finger lift
+  const isPlacingRef = useRef(false); // guard against double-placement
   const [feedback, setFeedback] = useState(null);
   const [winner, setWinner] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
@@ -271,6 +272,9 @@ export default function Game() {
 
   const doPlacement = (zone) => {
     if (zone === null || zone === undefined || !currentQuestion || !currentPlayer) return;
+    if (isPlacingRef.current) return;
+    isPlacingRef.current = true;
+    setTimeout(() => { isPlacingRef.current = false; }, 500);
 
     const snapshotPlayer = { ...currentPlayer };
     const snapshotPlayers = [...players];
