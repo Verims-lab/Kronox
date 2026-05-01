@@ -35,16 +35,27 @@ export const AuthProvider = ({ children }) => {
       const currentUser = await base44.auth.me();
       setUser(currentUser || null);
       setIsAuthenticated(!!currentUser);
-      setIsLoadingAuth(false);
-      setAuthChecked(true);
+      setAuthError(null);
+
+      // Giriş sonrası ?code= veya ?token= gibi OAuth parametrelerini URL'den temizle
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('code') || url.searchParams.has('token') || url.searchParams.has('state')) {
+        url.searchParams.delete('code');
+        url.searchParams.delete('token');
+        url.searchParams.delete('state');
+        window.history.replaceState({}, '', url.pathname + (url.search !== '?' ? url.search : '') + url.hash);
+      }
     } catch (error) {
       console.error('User auth check failed:', error);
-      setIsLoadingAuth(false);
       setIsAuthenticated(false);
-      setAuthChecked(true);
-      if (error?.message?.includes('auth_required') || error?.type === 'auth_required' || error?.status === 401) {
-        setAuthError({ type: 'auth_required', message: 'Login required' });
+      setUser(null);
+      // auth_required = uygulama public, login gerektirmiyor — hata değil
+      if (error?.message?.includes('user_not_registered')) {
+        setAuthError({ type: 'user_not_registered', message: 'User not registered' });
       }
+    } finally {
+      setIsLoadingAuth(false);
+      setAuthChecked(true);
     }
   };
 
