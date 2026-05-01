@@ -113,9 +113,9 @@ export default function GameLayout({
       )}
 
       {/* CENTER: Question card */}
-      <div className="flex-shrink-0 flex justify-center items-center gap-3 px-4 py-2">
+      <div className="flex-shrink-0 flex justify-center items-center px-4 py-2">
         {currentQuestion && isMyTurn && !winner ? (
-          <>
+          <div className="relative">
             <QuestionCard
               question={currentQuestion}
               onImageError={onImageError}
@@ -125,16 +125,17 @@ export default function GameLayout({
               onTouchDragMove={onTouchDragMove}
               onTouchDragEnd={onTouchDragEnd}
             />
-            {/* Hourglass + Timer */}
-            <div className="flex flex-col items-center gap-1 flex-shrink-0">
+            {/* Hourglass + Timer — absolute, sağ üstünde */}
+            <div className="absolute -top-4 -right-8 flex flex-col items-center gap-0.5 pointer-events-none">
               <img
                 src="https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/7a67e9f80_kumsaati.png"
                 alt="kum saati"
-                className="w-14 h-14 object-contain drop-shadow-lg"
+                className="w-12 h-12 object-contain"
+                style={{ mixBlendMode: 'screen' }}
               />
               <TurnTimer key={timerKey} active={!feedback && !winner} onTimeUp={isMyTurn ? onTimeUp : undefined} duration={turnDuration} />
             </div>
-          </>
+          </div>
         ) : currentQuestion && !isMyTurn ? (
           <div className="w-full max-w-xs rounded-2xl bg-white/5 border border-white/15 flex items-center justify-center py-8 text-center">
             <p className="font-inter text-white/60 text-sm">
