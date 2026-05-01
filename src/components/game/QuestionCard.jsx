@@ -10,6 +10,7 @@ const categoryEmoji = {
   sanat: '🎨',
   teknoloji: '💡',
   genel: '🌍',
+  muzik: '🎵',
 };
 
 // Neon glow colors per category
@@ -20,6 +21,7 @@ const categoryNeon = {
   sanat:    { border: '#f472b6', shadow: '0 0 8px 2px rgba(244,114,182,0.7), 0 0 20px 4px rgba(244,114,182,0.35)' },
   teknoloji:{ border: '#a78bfa', shadow: '0 0 8px 2px rgba(167,139,250,0.7), 0 0 20px 4px rgba(167,139,250,0.35)' },
   genel:    { border: '#60a5fa', shadow: '0 0 8px 2px rgba(96,165,250,0.7), 0 0 20px 4px rgba(96,165,250,0.35)' },
+  muzik:    { border: '#ec4899', shadow: '0 0 8px 2px rgba(236,72,153,0.7), 0 0 20px 4px rgba(236,72,153,0.35)' },
 };
 
 export default function QuestionCard({
@@ -40,6 +42,13 @@ export default function QuestionCard({
   useEffect(() => {
     setImgError(false);
     setPlaying(false);
+    // Auto-play music type questions
+    if (question?.type === 'muzik' && audioRef.current) {
+      setTimeout(() => {
+        audioRef.current?.play();
+        setPlaying(true);
+      }, 300);
+    }
   }, [question?.id]);
 
   const handleImgError = () => {
@@ -139,18 +148,44 @@ export default function QuestionCard({
 
       {/* Audio */}
       {question.type === 'isitsel' && question.media_url && (
-        <div className="flex flex-col items-center gap-1.5">
-          <audio ref={audioRef} src={question.media_url} onEnded={() => setPlaying(false)} />
-          <button
-            onClick={toggleAudio}
-            className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center shadow-lg"
-          >
-            {playing ? <Pause className="w-5 h-5 text-white" /> : <Play className="w-5 h-5 text-white ml-0.5" />}
-          </button>
-          <p className="text-xs text-gray-500 flex items-center gap-1">
-            <Volume2 className="w-3 h-3" /> Sesi dinle
-          </p>
-        </div>
+       <div className="flex flex-col items-center gap-1.5">
+         <audio ref={audioRef} src={question.media_url} onEnded={() => setPlaying(false)} />
+         <button
+           onClick={toggleAudio}
+           className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center shadow-lg"
+         >
+           {playing ? <Pause className="w-5 h-5 text-white" /> : <Play className="w-5 h-5 text-white ml-0.5" />}
+         </button>
+         <p className="text-xs text-gray-500 flex items-center gap-1">
+           <Volume2 className="w-3 h-3" /> Sesi dinle
+         </p>
+       </div>
+      )}
+
+      {/* Music */}
+      {question.type === 'muzik' && question.media_url && (
+       <div className="flex flex-col items-center gap-1.5">
+         <audio
+           ref={audioRef}
+           src={question.media_url}
+           onEnded={() => {
+             // Loop music after 30 seconds
+             if (audioRef.current) {
+               audioRef.current.currentTime = 0;
+               audioRef.current.play();
+             }
+           }}
+         />
+         <button
+           onClick={toggleAudio}
+           className="w-12 h-12 rounded-full bg-pink-500 flex items-center justify-center shadow-lg"
+         >
+           {playing ? <Pause className="w-5 h-5 text-white" /> : <Play className="w-5 h-5 text-white ml-0.5" />}
+         </button>
+         <p className="text-xs text-gray-500 flex items-center gap-1">
+           <Volume2 className="w-3 h-3" /> 30 sn preview
+         </p>
+       </div>
       )}
 
       {/* Bottom label */}
