@@ -69,9 +69,9 @@ export default function GameLayout({
         {/* Center: Logo + progress */}
         <div className="flex flex-col items-center flex-1 min-w-0">
           <img
-            src="https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/d9d7b953d_Kronoxlogo1.png"
+            src="https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/7b17795b0_Kronoxlogo1.png"
             alt="Kronox"
-            className="h-16 object-contain mb-1"
+            className="h-20 object-contain mb-1"
           />
           {/* Progress bar */}
           <div className="w-32 mt-1">
