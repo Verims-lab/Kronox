@@ -72,12 +72,12 @@ export default function PlayerSetup() {
         </h1>
 
         {/* Crown / score placeholder */}
-        <div className="flex items-center gap-1.5 bg-white/10 border border-white/20 rounded-2xl px-3 h-10 hidden">
-          <span className="text-lg">👑</span>
-          <span className="font-bangers text-primary text-lg tracking-wide">
-            {user ? '∞' : '–'}
-          </span>
-        </div>
+        
+
+
+
+
+        
       </div>
 
       <div className="w-full max-w-md space-y-5">
