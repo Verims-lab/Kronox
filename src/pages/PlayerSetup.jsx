@@ -59,7 +59,7 @@ export default function PlayerSetup() {
         {user ? (
           <button
             onClick={() => navigate('/settings')}
-            className="w-11 h-11 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/70"
+            className="w-11 h-11 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/70 min-h-[44px] min-w-[44px]"
             aria-label="Ayarlar"
           >
             <Settings className="w-5 h-5" />

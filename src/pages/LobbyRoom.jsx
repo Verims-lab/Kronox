@@ -371,7 +371,7 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
       <div
         ref={waitingScrollRef}
         className="w-full max-w-lg px-4 pb-4 space-y-4 flex-1 overflow-y-auto"
-        style={{ overscrollBehavior: 'none', transform: pullY > 0 ? `translateY(${pullY}px)` : undefined, transition: pullY === 0 ? 'transform 0.2s' : undefined }}
+        style={{ overscrollBehavior: 'none', overscrollBehaviorY: 'none', transform: pullY > 0 ? `translateY(${pullY}px)` : undefined, transition: pullY === 0 ? 'transform 0.2s' : undefined }}
       >
         {refreshing && (
           <div className="flex justify-center py-1">
@@ -381,7 +381,7 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
         {/* Header */}
         <div className="flex items-center justify-between">
           <h1 className="font-cinzel text-xl text-primary tracking-widest">Lobi</h1>
-          <button onClick={onLeave} className="text-xs font-inter text-muted-foreground hover:text-destructive transition-colors px-2 py-1 rounded min-h-[44px] flex items-center justify-center" aria-label="Lobiden ayrıl">
+          <button onClick={onLeave} className="text-xs font-inter text-muted-foreground hover:text-destructive transition-colors px-3 py-2 rounded min-h-[44px] min-w-[44px] flex items-center justify-center" aria-label="Lobiden ayrıl">
             Ayrıl
           </button>
         </div>
@@ -389,7 +389,7 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
         {/* Lobby Code */}
         <div className="text-center space-y-1">
           <p className="font-inter text-xs text-muted-foreground">Lobi Kodu</p>
-          <button onClick={onCopyCode} className="flex items-center gap-2 mx-auto bg-secondary/50 border border-border/50 rounded-xl px-6 py-3 hover:bg-secondary transition-all min-h-[44px] justify-center" aria-label="Lobi kodunu kopyala">
+          <button onClick={onCopyCode} className="flex items-center gap-2 mx-auto bg-secondary/50 border border-border/50 rounded-xl px-6 py-3 hover:bg-secondary transition-all min-h-[44px] min-w-[44px] justify-center" aria-label="Lobi kodunu kopyala">
             <span className="font-cinzel text-2xl font-bold text-primary tracking-[0.3em]">{lobby.code}</span>
             {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-muted-foreground" />}
           </button>
@@ -438,7 +438,7 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
                   <button
                     key={c.value}
                     onClick={() => handleSettingChange('category', c.value)}
-                    className={`px-3 py-1 rounded-lg border text-xs font-inter transition-all min-h-[44px] ${settings.category === c.value ? 'border-primary bg-primary/15 text-primary' : 'border-border/50 bg-secondary/30 text-muted-foreground'}`}
+                    className={`px-3 py-1 rounded-lg border text-xs font-inter transition-all min-h-[44px] min-w-[44px] ${settings.category === c.value ? 'border-primary bg-primary/15 text-primary' : 'border-border/50 bg-secondary/30 text-muted-foreground'}`}
                     aria-label={`${c.label} kategorisini seç`}
                     aria-pressed={settings.category === c.value}
                   >
@@ -453,17 +453,17 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
               <div className="space-y-1">
                 <p className="font-inter text-xs text-muted-foreground">Başlangıç Yılı</p>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => handleSettingChange('year_start', Math.max(0, settings.year_start - 10))} className="w-10 h-10 rounded-lg border border-border/50 bg-secondary/30 text-muted-foreground text-sm font-bold flex items-center justify-center" aria-label="Başlangıç yılını azalt">−</button>
+                  <button onClick={() => handleSettingChange('year_start', Math.max(0, settings.year_start - 10))} className="w-10 h-10 rounded-lg border border-border/50 bg-secondary/30 text-muted-foreground text-sm font-bold flex items-center justify-center min-h-[44px] min-w-[44px]" aria-label="Başlangıç yılını azalt">−</button>
                   <span className="flex-1 text-center font-cinzel text-sm font-bold text-foreground">{settings.year_start}</span>
-                  <button onClick={() => handleSettingChange('year_start', Math.min(settings.year_end - 10, settings.year_start + 10))} className="w-10 h-10 rounded-lg border border-border/50 bg-secondary/30 text-muted-foreground text-sm font-bold flex items-center justify-center" aria-label="Başlangıç yılını arttır">+</button>
+                  <button onClick={() => handleSettingChange('year_start', Math.min(settings.year_end - 10, settings.year_start + 10))} className="w-10 h-10 rounded-lg border border-border/50 bg-secondary/30 text-muted-foreground text-sm font-bold flex items-center justify-center min-h-[44px] min-w-[44px]" aria-label="Başlangıç yılını arttır">+</button>
                 </div>
               </div>
               <div className="space-y-1">
                 <p className="font-inter text-xs text-muted-foreground">Bitiş Yılı</p>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => handleSettingChange('year_end', Math.max(settings.year_start + 10, settings.year_end - 10))} className="w-10 h-10 rounded-lg border border-border/50 bg-secondary/30 text-muted-foreground text-sm font-bold flex items-center justify-center" aria-label="Bitiş yılını azalt">−</button>
+                  <button onClick={() => handleSettingChange('year_end', Math.max(settings.year_start + 10, settings.year_end - 10))} className="w-10 h-10 rounded-lg border border-border/50 bg-secondary/30 text-muted-foreground text-sm font-bold flex items-center justify-center min-h-[44px] min-w-[44px]" aria-label="Bitiş yılını azalt">−</button>
                   <span className="flex-1 text-center font-cinzel text-sm font-bold text-foreground">{settings.year_end}</span>
-                  <button onClick={() => handleSettingChange('year_end', Math.min(new Date().getFullYear(), settings.year_end + 10))} className="w-10 h-10 rounded-lg border border-border/50 bg-secondary/30 text-muted-foreground text-sm font-bold flex items-center justify-center" aria-label="Bitiş yılını arttır">+</button>
+                  <button onClick={() => handleSettingChange('year_end', Math.min(new Date().getFullYear(), settings.year_end + 10))} className="w-10 h-10 rounded-lg border border-border/50 bg-secondary/30 text-muted-foreground text-sm font-bold flex items-center justify-center min-h-[44px] min-w-[44px]" aria-label="Bitiş yılını arttır">+</button>
                 </div>
               </div>
             </div>
@@ -476,7 +476,7 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
                   <button
                     key={s}
                     onClick={() => handleSettingChange('turn_duration', s)}
-                    className={`flex-1 py-1.5 rounded-lg border text-xs font-cinzel font-bold transition-all min-h-[44px] ${settings.turn_duration === s ? 'border-primary bg-primary/15 text-primary' : 'border-border/50 bg-secondary/30 text-muted-foreground'}`}
+                    className={`flex-1 py-1.5 rounded-lg border text-xs font-cinzel font-bold transition-all min-h-[44px] min-w-[44px] ${settings.turn_duration === s ? 'border-primary bg-primary/15 text-primary' : 'border-border/50 bg-secondary/30 text-muted-foreground'}`}
                     aria-label={`${s} saniye tur süresi seç`}
                     aria-pressed={settings.turn_duration === s}
                   >
@@ -494,7 +494,7 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
                   <button
                     key={n}
                     onClick={() => handleSettingChange('win_card_count', n)}
-                    className={`flex-1 py-1.5 rounded-lg border text-xs font-cinzel font-bold transition-all min-h-[44px] ${settings.win_card_count === n ? 'border-primary bg-primary/15 text-primary' : 'border-border/50 bg-secondary/30 text-muted-foreground'}`}
+                    className={`flex-1 py-1.5 rounded-lg border text-xs font-cinzel font-bold transition-all min-h-[44px] min-w-[44px] ${settings.win_card_count === n ? 'border-primary bg-primary/15 text-primary' : 'border-border/50 bg-secondary/30 text-muted-foreground'}`}
                     aria-label={`${n} kart ile kazanmak için seç`}
                     aria-pressed={settings.win_card_count === n}
                   >

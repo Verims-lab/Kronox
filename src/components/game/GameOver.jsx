@@ -52,7 +52,7 @@ export default function GameOver({ winner, onRestart, durationSeconds, winCardCo
         <div className="flex gap-3 px-6 pb-8">
           <Button
             onClick={onRestart}
-            className="flex-1 h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-bangers text-xl tracking-wider gap-2 rounded-2xl"
+            className="flex-1 h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-bangers text-xl tracking-wider gap-2 rounded-2xl min-h-[44px]"
           >
             <RotateCcw className="w-5 h-5" />
             Tekrar Oyna
@@ -63,7 +63,8 @@ export default function GameOver({ winner, onRestart, durationSeconds, winCardCo
                 navigator.share({ title: 'Kronox', text: `${winCardCount || 10} kartı doğru sıraladım!` });
               }
             }}
-            className="w-12 h-12 rounded-2xl flex items-center justify-center border-2 border-white/20 bg-white/10 text-white hover:bg-white/20 transition-colors"
+            className="w-12 h-12 rounded-2xl flex items-center justify-center border-2 border-white/20 bg-white/10 text-white hover:bg-white/20 transition-colors min-h-[44px] min-w-[44px]"
+            aria-label="Oyun sonucunu paylaş"
           >
             <Share2 className="w-5 h-5" />
           </button>

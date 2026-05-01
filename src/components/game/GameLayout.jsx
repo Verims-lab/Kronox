@@ -97,7 +97,7 @@ export default function GameLayout({
           {isOnline && (
             <button
               onClick={onToggleChat}
-              className={`w-11 h-11 rounded-2xl border flex items-center justify-center transition-colors
+              className={`w-11 h-11 rounded-2xl border flex items-center justify-center transition-colors min-h-[44px] min-w-[44px]
                 ${showChat ? 'bg-primary/20 border-primary/60 text-primary' : 'bg-white/10 border-white/20 text-white/70'}`}
               aria-label={showChat ? 'Sohbeti kapat' : 'Sohbeti aç'}
             >
@@ -172,7 +172,7 @@ export default function GameLayout({
         {/* Undo */}
         <button
           onClick={onUndoPlacement}
-          className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/60 hover:bg-white/20 transition-colors flex-shrink-0"
+          className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/60 hover:bg-white/20 transition-colors flex-shrink-0 min-h-[44px] min-w-[44px]"
           aria-label="Son hamlayı geri al"
         >
           <RotateCcw className="w-5 h-5" />
@@ -194,7 +194,7 @@ export default function GameLayout({
         {/* Skip */}
         <button
           onClick={onSkipTurn}
-          className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/60 hover:bg-white/20 transition-colors flex-shrink-0"
+          className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/60 hover:bg-white/20 transition-colors flex-shrink-0 min-h-[44px] min-w-[44px]"
           aria-label="Turunuzu atla"
         >
           <ChevronRight className="w-5 h-5" />
