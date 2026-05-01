@@ -86,8 +86,11 @@ export default function GameLayout({
           </div>
         </div>
 
-        {/* Right: Chat only */}
+        {/* Right: Timer + Chat */}
         <div className="flex items-center gap-1.5">
+          {isMyTurn && !winner && (
+            <TurnTimer key={timerKey} active={!feedback && !winner} onTimeUp={isMyTurn ? onTimeUp : undefined} duration={turnDuration} size="lg" />
+          )}
           {isOnline && (
             <button
               onClick={onToggleChat}
@@ -97,8 +100,8 @@ export default function GameLayout({
               <MessageCircle className="w-5 h-5" />
             </button>
           )}
-          {/* Placeholder so layout stays balanced when no chat */}
-          {!isOnline && <div className="w-10 h-10" />}
+          {/* Placeholder so layout stays balanced when no chat and no timer */}
+          {!isOnline && !isMyTurn && <div className="w-10 h-10" />}
         </div>
       </div>
 
@@ -125,15 +128,6 @@ export default function GameLayout({
               onTouchDragMove={onTouchDragMove}
               onTouchDragEnd={onTouchDragEnd}
             />
-            {/* Hourglass + Timer — absolute, sağ ortasında */}
-            <div className="absolute top-1/2 -translate-y-1/2 -right-10 flex flex-col items-center gap-0.5 pointer-events-none">
-              <img
-                src="https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/d18d70b69_kumsaati.png"
-                alt="kum saati"
-                className="w-12 h-12 object-contain"
-              />
-              <TurnTimer key={timerKey} active={!feedback && !winner} onTimeUp={isMyTurn ? onTimeUp : undefined} duration={turnDuration} />
-            </div>
           </div>
         ) : currentQuestion && !isMyTurn ? (
           <div className="w-full max-w-xs rounded-2xl bg-white/5 border border-white/15 flex items-center justify-center py-8 text-center">
