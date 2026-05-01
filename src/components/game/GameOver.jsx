@@ -10,7 +10,7 @@ export default function GameOver({ winner, onRestart, durationSeconds, winCardCo
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md p-6"
-      style={{ background: 'radial-gradient(ellipse at 50% 30%, #1a2a6e88 0%, #07091fcc 100%)' }}
+      style={{ background: 'rgba(11,31,58,0.9)' }}
     >
       <motion.div
         initial={{ scale: 0.7, opacity: 0, y: 40 }}

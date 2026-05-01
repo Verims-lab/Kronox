@@ -50,7 +50,7 @@ export default function PlayerSetup() {
       style={{
         paddingTop: 'calc(1.5rem + env(safe-area-inset-top))',
         paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))',
-        background: 'radial-gradient(ellipse at 50% 0%, #1a2a6e 0%, #0a0e2e 60%, #07091f 100%)',
+        background: 'linear-gradient(to bottom, #0B1F3A 0%, #1E3A8A 100%)',
         minHeight: '100vh',
       }}
     >

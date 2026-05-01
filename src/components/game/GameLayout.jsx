@@ -52,7 +52,7 @@ export default function GameLayout({
   const handCards = currentPlayer?.cards?.slice() || [];
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'radial-gradient(ellipse at 50% 0%, #1a2a6e 0%, #0a0e2e 60%, #07091f 100%)' }}>
+    <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'linear-gradient(to bottom, #0B1F3A 0%, #1E3A8A 100%)' }}>
       {/* TOP BAR */}
       <div
         className="flex-shrink-0 flex items-center justify-between px-4 pt-2 pb-1 gap-2"
