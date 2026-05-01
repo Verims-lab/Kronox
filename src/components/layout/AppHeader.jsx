@@ -1,98 +1,44 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Settings, LogIn } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 
-const ADMIN_EMAIL = 'sariverim@gmail.com';
-const BACK_ROUTES = ['/lobby', '/game', '/settings'];
-const HOME_ROUTES = ['/'];
+// Only shown on non-game pages (lobby, settings)
+const BACK_ROUTES = ['/lobby', '/settings'];
 
 export default function AppHeader({ onBack } = {}) {
   const location = useLocation();
   const navigate = useNavigate();
-  const [isAdmin, setIsAdmin] = useState(false);
-
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  useEffect(() => {
-    base44.auth.me().then(u => {
-      if (u) {
-        setIsAuthenticated(true);
-        setIsAdmin(u?.email === ADMIN_EMAIL || u?.role === 'admin');
-      }
-    }).catch(() => {});
-  }, []);
 
   const showBack = BACK_ROUTES.includes(location.pathname);
-  const showHome = HOME_ROUTES.includes(location.pathname);
 
   const handleBack = () => {
     if (onBack) { onBack(); return; }
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      navigate('/');
-    }
+    if (window.history.length > 1) { navigate(-1); }
+    else { navigate('/'); }
   };
 
-  if (showBack) {
-    return (
-      <div
-        className="fixed top-0 left-0 right-0 z-[60] flex items-center px-4 h-14 bg-background/80 backdrop-blur-sm border-b border-border/30"
-        style={{ paddingTop: 'env(safe-area-inset-top)', height: 'calc(3.5rem + env(safe-area-inset-top))', width: '100%', maxWidth: '100vw' }}
-      >
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleBack}
-          className="text-muted-foreground hover:text-foreground"
-          style={{ userSelect: 'none' }}
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <h1
-          className="font-cinzel text-lg text-primary tracking-widest ml-2 cursor-pointer"
-          onClick={handleBack}
-          style={{ userSelect: 'none' }}
-        >KRONOS</h1>
-      </div>
-    );
-  }
+  // Hide on home and game pages — they have their own headers
+  if (!showBack) return null;
 
-  if (showHome) {
-    return (
-      <div
-        className="fixed top-0 left-0 right-0 z-[60] flex items-center justify-between px-4 bg-background/80 backdrop-blur-sm border-b border-border/30"
-        style={{ paddingTop: 'env(safe-area-inset-top)', height: 'calc(3.5rem + env(safe-area-inset-top))', width: '100%', maxWidth: '100vw' }}
+  return (
+    <div
+      className="fixed top-0 left-0 right-0 z-[60] flex items-center px-4 bg-background/80 backdrop-blur-md border-b border-white/10"
+      style={{ paddingTop: 'env(safe-area-inset-top)', height: 'calc(3.5rem + env(safe-area-inset-top))' }}
+    >
+      <button
+        onClick={handleBack}
+        className="w-9 h-9 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/70 hover:bg-white/20 transition-colors"
       >
-        <h1 className="font-cinzel text-lg text-primary tracking-widest">KRONOS</h1>
-        {isAuthenticated ? (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate('/settings')}
-            className="text-muted-foreground hover:text-foreground"
-            title="Ayarlar"
-            style={{ userSelect: 'none' }}
-          >
-            <Settings className="w-5 h-5" />
-          </Button>
-        ) : (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => base44.auth.redirectToLogin('/')}
-            className="text-primary hover:text-primary font-cinzel text-xs tracking-wider gap-1"
-            style={{ userSelect: 'none' }}
-          >
-            <LogIn className="w-4 h-4" />
-            GİRİŞ YAP
-          </Button>
-        )}
-      </div>
-    );
-  }
-
-  return null;
+        <ArrowLeft className="w-5 h-5" />
+      </button>
+      <h1
+        className="font-bangers text-2xl text-primary tracking-widest ml-3 cursor-pointer"
+        style={{ textShadow: '0 0 15px rgba(255,193,7,0.5)' }}
+        onClick={handleBack}
+      >
+        KRONOS
+      </h1>
+    </div>
+  );
 }

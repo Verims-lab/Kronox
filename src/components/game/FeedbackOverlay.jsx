@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, X } from 'lucide-react';
 
 export default function FeedbackOverlay({ result, year, onDone }) {
-  React.useEffect(() => {
+  useEffect(() => {
     const timer = setTimeout(onDone, 1800);
     return () => clearTimeout(timer);
   }, [onDone]);
+
+  const isCorrect = result === 'correct';
 
   return (
     <AnimatePresence>
@@ -15,34 +17,34 @@ export default function FeedbackOverlay({ result, year, onDone }) {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onDone}
-        className="fixed inset-0 z-40 flex items-center justify-center bg-background/70 backdrop-blur-sm cursor-pointer"
+        className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm cursor-pointer"
       >
         <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          exit={{ scale: 0 }}
+          initial={{ scale: 0.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.5, opacity: 0 }}
           transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-          className="text-center space-y-3"
+          className={`mx-6 w-full max-w-xs rounded-3xl border-2 overflow-hidden shadow-2xl
+            ${isCorrect ? 'bg-emerald-900/90 border-emerald-400' : 'bg-red-900/90 border-red-400'}
+          `}
         >
-          <div className={`
-            w-20 h-20 mx-auto rounded-full flex items-center justify-center
-            ${result === 'correct'
-              ? 'bg-emerald-500/20 border-2 border-emerald-500'
-              : 'bg-destructive/20 border-2 border-destructive'}
-          `}>
-            {result === 'correct' ? (
-              <Check className="w-10 h-10 text-emerald-500" />
-            ) : (
-              <X className="w-10 h-10 text-destructive" />
-            )}
-          </div>
-
-          <div>
-            <p className={`font-cinzel text-xl font-bold ${result === 'correct' ? 'text-emerald-400' : 'text-destructive'}`}>
-              {result === 'correct' ? 'Doğru!' : 'Yanlış!'}
+          <div className={`py-6 px-6 text-center ${isCorrect ? 'bg-emerald-500/20' : 'bg-red-500/20'}`}>
+            <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-4 border-4
+              ${isCorrect ? 'bg-emerald-500 border-emerald-300' : 'bg-red-500 border-red-300'}
+            `}>
+              {isCorrect
+                ? <Check className="w-9 h-9 text-white" strokeWidth={3} />
+                : <X className="w-9 h-9 text-white" strokeWidth={3} />
+              }
+            </div>
+            <h2 className={`font-bangers text-3xl tracking-wider mb-1 ${isCorrect ? 'text-emerald-300' : 'text-red-300'}`}>
+              {isCorrect ? 'Doğru!' : 'Yanlış!'}
+            </h2>
+            <p className="font-inter text-white/70 text-sm">
+              {isCorrect ? '+1 kart eklendi' : `Doğru yer gösteriliyor.`}
             </p>
-            <p className="font-inter text-muted-foreground text-sm mt-1">
-              Doğru cevap: <span className="text-primary font-bold">{year}</span>
+            <p className="font-inter text-white/50 text-xs mt-1">
+              Doğru cevap: <span className={`font-bold ${isCorrect ? 'text-emerald-300' : 'text-red-300'}`}>{year}</span>
             </p>
           </div>
         </motion.div>

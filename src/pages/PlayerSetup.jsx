@@ -1,31 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Clock, Users, Play, Globe, LogIn, LogOut } from 'lucide-react';
+import { Users, Play, Globe, LogIn, LogOut, Settings } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 
 export default function PlayerSetup() {
   const navigate = useNavigate();
   const [playerCount, setPlayerCount] = useState(1);
   const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    base44.auth.me().then(u => setUser(u || null)).catch(() => setUser(null));
-  }, []);
   const [names, setNames] = useState(['', '', '', '']);
   const [selectedCategory, setSelectedCategory] = useState('karisik');
   const [yearStart, setYearStart] = useState(1900);
   const [yearEnd, setYearEnd] = useState(2020);
   const [turnDuration, setTurnDuration] = useState(60);
-
   const [nameErrors, setNameErrors] = useState([]);
+
+  useEffect(() => {
+    base44.auth.me().then(u => setUser(u || null)).catch(() => setUser(null));
+  }, []);
 
   const validateName = (name) => {
     const trimmed = name.trim();
-    if (trimmed.length < 3) return 'Lütfen en az 3 karakter girişi yapınız';
-    if (trimmed.length > 15) return 'Lütfen en fazla 15 karakter girişi yapınız';
-    if (!/^[a-zA-Z0-9çğıöşüÇĞİÖŞÜ]+$/.test(trimmed)) return 'Lütfen yalnızca harf ve rakam girişi yapınız';
+    if (trimmed.length < 3) return 'En az 3 karakter';
+    if (trimmed.length > 15) return 'En fazla 15 karakter';
+    if (!/^[a-zA-Z0-9çğıöşüÇĞİÖŞÜ]+$/.test(trimmed)) return 'Yalnızca harf ve rakam';
     return '';
   };
 
@@ -34,40 +32,66 @@ export default function PlayerSetup() {
     setNameErrors(errors);
     if (errors.some(e => e)) return;
     const playerNames = names.slice(0, playerCount).map(n => n.trim());
-    navigate('/game', { 
-      state: { playerNames, category: selectedCategory, yearStart, yearEnd, turnDuration } 
+    navigate('/game', {
+      state: { playerNames, category: selectedCategory, yearStart, yearEnd, turnDuration }
     });
   };
 
+  const categories = [
+    { value: 'karisik', label: 'Karışık', emoji: '🎲' },
+    { value: 'tarih', label: 'Tarih', emoji: '🏰' },
+    { value: 'bilim', label: 'Bilim', emoji: '🔬' },
+    { value: 'spor', label: 'Spor', emoji: '⚽' },
+    { value: 'sanat', label: 'Sanat', emoji: '🎨' },
+  ];
+
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 pt-24 pb-24">
-      
-      <div className="w-full max-w-md space-y-8">
-        
+    <div className="min-h-screen flex flex-col items-center justify-start px-5 pt-safe pb-safe"
+      style={{ paddingTop: 'calc(1.5rem + env(safe-area-inset-top))', paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}
+    >
+      {/* Top row */}
+      <div className="w-full flex items-center justify-between mb-6">
+        <button
+          onClick={() => navigate('/settings')}
+          className="w-10 h-10 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/70"
+        >
+          <Settings className="w-5 h-5" />
+        </button>
+
         {/* Logo */}
-        <div className="text-center space-y-3">
-          <div className="w-16 h-16 mx-auto border-2 border-primary/40 rounded-full flex items-center justify-center">
-            <Clock className="w-8 h-8 text-primary" />
-          </div>
-          <h1 className="font-cinzel text-4xl font-bold text-primary tracking-wider">KRONOS</h1>
-          <p className="font-inter text-muted-foreground text-sm">Zaman Çizgisi Kart Oyunu</p>
+        <h1
+          className="font-bangers text-5xl text-primary tracking-widest"
+          style={{ textShadow: '0 0 20px rgba(255,193,7,0.7), 0 4px 0 rgba(120,80,0,0.8), 0 2px 15px rgba(255,193,7,0.5)' }}
+        >
+          KRONOS
+        </h1>
+
+        {/* Crown / score placeholder */}
+        <div className="flex items-center gap-1.5 bg-white/10 border border-white/20 rounded-2xl px-3 h-10">
+          <span className="text-lg">👑</span>
+          <span className="font-bangers text-primary text-lg tracking-wide">
+            {user ? '∞' : '–'}
+          </span>
         </div>
+      </div>
+
+      <div className="w-full max-w-md space-y-5">
 
         {/* Player count */}
-        <div className="space-y-3">
-          <label className="font-inter text-sm text-muted-foreground flex items-center gap-2">
+        <div className="space-y-2">
+          <label className="font-inter text-sm text-white/60 flex items-center gap-2">
             <Users className="w-4 h-4" />
             Oyuncu Sayısı
           </label>
-          <div className="flex items-center justify-center gap-3">
+          <div className="flex gap-2">
             {[1, 2, 3, 4].map((n) => (
               <button
                 key={n}
                 onClick={() => setPlayerCount(n)}
-                className={`w-14 h-14 rounded-xl border-2 font-cinzel text-2xl font-bold transition-all duration-150
-                  ${playerCount === n 
-                    ? 'border-primary bg-primary/15 text-primary' 
-                    : 'border-border/50 bg-secondary/30 text-muted-foreground hover:border-primary/40'}
+                className={`flex-1 h-12 rounded-2xl border-2 font-bangers text-2xl transition-all duration-150
+                  ${playerCount === n
+                    ? 'border-primary bg-primary/20 text-primary shadow-lg shadow-primary/30'
+                    : 'border-white/20 bg-white/5 text-white/50 hover:border-white/40'}
                 `}
               >
                 {n}
@@ -76,95 +100,65 @@ export default function PlayerSetup() {
           </div>
         </div>
 
-        {/* Category selection */}
-        <div className="space-y-3">
-          <label className="font-inter text-sm text-muted-foreground">Kategori</label>
+        {/* Category */}
+        <div className="space-y-2">
+          <label className="font-inter text-sm text-white/60">Kategori</label>
           <div className="grid grid-cols-3 gap-2">
-            {[
-              { value: 'karisik', label: 'Karışık' },
-              { value: 'tarih', label: 'Tarih' },
-              { value: 'bilim', label: 'Bilim' },
-              { value: 'spor', label: 'Spor' },
-              { value: 'sanat', label: 'Sanat' },
-            ].map(({ value, label }) => (
+            {categories.map(({ value, label, emoji }) => (
               <button
                 key={value}
                 onClick={() => setSelectedCategory(value)}
-                className={`p-2 rounded-xl border-2 font-inter text-xs font-medium transition-all
-                  ${selectedCategory === value 
-                    ? 'border-primary bg-primary/15 text-primary' 
-                    : 'border-border/50 bg-secondary/30 text-muted-foreground hover:border-primary/40'}
+                className={`py-2 px-2 rounded-2xl border-2 transition-all flex flex-col items-center gap-0.5
+                  ${selectedCategory === value
+                    ? 'border-primary bg-primary/20 text-primary'
+                    : 'border-white/20 bg-white/5 text-white/50 hover:border-white/40'}
                 `}
               >
-                {label}
+                <span className="text-xl">{emoji}</span>
+                <span className="font-inter text-xs font-semibold">{label}</span>
               </button>
             ))}
           </div>
         </div>
 
         {/* Year range */}
-        <div className="space-y-3">
-          <label className="font-inter text-sm text-muted-foreground">Yıl Aralığı</label>
+        <div className="space-y-2">
+          <label className="font-inter text-sm text-white/60">Yıl Aralığı</label>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <p className="font-inter text-xs text-muted-foreground text-center">Başlangıç</p>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setYearStart(y => Math.max(0, y - 10))}
-                  className="w-7 h-7 flex-shrink-0 rounded-lg border border-border/50 bg-secondary/30 text-sm font-bold hover:bg-secondary flex items-center justify-center"
-                >−</button>
-                <input
-                  type="number"
-                  value={yearStart}
-                  onChange={e => {
-                    const val = parseInt(e.target.value);
-                    if (!isNaN(val)) setYearStart(Math.max(0, Math.min(yearEnd - 10, val)));
-                  }}
-                  className="min-w-0 flex-1 text-center font-cinzel font-bold bg-transparent border border-border/30 rounded-lg h-7 text-sm focus:outline-none focus:border-primary/60 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                />
-                <button
-                  onClick={() => setYearStart(y => Math.min(yearEnd - 10, y + 10))}
-                  className="w-7 h-7 flex-shrink-0 rounded-lg border border-border/50 bg-secondary/30 text-sm font-bold hover:bg-secondary flex items-center justify-center"
-                >+</button>
+            {[
+              { label: 'Başlangıç', val: yearStart, set: v => setYearStart(Math.max(0, Math.min(yearEnd - 10, v))), step: 10 },
+              { label: 'Bitiş', val: yearEnd, set: v => setYearEnd(Math.max(yearStart + 10, Math.min(new Date().getFullYear(), v))), step: 10 },
+            ].map(({ label, val, set, step }) => (
+              <div key={label} className="space-y-1">
+                <p className="font-inter text-xs text-white/40 text-center">{label}</p>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => set(val - step)}
+                    className="w-8 h-9 rounded-xl bg-white/10 border border-white/20 font-bold text-white/70 hover:bg-white/20 flex items-center justify-center">
+                    −
+                  </button>
+                  <div className="flex-1 text-center font-bangers text-lg text-white">{val}</div>
+                  <button onClick={() => set(val + step)}
+                    className="w-8 h-9 rounded-xl bg-white/10 border border-white/20 font-bold text-white/70 hover:bg-white/20 flex items-center justify-center">
+                    +
+                  </button>
+                </div>
               </div>
-            </div>
-            <div className="space-y-1">
-              <p className="font-inter text-xs text-muted-foreground text-center">Bitiş</p>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setYearEnd(y => Math.max(yearStart + 10, y - 10))}
-                  className="w-7 h-7 flex-shrink-0 rounded-lg border border-border/50 bg-secondary/30 text-sm font-bold hover:bg-secondary flex items-center justify-center"
-                >−</button>
-                <input
-                  type="number"
-                  value={yearEnd}
-                  onChange={e => {
-                    const val = parseInt(e.target.value);
-                    if (!isNaN(val)) setYearEnd(Math.max(yearStart + 10, Math.min(new Date().getFullYear(), val)));
-                  }}
-                  className="min-w-0 flex-1 text-center font-cinzel font-bold bg-transparent border border-border/30 rounded-lg h-7 text-sm focus:outline-none focus:border-primary/60 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                />
-                <button
-                  onClick={() => setYearEnd(y => Math.min(new Date().getFullYear(), y + 10))}
-                  className="w-7 h-7 flex-shrink-0 rounded-lg border border-border/50 bg-secondary/30 text-sm font-bold hover:bg-secondary flex items-center justify-center"
-                >+</button>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
 
         {/* Turn duration */}
-        <div className="space-y-3">
-          <label className="font-inter text-sm text-muted-foreground">Tur Süresi</label>
-          <div className="flex gap-2 flex-wrap">
-            {[0, 10, 20, 30, 60].map((s) => (
+        <div className="space-y-2">
+          <label className="font-inter text-sm text-white/60">Tur Süresi</label>
+          <div className="flex gap-2">
+            {[0, 10, 30, 60].map((s) => (
               <button
                 key={s}
                 onClick={() => setTurnDuration(s)}
-                className={`flex-1 min-w-[3.5rem] py-2 rounded-xl border-2 font-cinzel text-sm font-bold transition-all
+                className={`flex-1 h-10 rounded-2xl border-2 font-bangers text-lg transition-all
                   ${turnDuration === s
-                    ? 'border-primary bg-primary/15 text-primary'
-                    : 'border-border/50 bg-secondary/30 text-muted-foreground hover:border-primary/40'}
+                    ? 'border-primary bg-primary/20 text-primary'
+                    : 'border-white/20 bg-white/5 text-white/50 hover:border-white/40'}
                 `}
               >
                 {s === 0 ? '∞' : `${s}s`}
@@ -174,9 +168,9 @@ export default function PlayerSetup() {
         </div>
 
         {/* Player names */}
-        <div className="space-y-3">
+        <div className="space-y-2">
           {Array.from({ length: playerCount }).map((_, i) => (
-            <div key={i} className="space-y-1">
+            <div key={i}>
               <Input
                 placeholder={`Oyuncu ${i + 1} İsmi`}
                 value={names[i]}
@@ -192,48 +186,55 @@ export default function PlayerSetup() {
                     setNameErrors(errs);
                   }
                 }}
-                className={`bg-secondary/50 border-border/50 h-12 ${nameErrors[i] ? 'border-destructive' : ''}`}
+                className={`h-12 rounded-2xl bg-white/10 border-white/20 text-white placeholder:text-white/30 font-inter
+                  ${nameErrors[i] ? 'border-red-400' : ''}
+                `}
               />
-              {nameErrors[i] && <p className="font-inter text-xs text-destructive pl-1">{nameErrors[i]}</p>}
+              {nameErrors[i] && <p className="font-inter text-xs text-red-400 pl-2 mt-0.5">{nameErrors[i]}</p>}
             </div>
           ))}
         </div>
 
         {/* Buttons */}
-        <Button onClick={handleStart} size="lg" className="w-full h-14 bg-primary text-primary-foreground font-cinzel text-lg tracking-wider gap-2">
+        <button
+          onClick={handleStart}
+          className="w-full h-14 rounded-2xl font-bangers text-2xl tracking-wider bg-primary text-primary-foreground shadow-xl shadow-primary/40 hover:bg-primary/90 active:scale-95 transition-all flex items-center justify-center gap-2"
+        >
           <Play className="w-5 h-5" />
           OYUNU BAŞLAT
-        </Button>
+        </button>
 
-        <Button onClick={() => navigate('/lobby')} size="lg" variant="outline" className="w-full h-12 font-cinzel tracking-wider gap-2">
+        <button
+          onClick={() => navigate('/lobby')}
+          className="w-full h-12 rounded-2xl font-bangers text-xl tracking-wider border-2 border-white/25 bg-white/8 text-white/80 hover:bg-white/15 active:scale-95 transition-all flex items-center justify-center gap-2"
+        >
           <Globe className="w-5 h-5" />
           ÇEVRİMİÇİ OYUN
-        </Button>
+        </button>
 
-        {/* Auth section */}
-        <div className="border-t border-border/30 pt-4">
+        {/* Auth */}
+        <div className="pt-1">
           {user ? (
-            <div className="flex items-center justify-between">
-              <p className="font-inter text-xs text-muted-foreground">
-                Giriş: <span className="text-foreground">{user.full_name || user.email}</span>
+            <div className="flex items-center justify-between px-1">
+              <p className="font-inter text-xs text-white/40">
+                {user.full_name || user.email}
               </p>
               <button
                 onClick={() => base44.auth.logout('/')}
-                className="font-inter text-xs text-muted-foreground hover:text-destructive flex items-center gap-1 transition-colors"
+                className="font-inter text-xs text-white/30 hover:text-red-400 flex items-center gap-1 transition-colors"
               >
                 <LogOut className="w-3 h-3" />
                 Çıkış
               </button>
             </div>
           ) : (
-            <Button
+            <button
               onClick={() => base44.auth.redirectToLogin('/')}
-              variant="ghost"
-              className="w-full font-inter text-sm text-primary hover:text-primary gap-2"
+              className="w-full font-inter text-sm text-white/50 hover:text-primary flex items-center justify-center gap-2 py-2 transition-colors"
             >
               <LogIn className="w-4 h-4" />
               Google ile Giriş Yap
-            </Button>
+            </button>
           )}
         </div>
       </div>

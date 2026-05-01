@@ -29,6 +29,7 @@ const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError } = useAuth();
   const location = useLocation();
   const isGamePage = location.pathname === '/game';
+  const isHomePage = location.pathname === '/';
 
   // Show loading spinner while checking auth
   if (isLoadingAuth) {
@@ -50,7 +51,7 @@ const AuthenticatedApp = () => {
   // Render the main app
   return (
     <div style={{ width: '100%', minHeight: '100%' }}>
-      {!isGamePage && <AppHeader />}
+      {!isGamePage && !isHomePage && <AppHeader />}
       <Suspense fallback={<PageLoader />}>
         <AnimatePresence mode="wait">
           <motion.div

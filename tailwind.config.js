@@ -3,7 +3,6 @@ module.exports = {
     darkMode: ["class"],
     content: ["./index.html", "./src/**/*.{ts,tsx,js,jsx}"],
 
-
     safelist: [
       'from-blue-500/20', 'to-blue-600/10', 'border-blue-500/50', 'text-blue-400', 'border-blue-500/60', 'bg-blue-500/10', 'bg-blue-500',
       'from-rose-500/20', 'to-rose-600/10', 'border-rose-500/50', 'text-rose-400', 'border-rose-500/60', 'bg-rose-500/10', 'bg-rose-500',
@@ -21,8 +20,9 @@ module.exports = {
     },
   	extend: {
       fontFamily: {
-        cinzel: ['var(--font-cinzel)'],
+        bangers: ['var(--font-bangers)'],
         inter: ['var(--font-inter)'],
+        cinzel: ['var(--font-bangers)'], // alias for backward compat
       },
   		borderRadius: {
   			lg: 'var(--radius)',

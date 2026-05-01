@@ -8,8 +8,8 @@ const TABS = [
   { label: 'Ayarlar', icon: Settings, path: '/settings' },
 ];
 
-// Hide bottom nav on game screen (full immersive)
-const HIDDEN_ROUTES = ['/game'];
+// Hide bottom nav on game and home screen (they have their own UI)
+const HIDDEN_ROUTES = ['/game', '/'];
 
 export default function BottomNav() {
   const location = useLocation();
@@ -19,7 +19,7 @@ export default function BottomNav() {
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-[60] bg-background/90 backdrop-blur-md border-t border-border/40 flex items-center justify-around"
+      className="fixed bottom-0 left-0 right-0 z-[60] bg-card/90 backdrop-blur-md border-t border-white/10 flex items-center justify-around"
       style={{
         paddingBottom: 'env(safe-area-inset-bottom)',
         height: 'calc(3.5rem + env(safe-area-inset-bottom))',

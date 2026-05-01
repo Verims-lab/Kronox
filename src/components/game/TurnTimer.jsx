@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Timer } from 'lucide-react';
 
 export default function TurnTimer({ onTimeUp, active, duration = 60 }) {
   const [seconds, setSeconds] = useState(duration);
@@ -12,41 +11,40 @@ export default function TurnTimer({ onTimeUp, active, duration = 60 }) {
   useEffect(() => {
     if (!active || duration === 0) return;
     if (seconds <= 0) {
-      onTimeUp();
+      if (onTimeUp) onTimeUp();
       return;
     }
     const id = setTimeout(() => setSeconds(s => s - 1), 1000);
     return () => clearTimeout(id);
   }, [seconds, active, onTimeUp, duration]);
 
-  // Süresiz mod — timer gösterme
   if (duration === 0) return null;
 
   const pct = seconds / duration;
-  const color = seconds > duration * 0.33 ? '#c9a227' : seconds > duration * 0.17 ? '#f97316' : '#ef4444';
-  const r = 20;
+  const isUrgent = seconds <= duration * 0.25;
+  const color = seconds > duration * 0.5 ? '#4ade80' : seconds > duration * 0.25 ? '#facc15' : '#f87171';
+  const r = 16;
   const circ = 2 * Math.PI * r;
 
   return (
-    <div className="flex items-center gap-1.5 landscape:gap-1">
-      <svg width="52" height="52" className="-rotate-90 landscape:w-9 landscape:h-9">
-        <circle cx="26" cy="26" r={r} fill="none" stroke="hsl(var(--border))" strokeWidth="4" />
+    <div className="flex items-center justify-center w-10 h-10 relative">
+      <svg width="40" height="40" className="-rotate-90 absolute inset-0">
+        <circle cx="20" cy="20" r={r} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="3" />
         <motion.circle
-          cx="26" cy="26" r={r} fill="none"
-          stroke={color} strokeWidth="4"
+          cx="20" cy="20" r={r} fill="none"
+          stroke={color} strokeWidth="3"
           strokeLinecap="round"
           strokeDasharray={circ}
           strokeDashoffset={circ * (1 - pct)}
-          transition={{ duration: 0.4 }}
+          transition={{ duration: 0.5 }}
         />
       </svg>
       <span
-        className="font-cinzel font-bold text-lg landscape:text-sm tabular-nums"
-        style={{ color, minWidth: '2ch' }}
+        className="font-bangers text-base tabular-nums relative z-10"
+        style={{ color, lineHeight: 1 }}
       >
         {seconds}
       </span>
-      <Timer className="w-4 h-4 landscape:w-3 landscape:h-3 text-muted-foreground" />
     </div>
   );
 }
