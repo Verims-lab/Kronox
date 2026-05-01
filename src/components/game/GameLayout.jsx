@@ -86,9 +86,8 @@ export default function GameLayout({
           </div>
         </div>
 
-        {/* Right: Score / Timer */}
+        {/* Right: Chat only */}
         <div className="flex items-center gap-1.5">
-          <TurnTimer key={timerKey} active={!feedback && !winner} onTimeUp={isMyTurn ? onTimeUp : undefined} duration={turnDuration} />
           {isOnline && (
             <button
               onClick={onToggleChat}
@@ -98,6 +97,8 @@ export default function GameLayout({
               <MessageCircle className="w-5 h-5" />
             </button>
           )}
+          {/* Placeholder so layout stays balanced when no chat */}
+          {!isOnline && <div className="w-10 h-10" />}
         </div>
       </div>
 
@@ -112,9 +113,9 @@ export default function GameLayout({
       )}
 
       {/* CENTER: Question card */}
-      <div className="flex-shrink-0 flex justify-center px-8 py-2">
+      <div className="flex-shrink-0 flex justify-center items-center gap-3 px-4 py-2">
         {currentQuestion && isMyTurn && !winner ? (
-          <div className="w-full max-w-xs">
+          <>
             <QuestionCard
               question={currentQuestion}
               onImageError={onImageError}
@@ -124,7 +125,16 @@ export default function GameLayout({
               onTouchDragMove={onTouchDragMove}
               onTouchDragEnd={onTouchDragEnd}
             />
-          </div>
+            {/* Hourglass + Timer */}
+            <div className="flex flex-col items-center gap-1 flex-shrink-0">
+              <img
+                src="https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/7a67e9f80_kumsaati.png"
+                alt="kum saati"
+                className="w-14 h-14 object-contain drop-shadow-lg"
+              />
+              <TurnTimer key={timerKey} active={!feedback && !winner} onTimeUp={isMyTurn ? onTimeUp : undefined} duration={turnDuration} />
+            </div>
+          </>
         ) : currentQuestion && !isMyTurn ? (
           <div className="w-full max-w-xs rounded-2xl bg-white/5 border border-white/15 flex items-center justify-center py-8 text-center">
             <p className="font-inter text-white/60 text-sm">
