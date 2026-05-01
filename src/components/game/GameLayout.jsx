@@ -128,10 +128,9 @@ export default function GameLayout({
             {/* Hourglass + Timer — absolute, sağ ortasında */}
             <div className="absolute top-1/2 -translate-y-1/2 -right-10 flex flex-col items-center gap-0.5 pointer-events-none">
               <img
-                src="https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/7a67e9f80_kumsaati.png"
+                src="https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/d18d70b69_kumsaati.png"
                 alt="kum saati"
                 className="w-12 h-12 object-contain"
-                style={{ mixBlendMode: 'screen' }}
               />
               <TurnTimer key={timerKey} active={!feedback && !winner} onTimeUp={isMyTurn ? onTimeUp : undefined} duration={turnDuration} />
             </div>
