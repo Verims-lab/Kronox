@@ -46,7 +46,7 @@ export default function PlayerSetup() {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-start px-5 pt-safe pb-safe"
+    <div className="min-h-screen flex flex-col items-center justify-start px-5 pt-safe pb-safe overflow-y-auto"
       style={{
         paddingTop: 'calc(1.5rem + env(safe-area-inset-top))',
         paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))',
