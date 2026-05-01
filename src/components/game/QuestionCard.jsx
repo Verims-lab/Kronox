@@ -12,6 +12,16 @@ const categoryEmoji = {
   genel: '🌍',
 };
 
+// Neon glow colors per category
+const categoryNeon = {
+  tarih:    { border: '#f59e0b', shadow: '0 0 8px 2px rgba(245,158,11,0.7), 0 0 20px 4px rgba(245,158,11,0.35)' },
+  bilim:    { border: '#22d3ee', shadow: '0 0 8px 2px rgba(34,211,238,0.7), 0 0 20px 4px rgba(34,211,238,0.35)' },
+  spor:     { border: '#4ade80', shadow: '0 0 8px 2px rgba(74,222,128,0.7), 0 0 20px 4px rgba(74,222,128,0.35)' },
+  sanat:    { border: '#f472b6', shadow: '0 0 8px 2px rgba(244,114,182,0.7), 0 0 20px 4px rgba(244,114,182,0.35)' },
+  teknoloji:{ border: '#a78bfa', shadow: '0 0 8px 2px rgba(167,139,250,0.7), 0 0 20px 4px rgba(167,139,250,0.35)' },
+  genel:    { border: '#60a5fa', shadow: '0 0 8px 2px rgba(96,165,250,0.7), 0 0 20px 4px rgba(96,165,250,0.35)' },
+};
+
 export default function QuestionCard({
   question,
   onImageError,
@@ -66,6 +76,7 @@ export default function QuestionCard({
   };
 
   const emoji = categoryEmoji[question?.category] || '🌍';
+  const neon = categoryNeon[question?.category] || categoryNeon.genel;
 
   return (
     <motion.div
@@ -78,15 +89,19 @@ export default function QuestionCard({
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      style={{ touchAction: draggable ? 'none' : 'auto' }}
       className={`
         relative flex flex-col items-center rounded-2xl mx-auto
         bg-white text-gray-800
-        shadow-2xl
         ${draggable ? 'cursor-grab active:cursor-grabbing active:scale-95 transition-transform duration-100' : ''}
         ${compact ? 'p-3 gap-2' : 'p-4 gap-3'}
       `}
-      style={{ width: 144, minHeight: 180 }}
+      style={{
+        width: 144,
+        minHeight: 180,
+        touchAction: draggable ? 'none' : 'auto',
+        border: `2px solid ${neon.border}`,
+        boxShadow: neon.shadow,
+      }}
     >
       {/* Help icon top right */}
       <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center">
