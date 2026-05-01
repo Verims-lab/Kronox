@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Home, Globe, Settings } from 'lucide-react';
 
@@ -14,8 +14,14 @@ const HIDDEN_ROUTES = ['/game', '/'];
 export default function BottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [tabStack, setTabStack] = useState({});
 
   if (HIDDEN_ROUTES.includes(location.pathname)) return null;
+
+  const handleTabClick = (path) => {
+    setTabStack(prev => ({ ...prev, [path]: true }));
+    navigate(path, { replace: false });
+  };
 
   return (
     <div
@@ -35,7 +41,7 @@ export default function BottomNav() {
         return (
           <button
             key={path}
-            onClick={() => navigate(path, { replace: isActive })}
+            onClick={() => handleTabClick(path)}
             className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors"
             style={{ touchAction: 'manipulation' }}
           >

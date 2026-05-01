@@ -100,9 +100,34 @@
 
   html {
     overflow-x: hidden;
+    overscroll-behavior: none;
+  }
+
+  body {
+    overscroll-behavior: none;
   }
 
   * {
     -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Disable text selection on interactive elements */
+  button,
+  [role="button"],
+  a,
+  svg {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* Preserve text selection for content areas */
+  input,
+  textarea,
+  [contenteditable="true"],
+  p,
+  span,
+  div:not(button):not([role="button"]) {
+    user-select: text;
+    -webkit-user-select: text;
   }
 }
