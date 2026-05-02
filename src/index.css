@@ -100,13 +100,14 @@
 
   html {
     overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior-y: none;
+    overflow-y: scroll;
+    height: 100%;
   }
 
   body {
     overflow-y: auto;
-    overscroll-behavior-y: none;
+    min-height: 100%;
+    overscroll-behavior-y: auto;
   }
 
   * {
