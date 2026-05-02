@@ -38,6 +38,7 @@ export default function GameLayout({
   onUndoPlacement,
   onSkipTurn,
   onImageError,
+  onAudioError,
   onDragStart,
   onDragEnd,
   onTouchDragMove,
@@ -126,6 +127,7 @@ export default function GameLayout({
             <QuestionCard
               question={currentQuestion}
               onImageError={onImageError}
+              onAudioError={onAudioError}
               draggable={!feedback}
               onDragStart={onDragStart}
               onDragEnd={onDragEnd}

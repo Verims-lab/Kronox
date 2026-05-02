@@ -27,6 +27,7 @@ const categoryNeon = {
 export default function QuestionCard({
   question,
   onImageError,
+  onAudioError,
   draggable = false,
   onDragStart,
   onDragEnd,
@@ -36,11 +37,13 @@ export default function QuestionCard({
 }) {
   const [playing, setPlaying] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [audioError, setAudioError] = useState(false);
   const audioRef = useRef(null);
   const touchDragging = useRef(false);
 
   useEffect(() => {
     setImgError(false);
+    setAudioError(false);
     setPlaying(false);
     // Auto-play music type questions (handle browser autoplay policy)
     if (question?.type === 'muzik' && audioRef.current) {
@@ -178,11 +181,12 @@ export default function QuestionCard({
 
       {/* Music — şarkı adını gizle, sadece dinle butonu göster */}
       {question.type === 'muzik' && (
-        question.media_url ? (
+        (question.media_url && !audioError) ? (
           <div className="flex flex-col items-center gap-1.5">
             <audio
               ref={audioRef}
               src={question.media_url}
+              onError={() => { setAudioError(true); if (onAudioError) onAudioError(); }}
               onEnded={() => {
                 if (audioRef.current) {
                   audioRef.current.currentTime = 0;

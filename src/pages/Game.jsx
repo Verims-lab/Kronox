@@ -440,8 +440,8 @@ export default function Game() {
     // Turn was already advanced inside handleConfirmPlacement — nothing more to do here
   }, []);
 
-  const handleImageError = useCallback(() => {
-    // Görseli yüklenemeyen soruyu atla, yeni soru çek
+  const skipCurrentQuestion = useCallback(() => {
+    // Yüklenemeyen soruyu atla, yeni soru çek
     const newUsed = new Set([...usedQuestionIds, currentQuestion?.id].filter(Boolean));
     const nextQ = pickQuestion(newUsed, questionPool);
     if (nextQ) {
@@ -453,6 +453,9 @@ export default function Game() {
       }));
     }
   }, [usedQuestionIds, currentQuestion, pickQuestion, questionPool]);
+
+  const handleImageError = skipCurrentQuestion;
+  const handleAudioError = skipCurrentQuestion;
 
   const handleTimeUp = useCallback(() => {
     if (feedback !== null || winner) return;
@@ -661,6 +664,7 @@ export default function Game() {
         onUndoPlacement={() => setSelectedZone(null)}
         onSkipTurn={handleTimeUp}
         onImageError={handleImageError}
+        onAudioError={handleAudioError}
         onDragStart={() => setIsDragging(true)}
         onDragEnd={() => { setIsDragging(false); setTouchDragPos(null); }}
         onTouchDragMove={(x, y) => { setIsDragging(true); setTouchDragPos({ x, y }); }}
