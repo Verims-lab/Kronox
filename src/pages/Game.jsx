@@ -387,7 +387,7 @@ export default function Game() {
     }
 
     if (hasWon) {
-      setFeedback({ result: 'correct', year: questionYear });
+      setFeedback({ result: 'correct', year: questionYear, songTitle: currentQuestion.type === 'muzik' ? currentQuestion.question : null });
       setGameStarted(false); // overall timer'ı durdur
       const finalSecs = overallSecondsRef.current;
       saveGameRecord(newPlayers[snapshotIndex].name, finalSecs);
@@ -398,7 +398,7 @@ export default function Game() {
       return;
     }
 
-    setFeedback({ result: isCorrect ? 'correct' : 'wrong', year: questionYear });
+    setFeedback({ result: isCorrect ? 'correct' : 'wrong', year: questionYear, songTitle: currentQuestion.type === 'muzik' ? currentQuestion.question : null });
     setTimerKey(k => k + 1);
   };
 
@@ -605,7 +605,7 @@ export default function Game() {
 
       <AnimatePresence>
         {feedback && (
-          <FeedbackOverlay result={feedback.result} year={feedback.year} onDone={handleFeedbackDone} />
+          <FeedbackOverlay result={feedback.result} year={feedback.year} songTitle={feedback.songTitle} onDone={handleFeedbackDone} />
         )}
       </AnimatePresence>
 

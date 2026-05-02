@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, X } from 'lucide-react';
 
-export default function FeedbackOverlay({ result, year, onDone }) {
+export default function FeedbackOverlay({ result, year, songTitle, onDone }) {
   useEffect(() => {
     const timer = setTimeout(onDone, 1800);
     return () => clearTimeout(timer);
@@ -47,6 +47,18 @@ export default function FeedbackOverlay({ result, year, onDone }) {
             <p className="font-inter text-white/50 text-xs mt-1">
               Doğru cevap: <span className={`font-bold ${isCorrect ? 'text-emerald-300' : 'text-red-300'}`}>{year}</span>
             </p>
+            {songTitle && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="mt-3 px-3 py-2 rounded-xl bg-white/10 border border-white/20"
+              >
+                <p className="font-inter text-white/40 text-[10px] uppercase tracking-wider mb-0.5">🎵 Şarkı</p>
+                <p className="font-inter text-white text-xs font-semibold text-center leading-snug">{songTitle}</p>
+              </motion.div>
+            )}
+
           </div>
         </motion.div>
       </motion.div>

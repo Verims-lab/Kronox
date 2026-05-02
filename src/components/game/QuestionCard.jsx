@@ -131,9 +131,9 @@ export default function QuestionCard({
         <HelpCircle className="w-4 h-4 text-white" />
       </div>
 
-      {/* Title */}
+      {/* Title — müzik sorularında şarkı adını gizle */}
       <p className={`font-inter font-bold text-gray-800 text-center leading-tight ${compact ? 'text-xs' : 'text-xs'} pr-5`}>
-        {question.question}
+        {question.type === 'muzik' ? 'Bu parça hangi yılda çıktı?' : question.question}
       </p>
 
       {/* Visual content */}
@@ -176,20 +176,20 @@ export default function QuestionCard({
        </div>
       )}
 
-      {/* Music */}
+      {/* Music — şarkı adını gizle, sadece dinle butonu göster */}
       {question.type === 'muzik' && question.media_url && (
        <div className="flex flex-col items-center gap-1.5">
          <audio
            ref={audioRef}
            src={question.media_url}
            onEnded={() => {
-             // Loop music after 30 seconds
              if (audioRef.current) {
                audioRef.current.currentTime = 0;
                audioRef.current.play();
              }
            }}
          />
+         <span className="text-3xl">🎵</span>
          <button
            onClick={toggleAudio}
            className="w-12 h-12 rounded-full bg-pink-500 flex items-center justify-center shadow-lg"
@@ -197,7 +197,7 @@ export default function QuestionCard({
            {playing ? <Pause className="w-5 h-5 text-white" /> : <Play className="w-5 h-5 text-white ml-0.5" />}
          </button>
          <p className="text-xs text-gray-500 flex items-center gap-1">
-           <Volume2 className="w-3 h-3" /> 30 sn preview
+           <Volume2 className="w-3 h-3" /> Dinle ve yılı bul!
          </p>
        </div>
       )}
