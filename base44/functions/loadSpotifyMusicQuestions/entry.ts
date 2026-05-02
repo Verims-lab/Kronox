@@ -142,19 +142,19 @@ async function getSpotifyPreview(query, accessToken) {
   };
 }
 
-// Search Deezer as fallback
+// Search Deezer as fallback — limit=5, preview URL olan ilk track'i seç
 async function getDeezerPreview(query) {
   const res = await fetch(
-    `https://api.deezer.com/search?q=${encodeURIComponent(query)}&limit=1`,
+    `https://api.deezer.com/search?q=${encodeURIComponent(query)}&limit=5`,
     { headers: { 'Accept': 'application/json' } }
   );
   if (!res.ok) return null;
   const data = await res.json();
-  const track = data?.data?.[0];
-  if (!track || !track.preview) return null;
+  const track = data?.data?.find(t => t.preview && t.preview.length > 0);
+  if (!track) return null;
   return {
     previewUrl: track.preview,
-    title: track.title_short,
+    title: track.title_short || track.title,
     artist: track.artist?.name || 'Unknown',
   };
 }

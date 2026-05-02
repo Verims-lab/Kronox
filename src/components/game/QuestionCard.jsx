@@ -177,29 +177,38 @@ export default function QuestionCard({
       )}
 
       {/* Music — şarkı adını gizle, sadece dinle butonu göster */}
-      {question.type === 'muzik' && question.media_url && (
-       <div className="flex flex-col items-center gap-1.5">
-         <audio
-           ref={audioRef}
-           src={question.media_url}
-           onEnded={() => {
-             if (audioRef.current) {
-               audioRef.current.currentTime = 0;
-               audioRef.current.play();
-             }
-           }}
-         />
-         <span className="text-3xl">🎵</span>
-         <button
-           onClick={toggleAudio}
-           className="w-12 h-12 rounded-full bg-pink-500 flex items-center justify-center shadow-lg"
-         >
-           {playing ? <Pause className="w-5 h-5 text-white" /> : <Play className="w-5 h-5 text-white ml-0.5" />}
-         </button>
-         <p className="text-xs text-gray-500 flex items-center gap-1">
-           <Volume2 className="w-3 h-3" /> Dinle ve yılı bul!
-         </p>
-       </div>
+      {question.type === 'muzik' && (
+        question.media_url ? (
+          <div className="flex flex-col items-center gap-1.5">
+            <audio
+              ref={audioRef}
+              src={question.media_url}
+              onEnded={() => {
+                if (audioRef.current) {
+                  audioRef.current.currentTime = 0;
+                  audioRef.current.play();
+                }
+              }}
+            />
+            <span className="text-3xl">🎵</span>
+            <button
+              onClick={toggleAudio}
+              className="w-12 h-12 rounded-full bg-pink-500 flex items-center justify-center shadow-lg"
+            >
+              {playing ? <Pause className="w-5 h-5 text-white" /> : <Play className="w-5 h-5 text-white ml-0.5" />}
+            </button>
+            <p className="text-xs text-gray-500 flex items-center gap-1">
+              <Volume2 className="w-3 h-3" /> Dinle ve yılı bul!
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-1.5 px-1">
+            <span className="text-2xl">🔇</span>
+            <p className="text-[10px] text-gray-400 text-center leading-tight">
+              Önizleme mevcut değil
+            </p>
+          </div>
+        )
       )}
 
       {/* Bottom label */}
