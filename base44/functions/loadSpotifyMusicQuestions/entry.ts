@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
-// Deezer API - no auth needed for search endpoint (server-side)
-// Returns tracks with 30-second preview URLs for free
+// Spotify Client Credentials flow — no user auth needed
+// Falls back to Deezer if Spotify preview_url is null
 
 const songs = [
   { query: 'The Beatles Hey Jude', year: 1968 },
@@ -104,6 +104,61 @@ const songs = [
   { query: 'Taylor Swift Shake It Off', year: 2014 },
 ];
 
+// Get Spotify access token via Client Credentials
+async function getSpotifyToken() {
+  const clientId = Deno.env.get('SPOTIFY_CLIENT_ID');
+  const clientSecret = Deno.env.get('SPOTIFY_CLIENT_SECRET');
+  if (!clientId || !clientSecret) return null;
+
+  const authString = btoa(`${clientId}:${clientSecret}`);
+  const res = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${authString}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: 'grant_type=client_credentials',
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.access_token || null;
+}
+
+// Search Spotify for a track preview
+async function getSpotifyPreview(query, accessToken) {
+  if (!accessToken) return null;
+  const res = await fetch(
+    `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=1`,
+    { headers: { 'Authorization': `Bearer ${accessToken}` } }
+  );
+  if (!res.ok) return null;
+  const data = await res.json();
+  const track = data?.tracks?.items?.[0];
+  if (!track) return null;
+  return {
+    previewUrl: track.preview_url || null,
+    title: track.name,
+    artist: track.artists?.[0]?.name || 'Unknown',
+  };
+}
+
+// Search Deezer as fallback
+async function getDeezerPreview(query) {
+  const res = await fetch(
+    `https://api.deezer.com/search?q=${encodeURIComponent(query)}&limit=1`,
+    { headers: { 'Accept': 'application/json' } }
+  );
+  if (!res.ok) return null;
+  const data = await res.json();
+  const track = data?.data?.[0];
+  if (!track || !track.preview) return null;
+  return {
+    previewUrl: track.preview,
+    title: track.title_short,
+    artist: track.artist?.name || 'Unknown',
+  };
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -113,45 +168,52 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
     }
 
+    // Get Spotify token once
+    const spotifyToken = await getSpotifyToken();
+
     const questions = [];
     const errors = [];
+    let spotifyCount = 0;
+    let deezerCount = 0;
 
     for (const { query, year } of songs) {
-      const url = `https://api.deezer.com/search?q=${encodeURIComponent(query)}&limit=1`;
-      const res = await fetch(url, {
-        headers: { 'Accept': 'application/json' }
-      });
+      let track = null;
 
-      if (!res.ok) {
-        errors.push(`${query}: HTTP ${res.status}`);
-        await new Promise(r => setTimeout(r, 300));
-        continue;
+      // 1. Try Spotify first
+      const spotifyResult = await getSpotifyPreview(query, spotifyToken);
+      if (spotifyResult?.previewUrl) {
+        track = spotifyResult;
+        spotifyCount++;
+      } else {
+        // 2. Fallback to Deezer
+        await new Promise(r => setTimeout(r, 100));
+        const deezerResult = await getDeezerPreview(query);
+        if (deezerResult?.previewUrl) {
+          track = deezerResult;
+          deezerCount++;
+        }
       }
 
-      const data = await res.json();
-      const track = data?.data?.[0];
-
-      if (track && track.preview) {
+      if (track) {
         questions.push({
-          question: `Bu şarkıyı tanıyor musun? "${track.title_short}" - ${track.artist?.name}`,
+          question: `Bu şarkıyı tanıyor musun? "${track.title}" - ${track.artist}`,
           year: year,
           category: 'muzik',
           type: 'muzik',
-          media_url: track.preview,
+          media_url: track.previewUrl,
         });
       } else {
         errors.push(`${query}: preview yok`);
       }
 
-      // Rate limit — be polite to Deezer
       await new Promise(r => setTimeout(r, 150));
     }
 
     if (questions.length === 0) {
-      return Response.json({ success: false, message: 'Deezer\'dan hiç preview alınamadı', errors });
+      return Response.json({ success: false, message: 'Hiç preview alınamadı', errors });
     }
 
-    // Delete old music questions first, then bulk insert fresh ones
+    // Delete old music questions, insert new ones
     const existing = await base44.asServiceRole.entities.Question.filter({ type: 'muzik' });
     for (const q of existing) {
       await base44.asServiceRole.entities.Question.delete(q.id);
@@ -163,6 +225,8 @@ Deno.serve(async (req) => {
       success: true,
       created: created.length,
       total: songs.length,
+      spotify: spotifyCount,
+      deezer: deezerCount,
       errors: errors.length > 0 ? errors : undefined,
     });
   } catch (error) {
