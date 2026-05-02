@@ -95,12 +95,13 @@ export default function Game() {
     return allQuestions.find(q => q.id === lobbyData.current_question_id);
   }, [lobbyData?.current_question_id, allQuestions]);
 
-  // Memoize question pool
+  // Memoize question pool — müzik sorularında media_url zorunlu
   const questionPool = useMemo(() => {
     return allQuestions
       .filter(q => category === 'muzik' ? q.type === 'muzik' : q.type === 'metin')
       .filter(q => q.year >= yearStart && q.year <= yearEnd)
-      .filter(q => category === 'karisik' || q.category === category);
+      .filter(q => category === 'karisik' || q.category === category)
+      .filter(q => q.type !== 'muzik' || (q.media_url && q.media_url.length > 0));
   }, [allQuestions, yearStart, yearEnd, category]);
 
   // Memoize my player for online mode
@@ -219,7 +220,8 @@ export default function Game() {
     const filteredQuestions = allQuestions
       .filter(q => category === 'muzik' ? q.type === 'muzik' : q.type === 'metin')
       .filter(q => q.year >= yearStart && q.year <= yearEnd)
-      .filter(q => category === 'karisik' || q.category === category);
+      .filter(q => category === 'karisik' || q.category === category)
+      .filter(q => q.type !== 'muzik' || (q.media_url && q.media_url.length > 0));
 
     if (filteredQuestions.length < 3) {
       setError(`Yeterli soru yok. Seçilen kategori ve yıl aralığında ${filteredQuestions.length} soru var.`);
