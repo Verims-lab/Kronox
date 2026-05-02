@@ -85,7 +85,12 @@ export default function FeedbackOverlay({ result, year, songTitle, onDone }) {
                 className="mt-3 px-3 py-2 rounded-xl bg-white/10 border border-white/20"
               >
                 <p className="font-inter text-white/40 text-[10px] uppercase tracking-wider mb-0.5">🎵 Şarkı</p>
-                <p className="font-inter text-white text-xs font-semibold text-center leading-snug">{songTitle}</p>
+                <p className="font-inter text-white text-xs font-semibold text-center leading-snug">
+                  {/* "Bu şarkıyı tanıyor musun? "Title" - Artist" → "Title - Artist" */}
+                  {songTitle.includes('"')
+                    ? songTitle.replace(/^.*?"([^"]+)"\s*-\s*(.+)$/, '$1 — $2')
+                    : songTitle}
+                </p>
               </motion.div>
             )}
 
