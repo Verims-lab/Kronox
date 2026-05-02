@@ -11,6 +11,7 @@ const SUITES = [
   { id: 'functional',  label: 'Fonksiyonel',           icon: '🔧',  color: 'text-emerald-400 border-emerald-400/50 bg-emerald-400/10' },
   { id: 'performance', label: 'Performans',            icon: '⚡',  color: 'text-yellow-400 border-yellow-400/50 bg-yellow-400/10' },
   { id: 'playability', label: 'Oynanabilirlik',        icon: '🎮',  color: 'text-rose-400 border-rose-400/50 bg-rose-400/10' },
+  { id: 'music',       label: 'Müzik',                 icon: '🎵',  color: 'text-pink-400 border-pink-400/50 bg-pink-400/10' },
 ];
 
 function ResultRow({ r }) {
@@ -96,7 +97,7 @@ export default function TestSuite() {
           </div>
           <div>
             <h1 className="font-cinzel text-xl text-primary tracking-wider">TEST SUITE</h1>
-            <p className="font-inter text-xs text-muted-foreground">Kronos — 41 test senaryosu</p>
+            <p className="font-inter text-xs text-muted-foreground">Kronos — 49 test senaryosu</p>
           </div>
         </div>
 

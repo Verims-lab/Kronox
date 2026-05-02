@@ -42,12 +42,17 @@ export default function QuestionCard({
   useEffect(() => {
     setImgError(false);
     setPlaying(false);
-    // Auto-play music type questions
+    // Auto-play music type questions (handle browser autoplay policy)
     if (question?.type === 'muzik' && audioRef.current) {
-      setTimeout(() => {
-        audioRef.current?.play();
-        setPlaying(true);
+      const timer = setTimeout(() => {
+        const playPromise = audioRef.current?.play();
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => setPlaying(true))
+            .catch(() => setPlaying(false)); // autoplay blocked — kullanıcı butona basmalı
+        }
       }, 300);
+      return () => clearTimeout(timer);
     }
   }, [question?.id]);
 
@@ -59,8 +64,17 @@ export default function QuestionCard({
   const toggleAudio = (e) => {
     e.stopPropagation();
     if (!audioRef.current) return;
-    if (playing) { audioRef.current.pause(); setPlaying(false); }
-    else { audioRef.current.play(); setPlaying(true); }
+    if (playing) {
+      audioRef.current.pause();
+      setPlaying(false);
+    } else {
+      const playPromise = audioRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise.then(() => setPlaying(true)).catch(() => setPlaying(false));
+      } else {
+        setPlaying(true);
+      }
+    }
   };
 
   const handleTouchStart = (e) => {

@@ -378,15 +378,97 @@ Deno.serve(async (req) => {
       }),
     ];
 
+    // ─── MUSIC TESTS ──────────────────────────────────────────────
+    const musicTests = [
+      run('MUZ-01: Müzik soruları var mı? (type=muzik)', async () => {
+        const qs = await base44.asServiceRole.entities.Question.list('-created_date', 500);
+        const muzikQs = qs.filter(q => q.type === 'muzik');
+        if (muzikQs.length === 0) throw new Error('Hiç müzik sorusu yok');
+        return `${muzikQs.length} müzik sorusu var`;
+      }),
+      run('MUZ-02: Müzik sorularında media_url (preview) mevcut olmalı', async () => {
+        const qs = await base44.asServiceRole.entities.Question.list('-created_date', 500);
+        const muzikQs = qs.filter(q => q.type === 'muzik');
+        if (muzikQs.length === 0) throw new Error('Müzik sorusu yok');
+        const noUrl = muzikQs.filter(q => !q.media_url || q.media_url.trim() === '');
+        if (noUrl.length > 0) throw new Error(`${noUrl.length} müzik sorusunda media_url eksik`);
+        return `${muzikQs.length} sorunun tamamında URL var`;
+      }),
+      run('MUZ-03: Müzik preview URL\'leri erişilebilir (ilk 3 kontrol)', async () => {
+        const qs = await base44.asServiceRole.entities.Question.list('-created_date', 500);
+        const muzikQs = qs.filter(q => q.type === 'muzik' && q.media_url).slice(0, 3);
+        if (muzikQs.length === 0) throw new Error('Test edilecek müzik sorusu yok');
+        const results = [];
+        for (const q of muzikQs) {
+          try {
+            const res = await fetch(q.media_url, { method: 'HEAD' });
+            results.push({ url: q.media_url.slice(0, 40), status: res.status, ok: res.ok });
+          } catch (e) {
+            results.push({ url: q.media_url.slice(0, 40), status: 'FETCH_ERROR', ok: false });
+          }
+        }
+        const failed = results.filter(r => !r.ok);
+        if (failed.length > 0) throw new Error(`${failed.length} URL erişilemiyor: ${JSON.stringify(failed)}`);
+        return results.map(r => `${r.status}`).join(', ');
+      }),
+      run('MUZ-04: Müzik kategorisi filtresi doğru çalışmalı', async () => {
+        const qs = await base44.asServiceRole.entities.Question.list('-created_date', 500);
+        const muzikPool = qs.filter(q => q.type === 'muzik');
+        const metinPool = qs.filter(q => q.type === 'metin');
+        // Müzik modu sadece müzik soruları getirmeli
+        const overlap = muzikPool.filter(q => metinPool.some(m => m.id === q.id));
+        if (overlap.length > 0) throw new Error('Müzik ve metin soruları çakışıyor');
+        return `muzik=${muzikPool.length}, metin=${metinPool.length}`;
+      }),
+      run('MUZ-05: Müzik sorusu yıl alanı geçerli olmalı', async () => {
+        const qs = await base44.asServiceRole.entities.Question.list('-created_date', 500);
+        const muzikQs = qs.filter(q => q.type === 'muzik');
+        if (muzikQs.length === 0) throw new Error('Müzik sorusu yok');
+        const invalidYear = muzikQs.filter(q => !q.year || typeof q.year !== 'number' || q.year < 1900 || q.year > 2030);
+        if (invalidYear.length > 0) throw new Error(`${invalidYear.length} müzik sorusunda geçersiz yıl: ${invalidYear.map(q => q.year).join(', ')}`);
+        return `${muzikQs.length} sorunun tamamında geçerli yıl`;
+      }),
+      run('MUZ-06: Müzik modu için yeterli soru (≥10)', async () => {
+        const qs = await base44.asServiceRole.entities.Question.list('-created_date', 500);
+        const muzikQs = qs.filter(q => q.type === 'muzik');
+        if (muzikQs.length < 10) throw new Error(`Sadece ${muzikQs.length} müzik sorusu var, en az 10 gerekli`);
+        return `${muzikQs.length} müzik sorusu`;
+      }),
+      run('MUZ-07: Müzik soruları Deezer preview formatında (.mp3)', async () => {
+        const qs = await base44.asServiceRole.entities.Question.list('-created_date', 500);
+        const muzikQs = qs.filter(q => q.type === 'muzik' && q.media_url);
+        if (muzikQs.length === 0) throw new Error('Müzik sorusu yok');
+        const nonDeezer = muzikQs.filter(q => !q.media_url.includes('deezer') && !q.media_url.includes('cdns-preview'));
+        if (nonDeezer.length > muzikQs.length * 0.5) {
+          throw new Error(`${nonDeezer.length}/${muzikQs.length} URL Deezer formatında değil`);
+        }
+        return `${muzikQs.length - nonDeezer.length}/${muzikQs.length} Deezer URL`;
+      }),
+      run('MUZ-08: Müzik soruları yıl aralığı dağılımı', async () => {
+        const qs = await base44.asServiceRole.entities.Question.list('-created_date', 500);
+        const muzikQs = qs.filter(q => q.type === 'muzik');
+        if (muzikQs.length === 0) throw new Error('Müzik sorusu yok');
+        const decades = {};
+        for (const q of muzikQs) {
+          const decade = Math.floor(q.year / 10) * 10;
+          decades[decade] = (decades[decade] || 0) + 1;
+        }
+        const decadeCount = Object.keys(decades).length;
+        if (decadeCount < 3) throw new Error(`Sadece ${decadeCount} farklı on yıl var, en az 3 gerekli`);
+        return `${decadeCount} farklı on yıl: ${Object.entries(decades).sort().map(([d,c]) => `${d}s(${c})`).join(', ')}`;
+      }),
+    ];
+
     // ─── SUITE SEÇİMİ ─────────────────────────────────────────────
     let testsToRun = [];
     if (!suite || suite === 'all') {
-      testsToRun = [...unitTests, ...blackboxTests, ...functionalTests, ...performanceTests, ...playabilityTests];
+      testsToRun = [...unitTests, ...blackboxTests, ...functionalTests, ...performanceTests, ...playabilityTests, ...musicTests];
     } else if (suite === 'unit') testsToRun = unitTests;
     else if (suite === 'blackbox') testsToRun = blackboxTests;
     else if (suite === 'functional') testsToRun = functionalTests;
     else if (suite === 'performance') testsToRun = performanceTests;
     else if (suite === 'playability') testsToRun = playabilityTests;
+    else if (suite === 'music') testsToRun = musicTests;
 
     // ─── ÇALIŞTIR ──────────────────────────────────────────────────
     for (const test of testsToRun) {
