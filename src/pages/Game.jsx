@@ -9,10 +9,10 @@
 import React, { useEffect, useCallback, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { useQuery } from '@tanstack/react-query';
 import { AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Loader2, X } from 'lucide-react';
+import { Loader2, X, WifiOff } from 'lucide-react';
+import { useOfflineQuestions } from '@/hooks/useOfflineQuestions';
 
 import { useGameState } from '@/hooks/useGameState';
 import { useGameActions } from '@/hooks/useGameActions';
@@ -68,22 +68,8 @@ export default function Game() {
 
   const winTimerRef = useRef(null);
 
-  // ─── Data fetching (Repository layer) ────────────────────────────
-  const { data: allQuestions = [], isLoading, isError, refetch } = useQuery({
-    queryKey: ['questions'],
-    queryFn: async () => {
-      try {
-        const res = await base44.functions.invoke('getQuestions', {});
-        if (res.data?.questions?.length > 0) return res.data.questions;
-      } catch (_e) { /* fallthrough */ }
-      const questions = await base44.entities.Question.list('-created_date', 500);
-      return questions || [];
-    },
-    retry: 3,
-    retryDelay: 2000,
-    gcTime: 5 * 60 * 1000,
-    staleTime: 5 * 60 * 1000,
-  });
+  // ─── Data fetching — offline-first (Repository layer) ───────────
+  const { questions: allQuestions, isLoading, isError, isFromCache, retry: refetch } = useOfflineQuestions();
 
   // ─── Lobby sync (Repository layer) ───────────────────────────────
   useLobbySync({ lobbyId, initialPlayers, currentQuestionIdFromState, setLobbyData, setWinner, setError });
@@ -268,7 +254,9 @@ export default function Game() {
   if (isError) return (
     <div className="min-h-screen flex items-center justify-center bg-background p-6">
       <div className="text-center space-y-4">
-        <p className="font-inter text-muted-foreground">Sorular yüklenemedi.</p>
+        <WifiOff className="w-10 h-10 text-muted-foreground mx-auto" />
+        <p className="font-inter text-foreground font-semibold">İnternet bağlantısı yok</p>
+        <p className="font-inter text-sm text-muted-foreground">Sorular yüklenemedi ve önbellek bulunamadı.</p>
         <Button onClick={() => refetch()} className="w-full">Tekrar Dene</Button>
         <Button onClick={() => navigate('/')} variant="outline" className="w-full">Geri Dön</Button>
       </div>
@@ -348,6 +336,15 @@ export default function Game() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Offline cache banner */}
+      {isFromCache && (
+        <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-2 py-1 text-xs font-inter"
+          style={{ background: 'rgba(245,158,11,0.15)', borderBottom: '1px solid rgba(245,158,11,0.3)', paddingTop: 'calc(0.25rem + env(safe-area-inset-top))' }}>
+          <WifiOff className="w-3 h-3 text-yellow-400" />
+          <span className="text-yellow-300">Önbellekten oynuyor</span>
+        </div>
+      )}
 
       <GameLayout
         players={players}
