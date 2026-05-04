@@ -37,13 +37,16 @@ export const AuthProvider = ({ children }) => {
       setIsAuthenticated(!!currentUser);
       setAuthError(null);
 
-      // SDK auth'u tamamladıktan sonra URL'deki OAuth parametrelerini temizle
-      const url = new URL(window.location.href);
-      const oauthParams = ['code', 'token', 'state', 'session_state', 'scope'];
-      if (oauthParams.some(p => url.searchParams.has(p))) {
-        oauthParams.forEach(p => url.searchParams.delete(p));
-        const clean = url.pathname + (url.search && url.search !== '?' ? url.search : '') + url.hash;
-        window.history.replaceState({}, '', clean);
+      // Yalnızca geçerli oturum onaylandıktan sonra OAuth parametrelerini temizle.
+      // currentUser null ise token'ı yerinde bırak; SDK yeniden okuyabilsin.
+      if (currentUser) {
+        const url = new URL(window.location.href);
+        const oauthParams = ['code', 'token', 'state', 'session_state', 'scope'];
+        if (oauthParams.some(p => url.searchParams.has(p))) {
+          oauthParams.forEach(p => url.searchParams.delete(p));
+          const clean = url.pathname + (url.search && url.search !== '?' ? url.search : '') + url.hash;
+          window.history.replaceState({}, '', clean);
+        }
       }
     } catch (error) {
       console.error('User auth check failed:', error);
