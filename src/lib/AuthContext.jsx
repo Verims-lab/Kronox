@@ -32,13 +32,25 @@ export const AuthProvider = ({ children }) => {
   const checkUserAuth = async () => {
     try {
       setIsLoadingAuth(true);
-      const currentUser = await base44.auth.me();
+      let currentUser = await base44.auth.me();
+
+      // Android WebView: token URL'de varsa ama me() null döndürdüyse,
+      // 800ms bekleyip bir kez daha dene (WebView'de token geç okunuyor olabilir).
+      if (!currentUser) {
+        const url = new URL(window.location.href);
+        const oauthParams = ['code', 'token', 'state', 'session_state', 'scope'];
+        const hasOAuthParams = oauthParams.some(p => url.searchParams.has(p));
+        if (hasOAuthParams) {
+          await new Promise(r => setTimeout(r, 800));
+          currentUser = await base44.auth.me().catch(() => null);
+        }
+      }
+
       setUser(currentUser || null);
       setIsAuthenticated(!!currentUser);
       setAuthError(null);
 
       // Yalnızca geçerli oturum onaylandıktan sonra OAuth parametrelerini temizle.
-      // currentUser null ise token'ı yerinde bırak; SDK yeniden okuyabilsin.
       if (currentUser) {
         const url = new URL(window.location.href);
         const oauthParams = ['code', 'token', 'state', 'session_state', 'scope'];
@@ -46,6 +58,10 @@ export const AuthProvider = ({ children }) => {
           oauthParams.forEach(p => url.searchParams.delete(p));
           const clean = url.pathname + (url.search && url.search !== '?' ? url.search : '') + url.hash;
           window.history.replaceState({}, '', clean);
+        }
+        // Kullanıcı zaten giriş yapmışsa /login path'inde kalmasın
+        if (window.location.pathname.includes('/login')) {
+          window.history.replaceState({}, '', '/');
         }
       }
     } catch (error) {
