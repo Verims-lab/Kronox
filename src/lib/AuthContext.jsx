@@ -37,13 +37,9 @@ export const AuthProvider = ({ children }) => {
       // Android WebView: token URL'de varsa ama me() null döndürdüyse,
       // 800ms bekleyip bir kez daha dene (WebView'de token geç okunuyor olabilir).
       if (!currentUser) {
-        const url = new URL(window.location.href);
-        const oauthParams = ['code', 'token', 'state', 'session_state', 'scope'];
-        const hasOAuthParams = oauthParams.some(p => url.searchParams.has(p));
-        if (hasOAuthParams) {
-          await new Promise(r => setTimeout(r, 800));
-          currentUser = await base44.auth.me().catch(() => null);
-        }
+        // WebView may store the token async — retry once after a short delay
+        await new Promise(r => setTimeout(r, 600));
+        currentUser = await base44.auth.me().catch(() => null);
       }
 
       setUser(currentUser || null);

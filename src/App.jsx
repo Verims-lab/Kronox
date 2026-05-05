@@ -29,10 +29,11 @@ const AuthenticatedApp = () => {
   const isGamePage = location.pathname === '/game';
   const isHomePage = location.pathname === '/';
 
-  // Android WebView fix: if the OAuth callback lands on /login, redirect to home immediately.
-  // This prevents infinite login loops in WebView environments.
+  // Android WebView fix: never stay on /login if user is authenticated or auth check is done.
   if (location.pathname.includes('/login')) {
-    return <Navigate to="/" replace />;
+    if (isAuthenticated || !isLoadingAuth) {
+      return <Navigate to="/" replace />;
+    }
   }
 
   // Show loading spinner while checking auth
