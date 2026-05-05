@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
 import React, { Suspense, lazy } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import PageNotFound from './lib/PageNotFound';
@@ -24,10 +24,16 @@ function PageLoader() {
 }
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError } = useAuth();
+  const { isLoadingAuth, isLoadingPublicSettings, authError, isAuthenticated } = useAuth();
   const location = useLocation();
   const isGamePage = location.pathname === '/game';
   const isHomePage = location.pathname === '/';
+
+  // Android WebView fix: if the OAuth callback lands on /login, redirect to home immediately.
+  // This prevents infinite login loops in WebView environments.
+  if (location.pathname.includes('/login')) {
+    return <Navigate to="/" replace />;
+  }
 
   // Show loading spinner while checking auth
   if (isLoadingAuth) {
