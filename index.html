@@ -8,14 +8,18 @@
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#1034A6" />
     <title>Kronox</title>
+    <style>html,body{background-color:#1034A6;}</style>
     <script>
       (function() {
+        // Force Parliament Blue as the splash/theme color — always, on every platform.
+        var themeColor = '#1034A6';
+        document.documentElement.style.backgroundColor = themeColor;
+        document.body && (document.body.style.backgroundColor = themeColor);
+        var metaTheme = document.querySelector('meta[name="theme-color"]');
+        if (metaTheme) metaTheme.setAttribute('content', themeColor);
+
         function applyTheme() {
-          if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            document.documentElement.classList.add('dark');
-          } else {
-            document.documentElement.classList.remove('dark');
-          }
+          document.documentElement.classList.add('dark');
         }
         applyTheme();
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
