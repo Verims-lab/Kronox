@@ -6,12 +6,18 @@ import { CheckCircle2, XCircle, Loader2, FlaskConical, ChevronDown, ChevronRight
 
 const SUITES = [
   { id: 'all',         label: 'Tüm Testler',          icon: '🧪', color: 'text-primary border-primary bg-primary/10' },
-  { id: 'unit',        label: 'Unit Testler',          icon: '⚙️',  color: 'text-blue-400 border-blue-400/50 bg-blue-400/10' },
+  { id: 'unit',        label: 'Unit',                  icon: '⚙️',  color: 'text-blue-400 border-blue-400/50 bg-blue-400/10' },
   { id: 'blackbox',    label: 'Black Box',             icon: '📦',  color: 'text-violet-400 border-violet-400/50 bg-violet-400/10' },
   { id: 'functional',  label: 'Fonksiyonel',           icon: '🔧',  color: 'text-emerald-400 border-emerald-400/50 bg-emerald-400/10' },
   { id: 'performance', label: 'Performans',            icon: '⚡',  color: 'text-yellow-400 border-yellow-400/50 bg-yellow-400/10' },
   { id: 'playability', label: 'Oynanabilirlik',        icon: '🎮',  color: 'text-rose-400 border-rose-400/50 bg-rose-400/10' },
   { id: 'music',       label: 'Müzik',                 icon: '🎵',  color: 'text-pink-400 border-pink-400/50 bg-pink-400/10' },
+  { id: 'ui',          label: 'UI/Ön Yüz',             icon: '🖥️',  color: 'text-cyan-400 border-cyan-400/50 bg-cyan-400/10' },
+  { id: 'e2e',         label: 'Uçtan Uca (E2E)',       icon: '🔁',  color: 'text-orange-400 border-orange-400/50 bg-orange-400/10' },
+  { id: 'api',         label: 'API',                   icon: '🔌',  color: 'text-indigo-400 border-indigo-400/50 bg-indigo-400/10' },
+  { id: 'stability',   label: 'Kararlılık',            icon: '🛡️',  color: 'text-red-400 border-red-400/50 bg-red-400/10' },
+  { id: 'device',      label: 'Cihaz Çeşitliliği',    icon: '📱',  color: 'text-teal-400 border-teal-400/50 bg-teal-400/10' },
+  { id: 'ab',          label: 'A/B Testleri',          icon: '🔀',  color: 'text-amber-400 border-amber-400/50 bg-amber-400/10' },
 ];
 
 function ResultRow({ r }) {
@@ -97,12 +103,12 @@ export default function TestSuite() {
           </div>
           <div>
             <h1 className="font-cinzel text-xl text-primary tracking-wider">TEST SUITE</h1>
-            <p className="font-inter text-xs text-muted-foreground">Kronos — 49 test senaryosu</p>
+            <p className="font-inter text-xs text-muted-foreground">Kronos — 12 suite · 85+ test senaryosu</p>
           </div>
         </div>
 
         {/* Suite seçimi */}
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
           {SUITES.map(s => (
             <button
               key={s.id}
