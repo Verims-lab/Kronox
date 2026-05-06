@@ -31,7 +31,7 @@ const AuthenticatedApp = () => {
 
   // Android WebView fix: never stay on /login if user is authenticated or auth check is done.
   if (location.pathname.includes('/login')) {
-    if (isAuthenticated || !isLoadingAuth) {
+    if (isAuthenticated) {
       return <Navigate to="/" replace />;
     }
   }
