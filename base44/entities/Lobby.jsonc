@@ -121,23 +121,14 @@
   ],
   "rls": {
     "create": {
-      "$or": [
-        {
-          "user_condition": {
-            "isAuthenticated": true
-          }
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+      "user_condition": {
+        "role": "user"
+      }
     },
     "read": {
       "$or": [
         {
-          "host_email": "{{user.email}}"
+          "data.host_email": "{{user.email}}"
         },
         {
           "data.players.email": "{{user.email}}"
@@ -152,7 +143,7 @@
     "update": {
       "$or": [
         {
-          "host_email": "{{user.email}}"
+          "data.host_email": "{{user.email}}"
         },
         {
           "user_condition": {
@@ -164,7 +155,7 @@
     "delete": {
       "$or": [
         {
-          "host_email": "{{user.email}}"
+          "data.host_email": "{{user.email}}"
         },
         {
           "user_condition": {
