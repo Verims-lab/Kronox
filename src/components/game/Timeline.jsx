@@ -163,10 +163,12 @@ export default function Timeline({
   const prevCardCount = useRef(cards.length);
   useEffect(() => {
     if (!scrollRef.current) return;
-    // Sadece ilk yüklemede veya kart eklendiğinde sola al
     if (prevCardCount.current !== cards.length) {
       prevCardCount.current = cards.length;
-      scrollRef.current.scrollLeft = 0;
+      // Kısa gecikme sonrası scroll'u en sola al ki yeni yerleşen kart görünsün
+      setTimeout(() => {
+        if (scrollRef.current) scrollRef.current.scrollLeft = 0;
+      }, 50);
     }
   }, [cards.length]);
 

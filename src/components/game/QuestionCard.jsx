@@ -181,12 +181,7 @@ export default function QuestionCard({
           </div>
         )}
 
-        {/* Text/gorsel without media — just question text */}
-        {!isMuzik && question?.type !== 'isitsel' && !hasAlbumArt && (
-          <p className="text-center font-inter text-white/80 text-xs mt-1">
-            {question?.question}
-          </p>
-        )}
+        {/* intentionally removed duplicate text render */}
       </div>
 
       {/* Bottom bar — year hint */}
