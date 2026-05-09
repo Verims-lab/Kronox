@@ -1,16 +1,27 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import TimelineCard from './TimelineCard.jsx';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-// Horizontal drop zone — dashed oval between cards
-function HorizontalDropZone({ index, isActive, isDragMode, onDrop, onHover, ref: refProp }) {
+// Year axis tick
+function YearTick({ year }) {
+  return (
+    <div className="flex flex-col items-center flex-shrink-0" style={{ minWidth: 48 }}>
+      <span className="font-inter text-white/50" style={{ fontSize: 9 }}>{year}</span>
+      <div className="w-px h-2 bg-white/30 mt-0.5" />
+    </div>
+  );
+}
+
+// Drop zone between cards — shows yellow arrow indicator when active
+function DropZone({ index, isActive, isDragMode, onDrop, onHover, refProp, isTimeUp }) {
   const [isOver, setIsOver] = useState(false);
-  const disabled = !onDrop && !onHover;
   const highlighted = isOver || isActive;
 
   const handleMouseEnter = () => { if (onHover) onHover(index); setIsOver(true); };
   const handleMouseLeave = () => setIsOver(false);
   const handleClick = () => { if (onDrop) onDrop(index); else if (onHover) onHover(index); };
+
+  const borderColor = isTimeUp ? '#ef4444' : highlighted ? '#facc15' : isDragMode ? 'rgba(250,204,21,0.4)' : 'rgba(255,255,255,0.15)';
+  const bgColor = isTimeUp ? 'rgba(239,68,68,0.08)' : highlighted ? 'rgba(250,204,21,0.12)' : isDragMode ? 'rgba(250,204,21,0.04)' : 'rgba(255,255,255,0.03)';
 
   return (
     <div
@@ -18,40 +29,57 @@ function HorizontalDropZone({ index, isActive, isDragMode, onDrop, onHover, ref:
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={handleClick}
-      className={`relative flex items-center justify-center flex-shrink-0 transition-all duration-150 ${disabled ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'}`}
-      style={{ width: highlighted ? 80 : isDragMode ? 56 : 32, height: 90 }}
+      className="relative flex-shrink-0 flex flex-col items-center justify-center cursor-pointer transition-all duration-150"
+      style={{ width: highlighted ? 72 : isDragMode ? 52 : 28, height: 88 }}
     >
-      {/* Dashed oval */}
-      <div className={`rounded-2xl border-2 border-dashed transition-all duration-150 flex items-center justify-center
-        ${highlighted
-          ? 'border-cyan-400 bg-cyan-400/15 shadow-lg'
-          : isDragMode
-            ? 'border-cyan-500/60 bg-cyan-500/5 animate-pulse'
-            : 'border-white/20 bg-white/5'}
-      `}
-        style={{ width: highlighted ? 70 : isDragMode ? 48 : 26, height: 78 }}
+      {/* Arrow indicator above zone when active */}
+      {highlighted && !isTimeUp && (
+        <div
+          className="absolute -top-4 left-1/2 -translate-x-1/2 flex flex-col items-center"
+          style={{ zIndex: 10 }}
+        >
+          <svg width="16" height="14" viewBox="0 0 16 14" fill="none">
+            <path d="M8 14L0 0h16L8 14z" fill="#facc15" opacity="0.9" />
+          </svg>
+        </div>
+      )}
+
+      <div
+        className="rounded-xl border-dashed transition-all duration-150 flex items-center justify-center"
+        style={{
+          width: highlighted ? 64 : isDragMode ? 44 : 22,
+          height: 80,
+          borderWidth: highlighted ? 2 : 1.5,
+          borderStyle: 'dashed',
+          borderColor,
+          background: bgColor,
+          boxShadow: highlighted ? `0 0 12px rgba(250,204,21,0.25)` : 'none',
+        }}
       >
         {isDragMode && !highlighted && (
-          <div className="w-1 h-8 rounded-full bg-white/20" />
-        )}
-        {highlighted && (
-          <div className="w-2 h-2 rounded-full bg-cyan-400 shadow-lg shadow-cyan-400/60" />
+          <div className="w-0.5 h-6 rounded-full bg-white/20" />
         )}
       </div>
     </div>
   );
 }
 
-// Ghost preview card shown in drop zone when dragging
+// Ghost card preview shown in the active drop zone during drag
 function GhostCard() {
   return (
     <div
-      className="flex-shrink-0 rounded-2xl border-2 border-dashed border-cyan-400 bg-cyan-400/15 flex flex-col items-center justify-center animate-pulse"
-      style={{ width: 72, minHeight: 90 }}
+      className="flex-shrink-0 flex flex-col items-center justify-center rounded-xl"
+      style={{
+        width: 72,
+        height: 88,
+        border: '1.5px dashed #facc15',
+        background: 'rgba(250,204,21,0.08)',
+        boxShadow: '0 0 14px rgba(250,204,21,0.3)',
+      }}
     >
-      <div className="w-8 h-4 rounded bg-cyan-400/30 mb-1" />
-      <div className="w-6 h-6 rounded bg-cyan-400/20 mb-1" />
-      <div className="w-10 h-2 rounded bg-cyan-400/20" />
+      <div className="w-8 h-3 rounded bg-yellow-400/30 mb-1.5" />
+      <div className="w-10 h-2 rounded bg-yellow-400/20 mb-1" />
+      <div className="w-7 h-4 rounded bg-yellow-400/25" />
     </div>
   );
 }
@@ -66,6 +94,7 @@ export default function Timeline({
   externalTouchY,
   externalTouchEnd,
   onExternalZoneChange,
+  isTimeUp = false,
 }) {
   const sortedCards = Array.isArray(cards) ? [...cards].sort((a, b) => a.year - b.year) : [];
 
@@ -93,8 +122,7 @@ export default function Timeline({
       const el = dropZoneRefs.current[i];
       if (!el) continue;
       const rect = el.getBoundingClientRect();
-      // Expand hit area a bit
-      if (x >= rect.left - 10 && x <= rect.right + 10 && y >= rect.top - 20 && y <= rect.bottom + 20) {
+      if (x >= rect.left - 12 && x <= rect.right + 12 && y >= rect.top - 24 && y <= rect.bottom + 24) {
         return i;
       }
     }
@@ -118,32 +146,41 @@ export default function Timeline({
     if (zone !== null && onPlaceCard) onPlaceCard(zone);
   }, [externalTouchEnd, getZoneAtPoint, onPlaceCard]);
 
-  // Auto-scroll to end on new card
+  // Auto-scroll to show latest card
   useEffect(() => {
     if (!scrollRef.current) return;
     setTimeout(() => {
       scrollRef.current.scrollTo({ left: scrollRef.current.scrollWidth, behavior: 'smooth' });
-    }, 80);
+    }, 100);
   }, [cards.length]);
+
+  // Build year axis ticks from card years
+  const yearTicks = useMemo(() => {
+    if (groupedCards.length === 0) return [];
+    const years = groupedCards.map(c => c.year);
+    const minY = Math.floor(Math.min(...years) / 10) * 10 - 10;
+    const maxY = Math.ceil(Math.max(...years) / 10) * 10 + 10;
+    const ticks = [];
+    for (let y = minY; y <= maxY; y += 10) ticks.push(y);
+    return ticks;
+  }, [groupedCards]);
 
   const totalZones = groupedCards.length + 1;
   const items = [];
 
   for (let i = 0; i < totalZones; i++) {
     items.push(
-      <div
-        key={`dz-${i}`}
-        ref={el => (dropZoneRefs.current[i] = el)}
-      >
+      <div key={`dz-${i}`} ref={el => (dropZoneRefs.current[i] = el)}>
         {activeZone === i ? (
           <GhostCard />
         ) : (
-          <HorizontalDropZone
+          <DropZone
             index={i}
             isActive={selectedZone === i && !isDragMode}
             isDragMode={isDragMode}
             onDrop={onPlaceCard}
             onHover={onSelectZone}
+            isTimeUp={isTimeUp}
           />
         )}
       </div>
@@ -161,35 +198,47 @@ export default function Timeline({
   }
 
   return (
-    <div className="w-full flex flex-col items-start">
-      {/* Scroll hints */}
-      <div className="flex items-center gap-1 px-2 mb-1 w-full justify-between">
-        <div className="flex items-center gap-1 text-white/40 text-xs font-inter">
-          <ChevronLeft className="w-3 h-3" />
-          <span>Daha eski</span>
+    <div className="w-full flex flex-col">
+      {/* Year axis (only shown when cards exist) */}
+      {yearTicks.length > 0 && (
+        <div className="w-full overflow-hidden px-3 mb-1">
+          <div className="flex flex-row items-start gap-0 justify-center" style={{ minWidth: 'max-content', margin: '0 auto' }}>
+            {yearTicks.map(y => <YearTick key={y} year={y} />)}
+          </div>
         </div>
-        <div className="flex items-center gap-1 text-white/40 text-xs font-inter">
-          <span>Daha yeni</span>
-          <ChevronRight className="w-3 h-3" />
-        </div>
-      </div>
+      )}
 
-      {/* Horizontal scroll timeline */}
+      {/* Cards + drop zones */}
       <div
         ref={scrollRef}
-        className="flex flex-row items-center w-full overflow-x-auto py-2 px-2"
-        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', justifyContent: 'center' }}
+        className="w-full overflow-x-auto"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
-        <style>{`.timeline-scroll::-webkit-scrollbar { display: none; }`}</style>
-        {/* Connection line */}
-        <div className="absolute h-0.5 bg-gradient-to-r from-cyan-500/0 via-cyan-400/60 to-cyan-500/0 pointer-events-none" style={{ width: '100%', zIndex: 0 }} />
-        
-        <div className="flex flex-row items-center gap-0 relative" style={{ minWidth: 'max-content' }}>
-          {/* Background line */}
-          <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-gradient-to-r from-cyan-500/30 via-cyan-400/60 to-cyan-500/30 -translate-y-1/2 pointer-events-none rounded-full" />
+        <div
+          className="relative flex flex-row items-center mx-auto px-2"
+          style={{ minWidth: 'max-content', gap: 0 }}
+        >
+          {/* Horizontal line behind cards */}
+          <div
+            className="absolute top-1/2 left-4 right-4 -translate-y-1/2 pointer-events-none rounded-full"
+            style={{
+              height: 2,
+              background: isTimeUp
+                ? 'linear-gradient(to right, rgba(239,68,68,0.1), rgba(239,68,68,0.5), rgba(239,68,68,0.1))'
+                : 'linear-gradient(to right, rgba(250,204,21,0.05), rgba(250,204,21,0.35), rgba(250,204,21,0.05))',
+              zIndex: 0,
+            }}
+          />
           {items}
         </div>
       </div>
+
+      {/* Scroll hint */}
+      {groupedCards.length > 3 && (
+        <div className="flex justify-center mt-1">
+          <span className="font-inter text-white/25" style={{ fontSize: 9 }}>← kaydır →</span>
+        </div>
+      )}
     </div>
   );
 }

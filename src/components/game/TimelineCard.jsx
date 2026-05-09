@@ -1,66 +1,102 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-// Category emoji mapping
-const categoryEmoji = {
-  tarih: '🏰',
-  bilim: '🔬',
-  spor: '⚽',
-  sanat: '🎨',
-  teknoloji: '💡',
-  genel: '🌍',
-};
-
-// Deep navy/indigo cards — matches KronoX reference
-const cardColors = [
-  { bg: 'from-indigo-700 to-indigo-900', border: 'border-indigo-400/70', shadow: 'shadow-indigo-500/40' },
-  { bg: 'from-violet-700 to-violet-900', border: 'border-violet-400/70', shadow: 'shadow-violet-500/40' },
-  { bg: 'from-blue-700 to-blue-900', border: 'border-blue-400/70', shadow: 'shadow-blue-500/40' },
+// Color palette for cards (matching reference design)
+const cardStyles = [
+  { bg: '#1a2a1a', border: '#22c55e', yearColor: '#22c55e' },   // green
+  { bg: '#1a1a2e', border: '#818cf8', yearColor: '#818cf8' },   // indigo
+  { bg: '#2a1a1a', border: '#f87171', yearColor: '#f87171' },   // red
+  { bg: '#1a2a2a', border: '#06b6d4', yearColor: '#06b6d4' },   // cyan
+  { bg: '#2a2a1a', border: '#facc15', yearColor: '#facc15' },   // yellow
+  { bg: '#2a1a2a', border: '#c084fc', yearColor: '#c084fc' },   // purple
 ];
 
-export default function TimelineCard({ card, index, isActive = false }) {
+export default function TimelineCard({ card, index }) {
   const stackCount = card.stackCount || 1;
-  const color = cardColors[index % cardColors.length];
-  const emoji = categoryEmoji[card.category] || '🌍';
+  const style = cardStyles[index % cardStyles.length];
+
+  // Parse title/artist from question text if possible
+  // Format expected: "TITLE\nARTIST" or just question text
+  const lines = (card.question || '').split('\n');
+  const title = lines[0] || '';
+  const artist = lines[1] || card.artist || '';
 
   return (
-    <div className="relative flex-shrink-0 flex flex-col items-center" style={{ width: 72 }}>
-      {/* Stack layers */}
+    <div className="relative flex-shrink-0 flex flex-col items-center" style={{ width: 76 }}>
+      {/* Stack shadow layers */}
       {stackCount > 1 && (
-        <div className={`absolute inset-0 rounded-2xl bg-gradient-to-b ${color.bg} opacity-50 translate-x-1 translate-y-1 border ${color.border}`} />
+        <>
+          <div
+            className="absolute rounded-xl"
+            style={{
+              inset: 0,
+              background: style.bg,
+              border: `1.5px solid ${style.border}`,
+              transform: 'translate(3px, 3px)',
+              opacity: 0.4,
+              zIndex: 0,
+            }}
+          />
+          <div
+            className="absolute rounded-xl"
+            style={{
+              inset: 0,
+              background: style.bg,
+              border: `1.5px solid ${style.border}`,
+              transform: 'translate(6px, 6px)',
+              opacity: 0.2,
+              zIndex: 0,
+            }}
+          />
+        </>
       )}
 
       <motion.div
-        initial={{ scale: 0, opacity: 0 }}
+        initial={{ scale: 0.5, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        transition={{ delay: index * 0.05, type: 'spring', stiffness: 300, damping: 24 }}
-        className={`
-          relative flex flex-col items-center justify-between w-full rounded-2xl border-2 p-1.5 pb-2
-          bg-gradient-to-b ${color.bg} ${color.border}
-          shadow-lg ${color.shadow}
-          ${isActive ? 'ring-2 ring-yellow-400 ring-offset-1 ring-offset-transparent' : ''}
-          select-none
-        `}
-        style={{ minHeight: 90 }}
+        transition={{ delay: index * 0.04, type: 'spring', stiffness: 350, damping: 26 }}
+        className="relative flex flex-col items-center justify-between w-full rounded-xl p-1.5 select-none z-10"
+        style={{
+          minHeight: 88,
+          background: style.bg,
+          border: `1.5px solid ${style.border}`,
+          boxShadow: `0 0 8px ${style.border}40`,
+        }}
       >
-        {/* Year */}
-        <div className="w-full text-center">
-          <span className="font-bangers text-white text-xl tracking-wider leading-none">{card.year}</span>
-        </div>
+        {/* Album art / thumbnail if available */}
+        {card.media_url && card.type === 'gorsel' && (
+          <div className="w-full rounded-lg overflow-hidden mb-1" style={{ height: 36 }}>
+            <img src={card.media_url} alt="" className="w-full h-full object-cover" onError={e => { e.target.style.display = 'none'; }} />
+          </div>
+        )}
 
-        {/* Emoji */}
-        <div className="flex items-center justify-center my-0.5">
-          <span className="text-2xl">{emoji}</span>
-        </div>
-
-        {/* Label */}
-        <p className="text-white text-[9px] font-inter font-semibold text-center leading-tight line-clamp-2 px-0.5">
-          {card.question}
+        {/* Title */}
+        <p className="w-full text-center font-inter font-bold leading-tight line-clamp-2 px-0.5"
+          style={{ fontSize: 8, color: '#ffffff', letterSpacing: '0.02em' }}>
+          {title}
         </p>
 
-        {/* Stack badge */}
+        {/* Artist */}
+        {artist && (
+          <p className="w-full text-center font-inter leading-tight line-clamp-1 px-0.5 mt-0.5"
+            style={{ fontSize: 7, color: 'rgba(255,255,255,0.55)' }}>
+            {artist}
+          </p>
+        )}
+
+        {/* Year */}
+        <div className="mt-1">
+          <span className="font-bangers tracking-wider" style={{ fontSize: 15, color: style.yearColor }}>
+            {card.year}
+          </span>
+        </div>
+
+        {/* Stack count badge */}
         {stackCount > 1 && (
-          <div className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-primary text-primary-foreground font-inter font-bold text-[9px] flex items-center justify-center shadow">
+          <div
+            className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center font-inter font-bold"
+            style={{ fontSize: 8, background: style.border, color: '#000' }}
+          >
             {stackCount}
           </div>
         )}

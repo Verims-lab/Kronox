@@ -57,6 +57,7 @@ export default function Game() {
     overallSeconds, setOverallSeconds,
     gameStarted, setGameStarted,
     error, setError,
+    isTimeUp, setIsTimeUp,
     isPlacingRef,
     overallSecondsRef,
     players,
@@ -185,7 +186,8 @@ export default function Game() {
   // Timer reset on player turn change
   useEffect(() => {
     setTimerKey(k => k + 1);
-  }, [currentPlayerIndex, setTimerKey]);
+    setIsTimeUp(false);
+  }, [currentPlayerIndex, setTimerKey, setIsTimeUp]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -218,8 +220,12 @@ export default function Game() {
   // ─── Handlers (UI event → action delegation) ─────────────────────
   const handleDropOnZone = (zoneIndex) => doPlacement(zoneIndex, { category, yearStart, yearEnd });
   const handleConfirmPlacement = () => { if (selectedZone !== null) doPlacement(selectedZone, { category, yearStart, yearEnd }); };
-  const handleTimeUp = useCallback(() => { if (feedback !== null || winner) return; advanceTurn(winner); }, [feedback, winner, advanceTurn]);
-  const handleFeedbackDone = useCallback(() => setFeedback(null), [setFeedback]);
+  const handleTimeUp = useCallback(() => {
+    if (feedback !== null || winner) return;
+    setIsTimeUp(true);
+    advanceTurn(winner);
+  }, [feedback, winner, advanceTurn, setIsTimeUp]);
+  const handleFeedbackDone = useCallback(() => { setFeedback(null); setIsTimeUp(false); }, [setFeedback, setIsTimeUp]);
   const handleImageError = useCallback(() => skipCurrentQuestion(currentQuestion?.id), [currentQuestion?.id, skipCurrentQuestion]);
   const handleAudioError = useCallback(() => skipCurrentQuestion(currentQuestion?.id), [currentQuestion?.id, skipCurrentQuestion]);
   const handleRestart = () => { resetGame(); navigate('/'); };
@@ -382,6 +388,7 @@ export default function Game() {
         onBack={handleBackAttempt}
         onToggleSettings={() => setShowSettings(s => !s)}
         onToggleChat={() => setShowChat(c => !c)}
+        isTimeUp={isTimeUp}
       />
     </>
   );

@@ -19,6 +19,7 @@ export function useGameState({ playerNames, initialPlayers, currentQuestionIdFro
   const [overallSeconds, setOverallSeconds] = useState(0);
   const [gameStarted, setGameStarted] = useState(false);
   const [error, setError] = useState(null);
+  const [isTimeUp, setIsTimeUp] = useState(false);
 
   const isPlacingRef = useRef(false);
   const overallSecondsRef = useRef(0);
@@ -51,6 +52,7 @@ export function useGameState({ playerNames, initialPlayers, currentQuestionIdFro
     setFeedback(null);
     setSelectedZone(null);
     setError(null);
+    setIsTimeUp(false);
   }, []);
 
   return {
@@ -68,6 +70,7 @@ export function useGameState({ playerNames, initialPlayers, currentQuestionIdFro
     overallSeconds, setOverallSeconds,
     gameStarted, setGameStarted,
     error, setError,
+    isTimeUp, setIsTimeUp,
     // Refs
     isPlacingRef,
     overallSecondsRef,

@@ -31,6 +31,7 @@ export default function GameLayout({
   timerKey,
   showSettings,
   showChat,
+  isTimeUp,
   // Handlers
   onSelectZone,
   onDropOnZone,
@@ -147,7 +148,14 @@ export default function GameLayout({
 
       {/* TIMELINE */}
       <div className="flex-shrink-0 px-2 py-1">
-        <div className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden py-2">
+        <div
+          className="rounded-2xl overflow-hidden py-2 transition-all duration-300"
+          style={{
+            background: isTimeUp ? 'rgba(239,68,68,0.06)' : 'rgba(255,255,255,0.04)',
+            border: isTimeUp ? '1.5px solid rgba(239,68,68,0.5)' : '1px solid rgba(255,255,255,0.08)',
+            boxShadow: isTimeUp ? '0 0 16px rgba(239,68,68,0.2)' : 'none',
+          }}
+        >
           {currentPlayer && (
             <Timeline
               cards={currentPlayer.cards}
@@ -159,9 +167,23 @@ export default function GameLayout({
               externalTouchY={isMyTurn ? touchDragPos?.y : null}
               externalTouchEnd={isMyTurn ? touchDragEnd : null}
               onExternalZoneChange={onExternalZoneChange}
+              isTimeUp={isTimeUp}
             />
           )}
         </div>
+
+        {/* SÜRE DOLDU uyarısı */}
+        {isTimeUp && (
+          <div className="flex items-center gap-2 mt-2 px-1">
+            <div className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0">
+              <span style={{ fontSize: 11 }}>⏱</span>
+            </div>
+            <div>
+              <p className="font-bangers tracking-wider text-red-400" style={{ fontSize: 13 }}>SÜRE DOLDU!</p>
+              <p className="font-inter text-red-400/70" style={{ fontSize: 10 }}>Bir seçim yapmadan süre bitti.</p>
+            </div>
+          </div>
+        )}
       </div>
 
 
