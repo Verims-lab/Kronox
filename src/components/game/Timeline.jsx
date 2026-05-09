@@ -156,12 +156,15 @@ export default function Timeline({
     if (zone !== null && onPlaceCard) onPlaceCard(zone);
   }, [externalTouchEnd, getZoneAtPoint, onPlaceCard]);
 
-  // Auto-scroll to show rightmost content
+  // Kart sayısı değişince scroll'u sola sıfırla — tüm kartlar görünsün
+  const prevCardCount = useRef(cards.length);
   useEffect(() => {
     if (!scrollRef.current) return;
-    setTimeout(() => {
-      scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
-    }, 150);
+    // Sadece ilk yüklemede veya kart eklendiğinde sola al
+    if (prevCardCount.current !== cards.length) {
+      prevCardCount.current = cards.length;
+      scrollRef.current.scrollLeft = 0;
+    }
   }, [cards.length]);
 
   // Year axis ticks
