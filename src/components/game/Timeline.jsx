@@ -18,7 +18,8 @@ function DropZone({ index, isActive, isDragMode, onDrop, onHover, refProp, isTim
 
   const handleMouseEnter = () => { if (onHover) onHover(index); setIsOver(true); };
   const handleMouseLeave = () => setIsOver(false);
-  const handleClick = () => { if (onDrop) onDrop(index); else if (onHover) onHover(index); };
+  // Click = select zone (tap-to-select, then confirm with button)
+  const handleClick = () => { if (onHover) onHover(index); };
 
   const borderColor = isTimeUp ? '#ef4444' : highlighted ? '#facc15' : isDragMode ? 'rgba(250,204,21,0.4)' : 'rgba(255,255,255,0.15)';
   const bgColor = isTimeUp ? 'rgba(239,68,68,0.08)' : highlighted ? 'rgba(250,204,21,0.12)' : isDragMode ? 'rgba(250,204,21,0.04)' : 'rgba(255,255,255,0.03)';
@@ -146,12 +147,12 @@ export default function Timeline({
     if (zone !== null && onPlaceCard) onPlaceCard(zone);
   }, [externalTouchEnd, getZoneAtPoint, onPlaceCard]);
 
-  // Auto-scroll to show latest card
+  // Auto-scroll to show the last drop zone (rightmost)
   useEffect(() => {
     if (!scrollRef.current) return;
     setTimeout(() => {
-      scrollRef.current.scrollTo({ left: scrollRef.current.scrollWidth, behavior: 'smooth' });
-    }, 100);
+      scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
+    }, 150);
   }, [cards.length]);
 
   // Build year axis ticks from card years
@@ -212,11 +213,11 @@ export default function Timeline({
       <div
         ref={scrollRef}
         className="w-full overflow-x-auto"
-        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
       >
         <div
           className="relative flex flex-row items-center mx-auto px-2"
-          style={{ minWidth: 'max-content', gap: 0 }}
+          style={{ minWidth: 'max-content', gap: 0, paddingRight: 16 }}
         >
           {/* Horizontal line behind cards */}
           <div
