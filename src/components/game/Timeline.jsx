@@ -119,15 +119,27 @@ export default function Timeline({
     : null;
 
   const getZoneAtPoint = useCallback((x, y) => {
+    // Önce tam isabet
     for (let i = 0; i < dropZoneRefs.current.length; i++) {
       const el = dropZoneRefs.current[i];
       if (!el) continue;
       const rect = el.getBoundingClientRect();
-      if (x >= rect.left - 16 && x <= rect.right + 16 && y >= rect.top - 32 && y <= rect.bottom + 32) {
+      if (x >= rect.left - 24 && x <= rect.right + 24 && y >= rect.top - 60 && y <= rect.bottom + 60) {
         return i;
       }
     }
-    return null;
+    // Yatay en yakın zone'u bul (y ekseni esnekse)
+    let closest = null;
+    let minDist = Infinity;
+    for (let i = 0; i < dropZoneRefs.current.length; i++) {
+      const el = dropZoneRefs.current[i];
+      if (!el) continue;
+      const rect = el.getBoundingClientRect();
+      const cx = (rect.left + rect.right) / 2;
+      const dist = Math.abs(x - cx);
+      if (dist < minDist) { minDist = dist; closest = i; }
+    }
+    return minDist < 80 ? closest : null;
   }, []);
 
   useEffect(() => {
@@ -220,6 +232,7 @@ export default function Timeline({
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
           WebkitOverflowScrolling: 'touch',
+          touchAction: isDragMode ? 'none' : 'pan-x',
         }}
       >
         <div
