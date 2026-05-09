@@ -121,21 +121,31 @@ export default function GameLayout({
         </div>
       )}
 
-      {/* CENTER: Question card */}
-      <div className="flex-shrink-0 flex justify-center items-center px-4 py-2">
-        {currentQuestion && isMyTurn && !winner ? (
-          <div className="relative">
-            <QuestionCard
-              question={currentQuestion}
-              onImageError={onImageError}
-              onAudioError={onAudioError}
-              draggable={!feedback}
-              onDragStart={onDragStart}
-              onDragEnd={onDragEnd}
-              onTouchDragMove={onTouchDragMove}
-              onTouchDragEnd={onTouchDragEnd}
-            />
+      {/* CENTER: Instruction + Question card */}
+      <div className="flex-shrink-0 flex flex-col items-center px-4 py-1 gap-1">
+        {/* Instruction text */}
+        {isMyTurn && !winner && currentQuestion && !feedback && (
+          <div className="text-center">
+            <p className="font-inter font-semibold tracking-wide" style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)' }}>
+              ŞARKIYI ZAMAN ÇİZGİSİNE
+            </p>
+            <p className="font-bangers tracking-widest" style={{ fontSize: 18, color: '#facc15' }}>
+              YERLEŞTİR!
+            </p>
           </div>
+        )}
+
+        {currentQuestion && isMyTurn && !winner ? (
+          <QuestionCard
+            question={currentQuestion}
+            onImageError={onImageError}
+            onAudioError={onAudioError}
+            draggable={!feedback}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+            onTouchDragMove={onTouchDragMove}
+            onTouchDragEnd={onTouchDragEnd}
+          />
         ) : currentQuestion && !isMyTurn ? (
           <div className="w-full max-w-xs rounded-2xl bg-white/5 border border-white/15 flex items-center justify-center py-8 text-center">
             <p className="font-inter text-white/60 text-sm">
@@ -229,17 +239,24 @@ export default function GameLayout({
       <AnimatePresence>
         {isDragging && touchDragPos && (
           <motion.div
-            initial={{ scale: 0.95, opacity: 0.8 }}
-            animate={{ scale: 1.05, opacity: 0.95 }}
-            exit={{ scale: 0.9, opacity: 0 }}
+            initial={{ scale: 0.9, opacity: 0.7 }}
+            animate={{ scale: 1, opacity: 0.9 }}
+            exit={{ scale: 0.85, opacity: 0 }}
             className="fixed z-50 pointer-events-none"
-            style={{ left: touchDragPos.x - 90, top: touchDragPos.y - 50, width: 180 }}
+            style={{ left: touchDragPos.x - 80, top: touchDragPos.y - 60, width: 160 }}
           >
-            <div className="rounded-2xl bg-white shadow-2xl px-3 py-3 text-center">
-              <p className="font-inter text-sm text-gray-800 font-semibold line-clamp-2 leading-snug">
+            <div
+              className="rounded-2xl px-3 py-3 text-center"
+              style={{
+                background: 'linear-gradient(160deg, #0f1428 0%, #0a0f23 100%)',
+                border: '2px solid #facc15',
+                boxShadow: '0 0 20px rgba(250,204,21,0.4)',
+              }}
+            >
+              <p className="font-inter text-xs text-white font-semibold line-clamp-2 leading-snug">
                 {currentQuestion?.question}
               </p>
-              <p className="font-inter text-xs text-gray-400 mt-1">↓ bırak</p>
+              <p className="font-bangers text-sm text-yellow-400 mt-1 tracking-wide">↓ BIRAK</p>
             </div>
           </motion.div>
         )}

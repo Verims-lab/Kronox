@@ -1,28 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { HelpCircle, Volume2, Play, Pause, ImageOff } from 'lucide-react';
+import { Volume2, Play, Pause } from 'lucide-react';
 
-// Category emoji mapping
-const categoryEmoji = {
-  tarih: '🏰',
-  bilim: '🔬',
-  spor: '⚽',
-  sanat: '🎨',
-  teknoloji: '💡',
-  genel: '🌍',
-  muzik: '🎵',
-};
-
-// Neon glow colors per category
+// Neon border colors per category
 const categoryNeon = {
-  tarih:    { border: '#f59e0b', shadow: '0 0 8px 2px rgba(245,158,11,0.7), 0 0 20px 4px rgba(245,158,11,0.35)' },
-  bilim:    { border: '#22d3ee', shadow: '0 0 8px 2px rgba(34,211,238,0.7), 0 0 20px 4px rgba(34,211,238,0.35)' },
-  spor:     { border: '#4ade80', shadow: '0 0 8px 2px rgba(74,222,128,0.7), 0 0 20px 4px rgba(74,222,128,0.35)' },
-  sanat:    { border: '#f472b6', shadow: '0 0 8px 2px rgba(244,114,182,0.7), 0 0 20px 4px rgba(244,114,182,0.35)' },
-  teknoloji:{ border: '#a78bfa', shadow: '0 0 8px 2px rgba(167,139,250,0.7), 0 0 20px 4px rgba(167,139,250,0.35)' },
-  genel:    { border: '#60a5fa', shadow: '0 0 8px 2px rgba(96,165,250,0.7), 0 0 20px 4px rgba(96,165,250,0.35)' },
-  muzik:    { border: '#ec4899', shadow: '0 0 8px 2px rgba(236,72,153,0.7), 0 0 20px 4px rgba(236,72,153,0.35)' },
+  tarih:    { border: '#f59e0b', glow: 'rgba(245,158,11,0.5)' },
+  bilim:    { border: '#22d3ee', glow: 'rgba(34,211,238,0.5)' },
+  spor:     { border: '#4ade80', glow: 'rgba(74,222,128,0.5)' },
+  sanat:    { border: '#f472b6', glow: 'rgba(244,114,182,0.5)' },
+  teknoloji:{ border: '#a78bfa', glow: 'rgba(167,139,250,0.5)' },
+  genel:    { border: '#facc15', glow: 'rgba(250,204,21,0.5)' },
+  muzik:    { border: '#facc15', glow: 'rgba(250,204,21,0.5)' },
 };
+
+const defaultNeon = { border: '#facc15', glow: 'rgba(250,204,21,0.5)' };
 
 export default function QuestionCard({
   question,
@@ -33,7 +24,6 @@ export default function QuestionCard({
   onDragEnd,
   onTouchDragMove,
   onTouchDragEnd,
-  compact = false,
 }) {
   const [playing, setPlaying] = useState(false);
   const [imgError, setImgError] = useState(false);
@@ -45,24 +35,14 @@ export default function QuestionCard({
     setImgError(false);
     setAudioError(false);
     setPlaying(false);
-    // Auto-play music type questions (handle browser autoplay policy)
     if (question?.type === 'muzik' && audioRef.current) {
       const timer = setTimeout(() => {
-        const playPromise = audioRef.current?.play();
-        if (playPromise !== undefined) {
-          playPromise
-            .then(() => setPlaying(true))
-            .catch(() => setPlaying(false)); // autoplay blocked — kullanıcı butona basmalı
-        }
+        const p = audioRef.current?.play();
+        if (p !== undefined) p.then(() => setPlaying(true)).catch(() => setPlaying(false));
       }, 300);
       return () => clearTimeout(timer);
     }
   }, [question?.id]);
-
-  const handleImgError = () => {
-    setImgError(true);
-    if (onImageError) onImageError();
-  };
 
   const toggleAudio = (e) => {
     e.stopPropagation();
@@ -71,12 +51,9 @@ export default function QuestionCard({
       audioRef.current.pause();
       setPlaying(false);
     } else {
-      const playPromise = audioRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise.then(() => setPlaying(true)).catch(() => setPlaying(false));
-      } else {
-        setPlaying(true);
-      }
+      const p = audioRef.current.play();
+      if (p !== undefined) p.then(() => setPlaying(true)).catch(() => setPlaying(false));
+      else setPlaying(true);
     }
   };
 
@@ -101,12 +78,20 @@ export default function QuestionCard({
     if (onDragEnd) onDragEnd();
   };
 
-  const emoji = categoryEmoji[question?.category] || '🌍';
-  const neon = categoryNeon[question?.category] || categoryNeon.genel;
+  const neon = categoryNeon[question?.category] || defaultNeon;
+
+  const hasAlbumArt = (question?.type === 'gorsel' || question?.type === 'muzik') && question?.media_url && !imgError;
+  const isMuzik = question?.type === 'muzik';
+  const isGorsel = question?.type === 'gorsel';
+
+  // For muzik: show title (song name) + artist from question text
+  const lines = (question?.question || '').split('\n');
+  const songTitle = isMuzik ? (lines[0] || '') : null;
+  const artistName = isMuzik ? (lines[1] || '') : null;
 
   return (
     <motion.div
-      initial={{ scale: 0.9, opacity: 0, y: 20 }}
+      initial={{ scale: 0.9, opacity: 0, y: 16 }}
       animate={{ scale: 1, opacity: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 220, damping: 22 }}
       draggable={draggable}
@@ -115,74 +100,50 @@ export default function QuestionCard({
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className={`
-        relative flex flex-col items-center rounded-2xl mx-auto
-        bg-white text-gray-800
-        ${draggable ? 'cursor-grab active:cursor-grabbing active:scale-95 transition-transform duration-100' : ''}
-        ${compact ? 'p-3 gap-2' : 'p-4 gap-3'}
+      className={`relative flex flex-col rounded-2xl overflow-hidden select-none mx-auto
+        ${draggable ? 'cursor-grab active:cursor-grabbing' : ''}
       `}
       style={{
-        width: 144,
-        minHeight: 180,
-        touchAction: draggable ? 'none' : 'auto',
+        width: 160,
+        minHeight: 200,
+        background: 'linear-gradient(160deg, #0f1428 0%, #0a0f23 100%)',
         border: `2px solid ${neon.border}`,
-        boxShadow: neon.shadow,
+        boxShadow: `0 0 20px ${neon.glow}, 0 0 8px ${neon.glow}`,
+        touchAction: draggable ? 'none' : 'auto',
       }}
     >
-      {/* Help icon top right */}
-      <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center">
-        <HelpCircle className="w-4 h-4 text-white" />
-      </div>
-
-      {/* Title — müzik sorularında şarkı adını gizle */}
-      <p className={`font-inter font-bold text-gray-800 text-center leading-tight ${compact ? 'text-xs' : 'text-xs'} pr-5`}>
-        {question.type === 'muzik' ? 'Bu parça hangi yılda çıktı?' : question.question}
-      </p>
-
-      {/* Visual content */}
-      {question.type === 'gorsel' && question.media_url && !imgError && (
-        <div className="w-full flex items-center justify-center">
+      {/* Album art — full width top section */}
+      {hasAlbumArt && (
+        <div className="w-full overflow-hidden" style={{ height: 96, flexShrink: 0 }}>
           <img
             src={question.media_url}
-            alt="Soru görseli"
-            className={`object-contain rounded-xl ${compact ? 'max-h-12' : 'max-h-16'}`}
+            alt=""
+            className="w-full h-full object-cover"
             referrerPolicy="no-referrer"
             crossOrigin="anonymous"
-            onError={handleImgError}
+            onError={() => { setImgError(true); if (onImageError && isGorsel) onImageError(); }}
           />
         </div>
       )}
-      {question.type === 'gorsel' && (imgError || !question.media_url) && (
-        <div className="w-full flex flex-col items-center justify-center py-4 gap-1">
-          <span className="text-5xl">{emoji}</span>
-        </div>
-      )}
-      {question.type === 'metin' && (
-        <div className="flex items-center justify-center">
-          <span className={compact ? 'text-3xl' : 'text-4xl'}>{emoji}</span>
-        </div>
-      )}
 
-      {/* Audio */}
-      {question.type === 'isitsel' && question.media_url && (
-       <div className="flex flex-col items-center gap-1.5">
-         <audio ref={audioRef} src={question.media_url} onEnded={() => setPlaying(false)} />
-         <button
-           onClick={toggleAudio}
-           className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center shadow-lg"
-         >
-           {playing ? <Pause className="w-5 h-5 text-white" /> : <Play className="w-5 h-5 text-white ml-0.5" />}
-         </button>
-         <p className="text-xs text-gray-500 flex items-center gap-1">
-           <Volume2 className="w-3 h-3" /> Sesi dinle
-         </p>
-       </div>
-      )}
+      {/* Content area */}
+      <div className="flex flex-col items-center px-3 py-3 gap-1 flex-1">
+        {/* Question text or song title */}
+        <p className="text-center font-inter font-bold leading-tight text-white"
+          style={{ fontSize: isMuzik ? 11 : 10, lineHeight: 1.3 }}>
+          {isMuzik ? songTitle : question?.question}
+        </p>
 
-      {/* Music — şarkı adını gizle, sadece dinle butonu göster */}
-      {question.type === 'muzik' && (
-        (question.media_url && !audioError) ? (
-          <div className="flex flex-col items-center gap-1.5">
+        {/* Artist name for music */}
+        {isMuzik && artistName && (
+          <p className="text-center font-inter" style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)' }}>
+            {artistName}
+          </p>
+        )}
+
+        {/* Audio controls for muzik */}
+        {isMuzik && question?.media_url && !audioError && (
+          <div className="flex flex-col items-center gap-1 mt-1">
             <audio
               ref={audioRef}
               src={question.media_url}
@@ -194,33 +155,49 @@ export default function QuestionCard({
                 }
               }}
             />
-            <span className="text-3xl">🎵</span>
             <button
               onClick={toggleAudio}
-              className="w-12 h-12 rounded-full bg-pink-500 flex items-center justify-center shadow-lg"
+              className="w-9 h-9 rounded-full flex items-center justify-center"
+              style={{ background: neon.border }}
             >
-              {playing ? <Pause className="w-5 h-5 text-white" /> : <Play className="w-5 h-5 text-white ml-0.5" />}
+              {playing ? <Pause className="w-4 h-4 text-black" /> : <Play className="w-4 h-4 text-black ml-0.5" />}
             </button>
-            <p className="text-xs text-gray-500 flex items-center gap-1">
-              <Volume2 className="w-3 h-3" /> Dinle ve yılı bul!
-            </p>
           </div>
-        ) : (
-          <div className="flex flex-col items-center gap-1.5 px-1">
-            <span className="text-2xl">🔇</span>
-            <p className="text-[10px] text-gray-400 text-center leading-tight">
-              Önizleme mevcut değil
-            </p>
-          </div>
-        )
-      )}
+        )}
 
-      {/* Bottom label */}
-      {!compact && (
-        <div className="w-full pt-1 border-t border-gray-100">
-          <p className="text-center text-[10px] font-inter text-gray-400">Bu olay ne zaman?</p>
-        </div>
-      )}
+        {/* Audio for isitsel type */}
+        {question?.type === 'isitsel' && question?.media_url && (
+          <div className="flex flex-col items-center gap-1 mt-1">
+            <audio ref={audioRef} src={question.media_url} onEnded={() => setPlaying(false)} />
+            <button
+              onClick={toggleAudio}
+              className="w-9 h-9 rounded-full bg-blue-500 flex items-center justify-center"
+            >
+              {playing ? <Pause className="w-4 h-4 text-white" /> : <Play className="w-4 h-4 text-white ml-0.5" />}
+            </button>
+            <p className="text-center font-inter" style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>
+              Sesi dinle
+            </p>
+          </div>
+        )}
+
+        {/* Text/gorsel without media — just question text */}
+        {!isMuzik && question?.type !== 'isitsel' && !hasAlbumArt && (
+          <p className="text-center font-inter text-white/80 text-xs mt-1">
+            {question?.question}
+          </p>
+        )}
+      </div>
+
+      {/* Bottom bar — year hint */}
+      <div
+        className="w-full flex items-center justify-center py-2"
+        style={{ borderTop: `1px solid ${neon.border}30` }}
+      >
+        <p className="font-inter text-center" style={{ fontSize: 9, color: neon.border, opacity: 0.7 }}>
+          Bu olay ne zaman?
+        </p>
+      </div>
     </motion.div>
   );
 }
