@@ -72,25 +72,17 @@ export function useGameActions({
     const allSorted = [...snapshotPlayer.cards].sort((a, b) => a.year - b.year);
     const questionYear = currentQuestion.year;
 
-    // Unique yılları grupla (zone mantığı için)
-    const groupedYears = [];
-    for (const card of allSorted) {
-      if (groupedYears[groupedYears.length - 1] !== card.year) groupedYears.push(card.year);
-    }
+    // Tüm kartların yılları (stacking yok, her kart ayrı)
+    const cardYears = allSorted.map(c => c.year);
 
-    // Doğruluk kontrolü
-    const sameYearExists = groupedYears.includes(questionYear);
+    // Doğruluk kontrolü — zone, timeline'daki kart sıralamasına göre
     let isCorrect = false;
-    if (sameYearExists) {
-      const leftYear = zone > 0 ? groupedYears[zone - 1] : null;
-      const rightYear = zone < groupedYears.length ? groupedYears[zone] : null;
-      isCorrect = leftYear === questionYear || rightYear === questionYear;
-    } else if (zone === 0) {
-      isCorrect = groupedYears.length === 0 || questionYear <= groupedYears[0];
-    } else if (zone === groupedYears.length) {
-      isCorrect = questionYear >= groupedYears[groupedYears.length - 1];
+    if (zone === 0) {
+      isCorrect = cardYears.length === 0 || questionYear <= cardYears[0];
+    } else if (zone === cardYears.length) {
+      isCorrect = questionYear >= cardYears[cardYears.length - 1];
     } else {
-      isCorrect = questionYear >= groupedYears[zone - 1] && questionYear <= groupedYears[zone];
+      isCorrect = questionYear >= cardYears[zone - 1] && questionYear <= cardYears[zone];
     }
 
     let newPlayers = snapshotPlayers;

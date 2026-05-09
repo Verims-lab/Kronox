@@ -97,18 +97,8 @@ export default function Timeline({
 }) {
   const sortedCards = Array.isArray(cards) ? [...cards].sort((a, b) => a.year - b.year) : [];
 
-  const groupedCards = useMemo(() => {
-    const groups = [];
-    for (const card of sortedCards) {
-      const last = groups[groups.length - 1];
-      if (last && last.year === card.year) {
-        last.stackCount = (last.stackCount || 1) + 1;
-      } else {
-        groups.push({ ...card, stackCount: 1 });
-      }
-    }
-    return groups;
-  }, [sortedCards]);
+  // Her kart ayrı gösterilir — stacking yok
+  const groupedCards = useMemo(() => sortedCards.map(c => ({ ...c, stackCount: 1 })), [sortedCards]);
 
   const scrollRef = useRef(null);
   const dropZoneRefs = useRef([]);
