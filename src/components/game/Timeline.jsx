@@ -2,15 +2,6 @@ import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
 import TimelineCard from './TimelineCard.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// Year axis tick — sarı renk, dikey çizgi
-function YearTick({ year }) {
-  return (
-    <div className="flex flex-col items-center flex-shrink-0" style={{ minWidth: 52 }}>
-      <span className="font-inter font-semibold" style={{ fontSize: 11, color: '#facc15' }}>{year}</span>
-      <div className="w-px h-3 mt-0.5" style={{ background: '#facc15' }} />
-    </div>
-  );
-}
 
 // Separator noktalar kartlar arasında
 function DotSeparator() {
@@ -167,50 +158,54 @@ export default function Timeline({
     }
   }, [cards.length]);
 
-  // Year axis ticks
-  const yearTicks = useMemo(() => {
-    if (groupedCards.length === 0) return [];
-    const years = groupedCards.map(c => c.year);
-    const minY = Math.floor(Math.min(...years) / 10) * 10 - 10;
-    const maxY = Math.ceil(Math.max(...years) / 10) * 10 + 10;
-    const ticks = [];
-    for (let y = minY; y <= maxY; y += 10) ticks.push(y);
-    return ticks;
-  }, [groupedCards]);
-
   const totalZones = groupedCards.length + 1;
 
-  // Build card row items
+  // Build card row items — yıl etiketi her kartın ÜSTÜNDE
   const cardRowItems = [];
   for (let i = 0; i < totalZones; i++) {
     const isThisActive = activeZone === i;
     cardRowItems.push(
       <div key={`dz-${i}`} ref={el => (dropZoneRefs.current[i] = el)}>
         {isThisActive ? (
-          <GhostCard />
+          // ghost card — yıl etiketi yok
+          <div className="flex flex-col items-center">
+            <div style={{ height: 20 }} />
+            <GhostCard />
+          </div>
         ) : (
-          <DropZone
-            index={i}
-            isActive={selectedZone === i && !isDragMode}
-            isDragMode={isDragMode}
-            onSelect={onSelectZone}
-            isTimeUp={isTimeUp}
-          />
+          // drop zone — yıl etiketi yok
+          <div className="flex flex-col items-center">
+            <div style={{ height: 20 }} />
+            <DropZone
+              index={i}
+              isActive={selectedZone === i && !isDragMode}
+              isDragMode={isDragMode}
+              onSelect={onSelectZone}
+              isTimeUp={isTimeUp}
+            />
+          </div>
         )}
       </div>
     );
 
     if (i < groupedCards.length) {
-      // Dot separator before card (not before first zone)
       cardRowItems.push(<DotSeparator key={`dot-${i}`} />);
+      // Kart + yıl etiketi üstte
       cardRowItems.push(
-        <TimelineCard
-          key={`card-${i}`}
-          card={groupedCards[i]}
-          index={i}
-        />
+        <div key={`card-${i}`} className="flex flex-col items-center flex-shrink-0">
+          {/* Yıl etiketi — kartın tam üstünde */}
+          <div className="flex flex-col items-center mb-0.5" style={{ height: 20 }}>
+            <span className="font-inter font-semibold" style={{ fontSize: 11, color: '#facc15', lineHeight: 1 }}>
+              {groupedCards[i].year}
+            </span>
+            <div className="w-px h-2 mt-0.5" style={{ background: '#facc15' }} />
+          </div>
+          <TimelineCard
+            card={groupedCards[i]}
+            index={i}
+          />
+        </div>
       );
-      // Dot separator after card (not after last)
       cardRowItems.push(<DotSeparator key={`dot-after-${i}`} />);
     }
   }
@@ -231,19 +226,13 @@ export default function Timeline({
           className="relative flex flex-col"
           style={{ minWidth: 'max-content', paddingLeft: 12, paddingRight: 24 }}
         >
-          {/* Year axis row */}
-          {yearTicks.length > 0 && (
-            <div className="flex flex-row items-start mb-1" style={{ gap: 0 }}>
-              {yearTicks.map(y => <YearTick key={y} year={y} />)}
-            </div>
-          )}
-
           {/* Timeline line + cards row */}
           <div className="relative flex flex-row items-center" style={{ gap: 0 }}>
             {/* Horizontal line */}
             <div
-              className="absolute left-0 right-0 top-1/2 -translate-y-1/2 pointer-events-none"
+              className="absolute left-0 right-0 pointer-events-none"
               style={{
+                top: 20 + 54, // yıl label yüksekliği + kartın yarısı
                 height: 2,
                 background: isTimeUp
                   ? 'linear-gradient(to right, rgba(239,68,68,0.15), rgba(239,68,68,0.6), rgba(239,68,68,0.15))'
