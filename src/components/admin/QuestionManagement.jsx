@@ -50,8 +50,8 @@ export default function QuestionManagement() {
 
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [creating, setCreating] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -72,20 +72,24 @@ export default function QuestionManagement() {
     reader.readAsDataURL(f);
   };
 
-  const handleUploadImage = async () => {
-    if (!file) return;
-    setUploading(true);
+  const uploadImageAndGetUrl = async () => {
+    if (!file) return null;
+    
     try {
+      setUploadProgress(true);
       const res = await base44.integrations.Core.UploadFile({ file });
-      const filename = `${generateFilename(form.question)}.${file.type === 'image/webp' ? 'webp' : file.name.split('.').pop()}`;
+      
+      // Get the file extension
+      const ext = file.type === 'image/webp' ? 'webp' : file.name.split('.').pop();
+      const filename = `${generateFilename(form.question)}.${ext}`;
       const mediaUrl = `/assets/questions/${filename}`;
-      setForm(prev => ({ ...prev, media_url: mediaUrl }));
-      setFile(null);
-      setError('');
+      
+      return mediaUrl;
     } catch (err) {
       setError('Failed to upload image');
+      return null;
     } finally {
-      setUploading(false);
+      setUploadProgress(false);
     }
   };
 
@@ -108,16 +112,30 @@ export default function QuestionManagement() {
       return;
     }
 
-    setCreating(true);
+    setIsProcessing(true);
     setError('');
+    
     try {
+      let finalMediaUrl = form.media_url;
+
+      // If file is selected, upload it first
+      if (file) {
+        const uploadedUrl = await uploadImageAndGetUrl();
+        if (!uploadedUrl) {
+          setIsProcessing(false);
+          return;
+        }
+        finalMediaUrl = uploadedUrl;
+      }
+
+      // Create question with media_url
       await base44.entities.Question.create({
         question: form.question.trim(),
         year: parseInt(form.year),
         category: form.category,
         type: form.type,
         difficulty: form.difficulty,
-        media_url: form.media_url || undefined,
+        media_url: finalMediaUrl || undefined,
         icon_url: form.icon_url || undefined,
       });
 
@@ -131,13 +149,14 @@ export default function QuestionManagement() {
         media_url: '',
         icon_url: '',
       });
+      setFile(null);
       setPreview(null);
 
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
       setError(err.message || 'Failed to create question');
     } finally {
-      setCreating(false);
+      setIsProcessing(false);
     }
   };
 
@@ -235,28 +254,19 @@ export default function QuestionManagement() {
         <label className="font-inter text-xs font-semibold text-muted-foreground uppercase">
           Media Upload
         </label>
-        <div className="flex gap-2">
-          <label className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-primary/30 hover:bg-white/10 cursor-pointer transition-colors">
-            <Upload className="w-4 h-4 text-primary" />
-            <span className="font-inter text-sm text-foreground">
-              {file ? file.name : 'Choose image...'}
-            </span>
-            <input
-              type="file"
-              accept=".webp,.jpg,.jpeg,.png"
-              onChange={handleFileChange}
-              className="hidden"
-            />
-          </label>
-          <Button
-            onClick={handleUploadImage}
-            disabled={!file || uploading}
-            size="sm"
-            className="min-w-[100px]"
-          >
-            {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Upload'}
-          </Button>
-        </div>
+        <label className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-primary/30 hover:bg-white/10 cursor-pointer transition-colors">
+          <Upload className="w-4 h-4 text-primary" />
+          <span className="font-inter text-sm text-foreground">
+            {file ? file.name : 'Choose image...'}
+          </span>
+          <input
+            type="file"
+            accept=".webp,.jpg,.jpeg,.png"
+            onChange={handleFileChange}
+            disabled={isProcessing}
+            className="hidden"
+          />
+        </label>
       </div>
 
       {/* Image Preview */}
@@ -343,10 +353,15 @@ export default function QuestionManagement() {
       {/* Create Button */}
       <Button
         onClick={handleCreate}
-        disabled={creating || (!form.question.trim() || !form.year)}
+        disabled={isProcessing || uploadProgress || (!form.question.trim() || !form.year)}
         className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
       >
-        {creating ? (
+        {uploadProgress ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Uploading...
+          </>
+        ) : isProcessing ? (
           <>
             <Loader2 className="w-4 h-4 animate-spin" />
             Creating...
