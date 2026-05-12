@@ -121,8 +121,8 @@ Deno.serve(async (req) => {
     page.drawText(tr('Zaman Cizgisi Kart Oyunu'), { x: marginL, y: H / 2 + 50, size: 18, font, color: rgb(0.85, 0.85, 0.9) });
     page.drawText(tr('Teknik Mimari Dokumani'), { x: marginL, y: H / 2 + 24, size: 14, font, color: gray });
 
-    page.drawText('v1.2', { x: marginL, y: H / 2 - 30, size: 11, font, color: gray });
-    page.drawText('Nisan 2026', { x: marginL, y: H / 2 - 47, size: 11, font, color: gray });
+    page.drawText('v1.3', { x: marginL, y: H / 2 - 30, size: 11, font, color: gray });
+    page.drawText('Mayis 2026', { x: marginL, y: H / 2 - 47, size: 11, font, color: gray });
     page.drawText('Platform: Base44 (React + Deno)', { x: marginL, y: H / 2 - 64, size: 11, font, color: gray });
 
     page.drawLine({ start: { x: marginL, y: 80 }, end: { x: W - marginR, y: 80 }, thickness: 0.5, color: gold, opacity: 0.3 });
@@ -152,6 +152,7 @@ Deno.serve(async (req) => {
       ['13.', 'Performans & UX Optimizasyonlari'],
       ['14.', 'Guvenlik & Erisim Kontrolu'],
       ['15.', 'Gelecek Gelistirme Onerileri'],
+      ['8b.', 'Drag-and-Drop Mimarisi (Dokunmatik)'],
     ];
     for (const [num, title] of toc) {
       ensureSpace(20);
@@ -409,6 +410,54 @@ Deno.serve(async (req) => {
     drawText('Sirasi gelmeyen oyuncular kart yerlestiremez (isMyTurn = false). Diger oyuncularin timelinelari read-only gosterilir. Kendi kartlari ise ayri bir blokta gorunur.');
 
     // ══════════════════════════════════════════════════════════════════════════
+    // 8b. DRAG-AND-DROP MİMARİSİ
+    // ══════════════════════════════════════════════════════════════════════════
+    spacer(10);
+    sectionTitle('8b. Drag-and-Drop Mimarisi (Dokunmatik)');
+
+    subTitle('Koordinat Sistemi Ayrimi');
+    drawText('Ghost kart (parmak takipci) ile timeline hit-testing farkli koordinat uzaylarinda calisir:');
+    bullet('Ghost kart: viewport koordinati (clientX/Y) — position:fixed ile render edilir, scroll etkisinden bagimsizdir.');
+    bullet('Drop zone hit-testi: world koordinati — viewportX - containerLeft + scrollLeft formulu ile hesaplanir.');
+    drawText('Bu ayrim sayesinde kullanici timeline\'i ne kadar kaydirirsa kaydirsin kart birakmasi dogru bolgede gerceklesmektedir.', { color: gray });
+    spacer(4);
+    codeBlock([
+      '// Viewport -> World donusumu (Timeline.jsx)',
+      'const worldX = clientX - containerRect.left + scroll.scrollLeft;',
+      '',
+      '// Drop zone merkezi de world uzayinda hesaplanir:',
+      'const elWorldCX = (elRect.left + elRect.right) / 2',
+      '                  - containerRect.left + scroll.scrollLeft;',
+    ]);
+    spacer(4);
+
+    subTitle('Auto-Scroll (Edge Scrolling)');
+    bullet('Parmak timeline sol kenarina (<80px) veya sag kenarina (<80px) yaklasinca otomatik kayma baslar.');
+    bullet('requestAnimationFrame dongusu ile 60fps akici kayma saglanir; scrollLeft += direction * 10 per frame.');
+    bullet('Parmak kaldirilindiginda veya drag modu bittiginde cancelAnimationFrame ile durdurulur.');
+    bullet('isDragMode false olunca useEffect cleanup ile RAF iptali garantilenir.');
+    spacer(4);
+
+    subTitle('Prop Akisi: QuestionCard -> GameLayout -> Timeline');
+    codeBlock([
+      'QuestionCard',
+      '  onTouchStart  -> setIsDragging(true)',
+      '  onTouchMove   -> setTouchDragPos({ x: clientX, y: clientY })',
+      '  onTouchEnd    -> setTouchDragEnd({ x, y }); setTouchDragPos(null)',
+      '',
+      'GameLayout (ghost kart burda render edilir)',
+      '  touchDragPos  -> fixed div: left=x-80, top=y-60  (viewport)',
+      '',
+      'Timeline',
+      '  dragClientX   -> getZoneAtClientX (world coords) + auto-scroll',
+      '  dragEndEvent  -> final drop zone tespiti -> onPlaceCard(zone)',
+    ]);
+    spacer(4);
+
+    subTitle('Kaldirildi: onExternalZoneChange');
+    drawText('Onceki versiyonda GameLayout, Timeline\'dan aktif zone bilgisini geri almak icin onExternalZoneChange prop\'u kullaniyordu. Bu prop gereksiz karmasiklik olusturdugundan kaldirildi; ghost kart artik dogrudan touchDragPos ile viewport uzayinda konumlanir ve Timeline zone bilgisini sadece icinde tutar.');
+
+    // ══════════════════════════════════════════════════════════════════════════
     // 9. BACKEND FONKSİYONLAR
     // ══════════════════════════════════════════════════════════════════════════
     newPage();
@@ -434,6 +483,15 @@ Deno.serve(async (req) => {
     bullet('Fonksiyonel (8): kart dagitimi, tur dongusu, kazanma, offline mod, ayar guncelleme');
     bullet('Performans (5): 500 soru yukleme, 10 lobi oluşturma, shuffle hizi, filtre suresi');
     bullet('Oynanabilirlik (10): oyuncu sayisi, kategori varligi, sure ayari, soru havuzu yeterliligi');
+    spacer(6);
+
+    subTitle('getDeezerPreview');
+    drawText('Muzik sorusu kartlari icin Deezer API\'den canli preview URL\'i ceken proxy fonksiyondur. Onceki sistemde sabit media_url alanlari kullaniliyordu; suresi dolunca ses calamiyordu. Yeni mimaride QuestionCard her mount\'ta bu fonksiyonu cagirarak taze URL alir.');
+    spacer(4);
+    bullet('Giris: { query: "sarki adi sanatci adi" }');
+    bullet('Cikis: { previewUrl: string | null }');
+    bullet('Birincil arama basarisiz olursa daha genis terimle fallback arama yapilir.');
+    bullet('URL alinaninda QuestionCard otomatik oynatmayi baslatir.');
     spacer(6);
 
     subTitle('generateTechDoc (Bu Dokuman)');

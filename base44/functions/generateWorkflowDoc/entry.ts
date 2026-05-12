@@ -124,8 +124,8 @@ Deno.serve(async (req) => {
   page.drawText('Zaman Cizgisi Kart Oyunu', { x: 165, y: H / 2 + 8, size: 14, font: fontRegular, color: rgb(0.6, 0.5, 0.2) });
   page.drawLine({ start: { x: 150, y: H / 2 }, end: { x: W - 150, y: H / 2 }, thickness: 1, color: rgb(0.4, 0.3, 0.1) });
   page.drawText('IS AKISI & KULLANIM SENARYOLARI', { x: 115, y: H / 2 - 20, size: 13, font: fontBold, color: rgb(0.9, 0.85, 0.7) });
-  page.drawText('Dokuman Versiyonu: 1.2', { x: 215, y: 80, size: 10, font: fontRegular, color: rgb(0.4, 0.35, 0.2) });
-  page.drawText('Hazirlanma: Nisan 2026', { x: 210, y: 60, size: 10, font: fontRegular, color: rgb(0.4, 0.35, 0.2) });
+  page.drawText('Dokuman Versiyonu: 1.3', { x: 215, y: 80, size: 10, font: fontRegular, color: rgb(0.4, 0.35, 0.2) });
+  page.drawText('Hazirlanma: Mayis 2026', { x: 210, y: 60, size: 10, font: fontRegular, color: rgb(0.4, 0.35, 0.2) });
 
   page.drawText('Kronos - Is Akisi Dokumani | Sayfa 1', {
     x: MARGIN, y: 15, size: 8, font: fontRegular, color: rgb(0.5, 0.5, 0.5)
@@ -446,8 +446,40 @@ Deno.serve(async (req) => {
   drawBullet('Performans (5 test): Hiz & kapasite — 500 soru, 10 lobi, shuffle suresi.');
   drawBullet('Oynanabilirlik (10 test): Kullanici deneyimi — kategori varlik, soru yeterliligi, sure secenekleri.');
 
+  // ─── DRAG AND DROP IS AKISI ──────────────────────────────────────────────────
+  newPage();
+  y = H - MARGIN;
+
+  drawHeading1('12. DOKUNMATIK SURU-BIRAK IS AKISI');
+
+  drawHeading2('12.1 Kullanici Perspektifinden Akis');
+  drawStep(1, 'Soruyu Tut', 'Kullanici soru kartina parmaginı bastırır (onTouchStart).');
+  drawStep(2, 'Surukle', 'Parmak hareket ederken ghost kart parmagi takip eder (viewport coords).');
+  drawStep(3, 'Timeline Uzerinden Gec', 'Timeline aktif drop zone\'u altin rengi ile vurgular.');
+  drawStep(4, 'Birak', 'Parmak kaldirilinca en yakin zone hesaplanir ve onPlaceCard tetiklenir.');
+  drawStep(5, 'Sonuc', 'Dogru zone ise kart timeline\'a eklenir; yanlisSsa red animasyonu gosterilir.');
+  y -= 8;
+
+  drawHeading2('12.2 Koordinat Uzaylari');
+  drawBullet('Ghost kart: viewport koordinati (position:fixed) — scroll etkisinden bagimsiz parmak takibi.');
+  drawBullet('Drop zone hit-testi: world koordinati = clientX - containerLeft + scrollLeft.');
+  drawBullet('Bu ayrım sayesinde timeline ne kadar kaydirılmis olursa olsun kart doğru bölgeye düser.');
+  y -= 6;
+
+  drawHeading2('12.3 Otomatik Kayma (Edge Scrolling)');
+  drawBullet('Parmak timeline sol (<80px) veya sag (<80px) kenarina yaklasinca otomatik kayma baslar.');
+  drawBullet('requestAnimationFrame dongusu ile akici 60fps kayma saglanir.');
+  drawBullet('Parmak kaldirilinca veya drag bittikce cancelAnimationFrame ile durdurulur.');
+  y -= 6;
+
+  drawHeading2('12.4 Muzik Onizleme (Deezer)');
+  drawBullet('Muzik sorusu kartlari her mount\'ta getDeezerPreview fonksiyonunu cagirir.');
+  drawBullet('Sarki adi + sanatci adi ile Deezer API aranir; 30 saniyelik preview URL alinir.');
+  drawBullet('URL hazir olunca QuestionCard otomatik olarak sesi caldirir.');
+  drawBullet('Onceki sabit media_url yonteminin aksine link asla "suresi dolmaz" sorununa ugramaz.');
+
   // ─── GELECEK GELISTIRMELER ────────────────────────────────────────────────────
-  drawHeading1('12. GELECEK GELISTIRMELER');
+  drawHeading1('13. GELECEK GELISTIRMELER');
 
   drawBullet('Gorsel ve isitsel soru turlerinin aktif oyun havuzuna dahil edilmesi (altyapi hazir).');
   drawBullet('Oyuncu puanlama ve istatistik gecmisi: dogru/yanlis orani, ortalama sure.');
