@@ -28,14 +28,15 @@
       "enum": [
         "metin",
         "gorsel",
-        "isitsel"
+        "isitsel",
+        "muzik"
       ],
       "default": "metin",
-      "description": "Question type: text, visual or audio"
+      "description": "Question type: text, visual, audio, or music"
     },
     "media_url": {
       "type": "string",
-      "description": "URL for image (gorsel) or audio file (isitsel)"
+      "description": "URL for image (gorsel/muzik) or audio file (isitsel)"
     },
     "icon_url": {
       "type": "string",

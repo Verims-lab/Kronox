@@ -1,10 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { sounds } from '@/lib/gameSounds';
-import { Volume2, Play, Pause, Globe, Landmark, FlaskConical, Trophy, Palette, Cpu, Music, BookOpen, Tv, Zap, Rocket, Building2, HeartPulse, Leaf, Film } from 'lucide-react';
+import { Play, Pause, Globe, Landmark, FlaskConical, Trophy, Palette, Cpu, Music, BookOpen, Tv, Zap, Rocket, Building2, HeartPulse, Leaf, Film } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
-import { useQuestionMedia } from '@/hooks/useQuestionMedia';
-import QuestionMediaLoader from './QuestionMediaLoader';
 
 // Soruya uygun ikon seçimi (anahtar kelime bazlı)
 function getQuestionIcon(question, category) {
@@ -68,9 +66,6 @@ export default function QuestionCard({
   const [livePreviewUrl, setLivePreviewUrl] = useState(null);
   const audioRef = useRef(null);
   const touchDragging = useRef(false);
-
-  // Auto-generate media if missing
-  const { mediaUrl: generatedMediaUrl, isGenerating } = useQuestionMedia(question);
 
   // Müzik soruları için canlı Deezer preview URL çek
   useEffect(() => {
@@ -147,9 +142,7 @@ export default function QuestionCard({
   const neon = categoryNeon[question?.category] || defaultNeon;
   const QuestionIcon = getQuestionIcon(question?.question, question?.category);
 
-  // Use generated media if available, otherwise fall back to question.media_url
-  const mediaToDisplay = generatedMediaUrl || question?.media_url;
-  const hasAlbumArt = (question?.type === 'gorsel' || question?.type === 'muzik') && mediaToDisplay && !imgError;
+  const hasAlbumArt = (question?.type === 'gorsel' || question?.type === 'muzik') && question?.media_url && !imgError;
   const isMuzik = question?.type === 'muzik';
   const isGorsel = question?.type === 'gorsel';
 
@@ -201,44 +194,18 @@ export default function QuestionCard({
       }}
     >
       {/* Album art — full width top section */}
-      <AnimatePresence mode="wait">
-        {isGenerating && !hasAlbumArt && (question?.type === 'gorsel' || question?.type === 'muzik') ? (
-          <motion.div
-            key="loader"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="w-full overflow-hidden flex-shrink-0"
-            style={{ height: 96 }}
-          >
-            <div className="w-full h-full bg-gradient-to-b from-purple-900/30 to-black/50 flex items-center justify-center">
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-                className="w-4 h-4 border-2 border-primary/40 border-t-primary rounded-full"
-              />
-            </div>
-          </motion.div>
-        ) : hasAlbumArt ? (
-          <motion.div
-            key="image"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="w-full overflow-hidden"
-            style={{ height: 96, flexShrink: 0 }}
-          >
-            <img
-              src={mediaToDisplay}
-              alt=""
-              className="w-full h-full object-cover"
-              referrerPolicy="no-referrer"
-              crossOrigin="anonymous"
-              onError={() => { setImgError(true); if (onImageError && isGorsel) onImageError(); }}
-            />
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
+      {hasAlbumArt && (
+        <div className="w-full overflow-hidden" style={{ height: 96, flexShrink: 0 }}>
+          <img
+            src={question.media_url}
+            alt=""
+            className="w-full h-full object-cover"
+            referrerPolicy="no-referrer"
+            crossOrigin="anonymous"
+            onError={() => { setImgError(true); if (onImageError && isGorsel) onImageError(); }}
+          />
+        </div>
+      )}
 
       {/* Content area */}
       <div className="flex flex-col items-center px-3 py-3 gap-1 flex-1">
