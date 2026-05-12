@@ -59,8 +59,8 @@ export default function TimelineCard({ card, index, distanceFromCenter = 0 }) {
           padding: '8px 6px 6px',
         }}
       >
-        {/* Album art */}
-        {card.media_url && (card.type === 'gorsel' || card.type === 'muzik') && (
+        {/* Media image */}
+        {card.media_url && (
           <div className="w-full rounded-xl overflow-hidden mb-1" style={{ height: 44 }}>
             <img
               src={card.media_url}

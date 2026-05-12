@@ -142,7 +142,7 @@ export default function QuestionCard({
   const neon = categoryNeon[question?.category] || defaultNeon;
   const QuestionIcon = getQuestionIcon(question?.question, question?.category);
 
-  const hasAlbumArt = (question?.type === 'gorsel' || question?.type === 'muzik') && question?.media_url && !imgError;
+  const hasAlbumArt = question?.media_url && !imgError;
   const isMuzik = question?.type === 'muzik';
   const isGorsel = question?.type === 'gorsel';
 
