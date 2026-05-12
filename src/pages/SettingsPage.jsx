@@ -6,6 +6,7 @@ import { base44 } from '@/api/base44Client';
 import { useNavigate } from 'react-router-dom';
 import SimulationPanel from '@/components/game/SimulationPanel';
 import TopScores from '@/components/game/TopScores';
+import QuestionManagement from '@/components/admin/QuestionManagement';
 
 const ADMIN_EMAIL = 'sariverim@gmail.com';
 
@@ -100,28 +101,34 @@ export default function SettingsPage() {
 
         {/* Admin Araçları — yalnızca admin */}
         {isAdmin && (
-          <Section label="Araçlar">
-            <ToolCard
-              icon={<FileDown className="w-4 h-4" />}
-              title="Teknik Döküman"
-              desc="Sistem mimarisi ve veri modeli"
-              loading={downloadingDoc}
-              onClick={handleDownloadDoc}
-            />
-            <ToolCard
-              icon={<FileDown className="w-4 h-4" />}
-              title="İş Akışı Dökümanı"
-              desc="Use case'ler ve süreç adımları"
-              loading={downloadingWorkflow}
-              onClick={handleDownloadWorkflow}
-            />
-            <ToolCard
-              icon={<FlaskConical className="w-4 h-4" />}
-              title="Online Simülasyonlar"
-              desc="96 test senaryosunu çalıştır"
-              onClick={() => setShowSim(true)}
-            />
-          </Section>
+          <>
+            <Section label="Soru Yönetimi">
+              <QuestionManagement />
+            </Section>
+
+            <Section label="Araçlar">
+              <ToolCard
+                icon={<FileDown className="w-4 h-4" />}
+                title="Teknik Döküman"
+                desc="Sistem mimarisi ve veri modeli"
+                loading={downloadingDoc}
+                onClick={handleDownloadDoc}
+              />
+              <ToolCard
+                icon={<FileDown className="w-4 h-4" />}
+                title="İş Akışı Dökümanı"
+                desc="Use case'ler ve süreç adımları"
+                loading={downloadingWorkflow}
+                onClick={handleDownloadWorkflow}
+              />
+              <ToolCard
+                icon={<FlaskConical className="w-4 h-4" />}
+                title="Online Simülasyonlar"
+                desc="96 test senaryosunu çalıştır"
+                onClick={() => setShowSim(true)}
+              />
+            </Section>
+          </>
         )}
 
         {/* Top 5 — giriş yapmış tüm kullanıcılar */}
