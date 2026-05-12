@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Volume2, Play, Pause, Globe, Landmark, FlaskConical, Trophy, Palette, Cpu, Music, BookOpen, Tv, Zap, Rocket, Building2, HeartPulse, Leaf, Film } from 'lucide-react';
+import { base44 } from '@/api/base44Client';
 
 // Soruya uygun ikon seçimi (anahtar kelime bazlı)
 function getQuestionIcon(question, category) {
@@ -61,21 +62,43 @@ export default function QuestionCard({
   const [playing, setPlaying] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [audioError, setAudioError] = useState(false);
+  const [livePreviewUrl, setLivePreviewUrl] = useState(null);
   const audioRef = useRef(null);
   const touchDragging = useRef(false);
 
+  // Müzik soruları için canlı Deezer preview URL çek
   useEffect(() => {
     setImgError(false);
     setAudioError(false);
     setPlaying(false);
-    if (question?.type === 'muzik' && audioRef.current) {
-      const timer = setTimeout(() => {
-        const p = audioRef.current?.play();
-        if (p !== undefined) p.then(() => setPlaying(true)).catch(() => setPlaying(false));
-      }, 300);
-      return () => clearTimeout(timer);
-    }
+    setLivePreviewUrl(null);
+
+    if (question?.type !== 'muzik') return;
+
+    const lines = (question?.question || '').split('\n');
+    const songTitle = lines[0] || '';
+    const artistName = lines[1] || '';
+    const searchQuery = artistName ? `${songTitle} ${artistName}` : songTitle;
+
+    base44.functions.invoke('getDeezerPreview', { query: searchQuery })
+      .then(res => {
+        const url = res?.data?.previewUrl;
+        if (url) setLivePreviewUrl(url);
+        else setAudioError(true);
+      })
+      .catch(() => setAudioError(true));
   }, [question?.id]);
+
+  // Preview URL hazır olunca otomatik çal
+  useEffect(() => {
+    if (!livePreviewUrl || !audioRef.current) return;
+    audioRef.current.load();
+    const timer = setTimeout(() => {
+      const p = audioRef.current?.play();
+      if (p !== undefined) p.then(() => setPlaying(true)).catch(() => setPlaying(false));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [livePreviewUrl]);
 
   const toggleAudio = (e) => {
     e.stopPropagation();
@@ -190,23 +213,25 @@ export default function QuestionCard({
         )}
 
         {/* Audio controls for muzik */}
-        {isMuzik && question?.media_url && !audioError && (
+        {isMuzik && !audioError && (
           <div className="flex flex-col items-center gap-1 mt-1">
-            <audio
-              ref={audioRef}
-              src={question.media_url}
-              onError={() => { setAudioError(true); if (onAudioError) onAudioError(); }}
-              onEnded={() => {
-                if (audioRef.current) {
-                  audioRef.current.currentTime = 0;
-                  audioRef.current.play();
-                }
-              }}
-            />
+            {livePreviewUrl && (
+              <audio
+                ref={audioRef}
+                src={livePreviewUrl}
+                onError={() => { setAudioError(true); if (onAudioError) onAudioError(); }}
+                onEnded={() => {
+                  if (audioRef.current) {
+                    audioRef.current.currentTime = 0;
+                    audioRef.current.play();
+                  }
+                }}
+              />
+            )}
             <button
-              onClick={toggleAudio}
+              onClick={livePreviewUrl ? toggleAudio : undefined}
               className="w-9 h-9 rounded-full flex items-center justify-center"
-              style={{ background: neon.border }}
+              style={{ background: livePreviewUrl ? neon.border : 'rgba(255,255,255,0.15)', opacity: livePreviewUrl ? 1 : 0.5 }}
             >
               {playing ? <Pause className="w-4 h-4 text-black" /> : <Play className="w-4 h-4 text-black ml-0.5" />}
             </button>
