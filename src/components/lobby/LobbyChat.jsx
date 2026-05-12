@@ -62,7 +62,7 @@ export default function LobbyChat({ lobbyId, playerName, compact = false }) {
   };
 
   return (
-    <div className={`flex flex-col border border-border/30 rounded-xl bg-secondary/10 overflow-hidden ${compact ? 'h-48' : 'h-full'}`} style={{ overscrollBehavior: 'none' }}>
+    <div className={`flex flex-col border border-border/30 rounded-xl bg-secondary/10 overflow-hidden ${compact ? 'h-48' : 'h-full'}`} style={{ overscrollBehavior: 'contain' }}>
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border/20 bg-secondary/20">
         <MessageCircle className="w-3.5 h-3.5 text-muted-foreground" />
@@ -70,7 +70,7 @@ export default function LobbyChat({ lobbyId, playerName, compact = false }) {
       </div>
 
       {/* Messages */}
-      <div ref={chatScrollRef} className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5" style={{ overscrollBehavior: 'none', overscrollBehaviorY: 'none', transform: pullY > 0 ? `translateY(${pullY}px)` : undefined, transition: pullY === 0 ? 'transform 0.2s' : undefined }}>
+      <div ref={chatScrollRef} className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5" style={{ overscrollBehavior: 'contain', transform: pullY > 0 ? `translateY(${pullY}px)` : undefined, transition: pullY === 0 ? 'transform 0.2s' : undefined }}>
         {refreshing && (
           <div className="flex justify-center py-1">
             <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />

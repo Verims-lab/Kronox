@@ -26,8 +26,21 @@ function PageLoader() {
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, isAuthenticated } = useAuth();
   const location = useLocation();
+  const prevPathRef = React.useRef(location.pathname);
   const isGamePage = location.pathname === '/game';
   const isHomePage = location.pathname === '/';
+
+  // Determine transition direction: push (right-to-left) or pop (left-to-right)
+  const getTransitionDirection = () => {
+    const routeOrder = ['/', '/game', '/lobby', '/settings', '/test-suite'];
+    const currIdx = routeOrder.indexOf(location.pathname);
+    const prevIdx = routeOrder.indexOf(prevPathRef.current);
+    const direction = currIdx > prevIdx ? 'push' : 'pop';
+    prevPathRef.current = location.pathname;
+    return direction;
+  };
+
+  const transitionDir = getTransitionDirection();
 
   // Android WebView fix: never stay on /login if user is authenticated or auth check is done.
   if (location.pathname.includes('/login')) {
@@ -57,9 +70,9 @@ const AuthenticatedApp = () => {
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}
-            initial={{ opacity: 0, x: 100 }}
+            initial={{ opacity: 0, x: transitionDir === 'push' ? 100 : -100 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -100 }}
+            exit={{ opacity: 0, x: transitionDir === 'push' ? -100 : 100 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           >
             <Routes location={location}>

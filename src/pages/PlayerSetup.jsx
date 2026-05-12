@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
-import { Users, Play, Globe, LogIn, LogOut, Settings } from 'lucide-react';
+import { Users, Play, Globe, LogIn, LogOut, Settings, RefreshCw } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { motion, AnimatePresence } from 'framer-motion';
 import { sounds } from '@/lib/gameSounds';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 
 // Floating ambient orbs — pure atmosphere, no layout impact
 function AmbientOrbs() {
@@ -74,10 +75,19 @@ export default function PlayerSetup() {
   const [yearEnd, setYearEnd] = useState(2020);
   const [turnDuration, setTurnDuration] = useState(60);
   const [nameErrors, setNameErrors] = useState([]);
+  const scrollContainerRef = useRef(null);
+
+  const refreshUser = () => {
+    base44.auth.me().then((u) => setUser(u || null)).catch(() => setUser(null));
+  };
 
   useEffect(() => {
-    base44.auth.me().then((u) => setUser(u || null)).catch(() => setUser(null));
+    refreshUser();
   }, []);
+
+  const { refreshing: isRefreshing } = usePullToRefresh(() => {
+    setTimeout(refreshUser, 300);
+  }, { threshold: 72 });
 
   const validateName = (name) => {
     const trimmed = name.trim();
@@ -109,6 +119,7 @@ export default function PlayerSetup() {
 
   return (
     <div
+      ref={scrollContainerRef}
       className="min-h-screen flex flex-col items-center justify-start px-5 overflow-y-auto relative"
       style={{
         paddingTop: 'calc(1.5rem + env(safe-area-inset-top))',
@@ -126,18 +137,16 @@ export default function PlayerSetup() {
 
         {/* Top row */}
         <div className="w-full flex items-center justify-between mb-2">
-          {user ? (
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              onClick={() => navigate('/settings')}
-              className="w-11 h-11 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/70 min-h-[44px] min-w-[44px]"
-              aria-label="Ayarlar"
-            >
-              <Settings className="w-5 h-5" />
-            </motion.button>
-          ) : (
-            <div className="w-11" />
-          )}
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            animate={isRefreshing ? { rotate: 360 } : {}}
+            transition={isRefreshing ? { duration: 0.8, repeat: Infinity, ease: 'linear' } : {}}
+            onClick={refreshUser}
+            className="w-11 h-11 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/70 min-h-[44px] min-w-[44px]"
+            aria-label="Yenile"
+          >
+            <RefreshCw className="w-5 h-5" />
+          </motion.button>
 
           {/* Logo with ambient pulse */}
           <motion.div
@@ -155,7 +164,18 @@ export default function PlayerSetup() {
             />
           </motion.div>
 
-          <div className="w-10" />
+          {user ? (
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={() => navigate('/settings')}
+              className="w-11 h-11 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/70 min-h-[44px] min-w-[44px]"
+              aria-label="Ayarlar"
+            >
+              <Settings className="w-5 h-5" />
+            </motion.button>
+          ) : (
+            <div className="w-11" />
+          )}
         </div>
 
         <div className="w-full max-w-md space-y-3">

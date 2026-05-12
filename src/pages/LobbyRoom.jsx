@@ -371,7 +371,7 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
       <div
         ref={waitingScrollRef}
         className="w-full max-w-lg px-4 pb-4 space-y-4 flex-1 overflow-y-auto"
-        style={{ overscrollBehavior: 'none', overscrollBehaviorY: 'none', transform: pullY > 0 ? `translateY(${pullY}px)` : undefined, transition: pullY === 0 ? 'transform 0.2s' : undefined }}
+        style={{ overscrollBehavior: 'contain', transform: pullY > 0 ? `translateY(${pullY}px)` : undefined, transition: pullY === 0 ? 'transform 0.2s' : undefined }}
       >
         {refreshing && (
           <div className="flex justify-center py-1">

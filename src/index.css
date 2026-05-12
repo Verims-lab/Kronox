@@ -96,6 +96,7 @@
     padding-right: env(safe-area-inset-right);
     background: linear-gradient(to bottom, #0B1F3A 0%, #1E3A8A 100%);
     min-height: 100vh;
+    overscroll-behavior: none;
   }
 
   html {
