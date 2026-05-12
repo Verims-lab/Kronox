@@ -114,7 +114,7 @@ export default function PlayerSetup() {
     { value: 'bilim', label: 'Bilim', emoji: '🔬' },
     { value: 'spor', label: 'Spor', emoji: '⚽' },
     { value: 'sanat', label: 'Sanat', emoji: '🎨' },
-    { value: 'muzik', label: 'Müzik', emoji: '🎵' },
+    { value: 'teknoloji', label: 'Teknoloji', emoji: '💻' },
   ];
 
   return (
