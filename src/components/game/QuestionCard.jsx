@@ -1,6 +1,39 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Volume2, Play, Pause } from 'lucide-react';
+import { Volume2, Play, Pause, Globe, Landmark, FlaskConical, Trophy, Palette, Cpu, Music, BookOpen, Tv, Zap, Rocket, Building2, HeartPulse, Leaf, Film } from 'lucide-react';
+
+// Soruya uygun ikon seçimi (anahtar kelime bazlı)
+function getQuestionIcon(question, category) {
+  const text = (question || '').toLowerCase();
+
+  // Kategori bazlı fallback ikonlar
+  const categoryIcons = {
+    tarih: Landmark,
+    bilim: FlaskConical,
+    spor: Trophy,
+    sanat: Palette,
+    teknoloji: Cpu,
+    muzik: Music,
+    genel: BookOpen,
+  };
+
+  // Anahtar kelime bazlı ikon seçimi
+  if (text.includes('uzay') || text.includes('nasa') || text.includes('ay ') || text.includes('roket') || text.includes('astrono')) return Rocket;
+  if (text.includes('bilgisayar') || text.includes('internet') || text.includes('yazılım') || text.includes('teknoloji') || text.includes('apple') || text.includes('microsoft') || text.includes('google') || text.includes('iphone')) return Cpu;
+  if (text.includes('müzik') || text.includes('şarkı') || text.includes('albüm') || text.includes('konser') || text.includes('band') || text.includes('müzisyen')) return Music;
+  if (text.includes('film') || text.includes('sinema') || text.includes('oscar') || text.includes('yönetmen') || text.includes('dizi') || text.includes('tv ') || text.includes('televizyon')) return Film;
+  if (text.includes('savaş') || text.includes('dünya savaşı') || text.includes('ordu') || text.includes('asker') || text.includes('imparator') || text.includes('cumhuriyet') || text.includes('devrim')) return Landmark;
+  if (text.includes('spor') || text.includes('futbol') || text.includes('olimpiyat') || text.includes('dünya kupası') || text.includes('şampiyona') || text.includes('atletizm') || text.includes('fifa') || text.includes('nba')) return Trophy;
+  if (text.includes('bilim') || text.includes('keşif') || text.includes('aşı') || text.includes('dna') || text.includes('atom') || text.includes('element') || text.includes('fizik') || text.includes('kimya')) return FlaskConical;
+  if (text.includes('sanat') || text.includes('ressam') || text.includes('tablo') || text.includes('heykel') || text.includes('mimari') || text.includes('müze') || text.includes('fotoğraf')) return Palette;
+  if (text.includes('sağlık') || text.includes('hastalık') || text.includes('salgın') || text.includes('tıp') || text.includes('ilaç') || text.includes('pandemi') || text.includes('covid')) return HeartPulse;
+  if (text.includes('çevre') || text.includes('iklim') || text.includes('doğa') || text.includes('orman') || text.includes('deniz') || text.includes('hayvan')) return Leaf;
+  if (text.includes('bina') || text.includes('köprü') || text.includes('şehir') || text.includes('inşaat') || text.includes('mimari') || text.includes('kule')) return Building2;
+  if (text.includes('enerji') || text.includes('elektrik') || text.includes('nükleer') || text.includes('güneş')) return Zap;
+  if (text.includes('dünya') || text.includes('ülke') || text.includes('kıta') || text.includes('coğrafya') || text.includes('harita')) return Globe;
+
+  return categoryIcons[category] || BookOpen;
+}
 
 // Neon border colors per category
 const categoryNeon = {
@@ -79,6 +112,7 @@ export default function QuestionCard({
   };
 
   const neon = categoryNeon[question?.category] || defaultNeon;
+  const QuestionIcon = getQuestionIcon(question?.question, question?.category);
 
   const hasAlbumArt = (question?.type === 'gorsel' || question?.type === 'muzik') && question?.media_url && !imgError;
   const isMuzik = question?.type === 'muzik';
@@ -128,6 +162,15 @@ export default function QuestionCard({
 
       {/* Content area */}
       <div className="flex flex-col items-center px-3 py-3 gap-1 flex-1">
+        {/* Category icon — only for non-album-art cards */}
+        {!hasAlbumArt && !isMuzik && (
+          <div
+            className="w-9 h-9 rounded-xl flex items-center justify-center mb-1 flex-shrink-0"
+            style={{ background: `${neon.border}18`, border: `1.5px solid ${neon.border}50` }}
+          >
+            <QuestionIcon style={{ width: 18, height: 18, color: neon.border }} strokeWidth={1.8} />
+          </div>
+        )}
         {/* Question text or song title */}
         <p className="text-center font-inter font-bold leading-tight text-white"
           style={{ fontSize: isMuzik ? 11 : 10, lineHeight: 1.3 }}>
@@ -190,7 +233,7 @@ export default function QuestionCard({
         style={{ borderTop: `1px solid ${neon.border}30` }}
       >
         <p className="font-inter text-center" style={{ fontSize: 9, color: neon.border, opacity: 0.7 }}>
-          Bu olay ne zaman?
+          Bu olay ne zaman gerçekleşti?
         </p>
       </div>
     </motion.div>
