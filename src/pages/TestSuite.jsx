@@ -103,7 +103,7 @@ export default function TestSuite() {
           </div>
           <div>
             <h1 className="font-cinzel text-xl text-primary tracking-wider">TEST SUITE</h1>
-            <p className="font-inter text-xs text-muted-foreground">Kronos — 12 suite · 91 test senaryosu</p>
+            <p className="font-inter text-xs text-muted-foreground">Kronos — 12 suite · 96 test senaryosu</p>
           </div>
         </div>
 
