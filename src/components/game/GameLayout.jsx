@@ -174,12 +174,21 @@ export default function GameLayout({
             onTouchDragEnd={onTouchDragEnd}
           />
         ) : currentQuestion && !isMyTurn ? (
-          <div className="w-full max-w-xs rounded-2xl bg-white/5 border border-white/15 flex items-center justify-center py-8 text-center">
-            <p className="font-inter text-white/60 text-sm">
-              <span className="text-primary font-bold block mb-1">{currentPlayer?.name}</span>
-              oynuyor…
-            </p>
-          </div>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="w-full max-w-xs rounded-2xl flex flex-col items-center justify-center py-7 text-center"
+            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
+          >
+            <motion.div
+              animate={{ scale: [1, 1.12, 1], opacity: [0.7, 1, 0.7] }}
+              transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+              className="w-3 h-3 rounded-full bg-primary mb-3"
+              style={{ boxShadow: '0 0 10px rgba(250,204,21,0.6)' }}
+            />
+            <span className="font-bangers text-xl tracking-wider text-primary block mb-0.5">{currentPlayer?.name}</span>
+            <span className="font-inter text-white/40 text-xs">düşünüyor…</span>
+          </motion.div>
         ) : null}
       </div>
 
