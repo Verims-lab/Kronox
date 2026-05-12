@@ -38,10 +38,60 @@ export const sounds = {
   // Drop zone hover tick
   tick() { playTone({ freq: 660, type: 'square', duration: 0.04, gain: 0.06, decay: 0.03 }); },
 
-  // Card snap onto timeline
+  // Card snap onto timeline — tactile magnetic lock:
+  // Layer 1: sub-bass punch (impact body)
+  // Layer 2: mid transient click (the "lock" moment)
+  // Layer 3: neon shimmer tail (futuristic sheen)
   snap() {
-    playTone({ freq: 300, type: 'sine', duration: 0.05, gain: 0.14, decay: 0.04 });
-    setTimeout(() => playTone({ freq: 600, type: 'sine', duration: 0.08, gain: 0.10, decay: 0.06 }), 40);
+    const c = getCtx();
+    if (!c) return;
+    const t = c.currentTime;
+    try {
+      // ── Layer 1: sub-bass thud ──────────────────────────────
+      // Short sine burst pitched low, fast exponential decay → felt more than heard
+      const bass = c.createOscillator();
+      const bassGain = c.createGain();
+      bass.connect(bassGain);
+      bassGain.connect(c.destination);
+      bass.type = 'sine';
+      bass.frequency.setValueAtTime(90, t);
+      bass.frequency.exponentialRampToValueAtTime(42, t + 0.08);
+      bassGain.gain.setValueAtTime(0, t);
+      bassGain.gain.linearRampToValueAtTime(0.28, t + 0.004);
+      bassGain.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+      bass.start(t);
+      bass.stop(t + 0.12);
+
+      // ── Layer 2: mid transient click ───────────────────────
+      // Triangle wave, slightly pitched, very tight envelope → the "snap" click
+      const click = c.createOscillator();
+      const clickGain = c.createGain();
+      click.connect(clickGain);
+      clickGain.connect(c.destination);
+      click.type = 'triangle';
+      click.frequency.setValueAtTime(420, t + 0.003);
+      click.frequency.exponentialRampToValueAtTime(210, t + 0.045);
+      clickGain.gain.setValueAtTime(0, t);
+      clickGain.gain.linearRampToValueAtTime(0.18, t + 0.005);
+      clickGain.gain.exponentialRampToValueAtTime(0.001, t + 0.055);
+      click.start(t + 0.002);
+      click.stop(t + 0.08);
+
+      // ── Layer 3: neon shimmer tail ──────────────────────────
+      // High sine sweep upward, very low gain, slow-ish decay → glassy shimmer
+      const shimmer = c.createOscillator();
+      const shimmerGain = c.createGain();
+      shimmer.connect(shimmerGain);
+      shimmerGain.connect(c.destination);
+      shimmer.type = 'sine';
+      shimmer.frequency.setValueAtTime(1800, t + 0.012);
+      shimmer.frequency.linearRampToValueAtTime(2600, t + 0.18);
+      shimmerGain.gain.setValueAtTime(0, t + 0.010);
+      shimmerGain.gain.linearRampToValueAtTime(0.055, t + 0.022);
+      shimmerGain.gain.exponentialRampToValueAtTime(0.001, t + 0.20);
+      shimmer.start(t + 0.010);
+      shimmer.stop(t + 0.22);
+    } catch {}
   },
 
   // Correct answer chime — bright upward sweep
