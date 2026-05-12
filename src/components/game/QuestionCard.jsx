@@ -174,7 +174,11 @@ export default function QuestionCard({
             className="w-11 h-11 rounded-2xl flex items-center justify-center mt-2 flex-shrink-0"
             style={{ background: `${neon.border}18`, border: `1.5px solid ${neon.border}50` }}
           >
-            <QuestionIcon style={{ width: 22, height: 22, color: neon.border }} strokeWidth={1.6} />
+            {question?.icon_url ? (
+              <img src={question.icon_url} alt="" className="w-6 h-6 object-contain" />
+            ) : (
+              <QuestionIcon style={{ width: 22, height: 22, color: neon.border }} strokeWidth={1.6} />
+            )}
           </div>
         )}
 

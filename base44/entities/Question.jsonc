@@ -18,8 +18,7 @@
         "spor",
         "sanat",
         "teknoloji",
-        "genel",
-        "muzik"
+        "genel"
       ],
       "default": "genel",
       "description": "Question category"
@@ -29,19 +28,28 @@
       "enum": [
         "metin",
         "gorsel",
-        "isitsel",
-        "muzik"
+        "isitsel"
       ],
       "default": "metin",
-      "description": "Question type: text, visual, audio or music"
+      "description": "Question type: text, visual or audio"
     },
     "media_url": {
       "type": "string",
-      "description": "URL for image (gorsel), audio file (isitsel), or Spotify preview (muzik)"
+      "description": "URL for image (gorsel) or audio file (isitsel)"
     },
-    "artist": {
+    "icon_url": {
       "type": "string",
-      "description": "Artist name for music questions"
+      "description": "Custom icon URL for the question card"
+    },
+    "difficulty": {
+      "type": "number",
+      "enum": [
+        1,
+        2,
+        3
+      ],
+      "default": 1,
+      "description": "Difficulty level: 1=easy, 2=medium, 3=hard"
     }
   },
   "required": [
