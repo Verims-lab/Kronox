@@ -32,11 +32,14 @@ export function useOfflineQuestions() {
   const fetchFromNetwork = async () => {
     try {
       let fetched = [];
-      try {
-        const res = await base44.functions.invoke('getQuestions', {});
-        if (res.data?.questions?.length > 0) fetched = res.data.questions;
-      } catch (_e) { /* fallthrough to direct entity */ }
 
+      // Önce backend function dene
+      const res = await base44.functions.invoke('getQuestions', {});
+      if (res.data?.questions?.length > 0) {
+        fetched = res.data.questions;
+      }
+
+      // Fallback: doğrudan entity'den çek
       if (fetched.length === 0) {
         const direct = await base44.entities.Question.list('-created_date', 500);
         fetched = direct || [];
@@ -49,12 +52,11 @@ export function useOfflineQuestions() {
         setIsError(false);
       }
     } catch (err) {
-      // Network hatası — cache'deki veri varsa sorun değil
+      // Network hatası — cache varsa sorun değil, yoksa hata göster
       const cached = loadQuestionsFromCache();
       if (!cached || cached.questions.length === 0) {
         setIsError(true);
       }
-      // Cache varsa: sessizce devam et
     } finally {
       setIsLoading(false);
     }

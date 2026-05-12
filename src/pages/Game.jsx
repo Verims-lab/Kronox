@@ -133,18 +133,12 @@ export default function Game() {
     if (isLoading || allQuestions.length === 0) return;
     if (lobbyDataRef.current !== null) return;
 
-    const filteredQuestions = allQuestions
-      .filter(q => category === 'muzik' ? q.type === 'muzik' : q.type === 'metin')
-      .filter(q => q.year >= yearStart && q.year <= yearEnd)
-      .filter(q => category === 'karisik' || q.category === category)
-      .filter(q => q.type !== 'muzik' || (q.media_url && q.media_url.length > 0));
-
-    if (filteredQuestions.length < 3) {
-      setError(`Yeterli soru yok. ${filteredQuestions.length} soru var.`);
+    if (questionPool.length < 3) {
+      setError(`Yeterli soru yok. ${questionPool.length} soru var.`);
       return;
     }
 
-    const shuffled = [...filteredQuestions];
+    const shuffled = [...questionPool];
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
@@ -174,7 +168,7 @@ export default function Game() {
       current_question_id: firstQ.id,
       used_question_ids: [...used]
     });
-  }, [playerNames, allQuestions, isLoading, category, yearStart, yearEnd, lobbyId, setLobbyData, setError]);
+  }, [playerNames, questionPool, isLoading, lobbyId, setLobbyData, setError]);
 
   // Overall timer başlatma
   useEffect(() => {
@@ -218,8 +212,8 @@ export default function Game() {
   }, [winner, navigate]);
 
   // ─── Handlers (UI event → action delegation) ─────────────────────
-  const handleDropOnZone = (zoneIndex) => doPlacement(zoneIndex, { category, yearStart, yearEnd });
-  const handleConfirmPlacement = () => { if (selectedZone !== null) doPlacement(selectedZone, { category, yearStart, yearEnd }); };
+  const handleDropOnZone = useCallback((zoneIndex) => doPlacement(zoneIndex, { category, yearStart, yearEnd }), [doPlacement, category, yearStart, yearEnd]);
+  const handleConfirmPlacement = useCallback(() => { if (selectedZone !== null) doPlacement(selectedZone, { category, yearStart, yearEnd }); }, [doPlacement, selectedZone, category, yearStart, yearEnd]);
   const handleTimeUp = useCallback(() => {
     if (feedback !== null || winner) return;
     setIsTimeUp(true);

@@ -16,21 +16,27 @@ export function useLobbySync({
   setError,
 }) {
   const unsubRef = useRef(null);
+  // initialPlayers referansını sabitle — dependency döngüsünü önler
+  const initialPlayersRef = useRef(initialPlayers);
+  const currentQuestionIdRef = useRef(currentQuestionIdFromState);
 
   useEffect(() => {
     if (!lobbyId) return;
 
+    const initPlayers = initialPlayersRef.current;
+    const initQuestionId = currentQuestionIdRef.current;
+
     // İlk yükleme
-    if (initialPlayers && initialPlayers.length > 0) {
+    if (initPlayers && initPlayers.length > 0) {
       const usedIds = [
-        currentQuestionIdFromState,
-        ...initialPlayers.flatMap(p => p.cards?.map(c => c.id) || [])
+        initQuestionId,
+        ...initPlayers.flatMap(p => p.cards?.map(c => c.id) || [])
       ].filter(Boolean);
 
       setLobbyData({
-        players: initialPlayers,
+        players: initPlayers,
         current_player_index: 0,
-        current_question_id: currentQuestionIdFromState,
+        current_question_id: initQuestionId,
         used_question_ids: usedIds,
       });
     } else {
@@ -60,7 +66,7 @@ export function useLobbySync({
     return () => {
       if (unsubRef.current) unsubRef.current();
     };
-  }, [lobbyId, initialPlayers, currentQuestionIdFromState, setLobbyData, setWinner, setError]);
+  }, [lobbyId, setLobbyData, setWinner, setError]);
 
   return { unsubRef };
 }

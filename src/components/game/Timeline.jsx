@@ -95,7 +95,10 @@ export default function Timeline({
   onExternalZoneChange,
   isTimeUp = false,
 }) {
-  const sortedCards = Array.isArray(cards) ? [...cards].sort((a, b) => a.year - b.year) : [];
+  const sortedCards = useMemo(
+    () => Array.isArray(cards) ? [...cards].sort((a, b) => a.year - b.year) : [],
+    [cards]
+  );
 
   // Her kart ayrı gösterilir — stacking yok
   const groupedCards = useMemo(() => sortedCards.map(c => ({ ...c, stackCount: 1 })), [sortedCards]);
