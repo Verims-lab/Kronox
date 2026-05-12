@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
     page = pdfDoc.addPage([W, H]);
     pageNum++;
     y = H - MARGIN;
-    page.drawText(`Kronos - Is Akisi Dokumani | Sayfa ${pageNum}`, {
+    page.drawText(`Kronox - Is Akisi Dokumani | Sayfa ${pageNum}`, {
       x: MARGIN, y: 15, size: 8, font: fontRegular, color: rgb(0.5, 0.5, 0.5)
     });
   }
@@ -120,14 +120,14 @@ Deno.serve(async (req) => {
   page.drawRectangle({ x: 0, y: 0, width: W, height: H, color: rgb(0.05, 0.04, 0.02) });
   page.drawRectangle({ x: 0, y: H / 2 - 80, width: W, height: 160, color: rgb(0.1, 0.08, 0.03) });
 
-  page.drawText('KRONOS', { x: 180, y: H / 2 + 30, size: 48, font: fontBold, color: rgb(0.8, 0.63, 0.15) });
+  page.drawText('KRONOX', { x: 180, y: H / 2 + 30, size: 48, font: fontBold, color: rgb(0.8, 0.63, 0.15) });
   page.drawText('Zaman Cizgisi Kart Oyunu', { x: 165, y: H / 2 + 8, size: 14, font: fontRegular, color: rgb(0.6, 0.5, 0.2) });
   page.drawLine({ start: { x: 150, y: H / 2 }, end: { x: W - 150, y: H / 2 }, thickness: 1, color: rgb(0.4, 0.3, 0.1) });
   page.drawText('IS AKISI & KULLANIM SENARYOLARI', { x: 115, y: H / 2 - 20, size: 13, font: fontBold, color: rgb(0.9, 0.85, 0.7) });
   page.drawText('Dokuman Versiyonu: 1.3', { x: 215, y: 80, size: 10, font: fontRegular, color: rgb(0.4, 0.35, 0.2) });
   page.drawText('Hazirlanma: Mayis 2026', { x: 210, y: 60, size: 10, font: fontRegular, color: rgb(0.4, 0.35, 0.2) });
 
-  page.drawText('Kronos - Is Akisi Dokumani | Sayfa 1', {
+  page.drawText('Kronox - Is Akisi Dokumani | Sayfa 1', {
     x: MARGIN, y: 15, size: 8, font: fontRegular, color: rgb(0.5, 0.5, 0.5)
   });
 
@@ -136,7 +136,7 @@ Deno.serve(async (req) => {
   y = H - MARGIN;
 
   drawHeading1('1. GENEL BAKIS');
-  drawText('Kronos, oyuncularin tarihsel olaylari dogru kronolojik siralama ile zaman cetvellerine yerlestirdigi rekabetci bir kart oyunudur. Bu dokuman, uygulamanin kullanim senaryolarini, is akislarini ve oyun surec adimlarini detayli olarak aciklamaktadir.', { size: 10 });
+  drawText('Kronox, oyuncularin tarihsel olaylari dogru kronolojik siralama ile zaman cetvellerine yerlestirdigi rekabetci bir kart oyunudur. Bu dokuman, uygulamanin kullanim senaryolarini, is akislarini ve oyun surec adimlarini detayli olarak aciklamaktadir.', { size: 10 });
   y -= 8;
 
   drawHeading2('1.1 Temel Kavramlar');
@@ -402,7 +402,7 @@ Deno.serve(async (req) => {
   drawHeading2('9.3 Misafir (Giris Yapmamiş) Oyuncu Akisi');
   drawStep(1, 'Giris Yok', 'Kullanici login yapmadan uygulamaya girer.');
   drawStep(2, 'Tek Cihaz Oyun', 'Sorular cekilebilir (okuma herkese acik), oyun oynanabilir.');
-  drawStep(3, 'Cevrimici Oyun', 'Gecici e-posta (guest_TIMESTAMP@kronos.local) ile lobi olusturulabilir/katilabilir.');
+  drawStep(3, 'Cevrimici Oyun', 'Gecici e-posta (guest_TIMESTAMP@kronox.local) ile lobi olusturulabilir/katilabilir.');
   drawStep(4, 'Kisitlamalar', 'Admin paneline, soru yonetimine erisim engellenir.');
 
   // ─── LANDSCAPE IS AKISI ─────────────────────────────────────────────────────
@@ -499,7 +499,7 @@ Deno.serve(async (req) => {
     status: 200,
     headers: {
       'Content-Type': 'application/pdf',
-      'Content-Disposition': 'attachment; filename=kronos-is-akisi.pdf',
+      'Content-Disposition': 'attachment; filename=kronox-is-akisi.pdf',
     },
   });
 });

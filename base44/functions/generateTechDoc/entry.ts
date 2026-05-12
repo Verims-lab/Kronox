@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
       page = pdfDoc.addPage([W, H]);
       y = H - 60;
       page.drawLine({ start: { x: marginL, y: H - 45 }, end: { x: W - marginR, y: H - 45 }, thickness: 0.5, color: gold, opacity: 0.4 });
-      page.drawText(tr('KRONOS — Teknik Dokuman'), { x: marginL, y: H - 38, size: 8, font, color: gray });
+      page.drawText(tr('KRONOX — Teknik Dokuman'), { x: marginL, y: H - 38, size: 8, font, color: gray });
       page.drawText(`Sayfa ${pdfDoc.getPageCount()}`, { x: W - marginR - 40, y: H - 38, size: 8, font, color: gray });
     };
 
@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
     page.drawRectangle({ x: 0, y: 0, width: W, height: H, color: darkBg });
     page.drawRectangle({ x: marginL, y: H / 2 - 1, width: 120, height: 2, color: gold });
 
-    page.drawText('KRONOS', { x: marginL, y: H / 2 + 90, size: 56, font: boldFont, color: gold });
+    page.drawText('KRONOX', { x: marginL, y: H / 2 + 90, size: 56, font: boldFont, color: gold });
     page.drawText(tr('Zaman Cizgisi Kart Oyunu'), { x: marginL, y: H / 2 + 50, size: 18, font, color: rgb(0.85, 0.85, 0.9) });
     page.drawText(tr('Teknik Mimari Dokumani'), { x: marginL, y: H / 2 + 24, size: 14, font, color: gray });
 
@@ -171,7 +171,7 @@ Deno.serve(async (req) => {
     // ══════════════════════════════════════════════════════════════════════════
     newPage(); y = H - 80;
     sectionTitle('1. Proje Genel Bakis');
-    drawText('Kronos, oyuncularin tarihi olaylari dogru kronolojik siraya yerlestirdigi bir kart oyunudur. Oyun yerel (ayni cihaz, birden fazla oyuncu) ve cevrimici (gercek zamanli lobi, WebSocket tabanli senkronizasyon) olmak uzere iki modda oynanabilir.');
+    drawText('Kronox, oyuncularin tarihi olaylari dogru kronolojik siraya yerlestirdigi bir kart oyunudur. Oyun yerel (ayni cihaz, birden fazla oyuncu) ve cevrimici (gercek zamanli lobi, WebSocket tabanli senkronizasyon) olmak uzere iki modda oynanabilir.');
     spacer();
     drawText('Temel hedefler:');
     bullet('Sezgisel ve hizli kurulum — oyuncular dakikalar icinde oyuna girebilmeli');
@@ -338,8 +338,8 @@ Deno.serve(async (req) => {
 
     subTitle('AppHeader');
     drawText('Tum sayfalarin ustunde sabit konumlanan baslik bileseni (z-index: 60). Rota bazli farkli gorunum saglar:');
-    bullet('Ana sayfa (/): KRONOS logosu + giris yapilmamissa "GIRIS YAP" butonu, giris yapilmissa Ayarlar ikonu.');
-    bullet('Alt sayfalar (/lobby, /game, /settings): Geri ok + KRONOS logosu.');
+    bullet('Ana sayfa (/): KRONOX logosu + giris yapilmamissa "GIRIS YAP" butonu, giris yapilmissa Ayarlar ikonu.');
+    bullet('Alt sayfalar (/lobby, /game, /settings): Geri ok + KRONOX logosu.');
     bullet('Kimlik dogrulama base44.auth.me() ile yapilir; sonuc useState ile tutulur.');
     spacer(6);
 
@@ -687,7 +687,7 @@ Deno.serve(async (req) => {
     page = pdfDoc.addPage([W, H]);
     page.drawRectangle({ x: 0, y: 0, width: W, height: H, color: darkBg });
     page.drawRectangle({ x: marginL, y: H / 2 - 1, width: 120, height: 2, color: gold });
-    page.drawText('KRONOS', { x: marginL, y: H / 2 + 30, size: 40, font: boldFont, color: gold, opacity: 0.25 });
+    page.drawText('KRONOX', { x: marginL, y: H / 2 + 30, size: 40, font: boldFont, color: gold, opacity: 0.25 });
     page.drawText('2026 — Tum haklari saklidir', { x: marginL, y: H / 2 - 28, size: 10, font, color: gray });
     page.drawText('Base44 Platform uzerinde gelistirilmistir', { x: marginL, y: H / 2 - 46, size: 10, font, color: gray });
 
@@ -697,7 +697,7 @@ Deno.serve(async (req) => {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': 'attachment; filename=kronos-teknik-dokuman.pdf',
+        'Content-Disposition': 'attachment; filename=kronox-teknik-dokuman.pdf',
       },
     });
   } catch (error) {
