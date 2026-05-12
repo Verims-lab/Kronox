@@ -9,7 +9,12 @@ function tr(text) {
     .replace(/\u011f/g, 'g').replace(/\u011e/g, 'G')
     .replace(/\u00fc/g, 'u').replace(/\u00dc/g, 'U')
     .replace(/\u00f6/g, 'o').replace(/\u00d6/g, 'O')
-    .replace(/\u00e7/g, 'c').replace(/\u00c7/g, 'C');
+    .replace(/\u00e7/g, 'c').replace(/\u00c7/g, 'C')
+    .replace(/\u2192/g, '->').replace(/\u2190/g, '<-')
+    .replace(/\u2014/g, '--').replace(/\u2013/g, '-')
+    .replace(/\u2018/g, "'").replace(/\u2019/g, "'")
+    .replace(/\u201c/g, '"').replace(/\u201d/g, '"')
+    .replace(/[^\x00-\xFF]/g, '?');
 }
 
 Deno.serve(async (req) => {
@@ -389,16 +394,16 @@ Deno.serve(async (req) => {
     subTitle('Tur Gecis Mantiği');
     codeBlock([
       'handleConfirmPlacement()  [TEK ATOMIK ADIM]',
-      '  -> Dogruluk kontrolu',
-      '  -> Optimistic state guncelle (kart + nextIndex + nextQ)',
-      '  -> Kazanma kontrolu',
-      '  -> DB yazimi: players, used_question_ids, current_player_index,',
-      '                current_question_id, status — hepsi tek update()',
+      '  1. Dogruluk kontrolu',
+      '  2. Optimistic state guncelle (kart + nextIndex + nextQ)',
+      '  3. Kazanma kontrolu',
+      '  4. DB yazimi: players, used_question_ids, current_player_index,',
+      '                current_question_id, status -- hepsi tek update()',
       '',
       'advanceTurn()  [sadece timer dolunca]',
-      '  -> nextIndex = (currentIndex + 1) % playerCount',
-      '  -> Yeni soru sec (Fisher-Yates havuzdan)',
-      '  -> DB guncelle (current_player_index, current_question_id)',
+      '  1. nextIndex = (currentIndex + 1) % playerCount',
+      '  2. Yeni soru sec (Fisher-Yates havuzdan)',
+      '  3. DB guncelle (current_player_index, current_question_id)',
     ]);
     spacer(6);
 
@@ -441,16 +446,16 @@ Deno.serve(async (req) => {
     subTitle('Prop Akisi: QuestionCard -> GameLayout -> Timeline');
     codeBlock([
       'QuestionCard',
-      '  onTouchStart  -> setIsDragging(true)',
-      '  onTouchMove   -> setTouchDragPos({ x: clientX, y: clientY })',
-      '  onTouchEnd    -> setTouchDragEnd({ x, y }); setTouchDragPos(null)',
+      '  onTouchStart  ==> setIsDragging(true)',
+      '  onTouchMove   ==> setTouchDragPos({ x: clientX, y: clientY })',
+      '  onTouchEnd    ==> setTouchDragEnd({ x, y }); setTouchDragPos(null)',
       '',
       'GameLayout (ghost kart burda render edilir)',
-      '  touchDragPos  -> fixed div: left=x-80, top=y-60  (viewport)',
+      '  touchDragPos  ==> fixed div: left=x-80, top=y-60  (viewport)',
       '',
       'Timeline',
-      '  dragClientX   -> getZoneAtClientX (world coords) + auto-scroll',
-      '  dragEndEvent  -> final drop zone tespiti -> onPlaceCard(zone)',
+      '  dragClientX   ==> getZoneAtClientX (world coords) + auto-scroll',
+      '  dragEndEvent  ==> final drop zone tespiti ==> onPlaceCard(zone)',
     ]);
     spacer(4);
 
@@ -523,11 +528,11 @@ Deno.serve(async (req) => {
 
     subTitle('Genel Auth Akisi');
     codeBlock([
-      'AuthProvider mount → base44.auth.me()',
-      '  OK         → user state set, uygulama render',
-      '  auth_req   → redirectToLogin(pathname)',
-      '  not_reg    → UserNotRegisteredError ekrani',
-      '  unknown    → authError state, fallback UI',
+      'AuthProvider mount -> base44.auth.me()',
+      '  OK         -> user state set, uygulama render',
+      '  auth_req   -> redirectToLogin(pathname)',
+      '  not_reg    -> UserNotRegisteredError ekrani',
+      '  unknown    -> authError state, fallback UI',
     ]);
 
     // ══════════════════════════════════════════════════════════════════════════
