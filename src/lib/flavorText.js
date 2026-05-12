@@ -3,23 +3,23 @@
  */
 
 export const correctTexts = [
-  'Temiz oynadın 👏',
-  'Tarih bilgisi akıyor!',
-  'Bu placement çok iyiydi',
-  'Kafan net, el sağlam!',
-  'Tarihin ustası seninsin',
-  'Arkadaşlar not alsın 📝',
-  'Ezber değil, bilgi bu!',
+  'Temiz yerleştirme.',
+  'Timeline ustası.',
+  'Pürüzsüzdü bu.',
+  'Tarih seni tanıyor.',
+  'Kafan çalışıyor.',
+  'Kesin atış.',
+  'Tarih bilgisi akıyor.',
 ];
 
 export const wrongTexts = [
-  'Tarihle aran biraz karışık 😅',
-  'Yakındın ama tarih seni affetmedi',
-  'Bu biraz ağır oldu',
-  'Arkadaş grubunda bunu unutmazlar 😬',
-  'Hata yapmak insani bir şeydir',
-  'Zamanlama tam değildi',
-  'Yeniden dene, bu sefer olmadı',
+  'Tarih hayır dedi.',
+  'Bu biraz acıtı.',
+  'Arkadaşların hatırlayacak.',
+  'Az kaldı… ama yetmedi.',
+  'Timeline kargaşası.',
+  'Yakındın ama mesafe önemli.',
+  'Tarihle aran biraz karışık.',
 ];
 
 export function randomFlavor(isCorrect) {
