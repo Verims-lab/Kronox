@@ -11,16 +11,18 @@ const cardColors = [
   { border: '#c084fc', year: '#c084fc', bg: 'rgba(192,132,252,0.08)' },  // purple
 ];
 
-export default function TimelineCard({ card, index }) {
+export default function TimelineCard({ card, index, distanceFromCenter = 0 }) {
   const stackCount = card.stackCount || 1;
   const color = cardColors[index % cardColors.length];
+  // Subtle de-emphasis for cards far from the center viewport (max 30% opacity reduction)
+  const fadeOpacity = Math.max(0.7, 1 - Math.min(distanceFromCenter, 1) * 0.3);
 
   const lines = (card.question || '').split('\n');
   const title = lines[0] || card.question || '';
   const artist = lines[1] || card.artist || '';
 
   return (
-    <div className="relative flex-shrink-0" style={{ width: 80 }}>
+    <div className="relative flex-shrink-0" style={{ width: 80, opacity: fadeOpacity, transition: 'opacity 0.4s ease' }}>
       {/* Stack shadow layers */}
       {stackCount > 1 && (
         <>

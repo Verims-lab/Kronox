@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import TimelineCard from './TimelineCard.jsx';
+import TimelineRuler from './TimelineRuler.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function DotSeparator() {
@@ -94,6 +95,35 @@ export default function Timeline({
   const scrollRef = useRef(null);
   const autoScrollRaf = useRef(null);
   const [activeZone, setActiveZone] = useState(null);
+  // Card center distances from viewport center — stored in state, updated on scroll
+  // (only N card positions, cheap to compute)
+  const cardItemRefs = useRef([]);
+  const [cardDistances, setCardDistances] = useState([]);
+
+  const updateCardDistances = useCallback(() => {
+    const scroll = scrollRef.current;
+    if (!scroll) return;
+    const vw = scroll.getBoundingClientRect().width;
+    const viewportCenterX = scroll.scrollLeft + vw / 2;
+    const dists = cardItemRefs.current.map((el) => {
+      if (!el) return 0;
+      const elRect = el.getBoundingClientRect();
+      const containerRect = scroll.getBoundingClientRect();
+      const elWorldCX = (elRect.left + elRect.right) / 2 - containerRect.left + scroll.scrollLeft;
+      // Normalize: 0 = at center, 1 = one full viewport width away
+      return Math.abs(elWorldCX - viewportCenterX) / (vw / 2);
+    });
+    setCardDistances(dists);
+  }, []);
+
+  // Update distances on scroll (passive, no drag impact)
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.addEventListener('scroll', updateCardDistances, { passive: true });
+    updateCardDistances();
+    return () => el.removeEventListener('scroll', updateCardDistances);
+  }, [updateCardDistances, groupedCards.length]);
 
   // Expose scroll ref to parent (for ghost card offset)
   useEffect(() => {
@@ -234,14 +264,18 @@ export default function Timeline({
     if (i < groupedCards.length) {
       cardRowItems.push(<DotSeparator key={`dot-${i}`} />);
       cardRowItems.push(
-        <div key={`card-${i}`} className="flex flex-col items-center flex-shrink-0">
+        <div key={`card-${i}`} ref={el => (cardItemRefs.current[i] = el)} className="flex flex-col items-center flex-shrink-0">
           <div className="flex flex-col items-center mb-0.5" style={{ height: 20 }}>
             <span className="font-inter font-semibold" style={{ fontSize: 11, color: '#facc15', lineHeight: 1 }}>
               {groupedCards[i].year}
             </span>
             <div className="w-px h-2 mt-0.5" style={{ background: '#facc15' }} />
           </div>
-          <TimelineCard card={groupedCards[i]} index={i} />
+          <TimelineCard
+            card={groupedCards[i]}
+            index={i}
+            distanceFromCenter={isDragMode ? 0 : (cardDistances[i] ?? 0)}
+          />
         </div>
       );
       cardRowItems.push(<DotSeparator key={`dot-after-${i}`} />);
@@ -250,33 +284,59 @@ export default function Timeline({
 
   return (
     <div className="w-full flex flex-col" style={{ paddingBottom: 24 }}>
-      <div
-        ref={scrollRef}
-        className="w-full overflow-x-auto"
-        style={{
-          scrollbarWidth: 'none',
-          msOverflowStyle: 'none',
-          WebkitOverflowScrolling: 'touch',
-          // Allow pan-x normally; disable only vertical scroll during drag to avoid page scroll
-          touchAction: isDragMode ? 'none' : 'pan-x',
-        }}
-      >
-        <div className="relative flex flex-col" style={{ minWidth: 'max-content', paddingLeft: 12, paddingRight: 24 }}>
-          <div className="relative flex flex-row items-center" style={{ gap: 0 }}>
-            <div
-              className="absolute left-0 right-0 pointer-events-none"
-              style={{
-                top: 20 + 54,
-                height: 2,
-                background: isTimeUp
-                  ? 'linear-gradient(to right, rgba(239,68,68,0.15), rgba(239,68,68,0.6), rgba(239,68,68,0.15))'
-                  : 'linear-gradient(to right, rgba(250,204,21,0.05), rgba(250,204,21,0.4), rgba(250,204,21,0.05))',
-                zIndex: 0,
-              }}
-            />
-            {cardRowItems}
+      {/* ── Outer scroll container — position:relative lets center-vignette overlay work ── */}
+      <div className="relative w-full">
+        <div
+          ref={scrollRef}
+          className="w-full overflow-x-auto"
+          style={{
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+            WebkitOverflowScrolling: 'touch',
+            touchAction: isDragMode ? 'none' : 'pan-x',
+          }}
+        >
+          <div className="relative flex flex-col" style={{ minWidth: 'max-content', paddingLeft: 12, paddingRight: 24 }}>
+            {/* ── Ruler: decade labels + tick marks (decorative, pointer-events:none) ── */}
+            <TimelineRuler cards={groupedCards} isDragMode={isDragMode} />
+
+            <div className="relative flex flex-row items-center" style={{ gap: 0 }}>
+              {/* Timeline horizontal line */}
+              <div
+                className="absolute left-0 right-0 pointer-events-none"
+                style={{
+                  top: 20 + 54,
+                  height: 2,
+                  background: isTimeUp
+                    ? 'linear-gradient(to right, rgba(239,68,68,0.15), rgba(239,68,68,0.6), rgba(239,68,68,0.15))'
+                    : 'linear-gradient(to right, rgba(250,204,21,0.05), rgba(250,204,21,0.4), rgba(250,204,21,0.05))',
+                  zIndex: 0,
+                }}
+              />
+              {cardRowItems}
+            </div>
           </div>
         </div>
+
+        {/* ── Center-focus vignette: fades edges, highlights center viewport ── */}
+        {/* pointer-events:none — absolutely no effect on touch or hit-testing */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'linear-gradient(to right, rgba(11,31,58,0.55) 0%, transparent 22%, transparent 78%, rgba(11,31,58,0.55) 100%)',
+            zIndex: 2,
+            transition: 'opacity 0.3s ease',
+            opacity: isDragMode ? 0.3 : 1,
+          }}
+        />
+        {/* Soft center beam — subtle warm glow in the middle third */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'radial-gradient(ellipse 40% 60% at 50% 60%, rgba(250,204,21,0.04) 0%, transparent 100%)',
+            zIndex: 1,
+          }}
+        />
       </div>
     </div>
   );
