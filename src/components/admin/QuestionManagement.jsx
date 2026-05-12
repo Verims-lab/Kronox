@@ -79,12 +79,13 @@ export default function QuestionManagement() {
       setUploadProgress(true);
       const res = await base44.integrations.Core.UploadFile({ file });
       
-      // Get the file extension
-      const ext = file.type === 'image/webp' ? 'webp' : file.name.split('.').pop();
-      const filename = `${generateFilename(form.question)}.${ext}`;
-      const mediaUrl = `/assets/questions/${filename}`;
+      // Use the actual returned file URL from Base44 storage
+      if (res?.file_url) {
+        return res.file_url;
+      }
       
-      return mediaUrl;
+      setError('Upload returned no file URL');
+      return null;
     } catch (err) {
       setError('Failed to upload image');
       return null;
