@@ -1,77 +1,108 @@
 import React, { useMemo } from 'react';
 
 /**
- * TimelineRuler — pure decorative layer, zero effect on drag/hit-testing.
+ * TimelineRuler — atmospheric era hints, NOT a proportional ruler.
  *
- * Receives the sorted card list and renders decade/5-year tick marks
- * that scroll in sync with the timeline content (same parent scroll container).
- * pointer-events: none on everything so touch never intercepts.
+ * Shows soft floating era labels based on the actual year range of cards
+ * on the player's timeline. Labels are decoupled from slot positions —
+ * they appear as ambient context, not precise scale markers.
+ *
+ * pointer-events: none everywhere. Zero effect on drag / hit-testing.
  */
+
+// Era definitions — purely atmospheric, not mathematically spaced
+const ERA_DEFINITIONS = [
+  { label: 'Erken Çağ',       from: 0,    to: 1800 },
+  { label: '19. Yüzyıl',      from: 1800, to: 1900 },
+  { label: 'Erken Modern',    from: 1900, to: 1930 },
+  { label: 'Savaş Dönemi',    from: 1930, to: 1950 },
+  { label: 'Savaş Sonrası',   from: 1950, to: 1965 },
+  { label: 'Uzay Çağı',       from: 1965, to: 1980 },
+  { label: 'Dijital Başlangıç', from: 1980, to: 1995 },
+  { label: 'İnternet Çağı',   from: 1995, to: 2005 },
+  { label: 'Sosyal Medya',    from: 2005, to: 2015 },
+  { label: 'Modern',          from: 2015, to: 9999 },
+];
+
+function getEraForYear(year) {
+  return ERA_DEFINITIONS.find(e => year >= e.from && year < e.to)?.label ?? '';
+}
+
 export default function TimelineRuler({ cards = [], isDragMode = false }) {
-  // Derive the year range from the card set, with sensible defaults
-  const { minYear, maxYear } = useMemo(() => {
-    if (!cards.length) return { minYear: 1900, maxYear: 2020 };
-    const years = cards.map(c => c.year);
-    const mn = Math.floor(Math.min(...years) / 10) * 10;
-    const mx = Math.ceil(Math.max(...years) / 10) * 10;
-    return { minYear: Math.min(mn, 1900), maxYear: Math.max(mx, 2020) };
+  // Derive which eras are actually represented in the current card set
+  const eraSegments = useMemo(() => {
+    if (!cards.length) return [];
+
+    // Build a deduplicated ordered list of era transitions
+    const segments = [];
+    let lastEra = null;
+    const sorted = [...cards].sort((a, b) => a.year - b.year);
+
+    sorted.forEach((card) => {
+      const era = getEraForYear(card.year);
+      if (era && era !== lastEra) {
+        segments.push({ label: era, year: card.year });
+        lastEra = era;
+      }
+    });
+
+    return segments;
   }, [cards]);
 
-  // Build tick list: every 5 years
-  const ticks = useMemo(() => {
-    const list = [];
-    for (let y = minYear; y <= maxYear; y += 5) {
-      list.push({ year: y, isDecade: y % 10 === 0 });
-    }
-    return list;
-  }, [minYear, maxYear]);
-
-  if (!cards.length) return null;
+  if (!cards.length || eraSegments.length === 0) return null;
 
   return (
     <div
-      className="pointer-events-none select-none flex flex-row items-end"
+      className="pointer-events-none select-none"
       style={{
         paddingLeft: 12,
         paddingRight: 24,
+        paddingBottom: 4,
+        opacity: isDragMode ? 0.2 : 1,
+        transition: 'opacity 0.4s ease',
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'center',
         gap: 0,
-        opacity: isDragMode ? 0.4 : 0.7,
-        transition: 'opacity 0.3s ease',
+        // This row is purely decorative — its width doesn't need to match cards exactly
+        minWidth: 'max-content',
       }}
     >
-      {ticks.map(({ year, isDecade }) => (
+      {eraSegments.map((seg, i) => (
         <div
-          key={year}
-          className="flex flex-col items-center flex-shrink-0"
-          style={{ width: isDecade ? 56 : 28 }}
+          key={i}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            marginRight: i < eraSegments.length - 1 ? 16 : 0,
+          }}
         >
-          {/* Decade label */}
-          {isDecade && (
-            <span
-              className="font-inter font-semibold tracking-wide"
-              style={{
-                fontSize: 9,
-                color: 'rgba(250,204,21,0.55)',
-                marginBottom: 2,
-                whiteSpace: 'nowrap',
-                letterSpacing: '0.05em',
-              }}
-            >
-              {year}s
-            </span>
+          {/* Soft divider dot — only between segments */}
+          {i > 0 && (
+            <div style={{
+              width: 3,
+              height: 3,
+              borderRadius: '50%',
+              background: 'rgba(250,204,21,0.25)',
+              marginRight: 6,
+              flexShrink: 0,
+            }} />
           )}
-          {/* Tick mark */}
-          <div
+          <span
             style={{
-              width: 1,
-              height: isDecade ? 8 : 4,
-              background: isDecade
-                ? 'rgba(250,204,21,0.4)'
-                : 'rgba(255,255,255,0.18)',
-              borderRadius: 1,
-              marginBottom: 2,
+              fontSize: 9,
+              fontFamily: 'var(--font-inter)',
+              fontWeight: 500,
+              color: 'rgba(250,204,21,0.45)',
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              whiteSpace: 'nowrap',
+              lineHeight: 1,
             }}
-          />
+          >
+            {seg.label}
+          </span>
         </div>
       ))}
     </div>
