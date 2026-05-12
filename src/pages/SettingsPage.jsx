@@ -118,7 +118,7 @@ export default function SettingsPage() {
             <ToolCard
               icon={<FlaskConical className="w-4 h-4" />}
               title="Online Simülasyonlar"
-              desc="42 test senaryosunu çalıştır"
+              desc="96 test senaryosunu çalıştır"
               onClick={() => setShowSim(true)}
             />
           </Section>
