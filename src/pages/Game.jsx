@@ -311,7 +311,7 @@ export default function Game() {
 
       <AnimatePresence>
         {feedback && (
-          <FeedbackOverlay result={feedback.result} year={feedback.year} songTitle={feedback.songTitle} onDone={handleFeedbackDone} />
+          <FeedbackOverlay result={feedback.result} year={feedback.year} songTitle={feedback.songTitle} guessedYear={feedback.guessedYear} onDone={handleFeedbackDone} />
         )}
       </AnimatePresence>
 

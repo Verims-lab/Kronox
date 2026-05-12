@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
 import TimelineCard from './TimelineCard.jsx';
 import TimelineRuler from './TimelineRuler.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
+import { sounds } from '@/lib/gameSounds';
 
 function DotSeparator() {
   return (
@@ -12,15 +13,15 @@ function DotSeparator() {
   );
 }
 
-function DropZone({ index, isActive, isDragMode, onSelect, isTimeUp }) {
-  const borderColor = isTimeUp ? '#ef4444' : isActive ? '#facc15' : 'rgba(255,255,255,0.2)';
-  const bgColor = isTimeUp ? 'rgba(239,68,68,0.06)' : isActive ? 'rgba(250,204,21,0.08)' : 'transparent';
+function DropZone({ index, isActive, isDragMode, isMagnetic, onSelect, isTimeUp }) {
+  const borderColor = isTimeUp ? '#ef4444' : isActive ? '#facc15' : isMagnetic ? 'rgba(250,204,21,0.55)' : 'rgba(255,255,255,0.2)';
+  const bgColor = isTimeUp ? 'rgba(239,68,68,0.06)' : isActive ? 'rgba(250,204,21,0.14)' : isMagnetic ? 'rgba(250,204,21,0.05)' : 'transparent';
 
   return (
     <div
-      onClick={() => onSelect && onSelect(index)}
-      className="flex-shrink-0 flex flex-col items-center justify-center cursor-pointer transition-all duration-200"
-      style={{ width: isActive ? 80 : isDragMode ? 56 : 32, height: 108, position: 'relative' }}
+      onClick={() => { if (onSelect) { sounds.tap(); onSelect(index); } }}
+      className="flex-shrink-0 flex flex-col items-center justify-center cursor-pointer"
+      style={{ width: isActive ? 88 : isMagnetic ? 70 : isDragMode ? 56 : 32, height: 108, position: 'relative', transition: 'width 0.15s ease' }}
     >
       <AnimatePresence>
         {isActive && !isTimeUp && (
@@ -37,14 +38,23 @@ function DropZone({ index, isActive, isDragMode, onSelect, isTimeUp }) {
           </motion.div>
         )}
       </AnimatePresence>
-      <div
-        className="rounded-2xl transition-all duration-200 flex items-center justify-center"
+      <motion.div
+        animate={{
+          scale: isActive ? 1 : isMagnetic ? [1, 1.04, 1] : 1,
+        }}
+        transition={isMagnetic && !isActive ? { duration: 0.7, repeat: Infinity, ease: 'easeInOut' } : {}}
+        className="rounded-2xl flex items-center justify-center"
         style={{
-          width: isActive ? 72 : isDragMode ? 48 : 26,
+          width: isActive ? 80 : isMagnetic ? 62 : isDragMode ? 48 : 26,
           height: 100,
           border: `2px dashed ${borderColor}`,
           background: bgColor,
-          boxShadow: isActive ? `0 0 16px rgba(250,204,21,0.3), inset 0 0 12px rgba(250,204,21,0.05)` : 'none',
+          boxShadow: isActive
+            ? `0 0 24px rgba(250,204,21,0.5), inset 0 0 16px rgba(250,204,21,0.08)`
+            : isMagnetic
+              ? `0 0 12px rgba(250,204,21,0.25)`
+              : 'none',
+          transition: 'box-shadow 0.15s ease, border-color 0.15s ease, width 0.15s ease',
         }}
       />
     </div>
@@ -198,6 +208,7 @@ export default function Timeline({
     }
 
     const zone = getZoneAtClientX(dragClientX);
+    if (zone !== activeZone && zone !== null) sounds.tick();
     setActiveZone(zone);
     if (onZoneChange) onZoneChange(zone);
   }, [dragClientX, dragClientY, isDragMode, getZoneAtClientX, startAutoScroll, stopAutoScroll, onZoneChange]);
@@ -208,7 +219,7 @@ export default function Timeline({
     stopAutoScroll();
     const zone = getZoneAtClientX(dragEndEvent.clientX);
     setActiveZone(null);
-    if (zone !== null && onPlaceCard) onPlaceCard(zone);
+    if (zone !== null && onPlaceCard) { sounds.snap(); onPlaceCard(zone); }
   }, [dragEndEvent, getZoneAtClientX, onPlaceCard, stopAutoScroll]);
 
   // Stop auto-scroll when drag mode ends
@@ -241,23 +252,24 @@ export default function Timeline({
     const isThisActive = displayActiveZone === i;
     cardRowItems.push(
       <div key={`dz-${i}`} ref={el => (dropZoneRefs.current[i] = el)}>
-        {isThisActive ? (
-          <div className="flex flex-col items-center">
-            <div style={{ height: 20 }} />
-            <GhostCard />
-          </div>
-        ) : (
-          <div className="flex flex-col items-center">
-            <div style={{ height: 20 }} />
-            <DropZone
-              index={i}
-              isActive={selectedZone === i && !isDragMode}
-              isDragMode={isDragMode}
-              onSelect={onSelectZone}
-              isTimeUp={isTimeUp}
-            />
-          </div>
-        )}
+      {isThisActive ? (
+        <div className="flex flex-col items-center">
+          <div style={{ height: 20 }} />
+          <GhostCard />
+        </div>
+      ) : (
+        <div className="flex flex-col items-center">
+          <div style={{ height: 20 }} />
+          <DropZone
+            index={i}
+            isActive={selectedZone === i && !isDragMode}
+            isDragMode={isDragMode}
+            isMagnetic={isDragMode && (activeZone === i - 1 || activeZone === i || activeZone === i + 1) && displayActiveZone !== i}
+            onSelect={onSelectZone}
+            isTimeUp={isTimeUp}
+          />
+        </div>
+      )}
       </div>
     );
 

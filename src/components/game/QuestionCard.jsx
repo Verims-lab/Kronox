@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { sounds } from '@/lib/gameSounds';
 import { Volume2, Play, Pause, Globe, Landmark, FlaskConical, Trophy, Palette, Cpu, Music, BookOpen, Tv, Zap, Rocket, Building2, HeartPulse, Leaf, Film } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 
@@ -115,8 +116,9 @@ export default function QuestionCard({
 
   const handleTouchStart = (e) => {
     if (!draggable) return;
-    e.preventDefault(); // prevent iOS scroll hijack at drag start
+    e.preventDefault();
     touchDragging.current = true;
+    sounds.pickup();
     if (onDragStart) onDragStart();
   };
 
@@ -149,17 +151,33 @@ export default function QuestionCard({
   const songTitle = isMuzik ? (lines[0] || '') : null;
   const artistName = isMuzik ? (lines[1] || '') : null;
 
+  const [isDraggingNow, setIsDraggingNow] = useState(false);
+
+  const handleTouchStartWrapped = (e) => {
+    setIsDraggingNow(true);
+    handleTouchStart(e);
+  };
+  const handleTouchEndWrapped = (e) => {
+    setIsDraggingNow(false);
+    handleTouchEnd(e);
+  };
+
   return (
     <motion.div
       initial={{ scale: 0.9, opacity: 0, y: 16 }}
-      animate={{ scale: 1, opacity: 1, y: 0 }}
-      transition={{ type: 'spring', stiffness: 220, damping: 22 }}
+      animate={{
+        scale: isDraggingNow ? 1.06 : 1,
+        opacity: 1,
+        y: 0,
+        rotate: isDraggingNow ? 2 : 0,
+      }}
+      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
       draggable={draggable}
       onDragStart={draggable ? onDragStart : undefined}
       onDragEnd={draggable ? onDragEnd : undefined}
-      onTouchStart={handleTouchStart}
+      onTouchStart={handleTouchStartWrapped}
       onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
+      onTouchEnd={handleTouchEndWrapped}
       className={`relative flex flex-col rounded-2xl overflow-hidden select-none mx-auto
         ${draggable ? 'cursor-grab active:cursor-grabbing' : ''}
       `}
@@ -168,8 +186,11 @@ export default function QuestionCard({
         minHeight: 200,
         background: 'linear-gradient(160deg, #0f1428 0%, #0a0f23 100%)',
         border: `2px solid ${neon.border}`,
-        boxShadow: `0 0 20px ${neon.glow}, 0 0 8px ${neon.glow}`,
+        boxShadow: isDraggingNow
+          ? `0 0 36px ${neon.glow}, 0 0 16px ${neon.glow}, 0 12px 32px rgba(0,0,0,0.6)`
+          : `0 0 20px ${neon.glow}, 0 0 8px ${neon.glow}`,
         touchAction: draggable ? 'none' : 'auto',
+        transition: 'box-shadow 0.15s ease',
       }}
     >
       {/* Album art — full width top section */}

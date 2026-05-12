@@ -152,18 +152,26 @@ export function useGameActions({
     }
 
     if (hasWon) {
-      setFeedback({ result: 'correct', year: questionYear, songTitle: currentQuestion.type === 'muzik' ? currentQuestion.question : null });
+      setFeedback({ result: 'correct', year: questionYear, songTitle: currentQuestion.type === 'muzik' ? currentQuestion.question : null, guessedYear: null });
       setGameStarted(false);
       const finalSecs = overallSecondsRef.current;
       saveGameRecord(newPlayers[snapshotIndex].name, finalSecs, { category, yearStart, yearEnd });
       setTimeout(() => {
         setFeedback(null);
         setWinner({ name: newPlayers[snapshotIndex].name, durationSeconds: finalSecs });
-      }, 1800);
+      }, 2200);
       return;
     }
 
-    setFeedback({ result: isCorrect ? 'correct' : 'wrong', year: questionYear, songTitle: currentQuestion.type === 'muzik' ? currentQuestion.question : null });
+    // For wrong: estimate guessed year from zone position
+    let guessedYear = null;
+    if (!isCorrect) {
+      if (zone === 0 && cardYears.length > 0) guessedYear = cardYears[0] - 5;
+      else if (zone === cardYears.length && cardYears.length > 0) guessedYear = cardYears[cardYears.length - 1] + 5;
+      else if (zone > 0 && zone <= cardYears.length) guessedYear = Math.round((cardYears[zone - 1] + (cardYears[zone] ?? cardYears[zone - 1] + 10)) / 2);
+    }
+
+    setFeedback({ result: isCorrect ? 'correct' : 'wrong', year: questionYear, songTitle: currentQuestion.type === 'muzik' ? currentQuestion.question : null, guessedYear });
     setTimerKey(k => k + 1);
   }, [
     currentQuestion, players, currentPlayerIndex, usedQuestionIds,

@@ -2,6 +2,34 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Settings, RotateCcw, ChevronRight, MessageCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { sounds } from '@/lib/gameSounds';
+
+function CTAButton({ active, onClick, disabled }) {
+  return (
+    <motion.button
+      onClick={() => { if (active && onClick) { sounds.tap(); onClick(); } }}
+      disabled={disabled}
+      animate={active ? {
+        boxShadow: ['0 0 16px rgba(250,204,21,0.4)', '0 0 28px rgba(250,204,21,0.7)', '0 0 16px rgba(250,204,21,0.4)'],
+        scale: [1, 1.02, 1],
+      } : {
+        boxShadow: 'none',
+        scale: 1,
+      }}
+      transition={active ? { duration: 1.2, repeat: Infinity, ease: 'easeInOut' } : {}}
+      className="flex-1 h-12 rounded-2xl font-bangers text-xl tracking-wider transition-colors"
+      style={{
+        background: active
+          ? 'linear-gradient(135deg, #facc15 0%, #f59e0b 100%)'
+          : 'rgba(255,255,255,0.08)',
+        color: active ? '#0a0f23' : 'rgba(255,255,255,0.25)',
+        cursor: active ? 'pointer' : 'not-allowed',
+      }}
+    >
+      Kartı Yerleştir
+    </motion.button>
+  );
+}
 import QuestionCard from './QuestionCard.jsx';
 import Timeline from './Timeline.jsx';
 import PlayerIndicator from './PlayerIndicator.jsx';
@@ -211,17 +239,11 @@ export default function GameLayout({
         </button>
 
         {/* Main action */}
-        <button
+        <CTAButton
+          active={isMyTurn && selectedZone !== null && !feedback && !winner}
           onClick={isMyTurn && selectedZone !== null ? onConfirmPlacement : undefined}
           disabled={!isMyTurn || selectedZone === null || !!feedback || !!winner}
-          className={`flex-1 h-12 rounded-2xl font-bangers text-xl tracking-wider transition-all
-            ${isMyTurn && selectedZone !== null && !feedback && !winner
-              ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/40 hover:bg-primary/90 active:scale-95'
-              : 'bg-white/10 text-white/30 cursor-not-allowed'}
-          `}
-        >
-          Kartı Yerleştir
-        </button>
+        />
 
         {/* Skip */}
         <button
