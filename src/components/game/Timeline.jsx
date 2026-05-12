@@ -106,10 +106,27 @@ export default function Timeline({
   const scrollRef = useRef(null);
   const dropZoneRefs = useRef([]);
   const [touchOverZone, setTouchOverZone] = useState(null);
+  const autoScrollRef = useRef(null);
 
   const activeZone = isDragMode
     ? (touchOverZone !== null ? touchOverZone : selectedZone)
     : null;
+
+  // Auto-scroll the timeline when dragging near the edges
+  const startAutoScroll = useCallback((direction) => {
+    if (autoScrollRef.current) return;
+    autoScrollRef.current = setInterval(() => {
+      if (!scrollRef.current) return;
+      scrollRef.current.scrollLeft += direction * 12;
+    }, 16);
+  }, []);
+
+  const stopAutoScroll = useCallback(() => {
+    if (autoScrollRef.current) {
+      clearInterval(autoScrollRef.current);
+      autoScrollRef.current = null;
+    }
+  }, []);
 
   const getZoneAtPoint = useCallback((x, y) => {
     // Önce tam isabet
@@ -138,19 +155,40 @@ export default function Timeline({
   useEffect(() => {
     if (externalTouchX == null || externalTouchY == null) {
       setTouchOverZone(null);
+      stopAutoScroll();
       return;
     }
+
+    // Auto-scroll when near left/right edges of the timeline container
+    if (scrollRef.current) {
+      const rect = scrollRef.current.getBoundingClientRect();
+      const edgeSize = 72; // px from edge to trigger scroll
+      if (externalTouchX < rect.left + edgeSize) {
+        startAutoScroll(-1);
+      } else if (externalTouchX > rect.right - edgeSize) {
+        startAutoScroll(1);
+      } else {
+        stopAutoScroll();
+      }
+    }
+
     const zone = getZoneAtPoint(externalTouchX, externalTouchY);
     setTouchOverZone(zone);
     if (onExternalZoneChange) onExternalZoneChange(zone);
-  }, [externalTouchX, externalTouchY, getZoneAtPoint, onExternalZoneChange]);
+  }, [externalTouchX, externalTouchY, getZoneAtPoint, onExternalZoneChange, startAutoScroll, stopAutoScroll]);
 
   useEffect(() => {
     if (!externalTouchEnd) return;
+    stopAutoScroll();
     const zone = getZoneAtPoint(externalTouchEnd.x, externalTouchEnd.y);
     setTouchOverZone(null);
     if (zone !== null && onPlaceCard) onPlaceCard(zone);
-  }, [externalTouchEnd, getZoneAtPoint, onPlaceCard]);
+  }, [externalTouchEnd, getZoneAtPoint, onPlaceCard, stopAutoScroll]);
+
+  // Cleanup auto-scroll on unmount or when drag ends
+  useEffect(() => {
+    if (!isDragMode) stopAutoScroll();
+  }, [isDragMode, stopAutoScroll]);
 
   // Kart sayısı değişince scroll'u sola sıfırla — tüm kartlar görünsün
   const prevCardCount = useRef(cards.length);
