@@ -109,7 +109,7 @@ const SCENARIOS = [
   {
     group: 'Hepsi',
     items: [
-      { key: 'all', label: 'Tümünü Çalıştır', desc: '42 senaryoyu sırayla çalıştır, özet raporla' },
+      { key: 'all', label: 'Tümünü Çalıştır', desc: '53 senaryoyu sırayla çalıştır, özet raporla' },
     ],
   },
 ];
