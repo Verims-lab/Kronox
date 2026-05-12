@@ -121,9 +121,7 @@
   ],
   "rls": {
     "create": {
-      "user_condition": {
-        "role": "user"
-      }
+      "created_by": "{{user.email}}"
     },
     "read": {
       "$or": [
