@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { sounds } from '@/lib/gameSounds';
-import { Play, Pause, Globe, Landmark, FlaskConical, Trophy, Palette, Cpu, Music, BookOpen, Tv, Zap, Rocket, Building2, HeartPulse, Leaf, Film } from 'lucide-react';
+import { Volume2, Play, Pause, Globe, Landmark, FlaskConical, Trophy, Palette, Cpu, Music, BookOpen, Tv, Zap, Rocket, Building2, HeartPulse, Leaf, Film } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 
 // Soruya uygun ikon seçimi (anahtar kelime bazlı)
