@@ -162,20 +162,21 @@ export default function QuestionCard({
 
       {/* Content area */}
       <div className="flex flex-col items-center px-3 py-3 gap-1 flex-1">
-        {/* Category icon — only for non-album-art cards */}
-        {!hasAlbumArt && !isMuzik && (
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center mb-1 flex-shrink-0"
-            style={{ background: `${neon.border}18`, border: `1.5px solid ${neon.border}50` }}
-          >
-            <QuestionIcon style={{ width: 18, height: 18, color: neon.border }} strokeWidth={1.8} />
-          </div>
-        )}
         {/* Question text or song title */}
         <p className="text-center font-inter font-bold leading-tight text-white"
           style={{ fontSize: isMuzik ? 11 : 10, lineHeight: 1.3 }}>
           {isMuzik ? songTitle : question?.question}
         </p>
+
+        {/* Category icon — below question text, only for non-album-art cards */}
+        {!hasAlbumArt && !isMuzik && (
+          <div
+            className="w-11 h-11 rounded-2xl flex items-center justify-center mt-2 flex-shrink-0"
+            style={{ background: `${neon.border}18`, border: `1.5px solid ${neon.border}50` }}
+          >
+            <QuestionIcon style={{ width: 22, height: 22, color: neon.border }} strokeWidth={1.6} />
+          </div>
+        )}
 
         {/* Artist name for music */}
         {isMuzik && artistName && (
