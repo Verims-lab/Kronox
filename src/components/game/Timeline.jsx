@@ -2,8 +2,6 @@ import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
 import TimelineCard from './TimelineCard.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
 
-
-// Separator noktalar kartlar arasında
 function DotSeparator() {
   return (
     <div className="flex items-center gap-1 flex-shrink-0 px-1">
@@ -13,26 +11,18 @@ function DotSeparator() {
   );
 }
 
-// Drop zone — sarı kesik çizgili kutu, ok animasyonu
-function DropZone({ index, isActive, isDragMode, onSelect, isTimeUp, refProp }) {
-  const highlighted = isActive;
-  const borderColor = isTimeUp ? '#ef4444' : highlighted ? '#facc15' : 'rgba(255,255,255,0.2)';
-  const bgColor = isTimeUp ? 'rgba(239,68,68,0.06)' : highlighted ? 'rgba(250,204,21,0.08)' : 'transparent';
+function DropZone({ index, isActive, isDragMode, onSelect, isTimeUp }) {
+  const borderColor = isTimeUp ? '#ef4444' : isActive ? '#facc15' : 'rgba(255,255,255,0.2)';
+  const bgColor = isTimeUp ? 'rgba(239,68,68,0.06)' : isActive ? 'rgba(250,204,21,0.08)' : 'transparent';
 
   return (
     <div
-      ref={refProp}
       onClick={() => onSelect && onSelect(index)}
       className="flex-shrink-0 flex flex-col items-center justify-center cursor-pointer transition-all duration-200"
-      style={{
-        width: highlighted ? 80 : isDragMode ? 56 : 32,
-        height: 108,
-        position: 'relative',
-      }}
+      style={{ width: isActive ? 80 : isDragMode ? 56 : 32, height: 108, position: 'relative' }}
     >
-      {/* Aşağıdan gelen ok — sadece highlighted ve timeup değilken */}
       <AnimatePresence>
-        {highlighted && !isTimeUp && (
+        {isActive && !isTimeUp && (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -46,22 +36,20 @@ function DropZone({ index, isActive, isDragMode, onSelect, isTimeUp, refProp }) 
           </motion.div>
         )}
       </AnimatePresence>
-
       <div
         className="rounded-2xl transition-all duration-200 flex items-center justify-center"
         style={{
-          width: highlighted ? 72 : isDragMode ? 48 : 26,
+          width: isActive ? 72 : isDragMode ? 48 : 26,
           height: 100,
           border: `2px dashed ${borderColor}`,
           background: bgColor,
-          boxShadow: highlighted ? `0 0 16px rgba(250,204,21,0.3), inset 0 0 12px rgba(250,204,21,0.05)` : 'none',
+          boxShadow: isActive ? `0 0 16px rgba(250,204,21,0.3), inset 0 0 12px rgba(250,204,21,0.05)` : 'none',
         }}
       />
     </div>
   );
 }
 
-// Ghost kutu — sürükleme sırasında aktif zone'da gösterilir
 function GhostCard() {
   return (
     <motion.div
@@ -69,8 +57,7 @@ function GhostCard() {
       animate={{ scale: 1, opacity: 1 }}
       className="flex-shrink-0 flex flex-col items-center justify-center rounded-2xl"
       style={{
-        width: 80,
-        height: 108,
+        width: 80, height: 108,
         border: '2px dashed #facc15',
         background: 'rgba(250,204,21,0.06)',
         boxShadow: '0 0 20px rgba(250,204,21,0.25)',
@@ -89,136 +76,147 @@ export default function Timeline({
   selectedZone,
   onSelectZone,
   isDragMode,
-  externalTouchX,
-  externalTouchY,
-  externalTouchEnd,
-  onExternalZoneChange,
+  // World-coordinate drag props
+  dragClientX,   // raw touch clientX (viewport)
+  dragClientY,   // raw touch clientY (viewport)
+  dragEndEvent,  // { clientX, clientY } on finger lift
+  onZoneChange,  // called with zone index or null during drag
   isTimeUp = false,
+  // expose scrollRef to parent for ghost card positioning
+  scrollRefCallback,
 }) {
   const sortedCards = useMemo(
     () => Array.isArray(cards) ? [...cards].sort((a, b) => a.year - b.year) : [],
     [cards]
   );
-
-  // Her kart ayrı gösterilir — stacking yok
   const groupedCards = useMemo(() => sortedCards.map(c => ({ ...c, stackCount: 1 })), [sortedCards]);
 
   const scrollRef = useRef(null);
+  const autoScrollRaf = useRef(null);
+  const [activeZone, setActiveZone] = useState(null);
+
+  // Expose scroll ref to parent (for ghost card offset)
+  useEffect(() => {
+    if (scrollRefCallback) scrollRefCallback(scrollRef);
+  }, [scrollRefCallback]);
+
+  // ─── World-coordinate hit testing ────────────────────────────────────
+  // Drop zones are measured in WORLD space: worldX = rect.left + scrollLeft - containerLeft
+  // This stays stable even as scrollLeft changes during auto-scroll.
   const dropZoneRefs = useRef([]);
-  const [touchOverZone, setTouchOverZone] = useState(null);
-  const autoScrollRef = useRef(null);
 
-  const activeZone = isDragMode
-    ? (touchOverZone !== null ? touchOverZone : selectedZone)
-    : null;
+  const getZoneAtClientX = useCallback((clientX) => {
+    const scroll = scrollRef.current;
+    if (!scroll) return null;
+    const containerRect = scroll.getBoundingClientRect();
+    // Convert finger viewport X to world X (relative to scroll content start)
+    const worldX = clientX - containerRect.left + scroll.scrollLeft;
 
-  // Auto-scroll the timeline when dragging near the edges
-  const startAutoScroll = useCallback((direction) => {
-    if (autoScrollRef.current) return;
-    autoScrollRef.current = setInterval(() => {
-      if (!scrollRef.current) return;
-      scrollRef.current.scrollLeft += direction * 12;
-    }, 16);
-  }, []);
-
-  const stopAutoScroll = useCallback(() => {
-    if (autoScrollRef.current) {
-      clearInterval(autoScrollRef.current);
-      autoScrollRef.current = null;
-    }
-  }, []);
-
-  const getZoneAtPoint = useCallback((x, y) => {
-    // Önce tam isabet
-    for (let i = 0; i < dropZoneRefs.current.length; i++) {
-      const el = dropZoneRefs.current[i];
-      if (!el) continue;
-      const rect = el.getBoundingClientRect();
-      if (x >= rect.left - 24 && x <= rect.right + 24 && y >= rect.top - 60 && y <= rect.bottom + 60) {
-        return i;
-      }
-    }
-    // Yatay en yakın zone'u bul (y ekseni esnekse)
     let closest = null;
     let minDist = Infinity;
+
     for (let i = 0; i < dropZoneRefs.current.length; i++) {
       const el = dropZoneRefs.current[i];
       if (!el) continue;
-      const rect = el.getBoundingClientRect();
-      const cx = (rect.left + rect.right) / 2;
-      const dist = Math.abs(x - cx);
+      const elRect = el.getBoundingClientRect();
+      // Convert element center to world X
+      const elWorldCX = (elRect.left + elRect.right) / 2 - containerRect.left + scroll.scrollLeft;
+      const dist = Math.abs(worldX - elWorldCX);
       if (dist < minDist) { minDist = dist; closest = i; }
     }
-    return minDist < 80 ? closest : null;
+    return minDist < 120 ? closest : null;
   }, []);
 
+  // ─── Auto-scroll with requestAnimationFrame ───────────────────────
+  const stopAutoScroll = useCallback(() => {
+    if (autoScrollRaf.current) {
+      cancelAnimationFrame(autoScrollRaf.current);
+      autoScrollRaf.current = null;
+    }
+  }, []);
+
+  const startAutoScroll = useCallback((direction) => {
+    stopAutoScroll();
+    const step = () => {
+      if (!scrollRef.current) return;
+      scrollRef.current.scrollLeft += direction * 10;
+      autoScrollRaf.current = requestAnimationFrame(step);
+    };
+    autoScrollRaf.current = requestAnimationFrame(step);
+  }, [stopAutoScroll]);
+
+  // ─── Process drag move ────────────────────────────────────────────
   useEffect(() => {
-    if (externalTouchX == null || externalTouchY == null) {
-      setTouchOverZone(null);
+    if (dragClientX == null || !isDragMode) {
+      setActiveZone(null);
       stopAutoScroll();
       return;
     }
 
-    // Auto-scroll when near left/right edges of the timeline container
-    if (scrollRef.current) {
-      const rect = scrollRef.current.getBoundingClientRect();
-      const edgeSize = 72; // px from edge to trigger scroll
-      if (externalTouchX < rect.left + edgeSize) {
+    // Edge auto-scroll
+    const scroll = scrollRef.current;
+    if (scroll) {
+      const rect = scroll.getBoundingClientRect();
+      const edgeSize = 80;
+      if (dragClientX < rect.left + edgeSize) {
         startAutoScroll(-1);
-      } else if (externalTouchX > rect.right - edgeSize) {
+      } else if (dragClientX > rect.right - edgeSize) {
         startAutoScroll(1);
       } else {
         stopAutoScroll();
       }
     }
 
-    const zone = getZoneAtPoint(externalTouchX, externalTouchY);
-    setTouchOverZone(zone);
-    if (onExternalZoneChange) onExternalZoneChange(zone);
-  }, [externalTouchX, externalTouchY, getZoneAtPoint, onExternalZoneChange, startAutoScroll, stopAutoScroll]);
+    const zone = getZoneAtClientX(dragClientX);
+    setActiveZone(zone);
+    if (onZoneChange) onZoneChange(zone);
+  }, [dragClientX, dragClientY, isDragMode, getZoneAtClientX, startAutoScroll, stopAutoScroll, onZoneChange]);
 
+  // ─── Process drag end (finger lift) ──────────────────────────────
   useEffect(() => {
-    if (!externalTouchEnd) return;
+    if (!dragEndEvent) return;
     stopAutoScroll();
-    const zone = getZoneAtPoint(externalTouchEnd.x, externalTouchEnd.y);
-    setTouchOverZone(null);
+    const zone = getZoneAtClientX(dragEndEvent.clientX);
+    setActiveZone(null);
     if (zone !== null && onPlaceCard) onPlaceCard(zone);
-  }, [externalTouchEnd, getZoneAtPoint, onPlaceCard, stopAutoScroll]);
+  }, [dragEndEvent, getZoneAtClientX, onPlaceCard, stopAutoScroll]);
 
-  // Cleanup auto-scroll on unmount or when drag ends
+  // Stop auto-scroll when drag mode ends
   useEffect(() => {
-    if (!isDragMode) stopAutoScroll();
+    if (!isDragMode) {
+      stopAutoScroll();
+      setActiveZone(null);
+    }
   }, [isDragMode, stopAutoScroll]);
 
-  // Kart sayısı değişince scroll'u sola sıfırla — tüm kartlar görünsün
+  // Cleanup on unmount
+  useEffect(() => () => stopAutoScroll(), [stopAutoScroll]);
+
+  // Reset scroll on new card placed
   const prevCardCount = useRef(cards.length);
   useEffect(() => {
     if (!scrollRef.current) return;
     if (prevCardCount.current !== cards.length) {
       prevCardCount.current = cards.length;
-      // Kısa gecikme sonrası scroll'u en sola al ki yeni yerleşen kart görünsün
-      setTimeout(() => {
-        if (scrollRef.current) scrollRef.current.scrollLeft = 0;
-      }, 50);
+      setTimeout(() => { if (scrollRef.current) scrollRef.current.scrollLeft = 0; }, 50);
     }
   }, [cards.length]);
 
+  // ─── Render ──────────────────────────────────────────────────────
+  const displayActiveZone = isDragMode ? activeZone : null;
   const totalZones = groupedCards.length + 1;
-
-  // Build card row items — yıl etiketi her kartın ÜSTÜNDE
   const cardRowItems = [];
+
   for (let i = 0; i < totalZones; i++) {
-    const isThisActive = activeZone === i;
+    const isThisActive = displayActiveZone === i;
     cardRowItems.push(
       <div key={`dz-${i}`} ref={el => (dropZoneRefs.current[i] = el)}>
         {isThisActive ? (
-          // ghost card — yıl etiketi yok
           <div className="flex flex-col items-center">
             <div style={{ height: 20 }} />
             <GhostCard />
           </div>
         ) : (
-          // drop zone — yıl etiketi yok
           <div className="flex flex-col items-center">
             <div style={{ height: 20 }} />
             <DropZone
@@ -235,20 +233,15 @@ export default function Timeline({
 
     if (i < groupedCards.length) {
       cardRowItems.push(<DotSeparator key={`dot-${i}`} />);
-      // Kart + yıl etiketi üstte
       cardRowItems.push(
         <div key={`card-${i}`} className="flex flex-col items-center flex-shrink-0">
-          {/* Yıl etiketi — kartın tam üstünde */}
           <div className="flex flex-col items-center mb-0.5" style={{ height: 20 }}>
             <span className="font-inter font-semibold" style={{ fontSize: 11, color: '#facc15', lineHeight: 1 }}>
               {groupedCards[i].year}
             </span>
             <div className="w-px h-2 mt-0.5" style={{ background: '#facc15' }} />
           </div>
-          <TimelineCard
-            card={groupedCards[i]}
-            index={i}
-          />
+          <TimelineCard card={groupedCards[i]} index={i} />
         </div>
       );
       cardRowItems.push(<DotSeparator key={`dot-after-${i}`} />);
@@ -257,7 +250,6 @@ export default function Timeline({
 
   return (
     <div className="w-full flex flex-col" style={{ paddingBottom: 24 }}>
-      {/* Scroll container */}
       <div
         ref={scrollRef}
         className="w-full overflow-x-auto"
@@ -265,20 +257,16 @@ export default function Timeline({
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
           WebkitOverflowScrolling: 'touch',
+          // Allow pan-x normally; disable only vertical scroll during drag to avoid page scroll
           touchAction: isDragMode ? 'none' : 'pan-x',
         }}
       >
-        <div
-          className="relative flex flex-col"
-          style={{ minWidth: 'max-content', paddingLeft: 12, paddingRight: 24 }}
-        >
-          {/* Timeline line + cards row */}
+        <div className="relative flex flex-col" style={{ minWidth: 'max-content', paddingLeft: 12, paddingRight: 24 }}>
           <div className="relative flex flex-row items-center" style={{ gap: 0 }}>
-            {/* Horizontal line */}
             <div
               className="absolute left-0 right-0 pointer-events-none"
               style={{
-                top: 20 + 54, // yıl label yüksekliği + kartın yarısı
+                top: 20 + 54,
                 height: 2,
                 background: isTimeUp
                   ? 'linear-gradient(to right, rgba(239,68,68,0.15), rgba(239,68,68,0.6), rgba(239,68,68,0.15))'

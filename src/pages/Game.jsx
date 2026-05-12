@@ -374,10 +374,10 @@ export default function Game() {
         onSkipTurn={handleTimeUp}
         onImageError={handleImageError}
         onAudioError={handleAudioError}
-        onDragStart={() => setIsDragging(true)}
+        onDragStart={() => { setIsDragging(true); }}
         onDragEnd={() => { setIsDragging(false); setTouchDragPos(null); }}
         onTouchDragMove={(x, y) => { setIsDragging(true); setTouchDragPos({ x, y }); }}
-        onTouchDragEnd={(x, y) => { setTouchDragEnd({ x, y }); setTouchDragPos(null); setIsDragging(false); setTimeout(() => setTouchDragEnd(null), 50); }}
+        onTouchDragEnd={(x, y) => { setIsDragging(false); setTouchDragPos(null); setTouchDragEnd({ x, y }); setTimeout(() => setTouchDragEnd(null), 100); }}
         onTimeUp={handleTimeUp}
         onBack={handleBackAttempt}
         onToggleSettings={() => setShowSettings(s => !s)}

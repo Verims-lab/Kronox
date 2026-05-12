@@ -44,14 +44,13 @@ export default function GameLayout({
   onDragEnd,
   onTouchDragMove,
   onTouchDragEnd,
-  onExternalZoneChange,
   onTimeUp,
   onBack,
   onToggleSettings,
   onToggleChat,
 }) {
-  // "Sıradaki Kartlar" — all cards except the one currently being placed
-  const handCards = currentPlayer?.cards?.slice() || [];
+  // Ghost card follows the raw finger position (viewport coords) — no scroll correction needed
+  // Timeline uses world coords internally for hit-testing
 
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'linear-gradient(to bottom, #0B1F3A 0%, #1E3A8A 100%)' }}>
@@ -173,10 +172,9 @@ export default function GameLayout({
               onSelectZone={isMyTurn ? onSelectZone : undefined}
               isDragMode={isDragging && isMyTurn}
               onPlaceCard={isMyTurn ? onDropOnZone : undefined}
-              externalTouchX={isMyTurn ? touchDragPos?.x : null}
-              externalTouchY={isMyTurn ? touchDragPos?.y : null}
-              externalTouchEnd={isMyTurn ? touchDragEnd : null}
-              onExternalZoneChange={onExternalZoneChange}
+              dragClientX={isMyTurn ? touchDragPos?.x : null}
+              dragClientY={isMyTurn ? touchDragPos?.y : null}
+              dragEndEvent={isMyTurn && touchDragEnd ? { clientX: touchDragEnd.x, clientY: touchDragEnd.y } : null}
               isTimeUp={isTimeUp}
             />
           )}

@@ -115,6 +115,7 @@ export default function QuestionCard({
 
   const handleTouchStart = (e) => {
     if (!draggable) return;
+    e.preventDefault(); // prevent iOS scroll hijack at drag start
     touchDragging.current = true;
     if (onDragStart) onDragStart();
   };
@@ -123,6 +124,7 @@ export default function QuestionCard({
     if (!draggable || !touchDragging.current) return;
     e.preventDefault();
     const touch = e.touches[0];
+    // Emit raw viewport coordinates — world transform happens in Timeline
     if (onTouchDragMove) onTouchDragMove(touch.clientX, touch.clientY);
   };
 
@@ -130,6 +132,7 @@ export default function QuestionCard({
     if (!draggable || !touchDragging.current) return;
     touchDragging.current = false;
     const touch = e.changedTouches[0];
+    // Emit raw viewport coordinates — world transform happens in Timeline
     if (onTouchDragEnd) onTouchDragEnd(touch.clientX, touch.clientY);
     if (onDragEnd) onDragEnd();
   };
