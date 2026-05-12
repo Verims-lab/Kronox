@@ -297,8 +297,7 @@ export default function Timeline({
           }}
         >
           <div className="relative flex flex-col" style={{ minWidth: 'max-content', paddingLeft: 12, paddingRight: 24 }}>
-            {/* ── Ruler: decade labels + tick marks (decorative, pointer-events:none) ── */}
-            <TimelineRuler cards={groupedCards} isDragMode={isDragMode} />
+            {/* Ruler removed — no atmospheric era labels */}
 
             <div className="relative flex flex-row items-center" style={{ gap: 0 }}>
               {/* Timeline horizontal line */}
