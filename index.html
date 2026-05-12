@@ -6,27 +6,55 @@
     <link rel="apple-touch-icon" href="https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/56ee45626_Kronoxuygulamaikon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#1034A6" />
-    <title>Kronox</title>
-    <style>html,body{background-color:#1034A6;}</style>
+    <meta name="theme-color" content="#050716" />
+    <style>
+      *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+      html,body{
+        width:100%;height:100%;
+        background:#050716 !important;
+        background-color:#050716 !important;
+      }
+      #root{width:100%;min-height:100%;}
+      /* Pre-React branded splash — visible on very first paint before JS executes */
+      #pre-splash{
+        position:fixed;inset:0;z-index:9999;
+        display:flex;flex-direction:column;align-items:center;justify-content:center;
+        background:radial-gradient(circle at 50% 30%, #1a0a3a 0%, #0a0e2e 55%, #050716 100%);
+        transition:opacity 0.35s ease;
+      }
+      #pre-splash img{width:140px;height:140px;border-radius:28px;box-shadow:0 0 48px rgba(250,204,21,0.35);}
+      #pre-splash .dots{display:flex;gap:8px;margin-top:28px;}
+      #pre-splash .dot{width:8px;height:8px;border-radius:50%;background:#facc15;opacity:0.3;animation:kpulse 1.2s ease-in-out infinite;}
+      #pre-splash .dot:nth-child(2){animation-delay:0.2s;}
+      #pre-splash .dot:nth-child(3){animation-delay:0.4s;}
+      @keyframes kpulse{0%,100%{opacity:0.3;transform:scale(1);}50%{opacity:1;transform:scale(1.25);}}
+    </style>
     <script>
       (function() {
-        // Force Parliament Blue as the splash/theme color — always, on every platform.
-        var themeColor = '#1034A6';
-        document.documentElement.style.backgroundColor = themeColor;
-        document.body && (document.body.style.backgroundColor = themeColor);
-        var metaTheme = document.querySelector('meta[name="theme-color"]');
-        if (metaTheme) metaTheme.setAttribute('content', themeColor);
-
-        function applyTheme() {
-          document.documentElement.classList.add('dark');
+        // Override ANY platform-injected background immediately — before paint
+        var bg = '#050716';
+        document.documentElement.style.setProperty('background-color', bg, 'important');
+        document.documentElement.style.setProperty('background', bg, 'important');
+        if (document.body) {
+          document.body.style.setProperty('background-color', bg, 'important');
+          document.body.style.setProperty('background', bg, 'important');
         }
-        applyTheme();
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
+        var metaTheme = document.querySelector('meta[name="theme-color"]');
+        if (metaTheme) metaTheme.setAttribute('content', bg);
+        document.documentElement.classList.add('dark');
       })();
     </script>
   </head>
   <body>
+    <!-- Branded pre-React splash — hidden once React mounts -->
+    <div id="pre-splash">
+      <img src="https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/56ee45626_Kronoxuygulamaikon.png" alt="Kronox" />
+      <div class="dots">
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

@@ -4,8 +4,8 @@
   "description": "Zaman ustasının oyunu",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1034A6",
-  "theme_color": "#1034A6",
+  "background_color": "#050716",
+  "theme_color": "#050716",
   "scope": "/",
   "icons": [
     {
