@@ -171,13 +171,13 @@ export default function QuestionCard({
         {/* Category icon — below question text, only for non-album-art cards */}
         {!hasAlbumArt && !isMuzik && (
           <div
-            className="w-11 h-11 rounded-2xl flex items-center justify-center mt-2 flex-shrink-0"
+            className="w-14 h-14 rounded-2xl flex items-center justify-center mt-2 flex-shrink-0"
             style={{ background: `${neon.border}18`, border: `1.5px solid ${neon.border}50` }}
           >
             {question?.icon_url ? (
-              <img src={question.icon_url} alt="" className="w-6 h-6 object-contain" />
+              <img src={question.icon_url} alt="" className="w-9 h-9 object-contain" />
             ) : (
-              <QuestionIcon style={{ width: 22, height: 22, color: neon.border }} strokeWidth={1.6} />
+              <QuestionIcon style={{ width: 28, height: 28, color: neon.border }} strokeWidth={1.5} />
             )}
           </div>
         )}
