@@ -127,7 +127,7 @@ export default function GameLayout({
         {isMyTurn && !winner && currentQuestion && !feedback && (
           <div className="text-center">
             <p className="font-inter font-semibold tracking-wide" style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)' }}>
-              ŞARKIYI ZAMAN ÇİZGİSİNE
+              KARTI ZAMAN ÇİZGİSİNE
             </p>
             <p className="font-bangers tracking-widest" style={{ fontSize: 18, color: '#facc15' }}>
               YERLEŞTİR!
