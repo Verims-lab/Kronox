@@ -183,8 +183,10 @@ export default function QuestionCard({
       `}
       style={{
         width: 160,
-        minHeight: 200,
-        background: 'linear-gradient(160deg, #0f1428 0%, #0a0f23 100%)',
+        minHeight: 240,
+        background: hasAlbumArt 
+          ? 'transparent'
+          : 'linear-gradient(160deg, #0f1428 0%, #0a0f23 100%)',
         border: `2px solid ${neon.border}`,
         boxShadow: isDraggingNow
           ? `0 0 36px ${neon.glow}, 0 0 16px ${neon.glow}, 0 12px 32px rgba(0,0,0,0.6)`
@@ -193,103 +195,156 @@ export default function QuestionCard({
         transition: 'box-shadow 0.15s ease',
       }}
     >
-      {/* Album art — full width top section */}
-      {hasAlbumArt && (
-        <div className="w-full overflow-hidden" style={{ height: 96, flexShrink: 0 }}>
-          <img
-            src={question.media_url}
-            alt=""
-            className="w-full h-full object-cover"
-            referrerPolicy="no-referrer"
-            crossOrigin="anonymous"
-            onError={() => { setImgError(true); if (onImageError && isGorsel) onImageError(); }}
-          />
-        </div>
-      )}
+      {hasAlbumArt ? (
+        <>
+          {/* Premium image layout — 65% of card */}
+          <div className="relative w-full" style={{ height: '65%', flexShrink: 0, background: 'linear-gradient(160deg, #0f1428 0%, #0a0f23 100%)' }}>
+            <img
+              src={question.media_url}
+              alt=""
+              className="w-full h-full object-cover"
+              referrerPolicy="no-referrer"
+              crossOrigin="anonymous"
+              onError={() => { setImgError(true); if (onImageError && isGorsel) onImageError(); }}
+            />
+            {/* Soft bottom fade overlay */}
+            <div 
+              className="absolute bottom-0 left-0 right-0"
+              style={{
+                height: '40px',
+                background: 'linear-gradient(to bottom, rgba(15,20,40,0) 0%, rgba(15,20,40,0.95) 100%)',
+                pointerEvents: 'none',
+              }}
+            />
+          </div>
 
-      {/* Content area */}
-      <div className="flex flex-col items-center px-3 py-3 gap-1 flex-1">
-        {/* Question text or song title */}
-        <p className="text-center font-inter font-bold leading-tight text-white"
-          style={{ fontSize: isMuzik ? 11 : 10, lineHeight: 1.3 }}>
-          {isMuzik ? songTitle : question?.question}
-        </p>
+          {/* Text area — 35% of card with premium spacing */}
+          <div className="flex flex-col items-center justify-center flex-1 px-3 py-2.5 gap-1 relative z-10" style={{ background: 'linear-gradient(to bottom, rgba(15,20,40,0.8) 0%, rgba(10,15,35,0.95) 100%)' }}>
+            {/* Question text */}
+            <p className="text-center font-inter font-bold leading-snug text-white line-clamp-2"
+              style={{ fontSize: 11, lineHeight: 1.35 }}>
+              {isMuzik ? songTitle : question?.question}
+            </p>
 
-        {/* Category icon — below question text, only for non-album-art cards */}
-        {!hasAlbumArt && !isMuzik && (
+            {/* Artist name for music */}
+            {isMuzik && artistName && (
+              <p className="text-center font-inter line-clamp-1" style={{ fontSize: 8, color: 'rgba(255,255,255,0.6)' }}>
+                {artistName}
+              </p>
+            )}
+
+            {/* Audio controls for muzik */}
+            {isMuzik && !audioError && (
+              <div className="flex flex-col items-center gap-0.5 mt-0.5">
+                {livePreviewUrl && (
+                  <audio
+                    ref={audioRef}
+                    src={livePreviewUrl}
+                    onError={() => { setAudioError(true); if (onAudioError) onAudioError(); }}
+                    onEnded={() => {
+                      if (audioRef.current) {
+                        audioRef.current.currentTime = 0;
+                        audioRef.current.play();
+                      }
+                    }}
+                  />
+                )}
+                <button
+                  onClick={livePreviewUrl ? toggleAudio : undefined}
+                  className="w-7 h-7 rounded-full flex items-center justify-center"
+                  style={{ background: livePreviewUrl ? neon.border : 'rgba(255,255,255,0.15)', opacity: livePreviewUrl ? 1 : 0.5 }}
+                >
+                  {playing ? <Pause className="w-3 h-3 text-black" /> : <Play className="w-3 h-3 text-black ml-0.5" />}
+                </button>
+              </div>
+            )}
+          </div>
+        </>
+      ) : (
+        <>
+          {/* No media: fallback layout */}
+          <div className="flex flex-col items-center px-3 py-3 gap-2 flex-1 justify-center">
+            {/* Question text */}
+            <p className="text-center font-inter font-bold leading-tight text-white"
+              style={{ fontSize: isMuzik ? 11 : 10, lineHeight: 1.3 }}>
+              {isMuzik ? songTitle : question?.question}
+            </p>
+
+            {/* Category icon */}
+            {!isMuzik && (
+              <div
+                className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
+                style={{ background: `${neon.border}18`, border: `1.5px solid ${neon.border}50` }}
+              >
+                {question?.icon_url ? (
+                  <img src={question.icon_url} alt="" className="w-9 h-9 object-contain" />
+                ) : (
+                  <QuestionIcon style={{ width: 28, height: 28, color: neon.border }} strokeWidth={1.5} />
+                )}
+              </div>
+            )}
+
+            {/* Artist name for music */}
+            {isMuzik && artistName && (
+              <p className="text-center font-inter" style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)' }}>
+                {artistName}
+              </p>
+            )}
+
+            {/* Audio controls for muzik */}
+            {isMuzik && !audioError && (
+              <div className="flex flex-col items-center gap-1 mt-1">
+                {livePreviewUrl && (
+                  <audio
+                    ref={audioRef}
+                    src={livePreviewUrl}
+                    onError={() => { setAudioError(true); if (onAudioError) onAudioError(); }}
+                    onEnded={() => {
+                      if (audioRef.current) {
+                        audioRef.current.currentTime = 0;
+                        audioRef.current.play();
+                      }
+                    }}
+                  />
+                )}
+                <button
+                  onClick={livePreviewUrl ? toggleAudio : undefined}
+                  className="w-9 h-9 rounded-full flex items-center justify-center"
+                  style={{ background: livePreviewUrl ? neon.border : 'rgba(255,255,255,0.15)', opacity: livePreviewUrl ? 1 : 0.5 }}
+                >
+                  {playing ? <Pause className="w-4 h-4 text-black" /> : <Play className="w-4 h-4 text-black ml-0.5" />}
+                </button>
+              </div>
+            )}
+
+            {/* Audio for isitsel type */}
+            {question?.type === 'isitsel' && question?.media_url && (
+              <div className="flex flex-col items-center gap-1 mt-1">
+                <audio ref={audioRef} src={question.media_url} onEnded={() => setPlaying(false)} />
+                <button
+                  onClick={toggleAudio}
+                  className="w-9 h-9 rounded-full bg-blue-500 flex items-center justify-center"
+                >
+                  {playing ? <Pause className="w-4 h-4 text-white" /> : <Play className="w-4 h-4 text-white ml-0.5" />}
+                </button>
+                <p className="text-center font-inter" style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>
+                  Sesi dinle
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Bottom bar — year hint */}
           <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center mt-2 flex-shrink-0"
-            style={{ background: `${neon.border}18`, border: `1.5px solid ${neon.border}50` }}
+            className="w-full flex items-center justify-center py-2"
+            style={{ borderTop: `1px solid ${neon.border}30` }}
           >
-            {question?.icon_url ? (
-              <img src={question.icon_url} alt="" className="w-9 h-9 object-contain" />
-            ) : (
-              <QuestionIcon style={{ width: 28, height: 28, color: neon.border }} strokeWidth={1.5} />
-            )}
-          </div>
-        )}
-
-        {/* Artist name for music */}
-        {isMuzik && artistName && (
-          <p className="text-center font-inter" style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)' }}>
-            {artistName}
-          </p>
-        )}
-
-        {/* Audio controls for muzik */}
-        {isMuzik && !audioError && (
-          <div className="flex flex-col items-center gap-1 mt-1">
-            {livePreviewUrl && (
-              <audio
-                ref={audioRef}
-                src={livePreviewUrl}
-                onError={() => { setAudioError(true); if (onAudioError) onAudioError(); }}
-                onEnded={() => {
-                  if (audioRef.current) {
-                    audioRef.current.currentTime = 0;
-                    audioRef.current.play();
-                  }
-                }}
-              />
-            )}
-            <button
-              onClick={livePreviewUrl ? toggleAudio : undefined}
-              className="w-9 h-9 rounded-full flex items-center justify-center"
-              style={{ background: livePreviewUrl ? neon.border : 'rgba(255,255,255,0.15)', opacity: livePreviewUrl ? 1 : 0.5 }}
-            >
-              {playing ? <Pause className="w-4 h-4 text-black" /> : <Play className="w-4 h-4 text-black ml-0.5" />}
-            </button>
-          </div>
-        )}
-
-        {/* Audio for isitsel type */}
-        {question?.type === 'isitsel' && question?.media_url && (
-          <div className="flex flex-col items-center gap-1 mt-1">
-            <audio ref={audioRef} src={question.media_url} onEnded={() => setPlaying(false)} />
-            <button
-              onClick={toggleAudio}
-              className="w-9 h-9 rounded-full bg-blue-500 flex items-center justify-center"
-            >
-              {playing ? <Pause className="w-4 h-4 text-white" /> : <Play className="w-4 h-4 text-white ml-0.5" />}
-            </button>
-            <p className="text-center font-inter" style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>
-              Sesi dinle
+            <p className="font-inter text-center" style={{ fontSize: 9, color: neon.border, opacity: 0.7 }}>
+              Bu olay ne zaman gerçekleşti?
             </p>
           </div>
-        )}
-
-        {/* intentionally removed duplicate text render */}
-      </div>
-
-      {/* Bottom bar — year hint */}
-      <div
-        className="w-full flex items-center justify-center py-2"
-        style={{ borderTop: `1px solid ${neon.border}30` }}
-      >
-        <p className="font-inter text-center" style={{ fontSize: 9, color: neon.border, opacity: 0.7 }}>
-          Bu olay ne zaman gerçekleşti?
-        </p>
-      </div>
+        </>
+      )}
     </motion.div>
   );
 }

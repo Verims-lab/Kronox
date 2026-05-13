@@ -52,45 +52,76 @@ export default function TimelineCard({ card, index, distanceFromCenter = 0 }) {
         className="relative flex flex-col items-center rounded-2xl select-none z-10"
         style={{
           width: 80,
-          minHeight: 108,
-          background: `linear-gradient(160deg, rgba(15,20,40,0.95) 0%, rgba(10,15,35,0.98) 100%)`,
+          minHeight: 110,
+          background: card.media_url
+            ? 'transparent'
+            : `linear-gradient(160deg, rgba(15,20,40,0.95) 0%, rgba(10,15,35,0.98) 100%)`,
           border: `2px solid ${color.border}`,
           boxShadow: `0 0 12px ${color.border}50, 0 0 4px ${color.border}30`,
-          padding: '8px 6px 6px',
+          padding: card.media_url ? '0' : '8px 6px 6px',
+          overflow: 'hidden',
         }}
       >
-        {/* Media image */}
-        {card.media_url && (
-          <div className="w-full rounded-xl overflow-hidden mb-1" style={{ height: 44 }}>
-            <img
-              src={card.media_url}
-              alt=""
-              className="w-full h-full object-cover"
-              onError={e => { e.target.style.display = 'none'; }}
-            />
-          </div>
+        {card.media_url ? (
+          <>
+            {/* Image section — 45% */}
+            <div className="w-full relative" style={{ height: '45%', background: 'linear-gradient(160deg, rgba(15,20,40,0.95) 0%, rgba(10,15,35,0.98) 100%)' }}>
+              <img
+                src={card.media_url}
+                alt=""
+                className="w-full h-full object-cover"
+                onError={e => { e.target.style.display = 'none'; }}
+              />
+              {/* Subtle fade bottom */}
+              <div style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: '12px',
+                background: 'linear-gradient(to bottom, rgba(15,20,40,0) 0%, rgba(10,15,35,0.95) 100%)',
+                pointerEvents: 'none',
+              }} />
+            </div>
+
+            {/* Info section — 55% */}
+            <div className="w-full flex flex-col items-center justify-between flex-1 px-1.5 py-1.5 relative z-10" style={{ background: 'linear-gradient(to bottom, rgba(15,20,40,0.9) 0%, rgba(10,15,35,0.98) 100%)' }}>
+              {/* Short label max 1 line */}
+              {title && (
+                <p className="w-full text-center font-inter font-bold leading-tight line-clamp-1"
+                  style={{ fontSize: 7, color: '#ffffff', marginBottom: 2 }}>
+                  {title}
+                </p>
+              )}
+
+              {/* Year prominent */}
+              <span className="font-bangers tracking-wider" style={{ fontSize: 20, color: color.year, lineHeight: 1 }}>
+                {card.year}
+              </span>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Fallback: no image layout */}
+            <p className="w-full text-center font-inter font-bold leading-tight line-clamp-2"
+              style={{ fontSize: 8, color: '#ffffff', letterSpacing: '0.02em', marginBottom: 2, padding: '0 4px' }}>
+              {title}
+            </p>
+
+            {artist && (
+              <p className="w-full text-center font-inter leading-tight line-clamp-1"
+                style={{ fontSize: 7, color: 'rgba(255,255,255,0.5)', marginBottom: 3 }}>
+                {artist}
+              </p>
+            )}
+
+            <div className="mt-auto">
+              <span className="font-bangers tracking-wider" style={{ fontSize: 18, color: color.year, lineHeight: 1 }}>
+                {card.year}
+              </span>
+            </div>
+          </>
         )}
-
-        {/* Title */}
-        <p className="w-full text-center font-inter font-bold leading-tight line-clamp-3"
-          style={{ fontSize: 8, color: '#ffffff', letterSpacing: '0.02em', marginBottom: 2 }}>
-          {title}
-        </p>
-
-        {/* Artist */}
-        {artist && (
-          <p className="w-full text-center font-inter leading-tight line-clamp-1"
-            style={{ fontSize: 7, color: 'rgba(255,255,255,0.5)', marginBottom: 3 }}>
-            {artist}
-          </p>
-        )}
-
-        {/* Year */}
-        <div className="mt-auto">
-          <span className="font-bangers tracking-wider" style={{ fontSize: 18, color: color.year, lineHeight: 1 }}>
-            {card.year}
-          </span>
-        </div>
 
         {/* Stack badge */}
         {stackCount > 1 && (
