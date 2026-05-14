@@ -59,21 +59,21 @@ async function runScenario(name, base44, playerCount, fn) {
   }
 }
 
-// Bir oyuncuya kart ekle ve turu geç
-async function doTurn(base44, lobbyId, playerIndex, cardId, cardYear, nextPlayerIndex, nextQId) {
-  const lobby = await base44.asServiceRole.entities.Lobby.get(lobbyId);
+// Bir oyuncuya kart ekle ve turu geç — lobbyData verilirse ekstra GET yapmaz
+async function doTurn(base44, lobbyId, playerIndex, cardId, cardYear, nextPlayerIndex, nextQId, lobbyData) {
+  const lobby = lobbyData || await base44.asServiceRole.entities.Lobby.get(lobbyId);
   const updatedPlayers = lobby.players.map((p, i) =>
     i === playerIndex
       ? { ...p, cards: [...(p.cards || []), { id: cardId, year: cardYear, question: `Soru ${cardId}`, type: 'metin' }] }
       : p
   );
-  await base44.asServiceRole.entities.Lobby.update(lobbyId, {
+  const updated = await base44.asServiceRole.entities.Lobby.update(lobbyId, {
     players: updatedPlayers,
     current_player_index: nextPlayerIndex,
     current_question_id: nextQId,
     used_question_ids: [...(lobby.used_question_ids || []), nextQId],
   });
-  return updatedPlayers;
+  return updated;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -357,25 +357,25 @@ Deno.serve(async (req) => {
         const logs = [];
         const total = 3;
 
+        let currentLobby = await base44.asServiceRole.entities.Lobby.get(lobbyId);
+
         for (let round = 0; round < 2; round++) { // 2 tam tur (6 hamle)
           for (let p = 0; p < total; p++) {
             const nextP = (p + 1) % total;
             const cardId = `r${round}_p${p}`;
-            await doTurn(base44, lobbyId, p, cardId, 1900 + round * 10 + p, nextP, `q_r${round}_p${p}`);
-            const lobby = await base44.asServiceRole.entities.Lobby.get(lobbyId);
-            if (lobby.current_player_index !== nextP) {
-              return { status: 'FAIL', logs: [...logs, `❌ Round ${round} P${p}: index=${lobby.current_player_index}, beklenen=${nextP}`] };
+            // lobbyData geçirerek ekstra GET çağrısını ortadan kaldır
+            currentLobby = await doTurn(base44, lobbyId, p, cardId, 1900 + round * 10 + p, nextP, `q_r${round}_p${p}`, currentLobby);
+            if (currentLobby.current_player_index !== nextP) {
+              return { status: 'FAIL', logs: [...logs, `❌ Round ${round} P${p}: index=${currentLobby.current_player_index}, beklenen=${nextP}`] };
             }
             logs.push(`✅ Round ${round}, P${p} → P${nextP}: index doğru`);
-            await sleep(100);
           }
         }
 
         // Kart sayıları doğru mu? Her oyuncu 2 kart olmalı
-        const final = await base44.asServiceRole.entities.Lobby.get(lobbyId);
         for (let i = 0; i < total; i++) {
-          if (final.players[i].cards.length !== 2) {
-            return { status: 'FAIL', logs: [...logs, `❌ P${i+1} kart=${final.players[i].cards.length}, beklenen=2`] };
+          if (currentLobby.players[i].cards.length !== 2) {
+            return { status: 'FAIL', logs: [...logs, `❌ P${i+1} kart=${currentLobby.players[i].cards.length}, beklenen=2`] };
           }
         }
         logs.push('✅ 3 oyuncu, 2 tam tur: her oyuncuda 2 kart, tur sırası hep doğru');
@@ -436,25 +436,24 @@ Deno.serve(async (req) => {
         const logs = [];
         const total = 4;
 
+        let currentLobby = await base44.asServiceRole.entities.Lobby.get(lobbyId);
+
         // 3 tam tur (12 hamle)
         for (let round = 0; round < 3; round++) {
           for (let p = 0; p < total; p++) {
             const nextP = (p + 1) % total;
-            await doTurn(base44, lobbyId, p, `r${round}p${p}`, 1900 + round * 10 + p, nextP, `qr${round}p${p}`);
-            const lobby = await base44.asServiceRole.entities.Lobby.get(lobbyId);
-            if (lobby.current_player_index !== nextP) {
-              return { status: 'FAIL', logs: [...logs, `❌ R${round} P${p}: index=${lobby.current_player_index}, beklenen=${nextP}`] };
+            currentLobby = await doTurn(base44, lobbyId, p, `r${round}p${p}`, 1900 + round * 10 + p, nextP, `qr${round}p${p}`, currentLobby);
+            if (currentLobby.current_player_index !== nextP) {
+              return { status: 'FAIL', logs: [...logs, `❌ R${round} P${p}: index=${currentLobby.current_player_index}, beklenen=${nextP}`] };
             }
           }
           logs.push(`✅ Round ${round + 1} tamamlandı (4 oyuncu, tur sırası doğru)`);
-          await sleep(100);
         }
 
         // 3 turdan sonra her oyuncuda 3 kart olmalı
-        const final = await base44.asServiceRole.entities.Lobby.get(lobbyId);
         for (let i = 0; i < total; i++) {
-          if (final.players[i].cards.length !== 3) {
-            return { status: 'FAIL', logs: [...logs, `❌ P${i+1} kart=${final.players[i].cards.length}, beklenen=3`] };
+          if (currentLobby.players[i].cards.length !== 3) {
+            return { status: 'FAIL', logs: [...logs, `❌ P${i+1} kart=${currentLobby.players[i].cards.length}, beklenen=3`] };
           }
         }
         logs.push('✅ 4 oyuncu, 3 tam tur: her oyuncuda 3 kart, tüm tur sıraları doğru');
