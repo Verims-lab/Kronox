@@ -220,21 +220,6 @@ export default function MainMenu() {
             </motion.button>
           </div>
 
-          {/* Hero headline */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15, duration: 0.45 }}
-            className="text-center mt-2 mb-1 px-2"
-          >
-            <p className="font-inter text-base font-semibold text-white/90 leading-snug">
-              KARTı DOĞRU YERE KOY,
-            </p>
-            <p className="font-bangers text-2xl tracking-wider leading-tight" style={{ color: '#facc15', textShadow: '0 0 16px rgba(250,204,21,0.5)' }}>
-              ZAMANI SEN YÖNET
-            </p>
-          </motion.div>
-
           {/* Clock + timeline visual area */}
           <motion.div
             className="w-full relative"
@@ -244,6 +229,21 @@ export default function MainMenu() {
             transition={{ delay: 0.2 }}
           >
             {/* Spacer for the clock drawn in HeroBackground */}
+          </motion.div>
+
+          {/* Hero headline */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15, duration: 0.45 }}
+            className="text-center mb-1 px-2"
+          >
+            <p className="font-inter text-base font-semibold text-white/90 leading-snug">
+              KARTı DOĞRU YERE KOY,
+            </p>
+            <p className="font-bangers text-2xl tracking-wider leading-tight" style={{ color: '#facc15', textShadow: '0 0 16px rgba(250,204,21,0.5)' }}>
+              ZAMANI SEN YÖNET
+            </p>
           </motion.div>
 
           {/* Timeline strip */}
