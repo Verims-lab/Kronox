@@ -10,7 +10,7 @@ const TABS = [
 ];
 
 // Hide bottom nav on game and home screen (they have their own UI)
-const HIDDEN_ROUTES = ['/game', '/'];
+const HIDDEN_ROUTES = ['/game', '/', '/solo'];
 
 export default function BottomNav() {
   const location = useLocation();

@@ -14,6 +14,8 @@ import SplashScreen from '@/components/SplashScreen';
 import { NavigationStackProvider } from '@/lib/NavigationStackContext';
 
 const PlayerSetup = lazy(() => import('./pages/PlayerSetup'));
+const MainMenu = lazy(() => import('./pages/MainMenu'));
+const SoloChallenge = lazy(() => import('./pages/SoloChallenge'));
 const Game = lazy(() => import('./pages/Game'));
 const LobbyRoom = lazy(() => import('./pages/LobbyRoom'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
@@ -28,7 +30,7 @@ const AuthenticatedApp = () => {
   const location = useLocation();
   const prevPathRef = React.useRef(location.pathname);
   const isGamePage = location.pathname === '/game';
-  const isHomePage = location.pathname === '/';
+  const isHomePage = location.pathname === '/' || location.pathname === '/solo';
 
   // Determine transition direction: push (right-to-left) or pop (left-to-right)
   const getTransitionDirection = () => {
@@ -76,7 +78,9 @@ const AuthenticatedApp = () => {
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           >
             <Routes location={location}>
-              <Route path="/" element={<PlayerSetup />} />
+              <Route path="/" element={<MainMenu />} />
+              <Route path="/solo" element={<SoloChallenge />} />
+              <Route path="/setup" element={<PlayerSetup />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/lobby" element={<LobbyRoom />} />
               <Route path="/game" element={<Game />} />
