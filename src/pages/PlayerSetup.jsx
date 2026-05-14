@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import KronoxTutorial from '@/components/tutorial/KronoxTutorial';
+import { tutorialState } from '@/lib/tutorialState';
 import { Input } from '@/components/ui/input';
 import { Users, Play, Globe, LogIn, LogOut, Settings, RefreshCw } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
@@ -77,12 +79,18 @@ export default function PlayerSetup() {
   const [nameErrors, setNameErrors] = useState([]);
   const scrollContainerRef = useRef(null);
 
+  const [showTutorial, setShowTutorial] = useState(false);
+
   const refreshUser = () => {
     base44.auth.me().then((u) => setUser(u || null)).catch(() => setUser(null));
   };
 
   useEffect(() => {
     refreshUser();
+    // Auto-show tutorial for first-time visitors
+    if (!tutorialState.hasSeen()) {
+      setShowTutorial(true);
+    }
   }, []);
 
   const { refreshing: isRefreshing } = usePullToRefresh(() => {
@@ -118,6 +126,15 @@ export default function PlayerSetup() {
   ];
 
   return (
+    <>
+    <AnimatePresence>
+      {showTutorial && (
+        <KronoxTutorial
+          onDone={() => setShowTutorial(false)}
+          onSkip={() => setShowTutorial(false)}
+        />
+      )}
+    </AnimatePresence>
     <div
       ref={scrollContainerRef}
       className="min-h-screen flex flex-col items-center justify-start px-5 overflow-y-auto relative"
@@ -380,5 +397,6 @@ export default function PlayerSetup() {
         </div>
       </div>
     </div>
+    </>
   );
 }

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trash2, AlertTriangle, FileDown, Loader2, FlaskConical, ChevronRight, Shield, Settings } from 'lucide-react';
+import { Trash2, AlertTriangle, FileDown, Loader2, FlaskConical, ChevronRight, Shield, Settings, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import { useNavigate } from 'react-router-dom';
 import SimulationPanel from '@/components/game/SimulationPanel';
 import TopScores from '@/components/game/TopScores';
 import QuestionManagement from '@/components/admin/QuestionManagement';
+import KronoxTutorial from '@/components/tutorial/KronoxTutorial';
 
 const ADMIN_EMAIL = 'sariverim@gmail.com';
 
@@ -19,6 +20,7 @@ export default function SettingsPage() {
   const [downloadingDoc, setDownloadingDoc] = useState(false);
   const [downloadingWorkflow, setDownloadingWorkflow] = useState(false);
   const [showSim, setShowSim] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   useEffect(() => {
     base44.auth.me().then(u => {
@@ -140,6 +142,16 @@ export default function SettingsPage() {
           </Section>
         )}
 
+        {/* Yardım */}
+        <Section label="Yardım">
+          <ToolCard
+            icon={<HelpCircle className="w-4 h-4" />}
+            title="Nasıl Oynanır?"
+            desc="Tutorial'ı tekrar izle"
+            onClick={() => setShowTutorial(true)}
+          />
+        </Section>
+
         {/* Hesap — tüm kullanıcılar */}
         <Section label="Hesap">
           <AnimatePresence mode="wait">
@@ -192,6 +204,15 @@ export default function SettingsPage() {
 
       <AnimatePresence>
         {showSim && <SimulationPanel onClose={() => setShowSim(false)} />}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showTutorial && (
+          <KronoxTutorial
+            onDone={() => setShowTutorial(false)}
+            onSkip={() => setShowTutorial(false)}
+          />
+        )}
       </AnimatePresence>
     </div>
   );
