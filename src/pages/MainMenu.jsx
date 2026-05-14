@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Settings, Trophy, Zap, Globe, LogIn } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 import { tutorialState } from '@/lib/tutorialState';
 import KronoxTutorial from '@/components/tutorial/KronoxTutorial';
-import { AnimatePresence } from 'framer-motion';
 
 // Hero background — uses /assets/ui/home-hero.webp if present, else animated CSS
 function HeroBackground() {
