@@ -5,13 +5,15 @@ import { ArrowLeft, Settings, Zap } from 'lucide-react';
 import { sounds } from '@/lib/gameSounds';
 
 // Category → DB value mapping
-// Visual categories map to existing DB category values
+// Primary: /assets/categories/*.webp (drop your files here to override)
+// Fallback: curated Unsplash images
 const CATEGORIES = [
   {
     id: 'teknoloji',
     label: 'INTERNET\nERA',
     dbValue: 'teknoloji',
-    image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&q=80',
+    asset: '/assets/categories/internet-era.webp',
+    fallback: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&q=80',
     color: '#8b5cf6',
     glow: 'rgba(139,92,246,0.6)',
   },
@@ -19,7 +21,8 @@ const CATEGORIES = [
     id: 'sanat',
     label: 'TÜRK TV',
     dbValue: 'sanat',
-    image: 'https://images.unsplash.com/photo-1585792180666-f7347c490ee2?w=400&q=80',
+    asset: '/assets/categories/turk-tv.webp',
+    fallback: 'https://images.unsplash.com/photo-1593784991095-a205069470b6?w=400&q=80',
     color: '#a78bfa',
     glow: 'rgba(167,139,250,0.5)',
   },
@@ -27,7 +30,8 @@ const CATEGORIES = [
     id: 'spor',
     label: 'FUTBOL\nDELİLİĞİ',
     dbValue: 'spor',
-    image: 'https://images.unsplash.com/photo-1553778263-73a83bab9b0c?w=400&q=80',
+    asset: '/assets/categories/futbol-deliligi.webp',
+    fallback: 'https://images.unsplash.com/photo-1553778263-73a83bab9b0c?w=400&q=80',
     color: '#22c55e',
     glow: 'rgba(34,197,94,0.5)',
   },
@@ -35,7 +39,8 @@ const CATEGORIES = [
     id: 'genel',
     label: 'VİRAL\nKÜLTÜR',
     dbValue: 'genel',
-    image: 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=400&q=80',
+    asset: '/assets/categories/viral-kultur.webp',
+    fallback: 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=400&q=80',
     color: '#f472b6',
     glow: 'rgba(244,114,182,0.5)',
   },
@@ -43,7 +48,8 @@ const CATEGORIES = [
     id: 'muzik',
     label: 'MÜZİK\nLEGENDS',
     dbValue: 'muzik',
-    image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400&q=80',
+    asset: '/assets/categories/muzik-legends.webp',
+    fallback: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400&q=80',
     color: '#c084fc',
     glow: 'rgba(192,132,252,0.5)',
   },
@@ -51,7 +57,8 @@ const CATEGORIES = [
     id: 'bilim',
     label: 'TEKNOLOJİ\nKAOSU',
     dbValue: 'bilim',
-    image: 'https://images.unsplash.com/photo-1446776653964-20c1d3a81b06?w=400&q=80',
+    asset: '/assets/categories/teknoloji-kaosu.webp',
+    fallback: 'https://images.unsplash.com/photo-1446776653964-20c1d3a81b06?w=400&q=80',
     color: '#38bdf8',
     glow: 'rgba(56,189,248,0.5)',
   },
@@ -64,6 +71,8 @@ const DIFFICULTIES = [
 ];
 
 function CategoryCard({ cat, selected, onSelect }) {
+  const [imgSrc, setImgSrc] = React.useState(cat.asset);
+
   return (
     <motion.button
       onClick={() => { sounds.tap(); onSelect(cat.id); }}
@@ -75,12 +84,13 @@ function CategoryCard({ cat, selected, onSelect }) {
         boxShadow: selected ? `0 0 20px ${cat.glow}, 0 0 40px ${cat.glow.replace('0.', '0.2')}` : '0 2px 12px rgba(0,0,0,0.4)',
       }}
     >
-      {/* Image */}
+      {/* Image — tries local asset first, falls back to Unsplash */}
       <img
-        src={cat.image}
+        src={imgSrc}
         alt={cat.label}
+        onError={() => setImgSrc(cat.fallback)}
         className="absolute inset-0 w-full h-full object-cover"
-        style={{ opacity: selected ? 0.55 : 0.35 }}
+        style={{ opacity: selected ? 0.6 : 0.42 }}
       />
       {/* Dark overlay */}
       <div

@@ -8,66 +8,106 @@ import { tutorialState } from '@/lib/tutorialState';
 import KronoxTutorial from '@/components/tutorial/KronoxTutorial';
 import { AnimatePresence } from 'framer-motion';
 
-// Animated neon city background timeline
+// Hero background — uses /assets/ui/home-hero.webp if present, else animated CSS
 function HeroBackground() {
+  const [heroLoaded, setHeroLoaded] = React.useState(false);
+  const [heroFailed, setHeroFailed] = React.useState(false);
+
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {/* Deep purple city silhouette */}
+      {/* Static hero asset (if uploaded) */}
+      {!heroFailed && (
+        <img
+          src="/assets/ui/home-hero.webp"
+          alt=""
+          onLoad={() => setHeroLoaded(true)}
+          onError={() => setHeroFailed(true)}
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ opacity: heroLoaded ? 0.55 : 0, transition: 'opacity 0.4s ease' }}
+        />
+      )}
+      {/* Always-on overlay tint */}
       <div
         className="absolute inset-0"
         style={{
-          background: 'radial-gradient(ellipse 80% 60% at 50% 40%, rgba(120,40,200,0.35) 0%, rgba(30,10,60,0.7) 60%, transparent 100%)',
+          background: heroLoaded && !heroFailed
+            ? 'linear-gradient(180deg, rgba(10,4,20,0.3) 0%, rgba(10,4,20,0.85) 100%)'
+            : 'radial-gradient(ellipse 80% 60% at 50% 40%, rgba(120,40,200,0.35) 0%, rgba(30,10,60,0.7) 60%, transparent 100%)',
         }}
       />
-      {/* Floating orbs */}
+      {/* Floating orb (always shown) */}
       <motion.div
         className="absolute rounded-full"
         style={{ width: 300, height: 300, top: '5%', left: '50%', transform: 'translateX(-50%)', background: 'radial-gradient(circle, rgba(140,60,220,0.18) 0%, transparent 70%)' }}
         animate={{ scale: [1, 1.15, 1], opacity: [0.6, 1, 0.6] }}
         transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
       />
-      {/* Clock glow */}
-      <motion.div
-        className="absolute rounded-full border-2"
-        style={{
-          width: 140, height: 140,
-          top: '12%', left: '50%', transform: 'translateX(-50%)',
-          borderColor: 'rgba(160,80,255,0.5)',
-          background: 'radial-gradient(circle, rgba(120,40,200,0.15) 0%, transparent 70%)',
-          boxShadow: '0 0 40px rgba(160,80,255,0.3), inset 0 0 30px rgba(160,80,255,0.1)',
-        }}
-        animate={{ boxShadow: ['0 0 30px rgba(160,80,255,0.2)', '0 0 60px rgba(160,80,255,0.5)', '0 0 30px rgba(160,80,255,0.2)'] }}
-        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-      />
-      {/* Clock hands */}
-      <div className="absolute" style={{ top: '12%', left: '50%', transform: 'translateX(-50%)', width: 140, height: 140 }}>
-        <motion.div
-          className="absolute rounded-full"
-          style={{ width: 2, height: 40, background: 'rgba(200,150,255,0.8)', top: '50%', left: '50%', transformOrigin: 'bottom center', marginLeft: -1, marginTop: -40 }}
-          animate={{ rotate: 360 }}
-          transition={{ duration: 12, repeat: Infinity, ease: 'linear' }}
-        />
-        <motion.div
-          className="absolute rounded-full"
-          style={{ width: 2, height: 55, background: 'rgba(255,220,50,0.9)', top: '50%', left: '50%', transformOrigin: 'bottom center', marginLeft: -1, marginTop: -55 }}
-          animate={{ rotate: 360 }}
-          transition={{ duration: 60, repeat: Infinity, ease: 'linear' }}
-        />
-        {/* Center dot */}
-        <div className="absolute w-3 h-3 rounded-full bg-yellow-400" style={{ top: '50%', left: '50%', transform: 'translate(-50%,-50%)', boxShadow: '0 0 8px rgba(250,204,21,0.8)' }} />
-      </div>
+      {/* Animated clock (shown only when no hero image) */}
+      {(heroFailed || !heroLoaded) && (
+        <>
+          <motion.div
+            className="absolute rounded-full border-2"
+            style={{
+              width: 140, height: 140,
+              top: '12%', left: '50%', transform: 'translateX(-50%)',
+              borderColor: 'rgba(160,80,255,0.5)',
+              background: 'radial-gradient(circle, rgba(120,40,200,0.15) 0%, transparent 70%)',
+              boxShadow: '0 0 40px rgba(160,80,255,0.3), inset 0 0 30px rgba(160,80,255,0.1)',
+            }}
+            animate={{ boxShadow: ['0 0 30px rgba(160,80,255,0.2)', '0 0 60px rgba(160,80,255,0.5)', '0 0 30px rgba(160,80,255,0.2)'] }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+          />
+          <div className="absolute" style={{ top: '12%', left: '50%', transform: 'translateX(-50%)', width: 140, height: 140 }}>
+            <motion.div
+              className="absolute rounded-full"
+              style={{ width: 2, height: 40, background: 'rgba(200,150,255,0.8)', top: '50%', left: '50%', transformOrigin: 'bottom center', marginLeft: -1, marginTop: -40 }}
+              animate={{ rotate: 360 }}
+              transition={{ duration: 12, repeat: Infinity, ease: 'linear' }}
+            />
+            <motion.div
+              className="absolute rounded-full"
+              style={{ width: 2, height: 55, background: 'rgba(255,220,50,0.9)', top: '50%', left: '50%', transformOrigin: 'bottom center', marginLeft: -1, marginTop: -55 }}
+              animate={{ rotate: 360 }}
+              transition={{ duration: 60, repeat: Infinity, ease: 'linear' }}
+            />
+            <div className="absolute w-3 h-3 rounded-full bg-yellow-400" style={{ top: '50%', left: '50%', transform: 'translate(-50%,-50%)', boxShadow: '0 0 8px rgba(250,204,21,0.8)' }} />
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
-// Animated timeline strip
+// Timeline strip — uses /assets/ui/timeline-hero.webp if present, else CSS version
 function TimelineStrip() {
+  const [imgFailed, setImgFailed] = React.useState(false);
+  const [imgLoaded, setImgLoaded] = React.useState(false);
   const years = [1800, 1900, 2000, 2025];
+
+  if (!imgFailed) {
+    return (
+      <div className="w-full relative overflow-hidden rounded-xl" style={{ minHeight: 64 }}>
+        <img
+          src="/assets/ui/timeline-hero.webp"
+          alt="Timeline"
+          onLoad={() => setImgLoaded(true)}
+          onError={() => setImgFailed(true)}
+          className="w-full object-cover rounded-xl"
+          style={{ maxHeight: 90, opacity: imgLoaded ? 1 : 0, transition: 'opacity 0.3s ease' }}
+        />
+        {/* Fallback CSS shown until image loads */}
+        {!imgLoaded && <TimelineCSS years={years} />}
+      </div>
+    );
+  }
+
+  return <TimelineCSS years={years} />;
+}
+
+function TimelineCSS({ years }) {
   return (
     <div className="w-full flex items-center justify-between px-2 py-3 relative">
-      {/* Track */}
       <div className="absolute inset-y-1/2 left-4 right-4 h-px bg-white/20" />
-      {/* Glow dot at 2000 */}
       <motion.div
         className="absolute"
         style={{ left: '62%', top: '50%', transform: 'translate(-50%,-50%)' }}
@@ -77,7 +117,7 @@ function TimelineStrip() {
         <div className="w-3 h-3 rounded-full bg-yellow-400" style={{ boxShadow: '0 0 12px rgba(250,204,21,0.9)' }} />
         <div className="absolute -top-1 -left-1 w-5 h-5 rounded-full border border-yellow-400/40" />
       </motion.div>
-      {years.map((y, i) => (
+      {years.map((y) => (
         <div key={y} className="flex flex-col items-center gap-1 relative z-10">
           <div className="w-1.5 h-1.5 rounded-full bg-white/50" />
           <span className="font-inter text-[11px] font-semibold text-white/60">{y}</span>
