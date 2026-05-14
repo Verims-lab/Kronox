@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, Loader2, Copy, Check, AlertCircle } from 'lucide-react';
+import { Loader2, Copy, Check, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { base44 } from '@/api/base44Client';
@@ -27,15 +27,6 @@ const DIFFICULTIES = [
   { value: 3, label: '3 (Zor)' },
 ];
 
-function generateFilename(questionText) {
-  return questionText
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 50);
-}
 
 export default function QuestionManagement() {
   const [form, setForm] = useState({
@@ -48,51 +39,10 @@ export default function QuestionManagement() {
     icon_url: '',
   });
 
-  const [file, setFile] = useState(null);
-  const [preview, setPreview] = useState(null);
-  const [uploadProgress, setUploadProgress] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-
-  const handleFileChange = (e) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-
-    if (!['image/webp', 'image/jpeg', 'image/png'].includes(f.type)) {
-      setError('Only WebP, JPG, and PNG images allowed');
-      return;
-    }
-
-    setFile(f);
-    setError('');
-    const reader = new FileReader();
-    reader.onload = (e) => setPreview(e.target.result);
-    reader.readAsDataURL(f);
-  };
-
-  const uploadImageAndGetUrl = async () => {
-    if (!file) return null;
-    
-    try {
-      setUploadProgress(true);
-      const res = await base44.integrations.Core.UploadFile({ file });
-      
-      // Use the actual returned file URL from Base44 storage
-      if (res?.file_url) {
-        return res.file_url;
-      }
-      
-      setError('Upload returned no file URL');
-      return null;
-    } catch (err) {
-      setError('Failed to upload image');
-      return null;
-    } finally {
-      setUploadProgress(false);
-    }
-  };
 
   const handleCreate = async () => {
     // Validation
@@ -117,18 +67,6 @@ export default function QuestionManagement() {
     setError('');
     
     try {
-      let finalMediaUrl = form.media_url;
-
-      // If file is selected, upload it first
-      if (file) {
-        const uploadedUrl = await uploadImageAndGetUrl();
-        if (!uploadedUrl) {
-          setIsProcessing(false);
-          return;
-        }
-        finalMediaUrl = uploadedUrl;
-      }
-
       // Create question with media_url
       await base44.entities.Question.create({
         question: form.question.trim(),
@@ -136,7 +74,7 @@ export default function QuestionManagement() {
         category: form.category,
         type: form.type,
         difficulty: form.difficulty,
-        media_url: finalMediaUrl || undefined,
+        media_url: form.media_url || undefined,
         icon_url: form.icon_url || undefined,
       });
 
@@ -150,8 +88,6 @@ export default function QuestionManagement() {
         media_url: '',
         icon_url: '',
       });
-      setFile(null);
-      setPreview(null);
 
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
@@ -250,64 +186,29 @@ export default function QuestionManagement() {
         </div>
       </div>
 
-      {/* Media Upload */}
-      <div className="space-y-2">
+      {/* Media URL */}
+      <div className="space-y-1.5">
         <label className="font-inter text-xs font-semibold text-muted-foreground uppercase">
-          Media Upload
+          Media URL (Optional)
         </label>
-        <label className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-primary/30 hover:bg-white/10 cursor-pointer transition-colors">
-          <Upload className="w-4 h-4 text-primary" />
-          <span className="font-inter text-sm text-foreground">
-            {file ? file.name : 'Choose image...'}
-          </span>
-          <input
-            type="file"
-            accept=".webp,.jpg,.jpeg,.png"
-            onChange={handleFileChange}
-            disabled={isProcessing}
-            className="hidden"
+        <div className="flex items-center gap-2">
+          <Input
+            value={form.media_url}
+            onChange={(e) => setForm(prev => ({ ...prev, media_url: e.target.value }))}
+            placeholder="https://..."
+            className="bg-white/5 border-white/10 text-white placeholder:text-white/30 font-mono text-xs"
           />
-        </label>
-      </div>
-
-      {/* Image Preview */}
-      <AnimatePresence>
-        {preview && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="relative rounded-xl overflow-hidden bg-white/5 border border-white/10"
-          >
-            <img src={preview} alt="preview" className="w-full h-32 object-cover" />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Media URL Display */}
-      {form.media_url && (
-        <div className="space-y-1.5">
-          <label className="font-inter text-xs font-semibold text-muted-foreground uppercase">
-            Media URL
-          </label>
-          <div className="flex items-center gap-2 p-3 rounded-xl bg-white/5 border border-primary/30">
-            <code className="flex-1 font-mono text-xs text-primary break-all">
-              {form.media_url}
-            </code>
+          {form.media_url && (
             <button
               onClick={copyToClipboard}
-              className="p-1.5 rounded-lg hover:bg-white/10 transition-colors flex-shrink-0"
+              className="p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors flex-shrink-0"
               title="Copy"
             >
-              {copied ? (
-                <Check className="w-4 h-4 text-primary" />
-              ) : (
-                <Copy className="w-4 h-4 text-muted-foreground" />
-              )}
+              {copied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4 text-muted-foreground" />}
             </button>
-          </div>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Icon URL (Optional) */}
       <div className="space-y-1.5">
@@ -354,15 +255,10 @@ export default function QuestionManagement() {
       {/* Create Button */}
       <Button
         onClick={handleCreate}
-        disabled={isProcessing || uploadProgress || (!form.question.trim() || !form.year)}
+        disabled={isProcessing || (!form.question.trim() || !form.year)}
         className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
       >
-        {uploadProgress ? (
-          <>
-            <Loader2 className="w-4 h-4 animate-spin" />
-            Uploading...
-          </>
-        ) : isProcessing ? (
+        {isProcessing ? (
           <>
             <Loader2 className="w-4 h-4 animate-spin" />
             Creating...
