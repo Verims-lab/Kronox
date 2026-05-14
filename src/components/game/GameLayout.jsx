@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings, RotateCcw, ChevronRight, MessageCircle, X } from 'lucide-react';
+import { Settings, RotateCcw, ChevronRight, MessageCircle, X, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { sounds } from '@/lib/gameSounds';
 
@@ -87,14 +87,23 @@ export default function GameLayout({
         className="flex-shrink-0 flex items-center justify-between px-4 pt-2 pb-1 gap-2"
         style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}
       >
-        {/* Left: Settings */}
-        <button
-          onClick={onToggleSettings}
-          className="w-11 h-11 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/70 hover:bg-white/20 transition-colors"
-          aria-label="Oyun ayarları"
-        >
-          <Settings className="w-5 h-5" />
-        </button>
+        {/* Left: Back + Settings */}
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={onBack}
+            className="w-11 h-11 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/70 hover:bg-white/20 transition-colors"
+            aria-label="Oyundan çık"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <button
+            onClick={onToggleSettings}
+            className="w-11 h-11 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/70 hover:bg-white/20 transition-colors"
+            aria-label="Oyun ayarları"
+          >
+            <Settings className="w-5 h-5" />
+          </button>
+        </div>
 
         {/* Center: Logo + progress */}
         <div className="flex flex-col items-center flex-1 min-w-0">

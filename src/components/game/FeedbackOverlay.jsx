@@ -133,7 +133,11 @@ export default function FeedbackOverlay({ result, year, songTitle, guessedYear, 
         transition={{ duration: 0.15 }}
         onClick={isMusicQuestion ? undefined : finish}
         className={`fixed inset-0 z-40 flex items-center justify-center ${isMusicQuestion ? '' : 'cursor-pointer'}`}
-        style={{ background: isCorrect ? 'rgba(0,14,6,0.9)' : 'rgba(14,0,0,0.9)' }}
+        style={{
+          background: isCorrect ? 'rgba(0,14,6,0.9)' : 'rgba(14,0,0,0.9)',
+          paddingTop: 'env(safe-area-inset-top)',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+        }}
       >
         {/* Full-screen radial flash on entry */}
         <motion.div
