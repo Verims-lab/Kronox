@@ -141,7 +141,7 @@
     "update": {
       "$or": [
         {
-          "data.players.email": "{{user.email}}"
+          "data.host_email": "{{user.email}}"
         },
         {
           "user_condition": {
