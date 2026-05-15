@@ -6,6 +6,7 @@
 import { useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { addGameLog } from '@/components/game/GameDebugLog';
+import { loadRecentHistory, appendToHistory } from '@/lib/questionHistory';
 
 export function useGameActions({
   lobbyData,
@@ -25,15 +26,42 @@ export function useGameActions({
   setTimerKey,
   setGameStarted,
 }) {
-  // Fisher-Yates shuffle'dan sonra unused sorudan birini seç
+  /**
+   * Smart question picker:
+   * 1. Exclude current-session IDs (never repeat in same game).
+   * 2. Exclude recent cross-game history (reduce inter-game repetition).
+   * 3. If pool too small after step 2, relax history exclusion.
+   * 4. Fisher-Yates shuffle for true randomness.
+   * 5. Record chosen ID in persistent history.
+   */
   const pickQuestion = useCallback((usedIds, questions) => {
-    const available = questions.filter(q => !usedIds.has(q.id));
-    if (available.length === 0) return null;
-    for (let i = available.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [available[i], available[j]] = [available[j], available[i]];
+    // Step 1: remove current-session duplicates (hard rule)
+    const sessionFiltered = questions.filter(q => !usedIds.has(q.id));
+    if (sessionFiltered.length === 0) return null;
+
+    // Step 2: further exclude recent cross-game history
+    const recentHistory = new Set(loadRecentHistory());
+    let pool = sessionFiltered.filter(q => !recentHistory.has(q.id));
+
+    // Step 3: smart fallback — if pool drops below a safe threshold, relax history
+    if (pool.length < 5) {
+      pool = sessionFiltered; // fall back to session-filtered only
     }
-    return available[0];
+
+    // Step 4: Fisher-Yates shuffle
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+
+    const chosen = pool[0];
+
+    // Step 5: persist chosen ID in cross-game history
+    if (chosen) appendToHistory([chosen.id]);
+
+    addGameLog(`PICK id=${chosen?.id} pool=${pool.length} session_excluded=${usedIds.size} history_size=${recentHistory.size}`);
+
+    return chosen;
   }, []);
 
   // Oyun kaydını veritabanına yaz (tek oyunculu, giriş yapmış)

@@ -13,6 +13,7 @@ import { AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Loader2, X, WifiOff } from 'lucide-react';
 import { useOfflineQuestions } from '@/hooks/useOfflineQuestions';
+import { loadRecentHistory, appendToHistory } from '@/lib/questionHistory';
 
 import { useGameState } from '@/hooks/useGameState';
 import { useGameActions } from '@/hooks/useGameActions';
@@ -138,7 +139,16 @@ export default function Game() {
       return;
     }
 
-    const shuffled = [...questionPool];
+    // Exclude recently used cross-game questions for better variety
+    const recentHistory = new Set(loadRecentHistory());
+    let seedPool = questionPool.filter(q => !recentHistory.has(q.id));
+    // Smart fallback: if not enough fresh questions, use full pool
+    if (seedPool.length < playerNames.length * 2 + 5) {
+      seedPool = [...questionPool];
+    }
+
+    // Fisher-Yates shuffle
+    const shuffled = [...seedPool];
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
@@ -161,6 +171,9 @@ export default function Game() {
     const firstQ = shuffled[cursor];
     if (!firstQ) { setError('İlk soru için yeterli soru yok'); return; }
     used.add(firstQ.id);
+
+    // Record seed questions in persistent history
+    appendToHistory([...used]);
 
     setLobbyData({
       players: newPlayers,
