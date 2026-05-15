@@ -34,32 +34,44 @@ export function useGameActions({
    * 4. Fisher-Yates shuffle for true randomness.
    * 5. Record chosen ID in persistent history.
    */
-  const pickQuestion = useCallback((usedIds, questions) => {
-    // Step 1: remove current-session duplicates (hard rule)
+  /**
+   * Smart question picker:
+   * 1. Exclude current-session IDs (never repeat in same game). — hard rule
+   * 2. Exclude questions whose year already exists on the active player's timeline. — prefer
+   * 3. Exclude recent cross-game history. — prefer
+   * Fallback: relax (3) first, then (2), never relax (1).
+   */
+  const pickQuestion = useCallback((usedIds, questions, usedTimelineYears = new Set()) => {
+    // Step 1: hard — no session duplicates
     const sessionFiltered = questions.filter(q => !usedIds.has(q.id));
     if (sessionFiltered.length === 0) return null;
 
-    // Step 2: further exclude recent cross-game history
+    // Step 2 + 3 combined: exclude duplicate timeline years AND recent history
     const recentHistory = new Set(loadRecentHistory());
-    let pool = sessionFiltered.filter(q => !recentHistory.has(q.id));
+    let pool = sessionFiltered.filter(q =>
+      !usedTimelineYears.has(q.year) && !recentHistory.has(q.id)
+    );
 
-    // Step 3: smart fallback — if pool drops below a safe threshold, relax history
+    // Fallback A: relax recent history, keep year-duplicate exclusion
     if (pool.length < 5) {
-      pool = sessionFiltered; // fall back to session-filtered only
+      pool = sessionFiltered.filter(q => !usedTimelineYears.has(q.year));
     }
 
-    // Step 4: Fisher-Yates shuffle
+    // Fallback B: relax year-duplicate exclusion too (last resort)
+    if (pool.length < 5) {
+      pool = sessionFiltered;
+    }
+
+    // Fisher-Yates shuffle
     for (let i = pool.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [pool[i], pool[j]] = [pool[j], pool[i]];
     }
 
     const chosen = pool[0];
-
-    // Step 5: persist chosen ID in cross-game history
     if (chosen) appendToHistory([chosen.id]);
 
-    addGameLog(`PICK id=${chosen?.id} pool=${pool.length} session_excluded=${usedIds.size} history_size=${recentHistory.size}`);
+    addGameLog(`PICK id=${chosen?.id} year=${chosen?.year} pool=${pool.length} session_excluded=${usedIds.size} timeline_years=${usedTimelineYears.size}`);
 
     return chosen;
   }, []);
@@ -135,7 +147,9 @@ export function useGameActions({
     addGameLog(`PLACE correct=${isCorrect} zone=${zone} year=${questionYear} player=${snapshotPlayer.name} cards=${newPlayers[snapshotIndex]?.cards?.length} hasWon=${hasWon}`);
 
     const nextIndex = (snapshotIndex + 1) % snapshotPlayers.length;
-    const nextQ = !hasWon ? pickQuestion(newUsed, questionPool) : null;
+    const nextPlayerCards = newPlayers[nextIndex]?.cards || [];
+    const nextTimelineYears = new Set(nextPlayerCards.map(c => c.year));
+    const nextQ = !hasWon ? pickQuestion(newUsed, questionPool, nextTimelineYears) : null;
     if (nextQ) newUsed.add(nextQ.id);
 
     // Tek atomik state güncellemesi
@@ -214,7 +228,9 @@ export function useGameActions({
     const currentIndex = lobbyData.current_player_index ?? 0;
     const nextIndex = (currentIndex + 1) % players.length;
     const currentUsed = new Set(lobbyData.used_question_ids || []);
-    const nextQ = pickQuestion(currentUsed, questionPool);
+    const nextPlayerCards = players[nextIndex]?.cards || [];
+    const nextTimelineYears = new Set(nextPlayerCards.map(c => c.year));
+    const nextQ = pickQuestion(currentUsed, questionPool, nextTimelineYears);
     if (nextQ) currentUsed.add(nextQ.id);
 
     setSelectedZone(null);
