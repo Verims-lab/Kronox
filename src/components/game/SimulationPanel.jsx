@@ -4,26 +4,40 @@ import { X, Play, Zap, Users, Layers, Settings, Shield, Activity, ChevronRight, 
 import { base44 } from '@/api/base44Client';
 import EventStream from '@/components/qa/EventStream';
 
-// ─── Scenario groups (unchanged) ────────────────────────────────────────────
+// ─── Scenario groups ────────────────────────────────────────────────────────
 const SCENARIO_GROUPS = [
   {
-    id: 'multiplayer',
-    label: '2P / 3P / 4P',
+    id: 'solo',
+    label: 'Solo Oyun',
     icon: <Users className="w-3.5 h-3.5" />,
-    color: '#60a5fa',
+    color: '#c084fc',
     items: [
-      { key: '2p_normal',          label: 'Normal Akış',          desc: 'Sıralı hamle, kart birikimi, tur geçişi' },
-      { key: '2p_win',             label: 'Kazanma (P1)',         desc: 'P1 10 kart topluyor → finished' },
-      { key: '2p_rival_win',       label: 'Rakip Kazanır',        desc: 'P1=9, P2=8 → P1 son kartla bitirir' },
-      { key: '2p_turn_visibility', label: 'Tur Görünürlüğü',      desc: 'P1 yazar → P2 sırasını DB\'den alıyor mu?' },
-      { key: '2p_delayed',         label: 'Gecikmeli Yazma',      desc: 'DB 1.5sn geç → kart ve index korunuyor mu?' },
-      { key: '2p_concurrent',      label: 'Eş Zamanlı',           desc: '2 oyuncu aynı anda yazar → last-write-wins' },
-      { key: '3p_turn_order',      label: '3P Tur Sırası',        desc: '0→1→2→0 doğru dönüyor mu? (2 tam tur)' },
-      { key: '3p_spectate',        label: '3P İzleme',            desc: 'Sıra olmayan oyuncular kart ekleyemiyor' },
-      { key: 'player_leave',       label: 'Oyuncu Ayrılır',       desc: 'P3 çıkar → kalan 2 oyuncu, index korunur' },
-      { key: 'host_leave',         label: 'Host Ayrılır',         desc: 'Host çıkar → lobi silinir' },
-      { key: '4p_full',            label: '4P Tam Döngü',         desc: '4 oyuncu, 3 tam tur, tur sırası kontrolü' },
-      { key: '4p_win',             label: '4P Kazanma',           desc: 'P3 kazanıyor → diğerleri winner ekranını görür' },
+      { key: 'solo_game_init',         label: 'Oyun Başlatma',         desc: 'Solo Challenge → 2 kart + 1 ilk soru dağıtımı' },
+      { key: 'solo_category_teknoloji',label: 'Kategori: Teknoloji',   desc: 'Teknoloji kategorisi soru havuzu doğru filtreli' },
+      { key: 'solo_category_spor',     label: 'Kategori: Spor',        desc: 'Spor kategorisi soru havuzu doğru filtreli' },
+      { key: 'solo_category_muzik',    label: 'Kategori: Müzik',       desc: 'Müzik modu — media_url\'li sorulardan oluşan havuz' },
+      { key: 'solo_difficulty_rahat',  label: 'Zorluk: RAHAT (∞)',     desc: 'turnDuration=0 → timer pasif, sonsuz süre' },
+      { key: 'solo_difficulty_hizli',  label: 'Zorluk: HIZLI (30sn)', desc: 'turnDuration=30 → timer aktif' },
+      { key: 'solo_difficulty_kaos',   label: 'Zorluk: KAOS (15sn)',  desc: 'turnDuration=15 → en zor mod' },
+      { key: 'solo_win_condition',     label: 'Kazanma Koşulu',        desc: 'cards.length >= winCardCount → winner set edilir' },
+      { key: 'solo_game_restart',      label: 'Oyunu Yeniden Başlat', desc: 'resetGame() → başlangıç state\'e döner' },
+    ],
+  },
+  {
+    id: 'question_engine',
+    label: 'Soru Motoru',
+    icon: <Activity className="w-3.5 h-3.5" />,
+    color: '#facc15',
+    items: [
+      { key: 'qe_no_session_duplicate',   label: 'Oturum Tekrarı Yok',     desc: 'Aynı soru ID aynı oyunda bir kez seçilir' },
+      { key: 'qe_no_timeline_year_dup',   label: 'Timeline Yıl Tekrarı Yok', desc: 'Aktif timeline yılı havuzdan çıkarılır' },
+      { key: 'qe_recent_history',         label: 'Geçmiş Geçmişi Azaltır', desc: 'localStorage history daha az tekrar sağlar' },
+      { key: 'qe_fallback_small_pool',    label: 'Küçük Havuz Fallback',    desc: 'Havuz < 5 ise geçmiş kuralı gevşer' },
+      { key: 'qe_fallback_year_blocked',  label: 'Tüm Yıllar Bloke Fallback', desc: 'Tüm yıllar timeline\'da → yıl kuralı gevşer' },
+      { key: 'qe_pool_exhausted',         label: 'Havuz Tükenmesi',         desc: 'Tüm sorular kullanılınca null döner' },
+      { key: 'qe_category_filter',        label: 'Kategori Filtresi',       desc: 'Seçilen kategori dışı soru seçilmez' },
+      { key: 'qe_shuffle_randomness',     label: 'Rastgelelik Kontrolü',    desc: '20 seçimde hiç tekrar olmamalı' },
+      { key: 'qe_pool_500_perf',          label: '500 Soru → 50 Seçim',     desc: '500 soruluk havuzdan 50 benzersiz seçim hızı' },
     ],
   },
   {
@@ -32,43 +46,50 @@ const SCENARIO_GROUPS = [
     icon: <Layers className="w-3.5 h-3.5" />,
     color: '#4ade80',
     items: [
-      { key: 'placement_boundary',        label: 'Sınır Koşulları',   desc: 'Zone 0/N/orta, eşit yıl kenar değeri' },
-      { key: 'placement_empty_timeline',  label: 'Boş Timeline',      desc: '0 kartlı oyuncuya her yıl yerleştirilebilir' },
-      { key: 'placement_all_zones',       label: 'Tüm Zone Mantığı',  desc: '4 kartlı timeline üzerinde zone 0-4 kombinasyonları' },
-      { key: 'card_sort_accuracy',        label: 'Kart Sıralama',     desc: 'Yıllara göre sort ve eşit yıl kararlı sıralama' },
+      { key: 'placement_boundary',        label: 'Sınır Koşulları',    desc: 'Zone 0/N/orta, eşit yıl kenar değeri' },
+      { key: 'placement_empty_timeline',  label: 'Boş Timeline',       desc: '0 kartlı oyuncuya her yıl yerleştirilebilir' },
+      { key: 'placement_all_zones',       label: 'Tüm Zone Mantığı',   desc: '4 kartlı timeline üzerinde zone 0-4 kombinasyonları' },
+      { key: 'card_sort_accuracy',        label: 'Kart Sıralama',      desc: 'Yıllara göre sort ve eşit yıl kararlı sıralama' },
     ],
   },
   {
-    id: 'settings',
-    label: 'Oyun Ayarları',
+    id: 'media',
+    label: 'Medya',
+    icon: <Shield className="w-3.5 h-3.5" />,
+    color: '#f9a8d4',
+    items: [
+      { key: 'media_url_valid',        label: 'Geçerli media_url',      desc: 'Müzik sorularında media_url dolu ve https' },
+      { key: 'media_url_empty',        label: 'Boş media_url',          desc: 'media_url=null → metin kartı render edilir' },
+      { key: 'media_url_broken',       label: 'Bozuk media_url',        desc: 'Image error → fallback gradient kart görünür' },
+      { key: 'icon_url_fallback',      label: 'icon_url Fallback',      desc: 'media_url yok → icon_url kullanılır' },
+      { key: 'muzik_pool_filter',      label: 'Müzik Havuz Filtresi',   desc: 'media_url\'siz müzik sorusu havuza girmiyor' },
+    ],
+  },
+  {
+    id: 'online',
+    label: 'Online',
     icon: <Settings className="w-3.5 h-3.5" />,
+    color: '#60a5fa',
+    items: [
+      { key: '2p_normal',          label: 'Normal Akış',         desc: 'Sıralı hamle, kart birikimi, tur geçişi' },
+      { key: '2p_win',             label: 'Kazanma (P1)',        desc: 'P1 10 kart topluyor → finished' },
+      { key: '2p_concurrent',      label: 'Eş Zamanlı Yazma',   desc: '2 oyuncu aynı anda yazar → last-write-wins' },
+      { key: 'lobby_state_transitions', label: 'Durum Geçişleri', desc: 'waiting→starting→in_game→finished' },
+      { key: 'lobby_chat',         label: 'Lobi Sohbet',        desc: 'Chat/system mesajları oluşturulur ve okunur' },
+      { key: 'lobby_code_uniqueness', label: 'Kod Benzersizliği', desc: '10 lobi oluştur, kod çakışması kontrol et' },
+    ],
+  },
+  {
+    id: 'tutorial',
+    label: 'Tutorial',
+    icon: <Activity className="w-3.5 h-3.5" />,
     color: '#a78bfa',
     items: [
-      { key: 'win_thresholds',         label: 'Kazanma Eşiği',     desc: '5/7/10/15 kart eşiğinde winner doğru yazılır' },
-      { key: 'turn_duration_variants', label: 'Tur Süresi',        desc: '0(süresiz)/10/30/60/120sn kaydedilir' },
-      { key: 'category_filter',        label: 'Kategori Filtresi', desc: 'Tüm kategoriler DB\'ye doğru yazılır' },
-      { key: 'year_range',             label: 'Yıl Aralığı',       desc: 'Dar/geniş/antik aralıklar doğru kaydedilir' },
-      { key: 'category_year_combo',    label: 'Kategori × Yıl',   desc: 'Kombinasyon ayarları tutarlı kaydedilir' },
-      { key: 'player_count_limits',    label: 'Oyuncu Limiti',     desc: '1-4 arası her oyuncu sayısı lobi oluşturabilir' },
-    ],
-  },
-  {
-    id: 'data',
-    label: 'Veri & Soru',
-    icon: <Activity className="w-3.5 h-3.5" />,
-    color: '#facc15',
-    items: [
-      { key: 'lobby_state_transitions',    label: 'Durum Geçişleri',      desc: 'waiting→starting→in_game→finished' },
-      { key: 'pool_exhausted',             label: 'Soru Tükenmesi',       desc: '200 ID kullanıldığında DB tutarlı kalır' },
-      { key: 'dedup_questions',            label: 'Soru Dedup',           desc: 'Aynı soru ID iki kez girilmez' },
-      { key: 'player_name_edge',           label: 'İsim Kenar Değerler',  desc: 'Türkçe, XSS, uzun, tek karakter isimler' },
-      { key: 'lobby_chat',                 label: 'Lobi Sohbet',          desc: 'Chat/system mesajları oluşturulur ve okunur' },
-      { key: 'game_restart',               label: 'Oyun Yeniden Başlat',  desc: 'Finished → waiting, kartlar sıfırlanır' },
-      { key: 'lobby_code_uniqueness',      label: 'Lobi Kod Benzersizliği', desc: '10 lobi oluştur, kod çakışması kontrol et' },
-      { key: 'single_player_offline',      label: 'Offline Soru Havuzu',  desc: 'Kategorilere göre min 10 metin soru kontrolü' },
-      { key: 'question_type_distribution', label: 'Tip Dağılımı',         desc: 'Metin/görsel/ses soru sayıları ve oranları' },
-      { key: 'question_year_coverage',     label: 'Yıl Kapsamı',          desc: 'Tüm yıl aralıklarında soru dağılımı' },
-      { key: 'offline_game_init',          label: 'Offline Başlatma',     desc: 'Fisher-Yates shuffle, kart dağıtımı, tekrar yok' },
+      { key: 'tutorial_first_launch',   label: 'İlk Açılış',          desc: 'hasSeen=false → tutorial gösterilir' },
+      { key: 'tutorial_skip',           label: 'Atla',                 desc: 'onSkip → showTutorial=false, markSeen=true' },
+      { key: 'tutorial_complete',       label: 'Tamamla',              desc: 'onDone → showTutorial=false, markSeen=true' },
+      { key: 'tutorial_no_reshow',      label: 'Tekrar Açılmıyor',    desc: 'hasSeen=true → tutorial auto-show olmaz' },
+      { key: 'tutorial_settings_reopen',label: 'Settings\'ten Aç',    desc: '"Nasıl Oynanır?" → tutorial manuel açılır' },
     ],
   },
   {
@@ -77,11 +98,11 @@ const SCENARIO_GROUPS = [
     icon: <Zap className="w-3.5 h-3.5" />,
     color: '#f87171',
     items: [
-      { key: 'perf_question_filter', label: 'Soru Filtreleme',   desc: '200 soru fetch → filtre → Set lookup ms ölçümü' },
-      { key: 'perf_db_throughput',   label: 'DB Yazma Hızı',     desc: '10 ardışık update, ortalama ms/yazma ölçümü' },
-      { key: 'subscription_cleanup', label: 'Sub Temizliği',     desc: '5 ardışık update → unsubscribe pattern doğrulaması' },
-      { key: 'multi_lobby_isolation',label: 'Çoklu Lobi',        desc: '2 paralel lobi birbirini etkilemiyor mu?' },
-      { key: 'win_timer_race',       label: 'Win + Timer Race',  desc: 'Kazanma + timer dolması aynı anda → state tutarlı' },
+      { key: 'perf_question_filter', label: 'Soru Filtreleme',   desc: '500 soru fetch → filtre → ms ölçümü' },
+      { key: 'perf_db_throughput',   label: 'DB Yazma Hızı',    desc: '10 ardışık update, ortalama ms/yazma' },
+      { key: 'multi_lobby_isolation',label: 'Çoklu Lobi',       desc: '2 paralel lobi birbirini etkilemiyor mu?' },
+      { key: 'win_timer_race',       label: 'Win + Timer Race', desc: 'Kazanma + timer dolması aynı anda → tutarlı' },
+      { key: 'perf_20_picks',        label: '20 Hızlı Seçim',  desc: '20 ardışık pickQuestion < 200ms' },
     ],
   },
 ];
@@ -171,7 +192,7 @@ export default function SimulationPanel({ onClose }) {
   const [progress, setProgress]           = useState(0);
   const [runAllProgress, setRunAllProgress] = useState(null); // { done, total } | null
   const [streamLogs, setStreamLogs]       = useState([]);
-  const [activeGroup, setActiveGroup]     = useState('multiplayer');
+  const [activeGroup, setActiveGroup]     = useState('solo');
   const progressTimerRef = useRef(null);
   const runAllAbortRef   = useRef(false);
 
@@ -297,7 +318,7 @@ export default function SimulationPanel({ onClose }) {
           style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="font-cinzel text-base text-primary tracking-widest font-bold">ONLINE SİMÜLASYON</h2>
+              <h2 className="font-cinzel text-base text-primary tracking-widest font-bold">OYUN SİMÜLASYONU</h2>
               <p className="font-inter text-[10px] text-white/35 mt-0.5">
                 {totalRun > 0
                   ? <span>

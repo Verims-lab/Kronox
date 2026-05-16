@@ -9,19 +9,23 @@ import RunningOverlay from '@/components/qa/RunningOverlay';
 import EventStream from '@/components/qa/EventStream';
 
 const SUITES = [
-  { id: 'all',         label: 'Tüm Testler',       icon: '🧪', color: '#facc15' },
-  { id: 'unit',        label: 'Unit',               icon: '⚙️',  color: '#60a5fa' },
-  { id: 'blackbox',    label: 'Black Box',          icon: '📦',  color: '#a78bfa' },
-  { id: 'functional',  label: 'Fonksiyonel',        icon: '🔧',  color: '#4ade80' },
-  { id: 'performance', label: 'Performans',         icon: '⚡',  color: '#fde68a' },
-  { id: 'playability', label: 'Oynanabilirlik',     icon: '🎮',  color: '#f87171' },
-  { id: 'music',       label: 'Müzik',              icon: '🎵',  color: '#f9a8d4' },
-  { id: 'ui',          label: 'UI',                 icon: '🖥️',  color: '#67e8f9' },
-  { id: 'e2e',         label: 'E2E',                icon: '🔁',  color: '#fb923c' },
-  { id: 'api',         label: 'API',                icon: '🔌',  color: '#818cf8' },
-  { id: 'stability',   label: 'Kararlılık',         icon: '🛡️',  color: '#fca5a5' },
-  { id: 'device',      label: 'Cihaz',              icon: '📱',  color: '#2dd4bf' },
-  { id: 'ab',          label: 'A/B',                icon: '🔀',  color: '#fcd34d' },
+  { id: 'all',            label: 'Tüm Testler',      icon: '🧪', color: '#facc15' },
+  { id: 'smoke',          label: 'Smoke',            icon: '💨', color: '#67e8f9' },
+  { id: 'unit',           label: 'Unit',             icon: '⚙️', color: '#60a5fa' },
+  { id: 'question_engine',label: 'Soru Motoru',      icon: '🎯', color: '#c084fc' },
+  { id: 'functional',     label: 'Fonksiyonel',      icon: '🔧', color: '#4ade80' },
+  { id: 'media',          label: 'Medya',            icon: '🖼️', color: '#f9a8d4' },
+  { id: 'admin',          label: 'Admin',            icon: '🛡️', color: '#f59e0b' },
+  { id: 'tutorial',       label: 'Tutorial',         icon: '📖', color: '#a78bfa' },
+  { id: 'regression',     label: 'Regresyon',        icon: '🔁', color: '#fb923c' },
+  { id: 'blackbox',       label: 'Black Box',        icon: '📦', color: '#818cf8' },
+  { id: 'stability',      label: 'Kararlılık',       icon: '🏗️', color: '#fca5a5' },
+  { id: 'performance',    label: 'Performans',       icon: '⚡', color: '#fde68a' },
+  { id: 'playability',    label: 'Oynanabilirlik',   icon: '🎮', color: '#f87171' },
+  { id: 'music',          label: 'Müzik',            icon: '🎵', color: '#e879f9' },
+  { id: 'api',            label: 'API',              icon: '🔌', color: '#38bdf8' },
+  { id: 'device',         label: 'Cihaz',            icon: '📱', color: '#2dd4bf' },
+  { id: 'ab',             label: 'A/B',              icon: '🔀', color: '#fcd34d' },
 ];
 
 function SuiteButton({ suite, selected, onSelect }) {
@@ -110,26 +114,31 @@ export default function TestSuite() {
         visible={loading}
         label={SUITES.find(s => s.id === selectedSuite)?.label || selectedSuite}
         progress={progress}
-        subtitle={selectedSuite === 'all' ? '96 test senaryosu · tahmini ~90sn' : 'tahmini ~12sn'}
+        subtitle={selectedSuite === 'all' ? '130+ test senaryosu · tahmini ~120sn' : 'tahmini ~12sn'}
       />
 
       <div className="max-w-2xl mx-auto">
         <QAHeader
           healthScore={healthScore}
-          totalTests="96"
+          totalTests="130+"
           lastRunTime={lastRunTime}
         />
 
         {/* Suite selector */}
         <div className="px-4 mb-4">
           <p className="font-inter text-[9px] uppercase tracking-widest text-white/30 mb-2 px-1">Test Paketi Seç</p>
-          <div className="grid grid-cols-7 gap-1.5">
-            {SUITES.slice(0, 7).map(s => (
+          <div className="grid grid-cols-6 gap-1.5">
+            {SUITES.slice(0, 6).map(s => (
               <SuiteButton key={s.id} suite={s} selected={selectedSuite} onSelect={setSelectedSuite} />
             ))}
           </div>
           <div className="grid grid-cols-6 gap-1.5 mt-1.5">
-            {SUITES.slice(7).map(s => (
+            {SUITES.slice(6, 12).map(s => (
+              <SuiteButton key={s.id} suite={s} selected={selectedSuite} onSelect={setSelectedSuite} />
+            ))}
+          </div>
+          <div className="grid grid-cols-5 gap-1.5 mt-1.5">
+            {SUITES.slice(12).map(s => (
               <SuiteButton key={s.id} suite={s} selected={selectedSuite} onSelect={setSelectedSuite} />
             ))}
           </div>
@@ -178,12 +187,24 @@ export default function TestSuite() {
           </div>
         )}
 
-        {/* Elapsed */}
-        {elapsed && results && !results.error && (
-          <div className="px-5 mb-2">
-            <span className="font-inter text-[10px] text-white/25">
-              Toplam süre: {(elapsed / 1000).toFixed(1)}s · {total} test
-            </span>
+        {/* Warning count */}
+        {results?.results && (
+          <div className="px-5 mb-1 flex items-center gap-3 flex-wrap">
+            {elapsed && (
+              <span className="font-inter text-[10px] text-white/25">
+                Toplam süre: {(elapsed / 1000).toFixed(1)}s · {total} test
+              </span>
+            )}
+            {results.results.filter(r => r.status === 'WARNING').length > 0 && (
+              <span className="font-inter text-[10px] text-yellow-400/70">
+                ⚠️ {results.results.filter(r => r.status === 'WARNING').length} uyarı
+              </span>
+            )}
+            {results.results.filter(r => r.status === 'SKIPPED' || (r.detail && r.detail.includes('SKIPPED'))).length > 0 && (
+              <span className="font-inter text-[10px] text-white/30">
+                ⏭ bazı testler atlandı
+              </span>
+            )}
           </div>
         )}
 
