@@ -41,7 +41,6 @@ export default function LobbyRoom() {
     return '';
   };
   const [copied, setCopied] = useState(false);
-  const unsubRef = useRef(null);
 
   useEffect(() => {
     base44.auth.me().then(u => {
@@ -49,57 +48,7 @@ export default function LobbyRoom() {
     }).catch(() => {});
   }, []);
 
-  // Subscribe to lobby changes
-  // user & playerName refs — subscription closure'da stale değer yakalanmasın
-  const userRef = useRef(user);
-  const playerNameRef = useRef(playerName);
-  useEffect(() => { userRef.current = user; }, [user]);
-  useEffect(() => { playerNameRef.current = playerName; }, [playerName]);
-
-  useEffect(() => {
-    if (!lobby?.id) return;
-    
-    const unsub = base44.entities.Lobby.subscribe((event) => {
-      if (event.id !== lobby.id) return;
-      
-      if (event.type === 'delete') {
-        setLobby(null);
-        setMode(null);
-        setError('Lobi kapatıldı.');
-        return;
-      }
-      
-      setLobby(event.data);
-      
-      // If host started the game — only non-hosts navigate via subscription
-      // Host navigates directly in handleStart with playersWithCards
-      const currentUser = userRef.current;
-      const currentPlayerName = playerNameRef.current;
-      const isCurrentUserHost = event.data.host_email === (currentUser?.email || '');
-      const isGuestCurrentHost = !currentUser && event.data.players?.[0]?.name === currentPlayerName.trim();
-      if (event.data.status === 'starting' && !isCurrentUserHost && !isGuestCurrentHost) {
-        navigate('/game', {
-          state: {
-            playerNames: event.data.players.map(p => p.name),
-            initialPlayers: event.data.players,
-            currentQuestionId: event.data.current_question_id,
-            category: event.data.category,
-            yearStart: event.data.year_start,
-            yearEnd: event.data.year_end,
-            turnDuration: event.data.turn_duration,
-            winCardCount: event.data.win_card_count,
-            lobbyId: event.data.id,
-            myPlayerName: currentPlayerName.trim(),
-          }
-        });
-      }
-    });
-    
-    unsubRef.current = unsub;
-    return () => {
-      if (unsubRef.current) unsubRef.current();
-    };
-  }, [lobby?.id, navigate]);
+  // Subscription is handled inside WaitingRoom once lobby is set
 
   const handleCreate = async () => {
     const err = validateName(playerName);
@@ -284,6 +233,58 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
   }, [lobby?.id, setLobby]);
 
   const { containerRef: waitingScrollRef, pullY, refreshing } = usePullToRefresh(refreshLobby);
+
+  // Non-host: subscribe to lobby and navigate to /game when host starts
+  const playerNameRef = useRef(playerName);
+  const userRef = useRef(user);
+  useEffect(() => { playerNameRef.current = playerName; }, [playerName]);
+  useEffect(() => { userRef.current = user; }, [user]);
+
+  useEffect(() => {
+    if (!lobby?.id) return;
+
+    const unsub = base44.entities.Lobby.subscribe((event) => {
+      if (event.id !== lobby.id) return;
+
+      console.log('[WaitingRoom] subscription event type:', event.type, 'status:', event.data?.status, 'lobbyId:', event.id, 'playerName:', playerNameRef.current, 'userEmail:', userRef.current?.email);
+
+      if (event.type === 'delete') {
+        setLobby(null);
+        return;
+      }
+
+      // Always update lobby state (player list, settings changes, etc.)
+      setLobby(event.data);
+
+      const status = event.data?.status;
+      const currentUser = userRef.current;
+      const currentPlayerName = playerNameRef.current?.trim();
+      const isCurrentUserHost = event.data?.host_email && currentUser?.email === event.data.host_email;
+
+      console.log('[WaitingRoom] isCurrentUserHost:', isCurrentUserHost, 'status:', status);
+
+      // Non-host navigates when game starts
+      if ((status === 'starting' || status === 'in_game') && !isCurrentUserHost) {
+        console.log('[WaitingRoom] navigating non-host to /game lobbyId:', event.data.id, 'myPlayerName:', currentPlayerName);
+        navigate('/game', {
+          state: {
+            playerNames: event.data.players.map(p => p.name),
+            initialPlayers: event.data.players,
+            currentQuestionId: event.data.current_question_id,
+            category: event.data.category,
+            yearStart: event.data.year_start,
+            yearEnd: event.data.year_end,
+            turnDuration: event.data.turn_duration,
+            winCardCount: event.data.win_card_count,
+            lobbyId: event.data.id,
+            myPlayerName: currentPlayerName,
+          }
+        });
+      }
+    });
+
+    return () => unsub();
+  }, [lobby?.id, navigate, setLobby]);
 
   // settings, lobby prop'undan türetilir — dışarıdan gelen güncellemeler (subscription) yansısın
   const [settings, setSettings] = useState({
