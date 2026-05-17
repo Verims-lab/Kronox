@@ -9,8 +9,18 @@ import LobbyChat from '@/components/lobby/LobbyChat';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 
 function generateCode() {
-  return Math.random().toString(36).substring(2, 8).toUpperCase();
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no ambiguous chars (0/O, 1/I)
+  let code = '';
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
 }
+
+const normalizeCode = (code) =>
+  String(code || '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '')
+    .replace(/[^\w]/g, '');
 
 export default function LobbyRoom() {
   const navigate = useNavigate();
@@ -96,7 +106,7 @@ export default function LobbyRoom() {
     if (err) return setNameError(err);
     setLoading(true);
     setError('');
-    const code = generateCode();
+    const code = normalizeCode(generateCode());
     const me = user || { email: `guest_${Date.now()}@kronos.local`, full_name: playerName };
     const newLobby = await base44.entities.Lobby.create({
       code,
@@ -110,6 +120,7 @@ export default function LobbyRoom() {
       turn_duration: 60,
       win_card_count: 10,
     });
+    console.log('[LobbyRoom] created lobby id:', newLobby.id, 'code:', newLobby.code, 'status:', newLobby.status, 'host:', newLobby.host_email);
     setLobby(newLobby);
     setLoading(false);
   };
@@ -117,32 +128,83 @@ export default function LobbyRoom() {
   const handleJoin = async () => {
     const err = validateName(playerName);
     if (err) return setNameError(err);
-    if (!joinCode.trim()) return setError('Lobi kodu girin.');
+    const normalized = normalizeCode(joinCode);
+    if (!normalized) return setError('Lobi kodu girin.');
     setLoading(true);
     setError('');
-    const results = await base44.entities.Lobby.filter({ code: joinCode.trim().toUpperCase() });
-    if (!results || results.length === 0) {
-      setError('Lobi bulunamadı.');
+
+    console.log('[LobbyRoom] join attempt rawCode:', JSON.stringify(joinCode), 'normalized:', normalized);
+
+    // Use backend function to bypass Lobby RLS (non-members cannot read lobbies directly)
+    let lookupResult;
+    try {
+      const res = await base44.functions.invoke('findLobbyByCode', { code: normalized });
+      lookupResult = res.data;
+    } catch (e) {
+      console.error('[LobbyRoom] findLobbyByCode error:', e.message);
+      setError('Lobi arama başarısız oldu. Tekrar deneyin.');
       setLoading(false);
       return;
     }
-    // Re-fetch the freshest state to guard against race condition
-    const freshLobby = await base44.entities.Lobby.get(results[0].id);
-    if (!freshLobby || freshLobby.status !== 'waiting') {
-      setError('Lobi başladı veya artık katılım kapalı.');
+
+    console.log('[LobbyRoom] lookup result:', JSON.stringify(lookupResult?.debug));
+
+    if (!lookupResult?.found) {
+      setError('Lobi bulunamadı. Kod hatalı olabilir.');
       setLoading(false);
       return;
     }
-    const found = freshLobby;
+    if (!lookupResult?.joinable) {
+      setError('Bu lobi artık katılıma kapalı.');
+      setLoading(false);
+      return;
+    }
+
+    const lobbyId = lookupResult.lobby.id;
+    // Now fetch full lobby state — user is not yet a member so we need service role,
+    // but the update below will add them; get fresh data via the backend lookup id
+    // and then do the update (update RLS only requires creator, not read membership)
     const me = user || { email: `guest_${Date.now()}@kronos.local`, full_name: playerName };
-    const alreadyIn = found.players?.some(p => p.email === me.email);
-    if (!alreadyIn) {
-      const updated = await base44.entities.Lobby.update(found.id, {
-        players: [...(found.players || []), { email: me.email, name: playerName.trim(), ready: true }]
-      });
-      setLobby(updated);
-    } else {
-      setLobby(found);
+
+    try {
+      // Fetch current players using service-role via another lookup or use the count
+      // We can read after joining; first add ourselves with a targeted update
+      // To get current players list we do a fresh get — after adding ourselves to players
+      // the RLS will allow us to read. Use the update endpoint directly:
+      const freshLobby = await base44.entities.Lobby.get(lobbyId).catch(() => null);
+
+      let currentPlayers;
+      if (freshLobby) {
+        currentPlayers = freshLobby.players || [];
+      } else {
+        // Can't read yet (RLS) — try joining with just ourselves appended via another lookup
+        const res2 = await base44.functions.invoke('findLobbyByCode', { code: normalized });
+        if (!res2.data?.joinable) {
+          setError('Bu lobi artık katılıma kapalı.');
+          setLoading(false);
+          return;
+        }
+        currentPlayers = [];
+      }
+
+      const alreadyIn = currentPlayers.some(p => p.email === me.email);
+      if (!alreadyIn) {
+        const updated = await base44.entities.Lobby.update(lobbyId, {
+          players: [...currentPlayers, { email: me.email, name: playerName.trim(), ready: true }]
+        });
+        setLobby(updated);
+      } else {
+        // Already in — just set the lobby (freshLobby may be null if RLS blocked it)
+        if (freshLobby) setLobby(freshLobby);
+        else {
+          // Fetch again now that we're a member
+          const rejoined = await base44.entities.Lobby.get(lobbyId);
+          setLobby(rejoined);
+        }
+      }
+    } catch (e) {
+      console.error('[LobbyRoom] join update error:', e.message);
+      setError('Lobi bulundu ama katılım başarısız oldu. Tekrar deneyin.');
     }
     setLoading(false);
   };
