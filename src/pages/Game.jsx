@@ -229,9 +229,10 @@ export default function Game() {
   const handleConfirmPlacement = useCallback(() => { if (selectedZone !== null) doPlacement(selectedZone, { category, yearStart, yearEnd }); }, [doPlacement, selectedZone, category, yearStart, yearEnd]);
   const handleTimeUp = useCallback(() => {
     if (feedback !== null || winner) return;
+    if (!isMyTurn) return;
     setIsTimeUp(true);
     advanceTurn(winner);
-  }, [feedback, winner, advanceTurn, setIsTimeUp]);
+  }, [feedback, winner, isMyTurn, advanceTurn, setIsTimeUp]);
   const handleFeedbackDone = useCallback(() => { setFeedback(null); setIsTimeUp(false); }, [setFeedback, setIsTimeUp]);
   const handleImageError = useCallback(() => skipCurrentQuestion(currentQuestion?.id), [currentQuestion?.id, skipCurrentQuestion]);
   const handleAudioError = useCallback(() => skipCurrentQuestion(currentQuestion?.id), [currentQuestion?.id, skipCurrentQuestion]);

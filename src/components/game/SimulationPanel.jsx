@@ -165,6 +165,10 @@ const SCENARIO_GROUPS = [
       { key: 'player_leave',             label: 'Oyuncu Ayrılır',        desc: 'Guest çıkar → kalan oyuncular korunur' },
       { key: 'host_leave',               label: 'Host Ayrılır',          desc: 'Host çıkar → lobi silinir' },
       { key: 'dedup_questions',          label: 'Soru Dedup (Online)',   desc: 'Aynı soru ID iki kez used\'a girilmez' },
+      { key: 'non_active_timer_guard',   label: 'Timer Guard (Pasif)',   desc: 'Sırası olmayan istemci advanceTurn yapamaz' },
+      { key: 'init_player_index_from_db',label: 'Init Index DB\'den',    desc: 'Yeniden giriş → current_player_index DB\'den alınıyor' },
+      { key: 'join_blocked_if_started',  label: 'Katılım Engeli',        desc: 'in_game lobiye katılım reddedilir' },
+      { key: 'used_ids_written_no_nextq',label: 'used_ids Pool Tükenince',desc: 'nextQ=null olsa bile used_question_ids DB\'ye yazılır' },
     ],
   },
 ];

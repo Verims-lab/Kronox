@@ -120,13 +120,20 @@ export default function LobbyRoom() {
     if (!joinCode.trim()) return setError('Lobi kodu girin.');
     setLoading(true);
     setError('');
-    const results = await base44.entities.Lobby.filter({ code: joinCode.trim().toUpperCase(), status: 'waiting' });
+    const results = await base44.entities.Lobby.filter({ code: joinCode.trim().toUpperCase() });
     if (!results || results.length === 0) {
-      setError('Lobi bulunamadı veya zaten başladı.');
+      setError('Lobi bulunamadı.');
       setLoading(false);
       return;
     }
-    const found = results[0];
+    // Re-fetch the freshest state to guard against race condition
+    const freshLobby = await base44.entities.Lobby.get(results[0].id);
+    if (!freshLobby || freshLobby.status !== 'waiting') {
+      setError('Lobi başladı veya artık katılım kapalı.');
+      setLoading(false);
+      return;
+    }
+    const found = freshLobby;
     const me = user || { email: `guest_${Date.now()}@kronos.local`, full_name: playerName };
     const alreadyIn = found.players?.some(p => p.email === me.email);
     if (!alreadyIn) {

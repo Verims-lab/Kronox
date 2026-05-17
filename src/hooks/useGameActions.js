@@ -245,7 +245,8 @@ export function useGameActions({
     if (lobbyId) {
       base44.entities.Lobby.update(lobbyId, {
         current_player_index: nextIndex,
-        ...(nextQ ? { current_question_id: nextQ.id, used_question_ids: [...currentUsed] } : {}),
+        used_question_ids: [...currentUsed],
+        ...(nextQ ? { current_question_id: nextQ.id } : {}),
       }).catch(err => console.error('[Game] advanceTurn DB failed:', err));
     }
   }, [lobbyData, players.length, pickQuestion, lobbyId, questionPool, setSelectedZone, setTimerKey, setLobbyData]);

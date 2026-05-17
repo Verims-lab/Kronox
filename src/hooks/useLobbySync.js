@@ -26,24 +26,42 @@ export function useLobbySync({
     const initPlayers = initialPlayersRef.current;
     const initQuestionId = currentQuestionIdRef.current;
 
-    // İlk yükleme
-    if (initPlayers && initPlayers.length > 0) {
-      const usedIds = [
-        initQuestionId,
-        ...initPlayers.flatMap(p => p.cards?.map(c => c.id) || [])
-      ].filter(Boolean);
-
-      setLobbyData({
-        players: initPlayers,
-        current_player_index: 0,
-        current_question_id: initQuestionId,
-        used_question_ids: usedIds,
+    // İlk yükleme — always fetch fresh DB state to get correct current_player_index
+    base44.entities.Lobby.get(lobbyId)
+      .then(data => {
+        if (data) {
+          setLobbyData(data);
+        } else if (initPlayers && initPlayers.length > 0) {
+          // Fallback to route state if DB fetch returns nothing
+          const usedIds = [
+            initQuestionId,
+            ...initPlayers.flatMap(p => p.cards?.map(c => c.id) || [])
+          ].filter(Boolean);
+          setLobbyData({
+            players: initPlayers,
+            current_player_index: 0,
+            current_question_id: initQuestionId,
+            used_question_ids: usedIds,
+          });
+        }
+      })
+      .catch(err => {
+        // Fallback to route state on error
+        if (initPlayers && initPlayers.length > 0) {
+          const usedIds = [
+            initQuestionId,
+            ...initPlayers.flatMap(p => p.cards?.map(c => c.id) || [])
+          ].filter(Boolean);
+          setLobbyData({
+            players: initPlayers,
+            current_player_index: 0,
+            current_question_id: initQuestionId,
+            used_question_ids: usedIds,
+          });
+        } else {
+          setError('Lobi yüklenemedi: ' + err.message);
+        }
       });
-    } else {
-      base44.entities.Lobby.get(lobbyId)
-        .then(data => setLobbyData(data))
-        .catch(err => setError('Lobi yüklenemedi: ' + err.message));
-    }
 
     // Realtime subscription — Android Flow'a eşdeğer
     if (unsubRef.current) unsubRef.current();
