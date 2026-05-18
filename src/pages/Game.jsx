@@ -32,14 +32,16 @@ export default function Game() {
   const navigate = useNavigate();
 
   // Route state
-  const playerNames = location.state?.playerNames;
-  const initialPlayers = location.state?.initialPlayers;
+  const lobbyId = location.state?.lobbyId ?? null;
+  const isOnlineFromState = location.state?.online ?? !!lobbyId;
+  // For non-host online join, playerNames may not be in state — useLobbySync will fetch them
+  const playerNames = location.state?.playerNames ?? (lobbyId ? [] : null);
+  const initialPlayers = location.state?.initialPlayers ?? [];
   const category = location.state?.category || 'karisik';
   const yearStart = location.state?.yearStart ?? 0;
   const yearEnd = location.state?.yearEnd ?? new Date().getFullYear();
   const turnDuration = location.state?.turnDuration ?? 60;
   const winCardCount = location.state?.winCardCount ?? 10;
-  const lobbyId = location.state?.lobbyId ?? null;
   const myPlayerName = location.state?.myPlayerName ?? null;
   const currentQuestionIdFromState = location.state?.currentQuestionId ?? null;
 
@@ -120,10 +122,10 @@ export default function Game() {
 
   // ─── Effects ──────────────────────────────────────────────────────
 
-  // Redirect if no player names
+  // Redirect if no player names and not an online game (online games fetch via useLobbySync)
   useEffect(() => {
-    if (!playerNames) navigate('/');
-  }, [playerNames, navigate]);
+    if (!playerNames && !lobbyId) navigate('/');
+  }, [playerNames, lobbyId, navigate]);
 
   // Offline: oyun başlatma — lobby yoksa questions gelince init et
   const lobbyDataRef = useRef(null);
@@ -243,7 +245,8 @@ export default function Game() {
   };
 
   // ─── Render guards ────────────────────────────────────────────────
-  if (!playerNames) return null;
+  // For online games, playerNames may be empty array (non-host joined with just lobbyId)
+  if (!playerNames && !lobbyId) return null;
 
   if (error) return (
     <div className="min-h-screen flex items-center justify-center bg-background p-6">

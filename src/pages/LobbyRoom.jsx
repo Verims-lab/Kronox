@@ -259,15 +259,25 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
       const status = event.data?.status;
       const currentUser = userRef.current;
       const currentPlayerName = playerNameRef.current?.trim();
-      const isCurrentUserHost = event.data?.host_email && currentUser?.email === event.data.host_email;
 
-      console.log('[WaitingRoom] isCurrentUserHost:', isCurrentUserHost, 'status:', status);
+      // Determine host: by email (authenticated) or by being first player / host_name (guest)
+      const hostEmail = event.data?.host_email || '';
+      const isAuthHost = currentUser?.email && currentUser.email === hostEmail;
+      const isGuestHost = !currentUser?.email && (
+        currentPlayerName === event.data?.host_name ||
+        currentPlayerName === event.data?.players?.[0]?.name
+      );
+      const isCurrentUserHost = isAuthHost || isGuestHost;
+
+      console.log('[WaitingRoom] sub status:', status, 'isHost:', isCurrentUserHost, 'playerName:', currentPlayerName, 'userEmail:', currentUser?.email, 'hostEmail:', hostEmail);
 
       // Non-host navigates when game starts
       if ((status === 'starting' || status === 'in_game') && !isCurrentUserHost) {
         console.log('[WaitingRoom] navigating non-host to /game lobbyId:', event.data.id, 'myPlayerName:', currentPlayerName);
         navigate('/game', {
           state: {
+            lobbyId: event.data.id,
+            online: true,
             playerNames: event.data.players.map(p => p.name),
             initialPlayers: event.data.players,
             currentQuestionId: event.data.current_question_id,
@@ -276,7 +286,6 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
             yearEnd: event.data.year_end,
             turnDuration: event.data.turn_duration,
             winCardCount: event.data.win_card_count,
-            lobbyId: event.data.id,
             myPlayerName: currentPlayerName,
           }
         });
@@ -379,6 +388,9 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
       current_player_index: 0,
       players: playersWithCards
     };
+
+    console.log('[handleStart] lobbyId:', lobby.id, 'playerCount:', playersWithCards.length, 'status:', updateData.status, 'current_player_index:', updateData.current_player_index, 'current_question_id:', updateData.current_question_id, 'used_count:', updateData.used_question_ids.length, 'players:', playersWithCards.map(p => p.name));
+
     await base44.entities.Lobby.update(lobby.id, updateData);
     navigate('/game', {
       state: {
