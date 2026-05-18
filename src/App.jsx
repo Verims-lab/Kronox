@@ -12,6 +12,7 @@ import BottomNav from '@/components/layout/BottomNav';
 import AppHeader from '@/components/layout/AppHeader';
 import SplashScreen from '@/components/SplashScreen';
 import { NavigationStackProvider } from '@/lib/NavigationStackContext';
+import BuildMarker from '@/components/dev/BuildMarker';
 
 const PlayerSetup = lazy(() => import('./pages/PlayerSetup'));
 const MainMenu = lazy(() => import('./pages/MainMenu'));
@@ -102,6 +103,7 @@ function App() {
       <QueryClientProvider client={queryClientInstance}>
         <Router>
           <NavigationStackProvider>
+            <BuildMarker />
             <AuthenticatedApp />
           </NavigationStackProvider>
         </Router>

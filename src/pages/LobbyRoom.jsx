@@ -226,6 +226,21 @@ export default function LobbyRoom() {
 }
 
 function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLeave, onCopyCode, copied, navigate }) {
+  const [startDebug, setStartDebug] = useState({
+    subscribedLobbyId: lobby?.id || null,
+    localLobbyStatus: lobby?.status || null,
+    lastEventAt: null,
+    lastEventStatus: null,
+    lastEventLobbyId: null,
+    shouldNavigateToGame: false,
+    navigateCalled: false,
+    currentPathname: window.location.pathname,
+    currentUserEmail: user?.email || null,
+    currentPlayerName: playerName || null,
+    source: null,
+    error: null,
+  });
+
   const refreshLobby = useCallback(async () => {
     if (!lobby?.id) return;
     const fresh = await base44.entities.Lobby.get(lobby.id);
@@ -242,14 +257,68 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
   useEffect(() => { userRef.current = user; }, [user]);
 
   useEffect(() => {
+    setStartDebug(prev => ({
+      ...prev,
+      subscribedLobbyId: lobby?.id || null,
+      localLobbyStatus: lobby?.status || null,
+      currentPathname: window.location.pathname,
+      currentUserEmail: user?.email || null,
+      currentPlayerName: playerName || null,
+    }));
+  }, [lobby?.id, lobby?.status, user?.email, playerName]);
+
+  const isDebugVisible = !isHost && (import.meta.env.DEV || user?.role === 'admin');
+
+  const navigateToOnlineGame = useCallback((nextLobby, source) => {
+    const targetLobbyId = nextLobby?.id || lobby?.id;
+    if (!targetLobbyId || hasNavigatedToGameRef.current) return;
+
+    hasNavigatedToGameRef.current = true;
+    const nextDebug = {
+      subscribedLobbyId: lobby?.id || null,
+      localLobbyStatus: nextLobby?.status || lobby?.status || null,
+      lastEventAt: new Date().toISOString(),
+      lastEventStatus: nextLobby?.status || null,
+      lastEventLobbyId: targetLobbyId,
+      shouldNavigateToGame: true,
+      navigateCalled: true,
+      currentPathname: window.location.pathname,
+      currentUserEmail: userRef.current?.email || null,
+      currentPlayerName: playerNameRef.current || null,
+      source,
+      error: null,
+    };
+    console.log('[WaitingRoom] start debug:', nextDebug);
+    setStartDebug(nextDebug);
+
+    navigate('/game', {
+      state: {
+        lobbyId: targetLobbyId,
+        online: true,
+      }
+    });
+  }, [lobby?.id, lobby?.status, navigate]);
+
+  useEffect(() => {
     if (!lobby?.id) return;
 
-    console.log('[WaitingRoom] subscription registered:', {
+    const registrationDebug = {
       lobbyId: lobby.id,
       timestamp: new Date().toISOString(),
       playerName: playerNameRef.current,
       userEmail: userRef.current?.email || null,
-    });
+    };
+    console.log('[WaitingRoom] subscription registered:', registrationDebug);
+    setStartDebug(prev => ({
+      ...prev,
+      subscribedLobbyId: lobby.id,
+      localLobbyStatus: lobby.status,
+      currentPathname: window.location.pathname,
+      currentUserEmail: userRef.current?.email || null,
+      currentPlayerName: playerNameRef.current || null,
+      source: 'subscription-registered',
+      error: null,
+    }));
 
     const unsub = base44.entities.Lobby.subscribe((event) => {
       const eventType = event?.type || event?.eventType || 'update';
@@ -290,6 +359,21 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
       const isCurrentUserHost = isAuthHost || isGuestHost;
       const shouldNavigate = !isCurrentUserHost && (status === 'starting' || status === 'in_game');
 
+      const debugData = {
+        subscribedLobbyId: lobby.id,
+        localLobbyStatus: updatedLobby?.status || lobby.status || null,
+        lastEventAt: new Date().toISOString(),
+        lastEventStatus: status || null,
+        lastEventLobbyId: receivedLobbyId || null,
+        shouldNavigateToGame: shouldNavigate,
+        navigateCalled: false,
+        currentPathname: window.location.pathname,
+        currentUserEmail: currentUser?.email || null,
+        currentPlayerName,
+        source: `subscription:${eventType}`,
+        error: null,
+      };
+
       console.log('[WaitingRoom] navigation decision:', {
         shouldNavigate,
         currentPathname: window.location.pathname,
@@ -300,27 +384,78 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
         userEmail: currentUser?.email || null,
         hostEmail,
       });
+      console.log('[WaitingRoom] start debug:', debugData);
+      setStartDebug(debugData);
 
       // Non-host navigates when game starts
-      if (shouldNavigate && !hasNavigatedToGameRef.current) {
-        hasNavigatedToGameRef.current = true;
-        console.log('[WaitingRoom] navigation decision:', {
-          shouldNavigate,
-          currentPathname: window.location.pathname,
-          navigateCalled: true,
-          lobbyId: updatedLobby.id,
-        });
-        navigate('/game', {
-          state: {
-            lobbyId: updatedLobby.id,
-            online: true,
-          }
-        });
+      if (shouldNavigate) {
+        navigateToOnlineGame(updatedLobby, 'subscription');
       }
     });
 
     return () => unsub();
-  }, [lobby?.id, navigate, setLobby]);
+  }, [lobby?.id, lobby?.status, navigateToOnlineGame, setLobby]);
+
+  useEffect(() => {
+    if (!lobby?.id || isHost) return undefined;
+
+    const pollStartedAt = new Date().toISOString();
+    console.log('[WaitingRoom] start fallback polling registered:', {
+      lobbyId: lobby.id,
+      timestamp: pollStartedAt,
+      playerName: playerNameRef.current,
+      userEmail: userRef.current?.email || null,
+    });
+
+    const intervalId = window.setInterval(async () => {
+      if (hasNavigatedToGameRef.current) return;
+
+      try {
+        const fresh = await base44.entities.Lobby.get(lobby.id);
+        const status = fresh?.status;
+        const shouldNavigate = status === 'starting' || status === 'in_game';
+        const pollDebug = {
+          subscribedLobbyId: lobby.id,
+          localLobbyStatus: fresh?.status || lobby.status || null,
+          lastEventAt: new Date().toISOString(),
+          lastEventStatus: status || null,
+          lastEventLobbyId: fresh?.id || null,
+          shouldNavigateToGame: shouldNavigate,
+          navigateCalled: false,
+          currentPathname: window.location.pathname,
+          currentUserEmail: userRef.current?.email || null,
+          currentPlayerName: playerNameRef.current || null,
+          source: 'poll',
+          error: null,
+        };
+
+        console.log('[WaitingRoom] start fallback poll:', pollDebug);
+        setStartDebug(pollDebug);
+
+        if (fresh) setLobby(fresh);
+        if (shouldNavigate) navigateToOnlineGame(fresh, 'poll');
+      } catch (err) {
+        const pollErrorDebug = {
+          subscribedLobbyId: lobby.id,
+          localLobbyStatus: lobby.status || null,
+          lastEventAt: new Date().toISOString(),
+          lastEventStatus: null,
+          lastEventLobbyId: null,
+          shouldNavigateToGame: false,
+          navigateCalled: false,
+          currentPathname: window.location.pathname,
+          currentUserEmail: userRef.current?.email || null,
+          currentPlayerName: playerNameRef.current || null,
+          source: 'poll',
+          error: err.message,
+        };
+        console.log('[WaitingRoom] start fallback poll error:', pollErrorDebug);
+        setStartDebug(pollErrorDebug);
+      }
+    }, 1500);
+
+    return () => window.clearInterval(intervalId);
+  }, [isHost, lobby?.id, lobby?.status, navigateToOnlineGame, setLobby]);
 
   // settings, lobby prop'undan türetilir — dışarıdan gelen güncellemeler (subscription) yansısın
   const [settings, setSettings] = useState({
@@ -579,6 +714,26 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
               <span>Kazanma: <span className="text-foreground">{lobby.win_card_count} kart</span></span>
             </div>
             <p className="font-inter text-xs text-muted-foreground/60 text-center mt-2">Host oyunu başlatmasını bekliyor...</p>
+          </div>
+        )}
+
+        {isDebugVisible && (
+          <div className="border border-yellow-500/40 bg-yellow-500/10 rounded-lg p-3 space-y-2">
+            <p className="font-inter text-[11px] text-yellow-300 font-semibold uppercase tracking-wider">Online Start Debug</p>
+            <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 font-mono text-[10px] text-yellow-100 break-all">
+              <span className="text-yellow-300/80">subscribed lobby id</span><span>{startDebug.subscribedLobbyId || 'null'}</span>
+              <span className="text-yellow-300/80">local lobby status</span><span>{startDebug.localLobbyStatus || 'null'}</span>
+              <span className="text-yellow-300/80">last event at</span><span>{startDebug.lastEventAt || 'null'}</span>
+              <span className="text-yellow-300/80">last event status</span><span>{startDebug.lastEventStatus || 'null'}</span>
+              <span className="text-yellow-300/80">last event lobby id</span><span>{startDebug.lastEventLobbyId || 'null'}</span>
+              <span className="text-yellow-300/80">shouldNavigateToGame</span><span>{String(startDebug.shouldNavigateToGame)}</span>
+              <span className="text-yellow-300/80">navigate called</span><span>{String(startDebug.navigateCalled)}</span>
+              <span className="text-yellow-300/80">current pathname</span><span>{startDebug.currentPathname || 'null'}</span>
+              <span className="text-yellow-300/80">current user email</span><span>{startDebug.currentUserEmail || 'null'}</span>
+              <span className="text-yellow-300/80">current player name</span><span>{startDebug.currentPlayerName || 'null'}</span>
+              <span className="text-yellow-300/80">source</span><span>{startDebug.source || 'null'}</span>
+              <span className="text-yellow-300/80">error</span><span>{startDebug.error || 'null'}</span>
+            </div>
           </div>
         )}
 
