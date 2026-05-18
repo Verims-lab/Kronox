@@ -8,6 +8,13 @@ import { base44 } from '@/api/base44Client';
 import { addGameLog } from '@/components/game/GameDebugLog';
 import { loadRecentHistory, appendToHistory } from '@/lib/questionHistory';
 
+const summarizePlayers = (players = []) => players.map((player, index) => ({
+  index,
+  email: player?.email || null,
+  name: player?.name || null,
+  cardCount: Array.isArray(player?.cards) ? player.cards.length : 0,
+}));
+
 export function useGameActions({
   lobbyData,
   players,
@@ -26,6 +33,73 @@ export function useGameActions({
   setTimerKey,
   setGameStarted,
 }) {
+  const writeOnlineLobbyState = useCallback((updateData, context = {}) => {
+    if (!lobbyId) return;
+
+    const debugBase = {
+      actorName: context.actorName || null,
+      lobbyId,
+      current_player_index_before: context.currentPlayerIndexBefore ?? null,
+      next_current_player_index: updateData.current_player_index ?? null,
+      current_question_id_before: context.currentQuestionIdBefore || null,
+      next_current_question_id: updateData.current_question_id || null,
+      playersSummary: summarizePlayers(updateData.players),
+      updateFields: Object.keys(updateData),
+    };
+
+    addGameLog(`DB_WRITE service idx=${debugBase.next_current_player_index} status=${updateData.status || 'in_game'}`);
+    console.log('[useGameActions] online turn update start:', debugBase);
+
+    const attemptUpdate = (retries = 0) => {
+      base44.auth.me()
+        .catch(() => null)
+        .then((actor) => {
+          const debugWithActor = {
+            ...debugBase,
+            actorEmail: actor?.email || null,
+            actorName: debugBase.actorName || actor?.full_name || actor?.email || null,
+          };
+
+          console.log('[useGameActions] online turn update payload:', debugWithActor);
+
+          return base44.functions.invoke('updateLobbyGameState', {
+            lobbyId,
+            ...updateData,
+            actorName: debugWithActor.actorName,
+            previous_player_index: debugWithActor.current_player_index_before,
+            previous_question_id: debugWithActor.current_question_id_before,
+          });
+        })
+        .then((response) => {
+          const updatedLobby = response?.data?.lobby;
+          addGameLog('DB_WRITE OK service');
+          console.log('[useGameActions] online turn update success:', {
+            lobbyId,
+            responseDebug: response?.data?.debug || null,
+          });
+
+          if (updatedLobby) {
+            setLobbyData({ ...updatedLobby });
+          }
+        })
+        .catch((err) => {
+          addGameLog(`DB_WRITE ERR service attempt=${retries + 1} ${err.message}`);
+          console.error('[useGameActions] online turn update failed:', {
+            lobbyId,
+            attempt: retries + 1,
+            error: err,
+            debug: debugBase,
+          });
+
+          if (retries < 2) {
+            setTimeout(() => attemptUpdate(retries + 1), 1200);
+          }
+        });
+    };
+
+    attemptUpdate();
+  }, [lobbyId, setLobbyData]);
+
   /**
    * Smart question picker:
    * 1. Exclude current-session IDs (never repeat in same game).
@@ -176,21 +250,15 @@ export function useGameActions({
         players: lobbyPlayers,
         used_question_ids: [...newUsed],
         status: hasWon ? 'finished' : 'in_game',
-        ...(hasWon
-          ? { winner: newPlayers[snapshotIndex].name }
-          : { current_player_index: nextIndex, ...(nextQ ? { current_question_id: nextQ.id } : {}) }
-        )
+        current_player_index: hasWon ? snapshotIndex : nextIndex,
+        current_question_id: hasWon ? (lobbyData?.current_question_id || currentQuestion.id) : (nextQ?.id || lobbyData?.current_question_id),
+        ...(hasWon ? { winner: newPlayers[snapshotIndex].name } : {})
       };
-      addGameLog(`DB_WRITE players idx=${updateData.current_player_index} status=${updateData.status}`);
-      const attemptUpdate = (retries = 0) => {
-        base44.entities.Lobby.update(lobbyId, updateData)
-          .then(() => addGameLog('DB_WRITE OK'))
-          .catch((err) => {
-            addGameLog(`DB_WRITE ERR attempt=${retries + 1} ${err.message}`);
-            if (retries < 2) setTimeout(() => attemptUpdate(retries + 1), 1200);
-          });
-      };
-      attemptUpdate();
+      writeOnlineLobbyState(updateData, {
+        actorName: snapshotPlayer.name,
+        currentPlayerIndexBefore: snapshotIndex,
+        currentQuestionIdBefore: currentQuestion.id,
+      });
     }
 
     if (hasWon) {
@@ -219,6 +287,7 @@ export function useGameActions({
     currentQuestion, players, currentPlayerIndex, usedQuestionIds,
     questionPool, winCardCount, lobbyId, isPlacingRef, overallSecondsRef,
     pickQuestion, saveGameRecord,
+    writeOnlineLobbyState,
     setLobbyData, setFeedback, setWinner, setSelectedZone, setTimerKey, setGameStarted
   ]);
 
@@ -243,13 +312,24 @@ export function useGameActions({
     }));
 
     if (lobbyId) {
-      base44.entities.Lobby.update(lobbyId, {
+      writeOnlineLobbyState({
+        players: players.map(p => ({
+          email: p.email || `player_${p.name}`,
+          name: p.name,
+          ready: true,
+          cards: p.cards || []
+        })),
         current_player_index: nextIndex,
+        current_question_id: nextQ?.id || lobbyData.current_question_id,
         used_question_ids: [...currentUsed],
-        ...(nextQ ? { current_question_id: nextQ.id } : {}),
-      }).catch(err => console.error('[Game] advanceTurn DB failed:', err));
+        status: lobbyData.status || 'in_game',
+      }, {
+        actorName: players[currentIndex]?.name,
+        currentPlayerIndexBefore: currentIndex,
+        currentQuestionIdBefore: lobbyData.current_question_id,
+      });
     }
-  }, [lobbyData, players.length, pickQuestion, lobbyId, questionPool, setSelectedZone, setTimerKey, setLobbyData]);
+  }, [lobbyData, players, pickQuestion, lobbyId, questionPool, writeOnlineLobbyState, setSelectedZone, setTimerKey, setLobbyData]);
 
   // Yüklenemeyen soruyu atla
   const skipCurrentQuestion = useCallback((currentQuestionId) => {
