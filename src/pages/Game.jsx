@@ -6,7 +6,7 @@
  * - useGameActions → Domain/Use Case layer
  * - useLobbySync  → Repository/Data source layer
  */
-import React, { useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useEffect, useCallback, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { AnimatePresence } from 'framer-motion';
@@ -32,18 +32,28 @@ export default function Game() {
   const navigate = useNavigate();
 
   // Route state
-  const lobbyId = location.state?.lobbyId ?? null;
-  const isOnlineFromState = location.state?.online ?? !!lobbyId;
+  const routeState = useMemo(() => location.state || {}, [location.state]);
+  const lobbyId = routeState.lobbyId ?? null;
+  const isOnlineFromState = routeState.online === true || !!lobbyId;
   // For non-host online join, playerNames may not be in state — useLobbySync will fetch them
-  const playerNames = location.state?.playerNames ?? (lobbyId ? [] : null);
-  const initialPlayers = location.state?.initialPlayers ?? [];
-  const category = location.state?.category || 'karisik';
-  const yearStart = location.state?.yearStart ?? 0;
-  const yearEnd = location.state?.yearEnd ?? new Date().getFullYear();
-  const turnDuration = location.state?.turnDuration ?? 60;
-  const winCardCount = location.state?.winCardCount ?? 10;
-  const myPlayerName = location.state?.myPlayerName ?? null;
-  const currentQuestionIdFromState = location.state?.currentQuestionId ?? null;
+  const playerNames = routeState.playerNames ?? (isOnlineFromState ? [] : null);
+  const initialPlayers = routeState.initialPlayers ?? [];
+  const routeCategory = routeState.category || 'karisik';
+  const routeYearStart = routeState.yearStart ?? 0;
+  const routeYearEnd = routeState.yearEnd ?? new Date().getFullYear();
+  const routeTurnDuration = routeState.turnDuration ?? 60;
+  const routeWinCardCount = routeState.winCardCount ?? 10;
+  const routeMyPlayerName = routeState.myPlayerName ?? null;
+  const currentQuestionIdFromState = routeState.currentQuestionId ?? null;
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    console.log('[Game] mount:', {
+      routeState,
+      lobbyId,
+      onlineMode: isOnlineFromState,
+    });
+  }, [routeState, lobbyId, isOnlineFromState]);
 
   // ─── State (ViewModel layer) ───────────────────────────────────────
   const {
@@ -72,6 +82,13 @@ export default function Game() {
 
   const winTimerRef = useRef(null);
 
+  useEffect(() => {
+    if (!isOnlineFromState) return;
+    base44.auth.me()
+      .then(u => setCurrentUser(u || null))
+      .catch(() => setCurrentUser(null));
+  }, [isOnlineFromState]);
+
   // ─── Data fetching — offline-first (Repository layer) ───────────
   const { questions: allQuestions, isLoading, isError, isFromCache, retry: refetch } = useOfflineQuestions();
 
@@ -84,6 +101,12 @@ export default function Game() {
     return allQuestions.find(q => q.id === lobbyData.current_question_id);
   }, [lobbyData?.current_question_id, allQuestions]);
 
+  const category = lobbyId ? (lobbyData?.category || routeCategory) : routeCategory;
+  const yearStart = lobbyId ? (lobbyData?.year_start ?? routeYearStart) : routeYearStart;
+  const yearEnd = lobbyId ? (lobbyData?.year_end ?? routeYearEnd) : routeYearEnd;
+  const turnDuration = lobbyId ? (lobbyData?.turn_duration ?? routeTurnDuration) : routeTurnDuration;
+  const winCardCount = lobbyId ? (lobbyData?.win_card_count ?? routeWinCardCount) : routeWinCardCount;
+
   const questionPool = useMemo(() => {
     return allQuestions
       .filter(q => category === 'muzik' ? q.type === 'muzik' : q.type === 'metin')
@@ -91,6 +114,14 @@ export default function Game() {
       .filter(q => category === 'karisik' || q.category === category)
       .filter(q => q.type !== 'muzik' || (q.media_url && q.media_url.length > 0));
   }, [allQuestions, yearStart, yearEnd, category]);
+
+  const myPlayerName = useMemo(() => {
+    if (!isOnline) return routeMyPlayerName;
+    if (routeMyPlayerName) return routeMyPlayerName;
+    const email = currentUser?.email;
+    if (!email) return null;
+    return players.find(p => p.email === email)?.name || null;
+  }, [players, routeMyPlayerName, currentUser?.email, isOnline]);
 
   const myPlayer = useMemo(() => {
     if (!isOnline || !myPlayerName) return null;
