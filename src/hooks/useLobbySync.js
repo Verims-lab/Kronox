@@ -30,6 +30,13 @@ export function useLobbySync({
     base44.entities.Lobby.get(lobbyId)
       .then(data => {
         if (data) {
+          console.log('[useLobbySync] fetched lobby:', {
+            lobbyId: data.id,
+            status: data.status,
+            playerCount: data.players?.length || 0,
+            current_question_id: data.current_question_id || null,
+            current_player_index: data.current_player_index ?? null,
+          });
           setLobbyData(data);
         } else if (initPlayers && initPlayers.length > 0) {
           // Fallback to route state if DB fetch returns nothing
@@ -66,18 +73,30 @@ export function useLobbySync({
     // Realtime subscription — Android Flow'a eşdeğer
     if (unsubRef.current) unsubRef.current();
     const unsub = base44.entities.Lobby.subscribe((event) => {
-      if (event.id !== lobbyId) return;
-      addGameLog(`SUB event=${event.type} idx=${event.data?.current_player_index} status=${event.data?.status}`);
+      const eventType = event?.type || event?.eventType || 'update';
+      const updatedLobby = event?.data || event;
+      const receivedLobbyId = updatedLobby?.id || event?.id;
+      if (receivedLobbyId !== lobbyId) return;
 
-      if (event.type === 'delete') {
+      addGameLog(`SUB event=${eventType} idx=${updatedLobby?.current_player_index} status=${updatedLobby?.status}`);
+      console.log('[useLobbySync] subscription event:', {
+        eventType,
+        receivedLobbyId,
+        status: updatedLobby?.status,
+        playerCount: updatedLobby?.players?.length || 0,
+        current_question_id: updatedLobby?.current_question_id || null,
+        current_player_index: updatedLobby?.current_player_index ?? null,
+      });
+
+      if (eventType === 'delete') {
         setLobbyData(null);
         setError('Lobi kapatıldı.');
         return;
       }
-      if (event.data.status === 'finished' && event.data.winner) {
-        setWinner({ name: event.data.winner });
+      if (updatedLobby.status === 'finished' && updatedLobby.winner) {
+        setWinner({ name: updatedLobby.winner });
       }
-      setLobbyData(event.data);
+      setLobbyData(updatedLobby);
     });
     unsubRef.current = unsub;
 
