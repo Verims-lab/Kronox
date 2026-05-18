@@ -390,6 +390,8 @@ export default function Game() {
           winCardCount={winCardCount}
           onRestart={handleRestart}
           isSinglePlayer={!lobbyId && playerNames?.length === 1}
+          isOnline={Boolean(lobbyId)}
+          localPlayerName={myPlayer?.name || myPlayerName}
         />
       )}
 
