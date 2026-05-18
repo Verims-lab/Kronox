@@ -237,56 +237,83 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
   // Non-host: subscribe to lobby and navigate to /game when host starts
   const playerNameRef = useRef(playerName);
   const userRef = useRef(user);
+  const hasNavigatedToGameRef = useRef(false);
   useEffect(() => { playerNameRef.current = playerName; }, [playerName]);
   useEffect(() => { userRef.current = user; }, [user]);
 
   useEffect(() => {
     if (!lobby?.id) return;
 
+    console.log('[WaitingRoom] subscription registered:', {
+      lobbyId: lobby.id,
+      timestamp: new Date().toISOString(),
+      playerName: playerNameRef.current,
+      userEmail: userRef.current?.email || null,
+    });
+
     const unsub = base44.entities.Lobby.subscribe((event) => {
-      if (event.id !== lobby.id) return;
+      const eventType = event?.type || event?.eventType || 'update';
+      const updatedLobby = event?.data || event;
+      const receivedLobbyId = updatedLobby?.id || event?.id;
+      const status = updatedLobby?.status;
+      const playerCount = updatedLobby?.players?.length || 0;
 
-      console.log('[WaitingRoom] subscription event type:', event.type, 'status:', event.data?.status, 'lobbyId:', event.id, 'playerName:', playerNameRef.current, 'userEmail:', userRef.current?.email);
+      console.log('[WaitingRoom] subscription event:', {
+        eventType,
+        receivedLobbyId,
+        status,
+        playerCount,
+        current_question_id: updatedLobby?.current_question_id || null,
+        current_player_index: updatedLobby?.current_player_index ?? null,
+      });
 
-      if (event.type === 'delete') {
+      if (receivedLobbyId !== lobby.id) return;
+
+      if (eventType === 'delete') {
         setLobby(null);
         return;
       }
 
       // Always update lobby state (player list, settings changes, etc.)
-      setLobby(event.data);
+      setLobby(updatedLobby);
 
-      const status = event.data?.status;
       const currentUser = userRef.current;
       const currentPlayerName = playerNameRef.current?.trim();
 
       // Determine host: by email (authenticated) or by being first player / host_name (guest)
-      const hostEmail = event.data?.host_email || '';
+      const hostEmail = updatedLobby?.host_email || '';
       const isAuthHost = currentUser?.email && currentUser.email === hostEmail;
       const isGuestHost = !currentUser?.email && (
-        currentPlayerName === event.data?.host_name ||
-        currentPlayerName === event.data?.players?.[0]?.name
+        currentPlayerName === updatedLobby?.host_name ||
+        currentPlayerName === updatedLobby?.players?.[0]?.name
       );
       const isCurrentUserHost = isAuthHost || isGuestHost;
+      const shouldNavigate = !isCurrentUserHost && (status === 'starting' || status === 'in_game');
 
-      console.log('[WaitingRoom] sub status:', status, 'isHost:', isCurrentUserHost, 'playerName:', currentPlayerName, 'userEmail:', currentUser?.email, 'hostEmail:', hostEmail);
+      console.log('[WaitingRoom] navigation decision:', {
+        shouldNavigate,
+        currentPathname: window.location.pathname,
+        navigateCalled: false,
+        status,
+        isHost: isCurrentUserHost,
+        playerName: currentPlayerName,
+        userEmail: currentUser?.email || null,
+        hostEmail,
+      });
 
       // Non-host navigates when game starts
-      if ((status === 'starting' || status === 'in_game') && !isCurrentUserHost) {
-        console.log('[WaitingRoom] navigating non-host to /game lobbyId:', event.data.id, 'myPlayerName:', currentPlayerName);
+      if (shouldNavigate && !hasNavigatedToGameRef.current) {
+        hasNavigatedToGameRef.current = true;
+        console.log('[WaitingRoom] navigation decision:', {
+          shouldNavigate,
+          currentPathname: window.location.pathname,
+          navigateCalled: true,
+          lobbyId: updatedLobby.id,
+        });
         navigate('/game', {
           state: {
-            lobbyId: event.data.id,
+            lobbyId: updatedLobby.id,
             online: true,
-            playerNames: event.data.players.map(p => p.name),
-            initialPlayers: event.data.players,
-            currentQuestionId: event.data.current_question_id,
-            category: event.data.category,
-            yearStart: event.data.year_start,
-            yearEnd: event.data.year_end,
-            turnDuration: event.data.turn_duration,
-            winCardCount: event.data.win_card_count,
-            myPlayerName: currentPlayerName,
           }
         });
       }
@@ -394,16 +421,8 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
     await base44.entities.Lobby.update(lobby.id, updateData);
     navigate('/game', {
       state: {
-        playerNames: playersWithCards.map(p => p.name),
-        initialPlayers: playersWithCards,
-        currentQuestionId: firstQ.id,
-        category: settings.category,
-        yearStart: settings.year_start,
-        yearEnd: settings.year_end,
-        turnDuration: settings.turn_duration,
-        winCardCount: settings.win_card_count,
         lobbyId: lobby.id,
-        myPlayerName: playerName.trim(),
+        online: true,
       }
     });
   };
