@@ -4,7 +4,31 @@ import { Trophy, RotateCcw, Share2, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatDuration } from './GameOverTimer';
 
-export default function GameOver({ winner, onRestart, durationSeconds, winCardCount, isSinglePlayer }) {
+const normalizeName = (value) => String(value || '').trim().toLocaleLowerCase('tr-TR');
+
+export default function GameOver({
+  winner,
+  onRestart,
+  durationSeconds,
+  winCardCount,
+  isSinglePlayer,
+  isOnline = false,
+  localPlayerName = null,
+}) {
+  const hasOnlinePerspective = isOnline && localPlayerName;
+  const isLocalWinner = hasOnlinePerspective && normalizeName(winner) === normalizeName(localPlayerName);
+  const headline = hasOnlinePerspective && !isLocalWinner ? 'Kaybettin' : 'Tebrikler!';
+  const resultText = isSinglePlayer
+    ? 'Zaman ustası oldun!'
+    : hasOnlinePerspective
+      ? isLocalWinner
+        ? 'Kazandın!'
+        : `${winner} kazandı.`
+      : <><span className="text-primary font-bold">{winner}</span> kazandı!</>;
+  const progressText = hasOnlinePerspective && !isLocalWinner
+    ? `${winner} hedefe ulaştı.`
+    : `${winCardCount || 10}/10 doğru sıraladın.`;
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -29,11 +53,9 @@ export default function GameOver({ winner, onRestart, durationSeconds, winCardCo
             <Trophy className="w-20 h-20 text-primary" />
           </motion.div>
 
-          <h1 className="font-bangers text-4xl text-primary tracking-wider mb-1">Tebrikler!</h1>
+          <h1 className="font-bangers text-4xl text-primary tracking-wider mb-1">{headline}</h1>
           <p className="font-inter text-white/80 text-base">
-            {isSinglePlayer ? 'Zaman ustası oldun!' : (
-              <><span className="text-primary font-bold">{winner}</span> kazandı!</>
-            )}
+            {resultText}
           </p>
 
           {durationSeconds != null && (
@@ -44,7 +66,7 @@ export default function GameOver({ winner, onRestart, durationSeconds, winCardCo
           )}
 
           <div className="mt-3 font-inter text-sm text-white/50">
-            {winCardCount || 10}/10 doğru sıraladın.
+            {progressText}
           </div>
         </div>
 
