@@ -130,6 +130,42 @@ export default function Game() {
 
   const currentPlayer = players.length > 0 ? players[currentPlayerIndex] : null;
   const isMyTurn = !isOnline || (myPlayerName && currentPlayer?.name === myPlayerName);
+  const renderedTurnMessageText = currentQuestion && isMyTurn && !winner
+    ? 'KARTI ZAMAN ÇİZGİSİNE YERLEŞTİR!'
+    : currentQuestion && !isMyTurn
+      ? `${currentPlayer?.name || 'Oyuncu'} düşünüyor…`
+      : '';
+
+  useEffect(() => {
+    if (!isOnline) return;
+
+    console.log('[Game] online turn derived state:', {
+      lobbyId,
+      computedCurrentPlayerIndex: currentPlayerIndex,
+      computedCurrentPlayerName: currentPlayer?.name || null,
+      computedCurrentPlayerEmail: currentPlayer?.email || null,
+      computedIsMyTurn: Boolean(isMyTurn),
+      myPlayerName,
+      currentQuestionId: lobbyData?.current_question_id || null,
+      playerSummary: players.map(p => ({
+        name: p.name,
+        email: p.email,
+        cardCount: p.cards?.length || 0,
+      })),
+      renderedTurnMessageText,
+    });
+  }, [
+    isOnline,
+    lobbyId,
+    currentPlayerIndex,
+    currentPlayer?.name,
+    currentPlayer?.email,
+    isMyTurn,
+    myPlayerName,
+    lobbyData?.current_question_id,
+    players,
+    renderedTurnMessageText,
+  ]);
 
   // ─── Actions (Domain/Use Case layer) ─────────────────────────────
   const { doPlacement, advanceTurn, skipCurrentQuestion } = useGameActions({
