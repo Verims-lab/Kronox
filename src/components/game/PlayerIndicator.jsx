@@ -5,6 +5,13 @@ import { playerBadgeColors } from './playerColors';
 const playerColors = playerBadgeColors;
 
 export default function PlayerIndicator({ players = [], currentPlayerIndex = 0, myPlayerName }) {
+  console.log('[PlayerIndicator] rendered players:', {
+    renderedPlayersCount: players?.length || 0,
+    renderedPlayerNames: (players || []).map(p => p?.name),
+    currentPlayerIndex,
+    currentPlayerName: players?.[currentPlayerIndex]?.name || null,
+  });
+
   if (!players || players.length === 0) {
     return <div className="text-xs text-muted-foreground">Oyuncular yükleniyor...</div>;
   }
