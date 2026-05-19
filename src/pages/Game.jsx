@@ -11,7 +11,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Loader2, X, WifiOff } from 'lucide-react';
+import { Loader2, WifiOff } from 'lucide-react';
 import { useOfflineQuestions } from '@/hooks/useOfflineQuestions';
 import { loadRecentHistory, appendToHistory } from '@/lib/questionHistory';
 
@@ -23,7 +23,6 @@ import GameDebugLog from '@/components/game/GameDebugLog';
 import FeedbackOverlay from '@/components/game/FeedbackOverlay';
 import GameOver from '@/components/game/GameOver';
 import SettingsModal from '@/components/game/SettingsModal';
-import LobbyChat from '@/components/lobby/LobbyChat';
 import GameOverTimer from '@/components/game/GameOverTimer';
 import GameLayout from '@/components/game/GameLayout';
 
@@ -66,7 +65,6 @@ export default function Game() {
     touchDragEnd, setTouchDragEnd,
     timerKey, setTimerKey,
     showSettings, setShowSettings,
-    showChat, setShowChat,
     overallSeconds, setOverallSeconds,
     gameStarted, setGameStarted,
     error, setError,
@@ -444,24 +442,6 @@ export default function Game() {
         {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {showChat && isOnline && (
-          <div className="fixed right-0 top-0 bottom-0 z-40 w-72 flex flex-col bg-card border-l border-border shadow-2xl"
-            style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
-          >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-              <span className="font-bangers text-lg text-primary tracking-wider">SOHBET</span>
-              <button onClick={() => setShowChat(false)} className="text-muted-foreground hover:text-foreground">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-hidden p-3">
-              <LobbyChat lobbyId={lobbyId} playerName={myPlayerName || 'Oyuncu'} compact={false} />
-            </div>
-          </div>
-        )}
-      </AnimatePresence>
-
       {/* Offline cache banner */}
       {isFromCache && (
         <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-2 py-1 text-xs font-inter"
@@ -487,7 +467,6 @@ export default function Game() {
         winner={winner}
         turnDuration={turnDuration}
         timerKey={timerKey}
-        showChat={showChat}
         onSelectZone={setSelectedZone}
         onDropOnZone={handleDropOnZone}
         onConfirmPlacement={handleConfirmPlacement}
@@ -498,7 +477,6 @@ export default function Game() {
         onTouchDragMove={(x, y) => { setIsDragging(true); setTouchDragPos({ x, y }); }}
         onTouchDragEnd={(x, y) => { setIsDragging(false); setTouchDragPos(null); setTouchDragEnd({ x, y }); setTimeout(() => setTouchDragEnd(null), 100); }}
         onTimeUp={handleTimeUp}
-        onToggleChat={() => setShowChat(c => !c)}
         isTimeUp={isTimeUp}
       />
     </>

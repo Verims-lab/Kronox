@@ -290,7 +290,7 @@ export default function FeedbackOverlay({ result, year, songTitle, guessedYear, 
                 </motion.div>
               )}
 
-              {/* ── Music discussion controls ─────────────────────── */}
+              {/* ── Music pause controls ──────────────────────────── */}
               {isMusicQuestion && countdown !== null && (
                 <motion.div
                   initial={{ opacity: 0, y: 8 }}
@@ -298,7 +298,7 @@ export default function FeedbackOverlay({ result, year, songTitle, guessedYear, 
                   transition={{ delay: 0.5 }}
                   className="w-full space-y-2"
                 >
-                  <p className="font-inter text-white/35 text-[10px] uppercase tracking-widest">💬 Sohbet molası</p>
+                  <p className="font-inter text-white/35 text-[10px] uppercase tracking-widest">Kısa mola</p>
                   <div className="flex items-center justify-center gap-3">
                     <div className={`w-10 h-10 rounded-full border-2 flex items-center justify-center font-bangers text-lg`}
                       style={{ borderColor: accentColor, color: accentColor }}>
