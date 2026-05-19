@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bangers&family=Cinzel:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -8,6 +8,7 @@
   :root {
     --font-cinzel: 'Cinzel', serif;
     --font-inter: 'Inter', sans-serif;
+    --font-bangers: 'Bangers', 'Inter', sans-serif;
 
     /* Deep navy blue — matches KronoX reference app */
     --background: 232 60% 8%;

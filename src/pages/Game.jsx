@@ -342,10 +342,6 @@ export default function Game() {
   const handleImageError = useCallback(() => skipCurrentQuestion(currentQuestion?.id), [currentQuestion?.id, skipCurrentQuestion]);
   const handleAudioError = useCallback(() => skipCurrentQuestion(currentQuestion?.id), [currentQuestion?.id, skipCurrentQuestion]);
   const handleRestart = () => { resetGame(); navigate('/'); };
-  const handleBackAttempt = () => {
-    if (winner) { navigate('/'); return; }
-    if (window.confirm('Oyundan çıkmak istediğine emin misin?')) navigate('/');
-  };
 
   const gameOverView = winner ? (
     <>
@@ -487,20 +483,14 @@ export default function Game() {
         touchDragEnd={touchDragEnd}
         isMyTurn={isMyTurn}
         isOnline={isOnline}
-        myPlayerName={myPlayerName}
-        myPlayer={myPlayer}
-        lobbyId={lobbyId}
         feedback={feedback}
         winner={winner}
         turnDuration={turnDuration}
         timerKey={timerKey}
-        showSettings={showSettings}
         showChat={showChat}
         onSelectZone={setSelectedZone}
         onDropOnZone={handleDropOnZone}
         onConfirmPlacement={handleConfirmPlacement}
-        onUndoPlacement={() => setSelectedZone(null)}
-        onSkipTurn={handleTimeUp}
         onImageError={handleImageError}
         onAudioError={handleAudioError}
         onDragStart={() => { setIsDragging(true); }}
@@ -508,8 +498,6 @@ export default function Game() {
         onTouchDragMove={(x, y) => { setIsDragging(true); setTouchDragPos({ x, y }); }}
         onTouchDragEnd={(x, y) => { setIsDragging(false); setTouchDragPos(null); setTouchDragEnd({ x, y }); setTimeout(() => setTouchDragEnd(null), 100); }}
         onTimeUp={handleTimeUp}
-        onBack={handleBackAttempt}
-        onToggleSettings={() => setShowSettings(s => !s)}
         onToggleChat={() => setShowChat(c => !c)}
         isTimeUp={isTimeUp}
       />
