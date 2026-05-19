@@ -1,22 +1,29 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, RotateCcw, Share2, Timer } from 'lucide-react';
+import { Trophy, RotateCcw, Share2, Timer, CircleX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatDuration } from './GameOverTimer';
 
 const normalizeName = (value) => String(value || '').trim().toLocaleLowerCase('tr-TR');
+const normalizeEmail = (value) => String(value || '').trim().toLocaleLowerCase('en-US');
 
 export default function GameOver({
   winner,
+  winnerEmail = null,
   onRestart,
   durationSeconds,
   winCardCount,
   isSinglePlayer,
   isOnline = false,
   localPlayerName = null,
+  localPlayerEmail = null,
 }) {
-  const hasOnlinePerspective = isOnline && localPlayerName;
-  const isLocalWinner = hasOnlinePerspective && normalizeName(winner) === normalizeName(localPlayerName);
+  const hasOnlinePerspective = Boolean(isOnline && (localPlayerName || localPlayerEmail));
+  const hasEmailPerspective = Boolean(isOnline && winnerEmail && localPlayerEmail);
+  const isLocalWinner = hasEmailPerspective
+    ? normalizeEmail(winnerEmail) === normalizeEmail(localPlayerEmail)
+    : hasOnlinePerspective && normalizeName(winner) === normalizeName(localPlayerName);
+  const isOnlineLoser = hasOnlinePerspective && !isLocalWinner;
   const headline = hasOnlinePerspective && !isLocalWinner ? 'Kaybettin' : 'Tebrikler!';
   const resultText = isSinglePlayer
     ? 'Zaman ustası oldun!'
@@ -28,6 +35,10 @@ export default function GameOver({
   const progressText = hasOnlinePerspective && !isLocalWinner
     ? `${winner} hedefe ulaştı.`
     : `${winCardCount || 10}/10 doğru sıraladın.`;
+  const frameBorder = isOnlineLoser ? 'rgba(168,85,247,0.55)' : 'rgba(255,193,7,0.5)';
+  const headerGlow = isOnlineLoser
+    ? 'linear-gradient(180deg, rgba(168,85,247,0.16) 0%, transparent 100%)'
+    : 'linear-gradient(180deg, rgba(255,193,7,0.12) 0%, transparent 100%)';
 
   return (
     <motion.div
@@ -41,16 +52,20 @@ export default function GameOver({
         animate={{ scale: 1, opacity: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 260, damping: 22, delay: 0.1 }}
         className="w-full max-w-xs rounded-3xl overflow-hidden shadow-2xl"
-        style={{ background: 'linear-gradient(160deg, #12185e 0%, #0a0e2e 100%)', border: '2px solid rgba(255,193,7,0.5)' }}
+        style={{ background: 'linear-gradient(160deg, #12185e 0%, #0a0e2e 100%)', border: `2px solid ${frameBorder}` }}
       >
         {/* Header */}
-        <div className="relative pt-10 pb-6 px-6 text-center" style={{ background: 'linear-gradient(180deg, rgba(255,193,7,0.12) 0%, transparent 100%)' }}>
+        <div className="relative pt-10 pb-6 px-6 text-center" style={{ background: headerGlow }}>
           <motion.div
-            animate={{ rotate: [0, -8, 8, -8, 0], scale: [1, 1.15, 1] }}
+            animate={isOnlineLoser ? { scale: [1, 1.06, 1] } : { rotate: [0, -8, 8, -8, 0], scale: [1, 1.15, 1] }}
             transition={{ duration: 1.2, repeat: Infinity, repeatDelay: 2 }}
             className="w-20 h-20 mx-auto mb-4 flex items-center justify-center"
           >
-            <Trophy className="w-20 h-20 text-primary" />
+            {isOnlineLoser ? (
+              <CircleX className="w-20 h-20 text-purple-300 drop-shadow-[0_0_18px_rgba(168,85,247,0.55)]" />
+            ) : (
+              <Trophy className="w-20 h-20 text-primary" />
+            )}
           </motion.div>
 
           <h1 className="font-bangers text-4xl text-primary tracking-wider mb-1">{headline}</h1>
