@@ -1,8 +1,11 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings, RotateCcw, ChevronRight, MessageCircle, X, ArrowLeft } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { MessageCircle } from 'lucide-react';
 import { sounds } from '@/lib/gameSounds';
+import QuestionCard from './QuestionCard.jsx';
+import Timeline from './Timeline.jsx';
+import TurnTimer from './TurnTimer.jsx';
+import { playerTextColors } from './playerColors';
 
 function CTAButton({ active, onClick, disabled }) {
   return (
@@ -17,7 +20,7 @@ function CTAButton({ active, onClick, disabled }) {
         scale: 1,
       }}
       transition={active ? { duration: 1.2, repeat: Infinity, ease: 'easeInOut' } : {}}
-      className="flex-1 h-12 rounded-2xl font-bangers text-xl tracking-wider transition-colors"
+      className="h-12 w-full max-w-[320px] rounded-2xl font-bangers text-xl tracking-wider transition-colors"
       style={{
         background: active
           ? 'linear-gradient(135deg, #facc15 0%, #f59e0b 100%)'
@@ -30,12 +33,6 @@ function CTAButton({ active, onClick, disabled }) {
     </motion.button>
   );
 }
-import QuestionCard from './QuestionCard.jsx';
-import Timeline from './Timeline.jsx';
-import PlayerIndicator from './PlayerIndicator.jsx';
-import TurnTimer from './TurnTimer.jsx';
-import LobbyChat from '@/components/lobby/LobbyChat';
-import { playerTextColors } from './playerColors';
 
 export default function GameLayout({
   // Game state
@@ -50,22 +47,16 @@ export default function GameLayout({
   touchDragEnd,
   isMyTurn,
   isOnline,
-  myPlayerName,
-  myPlayer,
-  lobbyId,
   feedback,
   winner,
   turnDuration,
   timerKey,
-  showSettings,
   showChat,
   isTimeUp,
   // Handlers
   onSelectZone,
   onDropOnZone,
   onConfirmPlacement,
-  onUndoPlacement,
-  onSkipTurn,
   onImageError,
   onAudioError,
   onDragStart,
@@ -73,8 +64,6 @@ export default function GameLayout({
   onTouchDragMove,
   onTouchDragEnd,
   onTimeUp,
-  onBack,
-  onToggleSettings,
   onToggleChat,
 }) {
   // Ghost card follows the raw finger position (viewport coords) — no scroll correction needed
@@ -85,36 +74,18 @@ export default function GameLayout({
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'linear-gradient(to bottom, #0B1F3A 0%, #1E3A8A 100%)' }}>
       {/* TOP BAR */}
       <div
-        className="flex-shrink-0 flex items-center justify-between px-4 pt-2 pb-1 gap-2"
+        className="relative flex-shrink-0 px-4 pt-2 pb-1"
         style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}
       >
-        {/* Left: Back + Settings */}
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={onBack}
-            className="w-11 h-11 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/70 hover:bg-white/20 transition-colors"
-            aria-label="Oyundan çık"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <button
-            onClick={onToggleSettings}
-            className="w-11 h-11 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/70 hover:bg-white/20 transition-colors"
-            aria-label="Oyun ayarları"
-          >
-            <Settings className="w-5 h-5" />
-          </button>
-        </div>
-
         {/* Center: Logo + progress */}
-        <div className="flex flex-col items-center flex-1 min-w-0">
+        <div className="mx-auto flex min-w-0 flex-col items-center">
           <img
             src="https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/49fc6f458_kronoxnobckgrnd.png"
             alt="Kronox"
-            className="h-20 object-contain mb-1"
+            className="mb-1 h-16 w-[172px] max-w-[48vw] object-contain"
           />
           {/* Progress bar */}
-          <div className="w-32 mt-1">
+          <div className="mt-1 w-28">
             <div className="text-center text-white/60 text-xs font-inter mb-0.5">
               {currentPlayer?.cards?.length || 0}/{winCardCount}
             </div>
@@ -129,7 +100,10 @@ export default function GameLayout({
         </div>
 
         {/* Right: Timer + Chat */}
-        <div className="flex items-center gap-1.5">
+        <div
+          className="absolute right-4 top-2 flex items-center gap-1.5"
+          style={{ top: 'calc(0.5rem + env(safe-area-inset-top))' }}
+        >
           {isMyTurn && !winner && (
             <TurnTimer key={timerKey} active={!feedback && !winner} onTimeUp={isMyTurn ? onTimeUp : undefined} duration={turnDuration} size="lg" />
           )}
@@ -143,8 +117,6 @@ export default function GameLayout({
               <MessageCircle className="w-5 h-5" />
             </button>
           )}
-          {/* Placeholder so layout stays balanced when no chat and no timer */}
-          {!isOnline && !isMyTurn && <div className="w-11 h-11" />}
         </div>
       </div>
 
@@ -271,33 +243,15 @@ export default function GameLayout({
         </div>
       ) : (
         <div
-          className="flex-shrink-0 flex items-center gap-2 px-3 pt-2"
+          className="flex-shrink-0 flex justify-center px-3 pt-2"
           style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
         >
-          {/* Undo */}
-          <button
-            onClick={onUndoPlacement}
-            className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/60 hover:bg-white/20 transition-colors flex-shrink-0 min-h-[44px] min-w-[44px]"
-            aria-label="Son hamlayı geri al"
-          >
-            <RotateCcw className="w-5 h-5" />
-          </button>
-
           {/* Main action */}
           <CTAButton
             active={isMyTurn && selectedZone !== null && !feedback && !winner}
             onClick={isMyTurn && selectedZone !== null ? onConfirmPlacement : undefined}
             disabled={!isMyTurn || selectedZone === null || !!feedback || !!winner}
           />
-
-          {/* Skip */}
-          <button
-            onClick={onSkipTurn}
-            className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/60 hover:bg-white/20 transition-colors flex-shrink-0 min-h-[44px] min-w-[44px]"
-            aria-label="Turunuzu atla"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
         </div>
       )}
 
