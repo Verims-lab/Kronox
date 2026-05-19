@@ -43,6 +43,9 @@ export function useGameActions({
       next_current_player_index: updateData.current_player_index ?? null,
       current_question_id_before: context.currentQuestionIdBefore || null,
       next_current_question_id: updateData.current_question_id || null,
+      statusWritten: updateData.status || 'in_game',
+      winner: updateData.winner || null,
+      winner_email: updateData.winner_email || null,
       playersSummary: summarizePlayers(updateData.players),
       updateFields: Object.keys(updateData),
     };
@@ -61,6 +64,18 @@ export function useGameActions({
           };
 
           console.log('[useGameActions] online turn update payload:', debugWithActor);
+          if (updateData.status === 'finished') {
+            console.log('[useGameActions] online game finish payload:', {
+              actorEmail: debugWithActor.actorEmail,
+              actorName: debugWithActor.actorName,
+              winner: updateData.winner || null,
+              winner_email: updateData.winner_email || null,
+              lobbyId,
+              statusWritten: updateData.status,
+              playersCount: updateData.players?.length || 0,
+              updatePayload: updateData,
+            });
+          }
 
           return base44.functions.invoke('updateLobbyGameState', {
             lobbyId,
@@ -77,6 +92,14 @@ export function useGameActions({
             lobbyId,
             responseDebug: response?.data?.debug || null,
           });
+          if (updateData.status === 'finished') {
+            console.log('[useGameActions] online game finish update success:', {
+              lobbyId,
+              winner: updateData.winner || null,
+              winner_email: updateData.winner_email || null,
+              statusWritten: updateData.status,
+            });
+          }
 
           if (updatedLobby) {
             setLobbyData({ ...updatedLobby });
@@ -90,6 +113,15 @@ export function useGameActions({
             error: err,
             debug: debugBase,
           });
+          if (updateData.status === 'finished') {
+            console.error('[useGameActions] online game finish update failed:', {
+              lobbyId,
+              winner: updateData.winner || null,
+              winner_email: updateData.winner_email || null,
+              statusWritten: updateData.status,
+              error: err,
+            });
+          }
 
           if (retries < 2) {
             setTimeout(() => attemptUpdate(retries + 1), 1200);
@@ -233,7 +265,7 @@ export function useGameActions({
       current_player_index: hasWon ? snapshotIndex : nextIndex,
       current_question_id: hasWon ? prev.current_question_id : (nextQ?.id || prev.current_question_id),
       used_question_ids: [...newUsed],
-      ...(hasWon ? { status: 'finished', winner: newPlayers[snapshotIndex].name } : {})
+      ...(hasWon ? { status: 'finished', winner: newPlayers[snapshotIndex].name, winner_email: newPlayers[snapshotIndex].email || null } : {})
     }));
 
     setSelectedZone(null);
@@ -252,7 +284,7 @@ export function useGameActions({
         status: hasWon ? 'finished' : 'in_game',
         current_player_index: hasWon ? snapshotIndex : nextIndex,
         current_question_id: hasWon ? (lobbyData?.current_question_id || currentQuestion.id) : (nextQ?.id || lobbyData?.current_question_id),
-        ...(hasWon ? { winner: newPlayers[snapshotIndex].name } : {})
+        ...(hasWon ? { winner: newPlayers[snapshotIndex].name, winner_email: newPlayers[snapshotIndex].email || null } : {})
       };
       writeOnlineLobbyState(updateData, {
         actorName: snapshotPlayer.name,
@@ -268,7 +300,7 @@ export function useGameActions({
       saveGameRecord(newPlayers[snapshotIndex].name, finalSecs, { category, yearStart, yearEnd });
       setTimeout(() => {
         setFeedback(null);
-        setWinner({ name: newPlayers[snapshotIndex].name, durationSeconds: finalSecs });
+        setWinner({ name: newPlayers[snapshotIndex].name, email: newPlayers[snapshotIndex].email || null, durationSeconds: finalSecs });
       }, 2200);
       return;
     }
