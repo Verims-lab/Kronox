@@ -22,6 +22,14 @@ const normalizeCode = (code) =>
     .replace(/\s+/g, '')
     .replace(/[^\w]/g, '');
 
+const summarizeLobbyPlayers = (players = []) =>
+  players.map((p, index) => ({
+    index,
+    email: p?.email || null,
+    name: p?.name || null,
+    cardCount: Array.isArray(p?.cards) ? p.cards.length : 0,
+  }));
+
 export default function LobbyRoom() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
@@ -94,6 +102,13 @@ export default function LobbyRoom() {
       const result = res.data;
 
       console.log('[LobbyRoom] join result:', JSON.stringify(result?.debug));
+      console.log('[LobbyRoom] join roster after backend append:', {
+        lobbyId: result?.lobby?.id || null,
+        existingPlayersCount: result?.debug?.existingPlayersCount ?? null,
+        newPlayersCount: result?.lobby?.players?.length || 0,
+        playerEmailsNames: summarizeLobbyPlayers(result?.lobby?.players || []),
+        updateSuccess: Boolean(result?.joined),
+      });
 
       if (!result?.found) {
         setError('Lobi bulunamadı. Kod hatalı olabilir.');
@@ -253,6 +268,7 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
   const playerNameRef = useRef(playerName);
   const userRef = useRef(user);
   const hasNavigatedToGameRef = useRef(false);
+  const rejoinAttemptRef = useRef(false);
   useEffect(() => { playerNameRef.current = playerName; }, [playerName]);
   useEffect(() => { userRef.current = user; }, [user]);
 
@@ -266,6 +282,17 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
       currentPlayerName: playerName || null,
     }));
   }, [lobby?.id, lobby?.status, user?.email, playerName]);
+
+  useEffect(() => {
+    console.log('[WaitingRoom] rendered roster:', {
+      lobbyId: lobby?.id || null,
+      subscriptionPlayersCount: lobby?.players?.length || 0,
+      renderedPlayersCount: lobby?.players?.length || 0,
+      renderedPlayerNames: (lobby?.players || []).map(p => p?.name),
+      renderedPlayerEmails: (lobby?.players || []).map(p => p?.email),
+      isHost,
+    });
+  }, [lobby?.id, lobby?.players, isHost]);
 
   const isDebugVisible = !isHost && (import.meta.env.DEV || user?.role === 'admin');
 
@@ -332,6 +359,7 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
         receivedLobbyId,
         status,
         playerCount,
+        players: summarizeLobbyPlayers(updatedLobby?.players || []),
         current_question_id: updatedLobby?.current_question_id || null,
         current_player_index: updatedLobby?.current_player_index ?? null,
       });
@@ -395,6 +423,99 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
 
     return () => unsub();
   }, [lobby?.id, lobby?.status, navigateToOnlineGame, setLobby]);
+
+  useEffect(() => {
+    if (!lobby?.id || lobby.status !== 'waiting') return undefined;
+
+    const intervalId = window.setInterval(async () => {
+      if (hasNavigatedToGameRef.current) return;
+
+      try {
+        const fresh = await base44.entities.Lobby.get(lobby.id);
+        if (!fresh) return;
+
+        const currentPlayers = lobby.players || [];
+        const freshPlayers = fresh.players || [];
+        const rosterChanged =
+          currentPlayers.length !== freshPlayers.length ||
+          JSON.stringify(summarizeLobbyPlayers(currentPlayers)) !== JSON.stringify(summarizeLobbyPlayers(freshPlayers));
+
+        console.log('[WaitingRoom] roster poll:', {
+          lobbyId: lobby.id,
+          rosterChanged,
+          localPlayersCount: currentPlayers.length,
+          fetchedPlayersCount: freshPlayers.length,
+          fetchedPlayerNames: freshPlayers.map(p => p?.name),
+          fetchedPlayerEmails: freshPlayers.map(p => p?.email),
+        });
+
+        if (rosterChanged) {
+          setLobby(fresh);
+        }
+      } catch (err) {
+        console.warn('[WaitingRoom] roster poll failed:', {
+          lobbyId: lobby.id,
+          error: err.message,
+        });
+      }
+    }, 2000);
+
+    return () => window.clearInterval(intervalId);
+  }, [lobby?.id, lobby?.players, lobby.status, setLobby]);
+
+  useEffect(() => {
+    const currentEmail = user?.email;
+    const currentName = playerName?.trim();
+    const roster = lobby?.players || [];
+    const isCurrentPlayerVisible = currentEmail
+      ? roster.some(p => p?.email === currentEmail)
+      : roster.some(p => p?.name === currentName);
+
+    if (isCurrentPlayerVisible) {
+      rejoinAttemptRef.current = false;
+    }
+
+    if (!lobby?.id || lobby.status !== 'waiting' || isCurrentPlayerVisible || rejoinAttemptRef.current) {
+      return;
+    }
+
+    rejoinAttemptRef.current = true;
+    console.warn('[WaitingRoom] current player missing from waiting roster, reasserting join:', {
+      lobbyId: lobby.id,
+      code: lobby.code,
+      currentUserEmail: currentEmail || null,
+      currentPlayerName: currentName || null,
+      rosterCount: roster.length,
+      roster: summarizeLobbyPlayers(roster),
+    });
+
+    base44.functions.invoke('findLobbyByCode', {
+      code: lobby.code,
+      playerName: currentName,
+    }).then((res) => {
+      const updatedLobby = res?.data?.lobby;
+      console.log('[WaitingRoom] rejoin assertion result:', {
+        lobbyId: updatedLobby?.id || lobby.id,
+        joined: Boolean(res?.data?.joined),
+        playersCount: updatedLobby?.players?.length || 0,
+        players: summarizeLobbyPlayers(updatedLobby?.players || []),
+      });
+      if (updatedLobby) {
+        const updatedRoster = updatedLobby.players || [];
+        const isVisibleAfterRejoin = currentEmail
+          ? updatedRoster.some(p => p?.email === currentEmail)
+          : updatedRoster.some(p => p?.name === currentName);
+        if (!isVisibleAfterRejoin) rejoinAttemptRef.current = false;
+        setLobby(updatedLobby);
+      }
+    }).catch((err) => {
+      console.warn('[WaitingRoom] rejoin assertion failed:', {
+        lobbyId: lobby.id,
+        error: err.message,
+      });
+      rejoinAttemptRef.current = false;
+    });
+  }, [lobby?.id, lobby?.status, lobby?.players, lobby?.code, playerName, user?.email, setLobby]);
 
   useEffect(() => {
     if (!lobby?.id || isHost) return undefined;
@@ -501,6 +622,25 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
   };
 
   const handleStart = async () => {
+    const latestLobby = await base44.entities.Lobby.get(lobby.id).catch((err) => {
+      console.warn('[handleStart] latest lobby fetch failed, using local lobby:', err.message);
+      return null;
+    });
+    const startLobby = latestLobby || lobby;
+    const startPlayers = Array.isArray(startLobby.players) ? startLobby.players : [];
+
+    console.log('[handleStart] latest roster before start:', {
+      lobbyId: startLobby.id,
+      localPlayersCount: lobby.players?.length || 0,
+      fetchedPlayersCount: startPlayers.length,
+      players: summarizeLobbyPlayers(startPlayers),
+    });
+
+    if (startPlayers.length < 2) {
+      alert('Oyun başlatmak için en az 2 oyuncu gerekli');
+      return;
+    }
+
     // Soruları çek ve filtrele
     const allQuestions = await base44.entities.Question.list('-created_date', 200);
     const filtered = allQuestions
@@ -521,7 +661,7 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
     }
 
     // Sırayla soru dağıt: her oyuncuya 2 kart + 1 aktif soru
-    const neededCount = lobby.players.length * 2 + 1;
+    const neededCount = startPlayers.length * 2 + 1;
     if (shuffled.length < neededCount) {
       alert(`Yeterli soru yok. Gerekli: ${neededCount}, mevcut: ${shuffled.length}`);
       return;
@@ -530,7 +670,7 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
     let cursor = 0;
     const used = new Set();
 
-    const playersWithCards = lobby.players.map(p => {
+    const playersWithCards = startPlayers.map(p => {
       const cards = [];
       for (let i = 0; i < 2; i++) {
         const q = shuffled[cursor++];
@@ -552,11 +692,21 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
     };
 
     console.log('[handleStart] lobbyId:', lobby.id, 'playerCount:', playersWithCards.length, 'status:', updateData.status, 'current_player_index:', updateData.current_player_index, 'current_question_id:', updateData.current_question_id, 'used_count:', updateData.used_question_ids.length, 'players:', playersWithCards.map(p => p.name));
+    console.log('[handleStart] start payload roster:', {
+      lobbyId: startLobby.id,
+      playersCountUsedForGameStart: playersWithCards.length,
+      playersWrittenToLobby: summarizeLobbyPlayers(playersWithCards),
+      cardsInitializedForEachPlayer: playersWithCards.map(p => ({
+        email: p.email,
+        name: p.name,
+        cardCount: p.cards?.length || 0,
+      })),
+    });
 
-    await base44.entities.Lobby.update(lobby.id, updateData);
+    await base44.entities.Lobby.update(startLobby.id, updateData);
     navigate('/game', {
       state: {
-        lobbyId: lobby.id,
+        lobbyId: startLobby.id,
         online: true,
       }
     });
