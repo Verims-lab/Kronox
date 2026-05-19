@@ -125,8 +125,8 @@ export default function SettingsPage() {
               />
               <ToolCard
                 icon={<FlaskConical className="w-4 h-4" />}
-                title="Online Simülasyonlar"
-                desc="130+ test senaryosu ve simülasyon"
+                title="Regression Test Panel"
+                desc="Current app QA, online sync checks, and manual two-device checklist"
                 onClick={() => setShowSim(true)}
               />
             </Section>
