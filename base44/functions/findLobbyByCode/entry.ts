@@ -17,6 +17,12 @@ const normalizeCode = (code) =>
     .replace(/\s+/g, '')
     .replace(/[^\w]/g, '');
 
+const summarizePlayers = (players: any[] = []) =>
+  players.map((p) => ({
+    email: p?.email || null,
+    name: p?.name || null,
+  }));
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -85,7 +91,14 @@ Deno.serve(async (req) => {
     const currentPlayers = lobby.players || [];
     const alreadyIn = currentPlayers.some(p => p.email === user.email);
 
-    console.log('[findLobbyByCode] alreadyIn:', alreadyIn, 'currentPlayers:', currentPlayers.length, 'userEmail:', user.email);
+    console.log('[findLobbyByCode] join roster before append:', {
+      lobbyId: lobby.id,
+      existingPlayersCount: currentPlayers.length,
+      playerEmailsNames: summarizePlayers(currentPlayers),
+      joiningEmail: user.email,
+      joiningName: playerName,
+      alreadyIn,
+    });
 
     if (!alreadyIn) {
       const newPlayer = {
@@ -97,20 +110,81 @@ Deno.serve(async (req) => {
 
       const newPlayers = [...currentPlayers, newPlayer];
 
-      console.log('[findLobbyByCode] updating lobby', lobby.id, 'with', newPlayers.length, 'players');
+      console.log('[findLobbyByCode] updating lobby roster:', {
+        lobbyId: lobby.id,
+        existingPlayersCount: currentPlayers.length,
+        newPlayersCount: newPlayers.length,
+        playerEmailsNames: summarizePlayers(newPlayers),
+      });
 
       const updatedLobby = await base44.asServiceRole.entities.Lobby.update(lobby.id, {
         players: newPlayers,
       });
 
-      console.log('[findLobbyByCode] update success, players now:', updatedLobby?.players?.length);
+      const verifiedLobby = await base44.asServiceRole.entities.Lobby.get(lobby.id);
+      const verifiedPlayers = Array.isArray(verifiedLobby?.players) ? verifiedLobby.players : [];
+      const joinPersisted = verifiedPlayers.some((p) => p?.email === user.email);
+
+      console.log('[findLobbyByCode] update success verification:', {
+        lobbyId: lobby.id,
+        updateReturnedPlayersCount: updatedLobby?.players?.length || 0,
+        verifiedPlayersCount: verifiedPlayers.length,
+        joinPersisted,
+        playerEmailsNames: summarizePlayers(verifiedPlayers),
+      });
+
+      if (!joinPersisted) {
+        const retryPlayers = [...verifiedPlayers.filter((p) => p?.email !== user.email), newPlayer];
+        console.warn('[findLobbyByCode] join missing after update, retrying merge append:', {
+          lobbyId: lobby.id,
+          verifiedPlayersCount: verifiedPlayers.length,
+          retryPlayersCount: retryPlayers.length,
+          playerEmailsNames: summarizePlayers(retryPlayers),
+        });
+        const retryLobby = await base44.asServiceRole.entities.Lobby.update(lobby.id, {
+          players: retryPlayers,
+        });
+        console.log('[findLobbyByCode] retry update success:', {
+          lobbyId: lobby.id,
+          playersCount: retryLobby?.players?.length || 0,
+          playerEmailsNames: summarizePlayers(retryLobby?.players || []),
+        });
+
+        return Response.json({
+          found: true,
+          joinable: true,
+          joined: true,
+          lobby: retryLobby,
+          debug: {
+            rawCode,
+            normalizedCode,
+            queryResultCount: lobbies.length,
+            matchedStatus: lobby.status,
+            matchedId: lobby.id,
+            existingPlayersCount: currentPlayers.length,
+            playerCount: retryLobby?.players?.length || retryPlayers.length,
+            retryApplied: true,
+            playerEmailsNames: summarizePlayers(retryLobby?.players || retryPlayers),
+          }
+        });
+      }
 
       return Response.json({
         found: true,
         joinable: true,
         joined: true,
-        lobby: updatedLobby,
-        debug: { rawCode, normalizedCode, queryResultCount: lobbies.length, matchedStatus: lobby.status, matchedId: lobby.id, playerCount: newPlayers.length }
+        lobby: verifiedLobby || updatedLobby,
+        debug: {
+          rawCode,
+          normalizedCode,
+          queryResultCount: lobbies.length,
+          matchedStatus: lobby.status,
+          matchedId: lobby.id,
+          existingPlayersCount: currentPlayers.length,
+          playerCount: verifiedPlayers.length || newPlayers.length,
+          retryApplied: false,
+          playerEmailsNames: summarizePlayers(verifiedPlayers.length ? verifiedPlayers : newPlayers),
+        }
       });
     } else {
       // Already a member — return current lobby state
