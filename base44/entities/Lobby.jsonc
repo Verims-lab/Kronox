@@ -69,6 +69,10 @@
       "type": "string",
       "description": "Name of the winning player"
     },
+    "winner_email": {
+      "type": "string",
+      "description": "Email of the winning player"
+    },
     "category": {
       "type": "string",
       "enum": [
