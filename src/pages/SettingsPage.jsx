@@ -126,7 +126,7 @@ export default function SettingsPage() {
               <ToolCard
                 icon={<FlaskConical className="w-4 h-4" />}
                 title="Regression Test Panel"
-                desc="Current app QA, online sync checks, and manual two-device checklist"
+                desc="Automated QA for online sync, spectator mode, GameOver, and UI cleanup"
                 onClick={() => setShowSim(true)}
               />
             </Section>
