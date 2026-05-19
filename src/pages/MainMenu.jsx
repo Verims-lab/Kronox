@@ -13,32 +13,58 @@ function PlayButton({ onClick }) {
     <motion.button
       type="button"
       onClick={onClick}
-      whileTap={{ scale: 0.965, y: 4 }}
-      transition={{ type: 'spring', stiffness: 520, damping: 24 }}
-      className="relative mx-auto flex w-full items-center justify-center gap-3 rounded-[22px] border-[3px] border-black/80 font-bangers text-[clamp(2.35rem,10.5vw,3.55rem)] leading-none text-black"
+      whileTap={{ scale: 0.955, y: 5 }}
+      transition={{ type: 'spring', stiffness: 560, damping: 25 }}
+      className="relative mx-auto flex w-[96%] items-center justify-center gap-3 overflow-visible rounded-[24px] border-[3px] border-black/90 font-bangers text-[clamp(2.55rem,11.2vw,3.75rem)] leading-none text-black"
       style={{
-        height: 'clamp(64px, 8.5svh, 92px)',
-        background: 'linear-gradient(180deg, #fff06f 0%, #facc15 48%, #eda60a 100%)',
-        boxShadow: '0 0 24px rgba(250,204,21,0.58), 0 11px 0 #6b2591, 0 16px 0 #19071f, inset 0 5px 0 rgba(255,255,255,0.34)',
+        height: 'clamp(72px, 9.4svh, 102px)',
+        background: 'linear-gradient(180deg, #fff8a8 0%, #ffd52b 34%, #f7b40b 72%, #df8c00 100%)',
+        boxShadow: [
+          '0 0 22px rgba(250,204,21,0.42)',
+          '0 0 46px rgba(250,204,21,0.28)',
+          '0 12px 0 #6c238f',
+          '0 18px 0 #17051f',
+          'inset 0 5px 0 rgba(255,255,255,0.46)',
+          'inset 0 -9px 14px rgba(123,63,0,0.22)',
+        ].join(', '),
       }}
       aria-label="Hemen oyna"
     >
+      <motion.span
+        className="pointer-events-none absolute inset-[-10px] rounded-[30px]"
+        animate={{ opacity: [0.38, 0.72, 0.38] }}
+        transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+        style={{
+          background: 'radial-gradient(ellipse at center, rgba(250,204,21,0.42), transparent 68%)',
+          filter: 'blur(2px)',
+        }}
+        aria-hidden="true"
+      />
       <span
-        className="absolute -left-8 top-1/2 h-12 w-7 -translate-y-1/2"
+        className="pointer-events-none absolute inset-[5px] rounded-[18px]"
+        style={{
+          background: 'linear-gradient(180deg, rgba(255,255,255,0.32), transparent 42%)',
+        }}
+        aria-hidden="true"
+      />
+      <span
+        className="absolute -left-9 top-1/2 h-14 w-8 -translate-y-1/2"
         aria-hidden="true"
         style={{
-          background: 'repeating-radial-gradient(ellipse at right, rgba(255,255,255,0.95) 0 2px, transparent 3px 8px)',
+          background: 'repeating-radial-gradient(ellipse at right, rgba(255,255,255,0.98) 0 2px, transparent 3px 9px)',
           clipPath: 'polygon(100% 0, 0 18%, 78% 50%, 0 82%, 100% 100%)',
+          filter: 'drop-shadow(0 0 7px rgba(255,255,255,0.75))',
         }}
       />
-      HEMEN OYNA
-      <Zap className="h-[0.76em] w-[0.76em] fill-black stroke-black" strokeWidth={2.7} />
+      <span className="relative tracking-[0.01em] drop-shadow-[0_2px_0_rgba(255,255,255,0.28)]">HEMEN OYNA</span>
+      <Zap className="relative h-[0.76em] w-[0.76em] fill-black stroke-black" strokeWidth={2.8} />
       <span
-        className="absolute -right-8 top-1/2 h-12 w-7 -translate-y-1/2 rotate-180"
+        className="absolute -right-9 top-1/2 h-14 w-8 -translate-y-1/2 rotate-180"
         aria-hidden="true"
         style={{
-          background: 'repeating-radial-gradient(ellipse at right, rgba(255,255,255,0.95) 0 2px, transparent 3px 8px)',
+          background: 'repeating-radial-gradient(ellipse at right, rgba(255,255,255,0.98) 0 2px, transparent 3px 9px)',
           clipPath: 'polygon(100% 0, 0 18%, 78% 50%, 0 82%, 100% 100%)',
+          filter: 'drop-shadow(0 0 7px rgba(255,255,255,0.75))',
         }}
       />
     </motion.button>
@@ -55,37 +81,52 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
       onClick={onClick}
       whileTap={{ scale: 0.965, y: 3 }}
       transition={{ type: 'spring', stiffness: 460, damping: 24 }}
-      className="relative overflow-hidden rounded-[16px] px-3 py-4 text-center"
+      className="relative overflow-hidden rounded-[18px] px-3 py-4 text-center"
       style={{
-        minHeight: 'clamp(138px, 18.5svh, 210px)',
+        minHeight: 'clamp(146px, 19.5svh, 218px)',
         background: solo
-          ? 'linear-gradient(180deg, rgba(64,13,105,0.92), rgba(16,7,35,0.98))'
-          : 'linear-gradient(180deg, rgba(18,16,17,0.96), rgba(6,7,17,0.98))',
-        border: `1.5px solid ${solo ? 'rgba(192,68,255,0.95)' : 'rgba(250,204,21,0.88)'}`,
+          ? 'linear-gradient(180deg, rgba(71,19,118,0.96), rgba(22,7,46,0.98) 54%, rgba(6,4,18,0.99))'
+          : 'linear-gradient(180deg, rgba(25,22,17,0.98), rgba(11,10,18,0.98) 54%, rgba(4,5,13,0.99))',
+        border: `1.5px solid ${solo ? 'rgba(203,85,255,0.98)' : 'rgba(250,204,21,0.95)'}`,
         boxShadow: solo
-          ? '0 0 18px rgba(192,68,255,0.58), inset 0 0 26px rgba(192,68,255,0.10)'
-          : '0 0 18px rgba(250,204,21,0.38), inset 0 0 24px rgba(250,204,21,0.08)',
+          ? '0 0 22px rgba(192,68,255,0.62), 0 12px 24px rgba(0,0,0,0.42), inset 0 0 30px rgba(192,68,255,0.14)'
+          : '0 0 22px rgba(250,204,21,0.42), 0 12px 24px rgba(0,0,0,0.42), inset 0 0 28px rgba(250,204,21,0.11)',
       }}
       aria-label={title.replace('\n', ' ')}
     >
-      <span className="absolute inset-0 bg-gradient-to-b from-white/[0.08] via-transparent to-transparent" />
+      <span className="absolute inset-[1px] rounded-[16px] bg-gradient-to-b from-white/[0.11] via-transparent to-transparent" />
       <span
-        className="relative mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border"
+        className="absolute inset-x-0 top-0 h-20 opacity-80"
+        style={{
+          background: solo
+            ? 'radial-gradient(ellipse at 50% 0%, rgba(217,70,239,0.34), transparent 70%)'
+            : 'radial-gradient(ellipse at 50% 0%, rgba(250,204,21,0.22), transparent 70%)',
+        }}
+        aria-hidden="true"
+      />
+      <span
+        className="relative z-10 mx-auto mb-3 flex items-center justify-center rounded-full border"
         style={{
           color: accent,
-          borderColor: solo ? 'rgba(192,68,255,0.72)' : 'rgba(250,204,21,0.72)',
-          boxShadow: solo ? '0 0 20px rgba(192,68,255,0.44)' : '0 0 18px rgba(250,204,21,0.32)',
+          width: 52,
+          height: 52,
+          background: 'rgba(0,0,0,0.22)',
+          borderColor: solo ? 'rgba(214,97,255,0.88)' : 'rgba(250,204,21,0.88)',
+          boxShadow: solo ? '0 0 22px rgba(192,68,255,0.58), inset 0 0 15px rgba(255,255,255,0.08)' : '0 0 22px rgba(250,204,21,0.42), inset 0 0 15px rgba(255,255,255,0.07)',
         }}
       >
         {icon}
       </span>
       <span
-        className="relative block whitespace-pre-line font-bangers text-[clamp(1.55rem,6.6vw,2.25rem)] leading-[0.92]"
-        style={{ color: solo ? '#c067ff' : '#f8fafc' }}
+        className="relative z-10 block whitespace-pre-line font-bangers text-[clamp(1.62rem,6.9vw,2.32rem)] leading-[0.9]"
+        style={{
+          color: solo ? '#d47cff' : '#f8fafc',
+          textShadow: solo ? '0 0 14px rgba(192,68,255,0.42)' : '0 0 12px rgba(250,204,21,0.18)',
+        }}
       >
         {title}
       </span>
-      <span className="relative mt-3 block font-inter text-[clamp(0.72rem,3.1vw,0.94rem)] font-bold leading-snug text-white/78">
+      <span className="relative z-10 mt-3 block font-inter text-[clamp(0.72rem,3.1vw,0.94rem)] font-bold leading-snug text-white/78">
         {subtitle}
       </span>
       <span
@@ -93,8 +134,19 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
         aria-hidden="true"
         style={{
           background: solo
-            ? 'radial-gradient(ellipse at 50% 100%, rgba(168,85,247,0.72), transparent 70%)'
-            : 'radial-gradient(ellipse at 50% 100%, rgba(250,204,21,0.48), transparent 72%)',
+            ? 'radial-gradient(ellipse at 50% 100%, rgba(168,85,247,0.82), transparent 68%)'
+            : 'radial-gradient(ellipse at 50% 100%, rgba(250,204,21,0.55), transparent 70%)',
+        }}
+      />
+      <span
+        className="pointer-events-none absolute inset-x-3 bottom-3 h-11 opacity-75"
+        aria-hidden="true"
+        style={{
+          background: solo
+            ? 'linear-gradient(to top, rgba(88,28,135,0.92), transparent), radial-gradient(ellipse at 50% 100%, rgba(192,68,255,0.68), transparent 55%)'
+            : 'linear-gradient(to top, rgba(92,65,12,0.72), transparent), radial-gradient(ellipse at 50% 100%, rgba(250,204,21,0.42), transparent 58%)',
+          clipPath: 'polygon(0 100%, 0 66%, 8% 74%, 16% 58%, 23% 78%, 30% 50%, 38% 70%, 47% 44%, 56% 74%, 66% 54%, 75% 78%, 84% 58%, 92% 70%, 100% 60%, 100% 100%)',
+          zIndex: 0,
         }}
       />
     </motion.button>
@@ -104,31 +156,32 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
 function ProfileBar({ user, onLogin, onLogout }) {
   return (
     <div
-      className="flex min-w-0 flex-1 items-center gap-3 rounded-full border border-white/18 bg-black/64 px-3 py-2"
+      className="flex min-w-0 flex-1 items-center gap-3 rounded-full border border-purple-300/24 bg-black/72 px-3 py-2"
       style={{
-        minHeight: 58,
-        boxShadow: 'inset 0 0 20px rgba(255,255,255,0.04), 0 0 18px rgba(255,255,255,0.08)',
+        minHeight: 56,
+        background: 'linear-gradient(180deg, rgba(17,12,30,0.82), rgba(5,5,14,0.9))',
+        boxShadow: 'inset 0 0 18px rgba(255,255,255,0.05), 0 0 20px rgba(168,85,247,0.18), 0 10px 22px rgba(0,0,0,0.38)',
       }}
     >
       <span
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
         style={{
-          background: 'linear-gradient(180deg, #9333ea, #581c87)',
-          boxShadow: '0 0 18px rgba(168,85,247,0.55)',
+          background: 'linear-gradient(180deg, #a855f7, #5b21b6)',
+          boxShadow: '0 0 18px rgba(168,85,247,0.62), inset 0 0 10px rgba(255,255,255,0.12)',
         }}
       >
-        <UserRound className="h-7 w-7 text-purple-200" />
+        <UserRound className="h-6 w-6 text-purple-100" />
       </span>
       {user ? (
         <>
           <div className="min-w-0 flex-1">
-            <p className="truncate font-inter text-[15px] font-black text-white">{user.full_name || user.email}</p>
-            <p className="font-inter text-[12px] font-bold text-primary/90">Hazır</p>
+            <p className="truncate font-inter text-[14px] font-black text-white">{user.full_name || user.email}</p>
+            <p className="font-inter text-[11px] font-black text-primary">Hazır</p>
           </div>
           <button
             type="button"
             onClick={onLogout}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white/55"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white/58"
             aria-label="Hesaptan çıkış yap"
           >
             <LogOut className="h-5 w-5" />
@@ -136,8 +189,8 @@ function ProfileBar({ user, onLogin, onLogout }) {
         </>
       ) : (
         <button type="button" onClick={onLogin} className="min-w-0 flex-1 text-left" aria-label="Giriş yap veya kayıt ol">
-          <span className="block truncate font-inter text-[15px] font-black text-white">Misafir Oyuncu</span>
-          <span className="flex items-center gap-1 font-inter text-[12px] font-black text-primary">
+          <span className="block truncate font-inter text-[14px] font-black text-white">Misafir Oyuncu</span>
+          <span className="flex items-center gap-1 font-inter text-[11px] font-black text-primary">
             Giriş yap veya kayıt ol <ChevronRight className="h-4 w-4" />
           </span>
         </button>
@@ -229,10 +282,10 @@ export default function MainMenu() {
           />
         </section>
 
-        <section className="relative z-20 shrink-0" style={{ marginTop: 'calc(-1 * clamp(1.85rem, 5.8svh, 4.4rem))' }}>
+        <section className="relative z-20 shrink-0" style={{ marginTop: 'calc(-1 * clamp(1.55rem, 5.1svh, 3.8rem))' }}>
           <PlayButton onClick={handleSolo} />
 
-          <div className="mt-5 grid grid-cols-2 gap-4">
+          <div className="mt-4 grid grid-cols-2 gap-4">
             <ModeCard
               type="solo"
               title={'SOLO\nMEYDAN OKUMA'}
@@ -249,16 +302,17 @@ export default function MainMenu() {
             />
           </div>
 
-          <div className="mt-4 flex items-center gap-4">
+          <div className="mt-3 flex items-center gap-3">
             <ProfileBar user={user} onLogin={handleLogin} onLogout={handleLogout} />
             <motion.button
               type="button"
               onClick={handleSettings}
               whileTap={{ scale: 0.92, rotate: -8 }}
               transition={{ type: 'spring', stiffness: 520, damping: 24 }}
-              className="flex h-[58px] w-[58px] shrink-0 items-center justify-center rounded-full border border-primary/70 bg-black/72 text-white"
+              className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-full border border-primary/70 bg-black/76 text-white"
               style={{
-                boxShadow: '0 0 22px rgba(250,204,21,0.42), inset 0 0 18px rgba(255,255,255,0.07)',
+                background: 'linear-gradient(180deg, rgba(24,21,18,0.88), rgba(4,5,13,0.96))',
+                boxShadow: '0 0 20px rgba(250,204,21,0.42), 0 10px 22px rgba(0,0,0,0.4), inset 0 0 18px rgba(255,255,255,0.08)',
               }}
               aria-label="Ayarlar"
             >
