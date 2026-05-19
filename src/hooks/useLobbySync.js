@@ -23,7 +23,16 @@ const toLobbyState = (data, fallback = {}) => ({
   used_question_ids: Array.isArray(data?.used_question_ids) ? data.used_question_ids : (fallback.used_question_ids || []),
   status: data?.status ?? fallback.status,
   winner: data?.winner ?? fallback.winner,
+  winner_email: data?.winner_email ?? fallback.winner_email ?? null,
 });
+
+const toWinnerState = (data) => {
+  if (data?.status !== 'finished' || !data?.winner) return null;
+  return {
+    name: typeof data.winner === 'object' ? data.winner.name : data.winner,
+    email: data.winner_email || (typeof data.winner === 'object' ? data.winner.email : null),
+  };
+};
 
 export function useLobbySync({
   lobbyId,
@@ -54,6 +63,8 @@ export function useLobbySync({
         setLobbyDataCalled: true,
         lobbyId: nextLobbyData.id || lobbyId,
         status: nextLobbyData.status,
+        winner: nextLobbyData.winner || null,
+        winner_email: nextLobbyData.winner_email || null,
         current_player_index: nextLobbyData.current_player_index,
         current_question_id: nextLobbyData.current_question_id,
         used_question_count: nextLobbyData.used_question_ids?.length || 0,
@@ -61,6 +72,21 @@ export function useLobbySync({
       });
       addGameLog(`APPLY source=${source} idx=${nextLobbyData.current_player_index} q=${nextLobbyData.current_question_id}`);
       setLobbyData(nextLobbyData);
+
+      const winnerState = toWinnerState(nextLobbyData);
+      if (winnerState?.name) {
+        console.log('[useLobbySync] finished lobby observed:', {
+          source,
+          lobbyId: nextLobbyData.id || lobbyId,
+          setWinnerCalled: true,
+          winner: winnerState.name,
+          winner_email: winnerState.email || null,
+          currentScreenState: 'online-game',
+          renderedGameOver: true,
+        });
+        addGameLog(`WINNER source=${source} winner=${winnerState.name}`);
+        setWinner({ ...winnerState });
+      }
     };
 
     // İlk yükleme — always fetch fresh DB state to get correct current_player_index
@@ -132,9 +158,6 @@ export function useLobbySync({
         setLobbyData(null);
         setError('Lobi kapatıldı.');
         return;
-      }
-      if (updatedLobby.status === 'finished' && updatedLobby.winner) {
-        setWinner({ name: updatedLobby.winner });
       }
       applyLobbyData(updatedLobby, `subscription:${eventType}`);
     });
