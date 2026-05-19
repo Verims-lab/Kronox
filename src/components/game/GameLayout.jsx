@@ -79,6 +79,7 @@ export default function GameLayout({
 }) {
   // Ghost card follows the raw finger position (viewport coords) — no scroll correction needed
   // Timeline uses world coords internally for hit-testing
+  const isSpectatingQuestion = Boolean(isOnline && !isMyTurn && currentQuestion && !winner);
 
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'linear-gradient(to bottom, #0B1F3A 0%, #1E3A8A 100%)' }}>
@@ -160,7 +161,7 @@ export default function GameLayout({
       {/* CENTER: Instruction + Question card */}
       <div className="flex-shrink-0 flex flex-col items-center px-4 py-1 gap-1">
         {/* Instruction text */}
-        {isMyTurn && !winner && currentQuestion && !feedback && (
+        {isMyTurn && !winner && currentQuestion && !feedback ? (
           <div className="text-center">
             <p className="font-inter font-semibold tracking-wide" style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)' }}>
               KARTI ZAMAN ÇİZGİSİNE
@@ -169,35 +170,44 @@ export default function GameLayout({
               YERLEŞTİR!
             </p>
           </div>
-        )}
+        ) : isSpectatingQuestion ? (
+          <div className="text-center">
+            <p className="font-inter font-semibold tracking-wide" style={{ fontSize: 12, color: 'rgba(255,255,255,0.72)' }}>
+              SIRA {currentPlayer?.name || 'OYUNCU'} OYUNCUSUNDA
+            </p>
+            <p className="font-bangers tracking-widest" style={{ fontSize: 16, color: '#facc15' }}>
+              SORUYU İZLİYORSUN
+            </p>
+          </div>
+        ) : null}
 
-        {currentQuestion && isMyTurn && !winner ? (
-          <QuestionCard
-            question={currentQuestion}
-            onImageError={onImageError}
-            onAudioError={onAudioError}
-            draggable={!feedback}
-            onDragStart={onDragStart}
-            onDragEnd={onDragEnd}
-            onTouchDragMove={onTouchDragMove}
-            onTouchDragEnd={onTouchDragEnd}
-          />
-        ) : currentQuestion && !isMyTurn ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="w-full max-w-xs rounded-2xl flex flex-col items-center justify-center py-7 text-center"
-            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
-          >
-            <motion.div
-              animate={{ scale: [1, 1.12, 1], opacity: [0.7, 1, 0.7] }}
-              transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
-              className="w-3 h-3 rounded-full bg-primary mb-3"
-              style={{ boxShadow: '0 0 10px rgba(250,204,21,0.6)' }}
+        {currentQuestion && !winner ? (
+          <div className="relative">
+            <QuestionCard
+              question={currentQuestion}
+              onImageError={onImageError}
+              onAudioError={onAudioError}
+              draggable={isMyTurn && !feedback}
+              readOnly={!isMyTurn}
+              readOnlyLabel={isSpectatingQuestion ? 'İZLEME MODU' : 'KİLİTLİ'}
+              onDragStart={isMyTurn ? onDragStart : undefined}
+              onDragEnd={isMyTurn ? onDragEnd : undefined}
+              onTouchDragMove={isMyTurn ? onTouchDragMove : undefined}
+              onTouchDragEnd={isMyTurn ? onTouchDragEnd : undefined}
             />
-            <span className="font-bangers text-xl tracking-wider text-primary block mb-0.5">{currentPlayer?.name}</span>
-            <span className="font-inter text-white/40 text-xs">düşünüyor…</span>
-          </motion.div>
+            {isSpectatingQuestion && (
+              <div
+                className="absolute inset-x-2 bottom-2 rounded-xl px-2 py-1.5 text-center font-inter text-[10px] font-semibold text-white/78"
+                style={{
+                  background: 'rgba(7,10,31,0.78)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  pointerEvents: 'none',
+                }}
+              >
+                Kartı yalnızca {currentPlayer?.name || 'aktif oyuncu'} yerleştirebilir.
+              </div>
+            )}
+          </div>
         ) : null}
       </div>
 
@@ -243,35 +253,53 @@ export default function GameLayout({
 
 
       {/* BOTTOM BUTTONS */}
-      <div
-        className="flex-shrink-0 flex items-center gap-2 px-3 pt-2"
-        style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
-      >
-        {/* Undo */}
-        <button
-          onClick={onUndoPlacement}
-          className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/60 hover:bg-white/20 transition-colors flex-shrink-0 min-h-[44px] min-w-[44px]"
-          aria-label="Son hamlayı geri al"
+      {isSpectatingQuestion ? (
+        <div
+          className="flex-shrink-0 px-3 pt-2"
+          style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
         >
-          <RotateCcw className="w-5 h-5" />
-        </button>
-
-        {/* Main action */}
-        <CTAButton
-          active={isMyTurn && selectedZone !== null && !feedback && !winner}
-          onClick={isMyTurn && selectedZone !== null ? onConfirmPlacement : undefined}
-          disabled={!isMyTurn || selectedZone === null || !!feedback || !!winner}
-        />
-
-        {/* Skip */}
-        <button
-          onClick={onSkipTurn}
-          className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/60 hover:bg-white/20 transition-colors flex-shrink-0 min-h-[44px] min-w-[44px]"
-          aria-label="Turunuzu atla"
+          <div
+            className="h-12 rounded-2xl flex items-center justify-center text-center font-inter text-xs font-semibold text-white/70"
+            style={{
+              background: 'rgba(255,255,255,0.07)',
+              border: '1px solid rgba(250,204,21,0.22)',
+              boxShadow: '0 0 18px rgba(250,204,21,0.08)',
+            }}
+          >
+            Sıra {currentPlayer?.name || 'oyuncu'} oyuncusunda. Yerleştirme kilitli.
+          </div>
+        </div>
+      ) : (
+        <div
+          className="flex-shrink-0 flex items-center gap-2 px-3 pt-2"
+          style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
         >
-          <ChevronRight className="w-5 h-5" />
-        </button>
-      </div>
+          {/* Undo */}
+          <button
+            onClick={onUndoPlacement}
+            className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/60 hover:bg-white/20 transition-colors flex-shrink-0 min-h-[44px] min-w-[44px]"
+            aria-label="Son hamlayı geri al"
+          >
+            <RotateCcw className="w-5 h-5" />
+          </button>
+
+          {/* Main action */}
+          <CTAButton
+            active={isMyTurn && selectedZone !== null && !feedback && !winner}
+            onClick={isMyTurn && selectedZone !== null ? onConfirmPlacement : undefined}
+            disabled={!isMyTurn || selectedZone === null || !!feedback || !!winner}
+          />
+
+          {/* Skip */}
+          <button
+            onClick={onSkipTurn}
+            className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/60 hover:bg-white/20 transition-colors flex-shrink-0 min-h-[44px] min-w-[44px]"
+            aria-label="Turunuzu atla"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+      )}
 
       {/* Ghost drag card */}
       <AnimatePresence>
