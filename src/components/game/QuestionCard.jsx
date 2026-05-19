@@ -55,6 +55,8 @@ export default function QuestionCard({
   onImageError,
   onAudioError,
   draggable = false,
+  readOnly = false,
+  readOnlyLabel = 'İZLEME MODU',
   onDragStart,
   onDragEnd,
   onTouchDragMove,
@@ -154,10 +156,12 @@ export default function QuestionCard({
   const [isDraggingNow, setIsDraggingNow] = useState(false);
 
   const handleTouchStartWrapped = (e) => {
+    if (!draggable) return;
     setIsDraggingNow(true);
     handleTouchStart(e);
   };
   const handleTouchEndWrapped = (e) => {
+    if (!draggable) return;
     setIsDraggingNow(false);
     handleTouchEnd(e);
   };
@@ -195,6 +199,20 @@ export default function QuestionCard({
         transition: 'box-shadow 0.15s ease',
       }}
     >
+      {readOnly && (
+        <div
+          className="absolute left-2 top-2 z-20 rounded-full px-2 py-1 font-inter text-[9px] font-bold tracking-wide text-yellow-200"
+          style={{
+            background: 'rgba(10,15,35,0.82)',
+            border: '1px solid rgba(250,204,21,0.45)',
+            boxShadow: '0 0 12px rgba(250,204,21,0.22)',
+            pointerEvents: 'none',
+          }}
+        >
+          {readOnlyLabel}
+        </div>
+      )}
+
       {hasAlbumArt ? (
         <>
           {/* Premium image layout — 65% of card */}
