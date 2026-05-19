@@ -90,6 +90,9 @@ Deno.serve(async (req) => {
 
     if (nextStatus === 'finished' && body.winner) {
       updateData.winner = body.winner;
+      if (body.winner_email) {
+        updateData.winner_email = body.winner_email;
+      }
     }
 
     const debug = {
