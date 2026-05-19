@@ -167,7 +167,7 @@ export default function LobbyRoom() {
           <div className="w-14 h-14 mx-auto border-2 border-primary/40 rounded-full flex items-center justify-center">
             <Clock className="w-7 h-7 text-primary" />
           </div>
-          <h1 className="font-cinzel text-3xl font-bold text-primary tracking-wider">KRONOS</h1>
+          <h1 className="font-cinzel text-3xl font-bold text-primary tracking-wider">KRONOX</h1>
           <p className="font-inter text-muted-foreground text-sm">Çevrimiçi Lobi</p>
         </div>
 
