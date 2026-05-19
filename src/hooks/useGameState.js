@@ -15,7 +15,6 @@ export function useGameState({ playerNames, initialPlayers, currentQuestionIdFro
   const [touchDragEnd, setTouchDragEnd] = useState(null);
   const [timerKey, setTimerKey] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
-  const [showChat, setShowChat] = useState(false);
   const [overallSeconds, setOverallSeconds] = useState(0);
   const [gameStarted, setGameStarted] = useState(false);
   const [error, setError] = useState(null);
@@ -66,7 +65,6 @@ export function useGameState({ playerNames, initialPlayers, currentQuestionIdFro
     touchDragEnd, setTouchDragEnd,
     timerKey, setTimerKey,
     showSettings, setShowSettings,
-    showChat, setShowChat,
     overallSeconds, setOverallSeconds,
     gameStarted, setGameStarted,
     error, setError,

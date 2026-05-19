@@ -1,6 +1,5 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle } from 'lucide-react';
 import { sounds } from '@/lib/gameSounds';
 import QuestionCard from './QuestionCard.jsx';
 import Timeline from './Timeline.jsx';
@@ -51,7 +50,6 @@ export default function GameLayout({
   winner,
   turnDuration,
   timerKey,
-  showChat,
   isTimeUp,
   // Handlers
   onSelectZone,
@@ -64,7 +62,6 @@ export default function GameLayout({
   onTouchDragMove,
   onTouchDragEnd,
   onTimeUp,
-  onToggleChat,
 }) {
   // Ghost card follows the raw finger position (viewport coords) — no scroll correction needed
   // Timeline uses world coords internally for hit-testing
@@ -99,23 +96,13 @@ export default function GameLayout({
           </div>
         </div>
 
-        {/* Right: Timer + Chat */}
+        {/* Right: Timer */}
         <div
           className="absolute right-4 top-2 flex items-center gap-1.5"
           style={{ top: 'calc(0.5rem + env(safe-area-inset-top))' }}
         >
           {isMyTurn && !winner && (
             <TurnTimer key={timerKey} active={!feedback && !winner} onTimeUp={isMyTurn ? onTimeUp : undefined} duration={turnDuration} size="lg" />
-          )}
-          {isOnline && (
-            <button
-              onClick={onToggleChat}
-              className={`w-11 h-11 rounded-2xl border flex items-center justify-center transition-colors min-h-[44px] min-w-[44px]
-                ${showChat ? 'bg-primary/20 border-primary/60 text-primary' : 'bg-white/10 border-white/20 text-white/70'}`}
-              aria-label={showChat ? 'Sohbeti kapat' : 'Sohbeti aç'}
-            >
-              <MessageCircle className="w-5 h-5" />
-            </button>
           )}
         </div>
       </div>
