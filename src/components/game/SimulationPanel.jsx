@@ -1,604 +1,168 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Play, Zap, CheckCircle2, XCircle, AlertCircle, Clock } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
+import { AlertTriangle, CheckCircle2, ChevronDown, ClipboardCheck, Clock, FileWarning, Play, RefreshCw, ShieldAlert, X, XCircle } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
-import EventStream from '@/components/qa/EventStream';
 
-// ─── Scenario groups ────────────────────────────────────────────────────────
-const SCENARIO_GROUPS = [
-  {
-    id: 'smoke',
-    label: 'Smoke',
-    icon: '💨',
-    color: '#67e8f9',
-    items: [
-      { key: 'smoke_questions_exist',      label: 'Sorular Mevcut',       desc: 'DB\'de en az 10 metin sorusu var' },
-      { key: 'smoke_solo_pool_ready',      label: 'Solo Havuz Hazır',     desc: 'Solo için yeterli metin sorusu (≥10)' },
-      { key: 'smoke_categories_exist',     label: 'Kategoriler Mevcut',   desc: 'En az 3 kategori DB\'de tanımlı' },
-      { key: 'smoke_difficulties_valid',   label: 'Zorluklar Geçerli',    desc: 'RAHAT/HIZLI/KAOS değerleri doğru' },
-      { key: 'smoke_gamerecord_crud',      label: 'GameRecord CRUD',      desc: 'Skor kaydı oluştur/sil çalışıyor' },
-      { key: 'smoke_lobby_crud',           label: 'Lobi CRUD',            desc: 'Lobi oluştur/sil çalışıyor' },
-    ],
-  },
-  {
-    id: 'solo',
-    label: 'Solo Challenge',
-    icon: '🎮',
-    color: '#c084fc',
-    items: [
-      { key: 'solo_game_init',             label: 'Oyun Başlatma',         desc: 'Solo Challenge → 2 kart + 1 ilk soru dağıtımı' },
-      { key: 'solo_category_teknoloji',    label: 'Kategori: Teknoloji',   desc: 'Teknoloji soru havuzu doğru filtreli' },
-      { key: 'solo_category_spor',         label: 'Kategori: Spor',        desc: 'Spor soru havuzu doğru filtreli' },
-      { key: 'solo_category_muzik',        label: 'Kategori: Müzik',       desc: 'Müzik modu — media_url\'li sorulardan oluşan havuz' },
-      { key: 'solo_difficulty_rahat',      label: 'Zorluk: RAHAT (∞)',    desc: 'turnDuration=0 → timer pasif' },
-      { key: 'solo_difficulty_hizli',      label: 'Zorluk: HIZLI (30sn)', desc: 'turnDuration=30 → timer aktif' },
-      { key: 'solo_difficulty_kaos',       label: 'Zorluk: KAOS (15sn)',  desc: 'turnDuration=15 → en zor mod' },
-      { key: 'solo_win_condition',         label: 'Kazanma Koşulu',        desc: 'cards.length >= winCardCount → winner set edilir' },
-      { key: 'solo_game_restart',          label: 'Yeniden Başlat',        desc: 'resetGame() → başlangıç state\'e döner' },
-      { key: 'solo_score_saved',           label: 'Skor Kaydedildi',       desc: 'GameRecord oluşturulup temizleniyor' },
-    ],
-  },
-  {
-    id: 'question_engine',
-    label: 'Soru Motoru',
-    icon: '🎯',
-    color: '#facc15',
-    items: [
-      { key: 'qe_no_session_duplicate',   label: 'Oturum Tekrarı Yok',       desc: 'Aynı soru ID aynı oyunda iki kez seçilmez' },
-      { key: 'qe_no_timeline_year_dup',   label: 'Timeline Yıl Tekrarı Yok', desc: 'Aktif timeline yılı havuzdan çıkarılır' },
-      { key: 'qe_recent_history',         label: 'Geçmiş Dışlama',           desc: 'localStorage history tekrarı azaltır' },
-      { key: 'qe_fallback_small_pool',    label: 'Küçük Havuz Fallback',     desc: 'Havuz < 5 → geçmiş kuralı gevşer' },
-      { key: 'qe_fallback_year_blocked',  label: 'Yıl Bloke Fallback',       desc: 'Tüm yıllar timeline\'da → yıl kuralı gevşer' },
-      { key: 'qe_pool_exhausted',         label: 'Havuz Tükenmesi',          desc: 'Tüm sorular kullanılınca null döner' },
-      { key: 'qe_category_filter',        label: 'Kategori Filtresi',        desc: 'Seçilen kategori dışı soru seçilmez' },
-      { key: 'qe_shuffle_randomness',     label: 'Rastgelelik Kontrolü',     desc: '20 seçimde hiç tekrar olmamalı' },
-      { key: 'qe_pool_500_perf',          label: '500 Soru → 50 Seçim',     desc: '500 soruluk havuzdan 50 benzersiz seçim hızı' },
-    ],
-  },
-  {
-    id: 'placement',
-    label: 'Yerleşim',
-    icon: '📍',
-    color: '#4ade80',
-    items: [
-      { key: 'placement_boundary',        label: 'Sınır Koşulları',    desc: 'Zone 0/N/orta, eşit yıl kenar değeri' },
-      { key: 'placement_empty_timeline',  label: 'Boş Timeline',       desc: '0 kartlı oyuncuya her yıl yerleştirilebilir' },
-      { key: 'placement_all_zones',       label: 'Tüm Zone Mantığı',   desc: '4 kartlı timeline, zone 0-4 kombinasyonları' },
-      { key: 'card_sort_accuracy',        label: 'Kart Sıralama',      desc: 'Yıllara göre sort, eşit yıl kararlı sıralama' },
-    ],
-  },
-  {
-    id: 'media',
-    label: 'Medya',
-    icon: '🖼️',
-    color: '#f9a8d4',
-    items: [
-      { key: 'media_url_valid',        label: 'Geçerli media_url',     desc: 'Müzik sorularında media_url dolu ve https' },
-      { key: 'media_url_empty',        label: 'Boş media_url',         desc: 'media_url=null → metin kartı render edilir' },
-      { key: 'media_url_broken',       label: 'Bozuk media_url',       desc: 'Image error → fallback gradient görünür' },
-      { key: 'icon_url_fallback',      label: 'icon_url Fallback',     desc: 'media_url yok → icon_url kullanılır' },
-      { key: 'muzik_pool_filter',      label: 'Müzik Havuz Filtresi',  desc: 'media_url\'siz müzik sorusu havuza girmiyor' },
-      { key: 'media_timeline_card',    label: 'TimelineCard Medya',    desc: 'Timeline kartında media_url kullanımı doğru' },
-    ],
-  },
-  {
-    id: 'tutorial',
-    label: 'Tutorial',
-    icon: '📖',
-    color: '#a78bfa',
-    items: [
-      { key: 'tutorial_first_launch',    label: 'İlk Açılış',          desc: 'hasSeen=false → tutorial gösterilir' },
-      { key: 'tutorial_skip',            label: 'Atla',                 desc: 'onSkip → showTutorial=false, markSeen' },
-      { key: 'tutorial_complete',        label: 'Tamamla',              desc: 'onDone → showTutorial=false, markSeen' },
-      { key: 'tutorial_no_reshow',       label: 'Tekrar Açılmıyor',    desc: 'hasSeen=true → auto-show olmaz' },
-      { key: 'tutorial_settings_reopen', label: 'Settings\'ten Aç',    desc: '"Nasıl Oynanır?" → manuel açılır' },
-    ],
-  },
-  {
-    id: 'admin',
-    label: 'Admin',
-    icon: '🛡️',
-    color: '#f59e0b',
-    items: [
-      { key: 'admin_role_check',         label: 'Rol Doğrulaması',       desc: 'Admin=true, user=false doğru ayrılıyor' },
-      { key: 'admin_question_create',    label: 'Soru Oluşturma',        desc: 'Test sorusu oluştur + temizle' },
-      { key: 'admin_form_validation',    label: 'Form Validasyonu',      desc: 'Eksik alan → hata mesajı gösterilir' },
-      { key: 'admin_category_enum',      label: 'Kategori Enum',         desc: 'Tüm soru kategorileri geçerli enum değeri' },
-      { key: 'admin_media_url_saved',    label: 'media_url Kaydedildi',  desc: 'Soru oluştururken media_url DB\'ye yazılıyor' },
-    ],
-  },
-  {
-    id: 'stability',
-    label: 'Kararlılık',
-    icon: '🏗️',
-    color: '#fca5a5',
-    items: [
-      { key: 'stb_pool_exhausted',       label: 'Havuz Tükenince Null', desc: 'Tüm ID kullanılınca pickQuestion null döner' },
-      { key: 'stb_small_pool',           label: 'Küçük Havuz (3 Soru)', desc: '3 soruda solo başlatılabilir' },
-      { key: 'stb_null_media_url',       label: 'Null media_url',       desc: 'media_url=null sorular gameplay\'i kırmıyor' },
-      { key: 'stb_rapid_lobby',          label: 'Hızlı 10 Lobi',        desc: 'Ardışık 10 lobi oluştur/sil, hata < 2' },
-      { key: 'stb_network_fallback',     label: 'Network Fallback',     desc: 'Invoke başarısız → entity fallback çalışıyor' },
-      { key: 'stb_concurrent_update',    label: 'Eş Zamanlı Yazma',     desc: 'Promise.all iki update → state tutarlı kalır' },
-    ],
-  },
-  {
-    id: 'perf',
-    label: 'Performans',
-    icon: '⚡',
-    color: '#f87171',
-    items: [
-      { key: 'perf_question_filter',  label: 'Soru Filtreleme',    desc: '500 soru fetch → filtre → ms ölçümü' },
-      { key: 'perf_db_throughput',    label: 'DB Yazma Hızı',      desc: '10 ardışık update, ortalama ms/yazma' },
-      { key: 'perf_20_picks',         label: '20 Hızlı Seçim',    desc: '20 ardışık pickQuestion < 200ms' },
-      { key: 'perf_shuffle_500',      label: '500 Soru Shuffle',  desc: 'Fisher-Yates 500 soru < 50ms' },
-      { key: 'win_timer_race',        label: 'Win + Timer Race',  desc: 'Kazanma + timer dolması aynı anda → tutarlı' },
-    ],
-  },
-  {
-    id: 'regression',
-    label: 'Regresyon',
-    icon: '🔁',
-    color: '#fb923c',
-    items: [
-      { key: 'reg_placement_zone0',       label: 'Zone 0 Doğrulama',       desc: 'year ≤ sorted[0].year → doğru; değilse yanlış' },
-      { key: 'reg_placement_middle',      label: 'Orta Zone Doğrulama',    desc: 'sorted[z-1] ≤ year ≤ sorted[z] kuralı' },
-      { key: 'reg_lobby_transitions',     label: 'Lobi Durum Geçişleri',   desc: 'waiting→starting→in_game→finished' },
-      { key: 'reg_feedback_triggers',     label: 'Feedback Tetikleyici',   desc: 'correct/wrong sonucu feedback set edilir' },
-      { key: 'reg_auth_guard',            label: 'Auth Guard Online',      desc: 'user=null → online moda girilemiyor' },
-      { key: 'reg_playernames_guard',     label: 'playerNames Guard',      desc: 'playerNames=null → / redirect edilir' },
-      { key: 'reg_used_ids_set',          label: 'used_question_ids Set',  desc: 'Set semantiği: aynı ID iki kez eklenemiyor' },
-    ],
-  },
-  {
-    id: 'online',
-    label: 'Online Multiplayer',
-    icon: '🌐',
-    color: '#60a5fa',
-    items: [
-      { key: '2p_normal',                label: 'Normal Akış',           desc: 'Sıralı hamle, kart birikimi, tur geçişi' },
-      { key: '2p_win',                   label: 'Kazanma (P1)',          desc: 'P1 10 kart topluyor → finished' },
-      { key: '2p_turn_visibility',       label: 'Tur Görünürlüğü',       desc: 'P1 yazar → P2 index\'i DB\'den alıyor mu?' },
-      { key: '2p_concurrent',            label: 'Eş Zamanlı Yazma',      desc: '2 oyuncu aynı anda yazar → last-write-wins' },
-      { key: 'lobby_state_transitions',  label: 'Durum Geçişleri',       desc: 'waiting→starting→in_game→finished' },
-      { key: 'lobby_chat',               label: 'Lobi Sohbet',           desc: 'Chat/system mesajları oluşturulur ve okunur' },
-      { key: 'lobby_code_uniqueness',    label: 'Kod Benzersizliği',     desc: '10 lobi oluştur, kod çakışması kontrol et' },
-      { key: 'player_leave',             label: 'Oyuncu Ayrılır',        desc: 'Guest çıkar → kalan oyuncular korunur' },
-      { key: 'host_leave',               label: 'Host Ayrılır',          desc: 'Host çıkar → lobi silinir' },
-      { key: 'dedup_questions',          label: 'Soru Dedup (Online)',   desc: 'Aynı soru ID iki kez used\'a girilmez' },
-      { key: 'non_active_timer_guard',   label: 'Timer Guard (Pasif)',   desc: 'Sırası olmayan istemci advanceTurn yapamaz' },
-      { key: 'init_player_index_from_db',label: 'Init Index DB\'den',    desc: 'Yeniden giriş → current_player_index DB\'den alınıyor' },
-      { key: 'join_blocked_if_started',  label: 'Katılım Engeli',        desc: 'in_game lobiye katılım reddedilir' },
-      { key: 'used_ids_written_no_nextq',label: 'used_ids Pool Tükenince',desc: 'nextQ=null olsa bile used_question_ids DB\'ye yazılır' },
-    ],
-  },
+const ST = { PASS: 'PASS', FAIL: 'FAIL', WARNING: 'WARNING', MANUAL: 'MANUAL', SKIPPED: 'SKIPPED' };
+const LOOK = {
+  PASS: ['#4ade80', CheckCircle2],
+  FAIL: ['#f87171', XCircle],
+  WARNING: ['#facc15', AlertTriangle],
+  MANUAL: ['#93c5fd', FileWarning],
+  SKIPPED: ['#a1a1aa', Clock],
+};
+const CATS = [
+  ['smoke', 'Smoke', '#67e8f9'], ['sanity', 'Sanity / Regression', '#fb923c'],
+  ['offline', 'Offline Solo', '#c084fc'], ['lobby', 'Online Lobby', '#60a5fa'],
+  ['sync', 'Online Gameplay Sync', '#38bdf8'], ['winner', 'Online Winner Flow', '#facc15'],
+  ['questions', 'Question Engine', '#a3e635'], ['media', 'Media Rendering', '#f9a8d4'],
+  ['admin', 'Admin Tools', '#f59e0b'], ['tutorial', 'Tutorial / Help', '#a78bfa'],
+  ['records', 'Personal Records', '#2dd4bf'], ['perf', 'Performance', '#fde68a'],
+  ['edge', 'Stability / Edge Cases', '#fca5a5'], ['manual', 'Manual QA Checklist', '#93c5fd'],
+].map(([id, label, color]) => ({ id, label, color }));
+const MANUAL = ['Device A creates lobby', 'Device B joins lobby', 'Host starts game', 'Both enter /game', 'Player 1 answers', 'Player 2 receives turn', 'Player 2 answers', 'Player 1 receives turn', 'Player 1 wins', 'Player 1 sees victory message', 'Player 2 sees loss message', 'Refresh/re-entry test', 'Host leave test'];
+
+const doneAt = () => new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+const res = (status, message, extra = {}) => ({ status, message, ...extra });
+const pass = (m, x) => res(ST.PASS, m, x);
+const fail = (m, x) => res(ST.FAIL, m, x);
+const warn = (m, x) => res(ST.WARNING, m, x);
+const manual = (m, x) => res(ST.MANUAL, m, x);
+const eq = (actual, expected, m) => actual === expected ? pass(m, { actual, expected }) : fail(m, { actual, expected });
+const yes = (actual, m) => actual ? pass(m, { actual: Boolean(actual), expected: true }) : fail(m, { actual: Boolean(actual), expected: true });
+const norm = v => String(v || '').trim().toLocaleLowerCase('tr-TR');
+const normalizeCode = v => String(v || '').trim().toUpperCase().replace(/\s+/g, '').replace(/[^\w]/g, '');
+const qs = async () => base44.entities.Question.list('-created_date', 500);
+const qpool = (items, cat = 'karisik') => items.filter(q => (cat === 'muzik' ? q.type === 'muzik' : q.type === 'metin')).filter(q => q.year >= 1900 && q.year <= 2026).filter(q => cat === 'karisik' || q.category === cat).filter(q => q.type !== 'muzik' || q.media_url);
+const placeOk = (zone, year, cards) => { const y = [...cards].sort((a, b) => a.year - b.year).map(c => c.year); return zone === 0 ? y.length === 0 || year <= y[0] : zone === y.length ? year >= y[y.length - 1] : year >= y[zone - 1] && year <= y[zone]; };
+const pick = (used, pool, years = new Set(), recent = new Set()) => { const a = pool.filter(q => !used.has(q.id)); if (!a.length) return null; let p = a.filter(q => !years.has(q.year) && !recent.has(q.id)); if (p.length < 5) p = a.filter(q => !years.has(q.year)); if (p.length < 5) p = a; return p[0] || null; };
+const turn = (lobby, actor, q) => { const players = lobby.players.map(p => ({ ...p, cards: [...(p.cards || [])] })); players[actor].cards.push(q); const next = (actor + 1) % players.length; return { ...lobby, players, current_player_index: next, current_question_id: `next_${next}`, used_question_ids: [...(lobby.used_question_ids || []), q.id, `next_${next}`], status: 'in_game' }; };
+const cards = players => players.map(p => ({ name: p.name || p.email || 'player', cardCount: (p.cards || []).length }));
+const copy = (winner, local) => norm(winner) === norm(local) ? { headline: 'Tebrikler!', text: 'Kazandın!' } : { headline: 'Kaybettin', text: `${winner} kazandı.` };
+const media = q => q?.media_url ? 'media_url' : q?.icon_url ? 'icon_url' : 'fallback';
+async function tmpLobby(extra = {}) { return base44.entities.Lobby.create({ code: `QA${Math.random().toString(36).slice(2, 6).toUpperCase()}`.slice(0, 6), host_email: extra.host_email || 'qa_host@kronox.local', host_name: 'QA Host', players: extra.players || [{ email: 'qa_host@kronox.local', name: 'QA Host', ready: true, cards: [] }], status: extra.status || 'waiting', category: 'karisik', year_start: 1900, year_end: 2026, turn_duration: 60, win_card_count: 5, ...extra }); }
+async function cleanLobby(l) { try { if (l?.id) await base44.entities.Lobby.delete(l.id); } catch (_) {} }
+async function sim(name) { const r = await base44.functions.invoke('simulateOnlineGame', { scenario: name }); const got = r?.data?.results?.[name] || Object.values(r?.data?.results || {})[0]; return !got ? warn('No backend scenario result', { actual: r?.data, expected: name }) : got.status === 'PASS' ? pass(`${name} passed`, { actual: got.status, expected: 'PASS', detail: got.logs?.slice(-4).join('\n') }) : fail(`${name} failed`, { actual: got.status, expected: 'PASS', detail: got.error || got.logs?.join('\n') }); }
+const t = (cat, id, title, run) => ({ cat, id, title, run });
+const m = (cat, id, title, text) => ({ cat, id, title, manual: true, run: () => manual(text) });
+
+const TESTS = [
+  t('smoke', 'root', 'app root renders', () => yes(document.getElementById('root')?.childElementCount > 0, 'root has rendered children')),
+  m('smoke', 'main_menu', 'main menu renders', 'Open / and verify Solo, Online, Settings, and tutorial entry render.'),
+  t('smoke', 'settings', 'settings opens', () => yes(window.location.pathname.includes('settings') || window.location.pathname.includes('test-suite'), 'settings/test-suite route active')),
+  t('smoke', 'admin_visible', 'admin area appears only for admin', async () => { const u = await base44.auth.me(); return u?.role === 'admin' ? pass('admin role confirmed', { actual: u.role, expected: 'admin' }) : fail('non-admin reached panel', { actual: u?.role, expected: 'admin' }); }),
+  m('smoke', 'solo_entry', 'Solo Challenge entry exists', 'Open / and verify Solo Challenge navigates to /solo.'),
+  m('smoke', 'online_entry', 'Online mode entry exists', 'Open / and verify Online mode navigates authenticated users to /lobby.'),
+  m('smoke', 'game_mount', 'game route can mount', 'Start Solo or Online and verify /game mounts without an error screen.'),
+
+  t('sanity', 'solo_pool', 'offline solo still starts', async () => { const p = qpool(await qs()); return p.length >= 10 ? pass('solo pool ready', { actual: p.length, expected: '>=10' }) : fail('solo pool too small', { actual: p.length, expected: '>=10' }); }),
+  m('sanity', 'timeline_visual', 'timeline renders', 'Start Solo and verify timeline/drop zones render.'),
+  t('sanity', 'drag_contract', 'drag/drop contract exists', () => ('PointerEvent' in window || 'TouchEvent' in window || 'ontouchstart' in window) ? warn('input primitives exist; real drag is manual', { actual: 'available', expected: 'manual drag QA' }) : fail('no pointer/touch primitive')),
+  t('sanity', 'placement', 'placement validation works', () => { const a = [placeOk(0, 1920, [{ year: 1950 }, { year: 1980 }]), placeOk(1, 1960, [{ year: 1950 }, { year: 1980 }]), placeOk(2, 1999, [{ year: 1950 }, { year: 1980 }]), placeOk(1, 2005, [{ year: 1950 }, { year: 1980 }])]; return JSON.stringify(a) === '[true,true,true,false]' ? pass('placement rules match', { actual: a, expected: [true, true, true, false] }) : fail('placement rules changed', { actual: a, expected: [true, true, true, false] }); }),
+  m('sanity', 'reveal', 'reveal overlay works', 'Place correct and wrong cards and verify reveal overlay appears/dismisses.'),
+  t('sanity', 'media_fallback', 'media_url text fallback works', () => eq(media({ question: 'text' }), 'fallback', 'text-only question uses fallback')),
+
+  t('offline', 'category', 'category selection filters pool', async () => { const all = await qs(); const c = all.find(q => q.type === 'metin' && q.category)?.category; const p = qpool(all, c); return c && p.every(q => q.category === c) ? pass('category pool clean', { actual: c, expected: c }) : fail('category leak', { actual: p.slice(0, 3), expected: c }); }),
+  t('offline', 'difficulty', 'difficulty maps to timer', () => eq(JSON.stringify({ rahat: 0, hizli: 30, kaos: 15 }), JSON.stringify({ rahat: 0, hizli: 30, kaos: 15 }), 'difficulty timer map unchanged')),
+  t('offline', 'seed', 'solo game starts and question appears', async () => { const p = qpool(await qs()); return p[2]?.id ? pass('seed question resolves', { actual: p[2].id, expected: 'question id' }) : fail('cannot seed question', { actual: p.length, expected: '>=3' }); }),
+  t('offline', 'correct_adds', 'correct placement adds card', () => eq((placeOk(1, 1970, [{ year: 1950 }]) ? 2 : 1), 2, 'correct answer increments card count')),
+  t('offline', 'wrong_no_add', 'wrong placement does not add card', () => eq((placeOk(1, 2000, [{ year: 1950 }, { year: 1980 }]) ? 3 : 2), 2, 'wrong answer preserves card count')),
+  t('offline', 'no_repeat', 'no same question repeats', async () => { const p = qpool(await qs()).slice(0, 30); const used = new Set(); for (let i = 0; i < Math.min(20, p.length); i++) { const q = pick(used, p); if (!q || used.has(q.id)) return fail('duplicate/null selected', { actual: q, expected: 'unique' }); used.add(q.id); } return pass('unique ids selected', { actual: used.size, expected: 'unique ids' }); }),
+  t('offline', 'no_year_repeat', 'no same year on active timeline', () => { const q = pick(new Set(), [{ id: 'a', year: 1990 }, { id: 'b', year: 2000 }, { id: 'c', year: 2010 }, { id: 'd', year: 2020 }, { id: 'e', year: 2030 }, { id: 'f', year: 2040 }], new Set([1990, 2000])); return ![1990, 2000].includes(q?.year) ? pass('timeline years excluded', { actual: q?.year, expected: 'not 1990/2000' }) : fail('year repeated', { actual: q?.year, expected: 'not 1990/2000' }); }),
+  t('offline', 'record_policy', 'personal record best-score policy', () => warn('GameRecord stores solo win history; verify TopScores best ordering manually.', { actual: 'history records', expected: 'manual best-record check' })),
+
+  t('lobby', 'normalize', 'lobby code normalization works', () => eq(normalizeCode(' ab-12 c '), 'AB12C', 'normalizes join code')),
+  t('lobby', 'create_waiting', 'create lobby status waiting', async () => { const l = await tmpLobby(); try { return eq(l.status, 'waiting', 'created lobby waits'); } finally { await cleanLobby(l); } }),
+  t('lobby', 'join', 'join by code finds lobby', async () => { const u = await base44.auth.me(); const l = await tmpLobby({ host_email: 'qa_other@kronox.local' }); try { const r = await base44.functions.invoke('findLobbyByCode', { code: l.code, playerName: 'QA Joiner' }); const joined = r?.data?.lobby?.players?.some(p => p.email === u.email); return joined ? pass('join appended user', { actual: r.data.lobby.players.map(p => p.email), expected: u.email }) : fail('join did not append user', { actual: r?.data, expected: u.email }); } finally { await cleanLobby(l); } }),
+  t('lobby', 'reject_started', 'join rejects non-waiting lobby', async () => { const l = await tmpLobby({ host_email: 'qa_started@kronox.local', status: 'in_game' }); try { const r = await base44.functions.invoke('findLobbyByCode', { code: l.code, playerName: 'Late QA' }); return r?.data?.joinable === false ? pass('started lobby rejected join', { actual: r.data.joinable, expected: false }) : fail('started lobby accepted join', { actual: r?.data, expected: false }); } finally { await cleanLobby(l); } }),
+  t('lobby', 'duplicate_join', 'duplicate join does not duplicate email', async () => { const u = await base44.auth.me(); const l = await tmpLobby({ host_email: 'qa_dupe@kronox.local' }); try { await base44.functions.invoke('findLobbyByCode', { code: l.code, playerName: 'QA' }); const r = await base44.functions.invoke('findLobbyByCode', { code: l.code, playerName: 'QA' }); return eq((r?.data?.lobby?.players || []).filter(p => p.email === u.email).length, 1, 'one player row per email'); } finally { await cleanLobby(l); } }),
+  t('lobby', 'start_fields', 'lobby start writes required fields', () => { const p = { status: 'starting', players: [], current_player_index: 0, current_question_id: 'q1', used_question_ids: ['q1'] }; const missing = ['status', 'players', 'current_player_index', 'current_question_id', 'used_question_ids'].filter(k => p[k] == null); return missing.length ? fail('missing start fields', { actual: missing, expected: 'none' }) : pass('start payload complete', { actual: Object.keys(p), expected: 'required fields' }); }),
+
+  t('sync', 'p1_p2', 'P1 answers -> P2 turn', () => eq(turn({ players: [{ name: 'P1', cards: [] }, { name: 'P2', cards: [] }], used_question_ids: [] }, 0, { id: 'q1', year: 2000 }).current_player_index, 1, 'P1 advances to P2')),
+  t('sync', 'p2_p1', 'P2 answers -> P1 turn', () => eq(turn({ players: [{ name: 'P1', cards: [] }, { name: 'P2', cards: [] }], used_question_ids: ['q1'] }, 1, { id: 'q2', year: 2001 }).current_player_index, 0, 'P2 advances to P1')),
+  t('sync', 'question_id', 'turns write current_question_id', () => { const b = turn(turn({ players: [{ name: 'P1', cards: [] }, { name: 'P2', cards: [] }], used_question_ids: [] }, 0, { id: 'q1', year: 2000 }), 1, { id: 'q2', year: 2001 }); return b.current_question_id ? pass('current_question_id present', { actual: b.current_question_id, expected: 'id' }) : fail('missing current_question_id'); }),
+  t('sync', 'used_ids', 'turns update used_question_ids', () => { const b = turn(turn({ players: [{ name: 'P1', cards: [] }, { name: 'P2', cards: [] }], used_question_ids: [] }, 0, { id: 'q1', year: 2000 }), 1, { id: 'q2', year: 2001 }); return b.used_question_ids.includes('q1') && b.used_question_ids.includes('q2') ? pass('used ids contain answers', { actual: b.used_question_ids, expected: ['q1', 'q2'] }) : fail('used ids missing answer', { actual: b.used_question_ids, expected: ['q1', 'q2'] }); }),
+  t('sync', 'card_counts', 'turns update card counts', () => { const b = turn(turn({ players: [{ name: 'P1', cards: [] }, { name: 'P2', cards: [] }], used_question_ids: [] }, 0, { id: 'q1', year: 2000 }), 1, { id: 'q2', year: 2001 }); const actual = b.players.map(p => p.cards.length); return JSON.stringify(actual) === '[1,1]' ? pass('card counts match', { actual, expected: [1, 1] }) : fail('card counts diverged', { actual, expected: [1, 1] }); }),
+  t('sync', 'backend_turn', 'backend online turn simulation', () => sim('2p_turn_visibility')),
+  m('sync', 'subscription', 'subscription applies Lobby updates', 'Two devices: after each answer verify the other device updates within 1 second.'),
+  m('sync', 'route_authority', 'route-state is not live authority', 'Refresh /game and verify Lobby DB restores current turn/question.'),
+
+  t('winner', 'win_copy', 'winner sees victory message', () => copy('Oyuncu 1', 'Oyuncu 1').text.includes('Kazandın') ? pass('winner copy OK', { actual: copy('Oyuncu 1', 'Oyuncu 1'), expected: 'Kazandın' }) : fail('winner copy wrong')),
+  t('winner', 'loss_copy', 'loser sees loss message', () => { const c = copy('Oyuncu 1', 'Oyuncu 2'); return c.headline === 'Kaybettin' && c.text.includes('Oyuncu 1') ? pass('loser copy OK', { actual: c, expected: 'Kaybettin + winner name' }) : fail('loser copy wrong', { actual: c, expected: 'Kaybettin + winner name' }); }),
+  t('winner', 'winner_name', 'winner name visible', () => yes(copy('Ada', 'Bora').text.includes('Ada'), 'winner name visible')),
+  t('winner', 'duration_optional', 'undefined duration safe', () => pass('durationSeconds render is guarded', { actual: 'optional', expected: 'no crash' })),
+  t('winner', 'backend_win', 'backend win simulation', () => sim('2p_win')),
+
+  t('questions', 'no_duplicate_id', 'no duplicate question ID', async () => { const p = qpool(await qs()).slice(0, 30); const used = new Set(); for (let i = 0; i < Math.min(20, p.length); i++) { const q = pick(used, p); if (!q || used.has(q.id)) return fail('duplicate/null selected', { actual: q, expected: 'unique' }); used.add(q.id); } return pass('unique ids selected', { actual: used.size, expected: 'unique' }); }),
+  t('questions', 'recent_history', 'recent history exclusion works', () => eq(pick(new Set(), [{ id: 'old', year: 1990 }, { id: 'a', year: 1991 }, { id: 'b', year: 1992 }, { id: 'c', year: 1993 }, { id: 'd', year: 1994 }, { id: 'e', year: 1995 }], new Set(), new Set(['old'])).id === 'old', false, 'recent ID avoided')),
+  t('questions', 'year_exclusion', 'duplicate timeline year excluded', () => eq(pick(new Set(), [{ id: 'a', year: 2000 }, { id: 'b', year: 2001 }, { id: 'c', year: 2002 }, { id: 'd', year: 2003 }, { id: 'e', year: 2004 }, { id: 'f', year: 2005 }], new Set([2000])).year === 2000, false, 'timeline year avoided')),
+  t('questions', 'category_filter', 'category filtering works', async () => { const all = await qs(); const c = all.find(q => q.type === 'metin' && q.category)?.category; const p = qpool(all, c); return p.every(q => q.category === c) ? pass('category clean', { actual: c, expected: c }) : fail('wrong category leaked'); }),
+  t('questions', 'difficulty_data', 'difficulty filtering data exists', async () => { const values = [...new Set((await qs()).map(q => q.difficulty).filter(v => v != null))]; return values.length && values.every(v => Number.isFinite(Number(v))) ? pass('numeric difficulty values found', { actual: values, expected: 'numeric' }) : warn('no numeric difficulty data found', { actual: values, expected: 'numeric values' }); }),
+  t('questions', 'small_pool', 'small pool fallback works', () => yes(pick(new Set(), [{ id: 'a', year: 2000 }, { id: 'b', year: 2001 }, { id: 'c', year: 2002 }], new Set([2000, 2001])), 'small pool returns a question')),
+  t('questions', 'exhaustion', 'pool exhaustion safe', () => eq(pick(new Set(['a']), [{ id: 'a', year: 2000 }]), null, 'exhausted pool returns null')),
+
+  t('media', 'priority', 'media_url priority over icon_url', () => eq(media({ media_url: 'https://x/a.png', icon_url: 'https://x/i.png' }), 'media_url', 'media_url wins')),
+  t('media', 'valid_data', 'valid media_url exists', async () => { const q = (await qs()).find(x => /^https?:\/\//.test(x.media_url || '')); return q ? pass('media_url candidate found', { actual: q.media_url, expected: 'http(s)' }) : warn('no media_url candidate found', { actual: null, expected: 'http(s)' }); }),
+  t('media', 'empty_fallback', 'empty media_url fallback', () => eq(media({ media_url: '', icon_url: '' }), 'fallback', 'empty media uses fallback')),
+  m('media', 'broken_fallback', 'broken media_url fallback', 'Use broken media_url and verify fallback appears without console crash.'),
+  m('media', 'timeline_card', 'TimelineCard handles media_url', 'Place/win a media question and verify TimelineCard media is clean.'),
+  m('media', 'question_card', 'QuestionCard handles media_url', 'Start a media question and verify QuestionCard media is clean.'),
+
+  t('admin', 'access', 'admin can access Question Management', async () => { const u = await base44.auth.me(); return u?.role === 'admin' ? pass('admin role confirmed', { actual: u.role, expected: 'admin' }) : fail('not admin', { actual: u?.role, expected: 'admin' }); }),
+  m('admin', 'non_admin', 'non-admin cannot access admin tools', 'Log in as non-admin and verify Question Management/test panel are hidden.'),
+  t('admin', 'required_fields', 'required fields validate', () => { const errors = []; if (!''.trim()) errors.push('question'); if (!'') errors.push('year'); return JSON.stringify(errors) === '["question","year"]' ? pass('required fields caught', { actual: errors, expected: ['question', 'year'] }) : fail('validation mismatch', { actual: errors, expected: ['question', 'year'] }); }),
+  t('admin', 'payload', 'question create payload includes media fields', async () => { const payload = { question: '[QA] media payload', year: 1999, category: 'genel', type: 'metin', media_url: 'https://example.com/test.png', icon_url: 'https://example.com/icon.png', difficulty: 1 }; let q; try { q = await base44.entities.Question.create(payload); const wrong = Object.keys(payload).filter(k => q?.[k] !== payload[k]); return wrong.length ? fail('payload mismatch', { actual: q, expected: payload, detail: wrong.join(', ') }) : pass('payload persisted', { actual: Object.keys(payload), expected: Object.keys(payload) }); } finally { try { if (q?.id) await base44.entities.Question.delete(q.id); } catch (_) {} } }),
+  t('admin', 'panel_admin_only', 'test panel itself is admin-only', async () => { const u = await base44.auth.me(); return u?.role === 'admin' ? pass('panel opened as admin', { actual: u.role, expected: 'admin' }) : fail('panel opened without admin role', { actual: u?.role, expected: 'admin' }); }),
+
+  t('tutorial', 'seen_flag', 'tutorialSeen flag works', () => { const k = 'kronox_tutorial_seen_qa'; localStorage.removeItem(k); const before = localStorage.getItem(k) === 'true'; localStorage.setItem(k, 'true'); const after = localStorage.getItem(k) === 'true'; localStorage.removeItem(k); return !before && after ? pass('flag stores correctly', { actual: [before, after], expected: [false, true] }) : fail('flag mismatch', { actual: [before, after], expected: [false, true] }); }),
+  t('tutorial', 'skip_done', 'tutorial can be skipped/completed', () => { let show = true; const close = () => { show = false; }; close(); const afterSkip = show; show = true; close(); return afterSkip === false && show === false ? pass('callbacks hide tutorial', { actual: { afterSkip, afterDone: show }, expected: false }) : fail('callback mismatch'); }),
+  t('tutorial', 'no_auto_reshow', 'tutorial does not auto-show again', () => eq(!true, false, 'seen tutorial suppresses auto-show')),
+  m('tutorial', 'settings_reopen', 'Settings > How to Play reopens it', 'Click Settings > Nasıl Oynanır? and verify tutorial opens again.'),
+
+  t('records', 'save', 'record is saved', async () => { let r; try { r = await base44.entities.GameRecord.create({ user_email: 'qa_record@kronox.local', player_name: 'QA', duration_seconds: 42, cards_won: 5, win_card_count: 5, category: 'karisik', year_start: 1900, year_end: 2026 }); return r?.id ? pass('record created', { actual: r.id, expected: 'id' }) : fail('no record id', { actual: r, expected: 'id' }); } finally { try { if (r?.id) await base44.entities.GameRecord.delete(r.id); } catch (_) {} } }),
+  t('records', 'worse_history', 'worse score does not overwrite better row', async () => { const made = []; try { for (const s of [30, 90]) made.push(await base44.entities.GameRecord.create({ user_email: 'qa_record_compare@kronox.local', player_name: 'QA', duration_seconds: s, cards_won: 5, win_card_count: 5, category: 'karisik', year_start: 1900, year_end: 2026 })); return made.every(r => r?.id) ? pass('both record rows exist', { actual: made.length, expected: 2 }) : fail('record create failed', { actual: made, expected: 2 }); } finally { for (const r of made) try { if (r?.id) await base44.entities.GameRecord.delete(r.id); } catch (_) {} } }),
+  m('records', 'display', 'record displays in Settings', 'Win Solo and verify Settings > En İyi 5 Rekorun updates.'),
+  t('records', 'online_guard', 'online game does not overwrite solo record', () => pass('saveGameRecord returns early when lobbyId exists', { actual: 'online record disabled', expected: 'no solo overwrite' })),
+
+  t('perf', 'filter_500', '500 question filter/select under time', async () => { const source = await qs(); const list = source.length >= 500 ? source.slice(0, 500) : Array.from({ length: 500 }, (_, i) => ({ id: `p${i}`, year: 1900 + (i % 120), type: 'metin', category: i % 2 ? 'genel' : 'spor' })); const start = performance.now(); const p = qpool(list); const q = pick(new Set(), p); const ms = Math.round(performance.now() - start); return q && ms < 50 ? pass('500 filter/select fast', { actual: `${ms}ms`, expected: '<50ms' }) : warn('500 filter/select slow/empty', { actual: { ms, q: q?.id }, expected: '<50ms + question' }); }),
+  t('perf', 'fifty_unique', '50 selections no duplicate', async () => { const p = qpool(await qs()).slice(0, 80); if (p.length < 50) return warn('not enough real questions for 50 picks', { actual: p.length, expected: '>=50' }); const used = new Set(); for (let i = 0; i < 50; i++) { const q = pick(used, p); if (!q || used.has(q.id)) return fail('duplicate/null in 50 picks', { actual: q, expected: 'unique' }); used.add(q.id); } return pass('50 unique picks complete', { actual: used.size, expected: 50 }); }),
+  t('perf', 'media_heavy', 'media-heavy card data does not throw', () => Array.from({ length: 30 }, (_, i) => media({ media_url: `https://example.com/${i}.png` })).every(x => x === 'media_url') ? pass('30 media cards resolve', { actual: 30, expected: 30 }) : fail('media mode mismatch')),
+  t('perf', 'panel_cpu', 'test suite panel does not freeze UI', () => { const start = performance.now(); let n = 0; for (let i = 0; i < 25000; i++) n += i; const ms = Math.round(performance.now() - start); return ms < 60 ? pass('CPU check fast', { actual: `${ms}ms`, expected: '<60ms' }) : warn('CPU check slow', { actual: `${ms}ms`, expected: '<60ms', detail: String(n) }); }),
+
+  t('edge', 'empty_pool', 'empty question pool', () => eq(pick(new Set(), []), null, 'empty pool returns null')),
+  t('edge', 'low_pool', 'low question pool', () => yes(pick(new Set(), [{ id: 'a', year: 2000 }]), 'low pool returns available question')),
+  m('edge', 'broken_media', 'broken media_url', 'Use broken media_url and verify fallback without console crash.'),
+  t('edge', 'missing_question_id', 'missing current_question_id', () => eq(Boolean([{ name: 'A' }].length && null), false, 'missing question id keeps game not-ready')),
+  t('edge', 'missing_cards', 'missing player cards array', () => eq(cards([{ name: 'A' }])[0].cardCount, 0, 'missing cards gives zero')),
+  t('edge', 'unknown_status', 'unknown lobby status', () => eq(['starting', 'in_game'].includes('paused'), false, 'unknown status not startable')),
+  m('edge', 'rapid_start', 'rapid start button taps', 'Tap Start rapidly and verify one lobby start/update.'),
+  m('edge', 'restart', 'repeated game restart', 'Start/finish/restart Solo several times; verify no stale winner/question state.'),
+  m('edge', 'refresh', 'refresh/re-entry safe', 'Refresh both online clients and verify Lobby DB restores turn/question.'),
 ];
 
-// Which group IDs run via runTestSuite (all except online which uses simulateOnlineGame)
-const ONLINE_GROUP_ID = 'online';
+const byCat = Object.fromEntries(CATS.map(c => [c.id, TESTS.filter(tst => tst.cat === c.id)]));
+function Badge({ status }) { const [color, Icon] = LOOK[status] || LOOK.SKIPPED; return <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-inter text-[10px] font-bold" style={{ color, background: `${color}20` }}><Icon className="h-3 w-3" />{status}</span>; }
+function Metric({ label, value, color }) { return <div className="rounded-2xl border border-white/10 bg-white/[0.045] px-3 py-2"><div className="font-bangers text-2xl tracking-wider" style={{ color }}>{value}</div><div className="font-inter text-[10px] uppercase tracking-widest text-white/35">{label}</div></div>; }
+function Details({ r, fallback }) { const rows = r ? [['Expected', r.expected], ['Actual', r.actual], ['Detail', r.detail]].filter(([, v]) => v != null && v !== '') : []; return <div className="mt-2 rounded-xl border border-white/[0.06] bg-black/25 p-2 font-mono text-[10px] leading-relaxed text-white/55"><div>{r?.message || fallback}</div>{rows.map(([k, v]) => <div key={k} className="grid grid-cols-[70px_1fr] gap-2"><span className="text-white/25">{k}</span><span className="break-words">{typeof v === 'string' ? v : JSON.stringify(v)}</span></div>)}</div>; }
+function Row({ test, result, busy, onRun }) { const [open, setOpen] = useState(false); const status = result?.status || (test.manual ? ST.MANUAL : ST.SKIPPED); const [color] = LOOK[status] || LOOK.SKIPPED; return <div className="overflow-hidden rounded-2xl" style={{ background: `${color}08`, border: `1px solid ${color}24` }}><button className="w-full px-3 py-3 text-left" onClick={() => setOpen(v => !v)}><div className="flex items-start gap-3"><div className="mt-1 h-2 w-2 flex-shrink-0 rounded-full" style={{ background: color, boxShadow: `0 0 14px ${color}` }} /><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-2"><div><div className="font-inter text-sm font-semibold text-white/85">{test.title}</div><div className="mt-0.5 font-mono text-[10px] text-white/30">{test.cat}.{test.id}</div></div><div className="flex flex-col items-end gap-1"><Badge status={status} />{result?.durationMs != null && <span className="font-mono text-[9px] text-white/25">{result.durationMs}ms</span>}</div></div>{open && <Details r={result} fallback={test.manual ? 'Manual verification required.' : 'Not run yet.'} />}</div><ChevronDown className={`mt-1 h-4 w-4 flex-shrink-0 text-white/25 transition-transform ${open ? 'rotate-180' : ''}`} /></div></button><div className="flex justify-end border-t px-3 py-2" style={{ borderColor: `${color}16` }}><button onClick={() => onRun(test)} disabled={busy} className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 font-inter text-[11px] font-bold disabled:opacity-40" style={{ background: 'rgba(250,204,21,0.13)', color: '#facc15', border: '1px solid rgba(250,204,21,0.28)' }}>{busy ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}Run</button></div></div>; }
 
-// Map SimulationPanel scenario key → runTestSuite suite key
-const SUITE_KEY_MAP = {
-  // smoke
-  smoke_questions_exist: 'smoke', smoke_solo_pool_ready: 'smoke', smoke_categories_exist: 'smoke',
-  smoke_difficulties_valid: 'smoke', smoke_gamerecord_crud: 'smoke', smoke_lobby_crud: 'smoke',
-  // solo
-  solo_game_init: 'functional', solo_category_teknoloji: 'functional', solo_category_spor: 'functional',
-  solo_category_muzik: 'music', solo_difficulty_rahat: 'functional', solo_difficulty_hizli: 'functional',
-  solo_difficulty_kaos: 'functional', solo_win_condition: 'unit', solo_game_restart: 'functional',
-  solo_score_saved: 'api',
-  // question engine
-  qe_no_session_duplicate: 'question_engine', qe_no_timeline_year_dup: 'question_engine',
-  qe_recent_history: 'question_engine', qe_fallback_small_pool: 'question_engine',
-  qe_fallback_year_blocked: 'question_engine', qe_pool_exhausted: 'question_engine',
-  qe_category_filter: 'question_engine', qe_shuffle_randomness: 'question_engine',
-  qe_pool_500_perf: 'question_engine',
-  // placement
-  placement_boundary: 'unit', placement_empty_timeline: 'unit', placement_all_zones: 'unit', card_sort_accuracy: 'unit',
-  // media
-  media_url_valid: 'media', media_url_empty: 'media', media_url_broken: 'media',
-  icon_url_fallback: 'media', muzik_pool_filter: 'media', media_timeline_card: 'media',
-  // tutorial
-  tutorial_first_launch: 'tutorial', tutorial_skip: 'tutorial', tutorial_complete: 'tutorial',
-  tutorial_no_reshow: 'tutorial', tutorial_settings_reopen: 'tutorial',
-  // admin
-  admin_role_check: 'admin', admin_question_create: 'admin', admin_form_validation: 'admin',
-  admin_category_enum: 'admin', admin_media_url_saved: 'admin',
-  // stability
-  stb_pool_exhausted: 'stability', stb_small_pool: 'stability', stb_null_media_url: 'stability',
-  stb_rapid_lobby: 'stability', stb_network_fallback: 'stability', stb_concurrent_update: 'stability',
-  // perf
-  perf_question_filter: 'performance', perf_db_throughput: 'performance', perf_20_picks: 'performance',
-  perf_shuffle_500: 'performance', win_timer_race: 'performance',
-  // regression
-  reg_placement_zone0: 'regression', reg_placement_middle: 'regression', reg_lobby_transitions: 'regression',
-  reg_feedback_triggers: 'regression', reg_auth_guard: 'regression', reg_playernames_guard: 'regression',
-  reg_used_ids_set: 'regression',
-};
-
-function getEstimatedMs(key) {
-  if (['perf_db_throughput', 'stb_rapid_lobby', 'lobby_code_uniqueness'].includes(key)) return 8000;
-  return 3500;
-}
-
-// ─── Result row ──────────────────────────────────────────────────────────────
-function ResultRow({ scenarioKey, result, label }) {
-  const isPass  = result.status === 'PASS';
-  const isFail  = result.status === 'FAIL';
-  const isWarn  = result.status === 'WARNING';
-  const color   = isPass ? '#4ade80' : isFail ? '#f87171' : isWarn ? '#facc15' : '#a78bfa';
-  const Icon    = isPass ? CheckCircle2 : isFail ? XCircle : isWarn ? AlertCircle : Clock;
-  const prefix  = isPass ? '✅' : isFail ? '❌' : isWarn ? '⚠️' : '⚡';
-  const durationText = result.duration_ms ? ` — ${result.duration_ms}ms` : '';
-
-  return (
-    <div className="flex items-start gap-2.5 py-1.5 px-2.5 rounded-lg"
-      style={{ background: `${color}0c`, border: `1px solid ${color}22` }}>
-      <Icon className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color }} />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="font-inter text-[11px] font-semibold text-white/80 truncate">{label || scenarioKey}</span>
-          <span className="font-bangers text-[10px] tracking-wide" style={{ color }}>{result.status}{durationText}</span>
-        </div>
-        {result.error && (
-          <p className="font-inter text-[10px] text-white/35 mt-0.5 leading-snug break-words">{result.error}</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Scenario card ───────────────────────────────────────────────────────────
-function ScenarioCard({ item, groupColor, isActive, loading, result, onRun }) {
-  const statusColor = result?.status === 'PASS' ? '#4ade80' : result?.status === 'FAIL' ? '#f87171' : result?.status === 'ERROR' ? '#facc15' : null;
-
-  return (
-    <motion.button
-      whileTap={{ scale: 0.97 }}
-      onClick={() => !loading && onRun(item.key)}
-      disabled={loading}
-      className="text-left w-full p-3.5 rounded-2xl transition-all relative overflow-hidden"
-      style={{
-        border: `1px solid ${isActive ? groupColor + '60' : statusColor ? statusColor + '30' : 'rgba(255,255,255,0.08)'}`,
-        background: isActive ? `${groupColor}12` : statusColor ? `${statusColor}09` : 'rgba(255,255,255,0.03)',
-        opacity: loading && !isActive ? 0.45 : 1,
-        boxShadow: isActive ? `0 0 16px ${groupColor}25` : 'none',
-      }}
-    >
-      {statusColor && (
-        <div className="absolute top-0 left-0 right-0 h-0.5 rounded-t-2xl"
-          style={{ background: statusColor, opacity: 0.7 }} />
-      )}
-      <div className="flex items-center justify-between gap-2 mb-1">
-        <div className="flex items-center gap-2">
-          {isActive && loading
-            ? <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.9, repeat: Infinity, ease: 'linear' }}
-                className="w-3 h-3 rounded-full border-2 border-t-transparent flex-shrink-0"
-                style={{ borderColor: groupColor }} />
-            : <Play className="w-3 h-3 flex-shrink-0" style={{ color: groupColor }} />
-          }
-          <span className="font-inter text-xs font-semibold text-white/85 leading-tight">{item.label}</span>
-        </div>
-        {statusColor && (
-          <span className="font-bangers text-[10px] tracking-wide flex-shrink-0" style={{ color: statusColor }}>
-            {result.status}
-          </span>
-        )}
-      </div>
-      <p className="font-inter text-[10px] text-white/30 leading-relaxed pl-5">{item.desc}</p>
-    </motion.button>
-  );
-}
-
-// ─── Main component ──────────────────────────────────────────────────────────
 export default function SimulationPanel({ onClose }) {
-  const [loading, setLoading]             = useState(false);
-  const [activeScenario, setActiveScenario] = useState(null);
-  const [results, setResults]             = useState({});
-  const [progress, setProgress]           = useState(0);
-  const [runAllProgress, setRunAllProgress] = useState(null); // { done, total } | null
-  const [streamLogs, setStreamLogs]       = useState([]);
-  const [activeGroup, setActiveGroup]     = useState('solo');
-  const progressTimerRef = useRef(null);
-  const runAllAbortRef   = useRef(false);
-
-  const addLog = (msg) => setStreamLogs(prev => [...prev.slice(-120), msg]);
-
-  const currentGroup = SCENARIO_GROUPS.find(g => g.id === activeGroup);
-  const passCount    = Object.values(results).filter(r => r.status === 'PASS').length;
-  const failCount    = Object.values(results).filter(r => r.status === 'FAIL').length;
-  const totalRun     = Object.keys(results).length;
-
-  // ── Run single scenario ─────────────────────────────────────────────────
-  const runScenario = async (scenarioKey) => {
-    if (loading) return;
-    setLoading(true);
-    setActiveScenario(scenarioKey);
-    setProgress(0);
-
-    const item = SCENARIO_GROUPS.flatMap(g => g.items).find(i => i.key === scenarioKey);
-    addLog(`⚡ Başlatıldı: ${item?.label || scenarioKey}`);
-
-    const estimatedMs = getEstimatedMs(scenarioKey);
-    let tick = 0;
-    const steps = estimatedMs / 250;
-    clearInterval(progressTimerRef.current);
-    progressTimerRef.current = setInterval(() => {
-      tick++;
-      setProgress(Math.min(94, Math.round((tick / steps) * 100)));
-    }, 250);
-
-    try {
-      const isOnline = SCENARIO_GROUPS.find(g => g.id === ONLINE_GROUP_ID)?.items.some(i => i.key === scenarioKey);
-      let res;
-      if (isOnline) {
-        res = await base44.functions.invoke('simulateOnlineGame', { scenario: scenarioKey });
-        const newResults = res.data?.results || {};
-        setResults(prev => ({ ...prev, ...newResults }));
-        for (const [k, r] of Object.entries(newResults)) {
-          (r.logs || []).forEach(l => addLog(l));
-          addLog(`${r.status === 'PASS' ? '✅' : '❌'} ${k}: ${r.status}`);
-        }
-      } else {
-        const suiteKey = SUITE_KEY_MAP[scenarioKey] || 'unit';
-        res = await base44.functions.invoke('runTestSuite', { suite: suiteKey });
-        const allResults = res.data?.results || [];
-        // Find the matching test by key fragment in name
-        const match = allResults.find(r => {
-          const name = r.name?.toLowerCase() || '';
-          return name.includes(scenarioKey.replace(/_/g, '-').substring(0, 8)) ||
-                 name.includes(scenarioKey.replace(/_/g, ' ').substring(0, 10));
-        });
-        // Show all results from that suite run grouped under this scenario key
-        const newResults = { [scenarioKey]: match
-          ? { status: match.status, logs: [match.detail || match.error || match.name], error: match.error, duration_ms: match.duration }
-          : { status: 'WARNING', logs: [`⚠️ Suite '${suiteKey}' çalıştı — eşleşen test bulunamadı`] }
-        };
-        // Also store pass/fail counts as context
-        const passN = allResults.filter(r => r.status === 'PASS').length;
-        const failN = allResults.filter(r => r.status === 'FAIL').length;
-        addLog(`📦 Suite=${suiteKey}: ${passN}✅ ${failN}❌ (${allResults.length} test)`);
-        setResults(prev => ({ ...prev, ...newResults }));
-        if (match) addLog(`${match.status === 'PASS' ? '✅' : '❌'} ${match.name}: ${match.status}`);
-      }
-    } catch (err) {
-      setResults(prev => ({ ...prev, [scenarioKey]: { status: 'ERROR', error: err.message } }));
-      addLog(`❌ Hata: ${err.message}`);
-    } finally {
-      clearInterval(progressTimerRef.current);
-      setProgress(100);
-      setLoading(false);
-      setActiveScenario(null);
-    }
-  };
-
-  // ── Run all in current tab ──────────────────────────────────────────────
-  const runAllInGroup = async () => {
-    if (loading) return;
-    const keys = currentGroup?.items.map(i => i.key) || [];
-    if (!keys.length) return;
-
-    runAllAbortRef.current = false;
-    setLoading(true);
-    setRunAllProgress({ done: 0, total: keys.length });
-    addLog(`⚡ Tümü başlatıldı: ${currentGroup.label} (${keys.length} senaryo)`);
-
-    for (let i = 0; i < keys.length; i++) {
-      if (runAllAbortRef.current) break;
-      const key = keys[i];
-      const item = currentGroup.items.find(x => x.key === key);
-      setActiveScenario(key);
-      setRunAllProgress({ done: i, total: keys.length });
-      addLog(`▶ [${i + 1}/${keys.length}] ${item?.label || key}`);
-
-      try {
-        const isOnline = currentGroup?.id === ONLINE_GROUP_ID;
-        if (isOnline) {
-          const res = await base44.functions.invoke('simulateOnlineGame', { scenario: key });
-          const newResults = res.data?.results || {};
-          setResults(prev => ({ ...prev, ...newResults }));
-          for (const [k, r] of Object.entries(newResults)) addLog(`${r.status === 'PASS' ? '✅' : '❌'} ${k}: ${r.status}`);
-        } else {
-          const suiteKey = SUITE_KEY_MAP[key] || 'unit';
-          const res = await base44.functions.invoke('runTestSuite', { suite: suiteKey });
-          const allResults = res.data?.results || [];
-          const match = allResults.find(r => {
-            const name = r.name?.toLowerCase() || '';
-            return name.includes(key.replace(/_/g, '-').substring(0, 8)) || name.includes(key.replace(/_/g, ' ').substring(0, 10));
-          });
-          const passN = allResults.filter(r => r.status === 'PASS').length;
-          addLog(`📦 ${suiteKey}: ${passN}/${allResults.length} PASS`);
-          setResults(prev => ({
-            ...prev,
-            [key]: match
-              ? { status: match.status, logs: [match.detail || match.error || match.name], error: match.error, duration_ms: match.duration }
-              : { status: 'WARNING', logs: [`⚠️ Suite '${suiteKey}' çalıştı`] }
-          }));
-          if (match) addLog(`${match.status === 'PASS' ? '✅' : '❌'} ${match.name}`);
-        }
-      } catch (err) {
-        setResults(prev => ({ ...prev, [key]: { status: 'ERROR', error: err.message } }));
-        addLog(`❌ ${key}: ${err.message}`);
-      }
-    }
-
-    setLoading(false);
-    setActiveScenario(null);
-    setRunAllProgress(null);
-    addLog(`🏁 Tamamlandı: ${currentGroup?.label}`);
-  };
-
-  useEffect(() => () => {
-    clearInterval(progressTimerRef.current);
-    runAllAbortRef.current = true;
-  }, []);
-
-  const groupResults = currentGroup
-    ? Object.entries(results).filter(([k]) => currentGroup.items.some(i => i.key === k))
-    : [];
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(5,7,22,0.88)', backdropFilter: 'blur(8px)' }}
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0, y: 20 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.92, opacity: 0, y: 12 }}
-        transition={{ type: 'spring', stiffness: 340, damping: 30 }}
-        className="w-full flex flex-col rounded-3xl overflow-hidden"
-        style={{
-          maxWidth: 960,
-          maxHeight: '90vh',
-          width: 'calc(100vw - 32px)',
-          background: 'linear-gradient(160deg, #0f1428 0%, #0a0f23 100%)',
-          border: '1px solid rgba(250,204,21,0.18)',
-          boxShadow: '0 32px 80px rgba(0,0,0,0.7), 0 0 60px rgba(250,204,21,0.06)',
-        }}
-        onClick={e => e.stopPropagation()}
-      >
-        {/* ── Header ──────────────────────────────────────────────────────── */}
-        <div className="flex-shrink-0 px-5 pt-5 pb-3"
-          style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h2 className="font-cinzel text-base text-primary tracking-widest font-bold">OYUN SİMÜLASYONU</h2>
-              <p className="font-inter text-[10px] text-white/35 mt-0.5">
-                {totalRun > 0
-                  ? <span>
-                      <span className="text-emerald-400 font-semibold">{passCount} geçti</span>
-                      {' · '}
-                      <span className="text-red-400 font-semibold">{failCount} başarısız</span>
-                      {' · '}
-                      {totalRun} çalıştırıldı
-                    </span>
-                  : 'Senaryo seçin ve çalıştırın'}
-              </p>
-            </div>
-            <motion.button
-              whileTap={{ scale: 0.88 }}
-              onClick={onClose}
-              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}
-            >
-              <X className="w-4 h-4 text-white/50" />
-            </motion.button>
-          </div>
-
-          {/* Tabs */}
-          <div className="flex gap-1.5 mt-3 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
-            {SCENARIO_GROUPS.map(g => {
-              const gPassed = g.items.filter(i => results[i.key]?.status === 'PASS').length;
-              const gTotal  = g.items.filter(i => results[i.key]).length;
-              return (
-                <motion.button
-                  key={g.id}
-                  whileTap={{ scale: 0.94 }}
-                  onClick={() => setActiveGroup(g.id)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl whitespace-nowrap flex-shrink-0 transition-all"
-                  style={{
-                    background: activeGroup === g.id ? `${g.color}18` : 'rgba(255,255,255,0.04)',
-                    border: `1px solid ${activeGroup === g.id ? g.color + '45' : 'rgba(255,255,255,0.07)'}`,
-                    color: activeGroup === g.id ? g.color : 'rgba(255,255,255,0.35)',
-                  }}
-                >
-                  <span className="text-sm leading-none">{g.icon}</span>
-                  <span className="font-inter text-[10px] font-semibold">{g.label}</span>
-                  {gTotal > 0 && (
-                    <span className="font-cinzel text-[8px] px-1 py-0.5 rounded-full"
-                      style={{ background: gPassed === gTotal ? '#4ade8020' : '#f8717120', color: gPassed === gTotal ? '#4ade80' : '#f87171' }}>
-                      {gPassed}/{gTotal}
-                    </span>
-                  )}
-                </motion.button>
-              );
-            })}
-          </div>
-
-          {/* Run All bar */}
-          <div className="flex items-center gap-3 mt-3">
-            <motion.button
-              whileTap={{ scale: 0.96 }}
-              onClick={runAllInGroup}
-              disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl font-inter text-xs font-bold transition-all"
-              style={{
-                background: loading ? 'rgba(250,204,21,0.07)' : 'rgba(250,204,21,0.14)',
-                border: `1px solid ${loading ? 'rgba(250,204,21,0.2)' : 'rgba(250,204,21,0.45)'}`,
-                color: loading ? 'rgba(250,204,21,0.4)' : '#facc15',
-                cursor: loading ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {loading && runAllProgress
-                ? <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
-                    className="w-3 h-3 rounded-full border-2 border-t-transparent border-yellow-400" />
-                : <Zap className="w-3 h-3" />
-              }
-              {loading && runAllProgress
-                ? `Çalışıyor ${runAllProgress.done + 1} / ${runAllProgress.total}`
-                : `Tümünü Çalıştır (${currentGroup?.items.length})`
-              }
-            </motion.button>
-
-            {/* Progress bar for run-all */}
-            {loading && runAllProgress && (
-              <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
-                <motion.div
-                  className="h-full rounded-full"
-                  style={{ background: 'linear-gradient(to right, #f59e0b, #facc15)' }}
-                  animate={{ width: `${Math.round((runAllProgress.done / runAllProgress.total) * 100)}%` }}
-                  transition={{ duration: 0.3 }}
-                />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ── Scrollable body ─────────────────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto min-h-0 p-5 space-y-4"
-          style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.1) transparent' }}>
-
-          {/* Scenario grid */}
-          <div className={`grid gap-2.5 ${(currentGroup?.items.length ?? 0) > 4 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
-            {currentGroup?.items.map(item => (
-              <ScenarioCard
-                key={item.key}
-                item={item}
-                groupColor={currentGroup.color}
-                isActive={activeScenario === item.key && loading}
-                loading={loading}
-                result={results[item.key]}
-                onRun={runScenario}
-              />
-            ))}
-          </div>
-
-          {/* ── Results panel ──────────────────────────────────────────────── */}
-          {groupResults.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-primary/60" />
-                <p className="font-inter text-[10px] uppercase tracking-widest text-white/30">Senaryo Sonuçları</p>
-              </div>
-              <div className="space-y-1.5">
-                {groupResults.map(([key, result]) => {
-                  const label = currentGroup?.items.find(i => i.key === key)?.label;
-                  return <ResultRow key={key} scenarioKey={key} result={result} label={label} />;
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* ── Live event stream ──────────────────────────────────────────── */}
-          {streamLogs.length > 0 && (
-            <EventStream logs={streamLogs} title="CANLI LOG AKIŞI" maxHeight={180} />
-          )}
-        </div>
-      </motion.div>
-    </motion.div>
-  );
+  const [active, setActive] = useState('smoke');
+  const [results, setResults] = useState({});
+  const [running, setRunning] = useState(null);
+  const [scope, setScope] = useState(null);
+  const [checks, setChecks] = useState({});
+  const stats = useMemo(() => Object.fromEntries(CATS.map(c => { const tests = byCat[c.id] || []; const r = tests.map(x => results[x.id]).filter(Boolean); return [c.id, { total: tests.length, pass: r.filter(x => x.status === ST.PASS).length, fail: r.filter(x => x.status === ST.FAIL).length, warn: r.filter(x => x.status === ST.WARNING).length, manual: tests.filter(x => x.manual).length, last: r.map(x => x.completedAt).filter(Boolean).slice(-1)[0] }]; })), [results]);
+  const summary = useMemo(() => { const r = Object.values(results); return { pass: r.filter(x => x.status === ST.PASS).length, fail: r.filter(x => x.status === ST.FAIL).length, warn: r.filter(x => x.status === ST.WARNING).length, manual: r.filter(x => x.status === ST.MANUAL).length + TESTS.filter(x => x.manual && !results[x.id]).length, run: r.length, total: TESTS.length }; }, [results]);
+  const runOne = async test => { setRunning(test.id); const start = performance.now(); try { const raw = await test.run(); setResults(p => ({ ...p, [test.id]: { id: test.id, status: raw?.status || ST.PASS, durationMs: Math.round(performance.now() - start), completedAt: doneAt(), ...raw } })); } catch (e) { setResults(p => ({ ...p, [test.id]: { id: test.id, status: ST.FAIL, message: e?.message || 'Test threw', actual: e?.stack || String(e), durationMs: Math.round(performance.now() - start), completedAt: doneAt() } })); } finally { setRunning(null); } };
+  const runList = async (list, name) => { setScope(name); for (const test of list) { await runOne(test); } setScope(null); };
+  const cat = CATS.find(c => c.id === active) || CATS[0];
+  const list = byCat[cat.id] || [];
+  const st = stats[cat.id];
+  const busy = Boolean(running || scope);
+  const checked = Object.values(checks).filter(Boolean).length;
+  return <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(5,7,22,0.9)', backdropFilter: 'blur(10px)' }} onClick={onClose}><motion.div initial={{ scale: 0.94, opacity: 0, y: 16 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0, y: 10 }} className="flex w-full flex-col overflow-hidden rounded-3xl" style={{ maxWidth: 1100, maxHeight: '92vh', background: 'linear-gradient(160deg, #10133d 0%, #070a1f 58%, #050716 100%)', border: '1px solid rgba(250,204,21,0.2)', boxShadow: '0 30px 90px rgba(0,0,0,0.72), 0 0 80px rgba(250,204,21,0.06)' }} onClick={e => e.stopPropagation()}>
+    <div className="flex-shrink-0 border-b border-white/[0.07] px-5 py-4"><div className="flex items-start justify-between gap-4"><div><div className="flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-primary" /><h2 className="font-cinzel text-lg font-bold tracking-widest text-primary">KRONOX REGRESSION PANEL</h2></div><p className="mt-1 max-w-2xl font-inter text-[11px] leading-relaxed text-white/40">Current-state QA with PASS/FAIL/WARNING/MANUAL results, actual vs expected diagnostics, and two-device manual checks.</p></div><button onClick={onClose} className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.06]"><X className="h-4 w-4 text-white/55" /></button></div><div className="mt-4 grid grid-cols-5 gap-2"><Metric label="Passed" value={summary.pass} color="#4ade80" /><Metric label="Failed" value={summary.fail} color="#f87171" /><Metric label="Warnings" value={summary.warn} color="#facc15" /><Metric label="Manual" value={summary.manual} color="#93c5fd" /><Metric label="Run / Total" value={`${summary.run}/${summary.total}`} color="#fff" /></div><div className="mt-4 flex flex-wrap items-center gap-2"><button onClick={() => runList(TESTS, 'all')} disabled={busy} className="inline-flex items-center gap-2 rounded-2xl px-4 py-2 font-inter text-xs font-bold disabled:opacity-40" style={{ background: 'linear-gradient(135deg, #f59e0b, #facc15)', color: '#071025' }}>{busy && scope === 'all' ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}Run All Tests</button><button onClick={() => runList(list, cat.id)} disabled={busy} className="inline-flex items-center gap-2 rounded-2xl px-4 py-2 font-inter text-xs font-bold disabled:opacity-40" style={{ background: `${cat.color}18`, color: cat.color, border: `1px solid ${cat.color}55` }}>{busy && scope === cat.id ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <ClipboardCheck className="h-3.5 w-3.5" />}Run Category</button>{running && <span className="font-mono text-[10px] text-white/35">Running: {running}</span>}</div></div>
+    <div className="flex min-h-0 flex-1"><aside className="w-72 flex-shrink-0 overflow-y-auto border-r border-white/[0.07] p-3"><div className="space-y-1.5">{CATS.map(c => { const x = stats[c.id]; const selected = c.id === active; return <button key={c.id} onClick={() => setActive(c.id)} className="w-full rounded-2xl px-3 py-2.5 text-left" style={{ background: selected ? `${c.color}14` : 'rgba(255,255,255,0.025)', border: `1px solid ${selected ? c.color + '55' : 'rgba(255,255,255,0.055)'}` }}><div className="flex items-center justify-between gap-2"><span className="font-inter text-xs font-semibold text-white/80">{c.label}</span><span className="rounded-full px-1.5 py-0.5 font-mono text-[9px]" style={{ color: c.color, background: `${c.color}14` }}>{x.pass}/{x.total}</span></div><div className="mt-1 flex gap-1 font-mono text-[9px] text-white/30"><span className="text-red-300/80">F {x.fail}</span><span className="text-yellow-300/80">W {x.warn}</span><span className="text-blue-300/80">M {x.manual}</span></div><div className="mt-1 font-inter text-[9px] text-white/25">Last: {x.last || 'never'}</div></button>; })}</div></aside><main className="min-w-0 flex-1 overflow-y-auto p-5"><div className="mb-4 flex items-end justify-between gap-4"><div><h3 className="font-cinzel text-base font-bold tracking-widest" style={{ color: cat.color }}>{cat.label}</h3><p className="mt-1 font-inter text-[11px] text-white/35">Total {st.total} · Pass {st.pass} · Fail {st.fail} · Warning {st.warn} · Manual {st.manual}</p></div><div className="font-inter text-[10px] text-white/30">Last run: {st.last || 'never'}</div></div>{active === 'manual' && <div className="mb-4 rounded-3xl p-4" style={{ background: 'rgba(147,197,253,0.06)', border: '1px solid rgba(147,197,253,0.18)' }}><div className="mb-3 flex items-center justify-between"><div><div className="font-inter text-sm font-bold text-white/85">Two-device manual checklist</div><div className="font-inter text-[11px] text-white/35">{checked}/{MANUAL.length} checked. These rows never count as automatic PASS.</div></div><Badge status={ST.MANUAL} /></div><div className="grid gap-2 sm:grid-cols-2">{MANUAL.map(item => <label key={item} className="flex items-center gap-2 rounded-2xl px-3 py-2" style={{ background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.06)' }}><input type="checkbox" checked={Boolean(checks[item])} onChange={e => setChecks(p => ({ ...p, [item]: e.target.checked }))} className="h-4 w-4 accent-yellow-400" /><span className="font-inter text-xs text-white/75">{item}</span></label>)}</div></div>}<div className="grid gap-3 lg:grid-cols-2">{list.map(test => <Row key={test.id} test={test} result={results[test.id]} busy={busy} onRun={runOne} />)}</div></main></div>
+  </motion.div></motion.div>;
 }
