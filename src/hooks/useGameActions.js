@@ -131,8 +131,8 @@ export function useGameActions({
       pool = sessionFiltered.filter(q => !usedTimelineYears.has(q.year));
     }
 
-    // Fallback B: relax year-duplicate exclusion too (last resort)
-    if (pool.length < 5) {
+    // Fallback B: relax year-duplicate exclusion too only when no safe year remains.
+    if (pool.length === 0) {
       pool = sessionFiltered;
     }
 
