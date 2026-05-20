@@ -227,12 +227,12 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
         {solo ? (
           <>
             <span className="block">SOLO</span>
-            <span className="block" style={{ color: '#d995ff', fontSize: '0.7em' }}>MEYDAN OKUMA</span>
+            <span className="block" style={{ color: '#d995ff', fontSize: '0.9em' }}>MEYDAN OKUMA</span>
           </>
         ) : (
           <>
             <span className="block">ONLINE</span>
-            <span className="block" style={{ color: '#facc15', fontSize: '0.82em' }}>BATTLE</span>
+            <span className="block" style={{ color: '#facc15', fontSize: '0.9em' }}>BATTLE</span>
           </>
         )}
       </span>
@@ -448,16 +448,16 @@ export default function MainMenu() {
         <div
           className="absolute z-20"
           style={{
-            left: '11.851852%',
-            top: '70.484375%',
-            width: '33.648148%',
-            height: '20.25%',
+            left: '10%',
+            top: '70.46667%',
+            width: '37.5%',
+            height: '20.052083%',
           }}
         >
           <ModeCard
             type="solo"
             title={'SOLO\nMEYDAN OKUMA'}
-            subtitle={<>Kendine karşı yarış,<br />zamanı yen!</>}
+            subtitle={<></>}
             icon={<UserRound className="h-7 w-7" strokeWidth={1.75} />}
             onClick={handleSolo}
           />
@@ -466,16 +466,16 @@ export default function MainMenu() {
         <div
           className="absolute z-20"
           style={{
-            left: '54.5%',
-            top: '70.484375%',
-            width: '33.648148%',
-            height: '20.25%',
+            left: '52.5%',
+            top: '70.416667%',
+            width: '37.5%',
+            height: '20.052083%',
           }}
         >
           <ModeCard
             type="online"
             title={'ONLINE\nBATTLE'}
-            subtitle={<>Gerçek oyunculara<br />karşı oyna!</>}
+            subtitle={<></>}
             icon={<Globe className="h-7 w-7" strokeWidth={1.85} />}
             onClick={handleOnline}
           />
