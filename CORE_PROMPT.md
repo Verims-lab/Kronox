@@ -10,6 +10,11 @@ Verims-lab/Kronox
 - Never use local temp repositories
 - Never generate /private/tmp patch workflows unless explicitly requested
 
+  ## GitHub Workflow
+Codex must work only through GitHub connector on the `codex` branch.
+Never use local-only commits, local temp folders, or patch files unless explicitly requested.
+After work is complete, create or update a PR from `codex` to `main`.
+
 ## Safety Rules
 Preserve:
 - Offline Solo Challenge
