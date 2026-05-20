@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-const BUILD_MARKER = 'Codex025';
+const BUILD_MARKER = 'Codex026';
 
 export default function BuildMarker() {
   const [visible, setVisible] = useState(true);
