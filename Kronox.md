@@ -84,6 +84,25 @@ Settings/Admin/Test screens:
 
 Never apply global overflow hidden in a way that breaks gameplay, settings, admin, or test pages.
 
+## MOBILE UI QUALITY BAR
+
+Kronox UI should feel like crafted mobile game interface art, not assembled web components.
+
+For primary buttons/cards:
+- strong silhouette
+- clear hierarchy
+- vector-like polish
+- layered highlights
+- bevel/depth illusion
+- tactile press state
+- premium glow restraint
+
+Avoid:
+- plain div/card styling
+- generic gradients
+- default Tailwind-looking surfaces
+- UI elements that feel disconnected from background art
+
 ## Wrong answers are emotionally valuable
 
 Failures should feel:
