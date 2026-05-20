@@ -258,7 +258,7 @@ export default function MainMenu() {
           className="absolute z-20 grid grid-cols-2 gap-4"
           style={{
             left: '50%',
-            top: '61.5%',
+            top: 'calc(61.5% + 10px)',
             width: '90%',
             maxWidth: 360,
             transform: 'translateX(-50%)',
