@@ -18,9 +18,10 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
       onClick={onClick}
       whileTap={{ scale: 0.958, y: 4 }}
       transition={{ type: 'spring', stiffness: 520, damping: 23 }}
-      className="relative overflow-visible border-0 bg-transparent px-3 py-4 text-center"
+      className="relative h-full w-full overflow-visible border-0 bg-transparent text-center"
       style={{
-        minHeight: 'clamp(112px, 16.2svh, 196px)',
+        containerType: 'size',
+        padding: '8cqh 6cqw 7cqh',
         filter: solo
           ? 'drop-shadow(0 0 18px rgba(192,68,255,0.56)) drop-shadow(0 14px 18px rgba(0,0,0,0.46))'
           : 'drop-shadow(0 0 18px rgba(250,204,21,0.4)) drop-shadow(0 14px 18px rgba(0,0,0,0.46))',
@@ -77,8 +78,8 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
         className="relative z-10 mx-auto mb-3 flex items-center justify-center rounded-full border"
         style={{
           color: accent,
-          width: 'clamp(40px, 5.7svh, 50px)',
-          height: 'clamp(40px, 5.7svh, 50px)',
+          width: '19cqw',
+          height: '19cqw',
           background: solo
             ? 'radial-gradient(circle at 35% 25%, rgba(255,255,255,0.2), transparent 28%), linear-gradient(180deg, rgba(82,21,128,0.9), rgba(12,6,31,0.94))'
             : 'radial-gradient(circle at 35% 25%, rgba(255,255,255,0.18), transparent 28%), linear-gradient(180deg, rgba(82,63,12,0.88), rgba(12,9,17,0.96))',
@@ -91,13 +92,17 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
       <span
         className="relative z-10 block whitespace-pre-line font-bangers text-[clamp(1.46rem,6.2vw,2.1rem)] leading-[0.9]"
         style={{
+          fontSize: '10.4cqw',
           color: solo ? '#d47cff' : '#f8fafc',
           textShadow: solo ? '0 0 14px rgba(192,68,255,0.42)' : '0 0 12px rgba(250,204,21,0.18)',
         }}
       >
         {title}
       </span>
-      <span className="relative z-10 mt-2 block font-inter text-[clamp(0.68rem,2.8vw,0.85rem)] font-bold leading-snug text-white/78">
+      <span
+        className="relative z-10 mt-2 block font-inter font-bold leading-snug text-white/78"
+        style={{ fontSize: '4.2cqw' }}
+      >
         {subtitle}
       </span>
       <span
@@ -232,26 +237,36 @@ export default function MainMenu() {
         src={BACKGROUND_ASSET}
         alt=""
         draggable={false}
-        className="absolute inset-0 h-full w-full object-cover"
+        className="absolute left-1/2 top-1/2 object-cover"
         style={{
+          width: 'max(100dvw, 56.25dvh)',
+          height: 'max(100dvh, 177.7778dvw)',
+          transform: 'translate(-50%, -50%)',
           objectPosition: 'center center',
           pointerEvents: 'none',
         }}
       />
 
       <div
-        className="relative z-10 mx-auto h-full w-full max-w-[440px] px-5"
+        className="absolute left-1/2 top-1/2 z-10"
         style={{
-          maxHeight: '100dvh',
+          width: 'max(100dvw, 56.25dvh)',
+          height: 'max(100dvh, 177.7778dvw)',
+          aspectRatio: '1080 / 1920',
+          transform: 'translate(-50%, -50%)',
           overflow: 'hidden',
-          paddingBottom: 'calc(clamp(0.55rem, 1.6dvh, 0.9rem) + env(safe-area-inset-bottom))',
           overscrollBehavior: 'none',
           overscrollBehaviorY: 'none',
         }}
       >
         <header
-          className="absolute left-0 right-0 flex justify-center px-5"
-          style={{ top: 'calc(0.45rem + env(safe-area-inset-top))' }}
+          className="absolute flex justify-center"
+          style={{
+            left: '50%',
+            top: 'calc(0.45rem + env(safe-area-inset-top))',
+            width: '60%',
+            transform: 'translateX(-50%)',
+          }}
         >
           <img
             src={LOGO_URL}
@@ -259,21 +274,20 @@ export default function MainMenu() {
             draggable={false}
             className="object-contain"
             style={{
-              width: 'clamp(212px, 68vw, 326px)',
-              height: 'clamp(74px, 10.2svh, 124px)',
+              width: '100%',
+              height: 'auto',
               filter: 'drop-shadow(0 0 14px rgba(250,204,21,0.86))',
             }}
           />
         </header>
 
-        <section
-          className="absolute z-20 grid grid-cols-2 gap-4"
+        <div
+          className="absolute z-20"
           style={{
-            left: '50%',
-            top: 'clamp(58%, calc(61.5% + 10px), 66%)',
-            width: '90%',
-            maxWidth: 360,
-            transform: 'translateX(-50%)',
+            left: '8.7%',
+            top: '65.15%',
+            width: '38.5%',
+            height: '15.8%',
           }}
         >
           <ModeCard
@@ -283,6 +297,17 @@ export default function MainMenu() {
             icon={<UserRound className="h-7 w-7" strokeWidth={1.75} />}
             onClick={handleSolo}
           />
+        </div>
+
+        <div
+          className="absolute z-20"
+          style={{
+            left: '52.8%',
+            top: '65.15%',
+            width: '38.5%',
+            height: '15.8%',
+          }}
+        >
           <ModeCard
             type="online"
             title={'ONLINE\nBATTLE'}
@@ -290,11 +315,15 @@ export default function MainMenu() {
             icon={<Globe className="h-7 w-7" strokeWidth={1.85} />}
             onClick={handleOnline}
           />
-        </section>
+        </div>
 
         <section
-          className="absolute left-5 right-5 z-20 flex items-center gap-3"
-          style={{ bottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+          className="absolute z-20 flex items-center gap-3"
+          style={{
+            left: '4.6%',
+            right: '4.6%',
+            bottom: 'calc(0.75rem + env(safe-area-inset-bottom))',
+          }}
         >
           <ProfileBar user={user} onLogin={handleLogin} onLogout={handleLogout} />
           <motion.button
