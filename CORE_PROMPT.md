@@ -10,7 +10,7 @@ Verims-lab/Kronox
 - Never use local temp repositories
 - Never generate /private/tmp patch workflows unless explicitly requested
 
-  ## GitHub Workflow
+## GitHub Workflow
 Codex must work only through GitHub connector on the `codex` branch.
 Never use local-only commits, local temp folders, or patch files unless explicitly requested.
 After work is complete, create or update a PR from `codex` to `main`.
@@ -49,7 +49,7 @@ After changes always return:
 - PR status
 - build marker version
 
-  ## Prompt Efficiency
+## Prompt Efficiency
 Keep task responses concise.
 Do not repeat KRONOX.md content back unless needed.
 Prefer minimal implementation plans over long explanations.
