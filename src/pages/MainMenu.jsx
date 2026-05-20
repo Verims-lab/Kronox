@@ -6,7 +6,7 @@ import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 
 const LOGO_URL = 'https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/49fc6f458_kronoxnobckgrnd.png';
-const HERO_ASSET = '/assets/ui/kronox_hero_section_v1.webp';
+const BACKGROUND_ASSET = '/assets/ui/home-background-full.webp';
 
 function PlayButton({ onClick }) {
   return (
@@ -15,9 +15,9 @@ function PlayButton({ onClick }) {
       onClick={onClick}
       whileTap={{ scale: 0.955, y: 5 }}
       transition={{ type: 'spring', stiffness: 560, damping: 25 }}
-      className="relative mx-auto flex w-[96%] items-center justify-center gap-3 overflow-visible rounded-[24px] border-[3px] border-black/90 font-bangers text-[clamp(2.55rem,11.2vw,3.75rem)] leading-none text-black"
+      className="relative mx-auto flex w-[96%] items-center justify-center gap-3 overflow-visible rounded-[24px] border-[3px] border-black/90 font-bangers text-[clamp(2.32rem,10.6vw,3.75rem)] leading-none text-black"
       style={{
-        height: 'clamp(72px, 9.4svh, 102px)',
+        height: 'clamp(60px, 8.8svh, 102px)',
         background: 'linear-gradient(180deg, #fff8a8 0%, #ffd52b 34%, #f7b40b 72%, #df8c00 100%)',
         boxShadow: [
           '0 0 22px rgba(250,204,21,0.42)',
@@ -83,7 +83,7 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
       transition={{ type: 'spring', stiffness: 460, damping: 24 }}
       className="relative overflow-hidden rounded-[18px] px-3 py-4 text-center"
       style={{
-        minHeight: 'clamp(146px, 19.5svh, 218px)',
+        minHeight: 'clamp(124px, 18svh, 218px)',
         background: solo
           ? 'linear-gradient(180deg, rgba(71,19,118,0.96), rgba(22,7,46,0.98) 54%, rgba(6,4,18,0.99))'
           : 'linear-gradient(180deg, rgba(25,22,17,0.98), rgba(11,10,18,0.98) 54%, rgba(4,5,13,0.99))',
@@ -108,8 +108,8 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
         className="relative z-10 mx-auto mb-3 flex items-center justify-center rounded-full border"
         style={{
           color: accent,
-          width: 52,
-          height: 52,
+          width: 'clamp(42px, 6svh, 52px)',
+          height: 'clamp(42px, 6svh, 52px)',
           background: 'rgba(0,0,0,0.22)',
           borderColor: solo ? 'rgba(214,97,255,0.88)' : 'rgba(250,204,21,0.88)',
           boxShadow: solo ? '0 0 22px rgba(192,68,255,0.58), inset 0 0 15px rgba(255,255,255,0.08)' : '0 0 22px rgba(250,204,21,0.42), inset 0 0 15px rgba(255,255,255,0.07)',
@@ -237,88 +237,90 @@ export default function MainMenu() {
     <main
       className="relative w-full overflow-hidden bg-black text-white"
       style={{
+        width: '100vw',
         minHeight: '100vh',
-        height: '100svh',
+        height: '100dvh',
         userSelect: 'none',
       }}
     >
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{ background: 'radial-gradient(ellipse at 50% 36%, rgba(88,28,135,0.44), transparent 58%)' }}
+      <img
+        src={BACKGROUND_ASSET}
+        alt=""
+        draggable={false}
+        className="absolute inset-0 h-full w-full object-cover"
+        style={{
+          objectPosition: 'center top',
+          pointerEvents: 'none',
+        }}
       />
 
       <div
-        className="relative z-10 mx-auto flex h-full w-full max-w-[440px] flex-col px-5"
-        style={{
-          paddingTop: 'calc(0.55rem + env(safe-area-inset-top))',
-          paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))',
-        }}
+        className="relative z-10 mx-auto h-full w-full max-w-[440px] px-5"
+        style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
       >
-        <header className="flex shrink-0 justify-center">
+        <header
+          className="absolute left-0 right-0 flex justify-center px-5"
+          style={{ top: 'calc(0.45rem + env(safe-area-inset-top))' }}
+        >
           <img
             src={LOGO_URL}
             alt="Kronox"
             draggable={false}
             className="object-contain"
             style={{
-              width: 'clamp(212px, 66vw, 320px)',
-              height: 'clamp(74px, 10svh, 122px)',
+              width: 'clamp(212px, 68vw, 326px)',
+              height: 'clamp(74px, 10.2svh, 124px)',
               filter: 'drop-shadow(0 0 14px rgba(250,204,21,0.86))',
             }}
           />
         </header>
 
-        <section className="relative -mx-5 mt-0 min-h-0 flex-1">
-          <img
-            src={HERO_ASSET}
-            alt=""
-            draggable={false}
-            className="mx-auto h-full w-full object-contain"
-            style={{
-              maxHeight: '100%',
-              objectPosition: 'center top',
-              pointerEvents: 'none',
-            }}
+        <section
+          className="absolute left-5 right-5 z-20"
+          style={{ top: '57.2%' }}
+        >
+          <PlayButton onClick={handleSolo} />
+        </section>
+
+        <section
+          className="absolute left-5 right-5 z-20 grid grid-cols-2 gap-4"
+          style={{ top: '69.6%' }}
+        >
+          <ModeCard
+            type="solo"
+            title={'SOLO\nMEYDAN OKUMA'}
+            subtitle={<>Kendine karşı yarış,<br />zamanı yen!</>}
+            icon={<UserRound className="h-7 w-7" strokeWidth={1.75} />}
+            onClick={handleSolo}
+          />
+          <ModeCard
+            type="online"
+            title={'ONLINE\nBATTLE'}
+            subtitle={<>Gerçek oyunculara<br />karşı oyna!</>}
+            icon={<Globe className="h-7 w-7" strokeWidth={1.85} />}
+            onClick={handleOnline}
           />
         </section>
 
-        <section className="relative z-20 shrink-0" style={{ marginTop: 'calc(-1 * clamp(1.55rem, 5.1svh, 3.8rem))' }}>
-          <PlayButton onClick={handleSolo} />
-
-          <div className="mt-4 grid grid-cols-2 gap-4">
-            <ModeCard
-              type="solo"
-              title={'SOLO\nMEYDAN OKUMA'}
-              subtitle={<>Kendine karşı yarış,<br />zamanı yen!</>}
-              icon={<UserRound className="h-7 w-7" strokeWidth={1.75} />}
-              onClick={handleSolo}
-            />
-            <ModeCard
-              type="online"
-              title={'ONLINE\nBATTLE'}
-              subtitle={<>Gerçek oyunculara<br />karşı oyna!</>}
-              icon={<Globe className="h-7 w-7" strokeWidth={1.85} />}
-              onClick={handleOnline}
-            />
-          </div>
-
-          <div className="mt-3 flex items-center gap-3">
-            <ProfileBar user={user} onLogin={handleLogin} onLogout={handleLogout} />
-            <motion.button
-              type="button"
-              onClick={handleSettings}
-              whileTap={{ scale: 0.92, rotate: -8 }}
-              transition={{ type: 'spring', stiffness: 520, damping: 24 }}
-              className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-full border border-primary/70 bg-black/76 text-white"
-              style={{
-                background: 'linear-gradient(180deg, rgba(24,21,18,0.88), rgba(4,5,13,0.96))',
-                boxShadow: '0 0 20px rgba(250,204,21,0.42), 0 10px 22px rgba(0,0,0,0.4), inset 0 0 18px rgba(255,255,255,0.08)',
-              }}
-              aria-label="Ayarlar"
-            >
-              <Settings className="h-7 w-7" />
-            </motion.button>
-          </div>
+        <section
+          className="absolute left-5 right-5 z-20 flex items-center gap-3"
+          style={{ bottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+        >
+          <ProfileBar user={user} onLogin={handleLogin} onLogout={handleLogout} />
+          <motion.button
+            type="button"
+            onClick={handleSettings}
+            whileTap={{ scale: 0.92, rotate: -8 }}
+            transition={{ type: 'spring', stiffness: 520, damping: 24 }}
+            className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-full border border-primary/70 bg-black/76 text-white"
+            style={{
+              background: 'linear-gradient(180deg, rgba(24,21,18,0.88), rgba(4,5,13,0.96))',
+              boxShadow: '0 0 20px rgba(250,204,21,0.42), 0 10px 22px rgba(0,0,0,0.4), inset 0 0 18px rgba(255,255,255,0.08)',
+            }}
+            aria-label="Ayarlar"
+          >
+            <Settings className="h-7 w-7" />
+          </motion.button>
         </section>
       </div>
     </main>
