@@ -63,6 +63,46 @@ over excessive decoration or visual complexity.
 
 ---
 
+## MOBILE VIEWPORT STANDARD
+
+Kronox is primarily a mobile portrait game.
+
+Home screen:
+- must be exactly one viewport
+- must not vertically scroll
+- must not show top/bottom blank overscroll
+- must adapt to different phone aspect ratios
+- use 100dvh, safe-area env(), clamp(), and proportional positioning
+
+Gameplay screens:
+- should avoid page-level vertical scroll where possible
+- timeline horizontal scrolling is allowed
+- scrolling must be intentional and contained
+
+Settings/Admin/Test screens:
+- vertical scroll is allowed
+
+Never apply global overflow hidden in a way that breaks gameplay, settings, admin, or test pages.
+
+## MOBILE UI QUALITY BAR
+
+Kronox UI should feel like crafted mobile game interface art, not assembled web components.
+
+For primary buttons/cards:
+- strong silhouette
+- clear hierarchy
+- vector-like polish
+- layered highlights
+- bevel/depth illusion
+- tactile press state
+- premium glow restraint
+
+Avoid:
+- plain div/card styling
+- generic gradients
+- default Tailwind-looking surfaces
+- UI elements that feel disconnected from background art
+
 ## Wrong answers are emotionally valuable
 
 Failures should feel:

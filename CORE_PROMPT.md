@@ -10,6 +10,11 @@ Verims-lab/Kronox
 - Never use local temp repositories
 - Never generate /private/tmp patch workflows unless explicitly requested
 
+## GitHub Workflow
+Codex must work only through GitHub connector on the `codex` branch.
+Never use local-only commits, local temp folders, or patch files unless explicitly requested.
+After work is complete, create or update a PR from `codex` to `main`.
+
 ## Safety Rules
 Preserve:
 - Offline Solo Challenge
@@ -43,6 +48,30 @@ After changes always return:
 - commit hash
 - PR status
 - build marker version
+
+## Prompt Efficiency
+Keep task responses concise.
+Do not repeat KRONOX.md content back unless needed.
+Prefer minimal implementation plans over long explanations.
+Ask for clarification only if blocked.
+
+## Code Quality
+Before changing files:
+- identify the smallest affected surface
+- avoid touching unrelated files
+- preserve existing naming and structure
+- do not introduce new dependencies unless necessary
+
+## Testing
+For every change, run or update the most relevant test/simulation.
+If tests cannot be run, explain why clearly.
+
+## UI Quality
+For UI work:
+- match existing Kronox visual language
+- avoid generic Tailwind/card UI
+- preserve mobile portrait behavior
+- ensure no unwanted scroll/overscroll on Home
 
 ## Build Marker
 Increment:
