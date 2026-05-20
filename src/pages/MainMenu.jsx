@@ -312,10 +312,10 @@ export default function MainMenu() {
         <div
           className="absolute z-20"
           style={{
-            left: '8.333333%',
-            top: '58.473958%',
-            width: '32.490741%',
-            height: '16.875%',
+            left: '11.851852%',
+            top: '70.484375%',
+            width: '33.648148%',
+            height: '20.25%',
           }}
         >
           <ModeCard
@@ -330,10 +330,10 @@ export default function MainMenu() {
         <div
           className="absolute z-20"
           style={{
-            left: '42.509259%',
-            top: '58.473958%',
-            width: '32.490741%',
-            height: '16.875%',
+            left: '54.5%',
+            top: '70.484375%',
+            width: '33.648148%',
+            height: '20.25%',
           }}
         >
           <ModeCard
