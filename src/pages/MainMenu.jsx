@@ -227,12 +227,12 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
         {solo ? (
           <>
             <span className="block">SOLO</span>
-            <span className="block" style={{ color: '#d995ff', fontSize: '0.7em' }}>MEYDAN OKUMA</span>
+            <span className="block" style={{ color: '#d995ff', fontSize: '0.9em' }}>MEYDAN OKUMA</span>
           </>
         ) : (
           <>
             <span className="block">ONLINE</span>
-            <span className="block" style={{ color: '#facc15', fontSize: '0.82em' }}>BATTLE</span>
+            <span className="block" style={{ color: '#facc15', fontSize: '0.9em' }}>BATTLE</span>
           </>
         )}
       </span>
