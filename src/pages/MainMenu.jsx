@@ -10,60 +10,73 @@ const BACKGROUND_ASSET = '/assets/ui/home-background-full.webp';
 
 function ModeIllustration({ type }) {
   const solo = type === 'solo';
-  const glow = solo ? '#c044ff' : '#facc15';
-  const deep = solo ? '#160923' : '#1b1205';
-  const mid = solo ? '#5d1792' : '#7a5106';
+  const glow = solo ? '#d15cff' : '#facc15';
+  const deep = solo ? '#16041f' : '#170f04';
+  const mid = solo ? '#6812a2' : '#875b06';
   const id = solo ? 'solo-mode-art' : 'online-mode-art';
 
   return (
-    <svg className="absolute inset-0 h-full w-full" viewBox="0 0 360 210" preserveAspectRatio="none" aria-hidden="true">
+    <svg className="absolute inset-0 h-full w-full" viewBox="0 0 360 230" preserveAspectRatio="none" aria-hidden="true">
       <defs>
-        <radialGradient id={`${id}-core`} cx="50%" cy="58%" r="58%">
-          <stop offset="0%" stopColor={glow} stopOpacity="0.82" />
-          <stop offset="42%" stopColor={mid} stopOpacity="0.34" />
+        <radialGradient id={`${id}-core`} cx="50%" cy="60%" r="66%">
+          <stop offset="0%" stopColor={glow} stopOpacity="0.92" />
+          <stop offset="36%" stopColor={mid} stopOpacity="0.52" />
+          <stop offset="100%" stopColor={deep} stopOpacity="0" />
+        </radialGradient>
+        <radialGradient id={`${id}-horizon`} cx="50%" cy="80%" r="54%">
+          <stop offset="0%" stopColor={glow} stopOpacity={solo ? '0.82' : '0.66'} />
           <stop offset="100%" stopColor={deep} stopOpacity="0" />
         </radialGradient>
         <linearGradient id={`${id}-shine`} x1="0%" x2="100%" y1="0%" y2="100%">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.35" />
-          <stop offset="28%" stopColor="#ffffff" stopOpacity="0.08" />
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.42" />
+          <stop offset="24%" stopColor="#ffffff" stopOpacity="0.1" />
           <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
         </linearGradient>
+        <filter id={`${id}-hot`} x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="7" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
       </defs>
-      <rect width="360" height="210" fill={solo ? '#13071f' : '#160f07'} />
-      <rect width="360" height="210" fill={`url(#${id}-core)`} />
-      <path d="M0 0 H360 V210 H0 Z" fill="none" stroke={glow} strokeOpacity="0.34" strokeWidth="3" />
-      <path d="M28 0 L0 28 V0 Z M332 0 H360 V28 Z M0 182 V210 H28 Z M360 182 V210 H332 Z" fill={glow} opacity="0.42" />
-      <path d="M34 18 H126 M326 192 H232" stroke="#fff" strokeOpacity="0.28" strokeWidth="3" strokeLinecap="round" />
-      <path d="M34 0 L0 35 V0 Z M326 0 H360 V35 Z" fill="#fff" opacity="0.08" />
-      <path d="M24 18 L132 18 L64 118 L0 166 V54 Z" fill={`url(#${id}-shine)`} opacity="0.72" />
-      <g opacity="0.42" stroke={glow} strokeWidth="1.2" fill="none">
-        <ellipse cx="180" cy="137" rx="112" ry="24" />
-        <ellipse cx="180" cy="137" rx="74" ry="16" />
-        <path d="M42 136 C94 94 266 94 318 136" />
+      <rect width="360" height="230" fill={solo ? '#11051b' : '#120c04'} />
+      <rect width="360" height="230" fill={`url(#${id}-core)`} />
+      <rect y="64" width="360" height="166" fill={`url(#${id}-horizon)`} />
+      <path d="M0 0 H360 V230 H0 Z" fill="none" stroke={glow} strokeOpacity="0.4" strokeWidth="4" />
+      <path d="M28 0 L0 28 V0 Z M332 0 H360 V28 Z M0 198 V230 H32 Z M360 198 V230 H328 Z" fill={glow} opacity="0.42" />
+      <path d="M31 18 H122 M329 212 H238" stroke="#fff" strokeOpacity="0.34" strokeWidth="4" strokeLinecap="round" />
+      <path d="M34 0 L0 36 V0 Z M326 0 H360 V36 Z" fill="#fff" opacity="0.08" />
+      <path d="M20 12 L156 12 L66 134 L0 186 V52 Z" fill={`url(#${id}-shine)`} opacity="0.74" />
+      <g opacity="0.5" stroke={glow} strokeWidth="1.4" fill="none">
+        <ellipse cx="180" cy="155" rx="128" ry="28" />
+        <ellipse cx="180" cy="155" rx="88" ry="19" />
+        <ellipse cx="180" cy="155" rx="48" ry="10" />
+        <path d="M26 154 C86 102 274 102 334 154" />
       </g>
       {solo ? (
         <>
-          <path d="M180 34 L220 82 L207 145 H153 L140 82 Z" fill="#13051e" stroke={glow} strokeWidth="4" />
-          <path d="M180 60 L197 84 L188 116 H172 L163 84 Z" fill="none" stroke="#e9b7ff" strokeWidth="4" />
-          <path d="M180 34 L194 83 L180 146 L166 83 Z" fill="#ffffff" opacity="0.12" />
-          <path d="M70 166 C112 126 148 135 180 146 C214 135 252 126 294 166 Z" fill="#07050d" opacity="0.86" />
-          <path d="M30 180 L68 142 L92 180 Z M264 180 L302 140 L338 180 Z" fill="#07050d" opacity="0.9" />
-          <circle cx="180" cy="136" r="8" fill={glow} />
-          <path d="M180 112 V170" stroke="#f4d1ff" strokeWidth="2" strokeOpacity="0.72" />
+          <path d="M180 28 L232 88 L212 166 H148 L128 88 Z" fill="#14031e" stroke={glow} strokeWidth="5.5" filter={`url(#${id}-hot)`} />
+          <path d="M180 55 L205 88 L192 130 H168 L155 88 Z" fill="none" stroke="#f4d1ff" strokeWidth="6" />
+          <path d="M180 28 L198 92 L180 170 L162 92 Z" fill="#ffffff" opacity="0.13" />
+          <path d="M49 190 C95 142 137 148 180 164 C223 148 266 142 311 190 Z" fill="#06040c" opacity="0.9" />
+          <path d="M16 204 L58 148 L96 204 Z M263 204 L306 146 L350 204 Z" fill="#05040b" opacity="0.94" />
+          <circle cx="180" cy="156" r="12" fill={glow} filter={`url(#${id}-hot)`} />
+          <path d="M180 114 V200" stroke="#f4d1ff" strokeWidth="2.5" strokeOpacity="0.78" />
         </>
       ) : (
         <>
-          <circle cx="180" cy="92" r="55" fill="#0b0908" stroke={glow} strokeWidth="4" />
-          <path d="M126 92 H234 M180 37 C152 62 152 122 180 147 M180 37 C208 62 208 122 180 147" stroke="#ffe69c" strokeOpacity="0.78" strokeWidth="2.2" fill="none" />
-          <path d="M134 62 C164 78 197 78 226 62 M134 122 C164 106 197 106 226 122" stroke="#ffe69c" strokeOpacity="0.62" strokeWidth="2" fill="none" />
-          <path d="M54 182 C82 148 118 142 146 180 Z M118 184 C146 142 204 142 232 184 Z M216 182 C244 142 292 150 324 182 Z" fill="#070605" opacity="0.9" />
-          <circle cx="88" cy="150" r="16" fill="#070605" />
-          <circle cx="180" cy="142" r="18" fill="#070605" />
-          <circle cx="270" cy="150" r="16" fill="#070605" />
-          <path d="M65 94 C112 48 248 48 295 94" stroke={glow} strokeOpacity="0.35" strokeWidth="9" fill="none" />
+          <circle cx="180" cy="96" r="70" fill="#0b0805" stroke={glow} strokeWidth="5" filter={`url(#${id}-hot)`} />
+          <path d="M110 96 H250 M180 26 C145 58 145 134 180 166 M180 26 C215 58 215 134 180 166" stroke="#ffe69c" strokeOpacity="0.82" strokeWidth="2.6" fill="none" />
+          <path d="M121 58 C158 78 202 78 239 58 M121 132 C158 112 202 112 239 132" stroke="#ffe69c" strokeOpacity="0.66" strokeWidth="2.4" fill="none" />
+          <path d="M40 204 C70 154 116 146 148 200 Z M112 204 C144 144 216 144 248 204 Z M212 204 C244 146 296 154 332 204 Z" fill="#070604" opacity="0.94" />
+          <circle cx="86" cy="162" r="20" fill="#070604" />
+          <circle cx="180" cy="153" r="24" fill="#070604" />
+          <circle cx="274" cy="162" r="20" fill="#070604" />
+          <path d="M48 104 C107 44 253 44 312 104" stroke={glow} strokeOpacity="0.48" strokeWidth="11" fill="none" />
         </>
       )}
-      <path d="M0 210 C78 174 282 174 360 210 Z" fill="#03030a" opacity="0.72" />
+      <path d="M0 230 C74 188 286 188 360 230 Z" fill="#03030a" opacity="0.78" />
     </svg>
   );
 }
@@ -85,10 +98,10 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
       className="relative flex h-full w-full flex-col items-center overflow-visible border-0 bg-transparent text-center"
       style={{
         containerType: 'size',
-        padding: '4.6cqh 5.2cqw 5.5cqh',
+        padding: 0,
         filter: solo
-          ? 'drop-shadow(0 0 20px rgba(192,68,255,0.72)) drop-shadow(0 20px 18px rgba(0,0,0,0.58))'
-          : 'drop-shadow(0 0 18px rgba(250,204,21,0.58)) drop-shadow(0 20px 18px rgba(0,0,0,0.58))',
+          ? 'drop-shadow(0 0 22px rgba(192,68,255,0.78)) drop-shadow(0 18px 18px rgba(0,0,0,0.64))'
+          : 'drop-shadow(0 0 22px rgba(250,204,21,0.66)) drop-shadow(0 18px 18px rgba(0,0,0,0.64))',
       }}
       aria-label={title.replace('\n', ' ')}
     >
@@ -96,8 +109,8 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
         className="pointer-events-none absolute inset-0"
         style={{
           background: solo
-            ? 'linear-gradient(180deg, rgba(41,9,70,0.98) 0%, rgba(12,6,25,1) 48%, rgba(4,3,14,1) 100%)'
-            : 'linear-gradient(180deg, rgba(52,34,6,0.98) 0%, rgba(14,10,15,1) 48%, rgba(4,4,12,1) 100%)',
+            ? 'linear-gradient(180deg, rgba(42,7,70,0.98) 0%, rgba(12,5,24,1) 60%, rgba(4,3,12,1) 100%)'
+            : 'linear-gradient(180deg, rgba(60,38,4,0.98) 0%, rgba(15,9,10,1) 60%, rgba(4,4,10,1) 100%)',
           clipPath: 'polygon(7.2% 0, 92.8% 0, 100% 8.2%, 100% 91.8%, 92.8% 100%, 7.2% 100%, 0 91.8%, 0 8.2%)',
           boxShadow: [
             'inset 0 1px 0 rgba(255,255,255,0.34)',
@@ -135,7 +148,7 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
       <span
         className="pointer-events-none absolute"
         style={{
-          inset: '1.7cqw',
+          inset: '2.2%',
           background: [
             'linear-gradient(118deg, transparent 0 19%, rgba(255,255,255,0.16) 20% 23%, transparent 24% 100%)',
             solo
@@ -147,27 +160,47 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
         aria-hidden="true"
       />
       <span
-        className="relative z-10 block w-full overflow-hidden"
+        className="absolute z-10 block overflow-hidden"
         style={{
-          height: '48cqh',
-          marginBottom: '1.8cqh',
-          clipPath: 'polygon(7% 0, 93% 0, 100% 10%, 100% 92%, 93% 100%, 7% 100%, 0 92%, 0 10%)',
+          left: '5.4%',
+          right: '5.4%',
+          top: '5.1%',
+          height: '57.2%',
+          clipPath: 'polygon(7% 0, 93% 0, 100% 10%, 100% 91%, 93% 100%, 7% 100%, 0 91%, 0 10%)',
           border: `1px solid ${solo ? 'rgba(232,132,255,0.38)' : 'rgba(250,220,72,0.36)'}`,
           boxShadow: solo
-            ? 'inset 0 0 18px rgba(192,68,255,0.28), 0 0 18px rgba(192,68,255,0.2)'
-            : 'inset 0 0 18px rgba(250,204,21,0.2), 0 0 18px rgba(250,204,21,0.16)',
+            ? 'inset 0 0 28px rgba(192,68,255,0.34), 0 0 22px rgba(192,68,255,0.24)'
+            : 'inset 0 0 28px rgba(250,204,21,0.24), 0 0 22px rgba(250,204,21,0.2)',
         }}
       >
         <ModeIllustration type={type} />
       </span>
       <span
-        className="relative z-20 mx-auto flex items-center justify-center border"
+        className="absolute z-10 block"
+        style={{
+          left: '4.8%',
+          right: '4.8%',
+          top: '56.4%',
+          bottom: '5.1%',
+          clipPath: 'polygon(9% 0, 91% 0, 100% 13%, 100% 88%, 91% 100%, 9% 100%, 0 88%, 0 13%)',
+          background: solo
+            ? 'linear-gradient(180deg, rgba(15,7,26,0.95), rgba(3,3,10,0.98) 72%), radial-gradient(ellipse at 50% 0%, rgba(192,68,255,0.24), transparent 62%)'
+            : 'linear-gradient(180deg, rgba(17,12,7,0.95), rgba(3,3,9,0.98) 72%), radial-gradient(ellipse at 50% 0%, rgba(250,204,21,0.18), transparent 62%)',
+          boxShadow: [
+            'inset 0 1px 0 rgba(255,255,255,0.18)',
+            `inset 0 0 0 1px ${solo ? 'rgba(220,112,255,0.56)' : 'rgba(250,204,21,0.52)'}`,
+            'inset 0 -18px 20px rgba(0,0,0,0.62)',
+          ].join(', '),
+        }}
+        aria-hidden="true"
+      />
+      <span
+        className="absolute left-1/2 z-20 flex -translate-x-1/2 items-center justify-center border"
         style={{
           color: accent,
-          width: '18.6cqw',
-          height: '9.8cqh',
-          marginTop: '-6.7cqh',
-          marginBottom: '2.2cqh',
+          width: '19%',
+          height: '10.5%',
+          top: '53.4%',
           clipPath: 'polygon(18% 0, 82% 0, 100% 28%, 100% 72%, 82% 100%, 18% 100%, 0 72%, 0 28%)',
           background: solo
             ? 'radial-gradient(circle at 35% 23%, rgba(255,255,255,0.24), transparent 29%), linear-gradient(180deg, rgba(102,26,156,0.94), rgba(14,6,35,0.98))'
@@ -179,35 +212,51 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
         {renderedIcon}
       </span>
       <span
-        className="relative z-10 block w-full whitespace-pre-line font-bangers"
+        className="absolute z-20 block whitespace-pre-line font-bangers"
         style={{
-          fontSize: '8.15cqw',
-          lineHeight: 0.9,
-          color: solo ? '#d994ff' : '#f8fafc',
+          left: '8%',
+          right: '8%',
+          top: '64.8%',
+          fontSize: '12.6cqw',
+          lineHeight: 0.86,
+          color: solo ? '#ffffff' : '#f8fafc',
           letterSpacing: 0,
-          textShadow: solo ? '0 0 14px rgba(192,68,255,0.62), 0 2px 0 rgba(0,0,0,0.58)' : '0 0 14px rgba(250,204,21,0.28), 0 2px 0 rgba(0,0,0,0.58)',
+          textShadow: solo ? '0 0 16px rgba(192,68,255,0.68), 0 2px 0 rgba(0,0,0,0.72)' : '0 0 16px rgba(250,204,21,0.38), 0 2px 0 rgba(0,0,0,0.72)',
         }}
       >
-        {title}
+        {solo ? (
+          <>
+            <span className="block">SOLO</span>
+            <span className="block" style={{ color: '#d995ff', fontSize: '0.7em' }}>MEYDAN OKUMA</span>
+          </>
+        ) : (
+          <>
+            <span className="block">ONLINE</span>
+            <span className="block" style={{ color: '#facc15', fontSize: '0.82em' }}>BATTLE</span>
+          </>
+        )}
       </span>
       <span
-        className="relative z-10 block"
+        className="absolute left-1/2 z-20 block -translate-x-1/2"
         aria-hidden="true"
         style={{
           width: '46%',
-          height: '0.8cqh',
-          marginTop: '2cqh',
+          height: '0.7%',
+          top: '82%',
           background: solo ? 'linear-gradient(90deg, transparent, #d994ff, transparent)' : 'linear-gradient(90deg, transparent, #facc15, transparent)',
           boxShadow: solo ? '0 0 9px rgba(217,148,255,0.72)' : '0 0 9px rgba(250,204,21,0.6)',
         }}
       />
       <span
-        className="relative z-10 block w-full font-inter font-bold text-white/78"
+        className="absolute z-20 block font-inter font-black text-white/88"
         style={{
-          marginTop: '1.8cqh',
-          fontSize: '3.25cqw',
-          lineHeight: 1.14,
+          left: '9%',
+          right: '9%',
+          top: '85.2%',
+          fontSize: '4.2cqw',
+          lineHeight: 1.05,
           letterSpacing: 0,
+          textShadow: '0 2px 6px rgba(0,0,0,0.78)',
         }}
       >
         {subtitle}
@@ -216,7 +265,7 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
         className="absolute inset-x-0 bottom-0 h-16 opacity-80"
         aria-hidden="true"
         style={{
-          height: '28cqh',
+          height: '24%',
           background: solo
             ? 'radial-gradient(ellipse at 50% 100%, rgba(168,85,247,0.82), transparent 68%)'
             : 'radial-gradient(ellipse at 50% 100%, rgba(250,204,21,0.58), transparent 70%)',
@@ -226,10 +275,10 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
         className="pointer-events-none absolute opacity-75"
         aria-hidden="true"
         style={{
-          left: '8cqw',
-          right: '8cqw',
-          bottom: '5cqh',
-          height: '16cqh',
+          left: '8%',
+          right: '8%',
+          bottom: '5%',
+          height: '12%',
           background: solo
             ? 'linear-gradient(to top, rgba(88,28,135,0.92), transparent), radial-gradient(ellipse at 50% 100%, rgba(192,68,255,0.68), transparent 55%)'
             : 'linear-gradient(to top, rgba(92,65,12,0.72), transparent), radial-gradient(ellipse at 50% 100%, rgba(250,204,21,0.42), transparent 58%)',
@@ -241,8 +290,8 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
         className="pointer-events-none absolute left-1/2 -translate-x-1/2"
         aria-hidden="true"
         style={{
-          bottom: '3.9cqh',
-          height: '1.2cqh',
+          bottom: '4.2%',
+          height: '1%',
           width: '54%',
           background: solo ? 'linear-gradient(90deg, transparent, #d946ef, transparent)' : 'linear-gradient(90deg, transparent, #facc15, transparent)',
           boxShadow: solo ? '0 0 12px rgba(217,70,239,0.9)' : '0 0 12px rgba(250,204,21,0.78)',
