@@ -232,7 +232,7 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
         ) : (
           <>
             <span className="block">ONLINE</span>
-            <span className="block" style={{ color: '#facc15', fontSize: '0.9em' }}>BATTLE</span>
+            <span className="block" style={{ color: '#facc15', fontSize: '0.9em' }}>KAPIŞMA</span>
           </>
         )}
       </span>
