@@ -457,7 +457,7 @@ export default function MainMenu() {
           <ModeCard
             type="solo"
             title={'SOLO\nMEYDAN OKUMA'}
-            subtitle={<>Kendine karşı yarış,<br />zamanı yen!</>}
+            subtitle={<></>}
             icon={<UserRound className="h-7 w-7" strokeWidth={1.75} />}
             onClick={handleSolo}
           />
@@ -475,7 +475,7 @@ export default function MainMenu() {
           <ModeCard
             type="online"
             title={'ONLINE\nBATTLE'}
-            subtitle={<>Gerçek oyunculara<br />karşı oyna!</>}
+            subtitle={<></>}
             icon={<Globe className="h-7 w-7" strokeWidth={1.85} />}
             onClick={handleOnline}
           />
