@@ -186,39 +186,6 @@ export default function MainMenu() {
     base44.auth.me().then((u) => setUser(u || null)).catch(() => setUser(null));
   }, []);
 
-  useEffect(() => {
-    const html = document.documentElement;
-    const body = document.body;
-    const previousHtmlOverflow = html.style.overflow;
-    const previousHtmlOverscroll = html.style.overscrollBehavior;
-    const previousHtmlHeight = html.style.height;
-    const previousBodyOverflow = body.style.overflow;
-    const previousBodyOverscroll = body.style.overscrollBehavior;
-    const previousBodyHeight = body.style.height;
-    const previousBodyPosition = body.style.position;
-    const previousBodyWidth = body.style.width;
-
-    html.style.overflow = 'hidden';
-    html.style.overscrollBehavior = 'none';
-    html.style.height = '100dvh';
-    body.style.overflow = 'hidden';
-    body.style.overscrollBehavior = 'none';
-    body.style.height = '100dvh';
-    body.style.position = 'fixed';
-    body.style.width = '100%';
-
-    return () => {
-      html.style.overflow = previousHtmlOverflow;
-      html.style.overscrollBehavior = previousHtmlOverscroll;
-      html.style.height = previousHtmlHeight;
-      body.style.overflow = previousBodyOverflow;
-      body.style.overscrollBehavior = previousBodyOverscroll;
-      body.style.height = previousBodyHeight;
-      body.style.position = previousBodyPosition;
-      body.style.width = previousBodyWidth;
-    };
-  }, []);
-
   const handleSolo = () => {
     sounds.tap();
     navigate('/solo');
@@ -253,9 +220,12 @@ export default function MainMenu() {
         minHeight: '100dvh',
         height: '100dvh',
         maxHeight: '100dvh',
+        overflow: 'hidden',
         overscrollBehavior: 'none',
+        overscrollBehaviorY: 'none',
         touchAction: 'manipulation',
         userSelect: 'none',
+        contain: 'layout paint size',
       }}
     >
       <img
@@ -276,6 +246,7 @@ export default function MainMenu() {
           overflow: 'hidden',
           paddingBottom: 'calc(clamp(0.55rem, 1.6dvh, 0.9rem) + env(safe-area-inset-bottom))',
           overscrollBehavior: 'none',
+          overscrollBehaviorY: 'none',
         }}
       >
         <header
