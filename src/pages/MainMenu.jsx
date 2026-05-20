@@ -8,6 +8,66 @@ import { sounds } from '@/lib/gameSounds';
 const LOGO_URL = 'https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/49fc6f458_kronoxnobckgrnd.png';
 const BACKGROUND_ASSET = '/assets/ui/home-background-full.webp';
 
+function ModeIllustration({ type }) {
+  const solo = type === 'solo';
+  const glow = solo ? '#c044ff' : '#facc15';
+  const deep = solo ? '#160923' : '#1b1205';
+  const mid = solo ? '#5d1792' : '#7a5106';
+  const id = solo ? 'solo-mode-art' : 'online-mode-art';
+
+  return (
+    <svg className="absolute inset-0 h-full w-full" viewBox="0 0 360 210" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <radialGradient id={`${id}-core`} cx="50%" cy="58%" r="58%">
+          <stop offset="0%" stopColor={glow} stopOpacity="0.82" />
+          <stop offset="42%" stopColor={mid} stopOpacity="0.34" />
+          <stop offset="100%" stopColor={deep} stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id={`${id}-shine`} x1="0%" x2="100%" y1="0%" y2="100%">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.35" />
+          <stop offset="28%" stopColor="#ffffff" stopOpacity="0.08" />
+          <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <rect width="360" height="210" fill={solo ? '#13071f' : '#160f07'} />
+      <rect width="360" height="210" fill={`url(#${id}-core)`} />
+      <path d="M0 0 H360 V210 H0 Z" fill="none" stroke={glow} strokeOpacity="0.34" strokeWidth="3" />
+      <path d="M28 0 L0 28 V0 Z M332 0 H360 V28 Z M0 182 V210 H28 Z M360 182 V210 H332 Z" fill={glow} opacity="0.42" />
+      <path d="M34 18 H126 M326 192 H232" stroke="#fff" strokeOpacity="0.28" strokeWidth="3" strokeLinecap="round" />
+      <path d="M34 0 L0 35 V0 Z M326 0 H360 V35 Z" fill="#fff" opacity="0.08" />
+      <path d="M24 18 L132 18 L64 118 L0 166 V54 Z" fill={`url(#${id}-shine)`} opacity="0.72" />
+      <g opacity="0.42" stroke={glow} strokeWidth="1.2" fill="none">
+        <ellipse cx="180" cy="137" rx="112" ry="24" />
+        <ellipse cx="180" cy="137" rx="74" ry="16" />
+        <path d="M42 136 C94 94 266 94 318 136" />
+      </g>
+      {solo ? (
+        <>
+          <path d="M180 34 L220 82 L207 145 H153 L140 82 Z" fill="#13051e" stroke={glow} strokeWidth="4" />
+          <path d="M180 60 L197 84 L188 116 H172 L163 84 Z" fill="none" stroke="#e9b7ff" strokeWidth="4" />
+          <path d="M180 34 L194 83 L180 146 L166 83 Z" fill="#ffffff" opacity="0.12" />
+          <path d="M70 166 C112 126 148 135 180 146 C214 135 252 126 294 166 Z" fill="#07050d" opacity="0.86" />
+          <path d="M30 180 L68 142 L92 180 Z M264 180 L302 140 L338 180 Z" fill="#07050d" opacity="0.9" />
+          <circle cx="180" cy="136" r="8" fill={glow} />
+          <path d="M180 112 V170" stroke="#f4d1ff" strokeWidth="2" strokeOpacity="0.72" />
+        </>
+      ) : (
+        <>
+          <circle cx="180" cy="92" r="55" fill="#0b0908" stroke={glow} strokeWidth="4" />
+          <path d="M126 92 H234 M180 37 C152 62 152 122 180 147 M180 37 C208 62 208 122 180 147" stroke="#ffe69c" strokeOpacity="0.78" strokeWidth="2.2" fill="none" />
+          <path d="M134 62 C164 78 197 78 226 62 M134 122 C164 106 197 106 226 122" stroke="#ffe69c" strokeOpacity="0.62" strokeWidth="2" fill="none" />
+          <path d="M54 182 C82 148 118 142 146 180 Z M118 184 C146 142 204 142 232 184 Z M216 182 C244 142 292 150 324 182 Z" fill="#070605" opacity="0.9" />
+          <circle cx="88" cy="150" r="16" fill="#070605" />
+          <circle cx="180" cy="142" r="18" fill="#070605" />
+          <circle cx="270" cy="150" r="16" fill="#070605" />
+          <path d="M65 94 C112 48 248 48 295 94" stroke={glow} strokeOpacity="0.35" strokeWidth="9" fill="none" />
+        </>
+      )}
+      <path d="M0 210 C78 174 282 174 360 210 Z" fill="#03030a" opacity="0.72" />
+    </svg>
+  );
+}
+
 function ModeCard({ type, title, subtitle, icon, onClick }) {
   const solo = type === 'solo';
   const accent = solo ? '#c044ff' : '#facc15';
@@ -25,10 +85,10 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
       className="relative flex h-full w-full flex-col items-center overflow-visible border-0 bg-transparent text-center"
       style={{
         containerType: 'size',
-        padding: '8.8cqh 7.4cqw 7.4cqh',
+        padding: '4.6cqh 5.2cqw 5.5cqh',
         filter: solo
-          ? 'drop-shadow(0 0 16px rgba(192,68,255,0.66)) drop-shadow(0 18px 18px rgba(0,0,0,0.52))'
-          : 'drop-shadow(0 0 15px rgba(250,204,21,0.52)) drop-shadow(0 18px 18px rgba(0,0,0,0.52))',
+          ? 'drop-shadow(0 0 20px rgba(192,68,255,0.72)) drop-shadow(0 20px 18px rgba(0,0,0,0.58))'
+          : 'drop-shadow(0 0 18px rgba(250,204,21,0.58)) drop-shadow(0 20px 18px rgba(0,0,0,0.58))',
       }}
       aria-label={title.replace('\n', ' ')}
     >
@@ -36,8 +96,8 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
         className="pointer-events-none absolute inset-0"
         style={{
           background: solo
-            ? 'linear-gradient(180deg, rgba(84,20,136,0.97) 0%, rgba(25,8,58,0.99) 46%, rgba(5,4,19,1) 100%)'
-            : 'linear-gradient(180deg, rgba(53,42,14,0.97) 0%, rgba(16,13,20,0.99) 47%, rgba(4,4,13,1) 100%)',
+            ? 'linear-gradient(180deg, rgba(41,9,70,0.98) 0%, rgba(12,6,25,1) 48%, rgba(4,3,14,1) 100%)'
+            : 'linear-gradient(180deg, rgba(52,34,6,0.98) 0%, rgba(14,10,15,1) 48%, rgba(4,4,12,1) 100%)',
           clipPath: 'polygon(7.2% 0, 92.8% 0, 100% 8.2%, 100% 91.8%, 92.8% 100%, 7.2% 100%, 0 91.8%, 0 8.2%)',
           boxShadow: [
             'inset 0 1px 0 rgba(255,255,255,0.34)',
@@ -87,17 +147,33 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
         aria-hidden="true"
       />
       <span
-        className="relative z-10 mx-auto flex items-center justify-center rounded-full border"
+        className="relative z-10 block w-full overflow-hidden"
+        style={{
+          height: '48cqh',
+          marginBottom: '1.8cqh',
+          clipPath: 'polygon(7% 0, 93% 0, 100% 10%, 100% 92%, 93% 100%, 7% 100%, 0 92%, 0 10%)',
+          border: `1px solid ${solo ? 'rgba(232,132,255,0.38)' : 'rgba(250,220,72,0.36)'}`,
+          boxShadow: solo
+            ? 'inset 0 0 18px rgba(192,68,255,0.28), 0 0 18px rgba(192,68,255,0.2)'
+            : 'inset 0 0 18px rgba(250,204,21,0.2), 0 0 18px rgba(250,204,21,0.16)',
+        }}
+      >
+        <ModeIllustration type={type} />
+      </span>
+      <span
+        className="relative z-20 mx-auto flex items-center justify-center border"
         style={{
           color: accent,
-          width: '18.2cqw',
-          height: '18.2cqw',
-          marginBottom: '5.3cqh',
+          width: '18.6cqw',
+          height: '9.8cqh',
+          marginTop: '-6.7cqh',
+          marginBottom: '2.2cqh',
+          clipPath: 'polygon(18% 0, 82% 0, 100% 28%, 100% 72%, 82% 100%, 18% 100%, 0 72%, 0 28%)',
           background: solo
             ? 'radial-gradient(circle at 35% 23%, rgba(255,255,255,0.24), transparent 29%), linear-gradient(180deg, rgba(102,26,156,0.94), rgba(14,6,35,0.98))'
             : 'radial-gradient(circle at 35% 23%, rgba(255,255,255,0.2), transparent 29%), linear-gradient(180deg, rgba(93,70,13,0.92), rgba(13,9,18,0.98))',
           borderColor: solo ? 'rgba(228,132,255,0.96)' : 'rgba(250,220,72,0.96)',
-          boxShadow: solo ? '0 0 22px rgba(192,68,255,0.66), inset 0 0 18px rgba(255,255,255,0.12), inset 0 -7px 10px rgba(0,0,0,0.34)' : '0 0 22px rgba(250,204,21,0.5), inset 0 0 18px rgba(255,255,255,0.1), inset 0 -7px 10px rgba(0,0,0,0.34)',
+          boxShadow: solo ? '0 0 22px rgba(192,68,255,0.7), inset 0 0 18px rgba(255,255,255,0.12), inset 0 -7px 10px rgba(0,0,0,0.34)' : '0 0 22px rgba(250,204,21,0.54), inset 0 0 18px rgba(255,255,255,0.1), inset 0 -7px 10px rgba(0,0,0,0.34)',
         }}
       >
         {renderedIcon}
@@ -105,21 +181,32 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
       <span
         className="relative z-10 block w-full whitespace-pre-line font-bangers"
         style={{
-          fontSize: '8.8cqw',
-          lineHeight: 0.92,
-          color: solo ? '#d47cff' : '#f8fafc',
+          fontSize: '8.15cqw',
+          lineHeight: 0.9,
+          color: solo ? '#d994ff' : '#f8fafc',
           letterSpacing: 0,
-          textShadow: solo ? '0 0 13px rgba(192,68,255,0.54), 0 2px 0 rgba(0,0,0,0.45)' : '0 0 13px rgba(250,204,21,0.22), 0 2px 0 rgba(0,0,0,0.45)',
+          textShadow: solo ? '0 0 14px rgba(192,68,255,0.62), 0 2px 0 rgba(0,0,0,0.58)' : '0 0 14px rgba(250,204,21,0.28), 0 2px 0 rgba(0,0,0,0.58)',
         }}
       >
         {title}
       </span>
       <span
+        className="relative z-10 block"
+        aria-hidden="true"
+        style={{
+          width: '46%',
+          height: '0.8cqh',
+          marginTop: '2cqh',
+          background: solo ? 'linear-gradient(90deg, transparent, #d994ff, transparent)' : 'linear-gradient(90deg, transparent, #facc15, transparent)',
+          boxShadow: solo ? '0 0 9px rgba(217,148,255,0.72)' : '0 0 9px rgba(250,204,21,0.6)',
+        }}
+      />
+      <span
         className="relative z-10 block w-full font-inter font-bold text-white/78"
         style={{
-          marginTop: '4.1cqh',
-          fontSize: '3.75cqw',
-          lineHeight: 1.18,
+          marginTop: '1.8cqh',
+          fontSize: '3.25cqw',
+          lineHeight: 1.14,
           letterSpacing: 0,
         }}
       >
