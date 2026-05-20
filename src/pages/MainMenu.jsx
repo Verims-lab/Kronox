@@ -448,11 +448,12 @@ export default function MainMenu() {
         <div
           className="absolute z-20"
           style={{
-            left: '11.851852%',
-            top: '70.484375%',
-            width: '33.648148%',
-            height: '20.25%',
+              left: '10%',
+              top: '70.416667%',
+              width: '37.5%',
+              height: '20.052083%',
           }}
+          
         >
           <ModeCard
             type="solo"
@@ -466,11 +467,10 @@ export default function MainMenu() {
         <div
           className="absolute z-20"
           style={{
-            left: '54.5%',
-            top: '70.484375%',
-            width: '33.648148%',
-            height: '20.25%',
-          }}
+            left: '52.5%',
+            top: '70.416667%',
+            width: '37.5%',
+            height: '20.052083%',
         >
           <ModeCard
             type="online"
