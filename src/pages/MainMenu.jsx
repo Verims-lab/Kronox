@@ -11,20 +11,24 @@ const BACKGROUND_ASSET = '/assets/ui/home-background-full.webp';
 function ModeCard({ type, title, subtitle, icon, onClick }) {
   const solo = type === 'solo';
   const accent = solo ? '#c044ff' : '#facc15';
+  const renderedIcon = React.isValidElement(icon)
+    ? React.cloneElement(icon, { style: { width: '54%', height: '54%' } })
+    : icon;
 
   return (
     <motion.button
       type="button"
       onClick={onClick}
-      whileTap={{ scale: 0.958, y: 4 }}
-      transition={{ type: 'spring', stiffness: 520, damping: 23 }}
-      className="relative h-full w-full overflow-visible border-0 bg-transparent text-center"
+      whileHover={{ y: -3 }}
+      whileTap={{ scale: 0.955, y: 5 }}
+      transition={{ type: 'spring', stiffness: 560, damping: 24 }}
+      className="relative flex h-full w-full flex-col items-center overflow-visible border-0 bg-transparent text-center"
       style={{
         containerType: 'size',
-        padding: '8cqh 6cqw 7cqh',
+        padding: '8.8cqh 7.4cqw 7.4cqh',
         filter: solo
-          ? 'drop-shadow(0 0 18px rgba(192,68,255,0.56)) drop-shadow(0 14px 18px rgba(0,0,0,0.46))'
-          : 'drop-shadow(0 0 18px rgba(250,204,21,0.4)) drop-shadow(0 14px 18px rgba(0,0,0,0.46))',
+          ? 'drop-shadow(0 0 16px rgba(192,68,255,0.66)) drop-shadow(0 18px 18px rgba(0,0,0,0.52))'
+          : 'drop-shadow(0 0 15px rgba(250,204,21,0.52)) drop-shadow(0 18px 18px rgba(0,0,0,0.52))',
       }}
       aria-label={title.replace('\n', ' ')}
     >
@@ -32,76 +36,92 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
         className="pointer-events-none absolute inset-0"
         style={{
           background: solo
-            ? 'linear-gradient(180deg, rgba(88,22,142,0.98), rgba(22,7,50,0.98) 48%, rgba(5,3,17,0.99))'
-            : 'linear-gradient(180deg, rgba(34,27,14,0.99), rgba(12,10,19,0.98) 48%, rgba(4,4,13,0.99))',
-          clipPath: 'polygon(7% 0, 93% 0, 100% 8%, 100% 92%, 93% 100%, 7% 100%, 0 92%, 0 8%)',
+            ? 'linear-gradient(180deg, rgba(84,20,136,0.97) 0%, rgba(25,8,58,0.99) 46%, rgba(5,4,19,1) 100%)'
+            : 'linear-gradient(180deg, rgba(53,42,14,0.97) 0%, rgba(16,13,20,0.99) 47%, rgba(4,4,13,1) 100%)',
+          clipPath: 'polygon(7.2% 0, 92.8% 0, 100% 8.2%, 100% 91.8%, 92.8% 100%, 7.2% 100%, 0 91.8%, 0 8.2%)',
           boxShadow: [
-            'inset 0 0 0 1px rgba(255,255,255,0.22)',
-            `inset 0 0 0 2px ${solo ? 'rgba(204,72,255,0.76)' : 'rgba(250,204,21,0.68)'}`,
-            `inset 0 0 34px ${solo ? 'rgba(192,68,255,0.22)' : 'rgba(250,204,21,0.15)'}`,
-            'inset 0 -18px 24px rgba(0,0,0,0.48)',
+            'inset 0 1px 0 rgba(255,255,255,0.34)',
+            `inset 0 0 0 2px ${solo ? 'rgba(217,92,255,0.9)' : 'rgba(250,213,54,0.86)'}`,
+            `inset 0 0 38px ${solo ? 'rgba(192,68,255,0.25)' : 'rgba(250,204,21,0.17)'}`,
+            'inset 0 -28px 28px rgba(0,0,0,0.58)',
+            'inset 0 14px 20px rgba(255,255,255,0.05)',
           ].join(', '),
         }}
         aria-hidden="true"
       />
       <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 210 240" preserveAspectRatio="none" aria-hidden="true">
         <path
-          d="M16 4 H194 L206 16 V224 L194 236 H16 L4 224 V16 Z"
+          d="M17 4 H193 L206 17 V223 L193 236 H17 L4 223 V17 Z"
           fill="none"
           stroke={solo ? 'rgba(220,112,255,0.95)' : 'rgba(250,204,21,0.92)'}
-          strokeWidth="2.6"
+          strokeWidth="2.9"
         />
-        <path d="M26 14 H88 M184 226 H122" fill="none" stroke="rgba(255,255,255,0.48)" strokeWidth="2.4" strokeLinecap="round" />
         <path
-          d="M16 55 L4 68 V16 L16 4 H65 M194 4 L206 16 V68 L194 55 M4 172 V224 L16 236 H66 M206 172 V224 L194 236 H144"
+          d="M28 14 H92 M182 226 H118"
           fill="none"
-          stroke={solo ? 'rgba(244,190,255,0.36)' : 'rgba(255,241,150,0.34)'}
-          strokeWidth="5"
+          stroke="rgba(255,255,255,0.58)"
+          strokeWidth="2.6"
           strokeLinecap="round"
         />
-        <path d="M8 128 H22 M188 128 H202" stroke={solo ? 'rgba(220,112,255,0.9)' : 'rgba(250,204,21,0.82)'} strokeWidth="3" strokeLinecap="round" />
+        <path
+          d="M17 55 L4 70 V17 L17 4 H68 M193 4 L206 17 V70 L193 55 M4 170 V223 L17 236 H68 M206 170 V223 L193 236 H142"
+          fill="none"
+          stroke={solo ? 'rgba(244,190,255,0.36)' : 'rgba(255,241,150,0.34)'}
+          strokeWidth="5.6"
+          strokeLinecap="round"
+        />
+        <path d="M9 122 H24 M186 122 H201 M9 134 H19 M191 134 H201" stroke={solo ? 'rgba(220,112,255,0.9)' : 'rgba(250,204,21,0.82)'} strokeWidth="3" strokeLinecap="round" />
       </svg>
       <span
-        className="pointer-events-none absolute inset-[5px]"
+        className="pointer-events-none absolute"
         style={{
+          inset: '1.7cqw',
           background: [
-            'linear-gradient(125deg, transparent 0 20%, rgba(255,255,255,0.12) 21% 24%, transparent 25% 100%)',
+            'linear-gradient(118deg, transparent 0 19%, rgba(255,255,255,0.16) 20% 23%, transparent 24% 100%)',
             solo
-              ? 'radial-gradient(ellipse at 50% 0%, rgba(228,96,255,0.34), transparent 58%)'
-              : 'radial-gradient(ellipse at 50% 0%, rgba(250,204,21,0.23), transparent 60%)',
+              ? 'radial-gradient(ellipse at 50% 0%, rgba(232,114,255,0.36), transparent 60%)'
+              : 'radial-gradient(ellipse at 50% 0%, rgba(250,222,91,0.26), transparent 60%)',
           ].join(', '),
-          clipPath: 'polygon(7% 0, 93% 0, 100% 8%, 100% 92%, 93% 100%, 7% 100%, 0 92%, 0 8%)',
+          clipPath: 'polygon(7.2% 0, 92.8% 0, 100% 8.2%, 100% 91.8%, 92.8% 100%, 7.2% 100%, 0 91.8%, 0 8.2%)',
         }}
         aria-hidden="true"
       />
       <span
-        className="relative z-10 mx-auto mb-3 flex items-center justify-center rounded-full border"
+        className="relative z-10 mx-auto flex items-center justify-center rounded-full border"
         style={{
           color: accent,
-          width: '19cqw',
-          height: '19cqw',
+          width: '18.2cqw',
+          height: '18.2cqw',
+          marginBottom: '5.3cqh',
           background: solo
-            ? 'radial-gradient(circle at 35% 25%, rgba(255,255,255,0.2), transparent 28%), linear-gradient(180deg, rgba(82,21,128,0.9), rgba(12,6,31,0.94))'
-            : 'radial-gradient(circle at 35% 25%, rgba(255,255,255,0.18), transparent 28%), linear-gradient(180deg, rgba(82,63,12,0.88), rgba(12,9,17,0.96))',
+            ? 'radial-gradient(circle at 35% 23%, rgba(255,255,255,0.24), transparent 29%), linear-gradient(180deg, rgba(102,26,156,0.94), rgba(14,6,35,0.98))'
+            : 'radial-gradient(circle at 35% 23%, rgba(255,255,255,0.2), transparent 29%), linear-gradient(180deg, rgba(93,70,13,0.92), rgba(13,9,18,0.98))',
           borderColor: solo ? 'rgba(228,132,255,0.96)' : 'rgba(250,220,72,0.96)',
-          boxShadow: solo ? '0 0 24px rgba(192,68,255,0.66), inset 0 0 18px rgba(255,255,255,0.1), inset 0 -6px 8px rgba(0,0,0,0.32)' : '0 0 24px rgba(250,204,21,0.48), inset 0 0 18px rgba(255,255,255,0.09), inset 0 -6px 8px rgba(0,0,0,0.32)',
+          boxShadow: solo ? '0 0 22px rgba(192,68,255,0.66), inset 0 0 18px rgba(255,255,255,0.12), inset 0 -7px 10px rgba(0,0,0,0.34)' : '0 0 22px rgba(250,204,21,0.5), inset 0 0 18px rgba(255,255,255,0.1), inset 0 -7px 10px rgba(0,0,0,0.34)',
         }}
       >
-        {icon}
+        {renderedIcon}
       </span>
       <span
-        className="relative z-10 block whitespace-pre-line font-bangers text-[clamp(1.46rem,6.2vw,2.1rem)] leading-[0.9]"
+        className="relative z-10 block w-full whitespace-pre-line font-bangers"
         style={{
-          fontSize: '10.4cqw',
+          fontSize: '8.8cqw',
+          lineHeight: 0.92,
           color: solo ? '#d47cff' : '#f8fafc',
-          textShadow: solo ? '0 0 14px rgba(192,68,255,0.42)' : '0 0 12px rgba(250,204,21,0.18)',
+          letterSpacing: 0,
+          textShadow: solo ? '0 0 13px rgba(192,68,255,0.54), 0 2px 0 rgba(0,0,0,0.45)' : '0 0 13px rgba(250,204,21,0.22), 0 2px 0 rgba(0,0,0,0.45)',
         }}
       >
         {title}
       </span>
       <span
-        className="relative z-10 mt-2 block font-inter font-bold leading-snug text-white/78"
-        style={{ fontSize: '4.2cqw' }}
+        className="relative z-10 block w-full font-inter font-bold text-white/78"
+        style={{
+          marginTop: '4.1cqh',
+          fontSize: '3.75cqw',
+          lineHeight: 1.18,
+          letterSpacing: 0,
+        }}
       >
         {subtitle}
       </span>
@@ -109,15 +129,20 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
         className="absolute inset-x-0 bottom-0 h-16 opacity-80"
         aria-hidden="true"
         style={{
+          height: '28cqh',
           background: solo
             ? 'radial-gradient(ellipse at 50% 100%, rgba(168,85,247,0.82), transparent 68%)'
-            : 'radial-gradient(ellipse at 50% 100%, rgba(250,204,21,0.55), transparent 70%)',
+            : 'radial-gradient(ellipse at 50% 100%, rgba(250,204,21,0.58), transparent 70%)',
         }}
       />
       <span
-        className="pointer-events-none absolute inset-x-3 bottom-3 h-11 opacity-75"
+        className="pointer-events-none absolute opacity-75"
         aria-hidden="true"
         style={{
+          left: '8cqw',
+          right: '8cqw',
+          bottom: '5cqh',
+          height: '16cqh',
           background: solo
             ? 'linear-gradient(to top, rgba(88,28,135,0.92), transparent), radial-gradient(ellipse at 50% 100%, rgba(192,68,255,0.68), transparent 55%)'
             : 'linear-gradient(to top, rgba(92,65,12,0.72), transparent), radial-gradient(ellipse at 50% 100%, rgba(250,204,21,0.42), transparent 58%)',
@@ -126,9 +151,12 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
         }}
       />
       <span
-        className="pointer-events-none absolute bottom-2 left-1/2 h-1 w-[54%] -translate-x-1/2"
+        className="pointer-events-none absolute left-1/2 -translate-x-1/2"
         aria-hidden="true"
         style={{
+          bottom: '3.9cqh',
+          height: '1.2cqh',
+          width: '54%',
           background: solo ? 'linear-gradient(90deg, transparent, #d946ef, transparent)' : 'linear-gradient(90deg, transparent, #facc15, transparent)',
           boxShadow: solo ? '0 0 12px rgba(217,70,239,0.9)' : '0 0 12px rgba(250,204,21,0.78)',
         }}
@@ -284,10 +312,10 @@ export default function MainMenu() {
         <div
           className="absolute z-20"
           style={{
-            left: '8.7%',
-            top: '65.15%',
-            width: '38.5%',
-            height: '15.8%',
+            left: '8.333333%',
+            top: '58.473958%',
+            width: '32.490741%',
+            height: '16.875%',
           }}
         >
           <ModeCard
@@ -302,10 +330,10 @@ export default function MainMenu() {
         <div
           className="absolute z-20"
           style={{
-            left: '52.8%',
-            top: '65.15%',
-            width: '38.5%',
-            height: '15.8%',
+            left: '42.509259%',
+            top: '58.473958%',
+            width: '32.490741%',
+            height: '16.875%',
           }}
         >
           <ModeCard
