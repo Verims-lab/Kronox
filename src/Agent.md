@@ -14,7 +14,7 @@ This repository contains the **Kronox** project — a React/TypeScript web app b
 - **Pages:** `pages/` — top-level route components (lazy loaded).
 - **Components:** `components/` — reusable UI components.
 - **Hooks:** `hooks/` — custom React hooks for game state, actions, lobby sync, questions.
-- **Entities:** `entities/` — Base44 JSON schema entities (Lobby, Question, GameRecord, LobbyMessage).
+- **Entities:** `entities/` — Base44 JSON schema entities (Lobby, Question, GameRecord; LobbyMessage is retained only for legacy chat data compatibility).
 - **Functions:** `functions/` — Deno-based backend functions.
 - **Unidirectional Data Flow:** State flows down via props; events flow up via callbacks.
 
