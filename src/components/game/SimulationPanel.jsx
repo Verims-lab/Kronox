@@ -11,13 +11,18 @@ import appSource from '../../App.jsx?raw';
 import mainMenuSource from '../../pages/MainMenu.jsx?raw';
 import gamePageSource from '../../pages/Game.jsx?raw';
 import lobbyRoomSource from '../../pages/LobbyRoom.jsx?raw';
+import lobbyCreateJoinPanelSource from '../lobby/LobbyCreateJoinPanel.jsx?raw';
+import waitingRoomPanelSource from '../lobby/WaitingRoomPanel.jsx?raw';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
 import soloChallengeSource from '../../pages/SoloChallenge.jsx?raw';
 import questionManagementSource from '../admin/QuestionManagement.jsx?raw';
 import tutorialSource from '../tutorial/KronoxTutorial.jsx?raw';
+import useLobbyRoomStateSource from '../../hooks/useLobbyRoomState.js?raw';
+import useWaitingRoomSyncSource from '../../hooks/useWaitingRoomSync.js?raw';
 import lobbySyncSource from '../../hooks/useLobbySync.js?raw';
 import useGameActionsSource from '../../hooks/useGameActions.js?raw';
 import gameRulesSource from '../../lib/gameRules.js?raw';
+import lobbyUtilsSource from '../../lib/lobbyUtils.js?raw';
 import buildMarkerSource from '../dev/BuildMarker.jsx?raw';
 import kronoxDocSource from '../../../Kronox.md?raw';
 import corePromptSource from '../../../CORE_PROMPT.md?raw';
@@ -41,7 +46,7 @@ const CATS = [
   ['records', 'Personal Records', '#2dd4bf'], ['performance', 'Performance', '#fde68a'], ['stability', 'Stability / Edge Cases', '#fca5a5'],
   ['exceptional', 'Exceptional Cases', '#fb7185'], ['removed', 'Removed Features', '#fda4af'],
 ].map(([id, label, color]) => ({ id, label, color }));
-const SRC = { App: appSource, MainMenu: mainMenuSource, SoloChallenge: soloChallengeSource, GameLayout: gameLayoutSource, Game: gamePageSource, LobbyRoom: lobbyRoomSource, Settings: settingsPageSource, QuestionCard: questionCardSource, TimelineCard: timelineCardSource, GameOver: gameOverSource, QuestionManagement: questionManagementSource, Tutorial: tutorialSource, LobbySync: lobbySyncSource, GameRules: gameRulesSource, UpdateLobbyGameState: updateLobbyGameStateSource, BuildMarker: buildMarkerSource, Kronox: kronoxDocSource, Core: corePromptSource };
+const SRC = { App: appSource, MainMenu: mainMenuSource, SoloChallenge: soloChallengeSource, GameLayout: gameLayoutSource, Game: gamePageSource, LobbyRoom: lobbyRoomSource, LobbyCreateJoinPanel: lobbyCreateJoinPanelSource, WaitingRoomPanel: waitingRoomPanelSource, Settings: settingsPageSource, QuestionCard: questionCardSource, TimelineCard: timelineCardSource, GameOver: gameOverSource, QuestionManagement: questionManagementSource, Tutorial: tutorialSource, LobbyRoomState: useLobbyRoomStateSource, WaitingRoomSync: useWaitingRoomSyncSource, LobbySync: lobbySyncSource, GameRules: gameRulesSource, LobbyUtils: lobbyUtilsSource, UpdateLobbyGameState: updateLobbyGameStateSource, BuildMarker: buildMarkerSource, Kronox: kronoxDocSource, Core: corePromptSource };
 const now = () => new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 const out = (status, message, extra = {}) => ({ status, message, ...extra });
 const pass = (message, extra) => out(ST.PASS, message, extra);
@@ -156,7 +161,7 @@ const TESTS = [
   sourceHas('regression', 'admin_accessible_for_admin', 'Settings/Admin still accessible for admin', 'SettingsPage.jsx', SRC.Settings, ['isAdmin', '<QuestionManagement', 'Regression Test Panel']),
   sourceHas('regression', 'tutorial_accessible', 'Tutorial/How to Play still accessible', 'SettingsPage.jsx', SRC.Settings, ['Nasıl Oynanır?', '<KronoxTutorial', 'setShowTutorial(true)']),
   sourceHas('regression', 'media_fallback', 'media_url fallback still works', 'QuestionCard.jsx', SRC.QuestionCard, ['media_url', 'icon_url', 'onError']),
-  sourceLacks('regression', 'no_chat_button', 'no removed chat button visible', 'online sources', `${SRC.GameLayout}\n${SRC.Game}\n${SRC.LobbyRoom}`, ['MessageCircle', 'unreadCount']),
+  sourceLacks('regression', 'no_chat_button', 'no removed chat button visible', 'online sources', `${SRC.GameLayout}\n${SRC.Game}\n${SRC.LobbyRoom}\n${SRC.WaitingRoomPanel}\n${SRC.LobbyCreateJoinPanel}`, ['MessageCircle', 'unreadCount']),
   sourceLacks('regression', 'no_hemen_oyna', 'old HEMEN OYNA button absent on Home', 'MainMenu.jsx', SRC.MainMenu, ['HEMEN OYNA', 'Zap']),
   sourceHas('regression', 'home_actions', 'Home contains Solo and Online actions', 'MainMenu.jsx', SRC.MainMenu, ['type="solo"', 'type="online"', 'handleSolo', 'handleOnline']),
 
@@ -170,10 +175,15 @@ const TESTS = [
   sourceHas('architecture', 'game_rules_module', 'pure game rules module exists', 'gameRules.js', SRC.GameRules, ['export function getNextPlayerIndex', 'export function isCorrectPlacement', 'export function selectNextQuestion', 'export function hasPlayerWon']),
   sourceHas('architecture', 'game_actions_uses_rules', 'useGameActions uses pure game rules helpers', 'useGameActions.js', useGameActionsSource, ["from '@/lib/gameRules'", 'isCorrectPlacement(', 'getNextPlayerIndex(', 'selectNextQuestion(']),
   sourceHas('architecture', 'server_update_validation_layer', 'updateLobbyGameState has server-side validation layer', 'updateLobbyGameState/entry.ts', SRC.UpdateLobbyGameState, ['validateGameStateUpdate', 'VALID_STATUSES', 'containsAllPreviousIds', 'getNextPlayerIndex', 'winnerIndex']),
+  sourceHas('architecture', 'lobby_room_thin_orchestrator', 'LobbyRoom is split into smaller lobby modules', 'LobbyRoom.jsx', SRC.LobbyRoom, ['<LobbyCreateJoinPanel', '<WaitingRoomPanel', 'useLobbyRoomState', '@/lib/lobbyUtils']),
+  sourceHas('architecture', 'lobby_utils_extracted', 'Lobby pure helpers are extracted', 'lobbyUtils.js', SRC.LobbyUtils, ['export function normalizeCode', 'export function summarizePlayers', 'export function isHost', 'export function canJoinLobby', 'export function buildPlayerPayload', 'export function buildLobbyStartPayload']),
+  sourceHas('architecture', 'lobby_state_hook_extracted', 'Lobby identity and page state live in useLobbyRoomState', 'useLobbyRoomState.js', SRC.LobbyRoomState, ['base44.auth.me', 'setPlayerName', 'setLobby', 'setLoading', 'setNameError']),
+  sourceHas('architecture', 'waiting_room_sync_hook_extracted', 'Waiting-room subscription and polling live in useWaitingRoomSync', 'useWaitingRoomSync.js', SRC.WaitingRoomSync, ['base44.entities.Lobby.subscribe', 'window.setInterval', 'window.clearInterval', 'findLobbyByCode', "navigate('/game'"]),
+  sourceHas('architecture', 'lobby_panels_extracted', 'Lobby create/join and waiting-room panels are extracted', 'lobby panels', `${SRC.LobbyCreateJoinPanel}\n${SRC.WaitingRoomPanel}`, ['export default function LobbyCreateJoinPanel', 'export default function WaitingRoomPanel', 'OYUNU BAŞLAT', 'LOBİ OLUŞTUR']),
 
   sourceHas('home', 'viewport_lock', 'Home root uses viewport lock behavior', 'MainMenu.jsx', SRC.MainMenu, ["height: '100dvh'", "maxHeight: '100dvh'", "overflow: 'hidden'", "overscrollBehavior: 'none'"]),
   sourceHas('home', 'no_scroll', 'Home does not allow vertical page scroll', 'MainMenu.jsx', SRC.MainMenu, ['fixed inset-0', 'overflow-hidden', "touchAction: 'manipulation'"]),
-  sourceLacks('home', 'no_global_overflow_lock', 'global overflow hidden is not applied to all pages', 'App/Settings/Game/Lobby/Solo', `${SRC.App}\n${SRC.Settings}\n${SRC.LobbyRoom}\n${SRC.SoloChallenge}`, ['document.body.style.overflow', 'overflow: hidden']),
+  sourceLacks('home', 'no_global_overflow_lock', 'global overflow hidden is not applied to all pages', 'App/Settings/Game/Lobby/Solo', `${SRC.App}\n${SRC.Settings}\n${SRC.LobbyRoom}\n${SRC.WaitingRoomPanel}\n${SRC.LobbyCreateJoinPanel}\n${SRC.SoloChallenge}`, ['document.body.style.overflow', 'overflow: hidden']),
   test('home', 'background_asset', 'background asset path is declared', () => SRC.MainMenu.includes('/assets/ui/home-background-full.webp') ? pass('background path declared', { expected: '/assets/ui/home-background-full.webp', actual: 'present' }) : fail('background path missing', { expected: '/assets/ui/home-background-full.webp', actual: 'missing' })),
   equal('home', 'equal_card_size', 'Solo and Online card sizes are equal', () => [card.solo.width, card.solo.height], [card.online.width, card.online.height]),
   sourceHas('home', 'expected_card_coords', 'Solo and Online coordinates match expected percentages', 'MainMenu.jsx', SRC.MainMenu, ["left: '10%'", "top: '70.46667%'", "left: '52.5%'", "top: '70.416667%'"]),
@@ -213,7 +223,10 @@ const TESTS = [
   equal('lobby', 'visible_2_3_4', '2/3/4 players visible', () => [2,3,4].map(n => roster(n).length), [2,3,4]),
   equal('lobby', 'player4_not_dropped', 'player 4 is not dropped', () => roster(4).map(p=>p.name), ['P1','P2','P3','P4']),
   test('lobby', 'host_start_payload', 'host start writes required fields', () => { const payload = { status: 'starting', players: roster(4), current_player_index: 0, current_question_id: 'q0', used_question_ids: ['q0'] }; const missing = ['status','players','current_player_index','current_question_id','used_question_ids'].filter(k => payload[k] == null); return missing.length ? fail('start payload missing fields', { expected: 'all required fields', actual: missing }) : pass('start payload complete', { expected: 'required fields', actual: Object.keys(payload) }); }),
-  sourceHas('lobby', 'non_host_in_game_transition', 'non-host transition supports in_game', 'LobbyRoom.jsx', SRC.LobbyRoom, ['status', 'in_game', 'navigate']),
+  sourceHas('lobby', 'non_host_in_game_transition', 'non-host transition supports in_game', 'useWaitingRoomSync.js', SRC.WaitingRoomSync, ['status', 'in_game', 'navigate']),
+  sourceHas('lobby', 'subscription_cleanup_preserved', 'waiting-room subscription cleanup still exists', 'useWaitingRoomSync.js', SRC.WaitingRoomSync, ['const unsub = base44.entities.Lobby.subscribe', 'return () => unsub()']),
+  sourceHas('lobby', 'polling_fallback_preserved', 'waiting-room polling fallback still exists', 'useWaitingRoomSync.js', SRC.WaitingRoomSync, ['start fallback polling registered', 'window.setInterval', 'window.clearInterval(intervalId)', "navigateToOnlineGame(fresh, 'poll')"]),
+  sourceHas('lobby', 'host_leave_preserved', 'host leave behavior is still present', 'LobbyRoom.jsx', SRC.LobbyRoom, ['base44.entities.Lobby.delete', 'base44.entities.Lobby.update', 'players: lobby.players.filter']),
 
   equal('sync', 'rules_next_index_2p', 'turn rotation helper works for 2 players', () => [getNextPlayerIndex(0, 2), getNextPlayerIndex(1, 2)], [1, 0]),
   equal('sync', 'rules_next_index_3p', 'turn rotation helper works for 3 players', () => [getNextPlayerIndex(0, 3), getNextPlayerIndex(1, 3), getNextPlayerIndex(2, 3)], [1, 2, 0]),
@@ -325,10 +338,10 @@ const TESTS = [
   sourceHas('exceptional', 'missing_asset_safe', 'missing asset path does not crash Home', 'MainMenu.jsx', SRC.MainMenu, ['alt=""', "pointerEvents: 'none'", 'BACKGROUND_ASSET']),
   test('exceptional', 'unsupported_viewport', 'unsupported viewport sizes handled gracefully', () => { const a=stageFor(280,520); const b=stageFor(1024,1366); return a.w>0 && b.h>0 ? pass('stage math positive', {expected:'positive dimensions', actual:{a,b}}) : fail('stage math failed', {expected:'positive dimensions', actual:{a,b}}); }),
 
-  sourceLacks('removed', 'chat_ui_absent', 'chat UI is not present', 'online sources', `${SRC.GameLayout}\n${SRC.Game}\n${SRC.LobbyRoom}`, ['MessageCircle', 'showChat', 'chatPanel']),
-  sourceLacks('removed', 'lobbychat_absent', 'LobbyChat not mounted', 'online sources', `${SRC.GameLayout}\n${SRC.Game}\n${SRC.LobbyRoom}`, ['LobbyChat', 'components/lobby/LobbyChat']),
-  sourceLacks('removed', 'chat_button_absent', 'chat button not visible', 'online sources', `${SRC.GameLayout}\n${SRC.Game}\n${SRC.LobbyRoom}`, ['onToggleChat', 'Chat']),
-  sourceLacks('removed', 'chat_unread_absent', 'chat unread indicator not visible', 'online sources', `${SRC.GameLayout}\n${SRC.Game}\n${SRC.LobbyRoom}`, ['unread', 'unreadCount', 'chatUnread']),
+  sourceLacks('removed', 'chat_ui_absent', 'chat UI is not present', 'online sources', `${SRC.GameLayout}\n${SRC.Game}\n${SRC.LobbyRoom}\n${SRC.WaitingRoomPanel}\n${SRC.LobbyCreateJoinPanel}`, ['MessageCircle', 'showChat', 'chatPanel']),
+  sourceLacks('removed', 'lobbychat_absent', 'LobbyChat not mounted', 'online sources', `${SRC.GameLayout}\n${SRC.Game}\n${SRC.LobbyRoom}\n${SRC.WaitingRoomPanel}\n${SRC.LobbyCreateJoinPanel}`, ['LobbyChat', 'components/lobby/LobbyChat']),
+  sourceLacks('removed', 'chat_button_absent', 'chat button not visible', 'online sources', `${SRC.GameLayout}\n${SRC.Game}\n${SRC.LobbyRoom}\n${SRC.WaitingRoomPanel}\n${SRC.LobbyCreateJoinPanel}`, ['onToggleChat', 'Chat']),
+  sourceLacks('removed', 'chat_unread_absent', 'chat unread indicator not visible', 'online sources', `${SRC.GameLayout}\n${SRC.Game}\n${SRC.LobbyRoom}\n${SRC.WaitingRoomPanel}\n${SRC.LobbyCreateJoinPanel}`, ['unread', 'unreadCount', 'chatUnread']),
   sourceLacks('removed', 'old_player_count_absent', 'old offline player-count setup not visible if removed', 'SoloChallenge.jsx', SRC.SoloChallenge, ['Oyuncu Sayısı', 'player count']),
   sourceLacks('removed', 'home_cta_absent', 'removed Home HEMEN OYNA button not visible', 'MainMenu.jsx', SRC.MainMenu, ['HEMEN OYNA']),
 ];
