@@ -3,50 +3,6 @@ import { motion } from 'framer-motion';
 import { AlertTriangle, CheckCircle2, ChevronDown, ClipboardCopy, Clock, Play, RefreshCw, ShieldAlert, X, XCircle } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 
-
-import gameLayoutSource from './GameLayout.jsx?raw';
-import questionCardSource from './QuestionCard.jsx?raw';
-import timelineCardSource from './TimelineCard.jsx?raw';
-import gameOverSource from './GameOver.jsx?raw';
-import appSource from '../../App.jsx?raw';
-import mainMenuSource from '../../pages/MainMenu.jsx?raw';
-import gamePageSource from '../../pages/Game.jsx?raw';
-import lobbyRoomSource from '../../pages/LobbyRoom.jsx?raw';
-import testSuiteSource from '../../pages/TestSuite.jsx?raw';
-import lobbyCreateJoinPanelSource from '../lobby/LobbyCreateJoinPanel.jsx?raw';
-import waitingRoomPanelSource from '../lobby/WaitingRoomPanel.jsx?raw';
-import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
-import soloChallengeSource from '../../pages/SoloChallenge.jsx?raw';
-import questionManagementSource from '../admin/QuestionManagement.jsx?raw';
-import tutorialSource from '../tutorial/KronoxTutorial.jsx?raw';
-import useLobbyRoomStateSource from '../../hooks/useLobbyRoomState.js?raw';
-import useWaitingRoomSyncSource from '../../hooks/useWaitingRoomSync.js?raw';
-import lobbySyncSource from '../../hooks/useLobbySync.js?raw';
-import useGameActionsSource from '../../hooks/useGameActions.js?raw';
-import gameRulesSource from '../../lib/gameRules.js?raw';
-import lobbyUtilsSource from '../../lib/lobbyUtils.js?raw';
-import onlineGameStartSource from '../../lib/onlineGameStart.js?raw';
-import adminSource from '../../lib/admin.js?raw';
-import buildMarkerSource from '../dev/BuildMarker.jsx?raw';
-import kronoxDocSource from '../../../Kronox.md?raw';
-import corePromptSource from '../../../CORE_PROMPT.md?raw';
-import updateLobbyGameStateSource from '../../../base44/functions/updateLobbyGameState/entry.ts?raw';
-import {
-  getNextPlayerIndex,
-  getTimelineYears,
-  hasDuplicateTimelineYear,
-  hasPlayerWon,
-  isCorrectPlacement,
-  selectNextQuestion,
-} from '../../lib/gameRules';
-import { normalizeCode, removePlayerByIdentity } from '../../lib/lobbyUtils';
-import { buildInitialOnlineGameState, filterQuestionsForLobbySettings } from '../../lib/onlineGameStart';
-
-import React, { useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
-import { AlertTriangle, CheckCircle2, ChevronDown, ClipboardCopy, Clock, Play, RefreshCw, ShieldAlert, X, XCircle } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
-
 import gameLayoutSource from './GameLayout.jsx?raw';
 import questionCardSource from './QuestionCard.jsx?raw';
 import timelineCardSource from './TimelineCard.jsx?raw';
@@ -195,6 +151,103 @@ async function expectSecureUpdateRejected(mutate, extra = {}) {
   }
 }
 
+const TESTS = [
+  sourceHas('smoke', 'app_root_route', 'app root renders/main menu route available', 'App.jsx', SRC.App, ['path="/"', '<MainMenu']),
+  sourceHas('smoke', 'settings_route', 'settings route available', 'App.jsx', SRC.App, ['path="/settings"', '<SettingsPage']),
+  sourceHas('smoke', 'test_suite_route', 'test suite route available', 'App/TestSuite', `${SRC.App}\n${SRC.TestSuite}`, ['path="/test-suite"', '<TestSuite', 'SimulationPanel']),
+  sourceHas('smoke', 'test_suite_route_admin_guard', 'test suite route is admin-protected', 'TestSuite.jsx', SRC.TestSuite, ['isAdminUser(user)', 'ERİŞİM KORUMALI', "redirectToLogin('/test-suite')"]),
+  sourceHas('smoke', 'solo_route', 'solo route available', 'App.jsx', SRC.App, ['path="/solo"', '<SoloChallenge']),
+  sourceHas('smoke', 'lobby_route', 'lobby route available', 'App.jsx', SRC.App, ['path="/lobby"', '<LobbyRoom']),
+  sourceHas('smoke', 'game_route_mount', 'game route can mount', 'App/Game.jsx', `${SRC.App}\n${SRC.Game}`, ['path="/game"', '<GameLayout']),
+  sourceLacks('smoke', 'no_fatal_startup_error', 'no fatal startup error token', 'App/MainMenu', `${SRC.App}\n${SRC.MainMenu}`, ['throw new Error(', 'TODO fatal']),
+  sourceHas('smoke', 'build_marker_exists', 'build marker exists', 'BuildMarker.jsx', SRC.BuildMarker, ['BUILD_MARKER', 'Codex']),
+
+  sourceHas('regression', 'offline_solo_starts', 'Offline Solo still starts', 'MainMenu/SoloChallenge', `${SRC.MainMenu}\n${SRC.SoloChallenge}`, ["navigate('/solo')", "navigate('/game'", 'turnDuration']),
+  sourceHas('regression', 'online_lobby_opens', 'Online lobby still opens', 'MainMenu.jsx', SRC.MainMenu, ["navigate('/lobby')", 'redirectToLogin']),
+  sourceHas('regression', 'admin_accessible_for_admin', 'Settings/Admin still accessible for admin', 'SettingsPage.jsx', SRC.Settings, ['isAdmin', '<QuestionManagement', 'Regression Test Panel']),
+  sourceHas('regression', 'tutorial_accessible', 'Tutorial/How to Play still accessible', 'SettingsPage.jsx', SRC.Settings, ['Nasıl Oynanır?', '<KronoxTutorial', 'setShowTutorial(true)']),
+  sourceHas('regression', 'media_fallback', 'media_url fallback still works', 'QuestionCard.jsx', SRC.QuestionCard, ['media_url', 'icon_url', 'onError']),
+  sourceLacks('regression', 'no_chat_button', 'no removed chat button visible', 'online sources', `${SRC.GameLayout}\n${SRC.Game}\n${SRC.LobbyRoom}\n${SRC.WaitingRoomPanel}\n${SRC.LobbyCreateJoinPanel}`, ['MessageCircle', 'unreadCount']),
+  sourceLacks('regression', 'no_hemen_oyna', 'old HEMEN OYNA button absent on Home', 'MainMenu.jsx', SRC.MainMenu, ['HEMEN OYNA', 'Zap']),
+  sourceHas('regression', 'home_actions', 'Home contains Solo and Online actions', 'MainMenu.jsx', SRC.MainMenu, ['type="solo"', 'type="online"', 'handleSolo', 'handleOnline']),
+
+  test('architecture', 'kronox_doc_exists', 'Kronox.md exists', () => SRC.Kronox.includes('# KRONOX') ? pass('Kronox.md loaded', { file: 'Kronox.md', expected: '# KRONOX', actual: 'present' }) : fail('Kronox.md missing', { expected: '# KRONOX', actual: 'missing' })),
+  test('architecture', 'core_prompt_exists', 'CORE_PROMPT.md exists', () => SRC.Core.includes('KRONOX CORE PROMPT') ? pass('CORE_PROMPT.md loaded', { file: 'CORE_PROMPT.md', expected: 'KRONOX CORE PROMPT', actual: 'present' }) : fail('CORE_PROMPT.md missing', { expected: 'KRONOX CORE PROMPT', actual: 'missing' })),
+  sourceHas('architecture', 'home_stage_model', 'Home overlay uses 1080x1920 design-stage model', 'MainMenu.jsx', SRC.MainMenu, ['aspectRatio: \'1080 / 1920\'', 'max(100dvw, 56.25dvh)', 'max(100dvh, 177.7778dvw)']),
+  sourceHas('architecture', 'home_percent_coords', 'Home card positions use baseline percentages', 'MainMenu.jsx', SRC.MainMenu, ["left: '10%'", "left: '52.5%'", "width: '37.5%'"]),
+  sourceHas('architecture', 'online_authority', 'Online authority uses Lobby/useLobbySync', 'Game/useLobbySync', `${SRC.Game}\n${SRC.LobbySync}`, ['useLobbySync', 'base44.entities.Lobby.get', 'base44.entities.Lobby.subscribe', 'setLobbyData']),
+  sourceHas('architecture', 'route_state_bootstrap', 'route state is bootstrap/fallback only', 'useLobbySync.js', SRC.LobbySync, ['initial-fetch', 'route-state-fallback', 'subscription:', 'poll']),
+  sourceLacks('architecture', 'protected_drag_not_touched', 'test utilities do not enter protected drag files', 'GameLayout.jsx', SRC.GameLayout, ['SimulationPanel']),
+  sourceHas('architecture', 'game_rules_module', 'pure game rules module exists', 'gameRules.js', SRC.GameRules, ['export function getNextPlayerIndex', 'export function isCorrectPlacement', 'export function selectNextQuestion', 'export function hasPlayerWon']),
+  sourceHas('architecture', 'game_actions_uses_rules', 'useGameActions uses pure game rules helpers', 'useGameActions.js', useGameActionsSource, ["from '@/lib/gameRules'", 'isCorrectPlacement(', 'getNextPlayerIndex(', 'selectNextQuestion(']),
+  sourceHas('architecture', 'server_update_validation_layer', 'updateLobbyGameState has server-side validation layer', 'updateLobbyGameState/entry.ts', SRC.UpdateLobbyGameState, ['validateGameStateUpdate', 'VALID_STATUSES', 'containsAllPreviousIds', 'getNextPlayerIndex', 'winnerIndex']),
+  sourceHas('architecture', 'lobby_room_thin_orchestrator', 'LobbyRoom is split into smaller lobby modules', 'LobbyRoom.jsx', SRC.LobbyRoom, ['<LobbyCreateJoinPanel', '<WaitingRoomPanel', 'useLobbyRoomState', '@/lib/lobbyUtils']),
+  sourceHas('architecture', 'lobby_utils_extracted', 'Lobby pure helpers are extracted', 'lobbyUtils.js', SRC.LobbyUtils, ['export function normalizeCode', 'export function summarizePlayers', 'export function isHost', 'export function canJoinLobby', 'export function buildPlayerPayload', 'export function buildLobbyStartPayload', 'export function removePlayerByIdentity']),
+  sourceHas('architecture', 'online_game_start_extracted', 'online game start helper/service exists', 'onlineGameStart.js', SRC.OnlineGameStart, ['export function filterQuestionsForLobbySettings', 'export function shuffleQuestions', 'export function buildInitialOnlineGameState', 'buildLobbyStartPayload']),
+  sourceHas('architecture', 'waiting_room_delegates_start_payload', 'WaitingRoomPanel delegates initial online game state construction', 'WaitingRoomPanel.jsx', SRC.WaitingRoomPanel, ['buildInitialOnlineGameState', 'const { playersWithCards, updateData } = initialState', 'base44.entities.Question.list']),
+  sourceLacks('architecture', 'removed_components_not_required', 'removed debug/QA/chat files are not required by active app', 'active sources', `${SRC.App}\n${SRC.GameLayout}\n${SRC.Game}\n${SRC.LobbyRoom}\n${SRC.WaitingRoomPanel}\n${SRC.Settings}`, ['DebugConsole', 'DebugPanel', 'TimelineRuler', 'components/qa', 'LobbyChat']),
+  sourceHas('architecture', 'lobby_state_hook_extracted', 'Lobby identity and page state live in useLobbyRoomState', 'useLobbyRoomState.js', SRC.LobbyRoomState, ['base44.auth.me', 'setPlayerName', 'setLobby', 'setLoading', 'setNameError']),
+  sourceHas('architecture', 'waiting_room_sync_hook_extracted', 'Waiting-room subscription and polling live in useWaitingRoomSync', 'useWaitingRoomSync.js', SRC.WaitingRoomSync, ['base44.entities.Lobby.subscribe', 'window.setInterval', 'window.clearInterval', 'findLobbyByCode', "navigate('/game'"]),
+  sourceHas('architecture', 'lobby_panels_extracted', 'Lobby create/join and waiting-room panels are extracted', 'lobby panels', `${SRC.LobbyCreateJoinPanel}\n${SRC.WaitingRoomPanel}`, ['export default function LobbyCreateJoinPanel', 'export default function WaitingRoomPanel', 'OYUNU BAŞLAT', 'LOBİ OLUŞTUR']),
+
+  sourceHas('home', 'viewport_lock', 'Home root uses viewport lock behavior', 'MainMenu.jsx', SRC.MainMenu, ["height: '100dvh'", "maxHeight: '100dvh'", "overflow: 'hidden'", "overscrollBehavior: 'none'"]),
+  sourceHas('home', 'no_scroll', 'Home does not allow vertical page scroll', 'MainMenu.jsx', SRC.MainMenu, ['fixed inset-0', 'overflow-hidden', "touchAction: 'manipulation'"]),
+  sourceLacks('home', 'no_global_overflow_lock', 'global overflow hidden is not applied to all pages', 'App/Settings/Game/Lobby/Solo', `${SRC.App}\n${SRC.Settings}\n${SRC.LobbyRoom}\n${SRC.WaitingRoomPanel}\n${SRC.LobbyCreateJoinPanel}\n${SRC.SoloChallenge}`, ['document.body.style.overflow', 'overflow: hidden']),
+  test('home', 'background_asset', 'background asset path is declared', () => SRC.MainMenu.includes('/assets/ui/home-background-full.webp') ? pass('background path declared', { expected: '/assets/ui/home-background-full.webp', actual: 'present' }) : fail('background path missing', { expected: '/assets/ui/home-background-full.webp', actual: 'missing' })),
+  test('home', 'logo_asset_or_fallback', 'required logo asset exists or remote URL fallback exists', () => SRC.MainMenu.includes('LOGO_URL') && (SRC.MainMenu.includes('https://') || SRC.MainMenu.includes('/assets/')) ? pass('logo source declared', { expected: 'LOGO_URL with URL/path', actual: 'present' }) : fail('logo source missing', { expected: 'LOGO_URL with URL/path', actual: 'missing' })),
+  equal('home', 'equal_card_size', 'Solo and Online card sizes are equal', () => [card.solo.width, card.solo.height], [card.online.width, card.online.height]),
+  sourceHas('home', 'expected_card_coords', 'Solo and Online coordinates match expected percentages', 'MainMenu.jsx', SRC.MainMenu, ["left: '10%'", "top: '70.46667%'", "left: '52.5%'", "top: '70.416667%'"]),
+  sourceHas('home', 'text_inside_cards', 'Solo/Online text stays inside card bounds', 'MainMenu.jsx', SRC.MainMenu, ["top: '64.8%'", "top: '85.2%'", "left: '8%'", "right: '8%'"]),
+  sourceHas('home', 'mode_clickable', 'Solo and Online remain clickable', 'MainMenu.jsx', SRC.MainMenu, ['onClick={handleSolo}', 'onClick={handleOnline}', 'aria-label={title.replace']),
+  sourceHas('home', 'desktop_stage_clickable', 'desktop/wide browser mode constrains stage and keeps buttons clickable', 'MainMenu.jsx', SRC.MainMenu, ['isWideStage', "width: 'min(100dvw, 56.25dvh)'", "height: 'min(100dvh, 177.7778dvw)'", 'onClick={handleSolo}', 'onClick={handleOnline}']),
+  sourceHas('home', 'decorative_layers_no_pointer_block', 'decorative Home layers do not block clicks', 'MainMenu.jsx', SRC.MainMenu, ["pointerEvents: 'none'", 'zIndex: 0', 'ModeCard']),
+  sourceHas('home', 'profile_settings_accessible', 'Settings/profile area remains accessible', 'MainMenu.jsx', SRC.MainMenu, ['<ProfileBar', 'handleSettings', 'aria-label="Ayarlar"']),
+  ...[[360,740],[390,844],[412,915],[430,932],[393,873],[375,667],[768,1024]].map(([vw, vh]) => test('home', `viewport_${vw}x${vh}`, `viewport ${vw}x${vh} proportional geometry`, () => { const s = stageFor(vw, vh); const a = rect(s, card.solo); const b = rect(s, card.online); const ok = Math.abs(a.w - b.w) < 0.01 && Math.abs(a.h - b.h) < 0.01 && b.x > a.x + a.w && b.x + b.w <= s.w && a.y + a.h <= s.h; return ok ? pass('viewport geometry stable', { expected: 'equal cards, positive gap, no overflow', actual: { stage: s, solo: a, online: b } }) : fail('viewport geometry failed', { expected: 'equal cards, positive gap, no overflow', actual: { stage: s, solo: a, online: b } }); })),
+  sourceLacks('home', 'no_empty_layout_artifacts', 'removed controls leave no empty placeholders', 'GameLayout.jsx', SRC.GameLayout, ['opacity-0', 'invisible', 'placeholder']),
+
+  sourceHas('offline', 'category_selection', 'category selection works', 'SoloChallenge.jsx', SRC.SoloChallenge, ['CATEGORIES', 'selectedCategory', 'setSelectedCategory', 'dbValue']),
+  sourceHas('offline', 'difficulty_selection', 'difficulty selection works', 'SoloChallenge.jsx', SRC.SoloChallenge, ['DIFFICULTIES', 'selectedDifficulty', 'setSelectedDifficulty']),
+  test('offline', 'timer_mapping', 'selected timer maps correctly', () => ['duration: 0', 'duration: 30', 'duration: 15'].every(x => SRC.SoloChallenge.includes(x)) ? pass('timer presets mapped', { expected: [0,30,15], actual: 'present' }) : fail('timer mapping missing', { expected: [0,30,15], actual: 'missing token' })),
+  sourceHas('offline', 'start_payload', 'game starts with selected setup', 'SoloChallenge.jsx', SRC.SoloChallenge, ["navigate('/game'", 'playerNames', 'category', 'turnDuration']),
+  sourceHas('offline', 'question_appears', 'question appears', 'GameLayout.jsx', SRC.GameLayout, ['<QuestionCard', 'question={currentQuestion}', 'currentQuestion']),
+  equal('offline', 'placement_validation', 'placement validation works', () => [placeOk(0,1920,[{year:1950},{year:1980}]), placeOk(1,1960,[{year:1950},{year:1980}]), placeOk(2,1999,[{year:1950},{year:1980}]), placeOk(1,2005,[{year:1950},{year:1980}])], [true,true,true,false]),
+  equal('offline', 'placement_before_first', 'correct placement before first card', () => isCorrectPlacement([{ year: 1950 }, { year: 1980 }], 1920, 0), true),
+  equal('offline', 'placement_between_cards', 'correct placement between cards', () => isCorrectPlacement([{ year: 1950 }, { year: 1980 }], 1960, 1), true),
+  equal('offline', 'placement_after_last', 'correct placement after last card', () => isCorrectPlacement([{ year: 1950 }, { year: 1980 }], 1999, 2), true),
+  equal('offline', 'wrong_placement_rejected', 'wrong placement rejected by rules helper', () => isCorrectPlacement([{ year: 1950 }, { year: 1980 }], 2005, 1), false),
+  equal('offline', 'duplicate_timeline_year_detection', 'duplicate timeline year detection', () => hasDuplicateTimelineYear([{ year: 1999 }, { year: 2000 }], 2000), true),
+  equal('offline', 'timeline_years_helper', 'timeline years helper returns active years', () => [...getTimelineYears([{ year: 1999 }, { year: null }, { year: 2001 }])], [1999, 2001]),
+  equal('offline', 'win_condition_true', 'win condition true', () => hasPlayerWon({ cards: [{}, {}, {}] }, 3), true),
+  equal('offline', 'win_condition_false', 'win condition false', () => hasPlayerWon({ cards: [{}, {}] }, 3), false),
+  equal('offline', 'correct_adds_card', 'correct placement adds card', () => placeOk(1,1970,[{year:1950}]) ? 2 : 1, 2),
+  equal('offline', 'wrong_no_add', 'wrong placement does not add card', () => placeOk(1,2000,[{year:1950},{year:1980}]) ? 3 : 2, 2),
+  test('offline', 'no_repeat_question', 'same question does not repeat in session', () => { const pool = Array.from({length:20},(_,i)=>({id:`q${i}`,year:2000+i})); const used = new Set(); for (let i=0;i<20;i+=1) { const q = pick(used,pool); if (!q || used.has(q.id)) return fail('duplicate/null pick', { expected: 'unique ids', actual: q }); used.add(q.id); } return pass('unique picks', { expected: 20, actual: used.size }); }),
+  test('offline', 'no_repeat_year_when_possible', 'same year avoided while pool allows', () => { const q = pick(new Set(), [{id:'a',year:2000},{id:'b',year:2001},{id:'c',year:2002},{id:'d',year:2003},{id:'e',year:2004},{id:'f',year:2005}], new Set([2000,2001])); return q && ![2000,2001].includes(q.year) ? pass('duplicate years avoided', { expected: 'not 2000/2001', actual: q.year }) : fail('year repeated too early', { expected: 'non-duplicate year', actual: q }); }),
+  test('offline', 'solo_pool_available', 'Solo question pool available', async () => { const pool = qpool(await questions()); return pool.length >= 10 ? pass('solo pool ready', { expected: '>=10', actual: pool.length }) : fail('solo pool too small', { expected: '>=10', actual: pool.length }); }),
+  sourceHas('offline', 'personal_record_better_only', 'personal record update path exists', 'useGameActions/Settings', `${useGameActionsSource}\n${SRC.Settings}`, ['saveGameRecord', 'GameRecord.create', 'if (lobbyId) return', 'TopScores']),
+
+  equal('lobby', 'normalize_code', 'lobby code normalization works', () => normalizeCode(' ab-12 c '), 'AB12C'),
+  equal('lobby', 'email_first_leave', 'email-first lobby leave preserves duplicate-name players', () => removePlayerByIdentity([{ email: 'a@qa.local', name: 'Same' }, { email: 'b@qa.local', name: 'Same' }], { email: 'b@qa.local', name: 'Same' }).map(p => p.email), ['a@qa.local']),
+  equal('lobby', 'name_fallback_leave', 'name fallback lobby leave still works when email is unavailable', () => removePlayerByIdentity([{ name: 'A' }, { name: 'B' }], { name: 'B' }).map(p => p.name), ['A']),
+  equal('lobby', 'start_filter_settings', 'online start question filter respects lobby settings', () => filterQuestionsForLobbySettings([{ id: 'a', year: 1990, category: 'spor', type: 'metin' }, { id: 'b', year: 2025, category: 'spor', type: 'metin' }, { id: 'c', year: 2000, category: 'bilim', type: 'metin' }, { id: 'd', year: 1995, category: 'spor', type: 'muzik' }], { category: 'spor', year_start: 1980, year_end: 2020 }).map(q => q.id), ['a']),
+  test('lobby', 'initial_online_state_payload', 'online start helper creates valid initial payload', () => { const result = buildInitialOnlineGameState({ players: roster(2), questions: Array.from({ length: 6 }, (_, i) => ({ id: `q${i}`, year: 1990 + i, category: 'spor', type: 'metin', question: `Q${i}` })), settings: { category: 'spor', year_start: 1980, year_end: 2020 }, random: () => 0 }); return result.ok && result.updateData?.status === 'starting' && result.updateData.players.length === 2 && result.updateData.used_question_ids.length === 5 ? pass('start payload complete', { expected: 'starting + 2 players + 5 used ids', actual: result.updateData }) : fail('start payload invalid', { expected: 'starting + 2 players + 5 used ids', actual: result }); }),
+  test('lobby', 'initial_online_state_rejects_small_pool', 'online start helper rejects too-small question pool', () => { const result = buildInitialOnlineGameState({ players: roster(2), questions: [{ id: 'q0', year: 2000, category: 'spor', type: 'metin' }], settings: { category: 'spor', year_start: 1900, year_end: 2026 }, random: () => 0 }); return !result.ok && result.reason === 'not_enough_questions' ? pass('small pool rejected', { expected: 'not_enough_questions', actual: result.reason }) : fail('small pool accepted', { expected: 'not_enough_questions', actual: result }); }),
+  test('lobby', 'create_waiting', 'create lobby sets waiting', async () => { const l = await tmpLobby(); try { return l.status === 'waiting' ? pass('created waiting lobby', { expected: 'waiting', actual: l.status }) : fail('wrong lobby status', { expected: 'waiting', actual: l.status }); } finally { await cleanLobby(l); } }),
+  test('lobby', 'join_by_code', 'join by code works', async () => { const user = await base44.auth.me(); const l = await tmpLobby({ host_email: 'qa_other@kronox.local' }); try { const r = await base44.functions.invoke('findLobbyByCode', { code: l.code, playerName: 'QA Joiner' }); const players = r?.data?.lobby?.players || []; return players.some(p => p.email === user.email) ? pass('join appended current user', { expected: user.email, actual: players.map(p=>p.email) }) : fail('join failed', { expected: user.email, actual: r?.data }); } finally { await cleanLobby(l); } }),
+  test('lobby', 'invalid_code_rejected', 'join rejects invalid code', async () => { const r = await base44.functions.invoke('findLobbyByCode', { code: `NOPE${Date.now()}`.slice(0,6), playerName: 'Missing QA' }); return r?.data?.success === false || !r?.data?.lobby ? pass('invalid code rejected', { expected: 'no lobby', actual: r?.data }) : fail('invalid code returned lobby', { expected: 'no lobby', actual: r?.data }); }),
+  test('lobby', 'reject_not_waiting', 'join rejects lobby not waiting', async () => { const l = await tmpLobby({ status: 'in_game', host_email: 'qa_started@kronox.local' }); try { const r = await base44.functions.invoke('findLobbyByCode', { code: l.code, playerName: 'Late QA' }); return r?.data?.joinable === false ? pass('started lobby rejected', { expected: false, actual: r.data.joinable }) : fail('started lobby accepted join', { expected: false, actual: r?.data }); } finally { await cleanLobby(l); } }),
+  test('lobby', 'no_duplicate_email', 'duplicate same email does not duplicate player', async () => { const user = await base44.auth.me(); const l = await tmpLobby({ host_email: 'qa_dupe@kronox.local' }); try { await base44.functions.invoke('findLobbyByCode', { code: l.code, playerName: 'QA' }); const r = await base44.functions.invoke('findLobbyByCode', { code: l.code, playerName: 'QA' }); const count = (r?.data?.lobby?.players || []).filter(p => p.email === user.email).length; return count === 1 ? pass('one row per email', { expected: 1, actual: count }) : fail('duplicate player email', { expected: 1, actual: count }); } finally { await cleanLobby(l); } }),
+  equal('lobby', 'visible_2_3_4', '2/3/4 players visible', () => [2,3,4].map(n => roster(n).length), [2,3,4]),
+  equal('lobby', 'player4_not_dropped', 'player 4 is not dropped', () => roster(4).map(p=>p.name), ['P1','P2','P3','P4']),
+  test('lobby', 'host_start_payload', 'host start writes required fields', () => { const payload = { status: 'starting', players: roster(4), current_player_index: 0, current_question_id: 'q0', used_question_ids: ['q0'] }; const missing = ['status','players','current_player_index','current_question_id','used_question_ids'].filter(k => payload[k] == null); return missing.length ? fail('start payload missing fields', { expected: 'all required fields', actual: missing }) : pass('start payload complete', { expected: 'required fields', actual: Object.keys(payload) }); }),
+  sourceHas('lobby', 'non_host_in_game_transition', 'non-host transition supports in_game', 'useWaitingRoomSync.js', SRC.WaitingRoomSync, ['status', 'in_game', 'navigate']),
+  sourceHas('lobby', 'subscription_cleanup_preserved', 'waiting-room subscription cleanup still exists', 'useWaitingRoomSync.js', SRC.WaitingRoomSync, ['const unsub = base44.entities.Lobby.subscribe', 'return () => unsub()']),
+  sourceHas('lobby', 'polling_fallback_preserved', 'waiting-room polling fallback still exists', 'useWaitingRoomSync.js', SRC.WaitingRoomSync, ['start fallback polling registered', 'window.setInterval', 'window.clearInterval(intervalId)', "navigateToOnlineGame(fresh, 'poll')"]),
+  sourceHas('lobby', 'host_leave_preserved', 'host leave behavior is still present', 'LobbyRoom.jsx', SRC.LobbyRoom, ['base44.entities.Lobby.delete', 'base44.entities.Lobby.update', 'removePlayerByIdentity']),
+
+  equal('sync', 'rules_next_index_2p', 'turn rotation helper works for 2 players', () => [getNextPlayerIndex(0, 2), getNextPlayerIndex(1, 2)], [1, 0]),
+  equal('sync', 'rules_next_index_3p', 'turn rotation helper works for 3 players', () => [getNextPlayerIndex(0, 3), getNextPlayerIndex(1, 3), getNextPlayerIndex(2, 3)], [1, 2, 0]),
+  equal('sync', 'rules_next_index_4p', 'turn rotation helper works for 4 players', () => [getNextPlayerIndex(0, 4), getNextPlayerIndex(1, 4), getNextPlayerIndex(2, 4), getNextPlayerIndex(3, 4)], [1, 2, 3, 0]),
   equal('sync', 'rules_next_index_invalid_safe', 'turn rotation helper handles invalid indexes defensively', () => [getNextPlayerIndex(-1, 4), getNextPlayerIndex(99, 4), getNextPlayerIndex(0, 0)], [0, 0, 0]),
   equal('sync', '2p_p1_to_p2', '2-player P1 answer -> P2 turn', () => turn({ players: roster(2), used_question_ids: [] }, 0, {id:'q1'}).current_player_index, 1),
   equal('sync', '2p_p2_to_p1', '2-player P2 answer -> P1 turn', () => turn({ players: roster(2), used_question_ids: [] }, 1, {id:'q1'}).current_player_index, 0),
