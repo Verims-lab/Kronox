@@ -124,373 +124,272 @@ Deno.serve(async (req) => {
   page.drawText('Zaman Cizgisi Kart Oyunu', { x: 165, y: H / 2 + 8, size: 14, font: fontRegular, color: rgb(0.6, 0.5, 0.2) });
   page.drawLine({ start: { x: 150, y: H / 2 }, end: { x: W - 150, y: H / 2 }, thickness: 1, color: rgb(0.4, 0.3, 0.1) });
   page.drawText('IS AKISI & KULLANIM SENARYOLARI', { x: 115, y: H / 2 - 20, size: 13, font: fontBold, color: rgb(0.9, 0.85, 0.7) });
-  page.drawText('Dokuman Versiyonu: 1.3', { x: 215, y: 80, size: 10, font: fontRegular, color: rgb(0.4, 0.35, 0.2) });
-  page.drawText('Hazirlanma: Mayis 2026', { x: 210, y: 60, size: 10, font: fontRegular, color: rgb(0.4, 0.35, 0.2) });
+  page.drawText('Dokuman Versiyonu: 2.0', { x: 215, y: 80, size: 10, font: fontRegular, color: rgb(0.4, 0.35, 0.2) });
+  page.drawText('Build: Codex038', { x: 240, y: 60, size: 10, font: fontRegular, color: rgb(0.4, 0.35, 0.2) });
 
   page.drawText('Kronox - Is Akisi Dokumani | Sayfa 1', {
     x: MARGIN, y: 15, size: 8, font: fontRegular, color: rgb(0.5, 0.5, 0.5)
   });
 
-  // ─── PAGE 2: GENEL BAKIS ────────────────────────────────────────────────────
+  // ─── 1. GENEL BAKIS ─────────────────────────────────────────────────────────
   newPage();
   y = H - MARGIN;
 
   drawHeading1('1. GENEL BAKIS');
-  drawText('Kronox, oyuncularin tarihsel olaylari dogru kronolojik siralama ile zaman cetvellerine yerlestirdigi rekabetci bir kart oyunudur. Bu dokuman, uygulamanin kullanim senaryolarini, is akislarini ve oyun surec adimlarini detayli olarak aciklamaktadir.', { size: 10 });
+  drawText('Kronox, oyuncularin sorularda gecen olay/eser/kesfin yilini kendi zaman cizgilerine dogru kronolojik sirayla yerlestirdigi rekabetci bir kart oyunudur. Bu dokuman, urunun GUNCEL kullanim akislarini, kullanim senaryolarini ve QA / AI-asistanli gelistirme is akisini detaylandirir.', { size: 10 });
   y -= 8;
 
-  drawHeading2('1.1 Temel Kavramlar');
-  drawBullet('Soru Karti: Bir tarihsel olayi ve dogru yilini iceren kart birimidir.');
-  drawBullet('Zaman Cetveli: Her oyuncunun kartlarini kronolojik sirada dizerek olusturdugu kisisel serit.');
-  drawBullet('Tur: Bir oyuncunun aktif oldugu ve kart yerlestirme islemi gerceklestirdigi zaman dilimi.');
-  drawBullet('Lobi: Cevrimici oyun icin oyuncularin bir araya geldigi sanal oda.');
-  drawBullet('Hata Payi: Kartlar sirala yanlis yerlestirilirse tur gecilir, kart kazanilmaz.');
-  y -= 8;
-
-  drawHeading2('1.2 Oyunun Amaci');
-  drawText('Belirlenen kazanma karti sayisina (varsayilan: 10) ilk ulasan oyuncu oyunu kazanir. Kazanmak icin dogru yil tahminleri yaparak kart birikimi saglanmasi gerekir.', { size: 10 });
-  y -= 8;
-
-  drawHeading2('1.3 Desteklenen Modlar');
-  drawBullet('Tek Cihaz Modu: 1-4 oyuncu tek bir cihaz uzerinde sirasyla oynar.');
-  drawBullet('Cevrimici Mod: Her oyuncu kendi cihazindan lobiye katilir, gercek zamanli senkronizasyon saglanir.');
-
-  // ─── PAGE: KULLANICI ROLLERI ─────────────────────────────────────────────────
-  y -= 12;
-  drawHeading1('2. KULLANICI ROLLERI VE YETKILER');
-
-  drawHeading2('2.1 Misafir Oyuncu (Kayitsiz)');
-  drawBullet('Tek cihaz modunda oyun baslatabilir.');
-  drawBullet('Lobiye katilabilir ve olusturabilir (gecici e-posta ile).');
-  drawBullet('Soru yonetimi ve admin paneline erisemez.');
-  drawBullet('Hesap bilgileri saklanmaz, oturum gecicidir.');
-
+  drawHeading2('1.1 Iki Birincil Mod');
+  drawBullet('Solo Challenge — Offline, tek oyunculu, kendi en iyi rekorunu kirma odakli.');
+  drawBullet('Online Battle — 2-4 oyunculu lobi tabanli gercek zamanli rekabet.');
   y -= 6;
+
+  drawHeading2('1.2 Ana Hedef');
+  drawText('Belirlenen kazanma karti sayisina ilk ulasan oyuncu oyunu kazanir. Solo modda oyuncu kendi best-time / kart sayisi rekorunu hedefler.', { size: 10 });
+  y -= 6;
+
+  drawHeading2('1.3 Bu Dokumandan Cikarilan Ozellikler');
+  drawBullet('Eski lobi sohbeti (LobbyChat) ARTIK aktif degil; sohbet UI tamamen kaldirildi.');
+  drawBullet('Home ekranindaki eski "HEMEN OYNA" CTA butonu kaldirildi; Solo + Online iki birincil aksiyon kalmistir.');
+  drawBullet('Eski cok-oyunculu yerel kurulum (PlayerSetup oyuncu sayisi secimi) artik birincil akis degil; Solo Challenge tek oyunculu odaklidir.');
+  drawBullet('Eski monolitik LobbyRoom dosyasi modullere ayrildi: useLobbyRoomState + LobbyCreateJoinPanel + WaitingRoomPanel.');
+
+  // ─── 2. KULLANICI ROLLERI ───────────────────────────────────────────────────
+  drawHeading1('2. KULLANICI ROLLERI');
+
+  drawHeading2('2.1 Misafir (Giris Yapmamis)');
+  drawBullet('Home, Solo Challenge ve ogretici (tutorial) erisilebilir.');
+  drawBullet('Online lobi olusturma/katilma butonuna basinca login ekranina yonlendirilir.');
+  drawBullet('Admin araclarina ve /test-suite\'e erisemez.');
+
   drawHeading2('2.2 Kayitli Kullanici');
-  drawBullet('Misafir haklarinin tamamina sahiptir.');
-  drawBullet('Oturum kapatilana kadar bilgiler korunur.');
-  drawBullet('Hesap silme islemi yapabilir.');
+  drawBullet('Tum Solo ve Online akislarina erisir.');
+  drawBullet('Hesap silme, kisisel rekor (GameRecord) ve TopScores gorebilir.');
+  drawBullet('Soru/Test/Doc araclarina erisemez.');
 
-  y -= 6;
-  drawHeading2('2.3 Admin');
-  drawBullet('Tum kullanici yetkilerine ek olarak:');
-  drawBullet('Soru ekleyebilir, duzenleyebilir, silebilir.', 1);
-  drawBullet('Teknik ve is akisi dokumanlarini indirebilir.', 1);
-  drawBullet('Online oyun simülasyonlari calistirabilir.', 1);
-  drawBullet('Ayarlar paneline erisebilir.', 1);
+  drawHeading2('2.3 Admin (role="admin" veya sariverim@gmail.com)');
+  drawBullet('Settings > Admin Araclari menusu acilir.');
+  drawBullet('Soru ekleyebilir / duzenleyebilir.');
+  drawBullet('Teknik dokuman ve is akisi PDFlerini indirebilir.');
+  drawBullet('Regresyon Test Paneli (SimulationPanel) calistirabilir.');
+  drawBullet('Sadece admin /test-suite rotasini gorebilir (UI taraflitir; isAdminUser ile kontrol edilir).');
 
-  // ─── PAGE: TEK CIHAZ IS AKISI ────────────────────────────────────────────────
-  drawDivider();
-  drawHeading1('3. TEK CIHAZ OYUN IS AKISI');
-
-  drawHeading2('3.1 Oyun Kurulum Akisi');
-  drawStep(1, 'Ana Ekran', 'Oyuncu sayisi (1-4), kategori, yil araligi ve tur suresi secilir.');
-  drawStep(2, 'Oyuncu Isimleri', 'Her oyuncu icin isim girilir (bos birakma durumunda "Oyuncu N" atanir).');
-  drawStep(3, 'Oyun Baslat', 'Sistem soru havuzundan filtreler, her oyuncuya 2 baslangic karti dagitir ve ilk soruyu belirler.');
-  drawStep(4, 'Oyun Ekrani', 'Aktif oyuncunun zaman cetveli gosterilir, soru karti ekrana gelir.');
-
-  y -= 6;
-  drawHeading2('3.2 Tur Akisi (Her Oyuncu icin Tekrar)');
-  drawStep(1, 'Soru Goruntuleme', 'Mevcut soru karti tum oyunculara gosterilir.');
-  drawStep(2, 'Yer Secimi', 'Aktif oyuncu, soruyu zaman cetvelindeki iki kart arasina yerlestirmek icin bir bolge secer.');
-  drawStep(3, 'Onayla', '"YERLESTIR" butonuna basilir.');
-  drawStep(4, 'Sonuc Kontrolu', 'Sistem sorunun yilini kontrol eder: dogru ise kart kazanilir, yanlis ise kart kazanilmaz.');
-  drawStep(5, 'Geri Bildirim', 'Animasyonlu dogru/yanlis ekrani gosterilir, gercek yil aciklanir.');
-  drawStep(6, 'Tur Gecisi', 'Siradaki oyuncuya gecilir, yeni soru cekilir.');
-
-  y -= 6;
-  drawHeading2('3.3 Kazanma Kosulu');
-  drawText('Bir oyuncunun kart sayisi "kazanma karti sayisi" esigine ulastiginda oyun sona erer. Kazanan oyuncu animasyonlu ekranda gosterilir. Ana sayfaya donme secenegi sunulur.', { size: 10 });
-
-  y -= 6;
-  drawHeading2('3.4 Sure Bitti Akisi');
-  drawStep(1, 'Tur Suresi Doldu', 'Zamanlayici sifira ulasir.');
-  drawStep(2, 'Otomatik Gecis', 'Kart kazanilmadan siradaki oyuncuya gecilir.');
-  drawStep(3, 'Yeni Soru', 'Kullanilmamis sorulardan yeni soru secilir.');
-
-  // ─── CEVRIMICI MOD ──────────────────────────────────────────────────────────
+  // ─── 3. ILK ACILIS / NAVIGASYON ────────────────────────────────────────────
   newPage();
-  y = H - MARGIN;
+  drawHeading1('3. ILK ACILIS VE NAVIGASYON');
 
-  drawHeading1('4. CEVRIMICI OYUN IS AKISI');
+  drawHeading2('3.1 Uygulama Acilisi');
+  drawStep(1, 'SplashScreen', 'AuthProvider mount olur, base44.auth.me() arka planda calisir.');
+  drawStep(2, 'Public Mode', 'Uygulama public oldugu icin giris yapmamis kullanicilar da Home\'a ulasir.');
+  drawStep(3, 'Home Render', 'MainMenu 1080x1920 stage ile yuklenir; Solo / Online kartlari ve ProfileBar gorunur.');
 
-  drawHeading2('4.1 Lobi Olusturma (Host)');
-  drawStep(1, 'Lobi Olustur', 'Host isim girer, "Lobi Olustur" butonuna basar.');
-  drawStep(2, 'Lobi Kodu Uretilir', '6 karakterli benzersiz kod otomatik olusturulur.');
-  drawStep(3, 'Bekleme Odasi', 'Host lobi kodunu diger oyunculara iletir.');
-  drawStep(4, 'Ayarlar', 'Host; kategori, yil araligi, tur suresi ve kazanma kart sayisini duzenleyebilir.');
-  drawStep(5, 'Oyun Baslat', 'En az 2 oyuncu hazir oldugunda host "Oyunu Baslatir".');
+  drawHeading2('3.2 Navigasyon Bilesenleri');
+  drawBullet('AppHeader: Home ve Game disindaki sayfalarda gorunur; geri tusu ve sayfa basligi.');
+  drawBullet('BottomNav: Tum sayfalarda sabit, oyun sahnesinde minimal.');
+  drawBullet('Sayfa gecisleri push/pop yonune gore yatay slide animasyonludur.');
 
-  y -= 6;
-  drawHeading2('4.2 Lobiye Katilma (Misafir Oyuncu)');
-  drawStep(1, 'Lobi Katil', 'Oyuncu isim girer ve 6 haneli lobi kodunu yazar.');
-  drawStep(2, 'Katilim Dogrulamasi', 'Sistem aktif lobi arar; bulursa oyuncuyu ekler, bulamazsa hata gosterir.');
-  drawStep(3, 'Bekleme', 'Host oyunu baslatana kadar lobi ekraninda oyunculari gorur.');
-  drawStep(4, 'Otomatik Gecis', 'Host baslattiktan sonra tum oyuncular oyun ekranina yonlendirilir.');
+  drawHeading2('3.3 Home Davranisi');
+  drawBullet('Hicbir noktada vertical scroll YOK (fixed inset-0 + overflow-hidden).');
+  drawBullet('Mobil dik: stage tam ekranı kaplar.');
+  drawBullet('Desktop / tablet / landscape: stage 9:16 oranina sigdirilir; arka plan ve kartlar orantili buyur/kucuk.');
+  drawBullet('Solo + Online kartlarinin width/height degerleri esittir; ikisi de pointer-events bakimindan ust z katmandadir.');
+  drawBullet('Profile / Settings ikonlari her kosulda erisilebilir kalir.');
 
-  y -= 6;
-  drawHeading2('4.3 Cevrimici Oyun Akisi');
-  drawStep(1, 'Gercek Zamanli Senkronizasyon', 'Tum oyuncular ayni lobi kaydini izler; degisiklikler aninda yansir.');
-  drawStep(2, 'Tur Sirasi', 'Sadece sirasi gelen oyuncu kart yerlestirebilir; digerleri izler.');
-  drawStep(3, 'Kart Yerlesimi', 'Aktif oyuncu secer, onaylar; sonuc tum ekranlara yansiir.');
-  drawStep(4, 'Tur Gecisi', 'Siradaki oyuncuya gecilir, yeni soru cikar; tum oyuncular guncellenir.');
-  drawStep(5, 'Kazanma', 'Bir oyuncu esige ulasinca lobi "finished" durumuna gecer, tum oyuncular kazanan ekranini gorur.');
+  // ─── 4. SOLO IS AKISI ───────────────────────────────────────────────────────
+  drawHeading1('4. OFFLINE SOLO IS AKISI');
 
-  y -= 6;
-  drawHeading2('4.4 Lobi Sohbeti');
-  drawBullet('Tum oyuncular lobi bekleme ekraninda ve oyun icinde (sag panel) sohbet edebilir.');
-  drawBullet('Mesajlar gercek zamanli abonelik ile guncellenir; pull-to-refresh ile manuel yenileme de desteklenir.');
-  drawBullet('LobbyMessage entity\'sine yazilir; lobby_id ile filtrele, 50 mesaj limiti.');
+  drawHeading2('4.1 Adim Adim');
+  drawStep(1, 'Home', 'Kullanici "SOLO KAPISMA" kartina basar -> /solo.');
+  drawStep(2, 'Kategori Sec', 'SoloChallenge: genel, tarih, spor, sanat, bilim vb. kartlardan biri secilir.');
+  drawStep(3, 'Zorluk Sec', 'Kolay / orta / zor preset (tur suresi farkliligi).');
+  drawStep(4, 'Oyna Butonu', '/game?mode=solo&category=...&difficulty=... rotasina yonlendirir.');
+  drawStep(5, 'Soru Goruntule', 'QuestionCard aktiftir; gorsel/isitsel/muzik tipleri uygun loader ile render edilir.');
+  drawStep(6, 'Yerlestir', 'Surukle-birak veya zone seciminden sonra CTA butonu ile yerlestirme yapilir.');
+  drawStep(7, 'Geri Bildirim', 'FeedbackOverlay dogru/yanlis sonucu, gercek yili ve farki gosterir.');
+  drawStep(8, 'Yeni Soru', 'selectNextQuestion ile gelecek aktif oyuncuya uygun soru gelir; oturum-ici tekrar yasaktir, cross-game LRU tercih yapar.');
+  drawStep(9, 'Oyun Sonu', 'win_card_count kart kazanildiginda GameRecord.create cagrilir ve GameOver ekrani solo basarisi olarak gosterilir.');
 
-  y -= 6;
-  drawHeading2('4.5 Lobi Ayarlari (Host)');
-  drawBullet('Host kategori, yil araligi, tur suresi ve kazanma kart sayisini WaitingRoom icerisinden degistirebilir.');
-  drawBullet('Hizli tiklama flood\'unu onlemek icin DB yazmalari 300ms debounce ile bekletilir.');
-  drawBullet('Non-host oyuncular ayarlari useEffect araciligiyla subscription\'dan okur (read-only).');
+  drawHeading2('4.2 Solo Havuzu Tukenirse');
+  drawBullet('Filtreden sonra yeterli soru kalmazsa kullaniciya nazikce ana menuye donmesi onerilir.');
+  drawBullet('Hicbir noktada online state\'e (Lobby) yazim yapilmaz.');
 
-  y -= 6;
-  drawHeading2('4.6 Baglanti Kopuklugu Yonetimi');
-  drawBullet('Oyuncu yeniden baglandiginda lobi durumunu DB\'den direkt ceker (base44.entities.Lobby.get).');
-  drawBullet('Subscription closure icinde useRef pattern ile stale user/playerName degerleri onlenir.');
-  drawBullet('Kritik DB yazma islemleri 3 deneme ile yeniden denenir (1.2sn aralikla).');
-
-  // ─── SORU YONETIMI ──────────────────────────────────────────────────────────
+  // ─── 5. ONLINE IS AKISI ─────────────────────────────────────────────────────
   newPage();
-  y = H - MARGIN;
+  drawHeading1('5. ONLINE BATTLE IS AKISI');
 
-  drawHeading1('5. SORU YONETIMI IS AKISI (ADMIN)');
+  drawHeading2('5.1 Lobi Olusturma (Host)');
+  drawStep(1, 'Online Sec', 'Home > "ONLINE KAPISMA" -> /lobby.');
+  drawStep(2, 'Isim Gir', 'Misafir veya kayitli kullanici icin gorunur isim.');
+  drawStep(3, 'Lobi Olustur', 'Lobby.create ile 6 hane benzersiz kod uretilir; status="waiting".');
+  drawStep(4, 'Waiting Room', 'WaitingRoomPanel: host ayarlari (kategori, yil araligi, sure, kazanma karti), kod kopyalama, oyuncu listesi.');
+  drawStep(5, 'Oyunu Baslat', 'Host CTA -> buildInitialOnlineGameState (questions filtre+shuffle, baslangic kart dagitimi, ilk soru secimi).');
+  drawStep(6, 'Lobby Update', 'Tek update ile: players(cards), status="in_game", current_question_id, used_question_ids, current_player_index:0.');
 
-  drawHeading2('5.1 Soru Ekleme');
-  drawStep(1, 'Admin Paneli', 'Admin, uygulama icerisindeki soru yonetim ekranina erisir.');
-  drawStep(2, 'Soru Formu', 'Soru metni, dogru yil, kategori ve tur (metin/gorsel/isitsel) girilir.');
-  drawStep(3, 'Medya Ekleme', 'Gorsel veya isitsel soru turu icin medya URL eklenir.');
-  drawStep(4, 'Kaydet', 'Soru veritabanina kaydedilir; anlik olarak oyun havuzuna eklenir.');
+  drawHeading2('5.2 Lobiye Katilma (Misafir)');
+  drawStep(1, 'Kod Gir', 'LobbyCreateJoinPanel\'de kod ve isim girilir.');
+  drawStep(2, 'findLobbyByCode', 'Service-role backend fonksiyonu lobiyi bulur ve oyuncuyu atomik olarak ekler (yarisma kosullarina karsi retry).');
+  drawStep(3, 'Waiting Room', 'Non-host olarak ayarlari salt-okunur izler; subscription ile lobby degisikliklerini takip eder.');
+  drawStep(4, 'Otomatik Gecis', 'Host status="in_game" yazinca tum oyuncular /game\'e yonlendirilir.');
 
-  drawHeading2('5.2 Soru Filtreleme ve Havuz Mantigi');
-  drawBullet('Oyun baslamadan once soru havuzu kategori ve yil araligi ile filtrelenir.');
-  drawBullet('Kullanilmis sorular "used_question_ids" listesinde tutulur, tekrar cekilmez.');
-  drawBullet('Havuz tukendikten sonra ayni soru yeniden cikmaz; "Soru bulunamadi" uyarisi gorulur.');
+  drawHeading2('5.3 Oyun Ici Akis');
+  drawStep(1, 'Sync', 'useLobbySync abone + polling ile Lobby\'i lobbyData state\'ine senkron tutar.');
+  drawStep(2, 'Aktif Oyuncu', 'players[current_player_index] yerlestirebilir; digerleri ayni soruyu SALT-OKUNUR gorur.');
+  drawStep(3, 'Yerlestirme', 'doPlacement: optimistic local update -> updateLobbyGameState backend fonksiyonu (3 retry + recovery).');
+  drawStep(4, 'Tur Gecisi', 'getNextPlayerIndex %N rotasyonu; yeni soru selectNextQuestion ile aktif oyuncunun timeline yillarini disarida tutar.');
+  drawStep(5, 'Kazanma', 'hasPlayerWon true -> status="finished", winner ve winner_email Lobby\'e yazilir.');
+  drawStep(6, 'GameOver', 'Tum oyuncularda GameOver acilir. Kazanan icin zafer metni, kaybedenler icin kaybetme metni gosterilir.');
 
-  drawHeading2('5.3 Soru Turleri');
-  drawBullet('Metin (metin): Yalnizca yazili soru. Aktif oyun modunda tam desteklenmektedir.');
-  drawBullet('Gorsel (gorsel): Soru metnine ek gorsel icerik. QuestionCard bileseni gorsel turleri render edebilir; media_url zorunludur.');
-  drawBullet('Isitsel (isitsel): Ses dosyasi iceren soru. QuestionCard audio player ile destekler; media_url zorunludur.');
+  drawHeading2('5.4 2 / 3 / 4 Oyuncu Davranisi');
+  drawBullet('2 oyuncu: rotasyon 0<->1.');
+  drawBullet('3 oyuncu: 0->1->2->0 ...');
+  drawBullet('4 oyuncu: 0->1->2->3->0 ...');
+  drawBullet('Tum durumlar Test Suite "sync" kategorisinde dogrulanir.');
 
-  y -= 6;
-  drawHeading2('5.4 Soru Yetki Kontrolu (RLS)');
-  drawBullet('Okuma: Herkese acik (giris gerektirmez) — oyuncularin sorulari cekmesi icin.');
-  drawBullet('Olusturma / Guncelleme / Silme: Yalnizca role="admin" kullanicilar.');
+  drawHeading2('5.5 Reconnect / Refresh');
+  drawBullet('Refresh: useLobbySync Lobby.get yapar; route state\'e guvenmez.');
+  drawBullet('Subscription kopukluklarini polling fallback yakalar; kullaniciya gorunur "kopuk" durum yansimaz.');
+  drawBullet('Sunucu finished lobi icin daha fazla guncelleme kabul etmez.');
 
-  // ─── USE CASE SENARYOLARI ────────────────────────────────────────────────────
-  drawHeading1('6. KULLANIM SENARYOLARI (USE CASES)');
-
-  drawHeading2('UC-01: Tek Oyunculu Pratik');
-  drawBullet('Kullanici: Oyuncu 1 kisi secip kendi zaman cetveli akisini pratik yapar.');
-  drawBullet('Akis: Oyuncu sayisi 1 → isim gir → kategori sec → Oyna → sorulari dogru yerlestirir → skor hedefler.');
-
-  y -= 4;
-  drawHeading2('UC-02: Arkadas Grubu Yerel Oyun');
-  drawBullet('Kullanici: 2-4 arkadas tek cihaz etrafinda toplanir.');
-  drawBullet('Akis: 4 oyuncu sec → isimler girilir → kategori tarih, sure 30sn → sirayla oynanir → ilk 10 kart kazanan bitirer.');
-
-  y -= 4;
-  drawHeading2('UC-03: Uzak Arkadaslarla Cevrimici Oyun');
-  drawBullet('Kullanici: 2-4 kisi farkli cihazlardan oynar.');
-  drawBullet('Akis: Host lobi olusturur → kodu paylasiir → diger oyuncular katilir → ayarlar yapilir → oyun baslar → gercek zamanli oynanir.');
-
-  y -= 4;
-  drawHeading2('UC-04: Admin Soru Ekleme');
-  drawBullet('Kullanici: Uygulama yoneticisi.');
-  drawBullet('Akis: Admin giris yapar → Soru Yonetimi → Yeni Soru Ekle → metin/yil/kategori gir → Kaydet → aninda havuza eklenir.');
-
-  y -= 4;
-  drawHeading2('UC-05: Dokuman Indirme');
-  drawBullet('Kullanici: Admin.');
-  drawBullet('Akis: Ayarlar → Admin Araclari → "Teknik Dokumani Indir" veya "Is Akisi Dokumanini Indir" → PDF olarak cihaza indirilir.');
-
-  y -= 4;
-  drawHeading2('UC-06: Online Simulasyon Testleri (42 Senaryo)');
-  drawBullet('Kullanici: Admin.');
-  drawBullet('Akis: Ayarlar → Admin Araclari → "Online Simulasyonlar" → 42 senaryodan birini veya tamamini sec → sistem otomatik lobi olusturur, oynar, temizler → PASS/FAIL raporu goruntulenir.');
-  drawBullet('Senaryo gruplari: 2/3/4 oyuncu akislari, veri butunlugu, performans, UI gorunurluk, stabilite.', 1);
-
-  y -= 4;
-  drawHeading2('UC-07: Test Suite Calistirma (41 Senaryo)');
-  drawBullet('Kullanici: Admin.');
-  drawBullet('Akis: Tarayicida /test-suite → Suite sec → "TESTLERI CALISTIR" → sonuclari goruntule.');
-  drawBullet('5 kategori: Unit, Black Box, Fonksiyonel, Performans, Oynanabilirlik.', 1);
-
-  y -= 4;
-  drawHeading2('UC-08: Landscape Modda Oyun');
-  drawBullet('Kullanici: Mobil oyuncu.');
-  drawBullet('Akis: Telefonu yatay cevir → Oyun 3 kolonlu landscape duzenine gecer → Sol: soru + buton, Orta: timeline, hicbir sey kaybolmaz.');
-
-  y -= 4;
-  drawHeading2('UC-09: APK\'da Google ile Giris');
-  drawBullet('Kullanici: Android APK kullanicisi.');
-  drawBullet('Akis: Uygulama acar → auth_required hatasi → WebView icinde Google OAuth sayfasina yonlendirilir → Giris tamamlanir → Ana ekrana donus.');
-
-  // ─── VERI AKISI ─────────────────────────────────────────────────────────────
+  // ─── 6. ADMIN AKISLARI ─────────────────────────────────────────────────────
   newPage();
-  y = H - MARGIN;
+  drawHeading1('6. ADMIN AKISLARI');
 
-  drawHeading1('7. VERI AKISI DIAGRAMI (METIN)');
+  drawHeading2('6.1 Soru Yonetimi');
+  drawStep(1, 'Settings > Admin Araclari', 'Soru Yonetimi kartina tikla.');
+  drawStep(2, 'Form Doldur', 'Soru metni, yil, kategori, tur (metin/gorsel/isitsel/muzik), opsiyonel media_url ve icon_url.');
+  drawStep(3, 'Kaydet', 'Question entity\'sine yazilir (RLS: yalniz admin).');
 
-  drawHeading2('7.1 Cevrimici Oyun Veri Akisi');
-  drawText('Host Aksi → lobbyData optimistic guncelle → DB yazimi (tek atomik update) → Subscription Event → Diger Oyuncular', { size: 9, color: rgb(0.6, 0.8, 0.6) });
-  y -= 8;
-  drawBullet('Atomik DB yazimi: kart ekleme + tur gecisi + yeni soru TEK update() cagrisiyla gonderilir.');
-  drawBullet('Subscription: Diger tum oyuncular guncellemeyi WebSocket uzerinden aninda alir.');
-  drawBullet('Optimistic Update: Aktif oyuncu ekrani DB yanitini beklemeden anlinda guncellenir.');
-  drawBullet('useRef Closure Fix: Subscription icinde user ve playerName icin useRef kullanilir; stale deger hatasi onlenir.');
+  drawHeading2('6.2 Test Suite');
+  drawStep(1, 'Erisim', '/test-suite veya Settings > Admin Araclari > Regresyon Test Paneli.');
+  drawStep(2, 'Kategori Sec', '17 kategori arasinda filtreleme; veya tum testleri calistir.');
+  drawStep(3, 'Calistir', 'PASS / FAIL / WARNING / SKIPPED sonuclari sayfada gerceğe yakin zamanli akar.');
+  drawStep(4, 'Raporu Kopyala', '"Copy Report" tum sonuclar; "Copy Failed Only" yalniz FAIL/WARNING/SKIPPED — AI Coder\'a hizla yapistirma icin.');
 
-  y -= 6;
-  drawHeading2('7.2 Soru Secim Akisi');
-  drawText('Filtrele (kategori + yil) → Kullanilmis IDs cikar → Karistirir (Fisher-Yates) → Ilk Elemaani Al', { size: 9, color: rgb(0.6, 0.8, 0.6) });
-  y -= 8;
-  drawBullet('Fisher-Yates karistirma ile gercek rastlantisallik saglanir.');
-  drawBullet('Havuz bittiyse yeni soru gelmez, mevcut soru devam eder.');
+  drawHeading2('6.3 Dokuman Indirme');
+  drawBullet('Settings > Admin Araclari > "Teknik Dokumani Indir" — generateTechDoc PDF.');
+  drawBullet('Settings > Admin Araclari > "Is Akisi Dokumanini Indir" — generateWorkflowDoc PDF.');
+  drawBullet('Her iki fonksiyon da admin disindaki kullanicilara 403 doner.');
 
-  y -= 6;
-  drawHeading2('7.3 Kart Yerlesim Dogrulama Akisi');
-  drawText('Secilen Bolge + Sirali Karti Listesi + Soru Yili → Sinir Kontrolu → Dogru/Yanlis', { size: 9, color: rgb(0.6, 0.8, 0.6) });
-  y -= 8;
-  drawBullet('Bolge 0 (en sol): Soru yili ilk karttan kucuk olmali.');
-  drawBullet('Bolge N (en sag): Soru yili son karttan buyuk olmali.');
-  drawBullet('Ara Bolge K: Soru yili [K-1]. kart ile K. kart arasinda olmali.');
+  drawHeading2('6.4 Erisim Kisitlamalari');
+  drawBullet('isAdminUser disindaki kullanicilar /test-suite\'e gittiklerinde "ERISIM KORUMALI" ekrani gorur; /settings sayfasina yonlendirilirler.');
+  drawBullet('UI seviyesindeki bu engellemenin yaninda admin-only fonksiyonlar SERVER tarafinda da 403 verir.');
 
-  // ─── HATA AKISLARI ───────────────────────────────────────────────────────────
-  drawHeading1('8. HATA YONETIMI AKISLARI');
+  // ─── 7. QA / RELEASE IS AKISI ──────────────────────────────────────────────
+  drawHeading1('7. QA / RELEASE VALIDATION IS AKISI');
 
-  drawHeading2('8.1 Soru Bulunamadi');
-  drawBullet('Tetikleyici: Sec kategori + yil filtresi sonucu 0 soru kalir.');
-  drawBullet('Akis: Hata mesaji gosterilir → Oyun baslamaz → Ayarlar degistirmesi beklenir.');
+  drawText('Her release oncesi onerilen sira:', { size: 10 });
+  drawStep(1, 'Test Simulasyonunu Calistir', '/test-suite -> "TUM TESTLERI CALISTIR".');
+  drawStep(2, 'Copy Failed Only', 'Sadece basarisiz/uyari testleri panoya al.');
+  drawStep(3, 'Onarim', 'AI Coder\'a verilen patch isteklerine yapistir; kuçuk patch tarzinda gonder.');
+  drawStep(4, 'Tekrar Calistir', 'Yesilden emin olana kadar.');
+  drawStep(5, 'Home Manuel Kontrol', 'Mobil tarayicida Home: scroll YOK, Solo/Online kartlari clickable, ProfileBar gorunur.');
+  drawStep(6, 'Online Iki Cihaz Testi', 'Gerekiyorsa 2 cihazli (veya gizli mod sekme + ana profil) duo testi.');
+  drawStep(7, 'Build Marker', 'Codex### formati gorunur olmali; her release ile artis.');
+  drawStep(8, 'Yayinla', 'Test ve manuel kontrol gectikten sonra publish.');
 
-  drawHeading2('8.2 Lobi Bulunamadi');
-  drawBullet('Tetikleyici: Yanlis veya eski kod girilir.');
-  drawBullet('Akis: "Lobi bulunamadi veya zaten basladi" hatasi gosterilir → Tekrar deneme secenegi.');
-
-  drawHeading2('8.3 Baglanti Hatasi');
-  drawBullet('Tetikleyici: Network kopuklugu veya API hatasi.');
-  drawBullet('Akis: DB yazma islemleri 3 kez yeniden denenir (1.2sn aralikla).');
-  drawBullet('3. denemede de basarisiz olursa pending write kilidi kaldirilir, kullaniciya etki goruntulenmez (sessiz hata).');
-
-  drawHeading2('8.4 Lobi Silinmesi');
-  drawBullet('Tetikleyici: Host lobiden ayrilir (delete tetikler).');
-  drawBullet('Akis: Subscription "delete" eventi alir → Tum oyuncular bildirim alir → Lobi ekrani kapanir.');
-
-  // ─── APK & AUTH IS AKISI ─────────────────────────────────────────────────────
+  // ─── 8. AI-ASISTANLI GELISTIRME ─────────────────────────────────────────────
   newPage();
-  y = H - MARGIN;
+  drawHeading1('8. AI-ASISTANLI GELISTIRME IS AKISI');
 
-  drawHeading1('9. MOBIL (APK) & KIMLIK DOGRULAMA IS AKISI');
+  drawHeading2('8.1 Dokuman Hiyerarsisi');
+  drawBullet('KRONOX.md (urun/UX kaynagi) — emosyonel/UX ilkeleri.');
+  drawBullet('CORE_PROMPT.md (muhendislik rehberi) — kucuk patch tarzi, ne degistirilmez listesi.');
+  drawBullet('Teknik Dokuman (bu PDF) ve Is Akisi Dokumani (bu PDF) — projeyi yeni AI/gelistiriciye anlatan referans.');
 
-  drawHeading2('9.1 Genel Auth Akisi');
-  drawStep(1, 'Uygulama Acilisi', 'AuthProvider mount olur, base44.auth.me() cagrilir.');
-  drawStep(2, 'Basarili Giris', 'Kullanici bilgileri state\'e kaydedilir, uygulama render edilir.');
-  drawStep(3, 'auth_required Hatasi', 'base44.auth.redirectToLogin(pathname) tetiklenir, login sayfasina yonlendirilir.');
-  drawStep(4, 'user_not_registered', 'UserNotRegisteredError ekrani gosterilir.');
-  drawStep(5, 'Beklenmeyen Hata', 'authError state\'e atanir, fallback UI render edilir.');
-  y -= 6;
+  drawHeading2('8.2 Korumali Sistemler (KOLAY KIRILIR)');
+  drawBullet('Timeline hit-testing (Timeline.jsx) — viewport vs world coord ayrimi.');
+  drawBullet('Drag/drop ghost-kart mekanigi.');
+  drawBullet('lib/gameRules — placement & winner kurallari.');
+  drawBullet('useLobbySync subscription+polling fallback.');
+  drawBullet('Home 1080x1920 stage; isWideStage genis ekran kosulu.');
+  drawBullet('updateLobbyGameState server validation yuzeyi.');
+  drawBullet('Lobby entity contracti.');
 
-  drawHeading2('9.2 APK (Android WebView) Google Login Duzeltmesi');
-  drawBullet('Sorun: Onceki surumde auth_required hatasi sessizce yutuluyordu; APK\'da Google giris calismiyordu.');
-  drawBullet('Cozum: AuthContext ve App.jsx\'te auth_required tipi acikca yakalanip redirectToLogin cagrisi yeniden devreye alindi.');
-  drawBullet('Etki: Web ve APK ortamlarinda Google OAuth yonlendirmesi duzgun calisir.');
-  y -= 6;
+  drawHeading2('8.3 Tercih Edilen Patch Tarzi');
+  drawBullet('Tek hedefli, kucuk diff\'ler; gereksiz refactor yok.');
+  drawBullet('Build markeri (Codex###) her gercek code commit\'inde artirilir.');
+  drawBullet('AI Coder\'a brief: SADECE NE DEGISECEK + NE DEGISMEYECEK; korumali listeden ozellikle bahset.');
+  drawBullet('Test Suite degisiklikten sonra kosulur; kirildiysa AI Coder\'a Copy Failed Only ile cevap verilir.');
 
-  drawHeading2('9.3 Misafir (Giris Yapmamiş) Oyuncu Akisi');
-  drawStep(1, 'Giris Yok', 'Kullanici login yapmadan uygulamaya girer.');
-  drawStep(2, 'Tek Cihaz Oyun', 'Sorular cekilebilir (okuma herkese acik), oyun oynanabilir.');
-  drawStep(3, 'Cevrimici Oyun', 'Gecici e-posta (guest_TIMESTAMP@kronox.local) ile lobi olusturulabilir/katilabilir.');
-  drawStep(4, 'Kisitlamalar', 'Admin paneline, soru yonetimine erisim engellenir.');
+  // ─── 9. HATA AKISLARI ───────────────────────────────────────────────────────
+  drawHeading1('9. HATA AKISLARI');
 
-  // ─── LANDSCAPE IS AKISI ─────────────────────────────────────────────────────
-  y -= 8;
-  drawHeading1('10. LANDSCAPE MOD IS AKISI');
+  drawHeading2('9.1 Soru Bulunamadi');
+  drawBullet('Solo: kategori+zorluk+filtre sonrasi yeterli soru kalmadiysa kullaniciya ana menuye donus onerilir.');
+  drawBullet('Online: WaitingRoom oyunu baslatmaya calisirken buildInitialOnlineGameState reason="not_enough_questions" donerse host hata gorur.');
 
-  drawHeading2('10.1 Ekran Yonlendirmesi Algilama');
-  drawBullet('Tailwind landscape: screen tanimlanmistir: (orientation: landscape) and (max-height: 600px).');
-  drawBullet('Telefon yatay cevirildiginde (max-height 600px alti) landscape: prefix\'li siniflar aktif olur.');
-  drawBullet('Tablet ve masaustu bilgisayarlar bu kosulu saglamaz, normal duzen goruntulenir.');
-  y -= 6;
+  drawHeading2('9.2 Lobi Bulunamadi');
+  drawBullet('findLobbyByCode found=false donerse kullaniciya "Lobi bulunamadi" gosterilir; tekrar deneme acik.');
+  drawBullet('Lobi waiting disinda ise (joinable=false) katilim engellenir.');
 
-  drawHeading2('10.2 Oyun Ekrani Landscape Duzeni');
-  drawStep(1, 'Sol Kolon (w-52)', 'PlayerIndicator (oyuncu sirasi), QuestionCard ve Yerlestir butonu gosterilir.');
-  drawStep(2, 'Orta Alan', 'Aktif oyuncunun kart zaman cetveli gosterilir (tam genislik).');
-  drawStep(3, 'Kucultme', 'TurnTimer, bosluklar ve bazi yazi boyutlari kucultulur (landscape:text-sm vb.).');
-  drawStep(4, 'Portrait Gizleme', 'Kart + buton blogu (portrait\'e ozel) landscape:hidden ile gizlenir.');
-  y -= 6;
+  drawHeading2('9.3 Ag Hatasi / Subscription Kopmasi');
+  drawBullet('useLobbySync polling fallback ile durumu kendi yenilemeyi dener.');
+  drawBullet('useGameActions updateLobbyGameState retry (3 deneme, 1.2sn) + recoverLatestLobbyState (Lobby.get) self-heal.');
 
-  drawHeading2('10.3 Safe-Area Padding');
-  drawBullet('iOS notch ve Android navigation bar icin env(safe-area-inset-*) kullanilir.');
-  drawBullet('index.css body elementinde padding olarak tanimlanidir.');
-  drawBullet('Oyun ve lobi sayfalari inline style ile safe-area padding\'e sahiptir.');
+  drawHeading2('9.4 Reddedilen Online Yazim');
+  drawBullet('Sunucu reddederse istemci yerel state\'i DB\'den yeniden cekerek SENKRON KALIR; oyuncuya "rolled back" hissi olusmaz, sira gercek state\'e doner.');
 
-  // ─── TEST SUITE IS AKISI ──────────────────────────────────────────────────────
-  y -= 8;
-  drawHeading1('11. TEST SUITE IS AKISI (41 SENARYO)');
+  drawHeading2('9.5 Auth Hatasi');
+  drawBullet('Public mod: misafir devam edebilir.');
+  drawBullet('Online butonu giris gerektirir; user yoksa redirectToLogin tetiklenir.');
+  drawBullet('user_not_registered: UserNotRegisteredError ekrani.');
 
-  drawHeading2('11.1 Erisim');
-  drawStep(1, 'Giris', 'Admin olarak giris yap.');
-  drawStep(2, 'Navigasyon', 'Tarayicida /test-suite adresine git veya Ayarlar > Admin Araclari.');
-  drawStep(3, 'Suite Sec', 'Unit / Black Box / Fonksiyonel / Performans / Oynanabilirlik veya Tum Testler.');
-  drawStep(4, 'Calistir', '"TESTLERI CALISTIR" butonuna tikla.');
-  drawStep(5, 'Sonuc', 'Her test icin PASS/FAIL, sure ve detay goruntulenir. Ozet istatistik ust kisimda yer alir.');
-  y -= 6;
+  // ─── 10. OGRETICI ──────────────────────────────────────────────────────────
+  drawHeading1('10. OGRETICI (TUTORIAL) AKISI');
 
-  drawHeading2('11.2 Test Kategorileri ve Amaci');
-  drawBullet('Unit (10 test): Izole mantik — shuffle, kart yerlesim, filtre, pickQuestion.');
-  drawBullet('Black Box (8 test): API/DB davranisi — lobi CRUD, mesaj, gecersiz islemler.');
-  drawBullet('Fonksiyonel (8 test): Oyun kurallari — kart dagitimi, tur dongusu, kazanma.');
-  drawBullet('Performans (5 test): Hiz & kapasite — 500 soru, 10 lobi, shuffle suresi.');
-  drawBullet('Oynanabilirlik (10 test): Kullanici deneyimi — kategori varlik, soru yeterliligi, sure secenekleri.');
+  drawBullet('Settings > "Nasil Oynanir?" veya ilk kullanimda Home\'dan tetiklenir (lib/tutorialState.js gore).');
+  drawBullet('5-6 adimli, animasyonlu, dokunmatik dostu.');
+  drawBullet('Adimlar: zaman cizgisi tanitimi, surukleyerek yerlestirme, dogru/yanlis geri bildirim, kazanma kosulu, online lobi bilgisi.');
+  drawBullet('"Atla" ve "Bitir" callbackleri tutorialSeen flag\'i ile localStorage\'a yazilir.');
 
-  // ─── DRAG AND DROP IS AKISI ──────────────────────────────────────────────────
+  // ─── 11. KALDIRILMIS / LEGACY ───────────────────────────────────────────────
   newPage();
-  y = H - MARGIN;
+  drawHeading1('11. KALDIRILMIS VE LEGACY AKISLAR');
 
-  drawHeading1('12. DOKUNMATIK SURU-BIRAK IS AKISI');
+  drawText('Asagidaki ozellikler urunde ARTIK YOK veya pasif tutuluyor. Test Suite "removed" kategorisi bu kaldirmalari surekli denetler:', { size: 10 });
+  y -= 4;
+  drawBullet('Online lobi/oyun ici sohbet UI — LobbyChat, mesaj input, unread indicator: hepsi UI\'dan kaldirildi.');
+  drawBullet('Home "HEMEN OYNA" CTA — birincil aksiyon olarak Solo/Online kartlari yeterli.');
+  drawBullet('Eski yerel multiplayer oyuncu sayisi secimi — Solo Challenge tek-oyunculu yapilandirmaya yogunlasti.');
+  drawBullet('Eski monolitik LobbyRoom — split: useLobbyRoomState + LobbyCreateJoinPanel + WaitingRoomPanel.');
+  drawBullet('Eski debug konsol overlay\'i (DebugConsole/DebugPanel) — production debug log gating ile yer degistirdi (lib/debugLog.js).');
+  drawBullet('Eski QA bilesenleri (components/qa/*, QAHeader, MetricsBoard, SimulationResultCard, TestResultCard) — yerini tek bir SimulationPanel aldi.');
+  drawBullet('TimelineRuler — kaldirildi; Timeline kendi hit-testini yapiyor.');
+  drawBullet('LobbyMessage entity — kayitli; UI baglantisi kesildi; geriye donuk yedeklilik icin tutuluyor.');
 
-  drawHeading2('12.1 Kullanici Perspektifinden Akis');
-  drawStep(1, 'Soruyu Tut', 'Kullanici soru kartina parmaginı bastırır (onTouchStart).');
-  drawStep(2, 'Surukle', 'Parmak hareket ederken ghost kart parmagi takip eder (viewport coords).');
-  drawStep(3, 'Timeline Uzerinden Gec', 'Timeline aktif drop zone\'u altin rengi ile vurgular.');
-  drawStep(4, 'Birak', 'Parmak kaldirilinca en yakin zone hesaplanir ve onPlaceCard tetiklenir.');
-  drawStep(5, 'Sonuc', 'Dogru zone ise kart timeline\'a eklenir; yanlisSsa red animasyonu gosterilir.');
-  y -= 8;
+  // ─── 12. VERI AKISI ÖZETI ──────────────────────────────────────────────────
+  drawHeading1('12. VERI AKISI OZETI');
 
-  drawHeading2('12.2 Koordinat Uzaylari');
-  drawBullet('Ghost kart: viewport koordinati (position:fixed) — scroll etkisinden bagimsiz parmak takibi.');
-  drawBullet('Drop zone hit-testi: world koordinati = clientX - containerLeft + scrollLeft.');
-  drawBullet('Bu ayrım sayesinde timeline ne kadar kaydirılmis olursa olsun kart doğru bölgeye düser.');
-  y -= 6;
+  drawHeading2('12.1 Online');
+  drawText('Aktif oyuncu hamlesi -> useGameActions.doPlacement -> optimistic local update -> base44.functions.invoke("updateLobbyGameState") -> sunucu dogrulamasi -> Lobby DB yazimi -> subscription event -> tum istemcilerde useLobbySync state guncellemesi.', { size: 9, color: rgb(0.65, 0.78, 0.65) });
+  y -= 4;
+  drawBullet('Optimistic update kullaniciya anlik tepki saglar.');
+  drawBullet('Sunucu reddederse Lobby.get ile yerel state DB ile uyumlu hale getirilir.');
+  drawBullet('updateLobbyGameState atomiktir: kart + tur gecisi + yeni soru tek ada.');
 
-  drawHeading2('12.3 Otomatik Kayma (Edge Scrolling)');
-  drawBullet('Parmak timeline sol (<80px) veya sag (<80px) kenarina yaklasinca otomatik kayma baslar.');
-  drawBullet('requestAnimationFrame dongusu ile akici 60fps kayma saglanir.');
-  drawBullet('Parmak kaldirilinca veya drag bittikce cancelAnimationFrame ile durdurulur.');
-  y -= 6;
+  drawHeading2('12.2 Solo');
+  drawText('Kullanici hamlesi -> useGameActions.doPlacement (lobbyId yok) -> lokal state -> oyun bitince GameRecord.create (eger giris yapilmissa).', { size: 9, color: rgb(0.65, 0.78, 0.65) });
+  y -= 4;
+  drawBullet('Hicbir Lobby etkilesimi yok.');
+  drawBullet('Cross-game tekrarsizlik questionHistory.js ile saglanir.');
 
-  drawHeading2('12.4 Muzik Onizleme (Deezer)');
-  drawBullet('Muzik sorusu kartlari her mount\'ta getDeezerPreview fonksiyonunu cagirir.');
-  drawBullet('Sarki adi + sanatci adi ile Deezer API aranir; 30 saniyelik preview URL alinir.');
-  drawBullet('URL hazir olunca QuestionCard otomatik olarak sesi caldirir.');
-  drawBullet('Onceki sabit media_url yonteminin aksine link asla "suresi dolmaz" sorununa ugramaz.');
+  drawHeading2('12.3 Soru Secim Hiyerarsisi');
+  drawBullet('Hard kural: oturum-ici used_question_ids icindeki sorular asla secilmez.');
+  drawBullet('Tercih: aktif oyuncunun timeline\'inda halen olan yillarla denk sorular tercih edilmez.');
+  drawBullet('Tercih: cross-game LRU history\'sinde olan sorular tercih edilmez.');
+  drawBullet('Fallback: tercih kosullari gevsetilir, hard kural asla gevsetilmez.');
 
-  // ─── GELECEK GELISTIRMELER ────────────────────────────────────────────────────
+  // ─── 13. GELECEK ────────────────────────────────────────────────────────────
   drawHeading1('13. GELECEK GELISTIRMELER');
 
-  drawBullet('Gorsel ve isitsel soru turlerinin aktif oyun havuzuna dahil edilmesi (altyapi hazir).');
-  drawBullet('Oyuncu puanlama ve istatistik gecmisi: dogru/yanlis orani, ortalama sure.');
-  drawBullet('Reconnect / state recovery: Baglanti kopunca otomatik yeniden baglanma.');
-  drawBullet('Turnuva modu: Eleme usulu cok turlu rekabet, kalici skor tablosu.');
-  drawBullet('Kategori genisletmesi: Muzik, cografya, edebiyat, sinema vb.');
-  drawBullet('Soru onerme sistemi: Kayitli kullanicilar soru onerebilir, admin onaylar.');
-  drawBullet('Push bildirimler: Sira geldigi zaman uygulama arka plandayken bildirim.');
-  drawBullet('Lokalizasyon: Ingilizce ve diger dil destegi.');
-  drawBullet('Mobil uygulama: iOS ve Android native yayin (React kodu aynen kullanilir).');
-  drawBullet('Spektator modu: Aktif lobiye izleyici olarak katilma.');
+  drawBullet('Profil sayfasi (yarim hazir) — kullanici istatistikleri ve gecmis.');
+  drawBullet('Skor / istatistik gecmisi — GameRecord uzerinden aggregate.');
+  drawBullet('Liderlik tablosu (HAZIR DEGIL) — server-side trust yetersiz.');
+  drawBullet('Ranked mod (HAZIR DEGIL) — anomali tespiti ve anti-cheat eklenmeli.');
+  drawBullet('Rematch — kucuk Lobby reset ve yeni dagitim ile yapilabilir.');
+  drawBullet('Push bildirimleri (sira / lobi cagrisi).');
+  drawBullet('Kategori genisletmesi (muzik, cografya, sinema vb.).');
+  drawBullet('Soru onerme akisi (kullanicidan admin onayina).');
 
   // ─── FINALIZE ───────────────────────────────────────────────────────────────
   const pdfBytes = await pdfDoc.save();
