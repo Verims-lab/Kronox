@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1';
 
-// Turkce karakterleri ASCII'ye donustur
+// Turkce karakterleri ASCII'ye donustur (Helvetica Latin-1 ile uyumlu)
 function tr(text) {
   return text
     .replace(/\u0131/g, 'i').replace(/\u0130/g, 'I')
@@ -14,7 +14,7 @@ function tr(text) {
     .replace(/\u2014/g, '--').replace(/\u2013/g, '-')
     .replace(/\u2018/g, "'").replace(/\u2019/g, "'")
     .replace(/\u201c/g, '"').replace(/\u201d/g, '"')
-    .replace(/[^\x00-\xFF]/g, '?');
+    .replace(/[^\x00-\xFF]/g, '-');
 }
 
 Deno.serve(async (req) => {
@@ -34,6 +34,8 @@ Deno.serve(async (req) => {
     const black   = rgb(0.05, 0.05, 0.10);
     const gold    = rgb(0.78, 0.63, 0.15);
     const gray    = rgb(0.40, 0.40, 0.45);
+    const danger  = rgb(0.70, 0.18, 0.18);
+    const ok      = rgb(0.15, 0.45, 0.20);
     const darkBg  = rgb(0.08, 0.09, 0.14);
     const codeBg  = rgb(0.11, 0.12, 0.17);
     const codeText= rgb(0.70, 0.85, 0.95);
@@ -42,12 +44,11 @@ Deno.serve(async (req) => {
     let y = H - 60;
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
-
     const newPage = () => {
       page = pdfDoc.addPage([W, H]);
       y = H - 60;
       page.drawLine({ start: { x: marginL, y: H - 45 }, end: { x: W - marginR, y: H - 45 }, thickness: 0.5, color: gold, opacity: 0.4 });
-      page.drawText(tr('KRONOX — Teknik Dokuman'), { x: marginL, y: H - 38, size: 8, font, color: gray });
+      page.drawText(tr('Kronox - Teknik Mimari Dokumani - Internal AI/Developer Briefing'), { x: marginL, y: H - 38, size: 8, font, color: gray });
       page.drawText(`Sayfa ${pdfDoc.getPageCount()}`, { x: W - marginR - 40, y: H - 38, size: 8, font, color: gray });
     };
 
@@ -61,15 +62,15 @@ Deno.serve(async (req) => {
       const words = text.split(' ');
       let line = '';
       for (const word of words) {
-        const test = line ? line + ' ' + word : word;
-        const tw = f.widthOfTextAtSize(test, size);
+        const tst = line ? line + ' ' + word : word;
+        const tw = f.widthOfTextAtSize(tst, size);
         if (tw > maxW && line) {
           ensureSpace(size + lineGap + 4);
           page.drawText(line, { x: marginL + indent, y, size, font: f, color: c });
           y -= size + lineGap;
           line = word;
         } else {
-          line = test;
+          line = tst;
         }
       }
       if (line) {
@@ -95,6 +96,13 @@ Deno.serve(async (req) => {
       y -= 18;
     };
 
+    const microTitle = (raw, color = black) => {
+      y -= 4;
+      ensureSpace(16);
+      page.drawText(tr(raw), { x: marginL, y, size: 10, font: boldFont, color });
+      y -= 14;
+    };
+
     const bullet = (raw, level = 0) => {
       const indent = 12 + level * 14;
       ensureSpace(14);
@@ -116,8 +124,30 @@ Deno.serve(async (req) => {
       y -= 6;
     };
 
+    // Standart blok: DO / DO NOT / FILES INVOLVED / TEST AFTER CHANGE / RISK
+    const aiBlock = ({ doList = [], dontList = [], files = [], tests = [], risk = 'Medium' }) => {
+      if (doList.length) {
+        microTitle('DO:', ok);
+        doList.forEach(d => bullet(d));
+      }
+      if (dontList.length) {
+        microTitle('DO NOT:', danger);
+        dontList.forEach(d => bullet(d));
+      }
+      if (files.length) {
+        microTitle('FILES INVOLVED:');
+        files.forEach(f => bullet(f));
+      }
+      if (tests.length) {
+        microTitle('TEST AFTER CHANGE:');
+        tests.forEach(t => bullet(t));
+      }
+      microTitle(`RISK: ${risk}`, risk === 'High' ? danger : (risk === 'Low' ? ok : gold));
+      spacer(2);
+    };
+
     // ══════════════════════════════════════════════════════════════════════════
-    // KAPAK SAYFASI
+    // KAPAK
     // ══════════════════════════════════════════════════════════════════════════
     page.drawRectangle({ x: 0, y: 0, width: W, height: H, color: darkBg });
     page.drawRectangle({ x: marginL, y: H / 2 - 1, width: 120, height: 2, color: gold });
@@ -125,13 +155,15 @@ Deno.serve(async (req) => {
     page.drawText('KRONOX', { x: marginL, y: H / 2 + 90, size: 56, font: boldFont, color: gold });
     page.drawText(tr('Zaman Cizgisi Kart Oyunu'), { x: marginL, y: H / 2 + 50, size: 18, font, color: rgb(0.85, 0.85, 0.9) });
     page.drawText(tr('Teknik Mimari Dokumani'), { x: marginL, y: H / 2 + 24, size: 14, font, color: gray });
+    page.drawText(tr('Internal AI / Developer Briefing'), { x: marginL, y: H / 2 + 4, size: 11, font, color: gold, opacity: 0.85 });
 
-    page.drawText('v1.3', { x: marginL, y: H / 2 - 30, size: 11, font, color: gray });
-    page.drawText('Mayis 2026', { x: marginL, y: H / 2 - 47, size: 11, font, color: gray });
-    page.drawText('Platform: Base44 (React + Deno)', { x: marginL, y: H / 2 - 64, size: 11, font, color: gray });
+    page.drawText('v3.0', { x: marginL, y: H / 2 - 30, size: 11, font, color: gray });
+    page.drawText('Build: Codex040', { x: marginL, y: H / 2 - 47, size: 11, font, color: gray });
+    page.drawText('Platform: Base44 (React + Vite + Deno)', { x: marginL, y: H / 2 - 64, size: 11, font, color: gray });
 
     page.drawLine({ start: { x: marginL, y: 80 }, end: { x: W - marginR, y: 80 }, thickness: 0.5, color: gold, opacity: 0.3 });
-    page.drawText('Proje ic kullanim', { x: marginL, y: 64, size: 9, font, color: gray });
+    page.drawText(tr('Bu dokuman; bir AI Coder veya yeni gelistirici tarafindan projeyi guvenle'), { x: marginL, y: 66, size: 9, font, color: gray });
+    page.drawText(tr('surdurmek icin tek referans olarak kullanilmak uzere hazirlanmistir.'), { x: marginL, y: 54, size: 9, font, color: gray });
 
     // ══════════════════════════════════════════════════════════════════════════
     // ICINDEKILER
@@ -144,20 +176,24 @@ Deno.serve(async (req) => {
     const toc = [
       ['1.', 'Proje Genel Bakis'],
       ['2.', 'Teknoloji Yigini'],
-      ['3.', 'Dosya & Klasor Yapisi'],
-      ['4.', 'Veri Modeli (Entities)'],
-      ['5.', 'Sayfa & Bilesen Mimarisi'],
-      ['6.', 'Layout Bilesenleri'],
-      ['7.', 'Oyun Mekanigi — Yerel Mod'],
-      ['8.', 'Oyun Mekanigi — Cevrimici Mod'],
-      ['9.', 'Backend Fonksiyonlar'],
-      ['10.', 'Kimlik Dogrulama & Mobil (APK)'],
-      ['11.', 'Landscape Modu Destegi'],
-      ['12.', 'Test Suite (41 Senaryo)'],
-      ['13.', 'Performans & UX Optimizasyonlari'],
-      ['14.', 'Guvenlik & Erisim Kontrolu'],
-      ['15.', 'Gelecek Gelistirme Onerileri'],
-      ['8b.', 'Drag-and-Drop Mimarisi (Dokunmatik)'],
+      ['3.', 'Rota Haritasi & Sayfa Sorumluluklari'],
+      ['4.', 'Modul Sorumluluklari (hooks / lib / components)'],
+      ['5.', 'Veri Modeli (Base44 Entities)'],
+      ['6.', 'Data Contracts (kontratlar)'],
+      ['7.', 'Backend Fonksiyonlar'],
+      ['8.', 'Home Ekrani Mimarisi (1080x1920 Stage)'],
+      ['9.', 'Offline Solo Mimarisi'],
+      ['10.', 'Online Multiplayer Mimarisi'],
+      ['11.', 'Online State Otoritesi & Senkronizasyon'],
+      ['12.', 'Sunucu Tarafi Dogrulama (Trust Boundary)'],
+      ['13.', 'Drag-and-Drop & Timeline'],
+      ['14.', 'Test Suite & Simulation Panel'],
+      ['15.', 'Performans & Mobil WebView'],
+      ['16.', 'Korunmasi Gereken Sistemler (pratik kurallar)'],
+      ['17.', 'Kodu Guvenle Degistirme Rehberi'],
+      ['18.', 'Yeni Ozellik Giris Noktalari (Profile/Score/...)'],
+      ['19.', 'Bilinen Sinirlamalar'],
+      ['20.', 'Terimler Sozlugu (aktif vs legacy)'],
     ];
     for (const [num, title] of toc) {
       ensureSpace(20);
@@ -171,13 +207,12 @@ Deno.serve(async (req) => {
     // ══════════════════════════════════════════════════════════════════════════
     newPage(); y = H - 80;
     sectionTitle('1. Proje Genel Bakis');
-    drawText('Kronox, oyuncularin tarihi olaylari dogru kronolojik siraya yerlestirdigi bir kart oyunudur. Oyun yerel (ayni cihaz, birden fazla oyuncu) ve cevrimici (gercek zamanli lobi, WebSocket tabanli senkronizasyon) olmak uzere iki modda oynanabilir.');
+    drawText('Kronox, oyuncularin sorularda gecen olay/eser/kesfin yilini kendi zaman cizgilerine dogru sirayla yerlestirdigi rekabetci bir kart oyunudur. Uygulama mobil-oncelikli (WebView/PWA) bir React + Vite + Base44 projesidir. Iki birincil mod vardir:');
+    spacer(4);
+    bullet('Solo Meydan Okuma (offline): Tek oyunculu, kendi rekorunu kirma odakli.');
+    bullet('Online Battle: 2-4 oyunculu, lobi tabanli gercek zamanli rekabet.');
     spacer();
-    drawText('Temel hedefler:');
-    bullet('Sezgisel ve hizli kurulum — oyuncular dakikalar icinde oyuna girebilmeli');
-    bullet('Mobil-oncelikli tasarim — iOS ve Android native uygulamada calisabilir');
-    bullet('Gercek zamanli cok oyunculu deneyim — lobi sistemi ile 2-4 oyuncu');
-    bullet('Genisletilebilir soru havuzu — admin paneli uzerinden yeni soru ekleme');
+    drawText('Bu dokuman; mimariyi, modul sorumluluklarini, KORUNMASI GEREKEN sistemleri ve guvenle yeni ozellik eklemenin nasil yapilacagini AI Coder ve yeni gelistiriciler icin tek bir referansa indirger.', { color: gray });
 
     // ══════════════════════════════════════════════════════════════════════════
     // 2. TEKNOLOJI YIGINI
@@ -186,500 +221,647 @@ Deno.serve(async (req) => {
     sectionTitle('2. Teknoloji Yigini');
 
     subTitle('Frontend');
-    bullet('React 18 — Bilesen tabanli UI katmani');
-    bullet('React Router DOM v6 — SPA yonlendirme');
-    bullet('TanStack Query v5 — sunucu durumu yonetimi, onbellekleme');
-    bullet('Framer Motion — animasyon ve gecis efektleri');
-    bullet('Tailwind CSS — utility-first stil sistemi');
-    bullet('Shadcn/UI — temel UI bilesenleri (Button, Input, Toast vb.)');
-    bullet('Lucide React — ikon kutuphanesi');
+    bullet('React 18 + Vite -- SPA, React.lazy + Suspense ile code-splitting');
+    bullet('React Router DOM v6 -- sayfa rotalari, push/pop yon-duyarli gecisler');
+    bullet('TanStack Query v5 -- gerektigi yerlerde async durum');
+    bullet('Framer Motion -- sayfa, modal ve geri bildirim animasyonlari');
+    bullet('Tailwind CSS + Shadcn/UI -- utility-first stil, accessible UI primitifleri');
+    bullet('Lucide React -- ikon kutuphanesi (yalniz dogrulanmis ikonlar)');
 
-    subTitle('Backend & Platform');
-    bullet('Base44 Platform — BaaS (Backend-as-a-Service)');
-    bullet('Deno Runtime — backend fonksiyonlar icin sunucu ortami');
-    bullet('Gercek zamanli subscriptions — WebSocket tabanli entity dinleme');
+    subTitle('Mobil & Platform');
+    bullet('Base44 -- BaaS: entities, RLS, real-time subscriptions, OAuth, backend functions');
+    bullet('Deno runtime -- backend fonksiyonlari (npm:/jsr: importlar, Deno.serve)');
+    bullet('WebView/PWA wrapper -- iOS ve Android icin ayni React bundle');
+    bullet('safe-area-inset-* + overscroll-behavior-none -- notch ve home indicator hassasiyetli');
 
-    subTitle('Build & Deploy');
-    bullet('Vite — gelistirme sunucusu ve uretim derleyici');
-    bullet('React.lazy + Suspense — code splitting ile sayfa bazli yukleme');
+    subTitle('Kisitlar');
+    bullet('Mobil-oncelikli: butun layoutlar 360x740 ve uzeri mobil ile basliyor');
+    bullet('Dusuk bandwidth ve memory varsayilir; animasyon ve subscription cleanup zorunludur');
+    bullet('Yalnizca izinli paket listesi kullanilir (bkz. Base44 platform talimatlari)');
 
     // ══════════════════════════════════════════════════════════════════════════
-    // 3. DOSYA YAPISI
+    // 3. ROTA HARITASI
     // ══════════════════════════════════════════════════════════════════════════
     newPage();
-    sectionTitle('3. Dosya & Klasor Yapisi');
+    sectionTitle('3. Rota Haritasi & Sayfa Sorumluluklari');
     codeBlock([
-      'src/',
-      '|-- pages/',
-      '|   |-- PlayerSetup.jsx      # Ana ekran - oyun kurulum formu',
-      '|   |-- LobbyRoom.jsx        # Cevrimici lobi (olustur/katil/bekle)',
-      '|   |-- Game.jsx             # Oyun sahnesi (yerel + cevrimici)',
-      '|   |-- SettingsPage.jsx     # Admin paneli & hesap ayarlari',
-      '|   +-- TestSuite.jsx        # 41 senaryolu test paneli (admin)',
-      '|-- components/',
-      '|   |-- layout/',
-      '|   |   |-- AppHeader.jsx    # Sabit ust baslik (geri/giris/ayarlar)',
-      '|   |   +-- BottomNav.jsx    # Alt navigasyon cubugu (3 sekme)',
-      '|   |-- game/',
-      '|   |   |-- PlayerIndicator  # Aktif oyuncu gostergesi',
-      '|   |   |-- Timeline         # Kart sirasi & birakma bolgesi (landscape destekli)',
-      '|   |   |-- TimelineCard     # Tekil kart bileseni',
-      '|   |   |-- DropZone         # Kartin yerlestirilecegi alan',
-      '|   |   |-- QuestionCard     # Soruyu gosteren kart (landscape destekli)',
-      '|   |   |-- TurnTimer        # Tur sayaci (SVG dairesel, landscape kucuk)',
-      '|   |   |-- FeedbackOverlay  # Dogru/Yanlis animasyonu',
-      '|   |   |-- GameOver         # Kazanma ekrani',
-      '|   |   |-- SettingsModal    # Hesap ayarlari modal',
-      '|   |   +-- SimulationPanel  # Gelistirici test paneli (42 senaryo)',
-      '|   +-- lobby/',
-      '|       +-- LobbyChat        # Lobi ici gercek zamanli sohbet',
-      '|-- entities/',
-      '|   |-- Question.json        # Soru semasi (RLS ile korunur)',
-      '|   |-- Lobby.json           # Lobi semasi',
-      '|   +-- LobbyMessage.json    # Sohbet mesaji semasi',
-      '|-- functions/',
-      '|   |-- simulateOnlineGame   # 42 senaryolu otomatik test suite',
-      '|   |-- runTestSuite         # 41 senaryolu birim/kara kutu/perf/oynanabilirlik',
-      '|   |-- generateTechDoc      # Teknik mimari PDF ureteci',
-      '|   +-- generateWorkflowDoc  # Is akisi & use case PDF ureteci',
-      '|-- hooks/',
-      '|   +-- usePullToRefresh.js  # Mobil pull-to-refresh hook',
-      '+-- lib/',
-      '    |-- AuthContext.jsx       # Kimlik dogrulama baglami (APK login fix)',
-      '    +-- query-client.js      # TanStack Query yapilandirmasi',
+      'Rota                Bilesen              Rol',
+      '------------------------------------------------------------------',
+      '/                   MainMenu             Home/ana giris (1080x1920 stage)',
+      '/solo               SoloChallenge        Solo kategori + zorluk secimi',
+      '/setup              PlayerSetup          (LEGACY) tek-cihaz isim kurulumu',
+      '/lobby              LobbyRoom            Online lobi olustur/katil + waiting room',
+      '/game               Game                 Aktif oyun sahnesi (solo + online ayni shell)',
+      '/settings           SettingsPage         Hesap ayarlari + admin araclari',
+      '/test-suite         TestSuite            SimulationPanel host - admin-only',
     ]);
+    spacer(6);
+    drawText('App.jsx tek otoriter routerdir; tum sayfa importlari React.lazy ile bolunmustur. Sayfa gecisleri push/pop yonu hesaplanarak yatay slide animasyonu ile gerceklesir. Game ve Home rotalarinda AppHeader gizlenir; diger sayfalarda gosterilir. BottomNav her zaman aktif fakat /game sayfasinda sadelestirilir.');
 
     // ══════════════════════════════════════════════════════════════════════════
-    // 4. VERİ MODELİ
+    // 4. MODUL SORUMLULUKLARI
     // ══════════════════════════════════════════════════════════════════════════
     newPage();
-    sectionTitle('4. Veri Modeli (Entities)');
+    sectionTitle('4. Modul Sorumluluklari');
+
+    subTitle('Pages');
+    bullet('pages/MainMenu.jsx -- Home. 1080x1920 stage koordinat sistemi. Mode kartlari ("SOLO MEYDAN OKUMA" / "ONLINE BATTLE"), profil cubugu, ayarlar girisi. Hicbir scroll yok.');
+    bullet('pages/SoloChallenge.jsx -- Kategori (genel/tarih/spor/sanat/bilim vb.) ve zorluk secimi. Secim sonrasi /game?mode=solo... ile yonlendirir.');
+    bullet('pages/LobbyRoom.jsx -- INCE orkestrator. Identity ve form state useLobbyRoomState hook\'una; UI LobbyCreateJoinPanel + WaitingRoomPanel\'e devredilmistir.');
+    bullet('pages/Game.jsx -- Solo ve online oyunun ortak shellidir. useGameState (ViewModel), useGameActions (domain), useLobbySync (online sync), useOfflineQuestions (solo) hooklarini birlestirir.');
+    bullet('pages/SettingsPage.jsx -- Hesap silme, en iyi 5 rekor, ogretici, admin araclari (soru yonetimi, doc indirme, regresyon paneli).');
+    bullet('pages/TestSuite.jsx -- Admin-only sayfa; SimulationPanel\'i barindirir. isAdminUser disindaki kullanicilar engellenir.');
+
+    subTitle('Hooks');
+    bullet('hooks/useGameState.js -- Tum oyun-sahnesi UI durumu (lobbyData, feedback, winner, drag, zone, timer key). Refler placement-lock ve toplam sure icin tutulur.');
+    bullet('hooks/useGameActions.js -- Domain/use-case katmani. doPlacement, advanceTurn, skipCurrentQuestion ve pickQuestion. Online icinde tum DB yazimi updateLobbyGameState servis fonksiyonundan gecer.');
+    bullet('hooks/useLobbySync.js -- Online oyunun TEK senkronizasyon otoritesi. Initial fetch, subscription ve poll fallback ile lobbyData\'yi gunceller.');
+    bullet('hooks/useLobbyRoomState.js -- LobbyRoom sayfasi icin identity (user, playerName), form ve modal state.');
+    bullet('hooks/useWaitingRoomSync.js -- Bekleme odasi icin subscription + polling fallback; status==="in_game" gecislerinde tum oyunculari /game\'e yonlendirir.');
+    bullet('hooks/useOfflineQuestions.js -- Solo modda soru havuzunu yukler ve onbellekler (lib/questionCache.js ile birlikte calisir).');
+    bullet('hooks/usePullToRefresh.js -- Mobil dokunmatik pull-to-refresh.');
+
+    subTitle('Lib (saf yardimcilar)');
+    bullet('lib/gameRules.js -- Saf kart kurali yardimcilari: isCorrectPlacement, getNextPlayerIndex, hasPlayerWon, getTimelineYears, selectNextQuestion, getQuestionSelectionPool.');
+    bullet('lib/lobbyUtils.js -- normalizeCode, summarizePlayers, isHost, canJoinLobby, removePlayerByIdentity, buildLobbyStartPayload vb.');
+    bullet('lib/onlineGameStart.js -- filterQuestionsForLobbySettings, shuffleQuestions ve buildInitialOnlineGameState. WaitingRoom oyunu baslatirken bu helperi cagirir.');
+    bullet('lib/admin.js -- isAdminUser ve ADMIN_EMAIL. Admin kuralinin TEK kaynagidir; UI hicbir yerde manuel email kiyaslamasi yapmaz.');
+    bullet('lib/AuthContext.jsx -- base44.auth.me / isAuthenticated, public settings yuklemesi, hata tiplemesi.');
+    bullet('lib/NavigationStackContext.jsx -- Sayfa transition yonu (push/pop) yardimcisi.');
+    bullet('lib/debugLog.js -- Production-gated debug log; release derlemelerinde sessizlestirilir.');
+    bullet('lib/questionHistory.js, lib/questionCache.js -- Solo mod icin cross-game soru tekrarini onleyen kucuk LRU.');
+
+    subTitle('Lobby Components');
+    bullet('components/lobby/LobbyCreateJoinPanel.jsx -- Modlar arasinda secim, isim girisi, kod girisi, hata gosterimi.');
+    bullet('components/lobby/WaitingRoomPanel.jsx -- Host/non-host bekleme odasi. Host buradan buildInitialOnlineGameState ile online oyunu baslatir.');
+
+    subTitle('Game Components');
+    bullet('components/game/GameLayout.jsx -- Oyun sahnesi shell: ust durum cubugu, TurnTimer, QuestionCard, Timeline, CTA buton.');
+    bullet('components/game/Timeline.jsx + TimelineCard.jsx -- Aktif oyuncunun zaman cizgisi ve hit-test.');
+    bullet('components/game/QuestionCard.jsx + QuestionMediaLoader.jsx -- Soru turlerini (metin/gorsel/isitsel/muzik) render eder; medya hatasinda fallback uretilir.');
+    bullet('components/game/FeedbackOverlay.jsx -- Dogru/yanlis sonrasi animasyon, fark badge\'i, muzik reveal.');
+    bullet('components/game/GameOver.jsx -- Kazanma/kaybetme ekrani; solo ve online icin farkli baslik/aciklama.');
+    bullet('components/game/TurnTimer.jsx + GameOverTimer.jsx -- Tur sayaci ve toplam sure olcucusu.');
+    bullet('components/game/SimulationPanel.jsx -- Test ve regresyon paneli (admin); kategorize testler, Copy Report / Copy Failed Only.');
+    bullet('components/tutorial/KronoxTutorial.jsx -- Yeni oyuncu icin animasyonlu ogretici.');
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 5. VERI MODELI
+    // ══════════════════════════════════════════════════════════════════════════
+    newPage();
+    sectionTitle('5. Veri Modeli (Base44 Entities)');
 
     subTitle('Question');
-    drawText('Oyundaki sorulari depolar. Yalnizca admin kullanicilar olusturabilir/duzenleyebilir, herkes okuyabilir.');
-    spacer(4);
+    drawText('Oyun sorulari. Okuma herkese acik; create/update/delete sadece role="admin" kullanicilar (RLS).');
     codeBlock([
-      'Alan          Tur       Aciklama',
-      '------------------------------------------------------',
-      'question      string    Soru metni (zorunlu)',
-      'year          number    Dogru yil cevabi (zorunlu)',
-      'category      enum      tarih|bilim|spor|sanat|teknoloji|genel',
-      'type          enum      metin | gorsel | isitsel',
-      'media_url     string    Gorsel veya ses dosyasi URL\'si',
+      'Alan        Tur     Aciklama',
+      '------------------------------------------------------------',
+      'question    string  Soru metni (zorunlu)',
+      'year        number  Dogru cevap yili (zorunlu)',
+      'category    enum    tarih|bilim|spor|sanat|teknoloji|genel',
+      'type        enum    metin|gorsel|isitsel|muzik',
+      'media_url   string  Gorsel veya ses URL (ilgili turler icin)',
+      'icon_url    string  Karta ozel ikon URL',
+      'difficulty  number  1=kolay, 2=orta, 3=zor',
     ]);
     spacer();
 
     subTitle('Lobby');
-    drawText('Cevrimici oyun oturumlarini yonetir. Hem oda bilgilerini hem de aktif oyun durumunu icerir.');
-    spacer(4);
+    drawText('Online oyunun TEK gercek kaynagi. RLS: yalnizca host veya katilimci okuyabilir/guncelleyebilir; admin tum lobileri gorebilir.');
     codeBlock([
       'Alan                   Tur     Aciklama',
-      '-----------------------------------------------------------------',
-      'code                   string  6 haneli benzersiz oda kodu',
-      'host_email             string  Odayi acan oyuncunun emaili',
-      'players                array   Oyuncu listesi (email, name, cards[])',
+      '------------------------------------------------------------------',
+      'code                   string  6 hane benzersiz oda kodu',
+      'host_email             string  Lobiyi acan kullanici email',
+      'host_name              string  Host gorunen isim',
+      'players                array   { email, name, ready, cards[] }',
       'status                 enum    waiting|starting|in_game|finished',
-      'winner                 string  Kazanan oyuncunun adi',
+      'winner                 string  Kazanan oyuncu adi',
+      'winner_email           string  Kazanan oyuncu email (perspektif icin)',
       'category               enum    karisik|tarih|bilim|spor|sanat',
-      'year_start / year_end  number  Soru yil araligi',
-      'turn_duration          number  Tur suresi (saniye, 0=suresiz)',
-      'win_card_count         number  Kazanmak icin gereken kart sayisi',
+      'year_start/year_end    number  Soru yil araligi',
+      'turn_duration          number  Tur suresi (saniye)',
+      'win_card_count         number  Kazanmak icin kart sayisi',
       'current_player_index   number  Sirasi gelen oyuncunun indisi',
-      'current_question_id    string  Aktif sorunun IDsi',
-      'used_question_ids      array   Once kullanilan soru IDleri',
+      'current_question_id    string  Aktif sorunun id',
+      'used_question_ids      array   Bu oyunda kullanilmis soru id\'leri',
     ]);
     spacer();
 
-    subTitle('LobbyMessage');
-    drawText('Lobi ici sohbet ve sistem bildirimlerini depolar.');
+    subTitle('GameRecord');
+    drawText('Solo mod kisisel rekor kaydi. Sadece sahip okuyabilir/silebilir; admin tumune erisebilir.');
+    codeBlock([
+      'Alan              Tur     Aciklama',
+      '------------------------------------------------------',
+      'user_email        string  Oyuncu emaili (created_by ile esit)',
+      'player_name       string  Gosterim icin oyuncu adi',
+      'duration_seconds  number  Oyun suresi (saniye)',
+      'cards_won         number  Kazanilan kart sayisi',
+      'win_card_count    number  Hedef kart sayisi',
+      'category          string  Oyun kategorisi',
+      'year_start/end    number  Yil araligi',
+    ]);
+    spacer();
+
+    subTitle('LobbyMessage (LEGACY / INACTIVE)');
+    drawText('Eski lobi sohbeti icin tutulan entity. Aktif UI tarafindan KULLANILMAZ; chat UI tamamen kaldirildi (Test Suite "removed" kategorisi). Yeni ozellikler bu entity\'ye yazmamali; ihtiyac varsa once yeniden tasarim yapilmalidir.', { color: gray });
+
+    subTitle('User (Base44 built-in)');
+    drawText('Yerlesik User entity. Admin yetkisi role=="admin" alanindan VEYA lib/admin.js ADMIN_EMAIL ile kontrol edilir. Manuel email kiyaslamasi yasaktir.');
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 6. DATA CONTRACTS
+    // ══════════════════════════════════════════════════════════════════════════
+    newPage();
+    sectionTitle('6. Data Contracts');
+
+    drawText('Bu bolum her veri parcasi icin: sahip kim, hangi sistem yazar, ne asla mutate edilmez sorularinin cevabidir.', { color: gray });
     spacer(4);
+
+    subTitle('Lobby.players');
+    bullet('Sekil: dizi, sira AVN (anlamli). Her oge { email, name, ready, cards[] }.');
+    bullet('Sahip: Lobby entity (DB) -- TEK yazici updateLobbyGameState ve buildInitialOnlineGameState\'ten gelen ilk dagitim update\'i.');
+    bullet('Asla: istemci dogrudan Lobby.update ile players uzerinde keyfi degisiklik YAPMAZ; sira/email listesi degistirilemez.');
+
+    subTitle('player.cards');
+    bullet('Sekil: { id, year, question, type, media_url } objesi dizisi.');
+    bullet('Sahip: Lobby.players[i].cards. Yazici: yalniz updateLobbyGameState; aktif oyuncuda +1 olabilir.');
+    bullet('Asla: diger oyuncularin cards alanina yazma; toplam silme; kart icerigini sonradan duzeltme.');
+
+    subTitle('current_player_index');
+    bullet('Sahip: Lobby entity. Yazici: yalniz updateLobbyGameState.');
+    bullet('Kural: yeni deger getNextPlayerIndex(prev, playerCount) sonucu olmali.');
+    bullet('Asla: random veya istemcide rastgele atlama.');
+
+    subTitle('current_question_id');
+    bullet('Sahip: Lobby entity. Yazici: ilk dagitim (buildInitialOnlineGameState) ve updateLobbyGameState.');
+    bullet('Kural: yeni soru used_question_ids icinde olmamali (yeni eklenen disinda); secim selectNextQuestion ile yapilir.');
+
+    subTitle('used_question_ids');
+    bullet('Sahip: Lobby entity. Yazici: yalniz updateLobbyGameState.');
+    bullet('Kural (MUTLAK): yeni dizi eski diziyi TAMAMEN icermelidir (containsAllPreviousIds).');
+    bullet('Asla: kucultme veya temizleme.');
+
+    subTitle('winner / winner_email');
+    bullet('Sahip: Lobby entity. Yazici: yalniz updateLobbyGameState (status=finished gecisiyle).');
+    bullet('Kural: gercek bir oyuncuya isaret etmeli; hasPlayerWon kosulu saglanmali.');
+    bullet('GameOver perspektif (win vs loss) bu alanlar uzerinden hesaplanir.');
+
+    subTitle('Question / GameRecord');
+    bullet('Question: yalniz admin yazar (RLS). Oyun kodu Question icerigini MUTATE ETMEZ -- snapshot olarak cards icine kopyalanir.');
+    bullet('GameRecord: yalniz sahibi tarafindan create edilir; oyun bitiminde Solo modda. Aggregate icin yine yalniz sahibi okur.');
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 7. BACKEND FONKSIYONLAR
+    // ══════════════════════════════════════════════════════════════════════════
+    newPage();
+    sectionTitle('7. Backend Fonksiyonlar');
+
+    subTitle('findLobbyByCode');
+    drawText('Kod ile lobi bulur ve oyuncuyu listeye atomik olarak ekler. Service-role ile RLS\'i bypass eder cunku oyuncu henuz katilimci degildir. Retry destekli, yarisma kosullarina dayanikli.');
+    bullet('Giris: { code, playerName }');
+    bullet('Cikis: { found, joinable, joined, lobby, debug }');
+
+    subTitle('updateLobbyGameState (online state otoritesi)');
+    drawText('TUM online tur/kart yazimlarinin tek girisi. Sunucu tarafinda asagidaki kontrolleri yapar:');
+    bullet('Auth: base44.auth.me() yoksa 401.');
+    bullet('actorEmail current_player olmali.');
+    bullet('Yeni used_question_ids eskileri TAMAMEN icermeli.');
+    bullet('Oyuncu listesi eklenip cikartilamaz, sira degistirilemez.');
+    bullet('Kart sayisi yalnizca aktif oyuncuda +1 olabilir; baska oyuncularin kartlari salt-okunur.');
+    bullet('Yeni current_player_index getNextPlayerIndex sonucuyla esit olmali.');
+    bullet('status=finished icin winner ve winner_email gercek bir oyuncu olmali.');
+
+    subTitle('runTestSuite & simulateOnlineGame');
+    drawText('Admin araclari. runTestSuite saf birim & senaryo testlerini sunucuda kosturur; simulateOnlineGame online akisi sahte oyuncularla bastan sona simule eder.');
+
+    subTitle('generateTechDoc / generateWorkflowDoc');
+    drawText('Bu PDFler. Settings > Admin Araclari uzerinden indirilir. Yalnizca admin (role=="admin" veya ADMIN_EMAIL) erisebilir. Cikti dosya adlari: "kronox-teknik-dokuman.pdf" ve "kronox-is-akisi.pdf".');
+
+    subTitle('Diger');
+    bullet('deleteAccount -- kullanici kendi hesabini sertce siler');
+    bullet('getQuestions -- solo modda hizli toplu soru cekme');
+    bullet('getDeezerPreview / searchSpotifyTrack / loadSpotifyMusicQuestions / populateSpotifyQuestions / seedMusicQuestions -- muzik tipi sorular icin yardimcilar');
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 8. HOME EKRANI
+    // ══════════════════════════════════════════════════════════════════════════
+    newPage();
+    sectionTitle('8. Home Ekrani Mimarisi (1080x1920 Stage)');
+
+    drawText('Home, tek bir tasarim sahnesini (1080x1920 portrait) viewporta orantili olarak yerlestirir. Tum elementler bu sahneye gore YUZDE ile konumlanir; pixel kacirma yoktur.');
+    spacer(6);
+
+    subTitle('Stage stratejisi');
+    bullet('Mobil: width=100dvw, height=100dvh -- 9:16\'ya yakin oranlarda dogal otururlar.');
+    bullet('Genis ekran (desktop tarayici, tablet, landscape): isWideStage kosulu devreye girer ve sahne min(100dvw, 56.25dvh) x min(100dvh, 177.7778dvw) ile sinirli tutulur. Boylece kartlar tiklanabilir kalir.');
+    bullet('Dis konteyner fixed inset-0 overflow-hidden ile scrollu kilitler; touchAction: manipulation pinch-zoom\'u onler.');
+
+    subTitle('Pointer ve Z-ekseni kurallari');
+    bullet('Dekoratif arka plan ve illustrasyon katmanlari pointerEvents: none, zIndex: 0 ile sirayla yerlesir.');
+    bullet('Mode kartlari (Solo Meydan Okuma + Online Battle) absolute konumlanir, z-20 ve pointerEvents: auto ile tiklanabilirligi GARANTI edilir.');
+    bullet('ProfileBar ve Ayarlar butonu kartlardan ust z katmanlarda yer alir.');
+
+    subTitle('Mode kart geometri');
     codeBlock([
-      'Alan          Tur     Aciklama',
-      '-----------------------------------------',
-      'lobby_id      string  Ilgili lobi IDsi',
-      'player_name   string  Mesaji gonderen oyuncu',
-      'message       string  Mesaj icerigi',
-      'type          enum    chat | system',
+      'Solo / Online kart hizalamasi (% cinsinden, stage tabanli):',
+      '  Solo:   left 13.314815% top 71.40625% w 33.981481% h 18.177083%',
+      '  Online: left 52.703704% top 71.40625% w 33.981481% h 18.177083%',
+      'Iki kartin width ve height degerleri ESITTIR.',
+      'Metinler kart icinde top 64.8% - 85.2%, left 8%, right 8% bolgesinde kalir.',
     ]);
 
-    // ══════════════════════════════════════════════════════════════════════════
-    // 5. MİMARİ
-    // ══════════════════════════════════════════════════════════════════════════
-    newPage();
-    sectionTitle('5. Sayfa & Bilesen Mimarisi');
-
-    subTitle('PlayerSetup (/)');
-    drawText('Ana giris ekrani. Yerel oyun icin oyuncu sayisi, isimler, kategori, yil araligi ve tur suresi secimi yapilir. Cevrimici lobi ekranina yonlendirme de buradan baslar.');
-    spacer(6);
-
-    subTitle('LobbyRoom (/lobby)');
-    drawText('Cevrimici oyun oncesi lobi yonetim ekrani. Iki alt akisin yer aldigi sayfadir:');
-    bullet('Lobi Olusturma: 6 haneli benzersiz kod uretilir, host oyuncuyu bekler.');
-    bullet('Lobiye Katilma: Kod girilir, mevcut oturuma oyuncu eklenir.');
-    drawText('WaitingRoom bileseni icinde host oyun ayarlarini degistirebilir. Tum oyuncular real-time subscription ile birbirini gorur. Host baslat butonuna basinca sorular dagitilir ve oyuncular /game\'e yonlendirilir.', { color: gray });
-    spacer(6);
-
-    subTitle('Game (/game)');
-    drawText('Ana oyun sahnesi. Yerel ve cevrimici modlari ayni bilesen icinde yonetir:');
-    bullet('Yerel mod: Tum state React icinde tutulur, DB yazimi yoktur.');
-    bullet('Cevrimici mod: lobbyId uzerinden DB senkronizasyonu ve subscription.');
-    drawText('Bilesen, lobbyData\'yi tek gercek kaynak olarak kullanir. handleConfirmPlacement kart ekleme + tur gecisini tek atomik DB yazmasiyla gerceklestirir.', { color: gray });
-    spacer(6);
-
-    subTitle('SettingsPage (/settings)');
-    drawText('Hesap yonetimi ve admin araclari ekrani. Tum kullanicilar hesap silme islemini buradan yapabilir. Admin yetkisiyle ek araclar (PDF dokuman indirme, simulasyon paneli) goruntulenir.');
-    spacer(6);
+    subTitle('Neden casually refactor edilmemeli?');
+    bullet('Test Suite (home kategorisi) bu yuzde sabitlerini ve clickable garantilerini dogrular.');
+    bullet('Sahne 9:16\'dan uzaklasinca arka plan asset\'i ile kart konumlari arasindaki uyumu BU yuzdeler tutuyor.');
+    bullet('Pixel-tabanli konuma donmek butun cihazlar arasinda hizalama kaybi yaratir.');
 
     // ══════════════════════════════════════════════════════════════════════════
-    // 6. LAYOUT BİLEŞENLERİ
+    // 9. OFFLINE SOLO
     // ══════════════════════════════════════════════════════════════════════════
     newPage();
-    sectionTitle('6. Layout Bilesenleri');
+    sectionTitle('9. Offline Solo Mimarisi');
 
-    subTitle('AppHeader');
-    drawText('Tum sayfalarin ustunde sabit konumlanan baslik bileseni (z-index: 60). Rota bazli farkli gorunum saglar:');
-    bullet('Ana sayfa (/): KRONOX logosu + giris yapilmamissa "GIRIS YAP" butonu, giris yapilmissa Ayarlar ikonu.');
-    bullet('Alt sayfalar (/lobby, /game, /settings): Geri ok + KRONOX logosu.');
-    bullet('Kimlik dogrulama base44.auth.me() ile yapilir; sonuc useState ile tutulur.');
-    spacer(6);
-
-    subTitle('BottomNav');
-    drawText('Ekranin altinda sabit konumlanan 3 sekmeli navigasyon cubugu. Oyun ekraninda (/game) gizlenir.');
-    bullet('Ana Sayfa (/) — Home ikonu');
-    bullet('Cevrimici (/lobby) — Globe ikonu');
-    bullet('Ayarlar (/settings) — Settings ikonu');
-    drawText('env(safe-area-inset-bottom) ile iOS home indicator alani korunur.', { color: gray });
+    bullet('Akis: MainMenu -> /solo (SoloChallenge: kategori + zorluk) -> /game?mode=solo&...');
+    bullet('Game.jsx solo modda lobbyId\'siz calisir, lobbyData yalnizca yerel state\'tedir.');
+    bullet('useOfflineQuestions soru havuzunu yukler; secim kategoriye/zorluga gore lib/gameRules helperlari ile filtrelenir.');
+    bullet('Tekrarsizlik: oturum-ici used_question_ids (SERT) + cross-game LRU history (questionHistory.js) + ayni oyuncunun timeline\'inda mevcut yillara denk soru TERCIH EDILMEZ.');
+    bullet('Yerlestirme kurallari lib/gameRules\'a baglidir: isCorrectPlacement, hasPlayerWon (win_card_count).');
+    bullet('Oyun bitince kazanan oyuncu icin GameRecord.create cagrilir (sadece authenticated). TopScores Settings\'te kullaniciya gosterilir.');
+    bullet('SOLO MOD ONLINE STATE\'TEN TAMAMEN IZOLEDIR: useLobbySync ve updateLobbyGameState cagrilmaz.');
 
     // ══════════════════════════════════════════════════════════════════════════
-    // 7. OYUN MEKANİĞİ YEREL
+    // 10. ONLINE MULTIPLAYER
     // ══════════════════════════════════════════════════════════════════════════
     newPage();
-    sectionTitle('7. Oyun Mekanigi — Yerel Mod');
-    drawText('Tum mantik istemci tarafinda calisir, ag baglantisi yalnizca soru yukleme icin gereklidir.');
-    spacer();
-    bullet('Baslangiçta her oyuncuya 2 kart dagitilir, Fisher-Yates karistirmasi ile soru secilir.');
-    bullet('Her turda aktif oyuncuya bir soru gosterilir.');
-    bullet('Oyuncu, kendi zaman cizgisinde uygun bolgeyi secer ve "Yerlestir" butonuna basar.');
-    bullet('Yerlestirme dogruysa kart timeline\'a eklenir; yanlisSsa kart iptal edilir.');
-    bullet('win_card_count kartina ulasan oyuncu kazanir.');
-    bullet('Tur suresi dolunca (turn_duration > 0) sira otomatik gecer.');
-    spacer();
-    drawText('Yerlestirme dogrulugu kontrolu:');
+    sectionTitle('10. Online Multiplayer Mimarisi');
+
+    subTitle('Akis');
     codeBlock([
-      '// zone=0  : sorununun yili, ilk karttan kucuk veya esit olmali',
-      '// zone=N  : sorunun yili, son karttan buyuk veya esit olmali',
-      '// zone=i  : sortedCards[i-1].year <= questionYear <= sortedCards[i].year',
+      'MainMenu (Online Battle) -> /lobby',
+      '  LobbyCreateJoinPanel (isim + kod) -> Lobby.create veya findLobbyByCode',
+      '-> WaitingRoomPanel (host: ayarlar; non-host: refresh)',
+      '   Host "OYUNU BASLAT" -> buildInitialOnlineGameState(...)',
+      '   -> Lobby.update({ players (kartlar dahil), status:"in_game",',
+      '                    current_question_id, used_question_ids, current_player_index:0 })',
+      '-> tum oyuncular subscription+poll ile status="in_game" gorur, /game\'e gider',
     ]);
 
+    subTitle('Oyun ici dongu');
+    bullet('useLobbySync (Game.jsx icinde) Lobby\'e abone olur; her event\'te lobbyData state\'i normalize edilerek guncellenir.');
+    bullet('Aktif oyuncu (players[current_player_index]) kart yerlestirir. Diger oyuncular ayni sorunun spectator gorunumunu gorur, kart yerlestiremez.');
+    bullet('useGameActions.doPlacement: yerleti dogrular, optimistic local state guncellemesi yapar, ardindan updateLobbyGameState\'i cagirir (3 deneme + recovery fetch).');
+    bullet('Tur gecisi getNextPlayerIndex(currentIndex, playerCount) ile %N rotasyonludur; 2/3/4 oyuncu desteklenir.');
+    bullet('Soru secimi yeni aktif oyuncunun timeline yillarini disarida birakacak sekilde tercih edilir (selectNextQuestion).');
+
+    subTitle('Kazanma / kaybetme');
+    bullet('hasPlayerWon true olunca host olsun olmasin status="finished" yazilir; winner ve winner_email Lobby uzerinde tutulur.');
+    bullet('GameOver bileseni winner_email == current user.email ise zafer, aksi halde kaybetme metni gosterir.');
+    bullet('Lobby finished olduktan sonra updateLobbyGameState daha fazla yazim kabul etmez.');
+
+    subTitle('Reconnect / refresh');
+    bullet('Refresh sirasinda useLobbySync ilk renderda Lobby.get yapar; durum DB\'den yeniden bootstrap edilir.');
+    bullet('Route state yalnizca bootstrap icin kullanilir, HICBIR NOKTADA otorite degildir.');
+    bullet('Subscription kopukluklarini polling fallback (useWaitingRoomSync ve useLobbySync) yakalar.');
+
     // ══════════════════════════════════════════════════════════════════════════
-    // 8. ÇEVRİMİÇİ MOD
+    // 11. STATE OTORITESI
     // ══════════════════════════════════════════════════════════════════════════
     newPage();
-    sectionTitle('8. Oyun Mekanigi — Cevrimici Mod');
+    sectionTitle('11. Online State Otoritesi & Senkronizasyon');
 
-    subTitle('Baslatma Akisi');
-    bullet('Host "Oyunu Baslat" dediginde Fisher-Yates ile karistirilan sorular dagitilir, Lobby.status = "starting" olur.');
-    bullet('Host navigate.state icinde initialPlayers ve currentQuestionId ile /game\'e gider.');
-    bullet('Diger oyuncular subscription uzerinden status="starting" eventi alir ve ayni sekilde navigate eder.');
-    bullet('Subscription closure stale deger sorununa karsi useRef pattern kullanilir: userRef ve playerNameRef her guncellemede senkronize edilir.');
-    spacer(6);
-
-    subTitle('Senkronizasyon Stratejisi');
-    bullet('Optimistic update: Kullanici hamlesi yapinca state hemen guncellenir, ardindan DB\'ye yazilir.');
-    bullet('Atomik DB yazimi: handleConfirmPlacement, kart ekleme + tur gecisi + yeni soruyu TEK DB yazmasiyla gerceklestirir.');
-    bullet('Retry mekanizmasi: DB yazimi basarisiz olursa 3 denemeye kadar 1.2sn aralikla yeniden denenir.');
-    bullet('Subscription: Lobby entity\'si WebSocket uzerinden dinlenir; gelen event aninda lobbyData state\'ine uygulanir.');
-    spacer(6);
-
-    subTitle('Tur Gecis Mantiği');
-    codeBlock([
-      'handleConfirmPlacement()  [TEK ATOMIK ADIM]',
-      '  1. Dogruluk kontrolu',
-      '  2. Optimistic state guncelle (kart + nextIndex + nextQ)',
-      '  3. Kazanma kontrolu',
-      '  4. DB yazimi: players, used_question_ids, current_player_index,',
-      '                current_question_id, status -- hepsi tek update()',
-      '',
-      'advanceTurn()  [sadece timer dolunca]',
-      '  1. nextIndex = (currentIndex + 1) % playerCount',
-      '  2. Yeni soru sec (Fisher-Yates havuzdan)',
-      '  3. DB guncelle (current_player_index, current_question_id)',
-    ]);
-    spacer(6);
-
-    subTitle('Lobi Ayarlari Debounce');
-    drawText('WaitingRoom\'da host ayar butonlarina hizli basinca DB flood olusmasin diye 300ms debounce uygulanir. Ayrica lobby prop\'u degisince settings state\'i useEffect ile senkronize edilir (non-host okuma icin).');
-    spacer(6);
-
-    subTitle('Izleme & Bekleme');
-    drawText('Sirasi gelmeyen oyuncular kart yerlestiremez (isMyTurn = false). Diger oyuncularin timelinelari read-only gosterilir. Kendi kartlari ise ayri bir blokta gorunur.');
+    bullet('Lobby entity TEK gercek kaynaktir. Lokal state DB ile uyumsuzlasirsa kaynak DB\'dir.');
+    bullet('useLobbySync oyun-ici sync\'in tek otoritesidir; baska sayfa veya component manuel Lobby.update yapmaz, hepsi updateLobbyGameState\'ten gecer.');
+    bullet('Route state (navigate("/game", { state })) yalnizca first paint icin bootstrap saglar; senkronizasyona girildikten sonra silinmis varsayilir.');
+    bullet('Yarisma kosullarina karsi: useGameActions retry + recoverLatestLobbyState (Lobby.get) ile self-heal yapar.');
+    bullet('Subscription closure\'larinda stale kullanici verisi olmamasi icin useRef pattern lobby/playerName/user referanslarina uygulanir.');
 
     // ══════════════════════════════════════════════════════════════════════════
-    // 8b. DRAG-AND-DROP MİMARİSİ
+    // 12. SUNUCU DOGRULAMA
+    // ══════════════════════════════════════════════════════════════════════════
+    spacer(12);
+    sectionTitle('12. Sunucu Tarafi Dogrulama (Trust Boundary)');
+
+    drawText('updateLobbyGameState istemciye guvenmez ve asagidaki kurallari sunucuda zorlar:');
+    bullet('Auth: base44.auth.me() yoksa 401.');
+    bullet('VALID_STATUSES: status yalnizca starting/in_game/finished olabilir.');
+    bullet('containsAllPreviousIds: yeni used_question_ids eskileri tamamen icermeli.');
+    bullet('Oyuncu listesi: eklenmez, cikartilmaz, sira degismez.');
+    bullet('Kart butunlugu: yalnizca current_player\'in cards uzunlugu +1.');
+    bullet('current_player_index: getNextPlayerIndex sonucuna esit.');
+    bullet('winnerIndex / winner_email: gercek bir oyuncu, hasPlayerWon true.');
+    spacer(6);
+
+    microTitle('Suanki guvenli yuzey', ok);
+    bullet('Gunluk casual abuse engellenir; "tek tikla kazanma" istemci enjeksiyonlari sunucuda dusurulur.');
+    microTitle('Henuz hazir olmayan kismi', danger);
+    bullet('Anomali tabanli anti-cheat yok (timing heuristikleri, soru bilgisi sizintisi vb.).');
+    bullet('Bu nedenle Online henuz ranked liderlik tablosu icin trust\'li sayilmaz.');
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 13. DRAG-AND-DROP
+    // ══════════════════════════════════════════════════════════════════════════
+    newPage();
+    sectionTitle('13. Drag-and-Drop & Timeline');
+
+    bullet('Ghost kart viewport koordinatinda (position:fixed) takip eder; Timeline hit-test\'i world koordinatinda calisir (worldX = clientX - containerLeft + scrollLeft).');
+    bullet('Edge auto-scroll: sol/sag 80px esiginde requestAnimationFrame ile 60fps kayma; isDragMode false oldugunda cleanup\'la durdurulur.');
+    bullet('Saf yerlestirme dogrulamasi lib/gameRules.isCorrectPlacement ile yapilir; UI bu fonksiyonu HICBIR NOKTADA kopyalamaz.');
+    bullet('Bu mimari KORUMALIDIR: koordinat uzaylarinin karistirilmasi kullanicinin kartlari yanlis bolgeye dusmesine yol acar.');
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 14. TEST SUITE
     // ══════════════════════════════════════════════════════════════════════════
     spacer(10);
-    sectionTitle('8b. Drag-and-Drop Mimarisi (Dokunmatik)');
+    sectionTitle('14. Test Suite & Simulation Panel');
 
-    subTitle('Koordinat Sistemi Ayrimi');
-    drawText('Ghost kart (parmak takipci) ile timeline hit-testing farkli koordinat uzaylarinda calisir:');
-    bullet('Ghost kart: viewport koordinati (clientX/Y) — position:fixed ile render edilir, scroll etkisinden bagimsizdir.');
-    bullet('Drop zone hit-testi: world koordinati — viewportX - containerLeft + scrollLeft formulu ile hesaplanir.');
-    drawText('Bu ayrim sayesinde kullanici timeline\'i ne kadar kaydirirsa kaydirsin kart birakmasi dogru bolgede gerceklesmektedir.', { color: gray });
-    spacer(4);
+    bullet('Erisim: /test-suite VEYA Settings -> Admin Araclari -> Regression Test Panel. isAdminUser disindaki kullanicilar engellenir.');
+    bullet('Kategoriler: smoke, architecture, home, offline, lobby, sync, gameover, questions, media, admin, tutorial, records, performance, stability, exceptional, removed, release.');
+    bullet('Sonuc tipleri: PASS / FAIL / WARNING / SKIPPED. Skipped, deterministik calistirilamayan ya da harici E2E gerektiren senaryolar icindir.');
+    bullet('Eylemler: "TUM TESTLERI CALISTIR", kategori filtreleme, "Copy Report" (tum sonuclar JSON), "Copy Failed Only" (yalniz FAIL/WARNING/SKIPPED -- AI Coder\'a yapistirmak icin).');
+    bullet('Yorum: FAIL hemen onarilmali; WARNING hizla incelenmeli; SKIPPED yalniz manuel test/E2E gerektiriyorsa kabul.');
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 15. PERFORMANS
+    // ══════════════════════════════════════════════════════════════════════════
+    newPage();
+    sectionTitle('15. Performans & Mobil WebView');
+
+    bullet('Lazy loading: tum sayfalar React.lazy ile bolunur; SplashScreen ortak fallback.');
+    bullet('Animasyon kurali: AnimatePresence mode="wait" ile sayfa gecisleri tek seferlik; ic animasyonlar mobilde ucuza tutulur.');
+    bullet('Timer/interval cleanup: useGameActions schedule timeout\'lari Set icinde tutar, unmount\'ta tum window.clearTimeout cagrilir.');
+    bullet('Subscription cleanup: useLobbySync ve useWaitingRoomSync sayfa terk edildikten sonra poll/setInterval birakmaz.');
+    bullet('Audio cleanup: muzik sorulari oncesinde onceki Audio nesneleri pause+src=null ile bos birakilir.');
+    bullet('Production debug gating: console.log yerine lib/debugLog.js kullanilir; release derlemelerinde sessizlestirilir.');
+    bullet('Risk alanlari: cok hizli host tiklamalari, 4 oyuncuda subscription gecikme tepe noktalari, dusuk RAM cihazlarda muzik decode.');
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 16. KORUNMALI -- PRATIK KURALLAR
+    // ══════════════════════════════════════════════════════════════════════════
+    newPage();
+    sectionTitle('16. Korunmasi Gereken Sistemler -- Pratik Kurallar');
+
+    subTitle('A. Timeline hit-testing');
+    drawText('Neden kirilgan: viewport vs world koordinatlari kolayca karistirilir.');
+    aiBlock({
+      doList: [
+        'Hit-test her zaman world coord ile yapilmali (containerLeft + scrollLeft).',
+        'Ghost kart her zaman viewport coord (position:fixed) ile takip etmeli.',
+      ],
+      dontList: [
+        'Hit-test\'te direct clientX kullanmak (scroll varken yanlis bolge secer).',
+        'Ghost karti scroll konteyneri icine yerlestirmek.',
+      ],
+      files: ['components/game/Timeline.jsx', 'components/game/GameLayout.jsx', 'components/game/QuestionCard.jsx'],
+      tests: ['Test Suite -> offline, sync, stability kategorileri', 'Manuel: timeline ortasinda surukle-birak'],
+      risk: 'High',
+    });
+
+    subTitle('B. Drag/drop ghost card');
+    aiBlock({
+      doList: [
+        'Touch start/move/end olaylari aktif aktarilmali; passive listener kullanma.',
+        'Kart birakma isPlacingRef ile kilitlenir (500ms).',
+      ],
+      dontList: [
+        'Yeni libdaki drag-drop kutuphanesi eklemek (mevcut sistemi degistirmeden).',
+        'Touch event bubbling\'ini bozmak.',
+      ],
+      files: ['components/game/QuestionCard.jsx', 'components/game/GameLayout.jsx', 'components/game/Timeline.jsx'],
+      tests: ['Test Suite -> offline, stability', 'Manuel: 3 ust uste hizli yerlestirme'],
+      risk: 'High',
+    });
+
+    subTitle('C. gameRules placement logic');
+    aiBlock({
+      doList: [
+        'Yerlestirme dogrulugu icin yalniz lib/gameRules.isCorrectPlacement cagir.',
+        'Yeni oyun modu gelirse helperi parametre ile genislet, kopyalama.',
+      ],
+      dontList: [
+        'isCorrectPlacement\'i UI icinde yeniden yazmak.',
+        'hasPlayerWon esigini inline degistirmek.',
+      ],
+      files: ['lib/gameRules.js', 'hooks/useGameActions.js', 'functions/updateLobbyGameState'],
+      tests: ['Test Suite -> sync, offline, lobby', 'runTestSuite saf unit'],
+      risk: 'High',
+    });
+
+    subTitle('D. useLobbySync subscription + polling fallback');
+    aiBlock({
+      doList: [
+        'Subscription unsubscribe useEffect cleanup\'inda mutlaka cagrilmali.',
+        'Polling interval window.clearInterval ile temizlenmeli.',
+      ],
+      dontList: [
+        'Lobby.update\'i bu hook DISINDA manuel cagirmak.',
+        'Route state\'i (navigate({state})) otorite gibi kullanmak.',
+      ],
+      files: ['hooks/useLobbySync.js', 'hooks/useWaitingRoomSync.js', 'pages/Game.jsx'],
+      tests: ['Test Suite -> lobby (subscription_cleanup_preserved, polling_fallback_preserved)', 'Manuel 2-cihaz refresh testi'],
+      risk: 'High',
+    });
+
+    subTitle('E. Home 1080x1920 stage');
+    aiBlock({
+      doList: [
+        'Yeni eleman eklerken sahnenin yuzdesini koru.',
+        'isWideStage kosulunu kullan; vh/vw nudge ekleme.',
+      ],
+      dontList: [
+        'Solo/Online kart yuzdelerini elle "duzeltmek".',
+        'document.body.style.overflow degistirmek.',
+      ],
+      files: ['pages/MainMenu.jsx', 'index.css'],
+      tests: ['Test Suite -> home (expected_card_coords, equal_card_size, desktop_stage_clickable, viewport_*)', 'Mobil tarayicida scroll yok kontrolu'],
+      risk: 'Medium',
+    });
+
+    subTitle('F. updateLobbyGameState validation');
+    aiBlock({
+      doList: [
+        'Yeni alan eklendiginde validateGameStateUpdate listesine ekle.',
+        'Reddedilen update sonrasi istemci Lobby.get ile self-heal yapsin.',
+      ],
+      dontList: [
+        'used_question_ids\'i kucultmek.',
+        'Oyuncu listesini eklemek/cikarmak/siralamak.',
+      ],
+      files: ['functions/updateLobbyGameState', 'hooks/useGameActions.js', 'hooks/useLobbySync.js'],
+      tests: ['Test Suite -> exceptional (server_reject_*)', 'simulateOnlineGame'],
+      risk: 'High',
+    });
+
+    subTitle('G. Lobby entity contract');
+    aiBlock({
+      doList: ['Yeni alan eklemeden once data contracts bolumunu okuyun.'],
+      dontList: ['Var olan alanlarin anlamini degistirmek.', 'Ek alanlari sessizce ekleyip server validation\'i kosturmadan release etmek.'],
+      files: ['entities/Lobby.json', 'lib/lobbyUtils.js', 'lib/onlineGameStart.js', 'functions/updateLobbyGameState'],
+      tests: ['Test Suite -> architecture, lobby, sync'],
+      risk: 'High',
+    });
+
+    subTitle('H. Media fallback rendering');
+    aiBlock({
+      doList: [
+        'Medya hatasinda kullaniciya bos ekran gosterme; QuestionMediaLoader fallback\'ini kullan.',
+        'Hatali soruyu skipCurrentQuestion ile gec.',
+      ],
+      dontList: [
+        'media_url null kontrolsuz oynatmak (audio crash).',
+        'Sessizce yutmak (logsuz).',
+      ],
+      files: ['components/game/QuestionCard.jsx', 'components/game/QuestionMediaLoader.jsx', 'hooks/useGameActions.js (skipCurrentQuestion)'],
+      tests: ['Test Suite -> media kategorisi', 'Manuel: bozuk url ile soru'],
+      risk: 'Medium',
+    });
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 17. GUVENLE DEGISTIRME REHBERI
+    // ══════════════════════════════════════════════════════════════════════════
+    newPage();
+    sectionTitle('17. Kodu Guvenle Degistirme Rehberi');
+
+    subTitle('Smallest possible patch');
+    bullet('Bir istegi en az dosya ve en az satira indir; gereksiz refactor yapma.');
+    bullet('Yeni component klasoru acmadan once mevcut bir component genisletilebilir mi diye bak.');
+
+    subTitle('Asla casually degistirme');
+    bullet('Protected systems (Bolum 16) listesindeki hicbir sey "side effect olmadan" degismez.');
+    bullet('useLobbySync ve gameRules helper imzalari urune yayilmistir; degisiklik en az 5 dosyada test gerektirir.');
+
+    subTitle('Degisiklik sonrasi her zaman');
+    bullet('Test Simulation calistir (/test-suite veya Settings).');
+    bullet('"Copy Failed Only" ile basarisiz testleri AI Coder\'a yapistir.');
+    bullet('Mobil tarayicida en az Home + Solo + Online lobi acilis kontrolu.');
+
+    subTitle('Behavior-preserving refactor onceligi');
+    bullet('Davranisi koruyan refactorlar test suite gecmeli (PASS).');
+    bullet('Davranis degisecekse aciklamasi commit/PR mesajinda olmali.');
+
+    subTitle('AI Coder\'a brief verme');
+    bullet('"Sadece su dosyalar degisecek" listesi ver.');
+    bullet('"Su sistemler degisemez" listesi ver (protected).');
+    bullet('"Test sonucu nasil olmali" net belirt.');
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 18. YENI OZELLIK GIRIS NOKTALARI
+    // ══════════════════════════════════════════════════════════════════════════
+    newPage();
+    sectionTitle('18. Yeni Ozellik Giris Noktalari');
+
+    subTitle('Profile sayfasi');
+    aiBlock({
+      doList: [
+        'Yeni rota /profile App.jsx\'e ekle, lazy import.',
+        'Veri GameRecord uzerinden aggregate; AuthContext\'ten user al.',
+        'BottomNav\'a yeni sekme eklenmeli (mevcut 3 sekme ile uyum).',
+      ],
+      dontList: [
+        'Lobby uzerinden istatistik tutmak (anlik state\'tir, gecmis yok).',
+        'Mobile Home stage geometrisini degistirmek.',
+      ],
+      files: ['pages/Profile.jsx (yeni)', 'App.jsx', 'components/layout/BottomNav.jsx', 'entities/GameRecord.json'],
+      tests: ['Test Suite -> smoke (profile route)', 'records kategorisini genislet'],
+      risk: 'Medium',
+    });
+
+    subTitle('Scoring (puanlama)');
+    aiBlock({
+      doList: [
+        'lib/scoring.js olustur; tum puan hesaplamasi orada saf fonksiyonlar.',
+        'GameRecord\'a opsiyonel "score" alani ekle (geri uyumlu).',
+        'Solo bitiminde scoring.computeFinalScore(...) cagrilsin.',
+      ],
+      dontList: [
+        'Online sonrasi clientten skoru DB\'ye yazmak (trust yok).',
+        'Puanlamayi GameOver UI icine inline yazmak (test edilemez).',
+      ],
+      files: ['lib/scoring.js (yeni)', 'hooks/useGameActions.js', 'entities/GameRecord.json'],
+      tests: ['Saf unit testler lib/scoring.js icin', 'Test Suite -> records'],
+      risk: 'Medium',
+    });
+
+    subTitle('Leaderboard');
+    aiBlock({
+      doList: [
+        'Once sunucu trust boundary\'sini guclendir (bkz. Bolum 19).',
+        'Sadece dogrulanmis Lobby.status=finished kayitlarini aggregate et.',
+      ],
+      dontList: [
+        'Suanki Lobby uzerinden global leaderboard yayinlamak.',
+        'Anti-cheat yokken ranked publish etmek.',
+      ],
+      files: ['functions/leaderboardAggregate (yeni - server)', 'pages/Leaderboard.jsx (yeni)'],
+      tests: ['Sunucu reddetme yuzeyi genislemeli', 'Test Suite -> exceptional server_reject_*'],
+      risk: 'High',
+    });
+
+    subTitle('Rematch');
+    aiBlock({
+      doList: [
+        'Mevcut Lobby uzerinde reset: status="waiting", winner=null, winner_email=null, used_question_ids=[], current_player_index=0.',
+        'Yeniden dagitim icin buildInitialOnlineGameState\'i tekrar cagir.',
+        'Sunucu yeni bir "rematch" eyleminin geçerli bir tahriklenmesi olarak tanitilmali.',
+      ],
+      dontList: [
+        'Yeni bir Lobby acmak (kod degisir, oyuncular kaybeder).',
+        'players cards alanini istemcide elle silmek.',
+      ],
+      files: ['components/game/GameOver.jsx (rematch CTA)', 'lib/onlineGameStart.js', 'functions/updateLobbyGameState'],
+      tests: ['Test Suite -> sync, lobby', 'simulateOnlineGame icine rematch akisi'],
+      risk: 'Medium',
+    });
+
+    subTitle('Ranked mode');
+    aiBlock({
+      doList: [
+        'Once anomali tespiti / timing heuristikleri eklenmeli.',
+        'Skor sistemi ve leaderboard stabil olmali.',
+      ],
+      dontList: ['Anti-cheat yokken ranked publish etmek.'],
+      files: ['Multiple -- buyuk feature, hazirlik gerekli'],
+      tests: ['Genis E2E ve sunucu testleri gerekecek'],
+      risk: 'High',
+    });
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 19. BILINEN SINIRLAMALAR
+    // ══════════════════════════════════════════════════════════════════════════
+    newPage();
+    sectionTitle('19. Bilinen Sinirlamalar');
+
+    bullet('Ranked/leaderboard guvenilir rekabet icin HAZIR DEGIL.');
+    bullet('Anti-cheat / anomaly detection yok (timing, soru bilgisi sizintisi).');
+    bullet('Online trust gelistirildi ancak ranked seviyesi icin yetersiz.');
+    bullet('Bazi testler deterministik simulasyondur; tam E2E (gercek 2 cihaz) degil.');
+    bullet('Android/iOS WebView gercek-cihaz dokunmatik QA hala manuel yapilmali.');
+    bullet('Cok dusuk RAM cihazlarda muzik decode + animasyonlar duraksayabilir.');
+    bullet('Subscription kopukluklarinda polling fallback devreye girer; idealden gec gorunum mumkun.');
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 20. TERIMLER SOZLUGU
+    // ══════════════════════════════════════════════════════════════════════════
+    newPage();
+    sectionTitle('20. Terimler Sozlugu (Aktif vs Legacy)');
+
     codeBlock([
-      '// Viewport -> World donusumu (Timeline.jsx)',
-      'const worldX = clientX - containerRect.left + scroll.scrollLeft;',
-      '',
-      '// Drop zone merkezi de world uzayinda hesaplanir:',
-      'const elWorldCX = (elRect.left + elRect.right) / 2',
-      '                  - containerRect.left + scroll.scrollLeft;',
-    ]);
-    spacer(4);
-
-    subTitle('Auto-Scroll (Edge Scrolling)');
-    bullet('Parmak timeline sol kenarina (<80px) veya sag kenarina (<80px) yaklasinca otomatik kayma baslar.');
-    bullet('requestAnimationFrame dongusu ile 60fps akici kayma saglanir; scrollLeft += direction * 10 per frame.');
-    bullet('Parmak kaldirilindiginda veya drag modu bittiginde cancelAnimationFrame ile durdurulur.');
-    bullet('isDragMode false olunca useEffect cleanup ile RAF iptali garantilenir.');
-    spacer(4);
-
-    subTitle('Prop Akisi: QuestionCard -> GameLayout -> Timeline');
-    codeBlock([
-      'QuestionCard',
-      '  onTouchStart  ==> setIsDragging(true)',
-      '  onTouchMove   ==> setTouchDragPos({ x: clientX, y: clientY })',
-      '  onTouchEnd    ==> setTouchDragEnd({ x, y }); setTouchDragPos(null)',
-      '',
-      'GameLayout (ghost kart burda render edilir)',
-      '  touchDragPos  ==> fixed div: left=x-80, top=y-60  (viewport)',
-      '',
-      'Timeline',
-      '  dragClientX   ==> getZoneAtClientX (world coords) + auto-scroll',
-      '  dragEndEvent  ==> final drop zone tespiti ==> onPlaceCard(zone)',
-    ]);
-    spacer(4);
-
-    subTitle('Kaldirildi: onExternalZoneChange');
-    drawText('Onceki versiyonda GameLayout, Timeline\'dan aktif zone bilgisini geri almak icin onExternalZoneChange prop\'u kullaniyordu. Bu prop gereksiz karmasiklik olusturdugundan kaldirildi; ghost kart artik dogrudan touchDragPos ile viewport uzayinda konumlanir ve Timeline zone bilgisini sadece icinde tutar.');
-
-    // ══════════════════════════════════════════════════════════════════════════
-    // 9. BACKEND FONKSİYONLAR
-    // ══════════════════════════════════════════════════════════════════════════
-    newPage();
-    sectionTitle('9. Backend Fonksiyonlar');
-
-    subTitle('simulateOnlineGame');
-    drawText('42 farkli cevrimici oyun senaryosunu otomatik olarak calistiran test suitedir. Admin\'in SettingsPage > Araclar > "Online Simulasyonlar" uzerinden tetiklenir. user.role="admin" kontrolu zorunludur.');
-    spacer(4);
-    bullet('2 Oyuncu: normal akis, kazanma, gecikme, es zamanli yazim, chat, lobi silme');
-    bullet('3 Oyuncu: tur sirasi, spectator engeli, tur suresi, soru yeniden kullanimi');
-    bullet('4 Oyuncu: tam tur dongusu, P3 kazanma, tum ekranlar winner goruntusu');
-    bullet('Veri Butunlugu: kart sayisi dogrulama, used_question_ids tekrarsizlik');
-    bullet('Performans: 10 tur hiz testi, subscription gecikme olcumu');
-    bullet('UI Gorunurluk: portrait/landscape gecis, soru karti render, timer gorunurlugu');
-    bullet('Stabilite: soru havuzu tukenme, cok turlu oyun, baglanti kopuklugun kurtarma');
-    spacer(6);
-
-    subTitle('runTestSuite (YENİ)');
-    drawText('41 senaryolu kapsamli test suite. Unit, Black Box, Fonksiyonel, Performans ve Oynanabilirlik kategorilerini icerir. /test-suite adresindeki TestSuite sayfasindan interaktif olarak calistirilab ilir. Yalnizca admin erisimlidir.');
-    spacer(4);
-    bullet('Unit (10): shuffle, kart yerlesim mantiği, yil/kategori filtresi, pickQuestion');
-    bullet('Black Box (8): Lobby CRUD, LobbyMessage, gecersiz kod testi');
-    bullet('Fonksiyonel (8): kart dagitimi, tur dongusu, kazanma, offline mod, ayar guncelleme');
-    bullet('Performans (5): 500 soru yukleme, 10 lobi oluşturma, shuffle hizi, filtre suresi');
-    bullet('Oynanabilirlik (10): oyuncu sayisi, kategori varligi, sure ayari, soru havuzu yeterliligi');
-    spacer(6);
-
-    subTitle('getDeezerPreview');
-    drawText('Muzik sorusu kartlari icin Deezer API\'den canli preview URL\'i ceken proxy fonksiyondur. Onceki sistemde sabit media_url alanlari kullaniliyordu; suresi dolunca ses calamiyordu. Yeni mimaride QuestionCard her mount\'ta bu fonksiyonu cagirarak taze URL alir.');
-    spacer(4);
-    bullet('Giris: { query: "sarki adi sanatci adi" }');
-    bullet('Cikis: { previewUrl: string | null }');
-    bullet('Birincil arama basarisiz olursa daha genis terimle fallback arama yapilir.');
-    bullet('URL alinaninda QuestionCard otomatik oynatmayi baslatir.');
-    spacer(6);
-
-    subTitle('generateTechDoc (Bu Dokuman)');
-    drawText('Uygulamanin mimari ve teknik dokumani otomatik olarak PDF formatinda ureten backend fonksiyondur. pdf-lib kutuphanesi ile Deno uzerinde calisir. Admin yetkisi gerekmez.');
-    spacer(6);
-
-    subTitle('generateWorkflowDoc');
-    drawText('Uygulamanin is akislari, kullanim senaryolari ve surec adimlarini PDF formatinda ureten fonksiyondur. user.role="admin" kontrolu ile korunur.');
-
-    // ══════════════════════════════════════════════════════════════════════════
-    // 10. KİMLİK DOĞRULAMA & MOBİL
-    // ══════════════════════════════════════════════════════════════════════════
-    newPage();
-    sectionTitle('10. Kimlik Dogrulama & Mobil (APK)');
-
-    subTitle('AuthContext Yapisi');
-    drawText('base44.auth.me() ile oturum durumu kontrol edilir. Hata tipleri:');
-    bullet('auth_required: Giris gerekli → base44.auth.redirectToLogin() tetiklenir.');
-    bullet('user_not_registered: Kayitli olmayan kullanici → UserNotRegisteredError ekrani.');
-    bullet('unknown: Beklenmeyen hata → authError state\'ine atanir.');
-    spacer(6);
-
-    subTitle('APK (WebView) Google Login Duzeltmesi');
-    drawText('Android WebView icinde Google OAuth yonlendirmesi ozel dikkat gerektirir:');
-    bullet('Onceki surum: auth_required hatasi sessizce yutuluyordu; APK\'da giris calismiyor.');
-    bullet('Duzeltme: auth_required hata tipi acikca yakalanip redirectToLogin() cagrisi yapildi.');
-    bullet('App.jsx\'te authError.type === "auth_required" kontrolu ile login akisi yeniden devrede.');
-    spacer(6);
-
-    subTitle('Genel Auth Akisi');
-    codeBlock([
-      'AuthProvider mount -> base44.auth.me()',
-      '  OK         -> user state set, uygulama render',
-      '  auth_req   -> redirectToLogin(pathname)',
-      '  not_reg    -> UserNotRegisteredError ekrani',
-      '  unknown    -> authError state, fallback UI',
-    ]);
-
-    // ══════════════════════════════════════════════════════════════════════════
-    // 11. LANDSCAPE MODU
-    // ══════════════════════════════════════════════════════════════════════════
-    newPage();
-    sectionTitle('11. Landscape Modu Destegi');
-
-    subTitle('Tailwind Custom Screen');
-    drawText('tailwind.config.js icinde "landscape" adli ozel bir screen tanimlanmistir:');
-    codeBlock([
-      'screens: {',
-      '  landscape: {',
-      '    raw: "(orientation: landscape) and (max-height: 600px)"',
-      '  }',
-      '}',
-    ]);
-    drawText('Bu sayede landscape: prefix\'i tum Tailwind siniflarinda kullanilabilir. Sadece telefon landscape modunda (max-height 600px) aktif olur; tablet/masaustu etkilenmez.');
-    spacer(6);
-
-    subTitle('Game.jsx Landscape Duzeni');
-    drawText('Portrait modda dikey, landscape modda yatay 3-kolon duzeni aktif olur:');
-    bullet('Sol kolon (landscape:w-52): PlayerIndicator + QuestionCard + Yerlestir butonu');
-    bullet('Orta alan: Timeline (aktif oyuncunun kart sirasi)');
-    bullet('Bazi UI elementleri landscape\'de kucultulur: TurnTimer, bosluklar, metin boyutu');
-    bullet('Portrait moduna ozel bolumler landscape:hidden, landscape\'e ozel bolumler hidden landscape:flex ile gizlenir/gosterilir');
-    spacer(6);
-
-    subTitle('CSS Safe-Area');
-    drawText('iOS/Android notch ve navigation bar icin env(safe-area-inset-*) degiskenleri tum sayfa ve header bilesenlerinde kullanilmaktadir. index.css body elementine padding olarak uygulanmistir.');
-
-    // ══════════════════════════════════════════════════════════════════════════
-    // 12. TEST SUITE
-    // ══════════════════════════════════════════════════════════════════════════
-    newPage();
-    sectionTitle('12. Test Suite (41 Senaryo)');
-
-    drawText('Son yapilan degisiklikleri kapsamak uzere 5 kategoride 41 otomatik test yazilmistir. Tum testler /test-suite sayfasindan veya runTestSuite backend fonksiyonundan calistirilab ilir.');
-    spacer(6);
-
-    subTitle('Unit Testler (10)');
-    bullet('UT-01: Lobby kodu 6 karakter olmali');
-    bullet('UT-02: Question entity alan dogrulama');
-    bullet('UT-03: Fisher-Yates shuffle calisma dogrulama');
-    bullet('UT-04..06: Kart yerlesim mantiği (basa/ortaya/yanlis zone)');
-    bullet('UT-07: Kazanma kosulu (win_card_count esigi)');
-    bullet('UT-08..10: Yil filtresi, kategori filtresi, pickQuestion tekrarsizlik');
-    spacer(4);
-
-    subTitle('Black Box Testler (8)');
-    bullet('BB-01: Lobby olusturma API');
-    bullet('BB-02: Lobby kod ile filtreleme');
-    bullet('BB-03: Oyuncu ekleme');
-    bullet('BB-04: Status guncelleme');
-    bullet('BB-05: Lobby silme');
-    bullet('BB-06: Gecersiz kod → bos sonuc');
-    bullet('BB-07: Question listesi erisimi');
-    bullet('BB-08: LobbyMessage olusturma/okuma');
-    spacer(4);
-
-    subTitle('Fonksiyonel Testler (8)');
-    bullet('FT-01: Oyun baslatma kart dagitim dogrulugu');
-    bullet('FT-02..03: 2 ve 4 oyunculu tur sirasi dongusu');
-    bullet('FT-04: Kazanma → status=finished yazimi');
-    bullet('FT-05: Soru tekrar edilmemesi');
-    bullet('FT-06: Offline mod minimum soru gereksinimi');
-    bullet('FT-07: Lobi ayarlari guncelleme');
-    bullet('FT-08: Yetkisiz erisim engeli');
-    spacer(4);
-
-    subTitle('Performans Testler (5)');
-    bullet('PERF-01: 500 soru yukleme < 5sn');
-    bullet('PERF-02: 10 lobi olusturma+silme < 10sn');
-    bullet('PERF-03: 500 soruda Fisher-Yates < 50ms');
-    bullet('PERF-04: Yil+kategori filtreleme < 10ms');
-    bullet('PERF-05: LobbyMessage okuma < 2sn');
-    spacer(4);
-
-    subTitle('Oynanabilirlik Testler (10)');
-    bullet('PLAY-01..02: 1 oyuncu ve minimum 3 soru offline');
-    bullet('PLAY-03: 4 oyunculu lobby kurulumu');
-    bullet('PLAY-04: Tum kategorilerde soru varligi');
-    bullet('PLAY-05: Gecersiz yil alanlari kontrolu');
-    bullet('PLAY-06: 1900-2020 araliginda minimum 20 soru');
-    bullet('PLAY-07..08: Suresiz tur ve kazanma kart sayisi secenekleri');
-    bullet('PLAY-09: Bos mesaj engeli');
-    bullet('PLAY-10: Tur gecisi → yeni soru secimi');
-
-    // ══════════════════════════════════════════════════════════════════════════
-    // 13. PERFORMANS
-    // ══════════════════════════════════════════════════════════════════════════
-    newPage();
-    sectionTitle('13. Performans & UX Optimizasyonlari');
-
-    bullet('React.lazy + Suspense: PlayerSetup, LobbyRoom, Game ve SettingsPage code-split edilmistir. Ilk yukleme boyutu kucultulur.');
-    bullet('TanStack Query: Soru listesi onbellekte tutulur (staleTime=0 ile her oyunda taze). Gereksiz refetch onlenir.');
-    bullet('useMemo: players, currentQuestion, questionPool ve usedQuestionIds her renderde yeniden hesaplanmaz.');
-    bullet('useCallback: pickQuestion, advanceTurn, handleFeedbackDone stabil referanslar olarak tutulur.');
-    bullet('Fisher-Yates shuffle: LobbyRoom handleStart\'ta ve Game pickQuestion\'da uniform rastgele dagilim saglar.');
-    bullet('Debounce (300ms): WaitingRoom ayar butonlarina hizli basilinca DB flood onlenir.');
-    bullet('useRef closure fix: Subscription icinde user ve playerName\'e useRef uzerinden erisilerek stale deger hatasi onlenir.');
-    bullet('Atomik DB yazimi: handleConfirmPlacement, birden fazla alan degisimini tek update() cagrisiyla gonderir.');
-    bullet('Pull-to-refresh: LobbyRoom ve LobbyChat\'te dokunmatik pull-to-refresh hook\'u ile mobil yenileme.');
-    bullet('Safe-area padding: iOS notch ve Android navigation bar icin env(safe-area-inset-*) degiskenleri kullanilir.');
-    bullet('AnimatePresence: Sayfa ve bilesen gecisleri spring/tween animasyonu ile yumusatilmistir.');
-
-    // ══════════════════════════════════════════════════════════════════════════
-    // 14. GÜVENLİK
-    // ══════════════════════════════════════════════════════════════════════════
-    newPage();
-    sectionTitle('14. Guvenlik & Erisim Kontrolu');
-
-    subTitle('Soru Yonetimi (RLS)');
-    drawText('Question entity\'si Row-Level Security (RLS) ile korunmaktadir:');
-    codeBlock([
-      'Okuma:     Herkes (giris yapmamis kullanicilar dahil)',
-      'Olustur:   Yalnizca role="admin" kullanicilar',
-      'Guncelle:  Yalnizca role="admin" kullanicilar',
-      'Sil:       Yalnizca role="admin" kullanicilar',
+      'Terim                       Durum         Notlar',
+      '------------------------------------------------------------------',
+      'Kronox                      AKTIF         Marka adi - tek dogru yazim',
+      'Solo Meydan Okuma           AKTIF         Home Solo kartinin metni',
+      'Online Battle               AKTIF         Home Online kartinin metni',
+      '"Solo Kapisma"              LEGACY        Eski metin - kullanma',
+      '"Online Kapisma"            LEGACY        Eski metin - kullanma',
+      'HEMEN OYNA                  REMOVED       Home CTA kaldirildi',
+      'Local multiplayer setup     REMOVED       Eski player-count ekrani',
+      'LobbyChat                   REMOVED       Sohbet UI yok',
+      'LobbyMessage entity         INACTIVE      Korunur ama yazilmaz',
+      'PlayerSetup sayfasi         LEGACY        /setup -- birincil akis degil',
+      'kronos / Kronos             YANLIS        Yanlis yazim, asla kullanma',
     ]);
     spacer(6);
-
-    subTitle('Backend Fonksiyon Guvenligi');
-    bullet('simulateOnlineGame: user.role === "admin" kontrolu — yetkisiz erisimde 403 doner.');
-    bullet('generateWorkflowDoc: user.role === "admin" veya sariverim@gmail.com kontrolu — 403 ile korunur.');
-    bullet('generateTechDoc: Genel erisime acik (dokuman hassas veri icermez).');
-    spacer(6);
-
-    subTitle('Lobi Guvenligi');
-    bullet('Lobi kodu 6 haneli rastgele alfanumerik dize (Math.random + toString(36)).');
-    bullet('Oyun basladiginda status "in_game" olur; yeni katilim engellenir (filter: status="waiting").');
-    bullet('Host lobbiyi kapatinca (delete) tum oyuncular baglantii kaybeder ve ana ekrana yonlendirilir.');
-
-    // ══════════════════════════════════════════════════════════════════════════
-    // 15. GELECEK
-    // ══════════════════════════════════════════════════════════════════════════
-    newPage();
-    sectionTitle('15. Gelecek Gelistirme Onerileri');
-
-    bullet('Gorselli & sesli sorular: media_url alani hazir; QuestionCard bileseni gorsel ve isitsel tiplerini destekliyor. Soru yukleme arayuzu eklenebilir.');
-    bullet('Skor tablosu: Oyun sonrasi oyuncularin puanlari ve dogru/yanlis oranlari ile istatistik ekrani.');
-    bullet('Gozlemci modu: Aktif oyuna katilmadan izleyebilen pasif baglanti.');
-    bullet('Reconnect: Baglanti kopunca otomatik yeniden baglanma ve state recovery.');
-    bullet('Soru yonetim paneli: Admin icin kapsamli soru ekleme/duzenleme arayuzu.');
-    bullet('Turnuva modu: Cok turlu eleme sistemi, kalici skor tablosu.');
-    bullet('Push bildirimler: Sira geldigi zaman uygulama arka plandayken bildirim.');
-    bullet('Sesli efektler: Dogru/yanlis cevap ve kazanma animasyonlari icin ses efektleri.');
+    drawText('Kural: PDF, UI, kod, commit ve dokumantasyonda her yerde "Kronox" yazimi kullanilir. Cikti dosya adlari sabittir: kronox-teknik-dokuman.pdf ve kronox-is-akisi.pdf.', { color: gray });
 
     // ══════════════════════════════════════════════════════════════════════════
     // ARKA KAPAK
@@ -688,8 +870,9 @@ Deno.serve(async (req) => {
     page.drawRectangle({ x: 0, y: 0, width: W, height: H, color: darkBg });
     page.drawRectangle({ x: marginL, y: H / 2 - 1, width: 120, height: 2, color: gold });
     page.drawText('KRONOX', { x: marginL, y: H / 2 + 30, size: 40, font: boldFont, color: gold, opacity: 0.25 });
-    page.drawText('2026 — Tum haklari saklidir', { x: marginL, y: H / 2 - 28, size: 10, font, color: gray });
-    page.drawText('Base44 Platform uzerinde gelistirilmistir', { x: marginL, y: H / 2 - 46, size: 10, font, color: gray });
+    page.drawText(tr('Base44 Platform uzerinde gelistirilmistir'), { x: marginL, y: H / 2 - 28, size: 10, font, color: gray });
+    page.drawText(tr('Teknik mimari belgesi - Internal AI / Developer Briefing'), { x: marginL, y: H / 2 - 46, size: 10, font, color: gray });
+    page.drawText(tr('v3.0 - Build Codex040'), { x: marginL, y: H / 2 - 64, size: 10, font, color: gray });
 
     const pdfBytes = await pdfDoc.save();
 
