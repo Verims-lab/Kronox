@@ -8,6 +8,14 @@ import { base44 } from '@/api/base44Client';
 import { addGameLog } from '@/components/game/GameDebugLog';
 import { loadRecentHistory, appendToHistory } from '@/lib/questionHistory';
 import { debugLog } from '@/lib/debugLog';
+import {
+  getNextPlayerIndex,
+  getQuestionSelectionPool,
+  getTimelineYears,
+  hasPlayerWon,
+  isCorrectPlacement,
+  selectNextQuestion,
+} from '@/lib/gameRules';
 
 const summarizePlayers = (players = []) => players.map((player, index) => ({
   index,
@@ -153,47 +161,19 @@ export function useGameActions({
 
   /**
    * Smart question picker:
-   * 1. Exclude current-session IDs (never repeat in same game).
-   * 2. Exclude recent cross-game history (reduce inter-game repetition).
-   * 3. If pool too small after step 2, relax history exclusion.
-   * 4. Fisher-Yates shuffle for true randomness.
-   * 5. Record chosen ID in persistent history.
-   */
-  /**
-   * Smart question picker:
    * 1. Exclude current-session IDs (never repeat in same game). — hard rule
    * 2. Exclude questions whose year already exists on the active player's timeline. — prefer
    * 3. Exclude recent cross-game history. — prefer
    * Fallback: relax (3) first, then (2), never relax (1).
    */
   const pickQuestion = useCallback((usedIds, questions, usedTimelineYears = new Set()) => {
-    // Step 1: hard — no session duplicates
-    const sessionFiltered = questions.filter(q => !usedIds.has(q.id));
-    if (sessionFiltered.length === 0) return null;
-
-    // Step 2 + 3 combined: exclude duplicate timeline years AND recent history
     const recentHistory = new Set(loadRecentHistory());
-    let pool = sessionFiltered.filter(q =>
-      !usedTimelineYears.has(q.year) && !recentHistory.has(q.id)
-    );
-
-    // Fallback A: relax recent history only when no fresh safe-year option remains.
-    if (pool.length === 0) {
-      pool = sessionFiltered.filter(q => !usedTimelineYears.has(q.year));
-    }
-
-    // Fallback B: relax year-duplicate exclusion too only when no safe year remains.
-    if (pool.length === 0) {
-      pool = sessionFiltered;
-    }
-
-    // Fisher-Yates shuffle
-    for (let i = pool.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [pool[i], pool[j]] = [pool[j], pool[i]];
-    }
-
-    const chosen = pool[0];
+    const pool = getQuestionSelectionPool(questions, usedIds, usedTimelineYears, {
+      recentQuestionIds: recentHistory,
+    });
+    const chosen = selectNextQuestion(questions, usedIds, usedTimelineYears, {
+      recentQuestionIds: recentHistory,
+    });
     if (chosen) appendToHistory([chosen.id]);
 
     addGameLog(`PICK id=${chosen?.id} year=${chosen?.year} pool=${pool.length} session_excluded=${usedIds.size} timeline_years=${usedTimelineYears.size}`);
@@ -234,21 +214,9 @@ export function useGameActions({
     const snapshotIndex = currentPlayerIndex;
     const snapshotUsed = new Set([...usedQuestionIds]);
 
-    const allSorted = [...snapshotPlayer.cards].sort((a, b) => a.year - b.year);
     const questionYear = currentQuestion.year;
 
-    // Tüm kartların yılları (stacking yok, her kart ayrı)
-    const cardYears = allSorted.map(c => c.year);
-
-    // Doğruluk kontrolü — zone, timeline'daki kart sıralamasına göre
-    let isCorrect = false;
-    if (zone === 0) {
-      isCorrect = cardYears.length === 0 || questionYear <= cardYears[0];
-    } else if (zone === cardYears.length) {
-      isCorrect = questionYear >= cardYears[cardYears.length - 1];
-    } else {
-      isCorrect = questionYear >= cardYears[zone - 1] && questionYear <= cardYears[zone];
-    }
+    const isCorrect = isCorrectPlacement(snapshotPlayer.cards, questionYear, zone);
 
     let newPlayers = snapshotPlayers;
     let newUsed = new Set([...snapshotUsed, currentQuestion.id]);
@@ -267,13 +235,13 @@ export function useGameActions({
       };
     }
 
-    const hasWon = isCorrect && newPlayers[snapshotIndex].cards.length >= winCardCount;
+    const hasWon = isCorrect && hasPlayerWon(newPlayers[snapshotIndex], winCardCount);
 
     addGameLog(`PLACE correct=${isCorrect} zone=${zone} year=${questionYear} player=${snapshotPlayer.name} cards=${newPlayers[snapshotIndex]?.cards?.length} hasWon=${hasWon}`);
 
-    const nextIndex = (snapshotIndex + 1) % snapshotPlayers.length;
+    const nextIndex = getNextPlayerIndex(snapshotIndex, snapshotPlayers.length);
     const nextPlayerCards = newPlayers[nextIndex]?.cards || [];
-    const nextTimelineYears = new Set(nextPlayerCards.map(c => c.year));
+    const nextTimelineYears = getTimelineYears(nextPlayerCards);
     const nextQ = !hasWon ? pickQuestion(newUsed, questionPool, nextTimelineYears) : null;
     if (nextQ) newUsed.add(nextQ.id);
 
@@ -327,6 +295,7 @@ export function useGameActions({
     // For wrong: estimate guessed year from zone position
     let guessedYear = null;
     if (!isCorrect) {
+      const cardYears = [...snapshotPlayer.cards].sort((a, b) => a.year - b.year).map(c => c.year);
       if (zone === 0 && cardYears.length > 0) guessedYear = cardYears[0] - 5;
       else if (zone === cardYears.length && cardYears.length > 0) guessedYear = cardYears[cardYears.length - 1] + 5;
       else if (zone > 0 && zone <= cardYears.length) guessedYear = Math.round((cardYears[zone - 1] + (cardYears[zone] ?? cardYears[zone - 1] + 10)) / 2);
@@ -346,10 +315,10 @@ export function useGameActions({
   const advanceTurn = useCallback((winner) => {
     if (!lobbyData || players.length === 0 || winner) return;
     const currentIndex = lobbyData.current_player_index ?? 0;
-    const nextIndex = (currentIndex + 1) % players.length;
+    const nextIndex = getNextPlayerIndex(currentIndex, players.length);
     const currentUsed = new Set(lobbyData.used_question_ids || []);
     const nextPlayerCards = players[nextIndex]?.cards || [];
-    const nextTimelineYears = new Set(nextPlayerCards.map(c => c.year));
+    const nextTimelineYears = getTimelineYears(nextPlayerCards);
     const nextQ = pickQuestion(currentUsed, questionPool, nextTimelineYears);
     if (nextQ) currentUsed.add(nextQ.id);
 
