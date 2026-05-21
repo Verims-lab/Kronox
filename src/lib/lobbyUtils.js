@@ -22,6 +22,11 @@ export function summarizePlayers(players = []) {
   }));
 }
 
+export function removePlayerByIdentity(players = [], { email, name } = {}) {
+  if (email) return players.filter(player => player?.email !== email);
+  return players.filter(player => player?.name !== name);
+}
+
 export function validatePlayerName(name) {
   const trimmed = name.trim();
   if (trimmed.length < 3) return 'Lütfen en az 3 karakter girişi yapınız';
