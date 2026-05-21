@@ -21,6 +21,7 @@ import gameRulesSource from '../../lib/gameRules.js?raw';
 import buildMarkerSource from '../dev/BuildMarker.jsx?raw';
 import kronoxDocSource from '../../../Kronox.md?raw';
 import corePromptSource from '../../../CORE_PROMPT.md?raw';
+import updateLobbyGameStateSource from '../../../base44/functions/updateLobbyGameState/entry.ts?raw';
 import {
   getNextPlayerIndex,
   getTimelineYears,
@@ -40,7 +41,7 @@ const CATS = [
   ['records', 'Personal Records', '#2dd4bf'], ['performance', 'Performance', '#fde68a'], ['stability', 'Stability / Edge Cases', '#fca5a5'],
   ['exceptional', 'Exceptional Cases', '#fb7185'], ['removed', 'Removed Features', '#fda4af'],
 ].map(([id, label, color]) => ({ id, label, color }));
-const SRC = { App: appSource, MainMenu: mainMenuSource, SoloChallenge: soloChallengeSource, GameLayout: gameLayoutSource, Game: gamePageSource, LobbyRoom: lobbyRoomSource, Settings: settingsPageSource, QuestionCard: questionCardSource, TimelineCard: timelineCardSource, GameOver: gameOverSource, QuestionManagement: questionManagementSource, Tutorial: tutorialSource, LobbySync: lobbySyncSource, GameRules: gameRulesSource, BuildMarker: buildMarkerSource, Kronox: kronoxDocSource, Core: corePromptSource };
+const SRC = { App: appSource, MainMenu: mainMenuSource, SoloChallenge: soloChallengeSource, GameLayout: gameLayoutSource, Game: gamePageSource, LobbyRoom: lobbyRoomSource, Settings: settingsPageSource, QuestionCard: questionCardSource, TimelineCard: timelineCardSource, GameOver: gameOverSource, QuestionManagement: questionManagementSource, Tutorial: tutorialSource, LobbySync: lobbySyncSource, GameRules: gameRulesSource, UpdateLobbyGameState: updateLobbyGameStateSource, BuildMarker: buildMarkerSource, Kronox: kronoxDocSource, Core: corePromptSource };
 const now = () => new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 const out = (status, message, extra = {}) => ({ status, message, ...extra });
 const pass = (message, extra) => out(ST.PASS, message, extra);
@@ -80,6 +81,66 @@ async function cleanLobby(lobby) { try { if (lobby?.id) await base44.entities.Lo
 async function cleanRecords(records) { for (const r of records) { try { if (r?.id) await base44.entities.GameRecord.delete(r.id); } catch (_) {} } }
 async function sim(name) { const response = await base44.functions.invoke('simulateOnlineGame', { scenario: name }); const got = response?.data?.results?.[name] || Object.values(response?.data?.results || {})[0]; if (!got) return warn('Backend simulation did not return a result', { expected: name, actual: response?.data }); return got.status === 'PASS' ? pass(`${name} passed`, { expected: 'PASS', actual: got.status, detail: got.logs?.slice(-4).join('\n') }) : fail(`${name} failed`, { expected: 'PASS', actual: got.status, detail: got.error || got.logs?.join('\n') }); }
 const qpool = items => items.filter(q => q.type !== 'muzik' || q.media_url).filter(q => q.year >= 1900 && q.year <= 2026);
+const qaPlayers = (user, count, cardCounts = []) => Array.from({ length: count }, (_, i) => ({
+  email: i === 0 ? user.email : `qa-secure-${i}@kronox.local`,
+  name: i === 0 ? (user.full_name || 'QA Player') : `Secure P${i + 1}`,
+  ready: true,
+  cards: Array.from({ length: cardCounts[i] || 0 }, (_, c) => ({ id: `seed-${i}-${c}`, year: 1900 + i * 10 + c, question: `Seed ${c}` })),
+}));
+async function invokeLobbyGameState(payload) {
+  try {
+    const response = await base44.functions.invoke('updateLobbyGameState', payload);
+    return { ok: Boolean(response?.data?.success), data: response?.data };
+  } catch (error) {
+    return { ok: false, data: error?.response?.data || { error: error?.message || String(error) } };
+  }
+}
+async function secureLobby(count = 2, extra = {}) {
+  const user = await base44.auth.me();
+  return tmpLobby({
+    host_email: user.email,
+    host_name: user.full_name || user.email,
+    players: extra.players || qaPlayers(user, count, extra.cardCounts),
+    status: 'in_game',
+    current_player_index: extra.current_player_index ?? 0,
+    current_question_id: extra.current_question_id || 'q_current',
+    used_question_ids: extra.used_question_ids || ['q_current'],
+    win_card_count: extra.win_card_count || 3,
+    ...extra,
+  });
+}
+async function expectSecureUpdateAccepted(count) {
+  const lobby = await secureLobby(count);
+  try {
+    const players = lobby.players.map((player, index) => ({
+      ...player,
+      cards: index === 0 ? [...(player.cards || []), { id: 'answer-card', year: 2000, question: 'Answer' }] : (player.cards || []),
+    }));
+    const result = await invokeLobbyGameState({
+      lobbyId: lobby.id,
+      players,
+      used_question_ids: [...(lobby.used_question_ids || []), 'q_next'],
+      status: 'in_game',
+      current_player_index: 1,
+      current_question_id: 'q_next',
+    });
+    return result.ok && result.data?.lobby?.current_player_index === 1;
+  } finally {
+    await cleanLobby(lobby);
+  }
+}
+async function expectSecureUpdateRejected(mutate, extra = {}) {
+  const lobby = await secureLobby(extra.count || 2, extra);
+  try {
+    const payload = mutate(lobby);
+    const before = JSON.stringify((await base44.entities.Lobby.get(lobby.id)) || {});
+    const result = await invokeLobbyGameState(payload);
+    const after = JSON.stringify((await base44.entities.Lobby.get(lobby.id)) || {});
+    return { rejected: !result.ok, unchanged: before === after, result };
+  } finally {
+    await cleanLobby(lobby);
+  }
+}
 
 const TESTS = [
   sourceHas('smoke', 'app_root_route', 'app root renders/main menu route available', 'App.jsx', SRC.App, ['path="/"', '<MainMenu']),
@@ -108,6 +169,7 @@ const TESTS = [
   sourceLacks('architecture', 'protected_drag_not_touched', 'test utilities do not enter protected drag files', 'GameLayout.jsx', SRC.GameLayout, ['SimulationPanel']),
   sourceHas('architecture', 'game_rules_module', 'pure game rules module exists', 'gameRules.js', SRC.GameRules, ['export function getNextPlayerIndex', 'export function isCorrectPlacement', 'export function selectNextQuestion', 'export function hasPlayerWon']),
   sourceHas('architecture', 'game_actions_uses_rules', 'useGameActions uses pure game rules helpers', 'useGameActions.js', useGameActionsSource, ["from '@/lib/gameRules'", 'isCorrectPlacement(', 'getNextPlayerIndex(', 'selectNextQuestion(']),
+  sourceHas('architecture', 'server_update_validation_layer', 'updateLobbyGameState has server-side validation layer', 'updateLobbyGameState/entry.ts', SRC.UpdateLobbyGameState, ['validateGameStateUpdate', 'VALID_STATUSES', 'containsAllPreviousIds', 'getNextPlayerIndex', 'winnerIndex']),
 
   sourceHas('home', 'viewport_lock', 'Home root uses viewport lock behavior', 'MainMenu.jsx', SRC.MainMenu, ["height: '100dvh'", "maxHeight: '100dvh'", "overflow: 'hidden'", "overscrollBehavior: 'none'"]),
   sourceHas('home', 'no_scroll', 'Home does not allow vertical page scroll', 'MainMenu.jsx', SRC.MainMenu, ['fixed inset-0', 'overflow-hidden', "touchAction: 'manipulation'"]),
@@ -161,6 +223,11 @@ const TESTS = [
   equal('sync', '2p_p2_to_p1', '2-player P2 answer -> P1 turn', () => turn({ players: roster(2), used_question_ids: [] }, 1, {id:'q1'}).current_player_index, 0),
   equal('sync', '3p_rotation', '3-player rotation P1->P2->P3->P1', () => rotate(3,3), [0,1,2,0]),
   equal('sync', '4p_rotation', '4-player rotation includes P4', () => rotate(4,4), [0,1,2,3,0]),
+  test('sync', 'server_valid_turn_2p', 'server accepts valid 2-player turn update', async () => (await expectSecureUpdateAccepted(2)) ? pass('2-player secure update accepted', { expected: true, actual: true }) : fail('2-player secure update rejected', { expected: true, actual: false })),
+  test('sync', 'server_valid_turn_3p', 'server accepts valid 3-player turn update', async () => (await expectSecureUpdateAccepted(3)) ? pass('3-player secure update accepted', { expected: true, actual: true }) : fail('3-player secure update rejected', { expected: true, actual: false })),
+  test('sync', 'server_valid_turn_4p', 'server accepts valid 4-player turn update', async () => (await expectSecureUpdateAccepted(4)) ? pass('4-player secure update accepted', { expected: true, actual: true }) : fail('4-player secure update rejected', { expected: true, actual: false })),
+  test('sync', 'server_valid_wrong_answer', 'server accepts valid wrong-answer transition', async () => { const lobby = await secureLobby(2); try { const result = await invokeLobbyGameState({ lobbyId: lobby.id, players: lobby.players, used_question_ids: [...lobby.used_question_ids, 'q_next'], status: 'in_game', current_player_index: 1, current_question_id: 'q_next' }); return result.ok ? pass('wrong-answer transition accepted', { expected: true, actual: result.data?.success }) : fail('wrong-answer transition rejected', { expected: true, actual: result.data }); } finally { await cleanLobby(lobby); } }),
+  test('sync', 'server_valid_winner', 'server accepts valid winner update', async () => { const lobby = await secureLobby(2, { cardCounts: [2, 0], win_card_count: 3 }); try { const players = lobby.players.map((p, i) => ({ ...p, cards: i === 0 ? [...p.cards, { id: 'win-card', year: 2020, question: 'Winner' }] : p.cards })); const result = await invokeLobbyGameState({ lobbyId: lobby.id, players, used_question_ids: [...lobby.used_question_ids, 'q_current'], status: 'finished', current_player_index: 0, current_question_id: lobby.current_question_id, winner: players[0].name, winner_email: players[0].email }); return result.ok && result.data?.lobby?.status === 'finished' ? pass('winner update accepted', { expected: 'finished', actual: result.data?.lobby?.status }) : fail('winner update rejected', { expected: 'finished', actual: result.data }); } finally { await cleanLobby(lobby); } }),
   test('sync', 'index_valid', 'current_player_index remains valid', () => rotate(4,20).every(i => i >= 0 && i < 4) ? pass('indices valid', { expected: '0..3', actual: rotate(4,20) }) : fail('invalid index', { expected: '0..3', actual: rotate(4,20) })),
   test('sync', 'question_id_updates', 'current_question_id updates every turn', () => { const l = turn({ players: roster(2), used_question_ids: [], current_question_id: 'q0' }, 0, {id:'q1'}); return l.current_question_id === 'next_1' && l.used_question_ids.includes('next_1') ? pass('question id updated and tracked', { expected: 'next_1', actual: l }) : fail('question id stale', { expected: 'next_1', actual: l }); }),
   test('sync', 'card_counts_update', 'player card counts update correctly', () => { const l = turn({ players: roster(2), used_question_ids: [] }, 0, {id:'q1'}); return l.players[0].cards.length === 1 && l.players[1].cards.length === 0 ? pass('card counts updated', { expected: [1,0], actual: l.players.map(p=>p.cards.length) }) : fail('card count mismatch', { expected: [1,0], actual: l.players.map(p=>p.cards.length) }); }),
@@ -244,6 +311,17 @@ const TESTS = [
   sourceHas('exceptional', 'auth_failure', 'Base44 auth failure handled', 'MainMenu/Settings', `${SRC.MainMenu}\n${SRC.Settings}`, ['catch(() => setUser(null))', 'catch(() => setLoadingUser(false))']),
   sourceHas('exceptional', 'network_failure_warning', 'network/update failure warning path', 'useLobbySync.js', SRC.LobbySync, ['catch(err =>', 'setError', 'poll failed']),
   sourceHas('exceptional', 'failed_lobby_update_safe', 'failed online lobby update does not corrupt local state', 'useGameActions.js', useGameActionsSource, ["base44.functions.invoke('updateLobbyGameState'", '.catch((err) =>', 'scheduleTimeout(() => attemptUpdate', 'if (updatedLobby)']),
+  sourceHas('exceptional', 'server_auth_required', 'server requires authenticated user', 'updateLobbyGameState/entry.ts', SRC.UpdateLobbyGameState, ['base44.auth.me()', 'if (!user?.email)', '401']),
+  test('exceptional', 'server_reject_non_current_player', 'server rejects non-current player update', async () => { const r = await expectSecureUpdateRejected(lobby => ({ lobbyId: lobby.id, players: lobby.players, used_question_ids: [...lobby.used_question_ids, 'q_next'], status: 'in_game', current_player_index: 0, current_question_id: 'q_next' }), { current_player_index: 1 }); return r.rejected && r.unchanged ? pass('non-current update rejected without mutation', { expected: 'rejected/unchanged', actual: r.result.data }) : fail('non-current update accepted or mutated', { expected: 'rejected/unchanged', actual: r }); }),
+  test('exceptional', 'server_reject_extra_card', 'server rejects injected extra active-player card', async () => { const r = await expectSecureUpdateRejected(lobby => ({ lobbyId: lobby.id, players: lobby.players.map((p, i) => ({ ...p, cards: i === 0 ? [...p.cards, { id: 'a', year: 2000 }, { id: 'b', year: 2001 }] : p.cards })), used_question_ids: [...lobby.used_question_ids, 'q_next'], status: 'in_game', current_player_index: 1, current_question_id: 'q_next' })); return r.rejected && r.unchanged ? pass('extra card rejected', { expected: 'rejected/unchanged', actual: r.result.data }) : fail('extra card accepted or mutated', { expected: 'rejected/unchanged', actual: r }); }),
+  test('exceptional', 'server_reject_other_player_cards', 'server rejects modifying another player cards', async () => { const r = await expectSecureUpdateRejected(lobby => ({ lobbyId: lobby.id, players: lobby.players.map((p, i) => ({ ...p, cards: i === 1 ? [{ id: 'hack', year: 2000 }] : p.cards })), used_question_ids: [...lobby.used_question_ids, 'q_next'], status: 'in_game', current_player_index: 1, current_question_id: 'q_next' })); return r.rejected && r.unchanged ? pass('other player mutation rejected', { expected: 'rejected/unchanged', actual: r.result.data }) : fail('other player mutation accepted or mutated', { expected: 'rejected/unchanged', actual: r }); }),
+  test('exceptional', 'server_reject_used_ids_removed', 'server rejects removed used_question_ids', async () => { const r = await expectSecureUpdateRejected(lobby => ({ lobbyId: lobby.id, players: lobby.players, used_question_ids: ['q_next'], status: 'in_game', current_player_index: 1, current_question_id: 'q_next' }), { used_question_ids: ['q_current', 'q_old'] }); return r.rejected && r.unchanged ? pass('used ids shrink rejected', { expected: 'rejected/unchanged', actual: r.result.data }) : fail('used ids shrink accepted or mutated', { expected: 'rejected/unchanged', actual: r }); }),
+  test('exceptional', 'server_reject_player_order_change', 'server rejects player order changes', async () => { const r = await expectSecureUpdateRejected(lobby => ({ lobbyId: lobby.id, players: [lobby.players[1], lobby.players[0]], used_question_ids: [...lobby.used_question_ids, 'q_next'], status: 'in_game', current_player_index: 1, current_question_id: 'q_next' })); return r.rejected && r.unchanged ? pass('player order change rejected', { expected: 'rejected/unchanged', actual: r.result.data }) : fail('player order change accepted or mutated', { expected: 'rejected/unchanged', actual: r }); }),
+  test('exceptional', 'server_reject_player_removed', 'server rejects removed player', async () => { const r = await expectSecureUpdateRejected(lobby => ({ lobbyId: lobby.id, players: lobby.players.slice(0, 1), used_question_ids: [...lobby.used_question_ids, 'q_next'], status: 'in_game', current_player_index: 1, current_question_id: 'q_next' })); return r.rejected && r.unchanged ? pass('player removal rejected', { expected: 'rejected/unchanged', actual: r.result.data }) : fail('player removal accepted or mutated', { expected: 'rejected/unchanged', actual: r }); }),
+  test('exceptional', 'server_reject_invalid_index', 'server rejects invalid current_player_index', async () => { const r = await expectSecureUpdateRejected(lobby => ({ lobbyId: lobby.id, players: lobby.players, used_question_ids: [...lobby.used_question_ids, 'q_next'], status: 'in_game', current_player_index: 99, current_question_id: 'q_next' })); return r.rejected && r.unchanged ? pass('invalid index rejected', { expected: 'rejected/unchanged', actual: r.result.data }) : fail('invalid index accepted or mutated', { expected: 'rejected/unchanged', actual: r }); }),
+  test('exceptional', 'server_reject_invalid_winner', 'server rejects invalid winner', async () => { const r = await expectSecureUpdateRejected(lobby => ({ lobbyId: lobby.id, players: lobby.players, used_question_ids: [...lobby.used_question_ids], status: 'finished', current_player_index: 0, current_question_id: lobby.current_question_id, winner: 'Fake Winner', winner_email: 'fake@kronox.local' })); return r.rejected && r.unchanged ? pass('invalid winner rejected', { expected: 'rejected/unchanged', actual: r.result.data }) : fail('invalid winner accepted or mutated', { expected: 'rejected/unchanged', actual: r }); }),
+  test('exceptional', 'server_reject_finished_update', 'server rejects update after status finished', async () => { const r = await expectSecureUpdateRejected(lobby => ({ lobbyId: lobby.id, players: lobby.players, used_question_ids: [...lobby.used_question_ids, 'q_next'], status: 'in_game', current_player_index: 1, current_question_id: 'q_next' }), { status: 'finished', winner: 'QA Player' }); return r.rejected && r.unchanged ? pass('finished lobby update rejected', { expected: 'rejected/unchanged', actual: r.result.data }) : fail('finished lobby update accepted or mutated', { expected: 'rejected/unchanged', actual: r }); }),
+  test('exceptional', 'server_reject_lobby_not_found', 'server rejects lobby not found', async () => { const result = await invokeLobbyGameState({ lobbyId: `missing-${Date.now()}`, players: [], used_question_ids: [], status: 'in_game', current_player_index: 0, current_question_id: 'q_next' }); return !result.ok ? pass('missing lobby rejected', { expected: 'error', actual: result.data }) : fail('missing lobby accepted', { expected: 'error', actual: result.data }); }),
   sourceHas('exceptional', 'missing_asset_safe', 'missing asset path does not crash Home', 'MainMenu.jsx', SRC.MainMenu, ['alt=""', "pointerEvents: 'none'", 'BACKGROUND_ASSET']),
   test('exceptional', 'unsupported_viewport', 'unsupported viewport sizes handled gracefully', () => { const a=stageFor(280,520); const b=stageFor(1024,1366); return a.w>0 && b.h>0 ? pass('stage math positive', {expected:'positive dimensions', actual:{a,b}}) : fail('stage math failed', {expected:'positive dimensions', actual:{a,b}}); }),
 
