@@ -1,286 +1,3 @@
-import React, { useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
-import { AlertTriangle, CheckCircle2, ChevronDown, ClipboardCopy, Clock, Play, RefreshCw, ShieldAlert, X, XCircle } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
-
-import gameLayoutSource from './GameLayout.jsx?raw';
-import questionCardSource from './QuestionCard.jsx?raw';
-import timelineCardSource from './TimelineCard.jsx?raw';
-import gameOverSource from './GameOver.jsx?raw';
-import appSource from '../../App.jsx?raw';
-import mainMenuSource from '../../pages/MainMenu.jsx?raw';
-import gamePageSource from '../../pages/Game.jsx?raw';
-import lobbyRoomSource from '../../pages/LobbyRoom.jsx?raw';
-import lobbyCreateJoinPanelSource from '../lobby/LobbyCreateJoinPanel.jsx?raw';
-import waitingRoomPanelSource from '../lobby/WaitingRoomPanel.jsx?raw';
-import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
-import soloChallengeSource from '../../pages/SoloChallenge.jsx?raw';
-import questionManagementSource from '../admin/QuestionManagement.jsx?raw';
-import tutorialSource from '../tutorial/KronoxTutorial.jsx?raw';
-import useLobbyRoomStateSource from '../../hooks/useLobbyRoomState.js?raw';
-import useWaitingRoomSyncSource from '../../hooks/useWaitingRoomSync.js?raw';
-import lobbySyncSource from '../../hooks/useLobbySync.js?raw';
-import useGameActionsSource from '../../hooks/useGameActions.js?raw';
-import gameRulesSource from '../../lib/gameRules.js?raw';
-import lobbyUtilsSource from '../../lib/lobbyUtils.js?raw';
-import buildMarkerSource from '../dev/BuildMarker.jsx?raw';
-import kronoxDocSource from '../../../Kronox.md?raw';
-import corePromptSource from '../../../CORE_PROMPT.md?raw';
-import updateLobbyGameStateSource from '../../../base44/functions/updateLobbyGameState/entry.ts?raw';
-import {
-  getNextPlayerIndex,
-  getTimelineYears,
-  hasDuplicateTimelineYear,
-  hasPlayerWon,
-  isCorrectPlacement,
-  selectNextQuestion,
-} from '../../lib/gameRules';
-
-const ST = { PASS: 'PASS', FAIL: 'FAIL', WARNING: 'WARNING', SKIPPED: 'SKIPPED' };
-const LOOK = { PASS: ['#4ade80', CheckCircle2], FAIL: ['#f87171', XCircle], WARNING: ['#facc15', AlertTriangle], SKIPPED: ['#a1a1aa', Clock] };
-const CATS = [
-  ['smoke', 'Smoke', '#67e8f9'], ['regression', 'Sanity / Regression', '#93c5fd'], ['architecture', 'Architecture', '#c4b5fd'],
-  ['home', 'Home Screen / Responsive', '#2dd4bf'], ['offline', 'Offline Solo', '#c084fc'], ['lobby', 'Online Lobby', '#60a5fa'],
-  ['sync', 'Online Gameplay Sync', '#38bdf8'], ['gameover', 'Online GameOver', '#facc15'], ['questions', 'Question Engine', '#a3e635'],
-  ['media', 'Media Rendering', '#f9a8d4'], ['admin', 'Admin Tools', '#f59e0b'], ['tutorial', 'Tutorial / Help', '#a78bfa'],
-  ['records', 'Personal Records', '#2dd4bf'], ['performance', 'Performance', '#fde68a'], ['stability', 'Stability / Edge Cases', '#fca5a5'],
-  ['exceptional', 'Exceptional Cases', '#fb7185'], ['removed', 'Removed Features', '#fda4af'],
-].map(([id, label, color]) => ({ id, label, color }));
-const SRC = { App: appSource, MainMenu: mainMenuSource, SoloChallenge: soloChallengeSource, GameLayout: gameLayoutSource, Game: gamePageSource, LobbyRoom: lobbyRoomSource, LobbyCreateJoinPanel: lobbyCreateJoinPanelSource, WaitingRoomPanel: waitingRoomPanelSource, Settings: settingsPageSource, QuestionCard: questionCardSource, TimelineCard: timelineCardSource, GameOver: gameOverSource, QuestionManagement: questionManagementSource, Tutorial: tutorialSource, LobbyRoomState: useLobbyRoomStateSource, WaitingRoomSync: useWaitingRoomSyncSource, LobbySync: lobbySyncSource, GameRules: gameRulesSource, LobbyUtils: lobbyUtilsSource, UpdateLobbyGameState: updateLobbyGameStateSource, BuildMarker: buildMarkerSource, Kronox: kronoxDocSource, Core: corePromptSource };
-const now = () => new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-const out = (status, message, extra = {}) => ({ status, message, ...extra });
-const pass = (message, extra) => out(ST.PASS, message, extra);
-const fail = (message, extra) => out(ST.FAIL, message, extra);
-const warn = (message, extra) => out(ST.WARNING, message, extra);
-const skip = (message, extra) => out(ST.SKIPPED, message, extra);
-const test = (cat, id, name, run) => ({ cat, id, name, run });
-const sourceHas = (cat, id, name, label, source, tokens) => test(cat, id, name, () => {
-  const missing = tokens.filter(token => !source.includes(token));
-  return missing.length ? fail('Source contract failed', { expected: tokens, actual: `missing: ${missing.join(', ')}`, file: label }) : pass('Source contract matched', { expected: tokens, actual: 'all tokens present', file: label });
-});
-const sourceLacks = (cat, id, name, label, source, tokens) => test(cat, id, name, () => {
-  const found = tokens.filter(token => source.includes(token));
-  return found.length ? fail('Removed/forbidden source token found', { expected: 'none', actual: found, file: label }) : pass('Forbidden tokens absent', { expected: 'none', actual: 'none', file: label });
-});
-const equal = (cat, id, name, actualFn, expected) => test(cat, id, name, () => {
-  const actual = actualFn();
-  return JSON.stringify(actual) === JSON.stringify(expected) ? pass('Expected value matched', { expected, actual }) : fail('Expected value mismatch', { expected, actual });
-});
-const skipped = (cat, id, name, reason) => test(cat, id, name, () => skip(reason, { expected: 'automated deterministic coverage or external E2E', actual: 'skipped with reason', reason }));
-const normalizeCode = value => String(value || '').trim().toUpperCase().replace(/\s+/g, '').replace(/[^\w]/g, '');
-const deterministicRandom = () => 0.999999;
-const placeOk = (zone, year, cards) => isCorrectPlacement(cards, year, zone);
-const pick = (used, pool, years = new Set(), recent = new Set()) => selectNextQuestion(pool, used, years, { recentQuestionIds: recent, random: deterministicRandom });
-const turn = (lobby, actor, q) => { const players = lobby.players.map(p => ({ ...p, cards: [...(p.cards || [])] })); players[actor].cards.push(q); const next = getNextPlayerIndex(actor, players.length); return { ...lobby, players, current_player_index: next, current_question_id: `next_${next}`, used_question_ids: [...(lobby.used_question_ids || []), q.id, `next_${next}`], status: 'in_game' }; };
-const rotate = (count, turns) => { let lobby = { players: Array.from({ length: count }, (_, i) => ({ name: `P${i + 1}`, cards: [] })), used_question_ids: [], current_player_index: 0 }; const seen = [0]; for (let i = 0; i < turns; i += 1) { lobby = turn(lobby, lobby.current_player_index, { id: `q${i}`, year: 1900 + i }); seen.push(lobby.current_player_index); } return seen; };
-const perspective = (lobby, email) => { const active = lobby.players[lobby.current_player_index]; const me = lobby.players.find(p => p.email === email); const isMyTurn = Boolean(me && active?.email === me.email); return { current_question_id: lobby.current_question_id, activePlayer: active?.name || null, isMyTurn, readOnly: !isMyTurn, canDrag: isMyTurn && !lobby.feedback && !lobby.winner, canPlace: isMyTurn && !lobby.feedback && !lobby.winner, canConfirm: isMyTurn && lobby.selectedZone !== null && !lobby.feedback && !lobby.winner }; };
-const gameOverCopy = (winner, local) => String(winner).toLocaleLowerCase('tr-TR') === String(local).toLocaleLowerCase('tr-TR') ? { headline: 'Tebrikler!', icon: 'Trophy' } : { headline: 'Kaybettin', text: `${winner} kazandı.`, icon: 'CircleX' };
-const mediaKind = q => q?.media_url ? 'media_url' : q?.icon_url ? 'icon_url' : 'fallback';
-const stageFor = (vw, vh) => ({ vw, vh, w: Math.max(vw, 0.5625 * vh), h: Math.max(vh, 1.777778 * vw) });
-const card = { solo: { left: 10, top: 70.46667, width: 37.5, height: 20.052083 }, online: { left: 52.5, top: 70.416667, width: 37.5, height: 20.052083 } };
-const rect = (stage, c) => ({ x: c.left / 100 * stage.w, y: c.top / 100 * stage.h, w: c.width / 100 * stage.w, h: c.height / 100 * stage.h });
-const roster = count => Array.from({ length: count }, (_, i) => ({ email: `p${i + 1}@qa.local`, name: `P${i + 1}`, cards: [] }));
-async function questions() { return base44.entities.Question.list('-created_date', 500); }
-async function tmpLobby(extra = {}) { return base44.entities.Lobby.create({ code: `QA${Math.random().toString(36).slice(2, 6).toUpperCase()}`.slice(0, 6), host_email: extra.host_email || 'qa_host@kronox.local', host_name: 'QA Host', players: extra.players || roster(1), status: extra.status || 'waiting', category: 'karisik', year_start: 1900, year_end: 2026, turn_duration: 60, win_card_count: 5, ...extra }); }
-async function cleanLobby(lobby) { try { if (lobby?.id) await base44.entities.Lobby.delete(lobby.id); } catch (_) {} }
-async function cleanRecords(records) { for (const r of records) { try { if (r?.id) await base44.entities.GameRecord.delete(r.id); } catch (_) {} } }
-async function sim(name) { const response = await base44.functions.invoke('simulateOnlineGame', { scenario: name }); const got = response?.data?.results?.[name] || Object.values(response?.data?.results || {})[0]; if (!got) return warn('Backend simulation did not return a result', { expected: name, actual: response?.data }); return got.status === 'PASS' ? pass(`${name} passed`, { expected: 'PASS', actual: got.status, detail: got.logs?.slice(-4).join('\n') }) : fail(`${name} failed`, { expected: 'PASS', actual: got.status, detail: got.error || got.logs?.join('\n') }); }
-const qpool = items => items.filter(q => q.type !== 'muzik' || q.media_url).filter(q => q.year >= 1900 && q.year <= 2026);
-const qaPlayers = (user, count, cardCounts = []) => Array.from({ length: count }, (_, i) => ({
-  email: i === 0 ? user.email : `qa-secure-${i}@kronox.local`,
-  name: i === 0 ? (user.full_name || 'QA Player') : `Secure P${i + 1}`,
-  ready: true,
-  cards: Array.from({ length: cardCounts[i] || 0 }, (_, c) => ({ id: `seed-${i}-${c}`, year: 1900 + i * 10 + c, question: `Seed ${c}` })),
-}));
-async function invokeLobbyGameState(payload) {
-  try {
-    const response = await base44.functions.invoke('updateLobbyGameState', payload);
-    return { ok: Boolean(response?.data?.success), data: response?.data };
-  } catch (error) {
-    return { ok: false, data: error?.response?.data || { error: error?.message || String(error) } };
-  }
-}
-async function secureLobby(count = 2, extra = {}) {
-  const user = await base44.auth.me();
-  return tmpLobby({
-    host_email: user.email,
-    host_name: user.full_name || user.email,
-    players: extra.players || qaPlayers(user, count, extra.cardCounts),
-    status: 'in_game',
-    current_player_index: extra.current_player_index ?? 0,
-    current_question_id: extra.current_question_id || 'q_current',
-    used_question_ids: extra.used_question_ids || ['q_current'],
-    win_card_count: extra.win_card_count || 3,
-    ...extra,
-  });
-}
-async function expectSecureUpdateAccepted(count) {
-  const lobby = await secureLobby(count);
-  try {
-    const players = lobby.players.map((player, index) => ({
-      ...player,
-      cards: index === 0 ? [...(player.cards || []), { id: 'answer-card', year: 2000, question: 'Answer' }] : (player.cards || []),
-    }));
-    const result = await invokeLobbyGameState({
-      lobbyId: lobby.id,
-      players,
-      used_question_ids: [...(lobby.used_question_ids || []), 'q_next'],
-      status: 'in_game',
-      current_player_index: 1,
-      current_question_id: 'q_next',
-    });
-    return result.ok && result.data?.lobby?.current_player_index === 1;
-  } finally {
-    await cleanLobby(lobby);
-  }
-}
-async function expectSecureUpdateRejected(mutate, extra = {}) {
-  const lobby = await secureLobby(extra.count || 2, extra);
-  try {
-    const payload = mutate(lobby);
-    const before = JSON.stringify((await base44.entities.Lobby.get(lobby.id)) || {});
-    const result = await invokeLobbyGameState(payload);
-    const after = JSON.stringify((await base44.entities.Lobby.get(lobby.id)) || {});
-    return { rejected: !result.ok, unchanged: before === after, result };
-  } finally {
-    await cleanLobby(lobby);
-  }
-}
-
-const TESTS = [
-  sourceHas('smoke', 'app_root_route', 'app root renders/main menu route available', 'App.jsx', SRC.App, ['path="/"', '<MainMenu']),
-  sourceHas('smoke', 'settings_route', 'settings route available', 'App.jsx', SRC.App, ['path="/settings"', '<SettingsPage']),
-  sourceHas('smoke', 'solo_route', 'solo route available', 'App.jsx', SRC.App, ['path="/solo"', '<SoloChallenge']),
-  sourceHas('smoke', 'lobby_route', 'lobby route available', 'App.jsx', SRC.App, ['path="/lobby"', '<LobbyRoom']),
-  sourceHas('smoke', 'game_route_mount', 'game route can mount', 'App/Game.jsx', `${SRC.App}\n${SRC.Game}`, ['path="/game"', '<GameLayout']),
-  sourceLacks('smoke', 'no_fatal_startup_error', 'no fatal startup error token', 'App/MainMenu', `${SRC.App}\n${SRC.MainMenu}`, ['throw new Error(', 'TODO fatal']),
-  sourceHas('smoke', 'build_marker_exists', 'build marker exists', 'BuildMarker.jsx', SRC.BuildMarker, ['BUILD_MARKER', 'Codex']),
-
-  sourceHas('regression', 'offline_solo_starts', 'Offline Solo still starts', 'MainMenu/SoloChallenge', `${SRC.MainMenu}\n${SRC.SoloChallenge}`, ["navigate('/solo')", "navigate('/game'", 'turnDuration']),
-  sourceHas('regression', 'online_lobby_opens', 'Online lobby still opens', 'MainMenu.jsx', SRC.MainMenu, ["navigate('/lobby')", 'redirectToLogin']),
-  sourceHas('regression', 'admin_accessible_for_admin', 'Settings/Admin still accessible for admin', 'SettingsPage.jsx', SRC.Settings, ['isAdmin', '<QuestionManagement', 'Regression Test Panel']),
-  sourceHas('regression', 'tutorial_accessible', 'Tutorial/How to Play still accessible', 'SettingsPage.jsx', SRC.Settings, ['Nasıl Oynanır?', '<KronoxTutorial', 'setShowTutorial(true)']),
-  sourceHas('regression', 'media_fallback', 'media_url fallback still works', 'QuestionCard.jsx', SRC.QuestionCard, ['media_url', 'icon_url', 'onError']),
-  sourceLacks('regression', 'no_chat_button', 'no removed chat button visible', 'online sources', `${SRC.GameLayout}\n${SRC.Game}\n${SRC.LobbyRoom}\n${SRC.WaitingRoomPanel}\n${SRC.LobbyCreateJoinPanel}`, ['MessageCircle', 'unreadCount']),
-  sourceLacks('regression', 'no_hemen_oyna', 'old HEMEN OYNA button absent on Home', 'MainMenu.jsx', SRC.MainMenu, ['HEMEN OYNA', 'Zap']),
-  sourceHas('regression', 'home_actions', 'Home contains Solo and Online actions', 'MainMenu.jsx', SRC.MainMenu, ['type="solo"', 'type="online"', 'handleSolo', 'handleOnline']),
-
-  test('architecture', 'kronox_doc_exists', 'Kronox.md exists', () => SRC.Kronox.includes('# KRONOX') ? pass('Kronox.md loaded', { file: 'Kronox.md', expected: '# KRONOX', actual: 'present' }) : fail('Kronox.md missing', { expected: '# KRONOX', actual: 'missing' })),
-  test('architecture', 'core_prompt_exists', 'CORE_PROMPT.md exists', () => SRC.Core.includes('KRONOX CORE PROMPT') ? pass('CORE_PROMPT.md loaded', { file: 'CORE_PROMPT.md', expected: 'KRONOX CORE PROMPT', actual: 'present' }) : fail('CORE_PROMPT.md missing', { expected: 'KRONOX CORE PROMPT', actual: 'missing' })),
-  sourceHas('architecture', 'home_stage_model', 'Home overlay uses 1080x1920 design-stage model', 'MainMenu.jsx', SRC.MainMenu, ['aspectRatio: \'1080 / 1920\'', 'max(100dvw, 56.25dvh)', 'max(100dvh, 177.7778dvw)']),
-  sourceHas('architecture', 'home_percent_coords', 'Home card positions use baseline percentages', 'MainMenu.jsx', SRC.MainMenu, ["left: '10%'", "left: '52.5%'", "width: '37.5%'"]),
-  sourceHas('architecture', 'online_authority', 'Online authority uses Lobby/useLobbySync', 'Game/useLobbySync', `${SRC.Game}\n${SRC.LobbySync}`, ['useLobbySync', 'base44.entities.Lobby.get', 'base44.entities.Lobby.subscribe', 'setLobbyData']),
-  sourceHas('architecture', 'route_state_bootstrap', 'route state is bootstrap/fallback only', 'useLobbySync.js', SRC.LobbySync, ['initial-fetch', 'route-state-fallback', 'subscription:', 'poll']),
-  sourceLacks('architecture', 'protected_drag_not_touched', 'test utilities do not enter protected drag files', 'GameLayout.jsx', SRC.GameLayout, ['SimulationPanel']),
-  sourceHas('architecture', 'game_rules_module', 'pure game rules module exists', 'gameRules.js', SRC.GameRules, ['export function getNextPlayerIndex', 'export function isCorrectPlacement', 'export function selectNextQuestion', 'export function hasPlayerWon']),
-  sourceHas('architecture', 'game_actions_uses_rules', 'useGameActions uses pure game rules helpers', 'useGameActions.js', useGameActionsSource, ["from '@/lib/gameRules'", 'isCorrectPlacement(', 'getNextPlayerIndex(', 'selectNextQuestion(']),
-  sourceHas('architecture', 'server_update_validation_layer', 'updateLobbyGameState has server-side validation layer', 'updateLobbyGameState/entry.ts', SRC.UpdateLobbyGameState, ['validateGameStateUpdate', 'VALID_STATUSES', 'containsAllPreviousIds', 'getNextPlayerIndex', 'winnerIndex']),
-  sourceHas('architecture', 'lobby_room_thin_orchestrator', 'LobbyRoom is split into smaller lobby modules', 'LobbyRoom.jsx', SRC.LobbyRoom, ['<LobbyCreateJoinPanel', '<WaitingRoomPanel', 'useLobbyRoomState', '@/lib/lobbyUtils']),
-  sourceHas('architecture', 'lobby_utils_extracted', 'Lobby pure helpers are extracted', 'lobbyUtils.js', SRC.LobbyUtils, ['export function normalizeCode', 'export function summarizePlayers', 'export function isHost', 'export function canJoinLobby', 'export function buildPlayerPayload', 'export function buildLobbyStartPayload']),
-  sourceHas('architecture', 'lobby_state_hook_extracted', 'Lobby identity and page state live in useLobbyRoomState', 'useLobbyRoomState.js', SRC.LobbyRoomState, ['base44.auth.me', 'setPlayerName', 'setLobby', 'setLoading', 'setNameError']),
-  sourceHas('architecture', 'waiting_room_sync_hook_extracted', 'Waiting-room subscription and polling live in useWaitingRoomSync', 'useWaitingRoomSync.js', SRC.WaitingRoomSync, ['base44.entities.Lobby.subscribe', 'window.setInterval', 'window.clearInterval', 'findLobbyByCode', "navigate('/game'"]),
-  sourceHas('architecture', 'lobby_panels_extracted', 'Lobby create/join and waiting-room panels are extracted', 'lobby panels', `${SRC.LobbyCreateJoinPanel}\n${SRC.WaitingRoomPanel}`, ['export default function LobbyCreateJoinPanel', 'export default function WaitingRoomPanel', 'OYUNU BAŞLAT', 'LOBİ OLUŞTUR']),
-
-  sourceHas('home', 'viewport_lock', 'Home root uses viewport lock behavior', 'MainMenu.jsx', SRC.MainMenu, ["height: '100dvh'", "maxHeight: '100dvh'", "overflow: 'hidden'", "overscrollBehavior: 'none'"]),
-  sourceHas('home', 'no_scroll', 'Home does not allow vertical page scroll', 'MainMenu.jsx', SRC.MainMenu, ['fixed inset-0', 'overflow-hidden', "touchAction: 'manipulation'"]),
-  sourceLacks('home', 'no_global_overflow_lock', 'global overflow hidden is not applied to all pages', 'App/Settings/Game/Lobby/Solo', `${SRC.App}\n${SRC.Settings}\n${SRC.LobbyRoom}\n${SRC.WaitingRoomPanel}\n${SRC.LobbyCreateJoinPanel}\n${SRC.SoloChallenge}`, ['document.body.style.overflow', 'overflow: hidden']),
-  test('home', 'background_asset', 'background asset path is declared', () => SRC.MainMenu.includes('/assets/ui/home-background-full.webp') ? pass('background path declared', { expected: '/assets/ui/home-background-full.webp', actual: 'present' }) : fail('background path missing', { expected: '/assets/ui/home-background-full.webp', actual: 'missing' })),
-  equal('home', 'equal_card_size', 'Solo and Online card sizes are equal', () => [card.solo.width, card.solo.height], [card.online.width, card.online.height]),
-  sourceHas('home', 'expected_card_coords', 'Solo and Online coordinates match expected percentages', 'MainMenu.jsx', SRC.MainMenu, ["left: '10%'", "top: '70.46667%'", "left: '52.5%'", "top: '70.416667%'"]),
-  sourceHas('home', 'text_inside_cards', 'Solo/Online text stays inside card bounds', 'MainMenu.jsx', SRC.MainMenu, ["top: '64.8%'", "top: '85.2%'", "left: '8%'", "right: '8%'"]),
-  sourceHas('home', 'mode_clickable', 'Solo and Online remain clickable', 'MainMenu.jsx', SRC.MainMenu, ['onClick={handleSolo}', 'onClick={handleOnline}', 'aria-label={title.replace']),
-  sourceHas('home', 'profile_settings_accessible', 'Settings/profile area remains accessible', 'MainMenu.jsx', SRC.MainMenu, ['<ProfileBar', 'handleSettings', 'aria-label="Ayarlar"']),
-  ...[[360,740],[390,844],[412,915],[430,932],[393,873],[375,667],[768,1024]].map(([vw, vh]) => test('home', `viewport_${vw}x${vh}`, `viewport ${vw}x${vh} proportional geometry`, () => { const s = stageFor(vw, vh); const a = rect(s, card.solo); const b = rect(s, card.online); const ok = Math.abs(a.w - b.w) < 0.01 && Math.abs(a.h - b.h) < 0.01 && b.x > a.x + a.w && b.x + b.w <= s.w && a.y + a.h <= s.h; return ok ? pass('viewport geometry stable', { expected: 'equal cards, positive gap, no overflow', actual: { stage: s, solo: a, online: b } }) : fail('viewport geometry failed', { expected: 'equal cards, positive gap, no overflow', actual: { stage: s, solo: a, online: b } }); })),
-  sourceLacks('home', 'no_empty_layout_artifacts', 'removed controls leave no empty placeholders', 'GameLayout.jsx', SRC.GameLayout, ['opacity-0', 'invisible', 'placeholder']),
-
-  sourceHas('offline', 'category_selection', 'category selection works', 'SoloChallenge.jsx', SRC.SoloChallenge, ['CATEGORIES', 'selectedCategory', 'setSelectedCategory', 'dbValue']),
-  sourceHas('offline', 'difficulty_selection', 'difficulty selection works', 'SoloChallenge.jsx', SRC.SoloChallenge, ['DIFFICULTIES', 'selectedDifficulty', 'setSelectedDifficulty']),
-  test('offline', 'timer_mapping', 'selected timer maps correctly', () => ['duration: 0', 'duration: 30', 'duration: 15'].every(x => SRC.SoloChallenge.includes(x)) ? pass('timer presets mapped', { expected: [0,30,15], actual: 'present' }) : fail('timer mapping missing', { expected: [0,30,15], actual: 'missing token' })),
-  sourceHas('offline', 'start_payload', 'game starts with selected setup', 'SoloChallenge.jsx', SRC.SoloChallenge, ["navigate('/game'", 'playerNames', 'category', 'turnDuration']),
-  sourceHas('offline', 'question_appears', 'question appears', 'GameLayout.jsx', SRC.GameLayout, ['<QuestionCard', 'question={currentQuestion}', 'currentQuestion']),
-  equal('offline', 'placement_validation', 'placement validation works', () => [placeOk(0,1920,[{year:1950},{year:1980}]), placeOk(1,1960,[{year:1950},{year:1980}]), placeOk(2,1999,[{year:1950},{year:1980}]), placeOk(1,2005,[{year:1950},{year:1980}])], [true,true,true,false]),
-  equal('offline', 'placement_before_first', 'correct placement before first card', () => isCorrectPlacement([{ year: 1950 }, { year: 1980 }], 1920, 0), true),
-  equal('offline', 'placement_between_cards', 'correct placement between cards', () => isCorrectPlacement([{ year: 1950 }, { year: 1980 }], 1960, 1), true),
-  equal('offline', 'placement_after_last', 'correct placement after last card', () => isCorrectPlacement([{ year: 1950 }, { year: 1980 }], 1999, 2), true),
-  equal('offline', 'wrong_placement_rejected', 'wrong placement rejected by rules helper', () => isCorrectPlacement([{ year: 1950 }, { year: 1980 }], 2005, 1), false),
-  equal('offline', 'duplicate_timeline_year_detection', 'duplicate timeline year detection', () => hasDuplicateTimelineYear([{ year: 1999 }, { year: 2000 }], 2000), true),
-  equal('offline', 'timeline_years_helper', 'timeline years helper returns active years', () => [...getTimelineYears([{ year: 1999 }, { year: null }, { year: 2001 }])], [1999, 2001]),
-  equal('offline', 'win_condition_true', 'win condition true', () => hasPlayerWon({ cards: [{}, {}, {}] }, 3), true),
-  equal('offline', 'win_condition_false', 'win condition false', () => hasPlayerWon({ cards: [{}, {}] }, 3), false),
-  equal('offline', 'correct_adds_card', 'correct placement adds card', () => placeOk(1,1970,[{year:1950}]) ? 2 : 1, 2),
-  equal('offline', 'wrong_no_add', 'wrong placement does not add card', () => placeOk(1,2000,[{year:1950},{year:1980}]) ? 3 : 2, 2),
-  test('offline', 'no_repeat_question', 'same question does not repeat in session', () => { const pool = Array.from({length:20},(_,i)=>({id:`q${i}`,year:2000+i})); const used = new Set(); for (let i=0;i<20;i+=1) { const q = pick(used,pool); if (!q || used.has(q.id)) return fail('duplicate/null pick', { expected: 'unique ids', actual: q }); used.add(q.id); } return pass('unique picks', { expected: 20, actual: used.size }); }),
-  test('offline', 'no_repeat_year_when_possible', 'same year avoided while pool allows', () => { const q = pick(new Set(), [{id:'a',year:2000},{id:'b',year:2001},{id:'c',year:2002},{id:'d',year:2003},{id:'e',year:2004},{id:'f',year:2005}], new Set([2000,2001])); return q && ![2000,2001].includes(q.year) ? pass('duplicate years avoided', { expected: 'not 2000/2001', actual: q.year }) : fail('year repeated too early', { expected: 'non-duplicate year', actual: q }); }),
-  test('offline', 'solo_pool_available', 'Solo question pool available', async () => { const pool = qpool(await questions()); return pool.length >= 10 ? pass('solo pool ready', { expected: '>=10', actual: pool.length }) : fail('solo pool too small', { expected: '>=10', actual: pool.length }); }),
-  sourceHas('offline', 'personal_record_better_only', 'personal record update path exists', 'useGameActions/Settings', `${useGameActionsSource}\n${SRC.Settings}`, ['saveGameRecord', 'GameRecord.create', 'if (lobbyId) return', 'TopScores']),
-
-  equal('lobby', 'normalize_code', 'lobby code normalization works', () => normalizeCode(' ab-12 c '), 'AB12C'),
-  test('lobby', 'create_waiting', 'create lobby sets waiting', async () => { const l = await tmpLobby(); try { return l.status === 'waiting' ? pass('created waiting lobby', { expected: 'waiting', actual: l.status }) : fail('wrong lobby status', { expected: 'waiting', actual: l.status }); } finally { await cleanLobby(l); } }),
-  test('lobby', 'join_by_code', 'join by code works', async () => { const user = await base44.auth.me(); const l = await tmpLobby({ host_email: 'qa_other@kronox.local' }); try { const r = await base44.functions.invoke('findLobbyByCode', { code: l.code, playerName: 'QA Joiner' }); const players = r?.data?.lobby?.players || []; return players.some(p => p.email === user.email) ? pass('join appended current user', { expected: user.email, actual: players.map(p=>p.email) }) : fail('join failed', { expected: user.email, actual: r?.data }); } finally { await cleanLobby(l); } }),
-  test('lobby', 'invalid_code_rejected', 'join rejects invalid code', async () => { const r = await base44.functions.invoke('findLobbyByCode', { code: `NOPE${Date.now()}`.slice(0,6), playerName: 'Missing QA' }); return r?.data?.success === false || !r?.data?.lobby ? pass('invalid code rejected', { expected: 'no lobby', actual: r?.data }) : fail('invalid code returned lobby', { expected: 'no lobby', actual: r?.data }); }),
-  test('lobby', 'reject_not_waiting', 'join rejects lobby not waiting', async () => { const l = await tmpLobby({ status: 'in_game', host_email: 'qa_started@kronox.local' }); try { const r = await base44.functions.invoke('findLobbyByCode', { code: l.code, playerName: 'Late QA' }); return r?.data?.joinable === false ? pass('started lobby rejected', { expected: false, actual: r.data.joinable }) : fail('started lobby accepted join', { expected: false, actual: r?.data }); } finally { await cleanLobby(l); } }),
-  test('lobby', 'no_duplicate_email', 'duplicate same email does not duplicate player', async () => { const user = await base44.auth.me(); const l = await tmpLobby({ host_email: 'qa_dupe@kronox.local' }); try { await base44.functions.invoke('findLobbyByCode', { code: l.code, playerName: 'QA' }); const r = await base44.functions.invoke('findLobbyByCode', { code: l.code, playerName: 'QA' }); const count = (r?.data?.lobby?.players || []).filter(p => p.email === user.email).length; return count === 1 ? pass('one row per email', { expected: 1, actual: count }) : fail('duplicate player email', { expected: 1, actual: count }); } finally { await cleanLobby(l); } }),
-  equal('lobby', 'visible_2_3_4', '2/3/4 players visible', () => [2,3,4].map(n => roster(n).length), [2,3,4]),
-  equal('lobby', 'player4_not_dropped', 'player 4 is not dropped', () => roster(4).map(p=>p.name), ['P1','P2','P3','P4']),
-  test('lobby', 'host_start_payload', 'host start writes required fields', () => { const payload = { status: 'starting', players: roster(4), current_player_index: 0, current_question_id: 'q0', used_question_ids: ['q0'] }; const missing = ['status','players','current_player_index','current_question_id','used_question_ids'].filter(k => payload[k] == null); return missing.length ? fail('start payload missing fields', { expected: 'all required fields', actual: missing }) : pass('start payload complete', { expected: 'required fields', actual: Object.keys(payload) }); }),
-  sourceHas('lobby', 'non_host_in_game_transition', 'non-host transition supports in_game', 'useWaitingRoomSync.js', SRC.WaitingRoomSync, ['status', 'in_game', 'navigate']),
-  sourceHas('lobby', 'subscription_cleanup_preserved', 'waiting-room subscription cleanup still exists', 'useWaitingRoomSync.js', SRC.WaitingRoomSync, ['const unsub = base44.entities.Lobby.subscribe', 'return () => unsub()']),
-  sourceHas('lobby', 'polling_fallback_preserved', 'waiting-room polling fallback still exists', 'useWaitingRoomSync.js', SRC.WaitingRoomSync, ['start fallback polling registered', 'window.setInterval', 'window.clearInterval(intervalId)', "navigateToOnlineGame(fresh, 'poll')"]),
-  sourceHas('lobby', 'host_leave_preserved', 'host leave behavior is still present', 'LobbyRoom.jsx', SRC.LobbyRoom, ['base44.entities.Lobby.delete', 'base44.entities.Lobby.update', 'players: lobby.players.filter']),
-
-  equal('sync', 'rules_next_index_2p', 'turn rotation helper works for 2 players', () => [getNextPlayerIndex(0, 2), getNextPlayerIndex(1, 2)], [1, 0]),
-  equal('sync', 'rules_next_index_3p', 'turn rotation helper works for 3 players', () => [getNextPlayerIndex(0, 3), getNextPlayerIndex(1, 3), getNextPlayerIndex(2, 3)], [1, 2, 0]),
-  equal('sync', 'rules_next_index_4p', 'turn rotation helper works for 4 players', () => [getNextPlayerIndex(0, 4), getNextPlayerIndex(1, 4), getNextPlayerIndex(2, 4), getNextPlayerIndex(3, 4)], [1, 2, 3, 0]),
-  equal('sync', 'rules_next_index_invalid_safe', 'turn rotation helper handles invalid indexes defensively', () => [getNextPlayerIndex(-1, 4), getNextPlayerIndex(99, 4), getNextPlayerIndex(0, 0)], [0, 0, 0]),
-  equal('sync', '2p_p1_to_p2', '2-player P1 answer -> P2 turn', () => turn({ players: roster(2), used_question_ids: [] }, 0, {id:'q1'}).current_player_index, 1),
-  equal('sync', '2p_p2_to_p1', '2-player P2 answer -> P1 turn', () => turn({ players: roster(2), used_question_ids: [] }, 1, {id:'q1'}).current_player_index, 0),
-  equal('sync', '3p_rotation', '3-player rotation P1->P2->P3->P1', () => rotate(3,3), [0,1,2,0]),
-  equal('sync', '4p_rotation', '4-player rotation includes P4', () => rotate(4,4), [0,1,2,3,0]),
-  test('sync', 'server_valid_turn_2p', 'server accepts valid 2-player turn update', async () => (await expectSecureUpdateAccepted(2)) ? pass('2-player secure update accepted', { expected: true, actual: true }) : fail('2-player secure update rejected', { expected: true, actual: false })),
-  test('sync', 'server_valid_turn_3p', 'server accepts valid 3-player turn update', async () => (await expectSecureUpdateAccepted(3)) ? pass('3-player secure update accepted', { expected: true, actual: true }) : fail('3-player secure update rejected', { expected: true, actual: false })),
-  test('sync', 'server_valid_turn_4p', 'server accepts valid 4-player turn update', async () => (await expectSecureUpdateAccepted(4)) ? pass('4-player secure update accepted', { expected: true, actual: true }) : fail('4-player secure update rejected', { expected: true, actual: false })),
-  test('sync', 'server_valid_wrong_answer', 'server accepts valid wrong-answer transition', async () => { const lobby = await secureLobby(2); try { const result = await invokeLobbyGameState({ lobbyId: lobby.id, players: lobby.players, used_question_ids: [...lobby.used_question_ids, 'q_next'], status: 'in_game', current_player_index: 1, current_question_id: 'q_next' }); return result.ok ? pass('wrong-answer transition accepted', { expected: true, actual: result.data?.success }) : fail('wrong-answer transition rejected', { expected: true, actual: result.data }); } finally { await cleanLobby(lobby); } }),
-  test('sync', 'server_valid_winner', 'server accepts valid winner update', async () => { const lobby = await secureLobby(2, { cardCounts: [2, 0], win_card_count: 3 }); try { const players = lobby.players.map((p, i) => ({ ...p, cards: i === 0 ? [...p.cards, { id: 'win-card', year: 2020, question: 'Winner' }] : p.cards })); const result = await invokeLobbyGameState({ lobbyId: lobby.id, players, used_question_ids: [...lobby.used_question_ids, 'q_current'], status: 'finished', current_player_index: 0, current_question_id: lobby.current_question_id, winner: players[0].name, winner_email: players[0].email }); return result.ok && result.data?.lobby?.status === 'finished' ? pass('winner update accepted', { expected: 'finished', actual: result.data?.lobby?.status }) : fail('winner update rejected', { expected: 'finished', actual: result.data }); } finally { await cleanLobby(lobby); } }),
-  test('sync', 'index_valid', 'current_player_index remains valid', () => rotate(4,20).every(i => i >= 0 && i < 4) ? pass('indices valid', { expected: '0..3', actual: rotate(4,20) }) : fail('invalid index', { expected: '0..3', actual: rotate(4,20) })),
-  test('sync', 'question_id_updates', 'current_question_id updates every turn', () => { const l = turn({ players: roster(2), used_question_ids: [], current_question_id: 'q0' }, 0, {id:'q1'}); return l.current_question_id === 'next_1' && l.used_question_ids.includes('next_1') ? pass('question id updated and tracked', { expected: 'next_1', actual: l }) : fail('question id stale', { expected: 'next_1', actual: l }); }),
-  test('sync', 'card_counts_update', 'player card counts update correctly', () => { const l = turn({ players: roster(2), used_question_ids: [] }, 0, {id:'q1'}); return l.players[0].cards.length === 1 && l.players[1].cards.length === 0 ? pass('card counts updated', { expected: [1,0], actual: l.players.map(p=>p.cards.length) }) : fail('card count mismatch', { expected: [1,0], actual: l.players.map(p=>p.cards.length) }); }),
-  test('sync', 'spectator_sees_question', 'non-active player sees current question', () => { const v = perspective({ current_question_id:'q_active', current_player_index:0, players: roster(2), selectedZone: 1 }, 'p2@qa.local'); return v.current_question_id === 'q_active' && v.activePlayer === 'P1' ? pass('spectator sees active question', { expected: 'q_active/P1', actual: v }) : fail('spectator view wrong', { expected: 'q_active/P1', actual: v }); }),
-  equal('sync', 'spectator_cannot_drag', 'non-active player cannot drag', () => perspective({ current_question_id:'q1', current_player_index:0, players: roster(2) }, 'p2@qa.local').canDrag, false),
-  equal('sync', 'spectator_cannot_place', 'non-active player cannot place', () => perspective({ current_question_id:'q1', current_player_index:0, players: roster(2), selectedZone:0 }, 'p2@qa.local').canPlace, false),
-  equal('sync', 'spectator_cannot_confirm', 'non-active player cannot confirm', () => perspective({ current_question_id:'q1', current_player_index:0, players: roster(2), selectedZone:0 }, 'p2@qa.local').canConfirm, false),
-  test('sync', 'active_can_interact', 'active player can interact normally', () => { const v = perspective({ current_question_id:'q1', current_player_index:1, players: roster(2), selectedZone:0 }, 'p2@qa.local'); return v.canDrag && v.canPlace && v.canConfirm ? pass('active interactions enabled', { expected: 'all true', actual: v }) : fail('active blocked', { expected: 'all true', actual: v }); }),
-  sourceHas('sync', 'layout_readonly_guards', 'GameLayout wires spectator read-only guards', 'GameLayout.jsx', SRC.GameLayout, ['readOnly={!isMyTurn}', 'draggable={isMyTurn && !feedback}', 'onSelectZone={isMyTurn ? onSelectZone : undefined}']),
-  test('sync', 'spectator_pure', 'spectator mode does not alter state', () => { const l = { current_question_id:'q1', current_player_index:0, players: roster(2), used_question_ids:['q0'] }; const before = JSON.stringify(l); perspective(l, 'p2@qa.local'); return before === JSON.stringify(l) ? pass('spectator view is pure', { expected: before, actual: JSON.stringify(l) }) : fail('spectator mutated lobby', { expected: before, actual: JSON.stringify(l) }); }),
-  test('sync', 'backend_turn_visibility', 'backend gameplay sync scenario', () => sim('2p_turn_visibility')),
-
-  test('gameover', 'winner_victory', 'winner sees victory message and trophy', () => { const c = gameOverCopy('Ada','Ada'); return c.headline === 'Tebrikler!' && SRC.GameOver.includes('<Trophy') ? pass('winner copy/icon ok', { expected: 'Tebrikler + Trophy', actual: c }) : fail('winner copy/icon wrong', { expected: 'Tebrikler + Trophy', actual: c }); }),
-  test('gameover', 'loser_loss', 'loser sees loss message', () => { const c = gameOverCopy('Ada','Bora'); return c.headline === 'Kaybettin' && c.text.includes('Ada') ? pass('loser copy ok', { expected: 'Kaybettin + winner name', actual: c }) : fail('loser copy wrong', { expected: 'Kaybettin + winner name', actual: c }); }),
-  sourceHas('gameover', 'loser_no_trophy', 'loser does not see trophy as dominant visual', 'GameOver.jsx', SRC.GameOver, ['isOnlineLoser ? (', '<CircleX', '<Trophy']),
-  equal('gameover', '2p_finished_all', '2-player finish reaches both players', () => roster(2).map(()=>'finished'), ['finished','finished']),
-  equal('gameover', '3p_finished_all', '3-player finish reaches all players', () => roster(3).map(()=>'finished'), ['finished','finished','finished']),
-  equal('gameover', '4p_finished_all', '4-player finish reaches all players', () => roster(4).map(()=>'finished'), ['finished','finished','finished','finished']),
-  sourceHas('gameover', 'priority_over_turn', 'GameOver render has priority over turn message', 'Game.jsx', SRC.Game, ['const gameOverView', '<GameOver', 'if (winner) return gameOverView']),
-  sourceHas('gameover', 'finished_forces_gameover', 'status finished forces GameOver', 'useLobbySync.js', SRC.LobbySync, ["data?.status !== 'finished'", 'setWinner', 'renderedGameOver: true']),
-  sourceHas('gameover', 'undefined_duration_safe', 'undefined durationSeconds safe', 'GameOver.jsx', SRC.GameOver, ['durationSeconds', 'durationSeconds != null', 'formatDuration(durationSeconds)']),
-
-  test('questions', 'category_filter', 'category filter works', async () => { const all = await questions(); const cat = all.find(q => q.type === 'metin' && q.category)?.category; const pool = all.filter(q => q.category === cat); return cat && pool.every(q => q.category === cat) ? pass('category pool clean', { expected: cat, actual: pool.length }) : fail('category filter failed', { expected: cat, actual: pool.slice(0,3) }); }),
-  equal('questions', 'difficulty_filter', 'difficulty filter deterministic', () => [{difficulty:1},{difficulty:2}].filter(q=>q.difficulty===2).length, 1),
-  test('questions', 'duplicate_id_prevention', 'no duplicate question ID in session', () => { const pool = Array.from({length:8},(_,i)=>({id:`q${i}`,year:2000+i})); const used = new Set(); for (let i=0;i<8;i+=1) { const q = pick(used,pool); if (!q || used.has(q.id)) return fail('duplicate/null pick', { expected: 'unique', actual: q }); used.add(q.id); } return pass('unique ids', { expected: 8, actual: used.size }); }),
-  test('questions', 'rules_selection_excludes_used', 'question selection excludes used ids', () => { const q = selectNextQuestion([{ id: 'q0', year: 2000 }, { id: 'q1', year: 2001 }], new Set(['q0']), new Set(), { random: deterministicRandom }); return q?.id === 'q1' ? pass('used id excluded', { expected: 'q1', actual: q.id }) : fail('used id selected', { expected: 'q1', actual: q }); }),
-  test('questions', 'rules_selection_avoids_timeline_year', 'question selection avoids duplicate timeline year when alternatives exist', () => { const q = selectNextQuestion([{ id: 'q0', year: 2000 }, { id: 'q1', year: 2001 }], new Set(), new Set([2000]), { random: deterministicRandom }); return q?.year === 2001 ? pass('duplicate timeline year avoided', { expected: 2001, actual: q.year }) : fail('duplicate timeline year selected', { expected: 2001, actual: q }); }),
-  test('questions', 'rules_selection_recent_exclusion', 'question selection excludes recent IDs when alternatives exist', () => { const q = selectNextQuestion([{ id: 'q0', year: 2000 }, { id: 'q1', year: 2001 }, { id: 'q2', year: 2002 }], new Set(), new Set(), { recentQuestionIds: new Set(['q0', 'q1']), random: deterministicRandom }); return q?.id === 'q2' ? pass('recent ids avoided', { expected: 'q2', actual: q.id }) : fail('recent id selected', { expected: 'q2', actual: q }); }),
-  test('questions', 'recent_exclusion', 'recent history exclusion works', () => { const q = pick(new Set(), Array.from({length:6},(_,i)=>({id:`q${i}`,year:2000+i})), new Set(), new Set(['q0','q1'])); return q && !['q0','q1'].includes(q.id) ? pass('recent avoided', { expected: 'not q0/q1', actual: q.id }) : fail('recent picked', { expected: 'not recent', actual: q }); }),
-  test('questions', 'recent_fallback_when_exhausted', 'recent history relaxes only when no non-recent option exists', () => { const q = pick(new Set(), [{id:'q0',year:2000},{id:'q1',year:2001}], new Set(), new Set(['q0','q1'])); return q?.id === 'q0' ? pass('recent relaxed after exhaustion', { expected: 'q0 fallback', actual: q.id }) : fail('recent fallback failed', { expected: 'q0 fallback', actual: q }); }),
-  test('questions', 'duplicate_year_prevention', 'duplicate timeline year prevention works', () => { const q = pick(new Set(), [{id:'a',year:2000},{id:'b',year:2001},{id:'c',year:2002},{id:'d',year:2003},{id:'e',year:2004},{id:'f',year:2005}], new Set([2000])); return q?.year !== 2000 ? pass('year duplicate avoided', { expected: 'not 2000', actual: q?.year }) : fail('year duplicate picked', { expected: 'not 2000', actual: q }); }),
-  test('questions', 'small_pool_fallback', 'small pool fallback works', () => pick(new Set(['q0']), [{id:'q0',year:2000},{id:'q1',year:2000}], new Set([2000]))?.id === 'q1' ? pass('small pool returns unused id', { expected: 'q1', actual: 'q1' }) : fail('small pool failed', { expected: 'q1', actual: null })),
-  equal('questions', 'never_relax_duplicate_id', 'duplicate question ID never relaxed', () => pick(new Set(['q0']), [{id:'q0',year:2000}]), null),
-  test('questions', 'low_pool_no_loop', 'no infinite loop on low pool', () => { const t0 = performance.now(); for (let i=0;i<100;i+=1) pick(new Set(['q0']), [{id:'q0',year:2000}]); const ms = Math.round(performance.now()-t0); return ms < 20 ? pass('low pool exits fast', { expected: '<20ms', actual: `${ms}ms` }) : fail('low pool slow', { expected: '<20ms', actual: `${ms}ms` }); }),
-  equal('questions', 'missing_data_safe', 'missing question data handled safely', () => mediaKind(null), 'fallback'),
-
-  equal('media', 'media_priority', 'media_url priority over icon_url', () => mediaKind({media_url:'a.png', icon_url:'b.png'}), 'media_url'),
-  equal('media', 'valid_media', 'valid media_url renders image path', () => mediaKind({media_url:'a.png'}), 'media_url'),
-  equal('media', 'empty_media_fallback', 'empty media_url shows fallback', () => mediaKind({media_url:'', icon_url:''}), 'fallback'),
-  sourceHas('media', 'questioncard_media', 'QuestionCard handles media_url', 'QuestionCard.jsx', SRC.QuestionCard, ['media_url', 'imgError', 'onError={() => { setImgError(true);']),
   sourceHas('media', 'timelinecard_media', 'TimelineCard handles media_url', 'TimelineCard.jsx', SRC.TimelineCard, ['media_url', 'src={card.media_url}', 'onError']),
   sourceHas('media', 'broken_media_safe', 'image load error fallback exists', 'QuestionCard/TimelineCard', `${SRC.QuestionCard}\n${SRC.TimelineCard}`, ['onError', 'setImgError', 'fallback']),
   equal('media', 'text_question_without_media', 'text question works without media', () => mediaKind({question:'plain'}), 'fallback'),
@@ -291,6 +8,9 @@ const TESTS = [
   test('admin', 'payload_fields', 'create question payload includes required fields', () => { const p = { question:'Q', year:2000, category:'genel', type:'metin', media_url:'m.png', icon_url:'i.png', difficulty:1 }; return ['question','year','category','type','media_url','icon_url','difficulty'].every(k => k in p) ? pass('payload complete', { expected: 'all fields', actual: Object.keys(p) }) : fail('payload missing', { expected: 'all fields', actual: p }); }),
   sourceHas('admin', 'media_url_entry', 'media_url can be manually entered', 'QuestionManagement.jsx', SRC.QuestionManagement, ['media_url', 'value={form.media_url}', 'placeholder="https://..."']),
   sourceHas('admin', 'test_suite_admin_only', 'test suite visible only to admin', 'SettingsPage.jsx', SRC.Settings, ['{isAdmin && (', 'Regression Test Panel', 'setShowSim(true)']),
+  sourceHas('admin', 'direct_test_suite_guard', 'non-admin cannot access /test-suite directly', 'TestSuite.jsx', SRC.TestSuite, ['isAdminUser(user)', 'ERİŞİM KORUMALI', "navigate('/settings')"]),
+  sourceHas('admin', 'admin_helper_centralized', 'admin rules are centralized in admin helper', 'admin.js/TestSuite/Settings', `${SRC.Admin}\n${SRC.TestSuite}\n${SRC.Settings}`, ['export function isAdminUser', 'import { isAdminUser }', 'sariverim@gmail.com']),
+  test('admin', 'copy_report_ui_contract', 'Copy Report and Copy Failed Only controls exist in panel source', () => { const source = `${IssueSection.toString()}\n${SimulationPanel.toString()}`; const required = ['Copy Report', 'Copy Failed Only', "copyReport('all')", "copyReport('issues')", 'FAILED TESTS']; const missing = required.filter(token => !source.includes(token)); return missing.length ? fail('copy/export UI token missing', { expected: required, actual: `missing: ${missing.join(', ')}` }) : pass('copy/export UI present', { expected: required, actual: 'all present' }); }),
 
   test('tutorial', 'seen_flag', 'tutorialSeen flag exists', () => { const k='kronox_tutorial_seen_qa'; localStorage.removeItem(k); const before=localStorage.getItem(k); localStorage.setItem(k,'true'); const after=localStorage.getItem(k); localStorage.removeItem(k); return before == null && after === 'true' ? pass('flag stores', { expected: [null,'true'], actual: [before,after] }) : fail('flag mismatch', { expected: [null,'true'], actual: [before,after] }); }),
   equal('tutorial', 'skip_done_callbacks', 'tutorial can be skipped/completed', () => { let show=true; const close=()=>{show=false;}; close(); return show; }, false),
@@ -317,19 +37,21 @@ const TESTS = [
   equal('stability', 'unknown_status', 'unknown lobby status', () => ['starting','in_game'].includes('paused'), false),
   sourceHas('stability', 'partial_subscription', 'subscription event with partial data', 'useLobbySync.js', SRC.LobbySync, ['toLobbyState', 'fallback', 'players: Array.isArray']),
   sourceHas('stability', 'stale_index', 'stale current_player_index update path', 'useLobbySync.js', SRC.LobbySync, ['current_player_index', 'latestLobbyRef', 'hasChanged']),
+  equal('stability', 'duplicate_names_email_first_identity', 'duplicate names do not break email-first identity', () => removePlayerByIdentity([{ email: 'one@qa.local', name: 'Twin' }, { email: 'two@qa.local', name: 'Twin' }, { email: 'three@qa.local', name: 'Other' }], { email: 'one@qa.local', name: 'Twin' }).map(p => p.email), ['two@qa.local', 'three@qa.local']),
   skipped('stability', 'android_touch_e2e', 'mobile WebView touch drag end-to-end', 'Requires external Android WebView/browser automation; deterministic drag guards and placement math are covered here.'),
 
   sourceHas('exceptional', 'unauth_online_login', 'unauthenticated user presses Online -> login flow', 'MainMenu.jsx', SRC.MainMenu, ['if (!user) base44.auth.redirectToLogin', "else navigate('/lobby')"]),
   sourceHas('exceptional', 'unauth_admin_denied', 'unauthenticated user cannot access admin', 'SettingsPage.jsx', SRC.Settings, ['isAdmin', '{isAdmin && (']),
   sourceHas('exceptional', 'auth_failure', 'Base44 auth failure handled', 'MainMenu/Settings', `${SRC.MainMenu}\n${SRC.Settings}`, ['catch(() => setUser(null))', 'catch(() => setLoadingUser(false))']),
   sourceHas('exceptional', 'network_failure_warning', 'network/update failure warning path', 'useLobbySync.js', SRC.LobbySync, ['catch(err =>', 'setError', 'poll failed']),
-  sourceHas('exceptional', 'failed_lobby_update_safe', 'failed online lobby update does not corrupt local state', 'useGameActions.js', useGameActionsSource, ["base44.functions.invoke('updateLobbyGameState'", '.catch((err) =>', 'scheduleTimeout(() => attemptUpdate', 'if (updatedLobby)']),
+  sourceHas('exceptional', 'failed_lobby_update_safe', 'failed online lobby update does not corrupt local state', 'useGameActions.js', useGameActionsSource, ["base44.functions.invoke('updateLobbyGameState'", 'recoverLatestLobbyState', 'base44.entities.Lobby.get(lobbyId)', '!response?.data?.success', 'scheduleTimeout(() => attemptUpdate']),
   sourceHas('exceptional', 'server_auth_required', 'server requires authenticated user', 'updateLobbyGameState/entry.ts', SRC.UpdateLobbyGameState, ['base44.auth.me()', 'if (!user?.email)', '401']),
   test('exceptional', 'server_reject_non_current_player', 'server rejects non-current player update', async () => { const r = await expectSecureUpdateRejected(lobby => ({ lobbyId: lobby.id, players: lobby.players, used_question_ids: [...lobby.used_question_ids, 'q_next'], status: 'in_game', current_player_index: 0, current_question_id: 'q_next' }), { current_player_index: 1 }); return r.rejected && r.unchanged ? pass('non-current update rejected without mutation', { expected: 'rejected/unchanged', actual: r.result.data }) : fail('non-current update accepted or mutated', { expected: 'rejected/unchanged', actual: r }); }),
   test('exceptional', 'server_reject_extra_card', 'server rejects injected extra active-player card', async () => { const r = await expectSecureUpdateRejected(lobby => ({ lobbyId: lobby.id, players: lobby.players.map((p, i) => ({ ...p, cards: i === 0 ? [...p.cards, { id: 'a', year: 2000 }, { id: 'b', year: 2001 }] : p.cards })), used_question_ids: [...lobby.used_question_ids, 'q_next'], status: 'in_game', current_player_index: 1, current_question_id: 'q_next' })); return r.rejected && r.unchanged ? pass('extra card rejected', { expected: 'rejected/unchanged', actual: r.result.data }) : fail('extra card accepted or mutated', { expected: 'rejected/unchanged', actual: r }); }),
   test('exceptional', 'server_reject_other_player_cards', 'server rejects modifying another player cards', async () => { const r = await expectSecureUpdateRejected(lobby => ({ lobbyId: lobby.id, players: lobby.players.map((p, i) => ({ ...p, cards: i === 1 ? [{ id: 'hack', year: 2000 }] : p.cards })), used_question_ids: [...lobby.used_question_ids, 'q_next'], status: 'in_game', current_player_index: 1, current_question_id: 'q_next' })); return r.rejected && r.unchanged ? pass('other player mutation rejected', { expected: 'rejected/unchanged', actual: r.result.data }) : fail('other player mutation accepted or mutated', { expected: 'rejected/unchanged', actual: r }); }),
   test('exceptional', 'server_reject_used_ids_removed', 'server rejects removed used_question_ids', async () => { const r = await expectSecureUpdateRejected(lobby => ({ lobbyId: lobby.id, players: lobby.players, used_question_ids: ['q_next'], status: 'in_game', current_player_index: 1, current_question_id: 'q_next' }), { used_question_ids: ['q_current', 'q_old'] }); return r.rejected && r.unchanged ? pass('used ids shrink rejected', { expected: 'rejected/unchanged', actual: r.result.data }) : fail('used ids shrink accepted or mutated', { expected: 'rejected/unchanged', actual: r }); }),
   test('exceptional', 'server_reject_player_order_change', 'server rejects player order changes', async () => { const r = await expectSecureUpdateRejected(lobby => ({ lobbyId: lobby.id, players: [lobby.players[1], lobby.players[0]], used_question_ids: [...lobby.used_question_ids, 'q_next'], status: 'in_game', current_player_index: 1, current_question_id: 'q_next' })); return r.rejected && r.unchanged ? pass('player order change rejected', { expected: 'rejected/unchanged', actual: r.result.data }) : fail('player order change accepted or mutated', { expected: 'rejected/unchanged', actual: r }); }),
+  test('exceptional', 'server_reject_extra_player', 'server rejects injected extra player', async () => { const r = await expectSecureUpdateRejected(lobby => ({ lobbyId: lobby.id, players: [...lobby.players, { email: 'injected@qa.local', name: 'Injected', cards: [] }], used_question_ids: [...lobby.used_question_ids, 'q_next'], status: 'in_game', current_player_index: 1, current_question_id: 'q_next' })); return r.rejected && r.unchanged ? pass('extra player rejected', { expected: 'rejected/unchanged', actual: r.result.data }) : fail('extra player accepted or mutated', { expected: 'rejected/unchanged', actual: r }); }),
   test('exceptional', 'server_reject_player_removed', 'server rejects removed player', async () => { const r = await expectSecureUpdateRejected(lobby => ({ lobbyId: lobby.id, players: lobby.players.slice(0, 1), used_question_ids: [...lobby.used_question_ids, 'q_next'], status: 'in_game', current_player_index: 1, current_question_id: 'q_next' })); return r.rejected && r.unchanged ? pass('player removal rejected', { expected: 'rejected/unchanged', actual: r.result.data }) : fail('player removal accepted or mutated', { expected: 'rejected/unchanged', actual: r }); }),
   test('exceptional', 'server_reject_invalid_index', 'server rejects invalid current_player_index', async () => { const r = await expectSecureUpdateRejected(lobby => ({ lobbyId: lobby.id, players: lobby.players, used_question_ids: [...lobby.used_question_ids, 'q_next'], status: 'in_game', current_player_index: 99, current_question_id: 'q_next' })); return r.rejected && r.unchanged ? pass('invalid index rejected', { expected: 'rejected/unchanged', actual: r.result.data }) : fail('invalid index accepted or mutated', { expected: 'rejected/unchanged', actual: r }); }),
   test('exceptional', 'server_reject_invalid_winner', 'server rejects invalid winner', async () => { const r = await expectSecureUpdateRejected(lobby => ({ lobbyId: lobby.id, players: lobby.players, used_question_ids: [...lobby.used_question_ids], status: 'finished', current_player_index: 0, current_question_id: lobby.current_question_id, winner: 'Fake Winner', winner_email: 'fake@kronox.local' })); return r.rejected && r.unchanged ? pass('invalid winner rejected', { expected: 'rejected/unchanged', actual: r.result.data }) : fail('invalid winner accepted or mutated', { expected: 'rejected/unchanged', actual: r }); }),
@@ -344,6 +66,15 @@ const TESTS = [
   sourceLacks('removed', 'chat_unread_absent', 'chat unread indicator not visible', 'online sources', `${SRC.GameLayout}\n${SRC.Game}\n${SRC.LobbyRoom}\n${SRC.WaitingRoomPanel}\n${SRC.LobbyCreateJoinPanel}`, ['unread', 'unreadCount', 'chatUnread']),
   sourceLacks('removed', 'old_player_count_absent', 'old offline player-count setup not visible if removed', 'SoloChallenge.jsx', SRC.SoloChallenge, ['Oyuncu Sayısı', 'player count']),
   sourceLacks('removed', 'home_cta_absent', 'removed Home HEMEN OYNA button not visible', 'MainMenu.jsx', SRC.MainMenu, ['HEMEN OYNA']),
+  sourceLacks('removed', 'deleted_debug_components_not_imported', 'deleted debug components are not imported', 'app/game sources', `${SRC.App}\n${SRC.GameLayout}\n${SRC.Game}\n${SRC.Settings}\n${SRC.LobbyRoom}`, ['DebugConsole', 'DebugPanel']),
+  sourceLacks('removed', 'deleted_qa_components_not_imported', 'deleted old QA components are not imported', 'test/admin sources', `${SRC.TestSuite}\n${SRC.Settings}\n${SRC.App}`, ['components/qa', 'QAHeader', 'MetricsBoard', 'SimulationResultCard', 'TestResultCard']),
+  sourceLacks('removed', 'timeline_ruler_not_imported', 'deleted TimelineRuler is not imported', 'Timeline/GameLayout sources', `${SRC.GameLayout}\n${timelineCardSource}\n${gameLayoutSource}`, ['TimelineRuler']),
+
+  test('release', 'build_marker_pattern', 'build marker increment pattern is valid', () => /^Codex\d{3}$/.test(buildMarker()) ? pass('build marker pattern valid', { expected: 'Codex###', actual: buildMarker() }) : fail('build marker pattern invalid', { expected: 'Codex###', actual: buildMarker() })),
+  sourceLacks('release', 'no_private_tmp_patch_workflow_refs', 'no /private/tmp or patch workflow references in active app sources', 'active app sources', `${SRC.App}\n${SRC.MainMenu}\n${SRC.TestSuite}\n${SRC.Settings}\n${SRC.LobbyRoom}\n${SRC.Game}`, ['/private/tmp', 'codex-prefeature-hardening', 'patch workflow']),
+  sourceHas('release', 'debug_log_utility_exists', 'debugLog utility exists for production log gating', 'debugLog/useGameActions/PlayerIndicator', `${SRC.Game}\n${useGameActionsSource}\n${SRC.LobbyRoom}`, ['debugLog']),
+  sourceLacks('release', 'no_production_console_spam_key_paths', 'key client paths avoid production console spam', 'key client sources', `${SRC.Game}\n${SRC.LobbyRoom}\n${SRC.WaitingRoomPanel}\n${SRC.LobbySync}\n${useGameActionsSource}`, ['console.log(']),
+  test('release', 'copy_failed_mobile_visible', 'failed/warning/skipped sections remain mobile-visible', () => { const source = `${IssueSection.toString()}\n${SimulationPanel.toString()}`; const required = ['FAILED TESTS', 'WARNINGS', 'SKIPPED', 'pb-[calc(88px+env(safe-area-inset-bottom))]']; const missing = required.filter(token => !source.includes(token)); return missing.length ? fail('mobile issue UI contract missing', { expected: required, actual: `missing: ${missing.join(', ')}` }) : pass('mobile issue UI contract present', { expected: required, actual: 'all present' }); }),
 ];
 
 const byCat = Object.fromEntries(CATS.map(c => [c.id, TESTS.filter(t => t.cat === c.id)]));
