@@ -7,6 +7,13 @@ import { sounds } from '@/lib/gameSounds';
 
 const LOGO_URL = 'https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/49fc6f458_kronoxnobckgrnd.png';
 const BACKGROUND_ASSET = '/assets/ui/home-background-full.webp';
+const WIDE_STAGE_QUERY = '(min-aspect-ratio: 9 / 16)';
+
+const getIsWideStage = () => (
+  typeof window !== 'undefined'
+    ? window.matchMedia(WIDE_STAGE_QUERY).matches
+    : false
+);
 
 function ModeIllustration({ type }) {
   const solo = type === 'solo';
@@ -350,9 +357,18 @@ function ProfileBar({ user, onLogin, onLogout }) {
 export default function MainMenu() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
+  const [isWideStage, setIsWideStage] = useState(getIsWideStage);
 
   useEffect(() => {
     base44.auth.me().then((u) => setUser(u || null)).catch(() => setUser(null));
+  }, []);
+
+  useEffect(() => {
+    const media = window.matchMedia(WIDE_STAGE_QUERY);
+    const updateStageMode = () => setIsWideStage(media.matches);
+    updateStageMode();
+    media.addEventListener?.('change', updateStageMode);
+    return () => media.removeEventListener?.('change', updateStageMode);
   }, []);
 
   const handleSolo = () => {
@@ -381,6 +397,16 @@ export default function MainMenu() {
     navigate('/settings');
   };
 
+  const stageStyle = isWideStage
+    ? {
+        width: 'min(100dvw, 56.25dvh)',
+        height: 'min(100dvh, 177.7778dvw)',
+      }
+    : {
+        width: 'max(100dvw, 56.25dvh)',
+        height: 'max(100dvh, 177.7778dvw)',
+      };
+
   return (
     <main
       className="fixed inset-0 w-full overflow-hidden bg-black text-white"
@@ -397,34 +423,31 @@ export default function MainMenu() {
         contain: 'layout paint size',
       }}
     >
-      <img
-        src={BACKGROUND_ASSET}
-        alt=""
-        draggable={false}
-        className="absolute left-1/2 top-1/2 object-cover"
-        style={{
-          width: 'max(100dvw, 56.25dvh)',
-          height: 'max(100dvh, 177.7778dvw)',
-          transform: 'translate(-50%, -50%)',
-          objectPosition: 'center center',
-          pointerEvents: 'none',
-        }}
-      />
-
       <div
         className="absolute left-1/2 top-1/2 z-10"
         style={{
-          width: 'max(100dvw, 56.25dvh)',
-          height: 'max(100dvh, 177.7778dvw)',
+          ...stageStyle,
           aspectRatio: '1080 / 1920',
           transform: 'translate(-50%, -50%)',
           overflow: 'hidden',
           overscrollBehavior: 'none',
           overscrollBehaviorY: 'none',
+          pointerEvents: 'none',
         }}
       >
+        <img
+          src={BACKGROUND_ASSET}
+          alt=""
+          draggable={false}
+          className="pointer-events-none absolute inset-0 z-0 h-full w-full object-cover"
+          style={{
+            objectPosition: 'center center',
+            userSelect: 'none',
+          }}
+        />
+
         <header
-          className="absolute flex justify-center"
+          className="pointer-events-none absolute z-10 flex justify-center"
           style={{
             left: '50%',
             top: 'calc(0.45rem + env(safe-area-inset-top))',
@@ -446,7 +469,7 @@ export default function MainMenu() {
         </header>
 
         <div
-          className="absolute z-20"
+          className="absolute z-20 pointer-events-auto"
           style={{
             left: '10%',
             top: '70.46667%',
@@ -464,7 +487,7 @@ export default function MainMenu() {
         </div>
 
         <div
-          className="absolute z-20"
+          className="absolute z-20 pointer-events-auto"
           style={{
             left: '52.5%',
             top: '70.416667%',
@@ -482,7 +505,7 @@ export default function MainMenu() {
         </div>
 
         <section
-          className="absolute z-20 flex items-center gap-3"
+          className="absolute z-20 flex items-center gap-3 pointer-events-auto"
           style={{
             left: '4.6%',
             right: '4.6%',
