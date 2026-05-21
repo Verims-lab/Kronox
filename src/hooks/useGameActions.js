@@ -3,10 +3,11 @@
  * Android mimarisi önerileri: Domain/Use Case katmanı karşılığı.
  * Kart yerleştirme, tur geçme, soru atlama işlemleri burada.
  */
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { addGameLog } from '@/components/game/GameDebugLog';
 import { loadRecentHistory, appendToHistory } from '@/lib/questionHistory';
+import { debugLog } from '@/lib/debugLog';
 
 const summarizePlayers = (players = []) => players.map((player, index) => ({
   index,
@@ -33,6 +34,24 @@ export function useGameActions({
   setTimerKey,
   setGameStarted,
 }) {
+  const timeoutRefs = useRef(new Set());
+
+  const scheduleTimeout = useCallback((fn, delay) => {
+    const timeoutId = window.setTimeout(() => {
+      timeoutRefs.current.delete(timeoutId);
+      fn();
+    }, delay);
+    timeoutRefs.current.add(timeoutId);
+    return timeoutId;
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      timeoutRefs.current.forEach(timeoutId => window.clearTimeout(timeoutId));
+      timeoutRefs.current.clear();
+    };
+  }, []);
+
   const writeOnlineLobbyState = useCallback((updateData, context = {}) => {
     if (!lobbyId) return;
 
@@ -51,7 +70,7 @@ export function useGameActions({
     };
 
     addGameLog(`DB_WRITE service idx=${debugBase.next_current_player_index} status=${updateData.status || 'in_game'}`);
-    console.log('[useGameActions] online turn update start:', debugBase);
+    debugLog('[useGameActions] online turn update start:', debugBase);
 
     const attemptUpdate = (retries = 0) => {
       base44.auth.me()
@@ -63,9 +82,9 @@ export function useGameActions({
             actorName: debugBase.actorName || actor?.full_name || actor?.email || null,
           };
 
-          console.log('[useGameActions] online turn update payload:', debugWithActor);
+          debugLog('[useGameActions] online turn update payload:', debugWithActor);
           if (updateData.status === 'finished') {
-            console.log('[useGameActions] online game finish payload:', {
+            debugLog('[useGameActions] online game finish payload:', {
               actorEmail: debugWithActor.actorEmail,
               actorName: debugWithActor.actorName,
               winner: updateData.winner || null,
@@ -88,12 +107,12 @@ export function useGameActions({
         .then((response) => {
           const updatedLobby = response?.data?.lobby;
           addGameLog('DB_WRITE OK service');
-          console.log('[useGameActions] online turn update success:', {
+          debugLog('[useGameActions] online turn update success:', {
             lobbyId,
             responseDebug: response?.data?.debug || null,
           });
           if (updateData.status === 'finished') {
-            console.log('[useGameActions] online game finish update success:', {
+            debugLog('[useGameActions] online game finish update success:', {
               lobbyId,
               winner: updateData.winner || null,
               winner_email: updateData.winner_email || null,
@@ -124,13 +143,13 @@ export function useGameActions({
           }
 
           if (retries < 2) {
-            setTimeout(() => attemptUpdate(retries + 1), 1200);
+            scheduleTimeout(() => attemptUpdate(retries + 1), 1200);
           }
         });
     };
 
     attemptUpdate();
-  }, [lobbyId, setLobbyData]);
+  }, [lobbyId, scheduleTimeout, setLobbyData]);
 
   /**
    * Smart question picker:
@@ -208,7 +227,7 @@ export function useGameActions({
     if (zone === null || zone === undefined || !currentQuestion || !players[currentPlayerIndex]) return;
     if (isPlacingRef.current) return;
     isPlacingRef.current = true;
-    setTimeout(() => { isPlacingRef.current = false; }, 500);
+    scheduleTimeout(() => { isPlacingRef.current = false; }, 500);
 
     const snapshotPlayer = { ...players[currentPlayerIndex] };
     const snapshotPlayers = [...players];
@@ -298,7 +317,7 @@ export function useGameActions({
       setGameStarted(false);
       const finalSecs = overallSecondsRef.current;
       saveGameRecord(newPlayers[snapshotIndex].name, finalSecs, { category, yearStart, yearEnd });
-      setTimeout(() => {
+      scheduleTimeout(() => {
         setFeedback(null);
         setWinner({ name: newPlayers[snapshotIndex].name, email: newPlayers[snapshotIndex].email || null, durationSeconds: finalSecs });
       }, 2200);
@@ -318,7 +337,7 @@ export function useGameActions({
   }, [
     currentQuestion, players, currentPlayerIndex, usedQuestionIds,
     questionPool, winCardCount, lobbyId, isPlacingRef, overallSecondsRef,
-    pickQuestion, saveGameRecord,
+    pickQuestion, saveGameRecord, scheduleTimeout,
     writeOnlineLobbyState,
     setLobbyData, setFeedback, setWinner, setSelectedZone, setTimerKey, setGameStarted
   ]);

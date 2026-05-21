@@ -71,12 +71,13 @@ export default function QuestionCard({
 
   // Müzik soruları için canlı Deezer preview URL çek
   useEffect(() => {
+    let cancelled = false;
     setImgError(false);
     setAudioError(false);
     setPlaying(false);
     setLivePreviewUrl(null);
 
-    if (question?.type !== 'muzik') return;
+    if (question?.type !== 'muzik') return undefined;
 
     const lines = (question?.question || '').split('\n');
     const songTitle = lines[0] || '';
@@ -85,12 +86,29 @@ export default function QuestionCard({
 
     base44.functions.invoke('getDeezerPreview', { query: searchQuery })
       .then(res => {
+        if (cancelled) return;
         const url = res?.data?.previewUrl;
         if (url) setLivePreviewUrl(url);
         else setAudioError(true);
       })
-      .catch(() => setAudioError(true));
+      .catch(() => {
+        if (!cancelled) setAudioError(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [question?.id]);
+
+  useEffect(() => {
+    return () => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      audio.pause();
+      audio.removeAttribute('src');
+      audio.load();
+    };
+  }, []);
 
   // Preview URL hazır olunca otomatik çal
   useEffect(() => {

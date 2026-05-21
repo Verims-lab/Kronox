@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, WifiOff } from 'lucide-react';
 import { useOfflineQuestions } from '@/hooks/useOfflineQuestions';
 import { loadRecentHistory, appendToHistory } from '@/lib/questionHistory';
+import { debugLog } from '@/lib/debugLog';
 
 import { useGameState } from '@/hooks/useGameState';
 import { useGameActions } from '@/hooks/useGameActions';
@@ -47,7 +48,7 @@ export default function Game() {
   const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
-    console.log('[Game] mount:', {
+    debugLog('[Game] mount:', {
       routeState,
       lobbyId,
       onlineMode: isOnlineFromState,
@@ -138,7 +139,7 @@ export default function Game() {
   useEffect(() => {
     if (!isOnline) return;
 
-    console.log('[Game] online turn derived state:', {
+    debugLog('[Game] online turn derived state:', {
       lobbyId,
       lobbyDataPlayersLength: lobbyData?.players?.length || 0,
       renderedPlayersCount: players.length,
@@ -176,7 +177,7 @@ export default function Game() {
     const isWinnerByEmail = Boolean(winnerEmail && localPlayerEmail && winnerEmail === localPlayerEmail);
     const isWinnerByName = Boolean(winnerName && myPlayerName && winnerName === myPlayerName);
 
-    console.log('[Game] online GameOver perspective:', {
+    debugLog('[Game] online GameOver perspective:', {
       playerName: myPlayerName,
       playerEmail: localPlayerEmail,
       eventStatus: lobbyData?.status || null,

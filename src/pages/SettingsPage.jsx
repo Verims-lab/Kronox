@@ -8,8 +8,7 @@ import SimulationPanel from '@/components/game/SimulationPanel';
 import TopScores from '@/components/game/TopScores';
 import QuestionManagement from '@/components/admin/QuestionManagement';
 import KronoxTutorial from '@/components/tutorial/KronoxTutorial';
-
-const ADMIN_EMAIL = 'sariverim@gmail.com';
+import { isAdminUser } from '@/lib/admin';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -29,7 +28,7 @@ export default function SettingsPage() {
     }).catch(() => setLoadingUser(false));
   }, []);
 
-  const isAdmin = user?.email === ADMIN_EMAIL || user?.role === 'admin';
+  const isAdmin = isAdminUser(user);
 
   const handleDeleteAccount = async () => {
     if (!confirmDelete) { setConfirmDelete(true); return; }

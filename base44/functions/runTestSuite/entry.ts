@@ -743,18 +743,6 @@ Deno.serve(async (req) => {
         if (!Array.isArray(qs)) throw new Error('Question listesi array değil');
         return `${qs.length} soru`;
       }),
-      run('BB-08: LobbyMessage oluşturma ve okuma', async () => {
-        const lobby = await createTestLobby();
-        const msg = await base44.asServiceRole.entities.LobbyMessage.create({
-          lobby_id: lobby.id,
-          player_name: 'TestHost',
-          message: 'test mesajı',
-          type: 'chat'
-        });
-        if (!msg?.id) throw new Error('Mesaj oluşturulamadı');
-        await base44.asServiceRole.entities.LobbyMessage.delete(msg.id);
-        await cleanupLobby(lobby.id);
-      }),
       run('BB-09: Lobby used_question_ids güncelleme', async () => {
         const lobby = await createTestLobby();
         const qs = await getAllQuestions(3);
@@ -831,13 +819,6 @@ Deno.serve(async (req) => {
         const elapsed = Date.now() - start;
         if (elapsed > 200) throw new Error(`20 seçim yavaş: ${elapsed}ms`);
         return `20 seçim: ${elapsed}ms`;
-      }),
-      run('PERF-06: LobbyMessage toplu okuma < 2sn', async () => {
-        const start = Date.now();
-        await base44.asServiceRole.entities.LobbyMessage.list('-created_date', 50);
-        const elapsed = Date.now() - start;
-        if (elapsed > 2000) throw new Error(`Mesaj okuma yavaş: ${elapsed}ms`);
-        return `${elapsed}ms`;
       }),
     ];
 

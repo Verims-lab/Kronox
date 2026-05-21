@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Clock, Users, Plus, LogIn, ArrowLeft, Copy, Check, Loader2 } from 'lucide-react';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { debugLog, debugWarn } from '@/lib/debugLog';
 
 function generateCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no ambiguous chars (0/O, 1/I)
@@ -76,7 +77,7 @@ export default function LobbyRoom() {
       turn_duration: 60,
       win_card_count: 10,
     });
-    console.log('[LobbyRoom] created lobby id:', newLobby.id, 'code:', newLobby.code, 'status:', newLobby.status, 'host:', newLobby.host_email);
+    debugLog('[LobbyRoom] created lobby id:', newLobby.id, 'code:', newLobby.code, 'status:', newLobby.status, 'host:', newLobby.host_email);
     setLobby(newLobby);
     setLoading(false);
   };
@@ -89,7 +90,7 @@ export default function LobbyRoom() {
     setLoading(true);
     setError('');
 
-    console.log('[LobbyRoom] join attempt rawCode:', JSON.stringify(joinCode), 'normalized:', normalized);
+    debugLog('[LobbyRoom] join attempt rawCode:', JSON.stringify(joinCode), 'normalized:', normalized);
 
     try {
       // Single backend call: find lobby by code AND append player atomically via service role.
@@ -100,8 +101,8 @@ export default function LobbyRoom() {
       });
       const result = res.data;
 
-      console.log('[LobbyRoom] join result:', JSON.stringify(result?.debug));
-      console.log('[LobbyRoom] join roster after backend append:', {
+      debugLog('[LobbyRoom] join result:', JSON.stringify(result?.debug));
+      debugLog('[LobbyRoom] join roster after backend append:', {
         lobbyId: result?.lobby?.id || null,
         existingPlayersCount: result?.debug?.existingPlayersCount ?? null,
         newPlayersCount: result?.lobby?.players?.length || 0,
@@ -283,7 +284,7 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
   }, [lobby?.id, lobby?.status, user?.email, playerName]);
 
   useEffect(() => {
-    console.log('[WaitingRoom] rendered roster:', {
+    debugLog('[WaitingRoom] rendered roster:', {
       lobbyId: lobby?.id || null,
       subscriptionPlayersCount: lobby?.players?.length || 0,
       renderedPlayersCount: lobby?.players?.length || 0,
@@ -314,7 +315,7 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
       source,
       error: null,
     };
-    console.log('[WaitingRoom] start debug:', nextDebug);
+    debugLog('[WaitingRoom] start debug:', nextDebug);
     setStartDebug(nextDebug);
 
     navigate('/game', {
@@ -334,7 +335,7 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
       playerName: playerNameRef.current,
       userEmail: userRef.current?.email || null,
     };
-    console.log('[WaitingRoom] subscription registered:', registrationDebug);
+    debugLog('[WaitingRoom] subscription registered:', registrationDebug);
     setStartDebug(prev => ({
       ...prev,
       subscribedLobbyId: lobby.id,
@@ -353,7 +354,7 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
       const status = updatedLobby?.status;
       const playerCount = updatedLobby?.players?.length || 0;
 
-      console.log('[WaitingRoom] subscription event:', {
+      debugLog('[WaitingRoom] subscription event:', {
         eventType,
         receivedLobbyId,
         status,
@@ -401,7 +402,7 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
         error: null,
       };
 
-      console.log('[WaitingRoom] navigation decision:', {
+      debugLog('[WaitingRoom] navigation decision:', {
         shouldNavigate,
         currentPathname: window.location.pathname,
         navigateCalled: false,
@@ -411,7 +412,7 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
         userEmail: currentUser?.email || null,
         hostEmail,
       });
-      console.log('[WaitingRoom] start debug:', debugData);
+      debugLog('[WaitingRoom] start debug:', debugData);
       setStartDebug(debugData);
 
       // Non-host navigates when game starts
@@ -439,7 +440,7 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
           currentPlayers.length !== freshPlayers.length ||
           JSON.stringify(summarizeLobbyPlayers(currentPlayers)) !== JSON.stringify(summarizeLobbyPlayers(freshPlayers));
 
-        console.log('[WaitingRoom] roster poll:', {
+        debugLog('[WaitingRoom] roster poll:', {
           lobbyId: lobby.id,
           rosterChanged,
           localPlayersCount: currentPlayers.length,
@@ -452,7 +453,7 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
           setLobby(fresh);
         }
       } catch (err) {
-        console.warn('[WaitingRoom] roster poll failed:', {
+        debugWarn('[WaitingRoom] roster poll failed:', {
           lobbyId: lobby.id,
           error: err.message,
         });
@@ -479,7 +480,7 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
     }
 
     rejoinAttemptRef.current = true;
-    console.warn('[WaitingRoom] current player missing from waiting roster, reasserting join:', {
+    debugWarn('[WaitingRoom] current player missing from waiting roster, reasserting join:', {
       lobbyId: lobby.id,
       code: lobby.code,
       currentUserEmail: currentEmail || null,
@@ -493,7 +494,7 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
       playerName: currentName,
     }).then((res) => {
       const updatedLobby = res?.data?.lobby;
-      console.log('[WaitingRoom] rejoin assertion result:', {
+      debugLog('[WaitingRoom] rejoin assertion result:', {
         lobbyId: updatedLobby?.id || lobby.id,
         joined: Boolean(res?.data?.joined),
         playersCount: updatedLobby?.players?.length || 0,
@@ -508,7 +509,7 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
         setLobby(updatedLobby);
       }
     }).catch((err) => {
-      console.warn('[WaitingRoom] rejoin assertion failed:', {
+      debugWarn('[WaitingRoom] rejoin assertion failed:', {
         lobbyId: lobby.id,
         error: err.message,
       });
@@ -520,7 +521,7 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
     if (!lobby?.id || isHost) return undefined;
 
     const pollStartedAt = new Date().toISOString();
-    console.log('[WaitingRoom] start fallback polling registered:', {
+    debugLog('[WaitingRoom] start fallback polling registered:', {
       lobbyId: lobby.id,
       timestamp: pollStartedAt,
       playerName: playerNameRef.current,
@@ -549,7 +550,7 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
           error: null,
         };
 
-        console.log('[WaitingRoom] start fallback poll:', pollDebug);
+        debugLog('[WaitingRoom] start fallback poll:', pollDebug);
         setStartDebug(pollDebug);
 
         if (fresh) setLobby(fresh);
@@ -569,7 +570,7 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
           source: 'poll',
           error: err.message,
         };
-        console.log('[WaitingRoom] start fallback poll error:', pollErrorDebug);
+        debugLog('[WaitingRoom] start fallback poll error:', pollErrorDebug);
         setStartDebug(pollErrorDebug);
       }
     }, 1500);
@@ -622,13 +623,13 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
 
   const handleStart = async () => {
     const latestLobby = await base44.entities.Lobby.get(lobby.id).catch((err) => {
-      console.warn('[handleStart] latest lobby fetch failed, using local lobby:', err.message);
+      debugWarn('[handleStart] latest lobby fetch failed, using local lobby:', err.message);
       return null;
     });
     const startLobby = latestLobby || lobby;
     const startPlayers = Array.isArray(startLobby.players) ? startLobby.players : [];
 
-    console.log('[handleStart] latest roster before start:', {
+    debugLog('[handleStart] latest roster before start:', {
       lobbyId: startLobby.id,
       localPlayersCount: lobby.players?.length || 0,
       fetchedPlayersCount: startPlayers.length,
@@ -690,8 +691,8 @@ function WaitingRoom({ lobby, setLobby, playerName, user, isHost, canStart, onLe
       players: playersWithCards
     };
 
-    console.log('[handleStart] lobbyId:', lobby.id, 'playerCount:', playersWithCards.length, 'status:', updateData.status, 'current_player_index:', updateData.current_player_index, 'current_question_id:', updateData.current_question_id, 'used_count:', updateData.used_question_ids.length, 'players:', playersWithCards.map(p => p.name));
-    console.log('[handleStart] start payload roster:', {
+    debugLog('[handleStart] lobbyId:', lobby.id, 'playerCount:', playersWithCards.length, 'status:', updateData.status, 'current_player_index:', updateData.current_player_index, 'current_question_id:', updateData.current_question_id, 'used_count:', updateData.used_question_ids.length, 'players:', playersWithCards.map(p => p.name));
+    debugLog('[handleStart] start payload roster:', {
       lobbyId: startLobby.id,
       playersCountUsedForGameStart: playersWithCards.length,
       playersWrittenToLobby: summarizeLobbyPlayers(playersWithCards),

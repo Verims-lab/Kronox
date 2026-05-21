@@ -766,38 +766,6 @@ Deno.serve(async (req) => {
     }
 
     // ══════════════════════════════════════════════════════════════════
-    // LOBİ MESAJI (Sohbet)
-    // ══════════════════════════════════════════════════════════════════
-    if (scenario === 'lobby_chat' || scenario === 'all') {
-      results['lobby_chat'] = await runScenario('lobby_chat', base44, 2, async (lobbyId) => {
-        const logs = [];
-        const messages = [
-          { lobby_id: lobbyId, player_name: 'SimP1', message: 'Merhaba!', type: 'chat' },
-          { lobby_id: lobbyId, player_name: 'SimP2', message: 'Hazırım 👋', type: 'chat' },
-          { lobby_id: lobbyId, player_name: 'system', message: 'Oyun başladı', type: 'system' },
-        ];
-        const created = [];
-        for (const m of messages) {
-          const msg = await base44.asServiceRole.entities.LobbyMessage.create(m);
-          created.push(msg.id);
-          logs.push(`✅ Mesaj oluşturuldu: "${m.message}" (${m.type})`);
-        }
-        // Doğrulama: mesajlar geri okunabilmeli
-        const fetched = await base44.asServiceRole.entities.LobbyMessage.filter({ lobby_id: lobbyId });
-        if (fetched.length < 3) {
-          return { status: 'FAIL', logs: [...logs, `❌ Mesaj sayısı beklenen=3, gerçek=${fetched.length}`] };
-        }
-        logs.push(`✅ ${fetched.length} mesaj DB'den okundu`);
-        // Temizlik
-        for (const id of created) {
-          await base44.asServiceRole.entities.LobbyMessage.delete(id).catch(() => {});
-        }
-        logs.push('✅ Test mesajları temizlendi');
-        return { status: 'PASS', logs };
-      });
-    }
-
-    // ══════════════════════════════════════════════════════════════════
     // SORU HAVUZU DEDÜPLİKASYONU
     // ══════════════════════════════════════════════════════════════════
     if (scenario === 'dedup_questions' || scenario === 'all') {
@@ -1190,7 +1158,7 @@ Deno.serve(async (req) => {
             { el: 'PlayerSetup', style: 'paddingTop: calc(1rem + env(safe-area-inset-top))' },
             { el: 'BottomNav', style: 'paddingBottom: env(safe-area-inset-bottom)' },
             { el: 'Body (global)', style: 'padding: env(safe-area-inset-*)' },
-            { el: 'Chat paneli', style: 'paddingTop/Bottom: env(safe-area-inset-*)' },
+            { el: 'WaitingRoom paneli', style: 'paddingTop/Bottom: env(safe-area-inset-*)' },
           ];
           for (const e of elements) logs.push(`✅ ${e.el}: ${e.style}`);
           logs.push('ℹ️  iOS notch ve Android navigation bar ile çakışma engelleniyor');
@@ -1553,46 +1521,6 @@ Deno.serve(async (req) => {
     }
 
     // ══════════════════════════════════════════════════════════════════
-    // OYNANABILIRLIK — Chat Mesaj Limiti ve Uzun Mesaj
-    // ══════════════════════════════════════════════════════════════════
-    if (scenario === 'chat_edge_cases' || scenario === 'all') {
-      results['chat_edge_cases'] = await runScenario('chat_edge_cases', base44, 2, async (lobbyId) => {
-        const logs = [];
-        const created = [];
-        try {
-          const edgeMessages = [
-            { msg: '', desc: 'Boş mesaj (reddedilmeli — frontend engeller)' },
-            { msg: 'A'.repeat(500), desc: 'Çok uzun mesaj (500 karakter)' },
-            { msg: '🎉🔥💥🎮🏆', desc: 'Emoji mesajı' },
-            { msg: '<script>alert(1)</script>', desc: 'XSS girişimi (string olarak saklanır)' },
-            { msg: 'Merhaba arkadaşlar! 🎯', desc: 'Normal Türkçe mesaj' },
-          ];
-          for (const em of edgeMessages) {
-            if (!em.msg) {
-              logs.push(`✅ "${em.desc}": frontend disabled butonu ile engeller`);
-              continue;
-            }
-            const created_msg = await base44.asServiceRole.entities.LobbyMessage.create({
-              lobby_id: lobbyId, player_name: 'SimP1', message: em.msg, type: 'chat'
-            });
-            created.push(created_msg.id);
-            const fetched = await base44.asServiceRole.entities.LobbyMessage.filter({ lobby_id: lobbyId });
-            const found = fetched.find(m => m.id === created_msg.id);
-            if (!found) {
-              return { status: 'FAIL', logs: [...logs, `❌ "${em.desc}" mesajı DB'de bulunamadı`] };
-            }
-            logs.push(`✅ "${em.desc}" (${em.msg.length} kar): DB'ye yazıldı, okundu`);
-          }
-          return { status: 'PASS', logs };
-        } finally {
-          for (const id of created) {
-            await base44.asServiceRole.entities.LobbyMessage.delete(id).catch(() => {});
-          }
-        }
-      });
-    }
-
-    // ══════════════════════════════════════════════════════════════════
     // MOBİL UYUMLULUĞU — overscroll-behavior ve text-selection
     // ══════════════════════════════════════════════════════════════════
     if (scenario === 'mobile_css_standards' || scenario === 'all') {
@@ -1694,7 +1622,7 @@ Deno.serve(async (req) => {
           logs.push('🎮 Online Çok Oyunculu Oyun Akışı:');
           logs.push('1️⃣  PlayerSetup: "ÇEVRİMİÇİ OYUN" → giriş kontrolü');
           logs.push('2️⃣  LobbyRoom: lobi kodu gir, host lobi oluştur');
-          logs.push('3️⃣  Chat: oyuncular sohbet eder, bekleme süresi');
+          logs.push('3️⃣  WaitingRoom: oyuncular hazır bekler');
           logs.push('4️⃣  Host başlatır → Game navigate (playerNames + lobbyId)');
           logs.push('5️⃣  Subscription: Lobby entity izlenir, güncelleme push');
           logs.push('6️⃣  isMyTurn: sadece sırası gelen oyuncu kartı yerleştirir');
@@ -1731,42 +1659,6 @@ Deno.serve(async (req) => {
           return { status: 'ERROR', error: err.message };
         }
       })();
-    }
-
-    // ══════════════════════════════════════════════════════════════════
-    // PULL-TO-REFRESH — LobbyChat usePullToRefresh Hook
-    // ══════════════════════════════════════════════════════════════════
-    if (scenario === 'chat_pull_to_refresh' || scenario === 'all') {
-      results['chat_pull_to_refresh'] = await runScenario('chat_pull_to_refresh', base44, 2, async (lobbyId) => {
-        const logs = [];
-        const created = [];
-        try {
-          // 3 mesaj oluştur
-          const msgs = ['Merhaba', 'Nasılsın?', 'Hazırım!'];
-          for (const msg of msgs) {
-            const m = await base44.asServiceRole.entities.LobbyMessage.create({
-              lobby_id: lobbyId, player_name: 'SimP1', message: msg, type: 'chat'
-            });
-            created.push(m.id);
-          }
-          logs.push(`✅ ${msgs.length} mesaj oluşturuldu`);
-
-          // usePullToRefresh: çekilince fetchMessages()
-          const fetched = await base44.asServiceRole.entities.LobbyMessage.filter({ lobby_id: lobbyId }, 'created_date', 50);
-          if (fetched.length < 3) {
-            return { status: 'FAIL', logs: [...logs, `❌ Mesajlar okunmadı: ${fetched.length} < 3`] };
-          }
-          logs.push(`✅ Pull-to-refresh sonrası ${fetched.length} mesaj okundu`);
-          logs.push('ℹ️  Container pull → pullY > 0 → Loader2 icon pulsing');
-          logs.push('ℹ️  Yayın sonrası → fetchMessages() → setMessages güncellendir');
-          logs.push('ℹ️  overscroll-behavior: none — system pull-to-refresh önceden alındı');
-          return { status: 'PASS', logs };
-        } finally {
-          for (const id of created) {
-            await base44.asServiceRole.entities.LobbyMessage.delete(id).catch(() => {});
-          }
-        }
-      });
     }
 
     // ══════════════════════════════════════════════════════════════════

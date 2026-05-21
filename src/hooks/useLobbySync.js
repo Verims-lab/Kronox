@@ -6,6 +6,7 @@
 import { useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { addGameLog } from '@/components/game/GameDebugLog';
+import { debugLog, debugWarn } from '@/lib/debugLog';
 
 const summarizePlayers = (players = []) =>
   players.map(p => ({
@@ -58,7 +59,7 @@ export function useLobbySync({
       const nextLobbyData = toLobbyState(data, latestLobbyRef.current || {});
       latestLobbyRef.current = nextLobbyData;
 
-      console.log('[useLobbySync] applying lobby data:', {
+      debugLog('[useLobbySync] applying lobby data:', {
         source,
         setLobbyDataCalled: true,
         lobbyId: nextLobbyData.id || lobbyId,
@@ -75,7 +76,7 @@ export function useLobbySync({
 
       const winnerState = toWinnerState(nextLobbyData);
       if (winnerState?.name) {
-        console.log('[useLobbySync] finished lobby observed:', {
+        debugLog('[useLobbySync] finished lobby observed:', {
           source,
           lobbyId: nextLobbyData.id || lobbyId,
           setWinnerCalled: true,
@@ -93,7 +94,7 @@ export function useLobbySync({
     base44.entities.Lobby.get(lobbyId)
       .then(data => {
         if (data) {
-          console.log('[useLobbySync] fetched lobby:', {
+          debugLog('[useLobbySync] fetched lobby:', {
             lobbyId: data.id,
             status: data.status,
             playerCount: data.players?.length || 0,
@@ -142,7 +143,7 @@ export function useLobbySync({
       if (receivedLobbyId !== lobbyId) return;
 
       addGameLog(`SUB event=${eventType} idx=${updatedLobby?.current_player_index} status=${updatedLobby?.status}`);
-      console.log('[useLobbySync] subscription event:', {
+      debugLog('[useLobbySync] subscription event:', {
         subscriptionEventReceived: true,
         eventType,
         receivedLobbyId,
@@ -177,7 +178,7 @@ export function useLobbySync({
           JSON.stringify(previous.used_question_ids || []) !== JSON.stringify(fresh.used_question_ids || []) ||
           JSON.stringify(summarizePlayers(previous.players || [])) !== JSON.stringify(summarizePlayers(fresh.players || []));
 
-        console.log('[useLobbySync] poll check:', {
+        debugLog('[useLobbySync] poll check:', {
           lobbyId: fresh.id,
           hasChanged,
           status: fresh.status,
@@ -191,7 +192,7 @@ export function useLobbySync({
           applyLobbyData(fresh, 'poll');
         }
       } catch (err) {
-        console.warn('[useLobbySync] poll failed:', err.message);
+        debugWarn('[useLobbySync] poll failed:', err.message);
       }
     }, 1500);
 
