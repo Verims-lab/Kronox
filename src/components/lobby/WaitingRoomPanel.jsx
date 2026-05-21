@@ -4,7 +4,8 @@ import { Check, Copy, Loader2, Users } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { useWaitingRoomSync } from '@/hooks/useWaitingRoomSync';
-import { buildLobbyStartPayload, summarizePlayers } from '@/lib/lobbyUtils';
+import { summarizePlayers } from '@/lib/lobbyUtils';
+import { buildInitialOnlineGameState } from '@/lib/onlineGameStart';
 import { debugLog, debugWarn } from '@/lib/debugLog';
 
 const categories = [
@@ -80,51 +81,18 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
     }
 
     const allQuestions = await base44.entities.Question.list('-created_date', 200);
-    const filtered = allQuestions
-      .filter(q => q.type === 'metin')
-      .filter(q => q.year >= settings.year_start && q.year <= settings.year_end)
-      .filter(q => settings.category === 'karisik' || q.category === settings.category);
+    const initialState = buildInitialOnlineGameState({
+      players: startPlayers,
+      questions: allQuestions,
+      settings,
+    });
 
-    if (filtered.length === 0) {
-      alert('Soru bulunamadı');
+    if (!initialState.ok) {
+      alert(initialState.message);
       return;
     }
 
-    const shuffled = [...filtered];
-    for (let i = shuffled.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-
-    const neededCount = startPlayers.length * 2 + 1;
-    if (shuffled.length < neededCount) {
-      alert(`Yeterli soru yok. Gerekli: ${neededCount}, mevcut: ${shuffled.length}`);
-      return;
-    }
-
-    let cursor = 0;
-    const used = new Set();
-
-    const playersWithCards = startPlayers.map(p => {
-      const cards = [];
-      for (let i = 0; i < 2; i += 1) {
-        const q = shuffled[cursor];
-        cursor += 1;
-        cards.push({ id: q.id, year: q.year, question: q.question, type: q.type, media_url: q.media_url });
-        used.add(q.id);
-      }
-      return { ...p, cards };
-    });
-
-    const firstQ = shuffled[cursor];
-    used.add(firstQ.id);
-
-    const updateData = buildLobbyStartPayload({
-      firstQuestionId: firstQ.id,
-      playersWithCards,
-      usedQuestionIds: used,
-    });
-
+    const { playersWithCards, updateData } = initialState;
     debugLog('[handleStart] lobbyId:', lobby.id, 'playerCount:', playersWithCards.length, 'status:', updateData.status, 'current_player_index:', updateData.current_player_index, 'current_question_id:', updateData.current_question_id, 'used_count:', updateData.used_question_ids.length, 'players:', playersWithCards.map(p => p.name));
     debugLog('[handleStart] start payload roster:', {
       lobbyId: startLobby.id,
