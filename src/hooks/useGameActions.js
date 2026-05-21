@@ -80,6 +80,30 @@ export function useGameActions({
     addGameLog(`DB_WRITE service idx=${debugBase.next_current_player_index} status=${updateData.status || 'in_game'}`);
     debugLog('[useGameActions] online turn update start:', debugBase);
 
+    const recoverLatestLobbyState = () => {
+      isPlacingRef.current = false;
+      return base44.entities.Lobby.get(lobbyId)
+        .then((freshLobby) => {
+          if (freshLobby) {
+            setLobbyData({ ...freshLobby });
+            addGameLog('DB_WRITE recovery fetched latest lobby');
+            debugLog('[useGameActions] recovered latest lobby after rejected update:', {
+              lobbyId,
+              status: freshLobby.status,
+              current_player_index: freshLobby.current_player_index,
+              current_question_id: freshLobby.current_question_id || null,
+            });
+          }
+        })
+        .catch((refreshErr) => {
+          addGameLog(`DB_WRITE recovery failed ${refreshErr.message}`);
+          console.error('[useGameActions] online recovery fetch failed:', {
+            lobbyId,
+            error: refreshErr,
+          });
+        });
+    };
+
     const attemptUpdate = (retries = 0) => {
       base44.auth.me()
         .catch(() => null)
@@ -113,6 +137,9 @@ export function useGameActions({
           });
         })
         .then((response) => {
+          if (!response?.data?.success || response?.data?.error) {
+            throw new Error(response?.data?.error || 'Online oyun durumu reddedildi.');
+          }
           const updatedLobby = response?.data?.lobby;
           addGameLog('DB_WRITE OK service');
           debugLog('[useGameActions] online turn update success:', {
@@ -152,12 +179,14 @@ export function useGameActions({
 
           if (retries < 2) {
             scheduleTimeout(() => attemptUpdate(retries + 1), 1200);
+          } else {
+            recoverLatestLobbyState();
           }
         });
     };
 
     attemptUpdate();
-  }, [lobbyId, scheduleTimeout, setLobbyData]);
+  }, [lobbyId, isPlacingRef, scheduleTimeout, setLobbyData]);
 
   /**
    * Smart question picker:

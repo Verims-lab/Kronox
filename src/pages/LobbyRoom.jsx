@@ -11,6 +11,7 @@ import {
   isGuestHost,
   isHost,
   normalizeCode,
+  removePlayerByIdentity,
   summarizePlayers,
   validatePlayerName,
 } from '@/lib/lobbyUtils';
@@ -114,11 +115,15 @@ export default function LobbyRoom() {
 
   const handleLeave = async () => {
     if (!lobby) return;
-    if (lobby.host_email === (user?.email || '')) {
+    const lobbyIsHost = isHost(lobby, user) || isGuestHost(lobby, user, playerName);
+    if (lobbyIsHost) {
       await base44.entities.Lobby.delete(lobby.id);
     } else {
       await base44.entities.Lobby.update(lobby.id, {
-        players: lobby.players.filter(p => p.name !== playerName)
+        players: removePlayerByIdentity(lobby.players, {
+          email: user?.email,
+          name: playerName,
+        })
       });
     }
     setLobby(null);

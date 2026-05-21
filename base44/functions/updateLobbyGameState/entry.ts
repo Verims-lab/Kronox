@@ -9,8 +9,6 @@ const json = (body: unknown, status = 200) =>
 const summarizePlayers = (players: any[] = []) =>
   players.map((player, index) => ({
     index,
-    email: player?.email || null,
-    name: player?.name || null,
     cardCount: Array.isArray(player?.cards) ? player.cards.length : 0,
   }));
 
@@ -301,8 +299,6 @@ Deno.serve(async (req) => {
     }
 
     const debug = {
-      actorEmail: user.email,
-      actorName: body.actorName || lobbyPlayers[actorIndex]?.name || user.full_name || user.email,
       lobbyId,
       current_player_index_before: lobby.current_player_index ?? 0,
       next_current_player_index: updateData.current_player_index,
@@ -313,8 +309,6 @@ Deno.serve(async (req) => {
       playersSummary: summarizePlayers(incomingPlayers),
       updateFields: Object.keys(updateData),
     };
-
-    console.log('[updateLobbyGameState] applying online turn update', debug);
 
     const updatedLobby = await base44.asServiceRole.entities.Lobby.update(lobbyId, updateData);
 
