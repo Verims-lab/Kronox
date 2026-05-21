@@ -49,7 +49,7 @@ export default function SettingsPage() {
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = 'kronos-teknik-dokuman.pdf'; a.click();
+      a.href = url; a.download = 'kronox-teknik-dokuman.pdf'; a.click();
       URL.revokeObjectURL(url);
     } finally { setDownloadingDoc(false); }
   };
@@ -61,7 +61,7 @@ export default function SettingsPage() {
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = 'kronos-is-akisi.pdf'; a.click();
+      a.href = url; a.download = 'kronox-is-akisi.pdf'; a.click();
       URL.revokeObjectURL(url);
     } finally { setDownloadingWorkflow(false); }
   };
