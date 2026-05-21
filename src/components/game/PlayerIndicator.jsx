@@ -1,11 +1,12 @@
 import React from 'react';
 import { User, Crown } from 'lucide-react';
 import { playerBadgeColors } from './playerColors';
+import { debugLog } from '@/lib/debugLog';
 
 const playerColors = playerBadgeColors;
 
 export default function PlayerIndicator({ players = [], currentPlayerIndex = 0, myPlayerName }) {
-  console.log('[PlayerIndicator] rendered players:', {
+  debugLog('[PlayerIndicator] rendered players:', {
     renderedPlayersCount: players?.length || 0,
     renderedPlayerNames: (players || []).map(p => p?.name),
     currentPlayerIndex,

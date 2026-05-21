@@ -1,6 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import TimelineCard from './TimelineCard.jsx';
-import TimelineRuler from './TimelineRuler.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import { sounds } from '@/lib/gameSounds';
 
