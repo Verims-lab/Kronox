@@ -471,10 +471,10 @@ export default function MainMenu() {
         <div
           className="absolute z-20 pointer-events-auto"
           style={{
-            left: '10%',
-            top: '70.46667%',
-            width: '37.5%',
-            height: '20.052083%',
+            left: '13.314815%',
+            top: '71.40625%',
+            width: '33.981481%',
+            height: '18.177083%',
           }}
         >
           <ModeCard
@@ -489,10 +489,10 @@ export default function MainMenu() {
         <div
           className="absolute z-20 pointer-events-auto"
           style={{
-            left: '52.5%',
-            top: '70.416667%',
-            width: '37.5%',
-            height: '20.052083%',
+            left: '52.703704%',
+            top: '71.40625%',
+            width: '33.981481%',
+            height: '18.177083%',
           }}
         >
           <ModeCard
