@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { AlertTriangle, CheckCircle2, ChevronDown, Clock, Play, RefreshCw, ShieldAlert, X, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronDown, ClipboardCopy, Clock, Play, RefreshCw, ShieldAlert, X, XCircle } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 
 import gameLayoutSource from './GameLayout.jsx?raw';
@@ -227,20 +227,116 @@ const TESTS = [
 ];
 
 const byCat = Object.fromEntries(CATS.map(c => [c.id, TESTS.filter(t => t.cat === c.id)]));
+const catById = Object.fromEntries(CATS.map(c => [c.id, c]));
+const filterOptions = [
+  ['all', 'All'],
+  [ST.FAIL, 'Failed'],
+  [ST.WARNING, 'Warnings'],
+  [ST.SKIPPED, 'Skipped'],
+  [ST.PASS, 'Passed'],
+];
+const statusRank = { [ST.FAIL]: 0, [ST.WARNING]: 1, [ST.SKIPPED]: 2, [ST.PASS]: 3 };
+const formatDuration = ms => {
+  if (ms == null) return 'not run';
+  if (ms < 1000) return `${ms}ms`;
+  if (ms < 60000) return `${(ms / 1000).toFixed(ms < 10000 ? 1 : 0)}s`;
+  const minutes = Math.floor(ms / 60000);
+  const seconds = Math.round((ms % 60000) / 1000);
+  return `${minutes}m ${seconds}s`;
+};
+const stringify = value => {
+  if (value == null || value === '') return '-';
+  return typeof value === 'string' ? value : JSON.stringify(value);
+};
+const buildMarker = () => SRC.BuildMarker.match(/Codex\d+/)?.[0] || 'unknown';
 function Badge({ status }) { const [color, Icon] = LOOK[status] || LOOK.SKIPPED; return <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-inter text-[10px] font-bold" style={{ color, background: `${color}20` }}><Icon className="h-3 w-3" />{status}</span>; }
 function Metric({ label, value, color }) { return <div className="rounded-2xl border border-white/10 bg-white/[0.045] px-3 py-2"><div className="font-bangers text-xl tracking-wider" style={{ color }}>{value}</div><div className="font-inter text-[10px] uppercase tracking-widest text-white/35">{label}</div></div>; }
-function Details({ result }) { const rows = result ? [['Expected', result.expected], ['Actual', result.actual], ['Reason', result.reason], ['File/function', result.file], ['Detail', result.detail]].filter(([, v]) => v != null && v !== '') : []; return <div className="mt-2 rounded-xl border border-white/[0.06] bg-black/25 p-2 font-mono text-[10px] leading-relaxed text-white/55"><div>{result?.message || 'Not run yet.'}</div>{rows.map(([k, v]) => <div key={k} className="grid grid-cols-[88px_1fr] gap-2"><span className="text-white/25">{k}</span><span className="break-words">{typeof v === 'string' ? v : JSON.stringify(v)}</span></div>)}</div>; }
-function Row({ item, result, busy, onRun }) { const [open, setOpen] = useState(false); const status = result?.status || ST.SKIPPED; const [color] = LOOK[status] || LOOK.SKIPPED; return <div className="overflow-hidden rounded-2xl" style={{ background: `${color}08`, border: `1px solid ${color}24` }}><button className="w-full px-3 py-3 text-left" onClick={() => setOpen(v => !v)}><div className="flex items-start gap-3"><div className="mt-1 h-2 w-2 rounded-full" style={{ background: color, boxShadow: `0 0 14px ${color}` }} /><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-2"><div><div className="font-inter text-sm font-semibold text-white/85">{item.name}</div><div className="mt-0.5 font-mono text-[10px] text-white/30">{item.cat}.{item.id}</div></div><div className="flex flex-col items-end gap-1"><Badge status={status} />{result?.durationMs != null && <span className="font-mono text-[9px] text-white/25">{result.durationMs}ms</span>}</div></div>{open && <Details result={result} />}</div><ChevronDown className={`mt-1 h-4 w-4 text-white/25 transition-transform ${open ? 'rotate-180' : ''}`} /></div></button><div className="flex justify-end border-t px-3 py-2" style={{ borderColor: `${color}16` }}><button onClick={() => onRun(item)} disabled={busy} className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 font-inter text-[11px] font-bold disabled:opacity-40" style={{ background: 'rgba(250,204,21,0.13)', color: '#facc15', border: '1px solid rgba(250,204,21,0.28)' }}>{busy ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}Run</button></div></div>; }
+function Details({ result }) { const rows = result ? [['Expected', result.expected], ['Actual', result.actual], ['Reason', result.reason], ['File/function', result.file], ['Detail', result.detail]].filter(([, v]) => v != null && v !== '') : []; return <div className="mt-2 rounded-xl border border-white/[0.06] bg-black/25 p-2 font-mono text-[10px] leading-relaxed text-white/60"><div className="mb-1 text-white/70">{result?.message || 'Not run yet.'}</div>{rows.map(([k, v]) => <div key={k} className="grid grid-cols-[74px_1fr] gap-2 sm:grid-cols-[92px_1fr]"><span className="text-white/28">{k}</span><span className="min-w-0 break-words">{stringify(v)}</span></div>)}</div>; }
+function Row({ item, result, busy, onRun, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen);
+  const status = result?.status || ST.SKIPPED;
+  const [color] = LOOK[status] || LOOK.SKIPPED;
+  return <div className="overflow-hidden rounded-2xl" style={{ background: `${color}08`, border: `1px solid ${color}24`, boxShadow: status === ST.FAIL ? `0 0 28px ${color}18` : 'none' }}><button className="w-full px-3 py-3 text-left" onClick={() => setOpen(v => !v)}><div className="flex items-start gap-3"><div className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full" style={{ background: color, boxShadow: `0 0 14px ${color}` }} /><div className="min-w-0 flex-1"><div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0"><div className="break-words font-inter text-sm font-semibold text-white/88">{item.name}</div><div className="mt-0.5 font-mono text-[10px] text-white/35">{item.cat}.{item.id}</div></div><div className="flex flex-wrap items-center gap-1.5 sm:justify-end"><Badge status={status} />{result?.durationMs != null && <span className="rounded-full bg-white/[0.04] px-2 py-0.5 font-mono text-[9px] text-white/35">{formatDuration(result.durationMs)}</span>}</div></div>{open && <Details result={result} />}</div><ChevronDown className={`mt-1 h-4 w-4 flex-shrink-0 text-white/30 transition-transform ${open ? 'rotate-180' : ''}`} /></div></button><div className="flex justify-end border-t px-3 py-2" style={{ borderColor: `${color}16` }}><button onClick={() => onRun(item)} disabled={busy} className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 font-inter text-[11px] font-bold disabled:opacity-40" style={{ background: 'rgba(250,204,21,0.13)', color: '#facc15', border: '1px solid rgba(250,204,21,0.28)' }}>{busy ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}Run</button></div></div>;
+}
+function IssueSection({ title, entries, status }) {
+  if (!entries.length) return null;
+  const [color] = LOOK[status] || LOOK.SKIPPED;
+  return <section className="rounded-3xl p-3" style={{ background: `${color}0D`, border: `1px solid ${color}38` }}><div className="mb-2 flex items-center justify-between gap-2"><h3 className="font-cinzel text-sm font-bold tracking-widest" style={{ color }}>{title}</h3><span className="rounded-full px-2 py-0.5 font-mono text-[10px]" style={{ color, background: `${color}16` }}>{entries.length}</span></div><div className="space-y-2">{entries.map(({ item, result, cat }) => <div key={`${status}-${item.id}`} className="rounded-2xl border border-white/[0.06] bg-black/25 p-3"><div className="flex flex-wrap items-start justify-between gap-2"><div className="min-w-0"><div className="break-words font-inter text-sm font-bold text-white/90">{item.name}</div><div className="mt-1 font-mono text-[10px] text-white/40">{cat.label} · {item.cat}.{item.id}</div></div><div className="flex flex-wrap gap-1.5"><Badge status={result.status} /><span className="rounded-full bg-white/[0.04] px-2 py-0.5 font-mono text-[9px] text-white/35">{formatDuration(result.durationMs)}</span></div></div><Details result={result} /></div>)}</div></section>;
+}
 
 export default function SimulationPanel({ onClose }) {
   const [active, setActive] = useState('smoke');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [results, setResults] = useState({});
   const [running, setRunning] = useState(null);
   const [scope, setScope] = useState(null);
+  const [copied, setCopied] = useState(null);
   const stats = useMemo(() => Object.fromEntries(CATS.map(cat => { const items = byCat[cat.id] || []; const r = items.map(i => results[i.id]).filter(Boolean); return [cat.id, { total: items.length, pass: r.filter(x => x.status === ST.PASS).length, fail: r.filter(x => x.status === ST.FAIL).length, warn: r.filter(x => x.status === ST.WARNING).length, skipped: r.filter(x => x.status === ST.SKIPPED).length + items.filter(i => !results[i.id]).length, last: r.map(x => x.completedAt).filter(Boolean).slice(-1)[0] }]; })), [results]);
   const summary = useMemo(() => { const r = Object.values(results); return { total: TESTS.length, pass: r.filter(x => x.status === ST.PASS).length, fail: r.filter(x => x.status === ST.FAIL).length, warn: r.filter(x => x.status === ST.WARNING).length, skipped: r.filter(x => x.status === ST.SKIPPED).length + TESTS.filter(t => !results[t.id]).length, duration: r.reduce((sum, x) => sum + (x.durationMs || 0), 0), last: r.map(x => x.completedAt).filter(Boolean).slice(-1)[0] || 'never' }; }, [results]);
   const runOne = async item => { setRunning(item.id); const t0 = performance.now(); try { const raw = await item.run(); setResults(prev => ({ ...prev, [item.id]: { id: item.id, status: raw?.status || ST.PASS, durationMs: Math.round(performance.now() - t0), completedAt: now(), ...raw } })); } catch (error) { setResults(prev => ({ ...prev, [item.id]: { id: item.id, status: ST.FAIL, message: error?.message || 'Test threw', actual: error?.stack || String(error), durationMs: Math.round(performance.now() - t0), completedAt: now() } })); } finally { setRunning(null); } };
   const runList = async (list, name) => { setScope(name); for (const item of list) await runOne(item); setScope(null); };
-  const cat = CATS.find(c => c.id === active) || CATS[0]; const list = byCat[cat.id] || []; const st = stats[cat.id]; const busy = Boolean(running || scope);
-  return <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(5,7,22,0.9)', backdropFilter: 'blur(10px)' }} onClick={onClose}><motion.div initial={{ scale: 0.94, opacity: 0, y: 16 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0, y: 10 }} className="flex w-full flex-col overflow-hidden rounded-3xl" style={{ maxWidth: 1120, maxHeight: '92vh', background: 'linear-gradient(160deg, #10133d 0%, #070a1f 58%, #050716 100%)', border: '1px solid rgba(250,204,21,0.2)', boxShadow: '0 30px 90px rgba(0,0,0,0.72), 0 0 80px rgba(250,204,21,0.06)' }} onClick={e => e.stopPropagation()}><div className="flex-shrink-0 border-b border-white/[0.07] px-5 py-4"><div className="flex items-start justify-between gap-4"><div><div className="flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-primary" /><h2 className="font-cinzel text-lg font-bold tracking-widest text-primary">KRONOX QA PROTECTION SYSTEM</h2></div><p className="mt-1 max-w-2xl font-inter text-[11px] leading-relaxed text-white/40">Automated smoke, regression, architecture, Home/mobile, offline, online sync, media, admin, stability, and removed-feature protection. No manual checklist rows.</p></div><button onClick={onClose} className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.06]"><X className="h-4 w-4 text-white/55" /></button></div><div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-7"><Metric label="Total" value={summary.total} color="#fff" /><Metric label="Passed" value={summary.pass} color="#4ade80" /><Metric label="Failed" value={summary.fail} color="#f87171" /><Metric label="Warnings" value={summary.warn} color="#facc15" /><Metric label="Skipped" value={summary.skipped} color="#a1a1aa" /><Metric label="Duration" value={`${summary.duration}ms`} color="#67e8f9" /><Metric label="Last Run" value={summary.last} color="#c4b5fd" /></div><div className="mt-4 flex flex-wrap items-center gap-2"><button onClick={() => runList(TESTS, 'all')} disabled={busy} className="inline-flex items-center gap-2 rounded-2xl px-4 py-2 font-inter text-xs font-bold disabled:opacity-40" style={{ background: 'linear-gradient(135deg, #f59e0b, #facc15)', color: '#071025' }}>{busy && scope === 'all' ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}Run All Tests</button><button onClick={() => runList(list, cat.id)} disabled={busy} className="inline-flex items-center gap-2 rounded-2xl px-4 py-2 font-inter text-xs font-bold disabled:opacity-40" style={{ background: `${cat.color}18`, color: cat.color, border: `1px solid ${cat.color}55` }}>{busy && scope === cat.id ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}Run Category</button>{running && <span className="font-mono text-[10px] text-white/35">Running: {running}</span>}</div></div><div className="flex min-h-0 flex-1"><aside className="w-72 flex-shrink-0 overflow-y-auto border-r border-white/[0.07] p-3"><div className="space-y-1.5">{CATS.map(c => { const x = stats[c.id]; const selected = c.id === active; return <button key={c.id} onClick={() => setActive(c.id)} className="w-full rounded-2xl px-3 py-2.5 text-left" style={{ background: selected ? `${c.color}14` : 'rgba(255,255,255,0.025)', border: `1px solid ${selected ? c.color + '55' : 'rgba(255,255,255,0.055)'}` }}><div className="flex items-center justify-between gap-2"><span className="font-inter text-xs font-semibold text-white/80">{c.label}</span><span className="rounded-full px-1.5 py-0.5 font-mono text-[9px]" style={{ color: c.color, background: `${c.color}14` }}>{x.pass}/{x.total}</span></div><div className="mt-1 flex gap-1 font-mono text-[9px]"><span className="text-red-300/80">F {x.fail}</span><span className="text-yellow-300/80">W {x.warn}</span><span className="text-zinc-300/80">S {x.skipped}</span></div><div className="mt-1 font-inter text-[9px] text-white/25">Last: {x.last || 'never'}</div></button>; })}</div></aside><main className="min-w-0 flex-1 overflow-y-auto p-5"><div className="mb-4 flex items-end justify-between gap-4"><div><h3 className="font-cinzel text-base font-bold tracking-widest" style={{ color: cat.color }}>{cat.label}</h3><p className="mt-1 font-inter text-[11px] text-white/35">Total {st.total} · Pass {st.pass} · Fail {st.fail} · Warning {st.warn} · Skipped {st.skipped}</p></div><div className="font-inter text-[10px] text-white/30">Last run: {st.last || 'never'}</div></div><div className="grid gap-3 lg:grid-cols-2">{list.map(item => <Row key={item.id} item={item} result={results[item.id]} busy={busy} onRun={runOne} />)}</div></main></div></motion.div></motion.div>;
+  const cat = CATS.find(c => c.id === active) || CATS[0];
+  const list = byCat[cat.id] || [];
+  const st = stats[cat.id];
+  const busy = Boolean(running || scope);
+  const entries = useMemo(() => TESTS.map(item => ({ item, result: results[item.id], cat: catById[item.cat] || { label: item.cat, color: '#fff' } })).filter(x => x.result), [results]);
+  const issueEntries = status => entries.filter(x => x.result.status === status);
+  const failed = issueEntries(ST.FAIL);
+  const warnings = issueEntries(ST.WARNING);
+  const skippedItems = issueEntries(ST.SKIPPED);
+  const visibleList = useMemo(() => list
+    .filter(item => statusFilter === 'all' || (results[item.id]?.status || ST.SKIPPED) === statusFilter)
+    .sort((a, b) => (statusRank[results[a.id]?.status || ST.SKIPPED] ?? 9) - (statusRank[results[b.id]?.status || ST.SKIPPED] ?? 9)),
+  [list, results, statusFilter]);
+  const reportLines = (onlyIssues = false) => {
+    const selected = onlyIssues ? entries.filter(x => [ST.FAIL, ST.WARNING, ST.SKIPPED].includes(x.result.status)) : entries;
+    const lines = [
+      `KRONOX QA REPORT`,
+      `Build: ${buildMarker()}`,
+      `Last run: ${summary.last}`,
+      `Total: ${summary.total} | Passed: ${summary.pass} | Failed: ${summary.fail} | Warnings: ${summary.warn} | Skipped: ${summary.skipped} | Duration: ${formatDuration(summary.duration)}`,
+      '',
+    ];
+    const append = (title, rows) => {
+      lines.push(`${title} (${rows.length})`);
+      if (!rows.length) lines.push('- none');
+      rows.forEach(({ item, result, cat: rowCat }) => {
+        lines.push(`- [${result.status}] ${rowCat.label} / ${item.cat}.${item.id}: ${item.name}`);
+        lines.push(`  expected: ${stringify(result.expected)}`);
+        lines.push(`  actual: ${stringify(result.actual)}`);
+        lines.push(`  reason: ${stringify(result.reason || result.message)}`);
+        lines.push(`  duration: ${formatDuration(result.durationMs)}`);
+      });
+      lines.push('');
+    };
+    if (onlyIssues) {
+      append('FAILED TESTS', failed);
+      append('WARNINGS', warnings);
+      append('SKIPPED', skippedItems);
+      return lines.join('\n');
+    }
+    append('FAILED TESTS', failed);
+    append('WARNINGS', warnings);
+    append('SKIPPED', skippedItems);
+    append('ALL COMPLETED TESTS', selected);
+    return lines.join('\n');
+  };
+  const copyReport = async (mode) => {
+    const text = reportLines(mode === 'issues');
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const area = document.createElement('textarea');
+      area.value = text;
+      area.style.position = 'fixed';
+      area.style.opacity = '0';
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand('copy');
+      document.body.removeChild(area);
+    }
+    setCopied(mode);
+    window.setTimeout(() => setCopied(null), 1500);
+  };
+  return <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4" style={{ background: 'rgba(5,7,22,0.9)', backdropFilter: 'blur(10px)' }} onClick={onClose}><motion.div initial={{ scale: 0.94, opacity: 0, y: 16 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0, y: 10 }} className="flex w-full flex-col overflow-hidden rounded-3xl" style={{ maxWidth: 1120, maxHeight: 'calc(100dvh - 16px)', background: 'linear-gradient(160deg, #10133d 0%, #070a1f 58%, #050716 100%)', border: '1px solid rgba(250,204,21,0.2)', boxShadow: '0 30px 90px rgba(0,0,0,0.72), 0 0 80px rgba(250,204,21,0.06)' }} onClick={e => e.stopPropagation()}><div className="flex-shrink-0 border-b border-white/[0.07] px-4 py-4 sm:px-5"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="flex items-center gap-2"><ShieldAlert className="h-4 w-4 flex-shrink-0 text-primary" /><h2 className="break-words font-cinzel text-base font-bold tracking-widest text-primary sm:text-lg">KRONOX QA PROTECTION SYSTEM</h2></div><p className="mt-1 max-w-2xl font-inter text-[11px] leading-relaxed text-white/40">Failed, warning, and skipped results are surfaced first for mobile debugging and sharing.</p></div><button onClick={onClose} className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.06]"><X className="h-4 w-4 text-white/55" /></button></div><div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-7"><Metric label="Total" value={summary.total} color="#fff" /><Metric label="Passed" value={summary.pass} color="#4ade80" /><Metric label="Failed" value={summary.fail} color="#f87171" /><Metric label="Warnings" value={summary.warn} color="#facc15" /><Metric label="Skipped" value={summary.skipped} color="#a1a1aa" /><Metric label="Duration" value={formatDuration(summary.duration)} color="#67e8f9" /><Metric label="Last Run" value={summary.last} color="#c4b5fd" /></div><div className="mt-4 flex flex-wrap items-center gap-2"><button onClick={() => runList(TESTS, 'all')} disabled={busy} className="inline-flex items-center gap-2 rounded-2xl px-4 py-2 font-inter text-xs font-bold disabled:opacity-40" style={{ background: 'linear-gradient(135deg, #f59e0b, #facc15)', color: '#071025' }}>{busy && scope === 'all' ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}Run All Tests</button><button onClick={() => runList(list, cat.id)} disabled={busy} className="inline-flex items-center gap-2 rounded-2xl px-4 py-2 font-inter text-xs font-bold disabled:opacity-40" style={{ background: `${cat.color}18`, color: cat.color, border: `1px solid ${cat.color}55` }}>{busy && scope === cat.id ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}Run Category</button><button onClick={() => copyReport('all')} disabled={!entries.length} className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-2 font-inter text-xs font-bold text-white/75 disabled:opacity-35"><ClipboardCopy className="h-3.5 w-3.5" />{copied === 'all' ? 'Copied' : 'Copy Report'}</button><button onClick={() => copyReport('issues')} disabled={!failed.length && !warnings.length && !skippedItems.length} className="inline-flex items-center gap-2 rounded-2xl px-4 py-2 font-inter text-xs font-bold disabled:opacity-35" style={{ background: 'rgba(248,113,113,0.12)', color: '#fca5a5', border: '1px solid rgba(248,113,113,0.28)' }}><ClipboardCopy className="h-3.5 w-3.5" />{copied === 'issues' ? 'Copied' : 'Copy Failed Only'}</button>{running && <span className="font-mono text-[10px] text-white/35">Running: {running}</span>}</div></div><main className="min-h-0 flex-1 overflow-y-auto px-3 py-4 pb-[calc(88px+env(safe-area-inset-bottom))] sm:px-5"><div className="space-y-3"><IssueSection title="FAILED TESTS" entries={failed} status={ST.FAIL} /><IssueSection title="WARNINGS" entries={warnings} status={ST.WARNING} /><IssueSection title="SKIPPED" entries={skippedItems} status={ST.SKIPPED} /></div><div className="mt-4 flex gap-2 overflow-x-auto pb-1">{filterOptions.map(([value, label]) => { const selected = statusFilter === value; const color = value === 'all' ? '#67e8f9' : LOOK[value]?.[0] || '#fff'; return <button key={value} onClick={() => setStatusFilter(value)} className="flex-shrink-0 rounded-2xl px-3 py-2 font-inter text-[11px] font-bold" style={{ color: selected ? '#071025' : color, background: selected ? color : `${color}12`, border: `1px solid ${color}44` }}>{label}</button>; })}</div><div className="mt-4 grid gap-3 md:grid-cols-[18rem_1fr]"><aside className="min-w-0 overflow-x-auto md:max-h-[54vh] md:overflow-y-auto"><div className="flex gap-2 md:block md:space-y-1.5">{CATS.map(c => { const x = stats[c.id]; const selected = c.id === active; return <button key={c.id} onClick={() => setActive(c.id)} className="w-56 flex-shrink-0 rounded-2xl px-3 py-2.5 text-left md:w-full" style={{ background: selected ? `${c.color}14` : 'rgba(255,255,255,0.025)', border: `1px solid ${selected ? c.color + '55' : 'rgba(255,255,255,0.055)'}` }}><div className="flex items-center justify-between gap-2"><span className="font-inter text-xs font-semibold text-white/80">{c.label}</span><span className="rounded-full px-1.5 py-0.5 font-mono text-[9px]" style={{ color: c.color, background: `${c.color}14` }}>{x.pass}/{x.total}</span></div><div className="mt-1 flex gap-1 font-mono text-[9px]"><span className="text-red-300/80">F {x.fail}</span><span className="text-yellow-300/80">W {x.warn}</span><span className="text-zinc-300/80">S {x.skipped}</span></div><div className="mt-1 font-inter text-[9px] text-white/25">Last: {x.last || 'never'}</div></button>; })}</div></aside><section className="min-w-0"><div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"><div><h3 className="font-cinzel text-base font-bold tracking-widest" style={{ color: cat.color }}>{cat.label}</h3><p className="mt-1 font-inter text-[11px] text-white/35">Total {st.total} · Pass {st.pass} · Fail {st.fail} · Warning {st.warn} · Skipped {st.skipped}</p></div><div className="font-inter text-[10px] text-white/30">Last run: {st.last || 'never'}</div></div><div className="grid gap-3 lg:grid-cols-2">{visibleList.map(item => <Row key={item.id} item={item} result={results[item.id]} busy={busy} onRun={runOne} defaultOpen={results[item.id]?.status === ST.FAIL} />)}{!visibleList.length && <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 font-inter text-sm text-white/45">No tests match this filter in the selected category.</div>}</div></section></div></main></motion.div></motion.div>;
 }
