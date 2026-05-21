@@ -1,0 +1,66 @@
+export function generateCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i += 1) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+export function normalizeCode(code) {
+  return String(code || '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '')
+    .replace(/[^\w]/g, '');
+}
+
+export function summarizePlayers(players = []) {
+  return players.map((p, index) => ({
+    index,
+    email: p?.email || null,
+    name: p?.name || null,
+    cardCount: Array.isArray(p?.cards) ? p.cards.length : 0,
+  }));
+}
+
+export function validatePlayerName(name) {
+  const trimmed = name.trim();
+  if (trimmed.length < 3) return 'Lütfen en az 3 karakter girişi yapınız';
+  if (trimmed.length > 15) return 'Lütfen en fazla 15 karakter girişi yapınız';
+  if (!/^[a-zA-Z0-9çğıöşüÇĞİÖŞÜ]+$/.test(trimmed)) return 'Lütfen yalnızca harf ve rakam girişi yapınız';
+  return '';
+}
+
+export function buildPlayerPayload(user, playerName) {
+  const trimmedName = playerName.trim();
+  const player = user || { email: `guest_${Date.now()}@kronos.local`, full_name: trimmedName };
+  return {
+    identity: player,
+    player: { email: player.email, name: trimmedName, ready: true, cards: [] },
+  };
+}
+
+export function isHost(lobby, user) {
+  return Boolean(lobby && user && lobby.host_email === user.email);
+}
+
+export function isGuestHost(lobby, user, playerName) {
+  return Boolean(lobby && !user && lobby.players?.[0]?.name === playerName);
+}
+
+export function canJoinLobby(lobby) {
+  return Boolean(lobby && lobby.status === 'waiting');
+}
+
+export function canStartLobby(lobby, user, playerName) {
+  return (isHost(lobby, user) || isGuestHost(lobby, user, playerName)) && lobby?.players?.length >= 2;
+}
+
+export function buildLobbyStartPayload({ firstQuestionId, playersWithCards, usedQuestionIds }) {
+  return {
+    status: 'starting',
+    current_question_id: firstQuestionId,
+    used_question_ids: [...usedQuestionIds],
+    current_player_index: 0,
+    players: playersWithCards,
+  };
+}
