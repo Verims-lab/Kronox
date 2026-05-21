@@ -17,9 +17,18 @@ import questionManagementSource from '../admin/QuestionManagement.jsx?raw';
 import tutorialSource from '../tutorial/KronoxTutorial.jsx?raw';
 import lobbySyncSource from '../../hooks/useLobbySync.js?raw';
 import useGameActionsSource from '../../hooks/useGameActions.js?raw';
+import gameRulesSource from '../../lib/gameRules.js?raw';
 import buildMarkerSource from '../dev/BuildMarker.jsx?raw';
 import kronoxDocSource from '../../../Kronox.md?raw';
 import corePromptSource from '../../../CORE_PROMPT.md?raw';
+import {
+  getNextPlayerIndex,
+  getTimelineYears,
+  hasDuplicateTimelineYear,
+  hasPlayerWon,
+  isCorrectPlacement,
+  selectNextQuestion,
+} from '../../lib/gameRules';
 
 const ST = { PASS: 'PASS', FAIL: 'FAIL', WARNING: 'WARNING', SKIPPED: 'SKIPPED' };
 const LOOK = { PASS: ['#4ade80', CheckCircle2], FAIL: ['#f87171', XCircle], WARNING: ['#facc15', AlertTriangle], SKIPPED: ['#a1a1aa', Clock] };
@@ -31,7 +40,7 @@ const CATS = [
   ['records', 'Personal Records', '#2dd4bf'], ['performance', 'Performance', '#fde68a'], ['stability', 'Stability / Edge Cases', '#fca5a5'],
   ['exceptional', 'Exceptional Cases', '#fb7185'], ['removed', 'Removed Features', '#fda4af'],
 ].map(([id, label, color]) => ({ id, label, color }));
-const SRC = { App: appSource, MainMenu: mainMenuSource, SoloChallenge: soloChallengeSource, GameLayout: gameLayoutSource, Game: gamePageSource, LobbyRoom: lobbyRoomSource, Settings: settingsPageSource, QuestionCard: questionCardSource, TimelineCard: timelineCardSource, GameOver: gameOverSource, QuestionManagement: questionManagementSource, Tutorial: tutorialSource, LobbySync: lobbySyncSource, BuildMarker: buildMarkerSource, Kronox: kronoxDocSource, Core: corePromptSource };
+const SRC = { App: appSource, MainMenu: mainMenuSource, SoloChallenge: soloChallengeSource, GameLayout: gameLayoutSource, Game: gamePageSource, LobbyRoom: lobbyRoomSource, Settings: settingsPageSource, QuestionCard: questionCardSource, TimelineCard: timelineCardSource, GameOver: gameOverSource, QuestionManagement: questionManagementSource, Tutorial: tutorialSource, LobbySync: lobbySyncSource, GameRules: gameRulesSource, BuildMarker: buildMarkerSource, Kronox: kronoxDocSource, Core: corePromptSource };
 const now = () => new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 const out = (status, message, extra = {}) => ({ status, message, ...extra });
 const pass = (message, extra) => out(ST.PASS, message, extra);
@@ -53,9 +62,10 @@ const equal = (cat, id, name, actualFn, expected) => test(cat, id, name, () => {
 });
 const skipped = (cat, id, name, reason) => test(cat, id, name, () => skip(reason, { expected: 'automated deterministic coverage or external E2E', actual: 'skipped with reason', reason }));
 const normalizeCode = value => String(value || '').trim().toUpperCase().replace(/\s+/g, '').replace(/[^\w]/g, '');
-const placeOk = (zone, year, cards) => { const years = [...cards].sort((a, b) => a.year - b.year).map(c => c.year); return zone === 0 ? years.length === 0 || year <= years[0] : zone === years.length ? year >= years[years.length - 1] : year >= years[zone - 1] && year <= years[zone]; };
-const pick = (used, pool, years = new Set(), recent = new Set()) => { const available = pool.filter(q => !used.has(q.id)); if (!available.length) return null; let preferred = available.filter(q => !years.has(q.year) && !recent.has(q.id)); if (preferred.length === 0) preferred = available.filter(q => !years.has(q.year)); return (preferred.length ? preferred : available)[0] || null; };
-const turn = (lobby, actor, q) => { const players = lobby.players.map(p => ({ ...p, cards: [...(p.cards || [])] })); players[actor].cards.push(q); const next = (actor + 1) % players.length; return { ...lobby, players, current_player_index: next, current_question_id: `next_${next}`, used_question_ids: [...(lobby.used_question_ids || []), q.id, `next_${next}`], status: 'in_game' }; };
+const deterministicRandom = () => 0.999999;
+const placeOk = (zone, year, cards) => isCorrectPlacement(cards, year, zone);
+const pick = (used, pool, years = new Set(), recent = new Set()) => selectNextQuestion(pool, used, years, { recentQuestionIds: recent, random: deterministicRandom });
+const turn = (lobby, actor, q) => { const players = lobby.players.map(p => ({ ...p, cards: [...(p.cards || [])] })); players[actor].cards.push(q); const next = getNextPlayerIndex(actor, players.length); return { ...lobby, players, current_player_index: next, current_question_id: `next_${next}`, used_question_ids: [...(lobby.used_question_ids || []), q.id, `next_${next}`], status: 'in_game' }; };
 const rotate = (count, turns) => { let lobby = { players: Array.from({ length: count }, (_, i) => ({ name: `P${i + 1}`, cards: [] })), used_question_ids: [], current_player_index: 0 }; const seen = [0]; for (let i = 0; i < turns; i += 1) { lobby = turn(lobby, lobby.current_player_index, { id: `q${i}`, year: 1900 + i }); seen.push(lobby.current_player_index); } return seen; };
 const perspective = (lobby, email) => { const active = lobby.players[lobby.current_player_index]; const me = lobby.players.find(p => p.email === email); const isMyTurn = Boolean(me && active?.email === me.email); return { current_question_id: lobby.current_question_id, activePlayer: active?.name || null, isMyTurn, readOnly: !isMyTurn, canDrag: isMyTurn && !lobby.feedback && !lobby.winner, canPlace: isMyTurn && !lobby.feedback && !lobby.winner, canConfirm: isMyTurn && lobby.selectedZone !== null && !lobby.feedback && !lobby.winner }; };
 const gameOverCopy = (winner, local) => String(winner).toLocaleLowerCase('tr-TR') === String(local).toLocaleLowerCase('tr-TR') ? { headline: 'Tebrikler!', icon: 'Trophy' } : { headline: 'Kaybettin', text: `${winner} kazandı.`, icon: 'CircleX' };
@@ -96,6 +106,8 @@ const TESTS = [
   sourceHas('architecture', 'online_authority', 'Online authority uses Lobby/useLobbySync', 'Game/useLobbySync', `${SRC.Game}\n${SRC.LobbySync}`, ['useLobbySync', 'base44.entities.Lobby.get', 'base44.entities.Lobby.subscribe', 'setLobbyData']),
   sourceHas('architecture', 'route_state_bootstrap', 'route state is bootstrap/fallback only', 'useLobbySync.js', SRC.LobbySync, ['initial-fetch', 'route-state-fallback', 'subscription:', 'poll']),
   sourceLacks('architecture', 'protected_drag_not_touched', 'test utilities do not enter protected drag files', 'GameLayout.jsx', SRC.GameLayout, ['SimulationPanel']),
+  sourceHas('architecture', 'game_rules_module', 'pure game rules module exists', 'gameRules.js', SRC.GameRules, ['export function getNextPlayerIndex', 'export function isCorrectPlacement', 'export function selectNextQuestion', 'export function hasPlayerWon']),
+  sourceHas('architecture', 'game_actions_uses_rules', 'useGameActions uses pure game rules helpers', 'useGameActions.js', useGameActionsSource, ["from '@/lib/gameRules'", 'isCorrectPlacement(', 'getNextPlayerIndex(', 'selectNextQuestion(']),
 
   sourceHas('home', 'viewport_lock', 'Home root uses viewport lock behavior', 'MainMenu.jsx', SRC.MainMenu, ["height: '100dvh'", "maxHeight: '100dvh'", "overflow: 'hidden'", "overscrollBehavior: 'none'"]),
   sourceHas('home', 'no_scroll', 'Home does not allow vertical page scroll', 'MainMenu.jsx', SRC.MainMenu, ['fixed inset-0', 'overflow-hidden', "touchAction: 'manipulation'"]),
@@ -115,6 +127,14 @@ const TESTS = [
   sourceHas('offline', 'start_payload', 'game starts with selected setup', 'SoloChallenge.jsx', SRC.SoloChallenge, ["navigate('/game'", 'playerNames', 'category', 'turnDuration']),
   sourceHas('offline', 'question_appears', 'question appears', 'GameLayout.jsx', SRC.GameLayout, ['<QuestionCard', 'question={currentQuestion}', 'currentQuestion']),
   equal('offline', 'placement_validation', 'placement validation works', () => [placeOk(0,1920,[{year:1950},{year:1980}]), placeOk(1,1960,[{year:1950},{year:1980}]), placeOk(2,1999,[{year:1950},{year:1980}]), placeOk(1,2005,[{year:1950},{year:1980}])], [true,true,true,false]),
+  equal('offline', 'placement_before_first', 'correct placement before first card', () => isCorrectPlacement([{ year: 1950 }, { year: 1980 }], 1920, 0), true),
+  equal('offline', 'placement_between_cards', 'correct placement between cards', () => isCorrectPlacement([{ year: 1950 }, { year: 1980 }], 1960, 1), true),
+  equal('offline', 'placement_after_last', 'correct placement after last card', () => isCorrectPlacement([{ year: 1950 }, { year: 1980 }], 1999, 2), true),
+  equal('offline', 'wrong_placement_rejected', 'wrong placement rejected by rules helper', () => isCorrectPlacement([{ year: 1950 }, { year: 1980 }], 2005, 1), false),
+  equal('offline', 'duplicate_timeline_year_detection', 'duplicate timeline year detection', () => hasDuplicateTimelineYear([{ year: 1999 }, { year: 2000 }], 2000), true),
+  equal('offline', 'timeline_years_helper', 'timeline years helper returns active years', () => [...getTimelineYears([{ year: 1999 }, { year: null }, { year: 2001 }])], [1999, 2001]),
+  equal('offline', 'win_condition_true', 'win condition true', () => hasPlayerWon({ cards: [{}, {}, {}] }, 3), true),
+  equal('offline', 'win_condition_false', 'win condition false', () => hasPlayerWon({ cards: [{}, {}] }, 3), false),
   equal('offline', 'correct_adds_card', 'correct placement adds card', () => placeOk(1,1970,[{year:1950}]) ? 2 : 1, 2),
   equal('offline', 'wrong_no_add', 'wrong placement does not add card', () => placeOk(1,2000,[{year:1950},{year:1980}]) ? 3 : 2, 2),
   test('offline', 'no_repeat_question', 'same question does not repeat in session', () => { const pool = Array.from({length:20},(_,i)=>({id:`q${i}`,year:2000+i})); const used = new Set(); for (let i=0;i<20;i+=1) { const q = pick(used,pool); if (!q || used.has(q.id)) return fail('duplicate/null pick', { expected: 'unique ids', actual: q }); used.add(q.id); } return pass('unique picks', { expected: 20, actual: used.size }); }),
@@ -133,6 +153,10 @@ const TESTS = [
   test('lobby', 'host_start_payload', 'host start writes required fields', () => { const payload = { status: 'starting', players: roster(4), current_player_index: 0, current_question_id: 'q0', used_question_ids: ['q0'] }; const missing = ['status','players','current_player_index','current_question_id','used_question_ids'].filter(k => payload[k] == null); return missing.length ? fail('start payload missing fields', { expected: 'all required fields', actual: missing }) : pass('start payload complete', { expected: 'required fields', actual: Object.keys(payload) }); }),
   sourceHas('lobby', 'non_host_in_game_transition', 'non-host transition supports in_game', 'LobbyRoom.jsx', SRC.LobbyRoom, ['status', 'in_game', 'navigate']),
 
+  equal('sync', 'rules_next_index_2p', 'turn rotation helper works for 2 players', () => [getNextPlayerIndex(0, 2), getNextPlayerIndex(1, 2)], [1, 0]),
+  equal('sync', 'rules_next_index_3p', 'turn rotation helper works for 3 players', () => [getNextPlayerIndex(0, 3), getNextPlayerIndex(1, 3), getNextPlayerIndex(2, 3)], [1, 2, 0]),
+  equal('sync', 'rules_next_index_4p', 'turn rotation helper works for 4 players', () => [getNextPlayerIndex(0, 4), getNextPlayerIndex(1, 4), getNextPlayerIndex(2, 4), getNextPlayerIndex(3, 4)], [1, 2, 3, 0]),
+  equal('sync', 'rules_next_index_invalid_safe', 'turn rotation helper handles invalid indexes defensively', () => [getNextPlayerIndex(-1, 4), getNextPlayerIndex(99, 4), getNextPlayerIndex(0, 0)], [0, 0, 0]),
   equal('sync', '2p_p1_to_p2', '2-player P1 answer -> P2 turn', () => turn({ players: roster(2), used_question_ids: [] }, 0, {id:'q1'}).current_player_index, 1),
   equal('sync', '2p_p2_to_p1', '2-player P2 answer -> P1 turn', () => turn({ players: roster(2), used_question_ids: [] }, 1, {id:'q1'}).current_player_index, 0),
   equal('sync', '3p_rotation', '3-player rotation P1->P2->P3->P1', () => rotate(3,3), [0,1,2,0]),
@@ -162,6 +186,9 @@ const TESTS = [
   test('questions', 'category_filter', 'category filter works', async () => { const all = await questions(); const cat = all.find(q => q.type === 'metin' && q.category)?.category; const pool = all.filter(q => q.category === cat); return cat && pool.every(q => q.category === cat) ? pass('category pool clean', { expected: cat, actual: pool.length }) : fail('category filter failed', { expected: cat, actual: pool.slice(0,3) }); }),
   equal('questions', 'difficulty_filter', 'difficulty filter deterministic', () => [{difficulty:1},{difficulty:2}].filter(q=>q.difficulty===2).length, 1),
   test('questions', 'duplicate_id_prevention', 'no duplicate question ID in session', () => { const pool = Array.from({length:8},(_,i)=>({id:`q${i}`,year:2000+i})); const used = new Set(); for (let i=0;i<8;i+=1) { const q = pick(used,pool); if (!q || used.has(q.id)) return fail('duplicate/null pick', { expected: 'unique', actual: q }); used.add(q.id); } return pass('unique ids', { expected: 8, actual: used.size }); }),
+  test('questions', 'rules_selection_excludes_used', 'question selection excludes used ids', () => { const q = selectNextQuestion([{ id: 'q0', year: 2000 }, { id: 'q1', year: 2001 }], new Set(['q0']), new Set(), { random: deterministicRandom }); return q?.id === 'q1' ? pass('used id excluded', { expected: 'q1', actual: q.id }) : fail('used id selected', { expected: 'q1', actual: q }); }),
+  test('questions', 'rules_selection_avoids_timeline_year', 'question selection avoids duplicate timeline year when alternatives exist', () => { const q = selectNextQuestion([{ id: 'q0', year: 2000 }, { id: 'q1', year: 2001 }], new Set(), new Set([2000]), { random: deterministicRandom }); return q?.year === 2001 ? pass('duplicate timeline year avoided', { expected: 2001, actual: q.year }) : fail('duplicate timeline year selected', { expected: 2001, actual: q }); }),
+  test('questions', 'rules_selection_recent_exclusion', 'question selection excludes recent IDs when alternatives exist', () => { const q = selectNextQuestion([{ id: 'q0', year: 2000 }, { id: 'q1', year: 2001 }, { id: 'q2', year: 2002 }], new Set(), new Set(), { recentQuestionIds: new Set(['q0', 'q1']), random: deterministicRandom }); return q?.id === 'q2' ? pass('recent ids avoided', { expected: 'q2', actual: q.id }) : fail('recent id selected', { expected: 'q2', actual: q }); }),
   test('questions', 'recent_exclusion', 'recent history exclusion works', () => { const q = pick(new Set(), Array.from({length:6},(_,i)=>({id:`q${i}`,year:2000+i})), new Set(), new Set(['q0','q1'])); return q && !['q0','q1'].includes(q.id) ? pass('recent avoided', { expected: 'not q0/q1', actual: q.id }) : fail('recent picked', { expected: 'not recent', actual: q }); }),
   test('questions', 'recent_fallback_when_exhausted', 'recent history relaxes only when no non-recent option exists', () => { const q = pick(new Set(), [{id:'q0',year:2000},{id:'q1',year:2001}], new Set(), new Set(['q0','q1'])); return q?.id === 'q0' ? pass('recent relaxed after exhaustion', { expected: 'q0 fallback', actual: q.id }) : fail('recent fallback failed', { expected: 'q0 fallback', actual: q }); }),
   test('questions', 'duplicate_year_prevention', 'duplicate timeline year prevention works', () => { const q = pick(new Set(), [{id:'a',year:2000},{id:'b',year:2001},{id:'c',year:2002},{id:'d',year:2003},{id:'e',year:2004},{id:'f',year:2005}], new Set([2000])); return q?.year !== 2000 ? pass('year duplicate avoided', { expected: 'not 2000', actual: q?.year }) : fail('year duplicate picked', { expected: 'not 2000', actual: q }); }),
