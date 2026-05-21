@@ -177,8 +177,8 @@ export function useGameActions({
       !usedTimelineYears.has(q.year) && !recentHistory.has(q.id)
     );
 
-    // Fallback A: relax recent history, keep year-duplicate exclusion
-    if (pool.length < 5) {
+    // Fallback A: relax recent history only when no fresh safe-year option remains.
+    if (pool.length === 0) {
       pool = sessionFiltered.filter(q => !usedTimelineYears.has(q.year));
     }
 
