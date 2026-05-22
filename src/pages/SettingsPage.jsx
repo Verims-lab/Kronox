@@ -100,58 +100,58 @@ export default function SettingsPage() {
 
       <div className="px-4 space-y-5">
 
-        {/* Admin Araçları — yalnızca admin */}
+        {/* Admin Araclari - yalnizca admin */}
         {isAdmin && (
           <>
-            <Section label="Soru Yönetimi">
+            <Section label="Soru Yonetimi">
               <QuestionManagement />
             </Section>
 
-            <Section label="Araçlar">
+            <Section label="Araclar">
               <ToolCard
                 icon={<FileDown className="w-4 h-4" />}
-                title="Teknik Döküman"
+                title="Teknik Dokuman"
                 desc="Sistem mimarisi ve veri modeli"
                 loading={downloadingDoc}
                 onClick={handleDownloadDoc}
               />
               <ToolCard
                 icon={<FileDown className="w-4 h-4" />}
-                title="İş Akışı Dökümanı"
-                desc="Use case'ler ve süreç adımları"
+                title="Is Akisi Dokumani"
+                desc="Use case'ler ve surec adimlari"
                 loading={downloadingWorkflow}
                 onClick={handleDownloadWorkflow}
               />
               <ToolCard
                 icon={<FlaskConical className="w-4 h-4" />}
-                title="Regression Test Panel"
-                desc="Automated QA for online sync, spectator mode, GameOver, and UI cleanup"
+                title="Kronox Health Simulator"
+                desc="Brutally honest mobile, gameplay, sync, and release-risk checks"
                 onClick={() => setShowSim(true)}
               />
             </Section>
           </>
         )}
 
-        {/* Top 5 — giriş yapmış tüm kullanıcılar */}
+        {/* Top 5 - giris yapmis tum kullanicilar */}
         {user && (
-          <Section label="En İyi 5 Rekorun">
+          <Section label="En Iyi 5 Rekorun">
             <div className="p-4 rounded-2xl border border-border/40 bg-secondary/20">
               <TopScores user={user} />
             </div>
           </Section>
         )}
 
-        {/* Yardım */}
-        <Section label="Yardım">
+        {/* Yardim */}
+        <Section label="Yardim">
           <ToolCard
             icon={<HelpCircle className="w-4 h-4" />}
-            title="Nasıl Oynanır?"
-            desc="Tutorial'ı tekrar izle"
+            title="Nasil Oynanir?"
+            desc="Tutorial'i tekrar izle"
             onClick={() => setShowTutorial(true)}
           />
         </Section>
 
-        {/* Hesap — tüm kullanıcılar */}
+        {/* Hesap - tum kullanicilar */}
         <Section label="Hesap">
           <AnimatePresence mode="wait">
             {!confirmDelete ? (
@@ -165,8 +165,8 @@ export default function SettingsPage() {
                   <Trash2 className="w-4 h-4 text-destructive" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-inter text-sm font-semibold text-destructive">Hesabı Sil</p>
-                  <p className="font-inter text-xs text-muted-foreground">Tüm veriler kalıcı olarak silinir</p>
+                  <p className="font-inter text-sm font-semibold text-destructive">Hesabi Sil</p>
+                  <p className="font-inter text-xs text-muted-foreground">Tum veriler kalici olarak silinir</p>
                 </div>
                 <ChevronRight className="w-4 h-4 text-destructive/50" />
               </motion.button>
@@ -179,14 +179,14 @@ export default function SettingsPage() {
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
                   <p className="font-inter text-sm text-destructive leading-relaxed">
-                    Bu işlem geri alınamaz. Tüm verileriniz silinecek.
+                    Bu islem geri alinamaz. Tum verileriniz silinecek.
                   </p>
                 </div>
                 <div className="flex gap-2">
                   <Button
                     variant="outline" size="sm" className="flex-1"
                     onClick={() => setConfirmDelete(false)} disabled={deleting}
-                  >İptal</Button>
+                  >Iptal</Button>
                   <Button
                     size="sm" disabled={deleting}
                     className="flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground"
