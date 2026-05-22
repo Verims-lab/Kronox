@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ChevronsUp, Clock, Flame, Hourglass, Landmark, LogIn, Plus, Radio, Trophy, Zap } from 'lucide-react';
+import { ArrowLeft, ChevronsUp, Clock, Hourglass, Landmark, LogIn, Radio, Trophy, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { sounds } from '@/lib/gameSounds';
