@@ -8,6 +8,7 @@ import { base44 } from '@/api/base44Client';
 import { addGameLog } from '@/components/game/GameDebugLog';
 import { loadRecentHistory, appendToHistory } from '@/lib/questionHistory';
 import { debugLog } from '@/lib/debugLog';
+import { getLobbyStateRevision } from '@/lib/lobbyState';
 import {
   getNextPlayerIndex,
   getQuestionSelectionPool,
@@ -23,6 +24,9 @@ const summarizePlayers = (players = []) => players.map((player, index) => ({
   name: player?.name || null,
   cardCount: Array.isArray(player?.cards) ? player.cards.length : 0,
 }));
+
+const isStaleWriteError = (err) =>
+  err?.code === 'stale_write' || /stale|guncel/i.test(err?.message || '');
 
 export function useGameActions({
   lobbyData,
@@ -63,9 +67,12 @@ export function useGameActions({
   const writeOnlineLobbyState = useCallback((updateData, context = {}) => {
     if (!lobbyId) return;
 
+    const expectedRevision = context.stateRevisionBefore ?? 0;
     const debugBase = {
+      action: updateData.action || 'advance_turn',
       actorName: context.actorName || null,
       lobbyId,
+      expected_state_revision: expectedRevision,
       current_player_index_before: context.currentPlayerIndexBefore ?? null,
       next_current_player_index: updateData.current_player_index ?? null,
       current_question_id_before: context.currentQuestionIdBefore || null,
@@ -77,7 +84,7 @@ export function useGameActions({
       updateFields: Object.keys(updateData),
     };
 
-    addGameLog(`DB_WRITE service idx=${debugBase.next_current_player_index} status=${updateData.status || 'in_game'}`);
+    addGameLog(`DB_WRITE service action=${debugBase.action} idx=${debugBase.next_current_player_index} status=${updateData.status || 'in_game'}`);
     debugLog('[useGameActions] online turn update start:', debugBase);
 
     const recoverLatestLobbyState = () => {
@@ -90,6 +97,7 @@ export function useGameActions({
             debugLog('[useGameActions] recovered latest lobby after rejected update:', {
               lobbyId,
               status: freshLobby.status,
+              state_revision: freshLobby.state_revision ?? 0,
               current_player_index: freshLobby.current_player_index,
               current_question_id: freshLobby.current_question_id || null,
             });
@@ -131,6 +139,7 @@ export function useGameActions({
           return base44.functions.invoke('updateLobbyGameState', {
             lobbyId,
             ...updateData,
+            expected_state_revision: expectedRevision,
             actorName: debugWithActor.actorName,
             previous_player_index: debugWithActor.current_player_index_before,
             previous_question_id: debugWithActor.current_question_id_before,
@@ -138,7 +147,10 @@ export function useGameActions({
         })
         .then((response) => {
           if (!response?.data?.success || response?.data?.error) {
-            throw new Error(response?.data?.error || 'Online oyun durumu reddedildi.');
+            const serviceError = new Error(response?.data?.error || 'Online oyun durumu reddedildi.');
+            serviceError.code = response?.data?.code || null;
+            serviceError.debug = response?.data?.debug || null;
+            throw serviceError;
           }
           const updatedLobby = response?.data?.lobby;
           addGameLog('DB_WRITE OK service');
@@ -160,10 +172,12 @@ export function useGameActions({
           }
         })
         .catch((err) => {
+          const staleWrite = isStaleWriteError(err);
           addGameLog(`DB_WRITE ERR service attempt=${retries + 1} ${err.message}`);
           console.error('[useGameActions] online turn update failed:', {
             lobbyId,
             attempt: retries + 1,
+            staleWrite,
             error: err,
             debug: debugBase,
           });
@@ -175,6 +189,12 @@ export function useGameActions({
               statusWritten: updateData.status,
               error: err,
             });
+          }
+
+          if (staleWrite) {
+            addGameLog('DB_WRITE stale; fetching latest lobby');
+            recoverLatestLobbyState();
+            return;
           }
 
           if (retries < 2) {
@@ -238,6 +258,7 @@ export function useGameActions({
     isPlacingRef.current = true;
     scheduleTimeout(() => { isPlacingRef.current = false; }, 500);
 
+    const stateRevisionBefore = getLobbyStateRevision(lobbyData);
     const snapshotPlayer = { ...players[currentPlayerIndex] };
     const snapshotPlayers = [...players];
     const snapshotIndex = currentPlayerIndex;
@@ -295,6 +316,7 @@ export function useGameActions({
         cards: p.cards
       }));
       const updateData = {
+        action: 'place_card',
         players: lobbyPlayers,
         used_question_ids: [...newUsed],
         status: hasWon ? 'finished' : 'in_game',
@@ -304,6 +326,7 @@ export function useGameActions({
       };
       writeOnlineLobbyState(updateData, {
         actorName: snapshotPlayer.name,
+        stateRevisionBefore,
         currentPlayerIndexBefore: snapshotIndex,
         currentQuestionIdBefore: currentQuestion.id,
       });
@@ -334,7 +357,7 @@ export function useGameActions({
     setTimerKey(k => k + 1);
   }, [
     currentQuestion, players, currentPlayerIndex, usedQuestionIds,
-    questionPool, winCardCount, lobbyId, isPlacingRef, overallSecondsRef,
+    questionPool, winCardCount, lobbyId, lobbyData, isPlacingRef, overallSecondsRef,
     pickQuestion, saveGameRecord, scheduleTimeout,
     writeOnlineLobbyState,
     setLobbyData, setFeedback, setWinner, setSelectedZone, setTimerKey, setGameStarted
@@ -350,6 +373,7 @@ export function useGameActions({
     const nextTimelineYears = getTimelineYears(nextPlayerCards);
     const nextQ = pickQuestion(currentUsed, questionPool, nextTimelineYears);
     if (nextQ) currentUsed.add(nextQ.id);
+    const stateRevisionBefore = getLobbyStateRevision(lobbyData);
 
     setSelectedZone(null);
     setTimerKey(k => k + 1);
@@ -362,6 +386,7 @@ export function useGameActions({
 
     if (lobbyId) {
       writeOnlineLobbyState({
+        action: 'advance_turn',
         players: players.map(p => ({
           email: p.email || `player_${p.name}`,
           name: p.name,
@@ -371,9 +396,10 @@ export function useGameActions({
         current_player_index: nextIndex,
         current_question_id: nextQ?.id || lobbyData.current_question_id,
         used_question_ids: [...currentUsed],
-        status: lobbyData.status || 'in_game',
+        status: 'in_game',
       }, {
         actorName: players[currentIndex]?.name,
+        stateRevisionBefore,
         currentPlayerIndexBefore: currentIndex,
         currentQuestionIdBefore: lobbyData.current_question_id,
       });
@@ -384,15 +410,40 @@ export function useGameActions({
   const skipCurrentQuestion = useCallback((currentQuestionId) => {
     const newUsed = new Set([...usedQuestionIds, currentQuestionId].filter(Boolean));
     const nextQ = pickQuestion(newUsed, questionPool);
-    if (nextQ) {
-      const finalUsed = new Set([...newUsed, nextQ.id]);
-      setLobbyData(prev => ({
-        ...prev,
+    if (!nextQ) return;
+
+    const finalUsed = new Set([...newUsed, nextQ.id]);
+    const finalUsedIds = [...finalUsed];
+    const stateRevisionBefore = getLobbyStateRevision(lobbyData);
+    const currentIndex = lobbyData?.current_player_index ?? currentPlayerIndex ?? 0;
+
+    setLobbyData(prev => ({
+      ...prev,
+      current_question_id: nextQ.id,
+      used_question_ids: finalUsedIds
+    }));
+
+    if (lobbyId) {
+      writeOnlineLobbyState({
+        action: 'skip_question',
+        players: players.map(p => ({
+          email: p.email || `player_${p.name}`,
+          name: p.name,
+          ready: true,
+          cards: p.cards || []
+        })),
+        current_player_index: currentIndex,
         current_question_id: nextQ.id,
-        used_question_ids: [...finalUsed]
-      }));
+        used_question_ids: finalUsedIds,
+        status: 'in_game',
+      }, {
+        actorName: players[currentIndex]?.name,
+        stateRevisionBefore,
+        currentPlayerIndexBefore: currentIndex,
+        currentQuestionIdBefore: currentQuestionId,
+      });
     }
-  }, [usedQuestionIds, pickQuestion, questionPool, setLobbyData]);
+  }, [usedQuestionIds, pickQuestion, questionPool, setLobbyData, lobbyData, currentPlayerIndex, lobbyId, players, writeOnlineLobbyState]);
 
   return { pickQuestion, doPlacement, advanceTurn, skipCurrentQuestion, saveGameRecord };
 }

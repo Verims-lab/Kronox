@@ -55,7 +55,7 @@ export default function Game() {
     });
   }, [routeState, lobbyId, isOnlineFromState]);
 
-  // ─── State (ViewModel layer) ───────────────────────────────────────
+  // ─── State (ViewModel layer) ─────────────────────────────────────────
   const {
     lobbyData, setLobbyData,
     feedback, setFeedback,
@@ -94,7 +94,7 @@ export default function Game() {
   // ─── Lobby sync (Repository layer) ───────────────────────────────
   useLobbySync({ lobbyId, initialPlayers, currentQuestionIdFromState, setLobbyData, setWinner, setError });
 
-  // ─── Derived state ────────────────────────────────────────────────
+  // ─── Derived state ─────────────────────────────────────────────────
   const currentQuestion = useMemo(() => {
     if (!lobbyData?.current_question_id || allQuestions.length === 0) return null;
     return allQuestions.find(q => q.id === lobbyData.current_question_id);
@@ -202,7 +202,7 @@ export default function Game() {
     renderedTurnMessageText,
   ]);
 
-  // ─── Actions (Domain/Use Case layer) ─────────────────────────────
+  // ─── Actions (Domain/Use Case layer) ─────────────────────────
   const { doPlacement, advanceTurn, skipCurrentQuestion } = useGameActions({
     lobbyData,
     players,
@@ -222,7 +222,7 @@ export default function Game() {
     setGameStarted,
   });
 
-  // ─── Effects ──────────────────────────────────────────────────────
+  // ─── Effects ───────────────────────────────────────────────────────
 
   // Redirect if no player names and not an online game (online games fetch via useLobbySync)
   useEffect(() => {
@@ -338,8 +338,14 @@ export default function Game() {
     advanceTurn(winner);
   }, [feedback, winner, isMyTurn, advanceTurn, setIsTimeUp]);
   const handleFeedbackDone = useCallback(() => { setFeedback(null); setIsTimeUp(false); }, [setFeedback, setIsTimeUp]);
-  const handleImageError = useCallback(() => skipCurrentQuestion(currentQuestion?.id), [currentQuestion?.id, skipCurrentQuestion]);
-  const handleAudioError = useCallback(() => skipCurrentQuestion(currentQuestion?.id), [currentQuestion?.id, skipCurrentQuestion]);
+  const handleImageError = useCallback(() => {
+    if (!isMyTurn) return;
+    skipCurrentQuestion(currentQuestion?.id);
+  }, [currentQuestion?.id, isMyTurn, skipCurrentQuestion]);
+  const handleAudioError = useCallback(() => {
+    if (!isMyTurn) return;
+    skipCurrentQuestion(currentQuestion?.id);
+  }, [currentQuestion?.id, isMyTurn, skipCurrentQuestion]);
   const handleRestart = () => { resetGame(); navigate('/'); };
 
   const gameOverView = winner ? (
@@ -359,7 +365,7 @@ export default function Game() {
     </>
   ) : null;
 
-  // ─── Render guards ────────────────────────────────────────────────
+  // ─── Render guards ───────────────────────────────────────────────
   // For online games, playerNames may be empty array (non-host joined with just lobbyId)
   if (!playerNames && !lobbyId) return null;
 

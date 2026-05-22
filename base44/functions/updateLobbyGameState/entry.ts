@@ -13,9 +13,15 @@ const summarizePlayers = (players: any[] = []) =>
   }));
 
 const VALID_STATUSES = new Set(['waiting', 'starting', 'in_game', 'finished']);
+const VALID_ACTIONS = new Set(['place_card', 'advance_turn', 'skip_question']);
 
-const reject = (message: string, debug: Record<string, unknown> = {}, status = 400) =>
-  json({ error: message, debug }, status);
+const reject = (message: string, debug: Record<string, unknown> = {}, status = 400, code = 'validation_error') =>
+  json({ error: message, code, debug }, status);
+
+const readRevision = (value: unknown) => {
+  const revision = Number(value);
+  return Number.isFinite(revision) && revision >= 0 ? Math.trunc(revision) : 0;
+};
 
 const normalizeCards = (player: any) => Array.isArray(player?.cards) ? player.cards : [];
 
@@ -39,6 +45,9 @@ const validateGameStateUpdate = ({
   lobby,
   user,
   actorIndex,
+  action,
+  previousPlayerIndex,
+  previousQuestionId,
   incomingPlayers,
   incomingUsedIds,
   nextStatus,
@@ -50,6 +59,9 @@ const validateGameStateUpdate = ({
   lobby: any;
   user: any;
   actorIndex: number;
+  action: string;
+  previousPlayerIndex?: number;
+  previousQuestionId?: string | null;
   incomingPlayers: any[];
   incomingUsedIds: any[];
   nextStatus: string;
@@ -63,6 +75,26 @@ const validateGameStateUpdate = ({
   const activePlayer = lobbyPlayers[activeIndex];
   const previousUsedIds = Array.isArray(lobby.used_question_ids) ? lobby.used_question_ids : [];
   const winCardCount = Number(lobby.win_card_count || 10);
+
+  if (typeof previousPlayerIndex === 'number' && previousPlayerIndex !== activeIndex) {
+    return reject('Lobi durumu guncel degil. Son durum yukleniyor.', {
+      expected: activeIndex,
+      actual: previousPlayerIndex,
+      lobbyId: lobby.id,
+    }, 409, 'stale_write');
+  }
+
+  if (previousQuestionId && lobby.current_question_id && previousQuestionId !== lobby.current_question_id) {
+    return reject('Soru durumu guncel degil. Son durum yukleniyor.', {
+      expected: lobby.current_question_id,
+      actual: previousQuestionId,
+      lobbyId: lobby.id,
+    }, 409, 'stale_write');
+  }
+
+  if (!VALID_ACTIONS.has(action)) {
+    return reject('Gecersiz oyun aksiyonu.', { action }, 400);
+  }
 
   if (!VALID_STATUSES.has(lobby.status || 'waiting')) {
     return reject('Gecersiz lobi durumu.', { status: lobby.status }, 409);
@@ -135,6 +167,10 @@ const validateGameStateUpdate = ({
     }
 
     if (index === activeIndex) {
+      if (action === 'skip_question' && !cardsEqual(previousCards, incomingCards)) {
+        return reject('Soru atlama kart durumunu degistiremez.', { activeIndex }, 400);
+      }
+
       const delta = incomingCards.length - previousCards.length;
       if (delta < 0 || delta > 1) {
         return reject('Aktif oyuncu bir turda en fazla bir kart kazanabilir.', {
@@ -173,6 +209,31 @@ const validateGameStateUpdate = ({
       nextQuestionId,
       incomingUsedIds,
     }, 400);
+  }
+
+  if (action === 'skip_question') {
+    if (nextStatus === 'finished') {
+      return reject('Soru atlama oyunu bitiremez.', { nextStatus }, 400);
+    }
+    if (nextPlayerIndex !== activeIndex) {
+      return reject('Soru atlama sira sahibini degistiremez.', {
+        expected: activeIndex,
+        actual: nextPlayerIndex,
+      }, 400);
+    }
+    if (!nextQuestionId || nextQuestionId === lobby.current_question_id) {
+      return reject('Soru atlama yeni soru gerektirir.', {
+        previousQuestionId: lobby.current_question_id || null,
+        nextQuestionId,
+      }, 400);
+    }
+    if (lobby.current_question_id && !incomingUsedIds.includes(lobby.current_question_id)) {
+      return reject('Atlanan soru kullanilmis soru listesinde kalmali.', {
+        skippedQuestionId: lobby.current_question_id,
+        incomingUsedIds,
+      }, 400);
+    }
+    return null;
   }
 
   if (nextStatus !== 'finished') {
@@ -245,6 +306,17 @@ Deno.serve(async (req) => {
       return json({ error: 'Lobi bulunamadi.' }, 404);
     }
 
+    const currentRevision = readRevision(lobby.state_revision);
+    const expectedRevisionProvided = body.expected_state_revision !== undefined && body.expected_state_revision !== null;
+    const expectedRevision = readRevision(body.expected_state_revision);
+    if (expectedRevisionProvided && expectedRevision !== currentRevision) {
+      return reject('Lobi durumu guncel degil. Son durum yukleniyor.', {
+        lobbyId,
+        expected_state_revision: expectedRevision,
+        current_state_revision: currentRevision,
+      }, 409, 'stale_write');
+    }
+
     const lobbyPlayers = Array.isArray(lobby.players) ? lobby.players : [];
     const actorIndex = lobbyPlayers.findIndex((player) => player?.email === user.email);
     const activeIndex = lobby.current_player_index ?? 0;
@@ -254,6 +326,7 @@ Deno.serve(async (req) => {
     const nextStatus = body.status || lobby.status || 'in_game';
     const nextPlayerIndex = body.current_player_index;
     const nextQuestionId = body.current_question_id;
+    const action = body.action || 'advance_turn';
 
     if (!incomingPlayers || !incomingUsedIds) {
       return json({ error: 'Eksik oyuncu veya soru gecmisi.' }, 400);
@@ -267,6 +340,9 @@ Deno.serve(async (req) => {
       lobby,
       user,
       actorIndex,
+      action,
+      previousPlayerIndex: typeof body.previous_player_index === 'number' ? body.previous_player_index : undefined,
+      previousQuestionId: typeof body.previous_question_id === 'string' ? body.previous_question_id : null,
       incomingPlayers,
       incomingUsedIds,
       nextStatus,
@@ -285,6 +361,7 @@ Deno.serve(async (req) => {
       used_question_ids: incomingUsedIds,
       status: nextStatus,
       current_player_index: typeof nextPlayerIndex === 'number' ? nextPlayerIndex : activeIndex,
+      state_revision: currentRevision + 1,
     };
 
     if (nextQuestionId) {
@@ -300,10 +377,13 @@ Deno.serve(async (req) => {
 
     const debug = {
       lobbyId,
+      action,
       current_player_index_before: lobby.current_player_index ?? 0,
       next_current_player_index: updateData.current_player_index,
       current_question_id_before: lobby.current_question_id || null,
       next_current_question_id: updateData.current_question_id || null,
+      state_revision_before: currentRevision,
+      state_revision_after: updateData.state_revision,
       statusBefore: lobby.status,
       statusAfter: nextStatus,
       playersSummary: summarizePlayers(incomingPlayers),

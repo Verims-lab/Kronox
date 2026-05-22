@@ -5,7 +5,6 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { useWaitingRoomSync } from '@/hooks/useWaitingRoomSync';
 import { summarizePlayers } from '@/lib/lobbyUtils';
-import { buildInitialOnlineGameState } from '@/lib/onlineGameStart';
 import { debugLog, debugWarn } from '@/lib/debugLog';
 
 const categories = [
@@ -32,6 +31,7 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
     turn_duration: lobby.turn_duration,
     win_card_count: lobby.win_card_count,
   });
+  const [isStarting, setIsStarting] = useState(false);
 
   const prevLobbyId = useRef(lobby.id);
   useEffect(() => {
@@ -61,57 +61,69 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
   };
 
   const handleStart = async () => {
-    const latestLobby = await base44.entities.Lobby.get(lobby.id).catch((err) => {
-      debugWarn('[handleStart] latest lobby fetch failed, using local lobby:', err.message);
-      return null;
-    });
-    const startLobby = latestLobby || lobby;
-    const startPlayers = Array.isArray(startLobby.players) ? startLobby.players : [];
+    if (isStarting) return;
+    setIsStarting(true);
 
-    debugLog('[handleStart] latest roster before start:', {
-      lobbyId: startLobby.id,
-      localPlayersCount: lobby.players?.length || 0,
-      fetchedPlayersCount: startPlayers.length,
-      players: summarizePlayers(startPlayers),
-    });
-
-    if (startPlayers.length < 2) {
-      alert('Oyun başlatmak için en az 2 oyuncu gerekli');
-      return;
+    if (settingDebounceRef.current) {
+      clearTimeout(settingDebounceRef.current);
+      settingDebounceRef.current = null;
     }
 
-    const allQuestions = await base44.entities.Question.list('-created_date', 200);
-    const initialState = buildInitialOnlineGameState({
-      players: startPlayers,
-      questions: allQuestions,
-      settings,
-    });
+    try {
+      const latestLobby = await base44.entities.Lobby.get(lobby.id).catch((err) => {
+        debugWarn('[handleStart] latest lobby fetch failed, using local lobby:', err.message);
+        return null;
+      });
+      const startLobby = latestLobby || lobby;
+      const startPlayers = Array.isArray(startLobby.players) ? startLobby.players : [];
 
-    if (!initialState.ok) {
-      alert(initialState.message);
-      return;
-    }
-
-    const { playersWithCards, updateData } = initialState;
-    debugLog('[handleStart] lobbyId:', lobby.id, 'playerCount:', playersWithCards.length, 'status:', updateData.status, 'current_player_index:', updateData.current_player_index, 'current_question_id:', updateData.current_question_id, 'used_count:', updateData.used_question_ids.length, 'players:', playersWithCards.map(p => p.name));
-    debugLog('[handleStart] start payload roster:', {
-      lobbyId: startLobby.id,
-      playersCountUsedForGameStart: playersWithCards.length,
-      playersWrittenToLobby: summarizePlayers(playersWithCards),
-      cardsInitializedForEachPlayer: playersWithCards.map(p => ({
-        email: p.email,
-        name: p.name,
-        cardCount: p.cards?.length || 0,
-      })),
-    });
-
-    await base44.entities.Lobby.update(startLobby.id, updateData);
-    navigate('/game', {
-      state: {
+      debugLog('[handleStart] latest roster before start:', {
         lobbyId: startLobby.id,
-        online: true,
+        localPlayersCount: lobby.players?.length || 0,
+        fetchedPlayersCount: startPlayers.length,
+        players: summarizePlayers(startPlayers),
+      });
+
+      if (startPlayers.length < 2) {
+        alert('Oyun başlatmak için en az 2 oyuncu gerekli');
+        return;
       }
-    });
+
+      const response = await base44.functions.invoke('startLobbyGame', {
+        lobbyId: startLobby.id,
+        settings,
+        playerName,
+      });
+      const result = response?.data;
+
+      if (!result?.success || result?.error) {
+        alert(result?.error || 'Oyun başlatılamadı. Tekrar deneyin.');
+        debugWarn('[handleStart] authority start rejected:', result?.debug || result);
+        return;
+      }
+
+      if (result.lobby) {
+        setLobby(result.lobby);
+      }
+
+      debugLog('[handleStart] authority start success:', {
+        lobbyId: startLobby.id,
+        debug: result.debug || null,
+        playersWrittenToLobby: summarizePlayers(result.lobby?.players || []),
+      });
+
+      navigate('/game', {
+        state: {
+          lobbyId: startLobby.id,
+          online: true,
+        }
+      });
+    } catch (err) {
+      console.error('[handleStart] authority start failed:', err);
+      alert('Oyun başlatılamadı: ' + err.message);
+    } finally {
+      setIsStarting(false);
+    }
   };
 
   return (
@@ -285,11 +297,16 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
         <div className="w-full max-w-lg px-4 pt-2" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
           <Button
             onClick={handleStart}
-            disabled={!canStart}
+            disabled={!canStart || isStarting}
             size="lg"
             className="w-full h-12 bg-primary text-primary-foreground font-cinzel tracking-wider disabled:opacity-30"
           >
-            OYUNU BAŞLAT ({lobby.players?.length || 0} oyuncu)
+            {isStarting ? (
+              <span className="inline-flex items-center justify-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                BAŞLATILIYOR
+              </span>
+            ) : `OYUNU BAŞLAT (${lobby.players?.length || 0} oyuncu)`}
           </Button>
         </div>
       )}
