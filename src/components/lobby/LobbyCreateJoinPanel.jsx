@@ -12,7 +12,7 @@ const WIDE_STAGE_QUERY = '(min-aspect-ratio: 9 / 16)';
 const CATEGORIES = [
   { id: 'flashback', label: 'FLASHBACK', Icon: Zap, tone: '#facc15', glow: 'rgba(250,204,21,0.72)', scene: 'portal' },
   { id: 'kult', label: 'KÜLT', Icon: Landmark, tone: '#d946ef', glow: 'rgba(217,70,239,0.66)', scene: 'ritual' },
-  { id: 'viral', label: 'VIRAL', Icon: Radio, tone: '#a855f7', glow: 'rgba(168,85,247,0.62)', scene: 'signal' },
+  { id: 'viral', label: 'VİRAL', Icon: Radio, tone: '#a855f7', glow: 'rgba(168,85,247,0.62)', scene: 'signal' },
   { id: 'arena', label: 'ARENA', Icon: Trophy, tone: '#b874ff', glow: 'rgba(184,116,255,0.58)', scene: 'arena' },
   { id: 'level-up', label: 'LEVEL UP', Icon: ChevronsUp, tone: '#e879f9', glow: 'rgba(232,121,249,0.58)', scene: 'ascent' },
   { id: 'chronicle', label: 'CHRONICLE', Icon: Hourglass, tone: '#c084fc', glow: 'rgba(192,132,252,0.58)', scene: 'hourglass' },
