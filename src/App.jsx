@@ -70,7 +70,7 @@ const AuthenticatedApp = () => {
 
   // Render the main app
   return (
-    <div style={viewportShellStyle}>
+    <div style={viewportShellStyle} data-kx-route-locked={isViewportLockedPage ? 'true' : 'false'}>
       {!isGamePage && !isHomePage && <AppHeader />}
       <Suspense fallback={<PageLoader />}>
         <AnimatePresence mode="wait">
@@ -80,6 +80,7 @@ const AuthenticatedApp = () => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: transitionDir === 'push' ? -100 : 100 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            data-kx-route-locked={isViewportLockedPage ? 'true' : undefined}
             style={isViewportLockedPage ? { height: '100dvh', overflow: 'hidden', overscrollBehavior: 'none' } : undefined}
           >
             <Routes location={location}>
