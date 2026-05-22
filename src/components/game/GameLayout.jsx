@@ -6,20 +6,20 @@ import Timeline from './Timeline.jsx';
 import TurnTimer from './TurnTimer.jsx';
 import { playerTextColors } from './playerColors';
 
-function CTAButton({ active, onClick, disabled }) {
-  const activeShadow = [
-    '0 10px 0 rgba(120,53,15,0.92), 0 18px 32px rgba(0,0,0,0.34), 0 0 18px rgba(250,204,21,0.34)',
-    '0 10px 0 rgba(120,53,15,0.92), 0 20px 36px rgba(0,0,0,0.38), 0 0 30px rgba(250,204,21,0.58)',
-    '0 10px 0 rgba(120,53,15,0.92), 0 18px 32px rgba(0,0,0,0.34), 0 0 18px rgba(250,204,21,0.34)',
-  ];
+const CTA_ACTIVE_SHADOW = [
+  '0 10px 0 rgba(120,53,15,0.92), 0 18px 32px rgba(0,0,0,0.34), 0 0 18px rgba(250,204,21,0.34)',
+  '0 10px 0 rgba(120,53,15,0.92), 0 20px 36px rgba(0,0,0,0.38), 0 0 24px rgba(250,204,21,0.42)',
+  '0 10px 0 rgba(120,53,15,0.92), 0 18px 32px rgba(0,0,0,0.34), 0 0 18px rgba(250,204,21,0.34)',
+];
 
+function CTAButton({ active, onClick, disabled }) {
   return (
     <motion.button
       onClick={() => { if (active && onClick) { sounds.tap(); onClick(); } }}
       disabled={disabled}
       aria-disabled={disabled}
       animate={active ? {
-        boxShadow: activeShadow,
+        boxShadow: CTA_ACTIVE_SHADOW,
         scale: [1, 1.012, 1],
       } : {
         boxShadow: '0 5px 0 rgba(6,10,26,0.82), 0 12px 24px rgba(0,0,0,0.22)',
@@ -103,7 +103,7 @@ export default function GameLayout({
   const isSpectatingQuestion = Boolean(isOnline && !isMyTurn && currentQuestion && !winner);
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'linear-gradient(to bottom, #0B1F3A 0%, #1E3A8A 100%)' }}>
+    <div className="kx-viewport-lock flex flex-col" style={{ background: 'linear-gradient(to bottom, #0B1F3A 0%, #1E3A8A 100%)' }}>
       {/* TOP BAR */}
       <div
         className="relative flex-shrink-0 px-4 pt-2 pb-1"

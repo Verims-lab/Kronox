@@ -31,6 +31,7 @@ const AuthenticatedApp = () => {
   const prevPathRef = React.useRef(location.pathname);
   const isGamePage = location.pathname === '/game';
   const isHomePage = location.pathname === '/' || location.pathname === '/solo';
+  const isViewportLockedPage = location.pathname === '/' || isGamePage;
 
   // Determine transition direction: push (right-to-left) or pop (left-to-right)
   const getTransitionDirection = () => {
@@ -43,6 +44,9 @@ const AuthenticatedApp = () => {
   };
 
   const transitionDir = getTransitionDirection();
+  const viewportShellStyle = isViewportLockedPage
+    ? { width: '100%', minHeight: '100dvh', height: '100dvh', overflow: 'hidden', overscrollBehavior: 'none' }
+    : { width: '100%', minHeight: '100%' };
 
   // Android WebView fix: never stay on /login if user is authenticated or auth check is done.
   if (location.pathname.includes('/login')) {
@@ -66,7 +70,7 @@ const AuthenticatedApp = () => {
 
   // Render the main app
   return (
-    <div style={{ width: '100%', minHeight: '100%' }}>
+    <div style={viewportShellStyle}>
       {!isGamePage && !isHomePage && <AppHeader />}
       <Suspense fallback={<PageLoader />}>
         <AnimatePresence mode="wait">
@@ -76,6 +80,7 @@ const AuthenticatedApp = () => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: transitionDir === 'push' ? -100 : 100 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            style={isViewportLockedPage ? { height: '100dvh', overflow: 'hidden', overscrollBehavior: 'none' } : undefined}
           >
             <Routes location={location}>
               <Route path="/" element={<MainMenu />} />
