@@ -4,6 +4,7 @@ import { ArrowLeft, ChevronsUp, Clock, Hourglass, Landmark, LogIn, Radio, Trophy
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { sounds } from '@/lib/gameSounds';
+import CategoryCard from '@/components/lobby/CategoryCard';
 
 const LOGO_URL = 'https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/49fc6f458_kronoxnobckgrnd.png';
 const COSMIC_BACKGROUND = '/assets/ui/Kronox-Cosmic_background.webp';
@@ -221,12 +222,13 @@ function OnlineChallengeLanding({ onCreate, onJoin, onBackHome }) {
           <ArrowLeft className="h-5 w-5" />
         </button>
 
+        {/* Logo block */}
         <header
           className="pointer-events-none absolute z-20 flex flex-col items-center text-center"
           style={{
             left: '50%',
-            top: 'calc(0.4rem + env(safe-area-inset-top))',
-            width: '64%',
+            top: 'calc(0.6rem + env(safe-area-inset-top))',
+            width: '56%',
             transform: 'translateX(-50%)',
           }}
         >
@@ -241,39 +243,55 @@ function OnlineChallengeLanding({ onCreate, onJoin, onBackHome }) {
               filter: 'drop-shadow(0 0 16px rgba(250,204,21,0.9)) drop-shadow(0 10px 18px rgba(0,0,0,0.72))',
             }}
           />
+        </header>
+
+        {/* Subtitle — placed BELOW logo, ABOVE the category grid, with breathing room */}
+        <div
+          className="pointer-events-none absolute z-20 flex flex-col items-center text-center"
+          style={{
+            left: '8%',
+            right: '8%',
+            top: '18.5%',
+          }}
+        >
           <p
-            className="font-cinzel font-bold text-white"
+            className="font-cinzel font-black uppercase text-white"
             style={{
-              marginTop: '-2.5%',
-              fontSize: 16,
-              letterSpacing: 0,
-              textShadow: '0 0 12px rgba(168,85,247,0.82), 0 3px 8px rgba(0,0,0,0.72)',
+              fontSize: 'clamp(13px, 4.1cqw, 17px)',
+              letterSpacing: '0.06em',
+              textShadow: '0 0 14px rgba(250,204,21,0.5), 0 0 18px rgba(168,85,247,0.55), 0 3px 8px rgba(0,0,0,0.78)',
             }}
           >
             Arkadaşlarına Meydan Oku
           </p>
-        </header>
+          <div className="mt-2 flex items-center justify-center gap-3">
+            <span className="h-px w-12 bg-gradient-to-r from-transparent via-purple-300/70 to-transparent" />
+            <span
+              className="font-inter font-black uppercase text-purple-100/85"
+              style={{ fontSize: 'clamp(10px, 2.8cqw, 12px)', letterSpacing: '0.28em' }}
+            >
+              Kategori Seç
+            </span>
+            <span className="h-px w-12 bg-gradient-to-r from-transparent via-purple-300/70 to-transparent" />
+          </div>
+        </div>
 
+        {/* Category grid — moved down so it no longer overlaps the subtitle */}
         <section
           className="pointer-events-auto absolute z-20"
           style={{
-            left: '7.6%',
-            right: '7.6%',
-            top: '20.2%',
-            height: '49.6%',
+            left: '7%',
+            right: '7%',
+            top: '27%',
+            bottom: '30%',
           }}
         >
-          <div className="mb-2 flex items-center justify-center gap-3 text-center">
-            <span className="h-px w-16 bg-gradient-to-r from-transparent via-purple-300/70 to-transparent" />
-            <span className="font-inter text-[11px] font-black uppercase tracking-[0.22em] text-purple-100/80">Kategori Seç</span>
-            <span className="h-px w-16 bg-gradient-to-r from-transparent via-purple-300/70 to-transparent" />
-          </div>
           <div
-            className="grid h-[calc(100%-1.4rem)] grid-cols-2 grid-rows-3"
-            style={{ gap: '3.1%' }}
+            className="grid h-full w-full grid-cols-2 grid-rows-3"
+            style={{ gap: 'clamp(8px, 2.6%, 14px)' }}
           >
             {CATEGORIES.map(category => (
-              <CategoryButton
+              <CategoryCard
                 key={category.id}
                 category={category}
                 selected={selectedCategory === category.id}
@@ -283,12 +301,13 @@ function OnlineChallengeLanding({ onCreate, onJoin, onBackHome }) {
           </div>
         </section>
 
+        {/* CTAs — anchored to bottom area */}
         <section
           className="pointer-events-auto absolute z-20 flex flex-col items-center"
           style={{
             left: '8.2%',
             right: '8.2%',
-            top: '72.3%',
+            bottom: 'calc(1.6rem + env(safe-area-inset-bottom))',
           }}
         >
           <PrimaryChallengeButton onClick={startChallenge} />
@@ -297,11 +316,11 @@ function OnlineChallengeLanding({ onCreate, onJoin, onBackHome }) {
             onClick={joinOpenLobby}
             whileTap={{ scale: 0.965, y: 2 }}
             transition={{ type: 'spring', stiffness: 560, damping: 25 }}
-            className="mt-3 flex h-12 w-[82%] items-center justify-center gap-2 border-0 bg-transparent font-cinzel text-sm font-black text-purple-50"
+            className="mt-3 flex h-11 w-[82%] items-center justify-center gap-2 border-0 bg-transparent font-cinzel text-[13px] font-black text-purple-50"
             style={{
               clipPath: 'polygon(8% 0, 92% 0, 100% 50%, 92% 100%, 8% 100%, 0 50%)',
               background: 'linear-gradient(180deg, rgba(55,18,86,0.9), rgba(12,4,25,0.96))',
-              boxShadow: '0 0 18px rgba(168,85,247,0.34), inset 0 0 0 1px rgba(216,180,254,0.46), inset 0 -12px 16px rgba(0,0,0,0.42)',
+              boxShadow: '0 0 16px rgba(168,85,247,0.32), inset 0 0 0 1px rgba(216,180,254,0.42), inset 0 -10px 14px rgba(0,0,0,0.42)',
               letterSpacing: 0,
             }}
           >
@@ -311,120 +330,6 @@ function OnlineChallengeLanding({ onCreate, onJoin, onBackHome }) {
         </section>
       </div>
     </main>
-  );
-}
-
-function CategoryButton({ category, selected, onClick }) {
-  const { Icon } = category;
-
-  return (
-    <motion.button
-      type="button"
-      onClick={onClick}
-      whileTap={{ scale: 0.955, y: 4 }}
-      animate={{ y: selected ? -2 : 0 }}
-      transition={{ type: 'spring', stiffness: 560, damping: 26 }}
-      className="relative h-full w-full overflow-hidden border-0 bg-transparent text-white"
-      style={{
-        clipPath: 'polygon(8% 0, 92% 0, 100% 8%, 100% 92%, 92% 100%, 8% 100%, 0 92%, 0 8%)',
-        filter: selected
-          ? `drop-shadow(0 0 18px ${category.glow}) drop-shadow(0 14px 14px rgba(0,0,0,0.72))`
-          : 'drop-shadow(0 10px 12px rgba(0,0,0,0.62))',
-      }}
-      aria-pressed={selected}
-      aria-label={`${category.label} kategorisini seç`}
-    >
-      <span
-        className="absolute inset-0"
-        style={{
-          background: 'linear-gradient(180deg, rgba(18,7,36,0.98), rgba(6,4,16,1) 72%, rgba(1,1,6,1))',
-          boxShadow: [
-            `inset 0 0 0 ${selected ? '2px' : '1px'} ${selected ? category.tone : 'rgba(168,85,247,0.58)'}`,
-            `inset 0 0 34px ${selected ? category.glow : 'rgba(168,85,247,0.2)'}`,
-            'inset 0 -18px 20px rgba(0,0,0,0.66)',
-            'inset 0 1px 0 rgba(255,255,255,0.14)',
-          ].join(', '),
-        }}
-      />
-      <span
-        className="absolute inset-[5%]"
-        style={{
-          clipPath: 'polygon(8% 0, 92% 0, 100% 9%, 100% 91%, 92% 100%, 8% 100%, 0 91%, 0 9%)',
-          background: [
-            `radial-gradient(circle at 50% 29%, ${category.glow}, transparent 36%)`,
-            'linear-gradient(180deg, rgba(60,18,94,0.68), rgba(4,3,14,0.82) 68%)',
-          ].join(', '),
-          opacity: selected ? 1 : 0.82,
-        }}
-      />
-      <CategoryScene category={category} selected={selected} />
-      <span
-        className="absolute left-1/2 top-[48%] flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full"
-        style={{
-          width: '35%',
-          aspectRatio: '1',
-          color: category.tone,
-          background: 'radial-gradient(circle, rgba(255,255,255,0.12), rgba(0,0,0,0.62) 60%, rgba(0,0,0,0))',
-          filter: `drop-shadow(0 0 12px ${category.glow})`,
-        }}
-      >
-        <Icon className="h-[58%] w-[58%]" strokeWidth={selected ? 2.6 : 2.2} />
-      </span>
-      <span
-        className="absolute inset-x-[9%] bottom-[12%] block truncate font-cinzel text-[13px] font-black text-white"
-        style={{
-          letterSpacing: 0,
-          textShadow: `0 0 12px ${category.glow}, 0 2px 5px rgba(0,0,0,0.8)`,
-        }}
-      >
-        {category.label}
-      </span>
-      {selected && (
-        <span
-          className="absolute right-[7%] top-[7%] rounded-full px-2 py-0.5 font-inter text-[9px] font-black text-black"
-          style={{
-            background: 'linear-gradient(180deg, #fff7a8, #facc15 70%, #d97706)',
-            boxShadow: '0 0 12px rgba(250,204,21,0.72)',
-          }}
-        >
-          SEÇİLDİ
-        </span>
-      )}
-    </motion.button>
-  );
-}
-
-function CategoryScene({ category, selected }) {
-  const opacity = selected ? 0.9 : 0.58;
-  return (
-    <svg className="absolute inset-0 h-full w-full" viewBox="0 0 220 260" preserveAspectRatio="none" aria-hidden="true">
-      <defs>
-        <radialGradient id={`${category.id}-pulse`} cx="50%" cy="35%" r="54%">
-          <stop offset="0%" stopColor={category.tone} stopOpacity={selected ? '0.72' : '0.42'} />
-          <stop offset="100%" stopColor={category.tone} stopOpacity="0" />
-        </radialGradient>
-      </defs>
-      <rect width="220" height="260" fill={`url(#${category.id}-pulse)`} opacity={opacity} />
-      <g stroke={category.tone} strokeWidth="1.4" fill="none" opacity={selected ? 0.7 : 0.45}>
-        <path d="M18 196 C58 146 162 146 202 196" />
-        <path d="M36 206 C74 170 146 170 184 206" />
-        <path d="M110 62 V206" strokeOpacity="0.46" />
-        <path d="M32 218 H188" strokeOpacity="0.34" />
-      </g>
-      <g fill={category.tone} opacity={selected ? 0.32 : 0.2}>
-        <circle cx="38" cy="52" r="2" />
-        <circle cx="178" cy="72" r="1.8" />
-        <circle cx="64" cy="114" r="1.5" />
-        <circle cx="192" cy="132" r="1.4" />
-      </g>
-      {category.scene === 'portal' && <circle cx="110" cy="92" r="45" fill="none" stroke={category.tone} strokeWidth="5" opacity={selected ? 0.6 : 0.42} />}
-      {category.scene === 'ritual' && <path d="M110 44 L150 116 H70 Z M110 68 L132 106 H88 Z" fill="none" stroke={category.tone} strokeWidth="5" opacity={selected ? 0.62 : 0.42} />}
-      {category.scene === 'signal' && <path d="M60 86 L166 58 L178 124 L72 152 Z M78 102 L160 82" fill="none" stroke={category.tone} strokeWidth="5" opacity={selected ? 0.58 : 0.4} />}
-      {category.scene === 'arena' && <path d="M72 82 H148 V110 C148 146 125 164 110 170 C95 164 72 146 72 110 Z" fill="none" stroke={category.tone} strokeWidth="5" opacity={selected ? 0.6 : 0.42} />}
-      {category.scene === 'ascent' && <path d="M70 142 L110 102 L150 142 M74 108 L110 72 L146 108" fill="none" stroke={category.tone} strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" opacity={selected ? 0.6 : 0.42} />}
-      {category.scene === 'hourglass' && <path d="M78 54 H142 C136 92 123 102 110 116 C97 102 84 92 78 54 Z M78 178 H142 C136 140 123 130 110 116 C97 130 84 140 78 178 Z" fill="none" stroke={category.tone} strokeWidth="5" opacity={selected ? 0.62 : 0.42} />}
-      <path d="M0 260 C42 226 178 226 220 260 Z" fill="rgba(0,0,0,0.58)" />
-    </svg>
   );
 }
 
