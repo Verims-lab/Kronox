@@ -14,7 +14,6 @@ import SplashScreen from '@/components/SplashScreen';
 import { NavigationStackProvider } from '@/lib/NavigationStackContext';
 import BuildMarker from '@/components/dev/BuildMarker';
 
-const PlayerSetup = lazy(() => import('./pages/PlayerSetup'));
 const MainMenu = lazy(() => import('./pages/MainMenu'));
 const SoloChallenge = lazy(() => import('./pages/SoloChallenge'));
 const Game = lazy(() => import('./pages/Game'));
@@ -81,7 +80,7 @@ const AuthenticatedApp = () => {
             <Routes location={location}>
               <Route path="/" element={<MainMenu />} />
               <Route path="/solo" element={<SoloChallenge />} />
-              <Route path="/setup" element={<PlayerSetup />} />
+              <Route path="/setup" element={<Navigate to="/solo" replace />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/lobby" element={<LobbyRoom />} />
               <Route path="/game" element={<Game />} />

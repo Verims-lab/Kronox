@@ -171,8 +171,8 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
         style={{
           left: '5.4%',
           right: '5.4%',
-          top: '5%',
-          height: '40%',
+          top: '5.1%',
+          height: '34.9%',
           clipPath: 'polygon(7% 0, 93% 0, 100% 10%, 100% 91%, 93% 100%, 7% 100%, 0 91%, 0 10%)',
           border: `1px solid ${solo ? 'rgba(232,132,255,0.38)' : 'rgba(250,220,72,0.36)'}`,
           boxShadow: solo
@@ -187,8 +187,8 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
         style={{
           left: '4.8%',
           right: '4.8%',
-          top: '45%',
-          bottom: '5%',
+          top: '40%',
+          bottom: '5.1%',
           clipPath: 'polygon(9% 0, 91% 0, 100% 13%, 100% 88%, 91% 100%, 9% 100%, 0 88%, 0 13%)',
           background: solo
             ? 'linear-gradient(180deg, rgba(15,7,26,0.95), rgba(3,3,10,0.98) 72%), radial-gradient(ellipse at 50% 0%, rgba(192,68,255,0.24), transparent 62%)'
@@ -206,8 +206,8 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
         style={{
           color: accent,
           width: '19%',
-          height: '11%',
-          top: '39.5%',
+          height: '10.5%',
+          top: '36.8%',
           clipPath: 'polygon(18% 0, 82% 0, 100% 28%, 100% 72%, 82% 100%, 18% 100%, 0 72%, 0 28%)',
           background: solo
             ? 'radial-gradient(circle at 35% 23%, rgba(255,255,255,0.24), transparent 29%), linear-gradient(180deg, rgba(102,26,156,0.94), rgba(14,6,35,0.98))'
@@ -223,9 +223,9 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
         style={{
           left: '8%',
           right: '8%',
-          top: '54%',
-          fontSize: '13.2cqw',
-          lineHeight: 0.92,
+          top: '52%',
+          fontSize: '12.6cqw',
+          lineHeight: 0.86,
           color: solo ? '#ffffff' : '#f8fafc',
           letterSpacing: 0,
           textShadow: solo ? '0 0 16px rgba(192,68,255,0.68), 0 2px 0 rgba(0,0,0,0.72)' : '0 0 16px rgba(250,204,21,0.38), 0 2px 0 rgba(0,0,0,0.72)',
@@ -234,12 +234,12 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
         {solo ? (
           <>
             <span className="block">SOLO</span>
-            <span className="block" style={{ color: '#d995ff', fontSize: '0.92em' }}>MEYDAN OKUMA</span>
+            <span className="block" style={{ color: '#d995ff', fontSize: '0.9em' }}>MEYDAN OKUMA</span>
           </>
         ) : (
           <>
             <span className="block">ONLINE</span>
-            <span className="block" style={{ color: '#facc15', fontSize: '0.92em' }}>KAPIŞMA</span>
+            <span className="block" style={{ color: '#facc15', fontSize: '0.9em' }}>KAPIŞMA</span>
           </>
         )}
       </span>
@@ -249,7 +249,7 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
         style={{
           width: '46%',
           height: '0.7%',
-          top: '85%',
+          top: '76%',
           background: solo ? 'linear-gradient(90deg, transparent, #d994ff, transparent)' : 'linear-gradient(90deg, transparent, #facc15, transparent)',
           boxShadow: solo ? '0 0 9px rgba(217,148,255,0.72)' : '0 0 9px rgba(250,204,21,0.6)',
         }}
@@ -259,7 +259,7 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
         style={{
           left: '9%',
           right: '9%',
-          top: '87.6%',
+          top: '80%',
           fontSize: '4.2cqw',
           lineHeight: 1.05,
           letterSpacing: 0,
