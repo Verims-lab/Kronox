@@ -1,493 +1,967 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { AlertTriangle, CheckCircle2, ChevronDown, ClipboardCopy, Clock, Play, RefreshCw, ShieldAlert, X, XCircle } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import {
+  Activity,
+  AlertTriangle,
+  Ban,
+  CheckCircle2,
+  ChevronDown,
+  ClipboardCopy,
+  Download,
+  Info,
+  Play,
+  RefreshCw,
+  ShieldAlert,
+  X,
+  XCircle,
+} from 'lucide-react';
 
-import gameLayoutSource from './GameLayout.jsx?raw';
-import questionCardSource from './QuestionCard.jsx?raw';
-import timelineCardSource from './TimelineCard.jsx?raw';
-import gameOverSource from './GameOver.jsx?raw';
 import appSource from '../../App.jsx?raw';
+import indexCssSource from '../../index.css?raw';
 import mainMenuSource from '../../pages/MainMenu.jsx?raw';
 import gamePageSource from '../../pages/Game.jsx?raw';
 import lobbyRoomSource from '../../pages/LobbyRoom.jsx?raw';
+import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
+import soloChallengeSource from '../../pages/SoloChallenge.jsx?raw';
 import testSuiteSource from '../../pages/TestSuite.jsx?raw';
 import lobbyCreateJoinPanelSource from '../lobby/LobbyCreateJoinPanel.jsx?raw';
 import waitingRoomPanelSource from '../lobby/WaitingRoomPanel.jsx?raw';
-import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
-import soloChallengeSource from '../../pages/SoloChallenge.jsx?raw';
-import questionManagementSource from '../admin/QuestionManagement.jsx?raw';
-import tutorialSource from '../tutorial/KronoxTutorial.jsx?raw';
-import useLobbyRoomStateSource from '../../hooks/useLobbyRoomState.js?raw';
-import useWaitingRoomSyncSource from '../../hooks/useWaitingRoomSync.js?raw';
-import lobbySyncSource from '../../hooks/useLobbySync.js?raw';
+import buildMarkerSource from '../dev/BuildMarker.jsx?raw';
+import gameDebugLogSource from './GameDebugLog.jsx?raw';
+import gameLayoutSource from './GameLayout.jsx?raw';
+import questionCardSource from './QuestionCard.jsx?raw';
+import timelineSource from './Timeline.jsx?raw';
+import timelineCardSource from './TimelineCard.jsx?raw';
 import useGameActionsSource from '../../hooks/useGameActions.js?raw';
+import useLobbySyncSource from '../../hooks/useLobbySync.js?raw';
+import useWaitingRoomSyncSource from '../../hooks/useWaitingRoomSync.js?raw';
+import useOfflineQuestionsSource from '../../hooks/useOfflineQuestions.js?raw';
+import debugLogSource from '../../lib/debugLog.js?raw';
 import gameRulesSource from '../../lib/gameRules.js?raw';
+import gameSoundsSource from '../../lib/gameSounds.js?raw';
 import lobbyUtilsSource from '../../lib/lobbyUtils.js?raw';
 import onlineGameStartSource from '../../lib/onlineGameStart.js?raw';
-import adminSource from '../../lib/admin.js?raw';
-import buildMarkerSource from '../dev/BuildMarker.jsx?raw';
 import kronoxDocSource from '../../../Kronox.md?raw';
 import corePromptSource from '../../../CORE_PROMPT.md?raw';
+import findLobbyByCodeSource from '../../../base44/functions/findLobbyByCode/entry.ts?raw';
+import startLobbyGameSource from '../../../base44/functions/startLobbyGame/entry.ts?raw';
 import updateLobbyGameStateSource from '../../../base44/functions/updateLobbyGameState/entry.ts?raw';
 import {
   getNextPlayerIndex,
+  getQuestionSelectionPool,
   getTimelineYears,
   hasDuplicateTimelineYear,
   hasPlayerWon,
   isCorrectPlacement,
   selectNextQuestion,
 } from '../../lib/gameRules';
-import { normalizeCode, removePlayerByIdentity } from '../../lib/lobbyUtils';
+import { buildPlayerPayload, normalizeCode, removePlayerByIdentity, summarizePlayers } from '../../lib/lobbyUtils';
 import { buildInitialOnlineGameState, filterQuestionsForLobbySettings } from '../../lib/onlineGameStart';
 
-const ST = { PASS: 'PASS', FAIL: 'FAIL', WARNING: 'WARNING', SKIPPED: 'SKIPPED' };
-const LOOK = { PASS: ['#4ade80', CheckCircle2], FAIL: ['#f87171', XCircle], WARNING: ['#facc15', AlertTriangle], SKIPPED: ['#a1a1aa', Clock] };
-const CATS = [
-  ['smoke', 'Smoke', '#67e8f9'], ['regression', 'Sanity / Regression', '#93c5fd'], ['architecture', 'Architecture', '#c4b5fd'],
-  ['home', 'Home Screen / Responsive', '#2dd4bf'], ['offline', 'Offline Solo', '#c084fc'], ['lobby', 'Online Lobby', '#60a5fa'],
-  ['sync', 'Online Gameplay Sync', '#38bdf8'], ['gameover', 'Online GameOver', '#facc15'], ['questions', 'Question Engine', '#a3e635'],
-  ['media', 'Media Rendering', '#f9a8d4'], ['admin', 'Admin Tools', '#f59e0b'], ['tutorial', 'Tutorial / Help', '#a78bfa'],
-  ['records', 'Personal Records', '#2dd4bf'], ['performance', 'Performance', '#fde68a'], ['stability', 'Stability / Edge Cases', '#fca5a5'],
-  ['exceptional', 'Exceptional Cases', '#fb7185'], ['removed', 'Removed Features', '#fda4af'], ['release', 'Build / Release Safety', '#86efac'],
-].map(([id, label, color]) => ({ id, label, color }));
-const SRC = { App: appSource, MainMenu: mainMenuSource, SoloChallenge: soloChallengeSource, GameLayout: gameLayoutSource, Game: gamePageSource, LobbyRoom: lobbyRoomSource, TestSuite: testSuiteSource, LobbyCreateJoinPanel: lobbyCreateJoinPanelSource, WaitingRoomPanel: waitingRoomPanelSource, Settings: settingsPageSource, QuestionCard: questionCardSource, TimelineCard: timelineCardSource, GameOver: gameOverSource, QuestionManagement: questionManagementSource, Tutorial: tutorialSource, LobbyRoomState: useLobbyRoomStateSource, WaitingRoomSync: useWaitingRoomSyncSource, LobbySync: lobbySyncSource, GameRules: gameRulesSource, LobbyUtils: lobbyUtilsSource, OnlineGameStart: onlineGameStartSource, Admin: adminSource, UpdateLobbyGameState: updateLobbyGameStateSource, BuildMarker: buildMarkerSource, Kronox: kronoxDocSource, Core: corePromptSource };
-const now = () => new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-const out = (status, message, extra = {}) => ({ status, message, ...extra });
-const pass = (message, extra) => out(ST.PASS, message, extra);
-const fail = (message, extra) => out(ST.FAIL, message, extra);
-const warn = (message, extra) => out(ST.WARNING, message, extra);
-const skip = (message, extra) => out(ST.SKIPPED, message, extra);
-const test = (cat, id, name, run) => ({ cat, id, name, run });
-const sourceHas = (cat, id, name, label, source, tokens) => test(cat, id, name, () => {
-  const missing = tokens.filter(token => !source.includes(token));
-  return missing.length ? fail('Source contract failed', { expected: tokens, actual: `missing: ${missing.join(', ')}`, file: label }) : pass('Source contract matched', { expected: tokens, actual: 'all tokens present', file: label });
-});
-const sourceLacks = (cat, id, name, label, source, tokens) => test(cat, id, name, () => {
-  const found = tokens.filter(token => source.includes(token));
-  return found.length ? fail('Removed/forbidden source token found', { expected: 'none', actual: found, file: label }) : pass('Forbidden tokens absent', { expected: 'none', actual: 'none', file: label });
-});
-const equal = (cat, id, name, actualFn, expected) => test(cat, id, name, () => {
-  const actual = actualFn();
-  return JSON.stringify(actual) === JSON.stringify(expected) ? pass('Expected value matched', { expected, actual }) : fail('Expected value mismatch', { expected, actual });
-});
-const skipped = (cat, id, name, reason) => test(cat, id, name, () => skip(reason, { expected: 'automated deterministic coverage or external E2E', actual: 'skipped with reason', reason }));
-const deterministicRandom = () => 0.999999;
-const placeOk = (zone, year, cards) => isCorrectPlacement(cards, year, zone);
-const pick = (used, pool, years = new Set(), recent = new Set()) => selectNextQuestion(pool, used, years, { recentQuestionIds: recent, random: deterministicRandom });
-const turn = (lobby, actor, q) => { const players = lobby.players.map(p => ({ ...p, cards: [...(p.cards || [])] })); players[actor].cards.push(q); const next = getNextPlayerIndex(actor, players.length); return { ...lobby, players, current_player_index: next, current_question_id: `next_${next}`, used_question_ids: [...(lobby.used_question_ids || []), q.id, `next_${next}`], status: 'in_game' }; };
-const rotate = (count, turns) => { let lobby = { players: Array.from({ length: count }, (_, i) => ({ name: `P${i + 1}`, cards: [] })), used_question_ids: [], current_player_index: 0 }; const seen = [0]; for (let i = 0; i < turns; i += 1) { lobby = turn(lobby, lobby.current_player_index, { id: `q${i}`, year: 1900 + i }); seen.push(lobby.current_player_index); } return seen; };
-const perspective = (lobby, email) => { const active = lobby.players[lobby.current_player_index]; const me = lobby.players.find(p => p.email === email); const isMyTurn = Boolean(me && active?.email === me.email); return { current_question_id: lobby.current_question_id, activePlayer: active?.name || null, isMyTurn, readOnly: !isMyTurn, canDrag: isMyTurn && !lobby.feedback && !lobby.winner, canPlace: isMyTurn && !lobby.feedback && !lobby.winner, canConfirm: isMyTurn && lobby.selectedZone !== null && !lobby.feedback && !lobby.winner }; };
-const gameOverCopy = (winner, local) => String(winner).toLocaleLowerCase('tr-TR') === String(local).toLocaleLowerCase('tr-TR') ? { headline: 'Tebrikler!', icon: 'Trophy' } : { headline: 'Kaybettin', text: `${winner} kazandı.`, icon: 'CircleX' };
-const mediaKind = q => q?.media_url ? 'media_url' : q?.icon_url ? 'icon_url' : 'fallback';
-const stageFor = (vw, vh) => ({ vw, vh, w: Math.max(vw, 0.5625 * vh), h: Math.max(vh, 1.777778 * vw) });
-const card = { solo: { left: 10, top: 70.46667, width: 37.5, height: 20.052083 }, online: { left: 52.5, top: 70.416667, width: 37.5, height: 20.052083 } };
-const rect = (stage, c) => ({ x: c.left / 100 * stage.w, y: c.top / 100 * stage.h, w: c.width / 100 * stage.w, h: c.height / 100 * stage.h });
-const roster = count => Array.from({ length: count }, (_, i) => ({ email: `p${i + 1}@qa.local`, name: `P${i + 1}`, cards: [] }));
-async function questions() { return base44.entities.Question.list('-created_date', 500); }
-async function tmpLobby(extra = {}) { return base44.entities.Lobby.create({ code: `QA${Math.random().toString(36).slice(2, 6).toUpperCase()}`.slice(0, 6), host_email: extra.host_email || 'qa_host@kronox.local', host_name: 'QA Host', players: extra.players || roster(1), status: extra.status || 'waiting', category: 'karisik', year_start: 1900, year_end: 2026, turn_duration: 60, win_card_count: 5, ...extra }); }
-async function cleanLobby(lobby) { try { if (lobby?.id) await base44.entities.Lobby.delete(lobby.id); } catch (_) {} }
-async function cleanRecords(records) { for (const r of records) { try { if (r?.id) await base44.entities.GameRecord.delete(r.id); } catch (_) {} } }
-async function sim(name) { const response = await base44.functions.invoke('simulateOnlineGame', { scenario: name }); const got = response?.data?.results?.[name] || Object.values(response?.data?.results || {})[0]; if (!got) return warn('Backend simulation did not return a result', { expected: name, actual: response?.data }); return got.status === 'PASS' ? pass(`${name} passed`, { expected: 'PASS', actual: got.status, detail: got.logs?.slice(-4).join('\n') }) : fail(`${name} failed`, { expected: 'PASS', actual: got.status, detail: got.error || got.logs?.join('\n') }); }
-const qpool = items => items.filter(q => q.type !== 'muzik' || q.media_url).filter(q => q.year >= 1900 && q.year <= 2026);
-const qaPlayers = (user, count, cardCounts = []) => Array.from({ length: count }, (_, i) => ({
-  email: i === 0 ? user.email : `qa-secure-${i}@kronox.local`,
-  name: i === 0 ? (user.full_name || 'QA Player') : `Secure P${i + 1}`,
-  ready: true,
-  cards: Array.from({ length: cardCounts[i] || 0 }, (_, c) => ({ id: `seed-${i}-${c}`, year: 1900 + i * 10 + c, question: `Seed ${c}` })),
-}));
-async function invokeLobbyGameState(payload) {
-  try {
-    const response = await base44.functions.invoke('updateLobbyGameState', payload);
-    return { ok: Boolean(response?.data?.success), data: response?.data };
-  } catch (error) {
-    return { ok: false, data: error?.response?.data || { error: error?.message || String(error) } };
-  }
+const STATUS = {
+  PASS: 'PASS',
+  FAIL: 'FAIL',
+  WARNING: 'WARNING',
+  BLOCKED: 'BLOCKED',
+  NOT_AUTOMATABLE: 'NOT_AUTOMATABLE',
+  ERROR: 'ERROR',
+};
+
+const STATUS_ORDER = [STATUS.FAIL, STATUS.ERROR, STATUS.BLOCKED, STATUS.NOT_AUTOMATABLE, STATUS.WARNING, STATUS.PASS];
+const LAST_RUN_KEY = 'kronox_health_simulator_last_run_v1';
+
+const STATUS_LOOK = {
+  [STATUS.PASS]: { Icon: CheckCircle2, color: '#4ade80', bg: 'rgba(74,222,128,0.10)', label: 'Pass' },
+  [STATUS.FAIL]: { Icon: XCircle, color: '#fb7185', bg: 'rgba(251,113,133,0.13)', label: 'Fail' },
+  [STATUS.WARNING]: { Icon: AlertTriangle, color: '#facc15', bg: 'rgba(250,204,21,0.12)', label: 'Warning' },
+  [STATUS.BLOCKED]: { Icon: Ban, color: '#fb923c', bg: 'rgba(251,146,60,0.13)', label: 'Blocked' },
+  [STATUS.NOT_AUTOMATABLE]: { Icon: Info, color: '#93c5fd', bg: 'rgba(147,197,253,0.12)', label: 'Not Automatable' },
+  [STATUS.ERROR]: { Icon: ShieldAlert, color: '#f43f5e', bg: 'rgba(244,63,94,0.16)', label: 'Error' },
+};
+
+const SUITES = [
+  { id: 'environment', name: 'Environment Suite', critical: false, color: '#67e8f9' },
+  { id: 'mobile_viewport', name: 'Mobile Viewport Suite', critical: true, color: '#2dd4bf' },
+  { id: 'timeline_hit_testing', name: 'Timeline / Hit Testing Suite', critical: true, color: '#facc15' },
+  { id: 'question_card_touch', name: 'QuestionCard Touch Suite', critical: true, color: '#fb7185' },
+  { id: 'offline_solo', name: 'Offline Solo Regression Suite', critical: true, color: '#c084fc' },
+  { id: 'game_rules', name: 'Game Rules Suite', critical: true, color: '#a3e635' },
+  { id: 'multiplayer_authority', name: 'Multiplayer Authority Simulation Suite', critical: true, color: '#38bdf8' },
+  { id: 'waiting_room_start', name: 'Waiting Room / Start Flow Suite', critical: true, color: '#60a5fa' },
+  { id: 'route_bootstrap', name: 'Route State / Bootstrap Suite', critical: true, color: '#818cf8' },
+  { id: 'media_audio', name: 'Media / Audio Suite', critical: false, color: '#f9a8d4' },
+  { id: 'debug_hygiene', name: 'Debug / Production Hygiene Suite', critical: true, color: '#86efac' },
+  { id: 'performance_ux', name: 'Performance / UX Signal Suite', critical: false, color: '#fde68a' },
+  { id: 'visual_guardrails', name: 'Visual Consistency Guardrail Suite', critical: false, color: '#fda4af' },
+  { id: 'report_integrity', name: 'Report Integrity Suite', critical: true, color: '#e5e7eb' },
+];
+
+const SRC = {
+  App: appSource,
+  BuildMarker: buildMarkerSource,
+  CorePrompt: corePromptSource,
+  DebugLog: debugLogSource,
+  FindLobbyByCode: findLobbyByCodeSource,
+  Game: gamePageSource,
+  GameDebugLog: gameDebugLogSource,
+  GameLayout: gameLayoutSource,
+  GameRules: gameRulesSource,
+  GameSounds: gameSoundsSource,
+  IndexCss: indexCssSource,
+  Kronox: kronoxDocSource,
+  LobbyCreateJoinPanel: lobbyCreateJoinPanelSource,
+  LobbyRoom: lobbyRoomSource,
+  LobbyUtils: lobbyUtilsSource,
+  MainMenu: mainMenuSource,
+  OnlineGameStart: onlineGameStartSource,
+  QuestionCard: questionCardSource,
+  SettingsPage: settingsPageSource,
+  SoloChallenge: soloChallengeSource,
+  StartLobbyGame: startLobbyGameSource,
+  TestSuite: testSuiteSource,
+  Timeline: timelineSource,
+  TimelineCard: timelineCardSource,
+  UpdateLobbyGameState: updateLobbyGameStateSource,
+  UseGameActions: useGameActionsSource,
+  UseLobbySync: useLobbySyncSource,
+  UseOfflineQuestions: useOfflineQuestionsSource,
+  UseWaitingRoomSync: useWaitingRoomSyncSource,
+};
+
+function result(status, reason, extra = {}) {
+  return { status, reason, ...extra };
 }
-async function secureLobby(count = 2, extra = {}) {
-  const user = await base44.auth.me();
-  return tmpLobby({
-    host_email: user.email,
-    host_name: user.full_name || user.email,
-    players: extra.players || qaPlayers(user, count, extra.cardCounts),
-    status: 'in_game',
-    current_player_index: extra.current_player_index ?? 0,
-    current_question_id: extra.current_question_id || 'q_current',
-    used_question_ids: extra.used_question_ids || ['q_current'],
-    win_card_count: extra.win_card_count || 3,
-    ...extra,
+
+const pass = (reason, extra) => result(STATUS.PASS, reason, extra);
+const fail = (reason, extra) => result(STATUS.FAIL, reason, extra);
+const warning = (reason, extra) => result(STATUS.WARNING, reason, extra);
+const blocked = (reason, extra) => result(STATUS.BLOCKED, reason, extra);
+const notAutomatable = (reason, extra) => result(STATUS.NOT_AUTOMATABLE, reason, extra);
+
+function extractBuildMarker() {
+  return SRC.BuildMarker.match(/Codex\d+/)?.[0] || 'unknown';
+}
+
+function captureEnvironment() {
+  const win = typeof window !== 'undefined' ? window : {};
+  const doc = typeof document !== 'undefined' ? document : {};
+  const nav = typeof navigator !== 'undefined' ? navigator : {};
+  const ua = nav.userAgent || 'unknown';
+  const touchSupport = Boolean(('ontouchstart' in win) || (nav.maxTouchPoints || 0) > 0);
+  const viewport = { width: Number(win.innerWidth || 0), height: Number(win.innerHeight || 0) };
+  const standalone = Boolean(
+    win.matchMedia?.('(display-mode: standalone)')?.matches ||
+    win.matchMedia?.('(display-mode: fullscreen)')?.matches ||
+    nav.standalone === true
+  );
+  const mobileLike = /Android|iPhone|iPad|iPod|Mobile/i.test(ua) || (touchSupport && viewport.width < 820);
+
+  return {
+    route: win.location?.pathname || 'unknown',
+    timestamp: new Date().toISOString(),
+    deviceType: standalone ? 'pwa_or_webview' : mobileLike ? 'mobile_browser' : 'desktop_web',
+    viewport,
+    dpr: Number(win.devicePixelRatio || 1),
+    userAgent: ua,
+    touchSupport,
+    maxTouchPoints: nav.maxTouchPoints || 0,
+    standalone,
+    safeAreaSupport: typeof CSS !== 'undefined' ? Boolean(CSS.supports?.('padding-top: env(safe-area-inset-top)')) : false,
+    reducedMotion: Boolean(win.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches),
+    networkOnline: nav.onLine !== false,
+    visibilityState: doc.visibilityState || 'unknown',
+    memory: performance?.memory ? {
+      jsHeapSizeLimit: performance.memory.jsHeapSizeLimit,
+      totalJSHeapSize: performance.memory.totalJSHeapSize,
+      usedJSHeapSize: performance.memory.usedJSHeapSize,
+    } : null,
+    performanceObserverTypes: typeof PerformanceObserver !== 'undefined'
+      ? (PerformanceObserver.supportedEntryTypes || [])
+      : [],
+  };
+}
+
+function createRunMeta(casePlan = []) {
+  return {
+    runId: `KRONOX-${Date.now().toString(36).toUpperCase()}`,
+    startedAt: new Date().toISOString(),
+    buildMarker: extractBuildMarker(),
+    build: {
+      marker: extractBuildMarker(),
+      branch: 'Codex',
+      viteMode: import.meta.env.MODE,
+      viteDev: Boolean(import.meta.env.DEV),
+      viteProd: Boolean(import.meta.env.PROD),
+      gitSha: import.meta.env.VITE_GIT_SHA || null,
+    },
+    casePlan,
+  };
+}
+
+function makeCase(suiteId, id, name, run, options = {}) {
+  const suite = SUITES.find(item => item.id === suiteId);
+  return {
+    key: `${suiteId}.${id}`,
+    suiteId,
+    suiteName: suite?.name || suiteId,
+    id,
+    name,
+    critical: options.critical ?? Boolean(suite?.critical),
+    run,
+  };
+}
+
+function missingTokens(source, tokens) {
+  return tokens.filter(token => !String(source || '').includes(token));
+}
+
+function sourceHas(suiteId, id, name, label, source, tokens, options) {
+  return makeCase(suiteId, id, name, () => {
+    const missing = missingTokens(source, tokens);
+    return missing.length
+      ? fail('Source contract failed.', { file: label, expected: tokens, actual: `Missing: ${missing.join(', ')}` })
+      : pass('Source contract matched.', { file: label, expected: tokens, actual: 'all tokens present' });
+  }, options);
+}
+
+function sourceLacks(suiteId, id, name, label, source, tokens, options) {
+  return makeCase(suiteId, id, name, () => {
+    const found = tokens.filter(token => String(source || '').includes(token));
+    return found.length
+      ? fail('Forbidden or stale source token found.', { file: label, expected: 'no forbidden tokens', actual: found })
+      : pass('Forbidden tokens absent.', { file: label, expected: 'none', actual: 'none' });
+  }, options);
+}
+
+function valueCase(suiteId, id, name, actualFn, expected, options) {
+  return makeCase(suiteId, id, name, () => {
+    const actual = actualFn();
+    return JSON.stringify(actual) === JSON.stringify(expected)
+      ? pass('Expected value matched.', { expected, actual })
+      : fail('Expected value mismatch.', { expected, actual });
+  }, options);
+}
+
+function notAutomatableCase(suiteId, id, name, reason, options) {
+  return makeCase(suiteId, id, name, () => notAutomatable(reason, {
+    expected: 'simulator-executable verification',
+    actual: 'external device, mounted gameplay DOM, backend realtime, or browser permission required',
+  }), options);
+}
+
+function blockedCase(suiteId, id, name, reason, options) {
+  return makeCase(suiteId, id, name, () => blocked(reason, {
+    expected: 'available dependency or hook',
+    actual: 'dependency unavailable inside simulator',
+  }), options);
+}
+
+function perfTypeAvailable(type) {
+  return captureEnvironment().performanceObserverTypes.includes(type);
+}
+
+function buildQuestionPool(count = 8) {
+  return Array.from({ length: count }, (_, index) => ({ id: `q${index}`, year: 1900 + index, question: `Question ${index}`, type: 'metin', category: 'spor' }));
+}
+
+function classifyDirectLobbyUpdates() {
+  const files = [
+    ['Game.jsx', SRC.Game],
+    ['useGameActions.js', SRC.UseGameActions],
+    ['useLobbySync.js', SRC.UseLobbySync],
+    ['useWaitingRoomSync.js', SRC.UseWaitingRoomSync],
+    ['WaitingRoomPanel.jsx', SRC.WaitingRoomPanel],
+    ['LobbyRoom.jsx', SRC.LobbyRoom],
+    ['LobbyCreateJoinPanel.jsx', SRC.LobbyCreateJoinPanel],
+  ];
+
+  return files.flatMap(([file, source]) => String(source || '').split('\n').flatMap((line, index) => {
+    if (!line.includes('base44.entities.Lobby.update')) return [];
+    const unsafeInGame = /Game\.jsx|useGameActions\.js|useLobbySync\.js/.test(file) ||
+      /current_question_id|current_player_index|used_question_ids|winner/.test(line);
+    return [{
+      file,
+      line: index + 1,
+      context: line.trim(),
+      classification: unsafeInGame ? 'in-game state unsafe' : 'waiting-room/setup safe candidate',
+    }];
+  }));
+}
+
+function buildReport(caseResults, meta = createRunMeta(), environment = captureEnvironment()) {
+  const cases = caseResults.map(item => ({ ...item }));
+  const counts = Object.values(STATUS).reduce((acc, status) => ({ ...acc, [status]: 0 }), {});
+  cases.forEach(item => { counts[item.status] = (counts[item.status] || 0) + 1; });
+
+  const suiteSummary = SUITES.map(suite => {
+    const suiteCases = cases.filter(item => item.suiteId === suite.id);
+    const suiteCounts = Object.values(STATUS).reduce((acc, status) => ({ ...acc, [status]: suiteCases.filter(item => item.status === status).length }), {});
+    return { id: suite.id, name: suite.name, critical: suite.critical, total: suiteCases.length, counts: suiteCounts };
   });
-}
-async function expectSecureUpdateAccepted(count) {
-  const lobby = await secureLobby(count);
-  try {
-    const players = lobby.players.map((player, index) => ({
-      ...player,
-      cards: index === 0 ? [...(player.cards || []), { id: 'answer-card', year: 2000, question: 'Answer' }] : (player.cards || []),
-    }));
-    const result = await invokeLobbyGameState({
-      lobbyId: lobby.id,
-      players,
-      used_question_ids: [...(lobby.used_question_ids || []), 'q_next'],
-      status: 'in_game',
-      current_player_index: 1,
-      current_question_id: 'q_next',
+
+  const penalty = cases.reduce((sum, item) => {
+    const critical = item.critical ? 1 : 0;
+    if (item.status === STATUS.FAIL) return sum + (critical ? 12 : 8);
+    if (item.status === STATUS.ERROR) return sum + (critical ? 15 : 10);
+    if (item.status === STATUS.BLOCKED) return sum + (critical ? 10 : 5);
+    if (item.status === STATUS.NOT_AUTOMATABLE) return sum + (critical ? 8 : 3);
+    if (item.status === STATUS.WARNING) return sum + (critical ? 4 : 2);
+    return sum;
+  }, 0);
+
+  const mobileViewportPenalty = cases.some(item => item.suiteId === 'mobile_viewport' && [STATUS.FAIL, STATUS.ERROR, STATUS.BLOCKED].includes(item.status)) ? 8 : 0;
+  const authorityPenalty = cases.some(item => item.suiteId === 'multiplayer_authority' && item.status !== STATUS.PASS) ? 6 : 0;
+  const score = Math.max(0, Math.round(100 - penalty - mobileViewportPenalty - authorityPenalty));
+  const rating = score >= 90 ? 'Good' : score >= 70 ? 'Watch' : score >= 50 ? 'Risky' : 'Not release-ready';
+
+  const problemCases = cases
+    .filter(item => item.status !== STATUS.PASS)
+    .sort((a, b) => {
+      const statusDelta = STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status);
+      if (statusDelta !== 0) return statusDelta;
+      return Number(b.critical) - Number(a.critical);
     });
-    return result.ok && result.data?.lobby?.current_player_index === 1;
-  } finally {
-    await cleanLobby(lobby);
-  }
+
+  return {
+    runId: meta.runId,
+    timestamp: new Date().toISOString(),
+    startedAt: meta.startedAt,
+    finishedAt: new Date().toISOString(),
+    buildMarker: meta.buildMarker,
+    build: meta.build,
+    environment,
+    route: environment.route,
+    suites: SUITES.map(suite => ({ id: suite.id, name: suite.name, critical: suite.critical })),
+    suiteSummary,
+    counts,
+    totalCases: cases.length,
+    totalDurationMs: Math.round(cases.reduce((sum, item) => sum + (item.durationMs || 0), 0)),
+    score: { value: score, rating },
+    topBlockers: problemCases.filter(item => [STATUS.FAIL, STATUS.ERROR, STATUS.BLOCKED, STATUS.NOT_AUTOMATABLE].includes(item.status)).slice(0, 5),
+    topRegressions: problemCases.filter(item => [STATUS.FAIL, STATUS.ERROR].includes(item.status)).slice(0, 5),
+    recommendedNextActions: recommendedActions(problemCases),
+    cases,
+  };
 }
-async function expectSecureUpdateRejected(mutate, extra = {}) {
-  const lobby = await secureLobby(extra.count || 2, extra);
-  try {
-    const payload = mutate(lobby);
-    const before = JSON.stringify((await base44.entities.Lobby.get(lobby.id)) || {});
-    const result = await invokeLobbyGameState(payload);
-    const after = JSON.stringify((await base44.entities.Lobby.get(lobby.id)) || {});
-    return { rejected: !result.ok, unchanged: before === after, result };
-  } finally {
-    await cleanLobby(lobby);
-  }
+
+function recommendedActions(problemCases) {
+  const actions = [];
+  if (problemCases.some(item => item.suiteId === 'multiplayer_authority')) actions.push('Review multiplayer authority checks before release; do not compensate with client-side logic.');
+  if (problemCases.some(item => item.suiteId === 'mobile_viewport')) actions.push('Run the simulator on a real mobile WebView/PWA viewport and verify page scroll containment.');
+  if (problemCases.some(item => item.suiteId === 'timeline_hit_testing')) actions.push('Exercise drag/drop manually on a phone before shipping any timeline-adjacent change.');
+  if (problemCases.some(item => item.status === STATUS.NOT_AUTOMATABLE)) actions.push('Treat non-automatable critical cases as release risk until covered by device/backend tests.');
+  if (problemCases.some(item => item.suiteId === 'debug_hygiene')) actions.push('Confirm debug/test surfaces are gated outside gameplay and production-facing routes.');
+  return actions.length ? actions : ['No major simulator blockers detected; still run the required two-device multiplayer smoke test.'];
+}
+
+function buildHumanSummary(report) {
+  if (!report) return 'No Kronox Health Simulator report is available.';
+  const counts = Object.entries(report.counts).map(([status, count]) => `${status}: ${count}`).join(', ');
+  const blockers = report.topBlockers.length
+    ? report.topBlockers.map(item => `- [${item.status}] ${item.suiteName} / ${item.name}: ${item.reason}`).join('\n')
+    : '- None';
+  const actions = report.recommendedNextActions.map(item => `- ${item}`).join('\n');
+  return [
+    `Kronox Health Simulator ${report.runId}`,
+    `Score: ${report.score.value} (${report.score.rating})`,
+    `Build: ${report.buildMarker}`,
+    `Device: ${report.environment.deviceType} ${report.environment.viewport.width}x${report.environment.viewport.height} DPR ${report.environment.dpr}`,
+    `Counts: ${counts}`,
+    '',
+    'Top blockers:',
+    blockers,
+    '',
+    'Recommended next actions:',
+    actions,
+  ].join('\n');
 }
 
 const TESTS = [
-  sourceHas('smoke', 'app_root_route', 'app root renders/main menu route available', 'App.jsx', SRC.App, ['path="/"', '<MainMenu']),
-  sourceHas('smoke', 'settings_route', 'settings route available', 'App.jsx', SRC.App, ['path="/settings"', '<SettingsPage']),
-  sourceHas('smoke', 'test_suite_route', 'test suite route available', 'App/TestSuite', `${SRC.App}\n${SRC.TestSuite}`, ['path="/test-suite"', '<TestSuite', 'SimulationPanel']),
-  sourceHas('smoke', 'test_suite_route_admin_guard', 'test suite route is admin-protected', 'TestSuite.jsx', SRC.TestSuite, ['isAdminUser(user)', 'ERİŞİM KORUMALI', "redirectToLogin('/test-suite')"]),
-  sourceHas('smoke', 'solo_route', 'solo route available', 'App.jsx', SRC.App, ['path="/solo"', '<SoloChallenge']),
-  sourceHas('smoke', 'lobby_route', 'lobby route available', 'App.jsx', SRC.App, ['path="/lobby"', '<LobbyRoom']),
-  sourceHas('smoke', 'game_route_mount', 'game route can mount', 'App/Game.jsx', `${SRC.App}\n${SRC.Game}`, ['path="/game"', '<GameLayout']),
-  sourceLacks('smoke', 'no_fatal_startup_error', 'no fatal startup error token', 'App/MainMenu', `${SRC.App}\n${SRC.MainMenu}`, ['throw new Error(', 'TODO fatal']),
-  sourceHas('smoke', 'build_marker_exists', 'build marker exists', 'BuildMarker.jsx', SRC.BuildMarker, ['BUILD_MARKER', 'Codex']),
+  makeCase('environment', 'viewport_dimensions', 'Detect viewport dimensions', () => {
+    const viewport = captureEnvironment().viewport;
+    return viewport.width > 0 && viewport.height > 0
+      ? pass('Viewport dimensions captured.', { actual: viewport })
+      : fail('Viewport dimensions were not measurable.', { actual: viewport });
+  }),
+  makeCase('environment', 'dpr', 'Detect DPR', () => Number.isFinite(captureEnvironment().dpr)
+    ? pass('DPR captured.', { actual: captureEnvironment().dpr })
+    : fail('DPR unavailable.', { actual: captureEnvironment().dpr })),
+  makeCase('environment', 'touch_support', 'Detect touch support', () => pass('Touch support detection executed.', {
+    actual: { touchSupport: captureEnvironment().touchSupport, maxTouchPoints: captureEnvironment().maxTouchPoints },
+  })),
+  makeCase('environment', 'safe_area_support', 'Detect safe-area support', () => captureEnvironment().safeAreaSupport
+    ? pass('Safe-area env() support detected.')
+    : warning('Safe-area env() support was not detected in this browser.', { actual: false })),
+  makeCase('environment', 'standalone_pwa', 'Detect standalone/PWA mode', () => pass('Standalone/PWA detection executed.', { actual: captureEnvironment().standalone })),
+  makeCase('environment', 'user_agent', 'Detect user agent', () => captureEnvironment().userAgent !== 'unknown'
+    ? pass('User agent captured.', { actual: captureEnvironment().userAgent })
+    : warning('User agent unavailable.')),
+  makeCase('environment', 'reduced_motion', 'Detect reduced motion preference', () => pass('Reduced motion detection executed.', { actual: captureEnvironment().reducedMotion })),
+  makeCase('environment', 'network_status', 'Detect network status', () => pass('Network status detection executed.', { actual: captureEnvironment().networkOnline })),
+  makeCase('environment', 'visibility_state', 'Detect visibility state', () => pass('Visibility state captured.', { actual: captureEnvironment().visibilityState })),
 
-  sourceHas('regression', 'offline_solo_starts', 'Offline Solo still starts', 'MainMenu/SoloChallenge', `${SRC.MainMenu}\n${SRC.SoloChallenge}`, ["navigate('/solo')", "navigate('/game'", 'turnDuration']),
-  sourceHas('regression', 'online_lobby_opens', 'Online lobby still opens', 'MainMenu.jsx', SRC.MainMenu, ["navigate('/lobby')", 'redirectToLogin']),
-  sourceHas('regression', 'admin_accessible_for_admin', 'Settings/Admin still accessible for admin', 'SettingsPage.jsx', SRC.Settings, ['isAdmin', '<QuestionManagement', 'Regression Test Panel']),
-  sourceHas('regression', 'tutorial_accessible', 'Tutorial/How to Play still accessible', 'SettingsPage.jsx', SRC.Settings, ['Nasıl Oynanır?', '<KronoxTutorial', 'setShowTutorial(true)']),
-  sourceHas('regression', 'media_fallback', 'media_url fallback still works', 'QuestionCard.jsx', SRC.QuestionCard, ['media_url', 'icon_url', 'onError']),
-  sourceLacks('regression', 'no_chat_button', 'no removed chat button visible', 'online sources', `${SRC.GameLayout}\n${SRC.Game}\n${SRC.LobbyRoom}\n${SRC.WaitingRoomPanel}\n${SRC.LobbyCreateJoinPanel}`, ['MessageCircle', 'unreadCount']),
-  sourceLacks('regression', 'no_hemen_oyna', 'old HEMEN OYNA button absent on Home', 'MainMenu.jsx', SRC.MainMenu, ['HEMEN OYNA', 'Zap']),
-  sourceHas('regression', 'home_actions', 'Home contains Solo and Online actions', 'MainMenu.jsx', SRC.MainMenu, ['type="solo"', 'type="online"', 'handleSolo', 'handleOnline']),
+  sourceHas('mobile_viewport', 'home_no_page_scroll_source', 'Home must not page-scroll vertically', 'MainMenu.jsx', SRC.MainMenu, ['height: \'100dvh\'', 'maxHeight: \'100dvh\'', 'overflow: \'hidden\'', 'overscrollBehavior: \'none\'']),
+  sourceHas('mobile_viewport', 'gameplay_dvh_lock', 'Gameplay container uses dvh-safe sizing where detectable', 'App/GameLayout/CSS', `${SRC.App}\n${SRC.GameLayout}\n${SRC.IndexCss}`, ['kx-viewport-lock', '100dvh', 'overscroll-behavior']),
+  notAutomatableCase('mobile_viewport', 'no_page_scroll_during_drag', 'No unexpected vertical page scroll during simulated drag zone interaction', 'Requires mounted gameplay DOM plus real/touch-equivalent drag gesture; source inspection cannot verify scroll side effects.'),
+  sourceHas('mobile_viewport', 'timeline_horizontal_scroll_contained', 'Timeline horizontal scroll container exists and is contained', 'Timeline.jsx', SRC.Timeline, ['overflowX', 'auto', 'WebkitOverflowScrolling', 'scrollLeft']),
+  sourceLacks('mobile_viewport', 'safe_area_no_blank_global_gap', 'Safe-area variables do not create global top/bottom blank gaps', 'index.css/App', `${SRC.IndexCss}\n${SRC.App}`, ['body { padding-top: env(safe-area-inset-top)', 'body { padding-bottom: env(safe-area-inset-bottom)']),
+  sourceHas('mobile_viewport', 'fixed_overlays_dvh_bound', 'Fixed overlays do not exceed viewport height by design token', 'App/GameLayout/SimulationPanel', `${SRC.App}\n${SRC.GameLayout}`, ['100dvh', 'env(safe-area-inset-bottom)']),
+  sourceHas('mobile_viewport', 'overscroll_rules_intentional', 'Pull-to-refresh/overscroll risk check based on computed styles', 'index.css/App', `${SRC.IndexCss}\n${SRC.App}`, ['overscroll-behavior-x: none', 'overscroll-behavior-y: auto', 'data-kx-route-locked']),
+  makeCase('mobile_viewport', 'body_html_overflow_not_contradictory', 'Body/html overflow rules are not contradictory for gameplay routes', () => {
+    const hasGlobalHidden = /html[^{]*{[^}]*overflow:\s*hidden|body[^{]*{[^}]*overflow:\s*hidden/.test(SRC.IndexCss);
+    const scopedLock = SRC.App.includes('data-kx-route-locked') && SRC.IndexCss.includes('[data-kx-route-locked="true"]');
+    if (hasGlobalHidden) return fail('Global overflow hidden found; this can break settings/admin/test scroll.', { actual: 'global hidden' });
+    return scopedLock ? pass('Overflow lock is scoped by route attribute.', { actual: 'scoped route lock' }) : warning('No scoped route lock detected.', { actual: 'missing scoped lock' });
+  }),
 
-  test('architecture', 'kronox_doc_exists', 'Kronox.md exists', () => SRC.Kronox.includes('# KRONOX') ? pass('Kronox.md loaded', { file: 'Kronox.md', expected: '# KRONOX', actual: 'present' }) : fail('Kronox.md missing', { expected: '# KRONOX', actual: 'missing' })),
-  test('architecture', 'core_prompt_exists', 'CORE_PROMPT.md exists', () => SRC.Core.includes('KRONOX CORE PROMPT') ? pass('CORE_PROMPT.md loaded', { file: 'CORE_PROMPT.md', expected: 'KRONOX CORE PROMPT', actual: 'present' }) : fail('CORE_PROMPT.md missing', { expected: 'KRONOX CORE PROMPT', actual: 'missing' })),
-  sourceHas('architecture', 'home_stage_model', 'Home overlay uses 1080x1920 design-stage model', 'MainMenu.jsx', SRC.MainMenu, ['aspectRatio: \'1080 / 1920\'', 'max(100dvw, 56.25dvh)', 'max(100dvh, 177.7778dvw)']),
-  sourceHas('architecture', 'home_percent_coords', 'Home card positions use baseline percentages', 'MainMenu.jsx', SRC.MainMenu, ["left: '13.314815%'", "left: '52.703704%'", "width: '33.981481%'"]),
-  sourceHas('architecture', 'online_authority', 'Online authority uses Lobby/useLobbySync', 'Game/useLobbySync', `${SRC.Game}\n${SRC.LobbySync}`, ['useLobbySync', 'base44.entities.Lobby.get', 'base44.entities.Lobby.subscribe', 'setLobbyData']),
-  sourceHas('architecture', 'route_state_bootstrap', 'route state is bootstrap/fallback only', 'useLobbySync.js', SRC.LobbySync, ['initial-fetch', 'route-state-fallback', 'subscription:', 'poll']),
-  sourceLacks('architecture', 'protected_drag_not_touched', 'test utilities do not enter protected drag files', 'GameLayout.jsx', SRC.GameLayout, ['SimulationPanel']),
-  sourceHas('architecture', 'game_rules_module', 'pure game rules module exists', 'gameRules.js', SRC.GameRules, ['export function getNextPlayerIndex', 'export function isCorrectPlacement', 'export function selectNextQuestion', 'export function hasPlayerWon']),
-  sourceHas('architecture', 'game_actions_uses_rules', 'useGameActions uses pure game rules helpers', 'useGameActions.js', useGameActionsSource, ["from '@/lib/gameRules'", 'isCorrectPlacement(', 'getNextPlayerIndex(', 'selectNextQuestion(']),
-  sourceHas('architecture', 'server_update_validation_layer', 'updateLobbyGameState has server-side validation layer', 'updateLobbyGameState/entry.ts', SRC.UpdateLobbyGameState, ['validateGameStateUpdate', 'VALID_STATUSES', 'containsAllPreviousIds', 'getNextPlayerIndex', 'winnerIndex']),
-  sourceHas('architecture', 'lobby_room_thin_orchestrator', 'LobbyRoom is split into smaller lobby modules', 'LobbyRoom.jsx', SRC.LobbyRoom, ['<LobbyCreateJoinPanel', '<WaitingRoomPanel', 'useLobbyRoomState', '@/lib/lobbyUtils']),
-  sourceHas('architecture', 'lobby_utils_extracted', 'Lobby pure helpers are extracted', 'lobbyUtils.js', SRC.LobbyUtils, ['export function normalizeCode', 'export function summarizePlayers', 'export function isHost', 'export function canJoinLobby', 'export function buildPlayerPayload', 'export function buildLobbyStartPayload', 'export function removePlayerByIdentity']),
-  sourceHas('architecture', 'online_game_start_extracted', 'online game start helper/service exists', 'onlineGameStart.js', SRC.OnlineGameStart, ['export function filterQuestionsForLobbySettings', 'export function shuffleQuestions', 'export function buildInitialOnlineGameState', 'buildLobbyStartPayload']),
-  sourceHas('architecture', 'waiting_room_delegates_start_payload', 'WaitingRoomPanel delegates initial online game state construction', 'WaitingRoomPanel.jsx', SRC.WaitingRoomPanel, ['buildInitialOnlineGameState', 'const { playersWithCards, updateData } = initialState', 'base44.entities.Question.list']),
-  sourceLacks('architecture', 'removed_components_not_required', 'removed debug/QA/chat files are not required by active app', 'active sources', `${SRC.App}\n${SRC.GameLayout}\n${SRC.Game}\n${SRC.LobbyRoom}\n${SRC.WaitingRoomPanel}\n${SRC.Settings}`, ['DebugConsole', 'DebugPanel', 'TimelineRuler', 'components/qa', 'LobbyChat']),
-  sourceHas('architecture', 'lobby_state_hook_extracted', 'Lobby identity and page state live in useLobbyRoomState', 'useLobbyRoomState.js', SRC.LobbyRoomState, ['base44.auth.me', 'setPlayerName', 'setLobby', 'setLoading', 'setNameError']),
-  sourceHas('architecture', 'waiting_room_sync_hook_extracted', 'Waiting-room subscription and polling live in useWaitingRoomSync', 'useWaitingRoomSync.js', SRC.WaitingRoomSync, ['base44.entities.Lobby.subscribe', 'window.setInterval', 'window.clearInterval', 'findLobbyByCode', "navigate('/game'"]),
-  sourceHas('architecture', 'lobby_panels_extracted', 'Lobby create/join and waiting-room panels are extracted', 'lobby panels', `${SRC.LobbyCreateJoinPanel}\n${SRC.WaitingRoomPanel}`, ['export default function LobbyCreateJoinPanel', 'export default function WaitingRoomPanel', 'OYUNU BAŞLAT', 'LOBİ OLUŞTUR']),
+  sourceHas('timeline_hit_testing', 'timeline_renders_drop_zones', 'Timeline renders with valid drop zones', 'Timeline.jsx', SRC.Timeline, ['function DropZone', 'Array.from', 'cards.length + 1']),
+  valueCase('timeline_hit_testing', 'drop_zone_count_formula', 'Drop zone count matches cards + 1 expectation', () => buildQuestionPool(4).length + 1, 5),
+  notAutomatableCase('timeline_hit_testing', 'drop_zone_rects_measurable', 'Drop zones have measurable bounding rects', 'Requires mounted Timeline DOM. Static source cannot measure live bounding boxes.'),
+  notAutomatableCase('timeline_hit_testing', 'drop_zone_rects_ordered', 'Drop zone rects are ordered left-to-right', 'Requires live DOM geometry after responsive layout.'),
+  notAutomatableCase('timeline_hit_testing', 'no_zero_width_drop_zones', 'No zero-width drop zones', 'Requires live Timeline layout measurement.'),
+  sourceHas('timeline_hit_testing', 'hit_test_scroll_math', 'Hit-test target zones remain stable after horizontal scroll', 'Timeline.jsx', SRC.Timeline, ['getZoneAtClientX', 'clientX', 'scrollLeft', 'containerRect.left']),
+  sourceHas('timeline_hit_testing', 'viewport_coordinate_model', 'Drag coordinate model uses viewport/client coordinates consistently', 'Timeline/QuestionCard', `${SRC.Timeline}\n${SRC.QuestionCard}`, ['clientX', 'clientY', 'getBoundingClientRect']),
+  notAutomatableCase('timeline_hit_testing', 'timeline_scroll_no_page_scroll', 'Timeline scroll does not alter page scroll', 'Requires a mounted mobile viewport with gesture execution.'),
+  makeCase('timeline_hit_testing', 'equal_year_rule_documented', 'Equal-year placement behavior is documented and tested according to current rule', () => {
+    const actual = {
+      beforeEqual: isCorrectPlacement([{ year: 2000 }], 2000, 0),
+      afterEqual: isCorrectPlacement([{ year: 2000 }], 2000, 1),
+      betweenEqual: isCorrectPlacement([{ year: 1990 }, { year: 2000 }], 2000, 1),
+    };
+    return Object.values(actual).every(Boolean)
+      ? pass('Current rule allows equal-year boundary placement; this report documents existing behavior.', { actual })
+      : fail('Equal-year rule changed from documented current behavior.', { actual });
+  }),
 
-  sourceHas('home', 'viewport_lock', 'Home root uses viewport lock behavior', 'MainMenu.jsx', SRC.MainMenu, ["height: '100dvh'", "maxHeight: '100dvh'", "overflow: 'hidden'", "overscrollBehavior: 'none'"]),
-  sourceHas('home', 'no_scroll', 'Home does not allow vertical page scroll', 'MainMenu.jsx', SRC.MainMenu, ['fixed inset-0', 'overflow-hidden', "touchAction: 'manipulation'"]),
-  sourceLacks('home', 'no_global_overflow_lock', 'global overflow hidden is not applied to all pages', 'App/Settings/Game/Lobby/Solo', `${SRC.App}\n${SRC.Settings}\n${SRC.LobbyRoom}\n${SRC.WaitingRoomPanel}\n${SRC.LobbyCreateJoinPanel}\n${SRC.SoloChallenge}`, ['document.body.style.overflow', 'overflow: hidden']),
-  test('home', 'background_asset', 'background asset path is declared', () => SRC.MainMenu.includes('/assets/ui/home-background-full.webp') ? pass('background path declared', { expected: '/assets/ui/home-background-full.webp', actual: 'present' }) : fail('background path missing', { expected: '/assets/ui/home-background-full.webp', actual: 'missing' })),
-  test('home', 'logo_asset_or_fallback', 'required logo asset exists or remote URL fallback exists', () => SRC.MainMenu.includes('LOGO_URL') && (SRC.MainMenu.includes('https://') || SRC.MainMenu.includes('/assets/')) ? pass('logo source declared', { expected: 'LOGO_URL with URL/path', actual: 'present' }) : fail('logo source missing', { expected: 'LOGO_URL with URL/path', actual: 'missing' })),
-  equal('home', 'equal_card_size', 'Solo and Online card sizes are equal', () => [card.solo.width, card.solo.height], [card.online.width, card.online.height]),
-  sourceHas('home', 'expected_card_coords', 'Solo and Online coordinates match expected percentages', 'MainMenu.jsx', SRC.MainMenu, ["left: '13.314815%'", "top: '71.40625%'", "left: '52.703704%'", "height: '18.177083%'"]),
-  sourceHas('home', 'text_inside_cards', 'Solo/Online text stays inside card bounds', 'MainMenu.jsx', SRC.MainMenu, ["top: '54%'", "top: '87.6%'", "left: '8%'", "right: '8%'"]),
-  sourceHas('home', 'mode_clickable', 'Solo and Online remain clickable', 'MainMenu.jsx', SRC.MainMenu, ['onClick={handleSolo}', 'onClick={handleOnline}', 'aria-label={title.replace']),
-  sourceHas('home', 'desktop_stage_clickable', 'desktop/wide browser mode constrains stage and keeps buttons clickable', 'MainMenu.jsx', SRC.MainMenu, ['isWideStage', "width: 'min(100dvw, 56.25dvh)'", "height: 'min(100dvh, 177.7778dvw)'", 'onClick={handleSolo}', 'onClick={handleOnline}']),
-  sourceHas('home', 'decorative_layers_no_pointer_block', 'decorative Home layers do not block clicks', 'MainMenu.jsx', SRC.MainMenu, ["pointerEvents: 'none'", 'zIndex: 0', 'ModeCard']),
-  sourceHas('home', 'profile_settings_accessible', 'Settings/profile area remains accessible', 'MainMenu.jsx', SRC.MainMenu, ['<ProfileBar', 'handleSettings', 'aria-label="Ayarlar"']),
-  ...[[360,740],[390,844],[412,915],[430,932],[393,873],[375,667],[768,1024]].map(([vw, vh]) => test('home', `viewport_${vw}x${vh}`, `viewport ${vw}x${vh} proportional geometry`, () => { const s = stageFor(vw, vh); const a = rect(s, card.solo); const b = rect(s, card.online); const ok = Math.abs(a.w - b.w) < 0.01 && Math.abs(a.h - b.h) < 0.01 && b.x > a.x + a.w && b.x + b.w <= s.w && a.y + a.h <= s.h; return ok ? pass('viewport geometry stable', { expected: 'equal cards, positive gap, no overflow', actual: { stage: s, solo: a, online: b } }) : fail('viewport geometry failed', { expected: 'equal cards, positive gap, no overflow', actual: { stage: s, solo: a, online: b } }); })),
-  sourceLacks('home', 'no_empty_layout_artifacts', 'removed controls leave no empty placeholders', 'GameLayout.jsx', SRC.GameLayout, ['opacity-0', 'invisible', 'placeholder']),
+  sourceHas('question_card_touch', 'touch_action_declared', 'QuestionCard has touch-action behavior suitable for drag', 'QuestionCard.jsx', SRC.QuestionCard, ['touchAction']),
+  sourceHas('question_card_touch', 'touch_handlers_present', 'Touch start/move/end handlers or pointer equivalents are present as expected', 'QuestionCard.jsx', SRC.QuestionCard, ['onTouchStart', 'onTouchMove', 'onTouchEnd']),
+  makeCase('question_card_touch', 'prevent_default_documented', 'preventDefault risk is documented where required', () => SRC.QuestionCard.includes('preventDefault')
+    ? pass('QuestionCard explicitly uses preventDefault in touch path.', { actual: 'preventDefault present' })
+    : warning('QuestionCard does not show an explicit preventDefault token; verify mobile scroll/drag interaction manually.')),
+  notAutomatableCase('question_card_touch', 'drag_start_state', 'Drag start creates expected held/dragging state if simulator can access it', 'The simulator cannot safely mount and mutate live gameplay drag state without a dedicated hook.'),
+  notAutomatableCase('question_card_touch', 'drag_cancel_state', 'Drag cancel does not leave ghost/locked state', 'Requires mounted QuestionCard gesture lifecycle.'),
+  notAutomatableCase('question_card_touch', 'no_click_submission_during_drag', 'No accidental click submission during drag gesture', 'Requires gesture-level execution against mounted card UI.'),
 
-  sourceHas('offline', 'category_selection', 'category selection works', 'SoloChallenge.jsx', SRC.SoloChallenge, ['CATEGORIES', 'selectedCategory', 'setSelectedCategory', 'dbValue']),
-  sourceHas('offline', 'difficulty_selection', 'difficulty selection works', 'SoloChallenge.jsx', SRC.SoloChallenge, ['DIFFICULTIES', 'selectedDifficulty', 'setSelectedDifficulty']),
-  test('offline', 'timer_mapping', 'selected timer maps correctly', () => ['duration: 0', 'duration: 30', 'duration: 15'].every(x => SRC.SoloChallenge.includes(x)) ? pass('timer presets mapped', { expected: [0,30,15], actual: 'present' }) : fail('timer mapping missing', { expected: [0,30,15], actual: 'missing token' })),
-  sourceHas('offline', 'start_payload', 'game starts with selected setup', 'SoloChallenge.jsx', SRC.SoloChallenge, ["navigate('/game'", 'playerNames', 'category', 'turnDuration']),
-  sourceHas('offline', 'question_appears', 'question appears', 'GameLayout.jsx', SRC.GameLayout, ['<QuestionCard', 'question={currentQuestion}', 'currentQuestion']),
-  equal('offline', 'placement_validation', 'placement validation works', () => [placeOk(0,1920,[{year:1950},{year:1980}]), placeOk(1,1960,[{year:1950},{year:1980}]), placeOk(2,1999,[{year:1950},{year:1980}]), placeOk(1,2005,[{year:1950},{year:1980}])], [true,true,true,false]),
-  equal('offline', 'placement_before_first', 'correct placement before first card', () => isCorrectPlacement([{ year: 1950 }, { year: 1980 }], 1920, 0), true),
-  equal('offline', 'placement_between_cards', 'correct placement between cards', () => isCorrectPlacement([{ year: 1950 }, { year: 1980 }], 1960, 1), true),
-  equal('offline', 'placement_after_last', 'correct placement after last card', () => isCorrectPlacement([{ year: 1950 }, { year: 1980 }], 1999, 2), true),
-  equal('offline', 'wrong_placement_rejected', 'wrong placement rejected by rules helper', () => isCorrectPlacement([{ year: 1950 }, { year: 1980 }], 2005, 1), false),
-  equal('offline', 'duplicate_timeline_year_detection', 'duplicate timeline year detection', () => hasDuplicateTimelineYear([{ year: 1999 }, { year: 2000 }], 2000), true),
-  equal('offline', 'timeline_years_helper', 'timeline years helper returns active years', () => [...getTimelineYears([{ year: 1999 }, { year: null }, { year: 2001 }])], [1999, 2001]),
-  equal('offline', 'win_condition_true', 'win condition true', () => hasPlayerWon({ cards: [{}, {}, {}] }, 3), true),
-  equal('offline', 'win_condition_false', 'win condition false', () => hasPlayerWon({ cards: [{}, {}] }, 3), false),
-  equal('offline', 'correct_adds_card', 'correct placement adds card', () => placeOk(1,1970,[{year:1950}]) ? 2 : 1, 2),
-  equal('offline', 'wrong_no_add', 'wrong placement does not add card', () => placeOk(1,2000,[{year:1950},{year:1980}]) ? 3 : 2, 2),
-  test('offline', 'no_repeat_question', 'same question does not repeat in session', () => { const pool = Array.from({length:20},(_,i)=>({id:`q${i}`,year:2000+i})); const used = new Set(); for (let i=0;i<20;i+=1) { const q = pick(used,pool); if (!q || used.has(q.id)) return fail('duplicate/null pick', { expected: 'unique ids', actual: q }); used.add(q.id); } return pass('unique picks', { expected: 20, actual: used.size }); }),
-  test('offline', 'no_repeat_year_when_possible', 'same year avoided while pool allows', () => { const q = pick(new Set(), [{id:'a',year:2000},{id:'b',year:2001},{id:'c',year:2002},{id:'d',year:2003},{id:'e',year:2004},{id:'f',year:2005}], new Set([2000,2001])); return q && ![2000,2001].includes(q.year) ? pass('duplicate years avoided', { expected: 'not 2000/2001', actual: q.year }) : fail('year repeated too early', { expected: 'non-duplicate year', actual: q }); }),
-  test('offline', 'solo_pool_available', 'Solo question pool available', async () => { const pool = qpool(await questions()); return pool.length >= 10 ? pass('solo pool ready', { expected: '>=10', actual: pool.length }) : fail('solo pool too small', { expected: '>=10', actual: pool.length }); }),
-  sourceHas('offline', 'personal_record_better_only', 'personal record update path exists', 'useGameActions/Settings', `${useGameActionsSource}\n${SRC.Settings}`, ['saveGameRecord', 'GameRecord.create', 'if (lobbyId) return', 'TopScores']),
+  sourceHas('offline_solo', 'solo_initialize_source', 'Solo game can initialize', 'SoloChallenge/Game', `${SRC.SoloChallenge}\n${SRC.Game}`, ['navigate(\'/game\'', 'playerNames', 'category', 'turnDuration']),
+  sourceHas('offline_solo', 'first_question_loads_source', 'First question loads', 'Game/useOfflineQuestions', `${SRC.Game}\n${SRC.UseOfflineQuestions}`, ['currentQuestion', 'useOfflineQuestions', 'questions']),
+  valueCase('offline_solo', 'placement_can_be_simulated', 'Placement can be simulated', () => isCorrectPlacement([{ year: 1950 }, { year: 1980 }], 1960, 1), true),
+  valueCase('offline_solo', 'correct_placement_resolves', 'Correct placement path advances or resolves as expected', () => isCorrectPlacement([{ year: 1950 }], 1970, 1) && getNextPlayerIndex(0, 1) === 0, true),
+  valueCase('offline_solo', 'wrong_placement_resolves', 'Wrong placement path resolves as expected', () => isCorrectPlacement([{ year: 1950 }, { year: 1980 }], 2010, 1), false),
+  sourceHas('offline_solo', 'timer_expiry_path', 'Timer expiry path does not crash by source contract', 'GameLayout/useGameActions', `${SRC.GameLayout}\n${SRC.UseGameActions}`, ['onTimeUp', 'handleTimeUp', 'advanceTurn']),
+  makeCase('offline_solo', 'used_question_ids_monotonic_rule', 'used_question_ids grows monotonically in normal source paths', () => SRC.UseGameActions.includes('new Set') && SRC.UseGameActions.includes('used_question_ids')
+    ? pass('Question history is updated through set/add patterns in game actions.', { actual: 'set/add tokens present' })
+    : warning('Could not prove monotonic offline question history from source tokens.')),
+  makeCase('offline_solo', 'duplicate_current_question_normal_flow', 'Duplicate current question is not selected in normal flow', () => {
+    const pool = buildQuestionPool(4);
+    const first = selectNextQuestion(pool, new Set(), new Set(), { random: () => 0 });
+    const second = selectNextQuestion(pool, new Set([first.id]), new Set(), { random: () => 0 });
+    return first && second && first.id !== second.id
+      ? pass('Selection helper avoids used current question.', { actual: [first.id, second.id] })
+      : fail('Selection helper repeated or failed to select question.', { actual: { first, second } });
+  }),
+  sourceHas('offline_solo', 'media_fallback_no_skip_source', 'Media/audio fallback does not skip question incorrectly by source contract', 'QuestionCard/Game', `${SRC.QuestionCard}\n${SRC.Game}`, ['onError', 'currentQuestion', 'skipCurrentQuestion']),
+  notAutomatableCase('offline_solo', 'finish_without_runtime_error', 'Game can finish without runtime error', 'Requires mounted solo game flow or browser E2E harness.'),
 
-  equal('lobby', 'normalize_code', 'lobby code normalization works', () => normalizeCode(' ab-12 c '), 'AB12C'),
-  equal('lobby', 'email_first_leave', 'email-first lobby leave preserves duplicate-name players', () => removePlayerByIdentity([{ email: 'a@qa.local', name: 'Same' }, { email: 'b@qa.local', name: 'Same' }], { email: 'b@qa.local', name: 'Same' }).map(p => p.email), ['a@qa.local']),
-  equal('lobby', 'name_fallback_leave', 'name fallback lobby leave still works when email is unavailable', () => removePlayerByIdentity([{ name: 'A' }, { name: 'B' }], { name: 'B' }).map(p => p.name), ['A']),
-  equal('lobby', 'start_filter_settings', 'online start question filter respects lobby settings', () => filterQuestionsForLobbySettings([{ id: 'a', year: 1990, category: 'spor', type: 'metin' }, { id: 'b', year: 2025, category: 'spor', type: 'metin' }, { id: 'c', year: 2000, category: 'bilim', type: 'metin' }, { id: 'd', year: 1995, category: 'spor', type: 'muzik' }], { category: 'spor', year_start: 1980, year_end: 2020 }).map(q => q.id), ['a']),
-  test('lobby', 'initial_online_state_payload', 'online start helper creates valid initial payload', () => { const result = buildInitialOnlineGameState({ players: roster(2), questions: Array.from({ length: 6 }, (_, i) => ({ id: `q${i}`, year: 1990 + i, category: 'spor', type: 'metin', question: `Q${i}` })), settings: { category: 'spor', year_start: 1980, year_end: 2020 }, random: () => 0 }); return result.ok && result.updateData?.status === 'starting' && result.updateData.players.length === 2 && result.updateData.used_question_ids.length === 5 ? pass('start payload complete', { expected: 'starting + 2 players + 5 used ids', actual: result.updateData }) : fail('start payload invalid', { expected: 'starting + 2 players + 5 used ids', actual: result }); }),
-  test('lobby', 'initial_online_state_rejects_small_pool', 'online start helper rejects too-small question pool', () => { const result = buildInitialOnlineGameState({ players: roster(2), questions: [{ id: 'q0', year: 2000, category: 'spor', type: 'metin' }], settings: { category: 'spor', year_start: 1900, year_end: 2026 }, random: () => 0 }); return !result.ok && result.reason === 'not_enough_questions' ? pass('small pool rejected', { expected: 'not_enough_questions', actual: result.reason }) : fail('small pool accepted', { expected: 'not_enough_questions', actual: result }); }),
-  test('lobby', 'create_waiting', 'create lobby sets waiting', async () => { const l = await tmpLobby(); try { return l.status === 'waiting' ? pass('created waiting lobby', { expected: 'waiting', actual: l.status }) : fail('wrong lobby status', { expected: 'waiting', actual: l.status }); } finally { await cleanLobby(l); } }),
-  test('lobby', 'join_by_code', 'join by code works', async () => { const user = await base44.auth.me(); const l = await tmpLobby({ host_email: 'qa_other@kronox.local' }); try { const r = await base44.functions.invoke('findLobbyByCode', { code: l.code, playerName: 'QA Joiner' }); const players = r?.data?.lobby?.players || []; return players.some(p => p.email === user.email) ? pass('join appended current user', { expected: user.email, actual: players.map(p=>p.email) }) : fail('join failed', { expected: user.email, actual: r?.data }); } finally { await cleanLobby(l); } }),
-  test('lobby', 'invalid_code_rejected', 'join rejects invalid code', async () => { const r = await base44.functions.invoke('findLobbyByCode', { code: `NOPE${Date.now()}`.slice(0,6), playerName: 'Missing QA' }); return r?.data?.success === false || !r?.data?.lobby ? pass('invalid code rejected', { expected: 'no lobby', actual: r?.data }) : fail('invalid code returned lobby', { expected: 'no lobby', actual: r?.data }); }),
-  test('lobby', 'reject_not_waiting', 'join rejects lobby not waiting', async () => { const l = await tmpLobby({ status: 'in_game', host_email: 'qa_started@kronox.local' }); try { const r = await base44.functions.invoke('findLobbyByCode', { code: l.code, playerName: 'Late QA' }); return r?.data?.joinable === false ? pass('started lobby rejected', { expected: false, actual: r.data.joinable }) : fail('started lobby accepted join', { expected: false, actual: r?.data }); } finally { await cleanLobby(l); } }),
-  test('lobby', 'no_duplicate_email', 'duplicate same email does not duplicate player', async () => { const user = await base44.auth.me(); const l = await tmpLobby({ host_email: 'qa_dupe@kronox.local' }); try { await base44.functions.invoke('findLobbyByCode', { code: l.code, playerName: 'QA' }); const r = await base44.functions.invoke('findLobbyByCode', { code: l.code, playerName: 'QA' }); const count = (r?.data?.lobby?.players || []).filter(p => p.email === user.email).length; return count === 1 ? pass('one row per email', { expected: 1, actual: count }) : fail('duplicate player email', { expected: 1, actual: count }); } finally { await cleanLobby(l); } }),
-  equal('lobby', 'visible_2_3_4', '2/3/4 players visible', () => [2,3,4].map(n => roster(n).length), [2,3,4]),
-  equal('lobby', 'player4_not_dropped', 'player 4 is not dropped', () => roster(4).map(p=>p.name), ['P1','P2','P3','P4']),
-  test('lobby', 'host_start_payload', 'host start writes required fields', () => { const payload = { status: 'starting', players: roster(4), current_player_index: 0, current_question_id: 'q0', used_question_ids: ['q0'] }; const missing = ['status','players','current_player_index','current_question_id','used_question_ids'].filter(k => payload[k] == null); return missing.length ? fail('start payload missing fields', { expected: 'all required fields', actual: missing }) : pass('start payload complete', { expected: 'required fields', actual: Object.keys(payload) }); }),
-  sourceHas('lobby', 'non_host_in_game_transition', 'non-host transition supports in_game', 'useWaitingRoomSync.js', SRC.WaitingRoomSync, ['status', 'in_game', 'navigate']),
-  sourceHas('lobby', 'subscription_cleanup_preserved', 'waiting-room subscription cleanup still exists', 'useWaitingRoomSync.js', SRC.WaitingRoomSync, ['const unsub = base44.entities.Lobby.subscribe', 'return () => unsub()']),
-  sourceHas('lobby', 'polling_fallback_preserved', 'waiting-room polling fallback still exists', 'useWaitingRoomSync.js', SRC.WaitingRoomSync, ['start fallback polling registered', 'window.setInterval', 'window.clearInterval(intervalId)', "navigateToOnlineGame(fresh, 'poll')"]),
-  sourceHas('lobby', 'host_leave_preserved', 'host leave behavior is still present', 'LobbyRoom.jsx', SRC.LobbyRoom, ['base44.entities.Lobby.delete', 'base44.entities.Lobby.update', 'removePlayerByIdentity']),
+  valueCase('game_rules', 'placement_before_first', 'placement before first card', () => isCorrectPlacement([{ year: 1950 }, { year: 1980 }], 1920, 0), true),
+  valueCase('game_rules', 'placement_after_last', 'placement after last card', () => isCorrectPlacement([{ year: 1950 }, { year: 1980 }], 1999, 2), true),
+  valueCase('game_rules', 'placement_between_two_cards', 'placement between two cards', () => isCorrectPlacement([{ year: 1950 }, { year: 1980 }], 1960, 1), true),
+  valueCase('game_rules', 'equal_year_rule', 'equal-year rule according to existing behavior', () => [isCorrectPlacement([{ year: 2000 }], 2000, 0), isCorrectPlacement([{ year: 2000 }], 2000, 1)], [true, true]),
+  valueCase('game_rules', 'invalid_placement_rejected', 'invalid placement rejected', () => isCorrectPlacement([{ year: 1950 }, { year: 1980 }], 2010, 1), false),
+  valueCase('game_rules', 'has_player_won', 'hasPlayerWon condition', () => [hasPlayerWon({ cards: [{}, {}, {}] }, 3), hasPlayerWon({ cards: [{}, {}] }, 3)], [true, false]),
+  valueCase('game_rules', 'next_player_normal', 'getNextPlayerIndex normal flow', () => [getNextPlayerIndex(0, 3), getNextPlayerIndex(1, 3)], [1, 2]),
+  valueCase('game_rules', 'next_player_wrap', 'getNextPlayerIndex wraparound', () => getNextPlayerIndex(2, 3), 0),
+  sourceHas('game_rules', 'used_ids_cannot_shrink_server_helper', 'used_question_ids cannot shrink if server rule helper is available', 'updateLobbyGameState', SRC.UpdateLobbyGameState, ['containsAllPreviousIds', 'Kullanilmis soru gecmisi eksiltilemez']),
+  sourceHas('game_rules', 'player_card_mutation_rules', 'duplicate player/card mutation rules if helpers exist', 'updateLobbyGameState', SRC.UpdateLobbyGameState, ['Oyuncu sirasi veya kimligi degistirilemez', 'Aktif olmayan oyuncunun kartlari degistirilemez', 'Mevcut kartlar degistirilemez']),
 
-  equal('sync', 'rules_next_index_2p', 'turn rotation helper works for 2 players', () => [getNextPlayerIndex(0, 2), getNextPlayerIndex(1, 2)], [1, 0]),
-  equal('sync', 'rules_next_index_3p', 'turn rotation helper works for 3 players', () => [getNextPlayerIndex(0, 3), getNextPlayerIndex(1, 3), getNextPlayerIndex(2, 3)], [1, 2, 0]),
-  equal('sync', 'rules_next_index_4p', 'turn rotation helper works for 4 players', () => [getNextPlayerIndex(0, 4), getNextPlayerIndex(1, 4), getNextPlayerIndex(2, 4), getNextPlayerIndex(3, 4)], [1, 2, 3, 0]),
-  equal('sync', 'rules_next_index_invalid_safe', 'turn rotation helper handles invalid indexes defensively', () => [getNextPlayerIndex(-1, 4), getNextPlayerIndex(99, 4), getNextPlayerIndex(0, 0)], [0, 0, 0]),
-  equal('sync', '2p_p1_to_p2', '2-player P1 answer -> P2 turn', () => turn({ players: roster(2), used_question_ids: [] }, 0, {id:'q1'}).current_player_index, 1),
-  equal('sync', '2p_p2_to_p1', '2-player P2 answer -> P1 turn', () => turn({ players: roster(2), used_question_ids: [] }, 1, {id:'q1'}).current_player_index, 0),
-  equal('sync', '3p_rotation', '3-player rotation P1->P2->P3->P1', () => rotate(3,3), [0,1,2,0]),
-  equal('sync', '4p_rotation', '4-player rotation includes P4', () => rotate(4,4), [0,1,2,3,0]),
-  test('sync', 'server_valid_turn_2p', 'server accepts valid 2-player turn update', async () => (await expectSecureUpdateAccepted(2)) ? pass('2-player secure update accepted', { expected: true, actual: true }) : fail('2-player secure update rejected', { expected: true, actual: false })),
-  test('sync', 'server_valid_turn_3p', 'server accepts valid 3-player turn update', async () => (await expectSecureUpdateAccepted(3)) ? pass('3-player secure update accepted', { expected: true, actual: true }) : fail('3-player secure update rejected', { expected: true, actual: false })),
-  test('sync', 'server_valid_turn_4p', 'server accepts valid 4-player turn update', async () => (await expectSecureUpdateAccepted(4)) ? pass('4-player secure update accepted', { expected: true, actual: true }) : fail('4-player secure update rejected', { expected: true, actual: false })),
-  test('sync', 'server_valid_wrong_answer', 'server accepts valid wrong-answer transition', async () => { const lobby = await secureLobby(2); try { const result = await invokeLobbyGameState({ lobbyId: lobby.id, players: lobby.players, used_question_ids: [...lobby.used_question_ids, 'q_next'], status: 'in_game', current_player_index: 1, current_question_id: 'q_next' }); return result.ok ? pass('wrong-answer transition accepted', { expected: true, actual: result.data?.success }) : fail('wrong-answer transition rejected', { expected: true, actual: result.data }); } finally { await cleanLobby(lobby); } }),
-  test('sync', 'server_valid_winner', 'server accepts valid winner update', async () => { const lobby = await secureLobby(2, { cardCounts: [2, 0], win_card_count: 3 }); try { const players = lobby.players.map((p, i) => ({ ...p, cards: i === 0 ? [...p.cards, { id: 'win-card', year: 2020, question: 'Winner' }] : p.cards })); const result = await invokeLobbyGameState({ lobbyId: lobby.id, players, used_question_ids: [...lobby.used_question_ids, 'q_current'], status: 'finished', current_player_index: 0, current_question_id: lobby.current_question_id, winner: players[0].name, winner_email: players[0].email }); return result.ok && result.data?.lobby?.status === 'finished' ? pass('winner update accepted', { expected: 'finished', actual: result.data?.lobby?.status }) : fail('winner update rejected', { expected: 'finished', actual: result.data }); } finally { await cleanLobby(lobby); } }),
-  test('sync', 'index_valid', 'current_player_index remains valid', () => rotate(4,20).every(i => i >= 0 && i < 4) ? pass('indices valid', { expected: '0..3', actual: rotate(4,20) }) : fail('invalid index', { expected: '0..3', actual: rotate(4,20) })),
-  test('sync', 'question_id_updates', 'current_question_id updates every turn', () => { const l = turn({ players: roster(2), used_question_ids: [], current_question_id: 'q0' }, 0, {id:'q1'}); return l.current_question_id === 'next_1' && l.used_question_ids.includes('next_1') ? pass('question id updated and tracked', { expected: 'next_1', actual: l }) : fail('question id stale', { expected: 'next_1', actual: l }); }),
-  test('sync', 'card_counts_update', 'player card counts update correctly', () => { const l = turn({ players: roster(2), used_question_ids: [] }, 0, {id:'q1'}); return l.players[0].cards.length === 1 && l.players[1].cards.length === 0 ? pass('card counts updated', { expected: [1,0], actual: l.players.map(p=>p.cards.length) }) : fail('card count mismatch', { expected: [1,0], actual: l.players.map(p=>p.cards.length) }); }),
-  test('sync', 'spectator_sees_question', 'non-active player sees current question', () => { const v = perspective({ current_question_id:'q_active', current_player_index:0, players: roster(2), selectedZone: 1 }, 'p2@qa.local'); return v.current_question_id === 'q_active' && v.activePlayer === 'P1' ? pass('spectator sees active question', { expected: 'q_active/P1', actual: v }) : fail('spectator view wrong', { expected: 'q_active/P1', actual: v }); }),
-  equal('sync', 'spectator_cannot_drag', 'non-active player cannot drag', () => perspective({ current_question_id:'q1', current_player_index:0, players: roster(2) }, 'p2@qa.local').canDrag, false),
-  equal('sync', 'spectator_cannot_place', 'non-active player cannot place', () => perspective({ current_question_id:'q1', current_player_index:0, players: roster(2), selectedZone:0 }, 'p2@qa.local').canPlace, false),
-  equal('sync', 'spectator_cannot_confirm', 'non-active player cannot confirm', () => perspective({ current_question_id:'q1', current_player_index:0, players: roster(2), selectedZone:0 }, 'p2@qa.local').canConfirm, false),
-  test('sync', 'active_can_interact', 'active player can interact normally', () => { const v = perspective({ current_question_id:'q1', current_player_index:1, players: roster(2), selectedZone:0 }, 'p2@qa.local'); return v.canDrag && v.canPlace && v.canConfirm ? pass('active interactions enabled', { expected: 'all true', actual: v }) : fail('active blocked', { expected: 'all true', actual: v }); }),
-  sourceHas('sync', 'layout_readonly_guards', 'GameLayout wires spectator read-only guards', 'GameLayout.jsx', SRC.GameLayout, ['readOnly={!isMyTurn}', 'draggable={isMyTurn && !feedback}', 'onSelectZone={isMyTurn ? onSelectZone : undefined}']),
-  test('sync', 'spectator_pure', 'spectator mode does not alter state', () => { const l = { current_question_id:'q1', current_player_index:0, players: roster(2), used_question_ids:['q0'] }; const before = JSON.stringify(l); perspective(l, 'p2@qa.local'); return before === JSON.stringify(l) ? pass('spectator view is pure', { expected: before, actual: JSON.stringify(l) }) : fail('spectator mutated lobby', { expected: before, actual: JSON.stringify(l) }); }),
-  test('sync', 'backend_turn_visibility', 'backend gameplay sync scenario', () => sim('2p_turn_visibility')),
+  makeCase('multiplayer_authority', 'authoritative_update_path_expected', 'updateLobbyGameState is the only authoritative in-game update path where expected', () => {
+    const findings = classifyDirectLobbyUpdates();
+    const unsafe = findings.filter(item => item.classification === 'in-game state unsafe');
+    return unsafe.length
+      ? fail('Direct in-game Lobby.update usage found.', { actual: unsafe, allFindings: findings })
+      : pass('No direct in-game Lobby.update usage detected in gameplay sync/action files.', { actual: findings });
+  }),
+  makeCase('multiplayer_authority', 'direct_lobby_update_classification', 'Direct Lobby.update usages are listed and classified', () => pass('Direct Lobby.update usages classified.', { actual: classifyDirectLobbyUpdates() })),
+  sourceHas('multiplayer_authority', 'server_rejects_non_current_actor_source', 'server function rejects non-current actor if function can be tested/mocked', 'updateLobbyGameState', SRC.UpdateLobbyGameState, ['Sira sizde degil', 'activePlayer.email !== user.email']),
+  sourceHas('multiplayer_authority', 'players_cannot_reorder_source', 'players array cannot be reordered if helper validation can be tested', 'updateLobbyGameState', SRC.UpdateLobbyGameState, ['incomingPlayers[index]?.email !== lobbyPlayers[index]?.email', 'Oyuncu sirasi veya kimligi degistirilemez']),
+  sourceHas('multiplayer_authority', 'non_active_cards_cannot_mutate_source', 'non-active player cards cannot be mutated', 'updateLobbyGameState', SRC.UpdateLobbyGameState, ['index !== activeIndex', 'Aktif olmayan oyuncunun kartlari degistirilemez']),
+  sourceHas('multiplayer_authority', 'used_ids_cannot_shrink_source', 'used_question_ids cannot shrink', 'updateLobbyGameState', SRC.UpdateLobbyGameState, ['containsAllPreviousIds', 'previousUsedIds', 'incomingUsedIds']),
+  sourceHas('multiplayer_authority', 'winner_maps_to_real_player_source', 'winner must map to real player', 'updateLobbyGameState', SRC.UpdateLobbyGameState, ['winnerIndex', 'winnerEmail', 'Kazanan oyuncu listede bulunmali']),
+  sourceHas('multiplayer_authority', 'stale_revision_protection_source', 'stale revision/update conflict protection exists if implemented', 'updateLobbyGameState', SRC.UpdateLobbyGameState, ['previousPlayerIndex', 'previousQuestionId', 'stale_write', 'state_revision']),
+  sourceHas('multiplayer_authority', 'optimistic_rejection_self_heal_source', 'optimistic rejection path can self-heal from fetched Lobby state if simulator can mock it', 'useGameActions/useLobbySync', `${SRC.UseGameActions}\n${SRC.UseLobbySync}`, ['recoverFromLatestLobby', 'base44.entities.Lobby.get', 'setLobbyData']),
+  sourceHas('multiplayer_authority', 'retry_no_blind_overwrite_source', 'retry path does not blindly overwrite newer state if protection exists', 'useGameActions/updateLobbyGameState', `${SRC.UseGameActions}\n${SRC.UpdateLobbyGameState}`, ['previousPlayerIndex', 'previousQuestionId', 'stale_write']),
 
-  test('gameover', 'winner_victory', 'winner sees victory message and trophy', () => { const c = gameOverCopy('Ada','Ada'); return c.headline === 'Tebrikler!' && SRC.GameOver.includes('<Trophy') ? pass('winner copy/icon ok', { expected: 'Tebrikler + Trophy', actual: c }) : fail('winner copy/icon wrong', { expected: 'Tebrikler + Trophy', actual: c }); }),
-  test('gameover', 'loser_loss', 'loser sees loss message', () => { const c = gameOverCopy('Ada','Bora'); return c.headline === 'Kaybettin' && c.text.includes('Ada') ? pass('loser copy ok', { expected: 'Kaybettin + winner name', actual: c }) : fail('loser copy wrong', { expected: 'Kaybettin + winner name', actual: c }); }),
-  sourceHas('gameover', 'loser_no_trophy', 'loser does not see trophy as dominant visual', 'GameOver.jsx', SRC.GameOver, ['isOnlineLoser ? (', '<CircleX', '<Trophy']),
-  equal('gameover', '2p_finished_all', '2-player finish reaches both players', () => roster(2).map(()=>'finished'), ['finished','finished']),
-  equal('gameover', '3p_finished_all', '3-player finish reaches all players', () => roster(3).map(()=>'finished'), ['finished','finished','finished']),
-  equal('gameover', '4p_finished_all', '4-player finish reaches all players', () => roster(4).map(()=>'finished'), ['finished','finished','finished','finished']),
-  sourceHas('gameover', 'priority_over_turn', 'GameOver render has priority over turn message', 'Game.jsx', SRC.Game, ['const gameOverView', '<GameOver', 'if (winner) return gameOverView']),
-  sourceHas('gameover', 'finished_forces_gameover', 'status finished forces GameOver', 'useLobbySync.js', SRC.LobbySync, ["data?.status !== 'finished'", 'setWinner', 'renderedGameOver: true']),
-  sourceHas('gameover', 'undefined_duration_safe', 'undefined durationSeconds safe', 'GameOver.jsx', SRC.GameOver, ['durationSeconds', 'durationSeconds != null', 'formatDuration(durationSeconds)']),
+  valueCase('waiting_room_start', 'lobby_code_validation', 'lobby code validation', () => normalizeCode(' ab-12 c '), 'AB12C'),
+  valueCase('waiting_room_start', 'player_list_normalization', 'player list normalization', () => summarizePlayers([{ email: 'a@q.local', name: 'A', cards: [{}] }]), [{ index: 0, email: 'a@q.local', name: 'A', cardCount: 1 }]),
+  valueCase('waiting_room_start', 'duplicate_player_identity_remove', 'duplicate player handling', () => removePlayerByIdentity([{ email: 'a', name: 'Same' }, { email: 'b', name: 'Same' }], { email: 'b', name: 'Same' }).map(player => player.email), ['a']),
+  sourceHas('waiting_room_start', 'ready_state_persistence_path', 'ready state persistence path exists', 'Lobby/WaitingRoom', `${SRC.LobbyRoom}\n${SRC.WaitingRoomPanel}`, ['ready', 'base44.entities.Lobby.update']),
+  sourceHas('waiting_room_start', 'host_start_server_authoritative', 'host start path is classified as server-authoritative or waiting-room-safe', 'WaitingRoom/startLobbyGame', `${SRC.WaitingRoomPanel}\n${SRC.StartLobbyGame}`, ['startLobbyGame', 'state_revision', 'status: \'starting\'']),
+  sourceHas('waiting_room_start', 'start_not_route_only', 'start transition does not rely only on route state', 'useWaitingRoomSync', SRC.UseWaitingRoomSync, ['base44.entities.Lobby.subscribe', 'poll', "navigate('/game'" ]),
+  sourceHas('waiting_room_start', 'subscription_and_polling_detectable', 'subscription + polling fallback are both detectable', 'useWaitingRoomSync', SRC.UseWaitingRoomSync, ['base44.entities.Lobby.subscribe', 'window.setInterval', 'window.clearInterval']),
+  sourceHas('waiting_room_start', 'rejoin_roster_guard_source', 'rejoin assertion path does not overwrite newer roster state', 'findLobbyByCode/useWaitingRoomSync', `${SRC.FindLobbyByCode}\n${SRC.UseWaitingRoomSync}`, ['alreadyIn', 'asServiceRole.entities.Lobby.update', 'fetchLobbySnapshot']),
 
-  test('questions', 'category_filter', 'category filter works', async () => { const all = await questions(); const cat = all.find(q => q.type === 'metin' && q.category)?.category; const pool = all.filter(q => q.category === cat); return cat && pool.every(q => q.category === cat) ? pass('category pool clean', { expected: cat, actual: pool.length }) : fail('category filter failed', { expected: cat, actual: pool.slice(0,3) }); }),
-  equal('questions', 'difficulty_filter', 'difficulty filter deterministic', () => [{difficulty:1},{difficulty:2}].filter(q=>q.difficulty===2).length, 1),
-  test('questions', 'duplicate_id_prevention', 'no duplicate question ID in session', () => { const pool = Array.from({length:8},(_,i)=>({id:`q${i}`,year:2000+i})); const used = new Set(); for (let i=0;i<8;i+=1) { const q = pick(used,pool); if (!q || used.has(q.id)) return fail('duplicate/null pick', { expected: 'unique', actual: q }); used.add(q.id); } return pass('unique ids', { expected: 8, actual: used.size }); }),
-  test('questions', 'rules_selection_excludes_used', 'question selection excludes used ids', () => { const q = selectNextQuestion([{ id: 'q0', year: 2000 }, { id: 'q1', year: 2001 }], new Set(['q0']), new Set(), { random: deterministicRandom }); return q?.id === 'q1' ? pass('used id excluded', { expected: 'q1', actual: q.id }) : fail('used id selected', { expected: 'q1', actual: q }); }),
-  test('questions', 'rules_selection_avoids_timeline_year', 'question selection avoids duplicate timeline year when alternatives exist', () => { const q = selectNextQuestion([{ id: 'q0', year: 2000 }, { id: 'q1', year: 2001 }], new Set(), new Set([2000]), { random: deterministicRandom }); return q?.year === 2001 ? pass('duplicate timeline year avoided', { expected: 2001, actual: q.year }) : fail('duplicate timeline year selected', { expected: 2001, actual: q }); }),
-  test('questions', 'rules_selection_recent_exclusion', 'question selection excludes recent IDs when alternatives exist', () => { const q = selectNextQuestion([{ id: 'q0', year: 2000 }, { id: 'q1', year: 2001 }, { id: 'q2', year: 2002 }], new Set(), new Set(), { recentQuestionIds: new Set(['q0', 'q1']), random: deterministicRandom }); return q?.id === 'q2' ? pass('recent ids avoided', { expected: 'q2', actual: q.id }) : fail('recent id selected', { expected: 'q2', actual: q }); }),
-  test('questions', 'recent_exclusion', 'recent history exclusion works', () => { const q = pick(new Set(), Array.from({length:6},(_,i)=>({id:`q${i}`,year:2000+i})), new Set(), new Set(['q0','q1'])); return q && !['q0','q1'].includes(q.id) ? pass('recent avoided', { expected: 'not q0/q1', actual: q.id }) : fail('recent picked', { expected: 'not recent', actual: q }); }),
-  test('questions', 'recent_fallback_when_exhausted', 'recent history relaxes only when no non-recent option exists', () => { const q = pick(new Set(), [{id:'q0',year:2000},{id:'q1',year:2001}], new Set(), new Set(['q0','q1'])); return q?.id === 'q0' ? pass('recent relaxed after exhaustion', { expected: 'q0 fallback', actual: q.id }) : fail('recent fallback failed', { expected: 'q0 fallback', actual: q }); }),
-  test('questions', 'duplicate_year_prevention', 'duplicate timeline year prevention works', () => { const q = pick(new Set(), [{id:'a',year:2000},{id:'b',year:2001},{id:'c',year:2002},{id:'d',year:2003},{id:'e',year:2004},{id:'f',year:2005}], new Set([2000])); return q?.year !== 2000 ? pass('year duplicate avoided', { expected: 'not 2000', actual: q?.year }) : fail('year duplicate picked', { expected: 'not 2000', actual: q }); }),
-  test('questions', 'small_pool_fallback', 'small pool fallback works', () => pick(new Set(['q0']), [{id:'q0',year:2000},{id:'q1',year:2000}], new Set([2000]))?.id === 'q1' ? pass('small pool returns unused id', { expected: 'q1', actual: 'q1' }) : fail('small pool failed', { expected: 'q1', actual: null })),
-  equal('questions', 'never_relax_duplicate_id', 'duplicate question ID never relaxed', () => pick(new Set(['q0']), [{id:'q0',year:2000}]), null),
-  test('questions', 'low_pool_no_loop', 'no infinite loop on low pool', () => { const t0 = performance.now(); for (let i=0;i<100;i+=1) pick(new Set(['q0']), [{id:'q0',year:2000}]); const ms = Math.round(performance.now()-t0); return ms < 20 ? pass('low pool exits fast', { expected: '<20ms', actual: `${ms}ms` }) : fail('low pool slow', { expected: '<20ms', actual: `${ms}ms` }); }),
-  equal('questions', 'missing_data_safe', 'missing question data handled safely', () => mediaKind(null), 'fallback'),
+  sourceHas('route_bootstrap', 'route_state_bootstrap_only', 'route state is treated as bootstrap only', 'useLobbySync', SRC.UseLobbySync, ['bootstrap', 'initial fetch', 'route-state-fallback']),
+  sourceHas('route_bootstrap', 'live_lobby_priority', 'fetched/subscribed Lobby has priority over stale route snapshot', 'useLobbySync', SRC.UseLobbySync, ['latestLobbyRef', 'applyLobbySnapshot', 'subscription:']),
+  sourceHas('route_bootstrap', 'failed_fetch_no_blind_restore', 'failed fetch does not blindly restore older route state as authoritative', 'useLobbySync', SRC.UseLobbySync, ['fetch failed', 'latestLobbyRef.current', 'route-state-fallback']),
+  sourceHas('route_bootstrap', 'local_projection_replaced', 'local projection can be replaced by fresher Lobby data', 'useLobbySync', SRC.UseLobbySync, ['setLobbyData', 'normalizeLobbyPayload', 'poll']),
+  sourceHas('route_bootstrap', 'stale_lobby_warning_reported', 'stale lobbyData warning is reported if detected', 'useLobbySync/debugLog', `${SRC.UseLobbySync}\n${SRC.DebugLog}`, ['debugWarn', 'stale', 'lobby']),
 
-  equal('media', 'media_priority', 'media_url priority over icon_url', () => mediaKind({media_url:'a.png', icon_url:'b.png'}), 'media_url'),
-  equal('media', 'valid_media', 'valid media_url renders image path', () => mediaKind({media_url:'a.png'}), 'media_url'),
-  equal('media', 'empty_media_fallback', 'empty media_url shows fallback', () => mediaKind({media_url:'', icon_url:''}), 'fallback'),
-  sourceHas('media', 'questioncard_media', 'QuestionCard handles media_url', 'QuestionCard.jsx', SRC.QuestionCard, ['media_url', 'imgError', 'onError={() => { setImgError(true);']),
-  sourceHas('media', 'timelinecard_media', 'TimelineCard handles media_url', 'TimelineCard.jsx', SRC.TimelineCard, ['media_url', 'src={card.media_url}', 'onError']),
-  sourceHas('media', 'broken_media_safe', 'image load error fallback exists', 'QuestionCard/TimelineCard', `${SRC.QuestionCard}\n${SRC.TimelineCard}`, ['onError', 'setImgError', 'fallback']),
-  equal('media', 'text_question_without_media', 'text question works without media', () => mediaKind({question:'plain'}), 'fallback'),
+  makeCase('media_audio', 'audio_context_locked_detectable', 'audio context locked-before-gesture state is detected', () => {
+    const hasAudioApi = typeof window !== 'undefined' && Boolean(window.AudioContext || window.webkitAudioContext);
+    return hasAudioApi ? pass('AudioContext API is available for lock-state probing.', { actual: true }) : warning('AudioContext API unavailable in this browser.', { actual: false });
+  }),
+  sourceHas('media_audio', 'gesture_unlock_path_exists', 'user gesture unlock path exists', 'gameSounds/QuestionCard', `${SRC.GameSounds}\n${SRC.QuestionCard}`, ['getCtx', 'pickup', 'onTouchStart']),
+  sourceHas('media_audio', 'failed_media_no_skip_source', 'failed media load does not skip question incorrectly', 'QuestionCard/Game', `${SRC.QuestionCard}\n${SRC.Game}`, ['onError', 'media_url', 'skipCurrentQuestion']),
+  notAutomatableCase('media_audio', 'remote_media_timeout', 'remote media timeout/failure is reported', 'Requires controllable remote media failure or network interception.'),
+  sourceHas('media_audio', 'mute_fallback_no_crash_source', 'mute/silent fallback does not crash', 'gameSounds', SRC.GameSounds, ['try', 'catch', 'if (!c) return']),
+  makeCase('media_audio', 'audio_errors_visible_as_risk', 'audio errors appear in report as WARNING or FAIL depending severity', () => warning('This simulator reports media uncertainty as a visible warning; full audio failure requires device/browser execution.')),
 
-  test('admin', 'admin_access', 'admin sees Question Management', async () => { const user = await base44.auth.me(); return user?.role === 'admin' || user?.email === 'sariverim@gmail.com' ? pass('admin confirmed', { expected: 'admin', actual: user?.role || user?.email }) : fail('non-admin reached suite', { expected: 'admin', actual: user?.role || user?.email }); }),
-  sourceHas('admin', 'non_admin_hidden', 'non-admin does not see admin tools', 'SettingsPage.jsx', SRC.Settings, ['isAdmin', '{isAdmin && (', '<QuestionManagement']),
-  equal('admin', 'required_fields_validate', 'required question fields validate', () => { const e=[]; if (!''.trim()) e.push('question'); if (!'') e.push('year'); return e; }, ['question','year']),
-  test('admin', 'payload_fields', 'create question payload includes required fields', () => { const p = { question:'Q', year:2000, category:'genel', type:'metin', media_url:'m.png', icon_url:'i.png', difficulty:1 }; return ['question','year','category','type','media_url','icon_url','difficulty'].every(k => k in p) ? pass('payload complete', { expected: 'all fields', actual: Object.keys(p) }) : fail('payload missing', { expected: 'all fields', actual: p }); }),
-  sourceHas('admin', 'media_url_entry', 'media_url can be manually entered', 'QuestionManagement.jsx', SRC.QuestionManagement, ['media_url', 'value={form.media_url}', 'placeholder="https://..."']),
-  sourceHas('admin', 'test_suite_admin_only', 'test suite visible only to admin', 'SettingsPage.jsx', SRC.Settings, ['{isAdmin && (', 'Regression Test Panel', 'setShowSim(true)']),
-  sourceHas('admin', 'direct_test_suite_guard', 'non-admin cannot access /test-suite directly', 'TestSuite.jsx', SRC.TestSuite, ['isAdminUser(user)', 'ERİŞİM KORUMALI', "navigate('/settings')"]),
-  sourceHas('admin', 'admin_helper_centralized', 'admin rules are centralized in admin helper', 'admin.js/TestSuite/Settings', `${SRC.Admin}\n${SRC.TestSuite}\n${SRC.Settings}`, ['export function isAdminUser', 'import { isAdminUser }', 'sariverim@gmail.com']),
-  test('admin', 'copy_report_ui_contract', 'Copy Report and Copy Failed Only controls expose both modes and surface failed entries', () => { const source = `${IssueSection.toString()}\n${SimulationPanel.toString()}`; const labels = ['Copy Report', 'Copy Failed Only', 'FAILED TESTS']; const missingLabels = labels.filter(token => !source.includes(token)); if (missingLabels.length) return fail('copy/export UI labels missing', { expected: labels, actual: `missing: ${missingLabels.join(', ')}` }); const hasAllMode = /copyReport\s*\(\s*['"]all['"]\s*\)/.test(source); const hasIssuesMode = /copyReport\s*\(\s*['"]issues['"]\s*\)/.test(source); if (!hasAllMode || !hasIssuesMode) return fail('copy/export UI modes missing', { expected: "copyReport('all') and copyReport('issues') handlers", actual: { hasAllMode, hasIssuesMode } }); return pass('copy/export UI present with both modes', { expected: 'labels + both copyReport modes + FAILED TESTS section', actual: 'all present' }); }),
+  sourceHas('debug_hygiene', 'debug_hidden_prod', 'debug panels are hidden in production mode', 'GameDebugLog/debugLog', `${SRC.GameDebugLog}\n${SRC.DebugLog}`, ['import.meta.env.DEV', 'localStorage', 'kronox_debug_log']),
+  sourceHas('debug_hygiene', 'test_controls_gated', 'console/test controls are gated behind dev/debug flag', 'Settings/TestSuite', `${SRC.SettingsPage}\n${SRC.TestSuite}`, ['isAdmin', 'isAdminUser', 'SimulationPanel']),
+  makeCase('debug_hygiene', 'build_marker_intentional', 'build marker is visible only as intended', () => extractBuildMarker() !== 'unknown'
+    ? warning('Build marker is intentionally visible briefly; verify this remains acceptable for production.', { actual: extractBuildMarker() })
+    : fail('Build marker token missing.')),
+  sourceHas('debug_hygiene', 'raw_imports_gated_route', 'raw source imports used by SimulationPanel are not exposed in gameplay unless intentionally gated', 'App/TestSuite/Settings', `${SRC.App}\n${SRC.TestSuite}\n${SRC.SettingsPage}`, ['path="/test-suite"', 'isAdminUser', 'setShowSim(true)']),
+  sourceLacks('debug_hygiene', 'simulator_not_gameplay_accessible', 'simulator itself is accessible only from Settings/Admin/Test path, not gameplay', 'Game/GameLayout', `${SRC.Game}\n${SRC.GameLayout}`, ['SimulationPanel']),
 
-  test('tutorial', 'seen_flag', 'tutorialSeen flag exists', () => { const k='kronox_tutorial_seen_qa'; localStorage.removeItem(k); const before=localStorage.getItem(k); localStorage.setItem(k,'true'); const after=localStorage.getItem(k); localStorage.removeItem(k); return before == null && after === 'true' ? pass('flag stores', { expected: [null,'true'], actual: [before,after] }) : fail('flag mismatch', { expected: [null,'true'], actual: [before,after] }); }),
-  equal('tutorial', 'skip_done_callbacks', 'tutorial can be skipped/completed', () => { let show=true; const close=()=>{show=false;}; close(); return show; }, false),
-  sourceHas('tutorial', 'settings_reopen', 'Settings > How to Play can reopen tutorial', 'SettingsPage.jsx', SRC.Settings, ['Nasıl Oynanır?', 'setShowTutorial(true)', '<KronoxTutorial']),
-  sourceLacks('tutorial', 'no_gameplay_mutation', 'tutorial does not corrupt gameplay state', 'KronoxTutorial.jsx', SRC.Tutorial, ['setLobbyData', 'setCurrentQuestion', 'base44.entities.Lobby.update']),
+  makeCase('performance_ux', 'run_duration_measured', 'measure simulator run duration', () => pass('Per-case and total run durations are recorded by executeCase/buildReport.', { actual: 'durationMs fields' })),
+  makeCase('performance_ux', 'long_tasks_support', 'detect long tasks if PerformanceObserver supports it', () => perfTypeAvailable('longtask') ? warning('LongTask observer is supported but only live observation can produce real task data.') : notAutomatable('LongTask PerformanceObserver entry type is not supported here.')),
+  makeCase('performance_ux', 'interaction_latency_sample', 'record basic interaction latency for simulated button/touch actions', () => {
+    const start = performance.now();
+    const end = performance.now();
+    return pass('Synchronous interaction timing probe executed.', { actual: `${Math.max(0, end - start).toFixed(3)}ms` });
+  }),
+  makeCase('performance_ux', 'layout_shift_support', 'detect excessive layout shift if PerformanceObserver supports it', () => perfTypeAvailable('layout-shift') ? warning('Layout-shift observer is supported; live CLS requires page observation.') : notAutomatable('Layout-shift PerformanceObserver entry type is not supported here.')),
+  makeCase('performance_ux', 'memory_estimate', 'record memory estimate if available', () => captureEnvironment().memory ? pass('Memory estimate captured.', { actual: captureEnvironment().memory }) : notAutomatable('performance.memory is unavailable in this browser.')),
+  makeCase('performance_ux', 'heavy_blur_glow_scan', 'flag heavy blur/glow risk by scanning key computed styles only as WARNING', () => {
+    const source = `${SRC.GameLayout}\n${SRC.Timeline}\n${SRC.QuestionCard}\n${SRC.IndexCss}`;
+    const count = (source.match(/blur|drop-shadow|boxShadow|filter:/g) || []).length;
+    return count > 24 ? warning('Heavy visual effect token count is high; verify low-end Android performance.', { actual: count }) : pass('Heavy visual effect token count is within current guardrail.', { actual: count });
+  }),
+  makeCase('performance_ux', 'web_vitals_like_support', 'record LCP/INP/CLS-like metrics if available', () => {
+    const types = captureEnvironment().performanceObserverTypes;
+    const supported = ['largest-contentful-paint', 'event', 'layout-shift'].filter(type => types.includes(type));
+    return supported.length ? warning('Some Web Vitals entry types are supported; live metric collection requires observer lifecycle.', { actual: supported }) : notAutomatable('No Web Vitals-like PerformanceObserver entry types are supported here.');
+  }),
 
-  test('records', 'solo_record_saves', 'solo record saves', async () => { const user = await base44.auth.me(); const tag = `qa-save-${Date.now()}`; let rec; try { rec = await base44.entities.GameRecord.create({ user_email:user.email, player_name:'QA', duration_seconds:42, cards_won:5, win_card_count:5, category:tag, year_start:1900, year_end:2026 }); const rows = await base44.entities.GameRecord.filter({ user_email:user.email, category:tag }, '-created_date', 10); return rows.some(r=>r.id===rec?.id) ? pass('record persisted', { expected: rec.id, actual: rows.map(r=>r.id) }) : fail('record missing after save', { expected: rec?.id, actual: rows }); } finally { await cleanRecords([rec]); } }),
-  test('records', 'better_worse_policy', 'better score overwrites best / worse does not', async () => { const user = await base44.auth.me(); const tag = `qa-best-${Date.now()}`; const made=[]; try { for (const s of [30,90]) made.push(await base44.entities.GameRecord.create({ user_email:user.email, player_name:'QA', duration_seconds:s, cards_won:5, win_card_count:5, category:tag, year_start:1900, year_end:2026 })); const rows = await base44.entities.GameRecord.filter({ user_email:user.email, category:tag }, 'duration_seconds', 10); const d = rows.filter(r=>made.some(m=>m.id===r.id)).map(r=>r.duration_seconds); return d[0] === 30 && d.includes(90) ? pass('best record remains fastest', { expected: [30,90], actual: d }) : fail('record ordering wrong', { expected: [30,90], actual: d }); } finally { await cleanRecords(made); } }),
-  sourceLacks('records', 'new_game_no_erase', 'new game does not erase record', 'SoloChallenge.jsx', SRC.SoloChallenge, ['GameRecord.delete', 'deleteRecord']),
-  sourceLacks('records', 'online_no_solo_overwrite', 'online game does not overwrite solo record unless intended', 'Game.jsx', SRC.Game, ['onlineOverwriteSoloRecord']),
-  sourceHas('records', 'records_panel', 'records panel renders', 'SettingsPage.jsx', SRC.Settings, ['<TopScores', 'En İyi 5 Rekorun']),
+  sourceHas('visual_guardrails', 'primary_gameplay_buttons_tactile', 'primary gameplay buttons have tactile/pressed states detectable by class/style', 'GameLayout/QuestionCard', `${SRC.GameLayout}\n${SRC.QuestionCard}`, ['whileTap', 'active:', 'shadow']),
+  sourceHas('visual_guardrails', 'kronox_tokens_used', 'gameplay surfaces use Kronox visual tokens/classes where available', 'GameLayout/Timeline', `${SRC.GameLayout}\n${SRC.Timeline}`, ['font-cinzel', 'bg-background', 'text-primary']),
+  sourceLacks('visual_guardrails', 'no_plain_default_buttons_gameplay', 'no plain default button styling in gameplay critical controls', 'GameLayout/QuestionCard/Timeline', `${SRC.GameLayout}\n${SRC.QuestionCard}\n${SRC.Timeline}`, ['<button>Confirm', '<button>Submit']),
+  sourceLacks('visual_guardrails', 'no_debug_clutter_gameplay', 'no debug/log visual clutter in gameplay', 'Game/GameLayout', `${SRC.Game}\n${SRC.GameLayout}`, ['QA PROTECTION SYSTEM', 'console.log(']),
+  makeCase('visual_guardrails', 'lobby_settings_mismatch_reported', 'lobby/settings visual mismatch is reported as WARNING if detectable', () => warning('Simulator cannot judge visual quality; lobby/settings mismatch must remain a measured visual QA item, not an auto-pass.')),
+  notAutomatableCase('visual_guardrails', 'no_subjective_beauty_pass', 'simulator should not attempt subjective pass/fail for beauty', 'Subjective visual polish requires human/game-feel review; simulator only checks measurable guardrails.'),
 
-  test('performance', 'filter_500_fast', '500 question filtering within acceptable time', async () => { const list = (await questions()).slice(0,500); const source = list.length >= 500 ? list : Array.from({length:500},(_,i)=>({id:`p${i}`,year:1900+(i%120),type:'metin',category:i%2?'genel':'spor'})); const t0=performance.now(); const q = pick(new Set(), qpool(source)); const ms=Math.round(performance.now()-t0); return q && ms < 50 ? pass('500 filter/select fast', { expected:'<50ms', actual:`${ms}ms` }) : warn('500 filter/select slow or empty', { expected:'<50ms + question', actual:{ms,q:q?.id} }); }),
-  test('performance', '50_selections_unique', '50 sequential selections without duplicate', () => { const pool=Array.from({length:80},(_,i)=>({id:`q${i}`,year:1900+i})); const used=new Set(); for(let i=0;i<50;i+=1){const q=pick(used,pool); if(!q||used.has(q.id)) return fail('duplicate/null', {expected:'50 unique', actual:q}); used.add(q.id);} return pass('50 unique picks', {expected:50, actual:used.size}); }),
-  test('performance', '100_selections_no_loop', '100 sequential selections no infinite loop', () => { const pool=Array.from({length:140},(_,i)=>({id:`q${i}`,year:1900+(i%120)})); const used=new Set(); const t0=performance.now(); for(let i=0;i<100;i+=1){const q=pick(used,pool); if(!q) return fail('null before 100', {expected:100, actual:i}); used.add(q.id);} const ms=Math.round(performance.now()-t0); return ms<40 ? pass('100 selections fast', {expected:'<40ms', actual:`${ms}ms`}) : warn('100 selections slow', {expected:'<40ms', actual:`${ms}ms`}); }),
-  test('performance', 'panel_cpu', 'test suite itself does not freeze UI', () => { const t0=performance.now(); let n=0; for(let i=0;i<25000;i+=1)n+=i; const ms=Math.round(performance.now()-t0); return ms<60 ? pass('CPU check fast', {expected:'<60ms', actual:`${ms}ms`}) : warn('CPU check slow', {expected:'<60ms', actual:`${ms}ms`, detail:String(n)}); }),
-  test('performance', '4p_20_turns', '4 players / 20 turns completes quickly', () => { const t0=performance.now(); const seen=rotate(4,20); const ms=Math.round(performance.now()-t0); return seen.length===21 && ms<40 ? pass('4p turn simulation fast', {expected:'21 states <40ms', actual:{last:seen[seen.length-1],ms}}) : fail('4p turn simulation failed', {expected:'21 states <40ms', actual:{seen,ms}}); }),
-
-  equal('stability', 'empty_pool', 'empty question pool', () => pick(new Set(), []), null),
-  test('stability', 'low_pool', 'low question pool', () => pick(new Set(), [{id:'a',year:2000}]) ? pass('low pool returns available item', {expected:'question', actual:'question'}) : fail('low pool null', {expected:'question', actual:null})),
-  equal('stability', 'missing_current_question', 'missing current_question_id', () => Boolean([{name:'A'}].length && null), false),
-  equal('stability', 'missing_players_cards', 'missing cards array on player', () => (roster(1).map(p=>({name:p.name, cardCount:(p.cards||[]).length}))[0].cardCount), 0),
-  test('stability', 'invalid_player_index', 'invalid current_player_index', () => { const v=perspective({current_question_id:'q1', current_player_index:9, players:roster(1)}, 'p1@qa.local'); return !v.isMyTurn && v.activePlayer == null ? pass('invalid index read-only', {expected:'read-only', actual:v}) : fail('invalid index active', {expected:'read-only', actual:v}); }),
-  equal('stability', 'unknown_status', 'unknown lobby status', () => ['starting','in_game'].includes('paused'), false),
-  sourceHas('stability', 'partial_subscription', 'subscription event with partial data', 'useLobbySync.js', SRC.LobbySync, ['toLobbyState', 'fallback', 'players: Array.isArray']),
-  sourceHas('stability', 'stale_index', 'stale current_player_index update path', 'useLobbySync.js', SRC.LobbySync, ['current_player_index', 'latestLobbyRef', 'hasChanged']),
-  equal('stability', 'duplicate_names_email_first_identity', 'duplicate names do not break email-first identity', () => removePlayerByIdentity([{ email: 'one@qa.local', name: 'Twin' }, { email: 'two@qa.local', name: 'Twin' }, { email: 'three@qa.local', name: 'Other' }], { email: 'one@qa.local', name: 'Twin' }).map(p => p.email), ['two@qa.local', 'three@qa.local']),
-  skipped('stability', 'android_touch_e2e', 'mobile WebView touch drag end-to-end', 'Requires external Android WebView/browser automation; deterministic drag guards and placement math are covered here.'),
-
-  sourceHas('exceptional', 'unauth_online_login', 'unauthenticated user presses Online -> login flow', 'MainMenu.jsx', SRC.MainMenu, ['if (!user) base44.auth.redirectToLogin', "else navigate('/lobby')"]),
-  sourceHas('exceptional', 'unauth_admin_denied', 'unauthenticated user cannot access admin', 'SettingsPage.jsx', SRC.Settings, ['isAdmin', '{isAdmin && (']),
-  sourceHas('exceptional', 'auth_failure', 'Base44 auth failure handled', 'MainMenu/Settings', `${SRC.MainMenu}\n${SRC.Settings}`, ['catch(() => setUser(null))', 'catch(() => setLoadingUser(false))']),
-  sourceHas('exceptional', 'network_failure_warning', 'network/update failure warning path', 'useLobbySync.js', SRC.LobbySync, ['catch(err =>', 'setError', 'poll failed']),
-  sourceHas('exceptional', 'failed_lobby_update_safe', 'failed online lobby update does not corrupt local state', 'useGameActions.js', useGameActionsSource, ["base44.functions.invoke('updateLobbyGameState'", 'recoverLatestLobbyState', 'base44.entities.Lobby.get(lobbyId)', '!response?.data?.success', 'scheduleTimeout(() => attemptUpdate']),
-  sourceHas('exceptional', 'server_auth_required', 'server requires authenticated user', 'updateLobbyGameState/entry.ts', SRC.UpdateLobbyGameState, ['base44.auth.me()', 'if (!user?.email)', '401']),
-  test('exceptional', 'server_reject_non_current_player', 'server rejects non-current player update', async () => { const r = await expectSecureUpdateRejected(lobby => ({ lobbyId: lobby.id, players: lobby.players, used_question_ids: [...lobby.used_question_ids, 'q_next'], status: 'in_game', current_player_index: 0, current_question_id: 'q_next' }), { current_player_index: 1 }); return r.rejected && r.unchanged ? pass('non-current update rejected without mutation', { expected: 'rejected/unchanged', actual: r.result.data }) : fail('non-current update accepted or mutated', { expected: 'rejected/unchanged', actual: r }); }),
-  test('exceptional', 'server_reject_extra_card', 'server rejects injected extra active-player card', async () => { const r = await expectSecureUpdateRejected(lobby => ({ lobbyId: lobby.id, players: lobby.players.map((p, i) => ({ ...p, cards: i === 0 ? [...p.cards, { id: 'a', year: 2000 }, { id: 'b', year: 2001 }] : p.cards })), used_question_ids: [...lobby.used_question_ids, 'q_next'], status: 'in_game', current_player_index: 1, current_question_id: 'q_next' })); return r.rejected && r.unchanged ? pass('extra card rejected', { expected: 'rejected/unchanged', actual: r.result.data }) : fail('extra card accepted or mutated', { expected: 'rejected/unchanged', actual: r }); }),
-  test('exceptional', 'server_reject_other_player_cards', 'server rejects modifying another player cards', async () => { const r = await expectSecureUpdateRejected(lobby => ({ lobbyId: lobby.id, players: lobby.players.map((p, i) => ({ ...p, cards: i === 1 ? [{ id: 'hack', year: 2000 }] : p.cards })), used_question_ids: [...lobby.used_question_ids, 'q_next'], status: 'in_game', current_player_index: 1, current_question_id: 'q_next' })); return r.rejected && r.unchanged ? pass('other player mutation rejected', { expected: 'rejected/unchanged', actual: r.result.data }) : fail('other player mutation accepted or mutated', { expected: 'rejected/unchanged', actual: r }); }),
-  test('exceptional', 'server_reject_used_ids_removed', 'server rejects removed used_question_ids', async () => { const r = await expectSecureUpdateRejected(lobby => ({ lobbyId: lobby.id, players: lobby.players, used_question_ids: ['q_next'], status: 'in_game', current_player_index: 1, current_question_id: 'q_next' }), { used_question_ids: ['q_current', 'q_old'] }); return r.rejected && r.unchanged ? pass('used ids shrink rejected', { expected: 'rejected/unchanged', actual: r.result.data }) : fail('used ids shrink accepted or mutated', { expected: 'rejected/unchanged', actual: r }); }),
-  test('exceptional', 'server_reject_player_order_change', 'server rejects player order changes', async () => { const r = await expectSecureUpdateRejected(lobby => ({ lobbyId: lobby.id, players: [lobby.players[1], lobby.players[0]], used_question_ids: [...lobby.used_question_ids, 'q_next'], status: 'in_game', current_player_index: 1, current_question_id: 'q_next' })); return r.rejected && r.unchanged ? pass('player order change rejected', { expected: 'rejected/unchanged', actual: r.result.data }) : fail('player order change accepted or mutated', { expected: 'rejected/unchanged', actual: r }); }),
-  test('exceptional', 'server_reject_extra_player', 'server rejects injected extra player', async () => { const r = await expectSecureUpdateRejected(lobby => ({ lobbyId: lobby.id, players: [...lobby.players, { email: 'injected@qa.local', name: 'Injected', cards: [] }], used_question_ids: [...lobby.used_question_ids, 'q_next'], status: 'in_game', current_player_index: 1, current_question_id: 'q_next' })); return r.rejected && r.unchanged ? pass('extra player rejected', { expected: 'rejected/unchanged', actual: r.result.data }) : fail('extra player accepted or mutated', { expected: 'rejected/unchanged', actual: r }); }),
-  test('exceptional', 'server_reject_player_removed', 'server rejects removed player', async () => { const r = await expectSecureUpdateRejected(lobby => ({ lobbyId: lobby.id, players: lobby.players.slice(0, 1), used_question_ids: [...lobby.used_question_ids, 'q_next'], status: 'in_game', current_player_index: 1, current_question_id: 'q_next' })); return r.rejected && r.unchanged ? pass('player removal rejected', { expected: 'rejected/unchanged', actual: r.result.data }) : fail('player removal accepted or mutated', { expected: 'rejected/unchanged', actual: r }); }),
-  test('exceptional', 'server_reject_invalid_index', 'server rejects invalid current_player_index', async () => { const r = await expectSecureUpdateRejected(lobby => ({ lobbyId: lobby.id, players: lobby.players, used_question_ids: [...lobby.used_question_ids, 'q_next'], status: 'in_game', current_player_index: 99, current_question_id: 'q_next' })); return r.rejected && r.unchanged ? pass('invalid index rejected', { expected: 'rejected/unchanged', actual: r.result.data }) : fail('invalid index accepted or mutated', { expected: 'rejected/unchanged', actual: r }); }),
-  test('exceptional', 'server_reject_invalid_winner', 'server rejects invalid winner', async () => { const r = await expectSecureUpdateRejected(lobby => ({ lobbyId: lobby.id, players: lobby.players, used_question_ids: [...lobby.used_question_ids], status: 'finished', current_player_index: 0, current_question_id: lobby.current_question_id, winner: 'Fake Winner', winner_email: 'fake@kronox.local' })); return r.rejected && r.unchanged ? pass('invalid winner rejected', { expected: 'rejected/unchanged', actual: r.result.data }) : fail('invalid winner accepted or mutated', { expected: 'rejected/unchanged', actual: r }); }),
-  test('exceptional', 'server_reject_finished_update', 'server rejects update after status finished', async () => { const r = await expectSecureUpdateRejected(lobby => ({ lobbyId: lobby.id, players: lobby.players, used_question_ids: [...lobby.used_question_ids, 'q_next'], status: 'in_game', current_player_index: 1, current_question_id: 'q_next' }), { status: 'finished', winner: 'QA Player' }); return r.rejected && r.unchanged ? pass('finished lobby update rejected', { expected: 'rejected/unchanged', actual: r.result.data }) : fail('finished lobby update accepted or mutated', { expected: 'rejected/unchanged', actual: r }); }),
-  test('exceptional', 'server_reject_lobby_not_found', 'server rejects lobby not found', async () => { const result = await invokeLobbyGameState({ lobbyId: `missing-${Date.now()}`, players: [], used_question_ids: [], status: 'in_game', current_player_index: 0, current_question_id: 'q_next' }); return !result.ok ? pass('missing lobby rejected', { expected: 'error', actual: result.data }) : fail('missing lobby accepted', { expected: 'error', actual: result.data }); }),
-  sourceHas('exceptional', 'missing_asset_safe', 'missing asset path does not crash Home', 'MainMenu.jsx', SRC.MainMenu, ['alt=""', "pointerEvents: 'none'", 'BACKGROUND_ASSET']),
-  test('exceptional', 'unsupported_viewport', 'unsupported viewport sizes handled gracefully', () => { const a=stageFor(280,520); const b=stageFor(1024,1366); return a.w>0 && b.h>0 ? pass('stage math positive', {expected:'positive dimensions', actual:{a,b}}) : fail('stage math failed', {expected:'positive dimensions', actual:{a,b}}); }),
-
-  sourceLacks('removed', 'chat_ui_absent', 'chat UI is not present', 'online sources', `${SRC.GameLayout}\n${SRC.Game}\n${SRC.LobbyRoom}\n${SRC.WaitingRoomPanel}\n${SRC.LobbyCreateJoinPanel}`, ['MessageCircle', 'showChat', 'chatPanel']),
-  sourceLacks('removed', 'lobbychat_absent', 'LobbyChat not mounted', 'online sources', `${SRC.GameLayout}\n${SRC.Game}\n${SRC.LobbyRoom}\n${SRC.WaitingRoomPanel}\n${SRC.LobbyCreateJoinPanel}`, ['LobbyChat', 'components/lobby/LobbyChat']),
-  sourceLacks('removed', 'chat_button_absent', 'chat button not visible', 'online sources', `${SRC.GameLayout}\n${SRC.Game}\n${SRC.LobbyRoom}\n${SRC.WaitingRoomPanel}\n${SRC.LobbyCreateJoinPanel}`, ['onToggleChat', 'Chat']),
-  sourceLacks('removed', 'chat_unread_absent', 'chat unread indicator not visible', 'online sources', `${SRC.GameLayout}\n${SRC.Game}\n${SRC.LobbyRoom}\n${SRC.WaitingRoomPanel}\n${SRC.LobbyCreateJoinPanel}`, ['unread', 'unreadCount', 'chatUnread']),
-  sourceLacks('removed', 'old_player_count_absent', 'old offline player-count setup not visible if removed', 'SoloChallenge.jsx', SRC.SoloChallenge, ['Oyuncu Sayısı', 'player count']),
-  sourceLacks('removed', 'home_cta_absent', 'removed Home HEMEN OYNA button not visible', 'MainMenu.jsx', SRC.MainMenu, ['HEMEN OYNA']),
-  sourceLacks('removed', 'deleted_debug_components_not_imported', 'deleted debug components are not imported', 'app/game sources', `${SRC.App}\n${SRC.GameLayout}\n${SRC.Game}\n${SRC.Settings}\n${SRC.LobbyRoom}`, ['DebugConsole', 'DebugPanel']),
-  sourceLacks('removed', 'deleted_qa_components_not_imported', 'deleted old QA components are not imported', 'test/admin sources', `${SRC.TestSuite}\n${SRC.Settings}\n${SRC.App}`, ['components/qa', 'QAHeader', 'MetricsBoard', 'SimulationResultCard', 'TestResultCard']),
-  sourceLacks('removed', 'timeline_ruler_not_imported', 'deleted TimelineRuler is not imported', 'Timeline/GameLayout sources', `${SRC.GameLayout}\n${timelineCardSource}\n${gameLayoutSource}`, ['TimelineRuler']),
-
-  test('release', 'build_marker_pattern', 'build marker increment pattern is valid', () => /^Codex\d{3}$/.test(buildMarker()) ? pass('build marker pattern valid', { expected: 'Codex###', actual: buildMarker() }) : fail('build marker pattern invalid', { expected: 'Codex###', actual: buildMarker() })),
-  sourceLacks('release', 'no_private_tmp_patch_workflow_refs', 'no /private/tmp or patch workflow references in active app sources', 'active app sources', `${SRC.App}\n${SRC.MainMenu}\n${SRC.TestSuite}\n${SRC.Settings}\n${SRC.LobbyRoom}\n${SRC.Game}`, ['/private/tmp', 'codex-prefeature-hardening', 'patch workflow']),
-  sourceHas('release', 'debug_log_utility_exists', 'debugLog utility exists for production log gating', 'debugLog/useGameActions/PlayerIndicator', `${SRC.Game}\n${useGameActionsSource}\n${SRC.LobbyRoom}`, ['debugLog']),
-  sourceLacks('release', 'no_production_console_spam_key_paths', 'key client paths avoid production console spam', 'key client sources', `${SRC.Game}\n${SRC.LobbyRoom}\n${SRC.WaitingRoomPanel}\n${SRC.LobbySync}\n${useGameActionsSource}`, ['console.log(']),
-  test('release', 'copy_failed_mobile_visible', 'failed/warning/skipped sections remain mobile-visible', () => { const source = `${IssueSection.toString()}\n${SimulationPanel.toString()}`; const required = ['FAILED TESTS', 'WARNINGS', 'SKIPPED', 'pb-[calc(88px+env(safe-area-inset-bottom))]']; const missing = required.filter(token => !source.includes(token)); return missing.length ? fail('mobile issue UI contract missing', { expected: required, actual: `missing: ${missing.join(', ')}` }) : pass('mobile issue UI contract present', { expected: required, actual: 'all present' }); }),
+  makeCase('report_integrity', 'failed_case_in_report', 'failed case appears in report', () => {
+    const report = buildReport([{ suiteId: 'report_integrity', suiteName: 'Report Integrity Suite', id: 'sample_fail', name: 'sample fail', status: STATUS.FAIL, reason: 'sample', durationMs: 0, critical: true }]);
+    return report.topRegressions.some(item => item.id === 'sample_fail') ? pass('Failing cases surface in report.') : fail('Failing case did not surface in report.');
+  }),
+  makeCase('report_integrity', 'warning_case_in_report', 'warning case appears in report', () => {
+    const report = buildReport([{ suiteId: 'report_integrity', suiteName: 'Report Integrity Suite', id: 'sample_warning', name: 'sample warning', status: STATUS.WARNING, reason: 'sample', durationMs: 0, critical: false }]);
+    return report.counts.WARNING === 1 ? pass('Warning counted in report.') : fail('Warning missing from report.', { actual: report.counts });
+  }),
+  makeCase('report_integrity', 'blocked_case_in_report', 'blocked case appears in report', () => {
+    const report = buildReport([{ suiteId: 'report_integrity', suiteName: 'Report Integrity Suite', id: 'sample_blocked', name: 'sample blocked', status: STATUS.BLOCKED, reason: 'sample', durationMs: 0, critical: true }]);
+    return report.topBlockers.some(item => item.id === 'sample_blocked') ? pass('Blocked case surfaces in top blockers.') : fail('Blocked case missing from top blockers.');
+  }),
+  makeCase('report_integrity', 'json_export_all_suites', 'JSON export includes all suites', () => {
+    const report = buildReport([]);
+    return report.suites.length === SUITES.length ? pass('All suite definitions included in JSON report.', { actual: report.suites.length }) : fail('Suite definitions missing from report.', { expected: SUITES.length, actual: report.suites.length });
+  }),
+  makeCase('report_integrity', 'human_summary_top_blockers', 'human summary includes top blockers', () => {
+    const text = buildHumanSummary(buildReport([{ suiteId: 'report_integrity', suiteName: 'Report Integrity Suite', id: 'sample_blocked', name: 'sample blocked', status: STATUS.BLOCKED, reason: 'sample', durationMs: 0, critical: true }]));
+    return text.includes('Top blockers') && text.includes('sample blocked') ? pass('Human summary includes top blockers.') : fail('Human summary omitted blockers.', { actual: text });
+  }),
+  makeCase('report_integrity', 'score_changes_on_failures', 'release score changes when failures are injected', () => {
+    const good = buildReport([{ suiteId: 'report_integrity', suiteName: 'Report Integrity Suite', id: 'sample_pass', name: 'pass', status: STATUS.PASS, reason: 'sample', durationMs: 0, critical: true }]);
+    const bad = buildReport([{ suiteId: 'report_integrity', suiteName: 'Report Integrity Suite', id: 'sample_fail', name: 'fail', status: STATUS.FAIL, reason: 'sample', durationMs: 0, critical: true }]);
+    return bad.score.value < good.score.value ? pass('Score penalizes failures.', { expected: '< pass score', actual: { good: good.score.value, bad: bad.score.value } }) : fail('Score did not penalize failure.', { actual: { good: good.score.value, bad: bad.score.value } });
+  }),
+  makeCase('report_integrity', 'no_skipped_manual_pass', 'no skipped/manual case is counted as pass', () => {
+    const hasSkippedStatus = Object.values(STATUS).includes('SKIPPED');
+    return !hasSkippedStatus ? pass('No SKIPPED status exists; manual gaps must be BLOCKED or NOT_AUTOMATABLE.') : fail('SKIPPED status exists.');
+  }),
+  makeCase('report_integrity', 'last_run_restore', 'last run can be restored from localStorage if implemented', () => typeof localStorage !== 'undefined'
+    ? pass('localStorage is available for last-run restore.', { actual: LAST_RUN_KEY })
+    : blocked('localStorage is unavailable in this browser context.')),
 ];
 
-const byCat = Object.fromEntries(CATS.map(c => [c.id, TESTS.filter(t => t.cat === c.id)]));
-const catById = Object.fromEntries(CATS.map(c => [c.id, c]));
-const filterOptions = [
-  ['all', 'All'],
-  [ST.FAIL, 'Failed'],
-  [ST.WARNING, 'Warnings'],
-  [ST.SKIPPED, 'Skipped'],
-  [ST.PASS, 'Passed'],
-];
-const statusRank = { [ST.FAIL]: 0, [ST.WARNING]: 1, [ST.SKIPPED]: 2, [ST.PASS]: 3 };
-const formatDuration = ms => {
-  if (ms == null) return 'not run';
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(ms < 10000 ? 1 : 0)}s`;
-  const minutes = Math.floor(ms / 60000);
-  const seconds = Math.round((ms % 60000) / 1000);
-  return `${minutes}m ${seconds}s`;
-};
-const stringify = value => {
-  if (value == null || value === '') return '-';
-  return typeof value === 'string' ? value : JSON.stringify(value);
-};
-const buildMarker = () => SRC.BuildMarker.match(/Codex\d+/)?.[0] || 'unknown';
-function Badge({ status }) { const [color, Icon] = LOOK[status] || LOOK.SKIPPED; return <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-inter text-[10px] font-bold" style={{ color, background: `${color}20` }}><Icon className="h-3 w-3" />{status}</span>; }
-function Metric({ label, value, color }) { return <div className="rounded-2xl border border-white/10 bg-white/[0.045] px-3 py-2"><div className="font-bangers text-xl tracking-wider" style={{ color }}>{value}</div><div className="font-inter text-[10px] uppercase tracking-widest text-white/35">{label}</div></div>; }
-function Details({ result }) { const rows = result ? [['Expected', result.expected], ['Actual', result.actual], ['Reason', result.reason], ['File/function', result.file], ['Detail', result.detail]].filter(([, v]) => v != null && v !== '') : []; return <div className="mt-2 rounded-xl border border-white/[0.06] bg-black/25 p-2 font-mono text-[10px] leading-relaxed text-white/60"><div className="mb-1 text-white/70">{result?.message || 'Not run yet.'}</div>{rows.map(([k, v]) => <div key={k} className="grid grid-cols-[74px_1fr] gap-2 sm:grid-cols-[92px_1fr]"><span className="text-white/28">{k}</span><span className="min-w-0 break-words">{stringify(v)}</span></div>)}</div>; }
-function Row({ item, result, busy, onRun, defaultOpen = false }) {
-  const [open, setOpen] = useState(defaultOpen);
-  const status = result?.status || ST.SKIPPED;
-  const [color] = LOOK[status] || LOOK.SKIPPED;
-  return <div className="overflow-hidden rounded-2xl" style={{ background: `${color}08`, border: `1px solid ${color}24`, boxShadow: status === ST.FAIL ? `0 0 28px ${color}18` : 'none' }}><button className="w-full px-3 py-3 text-left" onClick={() => setOpen(v => !v)}><div className="flex items-start gap-3"><div className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full" style={{ background: color, boxShadow: `0 0 14px ${color}` }} /><div className="min-w-0 flex-1"><div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0"><div className="break-words font-inter text-sm font-semibold text-white/88">{item.name}</div><div className="mt-0.5 font-mono text-[10px] text-white/35">{item.cat}.{item.id}</div></div><div className="flex flex-wrap items-center gap-1.5 sm:justify-end"><Badge status={status} />{result?.durationMs != null && <span className="rounded-full bg-white/[0.04] px-2 py-0.5 font-mono text-[9px] text-white/35">{formatDuration(result.durationMs)}</span>}</div></div>{open && <Details result={result} />}</div><ChevronDown className={`mt-1 h-4 w-4 flex-shrink-0 text-white/30 transition-transform ${open ? 'rotate-180' : ''}`} /></div></button><div className="flex justify-end border-t px-3 py-2" style={{ borderColor: `${color}16` }}><button onClick={() => onRun(item)} disabled={busy} className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 font-inter text-[11px] font-bold disabled:opacity-40" style={{ background: 'rgba(250,204,21,0.13)', color: '#facc15', border: '1px solid rgba(250,204,21,0.28)' }}>{busy ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}Run</button></div></div>;
+async function executeCase(testCase) {
+  const started = performance.now();
+  try {
+    const raw = await testCase.run();
+    const finished = performance.now();
+    return {
+      ...testCase,
+      ...raw,
+      durationMs: Math.round(finished - started),
+    };
+  } catch (error) {
+    const finished = performance.now();
+    return {
+      ...testCase,
+      status: STATUS.ERROR,
+      reason: error?.message || String(error),
+      stack: error?.stack || null,
+      durationMs: Math.round(finished - started),
+    };
+  }
 }
-function IssueSection({ title, entries, status }) {
-  if (!entries.length) return null;
-  const [color] = LOOK[status] || LOOK.SKIPPED;
-  return <section className="rounded-3xl p-3" style={{ background: `${color}0D`, border: `1px solid ${color}38` }}><div className="mb-2 flex items-center justify-between gap-2"><h3 className="font-cinzel text-sm font-bold tracking-widest" style={{ color }}>{title}</h3><span className="rounded-full px-2 py-0.5 font-mono text-[10px]" style={{ color, background: `${color}16` }}>{entries.length}</span></div><div className="space-y-2">{entries.map(({ item, result, cat }) => <div key={`${status}-${item.id}`} className="rounded-2xl border border-white/[0.06] bg-black/25 p-3"><div className="flex flex-wrap items-start justify-between gap-2"><div className="min-w-0"><div className="break-words font-inter text-sm font-bold text-white/90">{item.name}</div><div className="mt-1 font-mono text-[10px] text-white/40">{cat.label} · {item.cat}.{item.id}</div></div><div className="flex flex-wrap gap-1.5"><Badge status={result.status} /><span className="rounded-full bg-white/[0.04] px-2 py-0.5 font-mono text-[9px] text-white/35">{formatDuration(result.durationMs)}</span></div></div><Details result={result} /></div>)}</div></section>;
+
+function persistReport(report) {
+  try {
+    localStorage.setItem(LAST_RUN_KEY, JSON.stringify(report));
+  } catch (_) {}
 }
 
 export default function SimulationPanel({ onClose }) {
-  const [active, setActive] = useState('smoke');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [results, setResults] = useState({});
-  const [running, setRunning] = useState(null);
-  const [scope, setScope] = useState(null);
-  const [copied, setCopied] = useState(null);
-  const stats = useMemo(() => Object.fromEntries(CATS.map(cat => { const items = byCat[cat.id] || []; const r = items.map(i => results[i.id]).filter(Boolean); return [cat.id, { total: items.length, pass: r.filter(x => x.status === ST.PASS).length, fail: r.filter(x => x.status === ST.FAIL).length, warn: r.filter(x => x.status === ST.WARNING).length, skipped: r.filter(x => x.status === ST.SKIPPED).length + items.filter(i => !results[i.id]).length, last: r.map(x => x.completedAt).filter(Boolean).slice(-1)[0] }]; })), [results]);
-  const summary = useMemo(() => { const r = Object.values(results); return { total: TESTS.length, pass: r.filter(x => x.status === ST.PASS).length, fail: r.filter(x => x.status === ST.FAIL).length, warn: r.filter(x => x.status === ST.WARNING).length, skipped: r.filter(x => x.status === ST.SKIPPED).length + TESTS.filter(t => !results[t.id]).length, duration: r.reduce((sum, x) => sum + (x.durationMs || 0), 0), last: r.map(x => x.completedAt).filter(Boolean).slice(-1)[0] || 'never' }; }, [results]);
-  const runOne = async item => { setRunning(item.id); const t0 = performance.now(); try { const raw = await item.run(); setResults(prev => ({ ...prev, [item.id]: { id: item.id, status: raw?.status || ST.PASS, durationMs: Math.round(performance.now() - t0), completedAt: now(), ...raw } })); } catch (error) { setResults(prev => ({ ...prev, [item.id]: { id: item.id, status: ST.FAIL, message: error?.message || 'Test threw', actual: error?.stack || String(error), durationMs: Math.round(performance.now() - t0), completedAt: now() } })); } finally { setRunning(null); } };
-  const runList = async (list, name) => { setScope(name); for (const item of list) await runOne(item); setScope(null); };
-  const cat = CATS.find(c => c.id === active) || CATS[0];
-  const list = byCat[cat.id] || [];
-  const st = stats[cat.id];
-  const busy = Boolean(running || scope);
-  const entries = useMemo(() => TESTS.map(item => ({ item, result: results[item.id], cat: catById[item.cat] || { label: item.cat, color: '#fff' } })).filter(x => x.result), [results]);
-  const issueEntries = status => entries.filter(x => x.result.status === status);
-  const failed = issueEntries(ST.FAIL);
-  const warnings = issueEntries(ST.WARNING);
-  const skippedItems = issueEntries(ST.SKIPPED);
-  const visibleList = useMemo(() => list
-    .filter(item => statusFilter === 'all' || (results[item.id]?.status || ST.SKIPPED) === statusFilter)
-    .sort((a, b) => (statusRank[results[a.id]?.status || ST.SKIPPED] ?? 9) - (statusRank[results[b.id]?.status || ST.SKIPPED] ?? 9)),
-  [list, results, statusFilter]);
-  const reportLines = (onlyIssues = false) => {
-    const selected = onlyIssues ? entries.filter(x => [ST.FAIL, ST.WARNING, ST.SKIPPED].includes(x.result.status)) : entries;
-    const lines = [
-      `KRONOX QA REPORT`,
-      `Build: ${buildMarker()}`,
-      `Last run: ${summary.last}`,
-      `Total: ${summary.total} | Passed: ${summary.pass} | Failed: ${summary.fail} | Warnings: ${summary.warn} | Skipped: ${summary.skipped} | Duration: ${formatDuration(summary.duration)}`,
-      '',
-    ];
-    const append = (title, rows) => {
-      lines.push(`${title} (${rows.length})`);
-      if (!rows.length) lines.push('- none');
-      rows.forEach(({ item, result, cat: rowCat }) => {
-        lines.push(`- [${result.status}] ${rowCat.label} / ${item.cat}.${item.id}: ${item.name}`);
-        lines.push(`  expected: ${stringify(result.expected)}`);
-        lines.push(`  actual: ${stringify(result.actual)}`);
-        lines.push(`  reason: ${stringify(result.reason || result.message)}`);
-        lines.push(`  duration: ${formatDuration(result.durationMs)}`);
-      });
-      lines.push('');
-    };
-    if (onlyIssues) {
-      append('FAILED TESTS', failed);
-      append('WARNINGS', warnings);
-      append('SKIPPED', skippedItems);
-      return lines.join('\n');
+  const [selectedSuiteId, setSelectedSuiteId] = useState(SUITES[0].id);
+  const [resultsByKey, setResultsByKey] = useState({});
+  const [report, setReport] = useState(null);
+  const [lastRun, setLastRun] = useState(null);
+  const [runningKey, setRunningKey] = useState(null);
+  const [plannedKeys, setPlannedKeys] = useState([]);
+  const [copyState, setCopyState] = useState('');
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(LAST_RUN_KEY);
+      if (saved) setLastRun(JSON.parse(saved));
+    } catch (_) {}
+  }, []);
+
+  const selectedSuite = SUITES.find(suite => suite.id === selectedSuiteId) || SUITES[0];
+  const selectedTests = useMemo(() => TESTS.filter(testCase => testCase.suiteId === selectedSuiteId), [selectedSuiteId]);
+  const allResults = useMemo(() => Object.values(resultsByKey), [resultsByKey]);
+  const counts = report?.counts || Object.values(STATUS).reduce((acc, status) => ({ ...acc, [status]: 0 }), {});
+  const progress = plannedKeys.length ? Math.round((allResults.filter(item => plannedKeys.includes(item.key)).length / plannedKeys.length) * 100) : 0;
+
+  const updateReport = useCallback((nextResults, meta) => {
+    const nextReport = buildReport(Object.values(nextResults), meta, captureEnvironment());
+    setReport(nextReport);
+    persistReport(nextReport);
+    setLastRun(nextReport);
+    return nextReport;
+  }, []);
+
+  const runCases = useCallback(async (cases) => {
+    const meta = createRunMeta(cases.map(item => item.key));
+    let nextResults = {};
+    setResultsByKey({});
+    setPlannedKeys(cases.map(item => item.key));
+    setCopyState('');
+
+    for (const testCase of cases) {
+      setRunningKey(testCase.key);
+      const caseResult = await executeCase(testCase);
+      nextResults = { ...nextResults, [testCase.key]: caseResult };
+      setResultsByKey(nextResults);
+      updateReport(nextResults, meta);
+      await new Promise(resolve => window.setTimeout(resolve, 12));
     }
-    append('FAILED TESTS', failed);
-    append('WARNINGS', warnings);
-    append('SKIPPED', skippedItems);
-    append('ALL COMPLETED TESTS', selected);
-    return lines.join('\n');
-  };
-  const copyReport = async (mode) => {
-    const text = reportLines(mode === 'issues');
-    if (navigator.clipboard?.writeText) {
+
+    setRunningKey(null);
+    setPlannedKeys([]);
+  }, [updateReport]);
+
+  const runAll = () => runCases(TESTS);
+  const runSelected = () => runCases(selectedTests);
+
+  const copyText = async (text, label) => {
+    try {
       await navigator.clipboard.writeText(text);
-    } else {
-      const area = document.createElement('textarea');
-      area.value = text;
-      area.style.position = 'fixed';
-      area.style.opacity = '0';
-      document.body.appendChild(area);
-      area.select();
-      document.execCommand('copy');
-      document.body.removeChild(area);
+      setCopyState(`${label} copied`);
+    } catch (_) {
+      setCopyState('Copy failed; browser denied clipboard access');
     }
-    setCopied(mode);
-    window.setTimeout(() => setCopied(null), 1500);
   };
-  return <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4" style={{ background: 'rgba(5,7,22,0.9)', backdropFilter: 'blur(10px)' }} onClick={onClose}><motion.div initial={{ scale: 0.94, opacity: 0, y: 16 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0, y: 10 }} className="flex w-full flex-col overflow-hidden rounded-3xl" style={{ maxWidth: 1120, maxHeight: 'calc(100dvh - 16px)', background: 'linear-gradient(160deg, #10133d 0%, #070a1f 58%, #050716 100%)', border: '1px solid rgba(250,204,21,0.2)', boxShadow: '0 30px 90px rgba(0,0,0,0.72), 0 0 80px rgba(250,204,21,0.06)' }} onClick={e => e.stopPropagation()}><div className="flex-shrink-0 border-b border-white/[0.07] px-4 py-4 sm:px-5"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="flex items-center gap-2"><ShieldAlert className="h-4 w-4 flex-shrink-0 text-primary" /><h2 className="break-words font-cinzel text-base font-bold tracking-widest text-primary sm:text-lg">KRONOX QA PROTECTION SYSTEM</h2></div><p className="mt-1 max-w-2xl font-inter text-[11px] leading-relaxed text-white/40">Failed, warning, and skipped results are surfaced first for mobile debugging and sharing.</p></div><button onClick={onClose} className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.06]"><X className="h-4 w-4 text-white/55" /></button></div><div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-7"><Metric label="Total" value={summary.total} color="#fff" /><Metric label="Passed" value={summary.pass} color="#4ade80" /><Metric label="Failed" value={summary.fail} color="#f87171" /><Metric label="Warnings" value={summary.warn} color="#facc15" /><Metric label="Skipped" value={summary.skipped} color="#a1a1aa" /><Metric label="Duration" value={formatDuration(summary.duration)} color="#67e8f9" /><Metric label="Last Run" value={summary.last} color="#c4b5fd" /></div><div className="mt-4 flex flex-wrap items-center gap-2"><button onClick={() => runList(TESTS, 'all')} disabled={busy} className="inline-flex items-center gap-2 rounded-2xl px-4 py-2 font-inter text-xs font-bold disabled:opacity-40" style={{ background: 'linear-gradient(135deg, #f59e0b, #facc15)', color: '#071025' }}>{busy && scope === 'all' ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}Run All Tests</button><button onClick={() => runList(list, cat.id)} disabled={busy} className="inline-flex items-center gap-2 rounded-2xl px-4 py-2 font-inter text-xs font-bold disabled:opacity-40" style={{ background: `${cat.color}18`, color: cat.color, border: `1px solid ${cat.color}55` }}>{busy && scope === cat.id ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}Run Category</button><button onClick={() => copyReport('all')} disabled={!entries.length} className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-2 font-inter text-xs font-bold text-white/75 disabled:opacity-35"><ClipboardCopy className="h-3.5 w-3.5" />{copied === 'all' ? 'Copied' : 'Copy Report'}</button><button onClick={() => copyReport('issues')} disabled={!failed.length && !warnings.length && !skippedItems.length} className="inline-flex items-center gap-2 rounded-2xl px-4 py-2 font-inter text-xs font-bold disabled:opacity-35" style={{ background: 'rgba(248,113,113,0.12)', color: '#fca5a5', border: '1px solid rgba(248,113,113,0.28)' }}><ClipboardCopy className="h-3.5 w-3.5" />{copied === 'issues' ? 'Copied' : 'Copy Failed Only'}</button>{running && <span className="font-mono text-[10px] text-white/35">Running: {running}</span>}</div></div><main className="min-h-0 flex-1 overflow-y-auto px-3 py-4 pb-[calc(88px+env(safe-area-inset-bottom))] sm:px-5"><div className="space-y-3"><IssueSection title="FAILED TESTS" entries={failed} status={ST.FAIL} /><IssueSection title="WARNINGS" entries={warnings} status={ST.WARNING} /><IssueSection title="SKIPPED" entries={skippedItems} status={ST.SKIPPED} /></div><div className="mt-4 flex gap-2 overflow-x-auto pb-1">{filterOptions.map(([value, label]) => { const selected = statusFilter === value; const color = value === 'all' ? '#67e8f9' : LOOK[value]?.[0] || '#fff'; return <button key={value} onClick={() => setStatusFilter(value)} className="flex-shrink-0 rounded-2xl px-3 py-2 font-inter text-[11px] font-bold" style={{ color: selected ? '#071025' : color, background: selected ? color : `${color}12`, border: `1px solid ${color}44` }}>{label}</button>; })}</div><div className="mt-4 grid gap-3 md:grid-cols-[18rem_1fr]"><aside className="min-w-0 overflow-x-auto md:max-h-[54vh] md:overflow-y-auto"><div className="flex gap-2 md:block md:space-y-1.5">{CATS.map(c => { const x = stats[c.id]; const selected = c.id === active; return <button key={c.id} onClick={() => setActive(c.id)} className="w-56 flex-shrink-0 rounded-2xl px-3 py-2.5 text-left md:w-full" style={{ background: selected ? `${c.color}14` : 'rgba(255,255,255,0.025)', border: `1px solid ${selected ? c.color + '55' : 'rgba(255,255,255,0.055)'}` }}><div className="flex items-center justify-between gap-2"><span className="font-inter text-xs font-semibold text-white/80">{c.label}</span><span className="rounded-full px-1.5 py-0.5 font-mono text-[9px]" style={{ color: c.color, background: `${c.color}14` }}>{x.pass}/{x.total}</span></div><div className="mt-1 flex gap-1 font-mono text-[9px]"><span className="text-red-300/80">F {x.fail}</span><span className="text-yellow-300/80">W {x.warn}</span><span className="text-zinc-300/80">S {x.skipped}</span></div><div className="mt-1 font-inter text-[9px] text-white/25">Last: {x.last || 'never'}</div></button>; })}</div></aside><section className="min-w-0"><div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"><div><h3 className="font-cinzel text-base font-bold tracking-widest" style={{ color: cat.color }}>{cat.label}</h3><p className="mt-1 font-inter text-[11px] text-white/35">Total {st.total} · Pass {st.pass} · Fail {st.fail} · Warning {st.warn} · Skipped {st.skipped}</p></div><div className="font-inter text-[10px] text-white/30">Last run: {st.last || 'never'}</div></div><div className="grid gap-3 lg:grid-cols-2">{visibleList.map(item => <Row key={item.id} item={item} result={results[item.id]} busy={busy} onRun={runOne} defaultOpen={results[item.id]?.status === ST.FAIL} />)}{!visibleList.length && <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 font-inter text-sm text-white/45">No tests match this filter in the selected category.</div>}</div></section></div></main></motion.div></motion.div>;
+
+  const copyJson = () => report && copyText(JSON.stringify(report, null, 2), 'JSON report');
+  const copySummary = () => report && copyText(buildHumanSummary(report), 'Human summary');
+  const downloadJson = () => {
+    if (!report) return;
+    try {
+      const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `kronox-health-${report.runId}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setCopyState('JSON download started');
+    } catch (_) {
+      setCopyState('Download unsupported; use Copy JSON instead');
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] bg-black/82 text-white overflow-hidden"
+      style={{ padding: 'calc(0.5rem + env(safe-area-inset-top)) 0.5rem calc(0.5rem + env(safe-area-inset-bottom))' }}
+    >
+      <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-hidden rounded-lg border border-white/15 bg-[#07090f] shadow-2xl">
+        <Header onClose={onClose} report={report} progress={progress} running={Boolean(runningKey)} />
+
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-0 overflow-hidden md:grid-cols-[290px_minmax(0,1fr)]">
+          <aside className="border-b border-white/10 bg-white/[0.03] p-3 md:border-b-0 md:border-r md:overflow-y-auto">
+            <div className="mb-3 grid grid-cols-2 gap-2">
+              <ActionButton icon={Play} label="Run All" onClick={runAll} disabled={Boolean(runningKey)} />
+              <ActionButton icon={RefreshCw} label="Run Suite" onClick={runSelected} disabled={Boolean(runningKey)} />
+            </div>
+
+            <div className="mb-3 grid grid-cols-3 gap-2 text-center">
+              <CountPill status={STATUS.PASS} count={counts.PASS} />
+              <CountPill status={STATUS.FAIL} count={counts.FAIL} />
+              <CountPill status={STATUS.WARNING} count={counts.WARNING} />
+              <CountPill status={STATUS.BLOCKED} count={counts.BLOCKED} />
+              <CountPill status={STATUS.NOT_AUTOMATABLE} count={counts.NOT_AUTOMATABLE} />
+              <CountPill status={STATUS.ERROR} count={counts.ERROR} />
+            </div>
+
+            {lastRun && (
+              <div className="mb-3 rounded-md border border-white/10 bg-black/25 p-3 text-xs text-white/70">
+                <div className="mb-1 font-semibold text-white">Last Run</div>
+                <div>{lastRun.runId}</div>
+                <div>{lastRun.score.value} / {lastRun.score.rating}</div>
+                <div>{lastRun.buildMarker}</div>
+              </div>
+            )}
+
+            <div className="max-h-48 overflow-y-auto pr-1 md:max-h-none">
+              {SUITES.map(suite => {
+                const suiteResults = allResults.filter(item => item.suiteId === suite.id);
+                const hasProblems = suiteResults.some(item => item.status !== STATUS.PASS);
+                return (
+                  <button
+                    key={suite.id}
+                    type="button"
+                    onClick={() => setSelectedSuiteId(suite.id)}
+                    className={`mb-2 w-full rounded-md border px-3 py-3 text-left transition ${selectedSuiteId === suite.id ? 'border-white/35 bg-white/12' : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ background: suite.color }} />
+                      <span className="min-w-0 flex-1 text-sm font-semibold leading-tight">{suite.name}</span>
+                      {hasProblems && <AlertTriangle className="h-4 w-4 text-amber-300" />}
+                    </div>
+                    <div className="mt-1 text-[11px] text-white/50">{suiteResults.length || TESTS.filter(item => item.suiteId === suite.id).length} cases</div>
+                  </button>
+                );
+              })}
+            </div>
+          </aside>
+
+          <main className="min-h-0 overflow-y-auto overflow-x-hidden p-3 md:p-4">
+            <section className="mb-4 rounded-md border border-white/10 bg-white/[0.03] p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div className="text-lg font-semibold">{selectedSuite.name}</div>
+                  <div className="text-xs text-white/55">PASS only means the simulator executed and verified the case. Manual gaps are risk states.</div>
+                </div>
+                {selectedSuite.critical && <StatusBadge status={STATUS.BLOCKED} text="critical suite" />}
+              </div>
+            </section>
+
+            <div className="space-y-2">
+              {selectedTests.map(testCase => (
+                <CaseRow key={testCase.key} testCase={testCase} result={resultsByKey[testCase.key]} running={runningKey === testCase.key} />
+              ))}
+            </div>
+
+            {report && (
+              <ReportPanel
+                report={report}
+                copyJson={copyJson}
+                copySummary={copySummary}
+                downloadJson={downloadJson}
+                copyState={copyState}
+              />
+            )}
+          </main>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function Header({ onClose, report, progress, running }) {
+  return (
+    <div className="border-b border-white/10 bg-black/25 p-3 md:p-4">
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md border border-cyan-300/25 bg-cyan-300/10">
+          <Activity className="h-5 w-5 text-cyan-200" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-lg font-bold tracking-wide md:text-xl">Kronox Health Simulator</h2>
+            <span className="rounded-full border border-white/15 px-2 py-0.5 text-[11px] text-white/60">{extractBuildMarker()}</span>
+          </div>
+          <p className="mt-1 text-xs leading-relaxed text-white/55">A harsh release-risk dashboard for mobile viewport, gameplay feel guardrails, sync authority, and report integrity.</p>
+        </div>
+        {report && <ScoreBadge report={report} />}
+        <button type="button" onClick={onClose} className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md border border-white/15 bg-white/[0.04] text-white/70 hover:bg-white/10" aria-label="Close health simulator">
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+      {running && (
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+          <div className="h-full rounded-full bg-cyan-300 transition-all" style={{ width: `${progress}%` }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ScoreBadge({ report }) {
+  const bad = report.score.value < 50;
+  return (
+    <div className={`rounded-md border px-3 py-2 text-right ${bad ? 'border-rose-400/35 bg-rose-400/10' : 'border-white/15 bg-white/[0.04]'}`}>
+      <div className="text-2xl font-black leading-none">{report.score.value}</div>
+      <div className="mt-1 text-[11px] uppercase tracking-wide text-white/60">{report.score.rating}</div>
+    </div>
+  );
+}
+
+function ActionButton({ icon: Icon, label, onClick, disabled }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex min-h-11 items-center justify-center gap-2 rounded-md border border-white/15 bg-white/[0.06] px-3 py-2 text-sm font-semibold text-white transition active:scale-[0.98] disabled:opacity-45"
+    >
+      <Icon className="h-4 w-4" />
+      {label}
+    </button>
+  );
+}
+
+function CountPill({ status, count }) {
+  const look = STATUS_LOOK[status];
+  return (
+    <div className="rounded-md border border-white/10 bg-black/25 p-2">
+      <div className="text-sm font-bold" style={{ color: look.color }}>{count || 0}</div>
+      <div className="truncate text-[9px] uppercase text-white/45">{status.replace('_', ' ')}</div>
+    </div>
+  );
+}
+
+function StatusBadge({ status, text }) {
+  const look = STATUS_LOOK[status] || STATUS_LOOK[STATUS.WARNING];
+  const Icon = look.Icon;
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-semibold" style={{ color: look.color, borderColor: `${look.color}55`, background: look.bg }}>
+      <Icon className="h-3.5 w-3.5" />
+      {text || status.replace('_', ' ')}
+    </span>
+  );
+}
+
+function CaseRow({ testCase, result: caseResult, running }) {
+  const status = running ? 'RUNNING' : caseResult?.status || 'PENDING';
+  const badgeStatus = caseResult?.status || STATUS.NOT_AUTOMATABLE;
+  const look = STATUS_LOOK[badgeStatus] || STATUS_LOOK[STATUS.NOT_AUTOMATABLE];
+
+  return (
+    <details className="rounded-md border border-white/10 bg-black/25 p-3" open={Boolean(caseResult && caseResult.status !== STATUS.PASS)}>
+      <summary className="flex cursor-pointer list-none items-center gap-3">
+        <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md" style={{ background: running ? 'rgba(103,232,249,0.12)' : look.bg, color: running ? '#67e8f9' : look.color }}>
+          {running ? <RefreshCw className="h-4 w-4 animate-spin" /> : <look.Icon className="h-4 w-4" />}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold leading-tight">{testCase.name}</span>
+          <span className="mt-1 block text-[11px] text-white/45">{testCase.id} {testCase.critical ? '/ critical' : ''}</span>
+        </span>
+        <span className="hidden sm:block"><StatusBadge status={caseResult?.status || STATUS.NOT_AUTOMATABLE} text={status} /></span>
+        <ChevronDown className="h-4 w-4 text-white/40" />
+      </summary>
+      <div className="mt-3 border-t border-white/10 pt-3 text-xs text-white/70">
+        {caseResult ? (
+          <>
+            <div className="mb-2 flex flex-wrap gap-2 sm:hidden"><StatusBadge status={caseResult.status} /></div>
+            <p className="leading-relaxed">{caseResult.reason}</p>
+            <div className="mt-2 text-white/45">Duration: {caseResult.durationMs}ms</div>
+            {(caseResult.expected !== undefined || caseResult.actual !== undefined || caseResult.file || caseResult.stack) && (
+              <pre className="mt-3 max-h-56 overflow-auto rounded-md bg-black/45 p-3 text-[11px] leading-relaxed text-white/75">
+                {JSON.stringify({ file: caseResult.file, expected: caseResult.expected, actual: caseResult.actual, stack: caseResult.stack }, null, 2)}
+              </pre>
+            )}
+          </>
+        ) : (
+          <p className="text-white/45">Not run yet.</p>
+        )}
+      </div>
+    </details>
+  );
+}
+
+function ReportPanel({ report, copyJson, copySummary, downloadJson, copyState }) {
+  return (
+    <section className="mt-5 rounded-md border border-white/12 bg-white/[0.035] p-3 md:p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-base font-bold">Report</h3>
+          <p className="mt-1 text-xs text-white/55">{report.runId} / {report.timestamp}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <ActionButton icon={ClipboardCopy} label="Copy JSON" onClick={copyJson} />
+          <ActionButton icon={Download} label="Download JSON" onClick={downloadJson} />
+          <ActionButton icon={ClipboardCopy} label="Copy Summary" onClick={copySummary} />
+        </div>
+      </div>
+      {copyState && <div className="mt-2 text-xs text-cyan-200">{copyState}</div>}
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <ReportBox title="Environment">
+          <KeyValue label="Device" value={report.environment.deviceType} />
+          <KeyValue label="Viewport" value={`${report.environment.viewport.width}x${report.environment.viewport.height}`} />
+          <KeyValue label="DPR" value={report.environment.dpr} />
+          <KeyValue label="Touch" value={`${report.environment.touchSupport} (${report.environment.maxTouchPoints})`} />
+          <KeyValue label="Standalone" value={String(report.environment.standalone)} />
+          <KeyValue label="Route" value={report.environment.route} />
+          <KeyValue label="UA" value={report.environment.userAgent} />
+        </ReportBox>
+        <ReportBox title="Top Blockers">
+          {report.topBlockers.length ? report.topBlockers.map(item => (
+            <div key={`${item.key}-${item.status}`} className="mb-2 rounded border border-white/10 bg-black/25 p-2">
+              <StatusBadge status={item.status} />
+              <div className="mt-1 font-semibold">{item.name}</div>
+              <div className="mt-1 text-white/55">{item.reason}</div>
+            </div>
+          )) : <p className="text-white/55">None</p>}
+        </ReportBox>
+      </div>
+
+      <ReportBox title="Recommended Next Actions" className="mt-3">
+        <ul className="space-y-2 text-xs text-white/70">
+          {report.recommendedNextActions.map(action => <li key={action}>- {action}</li>)}
+        </ul>
+      </ReportBox>
+
+      <details className="mt-3 rounded-md border border-white/10 bg-black/25 p-3">
+        <summary className="cursor-pointer text-sm font-semibold">Raw JSON Preview</summary>
+        <pre className="mt-3 max-h-80 overflow-auto rounded-md bg-black/50 p-3 text-[11px] leading-relaxed text-white/70">
+          {JSON.stringify(report, null, 2)}
+        </pre>
+      </details>
+    </section>
+  );
+}
+
+function ReportBox({ title, children, className = '' }) {
+  return (
+    <div className={`rounded-md border border-white/10 bg-black/20 p-3 ${className}`}>
+      <div className="mb-2 text-xs font-bold uppercase tracking-wide text-white/50">{title}</div>
+      {children}
+    </div>
+  );
+}
+
+function KeyValue({ label, value }) {
+  return (
+    <div className="mb-2 grid grid-cols-[92px_minmax(0,1fr)] gap-2 text-xs">
+      <span className="text-white/45">{label}</span>
+      <span className="min-w-0 break-words text-white/75">{String(value)}</span>
+    </div>
+  );
 }

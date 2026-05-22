@@ -124,8 +124,8 @@ export default function SettingsPage() {
               />
               <ToolCard
                 icon={<FlaskConical className="w-4 h-4" />}
-                title="Regression Test Panel"
-                desc="Automated QA for online sync, spectator mode, GameOver, and UI cleanup"
+                title="Kronox Health Simulator"
+                desc="Brutally honest mobile, gameplay, sync, and release-risk checks"
                 onClick={() => setShowSim(true)}
               />
             </Section>
