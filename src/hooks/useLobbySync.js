@@ -7,6 +7,7 @@ import { useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { addGameLog } from '@/components/game/GameDebugLog';
 import { debugLog, debugWarn } from '@/lib/debugLog';
+import { normalizeLobbyState, summarizeLobbyShape } from '@/lib/lobbyState';
 
 const summarizePlayers = (players = []) =>
   players.map(p => ({
@@ -14,18 +15,6 @@ const summarizePlayers = (players = []) =>
     email: p.email,
     cardCount: p.cards?.length || 0,
   }));
-
-const toLobbyState = (data, fallback = {}) => ({
-  ...fallback,
-  ...data,
-  players: Array.isArray(data?.players) ? data.players : (fallback.players || []),
-  current_player_index: data?.current_player_index ?? fallback.current_player_index ?? 0,
-  current_question_id: data?.current_question_id ?? fallback.current_question_id ?? null,
-  used_question_ids: Array.isArray(data?.used_question_ids) ? data.used_question_ids : (fallback.used_question_ids || []),
-  status: data?.status ?? fallback.status,
-  winner: data?.winner ?? fallback.winner,
-  winner_email: data?.winner_email ?? fallback.winner_email ?? null,
-});
 
 const toWinnerState = (data) => {
   if (data?.status !== 'finished' || !data?.winner) return null;
@@ -55,8 +44,23 @@ export function useLobbySync({
     const initPlayers = initialPlayersRef.current;
     const initQuestionId = currentQuestionIdRef.current;
 
+    const buildRouteFallback = () => {
+      const usedIds = [
+        initQuestionId,
+        ...initPlayers.flatMap(p => p.cards?.map(c => c.id) || [])
+      ].filter(Boolean);
+
+      return {
+        players: initPlayers,
+        current_player_index: 0,
+        current_question_id: initQuestionId,
+        used_question_ids: usedIds,
+        status: 'starting',
+      };
+    };
+
     const applyLobbyData = (data, source) => {
-      const nextLobbyData = toLobbyState(data, latestLobbyRef.current || {});
+      const nextLobbyData = normalizeLobbyState(data, latestLobbyRef.current || {});
       latestLobbyRef.current = nextLobbyData;
 
       debugLog('[useLobbySync] applying lobby data:', {
@@ -66,10 +70,12 @@ export function useLobbySync({
         status: nextLobbyData.status,
         winner: nextLobbyData.winner || null,
         winner_email: nextLobbyData.winner_email || null,
+        state_revision: nextLobbyData.state_revision ?? 0,
         current_player_index: nextLobbyData.current_player_index,
         current_question_id: nextLobbyData.current_question_id,
         used_question_count: nextLobbyData.used_question_ids?.length || 0,
         players: summarizePlayers(nextLobbyData.players),
+        shape: summarizeLobbyShape(nextLobbyData),
       });
       addGameLog(`APPLY source=${source} idx=${nextLobbyData.current_player_index} q=${nextLobbyData.current_question_id}`);
       setLobbyData(nextLobbyData);
@@ -97,40 +103,27 @@ export function useLobbySync({
           debugLog('[useLobbySync] fetched lobby:', {
             lobbyId: data.id,
             status: data.status,
+            state_revision: data.state_revision ?? 0,
             playerCount: data.players?.length || 0,
             current_question_id: data.current_question_id || null,
             current_player_index: data.current_player_index ?? null,
           });
           applyLobbyData(data, 'initial-fetch');
-        } else if (initPlayers && initPlayers.length > 0) {
-          // Fallback to route state if DB fetch returns nothing
-          const usedIds = [
-            initQuestionId,
-            ...initPlayers.flatMap(p => p.cards?.map(c => c.id) || [])
-          ].filter(Boolean);
-          applyLobbyData({
-            players: initPlayers,
-            current_player_index: 0,
-            current_question_id: initQuestionId,
-            used_question_ids: usedIds,
-          }, 'route-state-fallback');
+        } else if (!latestLobbyRef.current && initPlayers && initPlayers.length > 0) {
+          // Route state is bootstrap-only and only applies before any live lobby data exists.
+          applyLobbyData(buildRouteFallback(), 'route-state-fallback');
+        } else if (latestLobbyRef.current) {
+          debugWarn('[useLobbySync] initial fetch returned empty after live data; ignoring route fallback');
         }
       })
       .catch(err => {
-        // Fallback to route state on error
-        if (initPlayers && initPlayers.length > 0) {
-          const usedIds = [
-            initQuestionId,
-            ...initPlayers.flatMap(p => p.cards?.map(c => c.id) || [])
-          ].filter(Boolean);
-          applyLobbyData({
-            players: initPlayers,
-            current_player_index: 0,
-            current_question_id: initQuestionId,
-            used_question_ids: usedIds,
-          }, 'route-state-error-fallback');
-        } else {
+        // Route state is bootstrap-only and must not replace already fetched/subscribed lobby data.
+        if (!latestLobbyRef.current && initPlayers && initPlayers.length > 0) {
+          applyLobbyData(buildRouteFallback(), 'route-state-error-fallback');
+        } else if (!latestLobbyRef.current) {
           setError('Lobi yüklenemedi: ' + err.message);
+        } else {
+          debugWarn('[useLobbySync] initial fetch failed after live data; preserving latest lobby:', err.message);
         }
       });
 
@@ -148,6 +141,7 @@ export function useLobbySync({
         eventType,
         receivedLobbyId,
         status: updatedLobby?.status,
+        state_revision: updatedLobby?.state_revision ?? null,
         playerCount: updatedLobby?.players?.length || 0,
         current_question_id: updatedLobby?.current_question_id || null,
         current_player_index: updatedLobby?.current_player_index ?? null,
@@ -170,26 +164,29 @@ export function useLobbySync({
         if (!fresh) return;
 
         const previous = latestLobbyRef.current;
+        const freshLobby = normalizeLobbyState(fresh, previous || {});
         const hasChanged =
           !previous ||
-          previous.current_player_index !== fresh.current_player_index ||
-          previous.current_question_id !== fresh.current_question_id ||
-          previous.status !== fresh.status ||
-          JSON.stringify(previous.used_question_ids || []) !== JSON.stringify(fresh.used_question_ids || []) ||
-          JSON.stringify(summarizePlayers(previous.players || [])) !== JSON.stringify(summarizePlayers(fresh.players || []));
+          previous.state_revision !== freshLobby.state_revision ||
+          previous.current_player_index !== freshLobby.current_player_index ||
+          previous.current_question_id !== freshLobby.current_question_id ||
+          previous.status !== freshLobby.status ||
+          JSON.stringify(previous.used_question_ids || []) !== JSON.stringify(freshLobby.used_question_ids || []) ||
+          JSON.stringify(summarizePlayers(previous.players || [])) !== JSON.stringify(summarizePlayers(freshLobby.players || []));
 
         debugLog('[useLobbySync] poll check:', {
-          lobbyId: fresh.id,
+          lobbyId: freshLobby.id,
           hasChanged,
-          status: fresh.status,
-          current_player_index: fresh.current_player_index ?? null,
-          current_question_id: fresh.current_question_id || null,
-          used_question_count: fresh.used_question_ids?.length || 0,
-          players: summarizePlayers(fresh.players || []),
+          status: freshLobby.status,
+          state_revision: freshLobby.state_revision ?? 0,
+          current_player_index: freshLobby.current_player_index ?? null,
+          current_question_id: freshLobby.current_question_id || null,
+          used_question_count: freshLobby.used_question_ids?.length || 0,
+          players: summarizePlayers(freshLobby.players || []),
         });
 
         if (hasChanged) {
-          applyLobbyData(fresh, 'poll');
+          applyLobbyData(freshLobby, 'poll');
         }
       } catch (err) {
         debugWarn('[useLobbySync] poll failed:', err.message);
