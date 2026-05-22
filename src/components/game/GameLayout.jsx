@@ -8,7 +8,7 @@ import { playerTextColors } from './playerColors';
 
 const CTA_ACTIVE_SHADOW = [
   '0 10px 0 rgba(120,53,15,0.92), 0 18px 32px rgba(0,0,0,0.34), 0 0 18px rgba(250,204,21,0.34)',
-  '0 10px 0 rgba(120,53,15,0.92), 0 20px 36px rgba(0,0,0,0.38), var(--kx-glow-medium)',
+  '0 10px 0 rgba(120,53,15,0.92), 0 20px 36px rgba(0,0,0,0.38), 0 0 24px rgba(250,204,21,0.42)',
   '0 10px 0 rgba(120,53,15,0.92), 0 18px 32px rgba(0,0,0,0.34), 0 0 18px rgba(250,204,21,0.34)',
 ];
 
