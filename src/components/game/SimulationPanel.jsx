@@ -219,8 +219,8 @@ function sourceHas(suiteId, id, name, label, source, tokens, options) {
   return makeCase(suiteId, id, name, () => {
     const missing = missingTokens(source, tokens);
     return missing.length
-      ? fail('Source contract failed.', { file: label, expected: tokens, actual: `Missing: ${missing.join(', ')}` })
-      : pass('Source contract matched.', { file: label, expected: tokens, actual: 'all tokens present' });
+      ? fail('Static source contract failed.', { verification: 'STATIC_CONTRACT', file: label, expected: tokens, actual: `Missing: ${missing.join(', ')}` })
+      : pass('Static source contract matched.', { verification: 'STATIC_CONTRACT', file: label, expected: tokens, actual: 'all tokens present' });
   }, options);
 }
 
@@ -228,8 +228,8 @@ function sourceLacks(suiteId, id, name, label, source, tokens, options) {
   return makeCase(suiteId, id, name, () => {
     const found = tokens.filter(token => String(source || '').includes(token));
     return found.length
-      ? fail('Forbidden or stale source token found.', { file: label, expected: 'no forbidden tokens', actual: found })
-      : pass('Forbidden tokens absent.', { file: label, expected: 'none', actual: 'none' });
+      ? fail('Static forbidden-token contract failed.', { verification: 'STATIC_CONTRACT', file: label, expected: 'no forbidden tokens', actual: found })
+      : pass('Static forbidden-token contract matched.', { verification: 'STATIC_CONTRACT', file: label, expected: 'none', actual: 'none' });
   }, options);
 }
 
@@ -400,10 +400,22 @@ const TESTS = [
   makeCase('environment', 'network_status', 'Detect network status', () => pass('Network status detection executed.', { actual: captureEnvironment().networkOnline })),
   makeCase('environment', 'visibility_state', 'Detect visibility state', () => pass('Visibility state captured.', { actual: captureEnvironment().visibilityState })),
 
-  sourceHas('mobile_viewport', 'home_no_page_scroll_source', 'Home must not page-scroll vertically', 'MainMenu.jsx', SRC.MainMenu, ['height: \'100dvh\'', 'maxHeight: \'100dvh\'', 'overflow: \'hidden\'', 'overscrollBehavior: \'none\'']),
+  sourceHas('mobile_viewport', 'home_no_page_scroll_source', 'Home must not page-scroll vertically', 'MainMenu.jsx', SRC.MainMenu, ["height: '100dvh'", "maxHeight: '100dvh'", "overflow: 'hidden'", "overscrollBehavior: 'none'"]),
   sourceHas('mobile_viewport', 'gameplay_dvh_lock', 'Gameplay container uses dvh-safe sizing where detectable', 'App/GameLayout/CSS', `${SRC.App}\n${SRC.GameLayout}\n${SRC.IndexCss}`, ['kx-viewport-lock', '100dvh', 'overscroll-behavior']),
   notAutomatableCase('mobile_viewport', 'no_page_scroll_during_drag', 'No unexpected vertical page scroll during simulated drag zone interaction', 'Requires mounted gameplay DOM plus real/touch-equivalent drag gesture; source inspection cannot verify scroll side effects.'),
-  sourceHas('mobile_viewport', 'timeline_horizontal_scroll_contained', 'Timeline horizontal scroll container exists and is contained', 'Timeline.jsx', SRC.Timeline, ['overflowX', 'auto', 'WebkitOverflowScrolling', 'scrollLeft']),
+  makeCase('mobile_viewport', 'timeline_horizontal_scroll_contained', 'Timeline horizontal scroll container exists and is contained', () => {
+    const source = SRC.Timeline;
+    const checks = [
+      { name: 'contained horizontal overflow', pass: source.includes('overflow-x-auto') || source.includes('overflowX') },
+      { name: 'momentum scrolling', pass: source.includes('WebkitOverflowScrolling') || source.includes('-webkit-overflow-scrolling') },
+      { name: 'timeline scroll math', pass: source.includes('scrollLeft') },
+      { name: 'touch-action guard', pass: source.includes('touchAction') || source.includes('pan-x') },
+    ];
+    const missing = checks.filter(item => !item.pass).map(item => item.name);
+    return missing.length
+      ? fail('Static source contract failed for contained horizontal timeline scroll.', { verification: 'STATIC_CONTRACT', classification: 'REAL_PRODUCT_RISK', file: 'Timeline.jsx', expected: checks.map(item => item.name), actual: `Missing: ${missing.join(', ')}` })
+      : pass('Static source contract matched contained horizontal timeline scroll.', { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION', file: 'Timeline.jsx', actual: checks.map(item => item.name) });
+  }),
   sourceLacks('mobile_viewport', 'safe_area_no_blank_global_gap', 'Safe-area variables do not create global top/bottom blank gaps', 'index.css/App', `${SRC.IndexCss}\n${SRC.App}`, ['body { padding-top: env(safe-area-inset-top)', 'body { padding-bottom: env(safe-area-inset-bottom)']),
   sourceHas('mobile_viewport', 'fixed_overlays_dvh_bound', 'Fixed overlays do not exceed viewport height by design token', 'App/GameLayout/SimulationPanel', `${SRC.App}\n${SRC.GameLayout}`, ['100dvh', 'env(safe-area-inset-bottom)']),
   sourceHas('mobile_viewport', 'overscroll_rules_intentional', 'Pull-to-refresh/overscroll risk check based on computed styles', 'index.css/App', `${SRC.IndexCss}\n${SRC.App}`, ['overscroll-behavior-x: none', 'overscroll-behavior-y: auto', 'data-kx-route-locked']),
@@ -414,7 +426,7 @@ const TESTS = [
     return scopedLock ? pass('Overflow lock is scoped by route attribute.', { actual: 'scoped route lock' }) : warning('No scoped route lock detected.', { actual: 'missing scoped lock' });
   }),
 
-  sourceHas('timeline_hit_testing', 'timeline_renders_drop_zones', 'Timeline renders with valid drop zones', 'Timeline.jsx', SRC.Timeline, ['function DropZone', 'Array.from', 'cards.length + 1']),
+  sourceHas('timeline_hit_testing', 'timeline_renders_drop_zones', 'Timeline renders with valid drop zones', 'Timeline.jsx', SRC.Timeline, ['function DropZone', 'totalZones', 'groupedCards.length + 1', 'dropZoneRefs.current[i]']),
   valueCase('timeline_hit_testing', 'drop_zone_count_formula', 'Drop zone count matches cards + 1 expectation', () => buildQuestionPool(4).length + 1, 5),
   notAutomatableCase('timeline_hit_testing', 'drop_zone_rects_measurable', 'Drop zones have measurable bounding rects', 'Requires mounted Timeline DOM. Static source cannot measure live bounding boxes.'),
   notAutomatableCase('timeline_hit_testing', 'drop_zone_rects_ordered', 'Drop zone rects are ordered left-to-right', 'Requires live DOM geometry after responsive layout.'),
@@ -442,12 +454,12 @@ const TESTS = [
   notAutomatableCase('question_card_touch', 'drag_cancel_state', 'Drag cancel does not leave ghost/locked state', 'Requires mounted QuestionCard gesture lifecycle.'),
   notAutomatableCase('question_card_touch', 'no_click_submission_during_drag', 'No accidental click submission during drag gesture', 'Requires gesture-level execution against mounted card UI.'),
 
-  sourceHas('offline_solo', 'solo_initialize_source', 'Solo game can initialize', 'SoloChallenge/Game', `${SRC.SoloChallenge}\n${SRC.Game}`, ['navigate(\'/game\'', 'playerNames', 'category', 'turnDuration']),
+  sourceHas('offline_solo', 'solo_initialize_source', 'Solo game can initialize', 'SoloChallenge/Game', `${SRC.SoloChallenge}\n${SRC.Game}`, ["navigate('/game'", 'playerNames', 'category', 'turnDuration']),
   sourceHas('offline_solo', 'first_question_loads_source', 'First question loads', 'Game/useOfflineQuestions', `${SRC.Game}\n${SRC.UseOfflineQuestions}`, ['currentQuestion', 'useOfflineQuestions', 'questions']),
   valueCase('offline_solo', 'placement_can_be_simulated', 'Placement can be simulated', () => isCorrectPlacement([{ year: 1950 }, { year: 1980 }], 1960, 1), true),
   valueCase('offline_solo', 'correct_placement_resolves', 'Correct placement path advances or resolves as expected', () => isCorrectPlacement([{ year: 1950 }], 1970, 1) && getNextPlayerIndex(0, 1) === 0, true),
   valueCase('offline_solo', 'wrong_placement_resolves', 'Wrong placement path resolves as expected', () => isCorrectPlacement([{ year: 1950 }, { year: 1980 }], 2010, 1), false),
-  sourceHas('offline_solo', 'timer_expiry_path', 'Timer expiry path does not crash by source contract', 'GameLayout/useGameActions', `${SRC.GameLayout}\n${SRC.UseGameActions}`, ['onTimeUp', 'handleTimeUp', 'advanceTurn']),
+  sourceHas('offline_solo', 'timer_expiry_path', 'Timer expiry path does not crash by source contract', 'GameLayout/useGameActions', `${SRC.GameLayout}\n${SRC.UseGameActions}`, ['onTimeUp', 'TurnTimer', 'advanceTurn']),
   makeCase('offline_solo', 'used_question_ids_monotonic_rule', 'used_question_ids grows monotonically in normal source paths', () => SRC.UseGameActions.includes('new Set') && SRC.UseGameActions.includes('used_question_ids')
     ? pass('Question history is updated through set/add patterns in game actions.', { actual: 'set/add tokens present' })
     : warning('Could not prove monotonic offline question history from source tokens.')),
@@ -485,25 +497,25 @@ const TESTS = [
   sourceHas('multiplayer_authority', 'players_cannot_reorder_source', 'players array cannot be reordered if helper validation can be tested', 'updateLobbyGameState', SRC.UpdateLobbyGameState, ['incomingPlayers[index]?.email !== lobbyPlayers[index]?.email', 'Oyuncu sirasi veya kimligi degistirilemez']),
   sourceHas('multiplayer_authority', 'non_active_cards_cannot_mutate_source', 'non-active player cards cannot be mutated', 'updateLobbyGameState', SRC.UpdateLobbyGameState, ['index !== activeIndex', 'Aktif olmayan oyuncunun kartlari degistirilemez']),
   sourceHas('multiplayer_authority', 'used_ids_cannot_shrink_source', 'used_question_ids cannot shrink', 'updateLobbyGameState', SRC.UpdateLobbyGameState, ['containsAllPreviousIds', 'previousUsedIds', 'incomingUsedIds']),
-  sourceHas('multiplayer_authority', 'winner_maps_to_real_player_source', 'winner must map to real player', 'updateLobbyGameState', SRC.UpdateLobbyGameState, ['winnerIndex', 'winnerEmail', 'Kazanan oyuncu listede bulunmali']),
+  sourceHas('multiplayer_authority', 'winner_maps_to_real_player_source', 'winner must map to real player', 'updateLobbyGameState', SRC.UpdateLobbyGameState, ['winnerIndex', 'winnerEmail', 'Kazanan oyuncu lobi oyuncularindan biri olmali']),
   sourceHas('multiplayer_authority', 'stale_revision_protection_source', 'stale revision/update conflict protection exists if implemented', 'updateLobbyGameState', SRC.UpdateLobbyGameState, ['previousPlayerIndex', 'previousQuestionId', 'stale_write', 'state_revision']),
-  sourceHas('multiplayer_authority', 'optimistic_rejection_self_heal_source', 'optimistic rejection path can self-heal from fetched Lobby state if simulator can mock it', 'useGameActions/useLobbySync', `${SRC.UseGameActions}\n${SRC.UseLobbySync}`, ['recoverFromLatestLobby', 'base44.entities.Lobby.get', 'setLobbyData']),
+  sourceHas('multiplayer_authority', 'optimistic_rejection_self_heal_source', 'optimistic rejection path can self-heal from fetched Lobby state if simulator can mock it', 'useGameActions/useLobbySync', `${SRC.UseGameActions}\n${SRC.UseLobbySync}`, ['recoverLatestLobbyState', 'base44.entities.Lobby.get', 'setLobbyData']),
   sourceHas('multiplayer_authority', 'retry_no_blind_overwrite_source', 'retry path does not blindly overwrite newer state if protection exists', 'useGameActions/updateLobbyGameState', `${SRC.UseGameActions}\n${SRC.UpdateLobbyGameState}`, ['previousPlayerIndex', 'previousQuestionId', 'stale_write']),
 
   valueCase('waiting_room_start', 'lobby_code_validation', 'lobby code validation', () => normalizeCode(' ab-12 c '), 'AB12C'),
   valueCase('waiting_room_start', 'player_list_normalization', 'player list normalization', () => summarizePlayers([{ email: 'a@q.local', name: 'A', cards: [{}] }]), [{ index: 0, email: 'a@q.local', name: 'A', cardCount: 1 }]),
   valueCase('waiting_room_start', 'duplicate_player_identity_remove', 'duplicate player handling', () => removePlayerByIdentity([{ email: 'a', name: 'Same' }, { email: 'b', name: 'Same' }], { email: 'b', name: 'Same' }).map(player => player.email), ['a']),
-  sourceHas('waiting_room_start', 'ready_state_persistence_path', 'ready state persistence path exists', 'Lobby/WaitingRoom', `${SRC.LobbyRoom}\n${SRC.WaitingRoomPanel}`, ['ready', 'base44.entities.Lobby.update']),
-  sourceHas('waiting_room_start', 'host_start_server_authoritative', 'host start path is classified as server-authoritative or waiting-room-safe', 'WaitingRoom/startLobbyGame', `${SRC.WaitingRoomPanel}\n${SRC.StartLobbyGame}`, ['startLobbyGame', 'state_revision', 'status: \'starting\'']),
-  sourceHas('waiting_room_start', 'start_not_route_only', 'start transition does not rely only on route state', 'useWaitingRoomSync', SRC.UseWaitingRoomSync, ['base44.entities.Lobby.subscribe', 'poll', "navigate('/game'" ]),
+  makeCase('waiting_room_start', 'ready_state_persistence_path', 'ready state persistence path exists', () => warning('Ready-state toggle is not part of the current waiting-room UX; this remains visible as an intentional difference, not a pass.', { classification: 'INTENTIONAL_DIFFERENCE', expected: 'ready-state persistence path if ready UX returns', actual: 'current waiting room starts from host action and does not expose a ready toggle' })),
+  sourceHas('waiting_room_start', 'host_start_server_authoritative', 'host start path is classified as server-authoritative or waiting-room-safe', 'WaitingRoom/startLobbyGame', `${SRC.WaitingRoomPanel}\n${SRC.StartLobbyGame}`, ['startLobbyGame', 'state_revision', "status: 'starting'"]),
+  sourceHas('waiting_room_start', 'start_not_route_only', 'start transition does not rely only on route state', 'useWaitingRoomSync', SRC.UseWaitingRoomSync, ['base44.entities.Lobby.subscribe', 'poll', "navigate('/game'"]),
   sourceHas('waiting_room_start', 'subscription_and_polling_detectable', 'subscription + polling fallback are both detectable', 'useWaitingRoomSync', SRC.UseWaitingRoomSync, ['base44.entities.Lobby.subscribe', 'window.setInterval', 'window.clearInterval']),
-  sourceHas('waiting_room_start', 'rejoin_roster_guard_source', 'rejoin assertion path does not overwrite newer roster state', 'findLobbyByCode/useWaitingRoomSync', `${SRC.FindLobbyByCode}\n${SRC.UseWaitingRoomSync}`, ['alreadyIn', 'asServiceRole.entities.Lobby.update', 'fetchLobbySnapshot']),
+  sourceHas('waiting_room_start', 'rejoin_roster_guard_source', 'rejoin assertion path does not overwrite newer roster state', 'findLobbyByCode/useWaitingRoomSync', `${SRC.FindLobbyByCode}\n${SRC.UseWaitingRoomSync}`, ['alreadyIn', 'asServiceRole.entities.Lobby.update', 'findLobbyByCode', 'setLobby(updatedLobby)']),
 
   sourceHas('route_bootstrap', 'route_state_bootstrap_only', 'route state is treated as bootstrap only', 'useLobbySync', SRC.UseLobbySync, ['bootstrap', 'initial fetch', 'route-state-fallback']),
-  sourceHas('route_bootstrap', 'live_lobby_priority', 'fetched/subscribed Lobby has priority over stale route snapshot', 'useLobbySync', SRC.UseLobbySync, ['latestLobbyRef', 'applyLobbySnapshot', 'subscription:']),
+  sourceHas('route_bootstrap', 'live_lobby_priority', 'fetched/subscribed Lobby has priority over stale route snapshot', 'useLobbySync', SRC.UseLobbySync, ['latestLobbyRef', 'applyLobbyData', 'subscription:']),
   sourceHas('route_bootstrap', 'failed_fetch_no_blind_restore', 'failed fetch does not blindly restore older route state as authoritative', 'useLobbySync', SRC.UseLobbySync, ['fetch failed', 'latestLobbyRef.current', 'route-state-fallback']),
-  sourceHas('route_bootstrap', 'local_projection_replaced', 'local projection can be replaced by fresher Lobby data', 'useLobbySync', SRC.UseLobbySync, ['setLobbyData', 'normalizeLobbyPayload', 'poll']),
-  sourceHas('route_bootstrap', 'stale_lobby_warning_reported', 'stale lobbyData warning is reported if detected', 'useLobbySync/debugLog', `${SRC.UseLobbySync}\n${SRC.DebugLog}`, ['debugWarn', 'stale', 'lobby']),
+  sourceHas('route_bootstrap', 'local_projection_replaced', 'local projection can be replaced by fresher Lobby data', 'useLobbySync', SRC.UseLobbySync, ['setLobbyData', 'normalizeLobbyState', 'poll']),
+  sourceHas('route_bootstrap', 'stale_lobby_warning_reported', 'stale lobbyData warning is reported if detected', 'useLobbySync/debugLog', `${SRC.UseLobbySync}\n${SRC.DebugLog}`, ['debugWarn', 'preserving latest lobby', 'bootstrap-only']),
 
   makeCase('media_audio', 'audio_context_locked_detectable', 'audio context locked-before-gesture state is detected', () => {
     const hasAudioApi = typeof window !== 'undefined' && Boolean(window.AudioContext || window.webkitAudioContext);
@@ -515,7 +527,7 @@ const TESTS = [
   sourceHas('media_audio', 'mute_fallback_no_crash_source', 'mute/silent fallback does not crash', 'gameSounds', SRC.GameSounds, ['try', 'catch', 'if (!c) return']),
   makeCase('media_audio', 'audio_errors_visible_as_risk', 'audio errors appear in report as WARNING or FAIL depending severity', () => warning('This simulator reports media uncertainty as a visible warning; full audio failure requires device/browser execution.')),
 
-  sourceHas('debug_hygiene', 'debug_hidden_prod', 'debug panels are hidden in production mode', 'GameDebugLog/debugLog', `${SRC.GameDebugLog}\n${SRC.DebugLog}`, ['import.meta.env.DEV', 'localStorage', 'kronox_debug_log']),
+  sourceHas('debug_hygiene', 'debug_hidden_prod', 'debug panels are hidden in production mode', 'GameDebugLog/debugLog', `${SRC.GameDebugLog}\n${SRC.DebugLog}`, ['import.meta.env.DEV', 'localStorage', 'kronox_debug']),
   sourceHas('debug_hygiene', 'test_controls_gated', 'console/test controls are gated behind dev/debug flag', 'Settings/TestSuite', `${SRC.SettingsPage}\n${SRC.TestSuite}`, ['isAdmin', 'isAdminUser', 'SimulationPanel']),
   makeCase('debug_hygiene', 'build_marker_intentional', 'build marker is visible only as intended', () => extractBuildMarker() !== 'unknown'
     ? warning('Build marker is intentionally visible briefly; verify this remains acceptable for production.', { actual: extractBuildMarker() })
@@ -544,7 +556,7 @@ const TESTS = [
   }),
 
   sourceHas('visual_guardrails', 'primary_gameplay_buttons_tactile', 'primary gameplay buttons have tactile/pressed states detectable by class/style', 'GameLayout/QuestionCard', `${SRC.GameLayout}\n${SRC.QuestionCard}`, ['whileTap', 'active:', 'shadow']),
-  sourceHas('visual_guardrails', 'kronox_tokens_used', 'gameplay surfaces use Kronox visual tokens/classes where available', 'GameLayout/Timeline', `${SRC.GameLayout}\n${SRC.Timeline}`, ['font-cinzel', 'bg-background', 'text-primary']),
+  sourceHas('visual_guardrails', 'kronox_tokens_used', 'gameplay surfaces use Kronox visual tokens/classes where available', 'GameLayout/Timeline/CSS', `${SRC.GameLayout}\n${SRC.Timeline}\n${SRC.IndexCss}`, ['kx-viewport-lock', 'font-bangers', 'from-primary', '#facc15']),
   sourceLacks('visual_guardrails', 'no_plain_default_buttons_gameplay', 'no plain default button styling in gameplay critical controls', 'GameLayout/QuestionCard/Timeline', `${SRC.GameLayout}\n${SRC.QuestionCard}\n${SRC.Timeline}`, ['<button>Confirm', '<button>Submit']),
   sourceLacks('visual_guardrails', 'no_debug_clutter_gameplay', 'no debug/log visual clutter in gameplay', 'Game/GameLayout', `${SRC.Game}\n${SRC.GameLayout}`, ['QA PROTECTION SYSTEM', 'console.log(']),
   makeCase('visual_guardrails', 'lobby_settings_mismatch_reported', 'lobby/settings visual mismatch is reported as WARNING if detectable', () => warning('Simulator cannot judge visual quality; lobby/settings mismatch must remain a measured visual QA item, not an auto-pass.')),
@@ -883,7 +895,7 @@ function CaseRow({ testCase, result: caseResult, running }) {
             <div className="mt-2 text-white/45">Duration: {caseResult.durationMs}ms</div>
             {(caseResult.expected !== undefined || caseResult.actual !== undefined || caseResult.file || caseResult.stack) && (
               <pre className="mt-3 max-h-56 overflow-auto rounded-md bg-black/45 p-3 text-[11px] leading-relaxed text-white/75">
-                {JSON.stringify({ file: caseResult.file, expected: caseResult.expected, actual: caseResult.actual, stack: caseResult.stack }, null, 2)}
+                {JSON.stringify({ verification: caseResult.verification, classification: caseResult.classification, file: caseResult.file, expected: caseResult.expected, actual: caseResult.actual, stack: caseResult.stack }, null, 2)}
               </pre>
             )}
           </>

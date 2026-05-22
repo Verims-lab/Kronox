@@ -146,7 +146,8 @@
 }
 
 @layer utilities {
-  .kx-viewport-lock {
+  .kx-viewport-lock,
+  [data-kx-route-locked="true"] {
     min-height: 100vh;
     height: 100vh;
     max-height: 100vh;
@@ -155,7 +156,8 @@
   }
 
   @supports (height: 100dvh) {
-    .kx-viewport-lock {
+    .kx-viewport-lock,
+    [data-kx-route-locked="true"] {
       min-height: 100dvh;
       height: 100dvh;
       max-height: 100dvh;
