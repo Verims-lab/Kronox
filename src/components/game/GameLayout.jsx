@@ -7,28 +7,63 @@ import TurnTimer from './TurnTimer.jsx';
 import { playerTextColors } from './playerColors';
 
 function CTAButton({ active, onClick, disabled }) {
+  const activeShadow = [
+    '0 10px 0 rgba(120,53,15,0.92), 0 18px 32px rgba(0,0,0,0.34), 0 0 18px rgba(250,204,21,0.34)',
+    '0 10px 0 rgba(120,53,15,0.92), 0 20px 36px rgba(0,0,0,0.38), 0 0 30px rgba(250,204,21,0.58)',
+    '0 10px 0 rgba(120,53,15,0.92), 0 18px 32px rgba(0,0,0,0.34), 0 0 18px rgba(250,204,21,0.34)',
+  ];
+
   return (
     <motion.button
       onClick={() => { if (active && onClick) { sounds.tap(); onClick(); } }}
       disabled={disabled}
+      aria-disabled={disabled}
       animate={active ? {
-        boxShadow: ['0 0 16px rgba(250,204,21,0.4)', '0 0 28px rgba(250,204,21,0.7)', '0 0 16px rgba(250,204,21,0.4)'],
-        scale: [1, 1.02, 1],
+        boxShadow: activeShadow,
+        scale: [1, 1.012, 1],
       } : {
-        boxShadow: 'none',
+        boxShadow: '0 5px 0 rgba(6,10,26,0.82), 0 12px 24px rgba(0,0,0,0.22)',
         scale: 1,
       }}
-      transition={active ? { duration: 1.2, repeat: Infinity, ease: 'easeInOut' } : {}}
-      className="h-12 w-full max-w-[320px] rounded-2xl font-bangers text-xl tracking-wider transition-colors"
+      whileTap={active ? { scale: 0.965, y: 3 } : { scale: 0.99 }}
+      transition={active ? { duration: 1.25, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.18 }}
+      className="relative isolate h-12 w-full max-w-[320px] overflow-hidden rounded-2xl font-bangers text-xl tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/70"
       style={{
         background: active
-          ? 'linear-gradient(135deg, #facc15 0%, #f59e0b 100%)'
-          : 'rgba(255,255,255,0.08)',
-        color: active ? '#0a0f23' : 'rgba(255,255,255,0.25)',
+          ? 'linear-gradient(180deg, rgba(255,255,255,0.38) 0%, rgba(255,255,255,0.08) 18%, transparent 19%), linear-gradient(135deg, #fde047 0%, #facc15 42%, #f59e0b 100%)'
+          : 'linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0.045))',
+        border: active ? '1px solid rgba(255,255,255,0.42)' : '1px solid rgba(255,255,255,0.1)',
+        color: active ? '#0a0f23' : 'rgba(255,255,255,0.28)',
         cursor: active ? 'pointer' : 'not-allowed',
+        textShadow: active ? '0 1px 0 rgba(255,255,255,0.34)' : 'none',
+        touchAction: 'manipulation',
+        WebkitTapHighlightColor: 'transparent',
       }}
     >
-      Kartı Yerleştir
+      <span
+        aria-hidden="true"
+        className="absolute inset-x-0 top-0 h-1/2"
+        style={{
+          background: active
+            ? 'linear-gradient(180deg, rgba(255,255,255,0.34), rgba(255,255,255,0))'
+            : 'linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0))',
+        }}
+      />
+      <motion.span
+        aria-hidden="true"
+        className="absolute -inset-x-10 top-0 h-full skew-x-[-18deg]"
+        style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.42), transparent)' }}
+        animate={active ? { x: ['-34%', '34%'], opacity: [0.08, 0.24, 0.08] } : { opacity: 0 }}
+        transition={active ? { duration: 1.55, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.16 }}
+      />
+      <motion.span
+        aria-hidden="true"
+        className="absolute inset-x-5 bottom-1 h-1 rounded-full"
+        style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.84), transparent)' }}
+        animate={active ? { opacity: [0.36, 0.72, 0.36], scaleX: [0.82, 1, 0.82] } : { opacity: 0.08, scaleX: 0.72 }}
+        transition={active ? { duration: 1.25, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.16 }}
+      />
+      <span className="relative z-10 block translate-y-[1px]">Kartı Yerleştir</span>
     </motion.button>
   );
 }
