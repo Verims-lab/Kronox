@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Check, Copy, Loader2, Users } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
-import { Button } from '@/components/ui/button';
+import StonePanel from '@/components/ui/StonePanel';
+import GoldButton from '@/components/ui/GoldButton';
 import { useWaitingRoomSync } from '@/hooks/useWaitingRoomSync';
 import { summarizePlayers } from '@/lib/lobbyUtils';
 import { debugLog, debugWarn } from '@/lib/debugLog';
@@ -127,8 +128,15 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center"
-      style={{ paddingTop: 'calc(4rem + env(safe-area-inset-top))', paddingBottom: 'calc(4rem + env(safe-area-inset-bottom))' }}>
+    <div
+      className="min-h-screen flex flex-col items-center"
+      style={{
+        paddingTop: 'calc(4rem + env(safe-area-inset-top))',
+        paddingBottom: 'calc(4rem + env(safe-area-inset-bottom))',
+        background:
+          'radial-gradient(ellipse at 50% 12%, rgba(59,130,246,0.32), transparent 42%), radial-gradient(ellipse at 50% 90%, rgba(34,211,238,0.12), transparent 50%), linear-gradient(180deg, #050b1c 0%, #0a1738 55%, #03060f 100%)',
+      }}
+    >
       <div
         ref={waitingScrollRef}
         className="w-full max-w-lg px-4 pb-4 space-y-4 flex-1 overflow-y-auto"
@@ -136,28 +144,57 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
       >
         {refreshing && (
           <div className="flex justify-center py-1">
-            <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />
+            <Loader2 className="w-4 h-4 text-amber-300 animate-spin" />
           </div>
         )}
         <div className="flex items-center justify-between">
-          <h1 className="font-cinzel text-xl text-primary tracking-widest">Lobi</h1>
-          <button onClick={onLeave} className="text-xs font-inter text-muted-foreground hover:text-destructive transition-colors px-3 py-2 rounded min-h-[44px] min-w-[44px] flex items-center justify-center" aria-label="Lobiden ayrıl">
+          <h1
+            className="font-cinzel text-xl font-black tracking-widest"
+            style={{
+              color: '#facc15',
+              textShadow: '0 0 14px rgba(250,204,21,0.55), 0 2px 4px rgba(0,0,0,0.7)',
+            }}
+          >
+            Lobi
+          </h1>
+          <button
+            onClick={onLeave}
+            className="text-xs font-inter text-blue-100/70 hover:text-destructive transition-colors px-3 py-2 rounded min-h-[44px] min-w-[44px] flex items-center justify-center"
+            aria-label="Lobiden ayrıl"
+          >
             Ayrıl
           </button>
         </div>
 
-        <div className="text-center space-y-1">
-          <p className="font-inter text-xs text-muted-foreground">Lobi Kodu</p>
-          <button onClick={onCopyCode} className="flex items-center gap-2 mx-auto bg-secondary/50 border border-border/50 rounded-xl px-6 py-3 hover:bg-secondary transition-all min-h-[44px] min-w-[44px] justify-center" aria-label="Lobi kodunu kopyala">
-            <span className="font-cinzel text-2xl font-bold text-primary tracking-[0.3em]">{lobby.code}</span>
-            {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-muted-foreground" />}
+        {/* Lobby code — gold-rimmed stone tablet */}
+        <div className="text-center space-y-2">
+          <p className="font-inter text-xs uppercase tracking-widest text-blue-100/60">Lobi Kodu</p>
+          <button
+            onClick={onCopyCode}
+            className="flex items-center gap-2 mx-auto px-6 py-3 min-h-[44px] justify-center"
+            style={{
+              borderRadius: 14,
+              background: 'linear-gradient(180deg, rgba(30,41,75,0.95), rgba(10,18,38,0.98))',
+              boxShadow:
+                'inset 0 0 0 2px rgba(250,204,21,0.55), inset 0 1px 0 rgba(255,236,140,0.32), inset 0 -8px 12px rgba(0,0,0,0.5), 0 0 18px rgba(59,130,246,0.32), 0 0 22px rgba(250,204,21,0.18)',
+            }}
+            aria-label="Lobi kodunu kopyala"
+          >
+            <span
+              className="font-cinzel text-2xl font-black tracking-[0.3em]"
+              style={{ color: '#facc15', textShadow: '0 0 14px rgba(250,204,21,0.6)' }}
+            >
+              {lobby.code}
+            </span>
+            {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-amber-200/80" />}
           </button>
-          <p className="font-inter text-xs text-muted-foreground/60">Arkadaşlarına bu kodu ver</p>
+          <p className="font-inter text-xs text-blue-100/55">Arkadaşlarına bu kodu ver</p>
         </div>
 
-        <div className="space-y-2">
-          <p className="font-inter text-xs text-muted-foreground flex items-center gap-1">
-            <Users className="w-3 h-3" /> Oyuncular ({lobby.players?.length || 0})
+        {/* Players panel */}
+        <StonePanel glow="portal" padding="p-4" className="space-y-3">
+          <p className="font-inter text-[11px] uppercase tracking-widest text-blue-100/70 font-semibold flex items-center gap-1.5">
+            <Users className="w-3.5 h-3.5" /> Oyuncular ({lobby.players?.length || 0})
           </p>
           <div className="space-y-2">
             {(lobby.players || []).map((p, i) => (
@@ -165,111 +202,136 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
                 key={p.email || i}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="flex items-center gap-3 bg-secondary/30 border border-border/30 rounded-xl px-4 py-3"
+                className="flex items-center gap-3 rounded-xl px-3 py-2.5"
+                style={{
+                  background: 'linear-gradient(180deg, rgba(20,32,68,0.85), rgba(8,14,32,0.92))',
+                  boxShadow:
+                    'inset 0 0 0 1px rgba(120,170,255,0.28), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -6px 8px rgba(0,0,0,0.35)',
+                }}
               >
-                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center font-cinzel text-primary font-bold text-sm">
+                <div
+                  className="w-9 h-9 rounded-full flex items-center justify-center font-cinzel font-black text-sm"
+                  style={{
+                    background: i === 0
+                      ? 'radial-gradient(circle at 35% 28%, #ffe066, #b97a06 70%)'
+                      : 'radial-gradient(circle at 35% 28%, #60a5fa, #1e3a8a 70%)',
+                    color: i === 0 ? '#1a1006' : '#ffffff',
+                    boxShadow:
+                      'inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -4px 6px rgba(0,0,0,0.35), 0 0 10px rgba(0,0,0,0.45)',
+                  }}
+                >
                   {p.name?.[0]?.toUpperCase()}
                 </div>
-                <span className="font-inter text-foreground flex-1">{p.name}</span>
-                {i === 0 && <span className="text-xs font-inter text-primary bg-primary/10 px-2 py-0.5 rounded-full">Host</span>}
-                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="font-inter text-white/95 flex-1">{p.name}</span>
+                {i === 0 && (
+                  <span
+                    className="text-[10px] font-inter font-black uppercase tracking-wider px-2 py-0.5 rounded-full"
+                    style={{
+                      background: 'linear-gradient(180deg, #ffe066, #b97a06)',
+                      color: '#1a1006',
+                      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4), 0 0 8px rgba(250,204,21,0.55)',
+                    }}
+                  >
+                    Host
+                  </span>
+                )}
+                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" style={{ boxShadow: '0 0 8px rgba(52,211,153,0.7)' }} />
               </motion.div>
             ))}
           </div>
           {(lobby.players?.length || 0) < 2 && (
-            <p className="font-inter text-xs text-muted-foreground/60 text-center">
+            <p className="font-inter text-xs text-blue-100/55 text-center pt-1">
               Oyun başlatmak için en az 2 oyuncu gerekli
             </p>
           )}
-        </div>
+        </StonePanel>
 
         {isHost && (
-          <div className="space-y-3 border border-border/30 rounded-xl p-4 bg-secondary/10">
-            <p className="font-inter text-xs text-muted-foreground font-semibold uppercase tracking-wider">Oyun Ayarları</p>
+          <StonePanel glow="gold" padding="p-4" className="space-y-3">
+            <p className="font-inter text-[11px] uppercase tracking-widest text-amber-200/80 font-black">Oyun Ayarları</p>
 
-            <div className="space-y-1">
-              <p className="font-inter text-xs text-muted-foreground">Kategori</p>
+            <div className="space-y-1.5">
+              <p className="font-inter text-xs text-blue-100/70">Kategori</p>
               <div className="flex flex-wrap gap-1.5">
                 {categories.map(c => (
-                  <button
+                  <ChipButton
                     key={c.value}
+                    active={settings.category === c.value}
                     onClick={() => handleSettingChange('category', c.value)}
-                    className={`px-3 py-1 rounded-lg border text-xs font-inter transition-all min-h-[44px] min-w-[44px] ${settings.category === c.value ? 'border-primary bg-primary/15 text-primary' : 'border-border/50 bg-secondary/30 text-muted-foreground'}`}
-                    aria-label={`${c.label} kategorisini seç`}
-                    aria-pressed={settings.category === c.value}
+                    ariaLabel={`${c.label} kategorisini seç`}
                   >
                     {c.label}
-                  </button>
+                  </ChipButton>
                 ))}
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <p className="font-inter text-xs text-muted-foreground">Başlangıç Yılı</p>
+              <div className="space-y-1.5">
+                <p className="font-inter text-xs text-blue-100/70">Başlangıç Yılı</p>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => handleSettingChange('year_start', Math.max(0, settings.year_start - 10))} className="w-10 h-10 rounded-lg border border-border/50 bg-secondary/30 text-muted-foreground text-sm font-bold flex items-center justify-center min-h-[44px] min-w-[44px]" aria-label="Başlangıç yılını azalt">−</button>
-                  <span className="flex-1 text-center font-cinzel text-sm font-bold text-foreground">{settings.year_start}</span>
-                  <button onClick={() => handleSettingChange('year_start', Math.min(settings.year_end - 10, settings.year_start + 10))} className="w-10 h-10 rounded-lg border border-border/50 bg-secondary/30 text-muted-foreground text-sm font-bold flex items-center justify-center min-h-[44px] min-w-[44px]" aria-label="Başlangıç yılını arttır">+</button>
+                  <StepperButton onClick={() => handleSettingChange('year_start', Math.max(0, settings.year_start - 10))} ariaLabel="Başlangıç yılını azalt">−</StepperButton>
+                  <span className="flex-1 text-center font-cinzel text-sm font-black text-amber-200">{settings.year_start}</span>
+                  <StepperButton onClick={() => handleSettingChange('year_start', Math.min(settings.year_end - 10, settings.year_start + 10))} ariaLabel="Başlangıç yılını arttır">+</StepperButton>
                 </div>
               </div>
-              <div className="space-y-1">
-                <p className="font-inter text-xs text-muted-foreground">Bitiş Yılı</p>
+              <div className="space-y-1.5">
+                <p className="font-inter text-xs text-blue-100/70">Bitiş Yılı</p>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => handleSettingChange('year_end', Math.max(settings.year_start + 10, settings.year_end - 10))} className="w-10 h-10 rounded-lg border border-border/50 bg-secondary/30 text-muted-foreground text-sm font-bold flex items-center justify-center min-h-[44px] min-w-[44px]" aria-label="Bitiş yılını azalt">−</button>
-                  <span className="flex-1 text-center font-cinzel text-sm font-bold text-foreground">{settings.year_end}</span>
-                  <button onClick={() => handleSettingChange('year_end', Math.min(new Date().getFullYear(), settings.year_end + 10))} className="w-10 h-10 rounded-lg border border-border/50 bg-secondary/30 text-muted-foreground text-sm font-bold flex items-center justify-center min-h-[44px] min-w-[44px]" aria-label="Bitiş yılını arttır">+</button>
+                  <StepperButton onClick={() => handleSettingChange('year_end', Math.max(settings.year_start + 10, settings.year_end - 10))} ariaLabel="Bitiş yılını azalt">−</StepperButton>
+                  <span className="flex-1 text-center font-cinzel text-sm font-black text-amber-200">{settings.year_end}</span>
+                  <StepperButton onClick={() => handleSettingChange('year_end', Math.min(new Date().getFullYear(), settings.year_end + 10))} ariaLabel="Bitiş yılını arttır">+</StepperButton>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-1">
-              <p className="font-inter text-xs text-muted-foreground">Tur Süresi</p>
+            <div className="space-y-1.5">
+              <p className="font-inter text-xs text-blue-100/70">Tur Süresi</p>
               <div className="flex gap-2">
                 {[30, 60, 90, 120].map(s => (
-                  <button
+                  <ChipButton
                     key={s}
+                    active={settings.turn_duration === s}
                     onClick={() => handleSettingChange('turn_duration', s)}
-                    className={`flex-1 py-1.5 rounded-lg border text-xs font-cinzel font-bold transition-all min-h-[44px] min-w-[44px] ${settings.turn_duration === s ? 'border-primary bg-primary/15 text-primary' : 'border-border/50 bg-secondary/30 text-muted-foreground'}`}
-                    aria-label={`${s} saniye tur süresi seç`}
-                    aria-pressed={settings.turn_duration === s}
+                    ariaLabel={`${s} saniye tur süresi seç`}
+                    className="flex-1"
                   >
                     {s}s
-                  </button>
+                  </ChipButton>
                 ))}
               </div>
             </div>
 
-            <div className="space-y-1">
-              <p className="font-inter text-xs text-muted-foreground">Kazanmak için kart sayısı</p>
+            <div className="space-y-1.5">
+              <p className="font-inter text-xs text-blue-100/70">Kazanmak için kart sayısı</p>
               <div className="flex gap-2">
                 {[5, 7, 10, 15].map(n => (
-                  <button
+                  <ChipButton
                     key={n}
+                    active={settings.win_card_count === n}
                     onClick={() => handleSettingChange('win_card_count', n)}
-                    className={`flex-1 py-1.5 rounded-lg border text-xs font-cinzel font-bold transition-all min-h-[44px] min-w-[44px] ${settings.win_card_count === n ? 'border-primary bg-primary/15 text-primary' : 'border-border/50 bg-secondary/30 text-muted-foreground'}`}
-                    aria-label={`${n} kart ile kazanmak için seç`}
-                    aria-pressed={settings.win_card_count === n}
+                    ariaLabel={`${n} kart ile kazanmak için seç`}
+                    className="flex-1"
                   >
                     {n}
-                  </button>
+                  </ChipButton>
                 ))}
               </div>
             </div>
-          </div>
+          </StonePanel>
         )}
 
         {!isHost && (
-          <div className="border border-border/30 rounded-xl p-4 bg-secondary/10 space-y-2">
-            <p className="font-inter text-xs text-muted-foreground font-semibold uppercase tracking-wider">Oyun Ayarları</p>
-            <div className="grid grid-cols-2 gap-2 text-xs font-inter text-muted-foreground">
-              <span>Kategori: <span className="text-foreground">{lobby.category}</span></span>
-              <span>Tur süresi: <span className="text-foreground">{lobby.turn_duration}s</span></span>
-              <span>Yıllar: <span className="text-foreground">{lobby.year_start}–{lobby.year_end}</span></span>
-              <span>Kazanma: <span className="text-foreground">{lobby.win_card_count} kart</span></span>
+          <StonePanel glow="portal" padding="p-4" className="space-y-2">
+            <p className="font-inter text-[11px] uppercase tracking-widest text-blue-100/70 font-black">Oyun Ayarları</p>
+            <div className="grid grid-cols-2 gap-2 text-xs font-inter text-blue-100/75">
+              <span>Kategori: <span className="text-amber-200">{lobby.category}</span></span>
+              <span>Tur süresi: <span className="text-amber-200">{lobby.turn_duration}s</span></span>
+              <span>Yıllar: <span className="text-amber-200">{lobby.year_start}–{lobby.year_end}</span></span>
+              <span>Kazanma: <span className="text-amber-200">{lobby.win_card_count} kart</span></span>
             </div>
-            <p className="font-inter text-xs text-muted-foreground/60 text-center mt-2">Host oyunu başlatmasını bekliyor...</p>
-          </div>
+            <p className="font-inter text-xs text-blue-100/55 text-center mt-2">Host oyunu başlatmasını bekliyor...</p>
+          </StonePanel>
         )}
 
         {isDebugVisible && (
@@ -295,11 +357,11 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
 
       {isHost && (
         <div className="w-full max-w-lg px-4 pt-2" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
-          <Button
+          <GoldButton
+            variant="gold"
+            size="lg"
             onClick={handleStart}
             disabled={!canStart || isStarting}
-            size="lg"
-            className="w-full h-12 bg-primary text-primary-foreground font-cinzel tracking-wider disabled:opacity-30"
           >
             {isStarting ? (
               <span className="inline-flex items-center justify-center gap-2">
@@ -307,9 +369,48 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
                 BAŞLATILIYOR
               </span>
             ) : `OYUNU BAŞLAT (${lobby.players?.length || 0} oyuncu)`}
-          </Button>
+          </GoldButton>
         </div>
       )}
     </div>
+  );
+}
+
+function ChipButton({ active, onClick, ariaLabel, className = '', children }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-3 py-1.5 rounded-lg text-xs font-cinzel font-black transition-all min-h-[44px] ${className}`}
+      style={{
+        background: active
+          ? 'linear-gradient(180deg, #ffe066 0%, #facc15 50%, #b97a06 100%)'
+          : 'linear-gradient(180deg, rgba(30,41,75,0.92), rgba(10,18,38,0.96))',
+        color: active ? '#1a1006' : '#cfe1ff',
+        boxShadow: active
+          ? 'inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -6px 8px rgba(151,78,0,0.3), 0 0 12px rgba(250,204,21,0.55)'
+          : 'inset 0 0 0 1px rgba(120,170,255,0.32), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -4px 6px rgba(0,0,0,0.35)',
+      }}
+      aria-label={ariaLabel}
+      aria-pressed={active}
+    >
+      {children}
+    </button>
+  );
+}
+
+function StepperButton({ onClick, ariaLabel, children }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-11 h-11 rounded-lg text-amber-200 text-base font-black flex items-center justify-center min-h-[44px] min-w-[44px]"
+      style={{
+        background: 'linear-gradient(180deg, rgba(30,41,75,0.92), rgba(10,18,38,0.96))',
+        boxShadow:
+          'inset 0 0 0 1px rgba(250,204,21,0.42), inset 0 1px 0 rgba(255,236,140,0.18), inset 0 -4px 6px rgba(0,0,0,0.4)',
+      }}
+      aria-label={ariaLabel}
+    >
+      {children}
+    </button>
   );
 }

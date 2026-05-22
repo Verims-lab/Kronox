@@ -5,18 +5,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { sounds } from '@/lib/gameSounds';
 import CategoryCard from '@/components/lobby/CategoryCard';
+import GoldButton from '@/components/ui/GoldButton';
 
 const LOGO_URL = 'https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/49fc6f458_kronoxnobckgrnd.png';
-const COSMIC_BACKGROUND = '/assets/ui/Kronox-Cosmic_background.webp';
 const WIDE_STAGE_QUERY = '(min-aspect-ratio: 9 / 16)';
 
+// Kronox v2 — fantasy portal palette (blue/cyan/gold) shared by all category cards.
 const CATEGORIES = [
-  { id: 'flashback', label: 'FLASHBACK', Icon: Zap, tone: '#facc15', glow: 'rgba(250,204,21,0.72)', scene: 'portal' },
-  { id: 'kult', label: 'KÜLT', Icon: Landmark, tone: '#d946ef', glow: 'rgba(217,70,239,0.66)', scene: 'ritual' },
-  { id: 'viral', label: 'VIRAL', Icon: Radio, tone: '#a855f7', glow: 'rgba(168,85,247,0.62)', scene: 'signal' },
-  { id: 'arena', label: 'ARENA', Icon: Trophy, tone: '#b874ff', glow: 'rgba(184,116,255,0.58)', scene: 'arena' },
-  { id: 'level-up', label: 'LEVEL UP', Icon: ChevronsUp, tone: '#e879f9', glow: 'rgba(232,121,249,0.58)', scene: 'ascent' },
-  { id: 'chronicle', label: 'CHRONICLE', Icon: Hourglass, tone: '#c084fc', glow: 'rgba(192,132,252,0.58)', scene: 'hourglass' },
+  { id: 'flashback', label: 'FLASHBACK', Icon: Zap, scene: 'portal' },
+  { id: 'kult', label: 'KÜLT', Icon: Landmark, scene: 'ritual' },
+  { id: 'viral', label: 'VIRAL', Icon: Radio, scene: 'signal' },
+  { id: 'arena', label: 'ARENA', Icon: Trophy, scene: 'arena' },
+  { id: 'level-up', label: 'LEVEL UP', Icon: ChevronsUp, scene: 'ascent' },
+  { id: 'chronicle', label: 'CHRONICLE', Icon: Hourglass, scene: 'hourglass' },
 ];
 
 const getIsWideStage = () => (
@@ -52,25 +53,58 @@ export default function LobbyCreateJoinPanel({
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6"
-      style={{ paddingTop: 'calc(5rem + env(safe-area-inset-top))', paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}>
-      <div className="w-full max-w-md space-y-8">
+    <div
+      className="min-h-screen bg-background flex flex-col items-center justify-center px-6"
+      style={{
+        paddingTop: 'calc(5rem + env(safe-area-inset-top))',
+        paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))',
+        background:
+          'radial-gradient(ellipse at 50% 18%, rgba(59,130,246,0.34), transparent 42%), radial-gradient(ellipse at 50% 90%, rgba(34,211,238,0.14), transparent 50%), linear-gradient(180deg, #050b1c 0%, #0a1738 55%, #03060f 100%)',
+      }}
+    >
+      <div className="w-full max-w-md space-y-7">
         <div className="text-center space-y-2">
-          <div className="w-14 h-14 mx-auto border-2 border-primary/40 rounded-full flex items-center justify-center">
-            <Clock className="w-7 h-7 text-primary" />
+          <div
+            className="w-16 h-16 mx-auto rounded-full flex items-center justify-center"
+            style={{
+              background:
+                'radial-gradient(circle at 35% 28%, rgba(255,236,140,0.34), rgba(8,18,42,0.85) 62%)',
+              boxShadow:
+                'inset 0 0 0 2px #facc15, inset 0 1px 0 rgba(255,236,140,0.55), 0 0 22px rgba(250,204,21,0.55), 0 0 30px rgba(59,130,246,0.35)',
+            }}
+          >
+            <Clock className="w-7 h-7 text-amber-300" />
           </div>
-          <h1 className="font-cinzel text-3xl font-bold text-primary tracking-wider">KRONOX</h1>
-          <p className="font-inter text-muted-foreground text-sm">Çevrimiçi Lobi</p>
+          <h1
+            className="font-cinzel text-3xl font-black tracking-wider"
+            style={{
+              color: '#facc15',
+              textShadow: '0 0 18px rgba(250,204,21,0.55), 0 2px 4px rgba(0,0,0,0.7)',
+            }}
+          >
+            KRONOX
+          </h1>
+          <p className="font-inter text-blue-100/70 text-sm">Çevrimiçi Lobi</p>
         </div>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-4 rounded-2xl p-5"
+          style={{
+            background:
+              'linear-gradient(180deg, rgba(30,41,75,0.95) 0%, rgba(14,22,46,0.98) 70%, rgba(6,10,24,1) 100%)',
+            boxShadow:
+              'inset 0 0 0 1.5px rgba(120,170,255,0.4), inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -14px 18px rgba(0,0,0,0.55), 0 0 24px rgba(59,130,246,0.22), 0 12px 24px rgba(2,6,23,0.55)',
+          }}
+        >
           <div className="space-y-1">
             <Input
               placeholder="Oyuncu İsminiz"
               value={playerName}
               maxLength={15}
               onChange={e => { setPlayerName(e.target.value); setNameError(''); }}
-              className={`h-12 bg-secondary/50 border-border/50 font-inter ${nameError ? 'border-destructive' : ''}`}
+              className={`h-12 bg-slate-900/60 border-blue-400/30 text-white placeholder:text-blue-200/50 font-inter ${nameError ? 'border-destructive' : ''}`}
             />
             {nameError && <p className="font-inter text-xs text-destructive pl-1">{nameError}</p>}
           </div>
@@ -80,19 +114,23 @@ export default function LobbyCreateJoinPanel({
               value={joinCode}
               onChange={e => setJoinCode(e.target.value.toUpperCase())}
               maxLength={6}
-              className="h-12 bg-secondary/50 border-border/50 font-inter font-bold tracking-widest text-center text-lg uppercase"
+              className="h-12 bg-slate-900/60 border-blue-400/30 text-amber-200 placeholder:text-blue-200/50 font-inter font-bold tracking-widest text-center text-lg uppercase"
             />
           )}
           {error && <p className="text-destructive text-sm font-inter text-center">{error}</p>}
-          <Button
+          <GoldButton
+            variant="gold"
+            size="lg"
             onClick={mode === 'create' ? onCreate : onJoin}
             disabled={loading}
-            size="lg"
-            className="w-full h-12 bg-primary text-primary-foreground font-cinzel tracking-wider"
           >
             {loading ? 'Yükleniyor...' : mode === 'create' ? 'LOBİ OLUŞTUR' : 'KATIL'}
-          </Button>
-          <Button onClick={onBackMode || (() => { setMode(null); })} variant="ghost" className="w-full gap-2 text-muted-foreground">
+          </GoldButton>
+          <Button
+            onClick={onBackMode || (() => { setMode(null); })}
+            variant="ghost"
+            className="w-full gap-2 text-blue-100/70 hover:text-white hover:bg-white/5"
+          >
             <ArrowLeft className="w-4 h-4" /> Geri
           </Button>
         </motion.div>
@@ -178,24 +216,35 @@ function OnlineChallengeLanding({ onCreate, onJoin, onBackHome }) {
           overflow: 'hidden',
           overscrollBehavior: 'none',
           pointerEvents: 'none',
-          background: 'radial-gradient(circle at 50% 18%, rgba(116,32,182,0.58), transparent 30%), radial-gradient(circle at 50% 72%, rgba(250,204,21,0.16), transparent 34%), linear-gradient(180deg, #060310 0%, #130723 48%, #04020a 100%)',
+          background: [
+            'radial-gradient(circle at 50% 22%, rgba(59,130,246,0.5), transparent 36%)',
+            'radial-gradient(circle at 50% 76%, rgba(34,211,238,0.16), transparent 38%)',
+            'linear-gradient(180deg, #050b1c 0%, #0a1738 50%, #03060f 100%)',
+          ].join(', '),
         }}
       >
-        <img
-          src={COSMIC_BACKGROUND}
-          alt=""
-          draggable={false}
-          className="pointer-events-none absolute inset-0 z-0 h-full w-full object-cover"
-          style={{ objectPosition: 'center center', userSelect: 'none' }}
-        />
+        {/* Portal halo */}
         <div
           className="pointer-events-none absolute inset-0 z-[1]"
           style={{
             background: [
-              'radial-gradient(circle at 50% 8%, rgba(250,204,21,0.18), transparent 16%)',
-              'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(8,3,18,0.18) 38%, rgba(0,0,0,0.74) 100%)',
-              'radial-gradient(ellipse at 50% 102%, rgba(168,85,247,0.34), transparent 45%)',
+              'radial-gradient(circle at 50% 10%, rgba(250,204,21,0.18), transparent 18%)',
+              'radial-gradient(ellipse at 50% 36%, rgba(59,130,246,0.32), transparent 42%)',
+              'linear-gradient(180deg, rgba(0,0,0,0.12) 0%, rgba(4,8,22,0.22) 40%, rgba(0,0,0,0.74) 100%)',
             ].join(', '),
+          }}
+        />
+        {/* Drifting sparkles */}
+        <div
+          className="pointer-events-none absolute inset-0 z-[1]"
+          style={{
+            backgroundImage: [
+              'radial-gradient(circle at 18% 28%, rgba(186,225,255,0.45) 0 1px, transparent 2px)',
+              'radial-gradient(circle at 82% 18%, rgba(186,225,255,0.4) 0 1px, transparent 2px)',
+              'radial-gradient(circle at 68% 58%, rgba(186,225,255,0.34) 0 1.2px, transparent 2.2px)',
+              'radial-gradient(circle at 32% 70%, rgba(186,225,255,0.38) 0 1px, transparent 2px)',
+            ].join(', '),
+            opacity: 0.55,
           }}
         />
         <div
@@ -209,13 +258,13 @@ function OnlineChallengeLanding({ onCreate, onJoin, onBackHome }) {
         <button
           type="button"
           onClick={() => { sounds.tap(); onBackHome(); }}
-          className="pointer-events-auto absolute z-30 flex items-center justify-center rounded-full border border-purple-200/24 bg-black/58 text-white/80 active:scale-95"
+          className="pointer-events-auto absolute z-30 flex items-center justify-center rounded-full border border-amber-200/40 bg-black/58 text-white/85 active:scale-95"
           style={{
             left: '4.6%',
             top: 'calc(0.65rem + env(safe-area-inset-top))',
             width: 44,
             height: 44,
-            boxShadow: '0 0 18px rgba(168,85,247,0.26), inset 0 0 14px rgba(255,255,255,0.07)',
+            boxShadow: '0 0 16px rgba(59,130,246,0.42), inset 0 0 14px rgba(255,255,255,0.08)',
           }}
           aria-label="Ana ekrana dön"
         >
@@ -259,20 +308,20 @@ function OnlineChallengeLanding({ onCreate, onJoin, onBackHome }) {
             style={{
               fontSize: 'clamp(13px, 4.1cqw, 17px)',
               letterSpacing: '0.06em',
-              textShadow: '0 0 14px rgba(250,204,21,0.5), 0 0 18px rgba(168,85,247,0.55), 0 3px 8px rgba(0,0,0,0.78)',
+              textShadow: '0 0 14px rgba(250,204,21,0.55), 0 0 18px rgba(59,130,246,0.55), 0 3px 8px rgba(0,0,0,0.78)',
             }}
           >
             Arkadaşlarına Meydan Oku
           </p>
           <div className="mt-2 flex items-center justify-center gap-3">
-            <span className="h-px w-12 bg-gradient-to-r from-transparent via-purple-300/70 to-transparent" />
+            <span className="h-px w-12 bg-gradient-to-r from-transparent via-amber-300/70 to-transparent" />
             <span
-              className="font-inter font-black uppercase text-purple-100/85"
+              className="font-inter font-black uppercase text-amber-100/85"
               style={{ fontSize: 'clamp(10px, 2.8cqw, 12px)', letterSpacing: '0.28em' }}
             >
               Kategori Seç
             </span>
-            <span className="h-px w-12 bg-gradient-to-r from-transparent via-purple-300/70 to-transparent" />
+            <span className="h-px w-12 bg-gradient-to-r from-transparent via-amber-300/70 to-transparent" />
           </div>
         </div>
 
@@ -303,60 +352,23 @@ function OnlineChallengeLanding({ onCreate, onJoin, onBackHome }) {
 
         {/* CTAs — anchored to bottom area */}
         <section
-          className="pointer-events-auto absolute z-20 flex flex-col items-center"
+          className="pointer-events-auto absolute z-20 flex flex-col items-center gap-3"
           style={{
             left: '8.2%',
             right: '8.2%',
             bottom: 'calc(1.6rem + env(safe-area-inset-bottom))',
           }}
         >
-          <PrimaryChallengeButton onClick={startChallenge} />
-          <motion.button
-            type="button"
-            onClick={joinOpenLobby}
-            whileTap={{ scale: 0.965, y: 2 }}
-            transition={{ type: 'spring', stiffness: 560, damping: 25 }}
-            className="mt-3 flex h-11 w-[82%] items-center justify-center gap-2 border-0 bg-transparent font-cinzel text-[13px] font-black text-purple-50"
-            style={{
-              clipPath: 'polygon(8% 0, 92% 0, 100% 50%, 92% 100%, 8% 100%, 0 50%)',
-              background: 'linear-gradient(180deg, rgba(55,18,86,0.9), rgba(12,4,25,0.96))',
-              boxShadow: '0 0 16px rgba(168,85,247,0.32), inset 0 0 0 1px rgba(216,180,254,0.42), inset 0 -10px 14px rgba(0,0,0,0.42)',
-              letterSpacing: 0,
-            }}
-          >
-            <LogIn className="h-4 w-4 text-purple-200" />
-            Açık Lobiye Gir
-          </motion.button>
+          <GoldButton variant="gold" size="lg" onClick={startChallenge} icon={Zap}>
+            Meydan Okumaya Başla
+          </GoldButton>
+          <div className="w-[82%]">
+            <GoldButton variant="portal" size="md" onClick={joinOpenLobby} icon={LogIn}>
+              Açık Lobiye Gir
+            </GoldButton>
+          </div>
         </section>
       </div>
     </main>
-  );
-}
-
-function PrimaryChallengeButton({ onClick }) {
-  return (
-    <motion.button
-      type="button"
-      onClick={onClick}
-      whileTap={{ scale: 0.955, y: 5 }}
-      transition={{ type: 'spring', stiffness: 620, damping: 24 }}
-      className="relative flex h-[58px] w-full items-center justify-center gap-3 border-0 bg-transparent font-cinzel text-[15px] font-black text-black"
-      style={{
-        clipPath: 'polygon(8% 0, 92% 0, 100% 50%, 92% 100%, 8% 100%, 0 50%)',
-        background: 'linear-gradient(180deg, #ffe66d 0%, #facc15 48%, #e7a307 100%)',
-        boxShadow: '0 0 20px rgba(250,204,21,0.68), 0 10px 0 rgba(76,18,104,0.84), 0 18px 26px rgba(0,0,0,0.72), inset 0 1px 0 rgba(255,255,255,0.74), inset 0 -10px 12px rgba(151,78,0,0.28)',
-        letterSpacing: 0,
-      }}
-    >
-      <span
-        className="pointer-events-none absolute inset-[4px]"
-        style={{
-          clipPath: 'polygon(7% 0, 93% 0, 100% 50%, 93% 100%, 7% 100%, 0 50%)',
-          boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.34), inset 0 11px 12px rgba(255,255,255,0.24)',
-        }}
-      />
-      <span className="relative z-10">Meydan Okumaya Başla</span>
-      <Zap className="relative z-10 h-5 w-5 fill-black text-black" />
-    </motion.button>
   );
 }

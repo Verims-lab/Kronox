@@ -17,9 +17,11 @@ const getIsWideStage = () => (
 
 function ModeIllustration({ type }) {
   const solo = type === 'solo';
-  const glow = solo ? '#d15cff' : '#facc15';
-  const deep = solo ? '#16041f' : '#170f04';
-  const mid = solo ? '#6812a2' : '#875b06';
+  // Kronox v2 — both modes now share the royal portal palette;
+  // Solo uses portal cyan accent, Online uses gold accent to differentiate.
+  const glow = solo ? '#22d3ee' : '#facc15';
+  const deep = solo ? '#04101f' : '#170f04';
+  const mid = solo ? '#0e3a8a' : '#875b06';
   const id = solo ? 'solo-mode-art' : 'online-mode-art';
 
   return (
@@ -47,7 +49,7 @@ function ModeIllustration({ type }) {
           </feMerge>
         </filter>
       </defs>
-      <rect width="360" height="230" fill={solo ? '#11051b' : '#120c04'} />
+      <rect width="360" height="230" fill={solo ? '#070f24' : '#120c04'} />
       <rect width="360" height="230" fill={`url(#${id}-core)`} />
       <rect y="64" width="360" height="166" fill={`url(#${id}-horizon)`} />
       <path d="M0 0 H360 V230 H0 Z" fill="none" stroke={glow} strokeOpacity="0.4" strokeWidth="4" />
@@ -90,7 +92,8 @@ function ModeIllustration({ type }) {
 
 function ModeCard({ type, title, subtitle, icon, onClick }) {
   const solo = type === 'solo';
-  const accent = solo ? '#c044ff' : '#facc15';
+  // v2 palette: solo = royal portal blue/cyan, online = gold
+  const accent = solo ? '#60a5fa' : '#facc15';
   const renderedIcon = React.isValidElement(icon)
     ? React.cloneElement(icon, { style: { width: '54%', height: '54%' } })
     : icon;
@@ -107,7 +110,7 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
         containerType: 'size',
         padding: 0,
         filter: solo
-          ? 'drop-shadow(0 0 22px rgba(192,68,255,0.78)) drop-shadow(0 18px 18px rgba(0,0,0,0.64))'
+          ? 'drop-shadow(0 0 22px rgba(59,130,246,0.7)) drop-shadow(0 18px 18px rgba(0,0,0,0.64))'
           : 'drop-shadow(0 0 22px rgba(250,204,21,0.66)) drop-shadow(0 18px 18px rgba(0,0,0,0.64))',
       }}
       aria-label={title.replace('\n', ' ')}
@@ -116,13 +119,13 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
         className="pointer-events-none absolute inset-0"
         style={{
           background: solo
-            ? 'linear-gradient(180deg, rgba(42,7,70,0.98) 0%, rgba(12,5,24,1) 60%, rgba(4,3,12,1) 100%)'
+            ? 'linear-gradient(180deg, rgba(20,40,86,0.98) 0%, rgba(8,18,42,1) 60%, rgba(4,6,18,1) 100%)'
             : 'linear-gradient(180deg, rgba(60,38,4,0.98) 0%, rgba(15,9,10,1) 60%, rgba(4,4,10,1) 100%)',
           clipPath: 'polygon(7.2% 0, 92.8% 0, 100% 8.2%, 100% 91.8%, 92.8% 100%, 7.2% 100%, 0 91.8%, 0 8.2%)',
           boxShadow: [
             'inset 0 1px 0 rgba(255,255,255,0.34)',
-            `inset 0 0 0 2px ${solo ? 'rgba(217,92,255,0.9)' : 'rgba(250,213,54,0.86)'}`,
-            `inset 0 0 38px ${solo ? 'rgba(192,68,255,0.25)' : 'rgba(250,204,21,0.17)'}`,
+            `inset 0 0 0 2px ${solo ? 'rgba(96,165,250,0.92)' : 'rgba(250,213,54,0.86)'}`,
+            `inset 0 0 38px ${solo ? 'rgba(59,130,246,0.28)' : 'rgba(250,204,21,0.17)'}`,
             'inset 0 -28px 28px rgba(0,0,0,0.58)',
             'inset 0 14px 20px rgba(255,255,255,0.05)',
           ].join(', '),
@@ -133,7 +136,7 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
         <path
           d="M17 4 H193 L206 17 V223 L193 236 H17 L4 223 V17 Z"
           fill="none"
-          stroke={solo ? 'rgba(220,112,255,0.95)' : 'rgba(250,204,21,0.92)'}
+          stroke={solo ? 'rgba(96,165,250,0.95)' : 'rgba(250,204,21,0.92)'}
           strokeWidth="2.9"
         />
         <path
@@ -146,11 +149,11 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
         <path
           d="M17 55 L4 70 V17 L17 4 H68 M193 4 L206 17 V70 L193 55 M4 170 V223 L17 236 H68 M206 170 V223 L193 236 H142"
           fill="none"
-          stroke={solo ? 'rgba(244,190,255,0.36)' : 'rgba(255,241,150,0.34)'}
+          stroke={solo ? 'rgba(186,225,255,0.36)' : 'rgba(255,241,150,0.34)'}
           strokeWidth="5.6"
           strokeLinecap="round"
         />
-        <path d="M9 122 H24 M186 122 H201 M9 134 H19 M191 134 H201" stroke={solo ? 'rgba(220,112,255,0.9)' : 'rgba(250,204,21,0.82)'} strokeWidth="3" strokeLinecap="round" />
+        <path d="M9 122 H24 M186 122 H201 M9 134 H19 M191 134 H201" stroke={solo ? 'rgba(96,165,250,0.9)' : 'rgba(250,204,21,0.82)'} strokeWidth="3" strokeLinecap="round" />
       </svg>
       <span
         className="pointer-events-none absolute"
@@ -159,7 +162,7 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
           background: [
             'linear-gradient(118deg, transparent 0 19%, rgba(255,255,255,0.16) 20% 23%, transparent 24% 100%)',
             solo
-              ? 'radial-gradient(ellipse at 50% 0%, rgba(232,114,255,0.36), transparent 60%)'
+              ? 'radial-gradient(ellipse at 50% 0%, rgba(96,165,250,0.4), transparent 60%)'
               : 'radial-gradient(ellipse at 50% 0%, rgba(250,222,91,0.26), transparent 60%)',
           ].join(', '),
           clipPath: 'polygon(7.2% 0, 92.8% 0, 100% 8.2%, 100% 91.8%, 92.8% 100%, 7.2% 100%, 0 91.8%, 0 8.2%)',
@@ -174,9 +177,9 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
           top: '5.1%',
           height: '34.9%',
           clipPath: 'polygon(7% 0, 93% 0, 100% 10%, 100% 91%, 93% 100%, 7% 100%, 0 91%, 0 10%)',
-          border: `1px solid ${solo ? 'rgba(232,132,255,0.38)' : 'rgba(250,220,72,0.36)'}`,
+          border: `1px solid ${solo ? 'rgba(96,165,250,0.45)' : 'rgba(250,220,72,0.36)'}`,
           boxShadow: solo
-            ? 'inset 0 0 28px rgba(192,68,255,0.34), 0 0 22px rgba(192,68,255,0.24)'
+            ? 'inset 0 0 28px rgba(59,130,246,0.38), 0 0 22px rgba(34,211,238,0.24)'
             : 'inset 0 0 28px rgba(250,204,21,0.24), 0 0 22px rgba(250,204,21,0.2)',
         }}
       >
@@ -191,11 +194,11 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
           bottom: '5.1%',
           clipPath: 'polygon(9% 0, 91% 0, 100% 13%, 100% 88%, 91% 100%, 9% 100%, 0 88%, 0 13%)',
           background: solo
-            ? 'linear-gradient(180deg, rgba(15,7,26,0.95), rgba(3,3,10,0.98) 72%), radial-gradient(ellipse at 50% 0%, rgba(192,68,255,0.24), transparent 62%)'
+            ? 'linear-gradient(180deg, rgba(10,22,48,0.96), rgba(3,6,18,0.98) 72%), radial-gradient(ellipse at 50% 0%, rgba(59,130,246,0.28), transparent 62%)'
             : 'linear-gradient(180deg, rgba(17,12,7,0.95), rgba(3,3,9,0.98) 72%), radial-gradient(ellipse at 50% 0%, rgba(250,204,21,0.18), transparent 62%)',
           boxShadow: [
             'inset 0 1px 0 rgba(255,255,255,0.18)',
-            `inset 0 0 0 1px ${solo ? 'rgba(220,112,255,0.56)' : 'rgba(250,204,21,0.52)'}`,
+            `inset 0 0 0 1px ${solo ? 'rgba(96,165,250,0.62)' : 'rgba(250,204,21,0.52)'}`,
             'inset 0 -18px 20px rgba(0,0,0,0.62)',
           ].join(', '),
         }}
@@ -210,10 +213,10 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
           top: '36.8%',
           clipPath: 'polygon(18% 0, 82% 0, 100% 28%, 100% 72%, 82% 100%, 18% 100%, 0 72%, 0 28%)',
           background: solo
-            ? 'radial-gradient(circle at 35% 23%, rgba(255,255,255,0.24), transparent 29%), linear-gradient(180deg, rgba(102,26,156,0.94), rgba(14,6,35,0.98))'
+            ? 'radial-gradient(circle at 35% 23%, rgba(255,255,255,0.26), transparent 29%), linear-gradient(180deg, rgba(37,99,235,0.95), rgba(8,18,42,0.98))'
             : 'radial-gradient(circle at 35% 23%, rgba(255,255,255,0.2), transparent 29%), linear-gradient(180deg, rgba(93,70,13,0.92), rgba(13,9,18,0.98))',
-          borderColor: solo ? 'rgba(228,132,255,0.96)' : 'rgba(250,220,72,0.96)',
-          boxShadow: solo ? '0 0 22px rgba(192,68,255,0.7), inset 0 0 18px rgba(255,255,255,0.12), inset 0 -7px 10px rgba(0,0,0,0.34)' : '0 0 22px rgba(250,204,21,0.54), inset 0 0 18px rgba(255,255,255,0.1), inset 0 -7px 10px rgba(0,0,0,0.34)',
+          borderColor: solo ? 'rgba(96,165,250,0.96)' : 'rgba(250,220,72,0.96)',
+          boxShadow: solo ? '0 0 22px rgba(59,130,246,0.7), inset 0 0 18px rgba(255,255,255,0.14), inset 0 -7px 10px rgba(0,0,0,0.34)' : '0 0 22px rgba(250,204,21,0.54), inset 0 0 18px rgba(255,255,255,0.1), inset 0 -7px 10px rgba(0,0,0,0.34)',
         }}
       >
         {renderedIcon}
@@ -228,13 +231,13 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
           lineHeight: 0.86,
           color: solo ? '#ffffff' : '#f8fafc',
           letterSpacing: 0,
-          textShadow: solo ? '0 0 16px rgba(192,68,255,0.68), 0 2px 0 rgba(0,0,0,0.72)' : '0 0 16px rgba(250,204,21,0.38), 0 2px 0 rgba(0,0,0,0.72)',
+          textShadow: solo ? '0 0 16px rgba(59,130,246,0.72), 0 2px 0 rgba(0,0,0,0.72)' : '0 0 16px rgba(250,204,21,0.38), 0 2px 0 rgba(0,0,0,0.72)',
         }}
       >
         {solo ? (
           <>
             <span className="block">SOLO</span>
-            <span className="block" style={{ color: '#d995ff', fontSize: '0.9em' }}>MEYDAN OKUMA</span>
+            <span className="block" style={{ color: '#7dd3fc', fontSize: '0.9em' }}>MEYDAN OKUMA</span>
           </>
         ) : (
           <>
@@ -250,8 +253,8 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
           width: '46%',
           height: '0.7%',
           top: '76%',
-          background: solo ? 'linear-gradient(90deg, transparent, #d994ff, transparent)' : 'linear-gradient(90deg, transparent, #facc15, transparent)',
-          boxShadow: solo ? '0 0 9px rgba(217,148,255,0.72)' : '0 0 9px rgba(250,204,21,0.6)',
+          background: solo ? 'linear-gradient(90deg, transparent, #60a5fa, transparent)' : 'linear-gradient(90deg, transparent, #facc15, transparent)',
+          boxShadow: solo ? '0 0 9px rgba(96,165,250,0.72)' : '0 0 9px rgba(250,204,21,0.6)',
         }}
       />
       <span
@@ -274,7 +277,7 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
         style={{
           height: '24%',
           background: solo
-            ? 'radial-gradient(ellipse at 50% 100%, rgba(168,85,247,0.82), transparent 68%)'
+            ? 'radial-gradient(ellipse at 50% 100%, rgba(59,130,246,0.82), transparent 68%)'
             : 'radial-gradient(ellipse at 50% 100%, rgba(250,204,21,0.58), transparent 70%)',
         }}
       />
@@ -287,7 +290,7 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
           bottom: '5%',
           height: '12%',
           background: solo
-            ? 'linear-gradient(to top, rgba(88,28,135,0.92), transparent), radial-gradient(ellipse at 50% 100%, rgba(192,68,255,0.68), transparent 55%)'
+            ? 'linear-gradient(to top, rgba(15,42,98,0.92), transparent), radial-gradient(ellipse at 50% 100%, rgba(59,130,246,0.68), transparent 55%)'
             : 'linear-gradient(to top, rgba(92,65,12,0.72), transparent), radial-gradient(ellipse at 50% 100%, rgba(250,204,21,0.42), transparent 58%)',
           clipPath: 'polygon(0 100%, 0 66%, 8% 74%, 16% 58%, 23% 78%, 30% 50%, 38% 70%, 47% 44%, 56% 74%, 66% 54%, 75% 78%, 84% 58%, 92% 70%, 100% 60%, 100% 100%)',
           zIndex: 0,
@@ -300,8 +303,8 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
           bottom: '4.2%',
           height: '1%',
           width: '54%',
-          background: solo ? 'linear-gradient(90deg, transparent, #d946ef, transparent)' : 'linear-gradient(90deg, transparent, #facc15, transparent)',
-          boxShadow: solo ? '0 0 12px rgba(217,70,239,0.9)' : '0 0 12px rgba(250,204,21,0.78)',
+          background: solo ? 'linear-gradient(90deg, transparent, #3b82f6, transparent)' : 'linear-gradient(90deg, transparent, #facc15, transparent)',
+          boxShadow: solo ? '0 0 12px rgba(59,130,246,0.9)' : '0 0 12px rgba(250,204,21,0.78)',
         }}
       />
     </motion.button>
@@ -311,21 +314,21 @@ function ModeCard({ type, title, subtitle, icon, onClick }) {
 function ProfileBar({ user, onLogin, onLogout }) {
   return (
     <div
-      className="flex min-w-0 flex-1 items-center gap-3 rounded-full border border-purple-300/24 bg-black/72 px-3 py-2"
+      className="flex min-w-0 flex-1 items-center gap-3 rounded-full border border-amber-300/30 bg-black/72 px-3 py-2"
       style={{
         minHeight: 56,
-        background: 'linear-gradient(180deg, rgba(17,12,30,0.82), rgba(5,5,14,0.9))',
-        boxShadow: 'inset 0 0 18px rgba(255,255,255,0.05), 0 0 20px rgba(168,85,247,0.18), 0 10px 22px rgba(0,0,0,0.38)',
+        background: 'linear-gradient(180deg, rgba(20,30,58,0.86), rgba(4,8,22,0.94))',
+        boxShadow: 'inset 0 0 18px rgba(255,255,255,0.06), inset 0 1px 0 rgba(255,236,140,0.18), 0 0 20px rgba(59,130,246,0.22), 0 10px 22px rgba(0,0,0,0.42)',
       }}
     >
       <span
         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
         style={{
-          background: 'linear-gradient(180deg, #a855f7, #5b21b6)',
-          boxShadow: '0 0 18px rgba(168,85,247,0.62), inset 0 0 10px rgba(255,255,255,0.12)',
+          background: 'radial-gradient(circle at 35% 28%, #ffe066, #b97a06 70%)',
+          boxShadow: '0 0 18px rgba(250,204,21,0.62), inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -4px 6px rgba(140,80,8,0.55)',
         }}
       >
-        <UserRound className="h-6 w-6 text-purple-100" />
+        <UserRound className="h-6 w-6 text-amber-950" strokeWidth={2.6} />
       </span>
       {user ? (
         <>
@@ -518,10 +521,10 @@ export default function MainMenu() {
             onClick={handleSettings}
             whileTap={{ scale: 0.92, rotate: -8 }}
             transition={{ type: 'spring', stiffness: 520, damping: 24 }}
-            className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-full border border-primary/70 bg-black/76 text-white"
+            className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-full border border-amber-300/70 bg-black/76 text-amber-200"
             style={{
-              background: 'linear-gradient(180deg, rgba(24,21,18,0.88), rgba(4,5,13,0.96))',
-              boxShadow: '0 0 20px rgba(250,204,21,0.42), 0 10px 22px rgba(0,0,0,0.4), inset 0 0 18px rgba(255,255,255,0.08)',
+              background: 'linear-gradient(180deg, rgba(20,30,58,0.92), rgba(4,8,22,0.96))',
+              boxShadow: '0 0 20px rgba(250,204,21,0.46), 0 0 24px rgba(59,130,246,0.28), 0 10px 22px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,236,140,0.32), inset 0 -6px 10px rgba(0,0,0,0.4)',
             }}
             aria-label="Ayarlar"
           >

@@ -78,18 +78,35 @@ Treat failures as memorable social moments, not sterile system errors.
 
 ## Style
 
-Premium neon arcade.
-Modern mobile game.
+Premium fantasy mobile game.
+Polished arcade quality.
+Tactile, collectible-card feel.
+Magical portal energy.
 Clean but energetic.
+
+Reference direction: stone-framed portal artifact with royal blue magical energy and gold trim. Think premium mobile game store icon, not a synthwave/cosmic app.
 
 ---
 
 ## Color palette
 
-- Dark purple / deep navy base
-- Neon yellow accents
-- Controlled glow usage
-- Soft layered depth
+Primary direction (Kronox v2 — replaces previous neon/cosmic palette):
+
+- Deep navy / dark slate base (`#050b1c → #0c1a33 → #060c1a`)
+- Royal portal blue energy (`#2563eb`, `#3b82f6`, `#60a5fa`)
+- Magical cyan accent (`#22d3ee`, `#7dd3fc`) — used sparingly for portal sparkle
+- Gold / amber highlights and CTAs (`#facc15`, `#ffe066`, `#b97a06`)
+- Stone/slate panel surfaces (`#36446c`, `#1c2444`, `#0c1226`)
+- Controlled glow usage — no oversaturated neon haze
+- Soft layered depth — bevel highlights + drop shadows
+
+Avoid as dominant identity:
+- purple neon cosmic look
+- synthwave glow walls
+- pure-black sci-fi UI
+- flat purple panels as the main surface
+
+Purple may still appear as a tertiary accent for variety, but it is no longer the brand color.
 
 ---
 
@@ -125,13 +142,33 @@ Avoid completely flat surfaces.
 ## Borders
 
 Prefer:
-- glow
-- depth
-- lighting separation
+- carved stone-edge framing
+- gold/blue inner ring lighting
+- bevel highlight + drop shadow stacks
+- glow as light separation, not outline
 
 over:
-- thick outlines
-- stroke-heavy UI
+- thick web-style outlines
+- single thin stroke borders
+- generic rounded rectangle cards
+
+## Material language (Kronox v2)
+
+Surfaces should feel like:
+- carved stone frames
+- polished game-metal trims (gold or portal blue)
+- layered fantasy game panels
+- magical portal energy
+- collectible-card quality
+
+Buttons should feel like real game CTAs — gold or portal-blue plated, carved silhouettes (not generic rounded web buttons). Cards/category tiles should feel emblematic and framed (not flat menu boxes).
+
+Reusable visual primitives currently available:
+- `components/ui/StonePanel.jsx` — carved slate panel with optional `gold` or `portal` inner glow
+- `components/ui/GoldButton.jsx` — premium fantasy CTA (`gold` / `portal` variants, `md` / `lg` size)
+- `components/lobby/CategoryCard.jsx` — stone-framed collectible category tile
+
+Gameplay surfaces (Game.jsx, Timeline, QuestionCard, drag/drop) are explicitly preserved during the v2 visual migration. Do not refactor those for visual reasons without an explicit gameplay-feel ticket.
 
 ---
 
