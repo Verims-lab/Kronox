@@ -7,9 +7,9 @@ import { sounds } from '@/lib/gameSounds';
 import GoldButton from '@/components/ui/GoldButton';
 
 const ONLINE_BACKGROUND_ASSET = '/assets/ui/Kronox_Online_Fantasy_Basckground.png';
-// Exact CTA target visuals provided by the user (Base44 platform assets).
-const CTA_GOLD_ASSET = 'https://media.base44.com/images/public/6a05b47e401bb23c2f21a522/c5645d70a_image.png';
-const CTA_BLUE_ASSET = 'https://media.base44.com/images/public/6a05b47e401bb23c2f21a522/8a72f2312_image.png';
+// Exact CTA target visuals — bundled locally under public/assets/ui/.
+const CTA_GOLD_ASSET = '/assets/ui/Kronox_Online_CTA_Start.png';
+const CTA_BLUE_ASSET = '/assets/ui/Kronox_Online_CTA_Join.png';
 const WIDE_STAGE_QUERY = '(min-aspect-ratio: 9 / 16)';
 
 const CATEGORIES = [
