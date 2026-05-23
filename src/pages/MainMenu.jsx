@@ -1,42 +1,34 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ChevronRight, Globe, LogOut, Settings, UserRound } from 'lucide-react';
+import { ChevronRight, LogOut, Settings, UserRound } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 
 const LOGO_URL = 'https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/49fc6f458_kronoxnobckgrnd.png';
-const BACKGROUND_ASSET = '/assets/ui/home-background-full.webp';
+const BACKGROUND_ASSET = '/assets/ui/Kronox_Home_Fantasy_Background.png';
 const WIDE_STAGE_QUERY = '(min-aspect-ratio: 9 / 16)';
 
 const HOME_BUTTONS = {
-  solo: {
-    label: ['SOLO', 'MEYDAN OKUMA'],
-    labelAccent: '#7dd3fc',
-    frame: '#f6c95b',
-    frameDark: '#6d4515',
-    energy: '#38bdf8',
-    energySoft: 'rgba(56, 189, 248, 0.58)',
-    stoneTop: '#1b376b',
-    stoneMid: '#0c1b38',
-    stoneLow: '#040713',
-    portalA: '#0ea5e9',
-    portalB: '#2563eb',
-    portalC: '#8b5cf6',
-  },
   online: {
     label: ['ONLINE', 'KAPIŞMA'],
-    labelAccent: '#facc15',
-    frame: '#ffd666',
-    frameDark: '#7a4a12',
-    energy: '#22d3ee',
-    energySoft: 'rgba(34, 211, 238, 0.5)',
-    stoneTop: '#263762',
-    stoneMid: '#111a34',
-    stoneLow: '#050712',
-    portalA: '#22d3ee',
-    portalB: '#1d4ed8',
-    portalC: '#f59e0b',
+    ariaLabel: 'ONLINE KAPIŞMA',
+    emblem: 'swords',
+    primarySize: '12.9cqw',
+    secondarySize: '9.4cqw',
+    textTop: '18%',
+    textBottom: '18%',
+    glow: 'rgba(34, 211, 238, 0.72)',
+  },
+  solo: {
+    label: ['SOLO', 'MEYDAN OKUMA'],
+    ariaLabel: 'SOLO MEYDAN OKUMA',
+    emblem: 'trophy',
+    primarySize: '12.8cqw',
+    secondarySize: '7.35cqw',
+    textTop: '17%',
+    textBottom: '18%',
+    glow: 'rgba(56, 189, 248, 0.7)',
   },
 };
 
@@ -46,307 +38,187 @@ const getIsWideStage = () => (
     : false
 );
 
-function PortalEmblem({ type, icon }) {
-  const palette = HOME_BUTTONS[type];
-  const solo = type === 'solo';
-  const id = `home-${type}-portal`;
-  const renderedIcon = React.isValidElement(icon)
-    ? React.cloneElement(icon, {
-        style: {
-          ...(icon.props.style || {}),
-          width: '54%',
-          height: '54%',
-        },
-      })
-    : icon;
+function EmblemSymbol({ type }) {
+  if (type === 'trophy') {
+    return (
+      <svg className="h-full w-full" viewBox="0 0 120 120" aria-hidden="true">
+        <path d="M33 35 H87 V51 C87 70 76 82 65 85 V94 H80 V104 H40 V94 H55 V85 C44 82 33 70 33 51 Z" fill="#f9b72e" stroke="#5b3008" strokeWidth="5" />
+        <path d="M33 43 H18 C19 62 29 72 43 74" fill="none" stroke="#f9b72e" strokeWidth="7" strokeLinecap="round" />
+        <path d="M87 43 H102 C101 62 91 72 77 74" fill="none" stroke="#f9b72e" strokeWidth="7" strokeLinecap="round" />
+        <path d="M44 42 H76 V51 C76 64 69 72 60 74 C51 72 44 64 44 51 Z" fill="#ffd86f" opacity="0.74" />
+        <path d="M60 43 L65 53 L76 55 L68 63 L70 75 L60 69 L50 75 L52 63 L44 55 L55 53 Z" fill="#fff4bf" stroke="#87530e" strokeWidth="3" />
+        <path d="M45 104 H75 L84 114 H36 Z" fill="#7a4210" stroke="#f6c45b" strokeWidth="4" />
+      </svg>
+    );
+  }
 
   return (
-    <span
-      className="absolute left-1/2 z-20 flex -translate-x-1/2 items-center justify-center"
-      style={{
-        top: '7.5%',
-        width: '67%',
-        height: '34%',
-      }}
-      aria-hidden="true"
-    >
-      <svg className="absolute inset-0 h-full w-full" viewBox="0 0 150 92" preserveAspectRatio="none">
-        <defs>
-          <radialGradient id={`${id}-core`} cx="50%" cy="52%" r="56%">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.9" />
-            <stop offset="22%" stopColor={palette.portalA} stopOpacity="0.86" />
-            <stop offset="58%" stopColor={palette.portalB} stopOpacity="0.62" />
-            <stop offset="100%" stopColor={palette.stoneLow} stopOpacity="0" />
-          </radialGradient>
-          <linearGradient id={`${id}-stone`} x1="0%" x2="100%" y1="0%" y2="100%">
-            <stop offset="0%" stopColor="#6d7485" />
-            <stop offset="44%" stopColor="#2c3447" />
-            <stop offset="100%" stopColor="#090c16" />
-          </linearGradient>
-          <linearGradient id={`${id}-gold`} x1="0%" x2="100%" y1="0%" y2="100%">
-            <stop offset="0%" stopColor="#fff0a3" />
-            <stop offset="46%" stopColor={palette.frame} />
-            <stop offset="100%" stopColor={palette.frameDark} />
-          </linearGradient>
-        </defs>
-        <ellipse cx="75" cy="48" rx="58" ry="30" fill={`url(#${id}-core)`} opacity="0.92" />
-        <path
-          d="M22 78 C16 59 22 38 39 25 C55 12 95 12 111 25 C128 38 134 59 128 78 L114 78 C120 60 115 44 103 34 C91 24 59 24 47 34 C35 44 30 60 36 78 Z"
-          fill={`url(#${id}-stone)`}
-          stroke={`url(#${id}-gold)`}
-          strokeWidth="4.4"
-        />
-        <path
-          d="M43 78 C38 63 41 49 51 39 C61 29 89 29 99 39 C109 49 112 63 107 78"
-          fill="none"
-          stroke={palette.energy}
-          strokeWidth="4"
-          strokeLinecap="round"
-          opacity="0.92"
-        />
-        <path
-          d="M29 76 H121 M49 24 L57 16 H93 L101 24"
-          stroke="#fff3b8"
-          strokeWidth="2.4"
-          strokeLinecap="round"
-          opacity="0.72"
-        />
-        <path
-          d="M33 55 C53 41 97 41 117 55 M43 66 C58 57 92 57 107 66"
-          fill="none"
-          stroke="#e0f7ff"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          opacity="0.56"
-        />
-        <path
-          d="M21 80 H129 L120 91 H30 Z"
-          fill={`url(#${id}-gold)`}
-          opacity="0.95"
-        />
-        <path
-          d="M37 82 H113"
-          stroke="#2b1805"
-          strokeWidth="3"
-          strokeLinecap="round"
-          opacity="0.46"
-        />
-        {!solo && (
-          <path
-            d="M75 9 L86 22 L80 36 H70 L64 22 Z"
-            fill={`url(#${id}-gold)`}
-            stroke="#4d2f0d"
-            strokeWidth="2.2"
-          />
-        )}
-      </svg>
-      <span
-        className="relative z-10 flex items-center justify-center"
-        style={{
-          width: '33%',
-          aspectRatio: '1 / 1',
-          color: solo ? '#e0f7ff' : '#fff3b8',
-          background: [
-            'radial-gradient(circle at 35% 24%, rgba(255,255,255,0.38), transparent 30%)',
-            `linear-gradient(180deg, ${solo ? '#1d4ed8' : '#67430b'}, ${palette.stoneLow})`,
-          ].join(', '),
-          clipPath: 'polygon(20% 0, 80% 0, 100% 25%, 100% 75%, 80% 100%, 20% 100%, 0 75%, 0 25%)',
-          boxShadow: [
-            `0 0 18px ${palette.energySoft}`,
-            `inset 0 0 0 2px ${palette.frame}`,
-            'inset 0 1px 0 rgba(255,255,255,0.34)',
-            'inset 0 -8px 12px rgba(0,0,0,0.45)',
-          ].join(', '),
-        }}
-      >
-        {renderedIcon}
-      </span>
-    </span>
+    <svg className="h-full w-full" viewBox="0 0 120 120" aria-hidden="true">
+      <path d="M60 16 L94 29 V55 C94 78 78 96 60 104 C42 96 26 78 26 55 V29 Z" fill="#153767" stroke="#f7c65a" strokeWidth="6" />
+      <path d="M60 27 L82 36 V55 C82 70 73 83 60 90 C47 83 38 70 38 55 V36 Z" fill="#1d4ed8" opacity="0.55" />
+      <path d="M28 87 L86 29" stroke="#d7e6ff" strokeWidth="8" strokeLinecap="round" />
+      <path d="M34 93 L92 35" stroke="#65380d" strokeWidth="3" strokeLinecap="round" />
+      <path d="M92 87 L34 29" stroke="#d7e6ff" strokeWidth="8" strokeLinecap="round" />
+      <path d="M86 93 L28 35" stroke="#65380d" strokeWidth="3" strokeLinecap="round" />
+      <path d="M22 93 L37 78 L44 85 L29 100 Z M98 93 L83 78 L76 85 L91 100 Z" fill="#f7c65a" stroke="#65380d" strokeWidth="3" />
+      <path d="M26 25 L34 17 L43 32 L33 39 Z M94 25 L86 17 L77 32 L87 39 Z" fill="#f7c65a" stroke="#65380d" strokeWidth="3" />
+    </svg>
   );
 }
 
-function HomeGameButton({ type, title, icon, onClick }) {
-  const palette = HOME_BUTTONS[type];
-  const solo = type === 'solo';
+function FantasyPlaqueButton({ type, onClick }) {
+  const config = HOME_BUTTONS[type];
+  const id = `home-plaque-${type}`;
 
   return (
     <motion.button
       type="button"
       onClick={onClick}
-      whileHover={{ y: -3 }}
-      whileTap={{ scale: 0.94, y: 6 }}
-      transition={{ type: 'spring', stiffness: 620, damping: 23 }}
-      className="relative block h-full w-full overflow-visible border-0 bg-transparent p-0 text-center"
+      whileHover={{ y: -2 }}
+      whileTap={{
+        scaleX: 0.986,
+        scaleY: 0.94,
+        y: 5,
+        filter: 'drop-shadow(0 8px 7px rgba(0,0,0,0.72)) drop-shadow(0 0 25px rgba(34,211,238,0.72))',
+      }}
+      transition={{ type: 'spring', stiffness: 650, damping: 24, mass: 0.72 }}
+      className="group relative block h-full w-full border-0 bg-transparent p-0 text-center"
       style={{
         containerType: 'size',
         appearance: 'none',
         touchAction: 'manipulation',
-        filter: solo
-          ? 'drop-shadow(0 16px 18px rgba(0,0,0,0.66)) drop-shadow(0 0 18px rgba(34,211,238,0.42))'
-          : 'drop-shadow(0 16px 18px rgba(0,0,0,0.66)) drop-shadow(0 0 18px rgba(250,204,21,0.38))',
+        transformOrigin: '50% 54%',
+        filter: 'drop-shadow(0 17px 15px rgba(0,0,0,0.66)) drop-shadow(0 0 18px rgba(34,211,238,0.46))',
       }}
-      aria-label={title.replace(/\n/g, ' ')}
+      aria-label={config.ariaLabel}
     >
       <span
-        className="absolute inset-x-[5%] bottom-[-4%] h-[18%]"
+        className="pointer-events-none absolute left-[5%] right-[5%] top-[63%] h-[30%] rounded-full"
         style={{
-          background: 'rgba(0, 0, 0, 0.58)',
-          borderRadius: '999px',
+          background: 'radial-gradient(ellipse at center, rgba(14, 165, 233, 0.66), rgba(37, 99, 235, 0.22) 46%, transparent 72%)',
           filter: 'blur(4px)',
         }}
         aria-hidden="true"
       />
 
-      <span
-        className="absolute inset-0"
-        style={{
-          clipPath: 'polygon(10% 0, 90% 0, 100% 11%, 100% 89%, 90% 100%, 10% 100%, 0 89%, 0 11%)',
-          background: [
-            `linear-gradient(180deg, ${palette.frame} 0%, #fff1a8 13%, ${palette.frame} 24%, ${palette.frameDark} 100%)`,
-            `radial-gradient(circle at 50% 0%, ${palette.energySoft}, transparent 54%)`,
-          ].join(', '),
-          boxShadow: [
-            'inset 0 2px 0 rgba(255,255,255,0.48)',
-            'inset 0 -10px 0 rgba(65,33,5,0.46)',
-            `0 0 18px ${palette.energySoft}`,
-          ].join(', '),
-        }}
-        aria-hidden="true"
-      />
+      <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 900 214" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id={`${id}-gold`} x1="0%" x2="100%" y1="0%" y2="100%">
+            <stop offset="0%" stopColor="#fff1a8" />
+            <stop offset="21%" stopColor="#f8c65b" />
+            <stop offset="50%" stopColor="#a85c16" />
+            <stop offset="74%" stopColor="#ffd873" />
+            <stop offset="100%" stopColor="#5f310c" />
+          </linearGradient>
+          <linearGradient id={`${id}-gold-hot`} x1="0%" x2="0%" y1="0%" y2="100%">
+            <stop offset="0%" stopColor="#fff4b8" />
+            <stop offset="45%" stopColor="#f6b734" />
+            <stop offset="100%" stopColor="#6d370a" />
+          </linearGradient>
+          <linearGradient id={`${id}-plate`} x1="0%" x2="100%" y1="0%" y2="100%">
+            <stop offset="0%" stopColor="#213d72" />
+            <stop offset="45%" stopColor="#102246" />
+            <stop offset="100%" stopColor="#071021" />
+          </linearGradient>
+          <radialGradient id={`${id}-plate-glow`} cx="50%" cy="18%" r="84%">
+            <stop offset="0%" stopColor="#2563eb" stopOpacity="0.64" />
+            <stop offset="42%" stopColor="#0f2a59" stopOpacity="0.42" />
+            <stop offset="100%" stopColor="#030817" stopOpacity="0.08" />
+          </radialGradient>
+          <radialGradient id={`${id}-gem`} cx="48%" cy="34%" r="70%">
+            <stop offset="0%" stopColor="#e7fbff" />
+            <stop offset="32%" stopColor="#38d5ff" />
+            <stop offset="74%" stopColor="#1d4ed8" />
+            <stop offset="100%" stopColor="#08205d" />
+          </radialGradient>
+        </defs>
 
-      <span
-        className="absolute"
-        style={{
-          inset: '5.2%',
-          clipPath: 'polygon(9% 0, 91% 0, 100% 12%, 100% 88%, 91% 100%, 9% 100%, 0 88%, 0 12%)',
-          background: [
-            'linear-gradient(120deg, transparent 0 21%, rgba(255,255,255,0.15) 22% 25%, transparent 26% 100%)',
-            `radial-gradient(circle at 50% 12%, ${palette.energySoft}, transparent 48%)`,
-            `linear-gradient(180deg, ${palette.stoneTop} 0%, ${palette.stoneMid} 50%, ${palette.stoneLow} 100%)`,
-          ].join(', '),
-          boxShadow: [
-            'inset 0 1px 0 rgba(255,255,255,0.2)',
-            `inset 0 0 0 1px ${solo ? 'rgba(125,211,252,0.48)' : 'rgba(255,214,102,0.44)'}`,
-            'inset 0 -18px 20px rgba(0,0,0,0.62)',
-          ].join(', '),
-        }}
-        aria-hidden="true"
-      />
-
-      <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 220 250" preserveAspectRatio="none" aria-hidden="true">
-        <path
-          d="M23 8 H197 L212 23 V227 L197 242 H23 L8 227 V23 Z"
-          fill="none"
-          stroke="rgba(44, 24, 8, 0.62)"
-          strokeWidth="8"
-        />
-        <path
-          d="M25 10 H195 L210 25 V225 L195 240 H25 L10 225 V25 Z"
-          fill="none"
-          stroke={palette.frame}
-          strokeWidth="3.4"
-        />
-        <path
-          d="M36 19 H92 M184 231 H128 M18 80 V32 L32 18 H74 M202 80 V32 L188 18 H146 M18 170 V218 L32 232 H74 M202 170 V218 L188 232 H146"
-          fill="none"
-          stroke="rgba(255, 247, 196, 0.62)"
-          strokeWidth="3.2"
-          strokeLinecap="round"
-        />
-        <path
-          d="M12 119 H28 M192 119 H208 M15 132 H25 M195 132 H205"
-          stroke={palette.energy}
-          strokeWidth="3.2"
-          strokeLinecap="round"
-          opacity="0.78"
-        />
-        <path
-          d="M44 43 L65 25 H155 L176 43"
-          fill="none"
-          stroke="rgba(255,255,255,0.22)"
-          strokeWidth="2.6"
-          strokeLinecap="round"
-        />
+        <path d="M58 32 H154 L178 8 H722 L746 32 H842 L890 76 V138 L842 182 H746 L722 206 H178 L154 182 H58 L10 138 V76 Z" fill="rgba(0,0,0,0.72)" transform="translate(0 8)" />
+        <path d="M50 25 H150 L174 4 H726 L750 25 H850 L896 70 V144 L850 189 H750 L726 210 H174 L150 189 H50 L4 144 V70 Z" fill={`url(#${id}-gold)`} />
+        <path d="M70 41 H166 L188 22 H712 L734 41 H830 L874 80 V134 L830 174 H734 L712 193 H188 L166 174 H70 L26 134 V80 Z" fill="#4a2709" opacity="0.9" />
+        <path d="M88 48 H806 L844 82 V130 L806 164 H88 L52 130 V82 Z" fill={`url(#${id}-plate)`} />
+        <path d="M88 48 H806 L844 82 V130 L806 164 H88 L52 130 V82 Z" fill={`url(#${id}-plate-glow)`} />
+        <path d="M103 61 H792 L825 89 V123 L792 151 H103 L76 123 V89 Z" fill="none" stroke="#0b1731" strokeWidth="7" opacity="0.82" />
+        <path d="M107 58 H790" stroke="#78d7ff" strokeWidth="3.6" strokeLinecap="round" opacity="0.7" />
+        <path d="M110 157 H786" stroke="#0ea5e9" strokeWidth="3.4" strokeLinecap="round" opacity="0.58" />
+        <path d="M34 84 L78 44 H133 L104 75 V139 L133 170 H78 L34 130 Z" fill={`url(#${id}-gold-hot)`} />
+        <path d="M866 84 L822 44 H767 L796 75 V139 L767 170 H822 L866 130 Z" fill={`url(#${id}-gold-hot)`} />
+        <path d="M63 80 L91 55 H124 M837 80 L809 55 H776 M63 134 L91 159 H124 M837 134 L809 159 H776" fill="none" stroke="#fff2ae" strokeWidth="4" strokeLinecap="round" opacity="0.72" />
+        <path d="M450 5 L476 31 L450 57 L424 31 Z" fill={`url(#${id}-gold-hot)`} stroke="#4d2506" strokeWidth="5" />
+        <path d="M450 18 L464 31 L450 45 L436 31 Z" fill={`url(#${id}-gem)`} stroke="#8befff" strokeWidth="2.4" />
+        <path d="M450 157 L476 183 L450 209 L424 183 Z" fill={`url(#${id}-gold-hot)`} stroke="#4d2506" strokeWidth="5" />
+        <path d="M450 170 L464 183 L450 197 L436 183 Z" fill={`url(#${id}-gem)`} stroke="#8befff" strokeWidth="2.4" />
+        <path d="M24 145 C170 189 730 189 876 145" fill="none" stroke="#0ea5e9" strokeWidth="5" opacity="0.35" />
+        <path d="M79 49 L125 49 M775 49 L821 49 M80 164 L126 164 M774 164 L820 164" stroke="#2d1606" strokeWidth="7" strokeLinecap="round" opacity="0.48" />
       </svg>
 
-      <PortalEmblem type={type} icon={icon} />
-
       <span
-        className="absolute left-1/2 z-10 -translate-x-1/2"
+        className="pointer-events-none absolute z-20 flex items-center justify-center"
         style={{
-          top: '43%',
-          width: '82%',
-          height: '41%',
-          clipPath: 'polygon(9% 0, 91% 0, 100% 16%, 100% 84%, 91% 100%, 9% 100%, 0 84%, 0 16%)',
-          background: [
-            `radial-gradient(ellipse at 50% 0%, ${palette.energySoft}, transparent 58%)`,
-            'linear-gradient(180deg, rgba(11,16,30,0.44), rgba(0,0,0,0.5))',
-          ].join(', '),
-          boxShadow: [
-            `inset 0 0 0 1px ${solo ? 'rgba(125,211,252,0.38)' : 'rgba(255,214,102,0.34)'}`,
-            'inset 0 1px 0 rgba(255,255,255,0.1)',
-            'inset 0 -14px 18px rgba(0,0,0,0.46)',
-          ].join(', '),
-        }}
-        aria-hidden="true"
-      />
-
-      <span
-        className="absolute z-20 block whitespace-pre-line font-bangers"
-        style={{
-          left: '8%',
-          right: '8%',
-          top: '52%',
-          color: '#f8fafc',
-          fontSize: '12.4cqw',
-          lineHeight: 0.86,
-          letterSpacing: 0,
-          textShadow: [
-            '0 2px 0 rgba(0,0,0,0.82)',
-            `0 0 14px ${solo ? 'rgba(34,211,238,0.58)' : 'rgba(250,204,21,0.42)'}`,
-          ].join(', '),
-        }}
-      >
-        <span className="block">{palette.label[0]}</span>
-        <span className="block" style={{ color: palette.labelAccent, fontSize: '0.88em' }}>
-          {palette.label[1]}
-        </span>
-      </span>
-
-      <span
-        className="absolute left-1/2 z-20 block -translate-x-1/2"
-        style={{
-          top: '77%',
-          width: '58%',
-          height: '1.2%',
-          background: `linear-gradient(90deg, transparent, ${palette.energy}, #fff6bf, ${palette.energy}, transparent)`,
-          boxShadow: `0 0 12px ${palette.energySoft}`,
-        }}
-        aria-hidden="true"
-      />
-
-      <span
-        className="absolute left-1/2 z-20 flex -translate-x-1/2 items-center justify-center"
-        style={{
-          bottom: '6.6%',
-          width: '44%',
-          height: '10.5%',
-          clipPath: 'polygon(12% 0, 88% 0, 100% 38%, 88% 100%, 12% 100%, 0 38%)',
-          background: `linear-gradient(180deg, #fff1a8, ${palette.frame} 48%, ${palette.frameDark})`,
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.64), inset 0 -6px 8px rgba(72,34,5,0.44), 0 4px 8px rgba(0,0,0,0.32)',
+          left: '6.7%',
+          top: '17.4%',
+          width: '16.4%',
+          height: '64%',
         }}
         aria-hidden="true"
       >
         <span
+          className="absolute inset-0"
           style={{
-            width: '66%',
-            height: '18%',
-            borderRadius: 999,
-            background: 'rgba(66, 33, 5, 0.42)',
-            boxShadow: '0 -1px 0 rgba(255,255,255,0.28)',
+            borderRadius: '28%',
+            background: 'linear-gradient(145deg, #fff0a3 0%, #d18a25 40%, #5a2c07 100%)',
+            clipPath: 'polygon(14% 0, 86% 0, 100% 18%, 100% 82%, 86% 100%, 14% 100%, 0 82%, 0 18%)',
+            boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.55), inset 0 -9px 12px rgba(62,29,5,0.58), 0 0 13px rgba(56,189,248,0.58)',
           }}
         />
+        <span
+          className="absolute"
+          style={{
+            inset: '10%',
+            clipPath: 'polygon(16% 0, 84% 0, 100% 20%, 100% 80%, 84% 100%, 16% 100%, 0 80%, 0 20%)',
+            background: 'radial-gradient(circle at 50% 24%, rgba(56,189,248,0.44), transparent 52%), linear-gradient(180deg, #102b58, #061225)',
+            boxShadow: 'inset 0 0 0 2px rgba(4,10,24,0.86), inset 0 0 18px rgba(14,165,233,0.34)',
+          }}
+        />
+        <span
+          className="relative z-10 h-[72%] w-[72%]"
+          style={{ filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.75))' }}
+        >
+          <EmblemSymbol type={config.emblem} />
+        </span>
       </span>
+
+      <span
+        className="pointer-events-none absolute z-20 flex flex-col items-center justify-center"
+        style={{
+          left: '27%',
+          right: '7.2%',
+          top: config.textTop,
+          bottom: config.textBottom,
+          color: '#ffc942',
+          fontFamily: 'Bangers, Impact, sans-serif',
+          letterSpacing: 0,
+          textShadow: '0 2px 0 #5b2b06, 0 5px 4px rgba(0,0,0,0.72), 0 0 10px rgba(255,216,100,0.34)',
+          WebkitTextStroke: '0.7px rgba(91,43,6,0.95)',
+        }}
+      >
+        <span style={{ display: 'block', fontSize: config.primarySize, lineHeight: 0.76 }}>
+          {config.label[0]}
+        </span>
+        <span style={{ display: 'block', fontSize: config.secondarySize, lineHeight: 0.86 }}>
+          {config.label[1]}
+        </span>
+      </span>
+
+      <span
+        className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-150 group-active:opacity-100"
+        style={{
+          clipPath: 'polygon(6% 13%, 94% 13%, 99% 38%, 99% 65%, 94% 88%, 6% 88%, 1% 65%, 1% 38%)',
+          background: 'linear-gradient(180deg, rgba(255,255,255,0.18), rgba(56,189,248,0.18) 48%, rgba(0,0,0,0.18))',
+          boxShadow: `inset 0 0 42px ${config.glow}`,
+        }}
+        aria-hidden="true"
+      />
     </motion.button>
   );
 }
@@ -514,35 +386,25 @@ export default function MainMenu() {
         <div
           className="absolute z-20 pointer-events-auto"
           style={{
-            left: '13.314815%',
-            top: '71.40625%',
-            width: '33.981481%',
-            height: '18.177083%',
+            left: '9.7%',
+            top: '55.2%',
+            width: '80.6%',
+            height: '10.7%',
           }}
         >
-          <HomeGameButton
-            type="solo"
-            title={'SOLO\nMEYDAN OKUMA'}
-            icon={<UserRound className="h-7 w-7" strokeWidth={1.75} />}
-            onClick={handleSolo}
-          />
+          <FantasyPlaqueButton type="online" onClick={handleOnline} />
         </div>
 
         <div
           className="absolute z-20 pointer-events-auto"
           style={{
-            left: '52.703704%',
-            top: '71.40625%',
-            width: '33.981481%',
-            height: '18.177083%',
+            left: '9.7%',
+            top: '68.8%',
+            width: '80.6%',
+            height: '10.7%',
           }}
         >
-          <HomeGameButton
-            type="online"
-            title={'ONLINE\nKAPIŞMA'}
-            icon={<Globe className="h-7 w-7" strokeWidth={1.85} />}
-            onClick={handleOnline}
-          />
+          <FantasyPlaqueButton type="solo" onClick={handleSolo} />
         </div>
 
         <section
