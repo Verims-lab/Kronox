@@ -14,20 +14,22 @@ const HOME_BUTTONS = {
     label: ['ONLINE', 'KAPIŞMA'],
     ariaLabel: 'ONLINE KAPIŞMA',
     emblem: 'swords',
-    primarySize: '12.9cqw',
-    secondarySize: '9.4cqw',
-    textTop: '18%',
-    textBottom: '18%',
+    primarySize: 'clamp(22px, 9.6cqw, 78px)',
+    secondarySize: 'clamp(18px, 7.4cqw, 62px)',
+    textTop: '21%',
+    textBottom: '20%',
+    textGap: '2%',
     glow: 'rgba(34, 211, 238, 0.72)',
   },
   solo: {
     label: ['SOLO', 'MEYDAN OKUMA'],
     ariaLabel: 'SOLO MEYDAN OKUMA',
     emblem: 'trophy',
-    primarySize: '12.8cqw',
-    secondarySize: '7.35cqw',
-    textTop: '17%',
-    textBottom: '18%',
+    primarySize: 'clamp(22px, 9.6cqw, 78px)',
+    secondarySize: 'clamp(14px, 5.6cqw, 48px)',
+    textTop: '20%',
+    textBottom: '20%',
+    textGap: '3%',
     glow: 'rgba(56, 189, 248, 0.7)',
   },
 };
@@ -103,53 +105,108 @@ function FantasyPlaqueButton({ type, onClick }) {
 
       <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 900 214" preserveAspectRatio="none" aria-hidden="true">
         <defs>
-          <linearGradient id={`${id}-gold`} x1="0%" x2="100%" y1="0%" y2="100%">
-            <stop offset="0%" stopColor="#fff1a8" />
-            <stop offset="21%" stopColor="#f8c65b" />
-            <stop offset="50%" stopColor="#a85c16" />
-            <stop offset="74%" stopColor="#ffd873" />
-            <stop offset="100%" stopColor="#5f310c" />
+          <linearGradient id={`${id}-gold-frame`} x1="0%" x2="0%" y1="0%" y2="100%">
+            <stop offset="0%" stopColor="#fff7c2" />
+            <stop offset="14%" stopColor="#ffe27a" />
+            <stop offset="38%" stopColor="#d9991f" />
+            <stop offset="58%" stopColor="#7a410a" />
+            <stop offset="78%" stopColor="#e3aa30" />
+            <stop offset="100%" stopColor="#3a1c04" />
           </linearGradient>
-          <linearGradient id={`${id}-gold-hot`} x1="0%" x2="0%" y1="0%" y2="100%">
-            <stop offset="0%" stopColor="#fff4b8" />
-            <stop offset="45%" stopColor="#f6b734" />
-            <stop offset="100%" stopColor="#6d370a" />
+          <linearGradient id={`${id}-gold-rim`} x1="0%" x2="0%" y1="0%" y2="100%">
+            <stop offset="0%" stopColor="#fff2a8" />
+            <stop offset="50%" stopColor="#f0b840" />
+            <stop offset="100%" stopColor="#6b3508" />
           </linearGradient>
-          <linearGradient id={`${id}-plate`} x1="0%" x2="100%" y1="0%" y2="100%">
-            <stop offset="0%" stopColor="#213d72" />
-            <stop offset="45%" stopColor="#102246" />
-            <stop offset="100%" stopColor="#071021" />
+          <linearGradient id={`${id}-gold-cap`} x1="0%" x2="0%" y1="0%" y2="100%">
+            <stop offset="0%" stopColor="#fff5b4" />
+            <stop offset="38%" stopColor="#f4b430" />
+            <stop offset="76%" stopColor="#9a5210" />
+            <stop offset="100%" stopColor="#3d1c04" />
           </linearGradient>
-          <radialGradient id={`${id}-plate-glow`} cx="50%" cy="18%" r="84%">
-            <stop offset="0%" stopColor="#2563eb" stopOpacity="0.64" />
-            <stop offset="42%" stopColor="#0f2a59" stopOpacity="0.42" />
-            <stop offset="100%" stopColor="#030817" stopOpacity="0.08" />
+          <linearGradient id={`${id}-plate`} x1="0%" x2="0%" y1="0%" y2="100%">
+            <stop offset="0%" stopColor="#1a2f5e" />
+            <stop offset="40%" stopColor="#0b1b40" />
+            <stop offset="100%" stopColor="#04081c" />
+          </linearGradient>
+          <radialGradient id={`${id}-plate-glow`} cx="50%" cy="18%" r="78%">
+            <stop offset="0%" stopColor="#2f6dff" stopOpacity="0.62" />
+            <stop offset="44%" stopColor="#0a1c45" stopOpacity="0.38" />
+            <stop offset="100%" stopColor="#02050f" stopOpacity="0.06" />
           </radialGradient>
-          <radialGradient id={`${id}-gem`} cx="48%" cy="34%" r="70%">
-            <stop offset="0%" stopColor="#e7fbff" />
-            <stop offset="32%" stopColor="#38d5ff" />
-            <stop offset="74%" stopColor="#1d4ed8" />
-            <stop offset="100%" stopColor="#08205d" />
+          <radialGradient id={`${id}-gem`} cx="48%" cy="32%" r="72%">
+            <stop offset="0%" stopColor="#f3fdff" />
+            <stop offset="28%" stopColor="#5fdcff" />
+            <stop offset="68%" stopColor="#1c4ed8" />
+            <stop offset="100%" stopColor="#070f3a" />
           </radialGradient>
+          <linearGradient id={`${id}-highlight`} x1="0%" x2="0%" y1="0%" y2="100%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.55" />
+            <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+          </linearGradient>
+          <filter id={`${id}-soft-blur`} x="-10%" y="-10%" width="120%" height="120%">
+            <feGaussianBlur stdDeviation="2" />
+          </filter>
         </defs>
 
-        <path d="M58 32 H154 L178 8 H722 L746 32 H842 L890 76 V138 L842 182 H746 L722 206 H178 L154 182 H58 L10 138 V76 Z" fill="rgba(0,0,0,0.72)" transform="translate(0 8)" />
-        <path d="M50 25 H150 L174 4 H726 L750 25 H850 L896 70 V144 L850 189 H750 L726 210 H174 L150 189 H50 L4 144 V70 Z" fill={`url(#${id}-gold)`} />
-        <path d="M70 41 H166 L188 22 H712 L734 41 H830 L874 80 V134 L830 174 H734 L712 193 H188 L166 174 H70 L26 134 V80 Z" fill="#4a2709" opacity="0.9" />
-        <path d="M88 48 H806 L844 82 V130 L806 164 H88 L52 130 V82 Z" fill={`url(#${id}-plate)`} />
-        <path d="M88 48 H806 L844 82 V130 L806 164 H88 L52 130 V82 Z" fill={`url(#${id}-plate-glow)`} />
-        <path d="M103 61 H792 L825 89 V123 L792 151 H103 L76 123 V89 Z" fill="none" stroke="#0b1731" strokeWidth="7" opacity="0.82" />
-        <path d="M107 58 H790" stroke="#78d7ff" strokeWidth="3.6" strokeLinecap="round" opacity="0.7" />
-        <path d="M110 157 H786" stroke="#0ea5e9" strokeWidth="3.4" strokeLinecap="round" opacity="0.58" />
-        <path d="M34 84 L78 44 H133 L104 75 V139 L133 170 H78 L34 130 Z" fill={`url(#${id}-gold-hot)`} />
-        <path d="M866 84 L822 44 H767 L796 75 V139 L767 170 H822 L866 130 Z" fill={`url(#${id}-gold-hot)`} />
-        <path d="M63 80 L91 55 H124 M837 80 L809 55 H776 M63 134 L91 159 H124 M837 134 L809 159 H776" fill="none" stroke="#fff2ae" strokeWidth="4" strokeLinecap="round" opacity="0.72" />
-        <path d="M450 5 L476 31 L450 57 L424 31 Z" fill={`url(#${id}-gold-hot)`} stroke="#4d2506" strokeWidth="5" />
-        <path d="M450 18 L464 31 L450 45 L436 31 Z" fill={`url(#${id}-gem)`} stroke="#8befff" strokeWidth="2.4" />
-        <path d="M450 157 L476 183 L450 209 L424 183 Z" fill={`url(#${id}-gold-hot)`} stroke="#4d2506" strokeWidth="5" />
-        <path d="M450 170 L464 183 L450 197 L436 183 Z" fill={`url(#${id}-gem)`} stroke="#8befff" strokeWidth="2.4" />
-        <path d="M24 145 C170 189 730 189 876 145" fill="none" stroke="#0ea5e9" strokeWidth="5" opacity="0.35" />
-        <path d="M79 49 L125 49 M775 49 L821 49 M80 164 L126 164 M774 164 L820 164" stroke="#2d1606" strokeWidth="7" strokeLinecap="round" opacity="0.48" />
+        {/* drop shadow */}
+        <path d="M58 36 H154 L178 12 H722 L746 36 H842 L890 80 V142 L842 186 H746 L722 210 H178 L154 186 H58 L10 142 V80 Z" fill="rgba(0,0,0,0.55)" transform="translate(0 10)" filter={`url(#${id}-soft-blur)`} />
+
+        {/* outer gold frame */}
+        <path d="M50 25 H150 L174 4 H726 L750 25 H850 L896 70 V144 L850 189 H750 L726 210 H174 L150 189 H50 L4 144 V70 Z" fill={`url(#${id}-gold-frame)`} />
+
+        {/* inner gold ridge highlight */}
+        <path d="M50 25 H150 L174 4 H726 L750 25 H850 L896 70 V144 L850 189 H750 L726 210 H174 L150 189 H50 L4 144 V70 Z" fill="none" stroke="#fff4be" strokeWidth="2.4" opacity="0.85" />
+
+        {/* dark groove between gold and plate */}
+        <path d="M76 44 H170 L192 24 H708 L730 44 H824 L868 82 V132 L824 170 H730 L708 190 H192 L170 170 H76 L32 132 V82 Z" fill="#3a1f05" opacity="0.95" />
+
+        {/* dark plate base */}
+        <path d="M92 50 H802 L842 84 V130 L802 164 H92 L52 130 V84 Z" fill={`url(#${id}-plate)`} />
+
+        {/* portal glow inside plate */}
+        <path d="M92 50 H802 L842 84 V130 L802 164 H92 L52 130 V84 Z" fill={`url(#${id}-plate-glow)`} />
+
+        {/* inner plate stroke */}
+        <path d="M92 50 H802 L842 84 V130 L802 164 H92 L52 130 V84 Z" fill="none" stroke="#050a1b" strokeWidth="3.5" opacity="0.9" />
+
+        {/* plate top sheen */}
+        <path d="M104 56 H794 L828 86 H72 Z" fill={`url(#${id}-highlight)`} opacity="0.45" />
+
+        {/* plate inner double-line frame */}
+        <path d="M106 62 H788 L824 90 V124 L788 152 H106 L74 124 V90 Z" fill="none" stroke="#0a1936" strokeWidth="4.5" opacity="0.7" />
+        <path d="M114 70 H780 L816 92 V122 L780 144 H114 L82 122 V92 Z" fill="none" stroke="#5ec1ff" strokeWidth="0.9" opacity="0.45" />
+
+        {/* under-plate blue glow arc */}
+        <path d="M40 150 C180 192 720 192 860 150" fill="none" stroke="#1d8eff" strokeWidth="4.5" opacity="0.42" filter={`url(#${id}-soft-blur)`} />
+
+        {/* left gold side cap */}
+        <path d="M30 84 L76 42 H140 L108 76 V138 L140 172 H76 L30 130 Z" fill={`url(#${id}-gold-cap)`} />
+        <path d="M30 84 L76 42 H140 L108 76 V138 L140 172 H76 L30 130 Z" fill="none" stroke="#fff4be" strokeWidth="1.8" opacity="0.75" />
+        <path d="M58 80 L92 53 H128" fill="none" stroke="#fff2ae" strokeWidth="3.2" strokeLinecap="round" opacity="0.72" />
+        <path d="M58 134 L92 161 H128" fill="none" stroke="#3a1c04" strokeWidth="3" strokeLinecap="round" opacity="0.65" />
+
+        {/* right gold side cap */}
+        <path d="M870 84 L824 42 H760 L792 76 V138 L760 172 H824 L870 130 Z" fill={`url(#${id}-gold-cap)`} />
+        <path d="M870 84 L824 42 H760 L792 76 V138 L760 172 H824 L870 130 Z" fill="none" stroke="#fff4be" strokeWidth="1.8" opacity="0.75" />
+        <path d="M842 80 L808 53 H772" fill="none" stroke="#fff2ae" strokeWidth="3.2" strokeLinecap="round" opacity="0.72" />
+        <path d="M842 134 L808 161 H772" fill="none" stroke="#3a1c04" strokeWidth="3" strokeLinecap="round" opacity="0.65" />
+
+        {/* top gem */}
+        <path d="M450 0 L484 32 L450 64 L416 32 Z" fill={`url(#${id}-gold-cap)`} stroke="#4d2506" strokeWidth="3.5" />
+        <path d="M450 14 L468 32 L450 50 L432 32 Z" fill={`url(#${id}-gem)`} stroke="#bdf0ff" strokeWidth="1.6" />
+        <path d="M444 22 L450 18 L456 22" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" opacity="0.85" />
+
+        {/* bottom gem */}
+        <path d="M450 150 L484 182 L450 214 L416 182 Z" fill={`url(#${id}-gold-cap)`} stroke="#4d2506" strokeWidth="3.5" />
+        <path d="M450 164 L468 182 L450 200 L432 182 Z" fill={`url(#${id}-gem)`} stroke="#bdf0ff" strokeWidth="1.6" />
+        <path d="M444 172 L450 168 L456 172" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" opacity="0.85" />
+
+        {/* rivet dots */}
+        <circle cx="100" cy="58" r="3" fill="#fff1ae" opacity="0.85" />
+        <circle cx="100" cy="156" r="3" fill="#fff1ae" opacity="0.85" />
+        <circle cx="800" cy="58" r="3" fill="#fff1ae" opacity="0.85" />
+        <circle cx="800" cy="156" r="3" fill="#fff1ae" opacity="0.85" />
       </svg>
 
       <span
@@ -191,21 +248,22 @@ function FantasyPlaqueButton({ type, onClick }) {
       <span
         className="pointer-events-none absolute z-20 flex flex-col items-center justify-center"
         style={{
-          left: '27%',
-          right: '7.2%',
+          left: '26%',
+          right: '8%',
           top: config.textTop,
           bottom: config.textBottom,
-          color: '#ffc942',
+          gap: config.textGap,
+          color: '#ffd24a',
           fontFamily: 'Bangers, Impact, sans-serif',
-          letterSpacing: 0,
-          textShadow: '0 2px 0 #5b2b06, 0 5px 4px rgba(0,0,0,0.72), 0 0 10px rgba(255,216,100,0.34)',
-          WebkitTextStroke: '0.7px rgba(91,43,6,0.95)',
+          letterSpacing: '0.5px',
+          textShadow: '0 1px 0 #fff7c2, 0 2px 0 #5b2b06, 0 4px 5px rgba(0,0,0,0.78), 0 0 12px rgba(255,210,74,0.4)',
+          WebkitTextStroke: '0.6px rgba(58,28,4,0.95)',
         }}
       >
-        <span style={{ display: 'block', fontSize: config.primarySize, lineHeight: 0.76 }}>
+        <span style={{ display: 'block', fontSize: config.primarySize, lineHeight: 0.82 }}>
           {config.label[0]}
         </span>
-        <span style={{ display: 'block', fontSize: config.secondarySize, lineHeight: 0.86 }}>
+        <span style={{ display: 'block', fontSize: config.secondarySize, lineHeight: 0.9 }}>
           {config.label[1]}
         </span>
       </span>
@@ -365,7 +423,7 @@ export default function MainMenu() {
           className="absolute z-20 pointer-events-auto"
           style={{
             left: '9.7%',
-            top: '55.2%',
+            top: '59.5%',
             width: '80.6%',
             height: '10.7%',
           }}
@@ -377,7 +435,7 @@ export default function MainMenu() {
           className="absolute z-20 pointer-events-auto"
           style={{
             left: '9.7%',
-            top: '68.8%',
+            top: '72.8%',
             width: '80.6%',
             height: '10.7%',
           }}
