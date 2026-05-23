@@ -361,29 +361,7 @@ export default function MainMenu() {
           }}
         />
 
-        <header
-          className="pointer-events-none absolute z-10 flex justify-center"
-          style={{
-            left: '50%',
-            top: 'calc(0.45rem + env(safe-area-inset-top))',
-            width: '60%',
-            transform: 'translateX(-50%)',
-          }}
-        >
-          <img
-            src={LOGO_URL}
-            alt="Kronox"
-            draggable={false}
-            className="object-contain"
-            style={{
-              width: '100%',
-              height: 'auto',
-              filter: 'drop-shadow(0 0 14px rgba(250,204,21,0.86))',
-            }}
-          />
-        </header>
-
-        <div
+<div
           className="absolute z-20 pointer-events-auto"
           style={{
             left: '9.7%',
