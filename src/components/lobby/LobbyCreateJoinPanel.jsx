@@ -267,16 +267,16 @@ function FantasyCtaButton({ variant, label, icon, onClick }) {
       <span
         className="pointer-events-none absolute z-10 flex items-center justify-center font-bangers uppercase"
         style={{
-          left: isGold ? '18%' : '20%',
-          right: isGold ? '8%' : '9%',
+          left: isGold ? '19%' : '21%',
+          right: isGold ? '9%' : '10%',
           top: 0,
           bottom: isGold ? '3%' : '1%',
           color: isGold ? '#1e180c' : '#e9f4ff',
-          fontSize: isGold ? '12.3cqw' : '8.6cqw',
+          fontSize: isGold ? 'clamp(16px, 7.8cqw, 56px)' : 'clamp(14px, 6.2cqw, 44px)',
           lineHeight: 1,
-          letterSpacing: 0,
+          letterSpacing: '0.6px',
           textShadow: isGold
-            ? '0 1px 0 rgba(255,243,174,0.42), 0 3px 2px rgba(0,0,0,0.24)'
+            ? '0 1px 0 rgba(255,243,174,0.42), 0 2px 2px rgba(0,0,0,0.28)'
             : '0 2px 0 rgba(1,8,24,0.72), 0 0 8px rgba(126,200,255,0.28)',
         }}
       >
@@ -306,44 +306,74 @@ function SelectedCategoryOverlay() {
   return (
     <motion.div
       className="pointer-events-none absolute inset-0 z-20"
-      initial={{ opacity: 0.6, scale: 0.98 }}
+      style={{ containerType: 'size' }}
+      initial={{ opacity: 0.5, scale: 0.985 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ type: 'spring', stiffness: 520, damping: 28 }}
+      transition={{ type: 'spring', stiffness: 560, damping: 26 }}
       aria-hidden="true"
     >
+      {/* Premium gold glow frame */}
       <div
         className="absolute inset-0"
         style={{
-          clipPath: 'polygon(4% 2%, 96% 2%, 99% 9%, 99% 91%, 96% 98%, 4% 98%, 1% 91%, 1% 9%)',
-          border: '2px solid rgba(255, 214, 88, 0.96)',
-          boxShadow: '0 0 18px rgba(250,204,21,0.92), inset 0 0 18px rgba(250,204,21,0.32)',
-          background: 'linear-gradient(135deg, rgba(250,204,21,0.12), transparent 36%, rgba(34,211,238,0.08))',
+          borderRadius: '14px',
+          boxShadow:
+            '0 0 0 2px rgba(255,225,120,0.95), 0 0 0 4px rgba(120,60,8,0.85), 0 0 22px rgba(250,204,21,0.78), inset 0 0 18px rgba(250,204,21,0.22)',
+          background:
+            'linear-gradient(135deg, rgba(255,228,128,0.14), transparent 40%, rgba(34,211,238,0.06))',
         }}
       />
+      {/* Inner bright rim */}
       <div
-        className="absolute right-[-3%] top-[2%] flex items-center justify-center"
+        className="absolute inset-[3%]"
         style={{
-          width: '34%',
-          height: '29%',
-          transform: 'rotate(45deg)',
-          transformOrigin: '50% 50%',
-          background: 'linear-gradient(135deg, #fff2a8 0%, #facc15 38%, #a35b12 100%)',
-          color: '#1e1609',
-          fontFamily: 'Bangers, Impact, sans-serif',
-          fontSize: 'clamp(10px, 3.8cqw, 18px)',
-          letterSpacing: 0,
-          textShadow: '0 1px 0 rgba(255,255,255,0.34)',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.44), inset 0 1px 0 rgba(255,255,255,0.46)',
+          borderRadius: '10px',
+          boxShadow: 'inset 0 0 0 1px rgba(255,245,180,0.55)',
+        }}
+      />
+      {/* Diagonal top-right SEÇİLDİ ribbon */}
+      <div
+        className="absolute overflow-hidden"
+        style={{
+          right: '-1%',
+          top: '-1%',
+          width: '46%',
+          height: '46%',
+          pointerEvents: 'none',
         }}
       >
-        SEÇİLDİ
+        <div
+          className="absolute flex items-center justify-center"
+          style={{
+            width: '160%',
+            height: '32%',
+            top: '22%',
+            left: '-10%',
+            transform: 'rotate(45deg)',
+            transformOrigin: '50% 50%',
+            background:
+              'linear-gradient(180deg, #fff4b8 0%, #fbc73a 40%, #a86512 100%)',
+            color: '#231405',
+            fontFamily: 'Bangers, Impact, sans-serif',
+            fontSize: 'clamp(9px, 3.4cqw, 16px)',
+            letterSpacing: '0.6px',
+            textShadow: '0 1px 0 rgba(255,250,200,0.6)',
+            boxShadow:
+              '0 2px 6px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.55), inset 0 -2px 3px rgba(120,60,8,0.55)',
+          }}
+        >
+          SEÇİLDİ
+        </div>
       </div>
     </motion.div>
   );
 }
 
+// FLASHBACK is baked into the background as the default selected state, so we
+// start with null to avoid double-rendering a live overlay on top of it. Any
+// user tap then sets a single category id (mutual exclusion guaranteed).
 function OnlineChallengeLanding({ onCreate, onJoin, onBackHome }) {
-  const [selectedCategory, setSelectedCategory] = useState(CATEGORIES[0].id);
+  const [selectedCategory, setSelectedCategory] = useState(null);
   const [isWideStage, setIsWideStage] = useState(getIsWideStage);
 
   useEffect(() => {
@@ -382,7 +412,9 @@ function OnlineChallengeLanding({ onCreate, onJoin, onBackHome }) {
 
   const chooseCategory = (categoryId) => {
     sounds.tick();
-    setSelectedCategory(categoryId);
+    // Single-value state guarantees only one category is selected at a time.
+    // If the same category is tapped again, no-op (avoid flicker).
+    setSelectedCategory(prev => (prev === categoryId ? prev : categoryId));
   };
 
   const startChallenge = () => {
