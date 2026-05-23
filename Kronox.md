@@ -2,7 +2,7 @@
 
 ## PRODUCT IDENTITY
 
-Kronox is a premium social timeline party game, not a SaaS dashboard, trivia site, or admin panel.
+Kronox is a premium social timeline party game, not a SaaS dashboard, trivia site, admin panel, or generic web app.
 
 Kronox should feel:
 - social
@@ -12,7 +12,8 @@ Kronox should feel:
 - energetic
 - premium
 - modern
-- slightly futuristic
+- magical
+- iconic
 - emotionally rewarding
 
 Core emotion:
@@ -29,16 +30,45 @@ Players should experience:
 Kronox creates:
 **party chaos through timeline placement.**
 
+Kronox remains mobile portrait first. Gameplay stability, responsiveness, tactile feel, emotional feedback, and visual polish are still the product priorities, in that order.
+
+---
+
+# ART DIRECTION PIVOT
+
+Kronox has pivoted away from the old dominant visual identity:
+- neon cosmic
+- purple sci-fi
+- synthwave
+- glow-heavy space UI
+- thin futuristic outlines
+
+The new visual direction is:
+- premium fantasy mobile game
+- polished arcade adventure
+- collectible-card inspired
+- magical portal energy
+- blue/gold heroic UI
+- tactile carved game surfaces
+- game-store-quality presentation
+- warm, iconic, readable, rewarding
+
+New visuals must follow a fantasy portal / blue-gold / tactile mobile game language. Old purple cosmic assets and neon sci-fi styling should be phased out gradually, not removed in risky broad rewrites.
+
+Migration must be incremental, isolated, and rollback-safe. Gameplay feel and stability matter more than visual experimentation.
+
 ---
 
 # CORE EXPERIENCE PRINCIPLES
 
-## Every interaction must feel tactile
+## Every Interaction Must Feel Tactile
 
 Dragging, placing, revealing, and confirming should create physical feedback.
 
 UI should feel:
 - touchable
+- carved
+- pressurized
 - magnetic
 - responsive
 - satisfying
@@ -51,7 +81,7 @@ Avoid:
 
 ---
 
-## Feedback trumps decoration
+## Feedback Trumps Decoration
 
 Prioritize:
 - motion clarity
@@ -63,7 +93,18 @@ over excessive decoration or visual complexity.
 
 ---
 
-## MOBILE VIEWPORT STANDARD
+## Wrong Answers Are Emotionally Valuable
+
+Failures should feel:
+- dramatic
+- funny
+- socially visible
+
+Treat failures as memorable social moments, not sterile system errors.
+
+---
+
+# MOBILE VIEWPORT STANDARD
 
 Kronox is primarily a mobile portrait game.
 
@@ -84,94 +125,186 @@ Settings/Admin/Test screens:
 
 Never apply global overflow hidden in a way that breaks gameplay, settings, admin, or test pages.
 
-## MOBILE UI QUALITY BAR
-
-Kronox UI should feel like crafted mobile game interface art, not assembled web components.
-
-For primary buttons/cards:
-- strong silhouette
-- clear hierarchy
-- vector-like polish
-- layered highlights
-- bevel/depth illusion
-- tactile press state
-- premium glow restraint
-
-Avoid:
-- plain div/card styling
-- generic gradients
-- default Tailwind-looking surfaces
-- UI elements that feel disconnected from background art
-
-## Wrong answers are emotionally valuable
-
-Failures should feel:
-- dramatic
-- funny
-- socially visible
-
-Treat failures as memorable social moments, not sterile system errors.
-
 ---
 
 # VISUAL LANGUAGE
 
 ## Style
 
-Premium neon arcade.
+Premium fantasy arcade.
 Modern mobile game.
-Clean but energetic.
+Collectible-card inspired.
+Readable, tactile, and heroic.
+
+Kronox should look like crafted mobile game interface art, not assembled web components.
 
 ---
 
-## Color palette
-
-- Dark purple / deep navy base
-- Neon yellow accents
-- Controlled glow usage
-- Soft layered depth
-
----
-
-## Avoid
-
-Avoid:
-- enterprise dashboards
-- admin-panel aesthetics
-- form-heavy layouts
-- sterile modal systems
-- generic SaaS visual patterns inside gameplay
-
-Avoid:
-- flat white cards
-- excessive hard borders
-- rigid box-heavy layouts
-
----
-
-## Depth & layering
+## Material Language
 
 Use:
-- soft shadows
-- subtle depth
-- ambient glows
-- elevation changes
-- opacity layering
+- carved stone frames
+- gold-trimmed plates
+- polished game-metal edges
+- magical portal cores
+- embossed icons
+- collectible-card surfaces
+- thick silhouettes
+- layered bevel depth
+- physical button pressure
+- readable high-contrast labels
 
 Avoid completely flat surfaces.
 
 ---
 
-## Borders
+## Color Direction
+
+Primary:
+- royal blue
+- electric blue
+
+Accent:
+- gold
+- amber
+
+Support:
+- deep navy
+- slate
+- dark stone
+
+Energy:
+- cyan magical portal glow
+
+Purple:
+- allowed only as secondary/support atmosphere
+- must not be the dominant identity
+
+---
+
+## Depth & Layering
+
+Use:
+- carved depth
+- bevel highlights
+- metal edge catches
+- shadowed stone cavities
+- layered collectible panels
+- portal light behind or within surfaces
+- controlled magical glow
+
+Avoid:
+- glow-only decoration
+- generic gradients
+- thin sci-fi outlines
+- over-rendered effects that reduce clarity
+
+---
+
+## Buttons
+
+Buttons should feel:
+- carved
+- plated
+- pressurized
+- physically clickable
+- gold or blue energy accented
+- responsive to state changes
+
+Actionable buttons may pulse subtly, but the effect should read as charge/energy, not generic web animation.
+
+The “PLACE CARD” button is a core gameplay mechanic, not a form submission.
+
+Avoid:
+- web CTA styling
+- flat rectangles
+- sterile form buttons
+- generic Tailwind button surfaces
+
+---
+
+## Cards
+
+Cards should feel:
+- collectible
+- framed
+- emblematic
+- layered
+- tactile
+- readable at mobile size
+
+Card surfaces may use gold trim, carved frames, embossed icons, and portal-energy accents. They must not become noisy enough to obscure gameplay information.
+
+---
+
+## Timeline Design
+
+Timeline should feel:
+- dynamic
+- alive
+- reactive
+- premium
+- readable
+
+Active drop zones should respond visually, but Timeline readability and placement clarity always win.
+
+Do not sacrifice drag/drop hit-testing, manual geometry, scroll containment, or placement clarity for decoration.
+
+Avoid:
+- clutter
+- excessive noise
+- visual chaos
+- overbuilt ornaments near drop targets
+
+The timeline must remain readable during emotional chaos.
+
+---
+
+## Setup / Lobby Screens
+
+Setup and lobby entry should feel exciting, not administrative.
 
 Prefer:
-- glow
-- depth
-- lighting separation
+- fantasy portal atmosphere
+- blue/gold heroic framing
+- tactile game buttons
+- emblematic category or mode surfaces
+- collectible-panel composition
 
-over:
-- thick outlines
-- stroke-heavy UI
+Avoid:
+- form-heavy first impressions
+- dashboard aesthetics
+- SaaS-style cards
+- generic web menus
+
+Players should feel emotionally invited into competition immediately.
+
+The setup screen should communicate:
+**“Get ready to challenge your friends.”**
+
+---
+
+# AVOID LIST
+
+Avoid as dominant visual identity:
+- neon cosmic style
+- purple-only UI
+- sci-fi thin-line panels
+- synthwave cards
+- starfield UI as the primary system
+- glow-heavy space decoration
+
+Avoid generally:
+- enterprise dashboards
+- admin-panel aesthetics
+- generic SaaS visual patterns inside gameplay
+- flat white cards
+- rigid box-heavy layouts
+- flat placeholder panels
+- generic fantasy clipart
+- low-quality AI-art-looking surfaces
+- excessive hard borders
+- over-rendered effects that reduce clarity or performance
 
 ---
 
@@ -190,6 +323,7 @@ Animations should:
 - support gameplay
 - enhance emotional feedback
 - improve physical feel
+- reinforce carved/pressurized surfaces
 
 Avoid:
 - slow cinematic delays
@@ -199,22 +333,24 @@ Avoid:
 
 ---
 
-## Preferred motion
+## Preferred Motion
 
 Prefer:
 - spring easing
 - snap motion
 - micro-bounce
 - scale feedback
-- glow pulses
 - directional movement
 - impact reactions
+- subtle blue/cyan energy charge
+- gold highlight flickers on successful actions
 
 Avoid:
 - long fades
 - generic CSS transitions
 - random motion
 - overuse of rotation
+- glow spam
 
 ---
 
@@ -231,7 +367,7 @@ Cards should feel:
 While dragged:
 - slightly scale up
 - gain elevation
-- feel "held"
+- feel “held”
 
 Ghost motion should feel:
 - buttery smooth
@@ -253,8 +389,9 @@ Placement should feel:
 Use:
 - magnetic slots
 - placement bounce
-- glow pulse
 - subtle impact feedback
+- blue/cyan energy confirmation
+- gold reward highlight when appropriate
 
 Avoid:
 - silent placement
@@ -264,14 +401,15 @@ Avoid:
 
 ## Reveal Feel
 
-### Correct reveal
+### Correct Reveal
 
 Should feel:
 - satisfying
 - rewarding
 - clean dopamine burst
+- heroic
 
-### Wrong reveal
+### Wrong Reveal
 
 Should feel:
 - dramatic
@@ -287,58 +425,6 @@ Avoid:
 - sterile modals
 - system-message feeling
 - administrative UI behavior
-
----
-
-## Button Philosophy
-
-Buttons should react to state changes.
-
-Actionable buttons should pulse subtly.
-
-The “PLACE CARD” button is a core gameplay mechanic — not a form submission.
-
----
-
-## Timeline Design
-
-Timeline should feel:
-- dynamic
-- alive
-- reactive
-- premium
-
-Active drop zones should respond visually and glow subtly.
-
-Avoid:
-- clutter
-- excessive noise
-- visual chaos
-
-The timeline must remain readable during emotional chaos.
-
-Readability is always critical.
-
----
-
-## Setup Screen
-
-Setup should feel exciting, not administrative.
-
-Avoid:
-- form-heavy configuration screens
-- dashboard aesthetics
-
-Prefer:
-- atmosphere
-- motion
-- ambient energy
-- floating elements
-
-Players should feel emotionally invited into competition immediately.
-
-The setup screen should communicate:
-**“Get ready to challenge your friends.”**
 
 ---
 
@@ -387,11 +473,14 @@ Prefer:
 - transform animations
 - opacity animations
 - GPU-friendly rendering
+- restrained glows
+- scoped effects
 
 Avoid:
 - expensive layout thrashing
 - excessive blur filters
 - unnecessary rerenders
+- heavy glow stacks on low-end Android
 
 All animations must remain performant.
 
@@ -422,6 +511,8 @@ Do not casually:
 - replace touch event systems
 - rewrite timeline logic
 - rewrite multiplayer synchronization systems
+
+Visual reskin work must not touch gameplay, multiplayer, Timeline, DropZone, QuestionCard, useGameActions, useLobbySync, or backend functions unless explicitly requested.
 
 ---
 
@@ -506,6 +597,8 @@ Every multiplayer-related change must be tested with:
 
 Offline Solo Challenge must be smoke-tested after every multiplayer change.
 
+Current Health Simulator baseline can show zero FAIL cases and still not be release-ready when critical mobile/timeline checks remain NOT_AUTOMATABLE. Real phone/WebView testing remains required for drag behavior and live Timeline geometry.
+
 ---
 
 # FIX STRATEGY
@@ -529,13 +622,15 @@ Protect stable systems first.
 
 # BUILD MARKER RULE
 
-Major multiplayer or synchronization fixes should increment the temporary build marker:
+Major multiplayer, synchronization, gameplay, or significant UI fixes should increment the temporary build marker:
 
 - Codex001
 - Codex002
 - Codex003
 
 The marker should briefly appear on startup for deployment verification.
+
+Docs-only changes do not require a build marker increment.
 
 ---
 
