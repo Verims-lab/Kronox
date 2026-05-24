@@ -125,6 +125,11 @@ export default function ReleaseReadinessExplainer({ report }) {
         cases are <span className="font-semibold text-blue-200">release blocker</span> until
         verified on real device / live DOM / two-account backend probe. 0 FAIL alone does not
         equal release-ready.
+        {report.score?.explanation && (
+          <span className="mt-1 block text-white/60">
+            {report.score.explanation}
+          </span>
+        )}
       </div>
 
       {/* Release-blocking verification gaps */}
