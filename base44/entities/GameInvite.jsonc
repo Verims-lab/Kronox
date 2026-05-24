@@ -1,0 +1,104 @@
+{
+  "name": "GameInvite",
+  "type": "object",
+  "properties": {
+    "lobby_id": {
+      "type": "string",
+      "description": "ID of the Lobby this invite belongs to"
+    },
+    "lobby_code": {
+      "type": "string",
+      "description": "Lobby code kept for internal compatibility (not the primary invite UX)"
+    },
+    "from_email": {
+      "type": "string",
+      "description": "Lowercased email of the inviting host"
+    },
+    "from_name": {
+      "type": "string",
+      "description": "Display name of the inviting host at invite time"
+    },
+    "to_email": {
+      "type": "string",
+      "description": "Lowercased email of the invited friend"
+    },
+    "to_name": {
+      "type": "string",
+      "description": "Display name of the invited friend at invite time"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "accepted",
+        "rejected",
+        "cancelled",
+        "expired"
+      ],
+      "default": "pending",
+      "description": "Invite lifecycle state"
+    },
+    "game_mode": {
+      "type": "string",
+      "default": "online_challenge",
+      "description": "Game mode label (informational)"
+    },
+    "player_count": {
+      "type": "number",
+      "description": "Intended total players for the invited game (2/3/4)"
+    }
+  },
+  "required": [
+    "lobby_id",
+    "from_email",
+    "to_email"
+  ],
+  "rls": {
+    "create": {
+      "created_by": "{{user.email}}",
+      "data.from_email": "{{user.email}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "data.from_email": "{{user.email}}"
+        },
+        {
+          "data.to_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.from_email": "{{user.email}}"
+        },
+        {
+          "data.to_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.from_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

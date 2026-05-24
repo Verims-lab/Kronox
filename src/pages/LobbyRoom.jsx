@@ -1,5 +1,5 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import LobbyCreateJoinPanel from '@/components/lobby/LobbyCreateJoinPanel';
 import WaitingRoomPanel from '@/components/lobby/WaitingRoomPanel';
@@ -16,10 +16,12 @@ import {
   summarizePlayers,
   validatePlayerName,
 } from '@/lib/lobbyUtils';
-import { debugLog } from '@/lib/debugLog';
+import { createGameInvites } from '@/lib/inviteApi';
+import { debugLog, debugWarn } from '@/lib/debugLog';
 
 export default function LobbyRoom() {
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     user,
     mode,
@@ -81,9 +83,41 @@ export default function LobbyRoom() {
 
     const newLobby = await base44.entities.Lobby.create(lobbyPayload);
     debugLog('[LobbyRoom] created lobby id:', newLobby.id, 'code:', newLobby.code, 'status:', newLobby.status, 'host:', newLobby.host_email, 'maxPlayers:', maxPlayers, 'invitedCount:', invitedEmails?.length || 0);
+
+    // Best-effort: create pending GameInvite rows for selected friends. A
+    // partial failure does not abort lobby creation — the host can re-invite
+    // later if any row failed. Errors surface via setError so the user knows.
+    if (Array.isArray(invitedEmails) && invitedEmails.length) {
+      try {
+        const summary = await createGameInvites({
+          host: user,
+          lobby: newLobby,
+          toEmails: invitedEmails,
+          playerCount: maxPlayers,
+        });
+        debugLog('[LobbyRoom] invites created:', summary);
+        if (summary.failed?.length) {
+          setError(`${summary.failed.length} davet gönderilemedi. Lobi oluşturuldu, tekrar deneyebilirsin.`);
+        }
+      } catch (err) {
+        debugWarn('[LobbyRoom] invite creation failed:', err?.message || err);
+        setError('Davetler oluşturulamadı. Lobi yine de hazır.');
+      }
+    }
+
     setLobby(newLobby);
     setLoading(false);
   };
+
+  // Recipients accepting an invite land here with the joined lobby in route
+  // state — hand it straight to the existing waiting-room render path.
+  useEffect(() => {
+    const joined = location.state?.joinedLobby;
+    if (joined && !lobby) {
+      setLobby(joined);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
 
   const handleJoin = async () => {
     const nameErr = validatePlayerName(playerName);

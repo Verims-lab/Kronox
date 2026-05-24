@@ -13,6 +13,7 @@ import {
 import GoldButton from '@/components/ui/GoldButton';
 import { sounds } from '@/lib/gameSounds';
 import { loadFriends, normalizeEmail } from '@/lib/friendsApi';
+import IncomingInvitesPanel from '@/components/invites/IncomingInvitesPanel';
 
 /**
  * New create-lobby/invite screen shown when the user taps
@@ -132,6 +133,9 @@ export default function CreateLobbyInvitePanel({
         {/* Header */}
         <Header onBackMode={onBackMode} />
 
+        {/* Incoming game invites addressed to me — renders nothing when empty */}
+        <IncomingInvitesPanel user={user} />
+
         {/* You — current user */}
         <SectionLabel icon={Crown} text="Sen" />
         <SelfCard {...userIdentity} />
@@ -198,23 +202,46 @@ export default function CreateLobbyInvitePanel({
         {/* Lobby creation error */}
         {error && <ErrorHint text={error} />}
 
-        {/* CTA */}
+        {/* CTA — disabled until at least 1 friend selected */}
         <div className="pt-1">
-          <GoldButton variant="gold" size="lg" onClick={handleCreate} disabled={loading}>
-            {loading ? (
-              <span className="inline-flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Lobi Oluşturuluyor…
-              </span>
-            ) : (
-              'LOBİ OLUŞTUR VE DAVET ET'
-            )}
-          </GoldButton>
-          <p className="mt-2 text-center font-inter text-[11px] text-blue-100/55">
-            Davet bildirimleri yakında — şu an seçilen arkadaşlar lobide bekleneceğini görür.
-          </p>
+          <CreateInviteCta
+            loading={loading}
+            disabled={selectedEmails.length === 0}
+            onClick={handleCreate}
+            selectedCount={selectedEmails.length}
+            inviteCap={inviteCap}
+          />
         </div>
       </div>
+    </div>
+  );
+}
+
+function CreateInviteCta({ loading, disabled, onClick, selectedCount, inviteCap }) {
+  // Shallow handler that ignores clicks when disabled (no surprise alerts).
+  const handleClick = () => { if (!disabled && !loading) onClick(); };
+  return (
+    <div className="space-y-2">
+      <div style={{ opacity: disabled ? 0.55 : 1, pointerEvents: disabled || loading ? 'none' : 'auto', transition: 'opacity 0.2s' }}>
+        <GoldButton variant="gold" size="lg" onClick={handleClick} disabled={loading || disabled}>
+          {loading ? (
+            <span className="inline-flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Lobi Oluşturuluyor…
+            </span>
+          ) : (
+            'LOBİ OLUŞTUR VE DAVET ET'
+          )}
+        </GoldButton>
+      </div>
+      <p
+        className="text-center font-inter text-[11px]"
+        style={{ color: disabled ? 'rgba(252,211,77,0.85)' : 'rgba(207,224,255,0.55)' }}
+      >
+        {disabled
+          ? 'Oyuna başlamak için en az 1 arkadaş seç.'
+          : `${selectedCount} / ${inviteCap} arkadaş seçildi — davetler oluşturulacak.`}
+      </p>
     </div>
   );
 }

@@ -166,29 +166,39 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
           </button>
         </div>
 
-        {/* Lobby code — gold-rimmed stone tablet */}
-        <div className="text-center space-y-2">
-          <p className="font-inter text-xs uppercase tracking-widest text-blue-100/60">Lobi Kodu</p>
+        {/* Lobby code — demoted to a small fallback affordance. Invitations are
+            now the primary join path, but the code is still useful for guests
+            and as a manual fallback (Açık Lobiye Gir). */}
+        <div className="text-center">
           <button
             onClick={onCopyCode}
-            className="flex items-center gap-2 mx-auto px-6 py-3 min-h-[44px] justify-center"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 mx-auto min-h-[36px] justify-center"
             style={{
-              borderRadius: 14,
-              background: 'linear-gradient(180deg, rgba(30,41,75,0.95), rgba(10,18,38,0.98))',
+              borderRadius: 10,
+              background: 'linear-gradient(180deg, rgba(30,41,75,0.75), rgba(10,18,38,0.85))',
               boxShadow:
-                'inset 0 0 0 2px rgba(250,204,21,0.55), inset 0 1px 0 rgba(255,236,140,0.32), inset 0 -8px 12px rgba(0,0,0,0.5), 0 0 18px rgba(59,130,246,0.32), 0 0 22px rgba(250,204,21,0.18)',
+                'inset 0 0 0 1px rgba(250,204,21,0.35), inset 0 1px 0 rgba(255,236,140,0.18)',
             }}
-            aria-label="Lobi kodunu kopyala"
+            aria-label="Yedek lobi kodunu kopyala"
           >
+            <span className="font-inter text-[10px] uppercase tracking-widest text-blue-100/55">Yedek kod</span>
             <span
-              className="font-cinzel text-2xl font-black tracking-[0.3em]"
-              style={{ color: '#facc15', textShadow: '0 0 14px rgba(250,204,21,0.6)' }}
+              className="font-cinzel text-sm font-black tracking-[0.2em]"
+              style={{ color: '#facc15' }}
             >
               {lobby.code}
             </span>
-            {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-amber-200/80" />}
+            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-amber-200/80" />}
           </button>
-          <p className="font-inter text-xs text-blue-100/55">Arkadaşlarına bu kodu ver</p>
+          {Array.isArray(lobby.invited_emails) && lobby.invited_emails.length > 0 ? (
+            <p className="mt-2 font-inter text-xs text-blue-100/60">
+              Davet edilen arkadaşların kabul ettiklerinde otomatik katılır.
+            </p>
+          ) : (
+            <p className="mt-2 font-inter text-[11px] text-blue-100/45">
+              Daveti kabul eden arkadaşların buraya katılır.
+            </p>
+          )}
         </div>
 
         {/* Players panel */}

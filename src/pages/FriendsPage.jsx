@@ -17,6 +17,7 @@ import FriendListItem from '@/components/friends/FriendListItem';
 import IncomingRequestItem from '@/components/friends/IncomingRequestItem';
 import OutgoingRequestItem from '@/components/friends/OutgoingRequestItem';
 import AddFriendForm from '@/components/friends/AddFriendForm';
+import IncomingInvitesPanel from '@/components/invites/IncomingInvitesPanel';
 
 /**
  * Profile > Arkadaşlarım — Friends MVP.
@@ -139,6 +140,9 @@ export default function FriendsPage() {
           {loadError}
         </p>
       )}
+
+      {/* Pending GAME invites (separate from friend requests) */}
+      <IncomingInvitesPanel user={user} />
 
       {/* Incoming */}
       <Section icon={Inbox} label="Gelen İstekler" badge={incoming.length}>
