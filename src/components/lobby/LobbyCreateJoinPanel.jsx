@@ -96,15 +96,6 @@ export default function LobbyCreateJoinPanel({
           >
             <Clock className="w-7 h-7 text-amber-300" />
           </div>
-          <h1
-            className="font-cinzel text-3xl font-black tracking-wider"
-            style={{
-              color: '#facc15',
-              textShadow: '0 0 18px rgba(250,204,21,0.55), 0 2px 4px rgba(0,0,0,0.7)',
-            }}
-          >
-            KRONOX
-          </h1>
           <p className="font-inter text-blue-100/70 text-sm">Çevrimiçi Lobi</p>
         </div>
 
