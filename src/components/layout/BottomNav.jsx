@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, Globe, Settings } from 'lucide-react';
+import { Home, Globe, UserRound } from 'lucide-react';
 import { useNavigationStack } from '@/lib/NavigationStackContext';
 
 const TABS = [
   { label: 'Ana Sayfa', icon: Home, path: '/' },
   { label: 'Çevrimiçi', icon: Globe, path: '/lobby' },
-  { label: 'Ayarlar', icon: Settings, path: '/settings' },
+  { label: 'Profil', icon: UserRound, path: '/profile' },
 ];
 
 // Hide bottom nav on game and home screen (they have their own UI)

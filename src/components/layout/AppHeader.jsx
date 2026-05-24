@@ -4,7 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 
 // Root screens: show brand title, no back button
-const ROOT_ROUTES = ['/', '/lobby', '/settings'];
+const ROOT_ROUTES = ['/', '/lobby', '/profile', '/settings'];
 
 export default function AppHeader({ onBack } = {}) {
   const location = useLocation();

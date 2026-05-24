@@ -19,6 +19,7 @@ const SoloChallenge = lazy(() => import('./pages/SoloChallenge'));
 const Game = lazy(() => import('./pages/Game'));
 const LobbyRoom = lazy(() => import('./pages/LobbyRoom'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const TestSuite = lazy(() => import('./pages/TestSuite'));
 
 function PageLoader() {
@@ -35,7 +36,7 @@ const AuthenticatedApp = () => {
 
   // Determine transition direction: push (right-to-left) or pop (left-to-right)
   const getTransitionDirection = () => {
-    const routeOrder = ['/', '/game', '/lobby', '/settings', '/test-suite'];
+    const routeOrder = ['/', '/game', '/lobby', '/profile', '/settings', '/test-suite'];
     const currIdx = routeOrder.indexOf(location.pathname);
     const prevIdx = routeOrder.indexOf(prevPathRef.current);
     const direction = currIdx > prevIdx ? 'push' : 'pop';
@@ -88,6 +89,7 @@ const AuthenticatedApp = () => {
               <Route path="/solo" element={<SoloChallenge />} />
               <Route path="/setup" element={<Navigate to="/solo" replace />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
               <Route path="/lobby" element={<LobbyRoom />} />
               <Route path="/game" element={<Game />} />
               <Route path="/test-suite" element={<TestSuite />} />

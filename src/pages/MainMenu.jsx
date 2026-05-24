@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ChevronRight, LogOut, Settings, UserRound } from 'lucide-react';
+import { ChevronRight, LogOut, UserRound } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 
@@ -160,9 +160,9 @@ export default function MainMenu() {
     base44.auth.logout('/');
   };
 
-  const handleSettings = () => {
+  const handleProfile = () => {
     sounds.tap();
-    navigate('/settings');
+    navigate('/profile');
   };
 
   const stageStyle = isWideStage
@@ -249,17 +249,17 @@ export default function MainMenu() {
           <ProfileBar user={user} onLogin={handleLogin} onLogout={handleLogout} />
           <motion.button
             type="button"
-            onClick={handleSettings}
-            whileTap={{ scale: 0.92, rotate: -8 }}
+            onClick={handleProfile}
+            whileTap={{ scale: 0.92 }}
             transition={{ type: 'spring', stiffness: 520, damping: 24 }}
             className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-full border border-amber-300/70 bg-black/76 text-amber-200"
             style={{
               background: 'linear-gradient(180deg, rgba(20,30,58,0.92), rgba(4,8,22,0.96))',
               boxShadow: '0 0 20px rgba(250,204,21,0.46), 0 0 24px rgba(59,130,246,0.28), 0 10px 22px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,236,140,0.32), inset 0 -6px 10px rgba(0,0,0,0.4)',
             }}
-            aria-label="Ayarlar"
+            aria-label="Profil"
           >
-            <Settings className="h-7 w-7" />
+            <UserRound className="h-7 w-7" strokeWidth={2.4} />
           </motion.button>
         </section>
       </div>
