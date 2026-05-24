@@ -69,10 +69,6 @@
       "type": "string",
       "description": "Name of the winning player"
     },
-    "winner_email": {
-      "type": "string",
-      "description": "Email of the winning player"
-    },
     "category": {
       "type": "string",
       "enum": [
@@ -117,6 +113,17 @@
         "type": "string"
       },
       "description": "List of already used question IDs"
+    },
+    "max_players": {
+      "type": "number",
+      "description": "Intended total number of players for this lobby (2, 3 or 4). Informational metadata; multiplayer authority logic is not gated by this field yet."
+    },
+    "invited_emails": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Lowercased emails of friends invited by the host at creation time. Informational only \u2014 actual invite delivery is not yet wired."
     }
   },
   "required": [

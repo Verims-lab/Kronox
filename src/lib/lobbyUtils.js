@@ -44,6 +44,21 @@ export function buildPlayerPayload(user, playerName) {
   };
 }
 
+/**
+ * Derive a clean display name for the authenticated user without forcing them
+ * through the manual validatePlayerName regex (which forbids spaces & long names).
+ * Used by the new invite/create-lobby flow where the user no longer types a name.
+ */
+export function deriveDisplayName(user) {
+  const raw = (user?.full_name || '').trim();
+  if (raw) {
+    // Trim to 15 chars to stay within existing UI assumptions.
+    return raw.length > 15 ? raw.slice(0, 15) : raw;
+  }
+  const fromEmail = (user?.email || '').split('@')[0] || 'Oyuncu';
+  return fromEmail.length > 15 ? fromEmail.slice(0, 15) : fromEmail;
+}
+
 export function isHost(lobby, user) {
   return Boolean(lobby && user && lobby.host_email === user.email);
 }

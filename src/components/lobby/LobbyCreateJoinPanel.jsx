@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { sounds } from '@/lib/gameSounds';
 import GoldButton from '@/components/ui/GoldButton';
+import CreateLobbyInvitePanel from '@/components/lobby/CreateLobbyInvitePanel';
 
 const ONLINE_BACKGROUND_ASSET = '/assets/ui/Kronox_Online_Fantasy_Basckground.png';
 // Exact CTA target visuals — bundled locally under public/assets/ui/.
@@ -45,6 +46,8 @@ export default function LobbyCreateJoinPanel({
   onJoin,
   onBackHome,
   onBackMode,
+  user,
+  onGoFriends,
 }) {
   if (!mode) {
     return (
@@ -52,6 +55,20 @@ export default function LobbyCreateJoinPanel({
         onCreate={() => setMode('create')}
         onJoin={() => setMode('join')}
         onBackHome={onBackHome}
+      />
+    );
+  }
+
+  // New friend-invite create flow — replaces the old "enter player name" form.
+  if (mode === 'create') {
+    return (
+      <CreateLobbyInvitePanel
+        user={user}
+        loading={loading}
+        error={error}
+        onCreate={onCreate}
+        onBackMode={onBackMode || (() => setMode(null))}
+        onGoFriends={onGoFriends}
       />
     );
   }

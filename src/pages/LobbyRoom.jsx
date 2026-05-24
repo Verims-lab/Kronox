@@ -7,6 +7,7 @@ import { useLobbyRoomState } from '@/hooks/useLobbyRoomState';
 import {
   buildPlayerPayload,
   canStartLobby,
+  deriveDisplayName,
   generateCode,
   isGuestHost,
   isHost,
@@ -39,17 +40,31 @@ export default function LobbyRoom() {
     setCopied,
   } = useLobbyRoomState();
 
-  const handleCreate = async () => {
-    const err = validatePlayerName(playerName);
-    if (err) return setNameError(err);
+  // New create signature: { maxPlayers, invitedEmails } from CreateLobbyInvitePanel.
+  // playerName is derived from the authenticated user (no manual input).
+  // For backwards-compat (e.g. if called with no payload), we fall back to playerName state.
+  const handleCreate = async (payload = {}) => {
+    const { maxPlayers, invitedEmails } = payload || {};
+    const derivedName = user
+      ? deriveDisplayName(user)
+      : (playerName && playerName.trim()) || '';
+
+    // Only validate when we have to (guest with no user). Authenticated users skip the regex
+    // because their display name may legitimately contain spaces/punctuation we don't control.
+    if (!user) {
+      const err = validatePlayerName(derivedName);
+      if (err) return setNameError(err);
+    }
+
     setLoading(true);
     setError('');
     const code = normalizeCode(generateCode());
-    const { identity, player } = buildPlayerPayload(user, playerName);
-    const newLobby = await base44.entities.Lobby.create({
+    const { identity, player } = buildPlayerPayload(user, derivedName);
+
+    const lobbyPayload = {
       code,
       host_email: identity.email,
-      host_name: playerName.trim(),
+      host_name: derivedName,
       players: [player],
       status: 'waiting',
       category: 'karisik',
@@ -57,8 +72,15 @@ export default function LobbyRoom() {
       year_end: 2020,
       turn_duration: 60,
       win_card_count: 10,
-    });
-    debugLog('[LobbyRoom] created lobby id:', newLobby.id, 'code:', newLobby.code, 'status:', newLobby.status, 'host:', newLobby.host_email);
+    };
+    // Optional metadata — inert; authority logic does not read these yet.
+    if (typeof maxPlayers === 'number') lobbyPayload.max_players = maxPlayers;
+    if (Array.isArray(invitedEmails) && invitedEmails.length) {
+      lobbyPayload.invited_emails = invitedEmails;
+    }
+
+    const newLobby = await base44.entities.Lobby.create(lobbyPayload);
+    debugLog('[LobbyRoom] created lobby id:', newLobby.id, 'code:', newLobby.code, 'status:', newLobby.status, 'host:', newLobby.host_email, 'maxPlayers:', maxPlayers, 'invitedCount:', invitedEmails?.length || 0);
     setLobby(newLobby);
     setLoading(false);
   };
@@ -174,6 +196,8 @@ export default function LobbyRoom() {
         setMode(null);
         setError('');
       }}
+      user={user}
+      onGoFriends={() => navigate('/friends')}
     />
   );
 }
