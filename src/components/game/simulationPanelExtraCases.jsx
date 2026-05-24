@@ -651,11 +651,38 @@ export const EXTRA_TESTS = [
     'pages/LobbyRoom.jsx',
     lobbyRoomSource,
     ['createGameInvites', 'host: user', 'lobby: newLobby']),
+  // Incoming-invite visibility is enforced in two layers:
+  //   1) lib/inviteApi.js — the actual GameInvite.filter scopes by
+  //      to_email === current user AND status === 'pending'. This is the
+  //      single source of truth for the security-sensitive filter.
+  //   2) components/invites/IncomingInvitesPanel.jsx — calls
+  //      loadIncomingInvites(user.email) and only renders what the loader
+  //      returns. It must not query GameInvite directly with its own filter.
+  // The static contract therefore checks the loader in inviteApi for the
+  // filter literals, and checks the panel for safe delegation to it.
   sourceHas('game_invites', 'incoming_invites_visible_to_recipient',
-    'Incoming invites are visible to the recipient',
+    'Incoming invites are scoped to to_email === current user AND status === pending',
+    'lib/inviteApi.js + components/invites/IncomingInvitesPanel.jsx',
+    `${inviteApiSource}\n${incomingInvitesPanelSource}`,
+    [
+      // loader exists and is called with the authenticated user's email
+      'export async function loadIncomingInvites',
+      'loadIncomingInvites(user.email)',
+      // recipient scoping
+      'to_email: me',
+      // pending status scoping
+      "status: 'pending'",
+      // entity used and ordered/limited
+      'base44.entities.GameInvite.filter',
+    ]),
+  // Defense-in-depth: the panel must NOT bypass the loader by querying
+  // GameInvite directly with its own filter. That would be a real product
+  // risk because the panel could forget the to_email / status scoping.
+  sourceLacks('game_invites', 'incoming_invites_panel_does_not_bypass_loader',
+    'IncomingInvitesPanel does not query GameInvite directly (must go through loadIncomingInvites)',
     'components/invites/IncomingInvitesPanel.jsx',
     incomingInvitesPanelSource,
-    ['loadIncomingInvites', "status: 'pending'", "to_email: me"]),
+    ['base44.entities.GameInvite.filter', 'base44.entities.GameInvite.list']),
   sourceHas('game_invites', 'accept_invite_action_exists',
     'Accept invite action exists',
     'components/invites/IncomingInvitesPanel.jsx',
