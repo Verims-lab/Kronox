@@ -55,6 +55,7 @@ import {
 } from '../../lib/gameRules';
 import { buildPlayerPayload, normalizeCode, removePlayerByIdentity, summarizePlayers } from '../../lib/lobbyUtils';
 import { buildInitialOnlineGameState, filterQuestionsForLobbySettings } from '../../lib/onlineGameStart';
+import { EXTRA_SUITES, EXTRA_TESTS, criticalSocialUncertaintyPenalty } from './simulationPanelExtraCases';
 
 const STATUS = {
   PASS: 'PASS',
@@ -77,7 +78,7 @@ const STATUS_LOOK = {
   [STATUS.ERROR]: { Icon: ShieldAlert, color: '#f43f5e', bg: 'rgba(244,63,94,0.16)', label: 'Error' },
 };
 
-const SUITES = [
+const BASE_SUITES = [
   { id: 'environment', name: 'Environment Suite', critical: false, color: '#67e8f9' },
   { id: 'mobile_viewport', name: 'Mobile Viewport Suite', critical: true, color: '#2dd4bf' },
   { id: 'timeline_hit_testing', name: 'Timeline / Hit Testing Suite', critical: true, color: '#facc15' },
@@ -93,6 +94,10 @@ const SUITES = [
   { id: 'visual_guardrails', name: 'Visual Consistency Guardrail Suite', critical: false, color: '#fda4af' },
   { id: 'report_integrity', name: 'Report Integrity Suite', critical: true, color: '#e5e7eb' },
 ];
+
+// Social/online-invite suites added in Codex073. Concatenated here so the
+// existing BASE_SUITES order — and every existing suite id — stays untouched.
+const SUITES = [...BASE_SUITES, ...EXTRA_SUITES];
 
 const SRC = {
   App: appSource,
@@ -308,7 +313,10 @@ function buildReport(caseResults, meta = createRunMeta(), environment = captureE
 
   const mobileViewportPenalty = cases.some(item => item.suiteId === 'mobile_viewport' && [STATUS.FAIL, STATUS.ERROR, STATUS.BLOCKED].includes(item.status)) ? 8 : 0;
   const authorityPenalty = cases.some(item => item.suiteId === 'multiplayer_authority' && item.status !== STATUS.PASS) ? 6 : 0;
-  const score = Math.max(0, Math.round(100 - penalty - mobileViewportPenalty - authorityPenalty));
+  // Codex073: additive penalty for critical social/security uncertainty.
+  // Caps at 12 so it never zeroes out an already-penalized run.
+  const socialUncertaintyPenalty = criticalSocialUncertaintyPenalty(cases);
+  const score = Math.max(0, Math.round(100 - penalty - mobileViewportPenalty - authorityPenalty - socialUncertaintyPenalty));
   const rating = score >= 90 ? 'Good' : score >= 70 ? 'Watch' : score >= 50 ? 'Risky' : 'Not release-ready';
 
   const problemCases = cases
@@ -346,9 +354,13 @@ function recommendedActions(problemCases) {
   if (problemCases.some(item => item.suiteId === 'multiplayer_authority')) actions.push('Review multiplayer authority checks before release; do not compensate with client-side logic.');
   if (problemCases.some(item => item.suiteId === 'mobile_viewport')) actions.push('Run the simulator on a real mobile WebView/PWA viewport and verify page scroll containment.');
   if (problemCases.some(item => item.suiteId === 'timeline_hit_testing')) actions.push('Exercise drag/drop manually on a phone before shipping any timeline-adjacent change.');
+  if (problemCases.some(item => item.suiteId === 'friends_security')) actions.push('Run a two-account RLS probe against Friendship / FriendRequest before claiming friend-data security.');
+  if (problemCases.some(item => item.suiteId === 'game_invites')) actions.push('Run a two-account GameInvite probe (cross-user read/update attempt) before claiming invite security.');
+  if (problemCases.some(item => item.suiteId === 'create_lobby_invite_gate')) actions.push('Manually verify the "Lobi Oluştur ve Davet Et" disabled state and helper text on a real mobile device.');
+  if (problemCases.some(item => item.suiteId === 'mobile_social_flow')) actions.push('Verify Profile / Friends / Invite screens on a narrow real phone (320×568) including keyboard focus behavior.');
   if (problemCases.some(item => item.status === STATUS.NOT_AUTOMATABLE)) actions.push('Treat non-automatable critical cases as release risk until covered by device/backend tests.');
-  if (problemCases.some(item => item.suiteId === 'debug_hygiene')) actions.push('Confirm debug/test surfaces are gated outside gameplay and production-facing routes.');
-  return actions.length ? actions : ['No major simulator blockers detected; still run the required two-device multiplayer smoke test.'];
+  if (problemCases.some(item => item.suiteId === 'debug_hygiene' || item.suiteId === 'admin_visibility')) actions.push('Confirm debug/test surfaces and admin tooling are gated outside gameplay and Profile for normal users.');
+  return actions.length ? actions : ['No major simulator blockers detected; still run the required two-device multiplayer smoke test plus a two-account invite/RLS probe.'];
 }
 
 function buildHumanSummary(report) {
@@ -591,6 +603,48 @@ const TESTS = [
   makeCase('report_integrity', 'last_run_restore', 'last run can be restored from localStorage if implemented', () => typeof localStorage !== 'undefined'
     ? pass('localStorage is available for last-run restore.', { actual: LAST_RUN_KEY })
     : blocked('localStorage is unavailable in this browser context.')),
+
+  /* ------------------------------------------------------------------
+   *  Codex073 report-integrity additions for the social/invite suites.
+   * ------------------------------------------------------------------ */
+  makeCase('report_integrity', 'extra_suites_registered', 'Codex073 social/invite suites are registered in SUITES', () => {
+    const ids = new Set(SUITES.map((s) => s.id));
+    const expected = ['profile_navigation', 'friends_ui', 'friends_validation', 'friends_security', 'profile_economy', 'online_lobby_setup', 'create_lobby_invite_gate', 'game_invites', 'lobby_code_ux', 'admin_visibility', 'mobile_social_flow', 'fantasy_visual_update'];
+    const missing = expected.filter((id) => !ids.has(id));
+    return missing.length
+      ? fail('Some Codex073 suites are missing from SUITES.', { expected, actual: { missing } })
+      : pass('All Codex073 suites are registered.', { expected, actual: 'all present' });
+  }),
+  makeCase('report_integrity', 'json_export_includes_new_suites', 'JSON export includes Codex073 suites', () => {
+    const report = buildReport([]);
+    const ids = new Set(report.suites.map((s) => s.id));
+    const expected = ['profile_navigation', 'friends_ui', 'friends_security', 'game_invites'];
+    const missing = expected.filter((id) => !ids.has(id));
+    return missing.length
+      ? fail('Codex073 suites missing from JSON export.', { expected, actual: { missing } })
+      : pass('Codex073 suites present in JSON export.');
+  }),
+  makeCase('report_integrity', 'critical_social_uncertainty_penalty', 'Critical social BLOCKED/NOT_AUTOMATABLE is penalised by score', () => {
+    const baseline = buildReport([{ suiteId: 'report_integrity', suiteName: 'Report Integrity Suite', id: 's1', name: 'baseline', status: STATUS.PASS, reason: 'sample', durationMs: 0, critical: true }]);
+    const withUncertainty = buildReport([
+      { suiteId: 'friends_security', suiteName: 'Friends Security / RLS Suite', id: 's2', name: 'rls runtime probe', status: STATUS.NOT_AUTOMATABLE, reason: 'sample', durationMs: 0, critical: true },
+      { suiteId: 'game_invites', suiteName: 'Game Invite Suite', id: 's3', name: 'invite runtime probe', status: STATUS.NOT_AUTOMATABLE, reason: 'sample', durationMs: 0, critical: true },
+    ]);
+    return withUncertainty.score.value < baseline.score.value
+      ? pass('Score penalises critical social uncertainty.', { expected: '< baseline score', actual: { baseline: baseline.score.value, withUncertainty: withUncertainty.score.value } })
+      : fail('Score did not penalise critical social uncertainty.', { actual: { baseline: baseline.score.value, withUncertainty: withUncertainty.score.value } });
+  }),
+  makeCase('report_integrity', 'not_implemented_not_pass', 'NOT_AUTOMATABLE/BLOCKED never count as PASS in counts', () => {
+    const report = buildReport([
+      { suiteId: 'friends_security', suiteName: 'Friends Security / RLS Suite', id: 's4', name: 'sample', status: STATUS.NOT_AUTOMATABLE, reason: 'sample', durationMs: 0, critical: true },
+      { suiteId: 'game_invites', suiteName: 'Game Invite Suite', id: 's5', name: 'sample', status: STATUS.BLOCKED, reason: 'sample', durationMs: 0, critical: true },
+    ]);
+    return report.counts.PASS === 0 && report.counts.NOT_AUTOMATABLE === 1 && report.counts.BLOCKED === 1
+      ? pass('Non-PASS statuses are not double-counted as PASS.', { actual: report.counts })
+      : fail('Non-PASS statuses were miscounted.', { actual: report.counts });
+  }),
+
+  ...EXTRA_TESTS,
 ];
 
 async function executeCase(testCase) {
