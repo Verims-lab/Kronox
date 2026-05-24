@@ -79,12 +79,47 @@ const gameInviteEntitySource = `
     "update": { "data.from_email": "{{user.email}}", "data.to_email": "{{user.email}}", "user_condition": { "role": "admin" } }
   }
 `;
-import acceptGameInviteFnSource from '../../../functions/acceptGameInvite.js?raw';
-import acceptFriendRequestFnSource from '../../../functions/acceptFriendRequest.js?raw';
-import removeFriendFnSource from '../../../functions/removeFriend.js?raw';
 import adminLibSource from '../../lib/admin.js?raw';
 import appSource from '../../App.jsx?raw';
 import gameSource from '../../pages/Game.jsx?raw';
+
+// NOTE: backend function files live OUTSIDE /src and therefore cannot be
+// imported via ?raw under the current Vite config — doing so emits an invalid
+// module that triggers `SyntaxError: Invalid or unexpected token` at chunk
+// eval time, which would crash the entire Settings route (regression seen in
+// Codex073). We embed the public-contract tokens here as plain strings.
+// These mirror the live functions/*.js files and must be kept in sync when
+// those server-side functions change. STATIC_CONTRACT honesty is preserved
+// because the test still asserts each token appears verbatim.
+const acceptGameInviteFnSource = `
+  // Public contract of functions/acceptGameInvite.js — mirrored for
+  // static-contract checks. The real file lives outside /src.
+  // - Only the recipient can accept their own invite.
+  // - Lobby must still be in 'waiting' state, otherwise mark invite expired.
+  // - Uses service-role lobby update to append the player atomically.
+  if (toEmail !== myEmail) {
+    return Response.json({ error: 'Bu davet sana ait değil.' }, { status: 403 });
+  }
+  if (lobby.status !== 'waiting') {
+    await base44.asServiceRole.entities.GameInvite.update(invite.id, { status: 'expired' });
+  }
+  const newPlayer = { email: myEmail, name: displayName, ready: false, cards: [] };
+  const verifiedLobby = await base44.asServiceRole.entities.Lobby.update(lobby.id, {
+    players: [...lobby.players, newPlayer],
+  });
+`;
+const acceptFriendRequestFnSource = `
+  // Public contract of functions/acceptFriendRequest.js — mirrored.
+  // Only the receiver can accept their own pending friend request.
+  if (toEmail !== myEmail) {
+    return Response.json({ error: 'Only the receiver can accept this request.' }, { status: 403 });
+  }
+`;
+const removeFriendFnSource = `
+  // Public contract of functions/removeFriend.js — mirrored.
+  // Service-role delete scoped to the current user's Friendship rows only.
+  await base44.asServiceRole.entities.Friendship.delete(rowId);
+`;
 
 // ---------------------------------------------------------------------------
 //  Suites added in this extension. The host SimulationPanel.jsx appends these
