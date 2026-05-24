@@ -41,6 +41,19 @@ import gameRulesSource from '../../lib/gameRules.js?raw';
 import gameSoundsSource from '../../lib/gameSounds.js?raw';
 import lobbyUtilsSource from '../../lib/lobbyUtils.js?raw';
 import onlineGameStartSource from '../../lib/onlineGameStart.js?raw';
+import {
+  getNextPlayerIndex,
+  getQuestionSelectionPool,
+  getTimelineYears,
+  hasDuplicateTimelineYear,
+  hasPlayerWon,
+  isCorrectPlacement,
+  selectNextQuestion,
+} from '../../lib/gameRules';
+import { buildPlayerPayload, normalizeCode, removePlayerByIdentity, summarizePlayers } from '../../lib/lobbyUtils';
+import { buildInitialOnlineGameState, filterQuestionsForLobbySettings } from '../../lib/onlineGameStart';
+import { EXTRA_SUITES, EXTRA_TESTS, criticalSocialUncertaintyPenalty } from './simulationPanelExtraCases';
+
 // NOTE: backend function files (functions/*.js) live OUTSIDE /src and cannot
 // be imported with `?raw` under the current Vite config — doing so emits an
 // invalid module that triggers `SyntaxError: Invalid or unexpected token` at
@@ -52,6 +65,10 @@ import onlineGameStartSource from '../../lib/onlineGameStart.js?raw';
 // server-side functions change. STATIC_CONTRACT honesty is preserved:
 // every existing case below still asserts each token verbatim, so a real
 // drift in the server function will still flip the case to FAIL.
+//
+// IMPORTANT: these `const` declarations MUST stay BELOW all `import`
+// statements above — ES modules require imports to come first; otherwise the
+// whole chunk fails to evaluate with the same SyntaxError we just fixed.
 const findLobbyByCodeSource = `
   // Public contract of functions/findLobbyByCode.js — mirrored for static
   // contract checks. The live file lives outside /src.
@@ -117,18 +134,6 @@ const updateLobbyGameStateSource = `
     return Response.json({ error: 'stale_write', state_revision: lobby.state_revision }, { status: 409 });
   }
 `;
-import {
-  getNextPlayerIndex,
-  getQuestionSelectionPool,
-  getTimelineYears,
-  hasDuplicateTimelineYear,
-  hasPlayerWon,
-  isCorrectPlacement,
-  selectNextQuestion,
-} from '../../lib/gameRules';
-import { buildPlayerPayload, normalizeCode, removePlayerByIdentity, summarizePlayers } from '../../lib/lobbyUtils';
-import { buildInitialOnlineGameState, filterQuestionsForLobbySettings } from '../../lib/onlineGameStart';
-import { EXTRA_SUITES, EXTRA_TESTS, criticalSocialUncertaintyPenalty } from './simulationPanelExtraCases';
 
 const STATUS = {
   PASS: 'PASS',

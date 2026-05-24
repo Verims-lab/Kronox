@@ -30,6 +30,10 @@ import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
 import testSuiteSource from '../../pages/TestSuite.jsx?raw';
 import mainMenuSource from '../../pages/MainMenu.jsx?raw';
 import bottomNavSource from '../layout/BottomNav.jsx?raw';
+import adminLibSource from '../../lib/admin.js?raw';
+import appSource from '../../App.jsx?raw';
+import gameSource from '../../pages/Game.jsx?raw';
+
 // NOTE: Entity .json files cannot be reliably imported with ?raw or as JSON
 // under the current Vite config when they live outside /src — it triggers a
 // SyntaxError at module-eval time. We embed the entity contract tokens as
@@ -37,6 +41,11 @@ import bottomNavSource from '../layout/BottomNav.jsx?raw';
 // and must be kept in sync when those entities change. STATIC_CONTRACT
 // integrity is preserved because the test still asserts each required
 // property + RLS token appears in the string verbatim.
+//
+// IMPORTANT: these `const` declarations MUST stay BELOW all `import`
+// statements above — ES modules require imports to come first; otherwise
+// the whole chunk fails to evaluate with `SyntaxError: Invalid or
+// unexpected token`.
 const friendshipEntitySource = `
   "name": "Friendship",
   "properties": {
@@ -79,9 +88,6 @@ const gameInviteEntitySource = `
     "update": { "data.from_email": "{{user.email}}", "data.to_email": "{{user.email}}", "user_condition": { "role": "admin" } }
   }
 `;
-import adminLibSource from '../../lib/admin.js?raw';
-import appSource from '../../App.jsx?raw';
-import gameSource from '../../pages/Game.jsx?raw';
 
 // NOTE: backend function files live OUTSIDE /src and therefore cannot be
 // imported via ?raw under the current Vite config — doing so emits an invalid
