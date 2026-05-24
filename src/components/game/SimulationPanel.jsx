@@ -647,23 +647,58 @@ const TESTS = [
   ...EXTRA_TESTS,
 ];
 
+// Defensive: strip values that can't survive JSON serialization (functions,
+// Symbols, Module namespaces, circular refs). The Health Simulator must never
+// crash Settings because a case returned a weird value.
+function sanitizeForReport(value, seen = new WeakSet()) {
+  if (value === null || value === undefined) return value;
+  const type = typeof value;
+  if (type === 'string' || type === 'number' || type === 'boolean') return value;
+  if (type === 'function') return `[function ${value.name || 'anonymous'}]`;
+  if (type === 'symbol') return value.toString();
+  if (type === 'bigint') return value.toString();
+  if (type !== 'object') return String(value);
+  if (seen.has(value)) return '[circular]';
+  seen.add(value);
+  if (Array.isArray(value)) return value.map((item) => sanitizeForReport(item, seen));
+  // Module namespace objects have Symbol.toStringTag === 'Module' and throw on
+  // primitive coercion; coerce them to a clear marker instead of recursing.
+  try {
+    if (value[Symbol.toStringTag] === 'Module') return '[module namespace]';
+  } catch (_) {
+    return '[unstringifiable object]';
+  }
+  const out = {};
+  for (const key of Object.keys(value)) {
+    try {
+      out[key] = sanitizeForReport(value[key], seen);
+    } catch (err) {
+      out[key] = `[unreadable: ${err?.message || 'error'}]`;
+    }
+  }
+  return out;
+}
+
 async function executeCase(testCase) {
   const started = performance.now();
+  // Strip the function ref so it never ends up in serialised report data.
+  const { run, ...caseMeta } = testCase;
   try {
-    const raw = await testCase.run();
+    const raw = await run();
     const finished = performance.now();
+    const safe = sanitizeForReport(raw || {});
     return {
-      ...testCase,
-      ...raw,
+      ...caseMeta,
+      ...(safe && typeof safe === 'object' ? safe : { status: STATUS.ERROR, reason: 'Case returned a non-object result.' }),
       durationMs: Math.round(finished - started),
     };
   } catch (error) {
     const finished = performance.now();
     return {
-      ...testCase,
+      ...caseMeta,
       status: STATUS.ERROR,
-      reason: error?.message || String(error),
-      stack: error?.stack || null,
+      reason: (error && error.message) ? String(error.message) : 'Unknown case error',
+      stack: error?.stack ? String(error.stack) : null,
       durationMs: Math.round(finished - started),
     };
   }
@@ -1020,11 +1055,25 @@ function ReportBox({ title, children, className = '' }) {
   );
 }
 
+function safeRender(value) {
+  if (value === null || value === undefined) return '—';
+  const type = typeof value;
+  if (type === 'string') return value;
+  if (type === 'number' || type === 'boolean' || type === 'bigint') return String(value);
+  if (type === 'symbol') return value.toString();
+  if (type === 'function') return `[function ${value.name || 'anonymous'}]`;
+  try {
+    return JSON.stringify(value);
+  } catch (_) {
+    return '[unstringifiable]';
+  }
+}
+
 function KeyValue({ label, value }) {
   return (
     <div className="mb-2 grid grid-cols-[92px_minmax(0,1fr)] gap-2 text-xs">
       <span className="text-white/45">{label}</span>
-      <span className="min-w-0 break-words text-white/75">{String(value)}</span>
+      <span className="min-w-0 break-words text-white/75">{safeRender(value)}</span>
     </div>
   );
 }

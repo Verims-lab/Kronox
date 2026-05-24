@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import { useNavigate } from 'react-router-dom';
 import SimulationPanel from '@/components/game/SimulationPanel';
+import SimulationPanelErrorBoundary from '@/components/game/SimulationPanelErrorBoundary';
 import TopScores from '@/components/game/TopScores';
 import QuestionManagement from '@/components/admin/QuestionManagement';
 import KronoxTutorial from '@/components/tutorial/KronoxTutorial';
@@ -202,7 +203,11 @@ export default function SettingsPage() {
       </div>
 
       <AnimatePresence>
-        {showSim && <SimulationPanel onClose={() => setShowSim(false)} />}
+        {showSim && (
+          <SimulationPanelErrorBoundary onClose={() => setShowSim(false)}>
+            <SimulationPanel onClose={() => setShowSim(false)} />
+          </SimulationPanelErrorBoundary>
+        )}
       </AnimatePresence>
 
       <AnimatePresence>
