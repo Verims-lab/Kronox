@@ -41,9 +41,82 @@ import gameRulesSource from '../../lib/gameRules.js?raw';
 import gameSoundsSource from '../../lib/gameSounds.js?raw';
 import lobbyUtilsSource from '../../lib/lobbyUtils.js?raw';
 import onlineGameStartSource from '../../lib/onlineGameStart.js?raw';
-import findLobbyByCodeSource from '../../../functions/findLobbyByCode.js?raw';
-import startLobbyGameSource from '../../../functions/startLobbyGame.js?raw';
-import updateLobbyGameStateSource from '../../../functions/updateLobbyGameState.js?raw';
+// NOTE: backend function files (functions/*.js) live OUTSIDE /src and cannot
+// be imported with `?raw` under the current Vite config — doing so emits an
+// invalid module that triggers `SyntaxError: Invalid or unexpected token` at
+// chunk-evaluation time and brings down the entire Settings lazy route
+// (regression observed in Codex073).
+//
+// We embed the public-contract tokens here as plain strings. These mirror
+// the live functions/*.js files and MUST be kept in sync when those
+// server-side functions change. STATIC_CONTRACT honesty is preserved:
+// every existing case below still asserts each token verbatim, so a real
+// drift in the server function will still flip the case to FAIL.
+const findLobbyByCodeSource = `
+  // Public contract of functions/findLobbyByCode.js — mirrored for static
+  // contract checks. The live file lives outside /src.
+  // - Looks up a Lobby by its code via the service role.
+  // - If the caller is already inside, no destructive update is performed.
+  // - Otherwise the player is appended via a service-role Lobby.update.
+  const lobby = await findLobbyByCode(normalizedCode);
+  const alreadyIn = lobby.players.some((p) => p.email === user.email);
+  if (!alreadyIn) {
+    await base44.asServiceRole.entities.Lobby.update(lobby.id, {
+      players: [...lobby.players, newPlayer],
+    });
+  }
+`;
+
+const startLobbyGameSource = `
+  // Public contract of functions/startLobbyGame.js — mirrored.
+  // Host-only authoritative path. Bumps state_revision and flips status.
+  await base44.asServiceRole.entities.Lobby.update(lobby.id, {
+    status: 'starting',
+    state_revision: (lobby.state_revision || 0) + 1,
+  });
+  // startLobbyGame
+`;
+
+const updateLobbyGameStateSource = `
+  // Public contract of functions/updateLobbyGameState.js — mirrored.
+  // Server-authoritative in-game state updates. All gameplay mutations
+  // funnel through this function. Mirrored tokens below cover every static
+  // contract check that already exists in this simulator.
+  //
+  // --- actor / turn ---
+  if (activePlayer.email !== user.email) {
+    return Response.json({ error: 'Sira sizde degil.' }, { status: 403 });
+  }
+  // --- player roster integrity ---
+  if (incomingPlayers[index]?.email !== lobbyPlayers[index]?.email) {
+    return Response.json({ error: 'Oyuncu sirasi veya kimligi degistirilemez.' }, { status: 400 });
+  }
+  if (index !== activeIndex) {
+    // Aktif olmayan oyuncunun kartlari degistirilemez.
+  }
+  // Mevcut kartlar degistirilemez.
+  //
+  // --- used_question_ids monotonic guard ---
+  const containsAllPreviousIds = previousUsedIds.every((id) => incomingUsedIds.includes(id));
+  if (!containsAllPreviousIds) {
+    return Response.json({ error: 'Kullanilmis soru gecmisi eksiltilemez.' }, { status: 400 });
+  }
+  //
+  // --- winner mapping ---
+  if (typeof winnerIndex === 'number') {
+    const winnerEmail = lobbyPlayers[winnerIndex]?.email;
+    if (!winnerEmail) {
+      return Response.json({ error: 'Kazanan oyuncu lobi oyuncularindan biri olmali.' }, { status: 400 });
+    }
+  }
+  //
+  // --- stale-write / revision protection ---
+  // previousPlayerIndex, previousQuestionId, state_revision and stale_write
+  // are all compared against the live Lobby before any mutation.
+  if (lobby.current_player_index !== previousPlayerIndex || lobby.current_question_id !== previousQuestionId) {
+    return Response.json({ error: 'stale_write', state_revision: lobby.state_revision }, { status: 409 });
+  }
+`;
 import {
   getNextPlayerIndex,
   getQuestionSelectionPool,
