@@ -53,6 +53,7 @@ import {
 import { buildPlayerPayload, normalizeCode, removePlayerByIdentity, summarizePlayers } from '../../lib/lobbyUtils';
 import { buildInitialOnlineGameState, filterQuestionsForLobbySettings } from '../../lib/onlineGameStart';
 import { EXTRA_SUITES, EXTRA_TESTS, criticalSocialUncertaintyPenalty } from './simulationPanelExtraCases';
+import ReleaseReadinessExplainer from './ReleaseReadinessExplainer';
 
 // NOTE: backend function files (functions/*.js) live OUTSIDE /src and cannot
 // be imported with `?raw` under the current Vite config — doing so emits an
@@ -712,6 +713,27 @@ const TESTS = [
       ? pass('Score penalises critical social uncertainty.', { expected: '< baseline score', actual: { baseline: baseline.score.value, withUncertainty: withUncertainty.score.value } })
       : fail('Score did not penalise critical social uncertainty.', { actual: { baseline: baseline.score.value, withUncertainty: withUncertainty.score.value } });
   }),
+  // Codex074: lock in the honest-scoring contract. Critical NOT_AUTOMATABLE
+  // must continue to drop the score below "release-ready" even when there
+  // are zero FAILs. If anyone silently weakens the penalty so a 0-FAIL run
+  // becomes "Good" while critical manual gaps remain, this case flips to
+  // FAIL and surfaces the regression.
+  makeCase('report_integrity', 'zero_fail_with_critical_not_automatable_is_not_release_ready',
+    '0 FAIL with critical NOT_AUTOMATABLE must not be rated release-ready', () => {
+    const report = buildReport([
+      // simulate a run with 0 FAIL but several critical NOT_AUTOMATABLE gaps —
+      // mirrors the real shape that confused the human reader.
+      { suiteId: 'mobile_viewport', suiteName: 'Mobile Viewport Suite', id: 'm1', name: 'real-device drag', status: STATUS.NOT_AUTOMATABLE, reason: 'sample', durationMs: 0, critical: true },
+      { suiteId: 'timeline_hit_testing', suiteName: 'Timeline / Hit Testing Suite', id: 'm2', name: 'live DOM geometry', status: STATUS.NOT_AUTOMATABLE, reason: 'sample', durationMs: 0, critical: true },
+      { suiteId: 'friends_security', suiteName: 'Friends Security / RLS Suite', id: 'm3', name: 'two-account RLS probe', status: STATUS.NOT_AUTOMATABLE, reason: 'sample', durationMs: 0, critical: true },
+      { suiteId: 'game_invites', suiteName: 'Game Invite Suite', id: 'm4', name: 'cross-user invite probe', status: STATUS.NOT_AUTOMATABLE, reason: 'sample', durationMs: 0, critical: true },
+    ]);
+    const releaseReady = report.score.rating === 'Good';
+    const noFail = (report.counts.FAIL || 0) === 0;
+    return !releaseReady && noFail
+      ? pass('Critical NOT_AUTOMATABLE keeps the run out of "Good" even with 0 FAIL.', { actual: { rating: report.score.rating, score: report.score.value, counts: report.counts } })
+      : fail('Scoring weakened: 0 FAIL with critical NOT_AUTOMATABLE was rated release-ready.', { expected: 'rating !== "Good" while critical NOT_AUTOMATABLE exists', actual: { rating: report.score.rating, score: report.score.value, counts: report.counts } });
+  }),
   makeCase('report_integrity', 'not_implemented_not_pass', 'NOT_AUTOMATABLE/BLOCKED never count as PASS in counts', () => {
     const report = buildReport([
       { suiteId: 'friends_security', suiteName: 'Friends Security / RLS Suite', id: 's4', name: 'sample', status: STATUS.NOT_AUTOMATABLE, reason: 'sample', durationMs: 0, critical: true },
@@ -1086,6 +1108,11 @@ function ReportPanel({ report, copyJson, copySummary, downloadJson, copyState })
         </div>
       </div>
       {copyState && <div className="mt-2 text-xs text-cyan-200">{copyState}</div>}
+
+      {/* Codex074: human-readable release-readiness explainer.
+          Explanation-only UI. Reads `report` and renders text/legend.
+          Does NOT alter scoring, statuses, or case counts. */}
+      <ReleaseReadinessExplainer report={report} />
 
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         <ReportBox title="Environment">
