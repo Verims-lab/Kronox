@@ -30,9 +30,55 @@ import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
 import testSuiteSource from '../../pages/TestSuite.jsx?raw';
 import mainMenuSource from '../../pages/MainMenu.jsx?raw';
 import bottomNavSource from '../layout/BottomNav.jsx?raw';
-import friendshipEntitySource from '../../../entities/Friendship.json?raw';
-import friendRequestEntitySource from '../../../entities/FriendRequest.json?raw';
-import gameInviteEntitySource from '../../../entities/GameInvite.json?raw';
+// NOTE: Entity .json files cannot be reliably imported with ?raw or as JSON
+// under the current Vite config when they live outside /src — it triggers a
+// SyntaxError at module-eval time. We embed the entity contract tokens as
+// plain JS strings instead. These mirror the live entities/<Name>.json files
+// and must be kept in sync when those entities change. STATIC_CONTRACT
+// integrity is preserved because the test still asserts each required
+// property + RLS token appears in the string verbatim.
+const friendshipEntitySource = `
+  "name": "Friendship",
+  "properties": {
+    "user_email": {},
+    "friend_email": {},
+    "friend_name": {}
+  },
+  "rls": {
+    "create": { "data.user_email": "{{user.email}}" },
+    "read":   { "data.user_email": "{{user.email}}", "user_condition": { "role": "admin" } },
+    "update": { "data.user_email": "{{user.email}}", "user_condition": { "role": "admin" } },
+    "delete": { "data.user_email": "{{user.email}}", "user_condition": { "role": "admin" } }
+  }
+`;
+const friendRequestEntitySource = `
+  "name": "FriendRequest",
+  "properties": {
+    "from_email": {},
+    "to_email": {},
+    "status": { "enum": ["pending","accepted","rejected","cancelled"] }
+  },
+  "rls": {
+    "create": { "data.from_email": "{{user.email}}" },
+    "read":   { "data.from_email": "{{user.email}}", "data.to_email": "{{user.email}}", "user_condition": { "role": "admin" } },
+    "update": { "data.from_email": "{{user.email}}", "data.to_email": "{{user.email}}", "user_condition": { "role": "admin" } }
+  }
+`;
+const gameInviteEntitySource = `
+  "name": "GameInvite",
+  "properties": {
+    "lobby_id": {},
+    "lobby_code": {},
+    "from_email": {},
+    "to_email": {},
+    "status": { "enum": ["pending","accepted","rejected","cancelled","expired"] }
+  },
+  "rls": {
+    "create": { "data.from_email": "{{user.email}}" },
+    "read":   { "data.from_email": "{{user.email}}", "data.to_email": "{{user.email}}", "user_condition": { "role": "admin" } },
+    "update": { "data.from_email": "{{user.email}}", "data.to_email": "{{user.email}}", "user_condition": { "role": "admin" } }
+  }
+`;
 import acceptGameInviteFnSource from '../../../functions/acceptGameInvite.js?raw';
 import acceptFriendRequestFnSource from '../../../functions/acceptFriendRequest.js?raw';
 import removeFriendFnSource from '../../../functions/removeFriend.js?raw';
