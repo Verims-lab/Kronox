@@ -41,11 +41,9 @@ import gameRulesSource from '../../lib/gameRules.js?raw';
 import gameSoundsSource from '../../lib/gameSounds.js?raw';
 import lobbyUtilsSource from '../../lib/lobbyUtils.js?raw';
 import onlineGameStartSource from '../../lib/onlineGameStart.js?raw';
-import kronoxDocSource from '../../../Kronox.md?raw';
-import corePromptSource from '../../../CORE_PROMPT.md?raw';
-import findLobbyByCodeSource from '../../../base44/functions/findLobbyByCode/entry.ts?raw';
-import startLobbyGameSource from '../../../base44/functions/startLobbyGame/entry.ts?raw';
-import updateLobbyGameStateSource from '../../../base44/functions/updateLobbyGameState/entry.ts?raw';
+import findLobbyByCodeSource from '../../../functions/findLobbyByCode.js?raw';
+import startLobbyGameSource from '../../../functions/startLobbyGame.js?raw';
+import updateLobbyGameStateSource from '../../../functions/updateLobbyGameState.js?raw';
 import {
   getNextPlayerIndex,
   getQuestionSelectionPool,
@@ -99,7 +97,6 @@ const SUITES = [
 const SRC = {
   App: appSource,
   BuildMarker: buildMarkerSource,
-  CorePrompt: corePromptSource,
   DebugLog: debugLogSource,
   FindLobbyByCode: findLobbyByCodeSource,
   Game: gamePageSource,
@@ -108,7 +105,6 @@ const SRC = {
   GameRules: gameRulesSource,
   GameSounds: gameSoundsSource,
   IndexCss: indexCssSource,
-  Kronox: kronoxDocSource,
   LobbyCreateJoinPanel: lobbyCreateJoinPanelSource,
   LobbyRoom: lobbyRoomSource,
   LobbyUtils: lobbyUtilsSource,
@@ -126,6 +122,7 @@ const SRC = {
   UseLobbySync: useLobbySyncSource,
   UseOfflineQuestions: useOfflineQuestionsSource,
   UseWaitingRoomSync: useWaitingRoomSyncSource,
+  WaitingRoomPanel: waitingRoomPanelSource,
 };
 
 function result(status, reason, extra = {}) {
