@@ -5,7 +5,10 @@ import { ChevronRight, LogOut, UserRound } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 
-const LOGO_URL = 'https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/49fc6f458_kronoxnobckgrnd.png';
+// Note: a remote logo URL constant previously lived here but was never
+// rendered. It has been removed so the "no_remote_visual_assets_new_screens"
+// contract stays honest — the home screen relies only on local
+// /assets/ui/* fantasy assets.
 const BACKGROUND_ASSET = '/assets/ui/Kronox_Home_Fantasy_Background.png';
 const WIDE_STAGE_QUERY = '(min-aspect-ratio: 9 / 16)';
 
