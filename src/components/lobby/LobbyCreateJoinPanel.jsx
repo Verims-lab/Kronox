@@ -17,9 +17,12 @@ const CATEGORIES = [
   { id: 'kult', label: 'KÜLT', left: '53.7%', top: '28.6%', width: '40%', height: '11.8%' },
   { id: 'viral', label: 'VIRAL', left: '6.3%', top: '43.2%', width: '40%', height: '11.8%' },
   { id: 'arena', label: 'ARENA', left: '53.7%', top: '43.2%', width: '40%', height: '11.8%' },
-  { id: 'level-up', label: 'LEVEL UP', left: '6.3%', top: '57.8%', width: '40%', height: '11.8%' },
+  { id: 'level_up', label: 'LEVEL UP', left: '6.3%', top: '57.8%', width: '40%', height: '11.8%' },
   { id: 'chronicle', label: 'CHRONICLE', left: '53.7%', top: '57.8%', width: '40%', height: '11.8%' },
 ];
+
+const DEFAULT_SELECTED_CATEGORIES = ['flashback'];
+const MIN_SELECTED_CATEGORY_COUNT = 1;
 
 const getIsWideStage = () => (
   typeof window !== 'undefined'
@@ -260,11 +263,57 @@ function SelectedCategoryOverlay() {
   );
 }
 
-// FLASHBACK is baked into the background as the default selected state, so we
-// start with null to avoid double-rendering a live overlay on top of it. Any
-// user tap then sets a single category id (mutual exclusion guaranteed).
+function FlashbackDeselectedMask() {
+  return (
+    <motion.div
+      className="pointer-events-none absolute inset-0 z-20"
+      style={{ containerType: 'size' }}
+      initial={{ opacity: 0.2 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.12 }}
+      aria-hidden="true"
+    >
+      <div
+        className="absolute inset-0"
+        style={{
+          borderRadius: '14px',
+          background:
+            'linear-gradient(135deg, rgba(6,16,36,0.34), rgba(8,24,54,0.22) 45%, rgba(2,6,23,0.18))',
+          boxShadow:
+            'inset 0 0 0 2px rgba(92,139,194,0.72), inset 0 0 20px rgba(4,12,28,0.55), 0 0 12px rgba(14,165,233,0.18)',
+        }}
+      />
+      <div
+        className="absolute overflow-hidden"
+        style={{
+          right: '-1%',
+          top: '-1%',
+          width: '46%',
+          height: '46%',
+        }}
+      >
+        <div
+          className="absolute"
+          style={{
+            width: '160%',
+            height: '34%',
+            top: '21%',
+            left: '-10%',
+            transform: 'rotate(45deg)',
+            transformOrigin: '50% 50%',
+            background:
+              'linear-gradient(180deg, rgba(20,37,70,0.96), rgba(5,14,34,0.98))',
+            boxShadow:
+              '0 2px 6px rgba(0,0,0,0.58), inset 0 1px 0 rgba(125,185,255,0.18), inset 0 -2px 3px rgba(0,0,0,0.62)',
+          }}
+        />
+      </div>
+    </motion.div>
+  );
+}
+
 function OnlineChallengeLanding({ onCreate, onJoin, onBackHome }) {
-  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedCategories, setSelectedCategories] = useState(DEFAULT_SELECTED_CATEGORIES);
   const [isWideStage, setIsWideStage] = useState(getIsWideStage);
 
   useEffect(() => {
@@ -303,9 +352,12 @@ function OnlineChallengeLanding({ onCreate, onJoin, onBackHome }) {
 
   const chooseCategory = (categoryId) => {
     sounds.tick();
-    // Single-value state guarantees only one category is selected at a time.
-    // If the same category is tapped again, no-op (avoid flicker).
-    setSelectedCategory(prev => (prev === categoryId ? prev : categoryId));
+    setSelectedCategories(prev => {
+      const isSelected = prev.includes(categoryId);
+      if (!isSelected) return [...prev, categoryId];
+      if (prev.length <= MIN_SELECTED_CATEGORY_COUNT) return prev;
+      return prev.filter(id => id !== categoryId);
+    });
   };
 
   const startChallenge = () => {
@@ -368,27 +420,33 @@ function OnlineChallengeLanding({ onCreate, onJoin, onBackHome }) {
           aria-label="Ana ekrana dön"
         />
 
-        {CATEGORIES.map(category => (
-          <button
-            key={category.id}
-            type="button"
-            onClick={() => chooseCategory(category.id)}
-            className="pointer-events-auto absolute z-20 block bg-transparent"
-            style={{
-              left: category.left,
-              top: category.top,
-              width: category.width,
-              height: category.height,
-              border: 0,
-              padding: 0,
-              touchAction: 'manipulation',
-            }}
-            aria-label={`${category.label} kategorisini seç`}
-            aria-pressed={selectedCategory === category.id}
-          >
-            {selectedCategory === category.id && <SelectedCategoryOverlay />}
-          </button>
-        ))}
+        {CATEGORIES.map(category => {
+          const isSelected = selectedCategories.includes(category.id);
+          const hasBakedSelectedState = category.id === 'flashback';
+
+          return (
+            <button
+              key={category.id}
+              type="button"
+              onClick={() => chooseCategory(category.id)}
+              className="pointer-events-auto absolute z-20 block bg-transparent"
+              style={{
+                left: category.left,
+                top: category.top,
+                width: category.width,
+                height: category.height,
+                border: 0,
+                padding: 0,
+                touchAction: 'manipulation',
+              }}
+              aria-label={`${category.label} kategorisini ${isSelected ? 'kaldır' : 'seç'}`}
+              aria-pressed={isSelected}
+            >
+              {hasBakedSelectedState && !isSelected && <FlashbackDeselectedMask />}
+              {isSelected && !hasBakedSelectedState && <SelectedCategoryOverlay />}
+            </button>
+          );
+        })}
 
         <div
           className="pointer-events-auto absolute z-30"
