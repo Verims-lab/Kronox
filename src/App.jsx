@@ -20,6 +20,7 @@ const Game = lazy(() => import('./pages/Game'));
 const LobbyRoom = lazy(() => import('./pages/LobbyRoom'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const FriendsPage = lazy(() => import('./pages/FriendsPage'));
 const TestSuite = lazy(() => import('./pages/TestSuite'));
 
 function PageLoader() {
@@ -90,6 +91,7 @@ const AuthenticatedApp = () => {
               <Route path="/setup" element={<Navigate to="/solo" replace />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/friends" element={<FriendsPage />} />
               <Route path="/lobby" element={<LobbyRoom />} />
               <Route path="/game" element={<Game />} />
               <Route path="/test-suite" element={<TestSuite />} />

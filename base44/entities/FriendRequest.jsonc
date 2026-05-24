@@ -1,0 +1,84 @@
+{
+  "name": "FriendRequest",
+  "type": "object",
+  "properties": {
+    "from_email": {
+      "type": "string",
+      "description": "Lowercased email of the sender"
+    },
+    "from_name": {
+      "type": "string",
+      "description": "Display name of the sender at send time"
+    },
+    "to_email": {
+      "type": "string",
+      "description": "Lowercased email of the receiver"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "accepted",
+        "rejected",
+        "cancelled"
+      ],
+      "default": "pending",
+      "description": "Lifecycle state of the friend request"
+    }
+  },
+  "required": [
+    "from_email",
+    "to_email"
+  ],
+  "rls": {
+    "create": {
+      "created_by": "{{user.email}}",
+      "data.from_email": "{{user.email}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "data.from_email": "{{user.email}}"
+        },
+        {
+          "data.to_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.from_email": "{{user.email}}"
+        },
+        {
+          "data.to_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.from_email": "{{user.email}}"
+        },
+        {
+          "data.to_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

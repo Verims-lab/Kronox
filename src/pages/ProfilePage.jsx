@@ -79,10 +79,8 @@ export default function ProfilePage() {
           <RowCard
             icon={<Users className="w-4 h-4" />}
             title="Arkadaşlarım"
-            desc="Yakında: arkadaş ekle, davet et, birlikte oyna"
-            badge="0"
-            onClick={() => { sounds.tick(); /* placeholder — no friends route yet */ }}
-            disabled
+            desc="Arkadaş ekle, davet et, birlikte oyna"
+            onClick={() => { sounds.tap(); navigate('/friends'); }}
           />
         </Section>
 

@@ -1,0 +1,63 @@
+{
+  "name": "Friendship",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Lowercased email of the owner of this friendship row"
+    },
+    "friend_email": {
+      "type": "string",
+      "description": "Lowercased email of the friend"
+    },
+    "friend_name": {
+      "type": "string",
+      "description": "Display name of the friend at acceptance time"
+    }
+  },
+  "required": [
+    "user_email",
+    "friend_email"
+  ],
+  "rls": {
+    "create": {
+      "data.user_email": "{{user.email}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}
