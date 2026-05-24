@@ -14,6 +14,16 @@ export default function AppHeader({ onBack } = {}) {
   if (location.pathname === '/game') return null;
 
   const isRoot = ROOT_ROUTES.includes(location.pathname);
+  const isLobbyRoute = location.pathname === '/lobby';
+  const titleClassName = isLobbyRoute
+    ? 'absolute left-1/2 -translate-x-1/2 font-cinzel text-2xl font-black tracking-[0.18em]'
+    : 'absolute left-1/2 -translate-x-1/2 font-bangers text-2xl text-primary tracking-widest';
+  const titleStyle = isLobbyRoute
+    ? {
+        color: '#facc15',
+        textShadow: '0 0 18px rgba(250,204,21,0.5), 0 2px 4px rgba(0,0,0,0.7)',
+      }
+    : { textShadow: '0 0 15px rgba(255,193,7,0.5)' };
 
   const handleBack = () => {
     if (onBack) { onBack(); return; }
@@ -40,8 +50,8 @@ export default function AppHeader({ onBack } = {}) {
 
       {/* Brand title — centered absolutely so it's always visually centered */}
       <h1
-        className="absolute left-1/2 -translate-x-1/2 font-bangers text-2xl text-primary tracking-widest"
-        style={{ textShadow: '0 0 15px rgba(255,193,7,0.5)' }}
+        className={titleClassName}
+        style={titleStyle}
       >
         KRONOX
       </h1>

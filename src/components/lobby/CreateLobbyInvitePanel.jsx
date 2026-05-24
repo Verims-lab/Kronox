@@ -266,16 +266,7 @@ function Header({ onBackMode }) {
         <ArrowLeft className="h-4 w-4" />
       </button>
       <div className="text-center">
-        <p
-          className="font-cinzel text-3xl font-black tracking-[0.18em]"
-          style={{
-            color: '#facc15',
-            textShadow: '0 0 18px rgba(250,204,21,0.5), 0 2px 4px rgba(0,0,0,0.7)',
-          }}
-        >
-          KRONOX
-        </p>
-        <p className="mt-0.5 font-inter text-[12px] text-blue-100/65">
+        <p className="font-inter text-[12px] text-blue-100/65">
           Partini topla. Meydan okumayı başlat.
         </p>
       </div>
