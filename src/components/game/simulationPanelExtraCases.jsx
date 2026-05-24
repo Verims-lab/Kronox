@@ -1,8 +1,9 @@
-// Health Simulator — Codex073 extension
+// Health Simulator — Codex075 release-risk intelligence extension
 // =====================================
 // Adds Profile, Friends, Friends-Security, Profile-Economy, Online-Lobby-Setup,
 // Create-Lobby-Invite-Gate, Game-Invite, Lobby-Code-UX, Admin-Visibility,
-// Mobile-Social-Flow, and Fantasy-Visual-Guardrail-Update coverage.
+// Mobile-Social-Flow, Fantasy-Visual-Guardrail-Update, and research-backed
+// release-risk intelligence coverage.
 //
 // IMPORTANT — design rules followed here:
 //   * No existing suite is modified.
@@ -33,6 +34,14 @@ import bottomNavSource from '../layout/BottomNav.jsx?raw';
 import adminLibSource from '../../lib/admin.js?raw';
 import appSource from '../../App.jsx?raw';
 import gameSource from '../../pages/Game.jsx?raw';
+import appHeaderSource from '../layout/AppHeader.jsx?raw';
+import goldButtonSource from '../ui/GoldButton.jsx?raw';
+import gameLayoutSource from './GameLayout.jsx?raw';
+import indexCssSource from '../../index.css?raw';
+import questionCardSource from './QuestionCard.jsx?raw';
+import simulationPanelSource from './SimulationPanel.jsx?raw';
+import timelineSource from './Timeline.jsx?raw';
+import useLobbySyncSource from '../../hooks/useLobbySync.js?raw';
 
 // NOTE: Entity .json files cannot be reliably imported with ?raw or as JSON
 // under the current Vite config when they live outside /src — it triggers a
@@ -144,6 +153,16 @@ export const EXTRA_SUITES = [
   { id: 'admin_visibility',       name: 'Admin Visibility Suite',             critical: true,  color: '#fda4af' },
   { id: 'mobile_social_flow',     name: 'Mobile Social Flow Suite',           critical: true,  color: '#c7d2fe' },
   { id: 'fantasy_visual_update',  name: 'Fantasy Visual Guardrail Update',    critical: false, color: '#ddd6fe' },
+  { id: 'research_test_strategy', name: 'Research-Backed Test Strategy Suite', critical: true, color: '#bfdbfe' },
+  { id: 'historical_kronox_regression', name: 'Historical Kronox Regression Suite', critical: true, color: '#fcd34d' },
+  { id: 'mobile_gesture_risk', name: 'Mobile Gesture Risk Suite', critical: true, color: '#2dd4bf' },
+  { id: 'live_dom_geometry', name: 'Live DOM Geometry / Timeline Suite', critical: true, color: '#facc15' },
+  { id: 'social_rls_two_account_risk', name: 'Social / RLS Two-Account Risk Suite', critical: true, color: '#fb923c' },
+  { id: 'invite_contract_drift', name: 'Invite Flow Contract Drift Suite', critical: true, color: '#5eead4' },
+  { id: 'visual_composition_regression', name: 'Visual Composition Regression Suite', critical: false, color: '#f0abfc' },
+  { id: 'route_navigation_resilience', name: 'Route / Navigation Resilience Suite', critical: true, color: '#818cf8' },
+  { id: 'report_ux_human_decision', name: 'Report UX / Human Decision Suite', critical: true, color: '#e5e7eb' },
+  { id: 'kronox_game_feel', name: 'Creative Kronox Game-Feel Suite', critical: false, color: '#fde68a' },
 ];
 
 // Convenience lookup — used by builder fns below so case `critical` matches suite default.
@@ -159,6 +178,16 @@ const STATUS = {
   WARNING: 'WARNING',
   BLOCKED: 'BLOCKED',
   NOT_AUTOMATABLE: 'NOT_AUTOMATABLE',
+  ERROR: 'ERROR',
+};
+
+export const ACTION_TYPES = {
+  CODE_FIX: 'CODE_FIX',
+  DEVICE_TEST: 'DEVICE_TEST',
+  TWO_ACCOUNT_TEST: 'TWO_ACCOUNT_TEST',
+  HUMAN_VISUAL_REVIEW: 'HUMAN_VISUAL_REVIEW',
+  CI_ENVIRONMENT: 'CI_ENVIRONMENT',
+  BACKEND_RUNTIME_PROBE: 'BACKEND_RUNTIME_PROBE',
 };
 
 const pass    = (reason, extra) => ({ status: STATUS.PASS,    reason, ...(extra || {}) });
@@ -169,13 +198,15 @@ const notAutomatable = (reason, extra) => ({ status: STATUS.NOT_AUTOMATABLE, rea
 
 function makeCase(suiteId, id, name, run, options = {}) {
   const suite = SUITE_BY_ID[suiteId];
+  const { critical, ...caseMeta } = options;
   return {
     key: `${suiteId}.${id}`,
     suiteId,
     suiteName: suite?.name || suiteId,
     id,
     name,
-    critical: options.critical ?? Boolean(suite?.critical),
+    critical: critical ?? Boolean(suite?.critical),
+    ...caseMeta,
     run,
   };
 }
@@ -228,6 +259,7 @@ function notAutomatableCase(suiteId, id, name, reason, options) {
   return makeCase(suiteId, id, name, () => notAutomatable(reason, {
     verification: 'NOT_AUTOMATABLE',
     classification: 'REAL_PRODUCT_RISK',
+    verificationLabels: ['NOT_AUTOMATABLE', 'MANUAL_REQUIRED'],
     expected: 'mounted DOM, real backend RLS probe, or device gesture',
     actual: 'simulator cannot execute safely without destructive writes or real device',
   }), options);
@@ -237,8 +269,29 @@ function blockedCase(suiteId, id, name, reason, options) {
   return makeCase(suiteId, id, name, () => blocked(reason, {
     verification: 'BLOCKED',
     classification: 'REAL_PRODUCT_RISK',
+    verificationLabels: ['MANUAL_REQUIRED'],
     expected: 'a safe runtime probe',
     actual: 'safe runtime probe unavailable in this simulator context',
+  }), options);
+}
+
+function warningCase(suiteId, id, name, reason, options) {
+  return makeCase(suiteId, id, name, () => warning(reason, {
+    verification: options?.verification || 'STATIC_CHECK_LIMITATION',
+    classification: options?.classification || 'STATIC_CHECK_LIMITATION',
+    verificationLabels: options?.verificationLabels || ['STATIC_CHECK_LIMITATION', 'MANUAL_REQUIRED'],
+    expected: options?.expected || 'human or runtime confirmation',
+    actual: options?.actual || 'static signal only',
+  }), options);
+}
+
+function staticInfoCase(suiteId, id, name, reason, options = {}) {
+  return makeCase(suiteId, id, name, () => pass(reason, {
+    verification: 'STATIC_CONTRACT',
+    classification: options.classification || 'STATIC_CHECK_LIMITATION',
+    verificationLabels: options.verificationLabels || ['STATIC_CONTRACT', 'STATIC_CHECK_LIMITATION'],
+    expected: options.expected || 'report contract is documented',
+    actual: options.actual || 'contract present in simulator',
   }), options);
 }
 
@@ -267,6 +320,10 @@ function entityHasShape(suiteId, id, name, label, jsonText, requiredProps, rlsTo
       actual: 'present',
     });
   }, options);
+}
+
+function countOccurrences(source, pattern) {
+  return (String(source || '').match(pattern) || []).length;
 }
 
 // ---------------------------------------------------------------------------
@@ -872,6 +929,625 @@ export const EXTRA_TESTS = [
   notAutomatableCase('fantasy_visual_update', 'subjective_beauty',
     'Subjective visual beauty / brand cohesion of Profile/Friends/Invite',
     'Subjective polish requires human/screenshot review — simulator only verifies measurable guardrails.'),
+
+  /* ============================================================
+   *  RESEARCH-BACKED TEST STRATEGY SUITE
+   * ============================================================ */
+  sourceHas('research_test_strategy', 'report_distinguishes_static_contract',
+    'Report distinguishes STATIC_CONTRACT from runtime proof',
+    'SimulationPanel.jsx',
+    simulationPanelSource,
+    ['STATIC_CONTRACT', 'STATIC_CHECK_LIMITATION', 'RUNTIME_VERIFIED'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceHas('research_test_strategy', 'report_distinguishes_fail_vs_not_automatable',
+    'Report distinguishes FAIL from NOT_AUTOMATABLE',
+    'SimulationPanel.jsx',
+    simulationPanelSource,
+    ['FAIL', 'NOT_AUTOMATABLE', '0 FAIL'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceHas('research_test_strategy', 'critical_unknowns_remain_blockers',
+    'Critical NOT_AUTOMATABLE remains a release blocker',
+    'ReleaseReadinessExplainer / SimulationPanel',
+    simulationPanelSource,
+    ['critical NOT_AUTOMATABLE', 'zero_fail_with_critical_not_automatable_is_not_release_ready'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  staticInfoCase('research_test_strategy', 'manual_checks_not_passed',
+    'Manual checks are not counted as PASS',
+    'Manual verification remains NOT_AUTOMATABLE/BLOCKED unless a harness actually executes it.',
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceHas('research_test_strategy', 'zero_fail_explanation_visible',
+    'Report includes "0 FAIL does not mean release-ready" explanation',
+    'ReleaseReadinessExplainer / SimulationPanel',
+    simulationPanelSource,
+    ['0 FAIL', 'release-ready'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceHas('research_test_strategy', 'real_device_backend_sections',
+    'Report identifies device/backend/manual verification sections',
+    'SimulationPanel.jsx',
+    simulationPanelSource,
+    ['Manual Verification Needed', 'Known Non-Automatable Critical Risks', 'Release Ready Checklist'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceHas('research_test_strategy', 'top_blocker_action_categories',
+    'Top blockers include actionable category metadata',
+    'SimulationPanel.jsx',
+    simulationPanelSource,
+    ['actionType', 'nextStep', 'CODE_FIX', 'DEVICE_TEST', 'TWO_ACCOUNT_TEST'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  /* ============================================================
+   *  HISTORICAL KRONOX REGRESSION SUITE
+   * ============================================================ */
+  sourceHas('historical_kronox_regression', 'settings_route_stable_after_simulator_changes',
+    'Settings route must not crash after Health Simulator changes',
+    'App.jsx + SettingsPage.jsx',
+    `${appSource}\n${settingsPageSource}`,
+    ['path="/settings"', 'SettingsPage', 'setShowSim(true)'],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  sourceHas('historical_kronox_regression', 'profile_to_settings_health_path',
+    'Profile -> Ayarlar -> Health Settings remains reachable',
+    'ProfilePage.jsx + SettingsPage.jsx',
+    `${profilePageSource}\n${settingsPageSource}`,
+    ["navigate('/settings')", 'Ayarlar', 'SimulationPanel'],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  sourceHas('historical_kronox_regression', 'case_errors_do_not_crash_settings',
+    'Health Simulator case errors do not crash Settings',
+    'SimulationPanel.jsx',
+    simulationPanelSource,
+    ['try {', 'status: STATUS.ERROR', 'sanitizeForReport'],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  makeCase('historical_kronox_regression', 'duplicate_lobby_title_contract',
+    'Duplicate Kronox lobby title/logo is detectable as a visual regression contract', () => {
+      const sources = `${appHeaderSource}\n${lobbyCreateJoinPanelSource}\n${createLobbyInvitePanelSource}`;
+      const kronoxTitleCount = countOccurrences(sources, />\s*KRONOX\s*</g) + countOccurrences(sources, />\s*Kronox\s*</g);
+      return kronoxTitleCount <= 1
+        ? pass('Lobby title contract is currently clean: one app-level Kronox brand title.', {
+            verification: 'STATIC_CONTRACT',
+            classification: 'STATIC_CHECK_LIMITATION',
+            actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW,
+            recentlyFixed: true,
+            actual: { kronoxTitleCount },
+          })
+        : fail('Duplicate lobby Kronox title strings detected in composed lobby sources.', {
+            verification: 'STATIC_CONTRACT',
+            classification: 'REAL_PRODUCT_RISK',
+            actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW,
+            expected: 'one primary lobby Kronox title',
+            actual: { kronoxTitleCount },
+          });
+    }, { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW, recentlyFixed: true }),
+  sourceHas('historical_kronox_regression', 'home_image_button_feedback',
+    'Home image-button press feedback remains tactile after PNG asset usage',
+    'MainMenu.jsx',
+    mainMenuSource,
+    ['whileTap', 'pressed', 'aria-label'],
+    { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW, recentlyFixed: true }),
+  sourceHas('historical_kronox_regression', 'online_cta_asset_interactivity',
+    'Online CTA visual asset usage does not remove button interactivity',
+    'LobbyCreateJoinPanel.jsx',
+    lobbyCreateJoinPanelSource,
+    ['FantasyCtaButton', 'aria-label', 'onClick', 'whileTap'],
+    { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW, recentlyFixed: true }),
+  sourceHas('historical_kronox_regression', 'category_current_rule_documented',
+    'Category selection behavior matches current product rule',
+    'LobbyCreateJoinPanel.jsx',
+    lobbyCreateJoinPanelSource,
+    ['DEFAULT_SELECTED_CATEGORIES', 'MIN_SELECTED_CATEGORY_COUNT', 'selectedCategories'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceHas('historical_kronox_regression', 'zero_friends_create_blocked',
+    'Create lobby button cannot be used with zero selected friends',
+    'CreateLobbyInvitePanel.jsx',
+    createLobbyInvitePanelSource,
+    ['selectedEmails.length === 0', 'Oyuna başlamak için en az 1 arkadaş seç.'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceHas('historical_kronox_regression', 'lobby_code_not_primary_invite_ux',
+    'Lobby code is not primary invite UX',
+    'WaitingRoomPanel.jsx',
+    waitingRoomPanelSource,
+    ['Yedek kod', 'Davet edilen arkadaşların'],
+    { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW }),
+  sourceHas('historical_kronox_regression', 'incoming_invites_pending_recipient_scope',
+    'Incoming game invites are scoped to pending + recipient',
+    'inviteApi.js',
+    inviteApiSource,
+    ['to_email: me', "status: 'pending'"],
+    { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, runtimeProofRequired: true }),
+  staticInfoCase('historical_kronox_regression', 'workflow_status_not_release_readiness',
+    'Codex/local workflow status is not part of product release readiness',
+    'Git cleanliness is delivery hygiene; release readiness is based on user-visible, backend, device, and security risk.',
+    { actionType: ACTION_TYPES.CI_ENVIRONMENT, critical: false }),
+
+  /* ============================================================
+   *  MOBILE GESTURE RISK SUITE
+   * ============================================================ */
+  sourceHas('mobile_gesture_risk', 'drag_surfaces_touch_action_intentional',
+    'Drag surfaces declare touch-action intentionally',
+    'QuestionCard.jsx + Timeline.jsx + LobbyCreateJoinPanel.jsx',
+    `${questionCardSource}\n${timelineSource}\n${lobbyCreateJoinPanelSource}`,
+    ['touchAction'],
+    { actionType: ACTION_TYPES.DEVICE_TEST, runtimeProofRequired: true }),
+  sourceHas('mobile_gesture_risk', 'timeline_horizontal_scroll_contained_contract',
+    'Timeline horizontal scroll is contained',
+    'Timeline.jsx',
+    timelineSource,
+    ['overflow-x-auto', 'scrollLeft'],
+    { actionType: ACTION_TYPES.DEVICE_TEST, runtimeProofRequired: true }),
+  sourceHas('mobile_gesture_risk', 'fixed_game_routes_scroll_locked',
+    'Page vertical scroll is locked on fixed gameplay routes',
+    'App.jsx + index.css',
+    `${appSource}\n${indexCssSource}`,
+    ['data-kx-route-locked', '100dvh', 'overscroll-behavior'],
+    { actionType: ACTION_TYPES.DEVICE_TEST, runtimeProofRequired: true }),
+  sourceHas('mobile_gesture_risk', 'drag_math_uses_viewport_coordinates',
+    'Drag does not rely on page scroll position without explicit math',
+    'Timeline.jsx + QuestionCard.jsx',
+    `${timelineSource}\n${questionCardSource}`,
+    ['clientX', 'clientY', 'getBoundingClientRect', 'scrollLeft'],
+    { actionType: ACTION_TYPES.DEVICE_TEST, runtimeProofRequired: true }),
+  notAutomatableCase('mobile_gesture_risk', 'accidental_click_submission_during_drag',
+    'Touch handlers do not create accidental click submission during drag',
+    'Requires gesture execution on a mounted touch surface; static source can only flag touch-action/preventDefault intent.',
+    { actionType: ACTION_TYPES.DEVICE_TEST, verificationLabels: ['NOT_AUTOMATABLE', 'EXTERNAL_DEVICE_REQUIRED'] }),
+  warningCase('mobile_gesture_risk', 'scroll_restoration_back_nav_risk',
+    'Scroll restoration/back navigation risk is documented',
+    'Route transitions and browser history need runtime checks because static source cannot prove scroll restoration behavior.',
+    { actionType: ACTION_TYPES.DEVICE_TEST, runtimeProofRequired: true }),
+  notAutomatableCase('mobile_gesture_risk', 'real_device_drag_verification',
+    'Real-device drag verification remains NOT_AUTOMATABLE without an executable harness',
+    'A real phone/WebView/PWA drag smoke test is still required for release decisions.',
+    { actionType: ACTION_TYPES.DEVICE_TEST, verificationLabels: ['NOT_AUTOMATABLE', 'EXTERNAL_DEVICE_REQUIRED'] }),
+  warningCase('mobile_gesture_risk', 'fat_finger_tap_zone_risk',
+    'Fat-finger tap-zone risk warning for small controls',
+    'Static source sees some 9x9 and icon-size controls; real tap comfort requires viewport measurement.',
+    { actionType: ACTION_TYPES.DEVICE_TEST, actual: 'touch-target static heuristic only' }),
+  warningCase('mobile_gesture_risk', 'safe_area_collision_bottom_cta',
+    'Safe-area collision warning for bottom CTAs',
+    'Bottom CTAs use safe-area padding in key screens, but only device screenshots can prove no home-indicator collision.',
+    { actionType: ACTION_TYPES.DEVICE_TEST, verificationLabels: ['STATIC_CHECK_LIMITATION', 'EXTERNAL_DEVICE_REQUIRED'] }),
+  warningCase('mobile_gesture_risk', 'virtual_keyboard_crush_social_inputs',
+    'Virtual keyboard crush warning for Friends/AddFriend/Profile input flows',
+    'Email and lobby-code inputs need real virtual-keyboard checks at 320px width.',
+    { actionType: ACTION_TYPES.DEVICE_TEST, verificationLabels: ['MANUAL_REQUIRED', 'EXTERNAL_DEVICE_REQUIRED'] }),
+  warningCase('mobile_gesture_risk', 'orientation_surprise_landscape',
+    'Orientation surprise warning if landscape behavior is undefined',
+    'Kronox is portrait-first; landscape is not proven by this simulator.',
+    { actionType: ACTION_TYPES.DEVICE_TEST, verificationLabels: ['MANUAL_REQUIRED', 'EXTERNAL_DEVICE_REQUIRED'] }),
+  warningCase('mobile_gesture_risk', 'ios_rubber_band_scroll_static_limit',
+    'iOS/WebView rubber-band scroll risk remains visible when only static proof exists',
+    'CSS overscroll intent is static. iOS/WebView rubber-band behavior must be verified on device.',
+    { actionType: ACTION_TYPES.DEVICE_TEST, verificationLabels: ['STATIC_CHECK_LIMITATION', 'EXTERNAL_DEVICE_REQUIRED'] }),
+
+  /* ============================================================
+   *  LIVE DOM GEOMETRY / TIMELINE SUITE
+   * ============================================================ */
+  sourceHas('live_dom_geometry', 'drop_zone_count_formula_static',
+    'Drop zone count formula is checked',
+    'Timeline.jsx',
+    timelineSource,
+    ['groupedCards.length + 1', 'totalZones'],
+    { actionType: ACTION_TYPES.DEVICE_TEST, runtimeProofRequired: true }),
+  sourceHas('live_dom_geometry', 'drop_zone_refs_measurable_source',
+    'Source contains measurable refs for drop zones',
+    'Timeline.jsx',
+    timelineSource,
+    ['dropZoneRefs', 'getBoundingClientRect'],
+    { actionType: ACTION_TYPES.DEVICE_TEST, runtimeProofRequired: true }),
+  warningCase('live_dom_geometry', 'static_cannot_prove_bounding_rects',
+    'Static cannot prove actual bounding rects',
+    'Bounding boxes are runtime DOM geometry. A source contract cannot prove non-zero rendered widths.',
+    { actionType: ACTION_TYPES.DEVICE_TEST, runtimeProofRequired: true }),
+  notAutomatableCase('live_dom_geometry', 'mounted_dom_non_zero_width',
+    'Mounted DOM test: non-zero drop zone width',
+    'Requires mounted Timeline DOM and measured bounding rectangles.',
+    { actionType: ACTION_TYPES.DEVICE_TEST, verificationLabels: ['NOT_AUTOMATABLE', 'EXTERNAL_DEVICE_REQUIRED'] }),
+  notAutomatableCase('live_dom_geometry', 'mounted_dom_ordered_zones',
+    'Mounted DOM test: ordered drop zones',
+    'Requires real layout after responsive rendering.',
+    { actionType: ACTION_TYPES.DEVICE_TEST, verificationLabels: ['NOT_AUTOMATABLE', 'EXTERNAL_DEVICE_REQUIRED'] }),
+  notAutomatableCase('live_dom_geometry', 'mounted_dom_responsive_visibility',
+    'Mounted DOM test: drop zones visible after responsive layout',
+    'Requires viewport-specific rendering.',
+    { actionType: ACTION_TYPES.DEVICE_TEST, verificationLabels: ['NOT_AUTOMATABLE', 'EXTERNAL_DEVICE_REQUIRED'] }),
+  notAutomatableCase('live_dom_geometry', 'mounted_dom_horizontal_scroll_offset',
+    'Mounted DOM test: horizontal scroll offset math',
+    'Requires scrollLeft mutation and clientX hit-testing against live DOM.',
+    { actionType: ACTION_TYPES.DEVICE_TEST, verificationLabels: ['NOT_AUTOMATABLE', 'EXTERNAL_DEVICE_REQUIRED'] }),
+  notAutomatableCase('live_dom_geometry', 'mounted_dom_no_page_scroll_drag',
+    'Mounted DOM test: no page scroll during drag',
+    'Requires device/touch-equivalent drag execution.',
+    { actionType: ACTION_TYPES.DEVICE_TEST, verificationLabels: ['NOT_AUTOMATABLE', 'EXTERNAL_DEVICE_REQUIRED'] }),
+
+  /* ============================================================
+   *  SOCIAL / RLS / TWO-ACCOUNT RISK SUITE
+   * ============================================================ */
+  entityHasShape('social_rls_two_account_risk', 'friend_request_sender_receiver_read_static',
+    'FriendRequest can be read only by sender/receiver by static RLS contract',
+    'entities/FriendRequest.json',
+    friendRequestEntitySource,
+    ['from_email', 'to_email', 'status'],
+    ['data.from_email', 'data.to_email', '{{user.email}}'],
+    { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, runtimeProofRequired: true }),
+  entityHasShape('social_rls_two_account_risk', 'friendship_owner_friend_read_static',
+    'Friendship can be read only by owner/friend by static RLS contract',
+    'entities/Friendship.json',
+    friendshipEntitySource,
+    ['user_email', 'friend_email'],
+    ['data.user_email', '{{user.email}}'],
+    { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, runtimeProofRequired: true }),
+  entityHasShape('social_rls_two_account_risk', 'game_invite_sender_recipient_read_static',
+    'GameInvite can be read only by sender/recipient by static RLS contract',
+    'entities/GameInvite.json',
+    gameInviteEntitySource,
+    ['from_email', 'to_email', 'status'],
+    ['data.from_email', 'data.to_email', '{{user.email}}'],
+    { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, runtimeProofRequired: true }),
+  sourceHas('social_rls_two_account_risk', 'accept_friend_receiver_only',
+    'acceptFriendRequest is receiver-only',
+    'functions/acceptFriendRequest.js',
+    acceptFriendRequestFnSource,
+    ['toEmail !== myEmail', 'Only the receiver can accept this request'],
+    { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),
+  sourceHas('social_rls_two_account_risk', 'accept_game_invite_recipient_only',
+    'acceptGameInvite is recipient-only',
+    'functions/acceptGameInvite.js',
+    acceptGameInviteFnSource,
+    ['toEmail !== myEmail', 'Bu davet sana ait değil'],
+    { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),
+  sourceHas('social_rls_two_account_risk', 'normal_user_admin_route_gated_static',
+    'Normal user cannot access admin/test route by static contract',
+    'pages/TestSuite.jsx + lib/admin.js',
+    `${testSuiteSource}\n${adminLibSource}`,
+    ['isAdminUser', 'ADMIN_EMAIL'],
+    { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),
+  notAutomatableCase('social_rls_two_account_risk', 'probe_user_a_sends_friend_request_b',
+    'Two-account probe: User A sends FriendRequest to User B',
+    'Requires safe live two-account backend harness; production data is not mutated by simulator.',
+    { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, verificationLabels: ['NOT_AUTOMATABLE', 'TWO_ACCOUNT_REQUIRED'] }),
+  notAutomatableCase('social_rls_two_account_risk', 'probe_user_c_cannot_see_friend_request',
+    'Two-account probe: User C cannot see User A/B request',
+    'Horizontal privilege verification requires a third account session.',
+    { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, verificationLabels: ['NOT_AUTOMATABLE', 'TWO_ACCOUNT_REQUIRED'] }),
+  notAutomatableCase('social_rls_two_account_risk', 'probe_user_b_accepts_and_user_c_cannot_mutate',
+    'Two-account probe: User B accepts, User C cannot mutate',
+    'Requires live RLS enforcement test across at least three identities.',
+    { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, verificationLabels: ['NOT_AUTOMATABLE', 'TWO_ACCOUNT_REQUIRED'] }),
+  notAutomatableCase('social_rls_two_account_risk', 'probe_game_invite_cross_user_scope',
+    'Two-account probe: User A invites B; User C cannot see invite',
+    'Requires live GameInvite rows and separate sessions.',
+    { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, verificationLabels: ['NOT_AUTOMATABLE', 'TWO_ACCOUNT_REQUIRED'] }),
+  notAutomatableCase('social_rls_two_account_risk', 'probe_invite_accept_reject_pending_list',
+    'Two-account probe: B accepts/rejects invite and it leaves pending list',
+    'Requires live pending invite lifecycle verification.',
+    { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, verificationLabels: ['NOT_AUTOMATABLE', 'TWO_ACCOUNT_REQUIRED'] }),
+  warningCase('social_rls_two_account_risk', 'horizontal_privilege_classified',
+    'Horizontal privilege risk is classified for cross-user social rows',
+    'FriendRequest, Friendship, and GameInvite rows all carry cross-user data and must keep horizontal privilege probes in the release checklist.',
+    { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, verificationLabels: ['STATIC_CHECK_LIMITATION', 'TWO_ACCOUNT_REQUIRED'] }),
+  warningCase('social_rls_two_account_risk', 'stale_invite_acceptance_risk',
+    'Stale invite acceptance risk if lobby is no longer waiting',
+    'Static contract shows stale invites expire, but live race behavior needs backend runtime proof.',
+    { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, verificationLabels: ['STATIC_CHECK_LIMITATION', 'TWO_ACCOUNT_REQUIRED'] }),
+  warningCase('social_rls_two_account_risk', 'double_click_duplicate_invite_risk',
+    'Double-click duplicate invite risk if DB-level uniqueness is not proven',
+    'Client dedupe is not the same as DB-level uniqueness under concurrent taps.',
+    { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, verificationLabels: ['MANUAL_REQUIRED', 'TWO_ACCOUNT_REQUIRED'] }),
+  warningCase('social_rls_two_account_risk', 'service_role_blast_radius_risk',
+    'Service-role blast-radius risk for functions using asServiceRole',
+    'Service-role functions must stay narrowly scoped and runtime-probed because RLS does not protect inside those writes.',
+    { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, verificationLabels: ['STATIC_CHECK_LIMITATION', 'TWO_ACCOUNT_REQUIRED'] }),
+
+  /* ============================================================
+   *  INVITE FLOW CONTRACT DRIFT SUITE
+   * ============================================================ */
+  makeCase('invite_contract_drift', 'stale_comment_invite_delivery_drift',
+    'Stale comment says invite delivery not wired while GameInvite rows are actually created', () => {
+      const stale = createLobbyInvitePanelSource.includes('Invite delivery is NOT wired yet');
+      const wired = lobbyRoomSource.includes('createGameInvites') && inviteApiSource.includes('base44.entities.GameInvite.create');
+      return stale && wired
+        ? warning('Contract drift detected: comment says invite delivery is not wired, but GameInvite rows are created.', {
+            verification: 'STATIC_CONTRACT',
+            classification: 'STALE_CONTRACT_DRIFT',
+            actionType: ACTION_TYPES.CODE_FIX,
+            expected: 'comments match implemented invite behavior',
+            actual: 'stale comment present while GameInvite creation exists',
+          })
+        : pass('Invite delivery comments and implementation are not obviously contradictory.', {
+            verification: 'STATIC_CONTRACT',
+            classification: 'STATIC_CHECK_LIMITATION',
+            actionType: ACTION_TYPES.CODE_FIX,
+            actual: { stale, wired },
+          });
+    }, { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceLacks('invite_contract_drift', 'ui_copy_no_push_notification_claim',
+    'UI copy does not claim push notification if no push exists',
+    'Invite UI sources',
+    `${createLobbyInvitePanelSource}\n${incomingInvitesPanelSource}\n${waitingRoomPanelSource}`,
+    ['push notification', 'bildirim gönderdik', 'anında bildirim'],
+    { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW }),
+  sourceHas('invite_contract_drift', 'incoming_panel_uses_loader',
+    'Incoming invites panel uses loadIncomingInvites, not direct global GameInvite queries',
+    'IncomingInvitesPanel.jsx',
+    incomingInvitesPanelSource,
+    ['loadIncomingInvites(user.email)'],
+    { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, runtimeProofRequired: true }),
+  sourceHas('invite_contract_drift', 'create_lobby_creates_invites_after_lobby',
+    'Create lobby creates invites after lobby creation',
+    'LobbyRoom.jsx',
+    lobbyRoomSource,
+    ['const newLobby = await base44.entities.Lobby.create', 'await createGameInvites'],
+    { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),
+  sourceHas('invite_contract_drift', 'accept_invite_existing_lobby_path',
+    'Accept invite joins through safe existing lobby path',
+    'IncomingInvitesPanel.jsx + acceptGameInvite contract',
+    `${incomingInvitesPanelSource}\n${acceptGameInviteFnSource}`,
+    ["navigate('/lobby'", 'joinedLobby', 'verifiedLobby'],
+    { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),
+  sourceHas('invite_contract_drift', 'reject_invite_marks_pending_safe',
+    'Reject invite hides/marks pending invite safely',
+    'inviteApi.js + IncomingInvitesPanel.jsx',
+    `${inviteApiSource}\n${incomingInvitesPanelSource}`,
+    ["status: 'rejected'", 'await refresh()'],
+    { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, runtimeProofRequired: true }),
+  sourceHas('invite_contract_drift', 'pending_list_filters_pending_status',
+    'Pending list filters status === pending',
+    'inviteApi.js',
+    inviteApiSource,
+    ["status: 'pending'"],
+    { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, runtimeProofRequired: true }),
+  sourceHas('invite_contract_drift', 'pending_list_filters_to_email_user',
+    'Pending list filters to_email === current user',
+    'inviteApi.js',
+    inviteApiSource,
+    ['to_email: me'],
+    { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, runtimeProofRequired: true }),
+
+  /* ============================================================
+   *  VISUAL COMPOSITION REGRESSION SUITE
+   * ============================================================ */
+  makeCase('visual_composition_regression', 'lobby_no_duplicate_kronox_title',
+    'Lobby screen should not show duplicate Kronox title/logo', () => {
+      const composed = `${appHeaderSource}\n${lobbyCreateJoinPanelSource}\n${createLobbyInvitePanelSource}`;
+      const count = countOccurrences(composed, />\s*KRONOX\s*</g) + countOccurrences(composed, />\s*Kronox\s*</g);
+      return count <= 1
+        ? pass('Only one static Kronox title string is present in composed lobby sources.', {
+            verification: 'STATIC_CONTRACT',
+            classification: 'STATIC_CHECK_LIMITATION',
+            actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW,
+            actual: { count },
+          })
+        : fail('Duplicate static Kronox title strings found in lobby composition.', {
+            verification: 'STATIC_CONTRACT',
+            classification: 'REAL_PRODUCT_RISK',
+            actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW,
+            expected: 'count <= 1',
+            actual: { count },
+          });
+    }, { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW, recentlyFixed: true }),
+  sourceHas('visual_composition_regression', 'single_primary_lobby_title_style',
+    'Remaining title should use approved fantasy logo style',
+    'AppHeader.jsx',
+    appHeaderSource,
+    ['font-cinzel', '#facc15', 'textShadow', 'isLobbyRoute'],
+    { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW, recentlyFixed: true }),
+  sourceHas('visual_composition_regression', 'image_buttons_have_aria_labels_regression',
+    'Image-based buttons have aria labels',
+    'MainMenu.jsx + LobbyCreateJoinPanel.jsx',
+    `${mainMenuSource}\n${lobbyCreateJoinPanelSource}`,
+    ['aria-label', 'ariaLabel'],
+    { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW }),
+  sourceHas('visual_composition_regression', 'image_buttons_have_press_feedback_regression',
+    'Image-based buttons have press feedback',
+    'MainMenu.jsx + LobbyCreateJoinPanel.jsx',
+    `${mainMenuSource}\n${lobbyCreateJoinPanelSource}`,
+    ['whileTap', 'group-active'],
+    { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW }),
+  sourceLacks('visual_composition_regression', 'old_neon_cosmic_not_dominant',
+    'Old neon/cosmic dominance is flagged on new fantasy screens',
+    'new fantasy screens',
+    `${mainMenuSource}\n${lobbyCreateJoinPanelSource}\n${createLobbyInvitePanelSource}`,
+    ['synthwave', 'cosmic', 'from-fuchsia-500 via-purple-500'],
+    { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW }),
+  notAutomatableCase('visual_composition_regression', 'subjective_art_quality_human_review',
+    'Subjective beauty remains NOT_AUTOMATABLE/human review',
+    'Art direction, tactile feel, and emotional reward require screenshots/human review.',
+    { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW, verificationLabels: ['NOT_AUTOMATABLE', 'MANUAL_REQUIRED'] }),
+  warningCase('visual_composition_regression', 'double_header_smell_detector',
+    'Double header smell detector for repeated exact title strings in nested components',
+    'Static title-count detector is present, but screenshots remain required to catch image-rendered duplicates.',
+    { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW }),
+  sourceHas('visual_composition_regression', 'asset_path_drift_warning',
+    'Asset/path drift warning if approved assets are missing or remote paths are used',
+    'MainMenu.jsx + LobbyCreateJoinPanel.jsx',
+    `${mainMenuSource}\n${lobbyCreateJoinPanelSource}`,
+    ['/assets/ui/', 'Kronox_Home_Fantasy_Background.png', 'Kronox_Online_CTA_Start.png'],
+    { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW }),
+  sourceLacks('visual_composition_regression', 'no_remote_visual_assets_new_screens',
+    'Approved visual surfaces do not depend on new remote asset URLs',
+    'MainMenu/Lobby/CreateInvite',
+    `${mainMenuSource}\n${lobbyCreateJoinPanelSource}\n${createLobbyInvitePanelSource}`,
+    ['https://', 'http://'],
+    { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW }),
+  warningCase('visual_composition_regression', 'css_redraw_vs_approved_asset_warning',
+    'CSS redraw vs approved asset warning for key image buttons',
+    'Static source confirms asset buttons exist; human review must confirm no CSS-only redraw replaced approved art.',
+    { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW }),
+
+  /* ============================================================
+   *  ROUTE / NAVIGATION RESILIENCE SUITE
+   * ============================================================ */
+  sourceHas('route_navigation_resilience', 'settings_route_opens_static',
+    '/settings opens',
+    'App.jsx',
+    appSource,
+    ['path="/settings"', 'SettingsPage'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceHas('route_navigation_resilience', 'profile_ayarlar_route_static',
+    'Profile -> Ayarlar opens Settings',
+    'ProfilePage.jsx',
+    profilePageSource,
+    ["navigate('/settings')", 'Ayarlar'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceHas('route_navigation_resilience', 'test_suite_admin_gated_route_static',
+    '/test-suite remains admin-gated',
+    'App.jsx + TestSuite.jsx',
+    `${appSource}\n${testSuiteSource}`,
+    ['path="/test-suite"', 'isAdminUser'],
+    { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),
+  sourceHas('route_navigation_resilience', 'friends_route_login_handling_static',
+    'Friends route requires login UI handling',
+    'FriendsPage.jsx',
+    friendsPageSource,
+    ['base44.auth.me', 'Giriş', 'Arkadaşlar'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceHas('route_navigation_resilience', 'lobby_create_join_modes_static',
+    '/lobby supports create and join modes',
+    'LobbyCreateJoinPanel.jsx + LobbyRoom.jsx',
+    `${lobbyCreateJoinPanelSource}\n${lobbyRoomSource}`,
+    ["mode === 'create'", "mode === 'join'", 'setMode'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceHas('route_navigation_resilience', 'route_state_bootstrap_only_multiplayer',
+    'Route state is bootstrap-only for multiplayer',
+    'useLobbySync.js',
+    useLobbySyncSource,
+    ['bootstrap', 'route-state-fallback', 'latestLobbyRef'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  warningCase('route_navigation_resilience', 'direct_url_runtime_not_proven',
+    'Direct URL access does not crash important routes',
+    'Static route definitions exist, but direct URL hydration and auth transitions require browser runtime checks.',
+    { actionType: ACTION_TYPES.CI_ENVIRONMENT, verificationLabels: ['STATIC_CHECK_LIMITATION', 'MANUAL_REQUIRED'] }),
+  notAutomatableCase('route_navigation_resilience', 'back_navigation_runtime_harness_needed',
+    'Back navigation remains NOT_AUTOMATABLE unless runtime harness exists',
+    'Requires browser history execution across Home, Lobby, Profile, Friends, Settings, and Game.',
+    { actionType: ACTION_TYPES.CI_ENVIRONMENT }),
+
+  /* ============================================================
+   *  REPORT UX / HUMAN DECISION SUITE
+   * ============================================================ */
+  sourceHas('report_ux_human_decision', 'top_blockers_actionable_next_step',
+    'Top blockers include actionable next step',
+    'SimulationPanel.jsx',
+    simulationPanelSource,
+    ['nextStep', 'categorizeCase', 'describeNextStep'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceHas('report_ux_human_decision', 'blocker_categories_supported',
+    'Each blocker includes category/action type',
+    'SimulationPanel.jsx',
+    simulationPanelSource,
+    ['CODE_FIX', 'DEVICE_TEST', 'TWO_ACCOUNT_TEST', 'HUMAN_VISUAL_REVIEW', 'CI_ENVIRONMENT', 'BACKEND_RUNTIME_PROBE'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceHas('report_ux_human_decision', 'score_explanation_near_score',
+    'Score explanation is visible near the score',
+    'SimulationPanel.jsx',
+    simulationPanelSource,
+    ['score.explanation', 'Score Explanation'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceHas('report_ux_human_decision', 'release_ready_checklist_section_exists',
+    'Release Ready Checklist section exists',
+    'SimulationPanel.jsx',
+    simulationPanelSource,
+    ['Release Ready Checklist'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceHas('report_ux_human_decision', 'manual_verification_section_exists',
+    'Manual Verification Needed section exists',
+    'SimulationPanel.jsx',
+    simulationPanelSource,
+    ['Manual Verification Needed'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceHas('report_ux_human_decision', 'recently_fixed_regressions_section_exists',
+    'Recently Fixed Regressions section exists if data exists',
+    'SimulationPanel.jsx',
+    simulationPanelSource,
+    ['Recently Fixed Regressions', 'recentlyFixedRegressions'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceHas('report_ux_human_decision', 'known_non_automatable_section_exists',
+    'Known Non-Automatable Critical Risks section exists',
+    'SimulationPanel.jsx',
+    simulationPanelSource,
+    ['Known Non-Automatable Critical Risks'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceHas('report_ux_human_decision', 'json_export_classification_fields',
+    'JSON export includes classification fields',
+    'SimulationPanel.jsx',
+    simulationPanelSource,
+    ['classification', 'actionType', 'verificationLabels', 'manualVerificationNeeded'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  /* ============================================================
+   *  CREATIVE KRONOX GAME-FEEL SUITE
+   * ============================================================ */
+  sourceHas('kronox_game_feel', 'primary_actions_tactile_feedback',
+    'Primary action buttons have tactile feedback',
+    'MainMenu/Lobby/CreateInvite/GoldButton',
+    `${mainMenuSource}\n${lobbyCreateJoinPanelSource}\n${createLobbyInvitePanelSource}\n${goldButtonSource}`,
+    ['whileTap', 'active:scale', 'sounds.tap'],
+    { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW }),
+  sourceHas('kronox_game_feel', 'disabled_buttons_visibly_disabled',
+    'Disabled buttons are visibly disabled and non-clickable',
+    'CreateLobbyInvitePanel.jsx + GoldButton.jsx',
+    `${createLobbyInvitePanelSource}\n${goldButtonSource}`,
+    ['disabled', 'opacity', 'pointerEvents'],
+    { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW }),
+  warningCase('kronox_game_feel', 'cta_text_overflow_static_heuristic',
+    'CTA text does not overflow detected design bounds by static heuristics if possible',
+    'Static source cannot measure localized Turkish CTA text inside generated image bounds; verify on phone screenshots.',
+    { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW }),
+  sourceHas('kronox_game_feel', 'fixed_fantasy_screens_no_scroll_contract',
+    'Fixed fantasy screens do not introduce scroll',
+    'MainMenu.jsx + LobbyCreateJoinPanel.jsx',
+    `${mainMenuSource}\n${lobbyCreateJoinPanelSource}`,
+    ['overflow: \'hidden\'', 'overscrollBehavior: \'none\''],
+    { actionType: ACTION_TYPES.DEVICE_TEST, runtimeProofRequired: true }),
+  sourceLacks('kronox_game_feel', 'game_screens_avoid_debug_clutter',
+    'Game screens avoid debug clutter',
+    'Game.jsx + GameLayout.jsx',
+    `${gameSource}\n${gameLayoutSource}`,
+    ['console.log(', 'QA PROTECTION SYSTEM'],
+    { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW }),
+  sourceHas('kronox_game_feel', 'social_screens_not_plain_saas',
+    'Social screens are not plain SaaS dashboards',
+    'ProfilePage/FriendsPage/CreateLobbyInvitePanel',
+    `${profilePageSource}\n${friendsPageSource}\n${createLobbyInvitePanelSource}`,
+    ['font-cinzel', '#facc15', 'radial-gradient'],
+    { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW }),
+  sourceHas('kronox_game_feel', 'friendly_empty_states',
+    'Empty states are friendly and instructive',
+    'FriendsPage/CreateLobbyInvitePanel/IncomingInvitesPanel',
+    `${friendsPageSource}\n${createLobbyInvitePanelSource}\n${incomingInvitesPanelSource}`,
+    ['Henüz arkadaşın yok', 'Arkadaşlarım sayfasına git'],
+    { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW }),
+  sourceHas('kronox_game_feel', 'loading_states_network_flows',
+    'Loading states exist for network flows',
+    'FriendsPage/CreateLobbyInvitePanel/IncomingInvitesPanel',
+    `${friendsPageSource}\n${createLobbyInvitePanelSource}\n${incomingInvitesPanelSource}`,
+    ['loading', 'Loader2', 'RowSkeleton'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceHas('kronox_game_feel', 'error_states_network_flows',
+    'Error states exist for network flows',
+    'FriendsPage/CreateLobbyInvitePanel/IncomingInvitesPanel',
+    `${friendsPageSource}\n${createLobbyInvitePanelSource}\n${incomingInvitesPanelSource}`,
+    ['error', 'ErrorHint', 'setError'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceHas('kronox_game_feel', 'invite_friend_actions_feedback',
+    'Invite/friend actions give clear feedback',
+    'friends/invite components',
+    `${incomingRequestItemSource}\n${friendListItemSource}\n${incomingInvitesPanelSource}\n${createLobbyInvitePanelSource}`,
+    ['sounds.tap', 'sounds.tick', 'setError'],
+    { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW }),
+  sourceHas('kronox_game_feel', 'remove_friend_requires_confirmation_gamefeel',
+    'Remove friend requires confirmation',
+    'FriendListItem.jsx',
+    friendListItemSource,
+    ['setConfirming(true)', 'Evet, kaldır', 'Vazgeç'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  staticInfoCase('kronox_game_feel', 'reject_invite_clear_not_lobby_destructive',
+    'Reject invite is clear but not destructive to lobby',
+    'Rejecting an invite marks only the GameInvite row rejected; it does not delete the lobby.',
+    { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, expected: 'reject only updates invite status', actual: 'rejectGameInvite uses GameInvite.update' }),
+  sourceLacks('kronox_game_feel', 'delete_account_protected_if_present',
+    'Delete account remains protected if present',
+    'Profile/Settings sources',
+    `${profilePageSource}\n${settingsPageSource}`,
+    ['deleteAccount(', 'Hesabı sil'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
 ];
 
 // ---------------------------------------------------------------------------
@@ -890,6 +1566,14 @@ const CRITICAL_SOCIAL_SUITE_IDS = new Set([
   'game_invites',
   'admin_visibility',
   'mobile_social_flow',
+  'research_test_strategy',
+  'historical_kronox_regression',
+  'mobile_gesture_risk',
+  'live_dom_geometry',
+  'social_rls_two_account_risk',
+  'invite_contract_drift',
+  'route_navigation_resilience',
+  'report_ux_human_decision',
 ]);
 
 export function criticalSocialUncertaintyPenalty(cases) {
@@ -902,4 +1586,21 @@ export function criticalSocialUncertaintyPenalty(cases) {
   // score on top of the existing per-case penalty (which already counts each
   // critical NOT_AUTOMATABLE as 8 and BLOCKED as 10).
   return Math.min(12, uncertain.length);
+}
+
+export function criticalStaticLimitationPenalty(cases) {
+  if (!Array.isArray(cases)) return 0;
+  const limited = cases.filter((c) =>
+    c.critical &&
+    c.runtimeProofRequired &&
+    (
+      c.classification === 'STATIC_CHECK_LIMITATION' ||
+      c.verification === 'STATIC_CONTRACT' ||
+      (Array.isArray(c.verificationLabels) && c.verificationLabels.includes('STATIC_CHECK_LIMITATION'))
+    ) &&
+    c.status === 'PASS',
+  );
+  // Static contracts can be valuable, but they should not make runtime-critical
+  // mobile/security proof look cheaper than it is.
+  return Math.min(10, limited.length);
 }

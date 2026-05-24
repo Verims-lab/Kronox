@@ -52,7 +52,13 @@ import {
 } from '../../lib/gameRules';
 import { buildPlayerPayload, normalizeCode, removePlayerByIdentity, summarizePlayers } from '../../lib/lobbyUtils';
 import { buildInitialOnlineGameState, filterQuestionsForLobbySettings } from '../../lib/onlineGameStart';
-import { EXTRA_SUITES, EXTRA_TESTS, criticalSocialUncertaintyPenalty } from './simulationPanelExtraCases';
+import {
+  ACTION_TYPES,
+  EXTRA_SUITES,
+  EXTRA_TESTS,
+  criticalSocialUncertaintyPenalty,
+  criticalStaticLimitationPenalty,
+} from './simulationPanelExtraCases';
 import ReleaseReadinessExplainer from './ReleaseReadinessExplainer';
 
 // NOTE: backend function files (functions/*.js) live OUTSIDE /src and cannot
@@ -174,7 +180,7 @@ const BASE_SUITES = [
   { id: 'report_integrity', name: 'Report Integrity Suite', critical: true, color: '#e5e7eb' },
 ];
 
-// Social/online-invite suites added in Codex073. Concatenated here so the
+// Social/online-invite and release-risk suites are appended here so the
 // existing BASE_SUITES order — and every existing suite id — stays untouched.
 const SUITES = [...BASE_SUITES, ...EXTRA_SUITES];
 
@@ -369,8 +375,92 @@ function classifyDirectLobbyUpdates() {
   }));
 }
 
+function normalizeLabels(item) {
+  const labels = new Set(Array.isArray(item.verificationLabels) ? item.verificationLabels : []);
+  if (item.verification) labels.add(item.verification);
+  if (item.classification) labels.add(item.classification);
+  if (item.status === STATUS.NOT_AUTOMATABLE) {
+    labels.add('NOT_AUTOMATABLE');
+    labels.add('MANUAL_REQUIRED');
+  }
+  if (item.actionType === ACTION_TYPES.DEVICE_TEST) labels.add('EXTERNAL_DEVICE_REQUIRED');
+  if (item.actionType === ACTION_TYPES.TWO_ACCOUNT_TEST) labels.add('TWO_ACCOUNT_REQUIRED');
+  if (item.actionType === ACTION_TYPES.BACKEND_RUNTIME_PROBE) labels.add('BACKEND_RUNTIME_PROBE');
+  return Array.from(labels).filter(Boolean);
+}
+
+function categorizeCase(item) {
+  if (item.actionType) return item.actionType;
+  const id = `${item.suiteId || ''}.${item.id || ''}`.toLowerCase();
+  if (/mobile|gesture|timeline|touch|viewport|dom_geometry|keyboard|orientation|scroll/.test(id)) return ACTION_TYPES.DEVICE_TEST;
+  if (/rls|two_account|friend|invite|recipient|sender|horizontal|cross-user|cross_user/.test(id)) return ACTION_TYPES.TWO_ACCOUNT_TEST;
+  if (/service_role|backend|runtime_probe|admin|auth|route/.test(id)) return ACTION_TYPES.BACKEND_RUNTIME_PROBE;
+  if (/visual|fantasy|title|logo|asset|beauty|tactile|game_feel|cta/.test(id)) return ACTION_TYPES.HUMAN_VISUAL_REVIEW;
+  if (/performance|build|ci|direct_url|report/.test(id)) return ACTION_TYPES.CI_ENVIRONMENT;
+  return ACTION_TYPES.CODE_FIX;
+}
+
+function describeNextStep(item) {
+  const actionType = item.actionType || categorizeCase(item);
+  if (actionType === ACTION_TYPES.DEVICE_TEST) {
+    return 'Run a real phone/WebView/PWA check with touch gestures and mobile viewport screenshots.';
+  }
+  if (actionType === ACTION_TYPES.TWO_ACCOUNT_TEST) {
+    return 'Run a live two-account probe and confirm unrelated users cannot read or mutate the row.';
+  }
+  if (actionType === ACTION_TYPES.BACKEND_RUNTIME_PROBE) {
+    return 'Exercise the backend function or protected route with real auth contexts before release.';
+  }
+  if (actionType === ACTION_TYPES.HUMAN_VISUAL_REVIEW) {
+    return 'Capture the target screen and do human visual/game-feel review against the fantasy direction.';
+  }
+  if (actionType === ACTION_TYPES.CI_ENVIRONMENT) {
+    return 'Run the browser/build harness in a reliable CI or local dev environment and attach the result.';
+  }
+  return 'Inspect and fix the code contract, then rerun the affected Health Simulator suite.';
+}
+
+function normalizeCaseResult(item) {
+  const actionType = categorizeCase(item);
+  const labels = normalizeLabels({ ...item, actionType });
+  const classification = item.classification || (labels.includes('STATIC_CHECK_LIMITATION') ? 'STATIC_CHECK_LIMITATION' : item.status === STATUS.PASS ? 'RUNTIME_VERIFIED' : 'REAL_PRODUCT_RISK');
+  const verificationLabels = Array.from(new Set([...labels, classification])).filter(Boolean);
+  return {
+    ...item,
+    actionType,
+    classification,
+    verificationLabels,
+    nextStep: item.nextStep || describeNextStep({ ...item, actionType }),
+  };
+}
+
+function buildScoreExplanation({ counts, penalty, mobileViewportPenalty, authorityPenalty, socialUncertaintyPenalty, staticLimitationPenalty, score, rating }) {
+  const fail = counts.FAIL || 0;
+  const error = counts.ERROR || 0;
+  const criticalUnknown = (counts.NOT_AUTOMATABLE || 0) + (counts.BLOCKED || 0);
+  if (fail === 0 && error === 0 && criticalUnknown > 0) {
+    return `0 FAIL does not mean release-ready: ${criticalUnknown} unresolved BLOCKED/NOT_AUTOMATABLE checks still require device, live DOM, backend, or two-account proof. Penalties: case=${penalty}, mobile=${mobileViewportPenalty}, authority=${authorityPenalty}, social=${socialUncertaintyPenalty}, static-limit=${staticLimitationPenalty}.`;
+  }
+  return `${rating} score ${score}/100. Penalties: case=${penalty}, mobile=${mobileViewportPenalty}, authority=${authorityPenalty}, social=${socialUncertaintyPenalty}, static-limit=${staticLimitationPenalty}.`;
+}
+
+function buildReleaseReadyChecklist(cases) {
+  const hasBlocking = (actionType) => cases.some(item =>
+    item.actionType === actionType &&
+    [STATUS.FAIL, STATUS.ERROR, STATUS.BLOCKED, STATUS.NOT_AUTOMATABLE, STATUS.WARNING].includes(item.status),
+  );
+  return [
+    { label: 'No FAIL or ERROR cases', passed: !cases.some(item => [STATUS.FAIL, STATUS.ERROR].includes(item.status)), actionType: ACTION_TYPES.CODE_FIX },
+    { label: 'Real mobile/WebView gesture proof completed', passed: !hasBlocking(ACTION_TYPES.DEVICE_TEST), actionType: ACTION_TYPES.DEVICE_TEST },
+    { label: 'Two-account social/RLS probe completed', passed: !hasBlocking(ACTION_TYPES.TWO_ACCOUNT_TEST), actionType: ACTION_TYPES.TWO_ACCOUNT_TEST },
+    { label: 'Backend/service-role runtime probe completed', passed: !hasBlocking(ACTION_TYPES.BACKEND_RUNTIME_PROBE), actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE },
+    { label: 'Human visual/game-feel review completed', passed: !hasBlocking(ACTION_TYPES.HUMAN_VISUAL_REVIEW), actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW },
+    { label: 'Build/browser harness available', passed: !hasBlocking(ACTION_TYPES.CI_ENVIRONMENT), actionType: ACTION_TYPES.CI_ENVIRONMENT },
+  ];
+}
+
 function buildReport(caseResults, meta = createRunMeta(), environment = captureEnvironment()) {
-  const cases = caseResults.map(item => ({ ...item }));
+  const cases = caseResults.map(item => normalizeCaseResult({ ...item }));
   const counts = Object.values(STATUS).reduce((acc, status) => ({ ...acc, [status]: 0 }), {});
   cases.forEach(item => { counts[item.status] = (counts[item.status] || 0) + 1; });
 
@@ -395,7 +485,8 @@ function buildReport(caseResults, meta = createRunMeta(), environment = captureE
   // Codex073: additive penalty for critical social/security uncertainty.
   // Caps at 12 so it never zeroes out an already-penalized run.
   const socialUncertaintyPenalty = criticalSocialUncertaintyPenalty(cases);
-  const score = Math.max(0, Math.round(100 - penalty - mobileViewportPenalty - authorityPenalty - socialUncertaintyPenalty));
+  const staticLimitationPenalty = criticalStaticLimitationPenalty(cases);
+  const score = Math.max(0, Math.round(100 - penalty - mobileViewportPenalty - authorityPenalty - socialUncertaintyPenalty - staticLimitationPenalty));
   const rating = score >= 90 ? 'Good' : score >= 70 ? 'Watch' : score >= 50 ? 'Risky' : 'Not release-ready';
 
   const problemCases = cases
@@ -405,6 +496,24 @@ function buildReport(caseResults, meta = createRunMeta(), environment = captureE
       if (statusDelta !== 0) return statusDelta;
       return Number(b.critical) - Number(a.critical);
     });
+
+  const topBlockers = problemCases.filter(item => [STATUS.FAIL, STATUS.ERROR, STATUS.BLOCKED, STATUS.NOT_AUTOMATABLE].includes(item.status)).slice(0, 8);
+  const manualVerificationNeeded = problemCases.filter(item =>
+    item.verificationLabels?.some(label => ['MANUAL_REQUIRED', 'EXTERNAL_DEVICE_REQUIRED', 'TWO_ACCOUNT_REQUIRED', 'NOT_AUTOMATABLE'].includes(label)) ||
+    [STATUS.BLOCKED, STATUS.NOT_AUTOMATABLE].includes(item.status),
+  );
+  const knownNonAutomatableCriticalRisks = cases.filter(item => item.critical && item.status === STATUS.NOT_AUTOMATABLE);
+  const recentlyFixedRegressions = cases.filter(item => item.recentlyFixed);
+  const scoreExplanation = buildScoreExplanation({
+    counts,
+    penalty,
+    mobileViewportPenalty,
+    authorityPenalty,
+    socialUncertaintyPenalty,
+    staticLimitationPenalty,
+    score,
+    rating,
+  });
 
   return {
     runId: meta.runId,
@@ -420,10 +529,21 @@ function buildReport(caseResults, meta = createRunMeta(), environment = captureE
     counts,
     totalCases: cases.length,
     totalDurationMs: Math.round(cases.reduce((sum, item) => sum + (item.durationMs || 0), 0)),
-    score: { value: score, rating },
-    topBlockers: problemCases.filter(item => [STATUS.FAIL, STATUS.ERROR, STATUS.BLOCKED, STATUS.NOT_AUTOMATABLE].includes(item.status)).slice(0, 5),
+    score: { value: score, rating, explanation: scoreExplanation },
+    scorePenaltyBreakdown: {
+      casePenalty: penalty,
+      mobileViewportPenalty,
+      authorityPenalty,
+      socialUncertaintyPenalty,
+      staticLimitationPenalty,
+    },
+    topBlockers,
     topRegressions: problemCases.filter(item => [STATUS.FAIL, STATUS.ERROR].includes(item.status)).slice(0, 5),
     recommendedNextActions: recommendedActions(problemCases),
+    releaseReadyChecklist: buildReleaseReadyChecklist(cases),
+    manualVerificationNeeded,
+    knownNonAutomatableCriticalRisks,
+    recentlyFixedRegressions,
     cases,
   };
 }
@@ -437,6 +557,13 @@ function recommendedActions(problemCases) {
   if (problemCases.some(item => item.suiteId === 'game_invites')) actions.push('Run a two-account GameInvite probe (cross-user read/update attempt) before claiming invite security.');
   if (problemCases.some(item => item.suiteId === 'create_lobby_invite_gate')) actions.push('Manually verify the "Lobi Oluştur ve Davet Et" disabled state and helper text on a real mobile device.');
   if (problemCases.some(item => item.suiteId === 'mobile_social_flow')) actions.push('Verify Profile / Friends / Invite screens on a narrow real phone (320×568) including keyboard focus behavior.');
+  if (problemCases.some(item => item.suiteId === 'research_test_strategy' || item.suiteId === 'report_ux_human_decision')) actions.push('Keep the report honest: distinguish runtime proof, static contracts, manual gaps, and action categories before release decisions.');
+  if (problemCases.some(item => item.suiteId === 'historical_kronox_regression')) actions.push('Re-test recently fixed Kronox incidents, especially Settings stability and duplicate lobby title composition.');
+  if (problemCases.some(item => item.suiteId === 'mobile_gesture_risk' || item.suiteId === 'live_dom_geometry')) actions.push('Run mounted DOM and real-device drag checks for Timeline geometry, page scroll, and touch-action behavior.');
+  if (problemCases.some(item => item.suiteId === 'social_rls_two_account_risk')) actions.push('Execute the required User A / User B / User C RLS matrix before claiming social security readiness.');
+  if (problemCases.some(item => item.suiteId === 'invite_contract_drift')) actions.push('Resolve invite behavior/comment drift and verify pending-recipient filters with a two-account backend probe.');
+  if (problemCases.some(item => item.suiteId === 'visual_composition_regression' || item.suiteId === 'kronox_game_feel')) actions.push('Capture mobile screenshots and review tactile fantasy presentation, duplicate headers, asset paths, and CTA readability.');
+  if (problemCases.some(item => item.suiteId === 'route_navigation_resilience')) actions.push('Run direct URL and back-navigation smoke tests for /settings, /profile, /friends, /lobby, /game, and /test-suite.');
   if (problemCases.some(item => item.status === STATUS.NOT_AUTOMATABLE)) actions.push('Treat non-automatable critical cases as release risk until covered by device/backend tests.');
   if (problemCases.some(item => item.suiteId === 'debug_hygiene' || item.suiteId === 'admin_visibility')) actions.push('Confirm debug/test surfaces and admin tooling are gated outside gameplay and Profile for normal users.');
   return actions.length ? actions : ['No major simulator blockers detected; still run the required two-device multiplayer smoke test plus a two-account invite/RLS probe.'];
@@ -446,12 +573,13 @@ function buildHumanSummary(report) {
   if (!report) return 'No Kronox Health Simulator report is available.';
   const counts = Object.entries(report.counts).map(([status, count]) => `${status}: ${count}`).join(', ');
   const blockers = report.topBlockers.length
-    ? report.topBlockers.map(item => `- [${item.status}] ${item.suiteName} / ${item.name}: ${item.reason}`).join('\n')
+    ? report.topBlockers.map(item => `- [${item.status}] [${item.actionType || 'CODE_FIX'}] ${item.suiteName} / ${item.name}: ${item.reason} Next: ${item.nextStep || 'Review manually.'}`).join('\n')
     : '- None';
   const actions = report.recommendedNextActions.map(item => `- ${item}`).join('\n');
   return [
     `Kronox Health Simulator ${report.runId}`,
     `Score: ${report.score.value} (${report.score.rating})`,
+    `Score explanation: ${report.score.explanation || 'No score explanation available.'}`,
     `Build: ${report.buildMarker}`,
     `Device: ${report.environment.deviceType} ${report.environment.viewport.width}x${report.environment.viewport.height} DPR ${report.environment.dpr}`,
     `Counts: ${counts}`,
@@ -684,24 +812,47 @@ const TESTS = [
     : blocked('localStorage is unavailable in this browser context.')),
 
   /* ------------------------------------------------------------------
-   *  Codex073 report-integrity additions for the social/invite suites.
+   *  Codex075 report-integrity additions for social/invite/release-risk suites.
    * ------------------------------------------------------------------ */
-  makeCase('report_integrity', 'extra_suites_registered', 'Codex073 social/invite suites are registered in SUITES', () => {
+  makeCase('report_integrity', 'extra_suites_registered', 'Codex075 Health Simulator suites are registered in SUITES', () => {
     const ids = new Set(SUITES.map((s) => s.id));
-    const expected = ['profile_navigation', 'friends_ui', 'friends_validation', 'friends_security', 'profile_economy', 'online_lobby_setup', 'create_lobby_invite_gate', 'game_invites', 'lobby_code_ux', 'admin_visibility', 'mobile_social_flow', 'fantasy_visual_update'];
+    const expected = [
+      'profile_navigation',
+      'friends_ui',
+      'friends_validation',
+      'friends_security',
+      'profile_economy',
+      'online_lobby_setup',
+      'create_lobby_invite_gate',
+      'game_invites',
+      'lobby_code_ux',
+      'admin_visibility',
+      'mobile_social_flow',
+      'fantasy_visual_update',
+      'research_test_strategy',
+      'historical_kronox_regression',
+      'mobile_gesture_risk',
+      'live_dom_geometry',
+      'social_rls_two_account_risk',
+      'invite_contract_drift',
+      'visual_composition_regression',
+      'route_navigation_resilience',
+      'report_ux_human_decision',
+      'kronox_game_feel',
+    ];
     const missing = expected.filter((id) => !ids.has(id));
     return missing.length
-      ? fail('Some Codex073 suites are missing from SUITES.', { expected, actual: { missing } })
-      : pass('All Codex073 suites are registered.', { expected, actual: 'all present' });
+      ? fail('Some Codex075 suites are missing from SUITES.', { expected, actual: { missing } })
+      : pass('All Codex075 suites are registered.', { expected, actual: 'all present' });
   }),
-  makeCase('report_integrity', 'json_export_includes_new_suites', 'JSON export includes Codex073 suites', () => {
+  makeCase('report_integrity', 'json_export_includes_new_suites', 'JSON export includes Codex075 suites', () => {
     const report = buildReport([]);
     const ids = new Set(report.suites.map((s) => s.id));
-    const expected = ['profile_navigation', 'friends_ui', 'friends_security', 'game_invites'];
+    const expected = ['profile_navigation', 'friends_ui', 'friends_security', 'game_invites', 'research_test_strategy', 'mobile_gesture_risk', 'report_ux_human_decision'];
     const missing = expected.filter((id) => !ids.has(id));
     return missing.length
-      ? fail('Codex073 suites missing from JSON export.', { expected, actual: { missing } })
-      : pass('Codex073 suites present in JSON export.');
+      ? fail('Codex075 suites missing from JSON export.', { expected, actual: { missing } })
+      : pass('Codex075 suites present in JSON export.');
   }),
   makeCase('report_integrity', 'critical_social_uncertainty_penalty', 'Critical social BLOCKED/NOT_AUTOMATABLE is penalised by score', () => {
     const baseline = buildReport([{ suiteId: 'report_integrity', suiteName: 'Report Integrity Suite', id: 's1', name: 'baseline', status: STATUS.PASS, reason: 'sample', durationMs: 0, critical: true }]);
@@ -713,7 +864,7 @@ const TESTS = [
       ? pass('Score penalises critical social uncertainty.', { expected: '< baseline score', actual: { baseline: baseline.score.value, withUncertainty: withUncertainty.score.value } })
       : fail('Score did not penalise critical social uncertainty.', { actual: { baseline: baseline.score.value, withUncertainty: withUncertainty.score.value } });
   }),
-  // Codex074: lock in the honest-scoring contract. Critical NOT_AUTOMATABLE
+  // Codex075: lock in the honest-scoring contract. Critical NOT_AUTOMATABLE
   // must continue to drop the score below "release-ready" even when there
   // are zero FAILs. If anyone silently weakens the penalty so a 0-FAIL run
   // becomes "Good" while critical manual gaps remain, this case flips to
@@ -742,6 +893,53 @@ const TESTS = [
     return report.counts.PASS === 0 && report.counts.NOT_AUTOMATABLE === 1 && report.counts.BLOCKED === 1
       ? pass('Non-PASS statuses are not double-counted as PASS.', { actual: report.counts })
       : fail('Non-PASS statuses were miscounted.', { actual: report.counts });
+  }),
+  makeCase('report_integrity', 'top_blockers_have_action_metadata', 'Top blockers include action type and next step', () => {
+    const report = buildReport([
+      { suiteId: 'mobile_gesture_risk', suiteName: 'Mobile Gesture Risk Suite', id: 'drag', name: 'drag', status: STATUS.NOT_AUTOMATABLE, reason: 'sample', durationMs: 0, critical: true },
+    ]);
+    const blocker = report.topBlockers[0];
+    return blocker?.actionType && blocker?.nextStep
+      ? pass('Top blocker includes action metadata.', { actual: { actionType: blocker.actionType, nextStep: blocker.nextStep } })
+      : fail('Top blocker action metadata missing.', { actual: blocker });
+  }),
+  makeCase('report_integrity', 'manual_verification_sections_exist', 'Manual verification sections exist in JSON report', () => {
+    const report = buildReport([
+      { suiteId: 'social_rls_two_account_risk', suiteName: 'Social / RLS Two-Account Risk Suite', id: 'rls', name: 'rls', status: STATUS.NOT_AUTOMATABLE, reason: 'sample', durationMs: 0, critical: true },
+    ]);
+    return Array.isArray(report.manualVerificationNeeded) &&
+      Array.isArray(report.knownNonAutomatableCriticalRisks) &&
+      Array.isArray(report.releaseReadyChecklist)
+      ? pass('Manual verification sections are present.', { actual: { manual: report.manualVerificationNeeded.length, knownCritical: report.knownNonAutomatableCriticalRisks.length, checklist: report.releaseReadyChecklist.length } })
+      : fail('Manual verification sections missing.', { actual: Object.keys(report) });
+  }),
+  makeCase('report_integrity', 'score_explains_zero_fail_not_ready', 'Score explanation says 0 FAIL can still be not release-ready', () => {
+    const report = buildReport([
+      { suiteId: 'live_dom_geometry', suiteName: 'Live DOM Geometry / Timeline Suite', id: 'dom', name: 'dom', status: STATUS.NOT_AUTOMATABLE, reason: 'sample', durationMs: 0, critical: true },
+    ]);
+    return report.score.explanation?.includes('0 FAIL does not mean release-ready')
+      ? pass('Score explanation is explicit.', { actual: report.score.explanation })
+      : fail('Score explanation did not state the 0 FAIL caveat.', { actual: report.score });
+  }),
+  makeCase('report_integrity', 'critical_static_limitation_penalized', 'Critical static limitations with runtime proof required are penalized', () => {
+    const baseline = buildReport([
+      { suiteId: 'report_integrity', suiteName: 'Report Integrity Suite', id: 'pass', name: 'pass', status: STATUS.PASS, reason: 'sample', durationMs: 0, critical: true, verification: 'RUNTIME_VERIFIED' },
+    ]);
+    const limited = buildReport([
+      { suiteId: 'mobile_gesture_risk', suiteName: 'Mobile Gesture Risk Suite', id: 'static', name: 'static', status: STATUS.PASS, reason: 'sample', durationMs: 0, critical: true, verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION', runtimeProofRequired: true },
+    ]);
+    return limited.score.value < baseline.score.value
+      ? pass('Critical static limitation receives an additive penalty.', { actual: { baseline: baseline.score.value, limited: limited.score.value, penalty: limited.scorePenaltyBreakdown.staticLimitationPenalty } })
+      : fail('Critical static limitation was not penalized.', { actual: { baseline: baseline.score.value, limited: limited.score.value } });
+  }),
+  makeCase('report_integrity', 'json_export_includes_classification_fields', 'JSON export includes classification fields for cases and blockers', () => {
+    const report = buildReport([
+      { suiteId: 'visual_composition_regression', suiteName: 'Visual Composition Regression Suite', id: 'visual', name: 'visual', status: STATUS.WARNING, reason: 'sample', durationMs: 0, critical: false },
+    ]);
+    const sample = report.cases[0];
+    return sample?.classification && sample?.actionType && Array.isArray(sample?.verificationLabels)
+      ? pass('Classification fields are available in JSON export.', { actual: { classification: sample.classification, actionType: sample.actionType, labels: sample.verificationLabels } })
+      : fail('Classification fields missing from JSON export.', { actual: sample });
   }),
 
   ...EXTRA_TESTS,
@@ -1081,7 +1279,7 @@ function CaseRow({ testCase, result: caseResult, running }) {
             <div className="mt-2 text-white/45">Duration: {caseResult.durationMs}ms</div>
             {(caseResult.expected !== undefined || caseResult.actual !== undefined || caseResult.file || caseResult.stack) && (
               <pre className="mt-3 max-h-56 overflow-auto rounded-md bg-black/45 p-3 text-[11px] leading-relaxed text-white/75">
-                {JSON.stringify({ verification: caseResult.verification, classification: caseResult.classification, file: caseResult.file, expected: caseResult.expected, actual: caseResult.actual, stack: caseResult.stack }, null, 2)}
+                {JSON.stringify({ verification: caseResult.verification, verificationLabels: caseResult.verificationLabels, classification: caseResult.classification, actionType: caseResult.actionType, nextStep: caseResult.nextStep, file: caseResult.file, expected: caseResult.expected, actual: caseResult.actual, stack: caseResult.stack }, null, 2)}
               </pre>
             )}
           </>
@@ -1109,7 +1307,7 @@ function ReportPanel({ report, copyJson, copySummary, downloadJson, copyState })
       </div>
       {copyState && <div className="mt-2 text-xs text-cyan-200">{copyState}</div>}
 
-      {/* Codex074: human-readable release-readiness explainer.
+      {/* Codex075: human-readable release-readiness explainer.
           Explanation-only UI. Reads `report` and renders text/legend.
           Does NOT alter scoring, statuses, or case counts. */}
       <ReleaseReadinessExplainer report={report} />
@@ -1127,19 +1325,92 @@ function ReportPanel({ report, copyJson, copySummary, downloadJson, copyState })
         <ReportBox title="Top Blockers">
           {report.topBlockers.length ? report.topBlockers.map(item => (
             <div key={`${item.key}-${item.status}`} className="mb-2 rounded border border-white/10 bg-black/25 p-2">
-              <StatusBadge status={item.status} />
+              <div className="flex flex-wrap items-center gap-1.5">
+                <StatusBadge status={item.status} />
+                <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-semibold text-white/55">{item.actionType}</span>
+              </div>
               <div className="mt-1 font-semibold">{item.name}</div>
               <div className="mt-1 text-white/55">{item.reason}</div>
+              {item.nextStep && <div className="mt-1 text-[11px] text-cyan-100/75">Next: {item.nextStep}</div>}
             </div>
           )) : <p className="text-white/55">None</p>}
         </ReportBox>
       </div>
+
+      <ReportBox title="Score Explanation" className="mt-3">
+        <p className="text-xs leading-relaxed text-white/70">{report.score.explanation}</p>
+        {report.scorePenaltyBreakdown && (
+          <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-white/55 sm:grid-cols-5">
+            {Object.entries(report.scorePenaltyBreakdown).map(([key, value]) => (
+              <div key={key} className="rounded border border-white/10 bg-black/20 p-2">
+                <div className="text-white/40">{key}</div>
+                <div className="font-semibold text-white/75">{value}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </ReportBox>
 
       <ReportBox title="Recommended Next Actions" className="mt-3">
         <ul className="space-y-2 text-xs text-white/70">
           {report.recommendedNextActions.map(action => <li key={action}>- {action}</li>)}
         </ul>
       </ReportBox>
+
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
+        <ReportBox title="Release Ready Checklist">
+          <ul className="space-y-2 text-xs text-white/70">
+            {report.releaseReadyChecklist.map(item => (
+              <li key={item.label} className="flex items-start gap-2">
+                <span className={item.passed ? 'text-emerald-300' : 'text-amber-300'}>{item.passed ? 'PASS' : 'NEEDS PROOF'}</span>
+                <span className="min-w-0 flex-1">{item.label}</span>
+                <span className="text-white/35">{item.actionType}</span>
+              </li>
+            ))}
+          </ul>
+        </ReportBox>
+
+        <ReportBox title="Manual Verification Needed">
+          {report.manualVerificationNeeded.length ? (
+            <ul className="space-y-2 text-xs text-white/70">
+              {report.manualVerificationNeeded.slice(0, 8).map(item => (
+                <li key={`${item.key}-manual`} className="rounded border border-white/10 bg-black/20 p-2">
+                  <span className="font-semibold text-white">{item.name}</span>
+                  <span className="block text-white/45">{item.actionType} / {item.status}</span>
+                </li>
+              ))}
+            </ul>
+          ) : <p className="text-xs text-white/55">None</p>}
+        </ReportBox>
+      </div>
+
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
+        <ReportBox title="Known Non-Automatable Critical Risks">
+          {report.knownNonAutomatableCriticalRisks.length ? (
+            <ul className="space-y-2 text-xs text-white/70">
+              {report.knownNonAutomatableCriticalRisks.slice(0, 8).map(item => (
+                <li key={`${item.key}-known`} className="rounded border border-white/10 bg-black/20 p-2">
+                  <span className="font-semibold text-white">{item.name}</span>
+                  <span className="block text-white/45">{item.suiteName}</span>
+                </li>
+              ))}
+            </ul>
+          ) : <p className="text-xs text-white/55">None</p>}
+        </ReportBox>
+
+        <ReportBox title="Recently Fixed Regressions">
+          {report.recentlyFixedRegressions.length ? (
+            <ul className="space-y-2 text-xs text-white/70">
+              {report.recentlyFixedRegressions.slice(0, 8).map(item => (
+                <li key={`${item.key}-fixed`} className="rounded border border-white/10 bg-black/20 p-2">
+                  <span className="font-semibold text-white">{item.name}</span>
+                  <span className="block text-white/45">{item.status} / {item.suiteName}</span>
+                </li>
+              ))}
+            </ul>
+          ) : <p className="text-xs text-white/55">None recorded in this run</p>}
+        </ReportBox>
+      </div>
 
       <details className="mt-3 rounded-md border border-white/10 bg-black/25 p-3">
         <summary className="cursor-pointer text-sm font-semibold">Raw JSON Preview</summary>
