@@ -43,6 +43,7 @@ import simulationPanelSource from './SimulationPanel.jsx?raw';
 import timelineSource from './Timeline.jsx?raw';
 import useLobbySyncSource from '../../hooks/useLobbySync.js?raw';
 import buildMarkerSource from '../dev/BuildMarker.jsx?raw';
+import onlineCategoriesSource from '../../lib/onlineCategories.js?raw';
 
 // NOTE: Entity .json files cannot be reliably imported with ?raw or as JSON
 // under the current Vite config when they live outside /src — it triggers a
@@ -205,6 +206,7 @@ export const EXTRA_SUITES = [
   { id: 'route_navigation_resilience', name: 'Route / Navigation Resilience Suite', critical: true, color: '#818cf8' },
   { id: 'report_ux_human_decision', name: 'Report UX / Human Decision Suite', critical: true, color: '#e5e7eb' },
   { id: 'kronox_game_feel', name: 'Creative Kronox Game-Feel Suite', critical: false, color: '#fde68a' },
+  { id: 'online_category_taxonomy', name: 'Online Category Taxonomy Suite', critical: true, color: '#fde68a' },
 ];
 
 // Convenience lookup — used by builder fns below so case `critical` matches suite default.
@@ -1741,6 +1743,146 @@ export const EXTRA_TESTS = [
         actual: { protectionTokens },
       });
     }, { actionType: ACTION_TYPES.CODE_FIX }),
+
+  /* ============================================================
+   *  ONLINE CATEGORY TAXONOMY SUITE (Codex078)
+   *  Single-source-of-truth contract for the six Online Game categories.
+   * ============================================================ */
+  makeCase('online_category_taxonomy', 'six_stable_ids_present',
+    'Six Online category ids exist and match the product spec', async () => {
+      const mod = await import('@/lib/onlineCategories');
+      const expected = ['flashback', 'kult', 'viral', 'arena', 'level_up', 'chronicle'];
+      const actual = mod.ONLINE_CATEGORY_IDS || [];
+      const missing = expected.filter((id) => !actual.includes(id));
+      const extra = actual.filter((id) => !expected.includes(id));
+      if (missing.length || extra.length) {
+        return fail('Online category ids do not match the product spec.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'lib/onlineCategories.js',
+          expected,
+          actual: { ids: actual, missing, extra },
+        });
+      }
+      return pass('All six Online category ids present and stable.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actual,
+      });
+    }, { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  makeCase('online_category_taxonomy', 'every_category_has_required_metadata',
+    'Every category has label, description (Turkish), timeRange, contentScope, and examples', async () => {
+      const mod = await import('@/lib/onlineCategories');
+      const cats = mod.ONLINE_CATEGORIES || [];
+      const broken = cats.filter((c) =>
+        !c.label ||
+        !c.description ||
+        c.description.length < 20 ||
+        !c.timeRange ||
+        !Array.isArray(c.contentScope) || c.contentScope.length === 0 ||
+        !Array.isArray(c.examples) || c.examples.length === 0,
+      );
+      if (broken.length) {
+        return fail('One or more categories are missing required metadata.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'lib/onlineCategories.js',
+          expected: 'label + description + timeRange + contentScope + examples for each',
+          actual: { brokenIds: broken.map((c) => c.id) },
+        });
+      }
+      return pass('Every category carries the full taxonomy metadata.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actual: { count: cats.length },
+      });
+    }, { actionType: ACTION_TYPES.CODE_FIX }),
+  makeCase('online_category_taxonomy', 'examples_are_year_answerable',
+    'Every category example is a single-year-answerable event', async () => {
+      const mod = await import('@/lib/onlineCategories');
+      const cats = mod.ONLINE_CATEGORIES || [];
+      const bad = [];
+      for (const c of cats) {
+        for (const ex of c.examples || []) {
+          const yearOk = Number.isInteger(ex?.year) && ex.year > 0 && ex.year <= new Date().getFullYear();
+          const eventOk = typeof ex?.event === 'string' && ex.event.trim().length > 0;
+          if (!yearOk || !eventOk) bad.push({ categoryId: c.id, example: ex });
+        }
+      }
+      if (bad.length) {
+        return fail('One or more examples are not year-answerable.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'lib/onlineCategories.js',
+          expected: 'every example has a finite integer year and a non-empty event string',
+          actual: { bad },
+        });
+      }
+      return pass('All examples are single-year answerable.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    }, { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceHas('online_category_taxonomy', 'boundary_rules_documented',
+    'Category boundary rules are documented in the centralized module',
+    'lib/onlineCategories.js',
+    onlineCategoriesSource,
+    [
+      'ONLINE_CATEGORY_BOUNDARY_RULES',
+      'flashback_vs_chronicle',
+      'kult_vs_viral',
+      'viral_vs_level_up',
+      'arena_vs_flashback',
+      'chronicle_fallback',
+    ],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceHas('online_category_taxonomy', 'question_style_requirements_documented',
+    'Question style requirements are documented in the centralized module',
+    'lib/onlineCategories.js',
+    onlineCategoriesSource,
+    [
+      'ONLINE_QUESTION_STYLE_REQUIREMENTS',
+      'Year-answerable',
+      'Category must match',
+    ],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceHas('online_category_taxonomy', 'lobby_panel_consumes_centralized_taxonomy',
+    'Online lobby panel imports category ids/labels from lib/onlineCategories',
+    'components/lobby/LobbyCreateJoinPanel.jsx',
+    lobbyCreateJoinPanelSource,
+    [
+      "from '@/lib/onlineCategories'",
+      'ONLINE_CATEGORIES',
+      'CATEGORY_HITBOX_BY_ID',
+    ],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  sourceLacks('online_category_taxonomy', 'no_inline_category_definitions_in_lobby_panel',
+    'Lobby panel must not redeclare category ids/labels inline',
+    'components/lobby/LobbyCreateJoinPanel.jsx',
+    lobbyCreateJoinPanelSource,
+    [
+      // Old inline shape — must not reappear. We check for the literal
+      // shape that was previously hardcoded.
+      "{ id: 'flashback', label: 'FLASHBACK', left:",
+      "{ id: 'kult', label: 'KÜLT', left:",
+    ],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  makeCase('online_category_taxonomy', 'lookup_helpers_work',
+    'getOnlineCategoryById / isValidOnlineCategoryId behave correctly', async () => {
+      const mod = await import('@/lib/onlineCategories');
+      const ok =
+        mod.isValidOnlineCategoryId('flashback') === true &&
+        mod.isValidOnlineCategoryId('__nope__') === false &&
+        mod.getOnlineCategoryById('chronicle')?.label === 'CHRONICLE' &&
+        mod.getOnlineCategoryById('__nope__') === null;
+      return ok
+        ? pass('Lookup helpers verified at runtime.', { verification: 'RUNTIME_VERIFIED' })
+        : fail('Lookup helpers returned unexpected results.', { verification: 'RUNTIME_VERIFIED' });
+    }, { actionType: ACTION_TYPES.CODE_FIX }),
+  notAutomatableCase('online_category_taxonomy', 'multi_select_runtime_unbroken',
+    'Online multi-category selection still works at runtime after taxonomy centralization',
+    'Static contract proves the lobby panel imports the centralized list and CATEGORIES is built from it without losing ids; the actual multi-select UX flow (selecting/deselecting cards, min-1 guard, CTA hand-off) needs a real touch session on the mounted Online landing.',
+    { actionType: ACTION_TYPES.DEVICE_TEST, verificationLabels: ['NOT_AUTOMATABLE', 'EXTERNAL_DEVICE_REQUIRED'] }),
 ];
 
 // ---------------------------------------------------------------------------
@@ -1767,6 +1909,7 @@ const CRITICAL_SOCIAL_SUITE_IDS = new Set([
   'invite_contract_drift',
   'route_navigation_resilience',
   'report_ux_human_decision',
+  'online_category_taxonomy',
 ]);
 
 export function criticalSocialUncertaintyPenalty(cases) {

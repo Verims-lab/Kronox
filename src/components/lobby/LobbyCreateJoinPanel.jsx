@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { sounds } from '@/lib/gameSounds';
 import GoldButton from '@/components/ui/GoldButton';
 import CreateLobbyInvitePanel from '@/components/lobby/CreateLobbyInvitePanel';
+import { ONLINE_CATEGORIES } from '@/lib/onlineCategories';
 
 const ONLINE_BACKGROUND_ASSET = '/assets/ui/Kronox_Online_Fantasy_Basckground.png';
 // Exact CTA target visuals — bundled locally under public/assets/ui/.
@@ -13,14 +14,24 @@ const CTA_GOLD_ASSET = '/assets/ui/Kronox_Online_CTA_Start.png';
 const CTA_BLUE_ASSET = '/assets/ui/Kronox_Online_CTA_Join.png';
 const WIDE_STAGE_QUERY = '(min-aspect-ratio: 9 / 16)';
 
-const CATEGORIES = [
-  { id: 'flashback', label: 'FLASHBACK', left: '6.3%', top: '28.6%', width: '40%', height: '11.8%' },
-  { id: 'kult', label: 'KÜLT', left: '53.7%', top: '28.6%', width: '40%', height: '11.8%' },
-  { id: 'viral', label: 'VIRAL', left: '6.3%', top: '43.2%', width: '40%', height: '11.8%' },
-  { id: 'arena', label: 'ARENA', left: '53.7%', top: '43.2%', width: '40%', height: '11.8%' },
-  { id: 'level_up', label: 'LEVEL UP', left: '6.3%', top: '57.8%', width: '40%', height: '11.8%' },
-  { id: 'chronicle', label: 'CHRONICLE', left: '53.7%', top: '57.8%', width: '40%', height: '11.8%' },
-];
+// Codex078: category ids/labels come from the centralized taxonomy
+// (lib/onlineCategories.js) so future descriptions/examples/boundary rules
+// can evolve from one place. Hit-box geometry stays here because it is
+// painted-asset-specific layout, not taxonomy.
+const CATEGORY_HITBOX_BY_ID = {
+  flashback: { left: '6.3%', top: '28.6%', width: '40%', height: '11.8%' },
+  kult: { left: '53.7%', top: '28.6%', width: '40%', height: '11.8%' },
+  viral: { left: '6.3%', top: '43.2%', width: '40%', height: '11.8%' },
+  arena: { left: '53.7%', top: '43.2%', width: '40%', height: '11.8%' },
+  level_up: { left: '6.3%', top: '57.8%', width: '40%', height: '11.8%' },
+  chronicle: { left: '53.7%', top: '57.8%', width: '40%', height: '11.8%' },
+};
+
+const CATEGORIES = ONLINE_CATEGORIES.map(({ id, label }) => ({
+  id,
+  label,
+  ...CATEGORY_HITBOX_BY_ID[id],
+}));
 
 const DEFAULT_SELECTED_CATEGORIES = ['flashback'];
 const MIN_SELECTED_CATEGORY_COUNT = 1;
