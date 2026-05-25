@@ -1,13 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex078 — bumped from Codex077. Online Game question categories
-// standardized: the six selectable categories (Flashback / Kült / Viral /
-// Arena / Level Up / Chronicle) are now defined centrally in
-// lib/onlineCategories.js — with stable ids, Turkish descriptions,
-// year-answerable examples, and boundary rules. The lobby UI consumes
-// that module; no gameplay, multiplayer, drag/drop, or RLS logic
-// changed.
-const BUILD_MARKER = 'Codex078';
+const BUILD_MARKER = 'Codex076';
 
 export default function BuildMarker() {
   const [visible, setVisible] = useState(true);

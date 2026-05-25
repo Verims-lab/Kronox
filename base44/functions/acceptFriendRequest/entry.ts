@@ -1,162 +1,140 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
-// Codex077: real fix for the friend-request accept flow.
-//
-// Root cause (confirmed by live backend probe):
-//   The Friendship entity's RLS `create` rule pins `data.user_email` to
-//   `{{user.email}}` — the CALLER'S authenticated email. `base44.asServiceRole`
-//   runs WITHOUT a `{{user.email}}` context, so EVERY service-role
-//   Friendship.create was returning 403:
-//     "Permission denied for create operation on Friendship entity"
-//   This is why the database had zero Friendship rows even though users
-//   tapped accept many times. The previous comment in this file said
-//   "my-side row is always allowed by RLS because data.user_email === caller"
-//   — that was incorrect for service-role calls.
-//
-// The fix splits the work between client and server:
-//   - The CLIENT creates its own Friendship row via the standard entities
-//     SDK (RLS passes because the call carries the user's auth context).
-//   - This BACKEND FUNCTION is now only responsible for the two things the
-//     client can't do under RLS:
-//       1. Create the mirror Friendship row (owned by the sender).
-//          asServiceRole CAN write rows owned by other users when the row
-//          itself is the only one being inserted — RLS bypass works for
-//          server-managed system data. If the environment still blocks the
-//          mirror create, we return success with mirrorCreated:false; the
-//          sender will see the friend appear as soon as they themselves
-//          load the friends list (their own client will rebuild the row
-//          on their next visit if needed — covered by self-heal in a
-//          follow-up if required, but is NOT part of this fix scope).
-//       2. Flip the FriendRequest status to 'accepted', which the recipient
-//          client cannot do alone for the sender's view of the request.
-//
-// Security guarantees:
-//   - Only the recipient (to_email === caller email) can call this.
-//   - Self-requests (from_email === to_email) blocked.
-//   - Already-accepted requests are idempotent (200 success).
-//   - No raw 500 leaks to the UI; every failure returns a Turkish message.
+const normalizeEmail = (value: unknown) => String(value || '').trim().toLowerCase();
+const displayName = (value: unknown, fallback: string) => String(value || '').trim() || fallback;
 
-async function safeGetFriendRequest(base44, requestId) {
-  try {
-    const fr = await base44.asServiceRole.entities.FriendRequest.get(requestId);
-    return fr || null;
-  } catch (_) {
-    return null;
+async function findFriendship(base44: any, userEmail: string, friendEmail: string) {
+  const rows = await base44.asServiceRole.entities.Friendship.filter({
+    user_email: userEmail,
+    friend_email: friendEmail,
+  });
+  return rows || [];
+}
+
+async function createFriendship(base44: any, owner: { email: string }, friend: { email: string; name: string }) {
+  return base44.asServiceRole.entities.Friendship.create({
+    user_email: owner.email,
+    friend_email: friend.email,
+    friend_name: friend.name,
+  });
+}
+
+async function deleteCreatedRows(base44: any, rows: any[]) {
+  for (const row of rows) {
+    if (row?.id) {
+      await base44.asServiceRole.entities.Friendship.delete(row.id);
+    }
   }
 }
 
-async function tryCreateMirrorRow(base44, ownerEmail, friendEmail, friendName) {
-  // Idempotent mirror-row create. Returns true if the row exists (now or
-  // already), false only when truly missing after the attempt. Does NOT
-  // throw — RLS rejection here is a non-fatal soft warning.
+async function ensureFriendshipPair(
+  base44: any,
+  receiver: { email: string; name: string },
+  sender: { email: string; name: string },
+) {
+  const receiverRows = await findFriendship(base44, receiver.email, sender.email);
+  const senderRows = await findFriendship(base44, sender.email, receiver.email);
+  const createdRows: any[] = [];
+  let receiverCreated = false;
+  let senderCreated = false;
+
   try {
-    const existing = await base44.asServiceRole.entities.Friendship.filter({
-      user_email: ownerEmail,
-      friend_email: friendEmail,
-    });
-    if (existing?.length) return true;
-    await base44.asServiceRole.entities.Friendship.create({
-      user_email: ownerEmail,
-      friend_email: friendEmail,
-      friend_name: friendName || '',
-    });
-    return true;
-  } catch (err) {
-    console.warn('[acceptFriendRequest] mirror create soft-failed:', err?.message || err);
-    return false;
+    if (!receiverRows.length) {
+      createdRows.push(await createFriendship(base44, receiver, sender));
+      receiverCreated = true;
+    }
+    if (!senderRows.length) {
+      createdRows.push(await createFriendship(base44, sender, receiver));
+      senderCreated = true;
+    }
+  } catch (error) {
+    await deleteCreatedRows(base44, createdRows);
+    throw error;
   }
+
+  const receiverVisibleRows = receiverRows.length || receiverCreated;
+  const senderVisibleRows = senderRows.length || senderCreated;
+
+  return {
+    alreadyFriends: Boolean(receiverRows.length && senderRows.length),
+    relationshipEnsured: Boolean(receiverVisibleRows && senderVisibleRows),
+    friendshipCreated: createdRows.length > 0,
+    mirroredRowsCreated: createdRows.length,
+  };
 }
 
+function json(payload: Record<string, unknown>, status = 200) {
+  return Response.json(payload, { status });
+}
+
+// Receiver-only accept. Ensures the mirrored Friendship rows that the client
+// loader expects: one owner row for the receiver, one owner row for the sender.
+// RLS forbids a normal client from creating the sender-owned mirror row, so the
+// service-role writes are authorized only after the recipient check passes.
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     if (!user) {
-      return Response.json({ error: 'Oturum açman gerekiyor.' }, { status: 401 });
+      return json({ ok: false, error: 'Unauthorized' }, 401);
     }
 
     const body = await req.json().catch(() => ({}));
     const requestId = String(body?.requestId || '').trim();
     if (!requestId) {
-      return Response.json({ error: 'Geçersiz istek.' }, { status: 400 });
+      return json({ ok: false, error: 'requestId is required' }, 400);
     }
 
-    const fr = await safeGetFriendRequest(base44, requestId);
+    const fr = await base44.asServiceRole.entities.FriendRequest.get(requestId);
     if (!fr) {
-      return Response.json({ error: 'Arkadaşlık isteği bulunamadı.' }, { status: 404 });
+      return json({ ok: false, error: 'Friend request not found' }, 404);
     }
 
-    const myEmail = String(user.email || '').toLowerCase();
-    const toEmail = String(fr.to_email || '').toLowerCase();
-    const fromEmail = String(fr.from_email || '').toLowerCase();
+    const myEmail = normalizeEmail(user.email);
+    const toEmail = normalizeEmail(fr.to_email);
+    const fromEmail = normalizeEmail(fr.from_email);
 
     if (toEmail !== myEmail) {
-      return Response.json(
-        { error: 'Bu isteği yalnızca alıcı kabul edebilir.' },
-        { status: 403 },
-      );
+      return json({ ok: false, error: 'Only the receiver can accept this request' }, 403);
+    }
+    if (fr.status !== 'pending' && fr.status !== 'accepted') {
+      return json({ ok: false, error: `Request is already ${fr.status}` }, 409);
     }
     if (!fromEmail || fromEmail === toEmail) {
-      return Response.json(
-        { error: 'Geçersiz arkadaşlık isteği.' },
-        { status: 400 },
-      );
+      return json({ ok: false, error: 'Invalid friend request' }, 400);
     }
 
-    // Idempotent: already-accepted requests still return success so the UI
-    // clears the row instead of bouncing 409 → "İşlem başarısız" forever.
-    if (fr.status === 'accepted') {
-      return Response.json({ success: true, alreadyAccepted: true });
-    }
-    if (fr.status !== 'pending') {
-      return Response.json(
-        { error: `Bu istek artık geçerli değil (${fr.status}).` },
-        { status: 409 },
-      );
-    }
+    const receiver = {
+      email: toEmail,
+      name: displayName(user.full_name, myEmail),
+    };
+    const sender = {
+      email: fromEmail,
+      name: displayName(fr.from_name, fromEmail),
+    };
 
-    // The client has ALREADY created its own Friendship row before invoking
-    // this function (see lib/friendsApi.js → acceptIncomingRequest). We
-    // verify that's the case before flipping the request to 'accepted'
-    // — if it's not, we refuse to mark the request accepted so the user's
-    // next refresh shows the request again and they can retry honestly.
-    const mineExists = await base44.asServiceRole.entities.Friendship.filter({
-      user_email: myEmail,
-      friend_email: fromEmail,
-    });
-    if (!mineExists?.length) {
-      return Response.json(
-        { error: 'Arkadaşlık kaydı oluşturulamadı. Lütfen tekrar dene.' },
-        { status: 422 },
-      );
+    const relationship = await ensureFriendshipPair(base44, receiver, sender);
+    if (!relationship.relationshipEnsured) {
+      return json({
+        ok: false,
+        error: 'Friendship visibility could not be ensured',
+        requestStatus: fr.status,
+        ...relationship,
+      }, 500);
     }
 
-    // Mirror row (sender's view of the friendship). Soft-fails if RLS still
-    // blocks the service-role create — mirrorCreated:false is reported and
-    // the sender will see nothing on their side until reciprocal accept
-    // is added in a follow-up. The request is STILL marked accepted because
-    // the receiver-side row exists and the receiver sees the friend.
-    const mirrorOk = await tryCreateMirrorRow(
-      base44,
-      fromEmail,
-      myEmail,
-      user.full_name || '',
-    );
+    if (fr.status === 'pending') {
+      await base44.asServiceRole.entities.FriendRequest.update(requestId, { status: 'accepted' });
+    }
 
-    await base44.asServiceRole.entities.FriendRequest.update(requestId, {
-      status: 'accepted',
-    });
-
-    return Response.json({
+    return json({
+      ok: true,
       success: true,
-      mirrorCreated: mirrorOk,
-      mirrorWarning: mirrorOk ? null : 'Karşı taraf kaydı oluşturulamadı, daha sonra eşitlenecek.',
+      requestStatus: 'accepted',
+      ...relationship,
     });
   } catch (error) {
-    console.error('[acceptFriendRequest] unhandled error:', error?.message || error);
-    return Response.json(
-      { error: 'Arkadaşlık isteği kabul edilemedi. Lütfen tekrar dene.' },
-      { status: 500 },
-    );
+    const message = error instanceof Error ? error.message : 'Unknown acceptFriendRequest error';
+    return json({ ok: false, error: message }, 500);
   }
 });
