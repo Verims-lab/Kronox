@@ -74,7 +74,9 @@ export default function FriendsPage() {
     await refresh(user.email);
   };
   const handleAccept = async (req) => {
-    await acceptIncomingRequest(req.id);
+    // Pass the full request object so acceptIncomingRequest has from_email /
+    // from_name without an extra round trip (Codex077 client-side create).
+    await acceptIncomingRequest(req);
     await refresh(user.email);
   };
   const handleReject = async (req) => {

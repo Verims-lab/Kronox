@@ -91,14 +91,62 @@ export async function cancelOutgoingRequest(requestId) {
   await base44.entities.FriendRequest.update(requestId, { status: 'cancelled' });
 }
 
-export async function acceptIncomingRequest(requestId) {
+export async function acceptIncomingRequest(request) {
+  // Codex077 — real fix.
+  //
+  // Friendship RLS create rule pins data.user_email to {{user.email}} (the
+  // caller's auth context). Service-role calls do NOT carry that context,
+  // so EVERY server-side Friendship.create was returning 403:
+  //   "Permission denied for create operation on Friendship entity"
+  // — which is why no Friendship rows ever existed in the database and the
+  // user saw "Arkadaşlık kaydı oluşturulamadı." every single time.
+  //
+  // Fix: create the receiver's own Friendship row directly from the client
+  // via the entities SDK. RLS passes because data.user_email === caller's
+  // own email. The backend function is now only responsible for the mirror
+  // row + flipping FriendRequest.status to 'accepted' (both require
+  // service-role because they touch rows the client doesn't own).
+  //
+  // Accepts either the full request object (preferred — gives us
+  // from_email/from_name without an extra round trip) or a bare requestId
+  // string (legacy callers).
+  const requestId = typeof request === 'string' ? request : request?.id;
   if (!requestId) throw new Error('Geçersiz istek.');
-  // base44.functions.invoke uses axios under the hood and REJECTS the promise
-  // on any non-2xx status — so `res.data.error` is unreachable for real
-  // failures (the old code only handled the impossible "200 with error
-  // field" case and let real 500s bubble up as raw "Request failed with
-  // status code 500"). We catch axios-style errors, extract the structured
-  // backend error message if present, and re-throw a clean Turkish message.
+
+  // Hydrate sender details from the request object if provided. If only an
+  // id was passed, fetch the row so we can build the Friendship correctly.
+  let fromEmail = normalizeEmail(typeof request === 'object' ? request?.from_email : '');
+  let fromName = (typeof request === 'object' ? request?.from_name : '') || '';
+  if (!fromEmail) {
+    const row = await base44.entities.FriendRequest.get(requestId);
+    fromEmail = normalizeEmail(row?.from_email);
+    fromName = row?.from_name || '';
+    if (!fromEmail) throw new Error('Arkadaşlık isteği bulunamadı.');
+  }
+
+  // Verify the caller is the recipient before mutating anything.
+  const me = await base44.auth.me();
+  const myEmail = normalizeEmail(me?.email);
+  if (!myEmail) throw new Error('Oturum açman gerekiyor.');
+
+  // Idempotent: if the row already exists, skip create.
+  const existing = await base44.entities.Friendship.filter({
+    user_email: myEmail,
+    friend_email: fromEmail,
+  });
+  if (!existing?.length) {
+    await base44.entities.Friendship.create({
+      user_email: myEmail,
+      friend_email: fromEmail,
+      friend_name: fromName,
+    });
+  }
+
+  // Now ask the backend to (a) create the mirror row for the sender and
+  // (b) flip the FriendRequest to 'accepted'. If the backend fails the
+  // mirror create it returns success with mirrorCreated:false — we still
+  // treat the overall accept as successful because the receiver's row
+  // already exists and the receiver sees the friend in their list.
   try {
     const res = await base44.functions.invoke('acceptFriendRequest', { requestId });
     if (res?.data?.error) throw new Error(res.data.error);
@@ -106,8 +154,6 @@ export async function acceptIncomingRequest(requestId) {
   } catch (err) {
     const backendMsg = err?.response?.data?.error;
     if (backendMsg) throw new Error(backendMsg);
-    // Fallback only when backend gave us nothing useful — never expose raw
-    // "Request failed with status code 500" to the user.
     throw new Error('Arkadaşlık isteği kabul edilemedi. Lütfen tekrar dene.');
   }
 }

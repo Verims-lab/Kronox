@@ -42,6 +42,7 @@ import questionCardSource from './QuestionCard.jsx?raw';
 import simulationPanelSource from './SimulationPanel.jsx?raw';
 import timelineSource from './Timeline.jsx?raw';
 import useLobbySyncSource from '../../hooks/useLobbySync.js?raw';
+import buildMarkerSource from '../dev/BuildMarker.jsx?raw';
 
 // NOTE: Entity .json files cannot be reliably imported with ?raw or as JSON
 // under the current Vite config when they live outside /src — it triggers a
@@ -125,11 +126,25 @@ const acceptGameInviteFnSource = `
 `;
 const acceptFriendRequestFnSource = `
   // Public contract of functions/acceptFriendRequest.js — mirrored.
-  // Only the receiver can accept their own pending friend request.
-  // Codex077: also defensive against missing requestId, missing row,
-  // RLS-rejected mirror Friendship row, and idempotent re-accept. Never
-  // leaks raw "Request failed with status code 500" to the UI — always
-  // returns a structured Turkish error.
+  //
+  // Codex077 REAL FIX:
+  //   The Friendship RLS create rule pins data.user_email to {{user.email}}
+  //   — the CALLER'S email. base44.asServiceRole runs WITHOUT that context,
+  //   so EVERY service-role Friendship.create returned 403:
+  //     "Permission denied for create operation on Friendship entity"
+  //   This is why no Friendship rows existed and the user saw
+  //   "Arkadaşlık kaydı oluşturulamadı." on every accept tap.
+  //
+  //   The fix splits the work:
+  //     1. The CLIENT creates its own Friendship row directly via the
+  //        entities SDK (RLS passes because data.user_email === caller).
+  //     2. This backend function verifies that row exists, attempts the
+  //        mirror row (soft-fails with mirrorCreated:false if RLS still
+  //        blocks the service-role create), and flips FriendRequest.status
+  //        to 'accepted' only after the receiver's row is confirmed.
+  //
+  // Only the receiver can accept (toEmail === caller email).
+  // Self-requests rejected. Already-accepted returns success (idempotent).
   if (toEmail !== myEmail) {
     return Response.json(
       { error: 'Bu isteği yalnızca alıcı kabul edebilir.' },
@@ -140,15 +155,21 @@ const acceptFriendRequestFnSource = `
   if (fr.status === 'accepted') {
     return Response.json({ success: true, alreadyAccepted: true });
   }
-  // Each Friendship.create is wrapped in ensureFriendshipRow so RLS rejection
-  // of the mirror row never becomes a 500.
-  const mine = await ensureFriendshipRow(base44, myEmail, fromEmail, fr.from_name || '');
-  if (!mine.ok) {
+  // The client created its own row before invoking. We verify it exists
+  // before marking the request accepted — refuse to mark accepted if the
+  // receiver's Friendship row is missing.
+  const mineExists = await base44.asServiceRole.entities.Friendship.filter({
+    user_email: myEmail,
+    friend_email: fromEmail,
+  });
+  if (!mineExists?.length) {
     return Response.json(
-      { error: 'Arkadaşlık kaydı oluşturulamadı.' },
+      { error: 'Arkadaşlık kaydı oluşturulamadı. Lütfen tekrar dene.' },
       { status: 422 },
     );
   }
+  // Mirror row attempted via tryCreateMirrorRow; soft-fails are non-fatal.
+  const mirrorOk = await tryCreateMirrorRow(base44, fromEmail, myEmail, user.full_name || '');
   await base44.asServiceRole.entities.FriendRequest.update(requestId, { status: 'accepted' });
 `;
 const removeFriendFnSource = `
@@ -1093,29 +1114,63 @@ export const EXTRA_TESTS = [
     waitingRoomPanelSource,
     ['Yedek kod', 'Davet edilen arkadaşların'],
     { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW }),
-  // Codex077 historical regression: accepting a FriendRequest used to return
-  // raw HTTP 500 with "Request failed with status code 500" surfaced in the
-  // UI because (1) the function did not wrap Friendship.create against RLS
-  // rejection of the mirror row, and (2) the client wrapper did not catch
-  // axios's non-2xx rejection. This case enforces that the function ships
-  // its defensive shape and the client wrapper its clean Turkish fallback.
+  // Codex077 historical regression: previously the friend-request accept
+  // flow returned raw HTTP 500 (Codex075) OR a clean Turkish 422 with
+  // "Arkadaşlık kaydı oluşturulamadı." but NO Friendship row was ever
+  // created (Codex076), because EVERY base44.asServiceRole.entities.
+  // Friendship.create was rejected by RLS with:
+  //   "Permission denied for create operation on Friendship entity"
+  // The real fix moves the receiver's Friendship.create to the CLIENT,
+  // where RLS allows it (data.user_email === {{user.email}} === caller).
+  // The backend function now only verifies that row exists, attempts the
+  // mirror row, and flips FriendRequest.status to 'accepted'.
   sourceHas('historical_kronox_regression', 'accept_friend_request_no_raw_500',
-    'Accepting an incoming FriendRequest must not return raw 500 — defensive shape present',
+    'Friend-request accept actually creates Friendship row (Codex077 fix)',
     'functions/acceptFriendRequest.js (mirrored) + lib/friendsApi.js',
     `${acceptFriendRequestFnSource}\n${friendsApiSource}`,
     [
-      // function-side defensive shape
-      'ensureFriendshipRow',
+      // function-side: split contract — client creates the row, function verifies it
+      'mineExists',
+      'tryCreateMirrorRow',
       'alreadyAccepted',
       'Bu isteği yalnızca alıcı kabul edebilir.',
-      // client-side clean error mapping
+      // client-side: receiver creates its own Friendship row directly via SDK
+      'base44.entities.Friendship.create',
+      'user_email: myEmail',
+      'friend_email: fromEmail',
+      // client-side: clean error mapping never leaks raw 500
       'err?.response?.data?.error',
       'Arkadaşlık isteği kabul edilemedi. Lütfen tekrar dene.',
     ],
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  // Codex077: assert the build marker has actually been bumped beyond
+  // Codex075. Previous tasks claimed bumps but the marker stayed on
+  // Codex075 — this static contract makes future drift impossible to hide.
+  makeCase('historical_kronox_regression', 'build_marker_bumped_beyond_codex075',
+    'Build marker is bumped beyond Codex075 (deploy-version visibility)', () => {
+      const match = String(buildMarkerSource || '').match(/BUILD_MARKER\s*=\s*'([^']+)'/);
+      const value = match?.[1] || '';
+      const codexMatch = value.match(/^Codex(\d+)$/);
+      const num = codexMatch ? parseInt(codexMatch[1], 10) : NaN;
+      if (!Number.isFinite(num) || num <= 75) {
+        return fail('Build marker has not been bumped beyond Codex075.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'components/dev/BuildMarker.jsx',
+          expected: 'CodexN where N > 75',
+          actual: value || '(unreadable)',
+        });
+      }
+      return pass(`Build marker bumped: ${value}.`, {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        file: 'components/dev/BuildMarker.jsx',
+        actual: value,
+      });
+    }, { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
   notAutomatableCase('historical_kronox_regression', 'accept_friend_request_two_account_runtime',
     'Two-account proof: User A sends → User B accepts → friend appears, no 500',
-    'Requires a live two-account run. Static contract enforces the defensive function/client shape; the real cross-account acceptance must be verified manually on real sessions before release.',
+    'Requires a live two-account run on real authenticated sessions. Static contract enforces the Codex077 split (client creates Friendship row, backend verifies & flips status). The actual reciprocal-visibility check (does User A see User B in their list after B accepts?) requires live two-account execution because the mirror Friendship row is soft-failed on this environment.',
     { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, recentlyFixed: true, verificationLabels: ['NOT_AUTOMATABLE', 'TWO_ACCOUNT_REQUIRED'] }),
   sourceHas('historical_kronox_regression', 'incoming_invites_pending_recipient_scope',
     'Incoming game invites are scoped to pending + recipient',

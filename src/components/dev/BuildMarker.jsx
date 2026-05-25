@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from 'react';
 
-const BUILD_MARKER = 'Codex075';
+// Codex077 — bumped from Codex076. Friend-request accept flow real fix:
+// the client now creates its own Friendship row directly via the entities
+// SDK (RLS allows it because data.user_email === {{user.email}}), and the
+// backend function is only responsible for the mirror row + flipping the
+// FriendRequest status to 'accepted'.
+const BUILD_MARKER = 'Codex077';
 
 export default function BuildMarker() {
   const [visible, setVisible] = useState(true);
