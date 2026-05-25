@@ -204,74 +204,27 @@ function FantasyCtaButton({ variant, label, onClick }) {
   );
 }
 
-function SelectedCategoryOverlay() {
-  return (
-    <motion.div
-      className="pointer-events-none absolute inset-0 z-20"
-      style={{ containerType: 'size' }}
-      initial={{ opacity: 0.5, scale: 0.985 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ type: 'spring', stiffness: 560, damping: 26 }}
-      aria-hidden="true"
-    >
-      {/* Premium gold glow frame */}
-      <div
-        className="absolute inset-0"
-        style={{
-          borderRadius: '14px',
-          boxShadow:
-            '0 0 0 2px rgba(255,225,120,0.95), 0 0 0 4px rgba(120,60,8,0.85), 0 0 22px rgba(250,204,21,0.78), inset 0 0 18px rgba(250,204,21,0.22)',
-          background:
-            'linear-gradient(135deg, rgba(255,228,128,0.14), transparent 40%, rgba(34,211,238,0.06))',
-        }}
-      />
-      {/* Inner bright rim */}
-      <div
-        className="absolute inset-[3%]"
-        style={{
-          borderRadius: '10px',
-          boxShadow: 'inset 0 0 0 1px rgba(255,245,180,0.55)',
-        }}
-      />
-      {/* Diagonal top-right SEÇİLDİ ribbon */}
-      <div
-        className="absolute overflow-hidden"
-        style={{
-          right: '-1%',
-          top: '-1%',
-          width: '46%',
-          height: '46%',
-          pointerEvents: 'none',
-        }}
-      >
-        <div
-          className="absolute flex items-center justify-center"
-          style={{
-            width: '160%',
-            height: '32%',
-            top: '22%',
-            left: '-10%',
-            transform: 'rotate(45deg)',
-            transformOrigin: '50% 50%',
-            background:
-              'linear-gradient(180deg, #fff4b8 0%, #fbc73a 40%, #a86512 100%)',
-            color: '#231405',
-            fontFamily: 'Bangers, Impact, sans-serif',
-            fontSize: 'clamp(9px, 3.4cqw, 16px)',
-            letterSpacing: '0.6px',
-            textShadow: '0 1px 0 rgba(255,250,200,0.6)',
-            boxShadow:
-              '0 2px 6px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.55), inset 0 -2px 3px rgba(120,60,8,0.55)',
-          }}
-        >
-          SEÇİLDİ
-        </div>
-      </div>
-    </motion.div>
-  );
-}
+// Codex078 selected-state cleanup:
+//
+// The Online category screen uses a baked background image (Kronox_Online_
+// Fantasy_Basckground.png) that already paints every card in its selected
+// fantasy state — including the gold stone frame and the diagonal SEÇİLDİ
+// ribbon. The interactive layer is just transparent hit-box <button>s
+// positioned over each painted card.
+//
+// The previous code tried to ALSO render a `SelectedCategoryOverlay` on top
+// of the painted selected art. That overlay's `inset: 0` was bound to the
+// hit-box rectangle, not to the painted card silhouette, so it drew a
+// second gold frame slightly offset from the painted one — exactly the
+// "extra rectangle floating on top of the card" bug the user reported.
+//
+// Fix: the painted background IS the selected state. React only needs to
+// COVER unselected cards with a blue-tinted deselected mask. We removed
+// SelectedCategoryOverlay entirely and renamed FlashbackDeselectedMask →
+// CategoryDeselectedMask so it applies to every unselected card uniformly.
+// Selection logic, hit-box geometry, and category data are unchanged.
 
-function FlashbackDeselectedMask() {
+function CategoryDeselectedMask() {
   return (
     <motion.div
       className="pointer-events-none absolute inset-0 z-20"
@@ -430,7 +383,6 @@ function OnlineChallengeLanding({ onCreate, onJoin, onBackHome }) {
 
         {CATEGORIES.map(category => {
           const isSelected = selectedCategories.includes(category.id);
-          const hasBakedSelectedState = category.id === 'flashback';
 
           return (
             <button
@@ -450,8 +402,10 @@ function OnlineChallengeLanding({ onCreate, onJoin, onBackHome }) {
               aria-label={`${category.label} kategorisini ${isSelected ? 'kaldır' : 'seç'}`}
               aria-pressed={isSelected}
             >
-              {hasBakedSelectedState && !isSelected && <FlashbackDeselectedMask />}
-              {isSelected && !hasBakedSelectedState && <SelectedCategoryOverlay />}
+              {/* Painted background already shows every card as selected.
+                  We only mask the UNSELECTED ones. Selected state needs no
+                  React overlay — the painted art IS the selected frame. */}
+              {!isSelected && <CategoryDeselectedMask />}
             </button>
           );
         })}
