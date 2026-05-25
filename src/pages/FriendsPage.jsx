@@ -35,6 +35,7 @@ export default function FriendsPage() {
   const [outgoing, setOutgoing] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
   useEffect(() => {
     base44.auth.me()
@@ -74,10 +75,14 @@ export default function FriendsPage() {
     await refresh(user.email);
   };
   const handleAccept = async (req) => {
-    // Pass the full request object so acceptIncomingRequest has from_email /
-    // from_name without an extra round trip (Codex077 client-side create).
+    // Codex080: acceptIncomingRequest accepts either id or full row object.
+    // On success the FriendRequest is flipped to 'accepted' and the normalized
+    // loadFriends will pick it up from both sides — both users see each other.
     await acceptIncomingRequest(req);
+    setLoadError('');
+    setSuccessMsg('Arkadaşlık isteği kabul edildi.');
     await refresh(user.email);
+    window.setTimeout(() => setSuccessMsg(''), 2200);
   };
   const handleReject = async (req) => {
     await rejectIncomingRequest(req.id);
@@ -140,6 +145,13 @@ export default function FriendsPage() {
         <p className="rounded-xl px-3 py-2 font-inter text-xs text-rose-100/90"
           style={{ background: 'rgba(244,63,94,0.10)', boxShadow: 'inset 0 0 0 1px rgba(244,63,94,0.35)' }}>
           {loadError}
+        </p>
+      )}
+
+      {successMsg && (
+        <p className="rounded-xl px-3 py-2 font-inter text-xs font-bold text-emerald-100"
+          style={{ background: 'rgba(16,185,129,0.12)', boxShadow: 'inset 0 0 0 1px rgba(16,185,129,0.45)' }}>
+          {successMsg}
         </p>
       )}
 

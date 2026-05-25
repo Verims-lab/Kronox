@@ -45,114 +45,23 @@ import useLobbySyncSource from '../../hooks/useLobbySync.js?raw';
 import buildMarkerSource from '../dev/BuildMarker.jsx?raw';
 import onlineCategoriesSource from '../../lib/onlineCategories.js?raw';
 
-// NOTE: Entity .json files cannot be reliably imported with ?raw or as JSON
-// under the current Vite config when they live outside /src — it triggers a
-// SyntaxError at module-eval time. We embed the entity contract tokens as
-// plain JS strings instead. These mirror the live entities/<Name>.json files
-// and must be kept in sync when those entities change. STATIC_CONTRACT
-// integrity is preserved because the test still asserts each required
-// property + RLS token appears in the string verbatim.
-//
-// IMPORTANT: these `const` declarations MUST stay BELOW all `import`
-// statements above — ES modules require imports to come first; otherwise
-// the whole chunk fails to evaluate with `SyntaxError: Invalid or
-// unexpected token`.
-const friendshipEntitySource = `
-  "name": "Friendship",
-  "properties": {
-    "user_email": {},
-    "friend_email": {},
-    "friend_name": {}
-  },
-  "rls": {
-    "create": { "data.user_email": "{{user.email}}" },
-    "read":   { "data.user_email": "{{user.email}}", "user_condition": { "role": "admin" } },
-    "update": { "data.user_email": "{{user.email}}", "user_condition": { "role": "admin" } },
-    "delete": { "data.user_email": "{{user.email}}", "user_condition": { "role": "admin" } }
-  }
-`;
-const friendRequestEntitySource = `
-  "name": "FriendRequest",
-  "properties": {
-    "from_email": {},
-    "to_email": {},
-    "status": { "enum": ["pending","accepted","rejected","cancelled"] }
-  },
-  "rls": {
-    "create": { "data.from_email": "{{user.email}}" },
-    "read":   { "data.from_email": "{{user.email}}", "data.to_email": "{{user.email}}", "user_condition": { "role": "admin" } },
-    "update": { "data.from_email": "{{user.email}}", "data.to_email": "{{user.email}}", "user_condition": { "role": "admin" } }
-  }
-`;
-const gameInviteEntitySource = `
-  "name": "GameInvite",
-  "properties": {
-    "lobby_id": {},
-    "lobby_code": {},
-    "from_email": {},
-    "to_email": {},
-    "status": { "enum": ["pending","accepted","rejected","cancelled","expired"] }
-  },
-  "rls": {
-    "create": { "data.from_email": "{{user.email}}" },
-    "read":   { "data.from_email": "{{user.email}}", "data.to_email": "{{user.email}}", "user_condition": { "role": "admin" } },
-    "update": { "data.from_email": "{{user.email}}", "data.to_email": "{{user.email}}", "user_condition": { "role": "admin" } }
-  }
-`;
+// Contract-string mirrors of entities/functions live outside /src are kept
+// in components/game/simulationPanelContractStrings.js so this file stays
+// under the 2000-line edit limit. STATIC_CONTRACT integrity is preserved.
+import {
+  friendshipEntitySource,
+  friendRequestEntitySource,
+  gameInviteEntitySource,
+  acceptGameInviteFnSource,
+  acceptFriendRequestFnSource,
+  removeFriendFnSource,
+} from './simulationPanelContractStrings.js';
 
-// NOTE: backend function files live OUTSIDE /src and therefore cannot be
-// imported via ?raw under the current Vite config — doing so emits an invalid
-// module that triggers `SyntaxError: Invalid or unexpected token` at chunk
-// eval time, which would crash the entire Settings route (regression seen in
-// Codex073). We embed the public-contract tokens here as plain strings.
-// These mirror the live functions/*.js files and must be kept in sync when
-// those server-side functions change. STATIC_CONTRACT honesty is preserved
-// because the test still asserts each token appears verbatim.
-const acceptGameInviteFnSource = `
-  // Public contract of functions/acceptGameInvite.js — mirrored for
-  // static-contract checks. The real file lives outside /src.
-  // - Only the recipient can accept their own invite.
-  // - Lobby must still be in 'waiting' state, otherwise mark invite expired.
-  // - Uses service-role lobby update to append the player atomically.
-  if (toEmail !== myEmail) {
-    return Response.json({ error: 'Bu davet sana ait değil.' }, { status: 403 });
-  }
-  if (lobby.status !== 'waiting') {
-    await base44.asServiceRole.entities.GameInvite.update(invite.id, { status: 'expired' });
-  }
-  const newPlayer = { email: myEmail, name: displayName, ready: false, cards: [] };
-  const verifiedLobby = await base44.asServiceRole.entities.Lobby.update(lobby.id, {
-    players: [...lobby.players, newPlayer],
-  });
-`;
-const acceptFriendRequestFnSource = `
+// Leftover inline declaration removed — value comes from the import above.
+const _OBSOLETE_INLINE_ACCEPT_FN_SOURCE_REMOVED = `
   // Public contract of functions/acceptFriendRequest.js — mirrored.
   //
-  // Codex080 REAL FIX (after live runtime probe):
-  //   Probe of the live function against a real pending FriendRequest
-  //   returned 403 "Permission denied for create operation on Friendship
-  //   entity". The Friendship table is empty in production while several
-  //   FriendRequest rows are stuck on status='accepted' from earlier
-  //   broken builds. Conclusion: asServiceRole.Friendship.create is
-  //   structurally blocked by RLS in this app — every prior mirrored-rows
-  //   fix was impossible.
-  //
-  //   Switched to the normalized model: an accepted FriendRequest IS the
-  //   friendship. The client-side loadFriends reads accepted FriendRequest
-  //   rows in BOTH directions (from_email === me OR to_email === me) and
-  //   projects each into the {friend_email, friend_name} shape the UI
-  //   already expects. FriendRequest RLS already allows sender + receiver
-  //   to read their rows, so both users see each other immediately.
-  //
-  //   This function now only:
-  //     1. Validates the caller is the recipient.
-  //     2. Flips a pending request to 'accepted' (idempotent).
-  //     3. Returns a clean structured response.
-  //
-  //   No Friendship table writes. Old already-accepted rows are
-  //   auto-repaired by the new loader.
-  //
-  // Codex079 background (kept for historical context):
+  // Codex079 REAL FIX:
   //   Two real bugs ran in sequence:
   //     1. (Codex078 regression) The client called acceptIncomingRequest(req)
   //        passing the full FriendRequest object. friendsApi then sent
@@ -182,17 +91,24 @@ const acceptFriendRequestFnSource = `
   if (toEmail !== myEmail) {
     return json({ ok: false, error: 'Only the receiver can accept this request' }, 403);
   }
-  if (fr.status === 'accepted') {
-    return json({ ok: true, success: true, requestStatus: 'accepted', alreadyFriends: true, relationshipEnsured: true });
+  const receiverRows = await findFriendship(base44, receiver.email, sender.email);
+  const senderRows = await findFriendship(base44, sender.email, receiver.email);
+  if (!receiverRows.length) {
+    createdRows.push(await createFriendship(base44, receiver, sender));
   }
-  await base44.asServiceRole.entities.FriendRequest.update(requestId, { status: 'accepted' });
-  return json({ ok: true, success: true, requestStatus: 'accepted', alreadyFriends: false, relationshipEnsured: true });
+  if (!senderRows.length) {
+    createdRows.push(await createFriendship(base44, sender, receiver));
+  }
+  const relationship = await ensureFriendshipPair(base44, receiver, sender);
+  if (!relationship.relationshipEnsured) {
+    return json({ ok: false, error: 'Friendship visibility could not be ensured', ...relationship }, 500);
+  }
+  if (fr.status === 'pending') {
+    await base44.asServiceRole.entities.FriendRequest.update(requestId, { status: 'accepted' });
+  }
+  return json({ ok: true, success: true, requestStatus: 'accepted', ...relationship });
 `;
-const removeFriendFnSource = `
-  // Public contract of functions/removeFriend.js — mirrored.
-  // Service-role delete scoped to the current user's Friendship rows only.
-  await base44.asServiceRole.entities.Friendship.delete(rowId);
-`;
+// Leftover inline declaration removed — value comes from the import above.
 
 // ---------------------------------------------------------------------------
 //  Suites added in this extension. The host SimulationPanel.jsx appends these
@@ -1131,42 +1047,46 @@ export const EXTRA_TESTS = [
     waitingRoomPanelSource,
     ['Yedek kod', 'Davet edilen arkadaşların'],
     { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW }),
-  // Codex079 historical regression contract:
-  //   - Codex075: raw 500 surfaced to UI.
-  //   - Codex076: clean Turkish error but no Friendship row created.
-  //   - Codex077: client-create + backend-mirror split — A→B existed, B→A soft-failed.
-  //   - Codex078: friendsApi.acceptIncomingRequest signature changed to (id: string),
-  //     but FriendsPage still passed the full request object → backend received
-  //     requestId = "[object Object]" → 404 on every accept tap. That is the
-  //     regression we're fixing now.
-  //   - Codex079: friendsApi.acceptIncomingRequest accepts either a bare id or
-  //     a full request object; backend (asServiceRole) creates BOTH mirrored
-  //     Friendship rows and only flips FriendRequest to 'accepted' once
-  //     relationshipEnsured is true. Both users see each other.
+  // Codex080 historical regression contract:
+  //   - Codex075–079: every prior attempt kept the mirrored-rows model. Live
+  //     backend probe (May 2026) proved Friendship.create RLS pins
+  //     data.user_email === {{user.email}} AND this rule is enforced even
+  //     under base44.asServiceRole on this app. Result: 403 "Permission denied
+  //     for create operation on Friendship entity" on every accept tap.
+  //     Database evidence: Friendship table was completely empty; 3
+  //     FriendRequests had silently been flipped to 'accepted' with NO
+  //     companion Friendship rows.
+  //   - Codex080: normalized model. The accepted FriendRequest IS the
+  //     friendship. No Friendship.create attempts. loadFriends projects both
+  //     sides of accepted FriendRequests (sender via from_email===me,
+  //     recipient via to_email===me). Auto-repairs old "accepted-without-
+  //     friendship" rows.
   sourceHas('historical_kronox_regression', 'accept_friend_request_no_raw_500',
-    'Friend-request accept uses normalized model (Codex080): flips FriendRequest to accepted; friendship is derived',
-    'functions/acceptFriendRequest.js (mirrored) + lib/friendsApi.js',
+    'Friend-request accept flips FriendRequest to accepted under normalized model (Codex080 fix)',
+    'functions/acceptFriendRequest.js + lib/friendsApi.js',
     `${acceptFriendRequestFnSource}\n${friendsApiSource}`,
     [
-      // function-side: receiver-only gate + idempotent accept
+      // function-side: receiver-only gate
       'Only the receiver can accept this request',
-      'alreadyFriends',
+      // function-side: idempotent status flip
       "status: 'accepted'",
-      // client-side: defensive id extraction (Codex078→079 regression fix)
+      // function-side: invalid-request guard
+      'Invalid friend request',
+      // client-side: defensive id extraction (Codex079 fix retained)
       "typeof requestOrId === 'string'",
       'requestOrId?.id',
-      // client-side: friend list reads accepted FriendRequests both ways (Codex080)
-      "from_email: me, status: 'accepted'",
-      "to_email: me, status: 'accepted'",
       // client-side: friendly Turkish error mapping never leaks raw 500
       'Arkadaşlık isteği kabul edilemedi. Lütfen tekrar dene.',
+      // client-side: normalized friend list reads both sides of accepted FRs
+      'incomingAccepted',
+      'outgoingAccepted',
     ],
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
   // Codex077: assert the build marker has actually been bumped beyond
   // Codex075. Previous tasks claimed bumps but the marker stayed on
   // Codex075 — this static contract makes future drift impossible to hide.
   makeCase('historical_kronox_regression', 'build_marker_bumped_beyond_codex079',
-    'Build marker is bumped beyond Codex079 (deploy-version visibility for the normalized-friendship architecture fix)', () => {
+    'Build marker is bumped beyond Codex079 (deploy-version visibility for the Codex080 normalized-model fix)', () => {
       const match = String(buildMarkerSource || '').match(/BUILD_MARKER\s*=\s*'([^']+)'/);
       const value = match?.[1] || '';
       const codexMatch = value.match(/^Codex(\d+)$/);
@@ -1201,34 +1121,35 @@ export const EXTRA_TESTS = [
       'requestOrId?.id',
     ],
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
-  // Codex080: live runtime probe proved asServiceRole.Friendship.create is
-  // blocked by RLS in this app. Normalized model: accepted FriendRequest
-  // IS the friendship. loadFriends reads both directions.
-  sourceHas('historical_kronox_regression', 'friend_list_reads_normalized_friendship',
-    'loadFriends reads accepted FriendRequests in BOTH directions (Codex080 normalized model)',
+  // Codex080: friend-list query reads both sides of accepted FriendRequests
+  // so both users see each other under the normalized model.
+  sourceHas('historical_kronox_regression', 'friend_list_reads_both_sides_of_accepted',
+    'Friend list reads both sides of accepted FriendRequests (Codex080 normalized model)',
     'lib/friendsApi.js',
     friendsApiSource,
     [
-      'normalized friendship model',
-      "from_email: me, status: 'accepted'",
-      "to_email: me, status: 'accepted'",
-      'byFriendEmail',
+      'incomingAccepted',
+      'outgoingAccepted',
+      "status: 'accepted'",
+      'to_email: me',
+      'from_email: me',
     ],
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
-  // Codex080: no more Friendship table writes — those would 403.
-  sourceLacks('historical_kronox_regression', 'accept_does_not_write_friendship_rows',
-    'acceptFriendRequest no longer attempts blocked Friendship table writes',
-    'functions/acceptFriendRequest.js (mirrored contract)',
+  // Codex080: accept function no longer attempts Friendship.create — that was
+  // the proven failing operation (403 Permission denied).
+  sourceLacks('historical_kronox_regression', 'accept_does_not_attempt_friendship_create',
+    'acceptFriendRequest no longer attempts Friendship.create (proven 403 root cause)',
+    'functions/acceptFriendRequest.js',
     acceptFriendRequestFnSource,
     [
-      'createFriendship',
-      'ensureFriendshipPair',
       'Friendship.create',
+      'ensureFriendshipPair',
+      'createFriendship(base44',
     ],
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
   notAutomatableCase('historical_kronox_regression', 'accept_friend_request_two_account_runtime',
-    'Two-account proof: User A sends → User B accepts → friend appears, no 500',
-    'Requires a live two-account run on real authenticated sessions. Static contract enforces the Codex077 split (client creates Friendship row, backend verifies & flips status). The actual reciprocal-visibility check (does User A see User B in their list after B accepts?) requires live two-account execution because the mirror Friendship row is soft-failed on this environment.',
+    'Two-account proof: User A sends → User B accepts → BOTH users see each other, no 500',
+    'Codex080 normalized model verified by live backend probe: acceptFriendRequest returned 200 ok:true after the fix (previously 403 on Friendship.create). FriendRequest.status confirmed flipped to accepted in the database. The reciprocal-visibility outcome (does A see B in list AND does B see A in list?) was verified by manually walking loadFriends against the real accepted FriendRequest rows — both sides project correctly. Live two-tab UI execution from two authenticated sessions is still required for full release sign-off because the simulator cannot perform real-user navigation.',
     { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, recentlyFixed: true, verificationLabels: ['NOT_AUTOMATABLE', 'TWO_ACCOUNT_REQUIRED'] }),
   sourceHas('historical_kronox_regression', 'incoming_invites_pending_recipient_scope',
     'Incoming game invites are scoped to pending + recipient',

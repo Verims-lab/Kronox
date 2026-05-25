@@ -10,6 +10,7 @@ import React, { useEffect, useState } from 'react';
 // auto-repairs old "accepted-without-friendship" rows — both users now see
 // each other immediately after accept, with no Friendship row required.
 const BUILD_MARKER = 'Codex080';
+export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 export default function BuildMarker() {
   const [visible, setVisible] = useState(true);
