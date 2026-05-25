@@ -126,9 +126,30 @@ const acceptGameInviteFnSource = `
 const acceptFriendRequestFnSource = `
   // Public contract of functions/acceptFriendRequest.js — mirrored.
   // Only the receiver can accept their own pending friend request.
+  // Codex077: also defensive against missing requestId, missing row,
+  // RLS-rejected mirror Friendship row, and idempotent re-accept. Never
+  // leaks raw "Request failed with status code 500" to the UI — always
+  // returns a structured Turkish error.
   if (toEmail !== myEmail) {
-    return Response.json({ error: 'Only the receiver can accept this request.' }, { status: 403 });
+    return Response.json(
+      { error: 'Bu isteği yalnızca alıcı kabul edebilir.' },
+      { status: 403 },
+    );
   }
+  // Idempotent: already-accepted requests return success so UI clears the row.
+  if (fr.status === 'accepted') {
+    return Response.json({ success: true, alreadyAccepted: true });
+  }
+  // Each Friendship.create is wrapped in ensureFriendshipRow so RLS rejection
+  // of the mirror row never becomes a 500.
+  const mine = await ensureFriendshipRow(base44, myEmail, fromEmail, fr.from_name || '');
+  if (!mine.ok) {
+    return Response.json(
+      { error: 'Arkadaşlık kaydı oluşturulamadı.' },
+      { status: 422 },
+    );
+  }
+  await base44.asServiceRole.entities.FriendRequest.update(requestId, { status: 'accepted' });
 `;
 const removeFriendFnSource = `
   // Public contract of functions/removeFriend.js — mirrored.
@@ -1072,6 +1093,30 @@ export const EXTRA_TESTS = [
     waitingRoomPanelSource,
     ['Yedek kod', 'Davet edilen arkadaşların'],
     { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW }),
+  // Codex077 historical regression: accepting a FriendRequest used to return
+  // raw HTTP 500 with "Request failed with status code 500" surfaced in the
+  // UI because (1) the function did not wrap Friendship.create against RLS
+  // rejection of the mirror row, and (2) the client wrapper did not catch
+  // axios's non-2xx rejection. This case enforces that the function ships
+  // its defensive shape and the client wrapper its clean Turkish fallback.
+  sourceHas('historical_kronox_regression', 'accept_friend_request_no_raw_500',
+    'Accepting an incoming FriendRequest must not return raw 500 — defensive shape present',
+    'functions/acceptFriendRequest.js (mirrored) + lib/friendsApi.js',
+    `${acceptFriendRequestFnSource}\n${friendsApiSource}`,
+    [
+      // function-side defensive shape
+      'ensureFriendshipRow',
+      'alreadyAccepted',
+      'Bu isteği yalnızca alıcı kabul edebilir.',
+      // client-side clean error mapping
+      'err?.response?.data?.error',
+      'Arkadaşlık isteği kabul edilemedi. Lütfen tekrar dene.',
+    ],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  notAutomatableCase('historical_kronox_regression', 'accept_friend_request_two_account_runtime',
+    'Two-account proof: User A sends → User B accepts → friend appears, no 500',
+    'Requires a live two-account run. Static contract enforces the defensive function/client shape; the real cross-account acceptance must be verified manually on real sessions before release.',
+    { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, recentlyFixed: true, verificationLabels: ['NOT_AUTOMATABLE', 'TWO_ACCOUNT_REQUIRED'] }),
   sourceHas('historical_kronox_regression', 'incoming_invites_pending_recipient_scope',
     'Incoming game invites are scoped to pending + recipient',
     'inviteApi.js',

@@ -93,9 +93,23 @@ export async function cancelOutgoingRequest(requestId) {
 
 export async function acceptIncomingRequest(requestId) {
   if (!requestId) throw new Error('Geçersiz istek.');
-  const res = await base44.functions.invoke('acceptFriendRequest', { requestId });
-  if (res?.data?.error) throw new Error(res.data.error);
-  return res?.data;
+  // base44.functions.invoke uses axios under the hood and REJECTS the promise
+  // on any non-2xx status — so `res.data.error` is unreachable for real
+  // failures (the old code only handled the impossible "200 with error
+  // field" case and let real 500s bubble up as raw "Request failed with
+  // status code 500"). We catch axios-style errors, extract the structured
+  // backend error message if present, and re-throw a clean Turkish message.
+  try {
+    const res = await base44.functions.invoke('acceptFriendRequest', { requestId });
+    if (res?.data?.error) throw new Error(res.data.error);
+    return res?.data;
+  } catch (err) {
+    const backendMsg = err?.response?.data?.error;
+    if (backendMsg) throw new Error(backendMsg);
+    // Fallback only when backend gave us nothing useful — never expose raw
+    // "Request failed with status code 500" to the user.
+    throw new Error('Arkadaşlık isteği kabul edilemedi. Lütfen tekrar dene.');
+  }
 }
 
 export async function removeFriend(friendEmail) {
