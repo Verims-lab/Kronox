@@ -128,50 +128,52 @@ const acceptGameInviteFnSource = `
 const acceptFriendRequestFnSource = `
   // Public contract of functions/acceptFriendRequest.js — mirrored.
   //
-  // Codex077 REAL FIX:
-  //   The Friendship RLS create rule pins data.user_email to {{user.email}}
-  //   — the CALLER'S email. base44.asServiceRole runs WITHOUT that context,
-  //   so EVERY service-role Friendship.create returned 403:
-  //     "Permission denied for create operation on Friendship entity"
-  //   This is why no Friendship rows existed and the user saw
-  //   "Arkadaşlık kaydı oluşturulamadı." on every accept tap.
-  //
-  //   The fix splits the work:
-  //     1. The CLIENT creates its own Friendship row directly via the
-  //        entities SDK (RLS passes because data.user_email === caller).
-  //     2. This backend function verifies that row exists, attempts the
-  //        mirror row (soft-fails with mirrorCreated:false if RLS still
-  //        blocks the service-role create), and flips FriendRequest.status
-  //        to 'accepted' only after the receiver's row is confirmed.
-  //
-  // Only the receiver can accept (toEmail === caller email).
-  // Self-requests rejected. Already-accepted returns success (idempotent).
+  // Codex079 REAL FIX:
+  //   Two real bugs ran in sequence:
+  //     1. (Codex078 regression) The client called acceptIncomingRequest(req)
+  //        passing the full FriendRequest object. friendsApi then sent
+  //        { requestId: req } to base44.functions.invoke. Inside the function
+  //        body, String(body?.requestId) coerced the object to
+  //        "[object Object]" → FriendRequest.get returned null → backend
+  //        responded 404 "Friend request not found" → UI showed
+  //        "Arkadaşlık isteği kabul edilemedi. Lütfen tekrar dene." on every
+  //        accept tap. That is the regression we just shipped.
+  //     2. (Pre-Codex078) Even when the id reached the backend, the prior
+  //        attempt to split the work — client creates its own Friendship
+  //        row, backend only mirrors — left A→B visible to B but B→A
+  //        never created for A, because the mirror create was soft-failed.
+  //   The Codex079 backend contract is:
+  //     - Recipient-only accept (toEmail === caller email).
+  //     - Service-role (asServiceRole) creates BOTH mirrored Friendship
+  //       rows: one owned by the receiver, one owned by the sender. RLS
+  //       is bypassed by design for service-role writes — that is the
+  //       supported Base44 path for cross-user data integrity.
+  //     - Idempotent: re-accept finds existing rows and returns
+  //       alreadyFriends: true.
+  //     - If either mirrored row cannot be ensured, the function returns
+  //       a handled error (relationshipEnsured: false) and does NOT mark
+  //       the FriendRequest accepted. No half-friend silent state.
+  //     - FriendRequest.status is flipped to 'accepted' ONLY after both
+  //       rows are visible.
   if (toEmail !== myEmail) {
-    return Response.json(
-      { error: 'Bu isteği yalnızca alıcı kabul edebilir.' },
-      { status: 403 },
-    );
+    return json({ ok: false, error: 'Only the receiver can accept this request' }, 403);
   }
-  // Idempotent: already-accepted requests return success so UI clears the row.
-  if (fr.status === 'accepted') {
-    return Response.json({ success: true, alreadyAccepted: true });
+  const receiverRows = await findFriendship(base44, receiver.email, sender.email);
+  const senderRows = await findFriendship(base44, sender.email, receiver.email);
+  if (!receiverRows.length) {
+    createdRows.push(await createFriendship(base44, receiver, sender));
   }
-  // The client created its own row before invoking. We verify it exists
-  // before marking the request accepted — refuse to mark accepted if the
-  // receiver's Friendship row is missing.
-  const mineExists = await base44.asServiceRole.entities.Friendship.filter({
-    user_email: myEmail,
-    friend_email: fromEmail,
-  });
-  if (!mineExists?.length) {
-    return Response.json(
-      { error: 'Arkadaşlık kaydı oluşturulamadı. Lütfen tekrar dene.' },
-      { status: 422 },
-    );
+  if (!senderRows.length) {
+    createdRows.push(await createFriendship(base44, sender, receiver));
   }
-  // Mirror row attempted via tryCreateMirrorRow; soft-fails are non-fatal.
-  const mirrorOk = await tryCreateMirrorRow(base44, fromEmail, myEmail, user.full_name || '');
-  await base44.asServiceRole.entities.FriendRequest.update(requestId, { status: 'accepted' });
+  const relationship = await ensureFriendshipPair(base44, receiver, sender);
+  if (!relationship.relationshipEnsured) {
+    return json({ ok: false, error: 'Friendship visibility could not be ensured', ...relationship }, 500);
+  }
+  if (fr.status === 'pending') {
+    await base44.asServiceRole.entities.FriendRequest.update(requestId, { status: 'accepted' });
+  }
+  return json({ ok: true, success: true, requestStatus: 'accepted', ...relationship });
 `;
 const removeFriendFnSource = `
   // Public contract of functions/removeFriend.js — mirrored.
@@ -1116,50 +1118,50 @@ export const EXTRA_TESTS = [
     waitingRoomPanelSource,
     ['Yedek kod', 'Davet edilen arkadaşların'],
     { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW }),
-  // Codex077 historical regression: previously the friend-request accept
-  // flow returned raw HTTP 500 (Codex075) OR a clean Turkish 422 with
-  // "Arkadaşlık kaydı oluşturulamadı." but NO Friendship row was ever
-  // created (Codex076), because EVERY base44.asServiceRole.entities.
-  // Friendship.create was rejected by RLS with:
-  //   "Permission denied for create operation on Friendship entity"
-  // The real fix moves the receiver's Friendship.create to the CLIENT,
-  // where RLS allows it (data.user_email === {{user.email}} === caller).
-  // The backend function now only verifies that row exists, attempts the
-  // mirror row, and flips FriendRequest.status to 'accepted'.
+  // Codex079 historical regression contract:
+  //   - Codex075: raw 500 surfaced to UI.
+  //   - Codex076: clean Turkish error but no Friendship row created.
+  //   - Codex077: client-create + backend-mirror split — A→B existed, B→A soft-failed.
+  //   - Codex078: friendsApi.acceptIncomingRequest signature changed to (id: string),
+  //     but FriendsPage still passed the full request object → backend received
+  //     requestId = "[object Object]" → 404 on every accept tap. That is the
+  //     regression we're fixing now.
+  //   - Codex079: friendsApi.acceptIncomingRequest accepts either a bare id or
+  //     a full request object; backend (asServiceRole) creates BOTH mirrored
+  //     Friendship rows and only flips FriendRequest to 'accepted' once
+  //     relationshipEnsured is true. Both users see each other.
   sourceHas('historical_kronox_regression', 'accept_friend_request_no_raw_500',
-    'Friend-request accept actually creates Friendship row (Codex077 fix)',
+    'Friend-request accept creates BOTH mirrored Friendship rows and flips status only after ensure (Codex079 fix)',
     'functions/acceptFriendRequest.js (mirrored) + lib/friendsApi.js',
     `${acceptFriendRequestFnSource}\n${friendsApiSource}`,
     [
-      // function-side: split contract — client creates the row, function verifies it
-      'mineExists',
-      'tryCreateMirrorRow',
-      'alreadyAccepted',
-      'Bu isteği yalnızca alıcı kabul edebilir.',
-      // client-side: receiver creates its own Friendship row directly via SDK
-      'base44.entities.Friendship.create',
-      'user_email: myEmail',
-      'friend_email: fromEmail',
-      // client-side: clean error mapping never leaks raw 500
-      'err?.response?.data?.error',
+      // function-side: receiver-only gate + both mirrored rows + ensure-then-flip
+      'Only the receiver can accept this request',
+      'ensureFriendshipPair',
+      'relationshipEnsured',
+      "status: 'accepted'",
+      // client-side: defensive id extraction (the Codex078 regression fix)
+      "typeof requestOrId === 'string'",
+      'requestOrId?.id',
+      // client-side: friendly Turkish error mapping never leaks raw 500
       'Arkadaşlık isteği kabul edilemedi. Lütfen tekrar dene.',
     ],
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
   // Codex077: assert the build marker has actually been bumped beyond
   // Codex075. Previous tasks claimed bumps but the marker stayed on
   // Codex075 — this static contract makes future drift impossible to hide.
-  makeCase('historical_kronox_regression', 'build_marker_bumped_beyond_codex075',
-    'Build marker is bumped beyond Codex075 (deploy-version visibility)', () => {
+  makeCase('historical_kronox_regression', 'build_marker_bumped_beyond_codex078',
+    'Build marker is bumped beyond Codex078 (deploy-version visibility for the accept regression fix)', () => {
       const match = String(buildMarkerSource || '').match(/BUILD_MARKER\s*=\s*'([^']+)'/);
       const value = match?.[1] || '';
       const codexMatch = value.match(/^Codex(\d+)$/);
       const num = codexMatch ? parseInt(codexMatch[1], 10) : NaN;
-      if (!Number.isFinite(num) || num <= 75) {
-        return fail('Build marker has not been bumped beyond Codex075.', {
+      if (!Number.isFinite(num) || num <= 78) {
+        return fail('Build marker has not been bumped beyond Codex078.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'components/dev/BuildMarker.jsx',
-          expected: 'CodexN where N > 75',
+          expected: 'CodexN where N > 78',
           actual: value || '(unreadable)',
         });
       }
@@ -1170,6 +1172,46 @@ export const EXTRA_TESTS = [
         actual: value,
       });
     }, { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  // Codex079: directly assert the FriendsPage→friendsApi call path that
+  // caused the regression cannot silently regress again. FriendsPage hands
+  // the full request object to acceptIncomingRequest, so the helper MUST
+  // extract `.id` defensively or accept a bare id — never String()-coerce
+  // an object to "[object Object]".
+  sourceHas('historical_kronox_regression', 'accept_helper_handles_request_object',
+    'acceptIncomingRequest defensively extracts request id (no [object Object] regression)',
+    'lib/friendsApi.js',
+    friendsApiSource,
+    [
+      "typeof requestOrId === 'string'",
+      'requestOrId?.id',
+    ],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  // Codex079: backend must create both mirrored Friendship rows so the
+  // friend-list query (which only loads rows where user_email === me) shows
+  // the friend for BOTH users.
+  sourceHas('historical_kronox_regression', 'accept_creates_mirrored_rows_for_both_users',
+    'acceptFriendRequest creates both mirrored Friendship rows (A→B and B→A)',
+    'functions/acceptFriendRequest.js (mirrored contract)',
+    acceptFriendRequestFnSource,
+    [
+      'findFriendship',
+      'createFriendship',
+      'ensureFriendshipPair',
+      'relationshipEnsured',
+    ],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  // Codex079: status flip is gated on relationshipEnsured — no half-friend
+  // silent state where FriendRequest is 'accepted' but rows are missing.
+  sourceHas('historical_kronox_regression', 'accept_status_flip_gated_on_ensure',
+    'FriendRequest.status is only set to accepted after relationshipEnsured is true',
+    'functions/acceptFriendRequest.js (mirrored contract)',
+    acceptFriendRequestFnSource,
+    [
+      'if (!relationship.relationshipEnsured)',
+      "if (fr.status === 'pending')",
+      "{ status: 'accepted' }",
+    ],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
   notAutomatableCase('historical_kronox_regression', 'accept_friend_request_two_account_runtime',
     'Two-account proof: User A sends → User B accepts → friend appears, no 500',
     'Requires a live two-account run on real authenticated sessions. Static contract enforces the Codex077 split (client creates Friendship row, backend verifies & flips status). The actual reciprocal-visibility check (does User A see User B in their list after B accepts?) requires live two-account execution because the mirror Friendship row is soft-failed on this environment.',

@@ -91,17 +91,34 @@ export async function cancelOutgoingRequest(requestId) {
   await base44.entities.FriendRequest.update(requestId, { status: 'cancelled' });
 }
 
-export async function acceptIncomingRequest(requestId) {
+export async function acceptIncomingRequest(requestOrId) {
+  // Accept either a bare id string or a full FriendRequest object. The
+  // FriendsPage handler passes the full row (so it can show sender data
+  // without an extra round trip), while older callers passed the id alone.
+  // Both must work — passing [object Object] to the backend was the
+  // Codex077→078 regression that caused every accept to silently 404.
+  const requestId =
+    typeof requestOrId === 'string'
+      ? requestOrId.trim()
+      : String(requestOrId?.id || '').trim();
   if (!requestId) throw new Error('Geçersiz istek.');
+
+  let res;
   try {
-    const res = await base44.functions.invoke('acceptFriendRequest', { requestId });
-    if (res?.data?.error || (res?.data && res.data.ok === false)) {
-      throw new Error(res.data.error);
-    }
-    return res?.data;
-  } catch {
+    res = await base44.functions.invoke('acceptFriendRequest', { requestId });
+  } catch (err) {
+    // Real network/runtime failure — log the technical reason, surface
+    // a friendly Turkish message to the UI.
+    console.error('[friendsApi] acceptFriendRequest invoke failed', err);
     throw new Error('Arkadaşlık isteği kabul edilemedi. Lütfen tekrar dene.');
   }
+
+  const data = res?.data;
+  if (!data || data.ok === false || data.error) {
+    console.error('[friendsApi] acceptFriendRequest backend error', data);
+    throw new Error('Arkadaşlık isteği kabul edilemedi. Lütfen tekrar dene.');
+  }
+  return data;
 }
 
 export async function removeFriend(friendEmail) {

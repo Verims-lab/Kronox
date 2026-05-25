@@ -1,6 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
-const BUILD_MARKER = 'Codex076';
+// Codex079 — Friends accept regression fixed. The client was passing the
+// full FriendRequest object to base44.functions.invoke('acceptFriendRequest', {requestId: ...}),
+// which got String()-coerced to "[object Object]" → backend 404 →
+// "Arkadaşlık isteği kabul edilemedi" on every accept tap. acceptIncomingRequest
+// now accepts both bare id strings and full request objects, and the
+// backend's existing service-role mirrored-rows path (already correct)
+// finally runs end-to-end. Both users now see each other after accept.
+const BUILD_MARKER = 'Codex079';
 
 export default function BuildMarker() {
   const [visible, setVisible] = useState(true);
