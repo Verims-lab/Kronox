@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { sounds } from '@/lib/gameSounds';
 import GoldButton from '@/components/ui/GoldButton';
 import CreateLobbyInvitePanel from '@/components/lobby/CreateLobbyInvitePanel';
+import { ONLINE_CATEGORIES } from '@/lib/onlineCategories';
 
 const ONLINE_BACKGROUND_ASSET = '/assets/ui/Kronox_Online_Fantasy_Basckground.png';
 // Exact CTA target visuals — bundled locally under public/assets/ui/.
@@ -13,14 +14,24 @@ const CTA_GOLD_ASSET = '/assets/ui/Kronox_Online_CTA_Start.png';
 const CTA_BLUE_ASSET = '/assets/ui/Kronox_Online_CTA_Join.png';
 const WIDE_STAGE_QUERY = '(min-aspect-ratio: 9 / 16)';
 
-const CATEGORIES = [
-  { id: 'flashback', label: 'FLASHBACK', left: '6.3%', top: '28.6%', width: '40%', height: '11.8%' },
-  { id: 'kult', label: 'KÜLT', left: '53.7%', top: '28.6%', width: '40%', height: '11.8%' },
-  { id: 'viral', label: 'VIRAL', left: '6.3%', top: '43.2%', width: '40%', height: '11.8%' },
-  { id: 'arena', label: 'ARENA', left: '53.7%', top: '43.2%', width: '40%', height: '11.8%' },
-  { id: 'level_up', label: 'LEVEL UP', left: '6.3%', top: '57.8%', width: '40%', height: '11.8%' },
-  { id: 'chronicle', label: 'CHRONICLE', left: '53.7%', top: '57.8%', width: '40%', height: '11.8%' },
-];
+// Codex078: category ids/labels come from the centralized taxonomy
+// (lib/onlineCategories.js) so future descriptions/examples/boundary rules
+// can evolve from one place. Hit-box geometry stays here because it is
+// painted-asset-specific layout, not taxonomy.
+const CATEGORY_HITBOX_BY_ID = {
+  flashback: { left: '6.3%', top: '28.6%', width: '40%', height: '11.8%' },
+  kult: { left: '53.7%', top: '28.6%', width: '40%', height: '11.8%' },
+  viral: { left: '6.3%', top: '43.2%', width: '40%', height: '11.8%' },
+  arena: { left: '53.7%', top: '43.2%', width: '40%', height: '11.8%' },
+  level_up: { left: '6.3%', top: '57.8%', width: '40%', height: '11.8%' },
+  chronicle: { left: '53.7%', top: '57.8%', width: '40%', height: '11.8%' },
+};
+
+const CATEGORIES = ONLINE_CATEGORIES.map(({ id, label }) => ({
+  id,
+  label,
+  ...CATEGORY_HITBOX_BY_ID[id],
+}));
 
 const DEFAULT_SELECTED_CATEGORIES = ['flashback'];
 const MIN_SELECTED_CATEGORY_COUNT = 1;
@@ -204,74 +215,27 @@ function FantasyCtaButton({ variant, label, onClick }) {
   );
 }
 
-function SelectedCategoryOverlay() {
-  return (
-    <motion.div
-      className="pointer-events-none absolute inset-0 z-20"
-      style={{ containerType: 'size' }}
-      initial={{ opacity: 0.5, scale: 0.985 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ type: 'spring', stiffness: 560, damping: 26 }}
-      aria-hidden="true"
-    >
-      {/* Premium gold glow frame */}
-      <div
-        className="absolute inset-0"
-        style={{
-          borderRadius: '14px',
-          boxShadow:
-            '0 0 0 2px rgba(255,225,120,0.95), 0 0 0 4px rgba(120,60,8,0.85), 0 0 22px rgba(250,204,21,0.78), inset 0 0 18px rgba(250,204,21,0.22)',
-          background:
-            'linear-gradient(135deg, rgba(255,228,128,0.14), transparent 40%, rgba(34,211,238,0.06))',
-        }}
-      />
-      {/* Inner bright rim */}
-      <div
-        className="absolute inset-[3%]"
-        style={{
-          borderRadius: '10px',
-          boxShadow: 'inset 0 0 0 1px rgba(255,245,180,0.55)',
-        }}
-      />
-      {/* Diagonal top-right SEÇİLDİ ribbon */}
-      <div
-        className="absolute overflow-hidden"
-        style={{
-          right: '-1%',
-          top: '-1%',
-          width: '46%',
-          height: '46%',
-          pointerEvents: 'none',
-        }}
-      >
-        <div
-          className="absolute flex items-center justify-center"
-          style={{
-            width: '160%',
-            height: '32%',
-            top: '22%',
-            left: '-10%',
-            transform: 'rotate(45deg)',
-            transformOrigin: '50% 50%',
-            background:
-              'linear-gradient(180deg, #fff4b8 0%, #fbc73a 40%, #a86512 100%)',
-            color: '#231405',
-            fontFamily: 'Bangers, Impact, sans-serif',
-            fontSize: 'clamp(9px, 3.4cqw, 16px)',
-            letterSpacing: '0.6px',
-            textShadow: '0 1px 0 rgba(255,250,200,0.6)',
-            boxShadow:
-              '0 2px 6px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.55), inset 0 -2px 3px rgba(120,60,8,0.55)',
-          }}
-        >
-          SEÇİLDİ
-        </div>
-      </div>
-    </motion.div>
-  );
-}
+// Codex078 selected-state cleanup:
+//
+// The Online category screen uses a baked background image (Kronox_Online_
+// Fantasy_Basckground.png) that already paints every card in its selected
+// fantasy state — including the gold stone frame and the diagonal SEÇİLDİ
+// ribbon. The interactive layer is just transparent hit-box <button>s
+// positioned over each painted card.
+//
+// The previous code tried to ALSO render a `SelectedCategoryOverlay` on top
+// of the painted selected art. That overlay's `inset: 0` was bound to the
+// hit-box rectangle, not to the painted card silhouette, so it drew a
+// second gold frame slightly offset from the painted one — exactly the
+// "extra rectangle floating on top of the card" bug the user reported.
+//
+// Fix: the painted background IS the selected state. React only needs to
+// COVER unselected cards with a blue-tinted deselected mask. We removed
+// SelectedCategoryOverlay entirely and renamed FlashbackDeselectedMask →
+// CategoryDeselectedMask so it applies to every unselected card uniformly.
+// Selection logic, hit-box geometry, and category data are unchanged.
 
-function FlashbackDeselectedMask() {
+function CategoryDeselectedMask() {
   return (
     <motion.div
       className="pointer-events-none absolute inset-0 z-20"
@@ -430,7 +394,6 @@ function OnlineChallengeLanding({ onCreate, onJoin, onBackHome }) {
 
         {CATEGORIES.map(category => {
           const isSelected = selectedCategories.includes(category.id);
-          const hasBakedSelectedState = category.id === 'flashback';
 
           return (
             <button
@@ -450,8 +413,10 @@ function OnlineChallengeLanding({ onCreate, onJoin, onBackHome }) {
               aria-label={`${category.label} kategorisini ${isSelected ? 'kaldır' : 'seç'}`}
               aria-pressed={isSelected}
             >
-              {hasBakedSelectedState && !isSelected && <FlashbackDeselectedMask />}
-              {isSelected && !hasBakedSelectedState && <SelectedCategoryOverlay />}
+              {/* Painted background already shows every card as selected.
+                  We only mask the UNSELECTED ones. Selected state needs no
+                  React overlay — the painted art IS the selected frame. */}
+              {!isSelected && <CategoryDeselectedMask />}
             </button>
           );
         })}

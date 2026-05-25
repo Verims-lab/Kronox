@@ -1,7 +1,12 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
-// Symmetric removal: deletes both directional Friendship rows.
-// Caller may only remove a friend they actually have (verified via service role lookup).
+// Codex080 — Normalized friendship model.
+// The accepted FriendRequest IS the friendship. To remove a friend we flip
+// the accepted request(s) on both directions back to a non-active state.
+// Using 'rejected' so it cleanly drops out of every list (loadFriends filters
+// status === 'accepted', loadIncomingRequests filters status === 'pending').
+// Any legacy Friendship rows from earlier attempts are also cleaned up so
+// the database does not carry dead state.
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -21,23 +26,40 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Cannot remove self' }, { status: 400 });
     }
 
-    // Verify the requester actually owns the relationship before touching the mirror row.
-    const mine = await base44.asServiceRole.entities.Friendship.filter({
-      user_email: myEmail, friend_email: friendEmail,
-    });
-    if (!mine?.length) {
+    // Find the accepted FriendRequest(s) between the two emails (either direction).
+    const [outgoing, incoming] = await Promise.all([
+      base44.asServiceRole.entities.FriendRequest.filter({
+        from_email: myEmail, to_email: friendEmail, status: 'accepted',
+      }),
+      base44.asServiceRole.entities.FriendRequest.filter({
+        from_email: friendEmail, to_email: myEmail, status: 'accepted',
+      }),
+    ]);
+
+    const acceptedRows = [...(outgoing || []), ...(incoming || [])];
+    if (!acceptedRows.length) {
+      // Nothing accepted — also nothing to clean up beyond legacy Friendship rows below.
+    }
+
+    // Flip every accepted request between the pair back to 'rejected'.
+    for (const row of acceptedRows) {
+      await base44.asServiceRole.entities.FriendRequest.update(row.id, { status: 'rejected' });
+    }
+
+    // Legacy cleanup — remove any old Friendship rows from the previous model.
+    const [legacyMine, legacyTheirs] = await Promise.all([
+      base44.asServiceRole.entities.Friendship.filter({ user_email: myEmail, friend_email: friendEmail }),
+      base44.asServiceRole.entities.Friendship.filter({ user_email: friendEmail, friend_email: myEmail }),
+    ]);
+    for (const row of legacyMine || []) {
+      await base44.asServiceRole.entities.Friendship.delete(row.id);
+    }
+    for (const row of legacyTheirs || []) {
+      await base44.asServiceRole.entities.Friendship.delete(row.id);
+    }
+
+    if (!acceptedRows.length && !(legacyMine?.length) && !(legacyTheirs?.length)) {
       return Response.json({ error: 'Not friends' }, { status: 404 });
-    }
-
-    const theirs = await base44.asServiceRole.entities.Friendship.filter({
-      user_email: friendEmail, friend_email: myEmail,
-    });
-
-    for (const row of mine) {
-      await base44.asServiceRole.entities.Friendship.delete(row.id);
-    }
-    for (const row of theirs || []) {
-      await base44.asServiceRole.entities.Friendship.delete(row.id);
     }
 
     return Response.json({ success: true });

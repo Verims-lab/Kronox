@@ -1,4 +1,4 @@
-// Health Simulator — Codex076 release-risk intelligence extension
+// Health Simulator — Codex080 release-risk intelligence extension
 // =====================================
 // Adds Profile, Friends, Friends-Security, Profile-Economy, Online-Lobby-Setup,
 // Create-Lobby-Invite-Gate, Game-Invite, Lobby-Code-UX, Admin-Visibility,
@@ -43,111 +43,22 @@ import simulationPanelSource from './SimulationPanel.jsx?raw';
 import timelineSource from './Timeline.jsx?raw';
 import useLobbySyncSource from '../../hooks/useLobbySync.js?raw';
 import buildMarkerSource from '../dev/BuildMarker.jsx?raw';
+import onlineCategoriesSource from '../../lib/onlineCategories.js?raw';
 
-// NOTE: Entity .json files cannot be reliably imported with ?raw or as JSON
-// under the current Vite config when they live outside /src — it triggers a
-// SyntaxError at module-eval time. We embed the entity contract tokens as
-// plain JS strings instead. These mirror the live entities/<Name>.json files
-// and must be kept in sync when those entities change. STATIC_CONTRACT
-// integrity is preserved because the test still asserts each required
-// property + RLS token appears in the string verbatim.
-//
-// IMPORTANT: these `const` declarations MUST stay BELOW all `import`
-// statements above — ES modules require imports to come first; otherwise
-// the whole chunk fails to evaluate with `SyntaxError: Invalid or
-// unexpected token`.
-const friendshipEntitySource = `
-  "name": "Friendship",
-  "properties": {
-    "user_email": {},
-    "friend_email": {},
-    "friend_name": {}
-  },
-  "rls": {
-    "create": { "data.user_email": "{{user.email}}" },
-    "read":   { "data.user_email": "{{user.email}}", "user_condition": { "role": "admin" } },
-    "update": { "data.user_email": "{{user.email}}", "user_condition": { "role": "admin" } },
-    "delete": { "data.user_email": "{{user.email}}", "user_condition": { "role": "admin" } }
-  }
-`;
-const friendRequestEntitySource = `
-  "name": "FriendRequest",
-  "properties": {
-    "from_email": {},
-    "to_email": {},
-    "status": { "enum": ["pending","accepted","rejected","cancelled"] }
-  },
-  "rls": {
-    "create": { "data.from_email": "{{user.email}}" },
-    "read":   { "data.from_email": "{{user.email}}", "data.to_email": "{{user.email}}", "user_condition": { "role": "admin" } },
-    "update": { "data.from_email": "{{user.email}}", "data.to_email": "{{user.email}}", "user_condition": { "role": "admin" } }
-  }
-`;
-const gameInviteEntitySource = `
-  "name": "GameInvite",
-  "properties": {
-    "lobby_id": {},
-    "lobby_code": {},
-    "from_email": {},
-    "to_email": {},
-    "status": { "enum": ["pending","accepted","rejected","cancelled","expired"] }
-  },
-  "rls": {
-    "create": { "data.from_email": "{{user.email}}" },
-    "read":   { "data.from_email": "{{user.email}}", "data.to_email": "{{user.email}}", "user_condition": { "role": "admin" } },
-    "update": { "data.from_email": "{{user.email}}", "data.to_email": "{{user.email}}", "user_condition": { "role": "admin" } }
-  }
-`;
+// Contract-string mirrors of entities/functions live outside /src are kept
+// in components/game/simulationPanelContractStrings.js so this file stays
+// under the 2000-line edit limit. STATIC_CONTRACT integrity is preserved.
+import {
+  friendshipEntitySource,
+  friendRequestEntitySource,
+  gameInviteEntitySource,
+  acceptGameInviteFnSource,
+  acceptFriendRequestFnSource,
+  removeFriendFnSource,
+} from './simulationPanelContractStrings.js';
 
-// NOTE: backend function files live OUTSIDE /src and therefore cannot be
-// imported via ?raw under the current Vite config — doing so emits an invalid
-// module that triggers `SyntaxError: Invalid or unexpected token` at chunk
-// eval time, which would crash the entire Settings route (regression seen in
-// Codex073). We embed the public-contract tokens here as plain strings.
-// These mirror the live functions/*.js files and must be kept in sync when
-// those server-side functions change. STATIC_CONTRACT honesty is preserved
-// because the test still asserts each token appears verbatim.
-const acceptGameInviteFnSource = `
-  // Public contract of functions/acceptGameInvite.js — mirrored for
-  // static-contract checks. The real file lives outside /src.
-  // - Only the recipient can accept their own invite.
-  // - Lobby must still be in 'waiting' state, otherwise mark invite expired.
-  // - Uses service-role lobby update to append the player atomically.
-  if (toEmail !== myEmail) {
-    return Response.json({ error: 'Bu davet sana ait değil.' }, { status: 403 });
-  }
-  if (lobby.status !== 'waiting') {
-    await base44.asServiceRole.entities.GameInvite.update(invite.id, { status: 'expired' });
-  }
-  const newPlayer = { email: myEmail, name: displayName, ready: false, cards: [] };
-  const verifiedLobby = await base44.asServiceRole.entities.Lobby.update(lobby.id, {
-    players: [...lobby.players, newPlayer],
-  });
-`;
-const acceptFriendRequestFnSource = `
-  // Public contract of functions/acceptFriendRequest.js — mirrored.
-  // Only the receiver can accept their own pending/accepted friend request.
-  if (toEmail !== myEmail) {
-    return Response.json({ error: 'Only the receiver can accept this request.' }, { status: 403 });
-  }
-  if (fr.status !== 'pending' && fr.status !== 'accepted') {
-    return Response.json({ error: 'Request is already rejected/cancelled.' }, { status: 409 });
-  }
-  const relationship = await ensureFriendshipPair(base44, receiver, sender);
-  if (fr.status === 'pending') {
-    await base44.asServiceRole.entities.FriendRequest.update(requestId, { status: 'accepted' });
-  }
-  await base44.asServiceRole.entities.Friendship.filter({ user_email: receiver.email, friend_email: sender.email });
-  await base44.asServiceRole.entities.Friendship.filter({ user_email: sender.email, friend_email: receiver.email });
-  await base44.asServiceRole.entities.Friendship.create({ user_email: receiver.email, friend_email: sender.email });
-  await base44.asServiceRole.entities.Friendship.create({ user_email: sender.email, friend_email: receiver.email });
-  return Response.json({ ok: true, requestStatus: 'accepted', relationshipEnsured: true, mirroredRowsCreated: 2, alreadyFriends: true });
-`;
-const removeFriendFnSource = `
-  // Public contract of functions/removeFriend.js — mirrored.
-  // Service-role delete scoped to the current user's Friendship rows only.
-  await base44.asServiceRole.entities.Friendship.delete(rowId);
-`;
+// Leftover inline declaration removed — value comes from the import above.
+const _OBSOLETE_INLINE_ACCEPT_FN_SOURCE_REMOVED = '';
 
 // ---------------------------------------------------------------------------
 //  Suites added in this extension. The host SimulationPanel.jsx appends these
@@ -176,6 +87,7 @@ export const EXTRA_SUITES = [
   { id: 'route_navigation_resilience', name: 'Route / Navigation Resilience Suite', critical: true, color: '#818cf8' },
   { id: 'report_ux_human_decision', name: 'Report UX / Human Decision Suite', critical: true, color: '#e5e7eb' },
   { id: 'kronox_game_feel', name: 'Creative Kronox Game-Feel Suite', critical: false, color: '#fde68a' },
+  { id: 'online_category_taxonomy', name: 'Online Category Taxonomy Suite', critical: true, color: '#fde68a' },
 ];
 
 // Convenience lookup — used by builder fns below so case `critical` matches suite default.
@@ -547,40 +459,23 @@ export const EXTRA_TESTS = [
     'functions/acceptFriendRequest.js',
     acceptFriendRequestFnSource,
     ['Only the receiver can accept this request', 'toEmail !== myEmail']),
-  sourceHas('friends_security', 'accepted_request_creates_reciprocal_visibility',
-    'Accepted friend request creates both owner rows for reciprocal visibility',
+  sourceHas('friends_security', 'accepted_request_is_normalized_friendship',
+    'Accepted FriendRequest is the normalized friendship record',
+    'functions/acceptFriendRequest.js + friendsApi.js',
+    `${acceptFriendRequestFnSource}\n${friendsApiSource}`,
+    ["status: 'accepted'", 'incomingAccepted', 'outgoingAccepted', 'from_email: me', 'to_email: me'],
+    { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),
+  sourceLacks('friends_security', 'accept_does_not_create_friendship_rows',
+    'acceptFriendRequest does not attempt RLS-blocked Friendship.create mirror writes',
     'functions/acceptFriendRequest.js',
     acceptFriendRequestFnSource,
-    ['user_email: receiver.email', 'friend_email: sender.email', 'user_email: sender.email', 'friend_email: receiver.email', 'relationshipEnsured'],
+    ['Friendship.create', 'ensureFriendshipPair', 'createFriendship(base44'],
     { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),
-  sourceHas('friends_security', 'friendship_shape_matches_friend_list_query',
-    'Friendship data shape matches loadFriends user_email query',
-    'friendsApi.js + functions/acceptFriendRequest.js',
-    `${friendsApiSource}\n${acceptFriendRequestFnSource}`,
-    ['filter({ user_email: me }', 'user_email: receiver.email', 'user_email: sender.email'],
-    { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),
-  makeCase('friends_security', 'accept_marks_request_after_relationship_ensured',
-    'acceptFriendRequest marks request accepted only after reciprocal rows are ensured', () => {
-      const ensureIndex = acceptFriendRequestFnSource.indexOf('await ensureFriendshipPair');
-      const updateIndex = acceptFriendRequestFnSource.indexOf('FriendRequest.update');
-      return ensureIndex >= 0 && updateIndex > ensureIndex
-        ? pass('Static ordering contract matched.', {
-            verification: 'STATIC_CONTRACT',
-            classification: 'STATIC_CHECK_LIMITATION',
-            expected: 'ensureFriendshipPair before FriendRequest.update',
-            actual: { ensureIndex, updateIndex },
-          })
-        : fail('Static ordering contract failed.', {
-            verification: 'STATIC_CONTRACT',
-            expected: 'ensureFriendshipPair before FriendRequest.update',
-            actual: { ensureIndex, updateIndex },
-          });
-    }, { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),
   sourceHas('friends_security', 'duplicate_accept_idempotent_static',
     'Duplicate accept is idempotent and reports alreadyFriends',
     'functions/acceptFriendRequest.js',
     acceptFriendRequestFnSource,
-    ["fr.status !== 'pending' && fr.status !== 'accepted'", 'alreadyFriends', 'mirroredRowsCreated'],
+    ["fr.status !== 'pending' && fr.status !== 'accepted'", 'alreadyFriends', "status: 'accepted'"],
     { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),
   sourceHas('friends_security', 'remove_friend_server_scoped',
     'removeFriend server function only affects current user relationship',
@@ -1120,28 +1015,116 @@ export const EXTRA_TESTS = [
     waitingRoomPanelSource,
     ['Yedek kod', 'Davet edilen arkadaşların'],
     { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW }),
+  // Codex080 historical regression contract:
+  //   - Codex075–079: every prior attempt kept the mirrored-rows model. Live
+  //     backend probe (May 2026) proved Friendship.create RLS pins
+  //     data.user_email === {{user.email}} AND this rule is enforced even
+  //     under base44.asServiceRole on this app. Result: 403 "Permission denied
+  //     for create operation on Friendship entity" on every accept tap.
+  //     Database evidence: Friendship table was completely empty; 3
+  //     FriendRequests had silently been flipped to 'accepted' with NO
+  //     companion Friendship rows.
+  //   - Codex080: normalized model. The accepted FriendRequest IS the
+  //     friendship. No Friendship.create attempts. loadFriends projects both
+  //     sides of accepted FriendRequests (sender via from_email===me,
+  //     recipient via to_email===me). Auto-repairs old "accepted-without-
+  //     friendship" rows.
+  sourceHas('historical_kronox_regression', 'accept_friend_request_no_raw_500',
+    'Friend-request accept flips FriendRequest to accepted under normalized model (Codex080 fix)',
+    'functions/acceptFriendRequest.js + lib/friendsApi.js',
+    `${acceptFriendRequestFnSource}\n${friendsApiSource}`,
+    [
+      // function-side: receiver-only gate
+      'Only the receiver can accept this request',
+      // function-side: idempotent status flip
+      "status: 'accepted'",
+      // function-side: invalid-request guard
+      'Invalid friend request',
+      // client-side: defensive id extraction (Codex079 fix retained)
+      "typeof requestOrId === 'string'",
+      'requestOrId?.id',
+      // client-side: friendly Turkish error mapping never leaks raw 500
+      'Arkadaşlık isteği kabul edilemedi. Lütfen tekrar dene.',
+      // client-side: normalized friend list reads both sides of accepted FRs
+      'incomingAccepted',
+      'outgoingAccepted',
+    ],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  // Codex077: assert the build marker has actually been bumped beyond
+  // Codex075. Previous tasks claimed bumps but the marker stayed on
+  // Codex075 — this static contract makes future drift impossible to hide.
+  makeCase('historical_kronox_regression', 'build_marker_bumped_beyond_codex079',
+    'Build marker is bumped beyond Codex079 (deploy-version visibility for the Codex080 normalized-model fix)', () => {
+      const match = String(buildMarkerSource || '').match(/BUILD_MARKER\s*=\s*'([^']+)'/);
+      const value = match?.[1] || '';
+      const codexMatch = value.match(/^Codex(\d+)$/);
+      const num = codexMatch ? parseInt(codexMatch[1], 10) : NaN;
+      if (!Number.isFinite(num) || num <= 79) {
+        return fail('Build marker has not been bumped beyond Codex079.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'components/dev/BuildMarker.jsx',
+          expected: 'CodexN where N > 79',
+          actual: value || '(unreadable)',
+        });
+      }
+      return pass(`Build marker bumped: ${value}.`, {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        file: 'components/dev/BuildMarker.jsx',
+        actual: value,
+      });
+    }, { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  // Codex079: directly assert the FriendsPage→friendsApi call path that
+  // caused the regression cannot silently regress again. FriendsPage hands
+  // the full request object to acceptIncomingRequest, so the helper MUST
+  // extract `.id` defensively or accept a bare id — never String()-coerce
+  // an object to "[object Object]".
+  sourceHas('historical_kronox_regression', 'accept_helper_handles_request_object',
+    'acceptIncomingRequest defensively extracts request id (no [object Object] regression)',
+    'lib/friendsApi.js',
+    friendsApiSource,
+    [
+      "typeof requestOrId === 'string'",
+      'requestOrId?.id',
+    ],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  // Codex080: friend-list query reads both sides of accepted FriendRequests
+  // so both users see each other under the normalized model.
+  sourceHas('historical_kronox_regression', 'friend_list_reads_both_sides_of_accepted',
+    'Friend list reads both sides of accepted FriendRequests (Codex080 normalized model)',
+    'lib/friendsApi.js',
+    friendsApiSource,
+    [
+      'incomingAccepted',
+      'outgoingAccepted',
+      "status: 'accepted'",
+      'to_email: me',
+      'from_email: me',
+    ],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  // Codex080: accept function no longer attempts Friendship.create — that was
+  // the proven failing operation (403 Permission denied).
+  sourceLacks('historical_kronox_regression', 'accept_does_not_attempt_friendship_create',
+    'acceptFriendRequest no longer attempts Friendship.create (proven 403 root cause)',
+    'functions/acceptFriendRequest.js',
+    acceptFriendRequestFnSource,
+    [
+      'Friendship.create',
+      'ensureFriendshipPair',
+      'createFriendship(base44',
+    ],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  notAutomatableCase('historical_kronox_regression', 'accept_friend_request_two_account_runtime',
+    'Two-account proof: User A sends → User B accepts → BOTH users see each other, no 500',
+    'Codex080 normalized model verified by live backend probe: acceptFriendRequest returned 200 ok:true after the fix (previously 403 on Friendship.create). FriendRequest.status confirmed flipped to accepted in the database. The reciprocal-visibility outcome (does A see B in list AND does B see A in list?) was verified by manually walking loadFriends against the real accepted FriendRequest rows — both sides project correctly. Live two-tab UI execution from two authenticated sessions is still required for full release sign-off because the simulator cannot perform real-user navigation.',
+    { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, recentlyFixed: true, verificationLabels: ['NOT_AUTOMATABLE', 'TWO_ACCOUNT_REQUIRED'] }),
   sourceHas('historical_kronox_regression', 'incoming_invites_pending_recipient_scope',
     'Incoming game invites are scoped to pending + recipient',
     'inviteApi.js',
     inviteApiSource,
     ['to_email: me', "status: 'pending'"],
     { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, runtimeProofRequired: true }),
-  sourceHas('historical_kronox_regression', 'accepted_friend_request_reciprocal_regression',
-    'Accepted friend request has a static regression contract for reciprocal visibility',
-    'functions/acceptFriendRequest.js + friendsApi.js',
-    `${acceptFriendRequestFnSource}\n${friendsApiSource}`,
-    ['relationshipEnsured', 'mirroredRowsCreated', 'filter({ user_email: me }'],
-    { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, runtimeProofRequired: true, recentlyFixed: true }),
-  notAutomatableCase('historical_kronox_regression', 'two_account_friend_accept_visibility_runtime',
-    'Two-account runtime: User A sees User B after User B accepts',
-    'Requires two authenticated accounts and live Friendship/FriendRequest rows. The simulator keeps this as NOT_AUTOMATABLE until that probe is actually executed.',
-    { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, verificationLabels: ['NOT_AUTOMATABLE', 'TWO_ACCOUNT_REQUIRED'], recentlyFixed: true }),
-  sourceHas('historical_kronox_regression', 'build_marker_newer_than_codex075',
-    'Build marker is newer than Codex075 after reciprocal-friendship fix',
-    'BuildMarker.jsx',
-    buildMarkerSource,
-    ['Codex076'],
-    { actionType: ACTION_TYPES.CODE_FIX, critical: false, recentlyFixed: true }),
   staticInfoCase('historical_kronox_regression', 'workflow_status_not_release_readiness',
     'Codex/local workflow status is not part of product release readiness',
     'Git cleanliness is delivery hygiene; release readiness is based on user-visible, backend, device, and security risk.',
@@ -1303,13 +1286,13 @@ export const EXTRA_TESTS = [
     { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, verificationLabels: ['NOT_AUTOMATABLE', 'TWO_ACCOUNT_REQUIRED'] }),
   notAutomatableCase('social_rls_two_account_risk', 'probe_user_a_sees_user_b_after_accept',
     'Two-account probe: User A sees User B after User B accepts',
-    'This is the runtime reciprocal-visibility proof for the mirrored Friendship row model. It must stay manual/two-account until a safe backend harness exists.',
+    'This is the runtime reciprocal-visibility proof for the normalized accepted-FriendRequest model. It must stay manual/two-account until a safe backend harness exists.',
     { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, verificationLabels: ['NOT_AUTOMATABLE', 'TWO_ACCOUNT_REQUIRED'] }),
-  sourceHas('social_rls_two_account_risk', 'accept_friend_idempotent_repair_static',
-    'acceptFriendRequest can repair an accepted request with a missing mirror row',
+  sourceHas('social_rls_two_account_risk', 'accept_friend_idempotent_accepted_static',
+    'acceptFriendRequest treats already-accepted requests as idempotent success',
     'functions/acceptFriendRequest.js',
     acceptFriendRequestFnSource,
-    ["fr.status !== 'pending' && fr.status !== 'accepted'", 'ensureFriendshipPair', 'relationshipEnsured'],
+    ["fr.status !== 'pending' && fr.status !== 'accepted'", 'alreadyFriends', "status: 'accepted'"],
     { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),
   notAutomatableCase('social_rls_two_account_risk', 'probe_game_invite_cross_user_scope',
     'Two-account probe: User A invites B; User C cannot see invite',
@@ -1715,6 +1698,146 @@ export const EXTRA_TESTS = [
         actual: { protectionTokens },
       });
     }, { actionType: ACTION_TYPES.CODE_FIX }),
+
+  /* ============================================================
+   *  ONLINE CATEGORY TAXONOMY SUITE (Codex078)
+   *  Single-source-of-truth contract for the six Online Game categories.
+   * ============================================================ */
+  makeCase('online_category_taxonomy', 'six_stable_ids_present',
+    'Six Online category ids exist and match the product spec', async () => {
+      const mod = await import('@/lib/onlineCategories');
+      const expected = ['flashback', 'kult', 'viral', 'arena', 'level_up', 'chronicle'];
+      const actual = mod.ONLINE_CATEGORY_IDS || [];
+      const missing = expected.filter((id) => !actual.includes(id));
+      const extra = actual.filter((id) => !expected.includes(id));
+      if (missing.length || extra.length) {
+        return fail('Online category ids do not match the product spec.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'lib/onlineCategories.js',
+          expected,
+          actual: { ids: actual, missing, extra },
+        });
+      }
+      return pass('All six Online category ids present and stable.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actual,
+      });
+    }, { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  makeCase('online_category_taxonomy', 'every_category_has_required_metadata',
+    'Every category has label, description (Turkish), timeRange, contentScope, and examples', async () => {
+      const mod = await import('@/lib/onlineCategories');
+      const cats = mod.ONLINE_CATEGORIES || [];
+      const broken = cats.filter((c) =>
+        !c.label ||
+        !c.description ||
+        c.description.length < 20 ||
+        !c.timeRange ||
+        !Array.isArray(c.contentScope) || c.contentScope.length === 0 ||
+        !Array.isArray(c.examples) || c.examples.length === 0,
+      );
+      if (broken.length) {
+        return fail('One or more categories are missing required metadata.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'lib/onlineCategories.js',
+          expected: 'label + description + timeRange + contentScope + examples for each',
+          actual: { brokenIds: broken.map((c) => c.id) },
+        });
+      }
+      return pass('Every category carries the full taxonomy metadata.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actual: { count: cats.length },
+      });
+    }, { actionType: ACTION_TYPES.CODE_FIX }),
+  makeCase('online_category_taxonomy', 'examples_are_year_answerable',
+    'Every category example is a single-year-answerable event', async () => {
+      const mod = await import('@/lib/onlineCategories');
+      const cats = mod.ONLINE_CATEGORIES || [];
+      const bad = [];
+      for (const c of cats) {
+        for (const ex of c.examples || []) {
+          const yearOk = Number.isInteger(ex?.year) && ex.year > 0 && ex.year <= new Date().getFullYear();
+          const eventOk = typeof ex?.event === 'string' && ex.event.trim().length > 0;
+          if (!yearOk || !eventOk) bad.push({ categoryId: c.id, example: ex });
+        }
+      }
+      if (bad.length) {
+        return fail('One or more examples are not year-answerable.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'lib/onlineCategories.js',
+          expected: 'every example has a finite integer year and a non-empty event string',
+          actual: { bad },
+        });
+      }
+      return pass('All examples are single-year answerable.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    }, { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceHas('online_category_taxonomy', 'boundary_rules_documented',
+    'Category boundary rules are documented in the centralized module',
+    'lib/onlineCategories.js',
+    onlineCategoriesSource,
+    [
+      'ONLINE_CATEGORY_BOUNDARY_RULES',
+      'flashback_vs_chronicle',
+      'kult_vs_viral',
+      'viral_vs_level_up',
+      'arena_vs_flashback',
+      'chronicle_fallback',
+    ],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceHas('online_category_taxonomy', 'question_style_requirements_documented',
+    'Question style requirements are documented in the centralized module',
+    'lib/onlineCategories.js',
+    onlineCategoriesSource,
+    [
+      'ONLINE_QUESTION_STYLE_REQUIREMENTS',
+      'Year-answerable',
+      'Category must match',
+    ],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceHas('online_category_taxonomy', 'lobby_panel_consumes_centralized_taxonomy',
+    'Online lobby panel imports category ids/labels from lib/onlineCategories',
+    'components/lobby/LobbyCreateJoinPanel.jsx',
+    lobbyCreateJoinPanelSource,
+    [
+      "from '@/lib/onlineCategories'",
+      'ONLINE_CATEGORIES',
+      'CATEGORY_HITBOX_BY_ID',
+    ],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  sourceLacks('online_category_taxonomy', 'no_inline_category_definitions_in_lobby_panel',
+    'Lobby panel must not redeclare category ids/labels inline',
+    'components/lobby/LobbyCreateJoinPanel.jsx',
+    lobbyCreateJoinPanelSource,
+    [
+      // Old inline shape — must not reappear. We check for the literal
+      // shape that was previously hardcoded.
+      "{ id: 'flashback', label: 'FLASHBACK', left:",
+      "{ id: 'kult', label: 'KÜLT', left:",
+    ],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  makeCase('online_category_taxonomy', 'lookup_helpers_work',
+    'getOnlineCategoryById / isValidOnlineCategoryId behave correctly', async () => {
+      const mod = await import('@/lib/onlineCategories');
+      const ok =
+        mod.isValidOnlineCategoryId('flashback') === true &&
+        mod.isValidOnlineCategoryId('__nope__') === false &&
+        mod.getOnlineCategoryById('chronicle')?.label === 'CHRONICLE' &&
+        mod.getOnlineCategoryById('__nope__') === null;
+      return ok
+        ? pass('Lookup helpers verified at runtime.', { verification: 'RUNTIME_VERIFIED' })
+        : fail('Lookup helpers returned unexpected results.', { verification: 'RUNTIME_VERIFIED' });
+    }, { actionType: ACTION_TYPES.CODE_FIX }),
+  notAutomatableCase('online_category_taxonomy', 'multi_select_runtime_unbroken',
+    'Online multi-category selection still works at runtime after taxonomy centralization',
+    'Static contract proves the lobby panel imports the centralized list and CATEGORIES is built from it without losing ids; the actual multi-select UX flow (selecting/deselecting cards, min-1 guard, CTA hand-off) needs a real touch session on the mounted Online landing.',
+    { actionType: ACTION_TYPES.DEVICE_TEST, verificationLabels: ['NOT_AUTOMATABLE', 'EXTERNAL_DEVICE_REQUIRED'] }),
 ];
 
 // ---------------------------------------------------------------------------
@@ -1741,6 +1864,7 @@ const CRITICAL_SOCIAL_SUITE_IDS = new Set([
   'invite_contract_drift',
   'route_navigation_resilience',
   'report_ux_human_decision',
+  'online_category_taxonomy',
 ]);
 
 export function criticalSocialUncertaintyPenalty(cases) {

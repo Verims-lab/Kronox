@@ -1,6 +1,16 @@
 import React, { useEffect, useState } from 'react';
 
-const BUILD_MARKER = 'Codex076';
+// Codex080 — Friends accept root-cause fix. Mirrored Friendship rows were
+// blocked by RLS even under service role (data.user_email === {{user.email}}
+// is enforced for service role on this app), so every prior accept attempt
+// returned 403 Permission denied on Friendship.create and the UI showed
+// "Arkadaşlık isteği kabul edilemedi". Switched to a normalized model:
+// the accepted FriendRequest itself IS the friendship. The friend list now
+// reads both sides of accepted FriendRequests (sender+recipient). This
+// auto-repairs old "accepted-without-friendship" rows — both users now see
+// each other immediately after accept, with no Friendship row required.
+const BUILD_MARKER = 'Codex080';
+export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 export default function BuildMarker() {
   const [visible, setVisible] = useState(true);
