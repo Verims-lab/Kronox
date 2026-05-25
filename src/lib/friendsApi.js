@@ -17,10 +17,45 @@ export function isValidEmail(raw) {
 }
 
 export async function loadFriends(myEmail) {
+  // Codex080 — Normalized model. An accepted FriendRequest IS the friendship.
+  // Both sender (from_email === me) and recipient (to_email === me) can read
+  // their accepted rows under existing FriendRequest RLS. We merge both sides
+  // and project them into the {friend_email, friend_name} shape the UI
+  // already consumes, so FriendListItem and removeFriend keep working with
+  // zero UI changes.
   const me = normalizeEmail(myEmail);
   if (!me) return [];
-  const rows = await base44.entities.Friendship.filter({ user_email: me }, '-created_date', 200);
-  return rows || [];
+  const [incomingAccepted, outgoingAccepted] = await Promise.all([
+    base44.entities.FriendRequest.filter({ to_email: me, status: 'accepted' }, '-updated_date', 200),
+    base44.entities.FriendRequest.filter({ from_email: me, status: 'accepted' }, '-updated_date', 200),
+  ]);
+  const projected = [
+    ...(incomingAccepted || []).map((r) => ({
+      id: `fr:${r.id}`,
+      request_id: r.id,
+      user_email: me,
+      friend_email: normalizeEmail(r.from_email),
+      friend_name: r.from_name || r.from_email,
+      created_date: r.created_date,
+      updated_date: r.updated_date,
+    })),
+    ...(outgoingAccepted || []).map((r) => ({
+      id: `fr:${r.id}`,
+      request_id: r.id,
+      user_email: me,
+      friend_email: normalizeEmail(r.to_email),
+      friend_name: r.to_name || r.to_email,
+      created_date: r.created_date,
+      updated_date: r.updated_date,
+    })),
+  ];
+  // Dedupe by friend_email in case the same pair somehow has rows on both sides.
+  const seen = new Set();
+  return projected.filter((row) => {
+    if (seen.has(row.friend_email)) return false;
+    seen.add(row.friend_email);
+    return true;
+  });
 }
 
 export async function loadIncomingRequests(myEmail) {
@@ -53,11 +88,12 @@ export async function sendFriendRequest({ me, toEmail }) {
   if (!isValidEmail(target)) throw new Error('Geçerli bir e-posta adresi gir.');
   if (target === fromEmail) throw new Error('Kendini ekleyemezsin.');
 
-  // Already friends?
-  const existingFriend = await base44.entities.Friendship.filter({
-    user_email: fromEmail, friend_email: target,
-  });
-  if (existingFriend?.length) throw new Error('Bu kullanıcı zaten arkadaşın.');
+  // Already friends? (Normalized model — check accepted FriendRequests on both sides.)
+  const [acceptedOut, acceptedIn] = await Promise.all([
+    base44.entities.FriendRequest.filter({ from_email: fromEmail, to_email: target, status: 'accepted' }),
+    base44.entities.FriendRequest.filter({ from_email: target, to_email: fromEmail, status: 'accepted' }),
+  ]);
+  if (acceptedOut?.length || acceptedIn?.length) throw new Error('Bu kullanıcı zaten arkadaşın.');
 
   // Pending request from me to target?
   const pendingOut = await base44.entities.FriendRequest.filter({

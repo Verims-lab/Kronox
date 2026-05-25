@@ -128,7 +128,31 @@ const acceptGameInviteFnSource = `
 const acceptFriendRequestFnSource = `
   // Public contract of functions/acceptFriendRequest.js — mirrored.
   //
-  // Codex079 REAL FIX:
+  // Codex080 REAL FIX (after live runtime probe):
+  //   Probe of the live function against a real pending FriendRequest
+  //   returned 403 "Permission denied for create operation on Friendship
+  //   entity". The Friendship table is empty in production while several
+  //   FriendRequest rows are stuck on status='accepted' from earlier
+  //   broken builds. Conclusion: asServiceRole.Friendship.create is
+  //   structurally blocked by RLS in this app — every prior mirrored-rows
+  //   fix was impossible.
+  //
+  //   Switched to the normalized model: an accepted FriendRequest IS the
+  //   friendship. The client-side loadFriends reads accepted FriendRequest
+  //   rows in BOTH directions (from_email === me OR to_email === me) and
+  //   projects each into the {friend_email, friend_name} shape the UI
+  //   already expects. FriendRequest RLS already allows sender + receiver
+  //   to read their rows, so both users see each other immediately.
+  //
+  //   This function now only:
+  //     1. Validates the caller is the recipient.
+  //     2. Flips a pending request to 'accepted' (idempotent).
+  //     3. Returns a clean structured response.
+  //
+  //   No Friendship table writes. Old already-accepted rows are
+  //   auto-repaired by the new loader.
+  //
+  // Codex079 background (kept for historical context):
   //   Two real bugs ran in sequence:
   //     1. (Codex078 regression) The client called acceptIncomingRequest(req)
   //        passing the full FriendRequest object. friendsApi then sent
@@ -158,22 +182,11 @@ const acceptFriendRequestFnSource = `
   if (toEmail !== myEmail) {
     return json({ ok: false, error: 'Only the receiver can accept this request' }, 403);
   }
-  const receiverRows = await findFriendship(base44, receiver.email, sender.email);
-  const senderRows = await findFriendship(base44, sender.email, receiver.email);
-  if (!receiverRows.length) {
-    createdRows.push(await createFriendship(base44, receiver, sender));
+  if (fr.status === 'accepted') {
+    return json({ ok: true, success: true, requestStatus: 'accepted', alreadyFriends: true, relationshipEnsured: true });
   }
-  if (!senderRows.length) {
-    createdRows.push(await createFriendship(base44, sender, receiver));
-  }
-  const relationship = await ensureFriendshipPair(base44, receiver, sender);
-  if (!relationship.relationshipEnsured) {
-    return json({ ok: false, error: 'Friendship visibility could not be ensured', ...relationship }, 500);
-  }
-  if (fr.status === 'pending') {
-    await base44.asServiceRole.entities.FriendRequest.update(requestId, { status: 'accepted' });
-  }
-  return json({ ok: true, success: true, requestStatus: 'accepted', ...relationship });
+  await base44.asServiceRole.entities.FriendRequest.update(requestId, { status: 'accepted' });
+  return json({ ok: true, success: true, requestStatus: 'accepted', alreadyFriends: false, relationshipEnsured: true });
 `;
 const removeFriendFnSource = `
   // Public contract of functions/removeFriend.js — mirrored.
@@ -1131,18 +1144,20 @@ export const EXTRA_TESTS = [
   //     Friendship rows and only flips FriendRequest to 'accepted' once
   //     relationshipEnsured is true. Both users see each other.
   sourceHas('historical_kronox_regression', 'accept_friend_request_no_raw_500',
-    'Friend-request accept creates BOTH mirrored Friendship rows and flips status only after ensure (Codex079 fix)',
+    'Friend-request accept uses normalized model (Codex080): flips FriendRequest to accepted; friendship is derived',
     'functions/acceptFriendRequest.js (mirrored) + lib/friendsApi.js',
     `${acceptFriendRequestFnSource}\n${friendsApiSource}`,
     [
-      // function-side: receiver-only gate + both mirrored rows + ensure-then-flip
+      // function-side: receiver-only gate + idempotent accept
       'Only the receiver can accept this request',
-      'ensureFriendshipPair',
-      'relationshipEnsured',
+      'alreadyFriends',
       "status: 'accepted'",
-      // client-side: defensive id extraction (the Codex078 regression fix)
+      // client-side: defensive id extraction (Codex078→079 regression fix)
       "typeof requestOrId === 'string'",
       'requestOrId?.id',
+      // client-side: friend list reads accepted FriendRequests both ways (Codex080)
+      "from_email: me, status: 'accepted'",
+      "to_email: me, status: 'accepted'",
       // client-side: friendly Turkish error mapping never leaks raw 500
       'Arkadaşlık isteği kabul edilemedi. Lütfen tekrar dene.',
     ],
@@ -1150,18 +1165,18 @@ export const EXTRA_TESTS = [
   // Codex077: assert the build marker has actually been bumped beyond
   // Codex075. Previous tasks claimed bumps but the marker stayed on
   // Codex075 — this static contract makes future drift impossible to hide.
-  makeCase('historical_kronox_regression', 'build_marker_bumped_beyond_codex078',
-    'Build marker is bumped beyond Codex078 (deploy-version visibility for the accept regression fix)', () => {
+  makeCase('historical_kronox_regression', 'build_marker_bumped_beyond_codex079',
+    'Build marker is bumped beyond Codex079 (deploy-version visibility for the normalized-friendship architecture fix)', () => {
       const match = String(buildMarkerSource || '').match(/BUILD_MARKER\s*=\s*'([^']+)'/);
       const value = match?.[1] || '';
       const codexMatch = value.match(/^Codex(\d+)$/);
       const num = codexMatch ? parseInt(codexMatch[1], 10) : NaN;
-      if (!Number.isFinite(num) || num <= 78) {
-        return fail('Build marker has not been bumped beyond Codex078.', {
+      if (!Number.isFinite(num) || num <= 79) {
+        return fail('Build marker has not been bumped beyond Codex079.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'components/dev/BuildMarker.jsx',
-          expected: 'CodexN where N > 78',
+          expected: 'CodexN where N > 79',
           actual: value || '(unreadable)',
         });
       }
@@ -1186,30 +1201,29 @@ export const EXTRA_TESTS = [
       'requestOrId?.id',
     ],
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
-  // Codex079: backend must create both mirrored Friendship rows so the
-  // friend-list query (which only loads rows where user_email === me) shows
-  // the friend for BOTH users.
-  sourceHas('historical_kronox_regression', 'accept_creates_mirrored_rows_for_both_users',
-    'acceptFriendRequest creates both mirrored Friendship rows (A→B and B→A)',
-    'functions/acceptFriendRequest.js (mirrored contract)',
-    acceptFriendRequestFnSource,
+  // Codex080: live runtime probe proved asServiceRole.Friendship.create is
+  // blocked by RLS in this app. Normalized model: accepted FriendRequest
+  // IS the friendship. loadFriends reads both directions.
+  sourceHas('historical_kronox_regression', 'friend_list_reads_normalized_friendship',
+    'loadFriends reads accepted FriendRequests in BOTH directions (Codex080 normalized model)',
+    'lib/friendsApi.js',
+    friendsApiSource,
     [
-      'findFriendship',
-      'createFriendship',
-      'ensureFriendshipPair',
-      'relationshipEnsured',
+      'normalized friendship model',
+      "from_email: me, status: 'accepted'",
+      "to_email: me, status: 'accepted'",
+      'byFriendEmail',
     ],
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
-  // Codex079: status flip is gated on relationshipEnsured — no half-friend
-  // silent state where FriendRequest is 'accepted' but rows are missing.
-  sourceHas('historical_kronox_regression', 'accept_status_flip_gated_on_ensure',
-    'FriendRequest.status is only set to accepted after relationshipEnsured is true',
+  // Codex080: no more Friendship table writes — those would 403.
+  sourceLacks('historical_kronox_regression', 'accept_does_not_write_friendship_rows',
+    'acceptFriendRequest no longer attempts blocked Friendship table writes',
     'functions/acceptFriendRequest.js (mirrored contract)',
     acceptFriendRequestFnSource,
     [
-      'if (!relationship.relationshipEnsured)',
-      "if (fr.status === 'pending')",
-      "{ status: 'accepted' }",
+      'createFriendship',
+      'ensureFriendshipPair',
+      'Friendship.create',
     ],
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
   notAutomatableCase('historical_kronox_regression', 'accept_friend_request_two_account_runtime',
