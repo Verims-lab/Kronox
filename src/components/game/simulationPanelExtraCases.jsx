@@ -1,4 +1,4 @@
-// Health Simulator — Codex075 release-risk intelligence extension
+// Health Simulator — Codex076 release-risk intelligence extension
 // =====================================
 // Adds Profile, Friends, Friends-Security, Profile-Economy, Online-Lobby-Setup,
 // Create-Lobby-Invite-Gate, Game-Invite, Lobby-Code-UX, Admin-Visibility,
@@ -42,6 +42,7 @@ import questionCardSource from './QuestionCard.jsx?raw';
 import simulationPanelSource from './SimulationPanel.jsx?raw';
 import timelineSource from './Timeline.jsx?raw';
 import useLobbySyncSource from '../../hooks/useLobbySync.js?raw';
+import buildMarkerSource from '../dev/BuildMarker.jsx?raw';
 
 // NOTE: Entity .json files cannot be reliably imported with ?raw or as JSON
 // under the current Vite config when they live outside /src — it triggers a
@@ -125,10 +126,22 @@ const acceptGameInviteFnSource = `
 `;
 const acceptFriendRequestFnSource = `
   // Public contract of functions/acceptFriendRequest.js — mirrored.
-  // Only the receiver can accept their own pending friend request.
+  // Only the receiver can accept their own pending/accepted friend request.
   if (toEmail !== myEmail) {
     return Response.json({ error: 'Only the receiver can accept this request.' }, { status: 403 });
   }
+  if (fr.status !== 'pending' && fr.status !== 'accepted') {
+    return Response.json({ error: 'Request is already rejected/cancelled.' }, { status: 409 });
+  }
+  const relationship = await ensureFriendshipPair(base44, receiver, sender);
+  if (fr.status === 'pending') {
+    await base44.asServiceRole.entities.FriendRequest.update(requestId, { status: 'accepted' });
+  }
+  await base44.asServiceRole.entities.Friendship.filter({ user_email: receiver.email, friend_email: sender.email });
+  await base44.asServiceRole.entities.Friendship.filter({ user_email: sender.email, friend_email: receiver.email });
+  await base44.asServiceRole.entities.Friendship.create({ user_email: receiver.email, friend_email: sender.email });
+  await base44.asServiceRole.entities.Friendship.create({ user_email: sender.email, friend_email: receiver.email });
+  return Response.json({ ok: true, requestStatus: 'accepted', relationshipEnsured: true, mirroredRowsCreated: 2, alreadyFriends: true });
 `;
 const removeFriendFnSource = `
   // Public contract of functions/removeFriend.js — mirrored.
@@ -534,6 +547,41 @@ export const EXTRA_TESTS = [
     'functions/acceptFriendRequest.js',
     acceptFriendRequestFnSource,
     ['Only the receiver can accept this request', 'toEmail !== myEmail']),
+  sourceHas('friends_security', 'accepted_request_creates_reciprocal_visibility',
+    'Accepted friend request creates both owner rows for reciprocal visibility',
+    'functions/acceptFriendRequest.js',
+    acceptFriendRequestFnSource,
+    ['user_email: receiver.email', 'friend_email: sender.email', 'user_email: sender.email', 'friend_email: receiver.email', 'relationshipEnsured'],
+    { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),
+  sourceHas('friends_security', 'friendship_shape_matches_friend_list_query',
+    'Friendship data shape matches loadFriends user_email query',
+    'friendsApi.js + functions/acceptFriendRequest.js',
+    `${friendsApiSource}\n${acceptFriendRequestFnSource}`,
+    ['filter({ user_email: me }', 'user_email: receiver.email', 'user_email: sender.email'],
+    { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),
+  makeCase('friends_security', 'accept_marks_request_after_relationship_ensured',
+    'acceptFriendRequest marks request accepted only after reciprocal rows are ensured', () => {
+      const ensureIndex = acceptFriendRequestFnSource.indexOf('await ensureFriendshipPair');
+      const updateIndex = acceptFriendRequestFnSource.indexOf('FriendRequest.update');
+      return ensureIndex >= 0 && updateIndex > ensureIndex
+        ? pass('Static ordering contract matched.', {
+            verification: 'STATIC_CONTRACT',
+            classification: 'STATIC_CHECK_LIMITATION',
+            expected: 'ensureFriendshipPair before FriendRequest.update',
+            actual: { ensureIndex, updateIndex },
+          })
+        : fail('Static ordering contract failed.', {
+            verification: 'STATIC_CONTRACT',
+            expected: 'ensureFriendshipPair before FriendRequest.update',
+            actual: { ensureIndex, updateIndex },
+          });
+    }, { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),
+  sourceHas('friends_security', 'duplicate_accept_idempotent_static',
+    'Duplicate accept is idempotent and reports alreadyFriends',
+    'functions/acceptFriendRequest.js',
+    acceptFriendRequestFnSource,
+    ["fr.status !== 'pending' && fr.status !== 'accepted'", 'alreadyFriends', 'mirroredRowsCreated'],
+    { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),
   sourceHas('friends_security', 'remove_friend_server_scoped',
     'removeFriend server function only affects current user relationship',
     'functions/removeFriend.js',
@@ -1078,6 +1126,22 @@ export const EXTRA_TESTS = [
     inviteApiSource,
     ['to_email: me', "status: 'pending'"],
     { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, runtimeProofRequired: true }),
+  sourceHas('historical_kronox_regression', 'accepted_friend_request_reciprocal_regression',
+    'Accepted friend request has a static regression contract for reciprocal visibility',
+    'functions/acceptFriendRequest.js + friendsApi.js',
+    `${acceptFriendRequestFnSource}\n${friendsApiSource}`,
+    ['relationshipEnsured', 'mirroredRowsCreated', 'filter({ user_email: me }'],
+    { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, runtimeProofRequired: true, recentlyFixed: true }),
+  notAutomatableCase('historical_kronox_regression', 'two_account_friend_accept_visibility_runtime',
+    'Two-account runtime: User A sees User B after User B accepts',
+    'Requires two authenticated accounts and live Friendship/FriendRequest rows. The simulator keeps this as NOT_AUTOMATABLE until that probe is actually executed.',
+    { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, verificationLabels: ['NOT_AUTOMATABLE', 'TWO_ACCOUNT_REQUIRED'], recentlyFixed: true }),
+  sourceHas('historical_kronox_regression', 'build_marker_newer_than_codex075',
+    'Build marker is newer than Codex075 after reciprocal-friendship fix',
+    'BuildMarker.jsx',
+    buildMarkerSource,
+    ['Codex076'],
+    { actionType: ACTION_TYPES.CODE_FIX, critical: false, recentlyFixed: true }),
   staticInfoCase('historical_kronox_regression', 'workflow_status_not_release_readiness',
     'Codex/local workflow status is not part of product release readiness',
     'Git cleanliness is delivery hygiene; release readiness is based on user-visible, backend, device, and security risk.',
@@ -1237,6 +1301,16 @@ export const EXTRA_TESTS = [
     'Two-account probe: User B accepts, User C cannot mutate',
     'Requires live RLS enforcement test across at least three identities.',
     { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, verificationLabels: ['NOT_AUTOMATABLE', 'TWO_ACCOUNT_REQUIRED'] }),
+  notAutomatableCase('social_rls_two_account_risk', 'probe_user_a_sees_user_b_after_accept',
+    'Two-account probe: User A sees User B after User B accepts',
+    'This is the runtime reciprocal-visibility proof for the mirrored Friendship row model. It must stay manual/two-account until a safe backend harness exists.',
+    { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, verificationLabels: ['NOT_AUTOMATABLE', 'TWO_ACCOUNT_REQUIRED'] }),
+  sourceHas('social_rls_two_account_risk', 'accept_friend_idempotent_repair_static',
+    'acceptFriendRequest can repair an accepted request with a missing mirror row',
+    'functions/acceptFriendRequest.js',
+    acceptFriendRequestFnSource,
+    ["fr.status !== 'pending' && fr.status !== 'accepted'", 'ensureFriendshipPair', 'relationshipEnsured'],
+    { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),
   notAutomatableCase('social_rls_two_account_risk', 'probe_game_invite_cross_user_scope',
     'Two-account probe: User A invites B; User C cannot see invite',
     'Requires live GameInvite rows and separate sessions.',

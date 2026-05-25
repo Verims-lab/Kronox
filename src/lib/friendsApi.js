@@ -93,9 +93,15 @@ export async function cancelOutgoingRequest(requestId) {
 
 export async function acceptIncomingRequest(requestId) {
   if (!requestId) throw new Error('Geçersiz istek.');
-  const res = await base44.functions.invoke('acceptFriendRequest', { requestId });
-  if (res?.data?.error) throw new Error(res.data.error);
-  return res?.data;
+  try {
+    const res = await base44.functions.invoke('acceptFriendRequest', { requestId });
+    if (res?.data?.error || (res?.data && res.data.ok === false)) {
+      throw new Error(res.data.error);
+    }
+    return res?.data;
+  } catch {
+    throw new Error('Arkadaşlık isteği kabul edilemedi. Lütfen tekrar dene.');
+  }
 }
 
 export async function removeFriend(friendEmail) {
