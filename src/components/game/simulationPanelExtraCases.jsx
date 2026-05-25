@@ -1,4 +1,4 @@
-// Health Simulator — Codex075 release-risk intelligence extension
+// Health Simulator — Codex080 release-risk intelligence extension
 // =====================================
 // Adds Profile, Friends, Friends-Security, Profile-Economy, Online-Lobby-Setup,
 // Create-Lobby-Invite-Gate, Game-Invite, Lobby-Code-UX, Admin-Visibility,
@@ -58,57 +58,7 @@ import {
 } from './simulationPanelContractStrings.js';
 
 // Leftover inline declaration removed — value comes from the import above.
-const _OBSOLETE_INLINE_ACCEPT_FN_SOURCE_REMOVED = `
-  // Public contract of functions/acceptFriendRequest.js — mirrored.
-  //
-  // Codex079 REAL FIX:
-  //   Two real bugs ran in sequence:
-  //     1. (Codex078 regression) The client called acceptIncomingRequest(req)
-  //        passing the full FriendRequest object. friendsApi then sent
-  //        { requestId: req } to base44.functions.invoke. Inside the function
-  //        body, String(body?.requestId) coerced the object to
-  //        "[object Object]" → FriendRequest.get returned null → backend
-  //        responded 404 "Friend request not found" → UI showed
-  //        "Arkadaşlık isteği kabul edilemedi. Lütfen tekrar dene." on every
-  //        accept tap. That is the regression we just shipped.
-  //     2. (Pre-Codex078) Even when the id reached the backend, the prior
-  //        attempt to split the work — client creates its own Friendship
-  //        row, backend only mirrors — left A→B visible to B but B→A
-  //        never created for A, because the mirror create was soft-failed.
-  //   The Codex079 backend contract is:
-  //     - Recipient-only accept (toEmail === caller email).
-  //     - Service-role (asServiceRole) creates BOTH mirrored Friendship
-  //       rows: one owned by the receiver, one owned by the sender. RLS
-  //       is bypassed by design for service-role writes — that is the
-  //       supported Base44 path for cross-user data integrity.
-  //     - Idempotent: re-accept finds existing rows and returns
-  //       alreadyFriends: true.
-  //     - If either mirrored row cannot be ensured, the function returns
-  //       a handled error (relationshipEnsured: false) and does NOT mark
-  //       the FriendRequest accepted. No half-friend silent state.
-  //     - FriendRequest.status is flipped to 'accepted' ONLY after both
-  //       rows are visible.
-  if (toEmail !== myEmail) {
-    return json({ ok: false, error: 'Only the receiver can accept this request' }, 403);
-  }
-  const receiverRows = await findFriendship(base44, receiver.email, sender.email);
-  const senderRows = await findFriendship(base44, sender.email, receiver.email);
-  if (!receiverRows.length) {
-    createdRows.push(await createFriendship(base44, receiver, sender));
-  }
-  if (!senderRows.length) {
-    createdRows.push(await createFriendship(base44, sender, receiver));
-  }
-  const relationship = await ensureFriendshipPair(base44, receiver, sender);
-  if (!relationship.relationshipEnsured) {
-    return json({ ok: false, error: 'Friendship visibility could not be ensured', ...relationship }, 500);
-  }
-  if (fr.status === 'pending') {
-    await base44.asServiceRole.entities.FriendRequest.update(requestId, { status: 'accepted' });
-  }
-  return json({ ok: true, success: true, requestStatus: 'accepted', ...relationship });
-`;
-// Leftover inline declaration removed — value comes from the import above.
+const _OBSOLETE_INLINE_ACCEPT_FN_SOURCE_REMOVED = '';
 
 // ---------------------------------------------------------------------------
 //  Suites added in this extension. The host SimulationPanel.jsx appends these
@@ -509,6 +459,24 @@ export const EXTRA_TESTS = [
     'functions/acceptFriendRequest.js',
     acceptFriendRequestFnSource,
     ['Only the receiver can accept this request', 'toEmail !== myEmail']),
+  sourceHas('friends_security', 'accepted_request_is_normalized_friendship',
+    'Accepted FriendRequest is the normalized friendship record',
+    'functions/acceptFriendRequest.js + friendsApi.js',
+    `${acceptFriendRequestFnSource}\n${friendsApiSource}`,
+    ["status: 'accepted'", 'incomingAccepted', 'outgoingAccepted', 'from_email: me', 'to_email: me'],
+    { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),
+  sourceLacks('friends_security', 'accept_does_not_create_friendship_rows',
+    'acceptFriendRequest does not attempt RLS-blocked Friendship.create mirror writes',
+    'functions/acceptFriendRequest.js',
+    acceptFriendRequestFnSource,
+    ['Friendship.create', 'ensureFriendshipPair', 'createFriendship(base44'],
+    { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),
+  sourceHas('friends_security', 'duplicate_accept_idempotent_static',
+    'Duplicate accept is idempotent and reports alreadyFriends',
+    'functions/acceptFriendRequest.js',
+    acceptFriendRequestFnSource,
+    ["fr.status !== 'pending' && fr.status !== 'accepted'", 'alreadyFriends', "status: 'accepted'"],
+    { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),
   sourceHas('friends_security', 'remove_friend_server_scoped',
     'removeFriend server function only affects current user relationship',
     'functions/removeFriend.js',
@@ -1316,6 +1284,16 @@ export const EXTRA_TESTS = [
     'Two-account probe: User B accepts, User C cannot mutate',
     'Requires live RLS enforcement test across at least three identities.',
     { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, verificationLabels: ['NOT_AUTOMATABLE', 'TWO_ACCOUNT_REQUIRED'] }),
+  notAutomatableCase('social_rls_two_account_risk', 'probe_user_a_sees_user_b_after_accept',
+    'Two-account probe: User A sees User B after User B accepts',
+    'This is the runtime reciprocal-visibility proof for the normalized accepted-FriendRequest model. It must stay manual/two-account until a safe backend harness exists.',
+    { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, verificationLabels: ['NOT_AUTOMATABLE', 'TWO_ACCOUNT_REQUIRED'] }),
+  sourceHas('social_rls_two_account_risk', 'accept_friend_idempotent_accepted_static',
+    'acceptFriendRequest treats already-accepted requests as idempotent success',
+    'functions/acceptFriendRequest.js',
+    acceptFriendRequestFnSource,
+    ["fr.status !== 'pending' && fr.status !== 'accepted'", 'alreadyFriends', "status: 'accepted'"],
+    { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),
   notAutomatableCase('social_rls_two_account_risk', 'probe_game_invite_cross_user_scope',
     'Two-account probe: User A invites B; User C cannot see invite',
     'Requires live GameInvite rows and separate sessions.',
