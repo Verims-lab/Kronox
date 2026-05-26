@@ -24,13 +24,22 @@ const toWinnerState = (data) => {
   };
 };
 
+const normalizeLobbyCode = (code) =>
+  String(code || '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '')
+    .replace(/[^\w]/g, '');
+
 export function useLobbySync({
   lobbyId,
+  lobbyCode,
   initialPlayers,
   currentQuestionIdFromState,
   setLobbyData,
   setWinner,
   setError,
+  onLobbyResolved,
 }) {
   const unsubRef = useRef(null);
   const latestLobbyRef = useRef(null);
@@ -39,7 +48,11 @@ export function useLobbySync({
   const currentQuestionIdRef = useRef(currentQuestionIdFromState);
 
   useEffect(() => {
-    if (!lobbyId) return;
+    if (!lobbyId && !lobbyCode) return;
+
+    let cancelled = false;
+    let pollIntervalId = null;
+    let activeLobbyId = lobbyId || null;
 
     const initPlayers = initialPlayersRef.current;
     const initQuestionId = currentQuestionIdRef.current;
@@ -51,6 +64,8 @@ export function useLobbySync({
       ].filter(Boolean);
 
       return {
+        id: activeLobbyId || lobbyId || null,
+        code: normalizeLobbyCode(lobbyCode) || null,
         players: initPlayers,
         current_player_index: 0,
         current_question_id: initQuestionId,
@@ -62,11 +77,15 @@ export function useLobbySync({
     const applyLobbyData = (data, source) => {
       const nextLobbyData = normalizeLobbyState(data, latestLobbyRef.current || {});
       latestLobbyRef.current = nextLobbyData;
+      if (nextLobbyData.id) {
+        activeLobbyId = nextLobbyData.id;
+        onLobbyResolved?.(nextLobbyData.id);
+      }
 
       debugLog('[useLobbySync] applying lobby data:', {
         source,
         setLobbyDataCalled: true,
-        lobbyId: nextLobbyData.id || lobbyId,
+        lobbyId: nextLobbyData.id || activeLobbyId,
         status: nextLobbyData.status,
         winner: nextLobbyData.winner || null,
         winner_email: nextLobbyData.winner_email || null,
@@ -84,7 +103,7 @@ export function useLobbySync({
       if (winnerState?.name) {
         debugLog('[useLobbySync] finished lobby observed:', {
           source,
-          lobbyId: nextLobbyData.id || lobbyId,
+          lobbyId: nextLobbyData.id || activeLobbyId,
           setWinnerCalled: true,
           winner: winnerState.name,
           winner_email: winnerState.email || null,
@@ -96,9 +115,23 @@ export function useLobbySync({
       }
     };
 
-    // İlk yükleme — always fetch fresh DB state to get correct current_player_index
-    base44.entities.Lobby.get(lobbyId)
-      .then(data => {
+    const resolveInitialLobby = async () => {
+      if (activeLobbyId) {
+        return base44.entities.Lobby.get(activeLobbyId);
+      }
+
+      const normalizedCode = normalizeLobbyCode(lobbyCode);
+      if (!normalizedCode) return null;
+
+      const matches = await base44.entities.Lobby.filter({ code: normalizedCode }, '-created_date', 1);
+      return matches?.[0] || null;
+    };
+
+    const startSync = async () => {
+      try {
+        // İlk yükleme — always fetch fresh DB state to get correct current_player_index
+        const data = await resolveInitialLobby();
+        if (cancelled) return;
         if (data) {
           debugLog('[useLobbySync] fetched lobby:', {
             lobbyId: data.id,
@@ -109,95 +142,103 @@ export function useLobbySync({
             current_player_index: data.current_player_index ?? null,
           });
           applyLobbyData(data, 'initial-fetch');
-        } else if (!latestLobbyRef.current && initPlayers && initPlayers.length > 0) {
+        } else if (!latestLobbyRef.current && activeLobbyId && initPlayers && initPlayers.length > 0) {
           // Route state is bootstrap-only and only applies before any live lobby data exists.
           applyLobbyData(buildRouteFallback(), 'route-state-fallback');
         } else if (latestLobbyRef.current) {
           debugWarn('[useLobbySync] initial fetch returned empty after live data; ignoring route fallback');
+        } else {
+          setError('Lobi yüklenemedi: canlı lobi bulunamadı.');
         }
-      })
-      .catch(err => {
+      } catch (err) {
+        if (cancelled) return;
         // Route state is bootstrap-only and must not replace already fetched/subscribed lobby data.
-        if (!latestLobbyRef.current && initPlayers && initPlayers.length > 0) {
+        if (!latestLobbyRef.current && activeLobbyId && initPlayers && initPlayers.length > 0) {
           applyLobbyData(buildRouteFallback(), 'route-state-error-fallback');
         } else if (!latestLobbyRef.current) {
           setError('Lobi yüklenemedi: ' + err.message);
         } else {
           debugWarn('[useLobbySync] initial fetch failed after live data; preserving latest lobby:', err.message);
         }
-      });
-
-    // Realtime subscription — Android Flow'a eşdeğer
-    if (unsubRef.current) unsubRef.current();
-    const unsub = base44.entities.Lobby.subscribe((event) => {
-      const eventType = event?.type || event?.eventType || 'update';
-      const updatedLobby = event?.data || event;
-      const receivedLobbyId = updatedLobby?.id || event?.id;
-      if (receivedLobbyId !== lobbyId) return;
-
-      addGameLog(`SUB event=${eventType} idx=${updatedLobby?.current_player_index} status=${updatedLobby?.status}`);
-      debugLog('[useLobbySync] subscription event:', {
-        subscriptionEventReceived: true,
-        eventType,
-        receivedLobbyId,
-        status: updatedLobby?.status,
-        state_revision: updatedLobby?.state_revision ?? null,
-        playerCount: updatedLobby?.players?.length || 0,
-        current_question_id: updatedLobby?.current_question_id || null,
-        current_player_index: updatedLobby?.current_player_index ?? null,
-        used_question_count: updatedLobby?.used_question_ids?.length || 0,
-        players: summarizePlayers(updatedLobby?.players || []),
-      });
-
-      if (eventType === 'delete') {
-        setLobbyData(null);
-        setError('Lobi kapatıldı.');
-        return;
       }
-      applyLobbyData(updatedLobby, `subscription:${eventType}`);
-    });
-    unsubRef.current = unsub;
 
-    const pollIntervalId = window.setInterval(async () => {
-      try {
-        const fresh = await base44.entities.Lobby.get(lobbyId);
-        if (!fresh) return;
+      if (cancelled || !activeLobbyId) return;
 
-        const previous = latestLobbyRef.current;
-        const freshLobby = normalizeLobbyState(fresh, previous || {});
-        const hasChanged =
-          !previous ||
-          previous.state_revision !== freshLobby.state_revision ||
-          previous.current_player_index !== freshLobby.current_player_index ||
-          previous.current_question_id !== freshLobby.current_question_id ||
-          previous.status !== freshLobby.status ||
-          JSON.stringify(previous.used_question_ids || []) !== JSON.stringify(freshLobby.used_question_ids || []) ||
-          JSON.stringify(summarizePlayers(previous.players || [])) !== JSON.stringify(summarizePlayers(freshLobby.players || []));
+      // Realtime subscription — Android Flow'a eşdeğer
+      if (unsubRef.current) unsubRef.current();
+      const unsub = base44.entities.Lobby.subscribe((event) => {
+        const eventType = event?.type || event?.eventType || 'update';
+        const updatedLobby = event?.data || event;
+        const receivedLobbyId = updatedLobby?.id || event?.id;
+        if (receivedLobbyId !== activeLobbyId) return;
 
-        debugLog('[useLobbySync] poll check:', {
-          lobbyId: freshLobby.id,
-          hasChanged,
-          status: freshLobby.status,
-          state_revision: freshLobby.state_revision ?? 0,
-          current_player_index: freshLobby.current_player_index ?? null,
-          current_question_id: freshLobby.current_question_id || null,
-          used_question_count: freshLobby.used_question_ids?.length || 0,
-          players: summarizePlayers(freshLobby.players || []),
+        addGameLog(`SUB event=${eventType} idx=${updatedLobby?.current_player_index} status=${updatedLobby?.status}`);
+        debugLog('[useLobbySync] subscription event:', {
+          subscriptionEventReceived: true,
+          eventType,
+          receivedLobbyId,
+          status: updatedLobby?.status,
+          state_revision: updatedLobby?.state_revision ?? null,
+          playerCount: updatedLobby?.players?.length || 0,
+          current_question_id: updatedLobby?.current_question_id || null,
+          current_player_index: updatedLobby?.current_player_index ?? null,
+          used_question_count: updatedLobby?.used_question_ids?.length || 0,
+          players: summarizePlayers(updatedLobby?.players || []),
         });
 
-        if (hasChanged) {
-          applyLobbyData(freshLobby, 'poll');
+        if (eventType === 'delete') {
+          setLobbyData(null);
+          setError('Lobi kapatıldı.');
+          return;
         }
-      } catch (err) {
-        debugWarn('[useLobbySync] poll failed:', err.message);
-      }
-    }, 1500);
+        applyLobbyData(updatedLobby, `subscription:${eventType}`);
+      });
+      unsubRef.current = unsub;
+
+      pollIntervalId = window.setInterval(async () => {
+        try {
+          const fresh = await base44.entities.Lobby.get(activeLobbyId);
+          if (!fresh) return;
+
+          const previous = latestLobbyRef.current;
+          const freshLobby = normalizeLobbyState(fresh, previous || {});
+          const hasChanged =
+            !previous ||
+            previous.state_revision !== freshLobby.state_revision ||
+            previous.current_player_index !== freshLobby.current_player_index ||
+            previous.current_question_id !== freshLobby.current_question_id ||
+            previous.status !== freshLobby.status ||
+            JSON.stringify(previous.used_question_ids || []) !== JSON.stringify(freshLobby.used_question_ids || []) ||
+            JSON.stringify(summarizePlayers(previous.players || [])) !== JSON.stringify(summarizePlayers(freshLobby.players || []));
+
+          debugLog('[useLobbySync] poll check:', {
+            lobbyId: freshLobby.id,
+            hasChanged,
+            status: freshLobby.status,
+            state_revision: freshLobby.state_revision ?? 0,
+            current_player_index: freshLobby.current_player_index ?? null,
+            current_question_id: freshLobby.current_question_id || null,
+            used_question_count: freshLobby.used_question_ids?.length || 0,
+            players: summarizePlayers(freshLobby.players || []),
+          });
+
+          if (hasChanged) {
+            applyLobbyData(freshLobby, 'poll');
+          }
+        } catch (err) {
+          debugWarn('[useLobbySync] poll failed:', err.message);
+        }
+      }, 1500);
+    };
+
+    startSync();
 
     return () => {
+      cancelled = true;
       if (unsubRef.current) unsubRef.current();
-      window.clearInterval(pollIntervalId);
+      if (pollIntervalId) window.clearInterval(pollIntervalId);
     };
-  }, [lobbyId, setLobbyData, setWinner, setError]);
+  }, [lobbyId, lobbyCode, setLobbyData, setWinner, setError, onLobbyResolved]);
 
   return { unsubRef };
 }

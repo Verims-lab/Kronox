@@ -5,7 +5,7 @@
  */
 import { useState, useRef, useMemo, useCallback } from 'react';
 
-export function useGameState({ playerNames, initialPlayers, currentQuestionIdFromState, lobbyId }) {
+export function useGameState({ playerNames, initialPlayers, currentQuestionIdFromState, lobbyId, isOnlineMode = false }) {
   const [lobbyData, setLobbyData] = useState(null);
   const [feedback, setFeedback] = useState(null);
   const [winner, setWinner] = useState(null);
@@ -41,7 +41,7 @@ export function useGameState({ playerNames, initialPlayers, currentQuestionIdFro
     [lobbyData?.used_question_ids]
   );
 
-  const isOnline = !!lobbyId;
+  const isOnline = Boolean(isOnlineMode || lobbyId);
 
   const resetGame = useCallback(() => {
     setOverallSeconds(0);
