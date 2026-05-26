@@ -3,6 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { debugLog, debugWarn } from '@/lib/debugLog';
 import { isHost as isLobbyHost, summarizePlayers } from '@/lib/lobbyUtils';
+import { navigateToOnlineGame as navigateToOnlineGameRoute } from '@/lib/onlineGameNavigation';
 
 export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, navigate }) {
   const [startDebug, setStartDebug] = useState({
@@ -80,11 +81,9 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
     debugLog('[WaitingRoom] start debug:', nextDebug);
     setStartDebug(nextDebug);
 
-    navigate('/game', {
-      state: {
-        lobbyId: targetLobbyId,
-        online: true,
-      }
+    navigateToOnlineGameRoute(navigate, nextLobby || lobby, {
+      currentUser: userRef.current,
+      playerName: playerNameRef.current,
     });
   }, [lobby?.id, lobby?.status, navigate]);
 

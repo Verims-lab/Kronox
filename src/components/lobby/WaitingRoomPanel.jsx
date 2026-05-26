@@ -5,6 +5,7 @@ import { base44 } from '@/api/base44Client';
 import StonePanel from '@/components/ui/StonePanel';
 import GoldButton from '@/components/ui/GoldButton';
 import { useWaitingRoomSync } from '@/hooks/useWaitingRoomSync';
+import { navigateToOnlineGame } from '@/lib/onlineGameNavigation';
 import { summarizePlayers } from '@/lib/lobbyUtils';
 import { debugLog, debugWarn } from '@/lib/debugLog';
 
@@ -103,6 +104,7 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
         return;
       }
 
+      const startedLobby = result.lobby || startLobby;
       if (result.lobby) {
         setLobby(result.lobby);
       }
@@ -113,12 +115,13 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
         playersWrittenToLobby: summarizePlayers(result.lobby?.players || []),
       });
 
-      navigate('/game', {
-        state: {
-          lobbyId: startLobby.id,
-          online: true,
-        }
+      const navigated = navigateToOnlineGame(navigate, startedLobby, {
+        currentUser: user,
+        playerName,
       });
+      if (!navigated) {
+        alert('Oyun başlatıldı ancak lobi bilgisi eksik. Lütfen tekrar deneyin.');
+      }
     } catch (err) {
       console.error('[handleStart] authority start failed:', err);
       alert('Oyun başlatılamadı: ' + err.message);

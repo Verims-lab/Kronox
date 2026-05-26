@@ -33,8 +33,12 @@ export default function Game() {
 
   // Route state
   const routeState = useMemo(() => location.state || {}, [location.state]);
-  const lobbyId = routeState.lobbyId ?? null;
-  const isOnlineFromState = routeState.online === true || !!lobbyId;
+  const routeSearch = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const routeLobbyId = routeState.lobbyId ?? routeSearch.get('lobbyId') ?? null;
+  const routeLobbyCode = routeState.lobbyCode ?? routeSearch.get('lobbyCode') ?? null;
+  const [resolvedLobbyId, setResolvedLobbyId] = useState(routeLobbyId);
+  const lobbyId = resolvedLobbyId || routeLobbyId;
+  const isOnlineFromState = routeState.online === true || routeSearch.get('online') === '1' || !!routeLobbyId || !!routeLobbyCode;
   // For non-host online join, playerNames may not be in state — useLobbySync will fetch them
   const playerNames = routeState.playerNames ?? (isOnlineFromState ? [] : null);
   const initialPlayers = routeState.initialPlayers ?? [];
@@ -54,6 +58,10 @@ export default function Game() {
       onlineMode: isOnlineFromState,
     });
   }, [routeState, lobbyId, isOnlineFromState]);
+
+  useEffect(() => {
+    setResolvedLobbyId(routeLobbyId);
+  }, [routeLobbyId]);
 
   // ─── State (ViewModel layer) ─────────────────────────────────────────
   const {
@@ -77,7 +85,7 @@ export default function Game() {
     usedQuestionIds,
     isOnline,
     resetGame,
-  } = useGameState({ playerNames, initialPlayers, currentQuestionIdFromState, lobbyId });
+  } = useGameState({ playerNames, initialPlayers, currentQuestionIdFromState, lobbyId, isOnlineMode: isOnlineFromState });
 
   const winTimerRef = useRef(null);
 
@@ -92,7 +100,16 @@ export default function Game() {
   const { questions: allQuestions, isLoading, isError, isFromCache, retry: refetch } = useOfflineQuestions();
 
   // ─── Lobby sync (Repository layer) ───────────────────────────────
-  useLobbySync({ lobbyId, initialPlayers, currentQuestionIdFromState, setLobbyData, setWinner, setError });
+  useLobbySync({
+    lobbyId: routeLobbyId,
+    lobbyCode: routeLobbyCode,
+    initialPlayers,
+    currentQuestionIdFromState,
+    setLobbyData,
+    setWinner,
+    setError,
+    onLobbyResolved: setResolvedLobbyId,
+  });
 
   // ─── Derived state ─────────────────────────────────────────────────
   const currentQuestion = useMemo(() => {
@@ -100,11 +117,11 @@ export default function Game() {
     return allQuestions.find(q => q.id === lobbyData.current_question_id);
   }, [lobbyData?.current_question_id, allQuestions]);
 
-  const category = lobbyId ? (lobbyData?.category || routeCategory) : routeCategory;
-  const yearStart = lobbyId ? (lobbyData?.year_start ?? routeYearStart) : routeYearStart;
-  const yearEnd = lobbyId ? (lobbyData?.year_end ?? routeYearEnd) : routeYearEnd;
-  const turnDuration = lobbyId ? (lobbyData?.turn_duration ?? routeTurnDuration) : routeTurnDuration;
-  const winCardCount = lobbyId ? (lobbyData?.win_card_count ?? routeWinCardCount) : routeWinCardCount;
+  const category = isOnline ? (lobbyData?.category || routeCategory) : routeCategory;
+  const yearStart = isOnline ? (lobbyData?.year_start ?? routeYearStart) : routeYearStart;
+  const yearEnd = isOnline ? (lobbyData?.year_end ?? routeYearEnd) : routeYearEnd;
+  const turnDuration = isOnline ? (lobbyData?.turn_duration ?? routeTurnDuration) : routeTurnDuration;
+  const winCardCount = isOnline ? (lobbyData?.win_card_count ?? routeWinCardCount) : routeWinCardCount;
 
   const questionPool = useMemo(() => {
     return allQuestions
@@ -226,15 +243,15 @@ export default function Game() {
 
   // Redirect if no player names and not an online game (online games fetch via useLobbySync)
   useEffect(() => {
-    if (!playerNames && !lobbyId) navigate('/');
-  }, [playerNames, lobbyId, navigate]);
+    if (!playerNames && !isOnline) navigate('/');
+  }, [playerNames, isOnline, navigate]);
 
   // Offline: oyun başlatma — lobby yoksa questions gelince init et
   const lobbyDataRef = useRef(null);
   useEffect(() => { lobbyDataRef.current = lobbyData; }, [lobbyData]);
 
   useEffect(() => {
-    if (lobbyId || !playerNames) return;
+    if (isOnline || !playerNames) return;
     if (isLoading || allQuestions.length === 0) return;
     if (lobbyDataRef.current !== null) return;
 
@@ -285,14 +302,14 @@ export default function Game() {
       current_question_id: firstQ.id,
       used_question_ids: [...used]
     });
-  }, [playerNames, questionPool, isLoading, lobbyId, setLobbyData, setError]);
+  }, [playerNames, questionPool, isLoading, isOnline, setLobbyData, setError]);
 
   // Overall timer başlatma
   useEffect(() => {
-    if (!lobbyId && players.length > 0 && currentQuestion != null && !gameStarted) {
+    if (!isOnline && players.length > 0 && currentQuestion != null && !gameStarted) {
       setGameStarted(true);
     }
-  }, [lobbyId, players.length, currentQuestion, gameStarted, setGameStarted]);
+  }, [isOnline, players.length, currentQuestion, gameStarted, setGameStarted]);
 
   // Timer reset on player turn change
   useEffect(() => {
@@ -357,8 +374,8 @@ export default function Game() {
         durationSeconds={winner.durationSeconds}
         winCardCount={winCardCount}
         onRestart={handleRestart}
-        isSinglePlayer={!lobbyId && playerNames?.length === 1}
-        isOnline={Boolean(lobbyId)}
+        isSinglePlayer={!isOnline && playerNames?.length === 1}
+        isOnline={isOnline}
         localPlayerName={myPlayer?.name || myPlayerName}
         localPlayerEmail={localPlayerEmail}
       />
@@ -367,7 +384,15 @@ export default function Game() {
 
   // ─── Render guards ───────────────────────────────────────────────
   // For online games, playerNames may be empty array (non-host joined with just lobbyId)
-  if (!playerNames && !lobbyId) return null;
+  if (!playerNames && !isOnline) return (
+    <div className="min-h-screen flex items-center justify-center bg-background p-6">
+      <div className="text-center space-y-4">
+        <p className="font-inter text-foreground font-semibold">Oyun bilgisi eksik.</p>
+        <p className="font-inter text-sm text-muted-foreground">Lobi bağlantısı bulunamadı. Lobiye geri dönüp tekrar başlat.</p>
+        <Button onClick={() => navigate('/lobby')} variant="outline">Lobiye Dön</Button>
+      </div>
+    </div>
+  );
 
   if (winner) return gameOverView;
 
@@ -404,7 +429,7 @@ export default function Game() {
   );
 
   const availableQuestions = allQuestions.filter(q => q.year >= yearStart && q.year <= yearEnd);
-  if (!lobbyId && allQuestions.length > 0 && availableQuestions.length < 10) return (
+  if (!isOnline && allQuestions.length > 0 && availableQuestions.length < 10) return (
     <div className="min-h-screen flex items-center justify-center bg-background p-6">
       <div className="text-center space-y-4">
         <p className="font-inter text-foreground">
@@ -415,8 +440,20 @@ export default function Game() {
     </div>
   );
 
-  const isGameReady = lobbyId
-    ? players.length > 0 && lobbyData?.current_question_id && allQuestions.length > 0
+  const missingOnlineQuestion = isOnline && !isLoading && allQuestions.length > 0 && lobbyData?.current_question_id && !currentQuestion;
+  if (missingOnlineQuestion) return (
+    <div className="min-h-screen flex items-center justify-center bg-background p-6">
+      <div className="text-center space-y-4">
+        <p className="font-inter text-foreground font-semibold">Oyun sorusu yüklenemedi.</p>
+        <p className="font-inter text-sm text-muted-foreground">Lobi durumu geldi ama aktif soru bulunamadı. Tekrar dene.</p>
+        <Button onClick={() => refetch()} className="w-full">Soruları Yenile</Button>
+        <Button onClick={() => navigate('/lobby')} variant="outline" className="w-full">Lobiye Dön</Button>
+      </div>
+    </div>
+  );
+
+  const isGameReady = isOnline
+    ? players.length > 0 && lobbyData?.current_question_id && currentQuestion != null
     : players.length > 0 && currentQuestion != null;
 
   if (!isGameReady) return (
@@ -424,7 +461,7 @@ export default function Game() {
       <div className="text-center space-y-4">
         <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" />
         <p className="font-inter text-foreground">
-          {allQuestions.length === 0 ? 'Sorular yükleniyor...' : 'Oyun başlatılıyor...'}
+          {!lobbyData && isOnline ? 'Lobi durumu yükleniyor...' : allQuestions.length === 0 ? 'Sorular yükleniyor...' : 'Oyun başlatılıyor...'}
         </p>
         <Button onClick={() => navigate('/')} variant="outline">Geri Dön</Button>
       </div>
@@ -435,7 +472,7 @@ export default function Game() {
   return (
     <>
       <GameDebugLog />
-      {!lobbyId && (
+      {!isOnline && (
         <GameOverTimer active={gameStarted && !winner} onTick={(s) => setOverallSeconds(s)} />
       )}
 
