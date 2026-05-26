@@ -15,6 +15,7 @@ import { NavigationStackProvider } from '@/lib/NavigationStackContext';
 import BuildMarker from '@/components/dev/BuildMarker';
 import AppDiagnostics from '@/components/dev/AppDiagnostics';
 import AppErrorBoundary from '@/components/dev/AppErrorBoundary';
+import GameInviteNotifier from '@/components/invites/GameInviteNotifier';
 import { appDiagSetBuildMarker, pushAppDiag } from '@/lib/appDiagBus';
 import { base44 } from '@/api/base44Client';
 
@@ -166,7 +167,7 @@ const AuthenticatedApp = () => {
 
 
 function App() {
-  // Codex085 — push build marker into diag bus once at app boot
+  // Codex087 — push build marker into diag bus once at app boot
   useEffect(() => {
     appDiagSetBuildMarker('Codex089');
   }, []);
@@ -177,6 +178,7 @@ function App() {
         <Router>
           <NavigationStackProvider>
             <BuildMarker />
+            <GameInviteNotifier />
             <AuthenticatedApp />
           </NavigationStackProvider>
         </Router>

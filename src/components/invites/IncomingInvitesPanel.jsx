@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mailbox, Loader2, Check, X, AlertCircle, Crown } from 'lucide-react';
+import { base44 } from '@/api/base44Client';
 import {
   loadIncomingInvites,
   acceptGameInvite,
@@ -39,6 +40,27 @@ export default function IncomingInvitesPanel({ user, variant = 'fantasy' }) {
   }, [user?.email]);
 
   useEffect(() => { refresh(); }, [refresh]);
+
+  useEffect(() => {
+    if (!user?.email) return undefined;
+    let intervalId = null;
+
+    const unsub = base44.entities.GameInvite.subscribe((event) => {
+      const eventType = event?.type || event?.eventType || 'update';
+      const invite = event?.data || event;
+      if (eventType === 'delete') return;
+      if (String(invite?.to_email || '').toLowerCase() === String(user.email || '').toLowerCase()) {
+        refresh();
+      }
+    });
+
+    intervalId = window.setInterval(refresh, 20000);
+
+    return () => {
+      if (typeof unsub === 'function') unsub();
+      if (intervalId) window.clearInterval(intervalId);
+    };
+  }, [refresh, user?.email]);
 
   const handleAccept = async (invite) => {
     if (busyId) return;

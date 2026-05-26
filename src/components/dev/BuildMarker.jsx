@@ -1,6 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex086 — Gate diagnostics overlays strictly to ?diag=1 / localStorage.
+// Codex087 — Online invite notification support. Adds user-controlled
+// Settings opt-in, Web Push subscription storage, a service worker push/click
+// handler, app-open invite toasts, and a best-effort sendGameInvitePush backend
+// path. Push delivery is intentionally gated by VAPID environment secrets and
+// real device/PWA support; invite creation and in-app invites continue even if
+// push is unsupported or fails.
+//
+// Previous note (Codex086 — Gate diagnostics overlays strictly to ?diag=1 / localStorage):
 // Codex085 left role==='admin' as an auto-enable, which kept the overlay
 // permanently visible for admins and blocked gameplay. The host black
 // screen is confirmed fixed (host screenshot showed renderStage=ready with
@@ -40,6 +47,8 @@ export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
 const _CODEX086_NOTE = 'Codex086: overlays opt-in only via ?diag=1 / localStorage';
+// eslint-disable-next-line no-unused-vars
+const _CODEX087_NOTE = 'Codex087: invite notifications are opt-in and best-effort';
 
 export default function BuildMarker() {
   const [visible, setVisible] = useState(true);
