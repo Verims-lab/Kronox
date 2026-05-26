@@ -24,6 +24,36 @@ const summarizePlayers = (players: any[] = []) =>
     cardCount: Array.isArray(player?.cards) ? player.cards.length : 0,
   }));
 
+// Codex091 — Online category multi-select wiring.
+// Selected stable ids come from lib/onlineCategories.js (UI surface):
+//   flashback, kult, viral, arena, level_up, chronicle
+// The Question entity currently stores LEGACY category ids:
+//   tarih, bilim, spor, sanat, teknoloji, genel, muzik
+// Until a content migration maps Online ids onto Question.category values,
+// we apply a safe pragmatic mapping so multi-select is observable in the
+// question pool. Unknown ids contribute no filter (treated as broad).
+const ONLINE_TO_LEGACY_CATEGORY_MAP: Record<string, string[]> = {
+  flashback: ['tarih', 'genel'],
+  kult: ['sanat', 'genel'],
+  viral: ['teknoloji', 'genel'],
+  arena: ['spor'],
+  level_up: ['teknoloji', 'genel'],
+  chronicle: ['tarih', 'genel'],
+};
+
+const resolveLegacyCategoriesFromSelectedIds = (selectedIds: any): string[] | null => {
+  if (!Array.isArray(selectedIds) || selectedIds.length === 0) return null;
+  const allowed = new Set<string>();
+  for (const id of selectedIds) {
+    if (typeof id !== 'string') continue;
+    const mapped = ONLINE_TO_LEGACY_CATEGORY_MAP[id];
+    if (Array.isArray(mapped)) {
+      for (const legacy of mapped) allowed.add(legacy);
+    }
+  }
+  return allowed.size > 0 ? Array.from(allowed) : null;
+};
+
 const normalizeSettings = (lobby: any, incoming: any = {}) => {
   const currentYear = new Date().getFullYear();
   const category = typeof incoming.category === 'string'
@@ -35,8 +65,18 @@ const normalizeSettings = (lobby: any, incoming: any = {}) => {
   const turnDuration = Math.max(10, Math.trunc(readNumber(incoming.turn_duration, lobby.turn_duration ?? 60)));
   const winCardCount = Math.max(1, Math.trunc(readNumber(incoming.win_card_count, lobby.win_card_count ?? 10)));
 
+  // Codex091 — prefer the Online multi-select selected_category_ids over the
+  // legacy single-`category` field. Fallback chain:
+  //   1. incoming.selected_category_ids (if host changed in waiting room)
+  //   2. lobby.selected_category_ids (persisted at create time)
+  //   3. lobby.category (legacy single-category — old lobbies keep working)
+  const selectedCategoryIds = Array.isArray(incoming.selected_category_ids)
+    ? incoming.selected_category_ids
+    : (Array.isArray(lobby.selected_category_ids) ? lobby.selected_category_ids : []);
+
   return {
     category,
+    selected_category_ids: selectedCategoryIds,
     year_start: Math.max(0, yearStart),
     year_end: yearEnd,
     turn_duration: turnDuration,
@@ -44,11 +84,23 @@ const normalizeSettings = (lobby: any, incoming: any = {}) => {
   };
 };
 
-const filterQuestionsForLobbySettings = (questions: any[] = [], settings: any = {}) =>
-  (questions || [])
+const filterQuestionsForLobbySettings = (questions: any[] = [], settings: any = {}) => {
+  const baseFiltered = (questions || [])
     .filter(q => q?.type === 'metin')
-    .filter(q => Number(q?.year) >= settings.year_start && Number(q?.year) <= settings.year_end)
-    .filter(q => settings.category === 'karisik' || q?.category === settings.category);
+    .filter(q => Number(q?.year) >= settings.year_start && Number(q?.year) <= settings.year_end);
+
+  // Codex091 — multi-select path. ONLINE_CATEGORY_IDS chosen by the host
+  // map onto the legacy Question.category enum until content migration.
+  const legacyAllowed = resolveLegacyCategoriesFromSelectedIds(settings.selected_category_ids);
+  if (legacyAllowed && legacyAllowed.length > 0) {
+    const allowSet = new Set(legacyAllowed);
+    return baseFiltered.filter(q => allowSet.has(q?.category));
+  }
+
+  // Fallback — legacy single-category path (old lobbies without
+  // selected_category_ids continue to work unchanged).
+  return baseFiltered.filter(q => settings.category === 'karisik' || q?.category === settings.category);
+};
 
 const shuffleQuestions = (questions: any[] = []) => {
   const shuffled = [...questions];

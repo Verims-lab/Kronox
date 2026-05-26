@@ -1077,18 +1077,18 @@ export const EXTRA_TESTS = [
     `${friendsApiSource}\n${appSource}`,
     ["base44.functions.invoke('sendFriendRequestEmail'", 'appUrl: origin', "URLSearchParams(location.search).get('next')"],
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
-  makeCase('historical_kronox_regression', 'build_marker_bumped_beyond_codex089',
-    'Build marker is bumped beyond Codex089 (deploy-version visibility for the Codex090 Health refresh)', () => {
+  makeCase('historical_kronox_regression', 'build_marker_bumped_beyond_codex090',
+    'Build marker is bumped beyond Codex090 (deploy-version visibility for the Codex091 email-failure + category-handoff fix phase)', () => {
       const match = String(buildMarkerSource || '').match(/BUILD_MARKER\s*=\s*'([^']+)'/);
       const value = match?.[1] || '';
       const codexMatch = value.match(/^Codex(\d+)$/);
       const num = codexMatch ? parseInt(codexMatch[1], 10) : NaN;
-      if (!Number.isFinite(num) || num <= 89) {
-        return fail('Build marker has not been bumped beyond Codex089.', {
+      if (!Number.isFinite(num) || num <= 90) {
+        return fail('Build marker has not been bumped beyond Codex090.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'components/dev/BuildMarker.jsx',
-          expected: 'CodexN where N > 89',
+          expected: 'CodexN where N > 90',
           actual: value || '(unreadable)',
         });
       }
@@ -2104,18 +2104,18 @@ export const EXTRA_TESTS = [
     }, { actionType: ACTION_TYPES.CODE_FIX }),
   makeCase('online_category_taxonomy', 'selected_category_ids_forwarded_to_lobby',
     'Selected Online category ids are forwarded into lobby creation/question filtering contract', () => {
+      // Codex091 — assert end-to-end multi-select handoff:
+      //   landing -> panel -> CreateLobbyInvitePanel.onCreate ->
+      //   LobbyRoom.handleCreate -> lobbyPayload.selected_category_ids ->
+      //   startLobbyGame consumes for question filtering.
       const selectedExists = lobbyCreateJoinPanelSource.includes('selectedCategories');
       const createReceivesSelection =
-        lobbyCreateJoinPanelSource.includes('onCreate(selectedCategories') ||
-        lobbyCreateJoinPanelSource.includes('onCreate({ selectedCategories') ||
-        lobbyCreateJoinPanelSource.includes('onCreate?.(selectedCategories');
-      const lobbyStoresSelection =
-        lobbyRoomSource.includes('selected_category_ids') ||
-        lobbyRoomSource.includes('category_ids') ||
-        lobbyRoomSource.includes('selectedCategories');
+        createLobbyInvitePanelSource.includes('selectedCategories: Array.isArray(selectedCategories)') ||
+        lobbyCreateJoinPanelSource.includes('onCreate(selectedCategories');
+      const lobbyStoresSelection = lobbyRoomSource.includes('lobbyPayload.selected_category_ids');
       const filterConsumesSelection =
         onlineCategoriesSource.includes('ONLINE_CATEGORY_IDS') &&
-        (lobbyRoomSource.includes('selected_category_ids') || lobbyRoomSource.includes('category_ids'));
+        lobbyRoomSource.includes('selected_category_ids');
 
       if (selectedExists && (!createReceivesSelection || !lobbyStoresSelection || !filterConsumesSelection)) {
         return fail('Online category multi-select exists visually, but selected ids are not wired through lobby creation/question filtering.', {

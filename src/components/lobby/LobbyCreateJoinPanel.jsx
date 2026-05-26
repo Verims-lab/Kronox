@@ -60,10 +60,22 @@ export default function LobbyCreateJoinPanel({
   user,
   onGoFriends,
 }) {
+  // Codex091 — selected category ids must survive the landing → create
+  // panel transition so they reach handleCreate in LobbyRoom and the
+  // server-side question filter in startLobbyGame.
+  const [pendingSelectedCategories, setPendingSelectedCategories] = useState(
+    DEFAULT_SELECTED_CATEGORIES,
+  );
+
   if (!mode) {
     return (
       <OnlineChallengeLanding
-        onCreate={() => setMode('create')}
+        onCreate={(selectedIds) => {
+          if (Array.isArray(selectedIds) && selectedIds.length > 0) {
+            setPendingSelectedCategories(selectedIds);
+          }
+          setMode('create');
+        }}
         onJoin={() => setMode('join')}
         onBackHome={onBackHome}
       />
@@ -77,6 +89,7 @@ export default function LobbyCreateJoinPanel({
         user={user}
         loading={loading}
         error={error}
+        selectedCategories={pendingSelectedCategories}
         onCreate={onCreate}
         onBackMode={onBackMode || (() => setMode(null))}
         onGoFriends={onGoFriends}
@@ -334,7 +347,10 @@ function OnlineChallengeLanding({ onCreate, onJoin, onBackHome }) {
 
   const startChallenge = () => {
     sounds.tap();
-    onCreate();
+    // Codex091 — forward the selected ids upward. The parent panel keeps
+    // them in state and re-injects them into the CreateLobbyInvitePanel
+    // and ultimately into handleCreate({ selectedCategories }).
+    onCreate(selectedCategories);
   };
 
   const joinOpenLobby = () => {

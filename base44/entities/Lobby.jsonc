@@ -78,7 +78,15 @@
         "spor",
         "sanat"
       ],
-      "default": "karisik"
+      "default": "karisik",
+      "description": "Legacy single-category field. Kept for backward compatibility with old lobbies. New lobbies should prefer selected_category_ids (Codex091)."
+    },
+    "selected_category_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Codex091 \u2014 stable Online category ids selected by the host (flashback, kult, viral, arena, level_up, chronicle). When present and non-empty, startLobbyGame uses these to filter the question pool. When absent or empty, startLobbyGame falls back to the legacy `category` field (old lobbies keep working)."
     },
     "year_start": {
       "type": "number",
@@ -116,14 +124,14 @@
     },
     "max_players": {
       "type": "number",
-      "description": "Intended total number of players for this lobby (2, 3 or 4). Informational metadata; multiplayer authority logic is not gated by this field yet."
+      "description": "Intended total number of players for this lobby (2, 3 or 4). Informational metadata."
     },
     "invited_emails": {
       "type": "array",
       "items": {
         "type": "string"
       },
-      "description": "Lowercased emails of friends invited by the host at creation time. Informational only \u2014 actual invite delivery is not yet wired."
+      "description": "Lowercased emails of friends invited by the host at creation time."
     }
   },
   "required": [
