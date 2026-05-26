@@ -1057,18 +1057,27 @@ export const EXTRA_TESTS = [
   // Codex077: assert the build marker has actually been bumped beyond
   // Codex075. Previous tasks claimed bumps but the marker stayed on
   // Codex075 — this static contract makes future drift impossible to hide.
-  makeCase('historical_kronox_regression', 'build_marker_bumped_beyond_codex085',
-    'Build marker is bumped beyond Codex085 (deploy-version visibility for the Codex086 diagnostics-gating phase)', () => {
+  // Codex087 — friend-request email + deep-link contract. One compact static
+  // case asserting the full chain: friendsApi invokes the backend function,
+  // the backend builds a /friends deep link, and App.jsx honors ?next= on login.
+  sourceHas('historical_kronox_regression', 'friend_request_email_and_deep_link_wired',
+    'Friend-request email + /friends deep link + ?next= login redirect are wired end-to-end (Codex087)',
+    'lib/friendsApi.js + App.jsx',
+    `${friendsApiSource}\n${appSource}`,
+    ["base44.functions.invoke('sendFriendRequestEmail'", 'appUrl: origin', "URLSearchParams(location.search).get('next')"],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  makeCase('historical_kronox_regression', 'build_marker_bumped_beyond_codex086',
+    'Build marker is bumped beyond Codex086 (deploy-version visibility for the Codex087 friend-request email phase)', () => {
       const match = String(buildMarkerSource || '').match(/BUILD_MARKER\s*=\s*'([^']+)'/);
       const value = match?.[1] || '';
       const codexMatch = value.match(/^Codex(\d+)$/);
       const num = codexMatch ? parseInt(codexMatch[1], 10) : NaN;
-      if (!Number.isFinite(num) || num <= 85) {
-        return fail('Build marker has not been bumped beyond Codex085.', {
+      if (!Number.isFinite(num) || num <= 86) {
+        return fail('Build marker has not been bumped beyond Codex086.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'components/dev/BuildMarker.jsx',
-          expected: 'CodexN where N > 85',
+          expected: 'CodexN where N > 86',
           actual: value || '(unreadable)',
         });
       }

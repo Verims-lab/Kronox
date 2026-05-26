@@ -1,0 +1,105 @@
+// Codex087 — Friend request email notification.
+//
+// Security model:
+//  - Authenticated user only (must be the sender).
+//  - The function verifies that an actual pending FriendRequest exists from
+//    the authenticated user to the provided `toEmail`. This prevents using
+//    this endpoint as an open email spammer.
+//  - `appUrl` is sanitized to https://... and used to build a single safe
+//    deep link to /friends (the Friends inbox surface). No raw user input
+//    is rendered into the email body.
+//  - Email is sent via the built-in Base44 SendEmail integration. If it
+//    fails, we return ok:false with a short reason — the client treats
+//    this as a soft warning and does NOT roll back the FriendRequest.
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+
+const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
+
+function json(payload, status = 200) {
+  return Response.json(payload, { status });
+}
+
+function sanitizeAppUrl(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return null;
+  try {
+    const u = new URL(s);
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return null;
+    // Strip query/hash — we control the deep link ourselves.
+    u.search = '';
+    u.hash = '';
+    // Strip trailing slash for clean concatenation.
+    return u.toString().replace(/\/$/, '');
+  } catch {
+    return null;
+  }
+}
+
+function escapeText(s) {
+  // Plain-text email body; just defang any control characters.
+  return String(s || '').replace(/[\u0000-\u001F\u007F]/g, '').slice(0, 200);
+}
+
+Deno.serve(async (req) => {
+  try {
+    const base44 = createClientFromRequest(req);
+    const user = await base44.auth.me();
+    if (!user) return json({ ok: false, error: 'Unauthorized' }, 401);
+
+    const body = await req.json().catch(() => ({}));
+    const toEmail = normalizeEmail(body?.toEmail);
+    const fromEmail = normalizeEmail(user.email);
+    const senderName = escapeText(user.full_name || fromEmail.split('@')[0] || 'Bir oyuncu');
+    const appUrl = sanitizeAppUrl(body?.appUrl) || 'https://kronox.base44.app';
+
+    if (!toEmail) return json({ ok: false, error: 'toEmail required' }, 400);
+    if (toEmail === fromEmail) return json({ ok: false, error: 'Cannot email self' }, 400);
+
+    // Spam-prevention: only allow this email if an actual pending request
+    // from the caller to toEmail exists. The client just created it, so
+    // this check should pass for legitimate flows.
+    let pending = [];
+    try {
+      pending = await base44.asServiceRole.entities.FriendRequest.filter({
+        from_email: fromEmail,
+        to_email: toEmail,
+        status: 'pending',
+      }, '-created_date', 1);
+    } catch (_e) {
+      pending = [];
+    }
+    if (!pending || pending.length === 0) {
+      return json({ ok: false, error: 'No matching pending friend request' }, 404);
+    }
+
+    const deepLink = `${appUrl}/friends`;
+    const subject = 'Kronox arkadaşlık isteğin var';
+    const bodyText = [
+      `${senderName} sana Kronox'ta arkadaşlık isteği gönderdi.`,
+      '',
+      'Kabul etmek için Kronox\'u aç:',
+      deepLink,
+      '',
+      'Uygulama yüklü değilse bu bağlantıdan Kronox\'u web üzerinden açabilir veya ana ekrana ekleyebilirsin.',
+    ].join('\n');
+
+    try {
+      await base44.integrations.Core.SendEmail({
+        from_name: 'Kronox',
+        to: toEmail,
+        subject,
+        body: bodyText,
+      });
+    } catch (mailErr) {
+      const reason = mailErr instanceof Error ? mailErr.message : 'send failed';
+      console.error('[sendFriendRequestEmail] SendEmail failed:', reason);
+      return json({ ok: false, error: 'email_failed', reason }, 502);
+    }
+
+    return json({ ok: true, deepLink });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[sendFriendRequestEmail] failed:', message);
+    return json({ ok: false, error: message }, 500);
+  }
+});

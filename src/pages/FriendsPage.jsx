@@ -71,8 +71,17 @@ export default function FriendsPage() {
 
   /* ---- mutation handlers — always refetch after success ---- */
   const handleSend = async (toEmail) => {
-    await sendFriendRequest({ me: user, toEmail });
+    // Codex087 — sendFriendRequest may resolve with {emailSent:false} when
+    // the FriendRequest was created but the email notification failed.
+    // We must not throw in that case (the request itself succeeded), but
+    // we should surface a soft warning so the sender knows.
+    const result = await sendFriendRequest({ me: user, toEmail });
     await refresh(user.email);
+    if (result && result.emailSent === false) {
+      setSuccessMsg('Arkadaşlık isteği gönderildi, ancak e-posta bildirimi gönderilemedi.');
+      window.setTimeout(() => setSuccessMsg(''), 3200);
+    }
+    return result;
   };
   const handleAccept = async (req) => {
     // Codex080: acceptIncomingRequest accepts either id or full row object.

@@ -118,6 +118,27 @@ export async function sendFriendRequest({ me, toEmail }) {
     to_email: target,
     status: 'pending',
   });
+
+  // Codex087 — fire-and-forget email notification. Never blocks or rolls
+  // back the FriendRequest. UI may surface a soft warning if this throws.
+  try {
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const res = await base44.functions.invoke('sendFriendRequestEmail', {
+      toEmail: target,
+      appUrl: origin,
+    });
+    if (!res?.data?.ok) {
+      const reason = res?.data?.error || 'unknown';
+      console.warn('[friendsApi] friend-request email not delivered:', reason);
+      // Communicate soft failure to the caller without throwing — caller
+      // can choose to surface a non-blocking warning.
+      return { ok: true, emailSent: false, emailError: reason };
+    }
+    return { ok: true, emailSent: true };
+  } catch (err) {
+    console.warn('[friendsApi] sendFriendRequestEmail invoke failed:', err?.message || err);
+    return { ok: true, emailSent: false, emailError: 'invoke_failed' };
+  }
 }
 
 export async function rejectIncomingRequest(requestId) {
