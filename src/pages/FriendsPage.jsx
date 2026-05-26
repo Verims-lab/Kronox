@@ -18,6 +18,7 @@ import IncomingRequestItem from '@/components/friends/IncomingRequestItem';
 import OutgoingRequestItem from '@/components/friends/OutgoingRequestItem';
 import AddFriendForm from '@/components/friends/AddFriendForm';
 import IncomingInvitesPanel from '@/components/invites/IncomingInvitesPanel';
+import useFriendsRealtimeRefresh from '@/hooks/useFriendsRealtimeRefresh';
 
 /**
  * Profile > Arkadaşlarım — Friends MVP.
@@ -68,6 +69,15 @@ export default function FriendsPage() {
     if (authChecked && user?.email) refresh(user.email);
     if (authChecked && !user) setLoading(false);
   }, [authChecked, user, refresh]);
+
+  // Codex088 — Realtime refresh so the sender's UI updates when the
+  // recipient accepts on another device. Combines FriendRequest entity
+  // subscription + visibility/focus reload + light polling fallback.
+  useFriendsRealtimeRefresh({
+    enabled: authChecked && !!user?.email,
+    myEmail: user?.email,
+    refresh,
+  });
 
   /* ---- mutation handlers — always refetch after success ---- */
   const handleSend = async (toEmail) => {
