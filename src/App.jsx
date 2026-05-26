@@ -167,9 +167,9 @@ const AuthenticatedApp = () => {
 
 
 function App() {
-  // Codex087 — push build marker into diag bus once at app boot
+  // Codex090 — push build marker into diag bus once at app boot
   useEffect(() => {
-    appDiagSetBuildMarker('Codex089');
+    appDiagSetBuildMarker('Codex090');
   }, []);
 
   return (

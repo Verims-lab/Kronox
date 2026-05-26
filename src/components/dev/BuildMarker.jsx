@@ -1,6 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex087 — Online invite notification support. Adds user-controlled
+// Codex090 — Health Simulator refresh for recent Online/Friends/Notification/
+// Email/Category work. Adds higher-signal release-risk contracts around
+// friend-request email/deep links, invite push readiness, category handoff,
+// and SRE-style report/proof grouping. Simulator honesty is preserved:
+// static checks remain static, real device/backend proof remains visible,
+// and scoring is not weakened.
+//
+// Previous note (Codex087 — Online invite notification support). Adds user-controlled
 // Settings opt-in, Web Push subscription storage, a service worker push/click
 // handler, app-open invite toasts, and a best-effort sendGameInvitePush backend
 // path. Push delivery is intentionally gated by VAPID environment secrets and
@@ -42,7 +49,7 @@ import React, { useEffect, useState } from 'react';
 //      gameMounted, gameRenderStage, lastError + a derived blackScreenReason.
 // updateLobbyGameState authority logic, Timeline, QuestionCard, placement,
 // Friends, RLS, and visual assets are untouched.
-const BUILD_MARKER = 'Codex089';
+const BUILD_MARKER = 'Codex090';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

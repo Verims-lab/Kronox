@@ -44,15 +44,11 @@ import onlineGameStartSource from '../../lib/onlineGameStart.js?raw';
 import onlineGameNavigationSource from '../../lib/onlineGameNavigation.js?raw';
 import {
   getNextPlayerIndex,
-  getQuestionSelectionPool,
-  getTimelineYears,
-  hasDuplicateTimelineYear,
   hasPlayerWon,
   isCorrectPlacement,
   selectNextQuestion,
 } from '../../lib/gameRules';
-import { buildPlayerPayload, normalizeCode, removePlayerByIdentity, summarizePlayers } from '../../lib/lobbyUtils';
-import { buildInitialOnlineGameState, filterQuestionsForLobbySettings } from '../../lib/onlineGameStart';
+import { normalizeCode, removePlayerByIdentity, summarizePlayers } from '../../lib/lobbyUtils';
 import {
   ACTION_TYPES,
   EXTRA_SUITES,
@@ -461,15 +457,112 @@ function buildReleaseReadyChecklist(cases) {
   ];
 }
 
+const PROOF_ACTION_TYPES = [
+  ACTION_TYPES.DEVICE_TEST,
+  ACTION_TYPES.TWO_ACCOUNT_TEST,
+  ACTION_TYPES.BACKEND_RUNTIME_PROBE,
+  ACTION_TYPES.HUMAN_VISUAL_REVIEW,
+  ACTION_TYPES.CI_ENVIRONMENT,
+];
+
+function buildRuntimeProofNeededByActionType(cases) {
+  return PROOF_ACTION_TYPES.map(actionType => {
+    const items = cases.filter(item =>
+      item.actionType === actionType &&
+      item.status !== STATUS.PASS &&
+      (
+        item.runtimeProofRequired ||
+        [STATUS.WARNING, STATUS.BLOCKED, STATUS.NOT_AUTOMATABLE, STATUS.ERROR, STATUS.FAIL].includes(item.status) ||
+        item.verificationLabels?.some(label => ['MANUAL_REQUIRED', 'EXTERNAL_DEVICE_REQUIRED', 'TWO_ACCOUNT_REQUIRED', 'BACKEND_RUNTIME_PROBE', 'HUMAN_VISUAL_REVIEW', 'STATIC_CHECK_LIMITATION'].includes(label))
+      ),
+    );
+    return {
+      actionType,
+      count: items.length,
+      criticalCount: items.filter(item => item.critical).length,
+      examples: items.slice(0, 3).map(item => ({
+        key: item.key,
+        name: item.name,
+        status: item.status,
+        nextStep: item.nextStep,
+      })),
+    };
+  }).filter(group => group.count > 0);
+}
+
+function buildRecentlyChangedAreas(cases) {
+  const areas = [
+    { id: 'online_start', label: 'Online start / host black-screen recovery', pattern: /host_start|online_start|waiting_room|route_bootstrap|diagnostic|black_screen/i },
+    { id: 'friends', label: 'Friends normalized model / realtime refresh', pattern: /friend|FriendRequest|reciprocal|accepted/i },
+    { id: 'email', label: 'Friend-request email / deep link', pattern: /email|deep_link|sendFriendRequestEmail|next_redirect/i },
+    { id: 'push', label: 'Game invite push notifications', pattern: /push|notification|service_worker|vapid|subscription/i },
+    { id: 'categories', label: 'Online category taxonomy', pattern: /category|taxonomy|selected_category/i },
+    { id: 'reporting', label: 'Health report UX / release proof', pattern: /report|sre|proof|score|checklist/i },
+  ];
+
+  return areas.map(area => {
+    const matches = cases.filter(item =>
+      item.recentlyFixed ||
+      area.pattern.test(`${item.suiteId} ${item.id} ${item.name}`),
+    ).filter(item => area.pattern.test(`${item.suiteId} ${item.id} ${item.name}`));
+
+    return {
+      ...area,
+      caseCount: matches.length,
+      failingOrUnknown: matches.filter(item => item.status !== STATUS.PASS).length,
+      examples: matches.slice(0, 3).map(item => ({ key: item.key, status: item.status, name: item.name })),
+    };
+  }).filter(area => area.caseCount > 0);
+}
+
+function buildSreSignals(cases, suiteSummary, environment, totalDurationMs) {
+  const problemCases = cases.filter(item => item.status !== STATUS.PASS);
+  const runtimeErrorRisks = problemCases.filter(item =>
+    [STATUS.FAIL, STATUS.ERROR].includes(item.status) ||
+    /500|crash|error|failed|black screen|permission|unauthorized/i.test(`${item.name} ${item.reason || ''}`),
+  );
+  const recoverabilityCases = cases.filter(item =>
+    /retry|recover|fallback|refetch|failure|error boundary|bootstrap|email failure|push failure|Tekrar Dene/i.test(`${item.id} ${item.name} ${item.reason || ''}`),
+  );
+
+  return {
+    errors: {
+      fail: cases.filter(item => item.status === STATUS.FAIL).length,
+      error: cases.filter(item => item.status === STATUS.ERROR).length,
+      topRuntimeErrorRisks: runtimeErrorRisks.slice(0, 5).map(item => ({ key: item.key, status: item.status, name: item.name, actionType: item.actionType })),
+    },
+    latency: {
+      totalDurationMs,
+      slowSuites: suiteSummary
+        .filter(suite => suite.durationMs > 250)
+        .sort((a, b) => b.durationMs - a.durationMs)
+        .slice(0, 5)
+        .map(suite => ({ id: suite.id, name: suite.name, durationMs: suite.durationMs })),
+    },
+    saturation: {
+      totalCases: cases.length,
+      totalSuites: suiteSummary.length,
+      memory: environment.memory,
+      note: 'Local browser memory is only available when performance.memory exists.',
+    },
+    recoverability: {
+      namedRecoveryContracts: recoverabilityCases.length,
+      examples: recoverabilityCases.slice(0, 6).map(item => ({ key: item.key, status: item.status, name: item.name })),
+    },
+  };
+}
+
 function buildReport(caseResults, meta = createRunMeta(), environment = captureEnvironment()) {
   const cases = caseResults.map(item => normalizeCaseResult({ ...item }));
   const counts = Object.values(STATUS).reduce((acc, status) => ({ ...acc, [status]: 0 }), {});
   cases.forEach(item => { counts[item.status] = (counts[item.status] || 0) + 1; });
+  const totalDurationMs = Math.round(cases.reduce((sum, item) => sum + (item.durationMs || 0), 0));
 
   const suiteSummary = SUITES.map(suite => {
     const suiteCases = cases.filter(item => item.suiteId === suite.id);
     const suiteCounts = Object.values(STATUS).reduce((acc, status) => ({ ...acc, [status]: suiteCases.filter(item => item.status === status).length }), {});
-    return { id: suite.id, name: suite.name, critical: suite.critical, total: suiteCases.length, counts: suiteCounts };
+    const durationMs = Math.round(suiteCases.reduce((sum, item) => sum + (item.durationMs || 0), 0));
+    return { id: suite.id, name: suite.name, critical: suite.critical, total: suiteCases.length, counts: suiteCounts, durationMs };
   });
 
   const penalty = cases.reduce((sum, item) => {
@@ -500,12 +593,16 @@ function buildReport(caseResults, meta = createRunMeta(), environment = captureE
     });
 
   const topBlockers = problemCases.filter(item => [STATUS.FAIL, STATUS.ERROR, STATUS.BLOCKED, STATUS.NOT_AUTOMATABLE].includes(item.status)).slice(0, 8);
+  const currentCriticalFailures = problemCases.filter(item => item.critical && [STATUS.FAIL, STATUS.ERROR].includes(item.status));
   const manualVerificationNeeded = problemCases.filter(item =>
     item.verificationLabels?.some(label => ['MANUAL_REQUIRED', 'EXTERNAL_DEVICE_REQUIRED', 'TWO_ACCOUNT_REQUIRED', 'NOT_AUTOMATABLE'].includes(label)) ||
     [STATUS.BLOCKED, STATUS.NOT_AUTOMATABLE].includes(item.status),
   );
   const knownNonAutomatableCriticalRisks = cases.filter(item => item.critical && item.status === STATUS.NOT_AUTOMATABLE);
   const recentlyFixedRegressions = cases.filter(item => item.recentlyFixed);
+  const runtimeProofNeededByActionType = buildRuntimeProofNeededByActionType(cases);
+  const recentlyChangedAreas = buildRecentlyChangedAreas(cases);
+  const sreSignals = buildSreSignals(cases, suiteSummary, environment, totalDurationMs);
   const scoreExplanation = buildScoreExplanation({
     counts,
     penalty,
@@ -530,7 +627,7 @@ function buildReport(caseResults, meta = createRunMeta(), environment = captureE
     suiteSummary,
     counts,
     totalCases: cases.length,
-    totalDurationMs: Math.round(cases.reduce((sum, item) => sum + (item.durationMs || 0), 0)),
+    totalDurationMs,
     score: { value: score, rating, explanation: scoreExplanation },
     scorePenaltyBreakdown: {
       casePenalty: penalty,
@@ -540,12 +637,16 @@ function buildReport(caseResults, meta = createRunMeta(), environment = captureE
       staticLimitationPenalty,
     },
     topBlockers,
+    currentCriticalFailures,
     topRegressions: problemCases.filter(item => [STATUS.FAIL, STATUS.ERROR].includes(item.status)).slice(0, 5),
     recommendedNextActions: recommendedActions(problemCases),
     releaseReadyChecklist: buildReleaseReadyChecklist(cases),
     manualVerificationNeeded,
+    runtimeProofNeededByActionType,
     knownNonAutomatableCriticalRisks,
     recentlyFixedRegressions,
+    recentlyChangedAreas,
+    sreSignals,
     cases,
   };
 }
@@ -566,6 +667,10 @@ function recommendedActions(problemCases) {
   if (problemCases.some(item => item.suiteId === 'invite_contract_drift')) actions.push('Resolve invite behavior/comment drift and verify pending-recipient filters with a two-account backend probe.');
   if (problemCases.some(item => item.suiteId === 'visual_composition_regression' || item.suiteId === 'kronox_game_feel')) actions.push('Capture mobile screenshots and review tactile fantasy presentation, duplicate headers, asset paths, and CTA readability.');
   if (problemCases.some(item => item.suiteId === 'route_navigation_resilience')) actions.push('Run direct URL and back-navigation smoke tests for /settings, /profile, /friends, /lobby, /game, and /test-suite.');
+  if (problemCases.some(item => item.suiteId === 'friend_request_email_deep_link')) actions.push('Verify FriendRequest email delivery with a real recipient inbox and confirm the /friends deep link survives login.');
+  if (problemCases.some(item => item.suiteId === 'game_invite_push_notifications')) actions.push('Run push-notification proof on a subscribed device with VAPID configured; keep in-app invites working if push fails.');
+  if (problemCases.some(item => item.suiteId === 'online_category_taxonomy')) actions.push('Confirm Online category selection actually changes lobby/question filtering, not only the visual selected state.');
+  if (problemCases.some(item => item.suiteId === 'sre_release_health_signals')) actions.push('Use the report as release-risk intelligence only; production latency/error/saturation need deployed telemetry.');
   if (problemCases.some(item => item.status === STATUS.NOT_AUTOMATABLE)) actions.push('Treat non-automatable critical cases as release risk until covered by device/backend tests.');
   if (problemCases.some(item => item.suiteId === 'debug_hygiene' || item.suiteId === 'admin_visibility')) actions.push('Confirm debug/test surfaces and admin tooling are gated outside gameplay and Profile for normal users.');
   return actions.length ? actions : ['No major simulator blockers detected; still run the required two-device multiplayer smoke test plus a two-account invite/RLS probe.'];
@@ -1324,6 +1429,51 @@ function ReportPanel({ report, copyJson, copySummary, downloadJson, copyState })
           Does NOT alter scoring, statuses, or case counts. */}
       <ReleaseReadinessExplainer report={report} />
 
+      <div className="mt-4 grid gap-3 lg:grid-cols-3">
+        <ReportBox title="Current Critical FAIL">
+          {report.currentCriticalFailures?.length ? (
+            <ul className="space-y-2 text-xs text-white/70">
+              {report.currentCriticalFailures.slice(0, 4).map(item => (
+                <li key={`${item.key}-critical-fail`} className="rounded border border-rose-400/25 bg-rose-400/10 p-2">
+                  <span className="font-semibold text-rose-100">{item.name}</span>
+                  <span className="block text-rose-100/65">{item.suiteName}</span>
+                  {item.nextStep && <span className="mt-1 block text-[11px] text-cyan-100/75">Next: {item.nextStep}</span>}
+                </li>
+              ))}
+            </ul>
+          ) : <p className="text-xs text-white/55">None</p>}
+        </ReportBox>
+
+        <ReportBox title="Runtime Proof Needed">
+          {report.runtimeProofNeededByActionType?.length ? (
+            <ul className="space-y-2 text-xs text-white/70">
+              {report.runtimeProofNeededByActionType.map(group => (
+                <li key={group.actionType} className="rounded border border-white/10 bg-black/20 p-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-white">{group.actionType}</span>
+                    <span className="text-amber-200">{group.count} / {group.criticalCount} critical</span>
+                  </div>
+                  {group.examples?.[0] && <span className="mt-1 block text-white/45">{group.examples[0].name}</span>}
+                </li>
+              ))}
+            </ul>
+          ) : <p className="text-xs text-white/55">None</p>}
+        </ReportBox>
+
+        <ReportBox title="Recently Changed Areas">
+          {report.recentlyChangedAreas?.length ? (
+            <ul className="space-y-2 text-xs text-white/70">
+              {report.recentlyChangedAreas.slice(0, 6).map(area => (
+                <li key={area.id} className="rounded border border-white/10 bg-black/20 p-2">
+                  <span className="font-semibold text-white">{area.label}</span>
+                  <span className="block text-white/45">{area.caseCount} cases / {area.failingOrUnknown} needing attention</span>
+                </li>
+              ))}
+            </ul>
+          ) : <p className="text-xs text-white/55">None recorded</p>}
+        </ReportBox>
+      </div>
+
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         <ReportBox title="Environment">
           <KeyValue label="Device" value={report.environment.deviceType} />
@@ -1361,6 +1511,27 @@ function ReportPanel({ report, copyJson, copySummary, downloadJson, copyState })
             ))}
           </div>
         )}
+      </ReportBox>
+
+      <ReportBox title="SRE Signals" className="mt-3">
+        <div className="grid gap-2 text-[11px] text-white/60 sm:grid-cols-4">
+          <div className="rounded border border-white/10 bg-black/20 p-2">
+            <div className="text-white/40">Errors</div>
+            <div className="font-semibold text-white/80">FAIL {report.sreSignals?.errors?.fail || 0} / ERROR {report.sreSignals?.errors?.error || 0}</div>
+          </div>
+          <div className="rounded border border-white/10 bg-black/20 p-2">
+            <div className="text-white/40">Latency</div>
+            <div className="font-semibold text-white/80">{report.sreSignals?.latency?.totalDurationMs || 0}ms</div>
+          </div>
+          <div className="rounded border border-white/10 bg-black/20 p-2">
+            <div className="text-white/40">Saturation</div>
+            <div className="font-semibold text-white/80">{report.sreSignals?.saturation?.totalCases || report.totalCases} cases</div>
+          </div>
+          <div className="rounded border border-white/10 bg-black/20 p-2">
+            <div className="text-white/40">Recoverability</div>
+            <div className="font-semibold text-white/80">{report.sreSignals?.recoverability?.namedRecoveryContracts || 0} contracts</div>
+          </div>
+        </div>
       </ReportBox>
 
       <ReportBox title="Recommended Next Actions" className="mt-3">
