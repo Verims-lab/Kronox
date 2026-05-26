@@ -9,11 +9,14 @@
  * It is rendered from App.jsx at the AuthenticatedApp shell level, OUTSIDE
  * the AnimatePresence wrapper so animation state cannot hide it.
  *
- * Visibility (any of these enables it):
- *   - import.meta.env.DEV
- *   - currentUser.role === 'admin'
- *   - URL param ?diag=1
- *   - localStorage.setItem('kx_diag','1')
+ * Visibility — STRICT OPT-IN only (Codex086):
+ *   - URL param ?diag=1 (one-tap toggle on a real device)
+ *   - localStorage.setItem('kx_diag','1') (persists across reloads)
+ *
+ * NOTE: Admin-auto-show and DEV-auto-show were REMOVED in Codex086 because
+ * the overlay was covering the host's playable game screen on every admin
+ * session, blocking real gameplay testing. Diagnostics are now strictly
+ * opt-in so production/mobile gameplay is never blocked.
  *
  * Updates come from `appDiagBus` (a tiny pub/sub) so any code can push
  * snapshot events without prop-drilling. See lib/appDiagBus.js.
@@ -22,16 +25,18 @@ import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { subscribeAppDiag, getAppDiagSnapshot } from '@/lib/appDiagBus';
 
-export function isAppDiagEnabled(currentUser) {
+// Codex086 — admin role NO LONGER auto-enables the overlay. The host black
+// screen is fixed; leaving role-based auto-enable on caused the overlay to
+// permanently cover gameplay for any admin user. Diagnostics are now strictly
+// opt-in (URL param OR localStorage) so they never appear in normal play.
+export function isAppDiagEnabled(_currentUser) {
   if (typeof window === 'undefined') return false;
   try {
-    if (import.meta?.env?.DEV) return true;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('diag') === '1') return true;
   } catch {
-    // ignore — vite import.meta may not exist in tests
+    // ignore — URLSearchParams may not exist in tests
   }
-  if (currentUser?.role === 'admin') return true;
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('diag') === '1') return true;
   try {
     if (window.localStorage?.getItem('kx_diag') === '1') return true;
   } catch {

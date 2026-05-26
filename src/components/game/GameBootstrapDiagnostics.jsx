@@ -10,10 +10,13 @@ import React, { useEffect, useMemo, useState } from 'react';
  *   not enough because mobile WebViews swallow them. This overlay shows
  *   the live bootstrap state directly on the page.
  *
- * Visibility:
- *   - import.meta.env.DEV (local builds), OR
- *   - user.role === 'admin' (so we can debug live without forcing a build), OR
- *   - URL contains ?diag=1 (one-tap toggle on a real device)
+ * Visibility — STRICT OPT-IN only (Codex086):
+ *   - URL contains ?diag=1 (one-tap toggle on a real device), OR
+ *   - localStorage.setItem('kx_diag','1') (persists across reloads)
+ *
+ * NOTE: Admin-auto-show and DEV-auto-show were REMOVED in Codex086 because
+ * the overlay was covering the host's playable game screen during normal
+ * gameplay. Now strictly opt-in.
  *
  * Strict rules followed:
  *   - UI-only. NO authority logic, NO mutations, NO writes.
@@ -167,15 +170,17 @@ export default function GameBootstrapDiagnostics({
   );
 }
 
-export function isDiagnosticsEnabled(currentUser) {
+// Codex086 — admin role NO LONGER auto-enables the in-game overlay. Same
+// reason as AppDiagnostics: it was blocking the host's gameplay because
+// admins always saw it. Now strictly opt-in via ?diag=1 or localStorage.
+export function isDiagnosticsEnabled(_currentUser) {
   if (typeof window === 'undefined') return false;
-  try {
-    if (import.meta.env?.DEV) return true;
-  } catch (_e) { /* ignore */ }
-  if (currentUser?.role === 'admin') return true;
   try {
     const params = new URLSearchParams(window.location.search);
     if (params.get('diag') === '1') return true;
+  } catch (_e) { /* ignore */ }
+  try {
+    if (window.localStorage?.getItem('kx_diag') === '1') return true;
   } catch (_e) { /* ignore */ }
   return false;
 }

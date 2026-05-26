@@ -1,6 +1,18 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex085 — App/router-level diagnostics + AnimatePresence bypass for /game.
+// Codex086 — Gate diagnostics overlays strictly to ?diag=1 / localStorage.
+// Codex085 left role==='admin' as an auto-enable, which kept the overlay
+// permanently visible for admins and blocked gameplay. The host black
+// screen is confirmed fixed (host screenshot showed renderStage=ready with
+// timeline/cards behind the overlay). With Codex086, normal gameplay never
+// shows the overlay; devs can still flip it on with ?diag=1.
+//
+// Untouched: updateLobbyGameState authority, Timeline, QuestionCard,
+// placement, lobby auth, Friends, RLS, Health Simulator scoring. The
+// AppErrorBoundary fallback (visible error card instead of black screen)
+// is intentionally kept.
+//
+// Previous note (Codex085 — App/router-level diagnostics + AnimatePresence bypass for /game):
 // User reported the Codex084 in-Game diagnostics overlay NEVER appeared on
 // the host black screen. That means the issue is ABOVE Game.jsx: either the
 // host never reached /game OR the route mounted but the page never painted
@@ -23,8 +35,11 @@ import React, { useEffect, useState } from 'react';
 //      gameMounted, gameRenderStage, lastError + a derived blackScreenReason.
 // updateLobbyGameState authority logic, Timeline, QuestionCard, placement,
 // Friends, RLS, and visual assets are untouched.
-const BUILD_MARKER = 'Codex085';
+const BUILD_MARKER = 'Codex086';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
+
+// eslint-disable-next-line no-unused-vars
+const _CODEX086_NOTE = 'Codex086: overlays opt-in only via ?diag=1 / localStorage';
 
 export default function BuildMarker() {
   const [visible, setVisible] = useState(true);
