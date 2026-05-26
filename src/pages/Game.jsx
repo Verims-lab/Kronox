@@ -27,6 +27,8 @@ import SettingsModal from '@/components/game/SettingsModal';
 import GameOverTimer from '@/components/game/GameOverTimer';
 import GameLayout from '@/components/game/GameLayout';
 import OnlineGameBootstrapFallback from '@/components/game/OnlineGameBootstrapFallback';
+import GameBootstrapDiagnostics, { isDiagnosticsEnabled } from '@/components/game/GameBootstrapDiagnostics';
+import GameRenderErrorBoundary from '@/components/game/GameRenderErrorBoundary';
 
 export default function Game() {
   const location = useLocation();
@@ -51,6 +53,12 @@ export default function Game() {
   const routeMyPlayerName = routeState.myPlayerName ?? null;
   const currentQuestionIdFromState = routeState.currentQuestionId ?? null;
   const [currentUser, setCurrentUser] = useState(null);
+  // Codex084 — boundaryError + diagVisible must live at top-level so they
+  // share render position with every early-return gate. Previously placed
+  // mid-component AFTER several `if (...) return ...` paths, which violated
+  // Rules of Hooks and could itself produce a blank/black screen on the
+  // host once a gate flipped between renders.
+  const [boundaryError, setBoundaryError] = useState(null);
 
   useEffect(() => {
     debugLog('[Game] mount:', {
@@ -383,30 +391,103 @@ export default function Game() {
     </>
   ) : null;
 
+  // ─── Diagnostics overlay (Codex084) ──────────────────────────────
+  // Must be computed BEFORE every render guard so we can render it on any
+  // gate. All inputs are non-hook derived values; safe to do here.
+  const availableQuestionsCount = allQuestions.filter(q => q.year >= yearStart && q.year <= yearEnd).length;
+  const isGameReadyEarly = isOnline
+    ? players.length > 0 && lobbyData?.current_question_id && currentQuestion != null
+    : players.length > 0 && currentQuestion != null;
+  const missingOnlineQuestionEarly = isOnline && !isLoading && allQuestions.length > 0 && lobbyData?.current_question_id && !currentQuestion;
+  const renderStage = winner
+    ? 'render_game_over'
+    : error
+      ? 'render_error'
+      : isLoading
+        ? 'waiting_for_questions'
+        : isError
+          ? 'questions_error'
+          : missingOnlineQuestionEarly
+            ? 'waiting_for_question'
+            : (isOnline && !lobbyData)
+              ? 'waiting_for_lobby'
+              : (isOnline && (!lobbyData?.players || lobbyData.players.length === 0))
+                ? 'waiting_for_players'
+                : !isGameReadyEarly
+                  ? 'waiting_bootstrap'
+                  : 'ready';
+  const diagVisibleEarly = isDiagnosticsEnabled(currentUser);
+
+  // Codex084 — one-line render-stage log on every render so we can compare
+  // host vs Player 2 in runtime logs. Tagged so it's grep-able.
+  if (isOnline) {
+    debugLog('[Game.bootstrap]', {
+      renderStage,
+      lobbyId: routeLobbyId || resolvedLobbyId || null,
+      lobbyCode: routeLobbyCode || null,
+      userEmail: currentUser?.email || null,
+      hasLobbyData: !!lobbyData,
+      lobbyStatus: lobbyData?.status || null,
+      stateRevision: lobbyData?.state_revision ?? null,
+      playersCount: lobbyData?.players?.length || 0,
+      currentQuestionId: lobbyData?.current_question_id || null,
+      currentQuestionLoaded: !!currentQuestion,
+      isLoading,
+      isError,
+      isGameReady: isGameReadyEarly,
+    });
+  }
+
+  const diagnosticsOverlay = (
+    <GameBootstrapDiagnostics
+      visible={diagVisibleEarly}
+      currentUser={currentUser}
+      routeLobbyId={routeLobbyId}
+      routeLobbyCode={routeLobbyCode}
+      routeStateLobbyId={routeState?.lobbyId || null}
+      routeStateStatus={routeState?.status || null}
+      routeStateRevision={routeState?.state_revision ?? null}
+      resolvedLobbyId={resolvedLobbyId}
+      lobbyData={lobbyData}
+      players={players}
+      currentPlayerIndex={currentPlayerIndex}
+      currentQuestion={currentQuestion}
+      isOnline={isOnline}
+      isLoading={isLoading}
+      isError={isError}
+      isGameReady={isGameReadyEarly}
+      renderStage={renderStage}
+      lastError={boundaryError?.message || error || null}
+    />
+  );
+
   // ─── Render guards ───────────────────────────────────────────────
   // For online games, playerNames may be empty array (non-host joined with just lobbyId)
   if (!playerNames && !isOnline) return (
+    <>{diagnosticsOverlay}
     <div className="min-h-screen flex items-center justify-center bg-background p-6">
       <div className="text-center space-y-4">
         <p className="font-inter text-foreground font-semibold">Oyun bilgisi eksik.</p>
         <p className="font-inter text-sm text-muted-foreground">Lobi bağlantısı bulunamadı. Lobiye geri dönüp tekrar başlat.</p>
         <Button onClick={() => navigate('/lobby')} variant="outline">Lobiye Dön</Button>
       </div>
-    </div>
+    </div></>
   );
 
-  if (winner) return gameOverView;
+  if (winner) return (<>{diagnosticsOverlay}{gameOverView}</>);
 
   if (error) return (
+    <>{diagnosticsOverlay}
     <div className="min-h-screen flex items-center justify-center bg-background p-6">
       <div className="text-center space-y-4">
         <p className="font-inter text-destructive">Hata: {error}</p>
         <Button onClick={() => navigate('/')} variant="outline">Geri Dön</Button>
       </div>
-    </div>
+    </div></>
   );
 
   if (isLoading) return (
+    <>{diagnosticsOverlay}
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="text-center space-y-4 px-6">
         <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" />
@@ -414,10 +495,11 @@ export default function Game() {
         <p className="font-inter text-xs text-muted-foreground/60">İlk yüklemede biraz sürebilir...</p>
         <Button onClick={() => navigate('/')} variant="outline" size="sm">Geri Dön</Button>
       </div>
-    </div>
+    </div></>
   );
 
   if (isError) return (
+    <>{diagnosticsOverlay}
     <div className="min-h-screen flex items-center justify-center bg-background p-6">
       <div className="text-center space-y-4">
         <WifiOff className="w-10 h-10 text-muted-foreground mx-auto" />
@@ -426,23 +508,21 @@ export default function Game() {
         <Button onClick={() => refetch()} className="w-full">Tekrar Dene</Button>
         <Button onClick={() => navigate('/')} variant="outline" className="w-full">Geri Dön</Button>
       </div>
-    </div>
+    </div></>
   );
 
-  const availableQuestions = allQuestions.filter(q => q.year >= yearStart && q.year <= yearEnd);
-  if (!isOnline && allQuestions.length > 0 && availableQuestions.length < 10) return (
+  if (!isOnline && allQuestions.length > 0 && availableQuestionsCount < 10) return (
     <div className="min-h-screen flex items-center justify-center bg-background p-6">
       <div className="text-center space-y-4">
         <p className="font-inter text-foreground">
-          Oyun için en az 10 soru gerekli. Seçilen aralıkta <span className="text-primary font-bold">{availableQuestions.length}</span> soru var.
+          Oyun için en az 10 soru gerekli. Seçilen aralıkta <span className="text-primary font-bold">{availableQuestionsCount}</span> soru var.
         </p>
         <Button onClick={() => navigate('/')} variant="outline">Geri Dön</Button>
       </div>
     </div>
   );
 
-  const missingOnlineQuestion = isOnline && !isLoading && allQuestions.length > 0 && lobbyData?.current_question_id && !currentQuestion;
-  if (missingOnlineQuestion) return (
+  if (missingOnlineQuestionEarly) return (
     <div className="min-h-screen flex items-center justify-center bg-background p-6">
       <div className="text-center space-y-4">
         <p className="font-inter text-foreground font-semibold">Oyun sorusu yüklenemedi.</p>
@@ -453,12 +533,10 @@ export default function Game() {
     </div>
   );
 
-  const isGameReady = isOnline
-    ? players.length > 0 && lobbyData?.current_question_id && currentQuestion != null
-    : players.length > 0 && currentQuestion != null;
-
-  if (!isGameReady) return (
-    <OnlineGameBootstrapFallback
+  if (!isGameReadyEarly) return (
+    <>
+      {diagnosticsOverlay}
+      <OnlineGameBootstrapFallback
       isOnline={isOnline}
       hasLobbyData={!!lobbyData}
       hasQuestions={allQuestions.length > 0}
@@ -477,12 +555,18 @@ export default function Game() {
       }}
       onRetryQuestions={refetch}
       onBackHome={() => navigate('/')}
-    />
+      />
+    </>
   );
 
   // ─── Render ───────────────────────────────────────────────────────
   return (
-    <>
+    <GameRenderErrorBoundary
+      onError={(err) => setBoundaryError(err)}
+      onReset={() => setBoundaryError(null)}
+      onBackHome={() => navigate('/')}
+    >
+      {diagnosticsOverlay}
       <GameDebugLog />
       {!isOnline && (
         <GameOverTimer active={gameStarted && !winner} onTick={(s) => setOverallSeconds(s)} />
@@ -535,6 +619,6 @@ export default function Game() {
         onTimeUp={handleTimeUp}
         isTimeUp={isTimeUp}
       />
-    </>
+    </GameRenderErrorBoundary>
   );
 }

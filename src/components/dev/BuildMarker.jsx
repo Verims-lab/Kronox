@@ -1,21 +1,26 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex083 — Host black-screen on online start fixed. Codex082 added URL
-// recovery params but the host still stalled because handleStart navigated
-// using the function-response lobby (sometimes incomplete) instead of the
-// SAME live server lobby Player 2 sees via subscription. Codex083 changes:
-//   1. WaitingRoomPanel.handleStart re-fetches Lobby.get(lobbyId) AFTER
-//      startLobbyGame succeeds and navigates with that authoritative copy.
-//      Function-response is only used as a fallback if the re-fetch fails.
-//   2. useLobbySync retries the initial Lobby.get with light backoff so a
-//      slow-network race against the post-start write does not leave the
-//      host stranded on the loading screen.
-//   3. Game.jsx routes the not-ready state through OnlineGameBootstrapFallback
-//      which exposes a "Tekrar Dene" button after ~3s instead of spinning
-//      forever — black-screen is recoverable without leaving the route.
+// Codex084 — Evidence-first debugging phase for the persistent host black-
+// screen bug. Codex083's three fixes (live re-fetch, useLobbySync retry,
+// recoverable fallback) did not fully resolve the symptom. Before another
+// assumption-based patch this build adds:
+//   1. components/game/GameBootstrapDiagnostics — admin/dev/?diag=1 gated
+//      overlay that shows route, lobbyId/Code, lobby.status/state_revision,
+//      players, currentPlayerIndex, currentQuestion presence, isGameReady,
+//      and live renderStage on EVERY /game render gate.
+//   2. components/game/GameRenderErrorBoundary — wraps the playable render
+//      so a render-time crash cannot present as a black viewport; instead
+//      a visible "Oyun ekranı yüklenemedi" + Tekrar Dene / Geri Dön.
+//   3. CRITICAL FIX: hoisted boundaryError useState to the top of Game.jsx.
+//      Codex083 introduced it AFTER several early-return gates, violating
+//      Rules of Hooks ("Rendered fewer hooks than expected") which can
+//      itself produce a blank/black host viewport when a guard flips
+//      between renders. This is a real correctness fix, not just diag.
+//   4. [Game.bootstrap] tagged debug log on every online render so host
+//      vs Player 2 can be compared in runtime logs.
 // updateLobbyGameState authority logic, Timeline, QuestionCard, placement
 // rules, Friends, and RLS schemas are intentionally untouched.
-const BUILD_MARKER = 'Codex083';
+const BUILD_MARKER = 'Codex084';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 export default function BuildMarker() {

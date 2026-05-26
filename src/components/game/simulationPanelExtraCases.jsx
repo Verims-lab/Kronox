@@ -1054,18 +1054,18 @@ export const EXTRA_TESTS = [
   // Codex077: assert the build marker has actually been bumped beyond
   // Codex075. Previous tasks claimed bumps but the marker stayed on
   // Codex075 — this static contract makes future drift impossible to hide.
-  makeCase('historical_kronox_regression', 'build_marker_bumped_beyond_codex082',
-    'Build marker is bumped beyond Codex082 (deploy-version visibility for the Codex083 host black-screen fix)', () => {
+  makeCase('historical_kronox_regression', 'build_marker_bumped_beyond_codex083',
+    'Build marker is bumped beyond Codex083 (deploy-version visibility for the Codex084 diagnostics-first phase)', () => {
       const match = String(buildMarkerSource || '').match(/BUILD_MARKER\s*=\s*'([^']+)'/);
       const value = match?.[1] || '';
       const codexMatch = value.match(/^Codex(\d+)$/);
       const num = codexMatch ? parseInt(codexMatch[1], 10) : NaN;
-      if (!Number.isFinite(num) || num <= 82) {
-        return fail('Build marker has not been bumped beyond Codex082.', {
+      if (!Number.isFinite(num) || num <= 83) {
+        return fail('Build marker has not been bumped beyond Codex083.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'components/dev/BuildMarker.jsx',
-          expected: 'CodexN where N > 82',
+          expected: 'CodexN where N > 83',
           actual: value || '(unreadable)',
         });
       }
@@ -1076,6 +1076,30 @@ export const EXTRA_TESTS = [
         actual: value,
       });
     }, { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  // Codex084 — diagnostics overlay + render error boundary regression contract.
+  sourceHas('historical_kronox_regression', 'game_render_has_diagnostics_and_error_boundary',
+    '/game render exposes dev/admin diagnostics overlay AND wraps the playable view in a render error boundary so a black screen cannot hide the cause (Codex084)',
+    'pages/Game.jsx',
+    gameSource,
+    [
+      'GameBootstrapDiagnostics',
+      'GameRenderErrorBoundary',
+      'isDiagnosticsEnabled',
+      'renderStage',
+      '[Game.bootstrap]',
+      'boundaryError',
+    ],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  sourceHas('historical_kronox_regression', 'boundary_error_hook_hoisted_above_guards',
+    'boundaryError useState is declared BEFORE any conditional return — Rules of Hooks must not be violated by mid-component state (Codex084)',
+    'pages/Game.jsx',
+    gameSource,
+    [
+      // Marker comment near the top-of-component hook
+      'Codex084 — boundaryError + diagVisible must live at top-level',
+      'const [boundaryError, setBoundaryError] = useState(null);',
+    ],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
   // Codex083 host black-screen on online start regression contract.
   //   Symptom: User A (host) tapped OYUNU BAŞLAT → backend started the lobby
   //   and User B (Player 2) entered /game via the WaitingRoom subscription,
