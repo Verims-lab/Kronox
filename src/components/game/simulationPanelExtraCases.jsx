@@ -1054,18 +1054,18 @@ export const EXTRA_TESTS = [
   // Codex077: assert the build marker has actually been bumped beyond
   // Codex075. Previous tasks claimed bumps but the marker stayed on
   // Codex075 — this static contract makes future drift impossible to hide.
-  makeCase('historical_kronox_regression', 'build_marker_bumped_beyond_codex083',
-    'Build marker is bumped beyond Codex083 (deploy-version visibility for the Codex084 diagnostics-first phase)', () => {
+  makeCase('historical_kronox_regression', 'build_marker_bumped_beyond_codex084',
+    'Build marker is bumped beyond Codex084 (deploy-version visibility for the Codex085 App-level diagnostics phase)', () => {
       const match = String(buildMarkerSource || '').match(/BUILD_MARKER\s*=\s*'([^']+)'/);
       const value = match?.[1] || '';
       const codexMatch = value.match(/^Codex(\d+)$/);
       const num = codexMatch ? parseInt(codexMatch[1], 10) : NaN;
-      if (!Number.isFinite(num) || num <= 83) {
-        return fail('Build marker has not been bumped beyond Codex083.', {
+      if (!Number.isFinite(num) || num <= 84) {
+        return fail('Build marker has not been bumped beyond Codex084.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'components/dev/BuildMarker.jsx',
-          expected: 'CodexN where N > 83',
+          expected: 'CodexN where N > 84',
           actual: value || '(unreadable)',
         });
       }

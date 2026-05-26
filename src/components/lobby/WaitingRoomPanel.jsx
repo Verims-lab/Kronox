@@ -8,6 +8,7 @@ import { useWaitingRoomSync } from '@/hooks/useWaitingRoomSync';
 import { navigateToOnlineGame } from '@/lib/onlineGameNavigation';
 import { summarizePlayers } from '@/lib/lobbyUtils';
 import { debugLog, debugWarn } from '@/lib/debugLog';
+import { pushAppDiag } from '@/lib/appDiagBus';
 
 const categories = [
   { value: 'karisik', label: 'Karışık' },
@@ -65,6 +66,18 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
   const handleStart = async () => {
     if (isStarting) return;
     setIsStarting(true);
+
+    // Codex085 — App-level diag: record that the host pressed Start.
+    pushAppDiag({
+      startActionFired: true,
+      startActionReturned: false,
+      startLobbyId: lobby?.id || null,
+      startLobbyStatus: lobby?.status || null,
+      startLobbyRevision: lobby?.state_revision ?? null,
+      startSource: null,
+      lastError: null,
+      lastErrorWhere: null,
+    });
 
     if (settingDebounceRef.current) {
       clearTimeout(settingDebounceRef.current);
@@ -127,14 +140,26 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
         setLobby(startedLobby);
       }
 
+      const usedSource = liveStartedLobby ? 'live-refetch' : (result.lobby ? 'function-response' : 'pre-start-fallback');
+
       debugLog('[handleStart] authority start success:', {
         lobbyId: startLobby.id,
         debug: result.debug || null,
-        usedSource: liveStartedLobby ? 'live-refetch' : (result.lobby ? 'function-response' : 'pre-start-fallback'),
+        usedSource,
         startedHasGameState,
         startedStatus: startedLobby?.status || null,
         startedCurrentQuestionId: startedLobby?.current_question_id || null,
         playersWrittenToLobby: summarizePlayers(startedLobby?.players || []),
+      });
+
+      // Codex085 — App-level diag: record that startLobbyGame returned and
+      // capture the lobby identity we are about to navigate with.
+      pushAppDiag({
+        startActionReturned: true,
+        startLobbyId: startedLobby?.id || null,
+        startLobbyStatus: startedLobby?.status || null,
+        startLobbyRevision: startedLobby?.state_revision ?? null,
+        startSource: usedSource,
       });
 
       const navigated = navigateToOnlineGame(navigate, startedLobby, {
@@ -142,10 +167,18 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
         playerName,
       });
       if (!navigated) {
+        pushAppDiag({
+          lastError: 'navigateToOnlineGame returned false (missing lobby id/code)',
+          lastErrorWhere: 'handle_start',
+        });
         alert('Oyun başlatıldı ancak lobi bilgisi eksik. Lütfen tekrar deneyin.');
       }
     } catch (err) {
       console.error('[handleStart] authority start failed:', err);
+      pushAppDiag({
+        lastError: err?.message || String(err),
+        lastErrorWhere: 'handle_start',
+      });
       alert('Oyun başlatılamadı: ' + err.message);
     } finally {
       setIsStarting(false);
