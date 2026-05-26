@@ -78,7 +78,11 @@ const AuthenticatedApp = () => {
   // Android WebView fix: never stay on /login if user is authenticated or auth check is done.
   if (location.pathname.includes('/login')) {
     if (isAuthenticated) {
-      return <Navigate to="/" replace />;
+      // Codex087 — honor ?next=/friends so the email deep-link survives login.
+      // Only same-origin relative paths are accepted; otherwise fall back to '/'.
+      const next = new URLSearchParams(location.search).get('next');
+      const safeNext = (typeof next === 'string' && next.startsWith('/') && !next.startsWith('//')) ? next : '/';
+      return <Navigate to={safeNext} replace />;
     }
   }
 
@@ -165,7 +169,7 @@ const AuthenticatedApp = () => {
 function App() {
   // Codex087 — push build marker into diag bus once at app boot
   useEffect(() => {
-    appDiagSetBuildMarker('Codex087');
+    appDiagSetBuildMarker('Codex089');
   }, []);
 
   return (

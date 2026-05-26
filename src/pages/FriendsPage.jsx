@@ -18,6 +18,7 @@ import IncomingRequestItem from '@/components/friends/IncomingRequestItem';
 import OutgoingRequestItem from '@/components/friends/OutgoingRequestItem';
 import AddFriendForm from '@/components/friends/AddFriendForm';
 import IncomingInvitesPanel from '@/components/invites/IncomingInvitesPanel';
+import useFriendsRealtimeRefresh from '@/hooks/useFriendsRealtimeRefresh';
 
 /**
  * Profile > Arkadaşlarım — Friends MVP.
@@ -69,10 +70,28 @@ export default function FriendsPage() {
     if (authChecked && !user) setLoading(false);
   }, [authChecked, user, refresh]);
 
+  // Codex088 — Realtime refresh so the sender's UI updates when the
+  // recipient accepts on another device. Combines FriendRequest entity
+  // subscription + visibility/focus reload + light polling fallback.
+  useFriendsRealtimeRefresh({
+    enabled: authChecked && !!user?.email,
+    myEmail: user?.email,
+    refresh,
+  });
+
   /* ---- mutation handlers — always refetch after success ---- */
   const handleSend = async (toEmail) => {
-    await sendFriendRequest({ me: user, toEmail });
+    // Codex087 — sendFriendRequest may resolve with {emailSent:false} when
+    // the FriendRequest was created but the email notification failed.
+    // We must not throw in that case (the request itself succeeded), but
+    // we should surface a soft warning so the sender knows.
+    const result = await sendFriendRequest({ me: user, toEmail });
     await refresh(user.email);
+    if (result && result.emailSent === false) {
+      setSuccessMsg('Arkadaşlık isteği gönderildi, ancak e-posta bildirimi gönderilemedi.');
+      window.setTimeout(() => setSuccessMsg(''), 3200);
+    }
+    return result;
   };
   const handleAccept = async (req) => {
     // Codex080: acceptIncomingRequest accepts either id or full row object.

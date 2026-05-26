@@ -1057,18 +1057,27 @@ export const EXTRA_TESTS = [
   // Codex077: assert the build marker has actually been bumped beyond
   // Codex075. Previous tasks claimed bumps but the marker stayed on
   // Codex075 — this static contract makes future drift impossible to hide.
-  makeCase('historical_kronox_regression', 'build_marker_bumped_beyond_codex085',
-    'Build marker is bumped beyond Codex085 (deploy-version visibility for the Codex086 diagnostics-gating phase)', () => {
+  // Codex087 — friend-request email + deep-link contract. One compact static
+  // case asserting the full chain: friendsApi invokes the backend function,
+  // the backend builds a /friends deep link, and App.jsx honors ?next= on login.
+  sourceHas('historical_kronox_regression', 'friend_request_email_and_deep_link_wired',
+    'Friend-request email + /friends deep link + ?next= login redirect are wired end-to-end (Codex087)',
+    'lib/friendsApi.js + App.jsx',
+    `${friendsApiSource}\n${appSource}`,
+    ["base44.functions.invoke('sendFriendRequestEmail'", 'appUrl: origin', "URLSearchParams(location.search).get('next')"],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  makeCase('historical_kronox_regression', 'build_marker_bumped_beyond_codex088',
+    'Build marker is bumped beyond Codex088 (deploy-version visibility for the Codex089 waiting-room-start contract honesty phase)', () => {
       const match = String(buildMarkerSource || '').match(/BUILD_MARKER\s*=\s*'([^']+)'/);
       const value = match?.[1] || '';
       const codexMatch = value.match(/^Codex(\d+)$/);
       const num = codexMatch ? parseInt(codexMatch[1], 10) : NaN;
-      if (!Number.isFinite(num) || num <= 85) {
-        return fail('Build marker has not been bumped beyond Codex085.', {
+      if (!Number.isFinite(num) || num <= 88) {
+        return fail('Build marker has not been bumped beyond Codex088.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'components/dev/BuildMarker.jsx',
-          expected: 'CodexN where N > 85',
+          expected: 'CodexN where N > 88',
           actual: value || '(unreadable)',
         });
       }
@@ -1179,18 +1188,22 @@ export const EXTRA_TESTS = [
       'requestOrId?.id',
     ],
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
-  // Codex080: friend-list query reads both sides of accepted FriendRequests
-  // so both users see each other under the normalized model.
-  sourceHas('historical_kronox_regression', 'friend_list_reads_both_sides_of_accepted',
-    'Friend list reads both sides of accepted FriendRequests (Codex080 normalized model)',
-    'lib/friendsApi.js',
-    friendsApiSource,
+  // Codex088 — Friends/Profile realtime refresh after accept. Asserts the
+  // FriendsPage wires subscription + visibility/focus + polling fallback,
+  // loadOutgoingRequests still filters strictly by pending (accepted can
+  // never linger as a "pending sent" row), and loadFriends still reads
+  // both sides of accepted (Codex080 normalized-model invariant preserved).
+  sourceHas('historical_kronox_regression', 'friends_page_realtime_refresh_wired',
+    'FriendsPage uses subscription + visibility/focus + polling so sender updates when recipient accepts (Codex088); strict pending filter + both-sides loadFriends preserved',
+    'pages/FriendsPage.jsx + hooks/useFriendsRealtimeRefresh.js + lib/friendsApi.js',
+    `${friendsPageSource}\n${friendsApiSource}`,
     [
+      'useFriendsRealtimeRefresh',
+      'FriendRequest.subscribe',
+      'visibilitychange',
+      "{ from_email: me, status: 'pending' }",
       'incomingAccepted',
       'outgoingAccepted',
-      "status: 'accepted'",
-      'to_email: me',
-      'from_email: me',
     ],
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
   // Codex080: accept function no longer attempts Friendship.create — that was
