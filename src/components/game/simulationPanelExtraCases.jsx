@@ -17,18 +17,22 @@
 import profilePageSource from '../../pages/ProfilePage.jsx?raw';
 import friendsPageSource from '../../pages/FriendsPage.jsx?raw';
 import friendsApiSource from '../../lib/friendsApi.js?raw';
+import friendsRealtimeRefreshSource from '../../hooks/useFriendsRealtimeRefresh.js?raw';
 import inviteApiSource from '../../lib/inviteApi.js?raw';
+import notificationApiSource from '../../lib/notificationApi.js?raw';
 import addFriendFormSource from '../friends/AddFriendForm.jsx?raw';
 import friendListItemSource from '../friends/FriendListItem.jsx?raw';
 import incomingRequestItemSource from '../friends/IncomingRequestItem.jsx?raw';
-import outgoingRequestItemSource from '../friends/OutgoingRequestItem.jsx?raw';
 import incomingInvitesPanelSource from '../invites/IncomingInvitesPanel.jsx?raw';
+import gameInviteNotifierSource from '../invites/GameInviteNotifier.jsx?raw';
+import notificationSettingsCardSource from '../notifications/NotificationSettingsCard.jsx?raw';
 import createLobbyInvitePanelSource from '../lobby/CreateLobbyInvitePanel.jsx?raw';
 import lobbyCreateJoinPanelSource from '../lobby/LobbyCreateJoinPanel.jsx?raw';
 import waitingRoomPanelSource from '../lobby/WaitingRoomPanel.jsx?raw';
 import lobbyRoomSource from '../../pages/LobbyRoom.jsx?raw';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
 import testSuiteSource from '../../pages/TestSuite.jsx?raw';
+import mainSource from '../../main.jsx?raw';
 import mainMenuSource from '../../pages/MainMenu.jsx?raw';
 import bottomNavSource from '../layout/BottomNav.jsx?raw';
 import adminLibSource from '../../lib/admin.js?raw';
@@ -56,9 +60,13 @@ import {
   friendshipEntitySource,
   friendRequestEntitySource,
   gameInviteEntitySource,
+  pushSubscriptionEntitySource,
   acceptGameInviteFnSource,
   acceptFriendRequestFnSource,
   removeFriendFnSource,
+  sendFriendRequestEmailFnSource,
+  sendGameInvitePushFnSource,
+  kronoxServiceWorkerSource,
 } from './simulationPanelContractStrings.jsx';
 
 // Leftover inline declaration removed — value comes from the import above.
@@ -92,6 +100,9 @@ export const EXTRA_SUITES = [
   { id: 'report_ux_human_decision', name: 'Report UX / Human Decision Suite', critical: true, color: '#e5e7eb' },
   { id: 'kronox_game_feel', name: 'Creative Kronox Game-Feel Suite', critical: false, color: '#fde68a' },
   { id: 'online_category_taxonomy', name: 'Online Category Taxonomy Suite', critical: true, color: '#fde68a' },
+  { id: 'friend_request_email_deep_link', name: 'Friend Request Email / Deep-Link Suite', critical: true, color: '#93c5fd' },
+  { id: 'game_invite_push_notifications', name: 'Game Invite Push Notification Readiness Suite', critical: false, color: '#67e8f9' },
+  { id: 'sre_release_health_signals', name: 'SRE-Style Release Health Signals Suite', critical: false, color: '#c4b5fd' },
 ];
 
 // Convenience lookup — used by builder fns below so case `critical` matches suite default.
@@ -1066,18 +1077,18 @@ export const EXTRA_TESTS = [
     `${friendsApiSource}\n${appSource}`,
     ["base44.functions.invoke('sendFriendRequestEmail'", 'appUrl: origin', "URLSearchParams(location.search).get('next')"],
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
-  makeCase('historical_kronox_regression', 'build_marker_bumped_beyond_codex088',
-    'Build marker is bumped beyond Codex088 (deploy-version visibility for the Codex089 waiting-room-start contract honesty phase)', () => {
+  makeCase('historical_kronox_regression', 'build_marker_bumped_beyond_codex089',
+    'Build marker is bumped beyond Codex089 (deploy-version visibility for the Codex090 Health refresh)', () => {
       const match = String(buildMarkerSource || '').match(/BUILD_MARKER\s*=\s*'([^']+)'/);
       const value = match?.[1] || '';
       const codexMatch = value.match(/^Codex(\d+)$/);
       const num = codexMatch ? parseInt(codexMatch[1], 10) : NaN;
-      if (!Number.isFinite(num) || num <= 88) {
-        return fail('Build marker has not been bumped beyond Codex088.', {
+      if (!Number.isFinite(num) || num <= 89) {
+        return fail('Build marker has not been bumped beyond Codex089.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'components/dev/BuildMarker.jsx',
-          expected: 'CodexN where N > 88',
+          expected: 'CodexN where N > 89',
           actual: value || '(unreadable)',
         });
       }
@@ -1196,7 +1207,7 @@ export const EXTRA_TESTS = [
   sourceHas('historical_kronox_regression', 'friends_page_realtime_refresh_wired',
     'FriendsPage uses subscription + visibility/focus + polling so sender updates when recipient accepts (Codex088); strict pending filter + both-sides loadFriends preserved',
     'pages/FriendsPage.jsx + hooks/useFriendsRealtimeRefresh.js + lib/friendsApi.js',
-    `${friendsPageSource}\n${friendsApiSource}`,
+    `${friendsPageSource}\n${friendsRealtimeRefreshSource}\n${friendsApiSource}`,
     [
       'useFriendsRealtimeRefresh',
       'FriendRequest.subscribe',
@@ -1488,6 +1499,116 @@ export const EXTRA_TESTS = [
     { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, runtimeProofRequired: true }),
 
   /* ============================================================
+   *  FRIEND REQUEST EMAIL / DEEP-LINK SUITE
+   * ============================================================ */
+  sourceHas('friend_request_email_deep_link', 'send_request_triggers_email_after_create',
+    'sendFriendRequest triggers email path after FriendRequest creation',
+    'lib/friendsApi.js',
+    friendsApiSource,
+    ['FriendRequest.create', "base44.functions.invoke('sendFriendRequestEmail'", 'appUrl: origin'],
+    { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, recentlyFixed: true, runtimeProofRequired: true }),
+  sourceHas('friend_request_email_deep_link', 'email_failure_does_not_break_friend_request',
+    'Email failure does not break FriendRequest creation',
+    'lib/friendsApi.js + functions/sendFriendRequestEmail',
+    `${friendsApiSource}\n${sendFriendRequestEmailFnSource}`,
+    ['emailSent: false', 'return { ok: true, emailSent: false', 'email_failed'],
+    { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, recentlyFixed: true, runtimeProofRequired: true }),
+  sourceHas('friend_request_email_deep_link', 'email_backend_requires_pending_request',
+    'Email backend requires an existing pending FriendRequest from caller to recipient',
+    'functions/sendFriendRequestEmail.js',
+    sendFriendRequestEmailFnSource,
+    ['FriendRequest.filter', 'from_email: fromEmail', 'to_email: toEmail', "status: 'pending'", 'No matching pending friend request'],
+    { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, recentlyFixed: true, runtimeProofRequired: true }),
+  sourceHas('friend_request_email_deep_link', 'email_deep_link_routes_to_friends',
+    'Email copy contains Kronox /friends deep link',
+    'functions/sendFriendRequestEmail.js',
+    sendFriendRequestEmailFnSource,
+    ['const deepLink = `${appUrl}/friends`', 'Kabul etmek için Kronox', 'return json({ ok: true, deepLink })'],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  sourceHas('friend_request_email_deep_link', 'login_next_redirect_is_relative_only',
+    'Login ?next= redirect preserves intended Friends page without accepting external redirects',
+    'App.jsx',
+    appSource,
+    ["URLSearchParams(location.search).get('next')", "next.startsWith('/')", "!next.startsWith('//')"],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  sourceHas('friend_request_email_deep_link', 'no_arbitrary_email_spam_endpoint',
+    'No arbitrary friend-request email spam endpoint exists',
+    'functions/sendFriendRequestEmail.js',
+    sendFriendRequestEmailFnSource,
+    ['toEmail === fromEmail', 'No matching pending friend request', 'Authenticated user only'],
+    { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, recentlyFixed: true, runtimeProofRequired: true }),
+  notAutomatableCase('friend_request_email_deep_link', 'email_delivery_backend_runtime_proof_needed',
+    'Email delivery/deep-link opening remains runtime/manual until Base44 SendEmail proof exists',
+    'Static checks prove the FriendRequest email path and non-blocking failure handling, but real delivery, spam filtering, and mobile deep-link landing require backend email logs plus a recipient inbox/device test.',
+    { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, verificationLabels: ['NOT_AUTOMATABLE', 'BACKEND_RUNTIME_PROBE', 'MANUAL_REQUIRED'] }),
+
+  /* ============================================================
+   *  GAME INVITE PUSH NOTIFICATION READINESS SUITE
+   * ============================================================ */
+  sourceHas('game_invite_push_notifications', 'permission_request_user_initiated',
+    'Notification permission request is user-initiated from Settings, not first load',
+    'NotificationSettingsCard.jsx + lib/notificationApi.js',
+    `${notificationSettingsCardSource}\n${notificationApiSource}`,
+    ['Bildirimleri Aç', 'handleEnable', 'Notification.requestPermission()'],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  sourceHas('game_invite_push_notifications', 'permission_states_and_unsupported_paths_handled',
+    'Granted/denied/default/unsupported notification states are handled',
+    'NotificationSettingsCard.jsx + lib/notificationApi.js',
+    `${notificationSettingsCardSource}\n${notificationApiSource}`,
+    ['granted', 'denied', 'default', 'unsupported', 'missing_vapid_public_key', 'service_worker_missing', 'push_manager_missing'],
+    { actionType: ACTION_TYPES.DEVICE_TEST, recentlyFixed: true, runtimeProofRequired: true }),
+  sourceHas('game_invite_push_notifications', 'push_subscription_entity_owner_scoped',
+    'PushSubscription entity stores only owner-scoped device subscription fields',
+    'entities/PushSubscription.json',
+    pushSubscriptionEntitySource,
+    ['user_email', 'endpoint', 'keys_p256dh', 'keys_auth', 'data.user_email', '{{user.email}}'],
+    { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, recentlyFixed: true, runtimeProofRequired: true }),
+  sourceHas('game_invite_push_notifications', 'subscription_dedupes_by_user_and_endpoint',
+    'Push subscription storage avoids duplicate rows for the same user/device endpoint',
+    'lib/notificationApi.js',
+    notificationApiSource,
+    ['PushSubscription.filter', '{ user_email: userEmail, endpoint: serialized.endpoint }', 'PushSubscription.update', 'PushSubscription.create'],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  sourceHas('game_invite_push_notifications', 'service_worker_registers_and_handles_click',
+    'Service worker registers and notification click opens/focuses Kronox invite route',
+    'main.jsx + public/kronox-sw.js',
+    `${mainSource}\n${kronoxServiceWorkerSource}`,
+    ['registerKronoxServiceWorker', "addEventListener('push'", 'showNotification', "addEventListener('notificationclick'", 'clients.openWindow', 'targetUrl'],
+    { actionType: ACTION_TYPES.DEVICE_TEST, recentlyFixed: true, runtimeProofRequired: true }),
+  sourceHas('game_invite_push_notifications', 'game_invite_creation_triggers_best_effort_push',
+    'GameInvite creation triggers best-effort push without blocking invite creation',
+    'lib/inviteApi.js + functions/sendGameInvitePush',
+    `${inviteApiSource}\n${sendGameInvitePushFnSource}`,
+    ["base44.functions.invoke('sendGameInvitePush'", 'Promise.allSettled', "error: error?.message || 'push_failed'", 'return { created, failed, attempted: unique.length, push }'],
+    { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, recentlyFixed: true, runtimeProofRequired: true }),
+  sourceHas('game_invite_push_notifications', 'in_app_invite_notifier_remains_wired',
+    'In-app invite notifier remains wired for foreground/open-app invites',
+    'GameInviteNotifier.jsx + App.jsx',
+    `${gameInviteNotifierSource}\n${appSource}`,
+    ['GameInviteNotifier', 'loadIncomingInvites', 'GameInvite.subscribe', 'toast', 'seni oyuna davet etti'],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  sourceHas('game_invite_push_notifications', 'push_backend_sender_and_recipient_scoped',
+    'Push backend validates sender and sends only to recipient active subscriptions',
+    'functions/sendGameInvitePush.js',
+    sendGameInvitePushFnSource,
+    ['myEmail !== fromEmail', 'PushSubscription.filter', 'user_email: toEmail', "status: 'active'"],
+    { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, recentlyFixed: true, runtimeProofRequired: true }),
+  sourceHas('game_invite_push_notifications', 'push_payload_is_minimal_and_invite_scoped',
+    'Push payload carries only minimal invite/lobby routing data',
+    'functions/sendGameInvitePush.js + public/kronox-sw.js',
+    `${sendGameInvitePushFnSource}\n${kronoxServiceWorkerSource}`,
+    ['title: \'Kronox\'', 'seni oyuna davet etti', 'inviteId', 'lobbyId', 'lobbyCode', 'targetUrl'],
+    { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW, recentlyFixed: true }),
+  warningCase('game_invite_push_notifications', 'vapid_and_device_runtime_gate_visible',
+    'VAPID/device support gate is visible and does not masquerade as push delivery proof',
+    'Push is best-effort: missing VAPID config, unsupported browsers, denied permission, and platform-specific PWA behavior must stay visible as release proof gaps.',
+    { actionType: ACTION_TYPES.DEVICE_TEST, verificationLabels: ['STATIC_CHECK_LIMITATION', 'EXTERNAL_DEVICE_REQUIRED', 'BACKEND_RUNTIME_PROBE'], expected: 'real subscribed device with backend VAPID secrets', actual: 'static readiness only' }),
+  notAutomatableCase('game_invite_push_notifications', 'push_delivery_real_device_backend_proof_needed',
+    'Push delivery and notification click remain NOT_AUTOMATABLE without a subscribed device/backend proof',
+    'Requires HTTPS/PWA-compatible install state, granted permission, VAPID secrets, Base44 function execution, and a backgrounded recipient device. Static source cannot prove system notification delivery.',
+    { actionType: ACTION_TYPES.DEVICE_TEST, verificationLabels: ['NOT_AUTOMATABLE', 'EXTERNAL_DEVICE_REQUIRED', 'BACKEND_RUNTIME_PROBE', 'MANUAL_REQUIRED'] }),
+
+  /* ============================================================
    *  VISUAL COMPOSITION REGRESSION SUITE
    * ============================================================ */
   makeCase('visual_composition_regression', 'lobby_no_duplicate_kronox_title',
@@ -1657,6 +1778,50 @@ export const EXTRA_TESTS = [
     simulationPanelSource,
     ['classification', 'actionType', 'verificationLabels', 'manualVerificationNeeded'],
     { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceHas('report_ux_human_decision', 'current_critical_fail_card_exists',
+    'Compact Current Critical FAIL card exists',
+    'SimulationPanel.jsx',
+    simulationPanelSource,
+    ['Current Critical FAIL', 'currentCriticalFailures'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceHas('report_ux_human_decision', 'runtime_proof_needed_grouping_exists',
+    'Runtime Proof Needed grouping separates device/two-account/backend/human/CI proof',
+    'SimulationPanel.jsx',
+    simulationPanelSource,
+    ['Runtime Proof Needed', 'runtimeProofNeededByActionType'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceHas('report_ux_human_decision', 'recently_changed_areas_section_exists',
+    'Recently changed areas section exists when report data is available',
+    'SimulationPanel.jsx',
+    simulationPanelSource,
+    ['Recently Changed Areas', 'recentlyChangedAreas'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  /* ============================================================
+   *  SRE-STYLE RELEASE HEALTH SIGNALS SUITE
+   * ============================================================ */
+  sourceHas('sre_release_health_signals', 'sre_signal_fields_exported',
+    'Report exports lightweight SRE-style health signals',
+    'SimulationPanel.jsx',
+    simulationPanelSource,
+    ['sreSignals', 'errors', 'latency', 'saturation', 'recoverability'],
+    { actionType: ACTION_TYPES.CI_ENVIRONMENT }),
+  sourceHas('sre_release_health_signals', 'slow_suite_latency_detectable',
+    'Simulator duration and slow suites are measurable',
+    'SimulationPanel.jsx',
+    simulationPanelSource,
+    ['totalDurationMs', 'slowSuites', 'durationMs'],
+    { actionType: ACTION_TYPES.CI_ENVIRONMENT }),
+  sourceHas('sre_release_health_signals', 'recoverability_checks_are_named',
+    'Recoverability signals include /game bootstrap, email failure, and push failure paths',
+    'SimulationPanel.jsx',
+    simulationPanelSource,
+    ['bootstrap', 'email', 'push', 'fallback'],
+    { actionType: ACTION_TYPES.CI_ENVIRONMENT }),
+  warningCase('sre_release_health_signals', 'health_dashboard_is_not_observability',
+    'Health report is release-risk intelligence, not production observability',
+    'The simulator can summarize static/runtime case outcomes and local duration, but production latency/error/saturation need deployed telemetry.',
+    { actionType: ACTION_TYPES.CI_ENVIRONMENT, verificationLabels: ['STATIC_CHECK_LIMITATION', 'MANUAL_REQUIRED'] }),
 
   /* ============================================================
    *  CREATIVE KRONOX GAME-FEEL SUITE
@@ -1937,6 +2102,48 @@ export const EXTRA_TESTS = [
         ? pass('Lookup helpers verified at runtime.', { verification: 'RUNTIME_VERIFIED' })
         : fail('Lookup helpers returned unexpected results.', { verification: 'RUNTIME_VERIFIED' });
     }, { actionType: ACTION_TYPES.CODE_FIX }),
+  makeCase('online_category_taxonomy', 'selected_category_ids_forwarded_to_lobby',
+    'Selected Online category ids are forwarded into lobby creation/question filtering contract', () => {
+      const selectedExists = lobbyCreateJoinPanelSource.includes('selectedCategories');
+      const createReceivesSelection =
+        lobbyCreateJoinPanelSource.includes('onCreate(selectedCategories') ||
+        lobbyCreateJoinPanelSource.includes('onCreate({ selectedCategories') ||
+        lobbyCreateJoinPanelSource.includes('onCreate?.(selectedCategories');
+      const lobbyStoresSelection =
+        lobbyRoomSource.includes('selected_category_ids') ||
+        lobbyRoomSource.includes('category_ids') ||
+        lobbyRoomSource.includes('selectedCategories');
+      const filterConsumesSelection =
+        onlineCategoriesSource.includes('ONLINE_CATEGORY_IDS') &&
+        (lobbyRoomSource.includes('selected_category_ids') || lobbyRoomSource.includes('category_ids'));
+
+      if (selectedExists && (!createReceivesSelection || !lobbyStoresSelection || !filterConsumesSelection)) {
+        return fail('Online category multi-select exists visually, but selected ids are not wired through lobby creation/question filtering.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'LobbyCreateJoinPanel.jsx + LobbyRoom.jsx',
+          expected: 'selectedCategories handed to onCreate, stored on Lobby/settings, and consumed by question filtering',
+          actual: {
+            selectedExists,
+            createReceivesSelection,
+            lobbyStoresSelection,
+            filterConsumesSelection,
+          },
+          nextStep: 'Wire selected category ids through the lobby/create/start path before claiming category selection affects online questions.',
+        });
+      }
+
+      return pass('Selected Online category ids appear to be forwarded through the lobby/question-filtering contract.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actual: {
+          selectedExists,
+          createReceivesSelection,
+          lobbyStoresSelection,
+          filterConsumesSelection,
+        },
+      });
+    }, { actionType: ACTION_TYPES.CODE_FIX, runtimeProofRequired: true }),
   notAutomatableCase('online_category_taxonomy', 'multi_select_runtime_unbroken',
     'Online multi-category selection still works at runtime after taxonomy centralization',
     'Static contract proves the lobby panel imports the centralized list and CATEGORIES is built from it without losing ids; the actual multi-select UX flow (selecting/deselecting cards, min-1 guard, CTA hand-off) needs a real touch session on the mounted Online landing.',
@@ -1968,6 +2175,7 @@ const CRITICAL_SOCIAL_SUITE_IDS = new Set([
   'route_navigation_resilience',
   'report_ux_human_decision',
   'online_category_taxonomy',
+  'friend_request_email_deep_link',
 ]);
 
 export function criticalSocialUncertaintyPenalty(cases) {
