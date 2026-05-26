@@ -41,6 +41,7 @@ import gameRulesSource from '../../lib/gameRules.js?raw';
 import gameSoundsSource from '../../lib/gameSounds.js?raw';
 import lobbyUtilsSource from '../../lib/lobbyUtils.js?raw';
 import onlineGameStartSource from '../../lib/onlineGameStart.js?raw';
+import onlineGameNavigationSource from '../../lib/onlineGameNavigation.js?raw';
 import {
   getNextPlayerIndex,
   getQuestionSelectionPool,
@@ -200,6 +201,7 @@ const SRC = {
   LobbyUtils: lobbyUtilsSource,
   MainMenu: mainMenuSource,
   OnlineGameStart: onlineGameStartSource,
+  OnlineGameNavigation: onlineGameNavigationSource,
   QuestionCard: questionCardSource,
   SettingsPage: settingsPageSource,
   SoloChallenge: soloChallengeSource,
@@ -723,7 +725,17 @@ const TESTS = [
   valueCase('waiting_room_start', 'duplicate_player_identity_remove', 'duplicate player handling', () => removePlayerByIdentity([{ email: 'a', name: 'Same' }, { email: 'b', name: 'Same' }], { email: 'b', name: 'Same' }).map(player => player.email), ['a']),
   makeCase('waiting_room_start', 'ready_state_persistence_path', 'ready state persistence path exists', () => warning('Ready-state toggle is not part of the current waiting-room UX; this remains visible as an intentional difference, not a pass.', { classification: 'INTENTIONAL_DIFFERENCE', expected: 'ready-state persistence path if ready UX returns', actual: 'current waiting room starts from host action and does not expose a ready toggle' })),
   sourceHas('waiting_room_start', 'host_start_server_authoritative', 'host start path is classified as server-authoritative or waiting-room-safe', 'WaitingRoom/startLobbyGame', `${SRC.WaitingRoomPanel}\n${SRC.StartLobbyGame}`, ['startLobbyGame', 'state_revision', "status: 'starting'"]),
-  sourceHas('waiting_room_start', 'start_not_route_only', 'start transition does not rely only on route state', 'useWaitingRoomSync', SRC.UseWaitingRoomSync, ['base44.entities.Lobby.subscribe', 'poll', "navigate('/game'"]),
+  // Codex089 — honest fix for the Codex086 FAIL. The previous contract
+  // required the literal token "navigate('/game'" inside useWaitingRoomSync,
+  // but the real architecture (correctly) delegates navigation through
+  // navigateToOnlineGameRoute (imported from lib/onlineGameNavigation.js),
+  // which centralizes the `/game?...` URL build. Asserting the literal
+  // inline call would force a regression — drift between host and
+  // subscriber transition paths. We now assert the same behavior at the
+  // correct boundary: useWaitingRoomSync MUST have subscription + poll +
+  // a delegated navigate-to-online-game call, AND the helper module MUST
+  // be the one that produces the /game URL.
+  sourceHas('waiting_room_start', 'start_not_route_only', 'start transition does not rely only on route state (uses subscription + poll + delegated navigate-to-online-game)', 'useWaitingRoomSync + onlineGameNavigation', `${SRC.UseWaitingRoomSync}\n${SRC.OnlineGameNavigation}`, ['base44.entities.Lobby.subscribe', 'poll', 'navigateToOnlineGameRoute', '/game?']),
   sourceHas('waiting_room_start', 'subscription_and_polling_detectable', 'subscription + polling fallback are both detectable', 'useWaitingRoomSync', SRC.UseWaitingRoomSync, ['base44.entities.Lobby.subscribe', 'window.setInterval', 'window.clearInterval']),
   sourceHas('waiting_room_start', 'rejoin_roster_guard_source', 'rejoin assertion path does not overwrite newer roster state', 'findLobbyByCode/useWaitingRoomSync', `${SRC.FindLobbyByCode}\n${SRC.UseWaitingRoomSync}`, ['alreadyIn', 'asServiceRole.entities.Lobby.update', 'findLobbyByCode', 'setLobby(updatedLobby)']),
 

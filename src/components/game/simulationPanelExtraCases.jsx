@@ -1066,18 +1066,18 @@ export const EXTRA_TESTS = [
     `${friendsApiSource}\n${appSource}`,
     ["base44.functions.invoke('sendFriendRequestEmail'", 'appUrl: origin', "URLSearchParams(location.search).get('next')"],
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
-  makeCase('historical_kronox_regression', 'build_marker_bumped_beyond_codex087',
-    'Build marker is bumped beyond Codex087 (deploy-version visibility for the Codex088 friends-realtime-refresh phase)', () => {
+  makeCase('historical_kronox_regression', 'build_marker_bumped_beyond_codex088',
+    'Build marker is bumped beyond Codex088 (deploy-version visibility for the Codex089 waiting-room-start contract honesty phase)', () => {
       const match = String(buildMarkerSource || '').match(/BUILD_MARKER\s*=\s*'([^']+)'/);
       const value = match?.[1] || '';
       const codexMatch = value.match(/^Codex(\d+)$/);
       const num = codexMatch ? parseInt(codexMatch[1], 10) : NaN;
-      if (!Number.isFinite(num) || num <= 87) {
-        return fail('Build marker has not been bumped beyond Codex087.', {
+      if (!Number.isFinite(num) || num <= 88) {
+        return fail('Build marker has not been bumped beyond Codex088.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'components/dev/BuildMarker.jsx',
-          expected: 'CodexN where N > 87',
+          expected: 'CodexN where N > 88',
           actual: value || '(unreadable)',
         });
       }
