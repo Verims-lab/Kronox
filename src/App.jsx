@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
@@ -13,6 +13,10 @@ import AppHeader from '@/components/layout/AppHeader';
 import SplashScreen from '@/components/SplashScreen';
 import { NavigationStackProvider } from '@/lib/NavigationStackContext';
 import BuildMarker from '@/components/dev/BuildMarker';
+import AppDiagnostics from '@/components/dev/AppDiagnostics';
+import AppErrorBoundary from '@/components/dev/AppErrorBoundary';
+import { appDiagSetBuildMarker, pushAppDiag } from '@/lib/appDiagBus';
+import { base44 } from '@/api/base44Client';
 
 const MainMenu = lazy(() => import('./pages/MainMenu'));
 const SoloChallenge = lazy(() => import('./pages/SoloChallenge'));
@@ -34,6 +38,26 @@ const AuthenticatedApp = () => {
   const isGamePage = location.pathname === '/game';
   const isHomePage = location.pathname === '/' || location.pathname === '/solo';
   const isViewportLockedPage = location.pathname === '/' || isGamePage;
+
+  // Codex085 — fetch current user for App-level diagnostics gating.
+  const [currentUser, setCurrentUser] = useState(null);
+  useEffect(() => {
+    base44.auth.me().then(u => setCurrentUser(u || null)).catch(() => setCurrentUser(null));
+  }, [isAuthenticated]);
+
+  // Codex085 — push every route change into the diag bus so the overlay
+  // can show pathname AND we can detect "route_not_changed" black screens.
+  useEffect(() => {
+    pushAppDiag({
+      lastNavTarget: location.pathname,
+      lastNavPayloadKeys: Object.keys(location.state || {}),
+      lastNavAt: new Date().toISOString(),
+    });
+    // Reset Game-mount diag every time we leave /game.
+    if (prevPathRef.current === '/game' && location.pathname !== '/game') {
+      pushAppDiag({ gameUnmounted: true });
+    }
+  }, [location.pathname, location.state]);
 
   // Determine transition direction: push (right-to-left) or pop (left-to-right)
   const getTransitionDirection = () => {
@@ -59,13 +83,23 @@ const AuthenticatedApp = () => {
 
   // Show loading spinner while checking auth
   if (isLoadingAuth) {
-    return <SplashScreen />;
+    return (
+      <>
+        <AppDiagnostics currentUser={currentUser} />
+        <SplashScreen />
+      </>
+    );
   }
 
   // Handle authentication errors
   if (authError) {
     if (authError.type === 'user_not_registered') {
-      return <UserNotRegisteredError />;
+      return (
+        <>
+          <AppDiagnostics currentUser={currentUser} />
+          <UserNotRegisteredError />
+        </>
+      );
     }
     // auth_required: uygulama public — login olmadan da devam et
   }
@@ -73,32 +107,53 @@ const AuthenticatedApp = () => {
   // Render the main app
   return (
     <div style={viewportShellStyle} data-kx-route-locked={isViewportLockedPage ? 'true' : 'false'}>
+      <AppDiagnostics currentUser={currentUser} />
       {!isGamePage && !isHomePage && <AppHeader />}
       <Suspense fallback={<PageLoader />}>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={location.pathname}
-            initial={{ opacity: 0, x: transitionDir === 'push' ? 100 : -100 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: transitionDir === 'push' ? -100 : 100 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            data-kx-route-locked={isViewportLockedPage ? 'true' : undefined}
-            style={isViewportLockedPage ? { height: '100dvh', overflow: 'hidden', overscrollBehavior: 'none' } : undefined}
-          >
+        {/*
+          Codex085 — /game route is rendered OUTSIDE AnimatePresence.
+          The previous mode="wait" wrapper required the previous route's exit
+          animation to complete before the new route's enter animation
+          started. On a slow host transition from /lobby → /game this could
+          leave the new route stuck at { opacity: 0, x: 100 } → BLACK SCREEN.
+          The /game route is the most timing-sensitive route in the app, so
+          we render it directly (no animation wrapper) to guarantee an
+          immediate mount on the host. All other routes keep the slick
+          transition.
+        */}
+        {isGamePage ? (
+          <AppErrorBoundary>
             <Routes location={location}>
-              <Route path="/" element={<MainMenu />} />
-              <Route path="/solo" element={<SoloChallenge />} />
-              <Route path="/setup" element={<Navigate to="/solo" replace />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/friends" element={<FriendsPage />} />
-              <Route path="/lobby" element={<LobbyRoom />} />
               <Route path="/game" element={<Game />} />
-              <Route path="/test-suite" element={<TestSuite />} />
-              <Route path="*" element={<PageNotFound />} />
             </Routes>
-          </motion.div>
-        </AnimatePresence>
+          </AppErrorBoundary>
+        ) : (
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, x: transitionDir === 'push' ? 100 : -100 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: transitionDir === 'push' ? -100 : 100 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              data-kx-route-locked={isViewportLockedPage ? 'true' : undefined}
+              style={isViewportLockedPage ? { height: '100dvh', overflow: 'hidden', overscrollBehavior: 'none' } : undefined}
+            >
+              <AppErrorBoundary>
+                <Routes location={location}>
+                  <Route path="/" element={<MainMenu />} />
+                  <Route path="/solo" element={<SoloChallenge />} />
+                  <Route path="/setup" element={<Navigate to="/solo" replace />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/friends" element={<FriendsPage />} />
+                  <Route path="/lobby" element={<LobbyRoom />} />
+                  <Route path="/test-suite" element={<TestSuite />} />
+                  <Route path="*" element={<PageNotFound />} />
+                </Routes>
+              </AppErrorBoundary>
+            </motion.div>
+          </AnimatePresence>
+        )}
       </Suspense>
       <BottomNav />
     </div>
@@ -107,6 +162,11 @@ const AuthenticatedApp = () => {
 
 
 function App() {
+  // Codex085 — push build marker into diag bus once at app boot
+  useEffect(() => {
+    appDiagSetBuildMarker('Codex085');
+  }, []);
+
   return (
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>

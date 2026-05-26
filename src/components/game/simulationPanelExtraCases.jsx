@@ -45,6 +45,9 @@ import useLobbySyncSource from '../../hooks/useLobbySync.js?raw';
 import buildMarkerSource from '../dev/BuildMarker.jsx?raw';
 import onlineCategoriesSource from '../../lib/onlineCategories.js?raw';
 import onlineGameBootstrapFallbackSource from './OnlineGameBootstrapFallback.jsx?raw';
+// Codex086 — diagnostic-overlay gate sources, used to assert admin auto-enable is gone.
+import appDiagnosticsAuxSource from '../dev/AppDiagnostics.jsx?raw';
+import gameBootstrapDiagAuxSource from './GameBootstrapDiagnostics.jsx?raw';
 
 // Contract-string mirrors of entities/functions live outside /src are kept
 // in components/game/simulationPanelContractStrings.js so this file stays
@@ -1054,18 +1057,18 @@ export const EXTRA_TESTS = [
   // Codex077: assert the build marker has actually been bumped beyond
   // Codex075. Previous tasks claimed bumps but the marker stayed on
   // Codex075 — this static contract makes future drift impossible to hide.
-  makeCase('historical_kronox_regression', 'build_marker_bumped_beyond_codex083',
-    'Build marker is bumped beyond Codex083 (deploy-version visibility for the Codex084 diagnostics-first phase)', () => {
+  makeCase('historical_kronox_regression', 'build_marker_bumped_beyond_codex085',
+    'Build marker is bumped beyond Codex085 (deploy-version visibility for the Codex086 diagnostics-gating phase)', () => {
       const match = String(buildMarkerSource || '').match(/BUILD_MARKER\s*=\s*'([^']+)'/);
       const value = match?.[1] || '';
       const codexMatch = value.match(/^Codex(\d+)$/);
       const num = codexMatch ? parseInt(codexMatch[1], 10) : NaN;
-      if (!Number.isFinite(num) || num <= 83) {
-        return fail('Build marker has not been bumped beyond Codex083.', {
+      if (!Number.isFinite(num) || num <= 85) {
+        return fail('Build marker has not been bumped beyond Codex085.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'components/dev/BuildMarker.jsx',
-          expected: 'CodexN where N > 83',
+          expected: 'CodexN where N > 85',
           actual: value || '(unreadable)',
         });
       }
@@ -1076,6 +1079,22 @@ export const EXTRA_TESTS = [
         actual: value,
       });
     }, { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+
+  // Codex086 — diagnostic overlays must NOT auto-enable for admin users
+  // during normal gameplay. The host black-screen is fixed; the remaining
+  // problem (Codex086) was that admins kept seeing the overlay because both
+  // overlays auto-enabled on role==='admin'. This contract proves the gates
+  // are now strictly opt-in (URL param or localStorage only).
+  sourceLacks('historical_kronox_regression', 'diagnostics_do_not_auto_enable_for_admin',
+    'Diagnostics overlays must NOT auto-enable on role==="admin" (Codex086 gameplay-block fix)',
+    'components/dev/AppDiagnostics.jsx + components/game/GameBootstrapDiagnostics.jsx',
+    `${appDiagnosticsAuxSource}\n${gameBootstrapDiagAuxSource}`,
+    [
+      // The forbidden auto-admin gates from Codex084/085. Both must be gone.
+      "currentUser?.role === 'admin'",
+      'user.role === "admin"',
+    ],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
   // Codex084 — diagnostics overlay + render error boundary regression contract.
   sourceHas('historical_kronox_regression', 'game_render_has_diagnostics_and_error_boundary',
     '/game render exposes dev/admin diagnostics overlay AND wraps the playable view in a render error boundary so a black screen cannot hide the cause (Codex084)',

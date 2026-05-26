@@ -15,6 +15,7 @@ import { Loader2, WifiOff } from 'lucide-react';
 import { useOfflineQuestions } from '@/hooks/useOfflineQuestions';
 import { loadRecentHistory, appendToHistory } from '@/lib/questionHistory';
 import { debugLog } from '@/lib/debugLog';
+import { pushAppDiag } from '@/lib/appDiagBus';
 
 import { useGameState } from '@/hooks/useGameState';
 import { useGameActions } from '@/hooks/useGameActions';
@@ -66,6 +67,15 @@ export default function Game() {
       lobbyId,
       onlineMode: isOnlineFromState,
     });
+    // Codex085 — App-level diag: confirm Game actually mounted on this client.
+    pushAppDiag({
+      gameMounted: true,
+      gameUnmounted: false,
+      gameLobbyId: lobbyId || null,
+    });
+    return () => {
+      pushAppDiag({ gameMounted: false, gameUnmounted: true });
+    };
   }, [routeState, lobbyId, isOnlineFromState]);
 
   useEffect(() => {
@@ -438,6 +448,22 @@ export default function Game() {
     });
   }
 
+  // Codex085 — App-level diag: surface every render-stage transition to the
+  // overlay one level above. This must be inside the function body (not an
+  // effect) because we need it captured on EVERY render path, including the
+  // very first render where an early-return guard might otherwise hide it.
+  // pushAppDiag is a pure module-level emitter — safe during render.
+  if (isOnline) {
+    pushAppDiag({
+      gameRenderStage: renderStage,
+      gameLobbyId: lobbyId || null,
+      gameLobbyStatus: lobbyData?.status || null,
+      gameLobbyRevision: lobbyData?.state_revision ?? null,
+      gamePlayersCount: lobbyData?.players?.length ?? 0,
+      gameCurrentQId: lobbyData?.current_question_id || null,
+    });
+  }
+
   const diagnosticsOverlay = (
     <GameBootstrapDiagnostics
       visible={diagVisibleEarly}
@@ -562,8 +588,18 @@ export default function Game() {
   // ─── Render ───────────────────────────────────────────────────────
   return (
     <GameRenderErrorBoundary
-      onError={(err) => setBoundaryError(err)}
-      onReset={() => setBoundaryError(null)}
+      onError={(err) => {
+        setBoundaryError(err);
+        // Codex085 — surface render crashes to App-level diag too
+        pushAppDiag({
+          lastError: err?.message || String(err),
+          lastErrorWhere: 'game_render',
+        });
+      }}
+      onReset={() => {
+        setBoundaryError(null);
+        pushAppDiag({ lastError: null, lastErrorWhere: null });
+      }}
       onBackHome={() => navigate('/')}
     >
       {diagnosticsOverlay}
