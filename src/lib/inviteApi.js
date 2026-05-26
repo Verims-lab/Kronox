@@ -50,8 +50,8 @@ export async function createGameInvites({ host, lobby, toEmails, playerCount }) 
       .filter((email) => email !== fromEmail),
   ));
 
-  const results = await Promise.allSettled(unique.map((toEmail) =>
-    base44.entities.GameInvite.create({
+  const results = await Promise.allSettled(unique.map(async (toEmail) => {
+    const invite = await base44.entities.GameInvite.create({
       lobby_id: lobby.id,
       lobby_code: lobby.code || '',
       from_email: fromEmail,
@@ -60,15 +60,33 @@ export async function createGameInvites({ host, lobby, toEmails, playerCount }) 
       status: 'pending',
       game_mode: 'online_challenge',
       player_count: typeof playerCount === 'number' ? playerCount : undefined,
-    }),
-  ));
+    });
+
+    let push = { attempted: false, sent: 0, failed: 0, skipped: 'not_attempted' };
+    try {
+      const pushRes = await base44.functions.invoke('sendGameInvitePush', { inviteId: invite.id });
+      push = pushRes?.data?.push || pushRes?.data || push;
+    } catch (error) {
+      push = { attempted: true, sent: 0, failed: 1, error: error?.message || 'push_failed' };
+    }
+    return { invite, push };
+  }));
 
   const created = results.filter((r) => r.status === 'fulfilled').length;
   const failed = results
     .map((r, i) => (r.status === 'rejected' ? unique[i] : null))
     .filter(Boolean);
+  const push = results.reduce((acc, result) => {
+    if (result.status !== 'fulfilled') return acc;
+    const item = result.value?.push || {};
+    acc.attempted += item.attempted ? 1 : 0;
+    acc.sent += Number(item.sent || 0);
+    acc.failed += Number(item.failed || 0);
+    if (item.skipped) acc.skipped += 1;
+    return acc;
+  }, { attempted: 0, sent: 0, failed: 0, skipped: 0 });
 
-  return { created, failed, attempted: unique.length };
+  return { created, failed, attempted: unique.length, push };
 }
 
 /**

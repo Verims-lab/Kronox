@@ -2,9 +2,11 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from '@/App.jsx'
 import '@/index.css'
+import { registerKronoxServiceWorker } from '@/lib/notificationApi'
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(<App />);
+registerKronoxServiceWorker();
 
 // Remove the pre-React branded splash once React has painted
 requestAnimationFrame(() => {

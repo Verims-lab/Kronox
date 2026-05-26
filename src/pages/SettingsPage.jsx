@@ -9,6 +9,7 @@ import SimulationPanelErrorBoundary from '@/components/game/SimulationPanelError
 import TopScores from '@/components/game/TopScores';
 import QuestionManagement from '@/components/admin/QuestionManagement';
 import KronoxTutorial from '@/components/tutorial/KronoxTutorial';
+import NotificationSettingsCard from '@/components/notifications/NotificationSettingsCard';
 import { isAdminUser } from '@/lib/admin';
 
 export default function SettingsPage() {
@@ -139,6 +140,12 @@ export default function SettingsPage() {
             <div className="p-4 rounded-2xl border border-border/40 bg-secondary/20">
               <TopScores user={user} />
             </div>
+          </Section>
+        )}
+
+        {user && (
+          <Section label="Bildirimler">
+            <NotificationSettingsCard user={user} />
           </Section>
         )}
 
