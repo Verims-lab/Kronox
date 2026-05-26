@@ -104,15 +104,37 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
         return;
       }
 
-      const startedLobby = result.lobby || startLobby;
-      if (result.lobby) {
-        setLobby(result.lobby);
+      // Codex083 — Host bootstrap must use the SAME live server state that
+      // Player 2 receives via subscription. Relying on `result.lobby` alone
+      // proved unreliable on the host (black screen on /game). We always
+      // re-fetch the authoritative Lobby row after startLobbyGame succeeds
+      // and only fall back to the function response if the re-fetch fails.
+      let liveStartedLobby = null;
+      try {
+        liveStartedLobby = await base44.entities.Lobby.get(startLobby.id);
+      } catch (fetchErr) {
+        debugWarn('[handleStart] post-start Lobby.get failed, falling back to function response:', fetchErr.message);
+      }
+      const startedLobby = liveStartedLobby || result.lobby || startLobby;
+      const startedHasGameState = Boolean(
+        startedLobby?.id &&
+        startedLobby?.current_question_id &&
+        Array.isArray(startedLobby?.players) &&
+        startedLobby.players.length >= 2,
+      );
+
+      if (startedLobby) {
+        setLobby(startedLobby);
       }
 
       debugLog('[handleStart] authority start success:', {
         lobbyId: startLobby.id,
         debug: result.debug || null,
-        playersWrittenToLobby: summarizePlayers(result.lobby?.players || []),
+        usedSource: liveStartedLobby ? 'live-refetch' : (result.lobby ? 'function-response' : 'pre-start-fallback'),
+        startedHasGameState,
+        startedStatus: startedLobby?.status || null,
+        startedCurrentQuestionId: startedLobby?.current_question_id || null,
+        playersWrittenToLobby: summarizePlayers(startedLobby?.players || []),
       });
 
       const navigated = navigateToOnlineGame(navigate, startedLobby, {

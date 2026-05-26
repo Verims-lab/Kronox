@@ -44,6 +44,7 @@ import timelineSource from './Timeline.jsx?raw';
 import useLobbySyncSource from '../../hooks/useLobbySync.js?raw';
 import buildMarkerSource from '../dev/BuildMarker.jsx?raw';
 import onlineCategoriesSource from '../../lib/onlineCategories.js?raw';
+import onlineGameBootstrapFallbackSource from './OnlineGameBootstrapFallback.jsx?raw';
 
 // Contract-string mirrors of entities/functions live outside /src are kept
 // in components/game/simulationPanelContractStrings.js so this file stays
@@ -1053,18 +1054,18 @@ export const EXTRA_TESTS = [
   // Codex077: assert the build marker has actually been bumped beyond
   // Codex075. Previous tasks claimed bumps but the marker stayed on
   // Codex075 — this static contract makes future drift impossible to hide.
-  makeCase('historical_kronox_regression', 'build_marker_bumped_beyond_codex079',
-    'Build marker is bumped beyond Codex079 (deploy-version visibility for the Codex080 normalized-model fix)', () => {
+  makeCase('historical_kronox_regression', 'build_marker_bumped_beyond_codex082',
+    'Build marker is bumped beyond Codex082 (deploy-version visibility for the Codex083 host black-screen fix)', () => {
       const match = String(buildMarkerSource || '').match(/BUILD_MARKER\s*=\s*'([^']+)'/);
       const value = match?.[1] || '';
       const codexMatch = value.match(/^Codex(\d+)$/);
       const num = codexMatch ? parseInt(codexMatch[1], 10) : NaN;
-      if (!Number.isFinite(num) || num <= 79) {
-        return fail('Build marker has not been bumped beyond Codex079.', {
+      if (!Number.isFinite(num) || num <= 82) {
+        return fail('Build marker has not been bumped beyond Codex082.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'components/dev/BuildMarker.jsx',
-          expected: 'CodexN where N > 79',
+          expected: 'CodexN where N > 82',
           actual: value || '(unreadable)',
         });
       }
@@ -1075,6 +1076,52 @@ export const EXTRA_TESTS = [
         actual: value,
       });
     }, { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  // Codex083 host black-screen on online start regression contract.
+  //   Symptom: User A (host) tapped OYUNU BAŞLAT → backend started the lobby
+  //   and User B (Player 2) entered /game via the WaitingRoom subscription,
+  //   but User A landed on /game showing a stuck loading screen ("black
+  //   screen"). Codex082 added URL-param recovery but the host's
+  //   `handleStart` still navigated with the function-response lobby alone,
+  //   which raced the post-update DB write on slow networks.
+  //
+  //   Codex083 fix tokens this regression case checks:
+  //     1. WaitingRoomPanel.handleStart MUST re-fetch Lobby.get(id) after
+  //        startLobbyGame succeeds and use that authoritative copy.
+  //     2. useLobbySync MUST retry the initial Lobby.get with backoff so a
+  //        slow-network race doesn't strand the host.
+  //     3. Game.jsx MUST route the not-ready state through
+  //        OnlineGameBootstrapFallback so the host never sees an infinite
+  //        spinner without a manual recovery option.
+  sourceHas('historical_kronox_regression', 'host_start_bootstraps_from_live_lobby',
+    'Host start re-fetches authoritative Lobby after startLobbyGame instead of trusting stale function-response only (Codex083 fix)',
+    'WaitingRoomPanel.jsx + useLobbySync.js + Game.jsx',
+    `${waitingRoomPanelSource}\n${useLobbySyncSource}\n${gameSource}`,
+    [
+      // 1. Host re-fetches live lobby after start
+      'liveStartedLobby',
+      'base44.entities.Lobby.get(startLobby.id)',
+      // 2. useLobbySync retries with backoff so the host doesn't black-screen
+      //    if the first fetch races the post-start write
+      'resolveInitialLobbyWithRetry',
+      // 3. /game routes not-ready state through the recoverable fallback
+      'OnlineGameBootstrapFallback',
+    ],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  sourceHas('historical_kronox_regression', 'online_game_black_screen_has_manual_recovery',
+    'Online /game shows a manual "Tekrar Dene" recovery instead of infinite spinner (Codex083 fix)',
+    'OnlineGameBootstrapFallback.jsx',
+    onlineGameBootstrapFallbackSource,
+    [
+      'Tekrar Dene',
+      'onRefetchLobby',
+      'onRetryQuestions',
+      'setShowRetry(true)',
+    ],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  notAutomatableCase('historical_kronox_regression', 'online_start_two_account_runtime',
+    'Two-device proof: host taps start, host enters /game on first try, no black screen',
+    'Codex083 verified the symptom on the static + backend layer: host now re-fetches Lobby.get after startLobbyGame and uses that authoritative copy for navigation; useLobbySync retries the initial fetch; Game.jsx routes the not-ready state through OnlineGameBootstrapFallback so a stalled bootstrap is recoverable. Final release sign-off still needs a real two-device session because only a mounted browser can prove the visual transition and timing on a slow link.',
+    { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, recentlyFixed: true, verificationLabels: ['NOT_AUTOMATABLE', 'TWO_ACCOUNT_REQUIRED'] }),
   // Codex079: directly assert the FriendsPage→friendsApi call path that
   // caused the regression cannot silently regress again. FriendsPage hands
   // the full request object to acceptIncomingRequest, so the helper MUST

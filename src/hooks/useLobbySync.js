@@ -127,10 +127,33 @@ export function useLobbySync({
       return matches?.[0] || null;
     };
 
+    // Codex083 — Host bootstrap retry. The first fetch race-loses against the
+    // post-start write on slow networks more often than expected; without a
+    // retry the host gets a stuck loading screen while Player 2 enters fine
+    // via subscription. We retry up to 4 times with light backoff before
+    // giving up to the existing route-state / error paths below.
+    const resolveInitialLobbyWithRetry = async () => {
+      const delays = [0, 350, 700, 1200];
+      for (let attempt = 0; attempt < delays.length; attempt += 1) {
+        if (cancelled) return null;
+        if (delays[attempt]) await new Promise(r => setTimeout(r, delays[attempt]));
+        try {
+          const fetched = await resolveInitialLobby();
+          if (fetched) return fetched;
+        } catch (err) {
+          if (attempt === delays.length - 1) throw err;
+          debugWarn('[useLobbySync] initial fetch attempt failed, retrying:', { attempt, error: err.message });
+        }
+      }
+      return null;
+    };
+
     const startSync = async () => {
       try {
-        // İlk yükleme — always fetch fresh DB state to get correct current_player_index
-        const data = await resolveInitialLobby();
+        // İlk yükleme — always fetch fresh DB state to get correct current_player_index.
+        // Codex083: retry with backoff so the host doesn't black-screen if the
+        // first fetch races the post-start write.
+        const data = await resolveInitialLobbyWithRetry();
         if (cancelled) return;
         if (data) {
           debugLog('[useLobbySync] fetched lobby:', {

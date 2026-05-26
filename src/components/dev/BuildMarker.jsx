@@ -1,9 +1,21 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex082 — Online start bootstrap fix on top of the Codex081 friends
-// regression mop-up. Host/subscriber start navigation now carries URL
-// lobbyId/lobbyCode recovery plus the freshly-started Lobby snapshot.
-const BUILD_MARKER = 'Codex082';
+// Codex083 — Host black-screen on online start fixed. Codex082 added URL
+// recovery params but the host still stalled because handleStart navigated
+// using the function-response lobby (sometimes incomplete) instead of the
+// SAME live server lobby Player 2 sees via subscription. Codex083 changes:
+//   1. WaitingRoomPanel.handleStart re-fetches Lobby.get(lobbyId) AFTER
+//      startLobbyGame succeeds and navigates with that authoritative copy.
+//      Function-response is only used as a fallback if the re-fetch fails.
+//   2. useLobbySync retries the initial Lobby.get with light backoff so a
+//      slow-network race against the post-start write does not leave the
+//      host stranded on the loading screen.
+//   3. Game.jsx routes the not-ready state through OnlineGameBootstrapFallback
+//      which exposes a "Tekrar Dene" button after ~3s instead of spinning
+//      forever — black-screen is recoverable without leaving the route.
+// updateLobbyGameState authority logic, Timeline, QuestionCard, placement
+// rules, Friends, and RLS schemas are intentionally untouched.
+const BUILD_MARKER = 'Codex083';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 export default function BuildMarker() {

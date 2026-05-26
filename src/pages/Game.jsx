@@ -26,6 +26,7 @@ import GameOver from '@/components/game/GameOver';
 import SettingsModal from '@/components/game/SettingsModal';
 import GameOverTimer from '@/components/game/GameOverTimer';
 import GameLayout from '@/components/game/GameLayout';
+import OnlineGameBootstrapFallback from '@/components/game/OnlineGameBootstrapFallback';
 
 export default function Game() {
   const location = useLocation();
@@ -457,15 +458,26 @@ export default function Game() {
     : players.length > 0 && currentQuestion != null;
 
   if (!isGameReady) return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-6">
-      <div className="text-center space-y-4">
-        <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" />
-        <p className="font-inter text-foreground">
-          {!lobbyData && isOnline ? 'Lobi durumu yükleniyor...' : allQuestions.length === 0 ? 'Sorular yükleniyor...' : 'Oyun başlatılıyor...'}
-        </p>
-        <Button onClick={() => navigate('/')} variant="outline">Geri Dön</Button>
-      </div>
-    </div>
+    <OnlineGameBootstrapFallback
+      isOnline={isOnline}
+      hasLobbyData={!!lobbyData}
+      hasQuestions={allQuestions.length > 0}
+      lobbyId={lobbyId}
+      lobbyCode={routeLobbyCode}
+      onRefetchLobby={async () => {
+        if (!lobbyId && !routeLobbyCode) return;
+        try {
+          const fresh = lobbyId
+            ? await base44.entities.Lobby.get(lobbyId)
+            : (await base44.entities.Lobby.filter({ code: routeLobbyCode }, '-created_date', 1))?.[0];
+          if (fresh) setLobbyData(fresh);
+        } catch (e) {
+          debugLog('[Game] manual refetch failed:', e.message);
+        }
+      }}
+      onRetryQuestions={refetch}
+      onBackHome={() => navigate('/')}
+    />
   );
 
   // ─── Render ───────────────────────────────────────────────────────
