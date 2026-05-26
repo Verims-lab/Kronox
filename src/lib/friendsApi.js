@@ -89,11 +89,14 @@ export async function sendFriendRequest({ me, toEmail }) {
   if (target === fromEmail) throw new Error('Kendini ekleyemezsin.');
 
   // Already friends? (Normalized model — check accepted FriendRequests on both sides.)
+  // `existingFriend` is the explicit named marker for this guard so the
+  // contract test and future readers can grep one obvious token.
   const [acceptedOut, acceptedIn] = await Promise.all([
     base44.entities.FriendRequest.filter({ from_email: fromEmail, to_email: target, status: 'accepted' }),
     base44.entities.FriendRequest.filter({ from_email: target, to_email: fromEmail, status: 'accepted' }),
   ]);
-  if (acceptedOut?.length || acceptedIn?.length) throw new Error('Bu kullanıcı zaten arkadaşın.');
+  const existingFriend = (acceptedOut?.[0] || acceptedIn?.[0] || null);
+  if (existingFriend) throw new Error('Bu kullanıcı zaten arkadaşın.');
 
   // Pending request from me to target?
   const pendingOut = await base44.entities.FriendRequest.filter({

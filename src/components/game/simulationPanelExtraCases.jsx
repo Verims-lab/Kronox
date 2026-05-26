@@ -55,7 +55,7 @@ import {
   acceptGameInviteFnSource,
   acceptFriendRequestFnSource,
   removeFriendFnSource,
-} from './simulationPanelContractStrings.js';
+} from './simulationPanelContractStrings.jsx';
 
 // Leftover inline declaration removed — value comes from the import above.
 const _OBSOLETE_INLINE_ACCEPT_FN_SOURCE_REMOVED = '';
