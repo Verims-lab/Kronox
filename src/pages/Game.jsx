@@ -34,6 +34,7 @@ import GameRenderErrorBoundary from '@/components/game/GameRenderErrorBoundary';
 import {
   applyLevelAttempt,
   computeLevelStars,
+  getSoloLevelCount,
   readSoloProgress,
   writeSoloProgress,
 } from '@/lib/soloLevels';
@@ -555,6 +556,35 @@ export default function Game() {
     });
   }, [soloLevel, resetGame, navigate, routeYearStart, routeYearEnd]);
 
+  // Codex106-23 — Jump straight into the next level after a passed attempt.
+  // We rebuild the route state from the next level number, reusing the same
+  // year window so Game.jsx renders identical question generation.
+  const handleSoloNextLevel = useCallback(() => {
+    if (!soloLevel) return;
+    const nextLevelNumber = soloLevel.levelNumber + 1;
+    if (nextLevelNumber > getSoloLevelCount()) return;
+    setSoloLevelResult(null);
+    setMistakeCount(0);
+    lastCountedFeedbackRef.current = null;
+    soloResultPersistedRef.current = false;
+    resetGame();
+    navigate('/game', {
+      replace: true,
+      state: {
+        playerNames: ['Sen'],
+        category: 'karisik',
+        yearStart: routeYearStart,
+        yearEnd: routeYearEnd,
+        turnDuration: 0,
+        winCardCount: soloLevel.cardCount,
+        soloLevel: {
+          ...soloLevel,
+          levelNumber: nextLevelNumber,
+        },
+      },
+    });
+  }, [soloLevel, resetGame, navigate, routeYearStart, routeYearEnd]);
+
   const handleSoloBackToPath = useCallback(() => {
     resetGame();
     navigate('/solo', { state: { soloResultApplied: true } });
@@ -679,23 +709,37 @@ export default function Game() {
   // Codex106 — In Solo Level mode, ALWAYS show SoloLevelResult instead of
   // the generic GameOver. We render it as soon as `soloLevelResult` exists
   // (pass OR fail), regardless of whether `winner` was set internally.
-  if (isSoloLevelMode && soloLevelResult) return (
-    <>
-      {diagnosticsOverlay}
-      <SoloLevelResult
-        levelNumber={soloLevel.levelNumber}
-        passed={soloLevelResult.passed}
-        stars={soloLevelResult.stars}
-        mistakes={soloLevelResult.mistakes}
-        timeSeconds={soloLevelResult.timeSeconds}
-        cardsCompleted={soloLevelResult.cardsCompleted}
-        cardTarget={soloLevelResult.cardTarget}
-        failReason={soloLevelResult.failReason}
-        onRetry={handleSoloRetry}
-        onBackToPath={handleSoloBackToPath}
-      />
-    </>
-  );
+  if (isSoloLevelMode && soloLevelResult) {
+    // Codex106-23 — Compute next-level availability for the popup.
+    //   - hasNextLevel: passed AND next level number is within the catalog.
+    //   - isNextLevelComingSoon: passed AND already on the final level
+    //     (catalog ends — "Yakında" state).
+    // We don't show a next-level CTA on failed attempts at all.
+    const nextLevelNumber = soloLevel.levelNumber + 1;
+    const hasNextLevel = soloLevelResult.passed && nextLevelNumber <= getSoloLevelCount();
+    const isNextLevelComingSoon = soloLevelResult.passed && nextLevelNumber > getSoloLevelCount();
+    return (
+      <>
+        {diagnosticsOverlay}
+        <SoloLevelResult
+          levelNumber={soloLevel.levelNumber}
+          passed={soloLevelResult.passed}
+          stars={soloLevelResult.stars}
+          mistakes={soloLevelResult.mistakes}
+          timeSeconds={soloLevelResult.timeSeconds}
+          cardsCompleted={soloLevelResult.cardsCompleted}
+          cardTarget={soloLevelResult.cardTarget}
+          failReason={soloLevelResult.failReason}
+          nextLevelNumber={nextLevelNumber}
+          hasNextLevel={hasNextLevel}
+          isNextLevelComingSoon={isNextLevelComingSoon}
+          onRetry={handleSoloRetry}
+          onNextLevel={handleSoloNextLevel}
+          onBackToPath={handleSoloBackToPath}
+        />
+      </>
+    );
+  }
 
   // In solo level mode, suppress generic GameOver — SoloLevelResult will
   // mount within the same frame once the result effect runs.

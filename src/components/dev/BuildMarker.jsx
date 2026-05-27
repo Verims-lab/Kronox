@@ -92,13 +92,20 @@ import React, { useEffect, useState } from 'react';
 //      gameMounted, gameRenderStage, lastError + a derived blackScreenReason.
 // updateLobbyGameState authority logic, Timeline, QuestionCard, placement,
 // Friends, RLS, and visual assets are untouched.
-// Codex106 — Solo Level Path: kategori seçimi yerine dikey level path,
-// per-user solo_progress persistence (User entity + localStorage fallback),
-// 10 kart / 120sn / 8-hata fail kuralı, replay-only-better star update,
-// SoloLevelResult overlay. Game.jsx solo-level-mode dışında kalan tüm
-// flow'lar (online, lobby, drag/drop, Timeline, QuestionCard, GameLayout,
-// notification, invite, tutorial profile) DOKUNULMADI.
-const BUILD_MARKER = 'Codex106';
+// Codex106-23 — Solo level completion popup polish: completion time +
+// level number stat + ranking line (real-rank-ready, placeholder copy
+// today via lib/soloRanking.js), "Tekrar Oyna" + "Level X'e Geç" CTAs
+// (next-level only on pass and within catalog), clear fail-reason copy
+// on timeout / 8+ mistakes, 0-star fail state, animated stars, mobile
+// no-scroll fit. Game.jsx adds handleSoloNextLevel and passes
+// hasNextLevel / isNextLevelComingSoon to the popup. solo_progress
+// best-result merge, drag/drop, Timeline, online/lobby, notifications,
+// tutorial profile — DOKUNULMADI.
+//
+// Previous note: Codex106 — Solo Level Path (vertical 8-row path, per-user
+// solo_progress persistence with localStorage fallback, 10 kart / 120sn /
+// 8-mistake fail rule).
+const BUILD_MARKER = 'Codex106-23';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
