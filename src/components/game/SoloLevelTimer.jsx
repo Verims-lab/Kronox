@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Timer } from 'lucide-react';
+import { sounds } from '@/lib/gameSounds';
 
 /**
  * Codex106-24 — Solo Level total countdown timer (visible in gameplay).
@@ -26,6 +27,27 @@ export default function SoloLevelTimer({ totalSeconds = 120, elapsedSeconds = 0 
   const seconds = remaining % 60;
   const label = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   const danger = remaining <= 10;
+
+  // Codex106-25 — Last 10 seconds audio countdown.
+  //   • Plays exactly once per second from remaining=10 down to remaining=1.
+  //   • Dedupes by `lastTickedRef` so the same second can't double-fire.
+  //   • Cleanup: when this component unmounts (result popup mounts, route
+  //     change, replay/next-level reset), the effect captures nothing
+  //     ongoing — `sounds.urgencyTick` is one-shot Web Audio. There is no
+  //     timer/interval to clear. The parent GameLayout already stops
+  //     rendering this component when `winner` is set or solo level mode
+  //     ends, so further ticks naturally stop.
+  //   • Audio failure is non-blocking: gameSounds.js wraps every oscillator
+  //     in try/catch and returns silently if AudioContext is unavailable.
+  //   • Resets on unmount via React's normal lifecycle — new mount =
+  //     fresh ref starting at null.
+  const lastTickedRef = useRef(null);
+  useEffect(() => {
+    if (remaining < 1 || remaining > 10) return;
+    if (lastTickedRef.current === remaining) return;
+    lastTickedRef.current = remaining;
+    try { sounds.urgencyTick(); } catch { /* non-blocking */ }
+  }, [remaining]);
 
   return (
     <div

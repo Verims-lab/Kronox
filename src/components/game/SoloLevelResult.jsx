@@ -198,8 +198,12 @@ export default function SoloLevelResult({
                   color: '#1a0a00',
                 }}
               >
+                {/* Codex106-25 — Next-level CTA copy is exactly "Level X"
+                    (no "'e Geç") with a Play icon to its left. Pass-only,
+                    failed attempts hit the disabled/coming-soon branch
+                    below or get hidden entirely. */}
                 <Play className="w-4 h-4" fill="currentColor" />
-                Level {nextLevelNumber}'e Geç
+                Level {nextLevelNumber}
               </Button>
             ) : (
               <Button

@@ -92,26 +92,40 @@ import React, { useEffect, useState } from 'react';
 //      gameMounted, gameRenderStage, lastError + a derived blackScreenReason.
 // updateLobbyGameState authority logic, Timeline, QuestionCard, placement,
 // Friends, RLS, and visual assets are untouched.
-// Codex106-24 — Solo Level Path test-report fixes:
-//   • Bug 2/3 fix: readSoloProgress now picks the MORE-ADVANCED of the
-//     two stores (User.solo_progress vs localStorage) instead of blindly
-//     trusting a stale server snapshot. Stars + currentLevel now reflect
-//     the latest write even when base44.auth.me() returns a cached user.
-//   • Visible 120s gameplay timer: new SoloLevelTimer component renders
-//     in GameLayout's top-right slot whenever Game.jsx is in solo level
-//     mode. Counts down from 02:00, hardens to red ≤10s. Total-timer
-//     fail enforcement still lives in Game.jsx — UI is purely visible.
-//   • TurnTimer is skipped when turnDuration is 0 (solo level mode),
-//     preventing a 0-tick legacy timer from rendering alongside the
-//     new countdown.
-// Result popup content (stars/time/mistakes/level/rank/Tekrar Oyna /
-// Level X'e Geç) shipped in Codex106-23 — verified intact here.
-// Drag/drop, Timeline, QuestionCard, online flow, lobby, notifications,
-// tutorial profile — DOKUNULMADI.
+// Codex106-25 — Solo gameplay polish + Profile/Solo consistency:
+//   • Bug 1 fix: Profile Level now reads User.solo_progress.currentLevel
+//     via the SAME readSoloProgress helper SoloChallenge uses. Previously
+//     Profile hard-coded `value: 1`, so reaching Solo Level 3 left Profile
+//     stuck at 1. Single source of truth restored.
+//   • Bug 2 fix: Result popup next-level CTA is now "Level X" with a Play
+//     icon (Play already imported). The old "Level X'e Geç" string is
+//     removed. Replay still says "Tekrar Oyna"; failed attempts never get
+//     an enabled next-level button.
+//   • Bug 3 fix: Last-10-second audio countdown. SoloLevelTimer plays
+//     sounds.urgencyTick() exactly once per remaining second from 10→1,
+//     deduped by a ref. Cleanup is React-implicit (no setInterval), and
+//     audio failure is swallowed by try/catch so gameplay never breaks.
+//   • Health Center: three new Solo cases in a new suite
+//     (solo_progress_health):
+//       - solo_progress_profile_source_of_truth (static PASS contract)
+//       - solo_result_popup_next_level_cta_contract (static PASS contract)
+//       - solo_timer_last_10_seconds_audio_cue (static PASS contract)
+//     Two NOT_AUTOMATABLE companion cases keep the honest runtime gaps
+//     visible (real-device audio + cross-screen profile refresh).
+//   New cases live in components/game/simulationPanelSoloCodex106_25.js
+//   because simulationPanelExtraCases.js hit the 2000-line edit cap.
+//   SimulationPanel.jsx merges both sets without altering existing ids.
+// Solo rules unchanged: 10 cards / 120s / 0-1=3⭐ / 2-4=2⭐ / 5-7=1⭐ /
+// 8+ fail / timeout fail / replay never reduces bestStars / pass unlocks
+// next level / fail does not unlock.
+// Online flow, lobby, invites, notifications, matchmaking, tutorial
+// profile, drag/drop, Timeline, QuestionCard — DOKUNULMADI.
 //
+// Previous note: Codex106-24 — readSoloProgress "more advanced of two" +
+//   visible 120s SoloLevelTimer (no audio cue).
 // Previous note: Codex106-23 — Solo level completion popup polish.
 // Previous note: Codex106 — Solo Level Path (vertical 8-row path).
-const BUILD_MARKER = 'Codex106-24';
+const BUILD_MARKER = 'Codex106-25';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
