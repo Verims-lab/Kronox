@@ -10,6 +10,8 @@ import TopScores from '@/components/game/TopScores';
 import QuestionManagement from '@/components/admin/QuestionManagement';
 import KronoxTutorial from '@/components/tutorial/KronoxTutorial';
 import NotificationSettingsCard from '@/components/notifications/NotificationSettingsCard';
+import NotificationDeploymentHint from '@/components/notifications/NotificationDeploymentHint';
+import AppPreferencesCard from '@/components/notifications/AppPreferencesCard';
 import { isAdminUser } from '@/lib/admin';
 
 export default function SettingsPage() {
@@ -143,9 +145,29 @@ export default function SettingsPage() {
           </Section>
         )}
 
+        {/* Uygulama Ayarları — Codex096 grouping */}
         {user && (
-          <Section label="Bildirimler">
-            <NotificationSettingsCard user={user} />
+          <Section label="Uygulama Ayarları">
+            {/* Bildirimler */}
+            <div className="space-y-2">
+              <p className="font-inter text-[10px] font-black uppercase tracking-widest text-amber-200/70 px-1">
+                Bildirimler
+              </p>
+              <NotificationDeploymentHint isAdmin={isAdmin} />
+              <NotificationSettingsCard user={user} />
+              <p className="font-inter text-[11px] leading-relaxed text-muted-foreground px-1">
+                Oyun davetleri için bildirim alabilirsin. Bildirimler sadece sen izin verirsen açılır.
+                Uygulama kapalıyken bildirim alabilmek için cihazının ve tarayıcının desteklemesi gerekir.
+              </p>
+            </div>
+
+            {/* Tercihler */}
+            <div className="space-y-2 pt-1">
+              <p className="font-inter text-[10px] font-black uppercase tracking-widest text-amber-200/70 px-1">
+                Tercihler
+              </p>
+              <AppPreferencesCard />
+            </div>
           </Section>
         )}
 
