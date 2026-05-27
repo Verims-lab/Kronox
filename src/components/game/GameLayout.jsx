@@ -5,6 +5,7 @@ import QuestionCard from './QuestionCard.jsx';
 import Timeline from './Timeline.jsx';
 import TurnTimer from './TurnTimer.jsx';
 import OnlineTurnIndicator from './OnlineTurnIndicator.jsx';
+import OnlineScoreboard from './OnlineScoreboard.jsx';
 import { playerTextColors } from './playerColors';
 
 const CTA_ACTIVE_SHADOW = [
@@ -82,6 +83,7 @@ export default function GameLayout({
   touchDragEnd,
   isMyTurn,
   isOnline,
+  myEmail,
   feedback,
   winner,
   turnDuration,
@@ -142,6 +144,18 @@ export default function GameLayout({
           )}
         </div>
       </div>
+
+      {/* ONLINE SCOREBOARD — Codex094 */}
+      {isOnline && players.length > 1 && !winner && (
+        <div className="flex-shrink-0 pb-1">
+          <OnlineScoreboard
+            players={players}
+            currentPlayerIndex={currentPlayerIndex}
+            myEmail={myEmail}
+            winCardCount={winCardCount}
+          />
+        </div>
+      )}
 
       {/* CURRENT PLAYER LABEL — online uses richer OnlineTurnIndicator (Codex092) */}
       {isOnline ? (
