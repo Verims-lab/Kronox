@@ -639,6 +639,7 @@ export default function Game() {
         touchDragEnd={touchDragEnd}
         isMyTurn={isMyTurn}
         isOnline={isOnline}
+        myEmail={localPlayerEmail}
         feedback={feedback}
         winner={winner}
         turnDuration={turnDuration}
