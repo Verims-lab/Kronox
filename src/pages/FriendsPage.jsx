@@ -19,6 +19,7 @@ import OutgoingRequestItem from '@/components/friends/OutgoingRequestItem';
 import AddFriendForm from '@/components/friends/AddFriendForm';
 import IncomingInvitesPanel from '@/components/invites/IncomingInvitesPanel';
 import useFriendsRealtimeRefresh from '@/hooks/useFriendsRealtimeRefresh';
+import ScreenHeader from '@/components/layout/ScreenHeader';
 
 /**
  * Profile > Arkadaşlarım — Friends MVP.
@@ -152,13 +153,11 @@ export default function FriendsPage() {
 
   return (
     <PageShell>
-      {/* Header */}
-      <div className="px-1">
-        <p className="font-cinzel text-2xl tracking-wider text-white">Arkadaşlarım</p>
-        <p className="font-inter text-xs text-blue-100/60 mt-0.5">
-          Arkadaşlarını yönet, davet et, isteklerini gör.
-        </p>
-      </div>
+      <ScreenHeader title="Arkadaşlarım" showBack user={user} />
+      {/* Header subtitle (title moved to ScreenHeader) */}
+      <p className="font-inter text-xs text-blue-100/60 px-1">
+        Arkadaşlarını yönet, davet et, isteklerini gör.
+      </p>
 
       {loadError && (
         <p className="rounded-xl px-3 py-2 font-inter text-xs text-rose-100/90"

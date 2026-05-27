@@ -1,16 +1,21 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, Globe, UserRound } from 'lucide-react';
+import { Home, Trophy, UserRound } from 'lucide-react';
 import { useNavigationStack } from '@/lib/NavigationStackContext';
 
+// Codex102 — Bottom nav per product brief:
+// - Ana Sayfa (Home)
+// - Liderlik (Trophy)
+// - Profil  (User)
 const TABS = [
   { label: 'Ana Sayfa', icon: Home, path: '/' },
-  { label: 'Çevrimiçi', icon: Globe, path: '/lobby' },
+  { label: 'Liderlik', icon: Trophy, path: '/leaderboard' },
   { label: 'Profil', icon: UserRound, path: '/profile' },
 ];
 
-// Hide bottom nav on full-screen or commitment-critical flows.
-const HIDDEN_ROUTES = ['/game', '/', '/solo', '/lobby'];
+// Codex102 — Only fully-immersive / commitment-critical flows hide the bar.
+// Main, solo-select, and online-select screens now KEEP the bar visible.
+const HIDDEN_ROUTES = ['/game', '/lobby'];
 
 export default function BottomNav() {
   const location = useLocation();

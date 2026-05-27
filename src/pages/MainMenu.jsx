@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ChevronRight, LogOut, UserRound } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
+import ScreenHeader from '@/components/layout/ScreenHeader';
 
 // Note: a remote logo URL constant previously lived here but was never
 // rendered. It has been removed so the "no_remote_visual_assets_new_screens"
@@ -79,52 +80,6 @@ function HomeImageButton({ type, onClick }) {
   );
 }
 
-function ProfileBar({ user, onLogin, onLogout }) {
-  return (
-    <div
-      className="flex min-w-0 flex-1 items-center gap-3 rounded-full border border-amber-300/30 bg-black/72 px-3 py-2"
-      style={{
-        minHeight: 56,
-        background: 'linear-gradient(180deg, rgba(20,30,58,0.86), rgba(4,8,22,0.94))',
-        boxShadow: 'inset 0 0 18px rgba(255,255,255,0.06), inset 0 1px 0 rgba(255,236,140,0.18), 0 0 20px rgba(59,130,246,0.22), 0 10px 22px rgba(0,0,0,0.42)',
-      }}
-    >
-      <span
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
-        style={{
-          background: 'radial-gradient(circle at 35% 28%, #ffe066, #b97a06 70%)',
-          boxShadow: '0 0 18px rgba(250,204,21,0.62), inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -4px 6px rgba(140,80,8,0.55)',
-        }}
-      >
-        <UserRound className="h-6 w-6 text-amber-950" strokeWidth={2.6} />
-      </span>
-      {user ? (
-        <>
-          <div className="min-w-0 flex-1">
-            <p className="truncate font-inter text-[14px] font-black text-white">{user.full_name || user.email}</p>
-            <p className="font-inter text-[11px] font-black text-primary">Hazır</p>
-          </div>
-          <button
-            type="button"
-            onClick={onLogout}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white/58"
-            aria-label="Hesaptan çıkış yap"
-          >
-            <LogOut className="h-5 w-5" />
-          </button>
-        </>
-      ) : (
-        <button type="button" onClick={onLogin} className="min-w-0 flex-1 text-left" aria-label="Giriş yap veya kayıt ol">
-          <span className="block truncate font-inter text-[14px] font-black text-white">Misafir Oyuncu</span>
-          <span className="flex items-center gap-1 font-inter text-[11px] font-black text-primary">
-            Giriş yap veya kayıt ol <ChevronRight className="h-4 w-4" />
-          </span>
-        </button>
-      )}
-    </div>
-  );
-}
-
 export default function MainMenu() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
@@ -167,16 +122,6 @@ export default function MainMenu() {
     base44.auth.redirectToLogin('/');
   };
 
-  const handleLogout = () => {
-    sounds.tap();
-    base44.auth.logout('/');
-  };
-
-  const handleProfile = () => {
-    sounds.tap();
-    navigate('/profile');
-  };
-
   const stageStyle = isWideStage
     ? {
         width: 'min(100dvw, 56.25dvh)',
@@ -203,6 +148,8 @@ export default function MainMenu() {
         contain: 'layout paint size',
       }}
     >
+      {/* Codex102 — Standardized top bar above the immersive home stage. */}
+      <ScreenHeader title="Kronox" user={user} />
       <div
         className="absolute left-1/2 top-1/2 z-10"
         style={{
@@ -250,30 +197,34 @@ export default function MainMenu() {
           <HomeImageButton type="solo" onClick={handleSolo} />
         </div>
 
-        <section
-          className="absolute z-20 flex items-center gap-3 pointer-events-auto"
-          style={{
-            left: '4.6%',
-            right: '4.6%',
-            bottom: 'calc(0.75rem + env(safe-area-inset-bottom))',
-          }}
-        >
-          <ProfileBar user={user} onLogin={handleLogin} onLogout={handleLogout} />
-          <motion.button
-            type="button"
-            onClick={handleProfile}
-            whileTap={{ scale: 0.92 }}
-            transition={{ type: 'spring', stiffness: 520, damping: 24 }}
-            className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-full border border-amber-300/70 bg-black/76 text-amber-200"
+        {/* Codex102 — Bottom ProfileBar removed. Avatar/profile entry now
+            lives in the standardized ScreenHeader (top-right), and the
+            primary navigation lives in the fixed BottomNav. A small login
+            CTA is still shown here for guests so they can sign in without
+            leaving home. The CTA sits ABOVE the bottom nav. */}
+        {!user && (
+          <section
+            className="absolute z-20 flex items-center justify-center pointer-events-auto"
             style={{
-              background: 'linear-gradient(180deg, rgba(20,30,58,0.92), rgba(4,8,22,0.96))',
-              boxShadow: '0 0 20px rgba(250,204,21,0.46), 0 0 24px rgba(59,130,246,0.28), 0 10px 22px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,236,140,0.32), inset 0 -6px 10px rgba(0,0,0,0.4)',
+              left: '4.6%',
+              right: '4.6%',
+              bottom: 'calc(4.25rem + env(safe-area-inset-bottom))',
             }}
-            aria-label="Profil"
           >
-            <UserRound className="h-7 w-7" strokeWidth={2.4} />
-          </motion.button>
-        </section>
+            <button
+              type="button"
+              onClick={handleLogin}
+              className="flex items-center gap-2 rounded-full px-4 py-2 font-inter text-[12px] font-black text-amber-100"
+              style={{
+                background: 'linear-gradient(180deg, rgba(20,30,58,0.92), rgba(4,8,22,0.96))',
+                boxShadow: 'inset 0 0 0 1px rgba(250,204,21,0.55), 0 0 12px rgba(250,204,21,0.30)',
+              }}
+              aria-label="Giriş yap veya kayıt ol"
+            >
+              Giriş yap veya kayıt ol <ChevronRight className="h-4 w-4" />
+            </button>
+          </section>
+        )}
       </div>
     </main>
   );

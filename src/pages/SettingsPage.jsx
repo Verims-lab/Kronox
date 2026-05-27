@@ -14,6 +14,7 @@ import NotificationDeploymentHint from '@/components/notifications/NotificationD
 import AppPreferencesCard from '@/components/notifications/AppPreferencesCard';
 import { isAdminUser } from '@/lib/admin';
 import { markTutorialCompleted } from '@/lib/tutorialProfile';
+import ScreenHeader from '@/components/layout/ScreenHeader';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -84,21 +85,19 @@ export default function SettingsPage() {
       className="min-h-screen bg-background"
       style={{
         paddingTop: 'calc(4rem + env(safe-area-inset-top))',
-        paddingBottom: 'calc(4rem + env(safe-area-inset-bottom))',
+        paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))',
         userSelect: 'none',
       }}
     >
-      {/* Hero bar */}
-      <div className="px-5 pb-6 pt-2">
+      <ScreenHeader title={isAdmin ? 'Admin Paneli' : 'Ayarlar'} showBack user={user} />
+      {/* Identity strip under standardized header */}
+      <div className="px-5 pb-4 pt-2">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center flex-shrink-0">
             {isAdmin ? <Shield className="w-4 h-4 text-primary" /> : <Settings className="w-4 h-4 text-primary" />}
           </div>
-          <div>
-            <p className="font-cinzel text-lg text-foreground tracking-wider leading-tight">
-              {isAdmin ? 'Admin Paneli' : 'Ayarlar'}
-            </p>
-            <p className="font-inter text-xs text-muted-foreground">{user?.email}</p>
+          <div className="min-w-0">
+            <p className="font-inter text-xs text-muted-foreground truncate">{user?.email}</p>
           </div>
         </div>
       </div>

@@ -9,7 +9,6 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 
 import BottomNav from '@/components/layout/BottomNav';
-import AppHeader from '@/components/layout/AppHeader';
 import SplashScreen from '@/components/SplashScreen';
 import { NavigationStackProvider } from '@/lib/NavigationStackContext';
 import BuildMarker from '@/components/dev/BuildMarker';
@@ -28,6 +27,7 @@ const LobbyRoom = lazy(() => import('./pages/LobbyRoom'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const FriendsPage = lazy(() => import('./pages/FriendsPage'));
+const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage'));
 const TestSuite = lazy(() => import('./pages/TestSuite'));
 
 function PageLoader() {
@@ -39,7 +39,8 @@ const AuthenticatedApp = () => {
   const location = useLocation();
   const prevPathRef = React.useRef(location.pathname);
   const isGamePage = location.pathname === '/game';
-  const isHomePage = location.pathname === '/' || location.pathname === '/solo';
+  // Codex102 — Only home + game lock viewport. All other screens scroll
+  // normally and host their own ScreenHeader.
   const isViewportLockedPage = location.pathname === '/' || isGamePage;
 
   // Codex085 — fetch current user for App-level diagnostics gating.
@@ -126,7 +127,8 @@ const AuthenticatedApp = () => {
   return (
     <div style={viewportShellStyle} data-kx-route-locked={isViewportLockedPage ? 'true' : 'false'}>
       <AppDiagnostics currentUser={currentUser} />
-      {!isGamePage && !isHomePage && <AppHeader />}
+      {/* Codex102 — Global AppHeader removed. Each screen renders its own
+          ScreenHeader so the title/back/avatar match the active page. */}
       <Suspense fallback={<PageLoader />}>
         {/*
           Codex085 — /game route is rendered OUTSIDE AnimatePresence.
@@ -164,6 +166,7 @@ const AuthenticatedApp = () => {
                   <Route path="/settings" element={<SettingsPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
                   <Route path="/friends" element={<FriendsPage />} />
+                  <Route path="/leaderboard" element={<LeaderboardPage />} />
                   <Route path="/lobby" element={<LobbyRoom />} />
                   <Route path="/test-suite" element={<TestSuite />} />
                   <Route path="*" element={<PageNotFound />} />
@@ -189,7 +192,7 @@ const AuthenticatedApp = () => {
 function App() {
   // Codex101 — push build marker into diag bus once at app boot
   useEffect(() => {
-    appDiagSetBuildMarker('Codex101');
+    appDiagSetBuildMarker('Codex102');
   }, []);
 
   return (
