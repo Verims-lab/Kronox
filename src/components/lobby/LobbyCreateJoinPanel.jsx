@@ -7,6 +7,7 @@ import { sounds } from '@/lib/gameSounds';
 import GoldButton from '@/components/ui/GoldButton';
 import CreateLobbyInvitePanel from '@/components/lobby/CreateLobbyInvitePanel';
 import { ONLINE_CATEGORIES } from '@/lib/onlineCategories';
+import ScreenHeader from '@/components/layout/ScreenHeader';
 
 const ONLINE_BACKGROUND_ASSET = '/assets/ui/Kronox_Online_Fantasy_Basckground.png';
 // Exact CTA target visuals — bundled locally under public/assets/ui/.
@@ -70,6 +71,7 @@ export default function LobbyCreateJoinPanel({
   if (!mode) {
     return (
       <OnlineChallengeLanding
+        user={user}
         onCreate={(selectedIds) => {
           if (Array.isArray(selectedIds) && selectedIds.length > 0) {
             setPendingSelectedCategories(selectedIds);
@@ -102,11 +104,17 @@ export default function LobbyCreateJoinPanel({
       className="min-h-screen bg-background flex flex-col items-center justify-center px-6"
       style={{
         paddingTop: 'calc(5rem + env(safe-area-inset-top))',
-        paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))',
+        paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))',
         background:
           'radial-gradient(ellipse at 50% 18%, rgba(59,130,246,0.34), transparent 42%), radial-gradient(ellipse at 50% 90%, rgba(34,211,238,0.14), transparent 50%), linear-gradient(180deg, #050b1c 0%, #0a1738 55%, #03060f 100%)',
       }}
     >
+      <ScreenHeader
+        title={mode === 'create' ? 'Lobi Oluştur' : 'Lobiye Katıl'}
+        showBack
+        user={user}
+        onBack={onBackMode || (() => setMode(null))}
+      />
       <div className="w-full max-w-md space-y-7">
         <div className="text-center space-y-2">
           <div
@@ -297,7 +305,7 @@ function CategoryDeselectedMask() {
   );
 }
 
-function OnlineChallengeLanding({ onCreate, onJoin, onBackHome }) {
+function OnlineChallengeLanding({ user, onCreate, onJoin, onBackHome }) {
   const [selectedCategories, setSelectedCategories] = useState(DEFAULT_SELECTED_CATEGORIES);
   const [isWideStage, setIsWideStage] = useState(getIsWideStage);
 
@@ -373,6 +381,9 @@ function OnlineChallengeLanding({ onCreate, onJoin, onBackHome }) {
         contain: 'layout paint size',
       }}
     >
+      {/* Codex102 — Standardized top bar overlays the immersive stage. */}
+      <ScreenHeader title="Online Kapışma" showBack user={user} onBack={onBackHome} />
+
       <div
         className="absolute left-1/2 top-1/2 z-10"
         style={{

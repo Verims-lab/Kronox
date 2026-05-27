@@ -5,6 +5,7 @@ import { Users, Trophy, Sparkles, Gem, Settings, ChevronRight, LogOut, UserRound
 import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 import { isAdminUser } from '@/lib/admin';
+import ScreenHeader from '@/components/layout/ScreenHeader';
 
 /**
  * ProfilePage — first-pass shell.
@@ -54,6 +55,7 @@ export default function ProfilePage() {
         userSelect: 'none',
       }}
     >
+      <ScreenHeader title="Profil" user={user} />
       <div className="mx-auto w-full max-w-md px-4 space-y-5">
 
         {/* Identity card */}

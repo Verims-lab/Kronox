@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Settings, Zap } from 'lucide-react';
+import { Zap } from 'lucide-react';
 import { sounds } from '@/lib/gameSounds';
+import { base44 } from '@/api/base44Client';
+import ScreenHeader from '@/components/layout/ScreenHeader';
 
 // Category → DB value mapping
 // Primary: /assets/categories/*.webp (drop your files here to override)
@@ -157,6 +159,11 @@ export default function SoloChallenge() {
   const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState('teknoloji');
   const [selectedDifficulty, setSelectedDifficulty] = useState('hizli');
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    base44.auth.me().then((u) => setUser(u || null)).catch(() => setUser(null));
+  }, []);
 
   const handleStart = () => {
     sounds.tap();
@@ -193,37 +200,11 @@ export default function SoloChallenge() {
         />
       </div>
 
+      {/* Codex102 — Standardized top bar */}
+      <ScreenHeader title="Solo Meydan Okuma" showBack user={user} onBack={() => navigate('/')} />
+
       <div className="relative z-10 w-full max-w-sm mx-auto px-4 flex flex-col"
-        style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top))', paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
-
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <motion.button
-            whileTap={{ scale: 0.88 }}
-            onClick={() => { sounds.tap(); navigate('/'); }}
-            className="w-11 h-11 rounded-2xl flex items-center justify-center"
-            style={{ background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(255,255,255,0.12)', minHeight: 44, minWidth: 44 }}
-          >
-            <ArrowLeft className="w-5 h-5 text-white/70" />
-          </motion.button>
-
-          <motion.img
-            src="https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/49fc6f458_kronoxnobckgrnd.png"
-            alt="Kronox"
-            className="h-12 object-contain"
-            animate={{ filter: ['drop-shadow(0 0 6px rgba(250,204,21,0.35))', 'drop-shadow(0 0 14px rgba(250,204,21,0.65))', 'drop-shadow(0 0 6px rgba(250,204,21,0.35))'] }}
-            transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
-          />
-
-          <motion.button
-            whileTap={{ scale: 0.88 }}
-            onClick={() => navigate('/settings')}
-            className="w-11 h-11 rounded-2xl flex items-center justify-center"
-            style={{ background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(255,255,255,0.12)', minHeight: 44, minWidth: 44 }}
-          >
-            <Settings className="w-5 h-5 text-white/60" />
-          </motion.button>
-        </div>
+        style={{ paddingTop: 'calc(4rem + env(safe-area-inset-top))', paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
 
         {/* Title */}
         <motion.div
@@ -293,10 +274,14 @@ export default function SoloChallenge() {
         </motion.div>
       </div>
 
-      {/* Sticky bottom CTA */}
+      {/* Sticky bottom CTA — Codex102: sits ABOVE the fixed BottomNav. */}
       <div
-        className="fixed bottom-0 left-0 right-0 z-50 px-4"
-        style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', background: 'linear-gradient(to top, #0a0414 60%, transparent)' }}
+        className="fixed left-0 right-0 z-50 px-4"
+        style={{
+          bottom: 'calc(3.5rem + env(safe-area-inset-bottom))',
+          paddingBottom: '0.75rem',
+          background: 'linear-gradient(to top, #0a0414 60%, transparent)',
+        }}
       >
         <motion.button
           onClick={handleStart}

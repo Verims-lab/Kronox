@@ -23,6 +23,7 @@ import {
   rejectGameInvite,
 } from '@/lib/inviteApi';
 import { debugLog, debugWarn } from '@/lib/debugLog';
+import { setBottomNavHidden } from '@/lib/bottomNavVisibility';
 
 export default function LobbyRoom() {
   const navigate = useNavigate();
@@ -54,6 +55,19 @@ export default function LobbyRoom() {
   const [deepLinkInvite, setDeepLinkInvite] = useState(null);
   const [deepLinkMessage, setDeepLinkMessage] = useState('');
   const [deepLinkBusy, setDeepLinkBusy] = useState(false);
+
+  // Codex103 — BottomNav visibility within /lobby is state-aware:
+  //   • mode=null + no lobby + no invite deep-link → Online seçim ekranı (VISIBLE)
+  //   • mode=create / mode=join                    → lobi oluştur/katıl  (HIDDEN)
+  //   • lobby present (waiting room)               → gerçek lobby        (HIDDEN)
+  //   • invite deep-link present                   → davet akışı         (HIDDEN)
+  // Other routes are unaffected — this signal only flips while /lobby is mounted.
+  useEffect(() => {
+    const isOnlineSelectionScreen =
+      !lobby && !queryInviteId && (mode === null || mode === undefined);
+    setBottomNavHidden(!isOnlineSelectionScreen);
+    return () => setBottomNavHidden(false);
+  }, [mode, lobby, queryInviteId]);
 
   // New create signature: { maxPlayers, invitedEmails, selectedCategories }
   // from CreateLobbyInvitePanel.

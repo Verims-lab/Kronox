@@ -1,23 +1,37 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, Globe, UserRound } from 'lucide-react';
+import { Home, Trophy, UserRound } from 'lucide-react';
 import { useNavigationStack } from '@/lib/NavigationStackContext';
+import { getBottomNavHidden, subscribeBottomNavHidden } from '@/lib/bottomNavVisibility';
 
+// Codex103 — Bottom nav per product brief:
+// - Ana Sayfa (Home)
+// - Liderlik (Trophy)
+// - Profil  (User)
 const TABS = [
   { label: 'Ana Sayfa', icon: Home, path: '/' },
-  { label: 'Çevrimiçi', icon: Globe, path: '/lobby' },
+  { label: 'Liderlik', icon: Trophy, path: '/leaderboard' },
   { label: 'Profil', icon: UserRound, path: '/profile' },
 ];
 
-// Hide bottom nav on full-screen or commitment-critical flows.
-const HIDDEN_ROUTES = ['/game', '/', '/solo', '/lobby'];
+// Codex103 — Only fully-immersive / commitment-critical flows hide the bar by
+// route alone. /lobby is NOT here anymore because its visibility depends on
+// the in-page mode/state (see lib/bottomNavVisibility.js). LobbyRoom toggles
+// the runtime override when entering create/join/waiting sub-flows.
+const HIDDEN_ROUTES = ['/game'];
 
 export default function BottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const { currentTab, switchTab, getStackForTab, resetStack } = useNavigationStack();
 
+  // Codex103 — subscribe to runtime visibility overrides (set by LobbyRoom for
+  // mode=create/join/waiting). Static hide-by-route still wins for /game.
+  const [runtimeHidden, setRuntimeHidden] = useState(getBottomNavHidden);
+  useEffect(() => subscribeBottomNavHidden(setRuntimeHidden), []);
+
   if (HIDDEN_ROUTES.includes(location.pathname)) return null;
+  if (runtimeHidden) return null;
 
   const handleTabClick = (path) => {
     if (currentTab === path) {
