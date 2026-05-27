@@ -25,8 +25,11 @@ import notificationApiSource from '../../lib/notificationApi.js?raw';
 import addFriendFormSource from '../friends/AddFriendForm.jsx?raw';
 import friendListItemSource from '../friends/FriendListItem.jsx?raw';
 import incomingRequestItemSource from '../friends/IncomingRequestItem.jsx?raw';
+import outgoingRequestItemSource from '../friends/OutgoingRequestItem.jsx?raw';
 import incomingInvitesPanelSource from '../invites/IncomingInvitesPanel.jsx?raw';
+import inviteCountdownSource from '../invites/InviteCountdown.jsx?raw';
 import gameInviteNotifierSource from '../invites/GameInviteNotifier.jsx?raw';
+import gameInviteStatusPillSource from '../friends/GameInviteStatusPill.jsx?raw';
 import notificationSettingsCardSource from '../notifications/NotificationSettingsCard.jsx?raw';
 import toasterSource from '../ui/toaster.jsx?raw';
 import toastUiSource from '../ui/toast.jsx?raw';
@@ -765,7 +768,7 @@ export const EXTRA_TESTS = [
     'functions/acceptGameInvite.js',
     acceptGameInviteFnSource,
     ["lobby.status !== 'waiting'", "status: 'expired'"]),
-  sourceHas('game_invites', 'reject_marks_status_rejected',
+  sourceHas('game_invites', 'reject_marks_status_declined',
     'Reject path marks invite as declined (client RLS-scoped update)',
     'lib/inviteApi.js',
     inviteApiSource,
@@ -781,6 +784,16 @@ export const EXTRA_TESTS = [
     'lib/inviteApi.js',
     inviteApiSource,
     ['loadOutgoingInvitesForLobby', 'from_email: me']),
+  sourceHas('game_invites', 'status_pill_maps_full_invite_lifecycle',
+    'GameInviteStatusPill maps the full invite lifecycle safely',
+    'GameInviteStatusPill.jsx',
+    gameInviteStatusPillSource,
+    ['pending', 'accepted', 'declined', 'rejected', 'expired', 'cancelled', 'completed']),
+  sourceHas('game_invites', 'outgoing_rows_use_shared_status_pill',
+    'Outgoing request rows reuse the complete shared status pill instead of stale local mapping',
+    'OutgoingRequestItem.jsx + GameInviteStatusPill.jsx',
+    `${outgoingRequestItemSource}\n${gameInviteStatusPillSource}`,
+    ['GameInviteStatusPill', 'invite={request}', 'declined', 'completed']),
 
   /* ============================================================
    *  INVITE EXPIRATION HEALTH SUITE
@@ -805,6 +818,16 @@ export const EXTRA_TESTS = [
     'functions/acceptGameInvite.js',
     acceptGameInviteFnSource,
     ['getInviteExpiry', "status: 'expired'", 'Davetin süresi doldu']),
+  sourceHas('invite_expiration_health', 'expired_incoming_invite_accept_ui_guard',
+    'Expired pending invites disable the incoming invite accept affordance',
+    'IncomingInvitesPanel.jsx + InviteCountdown.jsx',
+    `${incomingInvitesPanelSource}\n${inviteCountdownSource}`,
+    ['isGameInviteExpired(invite)', 'Davetin süresi doldu', 'disabled={busy || expired}', "aria-label={expired ? 'Davetin süresi doldu'"]),
+  sourceLacks('invite_expiration_health', 'invite_countdown_is_read_only_ui',
+    'InviteCountdown is read-only UI and does not mutate invite/backend state',
+    'InviteCountdown.jsx',
+    inviteCountdownSource,
+    ['GameInvite.update', 'acceptGameInvite', 'rejectGameInvite', 'base44.entities']),
   sourceHas('invite_expiration_health', 'notification_deep_link_handles_expired_invite',
     'Notification deep-link route shows expired invite message instead of opening lobby',
     'LobbyRoom.jsx',
@@ -1550,12 +1573,18 @@ export const EXTRA_TESTS = [
     `${incomingInvitesPanelSource}\n${acceptGameInviteFnSource}`,
     ["navigate('/lobby'", 'joinedLobby', 'verifiedLobby'],
     { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),
-  sourceHas('invite_contract_drift', 'reject_invite_marks_pending_safe',
-    'Reject invite hides/marks pending invite safely',
+  sourceHas('invite_contract_drift', 'reject_invite_marks_declined_safe',
+    'Reject invite hides/marks pending invite safely with declined status',
     'inviteApi.js + IncomingInvitesPanel.jsx',
     `${inviteApiSource}\n${incomingInvitesPanelSource}`,
-    ["status: 'rejected'", 'await refresh()'],
+    ["status: 'declined'", 'declined_at', 'await refresh()'],
     { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, runtimeProofRequired: true }),
+  sourceLacks('invite_contract_drift', 'accepted_invite_does_not_open_game_directly',
+    'Accepted invite does not navigate directly to /game from invite surfaces',
+    'IncomingInvitesPanel.jsx + LobbyRoom.jsx',
+    `${incomingInvitesPanelSource}\n${lobbyRoomSource}`,
+    ["navigate('/game'", 'navigate("/game"'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
   sourceHas('invite_contract_drift', 'pending_list_filters_pending_status',
     'Pending list filters status === pending',
     'inviteApi.js',
@@ -1646,6 +1675,12 @@ export const EXTRA_TESTS = [
     sendGameInvitePushFnSource,
     ['game_invite_notifications_enabled === false', 'recipient_notifications_disabled', 'attempted: false'],
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  sourceLacks('game_invite_push_notifications', 'vapid_private_key_not_used_by_client_runtime',
+    'VAPID private key is not referenced by client runtime notification code',
+    'notificationApi.js + service worker + main.jsx',
+    `${notificationApiSource}\n${kronoxServiceWorkerSource}\n${mainSource}`,
+    ['KRONOX_VAPID_PRIVATE_KEY', 'VAPID_PRIVATE_KEY'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
   sourceHas('game_invite_push_notifications', 'admin_notification_diagnostics_are_gated',
     'Technical notification diagnostics are gated to admin view, not normal user copy',
     'SettingsPage.jsx + NotificationSettingsCard.jsx + NotificationDeploymentHint.jsx',
@@ -2075,8 +2110,8 @@ export const EXTRA_TESTS = [
     { actionType: ACTION_TYPES.CODE_FIX }),
   staticInfoCase('kronox_game_feel', 'reject_invite_clear_not_lobby_destructive',
     'Reject invite is clear but not destructive to lobby',
-    'Rejecting an invite marks only the GameInvite row rejected; it does not delete the lobby.',
-    { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, expected: 'reject only updates invite status', actual: 'rejectGameInvite uses GameInvite.update' }),
+    'Rejecting an invite marks only the GameInvite row declined; it does not delete the lobby.',
+    { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, expected: 'reject only updates invite status', actual: 'rejectGameInvite uses GameInvite.update with declined status' }),
   // Codex076 honest fix: the previous `sourceLacks` check failed if
   // `deleteAccount(` was found anywhere in Profile/Settings sources. That is
   // wrong — the presence of the call is not a defect; the defect would be

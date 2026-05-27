@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex100 — final regression pass after Codex099 UI polish: expired
+// Codex101 — Health Center case audit for current tutorial, invite expiry,
+// notification preference, VAPID, lobby-routing, matchmaking, and online
+// random-question product decisions. Adds/updates only Health coverage.
+//
+// Previous note: Codex100 — final regression pass after Codex099 UI polish: expired
 // incoming game invites can no longer present an active accept affordance,
 // and outgoing status rows reuse the complete invite/friend status pill.
 //
@@ -84,7 +88,7 @@ import React, { useEffect, useState } from 'react';
 //      gameMounted, gameRenderStage, lastError + a derived blackScreenReason.
 // updateLobbyGameState authority logic, Timeline, QuestionCard, placement,
 // Friends, RLS, and visual assets are untouched.
-const BUILD_MARKER = 'Codex100';
+const BUILD_MARKER = 'Codex101';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
