@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex098 — aligns profile tutorial state, invite expiration/deep-link
+// Codex100 — final regression pass after Codex099 UI polish: expired
+// incoming game invites can no longer present an active accept affordance,
+// and outgoing status rows reuse the complete invite/friend status pill.
+//
+// Previous note: Codex098 — aligns profile tutorial state, invite expiration/deep-link
 // routing, notification preferences, bottom-nav hiding, and Health contracts
 // with the latest Online/Friends/Notification product decisions.
 //
@@ -80,7 +84,7 @@ import React, { useEffect, useState } from 'react';
 //      gameMounted, gameRenderStage, lastError + a derived blackScreenReason.
 // updateLobbyGameState authority logic, Timeline, QuestionCard, placement,
 // Friends, RLS, and visual assets are untouched.
-const BUILD_MARKER = 'Codex099';
+const BUILD_MARKER = 'Codex100';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
