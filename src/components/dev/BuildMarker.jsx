@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 
 // Codex107 — Build marker format/consistency fix. The Health Simulator
-// extracts the build marker from this file's FIRST `Codex\d+` token, so
+// extracts the build marker from this file's FIRST CodexN token, so
 // this line must hold the current clean CodexN value. Keep it in sync
 // with `BUILD_MARKER` below and with `appDiagSetBuildMarker(...)` inside
-// App.jsx. Suffixes like `Codex106-26` are rejected by the Health case
-// `historical_kronox_regression.build_marker_bumped_beyond_codex090`.
+// App.jsx. Hyphenated dotted-suffix forms are rejected by the Health
+// case `historical_kronox_regression.build_marker_bumped_beyond_codex090`.
 //
 // Previous note: Codex104 — hardens BottomNav runtime visibility for /lobby sub-flows:
 // LobbyRoom now publishes hide/show in a layout effect and resets only on
@@ -104,9 +104,9 @@ import React, { useEffect, useState } from 'react';
 //     exports ALL_EXTRA_SUITES + ALL_EXTRA_TESTS (legacy social/release
 //     risk cases + every modular file). SimulationPanel.jsx now imports
 //     only from this registry — no case-specific imports.
-//   • Solo cases moved from the temporary
-//     simulationPanelSoloCodex106_25.js to the permanent
-//     simulationPanelSoloProgressCases.js (no Codex tag in the filename).
+//   • Solo cases moved from a temporary Codex-tagged module to the
+//     permanent simulationPanelSoloProgressCases.js (no Codex tag in
+//     the filename).
 //     Each modular file exports `EXTRA_SUITES` + `EXTRA_TESTS`; the
 //     registry flattens them in one place. To add a new health case
 //     file: drop it next to the Solo file, register it inside
