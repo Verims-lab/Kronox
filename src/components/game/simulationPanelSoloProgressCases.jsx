@@ -1,24 +1,27 @@
-// Codex106-25 — Solo Level Path / Profile / Gameplay timer health cases.
+// Kronox Health Center — Solo Progress / Profile / Gameplay timer cases.
 //
-// PURPOSE
-//   Three focused Health Simulator cases for the Codex106-25 scope:
-//     1. solo_progress_profile_source_of_truth — Profile Level + Solo Level
-//        Path must read from the SAME user-specific source. Previously
-//        Profile hard-coded `value: 1`, drifting from solo_progress.
-//     2. solo_result_popup_next_level_cta_contract — Pass popup CTA shows
-//        "Level X" with a Play icon (NOT "Level X'e Geç"); replay stays
-//        "Tekrar Oyna"; fail attempts do not enable a next-level action.
-//     3. solo_timer_last_10_seconds_audio_cue — 120s total timer with a
-//        guarded last-10-second audio cue (dedupe + cleanup +
-//        non-blocking failure).
+// SCOPE
+//   STATIC_CONTRACT health cases for the Solo Level Path + Profile
+//   source-of-truth, the Solo result popup CTA contract, and the
+//   in-gameplay last-10-seconds audio cue. Companion NOT_AUTOMATABLE
+//   cases keep honest runtime gaps visible.
 //
-// DESIGN
-//   - STATIC_CONTRACT only — these are presence/absence/regex checks of
-//     known source tokens. Runtime audio playback and on-device popup
-//     rendering remain NOT_AUTOMATABLE; we add those as honest gaps.
-//   - No scoring constant or status is weakened.
-//   - Lives in its own file because components/game/simulationPanelExtraCases.js
-//     hit the 2000-line edit cap. Spread into EXTRA_TESTS as the last block.
+// REGISTRATION
+//   This module is registered through
+//   components/game/simulationPanelCaseRegistry.js (the single aggregator
+//   SimulationPanel.jsx imports). Adding a NEW health case file should
+//   follow the same pattern:
+//     1. Export `EXTRA_SUITES` (suite descriptors) and `EXTRA_TESTS`
+//        (case array) from the new file.
+//     2. Add the new file to the registry's `MODULES` list.
+//     3. Do NOT mutate simulationPanelExtraCases.js — that file has hit
+//        the 2000-line edit cap and is intentionally frozen.
+//
+// HONESTY RULES
+//   - STATIC_CONTRACT only: presence/absence/regex checks of source tokens.
+//   - Runtime audio playback and on-device popup rendering remain
+//     NOT_AUTOMATABLE.
+//   - No scoring constant or status is weakened anywhere.
 
 import profilePageSource from '../../pages/ProfilePage.jsx?raw';
 import soloChallengeSource from '../../pages/SoloChallenge.jsx?raw';
@@ -70,10 +73,10 @@ function forbiddenTokensFound(source, tokens) {
   return tokens.filter((t) => String(source || '').includes(t));
 }
 
-// Codex106-25 — Suite descriptor for the new Solo cases. Surfaced to
-// SimulationPanel via a separate export so we don't have to mutate the
-// already-line-capped simulationPanelExtraCases.js file.
-export const SOLO_CODEX106_25_EXTRA_SUITES = [
+// Suite descriptor surfaced through the registry. Each new health case
+// module exports its own EXTRA_SUITES so the registry can flatten them
+// without SimulationPanel.jsx knowing about individual files.
+export const EXTRA_SUITES = [
   {
     id: 'solo_progress_health',
     name: SUITE_NAMES.solo_progress_health,
@@ -82,7 +85,7 @@ export const SOLO_CODEX106_25_EXTRA_SUITES = [
   },
 ];
 
-export const SOLO_CODEX106_25_EXTRA_TESTS = [
+export const EXTRA_TESTS = [
   /* ============================================================
    *  1. SOLO / PROFILE SOURCE OF TRUTH
    * ============================================================ */
@@ -278,12 +281,7 @@ export const SOLO_CODEX106_25_EXTRA_TESTS = [
         'if (!c) return',
       ]);
 
-      // (e) Timer is only rendered while gameplay runs — once `winner`
-      //     is set, GameLayout stops rendering SoloLevelTimer. We assert
-      //     the gate exists in GameLayout via the result popup taking
-      //     over (Game.jsx switches to SoloLevelResult before unmount).
-      //     The timer effect cleanup is React-implicit (no setInterval).
-      //     We assert there is NO setInterval/setTimeout in the timer.
+      // (e) Timer cleanup is React-implicit (no setInterval/setTimeout).
       const timerForbidden = forbiddenTokensFound(soloLevelTimerSource, [
         'setInterval',
         'setTimeout',

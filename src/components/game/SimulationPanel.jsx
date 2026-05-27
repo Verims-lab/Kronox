@@ -49,23 +49,20 @@ import {
   selectNextQuestion,
 } from '../../lib/gameRules';
 import { normalizeCode, removePlayerByIdentity, summarizePlayers } from '../../lib/lobbyUtils';
+// Kronox Health Center — case registry aggregator.
+//
+// SimulationPanel reads ALL_EXTRA_SUITES + ALL_EXTRA_TESTS from a single
+// registry module. New health case files are registered inside the
+// registry, not here, so this file does not grow case-specific imports
+// over time. See components/game/simulationPanelCaseRegistry.js for the
+// "how to add a new health case file" guide.
 import {
   ACTION_TYPES,
-  EXTRA_SUITES as BASE_EXTRA_SUITES,
-  EXTRA_TESTS as BASE_EXTRA_TESTS,
+  ALL_EXTRA_SUITES as EXTRA_SUITES,
+  ALL_EXTRA_TESTS as EXTRA_TESTS,
   criticalSocialUncertaintyPenalty,
   criticalStaticLimitationPenalty,
-} from './simulationPanelExtraCases';
-// Codex106-25 — Solo/Profile/last-10s cases live in their own file because
-// simulationPanelExtraCases.js hit the 2000-line per-file edit cap. We
-// merge here so existing suite ordering and case ids stay untouched.
-import {
-  SOLO_CODEX106_25_EXTRA_SUITES,
-  SOLO_CODEX106_25_EXTRA_TESTS,
-} from './simulationPanelSoloCodex106_25';
-
-const EXTRA_SUITES = [...BASE_EXTRA_SUITES, ...SOLO_CODEX106_25_EXTRA_SUITES];
-const EXTRA_TESTS = [...BASE_EXTRA_TESTS, ...SOLO_CODEX106_25_EXTRA_TESTS];
+} from './simulationPanelCaseRegistry';
 import ReleaseReadinessExplainer from './ReleaseReadinessExplainer';
 
 // NOTE: backend function files (functions/*.js) live OUTSIDE /src and cannot
