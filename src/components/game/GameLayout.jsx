@@ -4,6 +4,7 @@ import { sounds } from '@/lib/gameSounds';
 import QuestionCard from './QuestionCard.jsx';
 import Timeline from './Timeline.jsx';
 import TurnTimer from './TurnTimer.jsx';
+import OnlineTurnIndicator from './OnlineTurnIndicator.jsx';
 import { playerTextColors } from './playerColors';
 
 const CTA_ACTIVE_SHADOW = [
@@ -142,20 +143,33 @@ export default function GameLayout({
         </div>
       </div>
 
-      {/* CURRENT PLAYER LABEL */}
-      {players.length > 1 && (
-        <div className="flex-shrink-0 flex items-center justify-center gap-2 pb-1">
-          <div className={`w-2 h-2 rounded-full animate-pulse ${['bg-blue-400','bg-rose-400','bg-emerald-400','bg-violet-400'][currentPlayerIndex % 4]}`} />
-          <span className={`font-inter text-sm font-semibold ${playerTextColors[currentPlayerIndex % playerTextColors.length]}`}>
-            {currentPlayer?.name}
-          </span>
-        </div>
+      {/* CURRENT PLAYER LABEL — online uses richer OnlineTurnIndicator (Codex092) */}
+      {isOnline ? (
+        currentQuestion && !winner ? (
+          <div className="flex-shrink-0 flex items-center justify-center pb-1">
+            <OnlineTurnIndicator
+              isMyTurn={!!isMyTurn}
+              currentPlayerName={currentPlayer?.name}
+              currentPlayerIndex={currentPlayerIndex}
+              hasWinner={!!winner}
+            />
+          </div>
+        ) : null
+      ) : (
+        players.length > 1 && (
+          <div className="flex-shrink-0 flex items-center justify-center gap-2 pb-1">
+            <div className={`w-2 h-2 rounded-full animate-pulse ${['bg-blue-400','bg-rose-400','bg-emerald-400','bg-violet-400'][currentPlayerIndex % 4]}`} />
+            <span className={`font-inter text-sm font-semibold ${playerTextColors[currentPlayerIndex % playerTextColors.length]}`}>
+              {currentPlayer?.name}
+            </span>
+          </div>
+        )
       )}
 
       {/* CENTER: Instruction + Question card */}
       <div className="flex-shrink-0 flex flex-col items-center px-4 py-1 gap-1">
-        {/* Instruction text */}
-        {isMyTurn && !winner && currentQuestion && !feedback ? (
+        {/* Instruction text — online uses OnlineTurnIndicator above instead */}
+        {!isOnline && isMyTurn && !winner && currentQuestion && !feedback ? (
           <div className="text-center">
             <p className="font-inter font-semibold tracking-wide" style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)' }}>
               KARTI ZAMAN ÇİZGİSİNE
@@ -164,19 +178,23 @@ export default function GameLayout({
               YERLEŞTİR!
             </p>
           </div>
-        ) : isSpectatingQuestion ? (
-          <div className="text-center">
-            <p className="font-inter font-semibold tracking-wide" style={{ fontSize: 12, color: 'rgba(255,255,255,0.72)' }}>
-              SIRA {currentPlayer?.name || 'OYUNCU'} OYUNCUSUNDA
-            </p>
-            <p className="font-bangers tracking-widest" style={{ fontSize: 16, color: '#facc15' }}>
-              SORUYU İZLİYORSUN
-            </p>
-          </div>
         ) : null}
 
         {currentQuestion && !winner ? (
-          <div className="relative">
+          <motion.div
+            className="relative rounded-2xl"
+            animate={isOnline && isMyTurn && !feedback ? {
+              boxShadow: [
+                '0 0 0 rgba(250,204,21,0)',
+                '0 0 22px rgba(250,204,21,0.32), 0 0 38px rgba(34,197,94,0.18)',
+                '0 0 0 rgba(250,204,21,0)',
+              ],
+            } : { boxShadow: '0 0 0 rgba(0,0,0,0)' }}
+            transition={isOnline && isMyTurn && !feedback ? {
+              duration: 2.2, repeat: Infinity, ease: 'easeInOut',
+            } : { duration: 0.2 }}
+            style={{ willChange: 'box-shadow' }}
+          >
             <QuestionCard
               question={currentQuestion}
               onImageError={onImageError}
@@ -201,7 +219,7 @@ export default function GameLayout({
                 Kartı yalnızca {currentPlayer?.name || 'aktif oyuncu'} yerleştirebilir.
               </div>
             )}
-          </div>
+          </motion.div>
         ) : null}
       </div>
 
