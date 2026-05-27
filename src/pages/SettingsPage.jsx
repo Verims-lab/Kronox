@@ -13,6 +13,7 @@ import NotificationSettingsCard from '@/components/notifications/NotificationSet
 import NotificationDeploymentHint from '@/components/notifications/NotificationDeploymentHint';
 import AppPreferencesCard from '@/components/notifications/AppPreferencesCard';
 import { isAdminUser } from '@/lib/admin';
+import { markTutorialCompleted } from '@/lib/tutorialProfile';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -242,6 +243,7 @@ export default function SettingsPage() {
       <AnimatePresence>
         {showTutorial && (
           <KronoxTutorial
+            onComplete={() => markTutorialCompleted(user)}
             onDone={() => setShowTutorial(false)}
             onSkip={() => setShowTutorial(false)}
           />

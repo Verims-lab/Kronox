@@ -10,6 +10,18 @@
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
+const GAME_INVITE_TTL_MS = 5 * 60 * 1000;
+const readTime = (value: unknown) => {
+  const time = value ? new Date(String(value)).getTime() : NaN;
+  return Number.isFinite(time) ? time : NaN;
+};
+const getInviteExpiry = (invite: any) => {
+  const explicit = readTime(invite?.expires_at || invite?.expiresAt);
+  if (Number.isFinite(explicit)) return explicit;
+  const created = readTime(invite?.created_at || invite?.createdAt || invite?.created_date || invite?.createdDate);
+  return Number.isFinite(created) ? created + GAME_INVITE_TTL_MS : NaN;
+};
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -37,6 +49,14 @@ Deno.serve(async (req) => {
     }
     if (invite.status !== 'pending') {
       return Response.json({ error: `Davet zaten ${invite.status}.` }, { status: 409 });
+    }
+    const expiresAt = getInviteExpiry(invite);
+    if (Number.isFinite(expiresAt) && expiresAt <= Date.now()) {
+      await base44.asServiceRole.entities.GameInvite.update(inviteId, {
+        status: 'expired',
+        expired_at: new Date().toISOString(),
+      }).catch(() => {});
+      return Response.json({ error: 'Davetin süresi doldu. Yeni bir davet iste.' }, { status: 409 });
     }
 
     if (!invite.lobby_id) {
@@ -80,7 +100,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    await base44.asServiceRole.entities.GameInvite.update(inviteId, { status: 'accepted' });
+    await base44.asServiceRole.entities.GameInvite.update(inviteId, {
+      status: 'accepted',
+      accepted_at: new Date().toISOString(),
+    });
 
     return Response.json({
       success: true,

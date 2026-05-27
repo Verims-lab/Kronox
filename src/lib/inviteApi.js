@@ -7,6 +7,37 @@
 import { base44 } from '@/api/base44Client';
 import { normalizeEmail } from '@/lib/friendsApi';
 
+export const GAME_INVITE_TTL_MS = 5 * 60 * 1000;
+
+export function getGameInviteCreatedAt(invite) {
+  const raw = invite?.created_at || invite?.createdAt || invite?.created_date || invite?.createdDate;
+  const time = raw ? new Date(raw).getTime() : NaN;
+  return Number.isFinite(time) ? time : NaN;
+}
+
+export function getGameInviteExpiresAt(invite) {
+  const raw = invite?.expires_at || invite?.expiresAt;
+  const explicit = raw ? new Date(raw).getTime() : NaN;
+  if (Number.isFinite(explicit)) return explicit;
+  const created = getGameInviteCreatedAt(invite);
+  return Number.isFinite(created) ? created + GAME_INVITE_TTL_MS : NaN;
+}
+
+export function isGameInviteExpired(invite, now = Date.now()) {
+  if (!invite || invite.status !== 'pending') return false;
+  const expiresAt = getGameInviteExpiresAt(invite);
+  return Number.isFinite(expiresAt) && expiresAt <= now;
+}
+
+async function expirePendingInvite(invite) {
+  if (!invite?.id || invite.status !== 'pending') return invite;
+  await base44.entities.GameInvite.update(invite.id, {
+    status: 'expired',
+    expired_at: new Date().toISOString(),
+  }).catch(() => null);
+  return { ...invite, status: 'expired' };
+}
+
 /** Load incoming pending invites for the current user. */
 export async function loadIncomingInvites(myEmail) {
   const me = normalizeEmail(myEmail);
@@ -16,7 +47,11 @@ export async function loadIncomingInvites(myEmail) {
     '-created_date',
     50,
   );
-  return rows || [];
+  const now = Date.now();
+  const settled = await Promise.all((rows || []).map(async (invite) => (
+    isGameInviteExpired(invite, now) ? expirePendingInvite(invite) : invite
+  )));
+  return settled.filter((invite) => invite?.status === 'pending' && !isGameInviteExpired(invite, now));
 }
 
 /** Load outgoing invites the host sent for a specific lobby (any status). */
@@ -28,7 +63,11 @@ export async function loadOutgoingInvitesForLobby(myEmail, lobbyId) {
     '-created_date',
     50,
   );
-  return rows || [];
+  const now = Date.now();
+  const settled = await Promise.all((rows || []).map(async (invite) => (
+    isGameInviteExpired(invite, now) ? expirePendingInvite(invite) : invite
+  )));
+  return settled || [];
 }
 
 /**
@@ -51,6 +90,8 @@ export async function createGameInvites({ host, lobby, toEmails, playerCount }) 
   ));
 
   const results = await Promise.allSettled(unique.map(async (toEmail) => {
+    const createdAt = new Date();
+    const expiresAt = new Date(createdAt.getTime() + GAME_INVITE_TTL_MS);
     const invite = await base44.entities.GameInvite.create({
       lobby_id: lobby.id,
       lobby_code: lobby.code || '',
@@ -58,6 +99,8 @@ export async function createGameInvites({ host, lobby, toEmails, playerCount }) 
       from_name: host?.full_name || '',
       to_email: toEmail,
       status: 'pending',
+      created_at: createdAt.toISOString(),
+      expires_at: expiresAt.toISOString(),
       game_mode: 'online_challenge',
       player_count: typeof playerCount === 'number' ? playerCount : undefined,
     });
@@ -113,5 +156,8 @@ export async function acceptGameInvite(inviteId) {
  */
 export async function rejectGameInvite(inviteId) {
   if (!inviteId) throw new Error('Geçersiz davet.');
-  await base44.entities.GameInvite.update(inviteId, { status: 'rejected' });
+  await base44.entities.GameInvite.update(inviteId, {
+    status: 'declined',
+    declined_at: new Date().toISOString(),
+  });
 }

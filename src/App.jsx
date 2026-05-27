@@ -18,6 +18,8 @@ import AppErrorBoundary from '@/components/dev/AppErrorBoundary';
 import GameInviteNotifier from '@/components/invites/GameInviteNotifier';
 import { appDiagSetBuildMarker, pushAppDiag } from '@/lib/appDiagBus';
 import { base44 } from '@/api/base44Client';
+import KronoxTutorial from '@/components/tutorial/KronoxTutorial';
+import { markTutorialCompleted, shouldShowTutorialForUser } from '@/lib/tutorialProfile';
 
 const MainMenu = lazy(() => import('./pages/MainMenu'));
 const SoloChallenge = lazy(() => import('./pages/SoloChallenge'));
@@ -33,7 +35,7 @@ function PageLoader() {
 }
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, isAuthenticated } = useAuth();
+  const { isLoadingAuth, isLoadingPublicSettings, authError, isAuthenticated, user, checkUserAuth } = useAuth();
   const location = useLocation();
   const prevPathRef = React.useRef(location.pathname);
   const isGamePage = location.pathname === '/game';
@@ -42,9 +44,20 @@ const AuthenticatedApp = () => {
 
   // Codex085 — fetch current user for App-level diagnostics gating.
   const [currentUser, setCurrentUser] = useState(null);
+  const [showProfileTutorial, setShowProfileTutorial] = useState(false);
   useEffect(() => {
     base44.auth.me().then(u => setCurrentUser(u || null)).catch(() => setCurrentUser(null));
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    setShowProfileTutorial(Boolean(isAuthenticated && shouldShowTutorialForUser(user)));
+  }, [isAuthenticated, user?.email, user?.hasCompletedTutorial]);
+
+  const handleProfileTutorialComplete = async () => {
+    await markTutorialCompleted(user).catch(() => null);
+    setShowProfileTutorial(false);
+    checkUserAuth?.();
+  };
 
   // Codex085 — push every route change into the diag bus so the overlay
   // can show pathname AND we can detect "route_not_changed" black screens.
@@ -160,6 +173,13 @@ const AuthenticatedApp = () => {
           </AnimatePresence>
         )}
       </Suspense>
+      {showProfileTutorial && (
+        <KronoxTutorial
+          onComplete={handleProfileTutorialComplete}
+          onDone={() => setShowProfileTutorial(false)}
+          onSkip={() => setShowProfileTutorial(false)}
+        />
+      )}
       <BottomNav />
     </div>
   );
@@ -167,9 +187,9 @@ const AuthenticatedApp = () => {
 
 
 function App() {
-  // Codex097 — push build marker into diag bus once at app boot
+  // Codex098 — push build marker into diag bus once at app boot
   useEffect(() => {
-    appDiagSetBuildMarker('Codex097');
+    appDiagSetBuildMarker('Codex098');
   }, []);
 
   return (

@@ -15,6 +15,8 @@
 //   * No destructive backend writes. No fake green. Manual gaps stay visible.
 
 import profilePageSource from '../../pages/ProfilePage.jsx?raw';
+import authContextSource from '../../lib/AuthContext.jsx?raw';
+import tutorialProfileSource from '../../lib/tutorialProfile.js?raw';
 import friendsPageSource from '../../pages/FriendsPage.jsx?raw';
 import friendsApiSource from '../../lib/friendsApi.js?raw';
 import friendsRealtimeRefreshSource from '../../hooks/useFriendsRealtimeRefresh.js?raw';
@@ -37,6 +39,7 @@ import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
 import testSuiteSource from '../../pages/TestSuite.jsx?raw';
 import mainSource from '../../main.jsx?raw';
 import mainMenuSource from '../../pages/MainMenu.jsx?raw';
+import playerSetupSource from '../../pages/PlayerSetup.jsx?raw';
 import bottomNavSource from '../layout/BottomNav.jsx?raw';
 import adminLibSource from '../../lib/admin.js?raw';
 import appSource from '../../App.jsx?raw';
@@ -51,7 +54,9 @@ import timelineSource from './Timeline.jsx?raw';
 import useLobbySyncSource from '../../hooks/useLobbySync.js?raw';
 import buildMarkerSource from '../dev/BuildMarker.jsx?raw';
 import onlineCategoriesSource from '../../lib/onlineCategories.js?raw';
+import matchmakingPolicySource from '../../lib/matchmakingPolicy.js?raw';
 import onlineGameBootstrapFallbackSource from './OnlineGameBootstrapFallback.jsx?raw';
+import kronoxTutorialSource from '../tutorial/KronoxTutorial.jsx?raw';
 // Codex086 — diagnostic-overlay gate sources, used to assert admin auto-enable is gone.
 import appDiagnosticsAuxSource from '../dev/AppDiagnostics.jsx?raw';
 import gameBootstrapDiagAuxSource from './GameBootstrapDiagnostics.jsx?raw';
@@ -80,6 +85,8 @@ const _OBSOLETE_INLINE_ACCEPT_FN_SOURCE_REMOVED = '';
 //  to its SUITES array before rendering.
 // ---------------------------------------------------------------------------
 export const EXTRA_SUITES = [
+  { id: 'auth_profile_health',   name: 'Auth / Profile Health Suite',        critical: true,  color: '#fde68a' },
+  { id: 'tutorial_profile_health', name: 'Tutorial Profile Health Suite',    critical: true,  color: '#fcd34d' },
   { id: 'profile_navigation',     name: 'Profile Navigation Suite',           critical: true,  color: '#fcd34d' },
   { id: 'friends_ui',             name: 'Friends UI Suite',                   critical: true,  color: '#fde68a' },
   { id: 'friends_validation',     name: 'Friends Validation Suite',           critical: true,  color: '#fbbf24' },
@@ -105,6 +112,9 @@ export const EXTRA_SUITES = [
   { id: 'online_category_taxonomy', name: 'Online Category Taxonomy Suite', critical: true, color: '#fde68a' },
   { id: 'friend_request_email_deep_link', name: 'Friend Request Email / Deep-Link Suite', critical: true, color: '#93c5fd' },
   { id: 'game_invite_push_notifications', name: 'Game Invite Push Notification Readiness Suite', critical: false, color: '#67e8f9' },
+  { id: 'invite_expiration_health', name: 'Invite Expiration Health Suite', critical: true, color: '#fbbf24' },
+  { id: 'random_matchmaking_health', name: 'Random Matchmaking Health Suite', critical: false, color: '#93c5fd' },
+  { id: 'online_question_mode_health', name: 'Online Question Mode Health Suite', critical: true, color: '#c4b5fd' },
   { id: 'sre_release_health_signals', name: 'SRE-Style Release Health Signals Suite', critical: false, color: '#c4b5fd' },
 ];
 
@@ -273,6 +283,35 @@ function countOccurrences(source, pattern) {
 //  Extra cases. All STATIC_CONTRACT / NOT_AUTOMATABLE / BLOCKED are explicit.
 // ---------------------------------------------------------------------------
 export const EXTRA_TESTS = [
+
+  /* ============================================================
+   *  AUTH / PROFILE + TUTORIAL HEALTH
+   * ============================================================ */
+  sourceHas('auth_profile_health', 'auth_provider_loads_profile',
+    'Auth/profile health: AuthProvider loads the current Base44 user profile',
+    'AuthContext.jsx',
+    authContextSource,
+    ['base44.auth.me', 'setUser(currentUser || null)', 'isAuthenticated']),
+  sourceHas('auth_profile_health', 'profile_settings_notification_surface_exists',
+    'Profile exposes Ayarlar and Settings contains notification controls',
+    'ProfilePage.jsx + SettingsPage.jsx',
+    `${profilePageSource}\n${settingsPageSource}`,
+    ["navigate('/settings')", 'Ayarlar', 'NotificationSettingsCard', 'NotificationDeploymentHint']),
+  sourceHas('tutorial_profile_health', 'tutorial_status_is_profile_field',
+    'Tutorial state is tied to hasCompletedTutorial on the user profile',
+    'lib/tutorialProfile.js + MainMenu.jsx',
+    `${tutorialProfileSource}\n${mainMenuSource}`,
+    ['hasCompletedTutorial', 'shouldShowTutorialForUser', 'markTutorialCompleted', 'base44.auth.updateMe']),
+  sourceLacks('tutorial_profile_health', 'tutorial_flow_not_local_storage_based',
+    'Tutorial flow no longer depends on localStorage/tutorialState',
+    'MainMenu.jsx + PlayerSetup.jsx + KronoxTutorial.jsx',
+    `${mainMenuSource}\n${playerSetupSource}\n${kronoxTutorialSource}`,
+    ['tutorialState', 'kronox_tutorial_seen', 'localStorage']),
+  sourceHas('tutorial_profile_health', 'tutorial_completion_updates_profile',
+    'Completing or skipping tutorial updates the profile flag before closing',
+    'KronoxTutorial.jsx + tutorialProfile.js',
+    `${kronoxTutorialSource}\n${tutorialProfileSource}`,
+    ['onComplete', 'complete(onDone)', 'complete(onSkip)', 'hasCompletedTutorial: true']),
 
   /* ============================================================
    *  PROFILE NAVIGATION SUITE
@@ -650,10 +689,10 @@ export const EXTRA_TESTS = [
     ['lobby_id', 'from_email', 'to_email', 'status'],
     ['rls', 'data.from_email', 'data.to_email', '{{user.email}}']),
   sourceHas('game_invites', 'invite_status_lifecycle',
-    'Invite status lifecycle is pending/accepted/rejected/cancelled/expired',
+    'Invite status lifecycle includes pending/accepted/declined/expired/cancelled/completed',
     'entities/GameInvite.json',
     gameInviteEntitySource,
-    ['pending', 'accepted', 'rejected', 'cancelled', 'expired']),
+    ['pending', 'accepted', 'declined', 'expired', 'cancelled', 'completed']),
   sourceHas('game_invites', 'self_invite_prevented_client',
     'Self-invite is prevented client-side (host email filtered out)',
     'lib/inviteApi.js',
@@ -727,10 +766,10 @@ export const EXTRA_TESTS = [
     acceptGameInviteFnSource,
     ["lobby.status !== 'waiting'", "status: 'expired'"]),
   sourceHas('game_invites', 'reject_marks_status_rejected',
-    'Reject path marks invite as rejected (client RLS-scoped update)',
+    'Reject path marks invite as declined (client RLS-scoped update)',
     'lib/inviteApi.js',
     inviteApiSource,
-    ["status: 'rejected'", 'GameInvite.update']),
+    ["status: 'declined'", 'declined_at', 'GameInvite.update']),
   notAutomatableCase('game_invites', 'duplicate_pending_invite_db_runtime',
     'Duplicate pending invite for same friend+lobby is prevented at the DB level',
     'No DB-level uniqueness constraint exists; client deduplicates a single selection. Verifying double-host-press protection requires a real backend race-condition test — intentionally not executed.'),
@@ -742,6 +781,35 @@ export const EXTRA_TESTS = [
     'lib/inviteApi.js',
     inviteApiSource,
     ['loadOutgoingInvitesForLobby', 'from_email: me']),
+
+  /* ============================================================
+   *  INVITE EXPIRATION HEALTH SUITE
+   * ============================================================ */
+  sourceHas('invite_expiration_health', 'invite_rows_have_expiry_fields',
+    'GameInvite rows store created_at/expires_at for 5-minute validity',
+    'entities/GameInvite.json + lib/inviteApi.js',
+    `${gameInviteEntitySource}\n${inviteApiSource}`,
+    ['created_at', 'expires_at', 'GAME_INVITE_TTL_MS = 5 * 60 * 1000']),
+  sourceHas('invite_expiration_health', 'invite_creation_sets_five_minute_expiry',
+    'Creating a game invite sets status pending and expires_at = created_at + 5 minutes',
+    'lib/inviteApi.js',
+    inviteApiSource,
+    ["status: 'pending'", 'createdAt.getTime() + GAME_INVITE_TTL_MS', 'expires_at: expiresAt.toISOString()']),
+  sourceHas('invite_expiration_health', 'incoming_loader_expires_old_pending_invites',
+    'Incoming invite loader expires old pending invites before rendering',
+    'lib/inviteApi.js',
+    inviteApiSource,
+    ['isGameInviteExpired', 'expirePendingInvite', "status: 'expired'", "invite?.status === 'pending'"]),
+  sourceHas('invite_expiration_health', 'accept_backend_blocks_expired_invites',
+    'acceptGameInvite blocks expired invites before joining the lobby',
+    'functions/acceptGameInvite.js',
+    acceptGameInviteFnSource,
+    ['getInviteExpiry', "status: 'expired'", 'Davetin süresi doldu']),
+  sourceHas('invite_expiration_health', 'notification_deep_link_handles_expired_invite',
+    'Notification deep-link route shows expired invite message instead of opening lobby',
+    'LobbyRoom.jsx',
+    lobbyRoomSource,
+    ['queryInviteId', 'isGameInviteExpired', 'Davetin süresi doldu', 'DeepLinkedInvitePanel']),
 
   /* ============================================================
    *  LOBBY CODE UX SUITE
@@ -1566,6 +1634,18 @@ export const EXTRA_TESTS = [
     `${profilePageSource}\n${settingsPageSource}`,
     ["navigate('/settings')", 'Ayarlar', 'NotificationDeploymentHint', '<NotificationSettingsCard user={user} isAdmin={isAdmin} />', 'Uygulama Ayarları'],
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  sourceHas('game_invite_push_notifications', 'user_notification_preference_updates_profile',
+    'User notification preference is tied to enable/disable subscription actions',
+    'NotificationSettingsCard.jsx + lib/notificationApi.js',
+    `${notificationSettingsCardSource}\n${notificationApiSource}`,
+    ['game_invite_notifications_enabled', 'Tercih:', 'base44.auth.updateMe({ game_invite_notifications_enabled: true })', 'base44.auth.updateMe({ game_invite_notifications_enabled: false })'],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  sourceHas('game_invite_push_notifications', 'recipient_disabled_preference_skips_push',
+    'sendGameInvitePush respects the recipient profile notification preference before sending Web Push',
+    'functions/sendGameInvitePush.js',
+    sendGameInvitePushFnSource,
+    ['game_invite_notifications_enabled === false', 'recipient_notifications_disabled', 'attempted: false'],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
   sourceHas('game_invite_push_notifications', 'admin_notification_diagnostics_are_gated',
     'Technical notification diagnostics are gated to admin view, not normal user copy',
     'SettingsPage.jsx + NotificationSettingsCard.jsx + NotificationDeploymentHint.jsx',
@@ -1654,8 +1734,14 @@ export const EXTRA_TESTS = [
     'Push payload carries only minimal invite/lobby routing data',
     'functions/sendGameInvitePush.js + public/kronox-sw.js',
     `${sendGameInvitePushFnSource}\n${kronoxServiceWorkerSource}`,
-    ['title: \'Kronox\'', 'seni Kronox oyununa davet etti', 'inviteId', 'lobbyId', 'lobbyCode', 'targetUrl'],
+    ['title: \'Kronox\'', 'seni Kronox oyununa davet etti', 'inviteId', 'lobbyId', 'lobbyCode', 'targetUrl', 'expiresAt'],
     { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW, recentlyFixed: true }),
+  sourceHas('game_invite_push_notifications', 'expired_invites_do_not_trigger_push',
+    'Expired pending invites are marked expired and skipped before Web Push send',
+    'functions/sendGameInvitePush.js',
+    sendGameInvitePushFnSource,
+    ['getInviteExpiry', 'invite_expired', "status: 'expired'"],
+    { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, recentlyFixed: true, runtimeProofRequired: true }),
   sourceHas('game_invite_push_notifications', 'notification_click_target_is_same_origin',
     'Notification click target is constrained to same-origin Kronox invite route',
     'public/kronox-sw.js',
@@ -1775,6 +1861,18 @@ export const EXTRA_TESTS = [
     `${lobbyCreateJoinPanelSource}\n${lobbyRoomSource}`,
     ["mode === 'create'", "mode === 'join'", 'setMode'],
     { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceHas('route_navigation_resilience', 'bottom_nav_hidden_on_lobby_and_game',
+    'Bottom navigation is hidden on active game and lobby/critical flows',
+    'BottomNav.jsx',
+    bottomNavSource,
+    ["'/game'", "'/lobby'", 'HIDDEN_ROUTES.includes(location.pathname)'],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  sourceHas('route_navigation_resilience', 'notification_invite_link_bootstraps_lobby_route',
+    'Notification inviteId query bootstraps a safe invite/lobby route',
+    'LobbyRoom.jsx',
+    lobbyRoomSource,
+    ['queryInviteId', 'DeepLinkedInvitePanel', 'acceptGameInvite', "navigate('/lobby', { replace: true"],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
   sourceHas('route_navigation_resilience', 'route_state_bootstrap_only_multiplayer',
     'Route state is bootstrap-only for multiplayer',
     'useLobbySync.js',
@@ -2211,6 +2309,42 @@ export const EXTRA_TESTS = [
     'Online multi-category selection still works at runtime after taxonomy centralization',
     'Static contract proves the lobby panel imports the centralized list and CATEGORIES is built from it without losing ids; the actual multi-select UX flow (selecting/deselecting cards, min-1 guard, CTA hand-off) needs a real touch session on the mounted Online landing.',
     { actionType: ACTION_TYPES.DEVICE_TEST, verificationLabels: ['NOT_AUTOMATABLE', 'EXTERNAL_DEVICE_REQUIRED'] }),
+
+  /* ============================================================
+   *  RANDOM MATCHMAKING + ONLINE QUESTION MODE HEALTH
+   * ============================================================ */
+  sourceHas('random_matchmaking_health', 'no_opponent_message_policy_exists',
+    'Random matchmaking has a no-opponent message policy',
+    'lib/matchmakingPolicy.js',
+    matchmakingPolicySource,
+    ['RANDOM_MATCHMAKING_NO_OPPONENT_MESSAGE', 'Şu anda uygun rakip bulunamadı. Tekrar dene.'],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  sourceHas('random_matchmaking_health', 'bot_fallback_policy_is_disabled',
+    'Random matchmaking policy explicitly forbids bot fallback',
+    'lib/matchmakingPolicy.js',
+    matchmakingPolicySource,
+    ['RANDOM_MATCHMAKING_ALLOW_BOT_FALLBACK = false'],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  sourceLacks('random_matchmaking_health', 'no_bot_fallback_in_online_lobby_sources',
+    'Online lobby sources do not assign a bot while waiting for a real opponent',
+    'LobbyRoom.jsx + LobbyCreateJoinPanel.jsx + WaitingRoomPanel.jsx',
+    `${lobbyRoomSource}\n${lobbyCreateJoinPanelSource}\n${waitingRoomPanelSource}`,
+    ['isBot', 'bot_email', 'Bot Oyuncu', 'AI opponent', 'fakePlayer'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  warningCase('random_matchmaking_health', 'runtime_random_matchmaking_not_detected',
+    'Runtime random matchmaking flow is not detected in current Online code',
+    'Current Online flow is friend-invite/create/join-code based. No bot fallback was found, but a true random opponent queue/loading/cancel flow still needs product implementation or a dedicated backend queue before runtime PASS can be claimed.',
+    { actionType: ACTION_TYPES.CODE_FIX, verificationLabels: ['STATIC_CHECK_LIMITATION', 'MANUAL_REQUIRED'] }),
+  sourceLacks('online_question_mode_health', 'no_shared_question_pool_requirement_added',
+    'Online game does not require synchronized/shared question sets',
+    'Game + Online lobby/category sources',
+    `${gameSource}\n${onlineCategoriesSource}\n${lobbyRoomSource}`,
+    ['shared_question_pool', 'synchronized_question_order', 'same_question_set'],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  warningCase('online_question_mode_health', 'different_random_questions_are_allowed_product_decision',
+    'Online players may receive different/random questions by product decision',
+    'Health should not fail the product for lacking a shared question pool. Any future fairness work must avoid rewriting the existing question generation/random selection mechanics unless explicitly scoped.',
+    { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW, verificationLabels: ['STATIC_CHECK_LIMITATION'] }),
 ];
 
 // ---------------------------------------------------------------------------
@@ -2221,6 +2355,8 @@ export const EXTRA_TESTS = [
 // ---------------------------------------------------------------------------
 const CRITICAL_SOCIAL_SUITE_IDS = new Set([
   'profile_navigation',
+  'auth_profile_health',
+  'tutorial_profile_health',
   'friends_ui',
   'friends_validation',
   'friends_security',
@@ -2239,6 +2375,8 @@ const CRITICAL_SOCIAL_SUITE_IDS = new Set([
   'report_ux_human_decision',
   'online_category_taxonomy',
   'friend_request_email_deep_link',
+  'invite_expiration_health',
+  'online_question_mode_health',
 ]);
 
 export function criticalSocialUncertaintyPenalty(cases) {

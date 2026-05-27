@@ -1,7 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronRight, RotateCcw, Play } from 'lucide-react';
-import { tutorialState } from '@/lib/tutorialState';
 import { sounds } from '@/lib/gameSounds';
 
 // ── Step data ────────────────────────────────────────────────────────────────
@@ -253,26 +252,34 @@ function ProgressDots({ total, current }) {
 }
 
 // ── Main Tutorial component ────────────────────────────────────────────────────
-export default function KronoxTutorial({ onDone, onSkip }) {
+export default function KronoxTutorial({ onDone, onSkip, onComplete }) {
   const [step, setStep] = useState(0);
   const current = STEPS[step];
   const Visual = VISUALS[current.visual];
+
+  const complete = useCallback(async (callback) => {
+    try {
+      await onComplete?.();
+    } catch (_error) {
+      // Tutorial should close even if the profile flag update has to retry later.
+    } finally {
+      callback?.();
+    }
+  }, [onComplete]);
 
   const next = useCallback(() => {
     sounds.tap?.();
     if (step < STEPS.length - 1) {
       setStep(s => s + 1);
     } else {
-      tutorialState.markSeen();
-      onDone?.();
+      complete(onDone);
     }
-  }, [step, onDone]);
+  }, [complete, onDone, step]);
 
   const skip = useCallback(() => {
     sounds.tap?.();
-    tutorialState.markSeen();
-    onSkip?.();
-  }, [onSkip]);
+    complete(onSkip);
+  }, [complete, onSkip]);
 
   const replay = useCallback(() => {
     sounds.tap?.();

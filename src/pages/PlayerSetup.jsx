@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import KronoxTutorial from '@/components/tutorial/KronoxTutorial';
-import { tutorialState } from '@/lib/tutorialState';
 import { Input } from '@/components/ui/input';
 import { Users, Play, Globe, LogIn, LogOut, Settings, RefreshCw } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { motion, AnimatePresence } from 'framer-motion';
 import { sounds } from '@/lib/gameSounds';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { markTutorialCompleted, shouldShowTutorialForUser } from '@/lib/tutorialProfile';
 
 // Floating ambient orbs — pure atmosphere, no layout impact
 function AmbientOrbs() {
@@ -82,16 +82,25 @@ export default function PlayerSetup() {
   const [showTutorial, setShowTutorial] = useState(false);
 
   const refreshUser = () => {
-    base44.auth.me().then((u) => setUser(u || null)).catch(() => setUser(null));
+    base44.auth.me().then((u) => {
+      const nextUser = u || null;
+      setUser(nextUser);
+      setShowTutorial(shouldShowTutorialForUser(nextUser));
+    }).catch(() => setUser(null));
   };
 
   useEffect(() => {
     refreshUser();
-    // Auto-show tutorial for first-time visitors
-    if (!tutorialState.hasSeen()) {
-      setShowTutorial(true);
-    }
   }, []);
+
+  const handleTutorialComplete = async () => {
+    const updatedUser = await markTutorialCompleted(user).catch(() => ({
+      ...(user || {}),
+      hasCompletedTutorial: true,
+    }));
+    setUser(updatedUser || user);
+    setShowTutorial(false);
+  };
 
   const { refreshing: isRefreshing } = usePullToRefresh(() => {
     setTimeout(refreshUser, 300);
@@ -130,6 +139,7 @@ export default function PlayerSetup() {
     <AnimatePresence>
       {showTutorial && (
         <KronoxTutorial
+          onComplete={handleTutorialComplete}
           onDone={() => setShowTutorial(false)}
           onSkip={() => setShowTutorial(false)}
         />

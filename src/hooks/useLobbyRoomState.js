@@ -11,11 +11,12 @@ export function useLobbyRoomState() {
   const [error, setError] = useState('');
   const [nameError, setNameError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [userChecked, setUserChecked] = useState(false);
 
   useEffect(() => {
     base44.auth.me().then(u => {
       if (u) setUser(u);
-    }).catch(() => {});
+    }).catch(() => {}).finally(() => setUserChecked(true));
   }, []);
 
   return {
@@ -36,5 +37,6 @@ export function useLobbyRoomState() {
     setNameError,
     copied,
     setCopied,
+    userChecked,
   };
 }

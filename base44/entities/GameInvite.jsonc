@@ -31,9 +31,11 @@
       "enum": [
         "pending",
         "accepted",
+        "declined",
         "rejected",
         "cancelled",
-        "expired"
+        "expired",
+        "completed"
       ],
       "default": "pending",
       "description": "Invite lifecycle state"
@@ -46,6 +48,26 @@
     "player_count": {
       "type": "number",
       "description": "Intended total players for the invited game (2/3/4)"
+    },
+    "created_at": {
+      "type": "string",
+      "description": "ISO timestamp captured when the invite row is created"
+    },
+    "expires_at": {
+      "type": "string",
+      "description": "ISO timestamp after which a pending invite can no longer be accepted"
+    },
+    "expired_at": {
+      "type": "string",
+      "description": "ISO timestamp when the invite was marked expired"
+    },
+    "accepted_at": {
+      "type": "string",
+      "description": "ISO timestamp when the invite was accepted"
+    },
+    "declined_at": {
+      "type": "string",
+      "description": "ISO timestamp when the invite was declined"
     }
   },
   "required": [

@@ -131,7 +131,16 @@ export default function MainMenu() {
   const [isWideStage, setIsWideStage] = useState(getIsWideStage);
 
   useEffect(() => {
-    base44.auth.me().then((u) => setUser(u || null)).catch(() => setUser(null));
+    let cancelled = false;
+    base44.auth.me()
+      .then((u) => {
+        if (cancelled) return;
+        setUser(u || null);
+      })
+      .catch(() => {
+        if (!cancelled) setUser(null);
+      });
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {

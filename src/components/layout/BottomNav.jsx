@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Home, Globe, UserRound } from 'lucide-react';
 import { useNavigationStack } from '@/lib/NavigationStackContext';
@@ -9,8 +9,8 @@ const TABS = [
   { label: 'Profil', icon: UserRound, path: '/profile' },
 ];
 
-// Hide bottom nav on game and home screen (they have their own UI)
-const HIDDEN_ROUTES = ['/game', '/', '/solo'];
+// Hide bottom nav on full-screen or commitment-critical flows.
+const HIDDEN_ROUTES = ['/game', '/', '/solo', '/lobby'];
 
 export default function BottomNav() {
   const location = useLocation();

@@ -13,6 +13,17 @@ import webpush from 'npm:web-push@3.6.7';
 
 const normalizeEmail = (value: unknown) => String(value || '').trim().toLowerCase();
 const json = (body: unknown, status = 200) => Response.json(body, { status });
+const GAME_INVITE_TTL_MS = 5 * 60 * 1000;
+const readTime = (value: unknown) => {
+  const time = value ? new Date(String(value)).getTime() : NaN;
+  return Number.isFinite(time) ? time : NaN;
+};
+const getInviteExpiry = (invite: any) => {
+  const explicit = readTime(invite?.expires_at || invite?.expiresAt);
+  if (Number.isFinite(explicit)) return explicit;
+  const created = readTime(invite?.created_at || invite?.createdAt || invite?.created_date || invite?.createdDate);
+  return Number.isFinite(created) ? created + GAME_INVITE_TTL_MS : NaN;
+};
 
 function getVapidConfig() {
   return {
@@ -60,6 +71,30 @@ Deno.serve(async (req) => {
         push: { attempted: false, sent: 0, failed: 0, skipped: `invite_${invite.status}` },
       });
     }
+    const expiresAt = getInviteExpiry(invite);
+    if (Number.isFinite(expiresAt) && expiresAt <= Date.now()) {
+      await base44.asServiceRole.entities.GameInvite.update(inviteId, {
+        status: 'expired',
+        expired_at: new Date().toISOString(),
+      }).catch(() => null);
+      return json({
+        ok: true,
+        push: { attempted: false, sent: 0, failed: 0, skipped: 'invite_expired' },
+      });
+    }
+
+    const recipientRows = await base44.asServiceRole.entities.User.filter(
+      { email: toEmail },
+      '-created_date',
+      1,
+    ).catch(() => []);
+    const recipient = recipientRows?.[0] || null;
+    if (recipient?.game_invite_notifications_enabled === false) {
+      return json({
+        ok: true,
+        push: { attempted: false, sent: 0, failed: 0, skipped: 'recipient_notifications_disabled' },
+      });
+    }
 
     const config = getVapidConfig();
     if (!config.publicKey || !config.privateKey) {
@@ -103,6 +138,7 @@ Deno.serve(async (req) => {
         lobbyId: invite.lobby_id || null,
         lobbyCode: invite.lobby_code || null,
         targetUrl,
+        expiresAt: Number.isFinite(expiresAt) ? new Date(expiresAt).toISOString() : null,
       },
     });
 
