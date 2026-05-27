@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Users, Trophy, Sparkles, Gem, Settings, ChevronRight, LogOut, UserRound, LogIn } from 'lucide-react';
@@ -6,6 +6,11 @@ import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 import { isAdminUser } from '@/lib/admin';
 import ScreenHeader from '@/components/layout/ScreenHeader';
+// Codex106-25 — Profile Level reads from the SAME source of truth as the
+// Solo Level Path (User.solo_progress via readSoloProgress). Previously
+// Profile used a hard-coded `value: 1`, which is the documented root cause
+// of "Solo reached Level 3 but Profile still showed Level 1".
+import { readSoloProgress } from '@/lib/soloLevels';
 
 /**
  * ProfilePage — first-pass shell.
@@ -37,11 +42,18 @@ export default function ProfilePage() {
   const handleLogin = () => { sounds.tap(); base44.auth.redirectToLogin('/profile'); };
   const handleLogout = () => { sounds.tap(); base44.auth.logout('/'); };
 
-  // Placeholder values — clearly marked. Will be wired when economy/social systems land.
+  // Codex106-25 — Profile Level is now the SAME current Solo level the
+  // Solo Level Path uses. readSoloProgress picks the more-advanced of
+  // User.solo_progress and the localStorage mirror, so passing a Solo
+  // level immediately bumps the Profile tile too. Puan/Elmas remain
+  // hard-coded placeholders because the economy system is not built.
+  const soloProgress = useMemo(() => readSoloProgress(user), [user]);
+  const profileLevel = Math.max(1, Number(soloProgress?.currentLevel) || 1);
+
   const stats = [
-    { id: 'puan',  label: 'Puan',  value: 0, icon: Trophy,   tint: 'gold' },
-    { id: 'level', label: 'Level', value: 1, icon: Sparkles, tint: 'portal' },
-    { id: 'elmas', label: 'Elmas', value: 0, icon: Gem,      tint: 'cyan' },
+    { id: 'puan',  label: 'Puan',  value: 0,            icon: Trophy,   tint: 'gold' },
+    { id: 'level', label: 'Level', value: profileLevel, icon: Sparkles, tint: 'portal' },
+    { id: 'elmas', label: 'Elmas', value: 0,            icon: Gem,      tint: 'cyan' },
   ];
 
   return (

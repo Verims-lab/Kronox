@@ -1,6 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex104 — hardens BottomNav runtime visibility for /lobby sub-flows:
+// Codex107 — Build marker format/consistency fix. The Health Simulator
+// extracts the build marker from this file's FIRST `Codex\d+` token, so
+// this line must hold the current clean CodexN value. Keep it in sync
+// with `BUILD_MARKER` below and with `appDiagSetBuildMarker(...)` inside
+// App.jsx. Suffixes like `Codex106-26` are rejected by the Health case
+// `historical_kronox_regression.build_marker_bumped_beyond_codex090`.
+//
+// Previous note: Codex104 — hardens BottomNav runtime visibility for /lobby sub-flows:
 // LobbyRoom now publishes hide/show in a layout effect and resets only on
 // unmount, preventing visible-frame flicker in create/join/waiting states.
 //
@@ -92,7 +99,66 @@ import React, { useEffect, useState } from 'react';
 //      gameMounted, gameRenderStage, lastError + a derived blackScreenReason.
 // updateLobbyGameState authority logic, Timeline, QuestionCard, placement,
 // Friends, RLS, and visual assets are untouched.
-const BUILD_MARKER = 'Codex104';
+// Previous note: Codex106 — Health Center case registration architecture cleanup:
+//   • New aggregator: components/game/simulationPanelCaseRegistry.js
+//     exports ALL_EXTRA_SUITES + ALL_EXTRA_TESTS (legacy social/release
+//     risk cases + every modular file). SimulationPanel.jsx now imports
+//     only from this registry — no case-specific imports.
+//   • Solo cases moved from the temporary
+//     simulationPanelSoloCodex106_25.js to the permanent
+//     simulationPanelSoloProgressCases.js (no Codex tag in the filename).
+//     Each modular file exports `EXTRA_SUITES` + `EXTRA_TESTS`; the
+//     registry flattens them in one place. To add a new health case
+//     file: drop it next to the Solo file, register it inside
+//     MODULES in the registry. Done — suites, counts, top blockers,
+//     score penalties, JSON export, and side panel all pick it up.
+//   • simulationPanelExtraCases.js stays frozen (2000-line cap). No
+//     new case ever needs to be wedged into it.
+//   • Penalty hooks are unchanged: criticalSocialUncertaintyPenalty
+//     stays scoped to its existing social/RLS/invite suite list (new
+//     non-social suites must NOT inflate it); criticalStaticLimitationPenalty
+//     remains suite-agnostic so new critical+runtimeProofRequired+
+//     STATIC_CHECK_LIMITATION PASS cases get the right additive penalty
+//     automatically.
+//   • Build marker bumped. Solo gameplay rules, level progression,
+//     Profile logic, timer/audio/result-popup logic, drag/drop,
+//     Timeline, QuestionCard, GameLayout, invite, lobby, notification,
+//     and tutorial — DOKUNULMADI.
+//
+// Previous note: Codex106 — Solo gameplay polish + Profile/Solo consistency:
+//   • Bug 1 fix: Profile Level now reads User.solo_progress.currentLevel
+//     via the SAME readSoloProgress helper SoloChallenge uses. Previously
+//     Profile hard-coded `value: 1`, so reaching Solo Level 3 left Profile
+//     stuck at 1. Single source of truth restored.
+//   • Bug 2 fix: Result popup next-level CTA is now "Level X" with a Play
+//     icon (Play already imported). The old "Level X'e Geç" string is
+//     removed. Replay still says "Tekrar Oyna"; failed attempts never get
+//     an enabled next-level button.
+//   • Bug 3 fix: Last-10-second audio countdown. SoloLevelTimer plays
+//     sounds.urgencyTick() exactly once per remaining second from 10→1,
+//     deduped by a ref. Cleanup is React-implicit (no setInterval), and
+//     audio failure is swallowed by try/catch so gameplay never breaks.
+//   • Health Center: three new Solo cases in a new suite
+//     (solo_progress_health):
+//       - solo_progress_profile_source_of_truth (static PASS contract)
+//       - solo_result_popup_next_level_cta_contract (static PASS contract)
+//       - solo_timer_last_10_seconds_audio_cue (static PASS contract)
+//     Two NOT_AUTOMATABLE companion cases keep the honest runtime gaps
+//     visible (real-device audio + cross-screen profile refresh).
+//   New cases live in components/game/simulationPanelSoloProgressCases.js
+//   because simulationPanelExtraCases.js hit the 2000-line edit cap.
+//   SimulationPanel.jsx merges both sets without altering existing ids.
+// Solo rules unchanged: 10 cards / 120s / 0-1=3⭐ / 2-4=2⭐ / 5-7=1⭐ /
+// 8+ fail / timeout fail / replay never reduces bestStars / pass unlocks
+// next level / fail does not unlock.
+// Online flow, lobby, invites, notifications, matchmaking, tutorial
+// profile, drag/drop, Timeline, QuestionCard — DOKUNULMADI.
+//
+// Previous note: Codex106 — readSoloProgress "more advanced of two" +
+//   visible 120s SoloLevelTimer (no audio cue).
+// Previous note: Codex106 — Solo level completion popup polish.
+// Previous note: Codex106 — Solo Level Path (vertical 8-row path).
+const BUILD_MARKER = 'Codex107';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

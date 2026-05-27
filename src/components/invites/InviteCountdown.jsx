@@ -9,7 +9,9 @@ import { getGameInviteExpiresAt, isGameInviteExpired } from '@/lib/inviteApi';
  *
  * Pure UI: it READS getGameInviteExpiresAt() / isGameInviteExpired() from
  * @/lib/inviteApi (Codex contract). It does NOT mutate invite state — the
- * actual server-side expiration is owned by inviteApi + acceptGameInvite.
+ * actual server-side expiration is owned by the parent accept/reject flow
+ * (see IncomingInvitesPanel). This component never imports or invokes any
+ * accept/reject helper, and never updates GameInvite rows.
  *
  *  - status === 'pending' & not expired → "4:37 kaldı"
  *  - expired (TTL passed but row still 'pending')      → "Süresi doldu"

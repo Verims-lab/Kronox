@@ -1,0 +1,49 @@
+{
+  "name": "User",
+  "type": "object",
+  "properties": {
+    "role": {
+      "type": "string",
+      "description": "The role of the user in the app",
+      "enum": [
+        "admin",
+        "user"
+      ]
+    },
+    "solo_progress": {
+      "type": "object",
+      "description": "Codex106 \u2014 Per-user Solo Level Path progress. Compact shape: { currentLevel, levels: { '1': { bestStars, bestMistakes, bestTimeSeconds, attempts, completedAt } } }. Writes go through base44.auth.updateMe; never mutated by other features.",
+      "properties": {
+        "currentLevel": {
+          "type": "number"
+        },
+        "levels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "bestStars": {
+                "type": "number"
+              },
+              "bestMistakes": {
+                "type": "number"
+              },
+              "bestTimeSeconds": {
+                "type": "number"
+              },
+              "attempts": {
+                "type": "number"
+              },
+              "completedAt": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "role"
+  ]
+}

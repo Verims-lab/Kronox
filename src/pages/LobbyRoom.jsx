@@ -16,9 +16,9 @@ import {
   summarizePlayers,
   validatePlayerName,
 } from '@/lib/lobbyUtils';
-import { createGameInvites } from '@/lib/inviteApi';
 import {
   acceptGameInvite,
+  createGameInvites,
   isGameInviteExpired,
   rejectGameInvite,
 } from '@/lib/inviteApi';

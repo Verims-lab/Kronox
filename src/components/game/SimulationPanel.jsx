@@ -49,13 +49,20 @@ import {
   selectNextQuestion,
 } from '../../lib/gameRules';
 import { normalizeCode, removePlayerByIdentity, summarizePlayers } from '../../lib/lobbyUtils';
+// Kronox Health Center — case registry aggregator.
+//
+// SimulationPanel reads ALL_EXTRA_SUITES + ALL_EXTRA_TESTS from a single
+// registry module. New health case files are registered inside the
+// registry, not here, so this file does not grow case-specific imports
+// over time. See components/game/simulationPanelCaseRegistry.js for the
+// "how to add a new health case file" guide.
 import {
   ACTION_TYPES,
-  EXTRA_SUITES,
-  EXTRA_TESTS,
+  ALL_EXTRA_SUITES as EXTRA_SUITES,
+  ALL_EXTRA_TESTS as EXTRA_TESTS,
   criticalSocialUncertaintyPenalty,
   criticalStaticLimitationPenalty,
-} from './simulationPanelExtraCases';
+} from './simulationPanelCaseRegistry';
 import ReleaseReadinessExplainer from './ReleaseReadinessExplainer';
 
 // NOTE: backend function files (functions/*.js) live OUTSIDE /src and cannot
