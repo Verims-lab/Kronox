@@ -92,7 +92,7 @@ import React, { useEffect, useState } from 'react';
 //      gameMounted, gameRenderStage, lastError + a derived blackScreenReason.
 // updateLobbyGameState authority logic, Timeline, QuestionCard, placement,
 // Friends, RLS, and visual assets are untouched.
-const BUILD_MARKER = 'Codex104';
+const BUILD_MARKER = 'Codex105';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

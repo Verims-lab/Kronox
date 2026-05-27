@@ -1896,9 +1896,9 @@ export const EXTRA_TESTS = [
     `${lobbyCreateJoinPanelSource}\n${lobbyRoomSource}`,
     ["mode === 'create'", "mode === 'join'", 'setMode'],
     { actionType: ACTION_TYPES.CODE_FIX }),
-  // Codex104 — /lobby bottom nav visibility is sub-flow aware via runtime signal.
+  // Codex105 — /game hidden by route; /lobby visibility is runtime/subflow-based via bottomNavVisibility. The OLD "'/lobby' must be in HIDDEN_ROUTES" expectation is intentionally NOT asserted.
   sourceHas('route_navigation_resilience', 'bottom_nav_subflow_aware',
-    'Bottom nav hides /game statically; /lobby visibility is sub-flow aware via runtime signal',
+    'Bottom navigation: /game hidden by route; /lobby visibility is runtime/subflow-based via bottomNavVisibility (visible on Online Battle selection; hidden during create/join/waiting/deep-link)',
     'BottomNav.jsx', bottomNavSource,
     ["'/game'", 'HIDDEN_ROUTES', 'subscribeBottomNavHidden', 'runtimeHidden'],
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
