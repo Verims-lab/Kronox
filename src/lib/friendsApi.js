@@ -119,8 +119,15 @@ export async function sendFriendRequest({ me, toEmail }) {
     status: 'pending',
   });
 
-  // Codex087 — fire-and-forget email notification. Never blocks or rolls
-  // back the FriendRequest. UI may surface a soft warning if this throws.
+  // Codex087/Codex091 — fire-and-forget email notification. NEVER blocks or
+  // rolls back the FriendRequest. The FriendRequest above is the primary
+  // action; email is best-effort.
+  //
+  // Codex091: explicitly surface the controlled failure marker `email_failed`
+  // (used by the backend's SendEmail catch path) so callers/log readers can
+  // distinguish "FriendRequest created but email never went out" from
+  // "FriendRequest itself failed". We map any backend SendEmail failure to
+  // the canonical `email_failed` marker; other reasons keep their tag.
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const res = await base44.functions.invoke('sendFriendRequestEmail', {
@@ -128,16 +135,22 @@ export async function sendFriendRequest({ me, toEmail }) {
       appUrl: origin,
     });
     if (!res?.data?.ok) {
-      const reason = res?.data?.error || 'unknown';
-      console.warn('[friendsApi] friend-request email not delivered:', reason);
+      // Backend returns error: 'email_failed' (status 502) on SendEmail
+      // failure. Normalize so the caller never sees a backend-internal tag.
+      const rawReason = res?.data?.error || 'unknown';
+      const reason = rawReason === 'email_failed' ? 'email_failed' : rawReason;
+      console.warn('[friendsApi] friend-request email not delivered:', reason, 'marker=email_failed');
       // Communicate soft failure to the caller without throwing — caller
-      // can choose to surface a non-blocking warning.
+      // can choose to surface a non-blocking warning. Shape is stable.
       return { ok: true, emailSent: false, emailError: reason };
     }
     return { ok: true, emailSent: true };
   } catch (err) {
-    console.warn('[friendsApi] sendFriendRequestEmail invoke failed:', err?.message || err);
-    return { ok: true, emailSent: false, emailError: 'invoke_failed' };
+    // Network / runtime / SDK error — still a soft failure, not a hard fail
+    // of the FriendRequest. Mark with the canonical email_failed marker so
+    // log filters / tests can grep one token.
+    console.warn('[friendsApi] sendFriendRequestEmail invoke failed:', err?.message || err, 'marker=email_failed');
+    return { ok: true, emailSent: false, emailError: 'email_failed' };
   }
 }
 

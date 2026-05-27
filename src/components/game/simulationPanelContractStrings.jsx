@@ -103,12 +103,21 @@ export const sendFriendRequestEmailFnSource = `
     'Kabul etmek için Kronox\\'u aç:',
     deepLink,
   ].join('\\n');
-  await base44.integrations.Core.SendEmail({
-    from_name: 'Kronox',
-    to: toEmail,
-    subject: 'Kronox arkadaşlık isteğin var',
-    body: bodyText,
-  });
+  try {
+    await base44.integrations.Core.SendEmail({
+      from_name: 'Kronox',
+      to: toEmail,
+      subject: 'Kronox arkadaşlık isteğin var',
+      body: bodyText,
+    });
+  } catch (mailErr) {
+    // Codex091 — controlled failure marker. The FriendRequest above is
+    // intact (it was created by the client before this endpoint was
+    // invoked). The friendsApi caller surfaces { ok: true, emailSent: false,
+    // emailError: 'email_failed' } so the UI does not roll back the
+    // FriendRequest and does not leak a raw backend error.
+    return json({ ok: false, error: 'email_failed', reason: mailErr?.message || 'send failed' }, 502);
+  }
   return json({ ok: true, deepLink });
 `;
 

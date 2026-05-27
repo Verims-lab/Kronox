@@ -42,11 +42,12 @@ export default function LobbyRoom() {
     setCopied,
   } = useLobbyRoomState();
 
-  // New create signature: { maxPlayers, invitedEmails } from CreateLobbyInvitePanel.
+  // New create signature: { maxPlayers, invitedEmails, selectedCategories }
+  // from CreateLobbyInvitePanel.
   // playerName is derived from the authenticated user (no manual input).
   // For backwards-compat (e.g. if called with no payload), we fall back to playerName state.
   const handleCreate = async (payload = {}) => {
-    const { maxPlayers, invitedEmails } = payload || {};
+    const { maxPlayers, invitedEmails, selectedCategories } = payload || {};
     const derivedName = user
       ? deriveDisplayName(user)
       : (playerName && playerName.trim()) || '';
@@ -79,6 +80,16 @@ export default function LobbyRoom() {
     if (typeof maxPlayers === 'number') lobbyPayload.max_players = maxPlayers;
     if (Array.isArray(invitedEmails) && invitedEmails.length) {
       lobbyPayload.invited_emails = invitedEmails;
+    }
+    // Codex091 — persist Online category multi-select on the Lobby so
+    // startLobbyGame can filter the question pool by category_ids. Stored
+    // as a stable top-level field (not nested under settings) to stay
+    // compatible with the existing flat Lobby shape.
+    // Fallback: if nothing was forwarded (old code path / direct call),
+    // leave the field absent → startLobbyGame falls back to single-category
+    // behavior (lobby.category) just like old lobbies do.
+    if (Array.isArray(selectedCategories) && selectedCategories.length > 0) {
+      lobbyPayload.selected_category_ids = [...selectedCategories];
     }
 
     const newLobby = await base44.entities.Lobby.create(lobbyPayload);

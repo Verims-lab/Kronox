@@ -39,6 +39,7 @@ export default function CreateLobbyInvitePanel({
   user,
   loading,
   error,
+  selectedCategories,
   onCreate,
   onBackMode,
   onGoFriends,
@@ -108,7 +109,15 @@ export default function CreateLobbyInvitePanel({
 
   const handleCreate = () => {
     sounds.tap();
-    onCreate({ maxPlayers, invitedEmails: [...selectedEmails] });
+    // Codex091 — forward the chosen category ids from the Online landing
+    // so LobbyRoom can persist them on the Lobby row. Defensive fallback:
+    // if nothing was forwarded, leave undefined and let LobbyRoom apply
+    // the safe default.
+    onCreate({
+      maxPlayers,
+      invitedEmails: [...selectedEmails],
+      selectedCategories: Array.isArray(selectedCategories) ? [...selectedCategories] : undefined,
+    });
   };
 
   const userIdentity = useMemo(() => {
