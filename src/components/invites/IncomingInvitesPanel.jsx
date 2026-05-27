@@ -9,6 +9,7 @@ import {
   rejectGameInvite,
 } from '@/lib/inviteApi';
 import { sounds } from '@/lib/gameSounds';
+import InviteCountdown from '@/components/invites/InviteCountdown';
 
 /**
  * "Oyun Davetleri" — pending GameInvite rows addressed to the current user.
@@ -185,6 +186,9 @@ function InviteRow({ invite, busy, onAccept, onReject }) {
         <p className="truncate font-inter text-[11px] text-blue-100/65">
           {invite.player_count ? `${invite.player_count} Kişilik` : 'Online'} meydan okumaya çağırıyor
         </p>
+        <div className="mt-1">
+          <InviteCountdown invite={invite} />
+        </div>
       </div>
       <div className="flex items-center gap-1.5">
         <button
