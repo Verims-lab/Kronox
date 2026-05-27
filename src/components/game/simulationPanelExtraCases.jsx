@@ -26,6 +26,9 @@ import incomingRequestItemSource from '../friends/IncomingRequestItem.jsx?raw';
 import incomingInvitesPanelSource from '../invites/IncomingInvitesPanel.jsx?raw';
 import gameInviteNotifierSource from '../invites/GameInviteNotifier.jsx?raw';
 import notificationSettingsCardSource from '../notifications/NotificationSettingsCard.jsx?raw';
+import toasterSource from '../ui/toaster.jsx?raw';
+import toastUiSource from '../ui/toast.jsx?raw';
+import useToastSource from '../ui/use-toast.jsx?raw';
 import createLobbyInvitePanelSource from '../lobby/CreateLobbyInvitePanel.jsx?raw';
 import lobbyCreateJoinPanelSource from '../lobby/LobbyCreateJoinPanel.jsx?raw';
 import waitingRoomPanelSource from '../lobby/WaitingRoomPanel.jsx?raw';
@@ -1586,6 +1589,24 @@ export const EXTRA_TESTS = [
     'GameInviteNotifier.jsx + App.jsx',
     `${gameInviteNotifierSource}\n${appSource}`,
     ['GameInviteNotifier', 'loadIncomingInvites', 'GameInvite.subscribe', 'toast', 'seni Kronox oyununa davet etti', 'buildInviteTarget'],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  sourceHas('game_invite_push_notifications', 'invite_toasts_auto_dismiss_and_close',
+    'Foreground invite toasts are dismissible and auto-dismiss instead of sticking over gameplay',
+    'GameInviteNotifier.jsx + ui/toaster.jsx + ui/use-toast.jsx + ui/toast.jsx',
+    `${gameInviteNotifierSource}\n${toasterSource}\n${useToastSource}\n${toastUiSource}`,
+    ['INVITE_TOAST_DURATION_MS', 'onDismiss?.()', 'dismiss(id)', 'TOAST_REMOVE_DELAY = 350', "data-state={open ? 'open' : 'closed'}"],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  sourceHas('game_invite_push_notifications', 'invite_toasts_clear_on_game_route',
+    'Active invite toasts are cleared as soon as the route becomes /game',
+    'GameInviteNotifier.jsx',
+    gameInviteNotifierSource,
+    ["location.pathname === '/game'", 'dismissAllInviteToasts', 'activeToastByInviteIdRef'],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  sourceHas('game_invite_push_notifications', 'non_pending_invites_dismiss_active_toasts',
+    'Accepted/rejected/expired invites dismiss any active foreground notification',
+    'GameInviteNotifier.jsx',
+    gameInviteNotifierSource,
+    ["invite.status !== 'pending'", 'dismissInviteToast(invite.id)', 'knownInviteIdsRef.current.add(invite.id)'],
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
   sourceHas('game_invite_push_notifications', 'push_backend_sender_and_recipient_scoped',
     'Push backend validates sender and sends only to recipient active subscriptions',
