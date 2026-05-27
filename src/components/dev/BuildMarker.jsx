@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex096 — hardens closed/background invite push readiness:
+// Codex097 — integrates Profile -> Ayarlar notification settings with
+// closed-app invite push readiness: public users now see clean permission /
+// subscription state while admin-only device diagnostics stay gated, and
+// Health locks the Settings-to-PushSubscription contract.
+//
+// Previous note: Codex096 — hardens closed/background invite push readiness:
 // Settings now distinguishes permission from an actual browser subscription
 // and saved PushSubscription row, lets users renew a missing/stale subscription
 // even when permission is already granted, and the push backend/client summary
@@ -71,7 +76,7 @@ import React, { useEffect, useState } from 'react';
 //      gameMounted, gameRenderStage, lastError + a derived blackScreenReason.
 // updateLobbyGameState authority logic, Timeline, QuestionCard, placement,
 // Friends, RLS, and visual assets are untouched.
-const BUILD_MARKER = 'Codex096';
+const BUILD_MARKER = 'Codex097';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -19,6 +19,7 @@ const reasonText = {
   missing_vapid_public_key: 'Bildirim anahtarı henüz yapılandırılmamış.',
   permission_denied: 'Bildirim izni bu cihazda kapalı.',
   permission_default: 'Bildirim izni henüz verilmedi.',
+  no_subscription: 'Bu cihazda aktif bildirim aboneliği yok.',
   no_browser_subscription: 'Bu cihazda aktif push aboneliği yok.',
   no_saved_subscription: 'Bu cihazın bildirim aboneliği Kronox hesabına kayıtlı değil.',
   saved_subscription_endpoint_mismatch: 'Bu cihazdaki abonelik kaydı eski görünüyor.',
@@ -34,17 +35,19 @@ function permissionLabel(permission) {
 
 function subscriptionLabel(diagnostics) {
   if (!diagnostics) return 'kontrol ediliyor';
+  const reason = diagnostics.detailReason || diagnostics.reason;
   if (diagnostics.hasActiveSubscription) return 'aktif';
-  if (diagnostics.reason === 'missing_vapid_public_key') return 'anahtar eksik';
-  if (diagnostics.reason === 'no_browser_subscription') return 'cihaz aboneliği yok';
-  if (diagnostics.reason === 'no_saved_subscription') return 'hesap kaydı yok';
-  if (diagnostics.reason === 'saved_subscription_endpoint_mismatch') return 'yenileme gerekli';
-  if (diagnostics.reason === 'permission_default') return 'izin bekliyor';
-  if (diagnostics.reason === 'permission_denied') return 'izin kapalı';
+  if (reason === 'missing_vapid_public_key') return 'anahtar eksik';
+  if (reason === 'no_browser_subscription') return 'cihaz aboneliği yok';
+  if (reason === 'no_saved_subscription') return 'hesap kaydı yok';
+  if (reason === 'saved_subscription_endpoint_mismatch') return 'yenileme gerekli';
+  if (reason === 'no_subscription') return 'abonelik yok';
+  if (reason === 'permission_default') return 'izin bekliyor';
+  if (reason === 'permission_denied') return 'izin kapalı';
   return 'hazır değil';
 }
 
-export default function NotificationSettingsCard({ user }) {
+export default function NotificationSettingsCard({ user, isAdmin = false }) {
   const [permission, setPermission] = useState(getNotificationPermission());
   const [support, setSupport] = useState(() => getPushSupportState());
   const [diagnostics, setDiagnostics] = useState(null);
@@ -75,7 +78,7 @@ export default function NotificationSettingsCard({ user }) {
     if (!support.supported) return reasonText[support.reason] || 'Bildirimler bu cihazda desteklenmiyor.';
     if (permission === 'denied') return 'Bildirimler bu cihazda kapalı veya engellenmiş.';
     if (permission === 'granted' && diagnostics && !diagnostics.hasActiveSubscription) {
-      return reasonText[diagnostics.reason] || 'Bildirim izni açık ama cihaz aboneliği yenilenmeli.';
+      return reasonText[diagnostics.detailReason] || reasonText[diagnostics.reason] || 'Bildirim izni açık ama cihaz aboneliği yenilenmeli.';
     }
     if (permission === 'granted') return 'Oyun davetlerinden telefon bildirimiyle haberdar olursun.';
     return 'Oyun davetlerinden haberdar ol.';
@@ -149,10 +152,16 @@ export default function NotificationSettingsCard({ user }) {
           <p className="mt-1 font-inter text-[11px] text-amber-200/80">
             Durum: {permissionLabel(permission)} · Abonelik: {subscriptionLabel(diagnostics)}
           </p>
-          {diagnostics?.savedSubscription?.checked && (
+          {isAdmin && diagnostics?.savedSubscription?.checked && (
             <p className="mt-1 font-inter text-[10px] text-blue-100/55">
               Aktif kayıt: {diagnostics.savedSubscription.activeCount} · Cihaz: {diagnostics.displayMode}
             </p>
+          )}
+          {isAdmin && diagnostics && (
+            <div className="mt-2 rounded-xl border border-blue-200/10 bg-slate-950/25 px-2.5 py-2 font-mono text-[10px] leading-relaxed text-blue-100/60">
+              <p>Admin tanılama: {diagnostics.reason}{diagnostics.detailReason && diagnostics.detailReason !== diagnostics.reason ? ` / ${diagnostics.detailReason}` : ''}</p>
+              <p>SW: {diagnostics.serviceWorker?.active ? 'active' : diagnostics.serviceWorker?.registered ? 'registered' : 'missing'} · PushManager: {diagnostics.pushManager?.supported ? 'yes' : 'no'}</p>
+            </div>
           )}
         </div>
       </div>
