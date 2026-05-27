@@ -898,6 +898,8 @@ export default function Game() {
         onTouchDragEnd={(x, y) => { setIsDragging(false); setTouchDragPos(null); setTouchDragEnd({ x, y }); setTimeout(() => setTouchDragEnd(null), 100); }}
         onTimeUp={handleTimeUp}
         isTimeUp={isTimeUp}
+        soloLevelTotalSeconds={isSoloLevelMode ? (soloLevel?.totalTimeSeconds ?? 120) : undefined}
+        soloLevelElapsedSeconds={isSoloLevelMode ? overallSeconds : undefined}
       />
     </GameRenderErrorBoundary>
   );

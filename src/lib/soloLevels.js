@@ -100,20 +100,46 @@ function safeWriteLocal(progress) {
 
 /**
  * Reads solo progress for the current user.
- *   - If a `user` object with `solo_progress` is supplied, that wins.
- *   - Otherwise we fall back to localStorage.
+ *
+ * Strategy (Codex106-24 fix for Bug 2 + Bug 3 — Level 2 not becoming current
+ * and stars not showing on Level Path):
+ *   - Always also read the localStorage mirror.
+ *   - If both server-side `user.solo_progress` and localStorage exist, pick
+ *     whichever shows MORE progress. We compare by (currentLevel,
+ *     completed-level-count) so a stale server snapshot can't overwrite a
+ *     fresh local one written milliseconds earlier by writeSoloProgress.
+ *   - This is the safest minimal fix: writes still go to both stores via
+ *     writeSoloProgress, reads just prefer the more-advanced of the two.
  *
  * Always returns a fully-shaped object so callers can do `.levels["1"]`
  * without null checks.
  */
 export function readSoloProgress(user) {
-  if (user && user.solo_progress && typeof user.solo_progress === 'object') {
-    return {
-      currentLevel: Number(user.solo_progress.currentLevel) || 1,
-      levels: user.solo_progress.levels || {},
-    };
+  const fromLocal = safeReadLocal();
+  const fromUser = (user && user.solo_progress && typeof user.solo_progress === 'object')
+    ? {
+        currentLevel: Number(user.solo_progress.currentLevel) || 1,
+        levels: user.solo_progress.levels || {},
+      }
+    : null;
+  if (!fromUser) return fromLocal;
+  return pickMoreAdvanced(fromUser, fromLocal);
+}
+
+function completedCount(p) {
+  if (!p || !p.levels) return 0;
+  let n = 0;
+  for (const k of Object.keys(p.levels)) {
+    if (Number(p.levels[k]?.bestStars) > 0) n += 1;
   }
-  return safeReadLocal();
+  return n;
+}
+
+function pickMoreAdvanced(a, b) {
+  const aCur = Number(a?.currentLevel) || 1;
+  const bCur = Number(b?.currentLevel) || 1;
+  if (aCur !== bCur) return aCur > bCur ? a : b;
+  return completedCount(a) >= completedCount(b) ? a : b;
 }
 
 /**

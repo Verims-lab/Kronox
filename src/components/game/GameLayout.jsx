@@ -4,6 +4,7 @@ import { sounds } from '@/lib/gameSounds';
 import QuestionCard from './QuestionCard.jsx';
 import Timeline from './Timeline.jsx';
 import TurnTimer from './TurnTimer.jsx';
+import SoloLevelTimer from './SoloLevelTimer.jsx';
 import OnlineTurnIndicator from './OnlineTurnIndicator.jsx';
 import OnlineScoreboard from './OnlineScoreboard.jsx';
 import { playerTextColors } from './playerColors';
@@ -89,6 +90,12 @@ export default function GameLayout({
   turnDuration,
   timerKey,
   isTimeUp,
+  // Codex106-24 — Solo Level mode countdown. When provided, GameLayout
+  // shows a total-level countdown in the top-right slot instead of the
+  // per-question TurnTimer. Other modes (online, legacy solo) pass
+  // undefined and behave unchanged.
+  soloLevelTotalSeconds,
+  soloLevelElapsedSeconds,
   // Handlers
   onSelectZone,
   onDropOnZone,
@@ -134,13 +141,26 @@ export default function GameLayout({
           </div>
         </div>
 
-        {/* Right: Timer */}
+        {/* Right: Timer
+            Codex106-24 — In Solo Level mode (soloLevelTotalSeconds set), we
+            show a total-level countdown here instead of the per-question
+            TurnTimer. Total-timer enforcement still lives in Game.jsx; this
+            is purely the visible UI. */}
         <div
           className="absolute right-4 top-2 flex items-center gap-1.5"
           style={{ top: 'calc(0.5rem + env(safe-area-inset-top))' }}
         >
-          {isMyTurn && !winner && (
-            <TurnTimer key={timerKey} active={!feedback && !winner} onTimeUp={isMyTurn ? onTimeUp : undefined} duration={turnDuration} size="lg" />
+          {typeof soloLevelTotalSeconds === 'number' ? (
+            !winner && (
+              <SoloLevelTimer
+                totalSeconds={soloLevelTotalSeconds}
+                elapsedSeconds={soloLevelElapsedSeconds || 0}
+              />
+            )
+          ) : (
+            isMyTurn && !winner && turnDuration > 0 && (
+              <TurnTimer key={timerKey} active={!feedback && !winner} onTimeUp={isMyTurn ? onTimeUp : undefined} duration={turnDuration} size="lg" />
+            )
           )}
         </div>
       </div>

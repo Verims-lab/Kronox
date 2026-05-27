@@ -92,20 +92,26 @@ import React, { useEffect, useState } from 'react';
 //      gameMounted, gameRenderStage, lastError + a derived blackScreenReason.
 // updateLobbyGameState authority logic, Timeline, QuestionCard, placement,
 // Friends, RLS, and visual assets are untouched.
-// Codex106-23 — Solo level completion popup polish: completion time +
-// level number stat + ranking line (real-rank-ready, placeholder copy
-// today via lib/soloRanking.js), "Tekrar Oyna" + "Level X'e Geç" CTAs
-// (next-level only on pass and within catalog), clear fail-reason copy
-// on timeout / 8+ mistakes, 0-star fail state, animated stars, mobile
-// no-scroll fit. Game.jsx adds handleSoloNextLevel and passes
-// hasNextLevel / isNextLevelComingSoon to the popup. solo_progress
-// best-result merge, drag/drop, Timeline, online/lobby, notifications,
+// Codex106-24 — Solo Level Path test-report fixes:
+//   • Bug 2/3 fix: readSoloProgress now picks the MORE-ADVANCED of the
+//     two stores (User.solo_progress vs localStorage) instead of blindly
+//     trusting a stale server snapshot. Stars + currentLevel now reflect
+//     the latest write even when base44.auth.me() returns a cached user.
+//   • Visible 120s gameplay timer: new SoloLevelTimer component renders
+//     in GameLayout's top-right slot whenever Game.jsx is in solo level
+//     mode. Counts down from 02:00, hardens to red ≤10s. Total-timer
+//     fail enforcement still lives in Game.jsx — UI is purely visible.
+//   • TurnTimer is skipped when turnDuration is 0 (solo level mode),
+//     preventing a 0-tick legacy timer from rendering alongside the
+//     new countdown.
+// Result popup content (stars/time/mistakes/level/rank/Tekrar Oyna /
+// Level X'e Geç) shipped in Codex106-23 — verified intact here.
+// Drag/drop, Timeline, QuestionCard, online flow, lobby, notifications,
 // tutorial profile — DOKUNULMADI.
 //
-// Previous note: Codex106 — Solo Level Path (vertical 8-row path, per-user
-// solo_progress persistence with localStorage fallback, 10 kart / 120sn /
-// 8-mistake fail rule).
-const BUILD_MARKER = 'Codex106-23';
+// Previous note: Codex106-23 — Solo level completion popup polish.
+// Previous note: Codex106 — Solo Level Path (vertical 8-row path).
+const BUILD_MARKER = 'Codex106-24';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
