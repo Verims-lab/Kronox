@@ -214,7 +214,10 @@ export async function getPushChainDiagnostics() {
 export async function disableCurrentPushSubscription() {
   const registration = await navigator.serviceWorker?.ready;
   const subscription = await registration?.pushManager?.getSubscription?.();
-  if (!subscription) return { disabled: false, reason: 'no_subscription' };
+  if (!subscription) {
+    await base44.auth.updateMe({ game_invite_notifications_enabled: false }).catch(() => null);
+    return { disabled: false, reason: 'no_subscription' };
+  }
 
   const { endpoint } = serializePushSubscription(subscription);
   await subscription.unsubscribe();
@@ -235,6 +238,7 @@ export async function disableCurrentPushSubscription() {
       }).catch(() => null),
     ));
   }
+  await base44.auth.updateMe({ game_invite_notifications_enabled: false }).catch(() => null);
 
   return { disabled: true };
 }
@@ -263,5 +267,6 @@ export async function enableGameInviteNotifications() {
   }
 
   const record = await savePushSubscriptionRecord(subscription, permission);
+  await base44.auth.updateMe({ game_invite_notifications_enabled: true }).catch(() => null);
   return { ok: true, permission, subscription: serializePushSubscription(subscription), record };
 }

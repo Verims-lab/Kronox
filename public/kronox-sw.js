@@ -1,4 +1,4 @@
-self.__KRONOX_SW_VERSION = 'Codex097';
+self.__KRONOX_SW_VERSION = 'Codex098';
 
 function resolveSameOriginTarget(targetUrl) {
   try {

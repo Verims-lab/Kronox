@@ -42,7 +42,12 @@ export const gameInviteEntitySource = `
     "lobby_code": {},
     "from_email": {},
     "to_email": {},
-    "status": { "enum": ["pending","accepted","rejected","cancelled","expired"] }
+    "status": { "enum": ["pending","accepted","declined","rejected","cancelled","expired","completed"] },
+    "created_at": {},
+    "expires_at": {},
+    "expired_at": {},
+    "accepted_at": {},
+    "declined_at": {}
   },
   "rls": {
     "create": { "data.from_email": "{{user.email}}" },
@@ -75,6 +80,11 @@ export const acceptGameInviteFnSource = `
   if (toEmail !== myEmail) {
     return Response.json({ error: 'Bu davet sana ait değil.' }, { status: 403 });
   }
+  const expiresAt = getInviteExpiry(invite);
+  if (Number.isFinite(expiresAt) && expiresAt <= Date.now()) {
+    await base44.asServiceRole.entities.GameInvite.update(inviteId, { status: 'expired', expired_at: new Date().toISOString() });
+    return Response.json({ error: 'Davetin süresi doldu. Yeni bir davet iste.' }, { status: 409 });
+  }
   if (lobby.status !== 'waiting') {
     await base44.asServiceRole.entities.GameInvite.update(invite.id, { status: 'expired' });
   }
@@ -82,6 +92,7 @@ export const acceptGameInviteFnSource = `
   const verifiedLobby = await base44.asServiceRole.entities.Lobby.update(lobby.id, {
     players: [...lobby.players, newPlayer],
   });
+  await base44.asServiceRole.entities.GameInvite.update(inviteId, { status: 'accepted', accepted_at: new Date().toISOString() });
 `;
 
 export const sendFriendRequestEmailFnSource = `
@@ -133,6 +144,15 @@ export const sendGameInvitePushFnSource = `
   if (invite.status !== 'pending') {
     return json({ ok: true, push: { attempted: false, skipped: \`invite_\${invite.status}\` } });
   }
+  const expiresAt = getInviteExpiry(invite);
+  if (Number.isFinite(expiresAt) && expiresAt <= Date.now()) {
+    await base44.asServiceRole.entities.GameInvite.update(inviteId, { status: 'expired', expired_at: new Date().toISOString() });
+    return json({ ok: true, push: { attempted: false, skipped: 'invite_expired' } });
+  }
+  const recipientRows = await base44.asServiceRole.entities.User.filter({ email: toEmail }, '-created_date', 1).catch(() => []);
+  if (recipientRows?.[0]?.game_invite_notifications_enabled === false) {
+    return json({ ok: true, push: { attempted: false, skipped: 'recipient_notifications_disabled' } });
+  }
   if (!config.publicKey || !config.privateKey) {
     return json({ ok: true, push: { attempted: false, skipped: 'missing_vapid_config', missingConfig: { publicKey: !config.publicKey, privateKey: !config.privateKey } } });
   }
@@ -148,7 +168,7 @@ export const sendGameInvitePushFnSource = `
   const notificationPayload = JSON.stringify({
     title: 'Kronox',
     body: \`\${senderName} seni Kronox oyununa davet etti.\`,
-    data: { inviteId: invite.id, lobbyId: invite.lobby_id || null, lobbyCode: invite.lobby_code || null, targetUrl },
+    data: { inviteId: invite.id, lobbyId: invite.lobby_id || null, lobbyCode: invite.lobby_code || null, targetUrl, expiresAt },
   });
   await webpush.sendNotification({ endpoint: row.endpoint, keys: { p256dh: row.keys_p256dh, auth: row.keys_auth } }, notificationPayload, { TTL: 60 * 20 });
   failedReasons.push({ statusCode, reason: error?.message || 'push_failed' });

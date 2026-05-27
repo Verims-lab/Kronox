@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex097 — integrates Profile -> Ayarlar notification settings with
+// Codex098 — aligns profile tutorial state, invite expiration/deep-link
+// routing, notification preferences, bottom-nav hiding, and Health contracts
+// with the latest Online/Friends/Notification product decisions.
+//
+// Previous note: Codex097 — integrates Profile -> Ayarlar notification settings with
 // closed-app invite push readiness: public users now see clean permission /
 // subscription state while admin-only device diagnostics stay gated, and
 // Health locks the Settings-to-PushSubscription contract.
@@ -76,7 +80,7 @@ import React, { useEffect, useState } from 'react';
 //      gameMounted, gameRenderStage, lastError + a derived blackScreenReason.
 // updateLobbyGameState authority logic, Timeline, QuestionCard, placement,
 // Friends, RLS, and visual assets are untouched.
-const BUILD_MARKER = 'Codex097';
+const BUILD_MARKER = 'Codex098';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

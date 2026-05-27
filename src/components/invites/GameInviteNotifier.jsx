@@ -25,6 +25,7 @@ export default function GameInviteNotifier() {
   const knownInviteIdsRef = useRef(new Set());
   const dismissedInviteIdsRef = useRef(new Set());
   const activeToastByInviteIdRef = useRef(new Map());
+  const handledAcceptedOutgoingInviteIdsRef = useRef(new Set());
   const bootstrappedRef = useRef(false);
   const pathnameRef = useRef(location.pathname);
 
@@ -134,7 +135,32 @@ export default function GameInviteNotifier() {
       const eventType = event?.type || event?.eventType || 'update';
       const invite = event?.data || event;
       if (eventType === 'delete') return;
-      if (normalizeEmail(invite?.to_email) !== email) return;
+      const toEmail = normalizeEmail(invite?.to_email);
+      const fromEmail = normalizeEmail(invite?.from_email);
+      if (
+        fromEmail === email
+        && invite?.status === 'accepted'
+        && invite?.id
+        && !handledAcceptedOutgoingInviteIdsRef.current.has(invite.id)
+      ) {
+        handledAcceptedOutgoingInviteIdsRef.current.add(invite.id);
+        if (pathnameRef.current !== '/game' && pathnameRef.current !== '/lobby' && invite.lobby_id) {
+          base44.entities.Lobby.get(invite.lobby_id)
+            .then((acceptedLobby) => {
+              if (acceptedLobby?.id) {
+                navigate('/lobby', { state: { joinedLobby: acceptedLobby } });
+              }
+            })
+            .catch(() => null);
+        }
+        toast({
+          title: 'Davet kabul edildi',
+          description: `${invite.to_email || 'Arkadaşın'} lobiye katıldı.`,
+          duration: 5000,
+        });
+        return;
+      }
+      if (toEmail !== email) return;
       if (invite?.id && invite.status !== 'pending') {
         knownInviteIdsRef.current.add(invite.id);
         dismissInviteToast(invite.id);

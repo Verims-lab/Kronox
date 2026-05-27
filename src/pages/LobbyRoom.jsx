@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import LobbyCreateJoinPanel from '@/components/lobby/LobbyCreateJoinPanel';
@@ -17,6 +17,11 @@ import {
   validatePlayerName,
 } from '@/lib/lobbyUtils';
 import { createGameInvites } from '@/lib/inviteApi';
+import {
+  acceptGameInvite,
+  isGameInviteExpired,
+  rejectGameInvite,
+} from '@/lib/inviteApi';
 import { debugLog, debugWarn } from '@/lib/debugLog';
 
 export default function LobbyRoom() {
@@ -40,7 +45,15 @@ export default function LobbyRoom() {
     setNameError,
     copied,
     setCopied,
+    userChecked,
   } = useLobbyRoomState();
+  const queryInviteId = useMemo(
+    () => new URLSearchParams(location.search).get('inviteId') || '',
+    [location.search],
+  );
+  const [deepLinkInvite, setDeepLinkInvite] = useState(null);
+  const [deepLinkMessage, setDeepLinkMessage] = useState('');
+  const [deepLinkBusy, setDeepLinkBusy] = useState(false);
 
   // New create signature: { maxPlayers, invitedEmails, selectedCategories }
   // from CreateLobbyInvitePanel.
@@ -129,6 +142,93 @@ export default function LobbyRoom() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state]);
+
+  useEffect(() => {
+    if (!queryInviteId || !user?.email || lobby) return undefined;
+    let cancelled = false;
+    setDeepLinkMessage('Davet kontrol ediliyor...');
+    setDeepLinkInvite(null);
+
+    const loadInvite = async () => {
+      try {
+        const invite = await base44.entities.GameInvite.get(queryInviteId);
+        if (cancelled) return;
+        const myEmail = String(user.email || '').toLowerCase();
+        const toEmail = String(invite?.to_email || '').toLowerCase();
+        if (!invite || toEmail !== myEmail) {
+          setDeepLinkMessage('Bu davet bulunamadı veya sana ait değil.');
+          return;
+        }
+        if (invite.status === 'pending' && isGameInviteExpired(invite)) {
+          await base44.entities.GameInvite.update(invite.id, {
+            status: 'expired',
+            expired_at: new Date().toISOString(),
+          }).catch(() => null);
+          setDeepLinkInvite({ ...invite, status: 'expired' });
+          setDeepLinkMessage('Davetin süresi doldu. Yeni bir davet iste.');
+          return;
+        }
+        if (invite.status === 'accepted' && invite.lobby_id) {
+          const acceptedLobby = await base44.entities.Lobby.get(invite.lobby_id).catch(() => null);
+          if (!cancelled && acceptedLobby) {
+            setLobby(acceptedLobby);
+            navigate('/lobby', { replace: true, state: { joinedLobby: acceptedLobby } });
+          }
+          return;
+        }
+        setDeepLinkInvite(invite);
+        setDeepLinkMessage(invite.status === 'pending'
+          ? 'Davet hazır. Kabul edersen önce lobiye katılacaksın.'
+          : `Bu davet artık ${invite.status}.`);
+      } catch (err) {
+        if (!cancelled) setDeepLinkMessage(err?.message || 'Davet kontrol edilemedi.');
+      }
+    };
+
+    loadInvite();
+    return () => { cancelled = true; };
+  }, [lobby, navigate, queryInviteId, setLobby, user?.email]);
+
+  const handleDeepLinkAccept = async () => {
+    if (!deepLinkInvite?.id || deepLinkBusy) return;
+    setDeepLinkBusy(true);
+    setDeepLinkMessage('');
+    try {
+      if (isGameInviteExpired(deepLinkInvite)) {
+        await base44.entities.GameInvite.update(deepLinkInvite.id, {
+          status: 'expired',
+          expired_at: new Date().toISOString(),
+        }).catch(() => null);
+        setDeepLinkInvite({ ...deepLinkInvite, status: 'expired' });
+        setDeepLinkMessage('Davetin süresi doldu. Yeni bir davet iste.');
+        return;
+      }
+      const res = await acceptGameInvite(deepLinkInvite.id);
+      if (res?.lobby?.id) {
+        setLobby(res.lobby);
+        navigate('/lobby', { replace: true, state: { joinedLobby: res.lobby } });
+      }
+    } catch (err) {
+      setDeepLinkMessage(err?.message || 'Davet kabul edilemedi.');
+    } finally {
+      setDeepLinkBusy(false);
+    }
+  };
+
+  const handleDeepLinkDecline = async () => {
+    if (!deepLinkInvite?.id || deepLinkBusy) return;
+    setDeepLinkBusy(true);
+    try {
+      await rejectGameInvite(deepLinkInvite.id);
+      setDeepLinkInvite({ ...deepLinkInvite, status: 'declined' });
+      setDeepLinkMessage('Davet reddedildi.');
+      navigate('/lobby', { replace: true });
+    } catch (err) {
+      setDeepLinkMessage(err?.message || 'Davet reddedilemedi.');
+    } finally {
+      setDeepLinkBusy(false);
+    }
+  };
 
   const handleJoin = async () => {
     const nameErr = validatePlayerName(playerName);
@@ -222,6 +322,22 @@ export default function LobbyRoom() {
     );
   }
 
+  if (queryInviteId) {
+    return (
+      <DeepLinkedInvitePanel
+        user={user}
+        userChecked={userChecked}
+        invite={deepLinkInvite}
+        message={deepLinkMessage}
+        busy={deepLinkBusy}
+        onAccept={handleDeepLinkAccept}
+        onDecline={handleDeepLinkDecline}
+        onLogin={() => base44.auth.redirectToLogin(`/lobby?inviteId=${encodeURIComponent(queryInviteId)}`)}
+        onBack={() => navigate('/lobby', { replace: true })}
+      />
+    );
+  }
+
   return (
     <LobbyCreateJoinPanel
       mode={mode}
@@ -244,5 +360,69 @@ export default function LobbyRoom() {
       user={user}
       onGoFriends={() => navigate('/friends')}
     />
+  );
+}
+
+function DeepLinkedInvitePanel({ user, userChecked, invite, message, busy, onAccept, onDecline, onLogin, onBack }) {
+  const display = invite?.from_name?.trim() || invite?.from_email || 'Bir arkadaşın';
+  const isPending = invite?.status === 'pending';
+  const isExpired = invite?.status === 'expired';
+  return (
+    <div
+      className="min-h-screen flex items-center justify-center px-5 text-white"
+      style={{
+        paddingTop: 'calc(4rem + env(safe-area-inset-top))',
+        paddingBottom: 'calc(2rem + env(safe-area-inset-bottom))',
+        background:
+          'radial-gradient(ellipse at 50% 16%, rgba(59,130,246,0.34), transparent 42%), linear-gradient(180deg, #050b1c 0%, #0a1738 58%, #03060f 100%)',
+      }}
+    >
+      <div
+        className="w-full max-w-md rounded-3xl p-5 space-y-4"
+        style={{
+          background: 'linear-gradient(180deg, rgba(30,41,75,0.96), rgba(6,10,24,0.98))',
+          boxShadow: 'inset 0 0 0 1.5px rgba(250,204,21,0.34), 0 18px 38px rgba(2,6,23,0.55)',
+        }}
+      >
+        <div className="text-center space-y-1">
+          <p className="font-cinzel text-xl font-black tracking-widest text-amber-200">Oyun Daveti</p>
+          <p className="font-inter text-sm text-blue-100/70">
+            {isExpired ? 'Bu davetin süresi dolmuş.' : `${display} seni Kronox oyununa davet etti.`}
+          </p>
+        </div>
+
+        <p className="rounded-2xl px-3 py-2 text-center font-inter text-xs text-blue-100/75"
+          style={{ background: 'rgba(59,130,246,0.10)', boxShadow: 'inset 0 0 0 1px rgba(96,165,250,0.22)' }}>
+          {!userChecked ? 'Oturum kontrol ediliyor...' : !user ? 'Devam etmek için giriş yapmalısın.' : message}
+        </p>
+
+        {!user ? (
+          <button type="button" onClick={onLogin} disabled={!userChecked}
+            className="w-full rounded-2xl py-3 font-inter text-sm font-black text-amber-950 disabled:opacity-50"
+            style={{ background: 'linear-gradient(180deg,#ffe066,#b97a06)' }}>
+            Giriş Yap
+          </button>
+        ) : isPending ? (
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={onDecline} disabled={busy}
+              className="rounded-2xl py-3 font-inter text-sm font-black text-blue-100 disabled:opacity-50"
+              style={{ background: 'rgba(148,163,184,0.12)', boxShadow: 'inset 0 0 0 1px rgba(148,163,184,0.28)' }}>
+              Reddet
+            </button>
+            <button type="button" onClick={onAccept} disabled={busy}
+              className="rounded-2xl py-3 font-inter text-sm font-black text-amber-950 disabled:opacity-50"
+              style={{ background: 'linear-gradient(180deg,#ffe066,#b97a06)' }}>
+              {busy ? 'Katılıyor...' : 'Lobiye Katıl'}
+            </button>
+          </div>
+        ) : (
+          <button type="button" onClick={onBack}
+            className="w-full rounded-2xl py-3 font-inter text-sm font-black text-blue-100"
+            style={{ background: 'rgba(59,130,246,0.14)', boxShadow: 'inset 0 0 0 1px rgba(96,165,250,0.28)' }}>
+            Online Ekranına Dön
+          </button>
+        )}
+      </div>
+    </div>
   );
 }

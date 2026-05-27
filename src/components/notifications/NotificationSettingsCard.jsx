@@ -47,10 +47,17 @@ function subscriptionLabel(diagnostics) {
   return 'hazır değil';
 }
 
+function preferenceLabel(preference) {
+  if (preference === true) return 'açık';
+  if (preference === false) return 'kapalı';
+  return 'belirlenmedi';
+}
+
 export default function NotificationSettingsCard({ user, isAdmin = false }) {
   const [permission, setPermission] = useState(getNotificationPermission());
   const [support, setSupport] = useState(() => getPushSupportState());
   const [diagnostics, setDiagnostics] = useState(null);
+  const [preference, setPreference] = useState(user?.game_invite_notifications_enabled);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -66,6 +73,10 @@ export default function NotificationSettingsCard({ user, isAdmin = false }) {
   useEffect(() => {
     refreshDiagnostics();
   }, [refreshDiagnostics, user?.email]);
+
+  useEffect(() => {
+    setPreference(user?.game_invite_notifications_enabled);
+  }, [user?.game_invite_notifications_enabled]);
 
   const canEnable = Boolean(
     user?.email
@@ -93,6 +104,7 @@ export default function NotificationSettingsCard({ user, isAdmin = false }) {
       setPermission(result.permission || getNotificationPermission());
       const nextDiagnostics = await refreshDiagnostics();
       if (result.ok) {
+        setPreference(true);
         setMessage(nextDiagnostics?.hasActiveSubscription
           ? 'Bildirimler açıldı. Oyun davetlerini kaçırmayacaksın.'
           : 'İzin alındı, ama abonelik kaydı doğrulanamadı. Tekrar dene.');
@@ -113,6 +125,7 @@ export default function NotificationSettingsCard({ user, isAdmin = false }) {
     setMessage('');
     try {
       await disableCurrentPushSubscription();
+      setPreference(false);
       setPermission(getNotificationPermission());
       await refreshDiagnostics();
       setMessage('Bu cihazdaki Kronox bildirim aboneliği kapatıldı.');
@@ -150,7 +163,7 @@ export default function NotificationSettingsCard({ user, isAdmin = false }) {
           <p className="font-inter text-sm font-bold text-foreground">Oyun Daveti Bildirimleri</p>
           <p className="font-inter text-xs text-muted-foreground">{helper}</p>
           <p className="mt-1 font-inter text-[11px] text-amber-200/80">
-            Durum: {permissionLabel(permission)} · Abonelik: {subscriptionLabel(diagnostics)}
+            Durum: {permissionLabel(permission)} · Abonelik: {subscriptionLabel(diagnostics)} · Tercih: {preferenceLabel(preference)}
           </p>
           {isAdmin && diagnostics?.savedSubscription?.checked && (
             <p className="mt-1 font-inter text-[10px] text-blue-100/55">
