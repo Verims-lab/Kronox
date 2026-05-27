@@ -251,6 +251,11 @@ function CreateInviteCta({ loading, disabled, onClick, selectedCount, inviteCap 
           ? 'Oyuna başlamak için en az 1 arkadaş seç.'
           : `${selectedCount} / ${inviteCap} arkadaş seçildi — davetler oluşturulacak.`}
       </p>
+      {!disabled && (
+        <p className="text-center font-inter text-[11px] text-amber-200/75">
+          Davet gönderildikten sonra 5 dakika içinde kabul edilmezse süresi dolar.
+        </p>
+      )}
     </div>
   );
 }

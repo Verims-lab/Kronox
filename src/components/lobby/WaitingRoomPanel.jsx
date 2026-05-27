@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Check, Copy, Loader2, Users } from 'lucide-react';
+import { Check, Copy, Loader2, Users, Hourglass } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import StonePanel from '@/components/ui/StonePanel';
 import GoldButton from '@/components/ui/GoldButton';
@@ -307,12 +307,79 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
               </motion.div>
             ))}
           </div>
+          {(() => {
+            // Codex099 — show invited friends who haven't joined yet as
+            // "bekleniyor" rows. Pure derivation from existing lobby fields,
+            // no extra fetch, no mutation, no notification logic touched.
+            const invited = Array.isArray(lobby.invited_emails) ? lobby.invited_emails : [];
+            const joinedEmails = new Set(
+              (lobby.players || [])
+                .map((p) => String(p?.email || '').toLowerCase())
+                .filter(Boolean),
+            );
+            const pendingEmails = invited
+              .map((e) => String(e || '').toLowerCase())
+              .filter((e) => e && !joinedEmails.has(e));
+            if (pendingEmails.length === 0) return null;
+            return (
+              <div className="space-y-1.5 pt-1">
+                <p className="font-inter text-[10px] uppercase tracking-widest text-blue-100/55 font-black flex items-center gap-1">
+                  <Hourglass className="w-3 h-3" /> Bekleniyor ({pendingEmails.length})
+                </p>
+                {pendingEmails.map((email) => (
+                  <div
+                    key={email}
+                    className="flex items-center gap-3 rounded-xl px-3 py-2"
+                    style={{
+                      background: 'linear-gradient(180deg, rgba(20,32,68,0.45), rgba(8,14,32,0.55))',
+                      boxShadow: 'inset 0 0 0 1px rgba(120,170,255,0.18)',
+                    }}
+                  >
+                    <div
+                      className="w-7 h-7 rounded-full flex items-center justify-center"
+                      style={{
+                        background: 'rgba(148,163,184,0.18)',
+                        boxShadow: 'inset 0 0 0 1px rgba(148,163,184,0.30)',
+                      }}
+                    >
+                      <Hourglass className="w-3.5 h-3.5 text-blue-100/60" />
+                    </div>
+                    <span className="font-inter text-[12px] text-blue-100/70 flex-1 truncate">{email}</span>
+                    <span
+                      className="rounded-full px-2 py-0.5 font-inter text-[9px] font-black uppercase tracking-widest"
+                      style={{
+                        background: 'rgba(250,204,21,0.08)',
+                        color: '#fde68a',
+                        boxShadow: 'inset 0 0 0 1px rgba(250,204,21,0.30)',
+                      }}
+                    >
+                      Davet edildi
+                    </span>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
           {(lobby.players?.length || 0) < 2 && (
             <p className="font-inter text-xs text-blue-100/55 text-center pt-1">
               Oyun başlatmak için en az 2 oyuncu gerekli
             </p>
           )}
         </StonePanel>
+
+        {/* Codex099 — Online soru mantığı bilgilendirmesi. Üründe bilinçli
+            karar: iki oyuncuya farklı sorular gelir. UI'da bunu kısa ve
+            sade bir not olarak açıklıyoruz; gerçek soru seçim akışı
+            korunuyor. */}
+        <p
+          className="font-inter text-[11px] text-blue-100/55 text-center px-2 py-1.5 rounded-xl"
+          style={{
+            background: 'rgba(59,130,246,0.06)',
+            boxShadow: 'inset 0 0 0 1px rgba(120,170,255,0.18)',
+          }}
+        >
+          Sorular rastgele gelir — hız ve bilgi kadar şans da oyunun parçasıdır.
+        </p>
 
         {isHost && (
           <StonePanel glow="gold" padding="p-4" className="space-y-3">
