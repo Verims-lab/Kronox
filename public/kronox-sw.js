@@ -1,3 +1,15 @@
+self.__KRONOX_SW_VERSION = 'Codex092';
+
+function resolveSameOriginTarget(targetUrl) {
+  try {
+    const target = new URL(targetUrl || '/lobby', self.location.origin);
+    if (target.origin !== self.location.origin) return `${self.location.origin}/lobby`;
+    return target.href;
+  } catch (_error) {
+    return `${self.location.origin}/lobby`;
+  }
+}
+
 self.addEventListener('push', (event) => {
   let payload = {};
   try {
@@ -7,7 +19,7 @@ self.addEventListener('push', (event) => {
   }
 
   const title = payload.title || 'Kronox';
-  const body = payload.body || 'Yeni bir oyun davetin var.';
+  const body = payload.body || 'Yeni bir Kronox oyun davetin var.';
   const data = payload.data || {};
   const targetUrl = data.targetUrl || '/lobby';
 
@@ -29,7 +41,7 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const targetUrl = event.notification?.data?.targetUrl || '/lobby';
-  const target = new URL(targetUrl, self.location.origin).href;
+  const target = resolveSameOriginTarget(targetUrl);
 
   event.waitUntil((async () => {
     const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
