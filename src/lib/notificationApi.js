@@ -136,6 +136,7 @@ export async function getPushChainDiagnostics() {
     },
     hasActiveSubscription: false,
     reason: support.reason,
+    detailReason: support.reason,
   };
 
   let serialized = null;
@@ -184,13 +185,28 @@ export async function getPushChainDiagnostics() {
       && diagnostics.savedSubscription.matchingEndpoint,
   );
 
-  if (permission === 'denied') diagnostics.reason = 'permission_denied';
-  else if (permission === 'default') diagnostics.reason = 'permission_default';
-  else if (!support.supported) diagnostics.reason = support.reason;
-  else if (!diagnostics.browserSubscription.present) diagnostics.reason = 'no_browser_subscription';
-  else if (diagnostics.savedSubscription.checked && diagnostics.savedSubscription.activeCount === 0) diagnostics.reason = 'no_saved_subscription';
-  else if (diagnostics.savedSubscription.checked && !diagnostics.savedSubscription.matchingEndpoint) diagnostics.reason = 'saved_subscription_endpoint_mismatch';
-  else if (diagnostics.hasActiveSubscription) diagnostics.reason = 'ready';
+  if (permission === 'denied') {
+    diagnostics.reason = 'permission_denied';
+    diagnostics.detailReason = 'permission_denied';
+  } else if (permission === 'default') {
+    diagnostics.reason = 'permission_default';
+    diagnostics.detailReason = 'permission_default';
+  } else if (!support.supported) {
+    diagnostics.reason = support.reason;
+    diagnostics.detailReason = support.reason;
+  } else if (!diagnostics.browserSubscription.present) {
+    diagnostics.reason = 'no_subscription';
+    diagnostics.detailReason = 'no_browser_subscription';
+  } else if (diagnostics.savedSubscription.checked && diagnostics.savedSubscription.activeCount === 0) {
+    diagnostics.reason = 'no_subscription';
+    diagnostics.detailReason = 'no_saved_subscription';
+  } else if (diagnostics.savedSubscription.checked && !diagnostics.savedSubscription.matchingEndpoint) {
+    diagnostics.reason = 'no_subscription';
+    diagnostics.detailReason = 'saved_subscription_endpoint_mismatch';
+  } else if (diagnostics.hasActiveSubscription) {
+    diagnostics.reason = 'ready';
+    diagnostics.detailReason = 'ready';
+  }
 
   return diagnostics;
 }

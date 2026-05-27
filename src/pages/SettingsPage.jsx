@@ -154,7 +154,7 @@ export default function SettingsPage() {
                 Bildirimler
               </p>
               <NotificationDeploymentHint isAdmin={isAdmin} />
-              <NotificationSettingsCard user={user} />
+              <NotificationSettingsCard user={user} isAdmin={isAdmin} />
               <p className="font-inter text-[11px] leading-relaxed text-muted-foreground px-1">
                 Oyun davetleri için bildirim alabilirsin. Bildirimler sadece sen izin verirsen açılır.
                 Uygulama kapalıyken bildirim alabilmek için cihazının ve tarayıcının desteklemesi gerekir.
