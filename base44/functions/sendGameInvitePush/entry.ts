@@ -65,7 +65,16 @@ Deno.serve(async (req) => {
     if (!config.publicKey || !config.privateKey) {
       return json({
         ok: true,
-        push: { attempted: false, sent: 0, failed: 0, skipped: 'missing_vapid_config' },
+        push: {
+          attempted: false,
+          sent: 0,
+          failed: 0,
+          skipped: 'missing_vapid_config',
+          missingConfig: {
+            publicKey: !config.publicKey,
+            privateKey: !config.privateKey,
+          },
+        },
       });
     }
 
@@ -100,6 +109,7 @@ Deno.serve(async (req) => {
     let sent = 0;
     let failed = 0;
     let expired = 0;
+    const failedReasons: Array<{ statusCode: number; reason: string }> = [];
 
     for (const row of subscriptions) {
       try {
@@ -114,6 +124,10 @@ Deno.serve(async (req) => {
       } catch (error) {
         failed += 1;
         const statusCode = Number((error as any)?.statusCode || (error as any)?.status || 0);
+        failedReasons.push({
+          statusCode,
+          reason: (error as Error)?.message || 'push_failed',
+        });
         if (statusCode === 404 || statusCode === 410) {
           expired += 1;
           await base44.asServiceRole.entities.PushSubscription.update(row.id, {
@@ -137,6 +151,7 @@ Deno.serve(async (req) => {
         sent,
         failed,
         expired,
+        failedReasons: failedReasons.slice(0, 5),
         subscriptionCount: subscriptions.length,
       },
     });

@@ -41,6 +41,22 @@ export async function registerKronoxServiceWorker() {
   }
 }
 
+function waitForServiceWorkerReady(timeoutMs = 2500) {
+  if (typeof navigator === 'undefined' || !navigator.serviceWorker?.ready) return Promise.resolve(null);
+  return Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise((resolve) => window.setTimeout(() => resolve(null), timeoutMs)),
+  ]);
+}
+
+function getDisplayMode() {
+  if (typeof window === 'undefined') return 'unknown';
+  if (window.matchMedia?.('(display-mode: standalone)')?.matches) return 'standalone';
+  if (window.matchMedia?.('(display-mode: fullscreen)')?.matches) return 'fullscreen';
+  if (window.navigator?.standalone) return 'ios_standalone';
+  return 'browser';
+}
+
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -90,6 +106,95 @@ export async function savePushSubscriptionRecord(subscription, permission = 'gra
   return base44.entities.PushSubscription.create(payload);
 }
 
+export async function getPushChainDiagnostics() {
+  const permission = getNotificationPermission();
+  const support = getPushSupportState();
+  const diagnostics = {
+    permission,
+    support,
+    displayMode: getDisplayMode(),
+    vapidPublicKeyConfigured: Boolean(VAPID_PUBLIC_KEY),
+    serviceWorker: {
+      supported: typeof navigator !== 'undefined' && 'serviceWorker' in navigator,
+      registered: false,
+      active: false,
+      scriptURL: '',
+      error: '',
+    },
+    pushManager: {
+      supported: typeof window !== 'undefined' && 'PushManager' in window,
+    },
+    browserSubscription: {
+      present: false,
+      endpoint: '',
+    },
+    savedSubscription: {
+      checked: false,
+      activeCount: 0,
+      matchingEndpoint: false,
+      status: 'unknown',
+    },
+    hasActiveSubscription: false,
+    reason: support.reason,
+  };
+
+  let serialized = null;
+  if (diagnostics.serviceWorker.supported) {
+    try {
+      const registration = await registerKronoxServiceWorker();
+      const readyRegistration = registration || await waitForServiceWorkerReady();
+      diagnostics.serviceWorker.registered = Boolean(readyRegistration);
+      diagnostics.serviceWorker.active = Boolean(readyRegistration?.active);
+      diagnostics.serviceWorker.scriptURL = readyRegistration?.active?.scriptURL || readyRegistration?.installing?.scriptURL || '';
+
+      if (readyRegistration?.pushManager) {
+        const subscription = await readyRegistration.pushManager.getSubscription().catch(() => null);
+        serialized = subscription ? serializePushSubscription(subscription) : null;
+        diagnostics.browserSubscription.present = Boolean(serialized?.endpoint);
+        diagnostics.browserSubscription.endpoint = serialized?.endpoint || '';
+      }
+    } catch (error) {
+      diagnostics.serviceWorker.error = error?.message || 'service_worker_check_failed';
+    }
+  }
+
+  const user = await base44.auth.me().catch(() => null);
+  const userEmail = normalizeEmail(user?.email);
+  if (userEmail) {
+    diagnostics.savedSubscription.checked = true;
+    const activeRows = await base44.entities.PushSubscription.filter(
+      { user_email: userEmail, status: 'active' },
+      '-last_seen_at',
+      25,
+    ).catch(() => []);
+    diagnostics.savedSubscription.activeCount = activeRows?.length || 0;
+    diagnostics.savedSubscription.matchingEndpoint = Boolean(
+      serialized?.endpoint && activeRows?.some((row) => row.endpoint === serialized.endpoint),
+    );
+    diagnostics.savedSubscription.status = diagnostics.savedSubscription.matchingEndpoint
+      ? 'active_matching_endpoint'
+      : diagnostics.savedSubscription.activeCount > 0
+        ? 'active_different_endpoint'
+        : 'none';
+  }
+
+  diagnostics.hasActiveSubscription = Boolean(
+    permission === 'granted'
+      && diagnostics.browserSubscription.present
+      && diagnostics.savedSubscription.matchingEndpoint,
+  );
+
+  if (permission === 'denied') diagnostics.reason = 'permission_denied';
+  else if (permission === 'default') diagnostics.reason = 'permission_default';
+  else if (!support.supported) diagnostics.reason = support.reason;
+  else if (!diagnostics.browserSubscription.present) diagnostics.reason = 'no_browser_subscription';
+  else if (diagnostics.savedSubscription.checked && diagnostics.savedSubscription.activeCount === 0) diagnostics.reason = 'no_saved_subscription';
+  else if (diagnostics.savedSubscription.checked && !diagnostics.savedSubscription.matchingEndpoint) diagnostics.reason = 'saved_subscription_endpoint_mismatch';
+  else if (diagnostics.hasActiveSubscription) diagnostics.reason = 'ready';
+
+  return diagnostics;
+}
+
 export async function disableCurrentPushSubscription() {
   const registration = await navigator.serviceWorker?.ready;
   const subscription = await registration?.pushManager?.getSubscription?.();
@@ -128,7 +233,10 @@ export async function enableGameInviteNotifications() {
   }
 
   const registration = await registerKronoxServiceWorker();
-  const readyRegistration = registration || await navigator.serviceWorker.ready;
+  const readyRegistration = registration || await waitForServiceWorkerReady();
+  if (!readyRegistration?.pushManager) {
+    return { ok: false, permission, reason: 'service_worker_missing' };
+  }
   let subscription = await readyRegistration.pushManager.getSubscription();
 
   if (!subscription) {

@@ -82,9 +82,16 @@ export async function createGameInvites({ host, lobby, toEmails, playerCount }) 
     acc.attempted += item.attempted ? 1 : 0;
     acc.sent += Number(item.sent || 0);
     acc.failed += Number(item.failed || 0);
-    if (item.skipped) acc.skipped += 1;
+    acc.expired += Number(item.expired || 0);
+    acc.subscriptionCount += Number(item.subscriptionCount || 0);
+    if (item.skipped) {
+      acc.skipped += 1;
+      acc.skippedReasons[item.skipped] = (acc.skippedReasons[item.skipped] || 0) + 1;
+    }
+    if (item.error) acc.errors.push(item.error);
+    if (Array.isArray(item.failedReasons)) acc.failedReasons.push(...item.failedReasons);
     return acc;
-  }, { attempted: 0, sent: 0, failed: 0, skipped: 0 });
+  }, { attempted: 0, sent: 0, failed: 0, expired: 0, skipped: 0, subscriptionCount: 0, skippedReasons: {}, errors: [], failedReasons: [] });
 
   return { created, failed, attempted: unique.length, push };
 }

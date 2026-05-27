@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Bell, BellOff, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   disableCurrentPushSubscription,
   enableGameInviteNotifications,
   getNotificationPermission,
+  getPushChainDiagnostics,
   getPushSupportState,
   registerKronoxServiceWorker,
 } from '@/lib/notificationApi';
@@ -18,6 +19,10 @@ const reasonText = {
   missing_vapid_public_key: 'Bildirim anahtarı henüz yapılandırılmamış.',
   permission_denied: 'Bildirim izni bu cihazda kapalı.',
   permission_default: 'Bildirim izni henüz verilmedi.',
+  no_browser_subscription: 'Bu cihazda aktif push aboneliği yok.',
+  no_saved_subscription: 'Bu cihazın bildirim aboneliği Kronox hesabına kayıtlı değil.',
+  saved_subscription_endpoint_mismatch: 'Bu cihazdaki abonelik kaydı eski görünüyor.',
+  ready: 'Bildirim zinciri hazır.',
 };
 
 function permissionLabel(permission) {
@@ -27,26 +32,54 @@ function permissionLabel(permission) {
   return 'desteklenmiyor';
 }
 
+function subscriptionLabel(diagnostics) {
+  if (!diagnostics) return 'kontrol ediliyor';
+  if (diagnostics.hasActiveSubscription) return 'aktif';
+  if (diagnostics.reason === 'missing_vapid_public_key') return 'anahtar eksik';
+  if (diagnostics.reason === 'no_browser_subscription') return 'cihaz aboneliği yok';
+  if (diagnostics.reason === 'no_saved_subscription') return 'hesap kaydı yok';
+  if (diagnostics.reason === 'saved_subscription_endpoint_mismatch') return 'yenileme gerekli';
+  if (diagnostics.reason === 'permission_default') return 'izin bekliyor';
+  if (diagnostics.reason === 'permission_denied') return 'izin kapalı';
+  return 'hazır değil';
+}
+
 export default function NotificationSettingsCard({ user }) {
   const [permission, setPermission] = useState(getNotificationPermission());
   const [support, setSupport] = useState(() => getPushSupportState());
+  const [diagnostics, setDiagnostics] = useState(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
 
-  useEffect(() => {
+  const refreshDiagnostics = useCallback(async () => {
     setPermission(getNotificationPermission());
     setSupport(getPushSupportState());
     registerKronoxServiceWorker();
+    const result = await getPushChainDiagnostics().catch(() => null);
+    setDiagnostics(result);
+    return result;
   }, []);
 
-  const canEnable = Boolean(user?.email && support.supported && permission !== 'denied');
+  useEffect(() => {
+    refreshDiagnostics();
+  }, [refreshDiagnostics, user?.email]);
+
+  const canEnable = Boolean(
+    user?.email
+      && support.supported
+      && permission !== 'denied'
+      && !diagnostics?.hasActiveSubscription,
+  );
   const helper = useMemo(() => {
     if (!user?.email) return 'Bildirimleri açmak için giriş yapmalısın.';
     if (!support.supported) return reasonText[support.reason] || 'Bildirimler bu cihazda desteklenmiyor.';
     if (permission === 'denied') return 'Bildirimler bu cihazda kapalı veya engellenmiş.';
+    if (permission === 'granted' && diagnostics && !diagnostics.hasActiveSubscription) {
+      return reasonText[diagnostics.reason] || 'Bildirim izni açık ama cihaz aboneliği yenilenmeli.';
+    }
     if (permission === 'granted') return 'Oyun davetlerinden telefon bildirimiyle haberdar olursun.';
     return 'Oyun davetlerinden haberdar ol.';
-  }, [permission, support.reason, support.supported, user?.email]);
+  }, [diagnostics, permission, support.reason, support.supported, user?.email]);
 
   const handleEnable = async () => {
     if (!canEnable || busy) return;
@@ -55,9 +88,11 @@ export default function NotificationSettingsCard({ user }) {
     try {
       const result = await enableGameInviteNotifications();
       setPermission(result.permission || getNotificationPermission());
-      setSupport(getPushSupportState());
+      const nextDiagnostics = await refreshDiagnostics();
       if (result.ok) {
-        setMessage('Bildirimler açıldı. Oyun davetlerini kaçırmayacaksın.');
+        setMessage(nextDiagnostics?.hasActiveSubscription
+          ? 'Bildirimler açıldı. Oyun davetlerini kaçırmayacaksın.'
+          : 'İzin alındı, ama abonelik kaydı doğrulanamadı. Tekrar dene.');
       } else {
         setMessage(reasonText[result.reason] || 'Bildirimler açılamadı.');
       }
@@ -76,6 +111,7 @@ export default function NotificationSettingsCard({ user }) {
     try {
       await disableCurrentPushSubscription();
       setPermission(getNotificationPermission());
+      await refreshDiagnostics();
       setMessage('Bu cihazdaki Kronox bildirim aboneliği kapatıldı.');
     } catch (error) {
       setMessage(error?.message || 'Bildirim aboneliği kapatılamadı.');
@@ -111,8 +147,13 @@ export default function NotificationSettingsCard({ user }) {
           <p className="font-inter text-sm font-bold text-foreground">Oyun Daveti Bildirimleri</p>
           <p className="font-inter text-xs text-muted-foreground">{helper}</p>
           <p className="mt-1 font-inter text-[11px] text-amber-200/80">
-            Durum: {permissionLabel(permission)}
+            Durum: {permissionLabel(permission)} · Abonelik: {subscriptionLabel(diagnostics)}
           </p>
+          {diagnostics?.savedSubscription?.checked && (
+            <p className="mt-1 font-inter text-[10px] text-blue-100/55">
+              Aktif kayıt: {diagnostics.savedSubscription.activeCount} · Cihaz: {diagnostics.displayMode}
+            </p>
+          )}
         </div>
       </div>
 
@@ -121,10 +162,14 @@ export default function NotificationSettingsCard({ user }) {
           type="button"
           size="sm"
           onClick={handleEnable}
-          disabled={!canEnable || busy || permission === 'granted'}
+          disabled={!canEnable || busy}
           className="flex-1"
         >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Bildirimleri Aç'}
+          {busy
+            ? <Loader2 className="h-4 w-4 animate-spin" />
+            : permission === 'granted'
+              ? 'Aboneliği Yenile'
+              : 'Bildirimleri Aç'}
         </Button>
         {permission === 'granted' && (
           <Button

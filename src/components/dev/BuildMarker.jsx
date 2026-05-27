@@ -1,6 +1,16 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex093 — fixes sticky foreground GameInvite toasts blocking gameplay:
+// Codex096 — hardens closed/background invite push readiness:
+// Settings now distinguishes permission from an actual browser subscription
+// and saved PushSubscription row, lets users renew a missing/stale subscription
+// even when permission is already granted, and the push backend/client summary
+// now preserves skipped/failure reasons such as missing VAPID config or no
+// active recipient subscription. Root PWA manifest is shipped from /public.
+//
+// Previous note: Codex095 — remote gameplay UI marker retained while rebasing
+// this notification fix onto the current Codex branch.
+//
+// Previous note: Codex093 — fixes sticky foreground GameInvite toasts blocking gameplay:
 // invite toasts now auto-dismiss, their close button is wired to the toast
 // store, non-pending invite updates dismiss active invite toasts, and entering
 // /game clears active invite notifications so gameplay stays visible/touchable.
@@ -61,7 +71,7 @@ import React, { useEffect, useState } from 'react';
 //      gameMounted, gameRenderStage, lastError + a derived blackScreenReason.
 // updateLobbyGameState authority logic, Timeline, QuestionCard, placement,
 // Friends, RLS, and visual assets are untouched.
-const BUILD_MARKER = 'Codex095';
+const BUILD_MARKER = 'Codex096';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
