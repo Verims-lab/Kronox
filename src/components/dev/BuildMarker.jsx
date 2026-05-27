@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex092 — hardens real system invite notification routing/copy:
+// Codex093 — fixes sticky foreground GameInvite toasts blocking gameplay:
+// invite toasts now auto-dismiss, their close button is wired to the toast
+// store, non-pending invite updates dismiss active invite toasts, and entering
+// /game clears active invite notifications so gameplay stays visible/touchable.
+//
+// Previous note: Codex092 — hardens real system invite notification routing/copy:
 // Web Push payloads now use the product-specific Turkish invite text, app-open
 // invite toasts route to the concrete invite/lobby URL, and notification clicks
 // are constrained to same-origin Kronox routes before focusing/opening a client.
@@ -56,7 +61,7 @@ import React, { useEffect, useState } from 'react';
 //      gameMounted, gameRenderStage, lastError + a derived blackScreenReason.
 // updateLobbyGameState authority logic, Timeline, QuestionCard, placement,
 // Friends, RLS, and visual assets are untouched.
-const BUILD_MARKER = 'Codex092';
+const BUILD_MARKER = 'Codex093';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
