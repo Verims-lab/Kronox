@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import LobbyCreateJoinPanel from '@/components/lobby/LobbyCreateJoinPanel';
@@ -62,12 +62,15 @@ export default function LobbyRoom() {
   //   • lobby present (waiting room)               → gerçek lobby        (HIDDEN)
   //   • invite deep-link present                   → davet akışı         (HIDDEN)
   // Other routes are unaffected — this signal only flips while /lobby is mounted.
-  useEffect(() => {
+  useLayoutEffect(() => {
     const isOnlineSelectionScreen =
       !lobby && !queryInviteId && (mode === null || mode === undefined);
     setBottomNavHidden(!isOnlineSelectionScreen);
-    return () => setBottomNavHidden(false);
   }, [mode, lobby, queryInviteId]);
+
+  useEffect(() => {
+    return () => setBottomNavHidden(false);
+  }, []);
 
   // New create signature: { maxPlayers, invitedEmails, selectedCategories }
   // from CreateLobbyInvitePanel.
