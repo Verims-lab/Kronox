@@ -134,13 +134,16 @@ export const sendGameInvitePushFnSource = `
     return json({ ok: true, push: { attempted: false, skipped: \`invite_\${invite.status}\` } });
   }
   if (!config.publicKey || !config.privateKey) {
-    return json({ ok: true, push: { attempted: false, skipped: 'missing_vapid_config' } });
+    return json({ ok: true, push: { attempted: false, skipped: 'missing_vapid_config', missingConfig: { publicKey: !config.publicKey, privateKey: !config.privateKey } } });
   }
   const subscriptions = await base44.asServiceRole.entities.PushSubscription.filter(
     { user_email: toEmail, status: 'active' },
     '-last_seen_at',
     25,
   );
+  if (!subscriptions?.length) {
+    return json({ ok: true, push: { attempted: false, sent: 0, failed: 0, skipped: 'no_active_subscriptions' } });
+  }
   const targetUrl = buildTargetUrl(invite); // /lobby?inviteId=...&lobbyId=...&lobbyCode=...
   const notificationPayload = JSON.stringify({
     title: 'Kronox',
@@ -148,6 +151,8 @@ export const sendGameInvitePushFnSource = `
     data: { inviteId: invite.id, lobbyId: invite.lobby_id || null, lobbyCode: invite.lobby_code || null, targetUrl },
   });
   await webpush.sendNotification({ endpoint: row.endpoint, keys: { p256dh: row.keys_p256dh, auth: row.keys_auth } }, notificationPayload, { TTL: 60 * 20 });
+  failedReasons.push({ statusCode, reason: error?.message || 'push_failed' });
+  return json({ ok: true, push: { attempted: true, sent, failed, expired, failedReasons, subscriptionCount: subscriptions.length } });
   await base44.asServiceRole.entities.PushSubscription.update(row.id, { status: 'expired' });
 `;
 
