@@ -197,18 +197,38 @@ export default function GameLayout({
         {currentQuestion && !winner ? (
           <motion.div
             className="relative rounded-2xl"
+            data-kx-active-turn={isOnline && isMyTurn && !feedback ? 'true' : 'false'}
             animate={isOnline && isMyTurn && !feedback ? {
               boxShadow: [
-                '0 0 0 rgba(250,204,21,0)',
-                '0 0 22px rgba(250,204,21,0.32), 0 0 38px rgba(34,197,94,0.18)',
-                '0 0 0 rgba(250,204,21,0)',
+                '0 0 0 1px rgba(16,185,129,0.45), 0 0 22px rgba(16,185,129,0.30), 0 0 38px rgba(5,150,105,0.18)',
+                '0 0 0 1px rgba(250,204,21,0.50), 0 0 26px rgba(16,185,129,0.42), 0 0 44px rgba(5,150,105,0.26)',
+                '0 0 0 1px rgba(16,185,129,0.45), 0 0 22px rgba(16,185,129,0.30), 0 0 38px rgba(5,150,105,0.18)',
               ],
             } : { boxShadow: '0 0 0 rgba(0,0,0,0)' }}
             transition={isOnline && isMyTurn && !feedback ? {
               duration: 2.2, repeat: Infinity, ease: 'easeInOut',
-            } : { duration: 0.2 }}
+            } : { duration: 0.25 }}
             style={{ willChange: 'box-shadow' }}
           >
+            {/* Active-turn green aura — behind card, never above it. Codex095 */}
+            {isOnline && isMyTurn && !feedback && (
+              <motion.div
+                aria-hidden="true"
+                className="absolute rounded-3xl pointer-events-none"
+                style={{
+                  inset: '-14px',
+                  zIndex: -1,
+                  background:
+                    'radial-gradient(120% 80% at 50% 50%, rgba(16,185,129,0.32) 0%, rgba(5,95,70,0.22) 38%, rgba(6,78,59,0.10) 65%, rgba(6,78,59,0) 100%)',
+                  border: '1px solid rgba(52,211,153,0.35)',
+                  boxShadow: 'inset 0 0 24px rgba(16,185,129,0.18), inset 0 0 0 1px rgba(250,204,21,0.10)',
+                  willChange: 'opacity',
+                }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0.85, 1, 0.85] }}
+                transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+              />
+            )}
             <QuestionCard
               question={currentQuestion}
               onImageError={onImageError}
