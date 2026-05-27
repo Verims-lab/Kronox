@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { UserRound, X, Loader2 } from 'lucide-react';
+import GameInviteStatusPill from '@/components/friends/GameInviteStatusPill';
 
 /**
  * One pending request the current user has sent — can be cancelled.
@@ -9,20 +10,12 @@ import { UserRound, X, Loader2 } from 'lucide-react';
  * Cancel control is only active for "pending" rows. FriendRequest has no TTL,
  * so we do not render a countdown here (that is GameInvite-only).
  */
-const STATUS_LABEL = {
-  pending:   { label: 'Bekliyor',     ring: 'rgba(250,204,21,0.45)',  bg: 'rgba(250,204,21,0.10)',  fg: '#fde68a' },
-  accepted:  { label: 'Kabul edildi', ring: 'rgba(52,211,153,0.45)',  bg: 'rgba(16,185,129,0.14)',  fg: '#a7f3d0' },
-  rejected:  { label: 'Reddedildi',   ring: 'rgba(244,63,94,0.45)',   bg: 'rgba(244,63,94,0.10)',   fg: '#fecaca' },
-  cancelled: { label: 'İptal edildi', ring: 'rgba(148,163,184,0.30)', bg: 'rgba(148,163,184,0.10)', fg: 'rgba(226,232,240,0.70)' },
-};
-
 export default function OutgoingRequestItem({ request, onCancel }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
   const display = request.to_email;
   const status = request.status || 'pending';
-  const statusTone = STATUS_LABEL[status] || STATUS_LABEL.pending;
   const isPending = status === 'pending';
 
   const handleCancel = async () => {
@@ -55,12 +48,7 @@ export default function OutgoingRequestItem({ request, onCancel }) {
         <div className="min-w-0 flex-1">
           <p className="truncate font-inter text-sm font-bold text-white/90">{display}</p>
           <div className="mt-0.5 flex items-center gap-1.5">
-            <span
-              className="inline-flex items-center rounded-full px-2 py-0.5 font-inter text-[10px] font-black uppercase tracking-widest"
-              style={{ background: statusTone.bg, color: statusTone.fg, boxShadow: `inset 0 0 0 1px ${statusTone.ring}` }}
-            >
-              {statusTone.label}
-            </span>
+            <GameInviteStatusPill invite={request} />
           </div>
         </div>
         {isPending && (

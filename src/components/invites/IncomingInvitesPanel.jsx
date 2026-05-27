@@ -7,6 +7,7 @@ import {
   loadIncomingInvites,
   acceptGameInvite,
   rejectGameInvite,
+  isGameInviteExpired,
 } from '@/lib/inviteApi';
 import { sounds } from '@/lib/gameSounds';
 import InviteCountdown from '@/components/invites/InviteCountdown';
@@ -68,6 +69,11 @@ export default function IncomingInvitesPanel({ user, variant = 'fantasy' }) {
     setBusyId(invite.id);
     sounds.tap();
     try {
+      if (isGameInviteExpired(invite)) {
+        setError('Davetin süresi doldu. Yeni bir davet iste.');
+        await refresh();
+        return;
+      }
       const res = await acceptGameInvite(invite.id);
       if (res?.lobby?.id) {
         // Hand the recipient straight into the existing Waiting Room flow.
@@ -157,6 +163,7 @@ export default function IncomingInvitesPanel({ user, variant = 'fantasy' }) {
 
 function InviteRow({ invite, busy, onAccept, onReject }) {
   const display = invite.from_name?.trim() || invite.from_email;
+  const expired = invite.status === 'expired' || isGameInviteExpired(invite);
   return (
     <motion.li
       layout
@@ -208,16 +215,24 @@ function InviteRow({ invite, busy, onAccept, onReject }) {
         <button
           type="button"
           onClick={onAccept}
-          disabled={busy}
+          disabled={busy || expired}
           className="flex h-9 w-9 items-center justify-center rounded-full"
           style={{
-            background: 'linear-gradient(180deg,#ffe066,#b97a06)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.45), 0 0 12px rgba(250,204,21,0.5)',
-            opacity: busy ? 0.6 : 1,
+            background: expired
+              ? 'rgba(148,163,184,0.12)'
+              : 'linear-gradient(180deg,#ffe066,#b97a06)',
+            boxShadow: expired
+              ? 'inset 0 0 0 1px rgba(148,163,184,0.30)'
+              : 'inset 0 1px 0 rgba(255,255,255,0.45), 0 0 12px rgba(250,204,21,0.5)',
+            opacity: busy || expired ? 0.6 : 1,
           }}
-          aria-label="Daveti kabul et"
+          aria-label={expired ? 'Davetin süresi doldu' : 'Daveti kabul et'}
         >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin text-amber-950" /> : <Check className="h-4 w-4 text-amber-950" strokeWidth={3.2} />}
+          {busy ? (
+            <Loader2 className="h-4 w-4 animate-spin text-amber-950" />
+          ) : (
+            <Check className={`h-4 w-4 ${expired ? 'text-blue-100/45' : 'text-amber-950'}`} strokeWidth={3.2} />
+          )}
         </button>
       </div>
     </motion.li>
