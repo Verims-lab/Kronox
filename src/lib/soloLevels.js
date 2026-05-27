@@ -1,39 +1,44 @@
-// Codex106 — Solo Level Path local helper.
+// Codex106 — Solo Level Path data + progress helper.
 //
 // PURPOSE
-//   The new Solo entry screen is a vertical Level Path (no category select).
-//   This module is a *local, UI-only* mapping for the level list and its
-//   per-level star/progress display. It is intentionally lightweight:
+//   Single source of truth for:
+//     1. The Solo level catalog (level numbers + titles).
+//     2. Reading/writing per-user Solo progress.
+//     3. Computing star count from mistake count.
+//     4. Building the route-state config Game.jsx expects when a level
+//        attempt starts.
 //
-//   - No backend writes.
-//   - No mutation of User.hasCompletedTutorial or any profile field.
-//   - No persistence of fake progress to the server.
+// PERSISTENCE STRATEGY
+//   Signed-in users → `User.solo_progress` (via base44.auth.updateMe).
+//   Guest users     → localStorage["kx_solo_progress_v1"] fallback.
+//   Both sources use the same compact shape:
 //
-//   Real persistent level progress + the final star scoring algorithm are
-//   intentionally out of scope (see backlog in the Codex106 report).
-//   When the real system lands, replace `loadLocalSoloProgress()` with the
-//   real progress source — every other component on the Solo screen reads
-//   only from `getSoloLevels()`'s return shape so the swap stays trivial.
+//     { currentLevel: number,
+//       levels: {
+//         "1": { bestStars, bestMistakes, bestTimeSeconds, attempts, completedAt }
+//       } }
 //
-// STORAGE
-//   We read `localStorage["kx_solo_progress_v1"]` if present, otherwise we
-//   return a safe empty progress map. We DO NOT write to it from this file;
-//   game completion → progress update can be added in a later step without
-//   any UI change here.
+//   We never blindly overwrite — `mergeBetterResult()` keeps the previous
+//   best stars if a replay performs worse.
 //
-// SHAPE EXPECTED IN STORAGE (all optional):
-//   {
-//     "1": { stars: 3, bestTime: 87 },
-//     "2": { stars: 2, bestTime: 142 },
-//     ...
-//   }
+//   We intentionally do NOT touch User.hasCompletedTutorial or any other
+//   profile field. Only `solo_progress` is read/written.
+//
+// SCOPE GUARDRAILS
+//   - No backend functions added.
+//   - Question generation, drag/drop, Timeline, GameLayout untouched.
+//   - Online flow, lobby, invites, notifications untouched.
+
+import { base44 } from '@/api/base44Client';
 
 const STORAGE_KEY = 'kx_solo_progress_v1';
 
-// Base level catalog — 8 levels is enough to fit the no-scroll constraint
-// on common phone heights. Titles are intentionally minimal ("Level N") so
-// the row layout matches the reference image. `subtitle` is shown only for
-// the current/next challenge row.
+// ─── Constants surfaced to the rest of the app ─────────────────────────
+export const SOLO_CARDS_PER_LEVEL = 10;
+export const SOLO_LEVEL_TIME_SECONDS = 120;
+export const SOLO_MAX_MISTAKES = 8; // 8+ → fail
+
+// Base level catalog. Keep small enough to fit no-scroll on common phones.
 const LEVEL_CATALOG = [
   { levelNumber: 1, title: 'Level 1' },
   { levelNumber: 2, title: 'Level 2' },
@@ -45,102 +50,226 @@ const LEVEL_CATALOG = [
   { levelNumber: 8, title: 'Level 8' },
 ];
 
-function safeReadProgress() {
-  if (typeof window === 'undefined') return {};
+export function getSoloLevelCount() {
+  return LEVEL_CATALOG.length;
+}
+
+// ─── Star calculation ──────────────────────────────────────────────────
+/**
+ * Maps mistake count to stars. Matches the product brief:
+ *   0–1 → 3 stars, 2–4 → 2 stars, 5–7 → 1 star, 8+ → 0 (fail).
+ * Also returns `passed` so the caller doesn't need to re-check.
+ */
+export function computeLevelStars(mistakes) {
+  const m = Math.max(0, Number(mistakes) || 0);
+  if (m >= SOLO_MAX_MISTAKES) return { stars: 0, passed: false };
+  if (m <= 1) return { stars: 3, passed: true };
+  if (m <= 4) return { stars: 2, passed: true };
+  return { stars: 1, passed: true };
+}
+
+// ─── Storage helpers ───────────────────────────────────────────────────
+function emptyProgress() {
+  return { currentLevel: 1, levels: {} };
+}
+
+function safeReadLocal() {
+  if (typeof window === 'undefined') return emptyProgress();
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return {};
+    if (!raw) return emptyProgress();
     const parsed = JSON.parse(raw);
-    return (parsed && typeof parsed === 'object') ? parsed : {};
+    if (!parsed || typeof parsed !== 'object') return emptyProgress();
+    return {
+      currentLevel: Number(parsed.currentLevel) || 1,
+      levels: (parsed.levels && typeof parsed.levels === 'object') ? parsed.levels : {},
+    };
   } catch {
-    return {};
+    return emptyProgress();
+  }
+}
+
+function safeWriteLocal(progress) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+  } catch {
+    /* quota or private mode — ignore */
   }
 }
 
 /**
- * Returns the full level list with derived display state:
+ * Reads solo progress for the current user.
+ *   - If a `user` object with `solo_progress` is supplied, that wins.
+ *   - Otherwise we fall back to localStorage.
  *
- *   { levelNumber, title, status, stars, bestTime, isPlayable }
- *
- * Rules:
- *   - status = 'completed' when stored progress for that level exists AND
- *     stars > 0 (we treat stars > 0 as "you cleared it").
- *   - status = 'current'   for the lowest level that is not completed.
- *   - status = 'locked'    for every level after `current`.
- *   - completed and current are isPlayable = true (you can replay completed
- *     levels to improve stars).
- *   - locked levels are isPlayable = false.
- *
- * If there is no stored progress at all, level 1 is `current` and levels
- * 2..8 are `locked` — exactly the first-run state shown in the reference.
+ * Always returns a fully-shaped object so callers can do `.levels["1"]`
+ * without null checks.
  */
-export function getSoloLevels() {
-  const progress = safeReadProgress();
-
-  // First pass: completed levels (stars > 0).
-  const annotated = LEVEL_CATALOG.map((lvl) => {
-    const p = progress[String(lvl.levelNumber)] || null;
-    const stars = Math.max(0, Math.min(3, Number(p?.stars) || 0));
-    const isCompleted = stars > 0;
+export function readSoloProgress(user) {
+  if (user && user.solo_progress && typeof user.solo_progress === 'object') {
     return {
-      ...lvl,
-      stars,
-      bestTime: typeof p?.bestTime === 'number' ? p.bestTime : null,
-      _completed: isCompleted,
+      currentLevel: Number(user.solo_progress.currentLevel) || 1,
+      levels: user.solo_progress.levels || {},
     };
-  });
-
-  // Second pass: assign current vs locked.
-  let currentAssigned = false;
-  const levels = annotated.map((lvl) => {
-    if (lvl._completed) {
-      // Completed but replayable.
-      const { _completed, ...rest } = lvl;
-      return { ...rest, status: 'completed', isPlayable: true };
-    }
-    if (!currentAssigned) {
-      currentAssigned = true;
-      const { _completed, ...rest } = lvl;
-      return { ...rest, status: 'current', isPlayable: true };
-    }
-    const { _completed, ...rest } = lvl;
-    return { ...rest, status: 'locked', isPlayable: false };
-  });
-
-  return levels;
+  }
+  return safeReadLocal();
 }
 
 /**
- * Maps a selected level to a safe solo game start config.
+ * Writes solo progress for the current user.
+ *   - Signed-in → base44.auth.updateMe({ solo_progress }).
+ *   - Guest     → localStorage.
  *
- * The current Game page expects route state shaped like:
- *   { playerNames, category, yearStart, yearEnd, turnDuration }
+ * Errors are swallowed (best-effort) so a write failure never crashes
+ * gameplay. The next read will just see the previous best.
+ */
+export async function writeSoloProgress(user, progress) {
+  safeWriteLocal(progress); // mirror locally so guests + flakey network still see it
+  if (!user || !user.email) return;
+  try {
+    await base44.auth.updateMe({ solo_progress: progress });
+  } catch {
+    /* ignore — local mirror keeps the UI honest */
+  }
+}
+
+// ─── Result merge ──────────────────────────────────────────────────────
+/**
+ * Returns the merged "best ever" entry for a level given a fresh attempt.
+ * Rules:
+ *   - Stars are monotonic: never decrease.
+ *   - When the new attempt has equal-or-higher stars, prefer the lower
+ *     mistake count and lower time as tiebreakers (better record).
+ *   - Attempts counter always increments.
+ */
+function mergeBetterResult(previous, fresh) {
+  const prev = previous || {};
+  const prevStars = Number(prev.bestStars) || 0;
+  const freshStars = Number(fresh.stars) || 0;
+  const attempts = (Number(prev.attempts) || 0) + 1;
+
+  // Never regress stars.
+  if (freshStars < prevStars) {
+    return { ...prev, attempts };
+  }
+
+  // Higher stars or first pass → take the new record outright.
+  if (freshStars > prevStars) {
+    return {
+      bestStars: freshStars,
+      bestMistakes: fresh.mistakes,
+      bestTimeSeconds: fresh.timeSeconds,
+      attempts,
+      completedAt: new Date().toISOString(),
+    };
+  }
+
+  // Equal stars → prefer the tighter run (fewer mistakes, then faster).
+  const prevMistakes = Number(prev.bestMistakes);
+  const prevTime = Number(prev.bestTimeSeconds);
+  const tighterMistakes = !Number.isFinite(prevMistakes) || fresh.mistakes < prevMistakes;
+  const equalMistakesFaster = fresh.mistakes === prevMistakes
+    && (!Number.isFinite(prevTime) || fresh.timeSeconds < prevTime);
+  if (tighterMistakes || equalMistakesFaster) {
+    return {
+      bestStars: freshStars,
+      bestMistakes: fresh.mistakes,
+      bestTimeSeconds: fresh.timeSeconds,
+      attempts,
+      completedAt: prev.completedAt || new Date().toISOString(),
+    };
+  }
+  return { ...prev, attempts };
+}
+
+/**
+ * Applies a level attempt result to the user's progress and returns the
+ * updated progress object. Caller is responsible for persisting it via
+ * `writeSoloProgress()`.
  *
- * We intentionally do NOT introduce a new "level mode" into Game — that
- * would be a much larger change. Instead, every level starts the *existing*
- * solo game flow with category='karisik' (mixed) so question generation,
- * random selection, drag/drop, Timeline and QuestionCard stay untouched.
+ * fresh = { levelNumber, stars, mistakes, timeSeconds, passed }
+ */
+export function applyLevelAttempt(progress, fresh) {
+  const next = {
+    currentLevel: Number(progress?.currentLevel) || 1,
+    levels: { ...(progress?.levels || {}) },
+  };
+  const key = String(fresh.levelNumber);
+  const prevEntry = next.levels[key] || null;
+  next.levels[key] = mergeBetterResult(prevEntry, fresh);
+
+  // Passing unlocks the next level. We just bump `currentLevel` if the
+  // attempt passed and the user wasn't already further along.
+  if (fresh.passed) {
+    const nextUnlock = Math.min(getSoloLevelCount(), fresh.levelNumber + 1);
+    if (nextUnlock > next.currentLevel) next.currentLevel = nextUnlock;
+  }
+  return next;
+}
+
+// ─── Level list for the Solo screen ────────────────────────────────────
+/**
+ * Returns the catalog annotated with status/stars/isPlayable using the
+ * supplied progress object.
  *
- * Per-level pacing is mapped onto the existing turnDuration field:
- *   - level 1–2  → 0  (no turn timer, "rahat")
- *   - level 3–5  → 30
- *   - level 6+   → 15 (faster the deeper you go)
+ * Rules:
+ *   - status='completed' for any level with bestStars > 0.
+ *   - status='current'   for the lowest level whose number === currentLevel
+ *                        AND which isn't already completed; or the next
+ *                        non-completed level after currentLevel.
+ *   - status='locked'    for anything beyond currentLevel.
+ *   - completed + current → isPlayable=true. Locked → false.
+ */
+export function getSoloLevels(progress) {
+  const safe = progress || emptyProgress();
+  const unlocked = Math.max(1, Number(safe.currentLevel) || 1);
+
+  return LEVEL_CATALOG.map((lvl) => {
+    const entry = safe.levels?.[String(lvl.levelNumber)] || null;
+    const stars = Math.max(0, Math.min(3, Number(entry?.bestStars) || 0));
+    const isCompleted = stars > 0;
+    let status;
+    if (lvl.levelNumber > unlocked) status = 'locked';
+    else if (isCompleted) status = 'completed';
+    else status = 'current';
+
+    return {
+      levelNumber: lvl.levelNumber,
+      title: lvl.title,
+      status,
+      stars,
+      bestMistakes: typeof entry?.bestMistakes === 'number' ? entry.bestMistakes : null,
+      bestTimeSeconds: typeof entry?.bestTimeSeconds === 'number' ? entry.bestTimeSeconds : null,
+      isPlayable: status !== 'locked',
+    };
+  });
+}
+
+// ─── Game start config ─────────────────────────────────────────────────
+/**
+ * Builds the route-state config used by Game.jsx to start a Solo level
+ * attempt. We reuse the existing shape (playerNames/category/year window/
+ * winCardCount) so question generation and game flow stay untouched.
  *
- * Year window stays at the existing solo default (1900..2025). When real
- * level-to-config mapping is decided product-side, this is the only place
- * to change.
+ * The `soloLevel` field is the new piece: Game.jsx reads it to enforce
+ * the 120-second total timer and the 8-mistake fail rule. When absent
+ * (e.g. legacy paths), Game.jsx behaves exactly as before.
  */
 export function buildSoloGameConfigForLevel(level) {
-  const n = level?.levelNumber || 1;
-  let turnDuration = 0;
-  if (n >= 3 && n <= 5) turnDuration = 30;
-  else if (n >= 6) turnDuration = 15;
-
+  const levelNumber = level?.levelNumber || 1;
   return {
     playerNames: ['Sen'],
     category: 'karisik',
     yearStart: 1900,
     yearEnd: 2025,
-    turnDuration,
+    turnDuration: 0, // no per-question timer — the brief explicitly forbids it
+    winCardCount: SOLO_CARDS_PER_LEVEL,
+    soloLevel: {
+      levelNumber,
+      cardCount: SOLO_CARDS_PER_LEVEL,
+      totalTimeSeconds: SOLO_LEVEL_TIME_SECONDS,
+      maxMistakes: SOLO_MAX_MISTAKES,
+    },
   };
 }

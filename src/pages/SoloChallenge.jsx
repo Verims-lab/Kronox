@@ -1,50 +1,70 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Play } from 'lucide-react';
 import { sounds } from '@/lib/gameSounds';
 import { base44 } from '@/api/base44Client';
 import ScreenHeader from '@/components/layout/ScreenHeader';
 import LevelPathRow from '@/components/solo/LevelPathRow';
-import { buildSoloGameConfigForLevel, getSoloLevels } from '@/lib/soloLevels';
+import {
+  buildSoloGameConfigForLevel,
+  getSoloLevels,
+  readSoloProgress,
+} from '@/lib/soloLevels';
 
 /**
- * Codex106 — Solo entry screen is now a vertical Level Path.
+ * Codex106 — Solo entry = vertical Level Path.
  *
- * Behavior summary (full rationale lives in lib/soloLevels.js):
- *   - No category select. The screen opens directly on the level list.
- *   - Each level row shows: number, title, stars (0–3), state.
- *   - Completed levels are dimmed but replayable (so users can chase 3⭐).
- *   - The lowest non-completed level is "current" (amber-glow row).
- *   - Locked levels show a lock icon and cannot be selected.
- *   - Header: back (left) · chip slot (center-right, hidden if no real
- *     economy) · avatar (right) — via ScreenHeader.
- *   - BottomNav stays visible on this screen (no setBottomNavHidden here),
- *     so the existing /game + /lobby visibility rules are preserved.
- *   - Layout fits the viewport: header (top), level list (middle, hosts its
- *     own internal scroll only if absolutely needed via min-h-0), Play
- *     button + BottomNav (bottom). The page itself does not scroll.
- *   - Play maps the selected level to the *existing* solo game route state
- *     (playerNames/category/yearStart/yearEnd/turnDuration) — Game.jsx,
- *     drag/drop, Timeline, QuestionCard and question generation are
- *     untouched.
+ *   - No category select; the screen opens directly on the level list.
+ *   - Per-user progress drives status (completed/current/locked) and stars.
+ *   - Replay of completed levels is allowed (Play still works).
+ *   - Locked levels: not selectable, Play is a no-op.
+ *   - BottomNav stays visible here (we don't call setBottomNavHidden), so
+ *     /game and /lobby visibility rules are preserved exactly.
+ *   - No page scroll: the column shrinks/grows around a flexible middle.
  *
- * Backlog (intentionally not done now): real persistent level progress,
- * final star scoring algorithm, real diamond/chip economy, per-level
- * question pools, deeper animations.
+ * Game flow (10 cards / 120s / 8-mistake fail) is enforced inside Game.jsx
+ * via the `soloLevel` field of route state — see `buildSoloGameConfigForLevel`.
  */
 export default function SoloChallenge() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [user, setUser] = useState(null);
+  const [progress, setProgress] = useState(() => readSoloProgress(null));
 
-  // Level list is computed once per mount from local progress storage.
-  // Reading on every render would be wasteful and could flicker if storage
-  // is mutated mid-render in a future iteration.
-  const levels = useMemo(() => getSoloLevels(), []);
+  // Pull the latest user + their persisted solo_progress.
+  useEffect(() => {
+    let cancelled = false;
+    base44.auth.me()
+      .then((u) => {
+        if (cancelled) return;
+        setUser(u || null);
+        setProgress(readSoloProgress(u || null));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setUser(null);
+        setProgress(readSoloProgress(null));
+      });
+    return () => { cancelled = true; };
+  }, []);
 
-  // Selected level defaults to the "current" row, falling back to the first
-  // playable row, falling back to level 1 — never null so Play always has
-  // something to act on (but Play still no-ops on locked).
+  // When Game finishes a level attempt it navigates back here with
+  // location.state.soloResultApplied = true (after writing progress). We
+  // re-read so the new stars/unlock state are reflected without a hard
+  // reload. The state key is intentionally one-shot.
+  useEffect(() => {
+    if (!location.state?.soloResultApplied) return;
+    base44.auth.me()
+      .then((u) => setProgress(readSoloProgress(u || null)))
+      .catch(() => setProgress(readSoloProgress(user)));
+    // Clear the flag so re-entering this screen later doesn't keep refetching.
+    navigate(location.pathname, { replace: true, state: {} });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state?.soloResultApplied]);
+
+  const levels = useMemo(() => getSoloLevels(progress), [progress]);
+
   const initialSelectedNumber = useMemo(() => {
     const current = levels.find((l) => l.status === 'current');
     if (current) return current.levelNumber;
@@ -53,11 +73,14 @@ export default function SoloChallenge() {
   }, [levels]);
 
   const [selectedLevelNumber, setSelectedLevelNumber] = useState(initialSelectedNumber);
-  const selectedLevel = levels.find((l) => l.levelNumber === selectedLevelNumber) || null;
 
+  // Keep the selection in sync when progress refreshes (e.g. after a level
+  // is passed and the next one unlocks → jump selection to the new current).
   useEffect(() => {
-    base44.auth.me().then((u) => setUser(u || null)).catch(() => setUser(null));
-  }, []);
+    setSelectedLevelNumber(initialSelectedNumber);
+  }, [initialSelectedNumber]);
+
+  const selectedLevel = levels.find((l) => l.levelNumber === selectedLevelNumber) || null;
 
   const handleSelectLevel = (level) => {
     if (!level.isPlayable) return;
@@ -84,7 +107,7 @@ export default function SoloChallenge() {
         overscrollBehavior: 'none',
       }}
     >
-      {/* Standardized header — chip is intentionally null (no fake economy). */}
+      {/* chipValue=null on purpose — no real economy yet, no fake "1,250". */}
       <ScreenHeader
         title="Solo"
         showBack
@@ -93,15 +116,6 @@ export default function SoloChallenge() {
         onBack={() => navigate('/')}
       />
 
-      {/*
-        Main column. We use a flex column with min-h-0 on the scrollable
-        middle slot so the level list can shrink on small phones without
-        pushing the Play button under the BottomNav.
-
-        Spacing buffers:
-          - pt: header height + 0.25rem breathing room
-          - pb: Play button height (≈4.5rem) + BottomNav (≈4rem) + safe area
-      */}
       <div
         className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col px-4"
         style={{
@@ -110,7 +124,6 @@ export default function SoloChallenge() {
           minHeight: 0,
         }}
       >
-        {/* Section title */}
         <motion.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
@@ -131,7 +144,6 @@ export default function SoloChallenge() {
           </p>
         </motion.div>
 
-        {/* Divider with "LEVEL PATH" label */}
         <div className="mt-4 flex items-center gap-3">
           <div className="h-px flex-1 bg-amber-200/20" />
           <span className="font-inter text-[10px] font-black tracking-[0.28em] text-amber-200/80">
@@ -140,13 +152,6 @@ export default function SoloChallenge() {
           <div className="h-px flex-1 bg-amber-200/20" />
         </div>
 
-        {/*
-          Level list. flex-1 + min-h-0 + overflow-hidden makes the list
-          claim available vertical space without forcing the page to scroll.
-          On very tiny phones the row gap is small (gap-1.5) so 8 rows still
-          fit; on large phones the extra space stays as breathing room
-          above/below — list is centered via mt-auto/mb-auto on the wrapper.
-        */}
         <div className="mt-3 flex flex-1 flex-col" style={{ minHeight: 0 }}>
           <div className="my-auto flex flex-col gap-1.5">
             {levels.map((level) => (
@@ -161,17 +166,12 @@ export default function SoloChallenge() {
         </div>
       </div>
 
-      {/*
-        Sticky Play CTA — sits ABOVE the global BottomNav (which is ~4rem
-        tall + safe area). We don't hide BottomNav here per the brief.
-      */}
       <div
         className="fixed left-0 right-0 z-40 px-4"
         style={{
           bottom: 'calc(4rem + env(safe-area-inset-bottom))',
           paddingBottom: '0.5rem',
-          background:
-            'linear-gradient(to top, #03060f 65%, rgba(3,6,15,0.6) 90%, transparent)',
+          background: 'linear-gradient(to top, #03060f 65%, rgba(3,6,15,0.6) 90%, transparent)',
         }}
       >
         <motion.button

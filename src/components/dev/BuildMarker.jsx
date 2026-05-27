@@ -92,7 +92,13 @@ import React, { useEffect, useState } from 'react';
 //      gameMounted, gameRenderStage, lastError + a derived blackScreenReason.
 // updateLobbyGameState authority logic, Timeline, QuestionCard, placement,
 // Friends, RLS, and visual assets are untouched.
-const BUILD_MARKER = 'Codex105';
+// Codex106 — Solo Level Path: kategori seçimi yerine dikey level path,
+// per-user solo_progress persistence (User entity + localStorage fallback),
+// 10 kart / 120sn / 8-hata fail kuralı, replay-only-better star update,
+// SoloLevelResult overlay. Game.jsx solo-level-mode dışında kalan tüm
+// flow'lar (online, lobby, drag/drop, Timeline, QuestionCard, GameLayout,
+// notification, invite, tutorial profile) DOKUNULMADI.
+const BUILD_MARKER = 'Codex106';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

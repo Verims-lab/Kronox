@@ -24,12 +24,19 @@ import { useLobbySync } from '@/hooks/useLobbySync';
 import GameDebugLog from '@/components/game/GameDebugLog';
 import FeedbackOverlay from '@/components/game/FeedbackOverlay';
 import GameOver from '@/components/game/GameOver';
+import SoloLevelResult from '@/components/game/SoloLevelResult';
 import SettingsModal from '@/components/game/SettingsModal';
 import GameOverTimer from '@/components/game/GameOverTimer';
 import GameLayout from '@/components/game/GameLayout';
 import OnlineGameBootstrapFallback from '@/components/game/OnlineGameBootstrapFallback';
 import GameBootstrapDiagnostics, { isDiagnosticsEnabled } from '@/components/game/GameBootstrapDiagnostics';
 import GameRenderErrorBoundary from '@/components/game/GameRenderErrorBoundary';
+import {
+  applyLevelAttempt,
+  computeLevelStars,
+  readSoloProgress,
+  writeSoloProgress,
+} from '@/lib/soloLevels';
 
 export default function Game() {
   const location = useLocation();
@@ -52,6 +59,13 @@ export default function Game() {
   const routeTurnDuration = routeState.turnDuration ?? 60;
   const routeWinCardCount = routeState.winCardCount ?? 10;
   const routeMyPlayerName = routeState.myPlayerName ?? null;
+  // Codex106 — Solo Level mode payload. Only present when SoloChallenge
+  // launches a level attempt. Null/absent means legacy solo (no level
+  // enforcement, current behavior). We keep all level logic gated behind
+  // this so non-level paths (online + legacy solo) stay byte-for-byte
+  // identical.
+  const soloLevel = routeState.soloLevel || null;
+  const isSoloLevelMode = Boolean(soloLevel && !isOnlineFromState);
   const currentQuestionIdFromState = routeState.currentQuestionId ?? null;
   const [currentUser, setCurrentUser] = useState(null);
   // Codex084 — boundaryError + diagVisible must live at top-level so they
@@ -107,6 +121,22 @@ export default function Game() {
   } = useGameState({ playerNames, initialPlayers, currentQuestionIdFromState, lobbyId, isOnlineMode: isOnlineFromState });
 
   const winTimerRef = useRef(null);
+
+  // Codex106 — Solo Level attempt state. All gated by `isSoloLevelMode`,
+  // so other modes (online, legacy solo) are unaffected.
+  //
+  //   mistakeCount        — incremented every time `feedback.result === 'wrong'`
+  //                         is observed. We use a ref to dedupe within one
+  //                         feedback object (effect runs twice in dev StrictMode).
+  //   soloLevelResult     — { passed, stars, mistakes, timeSeconds,
+  //                           cardsCompleted, failReason } when the attempt
+  //                         ends. Triggers the SoloLevelResult overlay.
+  //   soloResultPersistedRef — guard so we only call writeSoloProgress once
+  //                         per attempt even if effects re-run.
+  const [mistakeCount, setMistakeCount] = useState(0);
+  const lastCountedFeedbackRef = useRef(null);
+  const [soloLevelResult, setSoloLevelResult] = useState(null);
+  const soloResultPersistedRef = useRef(false);
 
   useEffect(() => {
     if (!isOnlineFromState) return;
@@ -343,15 +373,15 @@ export default function Game() {
 
   // Browser close uyarısı
   useEffect(() => {
-    if (winner) return;
+    if (winner || soloLevelResult) return;
     const handleBeforeUnload = (e) => { e.preventDefault(); e.returnValue = ''; };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [winner]);
+  }, [winner, soloLevelResult]);
 
   // Geri tuşu yakalama
   useEffect(() => {
-    if (winner) return;
+    if (winner || soloLevelResult) return;
     window.history.pushState(null, '', window.location.href);
     const handlePopState = () => {
       if (window.confirm('Oyundan çıkmak istediğine emin misin?')) {
@@ -362,7 +392,7 @@ export default function Game() {
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [winner, navigate]);
+  }, [winner, soloLevelResult, navigate]);
 
   // ─── Handlers (UI event → action delegation) ─────────────────────
   const handleDropOnZone = useCallback((zoneIndex) => doPlacement(zoneIndex, { category, yearStart, yearEnd }), [doPlacement, category, yearStart, yearEnd]);
@@ -383,6 +413,152 @@ export default function Game() {
     skipCurrentQuestion(currentQuestion?.id);
   }, [currentQuestion?.id, isMyTurn, skipCurrentQuestion]);
   const handleRestart = () => { resetGame(); navigate('/'); };
+
+  // Codex106 — count wrong placements as mistakes. We watch `feedback`
+  // changes (which doPlacement already sets on every placement) instead of
+  // patching useGameActions, so the placement flow itself stays untouched.
+  useEffect(() => {
+    if (!isSoloLevelMode) return;
+    if (!feedback) { lastCountedFeedbackRef.current = null; return; }
+    if (feedback === lastCountedFeedbackRef.current) return;
+    lastCountedFeedbackRef.current = feedback;
+    if (feedback.result === 'wrong') {
+      setMistakeCount((prev) => prev + 1);
+    }
+  }, [feedback, isSoloLevelMode]);
+
+  // Codex106 — finalize result when the attempt ends.
+  //
+  //   PASS  → winner set by doPlacement (10th correct card landed). Stars
+  //           come from current mistakeCount.
+  //   FAIL  → mistakeCount >= maxMistakes (8+) OR overallSeconds >= 120
+  //           before winner exists. We force-stop the timer by setting
+  //           gameStarted=false and surface a fail overlay.
+  //
+  // Persistence happens once; SoloChallenge re-reads progress on its
+  // location.state.soloResultApplied flag.
+  const cardsCompletedSolo = useMemo(() => {
+    if (!isSoloLevelMode || !players.length) return 0;
+    const me = players[0];
+    // Each player starts with 2 seed cards; we report progress against the
+    // 10-card target by subtracting the seed.
+    const total = Array.isArray(me?.cards) ? me.cards.length : 0;
+    return Math.max(0, total - 2);
+  }, [isSoloLevelMode, players]);
+
+  useEffect(() => {
+    if (!isSoloLevelMode || soloLevelResult) return;
+    const maxMistakes = soloLevel?.maxMistakes ?? 8;
+    const totalTime = soloLevel?.totalTimeSeconds ?? 120;
+    const cardTarget = soloLevel?.cardCount ?? 10;
+
+    // PASS path — winner was set by the win condition inside doPlacement.
+    if (winner) {
+      const { stars, passed } = computeLevelStars(mistakeCount);
+      const elapsed = winner.durationSeconds ?? overallSecondsRef.current ?? 0;
+      // The win condition already enforces the card target via winCardCount.
+      setSoloLevelResult({
+        passed,
+        stars,
+        mistakes: mistakeCount,
+        timeSeconds: elapsed,
+        cardsCompleted: cardTarget,
+        cardTarget,
+        failReason: null,
+      });
+      return;
+    }
+
+    // FAIL — too many mistakes.
+    if (mistakeCount >= maxMistakes) {
+      setGameStarted(false);
+      setSoloLevelResult({
+        passed: false,
+        stars: 0,
+        mistakes: mistakeCount,
+        timeSeconds: overallSecondsRef.current ?? 0,
+        cardsCompleted: cardsCompletedSolo,
+        cardTarget,
+        failReason: 'mistakes',
+      });
+      return;
+    }
+
+    // FAIL — total timer expired without a winner.
+    if (gameStarted && overallSeconds >= totalTime) {
+      setGameStarted(false);
+      setSoloLevelResult({
+        passed: false,
+        stars: 0,
+        mistakes: mistakeCount,
+        timeSeconds: totalTime,
+        cardsCompleted: cardsCompletedSolo,
+        cardTarget,
+        failReason: 'timeout',
+      });
+    }
+  }, [
+    isSoloLevelMode,
+    soloLevelResult,
+    soloLevel,
+    winner,
+    mistakeCount,
+    overallSeconds,
+    gameStarted,
+    cardsCompletedSolo,
+    setGameStarted,
+    overallSecondsRef,
+  ]);
+
+  // Persist the level attempt once when the result first lands.
+  useEffect(() => {
+    if (!isSoloLevelMode || !soloLevelResult || soloResultPersistedRef.current) return;
+    soloResultPersistedRef.current = true;
+    const levelNumber = soloLevel?.levelNumber ?? 1;
+    (async () => {
+      try {
+        const me = await base44.auth.me().catch(() => null);
+        const current = readSoloProgress(me);
+        const next = applyLevelAttempt(current, {
+          levelNumber,
+          stars: soloLevelResult.stars,
+          mistakes: soloLevelResult.mistakes,
+          timeSeconds: soloLevelResult.timeSeconds,
+          passed: soloLevelResult.passed,
+        });
+        await writeSoloProgress(me, next);
+      } catch (e) {
+        debugLog('[Game] solo progress persist failed:', e?.message || e);
+      }
+    })();
+  }, [isSoloLevelMode, soloLevelResult, soloLevel]);
+
+  const handleSoloRetry = useCallback(() => {
+    if (!soloLevel) return;
+    // Reset all attempt-local state and re-enter the same level.
+    setSoloLevelResult(null);
+    setMistakeCount(0);
+    lastCountedFeedbackRef.current = null;
+    soloResultPersistedRef.current = false;
+    resetGame();
+    navigate('/game', {
+      replace: true,
+      state: {
+        playerNames: ['Sen'],
+        category: 'karisik',
+        yearStart: routeYearStart,
+        yearEnd: routeYearEnd,
+        turnDuration: 0,
+        winCardCount: soloLevel.cardCount,
+        soloLevel,
+      },
+    });
+  }, [soloLevel, resetGame, navigate, routeYearStart, routeYearEnd]);
+
+  const handleSoloBackToPath = useCallback(() => {
+    resetGame();
+    navigate('/solo', { state: { soloResultApplied: true } });
+  }, [resetGame, navigate]);
 
   const gameOverView = winner ? (
     <>
@@ -500,7 +676,30 @@ export default function Game() {
     </div></>
   );
 
-  if (winner) return (<>{diagnosticsOverlay}{gameOverView}</>);
+  // Codex106 — In Solo Level mode, ALWAYS show SoloLevelResult instead of
+  // the generic GameOver. We render it as soon as `soloLevelResult` exists
+  // (pass OR fail), regardless of whether `winner` was set internally.
+  if (isSoloLevelMode && soloLevelResult) return (
+    <>
+      {diagnosticsOverlay}
+      <SoloLevelResult
+        levelNumber={soloLevel.levelNumber}
+        passed={soloLevelResult.passed}
+        stars={soloLevelResult.stars}
+        mistakes={soloLevelResult.mistakes}
+        timeSeconds={soloLevelResult.timeSeconds}
+        cardsCompleted={soloLevelResult.cardsCompleted}
+        cardTarget={soloLevelResult.cardTarget}
+        failReason={soloLevelResult.failReason}
+        onRetry={handleSoloRetry}
+        onBackToPath={handleSoloBackToPath}
+      />
+    </>
+  );
+
+  // In solo level mode, suppress generic GameOver — SoloLevelResult will
+  // mount within the same frame once the result effect runs.
+  if (winner && !isSoloLevelMode) return (<>{diagnosticsOverlay}{gameOverView}</>);
 
   if (error) return (
     <>{diagnosticsOverlay}
