@@ -144,7 +144,7 @@ export const sendGameInvitePushFnSource = `
   const targetUrl = buildTargetUrl(invite); // /lobby?inviteId=...&lobbyId=...&lobbyCode=...
   const notificationPayload = JSON.stringify({
     title: 'Kronox',
-    body: \`\${senderName} seni oyuna davet etti.\`,
+    body: \`\${senderName} seni Kronox oyununa davet etti.\`,
     data: { inviteId: invite.id, lobbyId: invite.lobby_id || null, lobbyCode: invite.lobby_code || null, targetUrl },
   });
   await webpush.sendNotification({ endpoint: row.endpoint, keys: { p256dh: row.keys_p256dh, auth: row.keys_auth } }, notificationPayload, { TTL: 60 * 20 });
@@ -152,6 +152,11 @@ export const sendGameInvitePushFnSource = `
 `;
 
 export const kronoxServiceWorkerSource = `
+  function resolveSameOriginTarget(targetUrl) {
+    const target = new URL(targetUrl || '/lobby', self.location.origin);
+    if (target.origin !== self.location.origin) return \`\${self.location.origin}/lobby\`;
+    return target.href;
+  }
   self.addEventListener('push', (event) => {
     self.registration.showNotification(title, {
       body,
@@ -164,8 +169,14 @@ export const kronoxServiceWorkerSource = `
   self.addEventListener('notificationclick', (event) => {
     event.notification.close();
     const targetUrl = event.notification?.data?.targetUrl || '/lobby';
-    const target = new URL(targetUrl, self.location.origin).href;
+    const target = resolveSameOriginTarget(targetUrl);
     const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of clientsList) {
+      if ('focus' in client) {
+        await client.focus();
+        if ('navigate' in client) return client.navigate(target);
+      }
+    }
     if (self.clients.openWindow) return self.clients.openWindow(target);
   });
 `;

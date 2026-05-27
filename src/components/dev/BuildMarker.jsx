@@ -1,6 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex090 — Health Simulator refresh for recent Online/Friends/Notification/
+// Codex092 — hardens real system invite notification routing/copy:
+// Web Push payloads now use the product-specific Turkish invite text, app-open
+// invite toasts route to the concrete invite/lobby URL, and notification clicks
+// are constrained to same-origin Kronox routes before focusing/opening a client.
+// Push delivery still requires deployment VAPID secrets plus real subscribed
+// device proof; in-app invites remain the fallback when push is unavailable.
+//
+// Previous note: Codex090 — Health Simulator refresh for recent Online/Friends/Notification/
 // Email/Category work. Adds higher-signal release-risk contracts around
 // friend-request email/deep links, invite push readiness, category handoff,
 // and SRE-style report/proof grouping. Simulator honesty is preserved:
@@ -49,7 +56,7 @@ import React, { useEffect, useState } from 'react';
 //      gameMounted, gameRenderStage, lastError + a derived blackScreenReason.
 // updateLobbyGameState authority logic, Timeline, QuestionCard, placement,
 // Friends, RLS, and visual assets are untouched.
-const BUILD_MARKER = 'Codex091';
+const BUILD_MARKER = 'Codex092';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

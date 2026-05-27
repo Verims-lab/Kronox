@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
     const targetUrl = buildTargetUrl(invite);
     const notificationPayload = JSON.stringify({
       title: 'Kronox',
-      body: `${senderName} seni oyuna davet etti.`,
+      body: `${senderName} seni Kronox oyununa davet etti.`,
       data: {
         inviteId: invite.id,
         lobbyId: invite.lobby_id || null,

@@ -7,6 +7,15 @@ import { useAuth } from '@/lib/AuthContext';
 import { loadIncomingInvites } from '@/lib/inviteApi';
 import { normalizeEmail } from '@/lib/friendsApi';
 
+function buildInviteTarget(invite) {
+  const params = new URLSearchParams();
+  if (invite?.id) params.set('inviteId', invite.id);
+  if (invite?.lobby_id) params.set('lobbyId', invite.lobby_id);
+  if (invite?.lobby_code) params.set('lobbyCode', invite.lobby_code);
+  const query = params.toString();
+  return query ? `/lobby?${query}` : '/lobby';
+}
+
 export default function GameInviteNotifier() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -15,11 +24,12 @@ export default function GameInviteNotifier() {
 
   const showInviteToast = useCallback((invite) => {
     const display = invite?.from_name?.trim() || invite?.from_email || 'Bir arkadaşın';
+    const target = buildInviteTarget(invite);
     toast({
       title: 'Kronox oyun daveti',
-      description: `${display} seni oyuna davet etti.`,
+      description: `${display} seni Kronox oyununa davet etti.`,
       action: (
-        <ToastAction onClick={() => navigate('/lobby')}>
+        <ToastAction onClick={() => navigate(target)}>
           Aç
         </ToastAction>
       ),
