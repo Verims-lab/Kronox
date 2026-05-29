@@ -1,8 +1,17 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex107 — Build marker format/consistency fix. The Health Simulator
-// extracts the build marker from this file's FIRST CodexN token, so
-// this line must hold the current clean CodexN value. Keep it in sync
+// Codex108 — Solo Level Path becomes a scrollable vertical adventure map:
+// Level 1 at the bottom, upward progression, alternating left/right path,
+// auto-scroll to current level on mount, and a new zone/theme banner
+// every 5 levels (4 zones cover the 20-level catalog). BottomNav stays
+// visible on /solo. New Health suite `solo_adventure_map` locks the
+// scrollable-map + reversed-render + auto-scroll + zone-banner contracts.
+// Solo gameplay rules (10 cards / 120s / 8 mistakes / star ladder /
+// replay rules / Profile sync) and Health Solo Progress suite — untouched.
+//
+// Previous note: Codex107 — Build marker format/consistency fix. The Health
+// Simulator extracts the build marker from this file's FIRST CodexN token,
+// so this line must hold the current clean CodexN value. Keep it in sync
 // with `BUILD_MARKER` below and with `appDiagSetBuildMarker(...)` inside
 // App.jsx. Hyphenated dotted-suffix forms are rejected by the Health
 // case `historical_kronox_regression.build_marker_bumped_beyond_codex090`.
@@ -158,7 +167,7 @@ import React, { useEffect, useState } from 'react';
 //   visible 120s SoloLevelTimer (no audio cue).
 // Previous note: Codex106 — Solo level completion popup polish.
 // Previous note: Codex106 — Solo Level Path (vertical 8-row path).
-const BUILD_MARKER = 'Codex107';
+const BUILD_MARKER = 'Codex108';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

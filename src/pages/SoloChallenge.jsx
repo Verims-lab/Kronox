@@ -5,7 +5,7 @@ import { Play } from 'lucide-react';
 import { sounds } from '@/lib/gameSounds';
 import { base44 } from '@/api/base44Client';
 import ScreenHeader from '@/components/layout/ScreenHeader';
-import LevelPathRow from '@/components/solo/LevelPathRow';
+import LevelMapPath from '@/components/solo/LevelMapPath';
 import {
   buildSoloGameConfigForLevel,
   getSoloLevels,
@@ -13,15 +13,17 @@ import {
 } from '@/lib/soloLevels';
 
 /**
- * Codex106 — Solo entry = vertical Level Path.
+ * Codex108 — Solo entry is now a SCROLLABLE vertical adventure map.
  *
- *   - No category select; the screen opens directly on the level list.
+ *   - Level 1 sits at the bottom; progression goes upward.
+ *   - On mount, the map auto-centers on the current level (so a Level 8
+ *     player doesn't land on Level 1 or at the very top).
  *   - Per-user progress drives status (completed/current/locked) and stars.
  *   - Replay of completed levels is allowed (Play still works).
  *   - Locked levels: not selectable, Play is a no-op.
+ *   - Every 5 levels announces a new zone/theme banner.
  *   - BottomNav stays visible here (we don't call setBottomNavHidden), so
  *     /game and /lobby visibility rules are preserved exactly.
- *   - No page scroll: the column shrinks/grows around a flexible middle.
  *
  * Game flow (10 cards / 120s / 8-mistake fail) is enforced inside Game.jsx
  * via the `soloLevel` field of route state — see `buildSoloGameConfigForLevel`.
@@ -97,14 +99,19 @@ export default function SoloChallenge() {
 
   const playDisabled = !selectedLevel || !selectedLevel.isPlayable;
 
+  // Reserved space for the floating Play button + BottomNav so Level 1
+  // (rendered at the bottom of the scroll content) is never hidden.
+  // 4rem BottomNav + 3.75rem Play + safe-area + padding ≈ 192px.
+  const BOTTOM_RESERVED_PX = 192;
+
   return (
     <div
-      className="fixed inset-0 flex flex-col text-white"
+      className="flex min-h-screen flex-col text-white"
       style={{
+        minHeight: '100dvh',
         background:
           'radial-gradient(ellipse at 50% 6%, rgba(59,130,246,0.22), transparent 50%), radial-gradient(ellipse at 50% 96%, rgba(34,211,238,0.10), transparent 55%), linear-gradient(180deg, #050b1c 0%, #0a1738 55%, #03060f 100%)',
         userSelect: 'none',
-        overscrollBehavior: 'none',
       }}
     >
       {/* chipValue=null on purpose — no real economy yet, no fake "1,250". */}
@@ -116,11 +123,13 @@ export default function SoloChallenge() {
         onBack={() => navigate('/')}
       />
 
+      {/* Scrollable map viewport — fills between ScreenHeader and the
+          floating Play button. The map itself owns the scroll; the page
+          body stays at viewport height so BottomNav doesn't drift. */}
       <div
-        className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col px-4"
+        className="flex flex-1 flex-col"
         style={{
           paddingTop: 'calc(3.75rem + env(safe-area-inset-top))',
-          paddingBottom: 'calc(9rem + env(safe-area-inset-bottom))',
           minHeight: 0,
         }}
       >
@@ -128,44 +137,35 @@ export default function SoloChallenge() {
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25 }}
-          className="text-center"
+          className="px-4 text-center"
         >
           <h2
-            className="font-cinzel text-lg font-black tracking-[0.22em]"
+            className="font-cinzel text-base font-black tracking-[0.22em]"
             style={{
               color: '#facc15',
               textShadow: '0 0 12px rgba(250,204,21,0.4), 0 2px 4px rgba(0,0,0,0.6)',
             }}
           >
-            SOLO MEYDAN OKUMA
+            SOLO MACERA HARİTASI
           </h2>
-          <p className="mt-1 font-inter text-[12px] text-blue-100/70">
-            Zamanı sırala, tarihe hükmet.
+          <p className="mt-0.5 font-inter text-[11px] text-blue-100/70">
+            Aşağıdan yukarı tırman.
           </p>
         </motion.div>
 
-        <div className="mt-4 flex items-center gap-3">
-          <div className="h-px flex-1 bg-amber-200/20" />
-          <span className="font-inter text-[10px] font-black tracking-[0.28em] text-amber-200/80">
-            LEVEL PATH
-          </span>
-          <div className="h-px flex-1 bg-amber-200/20" />
-        </div>
-
-        <div className="mt-3 flex flex-1 flex-col" style={{ minHeight: 0 }}>
-          <div className="my-auto flex flex-col gap-1.5">
-            {levels.map((level) => (
-              <LevelPathRow
-                key={level.levelNumber}
-                level={level}
-                selected={level.levelNumber === selectedLevelNumber}
-                onSelect={() => handleSelectLevel(level)}
-              />
-            ))}
-          </div>
+        <div className="mt-2 flex flex-1" style={{ minHeight: 0 }}>
+          <LevelMapPath
+            levels={levels}
+            selectedLevelNumber={selectedLevelNumber}
+            onSelectLevel={handleSelectLevel}
+            bottomReservedPx={BOTTOM_RESERVED_PX}
+          />
         </div>
       </div>
 
+      {/* Floating Play button — sits above BottomNav, never inside the
+          scroll viewport. The gradient fade keeps the lowest map node
+          visually readable behind it. */}
       <div
         className="fixed left-0 right-0 z-40 px-4"
         style={{
@@ -201,7 +201,7 @@ export default function SoloChallenge() {
           aria-label="Oyna"
         >
           <Play className="h-5 w-5" fill="#1a0a00" />
-          OYNA
+          {selectedLevel ? `LEVEL ${selectedLevel.levelNumber}` : 'OYNA'}
         </motion.button>
       </div>
     </div>

@@ -45,9 +45,11 @@ import {
 // Modular case files. Add new files here; the order only affects suite
 // listing order on the side panel (existing ids/positions don't move).
 import * as soloProgressCases from './simulationPanelSoloProgressCases';
+import * as soloMapCases from './simulationPanelSoloMapCases';
 
 const MODULES = [
   soloProgressCases,
+  soloMapCases,
 ];
 
 function flatten(key) {

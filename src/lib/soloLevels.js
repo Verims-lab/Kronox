@@ -38,17 +38,14 @@ export const SOLO_CARDS_PER_LEVEL = 10;
 export const SOLO_LEVEL_TIME_SECONDS = 120;
 export const SOLO_MAX_MISTAKES = 8; // 8+ → fail
 
-// Base level catalog. Keep small enough to fit no-scroll on common phones.
-const LEVEL_CATALOG = [
-  { levelNumber: 1, title: 'Level 1' },
-  { levelNumber: 2, title: 'Level 2' },
-  { levelNumber: 3, title: 'Level 3' },
-  { levelNumber: 4, title: 'Level 4' },
-  { levelNumber: 5, title: 'Level 5' },
-  { levelNumber: 6, title: 'Level 6' },
-  { levelNumber: 7, title: 'Level 7' },
-  { levelNumber: 8, title: 'Level 8' },
-];
+// Codex108 — Solo Level Path is now a scrollable vertical adventure map
+// with a 5-level "zone" theme rhythm. Catalog expanded to 20 so the player
+// sees real upward progression. Easy to expand further: just add entries.
+const TOTAL_LEVELS = 20;
+const LEVEL_CATALOG = Array.from({ length: TOTAL_LEVELS }, (_, i) => ({
+  levelNumber: i + 1,
+  title: `Level ${i + 1}`,
+}));
 
 export function getSoloLevelCount() {
   return LEVEL_CATALOG.length;
