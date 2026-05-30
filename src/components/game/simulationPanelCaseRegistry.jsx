@@ -52,6 +52,9 @@ import * as leaderboardCases from './simulationPanelLeaderboardCases';
 // Codex117 — Solo Map Focus suite (level → section helper + CTA/map
 // single-source-of-truth contract + auto-scroll fix lock-in).
 import * as soloMapFocusCases from './simulationPanelSoloMapFocusCases';
+// Codex119 — Liderlik graceful fallback contracts (friendly placeholder
+// when global ranking fails, own-score visibility, admin diagnostics).
+import * as leaderboardFallbackCases from './simulationPanelLeaderboardFallbackCases';
 
 const MODULES = [
   soloProgressCases,
@@ -60,6 +63,7 @@ const MODULES = [
   soloUnlockCases,
   leaderboardCases,
   soloMapFocusCases,
+  leaderboardFallbackCases,
 ];
 
 function flatten(key) {
