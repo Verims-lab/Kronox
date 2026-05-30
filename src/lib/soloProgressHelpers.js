@@ -174,7 +174,7 @@ export function getBestSoloLevelResult(previousBest, newAttempt) {
     passed: Math.max(0, Number(prev.bestScoreStars ?? prev.bestStars) || 0) > 0,
   });
 
-  return {
+  const updatedBestLevelResult = {
     bestStars,
     bestScore: replaceScoreRecord
       ? attempt.levelScore
@@ -194,7 +194,19 @@ export function getBestSoloLevelResult(previousBest, newAttempt) {
     bestMistakes: replaceScoreRecord
       ? attempt.mistakes
       : prev.bestMistakes,
-    improvedScore: replaceScoreRecord,
+  };
+  const previousBestScore = Math.max(0, previousScore || 0);
+  const nextBestScore = Math.max(0, Number(updatedBestLevelResult.bestScore) || 0);
+  const scoreDelta = Math.max(0, nextBestScore - previousBestScore);
+
+  return {
+    ...updatedBestLevelResult,
+    updatedBestLevelResult,
+    previousBestScore,
+    scoreDelta,
+    didImprove: scoreDelta > 0,
+    didImproveRecord: replaceScoreRecord,
+    improvedScore: scoreDelta > 0,
     improvedStars: bestStars > prevStars,
   };
 }

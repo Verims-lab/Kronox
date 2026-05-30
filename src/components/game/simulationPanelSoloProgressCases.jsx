@@ -36,6 +36,7 @@ import {
   calculateSoloAttemptResult,
   calculateSoloLevelScore,
   getBestSoloLevelResult,
+  summarizeSoloProgress,
 } from '../../lib/soloProgressHelpers';
 
 const STATUS = {
@@ -378,6 +379,8 @@ export const EXTRA_TESTS = [
         'export function calculateSoloAttemptResult',
         'export function getBestSoloLevelResult',
         'export function summarizeSoloProgress',
+        'scoreDelta',
+        'updatedBestLevelResult',
       ]);
       const consumerMissing = [
         ...missingTokens(soloLevelsLibSource, ['calculateSoloAttemptResult', 'getBestSoloLevelResult', 'summarizeSoloProgress']),
@@ -426,14 +429,14 @@ export const EXTRA_TESTS = [
         completedCards: 10,
         elapsedSeconds: 54,
       }));
-      if (worse.bestStars !== 3 || worse.bestScore !== 15 || better.bestStars !== 3 || better.bestScore !== 20 || better.bestTimeSeconds !== 54) {
+      if (worse.bestStars !== 3 || worse.bestScore !== 15 || worse.scoreDelta !== 0 || better.bestStars !== 3 || better.bestScore !== 20 || better.bestTimeSeconds !== 54 || better.scoreDelta !== 5) {
         return fail('Replay best-score preservation helper regressed.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
           expected: {
             worseReplay: 'bestStars=3 and bestScore=15 remain',
-            betterReplay: 'bestScore=20 and bestTimeSeconds=54',
+            betterReplay: 'bestScore=20, bestTimeSeconds=54, scoreDelta=5',
           },
           actual: { worse, better },
         });
@@ -446,12 +449,146 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
+  makeCase('solo_progress_health', 'solo_replay_score_delta_only',
+    'Replay score delta only: improving 13 → 18 adds +5; replaying 18 → 10 adds +0',
+    () => {
+      const previous13 = {
+        bestStars: 2,
+        bestScore: 13,
+        bestScoreStars: 2,
+        bestTimeSeconds: 88,
+        bestMistakes: 2,
+      };
+      const replay18 = getBestSoloLevelResult(previous13, calculateSoloAttemptResult({
+        mistakes: 2,
+        completedCards: 10,
+        elapsedSeconds: 54,
+      }));
+      const previous18 = replay18.updatedBestLevelResult;
+      const replay10 = getBestSoloLevelResult(previous18, calculateSoloAttemptResult({
+        mistakes: 1,
+        completedCards: 10,
+        elapsedSeconds: 100,
+      }));
+
+      const beforeTotal = summarizeSoloProgress({ currentLevel: 4, levels: { 3: previous13 } }, 20).totalSoloScore;
+      const afterImproveTotal = summarizeSoloProgress({ currentLevel: 4, levels: { 3: replay18.updatedBestLevelResult } }, 20).totalSoloScore;
+      const afterWorseTotal = summarizeSoloProgress({ currentLevel: 4, levels: { 3: replay10.updatedBestLevelResult } }, 20).totalSoloScore;
+
+      if (replay18.scoreDelta !== 5 || afterImproveTotal - beforeTotal !== 5 || replay10.scoreDelta !== 0 || afterWorseTotal !== afterImproveTotal) {
+        return fail('Replay delta-only scoring regressed.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: '13→18 delta +5; 18→10 delta +0; total score follows only bestScore difference',
+          actual: { replay18, replay10, beforeTotal, afterImproveTotal, afterWorseTotal },
+        });
+      }
+      return pass('Replay scoring only applies the bestScore difference and never adds the full replay attempt twice.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'EXECUTABLE_HELPER_PROOF',
+        actionType: ACTION_TYPES.CODE_FIX,
+        actual: { improveDelta: replay18.scoreDelta, worseDelta: replay10.scoreDelta },
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('solo_progress_health', 'solo_total_score_is_sum_of_level_best_scores',
+    'totalSoloScore is the sum of per-level bestScore values, not the sum of all attempts',
+    () => {
+      const progress = {
+        currentLevel: 4,
+        levels: {
+          1: { bestStars: 3, bestScore: 20, attempts: 9 },
+          2: { bestStars: 2, bestScore: 13, attempts: 7 },
+          3: { bestStars: 0, bestScore: 0, attempts: 5 },
+        },
+      };
+      const summary = summarizeSoloProgress(progress, 20);
+      const fakeAttemptTotal = (20 * 9) + (13 * 7);
+      if (summary.totalSoloScore !== 33 || summary.totalSoloScore === fakeAttemptTotal) {
+        return fail('totalSoloScore is not clearly derived from level bestScore sum.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: '20 + 13 + 0 = 33, regardless of attempts',
+          actual: { summary, fakeAttemptTotal },
+        });
+      }
+      return pass('totalSoloScore equals the sum of each completed level bestScore and ignores attempt count multiplication.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'EXECUTABLE_HELPER_PROOF',
+        actionType: ACTION_TYPES.CODE_FIX,
+        actual: summary,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('solo_progress_health', 'solo_replay_does_not_duplicate_points',
+    'Repeated same-score replays do not keep increasing totalSoloScore',
+    () => {
+      const sameScoreAttempt = calculateSoloAttemptResult({
+        mistakes: 1,
+        completedCards: 10,
+        elapsedSeconds: 75,
+      });
+      let progress = {
+        currentLevel: 2,
+        levels: {
+          1: {
+            bestStars: 3,
+            bestScore: 15,
+            bestScoreStars: 3,
+            bestTimeSeconds: 75,
+            bestMistakes: 1,
+            attempts: 1,
+          },
+        },
+      };
+      const before = summarizeSoloProgress(progress, 20).totalSoloScore;
+      const deltas = [];
+      for (let i = 0; i < 3; i += 1) {
+        const merged = getBestSoloLevelResult(progress.levels[1], sameScoreAttempt);
+        deltas.push(merged.scoreDelta);
+        progress = {
+          ...progress,
+          levels: {
+            ...progress.levels,
+            1: {
+              ...progress.levels[1],
+              ...merged.updatedBestLevelResult,
+              attempts: progress.levels[1].attempts + 1,
+            },
+          },
+        };
+      }
+      const after = summarizeSoloProgress(progress, 20).totalSoloScore;
+      if (before !== 15 || after !== 15 || deltas.some((d) => d !== 0)) {
+        return fail('Same-score replay duplicated Solo points.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'totalSoloScore remains 15 and every replay delta is 0',
+          actual: { before, after, deltas, progress },
+        });
+      }
+      return pass('Repeated same-score replays preserve totalSoloScore; no duplicate points are added.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'EXECUTABLE_HELPER_PROOF',
+        actionType: ACTION_TYPES.CODE_FIX,
+        actual: { before, after, deltas },
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
   makeCase('solo_progress_health', 'solo_result_popup_score_visible',
     'Solo result popup shows score breakdown, stars/time/mistakes, rank placeholder, and keeps next CTA copy contract',
     () => {
       const required = missingTokens(soloLevelResultSource, [
         'Puan: {levelScore}',
         '${stars} yıldız: ${baseScore} + hız bonusu: ${timeBonus}',
+        'Yeni en iyi puan! +${scoreDelta}',
+        'En iyi puanın korunuyor',
         'Sıralama verisi hazırlanıyor',
         'Level {nextLevelNumber}',
         '<Play className="w-4 h-4" fill="currentColor" />',

@@ -36,6 +36,8 @@ import { fetchSoloLevelRank } from '@/lib/soloRanking';
  *   - baseScore:             number
  *   - timeBonus:             number
  *   - levelScore:            number
+ *   - scoreDelta:            number | undefined
+ *   - didImproveScore:       boolean | undefined
  *   - cardsCompleted:        number
  *   - cardTarget:            number (10)
  *   - failReason:            'mistakes' | 'timeout' | null
@@ -55,6 +57,8 @@ export default function SoloLevelResult({
   baseScore = 0,
   timeBonus = 0,
   levelScore = 0,
+  scoreDelta,
+  didImproveScore,
   cardsCompleted,
   cardTarget,
   failReason,
@@ -190,6 +194,13 @@ export default function SoloLevelResult({
                 ? `${stars} yıldız: ${baseScore} + hız bonusu: ${timeBonus}`
                 : 'Başarısız deneme: 0 + hız bonusu: 0'}
             </p>
+            {passed && typeof scoreDelta === 'number' && (
+              <p className="mt-1 font-inter text-[10px] font-black text-amber-100/85">
+                {didImproveScore && scoreDelta > 0
+                  ? `Yeni en iyi puan! +${scoreDelta}`
+                  : 'En iyi puanın korunuyor'}
+              </p>
+            )}
           </div>
 
           {/* Stats grid */}

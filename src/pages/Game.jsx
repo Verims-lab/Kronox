@@ -37,7 +37,7 @@ import {
   readSoloProgress,
   writeSoloProgress,
 } from '@/lib/soloLevels';
-import { calculateSoloAttemptResult } from '@/lib/soloProgressHelpers';
+import { calculateSoloAttemptResult, getBestSoloLevelResult } from '@/lib/soloProgressHelpers';
 
 export default function Game() {
   const location = useLocation();
@@ -544,6 +544,26 @@ export default function Game() {
       try {
         const me = await base44.auth.me().catch(() => null);
         const current = readSoloProgress(me);
+        const previousEntry = current?.levels?.[String(levelNumber)] || null;
+        const attempt = calculateSoloAttemptResult({
+          mistakes: soloLevelResult.mistakes,
+          completedCards: soloLevelResult.cardsCompleted,
+          elapsedSeconds: soloLevelResult.timeSeconds,
+        });
+        const bestPreview = getBestSoloLevelResult(previousEntry, {
+          ...attempt,
+          stars: soloLevelResult.stars,
+          passed: soloLevelResult.passed,
+          baseScore: soloLevelResult.baseScore,
+          timeBonus: soloLevelResult.timeBonus,
+          levelScore: soloLevelResult.levelScore,
+        });
+        setSoloLevelResult((prev) => prev ? {
+          ...prev,
+          scoreDelta: bestPreview.scoreDelta,
+          didImproveScore: bestPreview.didImprove,
+          bestScoreAfter: bestPreview.updatedBestLevelResult.bestScore,
+        } : prev);
         const next = applyLevelAttempt(current, {
           levelNumber,
           stars: soloLevelResult.stars,
@@ -758,6 +778,8 @@ export default function Game() {
           baseScore={soloLevelResult.baseScore}
           timeBonus={soloLevelResult.timeBonus}
           levelScore={soloLevelResult.levelScore}
+          scoreDelta={soloLevelResult.scoreDelta}
+          didImproveScore={soloLevelResult.didImproveScore}
           cardsCompleted={soloLevelResult.cardsCompleted}
           cardTarget={soloLevelResult.cardTarget}
           failReason={soloLevelResult.failReason}

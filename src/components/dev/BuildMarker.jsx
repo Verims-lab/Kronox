@@ -1,6 +1,18 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex111 — Solo scoring + leaderboard source of truth:
+// Codex112 — Solo replay score delta hardening:
+//   • getBestSoloLevelResult now returns updatedBestLevelResult,
+//     previousBestScore, scoreDelta, and didImprove.
+//   • totalSoloScore remains a derived sum of per-level bestScore values,
+//     never an accumulating sum of all attempts.
+//   • Same-score or worse replays add +0; better replays add only the
+//     difference (e.g. 13 → 18 adds +5).
+//   • Result popup can show "Yeni en iyi puan! +N" or
+//     "En iyi puanın korunuyor" without implying duplicate score gain.
+//   • Health adds executable replay-delta, sum-of-best-scores, and
+//     no-duplicate-points cases.
+//
+// Previous note: Codex111 — Solo scoring + leaderboard source of truth:
 //   • Shared scoring helpers calculate stars, time bonus, levelScore,
 //     attempt result, best replay preservation, and Solo progress summary.
 //   • Solo progress now stores bestScore / bestScore breakdown /
@@ -233,7 +245,7 @@ import React, { useEffect, useState } from 'react';
 //   visible 120s SoloLevelTimer (no audio cue).
 // Previous note: Codex106 — Solo level completion popup polish.
 // Previous note: Codex106 — Solo Level Path (vertical 8-row path).
-const BUILD_MARKER = 'Codex111';
+const BUILD_MARKER = 'Codex112';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
