@@ -1,4 +1,4 @@
-// Codex106 — Solo Level Path data + progress helper.
+// Codex111 — Solo Level Path data + progress helper.
 //
 // PURPOSE
 //   Single source of truth for:
@@ -15,8 +15,14 @@
 //
 //     { currentLevel: number,
 //       levels: {
-//         "1": { bestStars, bestMistakes, bestTimeSeconds, attempts, completedAt }
-//       } }
+//         "1": {
+//           bestStars, bestScore, bestScoreStars, bestScoreBaseScore,
+//           bestScoreTimeBonus, bestMistakes, bestTimeSeconds, attempts,
+//           completedAt, lastAttemptAt
+//         }
+//       },
+//       summary: { currentLevel, unlockedLevel, totalSoloScore,
+//                  completedLevelCount, totalStars, totalAttempts } }
 //
 //   We never blindly overwrite — `mergeBetterResult()` keeps the previous
 //   best stars if a replay performs worse.
@@ -31,9 +37,14 @@
 
 import { base44 } from '@/api/base44Client';
 import {
+  calculateSoloAttemptResult,
+  calculateSoloStars,
+  backfillSoloScores,
+  getBestSoloLevelResult,
   getEffectiveUnlockedLevel,
   getHighestCompletedLevel,
   getLevelStatus,
+  summarizeSoloProgress,
 } from './soloProgressHelpers';
 
 const STORAGE_KEY = 'kx_solo_progress_v1';
@@ -63,16 +74,31 @@ export function getSoloLevelCount() {
  * Also returns `passed` so the caller doesn't need to re-check.
  */
 export function computeLevelStars(mistakes) {
-  const m = Math.max(0, Number(mistakes) || 0);
-  if (m >= SOLO_MAX_MISTAKES) return { stars: 0, passed: false };
-  if (m <= 1) return { stars: 3, passed: true };
-  if (m <= 4) return { stars: 2, passed: true };
-  return { stars: 1, passed: true };
+  const { stars, passed } = calculateSoloStars(mistakes, SOLO_CARDS_PER_LEVEL, 0);
+  return { stars, passed };
 }
 
 // ─── Storage helpers ───────────────────────────────────────────────────
 function emptyProgress() {
-  return { currentLevel: 1, levels: {} };
+  const progress = { currentLevel: 1, levels: {} };
+  return { ...progress, summary: summarizeSoloProgress(progress, TOTAL_LEVELS) };
+}
+
+function normalizeProgressShapeWithMeta(raw) {
+  const source = raw && typeof raw === 'object' ? raw : {};
+  const progress = {
+    currentLevel: Math.max(1, Number(raw?.currentLevel) || 1),
+    levels: (raw?.levels && typeof raw.levels === 'object') ? raw.levels : {},
+  };
+  return backfillSoloScores({ ...source, ...progress }, TOTAL_LEVELS);
+}
+
+export function normalizeSoloProgress(raw) {
+  return normalizeProgressShapeWithMeta(raw).progress;
+}
+
+function normalizeProgressShape(raw) {
+  return normalizeSoloProgress(raw);
 }
 
 function safeReadLocal() {
@@ -82,10 +108,7 @@ function safeReadLocal() {
     if (!raw) return emptyProgress();
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return emptyProgress();
-    return {
-      currentLevel: Number(parsed.currentLevel) || 1,
-      levels: (parsed.levels && typeof parsed.levels === 'object') ? parsed.levels : {},
-    };
+    return normalizeProgressShape(parsed);
   } catch {
     return emptyProgress();
   }
@@ -94,7 +117,7 @@ function safeReadLocal() {
 function safeWriteLocal(progress) {
   if (typeof window === 'undefined') return;
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizeProgressShape(progress)));
   } catch {
     /* quota or private mode — ignore */
   }
@@ -119,13 +142,29 @@ function safeWriteLocal(progress) {
 export function readSoloProgress(user) {
   const fromLocal = safeReadLocal();
   const fromUser = (user && user.solo_progress && typeof user.solo_progress === 'object')
-    ? {
-        currentLevel: Number(user.solo_progress.currentLevel) || 1,
-        levels: user.solo_progress.levels || {},
-      }
+    ? normalizeProgressShape(user.solo_progress)
     : null;
   if (!fromUser) return fromLocal;
-  return pickMoreAdvanced(fromUser, fromLocal);
+  return normalizeProgressShape(pickMoreAdvanced(fromUser, fromLocal));
+}
+
+function sameProgress(a, b) {
+  return JSON.stringify(a || null) === JSON.stringify(b || null);
+}
+
+export async function ensureSoloProgressBackfill(user) {
+  const progress = readSoloProgress(user || null);
+  if (!user?.email) {
+    safeWriteLocal(progress);
+    return progress;
+  }
+
+  const userMeta = normalizeProgressShapeWithMeta(user.solo_progress || null);
+  const shouldPersist = userMeta.changed || !sameProgress(userMeta.progress, progress);
+  if (shouldPersist) {
+    await writeSoloProgress(user, progress);
+  }
+  return progress;
 }
 
 function completedCount(p) {
@@ -153,10 +192,11 @@ function pickMoreAdvanced(a, b) {
  * gameplay. The next read will just see the previous best.
  */
 export async function writeSoloProgress(user, progress) {
-  safeWriteLocal(progress); // mirror locally so guests + flakey network still see it
+  const normalized = normalizeProgressShape(progress);
+  safeWriteLocal(normalized); // mirror locally so guests + flakey network still see it
   if (!user || !user.email) return;
   try {
-    await base44.auth.updateMe({ solo_progress: progress });
+    await base44.auth.updateMe({ solo_progress: normalized });
   } catch {
     /* ignore — local mirror keeps the UI honest */
   }
@@ -173,42 +213,35 @@ export async function writeSoloProgress(user, progress) {
  */
 function mergeBetterResult(previous, fresh) {
   const prev = previous || {};
-  const prevStars = Number(prev.bestStars) || 0;
-  const freshStars = Number(fresh.stars) || 0;
   const attempts = (Number(prev.attempts) || 0) + 1;
+  const now = new Date().toISOString();
+  const attempt = calculateSoloAttemptResult({
+    mistakes: fresh.mistakes,
+    completedCards: fresh.cardsCompleted ?? (fresh.passed ? SOLO_CARDS_PER_LEVEL : 0),
+    elapsedSeconds: fresh.timeSeconds,
+  });
+  const best = getBestSoloLevelResult(prev, {
+    ...attempt,
+    stars: typeof fresh.stars === 'number' ? fresh.stars : attempt.stars,
+    passed: Boolean(fresh.passed),
+    baseScore: typeof fresh.baseScore === 'number' ? fresh.baseScore : attempt.baseScore,
+    timeBonus: typeof fresh.timeBonus === 'number' ? fresh.timeBonus : attempt.timeBonus,
+    levelScore: typeof fresh.levelScore === 'number' ? fresh.levelScore : attempt.levelScore,
+  });
 
-  // Never regress stars.
-  if (freshStars < prevStars) {
-    return { ...prev, attempts };
-  }
-
-  // Higher stars or first pass → take the new record outright.
-  if (freshStars > prevStars) {
-    return {
-      bestStars: freshStars,
-      bestMistakes: fresh.mistakes,
-      bestTimeSeconds: fresh.timeSeconds,
-      attempts,
-      completedAt: new Date().toISOString(),
-    };
-  }
-
-  // Equal stars → prefer the tighter run (fewer mistakes, then faster).
-  const prevMistakes = Number(prev.bestMistakes);
-  const prevTime = Number(prev.bestTimeSeconds);
-  const tighterMistakes = !Number.isFinite(prevMistakes) || fresh.mistakes < prevMistakes;
-  const equalMistakesFaster = fresh.mistakes === prevMistakes
-    && (!Number.isFinite(prevTime) || fresh.timeSeconds < prevTime);
-  if (tighterMistakes || equalMistakesFaster) {
-    return {
-      bestStars: freshStars,
-      bestMistakes: fresh.mistakes,
-      bestTimeSeconds: fresh.timeSeconds,
-      attempts,
-      completedAt: prev.completedAt || new Date().toISOString(),
-    };
-  }
-  return { ...prev, attempts };
+  return {
+    ...prev,
+    bestStars: best.bestStars,
+    bestScore: best.bestScore,
+    bestScoreStars: best.bestScoreStars,
+    bestScoreBaseScore: best.bestScoreBaseScore,
+    bestScoreTimeBonus: best.bestScoreTimeBonus,
+    bestMistakes: best.bestMistakes,
+    bestTimeSeconds: best.bestTimeSeconds,
+    attempts,
+    completedAt: best.improvedStars ? now : prev.completedAt,
+    lastAttemptAt: now,
+  };
 }
 
 /**
@@ -216,7 +249,8 @@ function mergeBetterResult(previous, fresh) {
  * updated progress object. Caller is responsible for persisting it via
  * `writeSoloProgress()`.
  *
- * fresh = { levelNumber, stars, mistakes, timeSeconds, passed }
+ * fresh = { levelNumber, stars, mistakes, timeSeconds, passed,
+ *           baseScore, timeBonus, levelScore }
  */
 export function applyLevelAttempt(progress, fresh) {
   const next = {
@@ -244,7 +278,10 @@ export function applyLevelAttempt(progress, fresh) {
     frontier = Math.max(frontier, Math.min(total, fresh.levelNumber + 1));
   }
   next.currentLevel = Math.min(total, frontier);
-  return next;
+  return {
+    ...next,
+    summary: summarizeSoloProgress(next, total),
+  };
 }
 
 // ─── Level list for the Solo screen ────────────────────────────────────
@@ -285,6 +322,7 @@ export function getSoloLevels(progress) {
       title: lvl.title,
       status,
       stars,
+      bestScore: typeof entry?.bestScore === 'number' ? entry.bestScore : null,
       bestMistakes: typeof entry?.bestMistakes === 'number' ? entry.bestMistakes : null,
       bestTimeSeconds: typeof entry?.bestTimeSeconds === 'number' ? entry.bestTimeSeconds : null,
       isPlayable: status !== 'locked',

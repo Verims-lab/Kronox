@@ -1,6 +1,56 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex110 — Solo unlock SELF-HEALING + CTA / focus / Profile single
+// Codex114 — Solo Health Checker scoring coverage:
+//   • Health now explicitly includes the profile score/source contract
+//     alongside score math, replay delta, leaderboard, popup, ranking,
+//     and existing-progress backfill checks.
+//   • Star-backfill coverage now asserts 3/2/1/0-star mapping in one
+//     executable case.
+//   • simulationPanelExtraCases.js remains frozen; modular
+//     simulationPanelSoloProgressCases.jsx continues through the registry.
+//
+// Previous note: Codex113 — Solo score migration/backfill:
+//   • Existing User.solo_progress records with bestStars but missing
+//     bestScore now backfill score fields from star base + reliable
+//     bestTimeSeconds only.
+//   • Missing time is never invented; those records receive base score only.
+//   • totalSoloScore is recomputed from level bestScore values every time,
+//     making the migration idempotent and preventing replay duplication.
+//   • currentLevel is only preserved or raised from completed-level history;
+//     existing unlock progress is never reduced.
+//   • SoloChallenge/Profile/Leaderboard run current-user backfill once on
+//     profile load and persist only when normalized progress differs.
+//   • Health adds executable backfill cases for star-only progress, time
+//     bonus, idempotency, no fake time, and unlock preservation.
+//
+// Previous note: Codex112 — Solo replay score delta hardening:
+//   • getBestSoloLevelResult now returns updatedBestLevelResult,
+//     previousBestScore, scoreDelta, and didImprove.
+//   • totalSoloScore remains a derived sum of per-level bestScore values,
+//     never an accumulating sum of all attempts.
+//   • Same-score or worse replays add +0; better replays add only the
+//     difference (e.g. 13 → 18 adds +5).
+//   • Result popup can show "Yeni en iyi puan! +N" or
+//     "En iyi puanın korunuyor" without implying duplicate score gain.
+//   • Health adds executable replay-delta, sum-of-best-scores, and
+//     no-duplicate-points cases.
+//
+// Previous note: Codex111 — Solo scoring + leaderboard source of truth:
+//   • Shared scoring helpers calculate stars, time bonus, levelScore,
+//     attempt result, best replay preservation, and Solo progress summary.
+//   • Solo progress now stores bestScore / bestScore breakdown /
+//     lastAttemptAt plus a derived summary for Profile and Leaderboard.
+//   • Result popup shows earned points with base-score + speed-bonus
+//     breakdown while keeping "Level X" + Play and "Tekrar Oyna".
+//   • Profile and Liderlik read totalSoloScore/currentLevel/totalStars from
+//     the same User.solo_progress source; no fake friend/global ranks.
+//   • Health solo_progress suite now covers score math, single-source helper,
+//     replay preservation, popup score visibility, leaderboard contract, and
+//     honest rank placeholder behavior.
+//   • Drag/drop, Timeline, QuestionCard, GameLayout placement mechanics,
+//     online invites/lobby/notifications/tutorial — untouched.
+//
+// Previous note: Codex110 — Solo unlock SELF-HEALING + CTA / focus / Profile single
 // source of truth:
 //   • NEW lib/soloProgressHelpers.js — getHighestCompletedLevel,
 //     getEffectiveUnlockedLevel, getCurrentPlayableLevel,
@@ -218,7 +268,7 @@ import React, { useEffect, useState } from 'react';
 //   visible 120s SoloLevelTimer (no audio cue).
 // Previous note: Codex106 — Solo level completion popup polish.
 // Previous note: Codex106 — Solo Level Path (vertical 8-row path).
-const BUILD_MARKER = 'Codex110';
+const BUILD_MARKER = 'Codex114';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

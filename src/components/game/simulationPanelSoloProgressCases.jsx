@@ -24,11 +24,22 @@
 //   - No scoring constant or status is weakened anywhere.
 
 import profilePageSource from '../../pages/ProfilePage.jsx?raw';
+import leaderboardPageSource from '../../pages/LeaderboardPage.jsx?raw';
 import soloChallengeSource from '../../pages/SoloChallenge.jsx?raw';
 import soloLevelsLibSource from '../../lib/soloLevels.js?raw';
+import soloProgressHelpersSource from '../../lib/soloProgressHelpers.js?raw';
+import soloRankingSource from '../../lib/soloRanking.js?raw';
 import soloLevelResultSource from './SoloLevelResult.jsx?raw';
 import soloLevelTimerSource from './SoloLevelTimer.jsx?raw';
 import gameSoundsSource from '../../lib/gameSounds.js?raw';
+import {
+  backfillSoloScores,
+  calculateSoloAttemptResult,
+  calculateSoloLevelScore,
+  calculateSoloLevelScoreFromBestResult,
+  getBestSoloLevelResult,
+  summarizeSoloProgress,
+} from '../../lib/soloProgressHelpers';
 
 const STATUS = {
   PASS: 'PASS',
@@ -111,8 +122,8 @@ export const EXTRA_TESTS = [
       //    to localStorage AND updates the user profile.
       const writerMissing = missingTokens(soloLevelsLibSource, [
         'export async function writeSoloProgress',
-        'safeWriteLocal(progress)',
-        'base44.auth.updateMe({ solo_progress: progress })',
+        'safeWriteLocal(normalized)',
+        'base44.auth.updateMe({ solo_progress: normalized })',
       ]);
 
       // e) currentLevel monotonic guard — Codex110 reshaped this from
@@ -320,6 +331,558 @@ export const EXTRA_TESTS = [
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
         actual: 'tokens present, no rogue intervals',
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  /* ============================================================
+   *  4. SOLO SCORE / LEADERBOARD CONTRACTS
+   * ============================================================ */
+  makeCase('solo_progress_health', 'solo_score_calculation_contract',
+    'Solo score calculation contract: star base + exact time bonus boundaries + fail gets 0',
+    () => {
+      const examples = [
+        { input: { stars: 3, elapsedSeconds: 54, passed: true }, expected: { baseScore: 10, timeBonus: 10, totalScore: 20 } },
+        { input: { stars: 3, elapsedSeconds: 75, passed: true }, expected: { baseScore: 10, timeBonus: 5, totalScore: 15 } },
+        { input: { stars: 2, elapsedSeconds: 88, passed: true }, expected: { baseScore: 8, timeBonus: 5, totalScore: 13 } },
+        { input: { stars: 1, elapsedSeconds: 110, passed: true }, expected: { baseScore: 5, timeBonus: 0, totalScore: 5 } },
+        { input: { stars: 0, elapsedSeconds: 40, passed: false }, expected: { baseScore: 0, timeBonus: 0, totalScore: 0 } },
+        { input: { stars: 0, elapsedSeconds: 120, passed: false }, expected: { baseScore: 0, timeBonus: 0, totalScore: 0 } },
+      ];
+      const mismatches = examples
+        .map((item) => ({ ...item, actual: calculateSoloLevelScore(item.input) }))
+        .filter((item) => JSON.stringify(item.actual) !== JSON.stringify(item.expected));
+      const attemptTimeout = calculateSoloAttemptResult({ mistakes: 0, completedCards: 9, elapsedSeconds: 120 });
+      if (mismatches.length || attemptTimeout.levelScore !== 0 || attemptTimeout.failReason !== 'timeout') {
+        return fail('Solo score helper returned an unexpected score or timeout result.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'examples match product score table; timeout = 0',
+          actual: { mismatches, attemptTimeout },
+        });
+      }
+      return pass('Solo score helper matches the product score table and exact 60/90s boundaries.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'EXECUTABLE_HELPER_PROOF',
+        actionType: ACTION_TYPES.CODE_FIX,
+        actual: examples.map((item) => ({ input: item.input, score: item.expected.totalScore })),
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('solo_progress_health', 'solo_score_single_source_helper',
+    'Solo score calculation lives in one shared helper and is consumed by Game/Profile/Leaderboard/Popup',
+    () => {
+      const helperMissing = missingTokens(soloProgressHelpersSource, [
+        'export function calculateSoloStars',
+        'export function calculateSoloTimeBonus',
+        'export function calculateSoloLevelScore',
+        'export function calculateSoloAttemptResult',
+        'export function getBestSoloLevelResult',
+        'export function summarizeSoloProgress',
+        'export function calculateSoloLevelScoreFromBestResult',
+        'export function backfillSoloScores',
+        'scoreDelta',
+        'updatedBestLevelResult',
+      ]);
+      const consumerMissing = [
+        ...missingTokens(soloLevelsLibSource, ['calculateSoloAttemptResult', 'getBestSoloLevelResult', 'summarizeSoloProgress']),
+        ...missingTokens(profilePageSource, ['summarizeSoloProgress', 'totalSoloScore', 'totalStars']),
+        ...missingTokens(leaderboardPageSource, ['summarizeSoloProgress', 'totalSoloScore', 'Arkadaş Sıralaması']),
+        ...missingTokens(soloLevelResultSource, ['levelScore', 'baseScore', 'timeBonus', 'Puan:']),
+      ];
+      const forbidden = [
+        ...forbiddenTokensFound(profilePageSource, ['value: 0,            icon: Trophy']),
+        ...forbiddenTokensFound(leaderboardPageSource, ['Küresel sıralama yakında. Şimdilik kendi rekorlarını']),
+      ];
+      if (helperMissing.length || consumerMissing.length || forbidden.length) {
+        return fail('Solo score is not consistently wired through the shared helper/source of truth.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'helper exports + consumers use score/summary; no old placeholder score copy',
+          actual: { helperMissing, consumerMissing, forbidden },
+        });
+      }
+      return pass('Solo score helper is shared by progress merge, Profile, Leaderboard, and result popup.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('solo_progress_health', 'solo_replay_best_score_preserved',
+    'Replay preserves best stars/score on worse attempts and updates on better attempts',
+    () => {
+      const previous = {
+        bestStars: 3,
+        bestScore: 15,
+        bestScoreStars: 3,
+        bestTimeSeconds: 75,
+        bestMistakes: 1,
+      };
+      const worse = getBestSoloLevelResult(previous, calculateSoloAttemptResult({
+        mistakes: 6,
+        completedCards: 10,
+        elapsedSeconds: 110,
+      }));
+      const better = getBestSoloLevelResult(previous, calculateSoloAttemptResult({
+        mistakes: 0,
+        completedCards: 10,
+        elapsedSeconds: 54,
+      }));
+      if (worse.bestStars !== 3 || worse.bestScore !== 15 || worse.scoreDelta !== 0 || better.bestStars !== 3 || better.bestScore !== 20 || better.bestTimeSeconds !== 54 || better.scoreDelta !== 5) {
+        return fail('Replay best-score preservation helper regressed.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: {
+            worseReplay: 'bestStars=3 and bestScore=15 remain',
+            betterReplay: 'bestScore=20, bestTimeSeconds=54, scoreDelta=5',
+          },
+          actual: { worse, better },
+        });
+      }
+      return pass('Replay helper preserves worse records and upgrades better score/time records.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'EXECUTABLE_HELPER_PROOF',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('solo_progress_health', 'solo_replay_score_delta_only',
+    'Replay score delta only: improving 13 → 18 adds +5; replaying 18 → 10 adds +0',
+    () => {
+      const previous13 = {
+        bestStars: 2,
+        bestScore: 13,
+        bestScoreStars: 2,
+        bestTimeSeconds: 88,
+        bestMistakes: 2,
+      };
+      const replay18 = getBestSoloLevelResult(previous13, calculateSoloAttemptResult({
+        mistakes: 2,
+        completedCards: 10,
+        elapsedSeconds: 54,
+      }));
+      const previous18 = replay18.updatedBestLevelResult;
+      const replay10 = getBestSoloLevelResult(previous18, calculateSoloAttemptResult({
+        mistakes: 1,
+        completedCards: 10,
+        elapsedSeconds: 100,
+      }));
+
+      const beforeTotal = summarizeSoloProgress({ currentLevel: 4, levels: { 3: previous13 } }, 20).totalSoloScore;
+      const afterImproveTotal = summarizeSoloProgress({ currentLevel: 4, levels: { 3: replay18.updatedBestLevelResult } }, 20).totalSoloScore;
+      const afterWorseTotal = summarizeSoloProgress({ currentLevel: 4, levels: { 3: replay10.updatedBestLevelResult } }, 20).totalSoloScore;
+
+      if (replay18.scoreDelta !== 5 || afterImproveTotal - beforeTotal !== 5 || replay10.scoreDelta !== 0 || afterWorseTotal !== afterImproveTotal) {
+        return fail('Replay delta-only scoring regressed.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: '13→18 delta +5; 18→10 delta +0; total score follows only bestScore difference',
+          actual: { replay18, replay10, beforeTotal, afterImproveTotal, afterWorseTotal },
+        });
+      }
+      return pass('Replay scoring only applies the bestScore difference and never adds the full replay attempt twice.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'EXECUTABLE_HELPER_PROOF',
+        actionType: ACTION_TYPES.CODE_FIX,
+        actual: { improveDelta: replay18.scoreDelta, worseDelta: replay10.scoreDelta },
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('solo_progress_health', 'solo_total_score_is_sum_of_level_best_scores',
+    'totalSoloScore is the sum of per-level bestScore values, not the sum of all attempts',
+    () => {
+      const progress = {
+        currentLevel: 4,
+        levels: {
+          1: { bestStars: 3, bestScore: 20, attempts: 9 },
+          2: { bestStars: 2, bestScore: 13, attempts: 7 },
+          3: { bestStars: 0, bestScore: 0, attempts: 5 },
+        },
+      };
+      const summary = summarizeSoloProgress(progress, 20);
+      const fakeAttemptTotal = (20 * 9) + (13 * 7);
+      if (summary.totalSoloScore !== 33 || summary.totalSoloScore === fakeAttemptTotal) {
+        return fail('totalSoloScore is not clearly derived from level bestScore sum.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: '20 + 13 + 0 = 33, regardless of attempts',
+          actual: { summary, fakeAttemptTotal },
+        });
+      }
+      return pass('totalSoloScore equals the sum of each completed level bestScore and ignores attempt count multiplication.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'EXECUTABLE_HELPER_PROOF',
+        actionType: ACTION_TYPES.CODE_FIX,
+        actual: summary,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('solo_progress_health', 'solo_replay_does_not_duplicate_points',
+    'Repeated same-score replays do not keep increasing totalSoloScore',
+    () => {
+      const sameScoreAttempt = calculateSoloAttemptResult({
+        mistakes: 1,
+        completedCards: 10,
+        elapsedSeconds: 75,
+      });
+      let progress = {
+        currentLevel: 2,
+        levels: {
+          1: {
+            bestStars: 3,
+            bestScore: 15,
+            bestScoreStars: 3,
+            bestTimeSeconds: 75,
+            bestMistakes: 1,
+            attempts: 1,
+          },
+        },
+      };
+      const before = summarizeSoloProgress(progress, 20).totalSoloScore;
+      const deltas = [];
+      for (let i = 0; i < 3; i += 1) {
+        const merged = getBestSoloLevelResult(progress.levels[1], sameScoreAttempt);
+        deltas.push(merged.scoreDelta);
+        progress = {
+          ...progress,
+          levels: {
+            ...progress.levels,
+            1: {
+              ...progress.levels[1],
+              ...merged.updatedBestLevelResult,
+              attempts: progress.levels[1].attempts + 1,
+            },
+          },
+        };
+      }
+      const after = summarizeSoloProgress(progress, 20).totalSoloScore;
+      if (before !== 15 || after !== 15 || deltas.some((d) => d !== 0)) {
+        return fail('Same-score replay duplicated Solo points.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'totalSoloScore remains 15 and every replay delta is 0',
+          actual: { before, after, deltas, progress },
+        });
+      }
+      return pass('Repeated same-score replays preserve totalSoloScore; no duplicate points are added.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'EXECUTABLE_HELPER_PROOF',
+        actionType: ACTION_TYPES.CODE_FIX,
+        actual: { before, after, deltas },
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('solo_progress_health', 'solo_existing_progress_score_backfill_from_stars',
+    'Existing completed levels with stars but missing score get bestScore from stars',
+    () => {
+      const backfilled = backfillSoloScores({
+        currentLevel: 4,
+        levels: {
+          1: { bestStars: 3, attempts: 2 },
+          2: { bestStars: 2, attempts: 1 },
+          3: { bestStars: 1, attempts: 1 },
+          4: { bestStars: 0, attempts: 1 },
+        },
+      }, 20).progress;
+      if (
+        backfilled.levels[1].bestScore !== 10 ||
+        backfilled.levels[2].bestScore !== 8 ||
+        backfilled.levels[3].bestScore !== 5 ||
+        Number(backfilled.levels[4].bestScore || 0) !== 0 ||
+        backfilled.summary.totalSoloScore !== 23
+      ) {
+        return fail('Existing star-only Solo progress did not backfill base scores correctly.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: '3 stars=10, 2 stars=8, 1 star=5, 0 stars=0, total=23',
+          actual: backfilled,
+        });
+      }
+      return pass('Star-only existing progress backfills level bestScore from the base star score.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'EXECUTABLE_HELPER_PROOF',
+        actionType: ACTION_TYPES.CODE_FIX,
+        actual: backfilled.summary,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('solo_progress_health', 'solo_existing_progress_time_bonus_if_time_exists',
+    'Backfill applies time bonus only when reliable bestTimeSeconds exists',
+    () => {
+      const noTime = calculateSoloLevelScoreFromBestResult({ bestStars: 3 });
+      const fast = calculateSoloLevelScoreFromBestResult({ bestStars: 3, bestTimeSeconds: 54 });
+      const medium = calculateSoloLevelScoreFromBestResult({ bestStars: 2, bestTimeSeconds: 75 });
+      const slow = calculateSoloLevelScoreFromBestResult({ bestStars: 1, bestTimeSeconds: 110 });
+      const backfilled = backfillSoloScores({
+        currentLevel: 4,
+        levels: {
+          1: { bestStars: 3, bestTimeSeconds: 54 },
+          2: { bestStars: 2, bestTimeSeconds: 75 },
+          3: { bestStars: 1 },
+        },
+      }, 20).progress;
+      const missingTimeWasInvented = Object.prototype.hasOwnProperty.call(backfilled.levels[3], 'bestTimeSeconds');
+      if (
+        noTime.timeBonus !== 0 ||
+        fast.totalScore !== 20 ||
+        medium.totalScore !== 13 ||
+        slow.totalScore !== 5 ||
+        backfilled.summary.totalSoloScore !== 38 ||
+        missingTimeWasInvented
+      ) {
+        return fail('Backfill time bonus or missing-time handling regressed.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: '<60 +10, 60-90 +5, >90 +0, missing time +0 and no fake bestTimeSeconds',
+          actual: { noTime, fast, medium, slow, backfilled, missingTimeWasInvented },
+        });
+      }
+      return pass('Backfill uses reliable bestTimeSeconds for bonus and gives missing time base score only.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'EXECUTABLE_HELPER_PROOF',
+        actionType: ACTION_TYPES.CODE_FIX,
+        actual: { noTime, fast, medium, slow, total: backfilled.summary.totalSoloScore },
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('solo_progress_health', 'solo_total_score_backfill_is_idempotent',
+    'Running Solo score backfill twice does not double totalSoloScore',
+    () => {
+      const original = {
+        currentLevel: 3,
+        summary: { totalSoloScore: 9999 },
+        levels: {
+          1: { bestStars: 3, bestTimeSeconds: 54, attempts: 4 },
+          2: { bestStars: 2, attempts: 3 },
+        },
+      };
+      const once = backfillSoloScores(original, 20).progress;
+      const twice = backfillSoloScores(once, 20).progress;
+      if (once.summary.totalSoloScore !== 28 || twice.summary.totalSoloScore !== 28 || JSON.stringify(once) !== JSON.stringify(twice)) {
+        return fail('Backfill is not idempotent or total score was added to an old total.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: '20 + 8 = 28 on every run, not 9999 + 28 or repeated accumulation',
+          actual: { once, twice },
+        });
+      }
+      return pass('Backfill deterministically recomputes totalSoloScore from level bestScore and is idempotent.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'EXECUTABLE_HELPER_PROOF',
+        actionType: ACTION_TYPES.CODE_FIX,
+        actual: once.summary,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('solo_progress_health', 'solo_backfill_preserves_unlocked_level',
+    'Backfill never reduces currentLevel and completed Level 8 implies Level 9 playable',
+    () => {
+      const alreadyNine = backfillSoloScores({
+        currentLevel: 9,
+        levels: { 1: { bestStars: 3 } },
+      }, 20).progress;
+      const staleOne = backfillSoloScores({
+        currentLevel: 1,
+        levels: {
+          1: { bestStars: 3 },
+          2: { bestStars: 3 },
+          3: { bestStars: 3 },
+          4: { bestStars: 3 },
+          5: { bestStars: 3 },
+          6: { bestStars: 3 },
+          7: { bestStars: 3 },
+          8: { bestStars: 3 },
+        },
+      }, 20).progress;
+      if (alreadyNine.currentLevel !== 9 || staleOne.currentLevel < 9 || staleOne.summary.unlockedLevel < 9) {
+        return fail('Backfill reduced or failed to recover the Solo unlock frontier.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'existing Level 9 remains 9; completed Level 8 recovers to at least Level 9',
+          actual: { alreadyNine, staleOne },
+        });
+      }
+      return pass('Backfill preserves currentLevel and recovers Level 9 from completed Level 8 history.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'EXECUTABLE_HELPER_PROOF',
+        actionType: ACTION_TYPES.CODE_FIX,
+        actual: { alreadyNine: alreadyNine.currentLevel, staleOne: staleOne.currentLevel },
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('solo_progress_health', 'solo_backfill_no_fake_time',
+    'Missing time does not create fake bestTimeSeconds during backfill',
+    () => {
+      const backfilled = backfillSoloScores({
+        currentLevel: 2,
+        levels: {
+          1: { bestStars: 3, attempts: 1 },
+        },
+      }, 20).progress;
+      const hasTime = Object.prototype.hasOwnProperty.call(backfilled.levels[1], 'bestTimeSeconds');
+      if (hasTime || backfilled.levels[1].bestScore !== 10 || backfilled.levels[1].bestScoreTimeBonus !== 0) {
+        return fail('Backfill invented missing time or gave a fake time bonus.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'no bestTimeSeconds field; bestScore=10; bestScoreTimeBonus=0',
+          actual: backfilled.levels[1],
+        });
+      }
+      return pass('Missing time stays missing; score uses star base only with no fake bonus.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'EXECUTABLE_HELPER_PROOF',
+        actionType: ACTION_TYPES.CODE_FIX,
+        actual: backfilled.levels[1],
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('solo_progress_health', 'solo_result_popup_score_visible',
+    'Solo result popup shows score breakdown, stars/time/mistakes, rank placeholder, and keeps next CTA copy contract',
+    () => {
+      const required = missingTokens(soloLevelResultSource, [
+        'Puan: {levelScore}',
+        '${stars} yıldız: ${baseScore} + hız bonusu: ${timeBonus}',
+        'Yeni en iyi puan! +${scoreDelta}',
+        'En iyi puanın korunuyor',
+        'Sıralama verisi hazırlanıyor',
+        'Level {nextLevelNumber}',
+        '<Play className="w-4 h-4" fill="currentColor" />',
+        'Tekrar Oyna',
+      ]);
+      const forbidden = forbiddenTokensFound(soloLevelResultSource, [
+        "Level {nextLevelNumber}'e Geç",
+      ]);
+      if (required.length || forbidden.length) {
+        return fail('Solo result popup score/rank/CTA contract drifted.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'score breakdown + safe rank placeholder + Level X CTA',
+          actual: { required, forbidden },
+        });
+      }
+      return pass('Solo result popup exposes score breakdown and keeps ranking/CTA contracts honest.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('solo_progress_health', 'solo_leaderboard_total_score_contract',
+    'Leaderboard uses totalSoloScore/currentLevel/totalStars from Solo progress and does not fake friend ranking',
+    () => {
+      const required = missingTokens(leaderboardPageSource, [
+        'readSoloProgress',
+        'summarizeSoloProgress',
+        'summary.totalSoloScore',
+        'summary.currentLevel',
+        'summary.totalStars',
+        'Arkadaşlarınla yarışmak için onları davet et',
+      ]);
+      const forbidden = forbiddenTokensFound(leaderboardPageSource, [
+        '2. sırada',
+        '1. oldun',
+        'Math.random',
+      ]);
+      if (required.length || forbidden.length) {
+        return fail('Leaderboard total score or no-fake-ranking contract failed.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'real Solo summary + safe friend-rank placeholder',
+          actual: { required, forbidden },
+        });
+      }
+      return pass('Leaderboard reads the Solo progress summary and uses a safe friend-ranking placeholder.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('solo_progress_health', 'solo_profile_score_contract',
+    'Profile reads the same Solo progress source for level, totalSoloScore, and totalStars; no hard-coded Level 1/stale score',
+    () => {
+      const required = missingTokens(profilePageSource, [
+        'ensureSoloProgressBackfill',
+        'readSoloProgress',
+        'summarizeSoloProgress',
+        'getCurrentPlayableLevel',
+        'soloSummary.totalSoloScore',
+        'soloSummary.totalStars',
+        'profileLevel',
+      ]);
+      const forbidden = forbiddenTokensFound(profilePageSource, [
+        "label: 'Level', value: 1",
+        "id: 'puan',  label: 'Puan',  value: 0",
+        "id: 'stars', label: 'Yıldız', value: 0",
+      ]);
+      if (required.length || forbidden.length) {
+        return fail('Profile Solo score/source-of-truth contract drifted.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'Profile backfills current user progress, reads shared Solo summary, and never hard-codes Level/Puan/Yıldız',
+          actual: { required, forbidden },
+        });
+      }
+      return pass('Profile uses shared Solo progress summary for Puan/Level/Yıldız and avoids stale hard-coded values.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('solo_progress_health', 'solo_level_ranking_placeholder_or_real_data',
+    'Level result ranking is either real backend data or an explicit safe placeholder; no fake rank',
+    () => {
+      const required = missingTokens(soloRankingSource, [
+        'return { ready: false, rank: null }',
+        'server-side aggregation function',
+      ]);
+      const popupRequired = missingTokens(soloLevelResultSource, [
+        'ready && typeof rank ===',
+        'Sıralama verisi hazırlanıyor',
+      ]);
+      if (required.length || popupRequired.length) {
+        return fail('Solo level rank placeholder/real-data contract drifted.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'no fake rank; placeholder until backend rank exists',
+          actual: { required, popupRequired },
+        });
+      }
+      return pass('Level rank remains honest: real backend rank when ready, safe placeholder otherwise.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
       });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),

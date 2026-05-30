@@ -19,7 +19,7 @@ import { Lock, Star, Play } from 'lucide-react';
  * never conflicts with vertical scroll (no horizontal drag).
  */
 export default function LevelMapNode({ level, selected, onSelect }) {
-  const { levelNumber, status, stars } = level;
+  const { levelNumber, status, stars, bestScore } = level;
   const isLocked = status === 'locked';
   const isCurrent = status === 'current';
   const isCompleted = status === 'completed';
@@ -154,6 +154,11 @@ export default function LevelMapNode({ level, selected, onSelect }) {
       {isCompleted && selected && (
         <span className="mt-1 flex items-center gap-1 font-inter text-[10px] font-black uppercase tracking-widest text-amber-200">
           <Play className="h-2.5 w-2.5" fill="currentColor" /> Tekrar
+        </span>
+      )}
+      {isCompleted && Number(bestScore) > 0 && (
+        <span className="mt-0.5 font-inter text-[10px] font-black uppercase tracking-widest text-amber-100/80">
+          {bestScore} P
         </span>
       )}
     </motion.button>
