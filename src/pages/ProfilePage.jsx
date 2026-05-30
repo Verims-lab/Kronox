@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Users, Trophy, Sparkles, Star, Settings, ChevronRight, LogOut, UserRound, LogIn } from 'lucide-react';
+import { Users, Trophy, Sparkles, Gem, Settings, ChevronRight, LogOut, UserRound, LogIn } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 import { isAdminUser } from '@/lib/admin';
@@ -21,12 +21,15 @@ import { summarizeSoloProgress } from '@/lib/soloProgressHelpers';
 
 /**
  * ProfilePage — first-pass shell.
- * Sections: Arkadaşlarım, Solo Puan, Level, Yıldız, Ayarlar.
+ * Sections: Arkadaşlarım, Stats (Puan / Level / Elmas), Ayarlar.
  *
  * Data note (placeholders vs real):
  *  - identity (name/email): REAL — from base44.auth.me()
  *  - friends count: PLACEHOLDER (0) — no friends system yet
- *  - puan/level/yıldız: REAL — derived from User.solo_progress
+ *  - puan/level: REAL — derived from User.solo_progress (shared with Solo
+ *    Level Path and Leaderboard via summarizeSoloProgress / getCurrentPlayableLevel)
+ *  - elmas: REAL when a profile/economy field exists, otherwise safe 0
+ *    PLACEHOLDER. Never derived from stars, score, or completed levels.
  *  - admin badge: REAL — via isAdminUser()
  */
 export default function ProfilePage() {
@@ -66,18 +69,23 @@ export default function ProfilePage() {
     [soloProgress],
   );
 
-  // Codex114 — Stats tiles.
-  //   Puan / Level / Yıldız are REAL — derived from User.solo_progress.
-  //   Elmas is a PLACEHOLDER — there is no economy yet in this build.
-  //     We surface a fixed "—" so the UI never claims a fake balance and
-  //     the contract is honest. Do NOT wire this to any wallet/economy
-  //     entity until a real backend exists.
-  const ELMAS_PLACEHOLDER_VALUE = '—'; // PLACEHOLDER — no economy yet
+  // Codex116 — Stats tiles match Liderlik 3-card row: Puan / Level / Elmas.
+  //   Puan  → REAL — soloSummary.totalSoloScore (totalSoloScore from
+  //           User.solo_progress, see summarizeSoloProgress).
+  //   Level → REAL — getCurrentPlayableLevel(soloProgress) (same source
+  //           Solo Level Path uses).
+  //   Elmas → REAL when a profile/economy field exists, otherwise a safe
+  //           0 PLACEHOLDER. Never derived from Yıldız, score, or
+  //           completed levels. No economy yet — do NOT wire this to any
+  //           wallet/economy entity until a real backend exists.
+  // Yıldız tile is intentionally NOT in Profile stats anymore (moved out
+  // per product decision). totalSoloScore from soloSummary is still used,
+  // so the shared solo progress source stays intact.
+  const diamondValue = getProfileDiamondValue(user); // PLACEHOLDER 0 when no economy yet
   const stats = [
     { id: 'puan',  label: 'Puan',  value: soloSummary.totalSoloScore, icon: Trophy,   tint: 'gold' },
     { id: 'level', label: 'Level', value: profileLevel, icon: Sparkles, tint: 'portal' },
-    { id: 'stars', label: 'Yıldız', value: soloSummary.totalStars, icon: Star, tint: 'cyan' },
-    { id: 'elmas', label: 'Elmas', value: ELMAS_PLACEHOLDER_VALUE, icon: Sparkles, tint: 'cyan' },
+    { id: 'elmas', label: 'Elmas', value: diamondValue, icon: Gem, tint: 'cyan' },
   ];
 
   return (
@@ -103,12 +111,12 @@ export default function ProfilePage() {
           onLogout={handleLogout}
         />
 
-        {/* Stats: Puan / Level / Yıldız / Elmas.
-            Puan/Level/Yıldız are real values from solo_progress.
-            Elmas is a PLACEHOLDER tile — no economy yet, so we never show
-            a fake number. */}
+        {/* Stats: Puan / Level / Elmas — single horizontal row matching
+            Liderlik. Puan/Level are real solo_progress values; Elmas is a
+            PLACEHOLDER tile (0) when no economy backend exists. Yıldız is
+            intentionally NOT shown here anymore. */}
         <Section label="İstatistikler">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             {stats.map((s) => (
               <StatTile key={s.id} {...s} />
             ))}
@@ -137,6 +145,38 @@ export default function ProfilePage() {
       </div>
     </div>
   );
+}
+
+/* ---------------- Internal helpers ---------------- */
+
+// Codex116 — Read real diamond/economy value from the user profile when one
+// of the recognized fields exists; otherwise return a safe 0 PLACEHOLDER.
+// IMPORTANT: never derive this from Yıldız, score, or completed levels —
+// no economy yet means the UI must not invent a balance. Mirror of
+// Leaderboard's getLeaderboardDiamondValue so both surfaces agree.
+function getProfileDiamondValue(user) {
+  const candidates = [
+    user?.diamonds,
+    user?.diamondCount,
+    user?.diamond_count,
+    user?.elmas,
+    user?.elmasCount,
+    user?.elmas_count,
+    user?.gems,
+    user?.gemCount,
+    user?.gem_count,
+    user?.economy?.diamonds,
+    user?.economy?.elmas,
+    user?.wallet?.diamonds,
+    user?.wallet?.elmas,
+  ];
+  const realValue = candidates.find((value) => (
+    value !== null &&
+    value !== undefined &&
+    value !== '' &&
+    Number.isFinite(Number(value))
+  ));
+  return realValue === undefined ? 0 : Math.max(0, Math.floor(Number(realValue)));
 }
 
 /* ---------------- Internal components ---------------- */
