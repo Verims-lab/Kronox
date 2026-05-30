@@ -1,11 +1,37 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex107 — Build marker format/consistency fix. The Health Simulator
-// extracts the build marker from this file's FIRST `Codex\d+` token, so
-// this line must hold the current clean CodexN value. Keep it in sync
+// Codex109 — Solo focus & unlock fixes:
+//   • getSoloLevels now picks exactly ONE current level (the highest
+//     unlocked & unfinished one). Previously every uncompleted unlocked
+//     level was 'current', so auto-scroll always targeted Level 1 and
+//     the bottom Play CTA always showed "LEVEL 1".
+//   • LevelMapPath auto-scroll hardened: rAF-deferred, retries when
+//     container clientHeight is still 0 on first paint, falls back to
+//     scrollIntoView({block:'center'}). Fixes the "ekran Level 20'lerin
+//     üstünde açılıyor" bug on Android WebViews.
+//   • Locked node visual: subtle stone gradient + faint level number
+//     ghost under the lock icon. Less dead/empty, still clearly locked.
+//   • Profile/Solo source-of-truth (readSoloProgress), applyLevelAttempt
+//     unlock formula (N → N+1), drag/drop, Timeline, QuestionCard,
+//     GameLayout, online/lobby/invite/notification/tutorial — UNCHANGED.
+//   • New Health suite `solo_focus_and_unlock` (5 cases) locks the new
+//     invariants without bloating simulationPanelExtraCases.js.
+//
+// Previous note: Codex108 — Solo Level Path becomes a scrollable vertical adventure map:
+// Level 1 at the bottom, upward progression, alternating left/right path,
+// auto-scroll to current level on mount, and a new zone/theme banner
+// every 5 levels (4 zones cover the 20-level catalog). BottomNav stays
+// visible on /solo. New Health suite `solo_adventure_map` locks the
+// scrollable-map + reversed-render + auto-scroll + zone-banner contracts.
+// Solo gameplay rules (10 cards / 120s / 8 mistakes / star ladder /
+// replay rules / Profile sync) and Health Solo Progress suite — untouched.
+//
+// Previous note: Codex107 — Build marker format/consistency fix. The Health
+// Simulator extracts the build marker from this file's FIRST CodexN token,
+// so this line must hold the current clean CodexN value. Keep it in sync
 // with `BUILD_MARKER` below and with `appDiagSetBuildMarker(...)` inside
-// App.jsx. Suffixes like `Codex106-26` are rejected by the Health case
-// `historical_kronox_regression.build_marker_bumped_beyond_codex090`.
+// App.jsx. Hyphenated dotted-suffix forms are rejected by the Health
+// case `historical_kronox_regression.build_marker_bumped_beyond_codex090`.
 //
 // Previous note: Codex104 — hardens BottomNav runtime visibility for /lobby sub-flows:
 // LobbyRoom now publishes hide/show in a layout effect and resets only on
@@ -104,9 +130,9 @@ import React, { useEffect, useState } from 'react';
 //     exports ALL_EXTRA_SUITES + ALL_EXTRA_TESTS (legacy social/release
 //     risk cases + every modular file). SimulationPanel.jsx now imports
 //     only from this registry — no case-specific imports.
-//   • Solo cases moved from the temporary
-//     simulationPanelSoloCodex106_25.js to the permanent
-//     simulationPanelSoloProgressCases.js (no Codex tag in the filename).
+//   • Solo cases moved from a temporary Codex-tagged module to the
+//     permanent simulationPanelSoloProgressCases.js (no Codex tag in
+//     the filename).
 //     Each modular file exports `EXTRA_SUITES` + `EXTRA_TESTS`; the
 //     registry flattens them in one place. To add a new health case
 //     file: drop it next to the Solo file, register it inside
@@ -158,7 +184,7 @@ import React, { useEffect, useState } from 'react';
 //   visible 120s SoloLevelTimer (no audio cue).
 // Previous note: Codex106 — Solo level completion popup polish.
 // Previous note: Codex106 — Solo Level Path (vertical 8-row path).
-const BUILD_MARKER = 'Codex107';
+const BUILD_MARKER = 'Codex109';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

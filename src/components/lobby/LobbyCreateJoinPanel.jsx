@@ -11,8 +11,8 @@ import ScreenHeader from '@/components/layout/ScreenHeader';
 
 const ONLINE_BACKGROUND_ASSET = '/assets/ui/Kronox_Online_Fantasy_Basckground.png';
 // Exact CTA target visuals — bundled locally under public/assets/ui/.
-const CTA_GOLD_ASSET = '/assets/ui/Kronox_Online_CTA_Start.png';
-const CTA_BLUE_ASSET = '/assets/ui/Kronox_Online_CTA_Join.png';
+const CTA_GOLD_ASSET = '/assets/ui/Kronox_Online_CTA_Start.webp';
+const CTA_BLUE_ASSET = '/assets/ui/Kronox_Online_CTA_Join.webp';
 const WIDE_STAGE_QUERY = '(min-aspect-ratio: 9 / 16)';
 
 // Codex078: category ids/labels come from the centralized taxonomy

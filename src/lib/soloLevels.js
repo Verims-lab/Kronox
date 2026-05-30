@@ -38,17 +38,14 @@ export const SOLO_CARDS_PER_LEVEL = 10;
 export const SOLO_LEVEL_TIME_SECONDS = 120;
 export const SOLO_MAX_MISTAKES = 8; // 8+ → fail
 
-// Base level catalog. Keep small enough to fit no-scroll on common phones.
-const LEVEL_CATALOG = [
-  { levelNumber: 1, title: 'Level 1' },
-  { levelNumber: 2, title: 'Level 2' },
-  { levelNumber: 3, title: 'Level 3' },
-  { levelNumber: 4, title: 'Level 4' },
-  { levelNumber: 5, title: 'Level 5' },
-  { levelNumber: 6, title: 'Level 6' },
-  { levelNumber: 7, title: 'Level 7' },
-  { levelNumber: 8, title: 'Level 8' },
-];
+// Codex108 — Solo Level Path is now a scrollable vertical adventure map
+// with a 5-level "zone" theme rhythm. Catalog expanded to 20 so the player
+// sees real upward progression. Easy to expand further: just add entries.
+const TOTAL_LEVELS = 20;
+const LEVEL_CATALOG = Array.from({ length: TOTAL_LEVELS }, (_, i) => ({
+  levelNumber: i + 1,
+  title: `Level ${i + 1}`,
+}));
 
 export function getSoloLevelCount() {
   return LEVEL_CATALOG.length;
@@ -239,17 +236,38 @@ export function applyLevelAttempt(progress, fresh) {
  * Returns the catalog annotated with status/stars/isPlayable using the
  * supplied progress object.
  *
- * Rules:
- *   - status='completed' for any level with bestStars > 0.
- *   - status='current'   for the lowest level whose number === currentLevel
- *                        AND which isn't already completed; or the next
- *                        non-completed level after currentLevel.
+ * Rules (Codex109 — exactly-one-current fix):
+ *   - The "current" level is the HIGHEST unlocked level (≤ currentLevel)
+ *     that is not yet completed. There is at most ONE 'current'.
+ *   - Any other level ≤ currentLevel with bestStars > 0 → 'completed'.
+ *   - Any unlocked level (≤ currentLevel) that is NOT current and NOT
+ *     completed (edge case: replayable older level skipped earlier) →
+ *     'completed' if stars exist, else falls back to 'current' only if
+ *     it's the single highest unfinished one. Practically only one slot
+ *     becomes 'current' because passing a level bumps currentLevel.
  *   - status='locked'    for anything beyond currentLevel.
  *   - completed + current → isPlayable=true. Locked → false.
+ *
+ * Why this matters: previously every unlocked-but-not-completed level
+ * became 'current', so `levels.find(l => l.status === 'current')` always
+ * returned the LOWEST one. That broke default scroll focus and the Play
+ * CTA after a fresh install (every level 1..N was "current").
  */
 export function getSoloLevels(progress) {
   const safe = progress || emptyProgress();
   const unlocked = Math.max(1, Number(safe.currentLevel) || 1);
+  const cap = Math.min(unlocked, LEVEL_CATALOG.length);
+
+  // Pick THE single current level: the highest unlocked one that the
+  // player hasn't beaten yet. If every unlocked level is completed, the
+  // current slot belongs to the unlocked frontier (cap) itself so the
+  // player can still replay it explicitly.
+  let currentLevelNumber = cap;
+  for (let n = cap; n >= 1; n -= 1) {
+    const entry = safe.levels?.[String(n)] || null;
+    const stars = Number(entry?.bestStars) || 0;
+    if (stars === 0) { currentLevelNumber = n; break; }
+  }
 
   return LEVEL_CATALOG.map((lvl) => {
     const entry = safe.levels?.[String(lvl.levelNumber)] || null;
@@ -257,8 +275,9 @@ export function getSoloLevels(progress) {
     const isCompleted = stars > 0;
     let status;
     if (lvl.levelNumber > unlocked) status = 'locked';
+    else if (lvl.levelNumber === currentLevelNumber && !isCompleted) status = 'current';
     else if (isCompleted) status = 'completed';
-    else status = 'current';
+    else status = 'current'; // safety net — shouldn't fire with the picker above
 
     return {
       levelNumber: lvl.levelNumber,
