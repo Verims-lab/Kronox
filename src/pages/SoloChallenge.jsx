@@ -13,7 +13,10 @@ import {
   getSoloLevels,
   readSoloProgress,
 } from '@/lib/soloLevels';
-import { getDefaultSelectedLevel } from '@/lib/soloProgressHelpers';
+import { getDefaultSelectedLevel, summarizeSoloProgress } from '@/lib/soloProgressHelpers';
+// Codex118 — Header Puan + Elmas. Same diamond helper Leaderboard uses,
+// so all three surfaces (Home, Solo, Online) agree on the value source.
+import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 
 /**
  * Codex108 — Solo entry is now a SCROLLABLE vertical adventure map.
@@ -140,13 +143,17 @@ export default function SoloChallenge() {
         userSelect: 'none',
       }}
     >
-      {/* chipValue=null on purpose — no real economy yet, no fake "1,250". */}
+      {/* Codex118 — Solo top bar: back arrow + centered Puan/Elmas +
+          profile avatar. Title "Solo" removed; Puan flows from the same
+          totalSoloScore source the Profile/Leaderboard stats use. */}
       <ScreenHeader
-        title="Solo"
         showBack
         user={user}
-        chipValue={null}
         onBack={() => navigate('/')}
+        headerStats={{
+          score: summarizeSoloProgress(progress, getSoloLevelCount()).totalSoloScore,
+          diamonds: getLeaderboardDiamondValue(user),
+        }}
       />
 
       {/* Scrollable map viewport — fills between ScreenHeader and the

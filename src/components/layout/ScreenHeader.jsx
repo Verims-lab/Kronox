@@ -1,24 +1,33 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, UserRound } from 'lucide-react';
+import { ArrowLeft, Gem, Trophy, UserRound } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { sounds } from '@/lib/gameSounds';
 
 /**
- * Codex102 — Standardized top bar for primary navigation screens.
+ * Codex118 — Standardized top bar for primary navigation screens.
  *
- * Layout:
- *   [Back?]   [Title]            [Chip?]   [Avatar]
+ * Two center layouts, exclusive:
  *
- * Rules followed (per brief):
- *  - Back button only when `showBack` is true (root screens hide it).
- *  - Title is centered text content.
- *  - Chip area is rendered ONLY when a real numeric value is passed via
- *    `chipValue`. If absent or null/undefined → the slot is hidden (no
- *    hardcoded "12.450"-style fake economy).
- *  - Avatar shows user's first initial when signed in; falls back to a
- *    safe UserRound icon for guests.
- *  - Header is fixed, safe-area aware, mobile-first.
+ *   A) Title mode (default):
+ *      [Back?]   [Title]                       [Chip?]   [Avatar?]
+ *
+ *   B) Stats mode (Home, Solo, Online):
+ *      [Back?]   [ 🏆 Puan  •  💎 Elmas ]      [Avatar?]
+ *
+ *   Stats mode activates when `headerStats` is provided:
+ *      headerStats = { score: number, diamonds: number }
+ *   When stats mode is active, `title` is intentionally ignored so the
+ *   center area can host the Puan/Elmas pills without clipping on small
+ *   screens.
+ *
+ *  Other rules:
+ *   - Back button only when `showBack` is true (root screens hide it).
+ *   - Avatar shown by default; pass `showProfile={false}` to hide it
+ *     (Home requirement).
+ *   - Chip area (`chipValue`) only renders in TITLE mode and only when a
+ *     real numeric value is passed. No fake economy.
+ *   - Header is fixed, safe-area aware, mobile-first.
  *
  * IMPORTANT: This component does NOT touch any business logic
  * (notifications, invites, tutorial, lobby, game). It is purely
@@ -31,6 +40,15 @@ export default function ScreenHeader({
   user = null,
   chipValue = null,
   rightSlot = null,
+  // Codex118 — optional stats payload. When provided, the center area
+  // renders Puan + Elmas instead of `title`. Both numbers must come from
+  // the caller's source of truth (Puan = totalSoloScore, Elmas = real
+  // economy field or safe 0 placeholder). The header does NOT compute
+  // these itself.
+  headerStats = null,
+  // Codex118 — Home hides the avatar. Default true preserves every
+  // other screen's existing behavior.
+  showProfile = true,
 }) {
   const navigate = useNavigate();
 
@@ -49,6 +67,7 @@ export default function ScreenHeader({
   const displayName = user?.full_name || (user?.email ? user.email.split('@')[0] : '');
   const initial = (displayName || '').trim().charAt(0).toUpperCase();
   const hasChip = chipValue !== null && chipValue !== undefined && chipValue !== '';
+  const statsMode = headerStats && typeof headerStats === 'object';
 
   return (
     <header
@@ -74,22 +93,26 @@ export default function ScreenHeader({
         ) : null}
       </div>
 
-      {/* Center: title */}
-      <h1
-        className="flex-1 text-center font-cinzel text-base sm:text-lg font-black tracking-[0.16em] truncate px-1"
-        style={{
-          color: '#facc15',
-          textShadow: '0 0 14px rgba(250,204,21,0.45), 0 2px 4px rgba(0,0,0,0.6)',
-        }}
-      >
-        {title}
-      </h1>
+      {/* Center: stats (Puan + Elmas) OR title */}
+      {statsMode ? (
+        <HeaderStats stats={headerStats} />
+      ) : (
+        <h1
+          className="flex-1 text-center font-cinzel text-base sm:text-lg font-black tracking-[0.16em] truncate px-1"
+          style={{
+            color: '#facc15',
+            textShadow: '0 0 14px rgba(250,204,21,0.45), 0 2px 4px rgba(0,0,0,0.6)',
+          }}
+        >
+          {title}
+        </h1>
+      )}
 
-      {/* Right cluster: chip (optional) + avatar */}
-      <div className="flex items-center gap-2" style={{ minWidth: 44 }}>
+      {/* Right cluster: chip (optional, title-mode only) + avatar (optional) */}
+      <div className="flex items-center gap-2" style={{ minWidth: 44, justifyContent: 'flex-end' }}>
         {rightSlot}
 
-        {hasChip && (
+        {!statsMode && hasChip && (
           <div
             className="flex items-center gap-1 rounded-full px-2.5 h-9 font-inter text-[12px] font-black text-amber-100"
             style={{
@@ -109,25 +132,84 @@ export default function ScreenHeader({
           </div>
         )}
 
-        <motion.button
-          type="button"
-          onClick={handleAvatar}
-          whileTap={{ scale: 0.92 }}
-          transition={{ type: 'spring', stiffness: 520, damping: 24 }}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-amber-950"
-          style={{
-            background: 'radial-gradient(circle at 35% 28%, #ffe066, #b97a06 70%)',
-            boxShadow: '0 0 14px rgba(250,204,21,0.45), inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -4px 6px rgba(140,80,8,0.55)',
-          }}
-          aria-label="Profil"
-        >
-          {user && initial ? (
-            <span className="font-bangers text-lg leading-none">{initial}</span>
-          ) : (
-            <UserRound className="h-5 w-5" strokeWidth={2.6} />
-          )}
-        </motion.button>
+        {showProfile && (
+          <motion.button
+            type="button"
+            onClick={handleAvatar}
+            whileTap={{ scale: 0.92 }}
+            transition={{ type: 'spring', stiffness: 520, damping: 24 }}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-amber-950"
+            style={{
+              background: 'radial-gradient(circle at 35% 28%, #ffe066, #b97a06 70%)',
+              boxShadow: '0 0 14px rgba(250,204,21,0.45), inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -4px 6px rgba(140,80,8,0.55)',
+            }}
+            aria-label="Profil"
+          >
+            {user && initial ? (
+              <span className="font-bangers text-lg leading-none">{initial}</span>
+            ) : (
+              <UserRound className="h-5 w-5" strokeWidth={2.6} />
+            )}
+          </motion.button>
+        )}
       </div>
     </header>
   );
+}
+
+/**
+ * Codex118 — Centered Puan + Elmas pills.
+ *
+ * Sized to never overflow on a 320px-wide viewport:
+ *  - shrinks each pill (px-2, h-8, text-[11px]).
+ *  - container is flex-1 + min-w-0 so it absorbs the leftover space.
+ *  - both numbers are clamped via `truncate` defensive max-width.
+ */
+function HeaderStats({ stats }) {
+  const score = formatStatNumber(stats?.score);
+  const diamonds = formatStatNumber(stats?.diamonds);
+  return (
+    <div
+      className="flex flex-1 min-w-0 items-center justify-center gap-1.5 sm:gap-2 px-1"
+      aria-label={`Puan ${score}, Elmas ${diamonds}`}
+    >
+      <StatPill
+        icon={Trophy}
+        value={score}
+        label="Puan"
+        tint="#facc15"
+        glow="rgba(250,204,21,0.30)"
+      />
+      <StatPill
+        icon={Gem}
+        value={diamonds}
+        label="Elmas"
+        tint="#7dd3fc"
+        glow="rgba(34,211,238,0.30)"
+      />
+    </div>
+  );
+}
+
+function StatPill({ icon: Icon, value, label, tint, glow }) {
+  return (
+    <div
+      className="flex items-center gap-1 rounded-full h-8 px-2 sm:px-2.5 font-inter text-[11px] sm:text-[12px] font-black text-amber-100 min-w-0"
+      style={{
+        background: 'linear-gradient(180deg, rgba(20,30,58,0.92), rgba(4,8,22,0.96))',
+        boxShadow: `inset 0 0 0 1px ${tint}88, 0 0 8px ${glow}`,
+        color: tint,
+      }}
+      aria-label={`${label}: ${value}`}
+    >
+      <Icon className="h-3.5 w-3.5 shrink-0" />
+      <span className="truncate" style={{ maxWidth: '6ch' }}>{value}</span>
+    </div>
+  );
+}
+
+function formatStatNumber(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '0';
+  return Math.max(0, Math.floor(n)).toString();
 }
