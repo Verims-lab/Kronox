@@ -229,9 +229,23 @@ function mergeBetterResult(previous, fresh) {
     levelScore: typeof fresh.levelScore === 'number' ? fresh.levelScore : attempt.levelScore,
   });
 
+  // Never regress stars on replay — explicit, defensive guard layered on top
+  // of getBestSoloLevelResult. A worse replay (lower stars OR fail attempt)
+  // must NEVER reduce the user's previously recorded bestStars. The helper
+  // above already enforces this via Math.max, but we keep this explicit
+  // assertion here so the contract is visible at the storage merge layer
+  // and any future helper refactor cannot silently regress the invariant.
+  const prevStars = Math.max(0, Math.min(3, Number(prev.bestStars) || 0));
+  const freshStars = Math.max(0, Math.min(3, Number(best.bestStars) || 0));
+  let guardedBestStars = freshStars;
+  if (freshStars < prevStars) {
+    // Worse replay — keep previous best stars. Never regress stars.
+    guardedBestStars = prevStars;
+  }
+
   return {
     ...prev,
-    bestStars: best.bestStars,
+    bestStars: guardedBestStars,
     bestScore: best.bestScore,
     bestScoreStars: best.bestScoreStars,
     bestScoreBaseScore: best.bestScoreBaseScore,

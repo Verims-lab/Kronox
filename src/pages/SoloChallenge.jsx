@@ -228,9 +228,10 @@ export default function SoloChallenge() {
           aria-label="Oyna"
         >
           <Play className="h-5 w-5" fill="#1a0a00" />
-          {/* Codex110 — CTA label always derives from selectedLevel; falls
+          {/* Codex114 — CTA label always derives from selectedLevel; falls
               back to the helper-computed default (current playable) until
-              progress resolves. NEVER hard-coded to "LEVEL 1". */}
+              progress resolves. The label is never a hardcoded literal.
+              See defaultSelectedNumber wiring above for the source. */}
           {selectedLevel
             ? `LEVEL ${selectedLevel.levelNumber}`
             : progressLoaded
