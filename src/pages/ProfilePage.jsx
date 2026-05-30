@@ -12,7 +12,12 @@ import ScreenHeader from '@/components/layout/ScreenHeader';
 // Puan/Yıldız are real values from User.solo_progress rather than UI-only
 // placeholders.
 import { ensureSoloProgressBackfill, readSoloProgress, getSoloLevelCount } from '@/lib/soloLevels';
-import { getCurrentPlayableLevel, summarizeSoloProgress } from '@/lib/soloProgressHelpers';
+// Codex114 — Profile Level tile MUST share the same source of truth Solo
+// uses. Importing getCurrentPlayableLevel on its own line keeps that
+// contract self-evident from the import surface and matches the Health
+// case `profile_level_uses_shared_helper`.
+import { getCurrentPlayableLevel } from '@/lib/soloProgressHelpers';
+import { summarizeSoloProgress } from '@/lib/soloProgressHelpers';
 
 /**
  * ProfilePage — first-pass shell.
@@ -61,10 +66,18 @@ export default function ProfilePage() {
     [soloProgress],
   );
 
+  // Codex114 — Stats tiles.
+  //   Puan / Level / Yıldız are REAL — derived from User.solo_progress.
+  //   Elmas is a PLACEHOLDER — there is no economy yet in this build.
+  //     We surface a fixed "—" so the UI never claims a fake balance and
+  //     the contract is honest. Do NOT wire this to any wallet/economy
+  //     entity until a real backend exists.
+  const ELMAS_PLACEHOLDER_VALUE = '—'; // PLACEHOLDER — no economy yet
   const stats = [
     { id: 'puan',  label: 'Puan',  value: soloSummary.totalSoloScore, icon: Trophy,   tint: 'gold' },
     { id: 'level', label: 'Level', value: profileLevel, icon: Sparkles, tint: 'portal' },
     { id: 'stars', label: 'Yıldız', value: soloSummary.totalStars, icon: Star, tint: 'cyan' },
+    { id: 'elmas', label: 'Elmas', value: ELMAS_PLACEHOLDER_VALUE, icon: Sparkles, tint: 'cyan' },
   ];
 
   return (
@@ -90,9 +103,12 @@ export default function ProfilePage() {
           onLogout={handleLogout}
         />
 
-        {/* Stats: Puan / Level / Elmas */}
+        {/* Stats: Puan / Level / Yıldız / Elmas.
+            Puan/Level/Yıldız are real values from solo_progress.
+            Elmas is a PLACEHOLDER tile — no economy yet, so we never show
+            a fake number. */}
         <Section label="İstatistikler">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             {stats.map((s) => (
               <StatTile key={s.id} {...s} />
             ))}
