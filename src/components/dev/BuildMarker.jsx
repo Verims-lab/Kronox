@@ -1,6 +1,14 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex114 — Solo Health Checker scoring coverage:
+// Codex115 — Liderlik Elmas stat correction:
+//   • Liderlik third stat card is now "Elmas", not "Yıldız".
+//   • Puan and Level still read real Solo progress summary values.
+//   • Elmas reads an explicit profile/economy diamond field when present,
+//     otherwise shows a safe 0 placeholder.
+//   • Elmas is never derived from Solo stars, score, or completed levels.
+//   • Modular Solo Health contract now guards this leaderboard stat shape.
+//
+// Previous note: Codex114 — Solo Health Checker scoring coverage:
 //   • Health now explicitly includes the profile score/source contract
 //     alongside score math, replay delta, leaderboard, popup, ranking,
 //     and existing-progress backfill checks.
@@ -268,7 +276,7 @@ import React, { useEffect, useState } from 'react';
 //   visible 120s SoloLevelTimer (no audio cue).
 // Previous note: Codex106 — Solo level completion popup polish.
 // Previous note: Codex106 — Solo Level Path (vertical 8-row path).
-const BUILD_MARKER = 'Codex114';
+const BUILD_MARKER = 'Codex115';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
