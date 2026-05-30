@@ -1,6 +1,21 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex110 — Solo unlock SELF-HEALING + CTA / focus / Profile single
+// Codex111 — Solo scoring + leaderboard source of truth:
+//   • Shared scoring helpers calculate stars, time bonus, levelScore,
+//     attempt result, best replay preservation, and Solo progress summary.
+//   • Solo progress now stores bestScore / bestScore breakdown /
+//     lastAttemptAt plus a derived summary for Profile and Leaderboard.
+//   • Result popup shows earned points with base-score + speed-bonus
+//     breakdown while keeping "Level X" + Play and "Tekrar Oyna".
+//   • Profile and Liderlik read totalSoloScore/currentLevel/totalStars from
+//     the same User.solo_progress source; no fake friend/global ranks.
+//   • Health solo_progress suite now covers score math, single-source helper,
+//     replay preservation, popup score visibility, leaderboard contract, and
+//     honest rank placeholder behavior.
+//   • Drag/drop, Timeline, QuestionCard, GameLayout placement mechanics,
+//     online invites/lobby/notifications/tutorial — untouched.
+//
+// Previous note: Codex110 — Solo unlock SELF-HEALING + CTA / focus / Profile single
 // source of truth:
 //   • NEW lib/soloProgressHelpers.js — getHighestCompletedLevel,
 //     getEffectiveUnlockedLevel, getCurrentPlayableLevel,
@@ -218,7 +233,7 @@ import React, { useEffect, useState } from 'react';
 //   visible 120s SoloLevelTimer (no audio cue).
 // Previous note: Codex106 — Solo level completion popup polish.
 // Previous note: Codex106 — Solo Level Path (vertical 8-row path).
-const BUILD_MARKER = 'Codex110';
+const BUILD_MARKER = 'Codex111';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

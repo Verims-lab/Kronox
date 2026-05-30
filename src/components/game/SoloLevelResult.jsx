@@ -33,6 +33,9 @@ import { fetchSoloLevelRank } from '@/lib/soloRanking';
  *   - stars:                 0..3
  *   - mistakes:              number
  *   - timeSeconds:           number
+ *   - baseScore:             number
+ *   - timeBonus:             number
+ *   - levelScore:            number
  *   - cardsCompleted:        number
  *   - cardTarget:            number (10)
  *   - failReason:            'mistakes' | 'timeout' | null
@@ -49,6 +52,9 @@ export default function SoloLevelResult({
   stars,
   mistakes,
   timeSeconds,
+  baseScore = 0,
+  timeBonus = 0,
+  levelScore = 0,
   cardsCompleted,
   cardTarget,
   failReason,
@@ -73,7 +79,7 @@ export default function SoloLevelResult({
   useEffect(() => {
     if (!passed) return undefined;
     let cancelled = false;
-    fetchSoloLevelRank({ levelNumber, timeSeconds })
+    fetchSoloLevelRank({ levelNumber, levelScore, stars, timeSeconds, mistakes })
       .then((res) => {
         if (cancelled) return;
         setRankState({ loading: false, rank: res?.rank ?? null, ready: Boolean(res?.ready) });
@@ -83,7 +89,7 @@ export default function SoloLevelResult({
         setRankState({ loading: false, rank: null, ready: false });
       });
     return () => { cancelled = true; };
-  }, [passed, levelNumber, timeSeconds]);
+  }, [passed, levelNumber, levelScore, stars, timeSeconds, mistakes]);
 
   const formattedTime = formatDuration(timeSeconds);
 
@@ -160,6 +166,30 @@ export default function SoloLevelResult({
             <span className="font-bangers text-base tracking-wider text-white">
               {formattedTime}
             </span>
+          </div>
+
+          <div
+            className="mt-3 rounded-2xl px-3 py-2"
+            style={{
+              background: passed
+                ? 'linear-gradient(180deg, rgba(250,204,21,0.14), rgba(185,122,6,0.08))'
+                : 'rgba(248,113,113,0.08)',
+              boxShadow: passed
+                ? 'inset 0 0 0 1px rgba(250,204,21,0.28)'
+                : 'inset 0 0 0 1px rgba(248,113,113,0.22)',
+            }}
+          >
+            <div className="flex items-center justify-center gap-2">
+              <Trophy className="h-4 w-4 text-amber-300" />
+              <span className="font-bangers text-xl tracking-wider text-amber-200">
+                Puan: {levelScore}
+              </span>
+            </div>
+            <p className="mt-0.5 font-inter text-[10px] font-semibold text-amber-100/75">
+              {passed
+                ? `${stars} yıldız: ${baseScore} + hız bonusu: ${timeBonus}`
+                : 'Başarısız deneme: 0 + hız bonusu: 0'}
+            </p>
           </div>
 
           {/* Stats grid */}

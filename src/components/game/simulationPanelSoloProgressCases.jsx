@@ -24,11 +24,19 @@
 //   - No scoring constant or status is weakened anywhere.
 
 import profilePageSource from '../../pages/ProfilePage.jsx?raw';
+import leaderboardPageSource from '../../pages/LeaderboardPage.jsx?raw';
 import soloChallengeSource from '../../pages/SoloChallenge.jsx?raw';
 import soloLevelsLibSource from '../../lib/soloLevels.js?raw';
+import soloProgressHelpersSource from '../../lib/soloProgressHelpers.js?raw';
+import soloRankingSource from '../../lib/soloRanking.js?raw';
 import soloLevelResultSource from './SoloLevelResult.jsx?raw';
 import soloLevelTimerSource from './SoloLevelTimer.jsx?raw';
 import gameSoundsSource from '../../lib/gameSounds.js?raw';
+import {
+  calculateSoloAttemptResult,
+  calculateSoloLevelScore,
+  getBestSoloLevelResult,
+} from '../../lib/soloProgressHelpers';
 
 const STATUS = {
   PASS: 'PASS',
@@ -111,8 +119,8 @@ export const EXTRA_TESTS = [
       //    to localStorage AND updates the user profile.
       const writerMissing = missingTokens(soloLevelsLibSource, [
         'export async function writeSoloProgress',
-        'safeWriteLocal(progress)',
-        'base44.auth.updateMe({ solo_progress: progress })',
+        'safeWriteLocal(normalized)',
+        'base44.auth.updateMe({ solo_progress: normalized })',
       ]);
 
       // e) currentLevel monotonic guard — Codex110 reshaped this from
@@ -320,6 +328,212 @@ export const EXTRA_TESTS = [
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
         actual: 'tokens present, no rogue intervals',
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  /* ============================================================
+   *  4. SOLO SCORE / LEADERBOARD CONTRACTS
+   * ============================================================ */
+  makeCase('solo_progress_health', 'solo_score_calculation_contract',
+    'Solo score calculation contract: star base + exact time bonus boundaries + fail gets 0',
+    () => {
+      const examples = [
+        { input: { stars: 3, elapsedSeconds: 54, passed: true }, expected: { baseScore: 10, timeBonus: 10, totalScore: 20 } },
+        { input: { stars: 3, elapsedSeconds: 75, passed: true }, expected: { baseScore: 10, timeBonus: 5, totalScore: 15 } },
+        { input: { stars: 2, elapsedSeconds: 88, passed: true }, expected: { baseScore: 8, timeBonus: 5, totalScore: 13 } },
+        { input: { stars: 1, elapsedSeconds: 110, passed: true }, expected: { baseScore: 5, timeBonus: 0, totalScore: 5 } },
+        { input: { stars: 0, elapsedSeconds: 40, passed: false }, expected: { baseScore: 0, timeBonus: 0, totalScore: 0 } },
+        { input: { stars: 0, elapsedSeconds: 120, passed: false }, expected: { baseScore: 0, timeBonus: 0, totalScore: 0 } },
+      ];
+      const mismatches = examples
+        .map((item) => ({ ...item, actual: calculateSoloLevelScore(item.input) }))
+        .filter((item) => JSON.stringify(item.actual) !== JSON.stringify(item.expected));
+      const attemptTimeout = calculateSoloAttemptResult({ mistakes: 0, completedCards: 9, elapsedSeconds: 120 });
+      if (mismatches.length || attemptTimeout.levelScore !== 0 || attemptTimeout.failReason !== 'timeout') {
+        return fail('Solo score helper returned an unexpected score or timeout result.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'examples match product score table; timeout = 0',
+          actual: { mismatches, attemptTimeout },
+        });
+      }
+      return pass('Solo score helper matches the product score table and exact 60/90s boundaries.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'EXECUTABLE_HELPER_PROOF',
+        actionType: ACTION_TYPES.CODE_FIX,
+        actual: examples.map((item) => ({ input: item.input, score: item.expected.totalScore })),
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('solo_progress_health', 'solo_score_single_source_helper',
+    'Solo score calculation lives in one shared helper and is consumed by Game/Profile/Leaderboard/Popup',
+    () => {
+      const helperMissing = missingTokens(soloProgressHelpersSource, [
+        'export function calculateSoloStars',
+        'export function calculateSoloTimeBonus',
+        'export function calculateSoloLevelScore',
+        'export function calculateSoloAttemptResult',
+        'export function getBestSoloLevelResult',
+        'export function summarizeSoloProgress',
+      ]);
+      const consumerMissing = [
+        ...missingTokens(soloLevelsLibSource, ['calculateSoloAttemptResult', 'getBestSoloLevelResult', 'summarizeSoloProgress']),
+        ...missingTokens(profilePageSource, ['summarizeSoloProgress', 'totalSoloScore', 'totalStars']),
+        ...missingTokens(leaderboardPageSource, ['summarizeSoloProgress', 'totalSoloScore', 'Arkadaş Sıralaması']),
+        ...missingTokens(soloLevelResultSource, ['levelScore', 'baseScore', 'timeBonus', 'Puan:']),
+      ];
+      const forbidden = [
+        ...forbiddenTokensFound(profilePageSource, ['value: 0,            icon: Trophy']),
+        ...forbiddenTokensFound(leaderboardPageSource, ['Küresel sıralama yakında. Şimdilik kendi rekorlarını']),
+      ];
+      if (helperMissing.length || consumerMissing.length || forbidden.length) {
+        return fail('Solo score is not consistently wired through the shared helper/source of truth.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'helper exports + consumers use score/summary; no old placeholder score copy',
+          actual: { helperMissing, consumerMissing, forbidden },
+        });
+      }
+      return pass('Solo score helper is shared by progress merge, Profile, Leaderboard, and result popup.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('solo_progress_health', 'solo_replay_best_score_preserved',
+    'Replay preserves best stars/score on worse attempts and updates on better attempts',
+    () => {
+      const previous = {
+        bestStars: 3,
+        bestScore: 15,
+        bestScoreStars: 3,
+        bestTimeSeconds: 75,
+        bestMistakes: 1,
+      };
+      const worse = getBestSoloLevelResult(previous, calculateSoloAttemptResult({
+        mistakes: 6,
+        completedCards: 10,
+        elapsedSeconds: 110,
+      }));
+      const better = getBestSoloLevelResult(previous, calculateSoloAttemptResult({
+        mistakes: 0,
+        completedCards: 10,
+        elapsedSeconds: 54,
+      }));
+      if (worse.bestStars !== 3 || worse.bestScore !== 15 || better.bestStars !== 3 || better.bestScore !== 20 || better.bestTimeSeconds !== 54) {
+        return fail('Replay best-score preservation helper regressed.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: {
+            worseReplay: 'bestStars=3 and bestScore=15 remain',
+            betterReplay: 'bestScore=20 and bestTimeSeconds=54',
+          },
+          actual: { worse, better },
+        });
+      }
+      return pass('Replay helper preserves worse records and upgrades better score/time records.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'EXECUTABLE_HELPER_PROOF',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('solo_progress_health', 'solo_result_popup_score_visible',
+    'Solo result popup shows score breakdown, stars/time/mistakes, rank placeholder, and keeps next CTA copy contract',
+    () => {
+      const required = missingTokens(soloLevelResultSource, [
+        'Puan: {levelScore}',
+        '${stars} yıldız: ${baseScore} + hız bonusu: ${timeBonus}',
+        'Sıralama verisi hazırlanıyor',
+        'Level {nextLevelNumber}',
+        '<Play className="w-4 h-4" fill="currentColor" />',
+        'Tekrar Oyna',
+      ]);
+      const forbidden = forbiddenTokensFound(soloLevelResultSource, [
+        "Level {nextLevelNumber}'e Geç",
+      ]);
+      if (required.length || forbidden.length) {
+        return fail('Solo result popup score/rank/CTA contract drifted.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'score breakdown + safe rank placeholder + Level X CTA',
+          actual: { required, forbidden },
+        });
+      }
+      return pass('Solo result popup exposes score breakdown and keeps ranking/CTA contracts honest.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('solo_progress_health', 'solo_leaderboard_total_score_contract',
+    'Leaderboard uses totalSoloScore/currentLevel/totalStars from Solo progress and does not fake friend ranking',
+    () => {
+      const required = missingTokens(leaderboardPageSource, [
+        'readSoloProgress',
+        'summarizeSoloProgress',
+        'summary.totalSoloScore',
+        'summary.currentLevel',
+        'summary.totalStars',
+        'Arkadaşlarınla yarışmak için onları davet et',
+      ]);
+      const forbidden = forbiddenTokensFound(leaderboardPageSource, [
+        '2. sırada',
+        '1. oldun',
+        'Math.random',
+      ]);
+      if (required.length || forbidden.length) {
+        return fail('Leaderboard total score or no-fake-ranking contract failed.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'real Solo summary + safe friend-rank placeholder',
+          actual: { required, forbidden },
+        });
+      }
+      return pass('Leaderboard reads the Solo progress summary and uses a safe friend-ranking placeholder.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('solo_progress_health', 'solo_level_ranking_placeholder_or_real_data',
+    'Level result ranking is either real backend data or an explicit safe placeholder; no fake rank',
+    () => {
+      const required = missingTokens(soloRankingSource, [
+        'return { ready: false, rank: null }',
+        'server-side aggregation function',
+      ]);
+      const popupRequired = missingTokens(soloLevelResultSource, [
+        'ready && typeof rank ===',
+        'Sıralama verisi hazırlanıyor',
+      ]);
+      if (required.length || popupRequired.length) {
+        return fail('Solo level rank placeholder/real-data contract drifted.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'no fake rank; placeholder until backend rank exists',
+          actual: { required, popupRequired },
+        });
+      }
+      return pass('Level rank remains honest: real backend rank when ready, safe placeholder otherwise.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
       });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),

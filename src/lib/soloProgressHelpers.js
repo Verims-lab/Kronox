@@ -1,4 +1,4 @@
-// Codex110 — Single-source-of-truth helpers for Solo progress.
+// Codex111 — Single-source-of-truth helpers for Solo progress + scoring.
 //
 // WHY THIS FILE EXISTS
 //   Codex109 fixed the "multiple current levels" picker but the actual
@@ -27,8 +27,177 @@
 //   - lib/soloLevels.js  (getSoloLevels, applyLevelAttempt)
 //   - pages/SoloChallenge.jsx  (default selection)
 //   - components/game/simulationPanelSoloUnlockCases.js  (Health)
+//   - components/game/simulationPanelSoloProgressCases.js  (Health)
 //   - pages/ProfilePage.jsx  (Level tile, indirectly via readSoloProgress
 //     → getCurrentPlayableLevel)
+
+// ─── Solo attempt scoring constants ───────────────────────────────────
+export const SOLO_SCORE_CARD_TARGET = 10;
+export const SOLO_SCORE_TIME_LIMIT_SECONDS = 120;
+export const SOLO_SCORE_MAX_MISTAKES = 8;
+
+export const SOLO_STAR_BASE_SCORES = Object.freeze({
+  0: 0,
+  1: 5,
+  2: 8,
+  3: 10,
+});
+
+export function calculateSoloStars(
+  mistakes,
+  completedCards = SOLO_SCORE_CARD_TARGET,
+  elapsedSeconds = 0,
+) {
+  const m = Math.max(0, Number(mistakes) || 0);
+  const cards = Math.max(0, Number(completedCards) || 0);
+  const elapsed = Math.max(0, Number(elapsedSeconds) || 0);
+  const completed = cards >= SOLO_SCORE_CARD_TARGET;
+  const timedOutBeforeCompletion = !completed && elapsed >= SOLO_SCORE_TIME_LIMIT_SECONDS;
+
+  if (m >= SOLO_SCORE_MAX_MISTAKES) {
+    return { stars: 0, passed: false, failReason: 'mistakes' };
+  }
+  if (timedOutBeforeCompletion) {
+    return { stars: 0, passed: false, failReason: 'timeout' };
+  }
+  if (!completed) {
+    return { stars: 0, passed: false, failReason: 'incomplete' };
+  }
+  if (m <= 1) return { stars: 3, passed: true, failReason: null };
+  if (m <= 4) return { stars: 2, passed: true, failReason: null };
+  return { stars: 1, passed: true, failReason: null };
+}
+
+export function calculateSoloTimeBonus(elapsedSeconds, passed) {
+  if (!passed) return 0;
+  const elapsed = Math.max(0, Number(elapsedSeconds) || 0);
+  if (elapsed < 60) return 10;
+  if (elapsed >= 60 && elapsed <= 90) return 5;
+  return 0;
+}
+
+export function calculateSoloLevelScore({ stars, elapsedSeconds, passed }) {
+  const safeStars = Math.max(0, Math.min(3, Number(stars) || 0));
+  const didPass = Boolean(passed) && safeStars > 0;
+  const baseScore = didPass ? (SOLO_STAR_BASE_SCORES[safeStars] || 0) : 0;
+  const timeBonus = calculateSoloTimeBonus(elapsedSeconds, didPass);
+  return {
+    baseScore,
+    timeBonus,
+    totalScore: baseScore + timeBonus,
+  };
+}
+
+export function calculateSoloAttemptResult({
+  mistakes,
+  completedCards,
+  elapsedSeconds,
+}) {
+  const safeMistakes = Math.max(0, Number(mistakes) || 0);
+  const safeCards = Math.max(0, Number(completedCards) || 0);
+  const safeElapsed = Math.max(0, Number(elapsedSeconds) || 0);
+  const starResult = calculateSoloStars(safeMistakes, safeCards, safeElapsed);
+  const score = calculateSoloLevelScore({
+    stars: starResult.stars,
+    elapsedSeconds: safeElapsed,
+    passed: starResult.passed,
+  });
+
+  return {
+    passed: starResult.passed,
+    stars: starResult.stars,
+    mistakes: safeMistakes,
+    cardsCompleted: safeCards,
+    elapsedSeconds: safeElapsed,
+    timeSeconds: safeElapsed,
+    failReason: starResult.failReason,
+    baseScore: score.baseScore,
+    timeBonus: score.timeBonus,
+    levelScore: score.totalScore,
+    score: score.totalScore,
+  };
+}
+
+function finiteNumber(value, fallback = null) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function derivePreviousScore(previous) {
+  const stored = finiteNumber(previous?.bestScore, null);
+  if (stored !== null) return stored;
+  const stars = Math.max(0, Math.min(3, Number(previous?.bestStars) || 0));
+  if (stars <= 0) return null;
+  return calculateSoloLevelScore({
+    stars,
+    elapsedSeconds: previous?.bestTimeSeconds,
+    passed: true,
+  }).totalScore;
+}
+
+function isAttemptBetterForScore(previous, attempt) {
+  if (!attempt?.passed) return false;
+  const prevScore = derivePreviousScore(previous);
+  if (prevScore === null) return true;
+  if (attempt.levelScore !== prevScore) return attempt.levelScore > prevScore;
+
+  const prevStars = finiteNumber(previous?.bestScoreStars ?? previous?.bestStars, 0);
+  if (attempt.stars !== prevStars) return attempt.stars > prevStars;
+
+  const prevTime = finiteNumber(previous?.bestTimeSeconds, Infinity);
+  if (attempt.timeSeconds !== prevTime) return attempt.timeSeconds < prevTime;
+
+  const prevMistakes = finiteNumber(previous?.bestMistakes, Infinity);
+  return attempt.mistakes < prevMistakes;
+}
+
+export function getBestSoloLevelResult(previousBest, newAttempt) {
+  const prev = previousBest || {};
+  const attempt = {
+    ...newAttempt,
+    levelScore: Number(newAttempt?.levelScore) || 0,
+    baseScore: Number(newAttempt?.baseScore) || 0,
+    timeBonus: Number(newAttempt?.timeBonus) || 0,
+    stars: Math.max(0, Math.min(3, Number(newAttempt?.stars) || 0)),
+    mistakes: Math.max(0, Number(newAttempt?.mistakes) || 0),
+    timeSeconds: Math.max(0, Number(newAttempt?.timeSeconds ?? newAttempt?.elapsedSeconds) || 0),
+    passed: Boolean(newAttempt?.passed),
+  };
+
+  const prevStars = Math.max(0, Math.min(3, Number(prev.bestStars) || 0));
+  const bestStars = Math.max(prevStars, attempt.stars);
+  const replaceScoreRecord = isAttemptBetterForScore(prev, attempt);
+  const previousScore = derivePreviousScore(prev);
+  const previousBreakdown = calculateSoloLevelScore({
+    stars: Math.max(0, Number(prev.bestScoreStars ?? prev.bestStars) || 0),
+    elapsedSeconds: prev.bestTimeSeconds,
+    passed: Math.max(0, Number(prev.bestScoreStars ?? prev.bestStars) || 0) > 0,
+  });
+
+  return {
+    bestStars,
+    bestScore: replaceScoreRecord
+      ? attempt.levelScore
+      : Math.max(0, previousScore || 0),
+    bestScoreStars: replaceScoreRecord
+      ? attempt.stars
+      : Math.max(0, Number(prev.bestScoreStars ?? prev.bestStars) || 0),
+    bestScoreBaseScore: replaceScoreRecord
+      ? attempt.baseScore
+      : Math.max(0, Number(prev.bestScoreBaseScore) || previousBreakdown.baseScore || 0),
+    bestScoreTimeBonus: replaceScoreRecord
+      ? attempt.timeBonus
+      : Math.max(0, Number(prev.bestScoreTimeBonus) || previousBreakdown.timeBonus || 0),
+    bestTimeSeconds: replaceScoreRecord
+      ? attempt.timeSeconds
+      : prev.bestTimeSeconds,
+    bestMistakes: replaceScoreRecord
+      ? attempt.mistakes
+      : prev.bestMistakes,
+    improvedScore: replaceScoreRecord,
+    improvedStars: bestStars > prevStars,
+  };
+}
 
 /**
  * Highest level number for which the user has at least 1 best star.
@@ -115,4 +284,47 @@ export function getLevelStatus(levelNumber, progress, totalLevels) {
  */
 export function canPlayLevel(levelNumber, progress, totalLevels) {
   return getLevelStatus(levelNumber, progress, totalLevels) !== 'locked';
+}
+
+export function summarizeSoloProgress(progress, totalLevels) {
+  const levels = progress?.levels && typeof progress.levels === 'object'
+    ? progress.levels
+    : {};
+  let completedLevelCount = 0;
+  let totalStars = 0;
+  let totalSoloScore = 0;
+  let totalAttempts = 0;
+
+  Object.values(levels).forEach((entry) => {
+    const stars = Math.max(0, Math.min(3, Number(entry?.bestStars) || 0));
+    const attempts = Math.max(0, Number(entry?.attempts) || 0);
+    totalAttempts += attempts;
+    if (stars > 0) completedLevelCount += 1;
+    totalStars += stars;
+
+    const storedScore = finiteNumber(entry?.bestScore, null);
+    if (storedScore !== null) {
+      totalSoloScore += Math.max(0, storedScore);
+      return;
+    }
+
+    // Backward-compatible derivation for pre-score progress snapshots.
+    const derived = calculateSoloLevelScore({
+      stars,
+      elapsedSeconds: entry?.bestTimeSeconds,
+      passed: stars > 0,
+    });
+    totalSoloScore += derived.totalScore;
+  });
+
+  const unlockedLevel = getEffectiveUnlockedLevel(progress, totalLevels);
+  const currentLevel = getCurrentPlayableLevel(progress, totalLevels);
+  return {
+    currentLevel,
+    unlockedLevel,
+    totalSoloScore,
+    completedLevelCount,
+    totalStars,
+    totalAttempts,
+  };
 }

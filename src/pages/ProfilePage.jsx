@@ -1,29 +1,27 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Users, Trophy, Sparkles, Gem, Settings, ChevronRight, LogOut, UserRound, LogIn } from 'lucide-react';
+import { Users, Trophy, Sparkles, Star, Settings, ChevronRight, LogOut, UserRound, LogIn } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 import { isAdminUser } from '@/lib/admin';
 import ScreenHeader from '@/components/layout/ScreenHeader';
-// Codex110 — Profile Level now reads through the SAME shared helper the
-// Solo Level Path uses (getCurrentPlayableLevel) so a stale or partially-
-// written `currentLevel` can never cause Profile to show "Level 1" while
-// Solo correctly shows Level 9. Both screens self-heal from the highest
-// completed level signal.
+// Codex111 — Profile Level + Solo score read through the SAME shared
+// progress/summary helpers the Solo Level Path and Leaderboard use.
+// A stale `currentLevel` can no longer make Profile drift from Solo, and
+// Puan/Yıldız are real values from User.solo_progress rather than UI-only
+// placeholders.
 import { readSoloProgress, getSoloLevelCount } from '@/lib/soloLevels';
-import { getCurrentPlayableLevel } from '@/lib/soloProgressHelpers';
+import { getCurrentPlayableLevel, summarizeSoloProgress } from '@/lib/soloProgressHelpers';
 
 /**
  * ProfilePage — first-pass shell.
- * Sections: Arkadaşlarım, Puan, Level, Elmas, Ayarlar.
+ * Sections: Arkadaşlarım, Solo Puan, Level, Yıldız, Ayarlar.
  *
  * Data note (placeholders vs real):
  *  - identity (name/email): REAL — from base44.auth.me()
  *  - friends count: PLACEHOLDER (0) — no friends system yet
- *  - puan: PLACEHOLDER (0) — no economy yet
- *  - level: PLACEHOLDER (1) — no level system yet
- *  - elmas: PLACEHOLDER (0) — no economy yet
+ *  - puan/level/yıldız: REAL — derived from User.solo_progress
  *  - admin badge: REAL — via isAdminUser()
  */
 export default function ProfilePage() {
@@ -44,18 +42,22 @@ export default function ProfilePage() {
   const handleLogin = () => { sounds.tap(); base44.auth.redirectToLogin('/profile'); };
   const handleLogout = () => { sounds.tap(); base44.auth.logout('/'); };
 
-  // Codex110 — Profile Level uses the shared helper, identical to what
-  // Solo's CTA shows. Self-heals when persisted currentLevel is stale.
+  // Codex111 — Profile stats use the shared Solo summary. The Level tile
+  // stays identical to Solo's CTA and self-heals from completed-level data.
   const soloProgress = useMemo(() => readSoloProgress(user), [user]);
+  const soloSummary = useMemo(
+    () => summarizeSoloProgress(soloProgress, getSoloLevelCount()),
+    [soloProgress],
+  );
   const profileLevel = useMemo(
     () => getCurrentPlayableLevel(soloProgress, getSoloLevelCount()),
     [soloProgress],
   );
 
   const stats = [
-    { id: 'puan',  label: 'Puan',  value: 0,            icon: Trophy,   tint: 'gold' },
+    { id: 'puan',  label: 'Puan',  value: soloSummary.totalSoloScore, icon: Trophy,   tint: 'gold' },
     { id: 'level', label: 'Level', value: profileLevel, icon: Sparkles, tint: 'portal' },
-    { id: 'elmas', label: 'Elmas', value: 0,            icon: Gem,      tint: 'cyan' },
+    { id: 'stars', label: 'Yıldız', value: soloSummary.totalStars, icon: Star, tint: 'cyan' },
   ];
 
   return (

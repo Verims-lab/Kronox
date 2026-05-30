@@ -33,11 +33,11 @@ import GameBootstrapDiagnostics, { isDiagnosticsEnabled } from '@/components/gam
 import GameRenderErrorBoundary from '@/components/game/GameRenderErrorBoundary';
 import {
   applyLevelAttempt,
-  computeLevelStars,
   getSoloLevelCount,
   readSoloProgress,
   writeSoloProgress,
 } from '@/lib/soloLevels';
+import { calculateSoloAttemptResult } from '@/lib/soloProgressHelpers';
 
 export default function Game() {
   const location = useLocation();
@@ -455,47 +455,71 @@ export default function Game() {
 
     // PASS path — winner was set by the win condition inside doPlacement.
     if (winner) {
-      const { stars, passed } = computeLevelStars(mistakeCount);
       const elapsed = winner.durationSeconds ?? overallSecondsRef.current ?? 0;
+      const attempt = calculateSoloAttemptResult({
+        mistakes: mistakeCount,
+        completedCards: cardTarget,
+        elapsedSeconds: elapsed,
+      });
       // The win condition already enforces the card target via winCardCount.
       setSoloLevelResult({
-        passed,
-        stars,
-        mistakes: mistakeCount,
+        passed: attempt.passed,
+        stars: attempt.stars,
+        mistakes: attempt.mistakes,
         timeSeconds: elapsed,
+        baseScore: attempt.baseScore,
+        timeBonus: attempt.timeBonus,
+        levelScore: attempt.levelScore,
         cardsCompleted: cardTarget,
         cardTarget,
-        failReason: null,
+        failReason: attempt.failReason,
       });
       return;
     }
 
     // FAIL — too many mistakes.
     if (mistakeCount >= maxMistakes) {
+      const elapsed = overallSecondsRef.current ?? 0;
+      const attempt = calculateSoloAttemptResult({
+        mistakes: mistakeCount,
+        completedCards: cardsCompletedSolo,
+        elapsedSeconds: elapsed,
+      });
       setGameStarted(false);
       setSoloLevelResult({
-        passed: false,
-        stars: 0,
-        mistakes: mistakeCount,
-        timeSeconds: overallSecondsRef.current ?? 0,
+        passed: attempt.passed,
+        stars: attempt.stars,
+        mistakes: attempt.mistakes,
+        timeSeconds: elapsed,
+        baseScore: attempt.baseScore,
+        timeBonus: attempt.timeBonus,
+        levelScore: attempt.levelScore,
         cardsCompleted: cardsCompletedSolo,
         cardTarget,
-        failReason: 'mistakes',
+        failReason: attempt.failReason || 'mistakes',
       });
       return;
     }
 
     // FAIL — total timer expired without a winner.
     if (gameStarted && overallSeconds >= totalTime) {
+      const attempt = calculateSoloAttemptResult({
+        mistakes: mistakeCount,
+        completedCards: cardsCompletedSolo,
+        elapsedSeconds: totalTime,
+      });
       setGameStarted(false);
       setSoloLevelResult({
-        passed: false,
-        stars: 0,
-        mistakes: mistakeCount,
+        passed: attempt.passed,
+        stars: attempt.stars,
+        mistakes: attempt.mistakes,
         timeSeconds: totalTime,
+        baseScore: attempt.baseScore,
+        timeBonus: attempt.timeBonus,
+        levelScore: attempt.levelScore,
         cardsCompleted: cardsCompletedSolo,
         cardTarget,
-        failReason: 'timeout',
+        failReason: attempt.failReason || 'timeout',
       });
     }
   }, [
@@ -525,7 +549,11 @@ export default function Game() {
           stars: soloLevelResult.stars,
           mistakes: soloLevelResult.mistakes,
           timeSeconds: soloLevelResult.timeSeconds,
+          cardsCompleted: soloLevelResult.cardsCompleted,
           passed: soloLevelResult.passed,
+          baseScore: soloLevelResult.baseScore,
+          timeBonus: soloLevelResult.timeBonus,
+          levelScore: soloLevelResult.levelScore,
         });
         await writeSoloProgress(me, next);
       } catch (e) {
@@ -727,6 +755,9 @@ export default function Game() {
           stars={soloLevelResult.stars}
           mistakes={soloLevelResult.mistakes}
           timeSeconds={soloLevelResult.timeSeconds}
+          baseScore={soloLevelResult.baseScore}
+          timeBonus={soloLevelResult.timeBonus}
+          levelScore={soloLevelResult.levelScore}
           cardsCompleted={soloLevelResult.cardsCompleted}
           cardTarget={soloLevelResult.cardTarget}
           failReason={soloLevelResult.failReason}
