@@ -392,7 +392,7 @@ export const EXTRA_TESTS = [
         // longer required on the Profile surface. Puan still uses
         // totalSoloScore via summarizeSoloProgress.
         ...missingTokens(profilePageSource, ['summarizeSoloProgress', 'totalSoloScore']),
-        ...missingTokens(leaderboardPageSource, ['summarizeSoloProgress', 'totalSoloScore', 'Arkadaş Sıralaması']),
+        ...missingTokens(leaderboardPageSource, ['summarizeSoloProgress', 'totalSoloScore', 'Kronox Sıralaması']),
         ...missingTokens(soloLevelResultSource, ['levelScore', 'baseScore', 'timeBonus', 'Puan:']),
       ];
       const forbidden = [
@@ -805,7 +805,7 @@ export const EXTRA_TESTS = [
         'summary.currentLevel',
         'getLeaderboardDiamondValue',
         'label="Elmas"',
-        'Arkadaşlarınla yarışmak için onları davet et',
+        'Kronox Sıralaması',
       ]);
       const forbidden = forbiddenTokensFound(leaderboardPageSource, [
         'label="Yıldız"',
