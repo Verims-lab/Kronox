@@ -6,11 +6,13 @@ import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 import { isAdminUser } from '@/lib/admin';
 import ScreenHeader from '@/components/layout/ScreenHeader';
-// Codex106-25 — Profile Level reads from the SAME source of truth as the
-// Solo Level Path (User.solo_progress via readSoloProgress). Previously
-// Profile used a hard-coded `value: 1`, which is the documented root cause
-// of "Solo reached Level 3 but Profile still showed Level 1".
-import { readSoloProgress } from '@/lib/soloLevels';
+// Codex110 — Profile Level now reads through the SAME shared helper the
+// Solo Level Path uses (getCurrentPlayableLevel) so a stale or partially-
+// written `currentLevel` can never cause Profile to show "Level 1" while
+// Solo correctly shows Level 9. Both screens self-heal from the highest
+// completed level signal.
+import { readSoloProgress, getSoloLevelCount } from '@/lib/soloLevels';
+import { getCurrentPlayableLevel } from '@/lib/soloProgressHelpers';
 
 /**
  * ProfilePage — first-pass shell.
@@ -42,13 +44,13 @@ export default function ProfilePage() {
   const handleLogin = () => { sounds.tap(); base44.auth.redirectToLogin('/profile'); };
   const handleLogout = () => { sounds.tap(); base44.auth.logout('/'); };
 
-  // Codex106-25 — Profile Level is now the SAME current Solo level the
-  // Solo Level Path uses. readSoloProgress picks the more-advanced of
-  // User.solo_progress and the localStorage mirror, so passing a Solo
-  // level immediately bumps the Profile tile too. Puan/Elmas remain
-  // hard-coded placeholders because the economy system is not built.
+  // Codex110 — Profile Level uses the shared helper, identical to what
+  // Solo's CTA shows. Self-heals when persisted currentLevel is stale.
   const soloProgress = useMemo(() => readSoloProgress(user), [user]);
-  const profileLevel = Math.max(1, Number(soloProgress?.currentLevel) || 1);
+  const profileLevel = useMemo(
+    () => getCurrentPlayableLevel(soloProgress, getSoloLevelCount()),
+    [soloProgress],
+  );
 
   const stats = [
     { id: 'puan',  label: 'Puan',  value: 0,            icon: Trophy,   tint: 'gold' },

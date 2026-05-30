@@ -115,17 +115,23 @@ export const EXTRA_TESTS = [
         'base44.auth.updateMe({ solo_progress: progress })',
       ]);
 
-      // e) currentLevel monotonic guard — applyLevelAttempt only bumps when
-      //    the attempt PASSED and the new unlock is greater than current.
+      // e) currentLevel monotonic guard — Codex110 reshaped this from
+      //    "bump only on pass" to a self-healing recompute:
+      //       frontier = max(prev currentLevel, highestCompleted + 1)
+      //       if (passed) frontier = max(frontier, freshLevel + 1)
+      //    The recompute can never DECREASE currentLevel (Math.min(total,
+      //    max(...))) so monotonicity is preserved by construction.
       const monotonicMissing = missingTokens(soloLevelsLibSource, [
-        'if (fresh.passed)',
-        'nextUnlock > next.currentLevel',
+        'if (fresh.passed) {',
+        'const highestCompleted = getHighestCompletedLevel(next);',
+        'Math.max(',
+        'next.currentLevel = Math.min(total, frontier);',
       ]);
 
       // f) bestStars cannot regress — mergeBetterResult guard.
       const mergeMissing = missingTokens(soloLevelsLibSource, [
         'if (freshStars < prevStars)',
-        'never decrease',
+        'Never regress stars',
       ]);
 
       if (profileMissing.length || soloMissing.length || writerMissing.length || monotonicMissing.length || mergeMissing.length || profileHardcodedLevel) {

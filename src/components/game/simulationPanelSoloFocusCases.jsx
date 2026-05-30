@@ -1,43 +1,36 @@
-// Kronox Health Center — Solo focus / CTA / unlock contracts (Codex109).
+// Kronox Health Center — Solo focus / CTA / unlock contracts.
 //
 // SCOPE
-//   Locks the four product invariants the Codex109 pass fixed:
-//     1. There is at most ONE 'current' level returned by getSoloLevels.
-//        Previously every unlocked-but-incomplete level became 'current',
-//        which forced the auto-scroll target to Level 1 and forced the
-//        bottom Play CTA to always render "Level 1".
-//     2. Passing Level N must unlock Level N+1 (currentLevel = N+1).
-//        applyLevelAttempt is the single writer; we lock its formula
-//        statically so future refactors can't introduce off-by-one
-//        regressions.
-//     3. SoloChallenge's bottom Play CTA never hard-codes "Level 1".
-//        It must render the currently selected level number.
-//     4. LevelMapPath's auto-scroll effect is hardened against the
-//        Android-WebView "clientHeight===0 on first paint" case (deferred
-//        via requestAnimationFrame + retry).
+//   Originally introduced in Codex109 to lock the "single current level"
+//   picker + CTA-reflects-selected-level invariants. Codex110 superseded
+//   the underlying implementation with a SELF-HEALING unlock formula
+//   (see lib/soloProgressHelpers.js + simulationPanelSoloUnlockCases.js).
 //
-// HONESTY RULES
-//   - Pure static token / formula checks.
-//   - No scoring constants touched.
-//   - Real-device proof of the actual scroll landing position remains
-//     covered by the existing `auto_scroll_runtime_proof_needed` case in
-//     the Solo Adventure Map suite — we do not duplicate it here.
+//   The token-level contracts below were rewritten to match the Codex110
+//   shape: they no longer assert against the removed inline picker, but
+//   they DO continue to lock the high-level product invariants:
+//
+//     1. SoloChallenge default selection comes from the shared helper.
+//     2. CTA label is derived from selectedLevel/defaultSelectedNumber,
+//        never hard-coded to "LEVEL 1".
+//     3. SoloChallenge gates async hydration with progressLoaded so the
+//        CTA cannot prematurely commit to Level 1.
+//     4. SoloChallenge passes focusLevelNumber to LevelMapPath so auto-
+//        scroll targets the helper-computed current playable.
+//     5. LevelMapPath auto-scroll math is layout-timing resilient.
+//
+//   The deeper unlock/self-healing behavior lives in
+//   simulationPanelSoloUnlockCases.js, where it is exercised by live
+//   formulas, not just tokens.
 
 import soloChallengeSource from '../../pages/SoloChallenge.jsx?raw';
 import levelMapPathSource from '../solo/LevelMapPath.jsx?raw';
-import soloLevelsLibSource from '../../lib/soloLevels.js?raw';
 
-const STATUS = {
-  PASS: 'PASS',
-  FAIL: 'FAIL',
-};
-
-const ACTION_TYPES = {
-  CODE_FIX: 'CODE_FIX',
-};
+const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
+const ACTION_TYPES = { CODE_FIX: 'CODE_FIX' };
 
 const SUITE_NAMES = {
-  solo_focus_and_unlock: 'Solo Focus & Unlock Suite',
+  solo_focus_and_unlock: 'Solo Focus & CTA Suite',
 };
 
 function makeCase(suiteId, id, name, run, options = {}) {
@@ -73,132 +66,164 @@ export const EXTRA_SUITES = [
 ];
 
 export const EXTRA_TESTS = [
-  /* 1. getSoloLevels picks a SINGLE current level (not every uncompleted one). */
-  makeCase('solo_focus_and_unlock', 'getSoloLevels_picks_single_current_level',
-    'getSoloLevels selects exactly one current level (the highest unlocked & unfinished one), preventing "Level 1 always current" regressions',
-    () => {
-      const required = missingTokens(soloLevelsLibSource, [
-        'let currentLevelNumber = cap;',
-        'for (let n = cap; n >= 1; n -= 1)',
-        'lvl.levelNumber === currentLevelNumber && !isCompleted',
-      ]);
-      // The old buggy formula collapsed every non-completed unlocked
-      // level to 'current'. We forbid that exact fallback as the SOLE
-      // branch for 'current'.
-      const forbidden = forbiddenTokensFound(soloLevelsLibSource, [
-        // explicit anti-pattern: a bare else-current chain that would
-        // mark multiple levels current.
-        "else if (isCompleted) status = 'completed';\n    else status = 'current';",
-      ]);
-      if (required.length || forbidden.length) {
-        return fail('Single-current-level picker missing — multiple levels could be flagged current at once.', {
-          verification: 'STATIC_CONTRACT',
-          classification: 'REAL_PRODUCT_RISK',
-          file: 'lib/soloLevels.js',
-          actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'highest-unfinished-unlocked level picked as the unique current; bare else-current fallback removed',
-          actual: { required, forbidden },
-        });
-      }
-      return pass('Exactly one current level is selected by getSoloLevels.', {
-        verification: 'STATIC_CONTRACT',
-        classification: 'STATIC_CHECK_LIMITATION',
-      });
-    },
-    { actionType: ACTION_TYPES.CODE_FIX }),
-
-  /* 2. Passing Level N unlocks Level N+1 (off-by-one regression guard). */
-  makeCase('solo_focus_and_unlock', 'passing_level_n_unlocks_level_n_plus_1',
-    'applyLevelAttempt bumps currentLevel to fresh.levelNumber + 1 on pass and never decreases it on replay/fail',
-    () => {
-      const required = missingTokens(soloLevelsLibSource, [
-        'const nextUnlock = Math.min(getSoloLevelCount(), fresh.levelNumber + 1);',
-        'if (nextUnlock > next.currentLevel) next.currentLevel = nextUnlock;',
-        'if (fresh.passed) {',
-      ]);
-      // Make sure stars are still monotonic so replay can't regress.
-      const requiredMerge = missingTokens(soloLevelsLibSource, [
-        'if (freshStars < prevStars)',
-        'Never regress stars',
-      ]);
-      if (required.length || requiredMerge.length) {
-        return fail('Unlock formula or stars-monotonic guard missing — risk of Level 9 stuck locked after Level 8 pass.', {
-          verification: 'STATIC_CONTRACT',
-          classification: 'REAL_PRODUCT_RISK',
-          file: 'lib/soloLevels.js',
-          actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'fresh.levelNumber + 1 unlock on pass; never decreases; never regresses stars on replay',
-          actual: { required, requiredMerge },
-        });
-      }
-      return pass('Pass → next level unlock formula and monotonic stars guard are in place.', {
-        verification: 'STATIC_CONTRACT',
-        classification: 'STATIC_CHECK_LIMITATION',
-      });
-    },
-    { actionType: ACTION_TYPES.CODE_FIX }),
-
-  /* 3. Bottom Play CTA reflects the selected level, never hard-coded "Level 1". */
-  makeCase('solo_focus_and_unlock', 'bottom_cta_reflects_selected_level',
-    'SoloChallenge bottom CTA renders the selected level number (no hard-coded "LEVEL 1" label)',
+  /* 1. Default selection sources from the shared helper. */
+  makeCase('solo_focus_and_unlock', 'default_selection_from_helper',
+    'SoloChallenge computes defaultSelectedNumber via getDefaultSelectedLevel(progress, getSoloLevelCount())',
     () => {
       const required = missingTokens(soloChallengeSource, [
-        'selectedLevel ? `LEVEL ${selectedLevel.levelNumber}`',
+        "import { getDefaultSelectedLevel } from '@/lib/soloProgressHelpers'",
+        'getDefaultSelectedLevel(progress, getSoloLevelCount())',
       ]);
-      // Forbid any hard-coded "LEVEL 1" / "Level 1" CTA string in source.
-      // The hint banner is allowed to use "Level X" via template literal,
-      // so we only guard the literal hard-coded form.
+      if (required.length) {
+        return fail('Default selection no longer goes through the shared helper.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'pages/SoloChallenge.jsx',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'helper import + call',
+          actual: { required },
+        });
+      }
+      return pass('Default selection is on the shared helper.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  /* 2. CTA label is derived, never hard-coded. */
+  makeCase('solo_focus_and_unlock', 'bottom_cta_reflects_selected_level',
+    'SoloChallenge bottom CTA renders LEVEL ${selectedLevel.levelNumber} (or defaultSelectedNumber while loading) and never hard-codes "LEVEL 1"',
+    () => {
+      const required = missingTokens(soloChallengeSource, [
+        'LEVEL ${selectedLevel.levelNumber}',
+        'LEVEL ${defaultSelectedNumber}',
+      ]);
       const forbidden = forbiddenTokensFound(soloChallengeSource, [
         '>LEVEL 1<',
         "'LEVEL 1'",
         '"LEVEL 1"',
       ]);
       if (required.length || forbidden.length) {
-        return fail('Bottom Play CTA does not derive its label from the selected level.', {
+        return fail('CTA label is not properly derived.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'pages/SoloChallenge.jsx',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'CTA label = `LEVEL ${selectedLevel.levelNumber}`; no hard-coded LEVEL 1 literal',
+          expected: 'template-literal labels for both selectedLevel and defaultSelectedNumber; no hard-coded LEVEL 1',
           actual: { required, forbidden },
         });
       }
-      return pass('Bottom CTA reflects the currently selected level dynamically.', {
+      return pass('CTA label is dynamic.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 4. Initial selection defaults to current/next playable, not Level 1 blindly. */
-  makeCase('solo_focus_and_unlock', 'initial_selection_uses_current_level',
-    'SoloChallenge initial selected level number resolves from levels.find(status==="current") before falling back to the first playable level',
+  /* 3. progressLoaded gate exists. */
+  makeCase('solo_focus_and_unlock', 'progress_loaded_gate_present',
+    'SoloChallenge declares progressLoaded state + setter so async hydration cannot commit the CTA to the wrong level',
     () => {
       const required = missingTokens(soloChallengeSource, [
-        "const current = levels.find((l) => l.status === 'current');",
-        'if (current) return current.levelNumber;',
-        "const firstPlayable = levels.find((l) => l.isPlayable);",
+        'progressLoaded',
+        'setProgressLoaded(true)',
       ]);
       if (required.length) {
-        return fail('Initial selection does not prefer the current level — Solo would always start at Level 1.', {
+        return fail('progressLoaded gate missing.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'pages/SoloChallenge.jsx',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'initialSelectedNumber prefers current → first playable → 1',
+          expected: 'progressLoaded state + setProgressLoaded(true) call',
           actual: { required },
         });
       }
-      return pass('Initial selection prefers the current level.', {
+      return pass('Hydration gate is present.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 5. Auto-scroll is hardened against zero-height first paint. */
+  /* 4. Selection stickiness flag exists. */
+  makeCase('solo_focus_and_unlock', 'user_touched_selection_flag',
+    'SoloChallenge tracks userTouchedSelection so a tapped level stays selected even if progress refreshes',
+    () => {
+      const required = missingTokens(soloChallengeSource, [
+        'userTouchedSelection',
+        'setUserTouchedSelection(true)',
+        'setUserTouchedSelection(false)',
+      ]);
+      if (required.length) {
+        return fail('Selection stickiness flag missing.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'pages/SoloChallenge.jsx',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'userTouchedSelection state + both setter usages',
+          actual: { required },
+        });
+      }
+      return pass('Selection stickiness is wired.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  /* 5. Initial focus uses helper-computed default. */
+  makeCase('solo_focus_and_unlock', 'level_map_path_receives_focus_target',
+    'SoloChallenge passes focusLevelNumber={defaultSelectedNumber} to LevelMapPath so auto-scroll targets the current playable level',
+    () => {
+      const required = missingTokens(soloChallengeSource, [
+        'focusLevelNumber={defaultSelectedNumber}',
+      ]);
+      if (required.length) {
+        return fail('focusLevelNumber prop not wired to LevelMapPath.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'pages/SoloChallenge.jsx',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'focusLevelNumber={defaultSelectedNumber}',
+          actual: { required },
+        });
+      }
+      return pass('Auto-scroll target is sourced from the shared helper.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX, runtimeProofRequired: true }),
+
+  /* 6. LevelMapPath accepts focusLevelNumber and prefers it over status='current'. */
+  makeCase('solo_focus_and_unlock', 'level_map_path_honors_focus_target',
+    'LevelMapPath accepts focusLevelNumber and uses it as the auto-scroll target when provided',
+    () => {
+      const required = missingTokens(levelMapPathSource, [
+        'focusLevelNumber',
+        'levels.find((l) => l.levelNumber === focusLevelNumber)',
+      ]);
+      if (required.length) {
+        return fail('LevelMapPath does not honor focusLevelNumber.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'components/solo/LevelMapPath.jsx',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'focusLevelNumber prop + lookup',
+          actual: { required },
+        });
+      }
+      return pass('LevelMapPath honors the focus target.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  /* 7. Auto-scroll math is layout-timing resilient. */
   makeCase('solo_focus_and_unlock', 'auto_scroll_resilient_to_layout_timing',
-    'LevelMapPath defers the auto-scroll math to the next animation frame and retries when the container height is not yet measured',
+    'LevelMapPath defers the auto-scroll math to the next animation frame and falls back to scrollIntoView when clientHeight is 0',
     () => {
       const required = missingTokens(levelMapPathSource, [
         'requestAnimationFrame',
@@ -215,7 +240,7 @@ export const EXTRA_TESTS = [
           actual: { required },
         });
       }
-      return pass('Auto-scroll defers to rAF and falls back to scrollIntoView when layout is not ready.', {
+      return pass('Auto-scroll math is layout-timing resilient.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });

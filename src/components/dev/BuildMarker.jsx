@@ -1,6 +1,40 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex109 — Solo focus & unlock fixes:
+// Codex110 — Solo unlock SELF-HEALING + CTA / focus / Profile single
+// source of truth:
+//   • NEW lib/soloProgressHelpers.js — getHighestCompletedLevel,
+//     getEffectiveUnlockedLevel, getCurrentPlayableLevel,
+//     getDefaultSelectedLevel, getLevelStatus, canPlayLevel.
+//   • The effective unlock frontier is now
+//       max(persisted currentLevel, highestCompletedLevel + 1)
+//     so completing Level 8 ALWAYS implies Level 9 is unlocked, even
+//     when the persisted `currentLevel` snapshot is stale (server write
+//     dropped, new device with empty localStorage, partial sync, etc.).
+//     This is the actual fix for "Level 9 locked after 1-8 completed".
+//   • applyLevelAttempt now recomputes the frontier on EVERY call from
+//     (prior currentLevel, highest stars, fresh attempt). Old "only
+//     bump on pass when nextUnlock > current" branch removed.
+//   • getSoloLevels delegates status entirely to getLevelStatus — no
+//     more inline picker. Eliminates the multi-current edge cases.
+//   • SoloChallenge: progressLoaded gate prevents CTA from committing
+//     to "Level 1" before server snapshot resolves; userTouchedSelection
+//     makes the default-selection sticky after a tap, but resets after
+//     a level result so the freshly unlocked level becomes default
+//     focus on return.
+//   • LevelMapPath: new focusLevelNumber prop wins over the internal
+//     find(status==='current') so auto-scroll always targets the shared
+//     helper's "current playable" level.
+//   • ProfilePage: Level tile now reads through getCurrentPlayableLevel,
+//     identical to Solo. Self-heals from the same signal.
+//   • NEW Health suite `solo_unlock_self_healing` (12 cases) including
+//     LIVE behavioral assertions for the 1-8 → Level 9 scenario, the
+//     stale-currentLevel recovery, applyLevelAttempt monotonicity,
+//     fail does-not-unlock, status shape invariants, and CTA / focus /
+//     Profile contract checks.
+//   • Drag/drop, Timeline, QuestionCard, GameLayout, online invite,
+//     lobby, notification, tutorial profile — UNTOUCHED.
+//
+// Previous note: Codex109 — Solo focus & unlock fixes:
 //   • getSoloLevels now picks exactly ONE current level (the highest
 //     unlocked & unfinished one). Previously every uncompleted unlocked
 //     level was 'current', so auto-scroll always targeted Level 1 and
@@ -184,7 +218,7 @@ import React, { useEffect, useState } from 'react';
 //   visible 120s SoloLevelTimer (no audio cue).
 // Previous note: Codex106 — Solo level completion popup polish.
 // Previous note: Codex106 — Solo Level Path (vertical 8-row path).
-const BUILD_MARKER = 'Codex109';
+const BUILD_MARKER = 'Codex110';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -8,9 +8,11 @@ import ScreenHeader from '@/components/layout/ScreenHeader';
 import LevelMapPath from '@/components/solo/LevelMapPath';
 import {
   buildSoloGameConfigForLevel,
+  getSoloLevelCount,
   getSoloLevels,
   readSoloProgress,
 } from '@/lib/soloLevels';
+import { getDefaultSelectedLevel } from '@/lib/soloProgressHelpers';
 
 /**
  * Codex108 — Solo entry is now a SCROLLABLE vertical adventure map.
@@ -32,7 +34,15 @@ export default function SoloChallenge() {
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState(null);
+  // Codex110 — start with the localStorage mirror synchronously so a
+  // returning player on the same device sees their real progress on the
+  // very first paint, but TRACK whether we've also resolved the server
+  // user. Until that flips true, the user has NOT explicitly chosen a
+  // level yet, so the default selection follows progress. After it flips
+  // true (or the user taps a node), selection is "sticky".
   const [progress, setProgress] = useState(() => readSoloProgress(null));
+  const [progressLoaded, setProgressLoaded] = useState(false);
+  const [userTouchedSelection, setUserTouchedSelection] = useState(false);
 
   // Pull the latest user + their persisted solo_progress.
   useEffect(() => {
@@ -42,11 +52,13 @@ export default function SoloChallenge() {
         if (cancelled) return;
         setUser(u || null);
         setProgress(readSoloProgress(u || null));
+        setProgressLoaded(true);
       })
       .catch(() => {
         if (cancelled) return;
         setUser(null);
         setProgress(readSoloProgress(null));
+        setProgressLoaded(true);
       });
     return () => { cancelled = true; };
   }, []);
@@ -57,6 +69,11 @@ export default function SoloChallenge() {
   // reload. The state key is intentionally one-shot.
   useEffect(() => {
     if (!location.state?.soloResultApplied) return;
+    // Reset the "user touched selection" flag so the freshly unlocked
+    // level becomes the default focus again. This is the expected
+    // behavior right after a pass: the screen should drop the player on
+    // the NEXT level, not on whatever they last tapped before the run.
+    setUserTouchedSelection(false);
     base44.auth.me()
       .then((u) => setProgress(readSoloProgress(u || null)))
       .catch(() => setProgress(readSoloProgress(user)));
@@ -67,26 +84,32 @@ export default function SoloChallenge() {
 
   const levels = useMemo(() => getSoloLevels(progress), [progress]);
 
-  const initialSelectedNumber = useMemo(() => {
-    const current = levels.find((l) => l.status === 'current');
-    if (current) return current.levelNumber;
-    const firstPlayable = levels.find((l) => l.isPlayable);
-    return firstPlayable?.levelNumber ?? 1;
-  }, [levels]);
+  // Codex110 — Default selection uses the shared helper, which derives
+  // the current playable level from BOTH persisted currentLevel AND the
+  // highest-completed-level signal. This is the single source of truth.
+  const defaultSelectedNumber = useMemo(
+    () => getDefaultSelectedLevel(progress, getSoloLevelCount()),
+    [progress],
+  );
 
-  const [selectedLevelNumber, setSelectedLevelNumber] = useState(initialSelectedNumber);
+  const [selectedLevelNumber, setSelectedLevelNumber] = useState(defaultSelectedNumber);
 
-  // Keep the selection in sync when progress refreshes (e.g. after a level
-  // is passed and the next one unlocks → jump selection to the new current).
+  // Codex110 — Keep selection synced with progress UNLESS the user has
+  // explicitly tapped a level. Once they tap, selection stays put even
+  // if progress updates (e.g. background server fetch lands). After a
+  // level attempt completes, the soloResultApplied effect clears the
+  // "touched" flag so the new current level wins.
   useEffect(() => {
-    setSelectedLevelNumber(initialSelectedNumber);
-  }, [initialSelectedNumber]);
+    if (userTouchedSelection) return;
+    setSelectedLevelNumber(defaultSelectedNumber);
+  }, [defaultSelectedNumber, userTouchedSelection]);
 
   const selectedLevel = levels.find((l) => l.levelNumber === selectedLevelNumber) || null;
 
   const handleSelectLevel = (level) => {
     if (!level.isPlayable) return;
     sounds.tap();
+    setUserTouchedSelection(true);
     setSelectedLevelNumber(level.levelNumber);
   };
 
@@ -159,6 +182,7 @@ export default function SoloChallenge() {
             selectedLevelNumber={selectedLevelNumber}
             onSelectLevel={handleSelectLevel}
             bottomReservedPx={BOTTOM_RESERVED_PX}
+            focusLevelNumber={defaultSelectedNumber}
           />
         </div>
       </div>
@@ -201,7 +225,14 @@ export default function SoloChallenge() {
           aria-label="Oyna"
         >
           <Play className="h-5 w-5" fill="#1a0a00" />
-          {selectedLevel ? `LEVEL ${selectedLevel.levelNumber}` : 'OYNA'}
+          {/* Codex110 — CTA label always derives from selectedLevel; falls
+              back to the helper-computed default (current playable) until
+              progress resolves. NEVER hard-coded to "LEVEL 1". */}
+          {selectedLevel
+            ? `LEVEL ${selectedLevel.levelNumber}`
+            : progressLoaded
+              ? `LEVEL ${defaultSelectedNumber}`
+              : 'YÜKLENİYOR'}
         </motion.button>
       </div>
     </div>

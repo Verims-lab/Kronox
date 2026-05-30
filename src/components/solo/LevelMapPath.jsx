@@ -73,6 +73,12 @@ export default function LevelMapPath({
   selectedLevelNumber,
   onSelectLevel,
   bottomReservedPx = 192,
+  // Codex110 — Explicit focus target from the parent (computed via the
+  // shared helper getCurrentPlayableLevel). When provided, this wins over
+  // the internal `find(status === 'current')` heuristic, so the parent's
+  // single-source-of-truth definition of "current playable" is always
+  // what we scroll to. Falling back keeps backward compat.
+  focusLevelNumber,
 }) {
   // We render top → bottom in JSX, but display HIGH levels at the top and
   // LOW levels at the bottom. We achieve this by reversing the array.
@@ -93,14 +99,18 @@ export default function LevelMapPath({
   //      not usable.
   const containerRef = useRef(null);
   const nodeRefs = useRef({});
-  const currentLevelNumber = levels.find((l) => l.status === 'current')?.levelNumber;
+  // Codex110 — Prefer the explicit focus target the parent passed in.
+  // It is computed via getCurrentPlayableLevel(progress) — the single
+  // source of truth for "where the user should be looking right now".
+  const currentLevelNumber =
+    focusLevelNumber ||
+    levels.find((l) => l.status === 'current')?.levelNumber;
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    // Prefer the explicit 'current' level; fall back to the first playable
-    // (covers replay-only scenarios where every level is 'completed').
     const target =
+      (focusLevelNumber && levels.find((l) => l.levelNumber === focusLevelNumber)) ||
       levels.find((l) => l.status === 'current') ||
       [...levels].reverse().find((l) => l.isPlayable) ||
       levels[0];
