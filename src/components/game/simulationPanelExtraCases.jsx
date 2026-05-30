@@ -1850,7 +1850,7 @@ export const EXTRA_TESTS = [
     'Asset/path drift warning if approved assets are missing or remote paths are used',
     'MainMenu.jsx + LobbyCreateJoinPanel.jsx',
     `${mainMenuSource}\n${lobbyCreateJoinPanelSource}`,
-    ['/assets/ui/', 'Kronox_Home_Fantasy_Background.png', 'Kronox_Online_CTA_Start.webp'],
+    ['/assets/ui/', 'Kronox_Home_Fantasy_Background.png', 'Kronox_Online_CTA_Start.png'],
     { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW }),
   sourceLacks('visual_composition_regression', 'no_remote_visual_assets_new_screens',
     'Approved visual surfaces do not depend on new remote asset URLs',
