@@ -80,8 +80,20 @@ export default function LevelMapPath({
 
   // Auto-scroll the current level into view on mount + whenever it
   // changes (e.g. after a pass unlocks the next one).
+  //
+  // Codex109 hardening — the original effect read scrollTop once on mount,
+  // but on slow Android WebViews `clientHeight` is still 0 in the same
+  // tick the component first paints (flex parent hasn't laid out yet).
+  // Result: scrollTop=0 and the user lands on Level 20 (top of reversed
+  // list = highest level = "locked"). We now:
+  //   1. Defer the calculation to the next animation frame (lets layout
+  //      settle).
+  //   2. Retry once after a short delay if clientHeight was still 0.
+  //   3. Fall back to scrollIntoView({block:'center'}) when offsetTop is
+  //      not usable.
   const containerRef = useRef(null);
   const nodeRefs = useRef({});
+  const currentLevelNumber = levels.find((l) => l.status === 'current')?.levelNumber;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -93,18 +105,39 @@ export default function LevelMapPath({
       [...levels].reverse().find((l) => l.isPlayable) ||
       levels[0];
     if (!target) return;
-    const node = nodeRefs.current[target.levelNumber];
-    if (!node) return;
-    // Center the target node vertically. We don't use scrollIntoView's
-    // 'smooth' on mount because some Android WebViews skip it; we set
-    // scrollTop directly so the user immediately sees the right area.
-    const nodeRect = node.getBoundingClientRect();
-    const containerRect = container.getBoundingClientRect();
-    const offset =
-      node.offsetTop - container.clientHeight / 2 + nodeRect.height / 2;
-    container.scrollTop = Math.max(0, offset);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [levels.length, levels.find((l) => l.status === 'current')?.levelNumber]);
+
+    const focus = () => {
+      const node = nodeRefs.current[target.levelNumber];
+      if (!node) return false;
+      const ch = container.clientHeight;
+      if (ch === 0) return false; // layout not ready yet
+      const offset = node.offsetTop - ch / 2 + node.offsetHeight / 2;
+      container.scrollTop = Math.max(0, offset);
+      return true;
+    };
+
+    // Try immediately on next frame; if layout still isn't ready, retry
+    // once after 80ms which is enough for a WebView to settle.
+    const raf = requestAnimationFrame(() => {
+      if (!focus()) {
+        const t = window.setTimeout(() => {
+          if (!focus()) {
+            // Last-resort: rely on the browser's own centering.
+            const node = nodeRefs.current[target.levelNumber];
+            if (node && node.scrollIntoView) {
+              node.scrollIntoView({ block: 'center', inline: 'nearest' });
+            }
+          }
+        }, 80);
+        // store id on container so cleanup can clear
+        container.__kxFocusTimer = t;
+      }
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      if (container.__kxFocusTimer) window.clearTimeout(container.__kxFocusTimer);
+    };
+  }, [levels.length, currentLevelNumber]);
 
   return (
     <div

@@ -1,6 +1,23 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex108 — Solo Level Path becomes a scrollable vertical adventure map:
+// Codex109 — Solo focus & unlock fixes:
+//   • getSoloLevels now picks exactly ONE current level (the highest
+//     unlocked & unfinished one). Previously every uncompleted unlocked
+//     level was 'current', so auto-scroll always targeted Level 1 and
+//     the bottom Play CTA always showed "LEVEL 1".
+//   • LevelMapPath auto-scroll hardened: rAF-deferred, retries when
+//     container clientHeight is still 0 on first paint, falls back to
+//     scrollIntoView({block:'center'}). Fixes the "ekran Level 20'lerin
+//     üstünde açılıyor" bug on Android WebViews.
+//   • Locked node visual: subtle stone gradient + faint level number
+//     ghost under the lock icon. Less dead/empty, still clearly locked.
+//   • Profile/Solo source-of-truth (readSoloProgress), applyLevelAttempt
+//     unlock formula (N → N+1), drag/drop, Timeline, QuestionCard,
+//     GameLayout, online/lobby/invite/notification/tutorial — UNCHANGED.
+//   • New Health suite `solo_focus_and_unlock` (5 cases) locks the new
+//     invariants without bloating simulationPanelExtraCases.js.
+//
+// Previous note: Codex108 — Solo Level Path becomes a scrollable vertical adventure map:
 // Level 1 at the bottom, upward progression, alternating left/right path,
 // auto-scroll to current level on mount, and a new zone/theme banner
 // every 5 levels (4 zones cover the 20-level catalog). BottomNav stays
@@ -167,7 +184,7 @@ import React, { useEffect, useState } from 'react';
 //   visible 120s SoloLevelTimer (no audio cue).
 // Previous note: Codex106 — Solo level completion popup polish.
 // Previous note: Codex106 — Solo Level Path (vertical 8-row path).
-const BUILD_MARKER = 'Codex108';
+const BUILD_MARKER = 'Codex109';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

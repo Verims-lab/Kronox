@@ -40,10 +40,14 @@ export default function LevelMapNode({ level, selected, onSelect }) {
           '0 0 0 2px rgba(250,204,21,0.30), 0 0 14px rgba(250,204,21,0.30), inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -6px 8px rgba(60,40,10,0.55)',
       }
     : {
-        background: 'radial-gradient(circle at 35% 28%, rgba(80,100,140,0.45), rgba(20,30,50,0.85) 75%)',
-        color: 'rgba(226,232,240,0.55)',
+        // Codex109 — locked nodes were too "dead/empty" in dark backgrounds.
+        // Subtle stone gradient + cooler ring + faint level-number ghost
+        // keeps them readable as part of the path without implying play.
+        background:
+          'radial-gradient(circle at 35% 28%, rgba(110,135,180,0.42), rgba(28,42,72,0.95) 75%)',
+        color: 'rgba(226,232,240,0.42)',
         boxShadow:
-          'inset 0 0 0 1.5px rgba(120,140,180,0.25), inset 0 -6px 8px rgba(0,0,0,0.5)',
+          'inset 0 0 0 1.5px rgba(140,165,210,0.38), inset 0 1px 0 rgba(255,255,255,0.10), inset 0 -8px 10px rgba(0,0,0,0.55), 0 4px 10px rgba(2,6,23,0.5)',
       };
 
   return (
@@ -111,10 +115,18 @@ export default function LevelMapNode({ level, selected, onSelect }) {
         style={circleStyle}
       >
         {isLocked ? (
-          <Lock className="h-7 w-7" strokeWidth={2.4} />
-        ) : isCurrent ? (
-          <span className="flex flex-col items-center gap-0.5">
-            <span>{levelNumber}</span>
+          // Codex109 — show level number alongside the lock so the path
+          // stays readable. Number is heavily dimmed; lock stays the
+          // primary signal.
+          <span className="relative flex h-full w-full items-center justify-center">
+            <span
+              aria-hidden="true"
+              className="absolute font-bangers text-[26px] leading-none"
+              style={{ color: 'rgba(226,232,240,0.18)' }}
+            >
+              {levelNumber}
+            </span>
+            <Lock className="relative h-6 w-6" strokeWidth={2.4} />
           </span>
         ) : (
           <span>{levelNumber}</span>
