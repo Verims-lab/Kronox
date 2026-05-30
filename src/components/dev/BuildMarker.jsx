@@ -1,6 +1,20 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex112 — Solo replay score delta hardening:
+// Codex113 — Solo score migration/backfill:
+//   • Existing User.solo_progress records with bestStars but missing
+//     bestScore now backfill score fields from star base + reliable
+//     bestTimeSeconds only.
+//   • Missing time is never invented; those records receive base score only.
+//   • totalSoloScore is recomputed from level bestScore values every time,
+//     making the migration idempotent and preventing replay duplication.
+//   • currentLevel is only preserved or raised from completed-level history;
+//     existing unlock progress is never reduced.
+//   • SoloChallenge/Profile/Leaderboard run current-user backfill once on
+//     profile load and persist only when normalized progress differs.
+//   • Health adds executable backfill cases for star-only progress, time
+//     bonus, idempotency, no fake time, and unlock preservation.
+//
+// Previous note: Codex112 — Solo replay score delta hardening:
 //   • getBestSoloLevelResult now returns updatedBestLevelResult,
 //     previousBestScore, scoreDelta, and didImprove.
 //   • totalSoloScore remains a derived sum of per-level bestScore values,
@@ -245,7 +259,7 @@ import React, { useEffect, useState } from 'react';
 //   visible 120s SoloLevelTimer (no audio cue).
 // Previous note: Codex106 — Solo level completion popup polish.
 // Previous note: Codex106 — Solo Level Path (vertical 8-row path).
-const BUILD_MARKER = 'Codex112';
+const BUILD_MARKER = 'Codex113';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

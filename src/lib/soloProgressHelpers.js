@@ -118,6 +118,32 @@ export function calculateSoloAttemptResult({
   };
 }
 
+export function calculateSoloLevelScoreFromBestResult(levelResult) {
+  const stars = Math.max(0, Math.min(3, Number(levelResult?.bestStars) || 0));
+  const passed = stars > 0;
+  const hasReliableTime = Number.isFinite(Number(levelResult?.bestTimeSeconds));
+  const elapsedSeconds = hasReliableTime ? Number(levelResult.bestTimeSeconds) : null;
+  const score = calculateSoloLevelScore({
+    stars,
+    elapsedSeconds: elapsedSeconds ?? 0,
+    passed,
+  });
+
+  return {
+    stars,
+    passed,
+    baseScore: score.baseScore,
+    timeBonus: hasReliableTime ? score.timeBonus : 0,
+    totalScore: passed ? score.baseScore + (hasReliableTime ? score.timeBonus : 0) : 0,
+    timeBonusBackfilled: passed && hasReliableTime,
+    scoreBackfillReason: passed && hasReliableTime
+      ? 'best_time_used_for_time_bonus'
+      : passed
+        ? 'missing_time_used_star_base_only'
+        : 'not_completed_zero_score',
+  };
+}
+
 function finiteNumber(value, fallback = null) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
@@ -298,6 +324,10 @@ export function canPlayLevel(levelNumber, progress, totalLevels) {
   return getLevelStatus(levelNumber, progress, totalLevels) !== 'locked';
 }
 
+export function deriveUnlockedLevelFromCompletedLevels(progress, totalLevels) {
+  return getEffectiveUnlockedLevel(progress, totalLevels);
+}
+
 export function summarizeSoloProgress(progress, totalLevels) {
   const levels = progress?.levels && typeof progress.levels === 'object'
     ? progress.levels
@@ -338,5 +368,79 @@ export function summarizeSoloProgress(progress, totalLevels) {
     completedLevelCount,
     totalStars,
     totalAttempts,
+  };
+}
+
+export function recalculateTotalSoloScore(progress) {
+  const levels = progress?.levels && typeof progress.levels === 'object'
+    ? progress.levels
+    : {};
+  return Object.values(levels).reduce((sum, entry) => {
+    const storedScore = finiteNumber(entry?.bestScore, null);
+    if (storedScore !== null) return sum + Math.max(0, storedScore);
+    return sum + calculateSoloLevelScoreFromBestResult(entry).totalScore;
+  }, 0);
+}
+
+export function backfillSoloScores(progress, totalLevels) {
+  const source = progress && typeof progress === 'object' ? progress : {};
+  const levels = source.levels && typeof source.levels === 'object' ? source.levels : {};
+  const storedFrontier = Math.max(
+    1,
+    Number(source.currentLevel) || 1,
+    Number(source.unlockedLevel) || 1,
+  );
+  const next = {
+    currentLevel: storedFrontier,
+    levels: {},
+  };
+  let changed = false;
+
+  Object.entries(levels).forEach(([key, entry]) => {
+    const currentEntry = entry && typeof entry === 'object' ? entry : {};
+    const copy = { ...currentEntry };
+    const score = calculateSoloLevelScoreFromBestResult(copy);
+
+    if (score.passed) {
+      if (!Number.isFinite(Number(copy.bestScore))) {
+        copy.bestScore = score.totalScore;
+        changed = true;
+      }
+      if (!Number.isFinite(Number(copy.bestScoreStars))) {
+        copy.bestScoreStars = score.stars;
+        changed = true;
+      }
+      if (!Number.isFinite(Number(copy.bestScoreBaseScore))) {
+        copy.bestScoreBaseScore = score.baseScore;
+        changed = true;
+      }
+      if (!Number.isFinite(Number(copy.bestScoreTimeBonus))) {
+        copy.bestScoreTimeBonus = score.timeBonus;
+        changed = true;
+      }
+    }
+
+    next.levels[key] = copy;
+  });
+
+  const derivedFrontier = getHighestCompletedLevel(next) + 1;
+  const boundedDerivedFrontier = Math.min(Math.max(1, Number(totalLevels) || 1), Math.max(1, derivedFrontier));
+  const preservedCurrent = Math.max(next.currentLevel, boundedDerivedFrontier);
+  if (preservedCurrent !== next.currentLevel) {
+    next.currentLevel = preservedCurrent;
+    changed = true;
+  }
+
+  const summary = summarizeSoloProgress(next, totalLevels);
+  if (JSON.stringify(source.summary || null) !== JSON.stringify(summary)) {
+    changed = true;
+  }
+
+  return {
+    progress: {
+      ...next,
+      summary,
+    },
+    changed,
   };
 }

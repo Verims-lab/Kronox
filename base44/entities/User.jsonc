@@ -12,7 +12,7 @@
     },
     "solo_progress": {
       "type": "object",
-      "description": "Codex111 \u2014 Per-user Solo Level Path progress and score summary. Compact shape: { currentLevel, levels: { '1': { bestStars, bestScore, bestScoreStars, bestScoreBaseScore, bestScoreTimeBonus, bestMistakes, bestTimeSeconds, attempts, completedAt, lastAttemptAt } }, summary: { currentLevel, unlockedLevel, totalSoloScore, completedLevelCount, totalStars, totalAttempts } }. Writes go through base44.auth.updateMe; never mutated by other features.",
+      "description": "Codex113 \u2014 Per-user Solo Level Path progress and score summary. Existing progress is safely backfilled from bestStars/bestTimeSeconds on load without resetting stars or lowering currentLevel. Compact shape: { currentLevel, levels: { '1': { bestStars, bestScore, bestScoreStars, bestScoreBaseScore, bestScoreTimeBonus, bestMistakes, bestTimeSeconds, attempts, completedAt, lastAttemptAt } }, summary: { currentLevel, unlockedLevel, totalSoloScore, completedLevelCount, totalStars, totalAttempts } }. Writes go through base44.auth.updateMe; never mutated by other features.",
       "properties": {
         "currentLevel": {
           "type": "number"

@@ -8,6 +8,7 @@ import ScreenHeader from '@/components/layout/ScreenHeader';
 import LevelMapPath from '@/components/solo/LevelMapPath';
 import {
   buildSoloGameConfigForLevel,
+  ensureSoloProgressBackfill,
   getSoloLevelCount,
   getSoloLevels,
   readSoloProgress,
@@ -48,10 +49,12 @@ export default function SoloChallenge() {
   useEffect(() => {
     let cancelled = false;
     base44.auth.me()
-      .then((u) => {
+      .then(async (u) => {
+        if (cancelled) return;
+        const normalizedProgress = await ensureSoloProgressBackfill(u || null);
         if (cancelled) return;
         setUser(u || null);
-        setProgress(readSoloProgress(u || null));
+        setProgress(normalizedProgress);
         setProgressLoaded(true);
       })
       .catch(() => {
@@ -75,7 +78,7 @@ export default function SoloChallenge() {
     // the NEXT level, not on whatever they last tapped before the run.
     setUserTouchedSelection(false);
     base44.auth.me()
-      .then((u) => setProgress(readSoloProgress(u || null)))
+      .then(async (u) => setProgress(await ensureSoloProgressBackfill(u || null)))
       .catch(() => setProgress(readSoloProgress(user)));
     // Clear the flag so re-entering this screen later doesn't keep refetching.
     navigate(location.pathname, { replace: true, state: {} });

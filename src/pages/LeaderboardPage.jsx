@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Sparkles, Star, Trophy, Users } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import ScreenHeader from '@/components/layout/ScreenHeader';
-import { getSoloLevelCount, readSoloProgress } from '@/lib/soloLevels';
+import { ensureSoloProgressBackfill, getSoloLevelCount, readSoloProgress } from '@/lib/soloLevels';
 import { summarizeSoloProgress } from '@/lib/soloProgressHelpers';
 
 /**
@@ -16,7 +16,16 @@ export default function LeaderboardPage() {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    base44.auth.me().then((u) => setUser(u || null)).catch(() => setUser(null));
+    base44.auth.me()
+      .then(async (u) => {
+        if (!u) {
+          setUser(null);
+          return;
+        }
+        const normalizedProgress = await ensureSoloProgressBackfill(u);
+        setUser({ ...u, solo_progress: normalizedProgress });
+      })
+      .catch(() => setUser(null));
   }, []);
 
   const progress = readSoloProgress(user);

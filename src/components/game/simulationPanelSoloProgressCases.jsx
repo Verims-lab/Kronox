@@ -33,8 +33,10 @@ import soloLevelResultSource from './SoloLevelResult.jsx?raw';
 import soloLevelTimerSource from './SoloLevelTimer.jsx?raw';
 import gameSoundsSource from '../../lib/gameSounds.js?raw';
 import {
+  backfillSoloScores,
   calculateSoloAttemptResult,
   calculateSoloLevelScore,
+  calculateSoloLevelScoreFromBestResult,
   getBestSoloLevelResult,
   summarizeSoloProgress,
 } from '../../lib/soloProgressHelpers';
@@ -379,6 +381,8 @@ export const EXTRA_TESTS = [
         'export function calculateSoloAttemptResult',
         'export function getBestSoloLevelResult',
         'export function summarizeSoloProgress',
+        'export function calculateSoloLevelScoreFromBestResult',
+        'export function backfillSoloScores',
         'scoreDelta',
         'updatedBestLevelResult',
       ]);
@@ -577,6 +581,172 @@ export const EXTRA_TESTS = [
         classification: 'EXECUTABLE_HELPER_PROOF',
         actionType: ACTION_TYPES.CODE_FIX,
         actual: { before, after, deltas },
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('solo_progress_health', 'solo_existing_progress_score_backfill_from_stars',
+    'Existing completed levels with stars but missing score get bestScore from stars',
+    () => {
+      const backfilled = backfillSoloScores({
+        currentLevel: 3,
+        levels: {
+          1: { bestStars: 3, attempts: 2 },
+          2: { bestStars: 2, attempts: 1 },
+        },
+      }, 20).progress;
+      if (backfilled.levels[1].bestScore !== 10 || backfilled.levels[2].bestScore !== 8 || backfilled.summary.totalSoloScore !== 18) {
+        return fail('Existing star-only Solo progress did not backfill base scores correctly.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'Level 1=10, Level 2=8, total=18',
+          actual: backfilled,
+        });
+      }
+      return pass('Star-only existing progress backfills level bestScore from the base star score.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'EXECUTABLE_HELPER_PROOF',
+        actionType: ACTION_TYPES.CODE_FIX,
+        actual: backfilled.summary,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('solo_progress_health', 'solo_existing_progress_time_bonus_if_time_exists',
+    'Backfill applies time bonus only when reliable bestTimeSeconds exists',
+    () => {
+      const noTime = calculateSoloLevelScoreFromBestResult({ bestStars: 3 });
+      const fast = calculateSoloLevelScoreFromBestResult({ bestStars: 3, bestTimeSeconds: 54 });
+      const medium = calculateSoloLevelScoreFromBestResult({ bestStars: 2, bestTimeSeconds: 75 });
+      const slow = calculateSoloLevelScoreFromBestResult({ bestStars: 1, bestTimeSeconds: 110 });
+      const backfilled = backfillSoloScores({
+        currentLevel: 4,
+        levels: {
+          1: { bestStars: 3, bestTimeSeconds: 54 },
+          2: { bestStars: 2, bestTimeSeconds: 75 },
+          3: { bestStars: 1 },
+        },
+      }, 20).progress;
+      const missingTimeWasInvented = Object.prototype.hasOwnProperty.call(backfilled.levels[3], 'bestTimeSeconds');
+      if (
+        noTime.timeBonus !== 0 ||
+        fast.totalScore !== 20 ||
+        medium.totalScore !== 13 ||
+        slow.totalScore !== 5 ||
+        backfilled.summary.totalSoloScore !== 38 ||
+        missingTimeWasInvented
+      ) {
+        return fail('Backfill time bonus or missing-time handling regressed.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: '<60 +10, 60-90 +5, >90 +0, missing time +0 and no fake bestTimeSeconds',
+          actual: { noTime, fast, medium, slow, backfilled, missingTimeWasInvented },
+        });
+      }
+      return pass('Backfill uses reliable bestTimeSeconds for bonus and gives missing time base score only.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'EXECUTABLE_HELPER_PROOF',
+        actionType: ACTION_TYPES.CODE_FIX,
+        actual: { noTime, fast, medium, slow, total: backfilled.summary.totalSoloScore },
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('solo_progress_health', 'solo_total_score_backfill_is_idempotent',
+    'Running Solo score backfill twice does not double totalSoloScore',
+    () => {
+      const original = {
+        currentLevel: 3,
+        summary: { totalSoloScore: 9999 },
+        levels: {
+          1: { bestStars: 3, bestTimeSeconds: 54, attempts: 4 },
+          2: { bestStars: 2, attempts: 3 },
+        },
+      };
+      const once = backfillSoloScores(original, 20).progress;
+      const twice = backfillSoloScores(once, 20).progress;
+      if (once.summary.totalSoloScore !== 28 || twice.summary.totalSoloScore !== 28 || JSON.stringify(once) !== JSON.stringify(twice)) {
+        return fail('Backfill is not idempotent or total score was added to an old total.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: '20 + 8 = 28 on every run, not 9999 + 28 or repeated accumulation',
+          actual: { once, twice },
+        });
+      }
+      return pass('Backfill deterministically recomputes totalSoloScore from level bestScore and is idempotent.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'EXECUTABLE_HELPER_PROOF',
+        actionType: ACTION_TYPES.CODE_FIX,
+        actual: once.summary,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('solo_progress_health', 'solo_backfill_preserves_unlocked_level',
+    'Backfill never reduces currentLevel and completed Level 8 implies Level 9 playable',
+    () => {
+      const alreadyNine = backfillSoloScores({
+        currentLevel: 9,
+        levels: { 1: { bestStars: 3 } },
+      }, 20).progress;
+      const staleOne = backfillSoloScores({
+        currentLevel: 1,
+        levels: {
+          1: { bestStars: 3 },
+          2: { bestStars: 3 },
+          3: { bestStars: 3 },
+          4: { bestStars: 3 },
+          5: { bestStars: 3 },
+          6: { bestStars: 3 },
+          7: { bestStars: 3 },
+          8: { bestStars: 3 },
+        },
+      }, 20).progress;
+      if (alreadyNine.currentLevel !== 9 || staleOne.currentLevel < 9 || staleOne.summary.unlockedLevel < 9) {
+        return fail('Backfill reduced or failed to recover the Solo unlock frontier.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'existing Level 9 remains 9; completed Level 8 recovers to at least Level 9',
+          actual: { alreadyNine, staleOne },
+        });
+      }
+      return pass('Backfill preserves currentLevel and recovers Level 9 from completed Level 8 history.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'EXECUTABLE_HELPER_PROOF',
+        actionType: ACTION_TYPES.CODE_FIX,
+        actual: { alreadyNine: alreadyNine.currentLevel, staleOne: staleOne.currentLevel },
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('solo_progress_health', 'solo_backfill_no_fake_time',
+    'Missing time does not create fake bestTimeSeconds during backfill',
+    () => {
+      const backfilled = backfillSoloScores({
+        currentLevel: 2,
+        levels: {
+          1: { bestStars: 3, attempts: 1 },
+        },
+      }, 20).progress;
+      const hasTime = Object.prototype.hasOwnProperty.call(backfilled.levels[1], 'bestTimeSeconds');
+      if (hasTime || backfilled.levels[1].bestScore !== 10 || backfilled.levels[1].bestScoreTimeBonus !== 0) {
+        return fail('Backfill invented missing time or gave a fake time bonus.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'no bestTimeSeconds field; bestScore=10; bestScoreTimeBonus=0',
+          actual: backfilled.levels[1],
+        });
+      }
+      return pass('Missing time stays missing; score uses star base only with no fake bonus.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'EXECUTABLE_HELPER_PROOF',
+        actionType: ACTION_TYPES.CODE_FIX,
+        actual: backfilled.levels[1],
       });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),

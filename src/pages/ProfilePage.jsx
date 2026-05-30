@@ -11,7 +11,7 @@ import ScreenHeader from '@/components/layout/ScreenHeader';
 // A stale `currentLevel` can no longer make Profile drift from Solo, and
 // Puan/Yıldız are real values from User.solo_progress rather than UI-only
 // placeholders.
-import { readSoloProgress, getSoloLevelCount } from '@/lib/soloLevels';
+import { ensureSoloProgressBackfill, readSoloProgress, getSoloLevelCount } from '@/lib/soloLevels';
 import { getCurrentPlayableLevel, summarizeSoloProgress } from '@/lib/soloProgressHelpers';
 
 /**
@@ -31,7 +31,14 @@ export default function ProfilePage() {
 
   useEffect(() => {
     base44.auth.me()
-      .then((u) => setUser(u || null))
+      .then(async (u) => {
+        if (!u) {
+          setUser(null);
+          return;
+        }
+        const normalizedProgress = await ensureSoloProgressBackfill(u);
+        setUser({ ...u, solo_progress: normalizedProgress });
+      })
       .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, []);

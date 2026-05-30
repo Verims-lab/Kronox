@@ -39,6 +39,7 @@ import { base44 } from '@/api/base44Client';
 import {
   calculateSoloAttemptResult,
   calculateSoloStars,
+  backfillSoloScores,
   getBestSoloLevelResult,
   getEffectiveUnlockedLevel,
   getHighestCompletedLevel,
@@ -83,15 +84,21 @@ function emptyProgress() {
   return { ...progress, summary: summarizeSoloProgress(progress, TOTAL_LEVELS) };
 }
 
-function normalizeProgressShape(raw) {
+function normalizeProgressShapeWithMeta(raw) {
+  const source = raw && typeof raw === 'object' ? raw : {};
   const progress = {
     currentLevel: Math.max(1, Number(raw?.currentLevel) || 1),
     levels: (raw?.levels && typeof raw.levels === 'object') ? raw.levels : {},
   };
-  return {
-    ...progress,
-    summary: summarizeSoloProgress(progress, TOTAL_LEVELS),
-  };
+  return backfillSoloScores({ ...source, ...progress }, TOTAL_LEVELS);
+}
+
+export function normalizeSoloProgress(raw) {
+  return normalizeProgressShapeWithMeta(raw).progress;
+}
+
+function normalizeProgressShape(raw) {
+  return normalizeSoloProgress(raw);
 }
 
 function safeReadLocal() {
@@ -139,6 +146,25 @@ export function readSoloProgress(user) {
     : null;
   if (!fromUser) return fromLocal;
   return normalizeProgressShape(pickMoreAdvanced(fromUser, fromLocal));
+}
+
+function sameProgress(a, b) {
+  return JSON.stringify(a || null) === JSON.stringify(b || null);
+}
+
+export async function ensureSoloProgressBackfill(user) {
+  const progress = readSoloProgress(user || null);
+  if (!user?.email) {
+    safeWriteLocal(progress);
+    return progress;
+  }
+
+  const userMeta = normalizeProgressShapeWithMeta(user.solo_progress || null);
+  const shouldPersist = userMeta.changed || !sameProgress(userMeta.progress, progress);
+  if (shouldPersist) {
+    await writeSoloProgress(user, progress);
+  }
+  return progress;
 }
 
 function completedCount(p) {
