@@ -1,6 +1,15 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex115 — Liderlik Elmas stat correction:
+// Codex116 — Real Liderlik leaderboard section:
+//   • Replaces the Arkadaş Sıralaması placeholder with real User.solo_progress
+//     ranking when readable through Base44 User rows.
+//   • Ranks by totalSoloScore, then current level, total stars, aggregate best
+//     time, and stable identity key.
+//   • Highlights the current user, marks accepted friends, and never renders
+//     mock users, fake ranks, or raw email addresses.
+//   • Adds a modular leaderboard_health suite through the Health registry.
+//
+// Previous note: Codex115 — Liderlik Elmas stat correction:
 //   • Liderlik third stat card is now "Elmas", not "Yıldız".
 //   • Puan and Level still read real Solo progress summary values.
 //   • Elmas reads an explicit profile/economy diamond field when present,
@@ -276,7 +285,7 @@ import React, { useEffect, useState } from 'react';
 //   visible 120s SoloLevelTimer (no audio cue).
 // Previous note: Codex106 — Solo level completion popup polish.
 // Previous note: Codex106 — Solo Level Path (vertical 8-row path).
-const BUILD_MARKER = 'Codex115';
+const BUILD_MARKER = 'Codex116';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

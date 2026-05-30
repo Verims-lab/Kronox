@@ -48,12 +48,14 @@ import * as soloProgressCases from './simulationPanelSoloProgressCases';
 import * as soloMapCases from './simulationPanelSoloMapCases';
 import * as soloFocusCases from './simulationPanelSoloFocusCases';
 import * as soloUnlockCases from './simulationPanelSoloUnlockCases';
+import * as leaderboardCases from './simulationPanelLeaderboardCases';
 
 const MODULES = [
   soloProgressCases,
   soloMapCases,
   soloFocusCases,
   soloUnlockCases,
+  leaderboardCases,
 ];
 
 function flatten(key) {

@@ -389,7 +389,7 @@ export const EXTRA_TESTS = [
       const consumerMissing = [
         ...missingTokens(soloLevelsLibSource, ['calculateSoloAttemptResult', 'getBestSoloLevelResult', 'summarizeSoloProgress']),
         ...missingTokens(profilePageSource, ['summarizeSoloProgress', 'totalSoloScore', 'totalStars']),
-        ...missingTokens(leaderboardPageSource, ['summarizeSoloProgress', 'totalSoloScore', 'Arkadaş Sıralaması']),
+        ...missingTokens(leaderboardPageSource, ['summarizeSoloProgress', 'totalSoloScore', 'Kronox Sıralaması']),
         ...missingTokens(soloLevelResultSource, ['levelScore', 'baseScore', 'timeBonus', 'Puan:']),
       ];
       const forbidden = [
