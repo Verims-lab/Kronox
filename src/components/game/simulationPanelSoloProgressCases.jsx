@@ -388,7 +388,10 @@ export const EXTRA_TESTS = [
       ]);
       const consumerMissing = [
         ...missingTokens(soloLevelsLibSource, ['calculateSoloAttemptResult', 'getBestSoloLevelResult', 'summarizeSoloProgress']),
-        ...missingTokens(profilePageSource, ['summarizeSoloProgress', 'totalSoloScore', 'totalStars']),
+        // Codex116 — Profile no longer surfaces Yıldız; totalStars is no
+        // longer required on the Profile surface. Puan still uses
+        // totalSoloScore via summarizeSoloProgress.
+        ...missingTokens(profilePageSource, ['summarizeSoloProgress', 'totalSoloScore']),
         ...missingTokens(leaderboardPageSource, ['summarizeSoloProgress', 'totalSoloScore', 'Arkadaş Sıralaması']),
         ...missingTokens(soloLevelResultSource, ['levelScore', 'baseScore', 'timeBonus', 'Puan:']),
       ];
@@ -830,32 +833,43 @@ export const EXTRA_TESTS = [
     { actionType: ACTION_TYPES.CODE_FIX }),
 
   makeCase('solo_progress_health', 'solo_profile_score_contract',
-    'Profile reads the same Solo progress source for level, totalSoloScore, and totalStars; no hard-coded Level 1/stale score',
+    'Profile reads the same Solo progress source for level + totalSoloScore; Yıldız tile is gone; Elmas is real or safe 0 placeholder; no hard-coded Level 1',
     () => {
+      // Codex116 — Profile now renders exactly three stats: Puan / Level /
+      // Elmas. Yıldız is intentionally removed (moved out per product
+      // decision). Puan/Level still come from the shared Solo summary,
+      // Elmas comes from a real economy field or a safe 0 placeholder.
       const required = missingTokens(profilePageSource, [
         'ensureSoloProgressBackfill',
         'readSoloProgress',
         'summarizeSoloProgress',
         'getCurrentPlayableLevel',
         'soloSummary.totalSoloScore',
-        'soloSummary.totalStars',
         'profileLevel',
+        // Elmas tile must exist and use the no-economy-yet placeholder
+        // helper that never derives from stars/score/levels.
+        "label: 'Elmas'",
+        'getProfileDiamondValue',
       ]);
       const forbidden = forbiddenTokensFound(profilePageSource, [
         "label: 'Level', value: 1",
         "id: 'puan',  label: 'Puan',  value: 0",
-        "id: 'stars', label: 'Yıldız', value: 0",
+        // Yıldız must not reappear in Profile stats.
+        "label: 'Yıldız'",
+        "id: 'stars'",
+        // Elmas must never be derived from Yıldız/score/levels.
+        'soloSummary.totalStars,',
       ]);
       if (required.length || forbidden.length) {
         return fail('Profile Solo score/source-of-truth contract drifted.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'Profile backfills current user progress, reads shared Solo summary, and never hard-codes Level/Puan/Yıldız',
+          expected: 'Profile uses shared Solo summary for Puan+Level, exposes Elmas via no-economy-yet helper, and has no Yıldız tile or hard-coded Level 1',
           actual: { required, forbidden },
         });
       }
-      return pass('Profile uses shared Solo progress summary for Puan/Level/Yıldız and avoids stale hard-coded values.', {
+      return pass('Profile renders Puan/Level/Elmas from shared sources; Yıldız tile removed; no hard-coded Level/Puan values.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
