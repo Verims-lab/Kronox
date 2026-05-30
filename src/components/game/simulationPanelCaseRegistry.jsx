@@ -49,6 +49,9 @@ import * as soloMapCases from './simulationPanelSoloMapCases';
 import * as soloFocusCases from './simulationPanelSoloFocusCases';
 import * as soloUnlockCases from './simulationPanelSoloUnlockCases';
 import * as leaderboardCases from './simulationPanelLeaderboardCases';
+// Codex117 — Solo Map Focus suite (level → section helper + CTA/map
+// single-source-of-truth contract + auto-scroll fix lock-in).
+import * as soloMapFocusCases from './simulationPanelSoloMapFocusCases';
 
 const MODULES = [
   soloProgressCases,
@@ -56,6 +59,7 @@ const MODULES = [
   soloFocusCases,
   soloUnlockCases,
   leaderboardCases,
+  soloMapFocusCases,
 ];
 
 function flatten(key) {
