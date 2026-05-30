@@ -47,11 +47,13 @@ import {
 import * as soloProgressCases from './simulationPanelSoloProgressCases';
 import * as soloMapCases from './simulationPanelSoloMapCases';
 import * as soloFocusCases from './simulationPanelSoloFocusCases';
+import * as soloUnlockCases from './simulationPanelSoloUnlockCases';
 
 const MODULES = [
   soloProgressCases,
   soloMapCases,
   soloFocusCases,
+  soloUnlockCases,
 ];
 
 function flatten(key) {

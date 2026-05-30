@@ -30,6 +30,11 @@
 //   - Online flow, lobby, invites, notifications untouched.
 
 import { base44 } from '@/api/base44Client';
+import {
+  getEffectiveUnlockedLevel,
+  getHighestCompletedLevel,
+  getLevelStatus,
+} from './soloProgressHelpers';
 
 const STORAGE_KEY = 'kx_solo_progress_v1';
 
@@ -222,12 +227,23 @@ export function applyLevelAttempt(progress, fresh) {
   const prevEntry = next.levels[key] || null;
   next.levels[key] = mergeBetterResult(prevEntry, fresh);
 
-  // Passing unlocks the next level. We just bump `currentLevel` if the
-  // attempt passed and the user wasn't already further along.
+  // Codex110 — Always derive the unlock frontier from BOTH signals.
+  // The old "only bump on pass" branch left `currentLevel` stale when a
+  // server write got dropped or when the user's persisted snapshot was
+  // out of sync with their actual completion history. Now we recompute
+  // the frontier every time from (previous currentLevel, highest level
+  // with bestStars > 0, fresh attempt). Passing Level N → N+1 unlock is
+  // guaranteed even if the prior currentLevel was wrong.
+  const total = getSoloLevelCount();
+  const highestCompleted = getHighestCompletedLevel(next);
+  let frontier = Math.max(
+    next.currentLevel,
+    Math.min(total, highestCompleted + 1),
+  );
   if (fresh.passed) {
-    const nextUnlock = Math.min(getSoloLevelCount(), fresh.levelNumber + 1);
-    if (nextUnlock > next.currentLevel) next.currentLevel = nextUnlock;
+    frontier = Math.max(frontier, Math.min(total, fresh.levelNumber + 1));
   }
+  next.currentLevel = Math.min(total, frontier);
   return next;
 }
 
@@ -236,49 +252,34 @@ export function applyLevelAttempt(progress, fresh) {
  * Returns the catalog annotated with status/stars/isPlayable using the
  * supplied progress object.
  *
- * Rules (Codex109 — exactly-one-current fix):
- *   - The "current" level is the HIGHEST unlocked level (≤ currentLevel)
- *     that is not yet completed. There is at most ONE 'current'.
- *   - Any other level ≤ currentLevel with bestStars > 0 → 'completed'.
- *   - Any unlocked level (≤ currentLevel) that is NOT current and NOT
- *     completed (edge case: replayable older level skipped earlier) →
- *     'completed' if stars exist, else falls back to 'current' only if
- *     it's the single highest unfinished one. Practically only one slot
- *     becomes 'current' because passing a level bumps currentLevel.
- *   - status='locked'    for anything beyond currentLevel.
- *   - completed + current → isPlayable=true. Locked → false.
+ * Codex110 — All status derivation now goes through the shared helpers
+ * in `lib/soloProgressHelpers.js`. The effective unlock frontier is
  *
- * Why this matters: previously every unlocked-but-not-completed level
- * became 'current', so `levels.find(l => l.status === 'current')` always
- * returned the LOWEST one. That broke default scroll focus and the Play
- * CTA after a fresh install (every level 1..N was "current").
+ *   max(persisted currentLevel, highestCompletedLevel + 1)
+ *
+ * which means completing Level 8 always implies Level 9 is unlocked,
+ * even when the persisted `currentLevel` was wrong (stale server snapshot,
+ * partial write, new device with localStorage missing, etc).
+ *
+ * Status rules:
+ *   - bestStars > 0                                  → 'completed'
+ *   - levelNumber > effective unlock frontier        → 'locked'
+ *   - otherwise                                      → 'current'
+ *
+ * "Current" can appear on multiple levels in the rare case where the
+ * player has unlocked Level N but has NOT completed older replayable
+ * levels (e.g. they retried Level 4 and lost stars-monotonic kept
+ * bestStars=0). That is OK now — the Solo screen explicitly targets
+ * `getCurrentPlayableLevel(progress)` for focus/default-selection, which
+ * is always exactly one number.
  */
 export function getSoloLevels(progress) {
   const safe = progress || emptyProgress();
-  const unlocked = Math.max(1, Number(safe.currentLevel) || 1);
-  const cap = Math.min(unlocked, LEVEL_CATALOG.length);
-
-  // Pick THE single current level: the highest unlocked one that the
-  // player hasn't beaten yet. If every unlocked level is completed, the
-  // current slot belongs to the unlocked frontier (cap) itself so the
-  // player can still replay it explicitly.
-  let currentLevelNumber = cap;
-  for (let n = cap; n >= 1; n -= 1) {
-    const entry = safe.levels?.[String(n)] || null;
-    const stars = Number(entry?.bestStars) || 0;
-    if (stars === 0) { currentLevelNumber = n; break; }
-  }
-
+  const total = LEVEL_CATALOG.length;
   return LEVEL_CATALOG.map((lvl) => {
     const entry = safe.levels?.[String(lvl.levelNumber)] || null;
     const stars = Math.max(0, Math.min(3, Number(entry?.bestStars) || 0));
-    const isCompleted = stars > 0;
-    let status;
-    if (lvl.levelNumber > unlocked) status = 'locked';
-    else if (lvl.levelNumber === currentLevelNumber && !isCompleted) status = 'current';
-    else if (isCompleted) status = 'completed';
-    else status = 'current'; // safety net — shouldn't fire with the picker above
-
+    const status = getLevelStatus(lvl.levelNumber, safe, total);
     return {
       levelNumber: lvl.levelNumber,
       title: lvl.title,
@@ -290,6 +291,10 @@ export function getSoloLevels(progress) {
     };
   });
 }
+
+// Re-export the unlock helper so callers don't have to import from two
+// places. Keeps the public Solo API in one module.
+export { getEffectiveUnlockedLevel, getHighestCompletedLevel } from './soloProgressHelpers';
 
 // ─── Game start config ─────────────────────────────────────────────────
 /**
