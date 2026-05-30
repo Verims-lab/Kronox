@@ -1,6 +1,15 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex113 — Solo score migration/backfill:
+// Codex114 — Solo Health Checker scoring coverage:
+//   • Health now explicitly includes the profile score/source contract
+//     alongside score math, replay delta, leaderboard, popup, ranking,
+//     and existing-progress backfill checks.
+//   • Star-backfill coverage now asserts 3/2/1/0-star mapping in one
+//     executable case.
+//   • simulationPanelExtraCases.js remains frozen; modular
+//     simulationPanelSoloProgressCases.jsx continues through the registry.
+//
+// Previous note: Codex113 — Solo score migration/backfill:
 //   • Existing User.solo_progress records with bestStars but missing
 //     bestScore now backfill score fields from star base + reliable
 //     bestTimeSeconds only.
@@ -259,7 +268,7 @@ import React, { useEffect, useState } from 'react';
 //   visible 120s SoloLevelTimer (no audio cue).
 // Previous note: Codex106 — Solo level completion popup polish.
 // Previous note: Codex106 — Solo Level Path (vertical 8-row path).
-const BUILD_MARKER = 'Codex113';
+const BUILD_MARKER = 'Codex114';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

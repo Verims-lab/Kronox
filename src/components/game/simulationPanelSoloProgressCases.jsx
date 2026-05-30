@@ -589,18 +589,26 @@ export const EXTRA_TESTS = [
     'Existing completed levels with stars but missing score get bestScore from stars',
     () => {
       const backfilled = backfillSoloScores({
-        currentLevel: 3,
+        currentLevel: 4,
         levels: {
           1: { bestStars: 3, attempts: 2 },
           2: { bestStars: 2, attempts: 1 },
+          3: { bestStars: 1, attempts: 1 },
+          4: { bestStars: 0, attempts: 1 },
         },
       }, 20).progress;
-      if (backfilled.levels[1].bestScore !== 10 || backfilled.levels[2].bestScore !== 8 || backfilled.summary.totalSoloScore !== 18) {
+      if (
+        backfilled.levels[1].bestScore !== 10 ||
+        backfilled.levels[2].bestScore !== 8 ||
+        backfilled.levels[3].bestScore !== 5 ||
+        Number(backfilled.levels[4].bestScore || 0) !== 0 ||
+        backfilled.summary.totalSoloScore !== 23
+      ) {
         return fail('Existing star-only Solo progress did not backfill base scores correctly.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'Level 1=10, Level 2=8, total=18',
+          expected: '3 stars=10, 2 stars=8, 1 star=5, 0 stars=0, total=23',
           actual: backfilled,
         });
       }
@@ -810,6 +818,40 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Leaderboard reads the Solo progress summary and uses a safe friend-ranking placeholder.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('solo_progress_health', 'solo_profile_score_contract',
+    'Profile reads the same Solo progress source for level, totalSoloScore, and totalStars; no hard-coded Level 1/stale score',
+    () => {
+      const required = missingTokens(profilePageSource, [
+        'ensureSoloProgressBackfill',
+        'readSoloProgress',
+        'summarizeSoloProgress',
+        'getCurrentPlayableLevel',
+        'soloSummary.totalSoloScore',
+        'soloSummary.totalStars',
+        'profileLevel',
+      ]);
+      const forbidden = forbiddenTokensFound(profilePageSource, [
+        "label: 'Level', value: 1",
+        "id: 'puan',  label: 'Puan',  value: 0",
+        "id: 'stars', label: 'Yıldız', value: 0",
+      ]);
+      if (required.length || forbidden.length) {
+        return fail('Profile Solo score/source-of-truth contract drifted.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'Profile backfills current user progress, reads shared Solo summary, and never hard-codes Level/Puan/Yıldız',
+          actual: { required, forbidden },
+        });
+      }
+      return pass('Profile uses shared Solo progress summary for Puan/Level/Yıldız and avoids stale hard-coded values.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
