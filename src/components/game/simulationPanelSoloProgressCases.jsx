@@ -793,31 +793,35 @@ export const EXTRA_TESTS = [
     { actionType: ACTION_TYPES.CODE_FIX }),
 
   makeCase('solo_progress_health', 'solo_leaderboard_total_score_contract',
-    'Leaderboard uses totalSoloScore/currentLevel/totalStars from Solo progress and does not fake friend ranking',
+    'Leaderboard uses Solo score/level plus Elmas economy placeholder/field and does not fake friend ranking',
     () => {
       const required = missingTokens(leaderboardPageSource, [
         'readSoloProgress',
         'summarizeSoloProgress',
         'summary.totalSoloScore',
         'summary.currentLevel',
-        'summary.totalStars',
+        'getLeaderboardDiamondValue',
+        'label="Elmas"',
         'Arkadaşlarınla yarışmak için onları davet et',
       ]);
       const forbidden = forbiddenTokensFound(leaderboardPageSource, [
+        'label="Yıldız"',
+        "label: 'Yıldız'",
+        'summary.totalStars',
         '2. sırada',
         '1. oldun',
         'Math.random',
       ]);
       if (required.length || forbidden.length) {
-        return fail('Leaderboard total score or no-fake-ranking contract failed.', {
+        return fail('Leaderboard total score, Elmas placeholder, or no-fake-ranking contract failed.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'real Solo summary + safe friend-rank placeholder',
+          expected: 'Puan/Level from Solo summary + Elmas from economy field or safe 0 placeholder',
           actual: { required, forbidden },
         });
       }
-      return pass('Leaderboard reads the Solo progress summary and uses a safe friend-ranking placeholder.', {
+      return pass('Leaderboard reads Solo score/level, keeps Elmas separate from stars, and uses a safe friend-ranking placeholder.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,

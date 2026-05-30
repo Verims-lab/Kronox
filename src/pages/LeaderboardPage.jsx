@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Sparkles, Star, Trophy, Users } from 'lucide-react';
+import { Gem, Sparkles, Trophy, Users } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import ScreenHeader from '@/components/layout/ScreenHeader';
 import { ensureSoloProgressBackfill, getSoloLevelCount, readSoloProgress } from '@/lib/soloLevels';
@@ -11,6 +11,8 @@ import { summarizeSoloProgress } from '@/lib/soloProgressHelpers';
  * We show REAL user-specific Solo totals from User.solo_progress, but we do
  * NOT fake friend/global ranks. Cross-user ranking needs a server-side
  * aggregation function or a dedicated leaderboard entity.
+ * Elmas stays economy-owned: if no real profile/economy field exists yet, it
+ * shows a safe 0 placeholder and never derives from stars or Solo score.
  */
 export default function LeaderboardPage() {
   const [user, setUser] = useState(null);
@@ -30,6 +32,7 @@ export default function LeaderboardPage() {
 
   const progress = readSoloProgress(user);
   const summary = summarizeSoloProgress(progress, getSoloLevelCount());
+  const diamondValue = getLeaderboardDiamondValue(user);
 
   return (
     <div
@@ -71,7 +74,7 @@ export default function LeaderboardPage() {
           <div className="mt-4 grid grid-cols-3 gap-2">
             <StatTile icon={Trophy} label="Puan" value={summary.totalSoloScore} tint="#facc15" />
             <StatTile icon={Sparkles} label="Level" value={summary.currentLevel} tint="#60a5fa" />
-            <StatTile icon={Star} label="Yıldız" value={summary.totalStars} tint="#7dd3fc" />
+            <StatTile icon={Gem} label="Elmas" value={diamondValue} tint="#7dd3fc" />
           </div>
         </div>
 
@@ -104,6 +107,31 @@ export default function LeaderboardPage() {
       </div>
     </div>
   );
+}
+
+function getLeaderboardDiamondValue(user) {
+  const candidates = [
+    user?.diamonds,
+    user?.diamondCount,
+    user?.diamond_count,
+    user?.elmas,
+    user?.elmasCount,
+    user?.elmas_count,
+    user?.gems,
+    user?.gemCount,
+    user?.gem_count,
+    user?.economy?.diamonds,
+    user?.economy?.elmas,
+    user?.wallet?.diamonds,
+    user?.wallet?.elmas,
+  ];
+  const realValue = candidates.find((value) => (
+    value !== null &&
+    value !== undefined &&
+    value !== '' &&
+    Number.isFinite(Number(value))
+  ));
+  return realValue === undefined ? 0 : Math.max(0, Math.floor(Number(realValue)));
 }
 
 function StatTile({ icon: Icon, label, value, tint }) {
