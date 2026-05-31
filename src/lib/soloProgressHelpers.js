@@ -71,8 +71,14 @@ export function calculateSoloStars(
 export function calculateSoloTimeBonus(elapsedSeconds, passed) {
   if (!passed) return 0;
   const elapsed = Math.max(0, Number(elapsedSeconds) || 0);
-  if (elapsed < 60) return 10;
-  if (elapsed >= 60 && elapsed <= 90) return 5;
+  // Codex136 — Align with docs/KRONOX_SCORING_RULES.md §2.4:
+  //   0–60 sec → +10  (60.0s INCLUSIVE)
+  //   61–90 sec → +5  (90.0s INCLUSIVE)
+  //   91+ sec  → +0
+  // Previously used `elapsed < 60`, so exactly 60.0s gave +5. Now 60.0
+  // gives +10 and 90.0 gives +5, matching the product table.
+  if (elapsed <= 60) return 10;
+  if (elapsed <= 90) return 5;
   return 0;
 }
 

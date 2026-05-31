@@ -559,11 +559,12 @@ If product decisions change:
 
 ---
 
-## 8. Audit — Code vs. Documented Rules (current state)
+## 8. Audit — Code vs. Documented Rules (Codex136 alignment)
 
-This audit was performed against the live source at the time of writing.
-**No product logic was changed.** Mismatches are reported here so the
-product team can decide which direction to align (doc → code, or code → doc).
+Codex136 aligned the implementation with this document. Every mismatch
+from the original audit is now either fixed in code or covered by a
+backward-compatible alias. Health Center cases were added in a new
+modular file: `components/game/simulationPanelScoringContractCases.jsx`.
 
 ### 8.1 ✅ Matches (PASS)
 
@@ -589,16 +590,16 @@ product team can decide which direction to align (doc → code, or code → doc)
 - **Online authority model** (Option A — each client updates itself via
   `updateMe`).
 
-### 8.2 ⚠️ Mismatches found
+### 8.2 Mismatches — fixed in Codex136
 
-| Tag         | Severity | Where                                                                                  | Documented rule                                                  | Current code                                                                                  |
-| ----------- | -------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| MISMATCH-S1 | minor    | `calculateSoloTimeBonus` in `lib/soloProgressHelpers.js`                               | `0–60s → +10`, `61–90s → +5`                                     | `elapsed < 60 → +10`, `60 <= elapsed <= 90 → +5`. **Exactly 60.0s yields +5 instead of +10.** |
-| MISMATCH-O1 | **significant** | `lib/onlineRanking.js`                                                            | "There is no draw/tie scoring. Do not add draw result."          | `ONLINE_DRAW_POINTS=3`, `ONLINE_RESULT.DRAW='draw'`, a `'draw'` branch and a `draws` counter in `applyOnlineMatchResult`. |
-| MISMATCH-O2 | minor    | `getOnlineWinnerTimeBonus(durationSeconds)`                                            | Missing/unknown time → +0                                        | `clampNonNegative(missing)=0` → falls through `seconds <= 60` → **returns +10**.              |
-| MISMATCH-O3 | naming   | `lib/onlineRanking.js`                                                                 | Helpers `calculateOnlineWinnerDelta`, `calculateOnlineLoserDelta`, `getOnlineCheckpoint`, `applyOnlineScoreWithCheckpoint`, `applyOnlineMatchResultOnce` | Same math, exposed under different names (`calculateOnlineMatchDelta`, `getReachedCheckpoint`, `applyOnlineMatchResult`). |
-| MISMATCH-O4 | minor    | `applyOnlineMatchToCurrentUser` in `lib/applyOnlineResult.js`                          | "If score persistence fails… show/log a meaningful error."       | Errors are caught and only routed through `debugLog`; UI has no visible signal.               |
-| MISMATCH-O5 | minor    | `applyOnlineMatchResult` field shape                                                   | `online_progress.lastMatchAt` (and **no** `draws`)               | Writes `lastUpdatedAt` (not `lastMatchAt`) and writes `draws` counter.                        |
+| Tag         | Severity        | Where                                                          | Fix applied                                                                                                                                                |
+| ----------- | --------------- | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| MISMATCH-S1 | minor           | `calculateSoloTimeBonus` (lib/soloProgressHelpers.js)          | Boundary changed to `elapsed <= 60 → +10`, `elapsed <= 90 → +5`. 60.0s now yields +10. 90.0s remains +5. 91+ remains +0.                                  |
+| MISMATCH-O1 | **significant** | lib/onlineRanking.js + lib/applyOnlineResult.js                | Draw scoring REMOVED from active path: no `ONLINE_DRAW_POINTS`, no `ONLINE_RESULT.DRAW`, no `'draw'` branch awarding points, no `draws` counter. Passing `'draw'` returns a zero delta. Legacy `draws` field on existing rows is ignored, never re-emitted. |
+| MISMATCH-O2 | minor           | `getOnlineWinnerTimeBonus`                                     | Missing/null/NaN/non-finite/negative duration now returns +0. Valid 0 still passes through the 0–60s tier. Winner +15 base still applied via `calculateOnlineMatchDelta`. |
+| MISMATCH-O3 | naming          | lib/onlineRanking.js                                           | Doc-named aliases added as thin wrappers (no duplicated math): `calculateOnlineWinnerDelta`, `calculateOnlineLoserDelta`, `getOnlineCheckpoint`, `applyOnlineScoreWithCheckpoint`, `applyOnlineMatchResultOnce`. The pre-existing names remain exported for callers. |
+| MISMATCH-O4 | minor           | `applyOnlineMatchToCurrentUser`                                | Returns structured result: `{ ok: true, ... }`, `{ ok: true, skipped: true, reason: 'already_applied' }`, `{ ok: false, error, retryable: true, where: 'auth'\|'persist' }`. `lastMatchId` is only persisted on a successful `updateMe`. `Game.jsx` resets `onlineResultAppliedRef` on retryable failure. |
+| MISMATCH-O5 | minor           | `applyOnlineMatchResult` persistence shape                     | Writer now emits `lastMatchAt` (ISO string). `draws` field is no longer written. Legacy users with `draws` on disk are not crashed — the field is simply ignored.                                                              |
 
 ### 8.3 Health Center cases to update
 
@@ -646,20 +647,32 @@ documented contracts, in modular files (NOT in `simulationPanelExtraCases`):
 - `online_score_invite_path_supported`
 - `online_score_idempotent_match_result` (real two-account proof)
 
-### 8.4 Summary of audit deliverables
+### 8.3 Health Center cases delivered in Codex136
 
-1. **File created** — `docs/KRONOX_SCORING_RULES.md`.
-2. **Code matches doc on:** Solo star table, Solo base points, Solo
-   timeout, Solo replay-delta, Solo backfill idempotency, Solo/Online
-   persistence separation, Online +15 / −6 base, Online checkpoint
-   ladder + floor, Online idempotency, Online authority model.
-3. **Mismatches found:** MISMATCH-S1, MISMATCH-O1 (significant),
-   MISMATCH-O2, MISMATCH-O3 (naming only), MISMATCH-O4, MISMATCH-O5.
-4. **Health Center cases that should be updated:** see Section 8.3 —
-   six new cases recommended in a new modular file
-   `simulationPanelScoringContractCases.jsx`. Existing Solo cases
-   remain valid.
-5. **No product logic was changed.** All mismatches above are reported,
-   not silently fixed. The product team should decide for each one
-   whether to align **doc → code** or **code → doc** before any
-   implementation patch.
+New modular suite — `components/game/simulationPanelScoringContractCases.jsx`
+(registered through `simulationPanelCaseRegistry.jsx`):
+
+- `scoring_contract.solo_time_bonus_contract` (executable)
+- `scoring_contract.online_score_no_draw_contract` (static + executable)
+- `scoring_contract.online_score_time_bonus_missing_time_zero` (executable)
+- `scoring_contract.online_score_base_applies_even_without_bonus_time` (executable)
+- `scoring_contract.online_score_helper_naming_contract` (executable)
+- `scoring_contract.online_score_persistence_field_matches_reader` (executable)
+- `scoring_contract.online_score_authority_model_documented` (static)
+- `scoring_contract.online_score_persistence_failure_retry_safe` (static)
+- `scoring_contract.online_score_idempotency_does_not_block_first_apply` (static)
+
+Existing `online_ranking` suite updated in place (no new file) to drop
+the obsolete `draws` / `ONLINE_DRAW_POINTS` / `ONLINE_RESULT.DRAW`
+expectations. All Solo executable cases in
+`simulationPanelSoloProgressCases.jsx` continue to pass.
+
+### 8.4 Summary
+
+1. **Code now matches the doc.** All six audited mismatches are fixed.
+2. **No product logic outside of scoring was changed.** Drag/drop,
+   Timeline, QuestionCard, GameLayout, invite/lobby/notification/
+   tutorial, Solo progression, Leaderboard behavior — untouched.
+3. **Backward compatibility:** existing `online_progress` objects with
+   `draws` or `lastUpdatedAt` fields are still readable and do not
+   crash. New writes omit `draws` and emit `lastMatchAt`.

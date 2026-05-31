@@ -91,6 +91,10 @@ import * as headerNotificationsCases from './simulationPanelHeaderNotificationsC
 // Codex135 — Game invite lifecycle hardening (single-source-of-truth
 // selector + toast dismiss safety + fresh-invite persistence).
 import * as gameInviteLifecycleCases from './simulationPanelGameInviteLifecycleCases';
+// Codex136 — Scoring contract suite (Solo time-bonus boundary fix, Online
+// draw removal, missing-time → +0 bonus, doc-named helper aliases,
+// lastMatchAt persistence, structured persistence failure / retry safety).
+import * as scoringContractCases from './simulationPanelScoringContractCases';
 
 const MODULES = [
   soloProgressCases,
@@ -109,6 +113,7 @@ const MODULES = [
   lobbySimplificationCases,
   headerNotificationsCases,
   gameInviteLifecycleCases,
+  scoringContractCases,
 ];
 
 function flatten(key) {

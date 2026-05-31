@@ -255,10 +255,18 @@ export default function Game() {
     const result = localIsWinner ? 'win' : 'loss';
     const durationSeconds = winner.durationSeconds ?? overallSecondsRef.current ?? 0;
     onlineResultAppliedRef.current = true;
+    // Codex136 — structured-result aware. Persistence failures release the
+    // ref so a later mount/effect run can retry safely. Gameplay is never
+    // blocked on the puan write.
     applyOnlineMatchToCurrentUser({
       lobbyId,
       result,
       durationSeconds,
+    }).then((res) => {
+      if (res && res.ok === false && res.retryable !== false) {
+        debugLog('[Game] online puan persist failed; will allow retry on next mount', res);
+        onlineResultAppliedRef.current = false;
+      }
     });
   }, [isOnline, winner, lobbyId, lobbyData?.winner_email, lobbyData?.winner, localPlayerEmail, myPlayerName, overallSecondsRef]);
 
