@@ -1,14 +1,15 @@
-// Kronox Health Center — Online ranking / checkpoint contracts (Codex128).
+// Kronox Health Center — Online ranking / checkpoint contracts (Codex136).
 //
 // SCOPE
 //   Lock the Online puan system in place:
 //     • Win  → +15
-//     • Loss → −6
-//     • Draw → +3 (both sides)
-//     • Winner time bonus tiers: ≤60s +10, 61–90s +5, 91s+ +0.
+//     • Loss → -6
+//     • No draw scoring (Codex136 — removed per docs/KRONOX_SCORING_RULES.md).
+//     • Winner time bonus tiers: <=60s +10, 61-90s +5, 91s+ +0.
+//     • Missing/unknown winner time → +0 bonus (winner still gets +15 base).
 //     • Checkpoint ladder: [0,100,250,500,1000,1500,2000,3000]
 //     • Checkpoint floor: a loss can NEVER drop the player's score below
-//       their highest reached checkpoint. Wins/draws are NEVER clamped.
+//       their highest reached checkpoint. Wins are NEVER clamped.
 //     • Idempotency: re-applying the same lobby id does NOT double-count.
 //
 //   These are executable contracts — they call the actual helpers from
@@ -17,7 +18,6 @@
 import {
   ONLINE_WIN_POINTS,
   ONLINE_LOSS_POINTS,
-  ONLINE_DRAW_POINTS,
   ONLINE_CHECKPOINTS,
   ONLINE_TIME_BONUS_TIERS,
   ONLINE_RESULT,
@@ -85,12 +85,11 @@ export const EXTRA_SUITES = [
 export const EXTRA_TESTS = [
   /* 1. Sabit puan kuralları */
   makeCase('online_ranking', 'point_constants',
-    'Online point constants: win=+15, loss=−6, draw=+3',
+    'Online point constants: win=+15, loss=-6 (no draw)',
     () => {
       const errors = [];
       if (ONLINE_WIN_POINTS !== 15) errors.push({ field: 'win', expected: 15, actual: ONLINE_WIN_POINTS });
       if (ONLINE_LOSS_POINTS !== -6) errors.push({ field: 'loss', expected: -6, actual: ONLINE_LOSS_POINTS });
-      if (ONLINE_DRAW_POINTS !== 3) errors.push({ field: 'draw', expected: 3, actual: ONLINE_DRAW_POINTS });
       if (errors.length) {
         return fail('Online point constants drifted.', {
           verification: 'EXECUTABLE',
@@ -204,16 +203,13 @@ export const EXTRA_TESTS = [
       const w75 = calculateOnlineMatchDelta({ result: ONLINE_RESULT.WIN, durationSeconds: 75 });
       const w150 = calculateOnlineMatchDelta({ result: ONLINE_RESULT.WIN, durationSeconds: 150 });
       const loss = calculateOnlineMatchDelta({ result: ONLINE_RESULT.LOSS, durationSeconds: 999 });
-      const draw = calculateOnlineMatchDelta({ result: ONLINE_RESULT.DRAW, durationSeconds: 30 });
 
       const checks = [
         assertEq(w30.delta, 25, 'win @30s → 15+10'),
         assertEq(w75.delta, 20, 'win @75s → 15+5'),
         assertEq(w150.delta, 15, 'win @150s → 15+0'),
-        assertEq(loss.delta, -6, 'loss → −6 (time ignored)'),
-        assertEq(draw.delta, 3, 'draw → +3 (time ignored)'),
+        assertEq(loss.delta, -6, 'loss → -6 (time ignored)'),
         assertEq(loss.timeBonus, 0, 'loss time bonus must be 0'),
-        assertEq(draw.timeBonus, 0, 'draw time bonus must be 0'),
       ].filter(Boolean);
 
       if (checks.length) return checks[0];
@@ -269,19 +265,21 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 8. Beraberlik her iki tarafa +3 verir, peakCheckpoint bozulmaz */
-  makeCase('online_ranking', 'draw_adds_three_each_side',
-    'Draw adds +3 to both players independently with no time bonus',
+  /* 8. Codex136 — Draw scoring is removed; passing 'draw' yields zero delta */
+  makeCase('online_ranking', 'no_draw_scoring',
+    'Draw scoring removed: result === "draw" yields zero delta, no counter, no score change',
     () => {
-      const p1 = applyOnlineMatchResult({ score: 200 }, { result: ONLINE_RESULT.DRAW, durationSeconds: 30 });
-      const p2 = applyOnlineMatchResult({ score: 1480 }, { result: ONLINE_RESULT.DRAW, durationSeconds: 30 });
-      const e1 = assertEq(p1.progress.score, 203, 'player 1 +3');
+      const r = applyOnlineMatchResult({ score: 200 }, { result: 'draw', durationSeconds: 30 });
+      const e1 = assertEq(r.progress.score, 200, 'draw must not change score');
       if (e1) return e1;
-      const e2 = assertEq(p2.progress.score, 1483, 'player 2 +3');
+      const e2 = assertEq(r.applied.delta, 0, 'draw delta = 0');
       if (e2) return e2;
-      const e3 = assertEq(p1.applied.timeBonus, 0, 'draw time bonus = 0');
+      const e3 = assertEq(r.applied.timeBonus, 0, 'draw time bonus = 0');
       if (e3) return e3;
-      return pass('Draw distributes +3/+3 without time bonus.',
+      // draws counter must not appear or increment on the new shape
+      const e4 = assertEq(r.progress.draws, undefined, 'no draws counter is written anymore');
+      if (e4) return e4;
+      return pass('Draw scoring is removed per product spec.',
         { verification: 'EXECUTABLE' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
@@ -308,22 +306,22 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 10. Sayım (wins/losses/draws) doğru artar */
+  /* 10. Sayım (wins/losses) dogru artar — Codex136 (draws removed) */
   makeCase('online_ranking', 'counters_increment_per_result',
-    'wins/losses/draws counters increment exactly once per applied result',
+    'wins/losses counters increment exactly once per applied result (no draws counter)',
     () => {
       let p = {};
       p = applyOnlineMatchResult(p, { result: ONLINE_RESULT.WIN, durationSeconds: 30 }).progress;
       p = applyOnlineMatchResult(p, { result: ONLINE_RESULT.WIN, durationSeconds: 75 }).progress;
       p = applyOnlineMatchResult(p, { result: ONLINE_RESULT.LOSS }).progress;
-      p = applyOnlineMatchResult(p, { result: ONLINE_RESULT.DRAW }).progress;
       const e1 = assertEq(p.wins, 2, 'wins');
       if (e1) return e1;
       const e2 = assertEq(p.losses, 1, 'losses');
       if (e2) return e2;
-      const e3 = assertEq(p.draws, 1, 'draws');
+      // Draw scoring is removed; the writer must not introduce a draws field.
+      const e3 = assertEq(p.draws, undefined, 'no draws counter is written');
       if (e3) return e3;
-      return pass('Result counters increment exactly once per match.',
+      return pass('Result counters increment exactly once per match (no draws).',
         { verification: 'EXECUTABLE' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
@@ -352,9 +350,9 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 12. User entity online_progress alanını içeriyor mu */
+  /* 12. User entity online_progress alanini içeriyor mu — Codex136 (no draws) */
   makeCase('online_ranking', 'user_entity_has_online_progress',
-    'User entity exposes online_progress with score/peakScore/peakCheckpoint/wins/losses/draws/lastMatchId',
+    'User entity exposes online_progress with score/peakScore/peakCheckpoint/wins/losses/lastMatchId',
     () => {
       // Codex132 — Use the mirrored userEntitySource (kept in sync with
       // entities/User.json) instead of a dynamic ?raw import of a path
@@ -368,7 +366,6 @@ export const EXTRA_TESTS = [
         'lastMatchId',
         'wins',
         'losses',
-        'draws',
       ];
       const missing = required.filter((t) => !raw.includes(t));
       if (missing.length) {
