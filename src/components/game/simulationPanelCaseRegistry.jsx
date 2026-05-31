@@ -75,6 +75,8 @@ import * as inviteDeliveryCases from './simulationPanelInviteDeliveryCases';
 // Codex130 — Game invite lifecycle, 10-min TTL, stale lobby cleanup,
 // in-app banner auto-dismiss, focus/visibility recheck contracts.
 import * as inviteLifecycleCases from './simulationPanelInviteLifecycleCases';
+// Codex131 — Lobby simplification + active-lobby return contracts.
+import * as lobbySimplificationCases from './simulationPanelLobbySimplificationCases';
 
 const MODULES = [
   soloProgressCases,
@@ -90,6 +92,7 @@ const MODULES = [
   onlineRankingCases,
   inviteDeliveryCases,
   inviteLifecycleCases,
+  lobbySimplificationCases,
 ];
 
 function flatten(key) {

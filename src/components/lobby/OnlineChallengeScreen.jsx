@@ -5,6 +5,7 @@ import ScreenHeader from '@/components/layout/ScreenHeader';
 import OnlineCategoryCarousel from '@/components/lobby/OnlineCategoryCarousel';
 import FriendSelectModal from '@/components/lobby/FriendSelectModal';
 import IncomingInvitesPanel from '@/components/invites/IncomingInvitesPanel';
+import ActiveLobbyCard from '@/components/lobby/ActiveLobbyCard';
 import { ONLINE_CATEGORIES } from '@/lib/onlineCategories';
 import { sounds } from '@/lib/gameSounds';
 // Codex118 shared sources for Puan + Elmas (Header)
@@ -51,6 +52,9 @@ export default function OnlineChallengeScreen({
   onBackHome,
   onJoinOpenLobby,
   onGoFriends,
+  activeLobby,
+  isActiveLobbyHost,
+  onResumeActiveLobby,
 }) {
   const [selectedCategories, setSelectedCategories] = useState(DEFAULT_CATEGORIES);
   const [selectedEmails, setSelectedEmails] = useState([]);
@@ -109,6 +113,19 @@ export default function OnlineChallengeScreen({
           overflow: 'hidden',
         }}
       >
+        {/* Codex131 — Active lobby card (host or member). Hidden when
+            there is no pending lobby or it has gone stale. Lets the user
+            jump back into the waiting room without losing state. */}
+        {activeLobby && (
+          <div className="mb-2">
+            <ActiveLobbyCard
+              lobby={activeLobby}
+              isHost={isActiveLobbyHost}
+              onResume={onResumeActiveLobby}
+            />
+          </div>
+        )}
+
         {/* Incoming invites — surfaces only when there are any */}
         <IncomingInvitesPanel user={user} />
 

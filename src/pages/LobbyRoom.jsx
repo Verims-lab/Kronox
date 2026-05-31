@@ -24,6 +24,7 @@ import {
   isLobbyStale,
   rejectGameInvite,
 } from '@/lib/inviteApi';
+import { loadActiveLobbyForUser } from '@/lib/activeLobby';
 import { debugLog, debugWarn } from '@/lib/debugLog';
 import { setBottomNavHidden } from '@/lib/bottomNavVisibility';
 
@@ -57,6 +58,31 @@ export default function LobbyRoom() {
   const [deepLinkInvite, setDeepLinkInvite] = useState(null);
   const [deepLinkMessage, setDeepLinkMessage] = useState('');
   const [deepLinkBusy, setDeepLinkBusy] = useState(false);
+
+  // Codex131 — Active lobby auto-recovery. When the Online selection
+  // screen is showing (no lobby, no deep-link), look up any pending
+  // lobby the user already belongs to so we can surface an
+  // "Aktif Lobi" return card without forcing them back into the
+  // waiting room automatically.
+  const [activeLobby, setActiveLobby] = useState(null);
+
+  useEffect(() => {
+    if (lobby || queryInviteId || !user?.email) {
+      setActiveLobby(null);
+      return undefined;
+    }
+    let cancelled = false;
+    loadActiveLobbyForUser(user).then((found) => {
+      if (!cancelled) setActiveLobby(found);
+    });
+    return () => { cancelled = true; };
+  }, [user?.email, lobby, queryInviteId]);
+
+  const handleResumeActiveLobby = (target) => {
+    if (!target) return;
+    setActiveLobby(null);
+    setLobby(target);
+  };
 
   // Codex103 — BottomNav visibility within /lobby is state-aware:
   //   • mode=null + no lobby + no invite deep-link → Online seçim ekranı (VISIBLE)
@@ -423,6 +449,9 @@ export default function LobbyRoom() {
       onBackHome={() => navigate('/')}
       onJoinOpenLobby={() => setMode('join')}
       onGoFriends={() => navigate('/friends')}
+      activeLobby={activeLobby}
+      isActiveLobbyHost={Boolean(activeLobby && user && activeLobby.host_email === user.email)}
+      onResumeActiveLobby={handleResumeActiveLobby}
     />
   );
 }

@@ -231,7 +231,12 @@ Deno.serve(async (req) => {
       return json({ error: 'Oyun baslatmak icin en az 2 oyuncu gerekli' }, 400);
     }
 
-    const settings = normalizeSettings(lobby, body?.settings || {});
+    // Codex131 — In-lobby settings panel removed. We no longer accept any
+    // `body.settings` payload; all game config (category multi-select,
+    // year window, turn duration, win-card count) is sourced from the
+    // persisted lobby row only. Old callers that still send settings are
+    // silently ignored — RLS already prevents non-host writes elsewhere.
+    const settings = normalizeSettings(lobby, {});
     const questions = await base44.asServiceRole.entities.Question.list('-created_date', 500);
     const initialState = buildInitialState({
       players,

@@ -432,7 +432,7 @@ import React, { useEffect, useState } from 'react';
 // Product behavior — Solo scoring/progression, Solo map focus, Profile/
 // Leaderboard runtime logic, drag/drop, Timeline, QuestionCard,
 // GameLayout, invite/lobby/notification/tutorial/friends — DOKUNULMADI.
-const BUILD_MARKER = 'Codex130';
+const BUILD_MARKER = 'Codex131';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
