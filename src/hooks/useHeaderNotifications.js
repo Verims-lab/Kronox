@@ -15,10 +15,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { normalizeEmail } from '@/lib/friendsApi';
 import {
-  acceptGameInvite,
   loadIncomingInvites,
+  openGameInvite as openGameInviteAction,
 } from '@/lib/inviteApi';
 import { isPendingFriendRequestForUser } from '@/lib/headerNotifications';
 // Codex135 — Centralized active-invite selector. Header, Online panel,
@@ -26,8 +25,13 @@ import { isPendingFriendRequestForUser } from '@/lib/headerNotifications';
 // can never disagree about whether a fresh invite is still active.
 import {
   filterActiveIncomingGameInvites,
+  getGameInviteActiveFilterReason,
+  getInviteRecipientEmail,
   isActiveIncomingGameInvite,
   isInviteExpired,
+  mergeActiveIncomingGameInvites,
+  normalizeEmail,
+  traceGameInviteLifecycle,
 } from '@/lib/gameInviteSelectors';
 
 const REFRESH_DEBOUNCE_MS = 250;
@@ -44,7 +48,7 @@ export function useHeaderNotifications(user) {
   const aliveRef = useRef(true);
   const refreshTimerRef = useRef(null);
 
-  const fetchAll = useCallback(async () => {
+  const fetchAll = useCallback(async ({ preserveExisting = false, source = 'fetch' } = {}) => {
     if (!myEmail) {
       setFriendRequests([]);
       setGameInvites([]);
@@ -64,15 +68,28 @@ export function useHeaderNotifications(user) {
       if (!aliveRef.current) return;
       const now = Date.now();
       setFriendRequests((fr || []).filter((r) => isPendingFriendRequestForUser(r, myEmail)));
-      // Codex135 — shared active-incoming selector.
-      setGameInvites(filterActiveIncomingGameInvites(gi, myEmail, now));
+      // Codex136 — shared active-incoming selector + merge-safe refresh.
+      // Subscription events can arrive before the follow-up entity filter is
+      // fully consistent, so preserve active rows during subscription follow-up.
+      setGameInvites((prev) => {
+        const next = preserveExisting
+          ? mergeActiveIncomingGameInvites(prev, gi, myEmail, now)
+          : filterActiveIncomingGameInvites(gi, myEmail, now);
+        traceGameInviteLifecycle('header_badge_recalculated', { id: `count:${next.length}`, status: 'pending', to_email: myEmail }, {
+          source: `useHeaderNotifications.${source}`,
+          user,
+          userEmail: myEmail,
+          reason: preserveExisting ? 'preserve_existing_merge' : 'authoritative_replace',
+        });
+        return next;
+      });
     } catch (err) {
       if (!aliveRef.current) return;
       setError(err?.message || 'Bildirimler yüklenemedi.');
     } finally {
       if (aliveRef.current) setLoading(false);
     }
-  }, [myEmail]);
+  }, [myEmail, user]);
 
   const refresh = useCallback(() => {
     if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
@@ -98,13 +115,34 @@ export function useHeaderNotifications(user) {
       if (typeof u1 === 'function') unsubs.push(u1);
     } catch { /* subscription not available */ }
     try {
-      const u2 = base44.entities.GameInvite.subscribe?.(() => refresh());
+      const u2 = base44.entities.GameInvite.subscribe?.((event) => {
+        const eventType = event?.type || event?.eventType || 'update';
+        const invite = event?.data || event;
+        if (eventType === 'delete') return;
+        if (getInviteRecipientEmail(invite) !== myEmail) return;
+
+        const reason = getGameInviteActiveFilterReason(invite, myEmail);
+        traceGameInviteLifecycle(reason.startsWith('active') ? 'invite_passed_active_filter' : 'invite_failed_active_filter', invite, {
+          source: `useHeaderNotifications.subscription:${eventType}`,
+          user,
+          userEmail: myEmail,
+          reason,
+        });
+
+        if (reason.startsWith('active')) {
+          setGameInvites((prev) => mergeActiveIncomingGameInvites(prev, [invite], myEmail));
+          window.setTimeout(() => fetchAll({ preserveExisting: true, source: 'subscription_followup' }), 900);
+        } else {
+          setGameInvites((prev) => prev.filter((item) => item.id !== invite.id));
+          refresh();
+        }
+      });
       if (typeof u2 === 'function') unsubs.push(u2);
     } catch { /* subscription not available */ }
     return () => {
       unsubs.forEach((fn) => { try { fn(); } catch { /* ignore */ } });
     };
-  }, [myEmail, refresh]);
+  }, [fetchAll, myEmail, refresh, user]);
 
   // Focus + visibility fallback (also catches no-subscription environments).
   useEffect(() => {
@@ -144,14 +182,13 @@ export function useHeaderNotifications(user) {
       return { ok: false, reason: 'expired' };
     }
     try {
-      const res = await acceptGameInvite(invite.id);
-      refresh();
-      if (res?.lobby?.id) {
-        navigate('/lobby', { replace: false, state: { joinedLobby: res.lobby } });
-        return { ok: true, lobby: res.lobby };
-      }
-      navigate('/lobby');
-      return { ok: true };
+      const res = await openGameInviteAction(invite, {
+        navigate,
+        userEmail: myEmail,
+        source: 'header_notifications',
+        onAccepted: async () => refresh(),
+      });
+      return { ok: true, lobby: res?.lobby };
     } catch (err) {
       refresh();
       return { ok: false, reason: err?.message || 'accept_failed' };

@@ -34,9 +34,9 @@ import HeaderNotificationBell from '@/components/notifications/HeaderNotificatio
  *     real numeric value is passed. No fake economy.
  *   - Header is fixed, safe-area aware, mobile-first.
  *
- * IMPORTANT: This component does NOT touch any business logic
- * (notifications, invites, tutorial, lobby, game). It is purely
- * presentational.
+ * IMPORTANT: This component only hosts the notification bell visually;
+ * notification loading/actions live inside HeaderNotificationBell.
+ * Tutorial/lobby/game logic remains outside this header.
  */
 export default function ScreenHeader({
   title,

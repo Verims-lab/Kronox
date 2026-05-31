@@ -5,21 +5,36 @@
 // not yet a member of would be blocked by Lobby RLS.
 
 import { base44 } from '@/api/base44Client';
-import { normalizeEmail } from '@/lib/friendsApi';
+import {
+  GAME_INVITE_TTL_MS,
+  filterActiveIncomingGameInvites,
+  getGameInviteActiveFilterReason,
+  getInviteCreatedAt,
+  getInviteRecipientEmail,
+  getInviteRemainingMs,
+  isActiveIncomingGameInvite,
+  isInviteExpired,
+  isInvitePending,
+  mergeActiveIncomingGameInvites,
+  normalizeEmail,
+  parseInviteExpiresAt,
+  traceGameInviteLifecycle,
+} from '@/lib/gameInviteSelectors';
 
 // Codex130 — Game invite + lobby staleness TTL: 10 minutes.
-// Previously 5 minutes. Backend (acceptGameInvite, sendGameInvitePush) and
-// every UI copy referencing "5 dakika" was migrated to 10 minutes in the
-// same release. The constant is the single source of truth for client-side
-// expiry math; server-side checks mirror the same value.
-export const GAME_INVITE_TTL_MS = 10 * 60 * 1000;
+// This mirrors the Base44 function constants in acceptGameInvite and
+// sendGameInvitePush. Keep the client copy aligned with those server guards.
+export { GAME_INVITE_TTL_MS };
 export const LOBBY_STALE_AFTER_MS = 10 * 60 * 1000;
 
-/**
- * Returns true when a waiting lobby has been idle for longer than
- * LOBBY_STALE_AFTER_MS. Only lobbies in 'waiting' status are eligible;
- * lobbies already in_game/finished are never considered stale.
- */
+export {
+  filterActiveIncomingGameInvites,
+  getGameInviteActiveFilterReason,
+  getInviteRemainingMs,
+  isActiveIncomingGameInvite,
+  mergeActiveIncomingGameInvites,
+};
+
 export function isLobbyStale(lobby, now = Date.now()) {
   if (!lobby || lobby.status !== 'waiting') return false;
   const raw = lobby.updated_date || lobby.created_date || lobby.created_at;
@@ -29,27 +44,20 @@ export function isLobbyStale(lobby, now = Date.now()) {
 }
 
 export function getGameInviteCreatedAt(invite) {
-  const raw = invite?.created_at || invite?.createdAt || invite?.created_date || invite?.createdDate;
-  const time = raw ? new Date(raw).getTime() : NaN;
-  return Number.isFinite(time) ? time : NaN;
+  return getInviteCreatedAt(invite);
 }
 
 export function getGameInviteExpiresAt(invite) {
-  const raw = invite?.expires_at || invite?.expiresAt;
-  const explicit = raw ? new Date(raw).getTime() : NaN;
-  if (Number.isFinite(explicit)) return explicit;
-  const created = getGameInviteCreatedAt(invite);
-  return Number.isFinite(created) ? created + GAME_INVITE_TTL_MS : NaN;
+  return parseInviteExpiresAt(invite);
 }
 
 export function isGameInviteExpired(invite, now = Date.now()) {
-  if (!invite || invite.status !== 'pending') return false;
-  const expiresAt = getGameInviteExpiresAt(invite);
-  return Number.isFinite(expiresAt) && expiresAt <= now;
+  return isInviteExpired(invite, now);
 }
 
-async function expirePendingInvite(invite) {
+async function expirePendingInvite(invite, { source = 'cleanup' } = {}) {
   if (!invite?.id || invite.status !== 'pending') return invite;
+  traceGameInviteLifecycle('invite_expired_by_cleanup', invite, { source, reason: 'ttl_elapsed' });
   await base44.entities.GameInvite.update(invite.id, {
     status: 'expired',
     expired_at: new Date().toISOString(),
@@ -62,15 +70,27 @@ export async function loadIncomingInvites(myEmail) {
   const me = normalizeEmail(myEmail);
   if (!me) return [];
   const rows = await base44.entities.GameInvite.filter(
-    { to_email: me, status: 'pending' },
+    { to_email: me },
     '-created_date',
     50,
   );
   const now = Date.now();
-  const settled = await Promise.all((rows || []).map(async (invite) => (
-    isGameInviteExpired(invite, now) ? expirePendingInvite(invite) : invite
-  )));
-  return settled.filter((invite) => invite?.status === 'pending' && !isGameInviteExpired(invite, now));
+  traceGameInviteLifecycle('invite_loaded_by_fetch_batch', { id: `count:${rows?.length || 0}`, status: 'pending', to_email: me }, {
+    source: 'loadIncomingInvites',
+    userEmail: me,
+    reason: 'batch_count',
+  });
+  const settled = await Promise.all((rows || []).map(async (invite) => {
+    const reason = getGameInviteActiveFilterReason(invite, me, now);
+    traceGameInviteLifecycle(reason.startsWith('active') ? 'invite_passed_active_filter' : 'invite_failed_active_filter', invite, {
+      source: 'loadIncomingInvites',
+      userEmail: me,
+      reason,
+      now,
+    });
+    return isGameInviteExpired(invite, now) ? expirePendingInvite(invite, { source: 'loadIncomingInvites' }) : invite;
+  }));
+  return filterActiveIncomingGameInvites(settled, me, now);
 }
 
 /** Load outgoing invites the host sent for a specific lobby (any status). */
@@ -84,7 +104,7 @@ export async function loadOutgoingInvitesForLobby(myEmail, lobbyId) {
   );
   const now = Date.now();
   const settled = await Promise.all((rows || []).map(async (invite) => (
-    isGameInviteExpired(invite, now) ? expirePendingInvite(invite) : invite
+    isGameInviteExpired(invite, now) ? expirePendingInvite(invite, { source: 'loadOutgoingInvitesForLobby' }) : invite
   )));
   return settled || [];
 }
@@ -122,6 +142,12 @@ export async function createGameInvites({ host, lobby, toEmails, playerCount }) 
       expires_at: expiresAt.toISOString(),
       game_mode: 'online_challenge',
       player_count: typeof playerCount === 'number' ? playerCount : undefined,
+    });
+    traceGameInviteLifecycle('invite_created', invite, {
+      source: 'createGameInvites',
+      user: host,
+      userEmail: fromEmail,
+      reason: 'row_created',
     });
 
     let push = { attempted: false, sent: 0, failed: 0, skipped: 'not_attempted' };
@@ -167,6 +193,47 @@ export async function acceptGameInvite(inviteId) {
   const res = await base44.functions.invoke('acceptGameInvite', { inviteId });
   if (res?.data?.error) throw new Error(res.data.error);
   return res?.data;
+}
+
+export async function openGameInvite(invite, {
+  navigate,
+  userEmail = '',
+  source = 'openGameInvite',
+  onAccepted,
+} = {}) {
+  if (!invite?.id) throw new Error('Geçersiz davet.');
+
+  const now = Date.now();
+  const reason = userEmail
+    ? getGameInviteActiveFilterReason(invite, userEmail, now)
+    : (isInvitePending(invite) && !isInviteExpired(invite, now) ? 'active' : getGameInviteActiveFilterReason(invite, getInviteRecipientEmail(invite), now));
+
+  traceGameInviteLifecycle('invite_open_accept_attempted', invite, {
+    source,
+    userEmail,
+    reason,
+    now,
+  });
+
+  if (reason === 'expired') throw new Error('Davetin süresi doldu. Yeni bir davet iste.');
+  if (!reason.startsWith('active')) throw new Error('Bu davet artık geçerli değil.');
+
+  const res = await acceptGameInvite(invite.id);
+  traceGameInviteLifecycle('invite_status_changed', { ...invite, status: 'accepted' }, {
+    source,
+    userEmail,
+    reason: 'accepted',
+  });
+
+  if (typeof navigate === 'function') {
+    if (res?.lobby?.id) {
+      navigate('/lobby', { state: { joinedLobby: res.lobby } });
+    } else {
+      navigate('/lobby');
+    }
+  }
+  await onAccepted?.(res);
+  return res;
 }
 
 /**

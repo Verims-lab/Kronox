@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex136 — GameInvite lifecycle merge hardening:
+//   • Preserves the newer shared header notification system from Codex135.
+//   • Reapplies 10-minute invite persistence, merge-safe subscription/fetch
+//     handling, and shared openGameInvite routing after remote Codex sync.
+//   • Removes the duplicate local game-invite-only header bell so the
+//     notification header remains one unified source.
+//
 // Codex121 — Liderlik missing entity backend fix:
 //   • Adds getSoloLeaderboard as a service-role, public-safe projection of
 //     existing User.solo_progress so the table can load even when the live

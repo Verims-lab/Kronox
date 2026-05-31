@@ -4,100 +4,210 @@
 // Every surface that displays or counts pending game invites — header
 // notification bell, Online screen IncomingInvitesPanel, GameInviteNotifier
 // toast, and any future surface — MUST use these helpers. Duplicating the
-// rule in multiple components was the Codex134→135 regression: surfaces
-// could disagree about whether an invite was still active and a fresh
-// pending invite could appear briefly in one place and not in another.
+// rule in multiple components caused invite surfaces to disagree about
+// whether a fresh pending invite was still actionable.
 //
-// Active-incoming definition (canonical):
-//   • invite.status === 'pending'
-//   • normalized recipient (to_email) === normalized current user email
-//   • lobby_id is present
-//   • expiry timestamp is in the future (10-min TTL — see GAME_INVITE_TTL_MS)
+// Active-incoming definition:
+//   - invite.status === 'pending'
+//   - normalized recipient matches the current user email
+//   - expiry timestamp is in the future under the 10-minute TTL
 //
-// IMPORTANT: missing `expires_at` is NOT treated as expired. The fallback
-// derives expiry from `created_at` / `created_date` + GAME_INVITE_TTL_MS.
-// If both are missing too, we surface a debug warning ONCE and treat the
-// invite as ACTIVE (better to show a usable invite than silently drop it).
+// Missing `expires_at` is not treated as instantly expired. If `created_at`
+// exists, expiry is derived from it. If all timestamps are missing, the invite
+// stays visible with an active_missing_expiry diagnostic so users are not
+// silently locked out of a fresh invite.
 
-import { normalizeEmail } from '@/lib/friendsApi';
-import {
-  GAME_INVITE_TTL_MS,
-  getGameInviteCreatedAt,
-  getGameInviteExpiresAt,
-  isGameInviteExpired,
-} from '@/lib/inviteApi';
+export const GAME_INVITE_TTL_MS = 10 * 60 * 1000;
 
-export { GAME_INVITE_TTL_MS, normalizeEmail };
+export const TERMINAL_GAME_INVITE_STATUSES = new Set([
+  'accepted',
+  'declined',
+  'rejected',
+  'expired',
+  'cancelled',
+  'completed',
+]);
 
-// ---------------------------------------------------------------------------
-// Defensive logging — fires at most once per invite id so we never spam.
-// Surfaced in the console so admins can see if the entity is missing the
-// expected timestamp fields after Base44 entity creation.
-// ---------------------------------------------------------------------------
 const warnedMissingTimestamps = new Set();
+
+export function normalizeEmail(email) {
+  return String(email || '').trim().toLowerCase();
+}
+
+export function getInviteRecipientEmail(invite) {
+  return normalizeEmail(
+    invite?.to_email ||
+    invite?.recipient_email ||
+    invite?.toEmail ||
+    invite?.recipientEmail,
+  );
+}
+
+export function getInviteSenderEmail(invite) {
+  return normalizeEmail(
+    invite?.from_email ||
+    invite?.sender_email ||
+    invite?.fromEmail ||
+    invite?.senderEmail,
+  );
+}
+
+export function getInviteLobbyId(invite) {
+  return String(invite?.lobby_id || invite?.lobbyId || '').trim();
+}
+
+export function getInviteStatus(invite) {
+  return String(invite?.status || '').trim().toLowerCase();
+}
+
+export function isInvitePending(invite) {
+  return getInviteStatus(invite) === 'pending';
+}
+
+export function getInviteCreatedAt(invite) {
+  const raw = invite?.created_at || invite?.createdAt || invite?.created_date || invite?.createdDate;
+  const time = raw ? new Date(raw).getTime() : NaN;
+  return Number.isFinite(time) ? time : NaN;
+}
+
+export function parseInviteExpiresAt(invite) {
+  const raw = invite?.expires_at || invite?.expiresAt;
+  const explicit = raw ? new Date(raw).getTime() : NaN;
+  if (Number.isFinite(explicit)) return explicit;
+
+  const created = getInviteCreatedAt(invite);
+  return Number.isFinite(created) ? created + GAME_INVITE_TTL_MS : NaN;
+}
+
+export function getInviteRemainingMs(invite, now = Date.now()) {
+  const expiresAt = parseInviteExpiresAt(invite);
+  if (!Number.isFinite(expiresAt)) return NaN;
+  return Math.max(0, expiresAt - now);
+}
 
 function warnMissingTimestampsOnce(invite) {
   if (!invite?.id || warnedMissingTimestamps.has(invite.id)) return;
   warnedMissingTimestamps.add(invite.id);
   // eslint-disable-next-line no-console
   console.warn(
-    '[gameInviteSelectors] invite is missing both expires_at and created_* timestamps; treating as active.',
+    '[gameInviteSelectors] invite is missing expires_at and created_* timestamps; treating as active.',
     { inviteId: invite.id, status: invite.status, keys: Object.keys(invite || {}) },
   );
 }
 
-// ---------------------------------------------------------------------------
-// Public selectors
-// ---------------------------------------------------------------------------
-
-/** True when the invite row is pending AND addressed to the given user. */
-export function isIncomingInviteForUser(invite, userEmail) {
-  if (!invite || invite.status !== 'pending') return false;
-  const me = normalizeEmail(userEmail);
-  if (!me) return false;
-  return normalizeEmail(invite.to_email) === me;
-}
-
-/**
- * True when the invite's expiry timestamp is in the past.
- * Missing-timestamp safety: when BOTH expires_at and created_* are absent,
- * we return FALSE (treat as not expired) and log a one-shot warning. We
- * never let a malformed entity row silently delete a fresh invite.
- */
 export function isInviteExpired(invite, now = Date.now()) {
-  if (!invite) return false;
-  const expiresAt = getGameInviteExpiresAt(invite);
+  if (!isInvitePending(invite)) return false;
+  const expiresAt = parseInviteExpiresAt(invite);
   if (!Number.isFinite(expiresAt)) {
-    const createdAt = getGameInviteCreatedAt(invite);
-    if (!Number.isFinite(createdAt)) {
-      warnMissingTimestampsOnce(invite);
-      return false;
-    }
+    warnMissingTimestampsOnce(invite);
     return false;
   }
   return expiresAt <= now;
 }
 
-/** True when the invite is a pending incoming invite that has NOT expired. */
+export function isIncomingInviteForUser(invite, userEmail) {
+  const me = normalizeEmail(userEmail);
+  if (!me) return false;
+  return getInviteRecipientEmail(invite) === me;
+}
+
+export function getGameInviteActiveFilterReason(invite, userEmail, now = Date.now()) {
+  if (!invite) return 'missing_invite';
+  if (!invite.id) return 'missing_id';
+
+  const status = getInviteStatus(invite);
+  if (status !== 'pending') return TERMINAL_GAME_INVITE_STATUSES.has(status) ? `terminal_${status}` : `status_${status || 'missing'}`;
+
+  const recipientEmail = getInviteRecipientEmail(invite);
+  if (!recipientEmail) return 'missing_recipient';
+
+  const me = normalizeEmail(userEmail);
+  if (me && recipientEmail !== me) return 'recipient_mismatch';
+
+  if (isInviteExpired(invite, now)) return 'expired';
+
+  if (!Number.isFinite(parseInviteExpiresAt(invite))) return 'active_missing_expiry';
+  if (!getInviteLobbyId(invite)) return 'active_missing_lobby';
+  return 'active';
+}
+
 export function isActiveIncomingGameInvite(invite, userEmail, now = Date.now()) {
-  if (!isIncomingInviteForUser(invite, userEmail)) return false;
-  if (!invite?.lobby_id) return false;
-  return !isInviteExpired(invite, now);
+  return getGameInviteActiveFilterReason(invite, userEmail, now).startsWith('active');
 }
 
-/** Filter a list of invites to only the active incoming ones. */
-export function filterActiveIncomingGameInvites(invites, userEmail, now = Date.now()) {
-  if (!Array.isArray(invites)) return [];
-  return invites.filter((invite) => isActiveIncomingGameInvite(invite, userEmail, now));
+export function filterActiveIncomingGameInvites(invites = [], userEmail, now = Date.now()) {
+  return (invites || []).filter((invite) => isActiveIncomingGameInvite(invite, userEmail, now));
 }
 
-/** Remaining ms until expiry — NaN when unknown, 0 when already expired. */
-export function getGameInviteRemainingMs(invite, now = Date.now()) {
-  const expiresAt = getGameInviteExpiresAt(invite);
-  if (!Number.isFinite(expiresAt)) return NaN;
-  return Math.max(0, expiresAt - now);
+export function mergeActiveIncomingGameInvites(existing = [], incoming = [], userEmail, now = Date.now()) {
+  const byId = new Map();
+
+  filterActiveIncomingGameInvites(existing, userEmail, now).forEach((invite) => {
+    byId.set(invite.id, invite);
+  });
+
+  (incoming || []).forEach((invite) => {
+    if (!invite?.id) return;
+    if (isActiveIncomingGameInvite(invite, userEmail, now)) {
+      byId.set(invite.id, invite);
+    } else {
+      byId.delete(invite.id);
+    }
+  });
+
+  return Array.from(byId.values()).sort((a, b) => (
+    (getInviteCreatedAt(b) || 0) - (getInviteCreatedAt(a) || 0)
+  ));
 }
 
-// Re-export the canonical TTL-aware "is expired" check so callers that
-// previously depended on lib/inviteApi keep working without changes.
-export { isGameInviteExpired };
+export function summarizeGameInviteForDiagnostics(invite, userEmail, now = Date.now(), source = 'unknown', reason = '') {
+  return {
+    source,
+    reason,
+    inviteId: invite?.id || null,
+    lobby_id: invite?.lobby_id || invite?.lobbyId || null,
+    from_email: invite?.from_email || invite?.sender_email || invite?.fromEmail || null,
+    to_email: invite?.to_email || invite?.recipient_email || invite?.toEmail || null,
+    status: invite?.status || null,
+    created_at: invite?.created_at || invite?.createdAt || invite?.created_date || null,
+    expires_at: invite?.expires_at || invite?.expiresAt || null,
+    now: new Date(now).toISOString(),
+    remainingMs: getInviteRemainingMs(invite, now),
+    currentUserEmail: userEmail || null,
+    normalizedRecipientMatch: normalizeEmail(userEmail) ? isIncomingInviteForUser(invite, userEmail) : null,
+  };
+}
+
+export function isGameInviteTraceEnabled(user) {
+  const userEmail = normalizeEmail(user?.email);
+  const isAdmin = user?.role === 'admin' || userEmail === 'sariverim@gmail.com';
+  if (import.meta.env.DEV || isAdmin) return true;
+  if (typeof window === 'undefined') return false;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('inviteDebug') === '1' || window.localStorage?.getItem('kx_invite_debug') === '1';
+  } catch (_) {
+    return false;
+  }
+}
+
+export function traceGameInviteLifecycle(eventName, invite, context = {}) {
+  const user = context.user || null;
+  if (!isGameInviteTraceEnabled(user)) return;
+  const now = context.now || Date.now();
+  const payload = summarizeGameInviteForDiagnostics(
+    invite,
+    context.userEmail || user?.email || '',
+    now,
+    context.source || 'unknown',
+    context.reason || '',
+  );
+  // eslint-disable-next-line no-console
+  console.debug(`[GameInvite:${eventName}]`, payload);
+}
+
+// Backwards-compatible aliases used by older UI helpers.
+export const getGameInviteCreatedAt = getInviteCreatedAt;
+export const getGameInviteExpiresAt = parseInviteExpiresAt;
+export const getGameInviteRemainingMs = getInviteRemainingMs;
+export const isGameInviteExpired = isInviteExpired;

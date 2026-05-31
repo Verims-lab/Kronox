@@ -10,7 +10,7 @@
 //       focus/visibility (fallback when subscriptions are missing).
 //     • Dropdown has two sections (Friend Requests + Game Invites).
 //     • Friend request tap → /friends.
-//     • Game invite tap → existing acceptGameInvite flow → lobby (NOT game).
+//     • Game invite tap → shared openGameInvite flow → lobby (NOT game).
 //     • 10-minute TTL: expired invites are filtered out and openGameInvite
 //       short-circuits with reason='expired'.
 //     • Mobile-safe layout: bell does not remove back button / avatar /
@@ -23,6 +23,7 @@ import screenHeaderSource from '../layout/ScreenHeader.jsx?raw';
 import headerNotificationBellSource from '../notifications/HeaderNotificationBell.jsx?raw';
 import useHeaderNotificationsSource from '../../hooks/useHeaderNotifications.js?raw';
 import headerNotificationsLibSource from '../../lib/headerNotifications.js?raw';
+import inviteApiSource from '../../lib/inviteApi.js?raw';
 import gameInviteNotifierSource from '../invites/GameInviteNotifier.jsx?raw';
 import {
   formatBadgeCount,
@@ -240,13 +241,14 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 7. Game invite item uses existing accept flow → lobby (NOT /game). */
+  /* 7. Game invite item uses shared accept/open flow → lobby (NOT /game). */
   makeCase('header_game_invite_opens_lobby',
-    'openGameInvite calls acceptGameInvite and navigates to /lobby (lobby-first, never /game)',
+    'openGameInvite uses shared inviteApi action and navigates to /lobby (lobby-first, never /game)',
     () => {
-      const src = safeStr(useHeaderNotificationsSource);
+      const src = `${safeStr(useHeaderNotificationsSource)}\n${safeStr(inviteApiSource)}`;
       const m = missing(src, [
-        'acceptGameInvite',
+        'openGameInviteAction',
+        "source: 'header_notifications'",
         "navigate('/lobby'",
       ]);
       // Forbid a direct /game navigation from the notification path —
@@ -262,7 +264,7 @@ export const EXTRA_TESTS = [
           forbidden,
         });
       }
-      return pass('Game invite items go through acceptGameInvite → /lobby.',
+      return pass('Game invite items go through shared openGameInvite → /lobby.',
         { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
@@ -272,12 +274,12 @@ export const EXTRA_TESTS = [
     'Expired invites are excluded and openGameInvite short-circuits to reason="expired"',
     () => {
       const m = missing(useHeaderNotificationsSource, [
-        'isGameInviteExpired',
+        'isInviteExpired',
         "reason: 'expired'",
       ]);
       const libMissing = missing(headerNotificationsLibSource, [
         'GAME_INVITE_TTL_MS',
-        'isGameInviteExpired',
+        'isInviteExpired',
       ]);
       // Executable sanity: row at created_at = now - 11min must NOT count.
       const me = 'me@example.com';

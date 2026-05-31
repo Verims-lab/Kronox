@@ -21,6 +21,7 @@ import friendsPageSource from '../../pages/FriendsPage.jsx?raw';
 import friendsApiSource from '../../lib/friendsApi.js?raw';
 import friendsRealtimeRefreshSource from '../../hooks/useFriendsRealtimeRefresh.js?raw';
 import inviteApiSource from '../../lib/inviteApi.js?raw';
+import gameInviteSelectorsSource from '../../lib/gameInviteSelectors.js?raw';
 import notificationApiSource from '../../lib/notificationApi.js?raw';
 import addFriendFormSource from '../friends/AddFriendForm.jsx?raw';
 import friendListItemSource from '../friends/FriendListItem.jsx?raw';
@@ -713,15 +714,15 @@ export const EXTRA_TESTS = [
     ['createGameInvites', 'host: user', 'lobby: newLobby']),
   // Incoming-invite visibility is enforced in two layers:
   //   1) lib/inviteApi.js — the actual GameInvite.filter scopes by
-  //      to_email === current user AND status === 'pending'. This is the
-  //      single source of truth for the security-sensitive filter.
+  //      to_email === current user, then the shared gameInviteSelectors
+  //      active-pending selector applies status/expiry/recipient rules.
   //   2) components/invites/IncomingInvitesPanel.jsx — calls
   //      loadIncomingInvites(user.email) and only renders what the loader
   //      returns. It must not query GameInvite directly with its own filter.
   // The static contract therefore checks the loader in inviteApi for the
   // filter literals, and checks the panel for safe delegation to it.
   sourceHas('game_invites', 'incoming_invites_visible_to_recipient',
-    'Incoming invites are scoped to to_email === current user AND status === pending',
+    'Incoming invites are scoped to to_email === current user and active-pending shared selector',
     'lib/inviteApi.js + components/invites/IncomingInvitesPanel.jsx',
     `${inviteApiSource}\n${incomingInvitesPanelSource}`,
     [
@@ -730,8 +731,8 @@ export const EXTRA_TESTS = [
       'loadIncomingInvites(user.email)',
       // recipient scoping
       'to_email: me',
-      // pending status scoping
-      "status: 'pending'",
+      // active status/expiry scoping
+      'filterActiveIncomingGameInvites',
       // entity used and ordered/limited
       'base44.entities.GameInvite.filter',
     ]),
@@ -744,10 +745,10 @@ export const EXTRA_TESTS = [
     incomingInvitesPanelSource,
     ['base44.entities.GameInvite.filter', 'base44.entities.GameInvite.list']),
   sourceHas('game_invites', 'accept_invite_action_exists',
-    'Accept invite action exists',
+    'Accept/open invite action exists through the shared openGameInvite path',
     'components/invites/IncomingInvitesPanel.jsx',
     incomingInvitesPanelSource,
-    ['handleAccept', 'acceptGameInvite']),
+    ['handleAccept', 'openGameInvite']),
   sourceHas('game_invites', 'reject_invite_action_exists',
     'Reject invite action exists',
     'components/invites/IncomingInvitesPanel.jsx',
@@ -799,12 +800,12 @@ export const EXTRA_TESTS = [
    *  INVITE EXPIRATION HEALTH SUITE
    * ============================================================ */
   sourceHas('invite_expiration_health', 'invite_rows_have_expiry_fields',
-    'GameInvite rows store created_at/expires_at for 5-minute validity',
-    'entities/GameInvite.json + lib/inviteApi.js',
-    `${gameInviteEntitySource}\n${inviteApiSource}`,
-    ['created_at', 'expires_at', 'GAME_INVITE_TTL_MS = 5 * 60 * 1000']),
-  sourceHas('invite_expiration_health', 'invite_creation_sets_five_minute_expiry',
-    'Creating a game invite sets status pending and expires_at = created_at + 5 minutes',
+    'GameInvite rows store created_at/expires_at for 10-minute validity',
+    'entities/GameInvite.json + lib/inviteApi.js + lib/gameInviteSelectors.js',
+    `${gameInviteEntitySource}\n${inviteApiSource}\n${gameInviteSelectorsSource}`,
+    ['created_at', 'expires_at', 'GAME_INVITE_TTL_MS = 10 * 60 * 1000']),
+  sourceHas('invite_expiration_health', 'invite_creation_sets_ten_minute_expiry',
+    'Creating a game invite sets status pending and expires_at = created_at + 10 minutes',
     'lib/inviteApi.js',
     inviteApiSource,
     ["status: 'pending'", 'createdAt.getTime() + GAME_INVITE_TTL_MS', 'expires_at: expiresAt.toISOString()']),
@@ -812,7 +813,7 @@ export const EXTRA_TESTS = [
     'Incoming invite loader expires old pending invites before rendering',
     'lib/inviteApi.js',
     inviteApiSource,
-    ['isGameInviteExpired', 'expirePendingInvite', "status: 'expired'", "invite?.status === 'pending'"]),
+    ['isGameInviteExpired', 'expirePendingInvite', "status: 'expired'", "invite.status !== 'pending'"]),
   sourceHas('invite_expiration_health', 'accept_backend_blocks_expired_invites',
     'acceptGameInvite blocks expired invites before joining the lobby',
     'functions/acceptGameInvite.js',
@@ -1568,16 +1569,16 @@ export const EXTRA_TESTS = [
     ['const newLobby = await base44.entities.Lobby.create', 'await createGameInvites'],
     { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),
   sourceHas('invite_contract_drift', 'accept_invite_existing_lobby_path',
-    'Accept invite joins through safe existing lobby path',
-    'IncomingInvitesPanel.jsx + acceptGameInvite contract',
-    `${incomingInvitesPanelSource}\n${acceptGameInviteFnSource}`,
-    ["navigate('/lobby'", 'joinedLobby', 'verifiedLobby'],
+    'Accept invite joins through shared openGameInvite and safe existing lobby path',
+    'IncomingInvitesPanel.jsx + inviteApi.js + acceptGameInvite contract',
+    `${incomingInvitesPanelSource}\n${inviteApiSource}\n${acceptGameInviteFnSource}`,
+    ['openGameInvite', "navigate('/lobby'", 'joinedLobby', 'verifiedLobby'],
     { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),
   sourceHas('invite_contract_drift', 'reject_invite_marks_declined_safe',
     'Reject invite hides/marks pending invite safely with declined status',
     'inviteApi.js + IncomingInvitesPanel.jsx',
     `${inviteApiSource}\n${incomingInvitesPanelSource}`,
-    ["status: 'declined'", 'declined_at', 'await refresh()'],
+    ["status: 'declined'", 'declined_at', 'rejected_followup'],
     { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, runtimeProofRequired: true }),
   sourceLacks('invite_contract_drift', 'accepted_invite_does_not_open_game_directly',
     'Accepted invite does not navigate directly to /game from invite surfaces',
@@ -1739,7 +1740,7 @@ export const EXTRA_TESTS = [
     'In-app invite notifier remains wired for foreground/open-app invites',
     'GameInviteNotifier.jsx + App.jsx',
     `${gameInviteNotifierSource}\n${appSource}`,
-    ['GameInviteNotifier', 'loadIncomingInvites', 'GameInvite.subscribe', 'toast', 'seni Kronox oyununa davet etti', 'buildInviteTarget'],
+    ['GameInviteNotifier', 'loadIncomingInvites', 'GameInvite.subscribe', 'toast', 'seni Kronox oyununa davet etti', 'openGameInvite'],
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
   sourceHas('game_invite_push_notifications', 'invite_toasts_auto_dismiss_and_close',
     'Foreground invite toasts are dismissible and auto-dismiss instead of sticking over gameplay',
@@ -1757,7 +1758,7 @@ export const EXTRA_TESTS = [
     'Accepted/rejected/expired invites dismiss any active foreground notification',
     'GameInviteNotifier.jsx',
     gameInviteNotifierSource,
-    ["invite.status !== 'pending'", 'dismissInviteToast(invite.id)', 'knownInviteIdsRef.current.add(invite.id)'],
+    ["invite.status !== 'pending'", 'dismissInviteToast(invite.id,', 'knownInviteIdsRef.current.add(invite.id)'],
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
   sourceHas('game_invite_push_notifications', 'push_backend_sender_and_recipient_scoped',
     'Push backend validates sender and sends only to recipient active subscriptions',

@@ -253,7 +253,7 @@ function CreateInviteCta({ loading, disabled, onClick, selectedCount, inviteCap 
       </p>
       {!disabled && (
         <p className="text-center font-inter text-[11px] text-amber-200/75">
-          Davet gönderildikten sonra 5 dakika içinde kabul edilmezse süresi dolar.
+          Davet gönderildikten sonra 10 dakika içinde kabul edilmezse süresi dolar.
         </p>
       )}
     </div>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Check, UserRound, UserPlus, Loader2, AlertCircle } from 'lucide-react';
+import { X, Check, UserRound, UserPlus, AlertCircle } from 'lucide-react';
 import { sounds } from '@/lib/gameSounds';
 import { loadFriends, normalizeEmail } from '@/lib/friendsApi';
 

@@ -364,7 +364,7 @@ export const EXTRA_TESTS = [
         });
       }
       const panel = safeStr(incomingInvitesPanelSource);
-      const required = ['loadIncomingInvites', 'acceptGameInvite', 'rejectGameInvite', 'InviteCountdown'];
+      const required = ['loadIncomingInvites', 'openGameInvite', 'rejectGameInvite', 'InviteCountdown'];
       const missing = required.filter((t) => !panel.includes(t));
       if (missing.length) {
         return fail('IncomingInvitesPanel is missing key wiring.', {

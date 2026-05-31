@@ -31,7 +31,7 @@ import {
   normalizeEmail,
 } from '@/lib/gameInviteSelectors';
 
-const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
+const STATUS = { PASS: 'PASS', FAIL: 'FAIL', NOT_AUTOMATABLE: 'NOT_AUTOMATABLE' };
 const ACTION_TYPES = { CODE_FIX: 'CODE_FIX', MANUAL_VERIFICATION: 'MANUAL_VERIFICATION' };
 
 const SUITE_ID = 'game_invite_lifecycle_v2';
@@ -152,7 +152,7 @@ export const EXTRA_TESTS = [
       ]);
       const missingInPanel = missing(incomingInvitesPanelSource, [
         "from '@/lib/gameInviteSelectors'",
-        'filterActiveIncomingGameInvites',
+        'getGameInviteActiveFilterReason',
       ]);
       const missingInToast = missing(gameInviteNotifierSource, [
         "from '@/lib/gameInviteSelectors'",
@@ -266,11 +266,12 @@ export const EXTRA_TESTS = [
 
   /* 7. Open/accept path is shared and goes to lobby (static + executable spot-check). */
   makeCase('game_invite_open_shared_action',
-    'Header bell openGameInvite uses acceptGameInvite and navigates to /lobby',
+    'Header bell openGameInvite uses shared openGameInvite action and navigates to /lobby',
     () => {
-      const src = safeStr(useHeaderNotificationsSource);
+      const src = `${safeStr(useHeaderNotificationsSource)}\n${safeStr(inviteApiSource)}`;
       const m = missing(src, [
-        'acceptGameInvite',
+        'openGameInviteAction',
+        "source: 'header_notifications'",
         "navigate('/lobby'",
       ]);
       const f = forbidden(src, ["navigate('/game'"]);
@@ -315,11 +316,12 @@ export const EXTRA_TESTS = [
 
   /* 9. Accept goes to /lobby (also covered for IncomingInvitesPanel). */
   makeCase('game_invite_accept_navigates_lobby',
-    'IncomingInvitesPanel.handleAccept navigates to /lobby with joinedLobby state (NEVER /game)',
+    'IncomingInvitesPanel.handleAccept uses shared openGameInvite and navigates to /lobby with joinedLobby state (NEVER /game)',
     () => {
-      const src = safeStr(incomingInvitesPanelSource);
+      const src = `${safeStr(incomingInvitesPanelSource)}\n${safeStr(inviteApiSource)}`;
       const m = missing(src, [
-        'acceptGameInvite',
+        'openGameInvite',
+        "source: 'online_pending_panel'",
         "navigate('/lobby'",
         'joinedLobby',
       ]);
@@ -372,7 +374,7 @@ export const EXTRA_TESTS = [
   makeCase('game_invite_two_account_persistence_manual',
     'Manual: invite stays visible on header + Online after toast disappears, no terminal status flip',
     () => ({
-      status: STATUS.PASS,
+      status: STATUS.NOT_AUTOMATABLE,
       reason: 'Two-account flow verifying header/online persistence after toast dismiss must be checked manually.',
       verification: 'NOT_AUTOMATABLE',
       classification: 'MANUAL_VERIFICATION_REQUIRED',

@@ -12,12 +12,13 @@
 // Outgoing rows, resolved rows (accepted/declined/rejected/cancelled/
 // expired/completed) are never counted.
 
-import { normalizeEmail } from '@/lib/friendsApi';
 import {
   GAME_INVITE_TTL_MS,
-  getGameInviteExpiresAt,
-  isGameInviteExpired,
-} from '@/lib/inviteApi';
+  getInviteRemainingMs,
+  isActiveIncomingGameInvite,
+  isInviteExpired,
+  normalizeEmail,
+} from '@/lib/gameInviteSelectors';
 
 export { GAME_INVITE_TTL_MS };
 
@@ -31,18 +32,12 @@ export function isPendingFriendRequestForUser(row, myEmail) {
 
 /** Returns true when the GameInvite row is pending, addressed to me, and not yet expired. */
 export function isActiveGameInviteForUser(row, myEmail, now = Date.now()) {
-  if (!row || row.status !== 'pending') return false;
-  const me = normalizeEmail(myEmail);
-  if (!me) return false;
-  if (normalizeEmail(row.to_email) !== me) return false;
-  return !isGameInviteExpired(row, now);
+  return isActiveIncomingGameInvite(row, myEmail, now);
 }
 
 /** Remaining time in milliseconds until the invite expires. NaN when unknown. */
 export function getGameInviteRemainingMs(row, now = Date.now()) {
-  const expiresAt = getGameInviteExpiresAt(row);
-  if (!Number.isFinite(expiresAt)) return NaN;
-  return Math.max(0, expiresAt - now);
+  return getInviteRemainingMs(row, now);
 }
 
 /** Format remaining milliseconds as "Xm Ys" / "Ys". Returns '' when unknown. */

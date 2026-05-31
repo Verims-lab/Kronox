@@ -5,14 +5,15 @@ import { Mailbox, Loader2, Check, X, AlertCircle, Crown } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import {
   loadIncomingInvites,
-  acceptGameInvite,
+  openGameInvite,
   rejectGameInvite,
+  mergeActiveIncomingGameInvites,
 } from '@/lib/inviteApi';
-// Codex135 — use the SHARED active-invite selector so this panel can
-// never disagree with the header bell or the toast notifier.
 import {
-  filterActiveIncomingGameInvites,
+  getGameInviteActiveFilterReason,
+  getInviteRecipientEmail,
   isInviteExpired,
+  traceGameInviteLifecycle,
 } from '@/lib/gameInviteSelectors';
 import { sounds } from '@/lib/gameSounds';
 import InviteCountdown from '@/components/invites/InviteCountdown';
@@ -32,17 +33,24 @@ export default function IncomingInvitesPanel({ user, variant = 'fantasy' }) {
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState(null);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async ({ preserveExisting = false, source = 'fetch' } = {}) => {
     if (!user?.email) { setLoading(false); return; }
     setLoading(true);
     setError('');
     try {
       const rows = await loadIncomingInvites(user.email);
-      // Codex135 — re-filter through the shared active selector so a
-      // fresh pending invite is NEVER dropped because of a malformed
-      // timestamp field (the selector treats missing timestamps as
-      // active and warns once).
-      setInvites(filterActiveIncomingGameInvites(rows, user.email));
+      setInvites((prev) => {
+        const next = preserveExisting
+          ? mergeActiveIncomingGameInvites(prev, rows, user.email)
+          : rows;
+        traceGameInviteLifecycle('online_pending_invite_list_recalculated', { id: `count:${next.length}`, status: 'pending', to_email: user.email }, {
+          source: `IncomingInvitesPanel.${source}`,
+          user,
+          userEmail: user.email,
+          reason: preserveExisting ? 'preserve_existing_merge' : 'authoritative_replace',
+        });
+        return next;
+      });
     } catch (err) {
       setError(err?.message || 'Davetler yüklenemedi.');
     } finally {
@@ -60,12 +68,26 @@ export default function IncomingInvitesPanel({ user, variant = 'fantasy' }) {
       const eventType = event?.type || event?.eventType || 'update';
       const invite = event?.data || event;
       if (eventType === 'delete') return;
-      if (String(invite?.to_email || '').toLowerCase() === String(user.email || '').toLowerCase()) {
-        refresh();
+      if (getInviteRecipientEmail(invite) !== String(user.email || '').trim().toLowerCase()) return;
+
+      const reason = getGameInviteActiveFilterReason(invite, user.email);
+      traceGameInviteLifecycle(reason.startsWith('active') ? 'invite_passed_active_filter' : 'invite_failed_active_filter', invite, {
+        source: `IncomingInvitesPanel.subscription:${eventType}`,
+        user,
+        userEmail: user.email,
+        reason,
+      });
+
+      if (reason.startsWith('active')) {
+        setInvites((prev) => mergeActiveIncomingGameInvites(prev, [invite], user.email));
+        window.setTimeout(() => refresh({ preserveExisting: true, source: 'subscription_followup' }), 900);
+      } else {
+        setInvites((prev) => prev.filter((item) => item.id !== invite.id));
+        refresh({ preserveExisting: false, source: 'terminal_followup' });
       }
     });
 
-    intervalId = window.setInterval(refresh, 20000);
+    intervalId = window.setInterval(() => refresh({ preserveExisting: false, source: 'polling' }), 20000);
 
     return () => {
       if (typeof unsub === 'function') unsub();
@@ -83,12 +105,15 @@ export default function IncomingInvitesPanel({ user, variant = 'fantasy' }) {
         await refresh();
         return;
       }
-      const res = await acceptGameInvite(invite.id);
-      if (res?.lobby?.id) {
-        // Hand the recipient straight into the existing Waiting Room flow.
-        navigate('/lobby', { state: { joinedLobby: res.lobby } });
-      }
-      await refresh();
+      await openGameInvite(invite, {
+        navigate,
+        userEmail: user.email,
+        source: 'online_pending_panel',
+        onAccepted: async () => {
+          setInvites((prev) => prev.filter((item) => item.id !== invite.id));
+          await refresh({ preserveExisting: false, source: 'accepted_followup' });
+        },
+      });
     } catch (err) {
       setError(err?.message || 'Davet kabul edilemedi.');
     } finally {
@@ -102,7 +127,8 @@ export default function IncomingInvitesPanel({ user, variant = 'fantasy' }) {
     sounds.tick();
     try {
       await rejectGameInvite(invite.id);
-      await refresh();
+      setInvites((prev) => prev.filter((item) => item.id !== invite.id));
+      await refresh({ preserveExisting: false, source: 'rejected_followup' });
     } catch (err) {
       setError(err?.message || 'Davet reddedilemedi.');
     } finally {
