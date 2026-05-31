@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, UserPlus, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Mail, UserPlus, Loader2, AlertCircle } from 'lucide-react';
 import { isValidEmail } from '@/lib/friendsApi';
 
 /**
@@ -10,12 +10,10 @@ export default function AddFriendForm({ onSubmit }) {
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   const submit = async (event) => {
     event.preventDefault();
     setError('');
-    setSuccess('');
     const candidate = email.trim();
     if (!candidate) {
       setError('E-posta adresi gir.');
@@ -27,8 +25,11 @@ export default function AddFriendForm({ onSubmit }) {
     }
     setBusy(true);
     try {
+      // Codex129 — Parent (FriendsPage) now owns the precise success/warning
+      // copy because it knows whether the email actually went out and
+      // whether the recipient is registered. We just clear our local field
+      // on success and let the parent show the honest banner.
       await onSubmit(candidate);
-      setSuccess('Arkadaşlık isteği gönderildi.');
       setEmail('');
     } catch (err) {
       setError(err.message || 'İstek gönderilemedi.');
@@ -97,19 +98,6 @@ export default function AddFriendForm({ onSubmit }) {
           >
             <AlertCircle className="h-4 w-4 text-rose-300 flex-shrink-0 mt-0.5" />
             <p className="font-inter text-xs text-rose-100/90">{error}</p>
-          </motion.div>
-        )}
-        {success && (
-          <motion.div
-            key="ok"
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="flex items-start gap-2 rounded-xl px-3 py-2"
-            style={{ background: 'rgba(74,222,128,0.10)', boxShadow: 'inset 0 0 0 1px rgba(74,222,128,0.35)' }}
-          >
-            <CheckCircle2 className="h-4 w-4 text-emerald-300 flex-shrink-0 mt-0.5" />
-            <p className="font-inter text-xs text-emerald-100/90">{success}</p>
           </motion.div>
         )}
       </AnimatePresence>

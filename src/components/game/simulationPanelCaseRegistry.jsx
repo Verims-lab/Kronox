@@ -70,6 +70,8 @@ import * as onlineChallengeCases from './simulationPanelOnlineChallengeCases';
 // Codex128 — Online puan/checkpoint sistemi: win/loss/draw + time bonus +
 // checkpoint floor + idempotent match write contracts.
 import * as onlineRankingCases from './simulationPanelOnlineRankingCases';
+// Codex129 — Friend invite delivery & email honesty contracts.
+import * as inviteDeliveryCases from './simulationPanelInviteDeliveryCases';
 
 const MODULES = [
   soloProgressCases,
@@ -83,6 +85,7 @@ const MODULES = [
   uiConsolidationCases,
   onlineChallengeCases,
   onlineRankingCases,
+  inviteDeliveryCases,
 ];
 
 function flatten(key) {
