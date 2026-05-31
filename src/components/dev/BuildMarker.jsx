@@ -1,6 +1,16 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex120 — Public-safe Liderlik table + graceful fallback integration:
+// Codex121 — Liderlik missing entity backend fix:
+//   • Adds getSoloLeaderboard as a service-role, public-safe projection of
+//     existing User.solo_progress so the table can load even when the live
+//     Base44 app has not registered SoloLeaderboardEntry yet.
+//   • SoloLeaderboardEntry publishing remains best-effort, but a missing
+//     runtime entity schema no longer leaks to the UI or blocks a user's
+//     real own-score row.
+//   • The fallback row uses the real current-user score with rank pending;
+//     no fake users, fake ranks, raw emails, or private profile fields.
+//
+// Previous note: Codex120 — Public-safe Liderlik table + graceful fallback integration:
 //   • Merges the extracted KronoxRankingSection fallback UI with the new
 //     SoloLeaderboardEntry public score source.
 //   • Keeps real table rows visible when public leaderboard entries exist,
@@ -304,7 +314,7 @@ import React, { useEffect, useState } from 'react';
 //   visible 120s SoloLevelTimer (no audio cue).
 // Previous note: Codex106 — Solo level completion popup polish.
 // Previous note: Codex106 — Solo Level Path (vertical 8-row path).
-const BUILD_MARKER = 'Codex120';
+const BUILD_MARKER = 'Codex121';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

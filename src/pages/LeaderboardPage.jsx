@@ -112,12 +112,15 @@ export default function LeaderboardPage() {
       const ownScoreRow = sections.currentUserRow || toSoloLeaderboardEntry(publishedRow || currentPayload, friendKeys, currentOwnerKey);
 
       if (rankedRows.length === 0) {
+        const ownPendingRow = ownScoreRow
+          ? [{ ...ownScoreRow, rank: null, isCurrentUser: true }]
+          : [];
         setLeaderboard({
           loading: false,
           loaded: true,
           error: '',
           rankedRows: [],
-          topRows: [],
+          topRows: ownPendingRow,
           currentUserRow: null,
           currentUserInTop: false,
           friendsOutsideTop: [],

@@ -29,7 +29,9 @@ import { Loader2, Medal, RefreshCw, Trophy, UserRound, Users } from 'lucide-reac
 export default function KronoxRankingSection({ authChecked, user, leaderboard, onRetry, isAdmin }) {
   const hasRows = leaderboard.topRows.length > 0;
   const showOwnRank = leaderboard.currentUserRow && !leaderboard.currentUserInTop;
-  const showOwnScorePending = !leaderboard.currentUserRow && leaderboard.ownScoreRow;
+  const topRowIds = new Set(leaderboard.topRows.map((row) => row.id));
+  const ownScoreAlreadyInTop = Boolean(leaderboard.ownScoreRow && topRowIds.has(leaderboard.ownScoreRow.id));
+  const showOwnScorePending = !leaderboard.currentUserRow && leaderboard.ownScoreRow && !ownScoreAlreadyInTop;
   const showFriendRows = leaderboard.friendsOutsideTop.length > 0;
   const waitingForLeaderboard = Boolean(user && !leaderboard.loaded && !leaderboard.error);
   const friendEmptyCopy = leaderboard.friendCount > 0

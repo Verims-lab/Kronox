@@ -4,6 +4,14 @@ import { backfillSoloScores, summarizeSoloProgress } from './soloProgressHelpers
 export const LEADERBOARD_TOP_LIMIT = 10;
 export const LEADERBOARD_FETCH_LIMIT = 500;
 export const LEADERBOARD_SOLO_LEVEL_COUNT = 20;
+const SOLO_LEADERBOARD_ENTITY = 'SoloLeaderboardEntry';
+
+export function isMissingSoloLeaderboardEntityError(error) {
+  const message = String(error?.message || error || '');
+  return message.includes(`Entity schema ${SOLO_LEADERBOARD_ENTITY} not found`) ||
+    message.includes('SoloLeaderboardEntry not found') ||
+    message.includes('schema SoloLeaderboardEntry');
+}
 
 export function normalizeLeaderboardEmail(raw) {
   return String(raw || '').trim().toLowerCase();
@@ -121,21 +129,40 @@ export async function publishSoloLeaderboardEntry(user, progress, totalLevels = 
   const payload = buildSoloLeaderboardPayload(user, progress, totalLevels);
   if (!payload.owner_key) return null;
 
-  const existing = await base44.entities.SoloLeaderboardEntry.filter(
-    { owner_key: payload.owner_key },
-    '-updated_at',
-    5,
-  );
-  const ownRow = existing?.[0] || null;
-  if (ownRow?.id) {
-    return base44.entities.SoloLeaderboardEntry.update(ownRow.id, payload);
+  try {
+    const existing = await base44.entities.SoloLeaderboardEntry.filter(
+      { owner_key: payload.owner_key },
+      '-updated_at',
+      5,
+    );
+    const ownRow = existing?.[0] || null;
+    if (ownRow?.id) {
+      return base44.entities.SoloLeaderboardEntry.update(ownRow.id, payload);
+    }
+    return base44.entities.SoloLeaderboardEntry.create(payload);
+  } catch (error) {
+    if (isMissingSoloLeaderboardEntityError(error)) return null;
+    throw error;
   }
-  return base44.entities.SoloLeaderboardEntry.create(payload);
 }
 
 export async function loadSoloLeaderboardEntries(limit = LEADERBOARD_FETCH_LIMIT) {
-  const rows = await base44.entities.SoloLeaderboardEntry.list('-total_solo_score', limit);
-  return Array.isArray(rows) ? rows : [];
+  try {
+    const response = await base44.functions.invoke('getSoloLeaderboard', { limit });
+    const rows = response?.data?.rows || response?.rows;
+    if (Array.isArray(rows)) return rows;
+  } catch {
+    // Fall through to the entity source for older deployments where the
+    // function has not landed yet.
+  }
+
+  try {
+    const rows = await base44.entities.SoloLeaderboardEntry.list('-total_solo_score', limit);
+    return Array.isArray(rows) ? rows : [];
+  } catch (error) {
+    if (isMissingSoloLeaderboardEntityError(error)) return [];
+    throw error;
+  }
 }
 
 export function getFriendLeaderboardKeys(friendEmails = []) {
