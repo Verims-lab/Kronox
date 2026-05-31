@@ -113,7 +113,6 @@ export function isIncomingInviteForUser(invite, userEmail) {
 
 export function getGameInviteActiveFilterReason(invite, userEmail, now = Date.now()) {
   if (!invite) return 'missing_invite';
-  if (!invite.id) return 'missing_id';
 
   const status = getInviteStatus(invite);
   if (status !== 'pending') return TERMINAL_GAME_INVITE_STATUSES.has(status) ? `terminal_${status}` : `status_${status || 'missing'}`;
