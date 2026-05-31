@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { sounds } from '@/lib/gameSounds';
 import GoldButton from '@/components/ui/GoldButton';
 import CreateLobbyInvitePanel from '@/components/lobby/CreateLobbyInvitePanel';
+import IncomingInvitesPanel from '@/components/invites/IncomingInvitesPanel';
 import { ONLINE_CATEGORIES } from '@/lib/onlineCategories';
 import ScreenHeader from '@/components/layout/ScreenHeader';
 // Codex118 — Header Puan + Elmas on the Online landing screen. Same
@@ -400,6 +401,13 @@ function OnlineChallengeLanding({ user, onCreate, onJoin, onBackHome }) {
           diamonds: getLeaderboardDiamondValue(user),
         }}
       />
+
+      <div
+        className="pointer-events-auto absolute left-3 right-3 z-40 mx-auto max-w-md"
+        style={{ top: 'calc(4.25rem + env(safe-area-inset-top))' }}
+      >
+        <IncomingInvitesPanel user={user} variant="online" />
+      </div>
 
       <div
         className="absolute left-1/2 top-1/2 z-10"

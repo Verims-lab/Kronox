@@ -1,6 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex121 — Liderlik missing entity backend fix:
+// Codex122 — GameInvite lifecycle persistence fix:
+//   • Pending game invites now use a shared active selector, 10-minute TTL,
+//     lifecycle diagnostics, and merge-safe subscription/fetch handling.
+//   • Toast auto-dismiss is visual-only; header/Online pending invite surfaces
+//     remain server-backed until accepted/declined/expired/cancelled/completed.
+//   • Header and Online invite actions use the shared open/accept/lobby route.
+//
+// Previous note: Codex121 — Liderlik missing entity backend fix:
 //   • Adds getSoloLeaderboard as a service-role, public-safe projection of
 //     existing User.solo_progress so the table can load even when the live
 //     Base44 app has not registered SoloLeaderboardEntry yet.
@@ -314,7 +321,7 @@ import React, { useEffect, useState } from 'react';
 //   visible 120s SoloLevelTimer (no audio cue).
 // Previous note: Codex106 — Solo level completion popup polish.
 // Previous note: Codex106 — Solo Level Path (vertical 8-row path).
-const BUILD_MARKER = 'Codex121';
+const BUILD_MARKER = 'Codex122';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

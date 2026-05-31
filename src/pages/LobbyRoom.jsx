@@ -22,6 +22,7 @@ import {
   isGameInviteExpired,
   rejectGameInvite,
 } from '@/lib/inviteApi';
+import { getInviteRecipientEmail, traceGameInviteLifecycle } from '@/lib/gameInviteSelectors';
 import { debugLog, debugWarn } from '@/lib/debugLog';
 import { setBottomNavHidden } from '@/lib/bottomNavVisibility';
 
@@ -171,12 +172,24 @@ export default function LobbyRoom() {
         const invite = await base44.entities.GameInvite.get(queryInviteId);
         if (cancelled) return;
         const myEmail = String(user.email || '').toLowerCase();
-        const toEmail = String(invite?.to_email || '').toLowerCase();
+        const toEmail = getInviteRecipientEmail(invite);
         if (!invite || toEmail !== myEmail) {
           setDeepLinkMessage('Bu davet bulunamadı veya sana ait değil.');
+          traceGameInviteLifecycle('invite_failed_active_filter', invite, {
+            source: 'LobbyRoom.deep_link_load',
+            user,
+            userEmail: myEmail,
+            reason: 'recipient_mismatch_or_missing',
+          });
           return;
         }
         if (invite.status === 'pending' && isGameInviteExpired(invite)) {
+          traceGameInviteLifecycle('invite_expired_by_cleanup', invite, {
+            source: 'LobbyRoom.deep_link_load',
+            user,
+            userEmail: myEmail,
+            reason: 'ttl_elapsed',
+          });
           await base44.entities.GameInvite.update(invite.id, {
             status: 'expired',
             expired_at: new Date().toISOString(),
@@ -212,6 +225,12 @@ export default function LobbyRoom() {
     setDeepLinkMessage('');
     try {
       if (isGameInviteExpired(deepLinkInvite)) {
+        traceGameInviteLifecycle('invite_expired_by_cleanup', deepLinkInvite, {
+          source: 'LobbyRoom.deep_link_accept',
+          user,
+          userEmail: user?.email,
+          reason: 'ttl_elapsed',
+        });
         await base44.entities.GameInvite.update(deepLinkInvite.id, {
           status: 'expired',
           expired_at: new Date().toISOString(),

@@ -10,7 +10,7 @@
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
-const GAME_INVITE_TTL_MS = 5 * 60 * 1000;
+const GAME_INVITE_TTL_MS = 10 * 60 * 1000;
 const readTime = (value: unknown) => {
   const time = value ? new Date(String(value)).getTime() : NaN;
   return Number.isFinite(time) ? time : NaN;

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Gem, Trophy, UserRound } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { sounds } from '@/lib/gameSounds';
+import HeaderGameInviteBell from '@/components/invites/HeaderGameInviteBell';
 
 /**
  * Codex118 — Standardized top bar for primary navigation screens.
@@ -28,10 +29,12 @@ import { sounds } from '@/lib/gameSounds';
  *   - Chip area (`chipValue`) only renders in TITLE mode and only when a
  *     real numeric value is passed. No fake economy.
  *   - Header is fixed, safe-area aware, mobile-first.
+ *   - Pending game invite badge/list is server-backed and only appears when
+ *     actionable invites exist.
  *
- * IMPORTANT: This component does NOT touch any business logic
- * (notifications, invites, tutorial, lobby, game). It is purely
- * presentational.
+ * IMPORTANT: This component only hosts the notification bell visually; invite
+ * loading/actions live inside HeaderGameInviteBell. Tutorial/lobby/game logic
+ * remains outside this header.
  */
 export default function ScreenHeader({
   title,
@@ -111,6 +114,8 @@ export default function ScreenHeader({
       {/* Right cluster: chip (optional, title-mode only) + avatar (optional) */}
       <div className="flex items-center gap-2" style={{ minWidth: 44, justifyContent: 'flex-end' }}>
         {rightSlot}
+
+        {user?.email && <HeaderGameInviteBell user={user} />}
 
         {!statsMode && hasChip && (
           <div

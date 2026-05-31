@@ -4,8 +4,14 @@ import { ToastAction } from '@/components/ui/toast';
 import { toast } from '@/components/ui/use-toast';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
-import { loadIncomingInvites } from '@/lib/inviteApi';
-import { normalizeEmail } from '@/lib/friendsApi';
+import { loadIncomingInvites, openGameInvite } from '@/lib/inviteApi';
+import {
+  getGameInviteActiveFilterReason,
+  getInviteSenderEmail,
+  getInviteRecipientEmail,
+  normalizeEmail,
+  traceGameInviteLifecycle,
+} from '@/lib/gameInviteSelectors';
 
 const INVITE_TOAST_DURATION_MS = 8000;
 
@@ -29,18 +35,24 @@ export default function GameInviteNotifier() {
   const bootstrappedRef = useRef(false);
   const pathnameRef = useRef(location.pathname);
 
-  const dismissInviteToast = useCallback((inviteId, { remember = true } = {}) => {
+  const dismissInviteToast = useCallback((inviteId, { remember = true, source = 'toast_dismiss' } = {}) => {
     if (!inviteId) return;
     const active = activeToastByInviteIdRef.current.get(inviteId);
     if (remember) dismissedInviteIdsRef.current.add(inviteId);
     if (active?.timerId) window.clearTimeout(active.timerId);
     active?.controller?.dismiss?.();
     activeToastByInviteIdRef.current.delete(inviteId);
-  }, []);
+    traceGameInviteLifecycle('toast_banner_dismissed', active?.invite || { id: inviteId }, {
+      source,
+      user,
+      userEmail: user?.email,
+      reason: remember ? 'remembered' : 'visual_only',
+    });
+  }, [user]);
 
   const dismissAllInviteToasts = useCallback(() => {
     Array.from(activeToastByInviteIdRef.current.keys()).forEach((inviteId) => {
-      dismissInviteToast(inviteId);
+      dismissInviteToast(inviteId, { source: 'dismiss_all' });
     });
   }, [dismissInviteToast]);
 
@@ -48,6 +60,11 @@ export default function GameInviteNotifier() {
     if (!invite?.id) return;
     if (pathnameRef.current === '/game') {
       knownInviteIdsRef.current.add(invite.id);
+      traceGameInviteLifecycle('toast_banner_hidden_on_game_route', invite, {
+        source: 'GameInviteNotifier',
+        user,
+        userEmail: user?.email,
+      });
       return;
     }
     if (dismissedInviteIdsRef.current.has(invite.id) || activeToastByInviteIdRef.current.has(invite.id)) {
@@ -60,12 +77,25 @@ export default function GameInviteNotifier() {
       title: 'Kronox oyun daveti',
       description: `${display} seni Kronox oyununa davet etti.`,
       duration: Infinity,
-      onDismiss: () => dismissInviteToast(invite.id),
+      onDismiss: () => dismissInviteToast(invite.id, { remember: true, source: 'toast_close_button' }),
       action: (
         <ToastAction
-          onClick={() => {
-            dismissInviteToast(invite.id);
-            navigate(target);
+          onClick={async () => {
+            dismissInviteToast(invite.id, { remember: true, source: 'toast_open_action' });
+            try {
+              await openGameInvite(invite, {
+                navigate,
+                userEmail: user?.email,
+                source: 'toast',
+              });
+            } catch (error) {
+              toast({
+                title: 'Davet açılamadı',
+                description: error?.message || 'Davet kabul edilemedi. Lütfen tekrar dene.',
+                duration: 5000,
+              });
+              navigate(target);
+            }
           }}
         >
           Aç
@@ -74,15 +104,21 @@ export default function GameInviteNotifier() {
     });
 
     const timerId = window.setTimeout(() => {
-      dismissInviteToast(invite.id);
+      dismissInviteToast(invite.id, { remember: false, source: 'toast_timeout' });
     }, INVITE_TOAST_DURATION_MS);
 
     activeToastByInviteIdRef.current.set(invite.id, {
+      invite,
       controller,
       toastId: controller.id,
       timerId,
     });
-  }, [dismissInviteToast, navigate]);
+    traceGameInviteLifecycle('toast_banner_shown', invite, {
+      source: 'GameInviteNotifier',
+      user,
+      userEmail: user?.email,
+    });
+  }, [dismissInviteToast, navigate, user]);
 
   const ingestInvites = useCallback((rows, { notifyNew }) => {
     const known = knownInviteIdsRef.current;
@@ -90,15 +126,24 @@ export default function GameInviteNotifier() {
       if (!invite?.id) return;
       const wasKnown = known.has(invite.id);
       known.add(invite.id);
-      if (invite.status !== 'pending') {
-        dismissInviteToast(invite.id);
+      const reason = getGameInviteActiveFilterReason(invite, user?.email);
+      traceGameInviteLifecycle(reason.startsWith('active') ? 'invite_passed_active_filter' : 'invite_failed_active_filter', invite, {
+        source: 'GameInviteNotifier.ingest',
+        user,
+        userEmail: user?.email,
+        reason,
+      });
+      if (!reason.startsWith('active')) {
+        if (reason.startsWith('terminal_') || reason === 'expired') {
+          dismissInviteToast(invite.id, { source: `status_${invite.status || reason}` });
+        }
         return;
       }
       if (notifyNew && !wasKnown && !dismissedInviteIdsRef.current.has(invite.id)) {
         showInviteToast(invite);
       }
     });
-  }, [dismissInviteToast, showInviteToast]);
+  }, [dismissInviteToast, showInviteToast, user]);
 
   useEffect(() => {
     pathnameRef.current = location.pathname;
@@ -125,6 +170,12 @@ export default function GameInviteNotifier() {
     const refresh = async ({ notifyNew }) => {
       const rows = await loadIncomingInvites(email).catch(() => []);
       if (cancelled) return;
+      traceGameInviteLifecycle('invite_loaded_by_polling_fetch', { id: `count:${rows.length}`, status: 'pending', to_email: email }, {
+        source: 'GameInviteNotifier.refresh',
+        user,
+        userEmail: email,
+        reason: 'fetch_complete',
+      });
       ingestInvites(rows, { notifyNew });
       bootstrappedRef.current = true;
     };
@@ -135,8 +186,13 @@ export default function GameInviteNotifier() {
       const eventType = event?.type || event?.eventType || 'update';
       const invite = event?.data || event;
       if (eventType === 'delete') return;
-      const toEmail = normalizeEmail(invite?.to_email);
-      const fromEmail = normalizeEmail(invite?.from_email);
+      const toEmail = getInviteRecipientEmail(invite);
+      const fromEmail = getInviteSenderEmail(invite);
+      traceGameInviteLifecycle('invite_received_by_subscription', invite, {
+        source: `GameInviteNotifier.subscription:${eventType}`,
+        user,
+        userEmail: email,
+      });
       if (
         fromEmail === email
         && invite?.status === 'accepted'
@@ -163,7 +219,7 @@ export default function GameInviteNotifier() {
       if (toEmail !== email) return;
       if (invite?.id && invite.status !== 'pending') {
         knownInviteIdsRef.current.add(invite.id);
-        dismissInviteToast(invite.id);
+        dismissInviteToast(invite.id, { source: `subscription_${invite.status}` });
         return;
       }
       ingestInvites([invite], { notifyNew: bootstrappedRef.current });
@@ -178,7 +234,7 @@ export default function GameInviteNotifier() {
       if (typeof unsub === 'function') unsub();
       if (intervalId) window.clearInterval(intervalId);
     };
-  }, [dismissAllInviteToasts, dismissInviteToast, ingestInvites, user?.email]);
+  }, [dismissAllInviteToasts, dismissInviteToast, ingestInvites, navigate, user, user?.email]);
 
   return null;
 }
