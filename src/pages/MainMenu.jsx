@@ -1,10 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+// useMemo is used below to compute the header Puan/Elmas stats payload
+// without recomputing on every render.
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ChevronRight } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 import ScreenHeader from '@/components/layout/ScreenHeader';
+// Codex118 — Header Puan + Elmas stats. Puan flows from the SAME
+// shared Solo summary helpers Profile/Leaderboard use; Elmas uses the
+// same real/placeholder helper Leaderboard uses (real field if present,
+// otherwise safe 0 — never derived from stars or score).
+import { getSoloLevelCount, readSoloProgress } from '@/lib/soloLevels';
+import { summarizeSoloProgress } from '@/lib/soloProgressHelpers';
+import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 
 // Note: a remote logo URL constant previously lived here but was never
 // rendered. It has been removed so the "no_remote_visual_assets_new_screens"
@@ -98,6 +107,19 @@ export default function MainMenu() {
     return () => { cancelled = true; };
   }, []);
 
+  // Codex118 — Stats payload for the top bar. Puan = totalSoloScore from
+  // the SAME source Profile/Leaderboard read; Elmas = real economy field
+  // if present, otherwise a safe 0 placeholder (never invented from
+  // gameplay stats).
+  const headerStats = useMemo(() => {
+    const progress = readSoloProgress(user);
+    const summary = summarizeSoloProgress(progress, getSoloLevelCount());
+    return {
+      score: summary.totalSoloScore,
+      diamonds: getLeaderboardDiamondValue(user),
+    };
+  }, [user]);
+
   useEffect(() => {
     const media = window.matchMedia(WIDE_STAGE_QUERY);
     const updateStageMode = () => setIsWideStage(media.matches);
@@ -148,8 +170,15 @@ export default function MainMenu() {
         contain: 'layout paint size',
       }}
     >
-      {/* Codex102 — Standardized top bar above the immersive home stage. */}
-      <ScreenHeader title="Kronox" user={user} />
+      {/* Codex118 — Home top bar shows Puan + Elmas only.
+          • Title "Kronox" removed (logo lives in the immersive background).
+          • Profile avatar hidden on Home (showProfile={false}).
+          • Stats are centered and never overflow on small screens. */}
+      <ScreenHeader
+        user={user}
+        headerStats={headerStats}
+        showProfile={false}
+      />
       <div
         className="absolute left-1/2 top-1/2 z-10"
         style={{

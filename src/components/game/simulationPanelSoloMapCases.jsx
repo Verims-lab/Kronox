@@ -157,14 +157,19 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 4. Auto-scroll-to-current-level wiring. */
+  /* 4. Auto-scroll-to-current-level wiring.
+   *    Codex117 — fix migrated from offsetTop (broken: returns position
+   *    inside the inner 128px row, not the scroll container) to
+   *    getBoundingClientRect (correct: viewport-relative, offsetParent-
+   *    independent). The required-token list reflects the new math. */
   makeCase('solo_adventure_map', 'auto_scroll_to_current_level_wired',
-    'LevelMapPath centers the current level on mount via scrollTop math (auto-scroll target wiring present)',
+    'LevelMapPath centers the current level on mount via bounding-rect math (auto-scroll target wiring present)',
     () => {
       const missing = missingTokens(levelMapPathSource, [
         "status === 'current'",
         'container.scrollTop',
-        'offsetTop',
+        // Codex117 — bounding-rect math replaces the broken offsetTop math.
+        'getBoundingClientRect',
       ]);
       if (missing.length) {
         return fail('Auto-scroll wiring missing — Solo would always open at the top.', {
@@ -172,7 +177,7 @@ export const EXTRA_TESTS = [
           classification: 'REAL_PRODUCT_RISK',
           file: 'components/solo/LevelMapPath.jsx',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'current-level lookup + container.scrollTop computed from offsetTop',
+          expected: 'current-level lookup + container.scrollTop computed from getBoundingClientRect deltas',
           actual: { missing },
         });
       }
