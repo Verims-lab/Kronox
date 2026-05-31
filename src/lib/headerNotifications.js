@@ -16,10 +16,14 @@ import {
   GAME_INVITE_TTL_MS,
   getInviteRemainingMs,
   isActiveIncomingGameInvite,
+  isInviteExpired,
   normalizeEmail,
 } from '@/lib/gameInviteSelectors';
 
-export { GAME_INVITE_TTL_MS };
+// Re-export the shared 10-minute TTL helpers so Header notification code
+// has a single import surface. `isInviteExpired` is the canonical expiry
+// predicate used by both the badge counter and openGameInvite guard.
+export { GAME_INVITE_TTL_MS, isInviteExpired };
 
 /** Returns true when the FriendRequest row is a pending request addressed to me. */
 export function isPendingFriendRequestForUser(row, myEmail) {
