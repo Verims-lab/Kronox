@@ -13,7 +13,8 @@ import webpush from 'npm:web-push@3.6.7';
 
 const normalizeEmail = (value: unknown) => String(value || '').trim().toLowerCase();
 const json = (body: unknown, status = 200) => Response.json(body, { status });
-const GAME_INVITE_TTL_MS = 5 * 60 * 1000;
+// Codex130 — Game invite TTL: 10 minutes (was 5).
+const GAME_INVITE_TTL_MS = 10 * 60 * 1000;
 const readTime = (value: unknown) => {
   const time = value ? new Date(String(value)).getTime() : NaN;
   return Number.isFinite(time) ? time : NaN;

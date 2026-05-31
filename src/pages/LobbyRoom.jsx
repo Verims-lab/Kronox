@@ -21,6 +21,7 @@ import {
   acceptGameInvite,
   createGameInvites,
   isGameInviteExpired,
+  isLobbyStale,
   rejectGameInvite,
 } from '@/lib/inviteApi';
 import { debugLog, debugWarn } from '@/lib/debugLog';
@@ -153,9 +154,19 @@ export default function LobbyRoom() {
 
   // Recipients accepting an invite land here with the joined lobby in route
   // state — hand it straight to the existing waiting-room render path.
+  //
+  // Codex130 — Stale lobby guard. If the joined lobby has been idle past
+  // LOBBY_STALE_AFTER_MS (10 min) we DO NOT drop the user into the waiting
+  // room; we surface a "Lobi süresi doldu" message instead so the user can
+  // start a fresh challenge.
   useEffect(() => {
     const joined = location.state?.joinedLobby;
     if (joined && !lobby) {
+      if (isLobbyStale(joined)) {
+        setError('Lobi süresi doldu. Yeni bir meydan okuma başlatabilirsin.');
+        navigate('/lobby', { replace: true });
+        return;
+      }
       setLobby(joined);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -189,6 +200,12 @@ export default function LobbyRoom() {
         if (invite.status === 'accepted' && invite.lobby_id) {
           const acceptedLobby = await base44.entities.Lobby.get(invite.lobby_id).catch(() => null);
           if (!cancelled && acceptedLobby) {
+            // Codex130 — Stale waiting lobby guard for deep-linked accepted invites.
+            if (isLobbyStale(acceptedLobby)) {
+              setDeepLinkInvite({ ...invite, status: 'expired' });
+              setDeepLinkMessage('Lobi süresi doldu. Yeni bir meydan okuma başlatabilirsin.');
+              return;
+            }
             setLobby(acceptedLobby);
             navigate('/lobby', { replace: true, state: { joinedLobby: acceptedLobby } });
           }

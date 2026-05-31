@@ -72,6 +72,9 @@ import * as onlineChallengeCases from './simulationPanelOnlineChallengeCases';
 import * as onlineRankingCases from './simulationPanelOnlineRankingCases';
 // Codex129 — Friend invite delivery & email honesty contracts.
 import * as inviteDeliveryCases from './simulationPanelInviteDeliveryCases';
+// Codex130 — Game invite lifecycle, 10-min TTL, stale lobby cleanup,
+// in-app banner auto-dismiss, focus/visibility recheck contracts.
+import * as inviteLifecycleCases from './simulationPanelInviteLifecycleCases';
 
 const MODULES = [
   soloProgressCases,
@@ -86,6 +89,7 @@ const MODULES = [
   onlineChallengeCases,
   onlineRankingCases,
   inviteDeliveryCases,
+  inviteLifecycleCases,
 ];
 
 function flatten(key) {

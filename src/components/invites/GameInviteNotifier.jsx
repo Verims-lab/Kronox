@@ -7,7 +7,10 @@ import { useAuth } from '@/lib/AuthContext';
 import { loadIncomingInvites } from '@/lib/inviteApi';
 import { normalizeEmail } from '@/lib/friendsApi';
 
-const INVITE_TOAST_DURATION_MS = 8000;
+// Codex130 — Banner auto-dismiss: 10 seconds (product spec). Dismissing
+// the banner does NOT delete the invite — it stays pending in the database
+// and remains visible in IncomingInvitesPanel on the Online screen.
+const INVITE_TOAST_DURATION_MS = 10000;
 
 function buildInviteTarget(invite) {
   const params = new URLSearchParams();
@@ -173,10 +176,28 @@ export default function GameInviteNotifier() {
       refresh({ notifyNew: true });
     }, 20000);
 
+    // Codex130 — App resume / focus recheck.
+    // When the app is opened from background (PWA, Android WebView, tab
+    // switch), neither the polling interval nor the realtime subscription
+    // is guaranteed to fire immediately. We hook visibilitychange + focus
+    // so pending invites that arrived while the app was closed surface
+    // their in-app banner the moment the user returns. Expired invites
+    // are still filtered out by loadIncomingInvites (lazy cleanup).
+    const onFocus = () => { refresh({ notifyNew: true }); };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        refresh({ notifyNew: true });
+      }
+    };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+
     return () => {
       cancelled = true;
       if (typeof unsub === 'function') unsub();
       if (intervalId) window.clearInterval(intervalId);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [dismissAllInviteToasts, dismissInviteToast, ingestInvites, user?.email]);
 

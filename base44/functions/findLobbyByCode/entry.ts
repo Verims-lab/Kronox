@@ -57,6 +57,25 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Codex130 — Stale waiting lobby guard. A lobby that has been idle in
+    // 'waiting' state for longer than 10 minutes is no longer joinable.
+    // This blocks code-based joins on lobbies the host abandoned.
+    const LOBBY_STALE_AFTER_MS = 10 * 60 * 1000;
+    const lobbyTouchedRaw = lobby?.updated_date || lobby?.created_date;
+    const lobbyTouchedAt = lobbyTouchedRaw ? new Date(lobbyTouchedRaw).getTime() : NaN;
+    if (Number.isFinite(lobbyTouchedAt) && (Date.now() - lobbyTouchedAt) > LOBBY_STALE_AFTER_MS) {
+      return Response.json({
+        found: true,
+        joinable: false,
+        error: 'Lobi süresi doldu. Yeni bir meydan okuma başlatabilirsin.',
+        debug: {
+          rawCode, normalizedCode, queryResultCount: lobbies.length,
+          matchedStatus: lobby.status, matchedId: lobby.id,
+          stale: true, lobbyTouchedAt,
+        },
+      });
+    }
+
     // If no playerName provided, this is a lookup-only call — return lobby info without joining
     if (!playerName) {
       return Response.json({
