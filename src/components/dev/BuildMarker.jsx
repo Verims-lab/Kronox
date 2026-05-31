@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex137 — Health Check cleanup for remaining GameInvite failures:
+//   • Incoming invite UI now uses the public isGameInviteExpired(invite)
+//     guard expected by Health and keeps expired accept buttons disabled.
+//   • TTL parity checks point at the centralized gameInviteSelectors source.
+//   • Header badge fixtures now model valid expiring GameInvite rows.
+//
 // Codex136 — GameInvite lifecycle merge hardening:
 //   • Preserves the newer shared header notification system from Codex135.
 //   • Reapplies 10-minute invite persistence, merge-safe subscription/fetch
@@ -439,7 +445,7 @@ import React, { useEffect, useState } from 'react';
 // Product behavior — Solo scoring/progression, Solo map focus, Profile/
 // Leaderboard runtime logic, drag/drop, Timeline, QuestionCard,
 // GameLayout, invite/lobby/notification/tutorial/friends — DOKUNULMADI.
-const BUILD_MARKER = 'Codex136';
+const BUILD_MARKER = 'Codex137';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

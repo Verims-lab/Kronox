@@ -14,8 +14,8 @@
 //
 // Missing `expires_at` is not treated as instantly expired. If `created_at`
 // exists, expiry is derived from it. If all timestamps are missing, the invite
-// stays visible with an active_missing_expiry diagnostic so users are not
-// silently locked out of a fresh invite.
+// is not counted as active and emits diagnostics instead of becoming an
+// immortal actionable invite.
 
 export const GAME_INVITE_TTL_MS = 10 * 60 * 1000;
 
@@ -90,7 +90,7 @@ function warnMissingTimestampsOnce(invite) {
   warnedMissingTimestamps.add(invite.id);
   // eslint-disable-next-line no-console
   console.warn(
-    '[gameInviteSelectors] invite is missing expires_at and created_* timestamps; treating as active.',
+    '[gameInviteSelectors] invite is missing expires_at and created_* timestamps; not counting it as active.',
     { inviteId: invite.id, status: invite.status, keys: Object.keys(invite || {}) },
   );
 }
@@ -126,7 +126,7 @@ export function getGameInviteActiveFilterReason(invite, userEmail, now = Date.no
 
   if (isInviteExpired(invite, now)) return 'expired';
 
-  if (!Number.isFinite(parseInviteExpiresAt(invite))) return 'active_missing_expiry';
+  if (!Number.isFinite(parseInviteExpiresAt(invite))) return 'missing_expiry';
   if (!getInviteLobbyId(invite)) return 'active_missing_lobby';
   return 'active';
 }

@@ -12,7 +12,7 @@ import {
 import {
   getGameInviteActiveFilterReason,
   getInviteRecipientEmail,
-  isInviteExpired,
+  isGameInviteExpired,
   traceGameInviteLifecycle,
 } from '@/lib/gameInviteSelectors';
 import { sounds } from '@/lib/gameSounds';
@@ -100,7 +100,7 @@ export default function IncomingInvitesPanel({ user, variant = 'fantasy' }) {
     setBusyId(invite.id);
     sounds.tap();
     try {
-      if (isInviteExpired(invite)) {
+      if (isGameInviteExpired(invite)) {
         setError('Davetin süresi doldu. Yeni bir davet iste.');
         await refresh();
         return;
@@ -198,7 +198,7 @@ export default function IncomingInvitesPanel({ user, variant = 'fantasy' }) {
 
 function InviteRow({ invite, busy, onAccept, onReject }) {
   const display = invite.from_name?.trim() || invite.from_email;
-  const expired = invite.status === 'expired' || isInviteExpired(invite);
+  const expired = invite.status === 'expired' || isGameInviteExpired(invite);
   return (
     <motion.li
       layout

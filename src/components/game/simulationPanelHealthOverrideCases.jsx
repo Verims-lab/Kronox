@@ -46,6 +46,7 @@ import addFriendFormSource from '../friends/AddFriendForm.jsx?raw';
 import friendsPageSource from '../../pages/FriendsPage.jsx?raw';
 import friendsApiSource from '../../lib/friendsApi.js?raw';
 import inviteApiSource from '../../lib/inviteApi.js?raw';
+import gameInviteSelectorsSource from '../../lib/gameInviteSelectors.js?raw';
 import lobbyCreateJoinPanelSource from '../lobby/LobbyCreateJoinPanel.jsx?raw';
 import lobbyRoomSource from '../../pages/LobbyRoom.jsx?raw';
 import onlineChallengeScreenSource from '../lobby/OnlineChallengeScreen.jsx?raw';
@@ -136,8 +137,8 @@ export const EXTRA_TESTS = [
     'invite_expiration_health', 'Invite Expiration Health Suite',
     'invite_rows_have_expiry_fields',
     'GameInvite rows store created_at/expires_at for 10-minute validity',
-    'entities/GameInvite.json + lib/inviteApi.js',
-    `${gameInviteEntitySource}\n${inviteApiSource}`,
+    'entities/GameInvite.json + lib/inviteApi.js + lib/gameInviteSelectors.js',
+    `${gameInviteEntitySource}\n${inviteApiSource}\n${gameInviteSelectorsSource}`,
     ['created_at', 'expires_at', 'GAME_INVITE_TTL_MS = 10 * 60 * 1000'],
   ),
   sourceHasReplacement(

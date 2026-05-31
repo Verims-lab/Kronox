@@ -8,7 +8,9 @@
 //     • Toast dismiss ONLY closes the toast UI — never updates the
 //       GameInvite entity, never filters the invite from other surfaces.
 //     • A fresh pending invite (created < 10 minutes ago) is treated as
-//       ACTIVE even if `expires_at` is missing.
+//       ACTIVE if `expires_at` is missing but `created_at` can derive TTL.
+//       Malformed rows with no expiry/creation timestamp are diagnostic-only,
+//       not immortal active invites.
 //     • Accept path is shared and goes to /lobby (lobby-first, NEVER /game).
 //     • 10-minute TTL is preserved in both client and backend.
 //
@@ -104,6 +106,14 @@ const expiredInvite = {
 };
 const acceptedInvite = { ...freshInvite, id: 'inv_accepted', status: 'accepted' };
 const outgoingInvite = { ...freshInvite, id: 'inv_outgoing', to_email: OTHER, from_email: ME };
+const derivedExpiryInvite = {
+  id: 'inv_derived_ts',
+  status: 'pending',
+  to_email: ME,
+  from_email: OTHER,
+  lobby_id: 'lobby_3',
+  created_at: new Date(NOW - 60_000).toISOString(),
+};
 const missingTimestampsInvite = {
   id: 'inv_no_ts',
   status: 'pending',
@@ -205,7 +215,8 @@ export const EXTRA_TESTS = [
         ['accepted dropped',              isActiveIncomingGameInvite(acceptedInvite, ME, NOW) === false],
         ['expired dropped',               isActiveIncomingGameInvite(expiredInvite, ME, NOW) === false],
         ['outgoing dropped',              isActiveIncomingGameInvite(outgoingInvite, ME, NOW) === false],
-        ['missing-ts treated as active',  isActiveIncomingGameInvite(missingTimestampsInvite, ME, NOW) === true],
+        ['created_at derives expiry',     isActiveIncomingGameInvite(derivedExpiryInvite, ME, NOW) === true],
+        ['missing-ts not immortal',       isActiveIncomingGameInvite(missingTimestampsInvite, ME, NOW) === false],
       ];
       const failed = checks.filter(([, ok]) => !ok).map(([label]) => label);
       if (failed.length) {
@@ -242,24 +253,26 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 6. Missing-timestamp invites do NOT silently disappear (executable). */
+  /* 6. Missing expires_at with created_at is safe; totally malformed rows are not immortal. */
   makeCase('game_invite_expiry_date_parsing_safe',
-    'Missing expires_at + created_* is NOT treated as expired (defensive selector behavior)',
+    'Missing expires_at derives from created_at; missing all timestamps is diagnostic-only, not active forever',
     () => {
-      const treatedActive = isActiveIncomingGameInvite(missingTimestampsInvite, ME, NOW);
+      const derivedActive = isActiveIncomingGameInvite(derivedExpiryInvite, ME, NOW);
+      const malformedActive = isActiveIncomingGameInvite(missingTimestampsInvite, ME, NOW);
       const treatedExpired = isInviteExpired(missingTimestampsInvite, NOW);
       const filtered = filterActiveIncomingGameInvites([missingTimestampsInvite], ME, NOW);
-      if (treatedExpired || !treatedActive || filtered.length !== 1) {
-        return fail('Malformed invite is being treated as expired and silently dropped.', {
+      if (!derivedActive || treatedExpired || malformedActive || filtered.length !== 0) {
+        return fail('Invite expiry parsing does not match the 10-minute TTL contract.', {
           verification: 'EXECUTABLE',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          treatedActive,
+          derivedActive,
+          malformedActive,
           treatedExpired,
           filteredCount: filtered.length,
         });
       }
-      return pass('Missing timestamps surface a console warning but the invite stays usable.',
+      return pass('Missing expires_at can derive from created_at; malformed no-time rows are not counted active forever.',
         { verification: 'EXECUTABLE' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
@@ -354,7 +367,7 @@ export const EXTRA_TESTS = [
         'getGameInviteCreatedAt',
       ]);
       // And lock the back-end TTL parity (10 minutes).
-      const ttlOk = inviteApiSource.includes('GAME_INVITE_TTL_MS = 10 * 60 * 1000');
+      const ttlOk = gameInviteSelectorsSource.includes('GAME_INVITE_TTL_MS = 10 * 60 * 1000');
       if (!matches || !normalizedSelf || m.length || !ttlOk) {
         return fail('Recipient normalization or TTL parity is broken.', {
           verification: 'EXECUTABLE',
