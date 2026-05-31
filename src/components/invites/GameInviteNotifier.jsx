@@ -6,8 +6,16 @@ import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { loadIncomingInvites } from '@/lib/inviteApi';
 import { normalizeEmail } from '@/lib/friendsApi';
+// Codex135 — Shared active-invite selector. The toast UI now defers to
+// the same predicate the header bell and Online panel use, so a fresh
+// invite that the toast already dismissed is never erased from the
+// other surfaces.
+import { isActiveIncomingGameInvite } from '@/lib/gameInviteSelectors';
 
-const INVITE_TOAST_DURATION_MS = 8000;
+// Codex130 — Banner auto-dismiss: 10 seconds (product spec). Dismissing
+// the banner does NOT delete the invite — it stays pending in the database
+// and remains visible in IncomingInvitesPanel on the Online screen.
+const INVITE_TOAST_DURATION_MS = 10000;
 
 function buildInviteTarget(invite) {
   const params = new URLSearchParams();
@@ -29,6 +37,12 @@ export default function GameInviteNotifier() {
   const bootstrappedRef = useRef(false);
   const pathnameRef = useRef(location.pathname);
 
+  // Codex135 — INVARIANT: dismissInviteToast ONLY closes the visual
+  // toast. It NEVER calls GameInvite.update(...). It NEVER affects the
+  // header bell, Online IncomingInvitesPanel, or any other surface that
+  // reads the GameInvite entity. `remember=true` only prevents the same
+  // toast instance from re-popping for the same invite id while the
+  // invite is still pending.
   const dismissInviteToast = useCallback((inviteId, { remember = true } = {}) => {
     if (!inviteId) return;
     const active = activeToastByInviteIdRef.current.get(inviteId);
@@ -173,10 +187,28 @@ export default function GameInviteNotifier() {
       refresh({ notifyNew: true });
     }, 20000);
 
+    // Codex130 — App resume / focus recheck.
+    // When the app is opened from background (PWA, Android WebView, tab
+    // switch), neither the polling interval nor the realtime subscription
+    // is guaranteed to fire immediately. We hook visibilitychange + focus
+    // so pending invites that arrived while the app was closed surface
+    // their in-app banner the moment the user returns. Expired invites
+    // are still filtered out by loadIncomingInvites (lazy cleanup).
+    const onFocus = () => { refresh({ notifyNew: true }); };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        refresh({ notifyNew: true });
+      }
+    };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+
     return () => {
       cancelled = true;
       if (typeof unsub === 'function') unsub();
       if (intervalId) window.clearInterval(intervalId);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [dismissAllInviteToasts, dismissInviteToast, ingestInvites, user?.email]);
 

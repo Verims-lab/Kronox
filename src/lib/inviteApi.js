@@ -7,7 +7,26 @@
 import { base44 } from '@/api/base44Client';
 import { normalizeEmail } from '@/lib/friendsApi';
 
-export const GAME_INVITE_TTL_MS = 5 * 60 * 1000;
+// Codex130 — Game invite + lobby staleness TTL: 10 minutes.
+// Previously 5 minutes. Backend (acceptGameInvite, sendGameInvitePush) and
+// every UI copy referencing "5 dakika" was migrated to 10 minutes in the
+// same release. The constant is the single source of truth for client-side
+// expiry math; server-side checks mirror the same value.
+export const GAME_INVITE_TTL_MS = 10 * 60 * 1000;
+export const LOBBY_STALE_AFTER_MS = 10 * 60 * 1000;
+
+/**
+ * Returns true when a waiting lobby has been idle for longer than
+ * LOBBY_STALE_AFTER_MS. Only lobbies in 'waiting' status are eligible;
+ * lobbies already in_game/finished are never considered stale.
+ */
+export function isLobbyStale(lobby, now = Date.now()) {
+  if (!lobby || lobby.status !== 'waiting') return false;
+  const raw = lobby.updated_date || lobby.created_date || lobby.created_at;
+  const time = raw ? new Date(raw).getTime() : NaN;
+  if (!Number.isFinite(time)) return false;
+  return (now - time) > LOBBY_STALE_AFTER_MS;
+}
 
 export function getGameInviteCreatedAt(invite) {
   const raw = invite?.created_at || invite?.createdAt || invite?.created_date || invite?.createdDate;

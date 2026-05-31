@@ -38,6 +38,9 @@ import {
   writeSoloProgress,
 } from '@/lib/soloLevels';
 import { calculateSoloAttemptResult, getBestSoloLevelResult } from '@/lib/soloProgressHelpers';
+// Codex128 — Online puan/checkpoint sistemi. Online winner kararlaştığında
+// her client kendi kullanıcısının puanını günceller (idempotent).
+import { applyOnlineMatchToCurrentUser } from '@/lib/applyOnlineResult';
 
 export default function Game() {
   const location = useLocation();
@@ -235,6 +238,29 @@ export default function Game() {
     players,
     renderedTurnMessageText,
   ]);
+
+  // Codex128 — Apply Online puan/checkpoint result for the local user
+  // exactly once per match. Runs on every client from its own perspective,
+  // so each player updates only their own User.online_progress. Idempotent
+  // via online_progress.lastMatchId == lobbyId guard inside the helper.
+  const onlineResultAppliedRef = useRef(false);
+  useEffect(() => {
+    if (!isOnline || !winner || !lobbyId) return;
+    if (onlineResultAppliedRef.current) return;
+    const winnerEmail = winner.email || winner.winner_email || lobbyData?.winner_email || null;
+    const winnerName = winner.name || lobbyData?.winner || null;
+    const isWinnerByEmail = Boolean(winnerEmail && localPlayerEmail && winnerEmail === localPlayerEmail);
+    const isWinnerByName = Boolean(winnerName && myPlayerName && winnerName === myPlayerName);
+    const localIsWinner = isWinnerByEmail || (!winnerEmail && isWinnerByName);
+    const result = localIsWinner ? 'win' : 'loss';
+    const durationSeconds = winner.durationSeconds ?? overallSecondsRef.current ?? 0;
+    onlineResultAppliedRef.current = true;
+    applyOnlineMatchToCurrentUser({
+      lobbyId,
+      result,
+      durationSeconds,
+    });
+  }, [isOnline, winner, lobbyId, lobbyData?.winner_email, lobbyData?.winner, localPlayerEmail, myPlayerName, overallSecondsRef]);
 
   useEffect(() => {
     if (!isOnline || !winner) return;

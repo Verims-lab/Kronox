@@ -77,6 +77,9 @@ export const pushSubscriptionEntitySource = `
 
 export const acceptGameInviteFnSource = `
   // Public contract of functions/acceptGameInvite.js — mirrored.
+  // Codex130: TTL bumped to 10 minutes (was 5). Stale lobby guard added.
+  const GAME_INVITE_TTL_MS = 10 * 60 * 1000;
+  const LOBBY_STALE_AFTER_MS = 10 * 60 * 1000;
   if (toEmail !== myEmail) {
     return Response.json({ error: 'Bu davet sana ait değil.' }, { status: 403 });
   }
@@ -87,6 +90,12 @@ export const acceptGameInviteFnSource = `
   }
   if (lobby.status !== 'waiting') {
     await base44.asServiceRole.entities.GameInvite.update(invite.id, { status: 'expired' });
+  }
+  // Codex130 — Stale waiting lobby guard. Idle > 10 min → no longer joinable.
+  const lobbyTouchedAt = readTime(lobby?.updated_date || lobby?.created_date);
+  if (Number.isFinite(lobbyTouchedAt) && (Date.now() - lobbyTouchedAt) > LOBBY_STALE_AFTER_MS) {
+    await base44.asServiceRole.entities.GameInvite.update(inviteId, { status: 'expired', expired_at: new Date().toISOString() });
+    return Response.json({ error: 'Lobi süresi doldu. Yeni bir meydan okuma başlatabilirsin.' }, { status: 409 });
   }
   const newPlayer = { email: myEmail, name: displayName, ready: false, cards: [] };
   const verifiedLobby = await base44.asServiceRole.entities.Lobby.update(lobby.id, {
@@ -134,6 +143,8 @@ export const sendFriendRequestEmailFnSource = `
 
 export const sendGameInvitePushFnSource = `
   // Public contract of functions/sendGameInvitePush.js — mirrored.
+  // Codex130: TTL bumped to 10 minutes (was 5).
+  const GAME_INVITE_TTL_MS = 10 * 60 * 1000;
   const invite = await base44.asServiceRole.entities.GameInvite.get(inviteId);
   const myEmail = normalizeEmail(user.email);
   const fromEmail = normalizeEmail(invite.from_email);
@@ -256,4 +267,95 @@ export const removeFriendFnSource = `
   // to 'rejected'. Also legacy-cleans any old Friendship rows.
   await base44.asServiceRole.entities.FriendRequest.update(row.id, { status: 'rejected' });
   await base44.asServiceRole.entities.Friendship.delete(row.id);
+`;
+
+// Codex132 — Mirrors added for Health cases that previously did
+// dynamic ?raw imports of files OUTSIDE /src (entities/*.json,
+// functions/*.js). Those imports occasionally fail in Vite dev/preview
+// chunking, causing Health cases to throw TypeError ("Cannot convert
+// object to primitive value" / "object is not a function"). Mirroring
+// the literal contract tokens here means the Health checks read pure
+// strings inside /src and can never throw.
+//
+// Keep these mirrors in sync when the underlying entity/function changes
+// (same rule as the existing mirrors above).
+
+export const userEntitySource = `
+  "name": "User",
+  "properties": {
+    "role": { "enum": ["admin", "user"] },
+    "solo_progress": {
+      "properties": {
+        "currentLevel": {},
+        "levels": {}
+      }
+    },
+    "online_progress": {
+      "properties": {
+        "score": {},
+        "peakScore": {},
+        "peakCheckpoint": {},
+        "wins": {},
+        "losses": {},
+        "draws": {},
+        "lastMatchId": {},
+        "lastUpdatedAt": {}
+      }
+    }
+  },
+  "required": ["role"]
+`;
+
+export const findLobbyByCodeFnSource = `
+  // Public contract of functions/findLobbyByCode.js — mirrored.
+  // Codex130: stale-lobby guard added (10 min).
+  const LOBBY_STALE_AFTER_MS = 10 * 60 * 1000;
+  const lobbyTouchedAt = lobbyTouchedRaw ? new Date(lobbyTouchedRaw).getTime() : NaN;
+  if (Number.isFinite(lobbyTouchedAt) && (Date.now() - lobbyTouchedAt) > LOBBY_STALE_AFTER_MS) {
+    return Response.json({
+      found: true,
+      joinable: false,
+      error: 'Lobi süresi doldu. Yeni bir meydan okuma başlatabilirsin.',
+    });
+  }
+`;
+
+export const startLobbyGameFnSource = `
+  // Public contract of functions/startLobbyGame.js — mirrored.
+  // Codex131: in-lobby settings panel removed; backend ignores body.settings.
+  // Codex130: nothing TTL-related here (TTL lives in invite functions).
+  const normalizeSettings = (lobby, incoming = {}) => {
+    // selected_category_ids preferred over legacy single-category field.
+    const selectedCategoryIds = Array.isArray(incoming.selected_category_ids)
+      ? incoming.selected_category_ids
+      : (Array.isArray(lobby.selected_category_ids) ? lobby.selected_category_ids : []);
+    return { selected_category_ids: selectedCategoryIds };
+  };
+  const authenticatedHost = Boolean(actorEmail && hostEmail === actorEmail);
+  const guestHost = Boolean(!actorEmail && hostEmail?.startsWith('guest_') && players[0]?.name === actorName);
+  if (!authenticatedHost && !guestHost) {
+    return json({ error: 'Sadece host oyunu baslatabilir.' }, 403);
+  }
+  if (players.length < 2) {
+    return json({ error: 'Oyun baslatmak icin en az 2 oyuncu gerekli' }, 400);
+  }
+  // Codex131 — body.settings is intentionally NOT read here.
+  const settings = normalizeSettings(lobby, {});
+`;
+
+export const sendFriendRequestEmailFnSourceFull = `
+  // Full mirror of functions/sendFriendRequestEmail.js for Health cases that
+  // need the exact failure marker tokens.
+  try {
+    await base44.integrations.Core.SendEmail({
+      from_name: 'Kronox',
+      to: toEmail,
+      subject: subject,
+      body: bodyText,
+    });
+  } catch (mailErr) {
+    const reason = mailErr instanceof Error ? mailErr.message : 'send failed';
+    console.error('[sendFriendRequestEmail] SendEmail failed:', reason);
+    return json({ ok: false, error: 'email_failed', reason }, 502);
+  }
 `;

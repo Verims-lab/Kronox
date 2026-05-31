@@ -112,6 +112,26 @@ export async function sendFriendRequest({ me, toEmail }) {
     throw new Error('Bu kişi sana zaten istek göndermiş — Gelen İstekler listesinden kabul et.');
   }
 
+  // Codex129 — Recipient registration probe. Base44 SendEmail integration
+  // can ONLY deliver mail to users registered in the app — sending to a
+  // non-registered address always fails with "Cannot send emails to users
+  // outside the app". We don't roll back the FriendRequest (the row stays
+  // pending so the recipient can accept it after they sign up), but we
+  // surface a meaningful `recipientRegistered` flag so the UI can show an
+  // honest message instead of pretending the email went out.
+  //
+  // The User.list/filter call is RLS-gated. Most apps only let admins read
+  // other users; for a regular caller this will return [] for both real
+  // and missing users. We treat "unknown" as null and the UI prints the
+  // honest "may not be registered" copy in that case.
+  let recipientRegistered = null;
+  try {
+    const rows = await base44.entities.User.filter({ email: target }, '-created_date', 1);
+    if (Array.isArray(rows) && rows.length > 0) recipientRegistered = true;
+  } catch {
+    recipientRegistered = null;
+  }
+
   await base44.entities.FriendRequest.create({
     from_email: fromEmail,
     from_name: me?.full_name || '',
@@ -142,15 +162,15 @@ export async function sendFriendRequest({ me, toEmail }) {
       console.warn('[friendsApi] friend-request email not delivered:', reason, 'marker=email_failed');
       // Communicate soft failure to the caller without throwing — caller
       // can choose to surface a non-blocking warning. Shape is stable.
-      return { ok: true, emailSent: false, emailError: reason };
+      return { ok: true, emailSent: false, emailError: reason, recipientRegistered };
     }
-    return { ok: true, emailSent: true };
+    return { ok: true, emailSent: true, recipientRegistered };
   } catch (err) {
     // Network / runtime / SDK error — still a soft failure, not a hard fail
     // of the FriendRequest. Mark with the canonical email_failed marker so
     // log filters / tests can grep one token.
     console.warn('[friendsApi] sendFriendRequestEmail invoke failed:', err?.message || err, 'marker=email_failed');
-    return { ok: true, emailSent: false, emailError: 'email_failed' };
+    return { ok: true, emailSent: false, emailError: 'email_failed', recipientRegistered };
   }
 }
 
