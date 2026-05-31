@@ -95,6 +95,12 @@ import * as gameInviteLifecycleCases from './simulationPanelGameInviteLifecycleC
 // draw removal, missing-time → +0 bonus, doc-named helper aliases,
 // lastMatchAt persistence, structured persistence failure / retry safety).
 import * as scoringContractCases from './simulationPanelScoringContractCases';
+// Codex138 — Invite timezone parse regression: the WhatsApp-video bug
+// where Base44's naive ISO `created_date` was parsed as local time and
+// the invite was instantly flipped to expired. Client + Deno backend
+// parsers now append `Z` to naive strings so they parse as UTC. The
+// GameInvite entity also gained the missing timestamp columns.
+import * as inviteTimezoneCases from './simulationPanelInviteTimezoneCases';
 
 const MODULES = [
   soloProgressCases,
@@ -114,6 +120,7 @@ const MODULES = [
   headerNotificationsCases,
   gameInviteLifecycleCases,
   scoringContractCases,
+  inviteTimezoneCases,
 ];
 
 function flatten(key) {

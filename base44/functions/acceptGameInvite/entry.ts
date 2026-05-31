@@ -13,9 +13,21 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 // Codex130 — Game invite + lobby staleness TTL: 10 minutes.
 const GAME_INVITE_TTL_MS = 10 * 60 * 1000;
 const LOBBY_STALE_AFTER_MS = 10 * 60 * 1000;
+// Codex138 — Base44 server `created_date` may be serialized WITHOUT a
+// timezone suffix (e.g. "2026-05-31T14:33:11.992000"). `new Date()` then
+// treats it as local time, breaking the 10-min TTL math. Server timestamps
+// are always UTC, so we append `Z` to naive ISO strings before parsing.
 const readTime = (value: unknown) => {
-  const time = value ? new Date(String(value)).getTime() : NaN;
-  return Number.isFinite(time) ? time : NaN;
+  if (value == null) return NaN;
+  if (value instanceof Date) {
+    const t = value.getTime();
+    return Number.isFinite(t) ? t : NaN;
+  }
+  const str = String(value).trim();
+  if (!str) return NaN;
+  const hasZone = /Z$/i.test(str) || /[+-]\d{2}:?\d{2}$/.test(str);
+  const t = new Date(hasZone ? str : `${str}Z`).getTime();
+  return Number.isFinite(t) ? t : NaN;
 };
 const getInviteExpiry = (invite: any) => {
   const explicit = readTime(invite?.expires_at || invite?.expiresAt);
