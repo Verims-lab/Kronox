@@ -8,6 +8,7 @@ import leaderboardPageSource from '../../pages/LeaderboardPage.jsx?raw';
 import leaderboardLibSource from '../../lib/leaderboard.js?raw';
 import soloLevelsSource from '../../lib/soloLevels.js?raw';
 import soloLeaderboardEntitySource from '../../../base44/entities/SoloLeaderboardEntry.jsonc?raw';
+import getSoloLeaderboardFunctionSource from '../../../base44/functions/getSoloLeaderboard/entry.ts?raw';
 // Codex119 — Section UI moved into a focused component; some state
 // strings now live there instead of the page.
 import kronoxRankingSectionSource from '../leaderboard/KronoxRankingSection.jsx?raw';
@@ -71,9 +72,9 @@ export const EXTRA_SUITES = [
 
 export const EXTRA_TESTS = [
   makeCase('leaderboard_health', 'leaderboard_public_score_source_exists',
-    'Leaderboard uses a public-safe SoloLeaderboardEntry source, not private full User rows',
+    'Leaderboard uses a public-safe Solo leaderboard source, not private full User rows',
     () => {
-      const required = missingTokens(`${soloLeaderboardEntitySource}\n${leaderboardLibSource}\n${leaderboardPageSource}`, [
+      const required = missingTokens(`${soloLeaderboardEntitySource}\n${leaderboardLibSource}\n${leaderboardPageSource}\n${getSoloLeaderboardFunctionSource}`, [
         '"name": "SoloLeaderboardEntry"',
         '"owner_key"',
         '"display_name"',
@@ -81,6 +82,8 @@ export const EXTRA_TESTS = [
         '"current_level"',
         '"read": {}',
         'base44.entities.SoloLeaderboardEntry',
+        "base44.functions.invoke('getSoloLeaderboard'",
+        'user_solo_progress_service_role_projection',
         'loadSoloLeaderboardEntries',
       ]);
       const forbidden = forbiddenTokensFound(leaderboardPageSource, [
@@ -96,7 +99,86 @@ export const EXTRA_TESTS = [
           actual: { required, forbidden },
         });
       }
-      return pass('Leaderboard has a public-safe SoloLeaderboardEntry source and no longer ranks from full User.list reads.', {
+      return pass('Leaderboard has a public-safe Solo leaderboard source and no longer ranks from full User.list reads on the page.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('leaderboard_health', 'leaderboard_entity_schema_exists',
+    'SoloLeaderboardEntry schema exists when entity publishing references it',
+    () => {
+      const required = missingTokens(`${soloLeaderboardEntitySource}\n${leaderboardLibSource}`, [
+        '"name": "SoloLeaderboardEntry"',
+        'base44.entities.SoloLeaderboardEntry',
+        '"owner_key"',
+        '"display_name"',
+        '"total_solo_score"',
+        '"current_level"',
+      ]);
+      if (required.length) {
+        return fail('SoloLeaderboardEntry is referenced but the local schema contract is incomplete.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'schema filename/name and code reference match SoloLeaderboardEntry',
+          actual: { required },
+        });
+      }
+      return pass('SoloLeaderboardEntry schema exists locally and matches the entity reference used for best-effort publishing.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('leaderboard_health', 'leaderboard_missing_schema_regression',
+    'Missing SoloLeaderboardEntry runtime schema does not block the leaderboard UI',
+    () => {
+      const required = missingTokens(`${leaderboardLibSource}\n${leaderboardPageSource}\n${kronoxRankingSectionSource}`, [
+        'isMissingSoloLeaderboardEntityError',
+        'Entity schema',
+        'return []',
+        'getSoloLeaderboard',
+        'ownPendingRow',
+        'rankFinalizing',
+      ]);
+      if (required.length) {
+        return fail('Missing runtime entity schema can still collapse Liderlik into a fallback-only state.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'function-first load, missing-schema catch, and current-user pending row',
+          actual: { required },
+        });
+      }
+      return pass('Missing SoloLeaderboardEntry runtime schema is handled: function-first load, safe catch, and own score row fallback.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('leaderboard_health', 'leaderboard_entity_reference_matches_schema',
+    'Leaderboard entity reference matches the schema and backend projection fallback',
+    () => {
+      const required = missingTokens(`${soloLeaderboardEntitySource}\n${leaderboardLibSource}\n${getSoloLeaderboardFunctionSource}`, [
+        '"name": "SoloLeaderboardEntry"',
+        'const SOLO_LEADERBOARD_ENTITY = \'SoloLeaderboardEntry\'',
+        'base44.entities.SoloLeaderboardEntry',
+        "base44.functions.invoke('getSoloLeaderboard'",
+      ]);
+      if (required.length) {
+        return fail('Leaderboard entity/function references drifted from the schema contract.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'SoloLeaderboardEntry schema reference plus getSoloLeaderboard fallback stay aligned',
+          actual: { required },
+        });
+      }
+      return pass('Entity reference, local schema, and backend projection fallback are aligned.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -125,6 +207,129 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Current-user score is mirrored on Solo progress write/backfill and refreshed on Liderlik load.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('leaderboard_health', 'leaderboard_current_user_entry_upsert',
+    'Current user leaderboard entry is updated or created without duplicates when the entity is available',
+    () => {
+      const required = missingTokens(leaderboardLibSource, [
+        'SoloLeaderboardEntry.filter',
+        '{ owner_key: payload.owner_key }',
+        'SoloLeaderboardEntry.update',
+        'SoloLeaderboardEntry.create',
+        'isMissingSoloLeaderboardEntityError',
+      ]);
+      if (required.length) {
+        return fail('Current-user leaderboard publishing no longer has a safe update/create path.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'filter by owner_key, update existing row, create only when missing, tolerate missing runtime schema',
+          actual: { required },
+        });
+      }
+      return pass('Current-user leaderboard publishing upserts by owner_key and avoids duplicate rows when the entity is available.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('leaderboard_health', 'leaderboard_does_not_query_private_profile_for_global_table',
+    'Liderlik page does not query private full User profiles for the global table',
+    () => {
+      const forbidden = forbiddenTokensFound(leaderboardPageSource, [
+        'base44.entities.User.list',
+        'base44.entities.User.filter',
+        'base44.asServiceRole.entities.User',
+      ]);
+      const required = missingTokens(`${leaderboardPageSource}\n${leaderboardLibSource}`, [
+        'loadSoloLeaderboardEntries',
+        "base44.functions.invoke('getSoloLeaderboard'",
+      ]);
+      if (required.length || forbidden.length) {
+        return fail('Global table depends on private User reads from the page instead of a safe leaderboard source.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'page calls loadSoloLeaderboardEntries; backend projection handles private User reads server-side',
+          actual: { required, forbidden },
+        });
+      }
+      return pass('Liderlik page reads through the public-safe leaderboard helper, not private full User rows.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('leaderboard_health', 'leaderboard_safe_backend_projection_exists',
+    'Backend leaderboard projection returns only safe ranking fields',
+    () => {
+      const required = missingTokens(getSoloLeaderboardFunctionSource, [
+        'base44.asServiceRole.entities.User.list',
+        'owner_key',
+        'display_name',
+        'total_solo_score',
+        'current_level',
+        'user_solo_progress_service_role_projection',
+      ]);
+      const forbidden = forbiddenTokensFound(getSoloLeaderboardFunctionSource, [
+        'game_invite_notifications_enabled',
+        'PushSubscription',
+        'keys_p256dh',
+        'keys_auth',
+      ]);
+      if (required.length || forbidden.length) {
+        return fail('Backend leaderboard projection is missing or includes unsafe fields.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'service-role projection returns rank-safe fields only',
+          actual: { required, forbidden },
+        });
+      }
+      return pass('Backend projection uses service role internally but returns only public-safe leaderboard fields.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('leaderboard_health', 'leaderboard_safe_fields_only',
+    'Leaderboard schema/function avoid private notification, push, auth, and full email fields',
+    () => {
+      const combined = `${soloLeaderboardEntitySource}\n${getSoloLeaderboardFunctionSource}`;
+      const required = missingTokens(combined, [
+        'owner_key',
+        'display_name',
+        'total_solo_score',
+        'current_level',
+        'total_stars',
+        'updated_at',
+      ]);
+      const forbidden = forbiddenTokensFound(combined, [
+        'game_invite_notifications_enabled',
+        'PushSubscription',
+        'keys_p256dh',
+        'keys_auth',
+        '"email"',
+        '"user_email"',
+      ]);
+      if (required.length || forbidden.length) {
+        return fail('Leaderboard-safe source exposes or references fields outside the rank contract.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'rank-safe fields only; no email/notification/push/auth fields in public leaderboard shape',
+          actual: { required, forbidden },
+        });
+      }
+      return pass('Leaderboard public schema/function expose only safe ranking fields.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
