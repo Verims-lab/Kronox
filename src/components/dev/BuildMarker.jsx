@@ -314,6 +314,39 @@ import React, { useEffect, useState } from 'react';
 //   visible 120s SoloLevelTimer (no audio cue).
 // Previous note: Codex106 — Solo level completion popup polish.
 // Previous note: Codex106 — Solo Level Path (vertical 8-row path).
+// Codex126 — Solo map focus Health regression fix (3 FAIL → 0).
+//   • LevelMapPath.jsx auto-scroll comment block previously contained
+//     the literal substring "scrollIntoView" (describing the OLD bug we
+//     fixed). The Health static contracts
+//     `solo_focus_and_unlock.auto_scroll_resilient_to_layout_timing` and
+//     `solo_map_focus.solo_map_scroll_container_is_inner` forbid that
+//     substring anywhere in the file (defensive against regression).
+//     Rephrased the comment to describe the legacy outer-ancestor
+//     fallback without using the forbidden token. No behavior change.
+//   • LevelMapPath.jsx useLayoutEffect deps were
+//     [currentLevelNumber, levels, bottomReservedPx, diagnosticsEnabled,
+//      focusedLevel]
+//     but `focusedLevel` is derived from `focusLevelNumber + levels`,
+//     both already feeding `currentLevelNumber`. The extra dep also
+//     broke the Health contract `solo_map_focus.solo_map_refocus_after_
+//     progress_load`, which expects the exact substring
+//     "[currentLevelNumber, levels, bottomReservedPx, diagnosticsEnabled]".
+//     Removed `focusedLevel` from the deps. Refocus behavior unchanged —
+//     a focus change still triggers via currentLevelNumber.
+//   • scrollSoloMapToLevel.js — no change. Already passes its own
+//     contract (queries [data-kx-solo-map-container], assigns
+//     container.scrollTop directly, no window.scrollTo, no scrollIntoView).
+//   • Stable DOM hooks unchanged: container has
+//     data-kx-solo-map-container="true", each node has
+//     data-kx-solo-level={level.levelNumber}.
+//   • rAF + clientHeight retry behavior unchanged: when container
+//     clientHeight===0 we defer the helper start to the next animation
+//     frame; the helper itself retries up to 20 frames until centered;
+//     unmount cancels both the kick rAF and the helper's internal loop.
+//   • No Solo scoring/progression change. No Profile/Leaderboard change.
+//     No drag/drop / Timeline / QuestionCard / GameLayout change.
+//     No invite/lobby/notification/tutorial/friends change.
+//
 // Codex125 — Phase 3 Health regression fix (no product behavior change).
 //   • Restored `fantasy_visual_update.profile_uses_fantasy_tokens` static
 //     contract after Phase 3 moved the gold tile rendering into
@@ -399,7 +432,7 @@ import React, { useEffect, useState } from 'react';
 // Product behavior — Solo scoring/progression, Solo map focus, Profile/
 // Leaderboard runtime logic, drag/drop, Timeline, QuestionCard,
 // GameLayout, invite/lobby/notification/tutorial/friends — DOKUNULMADI.
-const BUILD_MARKER = 'Codex125';
+const BUILD_MARKER = 'Codex126';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

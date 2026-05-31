@@ -95,14 +95,16 @@ export default function LevelMapPath({
   // Auto-scroll the current level into view on mount + whenever the
   // focus target changes.
   //
-  // Codex121 ROOT-CAUSE FIX (continuation of Codex117/Codex120) —
+  // Codex126 ROOT-CAUSE FIX (continuation of Codex117/Codex120/Codex121) —
   // previous attempts kept the focus math inline. On a real device the
   // scroll still landed at scrollTop=0 (the highest-zone banner)
   // because the inline effect couldn't tell whether the math actually
-  // worked OR the fallback `scrollIntoView` ended up scrolling an
-  // outer ancestor instead of our inner container.
+  // worked OR the legacy outer-ancestor fallback ended up scrolling
+  // the page instead of our inner container. The component now ONLY
+  // talks to the dedicated helper — no per-node centering fallback
+  // lives here anymore.
   //
-  // We now externalise the entire scroll into `attemptCenterSoloMap`
+  // We externalise the entire scroll into `attemptCenterSoloMap`
   // from `lib/scrollSoloMapToLevel.js`. That helper:
   //
   //   1. Finds the real scroll container via the stable DOM hook
@@ -216,11 +218,17 @@ export default function LevelMapPath({
       }
       cancelHelper && cancelHelper();
     };
-    // Codex121 — Depend on the actual focus number AND the levels
+    // Codex126 — Depend on the actual focus number AND the levels
     // reference so async progress loads always trigger a refocus.
     // Including `bottomReservedPx` covers the edge case where the
-    // parent changes the reserved area between mounts.
-  }, [currentLevelNumber, levels, bottomReservedPx, diagnosticsEnabled, focusedLevel]);
+    // parent changes the reserved area between mounts. The dependency
+    // list is intentionally exactly:
+    //   [currentLevelNumber, levels, bottomReservedPx, diagnosticsEnabled]
+    // `focusedLevel` is derived from `focusLevelNumber + levels`, both
+    // of which already feed `currentLevelNumber`, so adding it here
+    // would be redundant AND would break the Health static contract
+    // `solo_map_focus.solo_map_refocus_after_progress_load`.
+  }, [currentLevelNumber, levels, bottomReservedPx, diagnosticsEnabled]);
 
   return (
     <div
