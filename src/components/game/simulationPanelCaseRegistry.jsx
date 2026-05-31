@@ -67,6 +67,9 @@ import * as uiConsolidationCases from './simulationPanelUiConsolidationCases';
 // Codex127 — Online challenge flow simplification:
 // kategori carousel + arkadaş popup + tek adımda lobi + davet.
 import * as onlineChallengeCases from './simulationPanelOnlineChallengeCases';
+// Codex128 — Online puan/checkpoint sistemi: win/loss/draw + time bonus +
+// checkpoint floor + idempotent match write contracts.
+import * as onlineRankingCases from './simulationPanelOnlineRankingCases';
 
 const MODULES = [
   soloProgressCases,
@@ -79,6 +82,7 @@ const MODULES = [
   healthArchitectureCases,
   uiConsolidationCases,
   onlineChallengeCases,
+  onlineRankingCases,
 ];
 
 function flatten(key) {
