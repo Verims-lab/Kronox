@@ -314,7 +314,35 @@ import React, { useEffect, useState } from 'react';
 //   visible 120s SoloLevelTimer (no audio cue).
 // Previous note: Codex106 — Solo level completion popup polish.
 // Previous note: Codex106 — Solo Level Path (vertical 8-row path).
-const BUILD_MARKER = 'Codex121';
+// Codex123 — Phase 2: Health Center architecture split.
+//   • SimulationPanel.jsx reduced from a 1645-line monolith to an
+//     orchestration shell (~250 lines). All product behavior is preserved.
+//   • New modules under components/game/health/:
+//       - healthStatus.js          (STATUS enum, look, result helpers,
+//                                    sanitizeForReport, safeRender)
+//       - simulationRunner.js      (executeCase, createRunMeta,
+//                                    captureEnvironment, extractBuildMarker)
+//       - simulationReportBuilder.js (buildReport, scoring, manual
+//                                      verification grouping, human summary)
+//       - simulationCases.js       (TESTS / SUITES / SRC / contract mirror
+//                                    strings / makeCase helpers)
+//       - SimulationCaseRow.jsx    (per-case row UI + StatusBadge)
+//       - SimulationSuiteSummary.jsx (sidebar: Run All, Run Suite,
+//                                      counts, last-run, suite picker)
+//       - SimulationReportActions.jsx (full report panel + copy/download)
+//   • New registry-resident architecture-guard suite:
+//       components/game/simulationPanelHealthArchitectureCases.js
+//     locks the split (runner extracted, builder extracted, registry
+//     single-import-source, report shape preserved, extra cases freeze
+//     cap, simulationPanel orchestration-size cap).
+//   • simulationPanelExtraCases.jsx kept FROZEN (no new cases appended).
+//   • Report JSON shape, status semantics, scoring penalties, runtime-
+//     proof grouping, manual verification sections, top blockers, and
+//     localStorage persistence key are all unchanged.
+// Product behavior — Solo scoring/progression, Solo map focus, Profile/
+// Leaderboard runtime logic, drag/drop, Timeline, QuestionCard,
+// GameLayout, invite/lobby/notification/tutorial/friends — DOKUNULMADI.
+const BUILD_MARKER = 'Codex123';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

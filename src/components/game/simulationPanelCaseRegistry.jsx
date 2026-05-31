@@ -55,6 +55,11 @@ import * as soloMapFocusCases from './simulationPanelSoloMapFocusCases';
 // Codex119 — Liderlik graceful fallback contracts (friendly placeholder
 // when global ranking fails, own-score visibility, admin diagnostics).
 import * as leaderboardFallbackCases from './simulationPanelLeaderboardFallbackCases';
+// Codex123 — Phase 2 architecture guards: lock the SimulationPanel split
+// (runner extracted, report builder extracted, registry single-import,
+// report shape preserved, simulationPanelExtraCases not silently growing,
+// SimulationPanel.jsx stays in orchestration-size).
+import * as healthArchitectureCases from './simulationPanelHealthArchitectureCases';
 
 const MODULES = [
   soloProgressCases,
@@ -64,6 +69,7 @@ const MODULES = [
   leaderboardCases,
   soloMapFocusCases,
   leaderboardFallbackCases,
+  healthArchitectureCases,
 ];
 
 function flatten(key) {
