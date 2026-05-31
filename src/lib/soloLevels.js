@@ -46,6 +46,7 @@ import {
   getLevelStatus,
   summarizeSoloProgress,
 } from './soloProgressHelpers';
+import { publishSoloLeaderboardEntry } from './leaderboard';
 
 const STORAGE_KEY = 'kx_solo_progress_v1';
 
@@ -163,6 +164,8 @@ export async function ensureSoloProgressBackfill(user) {
   const shouldPersist = userMeta.changed || !sameProgress(userMeta.progress, progress);
   if (shouldPersist) {
     await writeSoloProgress(user, progress);
+  } else {
+    publishSoloLeaderboardEntry(user, progress).catch(() => {});
   }
   return progress;
 }
@@ -197,6 +200,7 @@ export async function writeSoloProgress(user, progress) {
   if (!user || !user.email) return;
   try {
     await base44.auth.updateMe({ solo_progress: normalized });
+    await publishSoloLeaderboardEntry(user, normalized);
   } catch {
     /* ignore — local mirror keeps the UI honest */
   }

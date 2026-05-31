@@ -1,11 +1,13 @@
 // Kronox Health Center — Leaderboard / Liderlik contracts.
 //
-// Static coverage only. Real all-user rank correctness still needs backend
-// data access with multiple real users; this suite prevents the UI from
-// drifting back to placeholders, stars-as-score, fake ranks, or email leakage.
+// Static coverage only. Exact global rank still needs production data with
+// multiple real users, but these cases prevent regressions back to private
+// User.list reads, placeholder-only UI, fake ranks, or email leakage.
 
 import leaderboardPageSource from '../../pages/LeaderboardPage.jsx?raw';
 import leaderboardLibSource from '../../lib/leaderboard.js?raw';
+import soloLevelsSource from '../../lib/soloLevels.js?raw';
+import soloLeaderboardEntitySource from '../../../base44/entities/SoloLeaderboardEntry.jsonc?raw';
 
 const STATUS = {
   PASS: 'PASS',
@@ -65,11 +67,72 @@ export const EXTRA_SUITES = [
 ];
 
 export const EXTRA_TESTS = [
+  makeCase('leaderboard_health', 'leaderboard_public_score_source_exists',
+    'Leaderboard uses a public-safe SoloLeaderboardEntry source, not private full User rows',
+    () => {
+      const required = missingTokens(`${soloLeaderboardEntitySource}\n${leaderboardLibSource}\n${leaderboardPageSource}`, [
+        '"name": "SoloLeaderboardEntry"',
+        '"owner_key"',
+        '"display_name"',
+        '"total_solo_score"',
+        '"current_level"',
+        '"read": {}',
+        'base44.entities.SoloLeaderboardEntry',
+        'loadSoloLeaderboardEntries',
+      ]);
+      const forbidden = forbiddenTokensFound(leaderboardPageSource, [
+        'base44.entities.User.list',
+        'base44.entities.User.filter',
+      ]);
+      if (required.length || forbidden.length) {
+        return fail('Leaderboard still depends on private/full profile reads or lacks a public score source.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'SoloLeaderboardEntry public-safe source; no User.list production dependency',
+          actual: { required, forbidden },
+        });
+      }
+      return pass('Leaderboard has a public-safe SoloLeaderboardEntry source and no longer ranks from full User.list reads.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('leaderboard_health', 'leaderboard_current_user_score_published',
+    'Current user Solo score is mirrored into the leaderboard-safe source',
+    () => {
+      const required = missingTokens(`${leaderboardLibSource}\n${soloLevelsSource}\n${leaderboardPageSource}`, [
+        'publishSoloLeaderboardEntry',
+        'buildSoloLeaderboardPayload',
+        'total_solo_score',
+        'current_level',
+        'await publishSoloLeaderboardEntry(user, normalized)',
+        'publishSoloLeaderboardEntry(user, progress).catch',
+        'publishSoloLeaderboardEntry(user, currentProgress)',
+      ]);
+      if (required.length) {
+        return fail('Current-user Solo score is not clearly published to the leaderboard-safe source.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'write/backfill/load paths mirror current user score to SoloLeaderboardEntry',
+          actual: { required },
+        });
+      }
+      return pass('Current-user score is mirrored on Solo progress write/backfill and refreshed on Liderlik load.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
   makeCase('leaderboard_health', 'leaderboard_uses_total_solo_score',
-    'Leaderboard ranks by totalSoloScore before level/stars/time tie-breakers',
+    'Leaderboard ranks by total_solo_score before level/stars/time tie-breakers',
     () => {
       const required = missingTokens(leaderboardLibSource, [
-        'rankSoloLeaderboardUsers',
+        'rankSoloLeaderboardEntries',
         'summary.totalSoloScore',
         'scoreDiff = b.summary.totalSoloScore - a.summary.totalSoloScore',
         'levelDiff = b.summary.currentLevel - a.summary.currentLevel',
@@ -96,8 +159,33 @@ export const EXTRA_TESTS = [
       });
     }),
 
-  makeCase('leaderboard_health', 'leaderboard_shows_top_10_or_available_users',
-    'Leaderboard shows top 10 or fewer real available users without fake rows',
+  makeCase('leaderboard_health', 'leaderboard_global_table_not_fallback_when_data_exists',
+    'Available leaderboard entries render rows instead of fallback-only copy',
+    () => {
+      const required = missingTokens(leaderboardPageSource, [
+        'leaderboard.topRows.map',
+        'LeaderboardRow',
+        'showOwnScoreFallback',
+        'PendingLeaderboardState',
+      ]);
+      if (required.length) {
+        return fail('Leaderboard UI no longer distinguishes real rows from fallback-only state.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'render topRows when available; fallback only when table source is unavailable',
+          actual: { required },
+        });
+      }
+      return pass('Leaderboard rows render when entries exist; fallback is isolated to unavailable/finalizing states.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('leaderboard_health', 'leaderboard_top_10_or_available_users',
+    'Leaderboard shows top 10 or fewer real available entries without fake rows',
     () => {
       const required = missingTokens(`${leaderboardPageSource}\n${leaderboardLibSource}`, [
         'LEADERBOARD_TOP_LIMIT = 10',
@@ -111,7 +199,7 @@ export const EXTRA_TESTS = [
         'fakeUsers',
       ]);
       if (required.length || forbidden.length) {
-        return fail('Top-10 real-user leaderboard contract drifted.', {
+        return fail('Top-10 real-entry leaderboard contract drifted.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
@@ -119,7 +207,7 @@ export const EXTRA_TESTS = [
           actual: { required, forbidden },
         });
       }
-      return pass('Top list renders the first 10 ranked real rows, or fewer if fewer exist.', {
+      return pass('Top list renders the first 10 ranked real entries, or fewer if fewer exist.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -127,37 +215,41 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('leaderboard_health', 'leaderboard_current_user_rank_visible',
-    'Current user is highlighted in top 10 or shown separately as Benim Sıram',
+    'Current user is highlighted in top 10 or shown separately as Senin Sıran / own score',
     () => {
       const required = missingTokens(`${leaderboardPageSource}\n${leaderboardLibSource}`, [
         'currentUserRow',
         'currentUserInTop',
-        'Benim Sıram',
+        'Senin Sıran',
+        'Senin Puanın',
         'isCurrentUser',
+        'ownScoreRow',
       ]);
       if (required.length) {
         return fail('Current-user rank visibility contract is missing.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'highlight current user or render separate own-rank row',
+          expected: 'highlight current user, show own-rank row, or show own score while rank finalizes',
           actual: { required },
         });
       }
-      return pass('Current-user rank is visible without duplicating the row when already in top 10.', {
+      return pass('Current user is visible as a highlighted rank row or an own-score row while rank finalizes.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
       });
     }),
 
-  makeCase('leaderboard_health', 'leaderboard_friend_rows_marked',
-    'Friend rows are marked from accepted FriendRequest data and no fake friends are generated',
+  makeCase('leaderboard_health', 'leaderboard_friend_markers_safe',
+    'Friend rows are marked by public-safe owner keys from real accepted friends',
     () => {
       const required = missingTokens(`${leaderboardPageSource}\n${leaderboardLibSource}`, [
         'loadFriends',
         'friend.friend_email',
-        'friendEmailSet',
+        'getFriendLeaderboardKeys',
+        'friendKeySet',
+        'owner_key',
         'isFriend',
         'Arkadaş',
         'Arkadaşların',
@@ -171,18 +263,18 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'accepted friends only, marked in real ranked rows',
+          expected: 'accepted friends only, matched by safe owner_key, marked in real ranked rows',
           actual: { required, forbidden },
         });
       }
-      return pass('Friend rows are driven by accepted friend data and marked without fake friend rows.', {
+      return pass('Friend rows are driven by accepted friend data and safe owner keys; no fake friend rows.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
       });
     }),
 
-  makeCase('leaderboard_health', 'leaderboard_no_fake_data',
+  makeCase('leaderboard_health', 'leaderboard_no_fake_users_or_ranks',
     'Leaderboard production path contains no mock users or invented ranks',
     () => {
       const forbidden = forbiddenTokensFound(`${leaderboardPageSource}\n${leaderboardLibSource}`, [
@@ -198,7 +290,7 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'real User rows only; no invented users/ranks',
+          expected: 'real leaderboard entries only; no invented users/ranks',
           actual: { forbidden },
         });
       }
@@ -212,25 +304,31 @@ export const EXTRA_TESTS = [
   makeCase('leaderboard_health', 'leaderboard_safe_identity_display',
     'Leaderboard display names avoid exposing private email addresses',
     () => {
-      const required = missingTokens(`${leaderboardPageSource}\n${leaderboardLibSource}`, [
+      const required = missingTokens(`${soloLeaderboardEntitySource}\n${leaderboardPageSource}\n${leaderboardLibSource}`, [
         'getSafeLeaderboardName',
-        "split('@')[0]",
+        'display_name',
+        'owner_key',
         'displayName',
       ]);
-      const forbidden = forbiddenTokensFound(leaderboardPageSource, [
+      const entityForbidden = forbiddenTokensFound(soloLeaderboardEntitySource, [
+        '"user_email"',
+        '"email"',
+      ]);
+      const renderForbidden = forbiddenTokensFound(leaderboardPageSource, [
         '{row.email}',
         'row.email}</',
       ]);
+      const forbidden = [...entityForbidden, ...renderForbidden];
       if (required.length || forbidden.length) {
         return fail('Safe identity display contract drifted.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'display safe name/local-part fallback, never raw email rows',
+          expected: 'display safe names/initials and public owner_key, never raw email rows',
           actual: { required, forbidden },
         });
       }
-      return pass('Leaderboard rows render safe display names rather than raw private emails.', {
+      return pass('Leaderboard rows render safe display names and public owner keys rather than raw private emails.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -238,26 +336,31 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('leaderboard_health', 'leaderboard_empty_state_safe',
-    'Leaderboard has loading, no-user, no-friend, and backend-error states',
+    'Leaderboard has loading, no-user, no-friend, fallback, and retry states',
     () => {
       const required = missingTokens(leaderboardPageSource, [
         'Sıralama yükleniyor',
         'Henüz sıralama verisi yok',
         'Arkadaşlarını davet et, sıralamada yarışın',
         'Arkadaşların puan aldıkça burada görünecek',
-        'Sıralama şu an yüklenemedi',
+        'Kronox sıralaması hazırlanıyor',
+        'Puanın kaydedildi. Kısa süre içinde sıralamada görünecek',
         'Tekrar Dene',
       ]);
-      if (required.length) {
-        return fail('Leaderboard empty/error state coverage drifted.', {
+      const forbidden = forbiddenTokensFound(leaderboardPageSource, [
+        'Backend tüm kullanıcı',
+        'Veri uydurulmadı',
+      ]);
+      if (required.length || forbidden.length) {
+        return fail('Leaderboard empty/fallback state coverage drifted.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'non-crashing states for loading/empty/friendless/backend error',
-          actual: { required },
+          expected: 'non-crashing product copy for loading/empty/friendless/finalizing/retry',
+          actual: { required, forbidden },
         });
       }
-      return pass('Leaderboard exposes safe loading, empty, no-friend, and backend-error states.', {
+      return pass('Leaderboard exposes safe product-copy states for loading, empty, no-friend, finalizing, and retry.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -265,13 +368,13 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('leaderboard_health', 'leaderboard_runtime_backend_rank_probe',
-    'Real multi-user global rank proof requires backend data access',
-    () => notAutomatable('Static checks prove the UI/data contract, but exact global rank still requires a real backend probe with multiple User.solo_progress rows and production read permissions.', {
+    'Real multi-user global rank proof requires public leaderboard rows in backend',
+    () => notAutomatable('Static checks prove the public leaderboard source and UI contract, but exact global rank still requires a real backend probe with multiple SoloLeaderboardEntry rows and production read/update permissions.', {
       verification: 'NOT_AUTOMATABLE',
       classification: 'STATIC_CHECK_LIMITATION',
       verificationLabels: ['NOT_AUTOMATABLE', 'BACKEND_RUNTIME_PROBE'],
       actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE,
-      expected: 'multiple real users ranked by totalSoloScore in production data',
+      expected: 'multiple real users mirrored to SoloLeaderboardEntry and ranked by totalSoloScore',
       actual: 'static contract only',
     }), { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, critical: false }),
 ];

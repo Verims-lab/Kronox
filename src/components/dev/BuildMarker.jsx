@@ -1,6 +1,17 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex116 — Real Liderlik leaderboard section:
+// Codex117 — Public-safe Liderlik leaderboard source:
+//   • Adds SoloLeaderboardEntry as the public-safe score source instead of
+//     depending on private full User row reads.
+//   • Mirrors current-user Solo progress on write/backfill/Leaderboard load so
+//     valid scores can render in the Kronox Sıralaması table.
+//   • Ranks by totalSoloScore, then current level, total stars, aggregate best
+//     time, and stable public owner key.
+//   • Highlights the current user, marks accepted friends, and never renders
+//     mock users, fake ranks, or raw email addresses.
+//   • Updates the modular leaderboard_health suite for the public score source.
+//
+// Previous note: Codex116 — Real Liderlik leaderboard section:
 //   • Replaces the Arkadaş Sıralaması placeholder with real User.solo_progress
 //     ranking when readable through Base44 User rows.
 //   • Ranks by totalSoloScore, then current level, total stars, aggregate best
@@ -285,7 +296,7 @@ import React, { useEffect, useState } from 'react';
 //   visible 120s SoloLevelTimer (no audio cue).
 // Previous note: Codex106 — Solo level completion popup polish.
 // Previous note: Codex106 — Solo Level Path (vertical 8-row path).
-const BUILD_MARKER = 'Codex116';
+const BUILD_MARKER = 'Codex117';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

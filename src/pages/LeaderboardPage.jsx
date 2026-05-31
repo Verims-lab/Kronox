@@ -7,18 +7,25 @@ import { summarizeSoloProgress } from '@/lib/soloProgressHelpers';
 import { loadFriends } from '@/lib/friendsApi';
 import {
   getLeaderboardDiamondValue,
+  getLeaderboardOwnerKey,
+  getFriendLeaderboardKeys,
   LEADERBOARD_FETCH_LIMIT,
   LEADERBOARD_TOP_LIMIT,
-  rankSoloLeaderboardUsers,
+  buildSoloLeaderboardPayload,
+  loadSoloLeaderboardEntries,
+  publishSoloLeaderboardEntry,
+  rankSoloLeaderboardEntries,
   selectLeaderboardSections,
+  toSoloLeaderboardEntry,
 } from '@/lib/leaderboard';
 
 /**
- * Codex111 — Solo score-aware Leaderboard shell.
+ * Codex117 — Public-safe Solo leaderboard shell.
  *
- * We show REAL user-specific Solo totals from User.solo_progress. Global
- * ranking uses readable User rows only; if the backend blocks that read, the
- * page reports the missing capability instead of inventing ranks.
+ * We show REAL user-specific Solo totals from User.solo_progress and mirror
+ * them into SoloLeaderboardEntry rows that expose only public-safe rank data.
+ * If the global table is still finalizing, the user's own score row remains
+ * visible without inventing ranks.
  * Elmas stays economy-owned: if no real profile/economy field exists yet, it
  * shows a safe 0 placeholder and never derives from stars or Solo score.
  */
@@ -34,6 +41,8 @@ export default function LeaderboardPage() {
     currentUserRow: null,
     currentUserInTop: false,
     friendsOutsideTop: [],
+    ownScoreRow: null,
+    rankFinalizing: false,
     friendCount: 0,
   });
 
@@ -55,13 +64,28 @@ export default function LeaderboardPage() {
     if (!user?.email) return;
 
     setLeaderboard((prev) => ({ ...prev, loading: true, error: '' }));
+    const currentProgress = readSoloProgress(user);
+    const currentOwnerKey = getLeaderboardOwnerKey(user.email);
+    const currentPayload = buildSoloLeaderboardPayload(user, currentProgress);
+
     try {
-      const [users, friends] = await Promise.all([
-        base44.entities.User.list('-updated_date', LEADERBOARD_FETCH_LIMIT),
+      const [publishedRow, rows, friends] = await Promise.all([
+        publishSoloLeaderboardEntry(user, currentProgress).catch(() => null),
+        loadSoloLeaderboardEntries(LEADERBOARD_FETCH_LIMIT),
         loadFriends(user.email).catch(() => []),
       ]);
-      const readableUsers = Array.isArray(users) ? users : [];
-      if (readableUsers.length === 0) {
+      const friendEmails = (friends || []).map((friend) => friend.friend_email).filter(Boolean);
+      const friendKeys = getFriendLeaderboardKeys(friendEmails);
+      const readableRows = Array.isArray(rows) ? [...rows] : [];
+      const ownPublicRow = publishedRow || currentPayload;
+      if (ownPublicRow?.owner_key && !readableRows.some((row) => row?.owner_key === ownPublicRow.owner_key)) {
+        readableRows.push(ownPublicRow);
+      }
+      const rankedRows = rankSoloLeaderboardEntries(readableRows, friendKeys, currentOwnerKey);
+      const sections = selectLeaderboardSections(rankedRows, currentOwnerKey, LEADERBOARD_TOP_LIMIT);
+      const ownScoreRow = sections.currentUserRow || toSoloLeaderboardEntry(currentPayload, friendKeys, currentOwnerKey);
+
+      if (rankedRows.length === 0) {
         setLeaderboard({
           loading: false,
           loaded: true,
@@ -71,31 +95,35 @@ export default function LeaderboardPage() {
           currentUserRow: null,
           currentUserInTop: false,
           friendsOutsideTop: [],
+          ownScoreRow,
+          rankFinalizing: true,
           friendCount: 0,
         });
         return;
       }
-      const friendEmails = (friends || []).map((friend) => friend.friend_email).filter(Boolean);
-      const rankedRows = rankSoloLeaderboardUsers(readableUsers, friendEmails, user);
-      const sections = selectLeaderboardSections(rankedRows, user.email, LEADERBOARD_TOP_LIMIT);
       setLeaderboard({
         loading: false,
         loaded: true,
         error: '',
         rankedRows,
         ...sections,
+        ownScoreRow,
+        rankFinalizing: false,
         friendCount: friendEmails.length,
       });
     } catch (err) {
+      const ownScoreRow = toSoloLeaderboardEntry(currentPayload, new Set(), currentOwnerKey);
       setLeaderboard({
         loading: false,
         loaded: true,
-        error: err?.message || 'Sıralama verisi yüklenemedi.',
+        error: err?.message || 'Sıralama kaynağı hazırlanıyor.',
         rankedRows: [],
         topRows: [],
         currentUserRow: null,
         currentUserInTop: false,
         friendsOutsideTop: [],
+        ownScoreRow,
+        rankFinalizing: true,
         friendCount: 0,
       });
     }
@@ -190,6 +218,7 @@ function LeaderboardSection({ authChecked, user, leaderboard, onRetry }) {
   const hasRows = leaderboard.topRows.length > 0;
   const showOwnRank = leaderboard.currentUserRow && !leaderboard.currentUserInTop;
   const showFriendRows = leaderboard.friendsOutsideTop.length > 0;
+  const showOwnScoreFallback = !hasRows && leaderboard.ownScoreRow;
   const waitingForLeaderboard = Boolean(user && !leaderboard.loaded && !leaderboard.error);
   const friendEmptyCopy = leaderboard.friendCount > 0
     ? 'Arkadaşların puan aldıkça burada görünecek.'
@@ -233,32 +262,10 @@ function LeaderboardSection({ authChecked, user, leaderboard, onRetry }) {
           title="Giriş gerekli"
           text="Kronox sıralamasında yerini görmek için giriş yap."
         />
+      ) : showOwnScoreFallback ? (
+        <PendingLeaderboardState row={leaderboard.ownScoreRow} onRetry={onRetry} />
       ) : leaderboard.error ? (
-        <div className="mt-4 rounded-xl p-3"
-          style={{
-            background: 'rgba(244,63,94,0.10)',
-            boxShadow: 'inset 0 0 0 1px rgba(244,63,94,0.35)',
-          }}>
-          <p className="font-inter text-xs font-bold text-rose-100">
-            Sıralama şu an yüklenemedi.
-          </p>
-          <p className="mt-1 font-inter text-[11px] leading-relaxed text-rose-100/70">
-            Backend tüm kullanıcı skorlarını bu oturuma açmıyorsa gerçek global
-            sıralama üretilemez. Veri uydurulmadı.
-          </p>
-          <button
-            type="button"
-            onClick={onRetry}
-            className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 font-inter text-[11px] font-black text-amber-950"
-            style={{
-              background: 'linear-gradient(180deg,#ffe066,#b97a06)',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.45), 0 0 10px rgba(250,204,21,0.30)',
-            }}
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-            Tekrar Dene
-          </button>
-        </div>
+        <PendingLeaderboardState onRetry={onRetry} />
       ) : !hasRows ? (
         <EmptyLeaderboardState
           icon={Trophy}
@@ -274,7 +281,7 @@ function LeaderboardSection({ authChecked, user, leaderboard, onRetry }) {
           {showOwnRank && (
             <div className="pt-2">
               <p className="mb-2 px-1 font-inter text-[10px] font-black uppercase tracking-widest text-amber-200/80">
-                Benim Sıram
+                Senin Sıran
               </p>
               <LeaderboardRow row={leaderboard.currentUserRow} emphasis />
             </div>
@@ -312,6 +319,7 @@ function LeaderboardSection({ authChecked, user, leaderboard, onRetry }) {
 function LeaderboardRow({ row, compact = false, emphasis = false }) {
   const isHighlighted = row.isCurrentUser || emphasis;
   const rankColor = row.rank <= 3 ? '#facc15' : '#93c5fd';
+  const rankText = Number.isFinite(Number(row.rank)) ? `#${row.rank}` : '—';
 
   return (
     <div
@@ -326,7 +334,7 @@ function LeaderboardRow({ row, compact = false, emphasis = false }) {
       }}
     >
       <div className="w-8 shrink-0 text-center font-bangers text-lg leading-none" style={{ color: rankColor }}>
-        #{row.rank}
+        {rankText}
       </div>
       <div
         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-bangers text-base text-amber-950"
@@ -359,6 +367,45 @@ function LeaderboardRow({ row, compact = false, emphasis = false }) {
           Puan
         </p>
       </div>
+    </div>
+  );
+}
+
+function PendingLeaderboardState({ row = null, onRetry }) {
+  return (
+    <div className="mt-4 space-y-3">
+      <div className="rounded-xl px-3 py-3"
+        style={{
+          background: 'rgba(250,204,21,0.10)',
+          boxShadow: 'inset 0 0 0 1px rgba(250,204,21,0.26)',
+        }}>
+        <p className="font-inter text-xs font-black text-amber-100">
+          Kronox sıralaması hazırlanıyor.
+        </p>
+        <p className="mt-1 font-inter text-[11px] leading-relaxed text-amber-100/72">
+          Puanın kaydedildi. Kısa süre içinde sıralamada görünecek.
+        </p>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 font-inter text-[11px] font-black text-amber-950"
+          style={{
+            background: 'linear-gradient(180deg,#ffe066,#b97a06)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.45), 0 0 10px rgba(250,204,21,0.30)',
+          }}
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+          Tekrar Dene
+        </button>
+      </div>
+      {row && (
+        <div>
+          <p className="mb-2 px-1 font-inter text-[10px] font-black uppercase tracking-widest text-amber-200/80">
+            Senin Puanın
+          </p>
+          <LeaderboardRow row={{ ...row, rank: null, isCurrentUser: true }} emphasis />
+        </div>
+      )}
     </div>
   );
 }
