@@ -100,8 +100,8 @@ export default function LobbyRoom() {
     return () => setBottomNavHidden(false);
   }, []);
 
-  // New create signature: { maxPlayers, invitedEmails, selectedCategories }
-  // from CreateLobbyInvitePanel.
+  // Create signature: { maxPlayers, invitedEmails, selectedCategories }
+  // forwarded by the OnlineChallengeScreen CTA (single-step lobby + invites).
   // playerName is derived from the authenticated user (no manual input).
   // For backwards-compat (e.g. if called with no payload), we fall back to playerName state.
   const handleCreate = async (payload = {}) => {
