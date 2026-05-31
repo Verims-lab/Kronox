@@ -1,0 +1,165 @@
+// hooks/useHeaderNotifications.js
+// Data + subscription layer for the shared header notification bell.
+//
+// Responsibilities (kept tiny and modular):
+//   • Load incoming pending FriendRequest rows for the current user.
+//   • Load incoming pending, non-expired GameInvite rows for the current user.
+//   • Subscribe to FriendRequest / GameInvite realtime changes via the SDK.
+//   • Refresh on app focus + visibilitychange.
+//   • Expose totalCount, openGameInvite(invite), openFriendRequests().
+//
+// We DELIBERATELY DO NOT duplicate accept/expire logic — `openGameInvite`
+// reuses `acceptGameInvite` from lib/inviteApi (which already enforces
+// expiry + lobby-stale guards) and navigates to /lobby (lobby-first).
+
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { base44 } from '@/api/base44Client';
+import { normalizeEmail } from '@/lib/friendsApi';
+import {
+  acceptGameInvite,
+  isGameInviteExpired,
+  loadIncomingInvites,
+} from '@/lib/inviteApi';
+import {
+  isActiveGameInviteForUser,
+  isPendingFriendRequestForUser,
+} from '@/lib/headerNotifications';
+
+const REFRESH_DEBOUNCE_MS = 250;
+
+export function useHeaderNotifications(user) {
+  const navigate = useNavigate();
+  const myEmail = normalizeEmail(user?.email);
+
+  const [friendRequests, setFriendRequests] = useState([]);
+  const [gameInvites, setGameInvites] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const aliveRef = useRef(true);
+  const refreshTimerRef = useRef(null);
+
+  const fetchAll = useCallback(async () => {
+    if (!myEmail) {
+      setFriendRequests([]);
+      setGameInvites([]);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const [fr, gi] = await Promise.all([
+        base44.entities.FriendRequest.filter(
+          { to_email: myEmail, status: 'pending' },
+          '-created_date',
+          50,
+        ).catch(() => []),
+        loadIncomingInvites(myEmail).catch(() => []),
+      ]);
+      if (!aliveRef.current) return;
+      const now = Date.now();
+      setFriendRequests((fr || []).filter((r) => isPendingFriendRequestForUser(r, myEmail)));
+      setGameInvites((gi || []).filter((r) => isActiveGameInviteForUser(r, myEmail, now)));
+    } catch (err) {
+      if (!aliveRef.current) return;
+      setError(err?.message || 'Bildirimler yüklenemedi.');
+    } finally {
+      if (aliveRef.current) setLoading(false);
+    }
+  }, [myEmail]);
+
+  const refresh = useCallback(() => {
+    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    refreshTimerRef.current = setTimeout(() => { fetchAll(); }, REFRESH_DEBOUNCE_MS);
+  }, [fetchAll]);
+
+  // Initial load + on user change.
+  useEffect(() => {
+    aliveRef.current = true;
+    fetchAll();
+    return () => {
+      aliveRef.current = false;
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    };
+  }, [fetchAll]);
+
+  // Realtime subscriptions (FriendRequest + GameInvite).
+  useEffect(() => {
+    if (!myEmail) return undefined;
+    const unsubs = [];
+    try {
+      const u1 = base44.entities.FriendRequest.subscribe?.(() => refresh());
+      if (typeof u1 === 'function') unsubs.push(u1);
+    } catch { /* subscription not available */ }
+    try {
+      const u2 = base44.entities.GameInvite.subscribe?.(() => refresh());
+      if (typeof u2 === 'function') unsubs.push(u2);
+    } catch { /* subscription not available */ }
+    return () => {
+      unsubs.forEach((fn) => { try { fn(); } catch { /* ignore */ } });
+    };
+  }, [myEmail, refresh]);
+
+  // Focus + visibility fallback (also catches no-subscription environments).
+  useEffect(() => {
+    if (!myEmail) return undefined;
+    const onFocus = () => refresh();
+    const onVis = () => { if (document.visibilityState === 'visible') refresh(); };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [myEmail, refresh]);
+
+  // Auto-prune expired invites every 30s so a panel left open eventually
+  // drops stale entries even without an incoming push.
+  useEffect(() => {
+    if (gameInvites.length === 0) return undefined;
+    const id = setInterval(() => {
+      const now = Date.now();
+      setGameInvites((prev) => prev.filter((i) => !isGameInviteExpired(i, now)));
+    }, 30 * 1000);
+    return () => clearInterval(id);
+  }, [gameInvites.length]);
+
+  const totalCount = friendRequests.length + gameInvites.length;
+
+  const openFriendRequests = useCallback(() => {
+    navigate('/friends');
+  }, [navigate]);
+
+  const openGameInvite = useCallback(async (invite) => {
+    if (!invite?.id) return { ok: false, reason: 'invalid' };
+    if (isGameInviteExpired(invite)) {
+      refresh();
+      return { ok: false, reason: 'expired' };
+    }
+    try {
+      const res = await acceptGameInvite(invite.id);
+      refresh();
+      if (res?.lobby?.id) {
+        navigate('/lobby', { replace: false, state: { joinedLobby: res.lobby } });
+        return { ok: true, lobby: res.lobby };
+      }
+      navigate('/lobby');
+      return { ok: true };
+    } catch (err) {
+      refresh();
+      return { ok: false, reason: err?.message || 'accept_failed' };
+    }
+  }, [navigate, refresh]);
+
+  return useMemo(() => ({
+    friendRequests,
+    gameInvites,
+    totalCount,
+    loading,
+    error,
+    refresh,
+    openFriendRequests,
+    openGameInvite,
+  }), [friendRequests, gameInvites, totalCount, loading, error, refresh, openFriendRequests, openGameInvite]);
+}

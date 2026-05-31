@@ -86,6 +86,8 @@ import * as inviteDeliveryCases from './simulationPanelInviteDeliveryCases';
 import * as inviteLifecycleCases from './simulationPanelInviteLifecycleCases';
 // Codex131 — Lobby simplification + active-lobby return contracts.
 import * as lobbySimplificationCases from './simulationPanelLobbySimplificationCases';
+// Codex134 — Shared real-time header notification system contracts.
+import * as headerNotificationsCases from './simulationPanelHeaderNotificationsCases';
 
 const MODULES = [
   soloProgressCases,
@@ -102,6 +104,7 @@ const MODULES = [
   inviteDeliveryCases,
   inviteLifecycleCases,
   lobbySimplificationCases,
+  headerNotificationsCases,
 ];
 
 function flatten(key) {
