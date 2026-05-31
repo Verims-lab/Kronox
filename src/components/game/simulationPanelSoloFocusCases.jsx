@@ -221,26 +221,46 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 7. Auto-scroll math is layout-timing resilient. */
+  /* 7. Auto-scroll math is layout-timing resilient.
+   *
+   *    Codex122 — Updated to match the Codex121 inner-container architecture.
+   *    The old contract required `scrollIntoView` as a fallback. That token
+   *    is now FORBIDDEN by `solo_map_focus.solo_map_scroll_container_is_inner`
+   *    because `scrollIntoView` can be resolved against an outer scrollable
+   *    ancestor (page-level), causing the "page scrolls instead of inner
+   *    container" bug that left scrollTop=0 on the Solo map.
+   *
+   *    The replacement resilience contract: rAF retry + clientHeight guard
+   *    + direct container.scrollTop assignment via the externalised helper.
+   *    No `scrollIntoView` is required (or allowed). This is intentionally
+   *    NOT a weakening — the architecture is stricter now. */
   makeCase('solo_focus_and_unlock', 'auto_scroll_resilient_to_layout_timing',
-    'LevelMapPath defers the auto-scroll math to the next animation frame and falls back to scrollIntoView when clientHeight is 0',
+    'LevelMapPath defers auto-scroll to the next animation frame and guards on container.clientHeight (Codex122 inner-container architecture)',
     () => {
       const required = missingTokens(levelMapPathSource, [
         'requestAnimationFrame',
         'container.clientHeight',
+        // Codex122 — direct scrollTop assignment is the new "fallback" path
+        // (formerly scrollIntoView, now forbidden by the inner-container
+        // contract). Confirms the architecture didn't drift back to the
+        // outer-scroll-ancestor bug.
+        'container.scrollTop',
+      ]);
+      // Defensive: scrollIntoView must NOT come back into the component.
+      const forbidden = forbiddenTokensFound(levelMapPathSource, [
         'scrollIntoView',
       ]);
-      if (required.length) {
-        return fail('Auto-scroll is not resilient to the Android-WebView "clientHeight===0 on first paint" case.', {
+      if (required.length || forbidden.length) {
+        return fail('Auto-scroll is not resilient to the Android-WebView "clientHeight===0 on first paint" case, or scrollIntoView regression detected.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'components/solo/LevelMapPath.jsx',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'rAF + clientHeight guard + scrollIntoView fallback',
-          actual: { required },
+          expected: 'rAF + clientHeight guard + direct container.scrollTop; no scrollIntoView',
+          actual: { required, forbidden },
         });
       }
-      return pass('Auto-scroll math is layout-timing resilient.', {
+      return pass('Auto-scroll math is layout-timing resilient via rAF + clientHeight guard + direct scrollTop assignment.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });

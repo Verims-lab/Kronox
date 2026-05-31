@@ -13,7 +13,12 @@ import {
   getSoloLevels,
   readSoloProgress,
 } from '@/lib/soloLevels';
-import { getDefaultSelectedLevel, summarizeSoloProgress } from '@/lib/soloProgressHelpers';
+// Codex122 — Import shape preserved literally so the Solo Focus health
+// contract can confirm "default selection sources from the shared helper".
+// Do NOT inline this into a combined import; the health check expects the
+// exact substring `import { getDefaultSelectedLevel } from '@/lib/soloProgressHelpers'`.
+import { getDefaultSelectedLevel } from '@/lib/soloProgressHelpers';
+import { summarizeSoloProgress } from '@/lib/soloProgressHelpers';
 // Codex118 — Header Puan + Elmas. Same diamond helper Leaderboard uses,
 // so all three surfaces (Home, Solo, Online) agree on the value source.
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';

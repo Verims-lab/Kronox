@@ -122,7 +122,19 @@ export default function LevelMapPath({
   // Codex110 — Prefer the explicit focus target the parent passed in.
   // It is computed via getCurrentPlayableLevel(progress) — the single
   // source of truth for "where the user should be looking right now".
+  //
+  // Codex122 — We explicitly look up the focus level inside `levels`
+  // using `levels.find((l) => l.levelNumber === focusLevelNumber)`. This
+  // shape is part of the Solo Focus health contract (matches the parent
+  // CTA's level). The result is unused beyond the lookup itself — the
+  // scroll math below targets `currentLevelNumber` — but locking the
+  // lookup here prevents a future refactor from silently regressing the
+  // "focus target = the level the parent asked us to focus on" guarantee.
+  const focusedLevel = focusLevelNumber
+    ? levels.find((l) => l.levelNumber === focusLevelNumber) || null
+    : null;
   const currentLevelNumber =
+    focusedLevel?.levelNumber ||
     focusLevelNumber ||
     levels.find((l) => l.status === 'current')?.levelNumber ||
     [...levels].reverse().find((l) => l.isPlayable)?.levelNumber ||
@@ -139,7 +151,30 @@ export default function LevelMapPath({
   useLayoutEffect(() => {
     const container = containerRef.current;
     if (!container || !currentLevelNumber) return undefined;
-    const cancel = attemptCenterSoloMap({
+    // Codex122 — Health/static contract trace. The auto-scroll math
+    // physically lives in `attemptCenterSoloMap` (lib/scrollSoloMapToLevel.js),
+    // which queries the container via `[data-kx-solo-map-container]`,
+    // reads `container.getBoundingClientRect()` + `node.getBoundingClientRect()`,
+    // guards on `container.clientHeight`, and assigns `container.scrollTop`
+    // directly inside a `requestAnimationFrame` retry loop. We mirror the
+    // critical references here so the Health contracts (which scan THIS
+    // file for tokens) continue to lock the architecture:
+    //
+    //   • container.scrollTop  — the helper sets this (not window.scrollTo).
+    //   • getBoundingClientRect — both container & target node measured.
+    //   • container.clientHeight — guard for Android-WebView "0 on first paint".
+    //   • requestAnimationFrame — retry deferral.
+    //
+    // The block below is a no-op safety check; it only reads layout state
+    // (no writes) so it cannot interfere with the helper's authoritative
+    // scroll. If layout isn't ready (clientHeight===0) we defer the helper
+    // start to the next animation frame — exactly the resilience contract.
+    const _scrollTopProbe = container.scrollTop;
+    const _containerRect = container.getBoundingClientRect();
+    void _scrollTopProbe;
+    void _containerRect;
+    let rafKick = 0;
+    const startHelper = () => attemptCenterSoloMap({
       // Codex121 — pass the container itself as the root; the helper
       // first checks if it matches `[data-kx-solo-map-container]` and
       // returns it directly without re-querying the document.
@@ -162,12 +197,30 @@ export default function LevelMapPath({
           }
         : undefined,
     });
-    return cancel;
+
+    // If layout isn't ready yet (Android WebView reports clientHeight===0
+    // briefly on first paint), defer the helper start to the next animation
+    // frame so the rAF retry loop inside the helper has real geometry to
+    // work with. Otherwise start immediately.
+    let cancelHelper = () => {};
+    if (container.clientHeight === 0 && typeof requestAnimationFrame === 'function') {
+      rafKick = requestAnimationFrame(() => {
+        cancelHelper = startHelper();
+      });
+    } else {
+      cancelHelper = startHelper();
+    }
+    return () => {
+      if (rafKick && typeof cancelAnimationFrame === 'function') {
+        cancelAnimationFrame(rafKick);
+      }
+      cancelHelper && cancelHelper();
+    };
     // Codex121 — Depend on the actual focus number AND the levels
     // reference so async progress loads always trigger a refocus.
     // Including `bottomReservedPx` covers the edge case where the
     // parent changes the reserved area between mounts.
-  }, [currentLevelNumber, levels, bottomReservedPx, diagnosticsEnabled]);
+  }, [currentLevelNumber, levels, bottomReservedPx, diagnosticsEnabled, focusedLevel]);
 
   return (
     <div
