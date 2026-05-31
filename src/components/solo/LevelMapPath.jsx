@@ -1,6 +1,7 @@
 import React, { useLayoutEffect, useMemo, useRef } from 'react';
 import LevelMapNode from './LevelMapNode';
 import { getSoloMapSectionRange } from '@/lib/soloProgressHelpers';
+import { attemptCenterSoloMap } from '@/lib/scrollSoloMapToLevel';
 
 /**
  * Codex108 — Scrollable vertical adventure map for Solo levels.
@@ -80,63 +81,56 @@ export default function LevelMapPath({
   // single-source-of-truth definition of "current playable" is always
   // what we scroll to. Falling back keeps backward compat.
   focusLevelNumber,
+  // Codex121 — Admin gate for diagnostic logging. When true, the focus
+  // helper logs a structured diagnostic for every attempt to the console
+  // so we can see, on a real device, exactly which step failed (no
+  // container, no node, layout not ready, applied but not centered…).
+  // Default false → normal users see nothing.
+  diagnosticsEnabled = false,
 }) {
   // We render top → bottom in JSX, but display HIGH levels at the top and
   // LOW levels at the bottom. We achieve this by reversing the array.
   const ordered = useMemo(() => [...levels].slice().reverse(), [levels]);
 
   // Auto-scroll the current level into view on mount + whenever the
-  // focus target changes (e.g. after async progress load or after a
-  // pass unlocks the next level).
+  // focus target changes.
   //
-  // Codex120 ROOT-CAUSE FIX (continuation of Codex117) — Codex117
-  // already replaced the buggy `offsetTop`-on-absolute math with
-  // viewport-relative `getBoundingClientRect()` deltas, BUT the focus
-  // effect could still leave the scroll at the TOP of the reversed
-  // list (= "KRİSTAL ZİRVE 16-20" zone) because:
+  // Codex121 ROOT-CAUSE FIX (continuation of Codex117/Codex120) —
+  // previous attempts kept the focus math inline. On a real device the
+  // scroll still landed at scrollTop=0 (the highest-zone banner)
+  // because the inline effect couldn't tell whether the math actually
+  // worked OR the fallback `scrollIntoView` ended up scrolling an
+  // outer ancestor instead of our inner container.
   //
-  //   (a) Effect deps were [levels.length, currentLevelNumber]. When
-  //       `progress` updates async and the focus level stays at the
-  //       same number (e.g. user already at Level 10), neither dep
-  //       changes, so no refocus runs and the very-first paint scroll
-  //       (which may have aimed at a stale fallback value) is never
-  //       corrected.
-  //   (b) `scrollBehavior: 'smooth'` animated the scroll — a competing
-  //       layout pass or user touch could cancel it mid-animation,
-  //       leaving scrollTop at 0 (= highest-zone banner at viewport top).
-  //   (c) The last-resort `scrollIntoView` operates on the nearest
-  //       scrollable ancestor; in a nested viewport this can scroll the
-  //       page instead of our inner container, leaving the inner
-  //       container at scrollTop=0.
+  // We now externalise the entire scroll into `attemptCenterSoloMap`
+  // from `lib/scrollSoloMapToLevel.js`. That helper:
   //
-  // Fix:
-  //   1. Switch to `useLayoutEffect` so refs are populated and the
-  //      scroll lands BEFORE paint — no flash of wrong zone.
-  //   2. Depend on the real focus target + `levels` reference itself.
-  //   3. Retry the focus math up to 8 frames (≈130ms) until
-  //      `clientHeight > 0` AND nodes are rendered — handles WebView
-  //      layout settle.
-  //   4. Do the initial jump WITHOUT smooth behavior so it can't be
-  //      cancelled mid-animation; subsequent user-driven scrolls keep
-  //      smooth via CSS-only `scrollBehavior`.
-  //   5. Keep `scrollIntoView` as the resilience tail but scope it to
-  //      the container's own viewport instead of letting the browser
-  //      pick the nearest scrollable ancestor.
+  //   1. Finds the real scroll container via the stable DOM hook
+  //      `[data-kx-solo-map-container="true"]` (not React refs).
+  //   2. Finds the target node via `[data-kx-solo-level="N"]`.
+  //   3. Computes the visible band MINUS the bottom CTA overlay so a
+  //      centered node isn't hidden behind the floating Play button.
+  //   4. Assigns `scrollTop` directly (smooth behavior temporarily
+  //      disabled) so the jump can't be cancelled mid-animation.
+  //   5. Verifies post-jump that the node sits inside the visible
+  //      band; if not, returns a structured diagnostic so the rAF
+  //      retry loop tries again.
+  //
+  // The diagnostic is logged to the console ONLY when the parent
+  // passes `diagnosticsEnabled` (gated by admin upstream).
   const containerRef = useRef(null);
-  const nodeRefs = useRef({});
   // Codex110 — Prefer the explicit focus target the parent passed in.
   // It is computed via getCurrentPlayableLevel(progress) — the single
   // source of truth for "where the user should be looking right now".
   const currentLevelNumber =
     focusLevelNumber ||
-    levels.find((l) => l.status === 'current')?.levelNumber;
+    levels.find((l) => l.status === 'current')?.levelNumber ||
+    [...levels].reverse().find((l) => l.isPlayable)?.levelNumber ||
+    levels[0]?.levelNumber;
 
-  // Codex120 — Section the focus level belongs to. We don't render this
-  // directly (the existing zone banners already render per range[1]),
-  // but exposing the range as a `data-` attribute on the container is
-  // what makes runtime/health verification trivial: read the attribute
-  // after mount and you have the contract "map opened on section X-Y".
-  // Pure derived value — no business logic touched.
+  // Codex120 — Section the focus level belongs to. Exposed as a data
+  // attribute on the container so runtime / Health probes can verify
+  // "map opened on the correct zone" without reading React state.
   const focusSectionRange = useMemo(
     () => (currentLevelNumber ? getSoloMapSectionRange(currentLevelNumber) : null),
     [currentLevelNumber],
@@ -144,110 +138,70 @@ export default function LevelMapPath({
 
   useLayoutEffect(() => {
     const container = containerRef.current;
-    if (!container) return undefined;
-    const target =
-      (focusLevelNumber && levels.find((l) => l.levelNumber === focusLevelNumber)) ||
-      levels.find((l) => l.status === 'current') ||
-      [...levels].reverse().find((l) => l.isPlayable) ||
-      levels[0];
-    if (!target) return undefined;
-
-    // Computes scrollTop that centers the target node inside the
-    // container viewport, using viewport-relative bounding rects so we
-    // are independent of offsetParent. Returns true when the math was
-    // applied; false when layout isn't ready (no node or zero height).
-    const focus = () => {
-      const node = nodeRefs.current[target.levelNumber];
-      if (!node) return false;
-      const ch = container.clientHeight;
-      if (ch === 0) return false;
-      const containerRect = container.getBoundingClientRect();
-      const nodeRect = node.getBoundingClientRect();
-      const offset =
-        container.scrollTop
-        + (nodeRect.top - containerRect.top)
-        - ch / 2
-        + nodeRect.height / 2;
-      const maxScroll = Math.max(0, container.scrollHeight - ch);
-      // Codex120 — temporarily suspend CSS smooth scrolling so this
-      // jump lands instantly and cannot be cancelled mid-animation.
-      const previousBehavior = container.style.scrollBehavior;
-      container.style.scrollBehavior = 'auto';
-      container.scrollTop = Math.min(maxScroll, Math.max(0, offset));
-      // Restore on the next frame so subsequent user/CTA scrolls keep
-      // the original smooth feel.
-      requestAnimationFrame(() => {
-        container.style.scrollBehavior = previousBehavior || '';
-      });
-      return true;
-    };
-
-    // Codex120 — retry the focus math across up to 8 animation frames
-    // (~130ms at 60fps) so the auto-scroll survives WebView layout
-    // settle, lazy-loaded fonts/images, and async progress updates that
-    // arrive after the initial mount. We stop the loop the moment the
-    // math succeeds.
-    let frame = 0;
-    let cancelled = false;
-    let rafId = 0;
-    let fallbackTimer = 0;
-    const tick = () => {
-      if (cancelled) return;
-      if (focus()) return;
-      frame += 1;
-      if (frame >= 8) {
-        // Last-resort fallback — scope `scrollIntoView` to the
-        // container so the browser cannot scroll an outer ancestor by
-        // mistake. We also guard against the node still being missing.
-        fallbackTimer = window.setTimeout(() => {
-          if (cancelled) return;
-          const node = nodeRefs.current[target.levelNumber];
-          if (!node || typeof node.scrollIntoView !== 'function') return;
-          // Compute container-relative scroll manually as a true
-          // fallback; if anything throws, default to the browser's
-          // container-scoped scrollIntoView.
-          try {
-            const ch = container.clientHeight || 0;
-            if (ch > 0) {
-              const containerRect = container.getBoundingClientRect();
-              const nodeRect = node.getBoundingClientRect();
-              container.style.scrollBehavior = 'auto';
-              container.scrollTop = Math.max(
-                0,
-                container.scrollTop
-                + (nodeRect.top - containerRect.top)
-                - ch / 2
-                + nodeRect.height / 2,
-              );
-              container.style.scrollBehavior = '';
-              return;
-            }
-          } catch (_err) { /* swallow — fall through to scrollIntoView */ }
-          node.scrollIntoView({ block: 'center', inline: 'nearest' });
-        }, 80);
-        return;
-      }
-      rafId = requestAnimationFrame(tick);
-    };
-    rafId = requestAnimationFrame(tick);
-
-    return () => {
-      cancelled = true;
-      if (rafId) cancelAnimationFrame(rafId);
-      if (fallbackTimer) window.clearTimeout(fallbackTimer);
-    };
-    // Codex120 — Depend on the actual focus number AND the levels
+    if (!container || !currentLevelNumber) return undefined;
+    const cancel = attemptCenterSoloMap({
+      // Codex121 — pass the container itself as the root; the helper
+      // first checks if it matches `[data-kx-solo-map-container]` and
+      // returns it directly without re-querying the document.
+      root: container,
+      levelNumber: currentLevelNumber,
+      // Bottom overlay = Play CTA + BottomNav stack the parent
+      // reserves below the scroll viewport. The helper subtracts this
+      // from the visible band so the focused node sits in the truly
+      // visible region.
+      bottomOverlayPx: bottomReservedPx,
+      // ≈ 333ms total budget — enough for a WebView to settle layout
+      // and for the async progress fetch tail to commit.
+      maxFrames: 20,
+      onDiagnostic: diagnosticsEnabled
+        ? (diag) => {
+            // Admin/dev only. Single-line label so it's easy to
+            // grep in a real device console.
+            // eslint-disable-next-line no-console
+            console.info('[kronox.solo.focus]', diag);
+          }
+        : undefined,
+    });
+    return cancel;
+    // Codex121 — Depend on the actual focus number AND the levels
     // reference so async progress loads always trigger a refocus.
-  }, [focusLevelNumber, currentLevelNumber, levels]);
+    // Including `bottomReservedPx` covers the edge case where the
+    // parent changes the reserved area between mounts.
+  }, [currentLevelNumber, levels, bottomReservedPx, diagnosticsEnabled]);
 
   return (
     <div
       ref={containerRef}
       className="kx-contained-scroll relative w-full overflow-y-auto"
       style={{
-        // The scroll viewport fills the available vertical space; the
-        // parent (SoloChallenge) controls min/max height via flex.
-        height: '100%',
+        // Codex121 — Use viewport-anchored height instead of `100%`.
+        // `100%` resolves against the parent's COMPUTED height, which on
+        // some WebViews/Android browsers reports 0 during the first
+        // commit because the parent uses `flex-1`+`min-height:0`. A
+        // zero-height container means our focus math sees
+        // `clientHeight === 0` and bails out, leaving scrollTop=0
+        // (= top of reversed list = wrong zone). We instead compute the
+        // height from the dvh viewport minus the fixed top header and
+        // the reserved bottom overlay so the container always has a
+        // real, non-zero height on first paint.
+        //
+        //   - 3.5rem = ScreenHeader content height (matches the
+        //     `height: calc(3.5rem + env(safe-area-inset-top))` rule in
+        //     components/layout/ScreenHeader).
+        //   - 0.25rem extra padding from the parent's `paddingTop:
+        //     calc(3.75rem + …)` already accounts for the ScreenHeader,
+        //     so we subtract that exact amount.
+        //   - The title block above (`SOLO MACERA HARİTASI` + tagline)
+        //     is approx 3.5rem tall; we subtract it to keep the focus
+        //     math honest.
+        //   - The bottomReservedPx (Play CTA + BottomNav + safe-area)
+        //     is also subtracted INSIDE the focus math via the
+        //     `bottomOverlayPx` param, so we don't subtract it twice
+        //     here — we just give the container its real CSS height
+        //     down to the page bottom.
+        height: 'calc(100dvh - 3.75rem - env(safe-area-inset-top) - 3.5rem)',
+        // Honor older WebViews that don't grok `dvh`.
+        minHeight: '300px',
         WebkitOverflowScrolling: 'touch',
         scrollBehavior: 'smooth',
         // Bottom padding so Level 1 (rendered last in DOM = at the bottom
@@ -256,6 +210,9 @@ export default function LevelMapPath({
         // Top padding so the highest-level zone banner has breathing room.
         paddingTop: '1rem',
       }}
+      // Codex121 — Stable DOM hook for the scroll helper. Decouples the
+      // scroll logic from React refs (which can desync after re-renders).
+      data-kx-solo-map-container="true"
       // Codex120 — expose the focus level + its section range so runtime
       // checks (and Health probes) can verify "map opened on the correct
       // zone". Purely informational; no business logic depends on it.
@@ -307,9 +264,12 @@ export default function LevelMapPath({
                   />
                 )}
                 <div
-                  ref={(el) => {
-                    if (el) nodeRefs.current[level.levelNumber] = el;
-                  }}
+                  // Codex121 — Stable DOM hook the scroll helper queries
+                  // via `[data-kx-solo-level="N"]`. Decouples target
+                  // lookup from the React refs map (which used to be
+                  // populated by a callback ref and could go stale
+                  // across re-renders / level swaps).
+                  data-kx-solo-level={level.levelNumber}
                   className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2"
                   style={{ left: leftPct }}
                 >

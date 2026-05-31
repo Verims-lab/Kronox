@@ -29,6 +29,9 @@
 import { getSoloMapSectionRange, getDefaultSelectedLevel } from '../../lib/soloProgressHelpers';
 import levelMapPathSource from '../solo/LevelMapPath.jsx?raw';
 import soloChallengeSource from '../../pages/SoloChallenge.jsx?raw';
+// Codex121 — Scroll helper that owns the actual centering math, the
+// bottom-CTA-aware visible band, and post-jump verification.
+import scrollHelperSource from '../../lib/scrollSoloMapToLevel.js?raw';
 
 const STATUS = {
   PASS: 'PASS',
@@ -195,32 +198,39 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 4. Auto-scroll math uses getBoundingClientRect on container + node. */
+  /* 4. Codex121 — Scroll math lives in the externalised helper. */
   makeCase('solo_map_focus', 'solo_map_scroll_uses_bounding_rect',
-    'LevelMapPath auto-scroll uses getBoundingClientRect on BOTH the container and the node (root-cause fix for offsetTop-on-absolute regression)',
+    'scrollSoloMapToLevel uses getBoundingClientRect on container + node, accounts for the bottom CTA overlay, and verifies the node is centered after the jump',
     () => {
-      const required = missingTokens(levelMapPathSource, [
-        // The fix tokens — both rects measured, scrollTop derived from
-        // the viewport-relative delta, clamped against scrollHeight.
+      const required = missingTokens(scrollHelperSource, [
+        // Both rects measured from the viewport — independent of offsetParent.
         'container.getBoundingClientRect()',
         'node.getBoundingClientRect()',
+        // Clamp against scrollHeight so the jump is bounded.
         'container.scrollHeight',
-        // Resilience: keep rAF + clientHeight guard + scrollIntoView fallback
+        // Bottom CTA overlay handled — visible band shrinks accordingly.
+        'bottomOverlayPx',
+        'visibleBand',
+        // Resilience: rAF retry + clientHeight guard.
         'requestAnimationFrame',
         'container.clientHeight',
-        'scrollIntoView',
+        // Hard-jump (smooth disabled) so animation can't race.
+        "container.style.scrollBehavior = 'auto'",
+        // Post-jump verification: the helper checks the node actually
+        // landed inside the visible band before declaring success.
+        'isNodeCentered',
       ]);
       if (required.length) {
-        return fail('Auto-scroll math is missing the getBoundingClientRect fix — the offsetTop-on-absolute regression can return.', {
+        return fail('scrollSoloMapToLevel math is missing the core defensive tokens — the runtime "still lands at 16-20" regression can return.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
-          file: 'components/solo/LevelMapPath.jsx',
+          file: 'lib/scrollSoloMapToLevel.js',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'scrollTop derived from container & node getBoundingClientRect, clamped to scrollHeight, with rAF/clientHeight/scrollIntoView resilience',
+          expected: 'container/node bounding rects, scrollHeight clamp, bottom overlay subtracted from visible band, rAF retry, smooth-scroll suspended during jump, post-jump centered verification',
           actual: { required },
         });
       }
-      return pass('Auto-scroll math is anchored to viewport-relative bounding rects.', {
+      return pass('Scroll helper is anchored to viewport-relative bounding rects, bottom-CTA-aware, and post-jump verified.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -228,41 +238,45 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 5. Codex120 — Refocus must trigger after async progress load. */
+  /* 5. Codex121 — Refocus must trigger after async progress load. */
   makeCase('solo_map_focus', 'solo_map_refocus_after_progress_load',
-    'LevelMapPath focus effect re-runs when progress / focusLevelNumber changes after async load (useLayoutEffect with focusLevelNumber + levels deps)',
+    'LevelMapPath focus effect re-runs when progress / focusLevelNumber changes after async load and delegates the scroll to attemptCenterSoloMap',
     () => {
-      // Static proof that the focus effect:
-      //  (a) uses useLayoutEffect (so it lands before paint, not after a
-      //      flash of the highest-zone banner);
-      //  (b) depends on focusLevelNumber AND the levels reference, so a
-      //      progress reload that swaps levels[] or changes the focus
-      //      number triggers a refocus;
-      //  (c) retries until layout is ready (rAF loop with a finite cap);
-      //  (d) suspends smooth-scroll during the jump so the math can't be
-      //      cancelled mid-animation by competing layout.
-      const required = missingTokens(levelMapPathSource, [
+      // Static proof that LevelMapPath:
+      //  (a) uses useLayoutEffect (lands before paint);
+      //  (b) depends on currentLevelNumber AND the levels reference;
+      //  (c) delegates the actual scroll to attemptCenterSoloMap which
+      //      owns the rAF retry loop and post-jump verification;
+      //  (d) passes bottomReservedPx as bottomOverlayPx so the focused
+      //      node isn't hidden behind the fixed CTA;
+      //  (e) renders the stable DOM hooks the helper queries against.
+      const componentRequired = missingTokens(levelMapPathSource, [
         'useLayoutEffect',
-        '[focusLevelNumber, currentLevelNumber, levels]',
-        // Retry-until-ready signal — both the rAF loop variable and the
-        // clientHeight guard inside `focus()`.
-        'requestAnimationFrame(tick)',
-        'if (ch === 0) return false',
-        // Hard-jump (smooth disabled) — proves animation can't race.
-        "container.style.scrollBehavior = 'auto'",
+        'attemptCenterSoloMap',
+        'bottomOverlayPx: bottomReservedPx',
+        'data-kx-solo-map-container="true"',
+        'data-kx-solo-level={level.levelNumber}',
+        // Deps must include the focus number AND the levels reference
+        // so async progress updates refocus the map.
+        '[currentLevelNumber, levels, bottomReservedPx, diagnosticsEnabled]',
       ]);
-      if (required.length) {
+      const helperRequired = missingTokens(scrollHelperSource, [
+        'export function attemptCenterSoloMap',
+        'export function scrollSoloMapToLevel',
+        // Retry until the node is actually centered.
+        'diag.ok && diag.nodeCenteredAfter',
+      ]);
+      if (componentRequired.length || helperRequired.length) {
         return fail('Refocus-after-progress-load contract drifted — the "CTA shows Level 10 but map opens on 16–20" bug can return.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
-          file: 'components/solo/LevelMapPath.jsx',
+          file: 'components/solo/LevelMapPath.jsx + lib/scrollSoloMapToLevel.js',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'useLayoutEffect, deps include focusLevelNumber + levels, rAF retry loop until clientHeight > 0, smooth-scroll suspended during the focus jump',
-          actual: { required },
-          nextStep: 'Restore the Codex120 focus effect: useLayoutEffect with [focusLevelNumber, currentLevelNumber, levels] deps + rAF retry tick + scrollBehavior=auto during the jump.',
+          expected: 'useLayoutEffect with [currentLevelNumber, levels, bottomReservedPx, diagnosticsEnabled] deps; scroll delegated to attemptCenterSoloMap with bottomOverlayPx wired; stable DOM hooks present; helper retries until centered',
+          actual: { componentRequired, helperRequired },
         });
       }
-      return pass('Focus refocuses on async progress load with a retry loop and no smooth-scroll race.', {
+      return pass('Focus delegates to attemptCenterSoloMap, runs on each focus/levels change, and retries until centered.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -327,16 +341,93 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 7. Honest gap: actual visible section on a real device. */
+  /* 7. Codex121 — Scroll container mismatch guard. The previous
+     attempts failed at runtime because the fallback `scrollIntoView`
+     could be resolved against an OUTER scrollable ancestor (page-level)
+     instead of the inner container, leaving our container at
+     scrollTop=0. This case locks the container-scoped approach. */
+  makeCase('solo_map_focus', 'solo_map_scroll_container_is_inner',
+    'Scroll math operates on the inner Solo map container only — no implicit `window`/page scroll fallback that can leave the container at scrollTop=0',
+    () => {
+      // The helper must look up the container via the stable
+      // `[data-kx-solo-map-container="true"]` attribute the component
+      // renders, and the apply step must call `container.scrollTop = …`
+      // directly. No `window.scrollTo`, no bare `scrollIntoView` on a
+      // detached node, no `document.documentElement.scrollTop`.
+      const required = missingTokens(scrollHelperSource, [
+        '[data-kx-solo-map-container="true"]',
+        'container.scrollTop =',
+        '[data-kx-solo-level="${levelNumber}"]',
+      ]);
+      const forbiddenInHelper = ['window.scrollTo', 'document.documentElement.scrollTop']
+        .filter((t) => scrollHelperSource.includes(t));
+      // The component must NOT call scrollIntoView at all anymore — that
+      // pattern is exactly what could pick the wrong scrollable ancestor.
+      const componentForbidden = ['scrollIntoView']
+        .filter((t) => levelMapPathSource.includes(t));
+      if (required.length || forbiddenInHelper.length || componentForbidden.length) {
+        return fail('Scroll-container contract drifted — the page-scroll-instead-of-inner-container bug can return.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'lib/scrollSoloMapToLevel.js + components/solo/LevelMapPath.jsx',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'helper queries `[data-kx-solo-map-container]`, assigns `container.scrollTop` directly; no `window.scrollTo`, no `scrollIntoView` fallback in the component',
+          actual: { required, forbiddenInHelper, componentForbidden },
+        });
+      }
+      return pass('Scroll operates on the inner Solo map container only; no implicit outer-scroll fallback path exists.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  /* 8. Codex121 — Admin-gated diagnostics so a real device can see why
+     the focus failed without exposing internals to normal users. */
+  makeCase('solo_map_focus', 'solo_map_admin_focus_diagnostics_wired',
+    'Admin users (isAdminUser) get console diagnostics for every focus attempt; normal users see nothing',
+    () => {
+      const pageRequired = missingTokens(soloChallengeSource, [
+        "from '@/lib/admin'",
+        'isAdminUser(user)',
+        'diagnosticsEnabled={isAdminUser(user)}',
+      ]);
+      const componentRequired = missingTokens(levelMapPathSource, [
+        'diagnosticsEnabled',
+        '[kronox.solo.focus]',
+      ]);
+      if (pageRequired.length || componentRequired.length) {
+        return fail('Admin diagnostics wiring is missing — runtime focus failures have no surface to debug on real devices.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'pages/SoloChallenge.jsx + components/solo/LevelMapPath.jsx',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'page passes diagnosticsEnabled={isAdminUser(user)}; component logs `[kronox.solo.focus]` only when enabled',
+          actual: { pageRequired, componentRequired },
+        });
+      }
+      return pass('Admin-gated focus diagnostics are wired end-to-end.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX, critical: false }),
+
+  /* 9. Honest gap: actual visible section on a real device.
+     Codex121 — explicit wording: static checks pass, but the rendered
+     viewport still needs runtime proof. PASS at Health does NOT mean
+     the real screen is correct. */
   makeCase('solo_map_focus', 'solo_map_focus_runtime_proof_needed',
-    'Live runtime proof that opening /solo at Level 10 shows the 6–10 zone banner (not 16–20)',
-    () => notAutomatable('Visible section depends on a mounted DOM with non-zero clientHeight. Static + helper contracts prove the math and the source mapping; release sign-off still needs a phone test.', {
+    'Live runtime proof that opening /solo at Level 10 actually shows the 6–10 zone banner (not 16–20)',
+    () => notAutomatable('Static + executable-helper proofs cannot observe the rendered viewport. The reported bug ("CTA Level 10 but map opens on 16-20") manifests only after the container is mounted with a real clientHeight, the layout has settled, and the bottom CTA overlay is in place. Release sign-off MUST come from a real device screenshot showing the "Altın Ovalar 6-10" banner with the Level 10 node visible. A Health PASS on this suite does NOT mean the rendered screen is correct — it only means the source contracts match the Codex121 architecture.', {
       verification: 'NOT_AUTOMATABLE',
       classification: 'STATIC_CHECK_LIMITATION',
       verificationLabels: ['NOT_AUTOMATABLE', 'EXTERNAL_DEVICE_REQUIRED'],
       actionType: ACTION_TYPES.DEVICE_TEST,
-      expected: 'Open /solo with current level 10 → "Altın Ovalar 6–10" banner visible, not "Kristal Zirve 16–20"',
-      actual: 'static + helper-runtime proof only',
+      expected: 'Open /solo with current level 10 → "Altın Ovalar 6–10" banner visible at top of viewport, Level 10 node centered, NOT "Kristal Zirve 16–20" with locked nodes',
+      actual: 'static + helper-runtime proof only — viewport state requires a mounted DOM',
     }),
     { actionType: ACTION_TYPES.DEVICE_TEST, critical: false }),
 ];
