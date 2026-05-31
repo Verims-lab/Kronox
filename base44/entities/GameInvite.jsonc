@@ -31,14 +31,14 @@
       "enum": [
         "pending",
         "accepted",
-        "declined",
         "rejected",
+        "declined",
         "cancelled",
         "expired",
         "completed"
       ],
       "default": "pending",
-      "description": "Invite lifecycle state"
+      "description": "Invite lifecycle state. `declined` is the canonical user-rejection status; `rejected` is preserved for backward compatibility with older rows."
     },
     "game_mode": {
       "type": "string",
@@ -51,23 +51,33 @@
     },
     "created_at": {
       "type": "string",
-      "description": "ISO timestamp captured when the invite row is created"
+      "format": "date-time",
+      "description": "ISO timestamp of when the invite was created (set client-side at create time; mirrors Base44 created_date for explicit TTL math)."
     },
     "expires_at": {
       "type": "string",
-      "description": "ISO timestamp after which a pending invite can no longer be accepted"
+      "format": "date-time",
+      "description": "ISO timestamp of when the invite expires (created_at + 10 minutes). Authoritative source for the 10-minute TTL guard."
     },
     "expired_at": {
       "type": "string",
-      "description": "ISO timestamp when the invite was marked expired"
+      "format": "date-time",
+      "description": "ISO timestamp set when the invite is flipped to expired."
     },
     "accepted_at": {
       "type": "string",
-      "description": "ISO timestamp when the invite was accepted"
+      "format": "date-time",
+      "description": "ISO timestamp set when the recipient accepts the invite."
     },
     "declined_at": {
       "type": "string",
-      "description": "ISO timestamp when the invite was declined"
+      "format": "date-time",
+      "description": "ISO timestamp set when the recipient declines the invite."
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp set when the matched game completes."
     }
   },
   "required": [

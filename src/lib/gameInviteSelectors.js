@@ -64,15 +64,42 @@ export function isInvitePending(invite) {
   return getInviteStatus(invite) === 'pending';
 }
 
+// Codex138 — Base44 sometimes serializes `created_date` WITHOUT a timezone
+// suffix (e.g. "2026-05-31T14:33:11.992000" instead of "...992Z" or "...+00:00").
+// In that case `new Date(naiveString)` interprets the value as LOCAL time,
+// which on Europe/Istanbul (UTC+3) shifts the timestamp 3h into the past.
+// Adding the 10-minute TTL then lands in the past and the invite is wrongly
+// flipped to expired ~1s after creation — exactly the bug shown in the video.
+//
+// Base44 server timestamps are always UTC. Any naive ISO-like string from
+// Base44 MUST be interpreted as UTC. We append `Z` to a string that looks
+// like an ISO datetime but has no timezone suffix before handing it to
+// `new Date()`. Strings that already have `Z` / `+hh:mm` / `-hh:mm` /
+// `space + offset` are left alone.
+function parseBase44Timestamp(raw) {
+  if (raw == null) return NaN;
+  if (raw instanceof Date) {
+    const t = raw.getTime();
+    return Number.isFinite(t) ? t : NaN;
+  }
+  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : NaN;
+  const str = String(raw).trim();
+  if (!str) return NaN;
+  // Already has a timezone suffix → safe to parse as-is.
+  const hasZone = /Z$/i.test(str) || /[+-]\d{2}:?\d{2}$/.test(str);
+  const normalized = hasZone ? str : `${str}Z`;
+  const t = new Date(normalized).getTime();
+  return Number.isFinite(t) ? t : NaN;
+}
+
 export function getInviteCreatedAt(invite) {
   const raw = invite?.created_at || invite?.createdAt || invite?.created_date || invite?.createdDate;
-  const time = raw ? new Date(raw).getTime() : NaN;
-  return Number.isFinite(time) ? time : NaN;
+  return parseBase44Timestamp(raw);
 }
 
 export function parseInviteExpiresAt(invite) {
-  const raw = invite?.expires_at || invite?.expiresAt;
-  const explicit = raw ? new Date(raw).getTime() : NaN;
+  const explicitRaw = invite?.expires_at || invite?.expiresAt;
+  const explicit = parseBase44Timestamp(explicitRaw);
   if (Number.isFinite(explicit)) return explicit;
 
   const created = getInviteCreatedAt(invite);

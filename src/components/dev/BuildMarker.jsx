@@ -445,7 +445,21 @@ import React, { useEffect, useState } from 'react';
 // Product behavior — Solo scoring/progression, Solo map focus, Profile/
 // Leaderboard runtime logic, drag/drop, Timeline, QuestionCard,
 // GameLayout, invite/lobby/notification/tutorial/friends — DOKUNULMADI.
-const BUILD_MARKER = 'Codex137';
+// Codex138 — Critical bug fix for "invite vanishes 1.66s after creation":
+//   Base44 server `created_date` can be serialized without a timezone
+//   suffix (e.g. "2026-05-31T14:33:11.992000"). `new Date()` then parses
+//   that as LOCAL time, which on Europe/Istanbul (UTC+3) lands the
+//   computed `created + 10min` deadline ~2h50m in the past. Both client
+//   (`lib/gameInviteSelectors.js`) and server (`acceptGameInvite`,
+//   `sendGameInvitePush`) timestamp parsers now append `Z` to naive
+//   ISO strings so they parse as UTC. GameInvite entity schema gained
+//   the persisted timestamp + status fields (`created_at`, `expires_at`,
+//   `expired_at`, `accepted_at`, `declined_at`, `completed_at`) so the
+//   client-set 10-min TTL is no longer silently dropped by Base44.
+//
+// Toast lifecycle, header bell, online pending invite list, and the
+// 10-min TTL product rule are unchanged.
+const BUILD_MARKER = 'Codex138';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
