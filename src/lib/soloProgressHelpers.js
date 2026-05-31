@@ -328,6 +328,44 @@ export function deriveUnlockedLevelFromCompletedLevels(progress, totalLevels) {
   return getEffectiveUnlockedLevel(progress, totalLevels);
 }
 
+/**
+ * Codex117 — Solo Adventure Map section helper (single source of truth).
+ *
+ * The Solo Level Path groups levels into fixed 5-level "zones":
+ *   1–5, 6–10, 11–15, 16–20, ...
+ *
+ * Given a level number, returns the inclusive [start, end] range of the
+ * zone that level belongs to. The LevelMapPath UI uses this for the
+ * "where should the map focus when I open Solo at Level N?" question.
+ *
+ * Boundary contract (locked by Health):
+ *   Level 1  → [1, 5]
+ *   Level 5  → [1, 5]
+ *   Level 6  → [6, 10]
+ *   Level 10 → [6, 10]
+ *   Level 11 → [11, 15]
+ *   Level 15 → [11, 15]
+ *   Level 16 → [16, 20]
+ *   Level 20 → [16, 20]
+ *
+ * The helper handles any positive integer; non-positive / non-finite
+ * inputs fall back to [1, 5] (the safe first section).
+ *
+ * KEEP THIS PURE — no React, no DOM. The UI consumes it from
+ * LevelMapPath.jsx; Health consumes it directly via executable cases.
+ */
+export function getSoloMapSectionRange(levelNumber) {
+  const n = Math.max(1, Math.floor(Number(levelNumber) || 1));
+  // Zones are 5 levels wide and start at 1. (n - 1) / 5 floored gives
+  // the zero-based zone index; +1 gives the 1-based first level of the
+  // zone. Adding 4 gives the inclusive end. Math, not a lookup table,
+  // so future catalog growth (25+, 30+ levels) needs zero code change.
+  const zoneIndex = Math.floor((n - 1) / 5);
+  const start = zoneIndex * 5 + 1;
+  const end = start + 4;
+  return [start, end];
+}
+
 export function summarizeSoloProgress(progress, totalLevels) {
   const levels = progress?.levels && typeof progress.levels === 'object'
     ? progress.levels

@@ -1,6 +1,14 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex117 — Public-safe Liderlik leaderboard source:
+// Codex120 — Public-safe Liderlik table + graceful fallback integration:
+//   • Merges the extracted KronoxRankingSection fallback UI with the new
+//     SoloLeaderboardEntry public score source.
+//   • Keeps real table rows visible when public leaderboard entries exist,
+//     while preserving the user's own Puan/Level fallback during rollout.
+//   • Keeps normal users away from backend diagnostic wording; admin-only
+//     diagnostics remain gated in the section component.
+//
+// Previous note: Codex117 — Public-safe Liderlik leaderboard source:
 //   • Adds SoloLeaderboardEntry as the public-safe score source instead of
 //     depending on private full User row reads.
 //   • Mirrors current-user Solo progress on write/backfill/Leaderboard load so
@@ -296,7 +304,7 @@ import React, { useEffect, useState } from 'react';
 //   visible 120s SoloLevelTimer (no audio cue).
 // Previous note: Codex106 — Solo level completion popup polish.
 // Previous note: Codex106 — Solo Level Path (vertical 8-row path).
-const BUILD_MARKER = 'Codex117';
+const BUILD_MARKER = 'Codex120';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
