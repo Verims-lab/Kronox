@@ -228,7 +228,106 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 5. Honest gap: actual visible section on a real device. */
+  /* 5. Codex120 — Refocus must trigger after async progress load. */
+  makeCase('solo_map_focus', 'solo_map_refocus_after_progress_load',
+    'LevelMapPath focus effect re-runs when progress / focusLevelNumber changes after async load (useLayoutEffect with focusLevelNumber + levels deps)',
+    () => {
+      // Static proof that the focus effect:
+      //  (a) uses useLayoutEffect (so it lands before paint, not after a
+      //      flash of the highest-zone banner);
+      //  (b) depends on focusLevelNumber AND the levels reference, so a
+      //      progress reload that swaps levels[] or changes the focus
+      //      number triggers a refocus;
+      //  (c) retries until layout is ready (rAF loop with a finite cap);
+      //  (d) suspends smooth-scroll during the jump so the math can't be
+      //      cancelled mid-animation by competing layout.
+      const required = missingTokens(levelMapPathSource, [
+        'useLayoutEffect',
+        '[focusLevelNumber, currentLevelNumber, levels]',
+        // Retry-until-ready signal — both the rAF loop variable and the
+        // clientHeight guard inside `focus()`.
+        'requestAnimationFrame(tick)',
+        'if (ch === 0) return false',
+        // Hard-jump (smooth disabled) — proves animation can't race.
+        "container.style.scrollBehavior = 'auto'",
+      ]);
+      if (required.length) {
+        return fail('Refocus-after-progress-load contract drifted — the "CTA shows Level 10 but map opens on 16–20" bug can return.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'components/solo/LevelMapPath.jsx',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'useLayoutEffect, deps include focusLevelNumber + levels, rAF retry loop until clientHeight > 0, smooth-scroll suspended during the focus jump',
+          actual: { required },
+          nextStep: 'Restore the Codex120 focus effect: useLayoutEffect with [focusLevelNumber, currentLevelNumber, levels] deps + rAF retry tick + scrollBehavior=auto during the jump.',
+        });
+      }
+      return pass('Focus refocuses on async progress load with a retry loop and no smooth-scroll race.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  /* 6. Codex120 — CTA level === map focus level invariant. */
+  makeCase('solo_map_focus', 'solo_map_focus_matches_cta_level',
+    'If the SoloChallenge CTA shows Level N, LevelMapPath focus level and section must also be Level N',
+    () => {
+      // Exercise the helper directly for several states. Whatever value
+      // drives the CTA (`getDefaultSelectedLevel(progress, total)`) must
+      // ALSO be the value LevelMapPath receives as `focusLevelNumber`.
+      // The page wires both to the same `defaultSelectedNumber` const
+      // (already proven by `solo_cta_and_map_use_same_focus_level`);
+      // this case adds a runtime check that the helper itself returns
+      // a level inside the expected zone for the reported bug case.
+      const totalLevels = 20;
+      const buildProgress = (frontier) => ({
+        currentLevel: frontier,
+        levels: Object.fromEntries(
+          Array.from({ length: Math.max(0, frontier - 1) }, (_, i) => [String(i + 1), { bestStars: 3 }]),
+        ),
+      });
+      const cases = [1, 5, 6, 10, 11, 15, 16, 20].map((n) => {
+        const progress = buildProgress(n);
+        const cta = getDefaultSelectedLevel(progress, totalLevels);
+        const range = getSoloMapSectionRange(cta);
+        const inside = cta >= range[0] && cta <= range[1];
+        return { frontier: n, cta, range, inside };
+      });
+      const drift = cases.filter((c) => c.cta !== c.frontier || !c.inside);
+      // Also check the source wires both to the same const + exposes
+      // the runtime data attribute so a future device test can verify
+      // the rendered DOM directly.
+      const sourceRequired = missingTokens(
+        `${soloChallengeSource}\n${levelMapPathSource}`,
+        [
+          'focusLevelNumber={defaultSelectedNumber}',
+          'LEVEL ${defaultSelectedNumber}',
+          'data-kx-focus-level',
+          'data-kx-focus-section',
+        ],
+      );
+      if (drift.length || sourceRequired.length) {
+        return fail('CTA level and map focus level can disagree — the exact reported bug.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'pages/SoloChallenge.jsx + components/solo/LevelMapPath.jsx',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'CTA level === focusLevelNumber, and focus level falls inside its own section range',
+          actual: { drift, sourceRequired },
+        });
+      }
+      return pass('CTA level equals map focus level for every tested frontier; both stay inside the correct section.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'EXECUTABLE_HELPER_PROOF',
+        actionType: ACTION_TYPES.CODE_FIX,
+        actual: cases,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  /* 7. Honest gap: actual visible section on a real device. */
   makeCase('solo_map_focus', 'solo_map_focus_runtime_proof_needed',
     'Live runtime proof that opening /solo at Level 10 shows the 6–10 zone banner (not 16–20)',
     () => notAutomatable('Visible section depends on a mounted DOM with non-zero clientHeight. Static + helper contracts prove the math and the source mapping; release sign-off still needs a phone test.', {

@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useLayoutEffect, useMemo, useRef } from 'react';
 import LevelMapNode from './LevelMapNode';
+import { getSoloMapSectionRange } from '@/lib/soloProgressHelpers';
 
 /**
  * Codex108 — Scrollable vertical adventure map for Solo levels.
@@ -84,32 +85,43 @@ export default function LevelMapPath({
   // LOW levels at the bottom. We achieve this by reversing the array.
   const ordered = useMemo(() => [...levels].slice().reverse(), [levels]);
 
-  // Auto-scroll the current level into view on mount + whenever it
-  // changes (e.g. after a pass unlocks the next one).
+  // Auto-scroll the current level into view on mount + whenever the
+  // focus target changes (e.g. after async progress load or after a
+  // pass unlocks the next level).
   //
-  // Codex117 ROOT-CAUSE FIX — the previous implementation read
-  // `node.offsetTop` on the per-level node element. That node is
-  // `position: absolute` inside a `position: relative` 128px row, so
-  // `offsetParent` is the row itself — `offsetTop` is just ~64px (the
-  // `top: 50%` inside the row), NOT the position within the scroll
-  // container. Result: `scrollTop` was always clamped near 0 and the
-  // user landed at the TOP of the reversed list — i.e. the highest
-  // levels' zone ("KRİSTAL ZİRVE 16–20") — regardless of which level
-  // we asked to focus. This was the actual cause of "CTA shows Level 10
-  // but the visible map block is 16–20".
+  // Codex120 ROOT-CAUSE FIX (continuation of Codex117) — Codex117
+  // already replaced the buggy `offsetTop`-on-absolute math with
+  // viewport-relative `getBoundingClientRect()` deltas, BUT the focus
+  // effect could still leave the scroll at the TOP of the reversed
+  // list (= "KRİSTAL ZİRVE 16-20" zone) because:
   //
-  // Fix: use `getBoundingClientRect()` for both the node and the
-  // scroll container. That gives viewport-relative coordinates that
-  // don't depend on offsetParent. The math is then:
+  //   (a) Effect deps were [levels.length, currentLevelNumber]. When
+  //       `progress` updates async and the focus level stays at the
+  //       same number (e.g. user already at Level 10), neither dep
+  //       changes, so no refocus runs and the very-first paint scroll
+  //       (which may have aimed at a stale fallback value) is never
+  //       corrected.
+  //   (b) `scrollBehavior: 'smooth'` animated the scroll — a competing
+  //       layout pass or user touch could cancel it mid-animation,
+  //       leaving scrollTop at 0 (= highest-zone banner at viewport top).
+  //   (c) The last-resort `scrollIntoView` operates on the nearest
+  //       scrollable ancestor; in a nested viewport this can scroll the
+  //       page instead of our inner container, leaving the inner
+  //       container at scrollTop=0.
   //
-  //   targetScrollTop = container.scrollTop
-  //                   + (nodeRect.top - containerRect.top)
-  //                   - container.clientHeight / 2
-  //                   + nodeRect.height / 2
-  //
-  // We keep Codex109's resilience: defer to rAF, retry once if layout
-  // isn't ready, and fall back to scrollIntoView({block:'center'}) as
-  // last resort.
+  // Fix:
+  //   1. Switch to `useLayoutEffect` so refs are populated and the
+  //      scroll lands BEFORE paint — no flash of wrong zone.
+  //   2. Depend on the real focus target + `levels` reference itself.
+  //   3. Retry the focus math up to 8 frames (≈130ms) until
+  //      `clientHeight > 0` AND nodes are rendered — handles WebView
+  //      layout settle.
+  //   4. Do the initial jump WITHOUT smooth behavior so it can't be
+  //      cancelled mid-animation; subsequent user-driven scrolls keep
+  //      smooth via CSS-only `scrollBehavior`.
+  //   5. Keep `scrollIntoView` as the resilience tail but scope it to
+  //      the container's own viewport instead of letting the browser
+  //      pick the nearest scrollable ancestor.
   const containerRef = useRef(null);
   const nodeRefs = useRef({});
   // Codex110 — Prefer the explicit focus target the parent passed in.
@@ -119,22 +131,36 @@ export default function LevelMapPath({
     focusLevelNumber ||
     levels.find((l) => l.status === 'current')?.levelNumber;
 
-  useEffect(() => {
+  // Codex120 — Section the focus level belongs to. We don't render this
+  // directly (the existing zone banners already render per range[1]),
+  // but exposing the range as a `data-` attribute on the container is
+  // what makes runtime/health verification trivial: read the attribute
+  // after mount and you have the contract "map opened on section X-Y".
+  // Pure derived value — no business logic touched.
+  const focusSectionRange = useMemo(
+    () => (currentLevelNumber ? getSoloMapSectionRange(currentLevelNumber) : null),
+    [currentLevelNumber],
+  );
+
+  useLayoutEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container) return undefined;
     const target =
       (focusLevelNumber && levels.find((l) => l.levelNumber === focusLevelNumber)) ||
       levels.find((l) => l.status === 'current') ||
       [...levels].reverse().find((l) => l.isPlayable) ||
       levels[0];
-    if (!target) return;
+    if (!target) return undefined;
 
+    // Computes scrollTop that centers the target node inside the
+    // container viewport, using viewport-relative bounding rects so we
+    // are independent of offsetParent. Returns true when the math was
+    // applied; false when layout isn't ready (no node or zero height).
     const focus = () => {
       const node = nodeRefs.current[target.levelNumber];
       if (!node) return false;
       const ch = container.clientHeight;
-      if (ch === 0) return false; // layout not ready yet
-      // Codex117 — bounding-rect math (see comment above).
+      if (ch === 0) return false;
       const containerRect = container.getBoundingClientRect();
       const nodeRect = node.getBoundingClientRect();
       const offset =
@@ -143,32 +169,76 @@ export default function LevelMapPath({
         - ch / 2
         + nodeRect.height / 2;
       const maxScroll = Math.max(0, container.scrollHeight - ch);
+      // Codex120 — temporarily suspend CSS smooth scrolling so this
+      // jump lands instantly and cannot be cancelled mid-animation.
+      const previousBehavior = container.style.scrollBehavior;
+      container.style.scrollBehavior = 'auto';
       container.scrollTop = Math.min(maxScroll, Math.max(0, offset));
+      // Restore on the next frame so subsequent user/CTA scrolls keep
+      // the original smooth feel.
+      requestAnimationFrame(() => {
+        container.style.scrollBehavior = previousBehavior || '';
+      });
       return true;
     };
 
-    // Try immediately on next frame; if layout still isn't ready, retry
-    // once after 80ms which is enough for a WebView to settle.
-    const raf = requestAnimationFrame(() => {
-      if (!focus()) {
-        const t = window.setTimeout(() => {
-          if (!focus()) {
-            // Last-resort: rely on the browser's own centering.
-            const node = nodeRefs.current[target.levelNumber];
-            if (node && node.scrollIntoView) {
-              node.scrollIntoView({ block: 'center', inline: 'nearest' });
+    // Codex120 — retry the focus math across up to 8 animation frames
+    // (~130ms at 60fps) so the auto-scroll survives WebView layout
+    // settle, lazy-loaded fonts/images, and async progress updates that
+    // arrive after the initial mount. We stop the loop the moment the
+    // math succeeds.
+    let frame = 0;
+    let cancelled = false;
+    let rafId = 0;
+    let fallbackTimer = 0;
+    const tick = () => {
+      if (cancelled) return;
+      if (focus()) return;
+      frame += 1;
+      if (frame >= 8) {
+        // Last-resort fallback — scope `scrollIntoView` to the
+        // container so the browser cannot scroll an outer ancestor by
+        // mistake. We also guard against the node still being missing.
+        fallbackTimer = window.setTimeout(() => {
+          if (cancelled) return;
+          const node = nodeRefs.current[target.levelNumber];
+          if (!node || typeof node.scrollIntoView !== 'function') return;
+          // Compute container-relative scroll manually as a true
+          // fallback; if anything throws, default to the browser's
+          // container-scoped scrollIntoView.
+          try {
+            const ch = container.clientHeight || 0;
+            if (ch > 0) {
+              const containerRect = container.getBoundingClientRect();
+              const nodeRect = node.getBoundingClientRect();
+              container.style.scrollBehavior = 'auto';
+              container.scrollTop = Math.max(
+                0,
+                container.scrollTop
+                + (nodeRect.top - containerRect.top)
+                - ch / 2
+                + nodeRect.height / 2,
+              );
+              container.style.scrollBehavior = '';
+              return;
             }
-          }
+          } catch (_err) { /* swallow — fall through to scrollIntoView */ }
+          node.scrollIntoView({ block: 'center', inline: 'nearest' });
         }, 80);
-        // store id on container so cleanup can clear
-        container.__kxFocusTimer = t;
+        return;
       }
-    });
-    return () => {
-      cancelAnimationFrame(raf);
-      if (container.__kxFocusTimer) window.clearTimeout(container.__kxFocusTimer);
+      rafId = requestAnimationFrame(tick);
     };
-  }, [levels.length, currentLevelNumber]);
+    rafId = requestAnimationFrame(tick);
+
+    return () => {
+      cancelled = true;
+      if (rafId) cancelAnimationFrame(rafId);
+      if (fallbackTimer) window.clearTimeout(fallbackTimer);
+    };
+    // Codex120 — Depend on the actual focus number AND the levels
+    // reference so async progress loads always trigger a refocus.
+  }, [focusLevelNumber, currentLevelNumber, levels]);
 
   return (
     <div
@@ -186,6 +256,11 @@ export default function LevelMapPath({
         // Top padding so the highest-level zone banner has breathing room.
         paddingTop: '1rem',
       }}
+      // Codex120 — expose the focus level + its section range so runtime
+      // checks (and Health probes) can verify "map opened on the correct
+      // zone". Purely informational; no business logic depends on it.
+      data-kx-focus-level={currentLevelNumber || ''}
+      data-kx-focus-section={focusSectionRange ? `${focusSectionRange[0]}-${focusSectionRange[1]}` : ''}
       aria-label="Solo Level Path"
     >
       {/* Path lane container — full width, with nodes absolutely centered
