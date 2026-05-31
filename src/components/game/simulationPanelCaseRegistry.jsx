@@ -64,6 +64,9 @@ import * as healthArchitectureCases from './simulationPanelHealthArchitectureCas
 // shared style tokens contracts for Profile/Leaderboard so neither
 // surface can silently revert to a local StatTile duplicate.
 import * as uiConsolidationCases from './simulationPanelUiConsolidationCases';
+// Codex127 — Online challenge flow simplification:
+// kategori carousel + arkadaş popup + tek adımda lobi + davet.
+import * as onlineChallengeCases from './simulationPanelOnlineChallengeCases';
 
 const MODULES = [
   soloProgressCases,
@@ -75,6 +78,7 @@ const MODULES = [
   leaderboardFallbackCases,
   healthArchitectureCases,
   uiConsolidationCases,
+  onlineChallengeCases,
 ];
 
 function flatten(key) {

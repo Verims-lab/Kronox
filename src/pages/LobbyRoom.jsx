@@ -2,6 +2,7 @@ import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import LobbyCreateJoinPanel from '@/components/lobby/LobbyCreateJoinPanel';
+import OnlineChallengeScreen from '@/components/lobby/OnlineChallengeScreen';
 import WaitingRoomPanel from '@/components/lobby/WaitingRoomPanel';
 import { useLobbyRoomState } from '@/hooks/useLobbyRoomState';
 import {
@@ -355,26 +356,55 @@ export default function LobbyRoom() {
     );
   }
 
+  // Codex127 — New online flow:
+  //   • mode === null  → OnlineChallengeScreen (kategori + arkadaş popup + CTA).
+  //     Tek bir CTA ile lobi oluşturma + davet gönderme yapılır. Eski ayrı
+  //     "arkadaş seçim ekranı" akıştan çıkarıldı (CreateLobbyInvitePanel
+  //     dosyası kalır, ama burada referans verilmez).
+  //   • mode === 'join' → LobbyCreateJoinPanel ile kodla katıl ekranı.
+  if (mode === 'join') {
+    return (
+      <LobbyCreateJoinPanel
+        mode={mode}
+        setMode={setMode}
+        playerName={playerName}
+        setPlayerName={setPlayerName}
+        joinCode={joinCode}
+        setJoinCode={setJoinCode}
+        loading={loading}
+        error={error}
+        nameError={nameError}
+        setNameError={setNameError}
+        onCreate={handleCreate}
+        onJoin={handleJoin}
+        onBackHome={() => navigate('/')}
+        onBackMode={() => {
+          setMode(null);
+          setError('');
+        }}
+        user={user}
+        onGoFriends={() => navigate('/friends')}
+      />
+    );
+  }
+
   return (
-    <LobbyCreateJoinPanel
-      mode={mode}
-      setMode={setMode}
-      playerName={playerName}
-      setPlayerName={setPlayerName}
-      joinCode={joinCode}
-      setJoinCode={setJoinCode}
+    <OnlineChallengeScreen
+      user={user}
       loading={loading}
       error={error}
-      nameError={nameError}
-      setNameError={setNameError}
-      onCreate={handleCreate}
-      onJoin={handleJoin}
-      onBackHome={() => navigate('/')}
-      onBackMode={() => {
-        setMode(null);
-        setError('');
+      onStartChallenge={({ selectedCategories, selectedEmails }) => {
+        // Codex127 — Tek adımda lobi + davet. maxPlayers = host + invited.
+        const invitedEmails = Array.isArray(selectedEmails) ? selectedEmails : [];
+        const maxPlayers = Math.min(4, Math.max(2, invitedEmails.length + 1));
+        handleCreate({
+          maxPlayers,
+          invitedEmails,
+          selectedCategories,
+        });
       }}
-      user={user}
+      onBackHome={() => navigate('/')}
+      onJoinOpenLobby={() => setMode('join')}
       onGoFriends={() => navigate('/friends')}
     />
   );
