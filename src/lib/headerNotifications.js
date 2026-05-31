@@ -7,7 +7,7 @@
 //   • Friend requests:  `pending`, recipient (`to_email`) matches me.
 //   • Game invites:    `pending`, recipient (`to_email`) matches me,
 //                       expiry timestamp still in the future
-//                       (10-min TTL — see lib/inviteApi.GAME_INVITE_TTL_MS).
+//                       (10-min TTL — see lib/gameInviteSelectors.GAME_INVITE_TTL_MS).
 //
 // Outgoing rows, resolved rows (accepted/declined/rejected/cancelled/
 // expired/completed) are never counted.
@@ -16,7 +16,6 @@ import {
   GAME_INVITE_TTL_MS,
   getInviteRemainingMs,
   isActiveIncomingGameInvite,
-  isInviteExpired,
   normalizeEmail,
 } from '@/lib/gameInviteSelectors';
 

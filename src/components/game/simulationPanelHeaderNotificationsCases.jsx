@@ -106,12 +106,16 @@ export const EXTRA_TESTS = [
       const activeInvite = {
         status: 'pending',
         to_email: me,
+        lobby_id: 'lobby_active',
         created_at: new Date(now - 60_000).toISOString(),
+        expires_at: new Date(now + (9 * 60 * 1000)).toISOString(),
       };
       const expiredInvite = {
         status: 'pending',
         to_email: me,
+        lobby_id: 'lobby_expired',
         created_at: new Date(now - (11 * 60 * 1000)).toISOString(),
+        expires_at: new Date(now - (1 * 60 * 1000)).toISOString(),
       };
       const checks = [
         ['pending FR counts',     isPendingFriendRequestForUser(pendingFr, me) === true],
