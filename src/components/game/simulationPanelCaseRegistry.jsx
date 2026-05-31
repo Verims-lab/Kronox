@@ -60,6 +60,10 @@ import * as leaderboardFallbackCases from './simulationPanelLeaderboardFallbackC
 // report shape preserved, simulationPanelExtraCases not silently growing,
 // SimulationPanel.jsx stays in orchestration-size).
 import * as healthArchitectureCases from './simulationPanelHealthArchitectureCases';
+// Codex123 — Phase 3 UI consolidation: lock the shared KronoxStatTile +
+// shared style tokens contracts for Profile/Leaderboard so neither
+// surface can silently revert to a local StatTile duplicate.
+import * as uiConsolidationCases from './simulationPanelUiConsolidationCases';
 
 const MODULES = [
   soloProgressCases,
@@ -70,6 +74,7 @@ const MODULES = [
   soloMapFocusCases,
   leaderboardFallbackCases,
   healthArchitectureCases,
+  uiConsolidationCases,
 ];
 
 function flatten(key) {

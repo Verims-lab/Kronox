@@ -314,6 +314,30 @@ import React, { useEffect, useState } from 'react';
 //   visible 120s SoloLevelTimer (no audio cue).
 // Previous note: Codex106 — Solo level completion popup polish.
 // Previous note: Codex106 — Solo Level Path (vertical 8-row path).
+// Codex124 — Phase 3: UI/UX standardization + medium-risk cleanup.
+//   • Shared <KronoxStatTile /> introduced under components/ui/.
+//     Profile + Leaderboard now render Puan / Level / Elmas through the
+//     same presentational component (two near-duplicate inline StatTile
+//     definitions removed). Data sources unchanged:
+//       - Puan  → summarizeSoloProgress(...).totalSoloScore
+//       - Level → getCurrentPlayableLevel(...) (Profile) /
+//                 summarizeSoloProgress(...).currentLevel (Leaderboard)
+//       - Elmas → getLeaderboardDiamondValue(user) on both surfaces
+//   • Shared style tokens introduced under lib/kronoxStyleTokens.js
+//     (gradients, gold/portal border shadows, gold heading style,
+//     safe-area helpers). Tokens are exported but applied only as new
+//     callers are written — no existing screen is force-migrated.
+//   • New Health suite `ui_shared_components` (registered through the
+//     modular case registry — `simulationPanelExtraCases.jsx` stays
+//     frozen). Locks: shared StatTile usage on both screens, Puan/
+//     Level/Elmas composition with no Yıldız tile, Elmas source-of-
+//     truth preserved, KronoxStatTile variant support, style token
+//     exports present, + an honest NOT_AUTOMATABLE visual-parity case.
+//   • BottomNav, lobby header/topbar wiring, Game.jsx, useGameActions,
+//     useLobbySync, Timeline, QuestionCard, GameLayout, drag/drop,
+//     soloProgressHelpers, leaderboard ranking, Solo map focus —
+//     DOKUNULMADI.
+//
 // Codex123 — Phase 2: Health Center architecture split.
 //   • SimulationPanel.jsx reduced from a 1645-line monolith to an
 //     orchestration shell (~250 lines). All product behavior is preserved.
@@ -342,7 +366,7 @@ import React, { useEffect, useState } from 'react';
 // Product behavior — Solo scoring/progression, Solo map focus, Profile/
 // Leaderboard runtime logic, drag/drop, Timeline, QuestionCard,
 // GameLayout, invite/lobby/notification/tutorial/friends — DOKUNULMADI.
-const BUILD_MARKER = 'Codex123';
+const BUILD_MARKER = 'Codex124';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
