@@ -8,6 +8,9 @@ import leaderboardPageSource from '../../pages/LeaderboardPage.jsx?raw';
 import leaderboardLibSource from '../../lib/leaderboard.js?raw';
 import soloLevelsSource from '../../lib/soloLevels.js?raw';
 import soloLeaderboardEntitySource from '../../../base44/entities/SoloLeaderboardEntry.jsonc?raw';
+// Codex119 — Section UI moved into a focused component; some state
+// strings now live there instead of the page.
+import kronoxRankingSectionSource from '../leaderboard/KronoxRankingSection.jsx?raw';
 
 const STATUS = {
   PASS: 'PASS',
@@ -162,11 +165,12 @@ export const EXTRA_TESTS = [
   makeCase('leaderboard_health', 'leaderboard_global_table_not_fallback_when_data_exists',
     'Available leaderboard entries render rows instead of fallback-only copy',
     () => {
-      const required = missingTokens(leaderboardPageSource, [
+      const combined = `${leaderboardPageSource}\n${kronoxRankingSectionSource}`;
+      const required = missingTokens(combined, [
         'leaderboard.topRows.map',
         'LeaderboardRow',
-        'showOwnScoreFallback',
-        'PendingLeaderboardState',
+        'RankingPreparingState',
+        '!hasRows',
       ]);
       if (required.length) {
         return fail('Leaderboard UI no longer distinguishes real rows from fallback-only state.', {
@@ -187,13 +191,17 @@ export const EXTRA_TESTS = [
   makeCase('leaderboard_health', 'leaderboard_top_10_or_available_users',
     'Leaderboard shows top 10 or fewer real available entries without fake rows',
     () => {
-      const required = missingTokens(`${leaderboardPageSource}\n${leaderboardLibSource}`, [
+      // Codex119 — `leaderboard.topRows.map` now lives in the extracted
+      // section component; include it in the combined source for the
+      // token check.
+      const combined = `${leaderboardPageSource}\n${leaderboardLibSource}\n${kronoxRankingSectionSource}`;
+      const required = missingTokens(combined, [
         'LEADERBOARD_TOP_LIMIT = 10',
         'topRows',
         'slice(0, topLimit)',
         'leaderboard.topRows.map',
       ]);
-      const forbidden = forbiddenTokensFound(leaderboardPageSource, [
+      const forbidden = forbiddenTokensFound(`${leaderboardPageSource}\n${kronoxRankingSectionSource}`, [
         'Array.from({ length: 10',
         'mockUsers',
         'fakeUsers',
@@ -217,7 +225,10 @@ export const EXTRA_TESTS = [
   makeCase('leaderboard_health', 'leaderboard_current_user_rank_visible',
     'Current user is highlighted in top 10 or shown separately as Senin Sıran / own score',
     () => {
-      const required = missingTokens(`${leaderboardPageSource}\n${leaderboardLibSource}`, [
+      // Codex119 — "Benim Sıram" copy lives in the extracted section
+      // component now; widen the source surface for the token check.
+      const combined = `${leaderboardPageSource}\n${leaderboardLibSource}\n${kronoxRankingSectionSource}`;
+      const required = missingTokens(combined, [
         'currentUserRow',
         'currentUserInTop',
         'Senin Sıran',
@@ -244,7 +255,11 @@ export const EXTRA_TESTS = [
   makeCase('leaderboard_health', 'leaderboard_friend_markers_safe',
     'Friend rows are marked by public-safe owner keys from real accepted friends',
     () => {
-      const required = missingTokens(`${leaderboardPageSource}\n${leaderboardLibSource}`, [
+      // Codex119 — friend marker strings/badges live in the section
+      // component; data wiring (loadFriends, friendEmailSet, isFriend)
+      // stays on the page + lib. Combine all three sources.
+      const combined = `${leaderboardPageSource}\n${leaderboardLibSource}\n${kronoxRankingSectionSource}`;
+      const required = missingTokens(combined, [
         'loadFriends',
         'friend.friend_email',
         'getFriendLeaderboardKeys',
@@ -254,7 +269,7 @@ export const EXTRA_TESTS = [
         'Arkadaş',
         'Arkadaşların',
       ]);
-      const forbidden = forbiddenTokensFound(leaderboardPageSource, [
+      const forbidden = forbiddenTokensFound(`${leaderboardPageSource}\n${kronoxRankingSectionSource}`, [
         'mockFriends',
         'fakeFriends',
       ]);
@@ -277,14 +292,19 @@ export const EXTRA_TESTS = [
   makeCase('leaderboard_health', 'leaderboard_no_fake_users_or_ranks',
     'Leaderboard production path contains no mock users or invented ranks',
     () => {
-      const forbidden = forbiddenTokensFound(`${leaderboardPageSource}\n${leaderboardLibSource}`, [
-        'Math.random',
-        'mockUsers',
-        'fakeUsers',
-        'mockRank',
-        'fakeRank',
-        'rank: 1, displayName',
-      ]);
+      // Codex119 — include the extracted section component in the scan
+      // surface so the fake-data ban applies there as well.
+      const forbidden = forbiddenTokensFound(
+        `${leaderboardPageSource}\n${leaderboardLibSource}\n${kronoxRankingSectionSource}`,
+        [
+          'Math.random',
+          'mockUsers',
+          'fakeUsers',
+          'mockRank',
+          'fakeRank',
+          'rank: 1, displayName',
+        ],
+      );
       if (forbidden.length) {
         return fail('Leaderboard appears to include fake data markers.', {
           verification: 'STATIC_CONTRACT',
@@ -304,7 +324,10 @@ export const EXTRA_TESTS = [
   makeCase('leaderboard_health', 'leaderboard_safe_identity_display',
     'Leaderboard display names avoid exposing private email addresses',
     () => {
-      const required = missingTokens(`${soloLeaderboardEntitySource}\n${leaderboardPageSource}\n${leaderboardLibSource}`, [
+      // Codex119 — row rendering now lives in the section component;
+      // include it in both the required- and forbidden-token surfaces.
+      const combined = `${soloLeaderboardEntitySource}\n${leaderboardPageSource}\n${leaderboardLibSource}\n${kronoxRankingSectionSource}`;
+      const required = missingTokens(combined, [
         'getSafeLeaderboardName',
         'display_name',
         'owner_key',
@@ -314,7 +337,7 @@ export const EXTRA_TESTS = [
         '"user_email"',
         '"email"',
       ]);
-      const renderForbidden = forbiddenTokensFound(leaderboardPageSource, [
+      const renderForbidden = forbiddenTokensFound(`${leaderboardPageSource}\n${kronoxRankingSectionSource}`, [
         '{row.email}',
         'row.email}</',
       ]);
@@ -335,19 +358,28 @@ export const EXTRA_TESTS = [
       });
     }),
 
+  /*
+   * Codex119 — Updated for the graceful-fallback rewrite. The "Kronox
+   * Sıralaması" UI now lives in components/leaderboard/KronoxRankingSection.
+   * The harsh "Sıralama şu an yüklenemedi" wording has been replaced by a
+   * neutral "Kronox sıralaması hazırlanıyor." placeholder, so this case
+   * now scans BOTH source files and requires the NEW friendly copy.
+   * The new `leaderboard_fallback` suite covers the deeper contracts
+   * (own-score visibility, admin diagnostics, no scary backend wording).
+  */
   makeCase('leaderboard_health', 'leaderboard_empty_state_safe',
     'Leaderboard has loading, no-user, no-friend, fallback, and retry states',
     () => {
-      const required = missingTokens(leaderboardPageSource, [
+      const combined = `${leaderboardPageSource}\n${kronoxRankingSectionSource}`;
+      const required = missingTokens(combined, [
         'Sıralama yükleniyor',
-        'Henüz sıralama verisi yok',
         'Arkadaşlarını davet et, sıralamada yarışın',
         'Arkadaşların puan aldıkça burada görünecek',
         'Kronox sıralaması hazırlanıyor',
         'Puanın kaydedildi. Kısa süre içinde sıralamada görünecek',
         'Tekrar Dene',
       ]);
-      const forbidden = forbiddenTokensFound(leaderboardPageSource, [
+      const forbidden = forbiddenTokensFound(combined, [
         'Backend tüm kullanıcı',
         'Veri uydurulmadı',
       ]);

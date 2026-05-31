@@ -87,16 +87,29 @@ export default function LevelMapPath({
   // Auto-scroll the current level into view on mount + whenever it
   // changes (e.g. after a pass unlocks the next one).
   //
-  // Codex109 hardening — the original effect read scrollTop once on mount,
-  // but on slow Android WebViews `clientHeight` is still 0 in the same
-  // tick the component first paints (flex parent hasn't laid out yet).
-  // Result: scrollTop=0 and the user lands on Level 20 (top of reversed
-  // list = highest level = "locked"). We now:
-  //   1. Defer the calculation to the next animation frame (lets layout
-  //      settle).
-  //   2. Retry once after a short delay if clientHeight was still 0.
-  //   3. Fall back to scrollIntoView({block:'center'}) when offsetTop is
-  //      not usable.
+  // Codex117 ROOT-CAUSE FIX — the previous implementation read
+  // `node.offsetTop` on the per-level node element. That node is
+  // `position: absolute` inside a `position: relative` 128px row, so
+  // `offsetParent` is the row itself — `offsetTop` is just ~64px (the
+  // `top: 50%` inside the row), NOT the position within the scroll
+  // container. Result: `scrollTop` was always clamped near 0 and the
+  // user landed at the TOP of the reversed list — i.e. the highest
+  // levels' zone ("KRİSTAL ZİRVE 16–20") — regardless of which level
+  // we asked to focus. This was the actual cause of "CTA shows Level 10
+  // but the visible map block is 16–20".
+  //
+  // Fix: use `getBoundingClientRect()` for both the node and the
+  // scroll container. That gives viewport-relative coordinates that
+  // don't depend on offsetParent. The math is then:
+  //
+  //   targetScrollTop = container.scrollTop
+  //                   + (nodeRect.top - containerRect.top)
+  //                   - container.clientHeight / 2
+  //                   + nodeRect.height / 2
+  //
+  // We keep Codex109's resilience: defer to rAF, retry once if layout
+  // isn't ready, and fall back to scrollIntoView({block:'center'}) as
+  // last resort.
   const containerRef = useRef(null);
   const nodeRefs = useRef({});
   // Codex110 — Prefer the explicit focus target the parent passed in.
@@ -121,8 +134,16 @@ export default function LevelMapPath({
       if (!node) return false;
       const ch = container.clientHeight;
       if (ch === 0) return false; // layout not ready yet
-      const offset = node.offsetTop - ch / 2 + node.offsetHeight / 2;
-      container.scrollTop = Math.max(0, offset);
+      // Codex117 — bounding-rect math (see comment above).
+      const containerRect = container.getBoundingClientRect();
+      const nodeRect = node.getBoundingClientRect();
+      const offset =
+        container.scrollTop
+        + (nodeRect.top - containerRect.top)
+        - ch / 2
+        + nodeRect.height / 2;
+      const maxScroll = Math.max(0, container.scrollHeight - ch);
+      container.scrollTop = Math.min(maxScroll, Math.max(0, offset));
       return true;
     };
 

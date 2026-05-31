@@ -8,6 +8,12 @@ import GoldButton from '@/components/ui/GoldButton';
 import CreateLobbyInvitePanel from '@/components/lobby/CreateLobbyInvitePanel';
 import { ONLINE_CATEGORIES } from '@/lib/onlineCategories';
 import ScreenHeader from '@/components/layout/ScreenHeader';
+// Codex118 — Header Puan + Elmas on the Online landing screen. Same
+// sources Home / Solo / Profile / Leaderboard use, so the four surfaces
+// can never disagree on the displayed numbers.
+import { getSoloLevelCount, readSoloProgress } from '@/lib/soloLevels';
+import { summarizeSoloProgress } from '@/lib/soloProgressHelpers';
+import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 
 const ONLINE_BACKGROUND_ASSET = '/assets/ui/Kronox_Online_Fantasy_Basckground.png';
 // Exact CTA target visuals — bundled locally under public/assets/ui/.
@@ -381,8 +387,19 @@ function OnlineChallengeLanding({ user, onCreate, onJoin, onBackHome }) {
         contain: 'layout paint size',
       }}
     >
-      {/* Codex102 — Standardized top bar overlays the immersive stage. */}
-      <ScreenHeader title="Online Kapışma" showBack user={user} onBack={onBackHome} />
+      {/* Codex118 — Online landing top bar: back arrow + centered
+          Puan/Elmas + profile avatar. Title "Online Kapışma" removed
+          (the immersive background still names the screen). Stats use
+          the same shared helpers Home/Solo/Profile/Leaderboard use. */}
+      <ScreenHeader
+        showBack
+        user={user}
+        onBack={onBackHome}
+        headerStats={{
+          score: summarizeSoloProgress(readSoloProgress(user), getSoloLevelCount()).totalSoloScore,
+          diamonds: getLeaderboardDiamondValue(user),
+        }}
+      />
 
       <div
         className="absolute left-1/2 top-1/2 z-10"
