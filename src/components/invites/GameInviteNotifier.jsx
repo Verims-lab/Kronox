@@ -6,6 +6,11 @@ import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { loadIncomingInvites } from '@/lib/inviteApi';
 import { normalizeEmail } from '@/lib/friendsApi';
+// Codex135 — Shared active-invite selector. The toast UI now defers to
+// the same predicate the header bell and Online panel use, so a fresh
+// invite that the toast already dismissed is never erased from the
+// other surfaces.
+import { isActiveIncomingGameInvite } from '@/lib/gameInviteSelectors';
 
 // Codex130 — Banner auto-dismiss: 10 seconds (product spec). Dismissing
 // the banner does NOT delete the invite — it stays pending in the database
@@ -32,6 +37,12 @@ export default function GameInviteNotifier() {
   const bootstrappedRef = useRef(false);
   const pathnameRef = useRef(location.pathname);
 
+  // Codex135 — INVARIANT: dismissInviteToast ONLY closes the visual
+  // toast. It NEVER calls GameInvite.update(...). It NEVER affects the
+  // header bell, Online IncomingInvitesPanel, or any other surface that
+  // reads the GameInvite entity. `remember=true` only prevents the same
+  // toast instance from re-popping for the same invite id while the
+  // invite is still pending.
   const dismissInviteToast = useCallback((inviteId, { remember = true } = {}) => {
     if (!inviteId) return;
     const active = activeToastByInviteIdRef.current.get(inviteId);

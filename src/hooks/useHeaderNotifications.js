@@ -18,13 +18,17 @@ import { base44 } from '@/api/base44Client';
 import { normalizeEmail } from '@/lib/friendsApi';
 import {
   acceptGameInvite,
-  isGameInviteExpired,
   loadIncomingInvites,
 } from '@/lib/inviteApi';
+import { isPendingFriendRequestForUser } from '@/lib/headerNotifications';
+// Codex135 — Centralized active-invite selector. Header, Online panel,
+// and toast notifier all read through this module so the badge/list
+// can never disagree about whether a fresh invite is still active.
 import {
-  isActiveGameInviteForUser,
-  isPendingFriendRequestForUser,
-} from '@/lib/headerNotifications';
+  filterActiveIncomingGameInvites,
+  isActiveIncomingGameInvite,
+  isInviteExpired,
+} from '@/lib/gameInviteSelectors';
 
 const REFRESH_DEBOUNCE_MS = 250;
 
@@ -60,7 +64,8 @@ export function useHeaderNotifications(user) {
       if (!aliveRef.current) return;
       const now = Date.now();
       setFriendRequests((fr || []).filter((r) => isPendingFriendRequestForUser(r, myEmail)));
-      setGameInvites((gi || []).filter((r) => isActiveGameInviteForUser(r, myEmail, now)));
+      // Codex135 — shared active-incoming selector.
+      setGameInvites(filterActiveIncomingGameInvites(gi, myEmail, now));
     } catch (err) {
       if (!aliveRef.current) return;
       setError(err?.message || 'Bildirimler yüklenemedi.');
@@ -115,15 +120,16 @@ export function useHeaderNotifications(user) {
   }, [myEmail, refresh]);
 
   // Auto-prune expired invites every 30s so a panel left open eventually
-  // drops stale entries even without an incoming push.
+  // drops stale entries even without an incoming push. Uses the shared
+  // selector — a fresh invite (10-min TTL) will never be pruned here.
   useEffect(() => {
     if (gameInvites.length === 0) return undefined;
     const id = setInterval(() => {
       const now = Date.now();
-      setGameInvites((prev) => prev.filter((i) => !isGameInviteExpired(i, now)));
+      setGameInvites((prev) => prev.filter((i) => isActiveIncomingGameInvite(i, myEmail, now)));
     }, 30 * 1000);
     return () => clearInterval(id);
-  }, [gameInvites.length]);
+  }, [gameInvites.length, myEmail]);
 
   const totalCount = friendRequests.length + gameInvites.length;
 
@@ -133,7 +139,7 @@ export function useHeaderNotifications(user) {
 
   const openGameInvite = useCallback(async (invite) => {
     if (!invite?.id) return { ok: false, reason: 'invalid' };
-    if (isGameInviteExpired(invite)) {
+    if (isInviteExpired(invite)) {
       refresh();
       return { ok: false, reason: 'expired' };
     }

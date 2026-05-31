@@ -7,8 +7,13 @@ import {
   loadIncomingInvites,
   acceptGameInvite,
   rejectGameInvite,
-  isGameInviteExpired,
 } from '@/lib/inviteApi';
+// Codex135 — use the SHARED active-invite selector so this panel can
+// never disagree with the header bell or the toast notifier.
+import {
+  filterActiveIncomingGameInvites,
+  isInviteExpired,
+} from '@/lib/gameInviteSelectors';
 import { sounds } from '@/lib/gameSounds';
 import InviteCountdown from '@/components/invites/InviteCountdown';
 
@@ -33,7 +38,11 @@ export default function IncomingInvitesPanel({ user, variant = 'fantasy' }) {
     setError('');
     try {
       const rows = await loadIncomingInvites(user.email);
-      setInvites(rows);
+      // Codex135 — re-filter through the shared active selector so a
+      // fresh pending invite is NEVER dropped because of a malformed
+      // timestamp field (the selector treats missing timestamps as
+      // active and warns once).
+      setInvites(filterActiveIncomingGameInvites(rows, user.email));
     } catch (err) {
       setError(err?.message || 'Davetler yüklenemedi.');
     } finally {
@@ -69,7 +78,7 @@ export default function IncomingInvitesPanel({ user, variant = 'fantasy' }) {
     setBusyId(invite.id);
     sounds.tap();
     try {
-      if (isGameInviteExpired(invite)) {
+      if (isInviteExpired(invite)) {
         setError('Davetin süresi doldu. Yeni bir davet iste.');
         await refresh();
         return;
@@ -163,7 +172,7 @@ export default function IncomingInvitesPanel({ user, variant = 'fantasy' }) {
 
 function InviteRow({ invite, busy, onAccept, onReject }) {
   const display = invite.from_name?.trim() || invite.from_email;
-  const expired = invite.status === 'expired' || isGameInviteExpired(invite);
+  const expired = invite.status === 'expired' || isInviteExpired(invite);
   return (
     <motion.li
       layout

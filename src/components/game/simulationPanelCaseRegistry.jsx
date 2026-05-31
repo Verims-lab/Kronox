@@ -88,6 +88,9 @@ import * as inviteLifecycleCases from './simulationPanelInviteLifecycleCases';
 import * as lobbySimplificationCases from './simulationPanelLobbySimplificationCases';
 // Codex134 — Shared real-time header notification system contracts.
 import * as headerNotificationsCases from './simulationPanelHeaderNotificationsCases';
+// Codex135 — Game invite lifecycle hardening (single-source-of-truth
+// selector + toast dismiss safety + fresh-invite persistence).
+import * as gameInviteLifecycleCases from './simulationPanelGameInviteLifecycleCases';
 
 const MODULES = [
   soloProgressCases,
@@ -105,6 +108,7 @@ const MODULES = [
   inviteLifecycleCases,
   lobbySimplificationCases,
   headerNotificationsCases,
+  gameInviteLifecycleCases,
 ];
 
 function flatten(key) {
