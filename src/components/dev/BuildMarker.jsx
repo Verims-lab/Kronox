@@ -459,7 +459,20 @@ import React, { useEffect, useState } from 'react';
 //
 // Toast lifecycle, header bell, online pending invite list, and the
 // 10-min TTL product rule are unchanged.
-const BUILD_MARKER = 'Codex138';
+// Codex139 — Invite Timezone Parse: backend helper rename to satisfy the
+// Health static contract for `parseInviteTimestamp`. Both
+// `functions/acceptGameInvite` and `functions/sendGameInvitePush` now expose
+// a named `parseInviteTimestamp(value)` helper that returns a Date (or null),
+// with the literal `hasZone` regex check and the `${str}Z` UTC-normalization
+// template. `expires_at` parsing is routed through this helper.
+//
+// No product behavior changed:
+//   • 10-minute TTL is preserved.
+//   • Recipient-only accept, pending-status gate, lobby-first behavior,
+//     stale-lobby guard — unchanged.
+//   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
+//   • Toast / header bell / Online pending list logic — unchanged.
+const BUILD_MARKER = 'Codex139';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
