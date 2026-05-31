@@ -9,6 +9,7 @@ import { addGameLog } from '@/components/game/GameDebugLog';
 import { loadRecentHistory, appendToHistory } from '@/lib/questionHistory';
 import { debugLog } from '@/lib/debugLog';
 import { getLobbyStateRevision } from '@/lib/lobbyState';
+import { summarizePlayers } from '@/lib/lobbyUtils';
 import {
   getNextPlayerIndex,
   getQuestionSelectionPool,
@@ -17,13 +18,6 @@ import {
   isCorrectPlacement,
   selectNextQuestion,
 } from '@/lib/gameRules';
-
-const summarizePlayers = (players = []) => players.map((player, index) => ({
-  index,
-  email: player?.email || null,
-  name: player?.name || null,
-  cardCount: Array.isArray(player?.cards) ? player.cards.length : 0,
-}));
 
 const isStaleWriteError = (err) =>
   err?.code === 'stale_write' || /stale|guncel/i.test(err?.message || '');

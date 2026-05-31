@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Trophy, Loader2, Timer, LayoutGrid } from 'lucide-react';
+import { Loader2, Timer, LayoutGrid } from 'lucide-react';
 import { formatDuration } from './GameOverTimer';
 
 export default function TopScores({ user }) {

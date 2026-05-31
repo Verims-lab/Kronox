@@ -9,7 +9,7 @@ import ScreenHeader from '@/components/layout/ScreenHeader';
 // Codex111 — Profile Level + Solo score read through the SAME shared
 // progress/summary helpers the Solo Level Path and Leaderboard use.
 // A stale `currentLevel` can no longer make Profile drift from Solo, and
-// Puan/Yıldız are real values from User.solo_progress rather than UI-only
+// Puan/Level are real values from User.solo_progress rather than UI-only
 // placeholders.
 import { ensureSoloProgressBackfill, readSoloProgress, getSoloLevelCount } from '@/lib/soloLevels';
 // Codex114 — Profile Level tile MUST share the same source of truth Solo
@@ -18,6 +18,7 @@ import { ensureSoloProgressBackfill, readSoloProgress, getSoloLevelCount } from 
 // case `profile_level_uses_shared_helper`.
 import { getCurrentPlayableLevel } from '@/lib/soloProgressHelpers';
 import { summarizeSoloProgress } from '@/lib/soloProgressHelpers';
+import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 
 /**
  * ProfilePage — first-pass shell.
@@ -155,28 +156,7 @@ export default function ProfilePage() {
 // no economy yet means the UI must not invent a balance. Mirror of
 // Leaderboard's getLeaderboardDiamondValue so both surfaces agree.
 function getProfileDiamondValue(user) {
-  const candidates = [
-    user?.diamonds,
-    user?.diamondCount,
-    user?.diamond_count,
-    user?.elmas,
-    user?.elmasCount,
-    user?.elmas_count,
-    user?.gems,
-    user?.gemCount,
-    user?.gem_count,
-    user?.economy?.diamonds,
-    user?.economy?.elmas,
-    user?.wallet?.diamonds,
-    user?.wallet?.elmas,
-  ];
-  const realValue = candidates.find((value) => (
-    value !== null &&
-    value !== undefined &&
-    value !== '' &&
-    Number.isFinite(Number(value))
-  ));
-  return realValue === undefined ? 0 : Math.max(0, Math.floor(Number(realValue)));
+  return getLeaderboardDiamondValue(user);
 }
 
 /* ---------------- Internal components ---------------- */

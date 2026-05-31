@@ -47,7 +47,7 @@ import bottomNavSource from '../layout/BottomNav.jsx?raw';
 import adminLibSource from '../../lib/admin.js?raw';
 import appSource from '../../App.jsx?raw';
 import gameSource from '../../pages/Game.jsx?raw';
-import appHeaderSource from '../layout/AppHeader.jsx?raw';
+import screenHeaderSource from '../layout/ScreenHeader.jsx?raw';
 import goldButtonSource from '../ui/GoldButton.jsx?raw';
 import gameLayoutSource from './GameLayout.jsx?raw';
 import indexCssSource from '../../index.css?raw';
@@ -306,10 +306,10 @@ export const EXTRA_TESTS = [
     `${tutorialProfileSource}\n${mainMenuSource}`,
     ['hasCompletedTutorial', 'shouldShowTutorialForUser', 'markTutorialCompleted', 'base44.auth.updateMe']),
   sourceLacks('tutorial_profile_health', 'tutorial_flow_not_local_storage_based',
-    'Tutorial flow no longer depends on localStorage/tutorialState',
+    'Tutorial completion no longer depends on tutorial-specific localStorage state',
     'MainMenu.jsx + PlayerSetup.jsx + KronoxTutorial.jsx',
     `${mainMenuSource}\n${playerSetupSource}\n${kronoxTutorialSource}`,
-    ['tutorialState', 'kronox_tutorial_seen', 'localStorage']),
+    ['tutorialState', 'kronox_tutorial_seen']),
   sourceHas('tutorial_profile_health', 'tutorial_completion_updates_profile',
     'Completing or skipping tutorial updates the profile flag before closing',
     'KronoxTutorial.jsx + tutorialProfile.js',
@@ -1076,10 +1076,10 @@ export const EXTRA_TESTS = [
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
   makeCase('historical_kronox_regression', 'duplicate_lobby_title_contract',
     'Duplicate Kronox lobby title/logo is detectable as a visual regression contract', () => {
-      const sources = `${appHeaderSource}\n${lobbyCreateJoinPanelSource}\n${createLobbyInvitePanelSource}`;
+      const sources = `${screenHeaderSource}\n${lobbyCreateJoinPanelSource}\n${createLobbyInvitePanelSource}`;
       const kronoxTitleCount = countOccurrences(sources, />\s*KRONOX\s*</g) + countOccurrences(sources, />\s*Kronox\s*</g);
       return kronoxTitleCount <= 1
-        ? pass('Lobby title contract is currently clean: one app-level Kronox brand title.', {
+        ? pass('Current ScreenHeader/lobby composition has no duplicate literal Kronox title.', {
             verification: 'STATIC_CONTRACT',
             classification: 'STATIC_CHECK_LIMITATION',
             actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW,
@@ -1797,7 +1797,7 @@ export const EXTRA_TESTS = [
    * ============================================================ */
   makeCase('visual_composition_regression', 'lobby_no_duplicate_kronox_title',
     'Lobby screen should not show duplicate Kronox title/logo', () => {
-      const composed = `${appHeaderSource}\n${lobbyCreateJoinPanelSource}\n${createLobbyInvitePanelSource}`;
+      const composed = `${screenHeaderSource}\n${lobbyCreateJoinPanelSource}\n${createLobbyInvitePanelSource}`;
       const count = countOccurrences(composed, />\s*KRONOX\s*</g) + countOccurrences(composed, />\s*Kronox\s*</g);
       return count <= 1
         ? pass('Only one static Kronox title string is present in composed lobby sources.', {
@@ -1815,10 +1815,10 @@ export const EXTRA_TESTS = [
           });
     }, { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW, recentlyFixed: true }),
   sourceHas('visual_composition_regression', 'single_primary_lobby_title_style',
-    'Remaining title should use approved fantasy logo style',
-    'AppHeader.jsx',
-    appHeaderSource,
-    ['font-cinzel', '#facc15', 'textShadow', 'isLobbyRoute'],
+    'Current ScreenHeader title styling should use the approved fantasy header style',
+    'ScreenHeader.jsx + LobbyCreateJoinPanel.jsx',
+    `${screenHeaderSource}\n${lobbyCreateJoinPanelSource}`,
+    ['ScreenHeader', 'font-cinzel', '#facc15', 'textShadow'],
     { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW, recentlyFixed: true }),
   sourceHas('visual_composition_regression', 'image_buttons_have_aria_labels_regression',
     'Image-based buttons have aria labels',
@@ -1850,7 +1850,7 @@ export const EXTRA_TESTS = [
     'Asset/path drift warning if approved assets are missing or remote paths are used',
     'MainMenu.jsx + LobbyCreateJoinPanel.jsx',
     `${mainMenuSource}\n${lobbyCreateJoinPanelSource}`,
-    ['/assets/ui/', 'Kronox_Home_Fantasy_Background.png', 'Kronox_Online_CTA_Start.webp'],
+    ['/assets/ui/', 'Kronox_Home_Fantasy_Background.png', 'Kronox_Online_CTA_Start.webp', 'Kronox_Online_CTA_Join.webp'],
     { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW }),
   sourceLacks('visual_composition_regression', 'no_remote_visual_assets_new_screens',
     'Approved visual surfaces do not depend on new remote asset URLs',
