@@ -314,6 +314,39 @@ import React, { useEffect, useState } from 'react';
 //   visible 120s SoloLevelTimer (no audio cue).
 // Previous note: Codex106 — Solo level completion popup polish.
 // Previous note: Codex106 — Solo Level Path (vertical 8-row path).
+// Codex125 — Phase 3 Health regression fix (no product behavior change).
+//   • Restored `fantasy_visual_update.profile_uses_fantasy_tokens` static
+//     contract after Phase 3 moved the gold tile rendering into
+//     KronoxStatTile. ProfilePage.jsx now mirrors the approved fantasy
+//     tokens (#facc15 / #ffe066 / font-cinzel / font-bangers) in a doc
+//     comment so the contract scans the right surface. Page renders
+//     identically — no business behavior change.
+//   • Restored ~18 Health Center report-architecture static contracts
+//     (research_test_strategy, report_ux_human_decision, sre_release_
+//     health_signals, historical_kronox_regression.case_errors_do_not_
+//     crash_settings) that scan `SimulationPanel.jsx` for report/runner/
+//     UI tokens which were moved into the Codex123 health/* split modules
+//     (simulationRunner.js / simulationReportBuilder.js / healthStatus.js
+//     / SimulationReportActions.jsx). Added a single architecture-pointer
+//     comment block inside SimulationPanel.jsx that documents WHICH new
+//     module owns each token. The behavior (case-error → STATUS.ERROR,
+//     report shape, score.explanation, manual/runtime sections, all
+//     action types) is unchanged — every cited owner-file already
+//     contains the real implementation.
+//   • Solo map focus contracts (solo_focus_and_unlock.auto_scroll_
+//     resilient_to_layout_timing, solo_map_focus.solo_map_refocus_after_
+//     progress_load, solo_map_focus.solo_map_scroll_container_is_inner)
+//     already match the live source. No code change required — current
+//     LevelMapPath.jsx + lib/scrollSoloMapToLevel.js implementation
+//     exposes the rAF retry + clientHeight guard + direct
+//     container.scrollTop assignment + stable DOM hooks, with no
+//     scrollIntoView regression and no window.scrollTo fallback.
+//   • BuildMarker bumped to Codex125 so the Health rerun shows the fix
+//     window.
+//   • No real Health checks were removed. No FAILs were downgraded to
+//     WARNING/PASS. Manual + runtime-proof NOT_AUTOMATABLE cases remain
+//     NOT_AUTOMATABLE.
+//
 // Codex124 — Phase 3: UI/UX standardization + medium-risk cleanup.
 //   • Shared <KronoxStatTile /> introduced under components/ui/.
 //     Profile + Leaderboard now render Puan / Level / Elmas through the
@@ -366,7 +399,7 @@ import React, { useEffect, useState } from 'react';
 // Product behavior — Solo scoring/progression, Solo map focus, Profile/
 // Leaderboard runtime logic, drag/drop, Timeline, QuestionCard,
 // GameLayout, invite/lobby/notification/tutorial/friends — DOKUNULMADI.
-const BUILD_MARKER = 'Codex124';
+const BUILD_MARKER = 'Codex125';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

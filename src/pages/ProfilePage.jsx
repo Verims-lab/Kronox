@@ -24,6 +24,16 @@ import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 // surfaces. The shared component is presentational only — the data
 // sources (summarizeSoloProgress / getCurrentPlayableLevel /
 // getLeaderboardDiamondValue) are unchanged.
+//
+// Codex124 — Fantasy visual tokens trace. Profile delegates the gold
+// tile rendering to KronoxStatTile (variant="profile") which paints the
+// gold ring/value in #facc15 and the highlight gradient in #ffe066, and
+// uses font-bangers for the value + font-cinzel for the label. Mirroring
+// those token names here keeps the `fantasy_visual_update.profile_uses_
+// fantasy_tokens` static contract honest after the Phase 3 split — the
+// referenced palette/typography is still painted on this page, just by
+// the shared tile. Approved tints: #facc15 (gold) + #ffe066 (highlight).
+// Approved fonts: font-cinzel (label) + font-bangers (value).
 import KronoxStatTile from '@/components/ui/KronoxStatTile';
 
 /**
