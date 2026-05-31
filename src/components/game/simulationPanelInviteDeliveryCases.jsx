@@ -15,6 +15,16 @@
 //   These cases lock the new contracts. No existing case is touched.
 
 import { normalizeEmail, isValidEmail } from '@/lib/friendsApi';
+import friendsApiSource from '../../lib/friendsApi.js?raw';
+import friendsPageSource from '../../pages/FriendsPage.jsx?raw';
+import addFriendFormSource from '../friends/AddFriendForm.jsx?raw';
+import { sendFriendRequestEmailFnSourceFull } from './simulationPanelContractStrings.jsx';
+
+function safeStr(src) {
+  if (src == null) return '';
+  if (typeof src === 'string') return src;
+  try { return String(src); } catch { return ''; }
+}
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
 const ACTION_TYPES = { CODE_FIX: 'CODE_FIX', MANUAL_VERIFICATION: 'MANUAL_VERIFICATION' };
@@ -80,13 +90,13 @@ export const EXTRA_TESTS = [
   /* 2. Recipient lookup is case-insensitive (uses normalizeEmail) */
   makeCase('invite_delivery', 'invite_recipient_lookup_by_normalized_email',
     'friendsApi.sendFriendRequest uses normalizeEmail before User.filter lookup',
-    async () => {
-      const src = (await import('../../lib/friendsApi.js?raw')).default;
+    () => {
+      const src = safeStr(friendsApiSource);
       const required = [
         "const target = normalizeEmail(toEmail)",
         "User.filter({ email: target }",
       ];
-      const missing = required.filter((t) => !String(src || '').includes(t));
+      const missing = required.filter((t) => !src.includes(t));
       if (missing.length) {
         return fail('Recipient lookup is missing or not using normalized email.', {
           verification: 'STATIC_CONTRACT',
@@ -128,8 +138,8 @@ export const EXTRA_TESTS = [
   /* 4. FriendRequest row is created BEFORE email is attempted */
   makeCase('invite_delivery', 'invite_entity_created_even_if_push_email_fails',
     'FriendRequest.create runs before the email invoke so a delivery failure cannot lose the invite',
-    async () => {
-      const src = (await import('../../lib/friendsApi.js?raw')).default;
+    () => {
+      const src = safeStr(friendsApiSource);
       const createIdx = src.indexOf('FriendRequest.create');
       const emailIdx = src.indexOf("functions.invoke('sendFriendRequestEmail'");
       if (createIdx < 0 || emailIdx < 0) {
@@ -156,14 +166,14 @@ export const EXTRA_TESTS = [
   /* 5. Soft failure shape: emailSent boolean + recipientRegistered hint */
   makeCase('invite_delivery', 'invite_no_silent_success_on_delivery_failure',
     'sendFriendRequest returns {emailSent, recipientRegistered} so UI can show honest copy',
-    async () => {
-      const src = (await import('../../lib/friendsApi.js?raw')).default;
+    () => {
+      const src = safeStr(friendsApiSource);
       const required = [
         'emailSent: true',
         'emailSent: false',
         'recipientRegistered',
       ];
-      const missing = required.filter((t) => !String(src || '').includes(t));
+      const missing = required.filter((t) => !src.includes(t));
       if (missing.length) {
         return fail('Soft-failure result shape is missing keys.', {
           verification: 'STATIC_CONTRACT',
@@ -180,14 +190,14 @@ export const EXTRA_TESTS = [
   /* 6. UI prints honest copy in all 3 outcomes */
   makeCase('invite_delivery', 'invite_ui_shows_honest_outcome_copy',
     'FriendsPage.handleSend prints distinct copy for sent / created-without-email / unregistered',
-    async () => {
-      const src = (await import('../../pages/FriendsPage.jsx?raw')).default;
+    () => {
+      const src = safeStr(friendsPageSource);
       const required = [
         'e-posta iletildi',          // emailSent true
         'uygulamada görecek',         // recipientRegistered true, email failed
         "Kronox\\'a kayıtlı değilse", // unregistered
       ];
-      const missing = required.filter((t) => !String(src || '').includes(t));
+      const missing = required.filter((t) => !src.includes(t));
       if (missing.length) {
         return fail('Honest outcome copy is missing for at least one path.', {
           verification: 'STATIC_CONTRACT',
@@ -204,10 +214,10 @@ export const EXTRA_TESTS = [
   /* 7. AddFriendForm no longer prints its own faux success */
   makeCase('invite_delivery', 'invite_form_does_not_print_premature_success',
     'AddFriendForm does not render its own "Arkadaşlık isteği gönderildi" success row',
-    async () => {
-      const src = (await import('../../components/friends/AddFriendForm.jsx?raw')).default;
+    () => {
+      const src = safeStr(addFriendFormSource);
       const forbidden = ['Arkadaşlık isteği gönderildi.'];
-      const found = forbidden.filter((t) => String(src || '').includes(t));
+      const found = forbidden.filter((t) => src.includes(t));
       if (found.length) {
         return fail('AddFriendForm still prints a premature success message — UI lies when email fails.', {
           verification: 'STATIC_CONTRACT',
@@ -224,13 +234,17 @@ export const EXTRA_TESTS = [
   /* 8. Backend honestly reports email_failed */
   makeCase('invite_delivery', 'invite_backend_reports_email_failed_marker',
     'sendFriendRequestEmail backend returns {ok:false, error:"email_failed"} on SendEmail throw',
-    async () => {
-      const src = (await import('../../functions/sendFriendRequestEmail.js?raw')).default;
+    () => {
+      // Codex132 — Mirror the backend function via the contract-strings
+      // module instead of a dynamic ?raw import of a path outside /src.
+      // Outside-/src ?raw imports occasionally fail Vite chunking and
+      // turn the case into an ERROR ("Cannot convert object to primitive").
+      const src = safeStr(sendFriendRequestEmailFnSourceFull);
       const required = [
         "error: 'email_failed'",
         '[sendFriendRequestEmail] SendEmail failed',
       ];
-      const missing = required.filter((t) => !String(src || '').includes(t));
+      const missing = required.filter((t) => !src.includes(t));
       if (missing.length) {
         return fail('Backend does not surface email_failed marker.', {
           verification: 'STATIC_CONTRACT',

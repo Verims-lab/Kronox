@@ -26,6 +26,17 @@ import {
   calculateOnlineMatchDelta,
   applyOnlineMatchResult,
 } from '@/lib/onlineRanking';
+// Codex132 — Mirror entity / Game.jsx sources so the Health cases do
+// NOT do dynamic ?raw imports of paths outside /src (which sometimes
+// resolve to objects → "object is not a function" crashes).
+import { userEntitySource } from './simulationPanelContractStrings.jsx';
+import gameSource from '../../pages/Game.jsx?raw';
+
+function safeStr(src) {
+  if (src == null) return '';
+  if (typeof src === 'string') return src;
+  try { return String(src); } catch { return ''; }
+}
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
 const ACTION_TYPES = { CODE_FIX: 'CODE_FIX' };
@@ -320,14 +331,14 @@ export const EXTRA_TESTS = [
   /* 11. Game.jsx idempotent wiring kontrolü (static) */
   makeCase('online_ranking', 'game_applies_result_once_per_lobby',
     'Game.jsx wires applyOnlineMatchToCurrentUser with an onlineResultAppliedRef guard',
-    async () => {
-      const src = (await import('../../pages/Game.jsx?raw')).default;
+    () => {
+      const src = safeStr(gameSource);
       const required = [
         'applyOnlineMatchToCurrentUser',
         'onlineResultAppliedRef',
-        "result: localIsWinner ? 'win' : 'loss'",
+        "result = localIsWinner ? 'win' : 'loss'",
       ];
-      const missing = required.filter((t) => !String(src || '').includes(t));
+      const missing = required.filter((t) => !src.includes(t));
       if (missing.length) {
         return fail('Online result is not wired into Game.jsx correctly.', {
           verification: 'STATIC_CONTRACT',
@@ -344,8 +355,12 @@ export const EXTRA_TESTS = [
   /* 12. User entity online_progress alanını içeriyor mu */
   makeCase('online_ranking', 'user_entity_has_online_progress',
     'User entity exposes online_progress with score/peakScore/peakCheckpoint/wins/losses/draws/lastMatchId',
-    async () => {
-      const raw = (await import('../../entities/User.json?raw')).default;
+    () => {
+      // Codex132 — Use the mirrored userEntitySource (kept in sync with
+      // entities/User.json) instead of a dynamic ?raw import of a path
+      // outside /src. Vite occasionally returns a parsed JSON object for
+      // such imports, turning .includes(...) into a TypeError.
+      const raw = safeStr(userEntitySource);
       const required = [
         'online_progress',
         'peakCheckpoint',
@@ -355,7 +370,7 @@ export const EXTRA_TESTS = [
         'losses',
         'draws',
       ];
-      const missing = required.filter((t) => !String(raw || '').includes(t));
+      const missing = required.filter((t) => !raw.includes(t));
       if (missing.length) {
         return fail('User entity is missing online_progress fields.', {
           verification: 'STATIC_CONTRACT',

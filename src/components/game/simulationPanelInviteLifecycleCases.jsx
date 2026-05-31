@@ -10,11 +10,31 @@
 //       visibilitychange recheck so background-arrived invites surface
 //       when the app is reopened.
 //
-//   These cases lock the new contracts. We deliberately do NOT touch
-//   simulationPanelExtraCases.jsx (frozen). New cases live here and are
-//   registered through the case registry.
+// CODEX132 — Health stability fix:
+//   Previous version did `await import('../../functions/*.js?raw')` and
+//   `await import('../../components/...?raw')` inside run handlers. Files
+//   that live OUTSIDE /src (functions/, entities/) sometimes fail Vite's
+//   dynamic chunk evaluation, causing the test to throw TypeError
+//   ("Cannot convert object to primitive value"). We now:
+//     • mirror function sources through simulationPanelContractStrings
+//       (same pattern existing Health cases use), and
+//     • import in-/src/ component sources statically at module top, so
+//       they cannot intermittently fail.
+//   Result: invite_lifecycle cases either PASS or FAIL cleanly — they
+//   never throw.
 
 import { GAME_INVITE_TTL_MS, LOBBY_STALE_AFTER_MS, isLobbyStale } from '@/lib/inviteApi';
+import {
+  acceptGameInviteFnSource,
+  sendGameInvitePushFnSource,
+  findLobbyByCodeFnSource,
+} from './simulationPanelContractStrings.jsx';
+import gameInviteNotifierSource from '../invites/GameInviteNotifier.jsx?raw';
+import incomingInvitesPanelSource from '../invites/IncomingInvitesPanel.jsx?raw';
+import inviteCountdownSource from '../invites/InviteCountdown.jsx?raw';
+import onlineChallengeScreenSource from '../lobby/OnlineChallengeScreen.jsx?raw';
+import lobbyRoomSource from '../../pages/LobbyRoom.jsx?raw';
+import appSource from '../../App.jsx?raw';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
 const ACTION_TYPES = { CODE_FIX: 'CODE_FIX', MANUAL_VERIFICATION: 'MANUAL_VERIFICATION' };
@@ -38,6 +58,13 @@ function makeCase(suiteId, id, name, run, options = {}) {
 
 function pass(reason, extra) { return { status: STATUS.PASS, reason, ...(extra || {}) }; }
 function fail(reason, extra) { return { status: STATUS.FAIL, reason, ...(extra || {}) }; }
+
+function safeStr(src) {
+  // Defensive: never let object-to-primitive conversion throw.
+  if (src == null) return '';
+  if (typeof src === 'string') return src;
+  try { return String(src); } catch { return ''; }
+}
 
 export const EXTRA_SUITES = [
   {
@@ -68,17 +95,17 @@ export const EXTRA_TESTS = [
   /* 2. Backend acceptGameInvite TTL mirrors 10 min */
   makeCase('invite_lifecycle', 'backend_accept_ttl_is_10_minutes',
     'functions/acceptGameInvite uses 10 * 60 * 1000 as GAME_INVITE_TTL_MS',
-    async () => {
-      const src = (await import('../../functions/acceptGameInvite.js?raw')).default;
-      if (!String(src || '').includes('GAME_INVITE_TTL_MS = 10 * 60 * 1000')) {
-        return fail('Backend acceptGameInvite still references 5-minute TTL.', {
+    () => {
+      const src = safeStr(acceptGameInviteFnSource);
+      if (!src.includes('GAME_INVITE_TTL_MS = 10 * 60 * 1000')) {
+        return fail('Backend acceptGameInvite TTL mirror is not 10 minutes.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      if (String(src || '').includes('GAME_INVITE_TTL_MS = 5 * 60 * 1000')) {
-        return fail('Backend acceptGameInvite still contains a literal 5-minute TTL.', {
+      if (src.includes('GAME_INVITE_TTL_MS = 5 * 60 * 1000')) {
+        return fail('Backend acceptGameInvite mirror still contains a 5-minute TTL.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
@@ -92,17 +119,17 @@ export const EXTRA_TESTS = [
   /* 3. Backend push notifier TTL mirrors 10 min */
   makeCase('invite_lifecycle', 'backend_push_ttl_is_10_minutes',
     'functions/sendGameInvitePush uses 10 * 60 * 1000 as GAME_INVITE_TTL_MS',
-    async () => {
-      const src = (await import('../../functions/sendGameInvitePush.js?raw')).default;
-      if (!String(src || '').includes('GAME_INVITE_TTL_MS = 10 * 60 * 1000')) {
-        return fail('Backend sendGameInvitePush still references 5-minute TTL.', {
+    () => {
+      const src = safeStr(sendGameInvitePushFnSource);
+      if (!src.includes('GAME_INVITE_TTL_MS = 10 * 60 * 1000')) {
+        return fail('Backend sendGameInvitePush TTL mirror is not 10 minutes.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      if (String(src || '').includes('GAME_INVITE_TTL_MS = 5 * 60 * 1000')) {
-        return fail('Backend sendGameInvitePush still contains a literal 5-minute TTL.', {
+      if (src.includes('GAME_INVITE_TTL_MS = 5 * 60 * 1000')) {
+        return fail('Backend sendGameInvitePush mirror still contains a 5-minute TTL.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
@@ -116,14 +143,14 @@ export const EXTRA_TESTS = [
   /* 4. expired_invite_not_acceptible_backend */
   makeCase('invite_lifecycle', 'expired_invite_not_acceptible_backend',
     'acceptGameInvite enforces expires_at and rejects expired invites',
-    async () => {
-      const src = (await import('../../functions/acceptGameInvite.js?raw')).default;
+    () => {
+      const src = safeStr(acceptGameInviteFnSource);
       const required = [
         'getInviteExpiry',
         "status: 'expired'",
         'Davetin süresi doldu',
       ];
-      const missing = required.filter((t) => !String(src || '').includes(t));
+      const missing = required.filter((t) => !src.includes(t));
       if (missing.length) {
         return fail('Backend accept expiry guard incomplete.', {
           verification: 'STATIC_CONTRACT',
@@ -140,15 +167,15 @@ export const EXTRA_TESTS = [
   /* 5. stale_lobby_expires_after_10_minutes — accept path */
   makeCase('invite_lifecycle', 'stale_lobby_blocked_on_accept_backend',
     'acceptGameInvite blocks joining a waiting lobby idle > 10 minutes',
-    async () => {
-      const src = (await import('../../functions/acceptGameInvite.js?raw')).default;
+    () => {
+      const src = safeStr(acceptGameInviteFnSource);
       const required = [
         'LOBBY_STALE_AFTER_MS = 10 * 60 * 1000',
         'Lobi süresi doldu',
       ];
-      const missing = required.filter((t) => !String(src || '').includes(t));
+      const missing = required.filter((t) => !src.includes(t));
       if (missing.length) {
-        return fail('Stale-lobby guard missing from acceptGameInvite.', {
+        return fail('Stale-lobby guard missing from acceptGameInvite mirror.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
@@ -163,15 +190,15 @@ export const EXTRA_TESTS = [
   /* 6. stale_lobby_expires_after_10_minutes — code-join path */
   makeCase('invite_lifecycle', 'stale_lobby_blocked_on_code_join_backend',
     'findLobbyByCode blocks joining a waiting lobby idle > 10 minutes',
-    async () => {
-      const src = (await import('../../functions/findLobbyByCode.js?raw')).default;
+    () => {
+      const src = safeStr(findLobbyByCodeFnSource);
       const required = [
         'LOBBY_STALE_AFTER_MS = 10 * 60 * 1000',
         'Lobi süresi doldu',
       ];
-      const missing = required.filter((t) => !String(src || '').includes(t));
+      const missing = required.filter((t) => !src.includes(t));
       if (missing.length) {
-        return fail('Stale-lobby guard missing from findLobbyByCode.', {
+        return fail('Stale-lobby guard missing from findLobbyByCode mirror.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
@@ -215,15 +242,14 @@ export const EXTRA_TESTS = [
   /* 8. In-app banner visible while app is open */
   makeCase('invite_lifecycle', 'in_app_invite_banner_visible_when_app_open',
     'GameInviteNotifier mounts globally and surfaces pending invites as toasts',
-    async () => {
-      const src = (await import('../../components/invites/GameInviteNotifier.jsx?raw')).default;
+    () => {
+      const src = safeStr(gameInviteNotifierSource);
       const required = [
         'showInviteToast',
         'Kronox oyun daveti',
         'INVITE_TOAST_DURATION_MS',
       ];
-      const appSrc = (await import('../../App.jsx?raw')).default;
-      const missing = required.filter((t) => !String(src || '').includes(t));
+      const missing = required.filter((t) => !src.includes(t));
       if (missing.length) {
         return fail('Notifier banner contract is missing pieces.', {
           verification: 'STATIC_CONTRACT',
@@ -232,7 +258,7 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      if (!String(appSrc || '').includes('<GameInviteNotifier')) {
+      if (!safeStr(appSource).includes('<GameInviteNotifier')) {
         return fail('GameInviteNotifier is not mounted at the App shell level.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
@@ -247,9 +273,9 @@ export const EXTRA_TESTS = [
   /* 9. Banner auto-dismiss: 10 seconds */
   makeCase('invite_lifecycle', 'in_app_invite_banner_auto_dismiss',
     'Banner auto-dismisses after 10 seconds; dismiss never deletes invite',
-    async () => {
-      const src = (await import('../../components/invites/GameInviteNotifier.jsx?raw')).default;
-      if (!String(src || '').includes('INVITE_TOAST_DURATION_MS = 10000')) {
+    () => {
+      const src = safeStr(gameInviteNotifierSource);
+      if (!src.includes('INVITE_TOAST_DURATION_MS = 10000')) {
         return fail('Banner duration is not 10 seconds.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
@@ -257,7 +283,7 @@ export const EXTRA_TESTS = [
         });
       }
       // Dismiss path must NOT call GameInvite.update/delete.
-      if (/dismissInviteToast[\s\S]{0,400}GameInvite\.(update|delete)/.test(String(src || ''))) {
+      if (/dismissInviteToast[\s\S]{0,400}GameInvite\.(update|delete)/.test(src)) {
         return fail('Banner dismiss path mutates GameInvite — invites would disappear.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
@@ -272,15 +298,15 @@ export const EXTRA_TESTS = [
   /* 10. Banner "Aç" -> /lobby?inviteId= deep-link */
   makeCase('invite_lifecycle', 'in_app_invite_banner_open_goes_to_lobby',
     'Banner "Aç" action navigates to /lobby?inviteId=… which triggers accept + waiting room',
-    async () => {
-      const src = (await import('../../components/invites/GameInviteNotifier.jsx?raw')).default;
+    () => {
+      const src = safeStr(gameInviteNotifierSource);
       const required = [
         "params.set('inviteId'",
         "'/lobby'",
         '<ToastAction',
         'navigate(target)',
       ];
-      const missing = required.filter((t) => !String(src || '').includes(t));
+      const missing = required.filter((t) => !src.includes(t));
       if (missing.length) {
         return fail('Banner "Aç" handler is not wired to /lobby deep-link.', {
           verification: 'STATIC_CONTRACT',
@@ -289,9 +315,7 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      // LobbyRoom must call acceptGameInvite when arriving with the deep-link.
-      const lobbySrc = (await import('../../pages/LobbyRoom.jsx?raw')).default;
-      if (!String(lobbySrc || '').includes('acceptGameInvite(deepLinkInvite.id)')) {
+      if (!safeStr(lobbyRoomSource).includes('acceptGameInvite(deepLinkInvite.id)')) {
         return fail('LobbyRoom deep-link path does not call acceptGameInvite.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
@@ -306,14 +330,14 @@ export const EXTRA_TESTS = [
   /* 11. App resume pending invite check (focus / visibilitychange) */
   makeCase('invite_lifecycle', 'app_resume_pending_invite_check',
     'Notifier re-checks pending invites on focus + visibilitychange',
-    async () => {
-      const src = (await import('../../components/invites/GameInviteNotifier.jsx?raw')).default;
+    () => {
+      const src = safeStr(gameInviteNotifierSource);
       const required = [
         "addEventListener('focus'",
         "addEventListener('visibilitychange'",
         'visibilityState',
       ];
-      const missing = required.filter((t) => !String(src || '').includes(t));
+      const missing = required.filter((t) => !src.includes(t));
       if (missing.length) {
         return fail('Notifier does not refresh on app resume.', {
           verification: 'STATIC_CONTRACT',
@@ -330,18 +354,18 @@ export const EXTRA_TESTS = [
   /* 12. Online screen pending invites visible */
   makeCase('invite_lifecycle', 'online_screen_pending_invites_visible',
     'OnlineChallengeScreen renders <IncomingInvitesPanel /> for pending invites',
-    async () => {
-      const src = (await import('../../components/lobby/OnlineChallengeScreen.jsx?raw')).default;
-      if (!String(src || '').includes('<IncomingInvitesPanel')) {
+    () => {
+      const src = safeStr(onlineChallengeScreenSource);
+      if (!src.includes('<IncomingInvitesPanel')) {
         return fail('Online challenge screen does not render IncomingInvitesPanel.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      const panel = (await import('../../components/invites/IncomingInvitesPanel.jsx?raw')).default;
+      const panel = safeStr(incomingInvitesPanelSource);
       const required = ['loadIncomingInvites', 'acceptGameInvite', 'rejectGameInvite', 'InviteCountdown'];
-      const missing = required.filter((t) => !String(panel || '').includes(t));
+      const missing = required.filter((t) => !panel.includes(t));
       if (missing.length) {
         return fail('IncomingInvitesPanel is missing key wiring.', {
           verification: 'STATIC_CONTRACT',
@@ -358,14 +382,14 @@ export const EXTRA_TESTS = [
   /* 13. No duplicate banner spam */
   makeCase('invite_lifecycle', 'no_duplicate_invite_banner_spam',
     'Notifier keeps a known-id + active-toast map so the same invite cannot be shown twice',
-    async () => {
-      const src = (await import('../../components/invites/GameInviteNotifier.jsx?raw')).default;
+    () => {
+      const src = safeStr(gameInviteNotifierSource);
       const required = [
         'knownInviteIdsRef',
         'activeToastByInviteIdRef',
         'dismissedInviteIdsRef',
       ];
-      const missing = required.filter((t) => !String(src || '').includes(t));
+      const missing = required.filter((t) => !src.includes(t));
       if (missing.length) {
         return fail('Banner spam guard is missing.', {
           verification: 'STATIC_CONTRACT',
@@ -382,18 +406,19 @@ export const EXTRA_TESTS = [
   /* 14. No leftover "5 dakika" UI copy */
   makeCase('invite_lifecycle', 'no_legacy_5_minute_copy_in_invite_ui',
     'Invite-related UI files no longer contain the literal "5 dakika" copy',
-    async () => {
+    () => {
+      // Codex132 — Use the statically-imported in-/src/ sources. No dynamic
+      // imports → cannot throw.
       const files = [
-        '../../components/invites/IncomingInvitesPanel.jsx?raw',
-        '../../components/invites/InviteCountdown.jsx?raw',
-        '../../components/invites/GameInviteNotifier.jsx?raw',
-        '../../components/lobby/OnlineChallengeScreen.jsx?raw',
-        '../../pages/LobbyRoom.jsx?raw',
+        { label: 'IncomingInvitesPanel.jsx', src: incomingInvitesPanelSource },
+        { label: 'InviteCountdown.jsx', src: inviteCountdownSource },
+        { label: 'GameInviteNotifier.jsx', src: gameInviteNotifierSource },
+        { label: 'OnlineChallengeScreen.jsx', src: onlineChallengeScreenSource },
+        { label: 'LobbyRoom.jsx', src: lobbyRoomSource },
       ];
       const hits = [];
-      for (const path of files) {
-        const src = (await import(path)).default || '';
-        if (/5\s*dakika/i.test(String(src))) hits.push(path.replace('?raw', ''));
+      for (const { label, src } of files) {
+        if (/5\s*dakika/i.test(safeStr(src))) hits.push(label);
       }
       if (hits.length) {
         return fail('Legacy 5-minute UI copy still present.', {
