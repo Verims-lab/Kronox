@@ -7,21 +7,29 @@ import { summarizeSoloProgress } from '@/lib/soloProgressHelpers';
 import { loadFriends } from '@/lib/friendsApi';
 import {
   getLeaderboardDiamondValue,
+  getLeaderboardOwnerKey,
+  getFriendLeaderboardKeys,
   LEADERBOARD_FETCH_LIMIT,
   LEADERBOARD_TOP_LIMIT,
-  rankSoloLeaderboardUsers,
+  buildSoloLeaderboardPayload,
+  loadSoloLeaderboardEntries,
+  publishSoloLeaderboardEntry,
+  rankSoloLeaderboardEntries,
   selectLeaderboardSections,
+  toSoloLeaderboardEntry,
 } from '@/lib/leaderboard';
 import { isAdminUser } from '@/lib/admin';
 import KronoxRankingSection from '@/components/leaderboard/KronoxRankingSection';
 
 /**
- * Codex119 — Liderlik graceful fallback.
+ * Codex117/Codex119 — Public-safe Solo leaderboard with graceful fallback.
  *
- * The page keeps owning data fetching, but the "Kronox Sıralaması" section
- * UI was extracted to a small focused component (KronoxRankingSection).
+ * We show REAL user-specific Solo totals from User.solo_progress and mirror
+ * them into SoloLeaderboardEntry rows that expose only public-safe rank data.
+ * The page owns data fetching; the "Kronox Sıralaması" UI lives in the
+ * focused KronoxRankingSection component.
  *
- * Fallback rules (when global ranking can't be produced):
+ * Fallback rules:
  *   • Stat cards (Puan / Level / Elmas) stay visible from the user's own
  *     Solo progress source — the page never feels broken.
  *   • The ranking section shows a neutral "hazırlanıyor" placeholder,
@@ -30,6 +38,7 @@ import KronoxRankingSection from '@/components/leaderboard/KronoxRankingSection'
  *     they always see their score on this screen.
  *   • Admins additionally see a small technical diagnostics line.
  *   • Retry button stays available.
+ *   • No private full User row ranking dependency, fake users, or raw emails.
  *
  * Solo scoring, progression, drag/drop, Timeline, QuestionCard,
  * GameLayout, invite/lobby/notification/tutorial logic — untouched.
@@ -46,6 +55,8 @@ export default function LeaderboardPage() {
     currentUserRow: null,
     currentUserInTop: false,
     friendsOutsideTop: [],
+    ownScoreRow: null,
+    rankFinalizing: false,
     friendCount: 0,
     // Codex119 — own-score fallback always travels with the leaderboard
     // state so the placeholder block can render it without re-reading
@@ -74,8 +85,10 @@ export default function LeaderboardPage() {
     // progress source. It is set up-front so the placeholder block can
     // render the correct Puan even before the global call resolves
     // (and especially when it fails).
-    const ownProgress = readSoloProgress(user);
-    const ownSummary = summarizeSoloProgress(ownProgress, getSoloLevelCount());
+    const currentProgress = readSoloProgress(user);
+    const currentOwnerKey = getLeaderboardOwnerKey(user.email);
+    const currentPayload = buildSoloLeaderboardPayload(user, currentProgress);
+    const ownSummary = summarizeSoloProgress(currentProgress, getSoloLevelCount());
     const ownScoreFallback = {
       totalSoloScore: ownSummary.totalSoloScore,
       currentLevel: ownSummary.currentLevel,
@@ -83,12 +96,22 @@ export default function LeaderboardPage() {
 
     setLeaderboard((prev) => ({ ...prev, loading: true, error: '', ownScoreFallback }));
     try {
-      const [users, friends] = await Promise.all([
-        base44.entities.User.list('-updated_date', LEADERBOARD_FETCH_LIMIT),
+      const [publishedRow, rows, friends] = await Promise.all([
+        publishSoloLeaderboardEntry(user, currentProgress).catch(() => null),
+        loadSoloLeaderboardEntries(LEADERBOARD_FETCH_LIMIT),
         loadFriends(user.email).catch(() => []),
       ]);
-      const readableUsers = Array.isArray(users) ? users : [];
-      if (readableUsers.length === 0) {
+      const friendEmails = (friends || []).map((friend) => friend.friend_email).filter(Boolean);
+      const friendKeys = getFriendLeaderboardKeys(friendEmails);
+      const readableRows = Array.isArray(rows) ? [...rows] : [];
+      if (publishedRow?.owner_key && !readableRows.some((row) => row?.owner_key === publishedRow.owner_key)) {
+        readableRows.push(publishedRow);
+      }
+      const rankedRows = rankSoloLeaderboardEntries(readableRows, friendKeys, currentOwnerKey);
+      const sections = selectLeaderboardSections(rankedRows, currentOwnerKey, LEADERBOARD_TOP_LIMIT);
+      const ownScoreRow = sections.currentUserRow || toSoloLeaderboardEntry(publishedRow || currentPayload, friendKeys, currentOwnerKey);
+
+      if (rankedRows.length === 0) {
         setLeaderboard({
           loading: false,
           loaded: true,
@@ -98,33 +121,37 @@ export default function LeaderboardPage() {
           currentUserRow: null,
           currentUserInTop: false,
           friendsOutsideTop: [],
+          ownScoreRow,
+          rankFinalizing: true,
           friendCount: 0,
           ownScoreFallback,
         });
         return;
       }
-      const friendEmails = (friends || []).map((friend) => friend.friend_email).filter(Boolean);
-      const rankedRows = rankSoloLeaderboardUsers(readableUsers, friendEmails, user);
-      const sections = selectLeaderboardSections(rankedRows, user.email, LEADERBOARD_TOP_LIMIT);
       setLeaderboard({
         loading: false,
         loaded: true,
         error: '',
         rankedRows,
         ...sections,
+        ownScoreRow,
+        rankFinalizing: false,
         friendCount: friendEmails.length,
         ownScoreFallback,
       });
     } catch (err) {
+      const ownScoreRow = toSoloLeaderboardEntry(currentPayload, new Set(), currentOwnerKey);
       setLeaderboard({
         loading: false,
         loaded: true,
-        error: err?.message || 'Sıralama verisi yüklenemedi.',
+        error: err?.message || 'Sıralama kaynağı hazırlanıyor.',
         rankedRows: [],
         topRows: [],
         currentUserRow: null,
         currentUserInTop: false,
         friendsOutsideTop: [],
+        ownScoreRow,
+        rankFinalizing: true,
         friendCount: 0,
         ownScoreFallback,
       });

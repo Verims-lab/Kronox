@@ -148,7 +148,7 @@ export const EXTRA_TESTS = [
     () => {
       const sectionMissing = missingTokens(kronoxRankingSectionSource, [
         'Kronox sıralaması hazırlanıyor.',
-        'Puanın kaydedildi. Genel sıralama aktif olduğunda burada görünecek.',
+        'Puanın kaydedildi. Kısa süre içinde sıralamada görünecek.',
         'Genel Sıran',
         'Hazırlanıyor',
         'Tekrar Dene',

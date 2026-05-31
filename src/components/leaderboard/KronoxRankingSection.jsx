@@ -21,13 +21,15 @@ import { Loader2, Medal, RefreshCw, Trophy, UserRound, Users } from 'lucide-reac
  *   user             : current user (or null)
  *   leaderboard      : { loading, loaded, error, topRows, currentUserRow,
  *                        currentUserInTop, friendsOutsideTop, friendCount,
- *                        ownScoreFallback: { totalSoloScore, currentLevel } }
+ *                        ownScoreRow, ownScoreFallback: { totalSoloScore,
+ *                        currentLevel } }
  *   onRetry          : () => void
  *   isAdmin          : boolean — gates the technical diagnostic line
  */
 export default function KronoxRankingSection({ authChecked, user, leaderboard, onRetry, isAdmin }) {
   const hasRows = leaderboard.topRows.length > 0;
   const showOwnRank = leaderboard.currentUserRow && !leaderboard.currentUserInTop;
+  const showOwnScorePending = !leaderboard.currentUserRow && leaderboard.ownScoreRow;
   const showFriendRows = leaderboard.friendsOutsideTop.length > 0;
   const waitingForLeaderboard = Boolean(user && !leaderboard.loaded && !leaderboard.error);
   const friendEmptyCopy = leaderboard.friendCount > 0
@@ -91,9 +93,21 @@ export default function KronoxRankingSection({ authChecked, user, leaderboard, o
           {showOwnRank && (
             <div className="pt-2">
               <p className="mb-2 px-1 font-inter text-[10px] font-black uppercase tracking-widest text-amber-200/80">
-                Benim Sıram
+                Senin Sıran
               </p>
               <LeaderboardRow row={leaderboard.currentUserRow} emphasis />
+            </div>
+          )}
+
+          {showOwnScorePending && (
+            <div className="pt-2">
+              <p className="mb-2 px-1 font-inter text-[10px] font-black uppercase tracking-widest text-amber-200/80">
+                Senin Puanın
+              </p>
+              <LeaderboardRow row={{ ...leaderboard.ownScoreRow, rank: null, isCurrentUser: true }} emphasis />
+              <p className="mt-1 px-1 font-inter text-[10px] leading-relaxed text-blue-100/55">
+                Genel sıran public tabloya yazıldığında netleşecek.
+              </p>
             </div>
           )}
 
@@ -180,7 +194,7 @@ function RankingPreparingState({ ownScore, onRetry, isAdmin, backendReason }) {
             Kronox sıralaması hazırlanıyor.
           </p>
           <p className="mt-1 font-inter text-[11px] leading-relaxed text-blue-100/70">
-            Puanın kaydedildi. Genel sıralama aktif olduğunda burada görünecek.
+            Puanın kaydedildi. Kısa süre içinde sıralamada görünecek.
           </p>
         </div>
       </div>
@@ -268,6 +282,7 @@ function EmptyState({ icon: Icon, title, text }) {
 function LeaderboardRow({ row, compact = false, emphasis = false }) {
   const isHighlighted = row.isCurrentUser || emphasis;
   const rankColor = row.rank <= 3 ? '#facc15' : '#93c5fd';
+  const rankText = Number.isFinite(Number(row.rank)) ? `#${row.rank}` : '—';
 
   return (
     <div
@@ -282,7 +297,7 @@ function LeaderboardRow({ row, compact = false, emphasis = false }) {
       }}
     >
       <div className="w-8 shrink-0 text-center font-bangers text-lg leading-none" style={{ color: rankColor }}>
-        #{row.rank}
+        {rankText}
       </div>
       <div
         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-bangers text-base text-amber-950"

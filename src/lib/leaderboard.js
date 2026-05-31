@@ -1,11 +1,24 @@
-import { getSoloLevelCount, normalizeSoloProgress } from './soloLevels';
-import { summarizeSoloProgress } from './soloProgressHelpers';
+import { base44 } from '@/api/base44Client';
+import { backfillSoloScores, summarizeSoloProgress } from './soloProgressHelpers';
 
 export const LEADERBOARD_TOP_LIMIT = 10;
 export const LEADERBOARD_FETCH_LIMIT = 500;
+export const LEADERBOARD_SOLO_LEVEL_COUNT = 20;
 
 export function normalizeLeaderboardEmail(raw) {
   return String(raw || '').trim().toLowerCase();
+}
+
+export function getLeaderboardOwnerKey(rawEmail) {
+  const email = normalizeLeaderboardEmail(rawEmail);
+  if (!email) return '';
+
+  let hash = 2166136261;
+  for (let i = 0; i < email.length; i += 1) {
+    hash ^= email.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `u_${(hash >>> 0).toString(36)}`;
 }
 
 function cleanDisplayText(raw) {
@@ -15,19 +28,20 @@ function cleanDisplayText(raw) {
     .slice(0, 28);
 }
 
-export function getSafeLeaderboardName(user) {
+export function getSafeLeaderboardName(userOrEntry) {
   const explicitName = [
-    user?.full_name,
-    user?.display_name,
-    user?.username,
-    user?.name,
+    userOrEntry?.display_name,
+    userOrEntry?.full_name,
+    userOrEntry?.displayName,
+    userOrEntry?.username,
+    userOrEntry?.name,
   ].map(cleanDisplayText).find(Boolean);
 
   if (explicitName && !explicitName.includes('@')) return explicitName;
 
-  const email = normalizeLeaderboardEmail(user?.email || user?.user_email);
-  const localPart = cleanDisplayText(email.split('@')[0]);
-  return localPart || 'Oyuncu';
+  const ownerKey = String(userOrEntry?.owner_key || getLeaderboardOwnerKey(userOrEntry?.email || userOrEntry?.user_email));
+  const suffix = ownerKey ? ownerKey.slice(-4).toLocaleUpperCase('tr-TR') : '';
+  return suffix ? `Oyuncu ${suffix}` : 'Oyuncu';
 }
 
 export function getLeaderboardDiamondValue(user) {
@@ -55,6 +69,10 @@ export function getLeaderboardDiamondValue(user) {
   return realValue === undefined ? 0 : Math.max(0, Math.floor(Number(realValue)));
 }
 
+function normalizeSoloProgressForLeaderboard(progress, totalLevels = LEADERBOARD_SOLO_LEVEL_COUNT) {
+  return backfillSoloScores(progress || {}, totalLevels).progress;
+}
+
 function getAggregateBestTimeSeconds(progress) {
   const levels = progress?.levels && typeof progress.levels === 'object'
     ? progress.levels
@@ -74,68 +92,140 @@ function getAggregateBestTimeSeconds(progress) {
   return count > 0 ? total : null;
 }
 
-export function toSoloLeaderboardEntry(user, friendEmailSet = new Set(), currentUserEmail = '') {
-  const email = normalizeLeaderboardEmail(user?.email || user?.user_email);
-  const identityKey = email || String(user?.id || user?._id || getSafeLeaderboardName(user)).toLowerCase();
-  const progress = normalizeSoloProgress(user?.solo_progress);
-  const summary = summarizeSoloProgress(progress, getSoloLevelCount());
+function initialFromName(displayName) {
+  return cleanDisplayText(displayName).charAt(0).toLocaleUpperCase('tr-TR') || 'O';
+}
+
+export function buildSoloLeaderboardPayload(user, progress, totalLevels = LEADERBOARD_SOLO_LEVEL_COUNT) {
+  const ownerKey = getLeaderboardOwnerKey(user?.email || user?.user_email);
+  const normalizedProgress = normalizeSoloProgressForLeaderboard(progress || user?.solo_progress, totalLevels);
+  const summary = summarizeSoloProgress(normalizedProgress, totalLevels);
+  const displayName = getSafeLeaderboardName(user);
+  const aggregateBestTimeSeconds = getAggregateBestTimeSeconds(normalizedProgress);
 
   return {
-    id: identityKey,
-    email,
-    displayName: getSafeLeaderboardName(user),
-    initial: getSafeLeaderboardName(user).charAt(0).toLocaleUpperCase('tr-TR') || 'O',
-    summary,
-    aggregateBestTimeSeconds: getAggregateBestTimeSeconds(progress),
-    isCurrentUser: Boolean(currentUserEmail && email && email === normalizeLeaderboardEmail(currentUserEmail)),
-    isFriend: Boolean(email && friendEmailSet.has(email)),
+    owner_key: ownerKey,
+    display_name: displayName,
+    initial: initialFromName(displayName),
+    total_solo_score: Math.max(0, Number(summary.totalSoloScore) || 0),
+    current_level: Math.max(1, Number(summary.currentLevel) || 1),
+    unlocked_level: Math.max(1, Number(summary.unlockedLevel) || Number(summary.currentLevel) || 1),
+    total_stars: Math.max(0, Number(summary.totalStars) || 0),
+    completed_level_count: Math.max(0, Number(summary.completedLevelCount) || 0),
+    ...(aggregateBestTimeSeconds !== null ? { aggregate_best_time_seconds: aggregateBestTimeSeconds } : {}),
+    updated_at: new Date().toISOString(),
   };
 }
 
-export function rankSoloLeaderboardUsers(users, friendEmails = [], currentUser = null) {
-  const currentUserEmail = normalizeLeaderboardEmail(currentUser?.email || currentUser?.user_email);
-  const friendEmailSet = new Set((friendEmails || []).map(normalizeLeaderboardEmail).filter(Boolean));
-  const byIdentity = new Map();
+export async function publishSoloLeaderboardEntry(user, progress, totalLevels = LEADERBOARD_SOLO_LEVEL_COUNT) {
+  const payload = buildSoloLeaderboardPayload(user, progress, totalLevels);
+  if (!payload.owner_key) return null;
 
-  (users || []).forEach((user) => {
-    const key = normalizeLeaderboardEmail(user?.email || user?.user_email) || String(user?.id || user?._id || '').toLowerCase();
-    if (!key) return;
-    byIdentity.set(key, user);
+  const existing = await base44.entities.SoloLeaderboardEntry.filter(
+    { owner_key: payload.owner_key },
+    '-updated_at',
+    5,
+  );
+  const ownRow = existing?.[0] || null;
+  if (ownRow?.id) {
+    return base44.entities.SoloLeaderboardEntry.update(ownRow.id, payload);
+  }
+  return base44.entities.SoloLeaderboardEntry.create(payload);
+}
+
+export async function loadSoloLeaderboardEntries(limit = LEADERBOARD_FETCH_LIMIT) {
+  const rows = await base44.entities.SoloLeaderboardEntry.list('-total_solo_score', limit);
+  return Array.isArray(rows) ? rows : [];
+}
+
+export function getFriendLeaderboardKeys(friendEmails = []) {
+  return new Set(
+    (friendEmails || [])
+      .map(getLeaderboardOwnerKey)
+      .filter(Boolean),
+  );
+}
+
+export function toSoloLeaderboardEntry(publicRow, friendKeySet = new Set(), currentOwnerKey = '') {
+  const ownerKey = String(publicRow?.owner_key || '').trim();
+  const displayName = getSafeLeaderboardName(publicRow);
+  const score = Math.max(0, Number(publicRow?.total_solo_score) || 0);
+  const currentLevel = Math.max(1, Number(publicRow?.current_level) || 1);
+  const totalStars = Math.max(0, Number(publicRow?.total_stars) || 0);
+  const aggregateBestTimeSeconds = Number(publicRow?.aggregate_best_time_seconds);
+
+  return {
+    id: ownerKey || String(publicRow?.id || publicRow?._id || displayName).toLowerCase(),
+    ownerKey,
+    displayName,
+    initial: cleanDisplayText(publicRow?.initial).slice(0, 1) || initialFromName(displayName),
+    summary: {
+      totalSoloScore: score,
+      currentLevel,
+      unlockedLevel: Math.max(1, Number(publicRow?.unlocked_level) || currentLevel),
+      totalStars,
+      completedLevelCount: Math.max(0, Number(publicRow?.completed_level_count) || 0),
+    },
+    updatedAt: publicRow?.updated_at || publicRow?.updated_date || publicRow?.created_date || '',
+    aggregateBestTimeSeconds: Number.isFinite(aggregateBestTimeSeconds) ? aggregateBestTimeSeconds : null,
+    isCurrentUser: Boolean(currentOwnerKey && ownerKey && ownerKey === currentOwnerKey),
+    isFriend: Boolean(ownerKey && friendKeySet.has(ownerKey)),
+  };
+}
+
+export function rankSoloLeaderboardEntries(publicRows, friendKeys = new Set(), currentOwnerKey = '') {
+  const byOwnerKey = new Map();
+
+  (publicRows || []).forEach((row) => {
+    const ownerKey = String(row?.owner_key || '').trim();
+    if (!ownerKey) return;
+    const current = byOwnerKey.get(ownerKey);
+    if (!current || comparePublicLeaderboardRows(row, current) < 0) {
+      byOwnerKey.set(ownerKey, row);
+    }
   });
 
-  if (currentUserEmail) {
-    byIdentity.set(currentUserEmail, currentUser);
-  }
-
-  const ranked = Array.from(byIdentity.values())
-    .map((user) => toSoloLeaderboardEntry(user, friendEmailSet, currentUserEmail))
+  const ranked = Array.from(byOwnerKey.values())
+    .map((row) => toSoloLeaderboardEntry(row, friendKeys, currentOwnerKey))
     .filter((entry) => entry.id)
-    .sort((a, b) => {
-      const scoreDiff = b.summary.totalSoloScore - a.summary.totalSoloScore;
-      if (scoreDiff) return scoreDiff;
-
-      const levelDiff = b.summary.currentLevel - a.summary.currentLevel;
-      if (levelDiff) return levelDiff;
-
-      const starsDiff = b.summary.totalStars - a.summary.totalStars;
-      if (starsDiff) return starsDiff;
-
-      const aTime = Number.isFinite(a.aggregateBestTimeSeconds) ? a.aggregateBestTimeSeconds : Infinity;
-      const bTime = Number.isFinite(b.aggregateBestTimeSeconds) ? b.aggregateBestTimeSeconds : Infinity;
-      const timeDiff = aTime - bTime;
-      if (Number.isFinite(timeDiff) && timeDiff) return timeDiff;
-
-      return a.id.localeCompare(b.id, 'tr');
-    });
+    .sort(compareLeaderboardEntries);
 
   return ranked.map((entry, index) => ({ ...entry, rank: index + 1 }));
 }
 
-export function selectLeaderboardSections(rankedRows, currentUserEmail, topLimit = LEADERBOARD_TOP_LIMIT) {
+function comparePublicLeaderboardRows(a, b) {
+  const entryA = toSoloLeaderboardEntry(a);
+  const entryB = toSoloLeaderboardEntry(b);
+  return compareLeaderboardEntries(entryA, entryB);
+}
+
+function compareLeaderboardEntries(a, b) {
+  const scoreDiff = b.summary.totalSoloScore - a.summary.totalSoloScore;
+  if (scoreDiff) return scoreDiff;
+
+  const levelDiff = b.summary.currentLevel - a.summary.currentLevel;
+  if (levelDiff) return levelDiff;
+
+  const starsDiff = b.summary.totalStars - a.summary.totalStars;
+  if (starsDiff) return starsDiff;
+
+  const aTime = Number.isFinite(a.aggregateBestTimeSeconds) ? a.aggregateBestTimeSeconds : Infinity;
+  const bTime = Number.isFinite(b.aggregateBestTimeSeconds) ? b.aggregateBestTimeSeconds : Infinity;
+  const timeDiff = aTime - bTime;
+  if (Number.isFinite(timeDiff) && timeDiff) return timeDiff;
+
+  const bUpdated = Date.parse(b.updatedAt || '') || 0;
+  const aUpdated = Date.parse(a.updatedAt || '') || 0;
+  const updatedDiff = bUpdated - aUpdated;
+  if (updatedDiff) return updatedDiff;
+
+  return a.id.localeCompare(b.id, 'tr');
+}
+
+export function selectLeaderboardSections(rankedRows, currentOwnerKey, topLimit = LEADERBOARD_TOP_LIMIT) {
   const topRows = (rankedRows || []).slice(0, topLimit);
   const topIds = new Set(topRows.map((row) => row.id));
-  const normalizedCurrent = normalizeLeaderboardEmail(currentUserEmail);
-  const currentUserRow = (rankedRows || []).find((row) => row.email && row.email === normalizedCurrent) || null;
+  const currentUserRow = (rankedRows || []).find((row) => row.ownerKey && row.ownerKey === currentOwnerKey) || null;
   const currentUserInTop = Boolean(currentUserRow && topIds.has(currentUserRow.id));
   const friendsOutsideTop = (rankedRows || [])
     .filter((row) => row.isFriend && !topIds.has(row.id))
