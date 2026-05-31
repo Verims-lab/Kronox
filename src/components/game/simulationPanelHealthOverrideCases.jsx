@@ -50,6 +50,8 @@ import lobbyCreateJoinPanelSource from '../lobby/LobbyCreateJoinPanel.jsx?raw';
 import lobbyRoomSource from '../../pages/LobbyRoom.jsx?raw';
 import onlineChallengeScreenSource from '../lobby/OnlineChallengeScreen.jsx?raw';
 import onlineCategoryCarouselSource from '../lobby/OnlineCategoryCarousel.jsx?raw';
+// Codex132 follow-up — new override sources for the three re-targeted cases.
+import mainMenuSource from '../../pages/MainMenu.jsx?raw';
 import { gameInviteEntitySource } from './simulationPanelContractStrings.jsx';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
@@ -114,6 +116,11 @@ export const OVERRIDDEN_CASE_KEYS = new Set([
   'route_navigation_resilience.lobby_create_join_modes_static',
   'online_category_taxonomy.lobby_panel_consumes_centralized_taxonomy',
   'friends_validation.clear_success_and_error_messages',
+  // Codex132 follow-up — three stale visual/code-ux contracts that still
+  // pointed at the pre-Codex127 lobby surface. Re-targeted below.
+  'lobby_code_ux.acik_lobiye_gir_preserved',
+  'visual_composition_regression.image_buttons_have_press_feedback_regression',
+  'visual_composition_regression.asset_path_drift_warning',
 ]);
 
 // No new suite ids — we reuse the existing suite ids defined in the base
@@ -222,6 +229,104 @@ export const EXTRA_TESTS = [
       'ONLINE_CATEGORIES.map',
       'OnlineCategoryCarousel',
     ],
+  ),
+
+  /* ------------------------------------------------------------------
+   *  lobby_code_ux — Join-by-code button text changed from
+   *  "AÇIK LOBİYE GİR" (pre-Codex127 landing button) to "KATIL" inside
+   *  the dedicated LobbyCreateJoinPanel join screen. Health still
+   *  expected the old text. The product invariant is: the join-by-code
+   *  path still exists, has a clear CTA, and is reachable through the
+   *  Online screen ("veya kodla katıl"). We re-target accordingly.
+   * ------------------------------------------------------------------ */
+  makeCase(
+    'lobby_code_ux', 'Lobby Code UX Suite',
+    'acik_lobiye_gir_preserved',
+    'Join-by-code path is preserved: Online screen offers "veya kodla katıl" entry, and LobbyCreateJoinPanel renders the join CTA',
+    () => {
+      const online = safeStr(onlineChallengeScreenSource);
+      const panel = safeStr(lobbyCreateJoinPanelSource);
+      const onlineHasEntry = online.includes('veya kodla katıl') && online.includes('onJoinOpenLobby');
+      const panelIsJoinOnly = panel.includes("if (mode !== 'join') return null");
+      const panelHasJoinCta = panel.includes("'KATIL'") || panel.includes('KATIL');
+      const panelHasJoinHandler = panel.includes('onJoin');
+      if (!onlineHasEntry || !panelIsJoinOnly || !panelHasJoinCta || !panelHasJoinHandler) {
+        return fail('Join-by-code path is not preserved.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'OnlineChallengeScreen.jsx + LobbyCreateJoinPanel.jsx',
+          expected: {
+            online: 'veya kodla katıl + onJoinOpenLobby',
+            panel: 'join-only render + KATIL CTA + onJoin handler',
+          },
+          actual: { onlineHasEntry, panelIsJoinOnly, panelHasJoinCta, panelHasJoinHandler },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Join-by-code entry on Online screen + KATIL CTA on join panel are wired.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        file: 'OnlineChallengeScreen.jsx + LobbyCreateJoinPanel.jsx',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true },
+  ),
+
+  /* ------------------------------------------------------------------
+   *  visual_composition_regression.image_buttons_have_press_feedback_regression
+   *  Codex127 replaced CSS `group-active:` press feedback on the legacy
+   *  image-CTAs with framer-motion `whileTap` on the new MainMenu home
+   *  buttons + Online CTA. The product invariant is still: image-based
+   *  buttons have a tactile press response. We accept ANY of the
+   *  approved tactile tokens and verify they exist on the actual press
+   *  surfaces.
+   * ------------------------------------------------------------------ */
+  makeCase(
+    'visual_composition_regression', 'Visual Composition Regression Suite',
+    'image_buttons_have_press_feedback_regression',
+    'Image-based buttons (home + Online CTA) have tactile press feedback via whileTap, active:scale, or group-active',
+    () => {
+      const composed = `${safeStr(mainMenuSource)}\n${safeStr(onlineChallengeScreenSource)}\n${safeStr(lobbyCreateJoinPanelSource)}`;
+      const tactileTokens = ['whileTap', 'active:scale', 'group-active'];
+      const present = tactileTokens.filter((t) => composed.includes(t));
+      if (present.length === 0) {
+        return fail('No tactile press-feedback token found on image-based buttons.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'MainMenu.jsx + OnlineChallengeScreen.jsx + LobbyCreateJoinPanel.jsx',
+          expected: { anyOf: tactileTokens },
+          actual: { present: [] },
+          actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW,
+        });
+      }
+      return pass(`Image buttons have tactile feedback via: ${present.join(', ')}.`, {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        file: 'MainMenu.jsx + OnlineChallengeScreen.jsx + LobbyCreateJoinPanel.jsx',
+        actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW,
+      });
+    },
+    { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW, recentlyFixed: true },
+  ),
+
+  /* ------------------------------------------------------------------
+   *  visual_composition_regression.asset_path_drift_warning
+   *  Codex127 replaced the legacy /assets/ui/Kronox_Online_CTA_Start.webp
+   *  + Kronox_Online_CTA_Join.webp image-CTAs with the new chip carousel
+   *  + framer-motion gold CTA inside OnlineChallengeScreen.jsx. Those
+   *  asset paths are now obsolete in the active flow. The MainMenu still
+   *  uses approved /assets/ui/* images for home buttons — we verify the
+   *  approved-asset contract there instead.
+   * ------------------------------------------------------------------ */
+  sourceHasReplacement(
+    'visual_composition_regression', 'Visual Composition Regression Suite',
+    'asset_path_drift_warning',
+    'MainMenu still uses approved /assets/ui/ image paths for the home buttons',
+    'pages/MainMenu.jsx',
+    mainMenuSource,
+    ['/assets/ui/'],
+    { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW, recentlyFixed: true },
   ),
 
   /* ------------------------------------------------------------------

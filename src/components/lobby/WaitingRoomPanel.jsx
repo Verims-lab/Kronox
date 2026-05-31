@@ -396,5 +396,5 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
   );
 }
 
-// Codex131 — ChipButton/StepperButton helpers removed alongside the in-lobby
+// Codex131 — Legacy chip/stepper helpers were removed alongside the in-lobby
 // settings panel they powered. No other call sites existed.

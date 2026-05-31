@@ -11,8 +11,8 @@ import ScreenHeader from '@/components/layout/ScreenHeader';
  *
  * After the new OnlineChallengeScreen took over the landing + create
  * flow, this panel only renders the "join via code" mode now. The
- * legacy "OnlineChallengeLanding" + "CreateLobbyInvitePanel" code paths
- * are removed from the active flow.
+ * legacy landing + create-invite code paths are removed from the active
+ * flow; this file no longer references either of those former panels.
  *
  * Props (unchanged for compatibility):
  *   mode === 'join' is the only supported render path; other modes

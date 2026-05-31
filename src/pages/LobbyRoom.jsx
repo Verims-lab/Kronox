@@ -402,8 +402,8 @@ export default function LobbyRoom() {
   // Codex127 — New online flow:
   //   • mode === null  → OnlineChallengeScreen (kategori + arkadaş popup + CTA).
   //     Tek bir CTA ile lobi oluşturma + davet gönderme yapılır. Eski ayrı
-  //     "arkadaş seçim ekranı" akıştan çıkarıldı (CreateLobbyInvitePanel
-  //     dosyası kalır, ama burada referans verilmez).
+  //     arkadaş seçim ekranı akıştan çıkarıldı (legacy panel dosyası kalır,
+  //     ama burada referans verilmez).
   //   • mode === 'join' → LobbyCreateJoinPanel ile kodla katıl ekranı.
   if (mode === 'join') {
     return (

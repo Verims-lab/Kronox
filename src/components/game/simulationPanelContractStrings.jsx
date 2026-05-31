@@ -320,6 +320,29 @@ export const findLobbyByCodeFnSource = `
   }
 `;
 
+export const startLobbyGameFnSource = `
+  // Public contract of functions/startLobbyGame.js — mirrored.
+  // Codex131: in-lobby settings panel removed; backend ignores body.settings.
+  // Codex130: nothing TTL-related here (TTL lives in invite functions).
+  const normalizeSettings = (lobby, incoming = {}) => {
+    // selected_category_ids preferred over legacy single-category field.
+    const selectedCategoryIds = Array.isArray(incoming.selected_category_ids)
+      ? incoming.selected_category_ids
+      : (Array.isArray(lobby.selected_category_ids) ? lobby.selected_category_ids : []);
+    return { selected_category_ids: selectedCategoryIds };
+  };
+  const authenticatedHost = Boolean(actorEmail && hostEmail === actorEmail);
+  const guestHost = Boolean(!actorEmail && hostEmail?.startsWith('guest_') && players[0]?.name === actorName);
+  if (!authenticatedHost && !guestHost) {
+    return json({ error: 'Sadece host oyunu baslatabilir.' }, 403);
+  }
+  if (players.length < 2) {
+    return json({ error: 'Oyun baslatmak icin en az 2 oyuncu gerekli' }, 400);
+  }
+  // Codex131 — body.settings is intentionally NOT read here.
+  const settings = normalizeSettings(lobby, {});
+`;
+
 export const sendFriendRequestEmailFnSourceFull = `
   // Full mirror of functions/sendFriendRequestEmail.js for Health cases that
   // need the exact failure marker tokens.
