@@ -21,13 +21,27 @@ import {
   traceGameInviteLifecycle,
 } from '@/lib/gameInviteSelectors';
 
+// Codex130 — Game invite + lobby staleness TTL: 10 minutes.
+// This mirrors the Base44 function constants in acceptGameInvite and
+// sendGameInvitePush. Keep the client copy aligned with those server guards.
+export { GAME_INVITE_TTL_MS };
+export const LOBBY_STALE_AFTER_MS = 10 * 60 * 1000;
+
 export {
-  GAME_INVITE_TTL_MS,
+  filterActiveIncomingGameInvites,
   getGameInviteActiveFilterReason,
   getInviteRemainingMs,
   isActiveIncomingGameInvite,
   mergeActiveIncomingGameInvites,
 };
+
+export function isLobbyStale(lobby, now = Date.now()) {
+  if (!lobby || lobby.status !== 'waiting') return false;
+  const raw = lobby.updated_date || lobby.created_date || lobby.created_at;
+  const time = raw ? new Date(raw).getTime() : NaN;
+  if (!Number.isFinite(time)) return false;
+  return (now - time) > LOBBY_STALE_AFTER_MS;
+}
 
 export function getGameInviteCreatedAt(invite) {
   return getInviteCreatedAt(invite);
@@ -61,7 +75,11 @@ export async function loadIncomingInvites(myEmail) {
     50,
   );
   const now = Date.now();
-  traceGameInviteLifecycle('invite_loaded_by_fetch_batch', { id: `count:${rows?.length || 0}`, status: 'pending', to_email: me }, { source: 'loadIncomingInvites', userEmail: me, reason: 'batch_count' });
+  traceGameInviteLifecycle('invite_loaded_by_fetch_batch', { id: `count:${rows?.length || 0}`, status: 'pending', to_email: me }, {
+    source: 'loadIncomingInvites',
+    userEmail: me,
+    reason: 'batch_count',
+  });
   const settled = await Promise.all((rows || []).map(async (invite) => {
     const reason = getGameInviteActiveFilterReason(invite, me, now);
     traceGameInviteLifecycle(reason.startsWith('active') ? 'invite_passed_active_filter' : 'invite_failed_active_filter', invite, {
@@ -207,8 +225,12 @@ export async function openGameInvite(invite, {
     reason: 'accepted',
   });
 
-  if (res?.lobby?.id && typeof navigate === 'function') {
-    navigate('/lobby', { state: { joinedLobby: res.lobby } });
+  if (typeof navigate === 'function') {
+    if (res?.lobby?.id) {
+      navigate('/lobby', { state: { joinedLobby: res.lobby } });
+    } else {
+      navigate('/lobby');
+    }
   }
   await onAccepted?.(res);
   return res;

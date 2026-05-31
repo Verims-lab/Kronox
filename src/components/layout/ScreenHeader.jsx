@@ -3,7 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Gem, Trophy, UserRound } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { sounds } from '@/lib/gameSounds';
-import HeaderGameInviteBell from '@/components/invites/HeaderGameInviteBell';
+// Codex134 — Shared real-time header notification bell.
+// Renders to the right of the chip area and to the left of the avatar.
+// Self-contained (data + subscriptions live in useHeaderNotifications),
+// so adding it here is a pure presentational addition.
+import HeaderNotificationBell from '@/components/notifications/HeaderNotificationBell';
 
 /**
  * Codex118 — Standardized top bar for primary navigation screens.
@@ -29,12 +33,10 @@ import HeaderGameInviteBell from '@/components/invites/HeaderGameInviteBell';
  *   - Chip area (`chipValue`) only renders in TITLE mode and only when a
  *     real numeric value is passed. No fake economy.
  *   - Header is fixed, safe-area aware, mobile-first.
- *   - Pending game invite badge/list is server-backed and only appears when
- *     actionable invites exist.
  *
- * IMPORTANT: This component only hosts the notification bell visually; invite
- * loading/actions live inside HeaderGameInviteBell. Tutorial/lobby/game logic
- * remains outside this header.
+ * IMPORTANT: This component only hosts the notification bell visually;
+ * notification loading/actions live inside HeaderNotificationBell.
+ * Tutorial/lobby/game logic remains outside this header.
  */
 export default function ScreenHeader({
   title,
@@ -111,11 +113,15 @@ export default function ScreenHeader({
         </h1>
       )}
 
-      {/* Right cluster: chip (optional, title-mode only) + avatar (optional) */}
+      {/* Right cluster: chip (optional, title-mode only) + notification bell + avatar (optional) */}
       <div className="flex items-center gap-2" style={{ minWidth: 44, justifyContent: 'flex-end' }}>
         {rightSlot}
 
-        {user?.email && <HeaderGameInviteBell user={user} />}
+        {/* Codex134 — Notification bell. Only rendered when a user is
+            signed in (the bell itself short-circuits to null otherwise).
+            Sits before the avatar so the avatar stays in its existing
+            top-right anchor on every screen. */}
+        <HeaderNotificationBell user={user} />
 
         {!statsMode && hasChip && (
           <div

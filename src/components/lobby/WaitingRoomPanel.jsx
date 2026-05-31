@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Check, Copy, Loader2, Users, Hourglass } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
@@ -10,14 +10,12 @@ import { summarizePlayers } from '@/lib/lobbyUtils';
 import { debugLog, debugWarn } from '@/lib/debugLog';
 import { pushAppDiag } from '@/lib/appDiagBus';
 
-const categories = [
-  { value: 'karisik', label: 'Karışık' },
-  { value: 'tarih', label: 'Tarih' },
-  { value: 'bilim', label: 'Bilim' },
-  { value: 'spor', label: 'Spor' },
-  { value: 'sanat', label: 'Sanat' },
-];
-
+// Codex131 — Lobby simplification:
+//   "Oyun Ayarları" host panel and the non-host settings summary were
+//   removed. Category selection happens on the Online screen (persisted as
+//   lobby.selected_category_ids at create time). All other game config
+//   (year window, turn duration, win card count) reuses the lobby's
+//   existing values or backend defaults — there is no in-lobby edit UI.
 export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, isHost, canStart, onLeave, onCopyCode, copied, navigate }) {
   const {
     startDebug,
@@ -27,41 +25,7 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
     refreshing,
   } = useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, navigate });
 
-  const [settings, setSettings] = useState({
-    category: lobby.category,
-    year_start: lobby.year_start,
-    year_end: lobby.year_end,
-    turn_duration: lobby.turn_duration,
-    win_card_count: lobby.win_card_count,
-  });
   const [isStarting, setIsStarting] = useState(false);
-
-  const prevLobbyId = useRef(lobby.id);
-  useEffect(() => {
-    if (lobby.id !== prevLobbyId.current) return;
-    setSettings({
-      category: lobby.category,
-      year_start: lobby.year_start,
-      year_end: lobby.year_end,
-      turn_duration: lobby.turn_duration,
-      win_card_count: lobby.win_card_count,
-    });
-  }, [lobby.category, lobby.year_start, lobby.year_end, lobby.turn_duration, lobby.win_card_count, lobby.id]);
-
-  const settingDebounceRef = useRef(null);
-
-  useEffect(() => () => {
-    if (settingDebounceRef.current) clearTimeout(settingDebounceRef.current);
-  }, []);
-
-  const handleSettingChange = (key, value) => {
-    const updated = { ...settings, [key]: value };
-    setSettings(updated);
-    clearTimeout(settingDebounceRef.current);
-    settingDebounceRef.current = setTimeout(() => {
-      base44.entities.Lobby.update(lobby.id, { [key]: value }).catch(() => {});
-    }, 300);
-  };
 
   const handleStart = async () => {
     if (isStarting) return;
@@ -78,11 +42,6 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
       lastError: null,
       lastErrorWhere: null,
     });
-
-    if (settingDebounceRef.current) {
-      clearTimeout(settingDebounceRef.current);
-      settingDebounceRef.current = null;
-    }
 
     try {
       const latestLobby = await base44.entities.Lobby.get(lobby.id).catch((err) => {
@@ -104,9 +63,11 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
         return;
       }
 
+      // Codex131 — No `settings` payload. Backend startLobbyGame reads
+      // category / year window / turn / win-card from the persisted lobby
+      // (including the Online multi-select selected_category_ids).
       const response = await base44.functions.invoke('startLobbyGame', {
         lobbyId: startLobby.id,
-        settings,
         playerName,
       });
       const result = response?.data;
@@ -381,91 +342,15 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
           Sorular rastgele gelir — hız ve bilgi kadar şans da oyunun parçasıdır.
         </p>
 
-        {isHost && (
-          <StonePanel glow="gold" padding="p-4" className="space-y-3">
-            <p className="font-inter text-[11px] uppercase tracking-widest text-amber-200/80 font-black">Oyun Ayarları</p>
-
-            <div className="space-y-1.5">
-              <p className="font-inter text-xs text-blue-100/70">Kategori</p>
-              <div className="flex flex-wrap gap-1.5">
-                {categories.map(c => (
-                  <ChipButton
-                    key={c.value}
-                    active={settings.category === c.value}
-                    onClick={() => handleSettingChange('category', c.value)}
-                    ariaLabel={`${c.label} kategorisini seç`}
-                  >
-                    {c.label}
-                  </ChipButton>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <p className="font-inter text-xs text-blue-100/70">Başlangıç Yılı</p>
-                <div className="flex items-center gap-1">
-                  <StepperButton onClick={() => handleSettingChange('year_start', Math.max(0, settings.year_start - 10))} ariaLabel="Başlangıç yılını azalt">−</StepperButton>
-                  <span className="flex-1 text-center font-cinzel text-sm font-black text-amber-200">{settings.year_start}</span>
-                  <StepperButton onClick={() => handleSettingChange('year_start', Math.min(settings.year_end - 10, settings.year_start + 10))} ariaLabel="Başlangıç yılını arttır">+</StepperButton>
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <p className="font-inter text-xs text-blue-100/70">Bitiş Yılı</p>
-                <div className="flex items-center gap-1">
-                  <StepperButton onClick={() => handleSettingChange('year_end', Math.max(settings.year_start + 10, settings.year_end - 10))} ariaLabel="Bitiş yılını azalt">−</StepperButton>
-                  <span className="flex-1 text-center font-cinzel text-sm font-black text-amber-200">{settings.year_end}</span>
-                  <StepperButton onClick={() => handleSettingChange('year_end', Math.min(new Date().getFullYear(), settings.year_end + 10))} ariaLabel="Bitiş yılını arttır">+</StepperButton>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <p className="font-inter text-xs text-blue-100/70">Tur Süresi</p>
-              <div className="flex gap-2">
-                {[30, 60, 90, 120].map(s => (
-                  <ChipButton
-                    key={s}
-                    active={settings.turn_duration === s}
-                    onClick={() => handleSettingChange('turn_duration', s)}
-                    ariaLabel={`${s} saniye tur süresi seç`}
-                    className="flex-1"
-                  >
-                    {s}s
-                  </ChipButton>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <p className="font-inter text-xs text-blue-100/70">Kazanmak için kart sayısı</p>
-              <div className="flex gap-2">
-                {[5, 7, 10, 15].map(n => (
-                  <ChipButton
-                    key={n}
-                    active={settings.win_card_count === n}
-                    onClick={() => handleSettingChange('win_card_count', n)}
-                    ariaLabel={`${n} kart ile kazanmak için seç`}
-                    className="flex-1"
-                  >
-                    {n}
-                  </ChipButton>
-                ))}
-              </div>
-            </div>
-          </StonePanel>
-        )}
-
+        {/* Codex131 — In-lobby "Oyun Ayarları" panel removed.
+            Category selection happens on the Online screen; all other
+            game config reuses persisted lobby values. Non-host sees a
+            simple waiting message instead of a settings summary. */}
         {!isHost && (
-          <StonePanel glow="portal" padding="p-4" className="space-y-2">
-            <p className="font-inter text-[11px] uppercase tracking-widest text-blue-100/70 font-black">Oyun Ayarları</p>
-            <div className="grid grid-cols-2 gap-2 text-xs font-inter text-blue-100/75">
-              <span>Kategori: <span className="text-amber-200">{lobby.category}</span></span>
-              <span>Tur süresi: <span className="text-amber-200">{lobby.turn_duration}s</span></span>
-              <span>Yıllar: <span className="text-amber-200">{lobby.year_start}–{lobby.year_end}</span></span>
-              <span>Kazanma: <span className="text-amber-200">{lobby.win_card_count} kart</span></span>
-            </div>
-            <p className="font-inter text-xs text-blue-100/55 text-center mt-2">Host oyunu başlatmasını bekliyor...</p>
+          <StonePanel glow="portal" padding="p-3" className="text-center">
+            <p className="font-inter text-xs text-blue-100/70">
+              Host oyunu başlatmasını bekliyor...
+            </p>
           </StonePanel>
         )}
 
@@ -511,41 +396,5 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
   );
 }
 
-function ChipButton({ active, onClick, ariaLabel, className = '', children }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`px-3 py-1.5 rounded-lg text-xs font-cinzel font-black transition-all min-h-[44px] ${className}`}
-      style={{
-        background: active
-          ? 'linear-gradient(180deg, #ffe066 0%, #facc15 50%, #b97a06 100%)'
-          : 'linear-gradient(180deg, rgba(30,41,75,0.92), rgba(10,18,38,0.96))',
-        color: active ? '#1a1006' : '#cfe1ff',
-        boxShadow: active
-          ? 'inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -6px 8px rgba(151,78,0,0.3), 0 0 12px rgba(250,204,21,0.55)'
-          : 'inset 0 0 0 1px rgba(120,170,255,0.32), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -4px 6px rgba(0,0,0,0.35)',
-      }}
-      aria-label={ariaLabel}
-      aria-pressed={active}
-    >
-      {children}
-    </button>
-  );
-}
-
-function StepperButton({ onClick, ariaLabel, children }) {
-  return (
-    <button
-      onClick={onClick}
-      className="w-11 h-11 rounded-lg text-amber-200 text-base font-black flex items-center justify-center min-h-[44px] min-w-[44px]"
-      style={{
-        background: 'linear-gradient(180deg, rgba(30,41,75,0.92), rgba(10,18,38,0.96))',
-        boxShadow:
-          'inset 0 0 0 1px rgba(250,204,21,0.42), inset 0 1px 0 rgba(255,236,140,0.18), inset 0 -4px 6px rgba(0,0,0,0.4)',
-      }}
-      aria-label={ariaLabel}
-    >
-      {children}
-    </button>
-  );
-}
+// Codex131 — Legacy chip/stepper helpers were removed alongside the in-lobby
+// settings panel they powered. No other call sites existed.

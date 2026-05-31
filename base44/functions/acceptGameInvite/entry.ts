@@ -10,7 +10,9 @@
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
+// Codex130 — Game invite + lobby staleness TTL: 10 minutes.
 const GAME_INVITE_TTL_MS = 10 * 60 * 1000;
+const LOBBY_STALE_AFTER_MS = 10 * 60 * 1000;
 const readTime = (value: unknown) => {
   const time = value ? new Date(String(value)).getTime() : NaN;
   return Number.isFinite(time) ? time : NaN;
@@ -71,6 +73,22 @@ Deno.serve(async (req) => {
       // Mark expired so the recipient stops seeing it.
       await base44.asServiceRole.entities.GameInvite.update(inviteId, { status: 'expired' }).catch(() => {});
       return Response.json({ error: 'Bu davet artık geçerli değil — oyun başlamış olabilir.' }, { status: 409 });
+    }
+
+    // Codex130 — Stale waiting lobby guard. If a lobby has been sitting in
+    // 'waiting' state for longer than LOBBY_STALE_AFTER_MS (10 min) without
+    // anyone starting the game, the invite is no longer joinable. We mark
+    // the invite expired and bail. The lobby itself is left as-is — the
+    // host (or a later cleanup pass) can delete it; we only block join.
+    const lobbyTouchedAt = readTime(lobby?.updated_date || lobby?.created_date);
+    if (Number.isFinite(lobbyTouchedAt) && (Date.now() - lobbyTouchedAt) > LOBBY_STALE_AFTER_MS) {
+      await base44.asServiceRole.entities.GameInvite.update(inviteId, {
+        status: 'expired',
+        expired_at: new Date().toISOString(),
+      }).catch(() => {});
+      return Response.json({
+        error: 'Lobi süresi doldu. Yeni bir meydan okuma başlatabilirsin.',
+      }, { status: 409 });
     }
 
     // Atomic append (same pattern as findLobbyByCode).

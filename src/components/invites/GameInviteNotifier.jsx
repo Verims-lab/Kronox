@@ -7,13 +7,13 @@ import { useAuth } from '@/lib/AuthContext';
 import { loadIncomingInvites, openGameInvite } from '@/lib/inviteApi';
 import {
   getGameInviteActiveFilterReason,
-  getInviteSenderEmail,
   getInviteRecipientEmail,
+  getInviteSenderEmail,
   normalizeEmail,
   traceGameInviteLifecycle,
 } from '@/lib/gameInviteSelectors';
 
-const INVITE_TOAST_DURATION_MS = 8000;
+const INVITE_TOAST_DURATION_MS = 10000;
 
 function buildInviteTarget(invite) {
   const params = new URLSearchParams();
@@ -229,10 +229,21 @@ export default function GameInviteNotifier() {
       refresh({ notifyNew: true });
     }, 20000);
 
+    const onFocus = () => { refresh({ notifyNew: true }); };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        refresh({ notifyNew: true });
+      }
+    };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+
     return () => {
       cancelled = true;
       if (typeof unsub === 'function') unsub();
       if (intervalId) window.clearInterval(intervalId);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [dismissAllInviteToasts, dismissInviteToast, ingestInvites, navigate, user, user?.email]);
 

@@ -2,6 +2,7 @@ import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import LobbyCreateJoinPanel from '@/components/lobby/LobbyCreateJoinPanel';
+import OnlineChallengeScreen from '@/components/lobby/OnlineChallengeScreen';
 import WaitingRoomPanel from '@/components/lobby/WaitingRoomPanel';
 import { useLobbyRoomState } from '@/hooks/useLobbyRoomState';
 import {
@@ -20,9 +21,10 @@ import {
   acceptGameInvite,
   createGameInvites,
   isGameInviteExpired,
+  isLobbyStale,
   rejectGameInvite,
 } from '@/lib/inviteApi';
-import { getInviteRecipientEmail, traceGameInviteLifecycle } from '@/lib/gameInviteSelectors';
+import { loadActiveLobbyForUser } from '@/lib/activeLobby';
 import { debugLog, debugWarn } from '@/lib/debugLog';
 import { setBottomNavHidden } from '@/lib/bottomNavVisibility';
 
@@ -57,6 +59,31 @@ export default function LobbyRoom() {
   const [deepLinkMessage, setDeepLinkMessage] = useState('');
   const [deepLinkBusy, setDeepLinkBusy] = useState(false);
 
+  // Codex131 — Active lobby auto-recovery. When the Online selection
+  // screen is showing (no lobby, no deep-link), look up any pending
+  // lobby the user already belongs to so we can surface an
+  // "Aktif Lobi" return card without forcing them back into the
+  // waiting room automatically.
+  const [activeLobby, setActiveLobby] = useState(null);
+
+  useEffect(() => {
+    if (lobby || queryInviteId || !user?.email) {
+      setActiveLobby(null);
+      return undefined;
+    }
+    let cancelled = false;
+    loadActiveLobbyForUser(user).then((found) => {
+      if (!cancelled) setActiveLobby(found);
+    });
+    return () => { cancelled = true; };
+  }, [user?.email, lobby, queryInviteId]);
+
+  const handleResumeActiveLobby = (target) => {
+    if (!target) return;
+    setActiveLobby(null);
+    setLobby(target);
+  };
+
   // Codex103 — BottomNav visibility within /lobby is state-aware:
   //   • mode=null + no lobby + no invite deep-link → Online seçim ekranı (VISIBLE)
   //   • mode=create / mode=join                    → lobi oluştur/katıl  (HIDDEN)
@@ -73,8 +100,8 @@ export default function LobbyRoom() {
     return () => setBottomNavHidden(false);
   }, []);
 
-  // New create signature: { maxPlayers, invitedEmails, selectedCategories }
-  // from CreateLobbyInvitePanel.
+  // Create signature: { maxPlayers, invitedEmails, selectedCategories }
+  // forwarded by the OnlineChallengeScreen CTA (single-step lobby + invites).
   // playerName is derived from the authenticated user (no manual input).
   // For backwards-compat (e.g. if called with no payload), we fall back to playerName state.
   const handleCreate = async (payload = {}) => {
@@ -153,9 +180,19 @@ export default function LobbyRoom() {
 
   // Recipients accepting an invite land here with the joined lobby in route
   // state — hand it straight to the existing waiting-room render path.
+  //
+  // Codex130 — Stale lobby guard. If the joined lobby has been idle past
+  // LOBBY_STALE_AFTER_MS (10 min) we DO NOT drop the user into the waiting
+  // room; we surface a "Lobi süresi doldu" message instead so the user can
+  // start a fresh challenge.
   useEffect(() => {
     const joined = location.state?.joinedLobby;
     if (joined && !lobby) {
+      if (isLobbyStale(joined)) {
+        setError('Lobi süresi doldu. Yeni bir meydan okuma başlatabilirsin.');
+        navigate('/lobby', { replace: true });
+        return;
+      }
       setLobby(joined);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -172,24 +209,12 @@ export default function LobbyRoom() {
         const invite = await base44.entities.GameInvite.get(queryInviteId);
         if (cancelled) return;
         const myEmail = String(user.email || '').toLowerCase();
-        const toEmail = getInviteRecipientEmail(invite);
+        const toEmail = String(invite?.to_email || '').toLowerCase();
         if (!invite || toEmail !== myEmail) {
           setDeepLinkMessage('Bu davet bulunamadı veya sana ait değil.');
-          traceGameInviteLifecycle('invite_failed_active_filter', invite, {
-            source: 'LobbyRoom.deep_link_load',
-            user,
-            userEmail: myEmail,
-            reason: 'recipient_mismatch_or_missing',
-          });
           return;
         }
         if (invite.status === 'pending' && isGameInviteExpired(invite)) {
-          traceGameInviteLifecycle('invite_expired_by_cleanup', invite, {
-            source: 'LobbyRoom.deep_link_load',
-            user,
-            userEmail: myEmail,
-            reason: 'ttl_elapsed',
-          });
           await base44.entities.GameInvite.update(invite.id, {
             status: 'expired',
             expired_at: new Date().toISOString(),
@@ -201,6 +226,12 @@ export default function LobbyRoom() {
         if (invite.status === 'accepted' && invite.lobby_id) {
           const acceptedLobby = await base44.entities.Lobby.get(invite.lobby_id).catch(() => null);
           if (!cancelled && acceptedLobby) {
+            // Codex130 — Stale waiting lobby guard for deep-linked accepted invites.
+            if (isLobbyStale(acceptedLobby)) {
+              setDeepLinkInvite({ ...invite, status: 'expired' });
+              setDeepLinkMessage('Lobi süresi doldu. Yeni bir meydan okuma başlatabilirsin.');
+              return;
+            }
             setLobby(acceptedLobby);
             navigate('/lobby', { replace: true, state: { joinedLobby: acceptedLobby } });
           }
@@ -225,12 +256,6 @@ export default function LobbyRoom() {
     setDeepLinkMessage('');
     try {
       if (isGameInviteExpired(deepLinkInvite)) {
-        traceGameInviteLifecycle('invite_expired_by_cleanup', deepLinkInvite, {
-          source: 'LobbyRoom.deep_link_accept',
-          user,
-          userEmail: user?.email,
-          reason: 'ttl_elapsed',
-        });
         await base44.entities.GameInvite.update(deepLinkInvite.id, {
           status: 'expired',
           expired_at: new Date().toISOString(),
@@ -374,27 +399,59 @@ export default function LobbyRoom() {
     );
   }
 
+  // Codex127 — New online flow:
+  //   • mode === null  → OnlineChallengeScreen (kategori + arkadaş popup + CTA).
+  //     Tek bir CTA ile lobi oluşturma + davet gönderme yapılır. Eski ayrı
+  //     arkadaş seçim ekranı akıştan çıkarıldı (legacy panel dosyası kalır,
+  //     ama burada referans verilmez).
+  //   • mode === 'join' → LobbyCreateJoinPanel ile kodla katıl ekranı.
+  if (mode === 'join') {
+    return (
+      <LobbyCreateJoinPanel
+        mode={mode}
+        setMode={setMode}
+        playerName={playerName}
+        setPlayerName={setPlayerName}
+        joinCode={joinCode}
+        setJoinCode={setJoinCode}
+        loading={loading}
+        error={error}
+        nameError={nameError}
+        setNameError={setNameError}
+        onCreate={handleCreate}
+        onJoin={handleJoin}
+        onBackHome={() => navigate('/')}
+        onBackMode={() => {
+          setMode(null);
+          setError('');
+        }}
+        user={user}
+        onGoFriends={() => navigate('/friends')}
+      />
+    );
+  }
+
   return (
-    <LobbyCreateJoinPanel
-      mode={mode}
-      setMode={setMode}
-      playerName={playerName}
-      setPlayerName={setPlayerName}
-      joinCode={joinCode}
-      setJoinCode={setJoinCode}
+    <OnlineChallengeScreen
+      user={user}
       loading={loading}
       error={error}
-      nameError={nameError}
-      setNameError={setNameError}
-      onCreate={handleCreate}
-      onJoin={handleJoin}
-      onBackHome={() => navigate('/')}
-      onBackMode={() => {
-        setMode(null);
-        setError('');
+      onStartChallenge={({ selectedCategories, selectedEmails }) => {
+        // Codex127 — Tek adımda lobi + davet. maxPlayers = host + invited.
+        const invitedEmails = Array.isArray(selectedEmails) ? selectedEmails : [];
+        const maxPlayers = Math.min(4, Math.max(2, invitedEmails.length + 1));
+        handleCreate({
+          maxPlayers,
+          invitedEmails,
+          selectedCategories,
+        });
       }}
-      user={user}
+      onBackHome={() => navigate('/')}
+      onJoinOpenLobby={() => setMode('join')}
       onGoFriends={() => navigate('/friends')}
+      activeLobby={activeLobby}
+      isActiveLobbyHost={Boolean(activeLobby && user && activeLobby.host_email === user.email)}
+      onResumeActiveLobby={handleResumeActiveLobby}
     />
   );
 }

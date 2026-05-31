@@ -2,6 +2,14 @@ import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 
+// Phase 3 audit (Codex124) — DEPRECATED.
+//   App.jsx Codex102 stopped rendering this component globally; every
+//   screen now renders its own <ScreenHeader />. We are leaving the file
+//   on disk because deletion needs a cross-grep verification pass and a
+//   Health-source-token review (the file is referenced as a "Codex102"
+//   note inside App.jsx comments). If no consumer is found in Phase 4,
+//   this file can be safely deleted. DO NOT add new features to it.
+
 // Root screens: show brand title, no back button
 const ROOT_ROUTES = ['/', '/lobby', '/profile', '/settings'];
 

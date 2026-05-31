@@ -7,12 +7,12 @@ import {
   loadIncomingInvites,
   openGameInvite,
   rejectGameInvite,
-  isGameInviteExpired,
   mergeActiveIncomingGameInvites,
 } from '@/lib/inviteApi';
 import {
   getGameInviteActiveFilterReason,
   getInviteRecipientEmail,
+  isInviteExpired,
   traceGameInviteLifecycle,
 } from '@/lib/gameInviteSelectors';
 import { sounds } from '@/lib/gameSounds';
@@ -39,7 +39,7 @@ export default function IncomingInvitesPanel({ user, variant = 'fantasy' }) {
     setError('');
     try {
       const rows = await loadIncomingInvites(user.email);
-      setInvites(prev => {
+      setInvites((prev) => {
         const next = preserveExisting
           ? mergeActiveIncomingGameInvites(prev, rows, user.email)
           : rows;
@@ -68,7 +68,7 @@ export default function IncomingInvitesPanel({ user, variant = 'fantasy' }) {
       const eventType = event?.type || event?.eventType || 'update';
       const invite = event?.data || event;
       if (eventType === 'delete') return;
-      if (getInviteRecipientEmail(invite) !== String(user.email || '').toLowerCase()) return;
+      if (getInviteRecipientEmail(invite) !== String(user.email || '').trim().toLowerCase()) return;
 
       const reason = getGameInviteActiveFilterReason(invite, user.email);
       traceGameInviteLifecycle(reason.startsWith('active') ? 'invite_passed_active_filter' : 'invite_failed_active_filter', invite, {
@@ -79,10 +79,10 @@ export default function IncomingInvitesPanel({ user, variant = 'fantasy' }) {
       });
 
       if (reason.startsWith('active')) {
-        setInvites(prev => mergeActiveIncomingGameInvites(prev, [invite], user.email));
+        setInvites((prev) => mergeActiveIncomingGameInvites(prev, [invite], user.email));
         window.setTimeout(() => refresh({ preserveExisting: true, source: 'subscription_followup' }), 900);
       } else {
-        setInvites(prev => prev.filter(item => item.id !== invite.id));
+        setInvites((prev) => prev.filter((item) => item.id !== invite.id));
         refresh({ preserveExisting: false, source: 'terminal_followup' });
       }
     });
@@ -100,7 +100,7 @@ export default function IncomingInvitesPanel({ user, variant = 'fantasy' }) {
     setBusyId(invite.id);
     sounds.tap();
     try {
-      if (isGameInviteExpired(invite)) {
+      if (isInviteExpired(invite)) {
         setError('Davetin süresi doldu. Yeni bir davet iste.');
         await refresh();
         return;
@@ -110,7 +110,7 @@ export default function IncomingInvitesPanel({ user, variant = 'fantasy' }) {
         userEmail: user.email,
         source: 'online_pending_panel',
         onAccepted: async () => {
-          setInvites(prev => prev.filter(item => item.id !== invite.id));
+          setInvites((prev) => prev.filter((item) => item.id !== invite.id));
           await refresh({ preserveExisting: false, source: 'accepted_followup' });
         },
       });
@@ -127,7 +127,7 @@ export default function IncomingInvitesPanel({ user, variant = 'fantasy' }) {
     sounds.tick();
     try {
       await rejectGameInvite(invite.id);
-      setInvites(prev => prev.filter(item => item.id !== invite.id));
+      setInvites((prev) => prev.filter((item) => item.id !== invite.id));
       await refresh({ preserveExisting: false, source: 'rejected_followup' });
     } catch (err) {
       setError(err?.message || 'Davet reddedilemedi.');
@@ -198,7 +198,7 @@ export default function IncomingInvitesPanel({ user, variant = 'fantasy' }) {
 
 function InviteRow({ invite, busy, onAccept, onReject }) {
   const display = invite.from_name?.trim() || invite.from_email;
-  const expired = invite.status === 'expired' || isGameInviteExpired(invite);
+  const expired = invite.status === 'expired' || isInviteExpired(invite);
   return (
     <motion.li
       layout

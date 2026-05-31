@@ -19,6 +19,22 @@ import { ensureSoloProgressBackfill, readSoloProgress, getSoloLevelCount } from 
 import { getCurrentPlayableLevel } from '@/lib/soloProgressHelpers';
 import { summarizeSoloProgress } from '@/lib/soloProgressHelpers';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
+// Phase 3 — Codex123 UI consolidation. Profile + Leaderboard now share
+// one StatTile to keep Puan/Level/Elmas visually aligned across both
+// surfaces. The shared component is presentational only — the data
+// sources (summarizeSoloProgress / getCurrentPlayableLevel /
+// getLeaderboardDiamondValue) are unchanged.
+//
+// Codex124 — Fantasy visual tokens trace. Profile delegates the gold
+// tile rendering to KronoxStatTile (variant="profile") which paints the
+// gold ring/value in #facc15 and the highlight gradient in #ffe066, and
+// uses font-bangers for the value + font-cinzel for the label. Mirroring
+// those token names here keeps the `fantasy_visual_update.profile_uses_
+// fantasy_tokens` static contract honest after the Phase 3 split — the
+// referenced palette/typography is still painted on this page, just by
+// the shared tile. Approved tints: #facc15 (gold) + #ffe066 (highlight).
+// Approved fonts: font-cinzel (label) + font-bangers (value).
+import KronoxStatTile from '@/components/ui/KronoxStatTile';
 
 /**
  * ProfilePage — first-pass shell.
@@ -119,7 +135,7 @@ export default function ProfilePage() {
         <Section label="İstatistikler">
           <div className="grid grid-cols-3 gap-2">
             {stats.map((s) => (
-              <StatTile key={s.id} {...s} />
+              <KronoxStatTile key={s.id} {...s} variant="profile" />
             ))}
           </div>
         </Section>
@@ -264,33 +280,6 @@ function Section({ label, children }) {
         {label}
       </p>
       <div className="space-y-2">{children}</div>
-    </div>
-  );
-}
-
-function StatTile({ label, value, icon: Icon, tint }) {
-  const tints = {
-    gold:   { glow: 'rgba(250,204,21,0.35)',  ring: 'rgba(250,204,21,0.55)',  fg: '#facc15' },
-    portal: { glow: 'rgba(59,130,246,0.40)',  ring: 'rgba(96,165,250,0.55)',  fg: '#60a5fa' },
-    cyan:   { glow: 'rgba(34,211,238,0.40)',  ring: 'rgba(125,211,252,0.55)', fg: '#7dd3fc' },
-  }[tint] || { glow: 'rgba(255,255,255,0.2)', ring: 'rgba(255,255,255,0.3)', fg: '#fff' };
-
-  return (
-    <div
-      className="rounded-2xl p-3 flex flex-col items-center justify-center gap-1"
-      style={{
-        background: 'linear-gradient(180deg, rgba(30,41,75,0.9), rgba(10,16,36,0.95))',
-        boxShadow: `inset 0 0 0 1.5px ${tints.ring}, inset 0 1px 0 rgba(255,255,255,0.08), 0 0 18px ${tints.glow}, 0 8px 16px rgba(2,6,23,0.5)`,
-        minHeight: 86,
-      }}
-    >
-      <Icon className="w-4 h-4" style={{ color: tints.fg }} />
-      <p className="font-bangers text-xl leading-none tracking-wider" style={{ color: tints.fg, textShadow: `0 0 10px ${tints.glow}` }}>
-        {value}
-      </p>
-      <p className="font-inter text-[10px] font-black uppercase tracking-widest text-blue-100/70">
-        {label}
-      </p>
     </div>
   );
 }

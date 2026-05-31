@@ -20,6 +20,10 @@ import {
 } from '@/lib/leaderboard';
 import { isAdminUser } from '@/lib/admin';
 import KronoxRankingSection from '@/components/leaderboard/KronoxRankingSection';
+// Phase 3 — Codex123 UI consolidation. Profile + Leaderboard now share
+// one StatTile. Compact variant matches the previous lighter look used
+// inside the Liderlik summary hero card. Data sources unchanged.
+import KronoxStatTile from '@/components/ui/KronoxStatTile';
 
 /**
  * Codex117/Codex119 — Public-safe Solo leaderboard with graceful fallback.
@@ -210,9 +214,9 @@ export default function LeaderboardPage() {
           {/* Codex119 — stat cards always show the user's own values from
               the shared Solo summary, regardless of global ranking state. */}
           <div className="mt-4 grid grid-cols-3 gap-2">
-            <StatTile icon={Trophy} label="Puan" value={summary.totalSoloScore} tint="#facc15" />
-            <StatTile icon={Sparkles} label="Level" value={summary.currentLevel} tint="#60a5fa" />
-            <StatTile icon={Gem} label="Elmas" value={diamondValue} tint="#7dd3fc" />
+            <KronoxStatTile icon={Trophy} label="Puan" value={summary.totalSoloScore} tintHex="#facc15" variant="compact" />
+            <KronoxStatTile icon={Sparkles} label="Level" value={summary.currentLevel} tintHex="#60a5fa" variant="compact" />
+            <KronoxStatTile icon={Gem} label="Elmas" value={diamondValue} tintHex="#7dd3fc" variant="compact" />
           </div>
         </div>
 
@@ -224,26 +228,6 @@ export default function LeaderboardPage() {
           isAdmin={isAdmin}
         />
       </div>
-    </div>
-  );
-}
-
-function StatTile({ icon: Icon, label, value, tint }) {
-  return (
-    <div
-      className="rounded-2xl p-3 text-center"
-      style={{
-        background: 'linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.035))',
-        boxShadow: `inset 0 0 0 1px ${tint}55`,
-      }}
-    >
-      <Icon className="mx-auto h-4 w-4" style={{ color: tint }} />
-      <p className="mt-1 font-bangers text-xl leading-none tracking-wider" style={{ color: tint }}>
-        {value}
-      </p>
-      <p className="mt-1 font-inter text-[9px] font-black uppercase tracking-widest text-blue-100/60">
-        {label}
-      </p>
     </div>
   );
 }

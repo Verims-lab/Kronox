@@ -12,7 +12,7 @@
     },
     "solo_progress": {
       "type": "object",
-      "description": "Codex113 \u2014 Per-user Solo Level Path progress and score summary. Existing progress is safely backfilled from bestStars/bestTimeSeconds on load without resetting stars or lowering currentLevel. Compact shape: { currentLevel, levels: { '1': { bestStars, bestScore, bestScoreStars, bestScoreBaseScore, bestScoreTimeBonus, bestMistakes, bestTimeSeconds, attempts, completedAt, lastAttemptAt } }, summary: { currentLevel, unlockedLevel, totalSoloScore, completedLevelCount, totalStars, totalAttempts } }. Writes go through base44.auth.updateMe; never mutated by other features.",
+      "description": "Codex106 \u2014 Per-user Solo Level Path progress. Compact shape: { currentLevel, levels: { '1': { bestStars, bestMistakes, bestTimeSeconds, attempts, completedAt } } }. Writes go through base44.auth.updateMe; never mutated by other features.",
       "properties": {
         "currentLevel": {
           "type": "number"
@@ -28,18 +28,6 @@
               "bestMistakes": {
                 "type": "number"
               },
-              "bestScore": {
-                "type": "number"
-              },
-              "bestScoreStars": {
-                "type": "number"
-              },
-              "bestScoreBaseScore": {
-                "type": "number"
-              },
-              "bestScoreTimeBonus": {
-                "type": "number"
-              },
               "bestTimeSeconds": {
                 "type": "number"
               },
@@ -48,35 +36,43 @@
               },
               "completedAt": {
                 "type": "string"
-              },
-              "lastAttemptAt": {
-                "type": "string"
               }
             }
           }
+        }
+      }
+    },
+    "online_progress": {
+      "type": "object",
+      "description": "Codex128 \u2014 Per-user Online ranking. score is the player's current Online puan\u0131, after every match it is adjusted by win/loss/draw + time bonus, and then clamped UP to the highest reached checkpoint (peakCheckpoint). lastMatchId guards against double-applying the same match result.",
+      "properties": {
+        "score": {
+          "type": "number",
+          "description": "Current Online puan. Never drops below peakCheckpoint."
         },
-        "summary": {
-          "type": "object",
-          "properties": {
-            "currentLevel": {
-              "type": "number"
-            },
-            "unlockedLevel": {
-              "type": "number"
-            },
-            "totalSoloScore": {
-              "type": "number"
-            },
-            "completedLevelCount": {
-              "type": "number"
-            },
-            "totalStars": {
-              "type": "number"
-            },
-            "totalAttempts": {
-              "type": "number"
-            }
-          }
+        "peakScore": {
+          "type": "number",
+          "description": "Highest score ever reached."
+        },
+        "peakCheckpoint": {
+          "type": "number",
+          "description": "Highest checkpoint the player has reached. score is clamped to be >= this on losses."
+        },
+        "wins": {
+          "type": "number"
+        },
+        "losses": {
+          "type": "number"
+        },
+        "draws": {
+          "type": "number"
+        },
+        "lastMatchId": {
+          "type": "string",
+          "description": "Lobby id of the last match whose result was applied. Used as an idempotency guard so a re-mount/re-render does not double-apply puan."
+        },
+        "lastUpdatedAt": {
+          "type": "string"
         }
       }
     }

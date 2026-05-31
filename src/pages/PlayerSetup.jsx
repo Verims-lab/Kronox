@@ -1,3 +1,11 @@
+// Phase 3 audit (Codex124) — DEPRECATED.
+//   App.jsx routes /setup → <Navigate to="/solo" replace />, so this
+//   component is no longer mounted. The Solo flow now lives in
+//   pages/SoloChallenge.jsx + components/solo/LevelMapPath.jsx. We are
+//   leaving this file on disk pending a Phase 4 cross-grep audit
+//   (any deep-link, automation, or external doc referencing /setup
+//   needs to be retired first). DO NOT add new features to it.
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import KronoxTutorial from '@/components/tutorial/KronoxTutorial';
