@@ -17,6 +17,11 @@ import { getDefaultSelectedLevel, summarizeSoloProgress } from '@/lib/soloProgre
 // Codex118 — Header Puan + Elmas. Same diamond helper Leaderboard uses,
 // so all three surfaces (Home, Solo, Online) agree on the value source.
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
+// Codex121 — Admin gate for the focus-helper console diagnostics. Normal
+// users see nothing; admins on a real device can see a single-line
+// `[kronox.solo.focus]` log per attempt showing why the scroll math
+// did/didn't center the target node.
+import { isAdminUser } from '@/lib/admin';
 
 /**
  * Codex108 — Solo entry is now a SCROLLABLE vertical adventure map.
@@ -193,6 +198,7 @@ export default function SoloChallenge() {
             onSelectLevel={handleSelectLevel}
             bottomReservedPx={BOTTOM_RESERVED_PX}
             focusLevelNumber={defaultSelectedNumber}
+            diagnosticsEnabled={isAdminUser(user)}
           />
         </div>
       </div>
