@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
 
 // Root screens: show brand title, no back button
 const ROOT_ROUTES = ['/', '/lobby', '/profile', '/settings'];
