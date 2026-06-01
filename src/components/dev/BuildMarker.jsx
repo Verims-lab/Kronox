@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex150 — Leaderboard row Puan consistency fix:
+//   • Public leaderboard rows now carry total_kronox_score =
+//     total_solo_score + online_score.
+//   • Liderlik row display and ranking sort use the same unified Kronox
+//     Puan that Profile/Header/top stat cards show.
+//   • Online score persistence refreshes the leaderboard-safe row after
+//     User.online_progress is saved.
+//
 // Codex149 — Unified Puan copy cleanup:
 //   • Visible UI now says Puan / Kronox Puan instead of separate Solo or
 //     Online score labels.

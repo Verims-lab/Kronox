@@ -796,12 +796,14 @@ export const EXTRA_TESTS = [
     { actionType: ACTION_TYPES.CODE_FIX }),
 
   makeCase('solo_progress_health', 'solo_leaderboard_total_score_contract',
-    'Leaderboard uses Solo score/level plus Elmas economy placeholder/field and does not fake friend ranking',
+    'Leaderboard keeps Solo summary available while visible Puan is unified',
     () => {
       const required = missingTokens(leaderboardPageSource, [
         'readSoloProgress',
         'summarizeSoloProgress',
         'summary.totalSoloScore',
+        'getKronoxVisibleScore',
+        'visibleKronoxPuan',
         'summary.currentLevel',
         'getLeaderboardDiamondValue',
         'label="Elmas"',
@@ -816,15 +818,15 @@ export const EXTRA_TESTS = [
         'Math.random',
       ]);
       if (required.length || forbidden.length) {
-        return fail('Leaderboard total score, Elmas placeholder, or no-fake-ranking contract failed.', {
+        return fail('Leaderboard unified Puan, Solo summary, Elmas placeholder, or no-fake-ranking contract failed.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'Puan/Level from Solo summary + Elmas from economy field or safe 0 placeholder',
+          expected: 'Puan from getKronoxVisibleScore; Solo summary retained for level/progression; Elmas separate',
           actual: { required, forbidden },
         });
       }
-      return pass('Leaderboard reads Solo score/level, keeps Elmas separate from stars, and uses a safe friend-ranking placeholder.', {
+      return pass('Leaderboard keeps Solo summary for progression, visible Puan from unified helper, and Elmas separate from stars.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,

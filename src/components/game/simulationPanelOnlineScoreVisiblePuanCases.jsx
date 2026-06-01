@@ -232,8 +232,9 @@ export const EXTRA_TESTS = [
       const applyBad = safeStr(applyOnlineResultSource).includes('totalSoloScore') ||
         safeStr(applyOnlineResultSource).includes('solo_progress');
       const leaderboardMissing = missingTokens(leaderboardLibSource, [
+        'total_kronox_score',
         'total_solo_score',
-        'summary.totalSoloScore',
+        'summary.totalKronoxScore',
         'rankSoloLeaderboardEntries',
       ]);
       if (applyBad || leaderboardMissing.length) {
@@ -242,6 +243,6 @@ export const EXTRA_TESTS = [
           actual: { applyBad, leaderboardMissing },
         });
       }
-      return pass('Online score affects visible Puan through helper composition without mutating Solo leaderboard data.', { verification: 'STATIC_CONTRACT' });
+      return pass('Online score affects visible Puan and leaderboard rows without mutating Solo progress data.', { verification: 'STATIC_CONTRACT' });
     }),
 ];

@@ -23,8 +23,8 @@ import { Loader2, Medal, RefreshCw, Trophy, UserRound, Users } from 'lucide-reac
  *   user             : current user (or null)
  *   leaderboard      : { loading, loaded, error, topRows, currentUserRow,
  *                        currentUserInTop, friendsOutsideTop, friendCount,
- *                        ownScoreRow, ownScoreFallback: { totalSoloScore,
- *                        currentLevel } }
+ *                        ownScoreRow, ownScoreFallback: { totalKronoxScore,
+ *                        totalSoloScore, currentLevel } }
  *   onRetry          : () => void
  *   isAdmin          : boolean — gates the technical diagnostic line
  */
@@ -168,8 +168,9 @@ function LoadingState() {
  * Admins see a small extra line with the technical reason (when present).
  */
 function RankingPreparingState({ ownScore, onRetry, isAdmin, backendReason }) {
-  const score = Number.isFinite(Number(ownScore?.totalSoloScore))
-    ? Math.max(0, Math.floor(Number(ownScore.totalSoloScore)))
+  const scoreSource = ownScore?.totalKronoxScore ?? ownScore?.totalSoloScore;
+  const score = Number.isFinite(Number(scoreSource))
+    ? Math.max(0, Math.floor(Number(scoreSource)))
     : 0;
   const level = Number.isFinite(Number(ownScore?.currentLevel))
     ? Math.max(1, Math.floor(Number(ownScore.currentLevel)))
@@ -323,7 +324,7 @@ function LeaderboardRow({ row, compact = false, emphasis = false }) {
         <p className="mt-0.5 font-inter text-[10px] text-blue-100/55">Level {row.summary.currentLevel}</p>
       </div>
       <div className="shrink-0 text-right">
-        <p className="font-bangers text-lg leading-none text-amber-200">{row.summary.totalSoloScore}</p>
+        <p className="font-bangers text-lg leading-none text-amber-200">{row.summary.totalKronoxScore}</p>
         <p className="font-inter text-[9px] font-black uppercase tracking-wider text-blue-100/45">Puan</p>
       </div>
     </div>

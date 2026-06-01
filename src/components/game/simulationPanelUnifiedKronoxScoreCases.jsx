@@ -15,6 +15,9 @@ import soloChallengeSource from '../../pages/SoloChallenge.jsx?raw';
 import onlineChallengeSource from '../lobby/OnlineChallengeScreen.jsx?raw';
 import screenHeaderSource from '../layout/ScreenHeader.jsx?raw';
 import scoringRulesSource from '../../docs/KRONOX_SCORING_RULES.md?raw';
+import leaderboardLibSource from '../../lib/leaderboard.js?raw';
+import leaderboardFunctionSource from '../../../base44/functions/getSoloLeaderboard/entry.ts?raw';
+import applyOnlineResultSource from '../../lib/applyOnlineResult.js?raw';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
 const ACTION_TYPES = { CODE_FIX: 'CODE_FIX' };
@@ -179,5 +182,128 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Visible UI does not expose a separate Online Puan label.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('leaderboard_row_uses_unified_puan',
+    'Leaderboard row score uses unified Kronox Puan',
+    () => {
+      const missing = missingTokens(`${leaderboardLibSource}\n${rankingSectionSource}`, [
+        'total_kronox_score',
+        'summary.totalKronoxScore',
+        'row.summary.totalKronoxScore',
+      ]);
+      if (missing.length) {
+        return fail('Leaderboard rows can still display Solo-only score instead of unified Kronox Puan.', {
+          verification: 'STATIC_CONTRACT',
+          missing,
+        });
+      }
+      return pass('Leaderboard rows display summary.totalKronoxScore.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('leaderboard_top_and_row_score_same_source',
+    'Leaderboard top stat and current-user row use the same unified source',
+    () => {
+      const missing = missingTokens(`${leaderboardPageSource}\n${leaderboardLibSource}`, [
+        'visibleKronoxPuan',
+        'getKronoxVisibleScore(user',
+        'totalKronoxScore: getKronoxVisibleScore(user',
+        'total_kronox_score: totalKronoxScore',
+      ]);
+      if (missing.length) {
+        return fail('Liderlik top stat and row fallback are not tied to the same unified Puan source.', {
+          verification: 'STATIC_CONTRACT',
+          missing,
+        });
+      }
+      return pass('Liderlik top stat and current-user row fallback share unified Kronox Puan.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('leaderboard_sort_score_matches_display_score',
+    'Leaderboard sort key matches displayed row score',
+    () => {
+      const missing = missingTokens(`${leaderboardLibSource}\n${rankingSectionSource}`, [
+        'scoreDiff = b.summary.totalKronoxScore - a.summary.totalKronoxScore',
+        'row.summary.totalKronoxScore',
+      ]);
+      if (missing.length) {
+        return fail('Leaderboard could sort by a different score than it displays.', {
+          verification: 'STATIC_CONTRACT',
+          missing,
+        });
+      }
+      return pass('Leaderboard sort key and displayed score both use totalKronoxScore.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('online_delta_reflected_in_leaderboard_rows',
+    'Online delta is included in leaderboard row Puan',
+    () => {
+      const missing = missingTokens(`${leaderboardLibSource}\n${leaderboardFunctionSource}`, [
+        'online_score',
+        'online_progress?.score',
+        'totalKronoxScore = totalSoloScore + onlineScore',
+        'totalKronoxScore = summary.totalSoloScore + onlineScore',
+      ]);
+      if (missing.length) {
+        return fail('Online progress score is not included in leaderboard row projection.', {
+          verification: 'STATIC_CONTRACT',
+          missing,
+        });
+      }
+      return pass('Frontend and backend leaderboard projections add Online score to Solo component.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('profile_and_leaderboard_current_user_puan_match',
+    'Profile Puan and current-user leaderboard row Puan match',
+    () => {
+      const missing = missingTokens(`${profilePageSource}\n${leaderboardPageSource}\n${leaderboardLibSource}`, [
+        'getKronoxVisibleScore(user',
+        'visibleKronoxPuan',
+        'totalKronoxScore: getKronoxVisibleScore(user',
+        'total_kronox_score: totalKronoxScore',
+      ]);
+      if (missing.length) {
+        return fail('Profile and current-user leaderboard row can drift from the unified Puan helper.', {
+          verification: 'STATIC_CONTRACT',
+          missing,
+        });
+      }
+      return pass('Profile stats and current-user leaderboard row are wired to unified Kronox Puan.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('leaderboard_entry_not_solo_only_when_visible_puan',
+    'Visible leaderboard rows do not use Solo-only totals',
+    () => {
+      const offenders = findForbiddenCopy({ KronoxRankingSection: rankingSectionSource }, [
+        'row.summary.totalSoloScore',
+      ]);
+      const missing = missingTokens(leaderboardLibSource, [
+        'totalKronoxScore',
+        'onlineScore',
+      ]);
+      if (offenders.length || missing.length) {
+        return fail('Visible leaderboard row still depends on Solo-only totalSoloScore.', {
+          verification: 'STATIC_CONTRACT',
+          actual: { offenders, missing },
+        });
+      }
+      return pass('Visible leaderboard row uses unified totalKronoxScore, not totalSoloScore alone.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('leaderboard_publish_runs_after_online_score_change',
+    'Online score persistence refreshes leaderboard-safe row',
+    () => {
+      const missing = missingTokens(applyOnlineResultSource, [
+        'publishLeaderboardAfterOnlineScore',
+        'publishSoloLeaderboardEntry',
+        'refreshedUser || { ...me, online_progress: payload.online_progress }',
+      ]);
+      if (missing.length) {
+        return fail('Online score changes may not refresh the leaderboard-safe row.', {
+          verification: 'STATIC_CONTRACT',
+          missing,
+        });
+      }
+      return pass('Online score persistence best-effort publishes the refreshed leaderboard-safe row.', { verification: 'STATIC_CONTRACT' });
     }),
 ];

@@ -452,14 +452,16 @@ implementation second, Health Center third.
 
 Current expected behavior:
 
-- Solo leaderboard uses **Solo score / `totalSoloScore`** unless product
-  explicitly changes it.
+- Leaderboard visible rows and ranking order use unified **Kronox Puan**:
+  `total_kronox_score = total_solo_score + online_score`.
+- `total_solo_score` remains stored as the technical Solo component for
+  auditing/backfill, not as the visible row score.
 - Online competitive score storage stays separate unless an Online leaderboard
   is added, but user-facing labels still use unified **Puan** wording.
 - Profile must not accidentally show stale or mismatched score fields.
 - Visible **Kronox Puan** on Home/Solo/Online/Profile/Liderlik stat
   surfaces means `getKronoxVisibleScore(user)`.
-- Solo leaderboard rows/ranking still use Solo score (`totalSoloScore`).
+- Leaderboard row display and sort key must match the same unified value.
 
 Important:
 

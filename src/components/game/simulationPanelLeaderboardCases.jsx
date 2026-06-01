@@ -72,18 +72,20 @@ export const EXTRA_SUITES = [
 
 export const EXTRA_TESTS = [
   makeCase('leaderboard_health', 'leaderboard_public_score_source_exists',
-    'Leaderboard uses a public-safe Solo leaderboard source, not private full User rows',
+    'Leaderboard uses a public-safe Kronox Puan source, not private full User rows',
     () => {
       const required = missingTokens(`${soloLeaderboardEntitySource}\n${leaderboardLibSource}\n${leaderboardPageSource}\n${getSoloLeaderboardFunctionSource}`, [
         '"name": "SoloLeaderboardEntry"',
         '"owner_key"',
         '"display_name"',
+        '"total_kronox_score"',
         '"total_solo_score"',
+        '"online_score"',
         '"current_level"',
         '"read": {}',
         'base44.entities.SoloLeaderboardEntry',
         "base44.functions.invoke('getSoloLeaderboard'",
-        'user_solo_progress_service_role_projection',
+        'user_kronox_puan_service_role_projection',
         'loadSoloLeaderboardEntries',
       ]);
       const forbidden = forbiddenTokensFound(leaderboardPageSource, [
@@ -95,11 +97,11 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'SoloLeaderboardEntry public-safe source; no User.list production dependency',
+          expected: 'SoloLeaderboardEntry public-safe Kronox Puan source; no User.list production dependency',
           actual: { required, forbidden },
         });
       }
-      return pass('Leaderboard has a public-safe Solo leaderboard source and no longer ranks from full User.list reads on the page.', {
+      return pass('Leaderboard has a public-safe Kronox Puan source and no longer ranks from full User.list reads on the page.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -114,7 +116,9 @@ export const EXTRA_TESTS = [
         'base44.entities.SoloLeaderboardEntry',
         '"owner_key"',
         '"display_name"',
+        '"total_kronox_score"',
         '"total_solo_score"',
+        '"online_score"',
         '"current_level"',
       ]);
       if (required.length) {
@@ -186,23 +190,25 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('leaderboard_health', 'leaderboard_current_user_score_published',
-    'Current user Solo score is mirrored into the leaderboard-safe source',
+    'Current user Kronox Puan is mirrored into the leaderboard-safe source',
     () => {
       const required = missingTokens(`${leaderboardLibSource}\n${soloLevelsSource}\n${leaderboardPageSource}`, [
         'publishSoloLeaderboardEntry',
         'buildSoloLeaderboardPayload',
+        'total_kronox_score',
         'total_solo_score',
+        'online_score',
         'current_level',
         'await publishSoloLeaderboardEntry(user, normalized)',
         'publishSoloLeaderboardEntry(user, progress).catch',
         'publishSoloLeaderboardEntry(user, currentProgress)',
       ]);
       if (required.length) {
-        return fail('Current-user Solo score is not clearly published to the leaderboard-safe source.', {
+        return fail('Current-user Kronox Puan is not clearly published to the leaderboard-safe source.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'write/backfill/load paths mirror current user score to SoloLeaderboardEntry',
+          expected: 'write/backfill/load paths mirror current user Kronox Puan to SoloLeaderboardEntry',
           actual: { required },
         });
       }
@@ -274,9 +280,11 @@ export const EXTRA_TESTS = [
         'base44.asServiceRole.entities.User.list',
         'owner_key',
         'display_name',
+        'total_kronox_score',
         'total_solo_score',
+        'online_score',
         'current_level',
-        'user_solo_progress_service_role_projection',
+        'user_kronox_puan_service_role_projection',
       ]);
       const forbidden = forbiddenTokensFound(getSoloLeaderboardFunctionSource, [
         'game_invite_notifications_enabled',
@@ -307,7 +315,9 @@ export const EXTRA_TESTS = [
       const required = missingTokens(combined, [
         'owner_key',
         'display_name',
+        'total_kronox_score',
         'total_solo_score',
+        'online_score',
         'current_level',
         'total_stars',
         'updated_at',
@@ -336,31 +346,31 @@ export const EXTRA_TESTS = [
       });
     }),
 
-  makeCase('leaderboard_health', 'leaderboard_uses_total_solo_score',
-    'Leaderboard ranks by total_solo_score before level/stars/time tie-breakers',
+  makeCase('leaderboard_health', 'leaderboard_uses_unified_kronox_puan',
+    'Leaderboard ranks by unified Kronox Puan before level/stars/time tie-breakers',
     () => {
       const required = missingTokens(leaderboardLibSource, [
         'rankSoloLeaderboardEntries',
-        'summary.totalSoloScore',
-        'scoreDiff = b.summary.totalSoloScore - a.summary.totalSoloScore',
+        'summary.totalKronoxScore',
+        'scoreDiff = b.summary.totalKronoxScore - a.summary.totalKronoxScore',
         'levelDiff = b.summary.currentLevel - a.summary.currentLevel',
         'starsDiff = b.summary.totalStars - a.summary.totalStars',
       ]);
       const totalBeforeStars = ordered(
         leaderboardLibSource,
-        'scoreDiff = b.summary.totalSoloScore - a.summary.totalSoloScore',
+        'scoreDiff = b.summary.totalKronoxScore - a.summary.totalKronoxScore',
         'starsDiff = b.summary.totalStars - a.summary.totalStars',
       );
       if (required.length || !totalBeforeStars) {
-        return fail('Leaderboard ranking no longer prioritizes totalSoloScore.', {
+        return fail('Leaderboard ranking no longer prioritizes unified Kronox Puan.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'totalSoloScore primary, then level/stars/time tie-breakers',
+          expected: 'totalKronoxScore primary, then level/stars/time tie-breakers',
           actual: { required, totalBeforeStars },
         });
       }
-      return pass('Leaderboard ranking uses totalSoloScore as the primary rank signal.', {
+      return pass('Leaderboard ranking uses unified Kronox Puan as the primary rank signal.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -611,7 +621,7 @@ export const EXTRA_TESTS = [
       classification: 'STATIC_CHECK_LIMITATION',
       verificationLabels: ['NOT_AUTOMATABLE', 'BACKEND_RUNTIME_PROBE'],
       actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE,
-      expected: 'multiple real users mirrored to SoloLeaderboardEntry and ranked by totalSoloScore',
+      expected: 'multiple real users mirrored to SoloLeaderboardEntry and ranked by unified Kronox Puan',
       actual: 'static contract only',
     }), { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, critical: false }),
 ];

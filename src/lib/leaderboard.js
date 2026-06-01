@@ -77,6 +77,15 @@ export function getLeaderboardDiamondValue(user) {
   return realValue === undefined ? 0 : Math.max(0, Math.floor(Number(realValue)));
 }
 
+function getLeaderboardOnlineScore(userOrEntry) {
+  const score = Number(
+    userOrEntry?.online_score ??
+    userOrEntry?.online_progress?.score ??
+    0,
+  );
+  return Number.isFinite(score) ? Math.max(0, Math.floor(score)) : 0;
+}
+
 function normalizeSoloProgressForLeaderboard(progress, totalLevels = LEADERBOARD_SOLO_LEVEL_COUNT) {
   return backfillSoloScores(progress || {}, totalLevels).progress;
 }
@@ -108,6 +117,9 @@ export function buildSoloLeaderboardPayload(user, progress, totalLevels = LEADER
   const ownerKey = getLeaderboardOwnerKey(user?.email || user?.user_email);
   const normalizedProgress = normalizeSoloProgressForLeaderboard(progress || user?.solo_progress, totalLevels);
   const summary = summarizeSoloProgress(normalizedProgress, totalLevels);
+  const totalSoloScore = Math.max(0, Number(summary.totalSoloScore) || 0);
+  const onlineScore = getLeaderboardOnlineScore(user);
+  const totalKronoxScore = totalSoloScore + onlineScore;
   const displayName = getSafeLeaderboardName(user);
   const aggregateBestTimeSeconds = getAggregateBestTimeSeconds(normalizedProgress);
 
@@ -115,7 +127,9 @@ export function buildSoloLeaderboardPayload(user, progress, totalLevels = LEADER
     owner_key: ownerKey,
     display_name: displayName,
     initial: initialFromName(displayName),
-    total_solo_score: Math.max(0, Number(summary.totalSoloScore) || 0),
+    total_kronox_score: totalKronoxScore,
+    total_solo_score: totalSoloScore,
+    online_score: onlineScore,
     current_level: Math.max(1, Number(summary.currentLevel) || 1),
     unlocked_level: Math.max(1, Number(summary.unlockedLevel) || Number(summary.currentLevel) || 1),
     total_stars: Math.max(0, Number(summary.totalStars) || 0),
@@ -157,7 +171,7 @@ export async function loadSoloLeaderboardEntries(limit = LEADERBOARD_FETCH_LIMIT
   }
 
   try {
-    const rows = await base44.entities.SoloLeaderboardEntry.list('-total_solo_score', limit);
+    const rows = await base44.entities.SoloLeaderboardEntry.list('-total_kronox_score', limit);
     return Array.isArray(rows) ? rows : [];
   } catch (error) {
     if (isMissingSoloLeaderboardEntityError(error)) return [];
@@ -176,7 +190,12 @@ export function getFriendLeaderboardKeys(friendEmails = []) {
 export function toSoloLeaderboardEntry(publicRow, friendKeySet = new Set(), currentOwnerKey = '') {
   const ownerKey = String(publicRow?.owner_key || '').trim();
   const displayName = getSafeLeaderboardName(publicRow);
-  const score = Math.max(0, Number(publicRow?.total_solo_score) || 0);
+  const soloScore = Math.max(0, Number(publicRow?.total_solo_score) || 0);
+  const onlineScore = getLeaderboardOnlineScore(publicRow);
+  const hasUnifiedScore = Number.isFinite(Number(publicRow?.total_kronox_score));
+  const totalKronoxScore = hasUnifiedScore
+    ? Math.max(0, Math.floor(Number(publicRow.total_kronox_score)))
+    : soloScore + onlineScore;
   const currentLevel = Math.max(1, Number(publicRow?.current_level) || 1);
   const totalStars = Math.max(0, Number(publicRow?.total_stars) || 0);
   const aggregateBestTimeSeconds = Number(publicRow?.aggregate_best_time_seconds);
@@ -187,7 +206,9 @@ export function toSoloLeaderboardEntry(publicRow, friendKeySet = new Set(), curr
     displayName,
     initial: cleanDisplayText(publicRow?.initial).slice(0, 1) || initialFromName(displayName),
     summary: {
-      totalSoloScore: score,
+      totalKronoxScore,
+      totalSoloScore: soloScore,
+      onlineScore,
       currentLevel,
       unlockedLevel: Math.max(1, Number(publicRow?.unlocked_level) || currentLevel),
       totalStars,
@@ -227,7 +248,7 @@ function comparePublicLeaderboardRows(a, b) {
 }
 
 function compareLeaderboardEntries(a, b) {
-  const scoreDiff = b.summary.totalSoloScore - a.summary.totalSoloScore;
+  const scoreDiff = b.summary.totalKronoxScore - a.summary.totalKronoxScore;
   if (scoreDiff) return scoreDiff;
 
   const levelDiff = b.summary.currentLevel - a.summary.currentLevel;

@@ -290,18 +290,20 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('data_model_health', 'leaderboard_entry_source_matches_profile_score',
-    'SoloLeaderboardEntry publishing uses the same Solo progress summary as Profile/Solo',
+    'SoloLeaderboardEntry publishing uses unified Kronox Puan plus the Solo progress summary',
     () => {
       const missing = missingTokens(leaderboardSource, [
         'buildSoloLeaderboardPayload',
         'backfillSoloScores',
         'summarizeSoloProgress',
+        'total_kronox_score',
         'total_solo_score',
+        'online_score',
         'current_level',
         'publishSoloLeaderboardEntry',
       ]);
-      if (missing.length) return fail('Leaderboard entry publishing no longer mirrors Solo summary.', { verification: 'STATIC_CONTRACT', missing });
-      return pass('Leaderboard-safe row is built from normalized Solo progress summary.', { verification: 'STATIC_CONTRACT' });
+      if (missing.length) return fail('Leaderboard entry publishing no longer mirrors unified Kronox Puan and Solo summary.', { verification: 'STATIC_CONTRACT', missing });
+      return pass('Leaderboard-safe row is built from normalized Solo progress summary plus Online score component.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('data_model_health', 'scoring_docs_match_code_getSoloLeaderboard',

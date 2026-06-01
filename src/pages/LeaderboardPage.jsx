@@ -27,10 +27,12 @@ import KronoxRankingSection from '@/components/leaderboard/KronoxRankingSection'
 import KronoxStatTile from '@/components/ui/KronoxStatTile';
 
 /**
- * Codex117/Codex119 — Public-safe Solo leaderboard with graceful fallback.
+ * Codex117/Codex119/Codex150 — Public-safe Kronox leaderboard with
+ * graceful fallback.
  *
- * We show REAL user-specific Solo totals from User.solo_progress and mirror
- * them into SoloLeaderboardEntry rows that expose only public-safe rank data.
+ * We show REAL user-specific Kronox Puan from User.solo_progress +
+ * User.online_progress and mirror it into SoloLeaderboardEntry rows that
+ * expose only public-safe rank data.
  * The page owns data fetching; the "Kronox Sıralaması" UI lives in the
  * focused KronoxRankingSection component.
  *
@@ -66,7 +68,7 @@ export default function LeaderboardPage() {
     // Codex119 — own-score fallback always travels with the leaderboard
     // state so the placeholder block can render it without re-reading
     // progress in the child component.
-    ownScoreFallback: { totalSoloScore: 0, currentLevel: 1 },
+    ownScoreFallback: { totalKronoxScore: 0, totalSoloScore: 0, currentLevel: 1 },
   });
 
   useEffect(() => {
@@ -86,15 +88,16 @@ export default function LeaderboardPage() {
   const loadLeaderboard = useCallback(async () => {
     if (!user?.email) return;
 
-    // Codex146 — own-score fallback uses visible Kronox Puan. Solo ranking
-    // rows still use SoloLeaderboardEntry, but the user's visible Puan must
-    // reflect Online score changes immediately after persistence.
+    // Codex150 — own-score fallback and ranking rows use visible Kronox
+    // Puan. Solo and Online storage remain separate, but the row score
+    // shown and sorted here must match Profile/Header Puan.
     const currentProgress = readSoloProgress(user);
     const currentOwnerKey = getLeaderboardOwnerKey(user.email);
     const currentPayload = buildSoloLeaderboardPayload(user, currentProgress);
     const ownSummary = summarizeSoloProgress(currentProgress, getSoloLevelCount());
     const ownScoreFallback = {
-      totalSoloScore: getKronoxVisibleScore(user, { soloProgress: currentProgress }),
+      totalKronoxScore: getKronoxVisibleScore(user, { soloProgress: currentProgress }),
+      totalSoloScore: ownSummary.totalSoloScore,
       currentLevel: ownSummary.currentLevel,
     };
 
@@ -108,8 +111,13 @@ export default function LeaderboardPage() {
       const friendEmails = (friends || []).map((friend) => friend.friend_email).filter(Boolean);
       const friendKeys = getFriendLeaderboardKeys(friendEmails);
       const readableRows = Array.isArray(rows) ? [...rows] : [];
-      if (publishedRow?.owner_key && !readableRows.some((row) => row?.owner_key === publishedRow.owner_key)) {
-        readableRows.push(publishedRow);
+      if (publishedRow?.owner_key) {
+        const ownIndex = readableRows.findIndex((row) => row?.owner_key === publishedRow.owner_key);
+        if (ownIndex >= 0) {
+          readableRows[ownIndex] = publishedRow;
+        } else {
+          readableRows.push(publishedRow);
+        }
       }
       const rankedRows = rankSoloLeaderboardEntries(readableRows, friendKeys, currentOwnerKey);
       const sections = selectLeaderboardSections(rankedRows, currentOwnerKey, LEADERBOARD_TOP_LIMIT);
@@ -173,9 +181,9 @@ export default function LeaderboardPage() {
 
   const progress = readSoloProgress(user);
   const summary = summarizeSoloProgress(progress, getSoloLevelCount());
-  // Codex148 — Explicit Solo leaderboard score contract. The stat card
-  // shows visible Kronox Puan, but public ranking rows still derive from
-  // summary.totalSoloScore via the Solo leaderboard payload/projection.
+  // Codex148 — Explicit Solo component score contract. The stat card and
+  // public ranking rows show unified Kronox Puan; Solo summary remains
+  // separate for progression and technical Health contracts.
   const soloLeaderboardScore = summary.totalSoloScore;
   const visibleKronoxPuan = getKronoxVisibleScore(user, { soloProgress: progress });
   const diamondValue = getLeaderboardDiamondValue(user);

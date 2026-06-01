@@ -1,0 +1,90 @@
+{
+  "name": "SoloLeaderboardEntry",
+  "type": "object",
+  "properties": {
+    "owner_key": {
+      "type": "string",
+      "description": "Public-safe deterministic key for the user. Used for dedupe/friend matching without exposing email."
+    },
+    "display_name": {
+      "type": "string",
+      "description": "Public-safe display name or nickname for leaderboard rows."
+    },
+    "initial": {
+      "type": "string",
+      "description": "One-character safe initial for avatar fallback."
+    },
+    "total_kronox_score": {
+      "type": "number",
+      "description": "Visible Kronox Puan for ranking/display: Solo total_solo_score plus Online score component."
+    },
+    "total_solo_score": {
+      "type": "number",
+      "description": "Technical Solo score component from User solo_progress summary totalSoloScore."
+    },
+    "online_score": {
+      "type": "number",
+      "description": "Technical Online score component from User online_progress.score."
+    },
+    "current_level": {
+      "type": "number",
+      "description": "Current playable Solo level from shared Solo progress helpers."
+    },
+    "unlocked_level": {
+      "type": "number",
+      "description": "Unlocked Solo frontier from shared Solo progress helpers."
+    },
+    "total_stars": {
+      "type": "number",
+      "description": "Total Solo stars, used only as a leaderboard tie-breaker."
+    },
+    "completed_level_count": {
+      "type": "number",
+      "description": "Number of completed Solo levels."
+    },
+    "aggregate_best_time_seconds": {
+      "type": "number",
+      "description": "Sum of reliable bestTimeSeconds values for completed levels when available."
+    },
+    "updated_at": {
+      "type": "string",
+      "description": "ISO timestamp when the leaderboard-safe row was last synced."
+    }
+  },
+  "required": [
+    "owner_key",
+    "display_name",
+    "total_solo_score",
+    "current_level"
+  ],
+  "rls": {
+    "create": {
+      "created_by": "{{user.email}}"
+    },
+    "read": {},
+    "update": {
+      "$or": [
+        {
+          "created_by": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}
