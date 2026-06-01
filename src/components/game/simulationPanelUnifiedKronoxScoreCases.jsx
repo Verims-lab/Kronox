@@ -1,0 +1,183 @@
+// Kronox Health Center — unified player-facing Puan language.
+//
+// SCOPE
+//   Kronox has one user-facing score language: Puan / Kronox Puan.
+//   Solo and Online remain technical scoring components, but visible UI
+//   must not present them as separate score systems.
+
+import leaderboardPageSource from '../../pages/LeaderboardPage.jsx?raw';
+import rankingSectionSource from '../leaderboard/KronoxRankingSection.jsx?raw';
+import gameSource from '../../pages/Game.jsx?raw';
+import gameOverSource from './GameOver.jsx?raw';
+import mainMenuSource from '../../pages/MainMenu.jsx?raw';
+import profilePageSource from '../../pages/ProfilePage.jsx?raw';
+import soloChallengeSource from '../../pages/SoloChallenge.jsx?raw';
+import onlineChallengeSource from '../lobby/OnlineChallengeScreen.jsx?raw';
+import screenHeaderSource from '../layout/ScreenHeader.jsx?raw';
+import scoringRulesSource from '../../docs/KRONOX_SCORING_RULES.md?raw';
+
+const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
+const ACTION_TYPES = { CODE_FIX: 'CODE_FIX' };
+const SUITE_ID = 'unified_kronox_score_health';
+const SUITE_NAME = 'Unified Kronox Score Language Suite';
+
+const UI_SOURCES = {
+  LeaderboardPage: leaderboardPageSource,
+  KronoxRankingSection: rankingSectionSource,
+  Game: gameSource,
+  GameOver: gameOverSource,
+  MainMenu: mainMenuSource,
+  ProfilePage: profilePageSource,
+  SoloChallenge: soloChallengeSource,
+  OnlineChallengeScreen: onlineChallengeSource,
+  ScreenHeader: screenHeaderSource,
+};
+
+const FORBIDDEN_VISIBLE_COPY = [
+  'Solo puanın artık',
+  'solo puanına göre',
+  '>Solo Puan<',
+  '"Solo Puan"',
+  "'Solo Puan'",
+  'Online puan kaydediliyor',
+  '>Online Puan<',
+  '"Online Puan"',
+  "'Online Puan'",
+  'Online skorun',
+  'Solo skorun',
+];
+
+function safeStr(src) {
+  if (src == null) return '';
+  if (typeof src === 'string') return src;
+  try { return String(src); } catch { return ''; }
+}
+
+function pass(reason, extra = {}) { return { status: STATUS.PASS, reason, ...extra }; }
+function fail(reason, extra = {}) { return { status: STATUS.FAIL, reason, ...extra }; }
+
+function missingTokens(source, tokens) {
+  const src = safeStr(source);
+  return tokens.filter((token) => !src.includes(token));
+}
+
+function findForbiddenCopy(sources, tokens) {
+  return Object.entries(sources).flatMap(([file, source]) => {
+    const src = safeStr(source);
+    return tokens
+      .filter((token) => src.includes(token))
+      .map((token) => ({ file, token }));
+  });
+}
+
+function makeCase(id, name, run, options = {}) {
+  return {
+    key: `${SUITE_ID}.${id}`,
+    suiteId: SUITE_ID,
+    suiteName: SUITE_NAME,
+    id,
+    name,
+    critical: options.critical ?? true,
+    actionType: options.actionType || ACTION_TYPES.CODE_FIX,
+    nextStep: options.nextStep || 'Keep visible score copy unified as Puan / Kronox Puan.',
+    ...options,
+    run,
+  };
+}
+
+export const EXTRA_SUITES = [
+  { id: SUITE_ID, name: SUITE_NAME, critical: true, color: '#f59e0b' },
+];
+
+export const EXTRA_TESTS = [
+  makeCase('visible_copy_uses_unified_puan_language',
+    'User-facing score copy uses unified Puan language',
+    () => {
+      const offenders = findForbiddenCopy(UI_SOURCES, FORBIDDEN_VISIBLE_COPY);
+      if (offenders.length) {
+        return fail('Visible UI still exposes separate Solo/Online Puan wording.', {
+          verification: 'STATIC_CONTRACT',
+          actual: offenders,
+        });
+      }
+      return pass('Visible score UI avoids separate Solo/Online Puan labels.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('leaderboard_description_uses_unified_puan_language',
+    'Liderlik description uses unified Kronox Puan copy',
+    () => {
+      const missing = missingTokens(leaderboardPageSource, [
+        'Kronox Puanın Solo ve Online sonuçlarınla güncellenir.',
+      ]);
+      const offenders = findForbiddenCopy({ LeaderboardPage: leaderboardPageSource, KronoxRankingSection: rankingSectionSource }, [
+        'Solo puanın artık',
+        'solo puanına göre',
+        '>Solo Puan<',
+      ]);
+      if (missing.length || offenders.length) {
+        return fail('Liderlik copy still suggests a separate Solo score system.', {
+          verification: 'STATIC_CONTRACT',
+          actual: { missing, offenders },
+        });
+      }
+      return pass('Liderlik explains unified Kronox Puan without Solo Puan labels.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('result_popup_uses_unified_puan_language',
+    'Online result popup uses unified Puan wording',
+    () => {
+      const missing = missingTokens(gameOverSource, [
+        'Kazandığın Puan:',
+        'Kaybettiğin Puan:',
+        'Yeni Kronox Puanın:',
+      ]);
+      const offenders = findForbiddenCopy({ GameOver: gameOverSource }, [
+        'Online Puan',
+        'Online skor',
+        'Yeni Online Puanın',
+      ]);
+      if (missing.length || offenders.length) {
+        return fail('Online result popup does not use unified Puan copy.', {
+          verification: 'STATIC_CONTRACT',
+          actual: { missing, offenders },
+        });
+      }
+      return pass('Online result popup uses gained/lost/new Kronox Puan language.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('technical_docs_allow_components_but_ui_is_unified',
+    'Docs allow technical components while UI remains unified',
+    () => {
+      const missing = missingTokens(scoringRulesSource, [
+        'Kronox has one player-facing score language',
+        'Visible UI must use **Puan** or **Kronox Puan**',
+        'Internally, two scoring components feed that visible score',
+      ]);
+      if (missing.length) {
+        return fail('Scoring docs do not document the unified visible Puan contract.', {
+          verification: 'STATIC_CONTRACT',
+          missing,
+        });
+      }
+      return pass('Docs separate technical Solo/Online components from user-facing unified Puan copy.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('no_separate_visible_online_score_label',
+    'No visible Online Puan label remains',
+    () => {
+      const offenders = findForbiddenCopy(UI_SOURCES, [
+        '>Online Puan<',
+        '"Online Puan"',
+        "'Online Puan'",
+        'Online puan kaydediliyor',
+        'Online skorun',
+      ]);
+      if (offenders.length) {
+        return fail('Visible UI still has Online Puan/Online skor copy.', {
+          verification: 'STATIC_CONTRACT',
+          actual: offenders,
+        });
+      }
+      return pass('Visible UI does not expose a separate Online Puan label.', { verification: 'STATIC_CONTRACT' });
+    }),
+];

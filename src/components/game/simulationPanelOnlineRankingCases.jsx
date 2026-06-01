@@ -1,7 +1,7 @@
 // Kronox Health Center — Online ranking / checkpoint contracts (Codex136).
 //
 // SCOPE
-//   Lock the Online puan system in place:
+//   Lock the Online score system in place:
 //     • Win  → +15
 //     • Loss → -6
 //     • No draw scoring (Codex136 — removed per docs/KRONOX_SCORING_RULES.md).

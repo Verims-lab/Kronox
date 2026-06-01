@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex149 — Unified Puan copy cleanup:
+//   • Visible UI now says Puan / Kronox Puan instead of separate Solo or
+//     Online score labels.
+//   • Liderlik and the Online result popup use the unified player-facing
+//     wording while technical Solo/Online scoring components stay separate.
+//   • Adds modular Health coverage for unified score copy.
+//
 // Codex148 — Final Health alignment after visible Kronox Puan runtime fix:
 //   • Keeps Online score persistence/visible Puan path intact.
 //   • Makes the Solo leaderboard score source explicitly reference
@@ -39,7 +46,7 @@ import React, { useEffect, useState } from 'react';
 //
 // Codex143 — Online match completion scoring:
 //   • Allows first score apply when OnlineMatchResult lookup is unavailable.
-//   • Shows the current player's applied Online puan delta in GameOver.
+//   • Shows the current player's applied Online score delta in GameOver.
 //
 // Codex142 — acceptGameInvite recipient-only Health contract:
 //   • Keeps the real toEmail !== myEmail guard and restores the exact
@@ -536,7 +543,7 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
-const BUILD_MARKER = 'Codex148';
+const BUILD_MARKER = 'Codex149';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -213,7 +213,7 @@ export const EXTRA_TESTS = [
         'onlineScoreResult',
         'Puan',
         'Galibiyet: +',
-        'Mağlubiyet:',
+        'Kaybettiğin Puan:',
         'Checkpoint koruması',
         'Skor:',
       ]);

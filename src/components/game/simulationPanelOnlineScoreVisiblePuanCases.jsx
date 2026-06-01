@@ -199,7 +199,7 @@ export const EXTRA_TESTS = [
     'Popup shows saved scoreBefore/scoreAfter, not preview-only',
     () => {
       const missing = missingTokens(gameOverSource, [
-        'Yeni Puanın:',
+        'Yeni Kronox Puanın:',
         'scoreBefore',
         'scoreAfter',
         'Puan kaydedilemedi',

@@ -48,7 +48,9 @@ export default function GameOver({
     ? onlineScoreResult.message
     : onlineScoreResult?.error || onlineScoreResult?.noScoreDelta
       ? (onlineScoreResult.message || 'Puan kaydedilemedi')
-      : `${scoreSign}${scoreDelta} Puan`;
+      : onlineScoreResult?.result === 'win'
+        ? `Kazandığın Puan: ${scoreSign}${scoreDelta}`
+        : `Kaybettiğin Puan: ${scoreDelta}`;
   // Codex146 — Time displayed in the popup must equal the time used for
   // scoring. When we have an Online score result, prefer ITS elapsedSeconds
   // (the canonical player-own value passed to applyOnlineMatchToCurrentUser)
@@ -124,13 +126,13 @@ export default function GameOver({
                     </>
                   ) : (
                     <>
-                      <div>Mağlubiyet: {scoreDelta} Puan</div>
+                      <div>Kaybettiğin Puan: {scoreDelta}</div>
                       {onlineScoreResult.checkpointApplied && (
                         <div>Checkpoint koruması: {onlineScoreResult.protectedFloor} altına düşmedin</div>
                       )}
                     </>
                   )}
-                  <div>Yeni Puanın: {onlineScoreResult.scoreAfter}</div>
+                  <div>Yeni Kronox Puanın: {onlineScoreResult.scoreAfter}</div>
                   <div>Skor: {onlineScoreResult.scoreBefore} → {onlineScoreResult.scoreAfter}</div>
                   {effectiveDelta !== scoreDelta && (
                     <div>Gerçek değişim: {effectiveDelta > 0 ? '+' : ''}{effectiveDelta}</div>

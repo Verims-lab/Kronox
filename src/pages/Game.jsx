@@ -38,7 +38,7 @@ import {
   writeSoloProgress,
 } from '@/lib/soloLevels';
 import { calculateSoloAttemptResult, getBestSoloLevelResult } from '@/lib/soloProgressHelpers';
-// Codex128 — Online puan/checkpoint sistemi. Online winner kararlaştığında
+// Codex128 — Online score/checkpoint system. Online winner kararlaştığında
 // her client kendi kullanıcısının puanını günceller (idempotent).
 import { applyOnlineMatchToCurrentUser } from '@/lib/applyOnlineResult';
 // Codex146 — Player-own elapsed seconds canonical source for Online score
@@ -303,7 +303,7 @@ export default function Game() {
     renderedTurnMessageText,
   ]);
 
-  // Codex128 — Apply Online puan/checkpoint result for the local user
+  // Codex128 — Apply Online score/checkpoint result for the local user
   // exactly once per match. Runs on every client from its own perspective,
   // so each player updates only their own User.online_progress. Idempotent
   // via online_progress.lastMatchId == lobbyId guard inside the helper.
@@ -351,7 +351,7 @@ export default function Game() {
       result,
       elapsedSeconds: durationSeconds,
       pending: true,
-      message: 'Online puan kaydediliyor...',
+      message: 'Puan kaydediliyor...',
     });
     onlineResultAppliedRef.current = true;
     // Codex136 — structured-result aware. Persistence failures release the
@@ -368,14 +368,14 @@ export default function Game() {
       const popupState = buildOnlineScorePopupState({ result, elapsedSeconds: durationSeconds, response: res });
       if (popupState) setOnlineScoreResult(popupState);
       if (res && res.ok === false && res.retryable !== false) {
-        debugLog('[Game] online puan persist failed; will allow retry on next mount', res);
+        debugLog('[Game] online score persist failed; will allow retry on next mount', res);
         // Codex146 — keep elapsed snapshot so a retry uses the same time
         // value the user was shown; just unflag applied so the effect runs.
         onlineResultAppliedRef.current = false;
       }
     }).catch((err) => {
       const message = err?.message || String(err);
-      debugLog('[Game] online puan persist crashed; will allow retry on next mount', { lobbyId, error: message });
+      debugLog('[Game] online score persist crashed; will allow retry on next mount', { lobbyId, error: message });
       setOnlineScoreResult({
         result,
         elapsedSeconds: durationSeconds,

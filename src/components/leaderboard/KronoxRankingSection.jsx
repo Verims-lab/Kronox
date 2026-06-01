@@ -12,8 +12,8 @@ import { Loader2, Medal, RefreshCw, Trophy, UserRound, Users } from 'lucide-reac
  *  • If global ranking fails, do NOT show the scary red/purple error box.
  *  • Do NOT expose backend permission language to end users.
  *  • Always show the user's own visible Puan + a friendly "Genel sıran:
- *    Hazırlanıyor". Ranking rows remain Solo Puan until a combined public
- *    leaderboard source exists.
+ *    Hazırlanıyor". Public ranking rows use their current backend score
+ *    projection without exposing separate user-facing score systems.
  *  • Keep the retry button.
  *  • Admin/dev sees the technical reason in a small diagnostics block.
  *  • Never invent fake users/ranks/friends.
@@ -61,7 +61,7 @@ export default function KronoxRankingSection({ authChecked, user, leaderboard, o
         <div className="min-w-0">
           <p className="font-inter text-sm font-black text-white">Kronox Sıralaması</p>
           <p className="mt-1 font-inter text-[11px] leading-relaxed text-blue-100/70">
-            Tüm oyuncular arasında solo puanına göre sıralaman.
+            Tüm oyuncular arasında Kronox sıralaman.
           </p>
         </div>
       </div>
@@ -324,7 +324,7 @@ function LeaderboardRow({ row, compact = false, emphasis = false }) {
       </div>
       <div className="shrink-0 text-right">
         <p className="font-bangers text-lg leading-none text-amber-200">{row.summary.totalSoloScore}</p>
-        <p className="font-inter text-[9px] font-black uppercase tracking-wider text-blue-100/45">Solo Puan</p>
+        <p className="font-inter text-[9px] font-black uppercase tracking-wider text-blue-100/45">Puan</p>
       </div>
     </div>
   );
