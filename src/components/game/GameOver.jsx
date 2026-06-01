@@ -49,6 +49,14 @@ export default function GameOver({
     : onlineScoreResult?.error || onlineScoreResult?.noScoreDelta
       ? onlineScoreResult.message
       : `${scoreSign}${scoreDelta} Puan`;
+  // Codex146 — Time displayed in the popup must equal the time used for
+  // scoring. When we have an Online score result, prefer ITS elapsedSeconds
+  // (the canonical player-own value passed to applyOnlineMatchToCurrentUser)
+  // over winner.durationSeconds. Falls back to winner.durationSeconds only
+  // for non-online / no-score-result paths so legacy/solo behavior is intact.
+  const displayDurationSeconds = hasOnlineScore && Number.isFinite(Number(onlineScoreResult?.elapsedSeconds))
+    ? Number(onlineScoreResult.elapsedSeconds)
+    : durationSeconds;
 
   return (
     <motion.div
@@ -83,10 +91,12 @@ export default function GameOver({
             {resultText}
           </p>
 
-          {durationSeconds != null && (
+          {displayDurationSeconds != null && (
             <div className="flex items-center justify-center gap-2 mt-3 text-white/60 text-sm font-inter">
               <Timer className="w-4 h-4 text-primary" />
-              <span>{formatDuration(durationSeconds)}</span>
+              {/* Codex146 — "Süren" makes it explicit this is YOUR gameplay
+                  time, the same value used for the time bonus calculation. */}
+              <span>{hasOnlineScore ? `Süren: ${formatDuration(displayDurationSeconds)}` : formatDuration(displayDurationSeconds)}</span>
             </div>
           )}
 
