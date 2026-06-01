@@ -14,7 +14,6 @@ import {
   getInviteRemainingMs,
   isActiveIncomingGameInvite,
   isInviteExpired,
-  isInvitePending,
   mergeActiveIncomingGameInvites,
   normalizeEmail,
   parseKronoxTimestamp,
@@ -104,10 +103,10 @@ async function expirePendingInvite(invite, { source = 'cleanup' } = {}) {
   return { ...invite, status: 'expired' };
 }
 
-/** Load incoming pending invites for the current user. */
-export async function loadIncomingInvites(myEmail) {
+/** Load incoming invite lifecycle rows for the current user. */
+export async function loadIncomingInviteSnapshot(myEmail) {
   const me = normalizeEmail(myEmail);
-  if (!me) return [];
+  if (!me) return { rows: [], activeInvites: [], fetchedAt: Date.now() };
   const rows = await base44.entities.GameInvite.filter(
     { to_email: me },
     '-created_date',
@@ -129,7 +128,17 @@ export async function loadIncomingInvites(myEmail) {
     });
     return isGameInviteExpired(invite, now) ? expirePendingInvite(invite, { source: 'loadIncomingInvites' }) : invite;
   }));
-  return filterActiveIncomingGameInvites(settled, me, now);
+  return {
+    rows: settled,
+    activeInvites: filterActiveIncomingGameInvites(settled, me, now),
+    fetchedAt: now,
+  };
+}
+
+/** Load incoming pending invites for the current user. */
+export async function loadIncomingInvites(myEmail) {
+  const snapshot = await loadIncomingInviteSnapshot(myEmail);
+  return snapshot.activeInvites;
 }
 
 /** Load outgoing invites the host sent for a specific lobby (any status). */
@@ -250,7 +259,7 @@ export async function openGameInvite(invite, {
   const now = Date.now();
   const reason = userEmail
     ? getGameInviteActiveFilterReason(invite, userEmail, now)
-    : (isInvitePending(invite) && !isInviteExpired(invite, now) ? 'active' : getGameInviteActiveFilterReason(invite, getInviteRecipientEmail(invite), now));
+    : getGameInviteActiveFilterReason(invite, getInviteRecipientEmail(invite), now);
 
   traceGameInviteLifecycle('invite_open_accept_attempted', invite, {
     source,
@@ -259,7 +268,9 @@ export async function openGameInvite(invite, {
     now,
   });
 
-  if (reason === 'expired') throw new Error('Davetin süresi doldu. Yeni bir davet iste.');
+  if (reason === 'expired') throw new Error('Davetin süresi doldu.');
+  if (reason === 'missing_lobby') throw new Error('Lobi artık mevcut değil.');
+  if (reason === 'recipient_mismatch') throw new Error('Bu davet sana ait değil');
   if (!reason.startsWith('active')) throw new Error('Bu davet artık geçerli değil.');
 
   const res = await acceptGameInvite(invite.id);
@@ -271,6 +282,11 @@ export async function openGameInvite(invite, {
 
   if (typeof navigate === 'function') {
     if (res?.lobby?.id) {
+      traceGameInviteLifecycle('lobby_navigation_started', invite, {
+        source,
+        userEmail,
+        reason: 'accepted_lobby_payload',
+      });
       navigate('/lobby', {
         state: {
           joinedLobby: res.lobby,
@@ -279,6 +295,11 @@ export async function openGameInvite(invite, {
         },
       });
     } else {
+      traceGameInviteLifecycle('lobby_navigation_started', invite, {
+        source,
+        userEmail,
+        reason: 'accepted_without_lobby_payload',
+      });
       navigate('/lobby');
     }
   }

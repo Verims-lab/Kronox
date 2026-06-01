@@ -4,7 +4,8 @@ import { ToastAction } from '@/components/ui/toast';
 import { toast } from '@/components/ui/use-toast';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
-import { loadIncomingInvites, openGameInvite } from '@/lib/inviteApi';
+import { loadIncomingInviteSnapshot, openGameInvite } from '@/lib/inviteApi';
+import { buildNotificationViewModel } from '@/lib/notificationViewModel';
 import {
   getGameInviteActiveFilterReason,
   getInviteRecipientEmail,
@@ -94,7 +95,6 @@ export default function GameInviteNotifier() {
                 description: error?.message || 'Davet kabul edilemedi. Lütfen tekrar dene.',
                 duration: 5000,
               });
-              navigate(target);
             }
           }}
         >
@@ -117,11 +117,17 @@ export default function GameInviteNotifier() {
       source: 'GameInviteNotifier',
       user,
       userEmail: user?.email,
+      reason: target,
     });
   }, [dismissInviteToast, navigate, user]);
 
   const ingestInvites = useCallback((rows, { notifyNew }) => {
     const known = knownInviteIdsRef.current;
+    const viewModel = buildNotificationViewModel({
+      currentUser: user,
+      gameInvites: rows,
+      dismissedToastIds: dismissedInviteIdsRef.current,
+    });
     (rows || []).forEach((invite) => {
       if (!invite?.id) return;
       const wasKnown = known.has(invite.id);
@@ -139,7 +145,8 @@ export default function GameInviteNotifier() {
         }
         return;
       }
-      if (notifyNew && !wasKnown && !dismissedInviteIdsRef.current.has(invite.id)) {
+      const canShowBanner = viewModel.bannerCandidates.some((item) => item.id === invite.id);
+      if (notifyNew && !wasKnown && canShowBanner) {
         showInviteToast(invite);
       }
     });
@@ -168,15 +175,15 @@ export default function GameInviteNotifier() {
     let intervalId = null;
 
     const refresh = async ({ notifyNew }) => {
-      const rows = await loadIncomingInvites(email).catch(() => []);
+      const snapshot = await loadIncomingInviteSnapshot(email).catch(() => ({ rows: [], activeInvites: [] }));
       if (cancelled) return;
-      traceGameInviteLifecycle('invite_loaded_by_polling_fetch', { id: `count:${rows.length}`, status: 'pending', to_email: email }, {
+      traceGameInviteLifecycle('invite_loaded_by_polling_fetch', { id: `count:${snapshot.activeInvites?.length || 0}`, status: 'pending', to_email: email }, {
         source: 'GameInviteNotifier.refresh',
         user,
         userEmail: email,
         reason: 'fetch_complete',
       });
-      ingestInvites(rows, { notifyNew });
+      ingestInvites(snapshot.rows || [], { notifyNew });
       bootstrappedRef.current = true;
     };
 

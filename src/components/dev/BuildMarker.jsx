@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex151 — Notification lifecycle stabilization:
+//   • Header/Online/banner derive GameInvite visibility from a shared
+//     notification view model and active-invite selector.
+//   • Fetch/subscription merges preserve valid pending invites across
+//     stale empty fetches while terminal statuses still remove them.
+//   • Accepted invite route state seeds LobbyRoom immediately to avoid
+//     fresh-lobby expired/empty flashes during join.
+//
 // Codex150 — Leaderboard row Puan consistency fix:
 //   • Public leaderboard rows now carry total_kronox_score =
 //     total_solo_score + online_score.
@@ -551,7 +559,7 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
-const BUILD_MARKER = 'Codex150';
+const BUILD_MARKER = 'Codex151';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

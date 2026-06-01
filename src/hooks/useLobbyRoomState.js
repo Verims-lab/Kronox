@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { base44 } from '@/api/base44Client';
 
-export function useLobbyRoomState() {
+export function useLobbyRoomState(initialLobby = null) {
   const [user, setUser] = useState(null);
   const [mode, setMode] = useState(null);
   const [playerName, setPlayerName] = useState('');
   const [joinCode, setJoinCode] = useState('');
-  const [lobby, setLobby] = useState(null);
+  const [lobby, setLobby] = useState(initialLobby);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [nameError, setNameError] = useState('');

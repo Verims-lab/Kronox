@@ -295,20 +295,21 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 10. Banner "Aç" -> /lobby?inviteId= deep-link */
+  /* 10. Banner "Aç" -> shared accept/open action */
   makeCase('invite_lifecycle', 'in_app_invite_banner_open_goes_to_lobby',
-    'Banner "Aç" action navigates to /lobby?inviteId=… which triggers accept + waiting room',
+    'Banner "Aç" action uses shared openGameInvite and navigates with the accepted lobby payload',
     () => {
       const src = safeStr(gameInviteNotifierSource);
       const required = [
         "params.set('inviteId'",
         "'/lobby'",
         '<ToastAction',
-        'navigate(target)',
+        'openGameInvite(invite',
+        "source: 'toast'",
       ];
       const missing = required.filter((t) => !src.includes(t));
       if (missing.length) {
-        return fail('Banner "Aç" handler is not wired to /lobby deep-link.', {
+        return fail('Banner "Aç" handler is not wired to the shared accept/open path.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
@@ -322,7 +323,7 @@ export const EXTRA_TESTS = [
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Banner Aç → /lobby?inviteId → acceptGameInvite → waiting room.',
+      return pass('Banner Aç → shared openGameInvite → accepted lobby waiting room.',
         { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
