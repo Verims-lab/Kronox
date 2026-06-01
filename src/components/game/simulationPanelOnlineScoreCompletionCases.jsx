@@ -14,10 +14,12 @@ import {
   applyOnlineScoreWithCheckpoint,
   applyOnlineMatchResult,
 } from '@/lib/onlineRanking';
+import { getOnlinePlayerElapsedSeconds } from '@/lib/onlinePlayerElapsed';
 import gameSource from '../../pages/Game.jsx?raw';
 import gameOverSource from './GameOver.jsx?raw';
 import applyOnlineResultSource from '../../lib/applyOnlineResult.js?raw';
 import onlineRankingSource from '../../lib/onlineRanking.js?raw';
+import playerElapsedSource from '../../lib/onlinePlayerElapsed.js?raw';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
 const ACTION_TYPES = { CODE_FIX: 'CODE_FIX' };
@@ -99,11 +101,14 @@ export const EXTRA_TESTS = [
   makeCase('online_score_uses_player_own_elapsed_time',
     'Winner time bonus uses the current player gameplay timer, not lobby duration',
     () => {
+      // Codex146 — Source-of-truth helper replaces the inline winner-bonus
+      // comment. We require the helper import + the local timer ref + the
+      // sticky per-match snapshot ref.
       const src = safeStr(gameSource);
       const missing = missingTokens(src, [
-        'Winner bonus uses this client',
+        'getOnlinePlayerElapsedSeconds',
         'overallSecondsRef.current',
-        'durationSeconds',
+        'playerOwnElapsedRef',
       ]);
       const forbidden = ['created_date', 'created_at', 'invite', 'joined_at']
         .filter((token) => src.includes(`durationSeconds = lobbyData?.${token}`));
@@ -223,5 +228,134 @@ export const EXTRA_TESTS = [
       const bad = src.includes('totalSoloScore') || src.includes('solo_progress');
       if (bad) return fail('Online scoring writer references Solo score/progress.', { verification: 'STATIC_CONTRACT' });
       return pass('Online scoring writes online_progress and OnlineMatchResult only.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  // ─── Codex146 — Player-own elapsed time + popup/scoring parity ──────
+
+  makeCase('online_score_player_elapsed_time_not_lobby_duration',
+    'Scoring time source is player-own gameplay timer, not lobby/invite duration',
+    () => {
+      const src = safeStr(gameSource);
+      const missing = missingTokens(src, [
+        'getOnlinePlayerElapsedSeconds',
+        'playerOwnElapsedRef',
+        'overallSecondsRef.current',
+      ]);
+      const forbidden = ['created_date', 'created_at', 'joined_at', 'last_activity_at']
+        .filter((token) => src.includes(`durationSeconds: lobbyData?.${token}`) ||
+                            src.includes(`elapsedSeconds: lobbyData?.${token}`));
+      if (missing.length || forbidden.length) {
+        return fail('Online scoring time source may be lobby/invite duration instead of player-own time.', {
+          verification: 'STATIC_CONTRACT',
+          missing,
+          forbidden,
+        });
+      }
+      return pass('Online scoring uses the local gameplay timer via getOnlinePlayerElapsedSeconds.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('online_popup_time_matches_scoring_time',
+    'Result popup time and scoring time read the same single value',
+    () => {
+      const overSrc = safeStr(gameOverSource);
+      const gameSrc = safeStr(gameSource);
+      const missingOver = missingTokens(overSrc, [
+        'displayDurationSeconds',
+        'onlineScoreResult?.elapsedSeconds',
+      ]);
+      const missingGame = missingTokens(gameSrc, [
+        'elapsedSeconds: durationSeconds',
+      ]);
+      if (missingOver.length || missingGame.length) {
+        return fail('Popup time and scoring time may have drifted apart.', {
+          verification: 'STATIC_CONTRACT',
+          missingOver,
+          missingGame,
+        });
+      }
+      return pass('Popup time reads onlineScoreResult.elapsedSeconds (same value sent to scoring).', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('online_player_elapsed_helper_returns_null_for_missing',
+    'getOnlinePlayerElapsedSeconds returns null when no reliable time exists',
+    () => {
+      const checks = [
+        assertEq(getOnlinePlayerElapsedSeconds({}, undefined), null, 'undefined fallback'),
+        assertEq(getOnlinePlayerElapsedSeconds({}, null), null, 'null fallback'),
+        assertEq(getOnlinePlayerElapsedSeconds({ elapsedSeconds: -3 }, null), null, 'negative explicit'),
+        assertEq(getOnlinePlayerElapsedSeconds({ elapsedSeconds: NaN }, null), null, 'NaN explicit'),
+        assertEq(getOnlinePlayerElapsedSeconds({}, 0), 0, 'zero fallback ok'),
+        assertEq(getOnlinePlayerElapsedSeconds({ elapsedSeconds: 42 }, 999), 42, 'explicit wins over fallback'),
+        assertEq(getOnlinePlayerElapsedSeconds({}, 205), 205, 'fallback used when no explicit'),
+      ].filter(Boolean);
+      if (checks.length) return checks[0];
+      return pass('Player-own elapsed helper returns null for missing/invalid time.', { verification: 'EXECUTABLE' });
+    }),
+
+  makeCase('online_winner_3_25_gets_15_not_25',
+    'Winner own elapsed 205s (3:25) gives +15 base only, no speed bonus',
+    () => {
+      const checks = [
+        assertEq(calculateOnlineWinnerDelta(205), 15, 'winner 3:25 → +15'),
+        assertEq(calculateOnlineWinnerDelta(91), 15, 'winner 91s → +15'),
+      ].filter(Boolean);
+      if (checks.length) return checks[0];
+      return pass('Winner over 90s gets +15 only (no fake +10 bonus).', { verification: 'EXECUTABLE' });
+    }),
+
+  makeCase('online_score_update_failure_not_shown_as_success',
+    'Persistence failure does NOT show a successful +points message',
+    () => {
+      const src = safeStr(gameSource);
+      const missing = missingTokens(src, [
+        'Puan kaydedilemedi. Tekrar dene.',
+        'error: true',
+      ]);
+      if (missing.length) return fail('Persistence failure message is missing or shows success.', { verification: 'STATIC_CONTRACT', missing });
+      return pass('Persistence failure clearly shows "Puan kaydedilemedi" instead of a delta.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('online_score_idempotency_does_not_block_first_persist',
+    'Idempotency guard does not block the first real apply',
+    () => {
+      const src = safeStr(applyOnlineResultSource);
+      const missing = missingTokens(src, [
+        "where: 'persist'",
+        'lastMatchId: String(lobbyId)',
+        'already_recorded',
+      ]);
+      // The guard must not abort the apply when the audit lookup itself fails.
+      const blocksFirstApply = src.includes("where: 'online_match_result_lookup'");
+      if (missing.length || blocksFirstApply) {
+        return fail('Idempotency may block the first real persist.', {
+          verification: 'STATIC_CONTRACT',
+          missing,
+          blocksFirstApply,
+        });
+      }
+      return pass('First completion persists; only AFTER successful updateMe is lastMatchId stored.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('online_score_helper_file_exists',
+    'lib/onlinePlayerElapsed.js helper module is present',
+    () => {
+      const src = safeStr(playerElapsedSource);
+      const missing = missingTokens(src, [
+        'export function getOnlinePlayerElapsedSeconds',
+        'isUsableSeconds',
+        'Same input → same output',
+      ]);
+      if (missing.length) return fail('Player-own elapsed helper module shape changed.', { verification: 'STATIC_CONTRACT', missing });
+      return pass('Player-own elapsed helper module is the canonical scoring/display time source.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('online_popup_failure_copy_uses_kronox_wording',
+    'Popup failure copy uses "Puan kaydedilemedi. Tekrar dene." per product spec',
+    () => {
+      const src = safeStr(gameSource);
+      if (!src.includes('Puan kaydedilemedi. Tekrar dene.')) {
+        return fail('Failure copy does not match product wording.', { verification: 'STATIC_CONTRACT' });
+      }
+      return pass('Failure copy matches product wording.', { verification: 'STATIC_CONTRACT' });
     }),
 ];
