@@ -101,6 +101,9 @@ import * as scoringContractCases from './simulationPanelScoringContractCases';
 // parsers now append `Z` to naive strings so they parse as UTC. The
 // GameInvite entity also gained the missing timestamp columns.
 import * as inviteTimezoneCases from './simulationPanelInviteTimezoneCases';
+// Codex140 — GameInvite "Aç" regression: successful accept must open the
+// lobby/waiting room; fresh lobby timestamps must not be parsed as stale.
+import * as gameInviteOpenToLobbyCases from './simulationPanelGameInviteOpenToLobbyCases';
 // Codex139 — DB/Data Model hardening:
 // schema docs, Solo localStorage scoping, leaderboard projection drift,
 // OnlineMatchResult idempotency, cleanup/retention, and RLS probe matrix.
@@ -125,6 +128,7 @@ const MODULES = [
   gameInviteLifecycleCases,
   scoringContractCases,
   inviteTimezoneCases,
+  gameInviteOpenToLobbyCases,
   dataModelCases,
 ];
 

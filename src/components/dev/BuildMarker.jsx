@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex140 — GameInvite "Aç" opens Lobby fix:
+//   • Reuses UTC-safe timestamp parsing for lobby stale checks so Base44
+//     naive lobby timestamps do not make fresh invites show "Lobi süresi doldu".
+//   • Refreshes lobby last_activity_at on invite/code joins and adds modular
+//     Health coverage for the notification-open-to-lobby path.
+//
 // Codex139 — DB/Data Model hardening package:
 //   • Documents live User/Lobby/GameInvite fields and adds OnlineMatchResult.
 //   • Scopes Solo localStorage mirrors by user so shared devices do not leak
@@ -480,7 +486,7 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
-const BUILD_MARKER = 'Codex139';
+const BUILD_MARKER = 'Codex140';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

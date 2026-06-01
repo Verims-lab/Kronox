@@ -96,14 +96,20 @@ export const acceptGameInviteFnSource = `
     await base44.asServiceRole.entities.GameInvite.update(invite.id, { status: 'expired' });
   }
   // Codex130 — Stale waiting lobby guard. Idle > 10 min → no longer joinable.
-  const lobbyTouchedAt = readTime(lobby?.updated_date || lobby?.created_date);
-  if (Number.isFinite(lobbyTouchedAt) && (Date.now() - lobbyTouchedAt) > LOBBY_STALE_AFTER_MS) {
+  const getLobbyTouchedAt = (lobby) => readTime(lobby?.last_activity_at || lobby?.updated_at || lobby?.updated_date || lobby?.created_at || lobby?.created_date);
+  const getLobbyExpiry = (lobby) => Math.max(
+    readTime(lobby?.expires_at || lobby?.expiresAt),
+    getLobbyTouchedAt(lobby) + LOBBY_STALE_AFTER_MS,
+  );
+  const lobbyExpiresAt = getLobbyExpiry(lobby);
+  if (Number.isFinite(lobbyExpiresAt) && lobbyExpiresAt <= Date.now()) {
     await base44.asServiceRole.entities.GameInvite.update(inviteId, { status: 'expired', expired_at: new Date().toISOString() });
     return Response.json({ error: 'Lobi süresi doldu. Yeni bir meydan okuma başlatabilirsin.' }, { status: 409 });
   }
   const newPlayer = { email: myEmail, name: displayName, ready: false, cards: [] };
   const verifiedLobby = await base44.asServiceRole.entities.Lobby.update(lobby.id, {
     players: [...lobby.players, newPlayer],
+    last_activity_at: new Date().toISOString(),
   });
   await base44.asServiceRole.entities.GameInvite.update(inviteId, { status: 'accepted', accepted_at: new Date().toISOString() });
 `;
@@ -387,14 +393,17 @@ export const findLobbyByCodeFnSource = `
   // Public contract of functions/findLobbyByCode.js — mirrored.
   // Codex130: stale-lobby guard added (10 min).
   const LOBBY_STALE_AFTER_MS = 10 * 60 * 1000;
-  const lobbyTouchedAt = lobbyTouchedRaw ? new Date(lobbyTouchedRaw).getTime() : NaN;
-  if (Number.isFinite(lobbyTouchedAt) && (Date.now() - lobbyTouchedAt) > LOBBY_STALE_AFTER_MS) {
+  const hasZone = /Z$/i.test(str) || /[+-]\\d{2}:?\\d{2}$/.test(str);
+  const t = new Date(hasZone ? str : \`\${str}Z\`).getTime();
+  const lobbyExpiresAt = getLobbyExpiry(lobby, LOBBY_STALE_AFTER_MS);
+  if (Number.isFinite(lobbyExpiresAt) && lobbyExpiresAt <= Date.now()) {
     return Response.json({
       found: true,
       joinable: false,
       error: 'Lobi süresi doldu. Yeni bir meydan okuma başlatabilirsin.',
     });
   }
+  await base44.asServiceRole.entities.Lobby.update(lobby.id, { players: newPlayers, last_activity_at: new Date().toISOString() });
 `;
 
 export const startLobbyGameFnSource = `

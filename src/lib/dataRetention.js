@@ -22,14 +22,19 @@ function parseBase44Timestamp(raw) {
 function isWaitingLobbyStale(lobby, now = Date.now()) {
   if (!lobby || lobby.status !== 'waiting') return false;
   const explicitExpiry = parseBase44Timestamp(lobby.expires_at || lobby.expiresAt);
-  if (Number.isFinite(explicitExpiry)) return explicitExpiry <= now;
   const touched = parseBase44Timestamp(
     lobby.last_activity_at ||
+    lobby.lastActivityAt ||
+    lobby.updated_at ||
     lobby.updated_date ||
     lobby.created_at ||
     lobby.created_date,
   );
-  return Number.isFinite(touched) && now - touched > LOBBY_STALE_AFTER_MS;
+  const derivedExpiry = Number.isFinite(touched) ? touched + LOBBY_STALE_AFTER_MS : NaN;
+  const expiresAt = Number.isFinite(explicitExpiry) && Number.isFinite(derivedExpiry)
+    ? Math.max(explicitExpiry, derivedExpiry)
+    : (Number.isFinite(explicitExpiry) ? explicitExpiry : derivedExpiry);
+  return Number.isFinite(expiresAt) && expiresAt <= now;
 }
 
 export async function cleanupExpiredGameInvites({

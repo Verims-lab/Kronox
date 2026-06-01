@@ -76,7 +76,7 @@ export function isInvitePending(invite) {
 // like an ISO datetime but has no timezone suffix before handing it to
 // `new Date()`. Strings that already have `Z` / `+hh:mm` / `-hh:mm` /
 // `space + offset` are left alone.
-function parseBase44Timestamp(raw) {
+export function parseKronoxTimestamp(raw) {
   if (raw == null) return NaN;
   if (raw instanceof Date) {
     const t = raw.getTime();
@@ -94,12 +94,12 @@ function parseBase44Timestamp(raw) {
 
 export function getInviteCreatedAt(invite) {
   const raw = invite?.created_at || invite?.createdAt || invite?.created_date || invite?.createdDate;
-  return parseBase44Timestamp(raw);
+  return parseKronoxTimestamp(raw);
 }
 
 export function parseInviteExpiresAt(invite) {
   const explicitRaw = invite?.expires_at || invite?.expiresAt;
-  const explicit = parseBase44Timestamp(explicitRaw);
+  const explicit = parseKronoxTimestamp(explicitRaw);
   if (Number.isFinite(explicit)) return explicit;
 
   const created = getInviteCreatedAt(invite);
