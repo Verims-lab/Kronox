@@ -31,7 +31,7 @@ import HeaderNotificationBell from '@/components/notifications/HeaderNotificatio
  *   - Avatar shown by default; pass `showProfile={false}` to hide it
  *     (Home requirement).
  *   - Chip area (`chipValue`) only renders in TITLE mode and only when a
- *     real numeric value is passed. No fake economy.
+ *     real numeric value is passed.
  *   - Header is fixed, safe-area aware, mobile-first.
  *
  * IMPORTANT: This component only hosts the notification bell visually;
@@ -47,9 +47,9 @@ export default function ScreenHeader({
   rightSlot = null,
   // Codex118 — optional stats payload. When provided, the center area
   // renders Puan + Elmas instead of `title`. Both numbers must come from
-  // the caller's source of truth (Puan = visible Kronox Puan, Elmas = real
-  // economy field or safe 0 placeholder). The header does NOT compute
-  // these itself.
+  // the caller's source of truth (Puan = visible Kronox Puan, Elmas =
+  // canonical persisted User.diamonds with safe loading fallback). The
+  // header does NOT compute these itself.
   headerStats = null,
   // Codex118 — Home hides the avatar. Default true preserves every
   // other screen's existing behavior.

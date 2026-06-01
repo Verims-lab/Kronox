@@ -469,8 +469,10 @@ Important:
   must stay in the shared helper, not duplicated in UI components.
 - Do **not** calculate **Elmas** from score.
 - Do **not** calculate **Elmas** from stars.
-- Elmas economy is **separate** and currently a placeholder/real-field
-  based value depending on implementation (`getLeaderboardDiamondValue`).
+- Elmas economy is **separate** from Kronox Puan. The canonical balance is
+  `User.diamonds`, read through `getDiamondBalance` /
+  `getLeaderboardDiamondValue`. Starter and daily login grants must not
+  mutate Solo or Online Puan components.
 
 ---
 

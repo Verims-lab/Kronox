@@ -137,6 +137,24 @@
     "game_invite_notifications_enabled": {
       "type": "boolean",
       "description": "User preference for game-invite push notifications. sendGameInvitePush skips delivery when explicitly false."
+    },
+    "diamonds": {
+      "type": "number",
+      "description": "Codex152 — Canonical persisted Elmas/Diamond balance. UI surfaces read this field through getDiamondBalance/getLeaderboardDiamondValue. Diamonds are never derived from Kronox Puan, Solo stars, Online score, or level."
+    },
+    "starter_bonus_granted_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the one-time +100 starter Diamond bonus was granted. Durable guard used with DiamondTransaction idempotency_key starter_bonus:<email>."
+    },
+    "last_daily_diamond_reward_date": {
+      "type": "string",
+      "description": "UTC YYYY-MM-DD key for the latest +20 daily login Diamond reward. Durable guard used with DiamondTransaction idempotency_key daily_login:<email>:<YYYY-MM-DD>."
+    },
+    "economy_updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp of the latest Diamond balance update."
     }
   },
   "required": [

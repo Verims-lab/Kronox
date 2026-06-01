@@ -48,6 +48,9 @@ import friendsApiSource from '../../lib/friendsApi.js?raw';
 import inviteApiSource from '../../lib/inviteApi.js?raw';
 import gameInviteSelectorsSource from '../../lib/gameInviteSelectors.js?raw';
 import incomingInvitesPanelSource from '../invites/IncomingInvitesPanel.jsx?raw';
+import diamondEconomySource from '../../lib/diamondEconomy.js?raw';
+import leaderboardSource from '../../lib/leaderboard.js?raw';
+import profilePageSource from '../../pages/ProfilePage.jsx?raw';
 import lobbyCreateJoinPanelSource from '../lobby/LobbyCreateJoinPanel.jsx?raw';
 import lobbyRoomSource from '../../pages/LobbyRoom.jsx?raw';
 import onlineChallengeScreenSource from '../lobby/OnlineChallengeScreen.jsx?raw';
@@ -128,6 +131,10 @@ export const OVERRIDDEN_CASE_KEYS = new Set([
   // subscription rows away. The old cases expected the active-only loader call.
   'game_invites.incoming_invites_visible_to_recipient',
   'invite_contract_drift.incoming_panel_uses_loader',
+  // Codex152 — Elmas is no longer a placeholder-only UI value. The frozen
+  // base suite still expected "PLACEHOLDER" / "no economy yet" markers.
+  'profile_economy.placeholder_disclosed_in_source',
+  'profile_economy.ui_does_not_crash_when_values_missing',
 ]);
 
 // No new suite ids — we reuse the existing suite ids defined in the base
@@ -136,6 +143,58 @@ export const OVERRIDDEN_CASE_KEYS = new Set([
 export const EXTRA_SUITES = [];
 
 export const EXTRA_TESTS = [
+  /* ------------------------------------------------------------------
+   *  profile_economy — Elmas moved from placeholder to real User.diamonds
+   *  economy balance (Codex152). Keep the old suite id but re-target the
+   *  source contract to the canonical persisted Diamond helper.
+   * ------------------------------------------------------------------ */
+  sourceHasReplacement(
+    'profile_economy', 'Profile Economy Placeholder Suite',
+    'placeholder_disclosed_in_source',
+    'Elmas is a real persisted User.diamonds balance with safe loading fallback',
+    'ProfilePage.jsx + lib/diamondEconomy.js + lib/leaderboard.js',
+    `${profilePageSource}\n${diamondEconomySource}\n${leaderboardSource}`,
+    [
+      "DIAMOND_BALANCE_FIELD = 'diamonds'",
+      'export function getDiamondBalance',
+      'return getDiamondBalance(user)',
+      'getProfileDiamondValue(user)',
+      "label: 'Elmas'",
+    ],
+  ),
+  makeCase(
+    'profile_economy', 'Profile Economy Placeholder Suite',
+    'ui_does_not_crash_when_values_missing',
+    'Elmas UI falls back safely while auth/economy data is unavailable',
+    () => {
+      const source = `${safeStr(profilePageSource)}\n${safeStr(diamondEconomySource)}`;
+      const required = [
+        'normalizeDiamondBalance',
+        'return 0',
+        'getProfileDiamondValue(user)',
+        "label: 'Elmas'",
+      ];
+      const missing = required.filter((token) => !source.includes(token));
+      if (missing.length) {
+        return fail('Diamond missing-data fallback contract drifted.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'ProfilePage.jsx + lib/diamondEconomy.js',
+          expected: required,
+          actual: { missing },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Elmas tile reads User.diamonds through a helper that safely returns 0 for missing/loading data.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        file: 'ProfilePage.jsx + lib/diamondEconomy.js',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true },
+  ),
+
   /* ------------------------------------------------------------------
    *  invite_expiration_health — TTL bumped 5 → 10 minutes (Codex130)
    * ------------------------------------------------------------------ */

@@ -305,6 +305,10 @@ export const userEntitySource = `
     "role": { "enum": ["admin", "user"] },
     "hasCompletedTutorial": {},
     "game_invite_notifications_enabled": {},
+    "diamonds": {},
+    "starter_bonus_granted_at": {},
+    "last_daily_diamond_reward_date": {},
+    "economy_updated_at": {},
     "solo_progress": {
       "properties": {
         "currentLevel": {},
@@ -347,6 +351,39 @@ export const userEntitySource = `
     }
   },
   "required": ["role"]
+`;
+
+export const diamondTransactionEntitySource = `
+  "name": "DiamondTransaction",
+  "properties": {
+    "user_email": {},
+    "amount": {},
+    "balance_before": {},
+    "balance_after": {},
+    "source": {
+      "enum": [
+        "starter_bonus",
+        "daily_login",
+        "wheel_spin_future",
+        "rewarded_ad_future",
+        "quest_reward_future",
+        "purchase_future",
+        "achievement_future",
+        "special_event_future",
+        "admin_adjustment"
+      ]
+    },
+    "direction": { "enum": ["earn","spend"] },
+    "idempotency_key": {},
+    "metadata": {},
+    "created_at": {}
+  },
+  "required": ["user_email","amount","balance_before","balance_after","source","direction","idempotency_key","created_at"],
+  "rls": {
+    "create": { "data.user_email": "{{user.email}}" },
+    "read": { "data.user_email": "{{user.email}}", "user_condition": { "role": "admin" } },
+    "delete": { "user_condition": { "role": "admin" } }
+  }
 `;
 
 export const lobbyEntitySource = `

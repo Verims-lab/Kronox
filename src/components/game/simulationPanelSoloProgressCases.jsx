@@ -818,7 +818,7 @@ export const EXTRA_TESTS = [
         'Math.random',
       ]);
       if (required.length || forbidden.length) {
-        return fail('Leaderboard unified Puan, Solo summary, Elmas placeholder, or no-fake-ranking contract failed.', {
+        return fail('Leaderboard unified Puan, Solo summary, canonical Elmas helper, or no-fake-ranking contract failed.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
@@ -835,13 +835,13 @@ export const EXTRA_TESTS = [
     { actionType: ACTION_TYPES.CODE_FIX }),
 
   makeCase('solo_progress_health', 'solo_profile_score_contract',
-    'Profile reads Solo progress for level and visible Kronox Puan helper for score; Yıldız tile is gone; Elmas is real or safe 0 placeholder; no hard-coded Level 1',
+    'Profile reads Solo progress for level and visible Kronox Puan helper for score; Yıldız tile is gone; Elmas uses the canonical Diamond helper; no hard-coded Level 1',
     () => {
-      // Codex116 — Profile now renders exactly three stats: Puan / Level /
+      // Codex116/Codex152 — Profile now renders exactly three stats: Puan / Level /
       // Elmas. Yıldız is intentionally removed (moved out per product
       // decision). Puan comes from visible Kronox Puan (Solo + Online);
-      // Level still comes from the shared Solo source; Elmas comes from a
-      // real economy field or a safe 0 placeholder.
+      // Level still comes from the shared Solo source; Elmas comes from the
+      // canonical persisted Diamond balance helper.
       const required = missingTokens(profilePageSource, [
         'ensureSoloProgressBackfill',
         'readSoloProgress',
@@ -849,8 +849,8 @@ export const EXTRA_TESTS = [
         'getCurrentPlayableLevel',
         'visibleKronoxPuan',
         'profileLevel',
-        // Elmas tile must exist and use the no-economy-yet placeholder
-        // helper that never derives from stars/score/levels.
+        // Elmas tile must exist and use the Diamond helper that never
+        // derives from stars/score/levels.
         "label: 'Elmas'",
         'getProfileDiamondValue',
       ]);
@@ -868,7 +868,7 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'Profile uses visible Kronox Puan for score, shared Solo helper for Level, exposes Elmas via no-economy-yet helper, and has no Yıldız tile or hard-coded Level 1',
+          expected: 'Profile uses visible Kronox Puan for score, shared Solo helper for Level, exposes Elmas via canonical Diamond helper, and has no Yıldız tile or hard-coded Level 1',
           actual: { required, forbidden },
         });
       }

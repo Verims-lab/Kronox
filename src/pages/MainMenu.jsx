@@ -7,9 +7,10 @@ import { ChevronRight } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 import ScreenHeader from '@/components/layout/ScreenHeader';
-// Codex146 — Header Puan uses the shared visible Kronox score helper so
-// Online win/loss deltas are reflected in the top bar after persistence.
-// Elmas still uses the real/placeholder helper Leaderboard uses.
+// Codex146/Codex152 — Header Puan uses the shared visible Kronox score
+// helper so Online win/loss deltas are reflected after persistence. Elmas
+// reads the canonical persisted User.diamonds balance through the same
+// helper Liderlik uses.
 import { getKronoxVisibleScore } from '@/lib/kronoxScore';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 
@@ -112,9 +113,10 @@ export default function MainMenu() {
     return () => { cancelled = true; };
   }, []);
 
-  // Codex146 — Stats payload for the top bar. Puan = visible Kronox Puan
-  // (Solo best-score total + Online persisted score); Elmas = real economy
-  // field if present, otherwise a safe 0 placeholder.
+  // Codex146/Codex152 — Stats payload for the top bar. Puan = visible
+  // Kronox Puan (Solo best-score total + Online persisted score); Elmas =
+  // persisted User.diamonds, falling back to safe 0 while auth/bootstrap
+  // data is unavailable.
   const headerStats = useMemo(() => {
     return {
       score: getKronoxVisibleScore(user),
