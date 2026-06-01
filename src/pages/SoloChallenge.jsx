@@ -121,11 +121,15 @@ export default function SoloChallenge() {
           paddingBottom: '0.5rem',
         }}
       >
+        {/* Title — light/elegant per the reference. NOT bold/heavy. */}
         <h2
-          className="font-inter text-[15px] font-black tracking-[0.32em]"
+          className="font-inter"
           style={{
             color: '#f1f5ff',
-            textShadow: '0 2px 6px rgba(0,0,0,0.55)',
+            fontSize: 'clamp(15px, 4.4vw, 18px)',
+            fontWeight: 400,
+            letterSpacing: '0.32em',
+            textShadow: '0 1px 2px rgba(0,0,0,0.45)',
           }}
         >
           SOLO MEYDAN OKUMA
@@ -158,7 +162,16 @@ export default function SoloChallenge() {
             }}
           />
         </div>
-        <p className="mt-2 font-inter text-[12px] text-blue-100/70">
+        {/* Subtitle — clean, light, single elegant line per reference. */}
+        <p
+          className="mt-2 font-inter"
+          style={{
+            fontSize: 'clamp(11px, 3vw, 13px)',
+            fontWeight: 400,
+            letterSpacing: '0.01em',
+            color: 'rgba(199,210,234,0.78)',
+          }}
+        >
           Kendini geliştir, seviyeni yükselt, zirveye ulaş!
         </p>
       </motion.div>

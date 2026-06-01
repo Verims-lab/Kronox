@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Lock, Star } from 'lucide-react';
+import { Star } from 'lucide-react';
 
 /**
  * Scrollable Solo "Seviye" path.
@@ -33,11 +33,20 @@ const HERO_NODE_SIZE = 64;       // px — highlighted "sıradaki" node
 const ROW_HEIGHT = 84;           // px — vertical spacing between nodes
 const VIEW_WINDOW = 80;          // how many levels to keep mounted at once
 
-// Two-lane S-curve. The path snakes left-right between these two columns.
-const LANE_LEFT = '34%';
-const LANE_RIGHT = '66%';
+// Wider, more organic S-curve. The path swings closer to the screen
+// edges (per the target reference) and uses a 6-step pattern so the
+// rhythm doesn't feel mechanical/repetitive. Lanes are expressed as
+// percentages of the path column so they scale with viewport width.
+//
+// The pattern alternates between two depths on each side:
+//   far-left → mid-left → far-left → far-right → mid-right → far-right
+// This produces a more "patika"-like winding feel — the player sees
+// the road sweep wide-left for a few nodes, swing across, then sweep
+// wide-right for a few nodes, instead of a perfect zig-zag.
+const LANE_PATTERN = ['18%', '34%', '22%', '82%', '66%', '78%'];
 function laneForLevel(levelNumber) {
-  return levelNumber % 2 === 0 ? LANE_RIGHT : LANE_LEFT;
+  const idx = ((levelNumber - 1) % LANE_PATTERN.length + LANE_PATTERN.length) % LANE_PATTERN.length;
+  return LANE_PATTERN[idx];
 }
 
 export default function LevelMapPath({
@@ -165,14 +174,20 @@ function PathRow({ level, nextLevel, isFocus, focusedNodeRef, onSelect }) {
         <PathConnector fromLeft={fromLeft} toLeft={toLeft} />
       )}
 
-      {/* Node, positioned on its lane */}
+      {/* Node, positioned on its lane. The "SIRADAKİ" pill flips to the
+          opposite side of the node so it never falls off-screen on
+          either edge of the path column. */}
       <div
         ref={focusedNodeRef || undefined}
         className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2"
         style={{ left: fromLeft }}
       >
         {isFocus ? (
-          <CurrentSeviyeNode level={level} onSelect={onSelect} laneSide={fromLeft === LANE_LEFT ? 'left' : 'right'} />
+          <CurrentSeviyeNode
+            level={level}
+            onSelect={onSelect}
+            laneSide={pctToNum(fromLeft) < 50 ? 'left' : 'right'}
+          />
         ) : (
           <SmallSeviyeNode level={level} onSelect={onSelect} />
         )}
@@ -188,12 +203,16 @@ function PathRow({ level, nextLevel, isFocus, focusedNodeRef, onSelect }) {
 function PathConnector({ fromLeft, toLeft }) {
   const fromX = pctToNum(fromLeft);
   const toX = pctToNum(toLeft);
-  // Cubic control points pulled toward the middle vertically so the line
-  // bows nicely between lanes.
+  // Cubic control points produce a soft S-curve between two lane points.
+  // We pull each control point vertically toward the middle of the
+  // segment and horizontally toward its own anchor so the line bows
+  // gracefully even when the next node is on the far side of the
+  // screen (large |toX - fromX|). This avoids the "rubber-band straight
+  // line" look that 2-lane connectors had.
   const c1x = fromX;
-  const c1y = 70;
+  const c1y = 55;
   const c2x = toX;
-  const c2y = 30 + 100; // travels into the next row below
+  const c2y = 45 + 100; // travels into the next row below (0–100 = next row)
   return (
     <svg
       aria-hidden="true"
@@ -232,17 +251,35 @@ function PathConnector({ fromLeft, toLeft }) {
 /**
  * Small node for locked + completed seviyeler. Outlined circle, slim,
  * carries the number and (when completed) earned stars below it.
+ *
+ * Locked seviyeler show their NUMBER (not a lock icon) per the target
+ * reference. They look inactive (dimmed border + dim text) and are NOT
+ * tappable: the button is `disabled` + `aria-disabled` + the onClick
+ * handler is omitted, so any tap is a no-op at every layer.
  */
 function SmallSeviyeNode({ level, onSelect }) {
   const { levelNumber, status, stars } = level;
   const isLocked = status === 'locked';
   const isCompleted = status === 'completed';
 
+  // Visual treatment per state.
+  //   - completed → faint gold ring + white number
+  //   - locked    → very dim slate ring + dim number, visually inactive
+  //   - current   → handled by the hero node, not this component
+  const ringShadow = isCompleted
+    ? 'inset 0 0 0 1.5px rgba(250,204,21,0.55), 0 0 8px rgba(250,204,21,0.18)'
+    : isLocked
+      ? 'inset 0 0 0 1.5px rgba(148,170,210,0.30)'
+      : 'inset 0 0 0 1.5px rgba(148,170,210,0.55)';
+  const numberColor = isLocked ? 'rgba(226,232,240,0.42)' : '#f1f5ff';
+
   return (
     <motion.button
       type="button"
       onClick={isLocked ? undefined : onSelect}
       disabled={isLocked}
+      aria-disabled={isLocked ? 'true' : 'false'}
+      tabIndex={isLocked ? -1 : 0}
       whileTap={isLocked ? undefined : { scale: 0.92 }}
       className="relative flex flex-col items-center disabled:cursor-not-allowed"
       style={{ touchAction: 'manipulation' }}
@@ -255,13 +292,11 @@ function SmallSeviyeNode({ level, onSelect }) {
           height: `${NODE_SIZE}px`,
           fontSize: '15px',
           background: 'rgba(12,22,48,0.85)',
-          color: isLocked ? 'rgba(226,232,240,0.55)' : '#f1f5ff',
-          boxShadow: isCompleted
-            ? 'inset 0 0 0 1.5px rgba(250,204,21,0.55), 0 0 8px rgba(250,204,21,0.18)'
-            : 'inset 0 0 0 1.5px rgba(148,170,210,0.55)',
+          color: numberColor,
+          boxShadow: ringShadow,
         }}
       >
-        {isLocked ? <Lock className="h-4 w-4" strokeWidth={2.4} /> : <span>{levelNumber}</span>}
+        <span>{levelNumber}</span>
       </div>
 
       {/* Stars below completed nodes (always visible — small, no clutter) */}
