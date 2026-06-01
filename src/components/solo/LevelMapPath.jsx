@@ -329,7 +329,13 @@ function SmallSeviyeNode({ level, onSelect }) {
  * screen on either lane.
  */
 function CurrentSeviyeNode({ level, onSelect, laneSide }) {
-  const pillSide = laneSide === 'left' ? 'right' : 'left';
+  // Pill goes on the OPPOSITE side of the node so it never falls off the
+  // screen edge. When the node sits on the left lane (laneSide='left')
+  // the pill is anchored to the node's right edge via CSS `left: 100%`.
+  // When the node sits on the right lane (laneSide='right') the pill is
+  // anchored to the node's left edge via CSS `right: 100%`.
+  const pillAnchor = laneSide === 'left' ? 'left' : 'right';
+  const pillAlignItems = laneSide === 'left' ? 'items-start' : 'items-end';
   return (
     <div className="relative flex items-center" style={{ height: `${HERO_NODE_SIZE}px` }}>
       <motion.button
@@ -358,11 +364,13 @@ function CurrentSeviyeNode({ level, onSelect, laneSide }) {
         {level.levelNumber}
       </motion.button>
 
-      {/* Side pill — "SIRADAKİ / N. SEVİYE" */}
+      {/* Side pill — "SIRADAKİ / N. SEVİYE". Anchored to the side of the
+          node that faces toward the screen centre, so it never falls off
+          either edge of the path column. */}
       <div
-        className="absolute flex flex-col items-start justify-center gap-0"
+        className={`absolute flex flex-col ${pillAlignItems} justify-center gap-0`}
         style={{
-          [pillSide]: `calc(100% + 14px)`,
+          [pillAnchor]: `calc(100% + 14px)`,
           minWidth: '108px',
           padding: '0.45rem 0.75rem',
           borderRadius: '12px',
