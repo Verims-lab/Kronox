@@ -17,7 +17,7 @@ import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 // rendered. It has been removed so the "no_remote_visual_assets_new_screens"
 // contract stays honest — the home screen relies only on local
 // /assets/ui/* fantasy assets.
-const BACKGROUND_ASSET = '/assets/ui/Kronox_Home_Fantasy_Background.png';
+const BACKGROUND_ASSET = '/assets/ui/Kronox_Home_Fantasy_background.webp';
 const WIDE_STAGE_QUERY = '(min-aspect-ratio: 9 / 16)';
 
 const HOME_BUTTON_ASSETS = {
@@ -201,7 +201,7 @@ export default function MainMenu() {
           className="absolute z-20 pointer-events-auto"
           style={{
             left: '9.7%',
-            top: '61.6%',
+            top: '63.4%',
             width: '80.6%',
             height: '10.7%',
           }}
@@ -213,7 +213,7 @@ export default function MainMenu() {
           className="absolute z-20 pointer-events-auto"
           style={{
             left: '9.7%',
-            top: '74.9%',
+            top: '76.7%',
             width: '80.6%',
             height: '10.7%',
           }}
