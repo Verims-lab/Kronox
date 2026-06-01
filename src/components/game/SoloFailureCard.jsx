@@ -1,182 +1,190 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
-import { RotateCcw, ArrowLeft, Star, Trophy, XCircle, Crown } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { RotateCcw, ListChecks, Clock, Star, X, Zap } from 'lucide-react';
 import { formatDuration } from './GameOverTimer';
-import { fetchSoloLevelRank } from '@/lib/soloRanking';
 
 /**
- * Solo FAILURE result card.
+ * Solo FAILURE result popup.
  *
- * This is the legacy fail-state UI extracted from SoloLevelResult so the
- * success path can delegate to SoloSuccessPopup without keeping
- * conditionally-called hooks (rank lookup) in the parent. Visual behavior
- * is intentionally identical to what shipped before — only the success
- * branch was redesigned in this iteration. A dedicated failure redesign
- * will land later.
+ * Pixel-faithful to the provided reference:
+ *   • Red headline: "N. SEVİYE GEÇİLEMEDİ!"
+ *   • Three stone stars (left + right intact, center cracked with red glow)
+ *   • Two-line subline: "Üzgünüm, süre bitti." / "Tekrar deneyebilirsin!"
+ *     (or "çok fazla hata yaptın." for the mistakes branch)
+ *   • Red diamond divider
+ *   • 2x2 stat grid:
+ *       TL: TOPLAM SÜRE (blue clock)   • TR: KAZANILAN PUAN (yellow star)
+ *       BL: HATA SAYISI (red X)        • BR: HIZ BONUSU (red ✕)
+ *   • Two CTAs: yellow "TEKRAR OYNA", outline "SEVİYELER"
+ *
+ * Props are unchanged so SoloLevelResult keeps delegating without
+ * touching its public contract.
  */
 export default function SoloFailureCard({
   levelNumber,
-  stars,
   mistakes,
   timeSeconds,
-  baseScore = 0,
-  timeBonus = 0,
   levelScore = 0,
-  cardsCompleted,
-  cardTarget,
   failReason,
   onRetry,
   onBackToPath,
+  // Reference shows "Maksimum Süre: 02:00" under the time card. Default
+  // to the standard solo time budget (120s) when caller doesn't pass it.
+  maxTimeSeconds = 120,
 }) {
-  const accentColor = '#f87171';
-  const headline = 'Seviye Başarısız';
-  const subline = failReason === 'timeout'
-    ? 'Süren doldu. Bir dahaki sefere!'
-    : 'Çok fazla hata. Tekrar dene!';
-
-  // Rank lookup is intentionally unconditional here — this component only
-  // mounts on a failed attempt, but we still keep hook order stable.
-  const [rankState, setRankState] = useState({ loading: false, rank: null, ready: false });
-  useEffect(() => {
-    let cancelled = false;
-    fetchSoloLevelRank({ levelNumber, levelScore, stars, timeSeconds, mistakes })
-      .then((res) => {
-        if (cancelled) return;
-        setRankState({ loading: false, rank: res?.rank ?? null, ready: Boolean(res?.ready) });
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setRankState({ loading: false, rank: null, ready: false });
-      });
-    return () => { cancelled = true; };
-  }, [levelNumber, levelScore, stars, timeSeconds, mistakes]);
-
   const formattedTime = formatDuration(timeSeconds);
+  const formattedMax = formatDuration(maxTimeSeconds);
+
+  const sublinePrimary = failReason === 'timeout'
+    ? 'Üzgünüm, süre bitti.'
+    : 'Üzgünüm, çok fazla hata yaptın.';
+  const sublineSecondary = 'Tekrar deneyebilirsin!';
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md p-4"
-      style={{ background: 'rgba(5,11,28,0.92)' }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{
+        background:
+          'radial-gradient(ellipse at 50% 40%, rgba(120,20,40,0.35) 0%, rgba(5,8,22,0.96) 60%)',
+        backdropFilter: 'blur(8px)',
+      }}
     >
       <motion.div
-        initial={{ scale: 0.7, opacity: 0, y: 40 }}
+        initial={{ scale: 0.82, opacity: 0, y: 30 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        transition={{ type: 'spring', stiffness: 260, damping: 22, delay: 0.1 }}
-        className="w-full max-w-xs rounded-3xl overflow-hidden"
+        transition={{ type: 'spring', stiffness: 280, damping: 24 }}
+        className="w-full max-w-sm rounded-[28px] overflow-hidden relative"
         style={{
-          background: 'linear-gradient(160deg, #12185e 0%, #0a0e2e 100%)',
-          border: `2px solid ${accentColor}`,
-          boxShadow: '0 0 32px rgba(248,113,113,0.32)',
+          background: 'linear-gradient(165deg, #0d1430 0%, #060a1e 100%)',
+          border: '1px solid rgba(248,113,113,0.28)',
+          boxShadow:
+            '0 30px 60px rgba(0,0,0,0.6), 0 0 40px rgba(248,113,113,0.18), inset 0 1px 0 rgba(255,255,255,0.05)',
         }}
       >
-        <div className="relative pt-7 pb-4 px-5 text-center">
-          <motion.div
-            animate={{ scale: [1, 1.05, 1] }}
-            transition={{ duration: 1.4, repeat: Infinity, repeatDelay: 1.8 }}
-            className="w-12 h-12 mx-auto mb-2 flex items-center justify-center"
+        <div className="px-5 pt-7 pb-5">
+          {/* Headline — red, glowing */}
+          <motion.h1
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1, duration: 0.35 }}
+            className="font-bangers text-center tracking-[0.05em]"
+            style={{
+              color: '#ff4d6d',
+              fontSize: 'clamp(20px, 6vw, 26px)',
+              textShadow:
+                '0 0 14px rgba(255,77,109,0.55), 0 0 28px rgba(255,77,109,0.35), 0 2px 4px rgba(0,0,0,0.6)',
+              lineHeight: 1.1,
+            }}
           >
-            <XCircle className="w-12 h-12 text-rose-300" />
+            {levelNumber}. SEVİYE GEÇİLEMEDİ!
+          </motion.h1>
+
+          {/* Three stone stars — center one cracked w/ red glow */}
+          <FailedStarsRow />
+
+          {/* Subline */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.45, duration: 0.3 }}
+            className="text-center px-3"
+            style={{ marginTop: 4 }}
+          >
+            <p
+              className="font-inter text-white/85"
+              style={{ fontSize: 'clamp(13px, 3.8vw, 15px)', fontWeight: 400 }}
+            >
+              {sublinePrimary}
+            </p>
+            <p
+              className="font-inter text-white/85"
+              style={{ fontSize: 'clamp(13px, 3.8vw, 15px)', fontWeight: 400 }}
+            >
+              {sublineSecondary}
+            </p>
           </motion.div>
 
-          <h1 className="font-bangers text-2xl tracking-wider mb-0.5" style={{ color: accentColor }}>
-            {headline}
-          </h1>
-          <p className="font-inter text-white/80 text-xs">{subline}</p>
-
-          <div className="mt-3 flex items-center justify-center gap-2" aria-label={`${stars} yıldız`}>
-            {[1, 2, 3].map((i) => {
-              const filled = i <= stars;
-              return (
-                <motion.div
-                  key={i}
-                  initial={{ scale: 0, rotate: -180 }}
-                  animate={{ scale: 1, rotate: 0 }}
-                  transition={{ delay: 0.25 + i * 0.12, type: 'spring', stiffness: 320, damping: 18 }}
-                >
-                  <Star
-                    className="w-9 h-9"
-                    strokeWidth={1.8}
-                    style={{
-                      color: filled ? '#facc15' : 'rgba(226,232,240,0.22)',
-                      fill: filled ? '#facc15' : 'transparent',
-                      filter: filled ? 'drop-shadow(0 0 8px rgba(250,204,21,0.65))' : 'none',
-                    }}
-                  />
-                </motion.div>
-              );
-            })}
+          {/* Red diamond divider */}
+          <div className="mt-3 mb-4 flex items-center justify-center gap-2" aria-hidden="true">
+            <span
+              style={{
+                display: 'block',
+                height: 1,
+                width: 64,
+                background: 'linear-gradient(90deg, transparent, rgba(255,77,109,0.55), transparent)',
+              }}
+            />
+            <span
+              style={{
+                display: 'block',
+                width: 7,
+                height: 7,
+                background: '#ff4d6d',
+                transform: 'rotate(45deg)',
+                boxShadow: '0 0 8px rgba(255,77,109,0.7)',
+              }}
+            />
+            <span
+              style={{
+                display: 'block',
+                height: 1,
+                width: 64,
+                background: 'linear-gradient(90deg, transparent, rgba(255,77,109,0.55), transparent)',
+              }}
+            />
           </div>
 
-          <div
-            className="mt-3 inline-flex items-center justify-center gap-2 rounded-full px-3 py-1"
-            style={{ background: 'rgba(255,255,255,0.06)', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.10)' }}
-          >
-            <span className="font-inter text-[10px] font-black uppercase tracking-widest text-white/60">
-              Süre
-            </span>
-            <span className="font-bangers text-base tracking-wider text-white">{formattedTime}</span>
+          {/* 2x2 stat grid */}
+          <div className="grid grid-cols-2 gap-2.5">
+            <StatCard
+              icon={Clock}
+              iconColor="#5aa9ff"
+              ringColor="rgba(90,169,255,0.55)"
+              label="TOPLAM SÜRE"
+              value={formattedTime}
+              footer={`Maksimum Süre: ${formattedMax}`}
+              footerTone="muted"
+            />
+            <StatCard
+              icon={Star}
+              iconColor="#facc15"
+              iconFill="#facc15"
+              ringColor="rgba(250,204,21,0.55)"
+              label="KAZANILAN PUAN"
+              value={String(levelScore)}
+              footer="Puan"
+              footerTone="gold"
+            />
+            <StatCard
+              icon={X}
+              iconColor="#ff4d6d"
+              ringColor="rgba(255,77,109,0.55)"
+              label="HATA SAYISI"
+              value={String(mistakes)}
+              footer="Hata"
+              footerTone="red"
+            />
+            <StatCard
+              icon={Zap}
+              iconColor="#ff4d6d"
+              ringColor="rgba(255,77,109,0.55)"
+              label="HIZ BONUSU"
+              valueNode={<X className="w-7 h-7" strokeWidth={3.4} style={{ color: '#ff4d6d' }} />}
+            />
           </div>
 
-          <div
-            className="mt-3 rounded-2xl px-3 py-2"
-            style={{
-              background: 'rgba(248,113,113,0.08)',
-              boxShadow: 'inset 0 0 0 1px rgba(248,113,113,0.22)',
-            }}
-          >
-            <div className="flex items-center justify-center gap-2">
-              <Trophy className="h-4 w-4 text-amber-300" />
-              <span className="font-bangers text-xl tracking-wider text-amber-200">
-                Puan: {levelScore}
-              </span>
-            </div>
-            <p className="mt-0.5 font-inter text-[10px] font-semibold text-amber-100/75">
-              {`Başarısız deneme: ${baseScore} + hız bonusu: ${timeBonus}`}
-            </p>
-          </div>
-
-          <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-            <Stat label="Level" value={String(levelNumber)} />
-            <Stat label="Hata" value={mistakes} />
-            <Stat label="Kart" value={`${cardsCompleted}/${cardTarget}`} />
-          </div>
-
-          <div
-            className="mt-3 rounded-xl py-2 px-3 font-inter text-[11px] text-rose-200/90"
-            style={{ background: 'rgba(248,113,113,0.10)', boxShadow: 'inset 0 0 0 1px rgba(248,113,113,0.25)' }}
-          >
-            {failReason === 'timeout' ? 'Süre doldu.' : 'Çok fazla hata yapıldı (8+).'}
-          </div>
-
-          {/* Keep the rank scaffolding mounted so future ranking data shows
-              automatically. Rendered as a single visual line at the bottom. */}
-          <RankLine state={rankState} levelNumber={levelNumber} />
-        </div>
-
-        <div className="flex flex-col gap-2 px-5 pb-5">
-          <Button
-            onClick={onRetry}
-            className="w-full h-11 rounded-2xl font-bangers text-lg tracking-wider gap-2"
-            style={{
-              background: 'linear-gradient(135deg, #f5c400 0%, #facc15 50%, #e6b800 100%)',
-              color: '#1a0a00',
-            }}
-          >
-            <RotateCcw className="w-4 h-4" />
-            Tekrar Oyna
-          </Button>
-
-          <div className="flex gap-2">
-            <Button
-              onClick={onBackToPath}
-              variant="outline"
-              className="flex-1 h-10 rounded-2xl border-white/20 bg-white/10 text-white hover:bg-white/20 font-inter text-xs gap-2"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" /> Level Path
-            </Button>
+          {/* CTAs */}
+          <div className="mt-5 flex flex-col gap-2.5">
+            <PrimaryButton onClick={onRetry}>
+              <RotateCcw className="w-5 h-5" strokeWidth={2.6} />
+              <span>TEKRAR OYNA</span>
+            </PrimaryButton>
+            <OutlineButton onClick={onBackToPath}>
+              <ListChecks className="w-5 h-5" strokeWidth={2.4} />
+              <span>SEVİYELER</span>
+            </OutlineButton>
           </div>
         </div>
       </motion.div>
@@ -184,37 +192,286 @@ export default function SoloFailureCard({
   );
 }
 
-function Stat({ label, value }) {
+/* ─────────── Pieces ─────────── */
+
+/**
+ * Three stone-grey stars. Left and right are whole; the center one is
+ * fractured with a red inner glow + small shard splinters around it,
+ * matching the reference artwork.
+ */
+function FailedStarsRow() {
   return (
     <div
-      className="rounded-xl py-1.5 px-1"
-      style={{ background: 'rgba(255,255,255,0.05)', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08)' }}
+      className="relative mt-5 mb-3 flex items-end justify-center"
+      style={{ gap: 'clamp(10px, 4vw, 18px)', height: 'clamp(110px, 30vw, 140px)' }}
     >
-      <p className="font-bangers tracking-wider text-white text-base">{value}</p>
-      <p className="font-inter text-[9px] font-black uppercase tracking-widest text-white/50">{label}</p>
+      <StoneStar size="clamp(60px, 18vw, 78px)" dim />
+      <CrackedCenterStar size="clamp(82px, 24vw, 104px)" />
+      <StoneStar size="clamp(60px, 18vw, 78px)" dim />
     </div>
   );
 }
 
-function RankLine({ state, levelNumber }) {
-  const { loading, rank, ready } = state || {};
-  let content;
-  if (loading) {
-    content = 'Sıralama hesaplanıyor…';
-  } else if (ready && typeof rank === 'number' && rank > 0) {
-    content = `Level ${levelNumber} sıralamasında ${rank}. oldun`;
-  } else {
-    content = 'Sıralama verisi hazırlanıyor';
-  }
+function StoneStar({ size, dim = false }) {
+  return (
+    <motion.div
+      initial={{ scale: 0, rotate: -25, opacity: 0 }}
+      animate={{ scale: 1, rotate: 0, opacity: 1 }}
+      transition={{ type: 'spring', stiffness: 280, damping: 18, delay: 0.2 }}
+      style={{ width: size, height: size, filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.6))' }}
+    >
+      <Star
+        className="w-full h-full"
+        strokeWidth={1.6}
+        style={{
+          color: 'rgba(120,135,165,0.55)',
+          fill: dim ? '#3a4566' : '#475070',
+          opacity: 0.92,
+        }}
+      />
+    </motion.div>
+  );
+}
+
+function CrackedCenterStar({ size }) {
+  return (
+    <motion.div
+      initial={{ scale: 0, rotate: -10, opacity: 0 }}
+      animate={{ scale: 1, rotate: 0, opacity: 1 }}
+      transition={{ type: 'spring', stiffness: 240, damping: 16, delay: 0.32 }}
+      className="relative"
+      style={{ width: size, height: size }}
+    >
+      {/* Red inner glow behind the star */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            'radial-gradient(circle at 50% 55%, rgba(255,77,109,0.55) 0%, rgba(255,77,109,0.18) 40%, transparent 70%)',
+          filter: 'blur(2px)',
+        }}
+      />
+      {/* Small red shard splinters around the star */}
+      <Shard top="14%" left="6%" rotate={-25} />
+      <Shard top="22%" right="4%" rotate={35} />
+      <Shard bottom="14%" left="-2%" rotate={20} />
+      <Shard bottom="6%" right="10%" rotate={-15} />
+
+      {/* Stone star body */}
+      <Star
+        className="relative w-full h-full"
+        strokeWidth={1.6}
+        style={{
+          color: 'rgba(140,155,185,0.7)',
+          fill: '#3f4a6b',
+          filter: 'drop-shadow(0 6px 10px rgba(0,0,0,0.65))',
+        }}
+      />
+
+      {/* Crack overlay — thin red lightning-like lines down the middle */}
+      <svg
+        className="absolute inset-0 pointer-events-none"
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        style={{ overflow: 'visible' }}
+      >
+        <defs>
+          <linearGradient id="crackGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#ff4d6d" stopOpacity="0.95" />
+            <stop offset="100%" stopColor="#ff8fa3" stopOpacity="0.6" />
+          </linearGradient>
+        </defs>
+        {/* Main jagged crack */}
+        <polyline
+          points="48,22 52,38 44,50 56,62 46,76"
+          fill="none"
+          stroke="url(#crackGrad)"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{ filter: 'drop-shadow(0 0 3px rgba(255,77,109,0.85))' }}
+        />
+        {/* Secondary branch */}
+        <polyline
+          points="52,38 60,44 62,52"
+          fill="none"
+          stroke="url(#crackGrad)"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity="0.85"
+          style={{ filter: 'drop-shadow(0 0 2px rgba(255,77,109,0.7))' }}
+        />
+        {/* Tertiary branch */}
+        <polyline
+          points="44,50 36,56"
+          fill="none"
+          stroke="url(#crackGrad)"
+          strokeWidth="1.2"
+          strokeLinecap="round"
+          opacity="0.7"
+        />
+      </svg>
+    </motion.div>
+  );
+}
+
+function Shard({ top, bottom, left, right, rotate = 0 }) {
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        position: 'absolute',
+        top,
+        bottom,
+        left,
+        right,
+        width: 6,
+        height: 10,
+        background: 'linear-gradient(180deg, #ff4d6d, #b91d3d)',
+        clipPath: 'polygon(50% 0%, 100% 100%, 0% 100%)',
+        transform: `rotate(${rotate}deg)`,
+        filter: 'drop-shadow(0 0 4px rgba(255,77,109,0.7))',
+        opacity: 0.9,
+      }}
+    />
+  );
+}
+
+/**
+ * Stat card matching the reference: rounded panel, circular icon (with
+ * colored ring), uppercase label, large value (or custom node), tinted
+ * footer string.
+ */
+function StatCard({
+  icon: Icon,
+  iconColor,
+  iconFill,
+  ringColor,
+  label,
+  value,
+  valueNode,
+  footer,
+  footerTone = 'muted',
+}) {
+  const footerColors = {
+    muted: 'rgba(167,184,219,0.65)',
+    gold: '#facc15',
+    red: '#ff4d6d',
+  };
   return (
     <div
-      className="mt-3 flex items-center justify-center gap-2 rounded-xl py-2 px-3"
-      style={{ background: 'rgba(250,204,21,0.08)', boxShadow: 'inset 0 0 0 1px rgba(250,204,21,0.22)' }}
+      className="rounded-2xl p-3 flex gap-3 items-center"
+      style={{
+        background: 'linear-gradient(180deg, rgba(20,28,55,0.92), rgba(8,13,32,0.95))',
+        boxShadow:
+          'inset 0 0 0 1px rgba(255,255,255,0.06), 0 4px 10px rgba(0,0,0,0.35)',
+        minHeight: 84,
+      }}
     >
-      <Crown className="w-3.5 h-3.5 text-amber-300/80" />
-      <span className="font-inter text-[11px] font-semibold text-amber-100/90 text-center leading-tight">
-        {content}
-      </span>
+      {/* Circular icon */}
+      <div
+        className="flex items-center justify-center rounded-full shrink-0"
+        style={{
+          width: 44,
+          height: 44,
+          background: 'rgba(255,255,255,0.04)',
+          boxShadow: `inset 0 0 0 2px ${ringColor}`,
+        }}
+      >
+        <Icon
+          className="w-5 h-5"
+          strokeWidth={2.4}
+          style={{ color: iconColor, fill: iconFill || 'transparent' }}
+        />
+      </div>
+
+      {/* Text column */}
+      <div className="flex-1 min-w-0">
+        <p
+          className="font-inter uppercase truncate"
+          style={{
+            fontSize: 9.5,
+            fontWeight: 700,
+            letterSpacing: '0.08em',
+            color: 'rgba(199,210,234,0.72)',
+          }}
+        >
+          {label}
+        </p>
+        <div className="mt-0.5 flex items-center" style={{ minHeight: 26 }}>
+          {valueNode ? (
+            valueNode
+          ) : (
+            <span
+              className="font-bangers tracking-wider text-white"
+              style={{
+                fontSize: 'clamp(18px, 5.4vw, 22px)',
+                lineHeight: 1,
+                textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+              }}
+            >
+              {value}
+            </span>
+          )}
+        </div>
+        {footer && (
+          <p
+            className="font-inter mt-0.5 truncate"
+            style={{
+              fontSize: 10.5,
+              fontWeight: 600,
+              color: footerColors[footerTone] || footerColors.muted,
+            }}
+          >
+            {footer}
+          </p>
+        )}
+      </div>
     </div>
+  );
+}
+
+function PrimaryButton({ children, onClick }) {
+  return (
+    <motion.button
+      type="button"
+      onClick={onClick}
+      whileTap={{ scale: 0.97 }}
+      className="w-full flex items-center justify-center gap-2 font-bangers"
+      style={{
+        height: 52,
+        borderRadius: 14,
+        background: 'linear-gradient(180deg, #ffd84a 0%, #f5c400 55%, #e0ad00 100%)',
+        color: '#1a1003',
+        fontSize: 'clamp(15px, 4.2vw, 18px)',
+        letterSpacing: '0.06em',
+        boxShadow:
+          'inset 0 1px 0 rgba(255,255,255,0.55), inset 0 -3px 0 rgba(120,75,0,0.35), 0 8px 22px rgba(250,204,21,0.28)',
+      }}
+    >
+      {children}
+    </motion.button>
+  );
+}
+
+function OutlineButton({ children, onClick }) {
+  return (
+    <motion.button
+      type="button"
+      onClick={onClick}
+      whileTap={{ scale: 0.97 }}
+      className="w-full flex items-center justify-center gap-2 font-bangers text-white"
+      style={{
+        height: 48,
+        borderRadius: 14,
+        background: 'rgba(15,22,46,0.85)',
+        fontSize: 'clamp(14px, 3.8vw, 16px)',
+        letterSpacing: '0.06em',
+        boxShadow: 'inset 0 0 0 1.5px rgba(120,140,190,0.45)',
+      }}
+    >
+      {children}
+    </motion.button>
   );
 }
