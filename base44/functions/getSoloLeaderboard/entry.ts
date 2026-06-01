@@ -142,7 +142,21 @@ function summarizeProgress(progress: any) {
   };
 }
 
-function toLeaderboardRow(user: any) {
+function levelProjection(progress: any, levelNumber: number) {
+  if (!levelNumber || levelNumber <= 0) return null;
+  const entry = progress?.levels?.[String(levelNumber)];
+  if (!entry) return null;
+  const stars = Math.max(0, Math.floor(finiteNumber(entry?.bestStars, 0)));
+  if (stars <= 0) return null;
+  const time = Number(entry?.bestTimeSeconds);
+  return {
+    stars,
+    best_time_seconds: Number.isFinite(time) ? time : null,
+    best_score: scoreFromLevelEntry(entry),
+  };
+}
+
+function toLeaderboardRow(user: any, levelNumber = 0) {
   const ownerKey = ownerKeyFromEmail(user?.email || user?.user_email);
   if (!ownerKey) return null;
 
@@ -150,6 +164,14 @@ function toLeaderboardRow(user: any) {
   const onlineScore = onlineScoreFromUser(user);
   const totalKronoxScore = summary.totalSoloScore + onlineScore;
   const displayName = safeDisplayName(user, ownerKey);
+
+  // Codex152 — Optional per-level projection. When the caller passes
+  // `levelNumber`, the row carries the user's best time/score/stars for
+  // that level (when they have completed it). This powers the Solo
+  // success popup's "YENİ REKOR! / ARKADAŞLAR ARASINDA 1." badge logic
+  // without leaking other private user data. The field is omitted when
+  // the user has not completed that level.
+  const levelData = levelProjection(user?.solo_progress, levelNumber);
 
   return {
     owner_key: ownerKey,
@@ -165,6 +187,8 @@ function toLeaderboardRow(user: any) {
     ...(summary.aggregateBestTimeSeconds !== null
       ? { aggregate_best_time_seconds: summary.aggregateBestTimeSeconds }
       : {}),
+    ...(levelData ? { level: levelData } : {}),
+    user_email: normalizeEmail(user?.email),
     updated_at: user?.updated_date || user?.updated_at || user?.created_date || new Date().toISOString(),
   };
 }
@@ -196,10 +220,13 @@ Deno.serve(async (req) => {
       MAX_LIMIT,
       Math.max(1, Math.floor(finiteNumber(body?.limit, DEFAULT_LIMIT))),
     );
+    // Codex152 — Optional per-level projection request from the Solo
+    // success popup. Ignored when 0/absent (default leaderboard usage).
+    const levelNumber = Math.max(0, Math.floor(finiteNumber(body?.levelNumber, 0)));
 
     const users = await base44.asServiceRole.entities.User.list('-updated_date', MAX_LIMIT);
     const rows = (users || [])
-      .map(toLeaderboardRow)
+      .map((u) => toLeaderboardRow(u, levelNumber))
       .filter(Boolean)
       .sort(compareRows)
       .slice(0, limit);
