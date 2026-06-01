@@ -230,7 +230,12 @@ export async function createGameInvites({ host, lobby, toEmails, playerCount }) 
 export async function acceptGameInvite(inviteId) {
   if (!inviteId) throw new Error('Geçersiz davet.');
   const res = await base44.functions.invoke('acceptGameInvite', { inviteId });
-  if (res?.data?.error) throw new Error(res.data.error);
+  if (res?.data?.error) {
+    const error = new Error(res.data.error);
+    error.code = res.data.code || 'accept_failed';
+    error.payload = res.data;
+    throw error;
+  }
   return res?.data;
 }
 
@@ -266,7 +271,13 @@ export async function openGameInvite(invite, {
 
   if (typeof navigate === 'function') {
     if (res?.lobby?.id) {
-      navigate('/lobby', { state: { joinedLobby: res.lobby } });
+      navigate('/lobby', {
+        state: {
+          joinedLobby: res.lobby,
+          lobbyId: res.lobbyId || res.lobby.id,
+          lobbyCode: res.lobbyCode || res.lobby.code || '',
+        },
+      });
     } else {
       navigate('/lobby');
     }

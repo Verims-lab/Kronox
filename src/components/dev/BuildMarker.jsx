@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex141 — Final GameInvite open-to-lobby Health alignment:
+//   • Restores the client parser contract name `parseBase44Timestamp`.
+//   • Returns structured acceptGameInvite success/error payloads with
+//     lobby/lobbyId/lobbyCode and specific invite/lobby error codes.
+//
 // Codex140 — GameInvite "Aç" opens Lobby fix:
 //   • Reuses UTC-safe timestamp parsing for lobby stale checks so Base44
 //     naive lobby timestamps do not make fresh invites show "Lobi süresi doldu".
@@ -486,7 +491,7 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
-const BUILD_MARKER = 'Codex140';
+const BUILD_MARKER = 'Codex141';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
