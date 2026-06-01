@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex148 — Final Health alignment after visible Kronox Puan runtime fix:
+//   • Keeps Online score persistence/visible Puan path intact.
+//   • Makes the Solo leaderboard score source explicitly reference
+//     summary.totalSoloScore while visible stat cards use combined Puan.
+//   • Restores the real already_recorded idempotency return shape and
+//     popup failure fallback copy expected by Health.
+//
 // Codex147 — Visible Kronox Puan runtime fix:
 //   • Visible Puan surfaces now use getKronoxVisibleScore(user), which
 //     combines Solo totalSoloScore with persisted online_progress.score.
@@ -529,7 +536,7 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
-const BUILD_MARKER = 'Codex147';
+const BUILD_MARKER = 'Codex148';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -47,7 +47,7 @@ export default function GameOver({
   const scoreHeadline = onlineScoreResult?.pending
     ? onlineScoreResult.message
     : onlineScoreResult?.error || onlineScoreResult?.noScoreDelta
-      ? onlineScoreResult.message
+      ? (onlineScoreResult.message || 'Puan kaydedilemedi')
       : `${scoreSign}${scoreDelta} Puan`;
   // Codex146 — Time displayed in the popup must equal the time used for
   // scoring. When we have an Online score result, prefer ITS elapsedSeconds

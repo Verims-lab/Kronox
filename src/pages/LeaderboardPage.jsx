@@ -173,6 +173,10 @@ export default function LeaderboardPage() {
 
   const progress = readSoloProgress(user);
   const summary = summarizeSoloProgress(progress, getSoloLevelCount());
+  // Codex148 — Explicit Solo leaderboard score contract. The stat card
+  // shows visible Kronox Puan, but public ranking rows still derive from
+  // summary.totalSoloScore via the Solo leaderboard payload/projection.
+  const soloLeaderboardScore = summary.totalSoloScore;
   const visibleKronoxPuan = getKronoxVisibleScore(user, { soloProgress: progress });
   const diamondValue = getLeaderboardDiamondValue(user);
   const isAdmin = isAdminUser(user);
@@ -226,6 +230,7 @@ export default function LeaderboardPage() {
           authChecked={authChecked}
           user={user}
           leaderboard={leaderboard}
+          soloLeaderboardScore={soloLeaderboardScore}
           onRetry={loadLeaderboard}
           isAdmin={isAdmin}
         />
