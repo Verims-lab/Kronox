@@ -15,23 +15,31 @@ const normalizeEmail = (value: unknown) => String(value || '').trim().toLowerCas
 const json = (body: unknown, status = 200) => Response.json(body, { status });
 // Codex130 — Game invite TTL: 10 minutes (was 5).
 const GAME_INVITE_TTL_MS = 10 * 60 * 1000;
-// Codex138 — Base44 server `created_date` may be serialized WITHOUT a
-// timezone suffix. Append `Z` to naive ISO strings so they parse as UTC.
-const readTime = (value: unknown) => {
-  if (value == null) return NaN;
-  if (value instanceof Date) {
-    const t = value.getTime();
-    return Number.isFinite(t) ? t : NaN;
-  }
+// Codex139 — Naive ISO timestamp guard. Base44 sometimes serializes
+// `created_date` / `expires_at` without a timezone suffix; on non-UTC hosts
+// `new Date(naiveStr)` parses as local time and a fresh invite is instantly
+// flagged as expired. `parseInviteTimestamp` appends `Z` to naive strings
+// so they parse as UTC. `readTime` is kept as the numeric wrapper used by
+// the existing TTL math.
+function parseInviteTimestamp(value: unknown): Date | null {
+  if (!value) return null;
+  if (value instanceof Date) return value;
   const str = String(value).trim();
-  if (!str) return NaN;
-  const hasZone = /Z$/i.test(str) || /[+-]\d{2}:?\d{2}$/.test(str);
-  const t = new Date(hasZone ? str : `${str}Z`).getTime();
-  return Number.isFinite(t) ? t : NaN;
+  if (!str) return null;
+  const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(str);
+  const normalized = hasZone ? str : `${str}Z`;
+  const date = new Date(normalized);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+const readTime = (value: unknown) => {
+  const d = parseInviteTimestamp(value);
+  return d ? d.getTime() : NaN;
 };
 const getInviteExpiry = (invite: any) => {
-  const explicit = readTime(invite?.expires_at || invite?.expiresAt);
-  if (Number.isFinite(explicit)) return explicit;
+  // Codex139 — expires_at is parsed through the safe parser so naive ISO
+  // strings (no zone) are treated as UTC, not local time.
+  const explicitDate = parseInviteTimestamp(invite?.expires_at || invite?.expiresAt);
+  if (explicitDate) return explicitDate.getTime();
   const created = readTime(invite?.created_at || invite?.createdAt || invite?.created_date || invite?.createdDate);
   return Number.isFinite(created) ? created + GAME_INVITE_TTL_MS : NaN;
 };
