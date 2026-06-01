@@ -197,13 +197,22 @@ export default function SimulationPanel({ onClose }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      data-health-admin-panel="true"
       className="fixed inset-0 z-[100] bg-black/82 text-white overflow-hidden"
-      style={{ padding: 'calc(0.5rem + env(safe-area-inset-top)) 0.5rem calc(0.5rem + env(safe-area-inset-bottom))' }}
+      style={{
+        boxSizing: 'border-box',
+        minHeight: '100dvh',
+        height: '100dvh',
+        paddingTop: 'calc(1rem + env(safe-area-inset-top))',
+        paddingRight: '0.5rem',
+        paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))',
+        paddingLeft: '0.5rem',
+      }}
     >
-      <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-hidden rounded-lg border border-white/15 bg-[#07090f] shadow-2xl">
+      <div className="mx-auto flex h-full max-h-full w-full max-w-6xl flex-col overflow-hidden rounded-lg border border-white/15 bg-[#07090f] shadow-2xl">
         <Header onClose={onClose} report={report} progress={progress} running={Boolean(runningKey)} />
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-0 overflow-hidden md:grid-cols-[290px_minmax(0,1fr)]">
+        <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden md:grid-cols-[290px_minmax(0,1fr)] md:grid-rows-1">
           <SimulationSuiteSummary
             suites={SUITES}
             tests={TESTS}
@@ -217,7 +226,15 @@ export default function SimulationPanel({ onClose }) {
             onRunSuite={runSelected}
           />
 
-          <main className="min-h-0 overflow-y-auto overflow-x-hidden p-3 md:p-4">
+          <main
+            data-health-scroll-container="true"
+            className="min-h-0 overflow-y-auto overflow-x-hidden p-3 md:p-4"
+            style={{
+              WebkitOverflowScrolling: 'touch',
+              overscrollBehavior: 'contain',
+              paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))',
+            }}
+          >
             <section className="mb-4 rounded-md border border-white/10 bg-white/[0.03] p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
@@ -227,6 +244,18 @@ export default function SimulationPanel({ onClose }) {
                 {selectedSuite.critical && <StatusBadge status={STATUS.BLOCKED} text="critical suite" />}
               </div>
             </section>
+
+            {report && (
+              <div data-health-report-slot="top">
+                <SimulationReportActions
+                  report={report}
+                  copyJson={copyJson}
+                  copySummary={copySummary}
+                  downloadJson={downloadJson}
+                  copyState={copyState}
+                />
+              </div>
+            )}
 
             <div className="space-y-2">
               {selectedTests.map(testCase => (
@@ -238,16 +267,6 @@ export default function SimulationPanel({ onClose }) {
                 />
               ))}
             </div>
-
-            {report && (
-              <SimulationReportActions
-                report={report}
-                copyJson={copyJson}
-                copySummary={copySummary}
-                downloadJson={downloadJson}
-                copyState={copyState}
-              />
-            )}
           </main>
         </div>
       </div>

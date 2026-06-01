@@ -84,7 +84,9 @@ export default function SettingsPage() {
     <div
       className="min-h-screen bg-background"
       style={{
-        paddingTop: 'calc(4rem + env(safe-area-inset-top))',
+        minHeight: '100dvh',
+        boxSizing: 'border-box',
+        paddingTop: 'calc(4.5rem + env(safe-area-inset-top))',
         paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))',
         userSelect: 'none',
       }}

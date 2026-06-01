@@ -38,7 +38,7 @@ function KeyValue({ label, value }) {
 
 export default function SimulationReportActions({ report, copyJson, copySummary, downloadJson, copyState }) {
   return (
-    <section className="mt-5 rounded-md border border-white/12 bg-white/[0.035] p-3 md:p-4">
+    <section id="kronox-health-report" data-health-report-panel="true" className="mb-4 rounded-md border border-white/12 bg-white/[0.035] p-3 md:p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="text-base font-bold">Report</h3>
@@ -53,6 +53,15 @@ export default function SimulationReportActions({ report, copyJson, copySummary,
       {copyState && <div className="mt-2 text-xs text-cyan-200">{copyState}</div>}
 
       <ReleaseReadinessExplainer report={report} />
+
+      <div data-health-report-summary="true" className="mt-4 grid grid-cols-2 gap-2 text-center text-[11px] sm:grid-cols-6">
+        {['PASS', 'FAIL', 'ERROR', 'WARNING', 'NOT_AUTOMATABLE', 'BLOCKED'].map(status => (
+          <div key={status} className="rounded-md border border-white/10 bg-black/25 p-2">
+            <div className="text-sm font-black text-white">{report.counts?.[status] || 0}</div>
+            <div className="mt-0.5 truncate uppercase text-white/45">{status.replace('_', ' ')}</div>
+          </div>
+        ))}
+      </div>
 
       <div className="mt-4 grid gap-3 lg:grid-cols-3">
         <ReportBox title="Current Critical FAIL">
