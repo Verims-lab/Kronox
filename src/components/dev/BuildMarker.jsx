@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex142 — acceptGameInvite recipient-only Health contract:
+//   • Keeps the real toEmail !== myEmail guard and restores the exact
+//     unauthorized copy expected by the GameInvite/RLS Health suites.
+//
 // Codex141 — Final GameInvite open-to-lobby Health alignment:
 //   • Restores the client parser contract name `parseBase44Timestamp`.
 //   • Returns structured acceptGameInvite success/error payloads with
@@ -491,7 +495,7 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
-const BUILD_MARKER = 'Codex141';
+const BUILD_MARKER = 'Codex142';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
