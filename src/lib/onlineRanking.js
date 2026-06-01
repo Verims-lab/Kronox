@@ -106,7 +106,7 @@ export function getReachedCheckpoint(score) {
  *   result          : 'win' | 'loss'
  *   durationSeconds : match length in seconds (only used for winners)
  *
- * Codex136 — draw scoring removed. Passing result === 'draw' (or anything
+ * Codex136 — Draw scoring is removed. Passing result === 'draw' (or anything
  * other than 'win' / 'loss') returns a zero delta — it does NOT silently
  * award +3 anymore. Callers should never pass 'draw'; deterministic winner
  * selection is required at the call site.
