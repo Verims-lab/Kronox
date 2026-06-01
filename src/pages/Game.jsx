@@ -41,6 +41,9 @@ import { calculateSoloAttemptResult, getBestSoloLevelResult } from '@/lib/soloPr
 // Codex128 — Online puan/checkpoint sistemi. Online winner kararlaştığında
 // her client kendi kullanıcısının puanını günceller (idempotent).
 import { applyOnlineMatchToCurrentUser } from '@/lib/applyOnlineResult';
+// Codex146 — Player-own elapsed seconds canonical source for Online score
+// time bonus AND result popup time display. Same source = no inconsistency.
+import { getOnlinePlayerElapsedSeconds } from '@/lib/onlinePlayerElapsed';
 
 const normalizeOnlineEmail = (value) => String(value || '').trim().toLowerCase();
 
@@ -52,6 +55,9 @@ const getOpponentEmailForOnlineResult = (players = [], localEmail = null) => {
   })?.email || '';
 };
 
+// Codex146 — Popup state must always carry the SAME elapsedSeconds value
+// that was used for scoring. We never recompute it on the popup side, so
+// "Süren: X" and "Hız Bonusu: +Y" can never drift apart.
 const buildOnlineScorePopupState = ({ result, elapsedSeconds, response }) => {
   if (!response) return null;
   if (response.ok === false) {
@@ -60,7 +66,8 @@ const buildOnlineScorePopupState = ({ result, elapsedSeconds, response }) => {
       elapsedSeconds,
       pending: false,
       error: true,
-      message: 'Online puan kaydedilemedi. Bağlantı düzelince tekrar denenecek.',
+      // Persistence failed — DO NOT show a successful +points message.
+      message: 'Puan kaydedilemedi. Tekrar dene.',
     };
   }
   if (response.skipped && !response.applied) {
@@ -77,7 +84,12 @@ const buildOnlineScorePopupState = ({ result, elapsedSeconds, response }) => {
   if (!applied) return null;
   return {
     result: applied.result || result,
-    elapsedSeconds,
+    // Prefer the elapsedSeconds reported back by the persistence layer
+    // (idempotent replays read it from the audit row). Falls back to the
+    // value we just passed in so first-apply still shows the local time.
+    elapsedSeconds: Number.isFinite(Number(applied.elapsedSeconds))
+      ? Number(applied.elapsedSeconds)
+      : (Number.isFinite(Number(elapsedSeconds)) ? Number(elapsedSeconds) : null),
     pending: false,
     skipped: Boolean(response.skipped),
     delta: Number(applied.delta) || 0,
@@ -293,7 +305,15 @@ export default function Game() {
   // exactly once per match. Runs on every client from its own perspective,
   // so each player updates only their own User.online_progress. Idempotent
   // via online_progress.lastMatchId == lobbyId guard inside the helper.
+  //
+  // Codex146 — `playerOwnElapsedRef` captures THIS client's own gameplay
+  // timer the FIRST time we observe the match as finished. Subscription
+  // events can later overwrite `winner` with a stripped-down
+  // { name, email } object (no durationSeconds), but the ref is sticky
+  // so the time used for scoring and the time shown in the popup are
+  // always the same single snapshot.
   const onlineResultAppliedRef = useRef(false);
+  const playerOwnElapsedRef = useRef(null);
   useEffect(() => {
     if (!isOnline || !winner || !lobbyId) return;
     if (onlineResultAppliedRef.current) return;
@@ -307,11 +327,23 @@ export default function Game() {
     const isWinnerByName = Boolean(winnerName && myPlayerName && winnerName === myPlayerName);
     const localIsWinner = isWinnerByEmail || (!winnerEmail && isWinnerByName);
     const result = localIsWinner ? 'win' : 'loss';
-    // Winner bonus uses this client's own gameplay timer. Loser writes ignore
-    // elapsedSeconds, but we keep it for audit/result display.
-    const durationSeconds = Number.isFinite(Number(winner.durationSeconds))
-      ? Number(winner.durationSeconds)
-      : (Number.isFinite(Number(overallSecondsRef.current)) ? Number(overallSecondsRef.current) : undefined);
+
+    // Codex146 — Capture the player-own elapsed seconds exactly once,
+    // the first time this effect sees a finished match. Source priority:
+    //   1) winner.durationSeconds (set by useGameActions on the client
+    //      that actually placed the winning card — most accurate)
+    //   2) overallSecondsRef.current (local gameplay timer snapshot —
+    //      used for the loser client and for the winner if subscription
+    //      arrived first and stripped durationSeconds)
+    // We do NOT use lobby.created_at / lobby.last_activity_at / invite
+    // timestamps for scoring time.
+    if (playerOwnElapsedRef.current === null) {
+      playerOwnElapsedRef.current = getOnlinePlayerElapsedSeconds(
+        { elapsedSeconds: winner.durationSeconds },
+        overallSecondsRef.current,
+      );
+    }
+    const durationSeconds = playerOwnElapsedRef.current;
     const opponentEmail = getOpponentEmailForOnlineResult(players, localPlayerEmail);
     setOnlineScoreResult({
       result,
@@ -334,6 +366,8 @@ export default function Game() {
       if (popupState) setOnlineScoreResult(popupState);
       if (res && res.ok === false && res.retryable !== false) {
         debugLog('[Game] online puan persist failed; will allow retry on next mount', res);
+        // Codex146 — keep elapsed snapshot so a retry uses the same time
+        // value the user was shown; just unflag applied so the effect runs.
         onlineResultAppliedRef.current = false;
       }
     }).catch((err) => {
@@ -344,7 +378,8 @@ export default function Game() {
         elapsedSeconds: durationSeconds,
         pending: false,
         error: true,
-        message: 'Online puan kaydedilemedi. Bağlantı düzelince tekrar denenecek.',
+        // Codex146 — failure message clearly indicates score did NOT persist.
+        message: 'Puan kaydedilemedi. Tekrar dene.',
       });
       onlineResultAppliedRef.current = false;
     });
@@ -534,6 +569,7 @@ export default function Game() {
   const handleRestart = () => {
     setOnlineScoreResult(null);
     onlineResultAppliedRef.current = false;
+    playerOwnElapsedRef.current = null;
     resetGame();
     navigate('/');
   };

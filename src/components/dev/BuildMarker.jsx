@@ -1,5 +1,20 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex146 — Online score completion runtime fix:
+//   • Player-own elapsed seconds is now the canonical Online scoring time
+//     source via the new lib/onlinePlayerElapsed.js helper.
+//   • Result popup time and scoring time read the SAME single value
+//     (onlineScoreResult.elapsedSeconds), so 3:25 game can no longer
+//     show +10 speed bonus.
+//   • Persistence failure shows "Puan kaydedilemedi. Tekrar dene." and
+//     does not show a fake +points success.
+//   • Idempotency unchanged: first apply persists, replays skip via
+//     OnlineMatchResult / lastMatchId.
+//   • Solo scoring NOT touched.
+//   • Health: 7 new modular cases (player-own time helper, popup/scoring
+//     parity, 3:25 → +15, missing time base only, failure copy,
+//     idempotency first-write, helper file shape).
+//
 // Codex145 — Health Center expansion + Admin/Health UI hardening:
 //   • Adds mobile-safe Health panel/report contracts.
 //   • Fixes Health overlay safe-area/dvh scroll behavior.
@@ -507,7 +522,7 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
-const BUILD_MARKER = 'Codex145';
+const BUILD_MARKER = 'Codex146';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
