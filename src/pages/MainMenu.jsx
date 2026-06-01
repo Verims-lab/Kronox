@@ -17,7 +17,7 @@ import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 // rendered. It has been removed so the "no_remote_visual_assets_new_screens"
 // contract stays honest — the home screen relies only on local
 // /assets/ui/* fantasy assets.
-const BACKGROUND_ASSET = '/assets/ui/Kronox_Home_Fantasy_Background.png';
+const BACKGROUND_ASSET = '/assets/ui/Kronox_Home_Fantasy_background.webp';
 const WIDE_STAGE_QUERY = '(min-aspect-ratio: 9 / 16)';
 
 const HOME_BUTTON_ASSETS = {

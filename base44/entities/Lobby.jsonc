@@ -61,23 +61,13 @@
         "waiting",
         "starting",
         "in_game",
-        "finished",
-        "cancelled",
-        "expired"
+        "finished"
       ],
       "default": "waiting"
     },
     "winner": {
       "type": "string",
       "description": "Name of the winning player"
-    },
-    "winner_email": {
-      "type": "string",
-      "description": "Email of the winning player, written with status=finished for local win/loss perspective."
-    },
-    "state_revision": {
-      "type": "number",
-      "description": "Monotonic multiplayer state revision used by sync/merge guards."
     },
     "category": {
       "type": "string",
@@ -142,31 +132,6 @@
         "type": "string"
       },
       "description": "Lowercased emails of friends invited by the host at creation time."
-    },
-    "started_at": {
-      "type": "string",
-      "format": "date-time",
-      "description": "ISO timestamp when the lobby transitions into active gameplay."
-    },
-    "completed_at": {
-      "type": "string",
-      "format": "date-time",
-      "description": "ISO timestamp when the lobby/game is completed."
-    },
-    "cancelled_at": {
-      "type": "string",
-      "format": "date-time",
-      "description": "ISO timestamp when a waiting lobby is cancelled/stale-retained."
-    },
-    "last_activity_at": {
-      "type": "string",
-      "format": "date-time",
-      "description": "ISO timestamp for lobby activity/cleanup decisions. Existing rows may rely on updated_date fallback."
-    },
-    "expires_at": {
-      "type": "string",
-      "format": "date-time",
-      "description": "Optional stale-waiting expiry timestamp. Cleanup helpers mark stale waiting lobbies instead of deleting them."
     }
   },
   "required": [
