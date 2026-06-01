@@ -10,7 +10,9 @@
 
 ## 1. Purpose
 
-Kronox uses two score systems:
+Kronox has one player-facing score language: **Kronox Puan**.
+
+Internally, two scoring components feed that visible score:
 
 - **Solo scoring** rewards level completion quality, stars, completion time,
   and replay improvement.
@@ -18,9 +20,10 @@ Kronox uses two score systems:
   penalty, gives winner time bonuses, and protects users from falling below
   reached checkpoint floors.
 
-Solo score and Online score MUST remain conceptually separate unless a future
-product decision explicitly merges them. Persisted fields, helpers, and UI
-surfaces must reflect that separation.
+Visible UI must use **Puan** or **Kronox Puan**, not separate
+user-facing "Solo Puan" / "Online Puan" labels. Persisted Solo and Online
+components remain separate so scoring rules, idempotency, and leaderboard
+contracts stay auditable.
 
 ---
 
@@ -380,7 +383,9 @@ path and the function reports the audit persistence status.
 
 ### 3.8 Online Score Persistence
 
-Online score must be **separate** from Solo score.
+The Online scoring component must be persisted separately from the Solo
+component, while visible **Kronox Puan** combines them through the shared
+helper.
 
 Recommended user fields:
 
@@ -449,7 +454,8 @@ Current expected behavior:
 
 - Solo leaderboard uses **Solo score / `totalSoloScore`** unless product
   explicitly changes it.
-- Online score is **separate** unless an Online leaderboard is added.
+- Online competitive score storage stays separate unless an Online leaderboard
+  is added, but user-facing labels still use unified **Puan** wording.
 - Profile must not accidentally show stale or mismatched score fields.
 - Visible **Kronox Puan** on Home/Solo/Online/Profile/Liderlik stat
   surfaces means `getKronoxVisibleScore(user)`.

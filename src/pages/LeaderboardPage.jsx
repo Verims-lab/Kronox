@@ -213,7 +213,7 @@ export default function LeaderboardPage() {
           </div>
           <p className="font-cinzel text-lg tracking-widest text-amber-200">Liderlik Tablosu</p>
           <p className="mt-2 font-inter text-xs text-blue-100/70 leading-relaxed">
-            Solo puanın artık profilindeki ilerleme kaydından geliyor.
+            Kronox Puanın Solo ve Online sonuçlarınla güncellenir.
           </p>
 
           {/* Codex119 — stat cards always show the user's own values from

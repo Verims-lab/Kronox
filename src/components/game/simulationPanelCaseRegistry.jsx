@@ -79,7 +79,7 @@ import * as uiConsolidationCases from './simulationPanelUiConsolidationCases';
 // Codex127 — Online challenge flow simplification:
 // kategori carousel + arkadaş popup + tek adımda lobi + davet.
 import * as onlineChallengeCases from './simulationPanelOnlineChallengeCases';
-// Codex128 — Online puan/checkpoint sistemi: win/loss only, no draw
+// Codex128 — Online score/checkpoint system: win/loss only, no draw
 // scoring, time bonus + checkpoint floor + idempotent match write contracts.
 import * as onlineRankingCases from './simulationPanelOnlineRankingCases';
 // Codex129 — Friend invite delivery & email honesty contracts.
@@ -117,6 +117,9 @@ import * as onlineScoreCompletionCases from './simulationPanelOnlineScoreComplet
 // Codex146 — Visible Kronox Puan must include persisted Online score, not
 // just popup/audit rows. Locks shared score helper + refresh/reconcile path.
 import * as onlineScoreVisiblePuanCases from './simulationPanelOnlineScoreVisiblePuanCases';
+// Codex149 — Player-facing copy must use one unified Puan / Kronox Puan
+// language. Solo and Online remain technical components, not UI score labels.
+import * as unifiedKronoxScoreCases from './simulationPanelUnifiedKronoxScoreCases';
 
 const MODULES = [
   soloProgressCases,
@@ -142,6 +145,7 @@ const MODULES = [
   dataModelCases,
   onlineScoreCompletionCases,
   onlineScoreVisiblePuanCases,
+  unifiedKronoxScoreCases,
 ];
 
 function flatten(key) {
