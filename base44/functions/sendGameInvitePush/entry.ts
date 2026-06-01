@@ -15,9 +15,19 @@ const normalizeEmail = (value: unknown) => String(value || '').trim().toLowerCas
 const json = (body: unknown, status = 200) => Response.json(body, { status });
 // Codex130 — Game invite TTL: 10 minutes (was 5).
 const GAME_INVITE_TTL_MS = 10 * 60 * 1000;
+// Codex138 — Base44 server `created_date` may be serialized WITHOUT a
+// timezone suffix. Append `Z` to naive ISO strings so they parse as UTC.
 const readTime = (value: unknown) => {
-  const time = value ? new Date(String(value)).getTime() : NaN;
-  return Number.isFinite(time) ? time : NaN;
+  if (value == null) return NaN;
+  if (value instanceof Date) {
+    const t = value.getTime();
+    return Number.isFinite(t) ? t : NaN;
+  }
+  const str = String(value).trim();
+  if (!str) return NaN;
+  const hasZone = /Z$/i.test(str) || /[+-]\d{2}:?\d{2}$/.test(str);
+  const t = new Date(hasZone ? str : `${str}Z`).getTime();
+  return Number.isFinite(t) ? t : NaN;
 };
 const getInviteExpiry = (invite: any) => {
   const explicit = readTime(invite?.expires_at || invite?.expiresAt);
