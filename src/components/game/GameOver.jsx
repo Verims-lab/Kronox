@@ -17,6 +17,7 @@ export default function GameOver({
   isOnline = false,
   localPlayerName = null,
   localPlayerEmail = null,
+  onlineScoreResult = null,
 }) {
   const hasOnlinePerspective = Boolean(isOnline && (localPlayerName || localPlayerEmail));
   const hasEmailPerspective = Boolean(isOnline && winnerEmail && localPlayerEmail);
@@ -39,6 +40,15 @@ export default function GameOver({
   const headerGlow = isOnlineLoser
     ? 'linear-gradient(180deg, rgba(168,85,247,0.16) 0%, transparent 100%)'
     : 'linear-gradient(180deg, rgba(255,193,7,0.12) 0%, transparent 100%)';
+  const hasOnlineScore = Boolean(isOnline && onlineScoreResult);
+  const scoreDelta = Number(onlineScoreResult?.delta || 0);
+  const effectiveDelta = Number(onlineScoreResult?.effectiveDelta ?? scoreDelta);
+  const scoreSign = scoreDelta > 0 ? '+' : '';
+  const scoreHeadline = onlineScoreResult?.pending
+    ? onlineScoreResult.message
+    : onlineScoreResult?.error || onlineScoreResult?.noScoreDelta
+      ? onlineScoreResult.message
+      : `${scoreSign}${scoreDelta} Puan`;
 
   return (
     <motion.div
@@ -83,6 +93,38 @@ export default function GameOver({
           <div className="mt-3 font-inter text-sm text-white/50">
             {progressText}
           </div>
+
+          {hasOnlineScore && (
+            <div className="mt-4 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-left font-inter">
+              <div className="text-center font-bangers text-2xl tracking-wide text-primary">
+                {scoreHeadline}
+              </div>
+              {!onlineScoreResult.pending && !onlineScoreResult.error && !onlineScoreResult.noScoreDelta && (
+                <div className="mt-2 space-y-1 text-xs text-white/65">
+                  {onlineScoreResult.skipped && (
+                    <div>Bu maçın puanı daha önce işlendi.</div>
+                  )}
+                  {onlineScoreResult.result === 'win' ? (
+                    <>
+                      <div>Galibiyet: +{onlineScoreResult.baseDelta || 15}</div>
+                      <div>Hız Bonusu: +{onlineScoreResult.timeBonus || 0}</div>
+                    </>
+                  ) : (
+                    <>
+                      <div>Mağlubiyet: {scoreDelta} Puan</div>
+                      {onlineScoreResult.checkpointApplied && (
+                        <div>Checkpoint koruması: {onlineScoreResult.protectedFloor} altına düşmedin</div>
+                      )}
+                    </>
+                  )}
+                  <div>Skor: {onlineScoreResult.scoreBefore} → {onlineScoreResult.scoreAfter}</div>
+                  {effectiveDelta !== scoreDelta && (
+                    <div>Gerçek değişim: {effectiveDelta > 0 ? '+' : ''}{effectiveDelta}</div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Buttons */}

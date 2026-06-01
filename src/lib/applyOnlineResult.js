@@ -66,8 +66,41 @@ async function findExistingOnlineMatchResult({ lobbyId, playerEmail }) {
       });
       return { supported: false, row: null, error };
     }
-    throw error;
+    debugLog('[applyOnlineMatch] OnlineMatchResult lookup unavailable; falling back to lastMatchId guard', {
+      lobbyId,
+      playerEmail,
+      error: error?.message || String(error),
+    });
+    return { supported: false, row: null, error };
   }
+}
+
+function appliedFromOnlineMatchResultRow(row) {
+  if (!row) return null;
+  const result = row.result || null;
+  const delta = Number.isFinite(Number(row.delta)) ? Number(row.delta) : 0;
+  const effectiveDelta = Number.isFinite(Number(row.effective_delta))
+    ? Number(row.effective_delta)
+    : delta;
+  const previousScore = Number.isFinite(Number(row.score_before)) ? Number(row.score_before) : 0;
+  const nextScore = Number.isFinite(Number(row.score_after)) ? Number(row.score_after) : previousScore + effectiveDelta;
+  const base = result === 'win' ? 15 : result === 'loss' ? -6 : 0;
+  const timeBonus = result === 'win' ? Math.max(0, delta - base) : 0;
+  const floorCheckpoint = Number.isFinite(Number(row.checkpoint_before)) ? Number(row.checkpoint_before) : 0;
+  const peakCheckpoint = Number.isFinite(Number(row.checkpoint_after)) ? Number(row.checkpoint_after) : floorCheckpoint;
+  return {
+    result,
+    base,
+    timeBonus,
+    delta,
+    effectiveDelta,
+    previousScore,
+    nextScore,
+    floorCheckpoint,
+    clampedByCheckpoint: Boolean(row.metadata?.clampedByCheckpoint) || (delta < 0 && effectiveDelta !== delta),
+    peakScore: Math.max(previousScore, nextScore),
+    peakCheckpoint,
+  };
 }
 
 async function createOnlineMatchResult({
@@ -122,7 +155,7 @@ async function createOnlineMatchResult({
 export async function applyOnlineMatchToCurrentUser({
   lobbyId,
   result,
-  durationSeconds = 0,
+  durationSeconds,
   opponentEmail = '',
   source = 'client_game_result',
 }) {
@@ -157,7 +190,7 @@ export async function applyOnlineMatchToCurrentUser({
   } catch (e) {
     const msg = e?.message || String(e);
     debugLog('[applyOnlineMatch] OnlineMatchResult lookup failed', { lobbyId, error: msg });
-    return { ok: false, error: msg, retryable: true, where: 'online_match_result_lookup' };
+    existingResult = { supported: false, row: null, error: msg };
   }
   if (existingResult.row?.id) {
     debugLog('[applyOnlineMatch] skipped (OnlineMatchResult exists)', { lobbyId, result });
@@ -166,6 +199,7 @@ export async function applyOnlineMatchToCurrentUser({
       skipped: true,
       reason: 'already_recorded',
       progress: current,
+      applied: appliedFromOnlineMatchResultRow(existingResult.row),
       onlineMatchResult: existingResult.row,
     };
   }
