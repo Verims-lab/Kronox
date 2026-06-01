@@ -108,6 +108,9 @@ import * as gameInviteOpenToLobbyCases from './simulationPanelGameInviteOpenToLo
 // schema docs, Solo localStorage scoping, leaderboard projection drift,
 // OnlineMatchResult idempotency, cleanup/retention, and RLS probe matrix.
 import * as dataModelCases from './simulationPanelDataModelCases';
+// Codex143 — Online match completion scoring: winner/loser score apply,
+// player-own elapsed time, checkpoint loss floor, and result popup delta.
+import * as onlineScoreCompletionCases from './simulationPanelOnlineScoreCompletionCases';
 
 const MODULES = [
   soloProgressCases,
@@ -130,6 +133,7 @@ const MODULES = [
   inviteTimezoneCases,
   gameInviteOpenToLobbyCases,
   dataModelCases,
+  onlineScoreCompletionCases,
 ];
 
 function flatten(key) {

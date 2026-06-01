@@ -42,6 +42,55 @@ import { calculateSoloAttemptResult, getBestSoloLevelResult } from '@/lib/soloPr
 // her client kendi kullanıcısının puanını günceller (idempotent).
 import { applyOnlineMatchToCurrentUser } from '@/lib/applyOnlineResult';
 
+const normalizeOnlineEmail = (value) => String(value || '').trim().toLowerCase();
+
+const getOpponentEmailForOnlineResult = (players = [], localEmail = null) => {
+  const normalizedLocal = normalizeOnlineEmail(localEmail);
+  return players.find((player) => {
+    const email = normalizeOnlineEmail(player?.email);
+    return email && email !== normalizedLocal;
+  })?.email || '';
+};
+
+const buildOnlineScorePopupState = ({ result, elapsedSeconds, response }) => {
+  if (!response) return null;
+  if (response.ok === false) {
+    return {
+      result,
+      elapsedSeconds,
+      pending: false,
+      error: true,
+      message: 'Online puan kaydedilemedi. Bağlantı düzelince tekrar denenecek.',
+    };
+  }
+  if (response.skipped && !response.applied) {
+    return {
+      result,
+      elapsedSeconds,
+      pending: false,
+      skipped: true,
+      noScoreDelta: true,
+      message: 'Bu maçın puanı daha önce işlendi.',
+    };
+  }
+  const applied = response.applied;
+  if (!applied) return null;
+  return {
+    result: applied.result || result,
+    elapsedSeconds,
+    pending: false,
+    skipped: Boolean(response.skipped),
+    delta: Number(applied.delta) || 0,
+    effectiveDelta: Number(applied.effectiveDelta) || 0,
+    baseDelta: Number(applied.base) || 0,
+    timeBonus: Number(applied.timeBonus) || 0,
+    scoreBefore: Number(applied.previousScore) || 0,
+    scoreAfter: Number(applied.nextScore) || 0,
+    checkpointApplied: Boolean(applied.clampedByCheckpoint),
+    protectedFloor: Number(applied.floorCheckpoint) || 0,
+  };
+};
+
 export default function Game() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -141,6 +190,7 @@ export default function Game() {
   const lastCountedFeedbackRef = useRef(null);
   const [soloLevelResult, setSoloLevelResult] = useState(null);
   const soloResultPersistedRef = useRef(false);
+  const [onlineScoreResult, setOnlineScoreResult] = useState(null);
 
   useEffect(() => {
     if (!isOnlineFromState) return;
@@ -249,11 +299,26 @@ export default function Game() {
     if (onlineResultAppliedRef.current) return;
     const winnerEmail = winner.email || winner.winner_email || lobbyData?.winner_email || null;
     const winnerName = winner.name || lobbyData?.winner || null;
-    const isWinnerByEmail = Boolean(winnerEmail && localPlayerEmail && winnerEmail === localPlayerEmail);
+    const isWinnerByEmail = Boolean(
+      winnerEmail &&
+      localPlayerEmail &&
+      normalizeOnlineEmail(winnerEmail) === normalizeOnlineEmail(localPlayerEmail),
+    );
     const isWinnerByName = Boolean(winnerName && myPlayerName && winnerName === myPlayerName);
     const localIsWinner = isWinnerByEmail || (!winnerEmail && isWinnerByName);
     const result = localIsWinner ? 'win' : 'loss';
-    const durationSeconds = winner.durationSeconds ?? overallSecondsRef.current ?? 0;
+    // Winner bonus uses this client's own gameplay timer. Loser writes ignore
+    // elapsedSeconds, but we keep it for audit/result display.
+    const durationSeconds = Number.isFinite(Number(winner.durationSeconds))
+      ? Number(winner.durationSeconds)
+      : (Number.isFinite(Number(overallSecondsRef.current)) ? Number(overallSecondsRef.current) : undefined);
+    const opponentEmail = getOpponentEmailForOnlineResult(players, localPlayerEmail);
+    setOnlineScoreResult({
+      result,
+      elapsedSeconds: durationSeconds,
+      pending: true,
+      message: 'Online puan kaydediliyor...',
+    });
     onlineResultAppliedRef.current = true;
     // Codex136 — structured-result aware. Persistence failures release the
     // ref so a later mount/effect run can retry safely. Gameplay is never
@@ -262,20 +327,39 @@ export default function Game() {
       lobbyId,
       result,
       durationSeconds,
+      opponentEmail,
+      source: routeState?.inviteId ? 'friend_invite' : 'code_lobby',
     }).then((res) => {
+      const popupState = buildOnlineScorePopupState({ result, elapsedSeconds: durationSeconds, response: res });
+      if (popupState) setOnlineScoreResult(popupState);
       if (res && res.ok === false && res.retryable !== false) {
         debugLog('[Game] online puan persist failed; will allow retry on next mount', res);
         onlineResultAppliedRef.current = false;
       }
+    }).catch((err) => {
+      const message = err?.message || String(err);
+      debugLog('[Game] online puan persist crashed; will allow retry on next mount', { lobbyId, error: message });
+      setOnlineScoreResult({
+        result,
+        elapsedSeconds: durationSeconds,
+        pending: false,
+        error: true,
+        message: 'Online puan kaydedilemedi. Bağlantı düzelince tekrar denenecek.',
+      });
+      onlineResultAppliedRef.current = false;
     });
-  }, [isOnline, winner, lobbyId, lobbyData?.winner_email, lobbyData?.winner, localPlayerEmail, myPlayerName, overallSecondsRef]);
+  }, [isOnline, winner, lobbyId, lobbyData?.winner_email, lobbyData?.winner, localPlayerEmail, myPlayerName, overallSecondsRef, players, routeState?.inviteId]);
 
   useEffect(() => {
     if (!isOnline || !winner) return;
 
     const winnerEmail = winner.email || winner.winner_email || lobbyData?.winner_email || null;
     const winnerName = winner.name || lobbyData?.winner || null;
-    const isWinnerByEmail = Boolean(winnerEmail && localPlayerEmail && winnerEmail === localPlayerEmail);
+    const isWinnerByEmail = Boolean(
+      winnerEmail &&
+      localPlayerEmail &&
+      normalizeOnlineEmail(winnerEmail) === normalizeOnlineEmail(localPlayerEmail),
+    );
     const isWinnerByName = Boolean(winnerName && myPlayerName && winnerName === myPlayerName);
 
     debugLog('[Game] online GameOver perspective:', {
@@ -390,10 +474,10 @@ export default function Game() {
 
   // Overall timer başlatma
   useEffect(() => {
-    if (!isOnline && players.length > 0 && currentQuestion != null && !gameStarted) {
+    if (players.length > 0 && currentQuestion != null && !gameStarted) {
       setGameStarted(true);
     }
-  }, [isOnline, players.length, currentQuestion, gameStarted, setGameStarted]);
+  }, [players.length, currentQuestion, gameStarted, setGameStarted]);
 
   // Timer reset on player turn change
   useEffect(() => {
@@ -447,7 +531,12 @@ export default function Game() {
     if (!isMyTurn) return;
     skipCurrentQuestion(currentQuestion?.id);
   }, [currentQuestion?.id, isMyTurn, skipCurrentQuestion]);
-  const handleRestart = () => { resetGame(); navigate('/'); };
+  const handleRestart = () => {
+    setOnlineScoreResult(null);
+    onlineResultAppliedRef.current = false;
+    resetGame();
+    navigate('/');
+  };
 
   // Codex106 — count wrong placements as mistakes. We watch `feedback`
   // changes (which doPlacement already sets on every placement) instead of
@@ -685,6 +774,7 @@ export default function Game() {
         isOnline={isOnline}
         localPlayerName={myPlayer?.name || myPlayerName}
         localPlayerEmail={localPlayerEmail}
+        onlineScoreResult={isOnline ? onlineScoreResult : null}
       />
     </>
   ) : null;
@@ -934,9 +1024,7 @@ export default function Game() {
     >
       {diagnosticsOverlay}
       <GameDebugLog />
-      {!isOnline && (
-        <GameOverTimer active={gameStarted && !winner} onTick={(s) => setOverallSeconds(s)} />
-      )}
+      <GameOverTimer active={gameStarted && !winner} onTick={(s) => setOverallSeconds(s)} />
 
       <AnimatePresence>
         {feedback && (

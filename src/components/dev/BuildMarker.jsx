@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex143 — Online match completion scoring:
+//   • Allows first score apply when OnlineMatchResult lookup is unavailable.
+//   • Shows the current player's applied Online puan delta in GameOver.
+//
 // Codex142 — acceptGameInvite recipient-only Health contract:
 //   • Keeps the real toEmail !== myEmail guard and restores the exact
 //     unauthorized copy expected by the GameInvite/RLS Health suites.
@@ -495,7 +499,7 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
-const BUILD_MARKER = 'Codex142';
+const BUILD_MARKER = 'Codex143';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
