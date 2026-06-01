@@ -14,9 +14,17 @@
       "type": "string",
       "description": "One-character safe initial for avatar fallback."
     },
+    "total_kronox_score": {
+      "type": "number",
+      "description": "Visible Kronox Puan for ranking/display: Solo total_solo_score plus Online score component."
+    },
     "total_solo_score": {
       "type": "number",
-      "description": "User solo_progress summary totalSoloScore."
+      "description": "Technical Solo score component from User solo_progress summary totalSoloScore."
+    },
+    "online_score": {
+      "type": "number",
+      "description": "Technical Online score component from User online_progress.score."
     },
     "current_level": {
       "type": "number",

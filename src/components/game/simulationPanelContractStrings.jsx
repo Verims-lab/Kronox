@@ -470,5 +470,7 @@ export const getSoloLeaderboardFnSource = `
     if (Number.isFinite(stored) && stored >= 0) return Math.floor(stored);
     return starBaseScore(stars) + timeBonus(entry?.bestTimeSeconds, true);
   }
+  const online_score = Math.max(0, Math.floor(Number(user?.online_progress?.score) || 0));
+  const total_kronox_score = summary.totalSoloScore + online_score;
   const rows = users.map(toLeaderboardRow).filter(Boolean).sort(compareRows);
 `;

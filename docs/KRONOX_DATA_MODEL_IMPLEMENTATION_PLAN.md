@@ -9,7 +9,9 @@ implemented after `docs/KRONOX_DATA_MODEL_AUDIT.md`.
 
 - `User`: signed-in source for `solo_progress`, `online_progress`,
   `hasCompletedTutorial`, and `game_invite_notifications_enabled`.
-- `SoloLeaderboardEntry`: public-safe Solo leaderboard mirror/projection row.
+- `SoloLeaderboardEntry`: public-safe Kronox leaderboard mirror/projection row
+  with separate `total_solo_score`, `online_score`, and visible
+  `total_kronox_score`.
 - `OnlineMatchResult`: per-user/lobby Online score audit and idempotency row.
 - `FriendRequest`: normalized friendship source for accepted relationships.
 - `Friendship`: legacy mirrored-row model retained for compatibility/cleanup.
@@ -30,8 +32,9 @@ Daily Quest remains paused. When resumed, it should use a dedicated
   - Guest key: `kx_solo_progress_v1:guest`.
   - Signed-in key: `kx_solo_progress_v1:<ownerKey>`.
   - Old unscoped key is guest-only unless it has a same-owner marker.
-- Solo leaderboard display: projection from normalized `User.solo_progress`
-  plus best-effort `SoloLeaderboardEntry` mirror.
+- Leaderboard display: projection from normalized `User.solo_progress` plus
+  `User.online_progress.score`, mirrored as `SoloLeaderboardEntry`
+  `total_kronox_score`.
 - Online score summary: `User.online_progress`.
 - Online score idempotency/audit: `OnlineMatchResult`.
 - Friend relationship: accepted `FriendRequest`.

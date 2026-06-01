@@ -1,10 +1,11 @@
 /**
  * getSoloLeaderboard
  *
- * Public-safe leaderboard projection for Solo progress.
- * Reads User.solo_progress with service role, but returns only rank-safe
- * fields. No raw email, notification settings, auth/private profile fields,
- * push/device data, or full User rows leave this function.
+ * Public-safe leaderboard projection for Kronox Puan.
+ * Reads User.solo_progress + User.online_progress with service role, but
+ * returns only rank-safe fields. No raw email, notification settings,
+ * auth/private profile fields, push/device data, or full User rows leave
+ * this function.
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
@@ -35,6 +36,10 @@ function ownerKeyFromEmail(rawEmail: unknown) {
 function finiteNumber(value: unknown, fallback = 0) {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
+}
+
+function onlineScoreFromUser(user: any) {
+  return Math.max(0, Math.floor(finiteNumber(user?.online_progress?.score, 0)));
 }
 
 function cleanDisplayText(raw: unknown) {
@@ -142,13 +147,17 @@ function toLeaderboardRow(user: any) {
   if (!ownerKey) return null;
 
   const summary = summarizeProgress(user?.solo_progress || {});
+  const onlineScore = onlineScoreFromUser(user);
+  const totalKronoxScore = summary.totalSoloScore + onlineScore;
   const displayName = safeDisplayName(user, ownerKey);
 
   return {
     owner_key: ownerKey,
     display_name: displayName,
     initial: initialFromName(displayName),
+    total_kronox_score: totalKronoxScore,
     total_solo_score: summary.totalSoloScore,
+    online_score: onlineScore,
     current_level: summary.currentLevel,
     unlocked_level: summary.unlockedLevel,
     total_stars: summary.totalStars,
@@ -161,7 +170,7 @@ function toLeaderboardRow(user: any) {
 }
 
 function compareRows(a: any, b: any) {
-  const scoreDiff = finiteNumber(b.total_solo_score) - finiteNumber(a.total_solo_score);
+  const scoreDiff = finiteNumber(b.total_kronox_score) - finiteNumber(a.total_kronox_score);
   if (scoreDiff) return scoreDiff;
   const levelDiff = finiteNumber(b.current_level) - finiteNumber(a.current_level);
   if (levelDiff) return levelDiff;
@@ -197,7 +206,7 @@ Deno.serve(async (req) => {
 
     return json({
       ok: true,
-      source: 'user_solo_progress_service_role_projection',
+      source: 'user_kronox_puan_service_role_projection',
       rows,
     });
   } catch (error) {

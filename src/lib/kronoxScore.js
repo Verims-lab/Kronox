@@ -18,12 +18,16 @@ export function getSoloProgressScore(user, options = {}) {
 /**
  * Visible Kronox Puan source of truth.
  *
- * Solo leaderboard ranking remains based on Solo best-score totals. The
- * player-facing Kronox Puan shown in headers/Profile/Liderlik stat cards is
- * the durable game score the player sees after both Solo and Online play:
+ * Leaderboard ranking, headers, Profile, and other player-facing score
+ * surfaces must all show the same durable game score after both Solo and
+ * Online play:
  *
  *   kronoxPuan = solo_progress.totalSoloScore + online_progress.score
  */
 export function getKronoxVisibleScore(user, options = {}) {
   return getSoloProgressScore(user, options) + getOnlineProgressScore(user);
+}
+
+export function getUnifiedKronoxPuan(user, options = {}) {
+  return getKronoxVisibleScore(user, options);
 }

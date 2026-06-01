@@ -3,9 +3,9 @@
 // CALLED FROM
 //   pages/Game.jsx — exactly once per match per local client, when the
 //   online winner is decided. Each client persists ONLY its own user
-//   record (base44.auth.updateMe), so there is no need for a server-side
-//   leaderboard write: every player updates themselves from their own
-//   perspective.
+//   record (base44.auth.updateMe). After the profile write, the current
+//   user's leaderboard-safe row is refreshed so visible Kronox Puan stays
+//   consistent in Profile/Header and Liderlik rows.
 //
 // IDEMPOTENCY
 //   We store the lobby id on online_progress.lastMatchId. If the same
@@ -31,6 +31,7 @@
 
 import { base44 } from '@/api/base44Client';
 import { applyOnlineMatchResult } from './onlineRanking';
+import { publishSoloLeaderboardEntry } from './leaderboard';
 import { debugLog } from './debugLog';
 
 const ONLINE_MATCH_RESULT_ENTITY = 'OnlineMatchResult';
@@ -126,6 +127,26 @@ async function refreshCurrentUserAfterOnlineScore(lobbyId) {
   }
 }
 
+async function publishLeaderboardAfterOnlineScore(user, lobbyId) {
+  if (!user?.email) return null;
+  try {
+    const row = await publishSoloLeaderboardEntry(user);
+    debugLog('[applyOnlineMatch] refreshed leaderboard row after score persist', {
+      lobbyId,
+      ownerKey: row?.owner_key || null,
+      totalKronoxScore: row?.total_kronox_score ?? null,
+      onlineScore: row?.online_score ?? null,
+    });
+    return row || null;
+  } catch (error) {
+    debugLog('[applyOnlineMatch] leaderboard publish after score persist failed', {
+      lobbyId,
+      error: error?.message || String(error),
+    });
+    return null;
+  }
+}
+
 function shouldRepairOnlineMatchResult({ current, row, applied, lobbyId }) {
   if (!row || !applied || !lobbyId) return { repair: false, reason: 'missing_args' };
   if (current?.lastMatchId && String(current.lastMatchId) === String(lobbyId)) {
@@ -152,6 +173,7 @@ export async function reconcileOnlineMatchResultForCurrentUser({
   current,
   row,
   applied,
+  user = null,
 }) {
   const decision = shouldRepairOnlineMatchResult({ current, row, applied, lobbyId });
   if (!decision.repair) return { repaired: false, ...decision };
@@ -179,6 +201,7 @@ export async function reconcileOnlineMatchResultForCurrentUser({
   try {
     await base44.auth.updateMe({ online_progress: nextProgress });
     const refreshedUser = await refreshCurrentUserAfterOnlineScore(lobbyId);
+    await publishLeaderboardAfterOnlineScore(refreshedUser || { ...(user || {}), online_progress: nextProgress }, lobbyId);
     debugLog('[applyOnlineMatch] reconciled OnlineMatchResult without visible score', {
       lobbyId,
       reason: decision.reason,
@@ -299,6 +322,7 @@ export async function applyOnlineMatchToCurrentUser({
       current,
       row: existingResult.row,
       applied,
+      user: me,
     });
     if (reconciliation.retryable && reconciliation.error) {
       return {
@@ -367,6 +391,7 @@ export async function applyOnlineMatchToCurrentUser({
 
   debugLog('[applyOnlineMatch] applied', { lobbyId, applied });
   const refreshedUser = await refreshCurrentUserAfterOnlineScore(lobbyId);
+  await publishLeaderboardAfterOnlineScore(refreshedUser || { ...me, online_progress: payload.online_progress }, lobbyId);
   const onlineMatchResult = await createOnlineMatchResult({
     lobbyId,
     playerEmail,

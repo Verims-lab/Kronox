@@ -11,7 +11,7 @@
 //   1. Stat cards (Puan / Level / Elmas) must still source from the
 //      shared Solo summary so own-score never disappears.
 //   2. End-user-facing copy must not mention backend/permission language.
-//   3. The fallback placeholder must show the user's own totalSoloScore
+//   3. The fallback placeholder must show the user's own unified Kronox Puan
 //      and a safe "Hazırlanıyor" rank phrase, never an invented rank.
 //   4. Admin diagnostics: when an admin is signed in, the technical
 //      reason MAY appear in a small diagnostics block — gated by
@@ -90,7 +90,7 @@ export const EXTRA_TESTS = [
       // The section component must render Senin Puanın from ownScore.
       const sectionMissing = missingTokens(kronoxRankingSectionSource, [
         'Senin Puanın',
-        'ownScore?.totalSoloScore',
+        'ownScore?.totalKronoxScore',
       ]);
       if (pageMissing.length || sectionMissing.length) {
         return fail('Own-score visibility contract broken: a global load failure could hide the user\'s real Puan/Level.', {
