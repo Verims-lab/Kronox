@@ -139,6 +139,13 @@
     min-height: 100dvh;
     overflow-x: hidden;
     overflow-y: auto;
+    /* Global digit readability fix — Inter's stylistic sets give us a
+       crossbar "7" + slashed "0" so "7" vs "1" and "0" vs "O" are clearly
+       distinguishable everywhere numbers appear (scores, timers, levels,
+       diamonds, rankings). Bangers/Cinzel headline glyphs already differ
+       enough; this only takes effect where Inter/system fonts render. */
+    font-variant-numeric: tabular-nums slashed-zero;
+    font-feature-settings: "tnum" 1, "zero" 1, "cv11" 1, "ss02" 1;
     background:
       radial-gradient(ellipse at 50% -10%, rgba(59,130,246,0.18), transparent 55%),
       radial-gradient(ellipse at 50% 110%, rgba(34,211,238,0.10), transparent 60%),

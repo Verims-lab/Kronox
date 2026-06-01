@@ -59,13 +59,16 @@ export const SOLO_CARDS_PER_LEVEL = 10;
 export const SOLO_LEVEL_TIME_SECONDS = 120;
 export const SOLO_MAX_MISTAKES = 8; // 8+ → fail
 
-// Codex108 — Solo Level Path is now a scrollable vertical adventure map
-// with a 5-level "zone" theme rhythm. Catalog expanded to 20 so the player
-// sees real upward progression. Easy to expand further: just add entries.
-const TOTAL_LEVELS = 20;
+// Solo Level Path catalog. Extended to support a long progression journey
+// (up to 1000 levels). The catalog is generated lazily by the UI — only a
+// windowed slice around the user's current frontier is rendered at a time
+// — so the array itself stays cheap. Wording uses "Seviye" everywhere
+// that is user-facing; the internal `title` field stays in English for
+// backwards compat with existing Health/snapshot fixtures.
+const TOTAL_LEVELS = 1000;
 const LEVEL_CATALOG = Array.from({ length: TOTAL_LEVELS }, (_, i) => ({
   levelNumber: i + 1,
-  title: `Level ${i + 1}`,
+  title: `Seviye ${i + 1}`,
 }));
 
 export function getSoloLevelCount() {

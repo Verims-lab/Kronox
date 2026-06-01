@@ -1,136 +1,47 @@
 import React, { useEffect, useMemo, useState } from 'react';
-// useMemo is used below to compute the header Puan/Elmas stats payload
-// without recomputing on every render.
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Crosshair, Swords } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
-import ScreenHeader from '@/components/layout/ScreenHeader';
-// Codex146/Codex152 — Header Puan uses the shared visible Kronox score
-// helper so Online win/loss deltas are reflected after persistence. Elmas
-// reads the canonical persisted User.diamonds balance through the same
-// helper Liderlik uses.
-import { getKronoxVisibleScore } from '@/lib/kronoxScore';
+import StandardTopBar from '@/components/layout/StandardTopBar';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 
-// Note: a remote logo URL constant previously lived here but was never
-// rendered. It has been removed so the "no_remote_visual_assets_new_screens"
-// contract stays honest — the home screen relies only on local
-// /assets/ui/* fantasy assets.
-const BACKGROUND_ASSET = '/assets/ui/Kronox_Home_Fantasy_background.webp';
-const WIDE_STAGE_QUERY = '(min-aspect-ratio: 9 / 16)';
-
-// Solo button: reverted to the ORIGINAL first WebP asset.
-// Single transparent asset only — no v2/generated experiment, no separate
-// pressed image. Pressed feedback is delivered via framer-motion whileTap.
-// The Online button keeps its existing dual-asset pressed swap until its
-// own redesign lands.
-const SOLO_BUTTON_ORIGINAL = '/assets/ui/Kronox_Home_Button_Solo.webp';
-
-const HOME_BUTTON_ASSETS = {
-  online: {
-    ariaLabel: 'Online Kapışma',
-    normal: '/assets/ui/Kronox_Home_Button_Online.png',
-    pressed: '/assets/ui/Kronox_Home_Button_Online_Pressed.png',
-  },
-  solo: {
-    ariaLabel: 'Solo Meydan Okuma',
-    normal: SOLO_BUTTON_ORIGINAL,
-    pressed: SOLO_BUTTON_ORIGINAL,
-  },
-};
-
-const getIsWideStage = () => (
-  typeof window !== 'undefined'
-    ? window.matchMedia(WIDE_STAGE_QUERY).matches
-    : false
-);
-
-function HomeImageButton({ type, onClick }) {
-  const [pressed, setPressed] = useState(false);
-  const button = HOME_BUTTON_ASSETS[type];
-
-  const releasePress = () => setPressed(false);
-  const pressButton = () => setPressed(true);
-
-  const handleKeyDown = (event) => {
-    if (event.key === ' ' || event.key === 'Enter') pressButton();
-  };
-
-  const handleKeyUp = (event) => {
-    if (event.key === ' ' || event.key === 'Enter') releasePress();
-  };
-
-  return (
-    <motion.button
-      type="button"
-      onClick={onClick}
-      onPointerDown={pressButton}
-      onPointerUp={releasePress}
-      onPointerCancel={releasePress}
-      onPointerLeave={releasePress}
-      onBlur={releasePress}
-      onKeyDown={handleKeyDown}
-      onKeyUp={handleKeyUp}
-      whileTap={{ y: 4, scale: 0.985 }}
-      transition={{ type: 'spring', stiffness: 660, damping: 26, mass: 0.7 }}
-      className="relative block h-full w-full border-0 bg-transparent p-0 focus-visible:outline-none"
-      style={{
-        appearance: 'none',
-        touchAction: 'manipulation',
-        transformOrigin: '50% 55%',
-        lineHeight: 0,
-      }}
-      aria-label={button.ariaLabel}
-    >
-      <img
-        src={pressed ? button.pressed : button.normal}
-        alt=""
-        draggable={false}
-        className="pointer-events-none h-full w-full select-none object-contain"
-        style={{ display: 'block' }}
-      />
-    </motion.button>
-  );
-}
-
+/**
+ * Kronox Home — fixed full-screen mobile game home.
+ *
+ * Reference: provided 1080x1920 mock with
+ *   • Top bar: centered diamond icon + count (left of center), bell top-right
+ *   • Center: large KRONOX wordmark + two-line yellow tagline
+ *   • Two stacked yellow CTAs: SOLO MEYDAN OKUMA, ONLINE KAPIŞMA
+ *   • BottomNav: Ana Sayfa / Liderlik / Profil (rendered globally by App)
+ *
+ * Layout strategy (no-scroll, anchored top/bottom, fluid middle):
+ *   • <main> is fixed to 100dvh, overflow hidden, contained paint.
+ *   • A flex column reserves a top header band and a bottom-nav buffer; the
+ *     middle area absorbs the leftover space and centers its content.
+ *   • A `clamp()` text + button sizing keeps the composition identical on
+ *     small phones, large phones, and desktop browsers — no per-device
+ *     breakpoints, no jitter.
+ *   • Safe-area insets are added to the header band height and to the
+ *     bottom CTA padding so the design respects notches and the iOS home
+ *     indicator without drifting between devices.
+ *   • The global BottomNav (rendered by App.jsx) sits below this screen; we
+ *     reserve space for it via paddingBottom on the CTA stack.
+ */
 export default function MainMenu() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
-  const [isWideStage, setIsWideStage] = useState(getIsWideStage);
 
   useEffect(() => {
     let cancelled = false;
     base44.auth.me()
-      .then((u) => {
-        if (cancelled) return;
-        setUser(u || null);
-      })
-      .catch(() => {
-        if (!cancelled) setUser(null);
-      });
+      .then((u) => { if (!cancelled) setUser(u || null); })
+      .catch(() => { if (!cancelled) setUser(null); });
     return () => { cancelled = true; };
   }, []);
 
-  // Codex146/Codex152 — Stats payload for the top bar. Puan = visible
-  // Kronox Puan (Solo best-score total + Online persisted score); Elmas =
-  // persisted User.diamonds, falling back to safe 0 while auth/bootstrap
-  // data is unavailable.
-  const headerStats = useMemo(() => {
-    return {
-      score: getKronoxVisibleScore(user),
-      diamonds: getLeaderboardDiamondValue(user),
-    };
-  }, [user]);
-
-  useEffect(() => {
-    const media = window.matchMedia(WIDE_STAGE_QUERY);
-    const updateStageMode = () => setIsWideStage(media.matches);
-    updateStageMode();
-    media.addEventListener?.('change', updateStageMode);
-    return () => media.removeEventListener?.('change', updateStageMode);
-  }, []);
+  const diamonds = useMemo(() => getLeaderboardDiamondValue(user), [user]);
 
   const handleSolo = () => {
     sounds.tap();
@@ -148,117 +59,361 @@ export default function MainMenu() {
     base44.auth.redirectToLogin('/');
   };
 
-  const stageStyle = isWideStage
-    ? {
-        width: 'min(100dvw, 56.25dvh)',
-        height: 'min(100dvh, 177.7778dvw)',
-      }
-    : {
-        width: 'max(100dvw, 56.25dvh)',
-        height: 'max(100dvh, 177.7778dvw)',
-      };
-
   return (
     <main
-      className="fixed inset-0 w-full overflow-hidden bg-black text-white"
+      className="fixed inset-0 w-full overflow-hidden text-white"
       style={{
         width: '100vw',
-        minHeight: '100dvh',
         height: '100dvh',
         maxHeight: '100dvh',
         overflow: 'hidden',
         overscrollBehavior: 'none',
-        overscrollBehaviorY: 'none',
         touchAction: 'manipulation',
         userSelect: 'none',
         contain: 'layout paint size',
+        // Reference background: deep navy with a subtle radial vignette so the
+        // KRONOX wordmark reads cleanly. No external image required.
+        background:
+          'radial-gradient(ellipse at 50% 40%, #0f2657 0%, #0a1b3f 45%, #060f2b 75%, #03081a 100%)',
       }}
     >
-      {/* Codex118 — Home top bar shows Puan + Elmas only.
-          • Title "Kronox" removed (logo lives in the immersive background).
-          • Profile avatar hidden on Home (showProfile={false}).
-          • Stats are centered and never overflow on small screens. */}
-      <ScreenHeader
-        user={user}
-        headerStats={headerStats}
-        showProfile={false}
-      />
+      {/* ───── Top bar (Diamond + count • Bell) — shared StandardTopBar ───── */}
+      <StandardTopBar diamonds={diamonds} user={user} />
+
+      {/* ───── Center stack (logo + tagline + CTAs) ─────
+           Flex column fills between top safe-area and bottom-nav reserved
+           space. The inner block self-centers, so the composition stays
+           vertically balanced on every viewport. */}
       <div
-        className="absolute left-1/2 top-1/2 z-10"
+        className="absolute left-0 right-0 flex flex-col items-center"
         style={{
-          ...stageStyle,
-          aspectRatio: '1080 / 1920',
-          transform: 'translate(-50%, -50%)',
-          overflow: 'hidden',
-          overscrollBehavior: 'none',
-          overscrollBehaviorY: 'none',
-          pointerEvents: 'none',
+          top: 'calc(env(safe-area-inset-top) + 3.25rem)',
+          bottom: 'calc(env(safe-area-inset-bottom) + 3.5rem)', // BottomNav reserved
+          paddingLeft: 'env(safe-area-inset-left)',
+          paddingRight: 'env(safe-area-inset-right)',
         }}
       >
-        <img
-          src={BACKGROUND_ASSET}
-          alt=""
-          draggable={false}
-          className="pointer-events-none absolute inset-0 z-0 h-full w-full object-cover"
-          style={{
-            objectPosition: 'center center',
-            userSelect: 'none',
-          }}
-        />
-
+        {/* Inner container caps the artwork width on tablets / desktop so the
+            mobile composition is preserved. */}
         <div
-          className="absolute z-20 pointer-events-auto"
+          className="flex h-full w-full flex-col items-center justify-center"
           style={{
-            left: '9.7%',
-            top: '63.4%',
-            width: '80.6%',
-            height: '10.7%',
+            maxWidth: '28rem',
+            paddingLeft: '1.25rem',
+            paddingRight: '1.25rem',
           }}
         >
-          <HomeImageButton type="online" onClick={handleOnline} />
-        </div>
-
-        <div
-          className="absolute z-20 pointer-events-auto"
-          style={{
-            left: '9.7%',
-            top: '76.7%',
-            width: '80.6%',
-            height: '10.7%',
-          }}
-        >
-          <HomeImageButton type="solo" onClick={handleSolo} />
-        </div>
-
-        {/* Codex102 — Bottom ProfileBar removed. Avatar/profile entry now
-            lives in the standardized ScreenHeader (top-right), and the
-            primary navigation lives in the fixed BottomNav. A small login
-            CTA is still shown here for guests so they can sign in without
-            leaving home. The CTA sits ABOVE the bottom nav. */}
-        {!user && (
-          <section
-            className="absolute z-20 flex items-center justify-center pointer-events-auto"
-            style={{
-              left: '4.6%',
-              right: '4.6%',
-              bottom: 'calc(4.25rem + env(safe-area-inset-bottom))',
-            }}
-          >
-            <button
-              type="button"
-              onClick={handleLogin}
-              className="flex items-center gap-2 rounded-full px-4 py-2 font-inter text-[12px] font-black text-amber-100"
+          {/* Logo + tagline */}
+          <div className="flex flex-col items-center text-center" style={{ marginTop: 'auto' }}>
+            <KronoxWordmark />
+            <KronoxDivider />
+            {/* Tagline — first line WHITE, second line GOLD (per reference). */}
+            <p
+              className="font-inter mt-5 leading-snug tracking-[0.22em] text-center"
               style={{
-                background: 'linear-gradient(180deg, rgba(20,30,58,0.92), rgba(4,8,22,0.96))',
-                boxShadow: 'inset 0 0 0 1px rgba(250,204,21,0.55), 0 0 12px rgba(250,204,21,0.30)',
+                fontWeight: 800,
+                fontSize: 'clamp(11px, 3.4vw, 14px)',
+                textShadow: '0 2px 8px rgba(0,0,0,0.55)',
               }}
-              aria-label="Giriş yap veya kayıt ol"
             >
-              Giriş yap veya kayıt ol <ChevronRight className="h-4 w-4" />
-            </button>
-          </section>
-        )}
+              <span style={{ color: '#f3f6ff' }}>KARTI DOĞRU YERE KOY,</span>
+              <br />
+              <span style={{ color: '#f4d24a' }}>ZAMANI SEN YÖNET</span>
+            </p>
+          </div>
+
+          {/* CTA stack pinned toward the lower-middle so it always lands in
+              the same visual zone as the reference, no matter the height.
+              `paddingBottom` lifts the buttons slightly upward away from the
+              bottom-nav edge to match the reference framing. */}
+          <div
+            className="mt-auto flex w-full flex-col items-center"
+            style={{ gap: '0.9rem', paddingTop: '2.25rem', paddingBottom: 'clamp(1.25rem, 5vh, 2.75rem)' }}
+          >
+            <HomeCTA
+              icon={Crosshair}
+              label="SOLO MEYDAN OKUMA"
+              onClick={handleSolo}
+              ariaLabel="Solo Meydan Okuma"
+            />
+            <HomeCTA
+              icon={Swords}
+              label="ONLINE KAPIŞMA"
+              onClick={handleOnline}
+              ariaLabel="Online Kapışma"
+            />
+
+            {/* Guest CTA — only when no user. Sits just under the two yellow
+                buttons, never breaks the fixed layout. */}
+            {!user && (
+              <button
+                type="button"
+                onClick={handleLogin}
+                className="mt-1 flex items-center gap-1 rounded-full px-3 py-1.5 font-inter text-[11px] font-bold text-amber-100/90"
+                style={{
+                  background: 'rgba(250,204,21,0.08)',
+                  boxShadow: 'inset 0 0 0 1px rgba(250,204,21,0.35)',
+                }}
+                aria-label="Giriş yap veya kayıt ol"
+              >
+                Giriş yap veya kayıt ol <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </main>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────── */
+/*  Wordmark + divider                                                 */
+/* ─────────────────────────────────────────────────────────────────── */
+
+/**
+ * Large KRONOX wordmark. The final "X" is split into two yellow accent
+ * chevrons to mimic the reference logo, while the first five letters use
+ * the cool white tone from the mock. clamp() keeps the size identical
+ * across phones and desktop browsers without media queries.
+ */
+function KronoxWordmark() {
+  // Reference shows clearly-separated KRONO letters in white plus a gold X
+  // whose two diagonals are split with a small gap (slight notch at the
+  // crossing point). We render the X as a stack of two rotated bars so the
+  // characteristic split is preserved at any size.
+  const fontSize = 'clamp(36px, 11vw, 60px)';
+  return (
+    <div
+      className="flex items-center justify-center"
+      style={{
+        gap: 'clamp(10px, 2.6vw, 16px)',
+        fontFamily: 'var(--font-cinzel)',
+        fontWeight: 900,
+        fontSize,
+        lineHeight: 1,
+      }}
+      aria-label="KRONOX"
+    >
+      <span
+        style={{
+          color: '#f1f4ff',
+          // Wider tracking matches the open, premium spacing in the crop.
+          letterSpacing: '0.34em',
+          // Compensate for trailing tracking so the gold X sits closer to "O".
+          paddingRight: '0.34em',
+          textShadow: '0 2px 12px rgba(0,0,0,0.55)',
+        }}
+      >
+        KRONO
+      </span>
+      <KronoxSplitX size={fontSize} />
+    </div>
+  );
+}
+
+/**
+ * Gold "X" composed of two diagonal bars with a small split at the centre,
+ * matching the reference logo crop. `size` mirrors the wordmark font-size
+ * so the X scales with the rest of the logotype on every viewport.
+ */
+function KronoxSplitX({ size }) {
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        position: 'relative',
+        display: 'inline-block',
+        width: `calc(${size} * 0.78)`,
+        height: size,
+        // Subtle warm glow like the rest of the logo.
+        filter: 'drop-shadow(0 0 8px rgba(250,204,21,0.55))',
+      }}
+    >
+      {/* Top-left → bottom-right diagonal, stopped before the crossing. */}
+      <span
+        style={{
+          position: 'absolute',
+          top: '6%',
+          left: 0,
+          width: '46%',
+          height: '14%',
+          background: '#facc15',
+          transformOrigin: '0% 50%',
+          transform: 'rotate(54deg)',
+          borderRadius: '2px',
+        }}
+      />
+      {/* Bottom-left → top-right diagonal (mirrored, also stopped). */}
+      <span
+        style={{
+          position: 'absolute',
+          bottom: '6%',
+          left: 0,
+          width: '46%',
+          height: '14%',
+          background: '#facc15',
+          transformOrigin: '0% 50%',
+          transform: 'rotate(-54deg)',
+          borderRadius: '2px',
+        }}
+      />
+      {/* Top-right → bottom-left diagonal (right half). */}
+      <span
+        style={{
+          position: 'absolute',
+          top: '6%',
+          right: 0,
+          width: '46%',
+          height: '14%',
+          background: '#facc15',
+          transformOrigin: '100% 50%',
+          transform: 'rotate(-54deg)',
+          borderRadius: '2px',
+        }}
+      />
+      <span
+        style={{
+          position: 'absolute',
+          bottom: '6%',
+          right: 0,
+          width: '46%',
+          height: '14%',
+          background: '#facc15',
+          transformOrigin: '100% 50%',
+          transform: 'rotate(54deg)',
+          borderRadius: '2px',
+        }}
+      />
+    </span>
+  );
+}
+
+/**
+ * Yellow diamond accent below the wordmark, replicating the reference's
+ * thin underline + small rotated yellow square divider.
+ */
+function KronoxDivider() {
+  return (
+    <div
+      className="mt-3 flex items-center justify-center"
+      style={{ gap: 'clamp(6px, 2vw, 10px)' }}
+      aria-hidden="true"
+    >
+      <span
+        style={{
+          display: 'block',
+          height: 1.5,
+          width: 'clamp(28px, 9vw, 48px)',
+          background: 'linear-gradient(90deg, transparent, #facc15 60%, transparent)',
+          opacity: 0.85,
+        }}
+      />
+      <span
+        style={{
+          display: 'block',
+          width: 'clamp(7px, 2vw, 10px)',
+          height: 'clamp(7px, 2vw, 10px)',
+          background: '#facc15',
+          transform: 'rotate(45deg)',
+          boxShadow: '0 0 8px rgba(250,204,21,0.65)',
+        }}
+      />
+      <span
+        style={{
+          display: 'block',
+          height: 1.5,
+          width: 'clamp(28px, 9vw, 48px)',
+          background: 'linear-gradient(90deg, transparent, #facc15 60%, transparent)',
+          opacity: 0.85,
+        }}
+      />
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────── */
+/*  CTA button                                                         */
+/* ─────────────────────────────────────────────────────────────────── */
+
+/**
+ * Yellow main CTA matching the reference:
+ *   [icon] ───  [label]                                            >
+ *
+ * - Solid yellow gradient fill, deep-navy text/icon for contrast.
+ * - Internal vertical divider after the icon (as in the mock).
+ * - Right chevron arrow.
+ * - Whole row is one tap target; whileTap delivers a tactile press.
+ * - clamp() sizing keeps the same look on small phones and on desktop.
+ */
+function HomeCTA({ icon: Icon, label, onClick, ariaLabel }) {
+  return (
+    <motion.button
+      type="button"
+      onClick={onClick}
+      whileTap={{ y: 2, scale: 0.985 }}
+      transition={{ type: 'spring', stiffness: 620, damping: 26, mass: 0.7 }}
+      className="relative flex w-full items-center font-inter text-amber-950"
+      style={{
+        appearance: 'none',
+        height: 'clamp(56px, 14.5vw, 70px)',
+        padding: '0 1rem 0 1.1rem',
+        borderRadius: '14px',
+        background: 'linear-gradient(180deg, #ffd84a 0%, #f5c400 55%, #e0ad00 100%)',
+        boxShadow:
+          'inset 0 1px 0 rgba(255,255,255,0.55), inset 0 -3px 0 rgba(120,75,0,0.35), 0 8px 22px rgba(0,0,0,0.45)',
+        color: '#1a1003',
+        // Lighter weight + tighter tracking per reference (cleaner, less heavy).
+        fontWeight: 600,
+        letterSpacing: '0.04em',
+        touchAction: 'manipulation',
+      }}
+      aria-label={ariaLabel}
+    >
+      {/* Left icon */}
+      <Icon
+        className="shrink-0"
+        style={{
+          width: 'clamp(22px, 6vw, 26px)',
+          height: 'clamp(22px, 6vw, 26px)',
+          color: '#1a1003',
+        }}
+        strokeWidth={2.4}
+      />
+
+      {/* Vertical divider */}
+      <span
+        aria-hidden="true"
+        className="mx-3 shrink-0"
+        style={{
+          width: 1.5,
+          height: '55%',
+          background: 'rgba(26,16,3,0.45)',
+          borderRadius: 1,
+        }}
+      />
+
+      {/* Label — Inter semibold + slight tracking to match the reference. */}
+      <span
+        className="flex-1 text-left truncate"
+        style={{
+          fontSize: 'clamp(13px, 3.8vw, 15px)',
+          letterSpacing: '0.03em',
+          fontWeight: 600,
+        }}
+      >
+        {label}
+      </span>
+
+      {/* Right chevron */}
+      <ChevronRight
+        className="shrink-0"
+        style={{
+          width: 'clamp(20px, 5vw, 24px)',
+          height: 'clamp(20px, 5vw, 24px)',
+          color: '#1a1003',
+        }}
+        strokeWidth={2.6}
+      />
+    </motion.button>
   );
 }

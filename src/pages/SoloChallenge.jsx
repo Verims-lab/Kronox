@@ -1,10 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Play } from 'lucide-react';
-import { sounds } from '@/lib/gameSounds';
 import { base44 } from '@/api/base44Client';
-import ScreenHeader from '@/components/layout/ScreenHeader';
+import StandardTopBar from '@/components/layout/StandardTopBar';
 import LevelMapPath from '@/components/solo/LevelMapPath';
 import {
   buildSoloGameConfigForLevel,
@@ -13,249 +11,186 @@ import {
   getSoloLevels,
   readSoloProgress,
 } from '@/lib/soloLevels';
-// Codex122 — Import shape preserved literally so the Solo Focus health
-// contract can confirm "default selection sources from the shared helper".
-// Do NOT inline this into a combined import; the health check expects the
-// exact substring `import { getDefaultSelectedLevel } from '@/lib/soloProgressHelpers'`.
 import { getDefaultSelectedLevel } from '@/lib/soloProgressHelpers';
-import { getKronoxVisibleScore } from '@/lib/kronoxScore';
-// Codex146 — Header Puan + Elmas. Puan uses visible Kronox Puan so Online
-// score persists into the same top-bar score users see across the app.
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
-// Codex121 — Admin gate for the focus-helper console diagnostics. Normal
-// users see nothing; admins on a real device can see a single-line
-// `[kronox.solo.focus]` log per attempt showing why the scroll math
-// did/didn't center the target node.
-import { isAdminUser } from '@/lib/admin';
 
 /**
- * Codex108 — Solo entry is now a SCROLLABLE vertical adventure map.
+ * Solo "Seviye Yolu" — scrollable progression path.
  *
- *   - Level 1 sits at the bottom; progression goes upward.
- *   - On mount, the map auto-centers on the current level (so a Level 8
- *     player doesn't land on Level 1 or at the very top).
- *   - Per-user progress drives status (completed/current/locked) and stars.
- *   - Replay of completed levels is allowed (Play still works).
- *   - Locked levels: not selectable, Play is a no-op.
- *   - Every 5 levels announces a new zone/theme banner.
- *   - BottomNav stays visible here (we don't call setBottomNavHidden), so
- *     /game and /lobby visibility rules are preserved exactly.
+ * Layout
+ *   • StandardTopBar (fixed, safe-area aware): back arrow + diamond chip +
+ *     notification bell. Same component used by Home so the visual rhythm
+ *     is identical across the app shell.
+ *   • Title + tagline block right under the top bar.
+ *   • LevelMapPath occupies the rest of the viewport and owns the scroll.
+ *     The current/next "SIRADAKİ" seviye is highlighted; tapping it starts
+ *     the level immediately. There is NO bottom CTA — the highlighted
+ *     node itself is the action.
+ *   • Global BottomNav (App.jsx) stays fixed at the bottom; we reserve
+ *     space for it inside LevelMapPath so Seviye 1 is never hidden.
  *
- * Game flow (10 cards / 120s / 8-mistake fail) is enforced inside Game.jsx
- * via the `soloLevel` field of route state — see `buildSoloGameConfigForLevel`.
+ * Data
+ *   • The catalog supports up to 1000 levels (see lib/soloLevels). The
+ *     map only mounts a window around the focused level so DOM stays
+ *     light even at very high level numbers.
+ *   • Progress persistence is unchanged; we still rely on
+ *     readSoloProgress / ensureSoloProgressBackfill / buildSoloGameConfigForLevel.
  */
 export default function SoloChallenge() {
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState(null);
-  // Codex110 — start with the localStorage mirror synchronously so a
-  // returning player on the same device sees their real progress on the
-  // very first paint, but TRACK whether we've also resolved the server
-  // user. Until that flips true, the user has NOT explicitly chosen a
-  // level yet, so the default selection follows progress. After it flips
-  // true (or the user taps a node), selection is "sticky".
   const [progress, setProgress] = useState(() => readSoloProgress(null));
-  const [progressLoaded, setProgressLoaded] = useState(false);
-  const [userTouchedSelection, setUserTouchedSelection] = useState(false);
 
-  // Pull the latest user + their persisted solo_progress.
   useEffect(() => {
     let cancelled = false;
     base44.auth.me()
       .then(async (u) => {
         if (cancelled) return;
-        const normalizedProgress = await ensureSoloProgressBackfill(u || null);
+        const normalized = await ensureSoloProgressBackfill(u || null);
         if (cancelled) return;
         setUser(u || null);
-        setProgress(normalizedProgress);
-        setProgressLoaded(true);
+        setProgress(normalized);
       })
       .catch(() => {
         if (cancelled) return;
         setUser(null);
         setProgress(readSoloProgress(null));
-        setProgressLoaded(true);
       });
     return () => { cancelled = true; };
   }, []);
 
-  // When Game finishes a level attempt it navigates back here with
-  // location.state.soloResultApplied = true (after writing progress). We
-  // re-read so the new stars/unlock state are reflected without a hard
-  // reload. The state key is intentionally one-shot.
+  // After a level attempt, refresh progress and clear the one-shot flag.
   useEffect(() => {
     if (!location.state?.soloResultApplied) return;
-    // Reset the "user touched selection" flag so the freshly unlocked
-    // level becomes the default focus again. This is the expected
-    // behavior right after a pass: the screen should drop the player on
-    // the NEXT level, not on whatever they last tapped before the run.
-    setUserTouchedSelection(false);
     base44.auth.me()
       .then(async (u) => setProgress(await ensureSoloProgressBackfill(u || null)))
       .catch(() => setProgress(readSoloProgress(user)));
-    // Clear the flag so re-entering this screen later doesn't keep refetching.
     navigate(location.pathname, { replace: true, state: {} });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state?.soloResultApplied]);
 
   const levels = useMemo(() => getSoloLevels(progress), [progress]);
-
-  // Codex110 — Default selection uses the shared helper, which derives
-  // the current playable level from BOTH persisted currentLevel AND the
-  // highest-completed-level signal. This is the single source of truth.
-  const defaultSelectedNumber = useMemo(
-    () => getDefaultSelectedLevel(progress, getSoloLevelCount()),
-    [progress],
+  const totalLevels = getSoloLevelCount();
+  const focusLevel = useMemo(
+    () => getDefaultSelectedLevel(progress, totalLevels),
+    [progress, totalLevels],
   );
 
-  const [selectedLevelNumber, setSelectedLevelNumber] = useState(defaultSelectedNumber);
-
-  // Codex110 — Keep selection synced with progress UNLESS the user has
-  // explicitly tapped a level. Once they tap, selection stays put even
-  // if progress updates (e.g. background server fetch lands). After a
-  // level attempt completes, the soloResultApplied effect clears the
-  // "touched" flag so the new current level wins.
-  useEffect(() => {
-    if (userTouchedSelection) return;
-    setSelectedLevelNumber(defaultSelectedNumber);
-  }, [defaultSelectedNumber, userTouchedSelection]);
-
-  const selectedLevel = levels.find((l) => l.levelNumber === selectedLevelNumber) || null;
-
+  // Tapping a node = play that seviye directly (no separate Play CTA).
+  // Locked nodes ignore the tap (handled inside LevelMapPath).
   const handleSelectLevel = (level) => {
-    if (!level.isPlayable) return;
-    sounds.tap();
-    setUserTouchedSelection(true);
-    setSelectedLevelNumber(level.levelNumber);
-  };
-
-  const handlePlay = () => {
-    if (!selectedLevel || !selectedLevel.isPlayable) return;
-    sounds.tap();
-    const config = buildSoloGameConfigForLevel(selectedLevel);
+    if (!level || !level.isPlayable) return;
+    const config = buildSoloGameConfigForLevel(level);
     navigate('/game', { state: config });
   };
 
-  const playDisabled = !selectedLevel || !selectedLevel.isPlayable;
-
-  // Reserved space for the floating Play button + BottomNav so Level 1
-  // (rendered at the bottom of the scroll content) is never hidden.
-  // 4rem BottomNav + 3.75rem Play + safe-area + padding ≈ 192px.
-  const BOTTOM_RESERVED_PX = 192;
+  // Reserve space for the global BottomNav + a small breathing buffer so
+  // the bottom-most node in the scroll viewport stays visible.
+  const BOTTOM_RESERVED_PX = 96;
 
   return (
     <div
-      className="flex min-h-screen flex-col text-white"
+      className="flex flex-col text-white"
       style={{
+        height: '100dvh',
         minHeight: '100dvh',
         background:
           'radial-gradient(ellipse at 50% 6%, rgba(59,130,246,0.22), transparent 50%), radial-gradient(ellipse at 50% 96%, rgba(34,211,238,0.10), transparent 55%), linear-gradient(180deg, #050b1c 0%, #0a1738 55%, #03060f 100%)',
         userSelect: 'none',
+        overflow: 'hidden',
       }}
     >
-      {/* Codex146 — Solo top bar: back arrow + centered Puan/Elmas +
-          profile avatar. Title "Solo" removed; Puan flows from the shared
-          visible Kronox score helper while level map progress stays Solo-only. */}
-      <ScreenHeader
+      {/* Fixed top bar — shared with Home */}
+      <StandardTopBar
         showBack
-        user={user}
         onBack={() => navigate('/')}
-        headerStats={{
-          score: getKronoxVisibleScore(user, { soloProgress: progress, totalLevels: getSoloLevelCount() }),
-          diamonds: getLeaderboardDiamondValue(user),
-        }}
+        diamonds={getLeaderboardDiamondValue(user)}
+        user={user}
       />
 
-      {/* Scrollable map viewport — fills between ScreenHeader and the
-          floating Play button. The map itself owns the scroll; the page
-          body stays at viewport height so BottomNav doesn't drift. */}
+      {/* Title block. Sits right under the top bar; the scrollable map
+          starts immediately below. */}
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+        className="px-4 text-center"
+        style={{
+          paddingTop: 'calc(3.5rem + env(safe-area-inset-top))',
+          paddingBottom: '0.5rem',
+        }}
+      >
+        {/* Title — light/elegant per the reference. NOT bold/heavy. */}
+        <h2
+          className="font-inter"
+          style={{
+            color: '#f1f5ff',
+            fontSize: 'clamp(15px, 4.4vw, 18px)',
+            fontWeight: 400,
+            letterSpacing: '0.32em',
+            textShadow: '0 1px 2px rgba(0,0,0,0.45)',
+          }}
+        >
+          SOLO MEYDAN OKUMA
+        </h2>
+        <div className="mt-1.5 flex items-center justify-center gap-2" aria-hidden="true">
+          <span
+            style={{
+              display: 'block',
+              height: 1,
+              width: '36px',
+              background: 'linear-gradient(90deg, transparent, rgba(250,204,21,0.65), transparent)',
+            }}
+          />
+          <span
+            style={{
+              display: 'block',
+              width: 7,
+              height: 7,
+              background: '#facc15',
+              transform: 'rotate(45deg)',
+              boxShadow: '0 0 6px rgba(250,204,21,0.55)',
+            }}
+          />
+          <span
+            style={{
+              display: 'block',
+              height: 1,
+              width: '36px',
+              background: 'linear-gradient(90deg, transparent, rgba(250,204,21,0.65), transparent)',
+            }}
+          />
+        </div>
+        {/* Subtitle — clean, light, single elegant line per reference. */}
+        <p
+          className="mt-2 font-inter"
+          style={{
+            fontSize: 'clamp(11px, 3vw, 13px)',
+            fontWeight: 400,
+            letterSpacing: '0.01em',
+            color: 'rgba(199,210,234,0.78)',
+          }}
+        >
+          Kendini geliştir, seviyeni yükselt, zirveye ulaş!
+        </p>
+      </motion.div>
+
+      {/* Scrollable map area — bottom of this flex column. Bottom-nav is
+          rendered globally by App.jsx; LevelMapPath reserves space for it. */}
       <div
         className="flex flex-1 flex-col"
         style={{
-          paddingTop: 'calc(3.75rem + env(safe-area-inset-top))',
           minHeight: 0,
+          paddingBottom: 'calc(3.5rem + env(safe-area-inset-bottom))', // BottomNav reserve
         }}
       >
-        <motion.div
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25 }}
-          className="px-4 text-center"
-        >
-          <h2
-            className="font-cinzel text-base font-black tracking-[0.22em]"
-            style={{
-              color: '#facc15',
-              textShadow: '0 0 12px rgba(250,204,21,0.4), 0 2px 4px rgba(0,0,0,0.6)',
-            }}
-          >
-            SOLO MACERA HARİTASI
-          </h2>
-          <p className="mt-0.5 font-inter text-[11px] text-blue-100/70">
-            Aşağıdan yukarı tırman.
-          </p>
-        </motion.div>
-
-        <div className="mt-2 flex flex-1" style={{ minHeight: 0 }}>
-          <LevelMapPath
-            levels={levels}
-            selectedLevelNumber={selectedLevelNumber}
-            onSelectLevel={handleSelectLevel}
-            bottomReservedPx={BOTTOM_RESERVED_PX}
-            focusLevelNumber={defaultSelectedNumber}
-            diagnosticsEnabled={isAdminUser(user)}
-          />
-        </div>
-      </div>
-
-      {/* Floating Play button — sits above BottomNav, never inside the
-          scroll viewport. The gradient fade keeps the lowest map node
-          visually readable behind it. */}
-      <div
-        className="fixed left-0 right-0 z-40 px-4"
-        style={{
-          bottom: 'calc(4rem + env(safe-area-inset-bottom))',
-          paddingBottom: '0.5rem',
-          background: 'linear-gradient(to top, #03060f 65%, rgba(3,6,15,0.6) 90%, transparent)',
-        }}
-      >
-        <motion.button
-          type="button"
-          onClick={handlePlay}
-          disabled={playDisabled}
-          whileTap={playDisabled ? undefined : { scale: 0.97 }}
-          animate={
-            playDisabled
-              ? undefined
-              : {
-                  boxShadow: [
-                    '0 0 20px rgba(250,204,21,0.45), 0 4px 18px rgba(250,204,21,0.28)',
-                    '0 0 36px rgba(250,204,21,0.75), 0 6px 30px rgba(250,204,21,0.42)',
-                    '0 0 20px rgba(250,204,21,0.45), 0 4px 18px rgba(250,204,21,0.28)',
-                  ],
-                }
-          }
-          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-          className="mx-auto flex h-14 w-full max-w-md items-center justify-center gap-3 rounded-2xl font-bangers text-xl tracking-[0.28em] disabled:opacity-50"
-          style={{
-            background: playDisabled
-              ? 'linear-gradient(135deg, #5a4a14 0%, #6b5318 50%, #4d3f10 100%)'
-              : 'linear-gradient(135deg, #f5c400 0%, #facc15 50%, #e6b800 100%)',
-            color: '#1a0a00',
-          }}
-          aria-label="Oyna"
-        >
-          <Play className="h-5 w-5" fill="#1a0a00" />
-          {/* Codex114 — CTA label always derives from selectedLevel; falls
-              back to the helper-computed default (current playable) until
-              progress resolves. The label is never a hardcoded literal.
-              See defaultSelectedNumber wiring above for the source. */}
-          {selectedLevel
-            ? `LEVEL ${selectedLevel.levelNumber}`
-            : progressLoaded
-              ? `LEVEL ${defaultSelectedNumber}`
-              : 'YÜKLENİYOR'}
-        </motion.button>
+        <LevelMapPath
+          levels={levels}
+          focusLevelNumber={focusLevel}
+          onSelectLevel={handleSelectLevel}
+          bottomReservedPx={BOTTOM_RESERVED_PX}
+        />
       </div>
     </div>
   );

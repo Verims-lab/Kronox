@@ -1,432 +1,407 @@
-import React, { useLayoutEffect, useMemo, useRef } from 'react';
-import LevelMapNode from './LevelMapNode';
-import { getSoloMapSectionRange } from '@/lib/soloProgressHelpers';
-import { attemptCenterSoloMap } from '@/lib/scrollSoloMapToLevel';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
+import { Star } from 'lucide-react';
 
 /**
- * Codex108 — Scrollable vertical adventure map for Solo levels.
+ * Scrollable Solo "Seviye" path.
  *
- *   • Level 1 sits at the BOTTOM. Progress goes UP. We achieve this by
- *     rendering levels in REVERSE order (high → low) inside a normal
- *     vertically-scrolling container. The user scrolls UP to see higher
- *     levels; scrolling all the way to the bottom shows Level 1.
- *   • Nodes alternate left / center / right horizontally so the path
- *     feels like a journey, not a stack.
- *   • Path SVG segments connect consecutive nodes.
- *   • Every 5 levels a "zone banner" announces a new theme/atmosphere
- *     (gradient + label). 4 zones cover levels 1–20.
- *   • On mount we auto-scroll the current level into view (centered).
+ * Visual direction (matches the target Solo reference image):
+ *   • Long vertical road, slim circular nodes alternating between two
+ *     horizontal lanes so the path reads like an S-curve.
+ *   • Dashed segment between consecutive nodes.
+ *   • Locked nodes = subtle outlined circle with the number.
+ *   • Completed nodes = outlined circle with the number + earned stars.
+ *   • The current/next playable seviye is the visual hero: large yellow
+ *     glowing disc with a "SIRADAKİ N. SEVİYE" pill to the side.
  *
- * Props:
- *   levels                : Array<level>   — output of getSoloLevels(progress)
- *   selectedLevelNumber   : number
- *   onSelectLevel         : (level) => void
- *   bottomReservedPx      : number         — extra bottom padding so the
- *                                            Play button + BottomNav can't
- *                                            cover Level 1.
+ * Scrolling
+ *   • Seviye 1 sits at the bottom of the scroll content; numbers grow
+ *     upward as the user scrolls up.
+ *   • On mount we auto-scroll the focused seviye into the centre of the
+ *     viewport so a returning player doesn't land on Seviye 1 or at the
+ *     very top.
+ *
+ * Performance
+ *   • Catalog can be up to 1000 entries. We render a window of ~80 levels
+ *     around the focus point so the DOM stays cheap while the perceived
+ *     path is effectively infinite. The user can scroll, and when the
+ *     focus point changes (e.g. after completing a level) the window
+ *     re-anchors.
  */
-const ZONES = [
-  {
-    range: [1, 5],
-    title: 'Başlangıç Vadisi',
-    subtitle: 'Zaman çizgisinin ilk adımları',
-    accent: '#60a5fa', // blue
-    gradient:
-      'radial-gradient(ellipse at 50% 50%, rgba(59,130,246,0.18), transparent 70%)',
-  },
-  {
-    range: [6, 10],
-    title: 'Altın Ovalar',
-    subtitle: 'Sıralama ustası olma yolunda',
-    accent: '#facc15', // gold
-    gradient:
-      'radial-gradient(ellipse at 50% 50%, rgba(250,204,21,0.14), transparent 70%)',
-  },
-  {
-    range: [11, 15],
-    title: 'Mor Tepeler',
-    subtitle: 'Yükselen zorluk dalgası',
-    accent: '#a78bfa', // violet
-    gradient:
-      'radial-gradient(ellipse at 50% 50%, rgba(167,139,250,0.16), transparent 70%)',
-  },
-  {
-    range: [16, 20],
-    title: 'Kristal Zirve',
-    subtitle: 'Efsanelere bir adım',
-    accent: '#7dd3fc', // cyan
-    gradient:
-      'radial-gradient(ellipse at 50% 50%, rgba(125,211,252,0.16), transparent 70%)',
-  },
-];
+const NODE_SIZE = 44;            // px — small node circles (per reference)
+const HERO_NODE_SIZE = 64;       // px — highlighted "sıradaki" node
+const ROW_HEIGHT = 84;           // px — vertical spacing between nodes
+const VIEW_WINDOW = 80;          // how many levels to keep mounted at once
 
-function zoneIndexFor(levelNumber) {
-  const idx = ZONES.findIndex(({ range }) => levelNumber >= range[0] && levelNumber <= range[1]);
-  return idx === -1 ? ZONES.length - 1 : idx;
+// Wider, more organic S-curve. The path swings closer to the screen
+// edges (per the target reference) and uses a 6-step pattern so the
+// rhythm doesn't feel mechanical/repetitive. Lanes are expressed as
+// percentages of the path column so they scale with viewport width.
+//
+// The pattern alternates between two depths on each side:
+//   far-left → mid-left → far-left → far-right → mid-right → far-right
+// This produces a more "patika"-like winding feel — the player sees
+// the road sweep wide-left for a few nodes, swing across, then sweep
+// wide-right for a few nodes, instead of a perfect zig-zag.
+const LANE_PATTERN = ['18%', '34%', '22%', '82%', '66%', '78%'];
+function laneForLevel(levelNumber) {
+  const idx = ((levelNumber - 1) % LANE_PATTERN.length + LANE_PATTERN.length) % LANE_PATTERN.length;
+  return LANE_PATTERN[idx];
 }
-
-// Horizontal lane positions, alternating to create a "winding" path.
-// Index = levelNumber % LANES.length. We keep amplitude small so wide
-// phones don't stretch the path while small phones don't clip nodes.
-const LANES = ['22%', '50%', '78%', '50%'];
 
 export default function LevelMapPath({
   levels,
-  selectedLevelNumber,
-  onSelectLevel,
-  bottomReservedPx = 192,
-  // Codex110 — Explicit focus target from the parent (computed via the
-  // shared helper getCurrentPlayableLevel). When provided, this wins over
-  // the internal `find(status === 'current')` heuristic, so the parent's
-  // single-source-of-truth definition of "current playable" is always
-  // what we scroll to. Falling back keeps backward compat.
   focusLevelNumber,
-  // Codex121 — Admin gate for diagnostic logging. When true, the focus
-  // helper logs a structured diagnostic for every attempt to the console
-  // so we can see, on a real device, exactly which step failed (no
-  // container, no node, layout not ready, applied but not centered…).
-  // Default false → normal users see nothing.
-  diagnosticsEnabled = false,
+  onSelectLevel,
+  bottomReservedPx = 96,
 }) {
   // We render top → bottom in JSX, but display HIGH levels at the top and
-  // LOW levels at the bottom. We achieve this by reversing the array.
-  const ordered = useMemo(() => [...levels].slice().reverse(), [levels]);
+  // LOW levels at the bottom.
+  const totalCount = levels.length;
+  const focus = Math.max(1, Math.min(totalCount, Number(focusLevelNumber) || 1));
 
-  // Auto-scroll the current level into view on mount + whenever the
-  // focus target changes.
-  //
-  // Codex126 ROOT-CAUSE FIX (continuation of Codex117/Codex120/Codex121) —
-  // previous attempts kept the focus math inline. On a real device the
-  // scroll still landed at scrollTop=0 (the highest-zone banner)
-  // because the inline effect couldn't tell whether the math actually
-  // worked OR the legacy outer-ancestor fallback ended up scrolling
-  // the page instead of our inner container. The component now ONLY
-  // talks to the dedicated helper — no per-node centering fallback
-  // lives here anymore.
-  //
-  // We externalise the entire scroll into `attemptCenterSoloMap`
-  // from `lib/scrollSoloMapToLevel.js`. That helper:
-  //
-  //   1. Finds the real scroll container via the stable DOM hook
-  //      `[data-kx-solo-map-container="true"]` (not React refs).
-  //   2. Finds the target node via `[data-kx-solo-level="N"]`.
-  //   3. Computes the visible band MINUS the bottom CTA overlay so a
-  //      centered node isn't hidden behind the floating Play button.
-  //   4. Assigns `scrollTop` directly (smooth behavior temporarily
-  //      disabled) so the jump can't be cancelled mid-animation.
-  //   5. Verifies post-jump that the node sits inside the visible
-  //      band; if not, returns a structured diagnostic so the rAF
-  //      retry loop tries again.
-  //
-  // The diagnostic is logged to the console ONLY when the parent
-  // passes `diagnosticsEnabled` (gated by admin upstream).
+  // Windowed slice around the focus point. Always includes the focus level
+  // plus ~half the window on each side.
+  const [windowCenter, setWindowCenter] = useState(focus);
+  useEffect(() => { setWindowCenter(focus); }, [focus]);
+
+  const { windowed, windowStart, windowEnd } = useMemo(() => {
+    const half = Math.floor(VIEW_WINDOW / 2);
+    const start = Math.max(1, windowCenter - half);
+    const end = Math.min(totalCount, start + VIEW_WINDOW - 1);
+    const adjStart = Math.max(1, end - VIEW_WINDOW + 1);
+    const slice = levels.slice(adjStart - 1, end);
+    // Reverse for top-down DOM rendering.
+    return {
+      windowed: [...slice].reverse(),
+      windowStart: adjStart,
+      windowEnd: end,
+    };
+  }, [levels, windowCenter, totalCount]);
+
+  // Auto-scroll the focus level into the centre of the viewport on mount
+  // and whenever the focus changes (e.g. after a level attempt).
   const containerRef = useRef(null);
-  // Codex110 — Prefer the explicit focus target the parent passed in.
-  // It is computed via getCurrentPlayableLevel(progress) — the single
-  // source of truth for "where the user should be looking right now".
-  //
-  // Codex122 — We explicitly look up the focus level inside `levels`
-  // using `levels.find((l) => l.levelNumber === focusLevelNumber)`. This
-  // shape is part of the Solo Focus health contract (matches the parent
-  // CTA's level). The result is unused beyond the lookup itself — the
-  // scroll math below targets `currentLevelNumber` — but locking the
-  // lookup here prevents a future refactor from silently regressing the
-  // "focus target = the level the parent asked us to focus on" guarantee.
-  const focusedLevel = focusLevelNumber
-    ? levels.find((l) => l.levelNumber === focusLevelNumber) || null
-    : null;
-  const currentLevelNumber =
-    focusedLevel?.levelNumber ||
-    focusLevelNumber ||
-    levels.find((l) => l.status === 'current')?.levelNumber ||
-    [...levels].reverse().find((l) => l.isPlayable)?.levelNumber ||
-    levels[0]?.levelNumber;
-
-  // Codex120 — Section the focus level belongs to. Exposed as a data
-  // attribute on the container so runtime / Health probes can verify
-  // "map opened on the correct zone" without reading React state.
-  const focusSectionRange = useMemo(
-    () => (currentLevelNumber ? getSoloMapSectionRange(currentLevelNumber) : null),
-    [currentLevelNumber],
-  );
+  const focusedNodeRef = useRef(null);
 
   useLayoutEffect(() => {
     const container = containerRef.current;
-    if (!container || !currentLevelNumber) return undefined;
-    // Codex122 — Health/static contract trace. The auto-scroll math
-    // physically lives in `attemptCenterSoloMap` (lib/scrollSoloMapToLevel.js),
-    // which queries the container via `[data-kx-solo-map-container]`,
-    // reads `container.getBoundingClientRect()` + `node.getBoundingClientRect()`,
-    // guards on `container.clientHeight`, and assigns `container.scrollTop`
-    // directly inside a `requestAnimationFrame` retry loop. We mirror the
-    // critical references here so the Health contracts (which scan THIS
-    // file for tokens) continue to lock the architecture:
-    //
-    //   • container.scrollTop  — the helper sets this (not window.scrollTo).
-    //   • getBoundingClientRect — both container & target node measured.
-    //   • container.clientHeight — guard for Android-WebView "0 on first paint".
-    //   • requestAnimationFrame — retry deferral.
-    //
-    // The block below is a no-op safety check; it only reads layout state
-    // (no writes) so it cannot interfere with the helper's authoritative
-    // scroll. If layout isn't ready (clientHeight===0) we defer the helper
-    // start to the next animation frame — exactly the resilience contract.
-    const _scrollTopProbe = container.scrollTop;
-    const _containerRect = container.getBoundingClientRect();
-    void _scrollTopProbe;
-    void _containerRect;
-    let rafKick = 0;
-    const startHelper = () => attemptCenterSoloMap({
-      // Codex121 — pass the container itself as the root; the helper
-      // first checks if it matches `[data-kx-solo-map-container]` and
-      // returns it directly without re-querying the document.
-      root: container,
-      levelNumber: currentLevelNumber,
-      // Bottom overlay = Play CTA + BottomNav stack the parent
-      // reserves below the scroll viewport. The helper subtracts this
-      // from the visible band so the focused node sits in the truly
-      // visible region.
-      bottomOverlayPx: bottomReservedPx,
-      // ≈ 333ms total budget — enough for a WebView to settle layout
-      // and for the async progress fetch tail to commit.
-      maxFrames: 20,
-      onDiagnostic: diagnosticsEnabled
-        ? (diag) => {
-            // Admin/dev only. Single-line label so it's easy to
-            // grep in a real device console.
-            // eslint-disable-next-line no-console
-            console.info('[kronox.solo.focus]', diag);
-          }
-        : undefined,
-    });
+    const node = focusedNodeRef.current;
+    if (!container || !node) return;
 
-    // If layout isn't ready yet (Android WebView reports clientHeight===0
-    // briefly on first paint), defer the helper start to the next animation
-    // frame so the rAF retry loop inside the helper has real geometry to
-    // work with. Otherwise start immediately.
-    let cancelHelper = () => {};
-    if (container.clientHeight === 0 && typeof requestAnimationFrame === 'function') {
-      rafKick = requestAnimationFrame(() => {
-        cancelHelper = startHelper();
-      });
-    } else {
-      cancelHelper = startHelper();
-    }
-    return () => {
-      if (rafKick && typeof cancelAnimationFrame === 'function') {
-        cancelAnimationFrame(rafKick);
+    let rafId = 0;
+    const settle = () => {
+      const containerRect = container.getBoundingClientRect();
+      const nodeRect = node.getBoundingClientRect();
+      if (container.clientHeight === 0) {
+        rafId = requestAnimationFrame(settle);
+        return;
       }
-      cancelHelper && cancelHelper();
+      const visibleHeight = container.clientHeight - bottomReservedPx;
+      const delta = nodeRect.top - containerRect.top - visibleHeight / 2 + nodeRect.height / 2;
+      container.scrollTop = Math.max(0, container.scrollTop + delta);
     };
-    // Codex126 — Depend on the actual focus number AND the levels
-    // reference so async progress loads always trigger a refocus.
-    // Including `bottomReservedPx` covers the edge case where the
-    // parent changes the reserved area between mounts. The dependency
-    // list is intentionally exactly:
-    //   [currentLevelNumber, levels, bottomReservedPx, diagnosticsEnabled]
-    // `focusedLevel` is derived from `focusLevelNumber + levels`, both
-    // of which already feed `currentLevelNumber`, so adding it here
-    // would be redundant AND would break the Health static contract
-    // `solo_map_focus.solo_map_refocus_after_progress_load`.
-  }, [currentLevelNumber, levels, bottomReservedPx, diagnosticsEnabled]);
+    rafId = requestAnimationFrame(settle);
+    return () => cancelAnimationFrame(rafId);
+  }, [focus, windowStart, windowEnd, bottomReservedPx]);
 
   return (
     <div
       ref={containerRef}
-      className="kx-contained-scroll relative w-full overflow-y-auto"
+      className="relative w-full overflow-y-auto kx-contained-scroll"
       style={{
-        // Codex121 — Use viewport-anchored height instead of `100%`.
-        // `100%` resolves against the parent's COMPUTED height, which on
-        // some WebViews/Android browsers reports 0 during the first
-        // commit because the parent uses `flex-1`+`min-height:0`. A
-        // zero-height container means our focus math sees
-        // `clientHeight === 0` and bails out, leaving scrollTop=0
-        // (= top of reversed list = wrong zone). We instead compute the
-        // height from the dvh viewport minus the fixed top header and
-        // the reserved bottom overlay so the container always has a
-        // real, non-zero height on first paint.
-        //
-        //   - 3.5rem = ScreenHeader content height (matches the
-        //     `height: calc(3.5rem + env(safe-area-inset-top))` rule in
-        //     components/layout/ScreenHeader).
-        //   - 0.25rem extra padding from the parent's `paddingTop:
-        //     calc(3.75rem + …)` already accounts for the ScreenHeader,
-        //     so we subtract that exact amount.
-        //   - The title block above (`SOLO MACERA HARİTASI` + tagline)
-        //     is approx 3.5rem tall; we subtract it to keep the focus
-        //     math honest.
-        //   - The bottomReservedPx (Play CTA + BottomNav + safe-area)
-        //     is also subtracted INSIDE the focus math via the
-        //     `bottomOverlayPx` param, so we don't subtract it twice
-        //     here — we just give the container its real CSS height
-        //     down to the page bottom.
-        height: 'calc(100dvh - 3.75rem - env(safe-area-inset-top) - 3.5rem)',
-        // Honor older WebViews that don't grok `dvh`.
-        minHeight: '300px',
+        flex: 1,
+        minHeight: 0,
         WebkitOverflowScrolling: 'touch',
         scrollBehavior: 'smooth',
-        // Bottom padding so Level 1 (rendered last in DOM = at the bottom
-        // of the scroll content) isn't hidden by Play button + BottomNav.
-        paddingBottom: `${bottomReservedPx}px`,
-        // Top padding so the highest-level zone banner has breathing room.
         paddingTop: '1rem',
+        paddingBottom: `${bottomReservedPx}px`,
       }}
-      // Codex121 — Stable DOM hook for the scroll helper. Decouples the
-      // scroll logic from React refs (which can desync after re-renders).
-      data-kx-solo-map-container="true"
-      // Codex120 — expose the focus level + its section range so runtime
-      // checks (and Health probes) can verify "map opened on the correct
-      // zone". Purely informational; no business logic depends on it.
-      data-kx-focus-level={currentLevelNumber || ''}
-      data-kx-focus-section={focusSectionRange ? `${focusSectionRange[0]}-${focusSectionRange[1]}` : ''}
-      aria-label="Solo Level Path"
+      aria-label="Solo Seviye Yolu"
     >
-      {/* Path lane container — full width, with nodes absolutely centered
-          per row. We render normal flow rows; the SVG connectors live
-          inside each row so they scale with the row spacing. */}
-      <div className="relative mx-auto w-full max-w-md px-4">
-        {ordered.map((level, displayIndex) => {
-          const zoneIdx = zoneIndexFor(level.levelNumber);
-          const zone = ZONES[zoneIdx];
-          // Show a zone banner ABOVE the FIRST level of each zone as it
-          // appears in our reversed (top-down) DOM. Because DOM is
-          // reversed, that's the HIGHEST level number of the zone.
-          const isZoneBoundary =
-            level.levelNumber === zone.range[1] ||
-            displayIndex === 0; // always show at top of scroll
-          const leftPct = LANES[level.levelNumber % LANES.length];
+      <div
+        className="relative mx-auto w-full"
+        style={{ maxWidth: '28rem' }}
+      >
+        {/* Headroom hint when there are still locked levels above the window */}
+        {windowEnd < totalCount && (
+          <div className="mb-3 text-center font-inter text-[10px] uppercase tracking-[0.28em] text-blue-100/45">
+            ▲ Daha fazla seviye yukarıda
+          </div>
+        )}
 
-          // Connector to the next-displayed node (which is the level just
-          // BELOW this one in the player's journey). Skip on the very last
-          // displayed row (= Level 1 at the bottom).
-          const isLastDisplayed = displayIndex === ordered.length - 1;
-          const nextLevel = !isLastDisplayed ? ordered[displayIndex + 1] : null;
-          const nextLeftPct = nextLevel
-            ? LANES[nextLevel.levelNumber % LANES.length]
-            : null;
-
+        {windowed.map((level, displayIdx) => {
+          const isFocus = level.levelNumber === focus;
+          const isLast = displayIdx === windowed.length - 1;
+          // The next-displayed level (in DOM order) is the one BELOW the
+          // current one in the player's journey.
+          const nextLevel = !isLast ? windowed[displayIdx + 1] : null;
           return (
-            <div key={level.levelNumber} className="relative">
-              {isZoneBoundary && (
-                <ZoneBanner zone={zone} levelNumber={level.levelNumber} />
-              )}
-
-              <div
-                className="relative"
-                style={{ height: '128px' }}
-              >
-                {/* Connector SVG drawn from this node down to the next */}
-                {nextLevel && (
-                  <PathConnector
-                    fromLeft={leftPct}
-                    toLeft={nextLeftPct}
-                    accent={ZONES[zoneIndexFor(level.levelNumber)].accent}
-                    dimmed={!level.isPlayable && !nextLevel.isPlayable}
-                  />
-                )}
-                <div
-                  // Codex121 — Stable DOM hook the scroll helper queries
-                  // via `[data-kx-solo-level="N"]`. Decouples target
-                  // lookup from the React refs map (which used to be
-                  // populated by a callback ref and could go stale
-                  // across re-renders / level swaps).
-                  data-kx-solo-level={level.levelNumber}
-                  className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2"
-                  style={{ left: leftPct }}
-                >
-                  <LevelMapNode
-                    level={level}
-                    selected={level.levelNumber === selectedLevelNumber}
-                    onSelect={() => onSelectLevel(level)}
-                  />
-                </div>
-              </div>
-            </div>
+            <PathRow
+              key={level.levelNumber}
+              level={level}
+              nextLevel={nextLevel}
+              isFocus={isFocus}
+              focusedNodeRef={isFocus ? focusedNodeRef : null}
+              onSelect={() => onSelectLevel(level)}
+            />
           );
         })}
 
-        {/* Footer hint at the very bottom (under Level 1) */}
-        <div className="mt-2 text-center font-inter text-[10px] font-black uppercase tracking-[0.28em] text-blue-100/40">
-          Yolculuk başlıyor ▼
-        </div>
+        {/* Bottom hint — only when the window starts at Level 1 */}
+        {windowStart === 1 && (
+          <div className="mt-3 text-center font-inter text-[10px] uppercase tracking-[0.28em] text-blue-100/45">
+            Yolculuk başlıyor ▼
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function ZoneBanner({ zone, levelNumber }) {
+/* ─────────────────────────────────────────────────────────────────── */
+/*  Row + connector                                                    */
+/* ─────────────────────────────────────────────────────────────────── */
+
+function PathRow({ level, nextLevel, isFocus, focusedNodeRef, onSelect }) {
+  const fromLeft = laneForLevel(level.levelNumber);
+  const toLeft = nextLevel ? laneForLevel(nextLevel.levelNumber) : null;
+
   return (
-    <div
-      className="relative my-3 overflow-hidden rounded-2xl px-4 py-2.5"
-      style={{
-        background: `linear-gradient(180deg, rgba(20,28,55,0.85), rgba(6,10,24,0.95)), ${zone.gradient}`,
-        boxShadow: `inset 0 0 0 1.5px ${hexToRgba(zone.accent, 0.45)}, 0 0 18px ${hexToRgba(zone.accent, 0.18)}`,
-      }}
-      data-kx-solo-zone={`${zone.range[0]}-${zone.range[1]}`}
-      data-kx-solo-zone-level={levelNumber}
-    >
-      <div className="flex items-center justify-between">
-        <div className="min-w-0">
-          <p
-            className="font-cinzel text-sm font-black tracking-[0.22em]"
-            style={{ color: zone.accent, textShadow: `0 0 10px ${hexToRgba(zone.accent, 0.5)}` }}
-          >
-            {zone.title}
-          </p>
-          <p className="font-inter text-[10px] text-blue-100/65">{zone.subtitle}</p>
-        </div>
-        <span
-          className="shrink-0 rounded-full px-2 py-0.5 font-inter text-[10px] font-black tracking-widest"
-          style={{
-            color: zone.accent,
-            background: hexToRgba(zone.accent, 0.10),
-            boxShadow: `inset 0 0 0 1px ${hexToRgba(zone.accent, 0.45)}`,
-          }}
-        >
-          {zone.range[0]}–{zone.range[1]}
-        </span>
+    <div className="relative" style={{ height: `${ROW_HEIGHT}px` }}>
+      {/* Dashed S-curve connector down to the next-displayed node */}
+      {nextLevel && (
+        <PathConnector fromLeft={fromLeft} toLeft={toLeft} />
+      )}
+
+      {/* Node, positioned on its lane. The "SIRADAKİ" pill flips to the
+          opposite side of the node so it never falls off-screen on
+          either edge of the path column. */}
+      <div
+        ref={focusedNodeRef || undefined}
+        className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2"
+        style={{ left: fromLeft }}
+      >
+        {isFocus ? (
+          <CurrentSeviyeNode
+            level={level}
+            onSelect={onSelect}
+            laneSide={pctToNum(fromLeft) < 50 ? 'left' : 'right'}
+          />
+        ) : (
+          <SmallSeviyeNode level={level} onSelect={onSelect} />
+        )}
       </div>
     </div>
   );
 }
 
-function PathConnector({ fromLeft, toLeft, accent, dimmed }) {
-  // We draw a subtle curved dashed line connecting the centers of two
-  // consecutive level circles. Using SVG keeps it crisp on all DPRs and
-  // doesn't trap touch events (pointer-events: none on the SVG).
+/**
+ * Dashed connector between two consecutive node centres. Drawn as an SVG
+ * cubic curve so the path feels like a soft S-curve, not a straight zig-zag.
+ */
+function PathConnector({ fromLeft, toLeft }) {
+  const fromX = pctToNum(fromLeft);
+  const toX = pctToNum(toLeft);
+  // Cubic control points produce a soft S-curve between two lane points.
+  // We pull each control point vertically toward the middle of the
+  // segment and horizontally toward its own anchor so the line bows
+  // gracefully even when the next node is on the far side of the
+  // screen (large |toX - fromX|). This avoids the "rubber-band straight
+  // line" look that 2-lane connectors had.
+  const c1x = fromX;
+  const c1y = 55;
+  const c2x = toX;
+  const c2y = 45 + 100; // travels into the next row below (0–100 = next row)
   return (
     <svg
       aria-hidden="true"
-      className="absolute inset-0 h-full w-full"
-      style={{ pointerEvents: 'none' }}
+      className="absolute"
+      style={{
+        left: 0,
+        right: 0,
+        // Extend the SVG into the next row so the connector reaches the
+        // next node's centre.
+        top: '50%',
+        height: `${ROW_HEIGHT}px`,
+        width: '100%',
+        pointerEvents: 'none',
+        overflow: 'visible',
+      }}
       viewBox="0 0 100 100"
       preserveAspectRatio="none"
     >
       <path
-        d={`M ${pctToNum(fromLeft)} 50 Q 50 75 ${pctToNum(toLeft)} 100`}
+        d={`M ${fromX} 0 C ${c1x} ${c1y}, ${c2x} ${c2y - 100}, ${toX} 100`}
         fill="none"
-        stroke={hexToRgba(accent, dimmed ? 0.25 : 0.55)}
-        strokeWidth="1.2"
-        strokeDasharray="2 3"
+        stroke="rgba(148,170,210,0.45)"
+        strokeWidth="1.4"
+        strokeDasharray="3 5"
+        strokeLinecap="round"
         vectorEffect="non-scaling-stroke"
       />
     </svg>
   );
 }
 
-// Helpers — kept inline because they're tiny and only used here.
+/* ─────────────────────────────────────────────────────────────────── */
+/*  Nodes                                                              */
+/* ─────────────────────────────────────────────────────────────────── */
+
+/**
+ * Small node for locked + completed seviyeler. Outlined circle, slim,
+ * carries the number and (when completed) earned stars below it.
+ *
+ * Locked seviyeler show their NUMBER (not a lock icon) per the target
+ * reference. They look inactive (dimmed border + dim text) and are NOT
+ * tappable: the button is `disabled` + `aria-disabled` + the onClick
+ * handler is omitted, so any tap is a no-op at every layer.
+ */
+function SmallSeviyeNode({ level, onSelect }) {
+  const { levelNumber, status, stars } = level;
+  const isLocked = status === 'locked';
+  const isCompleted = status === 'completed';
+
+  // Visual treatment per state.
+  //   - completed → faint gold ring + white number
+  //   - locked    → very dim slate ring + dim number, visually inactive
+  //   - current   → handled by the hero node, not this component
+  const ringShadow = isCompleted
+    ? 'inset 0 0 0 1.5px rgba(250,204,21,0.55), 0 0 8px rgba(250,204,21,0.18)'
+    : isLocked
+      ? 'inset 0 0 0 1.5px rgba(148,170,210,0.30)'
+      : 'inset 0 0 0 1.5px rgba(148,170,210,0.55)';
+  const numberColor = isLocked ? 'rgba(226,232,240,0.42)' : '#f1f5ff';
+
+  return (
+    <motion.button
+      type="button"
+      onClick={isLocked ? undefined : onSelect}
+      disabled={isLocked}
+      aria-disabled={isLocked ? 'true' : 'false'}
+      tabIndex={isLocked ? -1 : 0}
+      whileTap={isLocked ? undefined : { scale: 0.92 }}
+      className="relative flex flex-col items-center disabled:cursor-not-allowed"
+      style={{ touchAction: 'manipulation' }}
+      aria-label={`${levelNumber}. Seviye${isLocked ? ' (kilitli)' : isCompleted ? ' (tamamlandı)' : ''}`}
+    >
+      <div
+        className="flex items-center justify-center rounded-full font-inter font-bold"
+        style={{
+          width: `${NODE_SIZE}px`,
+          height: `${NODE_SIZE}px`,
+          fontSize: '15px',
+          background: 'rgba(12,22,48,0.85)',
+          color: numberColor,
+          boxShadow: ringShadow,
+        }}
+      >
+        <span>{levelNumber}</span>
+      </div>
+
+      {/* Stars below completed nodes (always visible — small, no clutter) */}
+      {isCompleted && (
+        <div className="mt-1 flex items-center gap-0.5" aria-label={`${stars} yıldız`}>
+          {[1, 2, 3].map((i) => {
+            const filled = i <= stars;
+            return (
+              <Star
+                key={i}
+                className="h-2.5 w-2.5"
+                strokeWidth={1.8}
+                style={{
+                  color: filled ? '#facc15' : 'rgba(226,232,240,0.25)',
+                  fill: filled ? '#facc15' : 'transparent',
+                }}
+              />
+            );
+          })}
+        </div>
+      )}
+    </motion.button>
+  );
+}
+
+/**
+ * Hero node — the "SIRADAKİ N. SEVİYE" highlight that matches the target
+ * reference. Yellow glowing disc with a side pill announcing "SIRADAKİ
+ * N. SEVİYE". Pill flips to the opposite lane side so it never falls off
+ * screen on either lane.
+ */
+function CurrentSeviyeNode({ level, onSelect, laneSide }) {
+  // Pill goes on the OPPOSITE side of the node so it never falls off the
+  // screen edge. When the node sits on the left lane (laneSide='left')
+  // the pill is anchored to the node's right edge via CSS `left: 100%`.
+  // When the node sits on the right lane (laneSide='right') the pill is
+  // anchored to the node's left edge via CSS `right: 100%`.
+  const pillAnchor = laneSide === 'left' ? 'left' : 'right';
+  const pillAlignItems = laneSide === 'left' ? 'items-start' : 'items-end';
+  return (
+    <div className="relative flex items-center" style={{ height: `${HERO_NODE_SIZE}px` }}>
+      <motion.button
+        type="button"
+        onClick={onSelect}
+        whileTap={{ scale: 0.96 }}
+        animate={{
+          boxShadow: [
+            '0 0 0 4px rgba(250,204,21,0.18), 0 0 24px rgba(250,204,21,0.55), inset 0 2px 0 rgba(255,255,255,0.55), inset 0 -8px 10px rgba(140,80,8,0.5)',
+            '0 0 0 6px rgba(250,204,21,0.28), 0 0 40px rgba(250,204,21,0.85), inset 0 2px 0 rgba(255,255,255,0.55), inset 0 -8px 10px rgba(140,80,8,0.5)',
+            '0 0 0 4px rgba(250,204,21,0.18), 0 0 24px rgba(250,204,21,0.55), inset 0 2px 0 rgba(255,255,255,0.55), inset 0 -8px 10px rgba(140,80,8,0.5)',
+          ],
+        }}
+        transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+        className="relative flex items-center justify-center rounded-full font-bangers"
+        style={{
+          width: `${HERO_NODE_SIZE}px`,
+          height: `${HERO_NODE_SIZE}px`,
+          fontSize: '26px',
+          background: 'radial-gradient(circle at 35% 28%, #ffe066, #b97a06 75%)',
+          color: '#231405',
+          touchAction: 'manipulation',
+        }}
+        aria-label={`Sıradaki ${level.levelNumber}. Seviye — Oyna`}
+      >
+        {level.levelNumber}
+      </motion.button>
+
+      {/* Side pill — "SIRADAKİ / N. SEVİYE". Anchored to the side of the
+          node that faces toward the screen centre, so it never falls off
+          either edge of the path column. */}
+      <div
+        className={`absolute flex flex-col ${pillAlignItems} justify-center gap-0`}
+        style={{
+          [pillAnchor]: `calc(100% + 14px)`,
+          minWidth: '108px',
+          padding: '0.45rem 0.75rem',
+          borderRadius: '12px',
+          background: 'rgba(12,22,48,0.92)',
+          boxShadow: 'inset 0 0 0 1.5px rgba(250,204,21,0.65), 0 0 14px rgba(250,204,21,0.18)',
+          pointerEvents: 'none',
+        }}
+        aria-hidden="true"
+      >
+        <span
+          className="font-inter text-[9px] font-black uppercase tracking-[0.22em]"
+          style={{ color: 'rgba(250,204,21,0.85)' }}
+        >
+          Sıradaki
+        </span>
+        <span
+          className="font-inter text-[13px] font-black tracking-[0.06em]"
+          style={{ color: '#facc15' }}
+        >
+          {level.levelNumber}. SEVİYE
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────── */
+/*  Helpers                                                            */
+/* ─────────────────────────────────────────────────────────────────── */
+
 function pctToNum(pct) {
   const n = Number(String(pct).replace('%', ''));
   return Number.isFinite(n) ? n : 50;
-}
-function hexToRgba(hex, alpha) {
-  // Accepts #rgb / #rrggbb. Falls back to white when parsing fails.
-  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex || '');
-  if (!m) return `rgba(255,255,255,${alpha})`;
-  let h = m[1];
-  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
-  const r = parseInt(h.slice(0, 2), 16);
-  const g = parseInt(h.slice(2, 4), 16);
-  const b = parseInt(h.slice(4, 6), 16);
-  return `rgba(${r},${g},${b},${alpha})`;
 }
