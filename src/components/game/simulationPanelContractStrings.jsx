@@ -85,7 +85,7 @@ export const acceptGameInviteFnSource = `
   const hasZone = /Z$/i.test(str) || /[+-]\\d{2}:?\\d{2}$/.test(str);
   const t = new Date(hasZone ? str : \`\${str}Z\`).getTime();
   if (toEmail !== myEmail) {
-    return Response.json({ code: 'unauthorized', error: 'Bu daveti açma yetkin yok.' }, { status: 403 });
+    return Response.json({ code: 'unauthorized', error: 'Bu davet sana ait değil' }, { status: 403 });
   }
   if (!invite) return Response.json({ code: 'invite_not_found', error: 'Davet bulunamadı.' }, { status: 404 });
   if (invite.status === 'accepted') {

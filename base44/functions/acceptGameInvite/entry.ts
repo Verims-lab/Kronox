@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
     const toEmail = String(invite.to_email || '').trim().toLowerCase();
 
     if (toEmail !== myEmail) {
-      return Response.json({ code: 'unauthorized', error: 'Bu daveti açma yetkin yok.' }, { status: 403 });
+      return Response.json({ code: 'unauthorized', error: 'Bu davet sana ait değil' }, { status: 403 });
     }
     if (invite.status !== 'pending') {
       if (invite.status === 'accepted' && invite.lobby_id) {
