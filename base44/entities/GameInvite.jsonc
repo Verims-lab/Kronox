@@ -92,7 +92,7 @@
   ],
   "rls": {
     "create": {
-      "created_by": "{{user.email}}",
+      "created_by_id": "{{user.id}}",
       "data.from_email": "{{user.email}}"
     },
     "read": {
