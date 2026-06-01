@@ -22,7 +22,6 @@
 
 import soloChallengeSource from '../../pages/SoloChallenge.jsx?raw';
 import levelMapPathSource from '../solo/LevelMapPath.jsx?raw';
-import levelMapNodeSource from '../solo/LevelMapNode.jsx?raw';
 import soloLevelsLibSource from '../../lib/soloLevels.js?raw';
 
 const STATUS = {
@@ -256,10 +255,11 @@ export const EXTRA_TESTS = [
 
   /* 7. Completed levels render stars. */
   makeCase('solo_adventure_map', 'completed_levels_show_best_stars',
-    'LevelMapNode renders 0–3 Star icons driven by level.stars for completed levels (bestStars surfaced from progress)',
+    'LevelMapPath renders 0–3 Star icons driven by level.stars for completed levels (bestStars surfaced from progress)',
     () => {
-      const nodeMissing = missingTokens(levelMapNodeSource, [
-        "import { Lock, Star, Play } from 'lucide-react'",
+      const pathMissing = missingTokens(levelMapPathSource, [
+        "import { Star } from 'lucide-react'",
+        'function SmallSeviyeNode',
         'isCompleted',
         '{[1, 2, 3].map',
         'i <= stars',
@@ -269,14 +269,14 @@ export const EXTRA_TESTS = [
         'Number(entry?.bestStars) || 0',
         'stars,',
       ]);
-      if (nodeMissing.length || libMissing.length) {
+      if (pathMissing.length || libMissing.length) {
         return fail('Stars on completed levels not wired.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
-          file: 'components/solo/LevelMapNode.jsx + lib/soloLevels.js',
+          file: 'components/solo/LevelMapPath.jsx + lib/soloLevels.js',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'LevelMapNode maps 3 stars from level.stars; getSoloLevels surfaces bestStars',
-          actual: { nodeMissing, libMissing },
+          expected: 'LevelMapPath maps 3 stars from level.stars; getSoloLevels surfaces bestStars',
+          actual: { pathMissing, libMissing },
         });
       }
       return pass('Stars on completed levels are wired from bestStars.', {
@@ -286,35 +286,40 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 8. Locked nodes are non-interactive. */
+  /* 8. Locked nodes are non-interactive but still numbered. */
   makeCase('solo_adventure_map', 'locked_levels_disabled',
-    'LevelMapNode disables clicks and shows a Lock icon for locked levels',
+    'LevelMapPath disables clicks for future levels and shows level numbers instead of lock icons',
     () => {
-      const missing = missingTokens(levelMapNodeSource, [
+      const missing = missingTokens(levelMapPathSource, [
+        'function SmallSeviyeNode',
         'disabled={isLocked}',
         'onClick={isLocked ? undefined : onSelect}',
+        '<span>{levelNumber}</span>',
+      ]);
+      const forbidden = forbiddenTokensFound(levelMapPathSource, [
+        "import { Lock",
         '<Lock',
       ]);
-      if (missing.length) {
-        return fail('Locked levels are not properly disabled.', {
+      if (missing.length || forbidden.length) {
+        return fail('Future levels are not properly disabled/numbered.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
-          file: 'components/solo/LevelMapNode.jsx',
+          file: 'components/solo/LevelMapPath.jsx',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'disabled + onClick guard + Lock icon for locked status',
-          actual: { missing },
+          expected: 'disabled + onClick guard + visible level number; no Lock icon in future levels',
+          actual: { missing, forbidden },
         });
       }
-      return pass('Locked levels are non-interactive.', {
+      return pass('Future levels are non-interactive and remain numbered.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 9. Bottom padding reserves space for Play + BottomNav. */
+  /* 9. Bottom padding reserves space for BottomNav/safe area. */
   makeCase('solo_adventure_map', 'bottom_reserved_space_for_play_and_nav',
-    'LevelMapPath applies bottomReservedPx padding so Level 1 is not hidden behind the Play button / BottomNav',
+    'LevelMapPath applies bottomReservedPx padding so Seviye 1 is not hidden behind BottomNav / safe area',
     () => {
       const pathMissing = missingTokens(levelMapPathSource, [
         'bottomReservedPx',
@@ -334,7 +339,7 @@ export const EXTRA_TESTS = [
           actual: { pathMissing, soloMissing },
         });
       }
-      return pass('Bottom space reserved so Level 1 stays above Play + BottomNav.', {
+      return pass('Bottom space reserved so Seviye 1 stays above BottomNav/safe area.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });

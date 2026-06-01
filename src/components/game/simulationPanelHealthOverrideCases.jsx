@@ -135,6 +135,10 @@ export const OVERRIDDEN_CASE_KEYS = new Set([
   // base suite still expected "PLACEHOLDER" / "no economy yet" markers.
   'profile_economy.placeholder_disclosed_in_source',
   'profile_economy.ui_does_not_crash_when_values_missing',
+  // Codex153 cleanup — Profile copy moved from the old English "Level"
+  // label to the current Turkish "Seviye" label while keeping the same
+  // getCurrentPlayableLevel source.
+  'profile_economy.level_appears',
 ]);
 
 // No new suite ids — we reuse the existing suite ids defined in the base
@@ -161,6 +165,35 @@ export const EXTRA_TESTS = [
       'getProfileDiamondValue(user)',
       "label: 'Elmas'",
     ],
+  ),
+  makeCase(
+    'profile_economy', 'Profile Economy Placeholder Suite',
+    'level_appears',
+    'Seviye stat tile appears from the shared Solo progress helper',
+    () => {
+      const required = [
+        "label: 'Seviye'",
+        'getCurrentPlayableLevel(soloProgress, getSoloLevelCount())',
+      ];
+      const missing = required.filter((token) => !safeStr(profilePageSource).includes(token));
+      if (missing.length) {
+        return fail('Profile Seviye stat tile contract drifted.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'ProfilePage.jsx',
+          expected: required,
+          actual: { missing },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Profile shows Seviye from the shared Solo progress helper.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        file: 'ProfilePage.jsx',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true },
   ),
   makeCase(
     'profile_economy', 'Profile Economy Placeholder Suite',
@@ -404,20 +437,37 @@ export const EXTRA_TESTS = [
 
   /* ------------------------------------------------------------------
    *  visual_composition_regression.asset_path_drift_warning
-   *  Codex127 replaced the legacy /assets/ui/Kronox_Online_CTA_Start.webp
-   *  + Kronox_Online_CTA_Join.webp image-CTAs with the new chip carousel
-   *  + framer-motion gold CTA inside OnlineChallengeScreen.jsx. Those
-   *  asset paths are now obsolete in the active flow. The MainMenu still
-   *  uses approved /assets/ui/* images for home buttons — we verify the
-   *  approved-asset contract there instead.
+   *  The active Home screen is now CSS/motion-driven: the KRONOX wordmark,
+   *  gold Solo/Online CTAs, and StandardTopBar are rendered directly in
+   *  MainMenu. Legacy PNG pressed-swap paths are intentionally absent.
    * ------------------------------------------------------------------ */
-  sourceHasReplacement(
+  makeCase(
     'visual_composition_regression', 'Visual Composition Regression Suite',
     'asset_path_drift_warning',
-    'MainMenu still uses approved /assets/ui/ image paths for the home buttons',
-    'pages/MainMenu.jsx',
-    mainMenuSource,
-    ['/assets/ui/'],
+    'MainMenu uses current CSS/motion KRONOX home buttons and no stale PNG pressed asset swap',
+    () => {
+      const src = safeStr(mainMenuSource);
+      const required = ['function KronoxWordmark', 'function HomeCTA', 'StandardTopBar', 'whileTap', 'SOLO MEYDAN OKUMA', 'ONLINE KAPIŞMA'];
+      const forbidden = ['normalSrc', 'pressedSrc', 'Kronox_Home_Button_Solo.png', 'Kronox_Home_Button_Online.png', 'Kronox_Home_Button_Solo_Pressed.png', 'Kronox_Home_Button_Online_Pressed.png'];
+      const missing = required.filter((token) => !src.includes(token));
+      const presentForbidden = forbidden.filter((token) => src.includes(token));
+      if (missing.length || presentForbidden.length) {
+        return fail('Home asset/press-feedback contract drifted.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'pages/MainMenu.jsx',
+          expected: { required, forbidden },
+          actual: { missing, presentForbidden },
+          actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW,
+        });
+      }
+      return pass('MainMenu uses CSS/motion CTAs and does not depend on stale PNG pressed asset swaps.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        file: 'pages/MainMenu.jsx',
+        actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW,
+      });
+    },
     { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW, recentlyFixed: true },
   ),
 

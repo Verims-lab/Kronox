@@ -37,8 +37,8 @@ import KronoxStatTile from '@/components/ui/KronoxStatTile';
  * focused KronoxRankingSection component.
  *
  * Fallback rules:
- *   • Stat cards (Puan / Level / Elmas) stay visible from the user's own
- *     persisted sources — Puan is visible Kronox Puan, Level is Solo.
+ *   • Stat cards (Puan / Seviye / Elmas) stay visible from the user's own
+ *     persisted sources — Puan is visible Kronox Puan, Seviye is Solo.
  *   • The ranking section shows a neutral "hazırlanıyor" placeholder,
  *     NOT a red error box. End users never see backend permission wording.
  *   • The user's OWN visible Kronox Puan is shown inside the placeholder
@@ -229,7 +229,7 @@ export default function LeaderboardPage() {
               regardless of global ranking state. */}
           <div className="mt-4 grid grid-cols-3 gap-2">
             <KronoxStatTile icon={Trophy} label="Puan" value={visibleKronoxPuan} tintHex="#facc15" variant="compact" />
-            <KronoxStatTile icon={Sparkles} label="Level" value={summary.currentLevel} tintHex="#60a5fa" variant="compact" />
+            <KronoxStatTile icon={Sparkles} label="Seviye" value={summary.currentLevel} tintHex="#60a5fa" variant="compact" />
             <KronoxStatTile icon={Gem} label="Elmas" value={diamondValue} tintHex="#7dd3fc" variant="compact" />
           </div>
         </div>

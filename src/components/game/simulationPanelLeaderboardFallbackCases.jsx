@@ -8,7 +8,7 @@
 //   error box that exposes backend internals to end users.
 //
 // CONTRACTS
-//   1. Stat cards (Puan / Level / Elmas) must still source from the
+//   1. Stat cards (Puan / Seviye / Elmas) must still source from the
 //      shared Solo summary so own-score never disappears.
 //   2. End-user-facing copy must not mention backend/permission language.
 //   3. The fallback placeholder must show the user's own unified Kronox Puan
@@ -71,9 +71,9 @@ export const EXTRA_SUITES = [
 export const EXTRA_TESTS = [
   /* 1. Own score visible even when global load fails. */
   makeCase('leaderboard_fallback', 'leaderboard_own_score_visible_when_global_load_fails',
-    'Stat cards + fallback placeholder both source the user\'s own visible Kronox Puan/Level so the screen never feels broken when global ranking fails',
+    'Stat cards + fallback placeholder both source the user\'s own visible Kronox Puan/Seviye so the screen never feels broken when global ranking fails',
     () => {
-      // Page must keep computing & rendering Puan/Level/Elmas tiles from
+      // Page must keep computing & rendering Puan/Seviye/Elmas tiles from
       // getKronoxVisibleScore + summarizeSoloProgress regardless of
       // leaderboard error state — i.e. those values are derived OUTSIDE
       // the leaderboard fetch's try/catch.
@@ -93,7 +93,7 @@ export const EXTRA_TESTS = [
         'ownScore?.totalKronoxScore',
       ]);
       if (pageMissing.length || sectionMissing.length) {
-        return fail('Own-score visibility contract broken: a global load failure could hide the user\'s real Puan/Level.', {
+        return fail('Own-score visibility contract broken: a global load failure could hide the user\'s real Puan/Seviye.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'pages/LeaderboardPage.jsx + components/leaderboard/KronoxRankingSection.jsx',
@@ -102,7 +102,7 @@ export const EXTRA_TESTS = [
           actual: { pageMissing, sectionMissing },
         });
       }
-      return pass('Own Puan/Level/Elmas stays visible independent of global ranking state.', {
+      return pass('Own Puan/Seviye/Elmas stays visible independent of global ranking state.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -214,7 +214,7 @@ export const EXTRA_TESTS = [
 
   /* 5. Stat cards continue using shared visible score + Solo level sources. */
   makeCase('leaderboard_fallback', 'leaderboard_stat_cards_use_solo_source',
-    'Puan / Level / Elmas tiles read from getKronoxVisibleScore + summarizeSoloProgress + getLeaderboardDiamondValue',
+    'Puan / Seviye / Elmas tiles read from getKronoxVisibleScore + summarizeSoloProgress + getLeaderboardDiamondValue',
     () => {
       const pageMissing = missingTokens(leaderboardPageSource, [
         "from '@/lib/soloProgressHelpers'",

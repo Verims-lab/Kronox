@@ -2,11 +2,11 @@
 //
 // SCOPE
 //   Locks the Phase 3 UI/UX standardization landing:
-//     1. Profile and Leaderboard render Puan / Level / Elmas through the
+//     1. Profile and Leaderboard render Puan / Seviye / Elmas through the
 //        shared <KronoxStatTile /> component, NOT two local copies.
-//     2. Profile stat row contains exactly Puan + Level + Elmas — no
+//     2. Profile stat row contains exactly Puan + Seviye + Elmas — no
 //        Yıldız tile, no other accidental stat.
-//     3. Leaderboard stat row contains exactly Puan + Level + Elmas.
+//     3. Leaderboard stat row contains exactly Puan + Seviye + Elmas.
 //     4. Elmas value continues to source from getLeaderboardDiamondValue
 //        on both surfaces (never derived from stars / score / completed
 //        levels).
@@ -82,7 +82,7 @@ export const EXTRA_SUITES = [
 export const EXTRA_TESTS = [
   /* 1. Shared StatTile contract — both screens import and use it. */
   makeCase('ui_shared_components', 'ui_shared_stat_tile_contract',
-    'Profile and Leaderboard render Puan / Level / Elmas through the shared KronoxStatTile component',
+    'Profile and Leaderboard render Puan / Seviye / Elmas through the shared KronoxStatTile component',
     () => {
       const profileRequired = missingTokens(profilePageSource, [
         "from '@/components/ui/KronoxStatTile'",
@@ -119,18 +119,18 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 2. Profile + Leaderboard stat row composition — Puan / Level / Elmas. */
+  /* 2. Profile + Leaderboard stat row composition — Puan / Seviye / Elmas. */
   makeCase('ui_shared_components', 'ui_profile_leaderboard_stats_contract',
-    'Profile and Leaderboard stat rows show Puan + Level + Elmas (no Yıldız tile)',
+    'Profile and Leaderboard stat rows show Puan + Seviye + Elmas (no Yıldız tile)',
     () => {
       const profileMissingLabels = missingTokens(profilePageSource, [
         "label: 'Puan'",
-        "label: 'Level'",
+        "label: 'Seviye'",
         "label: 'Elmas'",
       ]);
       const leaderboardMissingLabels = missingTokens(leaderboardPageSource, [
         'label="Puan"',
-        'label="Level"',
+        'label="Seviye"',
         'label="Elmas"',
       ]);
       // No Yıldız stat tile should reappear in either screen's stat row.
@@ -144,11 +144,11 @@ export const EXTRA_TESTS = [
           classification: 'REAL_PRODUCT_RISK',
           file: 'pages/ProfilePage.jsx + pages/LeaderboardPage.jsx',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'Both pages render exactly Puan + Level + Elmas; no Yıldız stat tile in the stat row',
+          expected: 'Both pages render exactly Puan + Seviye + Elmas; no Yıldız stat tile in the stat row',
           actual: { profileMissingLabels, leaderboardMissingLabels, profileYildiz, leaderboardYildiz },
         });
       }
-      return pass('Profile and Leaderboard stat rows match the Puan/Level/Elmas contract.', {
+      return pass('Profile and Leaderboard stat rows match the Puan/Seviye/Elmas contract.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -256,7 +256,7 @@ export const EXTRA_TESTS = [
   /* 6. Honest gap — visual alignment on a real device. */
   makeCase('ui_shared_components', 'ui_profile_leaderboard_visual_parity_runtime_proof_needed',
     'Live visual proof that Profile and Leaderboard stat rows look aligned on a real device',
-    () => notAutomatable('Static contracts can prove both pages import KronoxStatTile and render Puan/Level/Elmas, but cannot judge whether the rendered pixels feel consistent across iOS Safari, Android Chrome, and small-width devices. Release sign-off requires a side-by-side screenshot.', {
+    () => notAutomatable('Static contracts can prove both pages import KronoxStatTile and render Puan/Seviye/Elmas, but cannot judge whether the rendered pixels feel consistent across iOS Safari, Android Chrome, and small-width devices. Release sign-off requires a side-by-side screenshot.', {
       verification: 'NOT_AUTOMATABLE',
       classification: 'STATIC_CHECK_LIMITATION',
       verificationLabels: ['NOT_AUTOMATABLE', 'EXTERNAL_DEVICE_REQUIRED'],

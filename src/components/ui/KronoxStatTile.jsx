@@ -16,7 +16,7 @@ import React from 'react';
  *   Behavior preservation:
  *     - Puan tile: caller passes `value` derived from
  *       getKronoxVisibleScore(user).
- *     - Level tile: caller passes `value` derived from
+ *     - Seviye tile: caller passes `value` derived from
  *       getCurrentPlayableLevel(...) (Profile) or
  *       summarizeSoloProgress(...).currentLevel (Leaderboard).
  *     - Elmas tile: caller passes `value` derived from
@@ -25,7 +25,7 @@ import React from 'react';
  *
  *   This component is presentational only. It does NOT read user data
  *   or progress directly, so swapping it in cannot regress the
- *   Puan/Level/Elmas source-of-truth contracts.
+ *   Puan/Seviye/Elmas source-of-truth contracts.
  *
  * Props:
  *   icon     : lucide-react component (e.g. Trophy, Sparkles, Gem)

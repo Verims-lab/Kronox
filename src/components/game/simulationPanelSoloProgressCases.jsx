@@ -30,6 +30,8 @@ import soloLevelsLibSource from '../../lib/soloLevels.js?raw';
 import soloProgressHelpersSource from '../../lib/soloProgressHelpers.js?raw';
 import soloRankingSource from '../../lib/soloRanking.js?raw';
 import soloLevelResultSource from './SoloLevelResult.jsx?raw';
+import soloSuccessPopupSource from './SoloSuccessPopup.jsx?raw';
+import soloFailureCardSource from './SoloFailureCard.jsx?raw';
 import soloLevelTimerSource from './SoloLevelTimer.jsx?raw';
 import gameSoundsSource from '../../lib/gameSounds.js?raw';
 import {
@@ -101,7 +103,7 @@ export const EXTRA_TESTS = [
    *  1. SOLO / PROFILE SOURCE OF TRUTH
    * ============================================================ */
   makeCase('solo_progress_health', 'solo_progress_profile_source_of_truth',
-    'Profile Level and Solo Level Path read from the SAME user-specific solo_progress source',
+    'Profile Seviye and Solo Level Path read from the SAME user-specific solo_progress source',
     () => {
       // a) Profile imports readSoloProgress and derives `profileLevel` from it.
       const profileWires = [
@@ -112,7 +114,7 @@ export const EXTRA_TESTS = [
       ];
       const profileMissing = missingTokens(profilePageSource, profileWires);
 
-      // b) Profile must NOT hard-code Level value as 1.
+      // b) Profile must NOT hard-code the old Level label/value as 1.
       const profileHardcodedLevel = /label:\s*'Level',\s*value:\s*1\b/.test(profilePageSource);
 
       // c) SoloChallenge reads the same helper.
@@ -146,7 +148,7 @@ export const EXTRA_TESTS = [
       ]);
 
       if (profileMissing.length || soloMissing.length || writerMissing.length || monotonicMissing.length || mergeMissing.length || profileHardcodedLevel) {
-        return fail('Profile Level no longer ties cleanly to solo_progress, or solo writer guards regressed.', {
+        return fail('Profile Seviye no longer ties cleanly to solo_progress, or solo writer guards regressed.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'ProfilePage.jsx + SoloChallenge.jsx + lib/soloLevels.js',
@@ -157,7 +159,7 @@ export const EXTRA_TESTS = [
             writer: 'writeSoloProgress mirrors to localStorage AND updateMe',
             monotonic: 'currentLevel only bumps when passed AND new unlock > current',
             merge: 'bestStars never decreases on replay',
-            disallowed: 'Profile must not hard-code Level value 1',
+            disallowed: 'Profile must not hard-code the old Level value 1',
           },
           actual: {
             profileMissing,
@@ -169,7 +171,7 @@ export const EXTRA_TESTS = [
           },
         });
       }
-      return pass('Profile + Solo Level Path share one source of truth: readSoloProgress(user.solo_progress) with monotonic level + non-regressing stars.', {
+      return pass('Profile Seviye + Solo Level Path share one source of truth: readSoloProgress(user.solo_progress) with monotonic level + non-regressing stars.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -179,10 +181,10 @@ export const EXTRA_TESTS = [
     { actionType: ACTION_TYPES.CODE_FIX, runtimeProofRequired: true }),
 
   // Honest gap: two-account / device-level proof for "passing a Solo level
-  // immediately moves Profile Level forward on the same user across views"
+  // immediately moves Profile Seviye forward on the same user across views"
   // still requires a runtime check.
   makeCase('solo_progress_health', 'solo_progress_profile_runtime_proof_needed',
-    'Live runtime proof that passing a Solo level updates Profile Level on the same user',
+    'Live runtime proof that passing a Solo level updates Profile Seviye on the same user',
     () => notAutomatable('Static contract proves shared source; runtime click-through (Solo pass → /profile shows new level) needs a mounted session.', {
       verification: 'NOT_AUTOMATABLE',
       classification: 'STATIC_CHECK_LIMITATION',
@@ -193,68 +195,68 @@ export const EXTRA_TESTS = [
     }), { actionType: ACTION_TYPES.DEVICE_TEST, critical: true }),
 
   /* ============================================================
-   *  2. SOLO RESULT POPUP NEXT-LEVEL CTA CONTRACT
+   *  2. SOLO RESULT POPUP CTA CONTRACT
    * ============================================================ */
   makeCase('solo_progress_health', 'solo_result_popup_next_level_cta_contract',
-    'Result popup next-level CTA shows "Level X" with Play icon; never "Level X\'e Geç"; replay stays "Tekrar Oyna"; failed attempts do not enable next-level',
+    'Result popup uses current Seviye success/failure CTAs; failed attempts never enable next-level',
     () => {
       // (a) Forbidden copy that previously existed.
-      const forbidden = forbiddenTokensFound(soloLevelResultSource, [
+      const combinedPopupSource = `${soloLevelResultSource}\n${soloSuccessPopupSource}\n${soloFailureCardSource}`;
+      const forbidden = forbiddenTokensFound(combinedPopupSource, [
         "Level {nextLevelNumber}'e Geç",
+        'Level {nextLevelNumber}',
+        '<Play className="w-4 h-4" fill="currentColor" />',
       ]);
       if (forbidden.length) {
-        return fail('Result popup still uses the forbidden "Level X\'e Geç" copy.', {
+        return fail('Result popup still uses stale Level/Play CTA copy.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
-          file: 'components/game/SoloLevelResult.jsx',
+          file: 'components/game/SoloLevelResult.jsx + SoloSuccessPopup.jsx + SoloFailureCard.jsx',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'no "Level X\'e Geç" string',
+          expected: 'no stale Level X / Play CTA copy',
           actual: { forbidden },
         });
       }
 
-      // (b) Required CTA: "Level {nextLevelNumber}" + a Play icon inline.
-      const ctaMissing = missingTokens(soloLevelResultSource, [
-        'Level {nextLevelNumber}',
-        '<Play className="w-4 h-4" fill="currentColor" />',
+      // (b) Required success CTA: "SONRAKİ SEVİYE" + chevron.
+      const successMissing = missingTokens(soloSuccessPopupSource, [
+        '{levelNumber}. SEVİYE TAMAMLANDI!',
+        'SONRAKİ SEVİYE',
+        '<ChevronRight',
+        'disabled={!hasNextLevel}',
       ]);
 
-      // (c) Pass-only gating — next-level CTA only renders inside the
-      //     `passed ? hasNextLevel ? ...` branch.
-      const gatingMissing = missingTokens(soloLevelResultSource, [
-        'passed ? (',
-        'hasNextLevel ? (',
+      // (c) Router keeps success/failure branches isolated.
+      const routingMissing = missingTokens(soloLevelResultSource, [
+        'if (passed)',
+        '<SoloSuccessPopup',
+        '<SoloFailureCard',
       ]);
 
-      // (d) Failed attempts use the replay CTA, not next-level.
-      const failReplayMissing = missingTokens(soloLevelResultSource, [
+      // (d) Failed attempts use replay + levels CTAs, not next-level.
+      const failureMissing = missingTokens(soloFailureCardSource, [
+        '{levelNumber}. SEVİYE GEÇİLEMEDİ!',
         'onClick={onRetry}',
-        'Tekrar Oyna',
+        'TEKRAR OYNA',
         '<RotateCcw',
+        'SEVİYELER',
       ]);
 
-      // (e) Lock/coming-soon branch covers the no-next-level case.
-      const lockMissing = missingTokens(soloLevelResultSource, [
-        'disabled',
-        '<Lock',
-      ]);
-
-      if (ctaMissing.length || gatingMissing.length || failReplayMissing.length || lockMissing.length) {
+      if (successMissing.length || routingMissing.length || failureMissing.length) {
         return fail('Result popup CTA contract drifted.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
-          file: 'components/game/SoloLevelResult.jsx',
+          file: 'components/game/SoloLevelResult.jsx + SoloSuccessPopup.jsx + SoloFailureCard.jsx',
           actionType: ACTION_TYPES.CODE_FIX,
           expected: {
-            cta: '"Level {nextLevelNumber}" + inline Play icon',
-            gating: 'next-level only when passed && hasNextLevel',
-            failPath: '"Tekrar Oyna" replay button with RotateCcw icon',
-            noNext: 'disabled Lock-icon button when no next level',
+            success: '"SONRAKİ SEVİYE" + chevron, disabled when no next level',
+            routing: 'SoloLevelResult delegates passed attempts to SoloSuccessPopup and failed attempts to SoloFailureCard',
+            failPath: '"TEKRAR OYNA" + "SEVİYELER" replay/navigation buttons',
           },
-          actual: { ctaMissing, gatingMissing, failReplayMissing, lockMissing },
+          actual: { successMissing, routingMissing, failureMissing },
         });
       }
-      return pass('Result popup CTA: pass → "Level X" + Play; fail → "Tekrar Oyna"; no next-level enabled on fail.', {
+      return pass('Result popup CTA: pass → SONRAKİ SEVİYE; fail → TEKRAR OYNA / SEVİYELER.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -763,31 +765,37 @@ export const EXTRA_TESTS = [
     { actionType: ACTION_TYPES.CODE_FIX }),
 
   makeCase('solo_progress_health', 'solo_result_popup_score_visible',
-    'Solo result popup shows score breakdown, stars/time/mistakes, rank placeholder, and keeps next CTA copy contract',
+    'Solo result popups show stars/time/mistakes, earned Puan, speed-bonus state, and current Seviye CTAs',
     () => {
-      const required = missingTokens(soloLevelResultSource, [
-        'Puan: {levelScore}',
-        '${stars} yıldız: ${baseScore} + hız bonusu: ${timeBonus}',
-        'Yeni en iyi puan! +${scoreDelta}',
-        'En iyi puanın korunuyor',
-        'Sıralama verisi hazırlanıyor',
+      const combinedPopupSource = `${soloLevelResultSource}\n${soloSuccessPopupSource}\n${soloFailureCardSource}`;
+      const required = missingTokens(combinedPopupSource, [
+        '{levelNumber}. SEVİYE TAMAMLANDI!',
+        '{levelNumber}. SEVİYE GEÇİLEMEDİ!',
+        'KAZANILAN PUAN',
+        'TOPLAM SÜRE',
+        'HATA SAYISI',
+        'HIZ BONUSU',
+        'value={String(levelScore || 0)}',
+        'value={String(levelScore)}',
+        'SONRAKİ SEVİYE',
+        'TEKRAR OYNA',
+        'SEVİYELER',
+      ]);
+      const forbidden = forbiddenTokensFound(combinedPopupSource, [
+        "Level {nextLevelNumber}'e Geç",
         'Level {nextLevelNumber}',
         '<Play className="w-4 h-4" fill="currentColor" />',
-        'Tekrar Oyna',
-      ]);
-      const forbidden = forbiddenTokensFound(soloLevelResultSource, [
-        "Level {nextLevelNumber}'e Geç",
       ]);
       if (required.length || forbidden.length) {
         return fail('Solo result popup score/rank/CTA contract drifted.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'score breakdown + safe rank placeholder + Level X CTA',
+          expected: 'success/failure Seviye result popups with earned Puan, detail grid, speed bonus, and current CTAs',
           actual: { required, forbidden },
         });
       }
-      return pass('Solo result popup exposes score breakdown and keeps ranking/CTA contracts honest.', {
+      return pass('Solo result popups expose earned Puan/detail grid and current Seviye CTAs.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -835,12 +843,12 @@ export const EXTRA_TESTS = [
     { actionType: ACTION_TYPES.CODE_FIX }),
 
   makeCase('solo_progress_health', 'solo_profile_score_contract',
-    'Profile reads Solo progress for level and visible Kronox Puan helper for score; Yıldız tile is gone; Elmas uses the canonical Diamond helper; no hard-coded Level 1',
+    'Profile reads Solo progress for Seviye and visible Kronox Puan helper for score; Yıldız tile is gone; Elmas uses the canonical Diamond helper; no hard-coded Level 1',
     () => {
-      // Codex116/Codex152 — Profile now renders exactly three stats: Puan / Level /
+      // Codex116/Codex152 — Profile now renders exactly three stats: Puan / Seviye /
       // Elmas. Yıldız is intentionally removed (moved out per product
       // decision). Puan comes from visible Kronox Puan (Solo + Online);
-      // Level still comes from the shared Solo source; Elmas comes from the
+      // Seviye still comes from the shared Solo source; Elmas comes from the
       // canonical persisted Diamond balance helper.
       const required = missingTokens(profilePageSource, [
         'ensureSoloProgressBackfill',
@@ -853,6 +861,7 @@ export const EXTRA_TESTS = [
         // derives from stars/score/levels.
         "label: 'Elmas'",
         'getProfileDiamondValue',
+        "label: 'Seviye'",
       ]);
       const forbidden = forbiddenTokensFound(profilePageSource, [
         "label: 'Level', value: 1",
@@ -868,11 +877,11 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'Profile uses visible Kronox Puan for score, shared Solo helper for Level, exposes Elmas via canonical Diamond helper, and has no Yıldız tile or hard-coded Level 1',
+          expected: 'Profile uses visible Kronox Puan for score, shared Solo helper for Seviye, exposes Elmas via canonical Diamond helper, and has no Yıldız tile or hard-coded Level 1',
           actual: { required, forbidden },
         });
       }
-      return pass('Profile renders Puan/Level/Elmas from shared visible-score/Solo/economy sources; Yıldız tile removed; no hard-coded Level/Puan values.', {
+      return pass('Profile renders Puan/Seviye/Elmas from shared visible-score/Solo/economy sources; Yıldız tile removed; no hard-coded Level/Puan values.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -887,20 +896,22 @@ export const EXTRA_TESTS = [
         'return { ready: false, rank: null }',
         'server-side aggregation function',
       ]);
-      const popupRequired = missingTokens(soloLevelResultSource, [
-        'ready && typeof rank ===',
-        'Sıralama verisi hazırlanıyor',
+      const popupRequired = missingTokens(soloSuccessPopupSource, [
+        'fetchSoloLevelRecordContext',
+        'RecordBadge',
+        'YENİ REKOR!',
+        'ARKADAŞ REKORU!',
       ]);
       if (required.length || popupRequired.length) {
         return fail('Solo level rank placeholder/real-data contract drifted.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'no fake rank; placeholder until backend rank exists',
+          expected: 'no fake rank; success popup shows record badge only when backend-backed record context exists',
           actual: { required, popupRequired },
         });
       }
-      return pass('Level rank remains honest: real backend rank when ready, safe placeholder otherwise.', {
+      return pass('Level rank remains honest: record badge comes from backend-backed context; no fake rank is rendered.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,

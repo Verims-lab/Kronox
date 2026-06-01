@@ -6,13 +6,13 @@ import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 import { isAdminUser } from '@/lib/admin';
 import ScreenHeader from '@/components/layout/ScreenHeader';
-// Codex111/Codex146 — Profile Level reads the SAME shared Solo progress
+// Codex111/Codex146 — Profile Seviye reads the SAME shared Solo progress
 // helper the Solo Level Path uses. Visible Puan reads the shared Kronox
 // score helper so persisted Online score deltas are visible after matches.
-// A stale `currentLevel` can no longer make Profile drift from Solo; Level
+// A stale `currentLevel` can no longer make Profile drift from Solo; Seviye
 // remains real Solo progress while Puan is the persisted visible Kronox score.
 import { ensureSoloProgressBackfill, readSoloProgress, getSoloLevelCount } from '@/lib/soloLevels';
-// Codex114 — Profile Level tile MUST share the same source of truth Solo
+// Codex114 — Profile Seviye tile MUST share the same source of truth Solo
 // uses. Importing getCurrentPlayableLevel on its own line keeps that
 // contract self-evident from the import surface and matches the Health
 // case `profile_level_uses_shared_helper`.
@@ -20,7 +20,7 @@ import { getCurrentPlayableLevel } from '@/lib/soloProgressHelpers';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 import { getKronoxVisibleScore } from '@/lib/kronoxScore';
 // Phase 3 — Codex123 UI consolidation. Profile + Leaderboard now share
-// one StatTile to keep Puan/Level/Elmas visually aligned across both
+// one StatTile to keep Puan/Seviye/Elmas visually aligned across both
 // surfaces. The shared component is presentational only — the data
 // sources (summarizeSoloProgress / getCurrentPlayableLevel /
 // getLeaderboardDiamondValue) are unchanged.
@@ -38,7 +38,7 @@ import KronoxStatTile from '@/components/ui/KronoxStatTile';
 
 /**
  * ProfilePage — first-pass shell.
- * Sections: Arkadaşlarım, Stats (Puan / Level / Elmas), Ayarlar.
+ * Sections: Arkadaşlarım, Stats (Puan / Seviye / Elmas), Ayarlar.
  *
  * Data note:
  *  - identity (name/email): REAL — from base44.auth.me()
@@ -89,7 +89,7 @@ export default function ProfilePage() {
   // Codex116/Codex146/Codex152 — Stats tiles match Liderlik 3-card row:
   //   Puan  → REAL — getKronoxVisibleScore(user), i.e. Solo best-score total
   //           plus persisted User.online_progress.score.
-  //   Level → REAL — getCurrentPlayableLevel(soloProgress) (same source
+  //   Seviye → REAL — getCurrentPlayableLevel(soloProgress) (same source
   //           Solo Level Path uses).
   //   Elmas → REAL — canonical persisted User.diamonds via the shared
   //           Diamond economy helper. Safe 0 only while auth/bootstrap
@@ -103,7 +103,7 @@ export default function ProfilePage() {
   const visibleKronoxPuan = getKronoxVisibleScore(user, { soloProgress });
   const stats = [
     { id: 'puan',  label: 'Puan',  value: visibleKronoxPuan, icon: Trophy,   tint: 'gold' },
-    { id: 'level', label: 'Level', value: profileLevel, icon: Sparkles, tint: 'portal' },
+    { id: 'level', label: 'Seviye', value: profileLevel, icon: Sparkles, tint: 'portal' },
     { id: 'elmas', label: 'Elmas', value: diamondValue, icon: Gem, tint: 'cyan' },
   ];
 
@@ -130,8 +130,8 @@ export default function ProfilePage() {
           onLogout={handleLogout}
         />
 
-        {/* Stats: Puan / Level / Elmas — single horizontal row matching
-            Liderlik. Puan is visible Kronox score; Level is real
+        {/* Stats: Puan / Seviye / Elmas — single horizontal row matching
+            Liderlik. Puan is visible Kronox score; Seviye is real
             solo_progress; Elmas is canonical User.diamonds. Yıldız is
             intentionally NOT shown here anymore. */}
         <Section label="İstatistikler">

@@ -147,7 +147,7 @@ import React, { useEffect, useState } from 'react';
 //
 // Previous note: Codex115 — Liderlik Elmas stat correction:
 //   • Liderlik third stat card is now "Elmas", not "Yıldız".
-//   • Puan and Level still read real Solo progress summary values.
+//   • Puan and Seviye still read real Solo progress summary values.
 //   • Elmas reads an explicit profile/economy diamond field when present,
 //     otherwise shows a safe 0 placeholder.
 //   • Elmas is never derived from Solo stars, score, or completed levels.
@@ -227,7 +227,7 @@ import React, { useEffect, useState } from 'react';
 //   • LevelMapPath: new focusLevelNumber prop wins over the internal
 //     find(status==='current') so auto-scroll always targets the shared
 //     helper's "current playable" level.
-//   • ProfilePage: Level tile now reads through getCurrentPlayableLevel,
+//   • ProfilePage: Seviye tile now reads through getCurrentPlayableLevel,
 //     identical to Solo. Self-heals from the same signal.
 //   • NEW Health suite `solo_unlock_self_healing` (12 cases) including
 //     LIVE behavioral assertions for the 1-8 → Level 9 scenario, the
@@ -389,13 +389,13 @@ import React, { useEffect, useState } from 'react';
 //     and tutorial — DOKUNULMADI.
 //
 // Previous note: Codex106 — Solo gameplay polish + Profile/Solo consistency:
-//   • Bug 1 fix: Profile Level now reads User.solo_progress.currentLevel
+//   • Bug 1 fix: Profile Seviye now reads User.solo_progress.currentLevel
 //     via the SAME readSoloProgress helper SoloChallenge uses. Previously
 //     Profile hard-coded `value: 1`, so reaching Solo Level 3 left Profile
 //     stuck at 1. Single source of truth restored.
-//   • Bug 2 fix: Result popup next-level CTA is now "Level X" with a Play
-//     icon (Play already imported). The old "Level X'e Geç" string is
-//     removed. Replay still says "Tekrar Oyna"; failed attempts never get
+//   • Bug 2 fix: Result popup next-level CTA no longer uses the old
+//     "Level X'e Geç" string. Replay still says "Tekrar Oyna";
+//     failed attempts never get
 //     an enabled next-level button.
 //   • Bug 3 fix: Last-10-second audio countdown. SoloLevelTimer plays
 //     sounds.urgencyTick() exactly once per remaining second from 10→1,
@@ -489,11 +489,11 @@ import React, { useEffect, useState } from 'react';
 //
 // Codex124 — Phase 3: UI/UX standardization + medium-risk cleanup.
 //   • Shared <KronoxStatTile /> introduced under components/ui/.
-//     Profile + Leaderboard now render Puan / Level / Elmas through the
+//     Profile + Leaderboard now render Puan / Seviye / Elmas through the
 //     same presentational component (two near-duplicate inline StatTile
 //     definitions removed). Data sources unchanged:
 //       - Puan  → summarizeSoloProgress(...).totalSoloScore
-//       - Level → getCurrentPlayableLevel(...) (Profile) /
+//       - Seviye → getCurrentPlayableLevel(...) (Profile) /
 //                 summarizeSoloProgress(...).currentLevel (Leaderboard)
 //       - Elmas → getLeaderboardDiamondValue(user) on both surfaces
 //   • Shared style tokens introduced under lib/kronoxStyleTokens.js
