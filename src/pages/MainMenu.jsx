@@ -20,9 +20,15 @@ import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 const BACKGROUND_ASSET = '/assets/ui/Kronox_Home_Fantasy_background.webp';
 const WIDE_STAGE_QUERY = '(min-aspect-ratio: 9 / 16)';
 
-// Solo button: single transparent WebP asset. Pressed feedback is delivered
-// via framer-motion whileTap — no separate pressed image. The Online button
-// keeps its existing dual-asset pressed swap until its own redesign lands.
+// Solo button: brand-new generated asset (Kronox_Home_Button_Solo_v2).
+// A fresh filename is used so any cached copy of the previous Solo button
+// (Kronox_Home_Button_Solo.{png,webp} or _Pressed.png) cannot be served.
+// None of those legacy Solo paths are referenced anywhere in this runtime
+// anymore. Pressed feedback is delivered via framer-motion whileTap —
+// no separate pressed image. The Online button keeps its existing
+// dual-asset pressed swap until its own redesign lands.
+const SOLO_BUTTON_V2 = 'https://media.base44.com/images/public/6a05b47e401bb23c2f21a522/7135d0bd4_generated_image.png';
+
 const HOME_BUTTON_ASSETS = {
   online: {
     ariaLabel: 'Online Kapışma',
@@ -31,8 +37,8 @@ const HOME_BUTTON_ASSETS = {
   },
   solo: {
     ariaLabel: 'Solo Meydan Okuma',
-    normal: 'https://media.base44.com/images/public/6a05b47e401bb23c2f21a522/5d4ac5b92_generated_image.png',
-    pressed: 'https://media.base44.com/images/public/6a05b47e401bb23c2f21a522/5d4ac5b92_generated_image.png',
+    normal: SOLO_BUTTON_V2,
+    pressed: SOLO_BUTTON_V2,
   },
 };
 
