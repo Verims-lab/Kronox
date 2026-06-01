@@ -341,7 +341,7 @@ export const EXTRA_TESTS = [
 
   /* 10. Profile uses the same shared helper as Solo. */
   makeCase('solo_unlock_self_healing', 'profile_level_uses_shared_helper',
-    'ProfilePage computes its Level tile via getCurrentPlayableLevel — the same source of truth Solo uses',
+    'ProfilePage computes its Seviye tile via getCurrentPlayableLevel — the same source of truth Solo uses',
     () => {
       const required = missingTokens(profilePageSource, [
         "import { getCurrentPlayableLevel } from '@/lib/soloProgressHelpers'",
@@ -352,7 +352,7 @@ export const EXTRA_TESTS = [
         "value: 1, ",
       ]);
       if (required.length || forbidden.length) {
-        return fail('Profile Level tile is not on the shared source of truth.', {
+        return fail('Profile Seviye tile is not on the shared source of truth.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'pages/ProfilePage.jsx',
@@ -361,7 +361,7 @@ export const EXTRA_TESTS = [
           actual: { required, forbidden },
         });
       }
-      return pass('Profile Level uses the shared helper.', {
+      return pass('Profile Seviye uses the shared helper.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });

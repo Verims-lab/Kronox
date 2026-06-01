@@ -14,7 +14,7 @@ import profilePageSource from '../../pages/ProfilePage.jsx?raw';
 import soloChallengeSource from '../../pages/SoloChallenge.jsx?raw';
 import onlineChallengeSource from '../lobby/OnlineChallengeScreen.jsx?raw';
 import screenHeaderSource from '../layout/ScreenHeader.jsx?raw';
-import scoringRulesSource from '../../docs/KRONOX_SCORING_RULES.md?raw';
+import scoringRulesSource from '../../../docs/KRONOX_SCORING_RULES.md?raw';
 import leaderboardLibSource from '../../lib/leaderboard.js?raw';
 import leaderboardFunctionSource from '../../../base44/functions/getSoloLeaderboard/entry.ts?raw';
 import applyOnlineResultSource from '../../lib/applyOnlineResult.js?raw';

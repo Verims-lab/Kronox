@@ -28,7 +28,7 @@
 //   - pages/SoloChallenge.jsx  (default selection)
 //   - components/game/simulationPanelSoloUnlockCases.js  (Health)
 //   - components/game/simulationPanelSoloProgressCases.js  (Health)
-//   - pages/ProfilePage.jsx  (Level tile, indirectly via readSoloProgress
+//   - pages/ProfilePage.jsx  (Seviye tile, indirectly via readSoloProgress
 //     → getCurrentPlayableLevel)
 
 // ─── Solo attempt scoring constants ───────────────────────────────────

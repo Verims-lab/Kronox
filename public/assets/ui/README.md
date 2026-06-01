@@ -1,15 +1,20 @@
-# UI Hero Assets
+# Kronox UI Assets
 
-Drop your static hero/background images here. The app will automatically use them.
+This folder contains production UI images and legacy/generated visual assets.
+Do not assume that dropping a file here automatically wires it into the app;
+runtime usage must be explicit in source.
 
-## Files:
+## Current Runtime Notes
 
-| File | Used in |
-|------|---------|
-| `home-hero.webp` | Main Menu — full background hero image |
-| `timeline-hero.webp` | Main Menu — timeline strip visual |
+- The Home screen is currently CSS/motion-driven in `src/pages/MainMenu.jsx`.
+- Home press feedback is CSS/framer-motion based, not a pressed-image swap.
+- `public/kronox-sw.js` still pre-caches `kronox_hero_section_v1.webp`.
+- Prefer WebP for production UI images.
 
-## Specs:
-- `home-hero.webp`: Recommended ~750×500px, will be used as background with overlay
-- `timeline-hero.webp`: Recommended ~750×90px, displayed as-is in a rounded strip
-- Format: WebP preferred
+## Cleanup Rules
+
+- Keep assets only when source code, the service worker, or documentation
+  intentionally references them.
+- Remove old PNG/pressed-button variants when the active UI no longer imports
+  them.
+- Do not add Daily Quest assets while Günün Görevi remains paused.

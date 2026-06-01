@@ -472,7 +472,7 @@ Important:
 - Elmas economy is **separate** from Kronox Puan. The canonical balance is
   `User.diamonds`, read through `getDiamondBalance` /
   `getLeaderboardDiamondValue`. Starter and daily login grants must not
-  mutate Solo or Online Puan components.
+  mutate the Solo score component or Online delta component.
 
 ---
 

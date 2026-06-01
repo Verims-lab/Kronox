@@ -9,7 +9,7 @@ import soloLevelsSource from '../../lib/soloLevels.js?raw';
 import leaderboardSource from '../../lib/leaderboard.js?raw';
 import applyOnlineResultSource from '../../lib/applyOnlineResult.js?raw';
 import dataRetentionSource from '../../lib/dataRetention.js?raw';
-import scoringDocsSource from '../../docs/KRONOX_SCORING_RULES.md?raw';
+import scoringDocsSource from '../../../docs/KRONOX_SCORING_RULES.md?raw';
 import economyDocsSource from '../../../docs/KRONOX_ECONOMY_RULES.md?raw';
 import {
   diamondTransactionEntitySource,
