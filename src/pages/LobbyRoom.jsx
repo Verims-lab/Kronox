@@ -20,8 +20,10 @@ import {
 import {
   acceptGameInvite,
   createGameInvites,
+  getLobbyStaleDiagnostics,
   isGameInviteExpired,
   isLobbyStale,
+  LOBBY_STALE_AFTER_MS,
   rejectGameInvite,
 } from '@/lib/inviteApi';
 import { loadActiveLobbyForUser } from '@/lib/activeLobby';
@@ -121,6 +123,7 @@ export default function LobbyRoom() {
     setError('');
     const code = normalizeCode(generateCode());
     const { identity, player } = buildPlayerPayload(user, derivedName);
+    const createdAt = new Date();
 
     const lobbyPayload = {
       code,
@@ -133,6 +136,9 @@ export default function LobbyRoom() {
       year_end: 2020,
       turn_duration: 60,
       win_card_count: 10,
+      created_at: createdAt.toISOString(),
+      last_activity_at: createdAt.toISOString(),
+      expires_at: new Date(createdAt.getTime() + LOBBY_STALE_AFTER_MS).toISOString(),
     };
     // Optional metadata — inert; authority logic does not read these yet.
     if (typeof maxPlayers === 'number') lobbyPayload.max_players = maxPlayers;
@@ -188,6 +194,8 @@ export default function LobbyRoom() {
   useEffect(() => {
     const joined = location.state?.joinedLobby;
     if (joined && !lobby) {
+      const staleDiagnostics = getLobbyStaleDiagnostics(joined);
+      debugLog('[LobbyRoom] joined lobby stale check:', staleDiagnostics);
       if (isLobbyStale(joined)) {
         setError('Lobi süresi doldu. Yeni bir meydan okuma başlatabilirsin.');
         navigate('/lobby', { replace: true });

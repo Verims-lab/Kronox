@@ -17,6 +17,7 @@ import {
   isInvitePending,
   mergeActiveIncomingGameInvites,
   normalizeEmail,
+  parseKronoxTimestamp,
   parseInviteExpiresAt,
   traceGameInviteLifecycle,
 } from '@/lib/gameInviteSelectors';
@@ -37,10 +38,48 @@ export {
 
 export function isLobbyStale(lobby, now = Date.now()) {
   if (!lobby || lobby.status !== 'waiting') return false;
-  const raw = lobby.updated_date || lobby.created_date || lobby.created_at;
-  const time = raw ? new Date(raw).getTime() : NaN;
-  if (!Number.isFinite(time)) return false;
-  return (now - time) > LOBBY_STALE_AFTER_MS;
+  const expiresAt = getLobbyExpiresAt(lobby);
+  if (!Number.isFinite(expiresAt)) return false;
+  return expiresAt <= now;
+}
+
+export function getLobbyTouchedAt(lobby) {
+  return parseKronoxTimestamp(
+    lobby?.last_activity_at ||
+    lobby?.lastActivityAt ||
+    lobby?.updated_at ||
+    lobby?.updated_date ||
+    lobby?.created_at ||
+    lobby?.created_date,
+  );
+}
+
+export function getLobbyExpiresAt(lobby) {
+  const explicit = parseKronoxTimestamp(lobby?.expires_at || lobby?.expiresAt);
+  const touched = getLobbyTouchedAt(lobby);
+  const derived = Number.isFinite(touched) ? touched + LOBBY_STALE_AFTER_MS : NaN;
+  if (Number.isFinite(explicit) && Number.isFinite(derived)) {
+    return Math.max(explicit, derived);
+  }
+  return Number.isFinite(explicit) ? explicit : derived;
+}
+
+export function getLobbyStaleDiagnostics(lobby, now = Date.now()) {
+  const touchedAt = getLobbyTouchedAt(lobby);
+  const expiresAt = getLobbyExpiresAt(lobby);
+  return {
+    lobbyId: lobby?.id || null,
+    status: lobby?.status || null,
+    created_at: lobby?.created_at || lobby?.created_date || null,
+    updated_at: lobby?.updated_at || lobby?.updated_date || null,
+    last_activity_at: lobby?.last_activity_at || null,
+    expires_at: lobby?.expires_at || null,
+    touchedAt,
+    expiresAt,
+    now,
+    remainingMs: Number.isFinite(expiresAt) ? expiresAt - now : NaN,
+    stale: Number.isFinite(expiresAt) ? expiresAt <= now : false,
+  };
 }
 
 export function getGameInviteCreatedAt(invite) {

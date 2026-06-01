@@ -17,6 +17,36 @@ const normalizeCode = (code) =>
     .replace(/\s+/g, '')
     .replace(/[^\w]/g, '');
 
+const readTime = (value) => {
+  if (value == null) return NaN;
+  if (value instanceof Date) {
+    const t = value.getTime();
+    return Number.isFinite(t) ? t : NaN;
+  }
+  const str = String(value).trim();
+  if (!str) return NaN;
+  const hasZone = /Z$/i.test(str) || /[+-]\d{2}:?\d{2}$/.test(str);
+  const t = new Date(hasZone ? str : `${str}Z`).getTime();
+  return Number.isFinite(t) ? t : NaN;
+};
+
+const getLobbyTouchedAt = (lobby) => readTime(
+  lobby?.last_activity_at ||
+  lobby?.lastActivityAt ||
+  lobby?.updated_at ||
+  lobby?.updated_date ||
+  lobby?.created_at ||
+  lobby?.created_date,
+);
+
+const getLobbyExpiry = (lobby, staleAfterMs) => {
+  const explicit = readTime(lobby?.expires_at || lobby?.expiresAt);
+  const touched = getLobbyTouchedAt(lobby);
+  const derived = Number.isFinite(touched) ? touched + staleAfterMs : NaN;
+  if (Number.isFinite(explicit) && Number.isFinite(derived)) return Math.max(explicit, derived);
+  return Number.isFinite(explicit) ? explicit : derived;
+};
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -61,9 +91,8 @@ Deno.serve(async (req) => {
     // 'waiting' state for longer than 10 minutes is no longer joinable.
     // This blocks code-based joins on lobbies the host abandoned.
     const LOBBY_STALE_AFTER_MS = 10 * 60 * 1000;
-    const lobbyTouchedRaw = lobby?.updated_date || lobby?.created_date;
-    const lobbyTouchedAt = lobbyTouchedRaw ? new Date(lobbyTouchedRaw).getTime() : NaN;
-    if (Number.isFinite(lobbyTouchedAt) && (Date.now() - lobbyTouchedAt) > LOBBY_STALE_AFTER_MS) {
+    const lobbyExpiresAt = getLobbyExpiry(lobby, LOBBY_STALE_AFTER_MS);
+    if (Number.isFinite(lobbyExpiresAt) && lobbyExpiresAt <= Date.now()) {
       return Response.json({
         found: true,
         joinable: false,
@@ -71,7 +100,7 @@ Deno.serve(async (req) => {
         debug: {
           rawCode, normalizedCode, queryResultCount: lobbies.length,
           matchedStatus: lobby.status, matchedId: lobby.id,
-          stale: true, lobbyTouchedAt,
+          stale: true, lobbyExpiresAt,
         },
       });
     }
@@ -107,8 +136,10 @@ Deno.serve(async (req) => {
 
       const newPlayers = [...currentPlayers, newPlayer];
 
+      const nowIso = new Date().toISOString();
       const updatedLobby = await base44.asServiceRole.entities.Lobby.update(lobby.id, {
         players: newPlayers,
+        last_activity_at: nowIso,
       });
 
       const verifiedLobby = await base44.asServiceRole.entities.Lobby.get(lobby.id);
@@ -124,6 +155,7 @@ Deno.serve(async (req) => {
         });
         const retryLobby = await base44.asServiceRole.entities.Lobby.update(lobby.id, {
           players: retryPlayers,
+          last_activity_at: nowIso,
         });
 
         return Response.json({
