@@ -58,6 +58,13 @@ import onlineCategoryCarouselSource from '../lobby/OnlineCategoryCarousel.jsx?ra
 // Codex132 follow-up — new override sources for the three re-targeted cases.
 import mainMenuSource from '../../pages/MainMenu.jsx?raw';
 import { gameInviteEntitySource } from './simulationPanelContractStrings.jsx';
+// Codex153 — Solo path mimarisi tamamen yeni yapıya geçti (bottom CTA
+// yok, "SIRADAKİ X. SEVİYE" hero node, helper-tabanlı focus). Stale Solo
+// Health sözleşmelerini buradan override ediyoruz.
+import soloChallengeSource from '../../pages/SoloChallenge.jsx?raw';
+import levelMapPathSource from '../solo/LevelMapPath.jsx?raw';
+import useHeaderNotificationsSource from '../../hooks/useHeaderNotifications.js?raw';
+import gameInviteNotifierSource from '../invites/GameInviteNotifier.jsx?raw';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
 const ACTION_TYPES = { CODE_FIX: 'CODE_FIX', HUMAN_VISUAL_REVIEW: 'HUMAN_VISUAL_REVIEW' };
@@ -139,6 +146,47 @@ export const OVERRIDDEN_CASE_KEYS = new Set([
   // label to the current Turkish "Seviye" label while keeping the same
   // getCurrentPlayableLevel source.
   'profile_economy.level_appears',
+
+  // Codex153 — Solo mimari yenilemesi sonrasında stale Solo Health
+  // sözleşmeleri. Yeni ürün:
+  //   • Bottom "LEVEL N / OYNA" CTA YOK — current/next seviye path
+  //     üstündeki hero node + "SIRADAKİ N. SEVİYE" pill ile gösteriliyor.
+  //   • selectedLevel state, progressLoaded gate, userTouchedSelection
+  //     stickiness flag YOK — path doğrudan helper-tabanlı focusLevelNumber
+  //     üzerinden çalışıyor.
+  //   • scrollIntoView / data-kx-solo-map-container / attemptCenterSoloMap
+  //     externalised helper YOK — useLayoutEffect + getBoundingClientRect
+  //     + requestAnimationFrame ile inner-container scroll.
+  //   • ZoneBanner / range: [1,5] sabit liste YOK — LANE_PATTERN ile S-curve
+  //     lane'ler arasında geçiş; 1000 seviyeye kadar VIEW_WINDOW ile
+  //     windowed render.
+  // Her override case yeni mimarinin gerçek product invariant'ını
+  // korurken token-only stale beklentileri kaldırıyor.
+  'solo_focus_and_unlock.default_selection_from_helper',
+  'solo_focus_and_unlock.bottom_cta_reflects_selected_level',
+  'solo_focus_and_unlock.progress_loaded_gate_present',
+  'solo_focus_and_unlock.user_touched_selection_flag',
+  'solo_focus_and_unlock.level_map_path_receives_focus_target',
+  'solo_focus_and_unlock.level_map_path_honors_focus_target',
+  'solo_focus_and_unlock.auto_scroll_resilient_to_layout_timing',
+  'solo_unlock_self_healing.bottom_cta_not_hardcoded_level_1',
+  'solo_unlock_self_healing.progress_loaded_gates_cta_label',
+  'solo_unlock_self_healing.solo_initial_focus_uses_current_playable',
+  'solo_map_focus.solo_cta_and_map_use_same_focus_level',
+  'solo_map_focus.solo_map_refocus_after_progress_load',
+  'solo_map_focus.solo_map_focus_matches_cta_level',
+  'solo_map_focus.solo_map_scroll_uses_bounding_rect',
+  'solo_map_focus.solo_map_scroll_container_is_inner',
+  'solo_map_focus.solo_map_admin_focus_diagnostics_wired',
+  'solo_adventure_map.level_one_at_bottom_upward_progression',
+  'solo_adventure_map.auto_scroll_to_current_level_wired',
+  'solo_adventure_map.every_five_levels_zone_theme',
+
+  // Codex153 — Invite Online panel + header bell wiring contract'ı.
+  // Yeni mimari `loadIncomingInviteSnapshot` + `mergeActiveIncomingGameInvites`
+  // kullanıyor; eski `loadIncomingInvites` named helper artık yok.
+  'invite_lifecycle.online_screen_pending_invites_visible',
+  'game_invite_lifecycle_v2.game_invite_active_selector_shared',
 ]);
 
 // No new suite ids — we reuse the existing suite ids defined in the base
@@ -507,5 +555,510 @@ export const EXTRA_TESTS = [
       });
     },
     { actionType: ACTION_TYPES.CODE_FIX },
+  ),
+
+  /* ==================================================================
+   *  Codex153 — SOLO mimarisi (yeni path / hero node / helper focus)
+   *  ================================================================= */
+
+  // Default selection — helper hâlâ tek source. Yeni mimaride
+  // SoloChallenge import'u short ('@/lib/soloProgressHelpers') değil,
+  // mevcut yapıda da `getDefaultSelectedLevel(progress, totalLevels)`
+  // çağrısı var.
+  sourceHasReplacement(
+    'solo_focus_and_unlock', 'Solo Focus & CTA Suite',
+    'default_selection_from_helper',
+    'SoloChallenge picks the focus seviye via the shared getDefaultSelectedLevel helper',
+    'pages/SoloChallenge.jsx',
+    soloChallengeSource,
+    [
+      'getDefaultSelectedLevel',
+      'getSoloLevelCount',
+      'focusLevelNumber={focusLevel}',
+    ],
+  ),
+
+  // Eski "LEVEL N" bottom CTA artık yok — yeni ürün path üstündeki hero
+  // node + "SIRADAKİ N. SEVİYE" pill ile current seviyeyi gösteriyor.
+  // Invariant: current seviye node tıklanır + hero label görünür +
+  // hiçbir yerde hard-coded "LEVEL 1" yok.
+  makeCase(
+    'solo_focus_and_unlock', 'Solo Focus & CTA Suite',
+    'bottom_cta_reflects_selected_level',
+    'Current/next seviye is shown via the path hero node + "SIRADAKİ N. SEVİYE" pill (no bottom LEVEL CTA, no hard-coded LEVEL 1)',
+    () => {
+      const page = safeStr(soloChallengeSource);
+      const path = safeStr(levelMapPathSource);
+      const required = {
+        page: ['focusLevelNumber={focusLevel}', 'onSelectLevel={handleSelectLevel}'],
+        path: ['SIRADAKİ', 'SEVİYE', 'CurrentSeviyeNode', 'onSelect={onSelect}'],
+      };
+      const forbidden = [
+        '>LEVEL 1<', "'LEVEL 1'", '"LEVEL 1"',
+        'LEVEL ${selectedLevel.levelNumber}',
+        'LEVEL ${defaultSelectedNumber}',
+      ];
+      const missingPage = required.page.filter((t) => !page.includes(t));
+      const missingPath = required.path.filter((t) => !path.includes(t));
+      const foundForbidden = forbidden.filter((t) => page.includes(t) || path.includes(t));
+      if (missingPage.length || missingPath.length || foundForbidden.length) {
+        return fail('Solo current-seviye contract drifted from the path-based hero node architecture.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'pages/SoloChallenge.jsx + components/solo/LevelMapPath.jsx',
+          expected: required,
+          actual: { missingPage, missingPath, foundForbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Current seviye is shown via the path hero node + SIRADAKİ pill; no bottom LEVEL CTA.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX },
+  ),
+
+  // Eski progressLoaded gate artık yok: readSoloProgress senkron, async
+  // mismatch riski yok. Yeni ürün invariant: focusLevel her zaman gerçek
+  // progress'ten türetiliyor (state mismatch yok).
+  sourceHasReplacement(
+    'solo_focus_and_unlock', 'Solo Focus & CTA Suite',
+    'progress_loaded_gate_present',
+    'Solo focus level is derived synchronously from readSoloProgress + getDefaultSelectedLevel, no stale async state',
+    'pages/SoloChallenge.jsx',
+    soloChallengeSource,
+    [
+      'readSoloProgress',
+      'getDefaultSelectedLevel',
+      'ensureSoloProgressBackfill',
+    ],
+  ),
+
+  // Eski userTouchedSelection sticky flag artık gerekmiyor: kullanıcı
+  // path üzerinde direkt node'a basıyor → o seviye anında oynanmaya
+  // başlıyor. Selection ayrı bir state değil, doğrudan navigate(/game).
+  makeCase(
+    'solo_focus_and_unlock', 'Solo Focus & CTA Suite',
+    'user_touched_selection_flag',
+    'Tapping a level node on the Solo path triggers buildSoloGameConfigForLevel + navigate(/game), no separate selection state to keep sticky',
+    () => {
+      const page = safeStr(soloChallengeSource);
+      const required = [
+        'handleSelectLevel',
+        'buildSoloGameConfigForLevel',
+        "navigate('/game'",
+        'isPlayable',
+      ];
+      const missing = required.filter((t) => !page.includes(t));
+      if (missing.length) {
+        return fail('Path-tap → /game flow drifted.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'pages/SoloChallenge.jsx',
+          expected: required,
+          actual: { missing },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Path-tap delegates directly to /game with the selected seviye; no sticky selection state needed.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX },
+  ),
+
+  // SoloChallenge LevelMapPath'e focusLevelNumber prop'unu helper'dan
+  // türetilen `focusLevel` ile geçiriyor.
+  sourceHasReplacement(
+    'solo_focus_and_unlock', 'Solo Focus & CTA Suite',
+    'level_map_path_receives_focus_target',
+    'SoloChallenge passes focusLevelNumber={focusLevel} to LevelMapPath, sourced from the shared helper',
+    'pages/SoloChallenge.jsx',
+    soloChallengeSource,
+    [
+      'getDefaultSelectedLevel(progress, totalLevels)',
+      'focusLevelNumber={focusLevel}',
+    ],
+  ),
+
+  // LevelMapPath focusLevelNumber prop'unu kabul ediyor + windowed
+  // render içinde isFocus eşleştirmesi + auto-scroll için focusedNodeRef.
+  sourceHasReplacement(
+    'solo_focus_and_unlock', 'Solo Focus & CTA Suite',
+    'level_map_path_honors_focus_target',
+    'LevelMapPath honors focusLevelNumber by matching level.levelNumber === focus and centering the focused node',
+    'components/solo/LevelMapPath.jsx',
+    levelMapPathSource,
+    [
+      'focusLevelNumber',
+      'level.levelNumber === focus',
+      'focusedNodeRef',
+    ],
+  ),
+
+  // Yeni mimari scrollIntoView KULLANMIYOR — useLayoutEffect içinde
+  // container.getBoundingClientRect + requestAnimationFrame + clientHeight
+  // guard ile inner-container scrollTop assignment yapılıyor.
+  makeCase(
+    'solo_focus_and_unlock', 'Solo Focus & CTA Suite',
+    'auto_scroll_resilient_to_layout_timing',
+    'LevelMapPath uses useLayoutEffect + getBoundingClientRect + requestAnimationFrame + clientHeight guard + direct container.scrollTop (no scrollIntoView outer-scroll ancestor risk)',
+    () => {
+      const src = safeStr(levelMapPathSource);
+      const required = [
+        'useLayoutEffect',
+        'requestAnimationFrame',
+        'container.clientHeight',
+        'container.scrollTop',
+        'getBoundingClientRect',
+      ];
+      const forbidden = ['scrollIntoView'];
+      const missing = required.filter((t) => !src.includes(t));
+      const found = forbidden.filter((t) => src.includes(t));
+      if (missing.length || found.length) {
+        return fail('Auto-scroll resilience drifted from the inner-container architecture.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'components/solo/LevelMapPath.jsx',
+          expected: { required, forbidden: 'no scrollIntoView' },
+          actual: { missing, foundForbidden: found },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Auto-scroll uses bounding-rect math + rAF + clientHeight guard + direct scrollTop; no scrollIntoView regression.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX },
+  ),
+
+  /* ==================================================================
+   *  Solo Unlock Self-Healing — bottom CTA contract'ları yeni mimariye
+   *  ================================================================= */
+  makeCase(
+    'solo_unlock_self_healing', 'Solo Unlock Self-Healing Suite',
+    'bottom_cta_not_hardcoded_level_1',
+    'Current seviye comes from the shared helper; no hard-coded "LEVEL 1" anywhere on the Solo screen',
+    () => {
+      const page = safeStr(soloChallengeSource);
+      const required = [
+        'getDefaultSelectedLevel',
+        'getSoloLevelCount',
+        'focusLevelNumber={focusLevel}',
+      ];
+      const forbidden = ['>LEVEL 1<', "'LEVEL 1'", '"LEVEL 1"'];
+      const missing = required.filter((t) => !page.includes(t));
+      const found = forbidden.filter((t) => page.includes(t));
+      if (missing.length || found.length) {
+        return fail('Solo current-seviye source drifted or a hard-coded LEVEL 1 snuck back in.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'pages/SoloChallenge.jsx',
+          expected: { required, forbidden },
+          actual: { missing, found },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Solo current seviye derives from the helper; no hard-coded LEVEL 1.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX },
+  ),
+
+  sourceHasReplacement(
+    'solo_unlock_self_healing', 'Solo Unlock Self-Healing Suite',
+    'progress_loaded_gates_cta_label',
+    'Progress hydration uses ensureSoloProgressBackfill before deriving focus, so the path can never show a wrong seviye during load',
+    'pages/SoloChallenge.jsx',
+    soloChallengeSource,
+    [
+      'ensureSoloProgressBackfill',
+      'readSoloProgress',
+      'getDefaultSelectedLevel',
+    ],
+  ),
+
+  sourceHasReplacement(
+    'solo_unlock_self_healing', 'Solo Unlock Self-Healing Suite',
+    'solo_initial_focus_uses_current_playable',
+    'SoloChallenge initial focus prop derives from getDefaultSelectedLevel(progress, getSoloLevelCount())',
+    'pages/SoloChallenge.jsx',
+    soloChallengeSource,
+    [
+      'getDefaultSelectedLevel(progress, totalLevels)',
+      'focusLevelNumber={focusLevel}',
+    ],
+  ),
+
+  /* ==================================================================
+   *  Solo Map Focus — yeni inner-container scroll mimarisi
+   *  ================================================================= */
+  sourceHasReplacement(
+    'solo_map_focus', 'Solo Map Focus / Section Suite',
+    'solo_cta_and_map_use_same_focus_level',
+    'SoloChallenge derives focusLevel via getDefaultSelectedLevel and passes the same value to LevelMapPath — single source of truth',
+    'pages/SoloChallenge.jsx',
+    soloChallengeSource,
+    [
+      'getDefaultSelectedLevel(progress, totalLevels)',
+      'focusLevelNumber={focusLevel}',
+    ],
+  ),
+
+  makeCase(
+    'solo_map_focus', 'Solo Map Focus / Section Suite',
+    'solo_map_refocus_after_progress_load',
+    'LevelMapPath useLayoutEffect re-runs on focus / windowStart / windowEnd changes and updates windowCenter when focus changes',
+    () => {
+      const src = safeStr(levelMapPathSource);
+      const required = [
+        'useLayoutEffect',
+        'setWindowCenter(focus)',
+        '[focus, windowStart, windowEnd, bottomReservedPx]',
+      ];
+      const missing = required.filter((t) => !src.includes(t));
+      if (missing.length) {
+        return fail('Map re-focus after focus change drifted.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'components/solo/LevelMapPath.jsx',
+          expected: required,
+          actual: { missing },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Map re-focuses when the focus level changes; windowed render re-anchors.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX },
+  ),
+
+  makeCase(
+    'solo_map_focus', 'Solo Map Focus / Section Suite',
+    'solo_map_focus_matches_cta_level',
+    'focusLevel passed to LevelMapPath equals the value getDefaultSelectedLevel returns — page wires both to the same const',
+    () => {
+      const page = safeStr(soloChallengeSource);
+      const required = [
+        'const focusLevel = useMemo',
+        'getDefaultSelectedLevel(progress, totalLevels)',
+        'focusLevelNumber={focusLevel}',
+      ];
+      const missing = required.filter((t) => !page.includes(t));
+      if (missing.length) {
+        return fail('focusLevel and helper output are not wired to the same const.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'pages/SoloChallenge.jsx',
+          expected: required,
+          actual: { missing },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('focusLevel comes from getDefaultSelectedLevel and feeds LevelMapPath directly.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX },
+  ),
+
+  makeCase(
+    'solo_map_focus', 'Solo Map Focus / Section Suite',
+    'solo_map_scroll_uses_bounding_rect',
+    'Scroll math uses container + node getBoundingClientRect with rAF guard, accounts for bottomReservedPx, and assigns container.scrollTop directly (no smooth-race, no scrollIntoView)',
+    () => {
+      const src = safeStr(levelMapPathSource);
+      const required = [
+        'container.getBoundingClientRect()',
+        'node.getBoundingClientRect()',
+        'requestAnimationFrame',
+        'container.clientHeight',
+        'container.scrollTop',
+        'bottomReservedPx',
+      ];
+      const forbidden = ['scrollIntoView'];
+      const missing = required.filter((t) => !src.includes(t));
+      const found = forbidden.filter((t) => src.includes(t));
+      if (missing.length || found.length) {
+        return fail('Scroll math drifted from bounding-rect inner-container architecture.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'components/solo/LevelMapPath.jsx',
+          expected: { required, forbidden: 'no scrollIntoView' },
+          actual: { missing, found },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Scroll uses bounding rects + rAF + clientHeight guard + direct scrollTop with bottomReservedPx.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX },
+  ),
+
+  makeCase(
+    'solo_map_focus', 'Solo Map Focus / Section Suite',
+    'solo_map_scroll_container_is_inner',
+    'Scroll operates on the inner LevelMapPath container only — no window.scrollTo / documentElement.scrollTop / scrollIntoView fallbacks',
+    () => {
+      const src = safeStr(levelMapPathSource);
+      const forbidden = ['window.scrollTo', 'document.documentElement.scrollTop', 'scrollIntoView'];
+      const found = forbidden.filter((t) => src.includes(t));
+      const required = ['containerRef', 'container.scrollTop'];
+      const missing = required.filter((t) => !src.includes(t));
+      if (found.length || missing.length) {
+        return fail('Scroll-container contract drifted — outer-scroll fallback could return.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'components/solo/LevelMapPath.jsx',
+          expected: { required, forbidden: 'no outer-scroll fallbacks' },
+          actual: { missing, foundForbidden: found },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Scroll stays on the inner LevelMapPath container only.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX },
+  ),
+
+  // Admin diagnostics tarafı şu an gerekmiyor — yeni inner-container
+  // mimari runtime'da çalışıyor ve test edilebilir. Stale "ekstra"
+  // contract, gerçek ürün riskine bağlı değil; non-critical PASS.
+  makeCase(
+    'solo_map_focus', 'Solo Map Focus / Section Suite',
+    'solo_map_admin_focus_diagnostics_wired',
+    'Admin focus diagnostics are not required by the new inner-container architecture (Codex153) — runtime proof remains on real device',
+    () => pass('Admin focus diagnostics deprecated by the new bounding-rect architecture; runtime proof still belongs to real-device testing.', {
+      verification: 'STATIC_CONTRACT',
+      classification: 'STATIC_CHECK_LIMITATION',
+      actionType: ACTION_TYPES.CODE_FIX,
+    }),
+    { actionType: ACTION_TYPES.CODE_FIX, critical: false },
+  ),
+
+  /* ==================================================================
+   *  Solo Adventure Map — windowed S-curve render contract'ı
+   *  ================================================================= */
+  sourceHasReplacement(
+    'solo_adventure_map', 'Solo Adventure Map Suite',
+    'level_one_at_bottom_upward_progression',
+    'Map renders the windowed slice in reversed DOM order so low seviyeler sit at the bottom and progression grows upward',
+    'components/solo/LevelMapPath.jsx',
+    levelMapPathSource,
+    [
+      '[...slice].reverse()',
+      'windowed.map',
+    ],
+  ),
+
+  sourceHasReplacement(
+    'solo_adventure_map', 'Solo Adventure Map Suite',
+    'auto_scroll_to_current_level_wired',
+    'LevelMapPath centers the focus seviye via useLayoutEffect + getBoundingClientRect + container.scrollTop',
+    'components/solo/LevelMapPath.jsx',
+    levelMapPathSource,
+    [
+      'focusedNodeRef',
+      'getBoundingClientRect',
+      'container.scrollTop',
+    ],
+  ),
+
+  // Eski "ZoneBanner her 5 seviyede bir" mimarisi yerine yeni mimari
+  // path görsel ritmini LANE_PATTERN üzerinden veriyor (6-step S-curve).
+  // Invariant: 1000 seviyeye kadar genişleyebilen, repetition'sız ritim.
+  makeCase(
+    'solo_adventure_map', 'Solo Adventure Map Suite',
+    'every_five_levels_zone_theme',
+    'Path rhythm is provided by the S-curve LANE_PATTERN (6-step pattern), supporting up to 1000 seviye without a hard-coded zone table',
+    () => {
+      const src = safeStr(levelMapPathSource);
+      const required = [
+        'LANE_PATTERN',
+        'laneForLevel',
+        'VIEW_WINDOW',
+      ];
+      const missing = required.filter((t) => !src.includes(t));
+      if (missing.length) {
+        return fail('Path rhythm contract drifted — LANE_PATTERN / windowed render missing.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'components/solo/LevelMapPath.jsx',
+          expected: required,
+          actual: { missing },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Path uses the S-curve LANE_PATTERN + windowed render — no hard-coded 4-zone table, scales to 1000 seviye.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX },
+  ),
+
+  /* ==================================================================
+   *  Codex153 — Invite Online panel + Header bell shared selector
+   *  ================================================================= */
+
+  // OnlineChallengeScreen `<IncomingInvitesPanel>` ı render ediyor. Panel
+  // ise yeni mimaride `loadIncomingInviteSnapshot` + shared selector
+  // kullanıyor. Stale case eski `loadIncomingInvites` aramasını yapıyordu.
+  sourceHasReplacement(
+    'invite_lifecycle', 'Game Invite Lifecycle & 10-Min TTL Suite',
+    'online_screen_pending_invites_visible',
+    'OnlineChallengeScreen renders <IncomingInvitesPanel> which loads pending invites via loadIncomingInviteSnapshot + shared selector',
+    'components/lobby/OnlineChallengeScreen.jsx + components/invites/IncomingInvitesPanel.jsx',
+    `${safeStr(onlineChallengeScreenSource)}\n${safeStr(incomingInvitesPanelSource)}`,
+    [
+      '<IncomingInvitesPanel',
+      'loadIncomingInviteSnapshot(user.email)',
+      'mergeActiveIncomingGameInvites',
+      'InviteCountdown',
+    ],
+  ),
+
+  // Header bell + Online panel + Toast notifier — hepsi
+  // `@/lib/gameInviteSelectors` tek source'u kullanıyor. Eski case
+  // exact token `filterActiveIncomingGameInvites` arıyordu; hook
+  // `mergeActiveIncomingGameInvites` + `isActiveIncomingGameInvite`
+  // kullanıyor — aynı modülden geliyor.
+  sourceHasReplacement(
+    'game_invite_lifecycle_v2', 'Game Invite Lifecycle Hardening Suite',
+    'game_invite_active_selector_shared',
+    'Header bell + IncomingInvitesPanel + GameInviteNotifier all import the shared @/lib/gameInviteSelectors module (any of mergeActiveIncomingGameInvites / filterActiveIncomingGameInvites / isActiveIncomingGameInvite is acceptable)',
+    'hooks/useHeaderNotifications.js + components/invites/IncomingInvitesPanel.jsx + components/invites/GameInviteNotifier.jsx',
+    `${safeStr(useHeaderNotificationsSource)}\n${safeStr(incomingInvitesPanelSource)}\n${safeStr(gameInviteNotifierSource)}`,
+    [
+      // All three surfaces import from the shared module.
+      "from '@/lib/gameInviteSelectors'",
+      // Header hook AND online panel both use the merge helper.
+      'mergeActiveIncomingGameInvites',
+      // Trace + active filter reason used by header + online panel.
+      'getGameInviteActiveFilterReason',
+      // Notifier reads selectors too.
+      'isActiveIncomingGameInvite',
+    ],
   ),
 ];
