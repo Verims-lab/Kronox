@@ -201,7 +201,7 @@ export default function MainMenu() {
           className="absolute z-20 pointer-events-auto"
           style={{
             left: '9.7%',
-            top: '61.6%',
+            top: '63.4%',
             width: '80.6%',
             height: '10.7%',
           }}
@@ -213,7 +213,7 @@ export default function MainMenu() {
           className="absolute z-20 pointer-events-auto"
           style={{
             left: '9.7%',
-            top: '74.9%',
+            top: '76.7%',
             width: '80.6%',
             height: '10.7%',
           }}
