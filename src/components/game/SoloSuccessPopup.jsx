@@ -4,40 +4,25 @@ import {
   Star, ChevronRight, RotateCcw, ListChecks, Clock, Zap, X as XIcon, Check,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { formatDuration } from './GameOverTimer';
 import { fetchSoloLevelRecordContext } from '@/lib/soloLevelRecord';
 
 /**
- * Solo SUCCESS completion popup.
+ * Solo SUCCESS completion popup — visual correction pass (matches the
+ * target reference, Image 2):
  *
- * Renders a premium, mobile-first result panel matching the target
- * reference 1:1:
+ *   • Title is light/elegant, not heavy bangers; flanked by horizontal
+ *     gradient lines + small star ornaments on each side.
+ *   • Stars are large and glowing; small sparkle dots scatter around them.
+ *   • Stat cards are horizontal rectangles: large round icon on the left,
+ *     label + value stacked on the right.
+ *   • Time uses compact "MM:SS" format ("01:10"), no "dak/saniye".
+ *   • "KAZANILAN PUAN" stays on one line.
+ *   • All 4 stat icons share the same circle size and placement logic.
+ *   • Buttons: primary yellow CTA + two secondary outline buttons, with
+ *     icons consistently aligned to the left of the label.
  *
- *   ┌────────────────────────────────────────┐
- *   │   ✦  N. SEVİYE TAMAMLANDI!  ✦          │
- *   │            ★  ★  ☆                     │
- *   │       Harika! Böyle devam et!          │
- *   │   ─── ◆ ───                            │
- *   │   ┌───────────┐  ┌───────────┐         │
- *   │   │ 🕒 SÜRE    │  │ ⭐ PUAN    │         │
- *   │   │  01:28     │  │  850       │         │
- *   │   │ YENİ REKOR!│  │  Puan      │         │
- *   │   └───────────┘  └───────────┘         │
- *   │   ┌───────────┐  ┌───────────┐         │
- *   │   │ ✖ HATA     │  │ ⚡ HIZ BNS │         │
- *   │   │  2  Hata   │  │  ✓ / ✖     │         │
- *   │   └───────────┘  └───────────┘         │
- *   │   ┌──────────────────────────┐         │
- *   │   │     SONRAKİ SEVİYE   ▶    │         │
- *   │   ├──────────────────────────┤         │
- *   │   │     TEKRAR OYNA           │         │
- *   │   ├──────────────────────────┤         │
- *   │   │     SEVİYELER             │         │
- *   │   └──────────────────────────┘         │
- *   └────────────────────────────────────────┘
- *
- * The record badge ("YENİ REKOR!" / "ARKADAŞLAR ARASINDA 1.") attaches to
- * the time card and is computed via fetchSoloLevelRecordContext().
+ * Product logic (stars, score, mistakes, speed bonus, record badge,
+ * onNextLevel/onRetry/onBackToPath) is untouched.
  */
 export default function SoloSuccessPopup({
   levelNumber,
@@ -63,7 +48,7 @@ export default function SoloSuccessPopup({
   }, [levelNumber, timeSeconds, userEmail]);
 
   const speedBonusEarned = Number(timeBonus) > 0;
-  const formattedTime = formatDuration(timeSeconds);
+  const compactTime = formatCompactDuration(timeSeconds);
 
   return (
     <motion.div
@@ -84,58 +69,16 @@ export default function SoloSuccessPopup({
             'inset 0 0 0 1.5px rgba(96,165,250,0.32), 0 24px 60px rgba(2,6,23,0.65), 0 0 40px rgba(59,130,246,0.18)',
         }}
       >
-        <div className="px-5 pt-6 pb-5">
-          {/* ── Title ── */}
-          <div className="flex items-center justify-center gap-3" aria-hidden="true">
-            <Sparkle />
-            <h1
-              className="font-bangers text-center"
-              style={{
-                color: '#facc15',
-                fontSize: 'clamp(20px, 6vw, 26px)',
-                letterSpacing: '0.06em',
-                textShadow: '0 0 14px rgba(250,204,21,0.55), 0 2px 6px rgba(0,0,0,0.55)',
-              }}
-            >
-              {levelNumber}. SEVİYE TAMAMLANDI!
-            </h1>
-            <Sparkle flip />
-          </div>
+        <div className="px-5 pt-5 pb-5">
+          {/* ── Title row: ✦ ─── N. SEVİYE TAMAMLANDI! ─── ✦ ── */}
+          <TitleRow levelNumber={levelNumber} />
 
-          {/* ── Stars row (large, glowing) ── */}
-          <div
-            className="mt-5 mb-2 flex items-center justify-center gap-3"
-            aria-label={`${stars} yıldız`}
-          >
-            {[1, 2, 3].map((i) => {
-              const filled = i <= stars;
-              return (
-                <motion.div
-                  key={i}
-                  initial={{ scale: 0, rotate: -180 }}
-                  animate={{ scale: 1, rotate: 0 }}
-                  transition={{ delay: 0.15 + i * 0.12, type: 'spring', stiffness: 320, damping: 18 }}
-                >
-                  <Star
-                    style={{
-                      width: 'clamp(54px, 18vw, 72px)',
-                      height: 'clamp(54px, 18vw, 72px)',
-                      color: filled ? '#facc15' : 'rgba(40,55,95,0.65)',
-                      fill: filled ? '#facc15' : 'rgba(20,30,60,0.55)',
-                      filter: filled
-                        ? 'drop-shadow(0 0 14px rgba(250,204,21,0.85)) drop-shadow(0 0 28px rgba(250,204,21,0.45))'
-                        : 'none',
-                    }}
-                    strokeWidth={2.2}
-                  />
-                </motion.div>
-              );
-            })}
-          </div>
+          {/* ── Stars + sparkles ── */}
+          <StarsRow stars={stars} />
 
           {/* ── Motivational subline ── */}
           <p
-            className="mt-2 text-center font-inter"
+            className="mt-3 text-center font-inter"
             style={{
               color: '#e2e8f0',
               fontSize: 'clamp(13px, 3.8vw, 15px)',
@@ -147,20 +90,20 @@ export default function SoloSuccessPopup({
           </p>
 
           {/* Divider with diamond accent */}
-          <div className="mt-3 mb-3 flex items-center justify-center gap-2" aria-hidden="true">
-            <span style={{ display: 'block', height: 1, width: 36, background: 'linear-gradient(90deg, transparent, rgba(250,204,21,0.55), transparent)' }} />
+          <div className="mt-2.5 mb-3 flex items-center justify-center gap-2" aria-hidden="true">
+            <span style={{ display: 'block', height: 1, width: 40, background: 'linear-gradient(90deg, transparent, rgba(250,204,21,0.55), transparent)' }} />
             <span style={{ display: 'block', width: 6, height: 6, background: '#facc15', transform: 'rotate(45deg)', boxShadow: '0 0 6px rgba(250,204,21,0.6)' }} />
-            <span style={{ display: 'block', height: 1, width: 36, background: 'linear-gradient(90deg, transparent, rgba(250,204,21,0.55), transparent)' }} />
+            <span style={{ display: 'block', height: 1, width: 40, background: 'linear-gradient(90deg, transparent, rgba(250,204,21,0.55), transparent)' }} />
           </div>
 
-          {/* ── 2x2 stat grid ── */}
+          {/* ── 2x2 stat grid (horizontal rectangle cards) ── */}
           <div className="grid grid-cols-2 gap-2.5">
             <StatCard
               icon={Clock}
               iconColor="#60a5fa"
               iconRingColor="rgba(96,165,250,0.55)"
               label="TOPLAM SÜRE"
-              value={formattedTime}
+              value={compactTime}
               valueColor="#ffffff"
               footer={recordKind !== 'none' ? <RecordBadge kind={recordKind} /> : null}
             />
@@ -190,18 +133,18 @@ export default function SoloSuccessPopup({
               iconFill={speedBonusEarned ? '#4ade80' : undefined}
               label="HIZ BONUSU"
               value={speedBonusEarned
-                ? <Check className="mx-auto" style={{ width: 28, height: 28, color: '#4ade80' }} strokeWidth={3.5} />
-                : <XIcon className="mx-auto" style={{ width: 28, height: 28, color: '#f87171' }} strokeWidth={3.5} />}
+                ? <Check style={{ width: 26, height: 26, color: '#4ade80' }} strokeWidth={3.5} />
+                : <XIcon style={{ width: 26, height: 26, color: '#f87171' }} strokeWidth={3.5} />}
               valueColor={speedBonusEarned ? '#4ade80' : '#f87171'}
             />
           </div>
 
           {/* ── Buttons ── */}
-          <div className="mt-4 flex flex-col gap-2">
+          <div className="mt-4 flex flex-col gap-2.5">
             <Button
               onClick={onNextLevel}
               disabled={!hasNextLevel}
-              className="w-full h-12 rounded-2xl font-bangers tracking-[0.12em] disabled:opacity-60"
+              className="w-full h-12 rounded-2xl font-bangers tracking-[0.12em] disabled:opacity-60 flex items-center justify-between px-5"
               style={{
                 background: hasNextLevel
                   ? 'linear-gradient(180deg, #ffe066 0%, #facc15 55%, #d99e00 100%)'
@@ -213,35 +156,36 @@ export default function SoloSuccessPopup({
                   : 'inset 0 0 0 1px rgba(250,204,21,0.35)',
               }}
             >
+              <span className="w-5" aria-hidden="true" />
               <span className="flex-1 text-center">SONRAKİ SEVİYE</span>
               <ChevronRight className="w-5 h-5" strokeWidth={3} />
             </Button>
 
             <Button
               onClick={onRetry}
-              className="w-full h-11 rounded-2xl font-inter font-bold text-white"
+              className="w-full h-11 rounded-2xl font-bangers text-white flex items-center justify-center gap-2"
               style={{
                 background: 'linear-gradient(180deg, rgba(20,30,60,0.85), rgba(10,18,40,0.95))',
                 boxShadow: 'inset 0 0 0 1.5px rgba(96,165,250,0.32)',
-                fontSize: 'clamp(13px, 3.6vw, 14px)',
-                letterSpacing: '0.08em',
+                fontSize: 'clamp(14px, 3.8vw, 15px)',
+                letterSpacing: '0.12em',
               }}
             >
-              <RotateCcw className="w-4 h-4 mr-2" strokeWidth={2.4} />
+              <RotateCcw className="w-4 h-4" strokeWidth={2.6} />
               TEKRAR OYNA
             </Button>
 
             <Button
               onClick={onBackToPath}
-              className="w-full h-11 rounded-2xl font-inter font-bold text-white"
+              className="w-full h-11 rounded-2xl font-bangers text-white flex items-center justify-center gap-2"
               style={{
                 background: 'linear-gradient(180deg, rgba(20,30,60,0.85), rgba(10,18,40,0.95))',
                 boxShadow: 'inset 0 0 0 1.5px rgba(96,165,250,0.32)',
-                fontSize: 'clamp(13px, 3.6vw, 14px)',
-                letterSpacing: '0.08em',
+                fontSize: 'clamp(14px, 3.8vw, 15px)',
+                letterSpacing: '0.12em',
               }}
             >
-              <ListChecks className="w-4 h-4 mr-2" strokeWidth={2.4} />
+              <ListChecks className="w-4 h-4" strokeWidth={2.6} />
               SEVİYELER
             </Button>
           </div>
@@ -253,6 +197,171 @@ export default function SoloSuccessPopup({
 
 /* ─────────────────────────── helpers ─────────────────────────── */
 
+/**
+ * "MM:SS" formatter for the success popup (independent from GameOverTimer's
+ * verbose formatDuration so we don't disturb other call sites).
+ */
+function formatCompactDuration(seconds) {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+/**
+ * Title row: small star ornament + gradient line on each side of the title.
+ * Light/elegant, not heavy. Title text keeps the gold tint + soft glow but
+ * uses lighter tracking and weight than the previous bangers-only version.
+ */
+function TitleRow({ levelNumber }) {
+  return (
+    <div className="flex items-center justify-center gap-2 px-1">
+      <TitleOrnament side="left" />
+      <h1
+        className="font-bangers text-center whitespace-nowrap"
+        style={{
+          color: '#facc15',
+          fontSize: 'clamp(18px, 5.4vw, 22px)',
+          letterSpacing: '0.04em',
+          fontWeight: 400,
+          textShadow: '0 0 14px rgba(250,204,21,0.45), 0 1px 4px rgba(0,0,0,0.55)',
+        }}
+      >
+        {levelNumber}. SEVİYE TAMAMLANDI!
+      </h1>
+      <TitleOrnament side="right" />
+    </div>
+  );
+}
+
+function TitleOrnament({ side }) {
+  // Small 4-point star + a thin gradient line, mirrored on each side.
+  const line = (
+    <span
+      style={{
+        display: 'block',
+        height: 1,
+        width: 18,
+        background: side === 'left'
+          ? 'linear-gradient(90deg, transparent, rgba(250,204,21,0.7))'
+          : 'linear-gradient(90deg, rgba(250,204,21,0.7), transparent)',
+      }}
+    />
+  );
+  const star = (
+    <span
+      aria-hidden="true"
+      style={{
+        display: 'inline-block',
+        width: 10,
+        height: 10,
+        background:
+          'radial-gradient(circle at 50% 50%, #fff6c2 0%, #facc15 35%, rgba(250,204,21,0) 70%)',
+        filter: 'drop-shadow(0 0 6px rgba(250,204,21,0.85))',
+        borderRadius: '2px',
+        transform: 'rotate(45deg)',
+      }}
+    />
+  );
+  return (
+    <span className="flex items-center gap-1.5" aria-hidden="true">
+      {side === 'left' ? <>{star}{line}</> : <>{line}{star}</>}
+    </span>
+  );
+}
+
+/**
+ * Stars row: three large stars with glow, surrounded by small sparkle dots
+ * to match the target reference's celebratory composition. Sparkles are
+ * purely decorative and pointer-events: none.
+ */
+function StarsRow({ stars }) {
+  // Predefined sparkle positions around the stars area. Values are %
+  // relative to the row's bounding box.
+  const sparkles = [
+    { top: '8%',  left: '6%',  size: 6, delay: 0.25 },
+    { top: '14%', left: '94%', size: 5, delay: 0.45 },
+    { top: '70%', left: '4%',  size: 5, delay: 0.55 },
+    { top: '78%', left: '96%', size: 6, delay: 0.35 },
+    { top: '0%',  left: '38%', size: 4, delay: 0.6 },
+    { top: '2%',  left: '64%', size: 4, delay: 0.5 },
+    { top: '88%', left: '32%', size: 4, delay: 0.65 },
+    { top: '92%', left: '70%', size: 4, delay: 0.7 },
+  ];
+
+  return (
+    <div
+      className="relative mt-4 flex items-center justify-center gap-3"
+      style={{ minHeight: 'clamp(72px, 22vw, 92px)' }}
+      aria-label={`${stars} yıldız`}
+    >
+      {/* Decorative sparkles */}
+      {sparkles.map((sp, i) => (
+        <motion.span
+          key={i}
+          initial={{ opacity: 0, scale: 0 }}
+          animate={{ opacity: [0, 1, 0.5, 1], scale: [0, 1.1, 0.9, 1] }}
+          transition={{ delay: sp.delay, duration: 1.2, repeat: Infinity, repeatDelay: 1.8 }}
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            top: sp.top,
+            left: sp.left,
+            width: sp.size,
+            height: sp.size,
+            transform: 'translate(-50%, -50%) rotate(45deg)',
+            background:
+              'radial-gradient(circle at 50% 50%, #fff6c2 0%, #facc15 45%, rgba(250,204,21,0) 75%)',
+            filter: 'drop-shadow(0 0 4px rgba(250,204,21,0.9))',
+            borderRadius: '2px',
+            pointerEvents: 'none',
+          }}
+        />
+      ))}
+
+      {/* Main stars */}
+      {[1, 2, 3].map((i) => {
+        const filled = i <= stars;
+        return (
+          <motion.div
+            key={i}
+            initial={{ scale: 0, rotate: -180 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ delay: 0.15 + i * 0.12, type: 'spring', stiffness: 320, damping: 18 }}
+            style={{ position: 'relative', zIndex: 1 }}
+          >
+            <Star
+              style={{
+                width: 'clamp(54px, 18vw, 72px)',
+                height: 'clamp(54px, 18vw, 72px)',
+                color: filled ? '#facc15' : 'rgba(40,55,95,0.65)',
+                fill: filled ? '#facc15' : 'rgba(20,30,60,0.55)',
+                filter: filled
+                  ? 'drop-shadow(0 0 14px rgba(250,204,21,0.85)) drop-shadow(0 0 28px rgba(250,204,21,0.45))'
+                  : 'none',
+              }}
+              strokeWidth={2.2}
+            />
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * Horizontal rectangular stat card:
+ *
+ *   ┌──────────────────────────────┐
+ *   │ ⓘ   LABEL                    │
+ *   │     VALUE                    │
+ *   │     footer (optional)        │
+ *   └──────────────────────────────┘
+ *
+ * Icon sits in a 44px circle on the left; label/value/footer stack on the
+ * right. Same shape and proportions for all 4 cards → consistent rhythm
+ * across the grid.
+ */
 function StatCard({
   icon: Icon,
   iconColor,
@@ -265,31 +374,34 @@ function StatCard({
 }) {
   return (
     <div
-      className="rounded-2xl p-3 flex flex-col"
+      className="rounded-2xl px-3 py-2.5 flex items-center gap-2.5"
       style={{
         background: 'linear-gradient(180deg, rgba(20,30,60,0.85), rgba(8,16,40,0.95))',
         boxShadow: 'inset 0 0 0 1.5px rgba(96,165,250,0.22)',
-        minHeight: 96,
+        minHeight: 84,
       }}
     >
-      <div className="flex items-center gap-2.5">
-        <div
-          className="flex items-center justify-center rounded-full shrink-0"
-          style={{
-            width: 38,
-            height: 38,
-            background: 'rgba(10,18,40,0.9)',
-            boxShadow: `inset 0 0 0 2px ${iconRingColor}`,
-          }}
-        >
-          <Icon
-            className="w-5 h-5"
-            strokeWidth={2.4}
-            style={{ color: iconColor, fill: iconFill || 'transparent' }}
-          />
-        </div>
+      {/* Icon circle — identical size for all 4 cards */}
+      <div
+        className="flex items-center justify-center rounded-full shrink-0"
+        style={{
+          width: 42,
+          height: 42,
+          background: 'rgba(10,18,40,0.9)',
+          boxShadow: `inset 0 0 0 2px ${iconRingColor}`,
+        }}
+      >
+        <Icon
+          className="w-[22px] h-[22px]"
+          strokeWidth={2.4}
+          style={{ color: iconColor, fill: iconFill || 'transparent' }}
+        />
+      </div>
+
+      {/* Text stack — label, value, optional footer */}
+      <div className="flex-1 min-w-0 flex flex-col">
         <span
-          className="font-inter"
+          className="font-inter truncate"
           style={{
             color: 'rgba(199,210,234,0.78)',
             fontSize: '10.5px',
@@ -299,19 +411,19 @@ function StatCard({
         >
           {label}
         </span>
+        <span
+          className="font-bangers leading-none mt-0.5"
+          style={{
+            color: valueColor,
+            fontSize: 'clamp(20px, 6vw, 24px)',
+            letterSpacing: '0.04em',
+            textShadow: valueColor === '#ffffff' ? '0 1px 3px rgba(0,0,0,0.4)' : 'none',
+          }}
+        >
+          {value}
+        </span>
+        {footer && <div className="mt-1">{footer}</div>}
       </div>
-      <div
-        className="mt-1.5 font-bangers leading-none"
-        style={{
-          color: valueColor,
-          fontSize: 'clamp(22px, 6.5vw, 28px)',
-          letterSpacing: '0.04em',
-          textShadow: valueColor === '#ffffff' ? '0 1px 3px rgba(0,0,0,0.4)' : 'none',
-        }}
-      >
-        {value}
-      </div>
-      {footer && <div className="mt-1.5">{footer}</div>}
     </div>
   );
 }
@@ -322,7 +434,7 @@ function UnitLabel({ children, color }) {
       className="font-inter"
       style={{
         color,
-        fontSize: '12px',
+        fontSize: '11.5px',
         fontWeight: 600,
         letterSpacing: '0.02em',
       }}
@@ -340,31 +452,14 @@ function RecordBadge({ kind }) {
       style={{
         background: 'linear-gradient(180deg, #16a34a, #15803d)',
         color: '#ffffff',
-        fontSize: '10.5px',
-        letterSpacing: '0.08em',
-        padding: '3px 8px',
-        borderRadius: 6,
+        fontSize: '10px',
+        letterSpacing: '0.06em',
+        padding: '2.5px 7px',
+        borderRadius: 5,
         boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.35), 0 0 8px rgba(34,197,94,0.45)',
       }}
     >
       {label}
     </span>
-  );
-}
-
-function Sparkle({ flip = false }) {
-  return (
-    <span
-      aria-hidden="true"
-      style={{
-        display: 'inline-block',
-        width: 16,
-        height: 16,
-        background:
-          'radial-gradient(circle at 50% 50%, #facc15 0%, transparent 65%)',
-        transform: flip ? 'rotate(-12deg)' : 'rotate(12deg)',
-        filter: 'drop-shadow(0 0 6px rgba(250,204,21,0.6))',
-      }}
-    />
   );
 }
