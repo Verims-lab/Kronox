@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ChevronRight, Crosshair, Swords, Gem } from 'lucide-react';
+import { ChevronRight, Crosshair, Swords } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
-import HeaderNotificationBell from '@/components/notifications/HeaderNotificationBell';
+import StandardTopBar from '@/components/layout/StandardTopBar';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 
 /**
@@ -77,8 +77,8 @@ export default function MainMenu() {
           'radial-gradient(ellipse at 50% 40%, #0f2657 0%, #0a1b3f 45%, #060f2b 75%, #03081a 100%)',
       }}
     >
-      {/* ───── Top bar (Diamond + count • Bell) ───── */}
-      <HomeTopBar diamonds={diamonds} user={user} />
+      {/* ───── Top bar (Diamond + count • Bell) — shared StandardTopBar ───── */}
+      <StandardTopBar diamonds={diamonds} user={user} />
 
       {/* ───── Center stack (logo + tagline + CTAs) ─────
            Flex column fills between top safe-area and bottom-nav reserved
@@ -164,71 +164,6 @@ export default function MainMenu() {
       </div>
     </main>
   );
-}
-
-/* ─────────────────────────────────────────────────────────────────── */
-/*  Top bar                                                            */
-/* ─────────────────────────────────────────────────────────────────── */
-
-/**
- * Home-specific top bar.
- *
- * Matches the reference exactly: a single diamond + numeric count chip is
- * centered, and the notification bell sits in the top-right. There is NO
- * "Puan / trophy" pill on Home — that lives on Solo / Profile / Leaderboard
- * where it's contextually relevant. Bell rendering is delegated to the
- * shared HeaderNotificationBell so unread/realtime behavior is unchanged.
- */
-function HomeTopBar({ diamonds, user }) {
-  return (
-    <header
-      className="fixed left-0 right-0 top-0 z-[110] flex items-center justify-center"
-      style={{
-        paddingTop: 'env(safe-area-inset-top)',
-        paddingLeft: 'calc(env(safe-area-inset-left) + 0.75rem)',
-        paddingRight: 'calc(env(safe-area-inset-right) + 0.75rem)',
-        height: 'calc(3.25rem + env(safe-area-inset-top))',
-        background: 'linear-gradient(180deg, rgba(8,15,38,0.92) 0%, rgba(8,15,38,0.55) 70%, rgba(8,15,38,0) 100%)',
-      }}
-    >
-      {/* Centered diamond chip */}
-      <div
-        className="flex items-center gap-1.5 font-inter font-black text-white"
-        style={{ fontSize: 'clamp(13px, 3.8vw, 16px)' }}
-        aria-label={`Elmas: ${diamonds}`}
-      >
-        <Gem
-          className="shrink-0"
-          style={{
-            width: 'clamp(18px, 5vw, 22px)',
-            height: 'clamp(18px, 5vw, 22px)',
-            color: '#facc15',
-            filter: 'drop-shadow(0 0 6px rgba(250,204,21,0.55))',
-          }}
-          strokeWidth={2.4}
-        />
-        <span style={{ letterSpacing: '0.02em' }}>{formatDiamondCount(diamonds)}</span>
-      </div>
-
-      {/* Right-anchored bell (absolute so the chip stays centered) */}
-      <div
-        className="absolute flex items-center"
-        style={{
-          right: 'calc(env(safe-area-inset-right) + 0.75rem)',
-          top: 'calc(env(safe-area-inset-top) + 0.5rem)',
-          height: '2.25rem',
-        }}
-      >
-        <HeaderNotificationBell user={user} />
-      </div>
-    </header>
-  );
-}
-
-function formatDiamondCount(value) {
-  const n = Math.max(0, Math.floor(Number(value) || 0));
-  // Turkish thousand separator to match the reference (1.250)
-  return n.toLocaleString('tr-TR');
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
