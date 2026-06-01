@@ -309,15 +309,29 @@ export async function applyOnlineMatchToCurrentUser({
       };
     }
     debugLog('[applyOnlineMatch] skipped (OnlineMatchResult exists)', { lobbyId, result });
+    if (reconciliation.repaired) {
+      return {
+        ok: true,
+        skipped: true,
+        alreadyApplied: false,
+        reason: 'reconciled_from_audit',
+        progress: reconciliation.progress,
+        applied,
+        onlineMatchResult: existingResult.row,
+        reconciled: true,
+        refreshedUser: reconciliation.refreshedUser || null,
+      };
+    }
     return {
       ok: true,
       skipped: true,
-      reason: reconciliation.repaired ? 'reconciled_from_audit' : 'already_recorded',
-      progress: reconciliation.progress || current,
+      alreadyApplied: true,
+      reason: 'already_recorded',
+      progress: current,
       applied,
       onlineMatchResult: existingResult.row,
-      reconciled: Boolean(reconciliation.repaired),
-      refreshedUser: reconciliation.refreshedUser || null,
+      reconciled: false,
+      refreshedUser: null,
     };
   }
 
