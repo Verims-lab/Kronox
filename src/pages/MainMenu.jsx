@@ -107,26 +107,28 @@ export default function MainMenu() {
           <div className="flex flex-col items-center text-center" style={{ marginTop: 'auto' }}>
             <KronoxWordmark />
             <KronoxDivider />
+            {/* Tagline — first line WHITE, second line GOLD (per reference). */}
             <p
-              className="font-inter mt-5 leading-snug tracking-[0.18em]"
+              className="font-inter mt-5 leading-snug tracking-[0.22em] text-center"
               style={{
-                color: '#f4d24a',
                 fontWeight: 800,
                 fontSize: 'clamp(11px, 3.4vw, 14px)',
                 textShadow: '0 2px 8px rgba(0,0,0,0.55)',
               }}
             >
-              KARTI DOĞRU YERE KOY,
+              <span style={{ color: '#f3f6ff' }}>KARTI DOĞRU YERE KOY,</span>
               <br />
-              ZAMANI SEN YÖNET
+              <span style={{ color: '#f4d24a' }}>ZAMANI SEN YÖNET</span>
             </p>
           </div>
 
           {/* CTA stack pinned toward the lower-middle so it always lands in
-              the same visual zone as the reference, no matter the height. */}
+              the same visual zone as the reference, no matter the height.
+              `paddingBottom` lifts the buttons slightly upward away from the
+              bottom-nav edge to match the reference framing. */}
           <div
             className="mt-auto flex w-full flex-col items-center"
-            style={{ gap: '0.9rem', paddingTop: '2.25rem' }}
+            style={{ gap: '0.9rem', paddingTop: '2.25rem', paddingBottom: 'clamp(1.25rem, 5vh, 2.75rem)' }}
           >
             <HomeCTA
               icon={Crosshair}
@@ -240,39 +242,114 @@ function formatDiamondCount(value) {
  * across phones and desktop browsers without media queries.
  */
 function KronoxWordmark() {
+  // Reference shows clearly-separated KRONO letters in white plus a gold X
+  // whose two diagonals are split with a small gap (slight notch at the
+  // crossing point). We render the X as a stack of two rotated bars so the
+  // characteristic split is preserved at any size.
+  const fontSize = 'clamp(36px, 11vw, 60px)';
   return (
     <div
       className="flex items-center justify-center"
       style={{
-        gap: 'clamp(8px, 2.2vw, 14px)',
+        gap: 'clamp(10px, 2.6vw, 16px)',
         fontFamily: 'var(--font-cinzel)',
         fontWeight: 900,
-        fontSize: 'clamp(36px, 11vw, 60px)',
-        letterSpacing: '0.18em',
+        fontSize,
         lineHeight: 1,
       }}
       aria-label="KRONOX"
     >
       <span
         style={{
-          color: '#e7eefc',
+          color: '#f1f4ff',
+          // Wider tracking matches the open, premium spacing in the crop.
+          letterSpacing: '0.34em',
+          // Compensate for trailing tracking so the gold X sits closer to "O".
+          paddingRight: '0.34em',
           textShadow: '0 2px 12px rgba(0,0,0,0.55)',
         }}
       >
         KRONO
       </span>
+      <KronoxSplitX size={fontSize} />
+    </div>
+  );
+}
+
+/**
+ * Gold "X" composed of two diagonal bars with a small split at the centre,
+ * matching the reference logo crop. `size` mirrors the wordmark font-size
+ * so the X scales with the rest of the logotype on every viewport.
+ */
+function KronoxSplitX({ size }) {
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        position: 'relative',
+        display: 'inline-block',
+        width: `calc(${size} * 0.78)`,
+        height: size,
+        // Subtle warm glow like the rest of the logo.
+        filter: 'drop-shadow(0 0 8px rgba(250,204,21,0.55))',
+      }}
+    >
+      {/* Top-left → bottom-right diagonal, stopped before the crossing. */}
       <span
         style={{
-          color: '#facc15',
-          textShadow: '0 0 14px rgba(250,204,21,0.55), 0 2px 8px rgba(0,0,0,0.55)',
-          display: 'inline-flex',
-          gap: 'clamp(2px, 0.6vw, 4px)',
+          position: 'absolute',
+          top: '6%',
+          left: 0,
+          width: '46%',
+          height: '14%',
+          background: '#facc15',
+          transformOrigin: '0% 50%',
+          transform: 'rotate(54deg)',
+          borderRadius: '2px',
         }}
-        aria-hidden="true"
-      >
-        X
-      </span>
-    </div>
+      />
+      {/* Bottom-left → top-right diagonal (mirrored, also stopped). */}
+      <span
+        style={{
+          position: 'absolute',
+          bottom: '6%',
+          left: 0,
+          width: '46%',
+          height: '14%',
+          background: '#facc15',
+          transformOrigin: '0% 50%',
+          transform: 'rotate(-54deg)',
+          borderRadius: '2px',
+        }}
+      />
+      {/* Top-right → bottom-left diagonal (right half). */}
+      <span
+        style={{
+          position: 'absolute',
+          top: '6%',
+          right: 0,
+          width: '46%',
+          height: '14%',
+          background: '#facc15',
+          transformOrigin: '100% 50%',
+          transform: 'rotate(-54deg)',
+          borderRadius: '2px',
+        }}
+      />
+      <span
+        style={{
+          position: 'absolute',
+          bottom: '6%',
+          right: 0,
+          width: '46%',
+          height: '14%',
+          background: '#facc15',
+          transformOrigin: '100% 50%',
+          transform: 'rotate(54deg)',
+          borderRadius: '2px',
+        }}
+      />
+    </span>
   );
 }
 
@@ -340,7 +417,7 @@ function HomeCTA({ icon: Icon, label, onClick, ariaLabel }) {
       onClick={onClick}
       whileTap={{ y: 2, scale: 0.985 }}
       transition={{ type: 'spring', stiffness: 620, damping: 26, mass: 0.7 }}
-      className="relative flex w-full items-center font-cinzel font-black text-amber-950"
+      className="relative flex w-full items-center font-inter text-amber-950"
       style={{
         appearance: 'none',
         height: 'clamp(56px, 14.5vw, 70px)',
@@ -350,7 +427,9 @@ function HomeCTA({ icon: Icon, label, onClick, ariaLabel }) {
         boxShadow:
           'inset 0 1px 0 rgba(255,255,255,0.55), inset 0 -3px 0 rgba(120,75,0,0.35), 0 8px 22px rgba(0,0,0,0.45)',
         color: '#1a1003',
-        letterSpacing: '0.08em',
+        // Lighter weight + tighter tracking per reference (cleaner, less heavy).
+        fontWeight: 600,
+        letterSpacing: '0.04em',
         touchAction: 'manipulation',
       }}
       aria-label={ariaLabel}
@@ -378,12 +457,13 @@ function HomeCTA({ icon: Icon, label, onClick, ariaLabel }) {
         }}
       />
 
-      {/* Label */}
+      {/* Label — Inter semibold + slight tracking to match the reference. */}
       <span
         className="flex-1 text-left truncate"
         style={{
-          fontSize: 'clamp(13px, 4vw, 16px)',
-          letterSpacing: '0.06em',
+          fontSize: 'clamp(13px, 3.8vw, 15px)',
+          letterSpacing: '0.03em',
+          fontWeight: 600,
         }}
       >
         {label}
