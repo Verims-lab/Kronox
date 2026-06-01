@@ -154,6 +154,60 @@ export const EXTRA_TESTS = [
       return pass('GameInvite schema documents 10-minute TTL fields and lifecycle timestamps.', { verification: 'STATIC_CONTRACT' });
     }),
 
+  makeCase('data_model_health', 'online_match_result_schema_exists',
+    'OnlineMatchResult schema exists for per-user per-lobby idempotency',
+    () => {
+      const missing = missingTokens(onlineMatchResultEntitySource, [
+        'OnlineMatchResult',
+        'lobby_id',
+        'player_email',
+        'score_before',
+        'score_after',
+        'applied_at',
+      ]);
+      if (missing.length) return fail('OnlineMatchResult schema is missing required idempotency/audit fields.', { verification: 'STATIC_CONTRACT', missing });
+      return pass('OnlineMatchResult exists and supports per-user per-lobby scoring idempotency.', { verification: 'STATIC_CONTRACT' });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX, nextStep: 'Restore the OnlineMatchResult schema fields and rerun data_model_health.' }),
+
+  makeCase('data_model_health', 'cleanup_retention_contract_exists',
+    'Retention helpers exist for expired invites and stale waiting lobbies',
+    () => {
+      const missing = missingTokens(dataRetentionSource, [
+        'cleanupExpiredGameInvites',
+        'cleanupStaleWaitingLobbies',
+        'deleted: 0',
+      ]);
+      if (missing.length) return fail('Cleanup/retention helper contract is missing.', { verification: 'STATIC_CONTRACT', missing });
+      return pass('Cleanup helpers mark stale records safely and do not delete by default.', { verification: 'STATIC_CONTRACT' });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX, nextStep: 'Restore safe retention helpers and rerun cleanup_retention_health/data_model_health.' }),
+
+  makeCase('db_architecture_health', 'no_paused_daily_quest_schema_required',
+    'Daily Quest is paused, so DailyQuestProgress schema is not required now',
+    () => {
+      const scannedSources = [
+        userEntitySource,
+        gameInviteEntitySource,
+        lobbyEntitySource,
+        onlineMatchResultEntitySource,
+        leaderboardSource,
+        soloLevelsSource,
+      ].join('\n');
+      const accidentalRuntimeDependency = scannedSources.includes('DailyQuestProgress') || scannedSources.includes('Günün Görevi');
+      if (accidentalRuntimeDependency) {
+        return fail('Paused Daily Quest leaked into active schema/runtime contracts.', {
+          verification: 'STATIC_CONTRACT',
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Daily Quest remains paused; no active DailyQuestProgress schema dependency is required.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX, nextStep: 'Keep Daily Quest out of active schemas until the product work resumes.' }),
+
   makeCase('db_architecture_health', 'schema_docs_exist',
     'Data model and scoring docs are registered as architecture references',
     () => {

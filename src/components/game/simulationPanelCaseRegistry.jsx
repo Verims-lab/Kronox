@@ -69,6 +69,9 @@ import * as leaderboardFallbackCases from './simulationPanelLeaderboardFallbackC
 // report shape preserved, simulationPanelExtraCases not silently growing,
 // SimulationPanel.jsx stays in orchestration-size).
 import * as healthArchitectureCases from './simulationPanelHealthArchitectureCases';
+// Codex145 — Health/Admin panel mobile-safe UI contracts: top safe-area
+// clipping, internal scroll container, and report visibility on mobile/PWA.
+import * as healthUiCases from './simulationPanelHealthUiCases';
 // Codex123 — Phase 3 UI consolidation: lock the shared KronoxStatTile +
 // shared style tokens contracts for Profile/Leaderboard so neither
 // surface can silently revert to a local StatTile duplicate.
@@ -121,6 +124,7 @@ const MODULES = [
   soloMapFocusCases,
   leaderboardFallbackCases,
   healthArchitectureCases,
+  healthUiCases,
   uiConsolidationCases,
   onlineChallengeCases,
   onlineRankingCases,
