@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex152 — Diamond economy foundation:
+//   • User.diamonds is the canonical persisted Elmas balance.
+//   • Auth bootstrap grants +100 starter once and +20 daily once per UTC day.
+//   • DiamondTransaction records reward ledger/idempotency rows when available.
+//   • Health adds diamond_economy_health and updates stale Profile Economy
+//     placeholder contracts.
+//
 // Codex151 — Notification lifecycle stabilization:
 //   • Header/Online/banner derive GameInvite visibility from a shared
 //     notification view model and active-invite selector.
@@ -559,7 +566,7 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
-const BUILD_MARKER = 'Codex151';
+const BUILD_MARKER = 'Codex152';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -123,6 +123,9 @@ import * as onlineScoreVisiblePuanCases from './simulationPanelOnlineScoreVisibl
 // Codex149 — Player-facing copy must use one unified Puan / Kronox Puan
 // language. Solo and Online remain technical components, not UI score labels.
 import * as unifiedKronoxScoreCases from './simulationPanelUnifiedKronoxScoreCases';
+// Codex152 — Diamond economy foundation: canonical User.diamonds balance,
+// starter + daily login grants, idempotent ledger, and display contracts.
+import * as diamondEconomyCases from './simulationPanelDiamondEconomyCases';
 
 const MODULES = [
   soloProgressCases,
@@ -150,6 +153,7 @@ const MODULES = [
   onlineScoreCompletionCases,
   onlineScoreVisiblePuanCases,
   unifiedKronoxScoreCases,
+  diamondEconomyCases,
 ];
 
 function flatten(key) {

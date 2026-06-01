@@ -1,5 +1,6 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
+import { ensureDiamondEconomyForUser, getDiamondDailyKey } from '@/lib/diamondEconomy';
 
 const AuthContext = createContext();
 
@@ -10,6 +11,8 @@ export const AuthProvider = ({ children }) => {
   const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(false);
   const [authError, setAuthError] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
+  const economyEnsurePromiseRef = useRef(null);
+  const economyEnsureKeyRef = useRef('');
 
   useEffect(() => {
     checkAppState();
@@ -40,6 +43,25 @@ export const AuthProvider = ({ children }) => {
         // WebView may store the token async — retry once after a short delay
         await new Promise(r => setTimeout(r, 600));
         currentUser = await base44.auth.me().catch(() => null);
+      }
+
+      if (currentUser?.email) {
+        const economyKey = `${String(currentUser.email).trim().toLowerCase()}:${getDiamondDailyKey()}`;
+        if (economyEnsureKeyRef.current !== economyKey) {
+          try {
+            if (!economyEnsurePromiseRef.current) {
+              economyEnsurePromiseRef.current = ensureDiamondEconomyForUser(currentUser)
+                .finally(() => {
+                  economyEnsurePromiseRef.current = null;
+                });
+            }
+            const economy = await economyEnsurePromiseRef.current;
+            if (economy?.user) currentUser = economy.user;
+            if (economy?.ok !== false) economyEnsureKeyRef.current = economyKey;
+          } catch (economyError) {
+            console.warn('[diamondEconomy] bootstrap grant skipped:', economyError?.message || economyError);
+          }
+        }
       }
 
       setUser(currentUser || null);
@@ -77,6 +99,8 @@ export const AuthProvider = ({ children }) => {
   const logout = (shouldRedirect = true) => {
     setUser(null);
     setIsAuthenticated(false);
+    economyEnsureKeyRef.current = '';
+    economyEnsurePromiseRef.current = null;
     
     if (shouldRedirect) {
       // Use the SDK's logout method which handles token cleanup and redirect

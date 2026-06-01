@@ -40,15 +40,16 @@ import KronoxStatTile from '@/components/ui/KronoxStatTile';
  * ProfilePage — first-pass shell.
  * Sections: Arkadaşlarım, Stats (Puan / Level / Elmas), Ayarlar.
  *
- * Data note (placeholders vs real):
+ * Data note:
  *  - identity (name/email): REAL — from base44.auth.me()
- *  - friends count: PLACEHOLDER (0) — no friends system yet
+ *  - friends count: PLACEHOLDER (0) — no friends count source yet
  *  - puan: REAL — visible Kronox Puan from Solo best-score total +
  *    User.online_progress.score
  *  - level: REAL — derived from User.solo_progress (shared with Solo Level
  *    Path via getCurrentPlayableLevel)
- *  - elmas: REAL when a profile/economy field exists, otherwise safe 0
- *    PLACEHOLDER. Never derived from stars, score, or completed levels.
+ *  - elmas: REAL — canonical persisted User.diamonds. Safe 0 only while
+ *    auth/bootstrap data is unavailable. Never derived from stars, score,
+ *    or completed levels.
  *  - admin badge: REAL — via isAdminUser()
  */
 export default function ProfilePage() {
@@ -85,20 +86,20 @@ export default function ProfilePage() {
     [soloProgress],
   );
 
-  // Codex116/Codex146 — Stats tiles match Liderlik 3-card row:
+  // Codex116/Codex146/Codex152 — Stats tiles match Liderlik 3-card row:
   //   Puan  → REAL — getKronoxVisibleScore(user), i.e. Solo best-score total
   //           plus persisted User.online_progress.score.
   //   Level → REAL — getCurrentPlayableLevel(soloProgress) (same source
   //           Solo Level Path uses).
-  //   Elmas → REAL when a profile/economy field exists, otherwise a safe
-  //           0 PLACEHOLDER. Never derived from Yıldız, score, or
-  //           completed levels. No economy yet — do NOT wire this to any
-  //           wallet/economy entity until a real backend exists.
+  //   Elmas → REAL — canonical persisted User.diamonds via the shared
+  //           Diamond economy helper. Safe 0 only while auth/bootstrap
+  //           data is unavailable. Never derived from Yıldız, score, or
+  //           completed levels.
   // Yıldız tile is intentionally NOT in Profile stats anymore (moved out
   // per product decision). getKronoxVisibleScore reads the Solo summary
   // internally, so Solo progress remains a source, but Online score is no
   // longer invisible.
-  const diamondValue = getProfileDiamondValue(user); // PLACEHOLDER 0 when no economy yet
+  const diamondValue = getProfileDiamondValue(user);
   const visibleKronoxPuan = getKronoxVisibleScore(user, { soloProgress });
   const stats = [
     { id: 'puan',  label: 'Puan',  value: visibleKronoxPuan, icon: Trophy,   tint: 'gold' },
@@ -131,7 +132,7 @@ export default function ProfilePage() {
 
         {/* Stats: Puan / Level / Elmas — single horizontal row matching
             Liderlik. Puan is visible Kronox score; Level is real
-            solo_progress; Elmas is a PLACEHOLDER tile (0) when no economy backend exists. Yıldız is
+            solo_progress; Elmas is canonical User.diamonds. Yıldız is
             intentionally NOT shown here anymore. */}
         <Section label="İstatistikler">
           <div className="grid grid-cols-3 gap-2">
@@ -167,11 +168,9 @@ export default function ProfilePage() {
 
 /* ---------------- Internal helpers ---------------- */
 
-// Codex116 — Read real diamond/economy value from the user profile when one
-// of the recognized fields exists; otherwise return a safe 0 PLACEHOLDER.
-// IMPORTANT: never derive this from Yıldız, score, or completed levels —
-// no economy yet means the UI must not invent a balance. Mirror of
-// Leaderboard's getLeaderboardDiamondValue so both surfaces agree.
+// Codex152 — Read the canonical persisted Diamond balance. IMPORTANT: never
+// derive this from Yıldız, score, or completed levels. Mirror of
+// Leaderboard's getLeaderboardDiamondValue so all surfaces agree.
 function getProfileDiamondValue(user) {
   return getLeaderboardDiamondValue(user);
 }

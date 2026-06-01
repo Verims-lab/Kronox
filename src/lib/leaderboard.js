@@ -1,5 +1,6 @@
 import { base44 } from '@/api/base44Client';
 import { backfillSoloScores, summarizeSoloProgress } from './soloProgressHelpers';
+import { getDiamondBalance } from './diamondEconomy';
 
 export const LEADERBOARD_TOP_LIMIT = 10;
 export const LEADERBOARD_FETCH_LIMIT = 500;
@@ -53,28 +54,7 @@ export function getSafeLeaderboardName(userOrEntry) {
 }
 
 export function getLeaderboardDiamondValue(user) {
-  const candidates = [
-    user?.diamonds,
-    user?.diamondCount,
-    user?.diamond_count,
-    user?.elmas,
-    user?.elmasCount,
-    user?.elmas_count,
-    user?.gems,
-    user?.gemCount,
-    user?.gem_count,
-    user?.economy?.diamonds,
-    user?.economy?.elmas,
-    user?.wallet?.diamonds,
-    user?.wallet?.elmas,
-  ];
-  const realValue = candidates.find((value) => (
-    value !== null &&
-    value !== undefined &&
-    value !== '' &&
-    Number.isFinite(Number(value))
-  ));
-  return realValue === undefined ? 0 : Math.max(0, Math.floor(Number(realValue)));
+  return getDiamondBalance(user);
 }
 
 function getLeaderboardOnlineScore(userOrEntry) {

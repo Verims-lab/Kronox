@@ -10,7 +10,9 @@ import leaderboardSource from '../../lib/leaderboard.js?raw';
 import applyOnlineResultSource from '../../lib/applyOnlineResult.js?raw';
 import dataRetentionSource from '../../lib/dataRetention.js?raw';
 import scoringDocsSource from '../../docs/KRONOX_SCORING_RULES.md?raw';
+import economyDocsSource from '../../../docs/KRONOX_ECONOMY_RULES.md?raw';
 import {
+  diamondTransactionEntitySource,
   friendRequestEntitySource,
   gameInviteEntitySource,
   getSoloLeaderboardFnSource,
@@ -87,6 +89,19 @@ export const EXTRA_TESTS = [
       ]);
       if (missing.length) return fail('User schema mirror is missing live profile fields.', { verification: 'STATIC_CONTRACT', missing });
       return pass('User schema documents tutorial completion and game-invite notification preference.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('data_model_health', 'user_schema_documents_diamond_economy_fields',
+    'User schema documents canonical Diamond economy balance and idempotency guards',
+    () => {
+      const missing = missingTokens(userEntitySource, [
+        'diamonds',
+        'starter_bonus_granted_at',
+        'last_daily_diamond_reward_date',
+        'economy_updated_at',
+      ]);
+      if (missing.length) return fail('User schema mirror is missing Diamond economy fields.', { verification: 'STATIC_CONTRACT', missing });
+      return pass('User schema documents User.diamonds and starter/daily reward guard fields.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('data_model_health', 'user_schema_documents_solo_progress_shape',
@@ -170,6 +185,22 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX, nextStep: 'Restore the OnlineMatchResult schema fields and rerun data_model_health.' }),
 
+  makeCase('data_model_health', 'diamond_transaction_schema_exists',
+    'DiamondTransaction schema exists for user-owned economy ledger/idempotency',
+    () => {
+      const missing = missingTokens(diamondTransactionEntitySource, [
+        'DiamondTransaction',
+        'user_email',
+        'balance_before',
+        'balance_after',
+        'source',
+        'idempotency_key',
+      ]);
+      if (missing.length) return fail('DiamondTransaction schema mirror is incomplete.', { verification: 'STATIC_CONTRACT', missing });
+      return pass('DiamondTransaction schema supports Diamond ledger and idempotency keys.', { verification: 'STATIC_CONTRACT' });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX, nextStep: 'Restore DiamondTransaction schema fields and rerun data_model_health/diamond_economy_health.' }),
+
   makeCase('data_model_health', 'cleanup_retention_contract_exists',
     'Retention helpers exist for expired invites and stale waiting lobbies',
     () => {
@@ -212,13 +243,15 @@ export const EXTRA_TESTS = [
     'Data model and scoring docs are registered as architecture references',
     () => {
       const scoringDocOk = hasAll(scoringDocsSource, ['Kronox Scoring Rules', 'OnlineMatchResult', 'User.solo_progress']);
-      if (!scoringDocOk) {
+      const economyDocOk = hasAll(economyDocsSource, ['Kronox Diamond Economy Rules', 'User.diamonds', 'DiamondTransaction']);
+      if (!scoringDocOk || !economyDocOk) {
         return fail('Scoring docs are missing current persistence/source-of-truth references.', {
           verification: 'STATIC_CONTRACT',
-          expected: 'src/docs/KRONOX_SCORING_RULES.md mentions User.solo_progress and OnlineMatchResult',
+          expected: 'Scoring docs mention User.solo_progress/OnlineMatchResult; economy docs mention User.diamonds/DiamondTransaction',
+          actual: { scoringDocOk, economyDocOk },
         });
       }
-      return pass('Architecture docs expected for this package: docs/KRONOX_DATA_MODEL_AUDIT.md, docs/KRONOX_DATA_MODEL_IMPLEMENTATION_PLAN.md, and src/docs/KRONOX_SCORING_RULES.md.', {
+      return pass('Architecture docs include scoring and Diamond economy source-of-truth references.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });

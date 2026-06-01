@@ -1,0 +1,103 @@
+{
+  "name": "DiamondTransaction",
+  "type": "object",
+  "description": "Codex152 — User-owned Diamond economy ledger. One logical row should exist per idempotency_key. Base44 uniqueness is not assumed, so runtime helpers check idempotency_key and User guard fields before granting.",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Lowercased owner email for this economy transaction."
+    },
+    "amount": {
+      "type": "number",
+      "description": "Positive Diamond amount represented by this transaction."
+    },
+    "balance_before": {
+      "type": "number",
+      "description": "Canonical User.diamonds balance before this transaction."
+    },
+    "balance_after": {
+      "type": "number",
+      "description": "Canonical User.diamonds balance after this transaction."
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "starter_bonus",
+        "daily_login",
+        "wheel_spin_future",
+        "rewarded_ad_future",
+        "quest_reward_future",
+        "purchase_future",
+        "achievement_future",
+        "special_event_future",
+        "admin_adjustment"
+      ],
+      "description": "Economy source. Only starter_bonus and daily_login are active in Codex152; future sources are schema-ready but not implemented."
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "earn",
+        "spend"
+      ],
+      "description": "earn for granted Diamonds, spend for future purchases/costs."
+    },
+    "idempotency_key": {
+      "type": "string",
+      "description": "Durable idempotency key, e.g. starter_bonus:<email> or daily_login:<email>:<YYYY-MM-DD>."
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Debug-safe metadata such as dateKey/dayBoundary. Must not contain secrets, push data, or private profile fields."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the transaction row was created."
+    }
+  },
+  "required": [
+    "user_email",
+    "amount",
+    "balance_before",
+    "balance_after",
+    "source",
+    "direction",
+    "idempotency_key",
+    "created_at"
+  ],
+  "rls": {
+    "create": {
+      "data.user_email": "{{user.email}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

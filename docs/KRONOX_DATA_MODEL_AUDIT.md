@@ -4,6 +4,8 @@ Date: 2026-06-01
 Branch inspected: Codex
 Scope: Base44 entities, Base44 functions, data access helpers, source-of-truth contracts, persistence risks, RLS/security posture, Health Center recommendations.
 Implementation follow-up: Codex139 DB/Data Model hardening package.
+Economy follow-up: Codex152 introduced canonical `User.diamonds`,
+`DiamondTransaction`, +100 starter bonus, and +20 UTC daily login reward.
 
 This is an audit-first document. It does not apply destructive schema changes, delete data, run migrations, change product behavior, change scoring logic, or touch gameplay mechanics.
 
@@ -39,15 +41,20 @@ Purpose:
 - Stores app role.
 - Stores `solo_progress`.
 - Stores `online_progress`.
-- Live code also reads/writes profile fields not documented in schema: `hasCompletedTutorial`, `game_invite_notifications_enabled`, possible economy fields (`diamonds`, `elmas`, `wallet`, `economy`, etc.).
+- Live code also reads/writes profile fields now documented in schema:
+  `hasCompletedTutorial`, `game_invite_notifications_enabled`, Diamond
+  economy fields, Solo progress, and Online progress.
 
 Important fields:
 - `role`
 - `solo_progress`
 - `online_progress`
-- Live but schema-missing: `hasCompletedTutorial`
-- Live but schema-missing: `game_invite_notifications_enabled`
-- Possible live economy placeholders: `diamonds`, `diamondCount`, `diamond_count`, `elmas`, `gems`, `wallet.diamonds`, etc.
+- `hasCompletedTutorial`
+- `game_invite_notifications_enabled`
+- `diamonds`
+- `starter_bonus_granted_at`
+- `last_daily_diamond_reward_date`
+- `economy_updated_at`
 
 Owner/access pattern:
 - User-owned auth profile. Client writes current user's profile through `updateMe`.
@@ -60,10 +67,10 @@ Feature dependencies:
 - Leaderboard projection.
 - Online score/checkpoints.
 - Notification preference.
-- Elmas placeholder.
+- Elmas / Diamond balance.
 
 Audit notes:
-- This profile is currently overloaded with gameplay progress, notification preference, tutorial state, and possible economy placeholders.
+- This profile is currently overloaded with gameplay progress, notification preference, tutorial state, and Diamond economy guard fields.
 - For current scale, this is workable. For future growth, split durable game stats into dedicated `UserGameStats` / `SoloLevelProgress` / `OnlineMatchResult` shapes.
 
 ### FriendRequest
@@ -455,7 +462,8 @@ Current source of truth:
 - Puan: `getKronoxVisibleScore(user)` =
   `summarizeSoloProgress(...).totalSoloScore + User.online_progress.score`.
 - Level: `getCurrentPlayableLevel(...)` from Solo progress.
-- Elmas: real economy field if present; otherwise safe 0 placeholder.
+- Elmas: canonical `User.diamonds`, with `DiamondTransaction` ledger rows
+  where available. UI uses safe 0 only while auth/bootstrap data is missing.
 - Avatar/initial: auth profile fields.
 - Notification preference: `User.game_invite_notifications_enabled`.
 
@@ -463,12 +471,16 @@ Risks:
 - P2: Visible Puan now combines Solo + Online through a helper, while Solo
   leaderboard ranking still uses Solo-only score. Keep labels/Health cases
   explicit so the two concepts do not drift.
-- P1: notification preference is live but absent from `User.jsonc`.
-- P2: Elmas candidate fields are not formally modeled; this is safe as placeholder but should become a real economy entity/field when economy ships.
+- P1: notification preference is live and should remain documented in
+  `User.jsonc`.
+- P2: Diamond multi-device duplicate prevention should be runtime-probed
+  because Base44 uniqueness on `DiamondTransaction.idempotency_key` is not
+  assumed.
 
 Recommendation:
 - Document Profile stat semantics in schema docs and Health cases.
-- Do not create economy records until product decides Elmas behavior.
+- Keep Diamond rewards idempotent through `User` guard fields plus
+  `DiamondTransaction` rows.
 
 ### Leaderboard
 
@@ -613,7 +625,7 @@ Base44 schema files do not declare indexes/unique constraints. If Base44 support
 | Leaderboard source | function projection and entity mirror | Authority ambiguity/stale rows | P2 |
 | Invite active filters | mostly centralized now | Good, keep it that way | P3 |
 | Profile vs Solo level | shared helpers | Good | P3 |
-| Elmas placeholder | shared helper through leaderboard | Good for now | P3 |
+| Elmas/Diamond balance | `User.diamonds` + `getDiamondBalance` + `getLeaderboardDiamondValue` | Keep one canonical economy field | P2 |
 
 ## 7. Security / RLS / Access Control Risks
 
