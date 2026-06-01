@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Mailbox, Loader2, Check, X, AlertCircle, Crown } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import {
-  loadIncomingInvites,
+  loadIncomingInviteSnapshot,
   openGameInvite,
   rejectGameInvite,
   mergeActiveIncomingGameInvites,
@@ -15,6 +15,7 @@ import {
   isGameInviteExpired,
   traceGameInviteLifecycle,
 } from '@/lib/gameInviteSelectors';
+import { buildNotificationViewModel } from '@/lib/notificationViewModel';
 import { sounds } from '@/lib/gameSounds';
 import InviteCountdown from '@/components/invites/InviteCountdown';
 
@@ -34,29 +35,48 @@ export default function IncomingInvitesPanel({ user, variant = 'fantasy' }) {
   const [busyId, setBusyId] = useState(null);
 
   const refresh = useCallback(async ({ preserveExisting = false, source = 'fetch' } = {}) => {
-    if (!user?.email) { setLoading(false); return; }
+    if (!user?.email) {
+      traceGameInviteLifecycle('online_pending_invite_list_recalculated', { id: 'user:not_loaded', status: 'pending' }, {
+        source: `IncomingInvitesPanel.${source}`,
+        user,
+        userEmail: '',
+        reason: 'user_not_loaded_preserve_existing',
+      });
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError('');
     try {
-      const rows = await loadIncomingInvites(user.email);
+      const snapshot = await loadIncomingInviteSnapshot(user.email);
       setInvites((prev) => {
-        const next = preserveExisting
-          ? mergeActiveIncomingGameInvites(prev, rows, user.email)
-          : rows;
+        const mergedRows = mergeActiveIncomingGameInvites(prev, snapshot?.rows || [], user.email);
+        const viewModel = buildNotificationViewModel({
+          currentUser: user,
+          gameInvites: mergedRows,
+        });
+        const next = viewModel.activeIncomingGameInvites;
+        const staleEmptyPreserved = (snapshot?.rows || []).length === 0 && prev.length > 0 && next.length > 0;
         traceGameInviteLifecycle('online_pending_invite_list_recalculated', { id: `count:${next.length}`, status: 'pending', to_email: user.email }, {
           source: `IncomingInvitesPanel.${source}`,
           user,
           userEmail: user.email,
-          reason: preserveExisting ? 'preserve_existing_merge' : 'authoritative_replace',
+          reason: staleEmptyPreserved ? 'stale_empty_fetch_preserved' : (preserveExisting ? 'preserve_existing_merge' : 'lifecycle_merge'),
         });
         return next;
       });
     } catch (err) {
       setError(err?.message || 'Davetler yüklenemedi.');
+      traceGameInviteLifecycle('online_pending_invite_list_recalculated', { id: 'fetch:error', status: 'pending', to_email: user.email }, {
+        source: `IncomingInvitesPanel.${source}`,
+        user,
+        userEmail: user.email,
+        reason: 'fetch_error_preserve_existing',
+      });
     } finally {
       setLoading(false);
     }
-  }, [user?.email]);
+  }, [user]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -168,7 +188,7 @@ export default function IncomingInvitesPanel({ user, variant = 'fantasy' }) {
         </div>
       )}
 
-      {loading ? (
+      {loading && invites.length === 0 ? (
         <div className="h-14 rounded-2xl"
           style={{
             background: 'linear-gradient(90deg, rgba(255,255,255,0.04), rgba(255,255,255,0.08), rgba(255,255,255,0.04))',

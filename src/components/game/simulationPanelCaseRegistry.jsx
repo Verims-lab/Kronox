@@ -94,6 +94,9 @@ import * as headerNotificationsCases from './simulationPanelHeaderNotificationsC
 // Codex135 — Game invite lifecycle hardening (single-source-of-truth
 // selector + toast dismiss safety + fresh-invite persistence).
 import * as gameInviteLifecycleCases from './simulationPanelGameInviteLifecycleCases';
+// Codex151 — Notification lifecycle stabilization: fetch/subscription
+// merge safety, banner/view-model split, and stable invite-to-lobby route.
+import * as notificationLifecycleCases from './simulationPanelNotificationLifecycleCases';
 // Codex136 — Scoring contract suite (Solo time-bonus boundary fix, Online
 // draw removal, missing-time → +0 bonus, doc-named helper aliases,
 // lastMatchAt persistence, structured persistence failure / retry safety).
@@ -139,6 +142,7 @@ const MODULES = [
   lobbySimplificationCases,
   headerNotificationsCases,
   gameInviteLifecycleCases,
+  notificationLifecycleCases,
   scoringContractCases,
   inviteTimezoneCases,
   gameInviteOpenToLobbyCases,

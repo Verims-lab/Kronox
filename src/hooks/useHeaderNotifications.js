@@ -16,15 +16,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import {
-  loadIncomingInvites,
+  loadIncomingInviteSnapshot,
   openGameInvite as openGameInviteAction,
 } from '@/lib/inviteApi';
 import { isPendingFriendRequestForUser } from '@/lib/headerNotifications';
+import { buildNotificationViewModel } from '@/lib/notificationViewModel';
 // Codex135 — Centralized active-invite selector. Header, Online panel,
 // and toast notifier all read through this module so the badge/list
 // can never disagree about whether a fresh invite is still active.
 import {
-  filterActiveIncomingGameInvites,
   getGameInviteActiveFilterReason,
   getInviteRecipientEmail,
   isActiveIncomingGameInvite,
@@ -50,20 +50,25 @@ export function useHeaderNotifications(user) {
 
   const fetchAll = useCallback(async ({ preserveExisting = false, source = 'fetch' } = {}) => {
     if (!myEmail) {
-      setFriendRequests([]);
-      setGameInvites([]);
+      traceGameInviteLifecycle('invite_failed_active_filter', { id: 'user:not_loaded', status: 'pending' }, {
+        source: `useHeaderNotifications.${source}`,
+        user,
+        userEmail: '',
+        reason: 'user_not_loaded_preserve_existing',
+      });
+      setLoading(false);
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      const [fr, gi] = await Promise.all([
+      const [fr, inviteSnapshot] = await Promise.all([
         base44.entities.FriendRequest.filter(
           { to_email: myEmail, status: 'pending' },
           '-created_date',
           50,
         ).catch(() => []),
-        loadIncomingInvites(myEmail).catch(() => []),
+        loadIncomingInviteSnapshot(myEmail),
       ]);
       if (!aliveRef.current) return;
       const now = Date.now();
@@ -72,20 +77,25 @@ export function useHeaderNotifications(user) {
       // Subscription events can arrive before the follow-up entity filter is
       // fully consistent, so preserve active rows during subscription follow-up.
       setGameInvites((prev) => {
-        const next = preserveExisting
-          ? mergeActiveIncomingGameInvites(prev, gi, myEmail, now)
-          : filterActiveIncomingGameInvites(gi, myEmail, now);
+        const next = mergeActiveIncomingGameInvites(prev, inviteSnapshot?.rows || [], myEmail, now);
+        const staleEmptyPreserved = (inviteSnapshot?.rows || []).length === 0 && prev.length > 0 && next.length > 0;
         traceGameInviteLifecycle('header_badge_recalculated', { id: `count:${next.length}`, status: 'pending', to_email: myEmail }, {
           source: `useHeaderNotifications.${source}`,
           user,
           userEmail: myEmail,
-          reason: preserveExisting ? 'preserve_existing_merge' : 'authoritative_replace',
+          reason: staleEmptyPreserved ? 'stale_empty_fetch_preserved' : (preserveExisting ? 'preserve_existing_merge' : 'lifecycle_merge'),
         });
         return next;
       });
     } catch (err) {
       if (!aliveRef.current) return;
       setError(err?.message || 'Bildirimler yüklenemedi.');
+      traceGameInviteLifecycle('invite_loaded_by_fetch_batch', { id: 'fetch:error', status: 'pending', to_email: myEmail }, {
+        source: `useHeaderNotifications.${source}`,
+        user,
+        userEmail: myEmail,
+        reason: 'fetch_error_preserve_existing',
+      });
     } finally {
       if (aliveRef.current) setLoading(false);
     }
@@ -169,8 +179,6 @@ export function useHeaderNotifications(user) {
     return () => clearInterval(id);
   }, [gameInvites.length, myEmail]);
 
-  const totalCount = friendRequests.length + gameInvites.length;
-
   const openFriendRequests = useCallback(() => {
     navigate('/friends');
   }, [navigate]);
@@ -182,6 +190,7 @@ export function useHeaderNotifications(user) {
       return { ok: false, reason: 'expired' };
     }
     try {
+      setGameInvites((prev) => prev.filter((item) => item.id !== invite.id));
       const res = await openGameInviteAction(invite, {
         navigate,
         userEmail: myEmail,
@@ -193,16 +202,23 @@ export function useHeaderNotifications(user) {
       refresh();
       return { ok: false, reason: err?.message || 'accept_failed' };
     }
-  }, [navigate, refresh]);
+  }, [myEmail, navigate, refresh]);
 
-  return useMemo(() => ({
+  const notificationViewModel = useMemo(() => buildNotificationViewModel({
+    currentUser: user,
     friendRequests,
     gameInvites,
-    totalCount,
+  }), [friendRequests, gameInvites, user]);
+
+  return useMemo(() => ({
+    friendRequests: notificationViewModel.pendingFriendRequests,
+    gameInvites: notificationViewModel.activeIncomingGameInvites,
+    totalCount: notificationViewModel.badgeCount,
     loading,
     error,
     refresh,
     openFriendRequests,
     openGameInvite,
-  }), [friendRequests, gameInvites, totalCount, loading, error, refresh, openFriendRequests, openGameInvite]);
+    notificationViewModel,
+  }), [notificationViewModel, loading, error, refresh, openFriendRequests, openGameInvite]);
 }

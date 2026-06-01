@@ -56,6 +56,15 @@ export function getInviteLobbyId(invite) {
   return String(invite?.lobby_id || invite?.lobbyId || '').trim();
 }
 
+export function getGameInviteDedupeKey(invite) {
+  if (!invite) return '';
+  if (invite.id) return `id:${invite.id}`;
+  const lobbyId = getInviteLobbyId(invite);
+  const sender = getInviteSenderEmail(invite);
+  const recipient = getInviteRecipientEmail(invite);
+  return [lobbyId, sender, recipient].filter(Boolean).join('|');
+}
+
 export function getInviteStatus(invite) {
   return String(invite?.status || '').trim().toLowerCase();
 }
@@ -161,12 +170,12 @@ export function getGameInviteActiveFilterReason(invite, userEmail, now = Date.no
   if (isInviteExpired(invite, now)) return 'expired';
 
   if (!Number.isFinite(parseInviteExpiresAt(invite))) return 'missing_expiry';
-  if (!getInviteLobbyId(invite)) return 'active_missing_lobby';
+  if (!getInviteLobbyId(invite)) return 'missing_lobby';
   return 'active';
 }
 
 export function isActiveIncomingGameInvite(invite, userEmail, now = Date.now()) {
-  return getGameInviteActiveFilterReason(invite, userEmail, now).startsWith('active');
+  return getGameInviteActiveFilterReason(invite, userEmail, now) === 'active';
 }
 
 export function filterActiveIncomingGameInvites(invites = [], userEmail, now = Date.now()) {
@@ -177,21 +186,35 @@ export function mergeActiveIncomingGameInvites(existing = [], incoming = [], use
   const byId = new Map();
 
   filterActiveIncomingGameInvites(existing, userEmail, now).forEach((invite) => {
-    byId.set(invite.id, invite);
+    const key = getGameInviteDedupeKey(invite);
+    if (key) byId.set(key, invite);
   });
 
   (incoming || []).forEach((invite) => {
-    if (!invite?.id) return;
+    const key = getGameInviteDedupeKey(invite);
+    if (!key) return;
     if (isActiveIncomingGameInvite(invite, userEmail, now)) {
-      byId.set(invite.id, invite);
+      byId.set(key, invite);
     } else {
-      byId.delete(invite.id);
+      byId.delete(key);
     }
   });
 
   return Array.from(byId.values()).sort((a, b) => (
     (getInviteCreatedAt(b) || 0) - (getInviteCreatedAt(a) || 0)
   ));
+}
+
+export function getGameInviteActionability(invite, userEmail, now = Date.now()) {
+  const reason = getGameInviteActiveFilterReason(invite, userEmail, now);
+  return {
+    actionable: reason === 'active',
+    reason,
+    inviteId: invite?.id || null,
+    lobbyId: getInviteLobbyId(invite) || null,
+    remainingMs: getInviteRemainingMs(invite, now),
+    recipientMatches: isIncomingInviteForUser(invite, userEmail),
+  };
 }
 
 export function summarizeGameInviteForDiagnostics(invite, userEmail, now = Date.now(), source = 'unknown', reason = '') {

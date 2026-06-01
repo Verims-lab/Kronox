@@ -33,6 +33,11 @@ import { setBottomNavHidden } from '@/lib/bottomNavVisibility';
 export default function LobbyRoom() {
   const navigate = useNavigate();
   const location = useLocation();
+  const initialJoinedLobby = useMemo(() => {
+    const joined = location.state?.joinedLobby;
+    if (!joined?.id) return null;
+    return isLobbyStale(joined) ? null : joined;
+  }, [location.state]);
   const {
     user,
     mode,
@@ -52,7 +57,7 @@ export default function LobbyRoom() {
     copied,
     setCopied,
     userChecked,
-  } = useLobbyRoomState();
+  } = useLobbyRoomState(initialJoinedLobby);
   const queryInviteId = useMemo(
     () => new URLSearchParams(location.search).get('inviteId') || '',
     [location.search],
@@ -193,6 +198,14 @@ export default function LobbyRoom() {
   // start a fresh challenge.
   useEffect(() => {
     const joined = location.state?.joinedLobby;
+    if (joined?.id && lobby?.id === joined.id) {
+      debugLog('[LobbyRoom] route joined lobby used as initial authoritative lobby:', {
+        lobbyId: joined.id,
+        status: joined.status,
+        playersCount: joined.players?.length || 0,
+      });
+      return;
+    }
     if (joined && !lobby) {
       const staleDiagnostics = getLobbyStaleDiagnostics(joined);
       debugLog('[LobbyRoom] joined lobby stale check:', staleDiagnostics);

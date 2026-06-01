@@ -47,6 +47,7 @@ import friendsPageSource from '../../pages/FriendsPage.jsx?raw';
 import friendsApiSource from '../../lib/friendsApi.js?raw';
 import inviteApiSource from '../../lib/inviteApi.js?raw';
 import gameInviteSelectorsSource from '../../lib/gameInviteSelectors.js?raw';
+import incomingInvitesPanelSource from '../invites/IncomingInvitesPanel.jsx?raw';
 import lobbyCreateJoinPanelSource from '../lobby/LobbyCreateJoinPanel.jsx?raw';
 import lobbyRoomSource from '../../pages/LobbyRoom.jsx?raw';
 import onlineChallengeScreenSource from '../lobby/OnlineChallengeScreen.jsx?raw';
@@ -122,6 +123,11 @@ export const OVERRIDDEN_CASE_KEYS = new Set([
   'lobby_code_ux.acik_lobiye_gir_preserved',
   'visual_composition_regression.image_buttons_have_press_feedback_regression',
   'visual_composition_regression.asset_path_drift_warning',
+  // Codex151 — invite loaders now use lifecycle snapshots so terminal rows
+  // can remove active state while stale empty fetches cannot flicker valid
+  // subscription rows away. The old cases expected the active-only loader call.
+  'game_invites.incoming_invites_visible_to_recipient',
+  'invite_contract_drift.incoming_panel_uses_loader',
 ]);
 
 // No new suite ids — we reuse the existing suite ids defined in the base
@@ -148,6 +154,32 @@ export const EXTRA_TESTS = [
     'lib/inviteApi.js',
     inviteApiSource,
     ["status: 'pending'", 'createdAt.getTime() + GAME_INVITE_TTL_MS', 'expires_at: expiresAt.toISOString()'],
+  ),
+
+  sourceHasReplacement(
+    'game_invites', 'Game Invites Suite',
+    'incoming_invites_visible_to_recipient',
+    'Incoming invites are scoped to the recipient and merged through lifecycle snapshots',
+    'lib/inviteApi.js + components/invites/IncomingInvitesPanel.jsx',
+    `${inviteApiSource}\n${incomingInvitesPanelSource}`,
+    [
+      'export async function loadIncomingInviteSnapshot',
+      'loadIncomingInviteSnapshot(user.email)',
+      'to_email: me',
+      'filterActiveIncomingGameInvites',
+      'mergeActiveIncomingGameInvites(prev, snapshot?.rows',
+      'base44.entities.GameInvite.filter',
+    ],
+  ),
+
+  sourceHasReplacement(
+    'invite_contract_drift', 'Invite Contract Drift Suite',
+    'incoming_panel_uses_loader',
+    'Incoming invites panel uses the lifecycle snapshot loader, not direct global GameInvite queries',
+    'IncomingInvitesPanel.jsx',
+    incomingInvitesPanelSource,
+    ['loadIncomingInviteSnapshot(user.email)', 'mergeActiveIncomingGameInvites', 'buildNotificationViewModel'],
+    { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW },
   ),
 
   /* ------------------------------------------------------------------
