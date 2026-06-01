@@ -85,13 +85,18 @@ export const acceptGameInviteFnSource = `
   const hasZone = /Z$/i.test(str) || /[+-]\\d{2}:?\\d{2}$/.test(str);
   const t = new Date(hasZone ? str : \`\${str}Z\`).getTime();
   if (toEmail !== myEmail) {
-    return Response.json({ error: 'Bu davet sana ait değil.' }, { status: 403 });
+    return Response.json({ code: 'unauthorized', error: 'Bu daveti açma yetkin yok.' }, { status: 403 });
+  }
+  if (!invite) return Response.json({ code: 'invite_not_found', error: 'Davet bulunamadı.' }, { status: 404 });
+  if (invite.status === 'accepted') {
+    return Response.json({ ok: true, alreadyAccepted: true, invite, lobby: acceptedLobby, lobbyId: acceptedLobby.id, lobbyCode: acceptedLobby.code || invite.lobby_code || '' });
   }
   const expiresAt = getInviteExpiry(invite);
   if (Number.isFinite(expiresAt) && expiresAt <= Date.now()) {
     await base44.asServiceRole.entities.GameInvite.update(inviteId, { status: 'expired', expired_at: new Date().toISOString() });
-    return Response.json({ error: 'Davetin süresi doldu. Yeni bir davet iste.' }, { status: 409 });
+    return Response.json({ code: 'invite_expired', error: 'Davetin süresi doldu.' }, { status: 409 });
   }
+  if (!lobby) return Response.json({ code: 'lobby_not_found', error: 'Lobi artık mevcut değil.' }, { status: 404 });
   if (lobby.status !== 'waiting') {
     await base44.asServiceRole.entities.GameInvite.update(invite.id, { status: 'expired' });
   }
@@ -111,7 +116,9 @@ export const acceptGameInviteFnSource = `
     players: [...lobby.players, newPlayer],
     last_activity_at: new Date().toISOString(),
   });
-  await base44.asServiceRole.entities.GameInvite.update(inviteId, { status: 'accepted', accepted_at: new Date().toISOString() });
+  const updatedLobby = verifiedLobby;
+  const updatedInvite = await base44.asServiceRole.entities.GameInvite.update(inviteId, { status: 'accepted', accepted_at: new Date().toISOString() });
+  return Response.json({ ok: true, success: true, invite: updatedInvite, lobby: updatedLobby, lobbyId: updatedLobby.id, lobbyCode: updatedLobby.code || invite.lobby_code || '' });
 `;
 
 export const sendFriendRequestEmailFnSource = `

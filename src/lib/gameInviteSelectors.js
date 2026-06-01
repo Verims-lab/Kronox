@@ -76,20 +76,28 @@ export function isInvitePending(invite) {
 // like an ISO datetime but has no timezone suffix before handing it to
 // `new Date()`. Strings that already have `Z` / `+hh:mm` / `-hh:mm` /
 // `space + offset` are left alone.
-export function parseKronoxTimestamp(raw) {
-  if (raw == null) return NaN;
+export function parseBase44Timestamp(raw) {
+  if (raw == null) return null;
   if (raw instanceof Date) {
-    const t = raw.getTime();
-    return Number.isFinite(t) ? t : NaN;
+    return Number.isNaN(raw.getTime()) ? null : raw;
   }
-  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : NaN;
+  if (typeof raw === 'number') {
+    if (!Number.isFinite(raw)) return null;
+    const date = new Date(raw);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
   const str = String(raw).trim();
-  if (!str) return NaN;
+  if (!str) return null;
   // Already has a timezone suffix → safe to parse as-is.
-  const hasZone = /Z$/i.test(str) || /[+-]\d{2}:?\d{2}$/.test(str);
+  const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(str);
   const normalized = hasZone ? str : `${str}Z`;
-  const t = new Date(normalized).getTime();
-  return Number.isFinite(t) ? t : NaN;
+  const date = new Date(normalized);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+export function parseKronoxTimestamp(raw) {
+  const date = parseBase44Timestamp(raw);
+  return date ? date.getTime() : NaN;
 }
 
 export function getInviteCreatedAt(invite) {
