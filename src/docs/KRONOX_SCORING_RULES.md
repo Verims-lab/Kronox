@@ -2,9 +2,9 @@
 
 > **Source of truth for Solo + Online scoring.** This document describes the
 > product rules. Implementation pointers are noted under each section.
-> Documented mismatches between code and product rules are flagged
-> **explicitly** at the bottom of this file (Section 8) and have **not** been
-> silently changed.
+> Historical mismatches are tracked at the bottom of this file. As of
+> Codex139, the active scoring code and Health Center contracts are aligned
+> with the product rules below.
 
 ---
 
@@ -80,11 +80,8 @@ Solo time bonus is based on completion time:
 
 Helper: `calculateSoloTimeBonus(elapsedSeconds, passed)`.
 
-> ⚠️ **MISMATCH-S1 (boundary, minor):** the documented product table treats
-> `60 seconds` as part of the **0–60s** tier (+10), but the current code
-> uses `if (elapsed < 60) return 10; if (elapsed >= 60 && elapsed <= 90) return 5;`.
-> In code, **exactly 60.0s yields +5, not +10**.
-> See Section 8 for the recommendation.
+Implementation boundary: `elapsedSeconds <= 60` receives +10, `<= 90`
+receives +5, and `> 90` receives +0. Exactly **60.0s yields +10**.
 
 ### 2.5 Solo Total Level Score
 
@@ -209,12 +206,9 @@ If a match result is ambiguous, winner selection must be deterministic.
 3. if tied, earlier `finishedAt` timestamp
 4. if still tied, deterministic lobby/player ordering
 
-> ⚠️ **MISMATCH-O1 (significant):** the current implementation
-> (`lib/onlineRanking.js`) still ships **draw scoring**:
-> `ONLINE_DRAW_POINTS = 3`, `ONLINE_RESULT.DRAW = 'draw'`,
-> a `'draw'` branch in `calculateOnlineMatchDelta`, and a `draws` counter
-> in `applyOnlineMatchResult`. The documented product rule is "no draws".
-> See Section 8 for the recommendation. **No code was changed.**
+Implementation note: active code returns zero delta for unsupported result
+values and does not emit `draws`. Legacy rows may still contain old `draws`
+data, but new writes ignore it.
 
 ### 3.2 Online Winner Score
 
@@ -263,13 +257,8 @@ Loser **never** receives a time bonus.
 
 Helper: `getOnlineWinnerTimeBonus(durationSeconds)`.
 
-> ⚠️ **MISMATCH-O2 (minor, boundary):** the current implementation defines
-> tiers as `{ maxSeconds: 60, bonus: 10 }` and `{ maxSeconds: 90, bonus: 5 }`
-> with a `seconds <= maxSeconds` check. That makes `0–60s → +10`, `61–90s → +5`
-> — matching the documented table. **However** when `durationSeconds <= 0`
-> or non-finite, `clampNonNegative` returns `0`, and the winner gets
-> `+10` for "missing time". The product rule says **missing/unknown time → +0**.
-> See Section 8.
+Implementation note: missing, null, non-finite, or negative elapsed time
+receives +0 bonus. A valid `0` seconds value remains in the 0–60s tier.
 
 ### 3.5 Online Checkpoint System
 
@@ -348,12 +337,9 @@ the Health Center looks for):
   - `rawScore = currentScore + delta`
   - return `Math.max(rawScore, checkpoint, 0)`
 
-> ⚠️ **MISMATCH-O3 (naming, behavior equivalent):** the current code exposes
-> equivalent functions under different names:
-> `calculateOnlineMatchDelta({ result, durationSeconds })` (covers both
-> winner and loser via `result`), `getReachedCheckpoint(score)`,
-> `applyOnlineMatchResult(progress, { result, durationSeconds })`.
-> The math matches; only the function names differ. See Section 8.
+Implementation note: the canonical helpers and doc-named aliases are both
+exported from `lib/onlineRanking.js`; aliases are thin wrappers and do not
+duplicate math.
 
 ### 3.7 Online Idempotency Rule
 
@@ -370,11 +356,13 @@ Important:
 
 Implementation (current):
 
-- `online_progress.lastMatchId` stores the most recent lobby id that was
-  applied to this user.
-- `applyOnlineMatchToCurrentUser({ lobbyId, ... })` short-circuits with
-  `{ skipped: true, reason: 'already_applied' }` if `lastMatchId` already
-  matches the incoming `lobbyId`.
+- `OnlineMatchResult` stores the durable per-user/lobby audit/idempotency
+  row for future matches.
+- `online_progress.lastMatchId` remains a recent-match guard for the most
+  recent lobby id.
+- `applyOnlineMatchToCurrentUser({ lobbyId, ... })` first checks
+  `OnlineMatchResult(player_email, lobby_id)`, then falls back to
+  `lastMatchId`, then applies the score only once.
 
 **Critical rule:** Mark a match as score-applied only **after** score
 persistence succeeds.
@@ -385,16 +373,10 @@ If score persistence fails:
 - Show/log a meaningful error.
 - Allow safe retry.
 
-> ⚠️ **MISMATCH-O4 (current implementation gap):** the current
-> `applyOnlineMatchToCurrentUser` updates `online_progress.lastMatchId` in
-> the **same** `updateMe` call as the score. If `updateMe` fails, neither
-> is persisted — that part is fine. But the function also catches all
-> errors silently and returns `null`, so the UI has no way to surface a
-> retry path. The documented product rule allows "safe retry" — the
-> current code is retry-safe (caller can call again, idempotency check
-> will let it through on next attempt since `lastMatchId` was not
-> persisted), but it does not "show/log a meaningful error" beyond the
-> `debugLog` channel. See Section 8.
+If `updateMe` fails, no `OnlineMatchResult` row is created and the function
+returns a structured retryable error. If the audit row write fails after the
+score update succeeds, `lastMatchId` still protects the immediate re-open
+path and the function reports the audit persistence status.
 
 ### 3.8 Online Score Persistence
 
@@ -422,18 +404,18 @@ Rules:
 Implementation (current):
 
 - `applyOnlineMatchResult(...)` writes
-  `{ score, peakScore, peakCheckpoint, wins, losses, draws, lastUpdatedAt }`.
+  `{ score, peakScore, peakCheckpoint, wins, losses, lastMatchAt }`.
 - `applyOnlineMatchToCurrentUser(...)` adds `lastMatchId` and writes the
   whole `online_progress` block via `base44.auth.updateMe(...)`.
+- `applyOnlineMatchToCurrentUser(...)` then best-effort creates
+  `OnlineMatchResult` with `score_before`, `score_after`, `delta`,
+  `effective_delta`, and `applied_at`.
 - **`totalSoloScore` is never touched by these paths** (verified — the
   only writers of solo state are `lib/soloLevels.js` /
   `lib/soloProgressHelpers.js`).
 
-> ⚠️ **MISMATCH-O5 (field naming):** product spec lists
-> `online_progress.lastMatchAt`; current code writes `lastUpdatedAt`
-> instead. Behavior is equivalent (timestamp of last apply), only the
-> field name differs. Spec also does not list `draws`, but code writes
-> one. See Section 8.
+Legacy rows with `draws` or `lastUpdatedAt` are still tolerated, but new
+writes do not emit them.
 
 ### 3.9 Online Authority Model
 
@@ -445,6 +427,7 @@ its own score.**
 - Loser client applies loss score to its own profile via
   `base44.auth.updateMe(...)`.
 - Guarded against duplicate apply via `online_progress.lastMatchId`.
+- Hardened against older lobby reopens via `OnlineMatchResult`.
 - One client cannot update another user, because `updateMe` is
   scoped to the authenticated caller.
 
@@ -559,7 +542,7 @@ If product decisions change:
 
 ---
 
-## 8. Audit — Code vs. Documented Rules (Codex136 alignment)
+## 8. Audit — Code vs. Documented Rules (Codex136/Codex139 alignment)
 
 Codex136 aligned the implementation with this document. Every mismatch
 from the original audit is now either fixed in code or covered by a
@@ -586,7 +569,8 @@ modular file: `components/game/simulationPanelScoringContractCases.jsx`.
 - **Online checkpoint floor on loss** (clamps loss-only, never wins).
 - **Online never below 0** (defensive `nextScore < 0 → 0`).
 - **Online idempotency** (`lastMatchId` short-circuit in
-  `applyOnlineMatchToCurrentUser`).
+  `applyOnlineMatchToCurrentUser`, plus Codex139 `OnlineMatchResult`
+  durable per-user/lobby audit row).
 - **Online authority model** (Option A — each client updates itself via
   `updateMe`).
 
@@ -601,53 +585,18 @@ modular file: `components/game/simulationPanelScoringContractCases.jsx`.
 | MISMATCH-O4 | minor           | `applyOnlineMatchToCurrentUser`                                | Returns structured result: `{ ok: true, ... }`, `{ ok: true, skipped: true, reason: 'already_applied' }`, `{ ok: false, error, retryable: true, where: 'auth'\|'persist' }`. `lastMatchId` is only persisted on a successful `updateMe`. `Game.jsx` resets `onlineResultAppliedRef` on retryable failure. |
 | MISMATCH-O5 | minor           | `applyOnlineMatchResult` persistence shape                     | Writer now emits `lastMatchAt` (ISO string). `draws` field is no longer written. Legacy users with `draws` on disk are not crashed — the field is simply ignored.                                                              |
 
-### 8.3 Health Center cases to update
+### 8.2.1 Codex139 DB/Data Model hardening
 
-The following Health cases should be **added** or **updated** to lock the
-documented contracts, in modular files (NOT in `simulationPanelExtraCases`):
+- `OnlineMatchResult` introduced as the durable idempotency/audit source for
+  future Online scoring applications.
+- `User.online_progress.lastMatchId` remains a recent-match guard and
+  compatibility field.
+- `getSoloLeaderboard` projection now uses the same 60/90 second Solo
+  boundary as `calculateSoloTimeBonus`.
+- Signed-in Solo localStorage mirrors are owner-scoped and cannot overwrite
+  another signed-in user's server `User.solo_progress`.
 
-**Add (new modular file recommended:
-`components/game/simulationPanelScoringContractCases.jsx`):**
-
-- `solo_time_bonus_contract` — executable: assert
-  `calculateSoloTimeBonus(60, true) === 10` once doc/code align
-  (currently would FAIL → see MISMATCH-S1).
-- `online_score_no_draw_contract` — static: forbid the tokens
-  `ONLINE_DRAW_POINTS`, `'draw'`, `RESULT_DRAW`, `draws:` from
-  `lib/onlineRanking.js` once doc/code align (currently would FAIL →
-  see MISMATCH-O1).
-- `online_score_time_bonus_missing_time_zero` — executable:
-  `getOnlineWinnerTimeBonus(undefined) === 0`, `getOnlineWinnerTimeBonus(null) === 0`,
-  `getOnlineWinnerTimeBonus(0) === 0` once doc/code align (currently
-  would FAIL → see MISMATCH-O2).
-- `online_score_helper_naming_contract` — static: import-check
-  `calculateOnlineWinnerDelta` / `calculateOnlineLoserDelta` /
-  `getOnlineCheckpoint` / `applyOnlineScoreWithCheckpoint` /
-  `applyOnlineMatchResultOnce` once doc/code align (currently would
-  FAIL → see MISMATCH-O3).
-- `online_score_persistence_field_matches_reader` — static: read sites
-  agree with the writer on either `lastMatchAt` or `lastUpdatedAt`
-  (currently writer uses `lastUpdatedAt`, no reader exists yet, so this
-  is forward-looking).
-- `online_score_authority_model_documented` — static: `docs/KRONOX_SCORING_RULES.md`
-  contains "Option A — each client updates only its own score" (this
-  doc satisfies that contract today).
-
-**Preserve as-is (already PASS):**
-
-- All Solo executable cases in
-  `components/game/simulationPanelSoloProgressCases.jsx`
-  (`solo_star_rules`, `solo_level_score`, `solo_replay_delta_only`,
-  `solo_backfill_*`, `solo_total_score_separate_from_online`).
-
-**Manual / NOT_AUTOMATABLE:**
-
-- `online_score_applied_on_game_completion`
-- `online_score_code_lobby_path_supported`
-- `online_score_invite_path_supported`
-- `online_score_idempotent_match_result` (real two-account proof)
-
-### 8.3 Health Center cases delivered in Codex136
+### 8.3 Health Center cases delivered
 
 New modular suite — `components/game/simulationPanelScoringContractCases.jsx`
 (registered through `simulationPanelCaseRegistry.jsx`):
@@ -666,6 +615,16 @@ Existing `online_ranking` suite updated in place (no new file) to drop
 the obsolete `draws` / `ONLINE_DRAW_POINTS` / `ONLINE_RESULT.DRAW`
 expectations. All Solo executable cases in
 `simulationPanelSoloProgressCases.jsx` continue to pass.
+
+Codex139 adds `components/game/simulationPanelDataModelCases.jsx`
+(registered through `simulationPanelCaseRegistry.jsx`) for:
+
+- schema documentation alignment,
+- Solo user-scoped localStorage mirrors,
+- getSoloLeaderboard scoring boundary drift,
+- OnlineMatchResult durable idempotency,
+- cleanup/retention utilities,
+- RLS runtime probe matrix.
 
 ### 8.4 Summary
 

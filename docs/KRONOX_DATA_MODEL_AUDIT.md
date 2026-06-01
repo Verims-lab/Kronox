@@ -3,6 +3,7 @@
 Date: 2026-06-01
 Branch inspected: Codex
 Scope: Base44 entities, Base44 functions, data access helpers, source-of-truth contracts, persistence risks, RLS/security posture, Health Center recommendations.
+Implementation follow-up: Codex139 DB/Data Model hardening package.
 
 This is an audit-first document. It does not apply destructive schema changes, delete data, run migrations, change product behavior, change scoring logic, or touch gameplay mechanics.
 
@@ -864,3 +865,100 @@ Why first:
 - No Health score weakening.
 - No Daily Quest implementation.
 - No random matchmaking, bot fallback, or economy implementation.
+
+---
+
+## 14. Codex139 Implementation Status
+
+The 5-step hardening roadmap was implemented only where it was additive and
+safe.
+
+### Phase 1 — Schema Documentation Alignment
+
+Completed:
+
+- `User.jsonc` documents live profile flags:
+  `hasCompletedTutorial` and `game_invite_notifications_enabled`.
+- `User.jsonc` documents the current `solo_progress` scoring/backfill shape,
+  including per-level best score fields and derived summary fields.
+- `User.jsonc` documents current `online_progress`, deprecates legacy `draws`
+  / `lastUpdatedAt`, and points durable idempotency to `OnlineMatchResult`.
+- `Lobby.jsonc` documents `state_revision`, `winner_email`, and lifecycle
+  timestamp fields.
+- `GameInvite.jsonc` documents `cancelled_at`.
+- `OnlineMatchResult.jsonc` was added as an additive entity schema.
+
+### Phase 2 — Solo localStorage User Scoping
+
+Completed:
+
+- Guest local mirror key: `kx_solo_progress_v1:guest`.
+- Signed-in local mirror key: `kx_solo_progress_v1:<ownerKey>`.
+- Signed-in reads accept only same-owner scoped/marked local mirrors.
+- Old unscoped local progress migrates to guest-only fallback unless it has a
+  matching owner marker.
+- Server `User.solo_progress` remains the signed-in source of truth.
+
+### Phase 3 — Leaderboard Authority / Scoring Drift Cleanup
+
+Completed:
+
+- `getSoloLeaderboard` projection now uses the canonical Solo time-bonus
+  boundary: `seconds <= 60` gets +10.
+- `SoloLeaderboardEntry` publishing remains a best-effort public-safe mirror
+  built from normalized `User.solo_progress`.
+
+Deferred:
+
+- Making `SoloLeaderboardEntry` the only leaderboard authority. Current safe
+  authority remains `User.solo_progress` projection plus mirror fallback.
+
+### Phase 4 — OnlineMatchResult / Online Idempotency Hardening
+
+Completed:
+
+- Added `OnlineMatchResult` schema.
+- `applyOnlineMatchToCurrentUser` checks an existing
+  `OnlineMatchResult(player_email, lobby_id)` before applying score.
+- The existing `lastMatchId` guard remains as recent-match compatibility.
+- After `User.online_progress` is persisted, an `OnlineMatchResult` audit row
+  is best-effort created with before/after score and delta fields.
+
+Known limitation:
+
+- Base44 unique-constraint support is not verified from this repo. Runtime
+  uses a pre-check, but a database-level uniqueness guarantee would be
+  stronger if supported.
+
+### Phase 5 — Retention / Cleanup / RLS Hardening
+
+Completed:
+
+- Added `src/lib/dataRetention.js` cleanup utilities.
+- Expired invites are marked expired; stale waiting lobbies are marked
+  cancelled; no default deletion is performed.
+- Push subscription and FriendRequest cleanup remain non-destructive/reporting
+  policies.
+- Added Health runtime probe matrix so RLS-sensitive checks remain visible and
+  not fake-green.
+
+Deferred:
+
+- Tightening RLS/direct update permissions. This needs real two/three-account
+  backend probes before changing production rules.
+
+### Health Center
+
+Added modular suite file:
+
+- `src/components/game/simulationPanelDataModelCases.jsx`
+
+Suites added:
+
+- `data_model_health`
+- `persistence_contract_health`
+- `db_architecture_health`
+- `online_match_result_health`
+- `cleanup_retention_health`
+
+No cases were added to `simulationPanelExtraCases.js`.

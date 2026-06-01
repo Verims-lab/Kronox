@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex139 — DB/Data Model hardening package:
+//   • Documents live User/Lobby/GameInvite fields and adds OnlineMatchResult.
+//   • Scopes Solo localStorage mirrors by user so shared devices do not leak
+//     progress across signed-in accounts.
+//   • Aligns getSoloLeaderboard scoring boundaries with canonical Solo helper.
+//   • Adds OnlineMatchResult idempotency/audit rows and non-destructive
+//     cleanup/retention helpers guarded by modular Health cases.
+//
 // Codex137 — Health Check cleanup for remaining GameInvite failures:
 //   • Incoming invite UI now uses the public isGameInviteExpired(invite)
 //     guard expected by Health and keeps expired accept buttons disabled.
@@ -459,7 +467,7 @@ import React, { useEffect, useState } from 'react';
 //
 // Toast lifecycle, header bell, online pending invite list, and the
 // 10-min TTL product rule are unchanged.
-const BUILD_MARKER = 'Codex138';
+const BUILD_MARKER = 'Codex139';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

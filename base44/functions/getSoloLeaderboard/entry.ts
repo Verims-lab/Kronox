@@ -70,7 +70,10 @@ function timeBonus(bestTimeSeconds: unknown, passed: boolean) {
   if (!passed) return 0;
   const seconds = Number(bestTimeSeconds);
   if (!Number.isFinite(seconds)) return 0;
-  if (seconds < 60) return 10;
+  // Codex139 — Keep backend projection aligned with
+  // src/lib/soloProgressHelpers.calculateSoloTimeBonus and
+  // docs/KRONOX_SCORING_RULES.md §2.4: 60.0s belongs to the +10 tier.
+  if (seconds <= 60) return 10;
   if (seconds <= 90) return 5;
   return 0;
 }

@@ -10,7 +10,9 @@
 //
 // PERSISTENCE STRATEGY
 //   Signed-in users → `User.solo_progress` (via base44.auth.updateMe).
-//   Guest users     → localStorage["kx_solo_progress_v1"] fallback.
+//   Guest users     → localStorage["kx_solo_progress_v1:guest"] fallback.
+//   Local mirrors    → user-scoped keys only; never cross-apply another
+//                      signed-in user's progress on a shared device.
 //   Both sources use the same compact shape:
 //
 //     { currentLevel: number,
@@ -49,6 +51,8 @@ import {
 import { publishSoloLeaderboardEntry } from './leaderboard';
 
 const STORAGE_KEY = 'kx_solo_progress_v1';
+const GUEST_STORAGE_KEY = `${STORAGE_KEY}:guest`;
+const LOCAL_MIRROR_VERSION = 2;
 
 // ─── Constants surfaced to the rest of the app ─────────────────────────
 export const SOLO_CARDS_PER_LEVEL = 10;
@@ -102,23 +106,120 @@ function normalizeProgressShape(raw) {
   return normalizeSoloProgress(raw);
 }
 
-function safeReadLocal() {
-  if (typeof window === 'undefined') return emptyProgress();
+function normalizeSoloProgressEmail(email) {
+  return String(email || '').trim().toLowerCase();
+}
+
+export function getSoloProgressOwnerKey(userOrEmail) {
+  const email = normalizeSoloProgressEmail(
+    typeof userOrEmail === 'string' ? userOrEmail : userOrEmail?.email,
+  );
+  if (!email) return 'guest';
+
+  let hash = 2166136261;
+  for (let i = 0; i < email.length; i += 1) {
+    hash ^= email.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `u_${(hash >>> 0).toString(36)}`;
+}
+
+function getScopedStorageKey(user) {
+  const ownerKey = getSoloProgressOwnerKey(user);
+  return ownerKey === 'guest' ? GUEST_STORAGE_KEY : `${STORAGE_KEY}:${ownerKey}`;
+}
+
+function readStorageJson(key) {
+  if (typeof window === 'undefined') return null;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return emptyProgress();
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object') return emptyProgress();
-    return normalizeProgressShape(parsed);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function unwrapLocalMirror(parsed, expectedOwnerKey) {
+  if (!parsed || typeof parsed !== 'object') return null;
+
+  // Codex139 mirror envelope. Signed-in reads require matching ownerKey.
+  if (parsed.__kronoxSoloProgressMirror === LOCAL_MIRROR_VERSION) {
+    const ownerKey = String(parsed.ownerKey || '').trim();
+    if (expectedOwnerKey !== 'guest' && ownerKey !== expectedOwnerKey) return null;
+    if (expectedOwnerKey === 'guest' && ownerKey !== 'guest') return null;
+    return parsed.progress && typeof parsed.progress === 'object'
+      ? normalizeProgressShape(parsed.progress)
+      : null;
+  }
+
+  // Legacy signed-in mirrors are only accepted when they explicitly carry
+  // a same-owner marker. Old unscoped progress without owner metadata is
+  // treated as guest-only fallback to prevent cross-user inheritance.
+  const legacyOwner = String(parsed.ownerKey || parsed.__ownerKey || '').trim();
+  if (expectedOwnerKey !== 'guest') {
+    if (!legacyOwner || legacyOwner !== expectedOwnerKey) return null;
+    return normalizeProgressShape(parsed.progress && typeof parsed.progress === 'object'
+      ? parsed.progress
+      : parsed);
+  }
+
+  return normalizeProgressShape(parsed.progress && typeof parsed.progress === 'object'
+    ? parsed.progress
+    : parsed);
+}
+
+function wrapLocalMirror(user, progress) {
+  const ownerKey = getSoloProgressOwnerKey(user);
+  return {
+    __kronoxSoloProgressMirror: LOCAL_MIRROR_VERSION,
+    ownerKey,
+    scope: ownerKey === 'guest' ? 'guest' : 'signed_in_user',
+    savedAt: new Date().toISOString(),
+    progress: normalizeProgressShape(progress),
+  };
+}
+
+function migrateLegacyGuestIfNeeded() {
+  if (typeof window === 'undefined') return null;
+  const guestParsed = readStorageJson(GUEST_STORAGE_KEY);
+  if (guestParsed) return unwrapLocalMirror(guestParsed, 'guest');
+
+  const legacyParsed = readStorageJson(STORAGE_KEY);
+  const legacyProgress = unwrapLocalMirror(legacyParsed, 'guest');
+  if (legacyProgress) {
+    try {
+      window.localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(wrapLocalMirror(null, legacyProgress)));
+    } catch {
+      /* quota or private mode — ignore */
+    }
+  }
+  return legacyProgress;
+}
+
+function safeReadLocal(user = null) {
+  if (typeof window === 'undefined') return emptyProgress();
+  const ownerKey = getSoloProgressOwnerKey(user);
+  try {
+    const scoped = unwrapLocalMirror(readStorageJson(getScopedStorageKey(user)), ownerKey);
+    if (scoped) return scoped;
+    if (ownerKey === 'guest') return migrateLegacyGuestIfNeeded() || emptyProgress();
+
+    // Signed-in migration from the old unscoped key is intentionally strict:
+    // only an owner-marked legacy mirror can be used. Anonymous old progress
+    // remains guest fallback and can never overwrite User.solo_progress.
+    const legacySameOwner = unwrapLocalMirror(readStorageJson(STORAGE_KEY), ownerKey);
+    return legacySameOwner || emptyProgress();
   } catch {
     return emptyProgress();
   }
 }
 
-function safeWriteLocal(progress) {
+function safeWriteLocal(user, progress) {
   if (typeof window === 'undefined') return;
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizeProgressShape(progress)));
+    window.localStorage.setItem(getScopedStorageKey(user), JSON.stringify(wrapLocalMirror(user, progress)));
   } catch {
     /* quota or private mode — ignore */
   }
@@ -141,7 +242,7 @@ function safeWriteLocal(progress) {
  * without null checks.
  */
 export function readSoloProgress(user) {
-  const fromLocal = safeReadLocal();
+  const fromLocal = safeReadLocal(user || null);
   const fromUser = (user && user.solo_progress && typeof user.solo_progress === 'object')
     ? normalizeProgressShape(user.solo_progress)
     : null;
@@ -156,7 +257,7 @@ function sameProgress(a, b) {
 export async function ensureSoloProgressBackfill(user) {
   const progress = readSoloProgress(user || null);
   if (!user?.email) {
-    safeWriteLocal(progress);
+    safeWriteLocal(null, progress);
     return progress;
   }
 
@@ -196,7 +297,7 @@ function pickMoreAdvanced(a, b) {
  */
 export async function writeSoloProgress(user, progress) {
   const normalized = normalizeProgressShape(progress);
-  safeWriteLocal(normalized); // mirror locally so guests + flakey network still see it
+  safeWriteLocal(user || null, normalized); // same-user mirror so guests + flakey network still see it
   if (!user || !user.email) return;
   try {
     await base44.auth.updateMe({ solo_progress: normalized });

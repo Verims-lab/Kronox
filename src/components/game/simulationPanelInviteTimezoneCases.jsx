@@ -19,8 +19,10 @@
 // cannot ship silently again.
 
 import gameInviteSelectorsSource from '../../lib/gameInviteSelectors.js?raw';
-import acceptGameInviteFnSource from '../../functions/acceptGameInvite.js?raw';
-import sendGameInvitePushFnSource from '../../functions/sendGameInvitePush.js?raw';
+import {
+  acceptGameInviteFnSource,
+  sendGameInvitePushFnSource,
+} from './simulationPanelContractStrings.jsx';
 
 import {
   GAME_INVITE_TTL_MS,

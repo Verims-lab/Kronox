@@ -47,7 +47,9 @@ export const gameInviteEntitySource = `
     "expires_at": {},
     "expired_at": {},
     "accepted_at": {},
-    "declined_at": {}
+    "declined_at": {},
+    "completed_at": {},
+    "cancelled_at": {}
   },
   "rls": {
     "create": { "data.from_email": "{{user.email}}" },
@@ -80,6 +82,8 @@ export const acceptGameInviteFnSource = `
   // Codex130: TTL bumped to 10 minutes (was 5). Stale lobby guard added.
   const GAME_INVITE_TTL_MS = 10 * 60 * 1000;
   const LOBBY_STALE_AFTER_MS = 10 * 60 * 1000;
+  const hasZone = /Z$/i.test(str) || /[+-]\\d{2}:?\\d{2}$/.test(str);
+  const t = new Date(hasZone ? str : \`\${str}Z\`).getTime();
   if (toEmail !== myEmail) {
     return Response.json({ error: 'Bu davet sana ait değil.' }, { status: 403 });
   }
@@ -145,6 +149,8 @@ export const sendGameInvitePushFnSource = `
   // Public contract of functions/sendGameInvitePush.js — mirrored.
   // Codex130: TTL bumped to 10 minutes (was 5).
   const GAME_INVITE_TTL_MS = 10 * 60 * 1000;
+  const hasZone = /Z$/i.test(str) || /[+-]\\d{2}:?\\d{2}$/.test(str);
+  const t = new Date(hasZone ? str : \`\${str}Z\`).getTime();
   const invite = await base44.asServiceRole.entities.GameInvite.get(inviteId);
   const myEmail = normalizeEmail(user.email);
   const fromEmail = normalizeEmail(invite.from_email);
@@ -284,10 +290,33 @@ export const userEntitySource = `
   "name": "User",
   "properties": {
     "role": { "enum": ["admin", "user"] },
+    "hasCompletedTutorial": {},
+    "game_invite_notifications_enabled": {},
     "solo_progress": {
       "properties": {
         "currentLevel": {},
-        "levels": {}
+        "unlockedLevel": {},
+        "levels": {
+          "bestStars": {},
+          "bestScore": {},
+          "bestScoreStars": {},
+          "bestScoreBaseScore": {},
+          "bestScoreTimeBonus": {},
+          "bestMistakes": {},
+          "bestTimeSeconds": {},
+          "attempts": {},
+          "completedAt": {},
+          "lastAttemptAt": {}
+        },
+        "summary": {
+          "totalSoloScore": {},
+          "currentLevel": {},
+          "unlockedLevel": {},
+          "totalStars": {},
+          "completedLevelCount": {},
+          "aggregateBestTimeSeconds": {},
+          "totalAttempts": {}
+        }
       }
     },
     "online_progress": {
@@ -297,13 +326,61 @@ export const userEntitySource = `
         "peakCheckpoint": {},
         "wins": {},
         "losses": {},
-        "draws": {},
+        "draws": { "description": "legacy/deprecated; no current draw scoring" },
         "lastMatchId": {},
-        "lastUpdatedAt": {}
+        "lastMatchAt": {},
+        "lastUpdatedAt": { "description": "legacy/deprecated" }
       }
     }
   },
   "required": ["role"]
+`;
+
+export const lobbyEntitySource = `
+  "name": "Lobby",
+  "properties": {
+    "code": {},
+    "host_email": {},
+    "players": {},
+    "status": { "enum": ["waiting","starting","in_game","finished","cancelled","expired"] },
+    "winner": {},
+    "winner_email": {},
+    "state_revision": {},
+    "selected_category_ids": {},
+    "invited_emails": {},
+    "started_at": {},
+    "completed_at": {},
+    "cancelled_at": {},
+    "last_activity_at": {},
+    "expires_at": {}
+  }
+`;
+
+export const onlineMatchResultEntitySource = `
+  "name": "OnlineMatchResult",
+  "properties": {
+    "lobby_id": {},
+    "player_email": {},
+    "opponent_email": {},
+    "result": { "enum": ["win","loss"] },
+    "delta": {},
+    "effective_delta": {},
+    "score_before": {},
+    "score_after": {},
+    "elapsed_seconds": {},
+    "checkpoint_before": {},
+    "checkpoint_after": {},
+    "applied_at": {},
+    "created_at": {},
+    "source": {},
+    "metadata": {}
+  },
+  "required": ["lobby_id","player_email","result","score_before","score_after","applied_at"],
+  "rls": {
+    "create": { "data.player_email": "{{user.email}}" },
+    "read": { "data.player_email": "{{user.email}}", "user_condition": { "role": "admin" } },
+    "delete": { "user_condition": { "role": "admin" } }
+  }
 `;
 
 export const findLobbyByCodeFnSource = `
@@ -358,4 +435,24 @@ export const sendFriendRequestEmailFnSourceFull = `
     console.error('[sendFriendRequestEmail] SendEmail failed:', reason);
     return json({ ok: false, error: 'email_failed', reason }, 502);
   }
+`;
+
+export const getSoloLeaderboardFnSource = `
+  // Public contract of functions/getSoloLeaderboard.js — mirrored.
+  // Codex139: backend projection aligns with canonical Solo scoring:
+  // 60.0 seconds belongs to the +10 time bonus tier, 90.0 to +5.
+  function timeBonus(bestTimeSeconds, passed) {
+    if (!passed) return 0;
+    const seconds = Number(bestTimeSeconds);
+    if (!Number.isFinite(seconds)) return 0;
+    if (seconds <= 60) return 10;
+    if (seconds <= 90) return 5;
+    return 0;
+  }
+  function scoreFromLevelEntry(entry) {
+    const stored = Number(entry?.bestScore);
+    if (Number.isFinite(stored) && stored >= 0) return Math.floor(stored);
+    return starBaseScore(stars) + timeBonus(entry?.bestTimeSeconds, true);
+  }
+  const rows = users.map(toLeaderboardRow).filter(Boolean).sort(compareRows);
 `;

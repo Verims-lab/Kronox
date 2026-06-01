@@ -122,7 +122,7 @@ export const EXTRA_TESTS = [
       //    to localStorage AND updates the user profile.
       const writerMissing = missingTokens(soloLevelsLibSource, [
         'export async function writeSoloProgress',
-        'safeWriteLocal(normalized)',
+        'safeWriteLocal(user || null, normalized)',
         'base44.auth.updateMe({ solo_progress: normalized })',
       ]);
 
