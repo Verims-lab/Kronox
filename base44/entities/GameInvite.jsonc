@@ -78,6 +78,11 @@
       "type": "string",
       "format": "date-time",
       "description": "ISO timestamp set when the matched game completes."
+    },
+    "cancelled_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp set when the invite is cancelled by host/lobby lifecycle."
     }
   },
   "required": [

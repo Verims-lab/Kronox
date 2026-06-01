@@ -12,10 +12,14 @@
     },
     "solo_progress": {
       "type": "object",
-      "description": "Codex106 \u2014 Per-user Solo Level Path progress. Compact shape: { currentLevel, levels: { '1': { bestStars, bestMistakes, bestTimeSeconds, attempts, completedAt } } }. Writes go through base44.auth.updateMe; never mutated by other features.",
+      "description": "Codex139 \u2014 Per-user Solo Level Path progress. Server User.solo_progress is the signed-in source of truth; localStorage is only a user-scoped mirror/cache. Compact shape: { currentLevel, unlockedLevel?, levels: { '1': { bestStars, bestScore, bestScoreStars, bestScoreBaseScore, bestScoreTimeBonus, bestMistakes, bestTimeSeconds, attempts, completedAt, lastAttemptAt } }, summary: { totalSoloScore, currentLevel, unlockedLevel, totalStars, completedLevelCount, aggregateBestTimeSeconds?, totalAttempts } }. Writes go through base44.auth.updateMe and never overwrite better stars/scores/times with worse replay data.",
       "properties": {
         "currentLevel": {
           "type": "number"
+        },
+        "unlockedLevel": {
+          "type": "number",
+          "description": "Optional derived unlock frontier. Runtime derives the effective value from currentLevel plus completed level history and never reduces it."
         },
         "levels": {
           "type": "object",
@@ -25,18 +29,62 @@
               "bestStars": {
                 "type": "number"
               },
+              "bestScore": {
+                "type": "number",
+                "description": "Best score for this level. totalSoloScore is the sum of per-level bestScore values, not the sum of attempts."
+              },
+              "bestScoreStars": {
+                "type": "number"
+              },
+              "bestScoreBaseScore": {
+                "type": "number"
+              },
+              "bestScoreTimeBonus": {
+                "type": "number"
+              },
               "bestMistakes": {
                 "type": "number"
               },
               "bestTimeSeconds": {
-                "type": "number"
+                "type": "number",
+                "description": "Reliable best completion time in seconds when known. Missing historical time is not faked during score backfill."
               },
               "attempts": {
                 "type": "number"
               },
               "completedAt": {
                 "type": "string"
+              },
+              "lastAttemptAt": {
+                "type": "string"
               }
+            }
+          }
+        },
+        "summary": {
+          "type": "object",
+          "description": "Derived Solo summary rewritten on save/backfill. Runtime recomputes from levels to avoid drift.",
+          "properties": {
+            "totalSoloScore": {
+              "type": "number"
+            },
+            "currentLevel": {
+              "type": "number"
+            },
+            "unlockedLevel": {
+              "type": "number"
+            },
+            "totalStars": {
+              "type": "number"
+            },
+            "completedLevelCount": {
+              "type": "number"
+            },
+            "aggregateBestTimeSeconds": {
+              "type": "number"
+            },
+            "totalAttempts": {
+              "type": "number"
             }
           }
         }
@@ -44,7 +92,7 @@
     },
     "online_progress": {
       "type": "object",
-      "description": "Codex128 \u2014 Per-user Online ranking. score is the player's current Online puan\u0131, after every match it is adjusted by win/loss/draw + time bonus, and then clamped UP to the highest reached checkpoint (peakCheckpoint). lastMatchId guards against double-applying the same match result.",
+      "description": "Codex139 \u2014 Per-user Online ranking summary. score is the player's current Online puanı, after every match it is adjusted by win/loss + winner time bonus, then protected by peakCheckpoint on losses. lastMatchId remains a recent-match guard; OnlineMatchResult is the durable per-user/lobby idempotency audit source. Legacy rows may still contain draws or lastUpdatedAt, but new writes do not emit them.",
       "properties": {
         "score": {
           "type": "number",
@@ -65,16 +113,30 @@
           "type": "number"
         },
         "draws": {
-          "type": "number"
+          "type": "number",
+          "description": "Legacy/deprecated. No Online draw scoring in current product rules; new writes do not emit draws."
         },
         "lastMatchId": {
           "type": "string",
-          "description": "Lobby id of the last match whose result was applied. Used as an idempotency guard so a re-mount/re-render does not double-apply puan."
+          "description": "Lobby id of the last match whose result was applied. Retained as a recent-match guard; durable idempotency is OnlineMatchResult(player_email,lobby_id)."
+        },
+        "lastMatchAt": {
+          "type": "string",
+          "description": "ISO timestamp of the last successful Online score application."
         },
         "lastUpdatedAt": {
-          "type": "string"
+          "type": "string",
+          "description": "Legacy/deprecated. Use lastMatchAt for new writes."
         }
       }
+    },
+    "hasCompletedTutorial": {
+      "type": "boolean",
+      "description": "Per-user tutorial completion flag. Tutorial source of truth is profile/user state, not device-local tutorial storage."
+    },
+    "game_invite_notifications_enabled": {
+      "type": "boolean",
+      "description": "User preference for game-invite push notifications. sendGameInvitePush skips delivery when explicitly false."
     }
   },
   "required": [

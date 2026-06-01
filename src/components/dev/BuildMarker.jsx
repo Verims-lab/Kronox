@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex139 — DB/Data Model hardening package:
+//   • Documents live User/Lobby/GameInvite fields and adds OnlineMatchResult.
+//   • Scopes Solo localStorage mirrors by user so shared devices do not leak
+//     progress across signed-in accounts.
+//   • Aligns getSoloLeaderboard scoring boundaries with canonical Solo helper.
+//   • Adds OnlineMatchResult idempotency/audit rows and non-destructive
+//     cleanup/retention helpers guarded by modular Health cases.
+//
 // Codex137 — Health Check cleanup for remaining GameInvite failures:
 //   • Incoming invite UI now uses the public isGameInviteExpired(invite)
 //     guard expected by Health and keeps expired accept buttons disabled.
