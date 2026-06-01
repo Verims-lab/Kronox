@@ -114,6 +114,9 @@ import * as dataModelCases from './simulationPanelDataModelCases';
 // Codex143 — Online match completion scoring: winner/loser score apply,
 // player-own elapsed time, checkpoint loss floor, and result popup delta.
 import * as onlineScoreCompletionCases from './simulationPanelOnlineScoreCompletionCases';
+// Codex146 — Visible Kronox Puan must include persisted Online score, not
+// just popup/audit rows. Locks shared score helper + refresh/reconcile path.
+import * as onlineScoreVisiblePuanCases from './simulationPanelOnlineScoreVisiblePuanCases';
 
 const MODULES = [
   soloProgressCases,
@@ -138,6 +141,7 @@ const MODULES = [
   gameInviteOpenToLobbyCases,
   dataModelCases,
   onlineScoreCompletionCases,
+  onlineScoreVisiblePuanCases,
 ];
 
 function flatten(key) {

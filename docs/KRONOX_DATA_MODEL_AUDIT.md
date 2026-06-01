@@ -452,14 +452,17 @@ Recommendation:
 ### Profile stats
 
 Current source of truth:
-- Puan: `summarizeSoloProgress(...).totalSoloScore`.
+- Puan: `getKronoxVisibleScore(user)` =
+  `summarizeSoloProgress(...).totalSoloScore + User.online_progress.score`.
 - Level: `getCurrentPlayableLevel(...)` from Solo progress.
 - Elmas: real economy field if present; otherwise safe 0 placeholder.
 - Avatar/initial: auth profile fields.
 - Notification preference: `User.game_invite_notifications_enabled`.
 
 Risks:
-- P2: "Puan" means Solo score in Profile/Liderlik, while Online also has an `online_progress.score`. Product should keep labels explicit if both appear together later.
+- P2: Visible Puan now combines Solo + Online through a helper, while Solo
+  leaderboard ranking still uses Solo-only score. Keep labels/Health cases
+  explicit so the two concepts do not drift.
 - P1: notification preference is live but absent from `User.jsonc`.
 - P2: Elmas candidate fields are not formally modeled; this is safe as placeholder but should become a real economy entity/field when economy ships.
 
@@ -833,7 +836,7 @@ Runtime-only cases should stay NOT_AUTOMATABLE:
 
 ## 11. Open Questions
 
-1. Should Profile "Puan" remain Solo-only, or will there be separate Solo Puan and Online Puan surfaces?
+1. Should future ranking rows also become combined Kronox Puan, or should Solo and Online leaderboards stay separate while stat cards show combined Puan?
 2. Should `SoloLeaderboardEntry` become the authoritative global leaderboard source, or should `getSoloLeaderboard` continue projecting directly from User profiles?
 3. Should authenticated Solo progress ever trust localStorage over server, or only use localStorage as a same-user cache?
 4. Does Base44 support unique constraints/index metadata for entities? If yes, add them for FriendRequest, PushSubscription, SoloLeaderboardEntry, and future result entities.

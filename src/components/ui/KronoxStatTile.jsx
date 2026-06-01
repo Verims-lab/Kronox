@@ -15,7 +15,7 @@ import React from 'react';
  *
  *   Behavior preservation:
  *     - Puan tile: caller passes `value` derived from
- *       summarizeSoloProgress(...).totalSoloScore.
+ *       getKronoxVisibleScore(user).
  *     - Level tile: caller passes `value` derived from
  *       getCurrentPlayableLevel(...) (Profile) or
  *       summarizeSoloProgress(...).currentLevel (Leaderboard).

@@ -18,9 +18,9 @@ import {
 // Do NOT inline this into a combined import; the health check expects the
 // exact substring `import { getDefaultSelectedLevel } from '@/lib/soloProgressHelpers'`.
 import { getDefaultSelectedLevel } from '@/lib/soloProgressHelpers';
-import { summarizeSoloProgress } from '@/lib/soloProgressHelpers';
-// Codex118 — Header Puan + Elmas. Same diamond helper Leaderboard uses,
-// so all three surfaces (Home, Solo, Online) agree on the value source.
+import { getKronoxVisibleScore } from '@/lib/kronoxScore';
+// Codex146 — Header Puan + Elmas. Puan uses visible Kronox Puan so Online
+// score persists into the same top-bar score users see across the app.
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 // Codex121 — Admin gate for the focus-helper console diagnostics. Normal
 // users see nothing; admins on a real device can see a single-line
@@ -153,15 +153,15 @@ export default function SoloChallenge() {
         userSelect: 'none',
       }}
     >
-      {/* Codex118 — Solo top bar: back arrow + centered Puan/Elmas +
-          profile avatar. Title "Solo" removed; Puan flows from the same
-          totalSoloScore source the Profile/Leaderboard stats use. */}
+      {/* Codex146 — Solo top bar: back arrow + centered Puan/Elmas +
+          profile avatar. Title "Solo" removed; Puan flows from the shared
+          visible Kronox score helper while level map progress stays Solo-only. */}
       <ScreenHeader
         showBack
         user={user}
         onBack={() => navigate('/')}
         headerStats={{
-          score: summarizeSoloProgress(progress, getSoloLevelCount()).totalSoloScore,
+          score: getKronoxVisibleScore(user, { soloProgress: progress, totalLevels: getSoloLevelCount() }),
           diamonds: getLeaderboardDiamondValue(user),
         }}
       />

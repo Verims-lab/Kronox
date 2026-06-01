@@ -4,6 +4,7 @@ import { base44 } from '@/api/base44Client';
 import ScreenHeader from '@/components/layout/ScreenHeader';
 import { ensureSoloProgressBackfill, getSoloLevelCount, readSoloProgress } from '@/lib/soloLevels';
 import { summarizeSoloProgress } from '@/lib/soloProgressHelpers';
+import { getKronoxVisibleScore } from '@/lib/kronoxScore';
 import { loadFriends } from '@/lib/friendsApi';
 import {
   getLeaderboardDiamondValue,
@@ -35,11 +36,11 @@ import KronoxStatTile from '@/components/ui/KronoxStatTile';
  *
  * Fallback rules:
  *   • Stat cards (Puan / Level / Elmas) stay visible from the user's own
- *     Solo progress source — the page never feels broken.
+ *     persisted sources — Puan is visible Kronox Puan, Level is Solo.
  *   • The ranking section shows a neutral "hazırlanıyor" placeholder,
  *     NOT a red error box. End users never see backend permission wording.
- *   • The user's OWN totalSoloScore is shown inside the placeholder so
- *     they always see their score on this screen.
+ *   • The user's OWN visible Kronox Puan is shown inside the placeholder
+ *     so Online score changes are visible even while global ranking loads.
  *   • Admins additionally see a small technical diagnostics line.
  *   • Retry button stays available.
  *   • No private full User row ranking dependency, fake users, or raw emails.
@@ -85,16 +86,15 @@ export default function LeaderboardPage() {
   const loadLeaderboard = useCallback(async () => {
     if (!user?.email) return;
 
-    // Codex119 — own-score fallback is computed from the user's own
-    // progress source. It is set up-front so the placeholder block can
-    // render the correct Puan even before the global call resolves
-    // (and especially when it fails).
+    // Codex146 — own-score fallback uses visible Kronox Puan. Solo ranking
+    // rows still use SoloLeaderboardEntry, but the user's visible Puan must
+    // reflect Online score changes immediately after persistence.
     const currentProgress = readSoloProgress(user);
     const currentOwnerKey = getLeaderboardOwnerKey(user.email);
     const currentPayload = buildSoloLeaderboardPayload(user, currentProgress);
     const ownSummary = summarizeSoloProgress(currentProgress, getSoloLevelCount());
     const ownScoreFallback = {
-      totalSoloScore: ownSummary.totalSoloScore,
+      totalSoloScore: getKronoxVisibleScore(user, { soloProgress: currentProgress }),
       currentLevel: ownSummary.currentLevel,
     };
 
@@ -173,6 +173,7 @@ export default function LeaderboardPage() {
 
   const progress = readSoloProgress(user);
   const summary = summarizeSoloProgress(progress, getSoloLevelCount());
+  const visibleKronoxPuan = getKronoxVisibleScore(user, { soloProgress: progress });
   const diamondValue = getLeaderboardDiamondValue(user);
   const isAdmin = isAdminUser(user);
 
@@ -212,9 +213,10 @@ export default function LeaderboardPage() {
           </p>
 
           {/* Codex119 — stat cards always show the user's own values from
-              the shared Solo summary, regardless of global ranking state. */}
+              the shared visible Kronox Puan + Solo level sources,
+              regardless of global ranking state. */}
           <div className="mt-4 grid grid-cols-3 gap-2">
-            <KronoxStatTile icon={Trophy} label="Puan" value={summary.totalSoloScore} tintHex="#facc15" variant="compact" />
+            <KronoxStatTile icon={Trophy} label="Puan" value={visibleKronoxPuan} tintHex="#facc15" variant="compact" />
             <KronoxStatTile icon={Sparkles} label="Level" value={summary.currentLevel} tintHex="#60a5fa" variant="compact" />
             <KronoxStatTile icon={Gem} label="Elmas" value={diamondValue} tintHex="#7dd3fc" variant="compact" />
           </div>

@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex146 — Visible Kronox Puan runtime fix:
+//   • Visible Puan surfaces now use getKronoxVisibleScore(user), which
+//     combines Solo totalSoloScore with persisted online_progress.score.
+//   • Online score persistence refreshes auth user state and can safely
+//     reconcile prior OnlineMatchResult rows that were created before the
+//     visible user score changed.
+//
 // Codex145 — Health Center expansion + Admin/Health UI hardening:
 //   • Adds mobile-safe Health panel/report contracts.
 //   • Fixes Health overlay safe-area/dvh scroll behavior.
@@ -507,7 +514,7 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
-const BUILD_MARKER = 'Codex145';
+const BUILD_MARKER = 'Codex146';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

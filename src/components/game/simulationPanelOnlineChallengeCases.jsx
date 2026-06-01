@@ -226,7 +226,7 @@ export const EXTRA_TESTS = [
       const required = missingTokens(onlineChallengeScreenSource, [
         "import ScreenHeader from '@/components/layout/ScreenHeader'",
         'headerStats={{',
-        'summarizeSoloProgress',
+        'getKronoxVisibleScore',
         'getLeaderboardDiamondValue',
       ]);
       if (required.length) {

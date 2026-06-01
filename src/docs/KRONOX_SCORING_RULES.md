@@ -396,10 +396,11 @@ Rules:
 
 - Online scoring must **not** mutate `totalSoloScore`.
 - Solo scoring must **not** mutate `online_progress.score`.
-- If UI displays a combined "Puan" later, that must be an **explicit**
-  product decision.
-- Until then, Solo and Online scores remain separate and clearly
-  documented.
+- Codex146 product decision: visible **Kronox Puan** is explicitly derived
+  by `getKronoxVisibleScore(user)` as
+  `solo_progress.totalSoloScore + online_progress.score`.
+- Solo and Online storage remain separate even though the player-facing
+  Puan combines them.
 
 Implementation (current):
 
@@ -410,6 +411,10 @@ Implementation (current):
 - `applyOnlineMatchToCurrentUser(...)` then best-effort creates
   `OnlineMatchResult` with `score_before`, `score_after`, `delta`,
   `effective_delta`, and `applied_at`.
+- If a previous bad deploy created an `OnlineMatchResult` without making
+  the user-visible score reflect it, `reconcileOnlineMatchResultForCurrentUser`
+  repairs only the safe case where the current score still matches the
+  audit row's `score_before`.
 - **`totalSoloScore` is never touched by these paths** (verified — the
   only writers of solo state are `lib/soloLevels.js` /
   `lib/soloProgressHelpers.js`).
@@ -446,12 +451,14 @@ Current expected behavior:
   explicitly changes it.
 - Online score is **separate** unless an Online leaderboard is added.
 - Profile must not accidentally show stale or mismatched score fields.
-- Profile **Puan** tile means **Solo** today (sourced from
-  `summarizeSoloProgress(...).totalSoloScore`).
+- Visible **Kronox Puan** on Home/Solo/Online/Profile/Liderlik stat
+  surfaces means `getKronoxVisibleScore(user)`.
+- Solo leaderboard rows/ranking still use Solo score (`totalSoloScore`).
 
 Important:
 
-- Do **not** mix Solo and Online scores silently.
+- Do **not** mix Solo and Online storage writes. The visible combined Puan
+  must stay in the shared helper, not duplicated in UI components.
 - Do **not** calculate **Elmas** from score.
 - Do **not** calculate **Elmas** from stars.
 - Elmas economy is **separate** and currently a placeholder/real-field

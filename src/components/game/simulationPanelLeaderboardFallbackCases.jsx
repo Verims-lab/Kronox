@@ -71,15 +71,16 @@ export const EXTRA_SUITES = [
 export const EXTRA_TESTS = [
   /* 1. Own score visible even when global load fails. */
   makeCase('leaderboard_fallback', 'leaderboard_own_score_visible_when_global_load_fails',
-    'Stat cards + fallback placeholder both source the user\'s own Puan/Level from the shared Solo summary so the screen never feels broken when global ranking fails',
+    'Stat cards + fallback placeholder both source the user\'s own visible Kronox Puan/Level so the screen never feels broken when global ranking fails',
     () => {
       // Page must keep computing & rendering Puan/Level/Elmas tiles from
-      // summarizeSoloProgress(progress, …) regardless of leaderboard
-      // error state — i.e. those values are derived OUTSIDE the
-      // leaderboard fetch's try/catch.
+      // getKronoxVisibleScore + summarizeSoloProgress regardless of
+      // leaderboard error state — i.e. those values are derived OUTSIDE
+      // the leaderboard fetch's try/catch.
       const pageMissing = missingTokens(leaderboardPageSource, [
         'summarizeSoloProgress(progress, getSoloLevelCount())',
-        'value={summary.totalSoloScore}',
+        'getKronoxVisibleScore',
+        'value={visibleKronoxPuan}',
         'value={summary.currentLevel}',
         'value={diamondValue}',
         // Fallback payload travels alongside the leaderboard state so
@@ -97,7 +98,7 @@ export const EXTRA_TESTS = [
           classification: 'REAL_PRODUCT_RISK',
           file: 'pages/LeaderboardPage.jsx + components/leaderboard/KronoxRankingSection.jsx',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'stat tiles use shared Solo summary outside the leaderboard fetch; placeholder reads ownScoreFallback',
+          expected: 'stat tiles use visible Kronox Puan + Solo level outside the leaderboard fetch; placeholder reads ownScoreFallback',
           actual: { pageMissing, sectionMissing },
         });
       }
@@ -211,31 +212,33 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX, critical: false }),
 
-  /* 5. Stat cards continue using the Solo source of truth. */
+  /* 5. Stat cards continue using shared visible score + Solo level sources. */
   makeCase('leaderboard_fallback', 'leaderboard_stat_cards_use_solo_source',
-    'Puan / Level / Elmas tiles read from summarizeSoloProgress + getLeaderboardDiamondValue (the shared Solo + economy sources)',
+    'Puan / Level / Elmas tiles read from getKronoxVisibleScore + summarizeSoloProgress + getLeaderboardDiamondValue',
     () => {
       const pageMissing = missingTokens(leaderboardPageSource, [
         "from '@/lib/soloProgressHelpers'",
         "from '@/lib/soloLevels'",
         "from '@/lib/leaderboard'",
+        "from '@/lib/kronoxScore'",
         'summarizeSoloProgress(progress, getSoloLevelCount())',
+        'getKronoxVisibleScore',
         'getLeaderboardDiamondValue(user)',
-        'value={summary.totalSoloScore}',
+        'value={visibleKronoxPuan}',
         'value={summary.currentLevel}',
         'value={diamondValue}',
       ]);
       if (pageMissing.length) {
-        return fail('Stat cards no longer use the shared Solo/economy source.', {
+        return fail('Stat cards no longer use the shared visible-score/Solo/economy source.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'pages/LeaderboardPage.jsx',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'Puan/Level from summarizeSoloProgress; Elmas from getLeaderboardDiamondValue',
+          expected: 'Puan from getKronoxVisibleScore; Level from summarizeSoloProgress; Elmas from getLeaderboardDiamondValue',
           actual: { pageMissing },
         });
       }
-      return pass('Stat cards read from the single shared Solo + economy sources of truth.', {
+      return pass('Stat cards read from the single shared visible-score + Solo + economy sources of truth.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,

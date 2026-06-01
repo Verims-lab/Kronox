@@ -88,6 +88,8 @@ const buildOnlineScorePopupState = ({ result, elapsedSeconds, response }) => {
     scoreAfter: Number(applied.nextScore) || 0,
     checkpointApplied: Boolean(applied.clampedByCheckpoint),
     protectedFloor: Number(applied.floorCheckpoint) || 0,
+    reconciled: Boolean(response.reconciled),
+    saved: true,
   };
 };
 
@@ -330,6 +332,7 @@ export default function Game() {
       opponentEmail,
       source: routeState?.inviteId ? 'friend_invite' : 'code_lobby',
     }).then((res) => {
+      if (res?.refreshedUser) setCurrentUser(res.refreshedUser);
       const popupState = buildOnlineScorePopupState({ result, elapsedSeconds: durationSeconds, response: res });
       if (popupState) setOnlineScoreResult(popupState);
       if (res && res.ok === false && res.retryable !== false) {
