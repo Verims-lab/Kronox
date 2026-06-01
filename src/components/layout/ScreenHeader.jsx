@@ -47,7 +47,7 @@ export default function ScreenHeader({
   rightSlot = null,
   // Codex118 — optional stats payload. When provided, the center area
   // renders Puan + Elmas instead of `title`. Both numbers must come from
-  // the caller's source of truth (Puan = totalSoloScore, Elmas = real
+  // the caller's source of truth (Puan = visible Kronox Puan, Elmas = real
   // economy field or safe 0 placeholder). The header does NOT compute
   // these itself.
   headerStats = null,

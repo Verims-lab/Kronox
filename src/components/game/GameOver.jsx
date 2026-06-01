@@ -114,6 +114,9 @@ export default function GameOver({
                   {onlineScoreResult.skipped && (
                     <div>Bu maçın puanı daha önce işlendi.</div>
                   )}
+                  {onlineScoreResult.reconciled && (
+                    <div>Puan kaydı onarıldı.</div>
+                  )}
                   {onlineScoreResult.result === 'win' ? (
                     <>
                       <div>Galibiyet: +{onlineScoreResult.baseDelta || 15}</div>
@@ -127,6 +130,7 @@ export default function GameOver({
                       )}
                     </>
                   )}
+                  <div>Yeni Puanın: {onlineScoreResult.scoreAfter}</div>
                   <div>Skor: {onlineScoreResult.scoreBefore} → {onlineScoreResult.scoreAfter}</div>
                   {effectiveDelta !== scoreDelta && (
                     <div>Gerçek değişim: {effectiveDelta > 0 ? '+' : ''}{effectiveDelta}</div>

@@ -388,11 +388,11 @@ export const EXTRA_TESTS = [
       ]);
       const consumerMissing = [
         ...missingTokens(soloLevelsLibSource, ['calculateSoloAttemptResult', 'getBestSoloLevelResult', 'summarizeSoloProgress']),
-        // Codex116 — Profile no longer surfaces Yıldız; totalStars is no
-        // longer required on the Profile surface. Puan still uses
-        // totalSoloScore via summarizeSoloProgress.
-        ...missingTokens(profilePageSource, ['summarizeSoloProgress', 'totalSoloScore']),
-        ...missingTokens(leaderboardPageSource, ['summarizeSoloProgress', 'totalSoloScore', 'Kronox Sıralaması']),
+        // Codex146 — visible Profile Puan now uses getKronoxVisibleScore
+        // (Solo total + Online score). Solo summary remains the source for
+        // level/progression and leaderboard ranking.
+        ...missingTokens(profilePageSource, ['getKronoxVisibleScore', 'readSoloProgress', 'getCurrentPlayableLevel']),
+        ...missingTokens(leaderboardPageSource, ['summarizeSoloProgress', 'totalSoloScore', 'getKronoxVisibleScore', 'Kronox Sıralaması']),
         ...missingTokens(soloLevelResultSource, ['levelScore', 'baseScore', 'timeBonus', 'Puan:']),
       ];
       const forbidden = [
@@ -833,18 +833,19 @@ export const EXTRA_TESTS = [
     { actionType: ACTION_TYPES.CODE_FIX }),
 
   makeCase('solo_progress_health', 'solo_profile_score_contract',
-    'Profile reads the same Solo progress source for level + totalSoloScore; Yıldız tile is gone; Elmas is real or safe 0 placeholder; no hard-coded Level 1',
+    'Profile reads Solo progress for level and visible Kronox Puan helper for score; Yıldız tile is gone; Elmas is real or safe 0 placeholder; no hard-coded Level 1',
     () => {
       // Codex116 — Profile now renders exactly three stats: Puan / Level /
       // Elmas. Yıldız is intentionally removed (moved out per product
-      // decision). Puan/Level still come from the shared Solo summary,
-      // Elmas comes from a real economy field or a safe 0 placeholder.
+      // decision). Puan comes from visible Kronox Puan (Solo + Online);
+      // Level still comes from the shared Solo source; Elmas comes from a
+      // real economy field or a safe 0 placeholder.
       const required = missingTokens(profilePageSource, [
         'ensureSoloProgressBackfill',
         'readSoloProgress',
-        'summarizeSoloProgress',
+        'getKronoxVisibleScore',
         'getCurrentPlayableLevel',
-        'soloSummary.totalSoloScore',
+        'visibleKronoxPuan',
         'profileLevel',
         // Elmas tile must exist and use the no-economy-yet placeholder
         // helper that never derives from stars/score/levels.
@@ -865,11 +866,11 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'Profile uses shared Solo summary for Puan+Level, exposes Elmas via no-economy-yet helper, and has no Yıldız tile or hard-coded Level 1',
+          expected: 'Profile uses visible Kronox Puan for score, shared Solo helper for Level, exposes Elmas via no-economy-yet helper, and has no Yıldız tile or hard-coded Level 1',
           actual: { required, forbidden },
         });
       }
-      return pass('Profile renders Puan/Level/Elmas from shared sources; Yıldız tile removed; no hard-coded Level/Puan values.', {
+      return pass('Profile renders Puan/Level/Elmas from shared visible-score/Solo/economy sources; Yıldız tile removed; no hard-coded Level/Puan values.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,

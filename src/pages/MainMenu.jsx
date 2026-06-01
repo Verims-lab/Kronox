@@ -7,12 +7,10 @@ import { ChevronRight } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 import ScreenHeader from '@/components/layout/ScreenHeader';
-// Codex118 — Header Puan + Elmas stats. Puan flows from the SAME
-// shared Solo summary helpers Profile/Leaderboard use; Elmas uses the
-// same real/placeholder helper Leaderboard uses (real field if present,
-// otherwise safe 0 — never derived from stars or score).
-import { getSoloLevelCount, readSoloProgress } from '@/lib/soloLevels';
-import { summarizeSoloProgress } from '@/lib/soloProgressHelpers';
+// Codex146 — Header Puan uses the shared visible Kronox score helper so
+// Online win/loss deltas are reflected in the top bar after persistence.
+// Elmas still uses the real/placeholder helper Leaderboard uses.
+import { getKronoxVisibleScore } from '@/lib/kronoxScore';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 
 // Note: a remote logo URL constant previously lived here but was never
@@ -107,15 +105,12 @@ export default function MainMenu() {
     return () => { cancelled = true; };
   }, []);
 
-  // Codex118 — Stats payload for the top bar. Puan = totalSoloScore from
-  // the SAME source Profile/Leaderboard read; Elmas = real economy field
-  // if present, otherwise a safe 0 placeholder (never invented from
-  // gameplay stats).
+  // Codex146 — Stats payload for the top bar. Puan = visible Kronox Puan
+  // (Solo best-score total + Online persisted score); Elmas = real economy
+  // field if present, otherwise a safe 0 placeholder.
   const headerStats = useMemo(() => {
-    const progress = readSoloProgress(user);
-    const summary = summarizeSoloProgress(progress, getSoloLevelCount());
     return {
-      score: summary.totalSoloScore,
+      score: getKronoxVisibleScore(user),
       diamonds: getLeaderboardDiamondValue(user),
     };
   }, [user]);

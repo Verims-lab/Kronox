@@ -8,9 +8,8 @@ import IncomingInvitesPanel from '@/components/invites/IncomingInvitesPanel';
 import ActiveLobbyCard from '@/components/lobby/ActiveLobbyCard';
 import { ONLINE_CATEGORIES } from '@/lib/onlineCategories';
 import { sounds } from '@/lib/gameSounds';
-// Codex118 shared sources for Puan + Elmas (Header)
-import { getSoloLevelCount, readSoloProgress } from '@/lib/soloLevels';
-import { summarizeSoloProgress } from '@/lib/soloProgressHelpers';
+// Codex146 shared sources for visible Kronox Puan + Elmas (Header)
+import { getKronoxVisibleScore } from '@/lib/kronoxScore';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 
 /**
@@ -98,7 +97,7 @@ export default function OnlineChallengeScreen({
         user={user}
         onBack={onBackHome}
         headerStats={{
-          score: summarizeSoloProgress(readSoloProgress(user), getSoloLevelCount()).totalSoloScore,
+          score: getKronoxVisibleScore(user),
           diamonds: getLeaderboardDiamondValue(user),
         }}
       />

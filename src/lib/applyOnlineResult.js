@@ -103,6 +103,106 @@ function appliedFromOnlineMatchResultRow(row) {
   };
 }
 
+function parseSafeTime(value) {
+  const time = Date.parse(value || '');
+  return Number.isFinite(time) ? time : 0;
+}
+
+async function refreshCurrentUserAfterOnlineScore(lobbyId) {
+  try {
+    const refreshedUser = await base44.auth.me();
+    debugLog('[applyOnlineMatch] refreshed user after score persist', {
+      lobbyId,
+      onlineScore: refreshedUser?.online_progress?.score ?? null,
+      lastMatchId: refreshedUser?.online_progress?.lastMatchId || null,
+    });
+    return refreshedUser || null;
+  } catch (error) {
+    debugLog('[applyOnlineMatch] post-persist user refresh failed', {
+      lobbyId,
+      error: error?.message || String(error),
+    });
+    return null;
+  }
+}
+
+function shouldRepairOnlineMatchResult({ current, row, applied, lobbyId }) {
+  if (!row || !applied || !lobbyId) return { repair: false, reason: 'missing_args' };
+  if (current?.lastMatchId && String(current.lastMatchId) === String(lobbyId)) {
+    return { repair: false, reason: 'last_match_already_matches' };
+  }
+
+  const currentScore = Number.isFinite(Number(current?.score)) ? Number(current.score) : 0;
+  const scoreMatchesAfter = currentScore === Number(applied.nextScore);
+  if (scoreMatchesAfter) return { repair: false, reason: 'score_after_already_visible' };
+
+  const scoreMatchesBefore = currentScore === Number(applied.previousScore);
+  const lastMatchAt = parseSafeTime(current?.lastMatchAt);
+  const appliedAt = parseSafeTime(row.applied_at || row.created_at);
+  const noNewerOnlineProgress = !lastMatchAt || !appliedAt || lastMatchAt <= appliedAt;
+
+  if (!scoreMatchesBefore) return { repair: false, reason: 'current_score_no_longer_matches_audit_before' };
+  if (!noNewerOnlineProgress) return { repair: false, reason: 'newer_online_progress_exists' };
+
+  return { repair: true, reason: 'audit_row_exists_but_visible_score_matches_before' };
+}
+
+export async function reconcileOnlineMatchResultForCurrentUser({
+  lobbyId,
+  current,
+  row,
+  applied,
+}) {
+  const decision = shouldRepairOnlineMatchResult({ current, row, applied, lobbyId });
+  if (!decision.repair) return { repaired: false, ...decision };
+
+  const wins = Number.isFinite(Number(current?.wins)) ? Number(current.wins) : 0;
+  const losses = Number.isFinite(Number(current?.losses)) ? Number(current.losses) : 0;
+  const nextProgress = {
+    ...(current || {}),
+    score: Number(applied.nextScore) || 0,
+    peakScore: Math.max(
+      Number(current?.peakScore) || 0,
+      Number(applied.peakScore) || 0,
+      Number(applied.nextScore) || 0,
+    ),
+    peakCheckpoint: Math.max(
+      Number(current?.peakCheckpoint) || 0,
+      Number(applied.peakCheckpoint) || 0,
+    ),
+    wins: applied.result === 'win' ? wins + 1 : wins,
+    losses: applied.result === 'loss' ? losses + 1 : losses,
+    lastMatchId: String(lobbyId),
+    lastMatchAt: row?.applied_at || row?.created_at || new Date().toISOString(),
+  };
+
+  try {
+    await base44.auth.updateMe({ online_progress: nextProgress });
+    const refreshedUser = await refreshCurrentUserAfterOnlineScore(lobbyId);
+    debugLog('[applyOnlineMatch] reconciled OnlineMatchResult without visible score', {
+      lobbyId,
+      reason: decision.reason,
+      scoreBefore: applied.previousScore,
+      scoreAfter: applied.nextScore,
+    });
+    return {
+      repaired: true,
+      reason: decision.reason,
+      progress: nextProgress,
+      refreshedUser,
+    };
+  } catch (error) {
+    const message = error?.message || String(error);
+    debugLog('[applyOnlineMatch] reconcile failed', { lobbyId, error: message });
+    return {
+      repaired: false,
+      retryable: true,
+      reason: 'reconcile_persist_failed',
+      error: message,
+    };
+  }
+}
+
 async function createOnlineMatchResult({
   lobbyId,
   playerEmail,
@@ -193,14 +293,31 @@ export async function applyOnlineMatchToCurrentUser({
     existingResult = { supported: false, row: null, error: msg };
   }
   if (existingResult.row?.id) {
+    const applied = appliedFromOnlineMatchResultRow(existingResult.row);
+    const reconciliation = await reconcileOnlineMatchResultForCurrentUser({
+      lobbyId,
+      current,
+      row: existingResult.row,
+      applied,
+    });
+    if (reconciliation.retryable && reconciliation.error) {
+      return {
+        ok: false,
+        error: reconciliation.error,
+        retryable: true,
+        where: 'reconcile',
+      };
+    }
     debugLog('[applyOnlineMatch] skipped (OnlineMatchResult exists)', { lobbyId, result });
     return {
       ok: true,
       skipped: true,
-      reason: 'already_recorded',
-      progress: current,
-      applied: appliedFromOnlineMatchResultRow(existingResult.row),
+      reason: reconciliation.repaired ? 'reconciled_from_audit' : 'already_recorded',
+      progress: reconciliation.progress || current,
+      applied,
       onlineMatchResult: existingResult.row,
+      reconciled: Boolean(reconciliation.repaired),
+      refreshedUser: reconciliation.refreshedUser || null,
     };
   }
 
@@ -235,6 +352,7 @@ export async function applyOnlineMatchToCurrentUser({
   }
 
   debugLog('[applyOnlineMatch] applied', { lobbyId, applied });
+  const refreshedUser = await refreshCurrentUserAfterOnlineScore(lobbyId);
   const onlineMatchResult = await createOnlineMatchResult({
     lobbyId,
     playerEmail,
@@ -257,5 +375,6 @@ export async function applyOnlineMatchToCurrentUser({
     progress: payload.online_progress,
     applied,
     onlineMatchResult,
+    refreshedUser,
   };
 }
