@@ -2,6 +2,9 @@ import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
 import TimelineCard from './TimelineCard.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import { sounds } from '@/lib/gameSounds';
+// Codex163 — Visual-only placement feedback overlay. Imported as a
+// focused sibling component so Timeline's own logic stays untouched.
+import PlacementFeedbackOverlay from './PlacementFeedbackOverlay.jsx';
 
 function DotSeparator() {
   return (
@@ -94,6 +97,11 @@ export default function Timeline({
   isTimeUp = false,
   // expose scrollRef to parent for ghost card positioning
   scrollRefCallback,
+  // Codex163 — Visual-only placement feedback.
+  // `placementFeedback` is shaped { result: 'correct'|'wrong', year, key }
+  // and is consumed by PlacementFeedbackOverlay. It never affects sort,
+  // hit-testing, or which cards are rendered.
+  placementFeedback = null,
 }) {
   const sortedCards = useMemo(
     () => Array.isArray(cards) ? [...cards].sort((a, b) => a.year - b.year) : [],
@@ -104,6 +112,26 @@ export default function Timeline({
   const scrollRef = useRef(null);
   const autoScrollRaf = useRef(null);
   const [activeZone, setActiveZone] = useState(null);
+  // Codex163 — last drop-zone index captured at finger-lift time. We use
+  // it to position the wrong-placement flash on the slot the user
+  // actually dropped on. Stored in a ref + state mirror so the overlay
+  // re-renders when the captured rect should update.
+  const lastDropZoneRef = useRef(null);
+  const [feedbackTargetRect, setFeedbackTargetRect] = useState(null);
+  // Codex163 — Respect prefers-reduced-motion for shake/drift.
+  const [reducedMotion, setReducedMotion] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return undefined;
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setReducedMotion(mq.matches);
+    const handler = (e) => setReducedMotion(e.matches);
+    if (mq.addEventListener) mq.addEventListener('change', handler);
+    else if (mq.addListener) mq.addListener(handler);
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener('change', handler);
+      else if (mq.removeListener) mq.removeListener(handler);
+    };
+  }, []);
   // Card center distances from viewport center — stored in state, updated on scroll
   // (only N card positions, cheap to compute)
   const cardItemRefs = useRef([]);
@@ -218,6 +246,10 @@ export default function Timeline({
     stopAutoScroll();
     const zone = getZoneAtClientX(dragEndEvent.clientX);
     setActiveZone(null);
+    // Codex163 — remember the drop zone purely so the visual feedback
+    // overlay can find the right slot if this placement turns out
+    // wrong. This does NOT influence onPlaceCard / placement logic.
+    if (zone !== null) lastDropZoneRef.current = zone;
     if (zone !== null && onPlaceCard) { sounds.snap(); onPlaceCard(zone); }
   }, [dragEndEvent, getZoneAtClientX, onPlaceCard, stopAutoScroll]);
 
@@ -241,6 +273,46 @@ export default function Timeline({
       setTimeout(() => { if (scrollRef.current) scrollRef.current.scrollLeft = 0; }, 50);
     }
   }, [cards.length]);
+
+  // Codex163 — Compute the overlay target rect whenever a new feedback
+  // event arrives. Correct → find the just-inserted card by year in the
+  // sorted timeline. Wrong → use the last drop zone the user released
+  // on. Coordinates are relative to the scroll container's offsetParent
+  // (the positioned `.relative.w-full` wrapper) so the overlay tracks
+  // horizontal scroll without us having to listen to scroll events.
+  useEffect(() => {
+    if (!placementFeedback || !placementFeedback.result) {
+      setFeedbackTargetRect(null);
+      return;
+    }
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    const containerRect = scroller.getBoundingClientRect();
+
+    let targetEl = null;
+    if (placementFeedback.result === 'correct') {
+      // sortedCards is the same array used to render cardItemRefs.
+      const idx = sortedCards.findIndex((c) => c.year === placementFeedback.year);
+      if (idx >= 0) targetEl = cardItemRefs.current[idx] || null;
+    } else if (placementFeedback.result === 'wrong') {
+      const zoneIdx = lastDropZoneRef.current;
+      if (zoneIdx != null) targetEl = dropZoneRefs.current[zoneIdx] || null;
+    }
+    if (!targetEl) {
+      setFeedbackTargetRect(null);
+      return;
+    }
+    const r = targetEl.getBoundingClientRect();
+    setFeedbackTargetRect({
+      // Coordinates are relative to the scroll container (which is the
+      // overlay's positioning parent). Add scrollLeft so the overlay
+      // stays glued to the slot if the user scrolls during the flash.
+      left: r.left - containerRect.left + scroller.scrollLeft,
+      top: r.top - containerRect.top,
+      width: r.width,
+      height: r.height,
+    });
+  }, [placementFeedback, sortedCards]);
 
   // ─── Render ──────────────────────────────────────────────────────
   const displayActiveZone = isDragMode ? activeZone : null;
@@ -308,6 +380,15 @@ export default function Timeline({
           }}
         >
           <div className="relative flex flex-col" style={{ minWidth: 'max-content', paddingLeft: 12, paddingRight: 24 }}>
+            {/* Codex163 — Placement feedback overlay (visual-only).
+                Lives INSIDE the scroll content so it inherits the same
+                horizontal translation as the cards/drop zones. */}
+            <PlacementFeedbackOverlay
+              feedbackKey={placementFeedback ? `${placementFeedback.result}:${placementFeedback.year}:${placementFeedback.key ?? ''}` : null}
+              result={placementFeedback?.result || null}
+              targetRect={feedbackTargetRect}
+              reducedMotion={reducedMotion}
+            />
             {/* Ruler removed — no atmospheric era labels */}
 
             <div className="relative flex flex-row items-center" style={{ gap: 0 }}>

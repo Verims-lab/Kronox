@@ -145,6 +145,10 @@ import * as questionSchemaCases from './simulationPanelQuestionSchemaCases';
 // all-active + non-empty descriptions, shared active-filter helper, and
 // passive categories hidden from UI selection.
 import * as categoryStatusCases from './simulationPanelCategoryStatusCases';
+// Codex163 — Placement Feedback Animation: visual-only correct/wrong
+// drop feedback (green pulse / red glow + shake + void-reject), no
+// changes to drag/drop, hit-testing, scoring, or timeline ordering.
+import * as placementFeedbackCases from './simulationPanelPlacementFeedbackCases';
 
 const MODULES = [
   soloProgressCases,
@@ -178,6 +182,7 @@ const MODULES = [
   backendSecurityCases,
   questionSchemaCases,
   categoryStatusCases,
+  placementFeedbackCases,
 ];
 
 function flatten(key) {

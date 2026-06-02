@@ -298,6 +298,14 @@ export default function GameLayout({
               dragClientY={isMyTurn ? touchDragPos?.y : null}
               dragEndEvent={isMyTurn && touchDragEnd ? { clientX: touchDragEnd.x, clientY: touchDragEnd.y } : null}
               isTimeUp={isTimeUp}
+              // Codex163 — Visual-only placement feedback. Timeline
+              // forwards this to PlacementFeedbackOverlay; it does not
+              // change which cards are rendered or their order.
+              placementFeedback={
+                feedback && (feedback.result === 'correct' || feedback.result === 'wrong')
+                  ? { result: feedback.result, year: feedback.year, key: feedback.guessedYear ?? '' }
+                  : null
+              }
             />
           )}
         </div>
