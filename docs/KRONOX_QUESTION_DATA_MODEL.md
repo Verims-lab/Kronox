@@ -1,12 +1,14 @@
 # Kronox Question Data Model Preparation
 
-Codex155 prepares the Base44 data model for the next Kronox question dataset without changing current gameplay.
+Codex156 prepares the Base44 data model for the next Kronox question dataset without importing questions or changing gameplay rules.
 
 ## Current Runtime Source
 
-- Current gameplay still reads `Question.year`, `Question.category`, and `Question.type`.
-- Solo and Online question selection were not changed in this preparation step.
-- `Question.state` is documented for future active/passive filtering, but gameplay has not been switched to filter by `A` yet.
+- Current gameplay code still operates on runtime `year`, `category`, and `type` values.
+- Those fields are no longer stored on the `Question` entity. They are supplied by the question fetch layer as compatibility values.
+- `year` is derived from `answer` by extracting the first 3- or 4-digit year, so answers like `2007` and `Ocak 2007` remain timeline-compatible.
+- `category` defaults to `genel` and `type` defaults to `metin` until gameplay/category filtering is intentionally migrated.
+- `Question.state` is stored for future active/passive filtering, but gameplay has not been switched to filter by `A` yet.
 
 ## Category Entity
 
@@ -40,13 +42,14 @@ The function is repeatable:
 
 Direct local insertion was not performed in this task because this workspace has no live Base44 database session.
 
-## Question Future Fields
+## Question Fields
 
-The `Question` entity now supports:
+The `Question` entity keeps only the intended new dataset fields:
 
+- `id`: unique incremental numeric question ID from the imported dataset.
+- `question`: text shown on screen.
 - `answer`: answer text such as `2007` or future month/year text.
-- `question_numeric_id`: future numeric incremental source ID.
-- `main_category_id`: future primary category ID referencing `Category.category_id`.
+- `main_category_id`: primary category ID referencing `Category.category_id`.
 - `second_category_id`: optional secondary category ID.
 - `third_category_id`: optional tertiary category ID.
 - `sub_category`: optional free-text subcategory.
@@ -55,16 +58,28 @@ The `Question` entity now supports:
 - `difficulty`: integer 1 to 5.
 - `state`: `A` or `P`.
 
-## Base44 `id` Note
+Removed legacy schema fields:
 
-Base44 already provides `Question.id` as the entity row identity, and current gameplay stores/compares that value. To avoid breaking existing selection, lobby state, history, and delete/update flows, the future numeric incremental dataset ID is stored as `question_numeric_id` in this transitional schema.
+- `year`
+- `category`
+- `type`
+- `media_url`
+- `icon_url`
+- `question_numeric_id`
 
-Do not overwrite runtime `Question.id` with imported numeric IDs until a separate gameplay migration is planned and tested.
+## Runtime Compatibility Note
+
+Current gameplay still compares timeline years using `question.year` and card `year`. The compatibility layer is:
+
+- client: `src/lib/questionRuntimeAdapter.js`
+- backend function: `base44/functions/getQuestions/entry.ts`
+
+Do not remove the compatibility layer until Timeline/gameplay is intentionally migrated to read `answer` directly.
 
 ## Not Changed In This Step
 
 - No existing questions were deleted.
 - No new question rows were imported.
-- No Solo or Online question selection logic was changed.
-- No category filtering logic was changed.
+- No Solo or Online question selection rules were changed.
+- No category filtering rules were changed.
 - No gameplay state or scoring behavior was changed.

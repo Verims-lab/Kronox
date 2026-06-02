@@ -11,12 +11,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { saveQuestionsToCache, loadQuestionsFromCache } from '@/lib/questionCache';
+import { normalizeQuestionsForRuntime } from '@/lib/questionRuntimeAdapter';
 
 export function useOfflineQuestions() {
   const [questions, setQuestions] = useState(() => {
     // Sync init: cache varsa anında ver — loading göstermeden
     const cached = loadQuestionsFromCache();
-    return cached?.questions || [];
+    return normalizeQuestionsForRuntime(cached?.questions || []);
   });
   const [isLoading, setIsLoading] = useState(() => {
     const cached = loadQuestionsFromCache();
@@ -46,8 +47,9 @@ export function useOfflineQuestions() {
       }
 
       if (fetched.length > 0) {
-        saveQuestionsToCache(fetched);
-        setQuestions(fetched);
+        const runtimeQuestions = normalizeQuestionsForRuntime(fetched);
+        saveQuestionsToCache(runtimeQuestions);
+        setQuestions(runtimeQuestions);
         setIsFromCache(false);
         setIsError(false);
       }

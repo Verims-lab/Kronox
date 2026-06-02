@@ -1,23 +1,19 @@
 {
   "name": "Question",
   "type": "object",
-  "description": "Codex155 — Legacy runtime question schema plus future dataset fields. Current gameplay still reads year/category/type and does not depend on the new category-id fields yet.",
+  "description": "Codex156 — Target schema for the new Kronox question dataset. Current gameplay receives compatibility fields from the question fetch layer; legacy year/category/type/media fields are no longer part of this entity schema.",
   "properties": {
+    "id": {
+      "type": "number",
+      "description": "Unique incremental question ID from the new dataset."
+    },
     "question": {
       "type": "string",
       "description": "The question text"
     },
     "answer": {
       "type": "string",
-      "description": "Future dataset answer text shown/validated by content tooling. Usually a year such as \"2007\" today; may later include month/year such as \"Ocak 2007\". Current gameplay still uses legacy numeric year."
-    },
-    "year": {
-      "type": "number",
-      "description": "Legacy runtime correct year answer used by current Solo/Online gameplay. Kept for backward compatibility until gameplay is intentionally migrated to answer."
-    },
-    "question_numeric_id": {
-      "type": "number",
-      "description": "Future dataset incremental numeric question ID. Base44 already reserves runtime row id as Question.id, so this field preserves the future numeric source ID without breaking existing gameplay code that reads row.id."
+      "description": "Answer text. Usually a year such as \"2007\" today; may later include month/year such as \"Ocak 2007\"."
     },
     "main_category_id": {
       "type": "number",
@@ -29,7 +25,7 @@
         5,
         6
       ],
-      "description": "Future primary category ID. References Category.category_id. Required by the future dataset, but kept optional in this transitional schema so existing rows remain valid."
+      "description": "Primary category ID. References Category.category_id."
     },
     "second_category_id": {
       "type": "number",
@@ -67,38 +63,6 @@
       "type": "string",
       "description": "Optional geographic/cultural scope such as global, turkey, or europe."
     },
-    "category": {
-      "type": "string",
-      "enum": [
-        "tarih",
-        "bilim",
-        "spor",
-        "sanat",
-        "teknoloji",
-        "genel"
-      ],
-      "default": "genel",
-      "description": "Legacy runtime category used by current Solo/Online filtering. Do not remove until gameplay is intentionally migrated to main_category_id."
-    },
-    "type": {
-      "type": "string",
-      "enum": [
-        "metin",
-        "gorsel",
-        "isitsel",
-        "muzik"
-      ],
-      "default": "metin",
-      "description": "Question type: text, visual, audio, or music"
-    },
-    "media_url": {
-      "type": "string",
-      "description": "URL for image (gorsel/muzik) or audio file (isitsel)"
-    },
-    "icon_url": {
-      "type": "string",
-      "description": "Custom icon URL for the question card"
-    },
     "difficulty": {
       "type": "number",
       "enum": [
@@ -122,8 +86,12 @@
     }
   },
   "required": [
+    "id",
     "question",
-    "year"
+    "answer",
+    "main_category_id",
+    "difficulty",
+    "state"
   ],
   "rls": {
     "create": {
