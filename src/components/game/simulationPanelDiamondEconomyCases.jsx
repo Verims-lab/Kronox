@@ -218,19 +218,57 @@ export const EXTRA_TESTS = [
   makeCase('diamond_balance_display_uses_real_field',
     'Visible Elmas display uses real persisted Diamond balance',
     () => {
-      const missing = missingTokens(`${leaderboardSource}\n${Object.values(DISPLAY_SOURCES).join('\n')}`, [
+      // Codex159 — Verify the REAL canonical helper usage instead of a
+      // single brittle key-form literal. The canonical bridge is:
+      //   lib/leaderboard.js → `getLeaderboardDiamondValue(user)` →
+      //   returns `getDiamondBalance(user)` (canonical persisted source).
+      //
+      // Visible Elmas SURFACES today are:
+      //   • Home / Solo  → StandardTopBar (gets `diamonds={getLeaderboardDiamondValue(user)}`)
+      //   • Profile      → İstatistikler tile (via getProfileDiamondValue → getLeaderboardDiamondValue)
+      //   • Liderlik     → stat row (`diamondValue = getLeaderboardDiamondValue(user)`)
+      //
+      // We verify each surface imports the canonical helper AND calls
+      // it (`getLeaderboardDiamondValue(user`). The exact JSX/key shape
+      // is intentionally not pinned — only the helper contract is.
+
+      // 1. Bridge: lib/leaderboard exposes the canonical bridge to
+      //    getDiamondBalance. This is the real source-of-truth check.
+      const bridgeMissing = missingTokens(leaderboardSource, [
+        'export function getLeaderboardDiamondValue',
         'return getDiamondBalance(user)',
-        'diamonds: getLeaderboardDiamondValue(user)',
-        'label="Elmas"',
-        "label: 'Elmas'",
       ]);
-      if (missing.length) {
+
+      // 2. Display surfaces. Each must import + call the canonical helper.
+      const DISPLAY_SURFACES = {
+        MainMenu: mainMenuSource,
+        ProfilePage: profilePageSource,
+        LeaderboardPage: leaderboardPageSource,
+        SoloChallenge: soloChallengeSource,
+      };
+      const surfaceMissing = Object.entries(DISPLAY_SURFACES)
+        .map(([file, src]) => ({
+          file,
+          missing: [
+            'getLeaderboardDiamondValue',
+            'getLeaderboardDiamondValue(user',
+          ].filter((t) => !safeStr(src).includes(t)),
+        }))
+        .filter((r) => r.missing.length);
+
+      // 3. Elmas label must exist somewhere across all surfaces, so the
+      //    UI actually shows Elmas to the user. Either JSX attribute or
+      //    object key is acceptable.
+      const labelText = `${safeStr(profilePageSource)}\n${safeStr(leaderboardPageSource)}\n${safeStr(screenHeaderSource)}`;
+      const hasElmasLabel = labelText.includes("label: 'Elmas'") || labelText.includes('label="Elmas"');
+
+      if (bridgeMissing.length || surfaceMissing.length || !hasElmasLabel) {
         return fail('Visible Elmas surfaces are not tied to the canonical Diamond helper.', {
           verification: 'STATIC_CONTRACT',
-          missing,
+          actual: { bridgeMissing, surfaceMissing, hasElmasLabel },
         });
       }
-      return pass('Header/Profile/Home/Solo/Online/Liderlik Elmas values flow through getDiamondBalance.', { verification: 'STATIC_CONTRACT' });
+      return pass('Home/Solo/Profile/Liderlik Elmas displays flow through getLeaderboardDiamondValue → getDiamondBalance.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('diamonds_not_derived_from_score_or_stars',
