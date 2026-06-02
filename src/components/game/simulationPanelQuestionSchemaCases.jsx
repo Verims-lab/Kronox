@@ -119,12 +119,16 @@ export const EXTRA_TESTS = [
     () => {
       const missing = missingTokens(seedQuestionCategoriesSource, [
         'await base44.auth.me()',
-        "user.role !== 'admin'",
-        'user.email !== ADMIN_EMAIL',
+        'function isAuthorizedAdmin',
+        "user.role === 'admin'",
+        'user.is_admin === true',
+        "user.permissions.includes('admin')",
+        "Deno.env.get('ADMIN_EMAILS')",
+        "Deno.env.get('KRONOX_ADMIN_EMAILS')",
         "Response.json(body, { status })",
       ]);
       if (missing.length) {
-        return fail('Category seed path is not protected by the existing admin authorization pattern.', {
+        return fail('Category seed path is not protected by the current admin authorization pattern.', {
           verification: 'STATIC_CONTRACT',
           file: 'base44/functions/seedQuestionCategories/entry.ts',
           missing,

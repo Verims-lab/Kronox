@@ -45,12 +45,12 @@ export default function NotificationDeploymentHint({ isAdmin }) {
           </p>
           <ul className="font-mono text-[11px] leading-relaxed text-blue-100/80">
             <li>• VITE_KRONOX_VAPID_PUBLIC_KEY (build env)</li>
-            <li>• KRONOX_VAPID_PUBLIC_KEY (server secret)</li>
-            <li>• KRONOX_VAPID_PRIVATE_KEY (server secret)</li>
-            <li>• KRONOX_VAPID_SUBJECT (server secret, örn. mailto:support@kronox.app)</li>
+            <li>• VAPID_PUBLIC_KEY (server secret)</li>
+            <li>• VAPID_PRIVATE_KEY (server secret)</li>
+            <li>• VAPID_SUBJECT (server secret, örn. mailto:support@kronox.app)</li>
           </ul>
           <p className="font-inter text-[10px] text-blue-100/55">
-            Anahtar çiftini bir kez üret, ardından üç sunucu secret’ı ve eşleşen public key’i build env olarak ayarla.
+            Anahtar çiftini bir kez üret, ardından üç sunucu secret’ı ve eşleşen public key’i build env olarak ayarla. KRONOX_* isimleri eski kurulumlarla uyum için kabul edilir.
           </p>
         </div>
       )}

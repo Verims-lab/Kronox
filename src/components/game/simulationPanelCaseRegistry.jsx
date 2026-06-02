@@ -126,10 +126,10 @@ import * as unifiedKronoxScoreCases from './simulationPanelUnifiedKronoxScoreCas
 // Codex152 — Diamond economy foundation: canonical User.diamonds balance,
 // starter + daily login grants, idempotent ledger, and display contracts.
 import * as diamondEconomyCases from './simulationPanelDiamondEconomyCases';
-// Codex153 — Security: Deezer preview proxy removed. Locks in that the
-// getDeezerPreview backend function is gone, QuestionCard no longer
-// invokes it, and loadSpotifyMusicQuestions has no Deezer fallback.
-import * as deezerRemovalCases from './simulationPanelDeezerRemovalCases';
+// Codex157 — Security cleanup: unused Spotify/external music import
+// functions are gone, VAPID keys are env/config-only, and admin access no
+// longer depends on a committed personal email.
+import * as securityCleanupCases from './simulationPanelSecurityCleanupCases';
 // Codex154 — Backend function security guard: generateTechDoc must require
 // server-side auth/admin authorization before internal PDF generation.
 import * as backendSecurityCases from './simulationPanelBackendSecurityCases';
@@ -164,7 +164,7 @@ const MODULES = [
   onlineScoreVisiblePuanCases,
   unifiedKronoxScoreCases,
   diamondEconomyCases,
-  deezerRemovalCases,
+  securityCleanupCases,
   backendSecurityCases,
   questionSchemaCases,
 ];

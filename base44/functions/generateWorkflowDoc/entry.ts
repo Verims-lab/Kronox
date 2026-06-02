@@ -1,6 +1,23 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 import { PDFDocument, rgb, StandardFonts } from 'npm:pdf-lib@1.17.1';
 
+function normalizeEmail(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function getConfiguredAdminEmails() {
+  const raw = Deno.env.get('ADMIN_EMAILS') || Deno.env.get('KRONOX_ADMIN_EMAILS') || '';
+  return raw.split(',').map(normalizeEmail).filter(Boolean);
+}
+
+function isAuthorizedAdmin(user) {
+  if (!user) return false;
+  if (user.role === 'admin' || user.is_admin === true) return true;
+  if (Array.isArray(user.permissions) && user.permissions.includes('admin')) return true;
+  const allowlist = getConfiguredAdminEmails();
+  return allowlist.length > 0 && allowlist.includes(normalizeEmail(user.email));
+}
+
 function toAscii(str) {
   return str
     .replace(/ğ/g, 'g').replace(/Ğ/g, 'G')
@@ -16,8 +33,16 @@ function toAscii(str) {
 
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
-  const user = await base44.auth.me();
-  if (!user || (user.role !== 'admin' && user.email !== 'sariverim@gmail.com')) {
+  let user = null;
+  try {
+    user = await base44.auth.me();
+  } catch {
+    return Response.json({ error: 'Authentication required' }, { status: 401 });
+  }
+  if (!user) {
+    return Response.json({ error: 'Authentication required' }, { status: 401 });
+  }
+  if (!isAuthorizedAdmin(user)) {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -195,7 +220,7 @@ Deno.serve(async (req) => {
   drawBullet('Hesap silme, kisisel rekor (GameRecord) ve En Iyi 5 listesini gorur.');
   drawBullet('Soru/Test/Doc araclarina erisemez.');
 
-  drawHeading2('2.3 Admin (role="admin" veya lib/admin.js ADMIN_EMAIL)');
+  drawHeading2('2.3 Admin (role/is_admin/permissions veya deployment secret allowlist)');
   drawBullet('Settings > Admin Araclari menusu acilir.');
   drawBullet('Soru ekleyebilir / duzenleyebilir.');
   drawBullet('Teknik dokuman ve Is Akisi PDFlerini indirebilir.');
@@ -296,7 +321,7 @@ Deno.serve(async (req) => {
   drawHeading2('6.3 Dokuman Indirme');
   drawBullet('Settings > Admin Araclari > "Teknik Dokuman" -> kronox-teknik-dokuman.pdf.');
   drawBullet('Settings > Admin Araclari > "Is Akisi Dokumani" -> kronox-is-akisi.pdf.');
-  drawBullet('Her iki fonksiyon admin disindaki kullanicilara 403 doner.');
+  drawBullet('Her iki fonksiyon unauthenticated kullanicilara 401, admin disindaki kullanicilara 403 doner.');
 
   drawHeading2('6.4 Erisim Kisitlamalari');
   drawBullet('isAdminUser disindaki kullanicilar /test-suite\'e gittiklerinde "ERISIM KORUMALI" ekrani gorur.');

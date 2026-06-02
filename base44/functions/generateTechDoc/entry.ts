@@ -1,10 +1,25 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1';
 
-const ADMIN_EMAIL = 'sariverim@gmail.com';
-
 function authError(status, message) {
   return Response.json({ error: message }, { status });
+}
+
+function normalizeEmail(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function getConfiguredAdminEmails() {
+  const raw = Deno.env.get('ADMIN_EMAILS') || Deno.env.get('KRONOX_ADMIN_EMAILS') || '';
+  return raw.split(',').map(normalizeEmail).filter(Boolean);
+}
+
+function isAuthorizedAdmin(user) {
+  if (!user) return false;
+  if (user.role === 'admin' || user.is_admin === true) return true;
+  if (Array.isArray(user.permissions) && user.permissions.includes('admin')) return true;
+  const allowlist = getConfiguredAdminEmails();
+  return allowlist.length > 0 && allowlist.includes(normalizeEmail(user.email));
 }
 
 async function requireGenerateTechDocAdmin(base44) {
@@ -19,7 +34,7 @@ async function requireGenerateTechDocAdmin(base44) {
     return { response: authError(401, 'Authentication required') };
   }
 
-  if (user.role !== 'admin' && user.email !== ADMIN_EMAIL) {
+  if (!isAuthorizedAdmin(user)) {
     return { response: authError(403, 'Admin access required') };
   }
 
@@ -312,7 +327,7 @@ Deno.serve(async (req) => {
     bullet('lib/gameRules.js -- Saf kart kurali yardimcilari: isCorrectPlacement, getNextPlayerIndex, hasPlayerWon, getTimelineYears, selectNextQuestion, getQuestionSelectionPool.');
     bullet('lib/lobbyUtils.js -- normalizeCode, summarizePlayers, isHost, canJoinLobby, removePlayerByIdentity, buildLobbyStartPayload vb.');
     bullet('lib/onlineGameStart.js -- filterQuestionsForLobbySettings, shuffleQuestions ve buildInitialOnlineGameState. WaitingRoom oyunu baslatirken bu helperi cagirir.');
-    bullet('lib/admin.js -- isAdminUser ve ADMIN_EMAIL. Admin kuralinin TEK kaynagidir; UI hicbir yerde manuel email kiyaslamasi yapmaz.');
+    bullet('lib/admin.js -- isAdminUser. Admin gorunurlugu role/is_admin/permissions alanlarindan gelir; UI hicbir yerde manuel email kiyaslamasi yapmaz.');
     bullet('lib/AuthContext.jsx -- base44.auth.me / isAuthenticated, public settings yuklemesi, hata tiplemesi.');
     bullet('lib/NavigationStackContext.jsx -- Sayfa transition yonu (push/pop) yardimcisi.');
     bullet('lib/debugLog.js -- Production-gated debug log; release derlemelerinde sessizlestirilir.');
@@ -394,7 +409,7 @@ Deno.serve(async (req) => {
     drawText('Eski lobi sohbeti icin tutulan entity. Aktif UI tarafindan KULLANILMAZ; chat UI tamamen kaldirildi (Test Suite "removed" kategorisi). Yeni ozellikler bu entity\'ye yazmamali; ihtiyac varsa once yeniden tasarim yapilmalidir.', { color: gray });
 
     subTitle('User (Base44 built-in)');
-    drawText('Yerlesik User entity. Admin yetkisi role=="admin" alanindan VEYA lib/admin.js ADMIN_EMAIL ile kontrol edilir. Manuel email kiyaslamasi yasaktir.');
+    drawText('Yerlesik User entity. Admin yetkisi role=="admin", is_admin veya permissions icindeki admin izninden gelir. Backend fonksiyonlari gecici deployment allowlist icin ADMIN_EMAILS/KRONOX_ADMIN_EMAILS secret degerini okuyabilir; kaynak kodda manuel email kiyaslamasi yasaktir.');
 
     // ══════════════════════════════════════════════════════════════════════════
     // 6. DATA CONTRACTS
@@ -463,12 +478,12 @@ Deno.serve(async (req) => {
     drawText('Admin araclari. runTestSuite saf birim & senaryo testlerini sunucuda kosturur; simulateOnlineGame online akisi sahte oyuncularla bastan sona simule eder.');
 
     subTitle('generateTechDoc / generateWorkflowDoc');
-    drawText('Bu PDFler. Settings > Admin Araclari uzerinden indirilir. Yalnizca admin (role=="admin" veya ADMIN_EMAIL) erisebilir. Cikti dosya adlari: "kronox-teknik-dokuman.pdf" ve "kronox-is-akisi.pdf".');
+    drawText('Bu PDFler. Settings > Admin Araclari uzerinden indirilir. Yalnizca server tarafinda dogrulanmis admin (role/is_admin/permissions veya deployment secret allowlist) erisebilir. Cikti dosya adlari: "kronox-teknik-dokuman.pdf" ve "kronox-is-akisi.pdf".');
 
     subTitle('Diger');
     bullet('deleteAccount -- kullanici kendi hesabini sertce siler');
     bullet('getQuestions -- solo modda hizli toplu soru cekme');
-    bullet('getDeezerPreview / searchSpotifyTrack / loadSpotifyMusicQuestions / populateSpotifyQuestions / seedMusicQuestions -- muzik tipi sorular icin yardimcilar');
+    bullet('Muzik provider entegrasyonlari aktif degildir; eski harici muzik soru yukleme fonksiyonlari guvenlik nedeniyle kaldirilmistir.');
 
     // ══════════════════════════════════════════════════════════════════════════
     // 8. HOME EKRANI

@@ -87,18 +87,23 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('generate_tech_doc_requires_admin_authorization',
-    'generateTechDoc requires admin role or the existing server-side admin email pattern',
+    'generateTechDoc requires server-side admin role/permission or deployment-secret allowlist',
     () => {
       const required = [
-        "const ADMIN_EMAIL = 'sariverim@gmail.com'",
-        "user.role !== 'admin'",
-        'user.email !== ADMIN_EMAIL',
+        'function isAuthorizedAdmin',
+        "user.role === 'admin'",
+        'user.is_admin === true',
+        "user.permissions.includes('admin')",
+        "Deno.env.get('ADMIN_EMAILS')",
+        "Deno.env.get('KRONOX_ADMIN_EMAILS')",
         "authError(403, 'Admin access required')",
       ];
       const forbidden = presentTokens(generateTechDocSource, [
         'req.json()',
-        'isAdmin',
+        'body.isAdmin',
+        'isAdmin: true',
         'admin: true',
+        ['ADMIN', 'EMAIL ='].join('_'),
       ]);
       const missing = missingTokens(generateTechDocSource, required);
       if (missing.length || forbidden.length) {
@@ -106,7 +111,7 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'base44/functions/generateTechDoc/entry.ts',
-          expected: 'server-side user.role/admin email authorization; no client-supplied admin flag',
+          expected: 'server-side role/permission/admin secret allowlist authorization; no client-supplied admin flag or committed email',
           actual: { missing, forbidden },
           actionType: ACTION_TYPES.CODE_FIX,
         });

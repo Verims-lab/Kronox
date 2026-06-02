@@ -183,7 +183,13 @@ export const sendGameInvitePushFnSource = `
   if (recipientRows?.[0]?.game_invite_notifications_enabled === false) {
     return json({ ok: true, push: { attempted: false, skipped: 'recipient_notifications_disabled' } });
   }
+  const config = {
+    subject: Deno.env.get('VAPID_SUBJECT') || Deno.env.get('KRONOX_VAPID_SUBJECT') || 'mailto:support@kronox.app',
+    publicKey: Deno.env.get('VAPID_PUBLIC_KEY') || Deno.env.get('KRONOX_VAPID_PUBLIC_KEY') || Deno.env.get('VITE_KRONOX_VAPID_PUBLIC_KEY') || '',
+    privateKey: Deno.env.get('VAPID_PRIVATE_KEY') || Deno.env.get('KRONOX_VAPID_PRIVATE_KEY') || '',
+  };
   if (!config.publicKey || !config.privateKey) {
+    console.warn('[sendGameInvitePush] missing VAPID configuration; push skipped but in-app invite remains available.');
     return json({ ok: true, push: { attempted: false, skipped: 'missing_vapid_config', missingConfig: { publicKey: !config.publicKey, privateKey: !config.privateKey } } });
   }
   const subscriptions = await base44.asServiceRole.entities.PushSubscription.filter(

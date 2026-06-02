@@ -1,7 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
-const ADMIN_EMAIL = 'sariverim@gmail.com';
-
 const QUESTION_CATEGORIES = [
   { category_id: 1, name: 'Chronicle' },
   { category_id: 2, name: 'Flashback' },
@@ -13,6 +11,23 @@ const QUESTION_CATEGORIES = [
 
 function json(body, status = 200) {
   return Response.json(body, { status });
+}
+
+function normalizeEmail(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function getConfiguredAdminEmails() {
+  const raw = Deno.env.get('ADMIN_EMAILS') || Deno.env.get('KRONOX_ADMIN_EMAILS') || '';
+  return raw.split(',').map(normalizeEmail).filter(Boolean);
+}
+
+function isAuthorizedAdmin(user) {
+  if (!user) return false;
+  if (user.role === 'admin' || user.is_admin === true) return true;
+  if (Array.isArray(user.permissions) && user.permissions.includes('admin')) return true;
+  const allowlist = getConfiguredAdminEmails();
+  return allowlist.length > 0 && allowlist.includes(normalizeEmail(user.email));
 }
 
 async function requireAdmin(base44) {
@@ -27,7 +42,7 @@ async function requireAdmin(base44) {
     return { response: json({ error: 'Authentication required' }, 401) };
   }
 
-  if (user.role !== 'admin' && user.email !== ADMIN_EMAIL) {
+  if (!isAuthorizedAdmin(user)) {
     return { response: json({ error: 'Admin access required' }, 403) };
   }
 
