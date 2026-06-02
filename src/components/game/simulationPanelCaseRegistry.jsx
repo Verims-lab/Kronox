@@ -149,6 +149,10 @@ import * as categoryStatusCases from './simulationPanelCategoryStatusCases';
 // drop feedback (green pulse / red glow + shake + void-reject), no
 // changes to drag/drop, hit-testing, scoring, or timeline ordering.
 import * as placementFeedbackCases from './simulationPanelPlacementFeedbackCases';
+// Codex164 — Solo Result Popup UI correction: shared SoloStatCard,
+// shared MM:SS time formatter, two-line "Kazanılan Puan" layout, and
+// TimerReset icon swap. Visual-only; popup props are unchanged.
+import * as soloPopupCases from './simulationPanelSoloPopupCases';
 
 const MODULES = [
   soloProgressCases,
@@ -183,6 +187,7 @@ const MODULES = [
   questionSchemaCases,
   categoryStatusCases,
   placementFeedbackCases,
+  soloPopupCases,
 ];
 
 function flatten(key) {

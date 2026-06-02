@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Star, ChevronRight, RotateCcw, ListChecks, Clock, Zap, X as XIcon, Check,
+  Star, ChevronRight, RotateCcw, ListChecks, TimerReset, Zap, X as XIcon, Check,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { fetchSoloLevelRecordContext } from '@/lib/soloLevelRecord';
+// Codex164 — shared popup helpers so success + failure stay in lockstep.
+import SoloStatCard from './SoloStatCard';
+import { formatCompactDuration } from '@/lib/soloTimeFormat';
 
 /**
  * Solo SUCCESS completion popup — visual correction pass (matches the
@@ -98,8 +101,8 @@ export default function SoloSuccessPopup({
 
           {/* ── 2x2 stat grid (horizontal rectangle cards) ── */}
           <div className="grid grid-cols-2 gap-2.5">
-            <StatCard
-              icon={Clock}
+            <SoloStatCard
+              icon={TimerReset}
               iconColor="#60a5fa"
               iconRingColor="rgba(96,165,250,0.55)"
               label="TOPLAM SÜRE"
@@ -107,17 +110,17 @@ export default function SoloSuccessPopup({
               valueColor="#ffffff"
               footer={recordKind !== 'none' ? <RecordBadge kind={recordKind} /> : null}
             />
-            <StatCard
+            <SoloStatCard
               icon={Star}
               iconColor="#facc15"
               iconRingColor="rgba(250,204,21,0.55)"
               iconFill="#facc15"
-              label="KAZANILAN PUAN"
+              label={<>KAZANILAN<br />PUAN</>}
               value={String(levelScore || 0)}
               valueColor="#facc15"
               footer={<UnitLabel color="#facc15">Puan</UnitLabel>}
             />
-            <StatCard
+            <SoloStatCard
               icon={XIcon}
               iconColor="#f87171"
               iconRingColor="rgba(248,113,113,0.55)"
@@ -126,13 +129,13 @@ export default function SoloSuccessPopup({
               valueColor="#f87171"
               footer={<UnitLabel color="#fca5a5">Hata</UnitLabel>}
             />
-            <StatCard
+            <SoloStatCard
               icon={Zap}
               iconColor={speedBonusEarned ? '#4ade80' : '#f87171'}
               iconRingColor={speedBonusEarned ? 'rgba(74,222,128,0.55)' : 'rgba(248,113,113,0.55)'}
               iconFill={speedBonusEarned ? '#4ade80' : undefined}
               label="HIZ BONUSU"
-              value={speedBonusEarned
+              valueNode={speedBonusEarned
                 ? <Check style={{ width: 26, height: 26, color: '#4ade80' }} strokeWidth={3.5} />
                 : <XIcon style={{ width: 26, height: 26, color: '#f87171' }} strokeWidth={3.5} />}
               valueColor={speedBonusEarned ? '#4ade80' : '#f87171'}
@@ -196,17 +199,6 @@ export default function SoloSuccessPopup({
 }
 
 /* ─────────────────────────── helpers ─────────────────────────── */
-
-/**
- * "MM:SS" formatter for the success popup (independent from GameOverTimer's
- * verbose formatDuration so we don't disturb other call sites).
- */
-function formatCompactDuration(seconds) {
-  const total = Math.max(0, Math.floor(Number(seconds) || 0));
-  const m = Math.floor(total / 60);
-  const s = total % 60;
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-}
 
 /**
  * Title row: small star ornament + gradient line on each side of the title.
@@ -345,85 +337,6 @@ function StarsRow({ stars }) {
           </motion.div>
         );
       })}
-    </div>
-  );
-}
-
-/**
- * Horizontal rectangular stat card:
- *
- *   ┌──────────────────────────────┐
- *   │ ⓘ   LABEL                    │
- *   │     VALUE                    │
- *   │     footer (optional)        │
- *   └──────────────────────────────┘
- *
- * Icon sits in a 44px circle on the left; label/value/footer stack on the
- * right. Same shape and proportions for all 4 cards → consistent rhythm
- * across the grid.
- */
-function StatCard({
-  icon: Icon,
-  iconColor,
-  iconRingColor,
-  iconFill,
-  label,
-  value,
-  valueColor,
-  footer,
-}) {
-  return (
-    <div
-      className="rounded-2xl px-3 py-2.5 flex items-center gap-2.5"
-      style={{
-        background: 'linear-gradient(180deg, rgba(20,30,60,0.85), rgba(8,16,40,0.95))',
-        boxShadow: 'inset 0 0 0 1.5px rgba(96,165,250,0.22)',
-        minHeight: 84,
-      }}
-    >
-      {/* Icon circle — identical size for all 4 cards */}
-      <div
-        className="flex items-center justify-center rounded-full shrink-0"
-        style={{
-          width: 42,
-          height: 42,
-          background: 'rgba(10,18,40,0.9)',
-          boxShadow: `inset 0 0 0 2px ${iconRingColor}`,
-        }}
-      >
-        <Icon
-          className="w-[22px] h-[22px]"
-          strokeWidth={2.4}
-          style={{ color: iconColor, fill: iconFill || 'transparent' }}
-        />
-      </div>
-
-      {/* Text stack — label, value, optional footer */}
-      <div className="flex-1 min-w-0 flex flex-col">
-        <span
-          className="font-inter truncate"
-          style={{
-            color: 'rgba(199,210,234,0.78)',
-            fontSize: '10.5px',
-            fontWeight: 700,
-            letterSpacing: '0.08em',
-          }}
-        >
-          {label}
-        </span>
-        <span
-          className="font-bangers leading-none mt-0.5"
-          style={{
-            color: valueColor,
-            fontSize: 'clamp(20px, 6vw, 24px)',
-            letterSpacing: '0.04em',
-            textShadow: valueColor === '#ffffff' ? '0 1px 3px rgba(0,0,0,0.4)' : 'none',
-          }}
-        >
-          {value}
-        </span>
-        {footer && <div className="mt-1">{footer}</div>}
-      </div>
     </div>
   );
 }
