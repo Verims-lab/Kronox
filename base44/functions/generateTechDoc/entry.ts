@@ -1,6 +1,31 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1';
 
+const ADMIN_EMAIL = 'sariverim@gmail.com';
+
+function authError(status, message) {
+  return Response.json({ error: message }, { status });
+}
+
+async function requireGenerateTechDocAdmin(base44) {
+  let user = null;
+  try {
+    user = await base44.auth.me();
+  } catch {
+    return { response: authError(401, 'Authentication required') };
+  }
+
+  if (!user?.email) {
+    return { response: authError(401, 'Authentication required') };
+  }
+
+  if (user.role !== 'admin' && user.email !== ADMIN_EMAIL) {
+    return { response: authError(403, 'Admin access required') };
+  }
+
+  return { user };
+}
+
 // Turkce karakterleri ASCII'ye donustur (Helvetica Latin-1 ile uyumlu)
 function tr(text) {
   return text
@@ -20,6 +45,8 @@ function tr(text) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
+    const auth = await requireGenerateTechDocAdmin(base44);
+    if (auth.response) return auth.response;
 
     const pdfDoc = await PDFDocument.create();
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -884,6 +911,7 @@ Deno.serve(async (req) => {
       },
     });
   } catch (error) {
-    return Response.json({ error: error.message, stack: error.stack }, { status: 500 });
+    console.error('[generateTechDoc] failed', error);
+    return Response.json({ error: 'Internal server error' }, { status: 500 });
   }
 });

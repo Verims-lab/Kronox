@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex153 — generateTechDoc backend security hardening:
+//   • generateTechDoc now authenticates with base44.auth.me() server-side
+//     before generating any internal PDF content.
+//   • Unauthenticated callers receive 401; authenticated non-admin users
+//     receive 403; admins keep the intended Settings download flow.
+//   • Adds modular backend_security_health coverage for this trust boundary.
+//
 // Codex152 — Diamond economy foundation:
 //   • User.diamonds is the canonical persisted Elmas balance.
 //   • Auth bootstrap grants +100 starter once and +20 daily once per UTC day.
@@ -566,7 +573,7 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
-const BUILD_MARKER = 'Codex152';
+const BUILD_MARKER = 'Codex153';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -126,6 +126,9 @@ import * as unifiedKronoxScoreCases from './simulationPanelUnifiedKronoxScoreCas
 // Codex152 — Diamond economy foundation: canonical User.diamonds balance,
 // starter + daily login grants, idempotent ledger, and display contracts.
 import * as diamondEconomyCases from './simulationPanelDiamondEconomyCases';
+// Codex153 — Backend function security guard: generateTechDoc must require
+// server-side auth/admin authorization before internal PDF generation.
+import * as backendSecurityCases from './simulationPanelBackendSecurityCases';
 
 const MODULES = [
   soloProgressCases,
@@ -154,6 +157,7 @@ const MODULES = [
   onlineScoreVisiblePuanCases,
   unifiedKronoxScoreCases,
   diamondEconomyCases,
+  backendSecurityCases,
 ];
 
 function flatten(key) {
