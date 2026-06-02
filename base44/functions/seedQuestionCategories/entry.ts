@@ -1,5 +1,9 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
+// Codex157 — Hardcoded admin email literals removed. Admin authorization is
+// role/permission based, with ADMIN_EMAILS/KRONOX_ADMIN_EMAILS as a
+// deployment-secret fallback. Missing/empty config fails closed unless the
+// authenticated user has an admin role/permission.
 const QUESTION_CATEGORIES = [
   { category_id: 1, name: 'Chronicle' },
   { category_id: 2, name: 'Flashback' },

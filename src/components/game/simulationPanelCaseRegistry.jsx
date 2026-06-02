@@ -130,6 +130,11 @@ import * as diamondEconomyCases from './simulationPanelDiamondEconomyCases';
 // functions are gone, VAPID keys are env/config-only, and admin access no
 // longer depends on a committed personal email.
 import * as securityCleanupCases from './simulationPanelSecurityCleanupCases';
+// Codex154 — Security: admin authorization hardening. Locks in that no
+// admin-only backend function contains a hardcoded admin email literal,
+// each reads admin allowlist env/secrets, requires auth, rejects
+// non-admins with 403, and fails closed when config is missing.
+import * as adminAuthorizationCases from './simulationPanelAdminAuthorizationCases';
 // Codex154 — Backend function security guard: generateTechDoc must require
 // server-side auth/admin authorization before internal PDF generation.
 import * as backendSecurityCases from './simulationPanelBackendSecurityCases';
@@ -165,6 +170,7 @@ const MODULES = [
   unifiedKronoxScoreCases,
   diamondEconomyCases,
   securityCleanupCases,
+  adminAuthorizationCases,
   backendSecurityCases,
   questionSchemaCases,
 ];

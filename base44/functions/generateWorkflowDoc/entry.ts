@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
     return Response.json({ error: 'Authentication required' }, { status: 401 });
   }
   if (!isAuthorizedAdmin(user)) {
-    return Response.json({ error: 'Forbidden' }, { status: 403 });
+    return Response.json({ error: 'Admin access required' }, { status: 403 });
   }
 
   const pdfDoc = await PDFDocument.create();

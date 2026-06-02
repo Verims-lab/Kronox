@@ -1,6 +1,10 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1';
 
+// Codex157 — Hardcoded admin email literals removed. Admin authorization is
+// role/permission based, with ADMIN_EMAILS/KRONOX_ADMIN_EMAILS as a
+// deployment-secret fallback. Missing/empty config fails closed unless the
+// authenticated user has an admin role/permission.
 function authError(status, message) {
   return Response.json({ error: message }, { status });
 }
