@@ -133,6 +133,9 @@ import * as deezerRemovalCases from './simulationPanelDeezerRemovalCases';
 // Codex154 — Backend function security guard: generateTechDoc must require
 // server-side auth/admin authorization before internal PDF generation.
 import * as backendSecurityCases from './simulationPanelBackendSecurityCases';
+// Codex155 — Question dataset DB preparation: Category entity + fixed seed
+// path, future Question metadata fields, and no gameplay schema switch yet.
+import * as questionSchemaCases from './simulationPanelQuestionSchemaCases';
 
 const MODULES = [
   soloProgressCases,
@@ -163,6 +166,7 @@ const MODULES = [
   diamondEconomyCases,
   deezerRemovalCases,
   backendSecurityCases,
+  questionSchemaCases,
 ];
 
 function flatten(key) {
