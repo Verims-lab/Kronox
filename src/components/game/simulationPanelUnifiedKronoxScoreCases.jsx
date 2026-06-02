@@ -16,7 +16,10 @@ import onlineChallengeSource from '../lobby/OnlineChallengeScreen.jsx?raw';
 import screenHeaderSource from '../layout/ScreenHeader.jsx?raw';
 import scoringRulesSource from '../../../docs/KRONOX_SCORING_RULES.md?raw';
 import leaderboardLibSource from '../../lib/leaderboard.js?raw';
-import leaderboardFunctionSource from '../../../base44/functions/getSoloLeaderboard/entry.ts?raw';
+// Codex169 — Read the backend leaderboard projection contract from the
+// src-resident mirror (the real functions/ file is outside src/, so a
+// `?raw` import returns empty here and false-fails the token scan).
+import { GET_SOLO_LEADERBOARD_SOURCE as leaderboardFunctionSource } from '@/lib/healthMirrors/getSoloLeaderboardMirror';
 import applyOnlineResultSource from '../../lib/applyOnlineResult.js?raw';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };

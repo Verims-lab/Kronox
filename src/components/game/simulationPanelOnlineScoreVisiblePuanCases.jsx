@@ -189,7 +189,11 @@ export const EXTRA_TESTS = [
       const src = safeStr(applyOnlineResultSource);
       const fnStart = src.indexOf('export async function applyOnlineMatchToCurrentUser');
       const applySource = fnStart >= 0 ? src.slice(fnStart) : src;
-      const updateIndex = applySource.indexOf('await base44.auth.updateMe({');
+      // Codex169 — the apply path now persists a single prepared `payload`
+      // (online_progress + unified kronox_puan_total) via
+      // `await base44.auth.updateMe(payload)`. We still require the audit
+      // reservation to happen BEFORE that visible-score write.
+      const updateIndex = applySource.indexOf('await base44.auth.updateMe(payload)');
       const auditIndex = applySource.indexOf('const onlineMatchResult = await createOnlineMatchResult');
       const missing = missingTokens(src, [
         'OnlineMatchResult audit reservation failed; score not applied',

@@ -266,7 +266,10 @@ Deno.serve(async (req) => {
 
     return json({
       ok: true,
-      source: 'user_kronox_puan_total_projection',
+      // Codex169 — Public-safe service-role projection signal. Solo +
+      // Online are unified server-side into total_kronox_score; only
+      // rank-safe fields leave this function.
+      source: 'user_kronox_puan_service_role_projection',
       rows,
     });
   } catch (error) {

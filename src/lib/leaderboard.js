@@ -99,6 +99,10 @@ export function buildSoloLeaderboardPayload(user, progress, totalLevels = LEADER
   const summary = summarizeSoloProgress(normalizedProgress, totalLevels);
   const totalSoloScore = Math.max(0, Number(summary.totalSoloScore) || 0);
   const onlineScore = getLeaderboardOnlineScore(user);
+  // Codex169 — Unified Kronox Puan in the leaderboard row projection.
+  // Online win/loss delta is added to the same Solo total used everywhere
+  // (Profile/Header/Leaderboard), so rows never split Solo vs Online:
+  //   totalKronoxScore = summary.totalSoloScore + onlineScore
   const totalKronoxScore = totalSoloScore + onlineScore;
   const displayName = getSafeLeaderboardName(user);
   const aggregateBestTimeSeconds = getAggregateBestTimeSeconds(normalizedProgress);

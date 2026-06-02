@@ -434,24 +434,28 @@ export async function applyOnlineMatchToCurrentUser({
   }
 
   // 5. Persist. lastMatchId is added to the SAME write so it lands
-  //    atomically with the score change. If updateMe rejects, the
-  //    existing audit row remains repairable on retry.
+  //    atomically with the score change. The unified Kronox Puan
+  //    projection (Solo + Online) is written into the same payload so the
+  //    visible Puan and leaderboard row stay consistent after refresh.
+  //    If updateMe rejects, the existing audit row remains repairable on
+  //    retry.
+  const nextOnlineProgress = {
+    ...nextProgress,
+    lastMatchId: String(lobbyId),
+  };
   const payload = {
-    online_progress: {
-      ...nextProgress,
-      lastMatchId: String(lobbyId),
-    },
+    online_progress: nextOnlineProgress,
+    kronox_puan_total: buildSoloLeaderboardPayload({
+      ...me,
+      online_progress: nextOnlineProgress,
+    }, me.solo_progress).total_kronox_score,
   };
 
   try {
-    const scoreProjection = buildSoloLeaderboardPayload({
-      ...me,
-      online_progress: payload.online_progress,
-    }, me.solo_progress).total_kronox_score;
-    await base44.auth.updateMe({
-      ...payload,
-      kronox_puan_total: scoreProjection,
-    });
+    // Codex169 — refresh the authenticated user/profile visible state by
+    // persisting the unified payload (online_progress + unified
+    // kronox_puan_total) in a single write.
+    await base44.auth.updateMe(payload);
   } catch (e) {
     const msg = e?.message || String(e);
     debugLog('[applyOnlineMatch] persist failed', { lobbyId, result, error: msg });
@@ -460,12 +464,12 @@ export async function applyOnlineMatchToCurrentUser({
 
   debugLog('[applyOnlineMatch] applied', { lobbyId, applied });
   const refreshedUser = await refreshCurrentUserAfterOnlineScore(lobbyId);
-  await publishLeaderboardAfterOnlineScore(refreshedUser || { ...me, online_progress: payload.online_progress }, lobbyId);
+  await publishLeaderboardAfterOnlineScore(refreshedUser || { ...me, online_progress: nextOnlineProgress }, lobbyId);
 
   return {
     ok: true,
     skipped: false,
-    progress: payload.online_progress,
+    progress: nextOnlineProgress,
     applied,
     onlineMatchResult,
     refreshedUser,
