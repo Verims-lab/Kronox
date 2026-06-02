@@ -1,7 +1,10 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
-// Spotify Client Credentials flow — no user auth needed
-// Falls back to Deezer if Spotify preview_url is null
+// Spotify Client Credentials flow — no user auth needed.
+// Codex153 — Deezer fallback removed (security: unauthenticated public
+// proxy was deprecated together with functions/getDeezerPreview). If
+// Spotify does not return a preview_url for a track, the song is simply
+// skipped — no third-party preview source is queried.
 
 const songs = [
   { query: 'The Beatles Hey Jude', year: 1968 },
@@ -142,22 +145,8 @@ async function getSpotifyPreview(query, accessToken) {
   };
 }
 
-// Search Deezer as fallback — limit=5, preview URL olan ilk track'i seç
-async function getDeezerPreview(query) {
-  const res = await fetch(
-    `https://api.deezer.com/search?q=${encodeURIComponent(query)}&limit=5`,
-    { headers: { 'Accept': 'application/json' } }
-  );
-  if (!res.ok) return null;
-  const data = await res.json();
-  const track = data?.data?.find(t => t.preview && t.preview.length > 0);
-  if (!track) return null;
-  return {
-    previewUrl: track.preview,
-    title: track.title_short || track.title,
-    artist: track.artist?.name || 'Unknown',
-  };
-}
+// Codex153 — Deezer fallback intentionally removed. Songs without a
+// Spotify preview_url are simply skipped (logged into `errors`).
 
 Deno.serve(async (req) => {
   try {
@@ -174,33 +163,19 @@ Deno.serve(async (req) => {
     const questions = [];
     const errors = [];
     let spotifyCount = 0;
-    let deezerCount = 0;
 
     for (const { query, year } of songs) {
-      let track = null;
-
-      // 1. Try Spotify first
+      // Spotify only — no third-party fallback (Codex153).
       const spotifyResult = await getSpotifyPreview(query, spotifyToken);
-      if (spotifyResult?.previewUrl) {
-        track = spotifyResult;
-        spotifyCount++;
-      } else {
-        // 2. Fallback to Deezer
-        await new Promise(r => setTimeout(r, 100));
-        const deezerResult = await getDeezerPreview(query);
-        if (deezerResult?.previewUrl) {
-          track = deezerResult;
-          deezerCount++;
-        }
-      }
 
-      if (track) {
+      if (spotifyResult?.previewUrl) {
+        spotifyCount++;
         questions.push({
-          question: `Bu şarkıyı tanıyor musun? "${track.title}" - ${track.artist}`,
+          question: `Bu şarkıyı tanıyor musun? "${spotifyResult.title}" - ${spotifyResult.artist}`,
           year: year,
           category: 'muzik',
           type: 'muzik',
-          media_url: track.previewUrl,
+          media_url: spotifyResult.previewUrl,
         });
       } else {
         errors.push(`${query}: preview yok`);
@@ -226,7 +201,6 @@ Deno.serve(async (req) => {
       created: created.length,
       total: songs.length,
       spotify: spotifyCount,
-      deezer: deezerCount,
       errors: errors.length > 0 ? errors : undefined,
     });
   } catch (error) {

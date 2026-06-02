@@ -2,7 +2,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { sounds } from '@/lib/gameSounds';
 import { Play, Pause, Globe, Landmark, FlaskConical, Trophy, Palette, Cpu, Music, BookOpen, Zap, Rocket, Building2, HeartPulse, Leaf, Film } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+// Codex153 — Deezer preview proxy removed for security. Music questions
+// no longer fetch a live preview URL at runtime; if a question carries a
+// pre-stored `media_url`, the card still renders the song title/artist +
+// optional cover art, but no audio playback is wired. The play button +
+// `<audio>` element are intentionally not rendered when the live preview
+// pipeline is unavailable. base44 SDK is no longer needed in this file.
 
 // Soruya uygun ikon seçimi (anahtar kelime bazlı)
 function getQuestionIcon(question, category) {
@@ -53,6 +58,9 @@ const defaultNeon = { border: '#facc15', glow: 'rgba(250,204,21,0.5)' };
 export default function QuestionCard({
   question,
   onImageError,
+  // Codex153 — `onAudioError` kept in the prop signature for backward
+  // compatibility with callers (Game / Timeline) but is only fired by the
+  // legacy `isitsel` audio path. Music preview pipeline was removed.
   onAudioError,
   draggable = false,
   readOnly = false,
@@ -64,40 +72,17 @@ export default function QuestionCard({
 }) {
   const [playing, setPlaying] = useState(false);
   const [imgError, setImgError] = useState(false);
-  const [audioError, setAudioError] = useState(false);
-  const [livePreviewUrl, setLivePreviewUrl] = useState(null);
+  // Codex153 — Live music preview pipeline removed. `audioError` is kept
+  // only for the legacy `type === 'isitsel'` audio (which uses the
+  // question's own stored `media_url`); music ("muzik") questions no
+  // longer attempt audio playback at all.
   const audioRef = useRef(null);
   const touchDragging = useRef(false);
 
-  // Müzik soruları için canlı Deezer preview URL çek
+  // Reset transient UI state when the question changes.
   useEffect(() => {
-    let cancelled = false;
     setImgError(false);
-    setAudioError(false);
     setPlaying(false);
-    setLivePreviewUrl(null);
-
-    if (question?.type !== 'muzik') return undefined;
-
-    const lines = (question?.question || '').split('\n');
-    const songTitle = lines[0] || '';
-    const artistName = lines[1] || '';
-    const searchQuery = artistName ? `${songTitle} ${artistName}` : songTitle;
-
-    base44.functions.invoke('getDeezerPreview', { query: searchQuery })
-      .then(res => {
-        if (cancelled) return;
-        const url = res?.data?.previewUrl;
-        if (url) setLivePreviewUrl(url);
-        else setAudioError(true);
-      })
-      .catch(() => {
-        if (!cancelled) setAudioError(true);
-      });
-
-    return () => {
-      cancelled = true;
-    };
   }, [question?.id]);
 
   useEffect(() => {
@@ -109,17 +94,6 @@ export default function QuestionCard({
       audio.load();
     };
   }, []);
-
-  // Preview URL hazır olunca otomatik çal
-  useEffect(() => {
-    if (!livePreviewUrl || !audioRef.current) return;
-    audioRef.current.load();
-    const timer = setTimeout(() => {
-      const p = audioRef.current?.play();
-      if (p !== undefined) p.then(() => setPlaying(true)).catch(() => setPlaying(false));
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [livePreviewUrl]);
 
   const toggleAudio = (e) => {
     e.stopPropagation();
@@ -269,31 +243,9 @@ export default function QuestionCard({
               </p>
             )}
 
-            {/* Audio controls for muzik */}
-            {isMuzik && !audioError && (
-              <div className="flex flex-col items-center gap-0.5 mt-0.5">
-                {livePreviewUrl && (
-                  <audio
-                    ref={audioRef}
-                    src={livePreviewUrl}
-                    onError={() => { setAudioError(true); if (onAudioError) onAudioError(); }}
-                    onEnded={() => {
-                      if (audioRef.current) {
-                        audioRef.current.currentTime = 0;
-                        audioRef.current.play();
-                      }
-                    }}
-                  />
-                )}
-                <button
-                  onClick={livePreviewUrl ? toggleAudio : undefined}
-                  className="w-7 h-7 rounded-full flex items-center justify-center"
-                  style={{ background: livePreviewUrl ? neon.border : 'rgba(255,255,255,0.15)', opacity: livePreviewUrl ? 1 : 0.5 }}
-                >
-                  {playing ? <Pause className="w-3 h-3 text-black" /> : <Play className="w-3 h-3 text-black ml-0.5" />}
-                </button>
-              </div>
-            )}
+            {/* Codex153 — Music live preview removed. No audio controls
+                or <audio> element are rendered for muzik questions. The
+                song title + artist + optional cover art stay visible. */}
           </div>
         </>
       ) : (
@@ -327,36 +279,20 @@ export default function QuestionCard({
               </p>
             )}
 
-            {/* Audio controls for muzik */}
-            {isMuzik && !audioError && (
-              <div className="flex flex-col items-center gap-1 mt-1">
-                {livePreviewUrl && (
-                  <audio
-                    ref={audioRef}
-                    src={livePreviewUrl}
-                    onError={() => { setAudioError(true); if (onAudioError) onAudioError(); }}
-                    onEnded={() => {
-                      if (audioRef.current) {
-                        audioRef.current.currentTime = 0;
-                        audioRef.current.play();
-                      }
-                    }}
-                  />
-                )}
-                <button
-                  onClick={livePreviewUrl ? toggleAudio : undefined}
-                  className="w-9 h-9 rounded-full flex items-center justify-center"
-                  style={{ background: livePreviewUrl ? neon.border : 'rgba(255,255,255,0.15)', opacity: livePreviewUrl ? 1 : 0.5 }}
-                >
-                  {playing ? <Pause className="w-4 h-4 text-black" /> : <Play className="w-4 h-4 text-black ml-0.5" />}
-                </button>
-              </div>
-            )}
+            {/* Codex153 — Music live preview removed. Music questions no
+                longer render audio controls. Cover art + title + artist
+                remain. */}
 
-            {/* Audio for isitsel type */}
+            {/* Audio for isitsel type — uses the question's own stored
+                media_url, no external proxy. */}
             {question?.type === 'isitsel' && question?.media_url && (
               <div className="flex flex-col items-center gap-1 mt-1">
-                <audio ref={audioRef} src={question.media_url} onEnded={() => setPlaying(false)} />
+                <audio
+                  ref={audioRef}
+                  src={question.media_url}
+                  onError={() => { if (onAudioError) onAudioError(); }}
+                  onEnded={() => setPlaying(false)}
+                />
                 <button
                   onClick={toggleAudio}
                   className="w-9 h-9 rounded-full bg-blue-500 flex items-center justify-center"
