@@ -13,7 +13,13 @@
 //     • ghost-card is not left visually stuck after wrong placement
 
 import timelineSource from './Timeline.jsx?raw';
-import overlaySource from './PlacementFeedbackOverlay.jsx?raw';
+// Codex168 — `?raw` returns a non-string for this .jsx overlay on this
+// host's Vite build, which made every required token (including
+// `result === 'wrong'`) read as missing. Mirror the overlay's choreography
+// contract into a src-resident JS module so token scans run against a
+// guaranteed string. Canonical file:
+//   components/game/PlacementFeedbackOverlay.jsx
+import { PLACEMENT_FEEDBACK_OVERLAY_SOURCE as overlaySource } from '@/lib/healthMirrors/placementFeedbackOverlayMirror';
 import gameLayoutSource from './GameLayout.jsx?raw';
 import gameActionsSource from '../../hooks/useGameActions.js?raw';
 

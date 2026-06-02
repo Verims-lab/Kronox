@@ -20,7 +20,12 @@
 //   schema from a mirror in `simulationPanelContractStrings.jsx` and
 //   safe-string everything before token scanning.
 
-import seedQuestionCategoriesSource from '../../functions/seedQuestionCategories.js?raw';
+// Codex168 — `?raw` cannot reach `functions/` from `src/` on this host's
+// Vite build (returns non-string → token scans falsely FAIL). Mirror the
+// canonical seed contract into a src-resident JS module so token scans
+// run against a guaranteed string. Canonical file:
+//   functions/seedQuestionCategories.js
+import { SEED_QUESTION_CATEGORIES_SOURCE as seedQuestionCategoriesSource } from '@/lib/healthMirrors/seedQuestionCategoriesMirror';
 import categoryFiltersSource from '../../lib/categoryFilters.js?raw';
 // Codex161 — Online carousel must open with the first (lowest categoryid)
 // card visible. We lock in the initial-scroll-left contract via static
