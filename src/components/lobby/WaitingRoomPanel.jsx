@@ -26,10 +26,17 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
   } = useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, navigate });
 
   const [isStarting, setIsStarting] = useState(false);
+  // Codex165 — Kronox-style inline error replaces the native browser alert.
+  // Whatever string we put in startError is rendered as a rose-tinted toast
+  // panel above the BAŞLAT button so the host gets honest, non-blocking
+  // feedback. Cleared every time we re-enter handleStart so a previous
+  // failure never leaks into a new attempt.
+  const [startError, setStartError] = useState('');
 
   const handleStart = async () => {
     if (isStarting) return;
     setIsStarting(true);
+    setStartError('');
 
     // Codex085 — App-level diag: record that the host pressed Start.
     pushAppDiag({
@@ -59,7 +66,7 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
       });
 
       if (startPlayers.length < 2) {
-        alert('Oyun başlatmak için en az 2 oyuncu gerekli');
+        setStartError('Oyun başlatmak için en az 2 oyuncu gerekli.');
         return;
       }
 
@@ -69,11 +76,19 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
       const response = await base44.functions.invoke('startLobbyGame', {
         lobbyId: startLobby.id,
         playerName,
+      }).catch((err) => {
+        // Codex165 — Surface backend's safe error message instead of an
+        // axios "status code 400" string. Base44 SDK throws on non-2xx;
+        // err.response.data carries the JSON body { error, code, debug }.
+        const data = err?.response?.data;
+        const safeMsg = data?.error || err?.message || 'Oyun başlatılamadı.';
+        debugWarn('[handleStart] startLobbyGame request failed:', { status: err?.response?.status, data });
+        return { data: { success: false, error: safeMsg, debug: data?.debug || null } };
       });
       const result = response?.data;
 
       if (!result?.success || result?.error) {
-        alert(result?.error || 'Oyun başlatılamadı. Tekrar deneyin.');
+        setStartError(result?.error || 'Oyun başlatılamadı. Lobi bilgileri eksik veya güncel değil.');
         debugWarn('[handleStart] authority start rejected:', result?.debug || result);
         return;
       }
@@ -132,7 +147,7 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
           lastError: 'navigateToOnlineGame returned false (missing lobby id/code)',
           lastErrorWhere: 'handle_start',
         });
-        alert('Oyun başlatıldı ancak lobi bilgisi eksik. Lütfen tekrar deneyin.');
+        setStartError('Oyun başlatıldı ancak lobi bilgisi eksik. Lütfen tekrar deneyin.');
       }
     } catch (err) {
       console.error('[handleStart] authority start failed:', err);
@@ -140,8 +155,10 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
         lastError: err?.message || String(err),
         lastErrorWhere: 'handle_start',
       });
-      alert('Oyun başlatılamadı: ' + err.message);
+      setStartError(err?.message ? `Oyun başlatılamadı: ${err.message}` : 'Oyun başlatılamadı. Lütfen tekrar deneyin.');
     } finally {
+      // Codex165 — Always release the button so the host can retry after
+      // a backend 400/timeout. "BAŞLATILIYOR" never gets stuck.
       setIsStarting(false);
     }
   };
@@ -377,6 +394,21 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
 
       {isHost && (
         <div className="w-full max-w-lg px-4 pt-2" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
+          {/* Codex165 — Kronox-style inline error replaces native alert.
+              Non-blocking, dismissible-by-retry, honest copy from backend
+              when available. */}
+          {startError && (
+            <div
+              role="alert"
+              className="mb-2 rounded-xl px-3 py-2 font-inter text-[12px] text-rose-100/95"
+              style={{
+                background: 'rgba(244,63,94,0.10)',
+                boxShadow: 'inset 0 0 0 1px rgba(244,63,94,0.40)',
+              }}
+            >
+              {startError}
+            </div>
+          )}
           <GoldButton
             variant="gold"
             size="lg"

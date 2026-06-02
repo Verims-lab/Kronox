@@ -24,15 +24,33 @@ const summarizePlayers = (players: any[] = []) =>
     cardCount: Array.isArray(player?.cards) ? player.cards.length : 0,
   }));
 
-// Codex091 — Online category multi-select wiring.
-// Selected stable ids come from lib/onlineCategories.js (UI surface):
-//   flashback, kult, viral, arena, level_up, chronicle
-// The Question entity currently stores LEGACY category ids:
-//   tarih, bilim, spor, sanat, teknoloji, genel, muzik
-// Until a content migration maps Online ids onto Question.category values,
-// we apply a safe pragmatic mapping so multi-select is observable in the
-// question pool. Unknown ids contribute no filter (treated as broad).
-const ONLINE_TO_LEGACY_CATEGORY_MAP: Record<string, string[]> = {
+// Codex165 — Online category multi-select wiring.
+//
+// The Online UI offers 6 stable category ids:
+//   chronicle=1, flashback=2, kult=3, viral=4, arena=5, level_up=6
+//
+// The Question dataset evolved in Codex156: rows now carry numeric
+// `main_category_id` (1..6) matching the same Category lookup table the
+// UI uses. They do NOT carry the legacy string `category` / `type` /
+// `year` fields anymore — `year` is encoded inside `answer` (e.g. "2006").
+//
+// So we:
+//   1. Normalize every Question into runtime shape (year extracted from
+//      answer, default type=metin, default category=genel) — same logic
+//      getQuestions already applies for Solo.
+//   2. Filter by `main_category_id` against the host's selected Online
+//      category ids. Legacy string `category` rows are still honored as
+//      a fallback so old content keeps working.
+const ONLINE_ID_TO_MAIN_CATEGORY_ID: Record<string, number> = {
+  chronicle: 1,
+  flashback: 2,
+  kult: 3,
+  viral: 4,
+  arena: 5,
+  level_up: 6,
+};
+
+const LEGACY_ONLINE_TO_LEGACY_CATEGORY_MAP: Record<string, string[]> = {
   flashback: ['tarih', 'genel'],
   kult: ['sanat', 'genel'],
   viral: ['teknoloji', 'genel'],
@@ -41,18 +59,57 @@ const ONLINE_TO_LEGACY_CATEGORY_MAP: Record<string, string[]> = {
   chronicle: ['tarih', 'genel'],
 };
 
+const resolveMainCategoryIdsFromSelectedIds = (selectedIds: any): Set<number> | null => {
+  if (!Array.isArray(selectedIds) || selectedIds.length === 0) return null;
+  const allowed = new Set<number>();
+  for (const id of selectedIds) {
+    if (typeof id !== 'string') continue;
+    const mapped = ONLINE_ID_TO_MAIN_CATEGORY_ID[id];
+    if (Number.isFinite(mapped)) allowed.add(mapped);
+  }
+  return allowed.size > 0 ? allowed : null;
+};
+
 const resolveLegacyCategoriesFromSelectedIds = (selectedIds: any): string[] | null => {
   if (!Array.isArray(selectedIds) || selectedIds.length === 0) return null;
   const allowed = new Set<string>();
   for (const id of selectedIds) {
     if (typeof id !== 'string') continue;
-    const mapped = ONLINE_TO_LEGACY_CATEGORY_MAP[id];
+    const mapped = LEGACY_ONLINE_TO_LEGACY_CATEGORY_MAP[id];
     if (Array.isArray(mapped)) {
       for (const legacy of mapped) allowed.add(legacy);
     }
   }
   return allowed.size > 0 ? Array.from(allowed) : null;
 };
+
+// Codex165 — Question runtime normalizer. Mirrors functions/getQuestions
+// so Online uses the SAME shape Solo already uses. Without this, the new
+// Codex156 dataset (which stores year inside `answer`, no legacy `type`
+// / `category` fields) was filtered out to zero rows → 400 on start.
+function getTimelineYearFromAnswer(answer: unknown): number | null {
+  if (typeof answer === 'number' && Number.isFinite(answer)) return answer;
+  const text = String(answer ?? '').trim();
+  if (!text) return null;
+  const match = text.match(/\b\d{3,4}\b/);
+  if (!match) return null;
+  const year = Number(match[0]);
+  return Number.isFinite(year) ? year : null;
+}
+
+function normalizeQuestionForRuntime(question: any): any {
+  const legacyYear = Number(question?.year);
+  const year = Number.isFinite(legacyYear)
+    ? legacyYear
+    : getTimelineYearFromAnswer(question?.answer);
+  return {
+    ...question,
+    year,
+    category: question?.category || 'genel',
+    type: question?.type || 'metin',
+    media_url: question?.media_url || '',
+  };
+}
 
 const normalizeSettings = (lobby: any, incoming: any = {}) => {
   const currentYear = new Date().getFullYear();
@@ -85,16 +142,34 @@ const normalizeSettings = (lobby: any, incoming: any = {}) => {
 };
 
 const filterQuestionsForLobbySettings = (questions: any[] = [], settings: any = {}) => {
+  // Codex165 — normalize every Question once so the new Codex156 dataset
+  // (year inside `answer`, no legacy `type` field) is honored. Then keep
+  // only rows with a usable year inside the host's year window.
   const baseFiltered = (questions || [])
+    .map(normalizeQuestionForRuntime)
     .filter(q => q?.type === 'metin')
-    .filter(q => Number(q?.year) >= settings.year_start && Number(q?.year) <= settings.year_end);
+    .filter(q => Number.isFinite(Number(q?.year))
+      && Number(q?.year) >= settings.year_start
+      && Number(q?.year) <= settings.year_end);
 
-  // Codex091 — multi-select path. ONLINE_CATEGORY_IDS chosen by the host
-  // map onto the legacy Question.category enum until content migration.
-  const legacyAllowed = resolveLegacyCategoriesFromSelectedIds(settings.selected_category_ids);
-  if (legacyAllowed && legacyAllowed.length > 0) {
-    const allowSet = new Set(legacyAllowed);
-    return baseFiltered.filter(q => allowSet.has(q?.category));
+  // Codex165 — Primary path: filter by new numeric `main_category_id`.
+  const mainIdsAllowed = resolveMainCategoryIdsFromSelectedIds(settings.selected_category_ids);
+  if (mainIdsAllowed && mainIdsAllowed.size > 0) {
+    const byMainId = baseFiltered.filter(q => {
+      const mid = Number(q?.main_category_id);
+      return Number.isFinite(mid) && mainIdsAllowed.has(mid);
+    });
+    if (byMainId.length > 0) return byMainId;
+    // Fallback: dataset rows that still carry legacy string `category`.
+    const legacyAllowed = resolveLegacyCategoriesFromSelectedIds(settings.selected_category_ids);
+    if (legacyAllowed && legacyAllowed.length > 0) {
+      const allowSet = new Set(legacyAllowed);
+      const byLegacy = baseFiltered.filter(q => allowSet.has(q?.category));
+      if (byLegacy.length > 0) return byLegacy;
+    }
+    // Last-resort fallback: any normalized row in the year window so the
+    // game can still start even when content tagging hasn't caught up.
+    return baseFiltered;
   }
 
   // Fallback — legacy single-category path (old lobbies without
