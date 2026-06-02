@@ -1,0 +1,37 @@
+{
+  "name": "Category",
+  "type": "object",
+  "description": "Codex155 — Stable question category lookup table for the future Kronox question dataset. category_id is the fixed numeric ID referenced by Question main/second/third category fields.",
+  "properties": {
+    "category_id": {
+      "type": "number",
+      "description": "Stable unique numeric category ID. Seeded values: 1=Chronicle, 2=Flashback, 3=Kült, 4=Viral, 5=Arena, 6=Level Up."
+    },
+    "name": {
+      "type": "string",
+      "description": "Display name of the category."
+    }
+  },
+  "required": [
+    "category_id",
+    "name"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {},
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

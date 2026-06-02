@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex155 — Question dataset schema preparation:
+//   • Adds Category entity with stable numeric category_id/name records.
+//   • Adds future Question metadata fields (answer, category ids, region,
+//     tags, 1-5 difficulty, A/P state) without switching gameplay reads.
+//   • Adds admin-only repeatable seedQuestionCategories function and
+//     modular Health coverage for the prep-only contract.
+//
 // Codex154 — generateTechDoc backend security hardening:
 //   • generateTechDoc now authenticates with base44.auth.me() server-side
 //     before generating any internal PDF content.
@@ -585,7 +592,7 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
-const BUILD_MARKER = 'Codex154';
+const BUILD_MARKER = 'Codex155';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

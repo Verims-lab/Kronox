@@ -1,14 +1,71 @@
 {
   "name": "Question",
   "type": "object",
+  "description": "Codex155 — Legacy runtime question schema plus future dataset fields. Current gameplay still reads year/category/type and does not depend on the new category-id fields yet.",
   "properties": {
     "question": {
       "type": "string",
       "description": "The question text"
     },
+    "answer": {
+      "type": "string",
+      "description": "Future dataset answer text shown/validated by content tooling. Usually a year such as \"2007\" today; may later include month/year such as \"Ocak 2007\". Current gameplay still uses legacy numeric year."
+    },
     "year": {
       "type": "number",
-      "description": "The correct year answer"
+      "description": "Legacy runtime correct year answer used by current Solo/Online gameplay. Kept for backward compatibility until gameplay is intentionally migrated to answer."
+    },
+    "question_numeric_id": {
+      "type": "number",
+      "description": "Future dataset incremental numeric question ID. Base44 already reserves runtime row id as Question.id, so this field preserves the future numeric source ID without breaking existing gameplay code that reads row.id."
+    },
+    "main_category_id": {
+      "type": "number",
+      "enum": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "description": "Future primary category ID. References Category.category_id. Required by the future dataset, but kept optional in this transitional schema so existing rows remain valid."
+    },
+    "second_category_id": {
+      "type": "number",
+      "enum": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "description": "Optional future secondary category ID. References Category.category_id if present."
+    },
+    "third_category_id": {
+      "type": "number",
+      "enum": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "description": "Optional future tertiary category ID. References Category.category_id if present."
+    },
+    "sub_category": {
+      "type": "string",
+      "description": "Optional free-text subcategory for the future question dataset."
+    },
+    "tag": {
+      "type": "string",
+      "description": "Optional free-text tags, comma-separated if needed."
+    },
+    "region": {
+      "type": "string",
+      "description": "Optional geographic/cultural scope such as global, turkey, or europe."
     },
     "category": {
       "type": "string",
@@ -21,7 +78,7 @@
         "genel"
       ],
       "default": "genel",
-      "description": "Question category"
+      "description": "Legacy runtime category used by current Solo/Online filtering. Do not remove until gameplay is intentionally migrated to main_category_id."
     },
     "type": {
       "type": "string",
@@ -47,10 +104,21 @@
       "enum": [
         1,
         2,
-        3
+        3,
+        4,
+        5
       ],
       "default": 1,
-      "description": "Difficulty level: 1=easy, 2=medium, 3=hard"
+      "description": "Difficulty level for the future dataset: integer 1 to 5. Current admin tooling still creates 1 to 3 until gameplay/content tooling is intentionally updated."
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "A",
+        "P"
+      ],
+      "default": "A",
+      "description": "Future content status. A = Active, P = Passive. Current gameplay does not filter by state yet."
     }
   },
   "required": [
