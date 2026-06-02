@@ -14,11 +14,34 @@ function toAscii(str) {
     .replace(/[^\x00-\xFF]/g, '-');
 }
 
+// Codex154 — Hardcoded admin email literal removed. Admin allowlist is now
+// sourced from the KRONOX_ADMIN_EMAILS env/secret (comma-separated). Missing
+// or empty config fails closed (403).
+function parseAdminAllowlist() {
+  const raw = Deno.env.get('KRONOX_ADMIN_EMAILS');
+  if (!raw || typeof raw !== 'string') return [];
+  return raw
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter((e) => e.length > 0);
+}
+
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
-  const user = await base44.auth.me();
-  if (!user || (user.role !== 'admin' && user.email !== 'sariverim@gmail.com')) {
-    return Response.json({ error: 'Forbidden' }, { status: 403 });
+  let user = null;
+  try {
+    user = await base44.auth.me();
+  } catch {
+    return Response.json({ error: 'Authentication required' }, { status: 401 });
+  }
+  if (!user?.email) {
+    return Response.json({ error: 'Authentication required' }, { status: 401 });
+  }
+  const allowlist = parseAdminAllowlist();
+  const callerEmail = String(user.email).trim().toLowerCase();
+  const isAllowlisted = allowlist.length > 0 && allowlist.includes(callerEmail);
+  if (user.role !== 'admin' && !isAllowlisted) {
+    return Response.json({ error: 'Admin access required' }, { status: 403 });
   }
 
   const pdfDoc = await PDFDocument.create();

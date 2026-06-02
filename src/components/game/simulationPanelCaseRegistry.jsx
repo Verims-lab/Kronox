@@ -130,6 +130,11 @@ import * as diamondEconomyCases from './simulationPanelDiamondEconomyCases';
 // getDeezerPreview backend function is gone, QuestionCard no longer
 // invokes it, and loadSpotifyMusicQuestions has no Deezer fallback.
 import * as deezerRemovalCases from './simulationPanelDeezerRemovalCases';
+// Codex154 — Security: admin authorization hardening. Locks in that no
+// admin-only backend function contains a hardcoded admin email literal,
+// each reads KRONOX_ADMIN_EMAILS from env/secret, requires auth, rejects
+// non-admins with 403, and fails closed when the env var is missing.
+import * as adminAuthorizationCases from './simulationPanelAdminAuthorizationCases';
 // Codex154 — Backend function security guard: generateTechDoc must require
 // server-side auth/admin authorization before internal PDF generation.
 import * as backendSecurityCases from './simulationPanelBackendSecurityCases';
@@ -165,6 +170,7 @@ const MODULES = [
   unifiedKronoxScoreCases,
   diamondEconomyCases,
   deezerRemovalCases,
+  adminAuthorizationCases,
   backendSecurityCases,
   questionSchemaCases,
 ];
