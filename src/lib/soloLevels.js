@@ -48,7 +48,7 @@ import {
   getLevelStatus,
   summarizeSoloProgress,
 } from './soloProgressHelpers';
-import { publishSoloLeaderboardEntry } from './leaderboard';
+import { buildSoloLeaderboardPayload, publishSoloLeaderboardEntry } from './leaderboard';
 
 const STORAGE_KEY = 'kx_solo_progress_v1';
 const GUEST_STORAGE_KEY = `${STORAGE_KEY}:guest`;
@@ -303,7 +303,11 @@ export async function writeSoloProgress(user, progress) {
   safeWriteLocal(user || null, normalized); // same-user mirror so guests + flakey network still see it
   if (!user || !user.email) return;
   try {
-    await base44.auth.updateMe({ solo_progress: normalized });
+    const leaderboardPayload = buildSoloLeaderboardPayload(user, normalized);
+    await base44.auth.updateMe({
+      solo_progress: normalized,
+      kronox_puan_total: leaderboardPayload.total_kronox_score,
+    });
     await publishSoloLeaderboardEntry(user, normalized);
   } catch {
     /* ignore — local mirror keeps the UI honest */

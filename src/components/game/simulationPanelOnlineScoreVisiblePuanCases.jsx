@@ -14,11 +14,8 @@ import applyOnlineResultSource from '../../lib/applyOnlineResult.js?raw';
 import kronoxScoreSource from '../../lib/kronoxScore.js?raw';
 import gameSource from '../../pages/Game.jsx?raw';
 import gameOverSource from './GameOver.jsx?raw';
-import mainMenuSource from '../../pages/MainMenu.jsx?raw';
 import profilePageSource from '../../pages/ProfilePage.jsx?raw';
 import leaderboardPageSource from '../../pages/LeaderboardPage.jsx?raw';
-import soloChallengeSource from '../../pages/SoloChallenge.jsx?raw';
-import onlineChallengeSource from '../lobby/OnlineChallengeScreen.jsx?raw';
 import leaderboardLibSource from '../../lib/leaderboard.js?raw';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
@@ -187,19 +184,26 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('online_score_idempotency_does_not_mark_applied_before_user_update',
-    'Applied marker happens after user score persistence',
+    'Idempotency marker is durable before visible score write and has recovery',
     () => {
       const src = safeStr(applyOnlineResultSource);
-      const updateIndex = src.indexOf('await base44.auth.updateMe(payload)');
-      const auditIndex = src.indexOf('const onlineMatchResult = await createOnlineMatchResult');
-      const lastMatchIndex = src.indexOf('lastMatchId: String(lobbyId)');
-      if (updateIndex < 0 || auditIndex < 0 || lastMatchIndex < 0 || !(updateIndex < auditIndex)) {
-        return fail('OnlineMatchResult can be marked before user score persistence.', {
+      const fnStart = src.indexOf('export async function applyOnlineMatchToCurrentUser');
+      const applySource = fnStart >= 0 ? src.slice(fnStart) : src;
+      const updateIndex = applySource.indexOf('await base44.auth.updateMe({');
+      const auditIndex = applySource.indexOf('const onlineMatchResult = await createOnlineMatchResult');
+      const missing = missingTokens(src, [
+        'OnlineMatchResult audit reservation failed; score not applied',
+        'reconcileOnlineMatchResultForCurrentUser',
+        'audit_row_exists_but_visible_score_matches_before',
+        'reconciled_from_audit',
+      ]);
+      if (updateIndex < 0 || auditIndex < 0 || !(auditIndex < updateIndex) || missing.length) {
+        return fail('Online score can still write visible Puan before durable idempotency or without recovery.', {
           verification: 'STATIC_CONTRACT',
-          actual: { updateIndex, auditIndex, lastMatchIndex },
+          actual: { updateIndex, auditIndex, missing },
         });
       }
-      return pass('User online_progress is persisted before the OnlineMatchResult audit row is created.', { verification: 'STATIC_CONTRACT' });
+      return pass('OnlineMatchResult idempotency is reserved before visible score write and guarded by reconciliation.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('online_score_reconcile_detects_result_without_user_score',
@@ -251,7 +255,7 @@ export const EXTRA_TESTS = [
     'Online visible Puan change does not corrupt Solo leaderboard source',
     () => {
       const applyBad = safeStr(applyOnlineResultSource).includes('totalSoloScore') ||
-        safeStr(applyOnlineResultSource).includes('solo_progress');
+        safeStr(applyOnlineResultSource).includes('solo_progress:');
       const leaderboardMissing = missingTokens(leaderboardLibSource, [
         'total_kronox_score',
         'total_solo_score',

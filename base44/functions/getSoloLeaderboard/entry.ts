@@ -162,7 +162,11 @@ function toLeaderboardRow(user: any, levelNumber = 0) {
 
   const summary = summarizeProgress(user?.solo_progress || {});
   const onlineScore = onlineScoreFromUser(user);
-  const totalKronoxScore = summary.totalSoloScore + onlineScore;
+  const computedTotalKronoxScore = summary.totalSoloScore + onlineScore;
+  const persistedTotal = finiteNumber(user?.kronox_puan_total, NaN);
+  const totalKronoxScore = Number.isFinite(persistedTotal) && persistedTotal >= 0
+    ? Math.floor(persistedTotal)
+    : computedTotalKronoxScore;
   const displayName = safeDisplayName(user, ownerKey);
 
   // Codex152 — Optional per-level projection. When the caller passes
@@ -188,9 +192,25 @@ function toLeaderboardRow(user: any, levelNumber = 0) {
       ? { aggregate_best_time_seconds: summary.aggregateBestTimeSeconds }
       : {}),
     ...(levelData ? { level: levelData } : {}),
-    user_email: normalizeEmail(user?.email),
     updated_at: user?.updated_date || user?.updated_at || user?.created_date || new Date().toISOString(),
   };
+}
+
+async function backfillKronoxPuanProjection(base44: any, user: any, row: any) {
+  const userId = user?.id || user?._id;
+  if (!userId || !row) return false;
+  const persistedTotal = finiteNumber(user?.kronox_puan_total, NaN);
+  if (Number.isFinite(persistedTotal) && persistedTotal >= 0) return false;
+  try {
+    await base44.asServiceRole.entities.User.update(userId, {
+      kronox_puan_total: Math.max(0, Math.floor(finiteNumber(row.total_kronox_score, 0))),
+    });
+    return true;
+  } catch {
+    // Best-effort projection backfill. The row still returns the computed
+    // unified score; a later leaderboard read can retry the idempotent write.
+    return false;
+  }
 }
 
 function compareRows(a: any, b: any) {
@@ -224,16 +244,29 @@ Deno.serve(async (req) => {
     // success popup. Ignored when 0/absent (default leaderboard usage).
     const levelNumber = Math.max(0, Math.floor(finiteNumber(body?.levelNumber, 0)));
 
-    const users = await base44.asServiceRole.entities.User.list('-updated_date', MAX_LIMIT);
-    const rows = (users || [])
-      .map((u) => toLeaderboardRow(u, levelNumber))
-      .filter(Boolean)
+    // Codex168 — Query the persisted unified score projection directly.
+    // This avoids ranking whichever 500 users happened to update most
+    // recently and gives production an index-friendly leaderboard field.
+    const users = await base44.asServiceRole.entities.User.list('-kronox_puan_total', MAX_LIMIT);
+    const rowPairs = (users || [])
+      .map((u) => ({ user: u, row: toLeaderboardRow(u, levelNumber) }))
+      .filter((entry) => Boolean(entry.row));
+
+    await Promise.all(
+      rowPairs
+        .filter(({ user }) => !Number.isFinite(Number(user?.kronox_puan_total)))
+        .slice(0, 25)
+        .map(({ user, row }) => backfillKronoxPuanProjection(base44, user, row)),
+    );
+
+    const rows = rowPairs
+      .map(({ row }) => row)
       .sort(compareRows)
       .slice(0, limit);
 
     return json({
       ok: true,
-      source: 'user_kronox_puan_service_role_projection',
+      source: 'user_kronox_puan_total_projection',
       rows,
     });
   } catch (error) {

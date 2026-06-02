@@ -6,6 +6,12 @@ Scope: Base44 entities, Base44 functions, data access helpers, source-of-truth c
 Implementation follow-up: Codex139 DB/Data Model hardening package.
 Economy follow-up: Codex152 introduced canonical `User.diamonds`,
 `DiamondTransaction`, +100 starter bonus, and +20 UTC daily login reward.
+Package 2 follow-up: Codex168 added authenticated/minimal question access,
+active-category Solo deck wiring, strict Online start category filtering,
+`User.kronox_puan_total` as the persisted unified leaderboard projection,
+and guard/ledger recovery for Diamond reward idempotency. Older risk notes
+below are kept as historical audit context where explicitly marked as future
+or already mitigated.
 
 This is an audit-first document. It does not apply destructive schema changes, delete data, run migrations, change product behavior, change scoring logic, or touch gameplay mechanics.
 

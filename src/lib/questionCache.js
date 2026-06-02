@@ -4,13 +4,14 @@
  * TTL: 24 saat (sorular sık değişmez)
  */
 
-const CACHE_KEY = 'kronox_questions_v1';
+const CACHE_KEY = 'kronox_questions_v2';
 const TTL_MS = 24 * 60 * 60 * 1000; // 24 saat
 
-export function saveQuestionsToCache(questions) {
+export function saveQuestionsToCache(questions, metadata = {}) {
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify({
       questions,
+      activeCategoryIds: Array.isArray(metadata.activeCategoryIds) ? metadata.activeCategoryIds : [],
       savedAt: Date.now(),
     }));
   } catch (e) {
@@ -23,9 +24,14 @@ export function loadQuestionsFromCache() {
   try {
     const raw = localStorage.getItem(CACHE_KEY);
     if (!raw) return null;
-    const { questions, savedAt } = JSON.parse(raw);
+    const { questions, savedAt, activeCategoryIds } = JSON.parse(raw);
     if (!questions || !Array.isArray(questions) || questions.length === 0) return null;
-    return { questions, savedAt, isStale: Date.now() - savedAt > TTL_MS };
+    return {
+      questions,
+      activeCategoryIds: Array.isArray(activeCategoryIds) ? activeCategoryIds : [],
+      savedAt,
+      isStale: Date.now() - savedAt > TTL_MS,
+    };
   } catch (e) {
     return null;
   }
@@ -41,6 +47,7 @@ export function getCacheInfo() {
   const ageMinutes = Math.floor((Date.now() - cached.savedAt) / 60000);
   return {
     count: cached.questions.length,
+    activeCategoryIds: cached.activeCategoryIds || [],
     ageMinutes,
     isStale: cached.isStale,
   };

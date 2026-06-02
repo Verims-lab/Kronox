@@ -91,6 +91,59 @@ async function createDiamondTransaction(row) {
   return base44.entities.DiamondTransaction.create(row);
 }
 
+function buildRecoveryTransactionPayload({ user, amount, source, idempotencyKey, metadata, nowIso, dateKey }) {
+  const balanceAfter = getDiamondBalance(user);
+  const normalizedAmount = Math.max(0, Math.floor(Number(amount) || 0));
+  return {
+    user_email: normalizeEconomyEmail(user?.email || user?.user_email),
+    amount: normalizedAmount,
+    balance_before: Math.max(0, balanceAfter - normalizedAmount),
+    balance_after: balanceAfter,
+    source,
+    direction: EARN_DIRECTION,
+    idempotency_key: idempotencyKey,
+    metadata: {
+      ...metadata,
+      recoveredFromPersistedGuard: true,
+      dayBoundary: DIAMOND_DAY_BOUNDARY,
+      dateKey: source === DIAMOND_REWARD_SOURCES.DAILY_LOGIN ? dateKey : undefined,
+    },
+    created_at: nowIso,
+  };
+}
+
+async function recoverMissingDiamondTransaction({ user, amount, source, idempotencyKey, metadata, nowIso, dateKey }) {
+  try {
+    const payload = buildRecoveryTransactionPayload({ user, amount, source, idempotencyKey, metadata, nowIso, dateKey });
+    if (!payload.user_email || !payload.idempotency_key) return null;
+    return await createDiamondTransaction(payload);
+  } catch (error) {
+    return { recoveryError: error?.message || 'diamond_transaction_recovery_failed' };
+  }
+}
+
+async function recoverUserGuardFromTransaction({ user, source, transaction, nowIso, dateKey }) {
+  if (!transaction) return null;
+  try {
+    const guardPatch = getSourceGuardPatch(source, nowIso, dateKey);
+    if (!Object.keys(guardPatch).length) return null;
+    const nextBalance = Math.max(getDiamondBalance(user), normalizeDiamondBalance(transaction.balance_after));
+    await base44.auth.updateMe({
+      [DIAMOND_BALANCE_FIELD]: nextBalance,
+      economy_updated_at: nowIso,
+      ...guardPatch,
+    });
+    return await base44.auth.me().catch(() => ({
+      ...user,
+      [DIAMOND_BALANCE_FIELD]: nextBalance,
+      economy_updated_at: nowIso,
+      ...guardPatch,
+    }));
+  } catch (error) {
+    return { recoveryError: error?.message || 'diamond_guard_recovery_failed' };
+  }
+}
+
 export async function grantDiamondsOnce({
   user,
   amount,
@@ -108,31 +161,84 @@ export async function grantDiamondsOnce({
     return { ok: false, granted: false, reason: 'invalid_reward_request', user };
   }
 
-  if (hasPersistedGrantGuard(user, source, dateKey)) {
-    return { ok: true, granted: false, alreadyGranted: true, reason: 'already_recorded', user };
-  }
-
   const existing = await findDiamondTransaction(email, idempotencyKey);
   if (existing) {
-    return { ok: true, granted: false, alreadyGranted: true, reason: 'already_recorded', transaction: existing, user };
+    const recoveredUser = hasPersistedGrantGuard(user, source, dateKey)
+      ? user
+      : await recoverUserGuardFromTransaction({ user, source, transaction: existing, nowIso, dateKey });
+    return {
+      ok: !recoveredUser?.recoveryError,
+      granted: false,
+      alreadyGranted: true,
+      reason: 'already_recorded',
+      transaction: existing,
+      user: recoveredUser?.recoveryError ? user : (recoveredUser || user),
+      recovery: recoveredUser?.recoveryError ? recoveredUser : { guardRecoveredFromTransaction: !hasPersistedGrantGuard(user, source, dateKey) },
+    };
+  }
+
+  if (hasPersistedGrantGuard(user, source, dateKey)) {
+    const recoveredTransaction = await recoverMissingDiamondTransaction({
+      user,
+      amount: normalizedAmount,
+      source,
+      idempotencyKey,
+      metadata,
+      nowIso,
+      dateKey,
+    });
+    return {
+      ok: !recoveredTransaction?.recoveryError,
+      granted: false,
+      alreadyGranted: true,
+      reason: 'already_recorded',
+      transaction: recoveredTransaction?.recoveryError ? null : recoveredTransaction,
+      user,
+      recovery: recoveredTransaction?.recoveryError
+        ? recoveredTransaction
+        : { ledgerRecoveredFromGuard: Boolean(recoveredTransaction) },
+    };
   }
 
   const latestUser = await base44.auth.me().catch(() => user);
   const sourceUser = latestUser || user;
 
   if (hasPersistedGrantGuard(sourceUser, source, dateKey)) {
-    return { ok: true, granted: false, alreadyGranted: true, reason: 'already_recorded', user: sourceUser };
+    const recoveredTransaction = await recoverMissingDiamondTransaction({
+      user: sourceUser,
+      amount: normalizedAmount,
+      source,
+      idempotencyKey,
+      metadata,
+      nowIso,
+      dateKey,
+    });
+    return {
+      ok: !recoveredTransaction?.recoveryError,
+      granted: false,
+      alreadyGranted: true,
+      reason: 'already_recorded',
+      transaction: recoveredTransaction?.recoveryError ? null : recoveredTransaction,
+      user: sourceUser,
+      recovery: recoveredTransaction?.recoveryError
+        ? recoveredTransaction
+        : { ledgerRecoveredFromGuard: Boolean(recoveredTransaction) },
+    };
   }
 
   const existingAfterRefresh = await findDiamondTransaction(email, idempotencyKey);
   if (existingAfterRefresh) {
+    const recoveredUser = hasPersistedGrantGuard(sourceUser, source, dateKey)
+      ? sourceUser
+      : await recoverUserGuardFromTransaction({ user: sourceUser, source, transaction: existingAfterRefresh, nowIso, dateKey });
     return {
-      ok: true,
+      ok: !recoveredUser?.recoveryError,
       granted: false,
       alreadyGranted: true,
       reason: 'already_recorded',
       transaction: existingAfterRefresh,
-      user: sourceUser,
+      user: recoveredUser?.recoveryError ? sourceUser : (recoveredUser || sourceUser),
+      recovery: recoveredUser?.recoveryError ? recoveredUser : { guardRecoveredFromTransaction: !hasPersistedGrantGuard(sourceUser, source, dateKey) },
     };
   }
 

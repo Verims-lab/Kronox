@@ -2,10 +2,13 @@
 //
 // CALLED FROM
 //   pages/Game.jsx — exactly once per match per local client, when the
-//   online winner is decided. Each client persists ONLY its own user
+//   online winner is decided. Each client reserves its own
+//   OnlineMatchResult audit row first, then persists ONLY its own user
 //   record (base44.auth.updateMe). After the profile write, the current
 //   user's leaderboard-safe row is refreshed so visible Kronox Puan stays
 //   consistent in Profile/Header and Liderlik rows.
+//   Each client persists ONLY its own user; it never writes the opponent's
+//   score or profile.
 //
 // IDEMPOTENCY
 //   We store the lobby id on online_progress.lastMatchId. If the same
@@ -13,7 +16,9 @@
 //   navigation race), we skip — no double-apply.
 //   Codex139 adds OnlineMatchResult as the durable idempotency source for
 //   older lobby reopens: one logical result row per player_email + lobby_id.
-//   lastMatchId remains as a same-session/recent-match guard.
+//   Codex168 reserves that row before the visible score write; if the user
+//   update fails, a retry can reconcile from the audit row instead of
+//   double-applying. lastMatchId remains as a same-session/recent-match guard.
 //
 //   Codex136 — IMPORTANT: lastMatchId is only persisted AFTER the
 //   underlying updateMe call succeeds. If persistence fails, the marker
@@ -31,7 +36,7 @@
 
 import { base44 } from '@/api/base44Client';
 import { applyOnlineMatchResult } from './onlineRanking';
-import { publishSoloLeaderboardEntry } from './leaderboard';
+import { buildSoloLeaderboardPayload, publishSoloLeaderboardEntry } from './leaderboard';
 import { debugLog } from './debugLog';
 
 const ONLINE_MATCH_RESULT_ENTITY = 'OnlineMatchResult';
@@ -199,7 +204,14 @@ export async function reconcileOnlineMatchResultForCurrentUser({
   };
 
   try {
-    await base44.auth.updateMe({ online_progress: nextProgress });
+    const scoreProjection = buildSoloLeaderboardPayload({
+      ...(user || {}),
+      online_progress: nextProgress,
+    }, user?.solo_progress).total_kronox_score;
+    await base44.auth.updateMe({
+      online_progress: nextProgress,
+      kronox_puan_total: scoreProjection,
+    });
     const refreshedUser = await refreshCurrentUserAfterOnlineScore(lobbyId);
     await publishLeaderboardAfterOnlineScore(refreshedUser || { ...(user || {}), online_progress: nextProgress }, lobbyId);
     debugLog('[applyOnlineMatch] reconciled OnlineMatchResult without visible score', {
@@ -371,27 +383,10 @@ export async function applyOnlineMatchToCurrentUser({
     durationSeconds,
   });
 
-  // 4. Persist. lastMatchId is added to the SAME write so it lands
-  //    atomically with the score change. If updateMe rejects, the
-  //    marker never lands → next attempt is safe.
-  const payload = {
-    online_progress: {
-      ...nextProgress,
-      lastMatchId: String(lobbyId),
-    },
-  };
-
-  try {
-    await base44.auth.updateMe(payload);
-  } catch (e) {
-    const msg = e?.message || String(e);
-    debugLog('[applyOnlineMatch] persist failed', { lobbyId, result, error: msg });
-    return { ok: false, error: msg, retryable: true, where: 'persist' };
-  }
-
-  debugLog('[applyOnlineMatch] applied', { lobbyId, applied });
-  const refreshedUser = await refreshCurrentUserAfterOnlineScore(lobbyId);
-  await publishLeaderboardAfterOnlineScore(refreshedUser || { ...me, online_progress: payload.online_progress }, lobbyId);
+  // 4. Reserve the durable per-player/lobby idempotency row before the
+  //    visible score write. If the score write fails, retry sees the
+  //    audit row and the reconcile path can safely repair the missing
+  //    visible score instead of double-applying.
   const onlineMatchResult = await createOnlineMatchResult({
     lobbyId,
     playerEmail,
@@ -401,12 +396,71 @@ export async function applyOnlineMatchToCurrentUser({
     source,
     applied,
   });
-  if (!onlineMatchResult.persisted) {
-    debugLog('[applyOnlineMatch] OnlineMatchResult audit row not persisted', {
+
+  if (onlineMatchResult.skipped === 'already_recorded' && onlineMatchResult.row) {
+    const existingApplied = appliedFromOnlineMatchResultRow(onlineMatchResult.row);
+    const reconciliation = await reconcileOnlineMatchResultForCurrentUser({
       lobbyId,
-      reason: onlineMatchResult.skipped || onlineMatchResult.error || 'unknown',
+      current,
+      row: onlineMatchResult.row,
+      applied: existingApplied,
+      user: me,
     });
+    return {
+      ok: true,
+      skipped: true,
+      alreadyApplied: !reconciliation.repaired,
+      reason: reconciliation.repaired ? 'reconciled_from_audit' : 'already_recorded',
+      progress: reconciliation.progress || current,
+      applied: existingApplied,
+      onlineMatchResult: onlineMatchResult.row,
+      reconciled: Boolean(reconciliation.repaired),
+      refreshedUser: reconciliation.refreshedUser || null,
+    };
   }
+
+  if (!onlineMatchResult.persisted) {
+    const reason = onlineMatchResult.skipped || onlineMatchResult.error || 'audit_persist_failed';
+    debugLog('[applyOnlineMatch] OnlineMatchResult audit reservation failed; score not applied', {
+      lobbyId,
+      reason,
+    });
+    return {
+      ok: false,
+      error: reason,
+      retryable: true,
+      where: 'audit',
+    };
+  }
+
+  // 5. Persist. lastMatchId is added to the SAME write so it lands
+  //    atomically with the score change. If updateMe rejects, the
+  //    existing audit row remains repairable on retry.
+  const payload = {
+    online_progress: {
+      ...nextProgress,
+      lastMatchId: String(lobbyId),
+    },
+  };
+
+  try {
+    const scoreProjection = buildSoloLeaderboardPayload({
+      ...me,
+      online_progress: payload.online_progress,
+    }, me.solo_progress).total_kronox_score;
+    await base44.auth.updateMe({
+      ...payload,
+      kronox_puan_total: scoreProjection,
+    });
+  } catch (e) {
+    const msg = e?.message || String(e);
+    debugLog('[applyOnlineMatch] persist failed', { lobbyId, result, error: msg });
+    return { ok: false, error: msg, retryable: true, where: 'persist' };
+  }
+
+  debugLog('[applyOnlineMatch] applied', { lobbyId, applied });
+  const refreshedUser = await refreshCurrentUserAfterOnlineScore(lobbyId);
+  await publishLeaderboardAfterOnlineScore(refreshedUser || { ...me, online_progress: payload.online_progress }, lobbyId);
 
   return {
     ok: true,

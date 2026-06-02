@@ -130,6 +130,10 @@
         }
       }
     },
+    "kronox_puan_total": {
+      "type": "number",
+      "description": "Codex168 — Persisted/index-friendly visible Kronox Puan projection for leaderboard sorting and display. It mirrors the shared visible score rule: Solo component from solo_progress plus Online component from online_progress.score. Writers update this alongside Solo/Online score changes; runtime helpers still recompute defensively when missing."
+    },
     "hasCompletedTutorial": {
       "type": "boolean",
       "description": "Per-user tutorial completion flag. Tutorial source of truth is profile/user state, not device-local tutorial storage."

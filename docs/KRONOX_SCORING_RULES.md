@@ -367,19 +367,22 @@ Implementation (current):
   `OnlineMatchResult(player_email, lobby_id)`, then falls back to
   `lastMatchId`, then applies the score only once.
 
-**Critical rule:** Mark a match as score-applied only **after** score
-persistence succeeds.
+**Critical rule:** A durable per-user/lobby idempotency row must exist before
+the visible score write is attempted, and retry/reconcile must keep the user
+score and audit row consistent.
 
 If score persistence fails:
 
-- Do **not** mark as applied.
+- Do **not** show a success state.
 - Show/log a meaningful error.
 - Allow safe retry.
+- Retry may use the existing `OnlineMatchResult` row to repair the missing
+  visible score only when the user's current online score still matches the
+  row's `score_before`.
 
-If `updateMe` fails, no `OnlineMatchResult` row is created and the function
-returns a structured retryable error. If the audit row write fails after the
-score update succeeds, `lastMatchId` still protects the immediate re-open
-path and the function reports the audit persistence status.
+If the audit row cannot be created, `updateMe` is not called and the function
+returns a structured retryable error. This avoids the old partial state where
+visible score could change without a durable `OnlineMatchResult`.
 
 ### 3.8 Online Score Persistence
 
@@ -411,11 +414,12 @@ Implementation (current):
 
 - `applyOnlineMatchResult(...)` writes
   `{ score, peakScore, peakCheckpoint, wins, losses, lastMatchAt }`.
-- `applyOnlineMatchToCurrentUser(...)` adds `lastMatchId` and writes the
-  whole `online_progress` block via `base44.auth.updateMe(...)`.
-- `applyOnlineMatchToCurrentUser(...)` then best-effort creates
+- `applyOnlineMatchToCurrentUser(...)` creates/reserves
   `OnlineMatchResult` with `score_before`, `score_after`, `delta`,
-  `effective_delta`, and `applied_at`.
+  `effective_delta`, and `applied_at` before the visible score write.
+- `applyOnlineMatchToCurrentUser(...)` adds `lastMatchId`, writes the whole
+  `online_progress` block, and updates `User.kronox_puan_total` through
+  `base44.auth.updateMe(...)`.
 - If a previous bad deploy created an `OnlineMatchResult` without making
   the user-visible score reflect it, `reconcileOnlineMatchResultForCurrentUser`
   repairs only the safe case where the current score still matches the
@@ -456,6 +460,11 @@ Current expected behavior:
   `total_kronox_score = total_solo_score + online_score`.
 - `total_solo_score` remains stored as the technical Solo component for
   auditing/backfill, not as the visible row score.
+- `User.kronox_puan_total` is the persisted/index-friendly projection of
+  the same unified Puan. `getSoloLeaderboard` sorts by this field and falls
+  back to computed Solo + Online only for users whose projection has not
+  been backfilled yet. Rows returned with a missing projection are repaired
+  by an idempotent best-effort `backfillKronoxPuanProjection` write.
 - Online competitive score storage stays separate unless an Online leaderboard
   is added, but user-facing labels still use unified **Puan** wording.
 - Profile must not accidentally show stale or mismatched score fields.

@@ -228,7 +228,7 @@ function RankingPreparingState({ ownScore, onRetry, isAdmin, backendReason }) {
       </div>
 
       <p className="mt-2 font-inter text-[10px] leading-relaxed text-blue-100/55">
-        Level {level} — ilerlemen kaydediliyor.
+        Seviye {level} — ilerlemen kaydediliyor.
       </p>
 
       <button
@@ -321,7 +321,7 @@ function LeaderboardRow({ row, compact = false, emphasis = false }) {
           {row.isCurrentUser && <Badge text="Sen" tone="gold" />}
           {row.isFriend && <Badge text="Arkadaş" tone="cyan" />}
         </div>
-        <p className="mt-0.5 font-inter text-[10px] text-blue-100/55">Level {row.summary.currentLevel}</p>
+        <p className="mt-0.5 font-inter text-[10px] text-blue-100/55">Seviye {row.summary.currentLevel}</p>
       </div>
       <div className="shrink-0 text-right">
         <p className="font-bangers text-lg leading-none text-amber-200">{row.summary.totalKronoxScore}</p>

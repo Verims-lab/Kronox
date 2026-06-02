@@ -90,6 +90,10 @@ For each reward:
 5. Refresh the current user profile before writing.
 6. Update `User.diamonds` and the guard field through `base44.auth.updateMe`.
 7. Create a `DiamondTransaction` ledger row.
+8. If a later run finds a guard without a ledger row, create a recovery
+   ledger row without granting again.
+9. If a later run finds a ledger row without the matching User guard, restore
+   the guard and preserve the highest known balance without granting again.
 
 The User guard field is written with the balance update so a transient ledger
 write failure does not cause repeated grants on refresh. The helper reports the
@@ -105,8 +109,16 @@ current guard is best-effort durable protection:
 - user profile refresh before update,
 - same computed balance when two first-entry sessions race from the same base.
 
-True multi-device duplicate-proofing should be verified with a runtime probe.
-If Base44 exposes unique constraints later, add a unique constraint on
+The helper now includes self-healing for partial states:
+
+- `starter_bonus_granted_at` / `last_daily_diamond_reward_date` exists but
+  the ledger row is missing -> recover the ledger row only.
+- `DiamondTransaction.idempotency_key` exists but the User guard is missing
+  -> recover the guard and keep the balance at least as high as the recorded
+  transaction balance.
+
+True multi-device duplicate-proofing should still be verified with a runtime
+probe. If Base44 exposes unique constraints later, add a unique constraint on
 `DiamondTransaction.idempotency_key`.
 
 ## Not Implemented Yet
