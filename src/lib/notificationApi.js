@@ -31,8 +31,35 @@ export function getPushSupportState() {
   return { supported: true, reason: 'supported' };
 }
 
+// Codex162 — In dev/sandbox preview a stale service worker from an older
+// build can intercept JS chunks and cause "Cannot read properties of null
+// (reading 'useContext'/'useState')" by serving a mismatched React copy.
+// We skip registration in DEV and proactively unregister any pre-existing
+// SW + clear its caches the first time the app boots in dev. Production
+// behaviour is unchanged.
+async function unregisterAllServiceWorkersAndClearCaches() {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+  try {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(regs.map((reg) => reg.unregister().catch(() => null)));
+  } catch (_error) { /* best effort */ }
+  try {
+    if (typeof caches !== 'undefined' && caches?.keys) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((key) => caches.delete(key).catch(() => null)));
+    }
+  } catch (_error) { /* best effort */ }
+}
+
 export async function registerKronoxServiceWorker() {
   if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return null;
+  // Dev/sandbox: never register a SW; clean up any stale one so it can't
+  // serve cached `/src`, `/node_modules/.vite`, `/@vite`, or `/@react-refresh`
+  // chunks. Without this, two React copies can co-exist and hooks return null.
+  if (import.meta.env?.DEV) {
+    await unregisterAllServiceWorkersAndClearCaches();
+    return null;
+  }
   try {
     return await navigator.serviceWorker.register(SERVICE_WORKER_URL, { scope: '/' });
   } catch (error) {
