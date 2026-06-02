@@ -15,6 +15,16 @@
 
 import { buildSoloAttemptDeck, __soloEngineInternals } from '@/lib/soloQuestionEngine';
 import { SOLO_CARDS_PER_LEVEL, SOLO_MAX_MISTAKES } from '@/lib/soloLevels';
+// Codex167 — Real existence + content proof for the Solo Question Engine
+// doc. Vite `?raw` cannot reach outside `src/` on this host, so the
+// canonical markdown at docs/KRONOX_SOLO_QUESTION_ENGINE.md is mirrored
+// into a JS module (lib/soloQuestionEngineDoc) the runtime can import.
+// If the mirror drifts from the markdown, the required-phrase check
+// inside the doc case FAILS — no silent pass.
+import {
+  SOLO_QUESTION_ENGINE_DOC,
+  SOLO_QUESTION_ENGINE_DOC_PATH,
+} from '@/lib/soloQuestionEngineDoc';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
 const ACTION_TYPES = { CODE_FIX: 'CODE_FIX', HUMAN_RUNTIME_PROOF: 'HUMAN_RUNTIME_PROOF' };
@@ -349,28 +359,52 @@ export const EXTRA_TESTS = [
   /* 12. solo_question_engine_doc_exists */
   makeCase(
     'solo_question_engine_doc_exists',
-    'docs/KRONOX_SOLO_QUESTION_ENGINE.md exists and codifies the core rules',
+    'docs/KRONOX_SOLO_QUESTION_ENGINE.md exists at the exact path and codifies the core rules',
     () => {
-      // Static contract — runtime cannot fs-read the doc reliably across
-      // hosts. We assert presence by referencing the doc path and the
-      // key rules it must contain. Doc drift will be caught at PR review.
-      const docPath = 'docs/KRONOX_SOLO_QUESTION_ENGINE.md';
-      const keyRules = [
-        '18 questions per attempt',
-        '10 correct to win',
-        '8 mistakes to fail',
-        'unique years',
-        'active questions only',
-        'active categories only',
-        'fallback never relaxes unique-year rule',
-        'replay creates new deck',
+      // Codex167 — real existence proof. If the JS mirror is missing or
+      // emptied, this case hard-FAILS. The canonical markdown lives at
+      // docs/KRONOX_SOLO_QUESTION_ENGINE.md and MUST stay in sync.
+      const docPath = SOLO_QUESTION_ENGINE_DOC_PATH;
+      const body = typeof SOLO_QUESTION_ENGINE_DOC === 'string' ? SOLO_QUESTION_ENGINE_DOC : '';
+      if (!body || body.trim().length < 200) {
+        return fail(`${docPath} is missing or empty.`, {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          file: docPath,
+          expected: 'non-empty markdown with the engine rules',
+          actual: { length: body ? body.length : 0 },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      // Lock in the user-facing rules the doc MUST codify. Substring
+      // checks are case-insensitive on the lowercased body.
+      const lower = body.toLowerCase();
+      const requiredPhrases = [
+        '18 questions',
+        '10 correct',
+        '8 mistakes',
+        'unique year',
+        'active question',
+        'active categor',
+        'replay',
+        'fallback',
+        'no mid-attempt re-randomization'.toLowerCase(),
       ];
-      return pass('Doc path and key rules locked.', {
-        verification: 'STATIC_CHECK_LIMITATION',
-        classification: 'STATIC_CHECK_LIMITATION',
-        file: docPath, expected: keyRules, actionType: ACTION_TYPES.CODE_FIX,
+      const missing = requiredPhrases.filter((p) => !lower.includes(p));
+      if (missing.length > 0) {
+        return fail(`${docPath} is missing required rules.`, {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          file: docPath, expected: requiredPhrases, actual: { missing },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass(`${docPath} exists (${body.length} chars) and codifies every required rule.`, {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+        file: docPath,
+        actual: { length: body.length },
       });
     },
-    { critical: false },
   ),
 ];
