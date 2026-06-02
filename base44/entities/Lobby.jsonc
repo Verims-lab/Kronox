@@ -167,6 +167,11 @@
       "type": "string",
       "format": "date-time",
       "description": "Optional stale-waiting expiry timestamp. Cleanup helpers mark stale waiting lobbies instead of deleting them."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this lobby (up to 1000 characters)."
     }
   },
   "required": [

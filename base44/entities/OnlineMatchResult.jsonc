@@ -64,6 +64,11 @@
     "metadata": {
       "type": "object",
       "description": "Optional debug-safe metadata. Must not contain private profile, push, or auth fields."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this online match result (up to 1000 characters)."
     }
   },
   "required": [

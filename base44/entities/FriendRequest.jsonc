@@ -24,6 +24,11 @@
       ],
       "default": "pending",
       "description": "Lifecycle state of the friend request"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this friend request (up to 1000 characters)."
     }
   },
   "required": [

@@ -1,7 +1,7 @@
 {
   "name": "Question",
   "type": "object",
-  "description": "Codex168 — Target schema for the new Kronox question dataset. Current gameplay receives minimal compatibility fields from the authenticated getQuestions fetch layer; direct Question entity reads are admin-only so the full question bank is not publicly exposed.",
+  "description": "Codex168 \u2014 Target schema for the new Kronox question dataset. Current gameplay receives minimal compatibility fields from the authenticated getQuestions fetch layer; direct Question entity reads are admin-only so the full question bank is not publicly exposed.",
   "properties": {
     "id": {
       "type": "number",
@@ -83,6 +83,11 @@
       ],
       "default": "A",
       "description": "Content status. A = Active, P = Passive. Authenticated gameplay fetches only active questions through getQuestions."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this question (up to 1000 characters)."
     }
   },
   "required": [

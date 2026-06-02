@@ -49,6 +49,11 @@
     "updated_at": {
       "type": "string",
       "description": "ISO timestamp when the leaderboard-safe row was last synced."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this leaderboard entry (up to 1000 characters)."
     }
   },
   "required": [

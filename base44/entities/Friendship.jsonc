@@ -13,6 +13,11 @@
     "friend_name": {
       "type": "string",
       "description": "Display name of the friend at acceptance time"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this friendship (up to 1000 characters)."
     }
   },
   "required": [

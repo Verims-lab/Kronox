@@ -54,6 +54,11 @@
       "type": "string",
       "format": "date-time",
       "description": "ISO timestamp when the transaction row was created."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this transaction (up to 1000 characters)."
     }
   },
   "required": [
