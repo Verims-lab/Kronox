@@ -141,6 +141,10 @@ import * as backendSecurityCases from './simulationPanelBackendSecurityCases';
 // Codex155 — Question dataset DB preparation: Category entity + fixed seed
 // path, future Question metadata fields, and no gameplay schema switch yet.
 import * as questionSchemaCases from './simulationPanelQuestionSchemaCases';
+// Codex158 — Category status/description contracts: schema fields, seed
+// all-active + non-empty descriptions, shared active-filter helper, and
+// passive categories hidden from UI selection.
+import * as categoryStatusCases from './simulationPanelCategoryStatusCases';
 
 const MODULES = [
   soloProgressCases,
@@ -173,6 +177,7 @@ const MODULES = [
   adminAuthorizationCases,
   backendSecurityCases,
   questionSchemaCases,
+  categoryStatusCases,
 ];
 
 function flatten(key) {

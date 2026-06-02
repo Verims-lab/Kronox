@@ -1,15 +1,29 @@
 {
   "name": "Category",
   "type": "object",
-  "description": "Codex155 — Stable question category lookup table for the future Kronox question dataset. category_id is the fixed numeric ID referenced by Question main/second/third category fields.",
+  "description": "Codex158 \u2014 Stable question category lookup table. category_id is the fixed numeric ID referenced by Question main/second/third category fields. status controls visibility in UI category lists (a=active, p=passive). description is optional free-text used for future tooltips/help in category selection screens.",
   "properties": {
     "category_id": {
       "type": "number",
-      "description": "Stable unique numeric category ID. Seeded values: 1=Chronicle, 2=Flashback, 3=Kült, 4=Viral, 5=Arena, 6=Level Up."
+      "description": "Stable unique numeric category ID. Seeded values: 1=Chronicle, 2=Flashback, 3=K\u00fclt, 4=Viral, 5=Arena, 6=Level Up."
     },
     "name": {
       "type": "string",
       "description": "Display name of the category."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "a",
+        "p"
+      ],
+      "default": "a",
+      "description": "Active/Passive flag. a = active (visible in UI selection), p = passive (hidden from UI but data is preserved). Missing values are treated as active for backward compatibility."
+    },
+    "description": {
+      "type": "string",
+      "default": "",
+      "description": "Optional short free-text description used as tooltip/help text in category selection. May be empty."
     }
   },
   "required": [
