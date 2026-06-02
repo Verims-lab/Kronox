@@ -1,10 +1,21 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1';
 
-const ADMIN_EMAIL = 'sariverim@gmail.com';
-
+// Codex154 — Hardcoded admin email literal removed. Admin allowlist is now
+// sourced from the KRONOX_ADMIN_EMAILS env/secret (comma-separated). Missing
+// or empty config fails closed (403). See Health suite
+// `admin_authorization_hardening` for the regression contract.
 function authError(status, message) {
   return Response.json({ error: message }, { status });
+}
+
+function parseAdminAllowlist() {
+  const raw = Deno.env.get('KRONOX_ADMIN_EMAILS');
+  if (!raw || typeof raw !== 'string') return [];
+  return raw
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter((e) => e.length > 0);
 }
 
 async function requireGenerateTechDocAdmin(base44) {
@@ -19,7 +30,11 @@ async function requireGenerateTechDocAdmin(base44) {
     return { response: authError(401, 'Authentication required') };
   }
 
-  if (user.role !== 'admin' && user.email !== ADMIN_EMAIL) {
+  const allowlist = parseAdminAllowlist();
+  const callerEmail = String(user.email).trim().toLowerCase();
+  const isAllowlisted = allowlist.length > 0 && allowlist.includes(callerEmail);
+
+  if (user.role !== 'admin' && !isAllowlisted) {
     return { response: authError(403, 'Admin access required') };
   }
 
