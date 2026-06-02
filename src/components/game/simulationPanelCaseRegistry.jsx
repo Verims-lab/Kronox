@@ -126,7 +126,11 @@ import * as unifiedKronoxScoreCases from './simulationPanelUnifiedKronoxScoreCas
 // Codex152 — Diamond economy foundation: canonical User.diamonds balance,
 // starter + daily login grants, idempotent ledger, and display contracts.
 import * as diamondEconomyCases from './simulationPanelDiamondEconomyCases';
-// Codex153 — Backend function security guard: generateTechDoc must require
+// Codex153 — Security: Deezer preview proxy removed. Locks in that the
+// getDeezerPreview backend function is gone, QuestionCard no longer
+// invokes it, and loadSpotifyMusicQuestions has no Deezer fallback.
+import * as deezerRemovalCases from './simulationPanelDeezerRemovalCases';
+// Codex154 — Backend function security guard: generateTechDoc must require
 // server-side auth/admin authorization before internal PDF generation.
 import * as backendSecurityCases from './simulationPanelBackendSecurityCases';
 
@@ -157,6 +161,7 @@ const MODULES = [
   onlineScoreVisiblePuanCases,
   unifiedKronoxScoreCases,
   diamondEconomyCases,
+  deezerRemovalCases,
   backendSecurityCases,
 ];
 
@@ -174,7 +179,16 @@ const MODULAR_EXTRA_TESTS = flatten('EXTRA_TESTS');
 // appending the override + modular replacements. `key` follows the
 // `${suiteId}.${id}` convention defined by `makeCase` in both the base
 // extras file and every modular file.
+//
+// Codex153 — Filter also applies to MODULAR_EXTRA_TESTS so stale cases
+// living in modular files (e.g. simulationPanelSoloFocusCases when Solo
+// path mimarisi yenilendi) can be overridden by id without editing the
+// frozen modular file. Whichever file the original case lived in, the
+// override is the single source of truth.
 const FILTERED_BASE_EXTRA_TESTS = BASE_EXTRA_TESTS.filter(
+  (c) => !(c?.key && OVERRIDDEN_CASE_KEYS.has(c.key)),
+);
+const FILTERED_MODULAR_EXTRA_TESTS = MODULAR_EXTRA_TESTS.filter(
   (c) => !(c?.key && OVERRIDDEN_CASE_KEYS.has(c.key)),
 );
 
@@ -185,7 +199,7 @@ export const ALL_EXTRA_SUITES = [...BASE_EXTRA_SUITES, ...MODULAR_EXTRA_SUITES];
 export const ALL_EXTRA_TESTS = [
   ...FILTERED_BASE_EXTRA_TESTS,
   ...OVERRIDE_TESTS,
-  ...MODULAR_EXTRA_TESTS,
+  ...FILTERED_MODULAR_EXTRA_TESTS,
 ];
 
 // Re-export the score hooks unchanged so SimulationPanel.jsx only needs
