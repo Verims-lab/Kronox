@@ -153,6 +153,10 @@ import * as placementFeedbackCases from './simulationPanelPlacementFeedbackCases
 // shared MM:SS time formatter, two-line "Kazanılan Puan" layout, and
 // TimerReset icon swap. Visual-only; popup props are unchanged.
 import * as soloPopupCases from './simulationPanelSoloPopupCases';
+// Codex166 — Solo Question Selection Engine: controlled 18-card attempt
+// deck (unique ids + unique years), active-only filtering, clean failure
+// on insufficient unique years, replay produces a fresh deck.
+import * as soloQuestionEngineCases from './simulationPanelSoloQuestionEngineCases';
 
 const MODULES = [
   soloProgressCases,
@@ -188,6 +192,7 @@ const MODULES = [
   categoryStatusCases,
   placementFeedbackCases,
   soloPopupCases,
+  soloQuestionEngineCases,
 ];
 
 function flatten(key) {

@@ -38,6 +38,11 @@ import {
   writeSoloProgress,
 } from '@/lib/soloLevels';
 import { calculateSoloAttemptResult, getBestSoloLevelResult } from '@/lib/soloProgressHelpers';
+// Codex166 — Solo Question Selection Engine. Builds a controlled 18-card
+// attempt deck (unique question ids + unique answer/years) once per Solo
+// attempt. Gameplay consumes the deck sequentially — no mid-attempt
+// re-randomization. Online/legacy paths are untouched.
+import { buildSoloAttemptDeck } from '@/lib/soloQuestionEngine';
 // Codex128 — Online score/checkpoint system. Online winner kararlaştığında
 // her client kendi kullanıcısının puanını günceller (idempotent).
 import { applyOnlineMatchToCurrentUser } from '@/lib/applyOnlineResult';
@@ -205,6 +210,13 @@ export default function Game() {
   const [soloLevelResult, setSoloLevelResult] = useState(null);
   const soloResultPersistedRef = useRef(false);
   const [onlineScoreResult, setOnlineScoreResult] = useState(null);
+  // Codex166 — Solo attempt deck. Created exactly once per Solo attempt
+  // by the Solo Question Selection Engine, then consumed sequentially by
+  // gameplay. `soloAttemptId` lets debugging confirm replay produced a
+  // fresh deck. Both are null outside Solo mode so other paths are
+  // byte-for-byte identical.
+  const [soloAttemptDeck, setSoloAttemptDeck] = useState(null);
+  const [soloAttemptId, setSoloAttemptId] = useState(null);
 
   useEffect(() => {
     if (!isOnlineFromState) return;
@@ -240,13 +252,20 @@ export default function Game() {
   const turnDuration = isOnline ? (lobbyData?.turn_duration ?? routeTurnDuration) : routeTurnDuration;
   const winCardCount = isOnline ? (lobbyData?.win_card_count ?? routeWinCardCount) : routeWinCardCount;
 
+  // Codex166 — Solo mode: the attempt deck IS the question pool. Gameplay
+  // (pickQuestion in useGameActions) walks this 18-card source-of-truth,
+  // never re-randomizes mid-attempt, and can never run out of unique
+  // years. Other modes keep the existing year/category/type filter.
   const questionPool = useMemo(() => {
+    if (isSoloLevelMode && Array.isArray(soloAttemptDeck)) {
+      return soloAttemptDeck;
+    }
     return allQuestions
       .filter(q => category === 'muzik' ? q.type === 'muzik' : q.type === 'metin')
       .filter(q => q.year >= yearStart && q.year <= yearEnd)
       .filter(q => category === 'karisik' || q.category === category)
       .filter(q => q.type !== 'muzik' || (q.media_url && q.media_url.length > 0));
-  }, [allQuestions, yearStart, yearEnd, category]);
+  }, [allQuestions, yearStart, yearEnd, category, isSoloLevelMode, soloAttemptDeck]);
 
   const myPlayerName = useMemo(() => {
     if (!isOnline) return routeMyPlayerName;
@@ -461,24 +480,49 @@ export default function Game() {
     if (isLoading || allQuestions.length === 0) return;
     if (lobbyDataRef.current !== null) return;
 
-    if (questionPool.length < 3) {
-      setError(`Yeterli soru yok. ${questionPool.length} soru var.`);
-      return;
-    }
-
-    // Exclude recently used cross-game questions for better variety
-    const recentHistory = new Set(loadRecentHistory());
-    let seedPool = questionPool.filter(q => !recentHistory.has(q.id));
-    // Smart fallback: if not enough fresh questions, use full pool
-    if (seedPool.length < playerNames.length * 2 + 5) {
-      seedPool = [...questionPool];
-    }
-
-    // Fisher-Yates shuffle
-    const shuffled = [...seedPool];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    // Codex166 — Solo Level mode: build the controlled 18-card attempt
+    // deck via the Solo Question Selection Engine. Engine guarantees
+    // unique question ids + unique years, active questions/categories,
+    // and clean error when the pool can't supply 18 unique years.
+    let shuffled;
+    if (isSoloLevelMode) {
+      // Base candidate pool: legacy year-window + non-music filter (same
+      // as the non-Solo branch). The engine then enforces the HARD rules.
+      const candidatePool = allQuestions
+        .filter(q => q.type === 'metin')
+        .filter(q => q.year >= yearStart && q.year <= yearEnd);
+      const engineResult = buildSoloAttemptDeck({
+        pool: candidatePool,
+        // Category whitelist is omitted here so the Solo path uses the
+        // full active question pool. Active-category gating happens at
+        // data layer (questionRuntimeAdapter / Category seed) and will
+        // be tightened when Solo gains a category picker.
+        recentlySeenQuestionIds: loadRecentHistory(),
+      });
+      if (!engineResult.ok) {
+        setError(engineResult.message);
+        return;
+      }
+      setSoloAttemptDeck(engineResult.deck);
+      setSoloAttemptId(engineResult.attemptId);
+      shuffled = engineResult.deck;
+    } else {
+      // Legacy non-Solo offline path — exclude recently used cross-game
+      // questions for better variety, then shuffle. UNCHANGED behavior.
+      const recentHistory = new Set(loadRecentHistory());
+      let seedPool = questionPool.filter(q => !recentHistory.has(q.id));
+      if (seedPool.length < playerNames.length * 2 + 5) {
+        seedPool = [...questionPool];
+      }
+      shuffled = [...seedPool];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      if (shuffled.length < 3) {
+        setError(`Yeterli soru yok. ${shuffled.length} soru var.`);
+        return;
+      }
     }
 
     let cursor = 0;
@@ -508,7 +552,7 @@ export default function Game() {
       current_question_id: firstQ.id,
       used_question_ids: [...used]
     });
-  }, [playerNames, questionPool, isLoading, isOnline, setLobbyData, setError]);
+  }, [playerNames, questionPool, allQuestions, yearStart, yearEnd, isLoading, isOnline, isSoloLevelMode, setLobbyData, setError]);
 
   // Overall timer başlatma
   useEffect(() => {
@@ -751,6 +795,10 @@ export default function Game() {
     setMistakeCount(0);
     lastCountedFeedbackRef.current = null;
     soloResultPersistedRef.current = false;
+    // Codex166 — Replay = new attempt = new deck. Drop the previous
+    // attempt deck so the Solo init effect re-runs the engine.
+    setSoloAttemptDeck(null);
+    setSoloAttemptId(null);
     resetGame();
     navigate('/game', {
       replace: true,
@@ -777,6 +825,9 @@ export default function Game() {
     setMistakeCount(0);
     lastCountedFeedbackRef.current = null;
     soloResultPersistedRef.current = false;
+    // Codex166 — New level = new attempt = new deck.
+    setSoloAttemptDeck(null);
+    setSoloAttemptId(null);
     resetGame();
     navigate('/game', {
       replace: true,
