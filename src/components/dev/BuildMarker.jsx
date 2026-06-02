@@ -1,5 +1,16 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex158 — Focused Health fix pass:
+//   • Updates stale Home CTA press-feedback Health to verify current
+//     motion/CSS feedback and keep pressed image swaps removed.
+//   • Aligns Solo result score-source Health with the current "KAZANILAN
+//     PUAN" popup copy instead of stale "Puan:" punctuation.
+//   • Tightens visible Kronox Puan Health around the shared
+//     getKronoxVisibleScore wiring for Profile, Leaderboard, Solo, Online,
+//     and Home surfaces.
+//   • Aligns GameInviteNotifier Health with the current snapshot +
+//     notification view-model flow.
+//
 // Codex157 — Security findings cleanup:
 //   • Removes unused Spotify/external music question functions instead of
 //     moving their exposed credentials to env.
@@ -609,7 +620,7 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
-const BUILD_MARKER = 'Codex157';
+const BUILD_MARKER = 'Codex158';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

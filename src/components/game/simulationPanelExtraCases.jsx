@@ -1095,11 +1095,35 @@ export const EXTRA_TESTS = [
             actual: { kronoxTitleCount },
           });
     }, { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW, recentlyFixed: true }),
-  sourceHas('historical_kronox_regression', 'home_image_button_feedback',
-    'Home image-button press feedback remains tactile after PNG asset usage',
-    'MainMenu.jsx',
-    mainMenuSource,
-    ['whileTap', 'pressed', 'aria-label'],
+  makeCase('historical_kronox_regression', 'home_image_button_feedback',
+    'Home image-button press feedback remains tactile without old pressed asset swap',
+    () => {
+      const required = ['motion.button', 'whileTap', 'transition={{ type: \'spring\'', 'aria-label'];
+      const missing = missingTokens(mainMenuSource, required);
+      const forbidden = [
+        'pressedSrc',
+        'normalSrc',
+        'setPressed',
+        'isPressed',
+        'Pressed.png',
+        'pressed.webp',
+      ].filter((token) => String(mainMenuSource || '').includes(token));
+      if (missing.length || forbidden.length) {
+        return fail('Home CTA press feedback contract drifted.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'STATIC_CHECK_LIMITATION',
+          file: 'MainMenu.jsx',
+          expected: 'single asset/CSS button with aria-label + framer-motion whileTap press feedback; no pressed image swap',
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('Home CTA keeps tactile motion feedback and no pressed asset swap.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        file: 'MainMenu.jsx',
+        actual: 'motion whileTap + aria-label present; pressed asset swap absent',
+      });
+    },
     { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW, recentlyFixed: true }),
   sourceHas('historical_kronox_regression', 'online_cta_asset_interactivity',
     'Online CTA visual asset usage does not remove button interactivity',
@@ -1740,7 +1764,7 @@ export const EXTRA_TESTS = [
     'In-app invite notifier remains wired for foreground/open-app invites',
     'GameInviteNotifier.jsx + App.jsx',
     `${gameInviteNotifierSource}\n${appSource}`,
-    ['GameInviteNotifier', 'loadIncomingInvites', 'GameInvite.subscribe', 'toast', 'seni Kronox oyununa davet etti', 'openGameInvite'],
+    ['GameInviteNotifier', 'loadIncomingInviteSnapshot', 'buildNotificationViewModel', 'GameInvite.subscribe', 'toast', 'seni Kronox oyununa davet etti', 'openGameInvite'],
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
   sourceHas('game_invite_push_notifications', 'invite_toasts_auto_dismiss_and_close',
     'Foreground invite toasts are dismissible and auto-dismiss instead of sticking over gameplay',

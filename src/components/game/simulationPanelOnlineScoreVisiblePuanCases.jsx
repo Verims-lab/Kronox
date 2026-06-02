@@ -114,10 +114,10 @@ export const EXTRA_TESTS = [
     () => {
       const missing = {
         home: missingTokens(mainMenuSource, ['getKronoxVisibleScore', 'score: getKronoxVisibleScore(user)']),
-        profile: missingTokens(profilePageSource, ['getKronoxVisibleScore', 'visibleKronoxPuan']),
-        leaderboard: missingTokens(leaderboardPageSource, ['getKronoxVisibleScore', 'visibleKronoxPuan']),
+        profile: missingTokens(profilePageSource, ['getKronoxVisibleScore(user, { soloProgress })', 'value: visibleKronoxPuan']),
+        leaderboard: missingTokens(leaderboardPageSource, ['totalKronoxScore: getKronoxVisibleScore', 'value={visibleKronoxPuan}', 'KronoxRankingSection']),
         solo: missingTokens(soloChallengeSource, ['getKronoxVisibleScore', 'headerStats={{']),
-        online: missingTokens(onlineChallengeSource, ['getKronoxVisibleScore', 'headerStats={{']),
+        online: missingTokens(onlineChallengeSource, ['getKronoxVisibleScore', 'score: getKronoxVisibleScore(user)']),
       };
       const bad = Object.entries(missing).filter(([, tokens]) => tokens.length);
       if (bad.length) {
