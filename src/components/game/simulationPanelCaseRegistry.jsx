@@ -126,6 +126,10 @@ import * as unifiedKronoxScoreCases from './simulationPanelUnifiedKronoxScoreCas
 // Codex152 — Diamond economy foundation: canonical User.diamonds balance,
 // starter + daily login grants, idempotent ledger, and display contracts.
 import * as diamondEconomyCases from './simulationPanelDiamondEconomyCases';
+// Codex153 — Security: Deezer preview proxy removed. Locks in that the
+// getDeezerPreview backend function is gone, QuestionCard no longer
+// invokes it, and loadSpotifyMusicQuestions has no Deezer fallback.
+import * as deezerRemovalCases from './simulationPanelDeezerRemovalCases';
 
 const MODULES = [
   soloProgressCases,
@@ -154,6 +158,7 @@ const MODULES = [
   onlineScoreVisiblePuanCases,
   unifiedKronoxScoreCases,
   diamondEconomyCases,
+  deezerRemovalCases,
 ];
 
 function flatten(key) {
