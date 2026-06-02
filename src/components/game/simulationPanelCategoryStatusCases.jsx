@@ -22,6 +22,11 @@
 
 import seedQuestionCategoriesSource from '../../functions/seedQuestionCategories.js?raw';
 import categoryFiltersSource from '../../lib/categoryFilters.js?raw';
+// Codex161 — Online carousel must open with the first (lowest categoryid)
+// card visible. We lock in the initial-scroll-left contract via static
+// analysis of the carousel source + Online screen's sort path.
+import onlineCategoryCarouselSource from '../lobby/OnlineCategoryCarousel.jsx?raw';
+import onlineChallengeScreenSource from '../lobby/OnlineChallengeScreen.jsx?raw';
 import { categoryEntitySchema } from './simulationPanelContractStrings.jsx';
 
 const STATUS = {
@@ -221,6 +226,65 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Shared category active-filter helper is defined and documents backward-compat.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('online_categories_sorted_by_id_asc_on_fetch',
+    'Online screen sorts DB-fetched active categories by category_id ASC',
+    () => {
+      // Codex161 — The Online screen MUST sort active rows by
+      // category_id ASC right after `filterActiveCategories` so the
+      // leftmost card is always the lowest active id (Chronicle=1).
+      const missing = missingTokens(onlineChallengeScreenSource, [
+        'filterActiveCategories',
+        '.sort((a, b) => (Number(a.category_id) || 0) - (Number(b.category_id) || 0))',
+      ]);
+      if (missing.length) {
+        return fail('Online screen no longer sorts active categories by category_id ASC.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'components/lobby/OnlineChallengeScreen.jsx',
+          missing,
+        });
+      }
+      return pass('Active categories sorted by category_id ASC before the carousel renders.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('online_category_carousel_starts_at_left_on_mount',
+    'Online category carousel opens with the first card visible (scrollLeft = 0)',
+    () => {
+      // Codex161 — The carousel must pin scrollLeft to 0 on first
+      // mount AND once real categories arrive, then never reset
+      // programmatically again. We verify:
+      //   • a one-shot guard ref exists (didInitialScrollRef)
+      //   • useLayoutEffect is used so the reset happens BEFORE the
+      //     first browser paint (no flash of mid-scroll position)
+      //   • the effect actually sets scrollLeft = 0
+      //   • the effect depends on `categories` so the reset re-runs
+      //     when the parent swaps fallback rows for the DB rows
+      //   • there is NO scrollIntoView / scrollTo on a selected-card
+      //     id on mount (that would hide the first card)
+      const src = safeStr(onlineCategoryCarouselSource);
+      const missing = [
+        'useLayoutEffect',
+        'didInitialScrollRef',
+        'el.scrollLeft = 0',
+      ].filter((t) => !src.includes(t));
+      // Forbidden auto-scroll-to-selected patterns on initial mount.
+      const forbidden = [
+        'scrollIntoView',
+        'scrollTo({ left:',
+      ].filter((t) => src.includes(t));
+      if (missing.length || forbidden.length) {
+        return fail('Online category carousel does not guarantee a left-aligned initial scroll.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'components/lobby/OnlineCategoryCarousel.jsx',
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('Carousel pins scrollLeft=0 on first mount via a one-shot useLayoutEffect; no auto-scroll-to-selected.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

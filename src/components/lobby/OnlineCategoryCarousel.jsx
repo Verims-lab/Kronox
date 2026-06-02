@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useLayoutEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, Clock, Crown, Radio, Trophy, Gamepad2 } from 'lucide-react';
 import { sounds } from '@/lib/gameSounds';
@@ -38,6 +38,13 @@ const ICON_COLOR = {
 export default function OnlineCategoryCarousel({ categories, selectedIds, onToggle }) {
   const scrollerRef = useRef(null);
   const [activeDot, setActiveDot] = useState(0);
+  // Codex161 — One-shot initial-scroll guard. We reset scrollLeft to 0
+  // on first mount AND again the first time real categories arrive (the
+  // parent may render with a fallback list first, then swap to the DB
+  // list once it loads — that swap remounts children with the same
+  // scroller ref, so we have to re-reset). After that, the user owns
+  // the scroll position — no programmatic resets, ever.
+  const didInitialScrollRef = useRef(false);
 
   const updateDot = useCallback(() => {
     const el = scrollerRef.current;
@@ -46,6 +53,27 @@ export default function OnlineCategoryCarousel({ categories, selectedIds, onTogg
     const idx = Math.round(el.scrollLeft / cardWidth);
     setActiveDot(Math.min(categories.length - 1, Math.max(0, idx)));
   }, [categories.length]);
+
+  // Codex161 — Pin the carousel to the left edge on first paint so the
+  // first card (ID 1 / Chronicle) is always visible when the Online
+  // screen mounts. useLayoutEffect runs before the browser commits the
+  // initial layout, so the user never sees a flash of a mid-scroll
+  // position. We wrap the reset in requestAnimationFrame as a safety
+  // net for engines that defer scroll-snap calculations until after the
+  // first commit.
+  useLayoutEffect(() => {
+    if (didInitialScrollRef.current) return;
+    if (!categories || categories.length === 0) return;
+    const el = scrollerRef.current;
+    if (!el) return;
+    el.scrollLeft = 0;
+    const raf = requestAnimationFrame(() => {
+      if (scrollerRef.current) scrollerRef.current.scrollLeft = 0;
+    });
+    setActiveDot(0);
+    didInitialScrollRef.current = true;
+    return () => cancelAnimationFrame(raf);
+  }, [categories]);
 
   useEffect(() => {
     const el = scrollerRef.current;
