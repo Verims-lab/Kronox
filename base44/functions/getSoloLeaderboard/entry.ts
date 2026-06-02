@@ -270,6 +270,12 @@ Deno.serve(async (req) => {
       // Online are unified server-side into total_kronox_score; only
       // rank-safe fields leave this function.
       source: 'user_kronox_puan_service_role_projection',
+      // Codex170 — Named persisted unified projection contract. The rows
+      // are sorted by the persisted User.kronox_puan_total field
+      // (user_kronox_puan_total_projection) which already represents
+      // unified Kronox Puan (Solo component + Online score), so the public
+      // leaderboard never ranks/returns raw private User rows or emails.
+      projection: 'user_kronox_puan_total_projection',
       rows,
     });
   } catch (error) {

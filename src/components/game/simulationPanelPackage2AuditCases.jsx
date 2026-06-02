@@ -117,7 +117,10 @@ export const EXTRA_TESTS = [
       const fnStart = src.indexOf('export async function applyOnlineMatchToCurrentUser');
       const applySource = fnStart >= 0 ? src.slice(fnStart) : src;
       const auditIndex = applySource.indexOf('const onlineMatchResult = await createOnlineMatchResult');
-      const updateIndex = applySource.indexOf('await base44.auth.updateMe({');
+      // Codex170 — apply path persists the single prepared unified payload
+      // via `await base44.auth.updateMe(payload)`; the durable
+      // OnlineMatchResult reservation must come BEFORE that visible write.
+      const updateIndex = applySource.indexOf('await base44.auth.updateMe(payload)');
       const missing = missingTokens(applyOnlineResultSource, [
         'OnlineMatchResult audit reservation failed; score not applied',
         'where: \'audit\'',
