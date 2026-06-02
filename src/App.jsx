@@ -19,16 +19,17 @@ import { appDiagSetBuildMarker, pushAppDiag } from '@/lib/appDiagBus';
 import { base44 } from '@/api/base44Client';
 import KronoxTutorial from '@/components/tutorial/KronoxTutorial';
 import { markTutorialCompleted, shouldShowTutorialForUser } from '@/lib/tutorialProfile';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
 
-const MainMenu = lazy(() => import('./pages/MainMenu'));
-const SoloChallenge = lazy(() => import('./pages/SoloChallenge'));
-const Game = lazy(() => import('./pages/Game'));
-const LobbyRoom = lazy(() => import('./pages/LobbyRoom'));
-const SettingsPage = lazy(() => import('./pages/SettingsPage'));
-const ProfilePage = lazy(() => import('./pages/ProfilePage'));
-const FriendsPage = lazy(() => import('./pages/FriendsPage'));
-const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage'));
-const TestSuite = lazy(() => import('./pages/TestSuite'));
+const MainMenu = lazyWithRetry(() => import('./pages/MainMenu'), 'MainMenu');
+const SoloChallenge = lazyWithRetry(() => import('./pages/SoloChallenge'), 'SoloChallenge');
+const Game = lazyWithRetry(() => import('./pages/Game'), 'Game');
+const LobbyRoom = lazyWithRetry(() => import('./pages/LobbyRoom'), 'LobbyRoom');
+const SettingsPage = lazyWithRetry(() => import('./pages/SettingsPage'), 'SettingsPage');
+const ProfilePage = lazyWithRetry(() => import('./pages/ProfilePage'), 'ProfilePage');
+const FriendsPage = lazyWithRetry(() => import('./pages/FriendsPage'), 'FriendsPage');
+const LeaderboardPage = lazyWithRetry(() => import('./pages/LeaderboardPage'), 'LeaderboardPage');
+const TestSuite = lazyWithRetry(() => import('./pages/TestSuite'), 'TestSuite');
 
 function PageLoader() {
   return <SplashScreen />;
@@ -193,6 +194,14 @@ function App() {
   // Codex153 — push build marker into diag bus once at app boot
   useEffect(() => {
     appDiagSetBuildMarker('Codex170');
+    // Codex171 — App booted successfully, so any prior stale-chunk reload
+    // recovered. Clear the one-time reload guards so a future deploy can
+    // self-heal again.
+    try {
+      Object.keys(sessionStorage)
+        .filter((k) => k.startsWith('kx-chunk-reloaded:'))
+        .forEach((k) => sessionStorage.removeItem(k));
+    } catch { /* sessionStorage unavailable — ignore */ }
   }, []);
 
   return (
