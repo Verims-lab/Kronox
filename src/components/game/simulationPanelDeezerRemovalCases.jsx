@@ -18,7 +18,7 @@
 // Health score down.
 
 import questionCardSource from './QuestionCard.jsx?raw';
-import loadSpotifyMusicQuestionsSource from '../../functions/loadSpotifyMusicQuestions.js?raw';
+import loadSpotifyMusicQuestionsSource from '../../../base44/functions/loadSpotifyMusicQuestions/entry.ts?raw';
 
 export const EXTRA_SUITES = [
   {

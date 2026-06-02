@@ -130,6 +130,9 @@ import * as diamondEconomyCases from './simulationPanelDiamondEconomyCases';
 // getDeezerPreview backend function is gone, QuestionCard no longer
 // invokes it, and loadSpotifyMusicQuestions has no Deezer fallback.
 import * as deezerRemovalCases from './simulationPanelDeezerRemovalCases';
+// Codex154 — Backend function security guard: generateTechDoc must require
+// server-side auth/admin authorization before internal PDF generation.
+import * as backendSecurityCases from './simulationPanelBackendSecurityCases';
 
 const MODULES = [
   soloProgressCases,
@@ -159,6 +162,7 @@ const MODULES = [
   unifiedKronoxScoreCases,
   diamondEconomyCases,
   deezerRemovalCases,
+  backendSecurityCases,
 ];
 
 function flatten(key) {

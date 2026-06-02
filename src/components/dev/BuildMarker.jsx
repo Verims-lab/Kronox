@@ -1,5 +1,24 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex154 — generateTechDoc backend security hardening:
+//   • generateTechDoc now authenticates with base44.auth.me() server-side
+//     before generating any internal PDF content.
+//   • Unauthenticated callers receive 401; authenticated non-admin users
+//     receive 403; admins keep the intended Settings download flow.
+//   • Adds modular backend_security_health coverage for this trust boundary.
+//
+// Codex153 — Security cleanup: Deezer preview proxy removed. The
+// `functions/getDeezerPreview` backend function (previously an
+// unauthenticated public proxy to api.deezer.com) is deleted.
+// `components/game/QuestionCard` no longer fetches a live preview URL at
+// runtime for muzik questions — the music live-preview pipeline is gone
+// entirely. The `isitsel` legacy audio path (which uses the question's
+// own stored `media_url`) is preserved. `functions/loadSpotifyMusicQuestions`
+// dropped its internal Deezer fallback; songs without a Spotify
+// preview_url are simply skipped. No other product behavior changed:
+// gameplay, Timeline, drag/drop, scoring, invites, notifications, and
+// Solo path remain identical.
+//
 // Codex152 — Diamond economy foundation:
 //   • User.diamonds is the canonical persisted Elmas balance.
 //   • Auth bootstrap grants +100 starter once and +20 daily once per UTC day.
@@ -566,18 +585,7 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
-// Codex153 — Security cleanup: Deezer preview proxy removed. The
-// `functions/getDeezerPreview` backend function (previously an
-// unauthenticated public proxy to api.deezer.com) is deleted.
-// `components/game/QuestionCard` no longer fetches a live preview URL at
-// runtime for muzik questions — the music live-preview pipeline is gone
-// entirely. The `isitsel` legacy audio path (which uses the question's
-// own stored `media_url`) is preserved. `functions/loadSpotifyMusicQuestions`
-// dropped its internal Deezer fallback; songs without a Spotify
-// preview_url are simply skipped. No other product behavior changed:
-// gameplay, Timeline, drag/drop, scoring, invites, notifications, and
-// Solo path remain identical.
-const BUILD_MARKER = 'Codex153';
+const BUILD_MARKER = 'Codex154';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

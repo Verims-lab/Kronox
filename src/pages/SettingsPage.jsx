@@ -24,6 +24,7 @@ export default function SettingsPage() {
   const [deleting, setDeleting] = useState(false);
   const [downloadingDoc, setDownloadingDoc] = useState(false);
   const [downloadingWorkflow, setDownloadingWorkflow] = useState(false);
+  const [docError, setDocError] = useState('');
   const [showSim, setShowSim] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
 
@@ -50,13 +51,21 @@ export default function SettingsPage() {
 
   const handleDownloadDoc = async () => {
     setDownloadingDoc(true);
+    setDocError('');
     try {
       const res = await base44.functions.fetch('/generateTechDoc', { method: 'POST' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setDocError(body?.error || 'Teknik doküman indirilemedi.');
+        return;
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url; a.download = 'kronox-teknik-dokuman.pdf'; a.click();
       URL.revokeObjectURL(url);
+    } catch {
+      setDocError('Teknik doküman indirilemedi.');
     } finally { setDownloadingDoc(false); }
   };
 
@@ -121,6 +130,11 @@ export default function SettingsPage() {
                 loading={downloadingDoc}
                 onClick={handleDownloadDoc}
               />
+              {docError && (
+                <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-100">
+                  {docError}
+                </p>
+              )}
               <ToolCard
                 icon={<FileDown className="w-4 h-4" />}
                 title="İş Akışı Dökümanı"
