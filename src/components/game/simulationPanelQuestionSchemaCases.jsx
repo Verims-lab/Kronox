@@ -1,16 +1,18 @@
-// Kronox Health Center — Question schema preparation contracts (Codex155).
+// Kronox Health Center — Question schema preparation contracts (Codex156).
 //
-// This suite protects the DB/entity preparation for the future question
-// dataset while making sure current gameplay has not been switched to the
-// new category-id fields prematurely.
+// This suite protects the target Question schema cleanup for the new dataset
+// while making sure current gameplay still receives safe runtime compatibility
+// fields from the fetch layer.
 
 import categoryEntitySource from '../../../base44/entities/Category.jsonc?raw';
 import questionEntitySource from '../../../base44/entities/Question.jsonc?raw';
 import seedQuestionCategoriesSource from '../../../base44/functions/seedQuestionCategories/entry.ts?raw';
+import getQuestionsFunctionSource from '../../../base44/functions/getQuestions/entry.ts?raw';
 import questionSchemaDocSource from '../../../docs/KRONOX_QUESTION_DATA_MODEL.md?raw';
 import gamePageSource from '../../pages/Game.jsx?raw';
 import gameRulesSource from '../../lib/gameRules.js?raw';
 import useOfflineQuestionsSource from '../../hooks/useOfflineQuestions.js?raw';
+import questionRuntimeAdapterSource from '../../lib/questionRuntimeAdapter.js?raw';
 
 const STATUS = {
   PASS: 'PASS',
@@ -47,6 +49,14 @@ function notAutomatable(reason, extra) {
 
 function missingTokens(source, tokens) {
   return tokens.filter((token) => !String(source || '').includes(token));
+}
+
+function parseJsonSource(source) {
+  try {
+    return JSON.parse(String(source || '{}'));
+  } catch {
+    return {};
+  }
 }
 
 export const EXTRA_SUITES = [
@@ -125,29 +135,87 @@ export const EXTRA_TESTS = [
       });
     }),
 
-  makeCase('question_entity_supports_future_dataset_fields',
-    'Question entity supports future answer/category metadata fields without changing gameplay',
+  makeCase('question_entity_contains_only_target_dataset_fields',
+    'Question entity contains only the intended new dataset fields',
     () => {
-      const missing = missingTokens(questionEntitySource, [
-        '"answer"',
-        '"question_numeric_id"',
-        '"main_category_id"',
-        '"second_category_id"',
-        '"third_category_id"',
-        '"sub_category"',
-        '"tag"',
-        '"region"',
-        '"difficulty"',
-        '"state"',
-      ]);
-      if (missing.length) {
-        return fail('Question schema is missing future dataset fields.', {
+      const schema = parseJsonSource(questionEntitySource);
+      const expected = [
+        'id',
+        'question',
+        'answer',
+        'main_category_id',
+        'second_category_id',
+        'third_category_id',
+        'sub_category',
+        'tag',
+        'region',
+        'difficulty',
+        'state',
+      ];
+      const actual = Object.keys(schema?.properties || {});
+      const missing = expected.filter((field) => !actual.includes(field));
+      const extra = actual.filter((field) => !expected.includes(field));
+      if (missing.length || extra.length) {
+        return fail('Question schema has missing or legacy fields.', {
           verification: 'STATIC_CONTRACT',
           file: 'base44/entities/Question.jsonc',
+          expected,
+          actual,
           missing,
+          extra,
         });
       }
-      return pass('Question schema supports future answer/category metadata fields.', {
+      return pass('Question schema contains only the target new dataset fields.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('question_entity_required_fields_match_import_contract',
+    'Question entity required fields match the new CSV import contract',
+    () => {
+      const schema = parseJsonSource(questionEntitySource);
+      const expected = ['id', 'question', 'answer', 'main_category_id', 'difficulty', 'state'];
+      const actual = schema?.required || [];
+      const missing = expected.filter((field) => !actual.includes(field));
+      const extra = actual.filter((field) => !expected.includes(field));
+      if (missing.length || extra.length) {
+        return fail('Question schema required fields do not match the new import contract.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'base44/entities/Question.jsonc',
+          expected,
+          actual,
+          missing,
+          extra,
+        });
+      }
+      return pass('Question schema requires id/question/answer/main_category_id/difficulty/state.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('legacy_question_fields_removed_from_schema',
+    'Legacy Question fields are removed from the entity schema',
+    () => {
+      const schema = parseJsonSource(questionEntitySource);
+      const actual = Object.keys(schema?.properties || {});
+      const forbidden = [
+        'year',
+        'category',
+        'type',
+        'media_url',
+        'icon_url',
+        'question_numeric_id',
+        'answerYear',
+        'correctYear',
+      ].filter((field) => actual.includes(field));
+      if (forbidden.length) {
+        return fail('Legacy Question fields are still present in the entity schema.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'base44/entities/Question.jsonc',
+          forbidden,
+        });
+      }
+      return pass('Legacy year/category/type/media fields are no longer part of Question schema.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -177,40 +245,46 @@ export const EXTRA_TESTS = [
       });
     }),
 
-  makeCase('base44_question_id_conflict_documented',
-    'Future numeric question ID does not overwrite runtime Base44 Question.id',
+  makeCase('question_runtime_answer_to_year_adapter_exists',
+    'Question fetch layer derives runtime timeline year from answer',
     () => {
-      const missing = missingTokens(questionSchemaDocSource, [
-        'Base44 already provides `Question.id`',
-        'question_numeric_id',
-        'Do not overwrite runtime `Question.id`',
+      const missing = missingTokens([
+        questionRuntimeAdapterSource,
+        useOfflineQuestionsSource,
+        getQuestionsFunctionSource,
+      ].join('\n'), [
+        'getTimelineYearFromAnswer',
+        'normalizeQuestionForRuntime',
+        'normalizeQuestionsForRuntime',
+        'answer',
+        'year',
+        "category: question.category || 'genel'",
+        "type: question.type || 'metin'",
       ]);
       if (missing.length) {
-        return fail('Question numeric ID transition is not documented safely.', {
+        return fail('Question runtime compatibility mapping is missing.', {
           verification: 'STATIC_CONTRACT',
-          file: 'docs/KRONOX_QUESTION_DATA_MODEL.md',
+          expected: 'Fetch layer derives runtime year from answer and supplies category/type defaults.',
           missing,
         });
       }
-      return pass('Question numeric ID transition documents the Base44 row-id boundary.', {
+      return pass('Question fetch layer derives runtime year from answer and supplies compatibility defaults.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
 
-  makeCase('gameplay_not_switched_to_new_question_schema_yet',
-    'Gameplay still uses legacy year/category/type selectors until migration is explicitly requested',
+  makeCase('gameplay_rules_not_changed_for_schema_cleanup',
+    'Gameplay rules still operate on runtime year/category/type values supplied by the fetch adapter',
     () => {
       const gameplaySource = [
         gamePageSource,
         gameRulesSource,
-        useOfflineQuestionsSource,
       ].join('\n');
       const forbidden = [
         'main_category_id',
         'second_category_id',
         'third_category_id',
         "state === 'A'",
-        'question_numeric_id',
       ].filter((token) => gameplaySource.includes(token));
       const requiredLegacy = missingTokens(gameplaySource, [
         '.year',
@@ -218,13 +292,38 @@ export const EXTRA_TESTS = [
         '.type',
       ]);
       if (forbidden.length || requiredLegacy.length) {
-        return fail('Gameplay appears to have been switched to the future question schema in this prep-only task.', {
+        return fail('Gameplay rule/filter code was changed to read new schema fields directly.', {
           verification: 'STATIC_CONTRACT',
-          expected: 'Current gameplay still uses year/category/type and not category-id/state filters.',
+          expected: 'Gameplay still uses runtime year/category/type and not category-id/state filters.',
           actual: { forbidden, requiredLegacy },
         });
       }
-      return pass('Current gameplay remains on the legacy question selection fields.', {
+      return pass('Gameplay logic remains on runtime year/category/type values; schema translation is fetch-layer only.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('question_schema_cleanup_doc_exists',
+    'Question data model doc describes removed fields and compatibility layer',
+    () => {
+      const missing = missingTokens(questionSchemaDocSource, [
+        'Removed legacy schema fields',
+        '`year`',
+        '`category`',
+        '`type`',
+        '`media_url`',
+        '`icon_url`',
+        'Runtime Compatibility Note',
+        'questionRuntimeAdapter.js',
+      ]);
+      if (missing.length) {
+        return fail('Question data model doc does not explain the schema cleanup boundary.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'docs/KRONOX_QUESTION_DATA_MODEL.md',
+          missing,
+        });
+      }
+      return pass('Question data model doc records removed fields and compatibility mapping.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

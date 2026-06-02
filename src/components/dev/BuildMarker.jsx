@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex156 — Question schema cleanup before new dataset import:
+//   • Question entity now keeps only target dataset fields
+//     (id/question/answer/category ids/subcategory/tag/region/difficulty/state).
+//   • Legacy schema fields year/category/type/media_url/icon_url were removed.
+//   • Fetch-layer compatibility derives runtime year from answer and supplies
+//     safe category/type defaults so gameplay logic itself is unchanged.
+//
 // Codex155 — Question dataset schema preparation:
 //   • Adds Category entity with stable numeric category_id/name records.
 //   • Adds future Question metadata fields (answer, category ids, region,
@@ -592,7 +599,7 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
-const BUILD_MARKER = 'Codex155';
+const BUILD_MARKER = 'Codex156';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
