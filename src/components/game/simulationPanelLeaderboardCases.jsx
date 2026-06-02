@@ -7,8 +7,12 @@
 import leaderboardPageSource from '../../pages/LeaderboardPage.jsx?raw';
 import leaderboardLibSource from '../../lib/leaderboard.js?raw';
 import soloLevelsSource from '../../lib/soloLevels.js?raw';
-import soloLeaderboardEntitySource from '../../../base44/entities/SoloLeaderboardEntry.jsonc?raw';
-import getSoloLeaderboardFunctionSource from '../../../base44/functions/getSoloLeaderboard/entry.ts?raw';
+// Codex169 — The backend function (functions/) and entity schema
+// (entities/) live OUTSIDE src/, so `?raw` (and the old GitHub-mirror
+// `base44/...` paths) return empty here → false FAILs. Read the real
+// contract from src-resident mirrors kept in sync with the deployed files.
+import { SOLO_LEADERBOARD_ENTITY_SOURCE as soloLeaderboardEntitySource } from '@/lib/healthMirrors/soloLeaderboardEntityMirror';
+import { GET_SOLO_LEADERBOARD_SOURCE as getSoloLeaderboardFunctionSource } from '@/lib/healthMirrors/getSoloLeaderboardMirror';
 // Codex119 — Section UI moved into a focused component; some state
 // strings now live there instead of the page.
 import kronoxRankingSectionSource from '../leaderboard/KronoxRankingSection.jsx?raw';

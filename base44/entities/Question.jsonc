@@ -1,7 +1,7 @@
 {
   "name": "Question",
   "type": "object",
-  "description": "Codex168 — Target schema for the new Kronox question dataset. Current gameplay receives minimal compatibility fields from the authenticated getQuestions fetch layer; direct Question entity reads are admin-only so the full question bank is not publicly exposed.",
+  "description": "Codex168 \u2014 Target schema for the new Kronox question dataset. Current gameplay receives minimal compatibility fields from the authenticated getQuestions fetch layer; direct Question entity reads are admin-only so the full question bank is not publicly exposed.",
   "properties": {
     "id": {
       "type": "number",

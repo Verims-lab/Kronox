@@ -83,6 +83,11 @@
       "type": "string",
       "format": "date-time",
       "description": "ISO timestamp set when the invite is cancelled by host/lobby lifecycle."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this game invite (up to 1000 characters)."
     }
   },
   "required": [

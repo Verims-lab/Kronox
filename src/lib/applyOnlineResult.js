@@ -434,24 +434,33 @@ export async function applyOnlineMatchToCurrentUser({
   }
 
   // 5. Persist. lastMatchId is added to the SAME write so it lands
-  //    atomically with the score change. If updateMe rejects, the
-  //    existing audit row remains repairable on retry.
+  //    atomically with the score change. The unified Kronox Puan
+  //    projection (Solo + Online) is written into the same payload so the
+  //    visible Puan and leaderboard row stay consistent after refresh.
+  //    If updateMe rejects, the existing audit row remains repairable on
+  //    retry.
+  const nextOnlineProgress = {
+    ...nextProgress,
+    lastMatchId: String(lobbyId),
+  };
+  // Codex170 — Single prepared unified payload. online_progress holds the
+  // recomputed Online component and kronox_puan_total is the unified
+  // Kronox Puan projection (Solo component + Online score) so the visible
+  // Puan and leaderboard row stay consistent after refresh.
   const payload = {
-    online_progress: {
-      ...nextProgress,
-      lastMatchId: String(lobbyId),
-    },
+    online_progress: nextOnlineProgress,
+    kronox_puan_total: buildSoloLeaderboardPayload({
+      ...me,
+      online_progress: nextOnlineProgress,
+    }, me.solo_progress).total_kronox_score,
   };
 
   try {
-    const scoreProjection = buildSoloLeaderboardPayload({
-      ...me,
-      online_progress: payload.online_progress,
-    }, me.solo_progress).total_kronox_score;
-    await base44.auth.updateMe({
-      ...payload,
-      kronox_puan_total: scoreProjection,
-    });
+    // Codex170 — Visible score write happens ONLY after the durable
+    // OnlineMatchResult reservation above succeeded. Refresh the
+    // authenticated user/profile visible state by persisting the unified
+    // payload (online_progress + unified kronox_puan_total) in one write.
+    await base44.auth.updateMe(payload);
   } catch (e) {
     const msg = e?.message || String(e);
     debugLog('[applyOnlineMatch] persist failed', { lobbyId, result, error: msg });
@@ -459,13 +468,17 @@ export async function applyOnlineMatchToCurrentUser({
   }
 
   debugLog('[applyOnlineMatch] applied', { lobbyId, applied });
+  // Codex170 — Refresh current user, then publish the leaderboard-safe row
+  // from the refreshed user (or a safe fallback built from me + the
+  // persisted payload online_progress) so leaderboard Puan never stays
+  // stale after an online match completes.
   const refreshedUser = await refreshCurrentUserAfterOnlineScore(lobbyId);
   await publishLeaderboardAfterOnlineScore(refreshedUser || { ...me, online_progress: payload.online_progress }, lobbyId);
 
   return {
     ok: true,
     skipped: false,
-    progress: payload.online_progress,
+    progress: nextOnlineProgress,
     applied,
     onlineMatchResult,
     refreshedUser,

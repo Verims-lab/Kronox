@@ -50,6 +50,11 @@
     "disabled_at": {
       "type": "string",
       "description": "ISO timestamp when the user disabled this subscription"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this push subscription (up to 1000 characters)."
     }
   },
   "required": [
