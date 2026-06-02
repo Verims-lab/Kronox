@@ -196,6 +196,23 @@ function toLeaderboardRow(user: any, levelNumber = 0) {
   };
 }
 
+async function backfillKronoxPuanProjection(base44: any, user: any, row: any) {
+  const userId = user?.id || user?._id;
+  if (!userId || !row) return false;
+  const persistedTotal = finiteNumber(user?.kronox_puan_total, NaN);
+  if (Number.isFinite(persistedTotal) && persistedTotal >= 0) return false;
+  try {
+    await base44.asServiceRole.entities.User.update(userId, {
+      kronox_puan_total: Math.max(0, Math.floor(finiteNumber(row.total_kronox_score, 0))),
+    });
+    return true;
+  } catch {
+    // Best-effort projection backfill. The row still returns the computed
+    // unified score; a later leaderboard read can retry the idempotent write.
+    return false;
+  }
+}
+
 function compareRows(a: any, b: any) {
   const scoreDiff = finiteNumber(b.total_kronox_score) - finiteNumber(a.total_kronox_score);
   if (scoreDiff) return scoreDiff;
@@ -231,9 +248,19 @@ Deno.serve(async (req) => {
     // This avoids ranking whichever 500 users happened to update most
     // recently and gives production an index-friendly leaderboard field.
     const users = await base44.asServiceRole.entities.User.list('-kronox_puan_total', MAX_LIMIT);
-    const rows = (users || [])
-      .map((u) => toLeaderboardRow(u, levelNumber))
-      .filter(Boolean)
+    const rowPairs = (users || [])
+      .map((u) => ({ user: u, row: toLeaderboardRow(u, levelNumber) }))
+      .filter((entry) => Boolean(entry.row));
+
+    await Promise.all(
+      rowPairs
+        .filter(({ user }) => !Number.isFinite(Number(user?.kronox_puan_total)))
+        .slice(0, 25)
+        .map(({ user, row }) => backfillKronoxPuanProjection(base44, user, row)),
+    );
+
+    const rows = rowPairs
+      .map(({ row }) => row)
       .sort(compareRows)
       .slice(0, limit);
 

@@ -162,6 +162,7 @@ export const EXTRA_TESTS = [
         'user_kronox_puan_total_projection',
         'computedTotalKronoxScore',
         "User.list('-kronox_puan_total'",
+        'backfillKronoxPuanProjection',
       ]);
       const forbidden = [
         'user_email: normalizeEmail',

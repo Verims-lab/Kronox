@@ -463,7 +463,8 @@ Current expected behavior:
 - `User.kronox_puan_total` is the persisted/index-friendly projection of
   the same unified Puan. `getSoloLeaderboard` sorts by this field and falls
   back to computed Solo + Online only for users whose projection has not
-  been backfilled yet.
+  been backfilled yet. Rows returned with a missing projection are repaired
+  by an idempotent best-effort `backfillKronoxPuanProjection` write.
 - Online competitive score storage stays separate unless an Online leaderboard
   is added, but user-facing labels still use unified **Puan** wording.
 - Profile must not accidentally show stale or mismatched score fields.
