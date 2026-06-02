@@ -14,11 +14,8 @@ import applyOnlineResultSource from '../../lib/applyOnlineResult.js?raw';
 import kronoxScoreSource from '../../lib/kronoxScore.js?raw';
 import gameSource from '../../pages/Game.jsx?raw';
 import gameOverSource from './GameOver.jsx?raw';
-import mainMenuSource from '../../pages/MainMenu.jsx?raw';
 import profilePageSource from '../../pages/ProfilePage.jsx?raw';
 import leaderboardPageSource from '../../pages/LeaderboardPage.jsx?raw';
-import soloChallengeSource from '../../pages/SoloChallenge.jsx?raw';
-import onlineChallengeSource from '../lobby/OnlineChallengeScreen.jsx?raw';
 import leaderboardLibSource from '../../lib/leaderboard.js?raw';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
