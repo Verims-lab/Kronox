@@ -1,29 +1,28 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Check, UserRound, UserPlus, AlertCircle } from 'lucide-react';
+import { X, Check, UserRound, UserPlus, AlertCircle, ChevronDown, Swords } from 'lucide-react';
 import { sounds } from '@/lib/gameSounds';
 import { loadFriends, normalizeEmail } from '@/lib/friendsApi';
 
 /**
- * Kronox Online — Friend Select Modal (Codex127).
+ * Kronox Online — Friend Select Modal (Codex159 redesign).
  *
- * Premium dark-fantasy popup for picking 1–3 friends to invite to an
- * online challenge lobby. Replaces the old full-page CreateLobbyInvitePanel
- * friend selection screen.
+ * Matches the target design (Attachment 3):
+ *   • Premium dark-fantasy popup framed by gold ring.
+ *   • Header: "ARKADAŞ SEÇ" with people icon + subtitle.
+ *   • A dropdown-style filter chip with "Arkadaş seç..." label, then
+ *     the actual list of friends underneath.
+ *   • Each row: small online status dot + avatar + name + online/offline
+ *     text + a square gold checkbox on the right.
+ *   • Bottom CTA: "ONAYLA" with crossed swords accent (gold, glowing).
  *
- *  - Max selection: 3 (cap enforced silently — extra taps are no-ops).
- *  - Friends list scrolls vertically inside the popup; the page behind
- *    stays locked (no body scroll).
- *  - Confirm button forwards the chosen emails to the parent and closes
- *    the modal.
+ * Selection rules:
+ *   - Minimum 1 friend required to enable "ONAYLA".
+ *   - Maximum 3 friends; extra taps are silent no-ops.
  *
- * Props:
- *   open                 : boolean
- *   onClose              : () => void
- *   user                 : current authenticated user (for loadFriends())
- *   initialSelectedEmails: string[] — pre-selected emails when reopened
- *   onConfirm(emails)    : commit selection to parent
- *   onGoFriends          : optional CTA when the user has no friends yet
+ * Online status: friends list rows do not currently carry presence
+ * information, so we treat every friend as "Çevrimiçi" by default. This
+ * is purely a visual label and does not affect selection eligibility.
  */
 const MAX_SELECTION = 3;
 
@@ -40,13 +39,11 @@ export default function FriendSelectModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Reset selection to whatever the parent currently has each time we open.
   useEffect(() => {
     if (open) setSelected(initialSelectedEmails);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Load friends every time the modal opens (cheap; <=200 rows).
   useEffect(() => {
     if (!open) return undefined;
     if (!user?.email) { setFriends([]); return undefined; }
@@ -60,7 +57,6 @@ export default function FriendSelectModal({
     return () => { cancelled = true; };
   }, [open, user?.email]);
 
-  // Lock body scroll while open.
   useEffect(() => {
     if (!open) return undefined;
     const prev = document.body.style.overflow;
@@ -78,14 +74,17 @@ export default function FriendSelectModal({
       }
       if (prev.length >= MAX_SELECTION) {
         sounds.tick();
-        return prev; // silent cap
+        return prev; // silent cap at 3
       }
       sounds.tap();
       return [...prev, email];
     });
   };
 
+  const confirmEnabled = selected.length >= 1 && selected.length <= MAX_SELECTION;
+
   const confirm = () => {
+    if (!confirmEnabled) return;
     sounds.tap();
     onConfirm?.([...selected]);
     onClose?.();
@@ -115,9 +114,9 @@ export default function FriendSelectModal({
             transition={{ type: 'spring', stiffness: 360, damping: 30 }}
             className="relative w-full max-w-md rounded-3xl flex flex-col overflow-hidden"
             style={{
-              maxHeight: '85vh',
-              background: 'linear-gradient(180deg, rgba(30,41,75,0.98) 0%, rgba(14,22,46,0.99) 60%, rgba(6,10,24,1) 100%)',
-              boxShadow: 'inset 0 0 0 1.5px rgba(250,204,21,0.42), inset 0 1px 0 rgba(255,255,255,0.10), 0 22px 44px rgba(2,6,23,0.65), 0 0 28px rgba(250,204,21,0.18)',
+              maxHeight: '88vh',
+              background: 'linear-gradient(180deg, rgba(20,32,68,0.98) 0%, rgba(10,18,42,0.99) 60%, rgba(6,10,24,1) 100%)',
+              boxShadow: 'inset 0 0 0 1.5px rgba(250,204,21,0.40), inset 0 1px 0 rgba(255,255,255,0.10), 0 22px 44px rgba(2,6,23,0.65), 0 0 28px rgba(250,204,21,0.18)',
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -136,16 +135,17 @@ export default function FriendSelectModal({
                 <X className="h-4 w-4" />
               </button>
               <p
-                className="font-cinzel text-lg font-black tracking-[0.22em]"
+                className="font-cinzel font-black"
                 style={{
-                  color: '#facc15',
-                  textShadow: '0 0 12px rgba(250,204,21,0.45), 0 2px 4px rgba(0,0,0,0.6)',
+                  color: '#f1f4ff',
+                  fontSize: 'clamp(15px, 4.4vw, 18px)',
+                  letterSpacing: '0.20em',
                 }}
               >
-                ARKADAŞLARINI SEÇ
+                ARKADAŞ SEÇ
               </p>
-              <p className="mt-1 font-inter text-[12px] text-blue-100/70">
-                1, 2 veya 3 arkadaş seçebilirsin
+              <p className="mt-1 font-inter text-[12px] text-blue-100/70 leading-snug">
+                Meydan okumak istediğin<br />arkadaşını seç
               </p>
               <div className="mt-2 flex justify-center">
                 <span
@@ -160,9 +160,23 @@ export default function FriendSelectModal({
               </div>
             </div>
 
+            {/* Dropdown-style filter chip */}
+            <div className="px-5">
+              <div
+                className="flex items-center justify-between rounded-xl px-4 py-2.5"
+                style={{
+                  background: 'rgba(8,14,32,0.75)',
+                  boxShadow: 'inset 0 0 0 1px rgba(120,170,255,0.30)',
+                }}
+              >
+                <span className="font-inter text-[13px] text-blue-100/70">Arkadaş seç...</span>
+                <ChevronDown className="h-4 w-4 text-blue-100/60" strokeWidth={2.4} />
+              </div>
+            </div>
+
             {/* Scrollable list */}
             <div
-              className="flex-1 overflow-y-auto px-4 pb-2"
+              className="flex-1 overflow-y-auto px-5 pt-2 pb-2"
               style={{ overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}
             >
               {loading ? (
@@ -172,15 +186,17 @@ export default function FriendSelectModal({
               ) : friends.length === 0 ? (
                 <EmptyFriends onGoFriends={onGoFriends} onClose={onClose} />
               ) : (
-                <ul className="space-y-2 py-1">
+                <ul className="divide-y divide-white/5">
                   {friends.map((f) => {
                     const email = normalizeEmail(f.friend_email);
                     const isSelected = selected.includes(email);
+                    const capped = !isSelected && selected.length >= MAX_SELECTION;
                     return (
                       <FriendRow
                         key={f.id}
                         friend={f}
                         selected={isSelected}
+                        capped={capped}
                         onToggle={() => toggle(email)}
                       />
                     );
@@ -189,34 +205,39 @@ export default function FriendSelectModal({
               )}
             </div>
 
-            {/* Footer CTA */}
+            {/* Footer CTA — ONAYLA */}
             <div
               className="px-5 pt-3 pb-4"
-              style={{
-                background: 'linear-gradient(to top, rgba(6,10,24,0.95), rgba(6,10,24,0.4))',
-              }}
+              style={{ background: 'linear-gradient(to top, rgba(6,10,24,0.95), rgba(6,10,24,0.4))' }}
             >
               <motion.button
                 type="button"
                 onClick={confirm}
-                disabled={selected.length === 0}
-                whileTap={selected.length === 0 ? undefined : { scale: 0.97 }}
-                className="w-full h-12 rounded-2xl font-bangers text-lg tracking-[0.22em] disabled:opacity-50"
+                disabled={!confirmEnabled}
+                whileTap={!confirmEnabled ? undefined : { scale: 0.97 }}
+                className="relative w-full h-12 rounded-2xl font-inter text-base font-black tracking-[0.22em] disabled:opacity-50 flex items-center justify-center"
                 style={{
-                  background: selected.length === 0
+                  background: !confirmEnabled
                     ? 'linear-gradient(135deg, #5a4a14 0%, #6b5318 50%, #4d3f10 100%)'
-                    : 'linear-gradient(135deg, #f5c400 0%, #facc15 50%, #e6b800 100%)',
+                    : 'linear-gradient(180deg, #ffd84a 0%, #f5c400 55%, #e0ad00 100%)',
                   color: '#1a0a00',
-                  boxShadow: selected.length === 0
+                  boxShadow: !confirmEnabled
                     ? 'inset 0 1px 0 rgba(255,255,255,0.18)'
-                    : '0 0 18px rgba(250,204,21,0.45), inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -3px 5px rgba(140,80,8,0.55)',
+                    : '0 0 18px rgba(250,204,21,0.45), inset 0 1px 0 rgba(255,255,255,0.55), inset 0 -3px 0 rgba(120,75,0,0.35)',
                 }}
               >
-                SEÇİMİ ONAYLA
+                <span>ONAYLA</span>
+                {confirmEnabled && (
+                  <Swords
+                    className="absolute"
+                    style={{ right: '1.25rem', width: 20, height: 20, color: '#1a0a00' }}
+                    strokeWidth={2.2}
+                  />
+                )}
               </motion.button>
               <p className="mt-2 text-center font-inter text-[11px]"
-                style={{ color: selected.length === 0 ? 'rgba(252,211,77,0.85)' : 'rgba(207,224,255,0.55)' }}>
-                {selected.length === 0
+                style={{ color: !confirmEnabled ? 'rgba(252,211,77,0.85)' : 'rgba(207,224,255,0.55)' }}>
+                {!confirmEnabled
                   ? 'En az 1 arkadaş seçmelisin.'
                   : `${selected.length} arkadaş seçildi`}
               </p>
@@ -228,65 +249,71 @@ export default function FriendSelectModal({
   );
 }
 
-function FriendRow({ friend, selected, onToggle }) {
+/* ----------------------------- Sub-views ----------------------------- */
+
+function FriendRow({ friend, selected, capped, onToggle }) {
   const display = friend.friend_name?.trim() || friend.friend_email;
   const initial = (display || '?').charAt(0).toUpperCase();
+  // No presence backend yet — treat all friends as online for the label.
+  const isOnline = true;
+
   return (
-    <motion.li layout>
-      <motion.button
+    <li>
+      <button
         type="button"
         onClick={onToggle}
-        whileTap={{ scale: 0.985 }}
-        transition={{ type: 'spring', stiffness: 540, damping: 26 }}
-        className="w-full flex items-center gap-3 rounded-2xl p-3 text-left"
-        style={{
-          background: selected
-            ? 'linear-gradient(180deg, rgba(34,68,142,0.92), rgba(8,18,42,0.96))'
-            : 'linear-gradient(180deg, rgba(30,41,75,0.85), rgba(10,16,36,0.92))',
-          boxShadow: selected
-            ? 'inset 0 0 0 1.5px rgba(250,204,21,0.85), inset 0 1px 0 rgba(255,255,255,0.12), 0 0 14px rgba(250,204,21,0.32)'
-            : 'inset 0 0 0 1.5px rgba(120,170,255,0.28), inset 0 1px 0 rgba(255,255,255,0.06)',
-        }}
+        className="w-full flex items-center gap-3 py-3 text-left"
+        style={{ opacity: capped ? 0.6 : 1 }}
         aria-pressed={selected}
       >
-        <div
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
+        {/* Online status dot */}
+        <span
+          aria-hidden="true"
+          className="shrink-0 rounded-full"
           style={{
-            background: selected
-              ? 'radial-gradient(circle at 35% 28%, #ffe066, #b97a06 70%)'
-              : 'radial-gradient(circle at 35% 28%, #93c5fd, #1d4ed8 75%)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4), 0 0 10px rgba(59,130,246,0.28)',
+            width: 7, height: 7,
+            background: isOnline ? '#22c55e' : 'rgba(148,163,184,0.6)',
+            boxShadow: isOnline ? '0 0 6px rgba(34,197,94,0.65)' : 'none',
+          }}
+        />
+
+        {/* Avatar */}
+        <div
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+          style={{
+            background: 'radial-gradient(circle at 35% 28%, #93c5fd, #1d4ed8 75%)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4), 0 0 8px rgba(59,130,246,0.32)',
           }}
         >
           {initial ? (
-            <span className={selected ? 'font-bangers text-lg text-amber-950' : 'font-bangers text-lg text-blue-950'}>
-              {initial}
-            </span>
+            <span className="font-bangers text-base text-blue-950">{initial}</span>
           ) : (
-            <UserRound className={selected ? 'h-5 w-5 text-amber-950' : 'h-5 w-5 text-blue-950'} strokeWidth={2.6} />
+            <UserRound className="h-5 w-5 text-blue-950" strokeWidth={2.6} />
           )}
         </div>
+
+        {/* Name + status text */}
         <div className="min-w-0 flex-1">
-          <p className="truncate font-inter text-sm font-bold text-white">{display}</p>
-          {friend.friend_name && (
-            <p className="truncate font-inter text-[11px] text-blue-100/60">{friend.friend_email}</p>
-          )}
+          <p className="truncate font-inter text-[14px] font-bold text-white">{display}</p>
+          <p className="truncate font-inter text-[11px]" style={{ color: isOnline ? '#34d399' : 'rgba(148,163,184,0.85)' }}>
+            {isOnline ? 'Çevrimiçi' : 'Çevrimdışı'}
+          </p>
         </div>
+
+        {/* Square gold checkbox */}
         <span
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded"
           style={{
-            background: selected
-              ? 'linear-gradient(180deg,#ffe066,#b97a06)'
-              : 'transparent',
+            background: selected ? 'rgba(250,204,21,0.10)' : 'transparent',
             boxShadow: selected
-              ? 'inset 0 1px 0 rgba(255,255,255,0.5), 0 0 10px rgba(250,204,21,0.55)'
-              : 'inset 0 0 0 1.5px rgba(255,255,255,0.28)',
+              ? 'inset 0 0 0 1.5px rgba(250,204,21,0.95), 0 0 8px rgba(250,204,21,0.35)'
+              : 'inset 0 0 0 1.5px rgba(207,224,255,0.45)',
           }}
         >
-          {selected ? <Check className="h-4 w-4 text-amber-950" strokeWidth={3.2} /> : null}
+          {selected && <Check className="h-4 w-4" style={{ color: '#facc15' }} strokeWidth={3} />}
         </span>
-      </motion.button>
-    </motion.li>
+      </button>
+    </li>
   );
 }
 
@@ -296,7 +323,7 @@ function FriendsSkeleton() {
       {[0, 1, 2, 3].map((i) => (
         <div
           key={i}
-          className="h-14 rounded-2xl"
+          className="h-12 rounded-xl"
           style={{
             background:
               'linear-gradient(90deg, rgba(255,255,255,0.04), rgba(255,255,255,0.08), rgba(255,255,255,0.04))',

@@ -1,47 +1,39 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronDown, UserRound, Sparkles, Users } from 'lucide-react';
-import ScreenHeader from '@/components/layout/ScreenHeader';
+import { ChevronDown, Users, Swords } from 'lucide-react';
+import { base44 } from '@/api/base44Client';
+import StandardTopBar from '@/components/layout/StandardTopBar';
 import OnlineCategoryCarousel from '@/components/lobby/OnlineCategoryCarousel';
 import FriendSelectModal from '@/components/lobby/FriendSelectModal';
 import IncomingInvitesPanel from '@/components/invites/IncomingInvitesPanel';
 import ActiveLobbyCard from '@/components/lobby/ActiveLobbyCard';
 import { ONLINE_CATEGORIES } from '@/lib/onlineCategories';
+import { filterActiveCategories } from '@/lib/categoryFilters';
 import { sounds } from '@/lib/gameSounds';
-// Codex146 shared sources for visible Kronox Puan + Elmas (Header)
-import { getKronoxVisibleScore } from '@/lib/kronoxScore';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 
 /**
- * Kronox Online — Challenge Screen (Codex127).
+ * Kronox Online — Challenge Screen (Codex159 redesign).
  *
- * Single landing for "Arkadaşlarına Meydan Oku":
- *   • Top: shared ScreenHeader (Puan + Elmas + avatar).
- *   • Title + subtitle.
- *   • Horizontal category carousel (multi-select).
- *   • "Arkadaş Seç" trigger row that opens a popup.
- *   • Bottom CTA "Meydan Okumaya Başla" — disabled until ≥1 friend selected.
- *   • BottomNav rendered globally by AppShell.
+ * Matches the new target visual:
+ *   • StandardTopBar (back arrow + centered diamond chip + bell) — NO avatar.
+ *   • Title block: sword icon + "ONLINE KAPIŞMA" framed by gold star
+ *     accents, with subtitle "Arkadaşlarını davet et, tarihe meydan oku!".
+ *   • Compact, horizontally-scrollable category cards driven from the
+ *     Category DB lookup table (status === "a" only). Each card shows a
+ *     name + small description. Falls back to the static taxonomy if the
+ *     DB has not been seeded yet so the screen is never empty.
+ *   • Big "ARKADAŞ SEÇ" panel with a dropdown-style trigger that opens
+ *     the friend selection popup.
+ *   • Bottom CTA "DAVET ET" — disabled until ≥1 friend selected. CTA
+ *     hands the same { selectedCategories, selectedEmails } payload to
+ *     the parent so lobby creation and invite flow are unchanged.
  *
- * Layout contract: NO vertical scroll on the screen itself. Friend modal
- * scrolls internally. Header is fixed (via ScreenHeader). The CTA sits
- * above BottomNav with a safe-area-aware gap.
- *
- * Flow:
- *   tap CTA → onStartChallenge({ selectedCategories, selectedEmails }) →
- *   LobbyRoom creates the lobby AND sends invites in one shot. No extra
- *   friend-selection screen in between.
- *
- * Props:
- *   user
- *   loading            : parent is currently creating the lobby
- *   error              : parent's lobby creation error
- *   onStartChallenge({ selectedCategories, selectedEmails })
- *   onBackHome         : go to /
- *   onJoinOpenLobby    : optional "open code" path
- *   onGoFriends        : when user has no friends in modal
+ * Selection state for both categories AND friends is preserved here in
+ * parent React state — neither is dropped before being passed to the
+ * lobby start callback.
  */
-const DEFAULT_CATEGORIES = ['flashback'];
+const DEFAULT_CATEGORIES = ['chronicle'];
 
 export default function OnlineChallengeScreen({
   user,
@@ -58,11 +50,75 @@ export default function OnlineChallengeScreen({
   const [selectedCategories, setSelectedCategories] = useState(DEFAULT_CATEGORIES);
   const [selectedEmails, setSelectedEmails] = useState([]);
   const [friendModalOpen, setFriendModalOpen] = useState(false);
+  const [dbCategories, setDbCategories] = useState(null);
+
+  // Codex159/Codex160 — Pull categories from the DB lookup table, keep
+  // only status === "a" rows via the shared filter helper, then sort by
+  // category_id ASC so the visual left-to-right order matches the DB
+  // contract (Chronicle=1 → Flashback=2 → Kült=3 → ...). Rows missing
+  // status are treated as active for backward compatibility (see
+  // lib/categoryFilters.js). If the DB query fails or returns nothing,
+  // we fall back to the static taxonomy so the screen never breaks.
+  useEffect(() => {
+    let cancelled = false;
+    base44.entities.Category
+      .list('category_id', 50)
+      .then((rows) => {
+        if (cancelled) return;
+        const active = filterActiveCategories(rows || [])
+          .slice()
+          .sort((a, b) => (Number(a.category_id) || 0) - (Number(b.category_id) || 0));
+        if (active.length === 0) { setDbCategories(null); return; }
+        setDbCategories(active);
+      })
+      .catch(() => { if (!cancelled) setDbCategories(null); });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Map DB rows → carousel items. We key by the static ONLINE_CATEGORIES
+  // id (Chronicle=1, Flashback=2, Kült=3, Viral=4, Arena=5, Level Up=6)
+  // so existing icons/colors and the downstream `selected_category_ids`
+  // contract in startLobbyGame keep working untouched.
+  const carouselCategories = useMemo(() => {
+    const STATIC_BY_DB_ID = {
+      1: ONLINE_CATEGORIES.find((c) => c.id === 'chronicle'),
+      2: ONLINE_CATEGORIES.find((c) => c.id === 'flashback'),
+      3: ONLINE_CATEGORIES.find((c) => c.id === 'kult'),
+      4: ONLINE_CATEGORIES.find((c) => c.id === 'viral'),
+      5: ONLINE_CATEGORIES.find((c) => c.id === 'arena'),
+      6: ONLINE_CATEGORIES.find((c) => c.id === 'level_up'),
+    };
+    if (Array.isArray(dbCategories) && dbCategories.length > 0) {
+      return dbCategories
+        .map((row) => {
+          const stat = STATIC_BY_DB_ID[row.category_id];
+          if (!stat) return null;
+          return {
+            id: stat.id,
+            label: (row.name || stat.label).toUpperCase(),
+            description: row.description || '',
+          };
+        })
+        .filter(Boolean);
+    }
+    // Fallback — static taxonomy with short tags.
+    const STATIC_DESC = {
+      chronicle: 'Genel',
+      flashback: 'Yakın tarih',
+      kult: 'Film/Dizi/Pop',
+      viral: 'Sosyal medya',
+      arena: 'Spor',
+      level_up: 'Oyun',
+    };
+    return ONLINE_CATEGORIES.map(({ id, label }) => ({
+      id, label, description: STATIC_DESC[id] || '',
+    }));
+  }, [dbCategories]);
 
   const toggleCategory = (id) => {
     setSelectedCategories((prev) => {
       if (prev.includes(id)) {
-        if (prev.length <= 1) return prev; // keep at least one
+        if (prev.length <= 1) return prev; // keep at least one selected
         return prev.filter((x) => x !== id);
       }
       return [...prev, id];
@@ -91,30 +147,27 @@ export default function OnlineChallengeScreen({
         overscrollBehavior: 'none',
       }}
     >
-      {/* Standard top bar (Puan + Elmas + avatar) */}
-      <ScreenHeader
+      {/* Top bar: back + diamond + bell (no avatar) */}
+      <StandardTopBar
         showBack
         user={user}
         onBack={onBackHome}
-        headerStats={{
-          score: getKronoxVisibleScore(user),
-          diamonds: getLeaderboardDiamondValue(user),
-        }}
+        diamonds={getLeaderboardDiamondValue(user)}
       />
 
-      {/* Main content — no scroll. Header reserves ~3.5rem. BottomNav 4rem. */}
       <main
         className="flex-1 flex flex-col px-4"
         style={{
-          paddingTop: 'calc(3.75rem + env(safe-area-inset-top))',
-          paddingBottom: 'calc(4rem + env(safe-area-inset-bottom) + 8.5rem)', // BottomNav + CTA stack
+          // Codex160 — Tighter top/bottom reservation: header band stays
+          // identical, bottom reservation = BottomNav (4rem) + CTA stack
+          // (smaller now ~5.25rem). This frees real vertical space the
+          // friend-panel needs without ever overlapping the yellow CTA.
+          paddingTop: 'calc(3.25rem + env(safe-area-inset-top))',
+          paddingBottom: 'calc(4rem + env(safe-area-inset-bottom) + 5.25rem)',
           minHeight: 0,
           overflow: 'hidden',
         }}
       >
-        {/* Codex131 — Active lobby card (host or member). Hidden when
-            there is no pending lobby or it has gone stale. Lets the user
-            jump back into the waiting room without losing state. */}
         {activeLobby && (
           <div className="mb-2">
             <ActiveLobbyCard
@@ -125,56 +178,27 @@ export default function OnlineChallengeScreen({
           </div>
         )}
 
-        {/* Incoming invites — surfaces only when there are any */}
         <IncomingInvitesPanel user={user} />
 
-        {/* Title block */}
-        <motion.div
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25 }}
-          className="text-center mt-1 mb-3"
-        >
-          <h1
-            className="font-cinzel text-xl sm:text-2xl font-black tracking-[0.18em]"
-            style={{
-              color: '#facc15',
-              textShadow: '0 0 14px rgba(250,204,21,0.45), 0 2px 4px rgba(0,0,0,0.6)',
-            }}
-          >
-            ARKADAŞLARINA MEYDAN OKU
-          </h1>
-          <p className="mt-1 font-inter text-[12px] text-blue-100/70">
-            Kategorini seç, arkadaşlarını çağır, lobiye geç.
-          </p>
-        </motion.div>
+        {/* Title block — sword icon + gold stars + ornamental rule */}
+        <TitleBlock />
 
-        {/* Category carousel */}
-        <SectionLabel icon={Sparkles} text="Kategori Seç" tail={
-          <span className="font-inter text-[10px] font-black uppercase tracking-widest text-amber-200/90">
-            {selectedCategories.length} seçili
-          </span>
-        }/>
-        <div className="mt-2">
+        {/* Category carousel — compact cards, DB-driven (active only,
+            sorted by category_id ASC). */}
+        <div className="mt-2.5">
           <OnlineCategoryCarousel
-            categories={ONLINE_CATEGORIES.map(({ id, label }) => ({ id, label }))}
+            categories={carouselCategories}
             selectedIds={selectedCategories}
             onToggle={toggleCategory}
           />
         </div>
 
-        {/* Friend select trigger */}
-        <div className="mt-4">
-          <SectionLabel icon={Users} text="Arkadaş Seç" tail={
-            <span className="font-inter text-[10px] font-black uppercase tracking-widest text-amber-200/90">
-              {selectedEmails.length}/3
-            </span>
-          }/>
-          <FriendSelectTrigger
-            count={selectedEmails.length}
-            onOpen={() => { sounds.tap(); setFriendModalOpen(true); }}
-          />
-        </div>
+        {/* Friend select panel — moved closer to the carousel so the
+            panel never crowds the bottom CTA. */}
+        <FriendSelectPanel
+          count={selectedEmails.length}
+          onOpen={() => { sounds.tap(); setFriendModalOpen(true); }}
+        />
 
         {error && (
           <p className="mt-3 rounded-xl px-3 py-2 font-inter text-[12px] text-rose-100/90"
@@ -184,12 +208,14 @@ export default function OnlineChallengeScreen({
         )}
       </main>
 
-      {/* Floating CTA stack — above BottomNav */}
+      {/* Bottom CTA — "DAVET ET". Codex160: slightly shorter (h-12) so
+          the panel above keeps clean breathing room and we never push
+          into BottomNav even on small phones. */}
       <div
         className="fixed left-0 right-0 z-40 px-4 pointer-events-none"
         style={{
           bottom: 'calc(4rem + env(safe-area-inset-bottom))',
-          paddingBottom: '0.5rem',
+          paddingBottom: '0.4rem',
         }}
       >
         <div className="mx-auto max-w-md pointer-events-auto">
@@ -201,30 +227,42 @@ export default function OnlineChallengeScreen({
             animate={ctaDisabled ? undefined : {
               boxShadow: [
                 '0 0 18px rgba(250,204,21,0.40), 0 4px 14px rgba(250,204,21,0.24)',
-                '0 0 30px rgba(250,204,21,0.65), 0 6px 24px rgba(250,204,21,0.36)',
+                '0 0 28px rgba(250,204,21,0.60), 0 6px 22px rgba(250,204,21,0.36)',
                 '0 0 18px rgba(250,204,21,0.40), 0 4px 14px rgba(250,204,21,0.24)',
               ],
             }}
             transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-            className="w-full h-14 rounded-2xl font-bangers text-xl tracking-[0.24em] disabled:opacity-55"
+            className="relative w-full h-12 rounded-2xl font-inter text-base font-black tracking-[0.22em] disabled:opacity-55 flex items-center justify-center"
             style={{
               background: ctaDisabled
                 ? 'linear-gradient(135deg, #5a4a14 0%, #6b5318 50%, #4d3f10 100%)'
-                : 'linear-gradient(135deg, #f5c400 0%, #facc15 50%, #e6b800 100%)',
+                : 'linear-gradient(180deg, #ffd84a 0%, #f5c400 55%, #e0ad00 100%)',
               color: '#1a0a00',
+              boxShadow: ctaDisabled
+                ? 'inset 0 1px 0 rgba(255,255,255,0.16)'
+                : 'inset 0 1px 0 rgba(255,255,255,0.55), inset 0 -3px 0 rgba(120,75,0,0.35), 0 8px 20px rgba(0,0,0,0.45)',
             }}
-            aria-label="Meydan Okumaya Başla"
+            aria-label="Davet Et"
           >
-            {loading ? 'LOBİ AÇILIYOR...' : 'MEYDAN OKUMAYA BAŞLA'}
+            <span>{loading ? 'LOBİ AÇILIYOR...' : 'DAVET ET'}</span>
+            {!loading && (
+              <Swords
+                className="absolute"
+                style={{ right: '1.1rem', width: 20, height: 20, color: '#1a0a00' }}
+                strokeWidth={2.2}
+              />
+            )}
           </motion.button>
-          <p
-            className="mt-1.5 text-center font-inter text-[11px]"
-            style={{ color: ctaDisabled && !loading ? 'rgba(252,211,77,0.85)' : 'rgba(207,224,255,0.55)' }}
-          >
-            {ctaDisabled && !loading
-              ? 'En az 1 arkadaş seçmeden başlanamaz.'
-              : loading ? 'Lobi oluşturuluyor...' : 'Lobi açılacak ve arkadaşlarına davet gidecek.'}
-          </p>
+          {!loading && (
+            <p
+              className="mt-1.5 text-center font-inter text-[11px]"
+              style={{ color: ctaDisabled ? 'rgba(252,211,77,0.85)' : 'rgba(207,224,255,0.55)' }}
+            >
+              {ctaDisabled
+                ? 'En az 1 arkadaş seçmeden başlanamaz.'
+                : 'Lobi açılacak ve arkadaşlarına davet gidecek.'}
+            </p>
+          )}
           {onJoinOpenLobby && (
             <button
               type="button"
@@ -250,57 +288,133 @@ export default function OnlineChallengeScreen({
   );
 }
 
-function SectionLabel({ icon: Icon, text, tail }) {
+/* --------------------------- Title block --------------------------- */
+
+function TitleBlock() {
   return (
-    <div className="flex items-center justify-between px-0.5">
-      <div className="flex items-center gap-2">
-        {Icon && <Icon className="h-3.5 w-3.5 text-amber-200/85" />}
-        <p className="font-inter text-[10px] font-black uppercase tracking-[0.18em] text-blue-100/75">
-          {text}
-        </p>
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25 }}
+      className="text-center mt-1"
+    >
+      {/* Crossed swords icon above title */}
+      <div className="flex justify-center mb-1.5">
+        <Swords
+          className="text-white/95"
+          style={{ width: 22, height: 22, filter: 'drop-shadow(0 0 8px rgba(250,204,21,0.45))' }}
+          strokeWidth={2.2}
+        />
       </div>
-      {tail}
-    </div>
+      {/* Title row: ◆────  ONLINE KAPIŞMA  ────◆ */}
+      <div className="flex items-center justify-center gap-2.5">
+        <DecorStar />
+        <h1
+          className="font-cinzel font-black"
+          style={{
+            color: '#f1f4ff',
+            fontSize: 'clamp(17px, 5.2vw, 22px)',
+            letterSpacing: '0.16em',
+            textShadow: '0 0 14px rgba(250,204,21,0.30), 0 2px 4px rgba(0,0,0,0.6)',
+          }}
+        >
+          ONLINE KAPIŞMA
+        </h1>
+        <DecorStar />
+      </div>
+      {/* Thin gold rule below */}
+      <div className="mx-auto mt-1.5" style={{
+        height: 1,
+        width: 'min(70%, 240px)',
+        background: 'linear-gradient(90deg, transparent, rgba(250,204,21,0.55), transparent)',
+      }} />
+      <p className="mt-1.5 font-inter text-[12px] text-blue-100/75">
+        Arkadaşlarını davet et, tarihe meydan oku!
+      </p>
+    </motion.div>
   );
 }
 
-function FriendSelectTrigger({ count, onOpen }) {
-  const empty = count === 0;
+function DecorStar() {
   return (
-    <motion.button
-      type="button"
-      onClick={onOpen}
-      whileTap={{ scale: 0.985 }}
-      className="mt-2 w-full flex items-center gap-3 rounded-2xl p-3 text-left"
+    <span
+      aria-hidden="true"
       style={{
-        background: empty
-          ? 'linear-gradient(180deg, rgba(30,41,75,0.92), rgba(10,16,36,0.96))'
-          : 'linear-gradient(180deg, rgba(34,68,142,0.92), rgba(8,18,42,0.96))',
-        boxShadow: empty
-          ? 'inset 0 0 0 1.5px rgba(120,170,255,0.32), inset 0 1px 0 rgba(255,255,255,0.08)'
-          : 'inset 0 0 0 1.5px rgba(250,204,21,0.75), inset 0 1px 0 rgba(255,255,255,0.10), 0 0 14px rgba(250,204,21,0.28)',
+        display: 'inline-block',
+        width: 8,
+        height: 8,
+        background: '#facc15',
+        transform: 'rotate(45deg)',
+        boxShadow: '0 0 8px rgba(250,204,21,0.65)',
+      }}
+    />
+  );
+}
+
+/* ----------------------- Friend select panel ----------------------- */
+
+function FriendSelectPanel({ count, onOpen }) {
+  // Codex160 — visual correction:
+  //   • Heading is Inter (NOT Cinzel italic) for a clean, upright look.
+  //   • Panel padding tightened so the whole block is a touch shorter
+  //     and never crowds the bottom CTA.
+  //   • Subtitle/typography spacing matches the target reference.
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, delay: 0.05 }}
+      className="mt-2.5 rounded-2xl px-4 pt-3 pb-3.5"
+      style={{
+        background: 'linear-gradient(180deg, rgba(20,32,68,0.85), rgba(8,14,32,0.95))',
+        boxShadow:
+          'inset 0 0 0 1.5px rgba(120,170,255,0.32), inset 0 1px 0 rgba(255,255,255,0.08), 0 8px 18px rgba(2,6,23,0.45)',
       }}
     >
-      <div
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+      {/* Center icon + heading */}
+      <div className="flex flex-col items-center text-center">
+        <Users
+          className="mb-1"
+          style={{ width: 24, height: 24, color: '#60a5fa', filter: 'drop-shadow(0 0 8px rgba(96,165,250,0.55))' }}
+          strokeWidth={2.2}
+        />
+        {/* Upright Inter (not Cinzel) — fixes the previous italic feel. */}
+        <p
+          className="font-inter"
+          style={{
+            color: '#f1f4ff',
+            fontSize: 'clamp(14px, 4vw, 16px)',
+            fontWeight: 800,
+            letterSpacing: '0.16em',
+            fontStyle: 'normal',
+          }}
+        >
+          ARKADAŞ SEÇ
+        </p>
+        <p className="mt-0.5 font-inter text-[11.5px] text-blue-100/70 leading-snug">
+          Meydan okumak istediğin<br />arkadaşını seç
+        </p>
+      </div>
+
+      {/* Dropdown-style trigger */}
+      <button
+        type="button"
+        onClick={onOpen}
+        className="mt-2.5 w-full flex items-center justify-between rounded-xl px-3.5 py-2.5 text-left"
         style={{
-          background: empty
-            ? 'radial-gradient(circle at 35% 28%, rgba(125,211,252,0.85), rgba(30,58,138,0.95) 75%)'
-            : 'radial-gradient(circle at 35% 28%, #ffe066, #b97a06 75%)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4), 0 0 10px rgba(59,130,246,0.28)',
+          background: 'rgba(8,14,32,0.75)',
+          boxShadow: 'inset 0 0 0 1px rgba(120,170,255,0.30)',
         }}
+        aria-label="Arkadaş seç"
       >
-        <UserRound className={empty ? 'h-5 w-5 text-blue-50' : 'h-5 w-5 text-amber-950'} strokeWidth={2.4} />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="font-inter text-[14px] font-bold text-white">
-          {empty ? 'Arkadaş seçin' : `${count} arkadaş seçildi`}
-        </p>
-        <p className="font-inter text-[11px] text-blue-100/65">
-          1, 2 veya 3 arkadaş seçebilirsin
-        </p>
-      </div>
-      <ChevronDown className="h-4 w-4 text-blue-100/60" />
-    </motion.button>
+        <span className="font-inter text-[13.5px] text-blue-100/75">
+          {count === 0
+            ? 'Arkadaş seç...'
+            : count === 1 ? '1 arkadaş seçildi'
+            : `${count} arkadaş seçildi`}
+        </span>
+        <ChevronDown className="h-5 w-5 text-blue-100/60" strokeWidth={2.4} />
+      </button>
+    </motion.div>
   );
 }

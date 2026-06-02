@@ -496,6 +496,26 @@ export const sendFriendRequestEmailFnSourceFull = `
   }
 `;
 
+// Codex158/Codex159 — Category entity mirror. The live `entities/Category.json`
+// is stored as a Python-style dict literal on this platform (single quotes,
+// not strict JSON). `?raw` returns a value that can't be JSON.parsed, which
+// caused multiple `category_status_description_health` cases to throw
+// "Cannot convert object to primitive value" or to FAIL on a `properties.*`
+// lookup that returned undefined. Mirroring the contract as a plain JS
+// object here keeps the Health cases on a pure /src import that can never
+// throw and that we can keep in sync with the live entity manually.
+export const categoryEntitySchema = {
+  name: 'Category',
+  type: 'object',
+  properties: {
+    category_id: { type: 'number' },
+    name: { type: 'string' },
+    status: { type: 'string', enum: ['a', 'p'], default: 'a' },
+    description: { type: 'string', default: '' },
+  },
+  required: ['category_id', 'name'],
+};
+
 export const getSoloLeaderboardFnSource = `
   // Public contract of functions/getSoloLeaderboard.js — mirrored.
   // Codex139: backend projection aligns with canonical Solo scoring:

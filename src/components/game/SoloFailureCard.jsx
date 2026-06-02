@@ -1,7 +1,12 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { RotateCcw, ListChecks, Clock, Star, X, Zap } from 'lucide-react';
-import { formatDuration } from './GameOverTimer';
+import { RotateCcw, ListChecks, TimerReset, Star, X, Zap } from 'lucide-react';
+// Codex164 — Solo failure popup now uses the same compact MM:SS time
+// format and the same SoloStatCard layout as the success popup so the
+// two screens stay visually identical. We deliberately keep
+// GameOverTimer.formatDuration around for its other callers.
+import SoloStatCard from './SoloStatCard';
+import { formatCompactDuration } from '@/lib/soloTimeFormat';
 
 /**
  * Solo FAILURE result popup.
@@ -32,8 +37,8 @@ export default function SoloFailureCard({
   // to the standard solo time budget (120s) when caller doesn't pass it.
   maxTimeSeconds = 120,
 }) {
-  const formattedTime = formatDuration(timeSeconds);
-  const formattedMax = formatDuration(maxTimeSeconds);
+  const formattedTime = formatCompactDuration(timeSeconds);
+  const formattedMax = formatCompactDuration(maxTimeSeconds);
 
   const sublinePrimary = failReason === 'timeout'
     ? 'Üzgünüm, süre bitti.'
@@ -138,40 +143,41 @@ export default function SoloFailureCard({
 
           {/* 2x2 stat grid */}
           <div className="grid grid-cols-2 gap-2.5">
-            <StatCard
-              icon={Clock}
+            <SoloStatCard
+              icon={TimerReset}
               iconColor="#5aa9ff"
-              ringColor="rgba(90,169,255,0.55)"
+              iconRingColor="rgba(90,169,255,0.55)"
               label="TOPLAM SÜRE"
               value={formattedTime}
-              footer={`Maksimum Süre: ${formattedMax}`}
-              footerTone="muted"
+              valueColor="#ffffff"
+              footer={<FailureFooter tone="muted">{`Maksimum: ${formattedMax}`}</FailureFooter>}
             />
-            <StatCard
+            <SoloStatCard
               icon={Star}
               iconColor="#facc15"
               iconFill="#facc15"
-              ringColor="rgba(250,204,21,0.55)"
-              label="KAZANILAN PUAN"
+              iconRingColor="rgba(250,204,21,0.55)"
+              label={<>KAZANILAN<br />PUAN</>}
               value={String(levelScore)}
-              footer="Puan"
-              footerTone="gold"
+              valueColor="#facc15"
+              footer={<FailureFooter tone="gold">Puan</FailureFooter>}
             />
-            <StatCard
+            <SoloStatCard
               icon={X}
               iconColor="#ff4d6d"
-              ringColor="rgba(255,77,109,0.55)"
+              iconRingColor="rgba(255,77,109,0.55)"
               label="HATA SAYISI"
               value={String(mistakes)}
-              footer="Hata"
-              footerTone="red"
+              valueColor="#ff4d6d"
+              footer={<FailureFooter tone="red">Hata</FailureFooter>}
             />
-            <StatCard
+            <SoloStatCard
               icon={Zap}
               iconColor="#ff4d6d"
-              ringColor="rgba(255,77,109,0.55)"
+              iconRingColor="rgba(255,77,109,0.55)"
               label="HIZ BONUSU"
               valueNode={<X className="w-7 h-7" strokeWidth={3.4} style={{ color: '#ff4d6d' }} />}
+              valueColor="#ff4d6d"
             />
           </div>
 
@@ -339,96 +345,28 @@ function Shard({ top, bottom, left, right, rotate = 0 }) {
 }
 
 /**
- * Stat card matching the reference: rounded panel, circular icon (with
- * colored ring), uppercase label, large value (or custom node), tinted
- * footer string.
+ * Codex164 — Small tinted footer text shown under the value of each
+ * SoloStatCard in the failure popup. Mirrors the success popup's
+ * UnitLabel so both popups have the same secondary-text rhythm.
  */
-function StatCard({
-  icon: Icon,
-  iconColor,
-  iconFill,
-  ringColor,
-  label,
-  value,
-  valueNode,
-  footer,
-  footerTone = 'muted',
-}) {
-  const footerColors = {
-    muted: 'rgba(167,184,219,0.65)',
+function FailureFooter({ children, tone = 'muted' }) {
+  const palette = {
+    muted: 'rgba(167,184,219,0.7)',
     gold: '#facc15',
     red: '#ff4d6d',
   };
   return (
-    <div
-      className="rounded-2xl p-3 flex gap-3 items-center"
+    <span
+      className="font-inter"
       style={{
-        background: 'linear-gradient(180deg, rgba(20,28,55,0.92), rgba(8,13,32,0.95))',
-        boxShadow:
-          'inset 0 0 0 1px rgba(255,255,255,0.06), 0 4px 10px rgba(0,0,0,0.35)',
-        minHeight: 84,
+        color: palette[tone] || palette.muted,
+        fontSize: '11px',
+        fontWeight: 600,
+        letterSpacing: '0.02em',
       }}
     >
-      {/* Circular icon */}
-      <div
-        className="flex items-center justify-center rounded-full shrink-0"
-        style={{
-          width: 44,
-          height: 44,
-          background: 'rgba(255,255,255,0.04)',
-          boxShadow: `inset 0 0 0 2px ${ringColor}`,
-        }}
-      >
-        <Icon
-          className="w-5 h-5"
-          strokeWidth={2.4}
-          style={{ color: iconColor, fill: iconFill || 'transparent' }}
-        />
-      </div>
-
-      {/* Text column */}
-      <div className="flex-1 min-w-0">
-        <p
-          className="font-inter uppercase truncate"
-          style={{
-            fontSize: 9.5,
-            fontWeight: 700,
-            letterSpacing: '0.08em',
-            color: 'rgba(199,210,234,0.72)',
-          }}
-        >
-          {label}
-        </p>
-        <div className="mt-0.5 flex items-center" style={{ minHeight: 26 }}>
-          {valueNode ? (
-            valueNode
-          ) : (
-            <span
-              className="font-bangers tracking-wider text-white"
-              style={{
-                fontSize: 'clamp(18px, 5.4vw, 22px)',
-                lineHeight: 1,
-                textShadow: '0 1px 2px rgba(0,0,0,0.5)',
-              }}
-            >
-              {value}
-            </span>
-          )}
-        </div>
-        {footer && (
-          <p
-            className="font-inter mt-0.5 truncate"
-            style={{
-              fontSize: 10.5,
-              fontWeight: 600,
-              color: footerColors[footerTone] || footerColors.muted,
-            }}
-          >
-            {footer}
-          </p>
-        )}
-      </div>
-    </div>
+      {children}
+    </span>
   );
 }
 

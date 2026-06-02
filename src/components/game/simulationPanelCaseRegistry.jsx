@@ -141,6 +141,22 @@ import * as backendSecurityCases from './simulationPanelBackendSecurityCases';
 // Codex155 — Question dataset DB preparation: Category entity + fixed seed
 // path, future Question metadata fields, and no gameplay schema switch yet.
 import * as questionSchemaCases from './simulationPanelQuestionSchemaCases';
+// Codex158 — Category status/description contracts: schema fields, seed
+// all-active + non-empty descriptions, shared active-filter helper, and
+// passive categories hidden from UI selection.
+import * as categoryStatusCases from './simulationPanelCategoryStatusCases';
+// Codex163 — Placement Feedback Animation: visual-only correct/wrong
+// drop feedback (green pulse / red glow + shake + void-reject), no
+// changes to drag/drop, hit-testing, scoring, or timeline ordering.
+import * as placementFeedbackCases from './simulationPanelPlacementFeedbackCases';
+// Codex164 — Solo Result Popup UI correction: shared SoloStatCard,
+// shared MM:SS time formatter, two-line "Kazanılan Puan" layout, and
+// TimerReset icon swap. Visual-only; popup props are unchanged.
+import * as soloPopupCases from './simulationPanelSoloPopupCases';
+// Codex166 — Solo Question Selection Engine: controlled 18-card attempt
+// deck (unique ids + unique years), active-only filtering, clean failure
+// on insufficient unique years, replay produces a fresh deck.
+import * as soloQuestionEngineCases from './simulationPanelSoloQuestionEngineCases';
 
 const MODULES = [
   soloProgressCases,
@@ -173,6 +189,10 @@ const MODULES = [
   adminAuthorizationCases,
   backendSecurityCases,
   questionSchemaCases,
+  categoryStatusCases,
+  placementFeedbackCases,
+  soloPopupCases,
+  soloQuestionEngineCases,
 ];
 
 function flatten(key) {

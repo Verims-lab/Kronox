@@ -1,47 +1,79 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useLayoutEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Hourglass, Zap, Landmark, Radio, Trophy, Gamepad2, ScrollText, Check } from 'lucide-react';
+import { Calendar, Clock, Crown, Radio, Trophy, Gamepad2 } from 'lucide-react';
 import { sounds } from '@/lib/gameSounds';
 
 /**
- * Kronox Online — Horizontal category carousel (Codex127).
+ * Kronox Online — Compact category carousel (Codex159).
  *
- * Multiple-select horizontal scroller for the six Online categories.
- * Each card uses the Kronox premium fantasy frame: gold gradient + stone
- * bevel when selected, blue stone when unselected. The whole row scrolls
- * horizontally with snap; pagination dots reflect the currently centered
- * card group for orientation only (purely visual).
+ * Smaller, horizontally-scrollable category cards that match the target
+ * design: rounded square card with a category icon at the top, the
+ * category name in bold below it, and a short description label at the
+ * bottom. Selected card gets a gold ring + a soft gold halo.
  *
- * Props:
- *   categories         : Array<{ id, label }>
- *   selectedIds        : Array<string>
- *   onToggle(id)       : selection toggle (parent owns state)
- *
- * Layout contract: zero vertical scroll. Width = 100% of parent; cards
- * sized to fit ~2.6 per viewport on mobile, snap to start.
+ * Props
+ *   categories  : Array<{ id, label, description }>
+ *   selectedIds : string[]
+ *   onToggle(id): toggle handler — parent owns the selection state.
  */
 
 const CATEGORY_ICONS = {
-  flashback: Zap,
-  kult: Landmark,
+  chronicle: Calendar,
+  flashback: Clock,
+  kult: Crown,
   viral: Radio,
   arena: Trophy,
   level_up: Gamepad2,
-  chronicle: ScrollText,
+};
+
+const ICON_COLOR = {
+  chronicle: '#facc15',
+  flashback: '#60a5fa',
+  kult: '#c084fc',
+  viral: '#f472b6',
+  arena: '#34d399',
+  level_up: '#fb923c',
 };
 
 export default function OnlineCategoryCarousel({ categories, selectedIds, onToggle }) {
   const scrollerRef = useRef(null);
   const [activeDot, setActiveDot] = useState(0);
+  // Codex161 — One-shot initial-scroll guard. We reset scrollLeft to 0
+  // on first mount AND again the first time real categories arrive (the
+  // parent may render with a fallback list first, then swap to the DB
+  // list once it loads — that swap remounts children with the same
+  // scroller ref, so we have to re-reset). After that, the user owns
+  // the scroll position — no programmatic resets, ever.
+  const didInitialScrollRef = useRef(false);
 
-  // Update active dot based on scroll position (purely visual).
   const updateDot = useCallback(() => {
     const el = scrollerRef.current;
-    if (!el) return;
+    if (!el || !categories.length) return;
     const cardWidth = el.scrollWidth / categories.length;
     const idx = Math.round(el.scrollLeft / cardWidth);
     setActiveDot(Math.min(categories.length - 1, Math.max(0, idx)));
   }, [categories.length]);
+
+  // Codex161 — Pin the carousel to the left edge on first paint so the
+  // first card (ID 1 / Chronicle) is always visible when the Online
+  // screen mounts. useLayoutEffect runs before the browser commits the
+  // initial layout, so the user never sees a flash of a mid-scroll
+  // position. We wrap the reset in requestAnimationFrame as a safety
+  // net for engines that defer scroll-snap calculations until after the
+  // first commit.
+  useLayoutEffect(() => {
+    if (didInitialScrollRef.current) return;
+    if (!categories || categories.length === 0) return;
+    const el = scrollerRef.current;
+    if (!el) return;
+    el.scrollLeft = 0;
+    const raf = requestAnimationFrame(() => {
+      if (scrollerRef.current) scrollerRef.current.scrollLeft = 0;
+    });
+    setActiveDot(0);
+    didInitialScrollRef.current = true;
+    return () => cancelAnimationFrame(raf);
+  }, [categories]);
 
   useEffect(() => {
     const el = scrollerRef.current;
@@ -54,7 +86,7 @@ export default function OnlineCategoryCarousel({ categories, selectedIds, onTogg
     <div className="w-full">
       <div
         ref={scrollerRef}
-        className="flex gap-3 overflow-x-auto pb-2"
+        className="flex gap-3 overflow-x-auto pb-1"
         style={{
           scrollSnapType: 'x mandatory',
           WebkitOverflowScrolling: 'touch',
@@ -62,9 +94,10 @@ export default function OnlineCategoryCarousel({ categories, selectedIds, onTogg
           scrollbarWidth: 'none',
         }}
       >
-        <style>{`.kx-cat-scroll::-webkit-scrollbar{display:none}`}</style>
+        <style>{`div::-webkit-scrollbar{display:none}`}</style>
         {categories.map((cat) => {
-          const Icon = CATEGORY_ICONS[cat.id] || Hourglass;
+          const Icon = CATEGORY_ICONS[cat.id] || Calendar;
+          const tint = ICON_COLOR[cat.id] || '#facc15';
           const isSelected = selectedIds.includes(cat.id);
           return (
             <motion.button
@@ -73,68 +106,65 @@ export default function OnlineCategoryCarousel({ categories, selectedIds, onTogg
               onClick={() => { sounds.tick(); onToggle(cat.id); }}
               whileTap={{ scale: 0.96 }}
               transition={{ type: 'spring', stiffness: 520, damping: 24 }}
-              className="relative shrink-0 rounded-2xl p-3 flex flex-col items-center justify-between"
+              className="relative shrink-0 rounded-2xl flex flex-col items-center justify-between"
               style={{
-                width: '38vw',
-                maxWidth: '160px',
-                minWidth: '120px',
-                aspectRatio: '0.78',
+                // Codex160 — slightly smaller card footprint to free
+                // vertical room for the friend panel + CTA, while the
+                // inner icon is bumped up so the visual weight matches
+                // the target reference (Attachment 2).
+                width: '29vw',
+                maxWidth: '120px',
+                minWidth: '102px',
+                aspectRatio: '0.82',
+                padding: '10px 8px 9px',
                 scrollSnapAlign: 'start',
-                background: isSelected
-                  ? 'linear-gradient(180deg, rgba(250,204,21,0.16) 0%, rgba(120,80,8,0.10) 50%, rgba(6,10,24,0.95) 100%)'
-                  : 'linear-gradient(180deg, rgba(30,41,75,0.92) 0%, rgba(14,22,46,0.96) 60%, rgba(6,10,24,0.98) 100%)',
+                background: 'linear-gradient(180deg, rgba(20,32,68,0.9) 0%, rgba(10,18,42,0.96) 60%, rgba(6,10,24,0.98) 100%)',
                 boxShadow: isSelected
-                  ? 'inset 0 0 0 2px rgba(250,204,21,0.95), inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -12px 16px rgba(0,0,0,0.45), 0 0 22px rgba(250,204,21,0.45), 0 8px 18px rgba(2,6,23,0.55)'
-                  : 'inset 0 0 0 1.5px rgba(120,170,255,0.32), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -10px 14px rgba(0,0,0,0.42), 0 6px 14px rgba(2,6,23,0.5)',
+                  ? 'inset 0 0 0 2px rgba(250,204,21,0.95), inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -10px 14px rgba(0,0,0,0.42), 0 0 22px rgba(250,204,21,0.40)'
+                  : 'inset 0 0 0 1.5px rgba(120,170,255,0.30), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -10px 14px rgba(0,0,0,0.42), 0 6px 14px rgba(2,6,23,0.5)',
               }}
               aria-pressed={isSelected}
               aria-label={`${cat.label} kategorisini ${isSelected ? 'kaldır' : 'seç'}`}
             >
-              {isSelected && (
-                <div
-                  className="absolute -top-1.5 -right-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full"
+              {/* Icon — Codex160: larger glyph (was 26 → 32) for clearer
+                  category identity at smaller card sizes. */}
+              <div className="flex items-center justify-center" style={{ height: 36 }}>
+                <Icon
                   style={{
-                    background: 'linear-gradient(180deg,#ffe066,#b97a06)',
-                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.45), 0 0 10px rgba(250,204,21,0.6)',
+                    width: 32,
+                    height: 32,
+                    color: tint,
+                    filter: `drop-shadow(0 0 7px ${hexAlpha(tint, 0.55)})`,
                   }}
-                >
-                  <Check className="h-3.5 w-3.5 text-amber-950" strokeWidth={3.2} />
-                </div>
-              )}
-
-              {/* Icon disc */}
-              <div
-                className="flex h-14 w-14 items-center justify-center rounded-full"
-                style={{
-                  background: isSelected
-                    ? 'radial-gradient(circle at 35% 28%, #ffe066, #b97a06 75%)'
-                    : 'radial-gradient(circle at 35% 28%, rgba(125,211,252,0.85), rgba(30,58,138,0.95) 75%)',
-                  boxShadow: isSelected
-                    ? 'inset 0 1px 0 rgba(255,255,255,0.5), 0 0 16px rgba(250,204,21,0.5)'
-                    : 'inset 0 1px 0 rgba(255,255,255,0.32), 0 0 12px rgba(59,130,246,0.4)',
-                }}
-              >
-                <Icon className={isSelected ? 'h-7 w-7 text-amber-950' : 'h-7 w-7 text-blue-50'} strokeWidth={2.2} />
+                  strokeWidth={2.2}
+                />
               </div>
 
-              {/* Label */}
+              {/* Name */}
               <p
-                className="font-cinzel text-[12px] font-black tracking-[0.16em] text-center mt-2"
+                className="font-inter font-black text-center mt-1.5"
                 style={{
-                  color: isSelected ? '#ffe066' : '#cfe0ff',
-                  textShadow: isSelected ? '0 0 10px rgba(250,204,21,0.55)' : 'none',
+                  color: isSelected ? '#ffe066' : '#f1f4ff',
+                  fontSize: 'clamp(11px, 3.1vw, 12.5px)',
+                  letterSpacing: '0.05em',
+                  textShadow: isSelected ? '0 0 8px rgba(250,204,21,0.55)' : 'none',
+                  lineHeight: 1.1,
                 }}
               >
                 {cat.label}
               </p>
 
-              {/* Selected ribbon (subtle) */}
-              {isSelected && (
+              {/* Description */}
+              {cat.description && (
                 <p
-                  className="font-inter text-[9px] font-black tracking-widest uppercase mt-1"
-                  style={{ color: 'rgba(255,224,102,0.85)' }}
+                  className="font-inter text-center mt-0.5 line-clamp-2"
+                  style={{
+                    color: 'rgba(207,224,255,0.65)',
+                    fontSize: 'clamp(9px, 2.5vw, 10px)',
+                    lineHeight: 1.15,
+                  }}
                 >
-                  SEÇİLDİ
+                  {cat.description}
                 </p>
               )}
             </motion.button>
@@ -142,15 +172,15 @@ export default function OnlineCategoryCarousel({ categories, selectedIds, onTogg
         })}
       </div>
 
-      {/* Pagination dots — purely visual orientation hint */}
-      <div className="flex justify-center gap-1.5 mt-1.5" aria-hidden="true">
+      {/* Pagination dots */}
+      <div className="flex justify-center gap-1.5 mt-2" aria-hidden="true">
         {categories.map((_, idx) => (
           <span
             key={idx}
             className="h-1 rounded-full transition-all"
             style={{
               width: idx === activeDot ? '14px' : '4px',
-              background: idx === activeDot ? 'rgba(250,204,21,0.85)' : 'rgba(125,211,252,0.35)',
+              background: idx === activeDot ? 'rgba(250,204,21,0.85)' : 'rgba(125,211,252,0.30)',
               boxShadow: idx === activeDot ? '0 0 6px rgba(250,204,21,0.55)' : 'none',
             }}
           />
@@ -158,4 +188,14 @@ export default function OnlineCategoryCarousel({ categories, selectedIds, onTogg
       </div>
     </div>
   );
+}
+
+function hexAlpha(hex, alpha) {
+  const m = String(hex || '').replace('#', '').match(/^([\da-f]{6})$/i);
+  if (!m) return `rgba(250,204,21,${alpha})`;
+  const num = parseInt(m[1], 16);
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+  return `rgba(${r},${g},${b},${alpha})`;
 }

@@ -1,7 +1,7 @@
 {
   "name": "OnlineMatchResult",
   "type": "object",
-  "description": "Codex139 — Durable per-user Online scoring audit/idempotency record. One logical row should exist per player_email + lobby_id. Base44 schema uniqueness is not assumed, so runtime checks filter by both fields before applying score.",
+  "description": "Codex139 \u2014 Durable per-user Online scoring audit/idempotency record. One logical row should exist per player_email + lobby_id. Base44 schema uniqueness is not assumed, so runtime checks filter by both fields before applying score.",
   "properties": {
     "lobby_id": {
       "type": "string",
@@ -91,16 +91,9 @@
       ]
     },
     "update": {
-      "$or": [
-        {
-          "data.player_email": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+      "user_condition": {
+        "role": "admin"
+      }
     },
     "delete": {
       "user_condition": {

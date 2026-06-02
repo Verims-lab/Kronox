@@ -1,7 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Gem, Sparkles, Trophy } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
-import ScreenHeader from '@/components/layout/ScreenHeader';
+// Codex167 — Liderlik üst barı Home/Solo standardına hizalandı: ortada
+// gerçek persisted Elmas + sağda notification bell. Profil/avatar üst
+// bardan kaldırıldı (kullanıcı talebi). Title "Liderlik Tablosu" zaten
+// ekran içeriğinde duruyor.
+import StandardTopBar from '@/components/layout/StandardTopBar';
 import { ensureSoloProgressBackfill, getSoloLevelCount, readSoloProgress } from '@/lib/soloLevels';
 import { summarizeSoloProgress } from '@/lib/soloProgressHelpers';
 import { getKronoxVisibleScore } from '@/lib/kronoxScore';
@@ -200,7 +204,7 @@ export default function LeaderboardPage() {
         userSelect: 'none',
       }}
     >
-      <ScreenHeader title="Liderlik" user={user} />
+      <StandardTopBar diamonds={diamondValue} user={user} />
 
       <div className="mx-auto w-full max-w-md px-4 mt-2 space-y-3">
         <div

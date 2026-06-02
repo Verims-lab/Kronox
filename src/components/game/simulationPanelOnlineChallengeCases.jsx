@@ -219,27 +219,34 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 7. Yeni Online ekran ScreenHeader kullanır — ortak top-bar standardı. */
-  makeCase('online_challenge_flow', 'online_uses_shared_screen_header',
-    'OnlineChallengeScreen uses the shared <ScreenHeader> with headerStats (Puan + Elmas)',
+  /* 7. Codex159 — Yeni Online ekran StandardTopBar kullanır (Home/Solo ile
+        aynı): back + diamond chip + bell. Avatar/score chip artık BURADA
+        gösterilmez (yeni hedef tasarım kararı). */
+  makeCase('online_challenge_flow', 'online_uses_shared_top_bar',
+    'OnlineChallengeScreen uses the shared <StandardTopBar> (back + diamond + bell, no avatar) — Codex159 redesign',
     () => {
       const required = missingTokens(onlineChallengeScreenSource, [
-        "import ScreenHeader from '@/components/layout/ScreenHeader'",
-        'headerStats={{',
-        'getKronoxVisibleScore',
+        "import StandardTopBar from '@/components/layout/StandardTopBar'",
+        '<StandardTopBar',
+        'showBack',
         'getLeaderboardDiamondValue',
       ]);
-      if (required.length) {
-        return fail('Shared ScreenHeader not wired on Online screen.', {
+      // Avatar/score chip must NOT live on this screen anymore.
+      const forbidden = forbiddenTokensFound(onlineChallengeScreenSource, [
+        'headerStats={{',
+        "import ScreenHeader from '@/components/layout/ScreenHeader'",
+      ]);
+      if (required.length || forbidden.length) {
+        return fail('StandardTopBar (back + diamond + bell) is not wired on Online screen.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'OnlineChallengeScreen.jsx',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'ScreenHeader import + headerStats Puan/Elmas',
-          actual: { required },
+          expected: 'StandardTopBar import + back arrow + diamond chip (no ScreenHeader, no headerStats)',
+          actual: { required, forbidden },
         });
       }
-      return pass('Shared ScreenHeader is used.',
+      return pass('StandardTopBar is used (back + diamond + bell, no avatar).',
         { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
