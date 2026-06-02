@@ -52,8 +52,10 @@ export default function OnlineChallengeScreen({
   const [friendModalOpen, setFriendModalOpen] = useState(false);
   const [dbCategories, setDbCategories] = useState(null);
 
-  // Codex159 — Pull categories from the DB lookup table and keep only
-  // status === "a" rows via the shared filter helper. Rows missing
+  // Codex159/Codex160 — Pull categories from the DB lookup table, keep
+  // only status === "a" rows via the shared filter helper, then sort by
+  // category_id ASC so the visual left-to-right order matches the DB
+  // contract (Chronicle=1 → Flashback=2 → Kült=3 → ...). Rows missing
   // status are treated as active for backward compatibility (see
   // lib/categoryFilters.js). If the DB query fails or returns nothing,
   // we fall back to the static taxonomy so the screen never breaks.
@@ -63,7 +65,9 @@ export default function OnlineChallengeScreen({
       .list('category_id', 50)
       .then((rows) => {
         if (cancelled) return;
-        const active = filterActiveCategories(rows || []);
+        const active = filterActiveCategories(rows || [])
+          .slice()
+          .sort((a, b) => (Number(a.category_id) || 0) - (Number(b.category_id) || 0));
         if (active.length === 0) { setDbCategories(null); return; }
         setDbCategories(active);
       })
@@ -154,8 +158,12 @@ export default function OnlineChallengeScreen({
       <main
         className="flex-1 flex flex-col px-4"
         style={{
-          paddingTop: 'calc(3.5rem + env(safe-area-inset-top))',
-          paddingBottom: 'calc(4rem + env(safe-area-inset-bottom) + 6.5rem)', // BottomNav + CTA
+          // Codex160 — Tighter top/bottom reservation: header band stays
+          // identical, bottom reservation = BottomNav (4rem) + CTA stack
+          // (smaller now ~5.25rem). This frees real vertical space the
+          // friend-panel needs without ever overlapping the yellow CTA.
+          paddingTop: 'calc(3.25rem + env(safe-area-inset-top))',
+          paddingBottom: 'calc(4rem + env(safe-area-inset-bottom) + 5.25rem)',
           minHeight: 0,
           overflow: 'hidden',
         }}
@@ -175,8 +183,9 @@ export default function OnlineChallengeScreen({
         {/* Title block — sword icon + gold stars + ornamental rule */}
         <TitleBlock />
 
-        {/* Category carousel — compact cards, DB-driven (active only) */}
-        <div className="mt-3">
+        {/* Category carousel — compact cards, DB-driven (active only,
+            sorted by category_id ASC). */}
+        <div className="mt-2.5">
           <OnlineCategoryCarousel
             categories={carouselCategories}
             selectedIds={selectedCategories}
@@ -184,7 +193,8 @@ export default function OnlineChallengeScreen({
           />
         </div>
 
-        {/* Friend select panel */}
+        {/* Friend select panel — moved closer to the carousel so the
+            panel never crowds the bottom CTA. */}
         <FriendSelectPanel
           count={selectedEmails.length}
           onOpen={() => { sounds.tap(); setFriendModalOpen(true); }}
@@ -198,12 +208,14 @@ export default function OnlineChallengeScreen({
         )}
       </main>
 
-      {/* Bottom CTA — "DAVET ET" */}
+      {/* Bottom CTA — "DAVET ET". Codex160: slightly shorter (h-12) so
+          the panel above keeps clean breathing room and we never push
+          into BottomNav even on small phones. */}
       <div
         className="fixed left-0 right-0 z-40 px-4 pointer-events-none"
         style={{
           bottom: 'calc(4rem + env(safe-area-inset-bottom))',
-          paddingBottom: '0.5rem',
+          paddingBottom: '0.4rem',
         }}
       >
         <div className="mx-auto max-w-md pointer-events-auto">
@@ -215,12 +227,12 @@ export default function OnlineChallengeScreen({
             animate={ctaDisabled ? undefined : {
               boxShadow: [
                 '0 0 18px rgba(250,204,21,0.40), 0 4px 14px rgba(250,204,21,0.24)',
-                '0 0 30px rgba(250,204,21,0.65), 0 6px 24px rgba(250,204,21,0.40)',
+                '0 0 28px rgba(250,204,21,0.60), 0 6px 22px rgba(250,204,21,0.36)',
                 '0 0 18px rgba(250,204,21,0.40), 0 4px 14px rgba(250,204,21,0.24)',
               ],
             }}
             transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-            className="relative w-full h-14 rounded-2xl font-inter text-lg font-black tracking-[0.22em] disabled:opacity-55 flex items-center justify-center"
+            className="relative w-full h-12 rounded-2xl font-inter text-base font-black tracking-[0.22em] disabled:opacity-55 flex items-center justify-center"
             style={{
               background: ctaDisabled
                 ? 'linear-gradient(135deg, #5a4a14 0%, #6b5318 50%, #4d3f10 100%)'
@@ -228,7 +240,7 @@ export default function OnlineChallengeScreen({
               color: '#1a0a00',
               boxShadow: ctaDisabled
                 ? 'inset 0 1px 0 rgba(255,255,255,0.16)'
-                : 'inset 0 1px 0 rgba(255,255,255,0.55), inset 0 -3px 0 rgba(120,75,0,0.35), 0 8px 22px rgba(0,0,0,0.45)',
+                : 'inset 0 1px 0 rgba(255,255,255,0.55), inset 0 -3px 0 rgba(120,75,0,0.35), 0 8px 20px rgba(0,0,0,0.45)',
             }}
             aria-label="Davet Et"
           >
@@ -236,7 +248,7 @@ export default function OnlineChallengeScreen({
             {!loading && (
               <Swords
                 className="absolute"
-                style={{ right: '1.25rem', width: 22, height: 22, color: '#1a0a00' }}
+                style={{ right: '1.1rem', width: 20, height: 20, color: '#1a0a00' }}
                 strokeWidth={2.2}
               />
             )}
@@ -342,12 +354,17 @@ function DecorStar() {
 /* ----------------------- Friend select panel ----------------------- */
 
 function FriendSelectPanel({ count, onOpen }) {
+  // Codex160 — visual correction:
+  //   • Heading is Inter (NOT Cinzel italic) for a clean, upright look.
+  //   • Panel padding tightened so the whole block is a touch shorter
+  //     and never crowds the bottom CTA.
+  //   • Subtitle/typography spacing matches the target reference.
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, delay: 0.05 }}
-      className="mt-3 rounded-2xl p-4"
+      className="mt-2.5 rounded-2xl px-4 pt-3 pb-3.5"
       style={{
         background: 'linear-gradient(180deg, rgba(20,32,68,0.85), rgba(8,14,32,0.95))',
         boxShadow:
@@ -357,21 +374,24 @@ function FriendSelectPanel({ count, onOpen }) {
       {/* Center icon + heading */}
       <div className="flex flex-col items-center text-center">
         <Users
-          className="mb-1.5"
-          style={{ width: 26, height: 26, color: '#60a5fa', filter: 'drop-shadow(0 0 8px rgba(96,165,250,0.55))' }}
+          className="mb-1"
+          style={{ width: 24, height: 24, color: '#60a5fa', filter: 'drop-shadow(0 0 8px rgba(96,165,250,0.55))' }}
           strokeWidth={2.2}
         />
+        {/* Upright Inter (not Cinzel) — fixes the previous italic feel. */}
         <p
-          className="font-cinzel font-black"
+          className="font-inter"
           style={{
             color: '#f1f4ff',
-            fontSize: 'clamp(15px, 4.4vw, 18px)',
-            letterSpacing: '0.18em',
+            fontSize: 'clamp(14px, 4vw, 16px)',
+            fontWeight: 800,
+            letterSpacing: '0.16em',
+            fontStyle: 'normal',
           }}
         >
           ARKADAŞ SEÇ
         </p>
-        <p className="mt-1 font-inter text-[12px] text-blue-100/70 leading-snug">
+        <p className="mt-0.5 font-inter text-[11.5px] text-blue-100/70 leading-snug">
           Meydan okumak istediğin<br />arkadaşını seç
         </p>
       </div>
@@ -380,14 +400,14 @@ function FriendSelectPanel({ count, onOpen }) {
       <button
         type="button"
         onClick={onOpen}
-        className="mt-3 w-full flex items-center justify-between rounded-xl px-4 py-3 text-left"
+        className="mt-2.5 w-full flex items-center justify-between rounded-xl px-3.5 py-2.5 text-left"
         style={{
           background: 'rgba(8,14,32,0.75)',
           boxShadow: 'inset 0 0 0 1px rgba(120,170,255,0.30)',
         }}
         aria-label="Arkadaş seç"
       >
-        <span className="font-inter text-[14px] text-blue-100/75">
+        <span className="font-inter text-[13.5px] text-blue-100/75">
           {count === 0
             ? 'Arkadaş seç...'
             : count === 1 ? '1 arkadaş seçildi'

@@ -80,11 +80,15 @@ export default function OnlineCategoryCarousel({ categories, selectedIds, onTogg
               transition={{ type: 'spring', stiffness: 520, damping: 24 }}
               className="relative shrink-0 rounded-2xl flex flex-col items-center justify-between"
               style={{
-                width: '32vw',
-                maxWidth: '132px',
-                minWidth: '108px',
-                aspectRatio: '0.85',
-                padding: '12px 10px 10px',
+                // Codex160 — slightly smaller card footprint to free
+                // vertical room for the friend panel + CTA, while the
+                // inner icon is bumped up so the visual weight matches
+                // the target reference (Attachment 2).
+                width: '29vw',
+                maxWidth: '120px',
+                minWidth: '102px',
+                aspectRatio: '0.82',
+                padding: '10px 8px 9px',
                 scrollSnapAlign: 'start',
                 background: 'linear-gradient(180deg, rgba(20,32,68,0.9) 0%, rgba(10,18,42,0.96) 60%, rgba(6,10,24,0.98) 100%)',
                 boxShadow: isSelected
@@ -94,14 +98,15 @@ export default function OnlineCategoryCarousel({ categories, selectedIds, onTogg
               aria-pressed={isSelected}
               aria-label={`${cat.label} kategorisini ${isSelected ? 'kaldır' : 'seç'}`}
             >
-              {/* Icon */}
-              <div className="flex items-center justify-center" style={{ height: 32 }}>
+              {/* Icon — Codex160: larger glyph (was 26 → 32) for clearer
+                  category identity at smaller card sizes. */}
+              <div className="flex items-center justify-center" style={{ height: 36 }}>
                 <Icon
                   style={{
-                    width: 26,
-                    height: 26,
+                    width: 32,
+                    height: 32,
                     color: tint,
-                    filter: `drop-shadow(0 0 6px ${hexAlpha(tint, 0.55)})`,
+                    filter: `drop-shadow(0 0 7px ${hexAlpha(tint, 0.55)})`,
                   }}
                   strokeWidth={2.2}
                 />
@@ -109,10 +114,10 @@ export default function OnlineCategoryCarousel({ categories, selectedIds, onTogg
 
               {/* Name */}
               <p
-                className="font-inter font-black text-center mt-2"
+                className="font-inter font-black text-center mt-1.5"
                 style={{
                   color: isSelected ? '#ffe066' : '#f1f4ff',
-                  fontSize: 'clamp(11px, 3.2vw, 13px)',
+                  fontSize: 'clamp(11px, 3.1vw, 12.5px)',
                   letterSpacing: '0.05em',
                   textShadow: isSelected ? '0 0 8px rgba(250,204,21,0.55)' : 'none',
                   lineHeight: 1.1,
@@ -124,10 +129,10 @@ export default function OnlineCategoryCarousel({ categories, selectedIds, onTogg
               {/* Description */}
               {cat.description && (
                 <p
-                  className="font-inter text-center mt-1 line-clamp-2"
+                  className="font-inter text-center mt-0.5 line-clamp-2"
                   style={{
                     color: 'rgba(207,224,255,0.65)',
-                    fontSize: 'clamp(9px, 2.6vw, 10.5px)',
+                    fontSize: 'clamp(9px, 2.5vw, 10px)',
                     lineHeight: 1.15,
                   }}
                 >
