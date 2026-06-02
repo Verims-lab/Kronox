@@ -46,9 +46,9 @@ const getInviteExpiry = (invite: any) => {
 
 function getVapidConfig() {
   return {
-    subject: Deno.env.get('KRONOX_VAPID_SUBJECT') || 'mailto:support@kronox.app',
-    publicKey: Deno.env.get('KRONOX_VAPID_PUBLIC_KEY') || Deno.env.get('VITE_KRONOX_VAPID_PUBLIC_KEY') || '',
-    privateKey: Deno.env.get('KRONOX_VAPID_PRIVATE_KEY') || '',
+    subject: Deno.env.get('VAPID_SUBJECT') || Deno.env.get('KRONOX_VAPID_SUBJECT') || 'mailto:support@kronox.app',
+    publicKey: Deno.env.get('VAPID_PUBLIC_KEY') || Deno.env.get('KRONOX_VAPID_PUBLIC_KEY') || Deno.env.get('VITE_KRONOX_VAPID_PUBLIC_KEY') || '',
+    privateKey: Deno.env.get('VAPID_PRIVATE_KEY') || Deno.env.get('KRONOX_VAPID_PRIVATE_KEY') || '',
   };
 }
 
@@ -117,6 +117,10 @@ Deno.serve(async (req) => {
 
     const config = getVapidConfig();
     if (!config.publicKey || !config.privateKey) {
+      console.warn('[sendGameInvitePush] missing VAPID configuration; push skipped but in-app invite remains available.', {
+        missingPublicKey: !config.publicKey,
+        missingPrivateKey: !config.privateKey,
+      });
       return json({
         ok: true,
         push: {

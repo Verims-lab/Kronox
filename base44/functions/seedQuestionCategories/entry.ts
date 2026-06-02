@@ -1,9 +1,9 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
-// Codex154 — Hardcoded admin email literal removed. Admin allowlist is now
-// sourced from the KRONOX_ADMIN_EMAILS env/secret (comma-separated). Missing
-// or empty config fails closed (403).
-
+// Codex157 — Hardcoded admin email literals removed. Admin authorization is
+// role/permission based, with ADMIN_EMAILS/KRONOX_ADMIN_EMAILS as a
+// deployment-secret fallback. Missing/empty config fails closed unless the
+// authenticated user has an admin role/permission.
 const QUESTION_CATEGORIES = [
   { category_id: 1, name: 'Chronicle' },
   { category_id: 2, name: 'Flashback' },
@@ -17,13 +17,21 @@ function json(body, status = 200) {
   return Response.json(body, { status });
 }
 
-function parseAdminAllowlist() {
-  const raw = Deno.env.get('KRONOX_ADMIN_EMAILS');
-  if (!raw || typeof raw !== 'string') return [];
-  return raw
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter((e) => e.length > 0);
+function normalizeEmail(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function getConfiguredAdminEmails() {
+  const raw = Deno.env.get('ADMIN_EMAILS') || Deno.env.get('KRONOX_ADMIN_EMAILS') || '';
+  return raw.split(',').map(normalizeEmail).filter(Boolean);
+}
+
+function isAuthorizedAdmin(user) {
+  if (!user) return false;
+  if (user.role === 'admin' || user.is_admin === true) return true;
+  if (Array.isArray(user.permissions) && user.permissions.includes('admin')) return true;
+  const allowlist = getConfiguredAdminEmails();
+  return allowlist.length > 0 && allowlist.includes(normalizeEmail(user.email));
 }
 
 async function requireAdmin(base44) {
@@ -38,11 +46,7 @@ async function requireAdmin(base44) {
     return { response: json({ error: 'Authentication required' }, 401) };
   }
 
-  const allowlist = parseAdminAllowlist();
-  const callerEmail = String(user.email).trim().toLowerCase();
-  const isAllowlisted = allowlist.length > 0 && allowlist.includes(callerEmail);
-
-  if (user.role !== 'admin' && !isAllowlisted) {
+  if (!isAuthorizedAdmin(user)) {
     return { response: json({ error: 'Admin access required' }, 403) };
   }
 

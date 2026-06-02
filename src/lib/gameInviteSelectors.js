@@ -236,8 +236,11 @@ export function summarizeGameInviteForDiagnostics(invite, userEmail, now = Date.
 }
 
 export function isGameInviteTraceEnabled(user) {
-  const userEmail = normalizeEmail(user?.email);
-  const isAdmin = user?.role === 'admin' || userEmail === 'sariverim@gmail.com';
+  const isAdmin = (
+    user?.role === 'admin' ||
+    user?.is_admin === true ||
+    (Array.isArray(user?.permissions) && user.permissions.includes('admin'))
+  );
   if (import.meta.env.DEV || isAdmin) return true;
   if (typeof window === 'undefined') return false;
   try {

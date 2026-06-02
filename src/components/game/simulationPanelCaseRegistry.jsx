@@ -126,14 +126,14 @@ import * as unifiedKronoxScoreCases from './simulationPanelUnifiedKronoxScoreCas
 // Codex152 — Diamond economy foundation: canonical User.diamonds balance,
 // starter + daily login grants, idempotent ledger, and display contracts.
 import * as diamondEconomyCases from './simulationPanelDiamondEconomyCases';
-// Codex153 — Security: Deezer preview proxy removed. Locks in that the
-// getDeezerPreview backend function is gone, QuestionCard no longer
-// invokes it, and loadSpotifyMusicQuestions has no Deezer fallback.
-import * as deezerRemovalCases from './simulationPanelDeezerRemovalCases';
+// Codex157 — Security cleanup: unused Spotify/external music import
+// functions are gone, VAPID keys are env/config-only, and admin access no
+// longer depends on a committed personal email.
+import * as securityCleanupCases from './simulationPanelSecurityCleanupCases';
 // Codex154 — Security: admin authorization hardening. Locks in that no
 // admin-only backend function contains a hardcoded admin email literal,
-// each reads KRONOX_ADMIN_EMAILS from env/secret, requires auth, rejects
-// non-admins with 403, and fails closed when the env var is missing.
+// each reads admin allowlist env/secrets, requires auth, rejects
+// non-admins with 403, and fails closed when config is missing.
 import * as adminAuthorizationCases from './simulationPanelAdminAuthorizationCases';
 // Codex154 — Backend function security guard: generateTechDoc must require
 // server-side auth/admin authorization before internal PDF generation.
@@ -169,7 +169,7 @@ const MODULES = [
   onlineScoreVisiblePuanCases,
   unifiedKronoxScoreCases,
   diamondEconomyCases,
-  deezerRemovalCases,
+  securityCleanupCases,
   adminAuthorizationCases,
   backendSecurityCases,
   questionSchemaCases,

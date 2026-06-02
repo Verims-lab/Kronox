@@ -3,26 +3,28 @@
 //
 // Background: a security scan flagged three backend functions for using
 // hardcoded email addresses to gate admin access:
-//   • functions/generateTechDoc.js
-//   • functions/generateWorkflowDoc.js
-//   • functions/seedQuestionCategories.js
+//   • base44/functions/generateTechDoc/entry.ts
+//   • base44/functions/generateWorkflowDoc/entry.ts
+//   • base44/functions/seedQuestionCategories/entry.ts
 //
 // Fix: admin authorization now reads the comma-separated allowlist from
-// the KRONOX_ADMIN_EMAILS env/secret (trim + lowercase normalization).
-// Missing config fails closed (no caller is admin by default).
+// ADMIN_EMAILS/KRONOX_ADMIN_EMAILS env/secrets (trim + lowercase
+// normalization). Missing config fails closed unless the authenticated user
+// has an admin role/permission.
 //
 // This suite makes the regression detectable from Health Center:
 //   • No literal admin email string remains in the three functions.
-//   • Each function reads Deno.env.get('KRONOX_ADMIN_EMAILS').
+//   • Each function reads Deno.env.get('KRONOX_ADMIN_EMAILS') and can also
+//     accept ADMIN_EMAILS as a deployment alias.
 //   • Each function still requires authentication (401 on missing user).
 //   • Each function still rejects non-admin authenticated users (403).
 //
 // PASS proves the security finding is resolved. Any FAIL means a literal
 // admin email or a missing allowlist read regressed back into a function.
 
-import generateTechDocSource from '../../functions/generateTechDoc.js?raw';
-import generateWorkflowDocSource from '../../functions/generateWorkflowDoc.js?raw';
-import seedQuestionCategoriesSource from '../../functions/seedQuestionCategories.js?raw';
+import generateTechDocSource from '../../../base44/functions/generateTechDoc/entry.ts?raw';
+import generateWorkflowDocSource from '../../../base44/functions/generateWorkflowDoc/entry.ts?raw';
+import seedQuestionCategoriesSource from '../../../base44/functions/seedQuestionCategories/entry.ts?raw';
 
 export const EXTRA_SUITES = [
   {
@@ -99,7 +101,7 @@ export const EXTRA_TESTS = [
         return fail('A hardcoded admin email literal is still present in a protected backend function.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
-          file: 'functions/{generateTechDoc,generateWorkflowDoc,seedQuestionCategories}.js',
+          file: 'base44/functions/{generateTechDoc,generateWorkflowDoc,seedQuestionCategories}/entry.ts',
           expected: 'No quoted email literal in admin-only function source',
           actual: { offenders },
           actionType: ACTION_TYPES.CODE_FIX,
@@ -117,7 +119,7 @@ export const EXTRA_TESTS = [
   makeCase(
     'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
     'admin_allowlist_sourced_from_env',
-    'Each admin-only function reads its allowlist from Deno.env.get("KRONOX_ADMIN_EMAILS")',
+    'Each admin-only function reads its allowlist from Deno.env.get("KRONOX_ADMIN_EMAILS") / ADMIN_EMAILS',
     () => {
       const missing = [];
       for (const fn of TARGET_FUNCTIONS) {
@@ -202,37 +204,43 @@ export const EXTRA_TESTS = [
     },
   ),
 
-  // 5) Missing config fails closed. The allowlist parser must guard
-  //    against an empty/missing env value and the auth check must NOT
-  //    grant access when the allowlist is empty unless role==='admin'.
+  // 5) Missing config fails closed. The allowlist parser must normalize to
+  //    an array and the auth check must NOT grant access from allowlist
+  //    unless allowlist.length > 0 and the caller email is included.
   makeCase(
     'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
     'missing_config_fails_closed',
-    'When KRONOX_ADMIN_EMAILS is missing/empty, the parser returns an empty allowlist and the gate only admits role==="admin"',
+    'When admin allowlist env is missing/empty, the gate only admits role/permission admins',
     () => {
       const offenders = [];
       for (const fn of TARGET_FUNCTIONS) {
         const src = safeStr(fn.source);
-        // The function must parse the env value into a list and then check
-        // role==='admin' OR membership. The contract here is: the parser
-        // returns [] for missing/empty config, and the gate uses a
-        // membership check rather than truthy-coercing the raw env value.
-        const hasEmptyArrayGuard = src.includes('return []') || src.includes('return [ ]');
-        const hasAdminRoleCheck = src.includes("'admin'") || src.includes('"admin"');
-        if (!hasEmptyArrayGuard || !hasAdminRoleCheck) {
-          offenders.push({ function: fn.name, hasEmptyArrayGuard, hasAdminRoleCheck });
+        const hasArrayNormalization = src.includes('.split') && src.includes('.filter(Boolean)');
+        const hasAllowlistLengthGuard = src.includes('allowlist.length > 0');
+        const hasAdminRoleOrPermissionCheck = (
+          src.includes("role === 'admin'") ||
+          src.includes('is_admin === true') ||
+          src.includes("permissions.includes('admin')")
+        );
+        if (!hasArrayNormalization || !hasAllowlistLengthGuard || !hasAdminRoleOrPermissionCheck) {
+          offenders.push({
+            function: fn.name,
+            hasArrayNormalization,
+            hasAllowlistLengthGuard,
+            hasAdminRoleOrPermissionCheck,
+          });
         }
       }
       if (offenders.length) {
-        return fail('An admin-only function does not provably fail closed when KRONOX_ADMIN_EMAILS is missing.', {
+        return fail('An admin-only function does not provably fail closed when admin allowlist env is missing.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
-          expected: 'Empty allowlist when env is missing; role==="admin" remains the only fallback',
+          expected: 'Normalized allowlist + allowlist.length guard + role/permission admin fallback',
           actual: { offenders },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Missing KRONOX_ADMIN_EMAILS fails closed in all three admin-only functions.', {
+      return pass('Missing admin allowlist env fails closed in all three admin-only functions.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,

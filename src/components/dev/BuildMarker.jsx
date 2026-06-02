@@ -1,5 +1,17 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex157 — Security findings cleanup:
+//   • Removes unused Spotify/external music question functions instead of
+//     moving their exposed credentials to env.
+//   • Keeps GameInvite push best-effort with VAPID keys read from
+//     deployment secrets/config only; missing keys skip push without
+//     breaking persisted in-app invites.
+//   • Removes committed personal admin email checks; admin gates now use
+//     role/is_admin/permissions and server-side ADMIN_EMAILS/KRONOX_ADMIN_EMAILS
+//     deployment allowlist fallback where needed.
+//   • Adds security_cleanup_health coverage and deployment notes for secret
+//     rotation/configuration.
+//
 // Codex156 — Question schema cleanup before new dataset import:
 //   • Question entity now keeps only target dataset fields
 //     (id/question/answer/category ids/subcategory/tag/region/difficulty/state).
@@ -27,9 +39,7 @@ import React, { useEffect, useState } from 'react';
 // `components/game/QuestionCard` no longer fetches a live preview URL at
 // runtime for muzik questions — the music live-preview pipeline is gone
 // entirely. The `isitsel` legacy audio path (which uses the question's
-// own stored `media_url`) is preserved. `functions/loadSpotifyMusicQuestions`
-// dropped its internal Deezer fallback; songs without a Spotify
-// preview_url are simply skipped. No other product behavior changed:
+// own stored `media_url`) is preserved. No other product behavior changed:
 // gameplay, Timeline, drag/drop, scoring, invites, notifications, and
 // Solo path remain identical.
 //
@@ -599,7 +609,7 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
-const BUILD_MARKER = 'Codex156';
+const BUILD_MARKER = 'Codex157';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
