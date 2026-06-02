@@ -226,7 +226,14 @@ export default function Game() {
   }, [isOnlineFromState]);
 
   // ─── Data fetching — offline-first (Repository layer) ───────────
-  const { questions: allQuestions, isLoading, isError, isFromCache, retry: refetch } = useOfflineQuestions();
+  const {
+    questions: allQuestions,
+    isLoading,
+    isError,
+    isFromCache,
+    activeCategoryIds,
+    retry: refetch,
+  } = useOfflineQuestions();
 
   // ─── Lobby sync (Repository layer) ───────────────────────────────
   useLobbySync({
@@ -493,10 +500,11 @@ export default function Game() {
         .filter(q => q.year >= yearStart && q.year <= yearEnd);
       const engineResult = buildSoloAttemptDeck({
         pool: candidatePool,
-        // Category whitelist is omitted here so the Solo path uses the
-        // full active question pool. Active-category gating happens at
-        // data layer (questionRuntimeAdapter / Category seed) and will
-        // be tightened when Solo gains a category picker.
+        // Codex168 — runtime wiring now passes the active Category
+        // whitelist from the authenticated question fetch path. The
+        // engine still owns the hard gate, so passive categories cannot
+        // enter a Solo attempt deck even if stale cached rows exist.
+        allowedMainCategoryIds: activeCategoryIds,
         recentlySeenQuestionIds: loadRecentHistory(),
       });
       if (!engineResult.ok) {
@@ -552,7 +560,7 @@ export default function Game() {
       current_question_id: firstQ.id,
       used_question_ids: [...used]
     });
-  }, [playerNames, questionPool, allQuestions, yearStart, yearEnd, isLoading, isOnline, isSoloLevelMode, setLobbyData, setError]);
+  }, [playerNames, questionPool, allQuestions, activeCategoryIds, yearStart, yearEnd, isLoading, isOnline, isSoloLevelMode, setLobbyData, setError]);
 
   // Overall timer başlatma
   useEffect(() => {

@@ -225,9 +225,15 @@ export const EXTRA_TESTS = [
     'Online scoring does not mutate Solo totalSoloScore',
     () => {
       const src = safeStr(applyOnlineResultSource);
-      const bad = src.includes('totalSoloScore') || src.includes('solo_progress');
-      if (bad) return fail('Online scoring writer references Solo score/progress.', { verification: 'STATIC_CONTRACT' });
-      return pass('Online scoring writes online_progress and OnlineMatchResult only.', { verification: 'STATIC_CONTRACT' });
+      const bad = src.includes('totalSoloScore') || src.includes('solo_progress:');
+      const missing = missingTokens(src, ['online_progress', 'OnlineMatchResult', 'kronox_puan_total']);
+      if (bad || missing.length) {
+        return fail('Online scoring writer may mutate Solo score/progress instead of Online + unified projection only.', {
+          verification: 'STATIC_CONTRACT',
+          actual: { bad, missing },
+        });
+      }
+      return pass('Online scoring writes online_progress, OnlineMatchResult, and unified projection without mutating Solo progress.', { verification: 'STATIC_CONTRACT' });
     }),
 
   // ─── Codex146 — Player-own elapsed time + popup/scoring parity ──────

@@ -278,31 +278,31 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('gameplay_rules_not_changed_for_schema_cleanup',
-    'Gameplay rules still operate on runtime year/category/type values supplied by the fetch adapter',
+    'Gameplay still uses runtime values while active-category filtering is wired through the fetch/deck boundary',
     () => {
       const gameplaySource = [
         gamePageSource,
         gameRulesSource,
       ].join('\n');
       const forbidden = [
-        'main_category_id',
         'second_category_id',
         'third_category_id',
-        "state === 'A'",
+        'base44.entities.Question.list',
       ].filter((token) => gameplaySource.includes(token));
-      const requiredLegacy = missingTokens(gameplaySource, [
+      const requiredRuntime = missingTokens(gameplaySource, [
         '.year',
         '.category',
         '.type',
+        'allowedMainCategoryIds: activeCategoryIds',
       ]);
-      if (forbidden.length || requiredLegacy.length) {
-        return fail('Gameplay rule/filter code was changed to read new schema fields directly.', {
+      if (forbidden.length || requiredRuntime.length) {
+        return fail('Gameplay code bypasses the runtime adapter or active-category whitelist boundary.', {
           verification: 'STATIC_CONTRACT',
-          expected: 'Gameplay still uses runtime year/category/type and not category-id/state filters.',
-          actual: { forbidden, requiredLegacy },
+          expected: 'Gameplay consumes runtime year/category/type values and passes active category ids into the deck engine.',
+          actual: { forbidden, requiredRuntime },
         });
       }
-      return pass('Gameplay logic remains on runtime year/category/type values; schema translation is fetch-layer only.', {
+      return pass('Gameplay logic remains on runtime year/category/type values while active category filtering is enforced through the deck boundary.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

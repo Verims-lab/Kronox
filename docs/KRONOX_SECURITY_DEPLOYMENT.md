@@ -50,6 +50,28 @@ Backend admin-only functions must still enforce authorization server-side. The c
 
 Use the allowlist only as a deployment fallback until all admin users have a proper role/permission field. Do not commit personal admin emails to source code.
 
+## Question Bank Access
+
+Normal gameplay must load questions through the authenticated backend
+function:
+
+```text
+POST /getQuestions
+```
+
+Security contract:
+
+- unauthenticated callers receive 401,
+- normal authenticated callers receive only a minimal playable projection,
+- `Question.state === "A"` rows are returned for gameplay,
+- passive categories are excluded,
+- raw full-bank/admin requests require admin authorization and return 403 for
+  authenticated non-admin users,
+- client code must not fall back to direct `Question.list` for normal gameplay.
+
+The `Question` entity direct read policy is admin-only; service-role reads are
+limited to backend functions that perform their own auth/player/admin checks.
+
 ## Verification
 
 After deployment, rerun the external security scanner and verify:
@@ -61,3 +83,6 @@ After deployment, rerun the external security scanner and verify:
 - unauthenticated admin-only function calls return 401,
 - authenticated non-admin admin-only function calls return 403,
 - authorized admins can still use intended admin tools.
+- unauthenticated `/getQuestions` calls return 401,
+- normal users cannot fetch raw question-bank metadata through direct entity
+  reads or a full-bank function mode.

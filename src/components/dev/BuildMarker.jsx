@@ -1,5 +1,14 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex168 — Full Audit Package 2 implementation pass:
+//   • Secures getQuestions with auth + minimal active-question projection and
+//     removes direct public Question.list gameplay fallback.
+//   • Wires active Category whitelist into Solo deck creation and tightens
+//     startLobbyGame to selected active categories / state A questions.
+//   • Adds category_id/categoryid normalization docs, Online score audit-first
+//     idempotency, Diamond guard/ledger recovery, persisted kronox_puan_total
+//     leaderboard projection, release proof checklist, and modular Health cases.
+//
 // Codex158 — Focused Health fix pass:
 //   • Updates stale Home CTA press-feedback Health to verify current
 //     motion/CSS feedback and keep pressed image swaps removed.
@@ -620,7 +629,7 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
-const BUILD_MARKER = 'Codex158';
+const BUILD_MARKER = 'Codex168';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

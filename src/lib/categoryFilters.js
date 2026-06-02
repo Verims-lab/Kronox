@@ -18,6 +18,29 @@
 
 export const CATEGORY_STATUS_ACTIVE = 'a';
 export const CATEGORY_STATUS_PASSIVE = 'p';
+export const CATEGORY_ID_FIELD = 'category_id';
+export const CATEGORY_IMPORT_ALIAS_FIELD = 'categoryid';
+
+export const KRONOX_CATEGORY_IDS = Object.freeze([1, 2, 3, 4, 5, 6]);
+
+export function normalizeCategoryId(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return null;
+  const id = Math.trunc(numeric);
+  return KRONOX_CATEGORY_IDS.includes(id) ? id : null;
+}
+
+export function getCategoryId(category) {
+  if (!category || typeof category !== 'object') return null;
+  return normalizeCategoryId(category[CATEGORY_ID_FIELD] ?? category[CATEGORY_IMPORT_ALIAS_FIELD]);
+}
+
+export function mapImportCategoryIdToCategoryId(row) {
+  if (!row || typeof row !== 'object') return row;
+  const id = normalizeCategoryId(row[CATEGORY_ID_FIELD] ?? row[CATEGORY_IMPORT_ALIAS_FIELD]);
+  if (!id) return { ...row };
+  return { ...row, [CATEGORY_ID_FIELD]: id };
+}
 
 /**
  * True if a Category row should be shown in UI selection lists.
@@ -37,4 +60,10 @@ export function isActiveCategory(category) {
 export function filterActiveCategories(rows) {
   if (!Array.isArray(rows)) return [];
   return rows.filter(isActiveCategory);
+}
+
+export function getActiveCategoryIds(rows) {
+  return filterActiveCategories(rows)
+    .map(getCategoryId)
+    .filter((id) => id !== null);
 }

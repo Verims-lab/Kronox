@@ -1,7 +1,7 @@
 {
   "name": "Question",
   "type": "object",
-  "description": "Codex156 — Target schema for the new Kronox question dataset. Current gameplay receives compatibility fields from the question fetch layer; legacy year/category/type/media fields are no longer part of this entity schema.",
+  "description": "Codex168 — Target schema for the new Kronox question dataset. Current gameplay receives minimal compatibility fields from the authenticated getQuestions fetch layer; direct Question entity reads are admin-only so the full question bank is not publicly exposed.",
   "properties": {
     "id": {
       "type": "number",
@@ -82,7 +82,7 @@
         "P"
       ],
       "default": "A",
-      "description": "Future content status. A = Active, P = Passive. Current gameplay does not filter by state yet."
+      "description": "Content status. A = Active, P = Passive. Authenticated gameplay fetches only active questions through getQuestions."
     }
   },
   "required": [
@@ -99,7 +99,11 @@
         "role": "admin"
       }
     },
-    "read": {},
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
     "update": {
       "user_condition": {
         "role": "admin"

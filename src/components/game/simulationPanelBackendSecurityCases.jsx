@@ -4,6 +4,9 @@
 // probes still require real unauthenticated/non-admin/admin sessions.
 
 import generateTechDocSource from '../../../base44/functions/generateTechDoc/entry.ts?raw';
+import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
+import questionEntitySource from '../../../base44/entities/Question.jsonc?raw';
+import useOfflineQuestionsSource from '../../hooks/useOfflineQuestions.js?raw';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
 
 const STATUS = {
@@ -191,4 +194,97 @@ export const EXTRA_TESTS = [
       actual: 'runtime auth contexts not available in static Health',
     }),
     { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, critical: true, runtimeProofRequired: true }),
+
+  makeCase('get_questions_requires_auth',
+    'getQuestions requires authentication before returning playable questions',
+    () => {
+      const required = [
+        'await base44.auth.me()',
+        'Giris yapmaniz gerekiyor.',
+        '}, 401)',
+        'authenticated_minimal_projection',
+      ];
+      const forbidden = presentTokens(getQuestionsSource, [
+        'auth gerekmez',
+        'Service role ile soruları çek',
+      ]);
+      const missing = missingTokens(getQuestionsSource, required);
+      if (missing.length || forbidden.length) {
+        return fail('getQuestions can still expose questions without authenticated user context.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'base44/functions/getQuestions/entry.ts',
+          expected: 'auth.me guard returning 401 before service-role Question.list',
+          actual: { missing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('getQuestions has an authenticated-user guard and no unauthenticated source contract.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    }),
+
+  makeCase('get_questions_returns_minimal_projection',
+    'getQuestions returns minimal playable projection and active-only rows',
+    () => {
+      const required = [
+        'normalizeQuestionForRuntime',
+        'isActiveQuestion',
+        "state === 'A'",
+        'activeCategoryIds',
+        'main_category_id',
+        'category: \'genel\'',
+        'type: \'metin\'',
+        'media_url: \'\'',
+      ];
+      const forbidden = presentTokens(getQuestionsSource, [
+        'sub_category:',
+        'tag:',
+        'region:',
+        '...question',
+      ]);
+      const missing = missingTokens(getQuestionsSource, required);
+      if (missing.length || forbidden.length) {
+        return fail('getQuestions minimal projection or active-only filter drifted.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'base44/functions/getQuestions/entry.ts',
+          expected: 'active Question + active Category + minimal gameplay fields only',
+          actual: { missing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('getQuestions filters active playable rows and returns only minimal runtime fields.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('no_public_question_bank_fallback',
+    'Gameplay question loading has no direct public Question.list fallback',
+    () => {
+      const forbidden = presentTokens(useOfflineQuestionsSource, [
+        'base44.entities.Question.list',
+        'Question.list(',
+      ]);
+      const required = missingTokens(useOfflineQuestionsSource, [
+        "base44.functions.invoke('getQuestions'",
+        'activeCategoryIds',
+        'Direct Question.list fallback',
+      ]);
+      const questionReadIsAdminOnly = String(questionEntitySource).includes('"read"')
+        && String(questionEntitySource).includes('"role": "admin"');
+      if (forbidden.length || required.length || !questionReadIsAdminOnly) {
+        return fail('Question bank can still be read through a client/entity fallback.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'useOfflineQuestions invokes getQuestions only; Question.read is admin-only',
+          actual: { forbidden, required, questionReadIsAdminOnly },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Normal gameplay uses authenticated getQuestions and direct Question read is admin-only.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
 ];

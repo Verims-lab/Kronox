@@ -301,7 +301,9 @@ export const EXTRA_TESTS = [
     'Critical Solo gameplay progress is persisted to User.solo_progress for signed-in users',
     () => {
       const missing = missingTokens(soloLevelsSource, [
-        'base44.auth.updateMe({ solo_progress: normalized })',
+        'base44.auth.updateMe({',
+        'solo_progress: normalized',
+        'kronox_puan_total',
         'publishSoloLeaderboardEntry',
         'safeWriteLocal(user || null, normalized)',
       ]);
@@ -437,9 +439,16 @@ export const EXTRA_TESTS = [
   makeCase('online_match_result_health', 'online_score_not_solo_total_score',
     'Online score remains separate from Solo totalSoloScore',
     () => {
-      const bad = String(applyOnlineResultSource).includes('totalSoloScore') || String(applyOnlineResultSource).includes('solo_progress');
-      if (bad) return fail('Online scoring writer references Solo score/progress.', { verification: 'STATIC_CONTRACT' });
-      return pass('Online scoring writer only updates online_progress and OnlineMatchResult.', { verification: 'STATIC_CONTRACT' });
+      const src = String(applyOnlineResultSource);
+      const bad = src.includes('totalSoloScore') || src.includes('solo_progress:');
+      const missing = missingTokens(src, ['online_progress', 'kronox_puan_total', 'buildSoloLeaderboardPayload']);
+      if (bad || missing.length) {
+        return fail('Online scoring writer may mutate Solo score/progress instead of only updating Online + unified projection.', {
+          verification: 'STATIC_CONTRACT',
+          actual: { bad, missing },
+        });
+      }
+      return pass('Online scoring writer keeps Solo progress immutable while updating online_progress and the unified projection.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('online_match_result_health', 'online_score_no_draw_contract',

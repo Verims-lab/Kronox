@@ -157,6 +157,11 @@ import * as soloPopupCases from './simulationPanelSoloPopupCases';
 // deck (unique ids + unique years), active-only filtering, clean failure
 // on insufficient unique years, replay produces a fresh deck.
 import * as soloQuestionEngineCases from './simulationPanelSoloQuestionEngineCases';
+// Codex168 — Package 2 audit fixes: authenticated question access,
+// active-category Solo wiring, strict Online start filtering,
+// idempotency recovery, persisted leaderboard projection, and release
+// proof checklist contracts.
+import * as package2AuditCases from './simulationPanelPackage2AuditCases';
 
 const MODULES = [
   soloProgressCases,
@@ -193,6 +198,7 @@ const MODULES = [
   placementFeedbackCases,
   soloPopupCases,
   soloQuestionEngineCases,
+  package2AuditCases,
 ];
 
 function flatten(key) {

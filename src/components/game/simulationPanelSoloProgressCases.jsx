@@ -125,7 +125,9 @@ export const EXTRA_TESTS = [
       const writerMissing = missingTokens(soloLevelsLibSource, [
         'export async function writeSoloProgress',
         'safeWriteLocal(user || null, normalized)',
-        'base44.auth.updateMe({ solo_progress: normalized })',
+        'base44.auth.updateMe({',
+        'solo_progress: normalized',
+        'kronox_puan_total',
       ]);
 
       // e) currentLevel monotonic guard — Codex110 reshaped this from

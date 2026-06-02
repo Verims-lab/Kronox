@@ -50,6 +50,8 @@ const ONLINE_ID_TO_MAIN_CATEGORY_ID: Record<string, number> = {
   level_up: 6,
 };
 
+const KNOWN_MAIN_CATEGORY_IDS = new Set([1, 2, 3, 4, 5, 6]);
+
 const LEGACY_ONLINE_TO_LEGACY_CATEGORY_MAP: Record<string, string[]> = {
   flashback: ['tarih', 'genel'],
   kult: ['sanat', 'genel'],
@@ -59,13 +61,21 @@ const LEGACY_ONLINE_TO_LEGACY_CATEGORY_MAP: Record<string, string[]> = {
   chronicle: ['tarih', 'genel'],
 };
 
-const resolveMainCategoryIdsFromSelectedIds = (selectedIds: any): Set<number> | null => {
+const normalizeMainCategoryId = (value: unknown): number | null => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return null;
+  const id = Math.trunc(numeric);
+  return KNOWN_MAIN_CATEGORY_IDS.has(id) ? id : null;
+};
+
+const resolveMainCategoryIdsFromSelectedIds = (selectedIds: any, activeMainCategoryIds?: Set<number>): Set<number> | null => {
   if (!Array.isArray(selectedIds) || selectedIds.length === 0) return null;
   const allowed = new Set<number>();
   for (const id of selectedIds) {
-    if (typeof id !== 'string') continue;
-    const mapped = ONLINE_ID_TO_MAIN_CATEGORY_ID[id];
-    if (Number.isFinite(mapped)) allowed.add(mapped);
+    const mapped = typeof id === 'string'
+      ? (ONLINE_ID_TO_MAIN_CATEGORY_ID[id] ?? normalizeMainCategoryId(id))
+      : normalizeMainCategoryId(id);
+    if (mapped !== null && Number.isFinite(mapped) && (!activeMainCategoryIds || activeMainCategoryIds.has(mapped))) allowed.add(mapped);
   }
   return allowed.size > 0 ? allowed : null;
 };
@@ -111,6 +121,26 @@ function normalizeQuestionForRuntime(question: any): any {
   };
 }
 
+const isActiveQuestion = (question: any) => {
+  const state = String(question?.state ?? 'A').trim().toUpperCase();
+  return state === 'A';
+};
+
+const isActiveCategory = (category: any) => {
+  const status = String(category?.status ?? '').trim().toLowerCase();
+  return status === '' || status === 'a';
+};
+
+const loadActiveMainCategoryIds = async (base44: any): Promise<Set<number>> => {
+  const rows = await base44.asServiceRole.entities.Category.list('category_id', 50).catch(() => []);
+  if (!Array.isArray(rows) || rows.length === 0) return new Set(KNOWN_MAIN_CATEGORY_IDS);
+  const active = rows
+    .filter(isActiveCategory)
+    .map((row: any) => normalizeMainCategoryId(row?.category_id ?? row?.categoryid))
+    .filter((id: number | null) => id !== null) as number[];
+  return active.length ? new Set(active) : new Set();
+};
+
 const normalizeSettings = (lobby: any, incoming: any = {}) => {
   const currentYear = new Date().getFullYear();
   const category = typeof incoming.category === 'string'
@@ -141,39 +171,46 @@ const normalizeSettings = (lobby: any, incoming: any = {}) => {
   };
 };
 
-const filterQuestionsForLobbySettings = (questions: any[] = [], settings: any = {}) => {
+const filterQuestionsForLobbySettings = (questions: any[] = [], settings: any = {}, activeMainCategoryIds: Set<number> = new Set(KNOWN_MAIN_CATEGORY_IDS)) => {
   // Codex165 — normalize every Question once so the new Codex156 dataset
   // (year inside `answer`, no legacy `type` field) is honored. Then keep
   // only rows with a usable year inside the host's year window.
   const baseFiltered = (questions || [])
     .map(normalizeQuestionForRuntime)
+    .filter(isActiveQuestion)
     .filter(q => q?.type === 'metin')
     .filter(q => Number.isFinite(Number(q?.year))
       && Number(q?.year) >= settings.year_start
-      && Number(q?.year) <= settings.year_end);
+      && Number(q?.year) <= settings.year_end)
+    .filter(q => {
+      const mid = normalizeMainCategoryId(q?.main_category_id);
+      return mid !== null && activeMainCategoryIds.has(mid);
+    });
 
-  // Codex165 — Primary path: filter by new numeric `main_category_id`.
-  const mainIdsAllowed = resolveMainCategoryIdsFromSelectedIds(settings.selected_category_ids);
-  if (mainIdsAllowed && mainIdsAllowed.size > 0) {
+  // Codex168 — Strict selected-category path. If the host selected
+  // categories, the game may only use those active categories. We no
+  // longer fall back to all categories when content tagging is missing.
+  const hasSelectedCategoryIds = Array.isArray(settings.selected_category_ids) && settings.selected_category_ids.length > 0;
+  const mainIdsAllowed = resolveMainCategoryIdsFromSelectedIds(settings.selected_category_ids, activeMainCategoryIds);
+  if (hasSelectedCategoryIds) {
+    if (!mainIdsAllowed || mainIdsAllowed.size === 0) return [];
     const byMainId = baseFiltered.filter(q => {
       const mid = Number(q?.main_category_id);
       return Number.isFinite(mid) && mainIdsAllowed.has(mid);
     });
     if (byMainId.length > 0) return byMainId;
-    // Fallback: dataset rows that still carry legacy string `category`.
-    const legacyAllowed = resolveLegacyCategoriesFromSelectedIds(settings.selected_category_ids);
-    if (legacyAllowed && legacyAllowed.length > 0) {
-      const allowSet = new Set(legacyAllowed);
-      const byLegacy = baseFiltered.filter(q => allowSet.has(q?.category));
-      if (byLegacy.length > 0) return byLegacy;
-    }
-    // Last-resort fallback: any normalized row in the year window so the
-    // game can still start even when content tagging hasn't caught up.
-    return baseFiltered;
+    return [];
   }
 
-  // Fallback — legacy single-category path (old lobbies without
-  // selected_category_ids continue to work unchanged).
+  // Legacy single-category path for old lobbies without selected ids.
+  // `karisik` means all active categories; legacy string categories are
+  // still honored only for old content paths.
+  if (settings.category === 'karisik') return baseFiltered;
+  const legacyAllowed = resolveLegacyCategoriesFromSelectedIds([settings.category]);
+  if (legacyAllowed && legacyAllowed.length > 0) {
+    const allowSet = new Set(legacyAllowed);
+    return baseFiltered.filter(q => allowSet.has(q?.category));
+  }
   return baseFiltered.filter(q => settings.category === 'karisik' || q?.category === settings.category);
 };
 
@@ -186,8 +223,8 @@ const shuffleQuestions = (questions: any[] = []) => {
   return shuffled;
 };
 
-const buildInitialState = ({ players, questions, settings }: { players: any[]; questions: any[]; settings: any }) => {
-  const filteredQuestions = filterQuestionsForLobbySettings(questions, settings);
+const buildInitialState = ({ players, questions, settings, activeMainCategoryIds }: { players: any[]; questions: any[]; settings: any; activeMainCategoryIds: Set<number> }) => {
+  const filteredQuestions = filterQuestionsForLobbySettings(questions, settings, activeMainCategoryIds);
   const shuffled = shuffleQuestions(filteredQuestions);
   const neededCount = players.length * 2 + 1;
 
@@ -204,8 +241,8 @@ const buildInitialState = ({ players, questions, settings }: { players: any[]; q
   if (filteredQuestions.length === 0) {
     return {
       ok: false,
-      message: 'Soru bulunamadi',
-      reason: 'no_questions',
+      message: 'Seçilen kategoriler için yeterli aktif soru bulunamadı.',
+      reason: 'insufficient_active_questions_for_selected_categories',
       neededCount,
       availableCount: 0,
     };
@@ -312,11 +349,13 @@ Deno.serve(async (req) => {
     // persisted lobby row only. Old callers that still send settings are
     // silently ignored — RLS already prevents non-host writes elsewhere.
     const settings = normalizeSettings(lobby, {});
+    const activeMainCategoryIds = await loadActiveMainCategoryIds(base44);
     const questions = await base44.asServiceRole.entities.Question.list('-created_date', 500);
     const initialState = buildInitialState({
       players,
       questions: questions || [],
       settings,
+      activeMainCategoryIds,
     });
 
     if (!initialState.ok) {
@@ -326,7 +365,8 @@ Deno.serve(async (req) => {
         debug: {
           neededCount: initialState.neededCount,
           availableCount: initialState.availableCount,
-          settings,
+          selected_category_ids: settings.selected_category_ids,
+          activeMainCategoryIds: Array.from(activeMainCategoryIds),
         },
       }, 400);
     }
