@@ -395,7 +395,8 @@ export const EXTRA_TESTS = [
         // level/progression and leaderboard ranking.
         ...missingTokens(profilePageSource, ['getKronoxVisibleScore', 'readSoloProgress', 'getCurrentPlayableLevel']),
         ...missingTokens(leaderboardPageSource, ['summarizeSoloProgress', 'totalSoloScore', 'getKronoxVisibleScore', 'Kronox Sıralaması']),
-        ...missingTokens(soloLevelResultSource, ['levelScore', 'baseScore', 'timeBonus', 'Puan:']),
+        ...missingTokens(soloLevelResultSource, ['levelScore', 'baseScore', 'timeBonus']),
+        ...missingTokens(`${soloSuccessPopupSource}\n${soloFailureCardSource}`, ['KAZANILAN PUAN', 'levelScore', 'Puan']),
       ];
       const forbidden = [
         ...forbiddenTokensFound(profilePageSource, ['value: 0,            icon: Trophy']),
