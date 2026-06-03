@@ -19,7 +19,8 @@ import OutgoingRequestItem from '@/components/friends/OutgoingRequestItem';
 import AddFriendForm from '@/components/friends/AddFriendForm';
 import IncomingInvitesPanel from '@/components/invites/IncomingInvitesPanel';
 import useFriendsRealtimeRefresh from '@/hooks/useFriendsRealtimeRefresh';
-import ScreenHeader from '@/components/layout/ScreenHeader';
+import StandardTopBar from '@/components/layout/StandardTopBar';
+import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 
 /**
  * Profile > Arkadaşlarım — Friends MVP.
@@ -169,8 +170,8 @@ export default function FriendsPage() {
 
   return (
     <PageShell>
-      <ScreenHeader title="Arkadaşlarım" showBack user={user} />
-      {/* Header subtitle (title moved to ScreenHeader) */}
+      <StandardTopBar showBack onBack={() => navigate('/')} diamonds={getLeaderboardDiamondValue(user)} user={user} />
+      {/* Header subtitle */}
       <p className="font-inter text-xs text-blue-100/60 px-1">
         Arkadaşlarını yönet, davet et, isteklerini gör.
       </p>
