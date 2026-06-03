@@ -14,7 +14,8 @@ Special Solo levels start at level 10 and repeat every 5 levels: 10, 15,
 20, 25, and so on. Special Solo levels end at 10 correct timeline cards,
 including seed cards already on the timeline, and use a 19-question deck.
 
-All new Solo attempts use a 180 seconds timer and fail on the 10th mistake.
+All new Solo attempts use a 180 seconds timer and fail on 10 mistakes; the
+10th mistake ends the attempt.
 
 The full attempt deck is built before gameplay starts. Gameplay consumes
 the prebuilt deck in order. There is no mid-attempt re-randomization.
@@ -27,7 +28,7 @@ Hard deck rules:
 - active questions only.
 - active categories only.
 - passive categories excluded.
-- first 5 ordered questions have a minimum 5-year gap between answer years.
+- first 5 ordered questions must satisfy minimum 5-year spacing between answer years.
 
 Soft deck preferences:
 - category balance.

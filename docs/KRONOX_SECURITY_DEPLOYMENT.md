@@ -226,6 +226,12 @@ getSoloLeaderboard
 seedQuestionCategories
 ```
 
+`startLobbyGame` must require an authenticated user. Unauthenticated callers
+receive 401, authenticated non-host/non-authorized callers receive 403, and
+client-provided email/name fields must never override the authenticated
+identity. Legacy guest-host start fallback is not part of the current product
+contract.
+
 ---
 
 # 6. Account Deletion

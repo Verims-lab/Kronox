@@ -227,12 +227,14 @@ export const EXTRA_TESTS = [
 
   /* 6. Host-only start enforcement preserved (Codex132 — uses startLobbyGameFnSource mirror) */
   makeCase('lobby_simplification', 'lobby_start_host_only',
-    'startLobbyGame still rejects non-host actors with 403 Sadece host',
+    'startLobbyGame requires auth and rejects non-host actors with 403 Sadece host',
     () => {
       const src = safeStr(startLobbyGameFnSource);
       const required = [
+        'await base44.auth.me()',
+        'Oturum gerekli.',
+        '401',
         'authenticatedHost',
-        'guestHost',
         'Sadece host oyunu baslatabilir',
         '403',
       ];

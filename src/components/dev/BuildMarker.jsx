@@ -713,7 +713,14 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
-const BUILD_MARKER = 'Codex181';
+// Codex182 — Security + Health fix:
+//   • startLobbyGame now requires authenticated host identity; legacy guest
+//     host start fallback is removed.
+//   • Solo replay delta Health fixture now proves same/lower replays add +0
+//     and better replays add only the positive delta.
+//   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
+//     first-5 ordered question spacing.
+const BUILD_MARKER = 'Codex182';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

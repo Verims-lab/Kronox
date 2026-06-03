@@ -75,6 +75,9 @@ const isAuthorizedAdmin = (user: any) => {
   return Array.isArray(user.permissions) && user.permissions.includes('admin');
 };
 
+const normalizeEmail = (value: unknown) =>
+  String(value ?? '').trim().toLowerCase();
+
 const resolveMainCategoryIdsFromSelectedIds = (selectedIds: any, activeMainCategoryIds?: Set<number>): Set<number> | null => {
   if (!Array.isArray(selectedIds) || selectedIds.length === 0) return null;
   const allowed = new Set<number>();
@@ -334,10 +337,14 @@ Deno.serve(async (req) => {
     try {
       user = await base44.auth.me();
     } catch (_authError) {
-      user = null;
+      return json({ error: 'Oturum gerekli.', code: 'unauthenticated' }, 401);
+    }
+    const actorEmail = normalizeEmail(user?.email);
+    if (!actorEmail) {
+      return json({ error: 'Oturum gerekli.', code: 'unauthenticated' }, 401);
     }
 
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const lobbyId = body?.lobbyId;
 
     if (!lobbyId) {
@@ -350,24 +357,19 @@ Deno.serve(async (req) => {
     }
 
     const players = Array.isArray(lobby.players) ? lobby.players : [];
-    const hostEmail = lobby.host_email || null;
-    const actorEmail = user?.email || null;
-    const actorName = body?.playerName || user?.full_name || user?.email || null;
-    const authenticatedHost = Boolean(actorEmail && hostEmail === actorEmail);
-    const guestHost = Boolean(!actorEmail && hostEmail?.startsWith('guest_') && players[0]?.name === actorName);
+    const hostEmail = normalizeEmail(lobby.host_email);
+    const authenticatedHost = Boolean(hostEmail && actorEmail === hostEmail);
     const canSeeDebug = isAuthorizedAdmin(user);
     const withDebug = (payload: Record<string, unknown>, debug: Record<string, unknown>) =>
       canSeeDebug ? { ...payload, debug } : payload;
 
-    if (!authenticatedHost && !guestHost) {
+    if (!authenticatedHost) {
       return json(withDebug({
         error: 'Sadece host oyunu baslatabilir.',
       }, {
           lobbyId,
           actorEmail,
-          actorName,
           hostEmail,
-          firstPlayerName: players[0]?.name || null,
       }), 403);
     }
 

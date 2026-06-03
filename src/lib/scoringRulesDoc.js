@@ -37,6 +37,8 @@ Time bonus boundaries (winner elapsed seconds):
 - 121–180 seconds: no time bonus.
 
 Solo best score never decreases on replay — only improvements are written.
+Same-score replay does not add points. Lower-score replay does not add points.
+Better replay adds only the positive score delta.
 Old completed Solo results are not retroactively recalculated. New Solo
 attempts use soloRulesVersion: 2.
 

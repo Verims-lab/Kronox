@@ -344,17 +344,17 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('data_model_health', 'scoring_docs_match_code_getSoloLeaderboard',
-    'Scoring docs and getSoloLeaderboard agree on Solo 60/90 second boundaries',
+    'Scoring docs and getSoloLeaderboard agree on Solo 60/90/120 second boundaries',
     () => {
-      const docsOk = hasAll(scoringDocsSource, ['0–60 seconds', '61–90 seconds', '60.0s yields +10']);
-      const projectionOk = hasAll(getSoloLeaderboardFnSource, ['seconds <= 60', 'seconds <= 90']);
+      const docsOk = hasAll(scoringDocsSource, ['0–60 seconds', '61–90 seconds', '91–120 seconds', '60.0s yields +15']);
+      const projectionOk = hasAll(getSoloLeaderboardFnSource, ['seconds <= 60', 'seconds <= 90', 'seconds <= 120']);
       if (!docsOk || !projectionOk) {
         return fail('Solo scoring docs/projection boundary contract drifted.', {
           verification: 'STATIC_CONTRACT',
           actual: { docsOk, projectionOk },
         });
       }
-      return pass('Docs and leaderboard projection both treat 60.0s as +10 and 90.0s as +5.', { verification: 'STATIC_CONTRACT' });
+      return pass('Docs and leaderboard projection both treat 60.0s as +15, 90.0s as +10, and 120.0s as +5.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('data_model_health', 'leaderboard_publish_does_not_reduce_best_progress',

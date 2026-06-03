@@ -460,6 +460,10 @@ export const startLobbyGameFnSource = `
   // Public contract of functions/startLobbyGame.js — mirrored.
   // Codex131: in-lobby settings panel removed; backend ignores body.settings.
   // Codex130: nothing TTL-related here (TTL lives in invite functions).
+  const user = await base44.auth.me();
+  if (!user?.email) {
+    return json({ error: 'Oturum gerekli.', code: 'unauthenticated' }, 401);
+  }
   const normalizeSettings = (lobby, incoming = {}) => {
     // selected_category_ids preferred over legacy single-category field.
     const selectedCategoryIds = Array.isArray(incoming.selected_category_ids)
@@ -467,9 +471,10 @@ export const startLobbyGameFnSource = `
       : (Array.isArray(lobby.selected_category_ids) ? lobby.selected_category_ids : []);
     return { selected_category_ids: selectedCategoryIds };
   };
+  const actorEmail = normalizeEmail(user.email);
+  const hostEmail = normalizeEmail(lobby.host_email);
   const authenticatedHost = Boolean(actorEmail && hostEmail === actorEmail);
-  const guestHost = Boolean(!actorEmail && hostEmail?.startsWith('guest_') && players[0]?.name === actorName);
-  if (!authenticatedHost && !guestHost) {
+  if (!authenticatedHost) {
     return json({ error: 'Sadece host oyunu baslatabilir.' }, 403);
   }
   if (players.length < 2) {

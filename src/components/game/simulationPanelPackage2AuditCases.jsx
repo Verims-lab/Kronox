@@ -115,6 +115,31 @@ export const EXTRA_TESTS = [
       return pass('startLobbyGame uses active-only strict selected category filtering and safe content error.', { verification: 'STATIC_CONTRACT' });
     }),
 
+  makeCase('start_lobby_game_requires_authenticated_host',
+    'startLobbyGame requires authenticated host and has no guest-host fallback',
+    () => {
+      const src = safeStr(startLobbyGameSource);
+      const missing = missingTokens(src, [
+        'await base44.auth.me()',
+        'Oturum gerekli.',
+        'unauthenticated',
+        '401',
+        'authenticatedHost',
+        'Sadece host oyunu baslatabilir.',
+        '403',
+      ]);
+      const forbidden = ['guestHost', 'startsWith(\'guest_\')', 'body?.playerEmail', 'body?.email']
+        .filter((token) => src.includes(token));
+      if (missing.length || forbidden.length) {
+        return fail('startLobbyGame auth/host authorization contract is incomplete.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'base44/functions/startLobbyGame/entry.ts',
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('startLobbyGame fails closed on missing auth and only the authenticated host can start.', { verification: 'STATIC_CONTRACT' });
+    }),
+
   makeCase('online_score_audit_reserved_before_visible_score',
     'Online score creates durable audit/idempotency row before visible score write',
     () => {

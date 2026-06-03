@@ -533,7 +533,7 @@ export const EXTRA_TESTS = [
         verification: 'RUNTIME_VERIFIED',
         classification: 'EXECUTABLE_HELPER_PROOF',
         actionType: ACTION_TYPES.CODE_FIX,
-        actual: { improveDelta: replay18.scoreDelta, worseDelta: replay10.scoreDelta },
+        actual: { improveDelta: replay25.scoreDelta, worseDelta: replay5.scoreDelta },
       });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
@@ -573,19 +573,23 @@ export const EXTRA_TESTS = [
     'Repeated same-score replays do not keep increasing totalSoloScore',
     () => {
       const sameScoreAttempt = calculateSoloAttemptResult({
-        mistakes: 1,
-        completedCards: 10,
-        elapsedSeconds: 75,
+        mistakes: 4,
+        completedCards: 7,
+        elapsedSeconds: 110,
+        requiredCards: 7,
       });
       let progress = {
         currentLevel: 2,
         levels: {
           1: {
-            bestStars: 3,
+            bestStars: 2,
             bestScore: 15,
-            bestScoreStars: 3,
-            bestTimeSeconds: 75,
-            bestMistakes: 1,
+            bestScoreStars: 2,
+            bestScoreBaseScore: 10,
+            bestScoreTimeBonus: 5,
+            bestTimeSeconds: 110,
+            bestMistakes: 4,
+            soloRulesVersion: 2,
             attempts: 1,
           },
         },
