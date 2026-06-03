@@ -142,6 +142,7 @@ export default function Timeline({
   // hit-testing, or which cards are rendered.
   placementFeedback = null,
   beginnerPlacementHintZone = null,
+  correctStreak = 0,
 }) {
   const sortedCards = useMemo(
     () => Array.isArray(cards) ? [...cards].sort((a, b) => a.year - b.year) : [],
@@ -434,6 +435,7 @@ export default function Timeline({
               result={placementFeedback?.result || null}
               targetRect={feedbackTargetRect}
               reducedMotion={reducedMotion}
+              correctStreak={correctStreak}
             />
             {/* Ruler removed — no atmospheric era labels */}
 

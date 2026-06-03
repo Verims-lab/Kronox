@@ -18,8 +18,10 @@ Status: Active product contract.
 Per-level best score is stored on User.solo_progress and projected into the
 leaderboard by getSoloLeaderboard.
 
-Normal Solo levels require 7 correct cards. Special Solo levels start at
-level 10 and repeat every 5 levels; they require 10 correct cards.
+Normal Solo levels require 7 correct timeline cards, including seed cards
+already on the timeline. Special Solo levels start at level 10 and repeat
+every 5 levels; they require 10 correct timeline cards, including seed cards
+already on the timeline.
 All new Solo attempts use a 180 seconds timer and fail on the 10th mistake.
 
 Star base points:

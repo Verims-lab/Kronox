@@ -72,9 +72,9 @@ Checklist:
 * The deck has unique years.
 * Passive-category questions are excluded.
 * Only active questions are used.
-* Normal Solo levels win after 7 correct placements.
+* Normal Solo levels win after 7 correct timeline cards, including seed cards already on the timeline.
 * Special Solo levels start at level 10 and repeat every 5 levels.
-* Special Solo levels win after 10 correct placements.
+* Special Solo levels win after 10 correct timeline cards, including seed cards already on the timeline.
 * Fail occurs on the 10th mistake.
 * Timeout at 180 seconds fails the level.
 * Replay creates a new deck.

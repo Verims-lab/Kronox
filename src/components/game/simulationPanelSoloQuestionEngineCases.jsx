@@ -132,7 +132,7 @@ export const EXTRA_TESTS = [
   /* 2. solo_attempt_card_target_is_level_aware */
   makeCase(
     'solo_attempt_card_target_is_level_aware',
-    'Normal Solo card target is 7; special levels every 5 from 10 require 10 cards',
+    'Normal Solo visible timeline target is 7; special levels every 5 from 10 require 10 cards',
     () => {
       if (SOLO_CARDS_PER_LEVEL !== 7 || SOLO_SPECIAL_CARDS_PER_LEVEL !== 10) return fail('Solo card constants drifted.', {
         verification: 'RUNTIME_VERIFIED',
@@ -158,9 +158,9 @@ export const EXTRA_TESTS = [
         actual.level10Cards !== 10 ||
         actual.level11Cards !== 7 ||
         actual.level15Cards !== 10 ||
-        actual.level1TimelineTarget !== 9 ||
-        actual.level10TimelineTarget !== 12 ||
-        actual.level11TimelineTarget !== 9 ||
+        actual.level1TimelineTarget !== 7 ||
+        actual.level10TimelineTarget !== 10 ||
+        actual.level11TimelineTarget !== 7 ||
         actual.normalDeckSize !== 16 ||
         actual.specialDeckSize !== 19 ||
         JSON.stringify(actual.specialLevels) !== JSON.stringify([[9, false], [10, true], [11, false], [15, true]])
@@ -168,7 +168,7 @@ export const EXTRA_TESTS = [
         return fail('Solo card target helper drifted.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
-          expected: 'normal levels require 7 placed cards; levels 10,15,20... require 10; deck sizes 16/19',
+          expected: 'normal levels complete at 7 visible timeline cards; levels 10,15,20... complete at 10; deck sizes 16/19',
           actual,
           actionType: ACTION_TYPES.CODE_FIX,
         });

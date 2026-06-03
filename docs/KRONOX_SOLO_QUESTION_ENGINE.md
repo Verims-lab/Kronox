@@ -7,7 +7,7 @@ This document describes the Solo question-selection rules used by `src/lib/soloQ
 ## Core Attempt Rules
 
 Normal Solo levels:
-- end successfully at 7 correct cards
+- end successfully at 7 correct timeline cards, including seed cards already on the timeline
 - use a 16-question attempt deck
 - use the 180 seconds timer
 - fail when the timer reaches 180 seconds before completion
@@ -15,7 +15,7 @@ Normal Solo levels:
 
 Special Solo levels:
 - start at level 10 and repeat every 5 levels: 10, 15, 20, 25, ...
-- end successfully at 10 correct cards
+- end successfully at 10 correct timeline cards, including seed cards already on the timeline
 - use a 19-question attempt deck
 - use the 180 seconds timer unless a future explicit config changes it
 - fail on the 10th mistake

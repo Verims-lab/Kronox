@@ -8,10 +8,11 @@ export const SOLO_QUESTION_ENGINE_DOC = `# Kronox Solo Question Engine
 
 Status: Active product contract for new Solo attempts.
 
-Normal Solo levels end at 7 correct cards and use a 16-question deck.
+Normal Solo levels end at 7 correct timeline cards, including seed cards
+already on the timeline, and use a 16-question deck.
 Special Solo levels start at level 10 and repeat every 5 levels: 10, 15,
-20, 25, and so on. Special Solo levels end at 10 correct cards and use a
-19-question deck.
+20, 25, and so on. Special Solo levels end at 10 correct timeline cards,
+including seed cards already on the timeline, and use a 19-question deck.
 
 All new Solo attempts use a 180 seconds timer and fail on the 10th mistake.
 

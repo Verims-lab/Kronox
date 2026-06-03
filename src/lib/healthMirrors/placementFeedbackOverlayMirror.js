@@ -20,7 +20,7 @@ export const PLACEMENT_FEEDBACK_OVERLAY_PATH = 'components/game/PlacementFeedbac
 export const PLACEMENT_FEEDBACK_OVERLAY_SOURCE = `// Codex163 — PlacementFeedbackOverlay choreography contract mirror.
 //
 // Branching:
-//   if (result === 'correct') { ...green correctAnim using #22c55e... }
+//   if (result === 'correct') { ...gold/cyan correctAnim using #facc15 and #38bdf8... }
 //   if (result === 'wrong')   { ...red wrongFullAnim using #ef4444... }
 //
 // Wrong-placement choreography (full motion):
@@ -37,11 +37,21 @@ const wrongFullAnim = {
 };
 
 // Correct-placement choreography:
+const safeCorrectStreak = Math.max(0, Number(correctStreak) || 0);
+const successSparkAngles = [-74, -42, -16, 18, 46, 76];
 const correctAnim = {
-  initial: { opacity: 0, scale: 1.03 },
-  animate: { opacity: [0, 1, 0.85, 0], scale: [1.03, 1.0, 1.0, 1.0] },
-  transition: { duration: 0.36, times: [0, 0.15, 0.55, 1], ease: 'easeOut' },
+  initial: { opacity: 0, scale: reducedMotion ? 1 : 0.94 },
+  animate: {
+    opacity: [0, 1, 0.9, 0],
+    scale: reducedMotion ? [1, 1, 1, 1] : [0.94, 1.08, 0.985, 1.0],
+  },
+  transition: { duration: reducedMotion ? 0.32 : 0.48, times: [0, 0.18, 0.58, 1], ease: 'easeOut' },
 };
+// Correct-placement colors and streak microcopy:
+//   #facc15
+//   #38bdf8
+//   Seri!
+//   Harika!
 
 // Reduced-motion path keeps only the color flash for wrong placements.
 const wrongReducedAnim = {
@@ -55,7 +65,7 @@ const wrongReducedAnim = {
 //   aria-hidden="true"
 
 // Self-clearing timer so a stale feedback can't keep replaying.
-//   const timer = window.setTimeout(() => setActiveKey(null), 700);
+//   const timer = window.setTimeout(() => setActiveKey(null), 820);
 //   return () => window.clearTimeout(timer);
 //   reducedMotion = false
 `;

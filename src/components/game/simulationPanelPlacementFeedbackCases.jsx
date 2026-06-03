@@ -5,13 +5,14 @@
 //   intentionally OUT of scope. These cases lock the *visual-only*
 //   placement feedback layer:
 //     • correct/wrong feedback state exists and is temporary
-//     • correct placement → green feedback
+//     • correct placement → premium gold/cyan lock-in feedback
 //     • wrong placement → red glow + shake + void-reject drift
 //     • wrong placement does NOT insert the card
 //     • prefers-reduced-motion is respected
 //     • drag/drop core files were not rewritten
 //     • ghost-card is not left visually stuck after wrong placement
 
+import gameSource from '../../pages/Game.jsx?raw';
 import timelineSource from './Timeline.jsx?raw';
 // Codex168 — `?raw` returns a non-string for this .jsx overlay on this
 // host's Vite build, which made every required token (including
@@ -22,6 +23,7 @@ import timelineSource from './Timeline.jsx?raw';
 import { PLACEMENT_FEEDBACK_OVERLAY_SOURCE as overlaySource } from '@/lib/healthMirrors/placementFeedbackOverlayMirror';
 import gameLayoutSource from './GameLayout.jsx?raw';
 import gameActionsSource from '../../hooks/useGameActions.js?raw';
+import gameRulesSource from '../../lib/gameRules.js?raw';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
 const ACTION_TYPES = { CODE_FIX: 'CODE_FIX' };
@@ -83,22 +85,87 @@ export const EXTRA_TESTS = [
       return pass('GameLayout forwards a temporary placementFeedback object to Timeline.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('correct_placement_triggers_green_feedback',
-    'Correct placement triggers green feedback animation',
+  makeCase('correct_placement_triggers_premium_feedback',
+    'Correct placement triggers premium lock-in feedback animation',
     () => {
       const missing = missingTokens(overlaySource, [
         "result === 'correct'",
-        '#22c55e',
+        '#facc15',
+        '#38bdf8',
         'correctAnim',
+        'successSparkAngles',
       ]);
       if (missing.length) {
-        return fail('PlacementFeedbackOverlay does not branch a green animation for correct placement.', {
+        return fail('PlacementFeedbackOverlay does not branch a gold/cyan lock-in animation for correct placement.', {
           verification: 'STATIC_CONTRACT',
           file: 'components/game/PlacementFeedbackOverlay.jsx',
           missing,
         });
       }
-      return pass('Correct placement triggers the green PlacementFeedbackOverlay branch.', { verification: 'STATIC_CONTRACT' });
+      return pass('Correct placement triggers the gold/cyan PlacementFeedbackOverlay branch.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('solo_progress_counter_uses_completion_source',
+    'Solo progress counter uses the same source as completion',
+    () => {
+      const gameMissing = missingTokens(gameSource, [
+        'getTimelineCardCount(me)',
+        'progressCardCount={isSoloLevelMode ? cardsCompletedSolo : undefined}',
+        'progressCardTarget={isSoloLevelMode ? winCardCount : undefined}',
+      ]);
+      const rulesMissing = missingTokens(gameRulesSource, [
+        'export function getTimelineCardCount(player)',
+        'return getTimelineCardCount(player) >= winCardCount;',
+      ]);
+      if (gameMissing.length || rulesMissing.length) {
+        return fail('Solo header progress can drift from the completion count source.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['pages/Game.jsx', 'lib/gameRules.js'],
+          actual: { gameMissing, rulesMissing },
+        });
+      }
+      return pass('Solo header progress and completion both read the timeline card count source.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('progress_counter_pops_on_correct_increment',
+    'Progress counter pops/highlights when correct count increments',
+    () => {
+      const missing = missingTokens(gameLayoutSource, [
+        'progressPulseKey',
+        'previousProgressCountRef',
+        'visibleProgressCount > previousProgressCountRef.current',
+        'textShadow',
+        "matchMedia('(prefers-reduced-motion: reduce)')",
+      ]);
+      if (missing.length) {
+        return fail('GameLayout no longer highlights the progress counter after progress increments.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'components/game/GameLayout.jsx',
+          missing,
+        });
+      }
+      return pass('GameLayout gives the progress counter a reduced-motion-aware pop/highlight on increments.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('correct_feedback_reward_stack_visual_only',
+    'Correct feedback reward stack is visual-only',
+    () => {
+      const missing = missingTokens(overlaySource, [
+        'correctStreak',
+        'successSparkAngles',
+        'Seri!',
+        'Harika!',
+        'pointerEvents: \'none\'',
+      ]);
+      const overlayTouchesState = /setLobbyData|setPlayers|onPlaceCard\(/.test(safeStr(overlaySource));
+      if (missing.length || overlayTouchesState) {
+        return fail('Correct placement reward stack can affect gameplay state or lost its visual reward contract.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'components/game/PlacementFeedbackOverlay.jsx',
+          actual: { missing, overlayTouchesState },
+        });
+      }
+      return pass('Correct feedback adds sparks/streak copy while remaining pointer-events:none and non-mutating.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('wrong_placement_triggers_red_void_reject_feedback',

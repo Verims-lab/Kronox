@@ -10,9 +10,11 @@
 export const SOLO_QUESTION_ENGINE_DOC = `# Kronox Solo Question Engine
 
 Normal Solo levels use 16 unique years (16 questions) and need 7 correct
-placements to pass. Special Solo levels start at level 10, repeat every
-5 levels, use 19 unique years (19 questions), and need 10 correct placements
-to pass. All new Solo attempts use 180 seconds and fail on the 10th mistake.
+timeline cards, including seed cards already on the timeline, to pass.
+Special Solo levels start at level 10, repeat every 5 levels, use 19 unique
+years (19 questions), and need 10 correct timeline cards, including seed
+cards already on the timeline, to pass. All new Solo attempts use 180
+seconds and fail on the 10th mistake.
 Only active questions (Question.state === "A") from active categories are used.
 Replay rebuilds the deck with no mid-attempt re-randomization. Fallback may
 relax category/subcategory balance, era spread, or recently-seen filtering but

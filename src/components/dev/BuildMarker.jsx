@@ -1,10 +1,18 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex181 — Solo progress counter + correct-placement reward feel:
+//   • Solo top progress now reads the same timeline card-count helper used
+//     by the win condition, preventing stale 5/7-style display drift.
+//   • Correct placements get a visual-only gold/cyan lock-in pulse, spark
+//     burst, progress counter pop, and local streak microcopy.
+//   • Placement validation, hit-testing, deck rules, scoring, and Online
+//     gameplay are unchanged.
+//
 // Codex180 — Solo v2 rules update:
-//   • Normal Solo levels now require 7 correct cards, use 16-question decks,
-//     and fail on the 10th mistake or 180-second timeout.
+//   • Normal Solo levels now require 7 correct timeline cards, use
+//     16-question decks, and fail on the 10th mistake or 180-second timeout.
 //   • Special Solo levels start at level 10 and repeat every 5 levels; they
-//     require 10 correct cards and use 19-question decks.
+//     require 10 correct timeline cards and use 19-question decks.
 //   • Solo score table is now 3⭐=15 / 2⭐=10 / 1⭐=5 plus 15/10/5 time
 //     bonuses at <=60/<=90/<=120 seconds.
 //   • First 5 ordered Solo questions must be at least 5 years apart; old
@@ -705,7 +713,7 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
-const BUILD_MARKER = 'Codex180';
+const BUILD_MARKER = 'Codex181';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
