@@ -77,6 +77,9 @@ Checklist:
 * Replay creates a new deck.
 * Mid-game flow does not rerandomize questions.
 * Insufficient unique-year pool shows clean error.
+* Levels 1-3 show beginner-friendly year spacing and a subtle correct-slot pulse while dragging.
+* Levels 4-10 keep beginner-friendly year spacing, but no placement pulse.
+* Level 11+ keeps the normal Solo selection behavior.
 
 ---
 

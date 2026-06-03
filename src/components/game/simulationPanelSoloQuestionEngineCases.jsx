@@ -13,7 +13,12 @@
 //   end with drag/drop) are classified as runtime-verified-by-product
 //   and explicitly point to the gameplay invariant they protect.
 
-import { buildSoloAttemptDeck, __soloEngineInternals } from '@/lib/soloQuestionEngine';
+import {
+  buildSoloAttemptDeck,
+  __soloEngineInternals,
+  getBeginnerYearSpacingForLevel,
+  shouldShowBeginnerPlacementHint,
+} from '@/lib/soloQuestionEngine';
 import { SOLO_CARDS_PER_LEVEL, SOLO_MAX_MISTAKES } from '@/lib/soloLevels';
 // Codex167 — Real existence + content proof for the Solo Question Engine
 // doc. Vite `?raw` cannot reach outside `src/` on this host, so the
@@ -61,6 +66,23 @@ function buildSyntheticPool(count, overrides = {}) {
     type: 'metin',
     ...(typeof overrides === 'function' ? overrides(i) : {}),
   }));
+}
+
+function makeSeededRandom(seed = 1) {
+  let state = seed >>> 0;
+  return () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    return state / 4294967296;
+  };
+}
+
+function minAdjacentGap(years) {
+  const sorted = years.map(Number).sort((a, b) => a - b);
+  let minGap = Infinity;
+  for (let i = 1; i < sorted.length; i += 1) {
+    minGap = Math.min(minGap, Math.abs(sorted[i] - sorted[i - 1]));
+  }
+  return minGap;
 }
 
 // ─── Suite registration ────────────────────────────────────────────
@@ -356,7 +378,87 @@ export const EXTRA_TESTS = [
     },
   ),
 
-  /* 12. solo_question_engine_doc_exists */
+  /* 12. beginner_year_spacing_contract */
+  makeCase(
+    'beginner_year_spacing_contract',
+    'Levels 1-10 have soft beginner year-spacing targets; 11+ keeps normal behavior',
+    () => {
+      const l1 = getBeginnerYearSpacingForLevel(1);
+      const l5 = getBeginnerYearSpacingForLevel(5);
+      const l9 = getBeginnerYearSpacingForLevel(9);
+      const l11 = getBeginnerYearSpacingForLevel(11);
+      const ok = l1?.idealGap === 10 && l1?.minGap === 8
+        && l5?.idealGap === 7 && l5?.minGap === 5
+        && l9?.idealGap === 5 && l9?.minGap === 3
+        && l11 === null;
+      if (!ok) return fail('Beginner spacing levels drifted.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'REAL_PRODUCT_RISK',
+        expected: '1-3: 8-10, 4-7: 5-7, 8-10: 3-5, 11+: null',
+        actual: { l1, l5, l9, l11 },
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+      return pass('Beginner spacing targets are level-gated and level 11+ stays normal.', {
+        verification: 'RUNTIME_VERIFIED', classification: 'RUNTIME_VERIFIED',
+      });
+    },
+  ),
+
+  /* 13. beginner_year_spacing_orders_first_10_cards */
+  makeCase(
+    'beginner_year_spacing_orders_first_10_cards',
+    'Level 1 decks prefer clearly spaced answer years in the first 10 playable cards',
+    () => {
+      const pool = buildSyntheticPool(40, (i) => ({ year: 1900 + i * 10, answer: String(1900 + i * 10) }));
+      const res = buildSoloAttemptDeck({ pool, levelNumber: 1, random: makeSeededRandom(42) });
+      if (!res.ok) return fail(`Engine failed unexpectedly: ${res.reason}`, {
+        verification: 'RUNTIME_VERIFIED', classification: 'REAL_PRODUCT_RISK',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+      const firstTenYears = res.deck.slice(0, 10).map((q) => q.year);
+      const gap = minAdjacentGap(firstTenYears);
+      if (gap < 8) return fail('Level 1 first ten cards are not beginner-spaced.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'REAL_PRODUCT_RISK',
+        expected: 'minimum adjacent gap >= 8',
+        actual: { firstTenYears, gap },
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+      return pass('Level 1 deck keeps the first ten answer years visibly spaced while preserving 18 unique years.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+        actual: { firstTenYears, gap },
+      });
+    },
+  ),
+
+  /* 14. beginner_placement_hint_levels_1_to_3_only */
+  makeCase(
+    'beginner_placement_hint_levels_1_to_3_only',
+    'Placement hint is enabled only for Solo levels 1-3',
+    () => {
+      const actual = {
+        level1: shouldShowBeginnerPlacementHint(1),
+        level3: shouldShowBeginnerPlacementHint(3),
+        level4: shouldShowBeginnerPlacementHint(4),
+        legacy: shouldShowBeginnerPlacementHint(null),
+      };
+      if (!actual.level1 || !actual.level3 || actual.level4 || actual.legacy) {
+        return fail('Beginner placement hint level gate drifted.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'true for 1-3 only',
+          actual,
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Beginner placement hint helper is limited to levels 1-3.', {
+        verification: 'RUNTIME_VERIFIED', classification: 'RUNTIME_VERIFIED',
+      });
+    },
+  ),
+
+  /* 15. solo_question_engine_doc_exists */
   makeCase(
     'solo_question_engine_doc_exists',
     'docs/KRONOX_SOLO_QUESTION_ENGINE.md exists at the exact path and codifies the core rules',

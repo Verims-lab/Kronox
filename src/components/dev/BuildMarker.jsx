@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex177 — Beginner Solo assist + admin-only test reset support:
+//   • Solo levels 1-10 keep the 18-question/18-unique-year deck but prefer
+//     clearer first-10 answer-year gaps for early-game readability.
+//   • Solo levels 1-3 show a visual-only correct-slot placement hint while
+//     dragging; hit-testing, drag/drop, scoring, and Online mode are unchanged.
+//   • Adds an admin + env-allowlisted test-account progress reset function
+//     for manual QA without exposing a normal-user reset path.
+//
 // Codex176 — Health fix pass:
 //   • Keeps category_id canonical while making the categoryid import-alias
 //     rule exact in the helper + Health doc mirror.
@@ -673,7 +681,7 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
-const BUILD_MARKER = 'Codex176';
+const BUILD_MARKER = 'Codex177';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

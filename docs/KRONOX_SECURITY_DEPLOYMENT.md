@@ -116,6 +116,19 @@ Rules:
 * unauthenticated admin-only calls should return 401
 * authenticated non-admin admin-only calls should return 403
 
+Admin-only maintenance helpers must also fail closed. The test-account
+progress reset helper requires both admin authorization and a deployment
+allowlist:
+
+```text
+KRONOX_TEST_RESET_EMAILS
+TEST_RESET_EMAILS
+```
+
+Use these only for explicitly approved test accounts. Do not add a normal
+user-facing reset button and do not commit personal test-account emails to
+source code.
+
 ---
 
 # 4. Question Bank Access

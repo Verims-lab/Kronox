@@ -60,13 +60,28 @@ no chance of running out of distinct years.
 - Soft cap: relaxed by the fallback ladder when the pool is thin.
 - The unique-year rule and deck size are NOT soft.
 
-## 6. Repeat / recently-seen avoidance plan
+## 6. Beginner level assist
+- Levels 1-3: prefer 8-10 years between neighboring visible answer years.
+- Levels 4-7: prefer 5-7 years between neighboring visible answer years.
+- Levels 8-10: prefer 3-5 years between neighboring visible answer years.
+- Level 11+: normal existing selection behavior.
+- The engine prefers the first 10 playable cards to have clearer year
+  gaps because the player can win at 10 correct placements.
+- If the active pool cannot satisfy the exact target, beginner spacing
+  relaxes gracefully and then falls back to the normal unique-year deck.
+- Beginner spacing must never fail a level by itself.
+- Placement hint is levels 1-3 only: while dragging a Solo card, the
+  correct drop zone may softly pulse/glow. This is visual-only and does
+  not change hit testing, drag behavior, score, penalty, or placement
+  validation. Level 4+ and Online mode must not show this assist.
+
+## 7. Repeat / recently-seen avoidance plan
 - Caller may pass recentlySeenQuestionIds (lib/questionHistory or a
   future SoloQuestionHistory entity).
 - Engine prefers unseen questions, then relaxes this preference in
   fallback tier 2, but NEVER bypasses the unique-year rule.
 
-## 7. Attempt deck as source of truth
+## 8. Attempt deck as source of truth
 - The attempt deck is created once at start, in the Solo init effect
   inside pages/Game.jsx.
 - useGameActions.pickQuestion is fed the deck as its questionPool and
@@ -75,7 +90,7 @@ no chance of running out of distinct years.
 - Replay creates a new deck. Tapping Replay or Sonraki Seviye drops
   the deck and the engine runs again with a fresh attemptId.
 
-## 8. Fallback strategy
+## 9. Fallback strategy
 - Tier 1: avoid recently-seen + enforce soft category cap.
 - Tier 2: allow recently-seen + enforce soft category cap.
 - Tier 3: allow recently-seen + no category cap.
@@ -83,18 +98,18 @@ no chance of running out of distinct years.
 - The fallback NEVER relaxes deck size, unique question ids, unique
   years, or active question/category gating.
 
-## 9. Determinism
+## 10. Determinism
 - Engine accepts an optional random function; defaults to Math.random.
 - attemptId = solo_{Date.now()}_{base36(random)} so replay always
   produces a fresh attempt id (and a fresh deck).
 
-## 10. Data model / persistence
+## 11. Data model / persistence
 - Today: runtime state inside pages/Game.jsx
   (soloAttemptDeck, soloAttemptId).
 - Future preferred: SoloLevelAttempt + SoloQuestionHistory entities.
   Engine signature is already future-ready.
 
-## 11. Future extensions
+## 12. Future extensions
 - Difficulty weighting using question.difficulty.
 - Tags / sub_category preference.
 - Month/day chronological key when answer carries month/year — the
@@ -102,7 +117,7 @@ no chance of running out of distinct years.
 - Solo map zone themes / zone-based levels via the existing
   allowedMainCategoryIds whitelist.
 
-## 12. What this engine MUST NOT change
+## 13. What this engine MUST NOT change
 - Solo scoring values, star rules, result popup behavior.
 - Online scoring / Online deck.
 - Unified Kronox Puan (getKronoxVisibleScore).
