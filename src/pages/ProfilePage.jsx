@@ -5,7 +5,7 @@ import { Users, Trophy, Sparkles, Gem, Settings, ChevronRight, LogOut, UserRound
 import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 import { isAdminUser } from '@/lib/admin';
-import ScreenHeader from '@/components/layout/ScreenHeader';
+import StandardTopBar from '@/components/layout/StandardTopBar';
 // Codex111/Codex146 — Profile Seviye reads the SAME shared Solo progress
 // helper the Solo Level Path uses. Visible Puan reads the shared Kronox
 // score helper so persisted Online score deltas are visible after matches.
@@ -118,7 +118,7 @@ export default function ProfilePage() {
         userSelect: 'none',
       }}
     >
-      <ScreenHeader title="Profil" user={user} />
+      <StandardTopBar diamonds={diamondValue} user={user} />
       <div className="mx-auto w-full max-w-md px-4 space-y-5">
 
         {/* Identity card */}
