@@ -1,19 +1,51 @@
-# Category Image Assets
+# Kronox Category Image Assets
 
-Drop your static category images here. The app will automatically use them instead of the Unsplash fallbacks.
+Static category images for Kronox category cards live here.
 
-## Required filenames (WebP preferred, PNG/JPG also work):
+These assets are optional. If a category image is missing, the app should fall back to the current UI/icon treatment without broken image paths.
 
-| File | Category Card |
-|------|--------------|
-| `internet-era.webp` | INTERNET ERA |
-| `turk-tv.webp` | TÜRK TV |
-| `futbol-deliligi.webp` | FUTBOL DELİLİĞİ |
-| `viral-kultur.webp` | VİRAL KÜLTÜR |
-| `muzik-legends.webp` | MÜZİK LEGENDS |
-| `teknoloji-kaosu.webp` | TEKNOLOJİ KAOSU |
+## Current Categories
 
-## Specs:
-- Recommended size: 400×400px (1:1 square)
-- Format: WebP (smallest file size) or JPG/PNG
-- The card renders `object-fit: cover` so any aspect ratio works
+| File | Category |
+| --- | --- |
+| `chronicle.webp` | Chronicle |
+| `flashback.webp` | Flashback |
+| `kult.webp` | Kült |
+| `viral.webp` | Viral |
+| `arena.webp` | Arena |
+| `level-up.webp` | Level Up |
+
+## Specs
+
+- Recommended size: 400×400px or larger
+- Recommended ratio: 1:1 square
+- Preferred format: WebP
+- PNG/JPG may be used only if WebP is unavailable
+- Images should work with `object-fit: cover`
+- Keep file sizes small for mobile/PWA performance
+
+## Visual Direction
+
+Category images should follow the current Kronox visual identity:
+
+- premium fantasy mobile game
+- blue/gold heroic UI
+- magical portal energy
+- tactile collectible-card feeling
+- readable, iconic category mood
+
+Avoid:
+
+- old neon cosmic dominance
+- generic Unsplash/photo placeholders
+- SaaS/dashboard visuals
+- broken remote image URLs
+
+## Important
+
+Do not add category images that introduce new category names.
+
+Canonical category definitions live in:
+
+```text
+docs/KRONOX_CATEGORY_TAXONOMY.md

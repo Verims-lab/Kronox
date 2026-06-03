@@ -1,66 +1,107 @@
 # Kronox Question Card Media Assets
 
-This directory stores static image assets for Kronox question cards.
+This directory is reserved for optional static image assets that may be used by Kronox question cards in the future.
+
+Current Kronox core gameplay does not require question images.
+
+---
+
+## Current Status
+
+Question card media is optional.
+
+The current Kronox question data model does not use these legacy fields as primary stored `Question` fields:
+
+* `media_url`
+* `year`
+* `category`
+* `type`
+* `icon_url`
+
+Canonical question model is documented in:
+
+```text
+docs/KRONOX_QUESTION_DATA_MODEL.md
+```
+
+Current gameplay must work without question images.
+
+If a question image is missing, the card must use the normal Kronox fallback visual treatment and must not show a broken image path.
+
+---
 
 ## File Organization
 
-Store question card images here with descriptive names:
+Store optional question card images here with descriptive lowercase filenames.
 
-```
+Example:
+
+```text
 /public/assets/questions/
+  walt-disney-sirketi-kurulus.webp
   msn-messenger.webp
   gangnam-style.webp
   nokia-3310.webp
-  walt-disney-sirketi-kurulus.webp
-  ...
 ```
 
-## Database Reference
+---
 
-In the Question entity, set `media_url` to reference these assets:
+## Recommended Specs
 
-```json
-{
-  "question": "Walt Disney Şirketi hangi yılda kuruldu?",
-  "year": 1923,
-  "category": "sanat",
-  "type": "gorsel",
-  "media_url": "/assets/questions/walt-disney-sirketi-kurulus.webp",
-  "difficulty": 2
-}
-```
+* Preferred format: WebP
+* PNG/JPG may be used only if WebP is unavailable
+* Recommended aspect ratio: 16:9
+* Recommended minimum resolution: 640×360px
+* Target file size: under 200KB where possible
+* Naming: lowercase, hyphen-separated, descriptive
+* Avoid remote image URLs for production gameplay cards
 
-## Image Requirements
+---
 
-- **Format**: WebP, PNG, or JPEG
-- **Aspect Ratio**: 16:9 recommended
-- **Resolution**: 640×360px minimum (scales responsively)
-- **File Size**: < 200KB for optimal loading
-- **Naming**: lowercase, hyphens for spaces, descriptive
+## Future Media Support
 
-## Rendering
+If question-card media becomes active again, do not reintroduce legacy schema fields casually.
 
-The game automatically renders images from `media_url`:
+Do not add these legacy fields back to `Question` without a product/data-model decision:
 
-```jsx
-{question?.media_url && (
-  <img
-    src={question.media_url}
-    alt=""
-    className="w-full h-full object-cover"
-    referrerPolicy="no-referrer"
-    crossOrigin="anonymous"
-    onError={() => { /* fallback to gradient */ }}
-  />
-)}
-```
+* `media_url`
+* `year`
+* `category`
+* `type`
+* `icon_url`
 
-If media_url is missing or the image fails to load, the card displays the Kronox fallback gradient and category icon.
+Preferred future approach:
 
-## Build & Deployment
+* keep the canonical `Question` schema clean
+* add a dedicated optional media field only after product approval
+* or use a separate `QuestionMedia` mapping if richer media support is needed
+* ensure normal gameplay projection remains minimal and secure
 
-- **Local Dev**: Images load from `http://localhost:5173/assets/questions/`
-- **Production**: Vite packages `/public` assets and serves them directly
-- **PWA/WebView**: Static assets are bundled and cacheable
+---
 
-No runtime generation—all visuals are pre-prepared externally.
+## Runtime Requirements
+
+If media support is enabled later:
+
+* missing images must fall back gracefully
+* broken image paths must not appear in UI
+* images must be mobile/PWA friendly
+* images must not hurt drag/drop performance
+* images must not obscure question text
+* images must follow the Kronox premium fantasy mobile game direction
+
+---
+
+## Important Rules
+
+This folder is for static assets only.
+
+Do not use:
+
+* runtime image generation
+* external hotlinked images
+* Unsplash placeholders
+* remote placeholder URLs
+* broken production paths
+
+No current gameplay flow should depend on this folder unless media support is explicitly reintroduced.

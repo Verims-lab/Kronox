@@ -1,257 +1,436 @@
 # Kronox Solo Question Selection Engine
 
-> **Status:** Active product contract (Codex166).
-> **Implementation:** `src/lib/soloQuestionEngine.js` (`buildSoloAttemptDeck`).
-> **Consumer:** `src/pages/Game.jsx` Solo Level init effect.
-> **Health suite:** `solo_question_engine_health`.
+Status: active product contract.
 
----
+Implementation reference:
 
-## 1. Purpose
-
-Solo question selection is **controlled random**, not naive random.
-
-Every Solo attempt opens with a **pre-computed deck of exactly 18
-questions** that the engine produces once, at attempt start. Gameplay
-then walks that deck sequentially. No live API call, no mid-attempt
-re-randomization, no chance of running out of distinct years.
-
-This document is the source of truth for the engine's rules. Any change
-to the engine's behavior must update both the implementation _and_ this
-document, and must keep the matching Health cases green.
-
----
-
-## 2. Core rules
-
-| Rule | Value |
-|---|---|
-| Attempt deck size | **18 questions** |
-| Win condition | **10 correct placements** |
-| Fail condition (mistakes) | **8 mistakes** |
-| Fail condition (time) | **Solo level total timer expires** |
-| Replay | **Creates a new attempt and a new deck** |
-
-Player may not see all 18 questions (they win at 10 correct). Player
-may also fail before seeing all 18 (8 mistakes or timeout). The deck
-size of 18 = win target + max mistakes is intentional: gameplay is
-guaranteed to have enough cards to reach either outcome.
-
----
-
-## 3. Unique year rule (HARD)
-
-Within a single 18-question deck:
-
-* every question must have a usable `year` (integer)
-* **the same year MUST NOT appear twice**
-
-Reason: Kronox timeline ordering is year-based. If two cards share a
-year, drop-zone hit-testing and "correct placement" validation become
-ambiguous and unfair to the player.
-
-If fewer than 18 distinct years are available in the active pool, the
-engine returns a clean failure:
-
-```
-{ ok: false, reason: 'insufficient_unique_years',
-  message: 'Bu seviye için yeterli sayıda farklı yıla ait soru bulunamadı.' }
+```text
+src/lib/soloQuestionEngine.js
+buildSoloAttemptDeck
 ```
 
-The Solo init effect surfaces this message via the existing `setError`
-path — the level does **not** start.
+Runtime consumer:
 
-Future note: if Kronox later adds month/day to `answer`, this rule
-becomes "unique chronological key" instead of just year. Until then,
-answer → year is the single uniqueness axis.
-
----
-
-## 4. Active filtering
-
-* **Active questions only.** `question.state === 'A'` is required when
-  the field exists. Rows without `state` are accepted (legacy
-  backward-compatibility) until the dataset migration completes.
-* **Active categories only.** Caller passes
-  `allowedMainCategoryIds` — a numeric whitelist of
-  `Category.category_id` values where `Category.status === 'a'` (see
-  `lib/categoryFilters.js`). Passive categories cannot enter the deck.
-* Questions without a valid `main_category_id` are excluded when the
-  caller enforces a strict whitelist.
-
-The engine itself does NOT consult `Category.status`; that
-responsibility stays in the data layer (Online lobby + future Solo
-category picker), so the engine remains a pure function.
-
----
-
-## 5. Category balance
-
-When the caller supplies `N` active categories, the engine applies a
-**soft cap** per category:
-
-```
-perCategoryCap = ceil(deckSize / max(1, N)) + 1
+```text
+src/pages/Game.jsx
 ```
 
-For the default 18-card deck and 6 active categories, that is 4 per
-category. The cap is _soft_: if the pool is thin, the engine relaxes
-the cap as part of the fallback ladder. The 18-card target and the
-unique-year rule are **not** soft.
+Health suite:
 
-Target: at least 4 different active categories represented when the
-pool allows it. This is a guidance value, not a hard contract — the
-unique-year rule wins.
+```text
+solo_question_engine_health
+```
 
 ---
 
-## 6. Recently-seen avoidance
+# 1. Purpose
 
-If the caller supplies `recentlySeenQuestionIds` (e.g. from
-`lib/questionHistory`), the engine prefers questions the user has not
-recently seen. Recently-seen avoidance is relaxed in fallback tier 2
-but never bypasses the unique-year rule.
+Solo question selection is controlled random, not naive random.
 
-Future-ready: when a `SoloQuestionHistory` entity exists, the caller
-can pass that set instead of (or in addition to) the local recent
-history. The engine signature stays unchanged.
+The engine exists to create fair, replayable, level-based Solo attempts while preserving Kronox timeline clarity.
 
----
+The engine must protect:
 
-## 7. Attempt deck as source of truth
-
-* The deck is built **once**, in the Solo init effect inside
-  `pages/Game.jsx`, the first time the level boots.
-* `useGameActions.pickQuestion` (the live picker used during gameplay)
-  is fed the deck as its `questionPool`. It removes cards already used
-  in the attempt via `used_question_ids`, but it cannot pull from
-  outside the deck.
-* **No mid-attempt re-randomization.** Gameplay walks the deck only.
-* The attempt also stores a runtime `soloAttemptId` so debugging /
-  future telemetry can prove a fresh attempt produced a fresh deck.
-
-When the player taps **Replay** or **Sonraki Seviye** in the Solo
-result popup, both attempt state AND the deck are dropped — the Solo
-init effect then runs the engine again with a fresh `attemptId`.
+* question uniqueness
+* year uniqueness
+* active content filtering
+* category eligibility
+* no mid-game rerandomization
+* predictable attempt behavior
 
 ---
 
-## 8. Fallback strategy
+# 2. Core Rules
 
-Engine tries selection in this order:
+Each Solo attempt creates exactly:
 
-| Tier | Recently-seen | Category balance |
-|---|---|---|
-| 1 | Avoid | Enforce soft cap |
-| 2 | Allow | Enforce soft cap |
-| 3 | Allow | No cap |
-| Fail | — | Clean failure |
+```text
+18 questions
+```
 
-The engine **never** relaxes:
+The player wins at:
+
+```text
+10 correct placements
+```
+
+The player fails at:
+
+```text
+8 mistakes
+```
+
+The player also fails when:
+
+```text
+120 second Solo level timer expires
+```
+
+Rules:
+
+* the 18-question attempt deck must have 18 unique question IDs
+* the 18-question attempt deck must have 18 unique years
+* duplicate years are not allowed in a single attempt
+* the deck is created once at attempt start
+* no mid-game rerandomization is allowed
+* replay creates a new attempt ID and a new deck
+* the player may not see all 18 questions if they win earlier
+* the player may fail before seeing all 18 questions if mistakes or time limit are reached
+
+---
+
+# 3. Unique Year Rule
+
+Every selected question must have a unique runtime year.
+
+Rule:
+
+```text
+18 questions = 18 different years
+```
+
+Reason:
+
+Kronox timeline ordering is currently year-based. If two cards have the same year, ordering can become ambiguous or unfair.
+
+This rule must not be relaxed during fallback.
+
+If the system cannot find 18 valid questions with 18 unique years, the level must not start.
+
+Clean error message:
+
+```text
+Bu seviye için yeterli sayıda farklı yıla ait soru bulunamadı.
+```
+
+Future note:
+
+If Kronox later supports month/day precision, this rule can become:
+
+```text
+unique chronological key
+```
+
+Until then, runtime year must be unique inside one Solo attempt.
+
+---
+
+# 4. Active Filtering
+
+Solo uses only playable active content.
+
+Required:
+
+* `Question.state === "A"`
+* active categories only
+* passive categories excluded
+
+Category rules:
+
+```text
+Category.status === "a" -> active
+Category.status === "p" -> passive
+```
+
+Missing category status may be treated as active only as a backward-compatible seed/backfill fallback.
+
+Seeded rows should carry explicit:
+
+```text
+status: "a"
+```
+
+---
+
+# 5. Runtime Wiring
+
+Expected runtime flow:
+
+1. `getQuestions` authenticates the user.
+2. `getQuestions` returns a minimal playable projection.
+3. Returned questions are active playable rows.
+4. Returned data includes or supports active `main_category_id` values.
+5. `useOfflineQuestions` exposes playable questions and active category IDs.
+6. `Game.jsx` passes active category whitelist into `buildSoloAttemptDeck`.
+7. `buildSoloAttemptDeck` enforces active category whitelist before selecting the deck.
+
+Expected engine option:
+
+```text
+allowedMainCategoryIds
+```
+
+Passive categories must be excluded by the real Solo start path, not only by a helper-unit test.
+
+---
+
+# 6. Attempt Deck Flow
+
+At Solo attempt start:
+
+1. Load candidate question pool.
+2. Filter active/playable questions.
+3. Filter active categories.
+4. Validate question text.
+5. Validate answer/year.
+6. Normalize runtime year from `answer`.
+7. Exclude invalid or missing years.
+8. Enforce unique question IDs.
+9. Enforce unique years.
+10. Prefer not recently seen questions if available.
+11. Apply soft category balance if possible.
+12. Select exactly 18 questions.
+13. Store/use this deck as the attempt source of truth.
+14. Gameplay consumes the deck sequentially.
+
+During gameplay:
+
+```text
+currentQuestion = attemptDeck[currentIndex]
+```
+
+After each answer:
+
+```text
+correct -> correctCount + 1
+wrong -> mistakeCount + 1
+```
+
+If:
+
+```text
+correctCount === 10 -> success
+mistakeCount >= 8 -> failure
+time expires -> failure
+```
+
+If attempt is not finished, move to the next question in the deck.
+
+The engine must ensure the player cannot run out of questions before reaching either 10 correct or 8 mistakes.
+
+---
+
+# 7. Fallback Strategy
+
+The engine tries:
+
+1. avoid recently seen questions and keep soft category balance
+2. allow recently seen questions but keep soft category balance
+3. allow recently seen questions and relax category balance
+4. clean failure if 18 unique years are still impossible
+
+Fallback may relax:
+
+* recently seen avoidance
+* soft category balance
+
+Fallback must never relax:
 
 * deck size 18
-* unique question ids
-* unique answer/years
-* active question / active category gating
+* unique question IDs
+* unique years
+* active question filtering
+* active category filtering
 
-If all three tiers fail to produce a 18-unique-year deck, the engine
-returns the clean `insufficient_unique_years` failure (see §3) and the
-level refuses to start.
+Clean failure message:
 
----
-
-## 9. Determinism
-
-The engine accepts an optional `random` function (any `() => number in
-[0,1)`). When omitted, it uses `Math.random`. This lets future tests
-or debug sessions reproduce a specific deck.
-
-Suggested seed shape for future deterministic builds:
-
-```
-seed = user.email + level.levelNumber + attemptId
-```
-
-The current attempt id is generated as
-`solo_{Date.now()}_{base36(random)}`, which guarantees replay → new
-deck even without a deterministic seed.
-
----
-
-## 10. Data model / persistence
-
-Current implementation keeps the attempt deck in **runtime state**
-inside `pages/Game.jsx`:
-
-```
-soloAttemptDeck : Question[] (length 18)
-soloAttemptId   : string
-```
-
-There is **no `SoloLevelAttempt` entity yet**. The 18 ids live only
-for the lifetime of the React state. This is a documented limitation;
-when the project introduces `SoloLevelAttempt`, the engine signature
-is already future-ready (caller passes `recentlySeenQuestionIds`, gets
-back `attemptId` + `deck`).
-
-Future preferred shape (NOT implemented yet):
-
-```jsonc
-// SoloLevelAttempt
-{
-  "user_email":       string,
-  "level":            number,
-  "question_ids":     number[],     // the 18 selected ids
-  "started_at":       ISO-8601,
-  "completed_at":     ISO-8601 | null,
-  "status":           "in_progress" | "passed" | "failed",
-  "correct_count":    number,
-  "mistake_count":    number,
-  "duration_seconds": number,
-  "score":            number,
-  "stars":            number
-}
-
-// SoloQuestionHistory (cross-attempt)
-{
-  "user_email":  string,
-  "question_id": number,
-  "level":       number,
-  "attempt_id":  string,
-  "shown_at":    ISO-8601,
-  "result":      "correct" | "wrong"
-}
+```text
+Bu seviye için yeterli sayıda farklı yıla ait soru bulunamadı.
 ```
 
 ---
 
-## 11. Future extensions
+# 8. Category Balance
 
-* **Difficulty weighting** — use `question.difficulty` as a soft
-  preference once the new dataset is fully tagged.
-* **Tags / sub_category preference** — match the Solo player's
-  recent picks.
-* **Month/day chronological key** — when `answer` carries month/year,
-  the unique-year rule becomes a unique YYYY-MM key.
-* **Zone-/theme-based Solo map levels** — the engine accepts an
-  `allowedMainCategoryIds` whitelist today, so theme-locked levels
-  drop in with no engine change.
+For an 18-question deck, the engine should target category variety when the pool allows it.
+
+Soft target:
+
+* at least 4 different active categories if possible
+* avoid one category dominating the deck
+* keep category distribution varied
+
+Soft category balance may be relaxed if the pool is limited.
+
+Category balance must not override:
+
+* unique years
+* active categories
+* active questions
+* exact 18 question deck size
 
 ---
 
-## 12. What this engine MUST NOT change
+# 9. Recently Seen / Repeat Avoidance
 
-* Solo scoring values (`calculateSoloAttemptResult`,
-  `calculateSoloStars`)
-* Solo star rules / monotonic stars
-* Solo result popup behavior
-* Online scoring / Online deck (Online keeps its own filter in
-  `functions/startLobbyGame`)
-* Unified Kronox Puan (`getKronoxVisibleScore`)
+If user history or attempt history exists:
+
+* prefer questions the user has not recently seen
+* avoid repeating questions from recent Solo attempts when possible
+
+This is a preference, not a hard requirement.
+
+Hard requirements remain:
+
+* 18 questions
+* 18 unique question IDs
+* 18 unique years
+* active questions
+* active categories
+
+Future persistence may include:
+
+```text
+SoloLevelAttempt
+SoloQuestionHistory
+```
+
+---
+
+# 10. Data Boundary
+
+The current `Question` entity stores:
+
+```text
+answer
+```
+
+not a legacy stored:
+
+```text
+year
+```
+
+The authenticated question fetch layer derives runtime year from `answer`.
+
+Examples:
+
+```text
+2007 -> 2007
+Ocak 2007 -> 2007
+```
+
+Runtime compatibility layer:
+
+```text
+src/lib/questionRuntimeAdapter.js
+base44/functions/getQuestions/entry.ts
+```
+
+Do not remove the compatibility layer until Timeline/gameplay intentionally migrates to read `answer` directly.
+
+---
+
+# 11. Replay Behavior
+
+Replay creates:
+
+* a new attempt ID
+* a new 18-question deck
+
+Replay should not be forced to reuse the same deck.
+
+Reason:
+
+Kronox Solo should reduce memorization and keep replay attempts fresh.
+
+Future option:
+
+A separate “same deck retry” mode may be considered later, but it is not the current default contract.
+
+---
+
+# 12. Future Design Decisions
+
+The following decisions are not final yet and should not be implemented silently:
+
+## Level-Based Question Type
+
+Open questions:
+
+* Which levels ask which type of questions?
+* Should early levels use easier/broader-year questions?
+* Should later levels use harder/closer-year questions?
+* How does difficulty 1–5 map to Solo level progression?
+
+## Category / Subcategory Distribution
+
+Open questions:
+
+* How many categories should each level include?
+* Should some levels be category-themed?
+* Should subcategories be balanced?
+* How should missing subcategory data be treated?
+
+## Player Category Selection
+
+Open questions:
+
+* Should Solo ask the player to choose category or subcategory?
+* Should this be mandatory or optional?
+* Should default Solo remain fast, automatic, and mixed?
+* Should “Category Focused Solo” become a separate future mode?
+
+## Player Choice Impact
+
+If player category selection is added later:
+
+* deck generation must respect selected category filters
+* fallback rules must remain clear
+* 18 unique years must still be enforced
+* insufficient pool must produce a clean error
+* player selection must not silently produce invalid decks
+
+Current product decision:
+
+```text
+Default Solo remains controlled mixed deck generation.
+Player category/subcategory selection is not implemented yet.
+```
+
+---
+
+# 13. Health Coverage Expectations
+
+Health should cover:
+
+```text
+solo_attempt_deck_size_is_18
+solo_attempt_requires_10_correct
+solo_attempt_allows_max_8_mistakes
+solo_attempt_deck_unique_question_ids
+solo_attempt_deck_unique_years
+solo_attempt_uses_active_categories_only
+solo_attempt_uses_active_questions_only
+solo_attempt_no_mid_game_rerandomization
+solo_replay_creates_new_attempt_deck
+solo_question_engine_fallback_never_relaxes_unique_year
+solo_question_engine_clean_error_when_insufficient_unique_years
+solo_question_engine_runtime_wires_active_category_whitelist
+solo_question_engine_doc_exists
+```
+
+Rules:
+
+* Do not only test the helper in isolation.
+* Runtime wiring must be covered.
+* Manual/runtime proof may remain NOT_AUTOMATABLE when needed.
+* Do not fake PASS.
+
+---
+
+# 14. Do Not Move Into This Engine
+
+Do not move the following into the Solo question engine:
+
+* Online scoring
+* Solo scoring
 * Diamond economy
-* Drag/drop placement validation, timeline ordering
-* Question/Category schema beyond reading `state` and
-  `main_category_id`
+* drag/drop
+* Timeline
+* QuestionCard
+* GameLayout
+* multiplayer sync
+* leaderboard logic
 
-Anything that would violate the above contracts is out of scope for
-this engine.
+The engine selects Solo attempt decks. It should not become a general gameplay controller.
