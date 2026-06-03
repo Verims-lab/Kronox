@@ -1,131 +1,329 @@
 # Kronox Diamond Economy Rules
 
-This document defines the first production Diamond / Elmas economy contract.
-Diamonds are a persisted user-owned balance and are separate from Kronox Puan.
+## Purpose
 
-## Source Of Truth
+This document defines the Kronox Diamond / Elmas economy contract.
 
-- Canonical balance field: `User.diamonds`.
-- Display helper: `getDiamondBalance(user)`.
-- Existing UI adapter: `getLeaderboardDiamondValue(user)` delegates to the
-  same canonical helper so Header, Home, Solo, Online, Profile, and Liderlik
-  surfaces agree.
-- Diamonds must never be calculated from Kronox Puan, Solo stars, Solo level,
-  Online score, or leaderboard rank.
+Diamonds are a persisted user-owned balance.
 
-## Transaction Ledger
+Diamonds are separate from Kronox Puan.
+
+---
+
+# 1. Source Of Truth
+
+Canonical balance field:
+
+```text
+User.diamonds
+```
+
+Display helper:
+
+```text
+getDiamondBalance(user)
+```
+
+Existing UI adapter:
+
+```text
+getLeaderboardDiamondValue(user)
+```
+
+Rules:
+
+* Header, Home, Solo, Online, Profile, and Liderlik Elmas surfaces must agree.
+* Diamonds must never be calculated from Kronox Puan.
+* Diamonds must never be calculated from Solo stars.
+* Diamonds must never be calculated from Solo level.
+* Diamonds must never be calculated from Online score.
+* Diamonds must never be calculated from leaderboard rank.
+* Visible Elmas surfaces must not use placeholder values after authenticated user data is loaded.
+
+---
+
+# 2. Transaction Ledger
 
 `DiamondTransaction` is the economy ledger/audit entity.
 
 Required fields:
 
-- `user_email`
-- `amount`
-- `balance_before`
-- `balance_after`
-- `source`
-- `direction`
-- `idempotency_key`
-- `metadata`
-- `created_at`
+```text
+user_email
+amount
+balance_before
+balance_after
+source
+direction
+idempotency_key
+metadata
+created_at
+```
 
-The ledger supports future sources without one-off balance logic. Current
-active sources are only:
+Purpose:
 
-- `starter_bonus`
-- `daily_login`
+* audit balance changes
+* protect idempotency
+* support future reward sources
+* support recovery from partial write states
+
+---
+
+# 3. Active Reward Sources
+
+Current active sources:
+
+```text
+starter_bonus
+daily_login
+```
 
 Future schema-ready sources are intentionally inactive:
 
-- `wheel_spin_future`
-- `rewarded_ad_future`
-- `quest_reward_future`
-- `purchase_future`
-- `achievement_future`
-- `special_event_future`
-- `admin_adjustment`
+```text
+wheel_spin_future
+rewarded_ad_future
+quest_reward_future
+purchase_future
+achievement_future
+special_event_future
+admin_adjustment
+```
 
-Daily Quest / Günün Görevi remains paused. Do not implement
-`DailyQuestProgress` or quest rewards until that product work resumes.
+Daily Quest / Günün Görevi remains paused.
 
-## Starter Bonus
+Do not implement:
 
-- Amount: `+100` Diamonds.
-- Grant timing: after an authenticated user/profile is loaded at app entry.
-- Idempotency key: `starter_bonus:<normalizedEmail>`.
-- Persistent guard: `User.starter_bonus_granted_at`.
-- Must only grant once per user across refreshes/devices.
+```text
+DailyQuestProgress
+quest rewards
+quest reward diamond grants
+```
 
-## Daily Login Reward
+until Daily Quest product work resumes.
 
-- Amount: `+20` Diamonds.
-- Grant timing: after an authenticated user/profile is loaded on a new day.
-- Day boundary: UTC.
-- Daily key: `YYYY-MM-DD` from UTC date.
-- Idempotency key: `daily_login:<normalizedEmail>:<YYYY-MM-DD>`.
-- Persistent guard: `User.last_daily_diamond_reward_date`.
-- Must grant at most once per user per UTC day.
+---
 
-## First-Day Total
+# 4. Starter Bonus
 
-A brand-new authenticated user can receive both rewards on the same day:
+Amount:
 
-- Starter bonus: `+100`
-- Daily login reward: `+20`
-- First-day total: `120` Diamonds
+```text
++100 Diamonds
+```
+
+Grant timing:
+
+```text
+after authenticated user/profile is loaded at app entry
+```
+
+Idempotency key:
+
+```text
+starter_bonus:<normalizedEmail>
+```
+
+Persistent guard:
+
+```text
+User.starter_bonus_granted_at
+```
+
+Rules:
+
+* grant only once per user
+* must not duplicate on refresh
+* must not duplicate across devices as far as platform allows
+* must create or recover ledger row where possible
+
+---
+
+# 5. Daily Login Reward
+
+Amount:
+
+```text
++20 Diamonds
+```
+
+Grant timing:
+
+```text
+after authenticated user/profile is loaded on a new day
+```
+
+Day boundary:
+
+```text
+UTC
+```
+
+Daily key format:
+
+```text
+YYYY-MM-DD
+```
+
+Idempotency key:
+
+```text
+daily_login:<normalizedEmail>:<YYYY-MM-DD>
+```
+
+Persistent guard:
+
+```text
+User.last_daily_diamond_reward_date
+```
+
+Rules:
+
+* grant at most once per user per UTC day
+* refresh/reopen on same UTC day must not duplicate
+* next UTC day may grant again
+* must create or recover ledger row where possible
+
+---
+
+# 6. First-Day Total
+
+A brand-new authenticated user can receive both rewards on the same UTC day:
+
+```text
+starter bonus = +100
+daily login = +20
+first-day total = 120
+```
 
 Refreshing the app after that must not grant another starter or daily reward.
 
-## Grant Flow
+---
 
-The app bootstrap calls `ensureDiamondEconomyForUser(user)` after
-`base44.auth.me()` resolves.
+# 7. Grant Flow
+
+The app bootstrap calls:
+
+```text
+ensureDiamondEconomyForUser(user)
+```
+
+after:
+
+```text
+base44.auth.me()
+```
+
+resolves.
 
 For each reward:
 
-1. Normalize user email with trim/lowercase.
-2. Build the source idempotency key.
-3. Check the persisted User guard field.
-4. Check `DiamondTransaction` by `user_email + idempotency_key`.
-5. Refresh the current user profile before writing.
-6. Update `User.diamonds` and the guard field through `base44.auth.updateMe`.
-7. Create a `DiamondTransaction` ledger row.
-8. If a later run finds a guard without a ledger row, create a recovery
-   ledger row without granting again.
-9. If a later run finds a ledger row without the matching User guard, restore
-   the guard and preserve the highest known balance without granting again.
+1. normalize user email with trim/lowercase
+2. build source idempotency key
+3. check persisted User guard field
+4. check `DiamondTransaction` by `user_email + idempotency_key`
+5. refresh current user profile before writing
+6. update `User.diamonds` and guard field through `base44.auth.updateMe`
+7. create `DiamondTransaction` ledger row
+8. recover ledger if guard exists but ledger is missing
+9. recover guard if ledger exists but guard is missing
+10. do not grant again during recovery
 
-The User guard field is written with the balance update so a transient ledger
-write failure does not cause repeated grants on refresh. The helper reports the
-ledger error for diagnostics.
+---
 
-## Concurrency Notes
+# 8. Recovery Behavior
 
-Base44 schema-level uniqueness is not assumed for `idempotency_key`. The
-current guard is best-effort durable protection:
+If User guard exists but ledger row is missing:
 
-- persisted User guard fields,
-- transaction query-before-write,
-- user profile refresh before update,
-- same computed balance when two first-entry sessions race from the same base.
+* create a recovery ledger row
+* do not grant again
+* do not increase balance again
 
-The helper now includes self-healing for partial states:
+If ledger row exists but User guard is missing:
 
-- `starter_bonus_granted_at` / `last_daily_diamond_reward_date` exists but
-  the ledger row is missing -> recover the ledger row only.
-- `DiamondTransaction.idempotency_key` exists but the User guard is missing
-  -> recover the guard and keep the balance at least as high as the recorded
-  transaction balance.
+* restore the guard
+* keep balance at least as high as the recorded transaction balance
+* do not grant again
 
-True multi-device duplicate-proofing should still be verified with a runtime
-probe. If Base44 exposes unique constraints later, add a unique constraint on
-`DiamondTransaction.idempotency_key`.
+If ledger creation fails after balance update:
 
-## Not Implemented Yet
+* do not repeatedly grant on refresh
+* report diagnostic error
+* allow recovery path to create ledger later
 
-- Wheel spin rewards.
-- Rewarded ads.
-- Daily Quest / Günün Görevi.
-- Purchases.
-- Achievement and special event rewards.
-- Spending/cost flows.
+---
+
+# 9. Concurrency Notes
+
+Base44 schema-level uniqueness is not assumed for `idempotency_key`.
+
+Current protection is best-effort using:
+
+* persisted User guard fields
+* transaction query-before-write
+* user profile refresh before update
+* stable idempotency keys
+* recovery paths
+
+True multi-device duplicate-proofing should still be verified with a runtime probe.
+
+If Base44 later supports unique constraints, add a unique constraint on:
+
+```text
+DiamondTransaction.idempotency_key
+```
+
+---
+
+# 10. Not Implemented Yet
+
+The following are not implemented:
+
+* Wheel spin rewards
+* Rewarded ads
+* Daily Quest / Günün Görevi
+* Purchases
+* Achievement rewards
+* Special event rewards
+* Spending/cost flows
+
+Do not implement these without explicit product approval.
+
+---
+
+# 11. Health Coverage Expectations
+
+Health should cover:
+
+```text
+diamond_balance_display_uses_real_field
+diamond_starter_bonus_once
+diamond_daily_login_once_per_utc_day
+diamond_first_day_total_120
+diamond_transaction_idempotency_key_used
+diamond_reward_retry_safe
+diamond_balance_ledger_consistency_contract
+diamond_multi_device_runtime_probe_visible
+```
+
+Rules:
+
+* do not fake PASS for multi-device runtime race tests
+* keep runtime-only checks NOT_AUTOMATABLE unless actually proven
+* do not derive Elmas from score/stars/level in tests or UI
+
+---
+
+# 12. Manual Proof
+
+Manual/release proof should verify:
+
+* first login grants +100
+* daily login grants +20
+* first day can total 120
+* refresh does not duplicate
+* same-day reopen does not duplicate
+* next UTC day grants once
+* two-device duplicate prevention is probed
+* ledger recovery does not double grant
+
