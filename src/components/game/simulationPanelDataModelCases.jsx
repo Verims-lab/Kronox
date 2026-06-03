@@ -9,8 +9,10 @@ import soloLevelsSource from '../../lib/soloLevels.js?raw';
 import leaderboardSource from '../../lib/leaderboard.js?raw';
 import applyOnlineResultSource from '../../lib/applyOnlineResult.js?raw';
 import dataRetentionSource from '../../lib/dataRetention.js?raw';
-import scoringDocsSource from '../../../docs/KRONOX_SCORING_RULES.md?raw';
-import economyDocsSource from '../../../docs/KRONOX_ECONOMY_RULES.md?raw';
+// Vite `?raw` cannot reach outside `src/` on this host, so the canonical
+// scoring/economy docs are mirrored into JS modules the runtime can import.
+import { SCORING_RULES_DOC as scoringDocsSource } from '@/lib/scoringRulesDoc';
+import { ECONOMY_RULES_DOC as economyDocsSource } from '@/lib/economyRulesDoc';
 import {
   diamondTransactionEntitySource,
   friendRequestEntitySource,

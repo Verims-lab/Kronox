@@ -3,17 +3,22 @@
 // These cases lock the cross-cutting Package 1 audit findings that span
 // multiple older suites. Runtime/two-account/device proofs remain manual.
 
-import startLobbyGameSource from '../../../base44/functions/startLobbyGame/entry.ts?raw';
-import getSoloLeaderboardSource from '../../../base44/functions/getSoloLeaderboard/entry.ts?raw';
-import userEntitySource from '../../../base44/entities/User.jsonc?raw';
+// In-/src sources stay as real ?raw imports.
 import gameSource from '../../pages/Game.jsx?raw';
 import categoryFiltersSource from '../../lib/categoryFilters.js?raw';
 import applyOnlineResultSource from '../../lib/applyOnlineResult.js?raw';
 import diamondEconomySource from '../../lib/diamondEconomy.js?raw';
 import rankingSectionSource from '../leaderboard/KronoxRankingSection.jsx?raw';
-import soloQuestionDocSource from '../../../docs/KRONOX_SOLO_QUESTION_ENGINE.md?raw';
-import categoryTaxonomyDocSource from '../../../docs/KRONOX_CATEGORY_TAXONOMY.md?raw';
-import releaseChecklistDocSource from '../../../docs/KRONOX_RELEASE_PROOF_CHECKLIST.md?raw';
+// Out-of-/src sources (base44/* and docs/*) cannot be ?raw-imported on this
+// host — they are mirrored as JS strings to keep the build healthy.
+import {
+  startLobbyGameSource,
+  getSoloLeaderboardSource,
+  userEntitySource,
+  SOLO_QUESTION_ENGINE_DOC as soloQuestionDocSource,
+  CATEGORY_TAXONOMY_DOC as categoryTaxonomyDocSource,
+  RELEASE_PROOF_CHECKLIST_DOC as releaseChecklistDocSource,
+} from '@/lib/package2DocMirrors';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL', NOT_AUTOMATABLE: 'NOT_AUTOMATABLE' };
 const ACTION_TYPES = { CODE_FIX: 'CODE_FIX', HUMAN_RUNTIME_PROOF: 'HUMAN_RUNTIME_PROOF' };
