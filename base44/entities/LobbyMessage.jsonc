@@ -1,6 +1,7 @@
 {
   "name": "LobbyMessage",
   "type": "object",
+  "description": "Codex183 legacy/candidate entity. No current core gameplay source-of-truth role; retain until lobby chat/system-message usage and production row counts are proven safe to archive.",
   "properties": {
     "lobby_id": {
       "type": "string",

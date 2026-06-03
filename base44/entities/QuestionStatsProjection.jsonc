@@ -1,0 +1,80 @@
+{
+  "name": "QuestionStatsProjection",
+  "type": "object",
+  "description": "Codex183 — Aggregated question-level analytics projection derived from QuestionAttemptEvent. This is not a gameplay source of truth and must not expose raw protected question-bank metadata publicly.",
+  "properties": {
+    "question_id": {
+      "type": "string",
+      "description": "Question id this projection summarizes."
+    },
+    "shown_count": {
+      "type": "number",
+      "default": 0
+    },
+    "correct_count": {
+      "type": "number",
+      "default": 0
+    },
+    "wrong_count": {
+      "type": "number",
+      "default": 0
+    },
+    "correct_rate": {
+      "type": "number",
+      "default": 0
+    },
+    "avg_response_time_ms": {
+      "type": "number",
+      "default": 0
+    },
+    "solo_shown_count": {
+      "type": "number",
+      "default": 0
+    },
+    "online_shown_count": {
+      "type": "number",
+      "default": 0
+    },
+    "last_shown_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "difficulty_signal": {
+      "type": "string",
+      "description": "Derived signal such as too_easy, balanced, too_hard, or insufficient_data."
+    },
+    "aggregation_window": {
+      "type": "string",
+      "description": "Window used by the aggregate job, e.g. latest_500_events. Until full cursor support exists, projections are windowed and idempotent for the same event set."
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "question_id"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

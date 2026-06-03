@@ -344,6 +344,32 @@ After deployment, verify:
 * retained score/economy rows no longer contain the deleted user's email
 * public `/account-deletion` copy matches the in-app deletion flow
 
+## Admin Maintenance Jobs
+
+Codex183 adds protected maintenance/cleanup backend functions:
+
+```text
+expireOldGameInvites
+cancelStaleLobbies
+expirePushSubscriptions
+refreshLeaderboardProjection
+aggregateQuestionStats
+cleanupAdminMaintenanceLog
+```
+
+Security contract:
+
+* every job must require authenticated admin/service authorization
+* unauthenticated calls return 401
+* authenticated non-admin calls return 403
+* every job supports `dryRun` and returns a safe summary
+* jobs must not expose raw private user rows or secrets in normal responses
+* cleanup jobs are status-transition-first and do not hard delete production
+  data by default
+* job execution is logged to `AdminMaintenanceLog` when not dry-run
+* automatic scheduling is a deployment/platform decision and is not enabled by
+  repo code alone
+
 ---
 
 # 10. Health Coverage Expectations

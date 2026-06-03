@@ -1,0 +1,87 @@
+{
+  "name": "UserStatsProjection",
+  "type": "object",
+  "description": "Codex183 — Private/admin user statistics projection separate from overloaded User JSON. Public surfaces should prefer owner_key and avoid raw email.",
+  "properties": {
+    "owner_key": {
+      "type": "string",
+      "description": "Public-safe deterministic user key."
+    },
+    "user_email": {
+      "type": "string",
+      "description": "Lowercased user email. Admin/private only; do not expose in public leaderboard rows."
+    },
+    "kronox_puan_total": {
+      "type": "number",
+      "default": 0
+    },
+    "solo_score": {
+      "type": "number",
+      "default": 0
+    },
+    "online_score": {
+      "type": "number",
+      "default": 0
+    },
+    "current_level": {
+      "type": "number",
+      "default": 1
+    },
+    "diamonds": {
+      "type": "number",
+      "default": 0
+    },
+    "total_games": {
+      "type": "number",
+      "default": 0
+    },
+    "solo_attempts": {
+      "type": "number",
+      "default": 0
+    },
+    "online_matches": {
+      "type": "number",
+      "default": 0
+    },
+    "last_active_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "owner_key"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

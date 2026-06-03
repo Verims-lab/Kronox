@@ -1,0 +1,113 @@
+{
+  "name": "QuestionPublicProjection",
+  "type": "object",
+  "description": "Codex183 — Public-safe SEO/GEO projection for explicitly approved question-derived content. Public pages must read this projection, never raw protected Question rows.",
+  "properties": {
+    "question_id": {
+      "type": "string",
+      "description": "Source Question id. This does not make the raw Question row public."
+    },
+    "canonical_slug": {
+      "type": "string",
+      "description": "Stable public URL slug for approved public content."
+    },
+    "title": {
+      "type": "string",
+      "description": "Public-safe title/copy."
+    },
+    "description": {
+      "type": "string",
+      "description": "Public-safe description/body copy."
+    },
+    "seo_title": {
+      "type": "string"
+    },
+    "seo_description": {
+      "type": "string"
+    },
+    "source_name": {
+      "type": "string",
+      "description": "Optional public source label."
+    },
+    "source_url": {
+      "type": "string",
+      "description": "Optional public source URL."
+    },
+    "category_id": {
+      "type": "number"
+    },
+    "sub_category": {
+      "type": "string"
+    },
+    "locale": {
+      "type": "string",
+      "default": "tr-TR"
+    },
+    "public_visibility": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "public",
+        "hidden"
+      ],
+      "default": "draft",
+      "description": "Explicit opt-in visibility. Only public rows should be read by public SEO/GEO pages."
+    },
+    "structured_data_type": {
+      "type": "string",
+      "description": "Schema.org/structured-data type when used."
+    },
+    "structured_data_json": {
+      "type": "object",
+      "description": "Public-safe structured data payload."
+    },
+    "content_quality_status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "reviewed",
+        "approved",
+        "rejected"
+      ],
+      "default": "draft"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "question_id",
+    "canonical_slug",
+    "public_visibility"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.public_visibility": "public"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

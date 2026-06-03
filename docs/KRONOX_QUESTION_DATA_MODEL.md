@@ -334,7 +334,39 @@ If code and this document conflict, fix the code or document the known risk expl
 
 ---
 
-# 12. Not In Scope
+# 12. SEO/GEO Public Projection
+
+Codex183 adds `QuestionPublicProjection` as the SEO/GEO-ready public-safe
+content boundary.
+
+Rules:
+
+* raw `Question` rows remain protected gameplay/admin data
+* public pages must not read the raw full question bank
+* `QuestionPublicProjection` rows are opt-in and controlled by
+  `public_visibility`
+* public projection fields may include:
+  * `question_id`
+  * `canonical_slug`
+  * `title`
+  * `description`
+  * `seo_title`
+  * `seo_description`
+  * `source_name`
+  * `source_url`
+  * `category_id`
+  * `sub_category`
+  * `locale`
+  * `structured_data_type`
+  * `structured_data_json`
+* hidden/internal gameplay metadata must not be copied into public rows unless
+  the product explicitly approves it
+* adding public pages is separate from this schema; this document only defines
+  the data boundary
+
+---
+
+# 13. Not In Scope
 
 This document does not define:
 

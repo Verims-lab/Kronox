@@ -1,0 +1,64 @@
+// Codex183 — Health mirror for repo-external DB architecture artifacts.
+// Vite cannot reliably raw-import Base44 function/schema/docs files from src,
+// so modular Health scans this string while canonical source remains in
+// base44/entities, base44/functions, and docs/KRONOX_DB_ARCHITECTURE.md.
+
+export const DB_ARCHITECTURE_IMPLEMENTATION_MIRROR = `
+docs/KRONOX_DB_ARCHITECTURE.md exists and tracks the Codex183 DB architecture implementation package.
+Implemented now:
+- src/lib/dbGateway/questionGateway.js
+- src/lib/dbGateway/categoryGateway.js
+- src/lib/dbGateway/inviteGateway.js
+- src/lib/dbGateway/lobbyGateway.js
+- src/lib/dbGateway/scoringGateway.js
+- src/lib/dbGateway/economyGateway.js
+- src/lib/dbGateway/leaderboardGateway.js
+- src/lib/dbGateway/analyticsGateway.js
+- src/lib/dbGateway/cleanupGateway.js
+- src/lib/dbGateway/index.js
+
+Analytics/statistics entities implemented now:
+- QuestionAttemptEvent
+- QuestionStatsProjection
+- UserStatsProjection
+- CategoryStatsProjection
+- LobbyMatchStats
+
+SEO/GEO boundary implemented now:
+- QuestionPublicProjection is opt-in public-safe projection.
+- public_visibility controls public rows.
+- Raw Question remains protected and must not be exposed as public full question bank.
+
+Leaderboard projection strategy implemented now:
+- SoloLeaderboardEntry is the current canonical public-safe leaderboard projection.
+- total_kronox_score is unified Kronox Puan.
+- displayed score and sort score use the same projection value.
+- public rows must not expose raw email.
+
+Cleanup/retention jobs implemented now:
+- expireOldGameInvites requires admin auth, supports dryRun, marks pending GameInvite as status expired, and writes AdminMaintenanceLog.
+- cancelStaleLobbies requires admin auth, supports dryRun, marks waiting/starting Lobby as status cancelled, and protects active/in_game/finished rows.
+- expirePushSubscriptions requires admin auth, supports dryRun, marks stale disabled PushSubscription rows as status expired.
+- refreshLeaderboardProjection requires admin auth, supports dryRun, refreshes SoloLeaderboardEntry and UserStatsProjection.
+- aggregateQuestionStats requires admin auth, supports dryRun, refreshes QuestionStatsProjection and CategoryStatsProjection from QuestionAttemptEvent.
+- cleanupAdminMaintenanceLog requires admin auth, supports dryRun, marks old logs retention_status archived.
+- Cleanup jobs are status-transition-first and do not hard delete production data.
+
+Idempotency/platform limitations documented:
+- DiamondTransaction.idempotency_key unique is required where Base44 supports unique constraints.
+- OnlineMatchResult.idempotency_key unique is required where Base44 supports unique constraints.
+- OnlineMatchResult lobby_id + player_email unique is required where Base44 supports unique constraints.
+- PushSubscription user_email + endpoint unique is required where Base44 supports unique constraints.
+- Base44 index/unique-key declarations are a platform/manual configuration gap when not expressible in repo schema.
+- Runtime uniqueness proof remains manual/NOT_AUTOMATABLE until platform constraints are configured.
+
+Legacy entity status:
+- Friendship is kept as legacy/candidate, no deletion without reference proof.
+- GameRecord is kept as legacy/candidate, no deletion without reference proof.
+- LobbyMessage is kept as legacy/candidate, no deletion without reference proof.
+
+Scaffolded now:
+- QuestionAttemptEvent gateway exists and analytics writes are best-effort.
+- Solo runtime event wiring is scaffolded_only and must not block gameplay.
+- Full gameplay analytics write coverage remains future/manual proof.
+`;

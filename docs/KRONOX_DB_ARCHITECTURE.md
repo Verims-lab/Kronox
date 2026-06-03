@@ -1,9 +1,10 @@
 # Kronox DB Architecture
 
-Status: target architecture proposal. This document is an audit and roadmap,
-not a destructive migration plan.
+Status: Codex183 implementation baseline plus target architecture roadmap. This
+document remains non-destructive: it records additive schemas, gateway
+foundation, maintenance job scaffolding, and platform configuration gaps.
 
-Last reviewed from repo state: Codex181.
+Last reviewed from repo state: Codex183.
 
 ## 1. Executive Summary
 
@@ -29,6 +30,65 @@ Highest priority findings:
 Release posture: keep current runtime behavior, but implement gateway,
 projection, event, index, and cleanup phases before scaling user traffic or
 question volume.
+
+## Codex183 Implementation Status
+
+Implemented now:
+
+- `src/lib/dbGateway/` foundation:
+  - `questionGateway.js`
+  - `categoryGateway.js`
+  - `inviteGateway.js`
+  - `lobbyGateway.js`
+  - `scoringGateway.js`
+  - `economyGateway.js`
+  - `leaderboardGateway.js`
+  - `analyticsGateway.js`
+  - `cleanupGateway.js`
+  - `index.js`
+- Additive analytics/statistics schemas:
+  - `QuestionAttemptEvent`
+  - `QuestionStatsProjection`
+  - `UserStatsProjection`
+  - `CategoryStatsProjection`
+  - `LobbyMatchStats`
+- `QuestionPublicProjection` as an opt-in public-safe SEO/GEO projection.
+  Raw `Question` remains protected and is not a public content source.
+- `SoloLeaderboardEntry` is promoted as the current canonical public-safe
+  leaderboard projection. Despite the historical name,
+  `total_kronox_score` is unified Kronox Puan and public rows must not expose
+  raw email.
+- Admin-gated, dry-run capable maintenance functions:
+  - `expireOldGameInvites`
+  - `cancelStaleLobbies`
+  - `expirePushSubscriptions`
+  - `refreshLeaderboardProjection`
+  - `aggregateQuestionStats`
+  - `cleanupAdminMaintenanceLog`
+- Modular Health coverage for the DB architecture implementation contracts.
+
+Scaffolded now:
+
+- `QuestionAttemptEvent` best-effort gateway writes exist, but broad Solo/Online
+  runtime event wiring is intentionally not enabled in this package. Placement,
+  drag/drop, scoring, and question flow are untouched.
+- Cleanup jobs are implemented as callable backend functions. Automatic
+  scheduling is not enabled here.
+
+Platform/manual configuration still required:
+
+- Base44 index/unique-key enforcement is not declared by repo JSONC. Configure
+  unique/index constraints in the Base44/platform admin UI if supported, then
+  record proof in release notes.
+- Required unique keys include:
+  - `DiamondTransaction.idempotency_key`
+  - `OnlineMatchResult.idempotency_key`
+  - `OnlineMatchResult.lobby_id + player_email`
+  - `PushSubscription.user_email + endpoint`
+  - `SoloLeaderboardEntry.owner_key`
+  - `Category.category_id`
+- Runtime uniqueness, scheduled jobs, and analytics write volume remain manual
+  proof items.
 
 ## 2. Current Entity Map
 
@@ -528,27 +588,35 @@ No deletion should happen in this task.
 - Confirm whether scheduled backend functions are supported directly or need
   external cron.
 
-### Phase 1 - Gateways and no-op scaffolding
+### Phase 1 - Gateways and additive scaffolding
 
-- Add `src/lib/dbGateway/` modules.
+- Add `src/lib/dbGateway/` modules. Codex183 implemented the gateway
+  foundation.
 - Move new code through gateways.
 - Add Health cases warning on direct `Question.list`, broad leaderboard reads,
-  and unmanaged cleanup calls.
+  and unmanaged cleanup calls. Codex183 added modular implementation-contract
+  Health cases.
 - No production data migration.
 
 ### Phase 2 - Projections
 
-- Add or formalize `LeaderboardProjection`.
-- Add backfill/reconcile function.
+- Add or formalize `LeaderboardProjection`. Codex183 uses
+  `SoloLeaderboardEntry` as the current public-safe projection and documents
+  that future rename/migration requires parity proof.
+- Add backfill/reconcile function. Codex183 added
+  `refreshLeaderboardProjection`.
 - Keep existing leaderboard fallback until parity proof.
-- Add `UserStatsProjection` if admin/player stats need fast reads.
+- Add `UserStatsProjection` if admin/player stats need fast reads. Codex183
+  added the schema and refresh-job write path.
 
 ### Phase 3 - Analytics events
 
-- Add `QuestionAttemptEvent`.
-- Write best-effort events from Solo and Online placement outcomes.
-- Add `QuestionStatsProjection` and `CategoryStatsProjection`.
-- Build aggregate job.
+- Add `QuestionAttemptEvent`. Codex183 added the schema and gateway.
+- Write best-effort events from Solo and Online placement outcomes. Runtime
+  gameplay wiring is intentionally future work.
+- Add `QuestionStatsProjection` and `CategoryStatsProjection`. Codex183 added
+  both schemas.
+- Build aggregate job. Codex183 added `aggregateQuestionStats`.
 
 ### Phase 4 - Backend idempotency hardening
 
@@ -558,27 +626,29 @@ No deletion should happen in this task.
 
 ### Phase 5 - Cleanup jobs
 
-- Implement scheduled status-transition jobs.
+- Implement scheduled status-transition jobs. Codex183 added callable
+  admin-gated job functions; external/platform scheduling remains manual.
 - Log job runs.
 - Add archive/delete only after retention proof.
 
 ### Phase 6 - SEO/GEO projection
 
 - Add `QuestionPublicProjection` only after product decides public content
-  strategy.
+  strategy. Codex183 added the protected schema boundary but no public pages
+  or raw question exposure.
 - Never switch public pages to raw `Question`.
 
 ## 14. Package Implementation Phases
 
 | Package | Priority | Risk | Affected files/entities | Safe implementation path | Rollback | Migration | Manual proof |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 2A Gateway contracts | P1 | Low | `src/lib/dbGateway/*`, Health | Add wrappers and docs; migrate no runtime callers or only new callers. | Delete wrappers. | None. | Static build/lint. |
-| 2B Leaderboard projection | P0 | Medium | `User`, `SoloLeaderboardEntry` or `LeaderboardProjection`, `getSoloLeaderboard` | Add projection/backfill; keep fallback. | Return to `User.kronox_puan_total`. | Additive/backfill. | Profile vs Leaderboard parity. |
+| 2A Gateway contracts | P1 | Low | `src/lib/dbGateway/*`, Health | Codex183 implemented wrappers and docs; broad caller migration remains gradual. | Delete wrappers. | None. | Static build/lint. |
+| 2B Leaderboard projection | P0 | Medium | `User`, `SoloLeaderboardEntry` or `LeaderboardProjection`, `getSoloLeaderboard` | Codex183 promoted `SoloLeaderboardEntry` and added refresh scaffolding; keep fallback. | Return to `User.kronox_puan_total`. | Additive/backfill. | Profile vs Leaderboard parity. |
 | 2C Question query scaling | P0 | Medium | `Question`, `Category`, `getQuestions`, `startLobbyGame` | Add paging/index-aware category queries; no public raw access. | Revert gateway query function. | None/add `answer_year` later. | Large dataset deck sampling. |
-| 2D Event analytics | P0 | Medium | New event/projection entities | Best-effort writes; projections by job. | Disable event writer. | Additive. | Event volume and no gameplay delay. |
+| 2D Event analytics | P0 | Medium | New event/projection entities | Codex183 added event/projection schemas and gateway; gameplay write points remain future/manual. | Disable event writer. | Additive. | Event volume and no gameplay delay. |
 | 2E Idempotency backend | P1 | High | `OnlineMatchResult`, `DiamondTransaction`, User update helpers | Backend authority/reserve-first; unique keys if supported. | Keep current client helpers. | Additive plus backfill audit rows optional. | Double-click/two-device probes. |
-| 2F Cleanup jobs | P1 | Medium | `GameInvite`, `Lobby`, `PushSubscription`, logs | Status transition jobs; no hard delete. | Pause jobs. | None. | Scheduler and retry proof. |
-| 2G SEO/GEO projection | P2 | Medium | `QuestionPublicProjection` | Add explicit public projection only. | Disable public pages/projection reads. | Additive. | Public/private boundary probe. |
+| 2F Cleanup jobs | P1 | Medium | `GameInvite`, `Lobby`, `PushSubscription`, logs | Codex183 added admin-gated dry-run functions; no hard delete. | Pause jobs. | None. | Scheduler and retry proof. |
+| 2G SEO/GEO projection | P2 | Medium | `QuestionPublicProjection` | Codex183 added explicit public-safe projection schema only. | Disable public pages/projection reads. | Additive. | Public/private boundary probe. |
 
 ## 15. Manual/Runtime Proof Checklist
 
@@ -634,4 +704,3 @@ Before release after DB architecture changes:
 - `question_stats_projection_schema_exists`
 - `public_question_projection_does_not_expose_raw_question_bank`
 - `base44_index_capability_documented`
-
