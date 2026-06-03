@@ -357,13 +357,33 @@ export const EXTRA_TESTS = [
         .map((item) => ({ ...item, actual: calculateSoloLevelScore(item.input) }))
         .filter((item) => JSON.stringify(item.actual) !== JSON.stringify(item.expected));
       const attemptTimeout = calculateSoloAttemptResult({ mistakes: 0, completedCards: 9, elapsedSeconds: 120 });
-      if (mismatches.length || attemptTimeout.levelScore !== 0 || attemptTimeout.failReason !== 'timeout') {
+      const beginnerPass = calculateSoloAttemptResult({
+        mistakes: 1,
+        completedCards: 7,
+        elapsedSeconds: 50,
+        requiredCards: 7,
+      });
+      const level11StillNeeds10 = calculateSoloAttemptResult({
+        mistakes: 1,
+        completedCards: 7,
+        elapsedSeconds: 50,
+        requiredCards: 10,
+      });
+      if (
+        mismatches.length ||
+        attemptTimeout.levelScore !== 0 ||
+        attemptTimeout.failReason !== 'timeout' ||
+        !beginnerPass.passed ||
+        beginnerPass.stars !== 3 ||
+        level11StillNeeds10.passed ||
+        level11StillNeeds10.failReason !== 'incomplete'
+      ) {
         return fail('Solo score helper returned an unexpected score or timeout result.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'examples match product score table; timeout = 0',
-          actual: { mismatches, attemptTimeout },
+          expected: 'examples match product score table; timeout = 0; levels 1-10 can pass at 7 cards while level 11+ still needs 10',
+          actual: { mismatches, attemptTimeout, beginnerPass, level11StillNeeds10 },
         });
       }
       return pass('Solo score helper matches the product score table and exact 60/90s boundaries.', {

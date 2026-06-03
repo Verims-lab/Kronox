@@ -34,7 +34,10 @@ import GameBootstrapDiagnostics, { isDiagnosticsEnabled } from '@/components/gam
 import GameRenderErrorBoundary from '@/components/game/GameRenderErrorBoundary';
 import {
   applyLevelAttempt,
+  getSoloCardsRequiredForLevel,
+  getSoloTimelineWinCardCountForLevel,
   getSoloLevelCount,
+  SOLO_INITIAL_TIMELINE_CARDS,
   readSoloProgress,
   writeSoloProgress,
 } from '@/lib/soloLevels';
@@ -261,7 +264,13 @@ export default function Game() {
   const yearStart = isOnline ? (lobbyData?.year_start ?? routeYearStart) : routeYearStart;
   const yearEnd = isOnline ? (lobbyData?.year_end ?? routeYearEnd) : routeYearEnd;
   const turnDuration = isOnline ? (lobbyData?.turn_duration ?? routeTurnDuration) : routeTurnDuration;
-  const winCardCount = isOnline ? (lobbyData?.win_card_count ?? routeWinCardCount) : routeWinCardCount;
+  const routeDerivedWinCardCount = isOnline ? (lobbyData?.win_card_count ?? routeWinCardCount) : routeWinCardCount;
+  const winCardCount = isSoloLevelMode
+    ? getSoloTimelineWinCardCountForLevel(soloLevel?.levelNumber)
+    : routeDerivedWinCardCount;
+  const soloCardsRequired = isSoloLevelMode
+    ? getSoloCardsRequiredForLevel(soloLevel?.levelNumber)
+    : null;
 
   // Codex166 — Solo mode: the attempt deck IS the question pool. Gameplay
   // (pickQuestion in useGameActions) walks this 18-card source-of-truth,
@@ -649,8 +658,8 @@ export default function Game() {
 
   // Codex106 — finalize result when the attempt ends.
   //
-  //   PASS  → winner set by doPlacement (10th correct card landed). Stars
-  //           come from current mistakeCount.
+  //   PASS  → winner set by doPlacement when the level-aware placed-card
+  //           target is reached. Stars come from current mistakeCount.
   //   FAIL  → mistakeCount >= maxMistakes (8+) OR overallSeconds >= 120
   //           before winner exists. We force-stop the timer by setting
   //           gameStarted=false and surface a fail overlay.
@@ -660,17 +669,17 @@ export default function Game() {
   const cardsCompletedSolo = useMemo(() => {
     if (!isSoloLevelMode || !players.length) return 0;
     const me = players[0];
-    // Each player starts with 2 seed cards; we report progress against the
-    // 10-card target by subtracting the seed.
+    // Each Solo level starts with seed cards; progress is placed-card count
+    // (0/7 for beginner levels, 0/10 for level 11+), not total timeline cards.
     const total = Array.isArray(me?.cards) ? me.cards.length : 0;
-    return Math.max(0, total - 2);
+    return Math.max(0, total - SOLO_INITIAL_TIMELINE_CARDS);
   }, [isSoloLevelMode, players]);
 
   useEffect(() => {
     if (!isSoloLevelMode || soloLevelResult) return;
     const maxMistakes = soloLevel?.maxMistakes ?? 8;
     const totalTime = soloLevel?.totalTimeSeconds ?? 120;
-    const cardTarget = soloLevel?.cardCount ?? 10;
+    const cardTarget = soloCardsRequired ?? 10;
 
     // PASS path — winner was set by the win condition inside doPlacement.
     if (winner) {
@@ -679,6 +688,7 @@ export default function Game() {
         mistakes: mistakeCount,
         completedCards: cardTarget,
         elapsedSeconds: elapsed,
+        requiredCards: cardTarget,
       });
       // The win condition already enforces the card target via winCardCount.
       setSoloLevelResult({
@@ -703,6 +713,7 @@ export default function Game() {
         mistakes: mistakeCount,
         completedCards: cardsCompletedSolo,
         elapsedSeconds: elapsed,
+        requiredCards: cardTarget,
       });
       setGameStarted(false);
       setSoloLevelResult({
@@ -726,6 +737,7 @@ export default function Game() {
         mistakes: mistakeCount,
         completedCards: cardsCompletedSolo,
         elapsedSeconds: totalTime,
+        requiredCards: cardTarget,
       });
       setGameStarted(false);
       setSoloLevelResult({
@@ -750,6 +762,7 @@ export default function Game() {
     overallSeconds,
     gameStarted,
     cardsCompletedSolo,
+    soloCardsRequired,
     setGameStarted,
     overallSecondsRef,
   ]);
@@ -768,6 +781,7 @@ export default function Game() {
           mistakes: soloLevelResult.mistakes,
           completedCards: soloLevelResult.cardsCompleted,
           elapsedSeconds: soloLevelResult.timeSeconds,
+          requiredCards: soloLevelResult.cardTarget ?? soloCardsRequired ?? 10,
         });
         const bestPreview = getBestSoloLevelResult(previousEntry, {
           ...attempt,
@@ -789,6 +803,7 @@ export default function Game() {
           mistakes: soloLevelResult.mistakes,
           timeSeconds: soloLevelResult.timeSeconds,
           cardsCompleted: soloLevelResult.cardsCompleted,
+          cardTarget: soloLevelResult.cardTarget ?? soloCardsRequired ?? 10,
           passed: soloLevelResult.passed,
           baseScore: soloLevelResult.baseScore,
           timeBonus: soloLevelResult.timeBonus,
@@ -799,7 +814,7 @@ export default function Game() {
         debugLog('[Game] solo progress persist failed:', e?.message || e);
       }
     })();
-  }, [isSoloLevelMode, soloLevelResult, soloLevel]);
+  }, [isSoloLevelMode, soloLevelResult, soloLevel, soloCardsRequired]);
 
   const handleSoloRetry = useCallback(() => {
     if (!soloLevel) return;
@@ -821,8 +836,11 @@ export default function Game() {
         yearStart: routeYearStart,
         yearEnd: routeYearEnd,
         turnDuration: 0,
-        winCardCount: soloLevel.cardCount,
-        soloLevel,
+        winCardCount: getSoloTimelineWinCardCountForLevel(soloLevel.levelNumber),
+        soloLevel: {
+          ...soloLevel,
+          cardCount: getSoloCardsRequiredForLevel(soloLevel.levelNumber),
+        },
       },
     });
   }, [soloLevel, resetGame, navigate, routeYearStart, routeYearEnd]);
@@ -834,6 +852,7 @@ export default function Game() {
     if (!soloLevel) return;
     const nextLevelNumber = soloLevel.levelNumber + 1;
     if (nextLevelNumber > getSoloLevelCount()) return;
+    const nextCardCount = getSoloCardsRequiredForLevel(nextLevelNumber);
     setSoloLevelResult(null);
     setMistakeCount(0);
     lastCountedFeedbackRef.current = null;
@@ -850,10 +869,11 @@ export default function Game() {
         yearStart: routeYearStart,
         yearEnd: routeYearEnd,
         turnDuration: 0,
-        winCardCount: soloLevel.cardCount,
+        winCardCount: getSoloTimelineWinCardCountForLevel(nextLevelNumber),
         soloLevel: {
           ...soloLevel,
           levelNumber: nextLevelNumber,
+          cardCount: nextCardCount,
         },
       },
     });
@@ -1200,6 +1220,8 @@ export default function Game() {
         onTouchDragEnd={(x, y) => { setIsDragging(false); setTouchDragPos(null); setTouchDragEnd({ x, y }); setTimeout(() => setTouchDragEnd(null), 100); }}
         onTimeUp={handleTimeUp}
         isTimeUp={isTimeUp}
+        progressCardCount={isSoloLevelMode ? cardsCompletedSolo : undefined}
+        progressCardTarget={isSoloLevelMode ? soloCardsRequired : undefined}
         soloLevelTotalSeconds={isSoloLevelMode ? (soloLevel?.totalTimeSeconds ?? 120) : undefined}
         soloLevelElapsedSeconds={isSoloLevelMode ? overallSeconds : undefined}
         beginnerPlacementHintZone={beginnerPlacementHintZone}

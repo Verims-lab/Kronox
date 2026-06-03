@@ -81,7 +81,8 @@ src/lib/soloLevels.js
 
 Each Solo level:
 
-* requires the player to place 10 correct cards
+* requires the player to place 7 correct cards for Solo Levels 1-10
+* requires the player to place 10 correct cards for Solo Level 11+
 * has a total time limit of 120 seconds
 * does not have per-question time limits
 * fails if the timer reaches 120 seconds before completion
@@ -91,8 +92,16 @@ Constants:
 
 ```text
 SOLO_SCORE_CARD_TARGET = 10
+SOLO_BEGINNER_CARD_TARGET = 7
+SOLO_BEGINNER_CARD_TARGET_MAX_LEVEL = 10
 SOLO_SCORE_TIME_LIMIT_SECONDS = 120
 SOLO_SCORE_MAX_MISTAKES = 8
+```
+
+Helper:
+
+```text
+getSoloCardsRequiredForLevel(level)
 ```
 
 ## 2.2 Solo Star Rules
@@ -110,8 +119,10 @@ Stars are based on mistake count:
 Helper:
 
 ```text
-calculateSoloStars(mistakes, completedCards, elapsedSeconds)
+calculateSoloStars(mistakes, completedCards, elapsedSeconds, requiredCards)
 ```
+
+For Solo Levels 1-10, `requiredCards` is 7. For Solo Level 11+, `requiredCards` is 10.
 
 ## 2.3 Solo Base Points
 

@@ -43,6 +43,7 @@ import {
   calculateSoloStars,
   backfillSoloScores,
   getBestSoloLevelResult,
+  getSoloCardsRequiredForLevel,
   getEffectiveUnlockedLevel,
   getHighestCompletedLevel,
   getLevelStatus,
@@ -56,8 +57,13 @@ const LOCAL_MIRROR_VERSION = 2;
 
 // ─── Constants surfaced to the rest of the app ─────────────────────────
 export const SOLO_CARDS_PER_LEVEL = 10;
+export const SOLO_INITIAL_TIMELINE_CARDS = 2;
 export const SOLO_LEVEL_TIME_SECONDS = 120;
 export const SOLO_MAX_MISTAKES = 8; // 8+ → fail
+
+export function getSoloTimelineWinCardCountForLevel(levelNumber) {
+  return SOLO_INITIAL_TIMELINE_CARDS + getSoloCardsRequiredForLevel(levelNumber);
+}
 
 // Solo Level Path catalog. Extended to support a long progression journey
 // (up to 1000 levels). The catalog is generated lazily by the UI — only a
@@ -81,8 +87,9 @@ export function getSoloLevelCount() {
  *   0–1 → 3 stars, 2–4 → 2 stars, 5–7 → 1 star, 8+ → 0 (fail).
  * Also returns `passed` so the caller doesn't need to re-check.
  */
-export function computeLevelStars(mistakes) {
-  const { stars, passed } = calculateSoloStars(mistakes, SOLO_CARDS_PER_LEVEL, 0);
+export function computeLevelStars(mistakes, levelNumber = null) {
+  const requiredCards = getSoloCardsRequiredForLevel(levelNumber);
+  const { stars, passed } = calculateSoloStars(mistakes, requiredCards, 0, requiredCards);
   return { stars, passed };
 }
 
@@ -327,10 +334,15 @@ function mergeBetterResult(previous, fresh) {
   const prev = previous || {};
   const attempts = (Number(prev.attempts) || 0) + 1;
   const now = new Date().toISOString();
+  const requiredCards = Math.max(
+    1,
+    Number(fresh.cardTarget ?? fresh.requiredCards ?? getSoloCardsRequiredForLevel(fresh.levelNumber)) || SOLO_CARDS_PER_LEVEL,
+  );
   const attempt = calculateSoloAttemptResult({
     mistakes: fresh.mistakes,
-    completedCards: fresh.cardsCompleted ?? (fresh.passed ? SOLO_CARDS_PER_LEVEL : 0),
+    completedCards: fresh.cardsCompleted ?? (fresh.passed ? requiredCards : 0),
     elapsedSeconds: fresh.timeSeconds,
+    requiredCards,
   });
   const best = getBestSoloLevelResult(prev, {
     ...attempt,
@@ -472,18 +484,21 @@ export { getEffectiveUnlockedLevel, getHighestCompletedLevel } from './soloProgr
  */
 export function buildSoloGameConfigForLevel(level) {
   const levelNumber = level?.levelNumber || 1;
+  const cardCount = getSoloCardsRequiredForLevel(levelNumber);
   return {
     playerNames: ['Sen'],
     category: 'karisik',
     yearStart: 1900,
     yearEnd: 2025,
     turnDuration: 0, // no per-question timer — the brief explicitly forbids it
-    winCardCount: SOLO_CARDS_PER_LEVEL,
+    winCardCount: getSoloTimelineWinCardCountForLevel(levelNumber),
     soloLevel: {
       levelNumber,
-      cardCount: SOLO_CARDS_PER_LEVEL,
+      cardCount,
       totalTimeSeconds: SOLO_LEVEL_TIME_SECONDS,
       maxMistakes: SOLO_MAX_MISTAKES,
     },
   };
 }
+
+export { getSoloCardsRequiredForLevel } from './soloProgressHelpers';
