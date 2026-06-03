@@ -51,6 +51,7 @@ import incomingInvitesPanelSource from '../invites/IncomingInvitesPanel.jsx?raw'
 import diamondEconomySource from '../../lib/diamondEconomy.js?raw';
 import leaderboardSource from '../../lib/leaderboard.js?raw';
 import profilePageSource from '../../pages/ProfilePage.jsx?raw';
+import createLobbyInvitePanelSource from '../lobby/CreateLobbyInvitePanel.jsx?raw';
 import lobbyCreateJoinPanelSource from '../lobby/LobbyCreateJoinPanel.jsx?raw';
 import lobbyRoomSource from '../../pages/LobbyRoom.jsx?raw';
 import onlineChallengeScreenSource from '../lobby/OnlineChallengeScreen.jsx?raw';
@@ -129,6 +130,7 @@ export const OVERRIDDEN_CASE_KEYS = new Set([
   'route_navigation_resilience.lobby_create_join_modes_static',
   'online_category_taxonomy.lobby_panel_consumes_centralized_taxonomy',
   'friends_validation.clear_success_and_error_messages',
+  'kronox_game_feel.error_states_network_flows',
   // Codex132 follow-up — three stale visual/code-ux contracts that still
   // pointed at the pre-Codex127 lobby surface. Re-targeted below.
   'lobby_code_ux.acik_lobiye_gir_preserved',
@@ -554,6 +556,44 @@ export const EXTRA_TESTS = [
       });
     },
     { actionType: ACTION_TYPES.CODE_FIX },
+  ),
+
+  makeCase(
+    'kronox_game_feel', 'Creative Kronox Game-Feel Suite',
+    'error_states_network_flows',
+    'Friends, create-invite, and incoming-invite network flows expose recoverable Turkish error states',
+    () => {
+      const friends = safeStr(friendsPageSource);
+      const createInvite = safeStr(createLobbyInvitePanelSource);
+      const incomingInvites = safeStr(incomingInvitesPanelSource);
+      const missingFriends = ['loadError', 'setLoadError', 'Arkadaş verisi yüklenemedi.']
+        .filter((token) => !friends.includes(token));
+      const missingCreateInvite = ['friendsError', 'setFriendsError', 'ErrorHint', 'Arkadaşlar yüklenemedi.']
+        .filter((token) => !createInvite.includes(token));
+      const missingIncomingInvites = ['localError', 'setLocalError', 'center.error', 'Davet kabul edilemedi.']
+        .filter((token) => !incomingInvites.includes(token));
+      if (missingFriends.length || missingCreateInvite.length || missingIncomingInvites.length) {
+        return fail('Network error-state contract drifted on an active social/invite flow.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'FriendsPage.jsx + CreateLobbyInvitePanel.jsx + IncomingInvitesPanel.jsx',
+          expected: {
+            friends: ['loadError', 'setLoadError', 'Arkadaş verisi yüklenemedi.'],
+            createInvite: ['friendsError', 'setFriendsError', 'ErrorHint', 'Arkadaşlar yüklenemedi.'],
+            incomingInvites: ['localError', 'setLocalError', 'center.error', 'Davet kabul edilemedi.'],
+          },
+          actual: { missingFriends, missingCreateInvite, missingIncomingInvites },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Active social/invite network flows show recoverable Turkish error states.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        file: 'FriendsPage.jsx + CreateLobbyInvitePanel.jsx + IncomingInvitesPanel.jsx',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true },
   ),
 
   /* ==================================================================

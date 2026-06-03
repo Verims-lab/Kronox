@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex176 — Health fix pass:
+//   • Keeps category_id canonical while making the categoryid import-alias
+//     rule exact in the helper + Health doc mirror.
+//   • Replaces stale network-error Health token checks with active Friends,
+//     CreateInvite, and IncomingInvites error-state contracts.
+//
 // Codex175 — Health fix pass:
 //   • Exposes the waiting-room authoritative rejoin roster update through a
 //     stale-guarded setLobby(updatedLobby) path.
@@ -667,7 +673,7 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
-const BUILD_MARKER = 'Codex175';
+const BUILD_MARKER = 'Codex176';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

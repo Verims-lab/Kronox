@@ -136,6 +136,23 @@ Checklist:
 * PWA manifest/icons work.
 * Push subscription works on real installed device if supported.
 
+## Android 15 Edge-To-Edge / Play Console
+
+Use the latest Google Play Console Android 15 edge-to-edge warning as a release gate.
+
+Checklist:
+
+* Test on an Android 15 device or emulator.
+* Verify Home, Profile, Friends, Settings, Online main, Lobby waiting, Solo map, and Gameplay.
+* Status bar does not cover top content or the fixed Kronox top bar.
+* Navigation bar does not cover bottom nav, lobby controls, game controls, toast actions, or destructive account-deletion confirmation controls.
+* Fixed screens remain no-scroll where intended.
+* Scroll screens scroll only their intended content area.
+* Gameplay drag/drop does not trigger page overscroll.
+* Review the Play Console warning after uploading the new AAB.
+* If the warning still lists `android.view.Window.setStatusBarColor`, `android.view.Window.getStatusBarColor`, or `android.view.Window.setNavigationBarColor` under React Native / native-wrapper call sites, update the Android wrapper/dependencies rather than adding web-app workarounds.
+* Do not mark this complete from static Health alone; it requires an Android 15 runtime proof and Play Console review.
+
 ---
 
 # 7. Visual / UI Runtime Proof

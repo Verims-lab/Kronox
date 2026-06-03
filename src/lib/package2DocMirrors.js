@@ -20,8 +20,9 @@ export const CATEGORY_TAXONOMY_DOC = `# Kronox Category Taxonomy
 
 CATEGORY_ID_FIELD is category_id — the single canonical live field.
 CATEGORY_IMPORT_ALIAS_FIELD is categoryid, used only during import
-normalization: categoryid -> category_id. Do not create competing live DB
-fields. Questions reference category_id via main/second/third category fields.
+normalization: categoryid -> category_id.
+Do not create competing live DB fields.
+Questions reference category_id via main/second/third category fields.
 `;
 
 export const RELEASE_PROOF_CHECKLIST_DOC = `# Kronox Release Proof Checklist
