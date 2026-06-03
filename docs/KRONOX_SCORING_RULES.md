@@ -1,5 +1,3 @@
-=== KRONOX_SCORING_RULES.md ===
-
 # Kronox Scoring Rules
 
 ## Purpose
