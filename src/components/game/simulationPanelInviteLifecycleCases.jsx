@@ -32,6 +32,7 @@ import {
 import gameInviteNotifierSource from '../invites/GameInviteNotifier.jsx?raw';
 import incomingInvitesPanelSource from '../invites/IncomingInvitesPanel.jsx?raw';
 import useNotificationCenterSource from '../../hooks/useNotificationCenter.js?raw';
+import inviteApiSource from '../../lib/inviteApi.js?raw';
 import inviteCountdownSource from '../invites/InviteCountdown.jsx?raw';
 import onlineChallengeScreenSource from '../lobby/OnlineChallengeScreen.jsx?raw';
 import lobbyRoomSource from '../../pages/LobbyRoom.jsx?raw';
@@ -244,7 +245,7 @@ export const EXTRA_TESTS = [
   makeCase('invite_lifecycle', 'in_app_invite_banner_visible_when_app_open',
     'GameInviteNotifier mounts globally and surfaces pending invites as toasts',
     () => {
-      const src = safeStr(useNotificationCenterSource);
+      const src = `${safeStr(useNotificationCenterSource)}\n${safeStr(gameInviteNotifierSource)}`;
       const required = [
         'showInviteToast',
         'Kronox oyun daveti',
@@ -300,12 +301,13 @@ export const EXTRA_TESTS = [
   makeCase('invite_lifecycle', 'in_app_invite_banner_open_goes_to_lobby',
     'Banner "Aç" action uses shared openGameInvite and navigates with the accepted lobby payload',
     () => {
-      const src = safeStr(gameInviteNotifierSource);
+      const src = `${safeStr(gameInviteNotifierSource)}\n${safeStr(useNotificationCenterSource)}\n${safeStr(inviteApiSource)}`;
       const required = [
         "params.set('inviteId'",
         "'/lobby'",
         '<ToastAction',
-        'openGameInvite(invite',
+        'openNotificationCenterGameInvite(invite',
+        'openGameInviteAction(invite',
         "source: 'toast'",
       ];
       const missing = required.filter((t) => !src.includes(t));
@@ -333,7 +335,7 @@ export const EXTRA_TESTS = [
   makeCase('invite_lifecycle', 'app_resume_pending_invite_check',
     'Notifier re-checks pending invites on focus + visibilitychange',
     () => {
-      const src = safeStr(gameInviteNotifierSource);
+      const src = safeStr(useNotificationCenterSource);
       const required = [
         "addEventListener('focus'",
         "addEventListener('visibilitychange'",

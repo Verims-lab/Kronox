@@ -196,6 +196,8 @@ daily login = +20
 first-day total = 120
 ```
 
+First-day total: `120` Diamonds.
+
 Refreshing the app after that must not grant another starter or daily reward.
 
 ---

@@ -42,7 +42,7 @@ categoryid -> category_id
 
 Rules:
 
-* do not create competing live DB fields
+* Do not create competing live DB fields
 * runtime should read only `category_id`
 * imports may accept `categoryid` only as an external alias
 * invalid category IDs must fail validation

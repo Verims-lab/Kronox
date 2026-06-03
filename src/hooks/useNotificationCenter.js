@@ -312,7 +312,7 @@ export async function rejectNotificationCenterGameInvite(inviteId) {
   removeInvite(inviteId);
   try {
     await rejectGameInviteAction(inviteId);
-    scheduleRefresh({ preserveExisting: true, source: 'reject_followup' });
+    scheduleRefresh({ preserveExisting: true, source: 'rejected_followup' });
     return { ok: true };
   } catch (error) {
     scheduleRefresh({ preserveExisting: true, source: 'reject_failed_followup' });

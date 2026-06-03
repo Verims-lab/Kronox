@@ -301,8 +301,8 @@ export const EXTRA_TESTS = [
     'game_invites', 'Game Invites Suite',
     'incoming_invites_visible_to_recipient',
     'Incoming invites are scoped to the recipient and merged through the shared notification center',
-    'hooks/useNotificationCenter.js + components/invites/IncomingInvitesPanel.jsx',
-    `${useNotificationCenterSource}\n${incomingInvitesPanelSource}`,
+    'hooks/useNotificationCenter.js + lib/inviteApi.js + components/invites/IncomingInvitesPanel.jsx',
+    `${useNotificationCenterSource}\n${inviteApiSource}\n${incomingInvitesPanelSource}`,
     [
       'useNotificationCenter',
       'to_email: email',

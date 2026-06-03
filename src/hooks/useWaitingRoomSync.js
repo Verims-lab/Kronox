@@ -55,24 +55,28 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
   useEffect(() => { userRef.current = user; }, [user]);
   useEffect(() => { latestLobbyRef.current = lobby; }, [lobby]);
 
-  const applyLobbySnapshot = useCallback((nextLobby, source) => {
-    if (!nextLobby) return false;
+  const setAuthoritativeLobby = useCallback((updatedLobby, source) => {
+    if (!updatedLobby) return false;
     const previous = latestLobbyRef.current;
-    if (!isFreshLobbySnapshot(previous, nextLobby)) {
+    if (!isFreshLobbySnapshot(previous, updatedLobby)) {
       debugWarn('[WaitingRoom] stale lobby snapshot ignored:', {
         source,
-        lobbyId: nextLobby.id,
+        lobbyId: updatedLobby.id,
         previousRevision: readLobbyRevision(previous),
-        nextRevision: readLobbyRevision(nextLobby),
+        nextRevision: readLobbyRevision(updatedLobby),
         previousStatus: previous?.status || null,
-        nextStatus: nextLobby.status || null,
+        nextStatus: updatedLobby.status || null,
       });
       return false;
     }
-    latestLobbyRef.current = nextLobby;
-    setLobby(nextLobby);
+    latestLobbyRef.current = updatedLobby;
+    setLobby(updatedLobby);
     return true;
   }, [setLobby]);
+
+  const applyLobbySnapshot = useCallback((nextLobby, source) => {
+    return setAuthoritativeLobby(nextLobby, source);
+  }, [setAuthoritativeLobby]);
 
   const refreshLobby = useCallback(async () => {
     if (!lobby?.id) return;
