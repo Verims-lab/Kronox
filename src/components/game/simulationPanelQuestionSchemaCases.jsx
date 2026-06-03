@@ -8,7 +8,10 @@ import categoryEntitySource from '../../../base44/entities/Category.jsonc?raw';
 import questionEntitySource from '../../../base44/entities/Question.jsonc?raw';
 import seedQuestionCategoriesSource from '../../../base44/functions/seedQuestionCategories/entry.ts?raw';
 import getQuestionsFunctionSource from '../../../base44/functions/getQuestions/entry.ts?raw';
-import questionSchemaDocSource from '../../../docs/KRONOX_QUESTION_DATA_MODEL.md?raw';
+// Vite `?raw` cannot reach outside `src/` on this host, so the canonical
+// markdown at docs/KRONOX_QUESTION_DATA_MODEL.md is mirrored into a JS module
+// (lib/questionDataModelDoc) the runtime can import. Keep them in sync.
+import { QUESTION_DATA_MODEL_DOC as questionSchemaDocSource } from '@/lib/questionDataModelDoc';
 import gamePageSource from '../../pages/Game.jsx?raw';
 import gameRulesSource from '../../lib/gameRules.js?raw';
 import useOfflineQuestionsSource from '../../hooks/useOfflineQuestions.js?raw';
