@@ -30,6 +30,7 @@ const ProfilePage = lazyWithRetry(() => import('./pages/ProfilePage'), 'ProfileP
 const FriendsPage = lazyWithRetry(() => import('./pages/FriendsPage'), 'FriendsPage');
 const LeaderboardPage = lazyWithRetry(() => import('./pages/LeaderboardPage'), 'LeaderboardPage');
 const TestSuite = lazyWithRetry(() => import('./pages/TestSuite'), 'TestSuite');
+const AccountDeletionPage = lazyWithRetry(() => import('./pages/AccountDeletionPage'), 'AccountDeletionPage');
 
 function PageLoader() {
   return <SplashScreen />;
@@ -40,6 +41,7 @@ const AuthenticatedApp = () => {
   const location = useLocation();
   const prevPathRef = React.useRef(location.pathname);
   const isGamePage = location.pathname === '/game';
+  const isAccountDeletionPage = location.pathname === '/account-deletion';
   // Codex102 — Only home + game lock viewport. All other screens scroll
   // normally and host their own ScreenHeader.
   const isViewportLockedPage = location.pathname === '/' || isGamePage;
@@ -102,7 +104,7 @@ const AuthenticatedApp = () => {
   }
 
   // Show loading spinner while checking auth
-  if (isLoadingAuth) {
+  if (isLoadingAuth && !isAccountDeletionPage) {
     return (
       <>
         <AppDiagnostics currentUser={currentUser} />
@@ -112,7 +114,7 @@ const AuthenticatedApp = () => {
   }
 
   // Handle authentication errors
-  if (authError) {
+  if (authError && !isAccountDeletionPage) {
     if (authError.type === 'user_not_registered') {
       return (
         <>
@@ -170,6 +172,7 @@ const AuthenticatedApp = () => {
                   <Route path="/leaderboard" element={<LeaderboardPage />} />
                   <Route path="/lobby" element={<LobbyRoom />} />
                   <Route path="/test-suite" element={<TestSuite />} />
+                  <Route path="/account-deletion" element={<AccountDeletionPage />} />
                   <Route path="*" element={<PageNotFound />} />
                 </Routes>
               </AppErrorBoundary>
@@ -184,17 +187,17 @@ const AuthenticatedApp = () => {
           onSkip={() => setShowProfileTutorial(false)}
         />
       )}
-      <BottomNav />
+      {!isAccountDeletionPage && <BottomNav />}
     </div>
   );
 };
 
 
 function App() {
-  // Codex171 — push build marker into diag bus once at app boot
+  // Codex172 — push build marker into diag bus once at app boot
   useEffect(() => {
-    appDiagSetBuildMarker('Codex171');
-    // Codex171 — App booted successfully, so any prior stale-chunk reload
+    appDiagSetBuildMarker('Codex172');
+    // Codex172 — App booted successfully, so any prior stale-chunk reload
     // recovered. Clear the one-time reload guards so a future deploy can
     // self-heal again.
     try {

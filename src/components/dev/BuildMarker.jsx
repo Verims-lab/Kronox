@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex172 — Public Google Play account deletion page:
+//   • Adds the unauthenticated /account-deletion route for browser access at
+//     kronoxgame.com/account-deletion.
+//   • Keeps the existing in-app "Hesabı Sil" Settings action untouched.
+//   • Uses support@kronoxgame.com because no Kronox support-domain contact
+//     address was present in repo copy beyond deployment placeholder subjects.
+//
 // Codex171 — Technical Audit Package 2 fix pass:
 //   • Moves header, Online pending invites, and foreground invite toasts onto
 //     one shared notification center to reduce stale fetch/subscription flicker.
@@ -637,7 +644,7 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
-const BUILD_MARKER = 'Codex171';
+const BUILD_MARKER = 'Codex172';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
