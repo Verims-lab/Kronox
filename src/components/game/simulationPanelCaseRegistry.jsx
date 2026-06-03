@@ -166,6 +166,10 @@ import * as package2AuditCases from './simulationPanelPackage2AuditCases';
 // cleanup, confirmation/error UI, public-page consistency, and manual
 // destructive runtime proof.
 import * as accountDeletionCases from './simulationPanelAccountDeletionCases';
+// Codex183 — DB architecture implementation: gateway foundation,
+// analytics/projection schemas, cleanup job contracts, SEO/GEO projection
+// boundary, and honest manual proof for runtime analytics/unique indexes.
+import * as dbArchitectureImplementationCases from './simulationPanelDbArchitectureImplementationCases';
 
 const MODULES = [
   soloProgressCases,
@@ -204,6 +208,7 @@ const MODULES = [
   soloQuestionEngineCases,
   package2AuditCases,
   accountDeletionCases,
+  dbArchitectureImplementationCases,
 ];
 
 function flatten(key) {

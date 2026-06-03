@@ -532,11 +532,14 @@ Expected persisted/index-friendly projection:
 
 ```text
 User.kronox_puan_total
+SoloLeaderboardEntry.total_kronox_score
 ```
 
 Rules:
 
 * `User.kronox_puan_total` should match `getKronoxVisibleScore(user)`.
+* `SoloLeaderboardEntry` is the current public-safe leaderboard projection;
+  despite the historical name, `total_kronox_score` is unified Kronox Puan.
 * Leaderboard sort score and displayed score must match.
 * Profile visible Puan and current user Leaderboard row Puan must match.
 * Leaderboard should not expose unnecessary private user fields.

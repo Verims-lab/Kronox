@@ -1,0 +1,59 @@
+{
+  "name": "CategoryStatsProjection",
+  "type": "object",
+  "description": "Codex183 — Aggregated category-level analytics projection derived from QuestionAttemptEvent.",
+  "properties": {
+    "category_id": {
+      "type": "number",
+      "description": "Category.category_id this projection summarizes."
+    },
+    "shown_count": {
+      "type": "number",
+      "default": 0
+    },
+    "correct_rate": {
+      "type": "number",
+      "default": 0
+    },
+    "play_count": {
+      "type": "number",
+      "default": 0
+    },
+    "popularity_rank": {
+      "type": "number"
+    },
+    "aggregation_window": {
+      "type": "string",
+      "description": "Aggregation window used by the maintenance job."
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "category_id"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -1,6 +1,7 @@
 {
   "name": "GameRecord",
   "type": "object",
+  "description": "Codex183 legacy/candidate analytics entity. Current Solo progress is stored on User.solo_progress; future analytics should use QuestionAttemptEvent and projections. Retain/export before any future deletion.",
   "properties": {
     "user_email": {
       "type": "string",

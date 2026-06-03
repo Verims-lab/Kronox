@@ -1,0 +1,130 @@
+{
+  "name": "QuestionAttemptEvent",
+  "type": "object",
+  "description": "Codex183 — Append-only analytics event for question exposure/answer outcomes. Gameplay must treat writes as best-effort and non-blocking; rows are private to the owner/admin and are aggregated into projections by maintenance jobs.",
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "description": "Client/backend generated logical idempotency key when available, e.g. question_attempt:<attempt_id>:<question_id>:<placement_index>."
+    },
+    "user_email": {
+      "type": "string",
+      "description": "Lowercased owner email. Keep private; public analytics should use projections."
+    },
+    "user_key": {
+      "type": "string",
+      "description": "Public-safe deterministic owner key/hash when available."
+    },
+    "question_id": {
+      "type": "string",
+      "description": "Question id shown/answered. May mirror numeric Question.id as a string for import compatibility."
+    },
+    "attempt_id": {
+      "type": "string",
+      "description": "Solo attempt id or Online/lobby attempt grouping id."
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "solo",
+        "online"
+      ],
+      "description": "Gameplay mode that produced the event."
+    },
+    "level": {
+      "type": "number",
+      "description": "Solo level number when mode=solo."
+    },
+    "lobby_id": {
+      "type": "string",
+      "description": "Lobby id when mode=online."
+    },
+    "category_id": {
+      "type": "number",
+      "description": "Question main_category_id / Category.category_id when known."
+    },
+    "sub_category": {
+      "type": "string",
+      "description": "Question subcategory when safely known."
+    },
+    "answer_year": {
+      "type": "number",
+      "description": "Runtime timeline year derived from Question.answer."
+    },
+    "shown_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the question/card was shown."
+    },
+    "answered_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the user placed/answered the question."
+    },
+    "is_correct": {
+      "type": "boolean",
+      "description": "Whether the placement/answer was correct."
+    },
+    "placement_index": {
+      "type": "number",
+      "description": "Attempt-local card/question index."
+    },
+    "response_time_ms": {
+      "type": "number",
+      "description": "Approximate response time in milliseconds when available."
+    },
+    "mistake_number": {
+      "type": "number",
+      "description": "Mistake count at/after this placement when available."
+    },
+    "client_version": {
+      "type": "string",
+      "description": "Client version string when available."
+    },
+    "build_marker": {
+      "type": "string",
+      "description": "Kronox build marker that produced this event."
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Debug-safe metadata only. Do not store secrets, raw auth tokens, push keys, or full private question-bank rows."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the event row was created."
+    }
+  },
+  "required": [
+    "question_id",
+    "mode",
+    "created_at"
+  ],
+  "rls": {
+    "create": {
+      "data.user_email": "{{user.email}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

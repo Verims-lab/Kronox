@@ -713,6 +713,16 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
+// Codex183 — DB architecture implementation package:
+//   • Adds additive DB gateway modules under src/lib/dbGateway without broad
+//     runtime rewiring.
+//   • Adds analytics/projection schemas, public-safe QuestionPublicProjection,
+//     and promotes SoloLeaderboardEntry as the current public leaderboard
+//     projection for unified Kronox Puan.
+//   • Adds admin-gated dry-run cleanup/retention job functions and modular
+//     Health contracts while leaving runtime analytics/event volume and
+//     platform unique indexes as manual proof items.
+//
 // Codex182 — Security + Health fix:
 //   • startLobbyGame now requires authenticated host identity; legacy guest
 //     host start fallback is removed.
@@ -720,7 +730,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex182';
+const BUILD_MARKER = 'Codex183';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

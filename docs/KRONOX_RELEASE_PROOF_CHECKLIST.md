@@ -286,7 +286,48 @@ Do not run this proof against production users without explicit approval.
 
 ---
 
-# 13. Manual Proof Recording
+# 13. DB Architecture / Maintenance Jobs
+
+Use an admin account and non-production data where possible.
+
+Checklist:
+
+* `src/lib/dbGateway` modules build successfully.
+* Direct normal-user access to raw `Question` remains blocked.
+* `QuestionPublicProjection` can be read publicly only for opt-in public rows;
+  raw `Question` is not used for SEO/GEO public pages.
+* `SoloLeaderboardEntry.total_kronox_score` matches the displayed Kronox Puan
+  used for leaderboard sorting.
+* `refreshLeaderboardProjection` dry-run returns a safe summary and does not
+  expose raw user email in public leaderboard rows.
+* `expireOldGameInvites` dry-run identifies only pending invites past
+  `expires_at`.
+* `cancelStaleLobbies` dry-run targets only waiting/starting lobbies and
+  protects active/in_game/finished lobbies.
+* `expirePushSubscriptions` dry-run does not delete active subscriptions.
+* `aggregateQuestionStats` dry-run updates projected counts from
+  `QuestionAttemptEvent` without changing gameplay source rows.
+* `cleanupAdminMaintenanceLog` dry-run archives by retention marker only and
+  does not hard delete.
+* Admin-only maintenance functions return 401 unauthenticated and 403 for
+  non-admin users.
+* Base44/platform unique keys are configured or explicitly documented as not
+  available:
+  * `DiamondTransaction.idempotency_key`
+  * `OnlineMatchResult.idempotency_key`
+  * `OnlineMatchResult.lobby_id + player_email`
+  * `PushSubscription.user_email + endpoint`
+  * `SoloLeaderboardEntry.owner_key`
+  * `Category.category_id`
+* If runtime `QuestionAttemptEvent` writes are enabled later, verify they are
+  best-effort and never block drag/drop, scoring, or result flow.
+
+Do not mark scheduled cleanup or platform unique-key proof complete until
+verified against the deployed Base44 environment.
+
+---
+
+# 14. Manual Proof Recording
 
 For every manual test run, record:
 

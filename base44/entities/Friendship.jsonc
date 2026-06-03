@@ -1,6 +1,7 @@
 {
   "name": "Friendship",
   "type": "object",
+  "description": "Codex183 legacy/candidate entity. Accepted FriendRequest rows are the current practical social source; Friendship is retained for compatibility and must not be deleted until reference and production-row proof is complete.",
   "properties": {
     "user_email": {
       "type": "string",

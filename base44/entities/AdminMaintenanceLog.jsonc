@@ -7,6 +7,10 @@
       "type": "string",
       "description": "Maintenance action identifier, e.g. admin_reset_user_progress_preview or admin_reset_user_progress_execute."
     },
+    "job_name": {
+      "type": "string",
+      "description": "Maintenance/cleanup job name when action is job-related."
+    },
     "admin_email": {
       "type": "string",
       "description": "Normalized email of the authenticated admin who requested the operation."
@@ -22,6 +26,20 @@
     "result": {
       "type": "string",
       "description": "Operation result such as preview_ok, success, or failed."
+    },
+    "retention_status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "archived"
+      ],
+      "default": "active",
+      "description": "Retention marker for admin log cleanup. Cleanup jobs archive by status transition and do not hard delete by default."
+    },
+    "archived_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when this log row was marked archived."
     },
     "metadata": {
       "type": "object",

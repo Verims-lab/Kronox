@@ -1,6 +1,7 @@
 {
   "name": "SoloLeaderboardEntry",
   "type": "object",
+  "description": "Codex183 — Canonical current public-safe leaderboard projection. Despite the historical name, total_kronox_score is unified Kronox Puan (Solo + Online) and public rows must not expose raw email. Future migrations may rename this to LeaderboardProjection after parity proof.",
   "properties": {
     "owner_key": {
       "type": "string",
