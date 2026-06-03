@@ -24,6 +24,7 @@ import useNotificationCenterSource from '../../hooks/useNotificationCenter.js?ra
 import incomingInvitesPanelSource from '../invites/IncomingInvitesPanel.jsx?raw';
 import gameInviteNotifierSource from '../invites/GameInviteNotifier.jsx?raw';
 import inviteApiSource from '../../lib/inviteApi.js?raw';
+import notificationViewModelSource from '../../lib/notificationViewModel.js?raw';
 import {
   GAME_INVITE_TTL_MS,
   filterActiveIncomingGameInvites,
@@ -188,9 +189,13 @@ export const EXTRA_TESTS = [
     'dismissedToastIds only suppresses banner candidates — never header bell or Online panel rows',
     () => {
       const center = safeStr(useNotificationCenterSource);
+      const viewModel = safeStr(notificationViewModelSource);
       const headerReads = safeStr(useHeaderNotificationsSource).includes('dismissedToastIds');
       const panelReads = safeStr(incomingInvitesPanelSource).includes('dismissedToastIds');
-      const hasVisualOnlyDismiss = center.includes('dismissedToastIds') && center.includes('bannerCandidates');
+      const hasVisualOnlyDismiss =
+        center.includes('dismissedToastIds') &&
+        viewModel.includes('bannerCandidates') &&
+        viewModel.includes('activeIncomingGameInvites');
       if (!hasVisualOnlyDismiss || headerReads || panelReads) {
         return fail('Local dismissed-toast state is leaking to other surfaces.', {
           verification: 'STATIC_CONTRACT',
@@ -281,8 +286,9 @@ export const EXTRA_TESTS = [
   makeCase('game_invite_open_shared_action',
     'Header bell openGameInvite uses shared openGameInvite action and navigates to /lobby',
     () => {
-      const src = `${safeStr(useHeaderNotificationsSource)}\n${safeStr(inviteApiSource)}`;
+      const src = `${safeStr(useHeaderNotificationsSource)}\n${safeStr(useNotificationCenterSource)}\n${safeStr(inviteApiSource)}`;
       const m = missing(src, [
+        'openNotificationCenterGameInvite',
         'openGameInviteAction',
         "source: 'header_notifications'",
         "navigate('/lobby'",

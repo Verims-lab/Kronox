@@ -20,6 +20,8 @@ Visible UI must use:
 * `Puan`
 * `Kronox Puan`
 
+Visible UI must use **Puan** or **Kronox Puan**.
+
 Visible UI must not create separate player-facing labels such as:
 
 * Solo Puan
@@ -612,4 +614,3 @@ If product decisions change:
 4. run regression tests
 
 Do not leave historical audit reports inside this file. Historical scoring audits should live in archive docs if needed.
-

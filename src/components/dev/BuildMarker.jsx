@@ -1,5 +1,14 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex175 — Health fix pass:
+//   • Exposes the waiting-room authoritative rejoin roster update through a
+//     stale-guarded setLobby(updatedLobby) path.
+//   • Aligns notification/invite Health contracts with the shared
+//     notification center, GameInviteNotifier toast, and lobby-first open
+//     action boundaries.
+//   • Adds exact docs tokens for unified Puan, first-day Diamond total, and
+//     category_id/categoryid import-alias rules.
+//
 // Codex174 — Account deletion end-to-end hardening:
 //   • Profile Settings and in-game Settings modal now use the protected
 //     /deleteAccount backend function instead of direct SDK deletion.
@@ -658,7 +667,7 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
-const BUILD_MARKER = 'Codex174';
+const BUILD_MARKER = 'Codex175';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
