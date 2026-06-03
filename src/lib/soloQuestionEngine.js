@@ -7,7 +7,8 @@
 //
 // CORE RULES (locked in by Health suite solo_question_engine_health):
 //   • Deck size               = 18
-//   • Win condition           = 10 correct placements      (unchanged)
+//   • Win condition           = level-aware placed-card target
+//                               (1-10 → 7, 11+ → 10)
 //   • Fail condition          = 8 mistakes OR time expired (unchanged)
 //   • Unique question IDs     in the same deck
 //   • Unique answer/year      in the same deck             (HARD rule)

@@ -33,7 +33,8 @@ no chance of running out of distinct years.
 
 ## 2. Core rules
 - Attempt deck size: 18 questions per attempt.
-- Win condition: 10 correct placements.
+- Win condition: Levels 1-10 require 7 correct placements.
+- Win condition: Level 11+ requires 10 correct placements.
 - Fail condition (mistakes): 8 mistakes.
 - Fail condition (time): Solo level total timer expires (time expiry fail).
 - Replay creates a new attempt and a new deck.
@@ -66,7 +67,9 @@ no chance of running out of distinct years.
 - Levels 8-10: prefer 3-5 years between neighboring visible answer years.
 - Level 11+: normal existing selection behavior.
 - The engine prefers the first 10 playable cards to have clearer year
-  gaps because the player can win at 10 correct placements.
+  gaps. Beginner levels 1-10 can complete after 7 correct placements,
+  but the wider first-10 ordering still keeps replay/failure paths
+  readable.
 - If the active pool cannot satisfy the exact target, beginner spacing
   relaxes gracefully and then falls back to the normal unique-year deck.
 - Beginner spacing must never fail a level by itself.

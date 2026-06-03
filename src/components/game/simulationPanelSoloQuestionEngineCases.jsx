@@ -19,7 +19,12 @@ import {
   getBeginnerYearSpacingForLevel,
   shouldShowBeginnerPlacementHint,
 } from '@/lib/soloQuestionEngine';
-import { SOLO_CARDS_PER_LEVEL, SOLO_MAX_MISTAKES } from '@/lib/soloLevels';
+import {
+  SOLO_CARDS_PER_LEVEL,
+  SOLO_MAX_MISTAKES,
+  getSoloCardsRequiredForLevel,
+  getSoloTimelineWinCardCountForLevel,
+} from '@/lib/soloLevels';
 // Codex167 — Real existence + content proof for the Solo Question Engine
 // doc. Vite `?raw` cannot reach outside `src/` on this host, so the
 // canonical markdown at docs/KRONOX_SOLO_QUESTION_ENGINE.md is mirrored
@@ -118,10 +123,10 @@ export const EXTRA_TESTS = [
     },
   ),
 
-  /* 2. solo_attempt_requires_10_correct */
+  /* 2. solo_attempt_card_target_is_level_aware */
   makeCase(
-    'solo_attempt_requires_10_correct',
-    'Win condition remains 10 correct placements (SOLO_CARDS_PER_LEVEL)',
+    'solo_attempt_card_target_is_level_aware',
+    'Beginner Solo card target is level-aware; level 11+ remains 10 cards',
     () => {
       if (SOLO_CARDS_PER_LEVEL !== 10) return fail('SOLO_CARDS_PER_LEVEL drifted.', {
         verification: 'RUNTIME_VERIFIED',
@@ -129,8 +134,30 @@ export const EXTRA_TESTS = [
         expected: 10, actual: SOLO_CARDS_PER_LEVEL,
         actionType: ACTION_TYPES.CODE_FIX,
       });
-      return pass('Win target stays at 10.', {
-        verification: 'RUNTIME_VERIFIED', classification: 'RUNTIME_VERIFIED',
+      const actual = {
+        level1Cards: getSoloCardsRequiredForLevel(1),
+        level10Cards: getSoloCardsRequiredForLevel(10),
+        level11Cards: getSoloCardsRequiredForLevel(11),
+        level1TimelineTarget: getSoloTimelineWinCardCountForLevel(1),
+        level11TimelineTarget: getSoloTimelineWinCardCountForLevel(11),
+      };
+      if (
+        actual.level1Cards !== 7 ||
+        actual.level10Cards !== 7 ||
+        actual.level11Cards !== 10 ||
+        actual.level1TimelineTarget !== 9 ||
+        actual.level11TimelineTarget !== 12
+      ) {
+        return fail('Solo card target helper drifted.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'levels 1-10 require 7 placed cards; level 11+ requires 10 placed cards',
+          actual,
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Levels 1-10 require 7 placed cards; level 11+ keeps the 10-card default.', {
+        verification: 'RUNTIME_VERIFIED', classification: 'RUNTIME_VERIFIED', actual,
       });
     },
   ),
@@ -483,6 +510,7 @@ export const EXTRA_TESTS = [
       const lower = body.toLowerCase();
       const requiredPhrases = [
         '18 questions',
+        '7 correct',
         '10 correct',
         '8 mistakes',
         'unique year',

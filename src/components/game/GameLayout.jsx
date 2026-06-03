@@ -90,6 +90,8 @@ export default function GameLayout({
   turnDuration,
   timerKey,
   isTimeUp,
+  progressCardCount,
+  progressCardTarget,
   // Codex106-24 — Solo Level mode countdown. When provided, GameLayout
   // shows a total-level countdown in the top-right slot instead of the
   // per-question TurnTimer. Other modes (online, legacy solo) pass
@@ -112,6 +114,13 @@ export default function GameLayout({
   // Ghost card follows the raw finger position (viewport coords) — no scroll correction needed
   // Timeline uses world coords internally for hit-testing
   const isSpectatingQuestion = Boolean(isOnline && !isMyTurn && currentQuestion && !winner);
+  const visibleProgressCount = Number.isFinite(Number(progressCardCount))
+    ? Math.max(0, Number(progressCardCount))
+    : (currentPlayer?.cards?.length || 0);
+  const visibleProgressTarget = Number.isFinite(Number(progressCardTarget))
+    ? Math.max(1, Number(progressCardTarget))
+    : Math.max(1, Number(winCardCount) || 10);
+  const progressPercent = Math.min(100, (visibleProgressCount / visibleProgressTarget) * 100);
 
   return (
     <div className="kx-viewport-lock flex flex-col" style={{ background: 'linear-gradient(to bottom, #0B1F3A 0%, #1E3A8A 100%)' }}>
@@ -130,12 +139,12 @@ export default function GameLayout({
           {/* Progress bar */}
           <div className="mt-1 w-28">
             <div className="text-center text-white/60 text-xs font-inter mb-0.5">
-              {currentPlayer?.cards?.length || 0}/{winCardCount}
+              {visibleProgressCount}/{visibleProgressTarget}
             </div>
             <div className="h-2 rounded-full bg-white/10 overflow-hidden">
               <motion.div
                 className="h-full rounded-full bg-gradient-to-r from-primary to-yellow-300"
-                animate={{ width: `${((currentPlayer?.cards?.length || 0) / winCardCount) * 100}%` }}
+                animate={{ width: `${progressPercent}%` }}
                 transition={{ type: 'spring', stiffness: 200, damping: 30 }}
               />
             </div>

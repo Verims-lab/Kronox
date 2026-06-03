@@ -51,7 +51,8 @@ Each Solo attempt creates exactly:
 The player wins at:
 
 ```text
-10 correct placements
+Levels 1-10: 7 correct placements
+Level 11+: 10 correct placements
 ```
 
 The player fails at:
@@ -199,14 +200,15 @@ wrong -> mistakeCount + 1
 If:
 
 ```text
-correctCount === 10 -> success
+Level 1-10 correctCount === 7 -> success
+Level 11+ correctCount === 10 -> success
 mistakeCount >= 8 -> failure
 time expires -> failure
 ```
 
 If attempt is not finished, move to the next question in the deck.
 
-The engine must ensure the player cannot run out of questions before reaching either 10 correct or 8 mistakes.
+The engine must ensure the player cannot run out of questions before reaching either the level's required correct-card target or 8 mistakes.
 
 ---
 
@@ -261,7 +263,29 @@ Category balance must not override:
 
 ---
 
-# 9. Recently Seen / Repeat Avoidance
+# 9. Beginner Level Assist
+
+Levels 1-10 add a soft beginner-friendly year spacing preference without changing the hard 18-question / 18-unique-year deck contract.
+
+Spacing targets:
+
+* Levels 1-3: prefer 8-10 years between neighboring visible answer years.
+* Levels 4-7: prefer 5-7 years between neighboring visible answer years.
+* Levels 8-10: prefer 3-5 years between neighboring visible answer years.
+* Level 11+: normal existing selection behavior.
+
+The engine prefers the first 10 playable cards in the attempt deck to have clearer year gaps. Beginner levels 1-10 can complete after 7 correct placements, but the wider first-10 ordering still keeps replay/failure paths readable. If the active question pool cannot satisfy the exact target, the engine relaxes the gap inside the allowed range and then falls back to the normal unique-year deck. Beginner spacing must never fail a level by itself.
+
+Placement hint:
+
+* Levels 1-3 only.
+* While the player is dragging a Solo card, the correct drop zone may softly pulse/glow.
+* The hint is visual-only and does not change hit testing, drag behavior, score, penalty, or placement validation.
+* Level 4+ and Online mode must not show this assist.
+
+---
+
+# 10. Recently Seen / Repeat Avoidance
 
 If user history or attempt history exists:
 
@@ -287,7 +311,7 @@ SoloQuestionHistory
 
 ---
 
-# 10. Data Boundary
+# 11. Data Boundary
 
 The current `Question` entity stores:
 
@@ -321,7 +345,7 @@ Do not remove the compatibility layer until Timeline/gameplay intentionally migr
 
 ---
 
-# 11. Replay Behavior
+# 12. Replay Behavior
 
 Replay creates:
 
@@ -340,7 +364,7 @@ A separate “same deck retry” mode may be considered later, but it is not the
 
 ---
 
-# 12. Future Design Decisions
+# 13. Future Design Decisions
 
 The following decisions are not final yet and should not be implemented silently:
 
@@ -390,13 +414,13 @@ Player category/subcategory selection is not implemented yet.
 
 ---
 
-# 13. Health Coverage Expectations
+# 14. Health Coverage Expectations
 
 Health should cover:
 
 ```text
 solo_attempt_deck_size_is_18
-solo_attempt_requires_10_correct
+solo_attempt_card_target_is_level_aware
 solo_attempt_allows_max_8_mistakes
 solo_attempt_deck_unique_question_ids
 solo_attempt_deck_unique_years
@@ -407,6 +431,8 @@ solo_replay_creates_new_attempt_deck
 solo_question_engine_fallback_never_relaxes_unique_year
 solo_question_engine_clean_error_when_insufficient_unique_years
 solo_question_engine_runtime_wires_active_category_whitelist
+beginner_year_spacing_contract
+beginner_placement_hint_levels_1_to_3_only
 solo_question_engine_doc_exists
 ```
 
@@ -419,7 +445,7 @@ Rules:
 
 ---
 
-# 14. Do Not Move Into This Engine
+# 15. Do Not Move Into This Engine
 
 Do not move the following into the Solo question engine:
 

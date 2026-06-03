@@ -71,7 +71,8 @@ Checklist:
 * The deck has 18 unique years.
 * Passive-category questions are excluded.
 * Only active questions are used.
-* Win occurs at 10 correct placements.
+* Levels 1-10 win after 7 correct placements.
+* Level 11+ wins after 10 correct placements.
 * Fail occurs at 8 mistakes.
 * Timeout fails the level.
 * Replay creates a new deck.

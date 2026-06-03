@@ -51,7 +51,8 @@ Each Solo attempt creates exactly:
 The player wins at:
 
 ```text
-10 correct placements
+Levels 1-10: 7 correct placements
+Level 11+: 10 correct placements
 ```
 
 The player fails at:
@@ -199,14 +200,15 @@ wrong -> mistakeCount + 1
 If:
 
 ```text
-correctCount === 10 -> success
+Level 1-10 correctCount === 7 -> success
+Level 11+ correctCount === 10 -> success
 mistakeCount >= 8 -> failure
 time expires -> failure
 ```
 
 If attempt is not finished, move to the next question in the deck.
 
-The engine must ensure the player cannot run out of questions before reaching either 10 correct or 8 mistakes.
+The engine must ensure the player cannot run out of questions before reaching either the level's required correct-card target or 8 mistakes.
 
 ---
 
@@ -272,7 +274,7 @@ Spacing targets:
 * Levels 8-10: prefer 3-5 years between neighboring visible answer years.
 * Level 11+: normal existing selection behavior.
 
-The engine prefers the first 10 playable cards in the attempt deck to have clearer year gaps because the player can win at 10 correct placements. If the active question pool cannot satisfy the exact target, the engine relaxes the gap inside the allowed range and then falls back to the normal unique-year deck. Beginner spacing must never fail a level by itself.
+The engine prefers the first 10 playable cards in the attempt deck to have clearer year gaps. Beginner levels 1-10 can complete after 7 correct placements, but the wider first-10 ordering still keeps replay/failure paths readable. If the active question pool cannot satisfy the exact target, the engine relaxes the gap inside the allowed range and then falls back to the normal unique-year deck. Beginner spacing must never fail a level by itself.
 
 Placement hint:
 
@@ -418,7 +420,7 @@ Health should cover:
 
 ```text
 solo_attempt_deck_size_is_18
-solo_attempt_requires_10_correct
+solo_attempt_card_target_is_level_aware
 solo_attempt_allows_max_8_mistakes
 solo_attempt_deck_unique_question_ids
 solo_attempt_deck_unique_years

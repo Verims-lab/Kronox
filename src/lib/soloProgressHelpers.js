@@ -33,8 +33,18 @@
 
 // ─── Solo attempt scoring constants ───────────────────────────────────
 export const SOLO_SCORE_CARD_TARGET = 10;
+export const SOLO_BEGINNER_CARD_TARGET = 7;
+export const SOLO_BEGINNER_CARD_TARGET_MAX_LEVEL = 10;
 export const SOLO_SCORE_TIME_LIMIT_SECONDS = 120;
 export const SOLO_SCORE_MAX_MISTAKES = 8;
+
+export function getSoloCardsRequiredForLevel(levelNumber) {
+  const level = Math.trunc(Number(levelNumber) || 0);
+  if (level >= 1 && level <= SOLO_BEGINNER_CARD_TARGET_MAX_LEVEL) {
+    return SOLO_BEGINNER_CARD_TARGET;
+  }
+  return SOLO_SCORE_CARD_TARGET;
+}
 
 export const SOLO_STAR_BASE_SCORES = Object.freeze({
   0: 0,
@@ -47,11 +57,13 @@ export function calculateSoloStars(
   mistakes,
   completedCards = SOLO_SCORE_CARD_TARGET,
   elapsedSeconds = 0,
+  requiredCards = SOLO_SCORE_CARD_TARGET,
 ) {
   const m = Math.max(0, Number(mistakes) || 0);
   const cards = Math.max(0, Number(completedCards) || 0);
   const elapsed = Math.max(0, Number(elapsedSeconds) || 0);
-  const completed = cards >= SOLO_SCORE_CARD_TARGET;
+  const target = Math.max(1, Number(requiredCards) || SOLO_SCORE_CARD_TARGET);
+  const completed = cards >= target;
   const timedOutBeforeCompletion = !completed && elapsed >= SOLO_SCORE_TIME_LIMIT_SECONDS;
 
   if (m >= SOLO_SCORE_MAX_MISTAKES) {
@@ -98,11 +110,12 @@ export function calculateSoloAttemptResult({
   mistakes,
   completedCards,
   elapsedSeconds,
+  requiredCards = SOLO_SCORE_CARD_TARGET,
 }) {
   const safeMistakes = Math.max(0, Number(mistakes) || 0);
   const safeCards = Math.max(0, Number(completedCards) || 0);
   const safeElapsed = Math.max(0, Number(elapsedSeconds) || 0);
-  const starResult = calculateSoloStars(safeMistakes, safeCards, safeElapsed);
+  const starResult = calculateSoloStars(safeMistakes, safeCards, safeElapsed, requiredCards);
   const score = calculateSoloLevelScore({
     stars: starResult.stars,
     elapsedSeconds: safeElapsed,
