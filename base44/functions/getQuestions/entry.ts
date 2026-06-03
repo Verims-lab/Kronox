@@ -2,6 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
 const KNOWN_CATEGORY_IDS = [1, 2, 3, 4, 5, 6];
 const MAX_GAMEPLAY_LIMIT = 500;
+const QUESTION_FETCH_PER_CATEGORY_LIMIT = 250;
 
 const ONLINE_ID_TO_MAIN_CATEGORY_ID: Record<string, number> = {
   chronicle: 1,
@@ -127,6 +128,29 @@ function normalizeQuestionForRuntime(question: Record<string, unknown>, activeMa
   };
 }
 
+function dedupeQuestions(rows: any[] = []) {
+  const seen = new Set<string>();
+  const out: any[] = [];
+  for (const row of rows || []) {
+    const key = String(row?.id ?? row?.__id ?? row?.question ?? '');
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(row);
+  }
+  return out;
+}
+
+async function loadActiveQuestionCandidates(base44: any, categoryIds: number[], perCategoryLimit = QUESTION_FETCH_PER_CATEGORY_LIMIT) {
+  const batches: any[] = [];
+  for (const categoryId of categoryIds) {
+    const activeRows = await base44.asServiceRole.entities.Question
+      .filter({ main_category_id: categoryId, state: 'A' }, '-created_date', perCategoryLimit)
+      .catch(() => []);
+    if (Array.isArray(activeRows) && activeRows.length > 0) batches.push(...activeRows);
+  }
+  return dedupeQuestions(batches);
+}
+
 Deno.serve(async (req) => {
   try {
     if (req.method !== 'POST') {
@@ -169,7 +193,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const questions = await base44.asServiceRole.entities.Question.list('-created_date', MAX_GAMEPLAY_LIMIT);
+    const questions = await loadActiveQuestionCandidates(base44, Array.from(allowedMainCategoryIds));
     const projected = (questions || [])
       .map((question: Record<string, unknown>) => normalizeQuestionForRuntime(question, allowedMainCategoryIds))
       .filter(Boolean)

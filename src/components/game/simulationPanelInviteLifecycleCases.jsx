@@ -31,6 +31,7 @@ import {
 } from './simulationPanelContractStrings.jsx';
 import gameInviteNotifierSource from '../invites/GameInviteNotifier.jsx?raw';
 import incomingInvitesPanelSource from '../invites/IncomingInvitesPanel.jsx?raw';
+import useNotificationCenterSource from '../../hooks/useNotificationCenter.js?raw';
 import inviteCountdownSource from '../invites/InviteCountdown.jsx?raw';
 import onlineChallengeScreenSource from '../lobby/OnlineChallengeScreen.jsx?raw';
 import lobbyRoomSource from '../../pages/LobbyRoom.jsx?raw';
@@ -243,7 +244,7 @@ export const EXTRA_TESTS = [
   makeCase('invite_lifecycle', 'in_app_invite_banner_visible_when_app_open',
     'GameInviteNotifier mounts globally and surfaces pending invites as toasts',
     () => {
-      const src = safeStr(gameInviteNotifierSource);
+      const src = safeStr(useNotificationCenterSource);
       const required = [
         'showInviteToast',
         'Kronox oyun daveti',
@@ -340,14 +341,14 @@ export const EXTRA_TESTS = [
       ];
       const missing = required.filter((t) => !src.includes(t));
       if (missing.length) {
-        return fail('Notifier does not refresh on app resume.', {
+        return fail('Shared notification center does not refresh on app resume.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
           missing,
         });
       }
-      return pass('Notifier refreshes pending invites on focus/visibility.',
+      return pass('Shared notification center refreshes pending invites on focus/visibility.',
         { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
@@ -365,7 +366,7 @@ export const EXTRA_TESTS = [
         });
       }
       const panel = safeStr(incomingInvitesPanelSource);
-      const required = ['loadIncomingInvites', 'openGameInvite', 'rejectGameInvite', 'InviteCountdown'];
+      const required = ['useNotificationCenter', 'openNotificationCenterGameInvite', 'rejectNotificationCenterGameInvite', 'InviteCountdown'];
       const missing = required.filter((t) => !panel.includes(t));
       if (missing.length) {
         return fail('IncomingInvitesPanel is missing key wiring.', {
@@ -388,7 +389,7 @@ export const EXTRA_TESTS = [
       const required = [
         'knownInviteIdsRef',
         'activeToastByInviteIdRef',
-        'dismissedInviteIdsRef',
+        'rememberDismissedInviteToast',
       ];
       const missing = required.filter((t) => !src.includes(t));
       if (missing.length) {

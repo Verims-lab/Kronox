@@ -1,8 +1,12 @@
 {
   "name": "OnlineMatchResult",
   "type": "object",
-  "description": "Codex139 \u2014 Durable per-user Online scoring audit/idempotency record. One logical row should exist per player_email + lobby_id. Base44 schema uniqueness is not assumed, so runtime checks filter by both fields before applying score.",
+  "description": "Codex171 \u2014 Durable per-user Online scoring audit/idempotency record. One logical row should exist per idempotency_key (online_match_result:<lobby_id>:<player_email>). Base44 schema uniqueness is not assumed, so runtime checks prefer idempotency_key and fall back to player_email + lobby_id before applying score.",
   "properties": {
+    "idempotency_key": {
+      "type": "string",
+      "description": "Durable per-player/per-lobby idempotency key, e.g. online_match_result:<lobby_id>:<player_email>."
+    },
     "lobby_id": {
       "type": "string",
       "description": "Lobby/match id whose result was applied."
@@ -72,6 +76,7 @@
     }
   },
   "required": [
+    "idempotency_key",
     "lobby_id",
     "player_email",
     "result",

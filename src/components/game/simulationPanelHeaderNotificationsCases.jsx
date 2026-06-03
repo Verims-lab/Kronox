@@ -22,6 +22,7 @@
 import screenHeaderSource from '../layout/ScreenHeader.jsx?raw';
 import headerNotificationBellSource from '../notifications/HeaderNotificationBell.jsx?raw';
 import useHeaderNotificationsSource from '../../hooks/useHeaderNotifications.js?raw';
+import useNotificationCenterSource from '../../hooks/useNotificationCenter.js?raw';
 import headerNotificationsLibSource from '../../lib/headerNotifications.js?raw';
 import inviteApiSource from '../../lib/inviteApi.js?raw';
 import gameInviteNotifierSource from '../invites/GameInviteNotifier.jsx?raw';
@@ -158,9 +159,10 @@ export const EXTRA_TESTS = [
         ['completed GI',           isActiveGameInviteForUser({ status: 'completed', to_email: me }, me, now) === false],
       ];
       const failed = cases.filter(([, ok]) => !ok).map(([label]) => label);
-      // Also lock the hook query: must use { to_email, status: 'pending' }.
-      const m = missing(useHeaderNotificationsSource, [
-        "{ to_email: myEmail, status: 'pending' }",
+      // Also lock the shared notification center query: must use
+      // { to_email, status: 'pending' }.
+      const m = missing(useNotificationCenterSource, [
+        "{ to_email: email, status: 'pending' }",
       ]);
       if (failed.length || m.length) {
         return fail('Resolved/outgoing rows are not properly excluded.', {
@@ -179,7 +181,7 @@ export const EXTRA_TESTS = [
   makeCase('header_notification_realtime_subscription',
     'Hook subscribes to FriendRequest + GameInvite, refreshes on focus + visibilitychange',
     () => {
-      const m = missing(useHeaderNotificationsSource, [
+      const m = missing(useNotificationCenterSource, [
         'base44.entities.FriendRequest.subscribe',
         'base44.entities.GameInvite.subscribe',
         "window.addEventListener('focus'",
@@ -249,7 +251,7 @@ export const EXTRA_TESTS = [
   makeCase('header_game_invite_opens_lobby',
     'openGameInvite uses shared inviteApi action and navigates to /lobby (lobby-first, never /game)',
     () => {
-      const src = `${safeStr(useHeaderNotificationsSource)}\n${safeStr(inviteApiSource)}`;
+      const src = `${safeStr(useHeaderNotificationsSource)}\n${safeStr(useNotificationCenterSource)}\n${safeStr(inviteApiSource)}`;
       const m = missing(src, [
         'openGameInviteAction',
         "source: 'header_notifications'",

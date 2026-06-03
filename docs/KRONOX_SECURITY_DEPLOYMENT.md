@@ -168,6 +168,8 @@ Rules:
 * do not return raw DB dumps to normal users
 * do not leak service-role debug payloads
 * gate debug details behind admin/dev mode if needed
+* normal production users must not be able to enable invite/lobby debug
+  payload logging with URL parameters or localStorage flags
 
 Functions requiring careful review include:
 

@@ -31,6 +31,20 @@ const normalizeLobbyCode = (code) =>
     .replace(/\s+/g, '')
     .replace(/[^\w]/g, '');
 
+const STATUS_RANK = {
+  waiting: 1,
+  starting: 2,
+  in_game: 3,
+  finished: 4,
+};
+
+const readLobbyRevision = (lobby) => {
+  const revision = Number(lobby?.state_revision);
+  return Number.isFinite(revision) ? revision : 0;
+};
+
+const getStatusRank = (status) => STATUS_RANK[String(status || '')] || 0;
+
 export function useLobbySync({
   lobbyId,
   lobbyCode,
@@ -46,6 +60,7 @@ export function useLobbySync({
   // initialPlayers referansını sabitle — dependency döngüsünü önler
   const initialPlayersRef = useRef(initialPlayers);
   const currentQuestionIdRef = useRef(currentQuestionIdFromState);
+  const lastSubscriptionAtRef = useRef(0);
 
   useEffect(() => {
     if (!lobbyId && !lobbyCode) return;
@@ -75,7 +90,25 @@ export function useLobbySync({
     };
 
     const applyLobbyData = (data, source) => {
-      const nextLobbyData = normalizeLobbyState(data, latestLobbyRef.current || {});
+      const previousLobbyData = latestLobbyRef.current;
+      const nextLobbyData = normalizeLobbyState(data, previousLobbyData || {});
+      if (previousLobbyData) {
+        const prevRevision = readLobbyRevision(previousLobbyData);
+        const nextRevision = readLobbyRevision(nextLobbyData);
+        const prevStatusRank = getStatusRank(previousLobbyData.status);
+        const nextStatusRank = getStatusRank(nextLobbyData.status);
+        if (nextRevision < prevRevision || (nextRevision === prevRevision && nextStatusRank < prevStatusRank)) {
+          debugWarn('[useLobbySync] stale lobby snapshot ignored:', {
+            source,
+            lobbyId: nextLobbyData.id || activeLobbyId,
+            prevRevision,
+            nextRevision,
+            previousStatus: previousLobbyData.status,
+            nextStatus: nextLobbyData.status,
+          });
+          return;
+        }
+      }
       latestLobbyRef.current = nextLobbyData;
       if (nextLobbyData.id) {
         activeLobbyId = nextLobbyData.id;
@@ -214,12 +247,14 @@ export function useLobbySync({
           setError('Lobi kapatıldı.');
           return;
         }
+        lastSubscriptionAtRef.current = Date.now();
         applyLobbyData(updatedLobby, `subscription:${eventType}`);
       });
       unsubRef.current = unsub;
 
       pollIntervalId = window.setInterval(async () => {
         try {
+          if (Date.now() - lastSubscriptionAtRef.current < 1200) return;
           const fresh = await base44.entities.Lobby.get(activeLobbyId);
           if (!fresh) return;
 
@@ -251,7 +286,7 @@ export function useLobbySync({
         } catch (err) {
           debugWarn('[useLobbySync] poll failed:', err.message);
         }
-      }, 1500);
+      }, 3000);
     };
 
     startSync();

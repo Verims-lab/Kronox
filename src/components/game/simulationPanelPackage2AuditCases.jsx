@@ -123,6 +123,8 @@ export const EXTRA_TESTS = [
       const updateIndex = applySource.indexOf('await base44.auth.updateMe(payload)');
       const missing = missingTokens(applyOnlineResultSource, [
         'OnlineMatchResult audit reservation failed; score not applied',
+        'buildOnlineMatchResultIdempotencyKey',
+        'idempotency_key',
         'where: \'audit\'',
         'reconciled_from_audit',
         'kronox_puan_total',

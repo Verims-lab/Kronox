@@ -9,6 +9,7 @@ import gameInviteSelectorsSource from '../../lib/gameInviteSelectors.js?raw';
 import notificationViewModelSource from '../../lib/notificationViewModel.js?raw';
 import inviteApiSource from '../../lib/inviteApi.js?raw';
 import useHeaderNotificationsSource from '../../hooks/useHeaderNotifications.js?raw';
+import useNotificationCenterSource from '../../hooks/useNotificationCenter.js?raw';
 import headerNotificationBellSource from '../notifications/HeaderNotificationBell.jsx?raw';
 import incomingInvitesPanelSource from '../invites/IncomingInvitesPanel.jsx?raw';
 import gameInviteNotifierSource from '../invites/GameInviteNotifier.jsx?raw';
@@ -122,9 +123,10 @@ export const EXTRA_TESTS = [
     'Valid subscription invite is not cleared by stale empty fetch',
     () => {
       const merged = mergeActiveIncomingGameInvites([freshInvite], [], ME, NOW);
-      const m = missing(useHeaderNotificationsSource + incomingInvitesPanelSource, [
+      const m = missing(useNotificationCenterSource, [
         'stale_empty_fetch_preserved',
-        'mergeActiveIncomingGameInvites(prev, snapshot?.rows',
+        'notification_center_fetch_merged',
+        'mergeActiveIncomingGameInvites',
       ]);
       if (merged.length !== 1 || m.length) {
         return fail('Empty stale fetch can still clear a valid pending invite.', {
@@ -141,9 +143,10 @@ export const EXTRA_TESTS = [
   makeCase('fetch_user_not_loaded_does_not_clear_invites',
     'Missing current user during load does not clear existing invite state',
     () => {
-      const src = `${safeStr(useHeaderNotificationsSource)}\n${safeStr(incomingInvitesPanelSource)}`;
-      const m = missing(src, ['user_not_loaded_preserve_existing', 'setLoading(false)', 'return;']);
-      if (m.length || src.includes('if (!myEmail) {\n      setFriendRequests([])')) {
+      const src = safeStr(useNotificationCenterSource);
+      const m = missing(src, ['if (!email)', 'patchState({ currentUser: user || null, loading: false })']);
+      const userNotLoadedBranch = src.slice(src.indexOf('if (!email)'), src.indexOf('if (!email)') + 260);
+      if (m.length || userNotLoadedBranch.includes('friendRequests: []')) {
         return fail('User-loading state may clear notification rows as if no invites exist.', {
           verification: 'STATIC_CONTRACT',
           actionType: ACTION_TYPES.CODE_FIX,
@@ -157,7 +160,7 @@ export const EXTRA_TESTS = [
   makeCase('fetch_error_does_not_clear_valid_invites',
     'Fetch error preserves previously known active invites',
     () => {
-      const src = `${safeStr(useHeaderNotificationsSource)}\n${safeStr(incomingInvitesPanelSource)}`;
+      const src = safeStr(useNotificationCenterSource);
       const m = missing(src, ['fetch_error_preserve_existing']);
       if (m.length) {
         return fail('Fetch failure has no explicit preserve-existing contract.', {
@@ -173,8 +176,8 @@ export const EXTRA_TESTS = [
   makeCase('header_and_online_share_active_invite_selector',
     'Header and Online pending list use the same active invite selector',
     () => {
-      const src = `${safeStr(useHeaderNotificationsSource)}\n${safeStr(incomingInvitesPanelSource)}`;
-      const m = missing(src, ["from '@/lib/gameInviteSelectors'", 'mergeActiveIncomingGameInvites']);
+      const src = `${safeStr(useNotificationCenterSource)}\n${safeStr(useHeaderNotificationsSource)}\n${safeStr(incomingInvitesPanelSource)}`;
+      const m = missing(src, ["from '@/lib/gameInviteSelectors'", 'mergeActiveIncomingGameInvites', 'useNotificationCenter']);
       if (m.length) {
         return fail('Header and Online invite lists do not share selector/merge helpers.', {
           verification: 'STATIC_CONTRACT',
@@ -190,8 +193,7 @@ export const EXTRA_TESTS = [
     'Banner candidates are derived visual UI, not authoritative invite state',
     () => {
       const m = missing(gameInviteNotifierSource, [
-        "from '@/lib/notificationViewModel'",
-        'buildNotificationViewModel',
+        'notificationViewModel.bannerCandidates',
         'bannerCandidates',
       ]);
       if (m.length) {
@@ -242,8 +244,8 @@ export const EXTRA_TESTS = [
   makeCase('open_invite_uses_clicked_invite_id',
     'Open action uses the exact clicked invite id',
     () => {
-      const src = `${safeStr(gameInviteNotifierSource)}\n${safeStr(headerNotificationBellSource)}\n${safeStr(incomingInvitesPanelSource)}\n${safeStr(inviteApiSource)}`;
-      const m = missing(src, ['openGameInvite(invite', 'handleInviteItem(row)', 'handleAccept(invite)', 'acceptGameInvite(invite.id)']);
+      const src = `${safeStr(gameInviteNotifierSource)}\n${safeStr(headerNotificationBellSource)}\n${safeStr(incomingInvitesPanelSource)}\n${safeStr(useNotificationCenterSource)}\n${safeStr(inviteApiSource)}`;
+      const m = missing(src, ['openNotificationCenterGameInvite(invite', 'handleInviteItem(row)', 'handleAccept(invite)', 'acceptGameInvite(invite.id)']);
       const forbidden = ['gameInvites[0]', 'invites[0]'].filter((token) => src.includes(token));
       if (m.length || forbidden.length) {
         return fail('Invite open may use a stale first/list invite instead of the clicked item.', {

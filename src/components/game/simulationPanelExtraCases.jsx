@@ -28,6 +28,7 @@ import friendListItemSource from '../friends/FriendListItem.jsx?raw';
 import incomingRequestItemSource from '../friends/IncomingRequestItem.jsx?raw';
 import outgoingRequestItemSource from '../friends/OutgoingRequestItem.jsx?raw';
 import incomingInvitesPanelSource from '../invites/IncomingInvitesPanel.jsx?raw';
+import useNotificationCenterSource from '../../hooks/useNotificationCenter.js?raw';
 import inviteCountdownSource from '../invites/InviteCountdown.jsx?raw';
 import gameInviteNotifierSource from '../invites/GameInviteNotifier.jsx?raw';
 import gameInviteStatusPillSource from '../friends/GameInviteStatusPill.jsx?raw';
@@ -712,29 +713,22 @@ export const EXTRA_TESTS = [
     'pages/LobbyRoom.jsx',
     lobbyRoomSource,
     ['createGameInvites', 'host: user', 'lobby: newLobby']),
-  // Incoming-invite visibility is enforced in two layers:
-  //   1) lib/inviteApi.js — the actual GameInvite.filter scopes by
-  //      to_email === current user, then the shared gameInviteSelectors
-  //      active-pending selector applies status/expiry/recipient rules.
-  //   2) components/invites/IncomingInvitesPanel.jsx — calls
-  //      loadIncomingInvites(user.email) and only renders what the loader
-  //      returns. It must not query GameInvite directly with its own filter.
-  // The static contract therefore checks the loader in inviteApi for the
-  // filter literals, and checks the panel for safe delegation to it.
+  // Incoming-invite visibility is enforced in the shared notification center:
+  // it fetches/scopes rows once, then Header, toast, and Online panel consume
+  // the same selector/view-model slices. The panel must not own a separate
+  // GameInvite query loop anymore.
   sourceHas('game_invites', 'incoming_invites_visible_to_recipient',
     'Incoming invites are scoped to to_email === current user and active-pending shared selector',
-    'lib/inviteApi.js + components/invites/IncomingInvitesPanel.jsx',
-    `${inviteApiSource}\n${incomingInvitesPanelSource}`,
+    'hooks/useNotificationCenter.js + components/invites/IncomingInvitesPanel.jsx',
+    `${useNotificationCenterSource}\n${incomingInvitesPanelSource}`,
     [
-      // loader exists and is called with the authenticated user's email
-      'export async function loadIncomingInvites',
-      'loadIncomingInvites(user.email)',
       // recipient scoping
-      'to_email: me',
+      'to_email: email',
       // active status/expiry scoping
-      'filterActiveIncomingGameInvites',
+      'mergeActiveIncomingGameInvites',
       // entity used and ordered/limited
       'base44.entities.GameInvite.filter',
+      'useNotificationCenter',
     ]),
   // Defense-in-depth: the panel must NOT bypass the loader by querying
   // GameInvite directly with its own filter. That would be a real product
@@ -748,12 +742,12 @@ export const EXTRA_TESTS = [
     'Accept/open invite action exists through the shared openGameInvite path',
     'components/invites/IncomingInvitesPanel.jsx',
     incomingInvitesPanelSource,
-    ['handleAccept', 'openGameInvite']),
+    ['handleAccept', 'openNotificationCenterGameInvite']),
   sourceHas('game_invites', 'reject_invite_action_exists',
     'Reject invite action exists',
     'components/invites/IncomingInvitesPanel.jsx',
     incomingInvitesPanelSource,
-    ['handleReject', 'rejectGameInvite']),
+    ['handleReject', 'rejectNotificationCenterGameInvite']),
   sourceHas('game_invites', 'accept_uses_service_role_join',
     'Accept uses existing safe service-role lobby-append path',
     'functions/acceptGameInvite.js',
@@ -1581,10 +1575,10 @@ export const EXTRA_TESTS = [
     ['push notification', 'bildirim gönderdik', 'anında bildirim'],
     { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW }),
   sourceHas('invite_contract_drift', 'incoming_panel_uses_loader',
-    'Incoming invites panel uses loadIncomingInvites, not direct global GameInvite queries',
-    'IncomingInvitesPanel.jsx',
-    incomingInvitesPanelSource,
-    ['loadIncomingInvites(user.email)'],
+    'Incoming invites panel uses shared notification center, not direct global GameInvite queries',
+    'IncomingInvitesPanel.jsx + useNotificationCenter.js',
+    `${incomingInvitesPanelSource}\n${useNotificationCenterSource}`,
+    ['useNotificationCenter', 'base44.entities.GameInvite.filter', 'mergeActiveIncomingGameInvites'],
     { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, runtimeProofRequired: true }),
   sourceHas('invite_contract_drift', 'create_lobby_creates_invites_after_lobby',
     'Create lobby creates invites after lobby creation',
@@ -1594,14 +1588,14 @@ export const EXTRA_TESTS = [
     { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),
   sourceHas('invite_contract_drift', 'accept_invite_existing_lobby_path',
     'Accept invite joins through shared openGameInvite and safe existing lobby path',
-    'IncomingInvitesPanel.jsx + inviteApi.js + acceptGameInvite contract',
-    `${incomingInvitesPanelSource}\n${inviteApiSource}\n${acceptGameInviteFnSource}`,
-    ['openGameInvite', "navigate('/lobby'", 'joinedLobby', 'verifiedLobby'],
+    'IncomingInvitesPanel.jsx + useNotificationCenter.js + inviteApi.js + acceptGameInvite contract',
+    `${incomingInvitesPanelSource}\n${useNotificationCenterSource}\n${inviteApiSource}\n${acceptGameInviteFnSource}`,
+    ['openNotificationCenterGameInvite', "navigate('/lobby'", 'joinedLobby', 'verifiedLobby'],
     { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),
   sourceHas('invite_contract_drift', 'reject_invite_marks_declined_safe',
     'Reject invite hides/marks pending invite safely with declined status',
     'inviteApi.js + IncomingInvitesPanel.jsx',
-    `${inviteApiSource}\n${incomingInvitesPanelSource}`,
+    `${inviteApiSource}\n${incomingInvitesPanelSource}\n${useNotificationCenterSource}`,
     ["status: 'declined'", 'declined_at', 'rejected_followup'],
     { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, runtimeProofRequired: true }),
   sourceLacks('invite_contract_drift', 'accepted_invite_does_not_open_game_directly',
@@ -1764,7 +1758,7 @@ export const EXTRA_TESTS = [
     'In-app invite notifier remains wired for foreground/open-app invites',
     'GameInviteNotifier.jsx + App.jsx',
     `${gameInviteNotifierSource}\n${appSource}`,
-    ['GameInviteNotifier', 'loadIncomingInviteSnapshot', 'buildNotificationViewModel', 'GameInvite.subscribe', 'toast', 'seni Kronox oyununa davet etti', 'openGameInvite'],
+    ['GameInviteNotifier', 'useNotificationCenter', 'notificationViewModel.bannerCandidates', 'toast', 'seni Kronox oyununa davet etti', 'openNotificationCenterGameInvite'],
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
   sourceHas('game_invite_push_notifications', 'invite_toasts_auto_dismiss_and_close',
     'Foreground invite toasts are dismissible and auto-dismiss instead of sticking over gameplay',
@@ -1782,7 +1776,7 @@ export const EXTRA_TESTS = [
     'Accepted/rejected/expired invites dismiss any active foreground notification',
     'GameInviteNotifier.jsx',
     gameInviteNotifierSource,
-    ["invite.status !== 'pending'", 'dismissInviteToast(invite.id,', 'knownInviteIdsRef.current.add(invite.id)'],
+    ['active_invite_removed', 'dismissInviteToast(inviteId,', 'knownInviteIdsRef.current.add(invite.id)'],
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
   sourceHas('game_invite_push_notifications', 'push_backend_sender_and_recipient_scoped',
     'Push backend validates sender and sends only to recipient active subscriptions',

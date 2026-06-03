@@ -51,6 +51,7 @@ const ONLINE_ID_TO_MAIN_CATEGORY_ID: Record<string, number> = {
 };
 
 const KNOWN_MAIN_CATEGORY_IDS = new Set([1, 2, 3, 4, 5, 6]);
+const QUESTION_FETCH_PER_CATEGORY_LIMIT = 250;
 
 const LEGACY_ONLINE_TO_LEGACY_CATEGORY_MAP: Record<string, string[]> = {
   flashback: ['tarih', 'genel'],
@@ -66,6 +67,12 @@ const normalizeMainCategoryId = (value: unknown): number | null => {
   if (!Number.isFinite(numeric)) return null;
   const id = Math.trunc(numeric);
   return KNOWN_MAIN_CATEGORY_IDS.has(id) ? id : null;
+};
+
+const isAuthorizedAdmin = (user: any) => {
+  if (!user) return false;
+  if (user.role === 'admin' || user.is_admin === true) return true;
+  return Array.isArray(user.permissions) && user.permissions.includes('admin');
 };
 
 const resolveMainCategoryIdsFromSelectedIds = (selectedIds: any, activeMainCategoryIds?: Set<number>): Set<number> | null => {
@@ -139,6 +146,36 @@ const loadActiveMainCategoryIds = async (base44: any): Promise<Set<number>> => {
     .map((row: any) => normalizeMainCategoryId(row?.category_id ?? row?.categoryid))
     .filter((id: number | null) => id !== null) as number[];
   return active.length ? new Set(active) : new Set();
+};
+
+const dedupeQuestions = (rows: any[] = []) => {
+  const seen = new Set<string>();
+  const out: any[] = [];
+  for (const row of rows || []) {
+    const key = String(row?.id ?? row?.__id ?? row?.question ?? '');
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(row);
+  }
+  return out;
+};
+
+const getQueryMainCategoryIdsForSettings = (settings: any, activeMainCategoryIds: Set<number>) => {
+  const hasSelectedCategoryIds = Array.isArray(settings?.selected_category_ids) && settings.selected_category_ids.length > 0;
+  if (!hasSelectedCategoryIds) return Array.from(activeMainCategoryIds);
+  const selected = resolveMainCategoryIdsFromSelectedIds(settings.selected_category_ids, activeMainCategoryIds);
+  return selected ? Array.from(selected) : [];
+};
+
+const loadActiveQuestionCandidates = async (base44: any, categoryIds: number[]) => {
+  const batches: any[] = [];
+  for (const categoryId of categoryIds) {
+    const rows = await base44.asServiceRole.entities.Question
+      .filter({ main_category_id: categoryId, state: 'A' }, '-created_date', QUESTION_FETCH_PER_CATEGORY_LIMIT)
+      .catch(() => []);
+    if (Array.isArray(rows) && rows.length > 0) batches.push(...rows);
+  }
+  return dedupeQuestions(batches);
 };
 
 const normalizeSettings = (lobby: any, incoming: any = {}) => {
@@ -318,25 +355,26 @@ Deno.serve(async (req) => {
     const actorName = body?.playerName || user?.full_name || user?.email || null;
     const authenticatedHost = Boolean(actorEmail && hostEmail === actorEmail);
     const guestHost = Boolean(!actorEmail && hostEmail?.startsWith('guest_') && players[0]?.name === actorName);
+    const canSeeDebug = isAuthorizedAdmin(user);
+    const withDebug = (payload: Record<string, unknown>, debug: Record<string, unknown>) =>
+      canSeeDebug ? { ...payload, debug } : payload;
 
     if (!authenticatedHost && !guestHost) {
-      return json({
+      return json(withDebug({
         error: 'Sadece host oyunu baslatabilir.',
-        debug: {
+      }, {
           lobbyId,
           actorEmail,
           actorName,
           hostEmail,
           firstPlayerName: players[0]?.name || null,
-        },
-      }, 403);
+      }), 403);
     }
 
     if (lobby.status !== 'waiting') {
-      return json({
+      return json(withDebug({
         error: 'Lobi bekleme durumunda degil.',
-        debug: { lobbyId, status: lobby.status },
-      }, 409);
+      }, { lobbyId, status: lobby.status }), 409);
     }
 
     if (players.length < 2) {
@@ -350,7 +388,10 @@ Deno.serve(async (req) => {
     // silently ignored — RLS already prevents non-host writes elsewhere.
     const settings = normalizeSettings(lobby, {});
     const activeMainCategoryIds = await loadActiveMainCategoryIds(base44);
-    const questions = await base44.asServiceRole.entities.Question.list('-created_date', 500);
+    const queryMainCategoryIds = getQueryMainCategoryIdsForSettings(settings, activeMainCategoryIds);
+    const questions = queryMainCategoryIds.length > 0
+      ? await loadActiveQuestionCandidates(base44, queryMainCategoryIds)
+      : [];
     const initialState = buildInitialState({
       players,
       questions: questions || [],
@@ -359,16 +400,20 @@ Deno.serve(async (req) => {
     });
 
     if (!initialState.ok) {
-      return json({
+      const contentStatus = ['insufficient_active_questions_for_selected_categories', 'not_enough_questions']
+        .includes(initialState.reason)
+        ? 422
+        : 400;
+      return json(withDebug({
         error: initialState.message,
         code: initialState.reason,
-        debug: {
+      }, {
           neededCount: initialState.neededCount,
           availableCount: initialState.availableCount,
           selected_category_ids: settings.selected_category_ids,
           activeMainCategoryIds: Array.from(activeMainCategoryIds),
-        },
-      }, 400);
+          queriedMainCategoryIds: queryMainCategoryIds,
+      }), contentStatus);
     }
 
     const currentRevision = readRevision(lobby.state_revision);
@@ -386,10 +431,10 @@ Deno.serve(async (req) => {
 
     const updatedLobby = await base44.asServiceRole.entities.Lobby.update(lobbyId, updateData);
 
-    return json({
+    return json(withDebug({
       success: true,
       lobby: updatedLobby,
-      debug: {
+    }, {
         lobbyId,
         statusBefore: lobby.status,
         statusAfter: updateData.status,
@@ -399,12 +444,11 @@ Deno.serve(async (req) => {
         used_question_count: updateData.used_question_ids.length,
         players: summarizePlayers(updateData.players),
         settings,
-      },
-    });
+    }));
   } catch (error) {
     console.error('[startLobbyGame] failed:', error);
     return json({
-      error: error?.message || 'Online oyun baslatilamadi.',
+      error: 'Online oyun baslatilamadi.',
     }, 500);
   }
 });

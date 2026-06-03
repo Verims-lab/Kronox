@@ -33,6 +33,8 @@ Rules:
 * normal authenticated users receive only minimal playable projection
 * `Question.state === "A"` is required for playable rows
 * passive categories must be excluded from playable decks
+* backend reads should be scoped by active category/status instead of
+  reading a newest-row slice and filtering everything in memory
 * raw/admin metadata must not be returned to normal gameplay
 
 ---

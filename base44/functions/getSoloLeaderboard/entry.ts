@@ -9,7 +9,7 @@
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
-const DEFAULT_LIMIT = 500;
+const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 500;
 const TOTAL_LEVELS = 20;
 

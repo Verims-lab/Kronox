@@ -20,6 +20,7 @@
 
 import gameInviteSelectorsSource from '../../lib/gameInviteSelectors.js?raw';
 import useHeaderNotificationsSource from '../../hooks/useHeaderNotifications.js?raw';
+import useNotificationCenterSource from '../../hooks/useNotificationCenter.js?raw';
 import incomingInvitesPanelSource from '../invites/IncomingInvitesPanel.jsx?raw';
 import gameInviteNotifierSource from '../invites/GameInviteNotifier.jsx?raw';
 import inviteApiSource from '../../lib/inviteApi.js?raw';
@@ -154,54 +155,53 @@ export const EXTRA_TESTS = [
 
   /* 2. All three surfaces share the same active-invite selector. */
   makeCase('game_invite_active_selector_shared',
-    'Header bell + IncomingInvitesPanel + GameInviteNotifier all import from @/lib/gameInviteSelectors',
+    'Header bell + IncomingInvitesPanel + GameInviteNotifier all read active invites through the shared notification center',
     () => {
-      const missingInHook = missing(useHeaderNotificationsSource, [
+      const missingInCenter = missing(useNotificationCenterSource, [
         "from '@/lib/gameInviteSelectors'",
-        'filterActiveIncomingGameInvites',
-      ]);
-      const missingInPanel = missing(incomingInvitesPanelSource, [
-        "from '@/lib/gameInviteSelectors'",
+        'mergeActiveIncomingGameInvites',
         'getGameInviteActiveFilterReason',
       ]);
-      const missingInToast = missing(gameInviteNotifierSource, [
-        "from '@/lib/gameInviteSelectors'",
+      const missingInPanel = missing(incomingInvitesPanelSource, [
+        'useNotificationCenter',
       ]);
-      if (missingInHook.length || missingInPanel.length || missingInToast.length) {
-        return fail('At least one invite surface is not on the shared selector.', {
+      const missingInToast = missing(gameInviteNotifierSource, [
+        'useNotificationCenter',
+      ]);
+      if (missingInCenter.length || missingInPanel.length || missingInToast.length) {
+        return fail('At least one invite surface is not on the shared notification center/selector.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          missingInHook,
+          missingInCenter,
           missingInPanel,
           missingInToast,
         });
       }
-      return pass('All invite surfaces import the shared selector module.',
+      return pass('All invite surfaces consume the shared notification center backed by the selector module.',
         { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
   /* 3. Local dismissed-toast bookkeeping cannot hide invites from other surfaces. */
   makeCase('game_invite_not_hidden_by_local_dismiss',
-    'dismissedInviteIdsRef is only read by showInviteToast — never read by the header bell or Online panel',
+    'dismissedToastIds only suppresses banner candidates — never header bell or Online panel rows',
     () => {
-      const notifier = safeStr(gameInviteNotifierSource);
-      // The ref must NOT be exported in any way.
-      const exportedDismissed = /export.*dismissedInviteIdsRef/.test(notifier);
-      const headerReads = safeStr(useHeaderNotificationsSource).includes('dismissedInviteIdsRef');
-      const panelReads = safeStr(incomingInvitesPanelSource).includes('dismissedInviteIdsRef');
-      if (exportedDismissed || headerReads || panelReads) {
+      const center = safeStr(useNotificationCenterSource);
+      const headerReads = safeStr(useHeaderNotificationsSource).includes('dismissedToastIds');
+      const panelReads = safeStr(incomingInvitesPanelSource).includes('dismissedToastIds');
+      const hasVisualOnlyDismiss = center.includes('dismissedToastIds') && center.includes('bannerCandidates');
+      if (!hasVisualOnlyDismiss || headerReads || panelReads) {
         return fail('Local dismissed-toast state is leaking to other surfaces.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          exportedDismissed,
+          hasVisualOnlyDismiss,
           headerReads,
           panelReads,
         });
       }
-      return pass('Dismissed-toast ref stays local to the notifier.',
+      return pass('Dismissed-toast ids only affect visual banner candidates.',
         { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
