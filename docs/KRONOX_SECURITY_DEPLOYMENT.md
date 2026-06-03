@@ -116,9 +116,9 @@ Rules:
 * unauthenticated admin-only calls should return 401
 * authenticated non-admin admin-only calls should return 403
 
-Admin-only maintenance helpers must also fail closed. The test-account
-progress reset helper requires both admin authorization and a deployment
-allowlist:
+Admin-only maintenance helpers must also fail closed. The legacy one-off
+test-account progress reset helper requires both admin authorization and a
+deployment allowlist:
 
 ```text
 KRONOX_TEST_RESET_EMAILS
@@ -128,6 +128,36 @@ TEST_RESET_EMAILS
 Use these only for explicitly approved test accounts. Do not add a normal
 user-facing reset button and do not commit personal test-account emails to
 source code.
+
+Reusable admin maintenance reset:
+
+```text
+POST /adminResetUserProgress
+```
+
+Rules:
+
+* requires authenticated admin context server-side
+* unauthenticated callers receive 401
+* authenticated non-admin callers receive 403
+* target email is normalized server-side
+* preview mode reads only safe summary values and does not mutate data
+* execute mode requires `confirmEmail` to exactly match the normalized target email
+* reset never deletes the User account or authentication identity
+* reset writes `User.progress_reset_at` so client-side user progress mirrors are invalidated
+* admin/target/mode/timestamp/result are recorded in `AdminMaintenanceLog`
+
+Supported modes:
+
+```text
+hard_zero
+new_player
+```
+
+`hard_zero` keeps the account at 0 Diamonds after reset by marking starter
+bonus and the current UTC daily reward as already handled. `new_player`
+clears those reward guards so the normal app-entry economy bootstrap may
+grant starter/daily Diamonds again.
 
 ---
 

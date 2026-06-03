@@ -256,7 +256,30 @@ Checklist:
 
 ---
 
-# 12. Manual Proof Recording
+# 12. Admin Maintenance Reset
+
+Use an admin account and a disposable target user.
+
+Checklist:
+
+* Normal users cannot see the `Reset User Progress` Settings tool.
+* Unauthenticated `/adminResetUserProgress` calls return 401.
+* Authenticated non-admin `/adminResetUserProgress` calls return 403.
+* Admin preview by target email shows only safe summary values.
+* Execute requires typing the exact target email again.
+* `Hard zero reset` sets visible Kronox Puan, Solo progress, Online progress, Elmas, Top 5 records, and leaderboard projection to 0 / starting state.
+* `Hard zero reset` does not immediately re-grant starter or same-day daily Diamonds after target refresh.
+* `New player reset` sets visible progress to starting state and allows normal starter/daily Diamond bootstrap on next app entry.
+* Target user account and login/auth identity remain intact.
+* Target user local Solo progress mirror is invalidated by `progress_reset_at` after refresh/reopen.
+* AdminMaintenanceLog records admin email, target email, mode, timestamp, and result.
+* Public leaderboard rows do not expose target raw email after reset.
+
+Do not run this proof against production users without explicit approval.
+
+---
+
+# 13. Manual Proof Recording
 
 For every manual test run, record:
 

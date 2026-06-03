@@ -1,5 +1,14 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex179 — Admin reset any user progress by email:
+//   • Adds an admin-only Settings maintenance tool with preview, exact-email
+//     confirmation, Hard zero reset, and New player reset modes.
+//   • Server function adminResetUserProgress authenticates/admin-gates every
+//     preview/execute call, resets visible score/progress/economy projection,
+//     and writes AdminMaintenanceLog audit rows.
+//   • User.progress_reset_at invalidates stale user-scoped Solo local mirrors
+//     so reset server state wins after target refresh/reopen.
+//
 // Codex178 — Beginner Solo completion target:
 //   • Solo levels 1-10 now require 7 placed cards.
 //   • Solo level 11+ keeps the default 10 placed-card target.
@@ -688,7 +697,7 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
-const BUILD_MARKER = 'Codex178';
+const BUILD_MARKER = 'Codex179';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -38,6 +38,7 @@
 //   - Online flow, lobby, invites, notifications untouched.
 
 import { base44 } from '@/api/base44Client';
+import { isSavedBeforeProgressReset } from './progressResetCache';
 import {
   calculateSoloAttemptResult,
   calculateSoloStars,
@@ -151,7 +152,7 @@ function readStorageJson(key) {
   }
 }
 
-function unwrapLocalMirror(parsed, expectedOwnerKey) {
+function unwrapLocalMirror(parsed, expectedOwnerKey, progressResetAt = '') {
   if (!parsed || typeof parsed !== 'object') return null;
 
   // Codex139 mirror envelope. Signed-in reads require matching ownerKey.
@@ -159,6 +160,7 @@ function unwrapLocalMirror(parsed, expectedOwnerKey) {
     const ownerKey = String(parsed.ownerKey || '').trim();
     if (expectedOwnerKey !== 'guest' && ownerKey !== expectedOwnerKey) return null;
     if (expectedOwnerKey === 'guest' && ownerKey !== 'guest') return null;
+    if (isSavedBeforeProgressReset(parsed.savedAt, progressResetAt)) return null;
     return parsed.progress && typeof parsed.progress === 'object'
       ? normalizeProgressShape(parsed.progress)
       : null;
@@ -170,6 +172,7 @@ function unwrapLocalMirror(parsed, expectedOwnerKey) {
   const legacyOwner = String(parsed.ownerKey || parsed.__ownerKey || '').trim();
   if (expectedOwnerKey !== 'guest') {
     if (!legacyOwner || legacyOwner !== expectedOwnerKey) return null;
+    if (progressResetAt) return null;
     return normalizeProgressShape(parsed.progress && typeof parsed.progress === 'object'
       ? parsed.progress
       : parsed);
@@ -194,10 +197,10 @@ function wrapLocalMirror(user, progress) {
 function migrateLegacyGuestIfNeeded() {
   if (typeof window === 'undefined') return null;
   const guestParsed = readStorageJson(GUEST_STORAGE_KEY);
-  if (guestParsed) return unwrapLocalMirror(guestParsed, 'guest');
+  if (guestParsed) return unwrapLocalMirror(guestParsed, 'guest', '');
 
   const legacyParsed = readStorageJson(STORAGE_KEY);
-  const legacyProgress = unwrapLocalMirror(legacyParsed, 'guest');
+  const legacyProgress = unwrapLocalMirror(legacyParsed, 'guest', '');
   if (legacyProgress) {
     try {
       window.localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(wrapLocalMirror(null, legacyProgress)));
@@ -211,15 +214,16 @@ function migrateLegacyGuestIfNeeded() {
 function safeReadLocal(user = null) {
   if (typeof window === 'undefined') return emptyProgress();
   const ownerKey = getSoloProgressOwnerKey(user);
+  const progressResetAt = ownerKey === 'guest' ? '' : String(user?.progress_reset_at || '');
   try {
-    const scoped = unwrapLocalMirror(readStorageJson(getScopedStorageKey(user)), ownerKey);
+    const scoped = unwrapLocalMirror(readStorageJson(getScopedStorageKey(user)), ownerKey, progressResetAt);
     if (scoped) return scoped;
     if (ownerKey === 'guest') return migrateLegacyGuestIfNeeded() || emptyProgress();
 
     // Signed-in migration from the old unscoped key is intentionally strict:
     // only an owner-marked legacy mirror can be used. Anonymous old progress
     // remains guest fallback and can never overwrite User.solo_progress.
-    const legacySameOwner = unwrapLocalMirror(readStorageJson(STORAGE_KEY), ownerKey);
+    const legacySameOwner = unwrapLocalMirror(readStorageJson(STORAGE_KEY), ownerKey, progressResetAt);
     return legacySameOwner || emptyProgress();
   } catch {
     return emptyProgress();
