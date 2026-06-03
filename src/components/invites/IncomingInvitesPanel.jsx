@@ -1,141 +1,54 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mailbox, Loader2, Check, X, AlertCircle, Crown } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
 import {
-  loadIncomingInviteSnapshot,
-  openGameInvite,
-  rejectGameInvite,
-  mergeActiveIncomingGameInvites,
-} from '@/lib/inviteApi';
-import {
-  getGameInviteActiveFilterReason,
-  getInviteRecipientEmail,
-  isGameInviteExpired,
-  traceGameInviteLifecycle,
-} from '@/lib/gameInviteSelectors';
-import { buildNotificationViewModel } from '@/lib/notificationViewModel';
+  openNotificationCenterGameInvite,
+  rejectNotificationCenterGameInvite,
+  useNotificationCenter,
+} from '@/hooks/useNotificationCenter';
+import { isGameInviteExpired } from '@/lib/gameInviteSelectors';
 import { sounds } from '@/lib/gameSounds';
 import InviteCountdown from '@/components/invites/InviteCountdown';
 
 /**
  * "Oyun Davetleri" — pending GameInvite rows addressed to the current user.
- * Self-contained: loads its own data, refetches after accept/reject, and
- * navigates the recipient into the existing Waiting Room on accept.
+ * Reads from the shared notification center. Header, in-app toast, and this
+ * panel now share one fetch/subscription/merge lifecycle, so stale refetches
+ * cannot make just one surface flicker empty while another still has data.
  *
  * Renders nothing when there are no pending invites (and not loading), so it
  * can be embedded anywhere without taking space.
  */
 export default function IncomingInvitesPanel({ user, variant = 'fantasy' }) {
   const navigate = useNavigate();
-  const [invites, setInvites] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const center = useNotificationCenter(user);
+  const [localError, setLocalError] = useState('');
   const [busyId, setBusyId] = useState(null);
-
-  const refresh = useCallback(async ({ preserveExisting = false, source = 'fetch' } = {}) => {
-    if (!user?.email) {
-      traceGameInviteLifecycle('online_pending_invite_list_recalculated', { id: 'user:not_loaded', status: 'pending' }, {
-        source: `IncomingInvitesPanel.${source}`,
-        user,
-        userEmail: '',
-        reason: 'user_not_loaded_preserve_existing',
-      });
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setError('');
-    try {
-      const snapshot = await loadIncomingInviteSnapshot(user.email);
-      setInvites((prev) => {
-        const mergedRows = mergeActiveIncomingGameInvites(prev, snapshot?.rows || [], user.email);
-        const viewModel = buildNotificationViewModel({
-          currentUser: user,
-          gameInvites: mergedRows,
-        });
-        const next = viewModel.activeIncomingGameInvites;
-        const staleEmptyPreserved = (snapshot?.rows || []).length === 0 && prev.length > 0 && next.length > 0;
-        traceGameInviteLifecycle('online_pending_invite_list_recalculated', { id: `count:${next.length}`, status: 'pending', to_email: user.email }, {
-          source: `IncomingInvitesPanel.${source}`,
-          user,
-          userEmail: user.email,
-          reason: staleEmptyPreserved ? 'stale_empty_fetch_preserved' : (preserveExisting ? 'preserve_existing_merge' : 'lifecycle_merge'),
-        });
-        return next;
-      });
-    } catch (err) {
-      setError(err?.message || 'Davetler yüklenemedi.');
-      traceGameInviteLifecycle('online_pending_invite_list_recalculated', { id: 'fetch:error', status: 'pending', to_email: user.email }, {
-        source: `IncomingInvitesPanel.${source}`,
-        user,
-        userEmail: user.email,
-        reason: 'fetch_error_preserve_existing',
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
-
-  useEffect(() => { refresh(); }, [refresh]);
-
-  useEffect(() => {
-    if (!user?.email) return undefined;
-    let intervalId = null;
-
-    const unsub = base44.entities.GameInvite.subscribe((event) => {
-      const eventType = event?.type || event?.eventType || 'update';
-      const invite = event?.data || event;
-      if (eventType === 'delete') return;
-      if (getInviteRecipientEmail(invite) !== String(user.email || '').trim().toLowerCase()) return;
-
-      const reason = getGameInviteActiveFilterReason(invite, user.email);
-      traceGameInviteLifecycle(reason.startsWith('active') ? 'invite_passed_active_filter' : 'invite_failed_active_filter', invite, {
-        source: `IncomingInvitesPanel.subscription:${eventType}`,
-        user,
-        userEmail: user.email,
-        reason,
-      });
-
-      if (reason.startsWith('active')) {
-        setInvites((prev) => mergeActiveIncomingGameInvites(prev, [invite], user.email));
-        window.setTimeout(() => refresh({ preserveExisting: true, source: 'subscription_followup' }), 900);
-      } else {
-        setInvites((prev) => prev.filter((item) => item.id !== invite.id));
-        refresh({ preserveExisting: false, source: 'terminal_followup' });
-      }
-    });
-
-    intervalId = window.setInterval(() => refresh({ preserveExisting: false, source: 'polling' }), 20000);
-
-    return () => {
-      if (typeof unsub === 'function') unsub();
-      if (intervalId) window.clearInterval(intervalId);
-    };
-  }, [refresh, user?.email]);
+  const invites = center.gameInvites;
+  const loading = center.loading;
+  const error = localError || center.error || '';
 
   const handleAccept = async (invite) => {
     if (busyId) return;
     setBusyId(invite.id);
+    setLocalError('');
     sounds.tap();
     try {
       if (isGameInviteExpired(invite)) {
-        setError('Davetin süresi doldu. Yeni bir davet iste.');
-        await refresh();
+        setLocalError('Davetin süresi doldu. Yeni bir davet iste.');
+        await center.refresh({ preserveExisting: true, source: 'online_panel_expired_retry' });
         return;
       }
-      await openGameInvite(invite, {
+      const res = await openNotificationCenterGameInvite(invite, {
         navigate,
         userEmail: user.email,
         source: 'online_pending_panel',
-        onAccepted: async () => {
-          setInvites((prev) => prev.filter((item) => item.id !== invite.id));
-          await refresh({ preserveExisting: false, source: 'accepted_followup' });
-        },
+        onAccepted: async () => center.refresh({ preserveExisting: true, source: 'online_panel_accepted_followup' }),
       });
+      if (!res.ok) setLocalError(res.reason || 'Davet kabul edilemedi.');
     } catch (err) {
-      setError(err?.message || 'Davet kabul edilemedi.');
+      setLocalError(err?.message || 'Davet kabul edilemedi.');
     } finally {
       setBusyId(null);
     }
@@ -144,13 +57,13 @@ export default function IncomingInvitesPanel({ user, variant = 'fantasy' }) {
   const handleReject = async (invite) => {
     if (busyId) return;
     setBusyId(invite.id);
+    setLocalError('');
     sounds.tick();
     try {
-      await rejectGameInvite(invite.id);
-      setInvites((prev) => prev.filter((item) => item.id !== invite.id));
-      await refresh({ preserveExisting: false, source: 'rejected_followup' });
+      const res = await rejectNotificationCenterGameInvite(invite.id);
+      if (!res.ok) setLocalError(res.reason || 'Davet reddedilemedi.');
     } catch (err) {
-      setError(err?.message || 'Davet reddedilemedi.');
+      setLocalError(err?.message || 'Davet reddedilemedi.');
     } finally {
       setBusyId(null);
     }

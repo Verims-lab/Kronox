@@ -448,6 +448,7 @@ OnlineMatchResult
 Expected fields include:
 
 ```text
+idempotency_key
 player_email
 lobby_id
 result
@@ -461,6 +462,11 @@ applied_at
 Critical rule:
 
 A durable per-user/lobby idempotency record must exist before or safely together with the visible score write.
+The current idempotency key shape is:
+
+```text
+online_match_result:<lobby_id>:<player_email>
+```
 
 If score persistence fails:
 
@@ -606,5 +612,4 @@ If product decisions change:
 4. run regression tests
 
 Do not leave historical audit reports inside this file. Historical scoring audits should live in archive docs if needed.
-
 

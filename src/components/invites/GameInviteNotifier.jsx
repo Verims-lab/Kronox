@@ -4,15 +4,13 @@ import { ToastAction } from '@/components/ui/toast';
 import { toast } from '@/components/ui/use-toast';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
-import { loadIncomingInviteSnapshot, openGameInvite } from '@/lib/inviteApi';
-import { buildNotificationViewModel } from '@/lib/notificationViewModel';
 import {
-  getGameInviteActiveFilterReason,
-  getInviteRecipientEmail,
-  getInviteSenderEmail,
-  normalizeEmail,
-  traceGameInviteLifecycle,
-} from '@/lib/gameInviteSelectors';
+  markAcceptedOutgoingInviteHandled,
+  openNotificationCenterGameInvite,
+  rememberDismissedInviteToast,
+  useNotificationCenter,
+} from '@/hooks/useNotificationCenter';
+import { traceGameInviteLifecycle } from '@/lib/gameInviteSelectors';
 
 const INVITE_TOAST_DURATION_MS = 10000;
 
@@ -29,8 +27,8 @@ export default function GameInviteNotifier() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const center = useNotificationCenter(user);
   const knownInviteIdsRef = useRef(new Set());
-  const dismissedInviteIdsRef = useRef(new Set());
   const activeToastByInviteIdRef = useRef(new Map());
   const handledAcceptedOutgoingInviteIdsRef = useRef(new Set());
   const bootstrappedRef = useRef(false);
@@ -39,7 +37,7 @@ export default function GameInviteNotifier() {
   const dismissInviteToast = useCallback((inviteId, { remember = true, source = 'toast_dismiss' } = {}) => {
     if (!inviteId) return;
     const active = activeToastByInviteIdRef.current.get(inviteId);
-    if (remember) dismissedInviteIdsRef.current.add(inviteId);
+    if (remember) rememberDismissedInviteToast(inviteId);
     if (active?.timerId) window.clearTimeout(active.timerId);
     active?.controller?.dismiss?.();
     activeToastByInviteIdRef.current.delete(inviteId);
@@ -47,7 +45,7 @@ export default function GameInviteNotifier() {
       source,
       user,
       userEmail: user?.email,
-      reason: remember ? 'remembered' : 'visual_only',
+      reason: remember ? 'remembered_visual_only' : 'timeout_visual_only',
     });
   }, [user]);
 
@@ -68,9 +66,7 @@ export default function GameInviteNotifier() {
       });
       return;
     }
-    if (dismissedInviteIdsRef.current.has(invite.id) || activeToastByInviteIdRef.current.has(invite.id)) {
-      return;
-    }
+    if (activeToastByInviteIdRef.current.has(invite.id)) return;
 
     const display = invite?.from_name?.trim() || invite?.from_email || 'Bir arkadaşın';
     const target = buildInviteTarget(invite);
@@ -83,16 +79,15 @@ export default function GameInviteNotifier() {
         <ToastAction
           onClick={async () => {
             dismissInviteToast(invite.id, { remember: true, source: 'toast_open_action' });
-            try {
-              await openGameInvite(invite, {
-                navigate,
-                userEmail: user?.email,
-                source: 'toast',
-              });
-            } catch (error) {
+            const res = await openNotificationCenterGameInvite(invite, {
+              navigate,
+              userEmail: user?.email,
+              source: 'toast',
+            });
+            if (!res.ok) {
               toast({
                 title: 'Davet açılamadı',
-                description: error?.message || 'Davet kabul edilemedi. Lütfen tekrar dene.',
+                description: res.reason || 'Davet kabul edilemedi. Lütfen tekrar dene.',
                 duration: 5000,
               });
             }
@@ -121,37 +116,6 @@ export default function GameInviteNotifier() {
     });
   }, [dismissInviteToast, navigate, user]);
 
-  const ingestInvites = useCallback((rows, { notifyNew }) => {
-    const known = knownInviteIdsRef.current;
-    const viewModel = buildNotificationViewModel({
-      currentUser: user,
-      gameInvites: rows,
-      dismissedToastIds: dismissedInviteIdsRef.current,
-    });
-    (rows || []).forEach((invite) => {
-      if (!invite?.id) return;
-      const wasKnown = known.has(invite.id);
-      known.add(invite.id);
-      const reason = getGameInviteActiveFilterReason(invite, user?.email);
-      traceGameInviteLifecycle(reason.startsWith('active') ? 'invite_passed_active_filter' : 'invite_failed_active_filter', invite, {
-        source: 'GameInviteNotifier.ingest',
-        user,
-        userEmail: user?.email,
-        reason,
-      });
-      if (!reason.startsWith('active')) {
-        if (reason.startsWith('terminal_') || reason === 'expired') {
-          dismissInviteToast(invite.id, { source: `status_${invite.status || reason}` });
-        }
-        return;
-      }
-      const canShowBanner = viewModel.bannerCandidates.some((item) => item.id === invite.id);
-      if (notifyNew && !wasKnown && canShowBanner) {
-        showInviteToast(invite);
-      }
-    });
-  }, [dismissInviteToast, showInviteToast, user]);
-
   useEffect(() => {
     pathnameRef.current = location.pathname;
     if (location.pathname === '/game') {
@@ -164,95 +128,59 @@ export default function GameInviteNotifier() {
   }, [dismissAllInviteToasts]);
 
   useEffect(() => {
-    const email = normalizeEmail(user?.email);
     dismissAllInviteToasts();
     knownInviteIdsRef.current = new Set();
-    dismissedInviteIdsRef.current = new Set();
+    handledAcceptedOutgoingInviteIdsRef.current = new Set();
     bootstrappedRef.current = false;
-    if (!email) return undefined;
+  }, [dismissAllInviteToasts, user?.email]);
 
-    let cancelled = false;
-    let intervalId = null;
-
-    const refresh = async ({ notifyNew }) => {
-      const snapshot = await loadIncomingInviteSnapshot(email).catch(() => ({ rows: [], activeInvites: [] }));
-      if (cancelled) return;
-      traceGameInviteLifecycle('invite_loaded_by_polling_fetch', { id: `count:${snapshot.activeInvites?.length || 0}`, status: 'pending', to_email: email }, {
-        source: 'GameInviteNotifier.refresh',
-        user,
-        userEmail: email,
-        reason: 'fetch_complete',
+  useEffect(() => {
+    if (!center.bootstrapped) return;
+    const candidates = center.notificationViewModel.bannerCandidates || [];
+    if (!bootstrappedRef.current) {
+      candidates.forEach((invite) => {
+        if (invite?.id) knownInviteIdsRef.current.add(invite.id);
       });
-      ingestInvites(snapshot.rows || [], { notifyNew });
       bootstrappedRef.current = true;
-    };
-
-    refresh({ notifyNew: false });
-
-    const unsub = base44.entities.GameInvite.subscribe((event) => {
-      const eventType = event?.type || event?.eventType || 'update';
-      const invite = event?.data || event;
-      if (eventType === 'delete') return;
-      const toEmail = getInviteRecipientEmail(invite);
-      const fromEmail = getInviteSenderEmail(invite);
-      traceGameInviteLifecycle('invite_received_by_subscription', invite, {
-        source: `GameInviteNotifier.subscription:${eventType}`,
-        user,
-        userEmail: email,
-      });
-      if (
-        fromEmail === email
-        && invite?.status === 'accepted'
-        && invite?.id
-        && !handledAcceptedOutgoingInviteIdsRef.current.has(invite.id)
-      ) {
-        handledAcceptedOutgoingInviteIdsRef.current.add(invite.id);
-        if (pathnameRef.current !== '/game' && pathnameRef.current !== '/lobby' && invite.lobby_id) {
-          base44.entities.Lobby.get(invite.lobby_id)
-            .then((acceptedLobby) => {
-              if (acceptedLobby?.id) {
-                navigate('/lobby', { state: { joinedLobby: acceptedLobby } });
-              }
-            })
-            .catch(() => null);
-        }
-        toast({
-          title: 'Davet kabul edildi',
-          description: `${invite.to_email || 'Arkadaşın'} lobiye katıldı.`,
-          duration: 5000,
-        });
-        return;
-      }
-      if (toEmail !== email) return;
-      if (invite?.id && invite.status !== 'pending') {
-        knownInviteIdsRef.current.add(invite.id);
-        dismissInviteToast(invite.id, { source: `subscription_${invite.status}` });
-        return;
-      }
-      ingestInvites([invite], { notifyNew: bootstrappedRef.current });
+      return;
+    }
+    candidates.forEach((invite) => {
+      if (!invite?.id || knownInviteIdsRef.current.has(invite.id)) return;
+      knownInviteIdsRef.current.add(invite.id);
+      showInviteToast(invite);
     });
+  }, [center.bootstrapped, center.notificationViewModel.bannerCandidates, showInviteToast]);
 
-    intervalId = window.setInterval(() => {
-      refresh({ notifyNew: true });
-    }, 20000);
-
-    const onFocus = () => { refresh({ notifyNew: true }); };
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        refresh({ notifyNew: true });
+  useEffect(() => {
+    const activeIds = new Set((center.gameInvites || []).map((invite) => invite.id).filter(Boolean));
+    Array.from(activeToastByInviteIdRef.current.keys()).forEach((inviteId) => {
+      if (!activeIds.has(inviteId)) {
+        dismissInviteToast(inviteId, { remember: false, source: 'active_invite_removed' });
       }
-    };
-    window.addEventListener('focus', onFocus);
-    document.addEventListener('visibilitychange', onVisibility);
+    });
+  }, [center.gameInvites, dismissInviteToast]);
 
-    return () => {
-      cancelled = true;
-      if (typeof unsub === 'function') unsub();
-      if (intervalId) window.clearInterval(intervalId);
-      window.removeEventListener('focus', onFocus);
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-  }, [dismissAllInviteToasts, dismissInviteToast, ingestInvites, navigate, user, user?.email]);
+  useEffect(() => {
+    (center.acceptedOutgoingInvites || []).forEach((invite) => {
+      if (!invite?.id || handledAcceptedOutgoingInviteIdsRef.current.has(invite.id)) return;
+      handledAcceptedOutgoingInviteIdsRef.current.add(invite.id);
+      markAcceptedOutgoingInviteHandled(invite.id);
+      if (pathnameRef.current !== '/game' && pathnameRef.current !== '/lobby' && invite.lobby_id) {
+        base44.entities.Lobby.get(invite.lobby_id)
+          .then((acceptedLobby) => {
+            if (acceptedLobby?.id) {
+              navigate('/lobby', { state: { joinedLobby: acceptedLobby } });
+            }
+          })
+          .catch(() => null);
+      }
+      toast({
+        title: 'Davet kabul edildi',
+        description: `${invite.to_email || 'Arkadaşın'} lobiye katıldı.`,
+        duration: 5000,
+      });
+    });
+  }, [center.acceptedOutgoingInvites, navigate]);
 
   return null;
 }

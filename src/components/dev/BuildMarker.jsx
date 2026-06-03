@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex171 — Technical Audit Package 2 fix pass:
+//   • Moves header, Online pending invites, and foreground invite toasts onto
+//     one shared notification center to reduce stale fetch/subscription flicker.
+//   • Scopes getQuestions/startLobbyGame question reads by active
+//     category/state instead of broad newest-row sampling.
+//   • Adds lobby snapshot freshness guards, OnlineMatchResult idempotency_key,
+//     safer non-admin debug responses, and updated Health/doc contracts.
+//
 // Codex168 — Full Audit Package 2 implementation pass:
 //   • Secures getQuestions with auth + minimal active-question projection and
 //     removes direct public Question.list gameplay fallback.
@@ -629,7 +637,7 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
-const BUILD_MARKER = 'Codex168';
+const BUILD_MARKER = 'Codex171';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

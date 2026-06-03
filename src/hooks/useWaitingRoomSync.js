@@ -5,6 +5,30 @@ import { debugLog, debugWarn } from '@/lib/debugLog';
 import { isHost as isLobbyHost, summarizePlayers } from '@/lib/lobbyUtils';
 import { navigateToOnlineGame as navigateToOnlineGameRoute } from '@/lib/onlineGameNavigation';
 
+const STATUS_RANK = {
+  waiting: 1,
+  starting: 2,
+  in_game: 3,
+  finished: 4,
+};
+
+const readLobbyRevision = (lobby) => {
+  const revision = Number(lobby?.state_revision);
+  return Number.isFinite(revision) ? revision : 0;
+};
+
+const getStatusRank = (status) => STATUS_RANK[String(status || '')] || 0;
+
+function isFreshLobbySnapshot(previous, next) {
+  if (!previous || !next) return true;
+  if (previous.id && next.id && previous.id !== next.id) return true;
+  const prevRevision = readLobbyRevision(previous);
+  const nextRevision = readLobbyRevision(next);
+  if (nextRevision < prevRevision) return false;
+  if (nextRevision === prevRevision && getStatusRank(next.status) < getStatusRank(previous.status)) return false;
+  return true;
+}
+
 export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, navigate }) {
   const [startDebug, setStartDebug] = useState({
     subscribedLobbyId: lobby?.id || null,
@@ -21,21 +45,42 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
     error: null,
   });
 
-  const refreshLobby = useCallback(async () => {
-    if (!lobby?.id) return;
-    const fresh = await base44.entities.Lobby.get(lobby.id);
-    if (fresh) setLobby(fresh);
-  }, [lobby?.id, setLobby]);
-
-  const { containerRef: waitingScrollRef, pullY, refreshing } = usePullToRefresh(refreshLobby);
-
   const playerNameRef = useRef(playerName);
   const userRef = useRef(user);
+  const latestLobbyRef = useRef(lobby);
   const hasNavigatedToGameRef = useRef(false);
   const rejoinAttemptRef = useRef(false);
 
   useEffect(() => { playerNameRef.current = playerName; }, [playerName]);
   useEffect(() => { userRef.current = user; }, [user]);
+  useEffect(() => { latestLobbyRef.current = lobby; }, [lobby]);
+
+  const applyLobbySnapshot = useCallback((nextLobby, source) => {
+    if (!nextLobby) return false;
+    const previous = latestLobbyRef.current;
+    if (!isFreshLobbySnapshot(previous, nextLobby)) {
+      debugWarn('[WaitingRoom] stale lobby snapshot ignored:', {
+        source,
+        lobbyId: nextLobby.id,
+        previousRevision: readLobbyRevision(previous),
+        nextRevision: readLobbyRevision(nextLobby),
+        previousStatus: previous?.status || null,
+        nextStatus: nextLobby.status || null,
+      });
+      return false;
+    }
+    latestLobbyRef.current = nextLobby;
+    setLobby(nextLobby);
+    return true;
+  }, [setLobby]);
+
+  const refreshLobby = useCallback(async () => {
+    if (!lobby?.id) return;
+    const fresh = await base44.entities.Lobby.get(lobby.id);
+    if (fresh) applyLobbySnapshot(fresh, 'pull_to_refresh');
+  }, [applyLobbySnapshot, lobby?.id]);
+
+  const { containerRef: waitingScrollRef, pullY, refreshing } = usePullToRefresh(refreshLobby);
 
   useEffect(() => {
     setStartDebug(prev => ({
@@ -132,7 +177,8 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
         return;
       }
 
-      setLobby(updatedLobby);
+      const applied = applyLobbySnapshot(updatedLobby, `subscription:${eventType}`);
+      if (!applied) return;
 
       const currentUser = userRef.current;
       const currentPlayerName = playerNameRef.current?.trim();
@@ -178,7 +224,7 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
     });
 
     return () => unsub();
-  }, [lobby?.id, lobby?.status, navigateToOnlineGame, setLobby]);
+  }, [applyLobbySnapshot, lobby?.id, lobby?.status, navigateToOnlineGame, setLobby]);
 
   useEffect(() => {
     if (!lobby?.id || lobby.status !== 'waiting') return undefined;
@@ -206,7 +252,7 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
         });
 
         if (rosterChanged) {
-          setLobby(fresh);
+          applyLobbySnapshot(fresh, 'roster_poll');
         }
       } catch (err) {
         debugWarn('[WaitingRoom] roster poll failed:', {
@@ -214,10 +260,10 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
           error: err.message,
         });
       }
-    }, 2000);
+    }, 3000);
 
     return () => window.clearInterval(intervalId);
-  }, [lobby?.id, lobby?.players, lobby.status, setLobby]);
+  }, [applyLobbySnapshot, lobby?.id, lobby?.players, lobby.status]);
 
   useEffect(() => {
     const currentEmail = user?.email;
@@ -262,7 +308,7 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
           ? updatedRoster.some(p => p?.email === currentEmail)
           : updatedRoster.some(p => p?.name === currentName);
         if (!isVisibleAfterRejoin) rejoinAttemptRef.current = false;
-        setLobby(updatedLobby);
+        applyLobbySnapshot(updatedLobby, 'rejoin_assertion');
       }
     }).catch((err) => {
       debugWarn('[WaitingRoom] rejoin assertion failed:', {
@@ -271,7 +317,7 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
       });
       rejoinAttemptRef.current = false;
     });
-  }, [lobby?.id, lobby?.status, lobby?.players, lobby?.code, playerName, user?.email, setLobby]);
+  }, [applyLobbySnapshot, lobby?.id, lobby?.status, lobby?.players, lobby?.code, playerName, user?.email]);
 
   useEffect(() => {
     if (!lobby?.id || isHost) return undefined;
@@ -309,8 +355,8 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
         debugLog('[WaitingRoom] start fallback poll:', pollDebug);
         setStartDebug(pollDebug);
 
-        if (fresh) setLobby(fresh);
-        if (shouldNavigate) navigateToOnlineGame(fresh, 'poll');
+        const applied = fresh ? applyLobbySnapshot(fresh, 'start_fallback_poll') : false;
+        if (shouldNavigate && (applied || fresh?.status === 'starting' || fresh?.status === 'in_game')) navigateToOnlineGame(fresh, 'poll');
       } catch (err) {
         const pollErrorDebug = {
           subscribedLobbyId: lobby.id,
@@ -329,10 +375,10 @@ export function useWaitingRoomSync({ lobby, setLobby, playerName, user, isHost, 
         debugLog('[WaitingRoom] start fallback poll error:', pollErrorDebug);
         setStartDebug(pollErrorDebug);
       }
-    }, 1500);
+    }, 2500);
 
     return () => window.clearInterval(intervalId);
-  }, [isHost, lobby?.id, lobby?.status, navigateToOnlineGame, setLobby]);
+  }, [applyLobbySnapshot, isHost, lobby?.id, lobby?.status, navigateToOnlineGame]);
 
   return {
     startDebug,

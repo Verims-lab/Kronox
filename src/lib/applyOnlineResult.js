@@ -45,6 +45,12 @@ function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
 }
 
+function buildOnlineMatchResultIdempotencyKey({ lobbyId, playerEmail }) {
+  const lobbyKey = String(lobbyId || '').trim();
+  const email = normalizeEmail(playerEmail);
+  return lobbyKey && email ? `online_match_result:${lobbyKey}:${email}` : '';
+}
+
 function isMissingOnlineMatchResultEntityError(error) {
   const message = String(error?.message || error || '');
   return message.includes(`Entity schema ${ONLINE_MATCH_RESULT_ENTITY} not found`) ||
@@ -58,6 +64,15 @@ async function findExistingOnlineMatchResult({ lobbyId, playerEmail }) {
     return { supported: false, row: null, error: 'entity_client_unavailable' };
   }
   try {
+    const idempotencyKey = buildOnlineMatchResultIdempotencyKey({ lobbyId, playerEmail });
+    if (idempotencyKey) {
+      const keyedRows = await base44.entities.OnlineMatchResult.filter(
+        { idempotency_key: idempotencyKey },
+        '-applied_at',
+        1,
+      ).catch(() => []);
+      if (keyedRows?.[0]) return { supported: true, row: keyedRows[0] };
+    }
     const rows = await base44.entities.OnlineMatchResult.filter(
       { lobby_id: String(lobbyId), player_email: playerEmail },
       '-applied_at',
@@ -249,7 +264,9 @@ async function createOnlineMatchResult({
 }) {
   if (!lobbyId || !playerEmail || !applied) return { persisted: false, skipped: 'missing_audit_args' };
   const now = new Date().toISOString();
+  const idempotencyKey = buildOnlineMatchResultIdempotencyKey({ lobbyId, playerEmail });
   const payload = {
+    idempotency_key: idempotencyKey,
     lobby_id: String(lobbyId),
     player_email: playerEmail,
     opponent_email: normalizeEmail(opponentEmail),
@@ -266,6 +283,7 @@ async function createOnlineMatchResult({
     source,
     metadata: {
       clampedByCheckpoint: Boolean(applied.clampedByCheckpoint),
+      idempotencyKey,
       peakScore: Number(applied.peakScore) || 0,
     },
   };

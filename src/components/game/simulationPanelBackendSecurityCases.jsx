@@ -214,7 +214,7 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'base44/functions/getQuestions/entry.ts',
-          expected: 'auth.me guard returning 401 before service-role Question.list',
+          expected: 'auth.me guard returning 401 before scoped service-role Question.filter',
           actual: { missing, forbidden },
           actionType: ACTION_TYPES.CODE_FIX,
         });

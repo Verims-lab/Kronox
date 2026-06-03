@@ -241,14 +241,7 @@ export function isGameInviteTraceEnabled(user) {
     user?.is_admin === true ||
     (Array.isArray(user?.permissions) && user.permissions.includes('admin'))
   );
-  if (import.meta.env.DEV || isAdmin) return true;
-  if (typeof window === 'undefined') return false;
-  try {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('inviteDebug') === '1' || window.localStorage?.getItem('kx_invite_debug') === '1';
-  } catch (_) {
-    return false;
-  }
+  return Boolean(import.meta.env.DEV || isAdmin);
 }
 
 export function traceGameInviteLifecycle(eventName, invite, context = {}) {

@@ -64,6 +64,7 @@ import { gameInviteEntitySource } from './simulationPanelContractStrings.jsx';
 import soloChallengeSource from '../../pages/SoloChallenge.jsx?raw';
 import levelMapPathSource from '../solo/LevelMapPath.jsx?raw';
 import useHeaderNotificationsSource from '../../hooks/useHeaderNotifications.js?raw';
+import useNotificationCenterSource from '../../hooks/useNotificationCenter.js?raw';
 import gameInviteNotifierSource from '../invites/GameInviteNotifier.jsx?raw';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
@@ -299,15 +300,13 @@ export const EXTRA_TESTS = [
   sourceHasReplacement(
     'game_invites', 'Game Invites Suite',
     'incoming_invites_visible_to_recipient',
-    'Incoming invites are scoped to the recipient and merged through lifecycle snapshots',
-    'lib/inviteApi.js + components/invites/IncomingInvitesPanel.jsx',
-    `${inviteApiSource}\n${incomingInvitesPanelSource}`,
+    'Incoming invites are scoped to the recipient and merged through the shared notification center',
+    'hooks/useNotificationCenter.js + components/invites/IncomingInvitesPanel.jsx',
+    `${useNotificationCenterSource}\n${incomingInvitesPanelSource}`,
     [
-      'export async function loadIncomingInviteSnapshot',
-      'loadIncomingInviteSnapshot(user.email)',
-      'to_email: me',
-      'filterActiveIncomingGameInvites',
-      'mergeActiveIncomingGameInvites(prev, snapshot?.rows',
+      'useNotificationCenter',
+      'to_email: email',
+      'mergeActiveIncomingGameInvites',
       'base44.entities.GameInvite.filter',
     ],
   ),
@@ -315,10 +314,10 @@ export const EXTRA_TESTS = [
   sourceHasReplacement(
     'invite_contract_drift', 'Invite Contract Drift Suite',
     'incoming_panel_uses_loader',
-    'Incoming invites panel uses the lifecycle snapshot loader, not direct global GameInvite queries',
-    'IncomingInvitesPanel.jsx',
-    incomingInvitesPanelSource,
-    ['loadIncomingInviteSnapshot(user.email)', 'mergeActiveIncomingGameInvites', 'buildNotificationViewModel'],
+    'Incoming invites panel uses the shared notification center, not direct global GameInvite queries',
+    'IncomingInvitesPanel.jsx + useNotificationCenter.js',
+    `${incomingInvitesPanelSource}\n${useNotificationCenterSource}`,
+    ['useNotificationCenter', 'mergeActiveIncomingGameInvites', 'buildNotificationViewModel'],
     { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW },
   ),
 
@@ -1023,42 +1022,35 @@ export const EXTRA_TESTS = [
    *  ================================================================= */
 
   // OnlineChallengeScreen `<IncomingInvitesPanel>` ı render ediyor. Panel
-  // ise yeni mimaride `loadIncomingInviteSnapshot` + shared selector
-  // kullanıyor. Stale case eski `loadIncomingInvites` aramasını yapıyordu.
+  // ise yeni mimaride shared notification center + selector kullanıyor.
   sourceHasReplacement(
     'invite_lifecycle', 'Game Invite Lifecycle & 10-Min TTL Suite',
     'online_screen_pending_invites_visible',
-    'OnlineChallengeScreen renders <IncomingInvitesPanel> which loads pending invites via loadIncomingInviteSnapshot + shared selector',
-    'components/lobby/OnlineChallengeScreen.jsx + components/invites/IncomingInvitesPanel.jsx',
-    `${safeStr(onlineChallengeScreenSource)}\n${safeStr(incomingInvitesPanelSource)}`,
+    'OnlineChallengeScreen renders <IncomingInvitesPanel> which reads pending invites from the shared notification center',
+    'components/lobby/OnlineChallengeScreen.jsx + components/invites/IncomingInvitesPanel.jsx + hooks/useNotificationCenter.js',
+    `${safeStr(onlineChallengeScreenSource)}\n${safeStr(incomingInvitesPanelSource)}\n${safeStr(useNotificationCenterSource)}`,
     [
       '<IncomingInvitesPanel',
-      'loadIncomingInviteSnapshot(user.email)',
+      'useNotificationCenter',
       'mergeActiveIncomingGameInvites',
       'InviteCountdown',
     ],
   ),
 
-  // Header bell + Online panel + Toast notifier — hepsi
-  // `@/lib/gameInviteSelectors` tek source'u kullanıyor. Eski case
-  // exact token `filterActiveIncomingGameInvites` arıyordu; hook
-  // `mergeActiveIncomingGameInvites` + `isActiveIncomingGameInvite`
-  // kullanıyor — aynı modülden geliyor.
+  // Header bell + Online panel + Toast notifier — hepsi shared
+  // notification center üzerinden `@/lib/gameInviteSelectors`
+  // source'unu kullanıyor.
   sourceHasReplacement(
     'game_invite_lifecycle_v2', 'Game Invite Lifecycle Hardening Suite',
     'game_invite_active_selector_shared',
-    'Header bell + IncomingInvitesPanel + GameInviteNotifier all import the shared @/lib/gameInviteSelectors module (any of mergeActiveIncomingGameInvites / filterActiveIncomingGameInvites / isActiveIncomingGameInvite is acceptable)',
-    'hooks/useHeaderNotifications.js + components/invites/IncomingInvitesPanel.jsx + components/invites/GameInviteNotifier.jsx',
-    `${safeStr(useHeaderNotificationsSource)}\n${safeStr(incomingInvitesPanelSource)}\n${safeStr(gameInviteNotifierSource)}`,
+    'Header bell + IncomingInvitesPanel + GameInviteNotifier all read active invites through the shared notification center/selectors',
+    'hooks/useNotificationCenter.js + hooks/useHeaderNotifications.js + components/invites/IncomingInvitesPanel.jsx + components/invites/GameInviteNotifier.jsx',
+    `${safeStr(useNotificationCenterSource)}\n${safeStr(useHeaderNotificationsSource)}\n${safeStr(incomingInvitesPanelSource)}\n${safeStr(gameInviteNotifierSource)}`,
     [
-      // All three surfaces import from the shared module.
       "from '@/lib/gameInviteSelectors'",
-      // Header hook AND online panel both use the merge helper.
       'mergeActiveIncomingGameInvites',
-      // Trace + active filter reason used by header + online panel.
       'getGameInviteActiveFilterReason',
-      // Notifier reads selectors too.
-      'isActiveIncomingGameInvite',
+      'useNotificationCenter',
     ],
   ),
 ];
