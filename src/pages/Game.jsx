@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, WifiOff } from 'lucide-react';
 import { useOfflineQuestions } from '@/hooks/useOfflineQuestions';
 import { loadRecentHistory, appendToHistory } from '@/lib/questionHistory';
+import { isCorrectPlacement } from '@/lib/gameRules';
 import { debugLog } from '@/lib/debugLog';
 import { pushAppDiag } from '@/lib/appDiagBus';
 
@@ -42,7 +43,10 @@ import { calculateSoloAttemptResult, getBestSoloLevelResult } from '@/lib/soloPr
 // attempt deck (unique question ids + unique answer/years) once per Solo
 // attempt. Gameplay consumes the deck sequentially — no mid-attempt
 // re-randomization. Online/legacy paths are untouched.
-import { buildSoloAttemptDeck } from '@/lib/soloQuestionEngine';
+import {
+  buildSoloAttemptDeck,
+  shouldShowBeginnerPlacementHint,
+} from '@/lib/soloQuestionEngine';
 // Codex128 — Online score/checkpoint system. Online winner kararlaştığında
 // her client kendi kullanıcısının puanını günceller (idempotent).
 import { applyOnlineMatchToCurrentUser } from '@/lib/applyOnlineResult';
@@ -506,6 +510,7 @@ export default function Game() {
         // enter a Solo attempt deck even if stale cached rows exist.
         allowedMainCategoryIds: activeCategoryIds,
         recentlySeenQuestionIds: loadRecentHistory(),
+        levelNumber: soloLevel?.levelNumber,
       });
       if (!engineResult.ok) {
         setError(engineResult.message);
@@ -877,6 +882,30 @@ export default function Game() {
     </>
   ) : null;
 
+  const beginnerPlacementHintZone = useMemo(() => {
+    if (!isSoloLevelMode) return null;
+    if (!shouldShowBeginnerPlacementHint(soloLevel?.levelNumber)) return null;
+    if (!isDragging || !isMyTurn || feedback || winner || !currentQuestion || !currentPlayer) return null;
+
+    const questionYear = Number(currentQuestion.year);
+    const cards = Array.isArray(currentPlayer.cards) ? currentPlayer.cards : [];
+    if (!Number.isFinite(questionYear)) return null;
+
+    for (let zoneIndex = 0; zoneIndex <= cards.length; zoneIndex += 1) {
+      if (isCorrectPlacement(cards, questionYear, zoneIndex)) return zoneIndex;
+    }
+    return null;
+  }, [
+    isSoloLevelMode,
+    soloLevel?.levelNumber,
+    isDragging,
+    isMyTurn,
+    feedback,
+    winner,
+    currentQuestion,
+    currentPlayer,
+  ]);
+
   // ─── Diagnostics overlay (Codex084) ──────────────────────────────
   // Must be computed BEFORE every render guard so we can render it on any
   // gate. All inputs are non-hook derived values; safe to do here.
@@ -1173,6 +1202,7 @@ export default function Game() {
         isTimeUp={isTimeUp}
         soloLevelTotalSeconds={isSoloLevelMode ? (soloLevel?.totalTimeSeconds ?? 120) : undefined}
         soloLevelElapsedSeconds={isSoloLevelMode ? overallSeconds : undefined}
+        beginnerPlacementHintZone={beginnerPlacementHintZone}
       />
     </GameRenderErrorBoundary>
   );

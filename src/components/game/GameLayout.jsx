@@ -96,6 +96,7 @@ export default function GameLayout({
   // undefined and behave unchanged.
   soloLevelTotalSeconds,
   soloLevelElapsedSeconds,
+  beginnerPlacementHintZone,
   // Handlers
   onSelectZone,
   onDropOnZone,
@@ -306,6 +307,7 @@ export default function GameLayout({
                   ? { result: feedback.result, year: feedback.year, key: feedback.guessedYear ?? '' }
                   : null
               }
+              beginnerPlacementHintZone={beginnerPlacementHintZone}
             />
           )}
         </div>

@@ -43,6 +43,26 @@
 //   therefore a new deck.
 
 const DEFAULT_DECK_SIZE = 18;
+const BEGINNER_SPACING_TARGET_COUNT = 10;
+
+export function getBeginnerYearSpacingForLevel(levelNumber) {
+  const level = Math.trunc(Number(levelNumber) || 0);
+  if (level >= 1 && level <= 3) {
+    return { idealGap: 10, minGap: 8, targetCount: BEGINNER_SPACING_TARGET_COUNT };
+  }
+  if (level >= 4 && level <= 7) {
+    return { idealGap: 7, minGap: 5, targetCount: BEGINNER_SPACING_TARGET_COUNT };
+  }
+  if (level >= 8 && level <= 10) {
+    return { idealGap: 5, minGap: 3, targetCount: BEGINNER_SPACING_TARGET_COUNT };
+  }
+  return null;
+}
+
+export function shouldShowBeginnerPlacementHint(levelNumber) {
+  const level = Math.trunc(Number(levelNumber) || 0);
+  return level >= 1 && level <= 3;
+}
 
 // Deterministic-capable shuffler. If `random` is omitted, falls back to
 // Math.random so existing callers stay non-deterministic.
@@ -133,6 +153,66 @@ function groupByYear(candidates) {
   return buckets;
 }
 
+function isSpacedFromAll(year, selectedYears, minGap) {
+  return selectedYears.every((selectedYear) => Math.abs(Number(selectedYear) - Number(year)) >= minGap);
+}
+
+function orderYearsForBeginnerSpacing(years, levelNumber) {
+  const spacing = getBeginnerYearSpacingForLevel(levelNumber);
+  if (!spacing || years.length === 0) return years;
+
+  const targetCount = Math.min(spacing.targetCount, years.length);
+  for (let gap = spacing.idealGap; gap >= spacing.minGap; gap -= 1) {
+    const priorityYears = [];
+    const prioritySet = new Set();
+
+    for (const year of years) {
+      if (priorityYears.length >= targetCount) break;
+      if (!Number.isFinite(Number(year))) continue;
+      if (!isSpacedFromAll(year, priorityYears, gap)) continue;
+      priorityYears.push(year);
+      prioritySet.add(year);
+    }
+
+    if (priorityYears.length >= targetCount) {
+      return [
+        ...priorityYears,
+        ...years.filter((year) => !prioritySet.has(year)),
+      ];
+    }
+  }
+
+  return years;
+}
+
+function orderDeckForBeginnerSpacing(deck, levelNumber, random) {
+  const spacing = getBeginnerYearSpacingForLevel(levelNumber);
+  const shuffled = fisherYatesShuffle(deck, random);
+  if (!spacing || shuffled.length === 0) return shuffled;
+
+  const targetCount = Math.min(spacing.targetCount, shuffled.length);
+  for (let gap = spacing.idealGap; gap >= spacing.minGap; gap -= 1) {
+    const front = [];
+    const frontIds = new Set();
+
+    for (const question of shuffled) {
+      const year = Number(question?.year);
+      if (front.length >= targetCount) break;
+      if (!Number.isFinite(year)) continue;
+      if (!isSpacedFromAll(year, front.map((q) => Number(q.year)), gap)) continue;
+      front.push(question);
+      frontIds.add(question.id);
+    }
+
+    if (front.length >= targetCount) {
+      const rest = shuffled.filter((question) => !frontIds.has(question.id));
+      return [...front, ...fisherYatesShuffle(rest, random)];
+    }
+  }
+
+  return shuffled;
+}
+
 // Pick one question per year, optionally preferring non-recently-seen
 // and balancing categories.
 //
@@ -149,11 +229,15 @@ function selectUniqueYearDeck({
   recentIds,
   random,
   perCategoryCap,
+  levelNumber,
 }) {
   const buckets = groupByYear(candidates);
   if (buckets.size < deckSize) return null; // not enough distinct years
 
-  const years = fisherYatesShuffle(Array.from(buckets.keys()), random);
+  const years = orderYearsForBeginnerSpacing(
+    fisherYatesShuffle(Array.from(buckets.keys()), random),
+    levelNumber,
+  );
   const deck = [];
   const usedIds = new Set();
   const categoryCounts = new Map();
@@ -204,6 +288,9 @@ function selectUniqueYearDeck({
  *                                            only for tests.
  * @param {Function=} args.random             Random source (0..1). Defaults
  *                                            to Math.random.
+ * @param {number=} args.levelNumber          Solo level number. Levels 1-10
+ *                                            apply a soft beginner spacing
+ *                                            preference; level 11+ unchanged.
  *
  * @returns {{ ok:true, deck:Array, attemptId:string, meta:Object }
  *         | { ok:false, reason:string, message:string, meta:Object }}
@@ -228,7 +315,14 @@ export function buildSoloAttemptDeck(args = {}) {
   const perCategoryCap = Math.max(1, Math.ceil(deckSize / activeCount) + 1);
 
   // Tier 1 — ideal: respects recently-seen AND category balance.
-  let deck = selectUniqueYearDeck({ candidates, deckSize, recentIds, random, perCategoryCap });
+  let deck = selectUniqueYearDeck({
+    candidates,
+    deckSize,
+    recentIds,
+    random,
+    perCategoryCap,
+    levelNumber: args.levelNumber,
+  });
 
   // Tier 2 — relax recently-seen.
   if (!deck) {
@@ -237,6 +331,7 @@ export function buildSoloAttemptDeck(args = {}) {
       recentIds: new Set(),
       random,
       perCategoryCap,
+      levelNumber: args.levelNumber,
     });
   }
 
@@ -247,6 +342,7 @@ export function buildSoloAttemptDeck(args = {}) {
       recentIds: new Set(),
       random,
       perCategoryCap: deckSize, // effectively no cap
+      levelNumber: args.levelNumber,
     });
   }
 
@@ -259,9 +355,11 @@ export function buildSoloAttemptDeck(args = {}) {
     };
   }
 
-  // Final shuffle so question order inside the deck is not just
-  // "ascending shuffled years" — gameplay walks the deck sequentially.
-  const finalDeck = fisherYatesShuffle(deck, random);
+  // Final order: level 11+ keeps the old full shuffle. Beginner levels keep
+  // the same 18 unique years but prefer the first 10 playable cards to be
+  // easier to place on the timeline by spacing their answer years apart.
+  const beginnerSpacing = getBeginnerYearSpacingForLevel(args.levelNumber);
+  const finalDeck = orderDeckForBeginnerSpacing(deck, args.levelNumber, random);
   return {
     ok: true,
     deck: finalDeck,
@@ -275,6 +373,15 @@ export function buildSoloAttemptDeck(args = {}) {
           .map((q) => Number(q?.main_category_id))
           .filter((n) => Number.isFinite(n)),
       ).size,
+      beginnerYearSpacing: beginnerSpacing
+        ? {
+          levelNumber: Math.trunc(Number(args.levelNumber) || 0),
+          idealGap: beginnerSpacing.idealGap,
+          minGap: beginnerSpacing.minGap,
+          targetCount: beginnerSpacing.targetCount,
+          relaxedWhenNeeded: true,
+        }
+        : null,
     },
   };
 }
@@ -287,5 +394,7 @@ export const __soloEngineInternals = {
   isInAllowedCategory,
   hasUsableYear,
   hasUsableContent,
+  getBeginnerYearSpacingForLevel,
+  shouldShowBeginnerPlacementHint,
   DEFAULT_DECK_SIZE,
 };
