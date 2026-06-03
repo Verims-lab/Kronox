@@ -13,7 +13,7 @@
 // has an admin role/permission.
 //
 // This suite makes the regression detectable from Health Center:
-//   • No literal admin email string remains in the three functions.
+//   • No literal admin email string remains in the admin-only functions.
 //   • Each function reads Deno.env.get('KRONOX_ADMIN_EMAILS') and can also
 //     accept ADMIN_EMAILS as a deployment alias.
 //   • Each function still requires authentication (401 on missing user).
@@ -25,6 +25,13 @@
 import generateTechDocSource from '../../../base44/functions/generateTechDoc/entry.ts?raw';
 import generateWorkflowDocSource from '../../../base44/functions/generateWorkflowDoc/entry.ts?raw';
 import seedQuestionCategoriesSource from '../../../base44/functions/seedQuestionCategories/entry.ts?raw';
+import adminResetUserProgressSource from '../../../base44/functions/adminResetUserProgress/entry.ts?raw';
+import adminMaintenanceLogSchemaSource from '../../../base44/entities/AdminMaintenanceLog.jsonc?raw';
+import userSchemaSource from '../../../base44/entities/User.jsonc?raw';
+import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
+import resetUserProgressToolSource from '../../components/admin/ResetUserProgressTool.jsx?raw';
+import authContextSource from '../../lib/AuthContext.jsx?raw';
+import progressResetCacheSource from '../../lib/progressResetCache.js?raw';
 
 export const EXTRA_SUITES = [
   {
@@ -80,6 +87,7 @@ const TARGET_FUNCTIONS = [
   { name: 'generateTechDoc', source: generateTechDocSource },
   { name: 'generateWorkflowDoc', source: generateWorkflowDocSource },
   { name: 'seedQuestionCategories', source: seedQuestionCategoriesSource },
+  { name: 'adminResetUserProgress', source: adminResetUserProgressSource },
 ];
 
 export const EXTRA_TESTS = [
@@ -107,7 +115,7 @@ export const EXTRA_TESTS = [
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('No hardcoded admin email literals remain in the three admin-only functions.', {
+      return pass('No hardcoded admin email literals remain in the admin-only functions.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -138,7 +146,7 @@ export const EXTRA_TESTS = [
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('All three admin-only functions read KRONOX_ADMIN_EMAILS from env/secret.', {
+      return pass('All admin-only functions read KRONOX_ADMIN_EMAILS from env/secret.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -166,7 +174,7 @@ export const EXTRA_TESTS = [
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('All three admin-only functions still authenticate the caller.', {
+      return pass('All admin-only functions still authenticate the caller.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -196,7 +204,7 @@ export const EXTRA_TESTS = [
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('All three admin-only functions still reject non-admin callers with 403.', {
+      return pass('All admin-only functions still reject non-admin callers with 403.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -240,7 +248,52 @@ export const EXTRA_TESTS = [
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Missing admin allowlist env fails closed in all three admin-only functions.', {
+      return pass('Missing admin allowlist env fails closed in all admin-only functions.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+  ),
+
+  makeCase(
+    'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
+    'admin_reset_user_progress_contract',
+    'Reset User Progress is admin-only, previewed before execution, exact-email confirmed, logged, and never deletes the user account',
+    () => {
+      const combined = `${adminResetUserProgressSource}\n${resetUserProgressToolSource}\n${settingsPageSource}\n${adminMaintenanceLogSchemaSource}\n${userSchemaSource}\n${authContextSource}\n${progressResetCacheSource}`;
+      const required = [
+        'adminResetUserProgress',
+        'Reset User Progress',
+        'action: \'preview\'',
+        'action: \'execute\'',
+        'confirmEmail',
+        'confirmation_mismatch',
+        'Hard zero reset',
+        'New player reset',
+        'starter_bonus_granted_at: hardZero ? nowIso',
+        'last_daily_diamond_reward_date: hardZero ? todayUtcKey()',
+        'progress_reset_at',
+        'applyUserProgressResetMarker',
+        'AdminMaintenanceLog',
+        'admin_email',
+        'target_email',
+        'base44.asServiceRole.entities.User.update',
+      ].filter((token) => !combined.includes(token));
+      const forbidden = [
+        'base44.asServiceRole.entities.User.delete',
+        'sariverim@gmail.com',
+      ].filter((token) => combined.includes(token));
+      if (required.length || forbidden.length) {
+        return fail('Admin reset tool does not satisfy the protected maintenance reset contract.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'Admin UI + server auth + preview + exact confirm + log + progress_reset_at cache invalidation; no user delete or hardcoded target email',
+          actual: { missing: required, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Admin reset tool is server-gated, preview/confirm protected, audit-logged, and invalidates local progress mirrors without deleting the user.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,

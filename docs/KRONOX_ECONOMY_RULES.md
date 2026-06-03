@@ -287,7 +287,41 @@ Account deletion rules:
 
 ---
 
-# 11. Not Implemented Yet
+# 11. Admin Progress Reset
+
+Admin maintenance reset is not available to normal users.
+
+Backend function:
+
+```text
+adminResetUserProgress
+```
+
+Modes:
+
+```text
+hard_zero
+new_player
+```
+
+`hard_zero`:
+
+* sets `User.diamonds = 0`
+* sets `starter_bonus_granted_at` so starter bonus is not immediately re-granted
+* sets `last_daily_diamond_reward_date` to the current UTC day so same-day daily reward is not immediately re-granted
+* writes an `admin_adjustment` DiamondTransaction audit row when possible
+
+`new_player`:
+
+* sets `User.diamonds = 0`
+* clears starter/daily reward guard fields
+* allows the normal app-entry economy bootstrap to grant starter + daily Diamonds again
+
+Both modes write `User.progress_reset_at` so local user progress mirrors are invalidated and server state wins after refresh/reopen.
+
+---
+
+# 12. Not Implemented Yet
 
 The following are not implemented:
 
@@ -303,7 +337,7 @@ Do not implement these without explicit product approval.
 
 ---
 
-# 12. Health Coverage Expectations
+# 13. Health Coverage Expectations
 
 Health should cover:
 
@@ -326,7 +360,7 @@ Rules:
 
 ---
 
-# 13. Manual Proof
+# 14. Manual Proof
 
 Manual/release proof should verify:
 

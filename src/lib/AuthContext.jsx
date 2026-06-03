@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { ensureDiamondEconomyForUser, getDiamondDailyKey } from '@/lib/diamondEconomy';
+import { applyUserProgressResetMarker } from '@/lib/progressResetCache';
 
 const AuthContext = createContext();
 
@@ -46,6 +47,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       if (currentUser?.email) {
+        applyUserProgressResetMarker(currentUser);
         const economyKey = `${String(currentUser.email).trim().toLowerCase()}:${getDiamondDailyKey()}`;
         if (economyEnsureKeyRef.current !== economyKey) {
           try {

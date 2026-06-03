@@ -1,0 +1,70 @@
+{
+  "name": "AdminMaintenanceLog",
+  "type": "object",
+  "description": "Admin-only audit log for protected maintenance operations such as progress resets. Rows may contain admin and target emails and must never be public.",
+  "properties": {
+    "action": {
+      "type": "string",
+      "description": "Maintenance action identifier, e.g. admin_reset_user_progress_preview or admin_reset_user_progress_execute."
+    },
+    "admin_email": {
+      "type": "string",
+      "description": "Normalized email of the authenticated admin who requested the operation."
+    },
+    "target_email": {
+      "type": "string",
+      "description": "Normalized email of the target account for the maintenance operation."
+    },
+    "reset_mode": {
+      "type": "string",
+      "description": "Progress reset mode when applicable: hard_zero or new_player."
+    },
+    "result": {
+      "type": "string",
+      "description": "Operation result such as preview_ok, success, or failed."
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Debug-safe operation metadata. Must not contain secrets or raw private user rows."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the maintenance event was recorded."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this maintenance log row."
+    }
+  },
+  "required": [
+    "action",
+    "admin_email",
+    "target_email",
+    "result",
+    "created_at"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

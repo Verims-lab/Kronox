@@ -12,6 +12,7 @@ import { markTutorialCompleted } from '@/lib/tutorialProfile';
 import StandardTopBar from '@/components/layout/StandardTopBar';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 import { ACCOUNT_DELETION_ERROR_COPY, requestAccountDeletion } from '@/lib/accountDeletion';
+import ResetUserProgressTool from '@/components/admin/ResetUserProgressTool';
 
 export default function SettingsPage() {
   const [user, setUser] = useState(null);
@@ -135,6 +136,7 @@ export default function SettingsPage() {
               desc="Brutally honest mobile, gameplay, sync, and release-risk checks"
               onClick={() => setShowSim(true)}
             />
+            <ResetUserProgressTool />
           </Section>
         )}
 

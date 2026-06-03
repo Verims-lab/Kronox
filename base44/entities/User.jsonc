@@ -159,6 +159,19 @@
       "type": "string",
       "format": "date-time",
       "description": "ISO timestamp of the latest Diamond balance update."
+    },
+    "progress_reset_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp of the latest admin progress reset. Clients use this marker to invalidate user-scoped local progress mirrors so server reset state wins after refresh/reopen."
+    },
+    "progress_reset_mode": {
+      "type": "string",
+      "description": "Last admin progress reset mode: hard_zero keeps rewards guarded for the current day; new_player clears reward guards so the normal first-entry flow can grant starter/daily Diamonds again.",
+      "enum": [
+        "hard_zero",
+        "new_player"
+      ]
     }
   },
   "required": [
