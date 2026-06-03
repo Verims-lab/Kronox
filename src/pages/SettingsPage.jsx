@@ -1,23 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trash2, AlertTriangle, FileDown, Loader2, FlaskConical, ChevronRight, Shield, Settings, HelpCircle } from 'lucide-react';
+import { Trash2, AlertTriangle, FileDown, Loader2, FlaskConical, ChevronRight, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
-import { useNavigate } from 'react-router-dom';
 import SimulationPanel from '@/components/game/SimulationPanel';
 import SimulationPanelErrorBoundary from '@/components/game/SimulationPanelErrorBoundary';
 import TopScores from '@/components/game/TopScores';
-import QuestionManagement from '@/components/admin/QuestionManagement';
 import KronoxTutorial from '@/components/tutorial/KronoxTutorial';
-import NotificationSettingsCard from '@/components/notifications/NotificationSettingsCard';
-import NotificationDeploymentHint from '@/components/notifications/NotificationDeploymentHint';
-import AppPreferencesCard from '@/components/notifications/AppPreferencesCard';
 import { isAdminUser } from '@/lib/admin';
 import { markTutorialCompleted } from '@/lib/tutorialProfile';
-import ScreenHeader from '@/components/layout/ScreenHeader';
+import StandardTopBar from '@/components/layout/StandardTopBar';
+import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 
 export default function SettingsPage() {
-  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -36,6 +31,7 @@ export default function SettingsPage() {
   }, []);
 
   const isAdmin = isAdminUser(user);
+  const diamondValue = getLeaderboardDiamondValue(user);
 
   const handleDeleteAccount = async () => {
     if (!confirmDelete) { setConfirmDelete(true); return; }
@@ -100,56 +96,43 @@ export default function SettingsPage() {
         userSelect: 'none',
       }}
     >
-      <ScreenHeader title={isAdmin ? 'Admin Paneli' : 'Ayarlar'} showBack user={user} />
-      {/* Identity strip under standardized header */}
-      <div className="px-5 pb-4 pt-2">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center flex-shrink-0">
-            {isAdmin ? <Shield className="w-4 h-4 text-primary" /> : <Settings className="w-4 h-4 text-primary" />}
-          </div>
-          <div className="min-w-0">
-            <p className="font-inter text-xs text-muted-foreground truncate">{user?.email}</p>
-          </div>
-        </div>
+      <StandardTopBar diamonds={diamondValue} user={user} showBack />
+
+      <div className="px-4 pb-1">
+        <h1 className="font-cinzel text-2xl font-black tracking-wide text-foreground">Ayarlar</h1>
       </div>
 
       <div className="px-4 space-y-5">
 
-        {/* Admin Araçları — yalnızca admin */}
+        {/* Admin araçları — yalnızca admin. */}
         {isAdmin && (
-          <>
-            <Section label="Soru Yönetimi">
-              <QuestionManagement />
-            </Section>
-
-            <Section label="Araçlar">
-              <ToolCard
-                icon={<FileDown className="w-4 h-4" />}
-                title="Teknik Döküman"
-                desc="Sistem mimarisi ve veri modeli"
-                loading={downloadingDoc}
-                onClick={handleDownloadDoc}
-              />
-              {docError && (
-                <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-100">
-                  {docError}
-                </p>
-              )}
-              <ToolCard
-                icon={<FileDown className="w-4 h-4" />}
-                title="İş Akışı Dökümanı"
-                desc="Use case'ler ve süreç adımları"
-                loading={downloadingWorkflow}
-                onClick={handleDownloadWorkflow}
-              />
-              <ToolCard
-                icon={<FlaskConical className="w-4 h-4" />}
-                title="Kronox Health Simulator"
-                desc="Brutally honest mobile, gameplay, sync, and release-risk checks"
-                onClick={() => setShowSim(true)}
-              />
-            </Section>
-          </>
+          <Section label="Araçlar">
+            <ToolCard
+              icon={<FileDown className="w-4 h-4" />}
+              title="Teknik Döküman"
+              desc="Sistem mimarisi ve veri modeli"
+              loading={downloadingDoc}
+              onClick={handleDownloadDoc}
+            />
+            {docError && (
+              <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-100">
+                {docError}
+              </p>
+            )}
+            <ToolCard
+              icon={<FileDown className="w-4 h-4" />}
+              title="İş Akışı Dökümanı"
+              desc="Use case'ler ve süreç adımları"
+              loading={downloadingWorkflow}
+              onClick={handleDownloadWorkflow}
+            />
+            <ToolCard
+              icon={<FlaskConical className="w-4 h-4" />}
+              title="Kronox Health Simulator"
+              desc="Brutally honest mobile, gameplay, sync, and release-risk checks"
+              onClick={() => setShowSim(true)}
+            />
+          </Section>
         )}
 
         {/* Top 5 — giriş yapmış tüm kullanıcılar */}
@@ -157,32 +140,6 @@ export default function SettingsPage() {
           <Section label="En İyi 5 Rekorun">
             <div className="p-4 rounded-2xl border border-border/40 bg-secondary/20">
               <TopScores user={user} />
-            </div>
-          </Section>
-        )}
-
-        {/* Uygulama Ayarları — Codex096 grouping */}
-        {user && (
-          <Section label="Uygulama Ayarları">
-            {/* Bildirimler */}
-            <div className="space-y-2">
-              <p className="font-inter text-[10px] font-black uppercase tracking-widest text-amber-200/70 px-1">
-                Bildirimler
-              </p>
-              <NotificationDeploymentHint isAdmin={isAdmin} />
-              <NotificationSettingsCard user={user} isAdmin={isAdmin} />
-              <p className="font-inter text-[11px] leading-relaxed text-muted-foreground px-1">
-                Oyun davetleri için bildirim alabilirsin. Bildirimler sadece sen izin verirsen açılır.
-                Uygulama kapalıyken bildirim alabilmek için cihazının ve tarayıcının desteklemesi gerekir.
-              </p>
-            </div>
-
-            {/* Tercihler */}
-            <div className="space-y-2 pt-1">
-              <p className="font-inter text-[10px] font-black uppercase tracking-widest text-amber-200/70 px-1">
-                Tercihler
-              </p>
-              <AppPreferencesCard />
             </div>
           </Section>
         )}

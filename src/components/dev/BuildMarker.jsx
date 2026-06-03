@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex173 — Settings screen cleanup under Profile:
+//   • Settings now uses StandardTopBar (center Elmas, right bell, no avatar).
+//   • Removes the old Settings question-management and app-settings UI blocks.
+//   • Keeps notification lifecycle surfaces wired through header bell, in-app
+//     invite toast, notification center, and push backend plumbing.
+//
 // Codex172 — Public Google Play account deletion page:
 //   • Adds the unauthenticated /account-deletion route for browser access at
 //     kronoxgame.com/account-deletion.
@@ -644,7 +650,7 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
-const BUILD_MARKER = 'Codex172';
+const BUILD_MARKER = 'Codex173';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
