@@ -85,19 +85,20 @@ export const EXTRA_SUITES = [
 ];
 
 export const EXTRA_TESTS = [
-  /* 1. Solo time bonus — boundary fix for exactly 60.0s */
+  /* 1. Solo time bonus — boundary fix for exactly 60.0s / 90.0s / 120.0s */
   makeCase('solo_time_bonus_contract',
-    'Solo time bonus: 0-60 → +10, 61-90 → +5, 91+ → +0 (60.0 INCLUSIVE in +10)',
+    'Solo time bonus: 0-60 → +15, 61-90 → +10, 91-120 → +5, 121+ → +0',
     () => {
       const checks = [
-        assertEq(calculateSoloTimeBonus(0,    true), 10, '0s   → +10'),
-        assertEq(calculateSoloTimeBonus(59.9, true), 10, '59.9s → +10'),
-        assertEq(calculateSoloTimeBonus(60,   true), 10, '60.0s → +10 (boundary)'),
-        assertEq(calculateSoloTimeBonus(60.1, true), 5,  '60.1s → +5'),
-        assertEq(calculateSoloTimeBonus(75,   true), 5,  '75s   → +5'),
-        assertEq(calculateSoloTimeBonus(90,   true), 5,  '90.0s → +5 (boundary)'),
-        assertEq(calculateSoloTimeBonus(90.1, true), 0,  '90.1s → +0'),
-        assertEq(calculateSoloTimeBonus(120,  true), 0,  '120s  → +0'),
+        assertEq(calculateSoloTimeBonus(0,    true), 15, '0s   → +15'),
+        assertEq(calculateSoloTimeBonus(59.9, true), 15, '59.9s → +15'),
+        assertEq(calculateSoloTimeBonus(60,   true), 15, '60.0s → +15 (boundary)'),
+        assertEq(calculateSoloTimeBonus(60.1, true), 10, '60.1s → +10'),
+        assertEq(calculateSoloTimeBonus(75,   true), 10, '75s   → +10'),
+        assertEq(calculateSoloTimeBonus(90,   true), 10, '90.0s → +10 (boundary)'),
+        assertEq(calculateSoloTimeBonus(90.1, true), 5,  '90.1s → +5'),
+        assertEq(calculateSoloTimeBonus(120,  true), 5,  '120s  → +5'),
+        assertEq(calculateSoloTimeBonus(120.1, true), 0, '120.1s → +0'),
         assertEq(calculateSoloTimeBonus(45, false), 0,   'failed attempt → +0'),
       ].filter(Boolean);
       if (checks.length) return checks[0];

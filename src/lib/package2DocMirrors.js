@@ -9,11 +9,14 @@
 // ─── Docs ──────────────────────────────────────────────────────────────
 export const SOLO_QUESTION_ENGINE_DOC = `# Kronox Solo Question Engine
 
-Each Solo attempt deck contains 18 unique years (18 questions), needs 10
-correct placements to pass, and allows up to 8 mistakes. Only active questions
-(Question.state === "A") from active categories are used. Replay rebuilds the
-deck with no mid-attempt re-randomization. Fallback may relax category balance
-or recently-seen filtering but never allows duplicate years.
+Normal Solo levels use 16 unique years (16 questions) and need 7 correct
+placements to pass. Special Solo levels start at level 10, repeat every
+5 levels, use 19 unique years (19 questions), and need 10 correct placements
+to pass. All new Solo attempts use 180 seconds and fail on the 10th mistake.
+Only active questions (Question.state === "A") from active categories are used.
+Replay rebuilds the deck with no mid-attempt re-randomization. Fallback may
+relax category/subcategory balance, era spread, or recently-seen filtering but
+never allows duplicate years or invalid first 5 spacing.
 `;
 
 export const CATEGORY_TAXONOMY_DOC = `# Kronox Category Taxonomy

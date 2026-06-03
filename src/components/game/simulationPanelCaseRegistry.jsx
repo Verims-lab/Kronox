@@ -153,9 +153,9 @@ import * as placementFeedbackCases from './simulationPanelPlacementFeedbackCases
 // shared MM:SS time formatter, two-line "Kazanılan Puan" layout, and
 // TimerReset icon swap. Visual-only; popup props are unchanged.
 import * as soloPopupCases from './simulationPanelSoloPopupCases';
-// Codex166 — Solo Question Selection Engine: controlled 18-card attempt
-// deck (unique ids + unique years), active-only filtering, clean failure
-// on insufficient unique years, replay produces a fresh deck.
+// Codex166/Codex180 — Solo Question Selection Engine: controlled level-aware
+// attempt deck (16 normal / 19 special), unique ids + unique years,
+// active-only filtering, first-five spacing, and clean failure when invalid.
 import * as soloQuestionEngineCases from './simulationPanelSoloQuestionEngineCases';
 // Codex168 — Package 2 audit fixes: authenticated question access,
 // active-category Solo wiring, strict Online start filtering,

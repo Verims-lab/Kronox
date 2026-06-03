@@ -207,7 +207,9 @@ export const EXTRA_TESTS = [
     'Package 2 docs exist for Solo engine, category taxonomy, and release proof',
     () => {
       const missing = missingTokens(`${soloQuestionDocSource}\n${categoryTaxonomyDocSource}\n${releaseChecklistDocSource}`, [
-        '18 unique years',
+        '16-question deck',
+        '19-question deck',
+        'first 5 ordered questions',
         'categoryid -> category_id',
         'Question.state === "A"',
         'Online Scoring Persistence',

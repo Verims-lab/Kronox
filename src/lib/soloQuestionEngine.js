@@ -1,63 +1,66 @@
-// Codex166 — Solo Question Selection Engine.
+// Codex166/Codex180 — Solo Question Selection Engine.
 //
 // PURPOSE
 //   Replaces the previous "shuffle the whole filtered pool and pick on
 //   demand" Solo question selection with a controlled, pre-computed
-//   attempt deck of exactly 18 questions per Solo attempt.
+//   attempt deck of level-aware size per Solo attempt.
 //
 // CORE RULES (locked in by Health suite solo_question_engine_health):
-//   • Deck size               = 18
-//   • Win condition           = level-aware placed-card target
-//                               (1-10 → 7, 11+ → 10)
-//   • Fail condition          = 8 mistakes OR time expired (unchanged)
+//   • Deck size               = normal 16, special 19
+//   • Win condition           = normal 7 correct cards; special 10
+//   • Special levels          = level 10, then every 5 levels
+//   • Fail condition          = 10th mistake OR 180s time expired
 //   • Unique question IDs     in the same deck
 //   • Unique answer/year      in the same deck             (HARD rule)
 //   • Active questions only   (state==='A' if field exists)
 //   • Active categories only  — caller supplies the active category id
 //                               whitelist (numeric main_category_id +
 //                               optional legacy string `category`)
-//   • Soft category balance   — at most ⌈18 / max(1,activeCount)⌉ + 1
-//                               questions from the same active category
-//                               when the pool is rich enough.
+//   • First-five spacing      — first 5 ordered cards must be at least
+//                               5 years apart when any valid deck exists.
+//   • Soft balance            — categories, subcategories, and eras are
+//                               spread when the pool is rich enough.
 //   • Recently-seen aware     — prefers questions the user has not
 //                               recently played, but never relaxes the
 //                               unique-year rule to do so.
 //
 // FALLBACK ORDER (allowed → forbidden):
-//   1. Ideal pool: active, year-window, unique-year, category-balanced,
-//      not recently seen.
+//   1. Ideal pool: active, year-window, unique-year, category/subcategory/
+//      era-balanced, first-five spaced, not recently seen.
 //   2. Relax recently-seen.
-//   3. Relax category balance.
+//   3. Relax category/subcategory/era balance.
 //   4. CLEAN FAIL — return { ok:false, reason:'insufficient_unique_years',
 //      message:'Bu seviye için yeterli sayıda farklı yıla ait soru
 //      bulunamadı.' }. Caller MUST surface this; do not start the level.
 //
 // Never relax:
-//   • deck size 18
+//   • required deck size
 //   • unique question IDs
 //   • unique answer/years
 //   • active question / active category gating
+//   • first 5 ordered questions at least 5 years apart unless no valid
+//     spaced deck exists at all, in which case the level clean-fails.
 //
 // REPLAY
 //   A fresh attempt id (timestamped + random) gives a fresh deck. Replay
 //   from the Solo result popup re-mounts Game with a new attempt and
 //   therefore a new deck.
 
-const DEFAULT_DECK_SIZE = 18;
-const BEGINNER_SPACING_TARGET_COUNT = 10;
+import { getSoloAttemptDeckSizeForLevel } from './soloProgressHelpers';
+
+const DEFAULT_DECK_SIZE = getSoloAttemptDeckSizeForLevel(1);
+const FIRST_FIVE_SPACING_TARGET_COUNT = 5;
+const FIRST_FIVE_MIN_YEAR_GAP = 5;
 
 export function getBeginnerYearSpacingForLevel(levelNumber) {
   const level = Math.trunc(Number(levelNumber) || 0);
-  if (level >= 1 && level <= 3) {
-    return { idealGap: 10, minGap: 8, targetCount: BEGINNER_SPACING_TARGET_COUNT };
-  }
-  if (level >= 4 && level <= 7) {
-    return { idealGap: 7, minGap: 5, targetCount: BEGINNER_SPACING_TARGET_COUNT };
-  }
-  if (level >= 8 && level <= 10) {
-    return { idealGap: 5, minGap: 3, targetCount: BEGINNER_SPACING_TARGET_COUNT };
-  }
-  return null;
+  if (level < 1) return null;
+  return {
+    idealGap: FIRST_FIVE_MIN_YEAR_GAP,
+    minGap: FIRST_FIVE_MIN_YEAR_GAP,
+    targetCount: FIRST_FIVE_SPACING_TARGET_COUNT,
+    hard: true,
+  };
 }
 
 export function shouldShowBeginnerPlacementHint(levelNumber) {
@@ -158,32 +161,70 @@ function isSpacedFromAll(year, selectedYears, minGap) {
   return selectedYears.every((selectedYear) => Math.abs(Number(selectedYear) - Number(year)) >= minGap);
 }
 
+function canPickSpacedYears(years, targetCount = FIRST_FIVE_SPACING_TARGET_COUNT, minGap = FIRST_FIVE_MIN_YEAR_GAP) {
+  const picked = [];
+  for (const year of [...years].sort((a, b) => Number(a) - Number(b))) {
+    if (!Number.isFinite(Number(year))) continue;
+    if (!isSpacedFromAll(year, picked, minGap)) continue;
+    picked.push(year);
+    if (picked.length >= targetCount) return true;
+  }
+  return false;
+}
+
+function orderYearsForEraSpread(years, random) {
+  const sorted = [...years].sort((a, b) => Number(a) - Number(b));
+  if (sorted.length <= 1) return sorted;
+  const bucketCount = Math.min(4, sorted.length);
+  const buckets = Array.from({ length: bucketCount }, () => []);
+  sorted.forEach((year, index) => {
+    const bucketIndex = Math.min(bucketCount - 1, Math.floor((index * bucketCount) / sorted.length));
+    buckets[bucketIndex].push(year);
+  });
+  const shuffledBuckets = buckets.map((bucket) => fisherYatesShuffle(bucket, random));
+  const out = [];
+  let cursor = 0;
+  while (out.length < sorted.length) {
+    const bucket = shuffledBuckets[cursor % bucketCount];
+    if (bucket.length) out.push(bucket.shift());
+    cursor += 1;
+  }
+  return out;
+}
+
 function orderYearsForBeginnerSpacing(years, levelNumber) {
   const spacing = getBeginnerYearSpacingForLevel(levelNumber);
   if (!spacing || years.length === 0) return years;
 
   const targetCount = Math.min(spacing.targetCount, years.length);
-  for (let gap = spacing.idealGap; gap >= spacing.minGap; gap -= 1) {
-    const priorityYears = [];
-    const prioritySet = new Set();
+  const priorityYears = [];
+  const prioritySet = new Set();
 
-    for (const year of years) {
+  const collectPriorityYears = (orderedYears) => {
+    priorityYears.length = 0;
+    prioritySet.clear();
+    for (const year of orderedYears) {
       if (priorityYears.length >= targetCount) break;
       if (!Number.isFinite(Number(year))) continue;
-      if (!isSpacedFromAll(year, priorityYears, gap)) continue;
+      if (!isSpacedFromAll(year, priorityYears, spacing.minGap)) continue;
       priorityYears.push(year);
       prioritySet.add(year);
     }
+    return priorityYears.length >= targetCount;
+  };
 
-    if (priorityYears.length >= targetCount) {
-      return [
-        ...priorityYears,
-        ...years.filter((year) => !prioritySet.has(year)),
-      ];
-    }
+  if (!collectPriorityYears(years)) {
+    collectPriorityYears([...years].sort((a, b) => Number(a) - Number(b)));
   }
 
-  return years;
+  if (priorityYears.length >= targetCount) {
+    return [
+      ...priorityYears,
+      ...years.filter((year) => !prioritySet.has(year)),
+    ];
+  }
+
+  return null;
 }
 
 function orderDeckForBeginnerSpacing(deck, levelNumber, random) {
@@ -192,26 +233,48 @@ function orderDeckForBeginnerSpacing(deck, levelNumber, random) {
   if (!spacing || shuffled.length === 0) return shuffled;
 
   const targetCount = Math.min(spacing.targetCount, shuffled.length);
-  for (let gap = spacing.idealGap; gap >= spacing.minGap; gap -= 1) {
-    const front = [];
-    const frontIds = new Set();
+  const front = [];
+  const frontIds = new Set();
 
-    for (const question of shuffled) {
+  const collectFront = (orderedDeck) => {
+    front.length = 0;
+    frontIds.clear();
+    for (const question of orderedDeck) {
       const year = Number(question?.year);
       if (front.length >= targetCount) break;
       if (!Number.isFinite(year)) continue;
-      if (!isSpacedFromAll(year, front.map((q) => Number(q.year)), gap)) continue;
+      if (!isSpacedFromAll(year, front.map((q) => Number(q.year)), spacing.minGap)) continue;
       front.push(question);
       frontIds.add(question.id);
     }
+    return front.length >= targetCount;
+  };
 
-    if (front.length >= targetCount) {
-      const rest = shuffled.filter((question) => !frontIds.has(question.id));
-      return [...front, ...fisherYatesShuffle(rest, random)];
-    }
+  if (!collectFront(shuffled)) {
+    collectFront([...shuffled].sort((a, b) => Number(a?.year) - Number(b?.year)));
   }
 
-  return shuffled;
+  if (front.length >= targetCount) {
+    const rest = shuffled.filter((question) => !frontIds.has(question.id));
+    return [...front, ...fisherYatesShuffle(rest, random)];
+  }
+
+  return null;
+}
+
+function getCategoryKey(question) {
+  const cid = Number(question?.main_category_id);
+  return Number.isFinite(cid) ? `cat:${cid}` : 'cat:unknown';
+}
+
+function getSubcategoryKey(question) {
+  const raw = question?.sub_category ?? question?.subcategory ?? question?.tag ?? '';
+  const key = String(raw || '').trim().toLowerCase();
+  return key || 'sub:unknown';
+}
+
+function countDistinctBy(candidates, selector) {
+  return new Set(candidates.map(selector).filter(Boolean)).size;
 }
 
 // Pick one question per year, optionally preferring non-recently-seen
@@ -223,25 +286,29 @@ function orderDeckForBeginnerSpacing(deck, levelNumber, random) {
 //   tier B — not in recentIds
 //   tier C — first available
 // Soft cap: at most `perCategoryCap` cards from the same numeric
-// main_category_id when alternatives exist.
+// main_category_id and `perSubcategoryCap` from the same subcategory
+// when alternatives exist.
 function selectUniqueYearDeck({
   candidates,
   deckSize,
   recentIds,
   random,
   perCategoryCap,
+  perSubcategoryCap,
   levelNumber,
 }) {
   const buckets = groupByYear(candidates);
   if (buckets.size < deckSize) return null; // not enough distinct years
 
   const years = orderYearsForBeginnerSpacing(
-    fisherYatesShuffle(Array.from(buckets.keys()), random),
+    orderYearsForEraSpread(Array.from(buckets.keys()), random),
     levelNumber,
   );
+  if (!years) return null;
   const deck = [];
   const usedIds = new Set();
   const categoryCounts = new Map();
+  const subcategoryCounts = new Map();
 
   for (const year of years) {
     if (deck.length >= deckSize) break;
@@ -252,11 +319,21 @@ function selectUniqueYearDeck({
     // Tier A: not recently seen + under category cap
     let pick = shuffled.find((q) => {
       if (recentIds.has(q.id)) return false;
-      const cid = Number(q.main_category_id);
-      const count = Number.isFinite(cid) ? (categoryCounts.get(cid) || 0) : 0;
-      return count < perCategoryCap;
+      const categoryKey = getCategoryKey(q);
+      const subcategoryKey = getSubcategoryKey(q);
+      const categoryCount = categoryCounts.get(categoryKey) || 0;
+      const subcategoryCount = subcategoryCounts.get(subcategoryKey) || 0;
+      return categoryCount < perCategoryCap && subcategoryCount < perSubcategoryCap;
     });
-    // Tier B: not recently seen (any category)
+    // Tier B: not recently seen + under category cap
+    if (!pick) {
+      pick = shuffled.find((q) => {
+        if (recentIds.has(q.id)) return false;
+        const categoryCount = categoryCounts.get(getCategoryKey(q)) || 0;
+        return categoryCount < perCategoryCap;
+      });
+    }
+    // Tier C: not recently seen (any category/subcategory)
     if (!pick) pick = shuffled.find((q) => !recentIds.has(q.id));
     // Tier C: anything
     if (!pick) pick = shuffled[0];
@@ -264,8 +341,10 @@ function selectUniqueYearDeck({
 
     deck.push(pick);
     usedIds.add(pick.id);
-    const cid = Number(pick.main_category_id);
-    if (Number.isFinite(cid)) categoryCounts.set(cid, (categoryCounts.get(cid) || 0) + 1);
+    const categoryKey = getCategoryKey(pick);
+    const subcategoryKey = getSubcategoryKey(pick);
+    categoryCounts.set(categoryKey, (categoryCounts.get(categoryKey) || 0) + 1);
+    subcategoryCounts.set(subcategoryKey, (subcategoryCounts.get(subcategoryKey) || 0) + 1);
   }
 
   return deck.length === deckSize ? deck : null;
@@ -284,14 +363,15 @@ function selectUniqueYearDeck({
  * @param {Iterable<string|number>=} args.recentlySeenQuestionIds
  *                                            Question ids the user has
  *                                            recently seen (cross-attempt).
- * @param {number=} args.deckSize             Defaults to 18. Engine does
- *                                            not relax this; passed in
+ * @param {number=} args.deckSize             Defaults from the Solo rules:
+ *                                            normal 16, special 19. Engine
+ *                                            does not relax this; passed in
  *                                            only for tests.
  * @param {Function=} args.random             Random source (0..1). Defaults
  *                                            to Math.random.
- * @param {number=} args.levelNumber          Solo level number. Levels 1-10
- *                                            apply a soft beginner spacing
- *                                            preference; level 11+ unchanged.
+ * @param {number=} args.levelNumber          Solo level number. All Solo
+ *                                            attempts enforce the first-five
+ *                                            5-year spacing rule.
  *
  * @returns {{ ok:true, deck:Array, attemptId:string, meta:Object }
  *         | { ok:false, reason:string, message:string, meta:Object }}
@@ -301,19 +381,36 @@ function selectUniqueYearDeck({
  *   user-safe string the UI may render directly.
  */
 export function buildSoloAttemptDeck(args = {}) {
-  const deckSize = Number.isFinite(args.deckSize) ? Math.trunc(args.deckSize) : DEFAULT_DECK_SIZE;
+  const deckSize = Number.isFinite(args.deckSize)
+    ? Math.trunc(args.deckSize)
+    : getSoloAttemptDeckSizeForLevel(args.levelNumber);
   const random = typeof args.random === 'function' ? args.random : Math.random;
   const allowedCats = normalizeAllowedCategoryIds(args.allowedMainCategoryIds);
   const recentIds = normalizeRecentIds(args.recentlySeenQuestionIds);
 
   const candidates = filterCandidatePool(args.pool, allowedCats);
   const distinctYears = new Set(candidates.map((q) => Number(q.year))).size;
+  const years = Array.from(new Set(candidates.map((q) => Number(q.year)).filter(Number.isFinite)));
+  const firstFiveSpacingPossible = canPickSpacedYears(years);
 
-  // Soft category balance cap. When the active category whitelist has N
-  // categories, cap any single category at ⌈deckSize/N⌉ + 1 so deck
-  // distribution stays diverse without becoming impossible on small pools.
-  const activeCount = allowedCats ? Math.max(1, allowedCats.size) : 1;
-  const perCategoryCap = Math.max(1, Math.ceil(deckSize / activeCount) + 1);
+  if (distinctYears >= deckSize && !firstFiveSpacingPossible) {
+    return {
+      ok: false,
+      reason: 'insufficient_first_five_spacing',
+      message: 'Bu seviye için ilk 5 kart arasında en az 5 yıl aralığı sağlayacak yeterli soru yok.',
+      meta: { candidateCount: candidates.length, distinctYears, deckSize },
+    };
+  }
+
+  // Soft balance caps. When there are N categories/subcategories, cap any
+  // single bucket at ceil(deckSize/N)+1 so the deck stays diverse without
+  // becoming impossible on small pools.
+  const categoryCount = allowedCats
+    ? Math.max(1, allowedCats.size)
+    : Math.max(1, countDistinctBy(candidates, getCategoryKey));
+  const subcategoryCount = Math.max(1, countDistinctBy(candidates, getSubcategoryKey));
+  const perCategoryCap = Math.max(1, Math.ceil(deckSize / categoryCount) + 1);
+  const perSubcategoryCap = Math.max(1, Math.ceil(deckSize / subcategoryCount) + 1);
 
   // Tier 1 — ideal: respects recently-seen AND category balance.
   let deck = selectUniqueYearDeck({
@@ -322,6 +419,7 @@ export function buildSoloAttemptDeck(args = {}) {
     recentIds,
     random,
     perCategoryCap,
+    perSubcategoryCap,
     levelNumber: args.levelNumber,
   });
 
@@ -332,17 +430,19 @@ export function buildSoloAttemptDeck(args = {}) {
       recentIds: new Set(),
       random,
       perCategoryCap,
+      perSubcategoryCap,
       levelNumber: args.levelNumber,
     });
   }
 
-  // Tier 3 — relax category balance.
+  // Tier 3 — relax category/subcategory balance.
   if (!deck) {
     deck = selectUniqueYearDeck({
       candidates, deckSize,
       recentIds: new Set(),
       random,
       perCategoryCap: deckSize, // effectively no cap
+      perSubcategoryCap: deckSize, // effectively no cap
       levelNumber: args.levelNumber,
     });
   }
@@ -356,11 +456,19 @@ export function buildSoloAttemptDeck(args = {}) {
     };
   }
 
-  // Final order: level 11+ keeps the old full shuffle. Beginner levels keep
-  // the same 18 unique years but prefer the first 10 playable cards to be
-  // easier to place on the timeline by spacing their answer years apart.
+  // Final order: the first 5 playable questions must be at least 5 years
+  // apart. If a selected deck somehow cannot be ordered that way, fail
+  // cleanly instead of starting an invalid attempt.
   const beginnerSpacing = getBeginnerYearSpacingForLevel(args.levelNumber);
   const finalDeck = orderDeckForBeginnerSpacing(deck, args.levelNumber, random);
+  if (!finalDeck) {
+    return {
+      ok: false,
+      reason: 'insufficient_first_five_spacing',
+      message: 'Bu seviye için ilk 5 kart arasında en az 5 yıl aralığı sağlayacak yeterli soru yok.',
+      meta: { candidateCount: candidates.length, distinctYears, deckSize },
+    };
+  }
   return {
     ok: true,
     deck: finalDeck,
@@ -380,9 +488,12 @@ export function buildSoloAttemptDeck(args = {}) {
           idealGap: beginnerSpacing.idealGap,
           minGap: beginnerSpacing.minGap,
           targetCount: beginnerSpacing.targetCount,
-          relaxedWhenNeeded: true,
+          hard: true,
         }
         : null,
+      categoryBalance: { categoryCount, perCategoryCap },
+      subcategoryBalance: { subcategoryCount, perSubcategoryCap },
+      eraSpread: true,
     },
   };
 }
@@ -397,5 +508,7 @@ export const __soloEngineInternals = {
   hasUsableContent,
   getBeginnerYearSpacingForLevel,
   shouldShowBeginnerPlacementHint,
+  canPickSpacedYears,
+  orderYearsForEraSpread,
   DEFAULT_DECK_SIZE,
 };
