@@ -213,8 +213,12 @@ function derivePreviousScore(previous) {
 function isAttemptBetterForScore(previous, attempt) {
   if (!attempt?.passed) return false;
   const prevScore = derivePreviousScore(previous);
+  const attemptScore = Math.max(0, Number(attempt?.levelScore) || 0);
   if (prevScore === null) return true;
-  if (attempt.levelScore !== prevScore) return attempt.levelScore > prevScore;
+  // Replay delta is anchored to the explicit stored bestScore when present.
+  // Same-score/lower-score replays can improve local time/mistake metadata in
+  // future, but they must never add points unless this comparison is positive.
+  if (attemptScore !== prevScore) return attemptScore > prevScore;
 
   const prevStars = finiteNumber(previous?.bestScoreStars ?? previous?.bestStars, 0);
   if (attempt.stars !== prevStars) return attempt.stars > prevStars;

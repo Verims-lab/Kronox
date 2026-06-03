@@ -211,6 +211,8 @@ Rules:
 
 * lower replay score does not reduce total score
 * equal replay score does not change total score
+* same-score replay does not add points
+* lower-score replay does not add points
 * better replay score adds only the improvement delta
 * total Solo score is derived from per-level best scores
 * total Solo score is not an accumulator that can double-apply

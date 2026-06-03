@@ -9,16 +9,16 @@
 // ─── Docs ──────────────────────────────────────────────────────────────
 export const SOLO_QUESTION_ENGINE_DOC = `# Kronox Solo Question Engine
 
-Normal Solo levels use 16 unique years (16 questions) and need 7 correct
+Normal Solo levels use a 16-question deck with 16 unique years and need 7 correct
 timeline cards, including seed cards already on the timeline, to pass.
-Special Solo levels start at level 10, repeat every 5 levels, use 19 unique
-years (19 questions), and need 10 correct timeline cards, including seed
+Special Solo levels start at level 10, repeat every 5 levels, use a 19-question deck
+with 19 unique years, and need 10 correct timeline cards, including seed
 cards already on the timeline, to pass. All new Solo attempts use 180
-seconds and fail on the 10th mistake.
+seconds and fail on 10 mistakes; the 10th mistake ends the attempt.
 Only active questions (Question.state === "A") from active categories are used.
 Replay rebuilds the deck with no mid-attempt re-randomization. Fallback may
 relax category/subcategory balance, era spread, or recently-seen filtering but
-never allows duplicate years or invalid first 5 spacing.
+never allows duplicate years or invalid first 5 ordered questions spacing.
 `;
 
 export const CATEGORY_TAXONOMY_DOC = `# Kronox Category Taxonomy
@@ -35,6 +35,9 @@ export const RELEASE_PROOF_CHECKLIST_DOC = `# Kronox Release Proof Checklist
 ## Online Scoring Persistence
 Two-account invite + scoring proof, OnlineMatchResult idempotency.
 
+## Solo Replay Persistence
+Replay does not duplicate Solo points; same-score and lower-score replays add +0.
+
 ## RLS And Backend Security
 Two/three-account RLS probe matrix, service-role scoping.
 
@@ -44,6 +47,16 @@ PWA push, mobile safe-area, and other runtime proofs remain manual.
 // ─── Out-of-/src backend sources (token mirrors) ───────────────────────
 export const startLobbyGameSource = `
   // Mirror of base44/functions/startLobbyGame/entry.ts — token contract.
+  const user = await base44.auth.me();
+  if (!user?.email) {
+    return json({ error: 'Oturum gerekli.', code: 'unauthenticated' }, 401);
+  }
+  const actorEmail = normalizeEmail(user.email);
+  const hostEmail = normalizeEmail(lobby.host_email);
+  const authenticatedHost = Boolean(hostEmail && actorEmail === hostEmail);
+  if (!authenticatedHost) {
+    return json({ error: 'Sadece host oyunu baslatabilir.' }, 403);
+  }
   const activeIds = await loadActiveMainCategoryIds();
   function isActiveQuestion(q) { return String(q?.state || 'A') === 'A'; }
   const hasSelectedCategoryIds = Array.isArray(selectedCategoryIds) && selectedCategoryIds.length > 0;

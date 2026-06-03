@@ -78,6 +78,8 @@ Checklist:
 * Fail occurs on the 10th mistake.
 * Timeout at 180 seconds fails the level.
 * Replay creates a new deck.
+* Replay does not duplicate Solo points: same-score and lower-score replays add +0.
+* Better replay adds only the positive score delta.
 * Mid-game flow does not rerandomize questions.
 * Insufficient unique-year pool shows clean error.
 * First 5 ordered questions are at least 5 years apart.

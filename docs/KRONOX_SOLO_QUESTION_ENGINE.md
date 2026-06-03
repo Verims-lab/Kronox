@@ -8,17 +8,17 @@ This document describes the Solo question-selection rules used by `src/lib/soloQ
 
 Normal Solo levels:
 - end successfully at 7 correct timeline cards, including seed cards already on the timeline
-- use a 16-question attempt deck
+- use a 16-question deck
 - use the 180 seconds timer
 - fail when the timer reaches 180 seconds before completion
-- fail on the 10th mistake
+- fail on 10 mistakes; the 10th mistake ends the attempt
 
 Special Solo levels:
 - start at level 10 and repeat every 5 levels: 10, 15, 20, 25, ...
 - end successfully at 10 correct timeline cards, including seed cards already on the timeline
-- use a 19-question attempt deck
+- use a 19-question deck
 - use the 180 seconds timer unless a future explicit config changes it
-- fail on the 10th mistake
+- fail on 10 mistakes; the 10th mistake ends the attempt
 
 Deck size formula:
 - `deckSize = correctTarget + maxNonFailingMistakes`
@@ -36,9 +36,9 @@ Every valid deck must satisfy:
 - active questions only
 - active categories only
 - passive categories excluded
-- first 5 ordered questions have answer years at least 5 years apart
+- first 5 ordered questions must satisfy minimum 5-year spacing between answer years
 
-The first 5 spacing rule means every pair among the first 5 ordered answer years must differ by at least 5. Example allowed: 1990 and 1995. Example not allowed: 1990 and 1994.
+The first 5 ordered questions spacing rule means every pair among the first 5 ordered answer years must differ by at least 5. Example allowed: 1990 and 1995. Example not allowed: 1990 and 1994.
 
 ## Balance Rules
 
