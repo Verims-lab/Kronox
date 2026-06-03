@@ -16,7 +16,6 @@ import generateTechDocSource from '../../../base44/functions/generateTechDoc/ent
 import generateWorkflowDocSource from '../../../base44/functions/generateWorkflowDoc/entry.ts?raw';
 import seedQuestionCategoriesSource from '../../../base44/functions/seedQuestionCategories/entry.ts?raw';
 import caseRegistrySource from './simulationPanelCaseRegistry.jsx?raw';
-import notificationDeploymentHintSource from '../notifications/NotificationDeploymentHint.jsx?raw';
 
 const SUITE_ID = 'security_cleanup_health';
 const SUITE_NAME = 'Security Cleanup Health Suite';
@@ -40,7 +39,6 @@ const LIVE_SOURCES = [
   generateWorkflowDocSource,
   seedQuestionCategoriesSource,
   caseRegistrySource,
-  notificationDeploymentHintSource,
 ].join('\n');
 
 const removedMusicFunctionNames = [

@@ -290,7 +290,8 @@ Owner/access pattern:
 - `sendGameInvitePush` uses service role to find recipient active rows.
 
 Feature dependencies:
-- Profile/Settings notification opt-in.
+- Header notification bell and in-app invite surfaces.
+- Optional future user-initiated push subscription surface.
 - Closed/background game invite push.
 - Health notification diagnostics.
 
@@ -303,7 +304,7 @@ Audit notes:
 ### Question
 
 Schema: `base44/entities/Question.jsonc`
-Helpers/functions: `getQuestions`, `getOfflineQuestions`, `startLobbyGame`, `QuestionManagement`
+Helpers/functions: `getQuestions`, `getOfflineQuestions`, `startLobbyGame`
 
 Purpose:
 - Question pool for Solo and Online gameplay.

@@ -587,7 +587,7 @@ Deno.serve(async (req) => {
         return 'Admin rol doğrulaması ✓';
       }),
       run('ADM-02: Question oluşturma — zorunlu alanlar doğrulanıyor', async () => {
-        // Simulate QuestionManagement form validation
+        // Simulate admin question form validation
         const validate = (data) => {
           const errors = {};
           if (!data.question || data.question.trim().length < 5) errors.question = 'Çok kısa';
