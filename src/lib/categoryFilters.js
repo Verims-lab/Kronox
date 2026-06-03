@@ -14,6 +14,9 @@
  * Category DB lookup table. The legacy static `lib/onlineCategories.js`
  * taxonomy (used by current Online lobby UI) is NOT affected by these
  * helpers — it has no status concept.
+ *
+ * category_id is the canonical live DB/runtime field. categoryid is only an
+ * external import alias. Do not create competing live DB fields.
  */
 
 export const CATEGORY_STATUS_ACTIVE = 'a';
