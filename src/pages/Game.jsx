@@ -35,14 +35,17 @@ import GameRenderErrorBoundary from '@/components/game/GameRenderErrorBoundary';
 import {
   applyLevelAttempt,
   getSoloCardsRequiredForLevel,
+  getSoloAttemptDeckSizeForLevel,
   getSoloTimelineWinCardCountForLevel,
   getSoloLevelCount,
   SOLO_INITIAL_TIMELINE_CARDS,
+  SOLO_LEVEL_TIME_SECONDS,
+  SOLO_MAX_MISTAKES,
   readSoloProgress,
   writeSoloProgress,
 } from '@/lib/soloLevels';
-import { calculateSoloAttemptResult, getBestSoloLevelResult } from '@/lib/soloProgressHelpers';
-// Codex166 — Solo Question Selection Engine. Builds a controlled 18-card
+import { calculateSoloAttemptResult, getBestSoloLevelResult, SOLO_RULES_VERSION } from '@/lib/soloProgressHelpers';
+// Codex166/Codex180 — Solo Question Selection Engine. Builds a controlled
 // attempt deck (unique question ids + unique answer/years) once per Solo
 // attempt. Gameplay consumes the deck sequentially — no mid-attempt
 // re-randomization. Online/legacy paths are untouched.
@@ -217,8 +220,8 @@ export default function Game() {
   const [soloLevelResult, setSoloLevelResult] = useState(null);
   const soloResultPersistedRef = useRef(false);
   const [onlineScoreResult, setOnlineScoreResult] = useState(null);
-  // Codex166 — Solo attempt deck. Created exactly once per Solo attempt
-  // by the Solo Question Selection Engine, then consumed sequentially by
+  // Codex166/Codex180 — Solo attempt deck. Created exactly once per Solo
+  // attempt by the Solo Question Selection Engine, then consumed sequentially by
   // gameplay. `soloAttemptId` lets debugging confirm replay produced a
   // fresh deck. Both are null outside Solo mode so other paths are
   // byte-for-byte identical.
@@ -272,8 +275,8 @@ export default function Game() {
     ? getSoloCardsRequiredForLevel(soloLevel?.levelNumber)
     : null;
 
-  // Codex166 — Solo mode: the attempt deck IS the question pool. Gameplay
-  // (pickQuestion in useGameActions) walks this 18-card source-of-truth,
+  // Codex166/Codex180 — Solo mode: the attempt deck IS the question pool.
+  // Gameplay (pickQuestion in useGameActions) walks this prebuilt source-of-truth,
   // never re-randomizes mid-attempt, and can never run out of unique
   // years. Other modes keep the existing year/category/type filter.
   const questionPool = useMemo(() => {
@@ -500,10 +503,10 @@ export default function Game() {
     if (isLoading || allQuestions.length === 0) return;
     if (lobbyDataRef.current !== null) return;
 
-    // Codex166 — Solo Level mode: build the controlled 18-card attempt
+    // Codex166/Codex180 — Solo Level mode: build the controlled attempt
     // deck via the Solo Question Selection Engine. Engine guarantees
     // unique question ids + unique years, active questions/categories,
-    // and clean error when the pool can't supply 18 unique years.
+    // and clean error when the pool can't supply the required unique years.
     let shuffled;
     if (isSoloLevelMode) {
       // Base candidate pool: legacy year-window + non-music filter (same
@@ -520,6 +523,7 @@ export default function Game() {
         allowedMainCategoryIds: activeCategoryIds,
         recentlySeenQuestionIds: loadRecentHistory(),
         levelNumber: soloLevel?.levelNumber,
+        deckSize: getSoloAttemptDeckSizeForLevel(soloLevel?.levelNumber),
       });
       if (!engineResult.ok) {
         setError(engineResult.message);
@@ -660,7 +664,7 @@ export default function Game() {
   //
   //   PASS  → winner set by doPlacement when the level-aware placed-card
   //           target is reached. Stars come from current mistakeCount.
-  //   FAIL  → mistakeCount >= maxMistakes (8+) OR overallSeconds >= 120
+  //   FAIL  → mistakeCount >= maxMistakes (10th mistake) OR overallSeconds >= 180
   //           before winner exists. We force-stop the timer by setting
   //           gameStarted=false and surface a fail overlay.
   //
@@ -670,16 +674,16 @@ export default function Game() {
     if (!isSoloLevelMode || !players.length) return 0;
     const me = players[0];
     // Each Solo level starts with seed cards; progress is placed-card count
-    // (0/7 for beginner levels, 0/10 for level 11+), not total timeline cards.
+    // (0/7 for normal levels, 0/10 for special levels), not total timeline cards.
     const total = Array.isArray(me?.cards) ? me.cards.length : 0;
     return Math.max(0, total - SOLO_INITIAL_TIMELINE_CARDS);
   }, [isSoloLevelMode, players]);
 
   useEffect(() => {
     if (!isSoloLevelMode || soloLevelResult) return;
-    const maxMistakes = soloLevel?.maxMistakes ?? 8;
-    const totalTime = soloLevel?.totalTimeSeconds ?? 120;
-    const cardTarget = soloCardsRequired ?? 10;
+    const maxMistakes = soloLevel?.maxMistakes ?? SOLO_MAX_MISTAKES;
+    const totalTime = soloLevel?.totalTimeSeconds ?? SOLO_LEVEL_TIME_SECONDS;
+    const cardTarget = soloCardsRequired ?? 7;
 
     // PASS path — winner was set by the win condition inside doPlacement.
     if (winner) {
@@ -702,6 +706,7 @@ export default function Game() {
         cardsCompleted: cardTarget,
         cardTarget,
         failReason: attempt.failReason,
+        soloRulesVersion: SOLO_RULES_VERSION,
       });
       return;
     }
@@ -727,6 +732,7 @@ export default function Game() {
         cardsCompleted: cardsCompletedSolo,
         cardTarget,
         failReason: attempt.failReason || 'mistakes',
+        soloRulesVersion: SOLO_RULES_VERSION,
       });
       return;
     }
@@ -751,6 +757,7 @@ export default function Game() {
         cardsCompleted: cardsCompletedSolo,
         cardTarget,
         failReason: attempt.failReason || 'timeout',
+        soloRulesVersion: SOLO_RULES_VERSION,
       });
     }
   }, [
@@ -781,10 +788,11 @@ export default function Game() {
           mistakes: soloLevelResult.mistakes,
           completedCards: soloLevelResult.cardsCompleted,
           elapsedSeconds: soloLevelResult.timeSeconds,
-          requiredCards: soloLevelResult.cardTarget ?? soloCardsRequired ?? 10,
+          requiredCards: soloLevelResult.cardTarget ?? soloCardsRequired ?? 7,
         });
         const bestPreview = getBestSoloLevelResult(previousEntry, {
           ...attempt,
+          soloRulesVersion: soloLevelResult.soloRulesVersion || SOLO_RULES_VERSION,
           stars: soloLevelResult.stars,
           passed: soloLevelResult.passed,
           baseScore: soloLevelResult.baseScore,
@@ -803,11 +811,12 @@ export default function Game() {
           mistakes: soloLevelResult.mistakes,
           timeSeconds: soloLevelResult.timeSeconds,
           cardsCompleted: soloLevelResult.cardsCompleted,
-          cardTarget: soloLevelResult.cardTarget ?? soloCardsRequired ?? 10,
+          cardTarget: soloLevelResult.cardTarget ?? soloCardsRequired ?? 7,
           passed: soloLevelResult.passed,
           baseScore: soloLevelResult.baseScore,
           timeBonus: soloLevelResult.timeBonus,
           levelScore: soloLevelResult.levelScore,
+          soloRulesVersion: soloLevelResult.soloRulesVersion || SOLO_RULES_VERSION,
         });
         await writeSoloProgress(me, next);
       } catch (e) {
@@ -840,6 +849,10 @@ export default function Game() {
         soloLevel: {
           ...soloLevel,
           cardCount: getSoloCardsRequiredForLevel(soloLevel.levelNumber),
+          deckSize: getSoloAttemptDeckSizeForLevel(soloLevel.levelNumber),
+          totalTimeSeconds: SOLO_LEVEL_TIME_SECONDS,
+          maxMistakes: SOLO_MAX_MISTAKES,
+          soloRulesVersion: SOLO_RULES_VERSION,
         },
       },
     });
@@ -874,6 +887,10 @@ export default function Game() {
           ...soloLevel,
           levelNumber: nextLevelNumber,
           cardCount: nextCardCount,
+          deckSize: getSoloAttemptDeckSizeForLevel(nextLevelNumber),
+          totalTimeSeconds: SOLO_LEVEL_TIME_SECONDS,
+          maxMistakes: SOLO_MAX_MISTAKES,
+          soloRulesVersion: SOLO_RULES_VERSION,
         },
       },
     });
@@ -1222,7 +1239,7 @@ export default function Game() {
         isTimeUp={isTimeUp}
         progressCardCount={isSoloLevelMode ? cardsCompletedSolo : undefined}
         progressCardTarget={isSoloLevelMode ? soloCardsRequired : undefined}
-        soloLevelTotalSeconds={isSoloLevelMode ? (soloLevel?.totalTimeSeconds ?? 120) : undefined}
+        soloLevelTotalSeconds={isSoloLevelMode ? (soloLevel?.totalTimeSeconds ?? SOLO_LEVEL_TIME_SECONDS) : undefined}
         soloLevelElapsedSeconds={isSoloLevelMode ? overallSeconds : undefined}
         beginnerPlacementHintZone={beginnerPlacementHintZone}
       />

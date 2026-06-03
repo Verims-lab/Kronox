@@ -64,20 +64,32 @@ function initialFromName(displayName: string) {
   return cleanDisplayText(displayName).charAt(0).toLocaleUpperCase('tr-TR') || 'O';
 }
 
-function starBaseScore(stars: number) {
+function starBaseScore(stars: number, rulesVersion = 1) {
+  if (rulesVersion >= 2) {
+    if (stars >= 3) return 15;
+    if (stars === 2) return 10;
+    if (stars === 1) return 5;
+    return 0;
+  }
   if (stars >= 3) return 10;
   if (stars === 2) return 8;
   if (stars === 1) return 5;
   return 0;
 }
 
-function timeBonus(bestTimeSeconds: unknown, passed: boolean) {
+function timeBonus(bestTimeSeconds: unknown, passed: boolean, rulesVersion = 1) {
   if (!passed) return 0;
   const seconds = Number(bestTimeSeconds);
   if (!Number.isFinite(seconds)) return 0;
-  // Codex139 — Keep backend projection aligned with
-  // src/lib/soloProgressHelpers.calculateSoloTimeBonus and
-  // docs/KRONOX_SCORING_RULES.md §2.4: 60.0s belongs to the +10 tier.
+  // Keep backend projection aligned with src/lib/soloProgressHelpers.
+  // Stored bestScore is preferred; this fallback only derives missing
+  // scores and preserves legacy entries unless soloRulesVersion >= 2.
+  if (rulesVersion >= 2) {
+    if (seconds <= 60) return 15;
+    if (seconds <= 90) return 10;
+    if (seconds <= 120) return 5;
+    return 0;
+  }
   if (seconds <= 60) return 10;
   if (seconds <= 90) return 5;
   return 0;
@@ -88,7 +100,8 @@ function scoreFromLevelEntry(entry: any) {
   if (stars <= 0) return 0;
   const stored = Number(entry?.bestScore);
   if (Number.isFinite(stored) && stored >= 0) return Math.floor(stored);
-  return starBaseScore(stars) + timeBonus(entry?.bestTimeSeconds, true);
+  const rulesVersion = Math.max(1, Math.floor(finiteNumber(entry?.soloRulesVersion ?? entry?.rulesVersion, 1)));
+  return starBaseScore(stars, rulesVersion) + timeBonus(entry?.bestTimeSeconds, true, rulesVersion);
 }
 
 function summarizeProgress(progress: any) {

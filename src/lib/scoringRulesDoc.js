@@ -18,12 +18,25 @@ Status: Active product contract.
 Per-level best score is stored on User.solo_progress and projected into the
 leaderboard by getSoloLeaderboard.
 
+Normal Solo levels require 7 correct cards. Special Solo levels start at
+level 10 and repeat every 5 levels; they require 10 correct cards.
+All new Solo attempts use a 180 seconds timer and fail on the 10th mistake.
+
+Star base points:
+- 3 stars: 15 points.
+- 2 stars: 10 points.
+- 1 star: 5 points.
+- fail: 0 points.
+
 Time bonus boundaries (winner elapsed seconds):
-- 0–60 seconds: 60.0s yields +10 time bonus.
-- 61–90 seconds: 90.0s yields +5 time bonus.
-- Over 90 seconds: no time bonus.
+- 0–60 seconds: 60.0s yields +15 time bonus.
+- 61–90 seconds: 90.0s yields +10 time bonus.
+- 91–120 seconds: 120.0s yields +5 time bonus.
+- 121–180 seconds: no time bonus.
 
 Solo best score never decreases on replay — only improvements are written.
+Old completed Solo results are not retroactively recalculated. New Solo
+attempts use soloRulesVersion: 2.
 
 ## Online scoring
 Online results are recorded per-user in OnlineMatchResult for durable

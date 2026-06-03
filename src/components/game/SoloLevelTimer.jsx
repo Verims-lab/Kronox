@@ -12,7 +12,7 @@ import { sounds } from '@/lib/gameSounds';
  * file never decides anything game-rule-related.
  *
  * Props:
- *   - totalSeconds:    number  total budget (120 for solo levels)
+ *   - totalSeconds:    number  total budget (180 for solo levels)
  *   - elapsedSeconds:  number  seconds elapsed so far
  *
  * Styling rules:
@@ -21,7 +21,7 @@ import { sounds } from '@/lib/gameSounds';
  *   - Color hardens (amber → red glow) when ≤ 10 s remain so the player
  *     gets a clear danger cue.
  */
-export default function SoloLevelTimer({ totalSeconds = 120, elapsedSeconds = 0 }) {
+export default function SoloLevelTimer({ totalSeconds = 180, elapsedSeconds = 0 }) {
   const remaining = Math.max(0, Math.ceil(totalSeconds - elapsedSeconds));
   const minutes = Math.floor(remaining / 60);
   const seconds = remaining % 60;

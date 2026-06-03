@@ -33,9 +33,9 @@ export default function SoloFailureCard({
   failReason,
   onRetry,
   onBackToPath,
-  // Reference shows "Maksimum Süre: 02:00" under the time card. Default
-  // to the standard solo time budget (120s) when caller doesn't pass it.
-  maxTimeSeconds = 120,
+  // Reference shows the maximum time under the time card. Default to the
+  // standard Solo v2 time budget (180s) when caller doesn't pass it.
+  maxTimeSeconds = 180,
 }) {
   const formattedTime = formatCompactDuration(timeSeconds);
   const formattedMax = formatCompactDuration(maxTimeSeconds);

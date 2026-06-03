@@ -81,21 +81,22 @@ src/lib/soloLevels.js
 
 Each Solo level:
 
-* requires the player to place 7 correct cards for Solo Levels 1-10
-* requires the player to place 10 correct cards for Solo Level 11+
-* has a total time limit of 120 seconds
+* normal Solo levels require the player to place 7 correct cards
+* special Solo levels start at level 10 and repeat every 5 levels: 10, 15, 20, 25, ...
+* special Solo levels require the player to place 10 correct cards
+* has a total time limit of 180 seconds
 * does not have per-question time limits
-* fails if the timer reaches 120 seconds before completion
-* fails if the player makes 8 or more mistakes
+* fails if the timer reaches 180 seconds before completion
+* fails on the 10th mistake
 
 Constants:
 
 ```text
-SOLO_SCORE_CARD_TARGET = 10
-SOLO_BEGINNER_CARD_TARGET = 7
-SOLO_BEGINNER_CARD_TARGET_MAX_LEVEL = 10
-SOLO_SCORE_TIME_LIMIT_SECONDS = 120
-SOLO_SCORE_MAX_MISTAKES = 8
+SOLO_RULES_VERSION = 2
+SOLO_NORMAL_CARD_TARGET = 7
+SOLO_SPECIAL_CARD_TARGET = 10
+SOLO_SCORE_TIME_LIMIT_SECONDS = 180
+SOLO_SCORE_MAX_MISTAKES = 10
 ```
 
 Helper:
@@ -112,9 +113,13 @@ Stars are based on mistake count:
 | -------: | ------- |
 |        0 | 3 stars |
 |        1 | 3 stars |
-|      2–4 | 2 stars |
-|      5–7 | 1 star  |
-|       8+ | Fail    |
+|        2 | 3 stars |
+|        3 | 2 stars |
+|      4–6 | 2 stars |
+|      7–9 | 1 star  |
+|      10+ | Fail    |
+
+The product rule specified 0-2 / 4-6 / 7-9; Kronox treats 3 mistakes as 2 stars to avoid an undefined runtime state.
 
 Helper:
 
@@ -122,7 +127,7 @@ Helper:
 calculateSoloStars(mistakes, completedCards, elapsedSeconds, requiredCards)
 ```
 
-For Solo Levels 1-10, `requiredCards` is 7. For Solo Level 11+, `requiredCards` is 10.
+For normal Solo levels, `requiredCards` is 7. For special Solo levels, `requiredCards` is 10.
 
 ## 2.3 Solo Base Points
 
@@ -130,8 +135,8 @@ Solo base points are awarded only when the level is passed.
 
 |   Stars | Base Points |
 | ------: | ----------: |
-| 3 stars |          10 |
-| 2 stars |           8 |
+| 3 stars |          15 |
+| 2 stars |          10 |
 |  1 star |           5 |
 |  Failed |           0 |
 
@@ -141,9 +146,10 @@ Solo time bonus is based on completion time.
 
 |  Completion Time | Bonus |
 | ---------------: | ----: |
-|     0–60 seconds |   +10 |
-|    61–90 seconds |    +5 |
-|   91–120 seconds |    +0 |
+|     0–60 seconds |   +15 |
+|    61–90 seconds |   +10 |
+|   91–120 seconds |    +5 |
+|  121–180 seconds |    +0 |
 | Timeout / failed |    +0 |
 
 Helper:
@@ -154,8 +160,11 @@ calculateSoloTimeBonus(elapsedSeconds, passed)
 
 Boundary rule:
 
-* exactly 60.0 seconds gets +10
-* exactly 90.0 seconds gets +5
+* exactly 60.0 seconds gets +15
+* exactly 90.0 seconds gets +10
+* exactly 120.0 seconds gets +5
+* over 120 seconds gets +0
+* exactly 180 seconds without completion is timeout/fail
 * failed or timeout gets +0
 
 ## 2.5 Solo Total Level Score
@@ -170,10 +179,10 @@ Examples:
 
 | Result               | Score |
 | -------------------- | ----: |
-| 3 stars, 54 seconds  |    20 |
-| 3 stars, 75 seconds  |    15 |
-| 2 stars, 100 seconds |     8 |
-| 1 star, 88 seconds   |    10 |
+| 3 stars, 54 seconds  |    30 |
+| 3 stars, 75 seconds  |    25 |
+| 2 stars, 110 seconds |    15 |
+| 1 star, 150 seconds  |     5 |
 | Failed level         |     0 |
 
 Helper:
@@ -194,9 +203,9 @@ Examples:
 
 | Previous Best | New Result | Added |
 | ------------: | ---------: | ----: |
-|             8 |         15 |    +7 |
-|            15 |         10 |    +0 |
-|            15 |         15 |    +0 |
+|            15 |         25 |   +10 |
+|            25 |          5 |    +0 |
+|            25 |         25 |    +0 |
 
 Rules:
 
@@ -205,6 +214,8 @@ Rules:
 * better replay score adds only the improvement delta
 * total Solo score is derived from per-level best scores
 * total Solo score is not an accumulator that can double-apply
+* old completed Solo results are not retroactively recalculated
+* new Solo attempts use `soloRulesVersion: 2`
 
 Helper:
 
@@ -582,11 +593,11 @@ Rules:
 
 ## Solo
 
-1. 0 mistakes, 55 sec → 3 stars, 20 points.
-2. 1 mistake, 75 sec → 3 stars, 15 points.
-3. 3 mistakes, 100 sec → 2 stars, 8 points.
-4. 6 mistakes, 80 sec → 1 star, 10 points.
-5. 8 mistakes → fail, 0 points.
+1. 0 mistakes, 55 sec → 3 stars, 30 points.
+2. 1 mistake, 75 sec → 3 stars, 25 points.
+3. 3 mistakes, 100 sec → 2 stars, 15 points.
+4. 8 mistakes, 150 sec → 1 star, 5 points.
+5. 10 mistakes → fail, 0 points.
 6. Replay lower score → no total increase.
 7. Replay higher score → only difference is added.
 

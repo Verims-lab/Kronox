@@ -268,14 +268,14 @@ export const EXTRA_TESTS = [
     { actionType: ACTION_TYPES.CODE_FIX }),
 
   /* ============================================================
-   *  3. SOLO 120s TIMER LAST-10-SECONDS AUDIO CUE
+   *  3. SOLO 180s TIMER LAST-10-SECONDS AUDIO CUE
    * ============================================================ */
   makeCase('solo_progress_health', 'solo_timer_last_10_seconds_audio_cue',
-    'Solo gameplay has a 120s total timer with a guarded last-10s audio cue (dedupe + cleanup + non-blocking failure)',
+    'Solo gameplay has a 180s total timer with a guarded last-10s audio cue (dedupe + cleanup + non-blocking failure)',
     () => {
-      // (a) 120s total timer constant.
+      // (a) 180s total timer constant.
       const constMissing = missingTokens(soloLevelsLibSource, [
-        'SOLO_LEVEL_TIME_SECONDS = 120',
+        'SOLO_LEVEL_TIME_SECONDS = 180',
       ]);
 
       // (b) Timer component imports sounds and gates the cue to the
@@ -315,7 +315,7 @@ export const EXTRA_TESTS = [
           file: 'components/game/SoloLevelTimer.jsx + lib/gameSounds.js + lib/soloLevels.js',
           actionType: ACTION_TYPES.CODE_FIX,
           expected: {
-            totalTimer: 'SOLO_LEVEL_TIME_SECONDS = 120',
+            totalTimer: 'SOLO_LEVEL_TIME_SECONDS = 180',
             cue: 'last-10s 1Hz urgencyTick guarded by remaining 1..10 + lastTickedRef dedupe',
             nonBlocking: 'try/catch around sounds.urgencyTick',
             soundsLib: 'urgencyTick exists with try/catch + ctx-availability guard',
@@ -330,7 +330,7 @@ export const EXTRA_TESTS = [
           },
         });
       }
-      return pass('120s timer + dedupe-guarded last-10s audio cue + non-blocking failure path all detected.', {
+      return pass('180s timer + dedupe-guarded last-10s audio cue + non-blocking failure path all detected.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -346,24 +346,30 @@ export const EXTRA_TESTS = [
     'Solo score calculation contract: star base + exact time bonus boundaries + fail gets 0',
     () => {
       const examples = [
-        { input: { stars: 3, elapsedSeconds: 54, passed: true }, expected: { baseScore: 10, timeBonus: 10, totalScore: 20 } },
-        { input: { stars: 3, elapsedSeconds: 75, passed: true }, expected: { baseScore: 10, timeBonus: 5, totalScore: 15 } },
-        { input: { stars: 2, elapsedSeconds: 88, passed: true }, expected: { baseScore: 8, timeBonus: 5, totalScore: 13 } },
-        { input: { stars: 1, elapsedSeconds: 110, passed: true }, expected: { baseScore: 5, timeBonus: 0, totalScore: 5 } },
+        { input: { stars: 3, elapsedSeconds: 54, passed: true }, expected: { baseScore: 15, timeBonus: 15, totalScore: 30 } },
+        { input: { stars: 3, elapsedSeconds: 75, passed: true }, expected: { baseScore: 15, timeBonus: 10, totalScore: 25 } },
+        { input: { stars: 2, elapsedSeconds: 110, passed: true }, expected: { baseScore: 10, timeBonus: 5, totalScore: 15 } },
+        { input: { stars: 1, elapsedSeconds: 150, passed: true }, expected: { baseScore: 5, timeBonus: 0, totalScore: 5 } },
         { input: { stars: 0, elapsedSeconds: 40, passed: false }, expected: { baseScore: 0, timeBonus: 0, totalScore: 0 } },
-        { input: { stars: 0, elapsedSeconds: 120, passed: false }, expected: { baseScore: 0, timeBonus: 0, totalScore: 0 } },
+        { input: { stars: 0, elapsedSeconds: 180, passed: false }, expected: { baseScore: 0, timeBonus: 0, totalScore: 0 } },
       ];
       const mismatches = examples
         .map((item) => ({ ...item, actual: calculateSoloLevelScore(item.input) }))
         .filter((item) => JSON.stringify(item.actual) !== JSON.stringify(item.expected));
-      const attemptTimeout = calculateSoloAttemptResult({ mistakes: 0, completedCards: 9, elapsedSeconds: 120 });
-      const beginnerPass = calculateSoloAttemptResult({
-        mistakes: 1,
+      const attemptTimeout = calculateSoloAttemptResult({ mistakes: 0, completedCards: 6, elapsedSeconds: 180, requiredCards: 7 });
+      const normalPass = calculateSoloAttemptResult({
+        mistakes: 2,
         completedCards: 7,
         elapsedSeconds: 50,
         requiredCards: 7,
       });
-      const level11StillNeeds10 = calculateSoloAttemptResult({
+      const threeMistakesNormalized = calculateSoloAttemptResult({
+        mistakes: 3,
+        completedCards: 7,
+        elapsedSeconds: 75,
+        requiredCards: 7,
+      });
+      const specialStillNeeds10 = calculateSoloAttemptResult({
         mistakes: 1,
         completedCards: 7,
         elapsedSeconds: 50,
@@ -373,20 +379,21 @@ export const EXTRA_TESTS = [
         mismatches.length ||
         attemptTimeout.levelScore !== 0 ||
         attemptTimeout.failReason !== 'timeout' ||
-        !beginnerPass.passed ||
-        beginnerPass.stars !== 3 ||
-        level11StillNeeds10.passed ||
-        level11StillNeeds10.failReason !== 'incomplete'
+        !normalPass.passed ||
+        normalPass.stars !== 3 ||
+        threeMistakesNormalized.stars !== 2 ||
+        specialStillNeeds10.passed ||
+        specialStillNeeds10.failReason !== 'incomplete'
       ) {
         return fail('Solo score helper returned an unexpected score or timeout result.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'examples match product score table; timeout = 0; levels 1-10 can pass at 7 cards while level 11+ still needs 10',
-          actual: { mismatches, attemptTimeout, beginnerPass, level11StillNeeds10 },
+          expected: 'examples match product score table; timeout = 0; normal levels pass at 7 cards while special levels still need 10; 3 mistakes = 2 stars',
+          actual: { mismatches, attemptTimeout, normalPass, threeMistakesNormalized, specialStillNeeds10 },
         });
       }
-      return pass('Solo score helper matches the product score table and exact 60/90s boundaries.', {
+      return pass('Solo score helper matches the product score table and exact 60/90/120s boundaries.', {
         verification: 'RUNTIME_VERIFIED',
         classification: 'EXECUTABLE_HELPER_PROOF',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -446,29 +453,32 @@ export const EXTRA_TESTS = [
     () => {
       const previous = {
         bestStars: 3,
-        bestScore: 15,
+        bestScore: 25,
         bestScoreStars: 3,
         bestTimeSeconds: 75,
         bestMistakes: 1,
+        soloRulesVersion: 2,
       };
       const worse = getBestSoloLevelResult(previous, calculateSoloAttemptResult({
-        mistakes: 6,
-        completedCards: 10,
-        elapsedSeconds: 110,
+        mistakes: 7,
+        completedCards: 7,
+        elapsedSeconds: 150,
+        requiredCards: 7,
       }));
       const better = getBestSoloLevelResult(previous, calculateSoloAttemptResult({
         mistakes: 0,
-        completedCards: 10,
+        completedCards: 7,
         elapsedSeconds: 54,
+        requiredCards: 7,
       }));
-      if (worse.bestStars !== 3 || worse.bestScore !== 15 || worse.scoreDelta !== 0 || better.bestStars !== 3 || better.bestScore !== 20 || better.bestTimeSeconds !== 54 || better.scoreDelta !== 5) {
+      if (worse.bestStars !== 3 || worse.bestScore !== 25 || worse.scoreDelta !== 0 || better.bestStars !== 3 || better.bestScore !== 30 || better.bestTimeSeconds !== 54 || better.scoreDelta !== 5) {
         return fail('Replay best-score preservation helper regressed.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
           expected: {
-            worseReplay: 'bestStars=3 and bestScore=15 remain',
-            betterReplay: 'bestScore=20, bestTimeSeconds=54, scoreDelta=5',
+            worseReplay: 'bestStars=3 and bestScore=25 remain',
+            betterReplay: 'bestScore=30, bestTimeSeconds=54, scoreDelta=5',
           },
           actual: { worse, better },
         });
@@ -482,38 +492,41 @@ export const EXTRA_TESTS = [
     { actionType: ACTION_TYPES.CODE_FIX }),
 
   makeCase('solo_progress_health', 'solo_replay_score_delta_only',
-    'Replay score delta only: improving 13 → 18 adds +5; replaying 18 → 10 adds +0',
+    'Replay score delta only: improving 15 → 25 adds +10; replaying 25 → 5 adds +0',
     () => {
-      const previous13 = {
+      const previous15 = {
         bestStars: 2,
-        bestScore: 13,
+        bestScore: 15,
         bestScoreStars: 2,
-        bestTimeSeconds: 88,
+        bestTimeSeconds: 110,
         bestMistakes: 2,
+        soloRulesVersion: 2,
       };
-      const replay18 = getBestSoloLevelResult(previous13, calculateSoloAttemptResult({
-        mistakes: 2,
-        completedCards: 10,
-        elapsedSeconds: 54,
-      }));
-      const previous18 = replay18.updatedBestLevelResult;
-      const replay10 = getBestSoloLevelResult(previous18, calculateSoloAttemptResult({
+      const replay25 = getBestSoloLevelResult(previous15, calculateSoloAttemptResult({
         mistakes: 1,
-        completedCards: 10,
-        elapsedSeconds: 100,
+        completedCards: 7,
+        elapsedSeconds: 75,
+        requiredCards: 7,
+      }));
+      const previous25 = replay25.updatedBestLevelResult;
+      const replay5 = getBestSoloLevelResult(previous25, calculateSoloAttemptResult({
+        mistakes: 8,
+        completedCards: 7,
+        elapsedSeconds: 150,
+        requiredCards: 7,
       }));
 
-      const beforeTotal = summarizeSoloProgress({ currentLevel: 4, levels: { 3: previous13 } }, 20).totalSoloScore;
-      const afterImproveTotal = summarizeSoloProgress({ currentLevel: 4, levels: { 3: replay18.updatedBestLevelResult } }, 20).totalSoloScore;
-      const afterWorseTotal = summarizeSoloProgress({ currentLevel: 4, levels: { 3: replay10.updatedBestLevelResult } }, 20).totalSoloScore;
+      const beforeTotal = summarizeSoloProgress({ currentLevel: 4, levels: { 3: previous15 } }, 20).totalSoloScore;
+      const afterImproveTotal = summarizeSoloProgress({ currentLevel: 4, levels: { 3: replay25.updatedBestLevelResult } }, 20).totalSoloScore;
+      const afterWorseTotal = summarizeSoloProgress({ currentLevel: 4, levels: { 3: replay5.updatedBestLevelResult } }, 20).totalSoloScore;
 
-      if (replay18.scoreDelta !== 5 || afterImproveTotal - beforeTotal !== 5 || replay10.scoreDelta !== 0 || afterWorseTotal !== afterImproveTotal) {
+      if (replay25.scoreDelta !== 10 || afterImproveTotal - beforeTotal !== 10 || replay5.scoreDelta !== 0 || afterWorseTotal !== afterImproveTotal) {
         return fail('Replay delta-only scoring regressed.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: '13→18 delta +5; 18→10 delta +0; total score follows only bestScore difference',
-          actual: { replay18, replay10, beforeTotal, afterImproveTotal, afterWorseTotal },
+          expected: '15→25 delta +10; 25→5 delta +0; total score follows only bestScore difference',
+          actual: { replay25, replay5, beforeTotal, afterImproveTotal, afterWorseTotal },
         });
       }
       return pass('Replay scoring only applies the bestScore difference and never adds the full replay attempt twice.', {

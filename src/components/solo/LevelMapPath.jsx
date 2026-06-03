@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Star } from 'lucide-react';
+import { isSoloSpecialLevel } from '@/lib/soloLevels';
 
 /**
  * Scrollable Solo "Seviye" path.
@@ -261,17 +262,24 @@ function SmallSeviyeNode({ level, onSelect }) {
   const { levelNumber, status, stars } = level;
   const isLocked = status === 'locked';
   const isCompleted = status === 'completed';
+  const isSpecial = Boolean(level.isSpecial ?? isSoloSpecialLevel(levelNumber));
 
   // Visual treatment per state.
   //   - completed → faint gold ring + white number
   //   - locked    → very dim slate ring + dim number, visually inactive
   //   - current   → handled by the hero node, not this component
-  const ringShadow = isCompleted
-    ? 'inset 0 0 0 1.5px rgba(250,204,21,0.55), 0 0 8px rgba(250,204,21,0.18)'
-    : isLocked
-      ? 'inset 0 0 0 1.5px rgba(148,170,210,0.30)'
-      : 'inset 0 0 0 1.5px rgba(148,170,210,0.55)';
-  const numberColor = isLocked ? 'rgba(226,232,240,0.42)' : '#f1f5ff';
+  const ringShadow = isSpecial
+    ? isCompleted
+      ? 'inset 0 0 0 2px rgba(34,211,238,0.72), 0 0 12px rgba(34,211,238,0.28), 0 0 18px rgba(250,204,21,0.16)'
+      : isLocked
+        ? 'inset 0 0 0 1.5px rgba(34,211,238,0.42), 0 0 10px rgba(34,211,238,0.12)'
+        : 'inset 0 0 0 2px rgba(34,211,238,0.62), 0 0 14px rgba(34,211,238,0.22)'
+    : isCompleted
+      ? 'inset 0 0 0 1.5px rgba(250,204,21,0.55), 0 0 8px rgba(250,204,21,0.18)'
+      : isLocked
+        ? 'inset 0 0 0 1.5px rgba(148,170,210,0.30)'
+        : 'inset 0 0 0 1.5px rgba(148,170,210,0.55)';
+  const numberColor = isLocked ? 'rgba(226,232,240,0.42)' : isSpecial ? '#dffcff' : '#f1f5ff';
 
   return (
     <motion.button
@@ -291,13 +299,28 @@ function SmallSeviyeNode({ level, onSelect }) {
           width: `${NODE_SIZE}px`,
           height: `${NODE_SIZE}px`,
           fontSize: '15px',
-          background: 'rgba(12,22,48,0.85)',
+          background: isSpecial
+            ? 'radial-gradient(circle at 35% 28%, rgba(34,211,238,0.28), rgba(12,22,48,0.9) 66%)'
+            : 'rgba(12,22,48,0.85)',
           color: numberColor,
           boxShadow: ringShadow,
         }}
       >
         <span>{levelNumber}</span>
       </div>
+
+      {isSpecial && (
+        <span
+          className="mt-1 rounded-full px-1.5 py-0.5 font-inter text-[7px] font-black uppercase tracking-[0.14em]"
+          style={{
+            color: isLocked ? 'rgba(125,211,252,0.46)' : '#7dd3fc',
+            background: 'rgba(8,18,42,0.9)',
+            boxShadow: 'inset 0 0 0 1px rgba(125,211,252,0.28)',
+          }}
+        >
+          Özel
+        </span>
+      )}
 
       {/* Stars below completed nodes (always visible — small, no clutter) */}
       {isCompleted && (
@@ -336,27 +359,35 @@ function CurrentSeviyeNode({ level, onSelect, laneSide }) {
   // anchored to the node's left edge via CSS `right: 100%`.
   const pillAnchor = laneSide === 'left' ? 'left' : 'right';
   const pillAlignItems = laneSide === 'left' ? 'items-start' : 'items-end';
+  const isSpecial = Boolean(level.isSpecial ?? isSoloSpecialLevel(level.levelNumber));
+  const glowFrames = isSpecial
+    ? [
+      '0 0 0 4px rgba(34,211,238,0.22), 0 0 26px rgba(34,211,238,0.55), 0 0 38px rgba(250,204,21,0.20), inset 0 2px 0 rgba(255,255,255,0.55), inset 0 -8px 10px rgba(8,80,120,0.42)',
+      '0 0 0 6px rgba(34,211,238,0.32), 0 0 44px rgba(34,211,238,0.82), 0 0 54px rgba(250,204,21,0.28), inset 0 2px 0 rgba(255,255,255,0.55), inset 0 -8px 10px rgba(8,80,120,0.42)',
+      '0 0 0 4px rgba(34,211,238,0.22), 0 0 26px rgba(34,211,238,0.55), 0 0 38px rgba(250,204,21,0.20), inset 0 2px 0 rgba(255,255,255,0.55), inset 0 -8px 10px rgba(8,80,120,0.42)',
+    ]
+    : [
+      '0 0 0 4px rgba(250,204,21,0.18), 0 0 24px rgba(250,204,21,0.55), inset 0 2px 0 rgba(255,255,255,0.55), inset 0 -8px 10px rgba(140,80,8,0.5)',
+      '0 0 0 6px rgba(250,204,21,0.28), 0 0 40px rgba(250,204,21,0.85), inset 0 2px 0 rgba(255,255,255,0.55), inset 0 -8px 10px rgba(140,80,8,0.5)',
+      '0 0 0 4px rgba(250,204,21,0.18), 0 0 24px rgba(250,204,21,0.55), inset 0 2px 0 rgba(255,255,255,0.55), inset 0 -8px 10px rgba(140,80,8,0.5)',
+    ];
   return (
     <div className="relative flex items-center" style={{ height: `${HERO_NODE_SIZE}px` }}>
       <motion.button
         type="button"
         onClick={onSelect}
         whileTap={{ scale: 0.96 }}
-        animate={{
-          boxShadow: [
-            '0 0 0 4px rgba(250,204,21,0.18), 0 0 24px rgba(250,204,21,0.55), inset 0 2px 0 rgba(255,255,255,0.55), inset 0 -8px 10px rgba(140,80,8,0.5)',
-            '0 0 0 6px rgba(250,204,21,0.28), 0 0 40px rgba(250,204,21,0.85), inset 0 2px 0 rgba(255,255,255,0.55), inset 0 -8px 10px rgba(140,80,8,0.5)',
-            '0 0 0 4px rgba(250,204,21,0.18), 0 0 24px rgba(250,204,21,0.55), inset 0 2px 0 rgba(255,255,255,0.55), inset 0 -8px 10px rgba(140,80,8,0.5)',
-          ],
-        }}
+        animate={{ boxShadow: glowFrames }}
         transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
         className="relative flex items-center justify-center rounded-full font-bangers"
         style={{
           width: `${HERO_NODE_SIZE}px`,
           height: `${HERO_NODE_SIZE}px`,
           fontSize: '26px',
-          background: 'radial-gradient(circle at 35% 28%, #ffe066, #b97a06 75%)',
-          color: '#231405',
+          background: isSpecial
+            ? 'radial-gradient(circle at 35% 28%, #dffcff, #22d3ee 45%, #0f4c81 82%)'
+            : 'radial-gradient(circle at 35% 28%, #ffe066, #b97a06 75%)',
+          color: isSpecial ? '#031525' : '#231405',
           touchAction: 'manipulation',
         }}
         aria-label={`Sıradaki ${level.levelNumber}. Seviye — Oyna`}
@@ -384,7 +415,7 @@ function CurrentSeviyeNode({ level, onSelect, laneSide }) {
           className="font-inter text-[9px] font-black uppercase tracking-[0.22em]"
           style={{ color: 'rgba(250,204,21,0.85)' }}
         >
-          Sıradaki
+          {isSpecial ? 'Özel Seviye' : 'Sıradaki'}
         </span>
         <span
           className="font-inter text-[13px] font-black tracking-[0.06em]"

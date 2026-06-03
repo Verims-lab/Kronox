@@ -2,7 +2,7 @@
 //
 // SCOPE
 //   Locks in the controlled Solo question selection engine + its
-//   product contracts: deck size 18, unique question ids, unique
+//   product contracts: level-aware deck size, unique question ids, unique
 //   answer/years, active-only filtering, clean failure on insufficient
 //   unique years, replay produces a fresh deck.
 //
@@ -21,9 +21,13 @@ import {
 } from '@/lib/soloQuestionEngine';
 import {
   SOLO_CARDS_PER_LEVEL,
+  SOLO_SPECIAL_CARDS_PER_LEVEL,
   SOLO_MAX_MISTAKES,
+  SOLO_LEVEL_TIME_SECONDS,
+  getSoloDeckSizeForLevel,
   getSoloCardsRequiredForLevel,
   getSoloTimelineWinCardCountForLevel,
+  isSoloSpecialLevel,
 } from '@/lib/soloLevels';
 // Codex167 — Real existence + content proof for the Solo Question Engine
 // doc. Vite `?raw` cannot reach outside `src/` on this host, so the
@@ -96,29 +100,31 @@ export const EXTRA_SUITES = [
 ];
 
 export const EXTRA_TESTS = [
-  /* 1. solo_attempt_deck_size_is_18 */
+  /* 1. solo_attempt_deck_size_is_level_aware */
   makeCase(
-    'solo_attempt_deck_size_is_18',
-    'Engine selects exactly 18 questions per Solo attempt deck',
+    'solo_attempt_deck_size_is_level_aware',
+    'Engine selects 16 questions for normal Solo levels and 19 for special levels',
     () => {
       const pool = buildSyntheticPool(60);
-      const res = buildSoloAttemptDeck({ pool });
-      if (!res.ok) return fail(`Engine failed on a 60-row unique-year pool: ${res.reason}`, {
+      const normal = buildSoloAttemptDeck({ pool, levelNumber: 1 });
+      const special = buildSoloAttemptDeck({ pool, levelNumber: 10 });
+      if (!normal.ok || !special.ok) return fail('Engine failed on a 60-row unique-year pool.', {
         verification: 'RUNTIME_VERIFIED',
         classification: 'REAL_PRODUCT_RISK',
-        expected: 'ok=true, deck.length=18',
-        actual: res,
+        expected: 'normal ok=true with 16; special ok=true with 19',
+        actual: { normal, special },
         actionType: ACTION_TYPES.CODE_FIX,
       });
-      if (res.deck.length !== 18) return fail(`Deck size ${res.deck.length} ≠ 18.`, {
+      if (normal.deck.length !== 16 || special.deck.length !== 19) return fail('Solo deck size helper drifted.', {
         verification: 'RUNTIME_VERIFIED',
         classification: 'REAL_PRODUCT_RISK',
-        expected: 18, actual: res.deck.length,
+        expected: { normal: 16, special: 19 },
+        actual: { normal: normal.deck.length, special: special.deck.length },
         actionType: ACTION_TYPES.CODE_FIX,
       });
-      return pass('Engine produces exactly 18 questions.', {
+      return pass('Engine produces 16-card normal decks and 19-card special decks.', {
         verification: 'RUNTIME_VERIFIED', classification: 'RUNTIME_VERIFIED',
-        actual: { deckSize: res.deck.length },
+        actual: { normal: normal.deck.length, special: special.deck.length },
       });
     },
   ),
@@ -126,54 +132,66 @@ export const EXTRA_TESTS = [
   /* 2. solo_attempt_card_target_is_level_aware */
   makeCase(
     'solo_attempt_card_target_is_level_aware',
-    'Beginner Solo card target is level-aware; level 11+ remains 10 cards',
+    'Normal Solo card target is 7; special levels every 5 from 10 require 10 cards',
     () => {
-      if (SOLO_CARDS_PER_LEVEL !== 10) return fail('SOLO_CARDS_PER_LEVEL drifted.', {
+      if (SOLO_CARDS_PER_LEVEL !== 7 || SOLO_SPECIAL_CARDS_PER_LEVEL !== 10) return fail('Solo card constants drifted.', {
         verification: 'RUNTIME_VERIFIED',
         classification: 'REAL_PRODUCT_RISK',
-        expected: 10, actual: SOLO_CARDS_PER_LEVEL,
+        expected: { normal: 7, special: 10 },
+        actual: { SOLO_CARDS_PER_LEVEL, SOLO_SPECIAL_CARDS_PER_LEVEL },
         actionType: ACTION_TYPES.CODE_FIX,
       });
       const actual = {
         level1Cards: getSoloCardsRequiredForLevel(1),
         level10Cards: getSoloCardsRequiredForLevel(10),
         level11Cards: getSoloCardsRequiredForLevel(11),
+        level15Cards: getSoloCardsRequiredForLevel(15),
         level1TimelineTarget: getSoloTimelineWinCardCountForLevel(1),
+        level10TimelineTarget: getSoloTimelineWinCardCountForLevel(10),
         level11TimelineTarget: getSoloTimelineWinCardCountForLevel(11),
+        normalDeckSize: getSoloDeckSizeForLevel(1),
+        specialDeckSize: getSoloDeckSizeForLevel(10),
+        specialLevels: [9, 10, 11, 15].map((n) => [n, isSoloSpecialLevel(n)]),
       };
       if (
         actual.level1Cards !== 7 ||
-        actual.level10Cards !== 7 ||
-        actual.level11Cards !== 10 ||
+        actual.level10Cards !== 10 ||
+        actual.level11Cards !== 7 ||
+        actual.level15Cards !== 10 ||
         actual.level1TimelineTarget !== 9 ||
-        actual.level11TimelineTarget !== 12
+        actual.level10TimelineTarget !== 12 ||
+        actual.level11TimelineTarget !== 9 ||
+        actual.normalDeckSize !== 16 ||
+        actual.specialDeckSize !== 19 ||
+        JSON.stringify(actual.specialLevels) !== JSON.stringify([[9, false], [10, true], [11, false], [15, true]])
       ) {
         return fail('Solo card target helper drifted.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
-          expected: 'levels 1-10 require 7 placed cards; level 11+ requires 10 placed cards',
+          expected: 'normal levels require 7 placed cards; levels 10,15,20... require 10; deck sizes 16/19',
           actual,
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Levels 1-10 require 7 placed cards; level 11+ keeps the 10-card default.', {
+      return pass('Normal/special Solo card targets and deck sizes are level-aware.', {
         verification: 'RUNTIME_VERIFIED', classification: 'RUNTIME_VERIFIED', actual,
       });
     },
   ),
 
-  /* 3. solo_attempt_allows_max_8_mistakes */
+  /* 3. solo_attempt_fails_on_10th_mistake */
   makeCase(
-    'solo_attempt_allows_max_8_mistakes',
-    'Fail-on-mistakes threshold stays at 8 (SOLO_MAX_MISTAKES)',
+    'solo_attempt_fails_on_10th_mistake',
+    'Fail-on-mistakes threshold is the 10th mistake (SOLO_MAX_MISTAKES)',
     () => {
-      if (SOLO_MAX_MISTAKES !== 8) return fail('SOLO_MAX_MISTAKES drifted.', {
+      if (SOLO_MAX_MISTAKES !== 10 || SOLO_LEVEL_TIME_SECONDS !== 180) return fail('Solo timer/mistake constants drifted.', {
         verification: 'RUNTIME_VERIFIED',
         classification: 'REAL_PRODUCT_RISK',
-        expected: 8, actual: SOLO_MAX_MISTAKES,
+        expected: { mistakes: 10, seconds: 180 },
+        actual: { SOLO_MAX_MISTAKES, SOLO_LEVEL_TIME_SECONDS },
         actionType: ACTION_TYPES.CODE_FIX,
       });
-      return pass('Mistake limit stays at 8.', {
+      return pass('Solo v2 fails at 10 mistakes and uses a 180-second timer.', {
         verification: 'RUNTIME_VERIFIED', classification: 'RUNTIME_VERIFIED',
       });
     },
@@ -197,7 +215,7 @@ export const EXTRA_TESTS = [
         expected: ids.length, actual: unique.size,
         actionType: ACTION_TYPES.CODE_FIX,
       });
-      return pass('All 18 question ids are unique.', {
+      return pass('All deck question ids are unique.', {
         verification: 'RUNTIME_VERIFIED', classification: 'RUNTIME_VERIFIED',
       });
     },
@@ -227,7 +245,7 @@ export const EXTRA_TESTS = [
         expected: years.length, actual: unique.size, years,
         actionType: ACTION_TYPES.CODE_FIX,
       });
-      return pass('All 18 years are unique.', {
+      return pass('All deck years are unique.', {
         verification: 'RUNTIME_VERIFIED', classification: 'RUNTIME_VERIFIED',
       });
     },
@@ -346,11 +364,11 @@ export const EXTRA_TESTS = [
     'solo_question_engine_fallback_never_relaxes_unique_year',
     'Fallback may relax category balance / recently-seen but must NEVER allow duplicate years',
     () => {
-      // Pool with only 17 distinct years — engine MUST fail clean,
+      // Pool with only 15 distinct years — normal 16-card deck MUST fail clean,
       // not silently produce a deck with duplicate years.
-      const pool = buildSyntheticPool(17);
+      const pool = buildSyntheticPool(15);
       // Add many duplicates of an existing year so the only way to
-      // reach 18 is to accept a duplicate year.
+      // reach 16 is to accept a duplicate year.
       for (let i = 0; i < 20; i += 1) {
         pool.push({
           id: 5000 + i, question: `extra ${i}`, answer: '1900', year: 1900,
@@ -376,7 +394,7 @@ export const EXTRA_TESTS = [
         expected: 'insufficient_unique_years', actual: res.reason,
         actionType: ACTION_TYPES.CODE_FIX,
       });
-      return pass('Engine fails clean when 18 unique years are impossible.', {
+      return pass('Engine fails clean when the required unique years are impossible.', {
         verification: 'RUNTIME_VERIFIED', classification: 'RUNTIME_VERIFIED',
       });
     },
@@ -408,53 +426,104 @@ export const EXTRA_TESTS = [
   /* 12. beginner_year_spacing_contract */
   makeCase(
     'beginner_year_spacing_contract',
-    'Levels 1-10 have soft beginner year-spacing targets; 11+ keeps normal behavior',
+    'The first 5 Solo attempt questions have a hard 5-year spacing contract',
     () => {
       const l1 = getBeginnerYearSpacingForLevel(1);
-      const l5 = getBeginnerYearSpacingForLevel(5);
-      const l9 = getBeginnerYearSpacingForLevel(9);
+      const l10 = getBeginnerYearSpacingForLevel(10);
       const l11 = getBeginnerYearSpacingForLevel(11);
-      const ok = l1?.idealGap === 10 && l1?.minGap === 8
-        && l5?.idealGap === 7 && l5?.minGap === 5
-        && l9?.idealGap === 5 && l9?.minGap === 3
-        && l11 === null;
+      const ok = l1?.targetCount === 5 && l1?.minGap === 5 && l1?.hard === true
+        && l10?.targetCount === 5 && l10?.minGap === 5 && l10?.hard === true
+        && l11?.targetCount === 5 && l11?.minGap === 5 && l11?.hard === true;
       if (!ok) return fail('Beginner spacing levels drifted.', {
         verification: 'RUNTIME_VERIFIED',
         classification: 'REAL_PRODUCT_RISK',
-        expected: '1-3: 8-10, 4-7: 5-7, 8-10: 3-5, 11+: null',
-        actual: { l1, l5, l9, l11 },
+        expected: 'all Solo levels: first 5 ordered years min gap 5, hard=true',
+        actual: { l1, l10, l11 },
         actionType: ACTION_TYPES.CODE_FIX,
       });
-      return pass('Beginner spacing targets are level-gated and level 11+ stays normal.', {
+      return pass('First-five spacing target is hard and applies to new Solo attempts.', {
         verification: 'RUNTIME_VERIFIED', classification: 'RUNTIME_VERIFIED',
       });
     },
   ),
 
-  /* 13. beginner_year_spacing_orders_first_10_cards */
+  /* 13. solo_first_five_year_spacing_orders_first_5_cards */
   makeCase(
-    'beginner_year_spacing_orders_first_10_cards',
-    'Level 1 decks prefer clearly spaced answer years in the first 10 playable cards',
+    'solo_first_five_year_spacing_orders_first_5_cards',
+    'Solo decks order the first 5 playable cards at least 5 years apart',
     () => {
-      const pool = buildSyntheticPool(40, (i) => ({ year: 1900 + i * 10, answer: String(1900 + i * 10) }));
+      const pool = buildSyntheticPool(40, (i) => ({ year: 1900 + i * 5, answer: String(1900 + i * 5) }));
       const res = buildSoloAttemptDeck({ pool, levelNumber: 1, random: makeSeededRandom(42) });
       if (!res.ok) return fail(`Engine failed unexpectedly: ${res.reason}`, {
         verification: 'RUNTIME_VERIFIED', classification: 'REAL_PRODUCT_RISK',
         actionType: ACTION_TYPES.CODE_FIX,
       });
-      const firstTenYears = res.deck.slice(0, 10).map((q) => q.year);
-      const gap = minAdjacentGap(firstTenYears);
-      if (gap < 8) return fail('Level 1 first ten cards are not beginner-spaced.', {
+      const firstFiveYears = res.deck.slice(0, 5).map((q) => q.year);
+      const gap = minAdjacentGap(firstFiveYears);
+      if (gap < 5) return fail('First five cards are not spaced by at least 5 years.', {
         verification: 'RUNTIME_VERIFIED',
         classification: 'REAL_PRODUCT_RISK',
-        expected: 'minimum adjacent gap >= 8',
-        actual: { firstTenYears, gap },
+        expected: 'minimum adjacent gap >= 5',
+        actual: { firstFiveYears, gap },
         actionType: ACTION_TYPES.CODE_FIX,
       });
-      return pass('Level 1 deck keeps the first ten answer years visibly spaced while preserving 18 unique years.', {
+      return pass('Deck keeps the first five answer years at least 5 years apart while preserving unique years.', {
         verification: 'RUNTIME_VERIFIED',
         classification: 'RUNTIME_VERIFIED',
-        actual: { firstTenYears, gap },
+        actual: { firstFiveYears, gap },
+      });
+    },
+  ),
+
+  makeCase(
+    'solo_first_five_spacing_clean_fail_when_impossible',
+    'Solo engine clean-fails when no valid first-five 5-year spacing deck exists',
+    () => {
+      const clusteredPool = buildSyntheticPool(16, (i) => ({
+        year: 1900 + i,
+        answer: String(1900 + i),
+      }));
+      const res = buildSoloAttemptDeck({ pool: clusteredPool, levelNumber: 1, random: makeSeededRandom(7) });
+      if (res.ok || res.reason !== 'insufficient_first_five_spacing') {
+        return fail('Clustered pool did not clean-fail on first-five spacing.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'ok=false, reason=insufficient_first_five_spacing',
+          actual: res,
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('First-five spacing failure is explicit and user-safe.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+      });
+    },
+  ),
+
+  makeCase(
+    'solo_deck_balance_metadata_contract',
+    'Solo deck reports category/subcategory balance and era spread metadata',
+    () => {
+      const pool = buildSyntheticPool(60, (i) => ({
+        sub_category: `sub_${i % 5}`,
+        year: 1900 + i * 5,
+        answer: String(1900 + i * 5),
+      }));
+      const res = buildSoloAttemptDeck({ pool, levelNumber: 1, random: makeSeededRandom(11) });
+      const meta = res.ok ? res.meta : null;
+      if (!res.ok || !meta?.categoryBalance || !meta?.subcategoryBalance || meta.eraSpread !== true) {
+        return fail('Deck balance metadata contract drifted.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'categoryBalance + subcategoryBalance + eraSpread=true',
+          actual: res,
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Category/subcategory balance and era spread contracts are represented by the engine.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+        actual: meta,
       });
     },
   ),
@@ -509,10 +578,14 @@ export const EXTRA_TESTS = [
       // checks are case-insensitive on the lowercased body.
       const lower = body.toLowerCase();
       const requiredPhrases = [
-        '18 questions',
+        '16 questions',
+        '19 questions',
         '7 correct',
         '10 correct',
-        '8 mistakes',
+        '10 mistakes',
+        '180 seconds',
+        'first 5',
+        'minimum 5-year',
         'unique year',
         'active question',
         'active categor',

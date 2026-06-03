@@ -1,5 +1,15 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex180 — Solo v2 rules update:
+//   • Normal Solo levels now require 7 correct cards, use 16-question decks,
+//     and fail on the 10th mistake or 180-second timeout.
+//   • Special Solo levels start at level 10 and repeat every 5 levels; they
+//     require 10 correct cards and use 19-question decks.
+//   • Solo score table is now 3⭐=15 / 2⭐=10 / 1⭐=5 plus 15/10/5 time
+//     bonuses at <=60/<=90/<=120 seconds.
+//   • First 5 ordered Solo questions must be at least 5 years apart; old
+//     stored completed results are not retroactively recalculated.
+//
 // Codex179 — Admin reset any user progress by email:
 //   • Adds an admin-only Settings maintenance tool with preview, exact-email
 //     confirmation, Hard zero reset, and New player reset modes.
@@ -10,14 +20,12 @@ import React, { useEffect, useState } from 'react';
 //     so reset server state wins after target refresh/reopen.
 //
 // Codex178 — Beginner Solo completion target:
-//   • Solo levels 1-10 now require 7 placed cards.
-//   • Solo level 11+ keeps the default 10 placed-card target.
+//   • Superseded by Codex180 normal/special Solo targets.
 //   • Result popup, progress/unlock persistence, and the top progress counter
 //     use the same level-aware target; Online mode is unchanged.
 //
 // Codex177 — Beginner Solo assist + admin-only test reset support:
-//   • Solo levels 1-10 keep the 18-question/18-unique-year deck but prefer
-//     clearer first-10 answer-year gaps for early-game readability.
+//   • Superseded by Codex180 first-five 5-year spacing and 16/19 deck sizes.
 //   • Solo levels 1-3 show a visual-only correct-slot placement hint while
 //     dragging; hit-testing, drag/drop, scoring, and Online mode are unchanged.
 //   • Adds an admin + env-allowlisted test-account progress reset function
@@ -390,7 +398,7 @@ import React, { useEffect, useState } from 'react';
 // every 5 levels (4 zones cover the 20-level catalog). BottomNav stays
 // visible on /solo. New Health suite `solo_adventure_map` locks the
 // scrollable-map + reversed-render + auto-scroll + zone-banner contracts.
-// Solo gameplay rules (level-aware card target / 120s / 8 mistakes / star ladder /
+// Solo gameplay rules (normal/special card target / 180s / 10th-mistake fail / star ladder /
 // replay rules / Profile sync) and Health Solo Progress suite — untouched.
 //
 // Previous note: Codex107 — Build marker format/consistency fix. The Health
@@ -541,15 +549,15 @@ import React, { useEffect, useState } from 'react';
 //   New cases live in components/game/simulationPanelSoloProgressCases.js
 //   because simulationPanelExtraCases.js hit the 2000-line edit cap.
 //   SimulationPanel.jsx merges both sets without altering existing ids.
-// Solo rules unchanged except card target is now level-aware: 1-10 → 7,
-// 11+ → 10. Timer/star ladder remain 120s / 0-1=3⭐ / 2-4=2⭐ / 5-7=1⭐ /
-// 8+ fail / timeout fail / replay never reduces bestStars / pass unlocks
+// Solo rules now use v2: normal → 7, special levels 10/15/20... → 10.
+// Timer/star ladder: 180s / 0-2=3⭐ / 3-6=2⭐ / 7-9=1⭐ /
+// 10th mistake fail / timeout fail / replay never reduces bestStars / pass unlocks
 // next level / fail does not unlock.
 // Online flow, lobby, invites, notifications, matchmaking, tutorial
 // profile, drag/drop, Timeline, QuestionCard — DOKUNULMADI.
 //
 // Previous note: Codex106 — readSoloProgress "more advanced of two" +
-//   visible 120s SoloLevelTimer (no audio cue).
+//   visible SoloLevelTimer (now 180s in Codex180).
 // Previous note: Codex106 — Solo level completion popup polish.
 // Previous note: Codex106 — Solo Level Path (vertical 8-row path).
 // Codex126 — Solo map focus Health regression fix (3 FAIL → 0).
@@ -697,7 +705,7 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
-const BUILD_MARKER = 'Codex179';
+const BUILD_MARKER = 'Codex180';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

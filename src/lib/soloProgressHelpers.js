@@ -32,25 +32,39 @@
 //     → getCurrentPlayableLevel)
 
 // ─── Solo attempt scoring constants ───────────────────────────────────
-export const SOLO_SCORE_CARD_TARGET = 10;
-export const SOLO_BEGINNER_CARD_TARGET = 7;
-export const SOLO_BEGINNER_CARD_TARGET_MAX_LEVEL = 10;
-export const SOLO_SCORE_TIME_LIMIT_SECONDS = 120;
-export const SOLO_SCORE_MAX_MISTAKES = 8;
+export const SOLO_RULES_VERSION = 2;
+export const SOLO_NORMAL_CARD_TARGET = 7;
+export const SOLO_SPECIAL_CARD_TARGET = 10;
+export const SOLO_SPECIAL_START_LEVEL = 10;
+export const SOLO_SPECIAL_LEVEL_INTERVAL = 5;
+export const SOLO_SCORE_CARD_TARGET = SOLO_SPECIAL_CARD_TARGET;
+export const SOLO_BEGINNER_CARD_TARGET = SOLO_NORMAL_CARD_TARGET;
+export const SOLO_BEGINNER_CARD_TARGET_MAX_LEVEL = 0;
+export const SOLO_SCORE_TIME_LIMIT_SECONDS = 180;
+export const SOLO_SCORE_MAX_MISTAKES = 10;
+export const SOLO_MAX_NON_FAILING_MISTAKES = SOLO_SCORE_MAX_MISTAKES - 1;
+export const SOLO_NORMAL_DECK_SIZE = SOLO_NORMAL_CARD_TARGET + SOLO_MAX_NON_FAILING_MISTAKES;
+export const SOLO_SPECIAL_DECK_SIZE = SOLO_SPECIAL_CARD_TARGET + SOLO_MAX_NON_FAILING_MISTAKES;
+
+export function isSoloSpecialLevel(levelNumber) {
+  const level = Math.trunc(Number(levelNumber) || 0);
+  return level >= SOLO_SPECIAL_START_LEVEL
+    && (level - SOLO_SPECIAL_START_LEVEL) % SOLO_SPECIAL_LEVEL_INTERVAL === 0;
+}
 
 export function getSoloCardsRequiredForLevel(levelNumber) {
-  const level = Math.trunc(Number(levelNumber) || 0);
-  if (level >= 1 && level <= SOLO_BEGINNER_CARD_TARGET_MAX_LEVEL) {
-    return SOLO_BEGINNER_CARD_TARGET;
-  }
-  return SOLO_SCORE_CARD_TARGET;
+  return isSoloSpecialLevel(levelNumber) ? SOLO_SPECIAL_CARD_TARGET : SOLO_NORMAL_CARD_TARGET;
+}
+
+export function getSoloAttemptDeckSizeForLevel(levelNumber) {
+  return getSoloCardsRequiredForLevel(levelNumber) + SOLO_MAX_NON_FAILING_MISTAKES;
 }
 
 export const SOLO_STAR_BASE_SCORES = Object.freeze({
   0: 0,
   1: 5,
-  2: 8,
-  3: 10,
+  2: 10,
+  3: 15,
 });
 
 export function calculateSoloStars(
@@ -75,22 +89,19 @@ export function calculateSoloStars(
   if (!completed) {
     return { stars: 0, passed: false, failReason: 'incomplete' };
   }
-  if (m <= 1) return { stars: 3, passed: true, failReason: null };
-  if (m <= 4) return { stars: 2, passed: true, failReason: null };
+  if (m <= 2) return { stars: 3, passed: true, failReason: null };
+  // Product requested 0-2 / 4-6 / 7-9; 3 mistakes is treated as 2 stars
+  // to avoid an undefined runtime state.
+  if (m <= 6) return { stars: 2, passed: true, failReason: null };
   return { stars: 1, passed: true, failReason: null };
 }
 
 export function calculateSoloTimeBonus(elapsedSeconds, passed) {
   if (!passed) return 0;
   const elapsed = Math.max(0, Number(elapsedSeconds) || 0);
-  // Codex136 — Align with docs/KRONOX_SCORING_RULES.md §2.4:
-  //   0–60 sec → +10  (60.0s INCLUSIVE)
-  //   61–90 sec → +5  (90.0s INCLUSIVE)
-  //   91+ sec  → +0
-  // Previously used `elapsed < 60`, so exactly 60.0s gave +5. Now 60.0
-  // gives +10 and 90.0 gives +5, matching the product table.
-  if (elapsed <= 60) return 10;
-  if (elapsed <= 90) return 5;
+  if (elapsed <= 60) return 15;
+  if (elapsed <= 90) return 10;
+  if (elapsed <= 120) return 5;
   return 0;
 }
 
@@ -134,6 +145,26 @@ export function calculateSoloAttemptResult({
     timeBonus: score.timeBonus,
     levelScore: score.totalScore,
     score: score.totalScore,
+    soloRulesVersion: SOLO_RULES_VERSION,
+  };
+}
+
+function calculateLegacySoloLevelScore({ stars, elapsedSeconds, passed }) {
+  const safeStars = Math.max(0, Math.min(3, Number(stars) || 0));
+  const didPass = Boolean(passed) && safeStars > 0;
+  const baseScores = { 0: 0, 1: 5, 2: 8, 3: 10 };
+  const elapsed = Math.max(0, Number(elapsedSeconds) || 0);
+  const timeBonus = didPass
+    ? elapsed <= 60
+      ? 10
+      : elapsed <= 90
+        ? 5
+        : 0
+    : 0;
+  return {
+    baseScore: didPass ? baseScores[safeStars] || 0 : 0,
+    timeBonus,
+    totalScore: (didPass ? baseScores[safeStars] || 0 : 0) + timeBonus,
   };
 }
 
@@ -142,7 +173,11 @@ export function calculateSoloLevelScoreFromBestResult(levelResult) {
   const passed = stars > 0;
   const hasReliableTime = Number.isFinite(Number(levelResult?.bestTimeSeconds));
   const elapsedSeconds = hasReliableTime ? Number(levelResult.bestTimeSeconds) : null;
-  const score = calculateSoloLevelScore({
+  const rulesVersion = Number(levelResult?.soloRulesVersion ?? levelResult?.rulesVersion ?? 1) || 1;
+  const scoreHelper = rulesVersion >= SOLO_RULES_VERSION
+    ? calculateSoloLevelScore
+    : calculateLegacySoloLevelScore;
+  const score = scoreHelper({
     stars,
     elapsedSeconds: elapsedSeconds ?? 0,
     passed,
@@ -171,13 +206,8 @@ function finiteNumber(value, fallback = null) {
 function derivePreviousScore(previous) {
   const stored = finiteNumber(previous?.bestScore, null);
   if (stored !== null) return stored;
-  const stars = Math.max(0, Math.min(3, Number(previous?.bestStars) || 0));
-  if (stars <= 0) return null;
-  return calculateSoloLevelScore({
-    stars,
-    elapsedSeconds: previous?.bestTimeSeconds,
-    passed: true,
-  }).totalScore;
+  const derived = calculateSoloLevelScoreFromBestResult(previous);
+  return derived.passed ? derived.totalScore : null;
 }
 
 function isAttemptBetterForScore(previous, attempt) {
@@ -213,11 +243,7 @@ export function getBestSoloLevelResult(previousBest, newAttempt) {
   const bestStars = Math.max(prevStars, attempt.stars);
   const replaceScoreRecord = isAttemptBetterForScore(prev, attempt);
   const previousScore = derivePreviousScore(prev);
-  const previousBreakdown = calculateSoloLevelScore({
-    stars: Math.max(0, Number(prev.bestScoreStars ?? prev.bestStars) || 0),
-    elapsedSeconds: prev.bestTimeSeconds,
-    passed: Math.max(0, Number(prev.bestScoreStars ?? prev.bestStars) || 0) > 0,
-  });
+  const previousBreakdown = calculateSoloLevelScoreFromBestResult(prev);
 
   const updatedBestLevelResult = {
     bestStars,
@@ -239,6 +265,9 @@ export function getBestSoloLevelResult(previousBest, newAttempt) {
     bestMistakes: replaceScoreRecord
       ? attempt.mistakes
       : prev.bestMistakes,
+    soloRulesVersion: replaceScoreRecord
+      ? (attempt.soloRulesVersion || SOLO_RULES_VERSION)
+      : (prev.soloRulesVersion || prev.rulesVersion || 1),
   };
   const previousBestScore = Math.max(0, previousScore || 0);
   const nextBestScore = Math.max(0, Number(updatedBestLevelResult.bestScore) || 0);
@@ -408,11 +437,9 @@ export function summarizeSoloProgress(progress, totalLevels) {
     }
 
     // Backward-compatible derivation for pre-score progress snapshots.
-    const derived = calculateSoloLevelScore({
-      stars,
-      elapsedSeconds: entry?.bestTimeSeconds,
-      passed: stars > 0,
-    });
+    // No soloRulesVersion means legacy scoring; new v2 attempts store
+    // bestScore directly and are never recalculated from old snapshots.
+    const derived = calculateSoloLevelScoreFromBestResult(entry);
     totalSoloScore += derived.totalScore;
   });
 

@@ -66,21 +66,26 @@ Checklist:
 
 Checklist:
 
-* Solo attempt starts with an 18-question deck.
-* The deck has 18 unique question IDs.
-* The deck has 18 unique years.
+* Normal Solo levels start with a 16-question deck.
+* Special Solo levels start with a 19-question deck.
+* The deck has unique question IDs.
+* The deck has unique years.
 * Passive-category questions are excluded.
 * Only active questions are used.
-* Levels 1-10 win after 7 correct placements.
-* Level 11+ wins after 10 correct placements.
-* Fail occurs at 8 mistakes.
-* Timeout fails the level.
+* Normal Solo levels win after 7 correct placements.
+* Special Solo levels start at level 10 and repeat every 5 levels.
+* Special Solo levels win after 10 correct placements.
+* Fail occurs on the 10th mistake.
+* Timeout at 180 seconds fails the level.
 * Replay creates a new deck.
 * Mid-game flow does not rerandomize questions.
 * Insufficient unique-year pool shows clean error.
+* First 5 ordered questions are at least 5 years apart.
+* Deck feels category/subcategory balanced where the pool allows.
+* Deck feels era/year balanced rather than clustered.
 * Levels 1-3 show beginner-friendly year spacing and a subtle correct-slot pulse while dragging.
-* Levels 4-10 keep beginner-friendly year spacing, but no placement pulse.
-* Level 11+ keeps the normal Solo selection behavior.
+* Level 4+ shows no placement pulse unless a future onboarding rule enables it.
+* Old completed Solo results are not retroactively recalculated.
 
 ---
 

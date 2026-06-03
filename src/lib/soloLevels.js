@@ -44,10 +44,15 @@ import {
   calculateSoloStars,
   backfillSoloScores,
   getBestSoloLevelResult,
+  getSoloAttemptDeckSizeForLevel,
   getSoloCardsRequiredForLevel,
   getEffectiveUnlockedLevel,
   getHighestCompletedLevel,
   getLevelStatus,
+  isSoloSpecialLevel,
+  SOLO_NORMAL_CARD_TARGET,
+  SOLO_SPECIAL_CARD_TARGET,
+  SOLO_RULES_VERSION,
   summarizeSoloProgress,
 } from './soloProgressHelpers';
 import { buildSoloLeaderboardPayload, publishSoloLeaderboardEntry } from './leaderboard';
@@ -57,13 +62,18 @@ const GUEST_STORAGE_KEY = `${STORAGE_KEY}:guest`;
 const LOCAL_MIRROR_VERSION = 2;
 
 // ─── Constants surfaced to the rest of the app ─────────────────────────
-export const SOLO_CARDS_PER_LEVEL = 10;
+export const SOLO_CARDS_PER_LEVEL = SOLO_NORMAL_CARD_TARGET;
+export const SOLO_SPECIAL_CARDS_PER_LEVEL = SOLO_SPECIAL_CARD_TARGET;
 export const SOLO_INITIAL_TIMELINE_CARDS = 2;
-export const SOLO_LEVEL_TIME_SECONDS = 120;
-export const SOLO_MAX_MISTAKES = 8; // 8+ → fail
+export const SOLO_LEVEL_TIME_SECONDS = 180;
+export const SOLO_MAX_MISTAKES = 10; // 10th mistake → fail
 
 export function getSoloTimelineWinCardCountForLevel(levelNumber) {
   return SOLO_INITIAL_TIMELINE_CARDS + getSoloCardsRequiredForLevel(levelNumber);
+}
+
+export function getSoloDeckSizeForLevel(levelNumber) {
+  return getSoloAttemptDeckSizeForLevel(levelNumber);
 }
 
 // Solo Level Path catalog. Extended to support a long progression journey
@@ -85,7 +95,7 @@ export function getSoloLevelCount() {
 // ─── Star calculation ──────────────────────────────────────────────────
 /**
  * Maps mistake count to stars. Matches the product brief:
- *   0–1 → 3 stars, 2–4 → 2 stars, 5–7 → 1 star, 8+ → 0 (fail).
+ *   0–2 → 3 stars, 3–6 → 2 stars, 7–9 → 1 star, 10+ → 0 (fail).
  * Also returns `passed` so the caller doesn't need to re-check.
  */
 export function computeLevelStars(mistakes, levelNumber = null) {
@@ -350,6 +360,7 @@ function mergeBetterResult(previous, fresh) {
   });
   const best = getBestSoloLevelResult(prev, {
     ...attempt,
+    soloRulesVersion: fresh.soloRulesVersion || attempt.soloRulesVersion || SOLO_RULES_VERSION,
     stars: typeof fresh.stars === 'number' ? fresh.stars : attempt.stars,
     passed: Boolean(fresh.passed),
     baseScore: typeof fresh.baseScore === 'number' ? fresh.baseScore : attempt.baseScore,
@@ -380,6 +391,7 @@ function mergeBetterResult(previous, fresh) {
     bestScoreTimeBonus: best.bestScoreTimeBonus,
     bestMistakes: best.bestMistakes,
     bestTimeSeconds: best.bestTimeSeconds,
+    soloRulesVersion: best.soloRulesVersion,
     attempts,
     completedAt: best.improvedStars ? now : prev.completedAt,
     lastAttemptAt: now,
@@ -467,6 +479,7 @@ export function getSoloLevels(progress) {
       bestScore: typeof entry?.bestScore === 'number' ? entry.bestScore : null,
       bestMistakes: typeof entry?.bestMistakes === 'number' ? entry.bestMistakes : null,
       bestTimeSeconds: typeof entry?.bestTimeSeconds === 'number' ? entry.bestTimeSeconds : null,
+      isSpecial: isSoloSpecialLevel(lvl.levelNumber),
       isPlayable: status !== 'locked',
     };
   });
@@ -483,12 +496,13 @@ export { getEffectiveUnlockedLevel, getHighestCompletedLevel } from './soloProgr
  * winCardCount) so question generation and game flow stay untouched.
  *
  * The `soloLevel` field is the new piece: Game.jsx reads it to enforce
- * the 120-second total timer and the 8-mistake fail rule. When absent
+ * the 180-second total timer and the 10th-mistake fail rule. When absent
  * (e.g. legacy paths), Game.jsx behaves exactly as before.
  */
 export function buildSoloGameConfigForLevel(level) {
   const levelNumber = level?.levelNumber || 1;
   const cardCount = getSoloCardsRequiredForLevel(levelNumber);
+  const deckSize = getSoloAttemptDeckSizeForLevel(levelNumber);
   return {
     playerNames: ['Sen'],
     category: 'karisik',
@@ -499,10 +513,17 @@ export function buildSoloGameConfigForLevel(level) {
     soloLevel: {
       levelNumber,
       cardCount,
+      deckSize,
+      isSpecial: isSoloSpecialLevel(levelNumber),
+      soloRulesVersion: SOLO_RULES_VERSION,
       totalTimeSeconds: SOLO_LEVEL_TIME_SECONDS,
       maxMistakes: SOLO_MAX_MISTAKES,
     },
   };
 }
 
-export { getSoloCardsRequiredForLevel } from './soloProgressHelpers';
+export {
+  getSoloAttemptDeckSizeForLevel,
+  getSoloCardsRequiredForLevel,
+  isSoloSpecialLevel,
+} from './soloProgressHelpers';

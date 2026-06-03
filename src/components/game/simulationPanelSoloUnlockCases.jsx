@@ -186,7 +186,7 @@ export const EXTRA_TESTS = [
         '1': { bestStars: 3 }, '2': { bestStars: 3 }, '3': { bestStars: 3 }, '4': { bestStars: 3 },
       } };
       const after = applyLevelAttempt(before, {
-        levelNumber: 5, stars: 0, mistakes: 8, timeSeconds: 120, passed: false,
+        levelNumber: 5, stars: 0, mistakes: 10, timeSeconds: 180, passed: false,
       });
       if (after.currentLevel !== 5) {
         return fail('Failing Level 5 changed the unlock frontier.', {

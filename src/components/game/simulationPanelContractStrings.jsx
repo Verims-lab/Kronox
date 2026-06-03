@@ -518,12 +518,18 @@ export const categoryEntitySchema = {
 
 export const getSoloLeaderboardFnSource = `
   // Public contract of functions/getSoloLeaderboard.js — mirrored.
-  // Codex139: backend projection aligns with canonical Solo scoring:
-  // 60.0 seconds belongs to the +10 time bonus tier, 90.0 to +5.
-  function timeBonus(bestTimeSeconds, passed) {
+  // Backend projection aligns with canonical Solo scoring and preserves
+  // legacy entries unless soloRulesVersion >= 2.
+  function timeBonus(bestTimeSeconds, passed, rulesVersion = 1) {
     if (!passed) return 0;
     const seconds = Number(bestTimeSeconds);
     if (!Number.isFinite(seconds)) return 0;
+    if (rulesVersion >= 2) {
+      if (seconds <= 60) return 15;
+      if (seconds <= 90) return 10;
+      if (seconds <= 120) return 5;
+      return 0;
+    }
     if (seconds <= 60) return 10;
     if (seconds <= 90) return 5;
     return 0;
@@ -531,7 +537,8 @@ export const getSoloLeaderboardFnSource = `
   function scoreFromLevelEntry(entry) {
     const stored = Number(entry?.bestScore);
     if (Number.isFinite(stored) && stored >= 0) return Math.floor(stored);
-    return starBaseScore(stars) + timeBonus(entry?.bestTimeSeconds, true);
+    const rulesVersion = Math.max(1, Math.floor(Number(entry?.soloRulesVersion ?? entry?.rulesVersion) || 1));
+    return starBaseScore(stars, rulesVersion) + timeBonus(entry?.bestTimeSeconds, true, rulesVersion);
   }
   const online_score = Math.max(0, Math.floor(Number(user?.online_progress?.score) || 0));
   const total_kronox_score = summary.totalSoloScore + online_score;
