@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, WifiOff } from 'lucide-react';
 import { useOfflineQuestions } from '@/hooks/useOfflineQuestions';
 import { loadRecentHistory, appendToHistory } from '@/lib/questionHistory';
-import { isCorrectPlacement } from '@/lib/gameRules';
+import { getTimelineCardCount, isCorrectPlacement } from '@/lib/gameRules';
 import { debugLog } from '@/lib/debugLog';
 import { pushAppDiag } from '@/lib/appDiagBus';
 
@@ -38,7 +38,6 @@ import {
   getSoloAttemptDeckSizeForLevel,
   getSoloTimelineWinCardCountForLevel,
   getSoloLevelCount,
-  SOLO_INITIAL_TIMELINE_CARDS,
   SOLO_LEVEL_TIME_SECONDS,
   SOLO_MAX_MISTAKES,
   readSoloProgress,
@@ -227,6 +226,7 @@ export default function Game() {
   // byte-for-byte identical.
   const [soloAttemptDeck, setSoloAttemptDeck] = useState(null);
   const [soloAttemptId, setSoloAttemptId] = useState(null);
+  const [soloCorrectStreak, setSoloCorrectStreak] = useState(0);
 
   useEffect(() => {
     if (!isOnlineFromState) return;
@@ -656,7 +656,12 @@ export default function Game() {
     if (feedback === lastCountedFeedbackRef.current) return;
     lastCountedFeedbackRef.current = feedback;
     if (feedback.result === 'wrong') {
+      setSoloCorrectStreak(0);
       setMistakeCount((prev) => prev + 1);
+      return;
+    }
+    if (feedback.result === 'correct') {
+      setSoloCorrectStreak((prev) => prev + 1);
     }
   }, [feedback, isSoloLevelMode]);
 
@@ -673,17 +678,17 @@ export default function Game() {
   const cardsCompletedSolo = useMemo(() => {
     if (!isSoloLevelMode || !players.length) return 0;
     const me = players[0];
-    // Each Solo level starts with seed cards; progress is placed-card count
-    // (0/7 for normal levels, 0/10 for special levels), not total timeline cards.
-    const total = Array.isArray(me?.cards) ? me.cards.length : 0;
-    return Math.max(0, total - SOLO_INITIAL_TIMELINE_CARDS);
+    // Same source as hasPlayerWon(): the current timeline card count.
+    // This prevents the header counter from subtracting seed cards while
+    // completion uses the full authoritative card set.
+    return getTimelineCardCount(me);
   }, [isSoloLevelMode, players]);
 
   useEffect(() => {
     if (!isSoloLevelMode || soloLevelResult) return;
     const maxMistakes = soloLevel?.maxMistakes ?? SOLO_MAX_MISTAKES;
     const totalTime = soloLevel?.totalTimeSeconds ?? SOLO_LEVEL_TIME_SECONDS;
-    const cardTarget = soloCardsRequired ?? 7;
+    const cardTarget = winCardCount || soloCardsRequired || 7;
 
     // PASS path — winner was set by the win condition inside doPlacement.
     if (winner) {
@@ -770,6 +775,7 @@ export default function Game() {
     gameStarted,
     cardsCompletedSolo,
     soloCardsRequired,
+    winCardCount,
     setGameStarted,
     overallSecondsRef,
   ]);
@@ -830,6 +836,7 @@ export default function Game() {
     // Reset all attempt-local state and re-enter the same level.
     setSoloLevelResult(null);
     setMistakeCount(0);
+    setSoloCorrectStreak(0);
     lastCountedFeedbackRef.current = null;
     soloResultPersistedRef.current = false;
     // Codex166 — Replay = new attempt = new deck. Drop the previous
@@ -868,6 +875,7 @@ export default function Game() {
     const nextCardCount = getSoloCardsRequiredForLevel(nextLevelNumber);
     setSoloLevelResult(null);
     setMistakeCount(0);
+    setSoloCorrectStreak(0);
     lastCountedFeedbackRef.current = null;
     soloResultPersistedRef.current = false;
     // Codex166 — New level = new attempt = new deck.
@@ -1238,10 +1246,11 @@ export default function Game() {
         onTimeUp={handleTimeUp}
         isTimeUp={isTimeUp}
         progressCardCount={isSoloLevelMode ? cardsCompletedSolo : undefined}
-        progressCardTarget={isSoloLevelMode ? soloCardsRequired : undefined}
+        progressCardTarget={isSoloLevelMode ? winCardCount : undefined}
         soloLevelTotalSeconds={isSoloLevelMode ? (soloLevel?.totalTimeSeconds ?? SOLO_LEVEL_TIME_SECONDS) : undefined}
         soloLevelElapsedSeconds={isSoloLevelMode ? overallSeconds : undefined}
         beginnerPlacementHintZone={beginnerPlacementHintZone}
+        correctStreak={isSoloLevelMode ? soloCorrectStreak : 0}
       />
     </GameRenderErrorBoundary>
   );

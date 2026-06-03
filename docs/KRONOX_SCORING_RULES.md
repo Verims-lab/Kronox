@@ -81,9 +81,9 @@ src/lib/soloLevels.js
 
 Each Solo level:
 
-* normal Solo levels require the player to place 7 correct cards
+* normal Solo levels require the player to reach 7 correct timeline cards, including seed cards already on the timeline
 * special Solo levels start at level 10 and repeat every 5 levels: 10, 15, 20, 25, ...
-* special Solo levels require the player to place 10 correct cards
+* special Solo levels require the player to reach 10 correct timeline cards, including seed cards already on the timeline
 * has a total time limit of 180 seconds
 * does not have per-question time limits
 * fails if the timer reaches 180 seconds before completion

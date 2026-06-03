@@ -4,9 +4,9 @@ Status: Active product contract for new Solo attempts.
 
 This mirror matches `docs/KRONOX_SOLO_QUESTION_ENGINE.md` for in-app Health checks.
 
-Normal Solo levels end at 7 correct cards, use a 16-question deck, use a 180 seconds timer, and fail on the 10th mistake.
+Normal Solo levels end at 7 correct timeline cards, including seed cards already on the timeline, use a 16-question deck, use a 180 seconds timer, and fail on the 10th mistake.
 
-Special Solo levels start at level 10 and repeat every 5 levels: 10, 15, 20, 25, and so on. Special Solo levels end at 10 correct cards, use a 19-question deck, use the same 180 seconds timer, and fail on the 10th mistake.
+Special Solo levels start at level 10 and repeat every 5 levels: 10, 15, 20, 25, and so on. Special Solo levels end at 10 correct timeline cards, including seed cards already on the timeline, use a 19-question deck, use the same 180 seconds timer, and fail on the 10th mistake.
 
 The full attempt deck is built before gameplay starts and is consumed in order. There is no mid-attempt re-randomization.
 

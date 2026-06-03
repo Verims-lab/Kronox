@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { sounds } from '@/lib/gameSounds';
 import QuestionCard from './QuestionCard.jsx';
@@ -99,6 +99,7 @@ export default function GameLayout({
   soloLevelTotalSeconds,
   soloLevelElapsedSeconds,
   beginnerPlacementHintZone,
+  correctStreak = 0,
   // Handlers
   onSelectZone,
   onDropOnZone,
@@ -121,6 +122,35 @@ export default function GameLayout({
     ? Math.max(1, Number(progressCardTarget))
     : Math.max(1, Number(winCardCount) || 10);
   const progressPercent = Math.min(100, (visibleProgressCount / visibleProgressTarget) * 100);
+  const previousProgressCountRef = useRef(visibleProgressCount);
+  const [progressPulseKey, setProgressPulseKey] = useState(0);
+  const [progressPulseActive, setProgressPulseActive] = useState(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return undefined;
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const sync = () => setPrefersReducedMotion(Boolean(media.matches));
+    sync();
+    if (typeof media.addEventListener === 'function') {
+      media.addEventListener('change', sync);
+      return () => media.removeEventListener('change', sync);
+    }
+    media.addListener(sync);
+    return () => media.removeListener(sync);
+  }, []);
+
+  useEffect(() => {
+    if (visibleProgressCount > previousProgressCountRef.current) {
+      setProgressPulseKey((key) => key + 1);
+      setProgressPulseActive(true);
+      const timer = window.setTimeout(() => setProgressPulseActive(false), 520);
+      previousProgressCountRef.current = visibleProgressCount;
+      return () => window.clearTimeout(timer);
+    }
+    previousProgressCountRef.current = visibleProgressCount;
+    return undefined;
+  }, [visibleProgressCount]);
 
   return (
     <div className="kx-viewport-lock flex flex-col" style={{ background: 'linear-gradient(to bottom, #0B1F3A 0%, #1E3A8A 100%)' }}>
@@ -138,16 +168,40 @@ export default function GameLayout({
           />
           {/* Progress bar */}
           <div className="mt-1 w-28">
-            <div className="text-center text-white/60 text-xs font-inter mb-0.5">
+            <motion.div
+              key={progressPulseKey}
+              className="text-center text-xs font-inter font-semibold mb-0.5"
+              initial={progressPulseKey > 0 ? {
+                scale: prefersReducedMotion ? 1 : 1.16,
+                color: '#facc15',
+                textShadow: '0 0 12px rgba(250,204,21,0.62), 0 0 20px rgba(56,189,248,0.28)',
+              } : false}
+              animate={{
+                scale: 1,
+                color: progressPulseActive ? '#fde68a' : 'rgba(255,255,255,0.62)',
+                textShadow: progressPulseActive
+                  ? '0 0 10px rgba(250,204,21,0.46), 0 0 16px rgba(56,189,248,0.20)'
+                  : '0 0 0 rgba(0,0,0,0)',
+              }}
+              transition={{ duration: prefersReducedMotion ? 0.18 : 0.34, ease: 'easeOut' }}
+            >
               {visibleProgressCount}/{visibleProgressTarget}
-            </div>
-            <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+            </motion.div>
+            <motion.div
+              className="h-2 rounded-full bg-white/10 overflow-hidden"
+              animate={{
+                boxShadow: progressPulseActive
+                  ? '0 0 12px rgba(250,204,21,0.32), 0 0 18px rgba(56,189,248,0.18)'
+                  : '0 0 0 rgba(0,0,0,0)',
+              }}
+              transition={{ duration: 0.28, ease: 'easeOut' }}
+            >
               <motion.div
                 className="h-full rounded-full bg-gradient-to-r from-primary to-yellow-300"
                 animate={{ width: `${progressPercent}%` }}
                 transition={{ type: 'spring', stiffness: 200, damping: 30 }}
               />
-            </div>
+            </motion.div>
           </div>
         </div>
 
@@ -317,6 +371,7 @@ export default function GameLayout({
                   : null
               }
               beginnerPlacementHintZone={beginnerPlacementHintZone}
+              correctStreak={correctStreak}
             />
           )}
         </div>

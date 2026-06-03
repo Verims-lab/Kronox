@@ -26,8 +26,12 @@ export function isCorrectPlacement(cards = [], questionYear, zoneIndex) {
   return questionYear >= years[zoneIndex - 1] && questionYear <= years[zoneIndex];
 }
 
+export function getTimelineCardCount(player) {
+  return Array.isArray(player?.cards) ? player.cards.length : 0;
+}
+
 export function hasPlayerWon(player, winCardCount) {
-  return (player?.cards?.length || 0) >= winCardCount;
+  return getTimelineCardCount(player) >= winCardCount;
 }
 
 export function getQuestionSelectionPool(

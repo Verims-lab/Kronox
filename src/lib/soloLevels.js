@@ -69,7 +69,10 @@ export const SOLO_LEVEL_TIME_SECONDS = 180;
 export const SOLO_MAX_MISTAKES = 10; // 10th mistake → fail
 
 export function getSoloTimelineWinCardCountForLevel(levelNumber) {
-  return SOLO_INITIAL_TIMELINE_CARDS + getSoloCardsRequiredForLevel(levelNumber);
+  // The timeline itself is the Solo source of truth: seed cards and
+  // accepted placements are both already-correct timeline cards. The top
+  // progress counter and hasPlayerWon() must compare against the same target.
+  return getSoloCardsRequiredForLevel(levelNumber);
 }
 
 export function getSoloDeckSizeForLevel(levelNumber) {
