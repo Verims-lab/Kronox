@@ -3,23 +3,27 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Trash2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
+import { ACCOUNT_DELETION_ERROR_COPY, requestAccountDeletion } from '@/lib/accountDeletion';
 
 export default function SettingsModal({ onClose }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const handleDeleteAccount = async () => {
+    setDeleteError('');
     if (!confirmDelete) {
       setConfirmDelete(true);
       return;
     }
     setDeleting(true);
     try {
-      await base44.functions.invoke('deleteAccount', {});
+      const user = await base44.auth.me().catch(() => null);
+      await requestAccountDeletion(base44, user);
       base44.auth.logout('/');
     } catch (e) {
       setDeleting(false);
-      setConfirmDelete(false);
+      setDeleteError(e?.message || ACCOUNT_DELETION_ERROR_COPY);
     }
   };
 
@@ -66,12 +70,17 @@ export default function SettingsModal({ onClose }) {
                   <AlertTriangle className="w-4 h-4 flex-shrink-0" />
                   <span>Bu işlem geri alınamaz. Tüm verileriniz silinecek.</span>
                 </div>
+                {deleteError && (
+                  <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-semibold text-destructive">
+                    {deleteError}
+                  </p>
+                )}
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
                     size="sm"
                     className="flex-1"
-                    onClick={() => setConfirmDelete(false)}
+                    onClick={() => { setConfirmDelete(false); setDeleteError(''); }}
                     disabled={deleting}
                   >
                     İptal

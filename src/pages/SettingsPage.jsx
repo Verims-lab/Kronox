@@ -11,6 +11,7 @@ import { isAdminUser } from '@/lib/admin';
 import { markTutorialCompleted } from '@/lib/tutorialProfile';
 import StandardTopBar from '@/components/layout/StandardTopBar';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
+import { ACCOUNT_DELETION_ERROR_COPY, requestAccountDeletion } from '@/lib/accountDeletion';
 
 export default function SettingsPage() {
   const [user, setUser] = useState(null);
@@ -20,6 +21,7 @@ export default function SettingsPage() {
   const [downloadingDoc, setDownloadingDoc] = useState(false);
   const [downloadingWorkflow, setDownloadingWorkflow] = useState(false);
   const [docError, setDocError] = useState('');
+  const [deleteError, setDeleteError] = useState('');
   const [showSim, setShowSim] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
 
@@ -34,14 +36,15 @@ export default function SettingsPage() {
   const diamondValue = getLeaderboardDiamondValue(user);
 
   const handleDeleteAccount = async () => {
+    setDeleteError('');
     if (!confirmDelete) { setConfirmDelete(true); return; }
     setDeleting(true);
     try {
-      await base44.auth.deleteAccount();
+      await requestAccountDeletion(base44, user);
       base44.auth.logout('/');
-    } catch {
+    } catch (error) {
       setDeleting(false);
-      setConfirmDelete(false);
+      setDeleteError(error?.message || ACCOUNT_DELETION_ERROR_COPY);
     }
   };
 
@@ -185,10 +188,15 @@ export default function SettingsPage() {
                     Bu işlem geri alınamaz. Tüm verileriniz silinecek.
                   </p>
                 </div>
+                {deleteError && (
+                  <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 font-inter text-xs font-semibold text-destructive">
+                    {deleteError}
+                  </p>
+                )}
                 <div className="flex gap-2">
                   <Button
                     variant="outline" size="sm" className="flex-1"
-                    onClick={() => setConfirmDelete(false)} disabled={deleting}
+                    onClick={() => { setConfirmDelete(false); setDeleteError(''); }} disabled={deleting}
                   >İptal</Button>
                   <Button
                     size="sm" disabled={deleting}

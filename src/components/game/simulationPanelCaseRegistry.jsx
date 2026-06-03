@@ -162,6 +162,10 @@ import * as soloQuestionEngineCases from './simulationPanelSoloQuestionEngineCas
 // idempotency recovery, persisted leaderboard projection, and release
 // proof checklist contracts.
 import * as package2AuditCases from './simulationPanelPackage2AuditCases';
+// Codex174 — Account deletion compliance contracts: protected backend
+// cleanup, confirmation/error UI, public-page consistency, and manual
+// destructive runtime proof.
+import * as accountDeletionCases from './simulationPanelAccountDeletionCases';
 
 const MODULES = [
   soloProgressCases,
@@ -199,6 +203,7 @@ const MODULES = [
   soloPopupCases,
   soloQuestionEngineCases,
   package2AuditCases,
+  accountDeletionCases,
 ];
 
 function flatten(key) {
