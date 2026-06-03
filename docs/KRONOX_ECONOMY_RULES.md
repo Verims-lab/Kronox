@@ -275,7 +275,17 @@ DiamondTransaction.idempotency_key
 
 ---
 
-# 10. Not Implemented Yet
+# 10. Account Deletion Retention
+
+Account deletion rules:
+
+* `User.diamonds` is removed with the user profile.
+* retained `DiamondTransaction` audit rows must anonymize `user_email` and any email-bearing idempotency key.
+* account deletion must not grant or spend Diamonds.
+
+---
+
+# 11. Not Implemented Yet
 
 The following are not implemented:
 
@@ -291,7 +301,7 @@ Do not implement these without explicit product approval.
 
 ---
 
-# 11. Health Coverage Expectations
+# 12. Health Coverage Expectations
 
 Health should cover:
 
@@ -314,7 +324,7 @@ Rules:
 
 ---
 
-# 12. Manual Proof
+# 13. Manual Proof
 
 Manual/release proof should verify:
 
@@ -326,4 +336,3 @@ Manual/release proof should verify:
 * next UTC day grants once
 * two-device duplicate prevention is probed
 * ledger recovery does not double grant
-

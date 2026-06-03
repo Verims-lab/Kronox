@@ -185,7 +185,34 @@ seedQuestionCategories
 
 ---
 
-# 6. Backend Error Shape
+# 6. Account Deletion
+
+Account deletion is a user-owned destructive operation.
+
+Expected function:
+
+```text
+POST /deleteAccount
+```
+
+Security contract:
+
+* deletion requires an authenticated user
+* client-provided email, user id, role, or admin flags are ignored
+* service-role cleanup is scoped to the authenticated user's account id/email
+* push subscriptions are removed
+* pending invites involving the user are cancelled
+* friend/friend-request rows involving the user are removed
+* public leaderboard rows are removed
+* retained economy/scoring audit rows must anonymize the deleted user's identity
+* waiting/starting hosted lobbies are cancelled or scrubbed so deleted users do not remain actionable
+* raw backend errors must not be exposed to the user
+
+Manual release proof is required with a safe test account. Do not run destructive deletion probes against production accounts.
+
+---
+
+# 7. Backend Error Shape
 
 Backend errors should be safe and structured.
 
@@ -211,7 +238,7 @@ Rules:
 
 ---
 
-# 7. RLS / Ownership Expectations
+# 8. RLS / Ownership Expectations
 
 Protected resources must enforce ownership or participant access.
 
@@ -230,7 +257,7 @@ Two-account or three-account runtime probes are required before release.
 
 ---
 
-# 8. Security Verification
+# 9. Security Verification
 
 After deployment, verify:
 
@@ -261,9 +288,16 @@ After deployment, verify:
 * wrong user cannot update another user’s push subscription
 * missing VAPID does not break in-app invite flow
 
+## Account Deletion
+
+* authenticated account deletion only deletes/anonymizes the caller's own data
+* account deletion clears push subscriptions and cancels pending invites involving the deleted user
+* retained score/economy rows no longer contain the deleted user's email
+* public `/account-deletion` copy matches the in-app deletion flow
+
 ---
 
-# 9. Health Coverage Expectations
+# 10. Health Coverage Expectations
 
 Health should cover:
 
@@ -276,6 +310,7 @@ no_public_question_bank_fallback
 get_questions_requires_auth
 get_questions_returns_minimal_projection
 service_role_functions_scoped
+account_deletion_health
 ```
 
 Rules:

@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex174 — Account deletion end-to-end hardening:
+//   • Profile Settings and in-game Settings modal now use the protected
+//     /deleteAccount backend function instead of direct SDK deletion.
+//   • deleteAccount authenticates server-side, ignores client identity,
+//     removes/cancels/anonymizes user-owned rows, and returns safe errors.
+//   • Adds account_deletion_health static contracts while keeping live
+//     destructive deletion proof manual with a disposable test account.
+//
 // Codex173 — Settings screen cleanup under Profile:
 //   • Settings now uses StandardTopBar (center Elmas, right bell, no avatar).
 //   • Removes the old Settings question-management and app-settings UI blocks.
@@ -650,7 +658,7 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
-const BUILD_MARKER = 'Codex173';
+const BUILD_MARKER = 'Codex174';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

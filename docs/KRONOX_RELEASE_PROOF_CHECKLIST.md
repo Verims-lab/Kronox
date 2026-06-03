@@ -182,7 +182,32 @@ Checklist:
 
 ---
 
-# 9. Accessibility And Motion
+# 9. Account Deletion
+
+Use a disposable test account only.
+
+Checklist:
+
+* Profile / Ayarlar shows `Hesabı Sil`.
+* First tap opens a confirmation instead of deleting immediately.
+* Cancel returns safely without deleting.
+* Confirm shows loading state.
+* Failure shows a recoverable Turkish error and the button is not stuck.
+* Successful deletion logs the user out or redirects safely.
+* Reopening the app does not resurrect deleted local progress/cache.
+* PushSubscription rows for the test account are removed.
+* Pending GameInvite rows involving the test account are cancelled.
+* FriendRequest/Friendship rows involving the test account are removed or no longer actionable.
+* Public leaderboard row for the test account is removed or anonymized.
+* Retained OnlineMatchResult/DiamondTransaction rows no longer contain the deleted user's email.
+* Another user's account/data is not deleted.
+* `/account-deletion` public page copy matches the in-app flow.
+
+Do not mark destructive account deletion proof as complete without a safe test account.
+
+---
+
+# 10. Accessibility And Motion
 
 Checklist:
 
@@ -197,7 +222,7 @@ Checklist:
 
 ---
 
-# 10. Leaderboard / Profile Consistency
+# 11. Leaderboard / Profile Consistency
 
 Checklist:
 
@@ -210,7 +235,7 @@ Checklist:
 
 ---
 
-# 11. Manual Proof Recording
+# 12. Manual Proof Recording
 
 For every manual test run, record:
 
