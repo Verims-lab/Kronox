@@ -5,6 +5,7 @@ import QuestionCard from './QuestionCard.jsx';
 import Timeline from './Timeline.jsx';
 import TurnTimer from './TurnTimer.jsx';
 import SoloLevelTimer from './SoloLevelTimer.jsx';
+import SoloJokerBar from './SoloJokerBar.jsx';
 import OnlineTurnIndicator from './OnlineTurnIndicator.jsx';
 import OnlineScoreboard from './OnlineScoreboard.jsx';
 import { playerTextColors } from './playerColors';
@@ -98,6 +99,8 @@ export default function GameLayout({
   // undefined and behave unchanged.
   soloLevelTotalSeconds,
   soloLevelElapsedSeconds,
+  soloLevelTimerFrozen = false,
+  soloJokers = null,
   beginnerPlacementHintZone,
   correctStreak = 0,
   // Handlers
@@ -219,6 +222,7 @@ export default function GameLayout({
               <SoloLevelTimer
                 totalSeconds={soloLevelTotalSeconds}
                 elapsedSeconds={soloLevelElapsedSeconds || 0}
+                frozen={soloLevelTimerFrozen}
               />
             )
           ) : (
@@ -389,6 +393,17 @@ export default function GameLayout({
           </div>
         )}
       </div>
+
+      <SoloJokerBar
+        enabled={Boolean(soloJokers?.enabled) && !winner && !isOnline && Boolean(currentQuestion)}
+        usedJokerType={soloJokers?.usedJokerType || null}
+        mistakeShieldActive={Boolean(soloJokers?.mistakeShieldActive)}
+        timerFrozen={Boolean(soloJokers?.timerFrozen)}
+        message={soloJokers?.message || ''}
+        error={soloJokers?.error || ''}
+        disabled={Boolean(soloJokers?.disabled) || !isMyTurn || Boolean(feedback)}
+        onUseJoker={soloJokers?.onUseJoker}
+      />
 
 
 

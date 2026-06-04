@@ -14,6 +14,7 @@ import { sounds } from '@/lib/gameSounds';
  * Props:
  *   - totalSeconds:    number  total budget (180 for solo levels)
  *   - elapsedSeconds:  number  seconds elapsed so far
+ *   - frozen:          boolean Zaman Dondur visual-only timer state
  *
  * Styling rules:
  *   - Mobile-friendly: fixed compact size, lives in the existing top-right
@@ -21,7 +22,7 @@ import { sounds } from '@/lib/gameSounds';
  *   - Color hardens (amber → red glow) when ≤ 10 s remain so the player
  *     gets a clear danger cue.
  */
-export default function SoloLevelTimer({ totalSeconds = 180, elapsedSeconds = 0 }) {
+export default function SoloLevelTimer({ totalSeconds = 180, elapsedSeconds = 0, frozen = false }) {
   const remaining = Math.max(0, Math.ceil(totalSeconds - elapsedSeconds));
   const minutes = Math.floor(remaining / 60);
   const seconds = remaining % 60;
@@ -55,18 +56,27 @@ export default function SoloLevelTimer({ totalSeconds = 180, elapsedSeconds = 0 
       style={{
         background: danger
           ? 'linear-gradient(180deg, rgba(220,38,38,0.92), rgba(127,29,29,0.96))'
+          : frozen
+            ? 'linear-gradient(180deg, rgba(14,116,144,0.88), rgba(4,8,22,0.96))'
           : 'linear-gradient(180deg, rgba(20,30,58,0.92), rgba(4,8,22,0.96))',
-        color: danger ? '#fff5f5' : '#facc15',
+        color: danger ? '#fff5f5' : (frozen ? '#e0f2fe' : '#facc15'),
         boxShadow: danger
           ? '0 0 0 1px rgba(248,113,113,0.65), 0 0 16px rgba(220,38,38,0.55)'
+          : frozen
+            ? '0 0 0 1px rgba(56,189,248,0.68), 0 0 16px rgba(56,189,248,0.32)'
           : '0 0 0 1px rgba(250,204,21,0.45), 0 0 12px rgba(250,204,21,0.25)',
-        minWidth: 78,
+        minWidth: frozen ? 118 : 78,
         justifyContent: 'center',
       }}
-      aria-label={`Kalan süre ${label}`}
+      aria-label={`Kalan süre ${label}${frozen ? ', donduruldu' : ''}`}
     >
       <Timer className="h-4 w-4" strokeWidth={2.4} />
       <span style={{ letterSpacing: '0.04em' }}>{label}</span>
+      {frozen && (
+        <span className="font-inter text-[9px] font-black uppercase tracking-wide text-sky-100">
+          Donduruldu
+        </span>
+      )}
     </div>
   );
 }

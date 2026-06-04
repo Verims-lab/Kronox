@@ -718,6 +718,14 @@ import React, { useEffect, useState } from 'react';
 //     last_daily_diamond_reward_date: hardZero ? todayUtcKey() contract that
 //     prevents same-day daily-login Diamond re-grants after a zero reset.
 //
+// Codex189 — Solo Jokers v1:
+//   • Adds a compact Solo-only joker bar with Hata Affı, Kart Değiştir, and
+//     Zaman Dondur between the timeline and KARTI YERLEŞTİR button.
+//   • Enforces one free joker use per attempt; no inventory, Diamond spend,
+//     Puan grant, or Online impact.
+//   • Hata Affı shields one wrong placement, Kart Değiştir swaps from the
+//     prebuilt deck, and Zaman Dondur freezes Solo elapsed time for 10s.
+//
 // Codex187 — Daily Wheel result polish:
 //   • Daily Wheel claim now always resolves to reward, already-claimed, or
 //     visible retry/error modal instead of silently returning to ready state.
@@ -765,7 +773,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex188';
+const BUILD_MARKER = 'Codex189';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
