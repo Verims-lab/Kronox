@@ -648,8 +648,10 @@ No deletion should happen in this task.
   updates it to count `shown`/`replacement_shown`, `answered`, and
   `swapped_out` events separately.
 - Manual admin email report. Codex197 adds `sendQuestionAnalyticsReportEmail`
-  for admin-triggered, question-focused reports. No scheduled report exists in
-  this version.
+  for admin-triggered, question-focused reports. Codex198 formats the report
+  as HTML email with summary cards, grouped tables, capped never-shown samples,
+  and email-safe visual bars plus a plain-text fallback. No scheduled report
+  exists in this version.
 
 ### Phase 4 - Backend idempotency hardening
 

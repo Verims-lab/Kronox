@@ -18,7 +18,7 @@ export default function QuestionAnalyticsReportTool() {
   const sendReport = async () => {
     if (loading) return;
     setLoading(true);
-    setMessage('Rapor gönderiliyor...');
+    setMessage('Rapor hazırlanıyor...');
     setError('');
     try {
       const response = await base44.functions.fetch('/sendQuestionAnalyticsReportEmail', {
@@ -28,7 +28,7 @@ export default function QuestionAnalyticsReportTool() {
       if (!response.ok) throw new Error('send_failed');
       const body = await response.json().catch(() => ({}));
       if (body?.ok === false) throw new Error('send_failed');
-      setMessage('Rapor e-posta olarak gönderildi.');
+      setMessage('Soru analiz raporu e-posta olarak gönderildi.');
     } catch (_error) {
       setMessage('');
       setError('Rapor gönderilemedi. Lütfen tekrar dene.');

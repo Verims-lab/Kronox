@@ -28,15 +28,16 @@ export const QUESTION_ANALYTICS_REQUIRED_FIELDS = Object.freeze([
 export const QUESTION_ANALYTICS_REPORT_FUNCTION = 'sendQuestionAnalyticsReportEmail';
 
 export const QUESTION_ANALYTICS_REPORT_SECTIONS = Object.freeze([
-  'Summary',
-  'Top shown questions',
-  'Rarely / never shown active questions',
-  'Most wrong questions',
-  'Very easy questions',
-  'Slow questions',
-  'Category/subcategory distribution',
-  'Sports/theme focus warning',
-  'Data quality warnings',
+  'Kronox Soru Analiz Raporu',
+  'Executive Summary',
+  'Key Insights / Risk Flags',
+  'En Çok Gösterilen Sorular',
+  'Az veya Hiç Gösterilmeyen Sorular',
+  'En Çok Yanlış Yapılan Sorular',
+  'Çok Kolay Görünen Sorular',
+  'En Uzun Sürede Cevaplanan Sorular',
+  'Kategori ve Alt Kategori Dağılımı',
+  'Veri Kalitesi Uyarıları',
 ]);
 
 export const QUESTION_ANALYTICS_SECURITY_CONTRACT = Object.freeze({
