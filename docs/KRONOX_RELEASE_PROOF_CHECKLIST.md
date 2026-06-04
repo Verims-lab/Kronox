@@ -164,6 +164,19 @@ Checklist:
 * If the warning still lists `android.view.Window.setStatusBarColor`, `android.view.Window.getStatusBarColor`, or `android.view.Window.setNavigationBarColor` under React Native / native-wrapper call sites, update the Android wrapper/dependencies rather than adding web-app workarounds.
 * Do not mark this complete from static Health alone; it requires an Android 15 runtime proof and Play Console review.
 
+## Android Large-Screen / Orientation / Resizability
+
+Use any Google Play Console large-screen, orientation, or resizability warning as a release gate.
+
+Checklist:
+
+* Test on tablet, foldable, and resizable emulator profiles where available.
+* App content remains readable when the Android wrapper allows resize, split screen, or larger display classes.
+* No important Home, Profile, Friends, Settings, Online, Lobby, Solo, or Gameplay controls are clipped at large widths or unusual aspect ratios.
+* If the Android wrapper is locked to portrait, confirm the Play Console warning and document whether the restriction is intentional for this release.
+* If Play Console flags unsupported large screens, fix the native wrapper/manifest configuration rather than hiding the warning in web code.
+* Do not mark this complete from static Health alone; it requires Android runtime proof and Play Console review.
+
 ---
 
 # 7. Visual / UI Runtime Proof

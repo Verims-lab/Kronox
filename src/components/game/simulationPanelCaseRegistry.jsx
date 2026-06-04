@@ -170,6 +170,10 @@ import * as accountDeletionCases from './simulationPanelAccountDeletionCases';
 // analytics/projection schemas, cleanup job contracts, SEO/GEO projection
 // boundary, and honest manual proof for runtime analytics/unique indexes.
 import * as dbArchitectureImplementationCases from './simulationPanelDbArchitectureImplementationCases';
+// Codex184 — Health Center full alignment: active docs, current Solo v2
+// coverage, removed Settings UI, PWA/Android manual gates, public asset docs,
+// and Health status taxonomy honesty.
+import * as healthAlignmentCases from './simulationPanelHealthAlignmentCases';
 
 const MODULES = [
   soloProgressCases,
@@ -209,6 +213,7 @@ const MODULES = [
   package2AuditCases,
   accountDeletionCases,
   dbArchitectureImplementationCases,
+  healthAlignmentCases,
 ];
 
 function flatten(key) {

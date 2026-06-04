@@ -603,8 +603,9 @@ Rules:
 3. 3 mistakes, 100 sec → 2 stars, 15 points.
 4. 8 mistakes, 150 sec → 1 star, 5 points.
 5. 10 mistakes → fail, 0 points.
-6. Replay lower score → no total increase.
-7. Replay higher score → only difference is added.
+6. Same-score replay does not add points.
+7. Lower-score replay does not add points.
+8. Better replay adds only the positive score delta.
 
 ## Online
 

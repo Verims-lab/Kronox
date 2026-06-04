@@ -713,6 +713,16 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
+// Codex184 — Health Center full alignment:
+//   • Adds the canonical KRONOX_CORE_PROMPT.md path used by current tasks and
+//     Health docs checks.
+//   • Adds a modular Health alignment suite for active docs, removed Settings
+//     UI expectations, current Solo v2 coverage registration, PWA/Android
+//     manual gates, public asset README truth, DB architecture status, and
+//     Health status taxonomy honesty.
+//   • Tracks Android large-screen/orientation Play Console warnings as manual
+//     wrapper/device proof instead of static PASS.
+//
 // Codex183 — DB architecture implementation package:
 //   • Adds additive DB gateway modules under src/lib/dbGateway without broad
 //     runtime rewiring.
@@ -730,7 +740,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex183';
+const BUILD_MARKER = 'Codex184';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
