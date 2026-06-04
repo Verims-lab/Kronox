@@ -20,7 +20,7 @@ export const economyGatewayContract = Object.freeze({
   balanceSource: 'User.diamonds',
   ledger: 'DiamondTransaction',
   wheelLedger: 'DailyWheelSpin',
-  dailyWheel: 'server-backed Daily Wheel grants Diamonds only, no Kronox Puan',
-  idempotency: 'DiamondTransaction.idempotency_key and DailyWheelSpin.idempotency_key logical guard; unique constraint platform/manual',
+  dailyWheel: 'server-backed Daily Wheel grants Diamonds only, no Kronox Puan; does not affect leaderboard sorting or rank',
+  idempotency: 'one claim per user per UTC server day; DiamondTransaction.idempotency_key and DailyWheelSpin.idempotency_key logical guard; unique constraint platform/manual',
   rewardAmountsChanged: false,
 });

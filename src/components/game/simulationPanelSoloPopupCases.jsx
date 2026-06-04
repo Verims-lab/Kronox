@@ -8,7 +8,7 @@
 //     • The verbose "2 DAK 0 SANİYE" format is gone from the failure
 //       popup (no formatDuration import).
 //     • The shared SoloStatCard label allows two-line wrapping (no
-//       truncate / no force one-line) so "KAZANILAN PUAN" can break.
+//       truncate / no force one-line) for labeled cards.
 //     • Both popups use TimerReset (not Clock) for the time icon.
 //     • Game logic / scoring / stars / props are NOT changed — the
 //       cases below only inspect import + JSX/label/value strings.
@@ -143,20 +143,23 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('kazanilan_puan_two_line_layout',
-    '"Kazanılan Puan" renders as two lines in both popups',
+    'Success popup hides the old Kazanılan Puan label while failure keeps it',
     () => {
-      // Both popups now pass the label as a JSX fragment with an
-      // explicit <br /> so the K/P alignment from the brief is honored.
+      // Current product copy simplified the success popup: the Puan card
+      // shows only the earned number and "Puan". The failure popup still
+      // keeps the two-line KAZANILAN / PUAN label.
       const successHas = successSource.includes('KAZANILAN<br />PUAN');
       const failureHas = failureSource.includes('KAZANILAN<br />PUAN');
-      if (!successHas || !failureHas) {
-        return fail('"Kazanılan Puan" is not rendered on two lines in both popups.', {
+      const successHasValueAndUnit = successSource.includes('value={String(levelScore || 0)}')
+        && successSource.includes('<UnitLabel color="#facc15">Puan</UnitLabel>');
+      if (successHas || !failureHas || !successHasValueAndUnit) {
+        return fail('Solo result popup Puan copy drifted from current product decision.', {
           verification: 'STATIC_CONTRACT',
           files: ['components/game/SoloSuccessPopup.jsx', 'components/game/SoloFailureCard.jsx'],
-          actual: { successHas, failureHas },
+          actual: { successHas, failureHas, successHasValueAndUnit },
         });
       }
-      return pass('"KAZANILAN" / "PUAN" split is applied in both popups.', { verification: 'STATIC_CONTRACT' });
+      return pass('Success Puan card uses only value + Puan; failure keeps the two-line KAZANILAN / PUAN label.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('time_icon_is_timer_reset_not_clock',

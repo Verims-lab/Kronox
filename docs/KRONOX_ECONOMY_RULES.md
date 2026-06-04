@@ -358,6 +358,7 @@ Account deletion rules:
 * `User.diamonds` is removed with the user profile.
 * retained `DiamondTransaction` audit rows must anonymize `user_email` and any email-bearing idempotency key.
 * retained `DailyWheelSpin` audit rows must anonymize `user_email`, `owner_key`, and any email-bearing idempotency key.
+* Retained OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the deleted user.
 * account deletion must not grant or spend Diamonds.
 
 ---
@@ -385,14 +386,16 @@ new_player
 * sets `starter_bonus_granted_at` so starter bonus is not immediately re-granted
 * sets `last_daily_diamond_reward_date` to the current UTC day so same-day daily reward is not immediately re-granted
 * sets `daily_wheel_last_spin_date` to the current UTC day so same-day Daily Wheel is not immediately re-granted
-* clears Daily Wheel streak/count values and removes target `DailyWheelSpin` rows
+* clears Daily Wheel guard fields, including streak/count values
+* removes target `DailyWheelSpin` rows
 * writes an `admin_adjustment` DiamondTransaction audit row when possible
 
 `new_player`:
 
 * sets `User.diamonds = 0`
 * clears starter/daily reward guard fields
-* clears Daily Wheel guard fields and removes target `DailyWheelSpin` rows
+* clears Daily Wheel guard fields
+* removes target `DailyWheelSpin` rows
 * allows the normal app-entry economy bootstrap to grant starter + daily Diamonds again
 
 Both modes write `User.progress_reset_at` so local user progress mirrors are invalidated and server state wins after refresh/reopen.

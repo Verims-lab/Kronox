@@ -91,7 +91,7 @@ Solo jokers are first-version, attempt-local helpers:
 - only 1 joker total may be used per attempt
 - after one joker is used, the other two stay visible but disabled/passive
 - jokers are free in v1; there is no inventory, earning, spending, shop, ad, or Diamond cost
-- jokers do not directly grant Kronox Puan and do not change Solo scoring values
+- jokers do not grant Kronox Puan directly and do not change Solo scoring values
 
 Joker behavior:
 - `Hata Affı`: activates one-time protection. The next wrong placement does not count as a mistake; correct placements do not consume it.

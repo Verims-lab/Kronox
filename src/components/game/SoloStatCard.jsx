@@ -16,10 +16,8 @@ import React from 'react';
  *
  *   • Icon sits in a circle on the left (vertically centered against the
  *     text stack), exactly like the success popup uses today.
- *   • Label is uppercase, two lines allowed (no horizontal truncation).
- *     "KAZANILAN PUAN" splits naturally into "KAZANILAN" + "PUAN"; the
- *     CSS does NOT force a break — it just allows wrapping with
- *     whiteSpace: normal and a tight max width.
+ *   • Label is optional, uppercase, and two lines allowed when present
+ *     (no horizontal truncation).
  *   • Value sits directly under the label with minimal vertical gap so it
  *     reads as one block (fixes the "value floats away from label"
  *     complaint in the brief).
@@ -88,8 +86,7 @@ export default function SoloStatCard({
               fontWeight: 700,
               letterSpacing: '0.08em',
               lineHeight: 1.15,
-              // Allow two-line wrap when needed (e.g. "KAZANILAN" / "PUAN"),
-              // never overflow horizontally.
+              // Allow two-line wrap when needed; never overflow horizontally.
               whiteSpace: 'normal',
               overflowWrap: 'anywhere',
               wordBreak: 'normal',

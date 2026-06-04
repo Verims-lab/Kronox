@@ -19,7 +19,7 @@ import { formatCompactDuration } from '@/lib/soloTimeFormat';
  *   • Stat cards are horizontal rectangles: large round icon on the left,
  *     label + value stacked on the right.
  *   • Time uses compact "MM:SS" format ("01:10"), no "dak/saniye".
- *   • "KAZANILAN PUAN" stays on one line.
+ *   • Success Puan/Hata cards use compact value + unit copy.
  *   • All 4 stat icons share the same circle size and placement logic.
  *   • Buttons: primary yellow CTA + two secondary outline buttons, with
  *     icons consistently aligned to the left of the label.

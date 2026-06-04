@@ -726,6 +726,14 @@ import React, { useEffect, useState } from 'react';
 //   • Hata Affı shields one wrong placement, Kart Değiştir swaps from the
 //     prebuilt deck, and Zaman Dondur freezes Solo elapsed time for 10s.
 //
+// Codex194 — Health contract alignment:
+//   • Aligns Daily Wheel docs/mirrors on Diamond-only, no leaderboard-rank
+//     impact, one claim per UTC server day, and reset/delete cleanup wording.
+//   • Updates Solo popup Health to accept the simplified success Puan/Hata
+//     value+unit copy while failure retains the two-line label.
+//   • Mirrors Solo Jokers v1 as free/no-inventory helpers that do not grant
+//     Kronox Puan.
+//
 // Codex193 — Daily Wheel claim/grant hardening:
 //   • claimDailyWheelReward no longer fails the normal claim path when the
 //     optional DailyWheelSpin ledger create is unavailable; User.diamonds is
@@ -800,7 +808,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex193';
+const BUILD_MARKER = 'Codex194';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
