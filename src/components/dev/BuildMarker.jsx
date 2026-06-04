@@ -726,6 +726,11 @@ import React, { useEffect, useState } from 'react';
 //   • Hata Affı shields one wrong placement, Kart Değiştir swaps from the
 //     prebuilt deck, and Zaman Dondur freezes Solo elapsed time for 10s.
 //
+// Codex192 — Solo success popup text simplification:
+//   • Success popup now shows "SÜRE" instead of "TOPLAM SÜRE".
+//   • Success popup Puan and Hata stat cards present only the value plus
+//     unit label, without separate "KAZANILAN PUAN" / "HATA SAYISI" titles.
+//
 // Codex191 — Solo result popup timing + spacing fix:
 //   • Solo success/failure result time now starts from the completion
 //     snapshot and applies only completed/active Zaman Dondur freeze offsets,
@@ -788,7 +793,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex191';
+const BUILD_MARKER = 'Codex192';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
