@@ -28,10 +28,19 @@ exist per idempotency_key.
 - daily_login (guarded by User.last_daily_diamond_reward_date)
 - daily_wheel (server-backed Daily Wheel claim; Diamonds only, no Kronox Puan)
 
-Daily Wheel is separate from daily_login +20, grants once per UTC server day,
-uses idempotency_key daily_wheel:<normalizedEmail>:<YYYY-MM-DD>, records a
-DailyWheelSpin row plus DiamondTransaction.source = daily_wheel, and grants a
-7-day streak bonus: +100 diamonds.
+Daily Wheel is separate from the existing +20 daily login reward, grants once
+per UTC server day, uses idempotency_key daily_wheel:<normalizedEmail>:<YYYY-MM-DD>,
+records a DailyWheelSpin row plus DiamondTransaction.source = daily_wheel, and
+grants a 7-day streak bonus: +100 diamonds. It grants no Kronox Puan and does
+not affect leaderboard sorting or rank.
+
+First authenticated entry grants +100 once. Same-day daily login grants +20 once.
+
+## Admin reset and account deletion
+Admin reset sets \`daily_wheel_last_spin_date\` to the current UTC day, clears
+Daily Wheel guard fields, and removes target \`DailyWheelSpin\` rows. Retained
+OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the
+deleted user.
 
 Future sources (wheel_spin, rewarded_ad, quest_reward, purchase, achievement,
 special_event) are schema-ready but not active yet.
