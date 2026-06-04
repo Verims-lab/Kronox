@@ -713,6 +713,12 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
+// Codex187 — Daily Wheel result polish:
+//   • Daily Wheel claim now always resolves to reward, already-claimed, or
+//     visible retry/error modal instead of silently returning to ready state.
+//   • Home wheel card is nudged upward and the wheel emblem gets a sharper
+//     gold/navy premium treatment without adding a new asset pipeline.
+//
 // Codex186 — Health Center alignment:
 //   • Aligns Settings Health with the real StandardTopBar notification-bell
 //     contract instead of a stale showNotifications prop token.
@@ -754,7 +760,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex186';
+const BUILD_MARKER = 'Codex187';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

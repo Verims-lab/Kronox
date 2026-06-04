@@ -137,7 +137,7 @@ export default function MainMenu() {
               bottom-nav edge to match the reference framing. */}
           <div
             className="mt-auto flex w-full flex-col items-center"
-            style={{ gap: '0.75rem', paddingTop: 'clamp(1rem, 3.6vh, 2.2rem)', paddingBottom: 'clamp(1rem, 4.5vh, 2.4rem)' }}
+            style={{ gap: '0.75rem', paddingTop: 'clamp(0.75rem, 3vh, 1.8rem)', paddingBottom: 'clamp(1.35rem, 5.8vh, 3.2rem)' }}
           >
             <DailyWheelCard
               user={user}
