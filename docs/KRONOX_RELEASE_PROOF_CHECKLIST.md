@@ -87,7 +87,12 @@ Checklist:
 * Seed/preplaced timeline cards do not create close-year conflicts with the first 5 active player question cards.
 * Visible placed/seed timeline years do not create 1-4 year conflicts with the current active card when a safe prebuilt-deck alternative exists.
 * First 5 cards avoid 3+ same-subcategory or obvious sports-cluster cards when metadata and alternatives allow.
-* Deck feels category/subcategory balanced where the pool allows.
+* Normal and special Solo decks avoid one active category dominating where the pool allows.
+* First 7 active displayed cards avoid 4+ same-category cards where the pool allows.
+* First 7 active displayed cards avoid 4+ same-subcategory/theme cards where the pool allows.
+* Sports/theme cards do not appear 3+ back-to-back where metadata and alternatives allow.
+* Deck exposes category, subcategory, theme/sports, decade/era, first-5, first-7, and fallback-tier diagnostics for Health/admin/debug only.
+* Deck feels category/subcategory/theme balanced where the pool allows.
 * Deck feels era/year balanced rather than clustered.
 * Levels 1-3 show beginner-friendly year spacing and a subtle correct-slot pulse while dragging.
 * Level 4+ shows no placement pulse unless a future onboarding rule enables it.
@@ -117,7 +122,7 @@ Checklist:
 * Each new Solo attempt starts with `Hata Affı`, `Kart Değiştir`, and `Zaman Dondur`.
 * Only 1 joker can be used per attempt; used/disabled states are clear.
 * `Hata Affı` forgives the next wrong placement without incrementing mistakes.
-* `Kart Değiştir` replaces the current card from the prebuilt deck/reserve, does not fetch mid-attempt, does not immediately re-show the swapped-out card, and respects visible timeline spacing.
+* `Kart Değiştir` replaces the current card from the prebuilt deck/reserve, does not fetch mid-attempt, does not immediately re-show the swapped-out card, respects visible timeline spacing, and prefers a balanced replacement.
 * `Zaman Dondur` freezes the Solo timer for 10 seconds and cleans up after result/replay.
 * Jokers remain free in v1, do not spend Diamonds, and do not grant Kronox Puan.
 

@@ -54,6 +54,11 @@ const FIRST_FIVE_SPACING_TARGET_COUNT = 5;
 const FIRST_FIVE_MIN_YEAR_GAP = 5;
 const DEFAULT_VISIBLE_SEED_COUNT = 2;
 const FIRST_FIVE_SOFT_CLUSTER_CAP = 2;
+const FIRST_SEVEN_BALANCE_TARGET_COUNT = 7;
+const FIRST_SEVEN_CATEGORY_CAP = 3;
+const FIRST_SEVEN_SUBCATEGORY_CAP = 3;
+const FIRST_SEVEN_THEME_CAP = 3;
+const FULL_DECK_CATEGORY_DOMINANCE_RATIO = 0.4;
 const SPORTS_CLUSTER_TOKENS = [
   'arena', 'spor', 'sport', 'football', 'futbol', 'soccer', 'basket',
   'tenis', 'tennis', 'olimpiyat', 'olympic', 'messi', 'serena',
@@ -251,6 +256,11 @@ function orderYearsForBeginnerSpacing(years, levelNumber) {
   return null;
 }
 
+function getQuestionYear(question) {
+  const year = Number(question?.year);
+  return Number.isFinite(year) ? year : null;
+}
+
 function orderDeckForBeginnerSpacing(deck, levelNumber, random, options = {}) {
   const spacing = getBeginnerYearSpacingForLevel(levelNumber);
   const shuffled = fisherYatesShuffle(deck, random);
@@ -268,14 +278,23 @@ function orderDeckForBeginnerSpacing(deck, levelNumber, random, options = {}) {
   const collectFront = (orderedDeck, useSoftClusterGuard = true) => {
     front.length = 0;
     frontIds.clear();
-    for (const question of orderedDeck) {
-      const year = Number(question?.year);
-      if (front.length >= targetCount) break;
-      if (!Number.isFinite(year)) continue;
-      if (!isSpacedFromAll(year, front.map((q) => Number(q.year)), spacing.minGap)) continue;
-      if (useSoftClusterGuard && exceedsFirstFiveSoftClusterCap(question, front)) continue;
+    const remaining = orderedDeck.slice();
+    while (front.length < targetCount && remaining.length > 0) {
+      const candidates = remaining.filter((question) => {
+        const year = Number(question?.year);
+        if (!Number.isFinite(year)) return false;
+        if (!isSpacedFromAll(year, front.map((q) => Number(q.year)), spacing.minGap)) return false;
+        if (useSoftClusterGuard && exceedsFirstFiveSoftClusterCap(question, front)) return false;
+        return true;
+      });
+      if (candidates.length === 0) break;
+      const question = pickBestBalanceCandidate(candidates, front, orderedDeck, {
+        targets: options.balanceTargets,
+      });
       front.push(question);
       frontIds.add(question.id);
+      const removeIndex = remaining.findIndex((item) => item.id === question.id);
+      if (removeIndex >= 0) remaining.splice(removeIndex, 1);
     }
     return front.length >= targetCount;
   };
@@ -296,7 +315,10 @@ function orderDeckForBeginnerSpacing(deck, levelNumber, random, options = {}) {
     }
     if (seedTail.length < seedCount) return null;
     const middle = rest.filter((question) => !seedIds.has(question.id));
-    return [...front, ...middle, ...seedTail];
+    const orderedMiddle = orderCardsForBalance(middle, front, random, {
+      targets: options.balanceTargets,
+    });
+    return [...front, ...orderedMiddle, ...seedTail];
   };
 
   const sorted = [...shuffled].sort((a, b) => Number(a?.year) - Number(b?.year));
@@ -322,6 +344,22 @@ function getSubcategoryKey(question) {
   const raw = question?.sub_category ?? question?.subcategory ?? question?.tag ?? '';
   const key = String(raw || '').trim().toLowerCase();
   return key || 'sub:unknown';
+}
+
+function getThemeKey(question) {
+  const sportsKey = getSportsClusterKey(question);
+  if (sportsKey) return 'theme:sports';
+  const tag = String(question?.tag || '').trim().toLowerCase();
+  if (tag) return `theme:${tag.split(/[,\s/|]+/).filter(Boolean)[0] || tag}`;
+  const subcategoryKey = getSubcategoryKey(question);
+  if (isKnownSubcategoryKey(subcategoryKey)) return subcategoryKey.replace(/^sub:/, 'theme:');
+  return getCategoryKey(question).replace(/^cat:/, 'theme:cat:');
+}
+
+function getDecadeKey(question) {
+  const year = getQuestionYear(question);
+  if (year === null) return 'decade:unknown';
+  return `decade:${Math.floor(year / 10) * 10}`;
 }
 
 function isKnownSubcategoryKey(key) {
@@ -375,78 +413,198 @@ function buildDistribution(items, selector) {
   return distribution;
 }
 
+function getMaxDistributionCount(distribution) {
+  return Math.max(0, ...Object.values(distribution || {}).map((value) => Number(value) || 0));
+}
+
+function getMaxConsecutiveCount(items, selector) {
+  let max = 0;
+  let current = 0;
+  let previous = null;
+  for (const item of items || []) {
+    const key = selector(item);
+    if (key && key === previous) current += 1;
+    else current = key ? 1 : 0;
+    previous = key;
+    max = Math.max(max, current);
+  }
+  return max;
+}
+
 function countDistinctBy(candidates, selector) {
   return new Set(candidates.map(selector).filter(Boolean)).size;
 }
 
-// Pick one question per year, optionally preferring non-recently-seen
-// and balancing categories.
-//
-// Strategy: walk years in shuffled order. From each year-bucket pick the
-// best candidate using a tiered preference:
-//   tier A — not in recentIds AND in an under-quota category
-//   tier B — not in recentIds
-//   tier C — first available
-// Soft cap: at most `perCategoryCap` cards from the same numeric
-// main_category_id and `perSubcategoryCap` from the same subcategory
-// when alternatives exist.
+function makeBalanceTargets(candidates, deckSize) {
+  const categoryCount = Math.max(1, countDistinctBy(candidates, getCategoryKey));
+  const subcategoryCount = Math.max(1, countDistinctBy(candidates, getSubcategoryKey));
+  const themeCount = Math.max(1, countDistinctBy(candidates, getThemeKey));
+  const decadeCount = Math.max(1, countDistinctBy(candidates, getDecadeKey));
+  const richCategoryCap = Math.ceil(deckSize * FULL_DECK_CATEGORY_DOMINANCE_RATIO);
+  const categoryCap = categoryCount >= 3
+    ? Math.max(2, Math.min(richCategoryCap, Math.ceil(deckSize / categoryCount) + 1))
+    : Math.max(richCategoryCap, Math.ceil(deckSize / categoryCount) + 1);
+  return {
+    categoryCount,
+    subcategoryCount,
+    themeCount,
+    decadeCount,
+    categoryCap,
+    subcategoryCap: Math.max(2, Math.ceil(deckSize / subcategoryCount) + 1),
+    themeCap: Math.max(2, Math.ceil(deckSize / themeCount) + 1),
+    decadeCap: Math.max(3, Math.ceil(deckSize / decadeCount) + 1),
+  };
+}
+
+function scoreCandidateForBalance(question, selected, sourceOrder = [], options = {}) {
+  const position = selected.length;
+  const targets = options.targets || makeBalanceTargets([...selected, question], Math.max(position + 1, DEFAULT_DECK_SIZE));
+  const categoryKey = getCategoryKey(question);
+  const subcategoryKey = getSubcategoryKey(question);
+  const themeKey = getThemeKey(question);
+  const decadeKey = getDecadeKey(question);
+  const categoryCount = countMatching(selected, getCategoryKey, categoryKey);
+  const subcategoryCount = countMatching(selected, getSubcategoryKey, subcategoryKey);
+  const themeCount = countMatching(selected, getThemeKey, themeKey);
+  const decadeCount = countMatching(selected, getDecadeKey, decadeKey);
+  const sportsCount = countMatching(selected, getThemeKey, 'theme:sports');
+  const last = selected[selected.length - 1] || null;
+  const previous = selected[selected.length - 2] || null;
+  const sourceIndex = sourceOrder.findIndex((item) => item?.id === question?.id);
+  let score = 0;
+
+  if (options.recentIds?.has(question.id)) score += 45;
+  score += categoryCount * 16;
+  score += (isKnownSubcategoryKey(subcategoryKey) ? subcategoryCount : Math.max(0, subcategoryCount - 1)) * 14;
+  score += themeCount * 12;
+  score += decadeCount * 9;
+
+  if (categoryCount >= targets.categoryCap) score += 85;
+  if (isKnownSubcategoryKey(subcategoryKey) && subcategoryCount >= targets.subcategoryCap) score += 80;
+  if (themeCount >= targets.themeCap) score += 70;
+  if (decadeCount >= targets.decadeCap) score += 45;
+
+  if (position < FIRST_SEVEN_BALANCE_TARGET_COUNT && categoryCount >= FIRST_SEVEN_CATEGORY_CAP) score += 140;
+  if (position < FIRST_SEVEN_BALANCE_TARGET_COUNT && isKnownSubcategoryKey(subcategoryKey) && subcategoryCount >= FIRST_SEVEN_SUBCATEGORY_CAP) score += 150;
+  if (position < FIRST_SEVEN_BALANCE_TARGET_COUNT && themeCount >= FIRST_SEVEN_THEME_CAP) score += 130;
+  if (position < FIRST_FIVE_SPACING_TARGET_COUNT && themeKey === 'theme:sports' && sportsCount >= FIRST_FIVE_SOFT_CLUSTER_CAP) score += 180;
+
+  if (last) {
+    if (getCategoryKey(last) === categoryKey) score += 35;
+    if (isKnownSubcategoryKey(subcategoryKey) && getSubcategoryKey(last) === subcategoryKey) score += 95;
+    if (getThemeKey(last) === themeKey) score += 80;
+    if (getDecadeKey(last) === decadeKey) score += 45;
+  }
+  if (last && previous) {
+    if (getThemeKey(last) === themeKey && getThemeKey(previous) === themeKey) score += 220;
+    if (isKnownSubcategoryKey(subcategoryKey) && getSubcategoryKey(last) === subcategoryKey && getSubcategoryKey(previous) === subcategoryKey) score += 220;
+  }
+
+  if (sourceIndex >= 0) score += sourceIndex * 0.01;
+  return score;
+}
+
+function pickBestBalanceCandidate(candidates, selected, sourceOrder, options = {}) {
+  let best = null;
+  let bestScore = Infinity;
+  for (const question of candidates) {
+    const score = scoreCandidateForBalance(question, selected, sourceOrder, options);
+    if (score < bestScore) {
+      best = question;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+
+function orderCardsForBalance(cards, prefix = [], random = Math.random, options = {}) {
+  const remaining = fisherYatesShuffle(cards || [], random);
+  const ordered = [];
+  const sourceOrder = [...prefix, ...remaining];
+  while (remaining.length > 0) {
+    const selected = [...prefix, ...ordered];
+    const pick = pickBestBalanceCandidate(remaining, selected, sourceOrder, options);
+    if (!pick) break;
+    ordered.push(pick);
+    const index = remaining.findIndex((item) => item.id === pick.id);
+    if (index >= 0) remaining.splice(index, 1);
+    else break;
+  }
+  return ordered;
+}
+
+// Pick one question per year using soft P1 balance scoring. The scoring
+// prefers category/subcategory/theme/decade spread, recently unseen cards,
+// and varied ordering, while unique years remain a hard selector rule.
 function selectUniqueYearDeck({
   candidates,
   deckSize,
   recentIds,
   random,
-  perCategoryCap,
-  perSubcategoryCap,
   levelNumber,
+  balanceTargets,
 }) {
   const buckets = groupByYear(candidates);
   if (buckets.size < deckSize) return null; // not enough distinct years
 
-  const years = orderYearsForBeginnerSpacing(
-    orderYearsForEraSpread(Array.from(buckets.keys()), random),
-    levelNumber,
-  );
+  const years = orderYearsForBeginnerSpacing(orderYearsForEraSpread(Array.from(buckets.keys()), random), levelNumber);
   if (!years) return null;
   const deck = [];
   const usedIds = new Set();
-  const categoryCounts = new Map();
-  const subcategoryCounts = new Map();
+  const usedYears = new Set();
+  const sourceOrder = fisherYatesShuffle(
+    candidates
+      .filter((question) => buckets.has(Number(question.year)))
+      .sort((a, b) => years.indexOf(Number(a.year)) - years.indexOf(Number(b.year))),
+    random,
+  );
+  const priorityYears = years.slice(0, Math.min(FIRST_FIVE_SPACING_TARGET_COUNT, deckSize));
 
-  for (const year of years) {
-    if (deck.length >= deckSize) break;
+  for (const year of priorityYears) {
     const bucket = buckets.get(year).filter((q) => !usedIds.has(q.id));
     if (bucket.length === 0) continue;
-    const shuffled = fisherYatesShuffle(bucket, random);
-
-    // Tier A: not recently seen + under category cap
-    let pick = shuffled.find((q) => {
-      if (recentIds.has(q.id)) return false;
-      const categoryKey = getCategoryKey(q);
-      const subcategoryKey = getSubcategoryKey(q);
-      const categoryCount = categoryCounts.get(categoryKey) || 0;
-      const subcategoryCount = subcategoryCounts.get(subcategoryKey) || 0;
-      return categoryCount < perCategoryCap && subcategoryCount < perSubcategoryCap;
+    const pick = pickBestBalanceCandidate(fisherYatesShuffle(bucket, random), deck, sourceOrder, {
+      recentIds,
+      targets: balanceTargets || makeBalanceTargets(candidates, deckSize),
     });
-    // Tier B: not recently seen + under category cap
-    if (!pick) {
-      pick = shuffled.find((q) => {
-        if (recentIds.has(q.id)) return false;
-        const categoryCount = categoryCounts.get(getCategoryKey(q)) || 0;
-        return categoryCount < perCategoryCap;
-      });
-    }
-    // Tier C: not recently seen (any category/subcategory)
-    if (!pick) pick = shuffled.find((q) => !recentIds.has(q.id));
-    // Tier C: anything
-    if (!pick) pick = shuffled[0];
+    if (!pick) continue;
+    deck.push(pick);
+    usedIds.add(pick.id);
+    usedYears.add(Number(pick.year));
+  }
+
+  while (deck.length < deckSize) {
+    const available = sourceOrder.filter((question) => {
+      const year = Number(question.year);
+      return !usedIds.has(question.id) && !usedYears.has(year);
+    });
+    if (available.length === 0) break;
+    const pick = pickBestBalanceCandidate(available, deck, sourceOrder, {
+      recentIds,
+      targets: balanceTargets || makeBalanceTargets(candidates, deckSize),
+    });
+    if (!pick) break;
+    deck.push(pick);
+    usedIds.add(pick.id);
+    usedYears.add(Number(pick.year));
+  }
+
+  // If scoring cannot fill from the full source order for any unexpected
+  // reason, fall back to the era-spread year walk without changing hard rules.
+  for (const year of years) {
+    if (deck.length >= deckSize) break;
+    if (usedYears.has(Number(year))) continue;
+    const bucket = buckets.get(year).filter((q) => !usedIds.has(q.id));
+    if (bucket.length === 0) continue;
+    const pick = pickBestBalanceCandidate(fisherYatesShuffle(bucket, random), deck, sourceOrder, {
+      recentIds,
+      targets: balanceTargets || makeBalanceTargets(candidates, deckSize),
+    });
     if (!pick) continue;
 
     deck.push(pick);
     usedIds.add(pick.id);
-    const categoryKey = getCategoryKey(pick);
-    const subcategoryKey = getSubcategoryKey(pick);
-    categoryCounts.set(categoryKey, (categoryCounts.get(categoryKey) || 0) + 1);
-    subcategoryCounts.set(subcategoryKey, (subcategoryCounts.get(subcategoryKey) || 0) + 1);
+    usedYears.add(Number(pick.year));
   }
 
   return deck.length === deckSize ? deck : null;
@@ -524,47 +682,50 @@ export function buildSoloAttemptDeck(args = {}) {
     };
   }
 
-  // Soft balance caps. When there are N categories/subcategories, cap any
-  // single bucket at ceil(deckSize/N)+1 so the deck stays diverse without
-  // becoming impossible on small pools.
-  const categoryCount = allowedCats
-    ? Math.max(1, allowedCats.size)
-    : Math.max(1, countDistinctBy(candidates, getCategoryKey));
-  const subcategoryCount = Math.max(1, countDistinctBy(candidates, getSubcategoryKey));
-  const perCategoryCap = Math.max(1, Math.ceil(deckSize / categoryCount) + 1);
-  const perSubcategoryCap = Math.max(1, Math.ceil(deckSize / subcategoryCount) + 1);
+  const balanceTargets = makeBalanceTargets(candidates, deckSize);
+  let fallbackTier = 'ideal';
 
-  // Tier 1 — ideal: respects recently-seen AND category balance.
+  // Tier 1 — ideal: balances category/subcategory/theme/decade and keeps
+  // recently-seen questions as a soft penalty rather than a hard blocker.
   let deck = selectUniqueYearDeck({
     candidates,
     deckSize,
     recentIds,
     random,
-    perCategoryCap,
-    perSubcategoryCap,
+    balanceTargets,
     levelNumber: args.levelNumber,
   });
 
   // Tier 2 — relax recently-seen.
   if (!deck) {
+    fallbackTier = 'recently_seen_relaxed';
     deck = selectUniqueYearDeck({
       candidates, deckSize,
       recentIds: new Set(),
       random,
-      perCategoryCap,
-      perSubcategoryCap,
+      balanceTargets,
       levelNumber: args.levelNumber,
     });
   }
 
-  // Tier 3 — relax category/subcategory balance.
+  // Tier 3 — relax balance scoring. Hard rules are still enforced by the
+  // candidate pool, unique-year selector, and final ordering checks.
   if (!deck) {
+    fallbackTier = 'balance_relaxed';
     deck = selectUniqueYearDeck({
       candidates, deckSize,
       recentIds: new Set(),
       random,
-      perCategoryCap: deckSize, // effectively no cap
-      perSubcategoryCap: deckSize, // effectively no cap
+      balanceTargets: {
+        categoryCap: deckSize,
+        subcategoryCap: deckSize,
+        themeCap: deckSize,
+        decadeCap: deckSize,
+        categoryCount: balanceTargets.categoryCount,
+        subcategoryCount: balanceTargets.subcategoryCount,
+        themeCount: balanceTargets.themeCount,
+        decadeCount: balanceTargets.decadeCount,
+      },
       levelNumber: args.levelNumber,
     });
   }
@@ -584,6 +745,7 @@ export function buildSoloAttemptDeck(args = {}) {
   const beginnerSpacing = getBeginnerYearSpacingForLevel(args.levelNumber);
   const finalDeck = orderDeckForBeginnerSpacing(deck, args.levelNumber, random, {
     seedCount,
+    balanceTargets,
   });
   if (!finalDeck) {
     return {
@@ -594,8 +756,19 @@ export function buildSoloAttemptDeck(args = {}) {
     };
   }
   const firstFiveCards = finalDeck.slice(0, FIRST_FIVE_SPACING_TARGET_COUNT);
+  const firstSevenCards = finalDeck.slice(0, FIRST_SEVEN_BALANCE_TARGET_COUNT);
   const visibleSeedCards = seedCount > 0 ? finalDeck.slice(-seedCount) : [];
   const earlyVisibleCards = [...firstFiveCards, ...visibleSeedCards];
+  const categoryDistribution = buildDistribution(finalDeck, getCategoryKey);
+  const subcategoryDistribution = buildDistribution(finalDeck, getSubcategoryKey);
+  const themeDistribution = buildDistribution(finalDeck, getThemeKey);
+  const decadeDistribution = buildDistribution(finalDeck, getDecadeKey);
+  const firstFiveCategoryDistribution = buildDistribution(firstFiveCards, getCategoryKey);
+  const firstFiveSubcategoryDistribution = buildDistribution(firstFiveCards, getSubcategoryKey);
+  const firstFiveThemeDistribution = buildDistribution(firstFiveCards, getThemeKey);
+  const firstSevenCategoryDistribution = buildDistribution(firstSevenCards, getCategoryKey);
+  const firstSevenSubcategoryDistribution = buildDistribution(firstSevenCards, getSubcategoryKey);
+  const firstSevenThemeDistribution = buildDistribution(firstSevenCards, getThemeKey);
   return {
     ok: true,
     deck: finalDeck,
@@ -610,11 +783,29 @@ export function buildSoloAttemptDeck(args = {}) {
           .map((q) => Number(q?.main_category_id))
           .filter((n) => Number.isFinite(n)),
       ).size,
-      categoryDistribution: buildDistribution(finalDeck, getCategoryKey),
-      subcategoryDistribution: buildDistribution(finalDeck, getSubcategoryKey),
-      firstFiveCategoryDistribution: buildDistribution(firstFiveCards, getCategoryKey),
-      firstFiveSubcategoryDistribution: buildDistribution(firstFiveCards, getSubcategoryKey),
+      fallbackTier,
+      categoryDistribution,
+      subcategoryDistribution,
+      themeDistribution,
+      decadeDistribution,
+      firstFiveCategoryDistribution,
+      firstFiveSubcategoryDistribution,
+      firstFiveThemeDistribution,
+      firstSevenCategoryDistribution,
+      firstSevenSubcategoryDistribution,
+      firstSevenThemeDistribution,
       firstFiveSportsClusterCount: firstFiveCards.filter((q) => getSportsClusterKey(q) === 'sports').length,
+      firstSevenSportsClusterCount: firstSevenCards.filter((q) => getSportsClusterKey(q) === 'sports').length,
+      maxCategoryCount: getMaxDistributionCount(categoryDistribution),
+      maxSubcategoryCount: getMaxDistributionCount(subcategoryDistribution),
+      maxThemeCount: getMaxDistributionCount(themeDistribution),
+      maxDecadeCount: getMaxDistributionCount(decadeDistribution),
+      maxFirstSevenCategoryCount: getMaxDistributionCount(firstSevenCategoryDistribution),
+      maxFirstSevenSubcategoryCount: getMaxDistributionCount(firstSevenSubcategoryDistribution),
+      maxConsecutiveCategoryCount: getMaxConsecutiveCount(finalDeck, getCategoryKey),
+      maxConsecutiveSubcategoryCount: getMaxConsecutiveCount(finalDeck, getSubcategoryKey),
+      maxConsecutiveThemeCount: getMaxConsecutiveCount(finalDeck, getThemeKey),
+      maxConsecutiveDecadeCount: getMaxConsecutiveCount(finalDeck, getDecadeKey),
       earlyVisibleYears: earlyVisibleCards.map((q) => Number(q?.year)).filter(Number.isFinite),
       earlyVisibleMinimumGapOk: hasMinimumYearGap(earlyVisibleCards.map((q) => Number(q?.year)), FIRST_FIVE_MIN_YEAR_GAP),
       beginnerYearSpacing: beginnerSpacing
@@ -626,9 +817,10 @@ export function buildSoloAttemptDeck(args = {}) {
           hard: true,
         }
         : null,
-      categoryBalance: { categoryCount, perCategoryCap },
-      subcategoryBalance: { subcategoryCount, perSubcategoryCap },
-      eraSpread: true,
+      categoryBalance: { categoryCount: balanceTargets.categoryCount, perCategoryCap: balanceTargets.categoryCap },
+      subcategoryBalance: { subcategoryCount: balanceTargets.subcategoryCount, perSubcategoryCap: balanceTargets.subcategoryCap },
+      themeBalance: { themeCount: balanceTargets.themeCount, perThemeCap: balanceTargets.themeCap },
+      eraSpread: { decadeCount: balanceTargets.decadeCount, perDecadeCap: balanceTargets.decadeCap },
     },
   };
 }
@@ -645,5 +837,9 @@ export const __soloEngineInternals = {
   shouldShowBeginnerPlacementHint,
   canPickSpacedYears,
   orderYearsForEraSpread,
+  getCategoryKey,
+  getSubcategoryKey,
+  getThemeKey,
+  getDecadeKey,
   DEFAULT_DECK_SIZE,
 };

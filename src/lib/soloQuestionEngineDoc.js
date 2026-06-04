@@ -48,17 +48,24 @@ Hard deck rules:
 Soft deck preferences:
 - category balance.
 - subcategory balance.
+- tag/theme balance, including sports-like theme clustering.
 - era/year spread.
 - recently-seen avoidance.
 
 The P0 first-five guardrail avoids more than 2 same-subcategory or obvious
-sports-cluster cards when metadata and alternatives allow. Full category,
-subcategory, and era tuning remains a P1 improvement.
+sports-cluster cards when metadata and alternatives allow. P1 balance applies
+during selection and ordering: rich pools are distributed across categories,
+subcategories, themes, and decades; the first 7 active displayed cards avoid
+4+ same category/subcategory/theme cards where alternatives exist; and
+diagnostics expose categoryDistribution, subcategoryDistribution,
+themeDistribution, decadeDistribution, firstSevenCategoryDistribution, and
+fallbackTier for Health/admin/debug only.
 
-Fallback may relax recently-seen avoidance, category/subcategory balance,
+Fallback may relax recently-seen avoidance, category/subcategory/theme balance,
 and era spread. It must not relax required deck size, unique IDs, unique
-years, active question/category filtering, or the first 5 minimum 5-year
-spacing rule unless no valid spaced deck exists at all.
+years, active question/category filtering, visible timeline spacing where a
+safe alternative exists, or the first 5 minimum 5-year spacing rule unless no
+valid spaced deck exists at all.
 
 Replay creates a new deck. Old completed results are not retroactively
 recalculated. New attempts may carry soloRulesVersion: 2.
@@ -71,7 +78,8 @@ Hata Affı forgives the next wrong placement without counting a mistake.
 Kart Değiştir replaces the current card from the already prepared Solo deck
 or reserve without fetching or re-randomizing mid-attempt. The swapped-out card
 should not reappear while unused deck cards are available. Replacement must
-respect visible timeline spacing; if no safe replacement exists, the joker is
-not consumed and the player sees Bu kart şu anda değiştirilemiyor. Zaman
-Dondur freezes the Solo timer for 10 seconds.
+respect visible timeline spacing and prefers a balanced reserve card that does
+not worsen category/subcategory/theme repetition; if no safe replacement
+exists, the joker is not consumed and the player sees Bu kart şu anda
+değiştirilemiyor. Zaman Dondur freezes the Solo timer for 10 seconds.
 `;

@@ -29,6 +29,11 @@ spacing. The first 5 ordered questions are the first 5 displayed active player
 question cards. The P0 first-five guardrail avoids more than 2 same-subcategory
 or obvious sports-cluster cards when metadata and alternatives allow. Missing,
 null, non-numeric, or approximate years are invalid.
+P1 balance distributes rich-pool decks across categories, subcategories,
+themes, and decades; first 7 active cards avoid 4+ same category/subcategory
+or theme where alternatives exist. Deck diagnostics expose categoryDistribution,
+subcategoryDistribution, themeDistribution, decadeDistribution, firstSevenCategoryDistribution,
+and fallbackTier for Health/admin/debug only.
 `;
 
 export const CATEGORY_TAXONOMY_DOC = `# Kronox Category Taxonomy
