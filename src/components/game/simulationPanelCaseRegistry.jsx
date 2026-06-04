@@ -180,6 +180,9 @@ import * as healthAlignmentCases from './simulationPanelHealthAlignmentCases';
 // Codex189 — Solo Jokers v1: free, attempt-local Solo helpers with one
 // total use per attempt, no Online impact, no Diamond spend, no Puan grant.
 import * as soloJokersCases from './simulationPanelSoloJokersCases';
+// Codex197 — Question analytics P3: private QuestionAttemptEvent runtime
+// writes for Solo, manual admin email report, and account-deletion cleanup.
+import * as questionAnalyticsCases from './simulationPanelQuestionAnalyticsCases';
 
 const MODULES = [
   soloProgressCases,
@@ -222,6 +225,7 @@ const MODULES = [
   dbArchitectureImplementationCases,
   healthAlignmentCases,
   soloJokersCases,
+  questionAnalyticsCases,
 ];
 
 function flatten(key) {

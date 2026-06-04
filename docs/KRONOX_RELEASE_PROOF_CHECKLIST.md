@@ -361,7 +361,12 @@ Checklist:
   protects active/in_game/finished lobbies.
 * `expirePushSubscriptions` dry-run does not delete active subscriptions.
 * `aggregateQuestionStats` dry-run updates projected counts from
-  `QuestionAttemptEvent` without changing gameplay source rows.
+  `QuestionAttemptEvent` without changing gameplay source rows. Verify
+  `shown`/`replacement_shown`, `answered`, and `swapped_out` event types are
+  counted separately.
+* `sendQuestionAnalyticsReportEmail` sends the manual admin question analytics
+  report to the authenticated admin email for the selected period. Verify
+  deployed SendEmail delivery with an admin account.
 * `cleanupAdminMaintenanceLog` dry-run archives by retention marker only and
   does not hard delete.
 * Admin-only maintenance functions return 401 unauthenticated and 403 for
@@ -375,8 +380,11 @@ Checklist:
   * `PushSubscription.user_email + endpoint`
   * `SoloLeaderboardEntry.owner_key`
   * `Category.category_id`
-* If runtime `QuestionAttemptEvent` writes are enabled later, verify they are
-  best-effort and never block drag/drop, scoring, or result flow.
+* Runtime Solo `QuestionAttemptEvent` writes are enabled for shown, answered,
+  swapped-out, and replacement-shown events. Verify they are best-effort and
+  never block drag/drop, scoring, or result flow.
+* Account deletion proof includes user-owned `QuestionAttemptEvent` rows:
+  retained analytics rows must no longer contain the deleted user email/key.
 
 Do not mark scheduled cleanup or platform unique-key proof complete until
 verified against the deployed Base44 environment.

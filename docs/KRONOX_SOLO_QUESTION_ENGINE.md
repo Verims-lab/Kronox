@@ -77,6 +77,19 @@ P2 adds a helper-only quality layer on top of these rules:
 - Kart Değiştir diagnostics can report swapped-out card, replacement card, replacement source, visible-spacing preservation, balance impact, and no-safe-replacement state
 - all P2 diagnostics are admin/Health/helper-only and must not be exposed to normal gameplay UI
 
+P3 adds question analytics without changing question selection:
+- Solo runtime writes best-effort `QuestionAttemptEvent` rows for shown cards,
+  answered placements, `Kart Değiştir` swapped-out cards, and replacement
+  cards.
+- analytics writes must never block drag/drop, placement validation, scoring,
+  result popups, or deck progression.
+- events are private/admin analytics data and must not expose a public full
+  question bank.
+- manual admin email reports can summarize question exposure and outcomes; no
+  scheduled report exists in this version.
+- `QuestionStatsProjection` refresh remains an admin/manual aggregate path and
+  is not updated synchronously during gameplay.
+
 Fallback order:
 1. active questions/categories, unique years, first 5 minimum 5-year spacing, category/subcategory balance, era spread, not recently seen
 2. relax recently-seen avoidance

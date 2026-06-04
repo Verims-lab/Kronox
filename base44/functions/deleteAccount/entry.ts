@@ -194,11 +194,12 @@ async function removeOrAnonymizePublicRows(base44: any, user: any, userEmail: st
   const gameRecords = await deleteRows(base44, 'GameRecord', [...gameRecordsByEmail, ...gameRecordsByCreator]);
   const lobbyMessages = await deleteRows(base44, 'LobbyMessage', lobbyMessagesByCreator);
 
-  const [diamondRows, dailyWheelRows, resultRows, opponentRows] = await Promise.all([
+  const [diamondRows, dailyWheelRows, resultRows, opponentRows, questionAttemptRows] = await Promise.all([
     safeFilter(base44, 'DiamondTransaction', { user_email: userEmail }),
     safeFilter(base44, 'DailyWheelSpin', { user_email: userEmail }),
     safeFilter(base44, 'OnlineMatchResult', { player_email: userEmail }),
     safeFilter(base44, 'OnlineMatchResult', { opponent_email: userEmail }),
+    safeFilter(base44, 'QuestionAttemptEvent', { user_email: userEmail }, '-created_at'),
   ]);
 
   const diamondTransactions = await updateRows(base44, 'DiamondTransaction', diamondRows, (row) => ({
@@ -208,7 +209,6 @@ async function removeOrAnonymizePublicRows(base44: any, user: any, userEmail: st
       ...(row?.metadata && typeof row.metadata === 'object' ? row.metadata : {}),
       account_deleted: true,
     },
-    description: accountDeletedDescription(row?.description),
   }));
 
   const dailyWheelSpins = await updateRows(base44, 'DailyWheelSpin', dailyWheelRows, (row) => ({
@@ -237,6 +237,18 @@ async function removeOrAnonymizePublicRows(base44: any, user: any, userEmail: st
     };
   });
 
+  const questionAttemptEvents = await updateRows(base44, 'QuestionAttemptEvent', questionAttemptRows, (row) => ({
+    user_email: anon.email,
+    user_key: anon.ownerKey,
+    event_id: replaceEmailInKey(row?.event_id, userEmail, anon.email),
+    attempt_id: replaceEmailInKey(row?.attempt_id, userEmail, anon.email),
+    metadata: {
+      ...(row?.metadata && typeof row.metadata === 'object' ? row.metadata : {}),
+      account_deleted: true,
+    },
+    description: accountDeletedDescription(row?.description),
+  }));
+
   return {
     leaderboard,
     gameRecords,
@@ -244,6 +256,7 @@ async function removeOrAnonymizePublicRows(base44: any, user: any, userEmail: st
     diamondTransactions,
     dailyWheelSpins,
     onlineMatchResults,
+    questionAttemptEvents,
   };
 }
 

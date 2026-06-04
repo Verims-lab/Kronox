@@ -718,6 +718,14 @@ import React, { useEffect, useState } from 'react';
 //     last_daily_diamond_reward_date: hardZero ? todayUtcKey() contract that
 //     prevents same-day daily-login Diamond re-grants after a zero reset.
 //
+// Codex197 — Question analytics P3:
+//   • Wires Solo shown/answered/Kart Değiştir events to private
+//     QuestionAttemptEvent rows through a best-effort gateway.
+//   • Adds manual admin sendQuestionAnalyticsReportEmail report generation
+//     plus a compact Settings admin trigger.
+//   • Keeps QuestionStatsProjection refresh manual via aggregateQuestionStats
+//     and documents deployed email/RLS/write-volume proof as manual.
+//
 // Codex189 — Solo Jokers v1:
 //   • Adds a compact Solo-only joker bar with Hata Affı, Kart Değiştir, and
 //     Zaman Dondur between the timeline and KARTI YERLEŞTİR button.
@@ -822,7 +830,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex196';
+const BUILD_MARKER = 'Codex197';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

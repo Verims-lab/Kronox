@@ -316,7 +316,7 @@ export const EXTRA_TESTS = [
 
   makeCase('question_attempt_runtime_wiring_manual',
     'QuestionAttemptEvent runtime writes require manual proof before release',
-    () => notAutomatable('QuestionAttemptEvent gateway exists, but broad Solo/Online runtime event wiring was intentionally scaffolded only in this safe DB package. Manual proof is required once gameplay write points are enabled.', {
+    () => notAutomatable('QuestionAttemptEvent gateway exists and Solo runtime now writes shown/answered/swap events best-effort. Deployed write volume, RLS, no-gameplay-delay proof, and future Online analytics wiring remain manual.', {
       verification: 'RUNTIME_PROBE_REQUIRED',
       classification: 'NOT_AUTOMATABLE_RUNTIME_REQUIRED',
       file: 'src/lib/dbGateway/analyticsGateway.js',

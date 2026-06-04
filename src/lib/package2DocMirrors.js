@@ -74,6 +74,13 @@ without a Diamond icon.
 Admin reset sets \`daily_wheel_last_spin_date\` to the current UTC day, clears Daily Wheel guard fields, and removes target \`DailyWheelSpin\` rows. Retained OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the deleted user.
 Admin reset remains admin-only, previewed, confirmed, and logged; it prevents stale Daily Wheel availability/countdown state without granting duplicate Diamonds, changing Kronox Puan, or affecting leaderboard sorting or rank.
 Retained economy/gameplay rows do not expose the deleted user identity.
+Runtime Solo QuestionAttemptEvent writes are best-effort for shown, answered,
+swapped-out, and replacement-shown events and must never block drag/drop,
+scoring, or result flow. sendQuestionAnalyticsReportEmail sends the manual
+admin question analytics report to the authenticated admin email; deployed
+SendEmail delivery remains manual proof. Account deletion proof includes
+QuestionAttemptEvent rows so retained analytics rows no longer contain the
+deleted user email/key.
 
 PWA push, mobile safe-area, and other runtime proofs remain manual.
 `;

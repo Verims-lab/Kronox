@@ -42,6 +42,9 @@ Status: Active product contract.
 - Secrets (VAPID, admin emails) live in environment variables, never in client code.
 - admin-only maintenance functions verify role === 'admin'.
 - account deletion is a destructive, NOT_AUTOMATABLE manual proof gate.
+- sendQuestionAnalyticsReportEmail is manual/admin-triggered only.
+- admin reset retains question analytics rows; account deletion anonymizes user-owned analytics identity.
+- retained QuestionAttemptEvent analytics rows no longer contain deleted user identity after account deletion.
 `;
 
 export const RELEASE_PROOF_CHECKLIST_DOC = `# Kronox Release Proof Checklist
@@ -62,6 +65,8 @@ decade buckets while keeping hard Solo rules mandatory.
 P2 diagnostics are Health/admin/helper-only: deck diagnostics, question pool
 health, difficulty-readiness, replay-variety, and Kart Değiştir replacement
 diagnostics must not appear in normal player UI.
+Runtime Solo QuestionAttemptEvent writes are best-effort and manual admin
+question analytics email delivery remains deployed/backend proof.
 Same-score replay does not add points. Lower-score replay does not add points.
 Better replay adds only the positive score delta. Old completed Solo results
 are not retroactively recalculated.
@@ -104,6 +109,8 @@ Status: Implementation tracking doc.
 - cleanup/retention jobs are status-transition-first.
 - Base44 index/unique-key declarations are a platform/manual configuration gap.
 - Runtime uniqueness proof remains manual/NOT_AUTOMATABLE.
+- Solo QuestionAttemptEvent runtime writes are enabled best-effort; Online analytics remains deferred.
+- Manual admin question analytics email report exists with no scheduled trigger.
 - Legacy candidates kept without deletion: Friendship, GameRecord, LobbyMessage.
 - Raw Question remains protected.
 `;

@@ -67,11 +67,12 @@ Implemented now:
   - `cleanupAdminMaintenanceLog`
 - Modular Health coverage for the DB architecture implementation contracts.
 
-Scaffolded now:
+Implemented/scaffolded now:
 
-- `QuestionAttemptEvent` best-effort gateway writes exist, but broad Solo/Online
-  runtime event wiring is intentionally not enabled in this package. Placement,
-  drag/drop, scoring, and question flow are untouched.
+- `QuestionAttemptEvent` best-effort gateway writes exist. Codex197 enables
+  Solo runtime `shown`, `answered`, `swapped_out`, and `replacement_shown`
+  writes; Online event wiring remains deferred. Placement, drag/drop, scoring,
+  and question selection rules are unchanged.
 - Cleanup jobs are implemented as callable backend functions. Automatic
   scheduling is not enabled here.
 
@@ -257,16 +258,24 @@ question_id
 attempt_id
 mode: solo | online
 level
+is_special_level
 lobby_id
 category_id
 sub_category
+tags
 answer_year
+event_type: shown | answered | swapped_out | replacement_shown
 shown_at
 answered_at
 is_correct
 placement_index
 response_time_ms
 mistake_number
+joker_used
+joker_type
+was_swapped_out
+replacement_for_question_id
+source: deck | reserve | replacement
 client_version/build_marker
 created_at
 ```
@@ -291,11 +300,17 @@ question_id
 shown_count
 correct_count
 wrong_count
+swap_count
 correct_rate
 avg_response_time_ms
 solo_shown_count
 online_shown_count
 last_shown_at
+last_answered_at
+category_id
+sub_category
+tags
+answer_year
 difficulty_signal
 updated_at
 ```
@@ -616,11 +631,18 @@ No deletion should happen in this task.
 ### Phase 3 - Analytics events
 
 - Add `QuestionAttemptEvent`. Codex183 added the schema and gateway.
-- Write best-effort events from Solo and Online placement outcomes. Runtime
-  gameplay wiring is intentionally future work.
+- Write best-effort events from Solo and Online placement outcomes. Codex196
+  wires Solo `shown`, `answered`, `swapped_out`, and `replacement_shown` events
+  through the gateway. Online event wiring remains deferred.
 - Add `QuestionStatsProjection` and `CategoryStatsProjection`. Codex183 added
-  both schemas.
-- Build aggregate job. Codex183 added `aggregateQuestionStats`.
+  both schemas; Codex196 extended question projection fields for swap,
+  metadata, and last answered timestamps.
+- Build aggregate job. Codex183 added `aggregateQuestionStats`; Codex196
+  updates it to count `shown`/`replacement_shown`, `answered`, and
+  `swapped_out` events separately.
+- Manual admin email report. Codex197 adds `sendQuestionAnalyticsReportEmail`
+  for admin-triggered, question-focused reports. No scheduled report exists in
+  this version.
 
 ### Phase 4 - Backend idempotency hardening
 

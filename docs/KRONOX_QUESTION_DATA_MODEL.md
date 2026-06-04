@@ -128,6 +128,9 @@ Rules:
 * invalid, missing, null, non-numeric, or approximate year values must be excluded from playable timeline decks
 * runtime projection should include only minimal fields needed for gameplay
 * runtime projection may include `sub_category` and `tag` only as gameplay-balance metadata, not as public full-bank exposure
+* private `QuestionAttemptEvent` analytics may store question id, answer year,
+  category, subcategory, and tag metadata for admin reports; those rows remain
+  private/admin-only and are not a public question-bank projection
 
 ---
 

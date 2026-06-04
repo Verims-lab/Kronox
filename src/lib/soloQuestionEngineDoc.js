@@ -72,6 +72,11 @@ Difficulty progression is readiness-oriented only and falls back safely when
 difficulty metadata is missing. Replay variety diagnostics and Kart Değiştir
 replacement diagnostics are helper-only and must not be exposed to normal UI.
 
+P3 question analytics writes best-effort QuestionAttemptEvent rows for Solo
+shown, answered, swapped_out, and replacement_shown events. Analytics writes
+must not block drag/drop, scoring, result popups, or deck progression. Manual
+admin email reports are question-focused; no scheduled report exists.
+
 Fallback may relax recently-seen avoidance, category/subcategory/theme balance,
 and era spread. It must not relax required deck size, unique IDs, unique
 years, active question/category filtering, visible timeline spacing where a
