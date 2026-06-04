@@ -127,6 +127,7 @@ Rules:
 * do not re-add stored legacy `year` field without product/data decision
 * invalid, missing, null, non-numeric, or approximate year values must be excluded from playable timeline decks
 * runtime projection should include only minimal fields needed for gameplay
+* runtime projection may include `sub_category` and `tag` only as gameplay-balance metadata, not as public full-bank exposure
 
 ---
 

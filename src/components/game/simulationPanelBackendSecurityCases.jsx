@@ -234,13 +234,13 @@ export const EXTRA_TESTS = [
         "state === 'A'",
         'activeCategoryIds',
         'main_category_id',
+        'sub_category:',
+        'tag:',
         'category: \'genel\'',
         'type: \'metin\'',
         'media_url: \'\'',
       ];
       const forbidden = presentTokens(getQuestionsSource, [
-        'sub_category:',
-        'tag:',
         'region:',
         '...question',
       ]);

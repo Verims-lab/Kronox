@@ -628,6 +628,7 @@ export default function Game() {
         recentlySeenQuestionIds: loadRecentHistory(),
         levelNumber: soloLevel?.levelNumber,
         deckSize: getSoloAttemptDeckSizeForLevel(soloLevel?.levelNumber),
+        seedCount: playerNames.length * 2,
         requireActiveCategoryWhitelist: true,
       });
       if (!engineResult.ok) {

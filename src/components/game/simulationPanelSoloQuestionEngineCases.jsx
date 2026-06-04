@@ -648,6 +648,100 @@ export const EXTRA_TESTS = [
   ),
 
   makeCase(
+    'early_visible_seed_years_do_not_bypass_spacing',
+    'Seed/preplaced timeline cards stay spaced from the first five active player cards',
+    () => {
+      const pool = buildSyntheticPool(80, (i) => ({
+        year: 1900 + i,
+        answer: String(1900 + i),
+        sub_category: `sub_${i % 8}`,
+      }));
+      const res = buildSoloAttemptDeck({
+        pool,
+        levelNumber: 4,
+        seedCount: 2,
+        random: makeSeededRandom(99),
+      });
+      if (!res.ok) return fail(`Engine failed unexpectedly: ${res.reason}`, {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'REAL_PRODUCT_RISK',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+      const seedYears = getSoloSeedQuestions(res.deck, 2).map((question) => Number(question.year));
+      const firstFiveYears = getDisplayedSoloQuestionDeck(res.deck, 2).slice(0, 5).map((question) => Number(question.year));
+      const earlyVisibleYears = [...firstFiveYears, ...seedYears];
+      const gap = minAdjacentGap(earlyVisibleYears);
+      if (gap < 5 || res.meta?.earlyVisibleMinimumGapOk !== true) {
+        return fail('Early visible Solo timeline can still show close-year pairs such as 1998/1999.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'seed years + first five active card years all gap >= 5',
+          actual: { firstFiveYears, seedYears, earlyVisibleYears, gap, meta: res.meta },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Seed/preplaced years are included in early visible spacing diagnostics.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+        actual: { firstFiveYears, seedYears, gap },
+      });
+    },
+  ),
+
+  makeCase(
+    'first_five_soft_cluster_guardrail',
+    'First five active cards avoid 3+ same-subcategory or sports-cluster cards when alternatives exist',
+    () => {
+      const pool = Array.from({ length: 36 }, (_, i) => {
+        const sports = i < 18;
+        return {
+          id: 3000 + i,
+          question: sports ? `sports ${i} Serena Messi football` : `mixed ${i}`,
+          answer: String(1900 + i * 5),
+          year: 1900 + i * 5,
+          main_category_id: sports ? 5 : ((i % 4) + 1),
+          sub_category: sports ? 'tenis futbol spor' : `mixed_${i % 6}`,
+          tag: sports ? 'sports football tennis' : 'mixed',
+          state: 'A',
+          type: 'metin',
+        };
+      });
+      const res = buildSoloAttemptDeck({
+        pool,
+        levelNumber: 4,
+        seedCount: 2,
+        random: makeSeededRandom(17),
+      });
+      if (!res.ok) return fail(`Engine failed unexpectedly: ${res.reason}`, {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'REAL_PRODUCT_RISK',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+      const maxFirstFiveSubcategoryCount = Math.max(0, ...Object.values(res.meta.firstFiveSubcategoryDistribution || {}));
+      if (maxFirstFiveSubcategoryCount > 2 || Number(res.meta.firstFiveSportsClusterCount) > 2) {
+        return fail('First-five soft anti-cluster guardrail did not engage despite available alternatives.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'no first-five subcategory or sports cluster count above 2 when alternatives exist',
+          actual: {
+            firstFiveSubcategoryDistribution: res.meta.firstFiveSubcategoryDistribution,
+            firstFiveSportsClusterCount: res.meta.firstFiveSportsClusterCount,
+          },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('First-five category/subcategory diagnostics can catch sports-heavy clustering.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+        actual: {
+          firstFiveSubcategoryDistribution: res.meta.firstFiveSubcategoryDistribution,
+          firstFiveSportsClusterCount: res.meta.firstFiveSportsClusterCount,
+        },
+      });
+    },
+  ),
+
+  makeCase(
     'solo_first_five_spacing_clean_fail_when_impossible',
     'Solo engine clean-fails when no valid first-five 5-year spacing deck exists',
     () => {
@@ -683,16 +777,26 @@ export const EXTRA_TESTS = [
       }));
       const res = buildSoloAttemptDeck({ pool, levelNumber: 1, random: makeSeededRandom(11) });
       const meta = res.ok ? res.meta : null;
-      if (!res.ok || !meta?.categoryBalance || !meta?.subcategoryBalance || meta.eraSpread !== true) {
+      if (
+        !res.ok ||
+        !meta?.categoryBalance ||
+        !meta?.subcategoryBalance ||
+        !meta?.categoryDistribution ||
+        !meta?.subcategoryDistribution ||
+        !meta?.firstFiveCategoryDistribution ||
+        !meta?.firstFiveSubcategoryDistribution ||
+        !Array.isArray(meta?.earlyVisibleYears) ||
+        meta.eraSpread !== true
+      ) {
         return fail('Deck balance metadata contract drifted.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
-          expected: 'categoryBalance + subcategoryBalance + eraSpread=true',
+          expected: 'category/subcategory distributions + early visible years + eraSpread=true',
           actual: res,
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Category/subcategory balance and era spread contracts are represented by the engine.', {
+      return pass('Category/subcategory balance, first-five diagnostics, and era spread contracts are represented by the engine.', {
         verification: 'RUNTIME_VERIFIED',
         classification: 'RUNTIME_VERIFIED',
         actual: meta,

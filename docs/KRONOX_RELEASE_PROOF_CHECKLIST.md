@@ -84,6 +84,8 @@ Checklist:
 * Runtime consumes the Solo attempt deck in order: the first active player question card is `soloAttemptDeck[0]`.
 * Insufficient unique-year pool shows clean error.
 * First 5 displayed active player question cards are at least 5 years apart.
+* Seed/preplaced timeline cards do not create close-year conflicts with the first 5 active player question cards.
+* First 5 cards avoid 3+ same-subcategory or obvious sports-cluster cards when metadata and alternatives allow.
 * Deck feels category/subcategory balanced where the pool allows.
 * Deck feels era/year balanced rather than clustered.
 * Levels 1-3 show beginner-friendly year spacing and a subtle correct-slot pulse while dragging.
