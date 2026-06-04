@@ -14,9 +14,14 @@
 //   and explicitly point to the gameplay invariant they protect.
 
 import {
+  analyzeSoloQuestionPool,
   buildSoloAttemptDeck,
   __soloEngineInternals,
   getBeginnerYearSpacingForLevel,
+  getKartDegistirDiagnostics,
+  getSoloDeckDiagnostics,
+  getSoloDifficultyStrategy,
+  getSoloReplayVarietyDiagnostics,
   shouldShowBeginnerPlacementHint,
 } from '@/lib/soloQuestionEngine';
 import {
@@ -1136,6 +1141,230 @@ export const EXTRA_TESTS = [
         verification: 'RUNTIME_VERIFIED',
         classification: 'RUNTIME_VERIFIED',
         actual: meta,
+      });
+    },
+  ),
+
+  makeCase(
+    'solo_p2_deck_diagnostics_contract',
+    'P2 Solo deck diagnostics expose Health/admin-only quality fields without normal UI usage',
+    () => {
+      const pool = buildSyntheticPool(72, (i) => ({
+        year: 1800 + i * 5,
+        answer: String(1800 + i * 5),
+        sub_category: `diag_sub_${i % 9}`,
+        tag: i % 6 === 0 ? 'sports football' : `diag_theme_${i % 8}`,
+        difficulty: (i % 3) + 1,
+      }));
+      const res = buildSoloAttemptDeck({ pool, levelNumber: 4, random: makeSeededRandom(211) });
+      if (!res.ok) return fail(`Engine failed unexpectedly: ${res.reason}`, {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'REAL_PRODUCT_RISK',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+      const diagnostics = getSoloDeckDiagnostics(res, { levelNumber: 4 });
+      const missing = [
+        'questionIds',
+        'answerYears',
+        'firstFiveYears',
+        'minimumFirstFiveYearGap',
+        'categoryDistribution',
+        'subcategoryDistribution',
+        'themeDistribution',
+        'decadeDistribution',
+        'difficultyDistribution',
+        'fallbackTier',
+        'balanceScore',
+        'warnings',
+      ].filter((key) => diagnostics[key] === undefined);
+      const uiLeaks = missingTokens(gamePageSource, ['getSoloDeckDiagnostics', 'analyzeSoloQuestionPool']);
+      if (
+        missing.length ||
+        diagnostics.adminHealthOnly !== true ||
+        diagnostics.exposeToNormalPlayers !== false ||
+        uiLeaks.length !== 2
+      ) {
+        return fail('P2 deck diagnostics contract drifted or leaked into normal UI source.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'pure Health/admin diagnostics only; no Game.jsx usage',
+          actual: { missing, diagnostics, uiLeaks },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('P2 deck diagnostics expose quality fields for Health/admin only.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+        actual: {
+          levelType: diagnostics.levelType,
+          minimumFirstFiveYearGap: diagnostics.minimumFirstFiveYearGap,
+          fallbackTier: diagnostics.fallbackTier,
+        },
+      });
+    },
+  ),
+
+  makeCase(
+    'solo_p2_question_pool_health_warnings',
+    'P2 pool health detects invalid years, sparse metadata, and hard deck limits',
+    () => {
+      const weakPool = [
+        { id: 1, question: 'bad year', year: null, answer: '', main_category_id: 1, state: 'A' },
+        ...buildSyntheticPool(12, (i) => ({
+          id: 2000 + i,
+          year: 1900 + i,
+          answer: String(1900 + i),
+          main_category_id: 1,
+          sub_category: i < 2 ? 'same' : '',
+          difficulty: i < 3 ? 1 : undefined,
+        })),
+      ];
+      const health = analyzeSoloQuestionPool(weakPool);
+      const expectedWarnings = ['invalid_or_missing_years_present', 'missing_subcategory_metadata', 'missing_difficulty_metadata'];
+      const missingWarnings = expectedWarnings.filter((warning) => !health.warnings.includes(warning));
+      if (
+        health.adminHealthOnly !== true ||
+        health.canBuildNormalDeck !== false ||
+        !health.hardFailures.includes('insufficient_unique_years_for_normal_deck') ||
+        missingWarnings.length
+      ) {
+        return fail('P2 question pool health failed to surface weak-pool quality issues.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'hard unique-year failure plus metadata/year warnings',
+          actual: { health, missingWarnings },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Question pool health reports warnings without pretending weak pools are production-ready.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+        actual: { warnings: health.warnings, hardFailures: health.hardFailures },
+      });
+    },
+  ),
+
+  makeCase(
+    'solo_p2_difficulty_strategy_safe_fallback',
+    'P2 difficulty readiness helper keeps missing difficulty data as safe soft fallback',
+    () => {
+      const missingDifficultyPool = buildSyntheticPool(30, (i) => ({
+        year: 1700 + i * 5,
+        answer: String(1700 + i * 5),
+        difficulty: undefined,
+      }));
+      const early = getSoloDifficultyStrategy(2, missingDifficultyPool);
+      const special = getSoloDifficultyStrategy(10, buildSyntheticPool(30, (i) => ({
+        year: 1800 + i * 5,
+        answer: String(1800 + i * 5),
+        difficulty: (i % 5) + 1,
+      })));
+      if (
+        early.readinessOnly !== true ||
+        early.missingDifficultyFallback !== true ||
+        early.fallbackMode !== 'missing_difficulty_safe_easy' ||
+        special.levelType !== 'special' ||
+        !special.preferredDifficulties.includes(4)
+      ) {
+        return fail('Difficulty progression readiness helper would hard-gate current easy-only data or missed special handling.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'readiness-only, missing difficulty safe fallback, special strategy differs',
+          actual: { early, special },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Difficulty strategy is readiness-only and falls back safely when difficulty metadata is missing.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+      });
+    },
+  ),
+
+  makeCase(
+    'solo_p2_replay_variety_diagnostics',
+    'P2 replay diagnostics expose repeated first-five sequence risk without relaxing hard rules',
+    () => {
+      const pool = buildSyntheticPool(80, (i) => ({
+        year: 1600 + i * 5,
+        answer: String(1600 + i * 5),
+        sub_category: `replay_${i % 10}`,
+      }));
+      const a = buildSoloAttemptDeck({ pool, levelNumber: 5, random: makeSeededRandom(301) });
+      const b = buildSoloAttemptDeck({ pool, levelNumber: 5, random: makeSeededRandom(302) });
+      if (!a.ok || !b.ok) return fail('Replay variety fixture failed to build valid decks.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'REAL_PRODUCT_RISK',
+        actual: { a, b },
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+      const variety = getSoloReplayVarietyDiagnostics(a.deck, b.deck);
+      const aGap = minAdjacentGap(a.deck.slice(0, 5).map((q) => q.year));
+      const bGap = minAdjacentGap(b.deck.slice(0, 5).map((q) => q.year));
+      if (
+        variety.adminHealthOnly !== true ||
+        variety.exactFirstFiveRepeat === true ||
+        aGap < 5 ||
+        bGap < 5 ||
+        variety.softOnly !== true
+      ) {
+        return fail('Replay variety diagnostics either repeated the first-five sequence or weakened hard spacing rules.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'different first-five where alternatives exist, hard spacing still valid',
+          actual: { variety, aGap, bGap },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Replay diagnostics can flag exact early-sequence repeats while preserving hard deck validity.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+        actual: variety,
+      });
+    },
+  ),
+
+  makeCase(
+    'solo_p2_kart_degistir_diagnostics_contract',
+    'P2 Kart Değiştir diagnostics describe deck/reserve source, spacing, and no-safe-replacement state',
+    () => {
+      const deck = [
+        { id: 1, question: 'current', year: 1990, main_category_id: 1, state: 'A' },
+        { id: 2, question: 'replacement', year: 2006, main_category_id: 2, state: 'A' },
+      ];
+      const ok = getKartDegistirDiagnostics({
+        deck,
+        currentQuestion: deck[0],
+        replacement: deck[1],
+        timelineYears: [1997],
+        previousContextCards: [],
+      });
+      const noSafe = getKartDegistirDiagnostics({
+        deck: [deck[0]],
+        currentQuestion: deck[0],
+        replacement: null,
+        timelineYears: [1997],
+        noSafeReplacement: true,
+      });
+      if (
+        ok.replacementSource !== 'unused_deck_reserve' ||
+        ok.preservedVisibleSpacing !== true ||
+        ok.jokerShouldBeConsumed !== true ||
+        noSafe.noSafeReplacement !== true ||
+        noSafe.jokerShouldBeConsumed !== false ||
+        ok.exposeToNormalPlayers !== false
+      ) {
+        return fail('Kart Değiştir diagnostics contract drifted.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'deck/reserve source, spacing proof, failed replacement does not consume joker',
+          actual: { ok, noSafe },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Kart Değiştir diagnostics are helper-only and preserve no-safe-replacement semantics.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
       });
     },
   ),

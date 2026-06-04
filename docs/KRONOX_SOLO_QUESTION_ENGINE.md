@@ -68,6 +68,15 @@ P1 balancing applies during deck selection and deck ordering where the pool allo
 
 The engine exposes safe diagnostics for Health/admin/debug only: category distribution, subcategory distribution, theme/sports distribution, decade distribution, first-5/first-7 distributions, max consecutive cluster counts, and fallback tier. These diagnostics must not be shown to normal players or used to expose the protected question bank publicly.
 
+P2 adds a helper-only quality layer on top of these rules:
+- deck diagnostics include level number, level type, deck size, correct target, fail threshold, question IDs, answer years, first 5 years, minimum first-5 gap, visible-spacing conflict count, category/subcategory/theme/decade/difficulty distributions, fallback tier, balance score, and warnings
+- question pool health can warn about sparse categories, sparse subcategories, overrepresented buckets, invalid years, missing sub_category/tag/difficulty metadata, insufficient unique years, and limited 16/19 deck readiness
+- pool-health warnings do not block gameplay by themselves; hard deck failures still block the level cleanly
+- difficulty progression is readiness-oriented only. Missing difficulty data falls back safely to easy behavior, and special-level strategy can differ without forcing unavailable difficulty levels
+- replay variety diagnostics can flag exact repeated early sequences where alternatives exist, but replay variety remains a soft preference
+- Kart Değiştir diagnostics can report swapped-out card, replacement card, replacement source, visible-spacing preservation, balance impact, and no-safe-replacement state
+- all P2 diagnostics are admin/Health/helper-only and must not be exposed to normal gameplay UI
+
 Fallback order:
 1. active questions/categories, unique years, first 5 minimum 5-year spacing, category/subcategory balance, era spread, not recently seen
 2. relax recently-seen avoidance

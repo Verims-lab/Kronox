@@ -61,6 +61,17 @@ diagnostics expose categoryDistribution, subcategoryDistribution,
 themeDistribution, decadeDistribution, firstSevenCategoryDistribution, and
 fallbackTier for Health/admin/debug only.
 
+P2 diagnostics are Health/admin/helper-only. Deck diagnostics include level
+number, level type, deck size, correct target, fail threshold, question IDs,
+answer years, first 5 years, minimum first-5 gap, visible-spacing conflict
+count, category/subcategory/theme/decade/difficulty distributions, fallback
+tier, balance score, and warnings. Question pool health warns about invalid
+years, sparse categories/subcategories, missing sub_category/tag/difficulty
+metadata, insufficient unique years, and limited 16/19 deck readiness.
+Difficulty progression is readiness-oriented only and falls back safely when
+difficulty metadata is missing. Replay variety diagnostics and Kart Değiştir
+replacement diagnostics are helper-only and must not be exposed to normal UI.
+
 Fallback may relax recently-seen avoidance, category/subcategory/theme balance,
 and era spread. It must not relax required deck size, unique IDs, unique
 years, active question/category filtering, visible timeline spacing where a
