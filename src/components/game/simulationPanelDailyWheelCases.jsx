@@ -10,8 +10,8 @@ import dailyWheelHookSource from '../../hooks/useDailyWheel.js?raw';
 import economyGatewaySource from '../../lib/dbGateway/economyGateway.js?raw';
 import diamondEconomySource from '../../lib/diamondEconomy.js?raw';
 import gameSoundsSource from '../../lib/gameSounds.js?raw';
-import economyRulesSource from '../../../docs/KRONOX_ECONOMY_RULES.md?raw';
-import releaseChecklistSource from '../../../docs/KRONOX_RELEASE_PROOF_CHECKLIST.md?raw';
+import { ECONOMY_RULES_DOC as economyRulesSource } from '@/lib/economyRulesDoc';
+import { RELEASE_PROOF_CHECKLIST_DOC as releaseChecklistSource } from '@/lib/package2DocMirrors';
 import { DAILY_WHEEL_BACKEND_HEALTH_SOURCE } from '@/lib/dailyWheelHealthMirror';
 
 const STATUS = {
