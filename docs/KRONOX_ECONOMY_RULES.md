@@ -376,6 +376,7 @@ Account deletion rules:
 Daily Wheel deletion cleanup contract:
 
 * Retained OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the deleted user.
+* retained economy/gameplay rows must not expose the deleted user identity.
 
 ---
 
@@ -420,7 +421,11 @@ Daily Wheel admin reset cleanup contract:
 
 * clears Daily Wheel guard fields
 * removes target `DailyWheelSpin` rows
+* prevents stale Daily Wheel availability/countdown state without granting duplicate Diamonds
+* does not affect Kronox Puan
+* does not affect leaderboard sorting or rank
 * reset must not delete the user account or authentication identity
+* admin reset remains admin-only, previewed, confirmed, and logged
 
 ---
 

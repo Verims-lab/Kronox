@@ -46,10 +46,9 @@ claimed-state countdown uses Yarın hazır or compact time text such as 11 sa
 First authenticated entry grants +100 once. Same-day daily login grants +20 once.
 
 ## Admin reset and account deletion
-Admin reset sets \`daily_wheel_last_spin_date\` to the current UTC day, clears
-Daily Wheel guard fields, and removes target \`DailyWheelSpin\` rows. Retained
-OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the
-deleted user.
+Admin reset sets \`daily_wheel_last_spin_date\` to the current UTC day, clears Daily Wheel guard fields, and removes target \`DailyWheelSpin\` rows. Retained OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the deleted user.
+Admin reset remains admin-only, previewed, confirmed, and logged; it prevents stale Daily Wheel availability/countdown state without granting duplicate Diamonds, changing Kronox Puan, or affecting leaderboard sorting or rank.
+Retained economy/gameplay rows do not expose the deleted user identity.
 
 Future sources (wheel_spin, rewarded_ad, quest_reward, purchase, achievement,
 special_event) are schema-ready but not active yet.
