@@ -100,86 +100,133 @@ export const EXTRA_SUITES = [
 ];
 
 export const EXTRA_TESTS = [
-  /* 1. solo_attempt_deck_size_is_level_aware */
+  /* 1. normal_deck_size_is_16 */
   makeCase(
-    'solo_attempt_deck_size_is_level_aware',
-    'Engine selects 16 questions for normal Solo levels and 19 for special levels',
+    'normal_deck_size_is_16',
+    'Normal Solo levels use a 16-question attempt deck',
     () => {
       const pool = buildSyntheticPool(60);
       const normal = buildSoloAttemptDeck({ pool, levelNumber: 1 });
-      const special = buildSoloAttemptDeck({ pool, levelNumber: 10 });
-      if (!normal.ok || !special.ok) return fail('Engine failed on a 60-row unique-year pool.', {
+      if (!normal.ok) return fail('Engine failed on a 60-row unique-year pool.', {
         verification: 'RUNTIME_VERIFIED',
         classification: 'REAL_PRODUCT_RISK',
-        expected: 'normal ok=true with 16; special ok=true with 19',
-        actual: { normal, special },
+        expected: 'normal ok=true with 16',
+        actual: normal,
         actionType: ACTION_TYPES.CODE_FIX,
       });
-      if (normal.deck.length !== 16 || special.deck.length !== 19) return fail('Solo deck size helper drifted.', {
+      const helperSize = getSoloDeckSizeForLevel(1);
+      if (helperSize !== 16 || normal.deck.length !== 16) return fail('Normal Solo deck size helper drifted.', {
         verification: 'RUNTIME_VERIFIED',
         classification: 'REAL_PRODUCT_RISK',
-        expected: { normal: 16, special: 19 },
-        actual: { normal: normal.deck.length, special: special.deck.length },
+        expected: 16,
+        actual: { helperSize, deckLength: normal.deck.length },
         actionType: ACTION_TYPES.CODE_FIX,
       });
-      return pass('Engine produces 16-card normal decks and 19-card special decks.', {
+      return pass('Engine produces 16-question decks for normal Solo levels.', {
         verification: 'RUNTIME_VERIFIED', classification: 'RUNTIME_VERIFIED',
-        actual: { normal: normal.deck.length, special: special.deck.length },
+        actual: { helperSize, deckLength: normal.deck.length },
       });
     },
   ),
 
-  /* 2. solo_attempt_card_target_is_level_aware */
+  /* 2. special_deck_size_is_19 */
   makeCase(
-    'solo_attempt_card_target_is_level_aware',
-    'Normal Solo visible timeline target is 7; special levels every 5 from 10 require 10 cards',
+    'special_deck_size_is_19',
+    'Special Solo levels use a 19-question attempt deck',
     () => {
-      if (SOLO_CARDS_PER_LEVEL !== 7 || SOLO_SPECIAL_CARDS_PER_LEVEL !== 10) return fail('Solo card constants drifted.', {
+      const pool = buildSyntheticPool(60);
+      const special = buildSoloAttemptDeck({ pool, levelNumber: 10 });
+      if (!special.ok) return fail('Engine failed on a 60-row unique-year pool.', {
         verification: 'RUNTIME_VERIFIED',
         classification: 'REAL_PRODUCT_RISK',
-        expected: { normal: 7, special: 10 },
-        actual: { SOLO_CARDS_PER_LEVEL, SOLO_SPECIAL_CARDS_PER_LEVEL },
+        expected: 'special ok=true with 19',
+        actual: special,
         actionType: ACTION_TYPES.CODE_FIX,
       });
+      const helperSize = getSoloDeckSizeForLevel(10);
+      if (helperSize !== 19 || special.deck.length !== 19) return fail('Special Solo deck size helper drifted.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'REAL_PRODUCT_RISK',
+        expected: 19,
+        actual: { helperSize, deckLength: special.deck.length },
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+      return pass('Engine produces 19-question decks for special Solo levels.', {
+        verification: 'RUNTIME_VERIFIED', classification: 'RUNTIME_VERIFIED',
+        actual: { helperSize, deckLength: special.deck.length },
+      });
+    },
+  ),
+
+  /* 3. normal_level_target_is_7 */
+  makeCase(
+    'normal_level_target_is_7',
+    'Normal Solo levels target 7 correct timeline cards',
+    () => {
       const actual = {
+        constant: SOLO_CARDS_PER_LEVEL,
         level1Cards: getSoloCardsRequiredForLevel(1),
-        level10Cards: getSoloCardsRequiredForLevel(10),
         level11Cards: getSoloCardsRequiredForLevel(11),
-        level15Cards: getSoloCardsRequiredForLevel(15),
         level1TimelineTarget: getSoloTimelineWinCardCountForLevel(1),
-        level10TimelineTarget: getSoloTimelineWinCardCountForLevel(10),
         level11TimelineTarget: getSoloTimelineWinCardCountForLevel(11),
-        normalDeckSize: getSoloDeckSizeForLevel(1),
-        specialDeckSize: getSoloDeckSizeForLevel(10),
-        specialLevels: [9, 10, 11, 15].map((n) => [n, isSoloSpecialLevel(n)]),
       };
       if (
+        actual.constant !== 7 ||
         actual.level1Cards !== 7 ||
-        actual.level10Cards !== 10 ||
         actual.level11Cards !== 7 ||
-        actual.level15Cards !== 10 ||
         actual.level1TimelineTarget !== 7 ||
-        actual.level10TimelineTarget !== 10 ||
-        actual.level11TimelineTarget !== 7 ||
-        actual.normalDeckSize !== 16 ||
-        actual.specialDeckSize !== 19 ||
-        JSON.stringify(actual.specialLevels) !== JSON.stringify([[9, false], [10, true], [11, false], [15, true]])
+        actual.level11TimelineTarget !== 7
       ) {
-        return fail('Solo card target helper drifted.', {
+        return fail('Normal Solo target helper drifted.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
-          expected: 'normal levels complete at 7 visible timeline cards; levels 10,15,20... complete at 10; deck sizes 16/19',
+          expected: 'normal levels complete at 7 visible timeline cards',
           actual,
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Normal/special Solo card targets and deck sizes are level-aware.', {
+      return pass('Normal Solo levels complete at 7 timeline cards.', {
         verification: 'RUNTIME_VERIFIED', classification: 'RUNTIME_VERIFIED', actual,
       });
     },
   ),
 
-  /* 3. solo_attempt_fails_on_10th_mistake */
+  /* 4. special_level_target_is_10 */
+  makeCase(
+    'special_level_target_is_10',
+    'Special Solo levels start at 10, repeat every 5 levels, and target 10 correct timeline cards',
+    () => {
+      const actual = {
+        constant: SOLO_SPECIAL_CARDS_PER_LEVEL,
+        level10Cards: getSoloCardsRequiredForLevel(10),
+        level15Cards: getSoloCardsRequiredForLevel(15),
+        level10TimelineTarget: getSoloTimelineWinCardCountForLevel(10),
+        level15TimelineTarget: getSoloTimelineWinCardCountForLevel(15),
+        specialLevels: [9, 10, 11, 15].map((n) => [n, isSoloSpecialLevel(n)]),
+      };
+      if (
+        actual.constant !== 10 ||
+        actual.level10Cards !== 10 ||
+        actual.level15Cards !== 10 ||
+        actual.level10TimelineTarget !== 10 ||
+        actual.level15TimelineTarget !== 10 ||
+        JSON.stringify(actual.specialLevels) !== JSON.stringify([[9, false], [10, true], [11, false], [15, true]])
+      ) {
+        return fail('Special Solo target helper drifted.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'levels 10,15,20... complete at 10 visible timeline cards',
+          actual,
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Special Solo levels are every fifth level from 10 and complete at 10 timeline cards.', {
+        verification: 'RUNTIME_VERIFIED', classification: 'RUNTIME_VERIFIED', actual,
+      });
+    },
+  ),
+
+  /* 5. solo_attempt_fails_on_10th_mistake */
   makeCase(
     'solo_attempt_fails_on_10th_mistake',
     'Fail-on-mistakes threshold is the 10th mistake (SOLO_MAX_MISTAKES)',
@@ -447,9 +494,9 @@ export const EXTRA_TESTS = [
     },
   ),
 
-  /* 13. solo_first_five_year_spacing_orders_first_5_cards */
+  /* 13. first_five_ordered_questions_have_minimum_spacing */
   makeCase(
-    'solo_first_five_year_spacing_orders_first_5_cards',
+    'first_five_ordered_questions_have_minimum_spacing',
     'Solo decks order the first 5 playable cards at least 5 years apart',
     () => {
       const pool = buildSyntheticPool(40, (i) => ({ year: 1900 + i * 5, answer: String(1900 + i * 5) }));
