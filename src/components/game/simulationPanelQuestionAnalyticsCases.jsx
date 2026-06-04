@@ -177,16 +177,19 @@ export const EXTRA_TESTS = [
         'isAuthorizedAdmin',
         'QuestionAttemptEvent.list',
         'Question.list',
+        'Category.list',
         'SendEmail',
-        'Kronox Question Analytics Report - Last',
-        'Top shown questions',
-        'Rarely / never shown active questions',
-        'Most wrong questions',
-        'Very easy questions',
-        'Slow questions',
-        'Category/subcategory distribution',
-        'Sports/theme focus warning',
-        'Data quality warnings',
+        'Kronox Soru Analiz Raporu —',
+        'Kronox Soru Analiz Raporu',
+        'Executive Summary',
+        'Key Insights / Risk Flags',
+        'En Çok Gösterilen Sorular',
+        'Az veya Hiç Gösterilmeyen Sorular',
+        'En Çok Yanlış Yapılan Sorular',
+        'Çok Kolay Görünen Sorular',
+        'En Uzun Sürede Cevaplanan Sorular',
+        'Kategori ve Alt Kategori Dağılımı',
+        'Veri Kalitesi Uyarıları',
         'AdminMaintenanceLog.create',
       ]);
       if (missing.length || sectionMissing.length) {
@@ -201,6 +204,50 @@ export const EXTRA_TESTS = [
       });
     }),
 
+  makeCase('email_report_is_html_formatted',
+    'Question analytics email renders as HTML tables/cards/bars with text fallback',
+    () => {
+      const missing = missingTokens(reportFunctionSource, [
+        '<html>',
+        '<body',
+        '<table',
+        '<tr>',
+        '<td',
+        '<h1',
+        '<h2',
+        '<p',
+        'summaryCard',
+        'sectionHtml',
+        'tableHtml',
+        'barHtml',
+        'body: report.html',
+        'html: report.html',
+        'text: report.text',
+        "textLines.join('\\n')",
+        '--- En Çok Gösterilen Sorular ---',
+        'NEVER_SHOWN_SAMPLE_LIMIT = 20',
+        'neverShown.slice(0, NEVER_SHOWN_SAMPLE_LIMIT)',
+        'Bu dönemde gösterilen soru verisi yok.',
+        'Yeterli örneklem yok.',
+        'Cevap süresi verisi yok.',
+      ]);
+      const forbidden = forbiddenTokens(reportFunctionSource, [
+        'body: report.body',
+        'lines.join',
+        'neverShown.slice(0, 30)',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Question analytics email can regress to raw single-line text or unbounded never-shown output.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('Report email is HTML-first with tables, cards, bars, capped samples, and line-broken text fallback.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
   makeCase('admin_only_settings_trigger_exists',
     'Settings admin tools expose a minimal report trigger',
     () => {
@@ -211,8 +258,8 @@ export const EXTRA_TESTS = [
         'Soru Analiz Raporu Gönder',
         '/sendQuestionAnalyticsReportEmail',
         'Son 7 gün',
-        'Rapor gönderiliyor...',
-        'Rapor e-posta olarak gönderildi.',
+        'Rapor hazırlanıyor...',
+        'Soru analiz raporu e-posta olarak gönderildi.',
         'Rapor gönderilemedi. Lütfen tekrar dene.',
       ]);
       if (missing.length) {

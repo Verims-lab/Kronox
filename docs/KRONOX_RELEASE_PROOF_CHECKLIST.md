@@ -365,8 +365,10 @@ Checklist:
   `shown`/`replacement_shown`, `answered`, and `swapped_out` event types are
   counted separately.
 * `sendQuestionAnalyticsReportEmail` sends the manual admin question analytics
-  report to the authenticated admin email for the selected period. Verify
-  deployed SendEmail delivery with an admin account.
+  report to the authenticated admin email for the selected period. The report
+  must render as HTML/table/bar formatted email with readable empty states and
+  a plain-text fallback. Verify deployed SendEmail delivery and Gmail desktop/
+  mobile rendering with an admin account.
 * `cleanupAdminMaintenanceLog` dry-run archives by retention marker only and
   does not hard delete.
 * Admin-only maintenance functions return 401 unauthenticated and 403 for

@@ -377,8 +377,9 @@ Security contract:
 * automatic scheduling is a deployment/platform decision and is not enabled by
   repo code alone
 * `sendQuestionAnalyticsReportEmail` is manual/admin-triggered only, sends a
-  question-focused aggregate report to the authenticated admin email, and must
-  not expose user-level surveillance data to normal users
+  question-focused aggregate HTML/table/bar formatted report to the
+  authenticated admin email, and must not expose user-level surveillance data
+  to normal users
 * admin reset retains question analytics rows because the report is
   question-focused aggregate data, not a progress/economy balance; identity
   cleanup belongs to account deletion

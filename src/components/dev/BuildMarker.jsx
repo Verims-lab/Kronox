@@ -718,6 +718,13 @@ import React, { useEffect, useState } from 'react';
 //     last_daily_diamond_reward_date: hardZero ? todayUtcKey() contract that
 //     prevents same-day daily-login Diamond re-grants after a zero reset.
 //
+// Codex198 — Question analytics email report formatting:
+//   • sendQuestionAnalyticsReportEmail now sends HTML-first admin reports
+//     with summary cards, grouped tables, capped samples, visual bars, and
+//     readable empty states instead of one collapsed raw text line.
+//   • Adds a plain-text fallback with section dividers and updates Health
+//     contracts to catch raw/single-line report regressions.
+//
 // Codex197 — Question analytics P3:
 //   • Wires Solo shown/answered/Kart Değiştir events to private
 //     QuestionAttemptEvent rows through a best-effort gateway.
@@ -830,7 +837,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex197';
+const BUILD_MARKER = 'Codex198';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

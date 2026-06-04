@@ -41,7 +41,7 @@ Cleanup/retention jobs implemented now:
 - expirePushSubscriptions requires admin auth, supports dryRun, marks stale disabled PushSubscription rows as status expired.
 - refreshLeaderboardProjection requires admin auth, supports dryRun, refreshes SoloLeaderboardEntry and UserStatsProjection.
 - aggregateQuestionStats requires admin auth, supports dryRun, refreshes QuestionStatsProjection and CategoryStatsProjection from QuestionAttemptEvent.
-- sendQuestionAnalyticsReportEmail requires admin auth, sends a manual question analytics email report, and has no scheduled trigger.
+- sendQuestionAnalyticsReportEmail requires admin auth, sends a manual HTML/table/bar formatted question analytics email report, includes a plain-text fallback, and has no scheduled trigger.
 - cleanupAdminMaintenanceLog requires admin auth, supports dryRun, marks old logs retention_status archived.
 - Cleanup jobs are status-transition-first and do not hard delete production data.
 
