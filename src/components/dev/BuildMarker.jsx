@@ -726,6 +726,14 @@ import React, { useEffect, useState } from 'react';
 //   • Hata Affı shields one wrong placement, Kart Değiştir swaps from the
 //     prebuilt deck, and Zaman Dondur freezes Solo elapsed time for 10s.
 //
+// Codex190 — Daily Wheel UX upgrade:
+//   • Daily Wheel modal now shows a large visible reward wheel with eight
+//     Diamond slices, fixed pointer, and center hub.
+//   • Successful claims run a 4.6s landing spin using the backend reward,
+//     then reveal a large +X Elmas result and updated Diamond total.
+//   • Adds optional Web Audio spin/reward cues through existing gameSounds
+//     and Health coverage for visible wheel, duration, and no fake re-spin.
+//
 // Codex187 — Daily Wheel result polish:
 //   • Daily Wheel claim now always resolves to reward, already-claimed, or
 //     visible retry/error modal instead of silently returning to ready state.
@@ -773,7 +781,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex189';
+const BUILD_MARKER = 'Codex190';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
