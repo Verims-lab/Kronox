@@ -60,10 +60,9 @@ applies it also shows \`7 günlük seri bonusu: +100 elmas\` and
 \`Toplam: +Y elmas\`.
 Daily Wheel claimed countdown shows \`Yarın hazır\` or compact time text
 without a Diamond icon.
-Admin reset sets \`daily_wheel_last_spin_date\` to the current UTC day, clears
-Daily Wheel guard fields, and removes target \`DailyWheelSpin\` rows. Retained
-OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the
-deleted user.
+Admin reset sets \`daily_wheel_last_spin_date\` to the current UTC day, clears Daily Wheel guard fields, and removes target \`DailyWheelSpin\` rows. Retained OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the deleted user.
+Admin reset remains admin-only, previewed, confirmed, and logged; it prevents stale Daily Wheel availability/countdown state without granting duplicate Diamonds, changing Kronox Puan, or affecting leaderboard sorting or rank.
+Retained economy/gameplay rows do not expose the deleted user identity.
 
 PWA push, mobile safe-area, and other runtime proofs remain manual.
 `;

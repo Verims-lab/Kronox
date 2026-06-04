@@ -148,6 +148,7 @@ Checklist:
 * Missing a UTC day resets the Daily Wheel streak gracefully to 1 on next spin.
 * Daily Wheel result shows `+X Elmas kazandın`; when the 7-day streak bonus applies it also shows `7 günlük seri bonusu: +100 elmas` and `Toplam: +Y elmas`.
 * Daily Wheel claimed countdown shows `Yarın hazır` or compact time text without a Diamond icon.
+* Admin hard-zero / maintenance reset clears Daily Wheel guard fields without granting duplicate Diamonds, changing Kronox Puan, or affecting leaderboard sorting or rank.
 * Home diamond count updates immediately after a successful wheel claim.
 * Multi-device Daily Wheel duplicate prevention remains a live backend/platform probe unless unique idempotency constraints are configured.
 
@@ -268,6 +269,7 @@ Checklist:
 * Retained OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the deleted user's email.
 * Retained OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the deleted user.
 * Daily Wheel deletion cleanup contract: Retained OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the deleted user.
+* Retained economy/gameplay rows do not expose the deleted user identity.
 * Another user's account/data is not deleted.
 * `/account-deletion` public page copy matches the in-app flow.
 
