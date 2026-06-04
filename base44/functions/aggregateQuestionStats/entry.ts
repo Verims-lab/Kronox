@@ -60,9 +60,11 @@ function getBucket(map: Map<string, any>, key: string, seed: Record<string, unkn
       wrong_count: 0,
       total_response_time_ms: 0,
       response_count: 0,
+      swap_count: 0,
       solo_shown_count: 0,
       online_shown_count: 0,
       last_shown_at: '',
+      last_answered_at: '',
     });
   }
   return map.get(key);
@@ -113,27 +115,43 @@ Deno.serve(async (req: Request) => {
     if (!questionId) continue;
     const categoryId = Number(event?.category_id);
     const mode = event?.mode === 'online' ? 'online' : 'solo';
+    const eventType = String(event?.event_type || (event?.answered_at ? 'answered' : 'shown')).trim();
+    const isShownEvent = eventType === 'shown' || eventType === 'replacement_shown';
+    const isAnsweredEvent = eventType === 'answered';
+    const isSwapEvent = eventType === 'swapped_out' || event?.was_swapped_out === true;
     const shownAt = String(event?.shown_at || event?.created_at || '');
-    const answered = event?.is_correct === true || event?.is_correct === false;
+    const answeredAt = String(event?.answered_at || '');
+    const answered = isAnsweredEvent && (event?.is_correct === true || event?.is_correct === false);
     const responseMs = Math.max(0, Math.floor(safeNumber(event?.response_time_ms)));
 
     const q = getBucket(questionBuckets, questionId, { question_id: questionId });
-    q.shown_count += 1;
-    if (mode === 'online') q.online_shown_count += 1;
-    else q.solo_shown_count += 1;
+    if (Number.isFinite(categoryId)) q.category_id = categoryId;
+    if (event?.sub_category) q.sub_category = String(event.sub_category);
+    if (event?.tags) q.tags = String(event.tags);
+    if (Number.isFinite(Number(event?.answer_year))) q.answer_year = Number(event.answer_year);
+    if (isShownEvent) {
+      q.shown_count += 1;
+      if (mode === 'online') q.online_shown_count += 1;
+      else q.solo_shown_count += 1;
+      if (shownAt && shownAt > q.last_shown_at) q.last_shown_at = shownAt;
+    }
+    if (isSwapEvent) q.swap_count += 1;
     if (answered && event.is_correct === true) q.correct_count += 1;
     if (answered && event.is_correct === false) q.wrong_count += 1;
-    if (responseMs > 0) {
+    if (answeredAt && answeredAt > q.last_answered_at) q.last_answered_at = answeredAt;
+    if (answered && responseMs > 0) {
       q.total_response_time_ms += responseMs;
       q.response_count += 1;
     }
-    if (shownAt && shownAt > q.last_shown_at) q.last_shown_at = shownAt;
 
-    if (Number.isFinite(categoryId)) {
+    if (isShownEvent && Number.isFinite(categoryId)) {
       const c = getBucket(categoryBuckets, String(categoryId), { category_id: categoryId });
       c.shown_count += 1;
-      if (answered && event.is_correct === true) c.correct_count += 1;
-      if (answered && event.is_correct === false) c.wrong_count += 1;
+    }
+    if (answered && Number.isFinite(categoryId)) {
+      const c = getBucket(categoryBuckets, String(categoryId), { category_id: categoryId });
+      if (event.is_correct === true) c.correct_count += 1;
+      if (event.is_correct === false) c.wrong_count += 1;
     }
   }
 
@@ -148,11 +166,17 @@ Deno.serve(async (req: Request) => {
         shown_count: bucket.shown_count,
         correct_count: bucket.correct_count,
         wrong_count: bucket.wrong_count,
+        swap_count: bucket.swap_count,
         correct_rate: answeredCount > 0 ? bucket.correct_count / answeredCount : 0,
         avg_response_time_ms: bucket.response_count > 0 ? Math.round(bucket.total_response_time_ms / bucket.response_count) : 0,
         solo_shown_count: bucket.solo_shown_count,
         online_shown_count: bucket.online_shown_count,
         last_shown_at: bucket.last_shown_at,
+        last_answered_at: bucket.last_answered_at,
+        ...(Number.isFinite(Number(bucket.category_id)) ? { category_id: Number(bucket.category_id) } : {}),
+        ...(bucket.sub_category ? { sub_category: bucket.sub_category } : {}),
+        ...(bucket.tags ? { tags: bucket.tags } : {}),
+        ...(Number.isFinite(Number(bucket.answer_year)) ? { answer_year: Number(bucket.answer_year) } : {}),
         difficulty_signal: answeredCount >= 10 ? (bucket.correct_count / answeredCount >= 0.8 ? 'easy' : bucket.correct_count / answeredCount <= 0.35 ? 'hard' : 'normal') : 'insufficient_data',
         aggregation_window: `latest_${limit}`,
         updated_at: nowIso,

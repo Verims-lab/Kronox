@@ -360,6 +360,7 @@ cancelStaleLobbies
 expirePushSubscriptions
 refreshLeaderboardProjection
 aggregateQuestionStats
+sendQuestionAnalyticsReportEmail
 cleanupAdminMaintenanceLog
 ```
 
@@ -375,6 +376,15 @@ Security contract:
 * job execution is logged to `AdminMaintenanceLog` when not dry-run
 * automatic scheduling is a deployment/platform decision and is not enabled by
   repo code alone
+* `sendQuestionAnalyticsReportEmail` is manual/admin-triggered only, sends a
+  question-focused aggregate report to the authenticated admin email, and must
+  not expose user-level surveillance data to normal users
+* admin reset retains question analytics rows because the report is
+  question-focused aggregate data, not a progress/economy balance; identity
+  cleanup belongs to account deletion
+* user-owned `QuestionAttemptEvent` analytics rows must be deleted or
+  anonymized during account deletion; retained analytics rows must no longer
+  contain the deleted user's email/key
 
 ---
 

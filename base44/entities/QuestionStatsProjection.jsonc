@@ -19,6 +19,10 @@
       "type": "number",
       "default": 0
     },
+    "swap_count": {
+      "type": "number",
+      "default": 0
+    },
     "correct_rate": {
       "type": "number",
       "default": 0
@@ -38,6 +42,26 @@
     "last_shown_at": {
       "type": "string",
       "format": "date-time"
+    },
+    "last_answered_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "category_id": {
+      "type": "number",
+      "description": "Last known Question.main_category_id for admin analytics."
+    },
+    "sub_category": {
+      "type": "string",
+      "description": "Last known question subcategory for admin analytics."
+    },
+    "tags": {
+      "type": "string",
+      "description": "Last known private analytics tags for admin analytics."
+    },
+    "answer_year": {
+      "type": "number",
+      "description": "Last known runtime answer year for admin analytics."
     },
     "difficulty_signal": {
       "type": "string",

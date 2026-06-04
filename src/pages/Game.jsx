@@ -38,6 +38,7 @@ import {
   getSoloAttemptDeckSizeForLevel,
   getSoloTimelineWinCardCountForLevel,
   getSoloLevelCount,
+  isSoloSpecialLevel,
   SOLO_LEVEL_TIME_SECONDS,
   SOLO_MAX_MISTAKES,
   readSoloProgress,
@@ -56,6 +57,15 @@ import {
   getOrderedSoloDeckQuestion,
   getSoloSeedQuestions,
 } from '@/lib/soloDeckRuntime';
+import {
+  buildQuestionAttemptEventId,
+  getQuestionAnalyticsMetadata,
+  recordSoloQuestionAnalyticsEvent as writeSoloQuestionAnalyticsEvent,
+} from '@/lib/dbGateway/analyticsGateway';
+import {
+  QUESTION_ANALYTICS_EVENT_TYPES,
+  QUESTION_ANALYTICS_SOURCES,
+} from '@/lib/questionAnalyticsContracts';
 // Codex128 — Online score/checkpoint system. Online winner kararlaştığında
 // her client kendi kullanıcısının puanını günceller (idempotent).
 import { applyOnlineMatchToCurrentUser } from '@/lib/applyOnlineResult';
@@ -244,13 +254,17 @@ export default function Game() {
   const timerFreezeIntervalRef = useRef(null);
   const jokerUsedRef = useRef(false);
   const soloSkippedQuestionIdsRef = useRef(new Set());
+  const soloAnalyticsEventIdsRef = useRef(new Set());
+  const soloQuestionShownAtRef = useRef(new Map());
+  const soloReplacementQuestionIdsRef = useRef(new Set());
 
   useEffect(() => {
-    if (!isOnlineFromState) return;
+    let active = true;
     base44.auth.me()
-      .then(u => setCurrentUser(u || null))
-      .catch(() => setCurrentUser(null));
-  }, [isOnlineFromState]);
+      .then(u => { if (active) setCurrentUser(u || null); })
+      .catch(() => { if (active) setCurrentUser(null); });
+    return () => { active = false; };
+  }, []);
 
   // ─── Data fetching — offline-first (Repository layer) ───────────
   const {
@@ -361,6 +375,9 @@ export default function Game() {
     clearSoloTimerFreeze(false);
     jokerUsedRef.current = false;
     soloSkippedQuestionIdsRef.current = new Set();
+    soloAnalyticsEventIdsRef.current = new Set();
+    soloQuestionShownAtRef.current = new Map();
+    soloReplacementQuestionIdsRef.current = new Set();
     setUsedJokerType(null);
     setMistakeShieldActive(false);
     setJokerMessage('');
@@ -413,6 +430,111 @@ export default function Game() {
     : currentQuestion && !isMyTurn
       ? `${currentPlayer?.name || 'Oyuncu'} düşünüyor…`
       : '';
+
+  const getSoloQuestionAnalyticsPlacementIndex = useCallback((question) => {
+    if (!Array.isArray(soloAttemptDeck) || !question?.id) return 0;
+    const index = soloAttemptDeck.findIndex((item) => String(item?.id) === String(question.id));
+    return index >= 0 ? index + 1 : 0;
+  }, [soloAttemptDeck]);
+
+  const getSoloQuestionAnalyticsEventId = useCallback((question, eventType, placementIndexOverride = null) => buildQuestionAttemptEventId({
+    attemptId: soloAttemptId,
+    questionId: question?.id,
+    eventType,
+    placementIndex: placementIndexOverride ?? getSoloQuestionAnalyticsPlacementIndex(question),
+    mode: 'solo',
+  }), [getSoloQuestionAnalyticsPlacementIndex, soloAttemptId]);
+
+  const recordSoloQuestionAnalyticsEvent = useCallback((question, eventType, extra = {}) => {
+    if (!isSoloLevelMode || !question || !soloAttemptId || !currentUser?.email) return;
+    const placementIndex = extra.placement_index ?? getSoloQuestionAnalyticsPlacementIndex(question);
+    const eventId = extra.event_id || getSoloQuestionAnalyticsEventId(question, eventType, placementIndex);
+    if (!eventId || soloAnalyticsEventIdsRef.current.has(eventId)) return;
+    soloAnalyticsEventIdsRef.current.add(eventId);
+
+    const nowIso = new Date().toISOString();
+    if (
+      eventType === QUESTION_ANALYTICS_EVENT_TYPES.SHOWN ||
+      eventType === QUESTION_ANALYTICS_EVENT_TYPES.REPLACEMENT_SHOWN
+    ) {
+      soloQuestionShownAtRef.current.set(String(question.id), Date.now());
+    }
+    if (eventType === QUESTION_ANALYTICS_EVENT_TYPES.REPLACEMENT_SHOWN) {
+      const shownEventId = getSoloQuestionAnalyticsEventId(question, QUESTION_ANALYTICS_EVENT_TYPES.SHOWN, placementIndex);
+      if (shownEventId) soloAnalyticsEventIdsRef.current.add(shownEventId);
+    }
+
+    writeSoloQuestionAnalyticsEvent({
+      ...getQuestionAnalyticsMetadata(question),
+      ...extra,
+      event_id: eventId,
+      attempt_id: soloAttemptId,
+      mode: 'solo',
+      level: soloLevel?.levelNumber ?? null,
+      is_special_level: isSoloSpecialLevel(soloLevel?.levelNumber),
+      event_type: eventType,
+      placement_index: placementIndex,
+      source: extra.source || (soloReplacementQuestionIdsRef.current.has(String(question.id))
+        ? QUESTION_ANALYTICS_SOURCES.REPLACEMENT
+        : QUESTION_ANALYTICS_SOURCES.DECK),
+      joker_used: Boolean(usedJokerType || extra.joker_used),
+      joker_type: extra.joker_type || usedJokerType || '',
+      shown_at: extra.shown_at || (
+        eventType === QUESTION_ANALYTICS_EVENT_TYPES.SHOWN ||
+        eventType === QUESTION_ANALYTICS_EVENT_TYPES.REPLACEMENT_SHOWN
+          ? nowIso
+          : undefined
+      ),
+      answered_at: extra.answered_at || (eventType === QUESTION_ANALYTICS_EVENT_TYPES.ANSWERED ? nowIso : undefined),
+      created_at: extra.created_at || nowIso,
+    }, { user: currentUser }).catch(() => null);
+  }, [
+    currentUser,
+    getSoloQuestionAnalyticsEventId,
+    getSoloQuestionAnalyticsPlacementIndex,
+    isSoloLevelMode,
+    soloAttemptId,
+    soloLevel?.levelNumber,
+    usedJokerType,
+  ]);
+
+  useEffect(() => {
+    if (!isSoloLevelMode || !currentQuestion || !isMyTurn || winner || soloLevelResult) return;
+    recordSoloQuestionAnalyticsEvent(currentQuestion, QUESTION_ANALYTICS_EVENT_TYPES.SHOWN);
+  }, [
+    currentQuestion,
+    isMyTurn,
+    isSoloLevelMode,
+    recordSoloQuestionAnalyticsEvent,
+    soloLevelResult,
+    winner,
+  ]);
+
+  const handleSoloQuestionAnswered = useCallback((event) => {
+    if (!isSoloLevelMode || !event?.question) return;
+    const questionId = String(event.question.id);
+    const shownAt = soloQuestionShownAtRef.current.get(questionId);
+    const responseTimeMs = shownAt ? Math.max(0, Date.now() - shownAt) : undefined;
+    const nextMistakeNumber = event.isCorrect
+      ? mistakeCount
+      : (mistakeShieldActive ? mistakeCount : mistakeCount + 1);
+    recordSoloQuestionAnalyticsEvent(event.question, QUESTION_ANALYTICS_EVENT_TYPES.ANSWERED, {
+      is_correct: Boolean(event.isCorrect),
+      response_time_ms: responseTimeMs,
+      mistake_number: nextMistakeNumber,
+      metadata: {
+        zone: event.zone,
+        guessedYear: event.guessedYear,
+        shieldActive: Boolean(mistakeShieldActive),
+        hasWon: Boolean(event.hasWon),
+      },
+    });
+  }, [
+    isSoloLevelMode,
+    mistakeCount,
+    mistakeShieldActive,
+    recordSoloQuestionAnalyticsEvent,
+  ]);
 
   useEffect(() => {
     if (!isOnline) return;
@@ -588,6 +710,7 @@ export default function Game() {
     setTimerKey,
     setGameStarted,
     orderedQuestionPicker: isSoloLevelMode ? pickOrderedSoloQuestion : null,
+    onQuestionAnswered: isSoloLevelMode ? handleSoloQuestionAnswered : null,
   });
 
   // ─── Effects ───────────────────────────────────────────────────────
@@ -813,6 +936,19 @@ export default function Game() {
       setJokerMessage('Kart Değiştir aktif: Kart değiştirildi.');
       setSelectedZone(null);
       soloSkippedQuestionIdsRef.current = skippedIds;
+      soloReplacementQuestionIdsRef.current.add(String(replacement.id));
+      recordSoloQuestionAnalyticsEvent(currentQuestion, QUESTION_ANALYTICS_EVENT_TYPES.SWAPPED_OUT, {
+        was_swapped_out: true,
+        joker_used: true,
+        joker_type: 'swapCard',
+        source: QUESTION_ANALYTICS_SOURCES.DECK,
+      });
+      recordSoloQuestionAnalyticsEvent(replacement, QUESTION_ANALYTICS_EVENT_TYPES.REPLACEMENT_SHOWN, {
+        replacement_for_question_id: String(currentQuestion.id),
+        joker_used: true,
+        joker_type: 'swapCard',
+        source: QUESTION_ANALYTICS_SOURCES.REPLACEMENT,
+      });
       appendToHistory([currentQuestion.id, replacement.id]);
       setLobbyData((prev) => {
         if (!prev) return prev;
@@ -838,6 +974,7 @@ export default function Game() {
     currentPlayer,
     usedQuestionIds,
     clearSoloTimerFreeze,
+    recordSoloQuestionAnalyticsEvent,
     setSelectedZone,
     setLobbyData,
   ]);

@@ -11,6 +11,6 @@ export * as cleanupGateway from './cleanupGateway';
 export const dbGatewayArchitectureContract = Object.freeze({
   protectedQuestionReads: 'questionGateway -> getQuestions',
   publicLeaderboardProjection: 'leaderboardGateway -> SoloLeaderboardEntry',
-  analyticsScaffold: 'analyticsGateway -> QuestionAttemptEvent',
+  analyticsRuntimeGateway: 'analyticsGateway -> QuestionAttemptEvent',
   cleanupJobs: 'cleanupGateway -> admin backend functions',
 });

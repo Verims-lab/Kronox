@@ -5,7 +5,7 @@
   "properties": {
     "event_id": {
       "type": "string",
-      "description": "Client/backend generated logical idempotency key when available, e.g. question_attempt:<attempt_id>:<question_id>:<placement_index>."
+      "description": "Client/backend generated logical idempotency key when available, e.g. question_attempt:<mode>:<attempt_id>:<question_id>:<event_type>:<placement_index>."
     },
     "user_email": {
       "type": "string",
@@ -35,6 +35,10 @@
       "type": "number",
       "description": "Solo level number when mode=solo."
     },
+    "is_special_level": {
+      "type": "boolean",
+      "description": "Whether the Solo attempt is a special level."
+    },
     "lobby_id": {
       "type": "string",
       "description": "Lobby id when mode=online."
@@ -47,9 +51,23 @@
       "type": "string",
       "description": "Question subcategory when safely known."
     },
+    "tags": {
+      "type": "string",
+      "description": "Comma-separated question tags when safely known. This is private analytics metadata, not public question-bank exposure."
+    },
     "answer_year": {
       "type": "number",
       "description": "Runtime timeline year derived from Question.answer."
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "shown",
+        "answered",
+        "swapped_out",
+        "replacement_shown"
+      ],
+      "description": "Question analytics event type."
     },
     "shown_at": {
       "type": "string",
@@ -76,6 +94,31 @@
     "mistake_number": {
       "type": "number",
       "description": "Mistake count at/after this placement when available."
+    },
+    "joker_used": {
+      "type": "boolean",
+      "description": "Whether any Solo joker had been used at the time of this event."
+    },
+    "joker_type": {
+      "type": "string",
+      "description": "Solo joker type when relevant."
+    },
+    "was_swapped_out": {
+      "type": "boolean",
+      "description": "True when this row records a card removed by Kart Değiştir."
+    },
+    "replacement_for_question_id": {
+      "type": "string",
+      "description": "Question id replaced by this card when event_type=replacement_shown."
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "deck",
+        "reserve",
+        "replacement"
+      ],
+      "description": "Attempt-local source for the shown/replacement card."
     },
     "client_version": {
       "type": "string",

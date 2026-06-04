@@ -52,6 +52,8 @@ longer stored on the entity — they are derived at fetch time by
   playable timeline decks.
 - Runtime projection may include sub_category and tag as gameplay-balance
   metadata only, not as public full-bank exposure.
+- Private QuestionAttemptEvent analytics may store question id, answer year,
+  category, subcategory, and tag metadata for admin reports only.
 
 This keeps the stored schema clean while gameplay keeps consuming runtime
 year/category/type values.

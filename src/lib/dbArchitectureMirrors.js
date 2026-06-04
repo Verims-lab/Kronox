@@ -41,6 +41,7 @@ Cleanup/retention jobs implemented now:
 - expirePushSubscriptions requires admin auth, supports dryRun, marks stale disabled PushSubscription rows as status expired.
 - refreshLeaderboardProjection requires admin auth, supports dryRun, refreshes SoloLeaderboardEntry and UserStatsProjection.
 - aggregateQuestionStats requires admin auth, supports dryRun, refreshes QuestionStatsProjection and CategoryStatsProjection from QuestionAttemptEvent.
+- sendQuestionAnalyticsReportEmail requires admin auth, sends a manual question analytics email report, and has no scheduled trigger.
 - cleanupAdminMaintenanceLog requires admin auth, supports dryRun, marks old logs retention_status archived.
 - Cleanup jobs are status-transition-first and do not hard delete production data.
 
@@ -57,8 +58,12 @@ Legacy entity status:
 - GameRecord is kept as legacy/candidate, no deletion without reference proof.
 - LobbyMessage is kept as legacy/candidate, no deletion without reference proof.
 
-Scaffolded now:
+Implemented now:
 - QuestionAttemptEvent gateway exists and analytics writes are best-effort.
-- Solo runtime event wiring is scaffolded_only and must not block gameplay.
-- Full gameplay analytics write coverage remains future/manual proof.
+- Solo runtime writes shown, answered, swapped_out, and replacement_shown events.
+- aggregateQuestionStats counts shown/replacement_shown, answered, and swapped_out event types separately.
+
+Deferred/manual proof:
+- Online gameplay analytics write coverage remains future work.
+- Deployed email delivery, RLS probes, and high-volume analytics write proof remain manual/NOT_AUTOMATABLE.
 `;

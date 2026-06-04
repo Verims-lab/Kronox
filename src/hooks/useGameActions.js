@@ -40,6 +40,7 @@ export function useGameActions({
   setTimerKey,
   setGameStarted,
   orderedQuestionPicker = null,
+  onQuestionAnswered = null,
 }) {
   const timeoutRefs = useRef(new Set());
 
@@ -288,7 +289,31 @@ export function useGameActions({
 
     const hasWon = isCorrect && hasPlayerWon(newPlayers[snapshotIndex], winCardCount);
 
+    let guessedYear = null;
+    if (!isCorrect) {
+      const cardYears = [...snapshotPlayer.cards].sort((a, b) => a.year - b.year).map(c => c.year);
+      if (zone === 0 && cardYears.length > 0) guessedYear = cardYears[0] - 5;
+      else if (zone === cardYears.length && cardYears.length > 0) guessedYear = cardYears[cardYears.length - 1] + 5;
+      else if (zone > 0 && zone <= cardYears.length) guessedYear = Math.round((cardYears[zone - 1] + (cardYears[zone] ?? cardYears[zone - 1] + 10)) / 2);
+    }
+
     addGameLog(`PLACE correct=${isCorrect} zone=${zone} year=${questionYear} player=${snapshotPlayer.name} cards=${newPlayers[snapshotIndex]?.cards?.length} hasWon=${hasWon}`);
+
+    if (typeof onQuestionAnswered === 'function') {
+      try {
+        onQuestionAnswered({
+          question: currentQuestion,
+          isCorrect,
+          zone,
+          guessedYear,
+          answerYear: questionYear,
+          hasWon,
+          playerName: snapshotPlayer.name,
+          timelineCardsBefore: snapshotPlayer.cards || [],
+          timelineCardsAfter: newPlayers[snapshotIndex]?.cards || [],
+        });
+      } catch (_error) {}
+    }
 
     const nextIndex = getNextPlayerIndex(snapshotIndex, snapshotPlayers.length);
     const nextPlayerCards = newPlayers[nextIndex]?.cards || [];
@@ -345,15 +370,6 @@ export function useGameActions({
       return;
     }
 
-    // For wrong: estimate guessed year from zone position
-    let guessedYear = null;
-    if (!isCorrect) {
-      const cardYears = [...snapshotPlayer.cards].sort((a, b) => a.year - b.year).map(c => c.year);
-      if (zone === 0 && cardYears.length > 0) guessedYear = cardYears[0] - 5;
-      else if (zone === cardYears.length && cardYears.length > 0) guessedYear = cardYears[cardYears.length - 1] + 5;
-      else if (zone > 0 && zone <= cardYears.length) guessedYear = Math.round((cardYears[zone - 1] + (cardYears[zone] ?? cardYears[zone - 1] + 10)) / 2);
-    }
-
     setFeedback({ result: isCorrect ? 'correct' : 'wrong', year: questionYear, songTitle: currentQuestion.type === 'muzik' ? currentQuestion.question : null, guessedYear });
     setTimerKey(k => k + 1);
   }, [
@@ -361,6 +377,7 @@ export function useGameActions({
     questionPool, winCardCount, lobbyId, lobbyData, isPlacingRef, overallSecondsRef,
     pickQuestion, saveGameRecord, scheduleTimeout,
     writeOnlineLobbyState,
+    onQuestionAnswered,
     setLobbyData, setFeedback, setWinner, setSelectedZone, setTimerKey, setGameStarted
   ]);
 
