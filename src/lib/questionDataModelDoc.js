@@ -48,6 +48,8 @@ longer stored on the entity — they are derived at fetch time by
 \`questionRuntimeAdapter.js\`:
 - The timeline \`year\` is derived from \`answer\` via getTimelineYearFromAnswer.
 - \`category\` defaults to 'genel' and \`type\` defaults to 'metin' when absent.
+- Invalid, missing, null, non-numeric, or approximate years are excluded from
+  playable timeline decks.
 
 This keeps the stored schema clean while gameplay keeps consuming runtime
 year/category/type values.

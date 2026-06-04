@@ -44,10 +44,21 @@ async function requireUser(base44: any) {
   }
 }
 
+function parseExplicitYear(value: unknown) {
+  if (typeof value === 'number') return Number.isFinite(value) && Number.isInteger(value) ? value : null;
+  if (typeof value !== 'string') return null;
+  const text = value.trim();
+  if (!text || !/^-?\d{1,4}$/.test(text)) return null;
+  const year = Number(text);
+  return Number.isFinite(year) ? year : null;
+}
+
 function getTimelineYearFromAnswer(answer: unknown) {
-  if (typeof answer === 'number' && Number.isFinite(answer)) return answer;
+  const explicitYear = parseExplicitYear(answer);
+  if (explicitYear !== null) return explicitYear;
   const text = String(answer ?? '').trim();
   if (!text) return null;
+  if (/(?:\bcirca\b|\bca\.|\bc\.|\baround\b|\babout\b|\byaklaşık\b|\byaklasik\b|\btahmini\b|[~?])/i.test(text)) return null;
   const match = text.match(/\b\d{3,4}\b/);
   if (!match) return null;
   const year = Number(match[0]);
@@ -103,9 +114,9 @@ function normalizeQuestionForRuntime(question: Record<string, unknown>, activeMa
   if (!mainCategoryId || !activeMainCategoryIds.has(mainCategoryId)) return null;
   if (!isActiveQuestion(question)) return null;
 
-  const legacyYear = Number(question?.year);
-  const year = Number.isFinite(legacyYear)
-    ? legacyYear
+  const explicitYear = parseExplicitYear(question?.year);
+  const year = explicitYear !== null
+    ? explicitYear
     : getTimelineYearFromAnswer(question?.answer);
   if (!Number.isFinite(year)) return null;
 

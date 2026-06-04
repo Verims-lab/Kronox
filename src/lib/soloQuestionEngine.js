@@ -13,7 +13,7 @@
 //   • Fail condition          = 10th mistake OR 180s time expired
 //   • Unique question IDs     in the same deck
 //   • Unique answer/year      in the same deck             (HARD rule)
-//   • Active questions only   (state==='A' if field exists)
+//   • Active questions only   (state==='A')
 //   • Active categories only  — caller supplies the active category id
 //                               whitelist (numeric main_category_id +
 //                               optional legacy string `category`)
@@ -94,14 +94,22 @@ function normalizeAllowedCategoryIds(allowedMainCategoryIds) {
   return null;
 }
 
-// Question is considered "active" only when explicitly NOT passive. The
-// field is optional today: missing `state` is treated as active for
-// backward compatibility with existing rows, but state==='P' is always
-// excluded (Codex158 contract).
+function parseCleanNumericYear(value) {
+  if (typeof value === 'number') return Number.isFinite(value) && Number.isInteger(value) ? value : null;
+  if (typeof value !== 'string') return null;
+  const text = value.trim();
+  if (!text) return null;
+  if (!/^-?\d{1,4}$/.test(text)) return null;
+  const year = Number(text);
+  return Number.isFinite(year) ? year : null;
+}
+
+// Question is considered playable only when runtime data marks it active.
+// The authenticated getQuestions path now projects playable rows with
+// state==='A'; missing state should be normalized before the deck engine.
 function isActiveQuestion(question) {
   if (!question) return false;
   const state = question.state;
-  if (state === undefined || state === null || state === '') return true;
   return String(state).toUpperCase() === 'A';
 }
 
@@ -123,8 +131,7 @@ function isInAllowedCategory(question, allowedMainCategoryIds) {
 // year out of the answer when missing). The engine only requires a
 // finite integer year here.
 function hasUsableYear(question) {
-  const y = Number(question?.year);
-  return Number.isFinite(y);
+  return parseCleanNumericYear(question?.year) !== null;
 }
 
 // Question text + id sanity.
@@ -361,6 +368,11 @@ function selectUniqueYearDeck({
  *                                            Numeric main_category_id
  *                                            whitelist (active categories).
  *                                            Omit / empty → no category gate.
+ * @param {boolean=} args.requireActiveCategoryWhitelist
+ *                                            When true, empty/missing active
+ *                                            category metadata clean-fails
+ *                                            instead of building from a stale
+ *                                            broad pool.
  * @param {Iterable<string|number>=} args.recentlySeenQuestionIds
  *                                            Question ids the user has
  *                                            recently seen (cross-attempt).
@@ -388,6 +400,15 @@ export function buildSoloAttemptDeck(args = {}) {
   const random = typeof args.random === 'function' ? args.random : Math.random;
   const allowedCats = normalizeAllowedCategoryIds(args.allowedMainCategoryIds);
   const recentIds = normalizeRecentIds(args.recentlySeenQuestionIds);
+
+  if (args.requireActiveCategoryWhitelist === true && (!allowedCats || allowedCats.size === 0)) {
+    return {
+      ok: false,
+      reason: 'missing_active_category_whitelist',
+      message: 'Aktif kategori bilgisi alınamadı. Lütfen tekrar dene.',
+      meta: { deckSize },
+    };
+  }
 
   const candidates = filterCandidatePool(args.pool, allowedCats);
   const distinctYears = new Set(candidates.map((q) => Number(q.year))).size;

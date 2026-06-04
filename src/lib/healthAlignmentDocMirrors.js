@@ -51,8 +51,8 @@ Status: Active manual release gate.
 ## Solo v2
 Normal levels need 7 correct cards with a 16-question deck; special levels
 need 10 correct cards with a 19-question deck. All attempts use a 180 seconds
-timer and fail on the 10th mistake. The first 5 ordered questions keep a
-minimum 5-year spacing.
+timer and fail on the 10th mistake. Runtime consumes the deck in order. The
+first 5 ordered active player question cards keep a minimum 5-year spacing.
 Same-score replay does not add points. Lower-score replay does not add points.
 Better replay adds only the positive score delta. Old completed Solo results
 are not retroactively recalculated.

@@ -39,6 +39,7 @@ export function useGameActions({
   setSelectedZone,
   setTimerKey,
   setGameStarted,
+  orderedQuestionPicker = null,
 }) {
   const timeoutRefs = useRef(new Set());
 
@@ -210,6 +211,12 @@ export function useGameActions({
    * Fallback: relax (3) first, then (2), never relax (1).
    */
   const pickQuestion = useCallback((usedIds, questions, usedTimelineYears = new Set()) => {
+    if (typeof orderedQuestionPicker === 'function') {
+      const chosen = orderedQuestionPicker(usedIds, questions, usedTimelineYears);
+      addGameLog(`PICK_ORDERED id=${chosen?.id} year=${chosen?.year} session_excluded=${usedIds.size} timeline_years=${usedTimelineYears.size}`);
+      return chosen;
+    }
+
     const recentHistory = new Set(loadRecentHistory());
     const pool = getQuestionSelectionPool(questions, usedIds, usedTimelineYears, {
       recentQuestionIds: recentHistory,
@@ -222,7 +229,7 @@ export function useGameActions({
     addGameLog(`PICK id=${chosen?.id} year=${chosen?.year} pool=${pool.length} session_excluded=${usedIds.size} timeline_years=${usedTimelineYears.size}`);
 
     return chosen;
-  }, []);
+  }, [orderedQuestionPicker]);
 
   // Oyun kaydını veritabanına yaz (tek oyunculu, giriş yapmış)
   const saveGameRecord = useCallback(async (winnerName, durationSecs, { category, yearStart, yearEnd }) => {

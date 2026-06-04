@@ -19,6 +19,10 @@ All new Solo attempts use a 180 seconds timer and fail on 10 mistakes; the
 
 The full attempt deck is built before gameplay starts. Gameplay consumes
 the prebuilt deck in order. There is no mid-attempt re-randomization.
+The first active player question card shown to the user must be
+soloAttemptDeck[0], the second must be soloAttemptDeck[1], and so on. Seed
+or preplaced timeline cards do not count as the first 5 active player
+question cards unless they are actual player question cards.
 
 Hard deck rules:
 - 16 questions for normal levels.
@@ -28,7 +32,9 @@ Hard deck rules:
 - active questions only.
 - active categories only.
 - passive categories excluded.
-- first 5 ordered questions must satisfy minimum 5-year spacing between answer years.
+- first 5 ordered active player question cards must satisfy minimum 5-year spacing between answer years.
+- first 5 ordered questions means the first 5 displayed active player question cards at runtime.
+- missing, null, undefined, empty, approximate, or non-numeric years are invalid.
 
 Soft deck preferences:
 - category balance.
@@ -50,6 +56,7 @@ total may be used per attempt. Jokers do not use Diamonds, do not grant Kronox P
 
 Hata Affı forgives the next wrong placement without counting a mistake.
 Kart Değiştir replaces the current card from the already prepared Solo deck
-without fetching or re-randomizing mid-attempt. Zaman Dondur freezes the Solo
-timer for 10 seconds.
+or reserve without fetching or re-randomizing mid-attempt. The swapped-out card
+should not reappear while unused deck cards are available. Zaman Dondur freezes
+the Solo timer for 10 seconds.
 `;

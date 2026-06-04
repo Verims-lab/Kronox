@@ -29,6 +29,8 @@ Deck size formula:
 
 The full attempt deck is built before gameplay starts. Gameplay consumes that prebuilt deck in order. There is no live question fetch, no per-card randomization, and no mid-attempt re-randomization.
 
+The first active player question card shown to the user must be `soloAttemptDeck[0]`, the second must be `soloAttemptDeck[1]`, and so on unless an explicit deck-safe joker replacement is used. Seed/preplaced timeline cards are not counted as the first 5 active player question cards unless they are actual player question cards.
+
 Every valid deck must satisfy:
 - required deck size: 16 questions for normal levels, 19 questions for special levels
 - unique question IDs
@@ -36,9 +38,10 @@ Every valid deck must satisfy:
 - active questions only
 - active categories only
 - passive categories excluded
-- first 5 ordered questions must satisfy minimum 5-year spacing between answer years
+- first 5 ordered active player question cards must satisfy minimum 5-year spacing between answer years
+- missing, null, undefined, empty, approximate, or non-numeric years are invalid
 
-The first 5 ordered questions spacing rule means every pair among the first 5 ordered answer years must differ by at least 5. Example allowed: 1990 and 1995. Example not allowed: 1990 and 1994.
+The first 5 ordered questions spacing rule means every pair among the first 5 displayed active-player answer years must differ by at least 5. The exact runtime target is the first 5 ordered active player question cards. Example allowed: 1990 and 1995. Example not allowed: 1990 and 1994.
 
 ## Balance Rules
 
@@ -95,7 +98,7 @@ Solo jokers are first-version, attempt-local helpers:
 
 Joker behavior:
 - `Hata Affı`: activates one-time protection. The next wrong placement does not count as a mistake; correct placements do not consume it.
-- `Kart Değiştir`: replaces the current active card using the already prepared Solo attempt deck. It must not fetch a new question, rebuild the deck, or rerandomize the attempt mid-game.
+- `Kart Değiştir`: replaces the current active card using the already prepared Solo attempt deck/reserve. It must not fetch a new question, rebuild the deck, or rerandomize the attempt mid-game, and the swapped-out card should not reappear later in the same attempt while unused deck cards are available.
 - `Zaman Dondur`: freezes the Solo level timer for 10 seconds. It does not add score, add extra time, or alter timeout rules beyond pausing the elapsed timer during the freeze window.
 
 ## Backward Compatibility

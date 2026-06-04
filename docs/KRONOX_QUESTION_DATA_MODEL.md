@@ -125,7 +125,7 @@ Rules:
 
 * do not remove runtime `year` compatibility until gameplay is intentionally migrated
 * do not re-add stored legacy `year` field without product/data decision
-* invalid or missing year must be excluded from playable timeline decks
+* invalid, missing, null, non-numeric, or approximate year values must be excluded from playable timeline decks
 * runtime projection should include only minimal fields needed for gameplay
 
 ---

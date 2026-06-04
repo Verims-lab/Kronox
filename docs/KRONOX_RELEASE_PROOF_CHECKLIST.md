@@ -81,8 +81,9 @@ Checklist:
 * Replay does not duplicate Solo points: same-score and lower-score replays add +0.
 * Better replay adds only the positive score delta.
 * Mid-game flow does not rerandomize questions.
+* Runtime consumes the Solo attempt deck in order: the first active player question card is `soloAttemptDeck[0]`.
 * Insufficient unique-year pool shows clean error.
-* First 5 ordered questions are at least 5 years apart.
+* First 5 displayed active player question cards are at least 5 years apart.
 * Deck feels category/subcategory balanced where the pool allows.
 * Deck feels era/year balanced rather than clustered.
 * Levels 1-3 show beginner-friendly year spacing and a subtle correct-slot pulse while dragging.
@@ -113,7 +114,7 @@ Checklist:
 * Each new Solo attempt starts with `Hata Affı`, `Kart Değiştir`, and `Zaman Dondur`.
 * Only 1 joker can be used per attempt; used/disabled states are clear.
 * `Hata Affı` forgives the next wrong placement without incrementing mistakes.
-* `Kart Değiştir` replaces the current card from the prebuilt deck and does not fetch mid-attempt.
+* `Kart Değiştir` replaces the current card from the prebuilt deck/reserve, does not fetch mid-attempt, and does not immediately re-show the swapped-out card.
 * `Zaman Dondur` freezes the Solo timer for 10 seconds and cleans up after result/replay.
 * Jokers remain free in v1, do not spend Diamonds, and do not grant Kronox Puan.
 

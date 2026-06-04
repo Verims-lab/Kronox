@@ -151,7 +151,7 @@ export const EXTRA_TESTS = [
       const handleSource = getHandleUseSoloJokerSource();
       const missing = missingTokens(handleSource, [
         "jokerType === 'swapCard'",
-        'soloAttemptDeck.find',
+        'getOrderedSoloDeckQuestion',
         'replacement.id',
         'current_question_id: replacement.id',
         'setLobbyData((prev)',
@@ -184,16 +184,17 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(handleSource, [
         'getTimelineYears(currentPlayer.cards || [])',
         'usedIds.delete(currentQuestion.id)',
-        'question.id !== currentQuestion.id',
-        '!usedIds.has(question.id)',
-        '!timelineYears.has(question.year)',
+        'soloSkippedQuestionIdsRef.current',
+        'skippedIds.add(currentQuestion.id)',
+        'excludeQuestionIds: [currentQuestion.id]',
+        'allowSkippedFallback: false',
       ]);
       if (missing.length) return fail('Kart Değiştir lost the static guards that keep replacement cards safe.', {
         verification: 'STATIC_CONTRACT',
         file: 'pages/Game.jsx',
         missing,
       });
-      return pass('Kart Değiştir excludes the current card, already-used cards, and timeline years.', { verification: 'STATIC_CONTRACT' });
+      return pass('Kart Değiştir excludes the current card, already-used cards, skipped cards, and timeline years through the ordered deck helper.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('zaman_dondur_freezes_timer_10_seconds',
