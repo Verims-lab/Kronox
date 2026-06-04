@@ -18,6 +18,7 @@ idempotency_key
 claimed_at
 next_available_at
 daily_wheel:<normalizedEmail>:<YYYY-MM-DD>
+one claim per user per UTC server day
 
 getDailyWheelStatus
 base44.auth.me()
@@ -50,6 +51,8 @@ DiamondTransaction.create
 source: DAILY_WHEEL_SOURCE
 direction: 'earn'
 noKronoxPuan: true
+grants no Kronox Puan
+does not affect leaderboard sorting or rank
 daily_wheel_last_spin_date
 daily_wheel_next_available_at
 daily_wheel_streak

@@ -258,6 +258,7 @@ Checklist:
 * FriendRequest/Friendship rows involving the test account are removed or no longer actionable.
 * Public leaderboard row for the test account is removed or anonymized.
 * Retained OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the deleted user's email.
+* Retained OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the deleted user.
 * Another user's account/data is not deleted.
 * `/account-deletion` public page copy matches the in-app flow.
 
@@ -306,7 +307,9 @@ Checklist:
 * Execute requires typing the exact target email again.
 * `Hard zero reset` sets visible Kronox Puan, Solo progress, Online progress, Elmas, Top 5 records, and leaderboard projection to 0 / starting state.
 * `Hard zero reset` does not immediately re-grant starter, same-day daily login, or same-day Daily Wheel Diamonds after target refresh.
+* `Hard zero reset` sets `daily_wheel_last_spin_date` to the current UTC day and clears Daily Wheel guard fields.
 * `New player reset` sets visible progress to starting state and allows normal starter/daily Diamond bootstrap plus Daily Wheel availability on next app entry.
+* `New player reset` clears Daily Wheel guard fields and removes target `DailyWheelSpin` rows.
 * Target user account and login/auth identity remain intact.
 * Target user local Solo progress mirror is invalidated by `progress_reset_at` after refresh/reopen.
 * AdminMaintenanceLog records admin email, target email, mode, timestamp, and result.

@@ -46,8 +46,7 @@ recalculated. New attempts may carry soloRulesVersion: 2.
 
 Solo Jokers v1 are Solo-only, free, attempt-local helpers. Every new Solo
 attempt starts with Hata Affı, Kart Değiştir, and Zaman Dondur. Only 1 joker
-total may be used per attempt. Jokers do not use Diamonds, do not grant
-Kronox Puan, and do not affect Online mode.
+total may be used per attempt. Jokers do not use Diamonds, do not grant Kronox Puan, and do not affect Online mode.
 
 Hata Affı forgives the next wrong placement without counting a mistake.
 Kart Değiştir replaces the current card from the already prepared Solo deck
