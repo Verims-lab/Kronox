@@ -5,16 +5,18 @@
 // DB architecture roadmap/implementation status, and Health report honesty.
 // Runtime/device/two-account/destructive proofs intentionally remain manual.
 
-import corePromptSource from '../../../KRONOX_CORE_PROMPT.md?raw';
-import kronoxSource from '../../../KRONOX.md?raw';
-import scoringDocsSource from '../../../docs/KRONOX_SCORING_RULES.md?raw';
-import soloEngineDocsSource from '../../../docs/KRONOX_SOLO_QUESTION_ENGINE.md?raw';
-import securityDocsSource from '../../../docs/KRONOX_SECURITY_DEPLOYMENT.md?raw';
-import releaseChecklistSource from '../../../docs/KRONOX_RELEASE_PROOF_CHECKLIST.md?raw';
-import questionModelDocsSource from '../../../docs/KRONOX_QUESTION_DATA_MODEL.md?raw';
-import economyDocsSource from '../../../docs/KRONOX_ECONOMY_RULES.md?raw';
-import categoryTaxonomyDocsSource from '../../../docs/KRONOX_CATEGORY_TAXONOMY.md?raw';
-import dbArchitectureDocsSource from '../../../docs/KRONOX_DB_ARCHITECTURE.md?raw';
+import {
+  CORE_PROMPT_DOC as corePromptSource,
+  KRONOX_DOC as kronoxSource,
+  SECURITY_DEPLOYMENT_DOC as securityDocsSource,
+  RELEASE_PROOF_CHECKLIST_DOC as releaseChecklistSource,
+  CATEGORY_TAXONOMY_DOC as categoryTaxonomyDocsSource,
+  DB_ARCHITECTURE_DOC as dbArchitectureDocsSource,
+} from '@/lib/healthAlignmentDocMirrors';
+import { SCORING_RULES_DOC as scoringDocsSource } from '@/lib/scoringRulesDoc';
+import { SOLO_QUESTION_ENGINE_DOC as soloEngineDocsSource } from '@/lib/soloQuestionEngineDoc';
+import { QUESTION_DATA_MODEL_DOC as questionModelDocsSource } from '@/lib/questionDataModelDoc';
+import { ECONOMY_RULES_DOC as economyDocsSource } from '@/lib/economyRulesDoc';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
 import standardTopBarSource from '../layout/StandardTopBar.jsx?raw';
 import notificationApiSource from '../../lib/notificationApi.js?raw';
