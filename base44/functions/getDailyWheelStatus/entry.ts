@@ -48,6 +48,13 @@ async function findTodaySpin(base44: any, email: string, dateKey: string, idempo
   return rows.find((row: any) => row?.id) || null;
 }
 
+async function findTodayDiamondTransaction(base44: any, email: string, idempotencyKey: string) {
+  const rows = await base44.asServiceRole.entities.DiamondTransaction
+    .filter({ user_email: email, idempotency_key: idempotencyKey }, '-created_at', 1)
+    .catch(() => []);
+  return Array.isArray(rows) && rows.length ? rows[0] : null;
+}
+
 function publicSpinResult(row: any) {
   if (!row) return null;
   return {
@@ -58,6 +65,25 @@ function publicSpinResult(row: any) {
     totalRewardAmount: normalizeNumber(row.total_reward_amount),
     claimedAt: row.claimed_at || null,
     nextAvailableAt: row.next_available_at || null,
+  };
+}
+
+function publicSpinResultFromTransaction(tx: any, user: any, nextAvailableAt: string) {
+  if (!tx) return null;
+  const metadata = tx?.metadata && typeof tx.metadata === 'object' ? tx.metadata : {};
+  const totalRewardAmount = normalizeNumber(tx.amount);
+  const streakBonusAmount = normalizeNumber(metadata.streakBonusAmount);
+  const rewardAmount = normalizeNumber(metadata.rewardAmount) || Math.max(0, totalRewardAmount - streakBonusAmount);
+  const streakAfter = normalizeNumber(metadata.streakAfter ?? user?.daily_wheel_streak);
+  const streakBefore = normalizeNumber(metadata.streakBefore ?? Math.max(0, streakAfter - 1));
+  return {
+    rewardAmount,
+    streakBefore,
+    streakAfter,
+    streakBonusAmount,
+    totalRewardAmount,
+    claimedAt: tx.created_at || user?.daily_wheel_last_spin_at || null,
+    nextAvailableAt: user?.daily_wheel_next_available_at || nextAvailableAt,
   };
 }
 
@@ -84,9 +110,12 @@ Deno.serve(async (req: Request) => {
     const nextAvailableAt = nextUtcMidnightIso(todayKey);
     const idempotencyKey = buildIdempotencyKey(email, todayKey);
     const todaySpin = await findTodaySpin(base44, email, todayKey, idempotencyKey);
+    const todayTransaction = todaySpin ? null : await findTodayDiamondTransaction(base44, email, idempotencyKey);
     const userGuardClaimed = String(user?.daily_wheel_last_spin_date || '') === todayKey;
-    const alreadyClaimedToday = Boolean(todaySpin || userGuardClaimed);
-    const lastReward = todaySpin ? publicSpinResult(todaySpin) : null;
+    const alreadyClaimedToday = Boolean(todaySpin || todayTransaction || userGuardClaimed);
+    const lastReward = todaySpin
+      ? publicSpinResult(todaySpin)
+      : publicSpinResultFromTransaction(todayTransaction, user, nextAvailableAt);
 
     return json({
       ok: true,

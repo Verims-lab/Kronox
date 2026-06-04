@@ -15,13 +15,34 @@ function promptSessionKey(user, serverDate) {
   return `kronox_daily_wheel_prompt_seen:${email}:${serverDate || todayFallbackKey()}`;
 }
 
+function userSafeDailyWheelError(err, fallback) {
+  const body = err?.response?.data || err?.body || null;
+  return body?.error || fallback;
+}
+
 async function invokeDailyWheelFunction(name, payload = {}) {
-  const response = name === 'claimDailyWheelReward'
-    ? await claimDailyWheelReward(payload)
-    : await getDailyWheelStatus();
+  const isClaim = name === 'claimDailyWheelReward';
+  let response = null;
+  try {
+    response = isClaim
+      ? await claimDailyWheelReward(payload)
+      : await getDailyWheelStatus();
+  } catch (err) {
+    const error = new Error(userSafeDailyWheelError(
+      err,
+      isClaim
+        ? 'Çark ödülü alınamadı. Lütfen tekrar dene.'
+        : 'Günlük Çark durumu alınamadı. Lütfen tekrar dene.',
+    ));
+    error.code = err?.response?.data?.code || err?.code || 'daily_wheel_request_failed';
+    error.body = err?.response?.data || null;
+    throw error;
+  }
   const body = normalizeFunctionBody(response);
   if (body?.ok === false) {
-    const error = new Error(body?.error || 'Günlük Çark işlemi tamamlanamadı.');
+    const error = new Error(body?.error || (isClaim
+      ? 'Çark ödülü alınamadı. Lütfen tekrar dene.'
+      : 'Günlük Çark işlemi tamamlanamadı.'));
     error.code = body?.code || 'daily_wheel_error';
     error.body = body;
     throw error;
@@ -84,7 +105,7 @@ export function useDailyWheel({ user, onUserUpdated } = {}) {
         return null;
       }
       setStatus('error');
-      setError(err?.message || 'Günlük Çark durumu alınamadı.');
+      setError(userSafeDailyWheelError(err, 'Günlük Çark durumu alınamadı. Lütfen tekrar dene.'));
       return null;
     }
   }, [isSignedIn, user]);
@@ -144,7 +165,7 @@ export function useDailyWheel({ user, onUserUpdated } = {}) {
       return body;
     } catch (err) {
       setStatus('error');
-      setError(err?.message || 'Günlük Çark ödülü alınamadı.');
+      setError(userSafeDailyWheelError(err, 'Çark ödülü alınamadı. Lütfen tekrar dene.'));
       setShowPrompt(false);
       setShowResult(true);
       return null;

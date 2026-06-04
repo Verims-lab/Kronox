@@ -422,7 +422,8 @@ export const EXTRA_TESTS = [
         'setShowPrompt(false)',
         'setShowResult(true)',
         'role="alert"',
-        'Günlük Çark ödülü alınamadı.',
+        'Çark ödülü alınamadı.',
+        'daily_wheel_request_failed',
         'Tekrar dene',
       ]);
       if (missing.length) {
