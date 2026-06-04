@@ -24,6 +24,7 @@
       "enum": [
         "starter_bonus",
         "daily_login",
+        "daily_wheel",
         "wheel_spin_future",
         "rewarded_ad_future",
         "quest_reward_future",
@@ -32,7 +33,7 @@
         "special_event_future",
         "admin_adjustment"
       ],
-      "description": "Economy source. Only starter_bonus and daily_login are active in Codex152; future sources are schema-ready but not implemented."
+      "description": "Economy source. Active sources include starter_bonus, daily_login, daily_wheel, and admin_adjustment. Future sources remain schema-ready but inactive."
     },
     "direction": {
       "type": "string",

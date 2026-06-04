@@ -125,6 +125,16 @@ Checklist:
 * Ledger row is created when available.
 * If ledger recovery exists, partial states self-heal.
 * Two-device duplicate prevention is manually probed unless backend unique transaction support exists.
+* Daily Wheel appears on Home above `SOLO MEYDAN OKUMA`.
+* Daily Wheel claim requires authenticated user.
+* Daily Wheel grants Diamonds only and never Kronox Puan.
+* Daily Wheel is separate from the existing +20 daily login reward.
+* Daily Wheel can be claimed at most once per UTC server day.
+* Daily Wheel duplicate tap/refresh returns the same claimed result or claimed status without a duplicate grant.
+* Daily Wheel 7-day streak bonus grants `+100` Diamonds on every 7th consecutive daily spin.
+* Missing a UTC day resets the Daily Wheel streak gracefully to 1 on next spin.
+* Home diamond count updates immediately after a successful wheel claim.
+* Multi-device Daily Wheel duplicate prevention remains a live backend/platform probe unless unique idempotency constraints are configured.
 
 ---
 
@@ -240,7 +250,7 @@ Checklist:
 * Pending GameInvite rows involving the test account are cancelled.
 * FriendRequest/Friendship rows involving the test account are removed or no longer actionable.
 * Public leaderboard row for the test account is removed or anonymized.
-* Retained OnlineMatchResult/DiamondTransaction rows no longer contain the deleted user's email.
+* Retained OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the deleted user's email.
 * Another user's account/data is not deleted.
 * `/account-deletion` public page copy matches the in-app flow.
 
@@ -288,8 +298,8 @@ Checklist:
 * Admin preview by target email shows only safe summary values.
 * Execute requires typing the exact target email again.
 * `Hard zero reset` sets visible Kronox Puan, Solo progress, Online progress, Elmas, Top 5 records, and leaderboard projection to 0 / starting state.
-* `Hard zero reset` does not immediately re-grant starter or same-day daily Diamonds after target refresh.
-* `New player reset` sets visible progress to starting state and allows normal starter/daily Diamond bootstrap on next app entry.
+* `Hard zero reset` does not immediately re-grant starter, same-day daily login, or same-day Daily Wheel Diamonds after target refresh.
+* `New player reset` sets visible progress to starting state and allows normal starter/daily Diamond bootstrap plus Daily Wheel availability on next app entry.
 * Target user account and login/auth identity remain intact.
 * Target user local Solo progress mirror is invalidated by `progress_reset_at` after refresh/reopen.
 * AdminMaintenanceLog records admin email, target email, mode, timestamp, and result.
@@ -327,6 +337,7 @@ Checklist:
 * Base44/platform unique keys are configured or explicitly documented as not
   available:
   * `DiamondTransaction.idempotency_key`
+  * `DailyWheelSpin.idempotency_key`
   * `OnlineMatchResult.idempotency_key`
   * `OnlineMatchResult.lobby_id + player_email`
   * `PushSubscription.user_email + endpoint`

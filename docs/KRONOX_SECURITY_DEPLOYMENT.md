@@ -223,6 +223,8 @@ updateLobbyGameState
 acceptGameInvite
 sendGameInvitePush
 getSoloLeaderboard
+getDailyWheelStatus
+claimDailyWheelReward
 seedQuestionCategories
 ```
 
@@ -231,6 +233,10 @@ receive 401, authenticated non-host/non-authorized callers receive 403, and
 client-provided email/name fields must never override the authenticated
 identity. Legacy guest-host start fallback is not part of the current product
 contract.
+
+Daily Wheel functions must require authenticated user context. `claimDailyWheelReward`
+must select rewards server-side, use the authenticated user's email for the
+daily idempotency key, grant Diamonds only, and never grant Kronox Puan.
 
 ---
 

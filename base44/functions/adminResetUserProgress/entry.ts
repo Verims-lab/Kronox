@@ -39,6 +39,10 @@ function todayUtcKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function nextUtcDayIso(dateKey = todayUtcKey()) {
+  return new Date(Date.parse(`${dateKey}T00:00:00.000Z`) + 24 * 60 * 60 * 1000).toISOString();
+}
+
 function ownerKeyFromEmail(rawEmail: unknown) {
   const email = normalizeEmail(rawEmail);
   if (!email) return '';
@@ -279,6 +283,18 @@ async function deleteTargetGameRecords(base44: any, targetUser: any, targetEmail
   return { available: true, deleted };
 }
 
+async function deleteTargetDailyWheelSpins(base44: any, targetEmail: string) {
+  const entity = base44.asServiceRole.entities.DailyWheelSpin;
+  if (!entity?.delete) return { available: false, deleted: 0 };
+  const rows = await safeFilter(base44, 'DailyWheelSpin', { user_email: targetEmail }, '-claimed_at', 500);
+  let deleted = 0;
+  for (const row of uniqueRows(rows)) {
+    await entity.delete(row.id);
+    deleted += 1;
+  }
+  return { available: true, deleted };
+}
+
 async function createDiamondResetLedger(base44: any, targetEmail: string, targetUser: any, actor: any, mode: string, nowIso: string) {
   const entity = base44.asServiceRole.entities.DiamondTransaction;
   if (!entity?.create) return { available: false, created: false };
@@ -322,13 +338,19 @@ async function writeAdminMaintenanceLog(base44: any, payload: Record<string, unk
 
 function buildResetPatch(mode: string, nowIso: string) {
   const hardZero = mode === HARD_ZERO_MODE;
+  const todayKey = todayUtcKey();
   return {
     solo_progress: emptySoloProgress(),
     online_progress: emptyOnlineProgress(),
     kronox_puan_total: 0,
     diamonds: 0,
     starter_bonus_granted_at: hardZero ? nowIso : '',
-    last_daily_diamond_reward_date: hardZero ? todayUtcKey() : '',
+    last_daily_diamond_reward_date: hardZero ? todayKey : '',
+    daily_wheel_last_spin_at: hardZero ? nowIso : '',
+    daily_wheel_last_spin_date: hardZero ? todayKey : '',
+    daily_wheel_next_available_at: hardZero ? nextUtcDayIso(todayKey) : '',
+    daily_wheel_streak: 0,
+    daily_wheel_spin_count: 0,
     economy_updated_at: nowIso,
     progress_reset_at: nowIso,
     progress_reset_mode: mode,
@@ -409,9 +431,10 @@ Deno.serve(async (req) => {
     const patch = buildResetPatch(mode, nowIso);
     await base44.asServiceRole.entities.User.update(targetUser.id, patch);
 
-    const [leaderboard, gameRecords, diamondLedger] = await Promise.all([
+    const [leaderboard, gameRecords, dailyWheelSpins, diamondLedger] = await Promise.all([
       upsertZeroLeaderboard(base44, targetUser, targetEmail, nowIso),
       deleteTargetGameRecords(base44, targetUser, targetEmail),
+      deleteTargetDailyWheelSpins(base44, targetEmail),
       createDiamondResetLedger(base44, targetEmail, targetUser, actor, mode, nowIso),
     ]);
 
@@ -426,6 +449,7 @@ Deno.serve(async (req) => {
         fields: Object.keys(patch),
         leaderboard,
         gameRecords,
+        dailyWheelSpins,
         diamondLedger,
         progressResetAt: nowIso,
       },
@@ -440,6 +464,7 @@ Deno.serve(async (req) => {
         fields: Object.keys(patch),
         leaderboard,
         gameRecords,
+        dailyWheelSpins,
         diamondLedger,
         log,
       },

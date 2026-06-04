@@ -3,13 +3,16 @@ import { base44 } from '@/api/base44Client';
 export const DIAMOND_BALANCE_FIELD = 'diamonds';
 export const DIAMOND_STARTER_BONUS_AMOUNT = 100;
 export const DIAMOND_DAILY_LOGIN_AMOUNT = 20;
+export const DIAMOND_DAILY_WHEEL_STREAK_BONUS_AMOUNT = 100;
 export const DIAMOND_DAY_BOUNDARY = 'UTC';
 export const DIAMOND_STARTER_BONUS_IDEMPOTENCY_PREFIX = 'starter_bonus:';
 export const DIAMOND_DAILY_LOGIN_IDEMPOTENCY_PREFIX = 'daily_login:';
+export const DIAMOND_DAILY_WHEEL_IDEMPOTENCY_PREFIX = 'daily_wheel:';
 
 export const DIAMOND_REWARD_SOURCES = Object.freeze({
   STARTER_BONUS: 'starter_bonus',
   DAILY_LOGIN: 'daily_login',
+  DAILY_WHEEL: 'daily_wheel',
   WHEEL_SPIN_FUTURE: 'wheel_spin_future',
   REWARDED_AD_FUTURE: 'rewarded_ad_future',
   QUEST_REWARD_FUTURE: 'quest_reward_future',
@@ -49,6 +52,9 @@ export function buildDiamondIdempotencyKey(userEmail, source, dateKey = '') {
   }
   if (source === DIAMOND_REWARD_SOURCES.DAILY_LOGIN) {
     return dateKey ? `${DIAMOND_DAILY_LOGIN_IDEMPOTENCY_PREFIX}${email}:${dateKey}` : '';
+  }
+  if (source === DIAMOND_REWARD_SOURCES.DAILY_WHEEL) {
+    return dateKey ? `${DIAMOND_DAILY_WHEEL_IDEMPOTENCY_PREFIX}${email}:${dateKey}` : '';
   }
   return dateKey ? `${source}:${email}:${dateKey}` : `${source}:${email}`;
 }

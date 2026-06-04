@@ -26,6 +26,12 @@ exist per idempotency_key.
 ## Active sources
 - starter_bonus (one-time, guarded by User.starter_bonus_granted_at)
 - daily_login (guarded by User.last_daily_diamond_reward_date)
+- daily_wheel (server-backed Daily Wheel claim; Diamonds only, no Kronox Puan)
+
+Daily Wheel is separate from daily_login +20, grants once per UTC server day,
+uses idempotency_key daily_wheel:<normalizedEmail>:<YYYY-MM-DD>, records a
+DailyWheelSpin row plus DiamondTransaction.source = daily_wheel, and grants a
+7-day streak bonus: +100 diamonds.
 
 Future sources (wheel_spin, rewarded_ad, quest_reward, purchase, achievement,
 special_event) are schema-ready but not active yet.

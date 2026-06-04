@@ -370,6 +370,7 @@ export const diamondTransactionEntitySource = `
       "enum": [
         "starter_bonus",
         "daily_login",
+        "daily_wheel",
         "wheel_spin_future",
         "rewarded_ad_future",
         "quest_reward_future",

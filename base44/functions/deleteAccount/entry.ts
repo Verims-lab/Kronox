@@ -194,14 +194,26 @@ async function removeOrAnonymizePublicRows(base44: any, user: any, userEmail: st
   const gameRecords = await deleteRows(base44, 'GameRecord', [...gameRecordsByEmail, ...gameRecordsByCreator]);
   const lobbyMessages = await deleteRows(base44, 'LobbyMessage', lobbyMessagesByCreator);
 
-  const [diamondRows, resultRows, opponentRows] = await Promise.all([
+  const [diamondRows, dailyWheelRows, resultRows, opponentRows] = await Promise.all([
     safeFilter(base44, 'DiamondTransaction', { user_email: userEmail }),
+    safeFilter(base44, 'DailyWheelSpin', { user_email: userEmail }),
     safeFilter(base44, 'OnlineMatchResult', { player_email: userEmail }),
     safeFilter(base44, 'OnlineMatchResult', { opponent_email: userEmail }),
   ]);
 
   const diamondTransactions = await updateRows(base44, 'DiamondTransaction', diamondRows, (row) => ({
     user_email: anon.email,
+    idempotency_key: replaceEmailInKey(row?.idempotency_key, userEmail, anon.email),
+    metadata: {
+      ...(row?.metadata && typeof row.metadata === 'object' ? row.metadata : {}),
+      account_deleted: true,
+    },
+    description: accountDeletedDescription(row?.description),
+  }));
+
+  const dailyWheelSpins = await updateRows(base44, 'DailyWheelSpin', dailyWheelRows, (row) => ({
+    user_email: anon.email,
+    owner_key: anon.ownerKey,
     idempotency_key: replaceEmailInKey(row?.idempotency_key, userEmail, anon.email),
     metadata: {
       ...(row?.metadata && typeof row.metadata === 'object' ? row.metadata : {}),
@@ -230,6 +242,7 @@ async function removeOrAnonymizePublicRows(base44: any, user: any, userEmail: st
     gameRecords,
     lobbyMessages,
     diamondTransactions,
+    dailyWheelSpins,
     onlineMatchResults,
   };
 }

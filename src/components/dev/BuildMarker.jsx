@@ -713,6 +713,14 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
+// Codex185 — Daily Reward Wheel:
+//   • Adds server-backed getDailyWheelStatus / claimDailyWheelReward
+//     functions plus DailyWheelSpin ledger and User wheel guard fields.
+//   • Adds a compact Home DailyWheelCard above Solo, once-per-session prompt,
+//     result modal, passive claimed state, and immediate Home Elmas refresh.
+//   • Grants Diamonds only, keeps daily login +20 separate, adds +100
+//     seven-day streak bonus, and documents Base44 race proof as manual.
+//
 // Codex184 — Health Center full alignment:
 //   • Adds the canonical KRONOX_CORE_PROMPT.md path used by current tasks and
 //     Health docs checks.
@@ -740,7 +748,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex184';
+const BUILD_MARKER = 'Codex185';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
