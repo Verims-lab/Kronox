@@ -50,6 +50,8 @@ longer stored on the entity — they are derived at fetch time by
 - \`category\` defaults to 'genel' and \`type\` defaults to 'metin' when absent.
 - Invalid, missing, null, non-numeric, or approximate years are excluded from
   playable timeline decks.
+- Runtime projection may include sub_category and tag as gameplay-balance
+  metadata only, not as public full-bank exposure.
 
 This keeps the stored schema clean while gameplay keeps consuming runtime
 year/category/type values.

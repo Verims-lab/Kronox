@@ -31,6 +31,8 @@ The full attempt deck is built before gameplay starts. Gameplay consumes that pr
 
 The first active player question card shown to the user must be `soloAttemptDeck[0]`, the second must be `soloAttemptDeck[1]`, and so on unless an explicit deck-safe joker replacement is used. Seed/preplaced timeline cards are not counted as the first 5 active player question cards unless they are actual player question cards.
 
+Seed/preplaced timeline cards are still part of the early visible gameplay context. The deck order must choose them so they do not create obvious close-year conflicts with the first 5 active player question cards.
+
 Every valid deck must satisfy:
 - required deck size: 16 questions for normal levels, 19 questions for special levels
 - unique question IDs
@@ -52,6 +54,8 @@ These are soft balance preferences:
 - subcategory balance
 - era/year distribution
 - recently-seen avoidance
+
+The current P0 guardrail also avoids more than 2 same-subcategory or obvious sports-cluster cards in the first 5 active player cards when metadata and alternatives allow. Full category/subcategory/era tuning remains a P1 improvement.
 
 Fallback order:
 1. active questions/categories, unique years, first 5 minimum 5-year spacing, category/subcategory balance, era spread, not recently seen

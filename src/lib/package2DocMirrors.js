@@ -19,10 +19,13 @@ Only active questions (Question.state === "A") from active categories are used.
 Replay rebuilds the deck with no mid-attempt re-randomization. Runtime consumes
 the deck in order: the first active player question card is soloAttemptDeck[0].
 Seed/preplaced cards do not count as the first 5 active player question cards.
+They still avoid close-year conflicts with those early active cards.
 Fallback may relax category/subcategory balance, era spread, or recently-seen
 filtering but never allows duplicate years or invalid first 5 ordered questions
 spacing. The first 5 ordered questions are the first 5 displayed active player
-question cards. Missing, null, non-numeric, or approximate years are invalid.
+question cards. The P0 first-five guardrail avoids more than 2 same-subcategory
+or obvious sports-cluster cards when metadata and alternatives allow. Missing,
+null, non-numeric, or approximate years are invalid.
 `;
 
 export const CATEGORY_TAXONOMY_DOC = `# Kronox Category Taxonomy

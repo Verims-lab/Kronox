@@ -129,6 +129,8 @@ function normalizeQuestionForRuntime(question: Record<string, unknown>, activeMa
     answer: String(question?.answer || '').trim(),
     year,
     main_category_id: mainCategoryId,
+    sub_category: String(question?.sub_category || question?.subcategory || '').trim(),
+    tag: String(question?.tag || '').trim(),
     difficulty: Number.isFinite(Number(question?.difficulty)) ? Number(question.difficulty) : 1,
     state: 'A',
     // Runtime compatibility fields. These are intentionally derived and

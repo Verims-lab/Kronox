@@ -52,6 +52,12 @@ import { getSoloAttemptDeckSizeForLevel } from './soloProgressHelpers';
 const DEFAULT_DECK_SIZE = getSoloAttemptDeckSizeForLevel(1);
 const FIRST_FIVE_SPACING_TARGET_COUNT = 5;
 const FIRST_FIVE_MIN_YEAR_GAP = 5;
+const DEFAULT_VISIBLE_SEED_COUNT = 2;
+const FIRST_FIVE_SOFT_CLUSTER_CAP = 2;
+const SPORTS_CLUSTER_TOKENS = [
+  'arena', 'spor', 'sport', 'football', 'futbol', 'soccer', 'basket',
+  'tenis', 'tennis', 'olimpiyat', 'olympic', 'messi', 'serena',
+];
 
 export function getBeginnerYearSpacingForLevel(levelNumber) {
   const level = Math.trunc(Number(levelNumber) || 0);
@@ -169,6 +175,16 @@ function isSpacedFromAll(year, selectedYears, minGap) {
   return selectedYears.every((selectedYear) => Math.abs(Number(selectedYear) - Number(year)) >= minGap);
 }
 
+function hasMinimumYearGap(years, minGap = FIRST_FIVE_MIN_YEAR_GAP) {
+  const numericYears = years.map(Number).filter(Number.isFinite);
+  for (let i = 0; i < numericYears.length; i += 1) {
+    for (let j = i + 1; j < numericYears.length; j += 1) {
+      if (Math.abs(numericYears[i] - numericYears[j]) < minGap) return false;
+    }
+  }
+  return true;
+}
+
 function canPickSpacedYears(years, targetCount = FIRST_FIVE_SPACING_TARGET_COUNT, minGap = FIRST_FIVE_MIN_YEAR_GAP) {
   const picked = [];
   for (const year of [...years].sort((a, b) => Number(a) - Number(b))) {
@@ -235,16 +251,21 @@ function orderYearsForBeginnerSpacing(years, levelNumber) {
   return null;
 }
 
-function orderDeckForBeginnerSpacing(deck, levelNumber, random) {
+function orderDeckForBeginnerSpacing(deck, levelNumber, random, options = {}) {
   const spacing = getBeginnerYearSpacingForLevel(levelNumber);
   const shuffled = fisherYatesShuffle(deck, random);
   if (!spacing || shuffled.length === 0) return shuffled;
 
   const targetCount = Math.min(spacing.targetCount, shuffled.length);
+  const requestedSeedCount = Number(options.seedCount);
+  const seedCount = Math.max(0, Math.min(
+    Math.trunc(Number.isFinite(requestedSeedCount) ? requestedSeedCount : DEFAULT_VISIBLE_SEED_COUNT),
+    Math.max(0, shuffled.length - targetCount),
+  ));
   const front = [];
   const frontIds = new Set();
 
-  const collectFront = (orderedDeck) => {
+  const collectFront = (orderedDeck, useSoftClusterGuard = true) => {
     front.length = 0;
     frontIds.clear();
     for (const question of orderedDeck) {
@@ -252,19 +273,41 @@ function orderDeckForBeginnerSpacing(deck, levelNumber, random) {
       if (front.length >= targetCount) break;
       if (!Number.isFinite(year)) continue;
       if (!isSpacedFromAll(year, front.map((q) => Number(q.year)), spacing.minGap)) continue;
+      if (useSoftClusterGuard && exceedsFirstFiveSoftClusterCap(question, front)) continue;
       front.push(question);
       frontIds.add(question.id);
     }
     return front.length >= targetCount;
   };
 
-  if (!collectFront(shuffled)) {
-    collectFront([...shuffled].sort((a, b) => Number(a?.year) - Number(b?.year)));
-  }
+  const composeOrderedDeck = (orderedDeck, useSoftClusterGuard) => {
+    if (!collectFront(orderedDeck, useSoftClusterGuard)) return null;
+    const rest = fisherYatesShuffle(orderedDeck.filter((question) => !frontIds.has(question.id)), random);
+    const seedTail = [];
+    const seedIds = new Set();
+    const earlyYears = front.map((question) => Number(question.year));
+    for (const question of rest) {
+      if (seedTail.length >= seedCount) break;
+      const year = Number(question?.year);
+      if (!Number.isFinite(year)) continue;
+      if (!isSpacedFromAll(year, [...earlyYears, ...seedTail.map((q) => Number(q.year))], spacing.minGap)) continue;
+      seedTail.push(question);
+      seedIds.add(question.id);
+    }
+    if (seedTail.length < seedCount) return null;
+    const middle = rest.filter((question) => !seedIds.has(question.id));
+    return [...front, ...middle, ...seedTail];
+  };
 
-  if (front.length >= targetCount) {
-    const rest = shuffled.filter((question) => !frontIds.has(question.id));
-    return [...front, ...fisherYatesShuffle(rest, random)];
+  const sorted = [...shuffled].sort((a, b) => Number(a?.year) - Number(b?.year));
+  for (const [orderedDeck, useSoftClusterGuard] of [
+    [shuffled, true],
+    [sorted, true],
+    [shuffled, false],
+    [sorted, false],
+  ]) {
+    const ordered = composeOrderedDeck(orderedDeck, useSoftClusterGuard);
+    if (ordered) return ordered;
   }
 
   return null;
@@ -279,6 +322,57 @@ function getSubcategoryKey(question) {
   const raw = question?.sub_category ?? question?.subcategory ?? question?.tag ?? '';
   const key = String(raw || '').trim().toLowerCase();
   return key || 'sub:unknown';
+}
+
+function isKnownSubcategoryKey(key) {
+  return key && key !== 'sub:unknown';
+}
+
+function getSportsClusterKey(question) {
+  const cid = Number(question?.main_category_id);
+  if (Number.isFinite(cid) && cid === 5) return 'sports';
+  const text = [
+    question?.sub_category,
+    question?.subcategory,
+    question?.tag,
+    question?.category,
+    question?.question,
+  ].map((value) => String(value || '').toLowerCase()).join(' ');
+  return SPORTS_CLUSTER_TOKENS.some((token) => text.includes(token)) ? 'sports' : null;
+}
+
+function countMatching(items, selector, expected) {
+  return items.reduce((count, item) => count + (selector(item) === expected ? 1 : 0), 0);
+}
+
+function exceedsFirstFiveSoftClusterCap(question, selectedFront) {
+  const subcategoryKey = getSubcategoryKey(question);
+  if (
+    isKnownSubcategoryKey(subcategoryKey) &&
+    countMatching(selectedFront, getSubcategoryKey, subcategoryKey) >= FIRST_FIVE_SOFT_CLUSTER_CAP
+  ) {
+    return true;
+  }
+
+  const sportsKey = getSportsClusterKey(question);
+  if (
+    sportsKey &&
+    countMatching(selectedFront, getSportsClusterKey, sportsKey) >= FIRST_FIVE_SOFT_CLUSTER_CAP
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function buildDistribution(items, selector) {
+  const distribution = {};
+  for (const item of items || []) {
+    const key = selector(item);
+    if (!key) continue;
+    distribution[key] = (distribution[key] || 0) + 1;
+  }
+  return distribution;
 }
 
 function countDistinctBy(candidates, selector) {
@@ -380,6 +474,10 @@ function selectUniqueYearDeck({
  *                                            normal 16, special 19. Engine
  *                                            does not relax this; passed in
  *                                            only for tests.
+ * @param {number=} args.seedCount            Visible seed/preplaced timeline
+ *                                            cards that should stay spaced
+ *                                            from the first five active
+ *                                            player cards. Defaults to 2.
  * @param {Function=} args.random             Random source (0..1). Defaults
  *                                            to Math.random.
  * @param {number=} args.levelNumber          Solo level number. All Solo
@@ -397,6 +495,8 @@ export function buildSoloAttemptDeck(args = {}) {
   const deckSize = Number.isFinite(args.deckSize)
     ? Math.trunc(args.deckSize)
     : getSoloAttemptDeckSizeForLevel(args.levelNumber);
+  const requestedSeedCount = Number(args.seedCount);
+  const seedCount = Math.max(0, Math.trunc(Number.isFinite(requestedSeedCount) ? requestedSeedCount : DEFAULT_VISIBLE_SEED_COUNT));
   const random = typeof args.random === 'function' ? args.random : Math.random;
   const allowedCats = normalizeAllowedCategoryIds(args.allowedMainCategoryIds);
   const recentIds = normalizeRecentIds(args.recentlySeenQuestionIds);
@@ -406,7 +506,7 @@ export function buildSoloAttemptDeck(args = {}) {
       ok: false,
       reason: 'missing_active_category_whitelist',
       message: 'Aktif kategori bilgisi alınamadı. Lütfen tekrar dene.',
-      meta: { deckSize },
+      meta: { deckSize, seedCount },
     };
   }
 
@@ -420,7 +520,7 @@ export function buildSoloAttemptDeck(args = {}) {
       ok: false,
       reason: 'insufficient_first_five_spacing',
       message: 'Bu seviye için ilk 5 kart arasında en az 5 yıl aralığı sağlayacak yeterli soru yok.',
-      meta: { candidateCount: candidates.length, distinctYears, deckSize },
+      meta: { candidateCount: candidates.length, distinctYears, deckSize, seedCount },
     };
   }
 
@@ -482,15 +582,20 @@ export function buildSoloAttemptDeck(args = {}) {
   // apart. If a selected deck somehow cannot be ordered that way, fail
   // cleanly instead of starting an invalid attempt.
   const beginnerSpacing = getBeginnerYearSpacingForLevel(args.levelNumber);
-  const finalDeck = orderDeckForBeginnerSpacing(deck, args.levelNumber, random);
+  const finalDeck = orderDeckForBeginnerSpacing(deck, args.levelNumber, random, {
+    seedCount,
+  });
   if (!finalDeck) {
     return {
       ok: false,
       reason: 'insufficient_first_five_spacing',
       message: 'Bu seviye için ilk 5 kart arasında en az 5 yıl aralığı sağlayacak yeterli soru yok.',
-      meta: { candidateCount: candidates.length, distinctYears, deckSize },
+      meta: { candidateCount: candidates.length, distinctYears, deckSize, seedCount },
     };
   }
+  const firstFiveCards = finalDeck.slice(0, FIRST_FIVE_SPACING_TARGET_COUNT);
+  const visibleSeedCards = seedCount > 0 ? finalDeck.slice(-seedCount) : [];
+  const earlyVisibleCards = [...firstFiveCards, ...visibleSeedCards];
   return {
     ok: true,
     deck: finalDeck,
@@ -499,11 +604,19 @@ export function buildSoloAttemptDeck(args = {}) {
       candidateCount: candidates.length,
       distinctYears,
       deckSize,
+      seedCount,
       categoriesUsed: new Set(
         finalDeck
           .map((q) => Number(q?.main_category_id))
           .filter((n) => Number.isFinite(n)),
       ).size,
+      categoryDistribution: buildDistribution(finalDeck, getCategoryKey),
+      subcategoryDistribution: buildDistribution(finalDeck, getSubcategoryKey),
+      firstFiveCategoryDistribution: buildDistribution(firstFiveCards, getCategoryKey),
+      firstFiveSubcategoryDistribution: buildDistribution(firstFiveCards, getSubcategoryKey),
+      firstFiveSportsClusterCount: firstFiveCards.filter((q) => getSportsClusterKey(q) === 'sports').length,
+      earlyVisibleYears: earlyVisibleCards.map((q) => Number(q?.year)).filter(Number.isFinite),
+      earlyVisibleMinimumGapOk: hasMinimumYearGap(earlyVisibleCards.map((q) => Number(q?.year)), FIRST_FIVE_MIN_YEAR_GAP),
       beginnerYearSpacing: beginnerSpacing
         ? {
           levelNumber: Math.trunc(Number(args.levelNumber) || 0),

@@ -22,7 +22,9 @@ the prebuilt deck in order. There is no mid-attempt re-randomization.
 The first active player question card shown to the user must be
 soloAttemptDeck[0], the second must be soloAttemptDeck[1], and so on. Seed
 or preplaced timeline cards do not count as the first 5 active player
-question cards unless they are actual player question cards.
+question cards unless they are actual player question cards. They must still
+avoid close-year conflicts with the first 5 active player cards in the early
+visible timeline context.
 
 Hard deck rules:
 - 16 questions for normal levels.
@@ -41,6 +43,10 @@ Soft deck preferences:
 - subcategory balance.
 - era/year spread.
 - recently-seen avoidance.
+
+The P0 first-five guardrail avoids more than 2 same-subcategory or obvious
+sports-cluster cards when metadata and alternatives allow. Full category,
+subcategory, and era tuning remains a P1 improvement.
 
 Fallback may relax recently-seen avoidance, category/subcategory balance,
 and era spread. It must not relax required deck size, unique IDs, unique

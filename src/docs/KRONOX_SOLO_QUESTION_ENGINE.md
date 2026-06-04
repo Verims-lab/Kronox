@@ -8,7 +8,7 @@ Normal Solo levels end at 7 correct timeline cards, including seed cards already
 
 Special Solo levels start at level 10 and repeat every 5 levels: 10, 15, 20, 25, and so on. Special Solo levels end at 10 correct timeline cards, including seed cards already on the timeline, use a 19-question deck, use the same 180 seconds timer, and fail on the 10th mistake.
 
-The full attempt deck is built before gameplay starts and is consumed in order. There is no mid-attempt re-randomization. The first active player question card shown to the user is `soloAttemptDeck[0]`; seed/preplaced timeline cards do not count as the first 5 active player question cards unless they are actual player question cards.
+The full attempt deck is built before gameplay starts and is consumed in order. There is no mid-attempt re-randomization. The first active player question card shown to the user is `soloAttemptDeck[0]`; seed/preplaced timeline cards do not count as the first 5 active player question cards unless they are actual player question cards, but they must not create close-year conflicts with those early active cards.
 
 Hard deck rules:
 - 16 questions for normal levels
@@ -27,6 +27,7 @@ Soft preferences:
 - subcategory balance
 - era/year spread
 - recently-seen avoidance
+- P0 first-five guardrail avoids more than 2 same-subcategory or obvious sports-cluster cards when metadata and alternatives allow
 
 Fallback may relax recently-seen avoidance, category/subcategory balance, and era spread. It must not relax deck size, unique IDs, unique years, active question/category filtering, or the first 5 minimum 5-year spacing rule unless no valid spaced deck exists at all.
 
