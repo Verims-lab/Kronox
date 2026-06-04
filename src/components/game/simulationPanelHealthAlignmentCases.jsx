@@ -18,6 +18,7 @@ import { SOLO_QUESTION_ENGINE_DOC as soloEngineDocsSource } from '@/lib/soloQues
 import { QUESTION_DATA_MODEL_DOC as questionModelDocsSource } from '@/lib/questionDataModelDoc';
 import { ECONOMY_RULES_DOC as economyDocsSource } from '@/lib/economyRulesDoc';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
+import standardTopBarSource from '../layout/StandardTopBar.jsx?raw';
 import notificationApiSource from '../../lib/notificationApi.js?raw';
 import placementFeedbackCasesSource from './simulationPanelPlacementFeedbackCases.jsx?raw';
 import soloQuestionEngineCasesSource from './simulationPanelSoloQuestionEngineCases.jsx?raw';
@@ -193,20 +194,27 @@ export const EXTRA_TESTS = [
         'NotificationSettingsCard',
         'AppPreferencesCard',
       ]);
-      const missing = missingTokens(settingsPageSource, [
+      const settingsMissing = missingTokens(settingsPageSource, [
         'StandardTopBar',
-        'showNotifications={true}',
+        'diamonds={diamondValue}',
+        'user={user}',
+        'showBack',
         'ResetUserProgressTool',
         'Hesabı Sil',
       ]);
-      if (forbidden.length || missing.length) {
+      const topBarMissing = missingTokens(standardTopBarSource, [
+        'HeaderNotificationBell',
+        '<HeaderNotificationBell user={user} />',
+        'aria-label={`Elmas: ${diamonds}`}',
+      ]);
+      if (forbidden.length || settingsMissing.length || topBarMissing.length) {
         return fail('Settings page has stale removed UI or lost the current top/admin/deletion contract.', {
           verification: 'STATIC_CONTRACT',
-          file: 'src/pages/SettingsPage.jsx',
-          actual: { forbidden, missing },
+          files: ['src/pages/SettingsPage.jsx', 'src/components/layout/StandardTopBar.jsx'],
+          actual: { forbidden, settingsMissing, topBarMissing },
         });
       }
-      return pass('Settings keeps the current top bar/admin maintenance/account deletion contract and removed UI stays absent.', {
+      return pass('Settings uses StandardTopBar with centered Elmas, right-side notification bell, admin maintenance, account deletion, and removed UI stays absent.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
