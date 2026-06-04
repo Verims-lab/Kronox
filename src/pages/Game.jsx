@@ -52,6 +52,10 @@ import {
   buildSoloAttemptDeck,
   shouldShowBeginnerPlacementHint,
 } from '@/lib/soloQuestionEngine';
+import {
+  getOrderedSoloDeckQuestion,
+  getSoloSeedQuestions,
+} from '@/lib/soloDeckRuntime';
 // Codex128 — Online score/checkpoint system. Online winner kararlaştığında
 // her client kendi kullanıcısının puanını günceller (idempotent).
 import { applyOnlineMatchToCurrentUser } from '@/lib/applyOnlineResult';
@@ -239,6 +243,7 @@ export default function Game() {
   const timerFreezeTimeoutRef = useRef(null);
   const timerFreezeIntervalRef = useRef(null);
   const jokerUsedRef = useRef(false);
+  const soloSkippedQuestionIdsRef = useRef(new Set());
 
   useEffect(() => {
     if (!isOnlineFromState) return;
@@ -355,6 +360,7 @@ export default function Game() {
   const resetSoloJokers = useCallback(() => {
     clearSoloTimerFreeze(false);
     jokerUsedRef.current = false;
+    soloSkippedQuestionIdsRef.current = new Set();
     setUsedJokerType(null);
     setMistakeShieldActive(false);
     setJokerMessage('');
@@ -376,6 +382,15 @@ export default function Game() {
       .filter(q => category === 'karisik' || q.category === category)
       .filter(q => q.type !== 'muzik' || (q.media_url && q.media_url.length > 0));
   }, [allQuestions, yearStart, yearEnd, category, isSoloLevelMode, soloAttemptDeck]);
+
+  const pickOrderedSoloQuestion = useCallback((usedIds, questions, usedTimelineYears = new Set()) => {
+    if (!isSoloLevelMode) return null;
+    const chosen = getOrderedSoloDeckQuestion(questions, usedIds, usedTimelineYears, {
+      skippedQuestionIds: soloSkippedQuestionIdsRef.current,
+    });
+    if (chosen) appendToHistory([chosen.id]);
+    return chosen;
+  }, [isSoloLevelMode]);
 
   const myPlayerName = useMemo(() => {
     if (!isOnline) return routeMyPlayerName;
@@ -572,6 +587,7 @@ export default function Game() {
     setSelectedZone,
     setTimerKey,
     setGameStarted,
+    orderedQuestionPicker: isSoloLevelMode ? pickOrderedSoloQuestion : null,
   });
 
   // ─── Effects ───────────────────────────────────────────────────────
@@ -612,6 +628,7 @@ export default function Game() {
         recentlySeenQuestionIds: loadRecentHistory(),
         levelNumber: soloLevel?.levelNumber,
         deckSize: getSoloAttemptDeckSizeForLevel(soloLevel?.levelNumber),
+        requireActiveCategoryWhitelist: true,
       });
       if (!engineResult.ok) {
         setError(engineResult.message);
@@ -640,12 +657,14 @@ export default function Game() {
     }
 
     let cursor = 0;
+    const soloSeedQuestions = isSoloLevelMode ? getSoloSeedQuestions(shuffled, playerNames.length * 2) : [];
+    let soloSeedCursor = 0;
     const used = new Set();
     const newPlayers = playerNames.map((name) => {
       const cards = [];
       for (let j = 0; j < 2; j++) {
-        if (cursor < shuffled.length) {
-          const q = shuffled[cursor++];
+        const q = isSoloLevelMode ? soloSeedQuestions[soloSeedCursor++] : shuffled[cursor++];
+        if (q) {
           cards.push({ id: q.id, year: q.year, question: q.question, type: q.type, media_url: q.media_url });
           used.add(q.id);
         }
@@ -653,7 +672,12 @@ export default function Game() {
       return { name, email: `player_${name}`, cards };
     });
 
-    const firstQ = shuffled[cursor];
+    const firstQ = isSoloLevelMode
+      ? getOrderedSoloDeckQuestion(shuffled, used, getTimelineYears(newPlayers[0]?.cards || []), {
+        skippedQuestionIds: soloSkippedQuestionIdsRef.current,
+        allowSkippedFallback: false,
+      })
+      : shuffled[cursor];
     if (!firstQ) { setError('İlk soru için yeterli soru yok'); return; }
     used.add(firstQ.id);
 
@@ -769,12 +793,13 @@ export default function Game() {
       const usedIds = new Set([...(usedQuestionIds || [])]);
       usedIds.delete(currentQuestion.id);
       const timelineYears = getTimelineYears(currentPlayer.cards || []);
-      const replacement = soloAttemptDeck.find((question) =>
-        question?.id &&
-        question.id !== currentQuestion.id &&
-        !usedIds.has(question.id) &&
-        !timelineYears.has(question.year)
-      );
+      const skippedIds = new Set(soloSkippedQuestionIdsRef.current);
+      skippedIds.add(currentQuestion.id);
+      const replacement = getOrderedSoloDeckQuestion(soloAttemptDeck, usedIds, timelineYears, {
+        skippedQuestionIds: skippedIds,
+        excludeQuestionIds: [currentQuestion.id],
+        allowSkippedFallback: false,
+      });
 
       if (!replacement) {
         setJokerError('Bu kart şu anda değiştirilemiyor.');
@@ -785,6 +810,7 @@ export default function Game() {
       setUsedJokerType('swapCard');
       setJokerMessage('Kart Değiştir aktif: Kart değiştirildi.');
       setSelectedZone(null);
+      soloSkippedQuestionIdsRef.current = skippedIds;
       appendToHistory([currentQuestion.id, replacement.id]);
       setLobbyData((prev) => {
         if (!prev) return prev;

@@ -16,9 +16,13 @@ with 19 unique years, and need 10 correct timeline cards, including seed
 cards already on the timeline, to pass. All new Solo attempts use 180
 seconds and fail on 10 mistakes; the 10th mistake ends the attempt.
 Only active questions (Question.state === "A") from active categories are used.
-Replay rebuilds the deck with no mid-attempt re-randomization. Fallback may
-relax category/subcategory balance, era spread, or recently-seen filtering but
-never allows duplicate years or invalid first 5 ordered questions spacing.
+Replay rebuilds the deck with no mid-attempt re-randomization. Runtime consumes
+the deck in order: the first active player question card is soloAttemptDeck[0].
+Seed/preplaced cards do not count as the first 5 active player question cards.
+Fallback may relax category/subcategory balance, era spread, or recently-seen
+filtering but never allows duplicate years or invalid first 5 ordered questions
+spacing. The first 5 ordered questions are the first 5 displayed active player
+question cards. Missing, null, non-numeric, or approximate years are invalid.
 `;
 
 export const CATEGORY_TAXONOMY_DOC = `# Kronox Category Taxonomy

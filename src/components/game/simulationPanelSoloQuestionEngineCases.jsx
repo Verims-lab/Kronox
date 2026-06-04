@@ -20,6 +20,11 @@ import {
   shouldShowBeginnerPlacementHint,
 } from '@/lib/soloQuestionEngine';
 import {
+  getDisplayedSoloQuestionDeck,
+  getOrderedSoloDeckQuestion,
+  getSoloSeedQuestions,
+} from '@/lib/soloDeckRuntime';
+import {
   SOLO_CARDS_PER_LEVEL,
   SOLO_SPECIAL_CARDS_PER_LEVEL,
   SOLO_MAX_MISTAKES,
@@ -39,6 +44,8 @@ import {
   SOLO_QUESTION_ENGINE_DOC,
   SOLO_QUESTION_ENGINE_DOC_PATH,
 } from '@/lib/soloQuestionEngineDoc';
+import gamePageSource from '../../pages/Game.jsx?raw';
+import useGameActionsSource from '../../hooks/useGameActions.js?raw';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
 const ACTION_TYPES = { CODE_FIX: 'CODE_FIX', HUMAN_RUNTIME_PROOF: 'HUMAN_RUNTIME_PROOF' };
@@ -60,6 +67,11 @@ function makeCase(id, name, run, options = {}) {
 }
 function pass(reason, extra) { return { status: STATUS.PASS, reason, ...(extra || {}) }; }
 function fail(reason, extra) { return { status: STATUS.FAIL, reason, ...(extra || {}) }; }
+function safeStr(value) { return String(value || ''); }
+function missingTokens(source, tokens) {
+  const src = safeStr(source);
+  return tokens.filter((token) => !src.includes(token));
+}
 
 // ─── Fixture helpers ───────────────────────────────────────────────
 // Build a synthetic pool with N rows, each with a unique year (1900+i)
@@ -325,7 +337,7 @@ export const EXTRA_TESTS = [
   /* 7. solo_attempt_uses_active_questions_only_if_supported */
   makeCase(
     'solo_attempt_uses_active_questions_only_if_supported',
-    'Questions with state==="P" are excluded; rows without state stay backward-compatible',
+    'Questions must be explicitly active before entering the Solo deck',
     () => {
       const base = buildSyntheticPool(40);
       const passives = Array.from({ length: 10 }, (_, i) => ({
@@ -342,13 +354,12 @@ export const EXTRA_TESTS = [
         verification: 'RUNTIME_VERIFIED', classification: 'REAL_PRODUCT_RISK',
         leakedId: leaked.id, actionType: ACTION_TYPES.CODE_FIX,
       });
-      // Verify legacy rows (no state) still pass the active gate.
-      const legacy = __soloEngineInternals.isActiveQuestion({ id: 1, question: 'x', year: 1900 });
-      if (!legacy) return fail('Legacy rows without state must be treated as active.', {
+      const missingState = __soloEngineInternals.isActiveQuestion({ id: 1, question: 'x', year: 1900 });
+      if (missingState) return fail('Rows without active state should be normalized before reaching the deck engine.', {
         verification: 'RUNTIME_VERIFIED', classification: 'REAL_PRODUCT_RISK',
         actionType: ACTION_TYPES.CODE_FIX,
       });
-      return pass('state==="P" excluded; legacy rows accepted.', {
+      return pass('Only state==="A" rows are playable in the Solo deck engine.', {
         verification: 'RUNTIME_VERIFIED', classification: 'RUNTIME_VERIFIED',
       });
     },
@@ -357,30 +368,38 @@ export const EXTRA_TESTS = [
   /* 8. solo_attempt_no_mid_game_rerandomization */
   makeCase(
     'solo_attempt_no_mid_game_rerandomization',
-    'Gameplay consumes the attempt deck source-of-truth — Game.jsx wires deck as questionPool in Solo mode',
+    'Gameplay consumes Solo attempt deck order through the ordered deck picker',
     () => {
-      // Static contract on the wiring inside Game.jsx. The engine itself
-      // is a pure function; what makes this contract real is that the
-      // Solo branch of `questionPool` returns `soloAttemptDeck`. If that
-      // wiring drifts, mid-game rerandomization could return.
-      const required = [
+      const gameMissing = missingTokens(gamePageSource, [
         'if (isSoloLevelMode && Array.isArray(soloAttemptDeck))',
         'return soloAttemptDeck;',
         'buildSoloAttemptDeck',
-      ];
-      // We can't import the page source via ?raw inside this file (it
-      // would re-trigger Vite parse risk on some hosts); instead we mark
-      // the case as RUNTIME-PROVED-BY-PRODUCT and trust the gameplay
-      // contract above. Health Center keeps it visible.
-      return pass('Solo mode binds questionPool to the attempt deck (verified by gameplay invariant).', {
-        verification: 'STATIC_CHECK_LIMITATION',
-        classification: 'STATIC_CHECK_LIMITATION',
-        actionType: ACTION_TYPES.HUMAN_RUNTIME_PROOF,
-        expected: required,
-        actual: 'wired in pages/Game.jsx Solo branch of questionPool',
+        'orderedQuestionPicker: isSoloLevelMode ? pickOrderedSoloQuestion : null',
+        'getOrderedSoloDeckQuestion',
+        'getSoloSeedQuestions',
+      ]);
+      const actionMissing = missingTokens(useGameActionsSource, [
+        "typeof orderedQuestionPicker === 'function'",
+        'PICK_ORDERED',
+        'selectNextQuestion',
+      ]);
+      const orderedIndex = safeStr(useGameActionsSource).indexOf("typeof orderedQuestionPicker === 'function'");
+      const randomIndex = safeStr(useGameActionsSource).indexOf('selectNextQuestion(questions', orderedIndex);
+      if (gameMissing.length || actionMissing.length || orderedIndex < 0 || randomIndex < 0 || orderedIndex > randomIndex) {
+        return fail('Solo runtime can still bypass ordered attempt-deck progression.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          files: ['pages/Game.jsx', 'hooks/useGameActions.js'],
+          actual: { gameMissing, actionMissing, orderedIndex, randomIndex },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+
+      return pass('Solo mode wires an orderedQuestionPicker before the generic random selectNextQuestion path.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'RUNTIME_WIRING_CONTRACT',
       });
     },
-    { actionType: ACTION_TYPES.HUMAN_RUNTIME_PROOF, critical: false },
   ),
 
   /* 9. solo_replay_creates_new_attempt_deck */
@@ -518,6 +537,112 @@ export const EXTRA_TESTS = [
         verification: 'RUNTIME_VERIFIED',
         classification: 'RUNTIME_VERIFIED',
         actual: { firstFiveYears, gap },
+      });
+    },
+  ),
+
+  makeCase(
+    'first_five_displayed_questions_follow_ordered_deck',
+    'Runtime ordered picker displays soloAttemptDeck[0..4] as the first five active player question cards',
+    () => {
+      const pool = buildSyntheticPool(50, (i) => ({ year: 1900 + i * 5, answer: String(1900 + i * 5) }));
+      const res = buildSoloAttemptDeck({ pool, levelNumber: 1, random: makeSeededRandom(21) });
+      if (!res.ok) return fail(`Engine failed unexpectedly: ${res.reason}`, {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'REAL_PRODUCT_RISK',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+
+      const seedCards = getSoloSeedQuestions(res.deck, 2);
+      const displayedDeck = getDisplayedSoloQuestionDeck(res.deck, 2);
+      const usedIds = new Set(seedCards.map((question) => question.id));
+      const displayed = [];
+      for (let i = 0; i < 5; i += 1) {
+        const question = getOrderedSoloDeckQuestion(res.deck, usedIds, new Set());
+        if (!question) break;
+        displayed.push(question);
+        usedIds.add(question.id);
+      }
+
+      const expectedIds = displayedDeck.slice(0, 5).map((question) => question.id);
+      const actualIds = displayed.map((question) => question.id);
+      const firstFiveYears = displayed.map((question) => Number(question.year));
+      const gap = minAdjacentGap(firstFiveYears);
+      if (actualIds.join('|') !== expectedIds.join('|') || gap < 5) {
+        return fail('Displayed first-five order drifted from the ordered Solo deck.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: { ids: expectedIds, minimumGap: 5 },
+          actual: { ids: actualIds, firstFiveYears, gap },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+
+      return pass('Seed cards are reserved from the deck tail and the first five active player cards follow deck order.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+        actual: { firstFiveYears, gap },
+      });
+    },
+  ),
+
+  makeCase(
+    'solo_year_validation_rejects_null_and_invalid_values',
+    'Solo engine rejects null/undefined/empty/non-numeric/approximate years and accepts clean numeric strings',
+    () => {
+      const invalid = [
+        { id: 1, question: 'null year', year: null, state: 'A' },
+        { id: 2, question: 'undefined year', state: 'A' },
+        { id: 3, question: 'empty year', year: '', state: 'A' },
+        { id: 4, question: 'nan year', year: Number.NaN, state: 'A' },
+        { id: 5, question: 'text year', year: 'yaklaşık 1914', state: 'A' },
+      ];
+      const invalidAccepted = invalid.filter((question) => __soloEngineInternals.hasUsableYear(question));
+      const numericStringAccepted = __soloEngineInternals.hasUsableYear({ id: 6, question: 'clean string', year: '1914', state: 'A' });
+      if (invalidAccepted.length || !numericStringAccepted) {
+        return fail('Solo year validation can still accept invalid years or reject clean numeric strings.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'invalid rejected, "1914" accepted',
+          actual: { invalidAccepted: invalidAccepted.map((question) => question.question), numericStringAccepted },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Null/missing/invalid years are rejected before deck creation; clean numeric strings are accepted.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+      });
+    },
+  ),
+
+  makeCase(
+    'solo_runtime_requires_active_category_whitelist',
+    'Solo runtime can require an active-category whitelist instead of silently accepting stale category metadata',
+    () => {
+      const pool = buildSyntheticPool(40);
+      const missingWhitelist = buildSoloAttemptDeck({
+        pool,
+        levelNumber: 1,
+        requireActiveCategoryWhitelist: true,
+      });
+      const validWhitelist = buildSoloAttemptDeck({
+        pool,
+        levelNumber: 1,
+        allowedMainCategoryIds: [1, 2, 3, 4, 5, 6],
+        requireActiveCategoryWhitelist: true,
+      });
+      if (missingWhitelist.ok || missingWhitelist.reason !== 'missing_active_category_whitelist' || !validWhitelist.ok) {
+        return fail('Active-category whitelist enforcement drifted.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'missing whitelist fails clean; valid whitelist builds',
+          actual: { missingWhitelist, validWhitelistOk: validWhitelist.ok },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Runtime can clean-fail instead of building a Solo deck without active category metadata.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
       });
     },
   ),
