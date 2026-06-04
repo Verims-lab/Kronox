@@ -54,15 +54,24 @@ The engine should distribute questions across categories and subcategories as ev
 These are soft balance preferences:
 - category balance
 - subcategory balance
+- tag/theme balance, including sports-like theme clustering
 - era/year distribution
 - recently-seen avoidance
 
-The current P0 guardrail also avoids more than 2 same-subcategory or obvious sports-cluster cards in the first 5 active player cards when metadata and alternatives allow. Full category/subcategory/era tuning remains a P1 improvement.
+P1 balancing applies during deck selection and deck ordering where the pool allows:
+- normal and special decks distribute across active categories so one category does not dominate a rich pool
+- first 7 active displayed cards avoid 4+ same-category cards where alternatives exist
+- first 5 active displayed cards avoid 3+ same-subcategory or obvious sports-cluster cards where metadata and alternatives allow
+- first 7 active displayed cards avoid 4+ same-subcategory/theme cards where alternatives exist
+- ordering avoids same category, subcategory, sports/theme, or decade back-to-back where alternatives exist
+- decade/era spread is preferred so the deck does not cluster around one narrow historical period
+
+The engine exposes safe diagnostics for Health/admin/debug only: category distribution, subcategory distribution, theme/sports distribution, decade distribution, first-5/first-7 distributions, max consecutive cluster counts, and fallback tier. These diagnostics must not be shown to normal players or used to expose the protected question bank publicly.
 
 Fallback order:
 1. active questions/categories, unique years, first 5 minimum 5-year spacing, category/subcategory balance, era spread, not recently seen
 2. relax recently-seen avoidance
-3. relax category/subcategory balance
+3. relax category/subcategory/theme/era balance
 4. relax era distribution
 5. fail cleanly if a valid deck still cannot be created
 
@@ -104,7 +113,7 @@ Solo jokers are first-version, attempt-local helpers:
 
 Joker behavior:
 - `Hata Affı`: activates one-time protection. The next wrong placement does not count as a mistake; correct placements do not consume it.
-- `Kart Değiştir`: replaces the current active card using the already prepared Solo attempt deck/reserve. It must not fetch a new question, rebuild the deck, or rerandomize the attempt mid-game, and the swapped-out card should not reappear later in the same attempt while unused deck cards are available. Replacement must respect visible timeline spacing; if no safe replacement exists, the joker is not consumed and the player sees `Bu kart şu anda değiştirilemiyor.`
+- `Kart Değiştir`: replaces the current active card using the already prepared Solo attempt deck/reserve. It must not fetch a new question, rebuild the deck, or rerandomize the attempt mid-game, and the swapped-out card should not reappear later in the same attempt while unused deck cards are available. Replacement must respect visible timeline spacing and prefers a balanced reserve card that does not worsen category/subcategory/theme repetition. If no safe replacement exists, the joker is not consumed and the player sees `Bu kart şu anda değiştirilemiyor.`
 - `Zaman Dondur`: freezes the Solo level timer for 10 seconds. It does not add score, add extra time, or alter timeout rules beyond pausing the elapsed timer during the freeze window.
 
 ## Backward Compatibility

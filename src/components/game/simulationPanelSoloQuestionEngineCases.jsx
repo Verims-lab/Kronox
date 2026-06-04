@@ -106,6 +106,10 @@ function minAdjacentGap(years) {
   return minGap;
 }
 
+function maxDistributionValue(distribution) {
+  return Math.max(0, ...Object.values(distribution || {}).map((value) => Number(value) || 0));
+}
+
 // ─── Suite registration ────────────────────────────────────────────
 export const EXTRA_SUITES = [
   { id: SUITE_ID, name: SUITE_NAME, critical: true, color: '#facc15' },
@@ -842,7 +846,7 @@ export const EXTRA_TESTS = [
         classification: 'REAL_PRODUCT_RISK',
         actionType: ACTION_TYPES.CODE_FIX,
       });
-      const maxFirstFiveSubcategoryCount = Math.max(0, ...Object.values(res.meta.firstFiveSubcategoryDistribution || {}));
+      const maxFirstFiveSubcategoryCount = maxDistributionValue(res.meta.firstFiveSubcategoryDistribution);
       if (maxFirstFiveSubcategoryCount > 2 || Number(res.meta.firstFiveSportsClusterCount) > 2) {
         return fail('First-five soft anti-cluster guardrail did not engage despite available alternatives.', {
           verification: 'RUNTIME_VERIFIED',
@@ -892,6 +896,208 @@ export const EXTRA_TESTS = [
   ),
 
   makeCase(
+    'normal_deck_category_balance_rich_pool',
+    'Normal Solo rich pools avoid one active category dominating the deck or first seven cards',
+    () => {
+      const pool = buildSyntheticPool(96, (i) => ({
+        year: 1800 + i * 5,
+        answer: String(1800 + i * 5),
+        main_category_id: (i % 6) + 1,
+        sub_category: `sub_${i % 12}`,
+        tag: `theme_${i % 10}`,
+      }));
+      const res = buildSoloAttemptDeck({ pool, levelNumber: 4, seedCount: 2, random: makeSeededRandom(111) });
+      if (!res.ok) return fail(`Engine failed unexpectedly: ${res.reason}`, {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'REAL_PRODUCT_RISK',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+      if (Number(res.meta.maxCategoryCount) > 4 || Number(res.meta.maxFirstSevenCategoryCount) > 3) {
+        return fail('Normal Solo P1 category balance let one category dominate despite a rich active pool.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'normal rich pool: max full category <=4 and first-seven category <=3',
+          actual: {
+            categoryDistribution: res.meta.categoryDistribution,
+            firstSevenCategoryDistribution: res.meta.firstSevenCategoryDistribution,
+            maxCategoryCount: res.meta.maxCategoryCount,
+            maxFirstSevenCategoryCount: res.meta.maxFirstSevenCategoryCount,
+          },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Normal Solo rich pool deck stays category-balanced across full deck and first seven active cards.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+      });
+    },
+  ),
+
+  makeCase(
+    'special_deck_category_balance_rich_pool',
+    'Special Solo rich pools avoid one active category dominating the 19-question deck',
+    () => {
+      const pool = buildSyntheticPool(114, (i) => ({
+        year: 1700 + i * 5,
+        answer: String(1700 + i * 5),
+        main_category_id: (i % 6) + 1,
+        sub_category: `special_sub_${i % 14}`,
+        tag: `special_theme_${i % 10}`,
+      }));
+      const res = buildSoloAttemptDeck({ pool, levelNumber: 10, seedCount: 2, random: makeSeededRandom(112) });
+      if (!res.ok) return fail(`Engine failed unexpectedly: ${res.reason}`, {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'REAL_PRODUCT_RISK',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+      if (res.deck.length !== 19 || Number(res.meta.maxCategoryCount) > 5 || Number(res.meta.maxFirstSevenCategoryCount) > 3) {
+        return fail('Special Solo P1 category balance drifted on a rich active pool.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'special rich pool: deck length 19, max category <=5, first-seven category <=3',
+          actual: {
+            deckLength: res.deck.length,
+            categoryDistribution: res.meta.categoryDistribution,
+            firstSevenCategoryDistribution: res.meta.firstSevenCategoryDistribution,
+          },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Special Solo 19-card decks stay category-balanced where the pool allows.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+      });
+    },
+  ),
+
+  makeCase(
+    'subcategory_first_seven_and_consecutive_balance',
+    'P1 ordering avoids first-seven subcategory domination and same-subcategory streaks where alternatives exist',
+    () => {
+      const pool = buildSyntheticPool(80, (i) => ({
+        year: 1600 + i * 5,
+        answer: String(1600 + i * 5),
+        main_category_id: (i % 6) + 1,
+        sub_category: `sub_${i % 10}`,
+        tag: `theme_${i % 10}`,
+      }));
+      const res = buildSoloAttemptDeck({ pool, levelNumber: 6, seedCount: 2, random: makeSeededRandom(113) });
+      if (!res.ok) return fail(`Engine failed unexpectedly: ${res.reason}`, {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'REAL_PRODUCT_RISK',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+      if (Number(res.meta.maxFirstSevenSubcategoryCount) > 3 || Number(res.meta.maxConsecutiveSubcategoryCount) > 2) {
+        return fail('Subcategory balance/order diagnostics show avoidable early domination or long streaks.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'first-seven subcategory <=3 and max consecutive subcategory <=2 where alternatives exist',
+          actual: {
+            firstSevenSubcategoryDistribution: res.meta.firstSevenSubcategoryDistribution,
+            maxFirstSevenSubcategoryCount: res.meta.maxFirstSevenSubcategoryCount,
+            maxConsecutiveSubcategoryCount: res.meta.maxConsecutiveSubcategoryCount,
+          },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Subcategory distribution diagnostics stay within P1 soft limits on a rich pool.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+      });
+    },
+  ),
+
+  makeCase(
+    'sports_theme_clustering_reduced_where_metadata_allows',
+    'Sports-like theme clustering is reduced when non-sports alternatives exist',
+    () => {
+      const pool = Array.from({ length: 72 }, (_, i) => {
+        const sports = i < 30;
+        return {
+          id: 7000 + i,
+          question: sports ? `Arena sports ${i}` : `Mixed topic ${i}`,
+          answer: String(1500 + i * 5),
+          year: 1500 + i * 5,
+          main_category_id: sports ? 5 : ((i % 5) + 1),
+          sub_category: sports ? `spor_${i % 4}` : `mixed_${i % 12}`,
+          tag: sports ? 'sports football tennis' : `theme_${i % 12}`,
+          state: 'A',
+          type: 'metin',
+        };
+      });
+      const res = buildSoloAttemptDeck({ pool, levelNumber: 4, seedCount: 2, random: makeSeededRandom(114) });
+      if (!res.ok) return fail(`Engine failed unexpectedly: ${res.reason}`, {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'REAL_PRODUCT_RISK',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+      const firstFiveSports = Number(res.meta.firstFiveSportsClusterCount);
+      const firstSevenSports = Number(res.meta.firstSevenSportsClusterCount);
+      const maxThemeStreak = Number(res.meta.maxConsecutiveThemeCount);
+      const themeSportsCount = Number(res.meta.themeDistribution?.['theme:sports'] || 0);
+      if (firstFiveSports > 2 || firstSevenSports > 3 || maxThemeStreak > 2 || themeSportsCount > 6) {
+        return fail('Sports/theme clustering remains too high despite non-sports alternatives.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'first five sports <=2, first seven sports <=3, no 3 sports/theme back-to-back, full sports <=6',
+          actual: { firstFiveSports, firstSevenSports, maxThemeStreak, themeDistribution: res.meta.themeDistribution },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Sports/theme clustering is limited by metadata-aware P1 balancing where alternatives exist.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+      });
+    },
+  ),
+
+  makeCase(
+    'era_decade_distribution_balanced_where_pool_allows',
+    'P1 era spread avoids excessive same-decade clustering in rich pools',
+    () => {
+      const decades = [1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020];
+      const pool = Array.from({ length: 80 }, (_, i) => {
+        const decade = decades[i % decades.length];
+        const offset = Math.floor(i / decades.length);
+        return {
+          id: 8000 + i,
+          question: `Era ${decade} ${i}`,
+          answer: String(decade + offset),
+          year: decade + offset,
+          main_category_id: (i % 6) + 1,
+          sub_category: `era_sub_${i % 16}`,
+          tag: `era_theme_${i % 12}`,
+          state: 'A',
+          type: 'metin',
+        };
+      });
+      const res = buildSoloAttemptDeck({ pool, levelNumber: 8, seedCount: 2, random: makeSeededRandom(115) });
+      if (!res.ok) return fail(`Engine failed unexpectedly: ${res.reason}`, {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'REAL_PRODUCT_RISK',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+      if (Number(res.meta.maxDecadeCount) > 4 || Number(res.meta.maxConsecutiveDecadeCount) > 2 || !res.meta.decadeDistribution) {
+        return fail('Era/decade diagnostics show avoidable clustering.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'max decade <=4, max consecutive decade <=2, diagnostics exposed',
+          actual: {
+            decadeDistribution: res.meta.decadeDistribution,
+            maxDecadeCount: res.meta.maxDecadeCount,
+            maxConsecutiveDecadeCount: res.meta.maxConsecutiveDecadeCount,
+          },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Era/decade distribution stays varied and diagnostics are exposed.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+      });
+    },
+  ),
+
+  makeCase(
     'solo_deck_balance_metadata_contract',
     'Solo deck reports category/subcategory balance and era spread metadata',
     () => {
@@ -910,13 +1116,18 @@ export const EXTRA_TESTS = [
         !meta?.subcategoryDistribution ||
         !meta?.firstFiveCategoryDistribution ||
         !meta?.firstFiveSubcategoryDistribution ||
+        !meta?.firstSevenCategoryDistribution ||
+        !meta?.firstSevenSubcategoryDistribution ||
+        !meta?.themeDistribution ||
+        !meta?.decadeDistribution ||
         !Array.isArray(meta?.earlyVisibleYears) ||
-        meta.eraSpread !== true
+        !meta?.eraSpread ||
+        !Number.isFinite(Number(meta?.maxConsecutiveThemeCount))
       ) {
         return fail('Deck balance metadata contract drifted.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
-          expected: 'category/subcategory distributions + early visible years + eraSpread=true',
+          expected: 'category/subcategory/theme/decade distributions + early visible years + eraSpread diagnostics',
           actual: res,
           actionType: ACTION_TYPES.CODE_FIX,
         });

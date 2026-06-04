@@ -25,10 +25,12 @@ Hard deck rules:
 Soft preferences:
 - category balance
 - subcategory balance
+- tag/theme balance, including sports-like theme clustering
 - era/year spread
 - recently-seen avoidance
 - P0 first-five guardrail avoids more than 2 same-subcategory or obvious sports-cluster cards when metadata and alternatives allow
+- P1 balance distributes rich-pool decks across categories, subcategories, themes, and decades; first 7 active cards avoid 4+ same category/subcategory/theme where alternatives exist
 
-Fallback may relax recently-seen avoidance, category/subcategory balance, and era spread. It must not relax deck size, unique IDs, unique years, active question/category filtering, or the first 5 minimum 5-year spacing rule unless no valid spaced deck exists at all.
+Fallback may relax recently-seen avoidance, category/subcategory/theme balance, and era spread. It must not relax deck size, unique IDs, unique years, active question/category filtering, visible timeline spacing where a safe alternative exists, or the first 5 minimum 5-year spacing rule unless no valid spaced deck exists at all.
 
 Replay creates a new deck. Old completed results are not retroactively recalculated. New attempts may carry `soloRulesVersion: 2`.
