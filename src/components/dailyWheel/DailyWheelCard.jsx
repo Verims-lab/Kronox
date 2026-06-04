@@ -446,12 +446,12 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
       {status === 'error' ? (
         <>
           <RewardWheel spinning={claiming} mode="loop" />
-          <h2 className="text-center font-inter text-2xl font-black text-white">Çark durdu</h2>
+          <h2 className="text-center font-inter text-2xl font-black text-white">Ödül alınamadı</h2>
           <p
             role="alert"
             className="rounded-xl bg-red-500/12 px-3 py-2 text-center text-xs font-bold text-red-100"
           >
-            {error || 'Günlük Çark ödülü alınamadı. Lütfen tekrar dene.'}
+            {error || 'Çark ödülü alınamadı. Lütfen tekrar dene.'}
           </p>
           <div className="mt-2 flex w-full gap-2">
             <ModalButton tone="secondary" onClick={onClose}>Kapat</ModalButton>

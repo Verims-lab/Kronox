@@ -726,6 +726,13 @@ import React, { useEffect, useState } from 'react';
 //   • Hata Affı shields one wrong placement, Kart Değiştir swaps from the
 //     prebuilt deck, and Zaman Dondur freezes Solo elapsed time for 10s.
 //
+// Codex193 — Daily Wheel claim/grant hardening:
+//   • claimDailyWheelReward no longer fails the normal claim path when the
+//     optional DailyWheelSpin ledger create is unavailable; User.diamonds is
+//     still updated and DiamondTransaction recovery is used where possible.
+//   • Daily Wheel UI sanitizes rejected function calls into Turkish retry
+//     copy instead of exposing raw "Request failed with status code 500".
+//
 // Codex192 — Solo success popup text simplification:
 //   • Success popup now shows "SÜRE" instead of "TOPLAM SÜRE".
 //   • Success popup Puan and Hata stat cards present only the value plus
@@ -793,7 +800,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex192';
+const BUILD_MARKER = 'Codex193';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

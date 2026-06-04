@@ -43,7 +43,9 @@ REWARD_TABLE
 100 very_rare
 STREAK_BONUS_AMOUNT = 100
 streakAfter % 7 === 0
+createDailyWheelSpin
 DailyWheelSpin.create
+spinRowFromDiamondTransaction
 DiamondTransaction.create
 source: DAILY_WHEEL_SOURCE
 direction: 'earn'
@@ -52,5 +54,7 @@ daily_wheel_last_spin_date
 daily_wheel_next_available_at
 daily_wheel_streak
 daily_wheel_spin_count
+daily_wheel_request_failed
+Çark ödülü alınamadı.
 Base44 uniqueness is platform/manual proof
 `;

@@ -107,6 +107,46 @@ async function createDiamondTransaction(base44: any, payload: Record<string, unk
   return base44.asServiceRole.entities.DiamondTransaction.create(payload);
 }
 
+async function createDailyWheelSpin(base44: any, payload: Record<string, unknown>) {
+  const entity = base44.asServiceRole.entities.DailyWheelSpin;
+  if (!entity?.create) {
+    return { row: null, error: 'daily_wheel_spin_entity_unavailable' };
+  }
+  try {
+    const row = await entity.create(payload);
+    return { row, error: null };
+  } catch (error) {
+    return { row: null, error: error?.message || 'daily_wheel_spin_create_failed' };
+  }
+}
+
+function spinRowFromDiamondTransaction(tx: any, user: any, dateKey: string, nextAvailableAt: string) {
+  const metadata = tx?.metadata && typeof tx.metadata === 'object' ? tx.metadata : {};
+  const totalRewardAmount = normalizeNumber(tx?.amount);
+  const streakBonusAmount = normalizeNumber(metadata.streakBonusAmount);
+  const rewardAmount = normalizeNumber(metadata.rewardAmount) || Math.max(0, totalRewardAmount - streakBonusAmount);
+  const streakAfter = normalizeNumber(metadata.streakAfter ?? user?.daily_wheel_streak);
+  const streakBefore = normalizeNumber(metadata.streakBefore ?? Math.max(0, streakAfter - 1));
+  return {
+    user_email: normalizeEmail(user?.email),
+    spin_date: dateKey,
+    reward_amount: rewardAmount,
+    streak_before: streakBefore,
+    streak_after: streakAfter,
+    streak_bonus_amount: streakBonusAmount,
+    total_reward_amount: totalRewardAmount,
+    balance_before: normalizeNumber(tx?.balance_before),
+    balance_after: normalizeNumber(tx?.balance_after ?? user?.diamonds),
+    idempotency_key: tx?.idempotency_key || buildIdempotencyKey(normalizeEmail(user?.email), dateKey),
+    claimed_at: tx?.created_at || user?.daily_wheel_last_spin_at || new Date().toISOString(),
+    next_available_at: user?.daily_wheel_next_available_at || nextAvailableAt,
+    metadata: {
+      spinCountAfter: normalizeNumber(user?.daily_wheel_spin_count),
+      recoveredFromDiamondTransaction: true,
+    },
+  };
+}
+
 function userPatchFromSpin(row: any, dateKey: string) {
   const claimedAt = String(row?.claimed_at || new Date().toISOString());
   return {
@@ -213,6 +253,11 @@ Deno.serve(async (req: Request) => {
       if (guardSpin) {
         return json(publicResult(guardSpin, normalizeNumber(latestUser?.diamonds), true));
       }
+      const guardTransaction = await findDiamondTransaction(base44, email, idempotencyKey);
+      if (guardTransaction) {
+        const syntheticSpin = spinRowFromDiamondTransaction(guardTransaction, latestUser, todayKey, nextAvailableAt);
+        return json(publicResult(syntheticSpin, normalizeNumber(latestUser?.diamonds), true));
+      }
       return json({
         ok: true,
         available: false,
@@ -266,7 +311,7 @@ Deno.serve(async (req: Request) => {
       description: 'daily_wheel_claim',
     };
 
-    const spin = await base44.asServiceRole.entities.DailyWheelSpin.create(spinPayload);
+    const { row: spin, error: spinLedgerError } = await createDailyWheelSpin(base44, spinPayload);
 
     const userPatch = {
       diamonds: balanceAfter,
@@ -280,6 +325,18 @@ Deno.serve(async (req: Request) => {
     await base44.asServiceRole.entities.User.update(latestUser.id || user.id, userPatch);
 
     let ledgerError = null;
+    const transactionMetadata: Record<string, unknown> = {
+      dailyWheelSpinId: spin?.id || null,
+      serverDate: todayKey,
+      rewardAmount: selected.amount,
+      streakBefore,
+      streakBonusAmount,
+      streakAfter,
+      noKronoxPuan: true,
+    };
+    if (spinLedgerError) {
+      transactionMetadata.dailyWheelSpinCreateError = spinLedgerError;
+    }
     try {
       await createDiamondTransaction(base44, {
         user_email: email,
@@ -289,14 +346,7 @@ Deno.serve(async (req: Request) => {
         source: DAILY_WHEEL_SOURCE,
         direction: 'earn',
         idempotency_key: idempotencyKey,
-        metadata: {
-          dailyWheelSpinId: spin?.id || null,
-          serverDate: todayKey,
-          rewardAmount: selected.amount,
-          streakBonusAmount,
-          streakAfter,
-          noKronoxPuan: true,
-        },
+        metadata: transactionMetadata,
         created_at: nowIso,
         description: 'daily_wheel_claim',
       });
@@ -305,7 +355,8 @@ Deno.serve(async (req: Request) => {
     }
 
     return json({
-      ...publicResult(spinPayload, balanceAfter, false),
+      ...publicResult(spin || spinPayload, balanceAfter, false),
+      spinLedgerError,
       ledgerError,
     });
   } catch (error) {
