@@ -331,6 +331,27 @@ export default function Game() {
     }
   }, [overallSecondsRef]);
 
+  const getSoloResultElapsedSeconds = useCallback((snapshotSeconds = null) => {
+    const snapshot = Number(snapshotSeconds);
+    const hasSnapshot = snapshotSeconds !== null && snapshotSeconds !== undefined && Number.isFinite(snapshot);
+    const rawElapsed = hasSnapshot
+      ? snapshot
+      : Number(overallSecondsRef.current ?? 0);
+    const frozenStartElapsed = Number(timerFreezeElapsedAtStartRef.current);
+    let freezeOffset = Number(frozenElapsedOffset) || 0;
+
+    if (timerFreezeStartRef.current && Number.isFinite(frozenStartElapsed)) {
+      const pendingFreezeOffset = Math.min(10, Math.max(0, rawElapsed - frozenStartElapsed));
+      freezeOffset = Math.max(freezeOffset, pendingFreezeOffset);
+    }
+
+    if (isSoloTimerFrozen && Number.isFinite(frozenStartElapsed)) {
+      return Math.max(0, Math.floor(frozenStartElapsed));
+    }
+
+    return Math.max(0, Math.floor(rawElapsed - freezeOffset));
+  }, [frozenElapsedOffset, isSoloTimerFrozen, overallSecondsRef]);
+
   const resetSoloJokers = useCallback(() => {
     clearSoloTimerFreeze(false);
     jokerUsedRef.current = false;
@@ -851,7 +872,7 @@ export default function Game() {
 
     // PASS path — winner was set by the win condition inside doPlacement.
     if (winner) {
-      const elapsed = soloEffectiveElapsedSecondsRef.current ?? winner.durationSeconds ?? overallSecondsRef.current ?? 0;
+      const elapsed = getSoloResultElapsedSeconds(winner.durationSeconds);
       const attempt = calculateSoloAttemptResult({
         mistakes: mistakeCount,
         completedCards: cardTarget,
@@ -877,7 +898,7 @@ export default function Game() {
 
     // FAIL — too many mistakes.
     if (mistakeCount >= maxMistakes) {
-      const elapsed = soloEffectiveElapsedSecondsRef.current ?? overallSecondsRef.current ?? 0;
+      const elapsed = getSoloResultElapsedSeconds(overallSecondsRef.current);
       const attempt = calculateSoloAttemptResult({
         mistakes: mistakeCount,
         completedCards: cardsCompletedSolo,
@@ -930,14 +951,13 @@ export default function Game() {
     soloLevel,
     winner,
     mistakeCount,
+    getSoloResultElapsedSeconds,
     soloEffectiveElapsedSeconds,
     gameStarted,
     cardsCompletedSolo,
     soloCardsRequired,
     winCardCount,
     setGameStarted,
-    overallSecondsRef,
-    soloEffectiveElapsedSecondsRef,
   ]);
 
   // Persist the level attempt once when the result first lands.

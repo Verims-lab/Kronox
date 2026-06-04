@@ -46,6 +46,8 @@ export default function SoloStatCard({
   valueNode,
   valueColor = '#ffffff',
   footer,
+  valueNudgeY = 0,
+  footerMarginTop = 2,
 }) {
   return (
     <div
@@ -105,6 +107,7 @@ export default function SoloStatCard({
             // Tight gap pulls the value visually close to the label,
             // fixing the "fazla kopuk" complaint.
             marginTop: 2,
+            transform: valueNudgeY ? `translateY(${valueNudgeY}px)` : undefined,
             display: 'inline-flex',
             alignItems: 'center',
           }}
@@ -112,7 +115,7 @@ export default function SoloStatCard({
           {valueNode || value}
         </span>
         {footer && (
-          <div style={{ marginTop: 2 }}>{footer}</div>
+          <div style={{ marginTop: footerMarginTop }}>{footer}</div>
         )}
       </div>
     </div>
