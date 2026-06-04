@@ -75,28 +75,30 @@ export default function SoloStatCard({
         />
       </div>
 
-      {/* Text stack — label (wraps), value, optional footer.
+      {/* Text stack — optional label (wraps), value, optional footer.
           min-w-0 lets the flex child shrink so wrapping kicks in instead
           of overflow. */}
       <div className="flex-1 min-w-0 flex flex-col">
-        <span
-          className="font-inter"
-          style={{
-            color: labelColor,
-            fontSize: '10px',
-            fontWeight: 700,
-            letterSpacing: '0.08em',
-            lineHeight: 1.15,
-            // Allow two-line wrap when needed (e.g. "KAZANILAN" / "PUAN"),
-            // never overflow horizontally.
-            whiteSpace: 'normal',
-            overflowWrap: 'anywhere',
-            wordBreak: 'normal',
-            textTransform: 'uppercase',
-          }}
-        >
-          {label}
-        </span>
+        {label && (
+          <span
+            className="font-inter"
+            style={{
+              color: labelColor,
+              fontSize: '10px',
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              lineHeight: 1.15,
+              // Allow two-line wrap when needed (e.g. "KAZANILAN" / "PUAN"),
+              // never overflow horizontally.
+              whiteSpace: 'normal',
+              overflowWrap: 'anywhere',
+              wordBreak: 'normal',
+              textTransform: 'uppercase',
+            }}
+          >
+            {label}
+          </span>
+        )}
         <span
           className="font-bangers leading-none"
           style={{

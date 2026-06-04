@@ -105,7 +105,7 @@ export default function SoloSuccessPopup({
               icon={TimerReset}
               iconColor="#60a5fa"
               iconRingColor="rgba(96,165,250,0.55)"
-              label="TOPLAM SÜRE"
+              label="SÜRE"
               value={compactTime}
               valueColor="#ffffff"
               footer={recordKind !== 'none' ? <RecordBadge kind={recordKind} /> : null}
@@ -115,23 +115,17 @@ export default function SoloSuccessPopup({
               iconColor="#facc15"
               iconRingColor="rgba(250,204,21,0.55)"
               iconFill="#facc15"
-              label={<>KAZANILAN<br />PUAN</>}
               value={String(levelScore || 0)}
               valueColor="#facc15"
               footer={<UnitLabel color="#facc15">Puan</UnitLabel>}
-              valueNudgeY={3}
-              footerMarginTop={0}
             />
             <SoloStatCard
               icon={XIcon}
               iconColor="#f87171"
               iconRingColor="rgba(248,113,113,0.55)"
-              label="HATA SAYISI"
               value={String(mistakes || 0)}
               valueColor="#f87171"
               footer={<UnitLabel color="#fca5a5">Hata</UnitLabel>}
-              valueNudgeY={3}
-              footerMarginTop={0}
             />
             <SoloStatCard
               icon={Zap}
