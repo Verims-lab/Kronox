@@ -77,6 +77,7 @@ export const EXTRA_TESTS = [
         'DailyWheelCard',
         'onUserUpdated={handleDailyWheelUserPatch}',
         'onLogin={handleLogin}',
+        "paddingBottom: 'clamp(1.35rem, 5.8vh, 3.2rem)'",
         'label="SOLO MEYDAN OKUMA"',
         'label="ONLINE KAPIŞMA"',
       ]);
@@ -88,6 +89,29 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('DailyWheelCard is wired above Solo CTA and Solo/Online CTAs remain present.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('daily_wheel_icon_polished_not_asset_dependent',
+    'Daily Wheel icon is a compact premium gold/navy wheel without a new asset pipeline',
+    () => {
+      const missing = missingTokens(dailyWheelCardSource, [
+        'WheelEmblem',
+        'clamp(58px, 15.8vw, 70px)',
+        '#ffe77a',
+        '#0b1736',
+        'width: \'24%\'',
+        'borderTop: \'14px solid #f8fafc\'',
+      ]);
+      if (missing.length) {
+        return fail('Daily Wheel icon lost its premium compact gold/navy wheel treatment.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'src/components/dailyWheel/DailyWheelCard.jsx',
+          missing,
+        });
+      }
+      return pass('Daily Wheel icon is lightweight CSS/SVG-style composition with gold rim, navy center, hub, and pointer.', {
+        verification: 'STATIC_CONTRACT',
+      });
     }),
 
   makeCase('daily_wheel_card_states_exist',
@@ -259,6 +283,72 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Claimed Daily Wheel remains visible but passive with tomorrow/countdown status.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('daily_wheel_spin_success_opens_result_modal',
+    'Daily Wheel successful claim always opens a visible reward result',
+    () => {
+      const missing = missingTokens(`${dailyWheelHookSource}\n${dailyWheelCardSource}`, [
+        'setLastResult(body)',
+        'setShowResult(true)',
+        '+{formatDiamondCount(result.totalRewardAmount)} elmas kazandın',
+        'Toplam Elmas',
+        'updatedDiamondTotal',
+      ]);
+      if (missing.length) {
+        return fail('Daily Wheel claim success can finish without a clear reward modal or updated total.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['src/hooks/useDailyWheel.js', 'src/components/dailyWheel/DailyWheelCard.jsx'],
+          missing,
+        });
+      }
+      return pass('Successful Daily Wheel claim stores the result, opens the modal, shows reward text, and displays updated Elmas total.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('daily_wheel_claim_error_visible_recoverable',
+    'Daily Wheel claim errors are visible and recoverable',
+    () => {
+      const missing = missingTokens(`${dailyWheelHookSource}\n${dailyWheelCardSource}`, [
+        'setShowPrompt(false)',
+        'setShowResult(true)',
+        'role="alert"',
+        'Günlük Çark ödülü alınamadı.',
+        'Tekrar dene',
+      ]);
+      if (missing.length) {
+        return fail('Daily Wheel claim errors can remain hidden or unrecoverable.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['src/hooks/useDailyWheel.js', 'src/components/dailyWheel/DailyWheelCard.jsx'],
+          missing,
+        });
+      }
+      return pass('Claim errors close the prompt path, open the result/error modal, and expose a retry action.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('daily_wheel_pending_blocks_double_tap',
+    'Daily Wheel pending state prevents double-tap duplicate claim attempts',
+    () => {
+      const missing = missingTokens(`${dailyWheelHookSource}\n${dailyWheelCardSource}`, [
+        'if (claiming) return null;',
+        'if (claimingRef.current) return null;',
+        'disabled={wheel.claiming}',
+        'disabled={claiming}',
+        'aria-busy={wheel.claiming ? \'true\' : \'false\'}',
+      ]);
+      if (missing.length) {
+        return fail('Daily Wheel pending state does not block duplicate taps in hook and UI.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['src/hooks/useDailyWheel.js', 'src/components/dailyWheel/DailyWheelCard.jsx'],
+          missing,
+        });
+      }
+      return pass('Daily Wheel blocks duplicate claim attempts while a claim is pending.', {
+        verification: 'STATIC_CONTRACT',
+      });
     }),
 
   makeCase('daily_wheel_home_diamond_updates_immediately',

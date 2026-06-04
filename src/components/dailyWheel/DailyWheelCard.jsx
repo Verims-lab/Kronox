@@ -15,6 +15,11 @@ function formatCountdown(nextAvailableAt) {
   return `${hours} sa ${minutes} dk`;
 }
 
+function formatDiamondCount(value) {
+  const n = Math.max(0, Math.floor(Number(value) || 0));
+  return n.toLocaleString('tr-TR');
+}
+
 export default function DailyWheelCard({ user, onUserUpdated, onLogin }) {
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const wheel = useDailyWheel({ user, onUserUpdated });
@@ -45,6 +50,8 @@ export default function DailyWheelCard({ user, onUserUpdated, onLogin }) {
       <motion.button
         type="button"
         onClick={handleCardClick}
+        disabled={wheel.claiming}
+        aria-busy={wheel.claiming ? 'true' : 'false'}
         whileTap={{ y: 1, scale: 0.99 }}
         className="relative flex w-full items-center justify-center overflow-hidden font-inter text-left"
         style={{
@@ -180,45 +187,79 @@ function Badge({ icon: Icon, label, tone }) {
 }
 
 function WheelEmblem({ spinning, muted }) {
-  const spokes = Array.from({ length: 10 }, (_, index) => index);
+  const spokes = Array.from({ length: 12 }, (_, index) => index);
   return (
     <motion.span
       aria-hidden="true"
-      className="relative grid shrink-0 place-items-center rounded-full"
+      className="relative grid shrink-0 place-items-center"
       animate={spinning ? { rotate: 720 } : { rotate: 0 }}
       transition={{ duration: 1.15, ease: [0.2, 0.9, 0.2, 1] }}
       style={{
-        width: 'clamp(54px, 15vw, 66px)',
-        height: 'clamp(54px, 15vw, 66px)',
+        width: 'clamp(58px, 15.8vw, 70px)',
+        height: 'clamp(58px, 15.8vw, 70px)',
         opacity: muted ? 0.72 : 1,
-        background:
-          'radial-gradient(circle, #f7c948 0 13%, #a86f08 14% 20%, #111827 21% 64%, #facc15 65% 76%, #7c4a03 77% 100%)',
-        boxShadow:
-          '0 0 16px rgba(250,204,21,0.35), inset 0 0 0 2px rgba(255,255,255,0.18), inset 0 0 12px rgba(0,0,0,0.35)',
+        filter: 'drop-shadow(0 0 14px rgba(250,204,21,0.34))',
       }}
     >
-      {spokes.map((index) => (
-        <span
-          key={index}
-          className="absolute left-1/2 top-1/2 origin-left"
-          style={{
-            width: '42%',
-            height: 1,
-            transform: `rotate(${index * 36}deg)`,
-            background: 'linear-gradient(90deg, rgba(250,204,21,0.1), rgba(250,204,21,0.9))',
-          }}
-        />
-      ))}
+      <span
+        className="absolute inset-0 rounded-full"
+        style={{
+          background:
+            'radial-gradient(circle at 38% 30%, rgba(255,255,255,0.35), rgba(250,204,21,0.18) 22%, transparent 46%)',
+        }}
+      />
+      <span
+        className="absolute inset-[3px] rounded-full"
+        style={{
+          background: 'linear-gradient(145deg, #ffe77a 0%, #f6b70b 42%, #8b5204 100%)',
+          boxShadow: 'inset 0 2px 2px rgba(255,255,255,0.38), inset 0 -3px 5px rgba(60,27,0,0.5)',
+        }}
+      />
+      <span
+        className="absolute inset-[9px] rounded-full"
+        style={{
+          background: 'radial-gradient(circle at 50% 50%, #0b1736 0%, #101f46 54%, #030817 100%)',
+          boxShadow: 'inset 0 0 0 2px rgba(255,217,102,0.72), inset 0 0 16px rgba(0,0,0,0.62)',
+        }}
+      />
+      {spokes.map((index) => {
+        const highlighted = index % 3 === 0;
+        return (
+          <span
+            key={index}
+            className="absolute left-1/2 top-1/2 origin-left"
+            style={{
+              width: '31%',
+              height: highlighted ? 2 : 1,
+              transform: `rotate(${index * 30}deg)`,
+              background: highlighted
+                ? 'linear-gradient(90deg, rgba(255,236,160,0.18), rgba(255,218,74,0.95))'
+                : 'linear-gradient(90deg, rgba(255,236,160,0.08), rgba(250,204,21,0.72))',
+              borderRadius: 999,
+              boxShadow: highlighted ? '0 0 4px rgba(250,204,21,0.5)' : 'none',
+            }}
+          />
+        );
+      })}
+      <span
+        className="absolute rounded-full"
+        style={{
+          width: '24%',
+          height: '24%',
+          background: 'radial-gradient(circle at 35% 28%, #fff7bd, #facc15 45%, #a16207 100%)',
+          boxShadow: '0 0 0 2px rgba(91,42,0,0.65), 0 0 10px rgba(250,204,21,0.45)',
+        }}
+      />
       <span
         className="absolute"
         style={{
-          top: '7%',
+          top: '2%',
           width: 0,
           height: 0,
-          borderLeft: '5px solid transparent',
-          borderRight: '5px solid transparent',
-          borderTop: '12px solid #f8fafc',
-          filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.65))',
+          borderLeft: '6px solid transparent',
+          borderRight: '6px solid transparent',
+          borderTop: '14px solid #f8fafc',
+          filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.72)) drop-shadow(0 0 3px rgba(250,204,21,0.35))',
         }}
       />
     </motion.span>
@@ -243,33 +284,80 @@ function DailyWheelPromptModal({ claiming, onSpin, onClose }) {
 
 function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClose }) {
   const hasReward = Number(result?.totalRewardAmount) > 0;
+  const alreadyClaimed = Boolean(result?.alreadyClaimedToday || result?.alreadyClaimed);
+  const updatedDiamondTotal = Number(result?.updatedDiamondTotal);
   return (
     <DailyWheelModalFrame onClose={onClose}>
-      {status === 'available' || !hasReward ? (
+      {status === 'error' ? (
         <>
           <WheelEmblem spinning={claiming} />
-          <h2 className="text-center font-inter text-2xl font-black text-white">Günlük Çark hazır!</h2>
-          <p className="text-center text-sm font-semibold text-slate-200">Bugünkü ödülünü almak için çevir.</p>
-          {error && <p className="rounded-xl bg-red-500/12 px-3 py-2 text-center text-xs font-bold text-red-100">{error}</p>}
-          <ModalButton onClick={onSpin} disabled={claiming}>
-            {claiming ? 'Çevriliyor...' : 'Çevir'}
-          </ModalButton>
+          <h2 className="text-center font-inter text-2xl font-black text-white">Çark durdu</h2>
+          <p
+            role="alert"
+            className="rounded-xl bg-red-500/12 px-3 py-2 text-center text-xs font-bold text-red-100"
+          >
+            {error || 'Günlük Çark ödülü alınamadı. Lütfen tekrar dene.'}
+          </p>
+          <div className="mt-2 flex w-full gap-2">
+            <ModalButton tone="secondary" onClick={onClose}>Kapat</ModalButton>
+            <ModalButton onClick={onSpin} disabled={claiming}>
+              {claiming ? 'Çevriliyor...' : 'Tekrar dene'}
+            </ModalButton>
+          </div>
         </>
-      ) : (
+      ) : hasReward ? (
         <>
           <Sparkles className="h-10 w-10 text-amber-300" />
           <h2 className="text-center font-inter text-2xl font-black text-white">
-            +{result.totalRewardAmount} elmas kazandın
+            +{formatDiamondCount(result.totalRewardAmount)} elmas kazandın
           </h2>
           {Number(result.streakBonusAmount) > 0 && (
-            <p className="rounded-xl bg-amber-300/12 px-3 py-2 text-center text-sm font-extrabold text-amber-100">
-              7 günlük seri bonusu: +100 elmas
+            <div className="space-y-2 rounded-xl bg-amber-300/12 px-3 py-2 text-center">
+              <p className="text-sm font-extrabold text-amber-100">
+                7 günlük seri bonusu: +100 elmas
+              </p>
+              <p className="text-xs font-bold text-amber-50/80">
+                Çark ödülü: +{formatDiamondCount(result.rewardAmount)} elmas
+              </p>
+            </div>
+          )}
+          {Number.isFinite(updatedDiamondTotal) && (
+            <p className="rounded-full bg-slate-950/38 px-3 py-1.5 text-center text-sm font-extrabold text-amber-100">
+              Toplam Elmas: {formatDiamondCount(updatedDiamondTotal)}
             </p>
           )}
           <p className="text-center text-xs font-semibold text-slate-300">
             Seri: {Number(result.streakAfter) || 1} gün
           </p>
           <ModalButton onClick={onClose}>Tamam</ModalButton>
+        </>
+      ) : alreadyClaimed ? (
+        <>
+          <Gift className="h-10 w-10 text-amber-300" />
+          <h2 className="text-center font-inter text-xl font-black text-white">Bugünkü ödülünü aldın.</h2>
+          <p className="text-center text-sm font-semibold text-slate-200">
+            Yeni çark yarın hazır olacak.
+          </p>
+          {result?.nextAvailableAt && (
+            <p className="text-center text-xs font-bold text-amber-100/85">
+              {formatCountdown(result.nextAvailableAt)}
+            </p>
+          )}
+          <ModalButton onClick={onClose}>Tamam</ModalButton>
+        </>
+      ) : (
+        <>
+          <WheelEmblem spinning={claiming} />
+          <h2 className="text-center font-inter text-2xl font-black text-white">Günlük Çark hazır!</h2>
+          <p className="text-center text-sm font-semibold text-slate-200">Bugünkü ödülünü almak için çevir.</p>
+          {error && (
+            <p role="alert" className="rounded-xl bg-red-500/12 px-3 py-2 text-center text-xs font-bold text-red-100">
+              {error}
+            </p>
+          )}
+          <ModalButton onClick={onSpin} disabled={claiming}>
+            {claiming ? 'Çevriliyor...' : 'Çevir'}
+          </ModalButton>
         </>
       )}
     </DailyWheelModalFrame>
