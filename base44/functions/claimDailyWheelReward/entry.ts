@@ -5,14 +5,14 @@ const STREAK_BONUS_AMOUNT = 100;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const REWARD_TABLE = [
-  { amount: 10, rarity: 'common', weight: 20 },
-  { amount: 15, rarity: 'common', weight: 20 },
+  { amount: 10, rarity: 'common', weight: 25 },
+  { amount: 15, rarity: 'common', weight: 22 },
   { amount: 20, rarity: 'common', weight: 18 },
-  { amount: 25, rarity: 'uncommon', weight: 12 },
-  { amount: 30, rarity: 'uncommon', weight: 12 },
-  { amount: 40, rarity: 'rare', weight: 7 },
-  { amount: 50, rarity: 'rare', weight: 7 },
-  { amount: 100, rarity: 'very_rare', weight: 4 },
+  { amount: 25, rarity: 'uncommon', weight: 13 },
+  { amount: 30, rarity: 'uncommon', weight: 10 },
+  { amount: 40, rarity: 'rare', weight: 6 },
+  { amount: 50, rarity: 'rare', weight: 4 },
+  { amount: 100, rarity: 'very_rare', weight: 2 },
 ];
 
 function json(payload: unknown, status = 200) {
@@ -110,13 +110,30 @@ async function createDiamondTransaction(base44: any, payload: Record<string, unk
 async function createDailyWheelSpin(base44: any, payload: Record<string, unknown>) {
   const entity = base44.asServiceRole.entities.DailyWheelSpin;
   if (!entity?.create) {
-    return { row: null, error: 'daily_wheel_spin_entity_unavailable' };
+    return { row: null, error: 'daily_wheel_spin_entity_unavailable', recoveredExisting: false };
   }
   try {
     const row = await entity.create(payload);
-    return { row, error: null };
+    return { row, error: null, recoveredExisting: false };
   } catch (error) {
-    return { row: null, error: error?.message || 'daily_wheel_spin_create_failed' };
+    const existing = await findSpin(
+      base44,
+      String(payload.user_email || ''),
+      String(payload.spin_date || ''),
+      String(payload.idempotency_key || ''),
+    ).catch(() => null);
+    if (existing) {
+      return {
+        row: existing,
+        error: 'daily_wheel_spin_existing_after_create_error',
+        recoveredExisting: true,
+      };
+    }
+    return {
+      row: null,
+      error: error?.message || 'daily_wheel_spin_create_failed',
+      recoveredExisting: false,
+    };
   }
 }
 
@@ -311,7 +328,16 @@ Deno.serve(async (req: Request) => {
       description: 'daily_wheel_claim',
     };
 
-    const { row: spin, error: spinLedgerError } = await createDailyWheelSpin(base44, spinPayload);
+    const {
+      row: spin,
+      error: spinLedgerError,
+      recoveredExisting: recoveredExistingDailyWheelSpin,
+    } = await createDailyWheelSpin(base44, spinPayload);
+
+    if (recoveredExistingDailyWheelSpin && spin) {
+      const recovered = await recoverExistingSpin(base44, latestUser, spin, todayKey, idempotencyKey);
+      return json(publicResult(recovered, normalizeNumber(recovered.balance_after), true));
+    }
 
     const userPatch = {
       diamonds: balanceAfter,

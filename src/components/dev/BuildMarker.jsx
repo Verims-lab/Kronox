@@ -740,6 +740,14 @@ import React, { useEffect, useState } from 'react';
 //   • Confirms existing admin reset clears Daily Wheel guard fields and
 //     account deletion anonymizes retained DailyWheelSpin rows.
 //
+// Codex196 — Daily Wheel reward system v1:
+//   • Aligns backend Daily Wheel weights to 10/15/20/25/30/40/50/100
+//     Diamond slices at 25/22/18/13/10/6/4/2 percent.
+//   • Keeps reward selection server-side and updates the result reveal to
+//     show base reward plus separate 7-day streak total.
+//   • Removes the Diamond icon from the claimed Home countdown and adds
+//     modular Health coverage for the v1 reward/countdown contract.
+//
 // Codex193 — Daily Wheel claim/grant hardening:
 //   • claimDailyWheelReward no longer fails the normal claim path when the
 //     optional DailyWheelSpin ledger create is unavailable; User.diamonds is
@@ -814,7 +822,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex195';
+const BUILD_MARKER = 'Codex196';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

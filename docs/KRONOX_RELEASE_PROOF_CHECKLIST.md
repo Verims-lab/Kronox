@@ -137,9 +137,14 @@ Checklist:
 * Daily Wheel grants Diamonds only and never Kronox Puan.
 * Daily Wheel is separate from the existing +20 daily login reward.
 * Daily Wheel can be claimed at most once per UTC server day.
+* Daily Wheel reward is selected server-side by `claimDailyWheelReward`.
+* Daily Wheel reward weights are `10=25%`, `15=22%`, `20=18%`, `25=13%`, `30=10%`, `40=6%`, `50=4%`, `100=2%`.
+* Daily Wheel UI animates to the backend-selected reward.
 * Daily Wheel duplicate tap/refresh returns the same claimed result or claimed status without a duplicate grant.
 * Daily Wheel 7-day streak bonus grants `+100` Diamonds on every 7th consecutive daily spin.
 * Missing a UTC day resets the Daily Wheel streak gracefully to 1 on next spin.
+* Daily Wheel result shows `+X Elmas kazandın`; when the 7-day streak bonus applies it also shows `7 günlük seri bonusu: +100 elmas` and `Toplam: +Y elmas`.
+* Daily Wheel claimed countdown shows `Yarın hazır` or compact time text without a Diamond icon.
 * Home diamond count updates immediately after a successful wheel claim.
 * Multi-device Daily Wheel duplicate prevention remains a live backend/platform probe unless unique idempotency constraints are configured.
 
