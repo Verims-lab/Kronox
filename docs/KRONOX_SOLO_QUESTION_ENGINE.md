@@ -83,6 +83,21 @@ The subtle placement hint remains visual-only for levels 1-3:
 - no hit-testing, drag behavior, or validation changes
 - disabled for level 4+ and Online mode
 
+## Solo Jokers v1
+
+Solo jokers are first-version, attempt-local helpers:
+- Solo-only; Online mode has no joker UI or joker effects
+- every new Solo level attempt starts with 3 options: `Hata Affı`, `Kart Değiştir`, `Zaman Dondur`
+- only 1 joker total may be used per attempt
+- after one joker is used, the other two stay visible but disabled/passive
+- jokers are free in v1; there is no inventory, earning, spending, shop, ad, or Diamond cost
+- jokers do not directly grant Kronox Puan and do not change Solo scoring values
+
+Joker behavior:
+- `Hata Affı`: activates one-time protection. The next wrong placement does not count as a mistake; correct placements do not consume it.
+- `Kart Değiştir`: replaces the current active card using the already prepared Solo attempt deck. It must not fetch a new question, rebuild the deck, or rerandomize the attempt mid-game.
+- `Zaman Dondur`: freezes the Solo level timer for 10 seconds. It does not add score, add extra time, or alter timeout rules beyond pausing the elapsed timer during the freeze window.
+
 ## Backward Compatibility
 
 Do not recalculate old completed Solo results. Do not rewrite old stored `bestScore`, `bestStars`, or `bestTimeSeconds`. New attempts can record `soloRulesVersion: 2` so future audits can distinguish Solo v2 results from legacy stored results.

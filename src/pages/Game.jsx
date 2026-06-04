@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, WifiOff } from 'lucide-react';
 import { useOfflineQuestions } from '@/hooks/useOfflineQuestions';
 import { loadRecentHistory, appendToHistory } from '@/lib/questionHistory';
-import { getTimelineCardCount, isCorrectPlacement } from '@/lib/gameRules';
+import { getTimelineCardCount, getTimelineYears, isCorrectPlacement } from '@/lib/gameRules';
 import { debugLog } from '@/lib/debugLog';
 import { pushAppDiag } from '@/lib/appDiagBus';
 
@@ -227,6 +227,18 @@ export default function Game() {
   const [soloAttemptDeck, setSoloAttemptDeck] = useState(null);
   const [soloAttemptId, setSoloAttemptId] = useState(null);
   const [soloCorrectStreak, setSoloCorrectStreak] = useState(0);
+  const [usedJokerType, setUsedJokerType] = useState(null);
+  const [mistakeShieldActive, setMistakeShieldActive] = useState(false);
+  const [jokerMessage, setJokerMessage] = useState('');
+  const [jokerError, setJokerError] = useState('');
+  const [timerFreezeUntil, setTimerFreezeUntil] = useState(0);
+  const [timerFreezeTick, setTimerFreezeTick] = useState(0);
+  const [frozenElapsedOffset, setFrozenElapsedOffset] = useState(0);
+  const timerFreezeStartRef = useRef(null);
+  const timerFreezeElapsedAtStartRef = useRef(null);
+  const timerFreezeTimeoutRef = useRef(null);
+  const timerFreezeIntervalRef = useRef(null);
+  const jokerUsedRef = useRef(false);
 
   useEffect(() => {
     if (!isOnlineFromState) return;
@@ -274,6 +286,60 @@ export default function Game() {
   const soloCardsRequired = isSoloLevelMode
     ? getSoloCardsRequiredForLevel(soloLevel?.levelNumber)
     : null;
+  const timerFreezeNow = timerFreezeTick || Date.now();
+  const isSoloTimerFrozen = Boolean(isSoloLevelMode && timerFreezeUntil > timerFreezeNow && timerFreezeStartRef.current);
+  const activeFreezeOffset = isSoloTimerFrozen
+    ? Math.min(10, Math.max(0, Math.floor((timerFreezeNow - timerFreezeStartRef.current) / 1000)))
+    : 0;
+  const soloEffectiveElapsedSeconds = isSoloLevelMode
+    ? Math.max(0, isSoloTimerFrozen
+      ? (timerFreezeElapsedAtStartRef.current ?? overallSeconds)
+      : overallSeconds - frozenElapsedOffset - activeFreezeOffset)
+    : overallSeconds;
+  const soloEffectiveElapsedSecondsRef = useRef(0);
+
+  useEffect(() => {
+    soloEffectiveElapsedSecondsRef.current = soloEffectiveElapsedSeconds;
+  }, [soloEffectiveElapsedSeconds]);
+
+  useEffect(() => {
+    jokerUsedRef.current = Boolean(usedJokerType);
+  }, [usedJokerType]);
+
+  const clearSoloTimerFreeze = useCallback((applyElapsed = false, updateState = true) => {
+    if (timerFreezeTimeoutRef.current) {
+      window.clearTimeout(timerFreezeTimeoutRef.current);
+      timerFreezeTimeoutRef.current = null;
+    }
+    if (timerFreezeIntervalRef.current) {
+      window.clearInterval(timerFreezeIntervalRef.current);
+      timerFreezeIntervalRef.current = null;
+    }
+    if (applyElapsed && updateState && timerFreezeStartRef.current) {
+      const startEffectiveElapsed = Number(timerFreezeElapsedAtStartRef.current);
+      const rawElapsed = Number(overallSecondsRef.current ?? 0);
+      if (Number.isFinite(startEffectiveElapsed) && Number.isFinite(rawElapsed)) {
+        const nextOffset = Math.max(0, rawElapsed - startEffectiveElapsed);
+        setFrozenElapsedOffset((prev) => Math.max(prev, nextOffset));
+      }
+    }
+    timerFreezeStartRef.current = null;
+    timerFreezeElapsedAtStartRef.current = null;
+    if (updateState) {
+      setTimerFreezeUntil(0);
+      setTimerFreezeTick(0);
+    }
+  }, [overallSecondsRef]);
+
+  const resetSoloJokers = useCallback(() => {
+    clearSoloTimerFreeze(false);
+    jokerUsedRef.current = false;
+    setUsedJokerType(null);
+    setMistakeShieldActive(false);
+    setJokerMessage('');
+    setJokerError('');
+    setFrozenElapsedOffset(0);
+  }, [clearSoloTimerFreeze]);
 
   // Codex166/Codex180 — Solo mode: the attempt deck IS the question pool.
   // Gameplay (pickQuestion in useGameActions) walks this prebuilt source-of-truth,
@@ -509,6 +575,7 @@ export default function Game() {
     // and clean error when the pool can't supply the required unique years.
     let shuffled;
     if (isSoloLevelMode) {
+      resetSoloJokers();
       // Base candidate pool: legacy year-window + non-music filter (same
       // as the non-Solo branch). The engine then enforces the HARD rules.
       const candidatePool = allQuestions
@@ -578,7 +645,7 @@ export default function Game() {
       current_question_id: firstQ.id,
       used_question_ids: [...used]
     });
-  }, [playerNames, questionPool, allQuestions, activeCategoryIds, yearStart, yearEnd, isLoading, isOnline, isSoloLevelMode, setLobbyData, setError]);
+  }, [playerNames, questionPool, allQuestions, activeCategoryIds, yearStart, yearEnd, isLoading, isOnline, isSoloLevelMode, resetSoloJokers, setLobbyData, setError]);
 
   // Overall timer başlatma
   useEffect(() => {
@@ -595,8 +662,11 @@ export default function Game() {
 
   // Cleanup on unmount
   useEffect(() => {
-    return () => { clearTimeout(winTimerRef.current); };
-  }, []);
+    return () => {
+      clearTimeout(winTimerRef.current);
+      clearSoloTimerFreeze(false, false);
+    };
+  }, [clearSoloTimerFreeze]);
 
   // Browser close uyarısı
   useEffect(() => {
@@ -639,6 +709,89 @@ export default function Game() {
     if (!isMyTurn) return;
     skipCurrentQuestion(currentQuestion?.id);
   }, [currentQuestion?.id, isMyTurn, skipCurrentQuestion]);
+  const handleUseSoloJoker = useCallback((jokerType) => {
+    if (!isSoloLevelMode || jokerUsedRef.current || usedJokerType || soloLevelResult || winner || feedback || !isMyTurn) return;
+    setJokerError('');
+
+    if (jokerType === 'mistakeShield') {
+      jokerUsedRef.current = true;
+      setUsedJokerType('mistakeShield');
+      setMistakeShieldActive(true);
+      setJokerMessage('Hata Affı aktif: Bir sonraki hata sayılmayacak.');
+      return;
+    }
+
+    if (jokerType === 'freezeTime') {
+      jokerUsedRef.current = true;
+      setUsedJokerType('freezeTime');
+      setJokerMessage('Zaman Dondur aktif: Süre 10 sn durduruldu.');
+      const start = Date.now();
+      timerFreezeStartRef.current = start;
+      timerFreezeElapsedAtStartRef.current = soloEffectiveElapsedSecondsRef.current;
+      setTimerFreezeUntil(start + 10000);
+      setTimerFreezeTick(start);
+      if (timerFreezeIntervalRef.current) window.clearInterval(timerFreezeIntervalRef.current);
+      timerFreezeIntervalRef.current = window.setInterval(() => setTimerFreezeTick(Date.now()), 250);
+      if (timerFreezeTimeoutRef.current) window.clearTimeout(timerFreezeTimeoutRef.current);
+      timerFreezeTimeoutRef.current = window.setTimeout(() => {
+        clearSoloTimerFreeze(true);
+        setJokerMessage('Zaman Dondur tamamlandı.');
+      }, 10000);
+      return;
+    }
+
+    if (jokerType === 'swapCard') {
+      if (!Array.isArray(soloAttemptDeck) || !currentQuestion || !currentPlayer) {
+        setJokerError('Bu kart şu anda değiştirilemiyor.');
+        return;
+      }
+      const usedIds = new Set([...(usedQuestionIds || [])]);
+      usedIds.delete(currentQuestion.id);
+      const timelineYears = getTimelineYears(currentPlayer.cards || []);
+      const replacement = soloAttemptDeck.find((question) =>
+        question?.id &&
+        question.id !== currentQuestion.id &&
+        !usedIds.has(question.id) &&
+        !timelineYears.has(question.year)
+      );
+
+      if (!replacement) {
+        setJokerError('Bu kart şu anda değiştirilemiyor.');
+        return;
+      }
+
+      jokerUsedRef.current = true;
+      setUsedJokerType('swapCard');
+      setJokerMessage('Kart Değiştir aktif: Kart değiştirildi.');
+      setSelectedZone(null);
+      appendToHistory([currentQuestion.id, replacement.id]);
+      setLobbyData((prev) => {
+        if (!prev) return prev;
+        const nextUsed = new Set(prev.used_question_ids || []);
+        nextUsed.delete(currentQuestion.id);
+        nextUsed.add(replacement.id);
+        return {
+          ...prev,
+          current_question_id: replacement.id,
+          used_question_ids: [...nextUsed],
+        };
+      });
+    }
+  }, [
+    isSoloLevelMode,
+    usedJokerType,
+    soloLevelResult,
+    winner,
+    feedback,
+    isMyTurn,
+    soloAttemptDeck,
+    currentQuestion,
+    currentPlayer,
+    usedQuestionIds,
+    clearSoloTimerFreeze,
+    setSelectedZone,
+    setLobbyData,
+  ]);
   const handleRestart = () => {
     setOnlineScoreResult(null);
     onlineResultAppliedRef.current = false;
@@ -657,13 +810,19 @@ export default function Game() {
     lastCountedFeedbackRef.current = feedback;
     if (feedback.result === 'wrong') {
       setSoloCorrectStreak(0);
+      if (mistakeShieldActive) {
+        setMistakeShieldActive(false);
+        setJokerMessage('Hata affedildi!');
+        setJokerError('');
+        return;
+      }
       setMistakeCount((prev) => prev + 1);
       return;
     }
     if (feedback.result === 'correct') {
       setSoloCorrectStreak((prev) => prev + 1);
     }
-  }, [feedback, isSoloLevelMode]);
+  }, [feedback, isSoloLevelMode, mistakeShieldActive]);
 
   // Codex106 — finalize result when the attempt ends.
   //
@@ -692,7 +851,7 @@ export default function Game() {
 
     // PASS path — winner was set by the win condition inside doPlacement.
     if (winner) {
-      const elapsed = winner.durationSeconds ?? overallSecondsRef.current ?? 0;
+      const elapsed = soloEffectiveElapsedSecondsRef.current ?? winner.durationSeconds ?? overallSecondsRef.current ?? 0;
       const attempt = calculateSoloAttemptResult({
         mistakes: mistakeCount,
         completedCards: cardTarget,
@@ -718,7 +877,7 @@ export default function Game() {
 
     // FAIL — too many mistakes.
     if (mistakeCount >= maxMistakes) {
-      const elapsed = overallSecondsRef.current ?? 0;
+      const elapsed = soloEffectiveElapsedSecondsRef.current ?? overallSecondsRef.current ?? 0;
       const attempt = calculateSoloAttemptResult({
         mistakes: mistakeCount,
         completedCards: cardsCompletedSolo,
@@ -743,7 +902,7 @@ export default function Game() {
     }
 
     // FAIL — total timer expired without a winner.
-    if (gameStarted && overallSeconds >= totalTime) {
+    if (gameStarted && soloEffectiveElapsedSeconds >= totalTime) {
       const attempt = calculateSoloAttemptResult({
         mistakes: mistakeCount,
         completedCards: cardsCompletedSolo,
@@ -771,13 +930,14 @@ export default function Game() {
     soloLevel,
     winner,
     mistakeCount,
-    overallSeconds,
+    soloEffectiveElapsedSeconds,
     gameStarted,
     cardsCompletedSolo,
     soloCardsRequired,
     winCardCount,
     setGameStarted,
     overallSecondsRef,
+    soloEffectiveElapsedSecondsRef,
   ]);
 
   // Persist the level attempt once when the result first lands.
@@ -839,6 +999,7 @@ export default function Game() {
     setSoloCorrectStreak(0);
     lastCountedFeedbackRef.current = null;
     soloResultPersistedRef.current = false;
+    resetSoloJokers();
     // Codex166 — Replay = new attempt = new deck. Drop the previous
     // attempt deck so the Solo init effect re-runs the engine.
     setSoloAttemptDeck(null);
@@ -863,7 +1024,7 @@ export default function Game() {
         },
       },
     });
-  }, [soloLevel, resetGame, navigate, routeYearStart, routeYearEnd]);
+  }, [soloLevel, resetGame, resetSoloJokers, navigate, routeYearStart, routeYearEnd]);
 
   // Codex106-23 — Jump straight into the next level after a passed attempt.
   // We rebuild the route state from the next level number, reusing the same
@@ -878,6 +1039,7 @@ export default function Game() {
     setSoloCorrectStreak(0);
     lastCountedFeedbackRef.current = null;
     soloResultPersistedRef.current = false;
+    resetSoloJokers();
     // Codex166 — New level = new attempt = new deck.
     setSoloAttemptDeck(null);
     setSoloAttemptId(null);
@@ -902,12 +1064,13 @@ export default function Game() {
         },
       },
     });
-  }, [soloLevel, resetGame, navigate, routeYearStart, routeYearEnd]);
+  }, [soloLevel, resetGame, resetSoloJokers, navigate, routeYearStart, routeYearEnd]);
 
   const handleSoloBackToPath = useCallback(() => {
+    resetSoloJokers();
     resetGame();
     navigate('/solo', { state: { soloResultApplied: true } });
-  }, [resetGame, navigate]);
+  }, [resetSoloJokers, resetGame, navigate]);
 
   const gameOverView = winner ? (
     <>
@@ -1248,7 +1411,18 @@ export default function Game() {
         progressCardCount={isSoloLevelMode ? cardsCompletedSolo : undefined}
         progressCardTarget={isSoloLevelMode ? winCardCount : undefined}
         soloLevelTotalSeconds={isSoloLevelMode ? (soloLevel?.totalTimeSeconds ?? SOLO_LEVEL_TIME_SECONDS) : undefined}
-        soloLevelElapsedSeconds={isSoloLevelMode ? overallSeconds : undefined}
+        soloLevelElapsedSeconds={isSoloLevelMode ? soloEffectiveElapsedSeconds : undefined}
+        soloLevelTimerFrozen={isSoloLevelMode ? isSoloTimerFrozen : false}
+        soloJokers={isSoloLevelMode ? {
+          enabled: true,
+          usedJokerType,
+          mistakeShieldActive,
+          timerFrozen: isSoloTimerFrozen,
+          message: jokerMessage,
+          error: jokerError,
+          disabled: Boolean(soloLevelResult || winner),
+          onUseJoker: handleUseSoloJoker,
+        } : null}
         beginnerPlacementHintZone={beginnerPlacementHintZone}
         correctStreak={isSoloLevelMode ? soloCorrectStreak : 0}
       />

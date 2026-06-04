@@ -177,6 +177,9 @@ import * as dbArchitectureImplementationCases from './simulationPanelDbArchitect
 // coverage, removed Settings UI, PWA/Android manual gates, public asset docs,
 // and Health status taxonomy honesty.
 import * as healthAlignmentCases from './simulationPanelHealthAlignmentCases';
+// Codex189 — Solo Jokers v1: free, attempt-local Solo helpers with one
+// total use per attempt, no Online impact, no Diamond spend, no Puan grant.
+import * as soloJokersCases from './simulationPanelSoloJokersCases';
 
 const MODULES = [
   soloProgressCases,
@@ -218,6 +221,7 @@ const MODULES = [
   accountDeletionCases,
   dbArchitectureImplementationCases,
   healthAlignmentCases,
+  soloJokersCases,
 ];
 
 function flatten(key) {
