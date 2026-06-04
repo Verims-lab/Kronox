@@ -152,7 +152,7 @@ function StatusBadge({ wheel, claimedLabel }) {
     return <Badge tone="danger" icon={RotateCw} label="Tekrar dene" />;
   }
   if (wheel.status === 'claimed') {
-    return <Badge tone="passive" icon={Gem} label={claimedLabel || 'Yarın hazır'} />;
+    return <Badge tone="passive" icon={null} label={claimedLabel || 'Yarın hazır'} />;
   }
   return <Badge tone="ready" icon={Sparkles} label="Hazır!" />;
 }
@@ -190,7 +190,7 @@ function Badge({ icon: Icon, label, tone }) {
         boxShadow: `inset 0 0 0 1px ${styles.border}`,
       }}
     >
-      <Icon className={`h-3.5 w-3.5 ${Icon === Loader2 ? 'animate-spin' : ''}`} />
+      {Icon && <Icon className={`h-3.5 w-3.5 ${Icon === Loader2 ? 'animate-spin' : ''}`} />}
       {label}
     </span>
   );
@@ -491,7 +491,7 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
               >
                 <Sparkles className="mx-auto mb-2 h-8 w-8 text-amber-300" />
                 <h2 className="font-inter text-3xl font-black text-white">
-                  +{formatDiamondCount(result.totalRewardAmount)} Elmas kazandın
+                  +{formatDiamondCount(result.rewardAmount)} Elmas kazandın
                 </h2>
                 <div
                   aria-hidden="true"
@@ -507,7 +507,7 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
                     7 günlük seri bonusu: +100 elmas
                   </p>
                   <p className="text-xs font-bold text-amber-50/80">
-                    Çark ödülü: +{formatDiamondCount(result.rewardAmount)} elmas
+                    Toplam: +{formatDiamondCount(result.totalRewardAmount)} elmas
                   </p>
                 </div>
               )}

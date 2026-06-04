@@ -44,6 +44,15 @@ Two/three-account RLS probe matrix, service-role scoping.
 ## Diamond Economy / Daily Wheel
 Daily Wheel is separate from the existing +20 daily login reward.
 First authenticated entry grants +100 once. Same-day daily login grants +20 once.
+Daily Wheel reward is selected server-side by \`claimDailyWheelReward\`.
+Daily Wheel reward weights are \`10=25%\`, \`15=22%\`, \`20=18%\`,
+\`25=13%\`, \`30=10%\`, \`40=6%\`, \`50=4%\`, \`100=2%\`.
+Daily Wheel UI animates to the backend-selected reward.
+Daily Wheel result shows \`+X Elmas kazandın\`; when the 7-day streak bonus
+applies it also shows \`7 günlük seri bonusu: +100 elmas\` and
+\`Toplam: +Y elmas\`.
+Daily Wheel claimed countdown shows \`Yarın hazır\` or compact time text
+without a Diamond icon.
 Admin reset sets \`daily_wheel_last_spin_date\` to the current UTC day, clears
 Daily Wheel guard fields, and removes target \`DailyWheelSpin\` rows. Retained
 OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the

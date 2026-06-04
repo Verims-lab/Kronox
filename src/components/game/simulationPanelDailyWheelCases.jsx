@@ -183,6 +183,35 @@ export const EXTRA_TESTS = [
       return pass('Claim requires authenticated backend context and reward selection is server-side.', { verification: 'STATIC_CONTRACT' });
     }),
 
+  makeCase('daily_wheel_reward_table_weighted_server_side',
+    'Daily Wheel v1 uses the weighted 8-slice backend reward table',
+    () => {
+      const missing = missingTokens(DAILY_WHEEL_BACKEND_HEALTH_SOURCE, [
+        'REWARD_TABLE',
+        '10 common weight 25',
+        '15 common weight 22',
+        '20 common weight 18',
+        '25 uncommon weight 13',
+        '30 uncommon weight 10',
+        '40 rare weight 6',
+        '50 rare weight 4',
+        '100 very_rare weight 2',
+        'selectReward',
+        'randomUnit',
+      ]);
+      if (missing.length) {
+        return fail('Daily Wheel weighted reward table is missing or not server-owned.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'base44/functions/claimDailyWheelReward/entry.ts',
+          missing,
+        });
+      }
+      return pass('Daily Wheel v1 reward weights are documented in the backend mirror and selected server-side.', {
+        verification: 'STATIC_CONTRACT',
+        actual: { rewards: [10, 15, 20, 25, 30, 40, 50, 100], weights: [25, 22, 18, 13, 10, 6, 4, 2] },
+      });
+    }),
+
   makeCase('daily_wheel_diamonds_only_no_puan',
     'Daily Wheel grants Diamonds only and never Kronox Puan',
     () => {
@@ -218,6 +247,7 @@ export const EXTRA_TESTS = [
         'DailyWheelSpin.idempotency_key',
         'one claim per user per UTC server day',
         'logical guard; unique constraint platform/manual',
+        'recoveredExistingDailyWheelSpin',
       ]);
       if (missing.length) {
         return fail('Daily Wheel server-day idempotency contract is incomplete.', {
@@ -286,13 +316,36 @@ export const EXTRA_TESTS = [
       return pass('Claimed Daily Wheel remains visible but passive with tomorrow/countdown status.', { verification: 'STATIC_CONTRACT' });
     }),
 
+  makeCase('daily_wheel_home_countdown_has_no_diamond_icon',
+    'Daily Wheel claimed countdown is text-only without a Diamond icon',
+    () => {
+      const missing = missingTokens(dailyWheelCardSource, [
+        'icon={null} label={claimedLabel',
+        'return `${hours} sa ${minutes} dk`',
+      ]);
+      const forbidden = forbiddenTokens(dailyWheelCardSource, [
+        'icon={Gem} label={claimedLabel',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Claimed Daily Wheel countdown can still show a Diamond/Gem icon beside the time.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'src/components/dailyWheel/DailyWheelCard.jsx',
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('Claimed Daily Wheel countdown uses plain text such as Yarın hazır / 11 sa 24 dk.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
   makeCase('daily_wheel_spin_success_opens_result_modal',
     'Daily Wheel successful claim always opens a visible reward result',
     () => {
       const missing = missingTokens(`${dailyWheelHookSource}\n${dailyWheelCardSource}`, [
         'setLastResult(body)',
         'setShowResult(true)',
-        '+{formatDiamondCount(result.totalRewardAmount)} Elmas kazandın',
+        '+{formatDiamondCount(result.rewardAmount)} Elmas kazandın',
+        'Toplam: +{formatDiamondCount(result.totalRewardAmount)} elmas',
         'Toplam Elmas',
         'updatedDiamondTotal',
       ]);

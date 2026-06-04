@@ -34,6 +34,15 @@ records a DailyWheelSpin row plus DiamondTransaction.source = daily_wheel, and
 grants a 7-day streak bonus: +100 diamonds. It grants no Kronox Puan and does
 not affect leaderboard sorting or rank.
 
+Daily Wheel reward is selected server-side by claimDailyWheelReward and the UI
+animates to the backend-selected reward. Reward weights are 10=25%, 15=22%,
+20=18%, 25=13%, 30=10%, 40=6%, 50=4%, 100=2%.
+
+Result copy shows +X Elmas kazandın. When the 7-day streak bonus applies it
+also shows 7 günlük seri bonusu: +100 elmas and Toplam: +Y elmas. The Home
+claimed-state countdown uses Yarın hazır or compact time text such as 11 sa
+24 dk without a Diamond icon.
+
 First authenticated entry grants +100 once. Same-day daily login grants +20 once.
 
 ## Admin reset and account deletion

@@ -34,18 +34,21 @@ claimDailyWheelReward
 base44.auth.me()
 DAILY_WHEEL_SOURCE = 'daily_wheel'
 REWARD_TABLE
-10 common
-15 common
-20 common
-25 uncommon
-30 uncommon
-40 rare
-50 rare
-100 very_rare
+10 common weight 25
+15 common weight 22
+20 common weight 18
+25 uncommon weight 13
+30 uncommon weight 10
+40 rare weight 6
+50 rare weight 4
+100 very_rare weight 2
+selectReward
+randomUnit
 STREAK_BONUS_AMOUNT = 100
 streakAfter % 7 === 0
 createDailyWheelSpin
 DailyWheelSpin.create
+recoveredExistingDailyWheelSpin
 spinRowFromDiamondTransaction
 DiamondTransaction.create
 source: DAILY_WHEEL_SOURCE

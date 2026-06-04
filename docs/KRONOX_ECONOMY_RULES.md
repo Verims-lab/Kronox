@@ -117,19 +117,20 @@ Rules:
 * claim requires authenticated user
 * one claim per user per UTC server day
 * reward is selected server-side by `claimDailyWheelReward`
+* UI animates to the backend-selected reward
 * localStorage/sessionStorage may only hide the once-per-session popup, never grant rewards
 
-Reward table:
+Reward table and weights:
 
 ```text
-10 diamonds — common
-15 diamonds — common
-20 diamonds — common
-25 diamonds — uncommon
-30 diamonds — uncommon
-40 diamonds — rare
-50 diamonds — rare
-100 diamonds — very rare
+10 diamonds — common — 25%
+15 diamonds — common — 22%
+20 diamonds — common — 18%
+25 diamonds — uncommon — 13%
+30 diamonds — uncommon — 10%
+40 diamonds — rare — 6%
+50 diamonds — rare — 4%
+100 diamonds — very rare — 2%
 ```
 
 7-day streak:
@@ -139,6 +140,17 @@ Reward table:
 ```
 
 If the user misses a UTC day, the next successful spin resets the streak to 1.
+
+Result copy:
+
+```text
++25 Elmas kazandın
+7 günlük seri bonusu: +100 elmas
+Toplam: +125 elmas
+```
+
+The Home claimed-state countdown must not show a Diamond icon next to the
+countdown. Use `Yarın hazır` or compact time text such as `11 sa 24 dk`.
 
 Dedicated spin ledger:
 
