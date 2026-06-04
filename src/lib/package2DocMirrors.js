@@ -34,6 +34,9 @@ themes, and decades; first 7 active cards avoid 4+ same category/subcategory
 or theme where alternatives exist. Deck diagnostics expose categoryDistribution,
 subcategoryDistribution, themeDistribution, decadeDistribution, firstSevenCategoryDistribution,
 and fallbackTier for Health/admin/debug only.
+P2 diagnostics are Health/admin/helper-only and cover deck quality, question
+pool health, difficulty-readiness, replay-variety, and Kart Değiştir
+replacement diagnostics without exposing debug output to normal players.
 `;
 
 export const CATEGORY_TAXONOMY_DOC = `# Kronox Category Taxonomy

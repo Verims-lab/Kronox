@@ -47,7 +47,12 @@
 //   from the Solo result popup re-mounts Game with a new attempt and
 //   therefore a new deck.
 
-import { getSoloAttemptDeckSizeForLevel } from './soloProgressHelpers';
+import {
+  getSoloAttemptDeckSizeForLevel,
+  getSoloCardsRequiredForLevel,
+  isSoloSpecialLevel,
+  SOLO_SCORE_MAX_MISTAKES,
+} from './soloProgressHelpers';
 
 const DEFAULT_DECK_SIZE = getSoloAttemptDeckSizeForLevel(1);
 const FIRST_FIVE_SPACING_TARGET_COUNT = 5;
@@ -435,6 +440,243 @@ function countDistinctBy(candidates, selector) {
   return new Set(candidates.map(selector).filter(Boolean)).size;
 }
 
+function getMinimumPairGap(years) {
+  const numericYears = years.map(Number).filter(Number.isFinite);
+  if (numericYears.length < 2) return Infinity;
+  let minGap = Infinity;
+  for (let i = 0; i < numericYears.length; i += 1) {
+    for (let j = i + 1; j < numericYears.length; j += 1) {
+      minGap = Math.min(minGap, Math.abs(numericYears[i] - numericYears[j]));
+    }
+  }
+  return minGap;
+}
+
+function countMissingMetadata(items, selector, missingKey) {
+  return (items || []).filter((item) => selector(item) === missingKey).length;
+}
+
+function normalizeDifficultyValue(question) {
+  const raw = question?.difficulty;
+  if (raw === undefined || raw === null || raw === '') return null;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 1 || value > 5) return null;
+  return value;
+}
+
+function getDifficultyKey(question) {
+  const difficulty = normalizeDifficultyValue(question);
+  return difficulty === null ? 'difficulty:missing' : `difficulty:${difficulty}`;
+}
+
+function buildDeckWarnings({
+  deck = [],
+  meta = {},
+  fallbackTier = meta.fallbackTier,
+  poolHealth = null,
+} = {}) {
+  const warnings = [];
+  const firstFiveYears = deck.slice(0, FIRST_FIVE_SPACING_TARGET_COUNT).map((q) => Number(q?.year));
+  if (firstFiveYears.length >= FIRST_FIVE_SPACING_TARGET_COUNT && getMinimumPairGap(firstFiveYears) < FIRST_FIVE_MIN_YEAR_GAP) {
+    warnings.push('first_five_spacing_below_contract');
+  }
+  if (meta.earlyVisibleMinimumGapOk === false) warnings.push('early_visible_spacing_conflict');
+  if (fallbackTier && fallbackTier !== 'ideal') warnings.push(`fallback:${fallbackTier}`);
+  if (Number(meta.maxFirstSevenCategoryCount) > FIRST_SEVEN_CATEGORY_CAP) warnings.push('first_seven_category_balance_limited');
+  if (Number(meta.maxFirstSevenSubcategoryCount) > FIRST_SEVEN_SUBCATEGORY_CAP) warnings.push('first_seven_subcategory_balance_limited');
+  if (Number(meta.firstFiveSportsClusterCount) > FIRST_FIVE_SOFT_CLUSTER_CAP) warnings.push('first_five_sports_cluster_limited');
+  if (poolHealth?.warnings?.length) warnings.push(...poolHealth.warnings.map((warning) => `pool:${warning}`));
+  return [...new Set(warnings)];
+}
+
+export function getSoloDifficultyStrategy(levelNumber, pool = []) {
+  const level = Math.max(1, Math.trunc(Number(levelNumber) || 1));
+  const special = isSoloSpecialLevel(level);
+  const early = !special && level <= 3;
+  const mid = !special && level > 3 && level < 10;
+  const availableDifficulties = [...new Set((pool || [])
+    .map(normalizeDifficultyValue)
+    .filter((value) => value !== null))]
+    .sort((a, b) => a - b);
+  const hasDifficultyMetadata = availableDifficulties.length > 0;
+  const preferredDifficulties = special
+    ? [2, 3, 4, 1, 5]
+    : early
+      ? [1, 2]
+      : mid
+        ? [1, 2, 3]
+        : [1, 2, 3, 4];
+  const usablePreferredDifficulties = hasDifficultyMetadata
+    ? preferredDifficulties.filter((difficulty) => availableDifficulties.includes(difficulty))
+    : [1];
+  return {
+    readinessOnly: true,
+    levelNumber: level,
+    levelType: special ? 'special' : 'normal',
+    phase: special ? 'special' : early ? 'early' : mid ? 'mid' : 'late',
+    preferredDifficulties,
+    usablePreferredDifficulties: usablePreferredDifficulties.length ? usablePreferredDifficulties : availableDifficulties,
+    availableDifficulties,
+    missingDifficultyFallback: !hasDifficultyMetadata,
+    fallbackMode: hasDifficultyMetadata ? 'metadata_available_soft_preference' : 'missing_difficulty_safe_easy',
+  };
+}
+
+export function getSoloDeckDiagnostics(resultOrDeck, options = {}) {
+  const result = Array.isArray(resultOrDeck) ? { ok: true, deck: resultOrDeck, meta: options.meta || {} } : (resultOrDeck || {});
+  const deck = Array.isArray(result.deck) ? result.deck : [];
+  const meta = result.meta || {};
+  const levelNumber = Math.max(1, Math.trunc(Number(options.levelNumber ?? meta.levelNumber) || 1));
+  const firstFiveCards = deck.slice(0, FIRST_FIVE_SPACING_TARGET_COUNT);
+  const years = deck.map((q) => Number(q?.year)).filter(Number.isFinite);
+  const firstFiveYears = firstFiveCards.map((q) => Number(q?.year)).filter(Number.isFinite);
+  const difficultyStrategy = getSoloDifficultyStrategy(levelNumber, deck);
+  const diagnostics = {
+    adminHealthOnly: true,
+    exposeToNormalPlayers: false,
+    levelNumber,
+    levelType: isSoloSpecialLevel(levelNumber) ? 'special' : 'normal',
+    deckSize: deck.length || Number(meta.deckSize) || getSoloAttemptDeckSizeForLevel(levelNumber),
+    correctTarget: getSoloCardsRequiredForLevel(levelNumber),
+    maxMistakeFailThreshold: SOLO_SCORE_MAX_MISTAKES,
+    questionIds: deck.map((q) => q?.id).filter((id) => id !== undefined && id !== null),
+    answerYears: years,
+    firstFiveYears,
+    minimumFirstFiveYearGap: getMinimumPairGap(firstFiveYears),
+    visibleSpacingConflictCount: meta.earlyVisibleMinimumGapOk === false ? 1 : 0,
+    categoryDistribution: meta.categoryDistribution || buildDistribution(deck, getCategoryKey),
+    subcategoryDistribution: meta.subcategoryDistribution || buildDistribution(deck, getSubcategoryKey),
+    themeDistribution: meta.themeDistribution || buildDistribution(deck, getThemeKey),
+    sportsLikeCount: Number(meta.themeDistribution?.['theme:sports'] ?? buildDistribution(deck, getThemeKey)['theme:sports'] ?? 0),
+    decadeDistribution: meta.decadeDistribution || buildDistribution(deck, getDecadeKey),
+    difficultyDistribution: buildDistribution(deck, getDifficultyKey),
+    fallbackTier: meta.fallbackTier || 'unknown',
+    balanceScore: {
+      maxCategoryCount: Number(meta.maxCategoryCount) || getMaxDistributionCount(meta.categoryDistribution || buildDistribution(deck, getCategoryKey)),
+      maxSubcategoryCount: Number(meta.maxSubcategoryCount) || getMaxDistributionCount(meta.subcategoryDistribution || buildDistribution(deck, getSubcategoryKey)),
+      maxThemeCount: Number(meta.maxThemeCount) || getMaxDistributionCount(meta.themeDistribution || buildDistribution(deck, getThemeKey)),
+      maxDecadeCount: Number(meta.maxDecadeCount) || getMaxDistributionCount(meta.decadeDistribution || buildDistribution(deck, getDecadeKey)),
+      maxConsecutiveThemeCount: Number(meta.maxConsecutiveThemeCount) || getMaxConsecutiveCount(deck, getThemeKey),
+    },
+    difficultyStrategy,
+  };
+  diagnostics.warnings = buildDeckWarnings({ deck, meta, fallbackTier: diagnostics.fallbackTier, poolHealth: options.poolHealth });
+  return diagnostics;
+}
+
+export function analyzeSoloQuestionPool(pool = [], args = {}) {
+  const deckSizeNormal = getSoloAttemptDeckSizeForLevel(1);
+  const deckSizeSpecial = getSoloAttemptDeckSizeForLevel(10);
+  const allowedCats = normalizeAllowedCategoryIds(args.allowedMainCategoryIds);
+  const candidates = filterCandidatePool(pool, allowedCats);
+  const rawRows = Array.isArray(pool) ? pool : [];
+  const invalidYearCount = rawRows.filter((q) => !hasUsableYear(q)).length;
+  const inactiveQuestionCount = rawRows.filter((q) => !isActiveQuestion(q)).length;
+  const missingSubcategoryCount = countMissingMetadata(candidates, getSubcategoryKey, 'sub:unknown');
+  const missingThemeCount = countMissingMetadata(candidates, getThemeKey, 'theme:cat:unknown');
+  const missingDifficultyCount = candidates.filter((q) => normalizeDifficultyValue(q) === null).length;
+  const uniqueYearCount = new Set(candidates.map((q) => Number(q.year)).filter(Number.isFinite)).size;
+  const categoryDistribution = buildDistribution(candidates, getCategoryKey);
+  const subcategoryDistribution = buildDistribution(candidates, getSubcategoryKey);
+  const themeDistribution = buildDistribution(candidates, getThemeKey);
+  const decadeDistribution = buildDistribution(candidates, getDecadeKey);
+  const canBuildNormalDeck = uniqueYearCount >= deckSizeNormal && canPickSpacedYears([...new Set(candidates.map((q) => Number(q.year)))]);
+  const canBuildSpecialDeck = uniqueYearCount >= deckSizeSpecial && canPickSpacedYears([...new Set(candidates.map((q) => Number(q.year)))]);
+  const warnings = [];
+  const hardFailures = [];
+  if (uniqueYearCount < deckSizeNormal) hardFailures.push('insufficient_unique_years_for_normal_deck');
+  if (uniqueYearCount < deckSizeSpecial) hardFailures.push('insufficient_unique_years_for_special_deck');
+  if (!canPickSpacedYears([...new Set(candidates.map((q) => Number(q.year)))])) hardFailures.push('insufficient_first_five_spacing_pool');
+  if (invalidYearCount > 0) warnings.push('invalid_or_missing_years_present');
+  if (missingSubcategoryCount > 0) warnings.push('missing_subcategory_metadata');
+  if (missingDifficultyCount > 0) warnings.push('missing_difficulty_metadata');
+  if (getMaxDistributionCount(categoryDistribution) > Math.ceil(Math.max(1, candidates.length) * 0.5)) warnings.push('category_overrepresented');
+  if (getMaxDistributionCount(subcategoryDistribution) > Math.ceil(Math.max(1, candidates.length) * 0.35)) warnings.push('subcategory_overrepresented');
+  if (Object.keys(categoryDistribution).length < 3 && candidates.length >= deckSizeNormal) warnings.push('sparse_category_variety');
+  if (Object.keys(subcategoryDistribution).length < 5 && candidates.length >= deckSizeNormal) warnings.push('sparse_subcategory_variety');
+  return {
+    adminHealthOnly: true,
+    exposeToNormalPlayers: false,
+    rawCount: rawRows.length,
+    activeCandidateCount: candidates.length,
+    inactiveQuestionCount,
+    invalidYearCount,
+    uniqueYearCount,
+    missingSubcategoryCount,
+    missingThemeCount,
+    missingDifficultyCount,
+    categoryDistribution,
+    subcategoryDistribution,
+    themeDistribution,
+    decadeDistribution,
+    canBuildNormalDeck,
+    canBuildSpecialDeck,
+    canSatisfyFirstFiveSpacing: !hardFailures.includes('insufficient_first_five_spacing_pool'),
+    canSatisfyP1Balance: warnings.every((warning) => ![
+      'category_overrepresented',
+      'subcategory_overrepresented',
+      'sparse_category_variety',
+      'sparse_subcategory_variety',
+    ].includes(warning)),
+    warnings,
+    hardFailures,
+  };
+}
+
+export function getSoloReplayVarietyDiagnostics(previousDeck = [], nextDeck = []) {
+  const previousFirstFive = (previousDeck || []).slice(0, FIRST_FIVE_SPACING_TARGET_COUNT).map((q) => q?.id);
+  const nextFirstFive = (nextDeck || []).slice(0, FIRST_FIVE_SPACING_TARGET_COUNT).map((q) => q?.id);
+  const previousIds = new Set((previousDeck || []).map((q) => q?.id));
+  const nextIds = new Set((nextDeck || []).map((q) => q?.id));
+  const repeatedIds = [...nextIds].filter((id) => previousIds.has(id));
+  return {
+    adminHealthOnly: true,
+    exposeToNormalPlayers: false,
+    previousFirstFive,
+    nextFirstFive,
+    exactFirstFiveRepeat: previousFirstFive.length > 0 && previousFirstFive.join('|') === nextFirstFive.join('|'),
+    repeatedQuestionCount: repeatedIds.length,
+    repeatedQuestionIds: repeatedIds,
+    softOnly: true,
+  };
+}
+
+export function getKartDegistirDiagnostics({
+  deck = [],
+  currentQuestion = null,
+  replacement = null,
+  timelineYears = [],
+  previousContextCards = [],
+  noSafeReplacement = false,
+} = {}) {
+  const replacementInDeck = !!replacement && (deck || []).some((q) => q?.id === replacement?.id);
+  const currentYear = getQuestionYear(currentQuestion);
+  const replacementYear = getQuestionYear(replacement);
+  const timeline = Array.from(timelineYears instanceof Set ? timelineYears : new Set(timelineYears || []))
+    .map(Number)
+    .filter(Number.isFinite);
+  const preservedVisibleSpacing = replacementYear !== null
+    ? timeline.every((year) => Math.abs(year - replacementYear) >= FIRST_FIVE_MIN_YEAR_GAP)
+    : false;
+  const beforeContext = [...(previousContextCards || []), currentQuestion].filter(Boolean);
+  const afterContext = [...(previousContextCards || []), replacement].filter(Boolean);
+  const beforeThemeMax = getMaxDistributionCount(buildDistribution(beforeContext, getThemeKey));
+  const afterThemeMax = getMaxDistributionCount(buildDistribution(afterContext, getThemeKey));
+  return {
+    adminHealthOnly: true,
+    exposeToNormalPlayers: false,
+    swappedOutQuestionId: currentQuestion?.id ?? null,
+    replacementQuestionId: replacement?.id ?? null,
+    replacementSource: replacementInDeck ? 'unused_deck_reserve' : replacement ? 'unknown' : 'none',
+    swappedOutYear: currentYear,
+    replacementYear,
+    preservedVisibleSpacing,
+    worsenedCategorySubcategoryBalance: afterThemeMax > beforeThemeMax,
+    noSafeReplacement,
+    jokerShouldBeConsumed: !!replacement && !noSafeReplacement,
+  };
+}
+
 function makeBalanceTargets(candidates, deckSize) {
   const categoryCount = Math.max(1, countDistinctBy(candidates, getCategoryKey));
   const subcategoryCount = Math.max(1, countDistinctBy(candidates, getSubcategoryKey));
@@ -778,6 +1020,8 @@ export function buildSoloAttemptDeck(args = {}) {
       distinctYears,
       deckSize,
       seedCount,
+      levelNumber: Math.max(1, Math.trunc(Number(args.levelNumber) || 1)),
+      levelType: isSoloSpecialLevel(args.levelNumber) ? 'special' : 'normal',
       categoriesUsed: new Set(
         finalDeck
           .map((q) => Number(q?.main_category_id))
@@ -841,5 +1085,10 @@ export const __soloEngineInternals = {
   getSubcategoryKey,
   getThemeKey,
   getDecadeKey,
+  getSoloDeckDiagnostics,
+  analyzeSoloQuestionPool,
+  getSoloDifficultyStrategy,
+  getSoloReplayVarietyDiagnostics,
+  getKartDegistirDiagnostics,
   DEFAULT_DECK_SIZE,
 };

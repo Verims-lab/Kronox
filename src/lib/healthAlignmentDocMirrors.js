@@ -59,6 +59,9 @@ Visible placed/seed timeline years and the current active card avoid 1-4 year
 conflicts where a safe prebuilt-deck alternative exists.
 P1 balance distributes rich-pool decks across category, subcategory, theme, and
 decade buckets while keeping hard Solo rules mandatory.
+P2 diagnostics are Health/admin/helper-only: deck diagnostics, question pool
+health, difficulty-readiness, replay-variety, and Kart Değiştir replacement
+diagnostics must not appear in normal player UI.
 Same-score replay does not add points. Lower-score replay does not add points.
 Better replay adds only the positive score delta. Old completed Solo results
 are not retroactively recalculated.
