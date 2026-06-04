@@ -155,6 +155,28 @@
       "type": "string",
       "description": "UTC YYYY-MM-DD key for the latest +20 daily login Diamond reward. Durable guard used with DiamondTransaction idempotency_key daily_login:<email>:<YYYY-MM-DD>."
     },
+    "daily_wheel_last_spin_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp of the latest server-backed Daily Wheel claim. Daily Wheel grants Diamonds only and never Kronox Puan."
+    },
+    "daily_wheel_last_spin_date": {
+      "type": "string",
+      "description": "UTC YYYY-MM-DD key for the latest Daily Wheel claim. Guard for one spin per user per server day."
+    },
+    "daily_wheel_next_available_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO UTC timestamp when the next Daily Wheel spin becomes available."
+    },
+    "daily_wheel_streak": {
+      "type": "number",
+      "description": "Consecutive Daily Wheel spin streak. Missing a UTC day resets the next claim to 1."
+    },
+    "daily_wheel_spin_count": {
+      "type": "number",
+      "description": "Total Daily Wheel spin count for retention/economy diagnostics."
+    },
     "economy_updated_at": {
       "type": "string",
       "format": "date-time",

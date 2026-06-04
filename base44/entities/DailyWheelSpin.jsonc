@@ -1,0 +1,111 @@
+{
+  "name": "DailyWheelSpin",
+  "type": "object",
+  "description": "Server-backed Daily Reward Wheel ledger. One logical row should exist per user_email + spin_date / idempotency_key. Grants Diamonds only; never Kronox Puan.",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Lowercased owner email for this wheel spin."
+    },
+    "owner_key": {
+      "type": "string",
+      "description": "Public-safe stable owner key derived from email. Used only for admin/audit correlation."
+    },
+    "spin_date": {
+      "type": "string",
+      "description": "UTC YYYY-MM-DD server day for the spin."
+    },
+    "reward_amount": {
+      "type": "number",
+      "description": "Base wheel Diamond reward amount."
+    },
+    "streak_before": {
+      "type": "number",
+      "description": "Consecutive spin streak before this claim."
+    },
+    "streak_after": {
+      "type": "number",
+      "description": "Consecutive spin streak after this claim."
+    },
+    "streak_bonus_amount": {
+      "type": "number",
+      "description": "Extra 7-day streak bonus amount. 0 unless streak_after is a 7-day milestone."
+    },
+    "total_reward_amount": {
+      "type": "number",
+      "description": "reward_amount + streak_bonus_amount."
+    },
+    "balance_before": {
+      "type": "number",
+      "description": "Canonical User.diamonds balance before claim."
+    },
+    "balance_after": {
+      "type": "number",
+      "description": "Canonical User.diamonds balance after claim."
+    },
+    "idempotency_key": {
+      "type": "string",
+      "description": "daily_wheel:<normalizedEmail>:<YYYY-MM-DD>. Unique constraint should be configured in Base44 if available."
+    },
+    "claimed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server timestamp when the spin was claimed."
+    },
+    "next_available_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Next UTC midnight when another spin is available."
+    },
+    "build_marker": {
+      "type": "string",
+      "description": "Client/build marker supplied with the claim for diagnostics."
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Debug-safe wheel metadata. Must not include secrets or raw private profile rows."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional admin/audit note."
+    }
+  },
+  "required": [
+    "user_email",
+    "spin_date",
+    "reward_amount",
+    "streak_after",
+    "total_reward_amount",
+    "idempotency_key",
+    "claimed_at",
+    "next_available_at"
+  ],
+  "rls": {
+    "create": {
+      "data.user_email": "{{user.email}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

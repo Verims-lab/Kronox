@@ -76,12 +76,12 @@ Current active sources:
 ```text
 starter_bonus
 daily_login
+daily_wheel
 ```
 
 Future schema-ready sources are intentionally inactive:
 
 ```text
-wheel_spin_future
 rewarded_ad_future
 quest_reward_future
 purchase_future
@@ -101,6 +101,80 @@ quest reward diamond grants
 ```
 
 until Daily Quest product work resumes.
+
+---
+
+# 3A. Daily Reward Wheel / Günlük Çark
+
+Daily Wheel is an active Diamond-only retention reward.
+
+Rules:
+
+* grants Diamonds only
+* grants no Kronox Puan
+* does not affect leaderboard sorting or rank
+* is separate from the existing +20 daily login reward
+* claim requires authenticated user
+* one claim per user per UTC server day
+* reward is selected server-side by `claimDailyWheelReward`
+* localStorage/sessionStorage may only hide the once-per-session popup, never grant rewards
+
+Reward table:
+
+```text
+10 diamonds — common
+15 diamonds — common
+20 diamonds — common
+25 diamonds — uncommon
+30 diamonds — uncommon
+40 diamonds — rare
+50 diamonds — rare
+100 diamonds — very rare
+```
+
+7-day streak:
+
+```text
+7-day streak bonus: +100 diamonds
+```
+
+If the user misses a UTC day, the next successful spin resets the streak to 1.
+
+Dedicated spin ledger:
+
+```text
+DailyWheelSpin
+```
+
+Daily idempotency key:
+
+```text
+daily_wheel:<normalizedEmail>:<YYYY-MM-DD>
+```
+
+User guard fields:
+
+```text
+daily_wheel_last_spin_at
+daily_wheel_last_spin_date
+daily_wheel_next_available_at
+daily_wheel_streak
+daily_wheel_spin_count
+```
+
+Diamond audit ledger:
+
+```text
+DiamondTransaction.source = daily_wheel
+```
+
+Concurrency note:
+
+Base44 schema-level uniqueness is not assumed for `DailyWheelSpin.idempotency_key`
+or `DiamondTransaction.idempotency_key`. The current backend uses
+query-before-write, User guard fields, reserve-first `DailyWheelSpin` rows, and
+recovery from existing spin rows. True two-device duplicate-proofing still
+requires a live runtime/platform unique-key probe.
 
 ---
 
@@ -283,6 +357,7 @@ Account deletion rules:
 
 * `User.diamonds` is removed with the user profile.
 * retained `DiamondTransaction` audit rows must anonymize `user_email` and any email-bearing idempotency key.
+* retained `DailyWheelSpin` audit rows must anonymize `user_email`, `owner_key`, and any email-bearing idempotency key.
 * account deletion must not grant or spend Diamonds.
 
 ---
@@ -309,12 +384,15 @@ new_player
 * sets `User.diamonds = 0`
 * sets `starter_bonus_granted_at` so starter bonus is not immediately re-granted
 * sets `last_daily_diamond_reward_date` to the current UTC day so same-day daily reward is not immediately re-granted
+* sets `daily_wheel_last_spin_date` to the current UTC day so same-day Daily Wheel is not immediately re-granted
+* clears Daily Wheel streak/count values and removes target `DailyWheelSpin` rows
 * writes an `admin_adjustment` DiamondTransaction audit row when possible
 
 `new_player`:
 
 * sets `User.diamonds = 0`
 * clears starter/daily reward guard fields
+* clears Daily Wheel guard fields and removes target `DailyWheelSpin` rows
 * allows the normal app-entry economy bootstrap to grant starter + daily Diamonds again
 
 Both modes write `User.progress_reset_at` so local user progress mirrors are invalidated and server state wins after refresh/reopen.
@@ -325,7 +403,6 @@ Both modes write `User.progress_reset_at` so local user progress mirrors are inv
 
 The following are not implemented:
 
-* Wheel spin rewards
 * Rewarded ads
 * Daily Quest / Günün Görevi
 * Purchases
@@ -350,6 +427,10 @@ diamond_transaction_idempotency_key_used
 diamond_reward_retry_safe
 diamond_balance_ledger_consistency_contract
 diamond_multi_device_runtime_probe_visible
+daily_wheel_exists_on_home
+daily_wheel_diamonds_only_no_puan
+daily_wheel_one_spin_per_server_day
+daily_wheel_streak_bonus_contract
 ```
 
 Rules:
@@ -370,5 +451,8 @@ Manual/release proof should verify:
 * refresh does not duplicate
 * same-day reopen does not duplicate
 * next UTC day grants once
+* Daily Wheel grants once per UTC server day
+* Daily Wheel does not grant Kronox Puan
+* 7th consecutive Daily Wheel spin grants +100 extra Diamonds
 * two-device duplicate prevention is probed
 * ledger recovery does not double grant

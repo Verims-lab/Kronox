@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ChevronRight, Crosshair, Swords } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 import StandardTopBar from '@/components/layout/StandardTopBar';
+import DailyWheelCard from '@/components/dailyWheel/DailyWheelCard';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 
 /**
@@ -58,6 +59,14 @@ export default function MainMenu() {
     sounds.tap();
     base44.auth.redirectToLogin('/');
   };
+
+  const handleDailyWheelUserPatch = useCallback((patch) => {
+    if (!patch || typeof patch !== 'object') return;
+    setUser((current) => ({
+      ...(current || {}),
+      ...patch,
+    }));
+  }, []);
 
   return (
     <main
@@ -128,8 +137,13 @@ export default function MainMenu() {
               bottom-nav edge to match the reference framing. */}
           <div
             className="mt-auto flex w-full flex-col items-center"
-            style={{ gap: '0.9rem', paddingTop: '2.25rem', paddingBottom: 'clamp(1.25rem, 5vh, 2.75rem)' }}
+            style={{ gap: '0.75rem', paddingTop: 'clamp(1rem, 3.6vh, 2.2rem)', paddingBottom: 'clamp(1rem, 4.5vh, 2.4rem)' }}
           >
+            <DailyWheelCard
+              user={user}
+              onUserUpdated={handleDailyWheelUserPatch}
+              onLogin={handleLogin}
+            />
             <HomeCTA
               icon={Crosshair}
               label="SOLO MEYDAN OKUMA"
