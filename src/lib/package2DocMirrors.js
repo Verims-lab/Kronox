@@ -41,6 +41,14 @@ Replay does not duplicate Solo points; same-score and lower-score replays add +0
 ## RLS And Backend Security
 Two/three-account RLS probe matrix, service-role scoping.
 
+## Diamond Economy / Daily Wheel
+Daily Wheel is separate from the existing +20 daily login reward.
+First authenticated entry grants +100 once. Same-day daily login grants +20 once.
+Admin reset sets \`daily_wheel_last_spin_date\` to the current UTC day, clears
+Daily Wheel guard fields, and removes target \`DailyWheelSpin\` rows. Retained
+OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the
+deleted user.
+
 PWA push, mobile safe-area, and other runtime proofs remain manual.
 `;
 
