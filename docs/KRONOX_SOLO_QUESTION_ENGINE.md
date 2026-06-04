@@ -33,6 +33,8 @@ The first active player question card shown to the user must be `soloAttemptDeck
 
 Seed/preplaced timeline cards are still part of the early visible gameplay context. The deck order must choose them so they do not create obvious close-year conflicts with the first 5 active player question cards.
 
+Normal Solo also uses a visible timeline spacing guardrail during runtime. Before the next active card is shown, the ordered deck picker prefers an unused prebuilt-deck card whose answer year is at least 5 years away from already visible timeline years, including placed cards and seed/preplaced cards. This avoids player-facing 1-4 year conflicts such as 1996/1997, 1998/1999, and 1913/1914 where a safe alternative exists. If no safe candidate remains, the runtime may choose the least-bad valid deck candidate instead of fetching or randomizing a new question.
+
 Every valid deck must satisfy:
 - required deck size: 16 questions for normal levels, 19 questions for special levels
 - unique question IDs
@@ -102,7 +104,7 @@ Solo jokers are first-version, attempt-local helpers:
 
 Joker behavior:
 - `Hata Affı`: activates one-time protection. The next wrong placement does not count as a mistake; correct placements do not consume it.
-- `Kart Değiştir`: replaces the current active card using the already prepared Solo attempt deck/reserve. It must not fetch a new question, rebuild the deck, or rerandomize the attempt mid-game, and the swapped-out card should not reappear later in the same attempt while unused deck cards are available.
+- `Kart Değiştir`: replaces the current active card using the already prepared Solo attempt deck/reserve. It must not fetch a new question, rebuild the deck, or rerandomize the attempt mid-game, and the swapped-out card should not reappear later in the same attempt while unused deck cards are available. Replacement must respect visible timeline spacing; if no safe replacement exists, the joker is not consumed and the player sees `Bu kart şu anda değiştirilemiyor.`
 - `Zaman Dondur`: freezes the Solo level timer for 10 seconds. It does not add score, add extra time, or alter timeout rules beyond pausing the elapsed timer during the freeze window.
 
 ## Backward Compatibility

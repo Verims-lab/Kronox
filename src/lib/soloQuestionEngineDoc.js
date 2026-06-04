@@ -26,6 +26,13 @@ question cards unless they are actual player question cards. They must still
 avoid close-year conflicts with the first 5 active player cards in the early
 visible timeline context.
 
+Normal Solo also uses a visible timeline spacing guardrail during runtime.
+Before the next active card is shown, the ordered deck picker prefers an
+unused prebuilt-deck card whose answer year is at least 5 years away from
+already visible timeline years, including placed cards and seed/preplaced
+cards. This avoids player-facing 1-4 year conflicts such as 1996/1997,
+1998/1999, and 1913/1914 where a safe alternative exists.
+
 Hard deck rules:
 - 16 questions for normal levels.
 - 19 questions for special levels.
@@ -63,6 +70,8 @@ total may be used per attempt. Jokers do not use Diamonds, do not grant Kronox P
 Hata Affı forgives the next wrong placement without counting a mistake.
 Kart Değiştir replaces the current card from the already prepared Solo deck
 or reserve without fetching or re-randomizing mid-attempt. The swapped-out card
-should not reappear while unused deck cards are available. Zaman Dondur freezes
-the Solo timer for 10 seconds.
+should not reappear while unused deck cards are available. Replacement must
+respect visible timeline spacing; if no safe replacement exists, the joker is
+not consumed and the player sees Bu kart şu anda değiştirilemiyor. Zaman
+Dondur freezes the Solo timer for 10 seconds.
 `;

@@ -20,6 +20,9 @@ Replay rebuilds the deck with no mid-attempt re-randomization. Runtime consumes
 the deck in order: the first active player question card is soloAttemptDeck[0].
 Seed/preplaced cards do not count as the first 5 active player question cards.
 They still avoid close-year conflicts with those early active cards.
+Visible placed/seed timeline years and the current active card avoid 1-4 year
+conflicts such as 1996/1997, 1998/1999, and 1913/1914 where a safe
+prebuilt-deck alternative exists.
 Fallback may relax category/subcategory balance, era spread, or recently-seen
 filtering but never allows duplicate years or invalid first 5 ordered questions
 spacing. The first 5 ordered questions are the first 5 displayed active player

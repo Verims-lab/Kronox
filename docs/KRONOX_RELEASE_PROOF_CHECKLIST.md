@@ -85,6 +85,7 @@ Checklist:
 * Insufficient unique-year pool shows clean error.
 * First 5 displayed active player question cards are at least 5 years apart.
 * Seed/preplaced timeline cards do not create close-year conflicts with the first 5 active player question cards.
+* Visible placed/seed timeline years do not create 1-4 year conflicts with the current active card when a safe prebuilt-deck alternative exists.
 * First 5 cards avoid 3+ same-subcategory or obvious sports-cluster cards when metadata and alternatives allow.
 * Deck feels category/subcategory balanced where the pool allows.
 * Deck feels era/year balanced rather than clustered.
@@ -116,7 +117,7 @@ Checklist:
 * Each new Solo attempt starts with `Hata Affı`, `Kart Değiştir`, and `Zaman Dondur`.
 * Only 1 joker can be used per attempt; used/disabled states are clear.
 * `Hata Affı` forgives the next wrong placement without incrementing mistakes.
-* `Kart Değiştir` replaces the current card from the prebuilt deck/reserve, does not fetch mid-attempt, and does not immediately re-show the swapped-out card.
+* `Kart Değiştir` replaces the current card from the prebuilt deck/reserve, does not fetch mid-attempt, does not immediately re-show the swapped-out card, and respects visible timeline spacing.
 * `Zaman Dondur` freezes the Solo timer for 10 seconds and cleans up after result/replay.
 * Jokers remain free in v1, do not spend Diamonds, and do not grant Kronox Puan.
 
