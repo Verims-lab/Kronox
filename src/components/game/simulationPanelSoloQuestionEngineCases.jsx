@@ -587,6 +587,131 @@ export const EXTRA_TESTS = [
   ),
 
   makeCase(
+    'visible_timeline_spacing_rejects_close_year_if_alternative_exists',
+    'Ordered Solo picker avoids visible placed/current 1-4 year conflicts when a reserve card is safe',
+    () => {
+      const deck = [
+        { id: 1, question: 'close 1996', year: 1996, state: 'A' },
+        { id: 2, question: 'safe 2006', year: 2006, state: 'A' },
+        { id: 3, question: 'later 2016', year: 2016, state: 'A' },
+      ];
+      const chosen = getOrderedSoloDeckQuestion(deck, new Set(), new Set([1997]));
+      if (chosen?.id !== 2) {
+        return fail('Visible timeline guardrail did not skip 1996 when 1997 was already visible and 2006 was available.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: { chosenId: 2, reason: '1997/1996 is a 1-year visible conflict' },
+          actual: { chosenId: chosen?.id, chosenYear: chosen?.year },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Placed 1997 + candidate 1996 is rejected in favor of a spacing-safe deck candidate.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+      });
+    },
+  ),
+
+  makeCase(
+    'visible_timeline_spacing_covers_known_close_pairs',
+    'Visible timeline guardrail covers 1913/1914, 1996/1997, and 1998/1999 examples',
+    () => {
+      const pairs = [
+        [1913, 1914],
+        [1997, 1996],
+        [1998, 1999],
+      ];
+      const failures = pairs.flatMap(([visibleYear, closeYear], index) => {
+        const safeYear = visibleYear + 10;
+        const chosen = getOrderedSoloDeckQuestion([
+          { id: index * 10 + 1, question: `close ${closeYear}`, year: closeYear, state: 'A' },
+          { id: index * 10 + 2, question: `safe ${safeYear}`, year: safeYear, state: 'A' },
+        ], new Set(), new Set([visibleYear]));
+        return chosen?.year === safeYear ? [] : [{ visibleYear, closeYear, chosenYear: chosen?.year }];
+      });
+
+      if (failures.length) {
+        return fail('One or more video-style visible close-year examples can still be selected before a safe alternative.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'safe alternative selected for every 1-4 year visible conflict',
+          actual: failures,
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Known visible close-year examples are skipped when the prebuilt deck has a safe alternative.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+      });
+    },
+  ),
+
+  makeCase(
+    'ordered_lookahead_preserves_deck_and_cursor_contract',
+    'Visible-spacing lookahead stays inside the prebuilt deck and does not randomize or lose skipped candidates',
+    () => {
+      const deck = [
+        { id: 11, question: 'close 1996', year: 1996, state: 'A' },
+        { id: 12, question: 'safe 2007', year: 2007, state: 'A' },
+        { id: 13, question: 'fallback 1999', year: 1999, state: 'A' },
+      ];
+      const usedIds = new Set();
+      const chosen = getOrderedSoloDeckQuestion(deck, usedIds, new Set([1997]));
+      const skippedStillAvailable = getOrderedSoloDeckQuestion(deck, new Set([chosen?.id]), new Set([2050]));
+      if (chosen?.id !== 12 || !skippedStillAvailable || skippedStillAvailable.id !== 11 || usedIds.size !== 0) {
+        return fail('Visible-spacing lookahead can mutate cursor/used state or lose the skipped deck candidate.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'lookahead returns safe id=12, leaves id=11 available for future reserve use, and does not mutate usedIds',
+          actual: { chosenId: chosen?.id, skippedStillAvailableId: skippedStillAvailable?.id, usedIdsSize: usedIds.size },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Lookahead uses the ordered prebuilt deck only; skipped close-year candidates remain reserve, not lost.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+      });
+    },
+  ),
+
+  makeCase(
+    'kart_degistir_replacement_respects_visible_spacing',
+    'Kart Değiştir replacement requires a spacing-safe prebuilt deck candidate',
+    () => {
+      const deck = [
+        { id: 20, question: 'current', year: 1980, state: 'A' },
+        { id: 21, question: 'close 1996', year: 1996, state: 'A' },
+        { id: 22, question: 'safe 2008', year: 2008, state: 'A' },
+      ];
+      const replacement = getOrderedSoloDeckQuestion(deck, new Set(), new Set([1997]), {
+        skippedQuestionIds: new Set([20]),
+        excludeQuestionIds: [20],
+        allowSkippedFallback: false,
+        requireVisibleYearSpacing: true,
+      });
+      const unsafeOnly = getOrderedSoloDeckQuestion(deck.slice(0, 2), new Set(), new Set([1997]), {
+        skippedQuestionIds: new Set([20]),
+        excludeQuestionIds: [20],
+        allowSkippedFallback: false,
+        requireVisibleYearSpacing: true,
+      });
+      if (replacement?.id !== 22 || unsafeOnly !== null) {
+        return fail('Kart Değiştir can still select an unsafe visible-year replacement or consume the joker when no safe replacement exists.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'safe replacement id=22; unsafe-only replacement null',
+          actual: { replacementId: replacement?.id, unsafeOnly },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Kart Değiştir uses the same visible-spacing reserve rule and returns null when only unsafe replacements remain.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+      });
+    },
+  ),
+
+  makeCase(
     'solo_year_validation_rejects_null_and_invalid_values',
     'Solo engine rejects null/undefined/empty/non-numeric/approximate years and accepts clean numeric strings',
     () => {

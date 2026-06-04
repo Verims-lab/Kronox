@@ -55,6 +55,8 @@ timer and fail on the 10th mistake. Runtime consumes the deck in order. The
 first 5 ordered active player question cards keep a minimum 5-year spacing.
 Seed/preplaced timeline cards avoid close-year conflicts with those early
 active cards.
+Visible placed/seed timeline years and the current active card avoid 1-4 year
+conflicts where a safe prebuilt-deck alternative exists.
 Same-score replay does not add points. Lower-score replay does not add points.
 Better replay adds only the positive score delta. Old completed Solo results
 are not retroactively recalculated.

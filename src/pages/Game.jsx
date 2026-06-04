@@ -800,6 +800,7 @@ export default function Game() {
         skippedQuestionIds: skippedIds,
         excludeQuestionIds: [currentQuestion.id],
         allowSkippedFallback: false,
+        requireVisibleYearSpacing: true,
       });
 
       if (!replacement) {

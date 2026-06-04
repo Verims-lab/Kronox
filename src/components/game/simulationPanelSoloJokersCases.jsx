@@ -188,6 +188,7 @@ export const EXTRA_TESTS = [
         'skippedIds.add(currentQuestion.id)',
         'excludeQuestionIds: [currentQuestion.id]',
         'allowSkippedFallback: false',
+        'requireVisibleYearSpacing: true',
       ]);
       if (missing.length) return fail('Kart Değiştir lost the static guards that keep replacement cards safe.', {
         verification: 'STATIC_CONTRACT',
