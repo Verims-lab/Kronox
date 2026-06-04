@@ -9,6 +9,7 @@ import dailyWheelCardSource from '../dailyWheel/DailyWheelCard.jsx?raw';
 import dailyWheelHookSource from '../../hooks/useDailyWheel.js?raw';
 import economyGatewaySource from '../../lib/dbGateway/economyGateway.js?raw';
 import diamondEconomySource from '../../lib/diamondEconomy.js?raw';
+import gameSoundsSource from '../../lib/gameSounds.js?raw';
 import economyRulesSource from '../../../docs/KRONOX_ECONOMY_RULES.md?raw';
 import releaseChecklistSource from '../../../docs/KRONOX_RELEASE_PROOF_CHECKLIST.md?raw';
 import { DAILY_WHEEL_BACKEND_HEALTH_SOURCE } from '@/lib/dailyWheelHealthMirror';
@@ -291,7 +292,7 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(`${dailyWheelHookSource}\n${dailyWheelCardSource}`, [
         'setLastResult(body)',
         'setShowResult(true)',
-        '+{formatDiamondCount(result.totalRewardAmount)} elmas kazandın',
+        '+{formatDiamondCount(result.totalRewardAmount)} Elmas kazandın',
         'Toplam Elmas',
         'updatedDiamondTotal',
       ]);
@@ -305,6 +306,113 @@ export const EXTRA_TESTS = [
       return pass('Successful Daily Wheel claim stores the result, opens the modal, shows reward text, and displays updated Elmas total.', {
         verification: 'STATIC_CONTRACT',
       });
+    }),
+
+  makeCase('daily_wheel_modal_shows_visible_reward_wheel',
+    'Daily Wheel modal shows a visible wheel with reward slices and fixed pointer',
+    () => {
+      const missing = missingTokens(dailyWheelCardSource, [
+        'RewardWheel',
+        'WHEEL_REWARD_SLICES = [10, 15, 20, 25, 30, 40, 50, 100]',
+        'conic-gradient',
+        'Günlük Çark ödül seçenekleri',
+        'borderTop: \'28px solid #f8fafc\'',
+        'center hub',
+      ]);
+      if (missing.length) {
+        return fail('Daily Wheel modal no longer proves a visible sliced wheel with a fixed pointer.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'src/components/dailyWheel/DailyWheelCard.jsx',
+          missing,
+        });
+      }
+      return pass('Daily Wheel modal has a sliced reward wheel, fixed pointer, and center hub.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('daily_wheel_spin_duration_and_button_lock',
+    'Daily Wheel spin duration is at least 4 seconds and button/close controls lock during spin',
+    () => {
+      const missing = missingTokens(dailyWheelCardSource, [
+        'WHEEL_SPIN_DURATION_MS = 4600',
+        'WHEEL_SPIN_DURATION_SECONDS',
+        'disableClose={hasReward && !revealReady}',
+        '<ModalButton disabled>Çevriliyor...</ModalButton>',
+        'setRevealReady(true)',
+      ]);
+      if (missing.length) {
+        return fail('Daily Wheel spin can reveal too early or remain closable/clickable during the landing spin.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'src/components/dailyWheel/DailyWheelCard.jsx',
+          missing,
+        });
+      }
+      return pass('Daily Wheel uses a 4.6s landing spin and keeps result/close controls disabled until reveal.', {
+        verification: 'STATIC_CONTRACT',
+        actual: { spinDurationMs: 4600 },
+      });
+    }),
+
+  makeCase('daily_wheel_result_uses_backend_reward_amount',
+    'Daily Wheel spin lands on and reveals the backend reward amount',
+    () => {
+      const missing = missingTokens(dailyWheelCardSource, [
+        'getWheelTargetRotation(result?.rewardAmount)',
+        'highlightAmount={revealReady ? result.rewardAmount : null}',
+        'result.totalRewardAmount',
+        'result.rewardAmount',
+        '7 günlük seri bonusu: +100 elmas',
+      ]);
+      if (missing.length) {
+        return fail('Daily Wheel visual result can drift from the backend reward payload.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'src/components/dailyWheel/DailyWheelCard.jsx',
+          missing,
+        });
+      }
+      return pass('Wheel landing target and reveal text are both derived from the claim result payload.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('daily_wheel_sound_safe_existing_infrastructure',
+    'Daily Wheel sound uses existing safe gameSounds infrastructure',
+    () => {
+      const missing = missingTokens(`${dailyWheelCardSource}\n${gameSoundsSource}`, [
+        'sounds.wheelSpinStart?.()',
+        'sounds.wheelTick?.()',
+        'sounds.rewardReveal?.()',
+        'wheelSpinStart()',
+        'wheelTick()',
+        'rewardReveal()',
+      ]);
+      const forbidden = forbiddenTokens(dailyWheelCardSource, [
+        'new Audio(',
+        '.mp3',
+        '.wav',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Daily Wheel sound is not using the existing optional sound infrastructure safely.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'src/components/dailyWheel/DailyWheelCard.jsx',
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('Daily Wheel attempts optional spin/reveal cues through gameSounds and adds no audio asset dependency.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('daily_wheel_already_claimed_does_not_fake_spin',
+    'Already-claimed Daily Wheel state does not fake a spin',
+    () => {
+      const alreadyIndex = safeStr(dailyWheelCardSource).indexOf(') : alreadyClaimed ? (');
+      const rewardIndex = safeStr(dailyWheelCardSource).indexOf(') : hasReward ? (');
+      const alreadyBlock = safeStr(dailyWheelCardSource).slice(alreadyIndex, safeStr(dailyWheelCardSource).indexOf(') : (', alreadyIndex));
+      const fakeSpin = alreadyBlock.includes('RewardWheel') || alreadyBlock.includes('Çark dönüyor');
+      if (alreadyIndex < 0 || rewardIndex < 0 || alreadyIndex <= rewardIndex || fakeSpin) {
+        return fail('Already-claimed branch can show fake spin UI instead of direct status copy.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'src/components/dailyWheel/DailyWheelCard.jsx',
+          actual: { alreadyIndex, rewardIndex, fakeSpin },
+        });
+      }
+      return pass('Already-claimed branch bypasses spin UI and shows the claimed/tomorrow status directly.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_claim_error_visible_recoverable',

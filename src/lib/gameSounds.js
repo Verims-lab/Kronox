@@ -110,4 +110,12 @@ export const sounds = {
 
   // Timer urgency tick
   urgencyTick() { playTone({ freq: 800, type: 'square', duration: 0.03, gain: 0.07, decay: 0.025 }); },
+
+  // Daily Wheel — tiny mechanical ticks while the visible wheel is spinning.
+  wheelSpinStart() { playTone({ freq: 300, freq2: 520, type: 'triangle', duration: 0.12, gain: 0.08, decay: 0.1 }); },
+  wheelTick() { playTone({ freq: 920, type: 'square', duration: 0.025, gain: 0.035, decay: 0.02 }); },
+  rewardReveal() {
+    playTone({ freq: 660, freq2: 1040, type: 'sine', duration: 0.16, gain: 0.14, decay: 0.14 });
+    setTimeout(() => playTone({ freq: 1320, type: 'triangle', duration: 0.13, gain: 0.09, decay: 0.11 }), 110);
+  },
 };
