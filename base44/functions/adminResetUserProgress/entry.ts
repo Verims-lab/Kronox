@@ -345,7 +345,7 @@ function buildResetPatch(mode: string, nowIso: string) {
     kronox_puan_total: 0,
     diamonds: 0,
     starter_bonus_granted_at: hardZero ? nowIso : '',
-    last_daily_diamond_reward_date: hardZero ? todayKey : '',
+    last_daily_diamond_reward_date: hardZero ? todayUtcKey() : '',
     daily_wheel_last_spin_at: hardZero ? nowIso : '',
     daily_wheel_last_spin_date: hardZero ? todayKey : '',
     daily_wheel_next_available_at: hardZero ? nextUtcDayIso(todayKey) : '',

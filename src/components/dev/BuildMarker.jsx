@@ -713,6 +713,11 @@ import React, { useEffect, useState } from 'react';
 //     stale-lobby guard — unchanged.
 //   • Push opt-in, missing VAPID, no-subscription, expired-skip — unchanged.
 //   • Toast / header bell / Online pending list logic — unchanged.
+// Codex188 — Admin reset hard-zero daily Diamond guard:
+//   • adminResetUserProgress hard_zero now exposes the exact
+//     last_daily_diamond_reward_date: hardZero ? todayUtcKey() contract that
+//     prevents same-day daily-login Diamond re-grants after a zero reset.
+//
 // Codex187 — Daily Wheel result polish:
 //   • Daily Wheel claim now always resolves to reward, already-claimed, or
 //     visible retry/error modal instead of silently returning to ready state.
@@ -760,7 +765,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex187';
+const BUILD_MARKER = 'Codex188';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
