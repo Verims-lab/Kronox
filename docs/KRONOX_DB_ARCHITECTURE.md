@@ -67,7 +67,7 @@ Implemented now:
   - `cleanupAdminMaintenanceLog`
 - Modular Health coverage for the DB architecture implementation contracts.
 
-Implemented/scaffolded now:
+Implemented now:
 
 - `QuestionAttemptEvent` best-effort gateway writes exist. Codex197 enables
   Solo runtime `shown`, `answered`, `swapped_out`, and `replacement_shown`
@@ -75,6 +75,13 @@ Implemented/scaffolded now:
   and question selection rules are unchanged.
 - Cleanup jobs are implemented as callable backend functions. Automatic
   scheduling is not enabled here.
+
+Scaffolded now:
+
+- Online question analytics write coverage is documented/scaffolded only; no
+  Online runtime `QuestionAttemptEvent` write point is enabled yet.
+- Platform unique indexes and live runtime proof are tracked as manual
+  deployment proof, not repo-enforced Health PASS.
 
 Platform/manual configuration still required:
 

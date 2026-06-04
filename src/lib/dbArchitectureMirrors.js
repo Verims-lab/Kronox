@@ -63,6 +63,10 @@ Implemented now:
 - Solo runtime writes shown, answered, swapped_out, and replacement_shown events.
 - aggregateQuestionStats counts shown/replacement_shown, answered, and swapped_out event types separately.
 
+Scaffolded now:
+- Online gameplay analytics write coverage is documented/scaffolded only; no Online runtime QuestionAttemptEvent write point is enabled yet.
+- Platform unique indexes and live runtime proof are tracked as manual deployment proof, not repo-enforced Health PASS.
+
 Deferred/manual proof:
 - Online gameplay analytics write coverage remains future work.
 - Deployed email delivery, RLS probes, and high-volume analytics write proof remain manual/NOT_AUTOMATABLE.
