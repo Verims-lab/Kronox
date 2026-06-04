@@ -734,6 +734,12 @@ import React, { useEffect, useState } from 'react';
 //   • Mirrors Solo Jokers v1 as free/no-inventory helpers that do not grant
 //     Kronox Puan.
 //
+// Codex195 — Daily Wheel cleanup docs contract:
+//   • Makes admin reset/account deletion Daily Wheel cleanup wording explicit
+//     in the economy rules and release proof checklist for Health.
+//   • Confirms existing admin reset clears Daily Wheel guard fields and
+//     account deletion anonymizes retained DailyWheelSpin rows.
+//
 // Codex193 — Daily Wheel claim/grant hardening:
 //   • claimDailyWheelReward no longer fails the normal claim path when the
 //     optional DailyWheelSpin ledger create is unavailable; User.diamonds is
@@ -808,7 +814,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex194';
+const BUILD_MARKER = 'Codex195';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

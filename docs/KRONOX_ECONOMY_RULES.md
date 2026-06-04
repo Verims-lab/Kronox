@@ -361,6 +361,10 @@ Account deletion rules:
 * Retained OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the deleted user.
 * account deletion must not grant or spend Diamonds.
 
+Daily Wheel deletion cleanup contract:
+
+* Retained OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the deleted user.
+
 ---
 
 # 11. Admin Progress Reset
@@ -399,6 +403,12 @@ new_player
 * allows the normal app-entry economy bootstrap to grant starter + daily Diamonds again
 
 Both modes write `User.progress_reset_at` so local user progress mirrors are invalidated and server state wins after refresh/reopen.
+
+Daily Wheel admin reset cleanup contract:
+
+* clears Daily Wheel guard fields
+* removes target `DailyWheelSpin` rows
+* reset must not delete the user account or authentication identity
 
 ---
 

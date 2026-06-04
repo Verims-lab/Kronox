@@ -259,6 +259,7 @@ Checklist:
 * Public leaderboard row for the test account is removed or anonymized.
 * Retained OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the deleted user's email.
 * Retained OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the deleted user.
+* Daily Wheel deletion cleanup contract: Retained OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the deleted user.
 * Another user's account/data is not deleted.
 * `/account-deletion` public page copy matches the in-app flow.
 
@@ -310,6 +311,7 @@ Checklist:
 * `Hard zero reset` sets `daily_wheel_last_spin_date` to the current UTC day and clears Daily Wheel guard fields.
 * `New player reset` sets visible progress to starting state and allows normal starter/daily Diamond bootstrap plus Daily Wheel availability on next app entry.
 * `New player reset` clears Daily Wheel guard fields and removes target `DailyWheelSpin` rows.
+* Daily Wheel admin reset cleanup contract: clears Daily Wheel guard fields.
 * Target user account and login/auth identity remain intact.
 * Target user local Solo progress mirror is invalidated by `progress_reset_at` after refresh/reopen.
 * AdminMaintenanceLog records admin email, target email, mode, timestamp, and result.
