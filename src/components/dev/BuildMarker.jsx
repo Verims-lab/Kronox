@@ -726,6 +726,13 @@ import React, { useEffect, useState } from 'react';
 //   • Hata Affı shields one wrong placement, Kart Değiştir swaps from the
 //     prebuilt deck, and Zaman Dondur freezes Solo elapsed time for 10s.
 //
+// Codex191 — Solo result popup timing + spacing fix:
+//   • Solo success/failure result time now starts from the completion
+//     snapshot and applies only completed/active Zaman Dondur freeze offsets,
+//     so stale effective-timer refs cannot show impossible 00:02 results.
+//   • Success popup nudges the Kazanılan Puan and Hata Sayısı values closer
+//     to their Puan/Hata labels without changing result logic.
+//
 // Codex190 — Daily Wheel UX upgrade:
 //   • Daily Wheel modal now shows a large visible reward wheel with eight
 //     Diamond slices, fixed pointer, and center hub.
@@ -781,7 +788,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex190';
+const BUILD_MARKER = 'Codex191';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
