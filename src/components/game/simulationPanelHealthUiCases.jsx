@@ -6,6 +6,7 @@
 
 import simulationPanelSource from './SimulationPanel.jsx?raw';
 import simulationReportActionsSource from './health/SimulationReportActions.jsx?raw';
+import simulationSuiteSummarySource from './health/SimulationSuiteSummary.jsx?raw';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
 
 const STATUS = {
@@ -163,6 +164,29 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Health report puts summary counts before blocker/detail/raw JSON sections.', { verification: 'STATIC_CONTRACT', actionType: ACTION_TYPES.CODE_FIX });
+    }),
+
+  makeCase('last_run_card_uses_real_fail_count',
+    'Last Run summary card displays report FAIL count instead of score value',
+    () => {
+      const src = safeStr(simulationSuiteSummarySource);
+      const missing = missingTokens(src, [
+        'deriveLastRunFailCount',
+        'lastRun?.counts?.[STATUS.FAIL]',
+        'lastRun.cases.filter(item => item?.status === STATUS.FAIL).length',
+        'lastRun.suiteSummary.reduce',
+        '{deriveLastRunFailCount(lastRun)} / {lastRun.score?.rating',
+      ]);
+      const forbidden = src.includes('lastRun.score.value') ? ['lastRun.score.value'] : [];
+      if (missing.length || forbidden.length) {
+        return fail('Last Run card can still show score value instead of real FAIL count.', {
+          verification: 'STATIC_CONTRACT',
+          actionType: ACTION_TYPES.CODE_FIX,
+          missing,
+          forbidden,
+        });
+      }
+      return pass('Last Run card prefers report.counts.FAIL and keeps rating/build marker from the run.', { verification: 'STATIC_CONTRACT', actionType: ACTION_TYPES.CODE_FIX });
     }),
 
   makeCase('mobile_health_report_runtime_proof_needed',

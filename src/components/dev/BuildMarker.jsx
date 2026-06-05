@@ -780,6 +780,14 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps card layout, borders, sizing, spacing, drag/drop, timeline,
 //     scoring, timer, jokers, and gameplay behavior unchanged.
 //
+// Codex229 — Health final fail + Last Run summary fix:
+//   • SoloJokerBar now exposes a truthful grid grid-cols-3 transparent
+//     layout wrapper while keeping rectangular joker containers removed.
+//   • Health Last Run summary now displays the report FAIL count from
+//     counts/cases/suiteSummary instead of score.value.
+//   • Keeps circle/icon/badge/label joker contract, one-use behavior,
+//     gameplay logic, scoring, timer, and manual Health proof status intact.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1083,7 +1091,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex228';
+const BUILD_MARKER = 'Codex229';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

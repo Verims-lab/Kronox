@@ -56,7 +56,7 @@ export default function SoloJokerBar({
 
   return (
     <div className="flex-shrink-0 px-4 pt-0.5">
-      <div className="mx-auto grid w-full max-w-[280px] grid-cols-3 gap-0">
+      <div className="mx-auto grid grid-cols-3 w-full max-w-[280px] gap-0">
         {JOKERS.map(({ type, label, icon: Icon, accent, glow }) => {
           const isRecentlyUsed = recentlyUsedType === type;
           const isLocked = disabled || jokerConsumed;
