@@ -750,6 +750,14 @@ import React, { useEffect, useState } from 'react';
 //   • Preserves one-use attempt rule, joker effects, gameplay background,
 //     drag/drop, timer, scoring, Online, and Daily Wheel.
 //
+// Codex225 — Solo gameplay parchment card surfaces:
+//   • Adds a shared old-paper/aged-parchment surface style for Solo gameplay
+//     question cards and year-only placed timeline cards.
+//   • Keeps card dimensions, rounded shapes, placement, drag/drop, timer,
+//     scoring, joker behavior, and Online/media card behavior unchanged.
+//   • Tunes only paper-surface text contrast so the main question and year
+//     remain readable on mobile.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1053,7 +1061,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex224';
+const BUILD_MARKER = 'Codex225';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

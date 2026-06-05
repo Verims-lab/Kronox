@@ -2,6 +2,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { sounds } from '@/lib/gameSounds';
 import { Play, Pause, Globe, Landmark, FlaskConical, Trophy, Palette, Cpu, Music, BookOpen, Zap, Rocket, Building2, HeartPulse, Leaf, Film } from 'lucide-react';
+import {
+  OLD_PAPER_BOTTOM_BAR_BACKGROUND,
+  OLD_PAPER_CARD_BACKGROUND,
+  OLD_PAPER_INSET_SHADOW,
+  OLD_PAPER_MUTED_TEXT_COLOR,
+  OLD_PAPER_TEXT_COLOR,
+} from './cardSurfaceStyles';
 // Codex153 — Deezer preview proxy removed for security. Music questions
 // no longer fetch a live preview URL at runtime; if a question carries a
 // pre-stored `media_url`, the card still renders the song title/artist +
@@ -141,6 +148,7 @@ export default function QuestionCard({
   const hasAlbumArt = question?.media_url && !imgError;
   const isMuzik = question?.type === 'muzik';
   const isGorsel = question?.type === 'gorsel';
+  const useOldPaperSurface = soloReadableCard && !hasAlbumArt;
 
   // For muzik: show title (song name) + artist from question text
   const lines = (question?.question || '').split('\n');
@@ -184,11 +192,13 @@ export default function QuestionCard({
         minHeight: 240,
         background: hasAlbumArt 
           ? 'transparent'
-          : 'linear-gradient(160deg, #0f1428 0%, #0a0f23 100%)',
+          : useOldPaperSurface
+            ? OLD_PAPER_CARD_BACKGROUND
+            : 'linear-gradient(160deg, #0f1428 0%, #0a0f23 100%)',
         border: `2px solid ${neon.border}`,
         boxShadow: isDraggingNow
-          ? `0 0 36px ${neon.glow}, 0 0 16px ${neon.glow}, 0 12px 32px rgba(0,0,0,0.6)`
-          : `0 0 20px ${neon.glow}, 0 0 8px ${neon.glow}`,
+          ? `0 0 36px ${neon.glow}, 0 0 16px ${neon.glow}, 0 12px 32px rgba(0,0,0,0.6)${useOldPaperSurface ? `, ${OLD_PAPER_INSET_SHADOW}` : ''}`
+          : `0 0 20px ${neon.glow}, 0 0 8px ${neon.glow}${useOldPaperSurface ? `, ${OLD_PAPER_INSET_SHADOW}` : ''}`,
         touchAction: draggable ? 'none' : 'auto',
         transition: 'box-shadow 0.15s ease',
       }}
@@ -273,6 +283,7 @@ export default function QuestionCard({
                 lineHeight: soloReadableCard ? 1.2 : 1.3,
                 fontWeight: soloReadableCard ? 600 : 700,
                 letterSpacing: soloReadableCard ? SOLO_READABLE_QUESTION_LETTER_SPACING : '0',
+                color: useOldPaperSurface ? OLD_PAPER_TEXT_COLOR : '#ffffff',
                 textWrap: 'balance',
                 overflowWrap: 'break-word',
                 display: '-webkit-box',
@@ -305,7 +316,9 @@ export default function QuestionCard({
                 style={{
                   fontSize: soloReadableCard ? 10 : 9,
                   fontWeight: soloReadableCard ? 600 : 400,
-                  color: soloReadableCard ? 'rgba(255,255,255,0.68)' : 'rgba(255,255,255,0.5)',
+                  color: useOldPaperSurface
+                    ? 'rgba(55,43,29,0.78)'
+                    : soloReadableCard ? 'rgba(255,255,255,0.68)' : 'rgba(255,255,255,0.5)',
                 }}
               >
                 {artistName}
@@ -342,9 +355,19 @@ export default function QuestionCard({
           {/* Bottom bar — year hint */}
           <div
             className="w-full flex items-center justify-center py-2"
-            style={{ borderTop: `1px solid ${neon.border}30` }}
+            style={{
+              background: useOldPaperSurface ? OLD_PAPER_BOTTOM_BAR_BACKGROUND : undefined,
+              borderTop: useOldPaperSurface ? '1px solid rgba(96,58,18,0.24)' : `1px solid ${neon.border}30`,
+            }}
           >
-            <p className="font-inter text-center" style={{ fontSize: 9, color: neon.border, opacity: 0.7 }}>
+            <p
+              className="font-inter text-center"
+              style={{
+                fontSize: 9,
+                color: useOldPaperSurface ? OLD_PAPER_MUTED_TEXT_COLOR : neon.border,
+                opacity: useOldPaperSurface ? 0.86 : 0.7,
+              }}
+            >
               Bu olay ne zaman gerçekleşti?
             </p>
           </div>
