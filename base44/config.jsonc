@@ -1,5 +1,6 @@
 {
   "name": "Kronox ",
+  "functionsDir": "./functions",
   "site": {
     "installCommand": "npm install",
     "buildCommand": "npm run build",

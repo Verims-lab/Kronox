@@ -13,6 +13,7 @@
 import adminAuthSource from '../../../base44/functions/_shared/adminAuth.ts?raw';
 import adminUserEntitySource from '../../../base44/entities/AdminUser.jsonc?raw';
 import getAdminStatusSource from '../../../base44/functions/getAdminStatus/entry.ts?raw';
+import getAdminStatusConfigSource from '../../../base44/functions/getAdminStatus/function.jsonc?raw';
 import generateTechDocSource from '../../../base44/functions/generateTechDoc/entry.ts?raw';
 import generateWorkflowDocSource from '../../../base44/functions/generateWorkflowDoc/entry.ts?raw';
 import seedQuestionCategoriesSource from '../../../base44/functions/seedQuestionCategories/entry.ts?raw';
@@ -111,6 +112,7 @@ const TARGET_FUNCTIONS = [
   { name: 'sendQuestionAnalyticsReportEmail', source: sendQuestionAnalyticsReportEmailSource },
   { name: 'aggregateQuestionStats', source: aggregateQuestionStatsSource },
   { name: 'cancelStaleLobbies', source: cancelStaleLobbiesSource },
+  { name: 'getAdminStatus', source: getAdminStatusSource },
   { name: 'getQuestions', source: getQuestionsSource },
 ];
 
@@ -237,6 +239,7 @@ export const EXTRA_TESTS = [
       const missing = [];
       const allowedAlternatives = new Map([
         ['getQuestions', 'isAuthorizedAdmin'],
+        ['getAdminStatus', 'getAdminAuthorization'],
       ]);
       for (const fn of TARGET_FUNCTIONS) {
         const src = safeStr(fn.source);
@@ -330,14 +333,14 @@ export const EXTRA_TESTS = [
     'admin_ui_uses_backend_status_hint',
     'Settings and test-suite admin UI consume backend AdminUser status without exposing AdminUser rows',
     () => {
-      const combined = `${getAdminStatusSource}\n${authContextSource}\n${adminSource}\n${settingsPageSource}\n${testSuitePageSource}`;
+      const combined = `${getAdminStatusSource}\n${getAdminStatusConfigSource}\n${authContextSource}\n${adminSource}\n${settingsPageSource}\n${testSuitePageSource}`;
       const required = [
-        '/getAdminStatus',
+        '"name": "getAdminStatus"',
+        '"entry": "entry.ts"',
         "invokeFunctionJson('getAdminStatus'",
         'unwrapFunctionBody',
         'value.data',
         'value.data.data',
-        "fetchFunctionJson('/getAdminStatus'",
         'getAdminAuthorization',
         'getCurrentAdminStatus',
         'withAdminStatus',
@@ -364,7 +367,7 @@ export const EXTRA_TESTS = [
         return fail('Admin UI status is not clearly backed by the AdminUser status function.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
-          expected: 'AuthContext enriches current user through /getAdminStatus; Settings/TestSuite use that user for UI gating.',
+          expected: 'AuthContext enriches current user through getAdminStatus; Settings/TestSuite use that user for UI gating.',
           actual: { missing: required },
           actionType: ACTION_TYPES.CODE_FIX,
         });
@@ -393,11 +396,12 @@ export const EXTRA_TESTS = [
         'hasAdminStatusShape',
         'admin_status_shape_missing',
         'response_parse_error',
-        "fetchFunctionJson('/getAdminStatus'",
         "invokeFunctionJson('getAdminStatus'",
         'statusFunction: \'getAdminStatus\'',
         'entities?.AdminUser',
-      ].filter((token) => !`${adminSource}\n${getAdminStatusSource}\n${adminAuthSource}`.includes(token));
+        '"name": "getAdminStatus"',
+        '"entry": "entry.ts"',
+      ].filter((token) => !`${adminSource}\n${getAdminStatusSource}\n${getAdminStatusConfigSource}\n${adminAuthSource}`.includes(token));
       if (forbiddenAdminSource.length || required.length) {
         return fail('Admin status can still call getQuestions or parse non-admin payloads.', {
           verification: 'STATIC_CONTRACT',

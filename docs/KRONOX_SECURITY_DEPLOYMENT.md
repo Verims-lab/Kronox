@@ -115,6 +115,10 @@ backend-only current-user admin status check: `getAdminStatus`. The
 status source. The client must not query or list `AdminUser` rows directly.
 Runtime proof must verify the app is not pinned to a stale Base44
 `functions_version` that predates the `getAdminStatus` function.
+Callable path: `base44/functions/getAdminStatus/entry.ts` with
+`base44/functions/getAdminStatus/function.jsonc` (`name: "getAdminStatus"`,
+`entry: "entry.ts"`). Frontend invocation is
+`base44.functions.invoke("getAdminStatus", {})`.
 
 Accepted admin indicators:
 
