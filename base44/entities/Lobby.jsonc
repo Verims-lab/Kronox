@@ -180,7 +180,8 @@
   ],
   "rls": {
     "create": {
-      "created_by_id": "{{user.id}}"
+      "created_by_id": "{{user.id}}",
+      "data.host_email": "{{user.email}}"
     },
     "read": {
       "$or": [
