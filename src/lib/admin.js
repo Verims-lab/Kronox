@@ -21,10 +21,17 @@ function withoutAdminPermission(user) {
   };
 }
 
+function unwrapFunctionBody(value) {
+  if (!value) return null;
+  if (value.data && typeof value.data === 'object') return value.data;
+  return value;
+}
+
 async function readAdminStatus() {
   try {
     const invoked = await base44.functions.invoke('getAdminStatus', {});
-    if (invoked && typeof invoked === 'object') return invoked;
+    const body = unwrapFunctionBody(invoked);
+    if (body && typeof body === 'object') return body;
   } catch (_invokeError) {
     // Fall back to the direct fetch path below; both paths are backend-gated.
   }
@@ -48,7 +55,7 @@ export async function withAdminStatus(user) {
       is_admin: isAdmin,
       permissions: isAdmin ? [...permissions, 'admin'] : permissions,
       admin_role: isAdmin ? (body?.role || 'admin') : '',
-      admin_status_source: 'AdminUser',
+      admin_status_source: body?.source || 'AdminUser',
     };
   } catch (_error) {
     return withoutAdminPermission(user);

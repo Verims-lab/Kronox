@@ -750,6 +750,14 @@ import React, { useEffect, useState } from 'react';
 //     on the current-user AdminUser status hint; AdminUser rows remain private
 //     and are never listed by the client.
 //
+// Codex202 — AdminUser status response unwrap fix:
+//   • Fixes the runtime bug where withAdminStatus read the Axios response
+//     wrapper returned by Base44 functions.invoke instead of response.data,
+//     causing active AdminUser rows to be treated as non-admin.
+//   • Health now locks the invoke response unwrap contract so Settings admin
+//     tools can render for active AdminUser rows while normal users remain
+//     hidden and backend-blocked.
+//
 // Codex197 — Question analytics P3:
 //   • Wires Solo shown/answered/Kart Değiştir events to private
 //     QuestionAttemptEvent rows through a best-effort gateway.
@@ -862,7 +870,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex201';
+const BUILD_MARKER = 'Codex202';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
