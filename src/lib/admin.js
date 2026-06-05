@@ -105,8 +105,7 @@ function parseAdminStatusBody(user, body, meta = {}) {
     Object.prototype.hasOwnProperty.call(body || {}, 'is_admin') ||
     Object.prototype.hasOwnProperty.call(body || {}, 'admin') ||
     body?.source === 'AdminUser' ||
-    body?.statusFunction === 'getAdminStatus' ||
-    body?.statusFunction === 'getQuestions.admin_status'
+    body?.statusFunction === 'getAdminStatus'
   );
   if (!hasAdminStatusShape) {
     return adminStatusBase(user, {
@@ -189,8 +188,6 @@ export async function getCurrentAdminStatus(user) {
   if (!base.normalizedEmail) return adminStatusBase(user);
 
   const attempts = [
-    () => fetchFunctionJson('/getQuestions', { action: 'admin_status', adminStatus: true }),
-    () => invokeFunctionJson('getQuestions', { action: 'admin_status', adminStatus: true }),
     () => fetchFunctionJson('/getAdminStatus', {}),
     () => invokeFunctionJson('getAdminStatus', {}),
   ];

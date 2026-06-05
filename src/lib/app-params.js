@@ -34,6 +34,26 @@ const getAppParamValue = (paramName, { defaultValue = undefined, removeFromUrl =
 	return null;
 }
 
+const getFreshFunctionVersion = () => {
+	if (isNode) {
+		return import.meta.env.VITE_BASE44_FUNCTIONS_VERSION;
+	}
+	const storageKey = 'base44_functions_version';
+	const urlParams = new URLSearchParams(window.location.search);
+	const searchParam = urlParams.get('functions_version');
+	if (searchParam) {
+		storage.setItem(storageKey, searchParam);
+		return searchParam;
+	}
+	const defaultValue = import.meta.env.VITE_BASE44_FUNCTIONS_VERSION;
+	if (defaultValue) {
+		storage.setItem(storageKey, defaultValue);
+		return defaultValue;
+	}
+	storage.removeItem(storageKey);
+	return null;
+}
+
 const getAppParams = () => {
 	if (getAppParamValue("clear_access_token") === 'true') {
 		storage.removeItem('base44_access_token');
@@ -43,7 +63,7 @@ const getAppParams = () => {
 		appId: getAppParamValue("app_id", { defaultValue: import.meta.env.VITE_BASE44_APP_ID }),
 		token: getAppParamValue("access_token", { removeFromUrl: true }),
 		fromUrl: getAppParamValue("from_url", { defaultValue: '/' }),
-		functionsVersion: getAppParamValue("functions_version", { defaultValue: import.meta.env.VITE_BASE44_FUNCTIONS_VERSION }),
+		functionsVersion: getFreshFunctionVersion(),
 		appBaseUrl: getAppParamValue("app_base_url", { defaultValue: import.meta.env.VITE_BASE44_APP_BASE_URL }),
 	}
 }

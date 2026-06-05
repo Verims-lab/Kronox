@@ -110,12 +110,11 @@ isAdminUser(user)
 ```
 
 The authenticated app must first enrich the current user through the
-backend-only current-user admin status check. Current deployed route:
-`getQuestions` with `action: "admin_status"`; this returns only the current
-user's `AdminUser` authorization status and never question rows. The dedicated
-`getAdminStatus` function mirror remains in repo, but the deployed platform
-route must be verified before switching the frontend to it. The client must
-not query or list `AdminUser` rows directly.
+backend-only current-user admin status check: `getAdminStatus`. The
+`getQuestions` question projection endpoint must never be used as an admin
+status source. The client must not query or list `AdminUser` rows directly.
+Runtime proof must verify the app is not pinned to a stale Base44
+`functions_version` that predates the `getAdminStatus` function.
 
 Accepted admin indicators:
 

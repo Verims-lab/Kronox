@@ -201,8 +201,9 @@ export const EXTRA_TESTS = [
         'getAdminAuthorization',
         'requireAdmin',
         'base44.auth.me()',
-        'entities.AdminUser',
-        '.filter({ email }',
+        'entities?.AdminUser',
+        'FIELD_CANDIDATES',
+        '.filter({ [field]: email }',
         'status',
         'active',
         'owner',
@@ -336,10 +337,6 @@ export const EXTRA_TESTS = [
         'unwrapFunctionBody',
         'value.data',
         'value.data.data',
-        "fetchFunctionJson('/getQuestions'",
-        "invokeFunctionJson('getQuestions'",
-        "action: 'admin_status'",
-        "statusFunction: 'getQuestions.admin_status'",
         "fetchFunctionJson('/getAdminStatus'",
         'getAdminAuthorization',
         'getCurrentAdminStatus',
@@ -382,10 +379,13 @@ export const EXTRA_TESTS = [
 
   makeCase(
     'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
-    'admin_status_uses_registered_status_route',
-    'Admin status uses a registered function action and rejects normal question projection responses',
+    'admin_status_does_not_use_get_questions_fallback',
+    'Admin status uses getAdminStatus and rejects question projection responses',
     () => {
       const forbiddenAdminSource = [
+        "fetchFunctionJson('/getQuestions'",
+        "invokeFunctionJson('getQuestions'",
+        "action: 'admin_status'",
         "statusFunction: 'getQuestions'",
         'authenticated_minimal_projection',
       ].filter((token) => safeStr(adminSource).includes(token));
@@ -393,26 +393,21 @@ export const EXTRA_TESTS = [
         'hasAdminStatusShape',
         'admin_status_shape_missing',
         'response_parse_error',
-        "fetchFunctionJson('/getQuestions'",
-        "invokeFunctionJson('getQuestions'",
-        "action: 'admin_status'",
-        "adminStatus: true",
-        "statusFunction: 'getQuestions.admin_status'",
         "fetchFunctionJson('/getAdminStatus'",
         "invokeFunctionJson('getAdminStatus'",
         'statusFunction: \'getAdminStatus\'',
-        'entities.AdminUser',
-      ].filter((token) => !`${adminSource}\n${getQuestionsSource}\n${getAdminStatusSource}\n${adminAuthSource}`.includes(token));
+        'entities?.AdminUser',
+      ].filter((token) => !`${adminSource}\n${getAdminStatusSource}\n${adminAuthSource}`.includes(token));
       if (forbiddenAdminSource.length || required.length) {
-        return fail('Admin status route or parser can still accept non-admin question payloads.', {
+        return fail('Admin status can still call getQuestions or parse non-admin payloads.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
-          expected: 'Registered getQuestions admin_status action and getAdminStatus both return AdminUser status payloads; normal question projections are rejected.',
+          expected: 'Only getAdminStatus/AdminUser status payloads can drive Settings admin UI.',
           actual: { forbiddenAdminSource, missing: required },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Admin status uses a registered AdminUser status route and rejects normal question projections.', {
+      return pass('Admin status only accepts dedicated getAdminStatus/AdminUser responses.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
