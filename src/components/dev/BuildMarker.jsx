@@ -750,6 +750,14 @@ import React, { useEffect, useState } from 'react';
 //     on the current-user AdminUser status hint; AdminUser rows remain private
 //     and are never listed by the client.
 //
+// Codex220 — Solo joker naming update:
+//   • Renames the mistake-shield joker from Hata Affı to Kronokalkan across
+//     Solo gameplay labels, active/protection messages, docs, and Health
+//     contracts.
+//   • Keeps Kart Değiştir and Zaman Dondur names, joker type keys,
+//     functionality, counts, styling, scoring, timer, drag/drop, and Timeline
+//     behavior unchanged.
+//
 // Codex219 — Solo result stat card alignment:
 //   • Shared SoloStatCard now normalizes the label row height so SÜRE/PUAN
 //     and HATA/HIZ BONUSU align consistently across success and failure.
@@ -1012,7 +1020,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex219';
+const BUILD_MARKER = 'Codex220';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

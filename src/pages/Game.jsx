@@ -886,7 +886,7 @@ export default function Game() {
       jokerUsedRef.current = true;
       setUsedJokerType('mistakeShield');
       setMistakeShieldActive(true);
-      setJokerMessage('Hata Affı aktif: Bir sonraki hata sayılmayacak.');
+      setJokerMessage('Kronokalkan aktif: Bir sonraki hata sayılmayacak.');
       return;
     }
 
@@ -998,7 +998,7 @@ export default function Game() {
       setSoloCorrectStreak(0);
       if (mistakeShieldActive) {
         setMistakeShieldActive(false);
-        setJokerMessage('Hata affedildi!');
+        setJokerMessage('Kronokalkan hatayı engelledi!');
         setJokerError('');
         return;
       }

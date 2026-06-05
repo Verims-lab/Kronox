@@ -61,20 +61,20 @@ export const EXTRA_TESTS = [
     'Solo gameplay renders the three v1 joker options',
     () => {
       const missing = missingTokens(soloJokerBarSource, [
-        'Hata Affı',
+        'Kronokalkan',
         'Kart Değiştir',
         'Zaman Dondur',
         'Jokerler • 1 hak',
         'Shield',
         'RefreshCw',
-        'Timer',
+        'Snowflake',
       ]);
       if (missing.length) return fail('SoloJokerBar lost one or more required joker options.', {
         verification: 'STATIC_CONTRACT',
         file: 'components/game/SoloJokerBar.jsx',
         missing,
       });
-      return pass('SoloJokerBar renders Hata Affı, Kart Değiştir, and Zaman Dondur.', { verification: 'STATIC_CONTRACT' });
+      return pass('SoloJokerBar renders Kronokalkan, Kart Değiştir, and Zaman Dondur.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('solo_jokers_one_use_per_attempt',
@@ -111,38 +111,38 @@ export const EXTRA_TESTS = [
       return pass('SoloJokerBar leaves all three jokers visible and disables the unused ones after a use.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('hata_affi_next_wrong_not_counted',
-    'Hata Affı absorbs the next wrong placement without incrementing mistakes',
+  makeCase('kronokalkan_next_wrong_not_counted',
+    'Kronokalkan absorbs the next wrong placement without incrementing mistakes',
     () => {
       const missing = missingTokens(gameSource, [
         "jokerType === 'mistakeShield'",
         'setMistakeShieldActive(true)',
         "feedback.result === 'wrong'",
         'if (mistakeShieldActive)',
-        'Hata affedildi!',
+        'Kronokalkan hatayı engelledi!',
         'setMistakeCount((prev) => prev + 1)',
       ]);
-      if (missing.length) return fail('Hata Affı no longer wraps wrong-feedback mistake counting.', {
+      if (missing.length) return fail('Kronokalkan no longer wraps wrong-feedback mistake counting.', {
         verification: 'STATIC_CONTRACT',
         file: 'pages/Game.jsx',
         missing,
       });
-      return pass('Wrong feedback consumes Hata Affı before mistake count increments.', { verification: 'STATIC_CONTRACT' });
+      return pass('Wrong feedback consumes Kronokalkan before mistake count increments.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('hata_affi_correct_does_not_consume',
-    'Correct placements do not consume Hata Affı',
+  makeCase('kronokalkan_correct_does_not_consume',
+    'Correct placements do not consume Kronokalkan',
     () => {
       const wrongIndex = safeStr(gameSource).indexOf("feedback.result === 'wrong'");
       const correctIndex = safeStr(gameSource).indexOf("feedback.result === 'correct'");
       const shieldIndex = safeStr(gameSource).indexOf('if (mistakeShieldActive)', wrongIndex);
       const shieldInWrongBranch = wrongIndex >= 0 && shieldIndex > wrongIndex && shieldIndex < correctIndex;
-      if (!shieldInWrongBranch) return fail('Hata Affı consumption is no longer scoped to the wrong-feedback branch.', {
+      if (!shieldInWrongBranch) return fail('Kronokalkan consumption is no longer scoped to the wrong-feedback branch.', {
         verification: 'STATIC_CONTRACT',
         file: 'pages/Game.jsx',
         actual: { wrongIndex, correctIndex, shieldIndex },
       });
-      return pass('Hata Affı is consumed only inside the wrong-feedback branch; correct feedback only updates streak.', { verification: 'STATIC_CONTRACT' });
+      return pass('Kronokalkan is consumed only inside the wrong-feedback branch; correct feedback only updates streak.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('kart_degistir_replaces_current_card',
@@ -289,7 +289,7 @@ export const EXTRA_TESTS = [
 
   makeCase('solo_jokers_runtime_proof_required',
     'Solo joker behavior still needs manual gameplay proof',
-    () => notAutomatable('Manual Solo run must verify touch layout, one-use state, Hata Affı, Kart Değiştir, and Zaman Dondur on a real gameplay screen.', {
+    () => notAutomatable('Manual Solo run must verify touch layout, one-use state, Kronokalkan, Kart Değiştir, and Zaman Dondur on a real gameplay screen.', {
       verification: 'MANUAL_RUNTIME_PROOF_REQUIRED',
       classification: 'NOT_AUTOMATABLE',
       actionType: ACTION_TYPES.HUMAN_RUNTIME_PROOF,
