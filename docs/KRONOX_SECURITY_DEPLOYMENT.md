@@ -100,8 +100,7 @@ Current source of truth:
   future admin-only tooling. Required row shape: normalized lowercase `email`,
   `role: "admin"`, `status: "active"`.
 * Bootstrap is manual: the project owner must create the first `owner`/`admin`
-  row in Base44 Data. There is no unsafe "if no admin exists, everyone is
-  admin" fallback.
+  row in Base44 Data. There is no unsafe "if no admin exists, everyone is admin" fallback.
 
 Client-side admin UI gating may use:
 

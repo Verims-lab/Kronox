@@ -39,8 +39,17 @@ Status: Active product contract.
 - getQuestions requires auth.
 - startLobbyGame requires authenticated host, no legacy guest, no client identity override.
 - Service-role usage is scoped to admin/maintenance backend functions.
-- Secrets (VAPID, admin emails) live in environment variables, never in client code.
-- admin-only maintenance functions verify role === 'admin'.
+- VAPID private key remains a real secret and must stay secret-managed.
+- Current source of truth for admin authorization is the private AdminUser entity.
+- Shared backend guard: base44/functions/_shared/adminAuth.ts.
+- Active AdminUser rows require normalized lowercase email, role: "admin" or owner, and status: "active".
+- Disabled/missing AdminUser rows are denied.
+- There is no unsafe "if no admin exists, everyone is admin" fallback.
+- Do not commit the personal admin emails to source.
+- Admin email env allowlists are not used for authorization.
+- Client admin UI consumes the backend getAdminStatus status hint; /getAdminStatus is the callable status path.
+- AdminUser rows remain private and are not listed by normal users.
+- admin-only maintenance functions verify AdminUser-backed authorization server-side.
 - account deletion is a destructive, NOT_AUTOMATABLE manual proof gate.
 - sendQuestionAnalyticsReportEmail is manual/admin-triggered only and sends HTML/table/bar formatted question analytics with text fallback.
 - admin reset retains question analytics rows; account deletion anonymizes user-owned analytics identity.
