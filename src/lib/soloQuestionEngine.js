@@ -105,9 +105,21 @@ function normalizeRecentIds(recentIds) {
 
 function normalizeAllowedCategoryIds(allowedMainCategoryIds) {
   if (!allowedMainCategoryIds) return null;
-  if (allowedMainCategoryIds instanceof Set) return allowedMainCategoryIds;
-  if (Array.isArray(allowedMainCategoryIds)) return new Set(allowedMainCategoryIds);
-  return null;
+  const values = allowedMainCategoryIds instanceof Set
+    ? Array.from(allowedMainCategoryIds)
+    : (Array.isArray(allowedMainCategoryIds) ? allowedMainCategoryIds : [allowedMainCategoryIds]);
+  const normalized = values
+    .map((value) => {
+      const raw = value && typeof value === 'object'
+        ? (value.main_category_id ?? value.category_id ?? value.categoryid ?? value.categoryId ?? value.id)
+        : value;
+      const numeric = Number(raw);
+      if (!Number.isFinite(numeric)) return null;
+      const id = Math.trunc(numeric);
+      return id > 0 ? String(id) : null;
+    })
+    .filter(Boolean);
+  return normalized.length ? new Set(normalized) : null;
 }
 
 function parseCleanNumericYear(value) {
@@ -134,8 +146,8 @@ function isActiveQuestion(question) {
 // stays with the data layer that builds the whitelist).
 function isInAllowedCategory(question, allowedMainCategoryIds) {
   if (!allowedMainCategoryIds || allowedMainCategoryIds.size === 0) return true;
-  const mid = Number(question?.main_category_id);
-  if (Number.isFinite(mid)) return allowedMainCategoryIds.has(mid);
+  const mid = Number(question?.main_category_id ?? question?.mainCategoryId ?? question?.category_id ?? question?.categoryid ?? question?.categoryId);
+  if (Number.isFinite(mid)) return allowedMainCategoryIds.has(String(Math.trunc(mid)));
   // Backward compat: rows without numeric main_category_id are accepted
   // only when the caller doesn't enforce a strict whitelist — but we are
   // here, so reject. The caller should backfill main_category_id during
@@ -226,11 +238,18 @@ function orderYearsForEraSpread(years, random) {
   return out;
 }
 
-function orderYearsForBeginnerSpacing(years, levelNumber) {
+function orderYearsForBeginnerSpacing(years, levelNumber, targetCountOverride = null) {
   const spacing = getBeginnerYearSpacingForLevel(levelNumber);
   if (!spacing || years.length === 0) return years;
 
-  const targetCount = Math.min(spacing.targetCount, years.length);
+  const requestedTarget = Number(targetCountOverride);
+  const targetCount = Math.min(
+    Math.max(
+      spacing.targetCount,
+      Number.isFinite(requestedTarget) ? Math.trunc(requestedTarget) : spacing.targetCount,
+    ),
+    years.length,
+  );
   const priorityYears = [];
   const prioritySet = new Set();
 
@@ -341,7 +360,7 @@ function orderDeckForBeginnerSpacing(deck, levelNumber, random, options = {}) {
 }
 
 function getCategoryKey(question) {
-  const cid = Number(question?.main_category_id);
+  const cid = Number(question?.main_category_id ?? question?.mainCategoryId ?? question?.category_id ?? question?.categoryid ?? question?.categoryId);
   return Number.isFinite(cid) ? `cat:${cid}` : 'cat:unknown';
 }
 
@@ -785,11 +804,16 @@ function selectUniqueYearDeck({
   random,
   levelNumber,
   balanceTargets,
+  earlyVisibleTargetCount,
 }) {
   const buckets = groupByYear(candidates);
   if (buckets.size < deckSize) return null; // not enough distinct years
 
-  const years = orderYearsForBeginnerSpacing(orderYearsForEraSpread(Array.from(buckets.keys()), random), levelNumber);
+  const years = orderYearsForBeginnerSpacing(
+    orderYearsForEraSpread(Array.from(buckets.keys()), random),
+    levelNumber,
+    earlyVisibleTargetCount,
+  );
   if (!years) return null;
   const deck = [];
   const usedIds = new Set();
@@ -800,7 +824,7 @@ function selectUniqueYearDeck({
       .sort((a, b) => years.indexOf(Number(a.year)) - years.indexOf(Number(b.year))),
     random,
   );
-  const priorityYears = years.slice(0, Math.min(FIRST_FIVE_SPACING_TARGET_COUNT, deckSize));
+  const priorityYears = years.slice(0, Math.min(earlyVisibleTargetCount || FIRST_FIVE_SPACING_TARGET_COUNT, deckSize));
 
   for (const year of priorityYears) {
     const bucket = buckets.get(year).filter((q) => !usedIds.has(q.id));
@@ -858,9 +882,10 @@ function selectUniqueYearDeck({
  * @param {Object} args
  * @param {Array}  args.pool                  Normalized question pool
  *                                            (questionRuntimeAdapter shape).
- * @param {Iterable<number>=} args.allowedMainCategoryIds
- *                                            Numeric main_category_id
- *                                            whitelist (active categories).
+ * @param {Iterable<number|string|Object>=} args.allowedMainCategoryIds
+ *                                            main_category_id / category_id
+ *                                            whitelist (active categories),
+ *                                            normalized before comparison.
  *                                            Omit / empty → no category gate.
  * @param {boolean=} args.requireActiveCategoryWhitelist
  *                                            When true, empty/missing active
@@ -913,7 +938,8 @@ export function buildSoloAttemptDeck(args = {}) {
   const candidates = filterCandidatePool(args.pool, allowedCats);
   const distinctYears = new Set(candidates.map((q) => Number(q.year))).size;
   const years = Array.from(new Set(candidates.map((q) => Number(q.year)).filter(Number.isFinite)));
-  const firstFiveSpacingPossible = canPickSpacedYears(years);
+  const earlyVisibleTargetCount = Math.min(deckSize, FIRST_FIVE_SPACING_TARGET_COUNT + seedCount);
+  const firstFiveSpacingPossible = canPickSpacedYears(years, earlyVisibleTargetCount);
 
   if (distinctYears >= deckSize && !firstFiveSpacingPossible) {
     return {
@@ -936,6 +962,7 @@ export function buildSoloAttemptDeck(args = {}) {
     random,
     balanceTargets,
     levelNumber: args.levelNumber,
+    earlyVisibleTargetCount,
   });
 
   // Tier 2 — relax recently-seen.
@@ -947,6 +974,7 @@ export function buildSoloAttemptDeck(args = {}) {
       random,
       balanceTargets,
       levelNumber: args.levelNumber,
+      earlyVisibleTargetCount,
     });
   }
 
@@ -969,6 +997,7 @@ export function buildSoloAttemptDeck(args = {}) {
         decadeCount: balanceTargets.decadeCount,
       },
       levelNumber: args.levelNumber,
+      earlyVisibleTargetCount,
     });
   }
 
