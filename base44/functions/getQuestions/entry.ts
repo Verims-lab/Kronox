@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { isAuthorizedAdmin } from '../_shared/adminAuth.ts';
 
 const KNOWN_CATEGORY_IDS = [1, 2, 3, 4, 5, 6];
 const MAX_GAMEPLAY_LIMIT = 500;
@@ -15,23 +16,6 @@ const ONLINE_ID_TO_MAIN_CATEGORY_ID: Record<string, number> = {
 
 function json(body: unknown, status = 200) {
   return Response.json(body, { status });
-}
-
-function normalizeEmail(value: unknown) {
-  return String(value || '').trim().toLowerCase();
-}
-
-function getConfiguredAdminEmails() {
-  const raw = Deno.env.get('ADMIN_EMAILS') || Deno.env.get('KRONOX_ADMIN_EMAILS') || '';
-  return raw.split(',').map(normalizeEmail).filter(Boolean);
-}
-
-function isAuthorizedAdmin(user: any) {
-  if (!user) return false;
-  if (user.role === 'admin' || user.is_admin === true) return true;
-  if (Array.isArray(user.permissions) && user.permissions.includes('admin')) return true;
-  const allowlist = getConfiguredAdminEmails();
-  return allowlist.length > 0 && allowlist.includes(normalizeEmail(user.email));
 }
 
 async function requireUser(base44: any) {
@@ -176,7 +160,7 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const wantsAdminBank = body?.scope === 'admin' || body?.fullBank === true || body?.includeInactive === true;
-    if (wantsAdminBank && !isAuthorizedAdmin(auth.user)) {
+    if (wantsAdminBank && !(await isAuthorizedAdmin(base44, auth.user))) {
       return json({ ok: false, error: 'Admin yetkisi gerekli.' }, 403);
     }
 

@@ -1,49 +1,9 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1';
+import { requireAdmin } from '../_shared/adminAuth.ts';
 
-// Codex157 — Hardcoded admin email literals removed. Admin authorization is
-// role/permission based, with ADMIN_EMAILS/KRONOX_ADMIN_EMAILS as a
-// deployment-secret fallback. Missing/empty config fails closed unless the
-// authenticated user has an admin role/permission.
-function authError(status, message) {
-  return Response.json({ error: message }, { status });
-}
-
-function normalizeEmail(value) {
-  return String(value || '').trim().toLowerCase();
-}
-
-function getConfiguredAdminEmails() {
-  const raw = Deno.env.get('ADMIN_EMAILS') || Deno.env.get('KRONOX_ADMIN_EMAILS') || '';
-  return raw.split(',').map(normalizeEmail).filter(Boolean);
-}
-
-function isAuthorizedAdmin(user) {
-  if (!user) return false;
-  if (user.role === 'admin' || user.is_admin === true) return true;
-  if (Array.isArray(user.permissions) && user.permissions.includes('admin')) return true;
-  const allowlist = getConfiguredAdminEmails();
-  return allowlist.length > 0 && allowlist.includes(normalizeEmail(user.email));
-}
-
-async function requireGenerateTechDocAdmin(base44) {
-  let user = null;
-  try {
-    user = await base44.auth.me();
-  } catch {
-    return { response: authError(401, 'Authentication required') };
-  }
-
-  if (!user?.email) {
-    return { response: authError(401, 'Authentication required') };
-  }
-
-  if (!isAuthorizedAdmin(user)) {
-    return { response: authError(403, 'Admin access required') };
-  }
-
-  return { user };
-}
+// Codex200 — Admin authorization is DB-backed via AdminUser and shared
+// backend guard. Admin email env allowlists are no longer used.
 
 // Turkce karakterleri ASCII'ye donustur (Helvetica Latin-1 ile uyumlu)
 function tr(text) {
@@ -64,7 +24,7 @@ function tr(text) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const auth = await requireGenerateTechDocAdmin(base44);
+    const auth = await requireAdmin(base44);
     if (auth.response) return auth.response;
 
     const pdfDoc = await PDFDocument.create();
@@ -413,7 +373,7 @@ Deno.serve(async (req) => {
     drawText('Eski lobi sohbeti icin tutulan entity. Aktif UI tarafindan KULLANILMAZ; chat UI tamamen kaldirildi (Test Suite "removed" kategorisi). Yeni ozellikler bu entity\'ye yazmamali; ihtiyac varsa once yeniden tasarim yapilmalidir.', { color: gray });
 
     subTitle('User (Base44 built-in)');
-    drawText('Yerlesik User entity. Admin yetkisi role=="admin", is_admin veya permissions icindeki admin izninden gelir. Backend fonksiyonlari gecici deployment allowlist icin ADMIN_EMAILS/KRONOX_ADMIN_EMAILS secret degerini okuyabilir; kaynak kodda manuel email kiyaslamasi yasaktir.');
+    drawText('Admin yetkisi AdminUser entity kaydindan gelir: email normalize edilir, status active olmali, role owner/admin olmali. Backend fonksiyonlari ortak AdminUser guard kullanir; admin email env allowlist artik yetkilendirme kaynagi degildir.');
 
     // ══════════════════════════════════════════════════════════════════════════
     // 6. DATA CONTRACTS
@@ -482,7 +442,7 @@ Deno.serve(async (req) => {
     drawText('Admin araclari. runTestSuite saf birim & senaryo testlerini sunucuda kosturur; simulateOnlineGame online akisi sahte oyuncularla bastan sona simule eder.');
 
     subTitle('generateTechDoc / generateWorkflowDoc');
-    drawText('Bu PDFler. Settings > Admin Araclari uzerinden indirilir. Yalnizca server tarafinda dogrulanmis admin (role/is_admin/permissions veya deployment secret allowlist) erisebilir. Cikti dosya adlari: "kronox-teknik-dokuman.pdf" ve "kronox-is-akisi.pdf".');
+    drawText('Bu PDFler. Settings > Admin Araclari uzerinden indirilir. Yalnizca server tarafinda AdminUser kaydiyla dogrulanmis aktif admin erisebilir. Cikti dosya adlari: "kronox-teknik-dokuman.pdf" ve "kronox-is-akisi.pdf".');
 
     subTitle('Diger');
     bullet('deleteAccount -- kullanici kendi hesabini sertce siler');

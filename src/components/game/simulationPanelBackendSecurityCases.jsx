@@ -4,6 +4,7 @@
 // probes still require real unauthenticated/non-admin/admin sessions.
 
 import generateTechDocSource from '../../../base44/functions/generateTechDoc/entry.ts?raw';
+import adminAuthSource from '../../../base44/functions/_shared/adminAuth.ts?raw';
 import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
 import questionEntitySource from '../../../base44/entities/Question.jsonc?raw';
 import useOfflineQuestionsSource from '../../hooks/useOfflineQuestions.js?raw';
@@ -64,13 +65,15 @@ export const EXTRA_TESTS = [
     'generateTechDoc authenticates server-side before generating internal docs',
     () => {
       const required = [
-        'async function requireGenerateTechDocAdmin',
-        'await base44.auth.me()',
-        "authError(401, 'Authentication required')",
+        'requireAdmin',
+        '../_shared/adminAuth.ts',
+        'base44.auth.me()',
+        '401',
         'if (auth.response) return auth.response',
         'PDFDocument.create()',
       ];
-      const missing = missingTokens(generateTechDocSource, required);
+      const combined = `${generateTechDocSource}\n${adminAuthSource}`;
+      const missing = missingTokens(combined, required);
       const guardBeforePdf = generateTechDocSource.indexOf('if (auth.response) return auth.response') < generateTechDocSource.indexOf('PDFDocument.create()');
       if (missing.length || !guardBeforePdf) {
         return fail('generateTechDoc can generate internal docs before server auth is proven.', {
@@ -90,17 +93,20 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('generate_tech_doc_requires_admin_authorization',
-    'generateTechDoc requires server-side admin role/permission or deployment-secret allowlist',
+    'generateTechDoc requires DB-backed server-side AdminUser authorization',
     () => {
       const required = [
-        'function isAuthorizedAdmin',
-        "user.role === 'admin'",
-        'user.is_admin === true',
-        "user.permissions.includes('admin')",
-        "Deno.env.get('ADMIN_EMAILS')",
-        "Deno.env.get('KRONOX_ADMIN_EMAILS')",
-        "authError(403, 'Admin access required')",
+        'requireAdmin',
+        '../_shared/adminAuth.ts',
+        'entities.AdminUser',
+        'status',
+        'active',
+        'owner',
+        'admin',
+        '403',
+        'Admin access required',
       ];
+      const combined = `${generateTechDocSource}\n${adminAuthSource}`;
       const forbidden = presentTokens(generateTechDocSource, [
         'req.json()',
         'body.isAdmin',
@@ -108,13 +114,13 @@ export const EXTRA_TESTS = [
         'admin: true',
         ['ADMIN', 'EMAIL ='].join('_'),
       ]);
-      const missing = missingTokens(generateTechDocSource, required);
+      const missing = missingTokens(combined, required);
       if (missing.length || forbidden.length) {
         return fail('generateTechDoc admin authorization contract drifted.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'base44/functions/generateTechDoc/entry.ts',
-          expected: 'server-side role/permission/admin secret allowlist authorization; no client-supplied admin flag or committed email',
+          expected: 'server-side AdminUser authorization; no client-supplied admin flag or committed email',
           actual: { missing, forbidden },
           actionType: ACTION_TYPES.CODE_FIX,
         });

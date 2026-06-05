@@ -88,17 +88,20 @@ The following must still work without push:
 
 Current source of truth:
 
-* Primary admin authority is the authenticated `User` profile fields:
-  `role === "admin"`, `is_admin === true`, or `permissions` containing
+* Backend admin authority is the `AdminUser` entity.
+* Shared backend guard: `base44/functions/_shared/adminAuth.ts`.
+* A caller is admin only when their authenticated email matches an
+  `AdminUser.email` row with `status === "active"` and `role` of `owner` or
   `admin`.
-* Backend functions may also use `ADMIN_EMAILS` / `KRONOX_ADMIN_EMAILS` as a
-  deployment-secret fallback allowlist. Keep this list in the deployment secret
-  manager, not in runtime source code.
-* To add new admins, prefer setting their `User.role` to `admin` or adding
-  `admin` to their permissions in the Base44 admin data console. If the role
-  update is not available, append the normalized addresses to
-  `KRONOX_ADMIN_EMAILS` in the deployed environment. Do not commit the personal
-  admin emails to source.
+* Admin email allowlists are not read from environment variables for
+  authorization. Legacy admin email env allowlists must not be used as admin
+  authorization secrets.
+* To add new admins, create `AdminUser` rows manually in Base44 Data or through
+  future admin-only tooling. Required row shape: normalized lowercase `email`,
+  `role: "admin"`, `status: "active"`.
+* Bootstrap is manual: the project owner must create the first `owner`/`admin`
+  row in Base44 Data. There is no unsafe "if no admin exists, everyone is
+  admin" fallback.
 
 Client-side admin UI gating may use:
 
@@ -112,23 +115,18 @@ Accepted admin indicators:
 * `is_admin === true`
 * `permissions` containing `admin`
 
-Backend admin-only functions must still enforce authorization server-side.
-
-Backend guard may also read deployment-secret allowlists:
-
-```text
-ADMIN_EMAILS
-KRONOX_ADMIN_EMAILS
-```
+Backend admin-only functions must still enforce authorization server-side with
+the shared AdminUser guard.
 
 Rules:
 
 * do not commit personal admin emails to source code
-* prefer role/permission based admin authorization
-* use email allowlists only as deployment fallback
+* do not use env-based admin email allowlists for authorization
+* keep `AdminUser` rows private/admin-only
 * never rely only on client-side admin UI visibility
 * unauthenticated admin-only calls should return 401
 * authenticated non-admin admin-only calls should return 403
+* disabled `AdminUser` rows must receive 403
 
 Admin-only maintenance helpers must also fail closed. The legacy one-off
 test-account progress reset helper requires both admin authorization and a
@@ -342,8 +340,9 @@ After deployment, verify:
 * unauthenticated admin-only calls return 401
 * authenticated non-admin admin-only calls return 403
 * authorized admins can still use intended admin tools
-* newly added admins can access the intended admin tools after their deployed
-  `User` role/permission or `KRONOX_ADMIN_EMAILS` allowlist entry is applied
+* newly added admins can access the intended admin tools after active
+  `AdminUser` rows are created
+* disabled `AdminUser` rows cannot access admin tools
 * normal users still cannot access Settings admin tools, `/test-suite`, Health
   Simulator, admin maintenance functions, or the question analytics report
   trigger by direct route

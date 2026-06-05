@@ -1,6 +1,7 @@
 import { useLocation } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
+import { isAdminUser, withAdminStatus } from '@/lib/admin';
 
 
 export default function PageNotFound({}) {
@@ -12,7 +13,8 @@ export default function PageNotFound({}) {
         queryFn: async () => {
             try {
                 const user = await base44.auth.me();
-                return { user, isAuthenticated: true };
+                const adminCheckedUser = await withAdminStatus(user);
+                return { user: adminCheckedUser, isAuthenticated: true };
             } catch (error) {
                 return { user: null, isAuthenticated: false };
             }
@@ -40,7 +42,7 @@ export default function PageNotFound({}) {
                     </div>
                     
                     {/* Admin Note */}
-                    {isFetched && authData.isAuthenticated && authData.user?.role === 'admin' && (
+                    {isFetched && authData.isAuthenticated && isAdminUser(authData.user) && (
                         <div className="mt-8 p-4 bg-slate-100 rounded-lg border border-slate-200">
                             <div className="flex items-start space-x-3">
                                 <div className="flex-shrink-0 w-5 h-5 rounded-full bg-orange-100 flex items-center justify-center mt-0.5">

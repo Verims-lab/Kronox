@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
+import { withAdminStatus } from '@/lib/admin';
 import { ensureDiamondEconomyForUser, getDiamondDailyKey } from '@/lib/diamondEconomy';
 import { applyUserProgressResetMarker } from '@/lib/progressResetCache';
 
@@ -64,6 +65,7 @@ export const AuthProvider = ({ children }) => {
             console.warn('[diamondEconomy] bootstrap grant skipped:', economyError?.message || economyError);
           }
         }
+        currentUser = await withAdminStatus(currentUser);
       }
 
       setUser(currentUser || null);

@@ -69,7 +69,7 @@ const normalizeMainCategoryId = (value: unknown): number | null => {
   return KNOWN_MAIN_CATEGORY_IDS.has(id) ? id : null;
 };
 
-const isAuthorizedAdmin = (user: any) => {
+const canSeeAdminDebug = (user: any) => {
   if (!user) return false;
   if (user.role === 'admin' || user.is_admin === true) return true;
   return Array.isArray(user.permissions) && user.permissions.includes('admin');
@@ -359,7 +359,7 @@ Deno.serve(async (req) => {
     const players = Array.isArray(lobby.players) ? lobby.players : [];
     const hostEmail = normalizeEmail(lobby.host_email);
     const authenticatedHost = Boolean(hostEmail && actorEmail === hostEmail);
-    const canSeeDebug = isAuthorizedAdmin(user);
+    const canSeeDebug = canSeeAdminDebug(user);
     const withDebug = (payload: Record<string, unknown>, debug: Record<string, unknown>) =>
       canSeeDebug ? { ...payload, debug } : payload;
 

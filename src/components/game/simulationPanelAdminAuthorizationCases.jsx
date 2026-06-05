@@ -1,38 +1,40 @@
-// Codex154 — Health/security contracts that lock in the removal of
-// hardcoded admin email literals from backend admin-only functions.
-//
-// Background: a security scan flagged three backend functions for using
-// hardcoded email addresses to gate admin access:
-//   • base44/functions/generateTechDoc/entry.ts
-//   • base44/functions/generateWorkflowDoc/entry.ts
-//   • base44/functions/seedQuestionCategories/entry.ts
-//
-// Fix: admin authorization now reads the comma-separated allowlist from
-// ADMIN_EMAILS/KRONOX_ADMIN_EMAILS env/secrets (trim + lowercase
-// normalization). Missing config fails closed unless the authenticated user
-// has an admin role/permission.
+// Codex200 — Health/security contracts for DB-backed admin authorization.
 //
 // This suite makes the regression detectable from Health Center:
 //   • No literal admin email string remains in the admin-only functions.
-//   • Each function reads Deno.env.get('KRONOX_ADMIN_EMAILS') and can also
-//     accept ADMIN_EMAILS as a deployment alias.
-//   • Each function still requires authentication (401 on missing user).
-//   • Each function still rejects non-admin authenticated users (403).
+//   • Admin authorization source-of-truth is the private AdminUser entity.
+//   • Backend admin-only functions use the shared AdminUser guard.
+//   • Admin email env allowlists are not used for authorization.
+//   • Runtime active/disabled AdminUser proof remains NOT_AUTOMATABLE.
 //
-// PASS proves the security finding is resolved. Any FAIL means a literal
-// admin email or a missing allowlist read regressed back into a function.
+// PASS proves static source contracts only. Deployed AdminUser rows and RLS
+// behavior must still be verified with real admin/non-admin accounts.
 
+import adminAuthSource from '../../../base44/functions/_shared/adminAuth.ts?raw';
+import adminUserEntitySource from '../../../base44/entities/AdminUser.jsonc?raw';
+import getAdminStatusSource from '../../../base44/functions/getAdminStatus/entry.ts?raw';
 import generateTechDocSource from '../../../base44/functions/generateTechDoc/entry.ts?raw';
 import generateWorkflowDocSource from '../../../base44/functions/generateWorkflowDoc/entry.ts?raw';
 import seedQuestionCategoriesSource from '../../../base44/functions/seedQuestionCategories/entry.ts?raw';
 import adminResetUserProgressSource from '../../../base44/functions/adminResetUserProgress/entry.ts?raw';
+import cleanupAdminMaintenanceLogSource from '../../../base44/functions/cleanupAdminMaintenanceLog/entry.ts?raw';
+import expireOldGameInvitesSource from '../../../base44/functions/expireOldGameInvites/entry.ts?raw';
+import expirePushSubscriptionsSource from '../../../base44/functions/expirePushSubscriptions/entry.ts?raw';
+import refreshLeaderboardProjectionSource from '../../../base44/functions/refreshLeaderboardProjection/entry.ts?raw';
+import resetTestAccountProgressSource from '../../../base44/functions/resetTestAccountProgress/entry.ts?raw';
+import sendQuestionAnalyticsReportEmailSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts?raw';
+import aggregateQuestionStatsSource from '../../../base44/functions/aggregateQuestionStats/entry.ts?raw';
+import cancelStaleLobbiesSource from '../../../base44/functions/cancelStaleLobbies/entry.ts?raw';
+import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
 import adminMaintenanceLogSchemaSource from '../../../base44/entities/AdminMaintenanceLog.jsonc?raw';
 import userSchemaSource from '../../../base44/entities/User.jsonc?raw';
 import securityDeploymentDocSource from '../../../docs/KRONOX_SECURITY_DEPLOYMENT.md?raw';
 import releaseProofChecklistSource from '../../../docs/KRONOX_RELEASE_PROOF_CHECKLIST.md?raw';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
+import testSuitePageSource from '../../pages/TestSuite.jsx?raw';
 import resetUserProgressToolSource from '../../components/admin/ResetUserProgressTool.jsx?raw';
 import authContextSource from '../../lib/AuthContext.jsx?raw';
+import adminSource from '../../lib/admin.js?raw';
 import progressResetCacheSource from '../../lib/progressResetCache.js?raw';
 
 export const EXTRA_SUITES = [
@@ -101,6 +103,25 @@ const TARGET_FUNCTIONS = [
   { name: 'generateWorkflowDoc', source: generateWorkflowDocSource },
   { name: 'seedQuestionCategories', source: seedQuestionCategoriesSource },
   { name: 'adminResetUserProgress', source: adminResetUserProgressSource },
+  { name: 'cleanupAdminMaintenanceLog', source: cleanupAdminMaintenanceLogSource },
+  { name: 'expireOldGameInvites', source: expireOldGameInvitesSource },
+  { name: 'expirePushSubscriptions', source: expirePushSubscriptionsSource },
+  { name: 'refreshLeaderboardProjection', source: refreshLeaderboardProjectionSource },
+  { name: 'resetTestAccountProgress', source: resetTestAccountProgressSource },
+  { name: 'sendQuestionAnalyticsReportEmail', source: sendQuestionAnalyticsReportEmailSource },
+  { name: 'aggregateQuestionStats', source: aggregateQuestionStatsSource },
+  { name: 'cancelStaleLobbies', source: cancelStaleLobbiesSource },
+  { name: 'getQuestions', source: getQuestionsSource },
+];
+
+const LEGACY_ADMIN_ENV_TOKENS = [
+  `Deno.env.get('${['ADMIN', 'EMAILS'].join('_')}')`,
+  `Deno.env.get("${['ADMIN', 'EMAILS'].join('_')}")`,
+  `Deno.env.get('${['KRONOX', 'ADMIN', 'EMAILS'].join('_')}')`,
+  `Deno.env.get("${['KRONOX', 'ADMIN', 'EMAILS'].join('_')}")`,
+  ['get', 'AdminEmails'].join(''),
+  ['get', 'ConfiguredAdminEmails'].join(''),
+  ['configured', 'EmailList'].join(''),
 ];
 
 export const EXTRA_TESTS = [
@@ -136,36 +157,166 @@ export const EXTRA_TESTS = [
     },
   ),
 
+  // 2) AdminUser exists and is the DB-backed source-of-truth.
+  makeCase(
+    'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
+    'admin_user_entity_exists',
+    'AdminUser entity exists with email, role, and active/disabled status fields',
+    () => {
+      const missing = [
+        'AdminUser',
+        '"email"',
+        '"role"',
+        '"owner"',
+        '"admin"',
+        '"status"',
+        '"active"',
+        '"disabled"',
+        '"rls"',
+      ].filter((token) => !safeStr(adminUserEntitySource).includes(token));
+      if (missing.length) {
+        return fail('AdminUser entity is missing the required DB-backed admin authorization fields.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'AdminUser email + role owner/admin + status active/disabled + private/admin RLS',
+          actual: { missing },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('AdminUser entity is present as the DB-backed admin source-of-truth.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+  ),
+
+  // 3) Shared AdminUser guard exists.
+  makeCase(
+    'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
+    'shared_admin_guard_uses_admin_user',
+    'Shared backend admin guard checks active AdminUser rows by normalized authenticated email',
+    () => {
+      const missing = [
+        'getAdminAuthorization',
+        'requireAdmin',
+        'base44.auth.me()',
+        'entities.AdminUser',
+        '.filter({ email }',
+        'status',
+        'active',
+        'owner',
+        'admin',
+        '403',
+      ].filter((token) => !safeStr(adminAuthSource).includes(token));
+      const forbidden = LEGACY_ADMIN_ENV_TOKENS.filter((token) => safeStr(adminAuthSource).includes(token));
+      if (missing.length || forbidden.length) {
+        return fail('Shared admin guard does not clearly use AdminUser as the backend source-of-truth.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'auth.me + service-role AdminUser lookup + active owner/admin role + 401/403 failures; no env email allowlist',
+          actual: { missing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Shared admin guard is AdminUser-backed and does not read admin email env allowlists.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+  ),
+
+  // 4) Affected functions use the shared guard.
+  makeCase(
+    'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
+    'admin_functions_use_shared_admin_guard',
+    'Admin-only functions import the shared AdminUser guard instead of local allowlists',
+    () => {
+      const missing = [];
+      const allowedAlternatives = new Map([
+        ['getQuestions', 'isAuthorizedAdmin'],
+      ]);
+      for (const fn of TARGET_FUNCTIONS) {
+        const src = safeStr(fn.source);
+        const helper = allowedAlternatives.get(fn.name) || 'requireAdmin';
+        if (!src.includes("../_shared/adminAuth.ts") || !src.includes(helper)) missing.push(fn.name);
+      }
+      if (missing.length) {
+        return fail('An admin-only function is not using the shared AdminUser guard.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'Import ../_shared/adminAuth.ts and call requireAdmin/isAuthorizedAdmin',
+          actual: { missingIn: missing },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Affected admin functions use the shared AdminUser guard.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+  ),
+
+  // 5) Env email allowlists are not used for authorization.
+  makeCase(
+    'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
+    'admin_email_env_allowlist_not_used',
+    'Admin authorization does not read admin email allowlists from environment variables',
+    () => {
+      const offenders = [];
+      for (const fn of TARGET_FUNCTIONS) {
+        const src = safeStr(fn.source);
+        const forbidden = LEGACY_ADMIN_ENV_TOKENS.filter((token) => src.includes(token));
+        if (forbidden.length) offenders.push({ function: fn.name, forbidden });
+      }
+      if (offenders.length) {
+        return fail('Admin email env allowlist usage remains in a protected backend function.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'No legacy admin email env reads for admin authorization',
+          actual: { offenders },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Protected backend functions no longer read admin email env allowlists.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+  ),
+
+  // 6) Admin source-of-truth is documented and bootstrapping stays manual.
   makeCase(
     'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
     'admin_source_of_truth_documented',
-    'Admin source-of-truth is documented as User role/permission plus deployment-secret allowlist fallback',
+    'Admin source-of-truth and bootstrap process are documented as AdminUser-backed',
     () => {
-      const combined = `${securityDeploymentDocSource}\n${releaseProofChecklistSource}\n${adminResetUserProgressSource}\n${settingsPageSource}`;
+      const combined = `${securityDeploymentDocSource}\n${releaseProofChecklistSource}`;
       const required = [
+        'AdminUser',
         'Current source of truth',
-        'role === "admin"',
-        'is_admin === true',
-        'permissions',
-        'ADMIN_EMAILS',
-        'KRONOX_ADMIN_EMAILS',
-        'Settings admin tools',
-        '/test-suite',
-        'Health Simulator',
-        'admin question analytics trigger',
-        'requested new admins',
-        'Do not commit the personal admin emails to source',
+        'Shared backend guard',
+        'active',
+        'disabled',
+        'role: "admin"',
+        'status: "active"',
+        'There is no unsafe "if no admin exists, everyone is admin" fallback',
+        'commit the personal admin emails to source',
+        'VAPID private key',
       ].filter((token) => !combined.includes(token));
       if (required.length) {
-        return fail('Admin source-of-truth or requested admin addition path is missing from docs/contracts.', {
+        return fail('AdminUser source-of-truth or bootstrap docs are incomplete.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
-          expected: 'Docs identify User role/permission as primary, env allowlist as fallback, and require the requested admin additions through deployment data/secrets.',
+          expected: 'Docs explain AdminUser source, manual bootstrap, add/remove process, disabled-admin proof, and VAPID remains a real secret.',
           actual: { missing: required },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Admin source-of-truth and requested admin addition path are documented without adding a hardcoded runtime email gate.', {
+      return pass('Admin source-of-truth and bootstrap process are documented as AdminUser-backed.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -174,151 +325,53 @@ export const EXTRA_TESTS = [
   ),
 
   makeCase(
-    'admin_authorization_hardening', 'new_admin_accounts_runtime_proof_needed',
-    'New admin accounts must be verified in the deployed User role/env allowlist source-of-truth',
-    () => notAutomatable('Repo code cannot prove deployed Base44 User.role/permissions or KRONOX_ADMIN_EMAILS secret contents. Verify both requested admin accounts can access Settings admin tools, /test-suite / Health Simulator, and the admin question analytics trigger while a normal account remains blocked.', {
+    'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
+    'admin_ui_uses_backend_status_hint',
+    'Settings and test-suite admin UI consume backend AdminUser status without exposing AdminUser rows',
+    () => {
+      const combined = `${getAdminStatusSource}\n${authContextSource}\n${adminSource}\n${settingsPageSource}\n${testSuitePageSource}`;
+      const required = [
+        '/getAdminStatus',
+        'getAdminAuthorization',
+        'withAdminStatus',
+        'admin_status_source',
+        'useAuth()',
+        'isAdminUser(user)',
+        'QuestionAnalyticsReportTool',
+        'ResetUserProgressTool',
+        'Regression Test Panel',
+      ].filter((token) => !combined.includes(token));
+      if (required.length) {
+        return fail('Admin UI status is not clearly backed by the AdminUser status function.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'AuthContext enriches current user through /getAdminStatus; Settings/TestSuite use that user for UI gating.',
+          actual: { missing: required },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Admin UI surfaces use the backend AdminUser status hint and still rely on backend guards for authority.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+  ),
+
+  makeCase(
+    'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
+    'new_admin_accounts_runtime_proof_needed',
+    'New admin accounts must be manually inserted and verified in AdminUser',
+    () => notAutomatable('Repo code cannot create deployed AdminUser rows. Manually create active AdminUser rows for the two requested admin emails, then verify active admins can access Settings admin tools, /test-suite / Health Simulator, and the admin question analytics trigger while normal and disabled-admin accounts remain blocked.', {
       verification: 'NOT_AUTOMATABLE',
       classification: 'DEPLOYMENT_RUNTIME_REQUIRED',
       verificationLabels: ['NOT_AUTOMATABLE', 'BACKEND_RUNTIME_PROBE', 'MANUAL_REQUIRED'],
       actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE,
       expected: {
-        adminSourceOfTruth: 'User.role/is_admin/permissions first; ADMIN_EMAILS/KRONOX_ADMIN_EMAILS deployment fallback only',
-        requestedAdmins: 'the two admin emails from the task; keep exact addresses in deployed User roles or KRONOX_ADMIN_EMAILS, not source code',
+        adminSourceOfTruth: 'AdminUser.email + role owner/admin + status active',
+        requestedAdminRows: 'two normalized lowercase emails from the task, role admin, status active',
       },
     }),
-  ),
-
-  // 2) Each function reads the KRONOX_ADMIN_EMAILS env/secret.
-  makeCase(
-    'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
-    'admin_allowlist_sourced_from_env',
-    'Each admin-only function reads its allowlist from Deno.env.get("KRONOX_ADMIN_EMAILS") / ADMIN_EMAILS',
-    () => {
-      const missing = [];
-      for (const fn of TARGET_FUNCTIONS) {
-        const src = safeStr(fn.source);
-        if (!src.includes("Deno.env.get('KRONOX_ADMIN_EMAILS')")
-          && !src.includes('Deno.env.get("KRONOX_ADMIN_EMAILS")')) {
-          missing.push(fn.name);
-        }
-      }
-      if (missing.length) {
-        return fail('An admin-only function does not read the KRONOX_ADMIN_EMAILS allowlist from env/secret.', {
-          verification: 'STATIC_CONTRACT',
-          classification: 'REAL_PRODUCT_RISK',
-          expected: 'Deno.env.get("KRONOX_ADMIN_EMAILS") in each function',
-          actual: { missingIn: missing },
-          actionType: ACTION_TYPES.CODE_FIX,
-        });
-      }
-      return pass('All admin-only functions read KRONOX_ADMIN_EMAILS from env/secret.', {
-        verification: 'STATIC_CONTRACT',
-        classification: 'STATIC_CHECK_LIMITATION',
-        actionType: ACTION_TYPES.CODE_FIX,
-      });
-    },
-  ),
-
-  // 3) Auth is still required: each function calls base44.auth.me().
-  makeCase(
-    'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
-    'auth_still_required',
-    'Each admin-only function still calls base44.auth.me() before granting access',
-    () => {
-      const missing = [];
-      for (const fn of TARGET_FUNCTIONS) {
-        const src = safeStr(fn.source);
-        if (!src.includes('base44.auth.me()')) missing.push(fn.name);
-      }
-      if (missing.length) {
-        return fail('An admin-only function no longer calls base44.auth.me().', {
-          verification: 'STATIC_CONTRACT',
-          classification: 'REAL_PRODUCT_RISK',
-          expected: 'base44.auth.me() in each function',
-          actual: { missingIn: missing },
-          actionType: ACTION_TYPES.CODE_FIX,
-        });
-      }
-      return pass('All admin-only functions still authenticate the caller.', {
-        verification: 'STATIC_CONTRACT',
-        classification: 'STATIC_CHECK_LIMITATION',
-        actionType: ACTION_TYPES.CODE_FIX,
-      });
-    },
-  ),
-
-  // 4) Each function still rejects non-admin authenticated users (403).
-  makeCase(
-    'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
-    'non_admin_rejected_with_403',
-    'Each admin-only function returns a 403 path for authenticated callers who are not admin',
-    () => {
-      const missing = [];
-      for (const fn of TARGET_FUNCTIONS) {
-        const src = safeStr(fn.source);
-        // Look for a 403 response anywhere in the source (each function uses
-        // its own response helper but all surface { status: 403 } literally).
-        if (!src.includes('403')) missing.push(fn.name);
-      }
-      if (missing.length) {
-        return fail('An admin-only function no longer returns 403 for non-admin callers.', {
-          verification: 'STATIC_CONTRACT',
-          classification: 'REAL_PRODUCT_RISK',
-          expected: '403 rejection path in each function',
-          actual: { missingIn: missing },
-          actionType: ACTION_TYPES.CODE_FIX,
-        });
-      }
-      return pass('All admin-only functions still reject non-admin callers with 403.', {
-        verification: 'STATIC_CONTRACT',
-        classification: 'STATIC_CHECK_LIMITATION',
-        actionType: ACTION_TYPES.CODE_FIX,
-      });
-    },
-  ),
-
-  // 5) Missing config fails closed. The allowlist parser must normalize to
-  //    an array and the auth check must NOT grant access from allowlist
-  //    unless allowlist.length > 0 and the caller email is included.
-  makeCase(
-    'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
-    'missing_config_fails_closed',
-    'When admin allowlist env is missing/empty, the gate only admits role/permission admins',
-    () => {
-      const offenders = [];
-      for (const fn of TARGET_FUNCTIONS) {
-        const src = safeStr(fn.source);
-        const hasArrayNormalization = src.includes('.split') && src.includes('.filter(Boolean)');
-        const hasAllowlistLengthGuard = src.includes('allowlist.length > 0');
-        const hasAdminRoleOrPermissionCheck = (
-          src.includes("role === 'admin'") ||
-          src.includes('is_admin === true') ||
-          src.includes("permissions.includes('admin')")
-        );
-        if (!hasArrayNormalization || !hasAllowlistLengthGuard || !hasAdminRoleOrPermissionCheck) {
-          offenders.push({
-            function: fn.name,
-            hasArrayNormalization,
-            hasAllowlistLengthGuard,
-            hasAdminRoleOrPermissionCheck,
-          });
-        }
-      }
-      if (offenders.length) {
-        return fail('An admin-only function does not provably fail closed when admin allowlist env is missing.', {
-          verification: 'STATIC_CONTRACT',
-          classification: 'REAL_PRODUCT_RISK',
-          expected: 'Normalized allowlist + allowlist.length guard + role/permission admin fallback',
-          actual: { offenders },
-          actionType: ACTION_TYPES.CODE_FIX,
-        });
-      }
-      return pass('Missing admin allowlist env fails closed in all admin-only functions.', {
-        verification: 'STATIC_CONTRACT',
-        classification: 'STATIC_CHECK_LIMITATION',
-        actionType: ACTION_TYPES.CODE_FIX,
-      });
-    },
   ),
 
   makeCase(

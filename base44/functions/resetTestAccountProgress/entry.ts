@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { requireAdmin } from '../_shared/adminAuth.ts';
 
 const MAX_ROWS = 50;
 
@@ -17,26 +18,11 @@ function getConfiguredEmails(name: string) {
     .filter(Boolean);
 }
 
-function getAdminEmails() {
-  return [
-    ...getConfiguredEmails('ADMIN_EMAILS'),
-    ...getConfiguredEmails('KRONOX_ADMIN_EMAILS'),
-  ];
-}
-
 function getResettableTestEmails() {
   return [
     ...getConfiguredEmails('KRONOX_TEST_RESET_EMAILS'),
     ...getConfiguredEmails('TEST_RESET_EMAILS'),
   ];
-}
-
-function isAuthorizedAdmin(user: any) {
-  if (!user) return false;
-  if (user.role === 'admin' || user.is_admin === true) return true;
-  if (Array.isArray(user.permissions) && user.permissions.includes('admin')) return true;
-  const allowlist = getAdminEmails();
-  return allowlist.length > 0 && allowlist.includes(normalizeEmail(user.email));
 }
 
 function ownerKeyFromEmail(rawEmail: unknown) {
@@ -141,19 +127,9 @@ Deno.serve(async (req) => {
     }
 
     const base44 = createClientFromRequest(req);
-    let actor = null;
-    try {
-      actor = await base44.auth.me();
-    } catch {
-      return json({ ok: false, code: 'unauthenticated', error: 'Giriş yapmanız gerekiyor.' }, 401);
-    }
-
-    if (!actor?.email) {
-      return json({ ok: false, code: 'unauthenticated', error: 'Giriş yapmanız gerekiyor.' }, 401);
-    }
-    if (!isAuthorizedAdmin(actor)) {
-      return json({ ok: false, code: 'forbidden', error: 'Bu işlem için yönetici yetkisi gerekiyor.' }, 403);
-    }
+    const adminAuth = await requireAdmin(base44);
+    if (adminAuth.response) return adminAuth.response;
+    const actor = adminAuth.user;
 
     const body = await req.json().catch(() => ({}));
     const targetEmail = normalizeEmail(body?.targetEmail || body?.email);

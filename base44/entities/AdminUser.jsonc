@@ -1,0 +1,79 @@
+{
+  "name": "AdminUser",
+  "type": "object",
+  "description": "DB-backed admin authorization source-of-truth. Backend admin guards check active AdminUser rows by normalized email through service role. Rows must never be public.",
+  "properties": {
+    "email": {
+      "type": "string",
+      "description": "Normalized lowercase admin email. Add/remove admins here instead of using env email allowlists."
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "owner",
+        "admin",
+        "viewer"
+      ],
+      "description": "Admin authorization role. Only owner/admin with active status pass backend admin guards."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "disabled"
+      ],
+      "default": "active",
+      "description": "Disabled rows do not pass admin authorization."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the admin row was created."
+    },
+    "created_by": {
+      "type": "string",
+      "description": "Admin email or platform actor that created the row."
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the admin row was last updated."
+    },
+    "updated_by": {
+      "type": "string",
+      "description": "Admin email or platform actor that last updated the row."
+    },
+    "notes": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional admin-only notes. Do not store secrets."
+    }
+  },
+  "required": [
+    "email",
+    "role",
+    "status"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

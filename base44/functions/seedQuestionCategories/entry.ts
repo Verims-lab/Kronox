@@ -1,9 +1,8 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { requireAdmin } from '../_shared/adminAuth.ts';
 
-// Codex157 — Hardcoded admin email literals removed. Admin authorization is
-// role/permission based, with ADMIN_EMAILS/KRONOX_ADMIN_EMAILS as a
-// deployment-secret fallback. Missing/empty config fails closed unless the
-// authenticated user has an admin role/permission.
+// Codex200 — Admin authorization is DB-backed via AdminUser and shared
+// backend guard. Admin email env allowlists are no longer used.
 // Codex158 — Category rows now carry status ('a' active / 'p' passive) and
 // optional description. All seeded categories start as active ('a').
 // Description is used as future tooltip/help text in category selection.
@@ -18,42 +17,6 @@ const QUESTION_CATEGORIES = [
 
 function json(body, status = 200) {
   return Response.json(body, { status });
-}
-
-function normalizeEmail(value) {
-  return String(value || '').trim().toLowerCase();
-}
-
-function getConfiguredAdminEmails() {
-  const raw = Deno.env.get('ADMIN_EMAILS') || Deno.env.get('KRONOX_ADMIN_EMAILS') || '';
-  return raw.split(',').map(normalizeEmail).filter(Boolean);
-}
-
-function isAuthorizedAdmin(user) {
-  if (!user) return false;
-  if (user.role === 'admin' || user.is_admin === true) return true;
-  if (Array.isArray(user.permissions) && user.permissions.includes('admin')) return true;
-  const allowlist = getConfiguredAdminEmails();
-  return allowlist.length > 0 && allowlist.includes(normalizeEmail(user.email));
-}
-
-async function requireAdmin(base44) {
-  let user = null;
-  try {
-    user = await base44.auth.me();
-  } catch {
-    return { response: json({ error: 'Authentication required' }, 401) };
-  }
-
-  if (!user?.email) {
-    return { response: json({ error: 'Authentication required' }, 401) };
-  }
-
-  if (!isAuthorizedAdmin(user)) {
-    return { response: json({ error: 'Admin access required' }, 403) };
-  }
-
-  return { user };
 }
 
 Deno.serve(async (req) => {
