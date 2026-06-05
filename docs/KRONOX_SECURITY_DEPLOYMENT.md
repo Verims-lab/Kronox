@@ -62,6 +62,10 @@ Configure this public client build value for browser subscription:
 VITE_KRONOX_VAPID_PUBLIC_KEY
 ```
 
+The backend push sender must read only the non-`VITE_` server names above.
+`VITE_` VAPID values are client-exposed by Vite and must never be used as
+backend VAPID private-key fallbacks.
+
 Rules:
 
 * never commit the VAPID private key
