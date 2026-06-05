@@ -47,7 +47,7 @@ const getInviteExpiry = (invite: any) => {
 function getVapidConfig() {
   return {
     subject: Deno.env.get('VAPID_SUBJECT') || Deno.env.get('KRONOX_VAPID_SUBJECT') || 'mailto:support@kronox.app',
-    publicKey: Deno.env.get('VAPID_PUBLIC_KEY') || Deno.env.get('KRONOX_VAPID_PUBLIC_KEY') || Deno.env.get('VITE_KRONOX_VAPID_PUBLIC_KEY') || '',
+    publicKey: Deno.env.get('VAPID_PUBLIC_KEY') || Deno.env.get('KRONOX_VAPID_PUBLIC_KEY') || '',
     privateKey: Deno.env.get('VAPID_PRIVATE_KEY') || Deno.env.get('KRONOX_VAPID_PRIVATE_KEY') || '',
   };
 }

@@ -166,6 +166,8 @@ export const EXTRA_TESTS = [
       const forbidden = [
         /privateKey\s*:\s*['"][^'"]{12,}['"]/,
         /publicKey\s*:\s*['"][^'"]{12,}['"]/,
+        /Deno\.env\.get\('VITE_[^']*VAPID[^']*'\)/,
+        /Deno\.env\.get\('VITE_[^']*(?:PRIVATE|SECRET|TOKEN)[^']*'\)/,
         privateKeyBlockPattern,
       ].filter((pattern) => pattern.test(sendGameInvitePushSource));
       const missing = missingTokens(sendGameInvitePushSource, required);
@@ -174,12 +176,12 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'base44/functions/sendGameInvitePush/entry.ts',
-          expected: 'VAPID keys read from Deno.env only; no literal key material',
+          expected: 'Server VAPID keys read from non-VITE Deno.env names only; no literal key material',
           actual: { missing, forbidden: forbidden.map(String) },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('VAPID keys are loaded from env/config and no literal key material is present.', {
+      return pass('VAPID keys are loaded from server env/config names and no literal or VITE-prefixed private-key fallback is present.', {
         verification: 'STATIC_CONTRACT',
         actionType: ACTION_TYPES.CODE_FIX,
       });
