@@ -750,6 +750,15 @@ import React, { useEffect, useState } from 'react';
 //     on the current-user AdminUser status hint; AdminUser rows remain private
 //     and are never listed by the client.
 //
+// Codex205 — AdminUser status source fix:
+//   • Removes getQuestions as an admin-status fallback after runtime showed
+//     the question projection could be parsed as a false admin status.
+//   • Settings admin status now accepts only dedicated getAdminStatus /
+//     AdminUser-shaped responses; unrelated function payloads become
+//     response_parse_error instead of no_admin_user_row.
+//   • getAdminStatus remains the sole frontend status endpoint and reads
+//     the AdminUser entity through the shared service-role admin guard.
+//
 // Codex204 — Settings AdminDebug-v4 runtime proof:
 //   • Settings now renders the temporary AdminDebug-v4 panel immediately
 //     under the Ayarlar header and before any admin-only conditional block.
@@ -891,7 +900,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex204';
+const BUILD_MARKER = 'Codex205';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
