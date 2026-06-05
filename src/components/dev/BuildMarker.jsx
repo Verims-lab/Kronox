@@ -750,6 +750,16 @@ import React, { useEffect, useState } from 'react';
 //     on the current-user AdminUser status hint; AdminUser rows remain private
 //     and are never listed by the client.
 //
+// Codex209 — Admin status stale function-catalog fix:
+//   • Removes the client-side functionsVersion pin passed into the Base44 SDK
+//     so functions.invoke("getAdminStatus") can resolve the current deployed
+//     callable catalog instead of a stale one that returns 404.
+//   • Clears the persisted base44_functions_version browser value during app
+//     param bootstrap to retire older URLs/builds that pinned function calls.
+//   • Keeps the callable getAdminStatus function under
+//     base44/functions/getAdminStatus/entry.ts with function.jsonc and keeps
+//     Settings invoking exactly getAdminStatus; no getQuestions fallback exists.
+//
 // Codex208 — Admin status callable registration fix:
 //   • Adds base44/functions/getAdminStatus/function.jsonc so Base44 has an
 //     explicit callable name/entry pair for getAdminStatus.
@@ -921,7 +931,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex208';
+const BUILD_MARKER = 'Codex209';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

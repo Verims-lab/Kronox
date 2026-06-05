@@ -259,7 +259,9 @@ Checklist:
   `base44/functions/getAdminStatus/function.jsonc` declaring
   `name: "getAdminStatus"` and `entry: "entry.ts"`.
 * Runtime proof must confirm the app is not using a stale persisted Base44
-  `functions_version` that returns 404 for `getAdminStatus`.
+  `functions_version` that returns 404 for `getAdminStatus`: the client must
+  not pass `functionsVersion` into `createClient`, and app bootstrap clears
+  stale `base44_functions_version` before invoking admin status.
 * Legacy admin email env allowlists are not used for authorization.
 * Add the requested new admins by creating `AdminUser` rows in Base44 Data:
   normalized lowercase `email`, `role: "admin"`, `status: "active"`. Do not

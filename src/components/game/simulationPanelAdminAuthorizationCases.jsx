@@ -36,6 +36,8 @@ import testSuitePageSource from '../../pages/TestSuite.jsx?raw';
 import resetUserProgressToolSource from '../../components/admin/ResetUserProgressTool.jsx?raw';
 import authContextSource from '../../lib/AuthContext.jsx?raw';
 import adminSource from '../../lib/admin.js?raw';
+import appParamsSource from '../../lib/app-params.js?raw';
+import base44ClientSource from '../../api/base44Client.js?raw';
 import progressResetCacheSource from '../../lib/progressResetCache.js?raw';
 
 export const EXTRA_SUITES = [
@@ -412,6 +414,38 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Admin status only accepts dedicated getAdminStatus/AdminUser responses.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+  ),
+
+  makeCase(
+    'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
+    'admin_status_not_pinned_to_stale_functions_version',
+    'Base44 function calls are not pinned to a stale functions_version catalog',
+    () => {
+      const forbidden = [
+        'functionsVersion',
+        'VITE_BASE44_FUNCTIONS_VERSION',
+        'Base44-Functions-Version',
+        'getFreshFunctionVersion',
+      ].filter((token) => `${base44ClientSource}\n${appParamsSource}`.includes(token));
+      const required = [
+        "storage.removeItem('base44_functions_version')",
+        "invokeFunctionJson('getAdminStatus'",
+      ].filter((token) => !`${base44ClientSource}\n${appParamsSource}\n${adminSource}`.includes(token));
+      if (forbidden.length || required.length) {
+        return fail('Admin status can still be pinned to a stale Base44 functions catalog.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'Base44 client omits functionsVersion and Settings invokes getAdminStatus by name.',
+          actual: { forbidden, missing: required },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Function calls are not pinned to a stale Base44 functions_version catalog.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
