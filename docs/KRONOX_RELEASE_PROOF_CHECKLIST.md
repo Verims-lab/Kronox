@@ -251,9 +251,11 @@ Checklist:
 * Authorized admins can still use admin tools.
 * Admin source-of-truth is the DB-backed `AdminUser` entity and shared backend
   guard `base44/functions/_shared/adminAuth.ts`.
-* Frontend admin UI visibility is based on the backend current-user
-  `getAdminStatus` check; `AdminUser` rows are not read/listed directly by the
-  client.
+* Frontend admin UI visibility is based on the backend current-user admin
+  status route. Current deployed route is `getQuestions` with
+  `action: "admin_status"` because the dedicated `getAdminStatus` route still
+  needs platform registration proof; `AdminUser` rows are not read/listed
+  directly by the client.
 * Legacy admin email env allowlists are not used for authorization.
 * Add the requested new admins by creating `AdminUser` rows in Base44 Data:
   normalized lowercase `email`, `role: "admin"`, `status: "active"`. Do not
