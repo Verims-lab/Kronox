@@ -29,8 +29,12 @@ import cancelStaleLobbiesSource from '../../../base44/functions/cancelStaleLobbi
 import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
 import adminMaintenanceLogSchemaSource from '../../../base44/entities/AdminMaintenanceLog.jsonc?raw';
 import userSchemaSource from '../../../base44/entities/User.jsonc?raw';
-import securityDeploymentDocSource from '../../../docs/KRONOX_SECURITY_DEPLOYMENT.md?raw';
-import releaseProofChecklistSource from '../../../docs/KRONOX_RELEASE_PROOF_CHECKLIST.md?raw';
+// Codex — Vite cannot `?raw`-import markdown outside /src on this host
+// (.md?raw breaks the build). Use the in-src JS doc mirrors instead.
+import {
+  SECURITY_DEPLOYMENT_DOC as securityDeploymentDocSource,
+  RELEASE_PROOF_CHECKLIST_DOC as releaseProofChecklistSource,
+} from '@/lib/healthAlignmentDocMirrors';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
 import testSuitePageSource from '../../pages/TestSuite.jsx?raw';
 import resetUserProgressToolSource from '../../components/admin/ResetUserProgressTool.jsx?raw';
