@@ -750,6 +750,14 @@ import React, { useEffect, useState } from 'react';
 //     on the current-user AdminUser status hint; AdminUser rows remain private
 //     and are never listed by the client.
 //
+// Codex216 — Solo result popup stat cleanup:
+//   • Solo success/failure result stat cards now use the shorter SÜRE,
+//     PUAN, and HATA labels.
+//   • Failure timeout state no longer shows a non-record "Maksimum" time
+//     footer, while success still reserves time footer copy for record badges.
+//   • Tightens Puan/Hata value-to-unit spacing without changing scoring,
+//     timer, stars, buttons, or Solo flow.
+//
 // Codex215 — Solo timeline duplicate year cleanup:
 //   • Solo placed timeline cards no longer show the duplicate year label
 //     above the card; the larger centered year inside the card remains.
@@ -984,7 +992,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex215';
+const BUILD_MARKER = 'Codex216';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

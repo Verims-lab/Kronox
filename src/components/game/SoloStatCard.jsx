@@ -21,8 +21,8 @@ import React from 'react';
  *   • Value sits directly under the label with minimal vertical gap so it
  *     reads as one block (fixes the "value floats away from label"
  *     complaint in the brief).
- *   • Optional footer (e.g. "Puan", "Hata", "Maksimum Süre: 02:00", or
- *     the YENİ REKOR badge) sits right under the value.
+ *   • Optional footer (e.g. "Puan", "Hata", or the YENİ REKOR badge)
+ *     sits right under the value.
  *
  * Sizing is identical to the previous individual implementations so
  * neither popup grows. Mobile safety:
