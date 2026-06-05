@@ -1,5 +1,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import {
+  OLD_PAPER_CARD_BACKGROUND,
+  OLD_PAPER_INSET_SHADOW,
+} from './cardSurfaceStyles';
 
 // Per-index neon colors cycling
 const cardColors = [
@@ -14,6 +18,7 @@ const cardColors = [
 export default function TimelineCard({ card, index, distanceFromCenter = 0, yearOnly = false }) {
   const stackCount = card.stackCount || 1;
   const color = cardColors[index % cardColors.length];
+  const yearOnlyBackground = OLD_PAPER_CARD_BACKGROUND;
   // Subtle de-emphasis for cards far from the center viewport (max 30% opacity reduction)
   const fadeOpacity = Math.max(0.7, 1 - Math.min(distanceFromCenter, 1) * 0.3);
 
@@ -28,7 +33,7 @@ export default function TimelineCard({ card, index, distanceFromCenter = 0, year
         <>
           <div className="absolute rounded-2xl" style={{
             inset: 0,
-            background: 'rgba(15,20,40,0.9)',
+            background: yearOnly ? yearOnlyBackground : 'rgba(15,20,40,0.9)',
             border: `1.5px solid ${color.border}`,
             transform: 'translate(4px, 4px)',
             opacity: 0.4,
@@ -36,7 +41,7 @@ export default function TimelineCard({ card, index, distanceFromCenter = 0, year
           }} />
           <div className="absolute rounded-2xl" style={{
             inset: 0,
-            background: 'rgba(15,20,40,0.9)',
+            background: yearOnly ? yearOnlyBackground : 'rgba(15,20,40,0.9)',
             border: `1.5px solid ${color.border}`,
             transform: 'translate(8px, 8px)',
             opacity: 0.2,
@@ -54,10 +59,12 @@ export default function TimelineCard({ card, index, distanceFromCenter = 0, year
           width: 80,
           minHeight: 110,
           background: card.media_url
-            ? (yearOnly ? `linear-gradient(160deg, rgba(15,20,40,0.95) 0%, rgba(10,15,35,0.98) 100%)` : 'transparent')
-            : `linear-gradient(160deg, rgba(15,20,40,0.95) 0%, rgba(10,15,35,0.98) 100%)`,
+            ? (yearOnly ? yearOnlyBackground : 'transparent')
+            : (yearOnly ? yearOnlyBackground : `linear-gradient(160deg, rgba(15,20,40,0.95) 0%, rgba(10,15,35,0.98) 100%)`),
           border: `2px solid ${color.border}`,
-          boxShadow: `0 0 12px ${color.border}50, 0 0 4px ${color.border}30`,
+          boxShadow: yearOnly
+            ? `0 0 12px ${color.border}50, 0 0 4px ${color.border}30, ${OLD_PAPER_INSET_SHADOW}`
+            : `0 0 12px ${color.border}50, 0 0 4px ${color.border}30`,
           padding: yearOnly ? 0 : (card.media_url ? '0' : '8px 6px 6px'),
           overflow: 'hidden',
           justifyContent: yearOnly ? 'center' : undefined,
@@ -73,7 +80,8 @@ export default function TimelineCard({ card, index, distanceFromCenter = 0, year
                 lineHeight: 1,
                 maxWidth: '100%',
                 textAlign: 'center',
-                textShadow: `0 0 10px ${color.border}66, 0 2px 0 rgba(0,0,0,0.38)`,
+                textShadow: `0 1px 0 rgba(255,255,255,0.34), 0 2px 0 rgba(67,39,12,0.24), 0 0 6px ${color.border}38`,
+                WebkitTextStroke: '0.25px rgba(67,39,12,0.42)',
               }}
             >
               {card.year}
