@@ -750,6 +750,15 @@ import React, { useEffect, useState } from 'react';
 //     on the current-user AdminUser status hint; AdminUser rows remain private
 //     and are never listed by the client.
 //
+// Codex221 — Health Center alignment after recent changes:
+//   • Refreshes the Health doc mirror for DB-backed AdminUser authorization,
+//     /getAdminStatus, no env admin allowlist, and no unsafe bootstrap
+//     fallback.
+//   • Keeps AdminDebug-v4 absent from production Settings while Health checks
+//     the real backend status gate and current Solo/Daily Wheel contracts.
+//   • Leaves gameplay, economy, analytics data shape, drag/drop, scoring, and
+//     backend admin guards unchanged.
+//
 // Codex220 — Solo joker naming update:
 //   • Renames the mistake-shield joker from Hata Affı to Kronokalkan across
 //     Solo gameplay labels, active/protection messages, docs, and Health
@@ -1020,7 +1029,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex220';
+const BUILD_MARKER = 'Codex221';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
