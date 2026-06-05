@@ -367,9 +367,11 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(dailyWheelCardSource, [
         'RewardWheel',
         'WHEEL_REWARD_SLICES = [10, 15, 20, 25, 30, 40, 50, 100]',
+        'WHEEL_SLICE_COLORS',
         'conic-gradient',
         'Günlük Çark ödül seçenekleri',
-        'borderTop: \'28px solid #f8fafc\'',
+        'borderTop: \'34px solid #fde68a\'',
+        'rimLights',
         'center hub',
       ]);
       if (missing.length) {
@@ -387,7 +389,10 @@ export const EXTRA_TESTS = [
     () => {
       const missing = missingTokens(dailyWheelCardSource, [
         'WHEEL_SPIN_DURATION_MS = 4600',
+        'WHEEL_REDUCED_MOTION_DURATION_MS = 900',
         'WHEEL_SPIN_DURATION_SECONDS',
+        'WHEEL_SPIN_KEYFRAME_TIMES',
+        'useReducedMotion',
         'disableClose={hasReward && !revealReady}',
         '<ModalButton disabled>Çevriliyor...</ModalButton>',
         'setRevealReady(true)',
@@ -409,7 +414,7 @@ export const EXTRA_TESTS = [
     'Daily Wheel spin lands on and reveals the backend reward amount',
     () => {
       const missing = missingTokens(dailyWheelCardSource, [
-        'getWheelTargetRotation(result?.rewardAmount)',
+        'getWheelTargetRotation(result?.rewardAmount, prefersReducedMotion)',
         'highlightAmount={revealReady ? result.rewardAmount : null}',
         'result.totalRewardAmount',
         'result.rewardAmount',
@@ -475,7 +480,7 @@ export const EXTRA_TESTS = [
         'setShowPrompt(false)',
         'setShowResult(true)',
         'role="alert"',
-        'Çark ödülü alınamadı.',
+        'Çark çevrilemedi. Lütfen tekrar dene.',
         'daily_wheel_request_failed',
         'Tekrar dene',
       ]);
