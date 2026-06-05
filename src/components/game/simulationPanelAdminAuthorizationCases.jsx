@@ -333,6 +333,8 @@ export const EXTRA_TESTS = [
       const required = [
         '/getAdminStatus',
         "functions.invoke('getAdminStatus'",
+        'unwrapFunctionBody',
+        'value.data',
         "functions.fetch('/getAdminStatus'",
         'getAdminAuthorization',
         'withAdminStatus',
