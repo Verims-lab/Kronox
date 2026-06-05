@@ -1,24 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import SimulationPanel from '@/components/game/SimulationPanel';
 import { isAdminUser } from '@/lib/admin';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function TestSuite() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
-  const [loadingUser, setLoadingUser] = useState(true);
+  const { user, isLoadingAuth } = useAuth();
 
-  useEffect(() => {
-    base44.auth.me()
-      .then(u => setUser(u || null))
-      .catch(() => setUser(null))
-      .finally(() => setLoadingUser(false));
-  }, []);
-
-  if (loadingUser) {
+  if (isLoadingAuth) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-6 h-6 text-primary animate-spin" />

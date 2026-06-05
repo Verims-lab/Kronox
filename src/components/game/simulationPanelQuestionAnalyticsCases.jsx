@@ -13,6 +13,7 @@ import questionAnalyticsReportToolSource from '../admin/QuestionAnalyticsReportT
 import deleteAccountSource from '../../../base44/functions/deleteAccount/entry.ts?raw';
 import questionAttemptEventEntitySource from '../../../base44/entities/QuestionAttemptEvent.jsonc?raw';
 import questionStatsProjectionEntitySource from '../../../base44/entities/QuestionStatsProjection.jsonc?raw';
+import adminAuthSource from '../../../base44/functions/_shared/adminAuth.ts?raw';
 import aggregateQuestionStatsSource from '../../../base44/functions/aggregateQuestionStats/entry.ts?raw';
 import reportFunctionSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts?raw';
 import {
@@ -171,10 +172,12 @@ export const EXTRA_TESTS = [
     'Manual admin email report function is admin-only and question-focused',
     () => {
       const sectionMissing = QUESTION_ANALYTICS_REPORT_SECTIONS.filter((section) => !reportFunctionSource.includes(section));
-      const missing = missingTokens(reportFunctionSource, [
+      const combined = `${reportFunctionSource}\n${adminAuthSource}`;
+      const missing = missingTokens(combined, [
         'sendQuestionAnalyticsReportEmail',
         'requireAdmin',
-        'isAuthorizedAdmin',
+        '../_shared/adminAuth.ts',
+        'entities.AdminUser',
         'QuestionAttemptEvent.list',
         'Question.list',
         'Category.list',

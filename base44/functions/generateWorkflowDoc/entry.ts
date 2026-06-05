@@ -1,22 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 import { PDFDocument, rgb, StandardFonts } from 'npm:pdf-lib@1.17.1';
-
-function normalizeEmail(value) {
-  return String(value || '').trim().toLowerCase();
-}
-
-function getConfiguredAdminEmails() {
-  const raw = Deno.env.get('ADMIN_EMAILS') || Deno.env.get('KRONOX_ADMIN_EMAILS') || '';
-  return raw.split(',').map(normalizeEmail).filter(Boolean);
-}
-
-function isAuthorizedAdmin(user) {
-  if (!user) return false;
-  if (user.role === 'admin' || user.is_admin === true) return true;
-  if (Array.isArray(user.permissions) && user.permissions.includes('admin')) return true;
-  const allowlist = getConfiguredAdminEmails();
-  return allowlist.length > 0 && allowlist.includes(normalizeEmail(user.email));
-}
+import { requireAdmin } from '../_shared/adminAuth.ts';
 
 function toAscii(str) {
   return str
@@ -33,18 +17,8 @@ function toAscii(str) {
 
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
-  let user = null;
-  try {
-    user = await base44.auth.me();
-  } catch {
-    return Response.json({ error: 'Authentication required' }, { status: 401 });
-  }
-  if (!user) {
-    return Response.json({ error: 'Authentication required' }, { status: 401 });
-  }
-  if (!isAuthorizedAdmin(user)) {
-    return Response.json({ error: 'Admin access required' }, { status: 403 });
-  }
+  const auth = await requireAdmin(base44);
+  if (auth.response) return auth.response;
 
   const pdfDoc = await PDFDocument.create();
   const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -220,7 +194,7 @@ Deno.serve(async (req) => {
   drawBullet('Hesap silme, kisisel rekor (GameRecord) ve En Iyi 5 listesini gorur.');
   drawBullet('Soru/Test/Doc araclarina erisemez.');
 
-  drawHeading2('2.3 Admin (role/is_admin/permissions veya deployment secret allowlist)');
+  drawHeading2('2.3 Admin (AdminUser DB kaydi)');
   drawBullet('Settings > Admin Araclari menusu acilir.');
   drawBullet('Soru ekleyebilir / duzenleyebilir.');
   drawBullet('Teknik dokuman ve Is Akisi PDFlerini indirebilir.');

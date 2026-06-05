@@ -23,7 +23,7 @@ import {
   selectLeaderboardSections,
   toSoloLeaderboardEntry,
 } from '@/lib/leaderboard';
-import { isAdminUser } from '@/lib/admin';
+import { isAdminUser, withAdminStatus } from '@/lib/admin';
 import KronoxRankingSection from '@/components/leaderboard/KronoxRankingSection';
 // Phase 3 — Codex123 UI consolidation. Profile + Leaderboard now share
 // one StatTile. Compact variant matches the previous lighter look used
@@ -82,8 +82,9 @@ export default function LeaderboardPage() {
           setUser(null);
           return;
         }
-        const normalizedProgress = await ensureSoloProgressBackfill(u);
-        setUser({ ...u, solo_progress: normalizedProgress });
+        const adminCheckedUser = await withAdminStatus(u);
+        const normalizedProgress = await ensureSoloProgressBackfill(adminCheckedUser);
+        setUser({ ...adminCheckedUser, solo_progress: normalizedProgress });
       })
       .catch(() => setUser(null))
       .finally(() => setAuthChecked(true));

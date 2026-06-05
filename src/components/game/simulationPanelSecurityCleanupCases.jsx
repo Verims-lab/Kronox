@@ -6,11 +6,12 @@
 // - VAPID keys are read from deployment secrets/config, never hardcoded.
 // - Missing VAPID config skips push only; the persisted in-app invite flow
 //   remains available.
-// - Admin access is role/permission/config based; no personal email is
-//   committed as an admin backdoor.
+// - Admin access is DB-backed through the private AdminUser source-of-truth;
+//   no personal email or env allowlist is committed as an admin backdoor.
 
 import adminSource from '../../lib/admin.js?raw';
 import gameInviteSelectorsSource from '../../lib/gameInviteSelectors.js?raw';
+import adminAuthSource from '../../../base44/functions/_shared/adminAuth.ts?raw';
 import sendGameInvitePushSource from '../../../base44/functions/sendGameInvitePush/entry.ts?raw';
 import generateTechDocSource from '../../../base44/functions/generateTechDoc/entry.ts?raw';
 import generateWorkflowDocSource from '../../../base44/functions/generateWorkflowDoc/entry.ts?raw';
@@ -34,6 +35,7 @@ const ACTION_TYPES = {
 const LIVE_SOURCES = [
   adminSource,
   gameInviteSelectorsSource,
+  adminAuthSource,
   sendGameInvitePushSource,
   generateTechDocSource,
   generateWorkflowDocSource,
@@ -230,24 +232,27 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('admin_access_role_or_config_based',
-    'Admin gates use role/permission fields or deployment-secret allowlist',
+    'Admin gates use DB-backed AdminUser authority plus client status hint',
     () => {
       const requiredBackend = [
-        'function getConfiguredAdminEmails',
-        "Deno.env.get('ADMIN_EMAILS')",
-        "Deno.env.get('KRONOX_ADMIN_EMAILS')",
-        'function isAuthorizedAdmin',
-        "user.role === 'admin'",
-        'user.is_admin === true',
-        "user.permissions.includes('admin')",
+        'requireAdmin',
+        "../_shared/adminAuth.ts",
+        'entities.AdminUser',
+        'status',
+        'active',
+        'owner',
+        'admin',
       ];
       const requiredClient = [
         'function isAdminUser',
         "user.role === 'admin'",
         'user.is_admin === true',
         "user.permissions.includes('admin')",
+        'withAdminStatus',
+        '/getAdminStatus',
       ];
       const backendSource = [
+        adminAuthSource,
         generateTechDocSource,
         generateWorkflowDocSource,
         seedQuestionCategoriesSource,
@@ -257,15 +262,15 @@ export const EXTRA_TESTS = [
         ...missingTokens(adminSource, requiredClient),
       ];
       if (missing.length) {
-        return fail('Admin authorization is not clearly role/permission/config based.', {
+        return fail('Admin authorization is not clearly DB-backed through AdminUser.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
-          expected: 'server role/permission/admin secret allowlist + client role/permission helper',
+          expected: 'shared AdminUser guard on backend + client backend-status helper',
           actual: { missing },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Admin authorization is role/permission/config based without a committed email.', {
+      return pass('Admin authorization is DB-backed through AdminUser without a committed email allowlist.', {
         verification: 'STATIC_CONTRACT',
         actionType: ACTION_TYPES.CODE_FIX,
       });

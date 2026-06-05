@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { requireAdmin } from '../_shared/adminAuth.ts';
 
 const DEFAULT_LIMIT = 200;
 const MAX_LIMIT = 500;
@@ -10,32 +11,6 @@ function json(payload: unknown, status = 200) {
 
 function normalizeEmail(value: unknown) {
   return String(value || '').trim().toLowerCase();
-}
-
-function configuredEmailList(raw: string) {
-  return String(raw || '').split(',').map(normalizeEmail).filter(Boolean);
-}
-
-function isAuthorizedAdmin(user: any) {
-  if (!user) return false;
-  if (user.role === 'admin' || user.is_admin === true) return true;
-  if (Array.isArray(user.permissions) && user.permissions.includes('admin')) return true;
-  const allowlist = [
-    ...configuredEmailList(Deno.env.get('ADMIN_EMAILS') || ''),
-    ...configuredEmailList(Deno.env.get('KRONOX_ADMIN_EMAILS') || ''),
-  ];
-  return allowlist.length > 0 && allowlist.includes(normalizeEmail(user.email));
-}
-
-async function requireAdmin(base44: any) {
-  try {
-    const user = await base44.auth.me();
-    if (!user?.email) return { response: json({ ok: false, error: 'Authentication required' }, 401) };
-    if (!isAuthorizedAdmin(user)) return { response: json({ ok: false, error: 'Admin access required' }, 403) };
-    return { user };
-  } catch (_error) {
-    return { response: json({ ok: false, error: 'Authentication required' }, 401) };
-  }
 }
 
 async function readBody(req: Request) {

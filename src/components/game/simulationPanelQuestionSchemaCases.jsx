@@ -6,6 +6,7 @@
 
 import categoryEntitySource from '../../../base44/entities/Category.jsonc?raw';
 import questionEntitySource from '../../../base44/entities/Question.jsonc?raw';
+import adminAuthSource from '../../../base44/functions/_shared/adminAuth.ts?raw';
 import seedQuestionCategoriesSource from '../../../base44/functions/seedQuestionCategories/entry.ts?raw';
 import getQuestionsFunctionSource from '../../../base44/functions/getQuestions/entry.ts?raw';
 // Vite `?raw` cannot reach outside `src/` on this host, so the canonical
@@ -120,18 +121,21 @@ export const EXTRA_TESTS = [
   makeCase('category_seed_requires_admin',
     'Category seed function is server-side admin-only',
     () => {
-      const missing = missingTokens(seedQuestionCategoriesSource, [
-        'await base44.auth.me()',
-        'function isAuthorizedAdmin',
-        "user.role === 'admin'",
-        'user.is_admin === true',
-        "user.permissions.includes('admin')",
-        "Deno.env.get('ADMIN_EMAILS')",
-        "Deno.env.get('KRONOX_ADMIN_EMAILS')",
-        "Response.json(body, { status })",
+      const combined = `${seedQuestionCategoriesSource}\n${adminAuthSource}`;
+      const missing = missingTokens(combined, [
+        'requireAdmin',
+        '../_shared/adminAuth.ts',
+        'base44.auth.me()',
+        'entities.AdminUser',
+        'status',
+        'active',
+        'owner',
+        'admin',
+        '403',
+        'Response.json(body',
       ]);
       if (missing.length) {
-        return fail('Category seed path is not protected by the current admin authorization pattern.', {
+        return fail('Category seed path is not protected by the current DB-backed admin authorization pattern.', {
           verification: 'STATIC_CONTRACT',
           file: 'base44/functions/seedQuestionCategories/entry.ts',
           missing,

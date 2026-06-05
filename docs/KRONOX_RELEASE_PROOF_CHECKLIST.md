@@ -249,18 +249,16 @@ Checklist:
 * Admin-only functions reject unauthenticated users with 401.
 * Admin-only functions reject non-admin users with 403.
 * Authorized admins can still use admin tools.
-* Admin source-of-truth is the authenticated `User` role/permission fields
-  (`role === "admin"`, `is_admin === true`, or `permissions` containing
-  `admin`) with `ADMIN_EMAILS` / `KRONOX_ADMIN_EMAILS` as backend deployment
-  fallback only.
-* Add the requested new admins by setting their deployed `User` role/permission
-  to admin, or by appending their normalized emails to `KRONOX_ADMIN_EMAILS` if
-  the deployment needs the allowlist fallback. Do not commit the personal admin
-  emails to source.
+* Admin source-of-truth is the DB-backed `AdminUser` entity and shared backend
+  guard `base44/functions/_shared/adminAuth.ts`.
+* Legacy admin email env allowlists are not used for authorization.
+* Add the requested new admins by creating `AdminUser` rows in Base44 Data:
+  normalized lowercase `email`, `role: "admin"`, `status: "active"`. Do not
+  commit the personal admin emails to source.
 * Runtime proof: both new admin accounts can open Settings admin tools,
   `/test-suite` / Health Simulator, and the admin question analytics trigger;
   a normal account remains blocked from those surfaces and receives 403 from
-  backend admin-only functions.
+  backend admin-only functions; a disabled `AdminUser` row also receives 403.
 * Wrong user cannot accept another user’s GameInvite.
 * Wrong user cannot mutate another user’s GameInvite.
 * Wrong user cannot see another user’s FriendRequest.

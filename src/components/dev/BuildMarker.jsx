@@ -110,8 +110,8 @@ import React, { useEffect, useState } from 'react';
 //     deployment secrets/config only; missing keys skip push without
 //     breaking persisted in-app invites.
 //   • Removes committed personal admin email checks; admin gates now use
-//     role/is_admin/permissions and server-side ADMIN_EMAILS/KRONOX_ADMIN_EMAILS
-//     deployment allowlist fallback where needed.
+//     centralized authorization helpers instead of committed personal email
+//     backdoors.
 //   • Adds security_cleanup_health coverage and deployment notes for secret
 //     rotation/configuration.
 //
@@ -726,13 +726,21 @@ import React, { useEffect, useState } from 'react';
 //     contracts to catch raw/single-line report regressions.
 //
 // Codex199 — Admin user discovery + safe additions:
-//   • Documents the current admin source-of-truth as User role/is_admin/
-//     permissions, with ADMIN_EMAILS/KRONOX_ADMIN_EMAILS as deployment-secret
-//     backend fallback only.
+//   • Documents the pre-hardening admin source-of-truth as deployed User
+//     role/is_admin/permissions plus a backend deployment fallback.
 //   • Adds release/security proof steps for adding the two requested admin
-//     emails through deployed User role/permission or KRONOX_ADMIN_EMAILS
-//     without introducing a hardcoded runtime email gate.
+//     emails through deployed admin configuration without introducing a
+//     hardcoded runtime email gate.
 //   • Adds Health coverage that keeps deployed admin proof NOT_AUTOMATABLE.
+//
+// Codex200 — DB-backed admin authorization hardening:
+//   • Adds private AdminUser as the admin source-of-truth and a shared
+//     backend guard at base44/functions/_shared/adminAuth.ts.
+//   • Moves backend admin-only functions off env-based admin email allowlists
+//     and keeps UI admin hints behind /getAdminStatus.
+//   • Documents manual AdminUser insertion for the two requested admin
+//     emails, active/disabled proof, and why VAPID private key remains an
+//     environment secret.
 //
 // Codex197 — Question analytics P3:
 //   • Wires Solo shown/answered/Kart Değiştir events to private
@@ -846,7 +854,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex199';
+const BUILD_MARKER = 'Codex200';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

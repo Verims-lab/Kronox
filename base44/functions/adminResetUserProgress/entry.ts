@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { requireAdmin } from '../_shared/adminAuth.ts';
 
 const MAX_LOOKUP_ROWS = 20;
 const HARD_ZERO_MODE = 'hard_zero';
@@ -11,28 +12,6 @@ function json(payload: unknown, status = 200) {
 
 function normalizeEmail(value: unknown) {
   return String(value || '').trim().toLowerCase();
-}
-
-function configuredEmailList(raw: string) {
-  return String(raw || '')
-    .split(',')
-    .map(normalizeEmail)
-    .filter(Boolean);
-}
-
-function getAdminEmails() {
-  return [
-    ...configuredEmailList(Deno.env.get('ADMIN_EMAILS') || ''),
-    ...configuredEmailList(Deno.env.get('KRONOX_ADMIN_EMAILS') || ''),
-  ];
-}
-
-function isAuthorizedAdmin(user: any) {
-  if (!user) return false;
-  if (user.role === 'admin' || user.is_admin === true) return true;
-  if (Array.isArray(user.permissions) && user.permissions.includes('admin')) return true;
-  const allowlist = getAdminEmails();
-  return allowlist.length > 0 && allowlist.includes(normalizeEmail(user.email));
 }
 
 function todayUtcKey() {
@@ -371,18 +350,9 @@ Deno.serve(async (req) => {
     }
 
     base44 = createClientFromRequest(req);
-    try {
-      actor = await base44.auth.me();
-    } catch {
-      return json({ ok: false, code: 'unauthenticated', error: 'Giriş yapmanız gerekiyor.' }, 401);
-    }
-
-    if (!actor?.email) {
-      return json({ ok: false, code: 'unauthenticated', error: 'Giriş yapmanız gerekiyor.' }, 401);
-    }
-    if (!isAuthorizedAdmin(actor)) {
-      return json({ ok: false, code: 'forbidden', error: 'Bu işlem için yönetici yetkisi gerekiyor.' }, 403);
-    }
+    const adminAuth = await requireAdmin(base44);
+    if (adminAuth.response) return adminAuth.response;
+    actor = adminAuth.user;
 
     const body = await req.json().catch(() => ({}));
     action = String(body?.action || body?.operation || 'preview').trim().toLowerCase();

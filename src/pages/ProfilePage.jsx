@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Users, Trophy, Sparkles, Gem, Settings, ChevronRight, LogOut, UserRound, LogIn } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
-import { isAdminUser } from '@/lib/admin';
+import { isAdminUser, withAdminStatus } from '@/lib/admin';
 import StandardTopBar from '@/components/layout/StandardTopBar';
 // Codex111/Codex146 — Profile Seviye reads the SAME shared Solo progress
 // helper the Solo Level Path uses. Visible Puan reads the shared Kronox
@@ -64,8 +64,9 @@ export default function ProfilePage() {
           setUser(null);
           return;
         }
-        const normalizedProgress = await ensureSoloProgressBackfill(u);
-        setUser({ ...u, solo_progress: normalizedProgress });
+        const adminCheckedUser = await withAdminStatus(u);
+        const normalizedProgress = await ensureSoloProgressBackfill(adminCheckedUser);
+        setUser({ ...adminCheckedUser, solo_progress: normalizedProgress });
       })
       .catch(() => setUser(null))
       .finally(() => setLoading(false));

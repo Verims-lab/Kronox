@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trash2, AlertTriangle, FileDown, Loader2, FlaskConical, ChevronRight, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -14,10 +14,10 @@ import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 import { ACCOUNT_DELETION_ERROR_COPY, requestAccountDeletion } from '@/lib/accountDeletion';
 import ResetUserProgressTool from '@/components/admin/ResetUserProgressTool';
 import QuestionAnalyticsReportTool from '@/components/admin/QuestionAnalyticsReportTool';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function SettingsPage() {
-  const [user, setUser] = useState(null);
-  const [loadingUser, setLoadingUser] = useState(true);
+  const { user, isLoadingAuth } = useAuth();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [downloadingDoc, setDownloadingDoc] = useState(false);
@@ -26,13 +26,6 @@ export default function SettingsPage() {
   const [deleteError, setDeleteError] = useState('');
   const [showSim, setShowSim] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
-
-  useEffect(() => {
-    base44.auth.me().then(u => {
-      setUser(u);
-      setLoadingUser(false);
-    }).catch(() => setLoadingUser(false));
-  }, []);
 
   const isAdmin = isAdminUser(user);
   const diamondValue = getLeaderboardDiamondValue(user);
@@ -82,7 +75,7 @@ export default function SettingsPage() {
     } finally { setDownloadingWorkflow(false); }
   };
 
-  if (loadingUser) {
+  if (isLoadingAuth) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-6 h-6 text-primary animate-spin" />
