@@ -86,9 +86,13 @@ export const EXTRA_TESTS = [
     () => {
       const missing = missingTokens(soloJokerBarSource, [
         'grid grid-cols-3',
+        'max-w-[280px]',
+        'gap-0',
         'bg-transparent',
         'rounded-full',
-        'absolute -right-1.5 -top-1.5',
+        'clamp(38px, 10.8vw, 44px)',
+        'h-5 w-5',
+        'absolute -right-1 -top-1',
         'aria-label={`${label}, kalan hak ${remainingUses}`}',
       ]);
       const forbidden = forbiddenTokens(soloJokerBarSource, [
@@ -124,20 +128,24 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('solo_jokers_disable_others_after_use',
-    'Unused joker buttons remain visible but disabled after one joker is used',
+    'Joker buttons switch from short used feedback to locked zero state after one joker is used',
     () => {
       const missing = missingTokens(soloJokerBarSource, [
         'jokerConsumed',
-        'jokerConsumed && !isUsed',
-        'disabled={isDisabled || isUsed}',
-        'aria-pressed={isUsed}',
+        'recentlyUsedType',
+        'setRecentlyUsedType(usedJokerType)',
+        'window.setTimeout(() => setRecentlyUsedType(null), 900)',
+        'const isLocked = disabled || jokerConsumed',
+        'disabled={isLocked}',
+        'aria-pressed={isRecentlyUsed}',
+        'const dimmed = isLocked && !isRecentlyUsed',
       ]);
-      if (missing.length) return fail('SoloJokerBar no longer keeps used/disabled joker state visible.', {
+      if (missing.length) return fail('SoloJokerBar no longer locks all jokers after the short used-state pulse.', {
         verification: 'STATIC_CONTRACT',
         file: 'components/game/SoloJokerBar.jsx',
         missing,
       });
-      return pass('SoloJokerBar leaves all three jokers visible and disables the unused ones after a use.', { verification: 'STATIC_CONTRACT' });
+      return pass('SoloJokerBar briefly pulses the used joker, then leaves all three jokers visible, disabled, and showing 0.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('kronokalkan_next_wrong_not_counted',
