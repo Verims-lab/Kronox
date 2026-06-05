@@ -772,6 +772,14 @@ import React, { useEffect, useState } from 'react';
 //     and documents that VITE_ values must never be backend private-key
 //     fallbacks.
 //
+// Codex228 — Matte parchment question-card refinement:
+//   • Softens the shared gameplay old-paper surface from glossy gold/orange
+//     toward muted beige aged parchment.
+//   • Reduces highlight saturation, inset shine, and prompt-bar warmth while
+//     preserving paper identity and text contrast.
+//   • Keeps card layout, borders, sizing, spacing, drag/drop, timeline,
+//     scoring, timer, jokers, and gameplay behavior unchanged.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1075,7 +1083,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex227';
+const BUILD_MARKER = 'Codex228';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
