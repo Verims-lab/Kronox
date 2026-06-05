@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
-import { getAdminAuthorization, isAuthorizedAdmin } from '../_shared/adminAuth.ts';
+import { isAuthorizedAdmin } from '../_shared/adminAuth.ts';
 
 const KNOWN_CATEGORY_IDS = [1, 2, 3, 4, 5, 6];
 const MAX_GAMEPLAY_LIMIT = 500;
@@ -159,19 +159,6 @@ Deno.serve(async (req) => {
     if (auth.response) return auth.response;
 
     const body = await req.json().catch(() => ({}));
-    if (body?.action === 'admin_status' || body?.adminStatus === true) {
-      const authorization = await getAdminAuthorization(base44, auth.user);
-      return json({
-        ok: true,
-        isAdmin: authorization.isAdmin,
-        role: authorization.role || null,
-        status: authorization.status || null,
-        source: 'AdminUser',
-        statusFunction: 'getQuestions.admin_status',
-        debug: authorization.debug || null,
-      });
-    }
-
     const wantsAdminBank = body?.scope === 'admin' || body?.fullBank === true || body?.includeInactive === true;
     if (wantsAdminBank && !(await isAuthorizedAdmin(base44, auth.user))) {
       return json({ ok: false, error: 'Admin yetkisi gerekli.' }, 403);

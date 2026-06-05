@@ -750,15 +750,19 @@ import React, { useEffect, useState } from 'react';
 //     on the current-user AdminUser status hint; AdminUser rows remain private
 //     and are never listed by the client.
 //
-// Codex206 — Admin status registered route fix:
-//   • Runtime proved /getAdminStatus returns 404 because the new function
-//     name is not registered in the deployed Base44 catalog.
-//   • Settings now calls the registered getQuestions admin_status action,
-//     which returns a dedicated AdminUser status payload via the shared
-//     service-role guard instead of a question projection.
-//   • The frontend still rejects ordinary question payloads as
-//     response_parse_error, so getQuestions cannot accidentally authorize
-//     anyone unless it returns source: AdminUser + explicit status function.
+// Codex207 — Admin status dedicated endpoint fix:
+//   • Removes the Codex206 getQuestions admin-status workaround after runtime
+//     proved it still returned the normal question projection shape.
+//   • withAdminStatus again calls only /getAdminStatus and getAdminStatus; a
+//     getQuestions-shaped response remains response_parse_error.
+//   • Clears stale stored Base44 functions_version when no fresh URL/build
+//     value is present so the SDK is not pinned to an old function catalog
+//     that predates getAdminStatus.
+//
+// Codex206 — Admin status registered route attempt:
+//   • Runtime showed /getAdminStatus returned 404 in that deployed build.
+//   • Tried routing status through getQuestions admin_status, but runtime proof
+//     showed the deployed getQuestions function still returned question rows.
 //
 // Codex205 — AdminUser status source fix:
 //   • Removes getQuestions as an admin-status fallback after runtime showed
@@ -910,7 +914,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex206';
+const BUILD_MARKER = 'Codex207';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
