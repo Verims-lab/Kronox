@@ -25,6 +25,11 @@ function missingTokens(source, tokens) {
   return tokens.filter((token) => !src.includes(token));
 }
 
+function forbiddenTokens(source, tokens) {
+  const src = safeStr(source);
+  return tokens.filter((token) => src.includes(token));
+}
+
 function getHandleUseSoloJokerSource() {
   const src = safeStr(gameSource);
   const start = src.indexOf('const handleUseSoloJoker');
@@ -64,7 +69,6 @@ export const EXTRA_TESTS = [
         'Kronokalkan',
         'Kart Değiştir',
         'Zaman Dondur',
-        'Jokerler • 1 hak',
         'Shield',
         'RefreshCw',
         'Snowflake',
@@ -75,6 +79,31 @@ export const EXTRA_TESTS = [
         missing,
       });
       return pass('SoloJokerBar renders Kronokalkan, Kart Değiştir, and Zaman Dondur.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('solo_joker_area_has_no_rectangular_containers',
+    'Solo joker area renders only circular joker visuals, count badges, and labels',
+    () => {
+      const missing = missingTokens(soloJokerBarSource, [
+        'grid grid-cols-3',
+        'bg-transparent',
+        'rounded-full',
+        'absolute -right-1.5 -top-1.5',
+        'aria-label={`${label}, kalan hak ${remainingUses}`}',
+      ]);
+      const forbidden = forbiddenTokens(soloJokerBarSource, [
+        'Jokerler • 1 hak',
+        'rounded-[26px]',
+        'rounded-2xl px-1 py-1.5',
+        'background: isUsed',
+        'border: isUsed',
+      ]);
+      if (missing.length || forbidden.length) return fail('SoloJokerBar still has rectangular joker containers or lost the circle/badge/label contract.', {
+        verification: 'STATIC_CONTRACT',
+        file: 'components/game/SoloJokerBar.jsx',
+        actual: { missing, forbidden },
+      });
+      return pass('Solo joker UI is transparent around the three circular icon badges with labels below.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('solo_jokers_one_use_per_attempt',

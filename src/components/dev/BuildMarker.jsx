@@ -750,6 +750,14 @@ import React, { useEffect, useState } from 'react';
 //     on the current-user AdminUser status hint; AdminUser rows remain private
 //     and are never listed by the client.
 //
+// Codex222 — Solo joker area simplification:
+//   • Removes the large outer joker panel and individual rectangular joker
+//     card surfaces from Solo gameplay.
+//   • Keeps the three horizontal circular joker visuals with centered icons,
+//     top-right remaining-count badges, and labels below.
+//   • Preserves joker behavior, one-use attempt rule, gameplay background,
+//     drag/drop, timer, scoring, Online, and Daily Wheel.
+//
 // Codex221 — Health Center alignment after recent changes:
 //   • Refreshes the Health doc mirror for DB-backed AdminUser authorization,
 //     /getAdminStatus, no env admin allowlist, and no unsafe bootstrap
@@ -1029,7 +1037,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex221';
+const BUILD_MARKER = 'Codex222';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
