@@ -11,7 +11,7 @@ const cardColors = [
   { border: '#c084fc', year: '#c084fc', bg: 'rgba(192,132,252,0.08)' },  // purple
 ];
 
-export default function TimelineCard({ card, index, distanceFromCenter = 0 }) {
+export default function TimelineCard({ card, index, distanceFromCenter = 0, yearOnly = false }) {
   const stackCount = card.stackCount || 1;
   const color = cardColors[index % cardColors.length];
   // Subtle de-emphasis for cards far from the center viewport (max 30% opacity reduction)
@@ -54,15 +54,32 @@ export default function TimelineCard({ card, index, distanceFromCenter = 0 }) {
           width: 80,
           minHeight: 110,
           background: card.media_url
-            ? 'transparent'
+            ? (yearOnly ? `linear-gradient(160deg, rgba(15,20,40,0.95) 0%, rgba(10,15,35,0.98) 100%)` : 'transparent')
             : `linear-gradient(160deg, rgba(15,20,40,0.95) 0%, rgba(10,15,35,0.98) 100%)`,
           border: `2px solid ${color.border}`,
           boxShadow: `0 0 12px ${color.border}50, 0 0 4px ${color.border}30`,
-          padding: card.media_url ? '0' : '8px 6px 6px',
+          padding: yearOnly ? 0 : (card.media_url ? '0' : '8px 6px 6px'),
           overflow: 'hidden',
+          justifyContent: yearOnly ? 'center' : undefined,
         }}
       >
-        {card.media_url ? (
+        {yearOnly ? (
+          <div className="flex h-full min-h-[106px] w-full items-center justify-center px-2">
+            <span
+              className="font-bangers tracking-wider"
+              style={{
+                fontSize: 30,
+                color: color.year,
+                lineHeight: 1,
+                maxWidth: '100%',
+                textAlign: 'center',
+                textShadow: `0 0 10px ${color.border}66, 0 2px 0 rgba(0,0,0,0.38)`,
+              }}
+            >
+              {card.year}
+            </span>
+          </div>
+        ) : card.media_url ? (
           <>
             {/* Image section — 45% */}
             <div className="w-full relative" style={{ height: '45%', background: 'linear-gradient(160deg, rgba(15,20,40,0.95) 0%, rgba(10,15,35,0.98) 100%)' }}>

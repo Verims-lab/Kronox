@@ -235,7 +235,7 @@ export default function QuestionCard({
             <p
               className="text-center font-inter leading-snug text-white line-clamp-2"
               style={{
-                fontSize: soloReadableCard ? 12 : 11,
+                fontSize: soloReadableCard ? 13 : 11,
                 lineHeight: soloReadableCard ? 1.28 : 1.35,
                 fontWeight: soloReadableCard ? 600 : 700,
                 letterSpacing: '0',
@@ -267,9 +267,9 @@ export default function QuestionCard({
               className="text-center font-inter text-white"
               style={{
                 width: '100%',
-                maxWidth: soloReadableCard ? 132 : undefined,
-                fontSize: soloReadableCard ? 'clamp(12px, 3.45vw, 13.5px)' : (isMuzik ? 11 : 10),
-                lineHeight: soloReadableCard ? 1.24 : 1.3,
+                maxWidth: soloReadableCard ? 136 : undefined,
+                fontSize: soloReadableCard ? 'clamp(13px, 3.8vw, 15px)' : (isMuzik ? 11 : 10),
+                lineHeight: soloReadableCard ? 1.2 : 1.3,
                 fontWeight: soloReadableCard ? 600 : 700,
                 letterSpacing: '0',
                 textWrap: 'balance',

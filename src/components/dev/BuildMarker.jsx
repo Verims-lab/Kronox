@@ -750,6 +750,14 @@ import React, { useEffect, useState } from 'react';
 //     on the current-user AdminUser status hint; AdminUser rows remain private
 //     and are never listed by the client.
 //
+// Codex214 — Solo card readability + timeline cleanup:
+//   • Solo active question text is slightly larger while staying inside the
+//     question card with the bottom timing prompt preserved.
+//   • Solo placed timeline cards hide event/title text and show only a
+//     larger centered year inside the existing card bounds.
+//   • Timeline placement logic, drag/drop, scoring, timers, jokers, Online,
+//     and popups are unchanged.
+//
 // Codex213 — Solo question card readability:
 //   • Solo gameplay question cards now use a cleaner text-first layout with
 //     larger Inter SemiBold question copy and no category icon below the
@@ -970,7 +978,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex213';
+const BUILD_MARKER = 'Codex214';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

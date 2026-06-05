@@ -143,6 +143,7 @@ export default function Timeline({
   placementFeedback = null,
   beginnerPlacementHintZone = null,
   correctStreak = 0,
+  soloYearOnlyCards = false,
 }) {
   const sortedCards = useMemo(
     () => Array.isArray(cards) ? [...cards].sort((a, b) => a.year - b.year) : [],
@@ -405,6 +406,7 @@ export default function Timeline({
             card={groupedCards[i]}
             index={i}
             distanceFromCenter={isDragMode ? 0 : (cardDistances[i] ?? 0)}
+            yearOnly={soloYearOnlyCards}
           />
         </div>
       );
