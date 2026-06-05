@@ -797,6 +797,15 @@ import React, { useEffect, useState } from 'react';
 //   • Preserves card dimensions, gold borders, timeline rectangle, drag/drop,
 //     scoring, timer, jokers, and gameplay behavior.
 //
+// Codex231 — First-open question loading race fix:
+//   • useOfflineQuestions now waits for auth/session settle and retries the
+//     protected getQuestions call once before declaring no-cache failure on a
+//     cold start.
+//   • Retry re-runs the same guarded fetch/cache initialization path instead
+//     of requiring the user to leave and re-enter the game route.
+//   • Keeps stale/fresh cache usable until a network replacement succeeds and
+//     preserves Solo deck, timer, scoring, joker, and drag/drop rules.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1100,7 +1109,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex230';
+const BUILD_MARKER = 'Codex231';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
