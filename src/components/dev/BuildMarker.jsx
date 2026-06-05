@@ -750,6 +750,15 @@ import React, { useEffect, useState } from 'react';
 //     on the current-user AdminUser status hint; AdminUser rows remain private
 //     and are never listed by the client.
 //
+// Codex213 — Solo question card readability:
+//   • Solo gameplay question cards now use a cleaner text-first layout with
+//     larger Inter SemiBold question copy and no category icon below the
+//     question text.
+//   • Keeps the bottom "Bu olay ne zaman gerçekleşti?" prompt, drag/drop,
+//     timeline hit-testing, scoring, timers, jokers, and question selection
+//     unchanged.
+//   • Online question cards retain their prior category-icon treatment.
+//
 // Codex212 — Daily Wheel spin UX upgrade:
 //   • Enlarges the modal wheel with brighter reward slices, a stronger fixed
 //     top pointer, premium rim lighting, and a raised hub while preserving
@@ -961,7 +970,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex212';
+const BUILD_MARKER = 'Codex213';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
