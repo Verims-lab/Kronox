@@ -17,7 +17,7 @@ import QuestionAnalyticsReportTool from '@/components/admin/QuestionAnalyticsRep
 import { useAuth } from '@/lib/AuthContext';
 
 export default function SettingsPage() {
-  const { user, isLoadingAuth } = useAuth();
+  const { user, isLoadingAuth, adminStatus, refreshAdminStatus } = useAuth();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [downloadingDoc, setDownloadingDoc] = useState(false);
@@ -27,7 +27,9 @@ export default function SettingsPage() {
   const [showSim, setShowSim] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
 
-  const isAdmin = isAdminUser(user);
+  const statusHasResolved = adminStatus?.called === true || user?.admin_status_debug?.called === true;
+  const parsedAdminStatus = adminStatus?.parsedIsAdmin === true || user?.admin_status_debug?.parsedIsAdmin === true;
+  const isAdmin = statusHasResolved ? parsedAdminStatus : isAdminUser(user);
   const diamondValue = getLeaderboardDiamondValue(user);
 
   const handleDeleteAccount = async () => {
@@ -101,6 +103,14 @@ export default function SettingsPage() {
       </div>
 
       <div className="px-4 space-y-5">
+        {user && (
+          <AdminStatusDebugPanel
+            user={user}
+            adminStatus={adminStatus || user?.admin_status_debug}
+            adminToolsVisible={isAdmin}
+            onRefresh={refreshAdminStatus}
+          />
+        )}
 
         {/* Admin araçları — yalnızca admin. */}
         {isAdmin && (
@@ -236,6 +246,66 @@ function Section({ label, children }) {
       <p className="font-inter text-[10px] text-muted-foreground font-semibold uppercase tracking-widest px-1">{label}</p>
       <div className="space-y-2">{children}</div>
     </div>
+  );
+}
+
+function joinKeys(keys) {
+  return Array.isArray(keys) && keys.length ? keys.join(', ') : 'Yok';
+}
+
+function AdminStatusDebugPanel({ user, adminStatus = {}, adminToolsVisible, onRefresh }) {
+  const authEmailRaw = adminStatus?.authEmailRaw || user?.email || '';
+  const normalizedEmail = adminStatus?.normalizedEmail || String(authEmailRaw || '').trim().toLowerCase();
+  const rows = [
+    ['authEmail', authEmailRaw || 'Yok'],
+    ['normalizedEmail', normalizedEmail || 'Yok'],
+    ['statusCall', adminStatus?.loading ? 'loading' : (adminStatus?.statusCall || 'idle')],
+    ['called', adminStatus?.called ? 'yes' : 'no'],
+    ['responseShape', adminStatus?.responseShape || 'Yok'],
+    ['responseKeys', joinKeys(adminStatus?.responseKeys)],
+    ['dataKeys', joinKeys(adminStatus?.dataKeys)],
+    ['nestedDataKeys', joinKeys(adminStatus?.nestedDataKeys)],
+    ['parsedIsAdmin', adminStatus?.parsedIsAdmin === true ? 'true' : 'false'],
+    ['role', adminStatus?.role || 'Yok'],
+    ['status', adminStatus?.status || 'Yok'],
+    ['source', adminStatus?.source || 'AdminUser'],
+    ['statusFunction', adminStatus?.statusFunction || 'Yok'],
+    ['uiGate', 'AdminUser parsed status; isAdminUser(user) only before status resolves'],
+    ['adminToolsVisible', adminToolsVisible ? 'true' : 'false'],
+    ['reason', adminStatus?.reason || 'not_checked'],
+    ['error', adminStatus?.error || 'Yok'],
+  ];
+
+  return (
+    <details className="rounded-2xl border border-amber-300/20 bg-amber-300/5 px-4 py-3">
+      <summary className="cursor-pointer font-inter text-xs font-bold uppercase tracking-widest text-amber-100">
+        Admin debug
+      </summary>
+      <div className="mt-3 space-y-2">
+        <p className="font-inter text-xs text-muted-foreground">
+          Yalnızca mevcut oturumun AdminUser durumunu gösterir; admin listesi veya gizli bilgi içermez.
+        </p>
+        <div className="grid gap-1 font-mono text-[11px] leading-relaxed text-amber-50/90">
+          {rows.map(([label, value]) => (
+            <div key={label} className="grid grid-cols-[9.5rem_1fr] gap-2">
+              <span className="text-amber-200/80">{label}</span>
+              <span className="break-all">{value}</span>
+            </div>
+          ))}
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-9 border-amber-300/30 bg-transparent text-xs text-amber-50 hover:bg-amber-300/10"
+          onClick={onRefresh}
+          disabled={adminStatus?.loading}
+        >
+          {adminStatus?.loading ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
+          Admin durumu yenile
+        </Button>
+      </div>
+    </details>
   );
 }
 

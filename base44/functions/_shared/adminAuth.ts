@@ -17,7 +17,7 @@ function isActiveStatus(status: unknown) {
 
 export async function getAdminAuthorization(base44: any, user: any) {
   const email = normalizeEmail(user?.email);
-  if (!email) return { isAdmin: false, row: null, role: '', source: 'AdminUser' };
+  if (!email) return { isAdmin: false, row: null, role: '', status: '', source: 'AdminUser' };
 
   const adminEntity = base44?.asServiceRole?.entities?.AdminUser;
   const rows = adminEntity?.filter
@@ -34,6 +34,7 @@ export async function getAdminAuthorization(base44: any, user: any) {
     isAdmin: Boolean(row),
     row,
     role: row ? String(row.role || 'admin').trim().toLowerCase() : '',
+    status: row ? String(row.status || '').trim().toLowerCase() : '',
     source: 'AdminUser',
   };
 }
