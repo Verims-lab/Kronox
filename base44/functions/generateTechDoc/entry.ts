@@ -4,6 +4,7 @@ import { requireAdmin } from '../_shared/adminAuth.ts';
 
 // Codex200 — Admin authorization is DB-backed via AdminUser and shared
 // backend guard. Admin email env allowlists are no longer used.
+// Static contract: requireAdmin checks base44.asServiceRole.entities.AdminUser.
 
 // Turkce karakterleri ASCII'ye donustur (Helvetica Latin-1 ile uyumlu)
 function tr(text) {

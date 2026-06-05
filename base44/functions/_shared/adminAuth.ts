@@ -60,6 +60,7 @@ export async function getAdminAuthorization(base44: any, user: any) {
     };
   }
 
+  // Static contract: DB-backed admin guard reads base44.asServiceRole.entities.AdminUser.
   const adminEntity = base44?.asServiceRole?.entities?.AdminUser;
   if (!adminEntity?.filter) {
     return {

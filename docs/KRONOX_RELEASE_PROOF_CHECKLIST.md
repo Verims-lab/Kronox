@@ -264,6 +264,7 @@ Checklist:
   not pass `functionsVersion` into `createClient`, and app bootstrap clears
   stale `base44_functions_version` before invoking admin status.
 * Legacy admin email env allowlists are not used for authorization.
+* There is no unsafe "if no admin exists, everyone is admin" fallback.
 * Add the requested new admins by creating `AdminUser` rows in Base44 Data:
   normalized lowercase `email`, `role: "admin"`, `status: "active"`. Do not
   commit the personal admin emails to source.
