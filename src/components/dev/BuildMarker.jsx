@@ -725,6 +725,15 @@ import React, { useEffect, useState } from 'react';
 //   • Adds a plain-text fallback with section dividers and updates Health
 //     contracts to catch raw/single-line report regressions.
 //
+// Codex199 — Admin user discovery + safe additions:
+//   • Documents the current admin source-of-truth as User role/is_admin/
+//     permissions, with ADMIN_EMAILS/KRONOX_ADMIN_EMAILS as deployment-secret
+//     backend fallback only.
+//   • Adds release/security proof steps for adding the two requested admin
+//     emails through deployed User role/permission or KRONOX_ADMIN_EMAILS
+//     without introducing a hardcoded runtime email gate.
+//   • Adds Health coverage that keeps deployed admin proof NOT_AUTOMATABLE.
+//
 // Codex197 — Question analytics P3:
 //   • Wires Solo shown/answered/Kart Değiştir events to private
 //     QuestionAttemptEvent rows through a best-effort gateway.
@@ -837,7 +846,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex198';
+const BUILD_MARKER = 'Codex199';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

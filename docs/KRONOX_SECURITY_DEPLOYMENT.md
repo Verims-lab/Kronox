@@ -86,6 +86,20 @@ The following must still work without push:
 
 # 3. Admin Authorization
 
+Current source of truth:
+
+* Primary admin authority is the authenticated `User` profile fields:
+  `role === "admin"`, `is_admin === true`, or `permissions` containing
+  `admin`.
+* Backend functions may also use `ADMIN_EMAILS` / `KRONOX_ADMIN_EMAILS` as a
+  deployment-secret fallback allowlist. Keep this list in the deployment secret
+  manager, not in runtime source code.
+* To add new admins, prefer setting their `User.role` to `admin` or adding
+  `admin` to their permissions in the Base44 admin data console. If the role
+  update is not available, append the normalized addresses to
+  `KRONOX_ADMIN_EMAILS` in the deployed environment. Do not commit the personal
+  admin emails to source.
+
 Client-side admin UI gating may use:
 
 ```text
@@ -328,6 +342,11 @@ After deployment, verify:
 * unauthenticated admin-only calls return 401
 * authenticated non-admin admin-only calls return 403
 * authorized admins can still use intended admin tools
+* newly added admins can access the intended admin tools after their deployed
+  `User` role/permission or `KRONOX_ADMIN_EMAILS` allowlist entry is applied
+* normal users still cannot access Settings admin tools, `/test-suite`, Health
+  Simulator, admin maintenance functions, or the question analytics report
+  trigger by direct route
 
 ## Questions
 

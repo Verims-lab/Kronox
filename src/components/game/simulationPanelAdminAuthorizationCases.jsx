@@ -28,6 +28,8 @@ import seedQuestionCategoriesSource from '../../../base44/functions/seedQuestion
 import adminResetUserProgressSource from '../../../base44/functions/adminResetUserProgress/entry.ts?raw';
 import adminMaintenanceLogSchemaSource from '../../../base44/entities/AdminMaintenanceLog.jsonc?raw';
 import userSchemaSource from '../../../base44/entities/User.jsonc?raw';
+import securityDeploymentDocSource from '../../../docs/KRONOX_SECURITY_DEPLOYMENT.md?raw';
+import releaseProofChecklistSource from '../../../docs/KRONOX_RELEASE_PROOF_CHECKLIST.md?raw';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
 import resetUserProgressToolSource from '../../components/admin/ResetUserProgressTool.jsx?raw';
 import authContextSource from '../../lib/AuthContext.jsx?raw';
@@ -45,6 +47,13 @@ export const EXTRA_SUITES = [
 const ACTION_TYPES = {
   CODE_FIX: 'CODE_FIX',
   MANUAL_VERIFY: 'MANUAL_VERIFY',
+  BACKEND_RUNTIME_PROBE: 'BACKEND_RUNTIME_PROBE',
+};
+
+const STATUS = {
+  PASS: 'PASS',
+  FAIL: 'FAIL',
+  NOT_AUTOMATABLE: 'NOT_AUTOMATABLE',
 };
 
 function safeStr(value) {
@@ -52,11 +61,15 @@ function safeStr(value) {
 }
 
 function pass(message, extras = {}) {
-  return { status: 'PASS', message, ...extras };
+  return { status: STATUS.PASS, message, ...extras };
 }
 
 function fail(message, extras = {}) {
-  return { status: 'FAIL', message, ...extras };
+  return { status: STATUS.FAIL, message, ...extras };
+}
+
+function notAutomatable(message, extras = {}) {
+  return { status: STATUS.NOT_AUTOMATABLE, message, ...extras };
 }
 
 function makeCase(suiteId, suiteName, id, description, run, opts = {}) {
@@ -121,6 +134,58 @@ export const EXTRA_TESTS = [
         actionType: ACTION_TYPES.CODE_FIX,
       });
     },
+  ),
+
+  makeCase(
+    'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
+    'admin_source_of_truth_documented',
+    'Admin source-of-truth is documented as User role/permission plus deployment-secret allowlist fallback',
+    () => {
+      const combined = `${securityDeploymentDocSource}\n${releaseProofChecklistSource}\n${adminResetUserProgressSource}\n${settingsPageSource}`;
+      const required = [
+        'Current source of truth',
+        'role === "admin"',
+        'is_admin === true',
+        'permissions',
+        'ADMIN_EMAILS',
+        'KRONOX_ADMIN_EMAILS',
+        'Settings admin tools',
+        '/test-suite',
+        'Health Simulator',
+        'admin question analytics trigger',
+        'requested new admins',
+        'Do not commit the personal admin emails to source',
+      ].filter((token) => !combined.includes(token));
+      if (required.length) {
+        return fail('Admin source-of-truth or requested admin addition path is missing from docs/contracts.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'Docs identify User role/permission as primary, env allowlist as fallback, and require the requested admin additions through deployment data/secrets.',
+          actual: { missing: required },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Admin source-of-truth and requested admin addition path are documented without adding a hardcoded runtime email gate.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+  ),
+
+  makeCase(
+    'admin_authorization_hardening', 'new_admin_accounts_runtime_proof_needed',
+    'New admin accounts must be verified in the deployed User role/env allowlist source-of-truth',
+    () => notAutomatable('Repo code cannot prove deployed Base44 User.role/permissions or KRONOX_ADMIN_EMAILS secret contents. Verify both requested admin accounts can access Settings admin tools, /test-suite / Health Simulator, and the admin question analytics trigger while a normal account remains blocked.', {
+      verification: 'NOT_AUTOMATABLE',
+      classification: 'DEPLOYMENT_RUNTIME_REQUIRED',
+      verificationLabels: ['NOT_AUTOMATABLE', 'BACKEND_RUNTIME_PROBE', 'MANUAL_REQUIRED'],
+      actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE,
+      expected: {
+        adminSourceOfTruth: 'User.role/is_admin/permissions first; ADMIN_EMAILS/KRONOX_ADMIN_EMAILS deployment fallback only',
+        requestedAdmins: 'the two admin emails from the task; keep exact addresses in deployed User roles or KRONOX_ADMIN_EMAILS, not source code',
+      },
+    }),
   ),
 
   // 2) Each function reads the KRONOX_ADMIN_EMAILS env/secret.
