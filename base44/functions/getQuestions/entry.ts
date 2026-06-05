@@ -168,6 +168,7 @@ Deno.serve(async (req) => {
         status: authorization.status || null,
         source: 'AdminUser',
         statusFunction: 'getQuestions',
+        debug: authorization.debug || null,
       });
     }
 

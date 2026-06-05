@@ -348,6 +348,12 @@ export const EXTRA_TESTS = [
         'refreshAdminStatus',
         'admin_status_source',
         'admin_status_debug',
+        'Settings component version: AdminDebug-v4',
+        'Admin status call attempted',
+        'Admin tools actually mounted',
+        'adminToolsShouldRender',
+        'adminToolsActuallyMounted',
+        'backendDebug',
         'useAuth()',
         'AdminStatusDebugPanel',
         'isAdminUser(user)',
@@ -365,6 +371,91 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Admin UI surfaces use the backend AdminUser status hint and still rely on backend guards for authority.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+  ),
+
+  makeCase(
+    'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
+    'settings_admin_debug_v4_visible_outside_admin_gate',
+    'Settings renders the temporary AdminDebug-v4 proof panel outside admin-only conditionals',
+    () => {
+      const required = [
+        'SETTINGS_ADMIN_DEBUG_VERSION',
+        "'AdminDebug-v4'",
+        'Settings component version',
+        'Build marker',
+        'Auth email raw',
+        'Auth email normalized',
+        'Admin status call attempted',
+        'Admin status loading',
+        'Admin status error',
+        'Raw response shape',
+        'Parsed isAdmin',
+        'Parsed role',
+        'Parsed status',
+        'AdminUser lookup source',
+        'Admin tools should render',
+        'Admin tools actually mounted',
+        '<AdminStatusDebugPanel',
+      ].filter((token) => !safeStr(settingsPageSource).includes(token));
+      const debugIndex = safeStr(settingsPageSource).indexOf('<AdminStatusDebugPanel');
+      const adminGateIndex = safeStr(settingsPageSource).indexOf('{isAdmin &&');
+      const visibleBeforeAdminGate = debugIndex >= 0 && adminGateIndex >= 0 && debugIndex < adminGateIndex;
+      if (required.length || !visibleBeforeAdminGate) {
+        return fail('Settings AdminDebug-v4 panel is not clearly visible before the admin-only tools gate.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'AdminDebug-v4 block appears before {isAdmin && ...} and includes only current-user status rows.',
+          actual: { missing: required, debugIndex, adminGateIndex, visibleBeforeAdminGate },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Settings AdminDebug-v4 panel is visible before the admin-only tools gate.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+  ),
+
+  makeCase(
+    'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
+    'admin_user_lookup_handles_field_casing',
+    'AdminUser lookup normalizes email/role/status and safely handles field-name casing variants',
+    () => {
+      const required = [
+        'FIELD_CANDIDATES',
+        "'email'",
+        "'Email'",
+        "'user_email'",
+        "'admin_email'",
+        "'role'",
+        "'Role'",
+        "'status'",
+        "'Status'",
+        'trim().toLowerCase()',
+        "value === 'owner' || value === 'admin'",
+        "=== 'active'",
+        'matchedFieldNames',
+        'active_admin_match',
+        'status_not_active',
+        'role_not_allowed',
+        'admin_user_not_found',
+      ].filter((token) => !safeStr(adminAuthSource).includes(token));
+      if (required.length) {
+        return fail('AdminUser lookup does not clearly handle field casing and normalized active admin checks.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'Email/role/status aliases, trim/lowercase normalization, owner/admin active match, safe current-user debug reasons.',
+          actual: { missing: required },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('AdminUser lookup handles field casing and normalized active admin checks.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,

@@ -22,6 +22,7 @@ const EMPTY_ADMIN_STATUS = {
   status: '',
   source: 'AdminUser',
   statusFunction: '',
+  backendDebug: null,
   reason: 'not_checked',
   error: '',
 };

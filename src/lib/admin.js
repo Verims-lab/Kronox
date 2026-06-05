@@ -31,6 +31,7 @@ function adminStatusBase(user, patch = {}) {
     status: '',
     source: 'AdminUser',
     statusFunction: '',
+    backendDebug: null,
     reason: normalizedEmail ? 'not_checked' : 'no_auth_email',
     error: '',
     ...patch,
@@ -102,6 +103,7 @@ function parseAdminStatusBody(user, body, meta = {}) {
   const role = String(body?.role || '').trim().toLowerCase();
   const status = String(body?.status || '').trim().toLowerCase();
   const parsedIsAdmin = body?.isAdmin === true || body?.is_admin === true || body?.admin === true;
+  const backendDebug = body?.debug && typeof body.debug === 'object' ? body.debug : {};
   return adminStatusBase(user, {
     called: true,
     loading: false,
@@ -116,11 +118,12 @@ function parseAdminStatusBody(user, body, meta = {}) {
     status,
     source: body?.source || meta.source || 'AdminUser',
     statusFunction: body?.statusFunction || meta.statusFunction || '',
+    backendDebug,
     reason: parsedIsAdmin
       ? 'active_admin'
-      : (body?.ok === false
+      : (backendDebug?.reason || (body?.ok === false
         ? (body?.error || 'function_returned_not_ok')
-        : (status && status !== 'active' ? 'inactive_status' : 'no_admin_user_row')),
+        : (status && status !== 'active' ? 'inactive_status' : 'no_admin_user_row'))),
   });
 }
 
