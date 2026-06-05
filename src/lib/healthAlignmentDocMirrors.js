@@ -43,7 +43,7 @@ Status: Active product contract.
 - Current source of truth for admin authorization is the private AdminUser entity.
 - Shared backend guard: base44/functions/_shared/adminAuth.ts.
 - Active AdminUser rows require normalized lowercase email, role: "admin" or owner, and status: "active".
-- Disabled/missing AdminUser rows are denied.
+- disabled/missing AdminUser rows are denied.
 - There is no unsafe "if no admin exists, everyone is admin" fallback.
 - Do not commit the personal admin emails to source.
 - Admin email env allowlists are not used for authorization.

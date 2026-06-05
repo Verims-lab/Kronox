@@ -750,6 +750,14 @@ import React, { useEffect, useState } from 'react';
 //     on the current-user AdminUser status hint; AdminUser rows remain private
 //     and are never listed by the client.
 //
+// Codex223 — Admin Health contract fix:
+//   • getAdminStatus now imports and uses the shared AdminUser
+//     getAdminAuthorization helper instead of duplicating local lookup logic.
+//   • Health doc mirror now includes the lowercase disabled-admin handling
+//     contract required by the AdminUser source-of-truth case.
+//   • Keeps getAdminStatus callable for authenticated non-admin users,
+//     returning current-user-only isAdmin:false without exposing AdminUser rows.
+//
 // Codex222 — Solo joker area simplification:
 //   • Removes the large outer joker panel and individual rectangular joker
 //     card surfaces from Solo gameplay.
@@ -1037,7 +1045,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex222';
+const BUILD_MARKER = 'Codex223';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
