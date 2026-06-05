@@ -86,6 +86,7 @@
   ],
   "rls": {
     "create": {
+      "created_by_id": "{{user.id}}",
       "data.player_email": "{{user.email}}"
     },
     "read": {
