@@ -15,6 +15,10 @@ const cardColors = [
   { border: '#c084fc', year: '#c084fc', bg: 'rgba(192,132,252,0.08)' },  // purple
 ];
 
+const TIMELINE_CARD_WIDTH = 80;
+const TIMELINE_CARD_HEIGHT = 120;
+const TIMELINE_CARD_ASPECT_RATIO = '2 / 3';
+
 export default function TimelineCard({ card, index, distanceFromCenter = 0, yearOnly = false }) {
   const stackCount = card.stackCount || 1;
   const color = cardColors[index % cardColors.length];
@@ -27,7 +31,7 @@ export default function TimelineCard({ card, index, distanceFromCenter = 0, year
   const artist = lines[1] || card.artist || '';
 
   return (
-    <div className="relative flex-shrink-0" style={{ width: 80, opacity: fadeOpacity, transition: 'opacity 0.4s ease' }}>
+    <div className="relative flex-shrink-0" style={{ width: TIMELINE_CARD_WIDTH, opacity: fadeOpacity, transition: 'opacity 0.4s ease' }}>
       {/* Stack shadow layers */}
       {stackCount > 1 && (
         <>
@@ -56,8 +60,10 @@ export default function TimelineCard({ card, index, distanceFromCenter = 0, year
         transition={{ delay: index * 0.05, type: 'spring', stiffness: 300, damping: 24 }}
         className="relative flex flex-col items-center rounded-2xl select-none z-10"
         style={{
-          width: 80,
-          minHeight: 110,
+          width: TIMELINE_CARD_WIDTH,
+          height: TIMELINE_CARD_HEIGHT,
+          minHeight: TIMELINE_CARD_HEIGHT,
+          aspectRatio: TIMELINE_CARD_ASPECT_RATIO,
           background: card.media_url
             ? (yearOnly ? yearOnlyBackground : 'transparent')
             : (yearOnly ? yearOnlyBackground : `linear-gradient(160deg, rgba(15,20,40,0.95) 0%, rgba(10,15,35,0.98) 100%)`),
@@ -71,7 +77,7 @@ export default function TimelineCard({ card, index, distanceFromCenter = 0, year
         }}
       >
         {yearOnly ? (
-          <div className="flex h-full min-h-[106px] w-full items-center justify-center px-2">
+          <div className="flex h-full w-full items-center justify-center px-2">
             <span
               className="font-bangers tracking-wider"
               style={{
