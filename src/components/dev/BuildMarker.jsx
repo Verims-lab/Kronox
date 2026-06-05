@@ -742,6 +742,14 @@ import React, { useEffect, useState } from 'react';
 //     emails, active/disabled proof, and why VAPID private key remains an
 //     environment secret.
 //
+// Codex224 — Solo joker spacing and locked-state fix:
+//   • Tightens Solo joker spacing and reduces circle/icon footprint by about
+//     30% while keeping the circle, icon, count badge, and label structure.
+//   • Replaces persistent used-joker highlight with a short recently-used
+//     pulse, then locks all three jokers at count 0 for the rest of the level.
+//   • Preserves one-use attempt rule, joker effects, gameplay background,
+//     drag/drop, timer, scoring, Online, and Daily Wheel.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1045,7 +1053,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex223';
+const BUILD_MARKER = 'Codex224';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
