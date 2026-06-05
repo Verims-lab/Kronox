@@ -397,10 +397,14 @@ export default function Timeline({
       cardRowItems.push(
         <div key={`card-${i}`} ref={el => (cardItemRefs.current[i] = el)} className="flex flex-col items-center flex-shrink-0">
           <div className="flex flex-col items-center mb-0.5" style={{ height: 20 }}>
-            <span className="font-inter font-semibold" style={{ fontSize: 11, color: '#facc15', lineHeight: 1 }}>
-              {groupedCards[i].year}
-            </span>
-            <div className="w-px h-2 mt-0.5" style={{ background: '#facc15' }} />
+            {!soloYearOnlyCards && (
+              <>
+                <span className="font-inter font-semibold" style={{ fontSize: 11, color: '#facc15', lineHeight: 1 }}>
+                  {groupedCards[i].year}
+                </span>
+                <div className="w-px h-2 mt-0.5" style={{ background: '#facc15' }} />
+              </>
+            )}
           </div>
           <TimelineCard
             card={groupedCards[i]}

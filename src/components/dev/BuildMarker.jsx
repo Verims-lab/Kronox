@@ -750,6 +750,12 @@ import React, { useEffect, useState } from 'react';
 //     on the current-user AdminUser status hint; AdminUser rows remain private
 //     and are never listed by the client.
 //
+// Codex215 — Solo timeline duplicate year cleanup:
+//   • Solo placed timeline cards no longer show the duplicate year label
+//     above the card; the larger centered year inside the card remains.
+//   • Keeps timeline spacing, card size, drag/drop, placement logic, scoring,
+//     timers, jokers, Online, and other screens unchanged.
+//
 // Codex214 — Solo card readability + timeline cleanup:
 //   • Solo active question text is slightly larger while staying inside the
 //     question card with the bottom timing prompt preserved.
@@ -978,7 +984,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex214';
+const BUILD_MARKER = 'Codex215';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
