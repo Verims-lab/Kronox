@@ -18,8 +18,8 @@ import { formatCompactDuration } from '@/lib/soloTimeFormat';
  *     (or "çok fazla hata yaptın." for the mistakes branch)
  *   • Red diamond divider
  *   • 2x2 stat grid:
- *       TL: TOPLAM SÜRE (blue clock)   • TR: KAZANILAN PUAN (yellow star)
- *       BL: HATA SAYISI (red X)        • BR: HIZ BONUSU (red ✕)
+ *       TL: SÜRE (blue clock)   • TR: PUAN (yellow star)
+ *       BL: HATA (red X)        • BR: HIZ BONUSU (red ✕)
  *   • Two CTAs: yellow "TEKRAR OYNA", outline "SEVİYELER"
  *
  * Props are unchanged so SoloLevelResult keeps delegating without
@@ -33,12 +33,8 @@ export default function SoloFailureCard({
   failReason,
   onRetry,
   onBackToPath,
-  // Reference shows the maximum time under the time card. Default to the
-  // standard Solo v2 time budget (180s) when caller doesn't pass it.
-  maxTimeSeconds = 180,
 }) {
   const formattedTime = formatCompactDuration(timeSeconds);
-  const formattedMax = formatCompactDuration(maxTimeSeconds);
 
   const sublinePrimary = failReason === 'timeout'
     ? 'Üzgünüm, süre bitti.'
@@ -147,29 +143,30 @@ export default function SoloFailureCard({
               icon={TimerReset}
               iconColor="#5aa9ff"
               iconRingColor="rgba(90,169,255,0.55)"
-              label="TOPLAM SÜRE"
+              label="SÜRE"
               value={formattedTime}
               valueColor="#ffffff"
-              footer={<FailureFooter tone="muted">{`Maksimum: ${formattedMax}`}</FailureFooter>}
             />
             <SoloStatCard
               icon={Star}
               iconColor="#facc15"
               iconFill="#facc15"
               iconRingColor="rgba(250,204,21,0.55)"
-              label={<>KAZANILAN<br />PUAN</>}
+              label="PUAN"
               value={String(levelScore)}
               valueColor="#facc15"
               footer={<FailureFooter tone="gold">Puan</FailureFooter>}
+              footerMarginTop={0}
             />
             <SoloStatCard
               icon={X}
               iconColor="#ff4d6d"
               iconRingColor="rgba(255,77,109,0.55)"
-              label="HATA SAYISI"
+              label="HATA"
               value={String(mistakes)}
               valueColor="#ff4d6d"
               footer={<FailureFooter tone="red">Hata</FailureFooter>}
+              footerMarginTop={0}
             />
             <SoloStatCard
               icon={Zap}
@@ -363,6 +360,7 @@ function FailureFooter({ children, tone = 'muted' }) {
         fontSize: '11px',
         fontWeight: 600,
         letterSpacing: '0.02em',
+        lineHeight: 1.1,
       }}
     >
       {children}

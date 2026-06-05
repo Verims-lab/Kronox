@@ -19,7 +19,7 @@ import { formatCompactDuration } from '@/lib/soloTimeFormat';
  *   • Stat cards are horizontal rectangles: large round icon on the left,
  *     label + value stacked on the right.
  *   • Time uses compact "MM:SS" format ("01:10"), no "dak/saniye".
- *   • Success Puan/Hata cards use compact value + unit copy.
+ *   • Success Puan/Hata cards use compact short labels + unit copy.
  *   • All 4 stat icons share the same circle size and placement logic.
  *   • Buttons: primary yellow CTA + two secondary outline buttons, with
  *     icons consistently aligned to the left of the label.
@@ -115,17 +115,21 @@ export default function SoloSuccessPopup({
               iconColor="#facc15"
               iconRingColor="rgba(250,204,21,0.55)"
               iconFill="#facc15"
+              label="PUAN"
               value={String(levelScore || 0)}
               valueColor="#facc15"
               footer={<UnitLabel color="#facc15">Puan</UnitLabel>}
+              footerMarginTop={0}
             />
             <SoloStatCard
               icon={XIcon}
               iconColor="#f87171"
               iconRingColor="rgba(248,113,113,0.55)"
+              label="HATA"
               value={String(mistakes || 0)}
               valueColor="#f87171"
               footer={<UnitLabel color="#fca5a5">Hata</UnitLabel>}
+              footerMarginTop={0}
             />
             <SoloStatCard
               icon={Zap}
@@ -348,6 +352,7 @@ function UnitLabel({ children, color }) {
         fontSize: '11.5px',
         fontWeight: 600,
         letterSpacing: '0.02em',
+        lineHeight: 1.1,
       }}
     >
       {children}

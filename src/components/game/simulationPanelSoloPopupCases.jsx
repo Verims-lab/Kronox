@@ -37,6 +37,11 @@ function missingTokens(source, tokens) {
   return tokens.filter((t) => !src.includes(t));
 }
 
+function forbiddenTokensFound(source, tokens) {
+  const src = safeStr(source);
+  return tokens.filter((t) => src.includes(t));
+}
+
 function makeCase(id, name, run, options = {}) {
   return {
     key: `${SUITE_ID}.${id}`,
@@ -92,7 +97,6 @@ export const EXTRA_TESTS = [
       const failureMissing = missingTokens(failureSource, [
         "from '@/lib/soloTimeFormat'",
         'formatCompactDuration(timeSeconds)',
-        'formatCompactDuration(maxTimeSeconds)',
       ]);
       if (formatterMissing.length || successMissing.length || failureMissing.length) {
         return fail('Compact MM:SS time formatter is not wired into both popups.', {
@@ -102,6 +106,24 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Both popups format time as MM:SS via the shared helper.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('failure_popup_timeout_has_no_maximum_footer',
+    'Failure timeout state does not show a non-record Maksimum footer',
+    () => {
+      const forbidden = forbiddenTokensFound(failureSource, [
+        'Maksimum',
+        'maxTimeSeconds',
+        'formatCompactDuration(maxTimeSeconds)',
+      ]);
+      if (forbidden.length) {
+        return fail('Failure popup still shows or computes the old non-record maximum-time footer.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'components/game/SoloFailureCard.jsx',
+          actual: { forbidden },
+        });
+      }
+      return pass('Failure popup keeps the time card clean; record-style footer copy remains success-only.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('failure_popup_no_longer_uses_verbose_duration',
@@ -127,7 +149,7 @@ export const EXTRA_TESTS = [
     () => {
       // The label span must NOT use `truncate` (single-line ellipsis)
       // and must allow normal whitespace + overflow-wrap so
-      // "KAZANILAN PUAN" can break.
+      // short labels like "HIZ BONUSU" can still break when needed.
       const src = safeStr(statCardSource);
       const usesTruncate = /className="[^"]*\btruncate\b[^"]*"/.test(src);
       const allowsWrap = src.includes("whiteSpace: 'normal'")
@@ -142,24 +164,26 @@ export const EXTRA_TESTS = [
       return pass('SoloStatCard label allows two-line wrapping (no truncate).', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('kazanilan_puan_two_line_layout',
-    'Success popup hides the old Kazanılan Puan label while failure keeps it',
+  makeCase('solo_result_short_stat_labels',
+    'Solo result popups use short SÜRE/PUAN/HATA stat labels',
     () => {
-      // Current product copy simplified the success popup: the Puan card
-      // shows only the earned number and "Puan". The failure popup still
-      // keeps the two-line KAZANILAN / PUAN label.
-      const successHas = successSource.includes('KAZANILAN<br />PUAN');
-      const failureHas = failureSource.includes('KAZANILAN<br />PUAN');
-      const successHasValueAndUnit = successSource.includes('value={String(levelScore || 0)}')
-        && successSource.includes('<UnitLabel color="#facc15">Puan</UnitLabel>');
-      if (successHas || !failureHas || !successHasValueAndUnit) {
-        return fail('Solo result popup Puan copy drifted from current product decision.', {
+      const combined = `${successSource}\n${failureSource}`;
+      const oldLabels = ['KAZANILAN<br />PUAN', 'KAZANILAN PUAN', 'TOPLAM SÜRE', 'HATA SAYISI'];
+      const forbidden = forbiddenTokensFound(combined, oldLabels);
+      const required = [
+        ...missingTokens(successSource, ['label="SÜRE"', 'label="PUAN"', 'label="HATA"']),
+        ...missingTokens(failureSource, ['label="SÜRE"', 'label="PUAN"', 'label="HATA"']),
+        ...missingTokens(successSource, ['<UnitLabel color="#facc15">Puan</UnitLabel>', '<UnitLabel color="#fca5a5">Hata</UnitLabel>']),
+        ...missingTokens(failureSource, ['<FailureFooter tone="gold">Puan</FailureFooter>', '<FailureFooter tone="red">Hata</FailureFooter>']),
+      ];
+      if (forbidden.length || required.length) {
+        return fail('Solo result popup stat labels drifted from the short-label product decision.', {
           verification: 'STATIC_CONTRACT',
           files: ['components/game/SoloSuccessPopup.jsx', 'components/game/SoloFailureCard.jsx'],
-          actual: { successHas, failureHas, successHasValueAndUnit },
+          actual: { forbidden, required },
         });
       }
-      return pass('Success Puan card uses only value + Puan; failure keeps the two-line KAZANILAN / PUAN label.', { verification: 'STATIC_CONTRACT' });
+      return pass('Success and failure popups use SÜRE/PUAN/HATA with compact Puan/Hata unit copy.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('time_icon_is_timer_reset_not_clock',
