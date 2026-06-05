@@ -100,6 +100,27 @@ function unwrapFunctionBody(value, source) {
 }
 
 function parseAdminStatusBody(user, body, meta = {}) {
+  const hasAdminStatusShape = (
+    Object.prototype.hasOwnProperty.call(body || {}, 'isAdmin') ||
+    Object.prototype.hasOwnProperty.call(body || {}, 'is_admin') ||
+    Object.prototype.hasOwnProperty.call(body || {}, 'admin') ||
+    body?.source === 'AdminUser' ||
+    body?.statusFunction === 'getAdminStatus'
+  );
+  if (!hasAdminStatusShape) {
+    return adminStatusBase(user, {
+      called: true,
+      loading: false,
+      statusCall: 'error',
+      responseShape: meta.responseShape || '',
+      responseShapeKeys: meta.responseShapeKeys || [],
+      responseKeys: meta.responseKeys || [],
+      dataKeys: meta.dataKeys || [],
+      nestedDataKeys: meta.nestedDataKeys || [],
+      reason: 'response_parse_error',
+      error: 'admin_status_shape_missing',
+    });
+  }
   const role = String(body?.role || '').trim().toLowerCase();
   const status = String(body?.status || '').trim().toLowerCase();
   const parsedIsAdmin = body?.isAdmin === true || body?.is_admin === true || body?.admin === true;
@@ -169,16 +190,21 @@ export async function getCurrentAdminStatus(user) {
   const attempts = [
     () => fetchFunctionJson('/getAdminStatus', {}),
     () => invokeFunctionJson('getAdminStatus', {}),
-    () => fetchFunctionJson('/getQuestions', { action: 'admin_status' }),
-    () => invokeFunctionJson('getQuestions', { action: 'admin_status' }),
   ];
   let lastError = '';
+  let lastShape = null;
 
   for (const attempt of attempts) {
     try {
       const result = await attempt();
       if (result?.ok && result.body && typeof result.body === 'object') {
-        return parseAdminStatusBody(user, result.body, result);
+        const parsed = parseAdminStatusBody(user, result.body, result);
+        if (parsed.statusCall !== 'error' || parsed.reason !== 'response_parse_error') {
+          return parsed;
+        }
+        lastShape = parsed;
+        lastError = parsed.error || parsed.reason;
+        continue;
       }
       lastError = `http_${result?.httpStatus || 'not_ok'}`;
     } catch (error) {
@@ -187,6 +213,8 @@ export async function getCurrentAdminStatus(user) {
         : (error?.message || 'status_call_failed');
     }
   }
+
+  if (lastShape) return lastShape;
 
   return adminStatusBase(user, {
     called: true,

@@ -337,11 +337,7 @@ export const EXTRA_TESTS = [
         'value.data',
         'value.data.data',
         "fetchFunctionJson('/getAdminStatus'",
-        "fetchFunctionJson('/getQuestions'",
-        "invokeFunctionJson('getQuestions'",
         'getAdminAuthorization',
-        "statusFunction: 'getQuestions'",
-        "action: 'admin_status'",
         'getCurrentAdminStatus',
         'withAdminStatus',
         'adminStatus',
@@ -354,6 +350,8 @@ export const EXTRA_TESTS = [
         'adminToolsShouldRender',
         'adminToolsActuallyMounted',
         'backendDebug',
+        'admin_status_shape_missing',
+        'response_parse_error',
         'useAuth()',
         'AdminStatusDebugPanel',
         'isAdminUser(user)',
@@ -371,6 +369,44 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Admin UI surfaces use the backend AdminUser status hint and still rely on backend guards for authority.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+  ),
+
+  makeCase(
+    'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
+    'admin_status_does_not_use_get_questions_fallback',
+    'Admin status does not infer authorization from getQuestions or question projection responses',
+    () => {
+      const forbiddenAdminSource = [
+        "fetchFunctionJson('/getQuestions'",
+        "invokeFunctionJson('getQuestions'",
+        "action: 'admin_status'",
+        "scope: 'admin_status'",
+        "statusFunction: 'getQuestions'",
+      ].filter((token) => safeStr(adminSource).includes(token) || safeStr(getQuestionsSource).includes(token));
+      const required = [
+        'hasAdminStatusShape',
+        'admin_status_shape_missing',
+        'response_parse_error',
+        "fetchFunctionJson('/getAdminStatus'",
+        "invokeFunctionJson('getAdminStatus'",
+        'statusFunction: \'getAdminStatus\'',
+        'entities.AdminUser',
+      ].filter((token) => !`${adminSource}\n${getAdminStatusSource}\n${adminAuthSource}`.includes(token));
+      if (forbiddenAdminSource.length || required.length) {
+        return fail('Admin status can still fall back to getQuestions or parse non-admin payloads.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'Only getAdminStatus/AdminUser status payloads can drive Settings admin UI.',
+          actual: { forbiddenAdminSource, missing: required },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Admin status only accepts dedicated getAdminStatus/AdminUser responses.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
