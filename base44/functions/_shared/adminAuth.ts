@@ -15,27 +15,120 @@ function isActiveStatus(status: unknown) {
   return String(status || '').trim().toLowerCase() === 'active';
 }
 
+const FIELD_CANDIDATES = {
+  email: ['email', 'Email', 'user_email', 'admin_email'],
+  role: ['role', 'Role', 'user_role'],
+  status: ['status', 'Status'],
+};
+
+function readField(row: any, candidates: string[]) {
+  for (const field of candidates) {
+    if (row && Object.prototype.hasOwnProperty.call(row, field)) {
+      return { value: row[field], field };
+    }
+  }
+  return { value: undefined, field: '' };
+}
+
+function debugBase(email: string, patch: Record<string, unknown> = {}) {
+  return {
+    authEmailPresent: Boolean(email),
+    normalizedEmail: email,
+    lookupAttempted: false,
+    matchedRow: false,
+    matchedFieldNames: {
+      email: '',
+      role: '',
+      status: '',
+    },
+    reason: email ? 'admin_user_not_found' : 'no_auth_email',
+    ...patch,
+  };
+}
+
 export async function getAdminAuthorization(base44: any, user: any) {
   const email = normalizeEmail(user?.email);
-  if (!email) return { isAdmin: false, row: null, role: '', status: '', source: 'AdminUser' };
+  if (!email) {
+    return {
+      isAdmin: false,
+      row: null,
+      role: '',
+      status: '',
+      source: 'AdminUser',
+      debug: debugBase(email),
+    };
+  }
 
   const adminEntity = base44?.asServiceRole?.entities?.AdminUser;
-  const rows = adminEntity?.filter
-    ? await adminEntity.filter({ email }, '-updated_at', 10).catch(() => [])
-    : [];
+  if (!adminEntity?.filter) {
+    return {
+      isAdmin: false,
+      row: null,
+      role: '',
+      status: '',
+      source: 'AdminUser',
+      debug: debugBase(email, { lookupAttempted: false, reason: 'lookup_error' }),
+    };
+  }
 
-  const row = (rows || []).find((candidate: any) => (
-    normalizeEmail(candidate?.email) === email &&
-    isActiveStatus(candidate?.status) &&
-    isActiveAdminRole(candidate?.role)
+  let rows: any[] = [];
+  let lookupError = '';
+  let lookupAttemptSucceeded = false;
+  for (const field of FIELD_CANDIDATES.email) {
+    try {
+      const result = await adminEntity.filter({ [field]: email }, '-updated_at', 10);
+      if (Array.isArray(result)) lookupAttemptSucceeded = true;
+      if (Array.isArray(result) && result.length > 0) {
+        rows = result;
+        break;
+      }
+    } catch (error) {
+      lookupError = String(error?.message || 'lookup_error');
+    }
+  }
+
+  const exactEmailRows = (rows || [])
+    .map((candidate: any) => {
+      const emailField = readField(candidate, FIELD_CANDIDATES.email);
+      const roleField = readField(candidate, FIELD_CANDIDATES.role);
+      const statusField = readField(candidate, FIELD_CANDIDATES.status);
+      return {
+        candidate,
+        email: normalizeEmail(emailField.value),
+        role: String(roleField.value || '').trim().toLowerCase(),
+        status: String(statusField.value || '').trim().toLowerCase(),
+        fields: {
+          email: emailField.field,
+          role: roleField.field,
+          status: statusField.field,
+        },
+      };
+    })
+    .filter((candidate) => candidate.email === email);
+
+  const activeRow = exactEmailRows.find((candidate) => (
+    isActiveStatus(candidate.status) && isActiveAdminRole(candidate.role)
   )) || null;
+  const row = activeRow?.candidate || null;
+  const nearestMatch = activeRow || exactEmailRows[0] || null;
+  const reason = row
+    ? 'active_admin_match'
+    : (exactEmailRows.length > 0
+      ? (!isActiveStatus(nearestMatch?.status) ? 'status_not_active' : 'role_not_allowed')
+      : (!lookupAttemptSucceeded && lookupError ? 'lookup_error' : 'admin_user_not_found'));
 
   return {
     isAdmin: Boolean(row),
     row,
-    role: row ? String(row.role || 'admin').trim().toLowerCase() : '',
-    status: row ? String(row.status || '').trim().toLowerCase() : '',
+    role: row ? activeRow.role : (nearestMatch?.role || ''),
+    status: row ? activeRow.status : (nearestMatch?.status || ''),
     source: 'AdminUser',
+    debug: debugBase(email, {
+      lookupAttempted: true,
+      matchedRow: Boolean(row),
+      matchedFieldNames: nearestMatch?.fields || { email: '', role: '', status: '' },
+      reason,
+    }),
   };
 }
 

@@ -7,7 +7,6 @@ import SimulationPanel from '@/components/game/SimulationPanel';
 import SimulationPanelErrorBoundary from '@/components/game/SimulationPanelErrorBoundary';
 import TopScores from '@/components/game/TopScores';
 import KronoxTutorial from '@/components/tutorial/KronoxTutorial';
-import { isAdminUser } from '@/lib/admin';
 import { markTutorialCompleted } from '@/lib/tutorialProfile';
 import StandardTopBar from '@/components/layout/StandardTopBar';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
@@ -15,6 +14,9 @@ import { ACCOUNT_DELETION_ERROR_COPY, requestAccountDeletion } from '@/lib/accou
 import ResetUserProgressTool from '@/components/admin/ResetUserProgressTool';
 import QuestionAnalyticsReportTool from '@/components/admin/QuestionAnalyticsReportTool';
 import { useAuth } from '@/lib/AuthContext';
+import { KRONOX_BUILD_MARKER } from '@/components/dev/BuildMarker';
+
+const SETTINGS_ADMIN_DEBUG_VERSION = 'AdminDebug-v4';
 
 export default function SettingsPage() {
   const { user, isLoadingAuth, adminStatus, refreshAdminStatus } = useAuth();
@@ -27,9 +29,10 @@ export default function SettingsPage() {
   const [showSim, setShowSim] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
 
-  const statusHasResolved = adminStatus?.called === true || user?.admin_status_debug?.called === true;
   const parsedAdminStatus = adminStatus?.parsedIsAdmin === true || user?.admin_status_debug?.parsedIsAdmin === true;
-  const isAdmin = statusHasResolved ? parsedAdminStatus : isAdminUser(user);
+  const adminToolsShouldRender = parsedAdminStatus;
+  const adminToolsActuallyMounted = adminToolsShouldRender;
+  const isAdmin = adminToolsActuallyMounted;
   const diamondValue = getLeaderboardDiamondValue(user);
 
   const handleDeleteAccount = async () => {
@@ -102,16 +105,17 @@ export default function SettingsPage() {
         <h1 className="font-cinzel text-2xl font-black tracking-wide text-foreground">Ayarlar</h1>
       </div>
 
-      <div className="px-4 space-y-5">
-        {user && (
-          <AdminStatusDebugPanel
-            user={user}
-            adminStatus={adminStatus || user?.admin_status_debug}
-            adminToolsVisible={isAdmin}
-            onRefresh={refreshAdminStatus}
-          />
-        )}
+      <div className="px-4 pb-4">
+        <AdminStatusDebugPanel
+          user={user}
+          adminStatus={adminStatus || user?.admin_status_debug}
+          adminToolsShouldRender={adminToolsShouldRender}
+          adminToolsActuallyMounted={adminToolsActuallyMounted}
+          onRefresh={refreshAdminStatus}
+        />
+      </div>
 
+      <div className="px-4 space-y-5">
         {/* Admin araçları — yalnızca admin. */}
         {isAdmin && (
           <Section label="Araçlar">
@@ -253,59 +257,93 @@ function joinKeys(keys) {
   return Array.isArray(keys) && keys.length ? keys.join(', ') : 'Yok';
 }
 
-function AdminStatusDebugPanel({ user, adminStatus = {}, adminToolsVisible, onRefresh }) {
+function yesNo(value) {
+  return value ? 'yes' : 'no';
+}
+
+function formatAdminStatusError(adminStatus = {}) {
+  if (adminStatus?.loading) return 'Yok';
+  if (adminStatus?.parsedIsAdmin === true) return 'Yok';
+  const reason = adminStatus?.reason || adminStatus?.backendDebug?.reason || 'not_checked';
+  const error = adminStatus?.error ? ` / ${adminStatus.error}` : '';
+  return `${reason}${error}`;
+}
+
+function formatLookupSource(adminStatus = {}) {
+  const debug = adminStatus?.backendDebug || {};
+  const fields = debug?.matchedFieldNames || {};
+  const matched = debug?.matchedRow === true ? 'matched' : 'not_matched';
+  const source = adminStatus?.source || 'AdminUser';
+  const statusFunction = adminStatus?.statusFunction || 'Yok';
+  const reason = debug?.reason || adminStatus?.reason || 'not_checked';
+  const fieldCopy = `email=${fields.email || 'Yok'}, role=${fields.role || 'Yok'}, status=${fields.status || 'Yok'}`;
+  return `${source} / ${statusFunction} / ${matched} / ${reason} / ${fieldCopy}`;
+}
+
+function AdminStatusDebugPanel({
+  user,
+  adminStatus = {},
+  adminToolsShouldRender,
+  adminToolsActuallyMounted,
+  onRefresh,
+}) {
   const authEmailRaw = adminStatus?.authEmailRaw || user?.email || '';
   const normalizedEmail = adminStatus?.normalizedEmail || String(authEmailRaw || '').trim().toLowerCase();
+  const rawResponseShape = [
+    adminStatus?.responseShape || 'Yok',
+    `responseKeys: ${joinKeys(adminStatus?.responseKeys)}`,
+    `dataKeys: ${joinKeys(adminStatus?.dataKeys)}`,
+    `nestedDataKeys: ${joinKeys(adminStatus?.nestedDataKeys)}`,
+  ].join(' | ');
   const rows = [
-    ['authEmail', authEmailRaw || 'Yok'],
-    ['normalizedEmail', normalizedEmail || 'Yok'],
-    ['statusCall', adminStatus?.loading ? 'loading' : (adminStatus?.statusCall || 'idle')],
-    ['called', adminStatus?.called ? 'yes' : 'no'],
-    ['responseShape', adminStatus?.responseShape || 'Yok'],
-    ['responseKeys', joinKeys(adminStatus?.responseKeys)],
-    ['dataKeys', joinKeys(adminStatus?.dataKeys)],
-    ['nestedDataKeys', joinKeys(adminStatus?.nestedDataKeys)],
-    ['parsedIsAdmin', adminStatus?.parsedIsAdmin === true ? 'true' : 'false'],
-    ['role', adminStatus?.role || 'Yok'],
-    ['status', adminStatus?.status || 'Yok'],
-    ['source', adminStatus?.source || 'AdminUser'],
-    ['statusFunction', adminStatus?.statusFunction || 'Yok'],
-    ['uiGate', 'AdminUser parsed status; isAdminUser(user) only before status resolves'],
-    ['adminToolsVisible', adminToolsVisible ? 'true' : 'false'],
-    ['reason', adminStatus?.reason || 'not_checked'],
-    ['error', adminStatus?.error || 'Yok'],
+    ['Settings component version', SETTINGS_ADMIN_DEBUG_VERSION],
+    ['Build marker', KRONOX_BUILD_MARKER],
+    ['Auth email raw', authEmailRaw || 'Yok'],
+    ['Auth email normalized', normalizedEmail || 'Yok'],
+    ['Admin status call attempted', yesNo(adminStatus?.called)],
+    ['Admin status loading', yesNo(adminStatus?.loading)],
+    ['Admin status error', formatAdminStatusError(adminStatus)],
+    ['Raw response shape', rawResponseShape],
+    ['Parsed isAdmin', adminStatus?.parsedIsAdmin === true ? 'true' : 'false'],
+    ['Parsed role', adminStatus?.role || 'Yok'],
+    ['Parsed status', adminStatus?.status || 'Yok'],
+    ['AdminUser lookup source', formatLookupSource(adminStatus)],
+    ['Admin tools should render', adminToolsShouldRender ? 'true' : 'false'],
+    ['Admin tools actually mounted', adminToolsActuallyMounted ? 'true' : 'false'],
   ];
 
   return (
-    <details className="rounded-2xl border border-amber-300/20 bg-amber-300/5 px-4 py-3">
-      <summary className="cursor-pointer font-inter text-xs font-bold uppercase tracking-widest text-amber-100">
-        Admin debug
-      </summary>
-      <div className="mt-3 space-y-2">
-        <p className="font-inter text-xs text-muted-foreground">
-          Yalnızca mevcut oturumun AdminUser durumunu gösterir; admin listesi veya gizli bilgi içermez.
-        </p>
-        <div className="grid gap-1 font-mono text-[11px] leading-relaxed text-amber-50/90">
-          {rows.map(([label, value]) => (
-            <div key={label} className="grid grid-cols-[9.5rem_1fr] gap-2">
-              <span className="text-amber-200/80">{label}</span>
-              <span className="break-all">{value}</span>
-            </div>
-          ))}
+    <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 shadow-[0_0_22px_rgba(245,179,1,0.12)]">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <p className="font-inter text-xs font-bold uppercase tracking-widest text-amber-100">
+            Settings component version: {SETTINGS_ADMIN_DEBUG_VERSION}
+          </p>
+          <p className="mt-1 font-inter text-xs text-muted-foreground">
+            Yalnızca mevcut oturumun AdminUser durumunu gösterir; admin listesi veya gizli bilgi içermez.
+          </p>
         </div>
         <Button
           type="button"
           variant="outline"
           size="sm"
-          className="h-9 border-amber-300/30 bg-transparent text-xs text-amber-50 hover:bg-amber-300/10"
+          className="h-8 shrink-0 border-amber-300/30 bg-transparent px-3 text-[11px] text-amber-50 hover:bg-amber-300/10"
           onClick={onRefresh}
           disabled={adminStatus?.loading}
         >
           {adminStatus?.loading ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
-          Admin durumu yenile
+          Yenile
         </Button>
       </div>
-    </details>
+      <div className="grid gap-1 font-mono text-[11px] leading-relaxed text-amber-50/90">
+        {rows.map(([label, value]) => (
+          <div key={label} className="grid grid-cols-[10.5rem_1fr] gap-2">
+            <span className="text-amber-200/80">{label}</span>
+            <span className="break-all">{value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

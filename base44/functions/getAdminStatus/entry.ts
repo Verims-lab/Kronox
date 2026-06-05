@@ -15,6 +15,7 @@ Deno.serve(async (req: Request) => {
       status: authorization.status || null,
       source: 'AdminUser',
       statusFunction: 'getAdminStatus',
+      debug: authorization.debug || null,
     });
   } catch (_error) {
     return json({ ok: false, error: 'Authentication required' }, 401);

@@ -750,6 +750,16 @@ import React, { useEffect, useState } from 'react';
 //     on the current-user AdminUser status hint; AdminUser rows remain private
 //     and are never listed by the client.
 //
+// Codex204 — Settings AdminDebug-v4 runtime proof:
+//   • Settings now renders the temporary AdminDebug-v4 panel immediately
+//     under the Ayarlar header and before any admin-only conditional block.
+//   • The panel shows the exact current-user status rows needed to prove
+//     auth email, response shape, parsed AdminUser role/status, and whether
+//     admin tools should/actually do mount.
+//   • Backend AdminUser lookup now tolerates email/role/status field casing
+//     variants, normalizes values, and returns current-user-only safe lookup
+//     reasons plus matched field names without exposing AdminUser rows.
+//
 // Codex203 — AdminUser Settings runtime diagnostics:
 //   • AuthContext now stores and refreshes the current user's AdminUser
 //     status result instead of hiding it inside the decorated user object.
@@ -881,7 +891,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex203';
+const BUILD_MARKER = 'Codex204';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
