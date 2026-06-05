@@ -328,6 +328,7 @@ export default function GameLayout({
               onDragEnd={isMyTurn ? onDragEnd : undefined}
               onTouchDragMove={isMyTurn ? onTouchDragMove : undefined}
               onTouchDragEnd={isMyTurn ? onTouchDragEnd : undefined}
+              soloReadableCard={!isOnline}
             />
             {isSpectatingQuestion && (
               <div

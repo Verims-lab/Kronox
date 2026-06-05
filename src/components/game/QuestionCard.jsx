@@ -69,6 +69,7 @@ export default function QuestionCard({
   onDragEnd,
   onTouchDragMove,
   onTouchDragEnd,
+  soloReadableCard = false,
 }) {
   const [playing, setPlaying] = useState(false);
   const [imgError, setImgError] = useState(false);
@@ -134,7 +135,7 @@ export default function QuestionCard({
   };
 
   const neon = categoryNeon[question?.category] || defaultNeon;
-  const QuestionIcon = getQuestionIcon(question?.question, question?.category);
+  const QuestionIcon = soloReadableCard ? null : getQuestionIcon(question?.question, question?.category);
 
   const hasAlbumArt = question?.media_url && !imgError;
   const isMuzik = question?.type === 'muzik';
@@ -231,8 +232,15 @@ export default function QuestionCard({
           {/* Text area — 35% of card with premium spacing */}
           <div className="flex flex-col items-center justify-center flex-1 px-3 py-2.5 gap-1 relative z-10" style={{ background: 'linear-gradient(to bottom, rgba(15,20,40,0.8) 0%, rgba(10,15,35,0.95) 100%)' }}>
             {/* Question text */}
-            <p className="text-center font-inter font-bold leading-snug text-white line-clamp-2"
-              style={{ fontSize: 11, lineHeight: 1.35 }}>
+            <p
+              className="text-center font-inter leading-snug text-white line-clamp-2"
+              style={{
+                fontSize: soloReadableCard ? 12 : 11,
+                lineHeight: soloReadableCard ? 1.28 : 1.35,
+                fontWeight: soloReadableCard ? 600 : 700,
+                letterSpacing: '0',
+              }}
+            >
               {isMuzik ? songTitle : question?.question}
             </p>
 
@@ -251,15 +259,32 @@ export default function QuestionCard({
       ) : (
         <>
           {/* No media: fallback layout */}
-          <div className="flex flex-col items-center px-3 py-3 gap-2 flex-1 justify-center">
+          <div
+            className={`flex flex-1 flex-col items-center justify-center ${soloReadableCard ? 'gap-1 px-4 py-5' : 'gap-2 px-3 py-3'}`}
+          >
             {/* Question text */}
-            <p className="text-center font-inter font-bold leading-tight text-white"
-              style={{ fontSize: isMuzik ? 11 : 10, lineHeight: 1.3 }}>
+            <p
+              className="text-center font-inter text-white"
+              style={{
+                width: '100%',
+                maxWidth: soloReadableCard ? 132 : undefined,
+                fontSize: soloReadableCard ? 'clamp(12px, 3.45vw, 13.5px)' : (isMuzik ? 11 : 10),
+                lineHeight: soloReadableCard ? 1.24 : 1.3,
+                fontWeight: soloReadableCard ? 600 : 700,
+                letterSpacing: '0',
+                textWrap: 'balance',
+                overflowWrap: 'break-word',
+                display: '-webkit-box',
+                WebkitBoxOrient: 'vertical',
+                WebkitLineClamp: soloReadableCard ? 8 : undefined,
+                overflow: soloReadableCard ? 'hidden' : undefined,
+              }}
+            >
               {isMuzik ? songTitle : question?.question}
             </p>
 
             {/* Category icon */}
-            {!isMuzik && (
+            {!soloReadableCard && !isMuzik && (
               <div
                 className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
                 style={{ background: `${neon.border}18`, border: `1.5px solid ${neon.border}50` }}
@@ -274,7 +299,14 @@ export default function QuestionCard({
 
             {/* Artist name for music */}
             {isMuzik && artistName && (
-              <p className="text-center font-inter" style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)' }}>
+              <p
+                className="text-center font-inter"
+                style={{
+                  fontSize: soloReadableCard ? 10 : 9,
+                  fontWeight: soloReadableCard ? 600 : 400,
+                  color: soloReadableCard ? 'rgba(255,255,255,0.68)' : 'rgba(255,255,255,0.5)',
+                }}
+              >
                 {artistName}
               </p>
             )}
