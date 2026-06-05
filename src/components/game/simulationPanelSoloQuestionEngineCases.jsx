@@ -764,13 +764,30 @@ export const EXTRA_TESTS = [
         levelNumber: 1,
         allowedMainCategoryIds: [1, 2, 3, 4, 5, 6],
         requireActiveCategoryWhitelist: true,
+        random: makeSeededRandom(231),
       });
-      if (missingWhitelist.ok || missingWhitelist.reason !== 'missing_active_category_whitelist' || !validWhitelist.ok) {
+      const validStringWhitelist = buildSoloAttemptDeck({
+        pool,
+        levelNumber: 1,
+        allowedMainCategoryIds: ['1', '2', '3', '4', '5', '6'],
+        requireActiveCategoryWhitelist: true,
+        random: makeSeededRandom(231),
+      });
+      if (
+        missingWhitelist.ok ||
+        missingWhitelist.reason !== 'missing_active_category_whitelist' ||
+        !validWhitelist.ok ||
+        !validStringWhitelist.ok
+      ) {
         return fail('Active-category whitelist enforcement drifted.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
-          expected: 'missing whitelist fails clean; valid whitelist builds',
-          actual: { missingWhitelist, validWhitelistOk: validWhitelist.ok },
+          expected: 'missing whitelist fails clean; valid numeric/string whitelist builds',
+          actual: {
+            missingWhitelist,
+            validWhitelistOk: validWhitelist.ok,
+            validStringWhitelistOk: validStringWhitelist.ok,
+          },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }

@@ -806,6 +806,15 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps stale/fresh cache usable until a network replacement succeeds and
 //     preserves Solo deck, timer, scoring, joker, and drag/drop rules.
 //
+// Codex232 — Solo active-category whitelist health fix:
+//   • Normalizes active category whitelist values and question category fields
+//     before comparison, covering numeric/string IDs and Category-shaped rows
+//     without accepting a missing whitelist.
+//   • Reserves enough spaced years for the first five active Solo cards plus
+//     visible seed/preplaced timeline cards so valid whitelists build cleanly.
+//   • Keeps missing whitelist clean-fail behavior, Solo deck rules, no
+//     mid-attempt fetches, and first-open question loading behavior intact.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1109,7 +1118,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex231';
+const BUILD_MARKER = 'Codex232';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
