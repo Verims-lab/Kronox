@@ -54,6 +54,7 @@ const categoryNeon = {
 };
 
 const defaultNeon = { border: '#facc15', glow: 'rgba(250,204,21,0.5)' };
+const SOLO_READABLE_QUESTION_LETTER_SPACING = '0.01em';
 
 export default function QuestionCard({
   question,
@@ -238,7 +239,7 @@ export default function QuestionCard({
                 fontSize: soloReadableCard ? 13 : 11,
                 lineHeight: soloReadableCard ? 1.28 : 1.35,
                 fontWeight: soloReadableCard ? 600 : 700,
-                letterSpacing: '0',
+                letterSpacing: soloReadableCard ? SOLO_READABLE_QUESTION_LETTER_SPACING : '0',
               }}
             >
               {isMuzik ? songTitle : question?.question}
@@ -271,7 +272,7 @@ export default function QuestionCard({
                 fontSize: soloReadableCard ? 'clamp(13px, 3.8vw, 15px)' : (isMuzik ? 11 : 10),
                 lineHeight: soloReadableCard ? 1.2 : 1.3,
                 fontWeight: soloReadableCard ? 600 : 700,
-                letterSpacing: '0',
+                letterSpacing: soloReadableCard ? SOLO_READABLE_QUESTION_LETTER_SPACING : '0',
                 textWrap: 'balance',
                 overflowWrap: 'break-word',
                 display: '-webkit-box',
