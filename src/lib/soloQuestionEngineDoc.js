@@ -87,10 +87,10 @@ Replay creates a new deck. Old completed results are not retroactively
 recalculated. New attempts may carry soloRulesVersion: 2.
 
 Solo Jokers v1 are Solo-only, free, attempt-local helpers. Every new Solo
-attempt starts with Hata Affı, Kart Değiştir, and Zaman Dondur. Only 1 joker
+attempt starts with Kronokalkan, Kart Değiştir, and Zaman Dondur. Only 1 joker
 total may be used per attempt. Jokers do not use Diamonds, do not grant Kronox Puan, and do not affect Online mode.
 
-Hata Affı forgives the next wrong placement without counting a mistake.
+Kronokalkan forgives the next wrong placement without counting a mistake.
 Kart Değiştir replaces the current card from the already prepared Solo deck
 or reserve without fetching or re-randomizing mid-attempt. The swapped-out card
 should not reappear while unused deck cards are available. Replacement must

@@ -123,9 +123,9 @@ Checklist:
 * Result screen does not scroll unexpectedly.
 * Result screen does not clip on small phones.
 * Solo Joker bar appears below the timeline and above `KARTI YERLEŞTİR`.
-* Each new Solo attempt starts with `Hata Affı`, `Kart Değiştir`, and `Zaman Dondur`.
+* Each new Solo attempt starts with `Kronokalkan`, `Kart Değiştir`, and `Zaman Dondur`.
 * Only 1 joker can be used per attempt; used/disabled states are clear.
-* `Hata Affı` forgives the next wrong placement without incrementing mistakes.
+* `Kronokalkan` forgives the next wrong placement without incrementing mistakes.
 * `Kart Değiştir` replaces the current card from the prebuilt deck/reserve, does not fetch mid-attempt, does not immediately re-show the swapped-out card, respects visible timeline spacing, prefers a balanced replacement, and has helper-only diagnostics for replacement source/no-safe-replacement state.
 * `Zaman Dondur` freezes the Solo timer for 10 seconds and cleans up after result/replay.
 * Jokers remain free in v1, do not spend Diamonds, and do not grant Kronox Puan.

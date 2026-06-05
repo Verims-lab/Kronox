@@ -127,14 +127,14 @@ The subtle placement hint remains visual-only for levels 1-3:
 
 Solo jokers are first-version, attempt-local helpers:
 - Solo-only; Online mode has no joker UI or joker effects
-- every new Solo level attempt starts with 3 options: `Hata Affı`, `Kart Değiştir`, `Zaman Dondur`
+- every new Solo level attempt starts with 3 options: `Kronokalkan`, `Kart Değiştir`, `Zaman Dondur`
 - only 1 joker total may be used per attempt
 - after one joker is used, the other two stay visible but disabled/passive
 - jokers are free in v1; there is no inventory, earning, spending, shop, ad, or Diamond cost
 - jokers do not grant Kronox Puan directly and do not change Solo scoring values
 
 Joker behavior:
-- `Hata Affı`: activates one-time protection. The next wrong placement does not count as a mistake; correct placements do not consume it.
+- `Kronokalkan`: activates one-time protection. The next wrong placement does not count as a mistake; correct placements do not consume it.
 - `Kart Değiştir`: replaces the current active card using the already prepared Solo attempt deck/reserve. It must not fetch a new question, rebuild the deck, or rerandomize the attempt mid-game, and the swapped-out card should not reappear later in the same attempt while unused deck cards are available. Replacement must respect visible timeline spacing and prefers a balanced reserve card that does not worsen category/subcategory/theme repetition. If no safe replacement exists, the joker is not consumed and the player sees `Bu kart şu anda değiştirilemiyor.`
 - `Zaman Dondur`: freezes the Solo level timer for 10 seconds. It does not add score, add extra time, or alter timeout rules beyond pausing the elapsed timer during the freeze window.
 

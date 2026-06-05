@@ -5,7 +5,7 @@ import { RefreshCw, Shield, Snowflake } from 'lucide-react';
 const JOKERS = [
   {
     type: 'mistakeShield',
-    label: 'Hata Affı',
+    label: 'Kronokalkan',
     icon: Shield,
     accent: '#60a5fa',
     glow: 'rgba(96,165,250,0.38)',
@@ -167,7 +167,7 @@ export default function SoloJokerBar({
               style={{ color: error ? '#fca5a5' : '#fde68a' }}
             >
               {error || message || (mistakeShieldActive
-                ? 'Hata Affı aktif.'
+                ? 'Kronokalkan aktif.'
                 : timerFrozen
                   ? 'Süre donduruldu.'
                   : 'Bu level’da joker hakkımı kullandım.')}
