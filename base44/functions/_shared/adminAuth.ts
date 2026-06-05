@@ -32,6 +32,7 @@ function readField(row: any, candidates: string[]) {
 
 function debugBase(email: string, patch: Record<string, unknown> = {}) {
   return {
+    source: 'AdminUser',
     authEmailPresent: Boolean(email),
     normalizedEmail: email,
     lookupAttempted: false,

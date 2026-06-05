@@ -750,6 +750,16 @@ import React, { useEffect, useState } from 'react';
 //     on the current-user AdminUser status hint; AdminUser rows remain private
 //     and are never listed by the client.
 //
+// Codex206 — Admin status registered route fix:
+//   • Runtime proved /getAdminStatus returns 404 because the new function
+//     name is not registered in the deployed Base44 catalog.
+//   • Settings now calls the registered getQuestions admin_status action,
+//     which returns a dedicated AdminUser status payload via the shared
+//     service-role guard instead of a question projection.
+//   • The frontend still rejects ordinary question payloads as
+//     response_parse_error, so getQuestions cannot accidentally authorize
+//     anyone unless it returns source: AdminUser + explicit status function.
+//
 // Codex205 — AdminUser status source fix:
 //   • Removes getQuestions as an admin-status fallback after runtime showed
 //     the question projection could be parsed as a false admin status.
@@ -900,7 +910,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex205';
+const BUILD_MARKER = 'Codex206';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
