@@ -1,6 +1,15 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 import { getAdminAuthorization, json } from '../_shared/adminAuth.ts';
 
+function statusDebug(debug: any) {
+  return {
+    source: 'AdminUser',
+    lookupAttempted: Boolean(debug?.lookupAttempted),
+    matchedRow: Boolean(debug?.matchedRow),
+    reason: debug?.reason || 'admin_user_not_found',
+  };
+}
+
 Deno.serve(async (req: Request) => {
   const base44 = createClientFromRequest(req);
   try {
@@ -15,7 +24,7 @@ Deno.serve(async (req: Request) => {
       status: authorization.status || null,
       source: 'AdminUser',
       statusFunction: 'getAdminStatus',
-      debug: authorization.debug || null,
+      debug: statusDebug(authorization.debug),
     });
   } catch (_error) {
     return json({ ok: false, error: 'Authentication required' }, 401);

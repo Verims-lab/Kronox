@@ -750,6 +750,17 @@ import React, { useEffect, useState } from 'react';
 //     on the current-user AdminUser status hint; AdminUser rows remain private
 //     and are never listed by the client.
 //
+// Codex210 — Admin status root callable hard fix:
+//   • Adds the deployed root callable implementation at
+//     functions/getAdminStatus.js, matching the legacy functions/*.js
+//     deployment/search convention while keeping the Base44 mirror under
+//     base44/functions/getAdminStatus/entry.ts.
+//   • Both implementations read AdminUser through service role, normalize
+//     email/role/status, and return the exact isAdmin/role/status/source/
+//     statusFunction/debug response shape without exposing AdminUser rows.
+//   • Health now imports the root callable source too, so repo search must
+//     find getAdminStatus in backend, frontend, and contract references.
+//
 // Codex209 — Admin status stale function-catalog fix:
 //   • Removes the client-side functionsVersion pin passed into the Base44 SDK
 //     so functions.invoke("getAdminStatus") can resolve the current deployed
@@ -931,7 +942,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex209';
+const BUILD_MARKER = 'Codex210';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

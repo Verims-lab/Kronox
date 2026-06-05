@@ -117,7 +117,8 @@ Runtime proof must verify the app is not pinned to a stale Base44
 `functions_version` that predates the `getAdminStatus` function. The client
 does not pass `functionsVersion` into `createClient`, and app bootstrap clears
 the stale `base44_functions_version` browser value before function calls.
-Callable path: `base44/functions/getAdminStatus/entry.ts` with
+Callable paths: deployed root function `functions/getAdminStatus.js`, plus
+the Base44 mirror `base44/functions/getAdminStatus/entry.ts` with
 `base44/functions/getAdminStatus/function.jsonc` (`name: "getAdminStatus"`,
 `entry: "entry.ts"`). Frontend invocation is
 `base44.functions.invoke("getAdminStatus", {})`.

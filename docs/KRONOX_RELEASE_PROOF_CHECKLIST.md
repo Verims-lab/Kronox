@@ -255,6 +255,7 @@ Checklist:
   `getAdminStatus` route. `getQuestions` must never be used as the admin-status
   source; `AdminUser` rows are not read/listed directly by the client.
 * Callable admin status function exists at
+  deployed root path `functions/getAdminStatus.js`, plus
   `base44/functions/getAdminStatus/entry.ts` with
   `base44/functions/getAdminStatus/function.jsonc` declaring
   `name: "getAdminStatus"` and `entry: "entry.ts"`.

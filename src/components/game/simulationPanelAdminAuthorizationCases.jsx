@@ -14,6 +14,7 @@ import adminAuthSource from '../../../base44/functions/_shared/adminAuth.ts?raw'
 import adminUserEntitySource from '../../../base44/entities/AdminUser.jsonc?raw';
 import getAdminStatusSource from '../../../base44/functions/getAdminStatus/entry.ts?raw';
 import getAdminStatusConfigSource from '../../../base44/functions/getAdminStatus/function.jsonc?raw';
+import rootGetAdminStatusSource from '../../../functions/getAdminStatus.js?raw';
 import generateTechDocSource from '../../../base44/functions/generateTechDoc/entry.ts?raw';
 import generateWorkflowDocSource from '../../../base44/functions/generateWorkflowDoc/entry.ts?raw';
 import seedQuestionCategoriesSource from '../../../base44/functions/seedQuestionCategories/entry.ts?raw';
@@ -335,10 +336,12 @@ export const EXTRA_TESTS = [
     'admin_ui_uses_backend_status_hint',
     'Settings and test-suite admin UI consume backend AdminUser status without exposing AdminUser rows',
     () => {
-      const combined = `${getAdminStatusSource}\n${getAdminStatusConfigSource}\n${authContextSource}\n${adminSource}\n${settingsPageSource}\n${testSuitePageSource}`;
+      const combined = `${getAdminStatusSource}\n${getAdminStatusConfigSource}\n${rootGetAdminStatusSource}\n${authContextSource}\n${adminSource}\n${settingsPageSource}\n${testSuitePageSource}`;
       const required = [
         '"name": "getAdminStatus"',
         '"entry": "entry.ts"',
+        'Deno.serve',
+        "statusFunction: 'getAdminStatus'",
         "invokeFunctionJson('getAdminStatus'",
         'unwrapFunctionBody',
         'value.data',
@@ -403,7 +406,7 @@ export const EXTRA_TESTS = [
         'entities?.AdminUser',
         '"name": "getAdminStatus"',
         '"entry": "entry.ts"',
-      ].filter((token) => !`${adminSource}\n${getAdminStatusSource}\n${getAdminStatusConfigSource}\n${adminAuthSource}`.includes(token));
+      ].filter((token) => !`${adminSource}\n${getAdminStatusSource}\n${getAdminStatusConfigSource}\n${rootGetAdminStatusSource}\n${adminAuthSource}`.includes(token));
       if (forbiddenAdminSource.length || required.length) {
         return fail('Admin status can still call getQuestions or parse non-admin payloads.', {
           verification: 'STATIC_CONTRACT',
