@@ -14,7 +14,6 @@ import adminAuthSource from '../../../base44/functions/_shared/adminAuth.ts?raw'
 import adminUserEntitySource from '../../../base44/entities/AdminUser.jsonc?raw';
 import getAdminStatusSource from '../../../base44/functions/getAdminStatus/entry.ts?raw';
 import getAdminStatusConfigSource from '../../../base44/functions/getAdminStatus/function.jsonc?raw';
-import rootGetAdminStatusSource from '../../../functions/getAdminStatus.js?raw';
 import generateTechDocSource from '../../../base44/functions/generateTechDoc/entry.ts?raw';
 import generateWorkflowDocSource from '../../../base44/functions/generateWorkflowDoc/entry.ts?raw';
 import seedQuestionCategoriesSource from '../../../base44/functions/seedQuestionCategories/entry.ts?raw';
@@ -40,6 +39,11 @@ import adminSource from '../../lib/admin.js?raw';
 import appParamsSource from '../../lib/app-params.js?raw';
 import base44ClientSource from '../../api/base44Client.js?raw';
 import progressResetCacheSource from '../../lib/progressResetCache.js?raw';
+
+// Codex212 merge alignment: the callable admin-status implementation now lives
+// in the Base44 function mirror; keep the static Health aggregate pointed at
+// the real deployed source instead of a deleted root wrapper file.
+const rootGetAdminStatusSource = getAdminStatusSource;
 
 export const EXTRA_SUITES = [
   {
