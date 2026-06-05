@@ -750,6 +750,13 @@ import React, { useEffect, useState } from 'react';
 //     on the current-user AdminUser status hint; AdminUser rows remain private
 //     and are never listed by the client.
 //
+// Codex217 — Solo question card text tracking:
+//   • Solo-readable gameplay question text now uses a small positive
+//     letter-spacing bump for readability while preserving the existing
+//     card size, bottom prompt, icon removal, and text wrapping safeguards.
+//   • Drag/drop, Timeline, Solo rules, scoring, jokers, timer, Online, and
+//     unrelated UI remain unchanged.
+//
 // Codex216 — Solo result popup stat cleanup:
 //   • Solo success/failure result stat cards now use the shorter SÜRE,
 //     PUAN, and HATA labels.
@@ -992,7 +999,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex216';
+const BUILD_MARKER = 'Codex217';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
