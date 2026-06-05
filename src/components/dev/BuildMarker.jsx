@@ -750,6 +750,13 @@ import React, { useEffect, useState } from 'react';
 //     on the current-user AdminUser status hint; AdminUser rows remain private
 //     and are never listed by the client.
 //
+// Codex218 — Solo joker visual redesign:
+//   • Solo joker controls now render as vertical circular badge items with
+//     larger centered icons, per-item remaining-use badges, and labels below.
+//   • Keeps the one-free-joker-per-attempt rule, disabled/used state wiring,
+//     drag/drop, Timeline, scoring, timer, Online, and other gameplay logic
+//     unchanged.
+//
 // Codex217 — Solo question card text tracking:
 //   • Solo-readable gameplay question text now uses a small positive
 //     letter-spacing bump for readability while preserving the existing
@@ -999,7 +1006,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex217';
+const BUILD_MARKER = 'Codex218';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
