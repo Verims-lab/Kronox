@@ -377,6 +377,7 @@ export default function GameLayout({
               }
               beginnerPlacementHintZone={beginnerPlacementHintZone}
               correctStreak={correctStreak}
+              soloYearOnlyCards={!isOnline}
             />
           )}
         </div>
