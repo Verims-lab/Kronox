@@ -28,21 +28,18 @@ async function invokeDailyWheelFunction(name, payload = {}) {
       ? await claimDailyWheelReward(payload)
       : await getDailyWheelStatus();
   } catch (err) {
-    const error = new Error(userSafeDailyWheelError(
-      err,
-      isClaim
-        ? 'Çark ödülü alınamadı. Lütfen tekrar dene.'
-        : 'Günlük Çark durumu alınamadı. Lütfen tekrar dene.',
-    ));
+    const error = new Error(isClaim
+      ? 'Çark çevrilemedi. Lütfen tekrar dene.'
+      : userSafeDailyWheelError(err, 'Günlük Çark durumu alınamadı. Lütfen tekrar dene.'));
     error.code = err?.response?.data?.code || err?.code || 'daily_wheel_request_failed';
     error.body = err?.response?.data || null;
     throw error;
   }
   const body = normalizeFunctionBody(response);
   if (body?.ok === false) {
-    const error = new Error(body?.error || (isClaim
-      ? 'Çark ödülü alınamadı. Lütfen tekrar dene.'
-      : 'Günlük Çark işlemi tamamlanamadı.'));
+    const error = new Error(isClaim
+      ? 'Çark çevrilemedi. Lütfen tekrar dene.'
+      : body?.error || 'Günlük Çark işlemi tamamlanamadı.');
     error.code = body?.code || 'daily_wheel_error';
     error.body = body;
     throw error;
@@ -165,7 +162,7 @@ export function useDailyWheel({ user, onUserUpdated } = {}) {
       return body;
     } catch (err) {
       setStatus('error');
-      setError(userSafeDailyWheelError(err, 'Çark ödülü alınamadı. Lütfen tekrar dene.'));
+      setError('Çark çevrilemedi. Lütfen tekrar dene.');
       setShowPrompt(false);
       setShowResult(true);
       return null;

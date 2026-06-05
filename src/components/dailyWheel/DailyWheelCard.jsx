@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Gem, Gift, Loader2, RotateCw, Sparkles, X } from 'lucide-react';
 import { useDailyWheel } from '@/hooks/useDailyWheel';
 import { sounds } from '@/lib/gameSounds';
@@ -7,11 +7,25 @@ import { sounds } from '@/lib/gameSounds';
 const WHEEL_REWARD_SLICES = [10, 15, 20, 25, 30, 40, 50, 100];
 const WHEEL_SLICE_DEGREES = 360 / WHEEL_REWARD_SLICES.length;
 const WHEEL_SPIN_DURATION_MS = 4600;
+const WHEEL_REDUCED_MOTION_DURATION_MS = 900;
 const WHEEL_SPIN_DURATION_SECONDS = WHEEL_SPIN_DURATION_MS / 1000;
+const WHEEL_REDUCED_MOTION_DURATION_SECONDS = WHEEL_REDUCED_MOTION_DURATION_MS / 1000;
+const WHEEL_SPIN_KEYFRAME_TIMES = [0, 0.14, 0.72, 0.9, 0.96, 1];
+const WHEEL_SLICE_COLORS = [
+  '#facc15',
+  '#2563eb',
+  '#fb923c',
+  '#7c3aed',
+  '#22c55e',
+  '#0ea5e9',
+  '#ef4444',
+  '#a855f7',
+];
 
-function getWheelTargetRotation(rewardAmount) {
+function getWheelTargetRotation(rewardAmount, reducedMotion = false) {
   const index = Math.max(0, WHEEL_REWARD_SLICES.indexOf(Number(rewardAmount)));
-  return (360 * 8) - (index * WHEEL_SLICE_DEGREES);
+  const fullSpins = reducedMotion ? 1 : 8;
+  return (360 * fullSpins) - (index * WHEEL_SLICE_DEGREES);
 }
 
 function formatCountdown(nextAvailableAt) {
@@ -282,65 +296,135 @@ function RewardWheel({
   targetRotation = 0,
   highlightAmount = null,
   compact = false,
+  reducedMotion = false,
 }) {
+  const effectiveDurationSeconds = reducedMotion
+    ? WHEEL_REDUCED_MOTION_DURATION_SECONDS
+    : WHEEL_SPIN_DURATION_SECONDS;
   const loopAnimation = spinning && mode === 'loop'
-    ? { rotate: [0, 360] }
-    : { rotate: spinning ? targetRotation : targetRotation };
-  const loopTransition = spinning && mode === 'loop'
-    ? { duration: 0.85, repeat: Infinity, ease: 'linear' }
+    ? { rotate: reducedMotion ? [0, 28, 0] : [0, 360] }
     : {
-      duration: spinning ? WHEEL_SPIN_DURATION_SECONDS : 0.18,
-      ease: [0.12, 0.72, 0.14, 1],
+      rotate: spinning && !reducedMotion
+        ? [
+          0,
+          targetRotation * 0.1,
+          targetRotation * 0.72,
+          targetRotation - 8,
+          targetRotation + 2,
+          targetRotation,
+        ]
+        : targetRotation,
     };
-  const sliceColors = [
-    '#facc15',
-    '#0f5f8f',
-    '#f59e0b',
-    '#123f7a',
-    '#fde047',
-    '#0e7490',
-    '#d97706',
-    '#1d4ed8',
-  ];
+  const loopTransition = spinning && mode === 'loop'
+    ? {
+      duration: reducedMotion ? 0.9 : 0.72,
+      repeat: Infinity,
+      ease: reducedMotion ? 'easeInOut' : 'linear',
+    }
+    : {
+      duration: spinning ? effectiveDurationSeconds : 0.18,
+      times: spinning && !reducedMotion ? WHEEL_SPIN_KEYFRAME_TIMES : undefined,
+      ease: spinning && !reducedMotion
+        ? ['easeIn', 'linear', [0.13, 0.84, 0.2, 1], 'easeOut', 'easeOut']
+        : [0.12, 0.72, 0.14, 1],
+    };
   const conicStops = WHEEL_REWARD_SLICES.map((amount, index) => {
     const start = index * WHEEL_SLICE_DEGREES;
     const end = (index + 1) * WHEEL_SLICE_DEGREES;
-    return `${sliceColors[index]} ${start}deg ${end}deg`;
+    return `${WHEEL_SLICE_COLORS[index]} ${start}deg ${end}deg`;
   }).join(', ');
+  const wheelSize = compact
+    ? 'clamp(190px, 58vw, 218px)'
+    : 'clamp(276px, 82vw, 318px)';
+  const rimLights = Array.from({ length: 24 }, (_, index) => index);
 
   return (
     <div
       className="relative grid place-items-center"
       style={{
-        width: compact ? 'min(58vw, 190px)' : 'min(76vw, 260px)',
-        height: compact ? 'min(58vw, 190px)' : 'min(76vw, 260px)',
-        filter: 'drop-shadow(0 18px 34px rgba(0,0,0,0.44))',
+        width: wheelSize,
+        height: wheelSize,
+        filter: 'drop-shadow(0 22px 42px rgba(0,0,0,0.52))',
       }}
       aria-label="Günlük Çark ödül seçenekleri"
     >
       <div
         aria-hidden="true"
-        className="absolute -top-1 z-20"
+        className="absolute -top-3 z-30 grid place-items-center"
         style={{
-          width: 0,
-          height: 0,
-          borderLeft: '14px solid transparent',
-          borderRight: '14px solid transparent',
-          borderTop: '28px solid #f8fafc',
-          filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.75)) drop-shadow(0 0 6px rgba(250,204,21,0.48))',
+          width: 44,
+          height: 52,
+          filter: 'drop-shadow(0 4px 4px rgba(0,0,0,0.75)) drop-shadow(0 0 9px rgba(250,204,21,0.58))',
+        }}
+      >
+        <span
+          className="absolute top-0 rounded-full"
+          style={{
+            width: 28,
+            height: 28,
+            background: 'radial-gradient(circle at 35% 25%, #fff7bd, #facc15 45%, #92400e 100%)',
+            boxShadow: '0 0 0 3px rgba(6,10,24,0.85), inset 0 1px 2px rgba(255,255,255,0.5)',
+          }}
+        />
+        <span
+          className="absolute top-[18px]"
+          style={{
+            width: 0,
+            height: 0,
+            borderLeft: '15px solid transparent',
+            borderRight: '15px solid transparent',
+            borderTop: '34px solid #fde68a',
+          }}
+        />
+      </div>
+      <div
+        aria-hidden="true"
+        className="absolute -inset-[5px] rounded-full"
+        style={{
+          background: 'linear-gradient(145deg, #fff4a3, #f5b301 32%, #4f46e5 66%, #082f49 100%)',
+          boxShadow: '0 0 28px rgba(250,204,21,0.26), inset 0 2px 3px rgba(255,255,255,0.4)',
         }}
       />
+      {rimLights.map((index) => (
+        <span
+          key={index}
+          aria-hidden="true"
+          className="absolute left-1/2 top-1/2 z-10 rounded-full"
+          style={{
+            width: index % 2 === 0 ? 5 : 3,
+            height: index % 2 === 0 ? 5 : 3,
+            background: index % 2 === 0 ? '#fef3c7' : 'rgba(191,219,254,0.9)',
+            boxShadow: index % 2 === 0 ? '0 0 8px rgba(250,204,21,0.76)' : '0 0 6px rgba(56,189,248,0.55)',
+            transform: `rotate(${index * 15}deg) translateY(${compact ? '-110px' : '-158px'})`,
+          }}
+        />
+      ))}
       <motion.div
-        className="absolute inset-0 rounded-full"
+        className="absolute inset-0 overflow-hidden rounded-full"
         animate={loopAnimation}
         transition={loopTransition}
         style={{
-          background: `conic-gradient(from -${WHEEL_SLICE_DEGREES / 2}deg, ${conicStops})`,
-          border: '5px solid rgba(250,204,21,0.92)',
-          boxShadow: 'inset 0 0 0 4px rgba(8,13,32,0.58), inset 0 0 26px rgba(0,0,0,0.34), 0 0 24px rgba(250,204,21,0.22)',
+          background: `radial-gradient(circle at 50% 50%, transparent 0 31%, rgba(0,0,0,0.08) 32% 100%), conic-gradient(from -${WHEEL_SLICE_DEGREES / 2}deg, ${conicStops})`,
+          border: '7px solid rgba(250,204,21,0.96)',
+          boxShadow: 'inset 0 0 0 5px rgba(8,13,32,0.68), inset 0 0 30px rgba(0,0,0,0.36), 0 0 28px rgba(250,204,21,0.24)',
           willChange: 'transform',
         }}
       >
+        <div
+          aria-hidden="true"
+          className="absolute inset-[8px] rounded-full"
+          style={{
+            background: `repeating-conic-gradient(from -${WHEEL_SLICE_DEGREES / 2}deg, transparent 0deg ${WHEEL_SLICE_DEGREES - 1.2}deg, rgba(4,10,28,0.72) ${WHEEL_SLICE_DEGREES - 1.2}deg ${WHEEL_SLICE_DEGREES}deg)`,
+          }}
+        />
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 rounded-full"
+          style={{
+            background: 'radial-gradient(circle at 34% 20%, rgba(255,255,255,0.28), transparent 26%), radial-gradient(circle at 50% 62%, transparent 0 42%, rgba(2,6,23,0.28) 76%)',
+            pointerEvents: 'none',
+          }}
+        />
         {WHEEL_REWARD_SLICES.map((amount, index) => {
           const angle = index * WHEEL_SLICE_DEGREES;
           const isHighlighted = Number(highlightAmount) === amount;
@@ -349,21 +433,21 @@ function RewardWheel({
               key={amount}
               className="absolute left-1/2 top-1/2 grid place-items-center"
               style={{
-                width: compact ? 52 : 58,
-                height: 30,
-                marginLeft: compact ? -26 : -29,
+                width: compact ? 56 : 66,
+                height: compact ? 28 : 34,
+                marginLeft: compact ? -28 : -33,
                 marginTop: -15,
-                transform: `rotate(${angle}deg) translateY(${compact ? '-60px' : '-82px'}) rotate(${-angle}deg)`,
+                transform: `rotate(${angle}deg) translateY(${compact ? '-70px' : '-110px'}) rotate(${-angle}deg)`,
               }}
             >
               <span
-                className={`inline-flex items-center gap-0.5 rounded-full px-2 py-1 font-inter font-black ${compact ? 'text-[10px]' : 'text-[12px]'}`}
+                className={`inline-flex items-center gap-1 rounded-full px-2 py-1 font-inter font-black ${compact ? 'text-[10px]' : 'text-[12px]'}`}
                 style={{
                   color: '#fff7ed',
-                  background: isHighlighted ? 'rgba(6,10,24,0.92)' : 'rgba(6,10,24,0.54)',
+                  background: isHighlighted ? 'rgba(6,10,24,0.94)' : 'rgba(6,10,24,0.68)',
                   boxShadow: isHighlighted
-                    ? '0 0 0 1px rgba(255,255,255,0.7), 0 0 16px rgba(250,204,21,0.65)'
-                    : '0 0 0 1px rgba(255,255,255,0.18)',
+                    ? '0 0 0 2px rgba(255,255,255,0.78), 0 0 20px rgba(250,204,21,0.72)'
+                    : '0 0 0 1px rgba(255,255,255,0.28)',
                   textShadow: '0 1px 2px rgba(0,0,0,0.72)',
                 }}
               >
@@ -378,11 +462,11 @@ function RewardWheel({
       <div
         className="absolute rounded-full"
         style={{
-          width: '32%',
-          height: '32%',
-          background: 'radial-gradient(circle at 35% 28%, #fff7bd, #facc15 42%, #92400e 100%)',
-          border: '3px solid rgba(8,13,32,0.78)',
-          boxShadow: '0 0 0 3px rgba(250,204,21,0.55), 0 0 20px rgba(250,204,21,0.38), inset 0 2px 4px rgba(255,255,255,0.48)',
+          width: '30%',
+          height: '30%',
+          background: 'radial-gradient(circle at 35% 26%, #fff9c4, #facc15 38%, #b45309 72%, #451a03 100%)',
+          border: '4px solid rgba(8,13,32,0.82)',
+          boxShadow: '0 0 0 4px rgba(250,204,21,0.62), 0 0 24px rgba(250,204,21,0.46), inset 0 3px 5px rgba(255,255,255,0.5), inset 0 -5px 8px rgba(69,26,3,0.55)',
         }}
       />
       <div
@@ -398,9 +482,10 @@ function RewardWheel({
 }
 
 function DailyWheelPromptModal({ claiming, onSpin, onClose }) {
+  const prefersReducedMotion = useReducedMotion();
   return (
     <DailyWheelModalFrame onClose={onClose} disableClose={claiming}>
-      <RewardWheel spinning={claiming} mode="loop" />
+      <RewardWheel spinning={claiming} mode="loop" reducedMotion={prefersReducedMotion} />
       <h2 className="text-center font-inter text-2xl font-black text-white">Günlük Çark hazır!</h2>
       <p className="text-center text-sm font-semibold text-slate-200">Bugünkü ödülünü almak için çevir.</p>
       <div className="mt-2 flex w-full gap-2">
@@ -418,10 +503,12 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
   const alreadyClaimed = Boolean(result?.alreadyClaimedToday || result?.alreadyClaimed);
   const updatedDiamondTotal = Number(result?.updatedDiamondTotal);
   const [revealReady, setRevealReady] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
   const targetRotation = useMemo(
-    () => getWheelTargetRotation(result?.rewardAmount),
-    [result?.rewardAmount],
+    () => getWheelTargetRotation(result?.rewardAmount, prefersReducedMotion),
+    [result?.rewardAmount, prefersReducedMotion],
   );
+  const spinDurationMs = prefersReducedMotion ? WHEEL_REDUCED_MOTION_DURATION_MS : WHEEL_SPIN_DURATION_MS;
 
   useEffect(() => {
     setRevealReady(false);
@@ -434,24 +521,24 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
       window.clearInterval(tickId);
       setRevealReady(true);
       try { sounds.rewardReveal?.(); } catch { /* non-blocking */ }
-    }, WHEEL_SPIN_DURATION_MS);
+    }, spinDurationMs);
     return () => {
       window.clearInterval(tickId);
       window.clearTimeout(revealId);
     };
-  }, [hasReward, result?.rewardAmount]);
+  }, [hasReward, result?.rewardAmount, spinDurationMs]);
 
   return (
     <DailyWheelModalFrame onClose={onClose} disableClose={hasReward && !revealReady}>
       {status === 'error' ? (
         <>
-          <RewardWheel spinning={claiming} mode="loop" />
+          <RewardWheel spinning={claiming} mode="loop" reducedMotion={prefersReducedMotion} />
           <h2 className="text-center font-inter text-2xl font-black text-white">Ödül alınamadı</h2>
           <p
             role="alert"
             className="rounded-xl bg-red-500/12 px-3 py-2 text-center text-xs font-bold text-red-100"
           >
-            {error || 'Çark ödülü alınamadı. Lütfen tekrar dene.'}
+            {error || 'Çark çevrilemedi. Lütfen tekrar dene.'}
           </p>
           <div className="mt-2 flex w-full gap-2">
             <ModalButton tone="secondary" onClick={onClose}>Kapat</ModalButton>
@@ -467,6 +554,7 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
             targetRotation={targetRotation}
             highlightAmount={revealReady ? result.rewardAmount : null}
             compact={revealReady}
+            reducedMotion={prefersReducedMotion}
           />
           {!revealReady ? (
             <>
@@ -489,6 +577,7 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
                   boxShadow: '0 0 24px rgba(250,204,21,0.22), inset 0 0 0 1px rgba(255,255,255,0.08)',
                 }}
               >
+                {!prefersReducedMotion && <RewardBurst />}
                 <Sparkles className="mx-auto mb-2 h-8 w-8 text-amber-300" />
                 <h2 className="font-inter text-3xl font-black text-white">
                   +{formatDiamondCount(result.rewardAmount)} Elmas kazandın
@@ -519,7 +608,7 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
               <p className="text-center text-xs font-semibold text-slate-300">
                 Seri: {Number(result.streakAfter) || 1} gün
               </p>
-              <ModalButton onClick={onClose}>Tamam</ModalButton>
+              <ModalButton onClick={onClose}>Kapat</ModalButton>
             </>
           )}
         </>
@@ -539,7 +628,7 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
         </>
       ) : (
         <>
-          <RewardWheel spinning={claiming} mode="loop" />
+          <RewardWheel spinning={claiming} mode="loop" reducedMotion={prefersReducedMotion} />
           <h2 className="text-center font-inter text-2xl font-black text-white">Günlük Çark hazır!</h2>
           <p className="text-center text-sm font-semibold text-slate-200">Bugünkü ödülünü almak için çevir.</p>
           {error && (
@@ -573,8 +662,13 @@ function DailyWheelStatusModal({ nextLabel, onClose }) {
 function DailyWheelModalFrame({ children, onClose, disableClose = false }) {
   return (
     <div
-      className="fixed inset-0 z-[220] grid place-items-center px-5"
-      style={{ background: 'rgba(2,6,23,0.72)', backdropFilter: 'blur(8px)' }}
+      className="fixed inset-0 z-[220] grid place-items-center px-3"
+      style={{
+        background: 'rgba(2,6,23,0.72)',
+        backdropFilter: 'blur(8px)',
+        paddingTop: 'max(0.75rem, env(safe-area-inset-top))',
+        paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
+      }}
       role="dialog"
       aria-modal="true"
     >
@@ -582,8 +676,11 @@ function DailyWheelModalFrame({ children, onClose, disableClose = false }) {
         initial={{ opacity: 0, scale: 0.96, y: 12 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 12 }}
-        className="relative flex w-full max-w-[23rem] flex-col items-center gap-4 rounded-[22px] p-5"
+        className="relative flex w-full flex-col items-center gap-3 rounded-[22px]"
         style={{
+          maxWidth: 'min(25.5rem, calc(100vw - 1.5rem))',
+          maxHeight: 'calc(100dvh - 1.5rem)',
+          padding: 'clamp(1rem, 4vw, 1.25rem)',
           border: '1px solid rgba(250,204,21,0.42)',
           background: 'linear-gradient(180deg, rgba(10,24,58,0.98), rgba(4,10,28,0.98))',
           boxShadow: '0 24px 80px rgba(0,0,0,0.62), inset 0 0 0 1px rgba(255,255,255,0.06)',
@@ -604,6 +701,38 @@ function DailyWheelModalFrame({ children, onClose, disableClose = false }) {
         </button>
         {children}
       </motion.div>
+    </div>
+  );
+}
+
+function RewardBurst() {
+  return (
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+      {Array.from({ length: 12 }, (_, index) => {
+        const angle = index * 30;
+        return (
+          <motion.span
+            key={angle}
+            className="absolute left-1/2 top-1/2 rounded-full"
+            initial={{ x: 0, y: 0, scale: 0.4, opacity: 0 }}
+            animate={{
+              x: Math.cos((angle * Math.PI) / 180) * 128,
+              y: Math.sin((angle * Math.PI) / 180) * 72,
+              scale: [0.4, 1, 0.2],
+              opacity: [0, 1, 0],
+            }}
+            transition={{ duration: 0.72, ease: 'easeOut', delay: index * 0.018 }}
+            style={{
+              width: index % 3 === 0 ? 8 : 5,
+              height: index % 3 === 0 ? 8 : 5,
+              marginLeft: index % 3 === 0 ? -4 : -2.5,
+              marginTop: index % 3 === 0 ? -4 : -2.5,
+              background: index % 2 === 0 ? '#facc15' : '#7dd3fc',
+              boxShadow: index % 2 === 0 ? '0 0 10px rgba(250,204,21,0.85)' : '0 0 10px rgba(125,211,252,0.7)',
+            }}
+          />
+        );
+      })}
     </div>
   );
 }

@@ -750,6 +750,17 @@ import React, { useEffect, useState } from 'react';
 //     on the current-user AdminUser status hint; AdminUser rows remain private
 //     and are never listed by the client.
 //
+// Codex212 — Daily Wheel spin UX upgrade:
+//   • Enlarges the modal wheel with brighter reward slices, a stronger fixed
+//     top pointer, premium rim lighting, and a raised hub while preserving
+//     the Kronox navy/gold reward moment.
+//   • Keeps the backend-selected Daily Wheel reward as the source of truth,
+//     then lands the wheel on result.rewardAmount with a 4.6s physical spin,
+//     reduced-motion shortcut, locked controls, and clear result reveal.
+//   • Leaves Daily Wheel Diamond-only economy, one-spin-per-server-day
+//     idempotency, reward weights, Kronox Puan, and leaderboard behavior
+//     unchanged.
+//
 // Codex211 — Admin debug removal + Health contract alignment:
 //   • Removes the temporary AdminDebug-v4 panel and visible current-user
 //     admin-status diagnostic rows from production Settings.
@@ -950,7 +961,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex211';
+const BUILD_MARKER = 'Codex212';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
