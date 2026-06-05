@@ -12,7 +12,9 @@ Deno.serve(async (req: Request) => {
       ok: true,
       isAdmin: authorization.isAdmin,
       role: authorization.role || null,
+      status: authorization.status || null,
       source: 'AdminUser',
+      statusFunction: 'getAdminStatus',
     });
   } catch (_error) {
     return json({ ok: false, error: 'Authentication required' }, 401);

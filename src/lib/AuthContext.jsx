@@ -6,11 +6,45 @@ import { applyUserProgressResetMarker } from '@/lib/progressResetCache';
 
 const AuthContext = createContext();
 
+const EMPTY_ADMIN_STATUS = {
+  loading: false,
+  called: false,
+  statusCall: 'idle',
+  authEmailRaw: '',
+  normalizedEmail: '',
+  responseShape: '',
+  responseShapeKeys: [],
+  responseKeys: [],
+  dataKeys: [],
+  nestedDataKeys: [],
+  parsedIsAdmin: false,
+  role: '',
+  status: '',
+  source: 'AdminUser',
+  statusFunction: '',
+  reason: 'not_checked',
+  error: '',
+};
+
+function makePendingAdminStatus(currentUser) {
+  const authEmailRaw = String(currentUser?.email || '');
+  const normalizedEmail = authEmailRaw.trim().toLowerCase();
+  return {
+    ...EMPTY_ADMIN_STATUS,
+    loading: Boolean(normalizedEmail),
+    statusCall: normalizedEmail ? 'pending' : 'skipped',
+    authEmailRaw,
+    normalizedEmail,
+    reason: normalizedEmail ? 'pending' : 'no_auth_email',
+  };
+}
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(false);
+  const [adminStatus, setAdminStatus] = useState(EMPTY_ADMIN_STATUS);
   const [authError, setAuthError] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
   const economyEnsurePromiseRef = useRef(null);
@@ -65,7 +99,10 @@ export const AuthProvider = ({ children }) => {
             console.warn('[diamondEconomy] bootstrap grant skipped:', economyError?.message || economyError);
           }
         }
-        currentUser = await withAdminStatus(currentUser);
+        setAdminStatus(makePendingAdminStatus(currentUser));
+        currentUser = await withAdminStatus(currentUser, { onStatus: setAdminStatus });
+      } else {
+        setAdminStatus(makePendingAdminStatus(currentUser));
       }
 
       setUser(currentUser || null);
@@ -90,6 +127,7 @@ export const AuthProvider = ({ children }) => {
       console.error('User auth check failed:', error);
       setIsAuthenticated(false);
       setUser(null);
+      setAdminStatus(EMPTY_ADMIN_STATUS);
       // auth_required = uygulama public, login gerektirmiyor — hata değil
       if (error?.message?.includes('user_not_registered')) {
         setAuthError({ type: 'user_not_registered', message: 'User not registered' });
@@ -103,6 +141,7 @@ export const AuthProvider = ({ children }) => {
   const logout = (shouldRedirect = true) => {
     setUser(null);
     setIsAuthenticated(false);
+    setAdminStatus(EMPTY_ADMIN_STATUS);
     economyEnsureKeyRef.current = '';
     economyEnsurePromiseRef.current = null;
     
@@ -119,6 +158,17 @@ export const AuthProvider = ({ children }) => {
     base44.auth.redirectToLogin('/');
   };
 
+  const refreshAdminStatus = async () => {
+    if (!user?.email) {
+      setAdminStatus(makePendingAdminStatus(user));
+      return null;
+    }
+    setAdminStatus(makePendingAdminStatus(user));
+    const checkedUser = await withAdminStatus(user, { onStatus: setAdminStatus });
+    setUser(checkedUser);
+    return checkedUser?.admin_status_debug || null;
+  };
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -127,6 +177,8 @@ export const AuthProvider = ({ children }) => {
       isLoadingPublicSettings,
       authError,
       authChecked,
+      adminStatus,
+      refreshAdminStatus,
       logout,
       navigateToLogin,
       checkUserAuth,

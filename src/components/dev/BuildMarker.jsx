@@ -750,6 +750,17 @@ import React, { useEffect, useState } from 'react';
 //     on the current-user AdminUser status hint; AdminUser rows remain private
 //     and are never listed by the client.
 //
+// Codex203 — AdminUser Settings runtime diagnostics:
+//   • AuthContext now stores and refreshes the current user's AdminUser
+//     status result instead of hiding it inside the decorated user object.
+//   • Settings renders a safe current-user admin diagnostic panel showing
+//     auth email, normalized email, status call path, response shape keys,
+//     parsed role/status, UI gate, and why tools are hidden if they are.
+//   • Admin status parsing handles direct, data, and data.data function
+//     response shapes, prefers auth-header fetch, and falls back to a
+//     current-user-only getQuestions admin_status path if getAdminStatus is
+//     unavailable while backend admin functions remain independently gated.
+//
 // Codex202 — AdminUser status response unwrap fix:
 //   • Fixes the runtime bug where withAdminStatus read the Axios response
 //     wrapper returned by Base44 functions.invoke instead of response.data,
@@ -870,7 +881,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex202';
+const BUILD_MARKER = 'Codex203';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
