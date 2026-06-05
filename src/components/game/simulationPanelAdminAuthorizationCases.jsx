@@ -332,6 +332,8 @@ export const EXTRA_TESTS = [
       const combined = `${getAdminStatusSource}\n${authContextSource}\n${adminSource}\n${settingsPageSource}\n${testSuitePageSource}`;
       const required = [
         '/getAdminStatus',
+        "functions.invoke('getAdminStatus'",
+        "functions.fetch('/getAdminStatus'",
         'getAdminAuthorization',
         'withAdminStatus',
         'admin_status_source',

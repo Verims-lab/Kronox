@@ -742,6 +742,14 @@ import React, { useEffect, useState } from 'react';
 //     emails, active/disabled proof, and why VAPID private key remains an
 //     environment secret.
 //
+// Codex201 — AdminUser UI status invocation fix:
+//   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
+//     first, matching the project JSON function convention, with direct fetch
+//     kept as a fallback.
+//   • Settings/TestSuite/Profile/Leaderboard admin UI visibility stays based
+//     on the current-user AdminUser status hint; AdminUser rows remain private
+//     and are never listed by the client.
+//
 // Codex197 — Question analytics P3:
 //   • Wires Solo shown/answered/Kart Değiştir events to private
 //     QuestionAttemptEvent rows through a best-effort gateway.
@@ -854,7 +862,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex200';
+const BUILD_MARKER = 'Codex201';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

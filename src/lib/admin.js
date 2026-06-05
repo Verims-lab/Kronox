@@ -21,12 +21,23 @@ function withoutAdminPermission(user) {
   };
 }
 
+async function readAdminStatus() {
+  try {
+    const invoked = await base44.functions.invoke('getAdminStatus', {});
+    if (invoked && typeof invoked === 'object') return invoked;
+  } catch (_invokeError) {
+    // Fall back to the direct fetch path below; both paths are backend-gated.
+  }
+
+  const response = await base44.functions.fetch('/getAdminStatus', { method: 'POST' });
+  if (!response?.ok) return null;
+  return response.json().catch(() => null);
+}
+
 export async function withAdminStatus(user) {
   if (!user?.email) return user || null;
   try {
-    const response = await base44.functions.fetch('/getAdminStatus', { method: 'POST' });
-    if (!response.ok) return withoutAdminPermission(user);
-    const body = await response.json().catch(() => ({}));
+    const body = await readAdminStatus();
     const isAdmin = body?.ok === true && body?.isAdmin === true;
     const permissions = Array.isArray(user.permissions)
       ? user.permissions.filter((permission) => permission !== 'admin')

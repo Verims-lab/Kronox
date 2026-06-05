@@ -109,6 +109,10 @@ Client-side admin UI gating may use:
 isAdminUser(user)
 ```
 
+The authenticated app must first enrich the current user through the
+backend-only current-user admin status check (`getAdminStatus`). The client
+must not query or list `AdminUser` rows directly.
+
 Accepted admin indicators:
 
 * `role === "admin"`
