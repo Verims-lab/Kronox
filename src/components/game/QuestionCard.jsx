@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import { sounds } from '@/lib/gameSounds';
 import { Play, Pause, Globe, Landmark, FlaskConical, Trophy, Palette, Cpu, Music, BookOpen, Zap, Rocket, Building2, HeartPulse, Leaf, Film } from 'lucide-react';
 import {
-  OLD_PAPER_BOTTOM_BAR_BACKGROUND,
   OLD_PAPER_CARD_BACKGROUND,
   OLD_PAPER_INSET_SHADOW,
   OLD_PAPER_MUTED_TEXT_COLOR,
@@ -356,8 +355,7 @@ export default function QuestionCard({
           <div
             className="w-full flex items-center justify-center py-2"
             style={{
-              background: useOldPaperSurface ? OLD_PAPER_BOTTOM_BAR_BACKGROUND : undefined,
-              borderTop: useOldPaperSurface ? '1px solid rgba(96,58,18,0.24)' : `1px solid ${neon.border}30`,
+              borderTop: useOldPaperSurface ? 'none' : `1px solid ${neon.border}30`,
             }}
           >
             <p
@@ -365,7 +363,7 @@ export default function QuestionCard({
               style={{
                 fontSize: 9,
                 color: useOldPaperSurface ? OLD_PAPER_MUTED_TEXT_COLOR : neon.border,
-                opacity: useOldPaperSurface ? 0.86 : 0.7,
+                opacity: useOldPaperSurface ? 0.9 : 0.7,
               }}
             >
               Bu olay ne zaman gerçekleşti?

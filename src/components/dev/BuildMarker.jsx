@@ -788,6 +788,15 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps circle/icon/badge/label joker contract, one-use behavior,
 //     gameplay logic, scoring, timer, and manual Health proof status intact.
 //
+// Codex230 — Premium aged parchment card surface:
+//   • Refines the shared gameplay paper background toward a museum/archive
+//     parchment palette with a softer center, muted midtones, darker aged
+//     edges, and subtle low-opacity fiber/grain overlays.
+//   • Keeps the Solo bottom prompt on the same paper surface instead of a
+//     separate old-paper visual band.
+//   • Preserves card dimensions, gold borders, timeline rectangle, drag/drop,
+//     scoring, timer, jokers, and gameplay behavior.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1091,7 +1100,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex229';
+const BUILD_MARKER = 'Codex230';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
