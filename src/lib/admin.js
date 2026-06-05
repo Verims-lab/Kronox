@@ -148,26 +148,6 @@ function parseAdminStatusBody(user, body, meta = {}) {
   });
 }
 
-async function fetchFunctionJson(path, payload) {
-  const response = await base44.functions.fetch(path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload || {}),
-  });
-  const raw = await response.json().catch(() => ({}));
-  const unwrapped = unwrapFunctionBody(raw, `fetch:${path}`);
-  return {
-    ok: response?.ok === true,
-    body: unwrapped.body,
-    responseShape: unwrapped.responseShape,
-    responseShapeKeys: unwrapped.responseShapeKeys,
-    responseKeys: unwrapped.responseKeys,
-    dataKeys: unwrapped.dataKeys,
-    nestedDataKeys: unwrapped.nestedDataKeys,
-    httpStatus: response?.status || 0,
-  };
-}
-
 async function invokeFunctionJson(name, payload) {
   const response = await base44.functions.invoke(name, payload || {});
   const unwrapped = unwrapFunctionBody(response, `invoke:${name}`);
@@ -188,7 +168,6 @@ export async function getCurrentAdminStatus(user) {
   if (!base.normalizedEmail) return adminStatusBase(user);
 
   const attempts = [
-    () => fetchFunctionJson('/getAdminStatus', {}),
     () => invokeFunctionJson('getAdminStatus', {}),
   ];
   let lastError = '';

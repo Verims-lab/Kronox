@@ -254,6 +254,10 @@ Checklist:
 * Frontend admin UI visibility is based on the backend current-user
   `getAdminStatus` route. `getQuestions` must never be used as the admin-status
   source; `AdminUser` rows are not read/listed directly by the client.
+* Callable admin status function exists at
+  `base44/functions/getAdminStatus/entry.ts` with
+  `base44/functions/getAdminStatus/function.jsonc` declaring
+  `name: "getAdminStatus"` and `entry: "entry.ts"`.
 * Runtime proof must confirm the app is not using a stale persisted Base44
   `functions_version` that returns 404 for `getAdminStatus`.
 * Legacy admin email env allowlists are not used for authorization.
