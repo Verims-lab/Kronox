@@ -758,6 +758,12 @@ import React, { useEffect, useState } from 'react';
 //   • Tunes only paper-surface text contrast so the main question and year
 //     remain readable on mobile.
 //
+// Codex226 — Timeline card aspect-ratio update:
+//   • TimelineCard content surfaces now use the same 2:3 width-to-height
+//     ratio as the main question card.
+//   • Keeps the main question card, timeline frame, fonts, year placement,
+//     drag/drop, timer, scoring, jokers, and gameplay logic unchanged.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1061,7 +1067,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex225';
+const BUILD_MARKER = 'Codex226';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
