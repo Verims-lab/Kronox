@@ -119,6 +119,7 @@ export default function SoloSuccessPopup({
               value={String(levelScore || 0)}
               valueColor="#facc15"
               footer={<UnitLabel color="#facc15">Puan</UnitLabel>}
+              valueNudgeY={2}
               footerMarginTop={0}
             />
             <SoloStatCard
@@ -129,6 +130,7 @@ export default function SoloSuccessPopup({
               value={String(mistakes || 0)}
               valueColor="#f87171"
               footer={<UnitLabel color="#fca5a5">Hata</UnitLabel>}
+              valueNudgeY={2}
               footerMarginTop={0}
             />
             <SoloStatCard

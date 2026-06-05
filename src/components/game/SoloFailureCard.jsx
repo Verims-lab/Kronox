@@ -156,6 +156,7 @@ export default function SoloFailureCard({
               value={String(levelScore)}
               valueColor="#facc15"
               footer={<FailureFooter tone="gold">Puan</FailureFooter>}
+              valueNudgeY={2}
               footerMarginTop={0}
             />
             <SoloStatCard
@@ -166,6 +167,7 @@ export default function SoloFailureCard({
               value={String(mistakes)}
               valueColor="#ff4d6d"
               footer={<FailureFooter tone="red">Hata</FailureFooter>}
+              valueNudgeY={2}
               footerMarginTop={0}
             />
             <SoloStatCard

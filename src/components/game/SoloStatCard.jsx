@@ -76,7 +76,13 @@ export default function SoloStatCard({
       {/* Text stack — optional label (wraps), value, optional footer.
           min-w-0 lets the flex child shrink so wrapping kicks in instead
           of overflow. */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div
+        className="flex-1 min-w-0 flex flex-col"
+        style={{
+          minHeight: 50,
+          justifyContent: 'flex-start',
+        }}
+      >
         {label && (
           <span
             className="font-inter"
