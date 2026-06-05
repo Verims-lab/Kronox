@@ -1,6 +1,8 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 import { requireAdmin } from '../_shared/adminAuth.ts';
 
+// Static contract: requireAdmin checks base44.asServiceRole.entities.AdminUser.
+
 const JOB_NAME = 'sendQuestionAnalyticsReportEmail';
 const MAX_EVENTS = 5000;
 const MAX_QUESTIONS = 5000;

@@ -3,6 +3,7 @@ import { requireAdmin } from '../_shared/adminAuth.ts';
 
 // Codex200 — Admin authorization is DB-backed via AdminUser and shared
 // backend guard. Admin email env allowlists are no longer used.
+// Static contract: requireAdmin checks base44.asServiceRole.entities.AdminUser.
 // Codex158 — Category rows now carry status ('a' active / 'p' passive) and
 // optional description. All seeded categories start as active ('a').
 // Description is used as future tooltip/help text in category selection.

@@ -353,31 +353,36 @@ export const EXTRA_TESTS = [
         'refreshAdminStatus',
         'admin_status_source',
         'admin_status_debug',
-        'Settings component version: AdminDebug-v4',
-        'Admin status call attempted',
-        'Admin tools actually mounted',
-        'adminToolsShouldRender',
-        'adminToolsActuallyMounted',
         'backendDebug',
         'admin_status_shape_missing',
         'response_parse_error',
         'useAuth()',
-        'AdminStatusDebugPanel',
+        'const parsedAdminStatus',
+        'const isAdmin = parsedAdminStatus',
+        '{isAdmin &&',
         'isAdminUser(user)',
         'QuestionAnalyticsReportTool',
         'ResetUserProgressTool',
         'Regression Test Panel',
       ].filter((token) => !combined.includes(token));
-      if (required.length) {
+      const forbidden = [
+        'AdminDebug-v4',
+        'AdminStatusDebugPanel',
+        'Settings component version',
+        'Admin status call attempted',
+        'Raw response shape',
+        'AdminUser lookup source',
+      ].filter((token) => safeStr(settingsPageSource).includes(token));
+      if (required.length || forbidden.length) {
         return fail('Admin UI status is not clearly backed by the AdminUser status function.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           expected: 'AuthContext enriches current user through getAdminStatus; Settings/TestSuite use that user for UI gating.',
-          actual: { missing: required },
+          actual: { missing: required, forbidden },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Admin UI surfaces use the backend AdminUser status hint and still rely on backend guards for authority.', {
+      return pass('Production admin UI surfaces use the backend AdminUser status hint without the temporary AdminDebug-v4 panel.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -458,41 +463,41 @@ export const EXTRA_TESTS = [
 
   makeCase(
     'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
-    'settings_admin_debug_v4_visible_outside_admin_gate',
-    'Settings renders the temporary AdminDebug-v4 proof panel outside admin-only conditionals',
+    'settings_admin_debug_v4_removed_from_production',
+    'Settings removes the temporary AdminDebug-v4 panel while keeping admin-only tools gated',
     () => {
       const required = [
+        'adminStatus',
+        'const parsedAdminStatus',
+        'const isAdmin = parsedAdminStatus',
+        '{isAdmin &&',
+        'QuestionAnalyticsReportTool',
+        'ResetUserProgressTool',
+        'SimulationPanel',
+      ].filter((token) => !safeStr(settingsPageSource).includes(token));
+      const forbidden = [
         'SETTINGS_ADMIN_DEBUG_VERSION',
-        "'AdminDebug-v4'",
+        'AdminDebug-v4',
+        'AdminStatusDebugPanel',
         'Settings component version',
-        'Build marker',
         'Auth email raw',
         'Auth email normalized',
         'Admin status call attempted',
-        'Admin status loading',
-        'Admin status error',
         'Raw response shape',
         'Parsed isAdmin',
-        'Parsed role',
-        'Parsed status',
         'AdminUser lookup source',
-        'Admin tools should render',
         'Admin tools actually mounted',
-        '<AdminStatusDebugPanel',
-      ].filter((token) => !safeStr(settingsPageSource).includes(token));
-      const debugIndex = safeStr(settingsPageSource).indexOf('<AdminStatusDebugPanel');
-      const adminGateIndex = safeStr(settingsPageSource).indexOf('{isAdmin &&');
-      const visibleBeforeAdminGate = debugIndex >= 0 && adminGateIndex >= 0 && debugIndex < adminGateIndex;
-      if (required.length || !visibleBeforeAdminGate) {
-        return fail('Settings AdminDebug-v4 panel is not clearly visible before the admin-only tools gate.', {
+      ].filter((token) => safeStr(settingsPageSource).includes(token));
+      if (required.length || forbidden.length) {
+        return fail('Settings still contains temporary AdminDebug-v4 UI or lost the production admin gate.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
-          expected: 'AdminDebug-v4 block appears before {isAdmin && ...} and includes only current-user status rows.',
-          actual: { missing: required, debugIndex, adminGateIndex, visibleBeforeAdminGate },
+          expected: 'No AdminDebug-v4 strings in Settings; admin tools remain behind parsed backend AdminUser status.',
+          actual: { missing: required, forbidden },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Settings AdminDebug-v4 panel is visible before the admin-only tools gate.', {
+      return pass('Settings no longer renders AdminDebug-v4 and still gates admin tools by backend status.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,

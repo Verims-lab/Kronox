@@ -750,6 +750,14 @@ import React, { useEffect, useState } from 'react';
 //     on the current-user AdminUser status hint; AdminUser rows remain private
 //     and are never listed by the client.
 //
+// Codex211 — Admin debug removal + Health contract alignment:
+//   • Removes the temporary AdminDebug-v4 panel and visible current-user
+//     admin-status diagnostic rows from production Settings.
+//   • Keeps Settings admin tools gated by backend AdminUser status and keeps
+//     normal users hidden while backend functions enforce requireAdmin.
+//   • Aligns admin/security Health contracts on entities.AdminUser,
+//     /getAdminStatus, no unsafe bootstrap fallback, and no debug UI required.
+//
 // Codex210 — Admin status root callable hard fix:
 //   • Adds the deployed root callable implementation at
 //     functions/getAdminStatus.js, matching the legacy functions/*.js
@@ -942,7 +950,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex210';
+const BUILD_MARKER = 'Codex211';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

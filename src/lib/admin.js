@@ -167,6 +167,7 @@ export async function getCurrentAdminStatus(user) {
   const base = adminStatusBase(user, { loading: true, statusCall: 'pending' });
   if (!base.normalizedEmail) return adminStatusBase(user);
 
+  // Callable route contract: /getAdminStatus maps to getAdminStatus; getQuestions is never an admin source.
   const attempts = [
     () => invokeFunctionJson('getAdminStatus', {}),
   ];
