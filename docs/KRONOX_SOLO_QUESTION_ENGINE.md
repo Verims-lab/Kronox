@@ -57,9 +57,14 @@ These are soft balance preferences:
 - tag/theme balance, including sports-like theme clustering
 - era/year distribution
 - recently-seen avoidance
+- exposure cooldown / rotation: prefer never-shown, less-shown, and
+  not-recently-shown questions when local or projected stats are available
 
 P1 balancing applies during deck selection and deck ordering where the pool allows:
 - normal and special decks distribute across active categories so one category does not dominate a rich pool
+- exposure weighting is soft only: high/recent shown questions are downweighted,
+  never/low-shown questions are preferred, and deck build must not fail solely
+  because exposure stats are missing, stale, or concentrated
 - first 7 active displayed cards avoid 4+ same-category cards where alternatives exist
 - first 5 active displayed cards avoid 3+ same-subcategory or obvious sports-cluster cards where metadata and alternatives allow
 - first 7 active displayed cards avoid 4+ same-subcategory/theme cards where alternatives exist
@@ -67,6 +72,11 @@ P1 balancing applies during deck selection and deck ordering where the pool allo
 - decade/era spread is preferred so the deck does not cluster around one narrow historical period
 
 The engine exposes safe diagnostics for Health/admin/debug only: category distribution, subcategory distribution, theme/sports distribution, decade distribution, first-5/first-7 distributions, max consecutive cluster counts, and fallback tier. These diagnostics must not be shown to normal players or used to expose the protected question bank publicly.
+
+The runtime may pass local recent-history exposure stats into the deck builder
+before the attempt starts. This is not a gameplay source of truth and must not
+fetch questions or stats mid-attempt. Corrupt or missing local history is ignored
+safely.
 
 P2 adds a helper-only quality layer on top of these rules:
 - deck diagnostics include level number, level type, deck size, correct target, fail threshold, question IDs, answer years, first 5 years, minimum first-5 gap, visible-spacing conflict count, category/subcategory/theme/decade/difficulty distributions, fallback tier, balance score, and warnings

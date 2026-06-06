@@ -34,6 +34,11 @@ export function hasPlayerWon(player, winCardCount) {
   return getTimelineCardCount(player) >= winCardCount;
 }
 
+function setHasQuestionId(set, id) {
+  if (!(set instanceof Set)) return false;
+  return set.has(id) || set.has(String(id));
+}
+
 export function getQuestionSelectionPool(
   questionPool = [],
   usedQuestionIds = new Set(),
@@ -46,11 +51,11 @@ export function getQuestionSelectionPool(
     ? options.recentQuestionIds
     : new Set(options.recentQuestionIds || []);
 
-  const sessionFiltered = (questionPool || []).filter(question => !usedIds.has(question.id));
+  const sessionFiltered = (questionPool || []).filter(question => !setHasQuestionId(usedIds, question.id));
   if (sessionFiltered.length === 0) return [];
 
   let pool = sessionFiltered.filter(question =>
-    !timelineYears.has(question.year) && !recentIds.has(question.id)
+    !timelineYears.has(question.year) && !setHasQuestionId(recentIds, question.id)
   );
 
   if (pool.length === 0) {

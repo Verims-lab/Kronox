@@ -13,7 +13,7 @@ import { AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Loader2, WifiOff } from 'lucide-react';
 import { useOfflineQuestions } from '@/hooks/useOfflineQuestions';
-import { loadRecentHistory, appendToHistory } from '@/lib/questionHistory';
+import { loadRecentHistory, loadRecentQuestionExposureStats, appendToHistory } from '@/lib/questionHistory';
 import { getTimelineCardCount, getTimelineYears, isCorrectPlacement } from '@/lib/gameRules';
 import { debugLog } from '@/lib/debugLog';
 import { pushAppDiag } from '@/lib/appDiagBus';
@@ -749,6 +749,7 @@ export default function Game() {
         // enter a Solo attempt deck even if stale cached rows exist.
         allowedMainCategoryIds: activeCategoryIds,
         recentlySeenQuestionIds: loadRecentHistory(),
+        questionExposureStats: loadRecentQuestionExposureStats(),
         levelNumber: soloLevel?.levelNumber,
         deckSize: getSoloAttemptDeckSizeForLevel(soloLevel?.levelNumber),
         seedCount: playerNames.length * 2,
@@ -765,7 +766,7 @@ export default function Game() {
       // Legacy non-Solo offline path — exclude recently used cross-game
       // questions for better variety, then shuffle. UNCHANGED behavior.
       const recentHistory = new Set(loadRecentHistory());
-      let seedPool = questionPool.filter(q => !recentHistory.has(q.id));
+      let seedPool = questionPool.filter(q => !recentHistory.has(String(q.id)));
       if (seedPool.length < playerNames.length * 2 + 5) {
         seedPool = [...questionPool];
       }
