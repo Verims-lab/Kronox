@@ -815,6 +815,14 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps missing whitelist clean-fail behavior, Solo deck rules, no
 //     mid-attempt fetches, and first-open question loading behavior intact.
 //
+// Codex233 — getQuestions projection fairness:
+//   • Replaces the ordered newest/category projection slice with deterministic
+//     pool-proportional category/subcategory sampling before the gameplay cap.
+//   • Broadens the protected minimal runtime projection while preserving
+//     active category/status guards and admin-only aggregate diagnostics.
+//   • Keeps Solo deck rules, scoring, UI, analytics writes, and no mid-attempt
+//     fetch behavior unchanged.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1118,7 +1126,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex232';
+const BUILD_MARKER = 'Codex233';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

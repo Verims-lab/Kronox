@@ -94,6 +94,8 @@ Checklist:
 * Deck exposes category, subcategory, theme/sports, decade/era, first-5, first-7, and fallback-tier diagnostics for Health/admin/debug only.
 * P2 deck diagnostics expose level type, correct target, fail threshold, question IDs, answer years, difficulty distribution, balance score, and warnings for Health/admin/debug only.
 * Question pool health warns about insufficient unique years, invalid years, sparse/overrepresented categories or subcategories, and missing sub_category/tag/difficulty metadata.
+* `/getQuestions` runtime projection uses deterministic pool-proportional sampling before any gameplay cap; it must not return an ordered newest/category slice.
+* Question exposure analytics are reviewed after deploy to confirm unique-question coverage and category/subcategory concentration improved.
 * Difficulty progression remains readiness-only and falls back safely when current question data has mostly difficulty 1 or missing difficulty.
 * Replay variety diagnostics can detect repeated first-5 sequences without weakening hard deck rules.
 * Deck feels category/subcategory/theme balanced where the pool allows.

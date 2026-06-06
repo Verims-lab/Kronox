@@ -266,6 +266,48 @@ export const EXTRA_TESTS = [
       });
     }),
 
+  makeCase('get_questions_projection_uses_pool_proportional_sampling',
+    'getQuestions projection uses pool-proportional fair sampling before capping',
+    () => {
+      const required = [
+        'PROJECTION_SAMPLING_STRATEGY',
+        'pool_proportional_category_subcategory_daily_sample_v1',
+        'MAX_GAMEPLAY_LIMIT = 900',
+        'QUESTION_FETCH_PER_CATEGORY_LIMIT = 1000',
+        'buildPoolProportionalProjection',
+        'allocateProportionalSlots',
+        'sampleWithinCategory',
+        'stableShuffleQuestions',
+        'getProjectionSeed',
+        'utc-day:',
+        'projectionDiagnostics',
+        'poolProportional: true',
+        'equalCategoryCounts: false',
+        'finalProjectionShuffled: true',
+        'samplingStrategy: PROJECTION_SAMPLING_STRATEGY',
+      ];
+      const forbidden = presentTokens(getQuestionsSource, [
+        'MAX_GAMEPLAY_LIMIT = 500',
+        'QUESTION_FETCH_PER_CATEGORY_LIMIT = 250',
+        '.filter(Boolean)\n      .slice(0, limit)',
+      ]);
+      const missing = missingTokens(getQuestionsSource, required);
+      if (missing.length || forbidden.length) {
+        return fail('getQuestions can regress to a narrow ordered projection slice instead of fair proportional sampling.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'base44/functions/getQuestions/entry.ts',
+          expected: 'broad active fetch + deterministic pool-proportional category/subcategory sampling before cap',
+          actual: { missing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('getQuestions uses deterministic pool-proportional sampling and admin-only diagnostics before returning the minimal projection.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    }),
+
   makeCase('no_public_question_bank_fallback',
     'Gameplay question loading has no direct public Question.list fallback',
     () => {
