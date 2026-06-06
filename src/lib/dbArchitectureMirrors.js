@@ -23,6 +23,14 @@ Analytics/statistics entities implemented now:
 - UserStatsProjection
 - CategoryStatsProjection
 - LobbyMatchStats
+- UserSubCategoryPreference stores Settings-only SubCategory interest choices per user.
+
+SubCategory preference status:
+- Settings İlgi Alanlarım reads active SubCategory rows.
+- UserSubCategoryPreference rows are scoped to user_email.
+- Minimum selection count is 5 and there is no maximum selection count.
+- Preferences do not affect Solo, Online, getQuestions, or analytics selection logic yet.
+- Future gameplay application should be soft weighting, not hard filtering.
 
 SEO/GEO boundary implemented now:
 - QuestionPublicProjection is opt-in public-safe projection.

@@ -13,6 +13,7 @@ import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 import { ACCOUNT_DELETION_ERROR_COPY, requestAccountDeletion } from '@/lib/accountDeletion';
 import ResetUserProgressTool from '@/components/admin/ResetUserProgressTool';
 import QuestionAnalyticsReportTool from '@/components/admin/QuestionAnalyticsReportTool';
+import SubCategoryPreferencesSection from '@/components/settings/SubCategoryPreferencesSection';
 import { useAuth } from '@/lib/AuthContext';
 
 export default function SettingsPage() {
@@ -140,6 +141,12 @@ export default function SettingsPage() {
             <div className="p-4 rounded-2xl border border-border/40 bg-secondary/20">
               <TopScores user={user} />
             </div>
+          </Section>
+        )}
+
+        {user && (
+          <Section label="İlgi Alanlarım">
+            <SubCategoryPreferencesSection user={user} />
           </Section>
         )}
 

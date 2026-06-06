@@ -1,0 +1,90 @@
+{
+  "name": "UserSubCategoryPreference",
+  "type": "object",
+  "description": "Codex243 — Per-user SubCategory interest preference rows for Settings. Rows are user-scoped, store SubCategory.id in sub_category_id, and do not affect question selection until a later soft-weighting task.",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Platform row id / optional preference row identifier. Runtime uses the Base44 row id for updates."
+    },
+    "user_id": {
+      "type": "string",
+      "description": "Authenticated Base44 user id when available. Used as owner metadata; RLS is also scoped by user_email."
+    },
+    "user_email": {
+      "type": "string",
+      "description": "Lowercased owner email. Preferences are private to this user/admin."
+    },
+    "sub_category_id": {
+      "type": "number",
+      "description": "Selected SubCategory.id value."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "A",
+        "P"
+      ],
+      "default": "A",
+      "description": "Preference lifecycle. A = selected/active, P = unselected/passive."
+    },
+    "created_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the preference row was first created."
+    },
+    "updated_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the preference row was last changed."
+    }
+  },
+  "required": [
+    "user_id",
+    "user_email",
+    "sub_category_id",
+    "status"
+  ],
+  "rls": {
+    "create": {
+      "created_by_id": "{{user.id}}",
+      "data.user_email": "{{user.email}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

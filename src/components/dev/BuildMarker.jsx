@@ -895,6 +895,14 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Daily Wheel reward, streak bonus, total reward, and Last Run FAIL
 //     count strings statically visible without changing backend reward logic.
 //
+// Codex243 — Settings SubCategory preferences:
+//   • Adds UserSubCategoryPreference as a per-user Settings-only preference
+//     entity for active SubCategory interests.
+//   • Adds the Settings "İlgi Alanlarım" section with active-only loading,
+//     selected chips, minimum 5 validation, and no maximum selection limit.
+//   • Adds static Health coverage while keeping question selection,
+//     onboarding, and gameplay algorithms unchanged.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1198,7 +1206,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex242';
+const BUILD_MARKER = 'Codex243';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
