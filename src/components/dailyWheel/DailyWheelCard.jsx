@@ -197,7 +197,7 @@ function Badge({ icon: Icon, label, tone }) {
 
   return (
     <span
-      className="mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-extrabold"
+      className="kronox-number mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs"
       style={{
         color: styles.color,
         background: styles.bg,
@@ -441,7 +441,7 @@ function RewardWheel({
               }}
             >
               <span
-                className={`inline-flex items-center gap-1 rounded-full px-2 py-1 font-inter font-black ${compact ? 'text-[10px]' : 'text-[12px]'}`}
+                className={`kronox-number inline-flex items-center gap-1 rounded-full px-2 py-1 ${compact ? 'text-[10px]' : 'text-[12px]'}`}
                 style={{
                   color: '#fff7ed',
                   background: isHighlighted ? 'rgba(6,10,24,0.94)' : 'rgba(6,10,24,0.68)',
@@ -580,7 +580,7 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
                 {!prefersReducedMotion && <RewardBurst />}
                 <Sparkles className="mx-auto mb-2 h-8 w-8 text-amber-300" />
                 <h2 className="font-inter text-3xl font-black text-white">
-                  +{formatDiamondCount(result.rewardAmount)} Elmas kazandın
+                  <span className="kronox-number">+{formatDiamondCount(result.rewardAmount)}</span> Elmas kazandın
                 </h2>
                 <div
                   aria-hidden="true"
@@ -593,20 +593,20 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
               {Number(result.streakBonusAmount) > 0 && (
                 <div className="space-y-2 rounded-xl bg-amber-300/12 px-3 py-2 text-center">
                   <p className="text-sm font-extrabold text-amber-100">
-                    7 günlük seri bonusu: +100 elmas
+                    <span className="kronox-number">7</span> günlük seri bonusu: <span className="kronox-number">+100</span> elmas
                   </p>
                   <p className="text-xs font-bold text-amber-50/80">
-                    Toplam: +{formatDiamondCount(result.totalRewardAmount)} elmas
+                    Toplam: <span className="kronox-number">+{formatDiamondCount(result.totalRewardAmount)}</span> elmas
                   </p>
                 </div>
               )}
               {Number.isFinite(updatedDiamondTotal) && (
                 <p className="rounded-full bg-slate-950/38 px-3 py-1.5 text-center text-sm font-extrabold text-amber-100">
-                  Toplam Elmas: {formatDiamondCount(updatedDiamondTotal)}
+                  Toplam Elmas: <span className="kronox-number">{formatDiamondCount(updatedDiamondTotal)}</span>
                 </p>
               )}
               <p className="text-center text-xs font-semibold text-slate-300">
-                Seri: {Number(result.streakAfter) || 1} gün
+                Seri: <span className="kronox-number">{Number(result.streakAfter) || 1}</span> gün
               </p>
               <ModalButton onClick={onClose}>Kapat</ModalButton>
             </>
@@ -620,7 +620,7 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
             Yeni çark yarın hazır olacak.
           </p>
           {result?.nextAvailableAt && (
-            <p className="text-center text-xs font-bold text-amber-100/85">
+            <p className="kronox-number text-center text-xs text-amber-100/85">
               {formatCountdown(result.nextAvailableAt)}
             </p>
           )}
@@ -653,7 +653,7 @@ function DailyWheelStatusModal({ nextLabel, onClose }) {
       <p className="text-center text-sm font-semibold text-slate-200">
         Yeni çark yarın hazır olacak.
       </p>
-      <p className="text-center text-xs font-bold text-amber-100/85">{nextLabel}</p>
+      <p className="kronox-number text-center text-xs text-amber-100/85">{nextLabel}</p>
       <ModalButton onClick={onClose}>Tamam</ModalButton>
     </DailyWheelModalFrame>
   );

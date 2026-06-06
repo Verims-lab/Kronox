@@ -28,7 +28,7 @@ function CountPill({ status, count }) {
   const look = STATUS_LOOK[status];
   return (
     <div className="rounded-md border border-white/10 bg-black/25 p-2">
-      <div className="text-sm font-bold" style={{ color: look.color }}>{count || 0}</div>
+      <div className="kronox-number text-sm" style={{ color: look.color }}>{count || 0}</div>
       <div className="truncate text-[9px] uppercase text-white/45">{status.replace('_', ' ')}</div>
     </div>
   );
@@ -90,7 +90,7 @@ export default function SimulationSuiteSummary({
         <div className="mb-3 rounded-md border border-white/10 bg-black/25 p-3 text-xs text-white/70">
           <div className="mb-1 font-semibold text-white">Last Run</div>
           <div>{lastRun.runId || 'Unknown run'}</div>
-          <div>{deriveLastRunFailCount(lastRun)} FAIL / {deriveLastRunRating(lastRun)}</div>
+          <div><span className="kronox-number">{deriveLastRunFailCount(lastRun)}</span> FAIL / {deriveLastRunRating(lastRun)}</div>
           <div>{deriveLastRunBuildMarker(lastRun)}</div>
         </div>
       )}

@@ -230,7 +230,7 @@ export default function PlayerSetup() {
                     onClick={() => setPlayerCount(n)}
                     ariaLabel={`${n} oyuncu seç`}
                     ariaPressed={playerCount === n}
-                    className="flex-1 h-12 rounded-2xl border-2 font-bangers text-2xl min-h-[44px]"
+                    className="kronox-number flex-1 h-12 rounded-2xl border-2 text-2xl min-h-[44px]"
                   >
                     {n}
                   </SelectBtn>
@@ -280,7 +280,7 @@ export default function PlayerSetup() {
                       >
                         −
                       </motion.button>
-                      <div className="flex-1 text-center font-bangers text-lg text-white">{val}</div>
+                      <div className="kronox-number flex-1 text-center text-lg text-white">{val}</div>
                       <motion.button
                         whileTap={{ scale: 0.88 }}
                         onClick={() => { sounds.tap(); set(val + step); }}
@@ -305,7 +305,7 @@ export default function PlayerSetup() {
                     key={s}
                     selected={turnDuration === s}
                     onClick={() => setTurnDuration(s)}
-                    className="flex-1 h-10 rounded-2xl border-2 font-bangers text-lg"
+                    className="kronox-number flex-1 h-10 rounded-2xl border-2 text-lg"
                   >
                     {s === 0 ? '∞' : `${s}s`}
                   </SelectBtn>

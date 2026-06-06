@@ -63,7 +63,7 @@ function YearDiffBadge({ diff }) {
       initial={{ scale: 0, rotate: -8 }}
       animate={{ scale: 1, rotate: 0 }}
       transition={{ type: 'spring', stiffness: 500, damping: 18, delay: 0.55 }}
-      className="inline-flex items-center gap-1 px-3 py-1 rounded-full font-bangers text-base tracking-wider"
+      className="kronox-number inline-flex items-center gap-1 rounded-full px-3 py-1 text-base"
       style={{
         background: 'rgba(248,113,113,0.18)',
         border: '1px solid rgba(248,113,113,0.5)',
@@ -243,7 +243,7 @@ export default function FeedbackOverlay({ result, year, songTitle, guessedYear, 
                     className="flex items-center gap-2"
                   >
                     <span className="font-inter text-xs text-white/35">Tahmin ettiğin:</span>
-                    <span className="font-bangers text-xl text-white/50 line-through">{guessedYear}</span>
+                    <span className="kronox-number text-xl text-white/50 line-through">{guessedYear}</span>
                   </motion.div>
                 )}
 
@@ -253,7 +253,7 @@ export default function FeedbackOverlay({ result, year, songTitle, guessedYear, 
                     initial={{ scale: 0.5, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ type: 'spring', stiffness: 380, damping: 18, delay: 0.38 }}
-                    className="font-bangers text-5xl leading-none tracking-wide"
+                    className="kronox-number text-5xl leading-none"
                     style={{
                       color: accentColor,
                       textShadow: `0 0 24px ${accentColor}50`,
@@ -300,7 +300,7 @@ export default function FeedbackOverlay({ result, year, songTitle, guessedYear, 
                 >
                   <p className="font-inter text-white/35 text-[10px] uppercase tracking-widest">Kısa mola</p>
                   <div className="flex items-center justify-center gap-3">
-                    <div className={`w-10 h-10 rounded-full border-2 flex items-center justify-center font-bangers text-lg`}
+                    <div className="kronox-number flex h-10 w-10 items-center justify-center rounded-full border-2 text-lg"
                       style={{ borderColor: accentColor, color: accentColor }}>
                       {countdown}
                     </div>

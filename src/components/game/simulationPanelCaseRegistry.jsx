@@ -183,6 +183,9 @@ import * as soloJokersCases from './simulationPanelSoloJokersCases';
 // Codex197 — Question analytics P3: private QuestionAttemptEvent runtime
 // writes for Solo, manual admin email report, and account-deletion cleanup.
 import * as questionAnalyticsCases from './simulationPanelQuestionAnalyticsCases';
+// Codex240 — Numeric typography readability: timeline years use Bebas Neue,
+// all other major numeric UI values use the shared Inter SemiBold token.
+import * as numericTypographyCases from './simulationPanelNumericTypographyCases';
 
 const MODULES = [
   soloProgressCases,
@@ -226,6 +229,7 @@ const MODULES = [
   healthAlignmentCases,
   soloJokersCases,
   questionAnalyticsCases,
+  numericTypographyCases,
 ];
 
 function flatten(key) {

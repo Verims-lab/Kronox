@@ -173,7 +173,7 @@ export default function GameLayout({
           <div className="mt-1 w-28">
             <motion.div
               key={progressPulseKey}
-              className="text-center text-xs font-inter font-semibold mb-0.5"
+              className="kronox-number mb-0.5 text-center text-xs"
               initial={progressPulseKey > 0 ? {
                 scale: prefersReducedMotion ? 1 : 1.16,
                 color: '#facc15',

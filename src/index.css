@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Bangers&family=Cinzel:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bangers&family=Bebas+Neue&family=Cinzel:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -9,6 +9,7 @@
     --font-cinzel: 'Cinzel', serif;
     --font-inter: 'Inter', sans-serif;
     --font-bangers: 'Bangers', 'Inter', sans-serif;
+    --font-bebas: 'Bebas Neue', 'Inter', sans-serif;
 
     /* Kronox v2 — Premium Fantasy Portal direction
        Royal blue + gold accents + stone/slate surfaces.
@@ -187,6 +188,22 @@
 }
 
 @layer utilities {
+  .kronox-number {
+    font-family: var(--font-inter);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums slashed-zero;
+    font-feature-settings: "tnum" 1, "zero" 1, "cv11" 1, "ss02" 1;
+    letter-spacing: 0;
+  }
+
+  .kronox-timeline-number {
+    font-family: var(--font-bebas);
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+    letter-spacing: 0.04em;
+  }
+
   .kx-viewport-lock,
   [data-kx-route-locked="true"] {
     min-height: 100vh;

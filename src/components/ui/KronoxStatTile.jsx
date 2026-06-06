@@ -8,7 +8,7 @@ import React from 'react';
  *   Replaces the two near-duplicate `StatTile` inline components that
  *   used to live in ProfilePage.jsx and LeaderboardPage.jsx. They used
  *   the same three tints (gold / portal blue / cyan), the same icon /
- *   value / label layout, and the same Bangers/Inter typography — but
+ *   value / label layout, and the same shared numeric/Inter typography — but
  *   diverged on padding, shadow ring, and label opacity. Profile and
  *   Leaderboard now share this single source so both surfaces stay
  *   visually consistent.
@@ -86,7 +86,7 @@ export default function KronoxStatTile({
     >
       <Icon className={compact ? 'mx-auto h-4 w-4' : 'w-4 h-4'} style={{ color: t.fg }} />
       <p
-        className={`${compact ? 'mt-1 ' : ''}font-bangers text-xl leading-none tracking-wider`}
+        className={`${compact ? 'mt-1 ' : ''}kronox-number text-xl leading-none`}
         style={{ color: t.fg, textShadow: compact ? undefined : `0 0 10px ${t.glow}` }}
       >
         {value}

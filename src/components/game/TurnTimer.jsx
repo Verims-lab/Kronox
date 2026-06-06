@@ -68,7 +68,7 @@ export default function TurnTimer({ onTimeUp, active, duration = 60, size = 'md'
         />
       </svg>
       <span
-        className={`font-bangers tabular-nums relative z-10 ${size === 'lg' ? 'text-lg' : 'text-base'}`}
+        className={`kronox-number relative z-10 ${size === 'lg' ? 'text-lg' : 'text-base'}`}
         style={{ color, lineHeight: 1 }}
       >
         {seconds}

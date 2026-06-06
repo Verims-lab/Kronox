@@ -69,7 +69,7 @@ export default function StandardTopBar({
 
       {/* Centered diamond chip */}
       <div
-        className="flex items-center gap-1.5 font-inter font-black text-white"
+        className="kronox-number flex items-center gap-1.5 text-white"
         style={{ fontSize: 'clamp(13px, 3.8vw, 16px)' }}
         aria-label={`Elmas: ${diamonds}`}
       >
@@ -83,7 +83,7 @@ export default function StandardTopBar({
           }}
           strokeWidth={2.4}
         />
-        <span style={{ letterSpacing: '0.02em' }}>{formatDiamondCount(diamonds)}</span>
+        <span>{formatDiamondCount(diamonds)}</span>
       </div>
 
       {/* Right-anchored bell */}

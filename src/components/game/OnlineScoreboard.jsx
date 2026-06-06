@@ -142,7 +142,7 @@ export default function OnlineScoreboard({
             {/* Bottom row: score */}
             <div className="mt-0.5 flex items-baseline gap-1 min-w-0">
               <span
-                className={`font-bangers tracking-wider ${isActive ? 'text-yellow-300' : 'text-white/85'}`}
+                className={`kronox-number ${isActive ? 'text-yellow-300' : 'text-white/85'}`}
                 style={{ fontSize: 15, lineHeight: 1 }}
               >
                 {score}
@@ -150,7 +150,7 @@ export default function OnlineScoreboard({
               <span
                 className="font-inter text-[9px] font-semibold uppercase tracking-widest text-white/45 truncate"
               >
-                / {winCardCount} kart
+                / <span className="kronox-number">{winCardCount}</span> kart
               </span>
             </div>
           </motion.div>

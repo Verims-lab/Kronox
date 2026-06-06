@@ -399,7 +399,7 @@ export default function Timeline({
           <div className="flex flex-col items-center mb-0.5" style={{ height: 20 }}>
             {!soloYearOnlyCards && (
               <>
-                <span className="font-inter font-semibold" style={{ fontSize: 11, color: '#facc15', lineHeight: 1 }}>
+                <span className="kronox-timeline-number" style={{ fontSize: 13, color: '#facc15', lineHeight: 1 }}>
                   {groupedCards[i].year}
                 </span>
                 <div className="w-px h-2 mt-0.5" style={{ background: '#facc15' }} />

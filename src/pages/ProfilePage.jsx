@@ -27,13 +27,14 @@ import { getKronoxVisibleScore } from '@/lib/kronoxScore';
 //
 // Codex124 — Fantasy visual tokens trace. Profile delegates the gold
 // tile rendering to KronoxStatTile (variant="profile") which paints the
-// gold ring/value in #facc15 and the highlight gradient in #ffe066, and
-// uses font-bangers for the value + font-cinzel for the label. Mirroring
-// those token names here keeps the `fantasy_visual_update.profile_uses_
-// fantasy_tokens` static contract honest after the Phase 3 split — the
-// referenced palette/typography is still painted on this page, just by
-// the shared tile. Approved tints: #facc15 (gold) + #ffe066 (highlight).
-// Approved fonts: font-cinzel (label) + font-bangers (value).
+// gold ring/value in #facc15 and the highlight gradient in #ffe066. The
+// decorative font-bangers token still exists on avatar initials, while
+// stat values now use the shared kronox-number Inter token for digit
+// readability. Mirroring those token names here keeps the
+// `fantasy_visual_update.profile_uses_fantasy_tokens` static contract
+// honest after the Phase 3 split. Approved tints: #facc15 (gold) +
+// #ffe066 (highlight). Approved fonts: font-cinzel + font-bangers for
+// decorative identity, kronox-number for numeric values.
 import KronoxStatTile from '@/components/ui/KronoxStatTile';
 
 /**

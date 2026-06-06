@@ -52,7 +52,7 @@ export default function SoloLevelTimer({ totalSeconds = 180, elapsedSeconds = 0,
 
   return (
     <div
-      className="flex items-center gap-1.5 rounded-full px-2.5 py-1 font-bangers text-base tracking-wider"
+      className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-base"
       style={{
         background: danger
           ? 'linear-gradient(180deg, rgba(220,38,38,0.92), rgba(127,29,29,0.96))'
@@ -71,7 +71,7 @@ export default function SoloLevelTimer({ totalSeconds = 180, elapsedSeconds = 0,
       aria-label={`Kalan süre ${label}${frozen ? ', donduruldu' : ''}`}
     >
       <Timer className="h-4 w-4" strokeWidth={2.4} />
-      <span style={{ letterSpacing: '0.04em' }}>{label}</span>
+      <span className="kronox-number" style={{ letterSpacing: '0.02em' }}>{label}</span>
       {frozen && (
         <span className="font-inter text-[9px] font-black uppercase tracking-wide text-sky-100">
           Donduruldu

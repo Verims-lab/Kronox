@@ -125,7 +125,7 @@ export default function ScreenHeader({
 
         {!statsMode && hasChip && (
           <div
-            className="flex items-center gap-1 rounded-full px-2.5 h-9 font-inter text-[12px] font-black text-amber-100"
+            className="kronox-number flex h-9 items-center gap-1 rounded-full px-2.5 text-[12px] text-amber-100"
             style={{
               background: 'linear-gradient(180deg, rgba(250,204,21,0.18), rgba(185,122,6,0.10))',
               boxShadow: 'inset 0 0 0 1px rgba(250,204,21,0.45), 0 0 10px rgba(250,204,21,0.22)',
@@ -205,7 +205,7 @@ function HeaderStats({ stats }) {
 function StatPill({ icon: Icon, value, label, tint, glow }) {
   return (
     <div
-      className="flex items-center gap-1 rounded-full h-8 px-2 sm:px-2.5 font-inter text-[11px] sm:text-[12px] font-black text-amber-100 min-w-0"
+      className="kronox-number flex h-8 min-w-0 items-center gap-1 rounded-full px-2 text-[11px] text-amber-100 sm:px-2.5 sm:text-[12px]"
       style={{
         background: 'linear-gradient(180deg, rgba(20,30,58,0.92), rgba(4,8,22,0.96))',
         boxShadow: `inset 0 0 0 1px ${tint}88, 0 0 8px ${glow}`,

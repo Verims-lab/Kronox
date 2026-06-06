@@ -366,7 +366,7 @@ function ScoreBadge({ report }) {
   const bad = report.score.value < 50;
   return (
     <div className={`rounded-md border px-3 py-2 text-right ${bad ? 'border-rose-400/35 bg-rose-400/10' : 'border-white/15 bg-white/[0.04]'}`}>
-      <div className="text-2xl font-black leading-none">{report.score.value}</div>
+      <div className="kronox-number text-2xl leading-none">{report.score.value}</div>
       <div className="mt-1 text-[11px] uppercase tracking-wide text-white/60">{report.score.rating}</div>
     </div>
   );

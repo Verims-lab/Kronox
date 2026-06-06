@@ -104,7 +104,7 @@ export default function SoloJokerBar({
                   strokeWidth={2.45}
                 />
                 <span
-                  className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-0.5 font-inter text-[9px] font-black leading-none"
+                  className="kronox-number absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-0.5 text-[9px] leading-none"
                   style={{
                     color: dimmed ? 'rgba(226,232,240,0.66)' : '#fff7d1',
                     background: dimmed
