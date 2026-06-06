@@ -296,50 +296,83 @@ function orderDeckForBeginnerSpacing(deck, levelNumber, random, options = {}) {
     Math.trunc(Number.isFinite(requestedSeedCount) ? requestedSeedCount : DEFAULT_VISIBLE_SEED_COUNT),
     Math.max(0, shuffled.length - targetCount),
   ));
-  const front = [];
-  const frontIds = new Set();
-
-  const collectFront = (orderedDeck, useSoftClusterGuard = true) => {
-    front.length = 0;
-    frontIds.clear();
-    const remaining = orderedDeck.slice();
-    while (front.length < targetCount && remaining.length > 0) {
-      const candidates = remaining.filter((question) => {
-        const year = Number(question?.year);
-        if (!Number.isFinite(year)) return false;
-        if (!isSpacedFromAll(year, front.map((q) => Number(q.year)), spacing.minGap)) return false;
-        if (useSoftClusterGuard && exceedsFirstFiveSoftClusterCap(question, front)) return false;
-        return true;
-      });
-      if (candidates.length === 0) break;
-      const question = pickBestBalanceCandidate(candidates, front, orderedDeck, {
+  const makeSearchOrder = (candidates, selected, sourceOrder) => candidates
+    .map((question, index) => ({
+      question,
+      index,
+      score: scoreCandidateForBalance(question, selected, sourceOrder, {
         targets: options.balanceTargets,
-      });
-      front.push(question);
-      frontIds.add(question.id);
-      const removeIndex = remaining.findIndex((item) => item.id === question.id);
-      if (removeIndex >= 0) remaining.splice(removeIndex, 1);
-    }
-    return front.length >= targetCount;
+      }),
+      year: Number(question?.year),
+    }))
+    .sort((a, b) => {
+      if (a.score !== b.score) return a.score - b.score;
+      if (a.index !== b.index) return a.index - b.index;
+      return a.year - b.year;
+    })
+    .map((item) => item.question);
+
+  const findSeedTail = (remaining, selectedFront, sourceOrder) => {
+    if (seedCount <= 0) return [];
+
+    const searchSeeds = (selectedSeeds, candidatePool) => {
+      if (selectedSeeds.length >= seedCount) return selectedSeeds;
+      const selectedYears = [...selectedFront, ...selectedSeeds].map((question) => Number(question.year));
+      const candidates = makeSearchOrder(candidatePool, [...selectedFront, ...selectedSeeds], sourceOrder)
+        .filter((question) => {
+          const year = Number(question?.year);
+          return Number.isFinite(year) && isSpacedFromAll(year, selectedYears, spacing.minGap);
+        });
+
+      for (const question of candidates) {
+        const nextPool = candidatePool.filter((item) => item.id !== question.id);
+        const found = searchSeeds([...selectedSeeds, question], nextPool);
+        if (found) return found;
+      }
+
+      return null;
+    };
+
+    return searchSeeds([], remaining);
   };
 
   const composeOrderedDeck = (orderedDeck, useSoftClusterGuard) => {
-    if (!collectFront(orderedDeck, useSoftClusterGuard)) return null;
-    const rest = fisherYatesShuffle(orderedDeck.filter((question) => !frontIds.has(question.id)), random);
-    const seedTail = [];
-    const seedIds = new Set();
-    const earlyYears = front.map((question) => Number(question.year));
-    for (const question of rest) {
-      if (seedTail.length >= seedCount) break;
-      const year = Number(question?.year);
-      if (!Number.isFinite(year)) continue;
-      if (!isSpacedFromAll(year, [...earlyYears, ...seedTail.map((q) => Number(q.year))], spacing.minGap)) continue;
-      seedTail.push(question);
-      seedIds.add(question.id);
-    }
-    if (seedTail.length < seedCount) return null;
-    const middle = rest.filter((question) => !seedIds.has(question.id));
-    const orderedMiddle = orderCardsForBalance(middle, front, random, {
+    const searchFront = (selectedFront, candidatePool) => {
+      if (selectedFront.length >= targetCount) {
+        const seedTail = findSeedTail(candidatePool, selectedFront, orderedDeck);
+        if (!seedTail) return null;
+        return { front: selectedFront, seedTail };
+      }
+
+      const selectedYears = selectedFront.map((question) => Number(question.year));
+      const candidates = makeSearchOrder(candidatePool, selectedFront, orderedDeck)
+        .filter((question) => {
+          const year = Number(question?.year);
+          if (!Number.isFinite(year)) return false;
+          if (!isSpacedFromAll(year, selectedYears, spacing.minGap)) return false;
+          if (useSoftClusterGuard && exceedsFirstFiveSoftClusterCap(question, selectedFront)) return false;
+          return true;
+        });
+
+      for (const question of candidates) {
+        const nextPool = candidatePool.filter((item) => item.id !== question.id);
+        const found = searchFront([...selectedFront, question], nextPool);
+        if (found) return found;
+      }
+
+      return null;
+    };
+
+    const found = searchFront([], orderedDeck.slice());
+    if (!found) return null;
+    const { front, seedTail } = found;
+    const frontIds = new Set(front.map((question) => question.id));
+    const seedIds = new Set(seedTail.map((question) => question.id));
+    const rest = fisherYatesShuffle(
+      orderedDeck.filter((question) => !frontIds.has(question.id) && !seedIds.has(question.id)),
+      random,
+    );
+    const orderedMiddle = orderCardsForBalance(rest, front, random, {
       targets: options.balanceTargets,
     });
     return [...front, ...orderedMiddle, ...seedTail];
