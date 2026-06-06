@@ -97,6 +97,13 @@ behavior. Do not mark this complete from static Health alone.
 ## Android Large-Screen / Orientation / Resizability
 Verify tablet, foldable, and resizable behavior in Play Console and on device.
 Do not mark this complete from static Health alone.
+
+## Settings SubCategory Preferences
+Settings shows İlgi Alanlarım for authenticated users. Active SubCategory
+rows load as selectable interests, passive rows are hidden, users must select
+at least 5 interests, there is no maximum selection limit, preferences are
+persisted per user in UserSubCategoryPreference, and preferences do not affect
+Solo/Online question selection yet. Onboarding preference selection is deferred.
 `;
 
 export const CATEGORY_TAXONOMY_DOC = `# Kronox Category Taxonomy
@@ -122,4 +129,5 @@ Status: Implementation tracking doc.
 - Manual admin question analytics HTML/table/bar email report exists with no scheduled trigger.
 - Legacy candidates kept without deletion: Friendship, GameRecord, LobbyMessage.
 - Raw Question remains protected.
+- UserSubCategoryPreference stores Settings-only SubCategory preferences per user; minimum 5 selections, no maximum, no gameplay filtering yet.
 `;

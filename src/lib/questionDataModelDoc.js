@@ -48,6 +48,22 @@ later explicit migration maps Question subcategory values to SubCategory IDs.
 Do not add sub_category_id or migrate Question rows in the schema-only
 preparation phase.
 
+## 1b. User SubCategory preferences
+Users can select active SubCategory interests under Settings in the
+"İlgi Alanlarım" section.
+UserSubCategoryPreference stores preferences per user with fields:
+- id
+- user_id
+- sub_category_id
+- status (A = selected/active, P = unselected/passive)
+- created_date
+- updated_date
+
+Settings shows active SubCategory.status = A options and hides passive
+SubCategory.status = P rows. Minimum selection count is 5. There is no maximum
+selection count. Preferences do not yet affect question selection. A future
+task may apply preferences as soft weighting, not hard filtering.
+
 ## 2. Removed legacy schema fields
 The following legacy fields were removed from the Question entity schema and
 are no longer stored on the entity:

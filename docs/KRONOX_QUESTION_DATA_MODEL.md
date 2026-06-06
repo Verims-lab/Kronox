@@ -237,7 +237,41 @@ Rules:
 
 ---
 
-# 8. Difficulty
+# 8. User SubCategory Preferences
+
+Users can select active `SubCategory` interests under Settings.
+
+Preference storage:
+
+```text
+UserSubCategoryPreference
+```
+
+Fields:
+
+```text
+id
+user_id
+sub_category_id
+status
+created_date
+updated_date
+```
+
+Rules:
+
+* Preferences are stored per authenticated user.
+* `sub_category_id` stores `SubCategory.id`.
+* Settings shows active `SubCategory.status = A` options and hides passive
+  `SubCategory.status = P` rows.
+* Minimum selection count is 5.
+* There is no maximum selection count.
+* Preferences do not yet affect question selection.
+* A future task may apply preferences as soft weighting, not hard filtering.
+
+---
+
+# 9. Difficulty
 
 Difficulty is an integer:
 
@@ -263,7 +297,7 @@ Rules:
 
 ---
 
-# 9. Subcategory / Tag / Region
+# 10. Subcategory / Tag / Region
 
 These fields support future content control.
 

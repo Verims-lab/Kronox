@@ -138,7 +138,25 @@ Checklist:
 
 ---
 
-# 5. Diamond Economy
+# 5. Settings SubCategory Preferences
+
+Checklist:
+
+* Settings shows `İlgi Alanlarım` for authenticated users.
+* Active `SubCategory.status = A` rows load as selectable interests.
+* Passive `SubCategory.status = P` rows are hidden.
+* Existing current-user selections load as selected.
+* Saving fewer than 5 selections is blocked with clear copy.
+* Saving 5 or more selections works.
+* There is no maximum selection limit.
+* Preferences are persisted per user in `UserSubCategoryPreference`.
+* Preferences do not affect Solo/Online question selection yet.
+* First-time onboarding preference selection is not implemented in this phase.
+* Two-account preference RLS proof remains manual/runtime proof.
+
+---
+
+# 6. Diamond Economy
 
 Checklist:
 
