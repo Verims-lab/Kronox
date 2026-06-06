@@ -6,6 +6,7 @@
 
 import simulationPanelSource from './SimulationPanel.jsx?raw';
 import simulationReportActionsSource from './health/SimulationReportActions.jsx?raw';
+import simulationRunnerSource from './health/simulationRunner.jsx?raw';
 import simulationSuiteSummarySource from './health/SimulationSuiteSummary.jsx?raw';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
 
@@ -175,7 +176,7 @@ export const EXTRA_TESTS = [
         'lastRun?.counts?.[STATUS.FAIL]',
         'lastRun.cases.filter(item => item?.status === STATUS.FAIL).length',
         'lastRun.suiteSummary.reduce',
-        '{deriveLastRunFailCount(lastRun)} / {lastRun.score?.rating',
+        '{deriveLastRunFailCount(lastRun)} FAIL / {deriveLastRunRating(lastRun)}',
       ]);
       const forbidden = src.includes('lastRun.score.value') ? ['lastRun.score.value'] : [];
       if (missing.length || forbidden.length) {
@@ -187,6 +188,73 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Last Run card prefers report.counts.FAIL and keeps rating/build marker from the run.', { verification: 'STATIC_CONTRACT', actionType: ACTION_TYPES.CODE_FIX });
+    }),
+
+  makeCase('last_run_build_marker_uses_report_metadata',
+    'Last Run summary card displays build marker from latest report metadata',
+    () => {
+      const src = safeStr(simulationSuiteSummarySource);
+      const missing = missingTokens(src, [
+        'deriveLastRunBuildMarker',
+        'lastRun?.build?.marker',
+        'lastRun?.buildMarker',
+        'Build marker unavailable',
+      ]);
+      const forbidden = src.includes('Codex181') ? ['Codex181'] : [];
+      if (missing.length || forbidden.length) {
+        return fail('Last Run card can still show a stale or hardcoded build marker.', {
+          verification: 'STATIC_CONTRACT',
+          actionType: ACTION_TYPES.CODE_FIX,
+          missing,
+          forbidden,
+        });
+      }
+      return pass('Last Run card derives build marker from report build metadata and has a clear unavailable fallback.', { verification: 'STATIC_CONTRACT', actionType: ACTION_TYPES.CODE_FIX });
+    }),
+
+  makeCase('health_build_marker_parser_reads_current_constant',
+    'Health run metadata reads the current BUILD_MARKER constant, not the first historical Codex note',
+    () => {
+      const src = safeStr(simulationRunnerSource);
+      const missing = missingTokens(src, [
+        'BUILD_MARKER\\s*=',
+        'matchAll(/Codex\\d+/g)',
+        'const buildMarker = extractBuildMarker()',
+      ]);
+      const forbidden = src.includes('match(/Codex\\d+/)?.[0]') ? ['match(/Codex\\d+/)?.[0]'] : [];
+      if (missing.length || forbidden.length) {
+        return fail('Health run metadata can still capture the first historical Codex marker instead of the current build marker.', {
+          verification: 'STATIC_CONTRACT',
+          actionType: ACTION_TYPES.CODE_FIX,
+          missing,
+          forbidden,
+        });
+      }
+      return pass('Health run metadata parses the BUILD_MARKER assignment and only uses Codex history as a fallback.', { verification: 'STATIC_CONTRACT', actionType: ACTION_TYPES.CODE_FIX });
+    }),
+
+  makeCase('last_run_persistence_uses_completed_report',
+    'Last Run restore/persistence uses the newest completed report and ignores stale partial summaries',
+    () => {
+      const src = safeStr(simulationPanelSource);
+      const missing = missingTokens(src, [
+        'restoreLatestStoredReport',
+        'persistCompletedReport',
+        'normalizeLastRunReport',
+        'finishedAt || report?.timestamp || report?.startedAt',
+        'withRunId.length ? withRunId : reports',
+        'updateReport(nextResults, meta, { persist: true })',
+      ]);
+      const forbidden = src.includes('persistReport(nextReport)') ? ['persistReport(nextReport)'] : [];
+      if (missing.length || forbidden.length) {
+        return fail('Last Run storage can still persist partial or stale summaries instead of the latest completed report.', {
+          verification: 'STATIC_CONTRACT',
+          actionType: ACTION_TYPES.CODE_FIX,
+          missing,
+          forbidden,
+        });
+      }
+      return pass('Last Run restore chooses the newest usable report and persistence happens only at completed-run boundary.', { verification: 'STATIC_CONTRACT', actionType: ACTION_TYPES.CODE_FIX });
     }),
 
   makeCase('mobile_health_report_runtime_proof_needed',

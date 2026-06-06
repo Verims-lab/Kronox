@@ -864,6 +864,14 @@ import React, { useEffect, useState } from 'react';
 //   • Aligns the P3 Health guardrail with soft cooldown reality by checking
 //     selected-vs-candidate ratios instead of impossible zero-recent decks.
 //
+// Codex239 — Health Last Run summary freshness fix:
+//   • Health run metadata now parses the actual BUILD_MARKER constant instead
+//     of the first historical Codex note in this file.
+//   • Last Run restore chooses the newest usable completed report and ignores
+//     malformed storage without destructive clearing.
+//   • Last Run card labels FAIL count explicitly and derives build marker from
+//     report build metadata with a clear unavailable fallback.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1167,7 +1175,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex238';
+const BUILD_MARKER = 'Codex239';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

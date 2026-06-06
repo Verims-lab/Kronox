@@ -106,10 +106,64 @@ import SimulationSuiteSummary from './health/SimulationSuiteSummary';
 import SimulationCaseRow, { StatusBadge } from './health/SimulationCaseRow';
 import SimulationReportActions from './health/SimulationReportActions';
 
-function persistReport(report) {
+const LEGACY_LAST_RUN_KEYS = [
+  LAST_RUN_KEY,
+  'kronox_health_simulator_last_run',
+  'kronox_health_last_run_v1',
+];
+
+function getReportTime(report) {
+  const time = Date.parse(report?.finishedAt || report?.timestamp || report?.startedAt || '');
+  return Number.isFinite(time) ? time : 0;
+}
+
+function normalizeLastRunReport(report) {
+  if (!report || typeof report !== 'object') return null;
+  const currentBuildMarker = extractBuildMarker();
+  const storedBuildMarker = String(report?.build?.marker || report?.buildMarker || '').trim();
+  const buildMarker = storedBuildMarker || (currentBuildMarker !== 'unknown' ? currentBuildMarker : 'Build marker unavailable');
+  const build = report.build && typeof report.build === 'object' ? { ...report.build } : {};
+
+  return {
+    ...report,
+    buildMarker,
+    build: {
+      ...build,
+      marker: buildMarker,
+    },
+  };
+}
+
+function readStoredLastRun(key) {
   try {
-    localStorage.setItem(LAST_RUN_KEY, JSON.stringify(report));
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    return normalizeLastRunReport(JSON.parse(raw));
+  } catch (_) {
+    return null;
+  }
+}
+
+function restoreLatestStoredReport() {
+  const reports = LEGACY_LAST_RUN_KEYS
+    .map(readStoredLastRun)
+    .filter(Boolean);
+  if (!reports.length) return null;
+
+  const withRunId = reports.filter(item => item.runId);
+  const candidates = withRunId.length ? withRunId : reports;
+  return candidates
+    .slice()
+    .sort((a, b) => getReportTime(b) - getReportTime(a))[0];
+}
+
+function persistCompletedReport(report) {
+  const normalized = normalizeLastRunReport(report);
+  if (!normalized) return null;
+  try {
+    localStorage.setItem(LAST_RUN_KEY, JSON.stringify(normalized));
   } catch (_) {}
+  return normalized;
 }
 
 export default function SimulationPanel({ onClose }) {
@@ -122,10 +176,8 @@ export default function SimulationPanel({ onClose }) {
   const [copyState, setCopyState] = useState('');
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(LAST_RUN_KEY);
-      if (saved) setLastRun(JSON.parse(saved));
-    } catch (_) {}
+    const saved = restoreLatestStoredReport();
+    if (saved) setLastRun(saved);
   }, []);
 
   const selectedSuite = SUITES.find(suite => suite.id === selectedSuiteId) || SUITES[0];
@@ -134,11 +186,13 @@ export default function SimulationPanel({ onClose }) {
   const counts = report?.counts || Object.values(STATUS).reduce((acc, status) => ({ ...acc, [status]: 0 }), {});
   const progress = plannedKeys.length ? Math.round((allResults.filter(item => plannedKeys.includes(item.key)).length / plannedKeys.length) * 100) : 0;
 
-  const updateReport = useCallback((nextResults, meta) => {
+  const updateReport = useCallback((nextResults, meta, options = {}) => {
     const nextReport = buildReport(Object.values(nextResults), SUITES, meta, captureEnvironment());
     setReport(nextReport);
-    persistReport(nextReport);
-    setLastRun(nextReport);
+    if (options.persist === true) {
+      const completedReport = persistCompletedReport(nextReport);
+      setLastRun(completedReport || nextReport);
+    }
     return nextReport;
   }, []);
 
@@ -158,6 +212,7 @@ export default function SimulationPanel({ onClose }) {
       await new Promise(resolve => window.setTimeout(resolve, 12));
     }
 
+    updateReport(nextResults, meta, { persist: true });
     setRunningKey(null);
     setPlannedKeys([]);
   }, [updateReport]);
