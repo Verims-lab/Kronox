@@ -15,7 +15,11 @@ import { STATUS, sanitizeForReport } from './healthStatus';
 import buildMarkerSource from '../../dev/BuildMarker.jsx?raw';
 
 export function extractBuildMarker() {
-  return buildMarkerSource.match(/Codex\d+/)?.[0] || 'unknown';
+  const explicitMarker = buildMarkerSource.match(/BUILD_MARKER\s*=\s*['"`]([^'"`]+)['"`]/)?.[1];
+  if (explicitMarker) return explicitMarker;
+
+  const fallbackMarkers = Array.from(buildMarkerSource.matchAll(/Codex\d+/g)).map(match => match[0]);
+  return fallbackMarkers[fallbackMarkers.length - 1] || 'unknown';
 }
 
 export function captureEnvironment() {
@@ -58,12 +62,13 @@ export function captureEnvironment() {
 }
 
 export function createRunMeta(casePlan = []) {
+  const buildMarker = extractBuildMarker();
   return {
     runId: `KRONOX-${Date.now().toString(36).toUpperCase()}`,
     startedAt: new Date().toISOString(),
-    buildMarker: extractBuildMarker(),
+    buildMarker,
     build: {
-      marker: extractBuildMarker(),
+      marker: buildMarker,
       branch: 'Codex',
       viteMode: import.meta.env.MODE,
       viteDev: Boolean(import.meta.env.DEV),

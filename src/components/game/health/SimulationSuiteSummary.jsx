@@ -49,6 +49,15 @@ function deriveLastRunFailCount(lastRun) {
   return 0;
 }
 
+function deriveLastRunRating(lastRun) {
+  return String(lastRun?.score?.rating || '').trim() || 'No rating';
+}
+
+function deriveLastRunBuildMarker(lastRun) {
+  const marker = String(lastRun?.build?.marker || lastRun?.buildMarker || '').trim();
+  return marker || 'Build marker unavailable';
+}
+
 export default function SimulationSuiteSummary({
   suites,
   tests,
@@ -80,9 +89,9 @@ export default function SimulationSuiteSummary({
       {lastRun && (
         <div className="mb-3 rounded-md border border-white/10 bg-black/25 p-3 text-xs text-white/70">
           <div className="mb-1 font-semibold text-white">Last Run</div>
-          <div>{lastRun.runId}</div>
-          <div>{deriveLastRunFailCount(lastRun)} / {lastRun.score?.rating || 'No rating'}</div>
-          <div>{lastRun.buildMarker}</div>
+          <div>{lastRun.runId || 'Unknown run'}</div>
+          <div>{deriveLastRunFailCount(lastRun)} FAIL / {deriveLastRunRating(lastRun)}</div>
+          <div>{deriveLastRunBuildMarker(lastRun)}</div>
         </div>
       )}
 
