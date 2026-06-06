@@ -31,6 +31,8 @@ SubCategory preference status:
 - Minimum selection count is 5 and there is no maximum selection count.
 - Preferences do not affect Solo, Online, getQuestions, or analytics selection logic yet.
 - Future gameplay application should be soft weighting, not hard filtering.
+- UserSubCategoryPreference should have a user_email + sub_category_id unique key where Base44 supports it.
+- The save helper collapses duplicate active preference rows by passivating duplicateRows.
 
 SEO/GEO boundary implemented now:
 - QuestionPublicProjection is opt-in public-safe projection.
