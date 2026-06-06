@@ -63,11 +63,14 @@ const FIRST_SEVEN_BALANCE_TARGET_COUNT = 7;
 const FIRST_SEVEN_CATEGORY_CAP = 3;
 const FIRST_SEVEN_SUBCATEGORY_CAP = 3;
 const FIRST_SEVEN_THEME_CAP = 3;
-const FULL_DECK_CATEGORY_DOMINANCE_RATIO = 0.4;
 const EXPOSURE_RECENT_BASE_PENALTY = 95;
 const EXPOSURE_COUNT_PENALTY = 22;
 const EXPOSURE_NEVER_SHOWN_BOOST = -18;
 const EXPOSURE_MAX_PENALTY = 260;
+const CATEGORY_PROPORTION_WEIGHT = 42;
+const SUBCATEGORY_PROPORTION_WEIGHT = 34;
+const THEME_PROPORTION_WEIGHT = 26;
+const YEAR_BAND_PROPORTION_WEIGHT = 24;
 const SPORTS_CLUSTER_TOKENS = [
   'arena', 'spor', 'sport', 'football', 'futbol', 'soccer', 'basket',
   'tenis', 'tennis', 'olimpiyat', 'olympic', 'messi', 'serena',
@@ -559,6 +562,13 @@ function getDecadeKey(question) {
   return `decade:${Math.floor(year / 10) * 10}`;
 }
 
+function getYearBandKey(question) {
+  const year = getQuestionYear(question);
+  if (year === null) return 'year_band:unknown';
+  const band = Math.floor(year / 50) * 50;
+  return `year_band:${band}-${band + 49}`;
+}
+
 function isKnownSubcategoryKey(key) {
   return key && key !== 'sub:unknown';
 }
@@ -630,6 +640,68 @@ function getMaxConsecutiveCount(items, selector) {
 
 function countDistinctBy(candidates, selector) {
   return new Set(candidates.map(selector).filter(Boolean)).size;
+}
+
+function buildPoolProportionalTargets(distribution = {}, deckSize = DEFAULT_DECK_SIZE, options = {}) {
+  const total = Math.max(1, Object.values(distribution).reduce((sum, value) => sum + (Number(value) || 0), 0));
+  const targets = {};
+  for (const [key, rawCount] of Object.entries(distribution || {})) {
+    const count = Math.max(0, Number(rawCount) || 0);
+    if (count <= 0) continue;
+    const share = count / total;
+    const idealDeckCount = share * deckSize;
+    const isUnknown = key === options.unknownKey;
+    const smallProtection = !isUnknown && count >= 2 && idealDeckCount > 0 && idealDeckCount < 1;
+    targets[key] = {
+      count,
+      share,
+      idealDeckCount,
+      // Per-bucket soft cap follows the eligible-pool share. This keeps large
+      // buckets large when the pool says they are large, without letting DB
+      // order or easy-spacing buckets overrun the deck.
+      softCap: Math.max(1, Math.ceil(idealDeckCount + (smallProtection ? 1 : 0.75))),
+      smallProtection,
+      isUnknown,
+    };
+  }
+  return targets;
+}
+
+function getProportionalTarget(targets = {}, key) {
+  return targets?.[key] || null;
+}
+
+function getMaxSoftCap(targets = {}, fallback = DEFAULT_DECK_SIZE) {
+  const caps = Object.values(targets || {}).map((target) => Number(target?.softCap)).filter(Number.isFinite);
+  return caps.length ? Math.max(...caps) : fallback;
+}
+
+function scoreProportionalBucket({ key, selectedCount, position, targetMap, weight, allowBoost = true }) {
+  const target = getProportionalTarget(targetMap, key);
+  if (!target) return 0;
+
+  const nextPosition = Math.max(1, position + 1);
+  const afterCount = selectedCount + 1;
+  const expectedByNow = target.share * nextPosition;
+  const overByNow = Math.max(0, afterCount - Math.max(1, expectedByNow + 1.25));
+  const overIdealDeck = Math.max(0, afterCount - Math.max(1, target.idealDeckCount + 0.5));
+  const overSoftCap = Math.max(0, afterCount - target.softCap);
+  let score = 0;
+
+  if (overByNow > 0) score += overByNow * weight * 0.35;
+  if (overIdealDeck > 0) score += overIdealDeck * weight * 0.85;
+
+  if (allowBoost && !target.isUnknown && selectedCount < Math.floor(target.idealDeckCount)) {
+    const underTarget = Math.max(0, target.idealDeckCount - selectedCount);
+    score -= Math.min(weight * 0.45, underTarget * weight * 0.18);
+  }
+
+  if (overSoftCap > 0) score += overSoftCap * weight * 1.65;
+  if (target.smallProtection && selectedCount === 0 && nextPosition > 3 && allowBoost) {
+    score -= weight * 0.22;
+  }
+
+  return score;
 }
 
 function getMinimumPairGap(years) {
@@ -741,13 +813,17 @@ export function getSoloDeckDiagnostics(resultOrDeck, options = {}) {
     themeDistribution: meta.themeDistribution || buildDistribution(deck, getThemeKey),
     sportsLikeCount: Number(meta.themeDistribution?.['theme:sports'] ?? buildDistribution(deck, getThemeKey)['theme:sports'] ?? 0),
     decadeDistribution: meta.decadeDistribution || buildDistribution(deck, getDecadeKey),
+    yearBandDistribution: meta.yearBandDistribution || buildDistribution(deck, getYearBandKey),
     difficultyDistribution: buildDistribution(deck, getDifficultyKey),
     fallbackTier: meta.fallbackTier || 'unknown',
+    diversityFairness: meta.diversityFairness || null,
+    exposureFairness: meta.exposureFairness || null,
     balanceScore: {
       maxCategoryCount: Number(meta.maxCategoryCount) || getMaxDistributionCount(meta.categoryDistribution || buildDistribution(deck, getCategoryKey)),
       maxSubcategoryCount: Number(meta.maxSubcategoryCount) || getMaxDistributionCount(meta.subcategoryDistribution || buildDistribution(deck, getSubcategoryKey)),
       maxThemeCount: Number(meta.maxThemeCount) || getMaxDistributionCount(meta.themeDistribution || buildDistribution(deck, getThemeKey)),
       maxDecadeCount: Number(meta.maxDecadeCount) || getMaxDistributionCount(meta.decadeDistribution || buildDistribution(deck, getDecadeKey)),
+      maxYearBandCount: Number(meta.maxYearBandCount) || getMaxDistributionCount(meta.yearBandDistribution || buildDistribution(deck, getYearBandKey)),
       maxConsecutiveThemeCount: Number(meta.maxConsecutiveThemeCount) || getMaxConsecutiveCount(deck, getThemeKey),
     },
     difficultyStrategy,
@@ -772,6 +848,7 @@ export function analyzeSoloQuestionPool(pool = [], args = {}) {
   const subcategoryDistribution = buildDistribution(candidates, getSubcategoryKey);
   const themeDistribution = buildDistribution(candidates, getThemeKey);
   const decadeDistribution = buildDistribution(candidates, getDecadeKey);
+  const yearBandDistribution = buildDistribution(candidates, getYearBandKey);
   const canBuildNormalDeck = uniqueYearCount >= deckSizeNormal && canPickSpacedYears([...new Set(candidates.map((q) => Number(q.year)))]);
   const canBuildSpecialDeck = uniqueYearCount >= deckSizeSpecial && canPickSpacedYears([...new Set(candidates.map((q) => Number(q.year)))]);
   const warnings = [];
@@ -801,6 +878,7 @@ export function analyzeSoloQuestionPool(pool = [], args = {}) {
     subcategoryDistribution,
     themeDistribution,
     decadeDistribution,
+    yearBandDistribution,
     canBuildNormalDeck,
     canBuildSpecialDeck,
     canSatisfyFirstFiveSpacing: !hardFailures.includes('insufficient_first_five_spacing_pool'),
@@ -874,19 +952,40 @@ function makeBalanceTargets(candidates, deckSize) {
   const subcategoryCount = Math.max(1, countDistinctBy(candidates, getSubcategoryKey));
   const themeCount = Math.max(1, countDistinctBy(candidates, getThemeKey));
   const decadeCount = Math.max(1, countDistinctBy(candidates, getDecadeKey));
-  const richCategoryCap = Math.ceil(deckSize * FULL_DECK_CATEGORY_DOMINANCE_RATIO);
-  const categoryCap = categoryCount >= 3
-    ? Math.max(2, Math.min(richCategoryCap, Math.ceil(deckSize / categoryCount) + 1))
-    : Math.max(richCategoryCap, Math.ceil(deckSize / categoryCount) + 1);
+  const yearBandCount = Math.max(1, countDistinctBy(candidates, getYearBandKey));
+  const categoryDistribution = buildDistribution(candidates, getCategoryKey);
+  const subcategoryDistribution = buildDistribution(candidates, getSubcategoryKey);
+  const themeDistribution = buildDistribution(candidates, getThemeKey);
+  const decadeDistribution = buildDistribution(candidates, getDecadeKey);
+  const yearBandDistribution = buildDistribution(candidates, getYearBandKey);
+  const categoryTargets = buildPoolProportionalTargets(categoryDistribution, deckSize);
+  const subcategoryTargets = buildPoolProportionalTargets(subcategoryDistribution, deckSize, { unknownKey: 'sub:unknown' });
+  const themeTargets = buildPoolProportionalTargets(themeDistribution, deckSize);
+  const decadeTargets = buildPoolProportionalTargets(decadeDistribution, deckSize);
+  const yearBandTargets = buildPoolProportionalTargets(yearBandDistribution, deckSize, { unknownKey: 'year_band:unknown' });
   return {
     categoryCount,
     subcategoryCount,
     themeCount,
     decadeCount,
-    categoryCap,
-    subcategoryCap: Math.max(2, Math.ceil(deckSize / subcategoryCount) + 1),
-    themeCap: Math.max(2, Math.ceil(deckSize / themeCount) + 1),
-    decadeCap: Math.max(3, Math.ceil(deckSize / decadeCount) + 1),
+    yearBandCount,
+    categoryCap: Math.max(2, Math.min(deckSize, getMaxSoftCap(categoryTargets, deckSize))),
+    subcategoryCap: Math.max(2, getMaxSoftCap(subcategoryTargets, Math.ceil(deckSize / subcategoryCount) + 1)),
+    themeCap: Math.max(2, getMaxSoftCap(themeTargets, Math.ceil(deckSize / themeCount) + 1)),
+    decadeCap: Math.max(3, getMaxSoftCap(decadeTargets, Math.ceil(deckSize / decadeCount) + 1)),
+    yearBandCap: Math.max(3, getMaxSoftCap(yearBandTargets, Math.ceil(deckSize / yearBandCount) + 1)),
+    categoryDistribution,
+    subcategoryDistribution,
+    themeDistribution,
+    decadeDistribution,
+    yearBandDistribution,
+    categoryTargets,
+    subcategoryTargets,
+    themeTargets,
+    decadeTargets,
+    yearBandTargets,
+    poolProportional: true,
+    equalCountBalancing: false,
   };
 }
 
@@ -897,10 +996,12 @@ function scoreCandidateForBalance(question, selected, sourceOrder = [], options 
   const subcategoryKey = getSubcategoryKey(question);
   const themeKey = getThemeKey(question);
   const decadeKey = getDecadeKey(question);
+  const yearBandKey = getYearBandKey(question);
   const categoryCount = countMatching(selected, getCategoryKey, categoryKey);
   const subcategoryCount = countMatching(selected, getSubcategoryKey, subcategoryKey);
   const themeCount = countMatching(selected, getThemeKey, themeKey);
   const decadeCount = countMatching(selected, getDecadeKey, decadeKey);
+  const yearBandCount = countMatching(selected, getYearBandKey, yearBandKey);
   const sportsCount = countMatching(selected, getThemeKey, 'theme:sports');
   const last = selected[selected.length - 1] || null;
   const previous = selected[selected.length - 2] || null;
@@ -908,15 +1009,46 @@ function scoreCandidateForBalance(question, selected, sourceOrder = [], options 
   let score = 0;
 
   score += scoreQuestionExposure(question, options);
+  score += scoreProportionalBucket({
+    key: categoryKey,
+    selectedCount: categoryCount,
+    position,
+    targetMap: targets.categoryTargets,
+    weight: CATEGORY_PROPORTION_WEIGHT,
+  });
+  score += scoreProportionalBucket({
+    key: subcategoryKey,
+    selectedCount: subcategoryCount,
+    position,
+    targetMap: targets.subcategoryTargets,
+    weight: SUBCATEGORY_PROPORTION_WEIGHT,
+    allowBoost: isKnownSubcategoryKey(subcategoryKey),
+  });
+  score += scoreProportionalBucket({
+    key: themeKey,
+    selectedCount: themeCount,
+    position,
+    targetMap: targets.themeTargets,
+    weight: THEME_PROPORTION_WEIGHT,
+  });
+  score += scoreProportionalBucket({
+    key: yearBandKey,
+    selectedCount: yearBandCount,
+    position,
+    targetMap: targets.yearBandTargets,
+    weight: YEAR_BAND_PROPORTION_WEIGHT,
+  });
   score += categoryCount * 16;
   score += (isKnownSubcategoryKey(subcategoryKey) ? subcategoryCount : Math.max(0, subcategoryCount - 1)) * 14;
   score += themeCount * 12;
   score += decadeCount * 9;
+  score += yearBandCount * 5;
 
-  if (categoryCount >= targets.categoryCap) score += 85;
-  if (isKnownSubcategoryKey(subcategoryKey) && subcategoryCount >= targets.subcategoryCap) score += 80;
-  if (themeCount >= targets.themeCap) score += 70;
-  if (decadeCount >= targets.decadeCap) score += 45;
+  if (categoryCount >= (getProportionalTarget(targets.categoryTargets, categoryKey)?.softCap ?? targets.categoryCap)) score += 85;
+  if (isKnownSubcategoryKey(subcategoryKey) && subcategoryCount >= (getProportionalTarget(targets.subcategoryTargets, subcategoryKey)?.softCap ?? targets.subcategoryCap)) score += 80;
+  if (themeCount >= (getProportionalTarget(targets.themeTargets, themeKey)?.softCap ?? targets.themeCap)) score += 70;
+  if (decadeCount >= (getProportionalTarget(targets.decadeTargets, decadeKey)?.softCap ?? targets.decadeCap)) score += 45;
+  if (yearBandCount >= (getProportionalTarget(targets.yearBandTargets, yearBandKey)?.softCap ?? targets.yearBandCap)) score += 50;
 
   if (position < FIRST_SEVEN_BALANCE_TARGET_COUNT && categoryCount >= FIRST_SEVEN_CATEGORY_CAP) score += 140;
   if (position < FIRST_SEVEN_BALANCE_TARGET_COUNT && isKnownSubcategoryKey(subcategoryKey) && subcategoryCount >= FIRST_SEVEN_SUBCATEGORY_CAP) score += 150;
@@ -928,6 +1060,7 @@ function scoreCandidateForBalance(question, selected, sourceOrder = [], options 
     if (isKnownSubcategoryKey(subcategoryKey) && getSubcategoryKey(last) === subcategoryKey) score += 95;
     if (getThemeKey(last) === themeKey) score += 80;
     if (getDecadeKey(last) === decadeKey) score += 45;
+    if (getYearBandKey(last) === yearBandKey) score += 20;
   }
   if (last && previous) {
     if (getThemeKey(last) === themeKey && getThemeKey(previous) === themeKey) score += 220;
@@ -1105,6 +1238,41 @@ function buildExposureDiagnostics(candidates = [], selectedDeck = [], recentIds 
   };
 }
 
+function compactProportionalTargets(targets = {}) {
+  return Object.fromEntries(Object.entries(targets || {}).map(([key, target]) => [key, {
+    poolCount: target.count,
+    poolShare: Number(target.share.toFixed(4)),
+    idealDeckCount: Number(target.idealDeckCount.toFixed(2)),
+    softCap: target.softCap,
+    smallProtection: target.smallProtection,
+  }]));
+}
+
+function buildDiversityDiagnostics(candidates = [], selectedDeck = [], balanceTargets = {}) {
+  return {
+    strategy: 'pool_proportional_category_subcategory_theme_year_band_v1',
+    poolProportional: true,
+    equalCountBalancing: false,
+    softOnly: true,
+    eligibleCandidateCount: candidates.length,
+    selectedDeckSize: selectedDeck.length,
+    eligibleCategoryDistribution: balanceTargets.categoryDistribution || buildDistribution(candidates, getCategoryKey),
+    selectedCategoryDistribution: buildDistribution(selectedDeck, getCategoryKey),
+    categoryTargets: compactProportionalTargets(balanceTargets.categoryTargets),
+    eligibleSubcategoryDistribution: balanceTargets.subcategoryDistribution || buildDistribution(candidates, getSubcategoryKey),
+    selectedSubcategoryDistribution: buildDistribution(selectedDeck, getSubcategoryKey),
+    subcategoryTargets: compactProportionalTargets(balanceTargets.subcategoryTargets),
+    eligibleThemeDistribution: balanceTargets.themeDistribution || buildDistribution(candidates, getThemeKey),
+    selectedThemeDistribution: buildDistribution(selectedDeck, getThemeKey),
+    themeTargets: compactProportionalTargets(balanceTargets.themeTargets),
+    eligibleYearBandDistribution: balanceTargets.yearBandDistribution || buildDistribution(candidates, getYearBandKey),
+    selectedYearBandDistribution: buildDistribution(selectedDeck, getYearBandKey),
+    yearBandTargets: compactProportionalTargets(balanceTargets.yearBandTargets),
+    eligibleDecadeDistribution: balanceTargets.decadeDistribution || buildDistribution(candidates, getDecadeKey),
+    selectedDecadeDistribution: buildDistribution(selectedDeck, getDecadeKey),
+  };
+}
+
 /**
  * buildSoloAttemptDeck — Public entry point.
  *
@@ -1272,6 +1440,7 @@ export function buildSoloAttemptDeck(args = {}) {
   const subcategoryDistribution = buildDistribution(finalDeck, getSubcategoryKey);
   const themeDistribution = buildDistribution(finalDeck, getThemeKey);
   const decadeDistribution = buildDistribution(finalDeck, getDecadeKey);
+  const yearBandDistribution = buildDistribution(finalDeck, getYearBandKey);
   const firstFiveCategoryDistribution = buildDistribution(firstFiveCards, getCategoryKey);
   const firstFiveSubcategoryDistribution = buildDistribution(firstFiveCards, getSubcategoryKey);
   const firstFiveThemeDistribution = buildDistribution(firstFiveCards, getThemeKey);
@@ -1279,6 +1448,7 @@ export function buildSoloAttemptDeck(args = {}) {
   const firstSevenSubcategoryDistribution = buildDistribution(firstSevenCards, getSubcategoryKey);
   const firstSevenThemeDistribution = buildDistribution(firstSevenCards, getThemeKey);
   const exposureFairness = buildExposureDiagnostics(candidates, finalDeck, recentIds, exposureStats);
+  const diversityFairness = buildDiversityDiagnostics(candidates, finalDeck, balanceTargets);
   return {
     ok: true,
     deck: finalDeck,
@@ -1300,6 +1470,7 @@ export function buildSoloAttemptDeck(args = {}) {
       subcategoryDistribution,
       themeDistribution,
       decadeDistribution,
+      yearBandDistribution,
       firstFiveCategoryDistribution,
       firstFiveSubcategoryDistribution,
       firstFiveThemeDistribution,
@@ -1309,10 +1480,12 @@ export function buildSoloAttemptDeck(args = {}) {
       firstFiveSportsClusterCount: firstFiveCards.filter((q) => getSportsClusterKey(q) === 'sports').length,
       firstSevenSportsClusterCount: firstSevenCards.filter((q) => getSportsClusterKey(q) === 'sports').length,
       exposureFairness,
+      diversityFairness,
       maxCategoryCount: getMaxDistributionCount(categoryDistribution),
       maxSubcategoryCount: getMaxDistributionCount(subcategoryDistribution),
       maxThemeCount: getMaxDistributionCount(themeDistribution),
       maxDecadeCount: getMaxDistributionCount(decadeDistribution),
+      maxYearBandCount: getMaxDistributionCount(yearBandDistribution),
       maxFirstSevenCategoryCount: getMaxDistributionCount(firstSevenCategoryDistribution),
       maxFirstSevenSubcategoryCount: getMaxDistributionCount(firstSevenSubcategoryDistribution),
       maxConsecutiveCategoryCount: getMaxConsecutiveCount(finalDeck, getCategoryKey),
@@ -1330,10 +1503,30 @@ export function buildSoloAttemptDeck(args = {}) {
           hard: true,
         }
         : null,
-      categoryBalance: { categoryCount: balanceTargets.categoryCount, perCategoryCap: balanceTargets.categoryCap },
-      subcategoryBalance: { subcategoryCount: balanceTargets.subcategoryCount, perSubcategoryCap: balanceTargets.subcategoryCap },
-      themeBalance: { themeCount: balanceTargets.themeCount, perThemeCap: balanceTargets.themeCap },
-      eraSpread: { decadeCount: balanceTargets.decadeCount, perDecadeCap: balanceTargets.decadeCap },
+      categoryBalance: {
+        categoryCount: balanceTargets.categoryCount,
+        maxCategorySoftCap: balanceTargets.categoryCap,
+        poolProportional: true,
+        equalCountBalancing: false,
+      },
+      subcategoryBalance: {
+        subcategoryCount: balanceTargets.subcategoryCount,
+        maxSubcategorySoftCap: balanceTargets.subcategoryCap,
+        poolProportional: true,
+        equalCountBalancing: false,
+      },
+      themeBalance: {
+        themeCount: balanceTargets.themeCount,
+        maxThemeSoftCap: balanceTargets.themeCap,
+        poolProportional: true,
+      },
+      eraSpread: {
+        decadeCount: balanceTargets.decadeCount,
+        yearBandCount: balanceTargets.yearBandCount,
+        maxDecadeSoftCap: balanceTargets.decadeCap,
+        maxYearBandSoftCap: balanceTargets.yearBandCap,
+        poolProportional: true,
+      },
     },
   };
 }
@@ -1354,6 +1547,7 @@ export const __soloEngineInternals = {
   getSubcategoryKey,
   getThemeKey,
   getDecadeKey,
+  getYearBandKey,
   getSoloDeckDiagnostics,
   analyzeSoloQuestionPool,
   getSoloDifficultyStrategy,

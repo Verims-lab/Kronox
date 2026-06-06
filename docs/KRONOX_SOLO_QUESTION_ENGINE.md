@@ -60,18 +60,22 @@ These are soft balance preferences:
 - exposure cooldown / rotation: prefer never-shown, less-shown, and
   not-recently-shown questions when local or projected stats are available
 
-P1 balancing applies during deck selection and deck ordering where the pool allows:
+P1/P2 balancing applies during deck selection and deck ordering where the pool allows:
 - normal and special decks distribute across active categories so one category does not dominate a rich pool
 - exposure weighting is soft only: high/recent shown questions are downweighted,
   never/low-shown questions are preferred, and deck build must not fail solely
   because exposure stats are missing, stale, or concentrated
+- category, subcategory, theme, and year-band balance are pool-proportional,
+  not equal-count. A group that is large in the eligible pool may stay large in
+  a deck, while smaller valid groups receive gentle protection from accidental
+  starvation where deck size and hard rules allow.
 - first 7 active displayed cards avoid 4+ same-category cards where alternatives exist
 - first 5 active displayed cards avoid 3+ same-subcategory or obvious sports-cluster cards where metadata and alternatives allow
 - first 7 active displayed cards avoid 4+ same-subcategory/theme cards where alternatives exist
 - ordering avoids same category, subcategory, sports/theme, or decade back-to-back where alternatives exist
 - decade/era spread is preferred so the deck does not cluster around one narrow historical period
 
-The engine exposes safe diagnostics for Health/admin/debug only: category distribution, subcategory distribution, theme/sports distribution, decade distribution, first-5/first-7 distributions, max consecutive cluster counts, and fallback tier. These diagnostics must not be shown to normal players or used to expose the protected question bank publicly.
+The engine exposes safe diagnostics for Health/admin/debug only: eligible-pool and selected-deck category distribution, subcategory distribution, theme/sports distribution, decade/year-band distribution, first-5/first-7 distributions, max consecutive cluster counts, pool-proportional targets, and fallback tier. These diagnostics must not be shown to normal players or used to expose the protected question bank publicly.
 
 The runtime may pass local recent-history exposure stats into the deck builder
 before the attempt starts. This is not a gameplay source of truth and must not
