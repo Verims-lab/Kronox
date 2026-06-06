@@ -84,6 +84,13 @@ P3 question analytics writes best-effort QuestionAttemptEvent rows for Solo
 shown, answered, swapped_out, and replacement_shown events. Analytics writes
 must not block drag/drop, scoring, result popups, or deck progression. Manual
 admin email reports are question-focused; no scheduled report exists.
+P3 Health guardrails detect projection narrowing, repeated-deck low unique
+coverage, high/recent exposure reuse, category/subcategory/year-band
+concentration, and active-pool versus runtime-projection mismatch. Health and
+reporting guardrails compare selected/shown distribution to the eligible pool
+proportionally; they must not require equal category, subcategory, or era
+counts. Runtime exposure improvement is proven over new gameplay events, so
+historical reports can remain concentrated until fresh events accumulate.
 
 Fallback may relax recently-seen avoidance, category/subcategory/theme balance,
 and era spread. It must not relax required deck size, unique IDs, unique

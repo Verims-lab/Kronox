@@ -16,6 +16,7 @@ import questionStatsProjectionEntitySource from '../../../base44/entities/Questi
 import adminAuthSource from '../../../base44/functions/_shared/adminAuth.ts?raw';
 import aggregateQuestionStatsSource from '../../../base44/functions/aggregateQuestionStats/entry.ts?raw';
 import reportFunctionSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts?raw';
+import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
 import {
   QUESTION_ANALYTICS_REPORT_SECTIONS,
   QUESTION_ANALYTICS_SECURITY_CONTRACT,
@@ -203,6 +204,70 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Manual report function is admin-gated and includes the required aggregate sections.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('analytics_report_separates_active_solo_and_projection_pools',
+    'Question Analytics report separates active pool, Solo-eligible pool, and runtime projection diagnostics',
+    () => {
+      const combined = `${reportFunctionSource}\n${getQuestionsSource}`;
+      const missing = missingTokens(combined, [
+        'isSoloEligibleQuestion',
+        'buildActiveCategoryIdSet',
+        'soloEligibleQuestions',
+        'neverShownSoloEligible',
+        'Aktif soru havuzu (tüm aktifler)',
+        'Solo-eligible soru',
+        'Hiç gösterilmeyen Solo-eligible',
+        'Runtime projection',
+        'getQuestions diagnostics',
+        'activeQuestionPoolMeaning',
+        'soloEligibleQuestionPoolSize',
+        'neverShownSoloEligibleQuestions',
+        'runtimeProjectionSizeAvailable: false',
+        'runtimeProjectionSizeSource',
+        'projectionDiagnostics',
+        'fetchedActiveTotal',
+        'eligibleAfterNormalization',
+        'returnedTotal',
+      ]);
+      if (missing.length) {
+        return fail('Analytics report can still blur all active rows, Solo-eligible rows, and runtime projection size.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['base44/functions/sendQuestionAnalyticsReportEmail/entry.ts', 'base44/functions/getQuestions/entry.ts'],
+          missing,
+        });
+      }
+      return pass('Report wording/metadata distinguishes all active questions, Solo-eligible questions, and getQuestions runtime projection diagnostics.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('analytics_report_detects_top_subcategory_concentration',
+    'Question Analytics report flags top-shown category/subcategory concentration without hardcoding labels',
+    () => {
+      const missing = missingTokens(reportFunctionSource, [
+        'getTopShownSubcategoryConcentration',
+        'topShownSubcategory',
+        'topShownSubcategoryShare',
+        'concentrationThreshold: 0.6',
+        'Top shown subcategory concentration',
+        'pool-proportional değildir diye otomatik varsayılmaz',
+        'dağılım Solo-eligible havuzla karşılaştırılmalıdır',
+      ]);
+      const forbidden = forbiddenTokens(reportFunctionSource, [
+        "subCategory === 'Hobbies'",
+        "category === 'Chronicle'",
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Top-shown concentration guardrail is missing or hardcoded to a specific observed category.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('Report can flag generic top subcategory concentration while preserving pool-proportional interpretation.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

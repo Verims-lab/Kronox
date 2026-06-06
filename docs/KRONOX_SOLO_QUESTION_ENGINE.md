@@ -103,6 +103,14 @@ P3 adds question analytics without changing question selection:
   scheduled report exists in this version.
 - `QuestionStatsProjection` refresh remains an admin/manual aggregate path and
   is not updated synchronously during gameplay.
+- Health guardrails must detect projection narrowing, repeated-deck low
+  unique coverage, high/recent exposure reuse, category/subcategory/year-band
+  concentration, and active-pool versus runtime-projection mismatch.
+- Health/reporting guardrails compare selected/shown distribution to the
+  eligible pool proportionally. They must not require equal category,
+  subcategory, or era counts.
+- Runtime exposure improvement is proven over new gameplay events; historical
+  analytics reports can remain concentrated until enough fresh events exist.
 
 Fallback order:
 1. active questions/categories, unique years, first 5 minimum 5-year spacing, category/subcategory balance, era spread, not recently seen
