@@ -54,6 +54,12 @@ Status: Active product contract.
 - sendQuestionAnalyticsReportEmail is manual/admin-triggered only and sends HTML/table/bar formatted question analytics with text fallback.
 - admin reset retains question analytics rows; account deletion anonymizes user-owned analytics identity.
 - retained QuestionAttemptEvent analytics rows no longer contain deleted user identity after account deletion.
+- UserSubCategoryPreference rows are user-scoped Settings data.
+- normal users can read/update only their own preference rows.
+- passive SubCategory.status = P rows are not selectable.
+- preferences do not affect Solo, Online, getQuestions, or analytics yet.
+- onboarding preference selection remains deferred.
+- two-account preference RLS proof remains manual/NOT_AUTOMATABLE.
 `;
 
 export const RELEASE_PROOF_CHECKLIST_DOC = `# Kronox Release Proof Checklist
@@ -104,6 +110,8 @@ rows load as selectable interests, passive rows are hidden, users must select
 at least 5 interests, there is no maximum selection limit, preferences are
 persisted per user in UserSubCategoryPreference, and preferences do not affect
 Solo/Online question selection yet. Onboarding preference selection is deferred.
+Mobile wrapping/long-name visual proof and two-account preference RLS proof
+remain manual/NOT_AUTOMATABLE.
 `;
 
 export const CATEGORY_TAXONOMY_DOC = `# Kronox Category Taxonomy
@@ -130,4 +138,6 @@ Status: Implementation tracking doc.
 - Legacy candidates kept without deletion: Friendship, GameRecord, LobbyMessage.
 - Raw Question remains protected.
 - UserSubCategoryPreference stores Settings-only SubCategory preferences per user; minimum 5 selections, no maximum, no gameplay filtering yet.
+- UserSubCategoryPreference duplicate active rows are collapsed/passivated by the save helper; platform unique-key proof remains manual.
+- UserSubCategoryPreference RLS runtime proof remains manual/NOT_AUTOMATABLE.
 `;

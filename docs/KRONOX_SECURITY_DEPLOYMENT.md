@@ -332,6 +332,7 @@ Required release probes:
 * wrong user cannot see/mutate another user’s FriendRequest
 * non-player cannot mutate Lobby game state
 * user cannot update another user’s PushSubscription
+* user cannot read or update another user's `UserSubCategoryPreference` rows
 * normal user cannot fetch raw question-bank metadata
 * non-admin cannot call admin-only functions
 
@@ -370,6 +371,15 @@ After deployment, verify:
 * authenticated normal user receives minimal playable projection
 * normal users cannot fetch raw/full question-bank metadata
 * direct entity reads do not expose full question bank
+
+## User SubCategory Preferences
+
+* `UserSubCategoryPreference` rows are user-scoped Settings data
+* normal users can read/update only their own preference rows
+* passive `SubCategory.status = P` rows are not selectable
+* preferences do not affect Solo, Online, `getQuestions`, or analytics yet
+* onboarding preference selection remains deferred
+* two-account preference RLS proof remains manual/NOT_AUTOMATABLE
 
 ## Invites / Lobby / Push
 

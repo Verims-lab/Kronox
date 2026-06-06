@@ -63,6 +63,8 @@ Settings shows active SubCategory.status = A options and hides passive
 SubCategory.status = P rows. Minimum selection count is 5. There is no maximum
 selection count. Preferences do not yet affect question selection. A future
 task may apply preferences as soft weighting, not hard filtering.
+First-time onboarding preference selection is not implemented yet; Settings is
+the only preference UI in this phase.
 
 ## 2. Removed legacy schema fields
 The following legacy fields were removed from the Question entity schema and

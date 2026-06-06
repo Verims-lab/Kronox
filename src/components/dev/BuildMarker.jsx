@@ -903,6 +903,13 @@ import React, { useEffect, useState } from 'react';
 //   • Adds static Health coverage while keeping question selection,
 //     onboarding, and gameplay algorithms unchanged.
 //
+// Codex244 — User SubCategory preference Health coverage:
+//   • Expands Health guardrails for SubCategory readiness,
+//     UserSubCategoryPreference persistence, min/no-max selection rules,
+//     active/passive filtering, and Settings mobile static contracts.
+//   • Keeps user-scoped RLS and mobile visual proof manual/NOT_AUTOMATABLE.
+//   • Locks the no-gameplay/no-onboarding connection boundary for this phase.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1206,7 +1213,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex243';
+const BUILD_MARKER = 'Codex244';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
