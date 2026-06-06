@@ -1853,18 +1853,42 @@ export const EXTRA_TESTS = [
       const samples = simulation.exposureMetaSamples;
       const lastSample = samples[samples.length - 1] || {};
       const selectedRecentHits = Number(lastSample.selectedRecentHistoryHitCount) || 0;
+      const candidateRecentHits = Number(lastSample.recentHistoryHitCount) || 0;
+      const eligibleCandidateCount = Number(lastSample.eligibleCandidateCount) || 0;
+      const selectedDeckSize = Array.isArray(lastSample.selectedDeckIds) ? lastSample.selectedDeckIds.length : 16;
+      const nonRecentCandidateCount = Math.max(0, eligibleCandidateCount - candidateRecentHits);
+      const minimumRecentNeeded = Math.max(0, selectedDeckSize - nonRecentCandidateCount);
+      const selectedRecentRatio = Number(lastSample.selectedRecentHistoryRatio) || 0;
+      const candidateRecentRatio = Number(lastSample.candidateRecentHistoryRatio) || 0;
+      const ratioImprovement = Number(lastSample.recentHistorySelectionImprovement) || 0;
+      const selectedAverageShownCount = Number(lastSample.selectedAverageShownCount) || 0;
+      const candidateAverageShownCount = Number(lastSample.candidateAverageShownCount) || 0;
       if (
         samples.length < 100 ||
         lastSample.softCooldownOnly !== true ||
         lastSample.localRecentHistoryUsed !== true ||
-        selectedRecentHits > 4 ||
+        selectedRecentHits > minimumRecentNeeded + 2 ||
+        selectedRecentRatio >= candidateRecentRatio - 0.18 ||
+        ratioImprovement < 0.18 ||
+        selectedAverageShownCount > candidateAverageShownCount ||
+        Number(lastSample.cooldownPenaltyAppliedCount) <= 0 ||
         Number(lastSample.neverShownCandidateCount) < 0
       ) {
         return fail('Exposure cooldown metadata no longer proves soft rotation across attempts.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
-          expected: 'every build exposes soft cooldown metadata and recent IDs are strongly downweighted by the end of the run',
-          actual: { sampleCount: samples.length, lastSample },
+          expected: 'every build exposes soft cooldown metadata; selected recent ratio and average shown count are meaningfully below the candidate pool when alternatives exist',
+          actual: {
+            sampleCount: samples.length,
+            minimumRecentNeeded,
+            selectedRecentHits,
+            selectedRecentRatio,
+            candidateRecentRatio,
+            ratioImprovement,
+            selectedAverageShownCount,
+            candidateAverageShownCount,
+            lastSample,
+          },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
@@ -1874,6 +1898,12 @@ export const EXTRA_TESTS = [
         actual: {
           sampleCount: samples.length,
           selectedRecentHits,
+          minimumRecentNeeded,
+          selectedRecentRatio,
+          candidateRecentRatio,
+          ratioImprovement,
+          selectedAverageShownCount,
+          candidateAverageShownCount,
           highExposurePenaltyAppliedCount: lastSample.highExposurePenaltyAppliedCount,
         },
       });

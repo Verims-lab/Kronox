@@ -186,7 +186,9 @@ function safeSeedText(value: unknown) {
 
 function getProjectionSeed(body: any, allowRequestSeed: boolean) {
   const requestedSeed = allowRequestSeed ? safeSeedText(body?.projectionSeed ?? body?.seed) : '';
-  return requestedSeed || `utc-day:${getUtcDayBucket()}`;
+  // Admin diagnostics may provide a deterministic seed to reproduce a
+  // projection; normal gameplay cannot control fairness and rotates by UTC day.
+  return requestedSeed ? `admin-provided:${requestedSeed}` : `utc-day:${getUtcDayBucket()}`;
 }
 
 function hashText(value: string) {

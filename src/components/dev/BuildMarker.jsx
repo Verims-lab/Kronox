@@ -856,6 +856,14 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps fairness pool-proportional, manual runtime proof manual, and
 //     gameplay/deck behavior unchanged.
 //
+// Codex238 — Question exposure Health fail fix:
+//   • Makes getQuestions admin diagnostic seeds explicit as
+//     admin-provided:<seed> while normal projection remains UTC-day rotated.
+//   • Preserves recent-history rank through Solo deck scoring so the cooldown
+//     prefers least-recent/lower-exposure cards when the whole pool is warm.
+//   • Aligns the P3 Health guardrail with soft cooldown reality by checking
+//     selected-vs-candidate ratios instead of impossible zero-recent decks.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1159,7 +1167,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex237';
+const BUILD_MARKER = 'Codex238';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
