@@ -823,6 +823,14 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Solo deck rules, scoring, UI, analytics writes, and no mid-attempt
 //     fetch behavior unchanged.
 //
+// Codex234 — Solo first-five spacing search robustness:
+//   • Replaces the final greedy first-five ordering pass with a deterministic
+//     alternative search before clean-failing.
+//   • Restores normal 16-card deck builds for valid large unique-year pools
+//     while preserving first-five 5-year spacing and seed/preplaced context.
+//   • Leaves getQuestions projection fairness, gameplay UI, scoring, timer,
+//     jokers, and mid-attempt fetch behavior unchanged.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1126,7 +1134,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex233';
+const BUILD_MARKER = 'Codex234';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
