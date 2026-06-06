@@ -96,6 +96,7 @@ Checklist:
 * Question pool health warns about insufficient unique years, invalid years, sparse/overrepresented categories or subcategories, and missing sub_category/tag/difficulty metadata.
 * `/getQuestions` runtime projection uses deterministic pool-proportional sampling before any gameplay cap; it must not return an ordered newest/category slice.
 * Solo deck selection applies soft exposure cooldown/rotation before the attempt starts: never/low-shown and not-recently-shown cards are preferred, high/recent shown cards are downweighted, and missing/corrupt history must not block deck creation.
+* Solo category, subcategory, theme, and year-band balancing remains pool-proportional rather than equal-count; large eligible groups may stay large while smaller valid groups are protected from accidental starvation where hard rules allow.
 * Question exposure analytics are reviewed after deploy to confirm unique-question coverage and category/subcategory concentration improved.
 * Difficulty progression remains readiness-only and falls back safely when current question data has mostly difficulty 1 or missing difficulty.
 * Replay variety diagnostics can detect repeated first-5 sequences without weakening hard deck rules.

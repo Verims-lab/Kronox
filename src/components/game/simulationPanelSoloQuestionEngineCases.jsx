@@ -116,6 +116,16 @@ function maxDistributionValue(distribution) {
   return Math.max(0, ...Object.values(distribution || {}).map((value) => Number(value) || 0));
 }
 
+function distributionShare(distribution, key) {
+  const total = Object.values(distribution || {}).reduce((sum, value) => sum + (Number(value) || 0), 0);
+  if (!total) return 0;
+  return (Number(distribution?.[key]) || 0) / total;
+}
+
+function countKeysWithValue(distribution, minValue = 1) {
+  return Object.values(distribution || {}).filter((value) => Number(value) >= minValue).length;
+}
+
 // ─── Suite registration ────────────────────────────────────────────
 export const EXTRA_SUITES = [
   { id: SUITE_ID, name: SUITE_NAME, critical: true, color: '#facc15' },
@@ -1143,19 +1153,23 @@ export const EXTRA_TESTS = [
         !meta?.firstSevenSubcategoryDistribution ||
         !meta?.themeDistribution ||
         !meta?.decadeDistribution ||
+        !meta?.yearBandDistribution ||
         !Array.isArray(meta?.earlyVisibleYears) ||
         !meta?.eraSpread ||
+        !meta?.diversityFairness ||
+        meta?.diversityFairness?.poolProportional !== true ||
+        meta?.diversityFairness?.equalCountBalancing !== false ||
         !Number.isFinite(Number(meta?.maxConsecutiveThemeCount))
       ) {
         return fail('Deck balance metadata contract drifted.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
-          expected: 'category/subcategory/theme/decade distributions + early visible years + eraSpread diagnostics',
+          expected: 'category/subcategory/theme/decade/year-band distributions + early visible years + pool-proportional diagnostics',
           actual: res,
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Category/subcategory balance, first-five diagnostics, and era spread contracts are represented by the engine.', {
+      return pass('Category/subcategory balance, first-five diagnostics, and proportional era spread contracts are represented by the engine.', {
         verification: 'RUNTIME_VERIFIED',
         classification: 'RUNTIME_VERIFIED',
         actual: meta,
@@ -1190,7 +1204,9 @@ export const EXTRA_TESTS = [
         'subcategoryDistribution',
         'themeDistribution',
         'decadeDistribution',
+        'yearBandDistribution',
         'difficultyDistribution',
+        'diversityFairness',
         'fallbackTier',
         'balanceScore',
         'warnings',
@@ -1314,6 +1330,189 @@ export const EXTRA_TESTS = [
       return pass('Solo runtime has timestamp/count-aware local history for soft pre-attempt exposure cooldown.', {
         verification: 'STATIC_CONTRACT',
         classification: 'RUNTIME_VERIFIED',
+      });
+    },
+  ),
+
+  makeCase(
+    'solo_p2_category_distribution_tracks_pool_proportions',
+    'P2 category balancing tracks eligible-pool proportions instead of equal category counts',
+    () => {
+      const pool = buildSyntheticPool(100, (i) => ({
+        year: 1200 + i * 5,
+        answer: String(1200 + i * 5),
+        main_category_id: i < 50 ? 1 : i < 75 ? 2 : i < 90 ? 3 : 4,
+        sub_category: `cat_prop_sub_${i % 14}`,
+        tag: `cat_prop_theme_${i % 10}`,
+      }));
+      const res = buildSoloAttemptDeck({ pool, levelNumber: 6, seedCount: 2, random: makeSeededRandom(501) });
+      if (!res.ok) return fail(`Engine failed unexpectedly: ${res.reason}`, {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'REAL_PRODUCT_RISK',
+        actual: res,
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+      const categoryDistribution = res.meta.categoryDistribution || {};
+      const cat1Share = distributionShare(categoryDistribution, 'cat:1');
+      const cat4Count = Number(categoryDistribution['cat:4'] || 0);
+      const diversityMeta = res.meta.diversityFairness || {};
+      if (
+        res.deck.length !== 16 ||
+        categoryDistribution['cat:1'] < 6 ||
+        categoryDistribution['cat:1'] > 10 ||
+        cat1Share < 0.35 ||
+        cat4Count < 1 ||
+        diversityMeta.poolProportional !== true ||
+        diversityMeta.equalCountBalancing !== false
+      ) {
+        return fail('P2 category balancing drifted from pool-proportional fairness.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: '50/25/15/10 pool produces a 16-card deck that keeps cat:1 largest without forcing equal category counts',
+          actual: { categoryDistribution, cat1Share, cat4Count, diversityMeta },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Category selection remains pool-proportional and explicitly avoids equal-count balancing.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+        actual: { categoryDistribution, diversityStrategy: diversityMeta.strategy },
+      });
+    },
+  ),
+
+  makeCase(
+    'solo_p2_subcategory_dominance_reduced_without_hard_ban',
+    'P2 subcategory balancing reduces dominance relative to eligible-pool share without hardcoding labels',
+    () => {
+      const pool = buildSyntheticPool(90, (i) => ({
+        year: 1300 + i * 5,
+        answer: String(1300 + i * 5),
+        main_category_id: (i % 6) + 1,
+        sub_category: i < 45 ? 'large_valid_subcategory' : `alt_valid_subcategory_${i % 9}`,
+        tag: `sub_prop_theme_${i % 8}`,
+      }));
+      const res = buildSoloAttemptDeck({ pool, levelNumber: 7, seedCount: 2, random: makeSeededRandom(502) });
+      if (!res.ok) return fail(`Engine failed unexpectedly: ${res.reason}`, {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'REAL_PRODUCT_RISK',
+        actual: res,
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+      const subcategoryDistribution = res.meta.subcategoryDistribution || {};
+      const largeCount = Number(subcategoryDistribution.large_valid_subcategory || 0);
+      if (
+        res.deck.length !== 16 ||
+        largeCount < 5 ||
+        largeCount > 10 ||
+        countKeysWithValue(subcategoryDistribution, 1) < 4 ||
+        res.meta.diversityFairness?.poolProportional !== true
+      ) {
+        return fail('P2 subcategory proportionality either over-penalized the large group or allowed avoidable dominance.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'large 50% subcategory remains represented but does not consume almost the whole deck',
+          actual: { subcategoryDistribution, largeCount, diversityMeta: res.meta.diversityFairness },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Subcategory concentration is reduced generically without banning any observed label.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+        actual: { subcategoryDistribution, largeCount },
+      });
+    },
+  ),
+
+  makeCase(
+    'solo_p2_year_band_distribution_not_starved',
+    'P2 year-band balancing avoids starving major eras when valid alternatives exist',
+    () => {
+      const bands = [
+        { start: 1700, count: 40 },
+        { start: 1800, count: 30 },
+        { start: 1900, count: 20 },
+        { start: 2000, count: 10 },
+      ];
+      const pool = bands.flatMap((band, bandIndex) => Array.from({ length: band.count }, (_, i) => ({
+        id: 9000 + bandIndex * 100 + i,
+        question: `Band ${band.start} ${i}`,
+        answer: String(band.start + i),
+        year: band.start + i,
+        main_category_id: (i % 6) + 1,
+        sub_category: `year_band_sub_${(i + bandIndex) % 12}`,
+        tag: `year_band_theme_${(i + bandIndex) % 9}`,
+        state: 'A',
+        type: 'metin',
+      })));
+      const res = buildSoloAttemptDeck({ pool, levelNumber: 8, seedCount: 2, random: makeSeededRandom(503) });
+      if (!res.ok) return fail(`Engine failed unexpectedly: ${res.reason}`, {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'REAL_PRODUCT_RISK',
+        actual: res,
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+      const yearBandDistribution = res.meta.yearBandDistribution || {};
+      const majorBandsRepresented = ['year_band:1700-1749', 'year_band:1800-1849', 'year_band:1900-1949']
+        .every((key) => Number(yearBandDistribution[key] || 0) >= 1);
+      if (
+        res.deck.length !== 16 ||
+        !majorBandsRepresented ||
+        Number(res.meta.maxYearBandCount) > 9 ||
+        res.meta.eraSpread?.poolProportional !== true
+      ) {
+        return fail('P2 year-band balance starved a major era or over-clustered one band.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'major year bands represented, max year band <=9, 16-card deck preserved',
+          actual: { yearBandDistribution, maxYearBandCount: res.meta.maxYearBandCount, eraSpread: res.meta.eraSpread },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Year-band distribution remains varied without weakening first-five spacing.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+        actual: { yearBandDistribution, firstFiveYears: res.deck.slice(0, 5).map((question) => question.year) },
+      });
+    },
+  ),
+
+  makeCase(
+    'solo_p2_missing_subcategory_safe_and_non_dominating',
+    'P2 missing subcategory metadata is safe and does not dominate when valid metadata alternatives exist',
+    () => {
+      const pool = buildSyntheticPool(80, (i) => ({
+        year: 1400 + i * 5,
+        answer: String(1400 + i * 5),
+        main_category_id: (i % 6) + 1,
+        sub_category: i < 40 ? '' : `known_sub_${i % 10}`,
+        tag: `missing_sub_theme_${i % 8}`,
+      }));
+      const res = buildSoloAttemptDeck({ pool, levelNumber: 5, seedCount: 2, random: makeSeededRandom(504) });
+      if (!res.ok) return fail(`Engine failed unexpectedly: ${res.reason}`, {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'REAL_PRODUCT_RISK',
+        actual: res,
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+      const unknownCount = Number(res.meta.subcategoryDistribution?.['sub:unknown'] || 0);
+      if (
+        res.deck.length !== 16 ||
+        unknownCount > 10 ||
+        countKeysWithValue(res.meta.subcategoryDistribution, 1) < 4
+      ) {
+        return fail('Missing subcategory metadata became unsafe or over-dominant.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'missing subcategory tolerated as soft metadata, not a crash or deck monopoly',
+          actual: { subcategoryDistribution: res.meta.subcategoryDistribution, unknownCount },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Missing subcategory rows are safe and remain softly balanced with known alternatives.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+        actual: { subcategoryDistribution: res.meta.subcategoryDistribution, unknownCount },
       });
     },
   ),

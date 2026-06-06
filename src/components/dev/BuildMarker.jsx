@@ -839,6 +839,14 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps analytics writes best-effort, no backend fetch mid-attempt, and
 //     existing Solo scoring/timer/joker/gameplay behavior unchanged.
 //
+// Codex236 — Solo proportional diversity balancing:
+//   • Adds pool-proportional category, subcategory, theme, and year-band
+//     scoring inside the Solo deck builder without equal-count balancing.
+//   • Exposes Health/admin-only diversity diagnostics comparing eligible-pool
+//     shares with selected-deck distributions.
+//   • Preserves P1 exposure cooldown, first-five spacing, deck sizes, no
+//     backend fetch mid-attempt, Kart Değiştir reserve, and gameplay rules.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1142,7 +1150,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex235';
+const BUILD_MARKER = 'Codex236';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

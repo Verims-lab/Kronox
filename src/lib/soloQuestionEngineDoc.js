@@ -54,25 +54,26 @@ Soft deck preferences:
 - exposure cooldown / rotation prefers never-shown, less-shown, and not-recently-shown questions when local or projected stats are available.
 
 The P0 first-five guardrail avoids more than 2 same-subcategory or obvious
-sports-cluster cards when metadata and alternatives allow. P1 balance applies
-during selection and ordering: rich pools are distributed across categories,
-subcategories, themes, and decades; the first 7 active displayed cards avoid
+sports-cluster cards when metadata and alternatives allow. P1/P2 balance
+applies during selection and ordering: rich pools are distributed across
+categories, subcategories, themes, and year bands with pool-proportional
+targets, not equal-count balancing; the first 7 active displayed cards avoid
 4+ same category/subcategory/theme cards where alternatives exist; exposure
 weighting is soft only and cannot make a deck fail by itself; and diagnostics
-expose categoryDistribution, subcategoryDistribution,
-themeDistribution, decadeDistribution, firstSevenCategoryDistribution, and
-fallbackTier for Health/admin/debug only.
+expose categoryDistribution, subcategoryDistribution, themeDistribution,
+decadeDistribution, yearBandDistribution, diversityFairness,
+firstSevenCategoryDistribution, and fallbackTier for Health/admin/debug only.
 
 The runtime may pass local recent-history exposure stats into the deck builder
 before the attempt starts. This is not a gameplay source of truth and must not
 fetch questions or stats mid-attempt. Corrupt or missing local history is
-ignored safely.
+ignored safely, and sparse metadata must not block deck creation by itself.
 
 P2 diagnostics are Health/admin/helper-only. Deck diagnostics include level
 number, level type, deck size, correct target, fail threshold, question IDs,
 answer years, first 5 years, minimum first-5 gap, visible-spacing conflict
-count, category/subcategory/theme/decade/difficulty distributions, fallback
-tier, balance score, and warnings. Question pool health warns about invalid
+count, category/subcategory/theme/decade/year-band/difficulty distributions,
+fallback tier, balance score, and warnings. Question pool health warns about invalid
 years, sparse categories/subcategories, missing sub_category/tag/difficulty
 metadata, insufficient unique years, and limited 16/19 deck readiness.
 Difficulty progression is readiness-oriented only and falls back safely when
