@@ -215,7 +215,7 @@ function RankingPreparingState({ ownScore, onRetry, isAdmin, backendReason }) {
           <p className="font-inter text-[10px] font-black uppercase tracking-widest text-blue-100/55">
             Senin Puanın
           </p>
-          <p className="mt-0.5 font-bangers text-lg leading-none text-amber-200">{score}</p>
+          <p className="kronox-number mt-0.5 text-lg leading-none text-amber-200">{score}</p>
         </div>
         <div className="text-right">
           <p className="font-inter text-[10px] font-black uppercase tracking-widest text-blue-100/55">
@@ -228,7 +228,7 @@ function RankingPreparingState({ ownScore, onRetry, isAdmin, backendReason }) {
       </div>
 
       <p className="mt-2 font-inter text-[10px] leading-relaxed text-blue-100/55">
-        Seviye {level} — ilerlemen kaydediliyor.
+        Seviye <span className="kronox-number">{level}</span> — ilerlemen kaydediliyor.
       </p>
 
       <button
@@ -301,7 +301,7 @@ function LeaderboardRow({ row, compact = false, emphasis = false }) {
           : 'inset 0 0 0 1px rgba(125,211,252,0.16)',
       }}
     >
-      <div className="w-8 shrink-0 text-center font-bangers text-lg leading-none" style={{ color: rankColor }}>
+      <div className="kronox-number w-8 shrink-0 text-center text-lg leading-none" style={{ color: rankColor }}>
         {rankText}
       </div>
       <div
@@ -321,10 +321,12 @@ function LeaderboardRow({ row, compact = false, emphasis = false }) {
           {row.isCurrentUser && <Badge text="Sen" tone="gold" />}
           {row.isFriend && <Badge text="Arkadaş" tone="cyan" />}
         </div>
-        <p className="mt-0.5 font-inter text-[10px] text-blue-100/55">Seviye {row.summary.currentLevel}</p>
+        <p className="mt-0.5 font-inter text-[10px] text-blue-100/55">
+          Seviye <span className="kronox-number">{row.summary.currentLevel}</span>
+        </p>
       </div>
       <div className="shrink-0 text-right">
-        <p className="font-bangers text-lg leading-none text-amber-200">{row.summary.totalKronoxScore}</p>
+        <p className="kronox-number text-lg leading-none text-amber-200">{row.summary.totalKronoxScore}</p>
         <p className="font-inter text-[9px] font-black uppercase tracking-wider text-blue-100/45">Puan</p>
       </div>
     </div>

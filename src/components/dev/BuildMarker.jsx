@@ -872,6 +872,14 @@ import React, { useEffect, useState } from 'react';
 //   • Last Run card labels FAIL count explicitly and derives build marker from
 //     report build metadata with a clear unavailable fallback.
 //
+// Codex240 — Global numeric typography split:
+//   • Adds shared kronox-number and kronox-timeline-number tokens.
+//   • Timeline-visible gameplay years now use Bebas Neue; general numeric UI
+//     values use Inter SemiBold for clearer 7/1 readability.
+//   • Adds Health/static coverage for gameplay, result, economy, leaderboard,
+//     Daily Wheel, and Health numeric surfaces while leaving visual proof
+//     manual.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1175,7 +1183,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex239';
+const BUILD_MARKER = 'Codex240';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

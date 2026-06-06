@@ -103,7 +103,7 @@ export default function SoloStatCard({
           </span>
         )}
         <span
-          className="font-bangers leading-none"
+          className="kronox-number leading-none"
           style={{
             color: valueColor,
             fontSize: 'clamp(20px, 6vw, 24px)',

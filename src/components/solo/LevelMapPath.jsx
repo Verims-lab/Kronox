@@ -294,7 +294,7 @@ function SmallSeviyeNode({ level, onSelect }) {
       aria-label={`${levelNumber}. Seviye${isLocked ? ' (kilitli)' : isCompleted ? ' (tamamlandı)' : ''}`}
     >
       <div
-        className="flex items-center justify-center rounded-full font-inter font-bold"
+        className="kronox-number flex items-center justify-center rounded-full"
         style={{
           width: `${NODE_SIZE}px`,
           height: `${NODE_SIZE}px`,
@@ -379,7 +379,7 @@ function CurrentSeviyeNode({ level, onSelect, laneSide }) {
         whileTap={{ scale: 0.96 }}
         animate={{ boxShadow: glowFrames }}
         transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-        className="relative flex items-center justify-center rounded-full font-bangers"
+        className="kronox-number relative flex items-center justify-center rounded-full"
         style={{
           width: `${HERO_NODE_SIZE}px`,
           height: `${HERO_NODE_SIZE}px`,
@@ -421,7 +421,7 @@ function CurrentSeviyeNode({ level, onSelect, laneSide }) {
           className="font-inter text-[13px] font-black tracking-[0.06em]"
           style={{ color: '#facc15' }}
         >
-          {level.levelNumber}. SEVİYE
+          <span className="kronox-number">{level.levelNumber}</span>. SEVİYE
         </span>
       </div>
     </div>

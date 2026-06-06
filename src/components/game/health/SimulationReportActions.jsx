@@ -57,7 +57,7 @@ export default function SimulationReportActions({ report, copyJson, copySummary,
       <div data-health-report-summary="true" className="mt-4 grid grid-cols-2 gap-2 text-center text-[11px] sm:grid-cols-6">
         {['PASS', 'FAIL', 'ERROR', 'WARNING', 'NOT_AUTOMATABLE', 'BLOCKED'].map(status => (
           <div key={status} className="rounded-md border border-white/10 bg-black/25 p-2">
-            <div className="text-sm font-black text-white">{report.counts?.[status] || 0}</div>
+            <div className="kronox-number text-sm text-white">{report.counts?.[status] || 0}</div>
             <div className="mt-0.5 truncate uppercase text-white/45">{status.replace('_', ' ')}</div>
           </div>
         ))}

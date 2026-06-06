@@ -100,7 +100,7 @@ export default function HeaderNotificationBell({ user }) {
         {badgeLabel && (
           <span
             data-kx-header-notification-badge="true"
-            className="absolute -top-1 -right-1 min-w-[1.25rem] h-5 px-1 rounded-full flex items-center justify-center font-inter text-[10px] font-black"
+            className="kronox-number absolute -right-1 -top-1 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1 text-[10px]"
             style={{
               background: 'linear-gradient(180deg,#ef4444,#b91c1c)',
               color: '#fff7ed',
@@ -200,7 +200,7 @@ function Section({ title, count, children }) {
         <p className="font-inter text-[10px] font-black uppercase tracking-[0.16em] text-blue-100/65">
           {title}
         </p>
-        <span className="font-inter text-[10px] font-black text-amber-200/85">{count}</span>
+        <span className="kronox-number text-[10px] text-amber-200/85">{count}</span>
       </div>
       <div className="space-y-1">{children}</div>
     </div>

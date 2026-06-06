@@ -21,6 +21,7 @@ module.exports = {
   	extend: {
       fontFamily: {
         bangers: ['var(--font-bangers)'],
+        bebas: ['var(--font-bebas)'],
         inter: ['var(--font-inter)'],
         cinzel: ['var(--font-bangers)'], // alias for backward compat
       },

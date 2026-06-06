@@ -364,7 +364,7 @@ function PlayerCountSelector({ value, onChange }) {
             aria-label={`${n} kişilik lobi`}
           >
             <p
-              className="font-bangers text-3xl leading-none"
+              className="kronox-number text-3xl leading-none"
               style={{
                 color: active ? '#ffe066' : '#cfe0ff',
                 textShadow: active ? '0 0 12px rgba(250,204,21,0.55)' : 'none',

@@ -9,7 +9,7 @@ const MAX_QUESTIONS = 5000;
 const MAX_CATEGORIES = 1000;
 const NEVER_SHOWN_SAMPLE_LIMIT = 20;
 const PERIOD_OPTIONS = new Set([1, 7, 30]);
-const REPORT_BUILD_MARKER = 'Codex239';
+const REPORT_BUILD_MARKER = 'Codex240';
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });

@@ -98,7 +98,10 @@ export default function GameOver({
               <Timer className="w-4 h-4 text-primary" />
               {/* Codex146 — "Süren" makes it explicit this is YOUR gameplay
                   time, the same value used for the time bonus calculation. */}
-              <span>{hasOnlineScore ? `Süren: ${formatDuration(displayDurationSeconds)}` : formatDuration(displayDurationSeconds)}</span>
+              <span>
+                {hasOnlineScore ? 'Süren: ' : ''}
+                <span className="kronox-number">{formatDuration(displayDurationSeconds)}</span>
+              </span>
             </div>
           )}
 
@@ -108,7 +111,7 @@ export default function GameOver({
 
           {hasOnlineScore && (
             <div className="mt-4 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-left font-inter">
-              <div className="text-center font-bangers text-2xl tracking-wide text-primary">
+              <div className="kronox-number text-center text-2xl text-primary">
                 {scoreHeadline}
               </div>
               {!onlineScoreResult.pending && !onlineScoreResult.error && !onlineScoreResult.noScoreDelta && (
@@ -121,21 +124,21 @@ export default function GameOver({
                   )}
                   {onlineScoreResult.result === 'win' ? (
                     <>
-                      <div>Galibiyet: +{onlineScoreResult.baseDelta || 15}</div>
-                      <div>Hız Bonusu: +{onlineScoreResult.timeBonus || 0}</div>
+                      <div>Galibiyet: <span className="kronox-number">+{onlineScoreResult.baseDelta || 15}</span></div>
+                      <div>Hız Bonusu: <span className="kronox-number">+{onlineScoreResult.timeBonus || 0}</span></div>
                     </>
                   ) : (
                     <>
-                      <div>Kaybettiğin Puan: {scoreDelta}</div>
+                      <div>Kaybettiğin Puan: <span className="kronox-number">{scoreDelta}</span></div>
                       {onlineScoreResult.checkpointApplied && (
-                        <div>Checkpoint koruması: {onlineScoreResult.protectedFloor} altına düşmedin</div>
+                        <div>Checkpoint koruması: <span className="kronox-number">{onlineScoreResult.protectedFloor}</span> altına düşmedin</div>
                       )}
                     </>
                   )}
-                  <div>Yeni Kronox Puanın: {onlineScoreResult.scoreAfter}</div>
-                  <div>Skor: {onlineScoreResult.scoreBefore} → {onlineScoreResult.scoreAfter}</div>
+                  <div>Yeni Kronox Puanın: <span className="kronox-number">{onlineScoreResult.scoreAfter}</span></div>
+                  <div>Skor: <span className="kronox-number">{onlineScoreResult.scoreBefore}</span> → <span className="kronox-number">{onlineScoreResult.scoreAfter}</span></div>
                   {effectiveDelta !== scoreDelta && (
-                    <div>Gerçek değişim: {effectiveDelta > 0 ? '+' : ''}{effectiveDelta}</div>
+                    <div>Gerçek değişim: <span className="kronox-number">{effectiveDelta > 0 ? '+' : ''}{effectiveDelta}</span></div>
                   )}
                 </div>
               )}

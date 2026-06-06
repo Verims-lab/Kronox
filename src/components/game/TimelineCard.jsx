@@ -79,7 +79,7 @@ export default function TimelineCard({ card, index, distanceFromCenter = 0, year
         {yearOnly ? (
           <div className="flex h-full w-full items-center justify-center px-2">
             <span
-              className="font-bangers tracking-wider"
+              className="kronox-timeline-number"
               style={{
                 fontSize: 30,
                 color: color.year,
@@ -126,7 +126,7 @@ export default function TimelineCard({ card, index, distanceFromCenter = 0, year
               )}
 
               {/* Year prominent */}
-              <span className="font-bangers tracking-wider" style={{ fontSize: 20, color: color.year, lineHeight: 1 }}>
+              <span className="kronox-timeline-number" style={{ fontSize: 20, color: color.year, lineHeight: 1 }}>
                 {card.year}
               </span>
             </div>
@@ -147,7 +147,7 @@ export default function TimelineCard({ card, index, distanceFromCenter = 0, year
             )}
 
             <div className="mt-auto">
-              <span className="font-bangers tracking-wider" style={{ fontSize: 18, color: color.year, lineHeight: 1 }}>
+              <span className="kronox-timeline-number" style={{ fontSize: 18, color: color.year, lineHeight: 1 }}>
                 {card.year}
               </span>
             </div>
@@ -157,7 +157,7 @@ export default function TimelineCard({ card, index, distanceFromCenter = 0, year
         {/* Stack badge */}
         {stackCount > 1 && (
           <div
-            className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center font-inter font-bold"
+            className="kronox-number absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center"
             style={{ fontSize: 9, background: color.border, color: '#000' }}
           >
             {stackCount}
