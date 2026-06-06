@@ -5,6 +5,7 @@
 // fields from the fetch layer.
 
 import categoryEntitySource from '../../../base44/entities/Category.jsonc?raw';
+import subCategoryEntitySource from '../../../base44/entities/SubCategory.jsonc?raw';
 import questionEntitySource from '../../../base44/entities/Question.jsonc?raw';
 import adminAuthSource from '../../../base44/functions/_shared/adminAuth.ts?raw';
 import seedQuestionCategoriesSource from '../../../base44/functions/seedQuestionCategories/entry.ts?raw';
@@ -87,6 +88,81 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Category entity schema exists and documents category_id/name.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('subcategory_entity_table_exists_schema_only',
+    'SubCategory entity exists as a future normalized lookup table without migrating Question',
+    () => {
+      const schema = parseJsonSource(subCategoryEntitySource);
+      const props = schema?.properties || {};
+      const expectedFields = [
+        'id',
+        'main_category_1',
+        'main_category_2',
+        'name',
+        'status',
+        'description',
+      ];
+      const missingFields = expectedFields.filter((field) => !Object.prototype.hasOwnProperty.call(props, field));
+      const numericCategoryRefs = props.main_category_1?.type === 'number' && props.main_category_2?.type === 'number';
+      const statusEnum = Array.isArray(props.status?.enum) ? props.status.enum : [];
+      const statusOk = statusEnum.includes('A') && statusEnum.includes('P') && props.status?.default === 'A';
+      const required = Array.isArray(schema?.required) ? schema.required : [];
+      const requiredOk = ['id', 'main_category_1', 'name'].every((field) => required.includes(field))
+        && !required.includes('main_category_2');
+      const rls = schema?.rls || {};
+      const readPublic = rls.read && Object.keys(rls.read).length === 0;
+      const writesAdminOnly = ['create', 'update', 'delete'].every((op) => rls?.[op]?.user_condition?.role === 'admin');
+      const description = String(schema?.description || '');
+      const documentedRefs = description.includes('Category.category_id')
+        && String(props.main_category_1?.description || '').includes('Category.category_id')
+        && String(props.main_category_2?.description || '').includes('Category.category_id');
+
+      if (missingFields.length || !numericCategoryRefs || !statusOk || !requiredOk || !readPublic || !writesAdminOnly || !documentedRefs) {
+        return fail('SubCategory schema is missing its additive lookup-table contract.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'base44/entities/SubCategory.jsonc',
+          expected: 'id/main_category_1/main_category_2/name/status/description, numeric Category references, A/P status, public read, admin writes',
+          actual: {
+            missingFields,
+            numericCategoryRefs,
+            statusEnum,
+            defaultStatus: props.status?.default,
+            required,
+            readPublic,
+            writesAdminOnly,
+            documentedRefs,
+          },
+        });
+      }
+      return pass('SubCategory entity exists with numeric Category references and schema-only migration boundary.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('question_subcategory_id_migration_deferred',
+    'Question schema intentionally keeps free-text sub_category and does not add sub_category_id yet',
+    () => {
+      const schema = parseJsonSource(questionEntitySource);
+      const props = schema?.properties || {};
+      const hasSubCategoryText = props.sub_category?.type === 'string';
+      const forbiddenFields = Object.keys(props).filter((field) => field === 'sub_category_id' || field === 'subcategory_id');
+      const docMissing = missingTokens(questionSchemaDocSource, [
+        'SubCategory exists as a future normalized lookup table',
+        'Question currently still uses the existing free-text sub_category field',
+        'Do not add sub_category_id',
+      ]);
+      if (!hasSubCategoryText || forbiddenFields.length || docMissing.length) {
+        return fail('Question schema was migrated too early or docs do not state the deferred migration boundary.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['base44/entities/Question.jsonc', 'docs/KRONOX_QUESTION_DATA_MODEL.md'],
+          expected: 'Question keeps sub_category text and no sub_category_id field until a later task',
+          actual: { hasSubCategoryText, forbiddenFields, docMissing },
+        });
+      }
+      return pass('Question subcategory normalization is explicitly deferred; Question.sub_category remains unchanged.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

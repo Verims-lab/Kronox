@@ -880,6 +880,13 @@ import React, { useEffect, useState } from 'react';
 //     Daily Wheel, and Health numeric surfaces while leaving visual proof
 //     manual.
 //
+// Codex241 — SubCategory entity preparation:
+//   • Adds the SubCategory DB entity with numeric id, main_category_1,
+//     main_category_2, name, A/P status, and description fields.
+//   • Documents main_category_1/main_category_2 as Category.category_id
+//     references while leaving Question.sub_category unchanged.
+//   • Adds static Health coverage for the schema-only migration boundary.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1183,7 +1190,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex240';
+const BUILD_MARKER = 'Codex241';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

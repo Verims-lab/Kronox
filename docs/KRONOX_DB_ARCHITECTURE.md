@@ -103,6 +103,7 @@ Platform/manual configuration still required:
 Current entities audited:
 
 - `Category`
+- `SubCategory`
 - `DiamondTransaction`
 - `DailyWheelSpin`
 - `FriendRequest`
@@ -123,6 +124,7 @@ Current entities audited:
 | Entity | Purpose | Current usage | Source of truth | Read/write paths | Security/RLS concerns | Scale/index needs | Retention/cleanup | Decision | Deletion proof needed |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `Category` | Stable question category lookup. | Online category UI, Solo active category whitelist, `getQuestions`, `startLobbyGame`, seed function. | Yes for category metadata and active/passive state. | `OnlineChallengeScreen`, `seedQuestionCategories`, `getQuestions`, `startLobbyGame`. | Read is public, write/delete admin. Public read is acceptable if only category metadata. | Unique `category_id`; `status`; `status + category_id`. | No routine deletion. Passive instead of delete. | Keep. | None. |
+| `SubCategory` | Future normalized subcategory lookup. | Schema-only preparation; no runtime question mapping yet. | Future lookup source for normalized subcategory metadata. | No gameplay/runtime write path yet; manual/admin row management expected later. | Read can be public like `Category`; create/update/delete stay admin-only. Rows store only subcategory metadata and `Category.category_id` references. | Unique `id`; `status`; `main_category_1`; `main_category_2`. | No routine deletion. Passive instead of delete. | Keep as additive prep. | Future proof needed before mapping `Question.sub_category` text to `SubCategory.id`. |
 | `Question` | Protected gameplay question bank. | Authenticated `getQuestions`, `startLobbyGame`, test/sim functions, admin paths. | Yes for question content, but runtime projection derives `year` from `answer`. | Service-role backend functions; direct entity read admin-only by RLS. | Must remain protected. Normal users must not get full bank or admin metadata. | `state`; `main_category_id`; `state + main_category_id`; `difficulty`; future `answer_year`; `state + main_category_id + answer_year`. | No hard delete by default. Use `state = P`; archive old invalid rows only after export. | Keep but refactor. | N/A. |
 | `AdminUser` | DB-backed admin authorization source-of-truth. | Shared backend admin guard, Settings admin status check, admin-only functions, Health/test-suite gating. | Yes for admin authorization. Active rows with role `owner`/`admin` pass; disabled rows fail. | `functions/getAdminStatus.js`, `base44/functions/_shared/adminAuth.ts`, `base44/functions/getAdminStatus/entry.ts`, `base44/functions/getAdminStatus/function.jsonc`, admin-only backend functions. | Must remain private/admin-only. Normal users cannot list global admins. No env email allowlist for authorization. `getQuestions` must not be used as an admin status source. | Unique `email`; `status`; `role + status`; `updated_at`. | Disable rows to remove access. Account deletion should disable/anonymize the row only through explicit owner/admin action. | Keep. | Prove unauthenticated 401, non-admin 403, active admin allowed, disabled admin blocked, and current Base44 functions version resolves `getAdminStatus`. |
 | `User` | Auth profile plus progress/economy/projections. | Auth bootstrap, Solo progress, Online score, Diamonds, tutorial, reset marker, leaderboard service projection. | Yes for account, Solo progress, Online progress, Diamonds, `kronox_puan_total`. | `base44.auth.me/updateMe`, admin reset, delete account, leaderboard service role. | Private user row must not leak. Admin writes must stay server-side. JSON fields make partial race handling hard. | Unique auth id/email platform-managed; `kronox_puan_total desc`; maybe `progress_reset_at`. | Account deletion deletes/anonymizes; no general retention job. | Keep but reduce overload with projections/events. | N/A. |
@@ -253,6 +255,28 @@ Implementation guidance:
   volume entities.
 
 ## 6. Proposed New/Changed Entities
+
+### P0 - `SubCategory`
+
+Purpose: additive lookup table for future normalized subcategory metadata.
+
+Current status: schema-only. `Question.sub_category` remains the existing
+free-text field until a separate migration maps those values to
+`SubCategory.id`.
+
+Fields:
+
+```text
+id
+main_category_1
+main_category_2
+name
+status: A | P
+description
+```
+
+`main_category_1` and `main_category_2` store existing `Category.category_id`
+values. Do not duplicate Category names or migrate Question rows in this phase.
 
 ### P0 - `QuestionAttemptEvent`
 

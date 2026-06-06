@@ -1,0 +1,60 @@
+{
+  "name": "SubCategory",
+  "type": "object",
+  "description": "Codex241 — Future normalized subcategory lookup table. id is the stable numeric subcategory ID that Question rows may reference in a later migration. main_category_1 and main_category_2 store Category.category_id values; Question.sub_category remains unchanged until that future mapping task.",
+  "properties": {
+    "id": {
+      "type": "number",
+      "description": "Stable unique incremental numeric subcategory ID. This will be the future reference target for normalized Question subcategory mapping."
+    },
+    "main_category_1": {
+      "type": "number",
+      "description": "Primary main Category reference. Stores the numeric Category.category_id value."
+    },
+    "main_category_2": {
+      "type": "number",
+      "description": "Optional secondary main Category reference. Stores the numeric Category.category_id value when a subcategory belongs to a second main category."
+    },
+    "name": {
+      "type": "string",
+      "description": "Display name of the subcategory. Values will be provided later."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "A",
+        "P"
+      ],
+      "default": "A",
+      "description": "Active/Passive flag. A = active, P = passive."
+    },
+    "description": {
+      "type": "string",
+      "default": "",
+      "description": "Optional free-text description for this subcategory."
+    }
+  },
+  "required": [
+    "id",
+    "main_category_1",
+    "name"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {},
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
