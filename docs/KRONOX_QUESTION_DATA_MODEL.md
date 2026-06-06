@@ -39,6 +39,9 @@ Rules:
   `/getQuestions` must sample before capping with pool-proportional fairness:
   category/subcategory shares should roughly follow the active eligible pool,
   not equal-count category balancing and not DB/order/newest-row slicing
+* `/getQuestions` admin/Health diagnostics should expose the safe funnel:
+  fetched active rows, normalized eligible rows, returned runtime projection,
+  category/subcategory/year-band distributions, projection limit, and seed
 * raw/admin metadata must not be returned to normal gameplay
 
 ---
@@ -135,6 +138,12 @@ Rules:
 * private `QuestionAttemptEvent` analytics may store question id, answer year,
   category, subcategory, and tag metadata for admin reports; those rows remain
   private/admin-only and are not a public question-bank projection
+* admin question analytics reports must label all-active question pool,
+  Solo-eligible pool, runtime projection diagnostics, unique shown questions,
+  and never-shown counts separately when those metrics are available
+* top-question/category/subcategory concentration flags are guardrails, not
+  equal-count category requirements; they must be interpreted against the
+  Solo-eligible/runtime pool proportions
 
 ---
 

@@ -9,7 +9,7 @@ const MAX_QUESTIONS = 5000;
 const MAX_CATEGORIES = 1000;
 const NEVER_SHOWN_SAMPLE_LIMIT = 20;
 const PERIOD_OPTIONS = new Set([1, 7, 30]);
-const REPORT_BUILD_MARKER = 'Codex200';
+const REPORT_BUILD_MARKER = 'Codex237';
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });
@@ -106,6 +106,63 @@ function formatIstanbulTimestamp(date = new Date()) {
 
 function isActiveQuestion(question: any) {
   return String(question?.state || 'A').toUpperCase() === 'A';
+}
+
+function isActiveCategory(category: any) {
+  const status = String(category?.status ?? category?.state ?? 'active').trim().toLowerCase();
+  return ['active', 'a', 'aktif'].includes(status);
+}
+
+function getCategoryId(question: any) {
+  const raw = question?.main_category_id ?? question?.category_id ?? question?.categoryId ?? question?.categoryid;
+  const numeric = Number(raw);
+  if (Number.isFinite(numeric) && numeric > 0) return String(Math.trunc(numeric));
+  const text = String(raw ?? '').trim();
+  return text || null;
+}
+
+function buildActiveCategoryIdSet(categories: any[]) {
+  const ids = new Set<string>();
+  for (const category of categories || []) {
+    if (!isActiveCategory(category)) continue;
+    const raw = category?.category_id ?? category?.id;
+    const numeric = Number(raw);
+    const id = Number.isFinite(numeric) && numeric > 0 ? String(Math.trunc(numeric)) : String(raw ?? '').trim();
+    if (id) ids.add(id);
+  }
+  return ids;
+}
+
+function isSoloEligibleQuestion(question: any, activeCategoryIds: Set<string>) {
+  if (!isActiveQuestion(question)) return false;
+  if (getQuestionYear(question) === null) return false;
+  const categoryId = getCategoryId(question);
+  if (!categoryId) return false;
+  if (activeCategoryIds.size > 0 && !activeCategoryIds.has(categoryId)) return false;
+  return true;
+}
+
+function getTopShownSubcategoryConcentration(topShown: any[]) {
+  const groups = new Map<string, { key: string; category: string; subCategory: string; shownCount: number }>();
+  let total = 0;
+  for (const bucket of topShown || []) {
+    const category = String(bucket?.category_id ?? bucket?.question?.main_category_id ?? 'unknown');
+    const subCategory = String(bucket?.sub_category || bucket?.question?.sub_category || 'unknown');
+    const key = `${category} / ${subCategory}`;
+    const shownCount = Number(bucket?.shown_count) || 0;
+    total += shownCount;
+    const current = groups.get(key) || { key, category, subCategory, shownCount: 0 };
+    current.shownCount += shownCount;
+    groups.set(key, current);
+  }
+  const top = Array.from(groups.values()).sort((a, b) => b.shownCount - a.shownCount || a.key.localeCompare(b.key))[0] || null;
+  return {
+    topShownSubcategory: top?.key || 'Yeterli veri yok',
+    topShownSubcategoryShare: top && total ? top.shownCount / total : 0,
+    topShownSubcategoryCount: top?.shownCount || 0,
+    topShownSubcategoryTotal: total,
+    concentrationThreshold: 0.6,
+  };
 }
 
 function isSportsLike(values: unknown[]) {
@@ -254,6 +311,7 @@ function buildReport({
   buildMarker: string;
 }) {
   const categoryMap = buildCategoryMap(categories);
+  const activeCategoryIds = buildActiveCategoryIdSet(categories);
   const questionById = new Map<string, any>();
   const activeQuestions = [];
   for (const question of questions) {
@@ -262,6 +320,7 @@ function buildReport({
     questionById.set(id, question);
     if (isActiveQuestion(question)) activeQuestions.push(question);
   }
+  const soloEligibleQuestions = activeQuestions.filter((question) => isSoloEligibleQuestion(question, activeCategoryIds));
 
   const buckets = new Map<string, any>();
   const categoryBuckets = new Map<string, any>();
@@ -343,6 +402,7 @@ function buildReport({
   const bucketList = [...buckets.values()];
   const shownQuestionIds = new Set(bucketList.filter((bucket) => bucket.shown_count > 0).map((bucket) => bucket.question_id));
   const neverShown = activeQuestions.filter((question) => !shownQuestionIds.has(questionKey(question?.id ?? question?.question_id)));
+  const neverShownSoloEligible = soloEligibleQuestions.filter((question) => !shownQuestionIds.has(questionKey(question?.id ?? question?.question_id)));
   const topShown = [...bucketList].sort(sortDesc('shown_count')).slice(0, 20);
   const topShownMax = Math.max(1, ...topShown.map((bucket) => Number(bucket.shown_count) || 0));
   const mostWrong = [...bucketList]
@@ -376,6 +436,7 @@ function buildReport({
   const generatedAt = formatIstanbulTimestamp();
   const period = periodLabel(periodDays);
   const topShownShare = topShown[0]?.shown_count && shownEvents ? topShown[0].shown_count / shownEvents : 0;
+  const topSubcategoryConcentration = getTopShownSubcategoryConcentration(topShown);
   const sportsShare = shownEvents ? sportsShown / shownEvents : 0;
 
   const insightRows = [];
@@ -390,8 +451,14 @@ function buildReport({
   if (topShownShare >= 0.15) {
     insightRows.push(['Risk', 'risk', `En çok gösterilen soru dönem gösterimlerinin ${percent(topShown[0].shown_count, shownEvents)} kadarını oluşturuyor.`]);
   }
+  if (topSubcategoryConcentration.topShownSubcategoryShare >= topSubcategoryConcentration.concentrationThreshold) {
+    insightRows.push(['Dikkat', 'warn', `En çok gösterilenler listesinde ${topSubcategoryConcentration.topShownSubcategory} grubu ${percent(topSubcategoryConcentration.topShownSubcategoryCount, topSubcategoryConcentration.topShownSubcategoryTotal)} paya ulaştı. Bu pool-proportional değildir diye otomatik varsayılmaz; dağılım Solo-eligible havuzla karşılaştırılmalıdır.`]);
+  }
   if (sportsShare >= 0.35) {
     insightRows.push(['Dikkat', 'warn', `Spor benzeri içeriklerin payı ${percent(sportsShown, shownEvents)}.`]);
+  }
+  if (activeQuestions.length > 0) {
+    insightRows.push(['OK', 'ok', `Aktif soru havuzu tüm aktif Question satırlarıdır; Solo-eligible havuz bu raporda ${soloEligibleQuestions.length} olarak ayrıca gösterilir. Runtime projection boyutu getQuestions diagnostics ile ölçülür.`]);
   }
   if (questionsMissingMetadata > 0 || missing.answer_year > 0 || missing.sub_category_or_tags > 0) {
     insightRows.push(['Dikkat', 'warn', 'Bazı soru/event satırlarında yıl, kategori, alt kategori veya tag metadata eksik.']);
@@ -401,8 +468,11 @@ function buildReport({
     summaryCard('Toplam gösterim', shownEvents, 'Bu dönemde oyuncuya gösterilen soru sayısı'),
     summaryCard('Cevaplanan soru', answeredEvents, 'Yerleştirme sonucu olan event sayısı'),
     summaryCard('Benzersiz gösterilen soru', shownQuestionIds.size, 'En az bir kez gösterilen farklı soru'),
-    summaryCard('Aktif soru havuzu', activeQuestions.length, 'Rapor anında aktif görünen soru sayısı'),
-    summaryCard('Hiç gösterilmeyen aktif soru', neverShown.length, 'Bu dönemde hiç görünmeyen aktif sorular'),
+    summaryCard('Aktif soru havuzu (tüm aktifler)', activeQuestions.length, 'Rapor anında aktif görünen tüm soru satırları'),
+    summaryCard('Solo-eligible soru', soloEligibleQuestions.length, 'Aktif, yıl ve aktif kategori bilgisi kullanılabilir sorular'),
+    summaryCard('Hiç gösterilmeyen aktif soru', neverShown.length, 'Tüm aktif havuz içinde bu dönemde görünmeyenler'),
+    summaryCard('Hiç gösterilmeyen Solo-eligible', neverShownSoloEligible.length, 'Solo-eligible havuz içinde bu dönemde görünmeyenler'),
+    summaryCard('Runtime projection', 'Health/admin', 'getQuestions diagnostics ile ölçülür; e-posta raporu canlı projection çağırmaz'),
     summaryCard('Ortalama doğru oranı', avgCorrectRate, 'Cevaplanmış eventler üzerinden'),
     summaryCard('Ortalama cevap süresi', avgResponse, 'Response time olan cevaplar üzerinden'),
   ];
@@ -517,7 +587,8 @@ function buildReport({
               ${sectionHtml('Executive Summary', `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                 <tr>${summaryCards.slice(0, 3).join('')}</tr>
                 <tr>${summaryCards.slice(3, 6).join('')}</tr>
-                <tr>${summaryCards.slice(6).join('')}</tr>
+                <tr>${summaryCards.slice(6, 9).join('')}</tr>
+                <tr>${summaryCards.slice(9).join('')}</tr>
               </table>`)}
               ${sectionHtml('Key Insights / Risk Flags', insightHtml)}
               ${sectionHtml('En Çok Gösterilen Sorular', tableHtml(
@@ -526,7 +597,7 @@ function buildReport({
     'Bu dönemde gösterilen soru verisi yok.',
   ))}
               ${sectionHtml('Az veya Hiç Gösterilmeyen Sorular', `
-                <p style="margin:0 0 12px;color:#334155;font-size:13px;line-height:20px;font-family:Arial,Helvetica,sans-serif;">Toplam ${escapeHtml(neverShown.length)} aktif soru bu dönemde hiç gösterilmedi. ${neverShown.length > NEVER_SHOWN_SAMPLE_LIMIT ? 'İlk 20 örnek aşağıdadır.' : ''}</p>
+                <p style="margin:0 0 12px;color:#334155;font-size:13px;line-height:20px;font-family:Arial,Helvetica,sans-serif;">Toplam ${escapeHtml(neverShown.length)} aktif soru bu dönemde hiç gösterilmedi. Aktif soru havuzu tüm aktif satırları ifade eder; Solo-eligible hiç gösterilmeyen sayı ${escapeHtml(neverShownSoloEligible.length)}. Runtime projection boyutu getQuestions Health/admin diagnostics ile ayrıca ölçülür. ${neverShown.length > NEVER_SHOWN_SAMPLE_LIMIT ? 'İlk 20 örnek aşağıdadır.' : ''}</p>
                 ${tableHtml(['Question ID', 'Soru', 'Yıl', 'Kategori', 'Alt kategori', 'Son gösterim'], neverShownRows, 'Hiç gösterilmeyen aktif soru bulunmadı.')}
               `)}
               ${sectionHtml('En Çok Yanlış Yapılan Sorular', tableHtml(
@@ -582,8 +653,12 @@ function buildReport({
     `Toplam gösterim: ${shownEvents}`,
     `Cevaplanan soru: ${answeredEvents}`,
     `Benzersiz gösterilen soru: ${shownQuestionIds.size}`,
-    `Aktif soru havuzu: ${activeQuestions.length}`,
+    `Aktif soru havuzu (tüm aktifler): ${activeQuestions.length}`,
+    `Solo-eligible soru havuzu: ${soloEligibleQuestions.length}`,
     `Hiç gösterilmeyen aktif soru: ${neverShown.length}`,
+    `Hiç gösterilmeyen Solo-eligible soru: ${neverShownSoloEligible.length}`,
+    'Runtime projection size: Health/admin getQuestions diagnostics ile ölçülür',
+    `Top shown subcategory concentration: ${topSubcategoryConcentration.topShownSubcategory} (${percent(topSubcategoryConcentration.topShownSubcategoryCount, topSubcategoryConcentration.topShownSubcategoryTotal)})`,
     `Ortalama doğru oranı: ${avgCorrectRate}`,
     `Ortalama cevap süresi: ${avgResponse}`,
     '',
@@ -595,6 +670,7 @@ function buildReport({
     '',
     '--- Az veya Hiç Gösterilmeyen Sorular ---',
     `Toplam hiç gösterilmeyen aktif soru: ${neverShown.length}`,
+    `Toplam hiç gösterilmeyen Solo-eligible soru: ${neverShownSoloEligible.length}`,
     ...neverTextRows,
     '',
     '--- En Çok Yanlış Yapılan Sorular ---',
@@ -625,7 +701,15 @@ function buildReport({
       answeredEvents,
       uniqueShownQuestions: shownQuestionIds.size,
       activeQuestionPoolSize: activeQuestions.length,
+      activeQuestionPoolMeaning: 'all active Question.state=A rows visible to the report query; not necessarily Solo-eligible or runtime-projected',
+      soloEligibleQuestionPoolSize: soloEligibleQuestions.length,
       neverShownActiveQuestions: neverShown.length,
+      neverShownSoloEligibleQuestions: neverShownSoloEligible.length,
+      runtimeProjectionSizeAvailable: false,
+      runtimeProjectionSize: null,
+      runtimeProjectionSizeSource: 'getQuestions projectionDiagnostics admin/Health path',
+      topShownSubcategory: topSubcategoryConcentration.topShownSubcategory,
+      topShownSubcategoryShare: topSubcategoryConcentration.topShownSubcategoryShare,
       sportsShown,
     },
   };

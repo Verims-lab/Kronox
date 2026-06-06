@@ -56,10 +56,19 @@ longer stored on the entity — they are derived at fetch time by
   getQuestions uses deterministic pool-proportional sampling before capping:
   category/subcategory shares should follow the active eligible pool rather
   than equal-count balancing, newest-row slicing, or DB/category order.
+- getQuestions admin/Health diagnostics expose the safe funnel: fetched active
+  rows, normalized eligible rows, returned runtime projection,
+  category/subcategory/year-band distributions, projection limit, and seed.
 - Admin/Health diagnostics may expose aggregate projection counts and
   category/subcategory/year-band distributions, but never the full raw bank.
 - Private QuestionAttemptEvent analytics may store question id, answer year,
   category, subcategory, and tag metadata for admin reports only.
+- Admin question analytics reports label all-active question pool,
+  Solo-eligible pool, runtime projection diagnostics, unique shown questions,
+  and never-shown counts separately when those metrics are available.
+- Top-question/category/subcategory concentration flags are guardrails, not
+  equal-count category requirements; they are interpreted against
+  Solo-eligible/runtime pool proportions.
 
 This keeps the stored schema clean while gameplay keeps consuming runtime
 year/category/type values.

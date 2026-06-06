@@ -308,6 +308,123 @@ export const EXTRA_TESTS = [
       });
     }),
 
+  makeCase('get_questions_projection_preserves_solo_metadata',
+    'getQuestions projection preserves Solo eligibility and balancing metadata',
+    () => {
+      const required = [
+        'normalizeQuestionForRuntime',
+        'id',
+        'question',
+        'answer',
+        'year',
+        'state',
+        'main_category_id',
+        'category_id',
+        'categoryId',
+        'sub_category',
+        'tag',
+        'difficulty',
+        'type: \'metin\'',
+        'category: \'genel\'',
+      ];
+      const forbidden = presentTokens(getQuestionsSource, [
+        'delete normalized.sub_category',
+        'delete normalized.tag',
+        'delete normalized.difficulty',
+      ]);
+      const missing = missingTokens(getQuestionsSource, required);
+      if (missing.length || forbidden.length) {
+        return fail('getQuestions projection can drop fields the Solo engine needs for active-category, exposure, or diversity guardrails.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'base44/functions/getQuestions/entry.ts',
+          expected: 'minimal playable projection with year/state/category/subcategory/tag/difficulty fields preserved',
+          actual: { missing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('getQuestions keeps the runtime metadata Solo uses for eligibility, proportional diversity, and analytics interpretation.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    }),
+
+  makeCase('get_questions_projection_diagnostics_expose_pool_gap',
+    'getQuestions diagnostics expose active/projection distribution and pool gap fields',
+    () => {
+      const required = [
+        'buildProjectionDiagnostics',
+        'fetchedActiveTotal',
+        'eligibleAfterNormalization',
+        'returnedTotal',
+        'droppedDuringNormalization',
+        'activeCategoryWhitelistSize',
+        'fetchedByCategory',
+        'eligibleByCategory',
+        'returnedByCategory',
+        'returnedTopSubCategories',
+        'returnedByEraBand',
+        'projectionLimit',
+        'projectionSeed',
+        'finalProjectionShuffled: true',
+        'poolProportional: true',
+        'equalCategoryCounts: false',
+        'includeDiagnostics',
+        'isAuthorizedAdmin',
+      ];
+      const missing = missingTokens(getQuestionsSource, required);
+      if (missing.length) {
+        return fail('getQuestions no longer exposes the safe admin/Health projection funnel needed to detect active-vs-runtime pool mismatch.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'base44/functions/getQuestions/entry.ts',
+          expected: 'admin-only diagnostics for fetched active, normalized eligible, returned projection, category/subcategory/year-band distributions',
+          actual: { missing },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Projection diagnostics can reveal active pool, returned runtime pool, category/subcategory, and year-band mismatch without exposing raw bank rows.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    }),
+
+  makeCase('get_questions_projection_seed_rotation_and_small_group_guard',
+    'getQuestions projection protects small groups and has deterministic seed rotation',
+    () => {
+      const required = [
+        'getUtcDayBucket',
+        'getProjectionSeed',
+        'utc-day:',
+        'admin-provided:',
+        'stableQuestionScore',
+        'stableShuffleQuestions',
+        'if (target >= entries.length && entry.slots === 0) entry.slots = 1',
+        'sampleWithinCategory',
+        'projection-fill',
+        'final-projection',
+      ];
+      const forbidden = presentTokens(getQuestionsSource, [
+        'Math.random()',
+        '.slice(0, MAX_GAMEPLAY_LIMIT)',
+      ]);
+      const missing = missingTokens(getQuestionsSource, required);
+      if (missing.length || forbidden.length) {
+        return fail('Projection sampling can regress to non-debuggable random, ordered cap, or small-group starvation.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'base44/functions/getQuestions/entry.ts',
+          expected: 'UTC-day/admin seed rotation, stable shuffle, proportional small-group protection before final cap',
+          actual: { missing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Projection sampling is deterministic, rotates by bucket/seed, and protects valid small groups when projection size allows.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    }),
+
   makeCase('no_public_question_bank_fallback',
     'Gameplay question loading has no direct public Question.list fallback',
     () => {

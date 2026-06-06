@@ -847,6 +847,15 @@ import React, { useEffect, useState } from 'react';
 //   • Preserves P1 exposure cooldown, first-five spacing, deck sizes, no
 //     backend fetch mid-attempt, Kart Değiştir reserve, and gameplay rules.
 //
+// Codex237 — Question exposure fairness Health/report guardrails:
+//   • Adds P3 Health coverage for getQuestions projection metadata,
+//     projection diagnostics, repeated Solo deck diversity, exposure
+//     cooldown/rotation, and category/subcategory/year-band concentration.
+//   • Clarifies the admin analytics report so active pool, Solo-eligible
+//     pool, and runtime projection diagnostics are not conflated.
+//   • Keeps fairness pool-proportional, manual runtime proof manual, and
+//     gameplay/deck behavior unchanged.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1150,7 +1159,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex236';
+const BUILD_MARKER = 'Codex237';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

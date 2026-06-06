@@ -126,6 +126,132 @@ function countKeysWithValue(distribution, minValue = 1) {
   return Object.values(distribution || {}).filter((value) => Number(value) >= minValue).length;
 }
 
+function sumDistribution(distribution) {
+  return Object.values(distribution || {}).reduce((sum, value) => sum + (Number(value) || 0), 0);
+}
+
+function incrementMapCount(map, key, amount = 1) {
+  const normalized = String(key || 'unknown');
+  map.set(normalized, (map.get(normalized) || 0) + amount);
+}
+
+function getMapShare(map, key) {
+  const total = Array.from(map.values()).reduce((sum, value) => sum + (Number(value) || 0), 0);
+  if (!total) return 0;
+  return (Number(map.get(key)) || 0) / total;
+}
+
+function getDistributionKeyCount(map) {
+  return Array.from(map.values()).filter((value) => Number(value) > 0).length;
+}
+
+function buildP3RepresentativePool() {
+  return Array.from({ length: 240 }, (_, i) => {
+    const categoryId = i < 96 ? 1 : i < 156 ? 2 : i < 204 ? 3 : i < 228 ? 4 : 5;
+    const subCategory = i < 80 ? 'hobbies_like_fixture' : `p3_sub_${i % 24}`;
+    const tag = i < 80 ? 'culture hobby archive' : `p3_theme_${i % 18}`;
+    return {
+      id: 10000 + i,
+      question: `P3 fairness fixture ${i}`,
+      answer: String(1000 + i * 5),
+      year: 1000 + i * 5,
+      main_category_id: categoryId,
+      sub_category: subCategory,
+      tag,
+      difficulty: (i % 5) + 1,
+      state: 'A',
+      type: 'metin',
+    };
+  });
+}
+
+function runP3RepeatedDeckSimulation({ builds = 100 } = {}) {
+  const pool = buildP3RepresentativePool();
+  const exposureStats = {};
+  const recentIds = [];
+  const selectedQuestionCounts = new Map();
+  const selectedCategoryCounts = new Map();
+  const selectedSubcategoryCounts = new Map();
+  const selectedYearBandCounts = new Map();
+  const poolCategoryCounts = new Map();
+  const poolSubcategoryCounts = new Map();
+  const poolYearBandCounts = new Map();
+  const failures = [];
+  const firstFiveGapViolations = [];
+  const exposureMetaSamples = [];
+  const now = Date.now();
+
+  for (const question of pool) {
+    incrementMapCount(poolCategoryCounts, __soloEngineInternals.getCategoryKey(question));
+    incrementMapCount(poolSubcategoryCounts, __soloEngineInternals.getSubcategoryKey(question));
+    incrementMapCount(poolYearBandCounts, __soloEngineInternals.getYearBandKey(question));
+  }
+
+  for (let index = 0; index < builds; index += 1) {
+    const result = buildSoloAttemptDeck({
+      pool,
+      levelNumber: (index % 9) + 1,
+      seedCount: 2,
+      recentlySeenQuestionIds: recentIds,
+      questionExposureStats: exposureStats,
+      random: makeSeededRandom(700 + index),
+    });
+
+    if (!result.ok) {
+      failures.push({ index, result });
+      continue;
+    }
+
+    const firstFiveYears = result.deck.slice(0, 5).map((question) => Number(question.year));
+    const gap = minAdjacentGap(firstFiveYears);
+    if (gap < 5) firstFiveGapViolations.push({ index, firstFiveYears, gap });
+    if (result.meta?.exposureFairness) exposureMetaSamples.push(result.meta.exposureFairness);
+
+    for (const question of result.deck) {
+      const id = String(question.id);
+      incrementMapCount(selectedQuestionCounts, id);
+      incrementMapCount(selectedCategoryCounts, __soloEngineInternals.getCategoryKey(question));
+      incrementMapCount(selectedSubcategoryCounts, __soloEngineInternals.getSubcategoryKey(question));
+      incrementMapCount(selectedYearBandCounts, __soloEngineInternals.getYearBandKey(question));
+      exposureStats[id] = {
+        shownCount: (Number(exposureStats[id]?.shownCount) || 0) + 1,
+        lastShownAt: now - index * 1000,
+        source: 'health_fixture',
+      };
+      recentIds.unshift(id);
+    }
+    if (recentIds.length > 320) recentIds.length = 320;
+  }
+
+  const selectedCounts = Array.from(selectedQuestionCounts.values());
+  return {
+    pool,
+    builds,
+    failures,
+    firstFiveGapViolations,
+    uniqueQuestionsSelected: selectedQuestionCounts.size,
+    topQuestionSelectionCount: Math.max(0, ...selectedCounts),
+    totalSelected: selectedCounts.reduce((sum, value) => sum + value, 0),
+    selectedQuestionCounts,
+    selectedCategoryCounts,
+    selectedSubcategoryCounts,
+    selectedYearBandCounts,
+    poolCategoryCounts,
+    poolSubcategoryCounts,
+    poolYearBandCounts,
+    exposureMetaSamples,
+  };
+}
+
+const p3RepeatedDeckSimulationCache = new Map();
+
+function getP3RepeatedDeckSimulation(builds = 100) {
+  if (!p3RepeatedDeckSimulationCache.has(builds)) {
+    p3RepeatedDeckSimulationCache.set(builds, runP3RepeatedDeckSimulation({ builds }));
+  }
+  return p3RepeatedDeckSimulationCache.get(builds);
+}
+
 // ─── Suite registration ────────────────────────────────────────────
 export const EXTRA_SUITES = [
   { id: SUITE_ID, name: SUITE_NAME, critical: true, color: '#facc15' },
@@ -1678,6 +1804,206 @@ export const EXTRA_TESTS = [
       return pass('Kart Değiştir diagnostics are helper-only and preserve no-safe-replacement semantics.', {
         verification: 'RUNTIME_VERIFIED',
         classification: 'RUNTIME_VERIFIED',
+      });
+    },
+  ),
+
+  makeCase(
+    'solo_p3_repeated_100_decks_unique_coverage',
+    'P3 repeated Solo deck builds cover a broad question set with cooldown active',
+    () => {
+      const simulation = getP3RepeatedDeckSimulation(100);
+      if (
+        simulation.failures.length ||
+        simulation.firstFiveGapViolations.length ||
+        simulation.uniqueQuestionsSelected < 140 ||
+        simulation.topQuestionSelectionCount > 18 ||
+        simulation.totalSelected !== 1600
+      ) {
+        return fail('Repeated deck diversity guardrail detected narrow coverage or hard-rule drift.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: '100 normal decks build 1600 cards, cover >=140 unique questions, top question <=18, first-five gap holds',
+          actual: {
+            failures: simulation.failures.slice(0, 3),
+            firstFiveGapViolations: simulation.firstFiveGapViolations.slice(0, 3),
+            uniqueQuestionsSelected: simulation.uniqueQuestionsSelected,
+            topQuestionSelectionCount: simulation.topQuestionSelectionCount,
+            totalSelected: simulation.totalSelected,
+          },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Repeated Solo deck builds exercise broad unique-question coverage while preserving first-five spacing.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+        actual: {
+          uniqueQuestionsSelected: simulation.uniqueQuestionsSelected,
+          topQuestionSelectionCount: simulation.topQuestionSelectionCount,
+        },
+      });
+    },
+  ),
+
+  makeCase(
+    'solo_p3_exposure_cooldown_rotation_guardrail',
+    'P3 cooldown/rotation downweights recently selected cards across repeated decks',
+    () => {
+      const simulation = getP3RepeatedDeckSimulation(100);
+      const samples = simulation.exposureMetaSamples;
+      const lastSample = samples[samples.length - 1] || {};
+      const selectedRecentHits = Number(lastSample.selectedRecentHistoryHitCount) || 0;
+      if (
+        samples.length < 100 ||
+        lastSample.softCooldownOnly !== true ||
+        lastSample.localRecentHistoryUsed !== true ||
+        selectedRecentHits > 4 ||
+        Number(lastSample.neverShownCandidateCount) < 0
+      ) {
+        return fail('Exposure cooldown metadata no longer proves soft rotation across attempts.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'every build exposes soft cooldown metadata and recent IDs are strongly downweighted by the end of the run',
+          actual: { sampleCount: samples.length, lastSample },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Repeated deck simulation uses local recent history and exposure stats as soft rotation, not hard exclusion.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+        actual: {
+          sampleCount: samples.length,
+          selectedRecentHits,
+          highExposurePenaltyAppliedCount: lastSample.highExposurePenaltyAppliedCount,
+        },
+      });
+    },
+  ),
+
+  makeCase(
+    'solo_p3_pool_proportional_concentration_warning_fixture',
+    'P3 concentration fixture detects over-dominance without enforcing equal category counts',
+    () => {
+      const simulation = getP3RepeatedDeckSimulation(100);
+      const poolCat1Share = getMapShare(simulation.poolCategoryCounts, 'cat:1');
+      const selectedCat1Share = getMapShare(simulation.selectedCategoryCounts, 'cat:1');
+      const poolHobbiesShare = getMapShare(simulation.poolSubcategoryCounts, 'hobbies_like_fixture');
+      const selectedHobbiesShare = getMapShare(simulation.selectedSubcategoryCounts, 'hobbies_like_fixture');
+      const selectedYearBands = getDistributionKeyCount(simulation.selectedYearBandCounts);
+      const poolYearBands = getDistributionKeyCount(simulation.poolYearBandCounts);
+      const selectedTotal = sumDistribution(Object.fromEntries(simulation.selectedCategoryCounts));
+
+      if (
+        selectedTotal !== simulation.totalSelected ||
+        selectedCat1Share < 0.25 ||
+        selectedCat1Share > poolCat1Share + 0.2 ||
+        selectedHobbiesShare > poolHobbiesShare + 0.18 ||
+        selectedYearBands < Math.min(14, Math.floor(poolYearBands * 0.55))
+      ) {
+        return fail('Pool-proportional concentration guardrail drifted toward equal-count or over-dominant selection.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'largest category remains largest but not excessively above pool share; dominant subcategory stays near pool share; major year bands represented',
+          actual: {
+            poolCat1Share,
+            selectedCat1Share,
+            poolHobbiesShare,
+            selectedHobbiesShare,
+            selectedYearBands,
+            poolYearBands,
+            selectedTotal,
+          },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('P3 fixture catches category/subcategory/year-band concentration while preserving pool-proportional, non-equal-count fairness.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+        actual: {
+          poolCat1Share,
+          selectedCat1Share,
+          poolHobbiesShare,
+          selectedHobbiesShare,
+          selectedYearBands,
+          poolYearBands,
+        },
+      });
+    },
+  ),
+
+  makeCase(
+    'solo_p3_kart_degistir_reserve_uses_exposure_aware_deck_order',
+    'P3 Kart Değiştir reserve inherits exposure/diversity-aware deck ordering',
+    () => {
+      const pool = buildP3RepresentativePool();
+      const highExposureIds = pool.slice(0, 120).map((question) => String(question.id));
+      const questionExposureStats = Object.fromEntries(highExposureIds.map((id, index) => [id, {
+        shownCount: 20,
+        lastShownAt: Date.now() - index * 1000,
+        recentRank: index,
+        source: 'health_fixture',
+      }]));
+      const result = buildSoloAttemptDeck({
+        pool,
+        levelNumber: 6,
+        seedCount: 2,
+        recentlySeenQuestionIds: highExposureIds,
+        questionExposureStats,
+        random: makeSeededRandom(1301),
+      });
+      if (!result.ok) return fail(`Engine failed unexpectedly: ${result.reason}`, {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'REAL_PRODUCT_RISK',
+        actual: result,
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+
+      const highExposureSet = new Set(highExposureIds);
+      const selectedHighExposureCount = result.deck.filter((question) => highExposureSet.has(String(question.id))).length;
+      const currentQuestion = result.deck[0];
+      const replacement = getOrderedSoloDeckQuestion(result.deck, new Set([currentQuestion.id]), new Set(), {
+        skippedQuestionIds: new Set([currentQuestion.id]),
+        excludeQuestionIds: [currentQuestion.id],
+        requireVisibleYearSpacing: false,
+      });
+      const diagnostics = getKartDegistirDiagnostics({
+        deck: result.deck,
+        currentQuestion,
+        replacement,
+        timelineYears: [],
+        previousContextCards: result.deck.slice(0, 2),
+      });
+
+      if (
+        selectedHighExposureCount > 3 ||
+        !replacement ||
+        highExposureSet.has(String(replacement.id)) ||
+        diagnostics.replacementSource !== 'unused_deck_reserve' ||
+        result.meta.exposureFairness?.softCooldownOnly !== true ||
+        result.meta.diversityFairness?.poolProportional !== true
+      ) {
+        return fail('Kart Değiştir reserve can regress to high-exposure or non-diversity-aware ordering.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'prebuilt deck/reserve mostly avoids high-exposure half and replacement comes from unused deck reserve',
+          actual: {
+            selectedHighExposureCount,
+            replacementId: replacement?.id,
+            diagnostics,
+            exposureFairness: result.meta.exposureFairness,
+            diversityFairness: result.meta.diversityFairness,
+          },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Kart Değiştir reserve consumes the same prebuilt exposure/diversity-aware deck order without mid-attempt fetch.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+        actual: {
+          selectedHighExposureCount,
+          replacementId: replacement.id,
+          replacementSource: diagnostics.replacementSource,
+        },
       });
     },
   ),
