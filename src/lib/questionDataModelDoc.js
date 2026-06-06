@@ -33,6 +33,21 @@ Runtime adapter: src/lib/questionRuntimeAdapter.js
 - difficulty (1-5)
 - state (A = Active, P = Passive)
 
+## 1a. SubCategory lookup preparation
+SubCategory exists as a future normalized lookup table with fields:
+- id
+- main_category_1
+- main_category_2
+- name
+- status (A = Active, P = Passive)
+- description
+
+main_category_1 and main_category_2 store Category.category_id values.
+Question currently still uses the existing free-text sub_category field until a
+later explicit migration maps Question subcategory values to SubCategory IDs.
+Do not add sub_category_id or migrate Question rows in the schema-only
+preparation phase.
+
 ## 2. Removed legacy schema fields
 The following legacy fields were removed from the Question entity schema and
 are no longer stored on the entity:

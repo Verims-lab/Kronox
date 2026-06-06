@@ -209,7 +209,35 @@ Do not create a second live DB field for `categoryid`.
 
 ---
 
-# 7. Difficulty
+# 7. SubCategory Lookup Preparation
+
+`SubCategory` exists as a future normalized lookup table.
+
+Fields:
+
+```text
+id
+main_category_1
+main_category_2
+name
+status
+description
+```
+
+Rules:
+
+* `id` is the stable numeric SubCategory ID.
+* `main_category_1` stores the primary `Category.category_id` reference.
+* `main_category_2` optionally stores a secondary `Category.category_id`
+  reference.
+* `status` supports `A` active and `P` passive.
+* `Question` currently still uses the existing free-text `sub_category` field.
+* Do not add `sub_category_id` or migrate Question rows until a later explicit
+  mapping task.
+
+---
+
+# 8. Difficulty
 
 Difficulty is an integer:
 
@@ -235,7 +263,7 @@ Rules:
 
 ---
 
-# 8. Subcategory / Tag / Region
+# 9. Subcategory / Tag / Region
 
 These fields support future content control.
 
