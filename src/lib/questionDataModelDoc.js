@@ -52,6 +52,12 @@ longer stored on the entity — they are derived at fetch time by
   playable timeline decks.
 - Runtime projection may include sub_category and tag as gameplay-balance
   metadata only, not as public full-bank exposure.
+- When the active pool is larger than the gameplay projection cap,
+  getQuestions uses deterministic pool-proportional sampling before capping:
+  category/subcategory shares should follow the active eligible pool rather
+  than equal-count balancing, newest-row slicing, or DB/category order.
+- Admin/Health diagnostics may expose aggregate projection counts and
+  category/subcategory/year-band distributions, but never the full raw bank.
 - Private QuestionAttemptEvent analytics may store question id, answer year,
   category, subcategory, and tag metadata for admin reports only.
 

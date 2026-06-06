@@ -35,6 +35,10 @@ Rules:
 * passive categories must be excluded from playable decks
 * backend reads should be scoped by active category/status instead of
   reading a newest-row slice and filtering everything in memory
+* when the active pool is larger than the gameplay projection cap,
+  `/getQuestions` must sample before capping with pool-proportional fairness:
+  category/subcategory shares should roughly follow the active eligible pool,
+  not equal-count category balancing and not DB/order/newest-row slicing
 * raw/admin metadata must not be returned to normal gameplay
 
 ---
@@ -302,6 +306,12 @@ Rules:
 * do not expose passive/unpublished rows
 * do not expose admin-only fields
 * enforce auth before returning gameplay data
+* when capping the protected gameplay projection, use deterministic
+  pool-proportional sampling and shuffle the final projection so early DB
+  order, newest rows, or early category IDs cannot dominate runtime play
+* admin/Health diagnostics may expose aggregate projection counts, such as
+  fetched/returned totals and category/subcategory/year-band distributions,
+  but must not expose the full raw question bank
 
 ---
 
