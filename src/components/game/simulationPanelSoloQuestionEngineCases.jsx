@@ -51,6 +51,7 @@ import {
 } from '@/lib/soloQuestionEngineDoc';
 import gamePageSource from '../../pages/Game.jsx?raw';
 import useGameActionsSource from '../../hooks/useGameActions.js?raw';
+import questionHistorySource from '../../lib/questionHistory.js?raw';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
 const ACTION_TYPES = { CODE_FIX: 'CODE_FIX', HUMAN_RUNTIME_PROOF: 'HUMAN_RUNTIME_PROOF' };
@@ -1217,6 +1218,102 @@ export const EXTRA_TESTS = [
           minimumFirstFiveYearGap: diagnostics.minimumFirstFiveYearGap,
           fallbackTier: diagnostics.fallbackTier,
         },
+      });
+    },
+  ),
+
+  makeCase(
+    'solo_p1_exposure_cooldown_prefers_low_shown_candidates',
+    'P1 exposure cooldown downweights high/recent shown cards without breaking deck rules',
+    () => {
+      const pool = buildSyntheticPool(80, (i) => ({
+        year: 1500 + i * 5,
+        answer: String(1500 + i * 5),
+        sub_category: `exposure_sub_${i % 12}`,
+        tag: `exposure_theme_${i % 9}`,
+      }));
+      const highExposureIds = new Set(pool.slice(0, 48).map((question) => String(question.id)));
+      const now = Date.now();
+      const questionExposureStats = Object.fromEntries(
+        Array.from(highExposureIds).map((id, index) => [id, {
+          shownCount: 12,
+          lastShownAt: now - index * 1000,
+          recentRank: index,
+          source: 'health_fixture',
+        }]),
+      );
+      const res = buildSoloAttemptDeck({
+        pool,
+        levelNumber: 4,
+        seedCount: 2,
+        recentlySeenQuestionIds: Array.from(highExposureIds),
+        questionExposureStats,
+        random: makeSeededRandom(401),
+      });
+      if (!res.ok) return fail(`Engine failed unexpectedly: ${res.reason}`, {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'REAL_PRODUCT_RISK',
+        actual: res,
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+      const selectedHighExposureCount = res.deck.filter((question) => highExposureIds.has(String(question.id))).length;
+      const firstFiveGap = minAdjacentGap(res.deck.slice(0, 5).map((question) => question.year));
+      const exposureMeta = res.meta?.exposureFairness || {};
+      if (
+        res.deck.length !== 16 ||
+        firstFiveGap < 5 ||
+        selectedHighExposureCount > 2 ||
+        exposureMeta.softCooldownOnly !== true ||
+        exposureMeta.localRecentHistoryUsed !== true ||
+        exposureMeta.selectedRecentHistoryHitCount !== selectedHighExposureCount
+      ) {
+        return fail('Exposure cooldown did not prefer lower-exposure alternatives or drifted hard deck rules.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: '16-card deck, first-five gap >= 5, high/recent shown cards strongly downweighted',
+          actual: {
+            deckLength: res.deck.length,
+            selectedHighExposureCount,
+            firstFiveGap,
+            exposureMeta,
+            selectedIds: res.deck.map((question) => question.id),
+          },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Exposure-aware scoring prefers never/low-shown cards while preserving Solo deck rules.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+        actual: { selectedHighExposureCount, firstFiveGap, exposureMeta },
+      });
+    },
+  ),
+
+  makeCase(
+    'solo_p1_local_history_stats_feed_runtime',
+    'P1 local recent history stores count/recency stats and feeds Solo deck cooldown before attempt start',
+    () => {
+      const missing = missingTokens(`${questionHistorySource}\n${gamePageSource}`, [
+        'MAX_RECENT_IDS = 320',
+        'MAX_HISTORY_EVENTS = 900',
+        'loadRecentQuestionExposureStats',
+        'shownCount',
+        'lastShownAt',
+        'softCooldownOnly: true',
+        'questionExposureStats: loadRecentQuestionExposureStats()',
+      ]);
+      if (missing.length) {
+        return fail('Local exposure history no longer provides the P1 cooldown stats expected by Solo runtime.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          files: ['src/lib/questionHistory.js', 'src/pages/Game.jsx'],
+          missing,
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Solo runtime has timestamp/count-aware local history for soft pre-attempt exposure cooldown.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'RUNTIME_VERIFIED',
       });
     },
   ),

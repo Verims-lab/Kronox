@@ -51,15 +51,22 @@ Soft deck preferences:
 - tag/theme balance, including sports-like theme clustering.
 - era/year spread.
 - recently-seen avoidance.
+- exposure cooldown / rotation prefers never-shown, less-shown, and not-recently-shown questions when local or projected stats are available.
 
 The P0 first-five guardrail avoids more than 2 same-subcategory or obvious
 sports-cluster cards when metadata and alternatives allow. P1 balance applies
 during selection and ordering: rich pools are distributed across categories,
 subcategories, themes, and decades; the first 7 active displayed cards avoid
-4+ same category/subcategory/theme cards where alternatives exist; and
-diagnostics expose categoryDistribution, subcategoryDistribution,
+4+ same category/subcategory/theme cards where alternatives exist; exposure
+weighting is soft only and cannot make a deck fail by itself; and diagnostics
+expose categoryDistribution, subcategoryDistribution,
 themeDistribution, decadeDistribution, firstSevenCategoryDistribution, and
 fallbackTier for Health/admin/debug only.
+
+The runtime may pass local recent-history exposure stats into the deck builder
+before the attempt starts. This is not a gameplay source of truth and must not
+fetch questions or stats mid-attempt. Corrupt or missing local history is
+ignored safely.
 
 P2 diagnostics are Health/admin/helper-only. Deck diagnostics include level
 number, level type, deck size, correct target, fail threshold, question IDs,

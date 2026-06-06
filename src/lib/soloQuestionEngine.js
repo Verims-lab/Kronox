@@ -64,6 +64,10 @@ const FIRST_SEVEN_CATEGORY_CAP = 3;
 const FIRST_SEVEN_SUBCATEGORY_CAP = 3;
 const FIRST_SEVEN_THEME_CAP = 3;
 const FULL_DECK_CATEGORY_DOMINANCE_RATIO = 0.4;
+const EXPOSURE_RECENT_BASE_PENALTY = 95;
+const EXPOSURE_COUNT_PENALTY = 22;
+const EXPOSURE_NEVER_SHOWN_BOOST = -18;
+const EXPOSURE_MAX_PENALTY = 260;
 const SPORTS_CLUSTER_TOKENS = [
   'arena', 'spor', 'sport', 'football', 'futbol', 'soccer', 'basket',
   'tenis', 'tennis', 'olimpiyat', 'olympic', 'messi', 'serena',
@@ -98,9 +102,122 @@ function fisherYatesShuffle(items, random = Math.random) {
 
 function normalizeRecentIds(recentIds) {
   if (!recentIds) return new Set();
-  if (recentIds instanceof Set) return recentIds;
-  if (Array.isArray(recentIds)) return new Set(recentIds);
-  return new Set();
+  const values = recentIds instanceof Set
+    ? Array.from(recentIds)
+    : (Array.isArray(recentIds) ? recentIds : [recentIds]);
+  return new Set(values.map((value) => String(value ?? '').trim()).filter(Boolean));
+}
+
+function normalizeQuestionId(value) {
+  const id = String(value ?? '').trim();
+  return id || null;
+}
+
+function parseTimestampMs(value) {
+  const numeric = Number(value);
+  if (Number.isFinite(numeric) && numeric > 0) return numeric;
+  const parsed = Date.parse(String(value || ''));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeExposureCount(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : 0;
+}
+
+function normalizeQuestionExposureStats(questionExposureStats) {
+  const stats = new Map();
+  if (!questionExposureStats) return stats;
+
+  const entries = questionExposureStats instanceof Map
+    ? Array.from(questionExposureStats.entries())
+    : Array.isArray(questionExposureStats)
+      ? questionExposureStats.map((item) => {
+        if (Array.isArray(item)) return item;
+        return [item?.questionId ?? item?.question_id ?? item?.id, item];
+      })
+      : Object.entries(questionExposureStats);
+
+  for (const [rawId, rawStat] of entries) {
+    const id = normalizeQuestionId(rawId ?? rawStat?.questionId ?? rawStat?.question_id ?? rawStat?.id);
+    if (!id) continue;
+    const stat = rawStat && typeof rawStat === 'object' ? rawStat : {};
+    stats.set(id, {
+      shownCount: normalizeExposureCount(
+        stat.shownCount
+          ?? stat.shown_count
+          ?? stat.soloShownCount
+          ?? stat.solo_shown_count
+          ?? stat.exposureCount
+          ?? stat.count,
+      ),
+      lastShownAt: parseTimestampMs(stat.lastShownAt ?? stat.last_shown_at ?? stat.shownAt ?? stat.shown_at),
+      recentRank: Number.isFinite(Number(stat.recentRank ?? stat.recent_rank))
+        ? Math.max(0, Number(stat.recentRank ?? stat.recent_rank))
+        : null,
+      source: String(stat.source || 'unknown'),
+    });
+  }
+
+  return stats;
+}
+
+function getQuestionExposureStat(question, exposureStats = new Map()) {
+  const id = normalizeQuestionId(question?.id ?? question?.question_id);
+  const stored = id ? exposureStats.get(id) : null;
+  const fieldShownCount = normalizeExposureCount(
+    question?.solo_shown_count
+      ?? question?.shown_count
+      ?? question?.exposure_count
+      ?? question?.shownCount,
+  );
+  const fieldLastShownAt = parseTimestampMs(
+    question?.last_solo_shown_at
+      ?? question?.last_shown_at
+      ?? question?.lastShownAt,
+  );
+
+  if (!stored && fieldShownCount === 0 && !fieldLastShownAt) return null;
+
+  return {
+    shownCount: Math.max(stored?.shownCount || 0, fieldShownCount),
+    lastShownAt: Math.max(stored?.lastShownAt || 0, fieldLastShownAt || 0) || null,
+    recentRank: stored?.recentRank ?? null,
+    source: stored?.source || (fieldShownCount || fieldLastShownAt ? 'question_projection' : 'unknown'),
+  };
+}
+
+function scoreQuestionExposure(question, options = {}) {
+  const id = normalizeQuestionId(question?.id ?? question?.question_id);
+  const recentHit = Boolean(id && options.recentIds?.has(id));
+  const stat = getQuestionExposureStat(question, options.exposureStats);
+  const hasGlobalSignals = Boolean(options.exposureStats?.size);
+  if (!recentHit && !stat && !hasGlobalSignals) return 0;
+
+  let score = 0;
+  if (recentHit) score += EXPOSURE_RECENT_BASE_PENALTY;
+  if (stat?.shownCount > 0) {
+    score += Math.min(
+      EXPOSURE_MAX_PENALTY,
+      (Math.log2(stat.shownCount + 1) * EXPOSURE_COUNT_PENALTY) + stat.shownCount * 6,
+    );
+  } else if (hasGlobalSignals) {
+    score += EXPOSURE_NEVER_SHOWN_BOOST;
+  }
+
+  if (Number.isFinite(Number(stat?.recentRank))) {
+    score += Math.max(0, 80 - Number(stat.recentRank) * 0.35);
+  }
+
+  const ageMs = stat?.lastShownAt ? Date.now() - Number(stat.lastShownAt) : Infinity;
+  if (Number.isFinite(ageMs) && ageMs >= 0) {
+    const ageDays = ageMs / (24 * 60 * 60 * 1000);
+    if (ageDays < 1) score += 90;
+    else if (ageDays < 7) score += 60;
+    else if (ageDays < 30) score += 25;
+  }
+
+  return score;
 }
 
 function normalizeAllowedCategoryIds(allowedMainCategoryIds) {
@@ -238,6 +355,25 @@ function orderYearsForEraSpread(years, random) {
   return out;
 }
 
+function orderYearsForExposureFairness(years, buckets, random, options = {}) {
+  const eraOrdered = orderYearsForEraSpread(years, random);
+  if (!options.exposureStats?.size && !options.recentIds?.size) return eraOrdered;
+
+  return eraOrdered
+    .map((year, index) => {
+      const bucket = buckets?.get(Number(year)) || [];
+      const exposureScore = bucket.length
+        ? Math.min(...bucket.map((question) => scoreQuestionExposure(question, options)))
+        : 0;
+      return { year, index, exposureScore };
+    })
+    .sort((a, b) => {
+      if (a.exposureScore !== b.exposureScore) return a.exposureScore - b.exposureScore;
+      return a.index - b.index;
+    })
+    .map((item) => item.year);
+}
+
 function orderYearsForBeginnerSpacing(years, levelNumber, targetCountOverride = null) {
   const spacing = getBeginnerYearSpacingForLevel(levelNumber);
   if (!spacing || years.length === 0) return years;
@@ -302,6 +438,8 @@ function orderDeckForBeginnerSpacing(deck, levelNumber, random, options = {}) {
       index,
       score: scoreCandidateForBalance(question, selected, sourceOrder, {
         targets: options.balanceTargets,
+        recentIds: options.recentIds,
+        exposureStats: options.exposureStats,
       }),
       year: Number(question?.year),
     }))
@@ -374,6 +512,8 @@ function orderDeckForBeginnerSpacing(deck, levelNumber, random, options = {}) {
     );
     const orderedMiddle = orderCardsForBalance(rest, front, random, {
       targets: options.balanceTargets,
+      recentIds: options.recentIds,
+      exposureStats: options.exposureStats,
     });
     return [...front, ...orderedMiddle, ...seedTail];
   };
@@ -767,7 +907,7 @@ function scoreCandidateForBalance(question, selected, sourceOrder = [], options 
   const sourceIndex = sourceOrder.findIndex((item) => item?.id === question?.id);
   let score = 0;
 
-  if (options.recentIds?.has(question.id)) score += 45;
+  score += scoreQuestionExposure(question, options);
   score += categoryCount * 16;
   score += (isKnownSubcategoryKey(subcategoryKey) ? subcategoryCount : Math.max(0, subcategoryCount - 1)) * 14;
   score += themeCount * 12;
@@ -834,6 +974,7 @@ function selectUniqueYearDeck({
   candidates,
   deckSize,
   recentIds,
+  exposureStats,
   random,
   levelNumber,
   balanceTargets,
@@ -843,7 +984,10 @@ function selectUniqueYearDeck({
   if (buckets.size < deckSize) return null; // not enough distinct years
 
   const years = orderYearsForBeginnerSpacing(
-    orderYearsForEraSpread(Array.from(buckets.keys()), random),
+    orderYearsForExposureFairness(Array.from(buckets.keys()), buckets, random, {
+      recentIds,
+      exposureStats,
+    }),
     levelNumber,
     earlyVisibleTargetCount,
   );
@@ -864,6 +1008,7 @@ function selectUniqueYearDeck({
     if (bucket.length === 0) continue;
     const pick = pickBestBalanceCandidate(fisherYatesShuffle(bucket, random), deck, sourceOrder, {
       recentIds,
+      exposureStats,
       targets: balanceTargets || makeBalanceTargets(candidates, deckSize),
     });
     if (!pick) continue;
@@ -880,6 +1025,7 @@ function selectUniqueYearDeck({
     if (available.length === 0) break;
     const pick = pickBestBalanceCandidate(available, deck, sourceOrder, {
       recentIds,
+      exposureStats,
       targets: balanceTargets || makeBalanceTargets(candidates, deckSize),
     });
     if (!pick) break;
@@ -897,6 +1043,7 @@ function selectUniqueYearDeck({
     if (bucket.length === 0) continue;
     const pick = pickBestBalanceCandidate(fisherYatesShuffle(bucket, random), deck, sourceOrder, {
       recentIds,
+      exposureStats,
       targets: balanceTargets || makeBalanceTargets(candidates, deckSize),
     });
     if (!pick) continue;
@@ -907,6 +1054,55 @@ function selectUniqueYearDeck({
   }
 
   return deck.length === deckSize ? deck : null;
+}
+
+function buildExposureDiagnostics(candidates = [], selectedDeck = [], recentIds = new Set(), exposureStats = new Map()) {
+  const countStats = (items) => {
+    let withExposureStats = 0;
+    let neverShown = 0;
+    let recentHits = 0;
+    let shownCountTotal = 0;
+    let highExposureCount = 0;
+
+    for (const question of items || []) {
+      const id = normalizeQuestionId(question?.id ?? question?.question_id);
+      const stat = getQuestionExposureStat(question, exposureStats);
+      const shownCount = Number(stat?.shownCount) || 0;
+      if (stat) withExposureStats += 1;
+      if (exposureStats.size > 0 && shownCount === 0) neverShown += 1;
+      if (id && recentIds.has(id)) recentHits += 1;
+      shownCountTotal += shownCount;
+      if (shownCount >= 3 || (id && recentIds.has(id))) highExposureCount += 1;
+    }
+
+    return {
+      withExposureStats,
+      neverShown,
+      recentHits,
+      shownCountTotal,
+      highExposureCount,
+    };
+  };
+
+  const candidateStats = countStats(candidates);
+  const selectedStats = countStats(selectedDeck);
+  return {
+    strategy: 'local_recent_history_and_optional_projection_stats_soft_penalty_v1',
+    softCooldownOnly: true,
+    localRecentHistoryUsed: recentIds.size > 0 || exposureStats.size > 0,
+    exposureStatsAvailable: exposureStats.size > 0,
+    eligibleCandidateCount: candidates.length,
+    distinctCandidateIds: new Set(candidates.map((question) => normalizeQuestionId(question?.id)).filter(Boolean)).size,
+    candidateExposureStatsCount: candidateStats.withExposureStats,
+    neverShownCandidateCount: exposureStats.size > 0 ? candidateStats.neverShown : null,
+    recentHistoryHitCount: candidateStats.recentHits,
+    selectedDeckIds: selectedDeck.map((question) => normalizeQuestionId(question?.id)).filter(Boolean),
+    selectedExposureStatsCount: selectedStats.withExposureStats,
+    selectedNeverShownCount: exposureStats.size > 0 ? selectedStats.neverShown : null,
+    selectedRecentHistoryHitCount: selectedStats.recentHits,
+    selectedShownCountTotal: selectedStats.shownCountTotal,
+    highExposurePenaltyAppliedCount: candidateStats.highExposureCount,
+  };
 }
 
 /**
@@ -928,6 +1124,9 @@ function selectUniqueYearDeck({
  * @param {Iterable<string|number>=} args.recentlySeenQuestionIds
  *                                            Question ids the user has
  *                                            recently seen (cross-attempt).
+ * @param {Map|Object|Array=} args.questionExposureStats
+ *                                            Optional shown-count/last-shown
+ *                                            stats for soft cooldown scoring.
  * @param {number=} args.deckSize             Defaults from the Solo rules:
  *                                            normal 16, special 19. Engine
  *                                            does not relax this; passed in
@@ -958,6 +1157,7 @@ export function buildSoloAttemptDeck(args = {}) {
   const random = typeof args.random === 'function' ? args.random : Math.random;
   const allowedCats = normalizeAllowedCategoryIds(args.allowedMainCategoryIds);
   const recentIds = normalizeRecentIds(args.recentlySeenQuestionIds);
+  const exposureStats = normalizeQuestionExposureStats(args.questionExposureStats);
 
   if (args.requireActiveCategoryWhitelist === true && (!allowedCats || allowedCats.size === 0)) {
     return {
@@ -992,6 +1192,7 @@ export function buildSoloAttemptDeck(args = {}) {
     candidates,
     deckSize,
     recentIds,
+    exposureStats,
     random,
     balanceTargets,
     levelNumber: args.levelNumber,
@@ -1004,6 +1205,7 @@ export function buildSoloAttemptDeck(args = {}) {
     deck = selectUniqueYearDeck({
       candidates, deckSize,
       recentIds: new Set(),
+      exposureStats,
       random,
       balanceTargets,
       levelNumber: args.levelNumber,
@@ -1018,6 +1220,7 @@ export function buildSoloAttemptDeck(args = {}) {
     deck = selectUniqueYearDeck({
       candidates, deckSize,
       recentIds: new Set(),
+      exposureStats,
       random,
       balanceTargets: {
         categoryCap: deckSize,
@@ -1050,6 +1253,8 @@ export function buildSoloAttemptDeck(args = {}) {
   const finalDeck = orderDeckForBeginnerSpacing(deck, args.levelNumber, random, {
     seedCount,
     balanceTargets,
+    recentIds,
+    exposureStats,
   });
   if (!finalDeck) {
     return {
@@ -1073,6 +1278,7 @@ export function buildSoloAttemptDeck(args = {}) {
   const firstSevenCategoryDistribution = buildDistribution(firstSevenCards, getCategoryKey);
   const firstSevenSubcategoryDistribution = buildDistribution(firstSevenCards, getSubcategoryKey);
   const firstSevenThemeDistribution = buildDistribution(firstSevenCards, getThemeKey);
+  const exposureFairness = buildExposureDiagnostics(candidates, finalDeck, recentIds, exposureStats);
   return {
     ok: true,
     deck: finalDeck,
@@ -1102,6 +1308,7 @@ export function buildSoloAttemptDeck(args = {}) {
       firstSevenThemeDistribution,
       firstFiveSportsClusterCount: firstFiveCards.filter((q) => getSportsClusterKey(q) === 'sports').length,
       firstSevenSportsClusterCount: firstSevenCards.filter((q) => getSportsClusterKey(q) === 'sports').length,
+      exposureFairness,
       maxCategoryCount: getMaxDistributionCount(categoryDistribution),
       maxSubcategoryCount: getMaxDistributionCount(subcategoryDistribution),
       maxThemeCount: getMaxDistributionCount(themeDistribution),
