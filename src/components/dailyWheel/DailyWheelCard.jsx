@@ -502,6 +502,10 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
   const hasReward = Number(result?.totalRewardAmount) > 0;
   const alreadyClaimed = Boolean(result?.alreadyClaimedToday || result?.alreadyClaimed);
   const updatedDiamondTotal = Number(result?.updatedDiamondTotal);
+  const streakBonusAmount = Number(result?.streakBonusAmount) || 0;
+  const streakBonusText = streakBonusAmount === 100
+    ? '7 günlük seri bonusu: +100 elmas'
+    : `7 günlük seri bonusu: +${formatDiamondCount(streakBonusAmount)} elmas`;
   const [revealReady, setRevealReady] = useState(false);
   const prefersReducedMotion = useReducedMotion();
   const targetRotation = useMemo(
@@ -580,7 +584,7 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
                 {!prefersReducedMotion && <RewardBurst />}
                 <Sparkles className="mx-auto mb-2 h-8 w-8 text-amber-300" />
                 <h2 className="font-inter text-3xl font-black text-white">
-                  <span className="kronox-number">+{formatDiamondCount(result.rewardAmount)}</span> Elmas kazandın
+                  +{formatDiamondCount(result.rewardAmount)} Elmas kazandın
                 </h2>
                 <div
                   aria-hidden="true"
@@ -590,16 +594,16 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
                   }}
                 />
               </motion.div>
-              {Number(result.streakBonusAmount) > 0 && (
-                <div className="space-y-2 rounded-xl bg-amber-300/12 px-3 py-2 text-center">
+              <div className="space-y-2 rounded-xl bg-amber-300/12 px-3 py-2 text-center">
+                {streakBonusAmount > 0 && (
                   <p className="text-sm font-extrabold text-amber-100">
-                    <span className="kronox-number">7</span> günlük seri bonusu: <span className="kronox-number">+100</span> elmas
+                    {streakBonusText}
                   </p>
-                  <p className="text-xs font-bold text-amber-50/80">
-                    Toplam: <span className="kronox-number">+{formatDiamondCount(result.totalRewardAmount)}</span> elmas
-                  </p>
-                </div>
-              )}
+                )}
+                <p className="text-xs font-bold text-amber-50/80">
+                  Toplam: +{formatDiamondCount(result.totalRewardAmount)} elmas
+                </p>
+              </div>
               {Number.isFinite(updatedDiamondTotal) && (
                 <p className="rounded-full bg-slate-950/38 px-3 py-1.5 text-center text-sm font-extrabold text-amber-100">
                   Toplam Elmas: <span className="kronox-number">{formatDiamondCount(updatedDiamondTotal)}</span>

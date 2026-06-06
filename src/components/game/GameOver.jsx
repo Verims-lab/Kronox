@@ -124,7 +124,7 @@ export default function GameOver({
                   )}
                   {onlineScoreResult.result === 'win' ? (
                     <>
-                      <div>Galibiyet: <span className="kronox-number">+{onlineScoreResult.baseDelta || 15}</span></div>
+                      <div>Galibiyet: +<span className="kronox-number">{onlineScoreResult.baseDelta || 15}</span></div>
                       <div>Hız Bonusu: <span className="kronox-number">+{onlineScoreResult.timeBonus || 0}</span></div>
                     </>
                   ) : (

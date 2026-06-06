@@ -79,7 +79,7 @@ export default function SoloFailureCard({
               lineHeight: 1.1,
             }}
           >
-            <span className="kronox-number">{levelNumber}</span>. SEVİYE GEÇİLEMEDİ!
+            {levelNumber}. SEVİYE GEÇİLEMEDİ!
           </motion.h1>
 
           {/* Three stone stars — center one cracked w/ red glow */}

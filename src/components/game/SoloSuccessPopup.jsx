@@ -223,7 +223,7 @@ function TitleRow({ levelNumber }) {
           textShadow: '0 0 14px rgba(250,204,21,0.45), 0 1px 4px rgba(0,0,0,0.55)',
         }}
       >
-        <span className="kronox-number">{levelNumber}</span>. SEVİYE TAMAMLANDI!
+        {levelNumber}. SEVİYE TAMAMLANDI!
       </h1>
       <TitleOrnament side="right" />
     </div>

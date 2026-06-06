@@ -887,6 +887,14 @@ import React, { useEffect, useState } from 'react';
 //     references while leaving Question.sub_category unchanged.
 //   • Adds static Health coverage for the schema-only migration boundary.
 //
+// Codex242 — Health UI contract cleanup:
+//   • Restores exact Solo success/failure result title contracts while keeping
+//     current SÜRE/PUAN/HATA/HIZ BONUSU detail grids and CTAs.
+//   • Makes Online GameOver show the visible "Galibiyet: +N" score breakdown
+//     from the persisted Online result payload.
+//   • Keeps Daily Wheel reward, streak bonus, total reward, and Last Run FAIL
+//     count strings statically visible without changing backend reward logic.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1190,7 +1198,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex241';
+const BUILD_MARKER = 'Codex242';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
