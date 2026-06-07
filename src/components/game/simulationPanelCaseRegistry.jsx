@@ -188,6 +188,10 @@ import * as questionAnalyticsCases from './simulationPanelQuestionAnalyticsCases
 import * as numericTypographyCases from './simulationPanelNumericTypographyCases';
 // Codex249 — Solo 70/30 Category preference weighting Health coverage.
 import * as categoryPreferenceCases from './simulationPanelCategoryPreferenceCases';
+// Backend function deployability: guards the deployed flat-root functions/
+// path against the stale-deploy/broken-local-import incident, verifies the
+// frontend invoke() map, and keeps backend deploy proof an honest manual step.
+import * as backendDeployabilityCases from './simulationPanelBackendDeployabilityCases';
 
 const MODULES = [
   soloProgressCases,
@@ -233,6 +237,7 @@ const MODULES = [
   questionAnalyticsCases,
   numericTypographyCases,
   categoryPreferenceCases,
+  backendDeployabilityCases,
 ];
 
 function flatten(key) {

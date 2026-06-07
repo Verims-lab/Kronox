@@ -57,7 +57,15 @@ Status: Active product contract.
 - admin-only maintenance functions verify AdminUser-backed authorization server-side.
 - account deletion is a destructive, NOT_AUTOMATABLE manual proof gate.
 - sendQuestionAnalyticsReportEmail is manual/admin-triggered only and sends HTML/table/bar formatted question analytics with text fallback.
-- sendQuestionAnalyticsReportEmail is callable from base44/functions/sendQuestionAnalyticsReportEmail/entry.ts with base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc name sendQuestionAnalyticsReportEmail and entry entry.ts; functions/sendQuestionAnalyticsReportEmail.js is a complete root flat-function deploy mirror with local shared AdminUser guard for root-only function packaging.
+- sendQuestionAnalyticsReportEmail is callable from base44/functions/sendQuestionAnalyticsReportEmail/entry.ts with base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc name sendQuestionAnalyticsReportEmail and entry entry.ts; functions/sendQuestionAnalyticsReportEmail.js is a complete root flat-function deploy mirror that INLINES a DB-backed AdminUser guard (no local _shared import) so it deploys cleanly under the Base44 flat-function runtime.
+
+## Backend function deployability (stale-deploy incident)
+- npm run build validates only the Vite frontend bundle. It does NOT prove Base44 backend functions deployed. Backend/Base44 functions may require separate deploy/publish proof.
+- Function changes must be verified in the actual EXECUTED function path. The root flat functions/ path can be the executed path for Base44; editing only the non-executed base44/functions/ mirror does not change runtime behavior.
+- Local proof HTML / helper output is not enough if the deployed function is stale.
+- Flat-root functions/ functions must NOT use local imports that resolve outside the deployed path. The broken pattern from './_shared/adminAuth.js' resolved to file:///src/_shared/adminAuth.js (module not found) and broke deployment, leaving Base44 serving a stale build. Flat-root admin functions inline a DB-backed AdminUser guard instead.
+- base44/functions/<name>/entry.ts mirrors may use ../_shared/adminAuth.ts (proven deployable); the flat-root deploy mirror must not depend on a local _shared import.
+- Critical report/admin functions should include safe template/function markers (e.g. templateVersion static-pool-v2 and bodyContains* diagnostics). If real output lacks the marker, the function deployment is stale.
 - Function-based question analytics reset is currently not used.
 - Manual DB reset path after question pool replacement clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection.
 - Manual reset must not delete Question, Category, SubCategory, UserCategoryPreference, UserStatsProjection, progress/economy/leaderboard data, Daily Wheel rows, users, or AdminUser.
