@@ -307,7 +307,7 @@ export const EXTRA_TESTS = [
         'difficultyCounts',
         'oldestYear',
         'newestYear',
-        'categoryPoolSource: \'Question.list static current DB rows\'',
+        'categoryPoolSource: "Question.list static current DB rows"',
         'Zorluk 1',
         'Zorluk 2',
         'Zorluk 3',
@@ -353,6 +353,68 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Report summarizes per-category question pool size, preference users, shown counts, and over/low/never-shown question samples.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('static_category_pool_report_uses_question_table',
+    'Static category question pool report is sourced from current Question rows, not analytics projections',
+    () => {
+      const actualReportBody = reportFunctionSource;
+      const missing = missingTokens(actualReportBody, [
+        'Question.list',
+        'Category.list',
+        'buildCategoryAnalytics({',
+        'questions,',
+        'activeQuestions,',
+        'const hasQuestionRows = questions.length > 0',
+        'categoryPoolRows',
+        'categoryPoolSource: "Question.list static current DB rows"',
+        'Question tablosunda soru yok.',
+        'Unknown / unmapped',
+        'getCategoryId(question)',
+        'question?.main_category_id',
+        'question?.category_id',
+        'question?.categoryId',
+        'question?.category',
+        'question?.cat',
+        'getQuestionDifficultyBucket',
+        'difficultyCounts',
+        '"1": 0',
+        '"2": 0',
+        '"3": 0',
+        '"4": 0',
+        '"5": 0',
+        'unknown: 0',
+        'oldestYear',
+        'newestYear',
+        'Kategori Bazında Soru Havuzu',
+        'Toplam Soru',
+        'Zorluk 1',
+        'Zorluk 2',
+        'Zorluk 3',
+        'Zorluk 4',
+        'Zorluk 5',
+        'Zorluk Bilinmiyor',
+        'En Eski Yıl',
+        'En Yeni Yıl',
+        'Kategori Bazında Gösterim',
+      ]);
+      const forbidden = forbiddenTokens(actualReportBody, [
+        'QuestionStatsProjection.list',
+        'CategoryStatsProjection.list',
+        'QuestionAttemptEvent tablosunda veri yok.',
+        'Kategori ve Alt Kategori Dağılımı',
+        'Kategori / alt kategori dağılım verisi yok.',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Static category pool analysis may still depend on analytics events/projections or stale alt-category wording.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['base44/functions/sendQuestionAnalyticsReportEmail/entry.ts'],
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('Kategori Bazında Soru Havuzu is built from current Question rows and remains separate from report-period exposure analytics.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -488,12 +550,17 @@ export const EXTRA_TESTS = [
         'CategoryStatsProjection',
         'Question',
         'Category',
+        'SubCategory',
         'UserCategoryPreference',
         'UserStatsProjection',
+        'OnlineMatchResult',
+        'Lobby',
         'SoloLeaderboardEntry',
+        'Kronox Puan',
         'DiamondTransaction',
         'DailyWheelSpin',
         'GameRecord',
+        'users',
         'AdminUser',
       ]);
       const forbidden = forbiddenTokens(questionAnalyticsReportToolSource, [
@@ -538,7 +605,7 @@ export const EXTRA_TESTS = [
         'CATEGORY_ANALYTICS_ROW_LIMIT',
         'CATEGORY_FAIRNESS_SIGNAL_LIMIT',
         'categoryAnalyticsForReport',
-        'categoryPoolSource: \'Question.list static current DB rows\'',
+        'categoryPoolSource: "Question.list static current DB rows"',
         'Question tablosunda soru yok.',
         'NEVER_SHOWN_SAMPLE_LIMIT',
         'CATEGORY_QUESTION_SAMPLE_LIMIT',
