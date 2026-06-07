@@ -122,9 +122,10 @@ longer stored on the entity — they are derived at fetch time by
   question count, difficulty 1-5/unknown distribution, oldest year, newest
   year, and Unknown/unmapped diagnostics. Category exposure is separate
   report-period QuestionAttemptEvent data.
-- Kategori Bazında Kayıtlı Soru Havuzu is static active Question table data
-  grouped by category and difficulty level with question count, oldest year,
-  and newest year.
+- Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı / Kategori Bazında Kayıtlı
+  Soru Havuzu is static active Question table data grouped by category and
+  difficulty level with registered question count, oldest year, and newest year.
+  It includes asked and never-asked active questions.
 - After a question pool replacement, analytics reset is manual_db_reset_only:
   clear QuestionAttemptEvent, QuestionStatsProjection, and
   CategoryStatsProjection only by DB maintenance. Do not delete Question,
