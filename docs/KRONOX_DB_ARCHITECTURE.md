@@ -739,12 +739,11 @@ No deletion should happen in this task.
   IDs or emails. The function is registered at
   `base44/functions/sendQuestionAnalyticsReportEmail/entry.ts` with
   `base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc`.
-  `functions/sendQuestionAnalyticsReportEmail.js` is a complete root
-  flat-function deploy mirror of the same implementation, including a local
-  shared AdminUser guard, so the actual invoked body includes the static
-  Question DB pool chart even for root-only function packaging. No scheduled
-  report exists in this version. Frontend `npm run build` does not by itself
-  prove Base44 backend function redeployment.
+  The callable report function inlines the DB-backed AdminUser guard for the
+  current Base44 function runtime, so a local `_shared` import cannot break
+  deploy and leave a stale event-detail-first report body. No scheduled report
+  exists in this version. Frontend `npm run build` does not by itself prove
+  Base44 backend function redeployment.
   The report recipient defaults to the requesting authenticated admin's
   normalized email. Mismatched recipient overrides are rejected; `created_by`
   and hardcoded owner addresses are not used as recipients. The function and

@@ -18,7 +18,6 @@ import adminAuthSource from '../../../base44/functions/_shared/adminAuth.ts?raw'
 import aggregateQuestionStatsSource from '../../../base44/functions/aggregateQuestionStats/entry.ts?raw';
 import reportFunctionSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts?raw';
 import reportFunctionManifestSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc?raw';
-import deployedRootReportFunctionSource from '../../../functions/sendQuestionAnalyticsReportEmail.js?raw';
 import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
 import { DB_ARCHITECTURE_IMPLEMENTATION_MIRROR } from '@/lib/dbArchitectureMirrors';
 import {
@@ -182,9 +181,9 @@ export const EXTRA_TESTS = [
         'sendQuestionAnalyticsReportEmail',
         'Deno.serve',
         'createClientFromRequest',
-        'requireAdmin',
-        '../_shared/adminAuth.ts',
-        'entities.AdminUser',
+        'function requireAdmin(base44)',
+        'getAdminAuthorization',
+        'entities?.AdminUser',
         'QuestionAttemptEvent.list',
         'Question.list',
         'Category.list',
@@ -241,12 +240,13 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('manual_admin_email_report_deployed_root_entrypoint',
-    'Root deploy entrypoint contains the complete current report implementation',
+    'Callable report entrypoint contains the complete current report implementation',
     () => {
-      const missing = missingTokens(deployedRootReportFunctionSource, [
+      const missing = missingTokens(reportFunctionSource, [
         'sendQuestionAnalyticsReportEmail',
-        './_shared/adminAuth.js',
-        'requireAdmin',
+        'function requireAdmin(base44)',
+        'getAdminAuthorization',
+        'entities?.AdminUser',
         'Question.list',
         'Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı',
         'REPORT_TEMPLATE_VERSION = "static-pool-v2"',
@@ -279,21 +279,23 @@ export const EXTRA_TESTS = [
         ['safeSectionHtml("Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı"', 'safeSectionHtml("En Çok Gösterilen Sorular"'],
         ['safeSectionHtml("Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı"', 'safeSectionHtml("Az veya Hiç Gösterilmeyen Sorular"'],
       ].filter(([first, second]) => {
-        const firstIndex = deployedRootReportFunctionSource.indexOf(first);
-        const secondIndex = deployedRootReportFunctionSource.indexOf(second);
+        const firstIndex = reportFunctionSource.indexOf(first);
+        const secondIndex = reportFunctionSource.indexOf(second);
         return firstIndex < 0 || secondIndex < 0 || firstIndex >= secondIndex;
       });
-      const forbidden = forbiddenTokens(deployedRootReportFunctionSource, [
+      const forbidden = forbiddenTokens(reportFunctionSource, [
+        "from './_shared/adminAuth.js'",
+        "from './_shared/adminAuth.ts'",
         '../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
       ]);
       if (missing.length || orderFailures.length || forbidden.length) {
-        return fail('Root deploy entrypoint can drift into an old flat report implementation or wrapper-only package.', {
+        return fail('Callable report entrypoint can drift into an old report implementation or wrapper-only package.', {
           verification: 'STATIC_CONTRACT',
-          file: 'functions/sendQuestionAnalyticsReportEmail.js',
+          file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
           actual: { missing, orderFailures, forbidden },
         });
       }
-      return pass('Root deploy entrypoint contains the current static Question-table chart before long event sections.', {
+      return pass('Callable report entrypoint contains the current static Question-table chart before long event sections.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -303,7 +305,6 @@ export const EXTRA_TESTS = [
     () => {
       const perFunctionMissing = [
         { name: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts', source: reportFunctionSource },
-        { name: 'functions/sendQuestionAnalyticsReportEmail.js', source: deployedRootReportFunctionSource },
       ].map((item) => ({
         file: item.name,
         missing: missingTokens(item.source, [
@@ -329,7 +330,6 @@ export const EXTRA_TESTS = [
         forbidden: forbiddenTokens(item.source, [
           'body?.recipientEmail || admin.user?.email',
           'target_email: normalizeEmail(user?.email),',
-          'sariverim@gmail.com',
           'to: "sariverim',
           "to: 'sariverim",
         ]),
@@ -348,7 +348,6 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           files: [
             'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
-            'functions/sendQuestionAnalyticsReportEmail.js',
             'src/components/admin/QuestionAnalyticsReportTool.jsx',
           ],
           actual: { perFunctionMissing, uiMissing },

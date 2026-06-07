@@ -596,8 +596,9 @@ export const EXTRA_TESTS = [
       ].filter((token) => !combined.includes(token));
       const forbidden = [
         'base44.asServiceRole.entities.User.delete',
-        'sariverim@gmail.com',
       ].filter((token) => combined.includes(token));
+      const hardcodedEmails = combined.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [];
+      if (hardcodedEmails.length) forbidden.push('hardcoded_email_literal');
       if (required.length || forbidden.length) {
         return fail('Admin reset tool does not satisfy the protected maintenance reset contract.', {
           verification: 'STATIC_CONTRACT',

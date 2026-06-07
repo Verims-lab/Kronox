@@ -456,11 +456,11 @@ Checklist:
   `base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc`
   (`name: "sendQuestionAnalyticsReportEmail"`, `entry: "entry.ts"`). Verify
   deployed SendEmail delivery and Gmail desktop/mobile rendering with an admin
-  account. `functions/sendQuestionAnalyticsReportEmail.js` is a complete root
-  flat-function deploy mirror of the same report implementation, with a local
-  shared AdminUser guard, so root-only function packaging cannot serve a stale
-  event-detail-first report body. `npm run build` is a Vite frontend build and
-  is not, by itself, proof that Base44 backend functions were redeployed.
+  account. The callable report function inlines the DB-backed AdminUser guard
+  for the current Base44 function runtime so a local `_shared` import cannot
+  break deploy and leave a stale event-detail-first report body. `npm run
+  build` is a Vite frontend build and is not, by itself, proof that Base44
+  backend functions were redeployed.
 * Any active `AdminUser` with role `admin` or `owner` can trigger the report.
   The recipient defaults to the requesting authenticated admin's normalized
   email; mismatched recipient overrides are rejected, and `created_by` is not

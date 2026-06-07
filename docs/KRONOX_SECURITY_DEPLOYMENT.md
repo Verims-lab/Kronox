@@ -469,12 +469,11 @@ Security contract:
   authenticated admin email, and must not expose user-level surveillance data
   to normal users. It is registered at
   `base44/functions/sendQuestionAnalyticsReportEmail/entry.ts` with
-  `base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc`; the root
-  flat-function mirror `functions/sendQuestionAnalyticsReportEmail.js` carries
-  the same implementation and local shared AdminUser guard for root-only
-  function packaging. Frontend build success does not prove the Base44 backend
-  function was redeployed; live email proof must show `Rapor Şablonu:
-  static-pool-v2`.
+  `base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc`. This
+  callable report function inlines the DB-backed AdminUser guard for the
+  current Base44 function runtime. Frontend build success does not prove the
+  Base44 backend function was redeployed; live email proof must show
+  `Rapor Şablonu: static-pool-v2`.
 * every active `AdminUser` row with role `admin` or `owner` can request the
   report; the recipient is the requesting admin's authenticated normalized
   email, not a hardcoded owner address or `created_by`

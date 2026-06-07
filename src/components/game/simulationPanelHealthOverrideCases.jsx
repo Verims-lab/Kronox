@@ -42,6 +42,7 @@
 //   replacement is a static contract on real product surfaces (in /src) so
 //   they cannot throw.
 
+import deployedRootReportFunctionSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts?raw';
 import addFriendFormSource from '../friends/AddFriendForm.jsx?raw';
 import friendsPageSource from '../../pages/FriendsPage.jsx?raw';
 import friendsApiSource from '../../lib/friendsApi.js?raw';
@@ -190,6 +191,14 @@ export const OVERRIDDEN_CASE_KEYS = new Set([
   // kullanıyor; eski `loadIncomingInvites` named helper artık yok.
   'invite_lifecycle.online_screen_pending_invites_visible',
   'game_invite_lifecycle_v2.game_invite_active_selector_shared',
+
+  // Backend deployability incident — an older report function imported
+  // './_shared/adminAuth.js', which resolved to file:///src/_shared/adminAuth.js
+  // (module not found) and FAILED to deploy, leaving Base44 serving a stale
+  // build. The fix INLINES a DB-backed AdminUser guard (no local import) so
+  // the callable function deploys cleanly. The old Health case still required
+  // the broken './_shared/adminAuth.js' token, so it is stale and overridden below.
+  'question_analytics_health.manual_admin_email_report_deployed_root_entrypoint',
 ]);
 
 // No new suite ids — we reuse the existing suite ids defined in the base
@@ -1092,5 +1101,93 @@ export const EXTRA_TESTS = [
       'getGameInviteActiveFilterReason',
       'useNotificationCenter',
     ],
+  ),
+
+  /* ==================================================================
+   *  Backend deployability incident — callable report entrypoint must deploy
+   *  cleanly under the Base44 function runtime.
+   *
+   *  Root cause that was fixed: an older report function imported
+   *  './_shared/adminAuth.js' which resolved to file:///src/_shared/adminAuth.js
+   *  (module not found) and broke deployment, so Base44 kept serving a stale
+   *  build and the real email report was missing the new static section.
+   *
+   *  New contract: the callable report function INLINES a DB-backed AdminUser
+   *  authorization guard (no local import) AND keeps the static-pool-v2
+   *  template + body diagnostics, with the static section before the long
+   *  event sections. We explicitly FORBID any local `_shared/adminAuth`
+   *  import in the callable report path so the broken pattern cannot return.
+   * ================================================================= */
+  makeCase(
+    'question_analytics_health', 'Question Analytics Health Suite',
+    'manual_admin_email_report_deployed_root_entrypoint',
+    'Callable report entrypoint deploys cleanly (inline AdminUser guard, no local import) and keeps the static-pool-v2 contract',
+    () => {
+      const src = safeStr(deployedRootReportFunctionSource);
+      const required = [
+        'sendQuestionAnalyticsReportEmail',
+        // Inlined DB-backed admin guard — proven deployable in the flat runtime.
+        'function requireAdmin(base44)',
+        'getAdminAuthorization',
+        'entities?.AdminUser',
+        "value === 'owner' || value === 'admin'",
+        'Admin access required',
+        'requireAdmin(base44)',
+        'if (admin.response) return admin.response',
+        // Report template + body markers.
+        'Question.list',
+        'Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı',
+        'REPORT_TEMPLATE_VERSION = "static-pool-v2"',
+        'REPORT_TEMPLATE_LABEL = "Rapor Şablonu: static-pool-v2"',
+        'escapeHtml(REPORT_TEMPLATE_LABEL)',
+        'bodyContainsStaticPoolSection',
+        'bodyContainsTemplateMarker',
+        'bodyContainsQuestionSourceMarker',
+        'emailHtml.includes("Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı")',
+        'emailHtml.includes(REPORT_TEMPLATE_LABEL)',
+        'emailHtml.includes("Kaynak: Question tablosu")',
+        'body: emailHtml',
+        'html: emailHtml',
+        'Kaynak: Question tablosu',
+        'Toplam aktif kayıtlı soru',
+        'Zorluk 1',
+        'Zorluk 5',
+        'Bilinmiyor',
+        'Dağılım',
+        'safeSectionHtml("Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı"',
+        'safeSectionHtml("En Çok Gösterilen Sorular"',
+      ];
+      // The broken import pattern that caused the stale-deploy incident must
+      // never come back in the executed report path.
+      const forbidden = [
+        "from './_shared/adminAuth.js'",
+        "from '../_shared/adminAuth.ts'",
+        "from './_shared/adminAuth.ts'",
+        '../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
+      ];
+      const missing = required.filter((t) => !src.includes(t));
+      const found = forbidden.filter((t) => src.includes(t));
+      // Static section must render before the long event tables.
+      const staticIdx = src.indexOf('safeSectionHtml("Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı"');
+      const longIdx = src.indexOf('safeSectionHtml("En Çok Gösterilen Sorular"');
+      const orderOk = staticIdx >= 0 && longIdx >= 0 && staticIdx < longIdx;
+      if (missing.length || found.length || !orderOk) {
+        return fail('Callable report entrypoint can regress to a non-deployable local import or lose the static-pool-v2 contract.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
+          expected: 'inline AdminUser guard (no local import) + static-pool-v2 template + static section before long event sections',
+          actual: { missing, foundForbidden: found, orderOk },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Callable report entrypoint inlines the AdminUser guard, has no local import, and keeps the static Question-table chart before long event sections.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true },
   ),
 ];
