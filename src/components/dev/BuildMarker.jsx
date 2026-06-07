@@ -980,6 +980,16 @@ import React, { useEffect, useState } from 'react';
 //     IDs stay diagnostic-only, and the admin report tool exposes the
 //     confirmation-gated analytics reset action.
 //
+// Codex255 — Question Analytics admin runtime invocation:
+//   • The Settings admin report/reset tool now calls sendQuestionAnalyticsReportEmail
+//     and resetQuestionAnalyticsData through Base44 functions.invoke first,
+//     with JSON fetch fallback and backend error codes surfaced in the UI.
+//   • Reset still requires RESET_QUESTION_ANALYTICS and remains backend
+//     AdminUser-gated before analytics rows are cleared.
+//   • The reset backend now returns analytics_reset_incomplete instead of a
+//     false success when a target analytics entity is unavailable, capped, or
+//     has delete failures.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1283,7 +1293,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex254';
+const BUILD_MARKER = 'Codex255';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

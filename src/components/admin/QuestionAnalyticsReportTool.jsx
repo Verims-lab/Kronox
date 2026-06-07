@@ -11,6 +11,39 @@ const PERIOD_OPTIONS = [
 
 const RESET_CONFIRMATION = 'RESET_QUESTION_ANALYTICS';
 
+function unwrapFunctionResponse(response) {
+  if (response?.data?.data && typeof response.data.data === 'object') return response.data.data;
+  if (response?.data && typeof response.data === 'object') return response.data;
+  if (response && typeof response === 'object') return response;
+  return {};
+}
+
+function errorMessageFromBody(body, fallback) {
+  const code = String(body?.code || body?.error || '').trim();
+  if (code) return `${fallback} (${code})`;
+  return fallback;
+}
+
+async function callAdminFunction(name, payload) {
+  try {
+    const response = await base44.functions.invoke(name, payload);
+    const body = unwrapFunctionResponse(response);
+    if (body?.ok === false) throw new Error(errorMessageFromBody(body, 'İşlem başarısız oldu.'));
+    return body;
+  } catch (invokeError) {
+    const response = await base44.functions.fetch(`/${name}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || body?.ok === false) {
+      throw new Error(errorMessageFromBody(body, invokeError?.message || 'İşlem başarısız oldu.'));
+    }
+    return body;
+  }
+}
+
 export default function QuestionAnalyticsReportTool() {
   const [periodDays, setPeriodDays] = useState(7);
   const [loading, setLoading] = useState(false);
@@ -25,17 +58,11 @@ export default function QuestionAnalyticsReportTool() {
     setMessage('Rapor hazırlanıyor...');
     setError('');
     try {
-      const response = await base44.functions.fetch('/sendQuestionAnalyticsReportEmail', {
-        method: 'POST',
-        body: JSON.stringify({ periodDays }),
-      });
-      if (!response.ok) throw new Error('send_failed');
-      const body = await response.json().catch(() => ({}));
-      if (body?.ok === false) throw new Error('send_failed');
+      await callAdminFunction('sendQuestionAnalyticsReportEmail', { periodDays });
       setMessage('Soru analiz raporu e-posta olarak gönderildi.');
-    } catch (_error) {
+    } catch (err) {
       setMessage('');
-      setError('Rapor gönderilemedi. Lütfen tekrar dene.');
+      setError(err?.message || 'Rapor gönderilemedi. Lütfen tekrar dene.');
     } finally {
       setLoading(false);
     }
@@ -47,23 +74,17 @@ export default function QuestionAnalyticsReportTool() {
     setMessage('Soru analitik verileri sıfırlanıyor...');
     setError('');
     try {
-      const response = await base44.functions.fetch('/resetQuestionAnalyticsData', {
-        method: 'POST',
-        body: JSON.stringify({
-          action: 'execute',
-          confirmText: RESET_CONFIRMATION,
-        }),
+      const body = await callAdminFunction('resetQuestionAnalyticsData', {
+        action: 'execute',
+        confirmText: RESET_CONFIRMATION,
       });
-      if (!response.ok) throw new Error('reset_failed');
-      const body = await response.json().catch(() => ({}));
-      if (body?.ok === false) throw new Error('reset_failed');
       const targets = Array.isArray(body?.targetEntities) ? body.targetEntities.join(', ') : 'QuestionAttemptEvent, QuestionStatsProjection, CategoryStatsProjection';
       const deleted = Number(body?.totalDeleted) || 0;
       setResetConfirm('');
       setMessage(`Soru analitik verileri sıfırlandı. Silinen satır: ${deleted}. Hedefler: ${targets}.`);
-    } catch (_error) {
+    } catch (err) {
       setMessage('');
-      setError('Soru analitik verileri sıfırlanamadı. Lütfen tekrar dene.');
+      setError(err?.message || 'Soru analitik verileri sıfırlanamadı. Lütfen tekrar dene.');
     } finally {
       setResetLoading(false);
     }

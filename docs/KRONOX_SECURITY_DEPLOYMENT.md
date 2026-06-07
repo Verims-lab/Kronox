@@ -452,6 +452,9 @@ Security contract:
   confirmation, logs to `AdminMaintenanceLog`, and clears only
   `QuestionAttemptEvent`, `QuestionStatsProjection`, and
   `CategoryStatsProjection` after a question pool replacement
+* if any reset target is unavailable, capped, or has delete failures,
+  `resetQuestionAnalyticsData` returns `analytics_reset_incomplete` rather than
+  reporting a false success
 * question analytics reset must not delete questions, categories, category
   preferences, score/progress/economy rows, leaderboard rows, Daily Wheel rows,
   or gameplay records
