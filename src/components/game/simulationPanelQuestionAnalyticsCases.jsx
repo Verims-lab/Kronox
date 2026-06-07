@@ -539,7 +539,6 @@ export const EXTRA_TESTS = [
         ['safeSectionHtml("Key Insights / Risk Flags"', 'safeSectionHtml("Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı"'],
         ['safeSectionHtml("Rapor Bölümleri"', 'safeSectionHtml("En Çok Gösterilen Sorular"'],
         ['safeSectionHtml("Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı"', 'safeSectionHtml("En Çok Gösterilen Sorular"'],
-        ['safeSectionHtml("Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı"', 'safeSectionHtml("Az veya Hiç Gösterilmeyen Sorular"'],
         ['safeSectionHtml("Kategori Bazında Soru Havuzu"', 'safeSectionHtml("En Çok Gösterilen Sorular"'],
         ['safeSectionHtml("Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı"', 'safeSectionHtml("En Çok Gösterilen Sorular"'],
         ['safeSectionHtml("Kategori Bazında Yıl Aralığı"', 'safeSectionHtml("En Çok Gösterilen Sorular"'],

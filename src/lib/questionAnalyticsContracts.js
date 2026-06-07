@@ -31,6 +31,8 @@ export const QUESTION_ANALYTICS_MANUAL_RESET_MODE = 'manual_db_reset_only';
 export const QUESTION_ANALYTICS_REPORT_SECTIONS = Object.freeze([
   'Kronox Soru Analiz Raporu',
   'Executive Summary',
+  'Rapor Bölümleri',
+  'Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı',
   'Key Insights / Risk Flags',
   'Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı',
   'Rapor Bölümleri',
