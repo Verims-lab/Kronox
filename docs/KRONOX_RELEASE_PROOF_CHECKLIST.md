@@ -150,13 +150,12 @@ Checklist:
 * Saving 3 or more category selections works.
 * There is no maximum selection limit.
 * Preferences are persisted per user in `UserCategoryPreference`.
-* First-login Category preference popup appears for safely identified new
-  users and prompts for at least 3 active Category interests.
+* Category preference popup appears for any authenticated user with fewer than
+  3 active valid Category preferences, including existing users.
+* Passive Category rows and passive preference rows do not count toward the
+  minimum.
 * Completing the popup saves preferences and prevents the popup from showing
-  again for that user.
-* Existing users are not hard-blocked solely because preferences are empty.
-* Users without a trustworthy profile creation timestamp are not forced into
-  the popup by static client inference.
+  again while the user still has 3 or more active valid preferences.
 * Users can later change selections under Profile / Settings /
   `İlgi Alanlarım`.
 * Preferences do not affect Solo/Online question selection yet.

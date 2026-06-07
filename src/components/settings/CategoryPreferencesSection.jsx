@@ -2,10 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Check, Loader2, Save, Sparkles } from 'lucide-react';
 import {
   MIN_CATEGORY_SELECTION_COUNT,
-  getSelectedCategoryIds,
+  getValidActiveSelectedCategoryIds,
   loadActiveCategories,
   loadUserCategoryPreferences,
-  normalizeCategoryId,
   saveUserCategoryPreferences,
 } from '@/lib/userCategoryPreferences';
 
@@ -42,11 +41,7 @@ export default function CategoryPreferencesSection({ user }) {
           loadUserCategoryPreferences(user),
         ]);
         if (cancelled) return;
-        const activeIds = new Set(categories
-          .map((item) => normalizeCategoryId(item?.category_id))
-          .filter((id) => id !== null));
-        const selected = new Set(Array.from(getSelectedCategoryIds(preferences))
-          .filter((id) => activeIds.has(id)));
+        const selected = getValidActiveSelectedCategoryIds(preferences, categories);
         setActiveCategories(categories);
         setSelectedIds(selected);
         setSavedSelectedIds(new Set(selected));

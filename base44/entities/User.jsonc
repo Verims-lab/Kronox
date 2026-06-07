@@ -140,21 +140,12 @@
     },
     "category_preferences_onboarding_completed": {
       "type": "boolean",
-      "description": "Codex246 — Per-user Category preference onboarding completion flag. New users created after the Category-preference rollout are prompted once to select at least 3 active Category interests; existing users are not hard-blocked solely because preferences are empty."
+      "description": "Codex247 — Advisory per-user Category preference onboarding completion flag. The popup source of truth is still the active valid UserCategoryPreference count: fewer than 3 active valid Category preferences shows the popup even if this flag is true."
     },
     "category_preferences_onboarding_completed_at": {
       "type": "string",
       "format": "date-time",
-      "description": "ISO timestamp when the first-login Category preference onboarding popup was completed successfully after UserCategoryPreference rows were saved."
-    },
-    "category_preferences_onboarding_rollout_at": {
-      "type": "string",
-      "format": "date-time",
-      "description": "Rollout timestamp used by the client gate so existing users without preferences are not forced into the onboarding popup."
-    },
-    "category_preferences_onboarding_required": {
-      "type": "boolean",
-      "description": "Optional explicit admin/profile flag to require Category preference onboarding for a user even when created-date rollout detection is unavailable. Completion still prevents the popup from repeating."
+      "description": "ISO timestamp when the app-open Category preference popup was completed successfully after UserCategoryPreference rows were saved."
     },
     "game_invite_notifications_enabled": {
       "type": "boolean",
