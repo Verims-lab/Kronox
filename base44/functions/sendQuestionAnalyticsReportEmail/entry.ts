@@ -1,8 +1,75 @@
 /* global Deno */
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.25";
-import { requireAdmin } from "../_shared/adminAuth.ts";
 
-// Callable Base44 function: base44/functions/sendQuestionAnalyticsReportEmail/entry.ts
+// Inlined admin guard — Base44 backend functions deploy independently and
+// cannot use local imports. A broken "./_shared/adminAuth.js" import is what
+// previously made this function fail to deploy, leaving a stale build running.
+function adminAuthJson(payload, status = 200) {
+  return Response.json(payload, { status });
+}
+function isActiveAdminRole(role) {
+  const value = String(role || "").trim().toLowerCase();
+  return value === "owner" || value === "admin";
+}
+function isActiveStatus(status) {
+  return String(status || "").trim().toLowerCase() === "active";
+}
+const ADMIN_EMAIL_FIELDS = ["email", "Email", "user_email", "admin_email"];
+const ADMIN_ROLE_FIELDS = ["role", "Role", "user_role"];
+const ADMIN_STATUS_FIELDS = ["status", "Status"];
+function readAdminField(row, candidates) {
+  for (const field of candidates) {
+    if (row && Object.prototype.hasOwnProperty.call(row, field)) return row[field];
+  }
+  return undefined;
+}
+async function getAdminAuthorization(base44, user) {
+  const email = normalizeEmail(user?.email);
+  if (!email) return { isAdmin: false, row: null, role: "", status: "" };
+  const adminEntity = base44?.asServiceRole?.entities?.AdminUser;
+  if (!adminEntity?.filter) return { isAdmin: false, row: null, role: "", status: "" };
+  let rows = [];
+  for (const field of ADMIN_EMAIL_FIELDS) {
+    try {
+      const result = await adminEntity.filter({ [field]: email }, "-updated_at", 10);
+      if (Array.isArray(result) && result.length > 0) {
+        rows = result;
+        break;
+      }
+    } catch (_error) {
+      // try next candidate field
+    }
+  }
+  const exactRows = (rows || [])
+    .map((candidate) => ({
+      candidate,
+      email: normalizeEmail(readAdminField(candidate, ADMIN_EMAIL_FIELDS)),
+      role: String(readAdminField(candidate, ADMIN_ROLE_FIELDS) || "").trim().toLowerCase(),
+      status: String(readAdminField(candidate, ADMIN_STATUS_FIELDS) || "").trim().toLowerCase()
+    }))
+    .filter((candidate) => candidate.email === email);
+  const activeRow = exactRows.find((candidate) => isActiveStatus(candidate.status) && isActiveAdminRole(candidate.role)) || null;
+  return {
+    isAdmin: Boolean(activeRow),
+    row: activeRow?.candidate || null,
+    role: activeRow?.role || "",
+    status: activeRow?.status || ""
+  };
+}
+async function requireAdmin(base44) {
+  try {
+    const user = await base44.auth.me();
+    if (!user?.email) return { response: adminAuthJson({ ok: false, error: "Authentication required" }, 401) };
+    const authorization = await getAdminAuthorization(base44, user);
+    if (!authorization.isAdmin) return { response: adminAuthJson({ ok: false, error: "Admin access required" }, 403) };
+    return { user, admin: authorization.row, adminRole: authorization.role };
+  } catch (_error) {
+    return { response: adminAuthJson({ ok: false, error: "Authentication required" }, 401) };
+  }
+}
+
+// Flat deploy mirror for sendQuestionAnalyticsReportEmail.
+// Keep in sync with base44/functions/sendQuestionAnalyticsReportEmail/entry.ts.
 // Settings invokes functions.invoke("sendQuestionAnalyticsReportEmail", payload).
 const JOB_NAME = "sendQuestionAnalyticsReportEmail";
 const MAX_EVENTS = 5e3;
@@ -18,7 +85,7 @@ const REGISTERED_QUESTION_POOL_ROW_LIMIT = 250;
 const CATEGORY_FAIRNESS_SIGNAL_LIMIT = 20;
 const STALE_REFERENCE_SAMPLE_LIMIT = 20;
 const PERIOD_OPTIONS = /* @__PURE__ */ new Set([1, 7, 30]);
-const REPORT_BUILD_MARKER = "Codex274";
+const REPORT_BUILD_MARKER = "Codex275";
 const REPORT_TEMPLATE_VERSION = "static-pool-v2";
 const REPORT_TEMPLATE_LABEL = "Rapor Şablonu: static-pool-v2";
 const DIFFICULTY_CHART_BUCKETS = [
