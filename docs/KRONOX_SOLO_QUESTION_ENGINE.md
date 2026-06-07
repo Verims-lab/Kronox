@@ -62,7 +62,10 @@ These are soft balance preferences:
 - user Category preferences: when at least 3 active valid
   `UserCategoryPreference` rows are available before the attempt starts, Solo
   question selection targets 70% selected user categories and 30% full eligible
-  pool. This is a soft target with fallback, not a hard filter.
+  pool. The selected-category 70% lane keeps the current selection behavior.
+  The global 30% lane prefers `difficulty = 1` questions from the full
+  eligible pool where possible. This is a soft target with fallback, not a
+  hard filter.
 
 P1/P2 balancing applies during deck selection and deck ordering where the pool allows:
 - normal and special decks distribute across active categories so one category does not dominate a rich pool
@@ -75,8 +78,10 @@ P1/P2 balancing applies during deck selection and deck ordering where the pool a
   starvation where deck size and hard rules allow.
 - normal 16-card Solo decks target 11 selected-category cards and 5 global-pool
   cards; special 19-card decks target 13 selected-category cards and 6
-  global-pool cards. If selected categories cannot supply enough valid
-  questions, the full eligible pool fills the gap.
+  global-pool cards. Global-pool cards prefer difficulty 1 when enough usable
+  candidates exist; if the difficulty-1 global pool is too small, the broader
+  full eligible pool fills safely. If selected categories cannot supply enough
+  valid questions, the full eligible pool fills the gap.
 - first 7 active displayed cards avoid 4+ same-category cards where alternatives exist
 - first 5 active displayed cards avoid 3+ same-subcategory or obvious sports-cluster cards where metadata and alternatives allow
 - first 7 active displayed cards avoid 4+ same-subcategory/theme cards where alternatives exist

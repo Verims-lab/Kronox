@@ -52,7 +52,7 @@ Soft deck preferences:
 - era/year spread.
 - recently-seen avoidance.
 - exposure cooldown / rotation prefers never-shown, less-shown, and not-recently-shown questions when local or projected stats are available.
-- user Category preferences target 70% selected user categories and 30% full eligible pool when at least 3 active valid UserCategoryPreference rows are available before the attempt starts.
+- user Category preferences target 70% selected user categories and 30% full eligible pool when at least 3 active valid UserCategoryPreference rows are available before the attempt starts. The selected-category lane is not difficulty-1 restricted. The global 30% lane prefers difficulty 1 questions from the full eligible pool where possible, with safe broader-pool fallback when difficulty-1 global candidates are insufficient.
 
 The P0 first-five guardrail avoids more than 2 same-subcategory or obvious
 sports-cluster cards when metadata and alternatives allow. P1/P2 balance
@@ -66,8 +66,10 @@ decadeDistribution, yearBandDistribution, diversityFairness,
 firstSevenCategoryDistribution, and fallbackTier for Health/admin/debug only.
 Normal 16-card decks target 11 selected-category cards and 5 global-pool
 cards; special 19-card decks target 13 selected-category cards and 6
-global-pool cards. Selected-category shortage fills from the full eligible pool
-instead of failing the deck.
+global-pool cards. The selected-category lane is not difficulty-1 restricted;
+global-pool cards prefer difficulty 1 where possible and then fall back to the
+broader eligible global pool if needed. Selected-category shortage fills from
+the full eligible pool instead of failing the deck.
 
 The runtime may pass local recent-history exposure stats into the deck builder
 before the attempt starts. This is not a gameplay source of truth and must not

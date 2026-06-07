@@ -165,6 +165,11 @@ Checklist:
 * Normal 16-card Solo decks target 11 selected-category and 5 global-pool
   cards; special 19-card Solo decks target 13 selected-category and 6
   global-pool cards.
+* The selected-category 70% lane is not difficulty-1 restricted. The global
+  30% lane prefers difficulty 1 questions from the full eligible pool where
+  possible.
+* If the global difficulty-1 pool is insufficient, the broader full eligible
+  global pool fills safely instead of failing the deck.
 * Selected-category shortage falls back to the full eligible pool instead of
   failing the deck.
 * Online question selection is not affected.

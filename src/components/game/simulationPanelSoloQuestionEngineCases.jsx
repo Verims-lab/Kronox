@@ -142,6 +142,18 @@ function countSelectedCategoryCards(deck = [], selectedCategoryIds = []) {
   }).length;
 }
 
+function getGlobalCategoryCards(deck = [], selectedCategoryIds = []) {
+  const selected = new Set(selectedCategoryIds.map((value) => String(Math.trunc(Number(value)))));
+  return (deck || []).filter((question) => {
+    const id = Number(question?.main_category_id ?? question?.category_id ?? question?.categoryId);
+    return !Number.isFinite(id) || !selected.has(String(Math.trunc(id)));
+  });
+}
+
+function countDifficultyOneCards(deck = []) {
+  return (deck || []).filter((question) => Number(question?.difficulty ?? question?.Difficulty) === 1).length;
+}
+
 function incrementMapCount(map, key, amount = 1) {
   const normalized = String(key || 'unknown');
   map.set(normalized, (map.get(normalized) || 0) + amount);
@@ -2059,6 +2071,7 @@ export const EXTRA_TESTS = [
         main_category_id: i < 120 ? selectedCategoryIds[i % selectedCategoryIds.length] : ((i % 3) + 4),
         sub_category: `pref_sub_${i % 18}`,
         tag: `pref_theme_${i % 12}`,
+        difficulty: i < 120 ? ((i % 4) + 2) : (i % 2 === 0 ? 1 : '1'),
       }));
       const normalTargets = getSoloCategoryPreferenceTargetCounts(16);
       const specialTargets = getSoloCategoryPreferenceTargetCounts(19);
@@ -2091,12 +2104,22 @@ export const EXTRA_TESTS = [
       const specialMeta = special.meta?.categoryPreferenceFairness || {};
       const normalSelectedCount = countSelectedCategoryCards(normal.deck, selectedCategoryIds);
       const specialSelectedCount = countSelectedCategoryCards(special.deck, selectedCategoryIds);
+      const normalGlobalCards = getGlobalCategoryCards(normal.deck, selectedCategoryIds);
+      const specialGlobalCards = getGlobalCategoryCards(special.deck, selectedCategoryIds);
+      const normalGlobalDifficultyOneCount = countDifficultyOneCards(normalGlobalCards);
+      const specialGlobalDifficultyOneCount = countDifficultyOneCards(specialGlobalCards);
+      const normalSelectedDifficultyOneCount = countDifficultyOneCards(
+        normal.deck.filter((question) => !normalGlobalCards.includes(question)),
+      );
       const firstFiveGap = minAdjacentGap(normal.deck.slice(0, 5).map((question) => question.year));
       const actual = {
         normalTargets,
         specialTargets,
         normalSelectedCount,
         specialSelectedCount,
+        normalGlobalDifficultyOneCount,
+        specialGlobalDifficultyOneCount,
+        normalSelectedDifficultyOneCount,
         normalMeta,
         specialMeta,
         firstFiveGap,
@@ -2111,6 +2134,15 @@ export const EXTRA_TESTS = [
         special.deck.length !== 19 ||
         normalSelectedCount !== 11 ||
         specialSelectedCount !== 13 ||
+        normalGlobalCards.length !== 5 ||
+        specialGlobalCards.length !== 6 ||
+        normalGlobalDifficultyOneCount !== 5 ||
+        specialGlobalDifficultyOneCount !== 6 ||
+        normalSelectedDifficultyOneCount !== 0 ||
+        normalMeta.globalDifficultyTarget !== 1 ||
+        specialMeta.globalDifficultyTarget !== 1 ||
+        normalMeta.globalDifficultyRuleAppliesOnlyToGlobal30 !== true ||
+        normalMeta.selectedCategoryDifficultyUnrestricted !== true ||
         normalMeta.preferenceRatioTarget !== '70/30' ||
         specialMeta.preferenceRatioTarget !== '70/30' ||
         normalMeta.hardFilterToSelectedCategories !== false ||
@@ -2119,12 +2151,12 @@ export const EXTRA_TESTS = [
         return fail('Solo category preference target counts or hard-rule compatibility drifted.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
-          expected: 'normal 11/5, special 13/6, soft 70/30 target, first-five spacing intact',
+          expected: 'normal 11/5 and special 13/6; global cards difficulty 1 while selected-category lane is not difficulty-1 restricted',
           actual,
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Solo builds rich-pool normal/special decks at the 70/30 selected-category target without weakening spacing.', {
+      return pass('Solo builds rich-pool normal/special decks with selected-category target unchanged and global slots difficulty 1.', {
         verification: 'RUNTIME_VERIFIED',
         classification: 'RUNTIME_VERIFIED',
         actual,
@@ -2185,6 +2217,80 @@ export const EXTRA_TESTS = [
         verification: 'RUNTIME_VERIFIED',
         classification: 'RUNTIME_VERIFIED',
         actual: { selectedCount, meta },
+      });
+    },
+  ),
+
+  makeCase(
+    'solo_global_pool_difficulty_one_shortage_falls_back_safely',
+    'Global 30% prefers difficulty 1 and falls back when difficulty-1 global candidates are insufficient',
+    () => {
+      const selectedCategoryIds = [1, 2, 3];
+      const pool = buildSyntheticPool(180, (i) => {
+        const selectedLane = i < 120;
+        const globalIndex = i - 120;
+        return {
+          main_category_id: selectedLane ? selectedCategoryIds[i % selectedCategoryIds.length] : ((i % 3) + 4),
+          sub_category: `global_difficulty_sub_${i % 20}`,
+          tag: `global_difficulty_theme_${i % 12}`,
+          difficulty: selectedLane ? ((i % 4) + 2) : (globalIndex < 2 ? 1 : 3),
+        };
+      });
+      const result = buildSoloAttemptDeck({
+        pool,
+        levelNumber: 4,
+        seedCount: 2,
+        userSelectedCategoryIds: selectedCategoryIds,
+        userCategoryPreferenceAvailable: true,
+        random: makeSeededRandom(2505),
+      });
+      if (!result.ok) {
+        return fail('Difficulty-1 global shortage caused Solo deck failure.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          actual: result,
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      const meta = result.meta?.categoryPreferenceFairness || {};
+      const globalCards = getGlobalCategoryCards(result.deck, selectedCategoryIds);
+      const globalDifficultyOneCount = countDifficultyOneCards(globalCards);
+      const selectedDifficultyOneCount = countDifficultyOneCards(
+        result.deck.filter((question) => !globalCards.includes(question)),
+      );
+      if (
+        result.deck.length !== 16 ||
+        countSelectedCategoryCards(result.deck, selectedCategoryIds) !== 11 ||
+        globalCards.length !== 5 ||
+        globalDifficultyOneCount !== 2 ||
+        selectedDifficultyOneCount !== 0 ||
+        meta.globalDifficulty1TargetCount !== 2 ||
+        meta.globalDifficulty1ActualCount !== 2 ||
+        meta.globalFallbackUsed !== true ||
+        meta.globalFallbackReason !== 'insufficient_global_difficulty_1_candidates' ||
+        meta.globalPoolHardFilteredToSelectedCategories !== false
+      ) {
+        return fail('Global difficulty-1 fallback metadata or deck composition drifted.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: '16-card deck, 11 selected, 5 global, 2 available difficulty-1 global cards used, then safe broader global fallback',
+          actual: {
+            globalDifficultyOneCount,
+            selectedDifficultyOneCount,
+            globalCards: globalCards.map((question) => ({ id: question.id, difficulty: question.difficulty, category: question.main_category_id })),
+            meta,
+          },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Insufficient difficulty-1 global candidates use available difficulty-1 cards, then fill safely from the broader global pool.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+        actual: {
+          globalDifficultyOneCount,
+          globalFallbackReason: meta.globalFallbackReason,
+          globalDifficultyDistribution: meta.globalDifficultyDistribution,
+        },
       });
     },
   ),

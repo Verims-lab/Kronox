@@ -323,6 +323,9 @@ Rules:
 * Solo question selection targets 70% selected user categories and 30% full
   eligible pool when at least 3 active valid preferences are available.
 * This is a soft weighting target with fallback, not hard filtering.
+* The selected-category 70% lane is not difficulty-1 restricted; the global
+  30% lane prefers difficulty 1 from the full eligible pool where possible,
+  with safe fallback if difficulty-1 global candidates are insufficient.
 * Online question selection is not affected.
 * The `SubCategory` entity and old `UserSubCategoryPreference` rows remain in
   place for future metadata/migration work, but current Settings preferences

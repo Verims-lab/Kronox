@@ -1004,6 +1004,12 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps reset admin-gated, confirmation-protected, analytics-only, and
 //     verifies the sent report body contains the category analytics sections.
 //
+// Codex258 — Solo global difficulty preference:
+//   • Keeps the 70% selected-category Solo lane unchanged.
+//   • The 30% global lane now prefers difficulty 1 from the full eligible pool
+//     where possible and safely falls back when difficulty-1 global candidates
+//     are insufficient.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1307,7 +1313,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex257';
+const BUILD_MARKER = 'Codex258';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
