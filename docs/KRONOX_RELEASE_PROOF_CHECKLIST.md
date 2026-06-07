@@ -448,20 +448,14 @@ Checklist:
   `Kategori Bazında Gösterim`, `Kategori İçi Soru Analizi`, and
   `Kategori Denge Sinyalleri`. Category preference counts are aggregate
   distinct-user counts only; no user IDs or emails appear in the report.
-* `resetQuestionAnalyticsData` is admin-only, requires explicit confirmation,
-  logs the operation, and clears only `QuestionAttemptEvent`,
-  `QuestionStatsProjection`, and `CategoryStatsProjection` after a question
-  pool replacement. The function must be registered by
-  root callable `functions/resetQuestionAnalyticsData.js` plus the Base44
-  mirror `base44/functions/resetQuestionAnalyticsData/function.jsonc`
-  (`name: "resetQuestionAnalyticsData"`, `entry: "entry.ts"`). A 404 from the
-  Settings admin action means the root callable function was not deployed or
-  the function name/path is mismatched. If any target analytics entity is
-  capped or has delete failures, the reset must return
-  `analytics_reset_incomplete` instead of a false success.
-* Question analytics reset must not delete `Question`, `Category`,
-  `UserCategoryPreference`, scores, diamonds, progress, leaderboard, Daily
-  Wheel, or gameplay/economy data.
+* Question analytics reset is currently a manual DB maintenance operation; the
+  function-based reset path is not used. After replacing the question pool,
+  manually clear only `QuestionAttemptEvent`, `QuestionStatsProjection`, and
+  `CategoryStatsProjection`.
+* Manual question analytics reset must not delete `Question`, `Category`,
+  `SubCategory`, `UserCategoryPreference`, `UserStatsProjection`, scores,
+  diamonds, progress, leaderboard rows, users, admin rows, Daily Wheel, or
+  gameplay/economy data.
 * Question Analytics report handles stale/deleted question IDs, unknown
   categories, section-level render failures, and empty analytics state without
   truncating the email; large sections remain capped.

@@ -962,8 +962,8 @@ import React, { useEffect, useState } from 'react';
 //     get resaved as active preferences.
 //
 // Codex252 — Question analytics reset/report robustness:
-//   • Adds admin-only resetQuestionAnalyticsData to clear QuestionAttemptEvent,
-//     QuestionStatsProjection, and CategoryStatsProjection after pool replacement.
+//   • Earlier function-based analytics reset attempt is superseded by the
+//     Codex259 manual DB reset path.
 //   • Report generation skips stale/deleted question IDs with diagnostics,
 //     handles empty analytics state, and keeps large sections bounded.
 //
@@ -977,38 +977,40 @@ import React, { useEffect, useState } from 'react';
 //   • The actual sent report body now includes category pool, preference,
 //     exposure, within-category, and fairness-signal sections.
 //   • Report sections render through a safe wrapper, stale/deleted question
-//     IDs stay diagnostic-only, and the admin report tool exposes the
-//     confirmation-gated analytics reset action.
+//     IDs stay diagnostic-only.
 //
 // Codex255 — Question Analytics admin runtime invocation:
-//   • The Settings admin report/reset tool now calls sendQuestionAnalyticsReportEmail
-//     and resetQuestionAnalyticsData through Base44 functions.invoke first,
-//     with JSON fetch fallback and backend error codes surfaced in the UI.
-//   • Reset still requires RESET_QUESTION_ANALYTICS and remains backend
-//     AdminUser-gated before analytics rows are cleared.
-//   • The reset backend now returns analytics_reset_incomplete instead of a
-//     false success when a target analytics entity is unavailable, capped, or
-//     has delete failures.
+//   • The Settings admin report tool calls sendQuestionAnalyticsReportEmail
+//     through Base44 functions.invoke first, with JSON fetch fallback and
+//     backend error codes surfaced in the UI.
+//   • Function-based reset handling is superseded by Codex259 manual DB
+//     maintenance guidance.
 //
 // Codex256 — Question Analytics function registration:
-//   • Adds function.jsonc manifests for resetQuestionAnalyticsData and
-//     sendQuestionAnalyticsReportEmail so Base44 can resolve the exact
-//     functions.invoke names used by the Settings admin tool.
+//   • Adds function.jsonc manifest for sendQuestionAnalyticsReportEmail so
+//     Base44 can resolve the exact functions.invoke name used by Settings.
 //   • The admin tool now maps 404/missing function responses to a clear
 //     function-name/deployment mismatch message.
 //
 // Codex257 — Question Analytics callable root functions:
-//   • Adds deployed-root functions/resetQuestionAnalyticsData.js and
-//     functions/sendQuestionAnalyticsReportEmail.js so functions.invoke can
-//     resolve the actual callable function names used by Settings.
-//   • Keeps reset admin-gated, confirmation-protected, analytics-only, and
-//     verifies the sent report body contains the category analytics sections.
+//   • Adds deployed-root functions/sendQuestionAnalyticsReportEmail.js so
+//     functions.invoke can resolve the actual callable report name used by
+//     Settings.
+//   • Verifies the sent report body contains the category analytics sections.
 //
 // Codex258 — Solo global difficulty preference:
 //   • Keeps the 70% selected-category Solo lane unchanged.
 //   • The 30% global lane now prefers difficulty 1 from the full eligible pool
 //     where possible and safely falls back when difficulty-1 global candidates
 //     are insufficient.
+//
+// Codex259 — Manual question analytics reset + report output:
+//   • Removes the broken interactive reset function path from Settings and
+//     documents manual DB reset for QuestionAttemptEvent,
+//     QuestionStatsProjection, and CategoryStatsProjection only.
+//   • Keeps the actual sent report body on the category pool, preference,
+//     exposure, within-category, and fairness-signal sections with stale-row
+//     and empty-state guards.
 //
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
@@ -1313,7 +1315,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex258';
+const BUILD_MARKER = 'Codex259';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
