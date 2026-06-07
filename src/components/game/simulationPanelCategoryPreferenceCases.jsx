@@ -228,10 +228,13 @@ export const EXTRA_TESTS = [
     'Previously selected now-passive Categories are removed from active UI/save state',
     () => {
       const missing = missingTokens(`${preferenceHelperSource}\n${preferenceSectionSource}`, [
+        'sanitizeSelectedCategoryIds',
         'activeIds',
         '.filter((id) => activeIds.has(id))',
         'normalizeActiveIdSet',
         'activeIdSet.has(id)',
+        'const activeSelectedIds = useMemo',
+        'saveUserCategoryPreferences(user, activeSelectedIds, activeCategories)',
         'status: CATEGORY_STATUS_PASSIVE',
       ]);
       if (missing.length) {
@@ -779,10 +782,11 @@ export const EXTRA_TESTS = [
     'Popup count excludes passive preferences, passive Categories, SubCategory rows, and corrupt ids',
     () => {
       const missing = missingTokens(`${preferenceHelperSource}\n${onboardingProfileSource}\n${onboardingModalSource}`, [
+        'sanitizeSelectedCategoryIds',
         'getValidActiveSelectedCategoryIds',
         'filter(isActiveCategoryPreference)',
         'getActiveCategoryIdSet(activeCategories)',
-        'activeIdSet.has(id)',
+        '.filter((id) => activeIds.has(id))',
         'normalizeCategoryId(row?.category_id)',
         'filter(isActiveCategory)',
       ]);
@@ -839,6 +843,7 @@ export const EXTRA_TESTS = [
         'loadActiveCategories',
         'loadUserCategoryPreferences',
         'getValidActiveSelectedCategoryIds',
+        'sanitizeSelectedCategoryIds',
         'saveUserCategoryPreferences',
         'MIN_CATEGORY_SELECTION_COUNT',
       ];

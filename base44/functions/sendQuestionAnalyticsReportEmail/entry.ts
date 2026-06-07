@@ -11,7 +11,7 @@ const MAX_USER_CATEGORY_PREFERENCES = 10000;
 const NEVER_SHOWN_SAMPLE_LIMIT = 20;
 const CATEGORY_QUESTION_SAMPLE_LIMIT = 3;
 const PERIOD_OPTIONS = new Set([1, 7, 30]);
-const REPORT_BUILD_MARKER = 'Codex250';
+const REPORT_BUILD_MARKER = 'Codex251';
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });

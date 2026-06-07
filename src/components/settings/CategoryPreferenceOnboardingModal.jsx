@@ -7,6 +7,7 @@ import {
   loadActiveCategories,
   loadUserCategoryPreferences,
   saveUserCategoryPreferences,
+  sanitizeSelectedCategoryIds,
 } from '@/lib/userCategoryPreferences';
 import {
   markCategoryPreferenceOnboardingCompleted,
@@ -81,11 +82,15 @@ export default function CategoryPreferenceOnboardingModal({ user, disabled = fal
     return () => { cancelled = true; };
   }, [shouldCheck, user, reloadKey]);
 
-  const selectedCategories = useMemo(() => {
-    return activeCategories.filter((item) => selectedIds.has(Number(item.category_id)));
+  const activeSelectedIds = useMemo(() => {
+    return sanitizeSelectedCategoryIds(selectedIds, activeCategories);
   }, [activeCategories, selectedIds]);
 
-  const selectedCount = selectedIds.size;
+  const selectedCategories = useMemo(() => {
+    return activeCategories.filter((item) => activeSelectedIds.has(Number(item.category_id)));
+  }, [activeCategories, activeSelectedIds]);
+
+  const selectedCount = activeSelectedIds.size;
   const canContinue = selectedCount >= MIN_CATEGORY_SELECTION_COUNT;
   const remaining = Math.max(0, MIN_CATEGORY_SELECTION_COUNT - selectedCount);
   const setupUnavailable = !loading && activeCategories.length < MIN_CATEGORY_SELECTION_COUNT;
@@ -110,7 +115,7 @@ export default function CategoryPreferenceOnboardingModal({ user, disabled = fal
     }
     setSaving(true);
     try {
-      const result = await saveUserCategoryPreferences(user, selectedIds, activeCategories);
+      const result = await saveUserCategoryPreferences(user, activeSelectedIds, activeCategories);
       setSelectedIds(toIdSet(result.selectedIds));
       await markCategoryPreferenceOnboardingCompleted(user);
       setNeedsOnboarding(false);

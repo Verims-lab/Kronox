@@ -60,6 +60,7 @@ Status: Active product contract.
 - Any user with fewer than 3 active valid Category preferences sees the popup; this applies to new and existing users.
 - The source of truth is active valid UserCategoryPreference count.
 - Only active categories are selectable and count.
+- Passive or removed Category selections are filtered from UI/save state and are not resaved as active preferences.
 - completing the popup saves UserCategoryPreference rows before marking the user profile onboarding flag complete.
 - Users can later change selections under Profile / Settings / İlgi Alanlarım.
 - Solo question selection reads current-user active valid Category preferences before attempt start and targets 70% selected categories / 30% full eligible pool as soft weighting with fallback.
@@ -119,9 +120,10 @@ persisted per user in UserCategoryPreference. Solo question selection targets
 selection is not affected. Any user with fewer than 3 active valid
 Category preferences sees the popup, including new and existing users. The
 source of truth is active valid UserCategoryPreference count, only active
-categories are selectable and count, completion prevents repeat prompts only
-while the user still has 3 or more active valid preferences, and Users can later
-change selections under Profile / Settings / İlgi Alanlarım. SubCategory entity still exists, but Settings currently uses Category interests.
+categories are selectable and count, passive or removed Category selections are
+filtered from active UI/save state, completion prevents repeat prompts only while
+the user still has 3 or more active valid preferences, and Users can later change
+selections under Profile / Settings / İlgi Alanlarım. SubCategory entity still exists, but Settings currently uses Category interests.
 Mobile wrapping/long-name visual proof and two-account preference RLS proof
 remain manual/NOT_AUTOMATABLE.
 `;

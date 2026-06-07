@@ -382,6 +382,8 @@ After deployment, verify:
 * active valid `UserCategoryPreference` count is the popup source of truth
 * passive Category rows and passive preference rows do not count toward the
   minimum
+* passive or removed Category selections are filtered from UI/save state and
+  must not be resaved as active preferences
 * There is no maximum selection.
 * onboarding/completion profile flags are advisory only and cannot bypass the
   below-3 rule

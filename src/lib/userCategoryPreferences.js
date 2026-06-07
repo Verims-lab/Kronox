@@ -70,9 +70,18 @@ export function getActiveCategoryIdSet(activeCategories) {
 }
 
 export function getValidActiveSelectedCategoryIds(preferences, activeCategories) {
-  const activeIdSet = getActiveCategoryIdSet(activeCategories);
-  return new Set(Array.from(getSelectedCategoryIds(preferences))
-    .filter((id) => activeIdSet.has(id)));
+  return sanitizeSelectedCategoryIds(getSelectedCategoryIds(preferences), activeCategories);
+}
+
+export function sanitizeSelectedCategoryIds(selectedCategoryIds, activeCategories) {
+  const activeIds = getActiveCategoryIdSet(activeCategories);
+  const selectedIds = Array.isArray(selectedCategoryIds)
+    ? selectedCategoryIds
+    : Array.from(selectedCategoryIds || []);
+  return new Set(selectedIds
+    .map(normalizeCategoryId)
+    .filter((id) => id !== null)
+    .filter((id) => activeIds.has(id)));
 }
 
 function makeValidationError(message) {
@@ -93,11 +102,7 @@ export async function saveUserCategoryPreferences(user, selectedCategoryIds, act
   }
 
   const activeIdSet = normalizeActiveIdSet(activeCategories);
-  const selectedSet = new Set((Array.isArray(selectedCategoryIds)
-    ? selectedCategoryIds
-    : Array.from(selectedCategoryIds || []))
-    .map(normalizeCategoryId)
-    .filter((id) => id !== null && activeIdSet.has(id)));
+  const selectedSet = sanitizeSelectedCategoryIds(selectedCategoryIds, activeCategories);
 
   if (selectedSet.size < MIN_CATEGORY_SELECTION_COUNT) {
     throw makeValidationError('En az 3 kategori seçmelisin.');

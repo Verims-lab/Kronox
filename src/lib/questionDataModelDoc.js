@@ -64,10 +64,12 @@ Category.status = P/p rows. Minimum selection count is 3. There is no maximum
 selection. Any user with fewer than 3 active valid Category preferences
 sees the popup; this applies to new and existing users. The source of truth is
 active valid UserCategoryPreference count. Only active categories are selectable
-and count. Users can later change selections under Profile / Settings /
-İlgi Alanlarım. Solo question selection targets 70% selected user categories
-and 30% full eligible pool when at least 3 active valid preferences are
-available. This is a soft weighting target with fallback, not hard filtering.
+and count. Passive or removed Category selections are ignored in UI/save state
+and must not be resaved as active preferences. Users can later change selections
+under Profile / Settings / İlgi Alanlarım. Solo question selection targets 70%
+selected user categories and 30% full eligible pool when at least 3 active
+valid preferences are available. This is a soft weighting target with fallback,
+not hard filtering.
 Online question selection is not affected.
 SubCategory still exists for future normalized question metadata, but Settings
 preference selection currently uses main Category, not SubCategory. Existing
