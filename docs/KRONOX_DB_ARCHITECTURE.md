@@ -314,6 +314,8 @@ Rules:
   sees the popup; this applies to new and existing users.
 * The source of truth is active valid `UserCategoryPreference` count.
 * Only active Categories are selectable and count toward the minimum.
+* Passive or removed Category selections are ignored in UI/save state and must
+  not be resaved as active preferences.
 * Onboarding/completion profile flags are advisory only and cannot bypass the
   below-3 rule.
 * Users can later change selections under Profile / Settings /

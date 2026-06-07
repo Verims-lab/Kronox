@@ -6,6 +6,7 @@ import {
   loadActiveCategories,
   loadUserCategoryPreferences,
   saveUserCategoryPreferences,
+  sanitizeSelectedCategoryIds,
 } from '@/lib/userCategoryPreferences';
 
 function sameIdSet(a, b) {
@@ -60,13 +61,17 @@ export default function CategoryPreferencesSection({ user }) {
     return () => { cancelled = true; };
   }, [user]);
 
-  const selectedCategories = useMemo(() => {
-    return activeCategories.filter((item) => selectedIds.has(Number(item.category_id)));
+  const activeSelectedIds = useMemo(() => {
+    return sanitizeSelectedCategoryIds(selectedIds, activeCategories);
   }, [activeCategories, selectedIds]);
 
-  const selectedCount = selectedIds.size;
+  const selectedCategories = useMemo(() => {
+    return activeCategories.filter((item) => activeSelectedIds.has(Number(item.category_id)));
+  }, [activeCategories, activeSelectedIds]);
+
+  const selectedCount = activeSelectedIds.size;
   const canSave = selectedCount >= MIN_CATEGORY_SELECTION_COUNT;
-  const dirty = !sameIdSet(selectedIds, savedSelectedIds);
+  const dirty = !sameIdSet(activeSelectedIds, savedSelectedIds);
   const remaining = Math.max(0, MIN_CATEGORY_SELECTION_COUNT - selectedCount);
 
   const toggleCategory = (id) => {
@@ -90,7 +95,7 @@ export default function CategoryPreferencesSection({ user }) {
     }
     setSaving(true);
     try {
-      const result = await saveUserCategoryPreferences(user, selectedIds, activeCategories);
+      const result = await saveUserCategoryPreferences(user, activeSelectedIds, activeCategories);
       const next = toIdSet(result.selectedIds);
       setSelectedIds(next);
       setSavedSelectedIds(new Set(next));

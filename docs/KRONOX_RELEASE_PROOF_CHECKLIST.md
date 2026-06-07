@@ -154,6 +154,8 @@ Checklist:
   3 active valid Category preferences, including existing users.
 * Passive Category rows and passive preference rows do not count toward the
   minimum.
+* Previously selected Categories that become passive or are removed are filtered
+  out of active UI/save state and are not resaved as active preferences.
 * Completing the popup saves preferences and prevents the popup from showing
   again while the user still has 3 or more active valid preferences.
 * Users can later change selections under Profile / Settings /
