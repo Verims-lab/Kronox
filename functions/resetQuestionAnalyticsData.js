@@ -1,6 +1,8 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
-import { requireAdmin } from '../_shared/adminAuth.ts';
+import { json, normalizeEmail, requireAdmin } from './_shared/adminAuth.js';
 
+// Callable Base44 root function: functions/resetQuestionAnalyticsData.js
+// Settings invokes functions.invoke('resetQuestionAnalyticsData', payload).
 const JOB_NAME = 'resetQuestionAnalyticsData';
 const RESET_CONFIRMATION = 'RESET_QUESTION_ANALYTICS';
 const DEFAULT_BATCH_SIZE = 500;
@@ -17,24 +19,21 @@ const ANALYTICS_RESET_ENTITIES = [
 const UNTOUCHED_ENTITIES = [
   'Question',
   'Category',
+  'SubCategory',
   'UserCategoryPreference',
+  'UserSubCategoryPreference',
   'UserStatsProjection',
+  'GameRecord',
+  'OnlineMatchResult',
+  'Lobby',
   'SoloLeaderboardEntry',
   'DiamondTransaction',
   'DailyWheelSpin',
-  'OnlineMatchResult',
+  'AdminUser',
   'User',
 ];
 
-function json(payload: unknown, status = 200) {
-  return Response.json(payload, { status });
-}
-
-function normalizeEmail(value: unknown) {
-  return String(value || '').trim().toLowerCase();
-}
-
-async function readBody(req: Request) {
+async function readBody(req) {
   try {
     return await req.json();
   } catch (_error) {
@@ -42,14 +41,14 @@ async function readBody(req: Request) {
   }
 }
 
-function clampInteger(value: unknown, fallback: number, min: number, max: number) {
+function clampInteger(value, fallback, min, max) {
   const number = Number(value);
   if (!Number.isFinite(number)) return fallback;
   return Math.max(min, Math.min(max, Math.floor(number)));
 }
 
-function uniqueRows(rows: any[]) {
-  const seen = new Set<string>();
+function uniqueRows(rows) {
+  const seen = new Set();
   return (rows || []).filter((row) => {
     const id = String(row?.id || row?._id || '').trim();
     if (!id || seen.has(id)) return false;
@@ -58,7 +57,7 @@ function uniqueRows(rows: any[]) {
   });
 }
 
-async function listEntityRows(entity: any, batchSize: number) {
+async function listEntityRows(entity, batchSize) {
   if (!entity?.list) return [];
   const sortOrders = ['-created_at', '-created_date', '-updated_at', '-updated_date'];
   for (const sortOrder of sortOrders) {
@@ -68,20 +67,17 @@ async function listEntityRows(entity: any, batchSize: number) {
   return [];
 }
 
-async function clearEntityRows(
-  base44: any,
-  entityName: string,
-  { dryRun, batchSize, maxBatches }: { dryRun: boolean; batchSize: number; maxBatches: number },
-) {
+async function clearEntityRows(base44, entityName, { dryRun, batchSize, maxBatches }) {
   const entity = base44?.asServiceRole?.entities?.[entityName];
   if (!entity?.list || (!dryRun && !entity?.delete)) {
     return {
       entityName,
       available: false,
-      scanned: 0,
-      deleted: 0,
+      scanned: 'unknown',
+      deleted: 'unknown',
       failed: 0,
       capped: false,
+      warning: `${entityName} entity API unavailable`,
     };
   }
 
@@ -126,25 +122,30 @@ async function clearEntityRows(
   };
 }
 
-async function writeAdminMaintenanceLog(base44: any, user: any, result: string, metadata: Record<string, unknown>) {
+async function writeAdminMaintenanceLog(base44, user, result, metadata) {
   try {
-    await base44.asServiceRole.entities.AdminMaintenanceLog.create({
-      action: `admin:${JOB_NAME}`,
+    const entity = base44?.asServiceRole?.entities?.AdminMaintenanceLog;
+    if (!entity?.create) return { available: false, created: false };
+    const created = await entity.create({
+      action: 'reset_question_analytics',
       job_name: JOB_NAME,
       admin_email: normalizeEmail(user?.email),
       target_email: '__question_analytics__',
       result,
       retention_status: 'active',
       metadata,
-      created_at: new Date().toISOString(),
+      created_at: metadata.resetAt || new Date().toISOString(),
       description: 'Admin-only reset of question analytics events/projections after question pool replacement.',
     });
-  } catch (_error) {}
+    return { available: true, created: true, id: created?.id || null };
+  } catch (_error) {
+    return { available: true, created: false };
+  }
 }
 
-Deno.serve(async (req: Request) => {
-  let base44: any = null;
-  let adminUser: any = null;
+Deno.serve(async (req) => {
+  let base44 = null;
+  let adminUser = null;
 
   try {
     if (req.method !== 'POST') return json({ ok: false, error: 'Method not allowed' }, 405);
@@ -159,6 +160,7 @@ Deno.serve(async (req: Request) => {
     const dryRun = action !== 'execute';
     const batchSize = clampInteger(body?.batchSize, DEFAULT_BATCH_SIZE, 1, MAX_BATCH_SIZE);
     const maxBatches = clampInteger(body?.maxBatches, DEFAULT_MAX_BATCHES, 1, MAX_BATCHES);
+    const resetAt = new Date().toISOString();
 
     if (action !== 'preview' && action !== 'execute') {
       return json({ ok: false, error: 'invalid_action', expected: ['preview', 'execute'] }, 400);
@@ -169,7 +171,7 @@ Deno.serve(async (req: Request) => {
         ok: false,
         error: 'confirmation_required',
         expectedConfirmText: RESET_CONFIRMATION,
-        description: 'Bu işlem soru gösterim/cevap analiz geçmişini sıfırlar. Sorular silinmez.',
+        description: 'Bu islem soru gosterim/cevap analiz gecmisini sifirlar. Sorular silinmez.',
       }, 400);
     }
 
@@ -178,48 +180,60 @@ Deno.serve(async (req: Request) => {
       results.push(await clearEntityRows(base44, entityName, { dryRun, batchSize, maxBatches }));
     }
 
+    const deletedCounts = Object.fromEntries(results.map((row) => [row.entityName, row.deleted]));
+    const resetCounts = deletedCounts;
+    const unavailableEntities = results.filter((row) => !row.available).map((row) => row.entityName);
+    const totalFailed = results.reduce((sum, row) => sum + (Number(row.failed) || 0), 0);
+    const anyCapped = results.some((row) => row.capped);
+    const resetIncomplete = !dryRun && (totalFailed > 0 || anyCapped);
+
     const summary = {
-      ok: true,
+      ok: !resetIncomplete,
       jobName: JOB_NAME,
       action,
       dryRun,
+      resetAt,
+      resetBy: normalizeEmail(adminUser?.email),
       destructiveAnalyticsReset: !dryRun,
       resetDescription: 'Question analytics history/projections only; gameplay, progress, economy, questions, categories, and preferences are untouched.',
       confirmation: RESET_CONFIRMATION,
       targetEntities: ANALYTICS_RESET_ENTITIES,
+      entitiesTouched: ANALYTICS_RESET_ENTITIES,
       untouchedEntities: UNTOUCHED_ENTITIES,
+      entitiesUntouched: UNTOUCHED_ENTITIES,
       results,
+      deletedCounts,
+      resetCounts,
       totalScanned: results.reduce((sum, row) => sum + (Number(row.scanned) || 0), 0),
       totalDeleted: results.reduce((sum, row) => sum + (Number(row.deleted) || 0), 0),
-      totalFailed: results.reduce((sum, row) => sum + (Number(row.failed) || 0), 0),
-      anyCapped: results.some((row) => row.capped),
-      unavailableEntities: results.filter((row) => !row.available).map((row) => row.entityName),
+      totalFailed,
+      anyCapped,
+      unavailableEntities,
+      warnings: unavailableEntities.length
+        ? [`Unavailable analytics entities were skipped: ${unavailableEntities.join(', ')}`]
+        : [],
+      safetyNote: 'Question, Category, SubCategory, preferences, progress, economy, leaderboard, Daily Wheel, users, and AdminUser are not touched.',
     };
 
-    const resetIncomplete = !dryRun && (
-      summary.unavailableEntities.length > 0 ||
-      summary.totalFailed > 0 ||
-      summary.anyCapped
-    );
+    const log = await writeAdminMaintenanceLog(base44, adminUser, resetIncomplete ? 'incomplete' : (dryRun ? 'preview_ok' : 'success'), summary);
+    summary.maintenanceLog = log;
 
     if (resetIncomplete) {
-      const failedSummary = {
+      return json({
         ...summary,
         ok: false,
         error: 'analytics_reset_incomplete',
         code: 'analytics_reset_incomplete',
-      };
-      await writeAdminMaintenanceLog(base44, adminUser, 'incomplete', failedSummary);
-      return json(failedSummary, 500);
+      }, 500);
     }
 
-    await writeAdminMaintenanceLog(base44, adminUser, dryRun ? 'preview_ok' : 'success', summary);
     return json(summary);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error(`[${JOB_NAME}] failed`, message);
     if (base44 && adminUser?.email) {
       await writeAdminMaintenanceLog(base44, adminUser, 'failed', {
+        resetAt: new Date().toISOString(),
         error: 'reset_question_analytics_failed',
       }).catch(() => {});
     }

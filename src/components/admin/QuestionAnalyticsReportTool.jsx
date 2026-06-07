@@ -100,12 +100,13 @@ export default function QuestionAnalyticsReportTool() {
     try {
       const body = await callAdminFunction('resetQuestionAnalyticsData', {
         action: 'execute',
+        confirmation: RESET_CONFIRMATION,
         confirmText: RESET_CONFIRMATION,
       });
       const targets = Array.isArray(body?.targetEntities) ? body.targetEntities.join(', ') : 'QuestionAttemptEvent, QuestionStatsProjection, CategoryStatsProjection';
       const deleted = Number(body?.totalDeleted) || 0;
       setResetConfirm('');
-      setMessage(`Soru analitik verileri sıfırlandı. Silinen satır: ${deleted}. Hedefler: ${targets}.`);
+      setMessage(`Soru analitik verileri sıfırlandı. Yeni raporlar mevcut soru havuzundan sıfırdan oluşacak. Silinen satır: ${deleted}. Hedefler: ${targets}.`);
     } catch (err) {
       setMessage('');
       setError(err?.message || 'Soru analitik verileri sıfırlanamadı. Lütfen tekrar dene.');

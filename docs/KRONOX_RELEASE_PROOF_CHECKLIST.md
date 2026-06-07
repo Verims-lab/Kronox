@@ -433,7 +433,8 @@ Checklist:
   report to the authenticated admin email for the selected period. The report
   must render as HTML/table/bar formatted email with readable empty states and
   a plain-text fallback. The function must be registered by
-  `base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc`
+  root callable `functions/sendQuestionAnalyticsReportEmail.js` plus the Base44
+  mirror `base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc`
   (`name: "sendQuestionAnalyticsReportEmail"`, `entry: "entry.ts"`). Verify
   deployed SendEmail delivery and Gmail desktop/mobile rendering with an admin
   account.
@@ -446,12 +447,13 @@ Checklist:
   logs the operation, and clears only `QuestionAttemptEvent`,
   `QuestionStatsProjection`, and `CategoryStatsProjection` after a question
   pool replacement. The function must be registered by
-  `base44/functions/resetQuestionAnalyticsData/function.jsonc`
+  root callable `functions/resetQuestionAnalyticsData.js` plus the Base44
+  mirror `base44/functions/resetQuestionAnalyticsData/function.jsonc`
   (`name: "resetQuestionAnalyticsData"`, `entry: "entry.ts"`). A 404 from the
-  Settings admin action means the function name/path/deployment registration is
-  mismatched. If any target analytics entity is unavailable, capped, or has
-  delete failures, the reset must return `analytics_reset_incomplete` instead
-  of a false success.
+  Settings admin action means the root callable function was not deployed or
+  the function name/path is mismatched. If any target analytics entity is
+  capped or has delete failures, the reset must return
+  `analytics_reset_incomplete` instead of a false success.
 * Question analytics reset must not delete `Question`, `Category`,
   `UserCategoryPreference`, scores, diamonds, progress, leaderboard, Daily
   Wheel, or gameplay/economy data.

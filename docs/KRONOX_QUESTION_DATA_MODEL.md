@@ -148,7 +148,8 @@ Rules:
 * after a full question pool replacement, admins may run the admin-only
   `resetQuestionAnalyticsData` maintenance function to clear
   `QuestionAttemptEvent`, `QuestionStatsProjection`, and
-  `CategoryStatsProjection`; the function is registered by
+  `CategoryStatsProjection`; the callable function lives at
+  `functions/resetQuestionAnalyticsData.js` and is mirrored by
   `base44/functions/resetQuestionAnalyticsData/function.jsonc`, and this does
   not delete questions, categories, preferences, scores, diamonds, progress, or
   leaderboard rows

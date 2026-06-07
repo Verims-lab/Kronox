@@ -997,6 +997,13 @@ import React, { useEffect, useState } from 'react';
 //   • The admin tool now maps 404/missing function responses to a clear
 //     function-name/deployment mismatch message.
 //
+// Codex257 — Question Analytics callable root functions:
+//   • Adds deployed-root functions/resetQuestionAnalyticsData.js and
+//     functions/sendQuestionAnalyticsReportEmail.js so functions.invoke can
+//     resolve the actual callable function names used by Settings.
+//   • Keeps reset admin-gated, confirmation-protected, analytics-only, and
+//     verifies the sent report body contains the category analytics sections.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1300,7 +1307,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex256';
+const BUILD_MARKER = 'Codex257';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

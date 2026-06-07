@@ -61,10 +61,10 @@ Cleanup/retention jobs implemented now:
 - aggregateQuestionStats requires admin auth, supports dryRun, refreshes QuestionStatsProjection and CategoryStatsProjection from QuestionAttemptEvent.
 - sendQuestionAnalyticsReportEmail requires admin auth, sends a manual HTML/table/bar formatted question analytics email report, includes a plain-text fallback, and has no scheduled trigger.
 - sendQuestionAnalyticsReportEmail actual sent body includes Kategori Bazında Soru Havuzu, Kategori Tercihleri, Kategori Bazında Gösterim, Kategori İçi Soru Analizi, and Kategori Denge Sinyalleri. Category preference counts are aggregate distinct-user counts only; no user IDs or emails are exposed.
-- sendQuestionAnalyticsReportEmail is registered by base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc with name sendQuestionAnalyticsReportEmail and entry entry.ts.
+- sendQuestionAnalyticsReportEmail is callable from functions/sendQuestionAnalyticsReportEmail.js and mirrored by base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc with name sendQuestionAnalyticsReportEmail and entry entry.ts.
 - resetQuestionAnalyticsData requires admin auth and explicit RESET_QUESTION_ANALYTICS confirmation, clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection after question pool replacement, and writes AdminMaintenanceLog.
-- resetQuestionAnalyticsData is registered by base44/functions/resetQuestionAnalyticsData/function.jsonc with name resetQuestionAnalyticsData and entry entry.ts; a Settings reset 404 indicates function-name/path/deployment mismatch.
-- resetQuestionAnalyticsData returns analytics_reset_incomplete when a target analytics entity is unavailable, capped, or has delete failures.
+- resetQuestionAnalyticsData is callable from functions/resetQuestionAnalyticsData.js and mirrored by base44/functions/resetQuestionAnalyticsData/function.jsonc with name resetQuestionAnalyticsData and entry entry.ts; a Settings reset 404 indicates the root callable function was not deployed or the function name/path is mismatched.
+- resetQuestionAnalyticsData returns analytics_reset_incomplete when a target analytics entity is capped or has delete failures.
 - cleanupAdminMaintenanceLog requires admin auth, supports dryRun, marks old logs retention_status archived.
 - Cleanup jobs are status-transition-first and do not hard delete production data.
 
