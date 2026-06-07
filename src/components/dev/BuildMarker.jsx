@@ -1018,6 +1018,12 @@ import React, { useEffect, useState } from 'react';
 //   • The table includes active question count, difficulty 1-5/unknown
 //     distribution, and oldest/newest year per category.
 //
+// Codex261 — Health coverage alignment:
+//   • Updates Question Analytics Health to inspect the actual Base44 sent
+//     report body for category sections and static Question-table pool data.
+//   • Keeps manual DB reset as the supported analytics cleanup path and
+//     refreshes guardrails for Category preferences plus Solo 70/30 difficulty.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1321,7 +1327,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex260';
+const BUILD_MARKER = 'Codex261';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
