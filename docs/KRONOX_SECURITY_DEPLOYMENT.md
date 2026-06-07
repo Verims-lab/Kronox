@@ -154,6 +154,14 @@ Rules:
 * unauthenticated admin-only calls should return 401
 * authenticated non-admin admin-only calls should return 403
 * disabled `AdminUser` rows must receive 403
+* the Question Analytics Report can be triggered by any active `AdminUser`
+  with role `admin` or `owner`; it is sent to the requesting authenticated
+  admin's normalized email by default
+* the report recipient must not be hardcoded, must not come from `created_by`,
+  and mismatched recipient overrides are rejected server-side
+* the report trigger returns only admin-safe diagnostics such as `requestedBy`,
+  `recipientEmail`, template version, and email dispatch status; it must not
+  return report body content, secrets, or stack traces
 
 Admin-only maintenance helpers must also fail closed. The legacy one-off
 test-account progress reset helper requires both admin authorization and a
@@ -467,6 +475,12 @@ Security contract:
   function packaging. Frontend build success does not prove the Base44 backend
   function was redeployed; live email proof must show `Rapor Şablonu:
   static-pool-v2`.
+* every active `AdminUser` row with role `admin` or `owner` can request the
+  report; the recipient is the requesting admin's authenticated normalized
+  email, not a hardcoded owner address or `created_by`
+* the function response and Settings UI surface safe `requestedBy`,
+  `recipientEmail`, `emailDispatchStatus`, template, and body-marker
+  diagnostics so a failed dispatch is not shown as generic success
 * sent question analytics reports include category pool, aggregate preference,
   category exposure, within-category analysis, and category fairness signal
   sections; preference counts are aggregate distinct-user counts only

@@ -20,6 +20,9 @@ function errorMessageFromBody(body, fallback) {
   const code = String(body?.code || body?.error || '').trim();
   if (code === 'Admin access required') return 'Admin yetkisi gerekli.';
   if (code === 'Authentication required') return 'Oturum doğrulaması gerekli.';
+  if (code === 'email_failed') return `E-posta gönderimi başarısız oldu${body?.safeErrorReason ? `: ${body.safeErrorReason}` : '.'}`;
+  if (code === 'recipient_override_not_allowed') return 'Rapor yalnızca isteği yapan aktif adminin e-posta adresine gönderilebilir.';
+  if (code === 'report_body_missing_static_pool_section') return 'Rapor gövdesi statik soru havuzu bölümünü içermiyor; backend template/deploy kontrol edilmeli.';
   if (code) return `${fallback} (${code})`;
   return fallback;
 }
@@ -77,9 +80,11 @@ export default function QuestionAnalyticsReportTool() {
     setError('');
     try {
       const result = await callAdminFunction('sendQuestionAnalyticsReportEmail', { periodDays });
+      const recipient = result?.recipientEmail ? ` ${result.recipientEmail} adresine` : '';
       const template = result?.templateVersion ? ` Şablon: ${result.templateVersion}.` : '';
+      const dispatch = result?.emailDispatchStatus ? ` Gönderim: ${result.emailDispatchStatus}.` : '';
       const staticPool = result?.bodyContainsStaticPoolSection ? ' Statik soru havuzu bölümü üretildi.' : '';
-      setMessage(`Soru analiz raporu e-posta olarak gönderildi.${template}${staticPool}`);
+      setMessage(`Soru analiz raporu${recipient} gönderildi.${template}${dispatch}${staticPool}`);
     } catch (err) {
       setMessage('');
       setError(err?.message || 'Rapor gönderilemedi. Lütfen tekrar dene.');

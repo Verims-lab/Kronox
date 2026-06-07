@@ -18,7 +18,7 @@ const REGISTERED_QUESTION_POOL_ROW_LIMIT = 250;
 const CATEGORY_FAIRNESS_SIGNAL_LIMIT = 20;
 const STALE_REFERENCE_SAMPLE_LIMIT = 20;
 const PERIOD_OPTIONS = /* @__PURE__ */ new Set([1, 7, 30]);
-const REPORT_BUILD_MARKER = "Codex274";
+const REPORT_BUILD_MARKER = "Codex275";
 const REPORT_TEMPLATE_VERSION = "static-pool-v2";
 const REPORT_TEMPLATE_LABEL = "Rapor Şablonu: static-pool-v2";
 const DIFFICULTY_CHART_BUCKETS = [
@@ -1232,7 +1232,7 @@ async function writeJobLog(base44, user, result, metadata) {
       action: `admin:${JOB_NAME}`,
       job_name: JOB_NAME,
       admin_email: normalizeEmail(user?.email),
-      target_email: normalizeEmail(user?.email),
+      target_email: normalizeEmail(metadata?.recipientEmail || metadata?.recipient || user?.email),
       result,
       retention_status: "active",
       metadata,
@@ -1240,6 +1240,10 @@ async function writeJobLog(base44, user, result, metadata) {
     });
   } catch (_error) {
   }
+}
+function safeErrorReason(error) {
+  const raw = error instanceof Error ? error.message : String(error || "send failed");
+  return String(raw || "send failed").split("\n")[0].slice(0, 180);
 }
 Deno.serve(async (req) => {
   try {
@@ -1249,8 +1253,21 @@ Deno.serve(async (req) => {
     if (admin.response) return admin.response;
     const body = await readBody(req);
     const periodDays = clampPeriodDays(body?.periodDays);
-    const recipient = normalizeEmail(body?.recipientEmail || admin.user?.email);
-    if (!recipient) return json({ ok: false, error: "Report recipient is required" }, 400);
+    const requestedByEmail = normalizeEmail(admin.user?.email);
+    const requestedRecipientEmail = normalizeEmail(body?.recipientEmail);
+    if (!requestedByEmail) return json({ ok: false, error: "Report requester is required" }, 400);
+    if (requestedRecipientEmail && requestedRecipientEmail !== requestedByEmail) {
+      return json({
+        ok: false,
+        error: "recipient_override_not_allowed",
+        requestedBy: requestedByEmail,
+        requestedRecipientEmail,
+        adminAuthorized: true
+      }, 400);
+    }
+    const recipient = requestedByEmail;
+    const recipientEmail = recipient;
+    const recipientSource = requestedRecipientEmail ? "body_recipient_self" : "authenticated_admin";
     const since = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1e3).toISOString();
     const rawEvents = await base44.asServiceRole.entities.QuestionAttemptEvent.list("-created_at", MAX_EVENTS).catch(() => []);
     const events = rawEvents.filter((event) => eventTimestamp(event) >= since);
@@ -1278,12 +1295,13 @@ Deno.serve(async (req) => {
       sentAt
     };
     if (!bodyDiagnostics.bodyContainsStaticPoolSection || !bodyDiagnostics.bodyContainsTemplateMarker || !bodyDiagnostics.bodyContainsQuestionSourceMarker) {
-      await writeJobLog(base44, admin.user, "body_validation_failed", { periodDays, recipient, ...bodyDiagnostics });
-      return json({ ok: false, error: "report_body_missing_static_pool_section", ...bodyDiagnostics }, 500);
+      await writeJobLog(base44, admin.user, "body_validation_failed", { periodDays, requestedBy: requestedByEmail, recipientEmail, adminAuthorized: true, emailDispatchStatus: "not_sent", ...bodyDiagnostics });
+      return json({ ok: false, error: "report_body_missing_static_pool_section", requestedBy: requestedByEmail, recipientEmail, adminAuthorized: true, emailDispatchStatus: "not_sent", ...bodyDiagnostics }, 500);
     }
     const subject = `Kronox Soru Analiz Raporu — ${periodLabel(periodDays)}`;
+    let emailResult = null;
     try {
-      await base44.integrations.Core.SendEmail({
+      emailResult = await base44.integrations.Core.SendEmail({
         from_name: "Kronox",
         to: recipient,
         subject,
@@ -1292,16 +1310,36 @@ Deno.serve(async (req) => {
         text: emailText,
         body_text: emailText
       });
+      if (emailResult?.ok === false) {
+        throw new Error(emailResult?.error || emailResult?.message || "send failed");
+      }
     } catch (mailError) {
-      const reason = mailError instanceof Error ? mailError.message : "send failed";
-      await writeJobLog(base44, admin.user, "email_failed", { periodDays, recipient, reason });
-      return json({ ok: false, error: "email_failed" }, 502);
+      const reason = safeErrorReason(mailError);
+      const failedDiagnostics = {
+        requestedBy: requestedByEmail,
+        recipientEmail,
+        recipientSource,
+        adminAuthorized: true,
+        emailDispatchStatus: "failed",
+        sendEmailOk: false,
+        safeErrorReason: reason,
+        ...bodyDiagnostics
+      };
+      await writeJobLog(base44, admin.user, "email_failed", { periodDays, ...failedDiagnostics });
+      return json({ ok: false, error: "email_failed", ...failedDiagnostics }, 502);
     }
+    const emailProviderMessageId = String(emailResult?.id || emailResult?.messageId || emailResult?.message_id || "").trim() || null;
     const summary = {
       ok: true,
       jobName: JOB_NAME,
       periodDays,
-      recipient,
+      requestedBy: requestedByEmail,
+      recipientEmail,
+      recipientSource,
+      adminAuthorized: true,
+      emailDispatchStatus: "sent",
+      sendEmailOk: true,
+      emailProviderMessageId,
       ...bodyDiagnostics,
       ...report.summary
     };

@@ -745,6 +745,12 @@ No deletion should happen in this task.
   Question DB pool chart even for root-only function packaging. No scheduled
   report exists in this version. Frontend `npm run build` does not by itself
   prove Base44 backend function redeployment.
+  The report recipient defaults to the requesting authenticated admin's
+  normalized email. Mismatched recipient overrides are rejected; `created_by`
+  and hardcoded owner addresses are not used as recipients. The function and
+  Settings UI return safe `requestedBy`, `recipientEmail`, template, body-marker,
+  and email dispatch diagnostics, while real inbox delivery remains manual
+  provider proof.
 - Static category pool reporting. `Kategori Bazında Soru Havuzu` is sourced
   directly from current `Question` rows and `Category` lookup rows, not from
   `QuestionAttemptEvent`, `QuestionStatsProjection`, or

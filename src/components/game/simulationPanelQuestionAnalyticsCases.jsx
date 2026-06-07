@@ -298,6 +298,67 @@ export const EXTRA_TESTS = [
       });
     }),
 
+  makeCase('manual_admin_email_report_recipient_is_requesting_admin',
+    'Question Analytics report emails the requesting active admin and returns safe dispatch diagnostics',
+    () => {
+      const perFunctionMissing = [
+        { name: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts', source: reportFunctionSource },
+        { name: 'functions/sendQuestionAnalyticsReportEmail.js', source: deployedRootReportFunctionSource },
+      ].map((item) => ({
+        file: item.name,
+        missing: missingTokens(item.source, [
+          'const requestedByEmail = normalizeEmail(admin.user?.email)',
+          'const requestedRecipientEmail = normalizeEmail(body?.recipientEmail)',
+          'recipient_override_not_allowed',
+          'const recipient = requestedByEmail',
+          'const recipientEmail = recipient',
+          'recipientSource',
+          '"authenticated_admin"',
+          'requestedBy: requestedByEmail',
+          'recipientEmail',
+          'adminAuthorized: true',
+          'emailDispatchStatus',
+          'sendEmailOk',
+          'safeErrorReason',
+          'emailProviderMessageId',
+          'target_email: normalizeEmail(metadata?.recipientEmail || metadata?.recipient || user?.email)',
+          'to: recipient',
+          'body: emailHtml',
+          'html: emailHtml',
+        ]),
+        forbidden: forbiddenTokens(item.source, [
+          'body?.recipientEmail || admin.user?.email',
+          'target_email: normalizeEmail(user?.email),',
+          'sariverim@gmail.com',
+          'to: "sariverim',
+          "to: 'sariverim",
+        ]),
+      })).filter((item) => item.missing.length || item.forbidden.length);
+      const uiMissing = missingTokens(questionAnalyticsReportToolSource, [
+        'result?.recipientEmail',
+        'result?.emailDispatchStatus',
+        'email_failed',
+        'recipient_override_not_allowed',
+        'report_body_missing_static_pool_section',
+        'adresine',
+        'Gönderim:',
+      ]);
+      if (perFunctionMissing.length || uiMissing.length) {
+        return fail('Question Analytics report may still send to a stale/hardcoded recipient or hide SendEmail dispatch failures.', {
+          verification: 'STATIC_CONTRACT',
+          files: [
+            'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
+            'functions/sendQuestionAnalyticsReportEmail.js',
+            'src/components/admin/QuestionAnalyticsReportTool.jsx',
+          ],
+          actual: { perFunctionMissing, uiMissing },
+        });
+      }
+      return pass('Report recipient defaults to the authenticated requesting admin, mismatched overrides are rejected, and Settings shows safe recipient/dispatch diagnostics.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
   makeCase('analytics_report_separates_active_solo_and_projection_pools',
     'Question Analytics report separates active pool, Solo-eligible pool, and runtime projection diagnostics',
     () => {
@@ -736,7 +797,11 @@ export const EXTRA_TESTS = [
         'QuestionAttemptEvent, QuestionStatsProjection ve CategoryStatsProjection',
         'Son 7 gün',
         'Rapor hazırlanıyor...',
-        'Soru analiz raporu e-posta olarak gönderildi.',
+        'result?.recipientEmail',
+        'result?.emailDispatchStatus',
+        'Soru analiz raporu',
+        'adresine',
+        'Gönderim:',
       ]);
       const forbidden = forbiddenTokens(questionAnalyticsReportToolSource, [
         "callAdminFunction('resetQuestionAnalyticsData'",

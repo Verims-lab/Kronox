@@ -329,6 +329,10 @@ Checklist:
   `/test-suite` / Health Simulator, and the admin question analytics trigger;
   a normal account remains blocked from those surfaces and receives 403 from
   backend admin-only functions; a disabled `AdminUser` row also receives 403.
+* Runtime proof: when each active admin triggers the Question Analytics Report,
+  the backend response shows `requestedBy` and `recipientEmail` as that same
+  authenticated admin email, plus a safe email dispatch status. The report
+  recipient must not be hardcoded or derived from `created_by`.
 * Wrong user cannot accept another user’s GameInvite.
 * Wrong user cannot mutate another user’s GameInvite.
 * Wrong user cannot see another user’s FriendRequest.
@@ -457,6 +461,13 @@ Checklist:
   shared AdminUser guard, so root-only function packaging cannot serve a stale
   event-detail-first report body. `npm run build` is a Vite frontend build and
   is not, by itself, proof that Base44 backend functions were redeployed.
+* Any active `AdminUser` with role `admin` or `owner` can trigger the report.
+  The recipient defaults to the requesting authenticated admin's normalized
+  email; mismatched recipient overrides are rejected, and `created_by` is not
+  used as the recipient. The function returns safe diagnostics including
+  `requestedBy`, `recipientEmail`, `emailDispatchStatus`, template version, and
+  body-marker booleans. Verify each active admin's real inbox/provider delivery
+  manually.
 * Question Analytics report must include these actual sent-body sections:
   `Rapor Bölümleri`,
   `Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı`,
