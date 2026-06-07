@@ -747,6 +747,11 @@ No deletion should happen in this task.
   question count, difficulty 1-5/unknown distribution, oldest year, newest
   year, and Unknown/unmapped category diagnostics. `Kategori Bazında Gösterim`
   remains separate report-period exposure analytics.
+- Registered pool detail reporting. `Kategori Bazında Kayıtlı Soru Havuzu` is
+  also sourced from current active `Question` rows and shows category,
+  difficulty level, question count, oldest year, and newest year. It is
+  independent of analytics events and remains distinct from shown/asked
+  distribution.
 - Manual DB reset path after question pool replacement. The function-based
   reset path is currently not used. To restart analytics from zero, manually
   clear only `QuestionAttemptEvent`, `QuestionStatsProjection`, and
