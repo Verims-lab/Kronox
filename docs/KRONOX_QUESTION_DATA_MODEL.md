@@ -154,6 +154,12 @@ Rules:
   section sourced from active `Question` rows; it counts asked and never-asked
   active registered questions by category and difficulty level, with oldest and
   newest year where available
+* static `Question` DB pool sections appear near the top of the admin email
+  report, before long event-based question detail tables
+* the report includes a top `Rapor Bölümleri` checklist and a final
+  `Rapor Tamamlandı` marker; if the completion marker is missing in a received
+  email, suspect email clipping/truncation
+* long event-based detail sections are row-limited for email readability
 * category exposure analysis is separate report-period data sourced from
   `QuestionAttemptEvent` rows
 * after a full question pool replacement, question analytics reset is currently

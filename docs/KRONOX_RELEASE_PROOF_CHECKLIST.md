@@ -454,13 +454,21 @@ Checklist:
   deployed SendEmail delivery and Gmail desktop/mobile rendering with an admin
   account.
 * Question Analytics report must include these actual sent-body sections:
-  `Kategori Bazında Soru Havuzu`,
+  `Rapor Bölümleri`, `Kategori Bazında Soru Havuzu`,
   `Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı`,
-  `Kategori Bazında Kayıtlı Soru Havuzu`, `Kategori Tercihleri`,
-  `Kategori Bazında Gösterim`,
-  `Kategori İçi Soru Analizi`, and `Kategori Denge Sinyalleri`. Category
-  preference counts are aggregate distinct-user counts only; no user IDs or
-  emails appear in the report.
+  `Kategori Bazında Kayıtlı Soru Havuzu`, `Kategori Bazında Yıl Aralığı`,
+  `Kategori Tercihleri`, `Kategori Bazında Gösterim`,
+  `Kategori İçi Soru Analizi`, `Kategori Denge Sinyalleri`, and
+  `Rapor Tamamlandı`. Category preference counts are aggregate distinct-user
+  counts only; no user IDs or emails appear in the report.
+* Static Question DB pool sections must appear near the top of the email,
+  before long event-based detail sections. The `Rapor Bölümleri` checklist near
+  the top proves included sections, and the final `Rapor Tamamlandı` marker
+  proves the generated report completed. If the received email lacks the final
+  marker, suspect email clipping/truncation.
+* Long event-based detail sections must remain bounded: top shown, never/least
+  shown, wrong, easy, slow, and per-category samples should show counts plus
+  limited rows instead of dumping the full question pool.
 * `Kategori Bazında Soru Havuzu` must be static current `Question` table data:
   active question count by category, difficulty 1-5/unknown distribution,
   oldest year, and newest year. It must render when `QuestionAttemptEvent`,

@@ -126,6 +126,11 @@ longer stored on the entity — they are derived at fetch time by
   Soru Havuzu is static active Question table data grouped by category and
   difficulty level with registered question count, oldest year, and newest year.
   It includes asked and never-asked active questions.
+- Static Question DB pool sections appear near the top of the admin email
+  before long event detail tables. Rapor Bölümleri near the top lists included
+  sections, and Rapor Tamamlandı at the end indicates the generated report
+  completed; if the marker is missing in an email, suspect clipping/truncation.
+- Long event-based detail sections are row-limited for email readability.
 - After a question pool replacement, analytics reset is manual_db_reset_only:
   clear QuestionAttemptEvent, QuestionStatsProjection, and
   CategoryStatsProjection only by DB maintenance. Do not delete Question,

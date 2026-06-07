@@ -1054,6 +1054,12 @@ import React, { useEffect, useState } from 'react';
 //   • Docs classify env-var-name-only scanner findings as deployment-secret
 //     management notes unless real key material appears in source/logs.
 //
+// Codex267 — Question Analytics report ordering + completion marker:
+//   • Static Question DB pool sections now render near the top before long
+//     event-detail tables, with a Rapor Bölümleri checklist.
+//   • The email/text report ends with Rapor Tamamlandı so clipping or
+//     truncation is diagnosable if the marker is missing.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1357,7 +1363,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex266';
+const BUILD_MARKER = 'Codex267';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
