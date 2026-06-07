@@ -133,7 +133,7 @@ export default function ResetUserProgressTool() {
             inputMode="email"
             autoCapitalize="none"
             spellCheck={false}
-            placeholder="user@example.com"
+            placeholder="kullanici e-postasi"
             className="mt-1 h-11 w-full rounded-xl border border-blue-200/15 bg-slate-950/50 px-3 font-inter text-sm text-white outline-none transition focus:border-amber-300/60"
           />
         </label>

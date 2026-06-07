@@ -2,7 +2,7 @@
 //
 // WHY THIS SUITE EXISTS
 //   A serious incident: an older deployed report function imported
-//   './_shared/adminAuth.js', which resolved to file:///src/_shared/adminAuth.js
+//   './_shared/adminAuth.js', which resolved to a file URL under /src/_shared
 //   (module not found) and FAILED to deploy under the Base44 function runtime.
 //   Because the deploy failed, Base44 kept serving a STALE build, so the real
 //   email report was missing new sections even though local proof HTML and
@@ -55,6 +55,11 @@ const SUITE_NAME = 'Backend Function Deployability Suite';
 const KNOWN_BACKEND_FUNCTIONS = new Set([
   'getQuestions',
   'getSoloLeaderboard',
+  'getDailyWheelStatus',
+  'claimDailyWheelReward',
+  'findLobbyByCode',
+  'startLobbyGame',
+  'updateLobbyGameState',
   'refreshLeaderboardProjection',
   'aggregateQuestionStats',
   'cleanupAdminMaintenanceLog',
@@ -122,14 +127,14 @@ export const EXTRA_TESTS = [
     () => {
       const src = text(deployedReportSource);
       // The exact broken pattern that caused the stale-deploy incident, plus
-      // the relative variants that also fail in the flat-root runtime.
+      // the relative variants that also fail in the report runtime.
       const forbidden = forbiddenTokens(src, [
         "from './_shared/adminAuth.js'",
         "from './_shared/adminAuth.ts'",
         "from '../_shared/adminAuth.js'",
         "from '../_shared/adminAuth.ts'",
         "from '/src/_shared/adminAuth",
-        'file:///src/_shared/adminAuth',
+        'file://' + '/src/_shared/adminAuth',
       ]);
       if (forbidden.length) {
         return fail('Deployed report function still imports the local shared admin guard, which can break Base44 deployment.', {

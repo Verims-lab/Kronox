@@ -1116,6 +1116,12 @@ import React, { useEffect, useState } from 'react';
 //   • Health deployability checks inspect the current Base44 function path
 //     instead of the deleted root mirror.
 //
+// Codex277 — Health fail cleanup:
+//   • Removes stale broken-import literals from the callable report function
+//     and keeps the exact owner/admin inline role guard contract.
+//   • Aligns backend invocation Health with real Daily Wheel and lobby
+//     functions.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1419,7 +1425,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex276';
+const BUILD_MARKER = 'Codex277';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

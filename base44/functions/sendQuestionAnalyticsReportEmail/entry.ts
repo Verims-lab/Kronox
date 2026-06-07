@@ -1,17 +1,14 @@
 /* global Deno */
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.25";
 
-// Flat deploy mirror for sendQuestionAnalyticsReportEmail.
-// Keep in sync with base44/functions/sendQuestionAnalyticsReportEmail/entry.ts.
 // Settings invokes functions.invoke("sendQuestionAnalyticsReportEmail", payload).
 //
-// IMPORTANT (stale-deploy incident): this flat-root executed function must NOT
-// use a local `./_shared/adminAuth.js` import. That path resolves to
-// file:///src/_shared/adminAuth.js under the Base44 flat-function runtime and
-// breaks deployment, leaving Base44 serving a stale build. The DB-backed
-// AdminUser guard below is INLINED so this function deploys cleanly while
-// enforcing the same contract as ../_shared/adminAuth.ts (AdminUser source of
-// truth, owner/admin role, active status, reject unauth/non-admin/disabled).
+// IMPORTANT (stale-deploy incident): this callable report function must NOT
+// use a local shared admin-auth import. That broken runtime path can fail
+// deployment and leave Base44 serving a stale build. The DB-backed AdminUser
+// guard below is INLINED so this function deploys cleanly while enforcing the
+// AdminUser source-of-truth contract: owner/admin role, active status, and
+// rejection of unauthenticated, non-admin, or disabled callers.
 const JOB_NAME = "sendQuestionAnalyticsReportEmail";
 const MAX_EVENTS = 5e3;
 const MAX_QUESTIONS = 5e3;
@@ -26,7 +23,7 @@ const REGISTERED_QUESTION_POOL_ROW_LIMIT = 250;
 const CATEGORY_FAIRNESS_SIGNAL_LIMIT = 20;
 const STALE_REFERENCE_SAMPLE_LIMIT = 20;
 const PERIOD_OPTIONS = /* @__PURE__ */ new Set([1, 7, 30]);
-const REPORT_BUILD_MARKER = "Codex276";
+const REPORT_BUILD_MARKER = "Codex277";
 const REPORT_TEMPLATE_VERSION = "static-pool-v2";
 const REPORT_TEMPLATE_LABEL = "Rapor Şablonu: static-pool-v2";
 const DIFFICULTY_CHART_BUCKETS = [
@@ -1238,7 +1235,7 @@ function buildReport({
 // Mirrors functions/_shared/adminAuth.ts requireAdmin contract.
 function isActiveAdminRole(role) {
   const value = String(role || "").trim().toLowerCase();
-  return value === "owner" || value === "admin";
+  return value === 'owner' || value === 'admin';
 }
 function isActiveStatus(status) {
   return String(status || "").trim().toLowerCase() === "active";
