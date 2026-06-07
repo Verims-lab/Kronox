@@ -52,7 +52,7 @@ Status: Active product contract.
 - admin-only maintenance functions verify AdminUser-backed authorization server-side.
 - account deletion is a destructive, NOT_AUTOMATABLE manual proof gate.
 - sendQuestionAnalyticsReportEmail is manual/admin-triggered only and sends HTML/table/bar formatted question analytics with text fallback.
-- sendQuestionAnalyticsReportEmail is callable from functions/sendQuestionAnalyticsReportEmail.js and mirrored by base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc with name sendQuestionAnalyticsReportEmail and entry entry.ts.
+- sendQuestionAnalyticsReportEmail is callable from base44/functions/sendQuestionAnalyticsReportEmail/entry.ts with base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc name sendQuestionAnalyticsReportEmail and entry entry.ts.
 - Function-based question analytics reset is currently not used.
 - Manual DB reset path after question pool replacement clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection.
 - Manual reset must not delete Question, Category, SubCategory, UserCategoryPreference, UserStatsProjection, progress/economy/leaderboard data, Daily Wheel rows, users, or AdminUser.
@@ -163,6 +163,7 @@ Status: Implementation tracking doc.
 - Manual DB reset path can reset question analytics history/projections after replacing the question pool.
 - Question analytics reports handle empty analytics state and stale/deleted question IDs safely.
 - Question analytics reports include category pool counts, aggregate category preference counts, category exposure counts, within-category most/least/never-shown analysis, and category fairness signals.
+- Kategori Bazında Soru Havuzu is static Question table data, not event/projection data, and includes active question count, difficulty 1-5/unknown distribution, oldest year, newest year, and Unknown/unmapped category diagnostics even when analytics tables are empty.
 - Legacy candidates kept without deletion: Friendship, GameRecord, LobbyMessage.
 - Raw Question remains protected.
 - UserCategoryPreference stores app-open popup and Settings Category preferences per user; minimum 3 selections. There is no maximum selection.

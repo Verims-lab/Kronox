@@ -18,8 +18,6 @@ import adminAuthSource from '../../../base44/functions/_shared/adminAuth.ts?raw'
 import aggregateQuestionStatsSource from '../../../base44/functions/aggregateQuestionStats/entry.ts?raw';
 import reportFunctionSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts?raw';
 import reportFunctionManifestSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc?raw';
-import deployedAdminAuthSource from '../../../functions/_shared/adminAuth.js?raw';
-import deployedReportFunctionSource from '../../../functions/sendQuestionAnalyticsReportEmail.js?raw';
 import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
 import { DB_ARCHITECTURE_IMPLEMENTATION_MIRROR } from '@/lib/dbArchitectureMirrors';
 import {
@@ -177,18 +175,14 @@ export const EXTRA_TESTS = [
   makeCase('manual_admin_email_report_function_exists',
     'Manual admin email report function is admin-only and question-focused',
     () => {
-      const sectionMissing = QUESTION_ANALYTICS_REPORT_SECTIONS.filter((section) => (
-        !reportFunctionSource.includes(section) || !deployedReportFunctionSource.includes(section)
-      ));
-      const combined = `${reportFunctionSource}\n${deployedReportFunctionSource}\n${adminAuthSource}\n${deployedAdminAuthSource}`;
+      const sectionMissing = QUESTION_ANALYTICS_REPORT_SECTIONS.filter((section) => !reportFunctionSource.includes(section));
+      const combined = `${reportFunctionSource}\n${adminAuthSource}`;
       const missing = missingTokens(combined, [
         'sendQuestionAnalyticsReportEmail',
-        'functions/sendQuestionAnalyticsReportEmail.js',
         'Deno.serve',
         'createClientFromRequest',
         'requireAdmin',
         './_shared/adminAuth.js',
-        '../_shared/adminAuth.ts',
         'entities.AdminUser',
         'QuestionAttemptEvent.list',
         'Question.list',
@@ -212,7 +206,6 @@ export const EXTRA_TESTS = [
         'En Çok Yanlış Yapılan Sorular',
         'Çok Kolay Görünen Sorular',
         'En Uzun Sürede Cevaplanan Sorular',
-        'Kategori ve Alt Kategori Dağılımı',
         'Veri Kalitesi Uyarıları',
         'AdminMaintenanceLog.create',
       ]);
@@ -223,7 +216,7 @@ export const EXTRA_TESTS = [
       if (missing.length || sectionMissing.length || manifestMissing.length) {
         return fail('Manual question analytics report backend contract is incomplete.', {
           verification: 'STATIC_CONTRACT',
-          files: ['functions/sendQuestionAnalyticsReportEmail.js', 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts'],
+          files: ['base44/functions/sendQuestionAnalyticsReportEmail/entry.ts'],
           missing: [...missing, ...sectionMissing, ...manifestMissing],
         });
       }
@@ -299,9 +292,8 @@ export const EXTRA_TESTS = [
   makeCase('analytics_report_includes_category_level_question_and_preference_analysis',
     'Question Analytics report includes category-level pool, preference, exposure, and internal question analysis',
     () => {
-      const actualReportBody = `${deployedReportFunctionSource}\n${reportFunctionSource}`;
+      const actualReportBody = reportFunctionSource;
       const missing = missingTokens(actualReportBody, [
-        'functions/sendQuestionAnalyticsReportEmail.js',
         'MAX_USER_CATEGORY_PREFERENCES',
         'CATEGORY_QUESTION_SAMPLE_LIMIT',
         'UserCategoryPreference.list',
@@ -311,6 +303,20 @@ export const EXTRA_TESTS = [
         'selectedUserCount',
         'totalQuestionCount',
         'activeQuestionCount',
+        'getQuestionDifficultyBucket',
+        'difficultyCounts',
+        'oldestYear',
+        'newestYear',
+        'categoryPoolSource: \'Question.list static current DB rows\'',
+        'Zorluk 1',
+        'Zorluk 2',
+        'Zorluk 3',
+        'Zorluk 4',
+        'Zorluk 5',
+        'Zorluk Bilinmiyor',
+        'En Eski Yıl',
+        'En Yeni Yıl',
+        'Question tablosunda soru yok.',
         'soloEligibleQuestionCount',
         'uniqueShownQuestionCount',
         'answeredCount',
@@ -336,11 +342,13 @@ export const EXTRA_TESTS = [
       ]);
       const forbidden = forbiddenTokens(actualReportBody, [
         'user_email</',
+        'Kategori ve Alt Kategori Dağılımı',
+        'Kategori / alt kategori dağılım verisi yok.',
       ]);
       if (missing.length || forbidden.length) {
         return fail('Category-level question/preference analytics are missing or leak user-level preference details.', {
           verification: 'STATIC_CONTRACT',
-          files: ['functions/sendQuestionAnalyticsReportEmail.js', 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts'],
+          files: ['base44/functions/sendQuestionAnalyticsReportEmail/entry.ts'],
           actual: { missing, forbidden },
         });
       }
@@ -507,9 +515,8 @@ export const EXTRA_TESTS = [
   makeCase('analytics_report_handles_stale_question_ids_and_empty_state',
     'Question Analytics report handles deleted question IDs and empty analytics safely',
     () => {
-      const actualReportBody = `${deployedReportFunctionSource}\n${reportFunctionSource}`;
+      const actualReportBody = reportFunctionSource;
       const missing = missingTokens(actualReportBody, [
-        'functions/sendQuestionAnalyticsReportEmail.js',
         'deleted_or_missing_question',
         'staleQuestionIds',
         'STALE_REFERENCE_SAMPLE_LIMIT',
@@ -528,20 +535,21 @@ export const EXTRA_TESTS = [
         'sectionWarningHtml',
         'htmlSections',
         'QUESTION_TABLE_LIMIT',
-        'CATEGORY_DISTRIBUTION_LIMIT',
         'CATEGORY_ANALYTICS_ROW_LIMIT',
         'CATEGORY_FAIRNESS_SIGNAL_LIMIT',
         'categoryAnalyticsForReport',
+        'categoryPoolSource: \'Question.list static current DB rows\'',
+        'Question tablosunda soru yok.',
         'NEVER_SHOWN_SAMPLE_LIMIT',
         'CATEGORY_QUESTION_SAMPLE_LIMIT',
         'neverShown.slice(0, NEVER_SHOWN_SAMPLE_LIMIT)',
         'slice(0, QUESTION_TABLE_LIMIT)',
-        'slice(0, CATEGORY_DISTRIBUTION_LIMIT)',
+        'slice(0, CATEGORY_ANALYTICS_ROW_LIMIT)',
       ]);
       if (missing.length) {
         return fail('Report can still break, mislead, or grow unbounded when analytics references deleted questions.', {
           verification: 'STATIC_CONTRACT',
-          files: ['functions/sendQuestionAnalyticsReportEmail.js', 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts'],
+          files: ['base44/functions/sendQuestionAnalyticsReportEmail/entry.ts'],
           missing,
         });
       }

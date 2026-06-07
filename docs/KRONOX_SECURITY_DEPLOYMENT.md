@@ -446,8 +446,8 @@ Security contract:
 * `sendQuestionAnalyticsReportEmail` is manual/admin-triggered only, sends a
   question-focused aggregate HTML/table/bar formatted report to the
   authenticated admin email, and must not expose user-level surveillance data
-  to normal users. It is registered by
-  root callable `functions/sendQuestionAnalyticsReportEmail.js` plus
+  to normal users. It is registered at
+  `base44/functions/sendQuestionAnalyticsReportEmail/entry.ts` with
   `base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc`.
 * sent question analytics reports include category pool, aggregate preference,
   category exposure, within-category analysis, and category fairness signal

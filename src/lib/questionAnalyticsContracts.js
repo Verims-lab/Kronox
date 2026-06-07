@@ -42,7 +42,6 @@ export const QUESTION_ANALYTICS_REPORT_SECTIONS = Object.freeze([
   'En Çok Yanlış Yapılan Sorular',
   'Çok Kolay Görünen Sorular',
   'En Uzun Sürede Cevaplanan Sorular',
-  'Kategori ve Alt Kategori Dağılımı',
   'Veri Kalitesi Uyarıları',
 ]);
 

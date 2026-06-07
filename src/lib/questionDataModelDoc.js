@@ -116,6 +116,11 @@ longer stored on the entity — they are derived at fetch time by
   category preference counts, category exposure counts, within-category
   most/least/never-shown analysis, and category fairness signals. Preference
   counts are aggregate only and do not expose user IDs or emails.
+- Category pool analysis is static current Question table data, not analytics
+  event/projection data. It renders after analytics reset and includes active
+  question count, difficulty 1-5/unknown distribution, oldest year, newest
+  year, and Unknown/unmapped diagnostics. Category exposure is separate
+  report-period QuestionAttemptEvent data.
 - After a question pool replacement, analytics reset is manual_db_reset_only:
   clear QuestionAttemptEvent, QuestionStatsProjection, and
   CategoryStatsProjection only by DB maintenance. Do not delete Question,

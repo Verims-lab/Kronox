@@ -145,6 +145,12 @@ Rules:
   category preference counts, category exposure counts, category-internal
   most/least/never-shown analysis, and category fairness signals; preference
   counts must stay aggregate-only and must not expose user IDs or emails
+* category pool analysis is static current `Question` table data, not analytics
+  event/projection data; it renders even when analytics events are zero and
+  includes category, active question count, difficulty 1-5/unknown
+  distribution, oldest year, newest year, and Unknown/unmapped diagnostics
+* category exposure analysis is separate report-period data sourced from
+  `QuestionAttemptEvent` rows
 * after a full question pool replacement, question analytics reset is currently
   a manual DB maintenance operation: clear `QuestionAttemptEvent`,
   `QuestionStatsProjection`, and `CategoryStatsProjection` only; do not delete

@@ -1,7 +1,7 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.25";
 import { requireAdmin } from "./_shared/adminAuth.js";
 
-// Callable Base44 root function: functions/sendQuestionAnalyticsReportEmail.js
+// Callable Base44 function: base44/functions/sendQuestionAnalyticsReportEmail/entry.ts
 // Settings invokes functions.invoke("sendQuestionAnalyticsReportEmail", payload).
 const JOB_NAME = "sendQuestionAnalyticsReportEmail";
 const MAX_EVENTS = 5e3;
@@ -10,13 +10,12 @@ const MAX_CATEGORIES = 1e3;
 const MAX_USER_CATEGORY_PREFERENCES = 1e4;
 const NEVER_SHOWN_SAMPLE_LIMIT = 20;
 const QUESTION_TABLE_LIMIT = 20;
-const CATEGORY_DISTRIBUTION_LIMIT = 30;
 const CATEGORY_QUESTION_SAMPLE_LIMIT = 5;
 const CATEGORY_ANALYTICS_ROW_LIMIT = 50;
 const CATEGORY_FAIRNESS_SIGNAL_LIMIT = 20;
 const STALE_REFERENCE_SAMPLE_LIMIT = 20;
 const PERIOD_OPTIONS = /* @__PURE__ */ new Set([1, 7, 30]);
-const REPORT_BUILD_MARKER = "Codex259";
+const REPORT_BUILD_MARKER = "Codex260";
 function json(payload, status = 200) {
   return Response.json(payload, { status });
 }
@@ -71,6 +70,11 @@ function formatMs(ms) {
 function getQuestionYear(question) {
   const year = Number(question?.year ?? question?.answer_year ?? question?.answer);
   return Number.isFinite(year) ? year : null;
+}
+function getQuestionDifficultyBucket(question) {
+  const numeric = Number(question?.difficulty ?? question?.Difficulty);
+  if (Number.isInteger(numeric) && numeric >= 1 && numeric <= 5) return String(numeric);
+  return "unknown";
 }
 function periodLabel(periodDays) {
   return `Son ${periodDays} Gün`;
@@ -378,6 +382,21 @@ function buildCategoryAnalytics({
     const neverShownSoloEligible = soloRows.filter((question) => !shownQuestionIds.has(questionKey(question?.id ?? question?.question_id)));
     const topShown = [...shownBuckets].sort(sortDesc("shown_count")).slice(0, CATEGORY_QUESTION_SAMPLE_LIMIT);
     const lowShown = [...shownBuckets].sort((a, b) => (Number(a?.shown_count) || 0) - (Number(b?.shown_count) || 0) || String(a?.question_id).localeCompare(String(b?.question_id))).slice(0, CATEGORY_QUESTION_SAMPLE_LIMIT);
+    const difficultyCounts = {
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      unknown: 0
+    };
+    const activeYears = [];
+    for (const question of activeRows) {
+      const difficultyBucket = getQuestionDifficultyBucket(question);
+      difficultyCounts[difficultyBucket] = (difficultyCounts[difficultyBucket] || 0) + 1;
+      const year = getQuestionYear(question);
+      if (year !== null) activeYears.push(year);
+    }
     const shownCount = shownBuckets.reduce((sum, bucket) => sum + (Number(bucket?.shown_count) || 0), 0);
     const answeredCount = buckets.reduce((sum, bucket) => sum + (Number(bucket?.correct_count) || 0) + (Number(bucket?.wrong_count) || 0), 0);
     const correctCount = buckets.reduce((sum, bucket) => sum + (Number(bucket?.correct_count) || 0), 0);
@@ -388,6 +407,9 @@ function buildCategoryAnalytics({
       categoryName: categoryLabel(categoryId, categoryMap),
       totalQuestionCount: totalQuestionsByCategory.get(categoryId) || 0,
       activeQuestionCount: activeRows.length,
+      difficultyCounts,
+      oldestYear: activeYears.length ? Math.min(...activeYears) : null,
+      newestYear: activeYears.length ? Math.max(...activeYears) : null,
       soloEligibleQuestionCount: soloRows.length,
       selectedUserCount: selectedUsersByCategory.get(categoryId)?.size || 0,
       shownCount,
@@ -476,7 +498,6 @@ function buildReport({
   }
   const soloEligibleQuestions = activeQuestions.filter((question) => isSoloEligibleQuestion(question, activeCategoryIds));
   const buckets = /* @__PURE__ */ new Map();
-  const categoryBuckets = /* @__PURE__ */ new Map();
   const missing = {
     question_id: 0,
     deleted_or_missing_question: 0,
@@ -529,16 +550,6 @@ function buildReport({
       bucket.shown_count += 1;
       const shownAt = String(event?.shown_at || event?.created_at || "");
       if (shownAt && shownAt > bucket.last_shown_at) bucket.last_shown_at = shownAt;
-      const categoryKey = `${categoryId} / ${subCategory}`;
-      const categoryBucket = categoryBuckets.get(categoryKey) || {
-        category_id: categoryId,
-        sub_category: subCategory,
-        shown_count: 0,
-        correct_count: 0,
-        wrong_count: 0
-      };
-      categoryBucket.shown_count += 1;
-      categoryBuckets.set(categoryKey, categoryBucket);
       if (isSportsLike([subCategory, tag, categoryId, q?.category])) sportsShown += 1;
     }
     if (isAnswered) {
@@ -551,12 +562,6 @@ function buildReport({
       if (responseMs > 0) {
         bucket.total_response_time_ms += responseMs;
         bucket.response_count += 1;
-      }
-      const categoryKey = `${categoryId} / ${subCategory}`;
-      const categoryBucket = categoryBuckets.get(categoryKey);
-      if (categoryBucket) {
-        if (event?.is_correct === true) categoryBucket.correct_count += 1;
-        if (event?.is_correct === false) categoryBucket.wrong_count += 1;
       }
     }
     if (isSwap) bucket.swap_count += 1;
@@ -574,8 +579,6 @@ function buildReport({
     return br - ar;
   }).slice(0, QUESTION_TABLE_LIMIT);
   const slow = [...bucketList].filter((bucket) => bucket.response_count > 0).sort((a, b) => b.total_response_time_ms / b.response_count - a.total_response_time_ms / a.response_count).slice(0, QUESTION_TABLE_LIMIT);
-  const categoryRows = [...categoryBuckets.values()].sort(sortDesc("shown_count")).slice(0, CATEGORY_DISTRIBUTION_LIMIT);
-  const categoryMax = Math.max(1, ...categoryRows.map((row) => Number(row.shown_count) || 0));
   const categoryAnalytics = buildCategoryAnalytics({
     categories,
     questions,
@@ -695,26 +698,19 @@ function buildReport({
     escapeHtml(formatMs(avgResponseMs(bucket))),
     escapeHtml(correctRateLabel(bucket))
   ]);
-  const categoryTableRows = categoryRows.map((row) => {
-    const answered = row.correct_count + row.wrong_count;
-    const share = percent(row.shown_count, shownEvents);
-    return [
-      escapeHtml(categoryLabel(row.category_id, categoryMap)),
-      escapeHtml(displayValue(row.sub_category)),
-      escapeHtml(row.shown_count),
-      escapeHtml(share),
-      escapeHtml(answered ? percent(row.correct_count, answered) : "Yeterli veri yok"),
-      barHtml(row.shown_count, categoryMax, "#0ea5e9")
-    ];
-  });
-  const categoryPoolRows = categoryAnalyticsForReport.map((row) => [
-    escapeHtml(row.categoryId),
-    escapeHtml(row.categoryName),
+  const hasQuestionRows = questions.length > 0;
+  const categoryPoolRows = hasQuestionRows ? categoryAnalyticsForReport.map((row) => [
+    escapeHtml(row.categoryId === "unknown" ? row.categoryName : `${row.categoryName} (#${row.categoryId})`),
     escapeHtml(row.activeQuestionCount),
-    escapeHtml(row.totalQuestionCount),
-    escapeHtml(Math.max(0, row.totalQuestionCount - row.activeQuestionCount)),
-    escapeHtml(row.soloEligibleQuestionCount)
-  ]);
+    escapeHtml(row.difficultyCounts?.["1"] || 0),
+    escapeHtml(row.difficultyCounts?.["2"] || 0),
+    escapeHtml(row.difficultyCounts?.["3"] || 0),
+    escapeHtml(row.difficultyCounts?.["4"] || 0),
+    escapeHtml(row.difficultyCounts?.["5"] || 0),
+    escapeHtml(row.difficultyCounts?.unknown || 0),
+    escapeHtml(row.oldestYear ?? "-"),
+    escapeHtml(row.newestYear ?? "-")
+  ]) : [];
   const totalPreferenceSelections = categoryAnalytics.reduce((sum, row) => sum + (Number(row.selectedUserCount) || 0), 0);
   const categoryPreferenceRows = categoryAnalyticsForReport.map((row) => [
     escapeHtml(row.categoryId),
@@ -778,9 +774,9 @@ function buildReport({
     </table>`),
     safeSectionHtml("Key Insights / Risk Flags", () => insightHtml),
     safeSectionHtml("Kategori Bazında Soru Havuzu", () => tableHtml(
-      ["Kategori ID", "Kategori", "Aktif soru", "Toplam soru", "Pasif/toplam dışı", "Solo-eligible"],
+      ["Kategori", "Toplam Soru", "Zorluk 1", "Zorluk 2", "Zorluk 3", "Zorluk 4", "Zorluk 5", "Zorluk Bilinmiyor", "En Eski Yıl", "En Yeni Yıl"],
       categoryPoolRows,
-      "Kategori bazında soru havuzu için veri yok."
+      "Question tablosunda soru yok."
     )),
     safeSectionHtml("Kategori Tercihleri", () => tableHtml(
       ["Kategori ID", "Kategori", "Tercih eden kullanıcı", "Tercih payı"],
@@ -826,11 +822,6 @@ function buildReport({
       slowRows,
       "Cevap süresi verisi yok."
     )),
-    safeSectionHtml("Kategori ve Alt Kategori Dağılımı", () => tableHtml(
-      ["Kategori", "Alt kategori", "Gösterim", "Pay", "Doğru %", "Dağılım"],
-      categoryTableRows,
-      "Kategori / alt kategori dağılım verisi yok."
-    )),
     safeSectionHtml("Veri Kalitesi Uyarıları", () => tableHtml(["Kontrol", "Durum"], warningRows, "Veri kalitesi uyarısı yok."))
   ].join("");
   const html = `<!doctype html>
@@ -867,7 +858,7 @@ function buildReport({
 </html>`;
   const topTextRows = topShown.length ? topShown.map((bucket, index) => `${index + 1}. #${bucket.question_id} | ${shortText(bucket.question?.question, 100)} | yıl=${questionYearLabel(bucket)} | kategori=${questionCategoryLabel(bucket, categoryMap)} | gösterim=${bucket.shown_count} | doğru=${correctRateLabel(bucket)} | süre=${formatMs(avgResponseMs(bucket))}`) : ["Bu dönemde gösterilen soru verisi yok."];
   const neverTextRows = neverShownSample.length ? neverShownSample.map((question, index) => `${index + 1}. #${questionKey(question?.id ?? question?.question_id)} | ${shortText(question?.question, 100)} | yıl=${getQuestionYear(question) ?? "Yok"} | kategori=${categoryLabel(getCategoryId(question), categoryMap)} | alt=${displayValue(question?.sub_category)}`) : ["Hiç gösterilmeyen aktif soru bulunmadı."];
-  const categoryPoolTextRows = categoryAnalytics.length ? categoryAnalyticsForReport.map((row) => `${row.categoryId} | ${row.categoryName}: aktif=${row.activeQuestionCount}, toplam=${row.totalQuestionCount}, pasif/toplam dışı=${Math.max(0, row.totalQuestionCount - row.activeQuestionCount)}, Solo-eligible=${row.soloEligibleQuestionCount}`) : ["Kategori bazında soru havuzu için veri yok."];
+  const categoryPoolTextRows = hasQuestionRows ? categoryAnalyticsForReport.map((row) => `${row.categoryId} | ${row.categoryName}: aktif=${row.activeQuestionCount}, zorluk1=${row.difficultyCounts?.["1"] || 0}, zorluk2=${row.difficultyCounts?.["2"] || 0}, zorluk3=${row.difficultyCounts?.["3"] || 0}, zorluk4=${row.difficultyCounts?.["4"] || 0}, zorluk5=${row.difficultyCounts?.["5"] || 0}, zorluk_bilinmiyor=${row.difficultyCounts?.unknown || 0}, en_eski_yıl=${row.oldestYear ?? "-"}, en_yeni_yıl=${row.newestYear ?? "-"}`) : ["Question tablosunda soru yok."];
   const categoryPreferenceTextRows = categoryAnalytics.length ? categoryAnalyticsForReport.map((row) => `${row.categoryId} | ${row.categoryName}: tercih eden kullanıcı=${row.selectedUserCount}, tercih payı=${totalPreferenceSelections ? percent(row.selectedUserCount, totalPreferenceSelections) : "0%"}`) : ["Kategori tercih verisi henüz yok."];
   const categoryExposureTextRows = categoryAnalytics.length ? categoryAnalyticsForReport.map((row) => `${row.categoryId} | ${row.categoryName}: aktif=${row.activeQuestionCount}, gösterim=${row.shownCount}, benzersiz gösterilen=${row.uniqueShownQuestionCount}, cevaplanan=${row.answeredCount}, doğru=${row.correctRate === null ? "Yeterli veri yok" : percent(row.correctRate, 1)}, ortalama süre=${formatMs(row.avgResponseTimeMs)}, gösterim payı=${percent(row.shownCount, shownEvents)}`) : ["Kategori bazında gösterim verisi yok."];
   const categoryInternalTextRows = categoryAnalytics.length ? categoryAnalyticsForReport.map((row) => [
@@ -933,9 +924,6 @@ function buildReport({
     "--- En Uzun Sürede Cevaplanan Sorular ---",
     ...slowRows.length ? slow.map((bucket) => `#${bucket.question_id} | ${shortText(bucket.question?.question, 100)} | süre=${formatMs(avgResponseMs(bucket))} | doğru=${correctRateLabel(bucket)}`) : ["Cevap süresi verisi yok."],
     "",
-    "--- Kategori ve Alt Kategori Dağılımı ---",
-    ...categoryRows.length ? categoryRows.map((row) => `${categoryLabel(row.category_id, categoryMap)} / ${displayValue(row.sub_category)} | gösterim=${row.shown_count} | pay=${percent(row.shown_count, shownEvents)}`) : ["Kategori / alt kategori dağılım verisi yok."],
-    "",
     "--- Veri Kalitesi Uyarıları ---",
     ...warningRows.map(([label, value]) => `${label}: ${value}`),
     "",
@@ -964,6 +952,7 @@ function buildReport({
       topShownSubcategory: topSubcategoryConcentration.topShownSubcategory,
       topShownSubcategoryShare: topSubcategoryConcentration.topShownSubcategoryShare,
       categoryPoolRowsRendered: categoryPoolRows.length,
+      categoryPoolSource: "Question.list static current DB rows",
       categoryPreferenceRowsRendered: categoryPreferenceRows.length,
       categoryExposureRowsRendered: categoryExposureRows.length,
       categoryFairnessSignalCount: categoryFairnessSignals.length,
@@ -979,6 +968,9 @@ function buildReport({
         categoryName: row.categoryName,
         totalQuestionCount: row.totalQuestionCount,
         activeQuestionCount: row.activeQuestionCount,
+        difficultyCounts: row.difficultyCounts,
+        oldestYear: row.oldestYear,
+        newestYear: row.newestYear,
         soloEligibleQuestionCount: row.soloEligibleQuestionCount,
         selectedUserCount: row.selectedUserCount,
         shownCount: row.shownCount,

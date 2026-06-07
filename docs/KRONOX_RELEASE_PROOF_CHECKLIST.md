@@ -437,9 +437,9 @@ Checklist:
 * `sendQuestionAnalyticsReportEmail` sends the manual admin question analytics
   report to the authenticated admin email for the selected period. The report
   must render as HTML/table/bar formatted email with readable empty states and
-  a plain-text fallback. The function must be registered by
-  root callable `functions/sendQuestionAnalyticsReportEmail.js` plus the Base44
-  mirror `base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc`
+  a plain-text fallback. The function must be registered at
+  `base44/functions/sendQuestionAnalyticsReportEmail/entry.ts` with
+  `base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc`
   (`name: "sendQuestionAnalyticsReportEmail"`, `entry: "entry.ts"`). Verify
   deployed SendEmail delivery and Gmail desktop/mobile rendering with an admin
   account.
@@ -448,6 +448,12 @@ Checklist:
   `Kategori Bazında Gösterim`, `Kategori İçi Soru Analizi`, and
   `Kategori Denge Sinyalleri`. Category preference counts are aggregate
   distinct-user counts only; no user IDs or emails appear in the report.
+* `Kategori Bazında Soru Havuzu` must be static current `Question` table data:
+  active question count by category, difficulty 1-5/unknown distribution,
+  oldest year, and newest year. It must render when `QuestionAttemptEvent`,
+  `QuestionStatsProjection`, and `CategoryStatsProjection` are empty.
+  Unknown/unmapped categories are diagnostic rows, not silently dropped.
+  `Kategori Bazında Gösterim` is separate report-period exposure data.
 * Question analytics reset is currently a manual DB maintenance operation; the
   function-based reset path is not used. After replacing the question pool,
   manually clear only `QuestionAttemptEvent`, `QuestionStatsProjection`, and

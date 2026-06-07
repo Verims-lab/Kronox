@@ -736,10 +736,17 @@ No deletion should happen in this task.
   category pool counts, aggregate category preference counts, category exposure
   counts, within-category most/least/never-shown analysis, and category fairness
   signals. Category preference counts are aggregate only and do not expose user
-  IDs or emails. The function is registered by
-  root callable `functions/sendQuestionAnalyticsReportEmail.js` plus
+  IDs or emails. The function is registered at
+  `base44/functions/sendQuestionAnalyticsReportEmail/entry.ts` with
   `base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc`. No
   scheduled report exists in this version.
+- Static category pool reporting. `Kategori Bazında Soru Havuzu` is sourced
+  directly from current `Question` rows and `Category` lookup rows, not from
+  `QuestionAttemptEvent`, `QuestionStatsProjection`, or
+  `CategoryStatsProjection`. It renders after analytics reset, includes active
+  question count, difficulty 1-5/unknown distribution, oldest year, newest
+  year, and Unknown/unmapped category diagnostics. `Kategori Bazında Gösterim`
+  remains separate report-period exposure analytics.
 - Manual DB reset path after question pool replacement. The function-based
   reset path is currently not used. To restart analytics from zero, manually
   clear only `QuestionAttemptEvent`, `QuestionStatsProjection`, and

@@ -1012,6 +1012,12 @@ import React, { useEffect, useState } from 'react';
 //     exposure, within-category, and fairness-signal sections with stale-row
 //     and empty-state guards.
 //
+// Codex260 — Static category pool report:
+//   • Kategori Bazında Soru Havuzu now comes directly from current Question
+//     rows, independent of empty analytics event/projection tables.
+//   • The table includes active question count, difficulty 1-5/unknown
+//     distribution, and oldest/newest year per category.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1315,7 +1321,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex259';
+const BUILD_MARKER = 'Codex260';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
