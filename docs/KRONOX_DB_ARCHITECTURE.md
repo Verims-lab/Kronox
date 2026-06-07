@@ -762,7 +762,9 @@ No deletion should happen in this task.
   Zorluk Dağılımı` is sourced from active `Question` rows and renders a numeric
   category/difficulty table plus inline HTML/CSS stacked bars. It includes
   asked and never-asked questions, counts Zorluk 1-5 plus Bilinmiyor, and does
-  not use JavaScript chart libraries.
+  not use JavaScript chart libraries. It appears directly after
+  `Key Insights / Risk Flags` in the sent email body, before every long
+  event-based detail table.
 - Manual DB reset path after question pool replacement. The function-based
   reset path is currently not used. To restart analytics from zero, manually
   clear only `QuestionAttemptEvent`, `QuestionStatsProjection`, and

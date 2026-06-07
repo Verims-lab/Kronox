@@ -176,7 +176,7 @@ Status: Implementation tracking doc.
 - Kategori Bazında Soru Havuzu is static Question table data, not event/projection data, and includes active question count, difficulty 1-5/unknown distribution, oldest year, newest year, and Unknown/unmapped category diagnostics even when analytics tables are empty.
 - Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı / Kategori Bazında Kayıtlı Soru Havuzu is static active Question table data grouped by category and difficulty level with registered question count, oldest year, and newest year, including asked and never-asked active questions.
 - Static Question DB pool sections appear near the top before long event detail tables; Rapor Bölümleri proves included sections and Rapor Tamamlandı at the end diagnoses clipping/truncation if missing.
-- Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı is an email-safe inline HTML/CSS stacked-bar chart sourced from active Question rows, with numeric Zorluk 1-5/Bilinmiyor counts and no JavaScript chart dependency.
+- Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı is an email-safe inline HTML/CSS stacked-bar chart sourced from active Question rows, with numeric Zorluk 1-5/Bilinmiyor counts and no JavaScript chart dependency. It appears directly after Key Insights / Risk Flags before long event detail tables.
 - Long event-based detail sections are row-limited for email readability.
 - Legacy candidates kept without deletion: Friendship, GameRecord, LobbyMessage.
 - Raw Question remains protected.

@@ -133,7 +133,9 @@ longer stored on the entity — they are derived at fetch time by
 - Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı is an email-safe
   HTML/CSS stacked-bar chart sourced from active Question rows. It includes
   asked and never-asked questions, counts Zorluk 1-5 plus Bilinmiyor, and does
-  not use JavaScript/canvas/external chart libraries.
+  not use JavaScript/canvas/external chart libraries. In the actual sent report
+  it appears directly after Key Insights / Risk Flags, before every long
+  event-based detail table.
 - Long event-based detail sections are row-limited for email readability.
 - After a question pool replacement, analytics reset is manual_db_reset_only:
   clear QuestionAttemptEvent, QuestionStatsProjection, and
