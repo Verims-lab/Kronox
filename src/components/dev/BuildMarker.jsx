@@ -1060,6 +1060,12 @@ import React, { useEffect, useState } from 'react';
 //   • The email/text report ends with Rapor Tamamlandı so clipping or
 //     truncation is diagnosable if the marker is missing.
 //
+// Codex268 — Email-safe registered question distribution chart:
+//   • Adds Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı near the top of
+//     the actual Question Analytics email body.
+//   • The chart is inline HTML/CSS stacked bars plus numeric Zorluk 1-5 and
+//     Bilinmiyor counts from active Question rows; no JavaScript charting.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1363,7 +1369,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex267';
+const BUILD_MARKER = 'Codex268';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

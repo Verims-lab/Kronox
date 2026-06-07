@@ -17,7 +17,15 @@ const REGISTERED_QUESTION_POOL_ROW_LIMIT = 250;
 const CATEGORY_FAIRNESS_SIGNAL_LIMIT = 20;
 const STALE_REFERENCE_SAMPLE_LIMIT = 20;
 const PERIOD_OPTIONS = /* @__PURE__ */ new Set([1, 7, 30]);
-const REPORT_BUILD_MARKER = "Codex267";
+const REPORT_BUILD_MARKER = "Codex268";
+const DIFFICULTY_CHART_BUCKETS = [
+  ["1", "Zorluk 1", "#2563eb"],
+  ["2", "Zorluk 2", "#16a34a"],
+  ["3", "Zorluk 3", "#eab308"],
+  ["4", "Zorluk 4", "#ea580c"],
+  ["5", "Zorluk 5", "#dc2626"],
+  ["unknown", "Bilinmiyor", "#64748b"]
+];
 function json(payload, status = 200) {
   return Response.json(payload, { status });
 }
@@ -260,6 +268,29 @@ function barHtml(value, max, color = "#f5b301", width = 120) {
   return `<div style="width:${width}px;background:#eef2f7;border-radius:6px;height:8px;overflow:hidden;">
     <div style="width:${pct}%;background:${color};border-radius:6px;height:8px;line-height:8px;">&nbsp;</div>
   </div>`;
+}
+function difficultyDistributionBarHtml(difficultyCounts = {}, total = 0) {
+  const safeTotal = Math.max(0, Number(total) || 0);
+  if (!safeTotal) {
+    return `<span style="display:inline-block;color:#64748b;font-size:11px;line-height:15px;font-family:Arial,Helvetica,sans-serif;">Veri yok</span>`;
+  }
+  const activeBuckets = DIFFICULTY_CHART_BUCKETS
+    .map(([key, label, color]) => ({
+      key,
+      label,
+      color,
+      count: Math.max(0, Number(difficultyCounts?.[key]) || 0)
+    }))
+    .filter((bucket) => bucket.count > 0);
+  if (!activeBuckets.length) {
+    return `<span style="display:inline-block;color:#64748b;font-size:11px;line-height:15px;font-family:Arial,Helvetica,sans-serif;">Veri yok</span>`;
+  }
+  const cells = activeBuckets.map((bucket) => {
+    const width = Math.max(4, Math.round(bucket.count / safeTotal * 160));
+    return `<td width="${width}" bgcolor="${bucket.color}" title="${escapeHtml(`${bucket.label}: ${bucket.count}`)}" style="height:12px;line-height:12px;font-size:0;background-color:${bucket.color};border-right:1px solid #ffffff;">&nbsp;</td>`;
+  }).join("");
+  const legend = activeBuckets.map((bucket) => `<span style="display:inline-block;margin:3px 6px 0 0;color:#334155;font-size:10px;line-height:14px;font-family:Arial,Helvetica,sans-serif;"><span style="display:inline-block;width:8px;height:8px;background-color:${bucket.color};vertical-align:middle;margin-right:3px;">&nbsp;</span>${escapeHtml(bucket.key === "unknown" ? "?" : bucket.key)}:${escapeHtml(bucket.count)}</span>`).join("");
+  return `<table role="presentation" cellpadding="0" cellspacing="0" width="160" style="width:160px;border-collapse:collapse;background-color:#e2e8f0;"><tr>${cells}</tr></table><div style="margin-top:2px;">${legend}</div>`;
 }
 function badgeHtml(label, tone) {
   const palette = {
@@ -744,6 +775,20 @@ function buildReport({
     escapeHtml(row.oldestYear ?? "-"),
     escapeHtml(row.newestYear ?? "-")
   ]) : [];
+  const categoryDifficultyChartRows = hasQuestionRows ? categoryAnalyticsForReport.map((row) => {
+    const difficultyCounts = row.difficultyCounts || {};
+    return [
+      escapeHtml(row.categoryId === "unknown" ? row.categoryName : `${row.categoryName} (#${row.categoryId})`),
+      escapeHtml(row.activeQuestionCount),
+      escapeHtml(difficultyCounts["1"] || 0),
+      escapeHtml(difficultyCounts["2"] || 0),
+      escapeHtml(difficultyCounts["3"] || 0),
+      escapeHtml(difficultyCounts["4"] || 0),
+      escapeHtml(difficultyCounts["5"] || 0),
+      escapeHtml(difficultyCounts.unknown || 0),
+      difficultyDistributionBarHtml(difficultyCounts, row.activeQuestionCount)
+    ];
+  }) : [];
   const registeredQuestionPoolRows = hasQuestionRows ? categoryAnalytics
     .flatMap((row) => row.registeredQuestionPoolRows.map((detail) => [
       escapeHtml(row.categoryId === "unknown" ? row.categoryName : `${row.categoryName} (#${row.categoryId})`),
@@ -794,7 +839,8 @@ function buildReport({
   ]);
   const reportChecklistRows = [
     ["Soru Havuzu", "Var", `Statik Question tablosu; ${activeQuestions.length} aktif soru.`],
-    ["Kategori/Zorluk Dağılımı", "Var", `Question tablosundan ${registeredQuestionPoolRows.length} özet satırı.`],
+    ["Kategori/Zorluk Dağılımı Grafiği", "Var", `Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı bölümü ${categoryDifficultyChartRows.length} kategori satırı gösterir.`],
+    ["Kategori/Zorluk Detayı", "Var", `Question tablosundan ${registeredQuestionPoolRows.length} özet satırı.`],
     ["Kategori Yıl Aralığı", "Var", "En eski/en yeni yıl statik kategori havuzundan hesaplanır."],
     ["Kategori Tercihleri", "Var", "Aggregate UserCategoryPreference; kullanıcı kimliği gösterilmez."],
     ["Kategori Gösterimleri", "Var", "Rapor dönemi QuestionAttemptEvent verisi; statik havuzdan ayrıdır."],
@@ -830,6 +876,7 @@ function buildReport({
   const reportSectionNames = [
     "Executive Summary",
     "Rapor Bölümleri",
+    "Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı",
     "Kategori Bazında Soru Havuzu",
     "Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı",
     "Kategori Bazında Yıl Aralığı",
@@ -858,6 +905,16 @@ function buildReport({
       reportChecklistRows,
       "Rapor bölüm listesi hazırlanamadı."
     )),
+    safeSectionHtml("Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı", () => `
+      <p style="margin:0 0 12px;color:#334155;font-size:13px;line-height:20px;font-family:Arial,Helvetica,sans-serif;">
+        Kategori Bazında Soru Havuzu grafiğidir. Kaynak doğrudan Question tablosundaki aktif kayıtlar; gösterilmiş ve hiç gösterilmemiş sorular birlikte sayılır. Dağılım sütunu e-posta uyumlu inline HTML/CSS stacked bar kullanır; JavaScript chart içermez.
+      </p>
+      ${tableHtml(
+        ["Kategori", "Toplam", "Zorluk 1", "Zorluk 2", "Zorluk 3", "Zorluk 4", "Zorluk 5", "Bilinmiyor", "Dağılım"],
+        categoryDifficultyChartRows,
+        "Question tablosunda aktif soru yok."
+      )}
+    `),
     safeSectionHtml("Kategori Bazında Soru Havuzu", () => tableHtml(
       ["Kategori", "Toplam Soru", "Zorluk 1", "Zorluk 2", "Zorluk 3", "Zorluk 4", "Zorluk 5", "Zorluk Bilinmiyor", "En Eski Yıl", "En Yeni Yıl"],
       categoryPoolRows,
@@ -975,6 +1032,7 @@ function buildReport({
   const topTextRows = topShown.length ? topShown.map((bucket, index) => `${index + 1}. #${bucket.question_id} | ${shortText(bucket.question?.question, 100)} | yıl=${questionYearLabel(bucket)} | kategori=${questionCategoryLabel(bucket, categoryMap)} | gösterim=${bucket.shown_count} | doğru=${correctRateLabel(bucket)} | süre=${formatMs(avgResponseMs(bucket))}`) : ["Bu dönemde gösterilen soru verisi yok."];
   const neverTextRows = neverShownSample.length ? neverShownSample.map((question, index) => `${index + 1}. #${questionKey(question?.id ?? question?.question_id)} | ${shortText(question?.question, 100)} | yıl=${getQuestionYear(question) ?? "Yok"} | kategori=${categoryLabel(getCategoryId(question), categoryMap)} | alt=${displayValue(question?.sub_category)}`) : ["Hiç gösterilmeyen aktif soru bulunmadı."];
   const categoryPoolTextRows = hasQuestionRows ? categoryAnalyticsForReport.map((row) => `${row.categoryId} | ${row.categoryName}: aktif=${row.activeQuestionCount}, zorluk1=${row.difficultyCounts?.["1"] || 0}, zorluk2=${row.difficultyCounts?.["2"] || 0}, zorluk3=${row.difficultyCounts?.["3"] || 0}, zorluk4=${row.difficultyCounts?.["4"] || 0}, zorluk5=${row.difficultyCounts?.["5"] || 0}, zorluk_bilinmiyor=${row.difficultyCounts?.unknown || 0}, en_eski_yıl=${row.oldestYear ?? "-"}, en_yeni_yıl=${row.newestYear ?? "-"}`) : ["Question tablosunda soru yok."];
+  const categoryDifficultyChartTextRows = hasQuestionRows ? categoryAnalyticsForReport.map((row) => `${row.categoryId} | ${row.categoryName}: toplam=${row.activeQuestionCount}, zorluk1=${row.difficultyCounts?.["1"] || 0}, zorluk2=${row.difficultyCounts?.["2"] || 0}, zorluk3=${row.difficultyCounts?.["3"] || 0}, zorluk4=${row.difficultyCounts?.["4"] || 0}, zorluk5=${row.difficultyCounts?.["5"] || 0}, bilinmiyor=${row.difficultyCounts?.unknown || 0}`) : ["Question tablosunda aktif soru yok."];
   const registeredQuestionPoolTextRows = hasQuestionRows ? categoryAnalytics
     .flatMap((row) => row.registeredQuestionPoolRows.map((detail) => `${row.categoryId} | ${row.categoryName} | zorluk=${detail.difficultyLevel} | sistemdeki_soru=${detail.questionCount} | en_eski_yıl=${detail.oldestYear ?? "Yok"} | en_yeni_yıl=${detail.newestYear ?? "Yok"}`))
     .slice(0, REGISTERED_QUESTION_POOL_ROW_LIMIT) : ["Question tablosunda aktif soru yok."];
@@ -1010,6 +1068,10 @@ function buildReport({
     "",
     "--- Rapor Bölümleri ---",
     ...reportChecklistTextRows,
+    "",
+    "--- Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı ---",
+    "Kaynak: Question tablosundaki aktif kayıtlar; gösterilmiş ve hiç gösterilmemiş sorular birlikte sayılır. HTML gövdede Dağılım sütunu email-safe stacked bar olarak render edilir.",
+    ...categoryDifficultyChartTextRows,
     "",
     "--- Kategori Bazında Soru Havuzu ---",
     ...categoryPoolTextRows,
@@ -1091,6 +1153,9 @@ function buildReport({
       runtimeProjectionSizeSource: "getQuestions projectionDiagnostics admin/Health path",
       topShownSubcategory: topSubcategoryConcentration.topShownSubcategory,
       topShownSubcategoryShare: topSubcategoryConcentration.topShownSubcategoryShare,
+      categoryDifficultyChartRowsRendered: categoryDifficultyChartRows.length,
+      categoryDifficultyChartSource: "Question.list static active rows by category and difficulty",
+      categoryDifficultyChartRenderer: "email_safe_inline_html_css_stacked_bar",
       categoryPoolRowsRendered: categoryPoolRows.length,
       categoryPoolSource: "Question.list static current DB rows",
       registeredQuestionPoolRowsRendered: registeredQuestionPoolRows.length,
@@ -1104,6 +1169,7 @@ function buildReport({
       categoryFairnessSignalCount: categoryFairnessSignals.length,
       reportSections: [
         "Rapor Bölümleri",
+        "Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı",
         "Kategori Bazında Soru Havuzu",
         "Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı",
         "Kategori Bazında Kayıtlı Soru Havuzu",

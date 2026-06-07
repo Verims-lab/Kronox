@@ -130,6 +130,10 @@ longer stored on the entity — they are derived at fetch time by
   before long event detail tables. Rapor Bölümleri near the top lists included
   sections, and Rapor Tamamlandı at the end indicates the generated report
   completed; if the marker is missing in an email, suspect clipping/truncation.
+- Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı is an email-safe
+  HTML/CSS stacked-bar chart sourced from active Question rows. It includes
+  asked and never-asked questions, counts Zorluk 1-5 plus Bilinmiyor, and does
+  not use JavaScript/canvas/external chart libraries.
 - Long event-based detail sections are row-limited for email readability.
 - After a question pool replacement, analytics reset is manual_db_reset_only:
   clear QuestionAttemptEvent, QuestionStatsProjection, and
