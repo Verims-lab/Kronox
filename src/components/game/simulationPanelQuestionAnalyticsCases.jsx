@@ -18,6 +18,7 @@ import adminAuthSource from '../../../base44/functions/_shared/adminAuth.ts?raw'
 import aggregateQuestionStatsSource from '../../../base44/functions/aggregateQuestionStats/entry.ts?raw';
 import reportFunctionSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts?raw';
 import reportFunctionManifestSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc?raw';
+import deployedRootReportFunctionSource from '../../../functions/sendQuestionAnalyticsReportEmail.js?raw';
 import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
 import { DB_ARCHITECTURE_IMPLEMENTATION_MIRROR } from '@/lib/dbArchitectureMirrors';
 import {
@@ -227,6 +228,30 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Manual report function is admin-gated and includes the required aggregate sections.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('manual_admin_email_report_deployed_root_entrypoint',
+    'Root deploy entrypoint delegates to the canonical report implementation',
+    () => {
+      const missing = missingTokens(deployedRootReportFunctionSource, [
+        'sendQuestionAnalyticsReportEmail',
+        '../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
+      ]);
+      const forbidden = forbiddenTokens(deployedRootReportFunctionSource, [
+        'QuestionAttemptEvent.list',
+        'Kategori ve Alt Kategori Dağılımı',
+        'En Çok Gösterilen Sorular',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Root deploy entrypoint can drift into an old flat report implementation.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'functions/sendQuestionAnalyticsReportEmail.js',
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('Root deploy entrypoint loads the canonical Base44 report implementation instead of an old flat template.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

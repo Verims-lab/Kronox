@@ -1078,6 +1078,12 @@ import React, { useEffect, useState } from 'react';
 //   • Health now checks that the static chart appears exactly once before long
 //     event-based sections.
 //
+// Codex271 — Question analytics deploy entrypoint restore:
+//   • Restores root functions/sendQuestionAnalyticsReportEmail.js as a deploy
+//     compatibility wrapper to the canonical base44 report implementation.
+//   • Keeps the Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı chart in
+//     the actual invoked report path when deployments resolve root functions.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1381,7 +1387,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex270';
+const BUILD_MARKER = 'Codex271';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -738,8 +738,11 @@ No deletion should happen in this task.
   signals. Category preference counts are aggregate only and do not expose user
   IDs or emails. The function is registered at
   `base44/functions/sendQuestionAnalyticsReportEmail/entry.ts` with
-  `base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc`. No
-  scheduled report exists in this version.
+  `base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc`.
+  `functions/sendQuestionAnalyticsReportEmail.js` delegates root flat-function
+  deployments to that same canonical implementation so the actual invoked body
+  includes the static Question DB pool chart. No scheduled report exists in
+  this version.
 - Static category pool reporting. `Kategori Bazında Soru Havuzu` is sourced
   directly from current `Question` rows and `Category` lookup rows, not from
   `QuestionAttemptEvent`, `QuestionStatsProjection`, or
