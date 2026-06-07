@@ -17,7 +17,9 @@ import categoryStatsProjectionEntitySource from '../../../base44/entities/Catego
 import adminAuthSource from '../../../base44/functions/_shared/adminAuth.ts?raw';
 import aggregateQuestionStatsSource from '../../../base44/functions/aggregateQuestionStats/entry.ts?raw';
 import reportFunctionSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts?raw';
+import reportFunctionManifestSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc?raw';
 import resetQuestionAnalyticsDataSource from '../../../base44/functions/resetQuestionAnalyticsData/entry.ts?raw';
+import resetQuestionAnalyticsDataManifestSource from '../../../base44/functions/resetQuestionAnalyticsData/function.jsonc?raw';
 import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
 import {
   QUESTION_ANALYTICS_REPORT_SECTIONS,
@@ -207,11 +209,15 @@ export const EXTRA_TESTS = [
         'Veri Kalitesi Uyarıları',
         'AdminMaintenanceLog.create',
       ]);
-      if (missing.length || sectionMissing.length) {
+      const manifestMissing = missingTokens(reportFunctionManifestSource, [
+        '"name": "sendQuestionAnalyticsReportEmail"',
+        '"entry": "entry.ts"',
+      ]);
+      if (missing.length || sectionMissing.length || manifestMissing.length) {
         return fail('Manual question analytics report backend contract is incomplete.', {
           verification: 'STATIC_CONTRACT',
           file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
-          missing: [...missing, ...sectionMissing],
+          missing: [...missing, ...sectionMissing, ...manifestMissing],
         });
       }
       return pass('Manual report function is admin-gated and includes the required aggregate sections.', {
@@ -393,6 +399,9 @@ export const EXTRA_TESTS = [
         "callAdminFunction('resetQuestionAnalyticsData'",
         "headers: { 'Content-Type': 'application/json' }",
         'errorMessageFromBody',
+        'missingFunctionMessage',
+        'response.status === 404',
+        'fonksiyonu bulunamadı veya deploy edilmemiş. Function name/path kontrol edilmeli.',
         'RESET_QUESTION_ANALYTICS',
         'Bu işlem soru gösterim/cevap analiz geçmişini sıfırlar. Sorular silinmez.',
         'Son 7 gün',
@@ -444,9 +453,11 @@ export const EXTRA_TESTS = [
   makeCase('admin_only_question_analytics_reset_exists',
     'Admin-only question analytics reset clears analytics history without deleting gameplay data',
     () => {
-      const combined = `${resetQuestionAnalyticsDataSource}\n${adminAuthSource}\n${questionAttemptEventEntitySource}\n${questionStatsProjectionEntitySource}\n${categoryStatsProjectionEntitySource}`;
+      const combined = `${resetQuestionAnalyticsDataSource}\n${resetQuestionAnalyticsDataManifestSource}\n${adminAuthSource}\n${questionAttemptEventEntitySource}\n${questionStatsProjectionEntitySource}\n${categoryStatsProjectionEntitySource}`;
       const missing = missingTokens(combined, [
         'resetQuestionAnalyticsData',
+        '"name": "resetQuestionAnalyticsData"',
+        '"entry": "entry.ts"',
         'requireAdmin',
         '../_shared/adminAuth.ts',
         'entities.AdminUser',

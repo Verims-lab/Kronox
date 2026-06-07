@@ -444,14 +444,17 @@ Security contract:
 * `sendQuestionAnalyticsReportEmail` is manual/admin-triggered only, sends a
   question-focused aggregate HTML/table/bar formatted report to the
   authenticated admin email, and must not expose user-level surveillance data
-  to normal users
+  to normal users. It is registered by
+  `base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc`.
 * sent question analytics reports include category pool, aggregate preference,
   category exposure, within-category analysis, and category fairness signal
   sections; preference counts are aggregate distinct-user counts only
 * `resetQuestionAnalyticsData` is manual/admin-triggered only, requires explicit
   confirmation, logs to `AdminMaintenanceLog`, and clears only
   `QuestionAttemptEvent`, `QuestionStatsProjection`, and
-  `CategoryStatsProjection` after a question pool replacement
+  `CategoryStatsProjection` after a question pool replacement. It is registered
+  by `base44/functions/resetQuestionAnalyticsData/function.jsonc`; a 404 from
+  the Settings admin action indicates a function-name/path/deployment mismatch.
 * if any reset target is unavailable, capped, or has delete failures,
   `resetQuestionAnalyticsData` returns `analytics_reset_incomplete` rather than
   reporting a false success
