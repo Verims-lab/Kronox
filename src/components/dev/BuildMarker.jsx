@@ -1091,6 +1091,12 @@ import React, { useEffect, useState } from 'react';
 //   • Adds visible Kaynak: Question tablosu and Toplam aktif kayıtlı soru
 //     diagnostics inside the static category/difficulty section.
 //
+// Codex273 — Deploy branch report path fix:
+//   • Reapplies the root flat report mirror after the main migration deleted
+//     root functions, preventing stale deployed flat handlers from surviving.
+//   • Restores the nested Base44 report import to ../_shared/adminAuth.ts while
+//     keeping the root mirror on ./_shared/adminAuth.js.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1394,7 +1400,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex272';
+const BUILD_MARKER = 'Codex273';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

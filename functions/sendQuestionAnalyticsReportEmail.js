@@ -1,8 +1,9 @@
 /* global Deno */
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.25";
-import { requireAdmin } from "../_shared/adminAuth.ts";
+import { requireAdmin } from "./_shared/adminAuth.js";
 
-// Callable Base44 function: base44/functions/sendQuestionAnalyticsReportEmail/entry.ts
+// Flat deploy mirror for sendQuestionAnalyticsReportEmail.
+// Keep in sync with base44/functions/sendQuestionAnalyticsReportEmail/entry.ts.
 // Settings invokes functions.invoke("sendQuestionAnalyticsReportEmail", payload).
 const JOB_NAME = "sendQuestionAnalyticsReportEmail";
 const MAX_EVENTS = 5e3;
