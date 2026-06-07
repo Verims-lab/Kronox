@@ -17,7 +17,7 @@ const REGISTERED_QUESTION_POOL_ROW_LIMIT = 250;
 const CATEGORY_FAIRNESS_SIGNAL_LIMIT = 20;
 const STALE_REFERENCE_SAMPLE_LIMIT = 20;
 const PERIOD_OPTIONS = /* @__PURE__ */ new Set([1, 7, 30]);
-const REPORT_BUILD_MARKER = "Codex271";
+const REPORT_BUILD_MARKER = "Codex272";
 const DIFFICULTY_CHART_BUCKETS = [
   ["1", "Zorluk 1", "#2563eb"],
   ["2", "Zorluk 2", "#16a34a"],
@@ -905,6 +905,9 @@ function buildReport({
       <p style="margin:0 0 12px;color:#334155;font-size:13px;line-height:20px;font-family:Arial,Helvetica,sans-serif;">
         Bu bölüm gösterim dağılımı değildir; doğrudan Question tablosundaki aktif kayıtları sayan statik soru havuzu grafiğidir. Gösterilmiş ve hiç gösterilmemiş sorular birlikte sayılır. Dağılım sütunu e-posta uyumlu inline HTML/CSS stacked bar kullanır; JavaScript chart içermez.
       </p>
+      <p style="margin:0 0 12px;color:#475569;font-size:12px;line-height:18px;font-family:Arial,Helvetica,sans-serif;">
+        Kaynak: Question tablosu, aktif kayıtlar. Gösterim verilerinden bağımsızdır. Toplam aktif kayıtlı soru: ${escapeHtml(activeQuestions.length)}
+      </p>
       ${tableHtml(
         ["Kategori", "Toplam", "Zorluk 1", "Zorluk 2", "Zorluk 3", "Zorluk 4", "Zorluk 5", "Bilinmiyor", "Dağılım"],
         categoryDifficultyChartRows,
@@ -1071,6 +1074,7 @@ function buildReport({
     "",
     "--- Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı ---",
     "Kaynak: Question tablosundaki aktif kayıtlar; gösterilmiş ve hiç gösterilmemiş sorular birlikte sayılır. Bu bölüm gösterim dağılımı değildir; HTML gövdede Dağılım sütunu email-safe stacked bar olarak render edilir.",
+    `Toplam aktif kayıtlı soru: ${activeQuestions.length}`,
     ...categoryDifficultyChartTextRows,
     "",
     "--- Rapor Bölümleri ---",

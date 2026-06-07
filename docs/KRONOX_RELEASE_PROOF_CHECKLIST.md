@@ -452,10 +452,10 @@ Checklist:
   `base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc`
   (`name: "sendQuestionAnalyticsReportEmail"`, `entry: "entry.ts"`). Verify
   deployed SendEmail delivery and Gmail desktop/mobile rendering with an admin
-  account. `functions/sendQuestionAnalyticsReportEmail.js` is a root deploy
-  compatibility entrypoint that delegates to the same canonical Base44
-  implementation so older flat-function deployment paths cannot serve a stale
-  report body.
+  account. `functions/sendQuestionAnalyticsReportEmail.js` is a complete root
+  flat-function deploy mirror of the same report implementation, with a local
+  shared AdminUser guard, so root-only function packaging cannot serve a stale
+  event-detail-first report body.
 * Question Analytics report must include these actual sent-body sections:
   `Rapor Bölümleri`,
   `Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı`,
@@ -477,6 +477,8 @@ Checklist:
   `Bilinmiyor`. It is sourced from active `Question` rows, includes asked and
   never-asked questions, must not use JavaScript charts, and must appear right
   after `Key Insights / Risk Flags` before long event-based detail sections.
+  The section must visibly include `Kaynak: Question tablosu` and
+  `Toplam aktif kayıtlı soru`.
 * Long event-based detail sections must remain bounded: top shown, never/least
   shown, wrong, easy, slow, and per-category samples should show counts plus
   limited rows instead of dumping the full question pool.

@@ -57,7 +57,7 @@ Status: Active product contract.
 - admin-only maintenance functions verify AdminUser-backed authorization server-side.
 - account deletion is a destructive, NOT_AUTOMATABLE manual proof gate.
 - sendQuestionAnalyticsReportEmail is manual/admin-triggered only and sends HTML/table/bar formatted question analytics with text fallback.
-- sendQuestionAnalyticsReportEmail is callable from base44/functions/sendQuestionAnalyticsReportEmail/entry.ts with base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc name sendQuestionAnalyticsReportEmail and entry entry.ts; functions/sendQuestionAnalyticsReportEmail.js delegates root flat-function deployments to the same canonical implementation.
+- sendQuestionAnalyticsReportEmail is callable from base44/functions/sendQuestionAnalyticsReportEmail/entry.ts with base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc name sendQuestionAnalyticsReportEmail and entry entry.ts; functions/sendQuestionAnalyticsReportEmail.js is a complete root flat-function deploy mirror with local shared AdminUser guard for root-only function packaging.
 - Function-based question analytics reset is currently not used.
 - Manual DB reset path after question pool replacement clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection.
 - Manual reset must not delete Question, Category, SubCategory, UserCategoryPreference, UserStatsProjection, progress/economy/leaderboard data, Daily Wheel rows, users, or AdminUser.

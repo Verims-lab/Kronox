@@ -1084,6 +1084,13 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps the Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı chart in
 //     the actual invoked report path when deployments resolve root functions.
 //
+// Codex272 — Flat deploy report mirror:
+//   • Replaces the root report wrapper with a complete flat deploy mirror plus
+//     local shared AdminUser guard so root-only function packaging cannot serve
+//     the old event-detail-first report.
+//   • Adds visible Kaynak: Question tablosu and Toplam aktif kayıtlı soru
+//     diagnostics inside the static category/difficulty section.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1387,7 +1394,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex271';
+const BUILD_MARKER = 'Codex272';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
