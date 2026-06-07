@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Check, Loader2, Save, Sparkles } from 'lucide-react';
 import {
-  MIN_SUBCATEGORY_SELECTION_COUNT,
-  getSelectedSubCategoryIds,
-  loadActiveSubCategories,
-  loadUserSubCategoryPreferences,
-  normalizeSubCategoryId,
-  saveUserSubCategoryPreferences,
-} from '@/lib/userSubCategoryPreferences';
+  MIN_CATEGORY_SELECTION_COUNT,
+  getSelectedCategoryIds,
+  loadActiveCategories,
+  loadUserCategoryPreferences,
+  normalizeCategoryId,
+  saveUserCategoryPreferences,
+} from '@/lib/userCategoryPreferences';
 
 function sameIdSet(a, b) {
   if (a.size !== b.size) return false;
@@ -19,8 +19,8 @@ function toIdSet(values) {
   return new Set(Array.from(values || []).map(Number).filter(Number.isFinite));
 }
 
-export default function SubCategoryPreferencesSection({ user }) {
-  const [activeSubCategories, setActiveSubCategories] = useState([]);
+export default function CategoryPreferencesSection({ user }) {
+  const [activeCategories, setActiveCategories] = useState([]);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [savedSelectedIds, setSavedSelectedIds] = useState(() => new Set());
   const [loading, setLoading] = useState(true);
@@ -37,22 +37,22 @@ export default function SubCategoryPreferencesSection({ user }) {
       setValidation('');
       setSuccess('');
       try {
-        const [subCategories, preferences] = await Promise.all([
-          loadActiveSubCategories(),
-          loadUserSubCategoryPreferences(user),
+        const [categories, preferences] = await Promise.all([
+          loadActiveCategories(),
+          loadUserCategoryPreferences(user),
         ]);
         if (cancelled) return;
-        const activeIds = new Set(subCategories
-          .map((item) => normalizeSubCategoryId(item?.id))
+        const activeIds = new Set(categories
+          .map((item) => normalizeCategoryId(item?.category_id))
           .filter((id) => id !== null));
-        const selected = new Set(Array.from(getSelectedSubCategoryIds(preferences))
+        const selected = new Set(Array.from(getSelectedCategoryIds(preferences))
           .filter((id) => activeIds.has(id)));
-        setActiveSubCategories(subCategories);
+        setActiveCategories(categories);
         setSelectedIds(selected);
         setSavedSelectedIds(new Set(selected));
       } catch {
         if (!cancelled) {
-          setActiveSubCategories([]);
+          setActiveCategories([]);
           setSelectedIds(new Set());
           setSavedSelectedIds(new Set());
           setError('İlgi alanları yüklenemedi. Lütfen tekrar dene.');
@@ -65,16 +65,16 @@ export default function SubCategoryPreferencesSection({ user }) {
     return () => { cancelled = true; };
   }, [user]);
 
-  const selectedSubCategories = useMemo(() => {
-    return activeSubCategories.filter((item) => selectedIds.has(Number(item.id)));
-  }, [activeSubCategories, selectedIds]);
+  const selectedCategories = useMemo(() => {
+    return activeCategories.filter((item) => selectedIds.has(Number(item.category_id)));
+  }, [activeCategories, selectedIds]);
 
   const selectedCount = selectedIds.size;
-  const canSave = selectedCount >= MIN_SUBCATEGORY_SELECTION_COUNT;
+  const canSave = selectedCount >= MIN_CATEGORY_SELECTION_COUNT;
   const dirty = !sameIdSet(selectedIds, savedSelectedIds);
-  const remaining = Math.max(0, MIN_SUBCATEGORY_SELECTION_COUNT - selectedCount);
+  const remaining = Math.max(0, MIN_CATEGORY_SELECTION_COUNT - selectedCount);
 
-  const toggleSubCategory = (id) => {
+  const toggleCategory = (id) => {
     setValidation('');
     setSuccess('');
     setSelectedIds((current) => {
@@ -90,12 +90,12 @@ export default function SubCategoryPreferencesSection({ user }) {
     setValidation('');
     setError('');
     if (!canSave) {
-      setValidation('En az 5 ilgi alanı seçmelisin.');
+      setValidation('En az 3 kategori seçmelisin.');
       return;
     }
     setSaving(true);
     try {
-      const result = await saveUserSubCategoryPreferences(user, selectedIds, activeSubCategories);
+      const result = await saveUserCategoryPreferences(user, selectedIds, activeCategories);
       const next = toIdSet(result.selectedIds);
       setSelectedIds(next);
       setSavedSelectedIds(new Set(next));
@@ -116,7 +116,7 @@ export default function SubCategoryPreferencesSection({ user }) {
         <div className="min-w-0 flex-1">
           <h2 className="font-inter text-base font-black text-foreground">İlgi Alanlarım</h2>
           <p className="mt-1 font-inter text-xs leading-relaxed text-muted-foreground">
-            Oyun deneyimini kişiselleştirmek için en az 5 ilgi alanı seç.
+            Oyun deneyimini kişiselleştirmek için en az 3 kategori seç.
           </p>
         </div>
       </div>
@@ -126,7 +126,7 @@ export default function SubCategoryPreferencesSection({ user }) {
           Seçili: {selectedCount}
         </span>
         <span className="rounded-full border border-border/40 bg-background/35 px-3 py-1 text-xs font-semibold text-muted-foreground">
-          En az {MIN_SUBCATEGORY_SELECTION_COUNT} ilgi alanı seçmelisin.
+          En az {MIN_CATEGORY_SELECTION_COUNT} kategori seçmelisin.
         </span>
         {remaining > 0 && (
           <span className="kronox-number rounded-full border border-amber-300/35 bg-amber-300/10 px-3 py-1 text-xs font-semibold text-amber-100">
@@ -139,42 +139,45 @@ export default function SubCategoryPreferencesSection({ user }) {
         <div className="flex min-h-24 items-center justify-center rounded-xl border border-border/30 bg-background/20">
           <Loader2 className="h-5 w-5 animate-spin text-primary" />
         </div>
-      ) : activeSubCategories.length === 0 ? (
+      ) : activeCategories.length === 0 ? (
         <p className="rounded-xl border border-border/35 bg-background/25 px-3 py-4 text-center font-inter text-sm font-semibold text-muted-foreground">
-          İlgi alanları henüz hazırlanıyor.
+          Kategoriler henüz hazırlanıyor.
         </p>
       ) : (
         <>
-          {selectedSubCategories.length > 0 && (
+          {selectedCategories.length > 0 && (
             <div className="mb-3">
               <p className="mb-2 px-1 font-inter text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                 Seçtiklerin
               </p>
               <div className="flex flex-wrap gap-2">
-                {selectedSubCategories.map((item) => (
-                  <button
-                    key={`selected-${item.id}`}
-                    type="button"
-                    onClick={() => toggleSubCategory(Number(item.id))}
-                    className="inline-flex min-h-9 max-w-full items-center gap-1.5 rounded-full border border-primary/35 bg-primary/15 px-3 py-1.5 text-left font-inter text-xs font-bold text-primary"
-                  >
-                    <Check className="h-3.5 w-3.5 flex-shrink-0" />
-                    <span className="min-w-0 break-words">{item.name}</span>
-                  </button>
-                ))}
+                {selectedCategories.map((item) => {
+                  const id = Number(item.category_id);
+                  return (
+                    <button
+                      key={`selected-${id}`}
+                      type="button"
+                      onClick={() => toggleCategory(id)}
+                      className="inline-flex min-h-9 max-w-full items-center gap-1.5 rounded-full border border-primary/35 bg-primary/15 px-3 py-1.5 text-left font-inter text-xs font-bold text-primary"
+                    >
+                      <Check className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span className="min-w-0 break-words">{item.name}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
 
           <div className="grid grid-cols-1 gap-2">
-            {activeSubCategories.map((item) => {
-              const id = Number(item.id);
+            {activeCategories.map((item) => {
+              const id = Number(item.category_id);
               const selected = selectedIds.has(id);
               return (
                 <button
                   key={id}
                   type="button"
-                  onClick={() => toggleSubCategory(id)}
+                  onClick={() => toggleCategory(id)}
                   aria-pressed={selected}
                   className="min-h-12 w-full rounded-xl border p-3 text-left transition-colors"
                   style={{
@@ -225,7 +228,7 @@ export default function SubCategoryPreferencesSection({ user }) {
       <button
         type="button"
         onClick={handleSave}
-        disabled={loading || saving || activeSubCategories.length === 0 || (!dirty && canSave)}
+        disabled={loading || saving || activeCategories.length === 0 || (!dirty && canSave)}
         className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 py-3 font-inter text-sm font-black transition-transform active:scale-[0.98] disabled:opacity-55"
         style={{
           background: 'linear-gradient(180deg, #facc15, #d99b05)',

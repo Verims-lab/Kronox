@@ -54,12 +54,13 @@ Status: Active product contract.
 - sendQuestionAnalyticsReportEmail is manual/admin-triggered only and sends HTML/table/bar formatted question analytics with text fallback.
 - admin reset retains question analytics rows; account deletion anonymizes user-owned analytics identity.
 - retained QuestionAttemptEvent analytics rows no longer contain deleted user identity after account deletion.
-- UserSubCategoryPreference rows are user-scoped Settings data.
+- UserCategoryPreference rows are user-scoped Settings data.
 - normal users can read/update only their own preference rows.
-- passive SubCategory.status = P rows are not selectable.
+- passive Category.status = P/p rows are not selectable.
 - preferences do not affect Solo, Online, getQuestions, or analytics yet.
 - onboarding preference selection remains deferred.
 - two-account preference RLS proof remains manual/NOT_AUTOMATABLE.
+- old UserSubCategoryPreference rows are retained but not used by the current Settings preference UI.
 `;
 
 export const RELEASE_PROOF_CHECKLIST_DOC = `# Kronox Release Proof Checklist
@@ -104,12 +105,13 @@ behavior. Do not mark this complete from static Health alone.
 Verify tablet, foldable, and resizable behavior in Play Console and on device.
 Do not mark this complete from static Health alone.
 
-## Settings SubCategory Preferences
-Settings shows İlgi Alanlarım for authenticated users. Active SubCategory
+## Settings Category Preferences
+Settings shows İlgi Alanlarım for authenticated users. Active Category
 rows load as selectable interests, passive rows are hidden, users must select
-at least 5 interests, there is no maximum selection limit, preferences are
-persisted per user in UserSubCategoryPreference, and preferences do not affect
+at least 3 Category interests, there is no maximum selection limit, preferences are
+persisted per user in UserCategoryPreference, and preferences do not affect
 Solo/Online question selection yet. Onboarding preference selection is deferred.
+SubCategory entity still exists, but Settings currently uses Category interests.
 Mobile wrapping/long-name visual proof and two-account preference RLS proof
 remain manual/NOT_AUTOMATABLE.
 `;
@@ -137,7 +139,8 @@ Status: Implementation tracking doc.
 - Manual admin question analytics HTML/table/bar email report exists with no scheduled trigger.
 - Legacy candidates kept without deletion: Friendship, GameRecord, LobbyMessage.
 - Raw Question remains protected.
-- UserSubCategoryPreference stores Settings-only SubCategory preferences per user; minimum 5 selections, no maximum, no gameplay filtering yet.
-- UserSubCategoryPreference duplicate active rows are collapsed/passivated by the save helper; platform unique-key proof remains manual.
-- UserSubCategoryPreference RLS runtime proof remains manual/NOT_AUTOMATABLE.
+- UserCategoryPreference stores Settings-only Category preferences per user; minimum 3 selections, no maximum, no gameplay filtering yet.
+- UserCategoryPreference duplicate active rows are collapsed/passivated by the save helper; platform unique-key proof remains manual.
+- UserCategoryPreference RLS runtime proof remains manual/NOT_AUTOMATABLE.
+- UserSubCategoryPreference rows are retained legacy data and are not the current Settings source-of-truth.
 `;
