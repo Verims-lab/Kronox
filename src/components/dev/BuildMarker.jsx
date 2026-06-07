@@ -961,6 +961,12 @@ import React, { useEffect, useState } from 'react';
 //   • Passive/removed previous selections no longer count toward minimum 3 or
 //     get resaved as active preferences.
 //
+// Codex252 — Question analytics reset/report robustness:
+//   • Adds admin-only resetQuestionAnalyticsData to clear QuestionAttemptEvent,
+//     QuestionStatsProjection, and CategoryStatsProjection after pool replacement.
+//   • Report generation skips stale/deleted question IDs with diagnostics,
+//     handles empty analytics state, and keeps large sections bounded.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1264,7 +1270,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex251';
+const BUILD_MARKER = 'Codex252';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

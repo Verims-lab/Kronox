@@ -141,6 +141,14 @@ Rules:
 * admin question analytics reports must label all-active question pool,
   Solo-eligible pool, runtime projection diagnostics, unique shown questions,
   and never-shown counts separately when those metrics are available
+* after a full question pool replacement, admins may run the admin-only
+  `resetQuestionAnalyticsData` maintenance function to clear
+  `QuestionAttemptEvent`, `QuestionStatsProjection`, and
+  `CategoryStatsProjection`; this does not delete questions, categories,
+  preferences, scores, diamonds, progress, or leaderboard rows
+* report generation must skip stale/deleted `question_id` analytics references
+  with a diagnostic count and must cap large question/category sections for
+  email readability
 * top-question/category/subcategory concentration flags are guardrails, not
   equal-count category requirements; they must be interpreted against the
   Solo-eligible/runtime pool proportions

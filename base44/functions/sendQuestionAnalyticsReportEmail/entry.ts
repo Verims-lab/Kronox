@@ -9,9 +9,13 @@ const MAX_QUESTIONS = 5000;
 const MAX_CATEGORIES = 1000;
 const MAX_USER_CATEGORY_PREFERENCES = 10000;
 const NEVER_SHOWN_SAMPLE_LIMIT = 20;
-const CATEGORY_QUESTION_SAMPLE_LIMIT = 3;
+const QUESTION_TABLE_LIMIT = 20;
+const CATEGORY_DISTRIBUTION_LIMIT = 30;
+const CATEGORY_QUESTION_SAMPLE_LIMIT = 5;
+const CATEGORY_ANALYTICS_ROW_LIMIT = 50;
+const STALE_REFERENCE_SAMPLE_LIMIT = 20;
 const PERIOD_OPTIONS = new Set([1, 7, 30]);
-const REPORT_BUILD_MARKER = 'Codex251';
+const REPORT_BUILD_MARKER = 'Codex252';
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });
@@ -245,8 +249,8 @@ function numericCategorySort(a: string, b: string) {
 
 function categoryLabel(categoryId: unknown, categoryMap: Map<string, string>) {
   const id = String(categoryId ?? '').trim();
-  if (!id || id === 'unknown') return 'Bilinmiyor';
-  return categoryMap.get(id) || `Kategori ID: ${id}`;
+  if (!id || id === 'unknown') return 'Unknown / unmapped';
+  return categoryMap.get(id) || `Unknown / unmapped (Kategori ID: ${id})`;
 }
 
 function questionCategoryLabel(bucket: any, categoryMap: Map<string, string>) {
@@ -478,6 +482,7 @@ function buildReport({
   const categoryBuckets = new Map<string, any>();
   const missing = {
     question_id: 0,
+    deleted_or_missing_question: 0,
     answer_year: 0,
     sub_category_or_tags: 0,
     outcome: 0,
@@ -487,6 +492,7 @@ function buildReport({
   let answeredEvents = 0;
   let sportsShown = 0;
   const uniqueAttempts = new Set<string>();
+  const staleQuestionIds = new Set<string>();
 
   for (const event of events) {
     const qid = questionKey(event?.question_id);
@@ -496,6 +502,11 @@ function buildReport({
     }
     if (event?.attempt_id) uniqueAttempts.add(String(event.attempt_id));
     const q = questionById.get(qid) || null;
+    if (!q) {
+      missing.deleted_or_missing_question += 1;
+      if (staleQuestionIds.size < STALE_REFERENCE_SAMPLE_LIMIT) staleQuestionIds.add(qid);
+      continue;
+    }
     const bucket = getBucket(buckets, qid, q);
     const type = eventType(event);
     const isShown = type === 'shown' || type === 'replacement_shown';
@@ -555,12 +566,12 @@ function buildReport({
   const shownQuestionIds = new Set(bucketList.filter((bucket) => bucket.shown_count > 0).map((bucket) => bucket.question_id));
   const neverShown = activeQuestions.filter((question) => !shownQuestionIds.has(questionKey(question?.id ?? question?.question_id)));
   const neverShownSoloEligible = soloEligibleQuestions.filter((question) => !shownQuestionIds.has(questionKey(question?.id ?? question?.question_id)));
-  const topShown = [...bucketList].sort(sortDesc('shown_count')).slice(0, 20);
+  const topShown = [...bucketList].sort(sortDesc('shown_count')).slice(0, QUESTION_TABLE_LIMIT);
   const topShownMax = Math.max(1, ...topShown.map((bucket) => Number(bucket.shown_count) || 0));
   const mostWrong = [...bucketList]
     .filter((bucket) => bucket.shown_count >= 3 && bucket.wrong_count > 0)
     .sort(sortDesc('wrong_count'))
-    .slice(0, 20);
+    .slice(0, QUESTION_TABLE_LIMIT);
   const easy = [...bucketList]
     .filter((bucket) => bucket.shown_count >= 3 && (bucket.correct_count + bucket.wrong_count) >= 3)
     .sort((a, b) => {
@@ -568,14 +579,14 @@ function buildReport({
       const br = b.correct_count / Math.max(1, b.correct_count + b.wrong_count);
       return br - ar;
     })
-    .slice(0, 20);
+    .slice(0, QUESTION_TABLE_LIMIT);
   const slow = [...bucketList]
     .filter((bucket) => bucket.response_count > 0)
     .sort((a, b) => (b.total_response_time_ms / b.response_count) - (a.total_response_time_ms / a.response_count))
-    .slice(0, 20);
+    .slice(0, QUESTION_TABLE_LIMIT);
   const categoryRows = [...categoryBuckets.values()]
     .sort(sortDesc('shown_count'))
-    .slice(0, 30);
+    .slice(0, CATEGORY_DISTRIBUTION_LIMIT);
   const categoryMax = Math.max(1, ...categoryRows.map((row) => Number(row.shown_count) || 0));
   const categoryAnalytics = buildCategoryAnalytics({
     categories,
@@ -586,6 +597,7 @@ function buildReport({
     categoryPreferences,
     categoryMap,
   });
+  const categoryAnalyticsForReport = categoryAnalytics.slice(0, CATEGORY_ANALYTICS_ROW_LIMIT);
   const totalCorrect = bucketList.reduce((sum, bucket) => sum + (Number(bucket.correct_count) || 0), 0);
   const totalWrong = bucketList.reduce((sum, bucket) => sum + (Number(bucket.wrong_count) || 0), 0);
   const answeredTotal = totalCorrect + totalWrong;
@@ -608,6 +620,9 @@ function buildReport({
   }
   if (neverShown.length > 0) {
     insightRows.push(['Dikkat', 'warn', `${neverShown.length} aktif soru bu dönemde hiç gösterilmedi.`]);
+  }
+  if (missing.deleted_or_missing_question > 0) {
+    insightRows.push(['Dikkat', 'warn', `Bazı eski analiz kayıtları artık mevcut olmayan sorulara referans verdiği için rapora dahil edilmedi. Etkilenen event sayısı: ${missing.deleted_or_missing_question}.`]);
   }
   if (topShownShare >= 0.15) {
     insightRows.push(['Risk', 'risk', `En çok gösterilen soru dönem gösterimlerinin ${percent(topShown[0].shown_count, shownEvents)} kadarını oluşturuyor.`]);
@@ -712,7 +727,7 @@ function buildReport({
     ];
   });
 
-  const categoryOverviewRows = categoryAnalytics.map((row) => [
+  const categoryOverviewRows = categoryAnalyticsForReport.map((row) => [
     escapeHtml(row.categoryName),
     escapeHtml(row.totalQuestionCount),
     escapeHtml(row.activeQuestionCount),
@@ -724,7 +739,7 @@ function buildReport({
     escapeHtml(row.correctRate === null ? 'Yeterli veri yok' : percent(row.correctRate, 1)),
   ]);
 
-  const categoryInternalRows = categoryAnalytics.map((row) => [
+  const categoryInternalRows = categoryAnalyticsForReport.map((row) => [
     escapeHtml(row.categoryName),
     htmlLineList(row.topShown.map(formatQuestionBucket), 'Bu kategoride gösterim yok.'),
     htmlLineList(row.lowShown.map(formatQuestionBucket), 'Bu kategoride az gösterilmiş soru yok.'),
@@ -734,6 +749,9 @@ function buildReport({
 
   const warningRows = [
     ['Events missing question_id', missing.question_id],
+    ['Deleted / missing question events ignored', missing.deleted_or_missing_question],
+    ['Deleted / missing question sample', Array.from(staleQuestionIds).join(', ') || 'Yok'],
+    ['Category analytics rows rendered', `${categoryAnalyticsForReport.length}/${categoryAnalytics.length}`],
     ['Events missing answer_year', missing.answer_year],
     ['Events missing category/sub_category', missing.sub_category_or_tags],
     ['Questions missing metadata', questionsMissingMetadata],
@@ -838,10 +856,10 @@ function buildReport({
     ? neverShownSample.map((question, index) => `${index + 1}. #${questionKey(question?.id ?? question?.question_id)} | ${shortText(question?.question, 100)} | yıl=${getQuestionYear(question) ?? 'Yok'} | kategori=${categoryLabel(question?.main_category_id, categoryMap)} | alt=${displayValue(question?.sub_category)}`)
     : ['Hiç gösterilmeyen aktif soru bulunmadı.'];
   const categoryOverviewTextRows = categoryAnalytics.length
-    ? categoryAnalytics.map((row) => `${row.categoryName}: toplam=${row.totalQuestionCount}, aktif=${row.activeQuestionCount}, Solo-eligible=${row.soloEligibleQuestionCount}, tercih eden kullanıcı=${row.selectedUserCount}, gösterim=${row.shownCount}, benzersiz gösterilen=${row.uniqueShownQuestionCount}, hiç gösterilmeyen aktif=${row.neverShownActiveCount}, doğru=${row.correctRate === null ? 'Yeterli veri yok' : percent(row.correctRate, 1)}`)
+    ? categoryAnalyticsForReport.map((row) => `${row.categoryName}: toplam=${row.totalQuestionCount}, aktif=${row.activeQuestionCount}, Solo-eligible=${row.soloEligibleQuestionCount}, tercih eden kullanıcı=${row.selectedUserCount}, gösterim=${row.shownCount}, benzersiz gösterilen=${row.uniqueShownQuestionCount}, hiç gösterilmeyen aktif=${row.neverShownActiveCount}, doğru=${row.correctRate === null ? 'Yeterli veri yok' : percent(row.correctRate, 1)}`)
     : ['Kategori özeti için veri yok.'];
   const categoryInternalTextRows = categoryAnalytics.length
-    ? categoryAnalytics.map((row) => [
+    ? categoryAnalyticsForReport.map((row) => [
       `${row.categoryName}:`,
       `  Fazla sorulan: ${row.topShown.map(formatQuestionBucket).join(' | ') || 'Bu kategoride gösterim yok.'}`,
       `  Az sorulan: ${row.lowShown.map(formatQuestionBucket).join(' | ') || 'Bu kategoride az gösterilmiş soru yok.'}`,
@@ -882,6 +900,8 @@ function buildReport({
     '--- Az veya Hiç Gösterilmeyen Sorular ---',
     `Toplam hiç gösterilmeyen aktif soru: ${neverShown.length}`,
     `Toplam hiç gösterilmeyen Solo-eligible soru: ${neverShownSoloEligible.length}`,
+    `Silinmiş/eksik soruya referans veren ve rapordan çıkarılan event sayısı: ${missing.deleted_or_missing_question}`,
+    `Silinmiş/eksik soru örnekleri: ${Array.from(staleQuestionIds).join(', ') || 'Yok'}`,
     ...neverTextRows,
     '',
     '--- En Çok Yanlış Yapılan Sorular ---',
@@ -916,6 +936,9 @@ function buildReport({
       soloEligibleQuestionPoolSize: soloEligibleQuestions.length,
       neverShownActiveQuestions: neverShown.length,
       neverShownSoloEligibleQuestions: neverShownSoloEligible.length,
+      staleQuestionReferenceEvents: missing.deleted_or_missing_question,
+      staleQuestionReferenceSample: Array.from(staleQuestionIds),
+      staleQuestionReferenceHandling: 'ignored_with_diagnostic_count',
       runtimeProjectionSizeAvailable: false,
       runtimeProjectionSize: null,
       runtimeProjectionSizeSource: 'getQuestions projectionDiagnostics admin/Health path',

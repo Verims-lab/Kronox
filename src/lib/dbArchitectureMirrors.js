@@ -60,6 +60,7 @@ Cleanup/retention jobs implemented now:
 - refreshLeaderboardProjection requires admin auth, supports dryRun, refreshes SoloLeaderboardEntry and UserStatsProjection.
 - aggregateQuestionStats requires admin auth, supports dryRun, refreshes QuestionStatsProjection and CategoryStatsProjection from QuestionAttemptEvent.
 - sendQuestionAnalyticsReportEmail requires admin auth, sends a manual HTML/table/bar formatted question analytics email report, includes a plain-text fallback, and has no scheduled trigger.
+- resetQuestionAnalyticsData requires admin auth and explicit RESET_QUESTION_ANALYTICS confirmation, clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection after question pool replacement, and writes AdminMaintenanceLog.
 - cleanupAdminMaintenanceLog requires admin auth, supports dryRun, marks old logs retention_status archived.
 - Cleanup jobs are status-transition-first and do not hard delete production data.
 
@@ -81,6 +82,8 @@ Implemented now:
 - QuestionAttemptEvent gateway exists and analytics writes are best-effort.
 - Solo runtime writes shown, answered, swapped_out, and replacement_shown events.
 - aggregateQuestionStats counts shown/replacement_shown, answered, and swapped_out event types separately.
+- aggregateQuestionStats and sendQuestionAnalyticsReportEmail ignore stale analytics rows that reference deleted/missing Question IDs with diagnostics.
+- Question analytics reset does not delete Question, Category, UserCategoryPreference, score/progress/economy, leaderboard, Daily Wheel, or gameplay rows.
 
 Scaffolded now:
 - Online gameplay analytics write coverage is documented/scaffolded only; no Online runtime QuestionAttemptEvent write point is enabled yet.

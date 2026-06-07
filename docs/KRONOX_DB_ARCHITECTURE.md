@@ -555,6 +555,7 @@ retention approval.
 | `expirePushSubscriptions` | Daily plus push-error immediate | `PushSubscription` | 404/410 or old disabled rows -> `expired`; archive after retention. | Endpoint + status. | Keep in-app invite unaffected. | Immediate marking exists in push; recurring archive needed. |
 | `refreshLeaderboardProjection` | On score write plus hourly/daily reconciliation | `User`, projection | Recompute unified score rows, dedupe owner keys. | Owner key. | Keep old row if recompute fails; log. | Partially exists via score writers and leaderboard function. |
 | `aggregateQuestionStats` | Hourly/daily | events, projections | Roll up shown/correct/wrong/time/difficulty signals. | Date window + projection key. | Re-run same window safely. | New. |
+| `resetQuestionAnalyticsData` | Manual/admin only | `QuestionAttemptEvent`, `QuestionStatsProjection`, `CategoryStatsProjection` | Reset question analytics after replacing the question pool. | Admin confirmation + audit log. | Deletes analytics history/projections only; never deletes questions, categories, preferences, progress, economy, or leaderboard data. | New. |
 | `cleanupAdminMaintenanceLog` | Monthly/quarterly | `AdminMaintenanceLog` | Archive/trim older than retention. | Log id/date. | Never delete recent logs. | New. |
 | `archiveOldLobbyMessages` | Monthly | `LobbyMessage` | Archive/delete chat rows after policy. | Lobby id + date. | Skip active lobbies. | New, only if chat used. |
 
@@ -721,12 +722,19 @@ No deletion should happen in this task.
   metadata, and last answered timestamps.
 - Build aggregate job. Codex183 added `aggregateQuestionStats`; Codex196
   updates it to count `shown`/`replacement_shown`, `answered`, and
-  `swapped_out` events separately.
+  `swapped_out` events separately. Projection refresh skips analytics events
+  whose `question_id` no longer exists in the current `Question` pool.
 - Manual admin email report. Codex197 adds `sendQuestionAnalyticsReportEmail`
   for admin-triggered, question-focused reports. Codex198 formats the report
   as HTML email with summary cards, grouped tables, capped never-shown samples,
-  and email-safe visual bars plus a plain-text fallback. No scheduled report
-  exists in this version.
+  and email-safe visual bars plus a plain-text fallback. The report skips
+  stale/deleted question references with a diagnostic count and caps large
+  sections for email readability. No scheduled report exists in this version.
+- Admin-only analytics reset. `resetQuestionAnalyticsData` clears
+  `QuestionAttemptEvent`, `QuestionStatsProjection`, and
+  `CategoryStatsProjection` after a question pool replacement. It does not
+  delete `Question`, `Category`, `UserCategoryPreference`, score, diamond,
+  progress, leaderboard, Daily Wheel, or gameplay rows.
 
 ### Phase 4 - Backend idempotency hardening
 

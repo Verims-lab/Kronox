@@ -20,6 +20,10 @@ export async function aggregateQuestionStats(options = {}) {
   return base44.functions.invoke('aggregateQuestionStats', options);
 }
 
+export async function resetQuestionAnalyticsData(options = {}) {
+  return base44.functions.invoke('resetQuestionAnalyticsData', options);
+}
+
 export async function cleanupAdminMaintenanceLog(options = {}) {
   return base44.functions.invoke('cleanupAdminMaintenanceLog', options);
 }

@@ -3,6 +3,7 @@ import { requireAdmin } from '../_shared/adminAuth.ts';
 
 const DEFAULT_LIMIT = 1000;
 const MAX_LIMIT = 5000;
+const MAX_QUESTIONS = 5000;
 const JOB_NAME = 'aggregateQuestionStats';
 
 function json(payload: unknown, status = 200) {
@@ -82,12 +83,23 @@ Deno.serve(async (req: Request) => {
   const limit = Math.max(1, Math.min(Number(body?.limit) || DEFAULT_LIMIT, MAX_LIMIT));
   const nowIso = new Date().toISOString();
   const events = await base44.asServiceRole.entities.QuestionAttemptEvent.list('-created_at', limit).catch(() => []);
+  const questions = await base44.asServiceRole.entities.Question.list('-created_date', MAX_QUESTIONS).catch(() => []);
+  const activeQuestionIds = new Set(
+    (questions || [])
+      .map((question: any) => String(question?.id ?? question?.question_id ?? '').trim())
+      .filter(Boolean),
+  );
 
   const questionBuckets = new Map<string, any>();
   const categoryBuckets = new Map<string, any>();
+  let staleQuestionReferenceEvents = 0;
   for (const event of events) {
     const questionId = String(event?.question_id || '').trim();
     if (!questionId) continue;
+    if (activeQuestionIds.size > 0 && !activeQuestionIds.has(questionId)) {
+      staleQuestionReferenceEvents += 1;
+      continue;
+    }
     const categoryId = Number(event?.category_id);
     const mode = event?.mode === 'online' ? 'online' : 'solo';
     const eventType = String(event?.event_type || (event?.answered_at ? 'answered' : 'shown')).trim();
@@ -186,6 +198,7 @@ Deno.serve(async (req: Request) => {
     jobName: JOB_NAME,
     dryRun,
     scanned: events.length,
+    staleQuestionReferenceEvents,
     questionProjectionRows: questionRows,
     categoryProjectionRows: categoryRows,
   };
