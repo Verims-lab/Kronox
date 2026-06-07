@@ -18,12 +18,10 @@ import adminAuthSource from '../../../base44/functions/_shared/adminAuth.ts?raw'
 import aggregateQuestionStatsSource from '../../../base44/functions/aggregateQuestionStats/entry.ts?raw';
 import reportFunctionSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts?raw';
 import reportFunctionManifestSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc?raw';
-import resetQuestionAnalyticsDataSource from '../../../base44/functions/resetQuestionAnalyticsData/entry.ts?raw';
-import resetQuestionAnalyticsDataManifestSource from '../../../base44/functions/resetQuestionAnalyticsData/function.jsonc?raw';
 import deployedAdminAuthSource from '../../../functions/_shared/adminAuth.js?raw';
 import deployedReportFunctionSource from '../../../functions/sendQuestionAnalyticsReportEmail.js?raw';
-import deployedResetQuestionAnalyticsDataSource from '../../../functions/resetQuestionAnalyticsData.js?raw';
 import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
+import { DB_ARCHITECTURE_IMPLEMENTATION_MIRROR } from '@/lib/dbArchitectureMirrors';
 import {
   QUESTION_ANALYTICS_REPORT_SECTIONS,
   QUESTION_ANALYTICS_SECURITY_CONTRACT,
@@ -396,7 +394,7 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('admin_only_settings_trigger_exists',
-    'Settings admin tools expose a minimal report trigger',
+    'Settings admin tools expose report trigger and manual-only analytics reset guidance',
     () => {
       const combined = `${settingsPageSource}\n${questionAnalyticsReportToolSource}`;
       const missing = missingTokens(combined, [
@@ -406,31 +404,34 @@ export const EXTRA_TESTS = [
         'callAdminFunction',
         "base44.functions.invoke(name, payload)",
         "callAdminFunction('sendQuestionAnalyticsReportEmail'",
-        'Soru Analitik Verilerini Sıfırla',
-        "callAdminFunction('resetQuestionAnalyticsData'",
-        'confirmation: RESET_CONFIRMATION',
-        'confirmText: RESET_CONFIRMATION',
         "headers: { 'Content-Type': 'application/json' }",
         'errorMessageFromBody',
         'missingFunctionMessage',
         'response.status === 404',
         'fonksiyonu bulunamadı veya deploy edilmemiş. Function name/path kontrol edilmeli.',
-        'RESET_QUESTION_ANALYTICS',
-        'Bu işlem soru gösterim/cevap analiz geçmişini sıfırlar. Sorular silinmez.',
+        'Soru Analitik Verilerini Sıfırla',
+        'Bu işlem şu anda manuel DB temizliği ile yapılır. Function reset yolu devre dışı.',
+        'QuestionAttemptEvent, QuestionStatsProjection ve CategoryStatsProjection',
         'Son 7 gün',
         'Rapor hazırlanıyor...',
         'Soru analiz raporu e-posta olarak gönderildi.',
-        'Soru analitik verileri sıfırlandı.',
-        'Yeni raporlar mevcut soru havuzundan sıfırdan oluşacak',
       ]);
-      if (missing.length) {
-        return fail('Admin Settings report trigger is missing or not admin-scoped.', {
+      const forbidden = forbiddenTokens(questionAnalyticsReportToolSource, [
+        "callAdminFunction('resetQuestionAnalyticsData'",
+        'RESET_QUESTION_ANALYTICS',
+        'resetAnalytics',
+        'resetConfirm',
+        'confirmText: RESET_CONFIRMATION',
+        'confirmation: RESET_CONFIRMATION',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Admin Settings report trigger is missing or still exposes the broken reset function path.', {
           verification: 'STATIC_CONTRACT',
           files: ['src/pages/SettingsPage.jsx', 'src/components/admin/QuestionAnalyticsReportTool.jsx'],
-          missing,
+          actual: { missing, forbidden },
         });
       }
-      return pass('Question analytics email report has a minimal admin-only Settings trigger.', {
+      return pass('Question analytics email report has a minimal admin-only Settings trigger, while reset is manual DB guidance only.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -464,40 +465,19 @@ export const EXTRA_TESTS = [
       });
     }),
 
-  makeCase('admin_only_question_analytics_reset_exists',
-    'Admin-only question analytics reset clears analytics history without deleting gameplay data',
+  makeCase('manual_question_analytics_reset_path_documented',
+    'Manual DB reset path is documented and Settings no longer depends on resetQuestionAnalyticsData',
     () => {
-      const combined = `${deployedResetQuestionAnalyticsDataSource}\n${deployedAdminAuthSource}\n${resetQuestionAnalyticsDataSource}\n${resetQuestionAnalyticsDataManifestSource}\n${adminAuthSource}\n${questionAttemptEventEntitySource}\n${questionStatsProjectionEntitySource}\n${categoryStatsProjectionEntitySource}`;
+      const combined = `${DB_ARCHITECTURE_IMPLEMENTATION_MIRROR}\n${questionAnalyticsContractsSource}\n${questionAnalyticsReportToolSource}\n${questionAttemptEventEntitySource}\n${questionStatsProjectionEntitySource}\n${categoryStatsProjectionEntitySource}`;
       const missing = missingTokens(combined, [
-        'resetQuestionAnalyticsData',
-        'functions/resetQuestionAnalyticsData.js',
-        'Deno.serve',
-        'createClientFromRequest',
-        '"name": "resetQuestionAnalyticsData"',
-        '"entry": "entry.ts"',
-        'requireAdmin',
-        './_shared/adminAuth.js',
-        '../_shared/adminAuth.ts',
-        'entities.AdminUser',
-        'RESET_QUESTION_ANALYTICS',
-        'confirmation',
-        'confirmText',
-        'ANALYTICS_RESET_ENTITIES',
+        'manual_db_reset_only',
+        'manual_db_clear_QuestionAttemptEvent_QuestionStatsProjection_CategoryStatsProjection_only',
+        'manuel DB temizliği',
+        'Function reset yolu devre dışı',
+        'Manual DB reset path after question pool replacement',
         'QuestionAttemptEvent',
         'QuestionStatsProjection',
         'CategoryStatsProjection',
-        'entity.delete',
-        'AdminMaintenanceLog.create',
-        'UNTOUCHED_ENTITIES',
-        'entitiesTouched',
-        'entitiesUntouched',
-        'deletedCounts',
-        'resetAt',
-        'resetBy',
-        'unavailableEntities',
-        'analytics_reset_incomplete',
-        'anyCapped',
-        'totalFailed',
         'Question',
         'Category',
         'UserCategoryPreference',
@@ -505,28 +485,21 @@ export const EXTRA_TESTS = [
         'SoloLeaderboardEntry',
         'DiamondTransaction',
         'DailyWheelSpin',
-        'OnlineMatchResult',
-        'destructiveAnalyticsReset',
+        'GameRecord',
+        'AdminUser',
       ]);
-      const forbidden = forbiddenTokens(deployedResetQuestionAnalyticsDataSource, [
-        'entities.Question.delete',
-        'entities.Category.delete',
-        'entities.UserCategoryPreference.delete',
-        'entities.UserStatsProjection.delete',
-        'entities.SoloLeaderboardEntry.delete',
-        'entities.DiamondTransaction.delete',
-        'entities.DailyWheelSpin.delete',
-        'entities.OnlineMatchResult.delete',
-        'entities.User.delete',
+      const forbidden = forbiddenTokens(questionAnalyticsReportToolSource, [
+        "callAdminFunction('resetQuestionAnalyticsData'",
+        'RESET_QUESTION_ANALYTICS',
       ]);
       if (missing.length || forbidden.length) {
-        return fail('Admin-only analytics reset is missing, unsafe, or too broad.', {
+        return fail('Manual DB analytics reset path is not documented or Settings still calls the broken reset function.', {
           verification: 'STATIC_CONTRACT',
-          files: ['functions/resetQuestionAnalyticsData.js', 'base44/functions/resetQuestionAnalyticsData/entry.ts'],
+          files: ['src/components/admin/QuestionAnalyticsReportTool.jsx', 'docs/KRONOX_DB_ARCHITECTURE.md', 'src/lib/questionAnalyticsContracts.js'],
           actual: { missing, forbidden },
         });
       }
-      return pass('Question analytics reset is admin-gated, confirmation-protected, logged, and limited to QuestionAttemptEvent plus analytics projections.', {
+      return pass('Manual reset clears only QuestionAttemptEvent/QuestionStatsProjection/CategoryStatsProjection by documented DB maintenance; Settings no longer calls resetQuestionAnalyticsData.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

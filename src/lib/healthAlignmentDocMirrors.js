@@ -53,15 +53,15 @@ Status: Active product contract.
 - account deletion is a destructive, NOT_AUTOMATABLE manual proof gate.
 - sendQuestionAnalyticsReportEmail is manual/admin-triggered only and sends HTML/table/bar formatted question analytics with text fallback.
 - sendQuestionAnalyticsReportEmail is callable from functions/sendQuestionAnalyticsReportEmail.js and mirrored by base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc with name sendQuestionAnalyticsReportEmail and entry entry.ts.
-- resetQuestionAnalyticsData is manual/admin-triggered only, requires explicit confirmation, clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection, and logs AdminMaintenanceLog.
-- resetQuestionAnalyticsData is callable from functions/resetQuestionAnalyticsData.js and mirrored by base44/functions/resetQuestionAnalyticsData/function.jsonc with name resetQuestionAnalyticsData and entry entry.ts; a Settings reset 404 means the root callable function was not deployed or the function name/path is mismatched.
-- resetQuestionAnalyticsData returns analytics_reset_incomplete instead of false success when a reset target is capped or has delete failures.
-- question analytics reset does not delete Question, Category, UserCategoryPreference, score/progress/economy, leaderboard, Daily Wheel, or gameplay rows.
+- Function-based question analytics reset is currently not used.
+- Manual DB reset path after question pool replacement clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection.
+- Manual reset must not delete Question, Category, SubCategory, UserCategoryPreference, UserStatsProjection, progress/economy/leaderboard data, Daily Wheel rows, users, or AdminUser.
+- manual question analytics reset does not delete Question, Category, SubCategory, UserCategoryPreference, UserStatsProjection, score/progress/economy, leaderboard, Daily Wheel, users, AdminUser, or gameplay rows.
 - sendQuestionAnalyticsReportEmail handles stale/deleted question references with diagnostics and bounded sections.
 - sendQuestionAnalyticsReportEmail actual sent body includes Kategori Bazında Soru Havuzu, Kategori Tercihleri, Kategori Bazında Gösterim, Kategori İçi Soru Analizi, and Kategori Denge Sinyalleri.
 - Category preference report counts are aggregate distinct-user counts only and do not expose user IDs or emails.
 - Question analytics report sections render with section-level warnings instead of truncating the whole email.
-- user progress admin reset retains question analytics rows; account deletion anonymizes user-owned analytics identity.
+- unrelated user progress admin reset retains question analytics rows; account deletion anonymizes user-owned analytics identity.
 - retained QuestionAttemptEvent analytics rows no longer contain deleted user identity after account deletion.
 - UserCategoryPreference rows are user-scoped Settings data.
 - normal users can read/update only their own preference rows.
@@ -160,7 +160,7 @@ Status: Implementation tracking doc.
 - Runtime uniqueness proof remains manual/NOT_AUTOMATABLE.
 - Solo QuestionAttemptEvent runtime writes are enabled best-effort; Online analytics remains deferred.
 - Manual admin question analytics HTML/table/bar email report exists with no scheduled trigger.
-- Admin-only resetQuestionAnalyticsData can reset question analytics history/projections after replacing the question pool.
+- Manual DB reset path can reset question analytics history/projections after replacing the question pool.
 - Question analytics reports handle empty analytics state and stale/deleted question IDs safely.
 - Question analytics reports include category pool counts, aggregate category preference counts, category exposure counts, within-category most/least/never-shown analysis, and category fairness signals.
 - Legacy candidates kept without deletion: Friendship, GameRecord, LobbyMessage.

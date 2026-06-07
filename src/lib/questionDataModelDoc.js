@@ -116,12 +116,12 @@ longer stored on the entity — they are derived at fetch time by
   category preference counts, category exposure counts, within-category
   most/least/never-shown analysis, and category fairness signals. Preference
   counts are aggregate only and do not expose user IDs or emails.
-- Admins may run resetQuestionAnalyticsData after a question pool replacement;
-  it clears QuestionAttemptEvent, QuestionStatsProjection, and
-  CategoryStatsProjection only. The callable function lives at
-  functions/resetQuestionAnalyticsData.js and is mirrored by
-  base44/functions/resetQuestionAnalyticsData/function.jsonc with name
-  resetQuestionAnalyticsData and entry entry.ts.
+- After a question pool replacement, analytics reset is manual_db_reset_only:
+  clear QuestionAttemptEvent, QuestionStatsProjection, and
+  CategoryStatsProjection only by DB maintenance. Do not delete Question,
+  Category, SubCategory, UserCategoryPreference, UserStatsProjection, scores,
+  diamonds, progress, users, AdminUser, Daily Wheel, gameplay, or leaderboard
+  rows.
 - Report generation skips stale/deleted question_id analytics references with
   a diagnostic count and caps large sections for email readability.
 - Top-question/category/subcategory concentration flags are guardrails, not

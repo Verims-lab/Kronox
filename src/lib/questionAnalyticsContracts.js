@@ -26,7 +26,7 @@ export const QUESTION_ANALYTICS_REQUIRED_FIELDS = Object.freeze([
 ]);
 
 export const QUESTION_ANALYTICS_REPORT_FUNCTION = 'sendQuestionAnalyticsReportEmail';
-export const QUESTION_ANALYTICS_RESET_FUNCTION = 'resetQuestionAnalyticsData';
+export const QUESTION_ANALYTICS_MANUAL_RESET_MODE = 'manual_db_reset_only';
 
 export const QUESTION_ANALYTICS_REPORT_SECTIONS = Object.freeze([
   'Kronox Soru Analiz Raporu',
@@ -53,5 +53,5 @@ export const QUESTION_ANALYTICS_SECURITY_CONTRACT = Object.freeze({
   scheduledReportEnabled: false,
   gameplayBlockingWrites: false,
   accountDeletionHandling: 'delete_or_anonymize_user_owned_QuestionAttemptEvent_rows',
-  adminResetHandling: 'resetQuestionAnalyticsData_clears_QuestionAttemptEvent_QuestionStatsProjection_CategoryStatsProjection_only',
+  adminResetHandling: 'manual_db_clear_QuestionAttemptEvent_QuestionStatsProjection_CategoryStatsProjection_only',
 });

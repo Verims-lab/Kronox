@@ -24,7 +24,6 @@ import expirePushSubscriptionsSource from '../../../base44/functions/expirePushS
 import refreshLeaderboardProjectionSource from '../../../base44/functions/refreshLeaderboardProjection/entry.ts?raw';
 import resetTestAccountProgressSource from '../../../base44/functions/resetTestAccountProgress/entry.ts?raw';
 import sendQuestionAnalyticsReportEmailSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts?raw';
-import resetQuestionAnalyticsDataSource from '../../../base44/functions/resetQuestionAnalyticsData/entry.ts?raw';
 import aggregateQuestionStatsSource from '../../../base44/functions/aggregateQuestionStats/entry.ts?raw';
 import cancelStaleLobbiesSource from '../../../base44/functions/cancelStaleLobbies/entry.ts?raw';
 import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
@@ -122,7 +121,6 @@ const TARGET_FUNCTIONS = [
   { name: 'refreshLeaderboardProjection', source: refreshLeaderboardProjectionSource },
   { name: 'resetTestAccountProgress', source: resetTestAccountProgressSource },
   { name: 'sendQuestionAnalyticsReportEmail', source: sendQuestionAnalyticsReportEmailSource },
-  { name: 'resetQuestionAnalyticsData', source: resetQuestionAnalyticsDataSource },
   { name: 'aggregateQuestionStats', source: aggregateQuestionStatsSource },
   { name: 'cancelStaleLobbies', source: cancelStaleLobbiesSource },
   { name: 'getAdminStatus', source: getAdminStatusSource },

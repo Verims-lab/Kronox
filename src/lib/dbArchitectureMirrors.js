@@ -62,9 +62,9 @@ Cleanup/retention jobs implemented now:
 - sendQuestionAnalyticsReportEmail requires admin auth, sends a manual HTML/table/bar formatted question analytics email report, includes a plain-text fallback, and has no scheduled trigger.
 - sendQuestionAnalyticsReportEmail actual sent body includes Kategori Bazında Soru Havuzu, Kategori Tercihleri, Kategori Bazında Gösterim, Kategori İçi Soru Analizi, and Kategori Denge Sinyalleri. Category preference counts are aggregate distinct-user counts only; no user IDs or emails are exposed.
 - sendQuestionAnalyticsReportEmail is callable from functions/sendQuestionAnalyticsReportEmail.js and mirrored by base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc with name sendQuestionAnalyticsReportEmail and entry entry.ts.
-- resetQuestionAnalyticsData requires admin auth and explicit RESET_QUESTION_ANALYTICS confirmation, clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection after question pool replacement, and writes AdminMaintenanceLog.
-- resetQuestionAnalyticsData is callable from functions/resetQuestionAnalyticsData.js and mirrored by base44/functions/resetQuestionAnalyticsData/function.jsonc with name resetQuestionAnalyticsData and entry entry.ts; a Settings reset 404 indicates the root callable function was not deployed or the function name/path is mismatched.
-- resetQuestionAnalyticsData returns analytics_reset_incomplete when a target analytics entity is capped or has delete failures.
+- Manual DB reset path after question pool replacement is documented because the function reset path is currently not used.
+- manual_db_reset_only clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection by DB maintenance.
+- Manual reset must not delete Question, Category, SubCategory, UserCategoryPreference, UserSubCategoryPreference, UserStatsProjection, Solo progress, GameRecord, OnlineMatchResult, Lobby, SoloLeaderboardEntry, Kronox Puan, DiamondTransaction, DailyWheelSpin, users, or AdminUser.
 - cleanupAdminMaintenanceLog requires admin auth, supports dryRun, marks old logs retention_status archived.
 - Cleanup jobs are status-transition-first and do not hard delete production data.
 
@@ -87,7 +87,8 @@ Implemented now:
 - Solo runtime writes shown, answered, swapped_out, and replacement_shown events.
 - aggregateQuestionStats counts shown/replacement_shown, answered, and swapped_out event types separately.
 - aggregateQuestionStats and sendQuestionAnalyticsReportEmail ignore stale analytics rows that reference deleted/missing Question IDs with diagnostics.
-- Question analytics reset does not delete Question, Category, UserCategoryPreference, score/progress/economy, leaderboard, Daily Wheel, or gameplay rows.
+- Question analytics reset is manual_db_reset_only and clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection.
+- Question analytics reset does not delete Question, Category, SubCategory, UserCategoryPreference, UserSubCategoryPreference, UserStatsProjection, score/progress/economy, leaderboard, Daily Wheel, users, AdminUser, or gameplay rows.
 
 Scaffolded now:
 - Online gameplay analytics write coverage is documented/scaffolded only; no Online runtime QuestionAttemptEvent write point is enabled yet.

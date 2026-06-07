@@ -428,7 +428,6 @@ expirePushSubscriptions
 refreshLeaderboardProjection
 aggregateQuestionStats
 sendQuestionAnalyticsReportEmail
-resetQuestionAnalyticsData
 cleanupAdminMaintenanceLog
 ```
 
@@ -453,26 +452,21 @@ Security contract:
 * sent question analytics reports include category pool, aggregate preference,
   category exposure, within-category analysis, and category fairness signal
   sections; preference counts are aggregate distinct-user counts only
-* `resetQuestionAnalyticsData` is manual/admin-triggered only, requires explicit
-  confirmation, logs to `AdminMaintenanceLog`, and clears only
-  `QuestionAttemptEvent`, `QuestionStatsProjection`, and
-  `CategoryStatsProjection` after a question pool replacement. It is registered
-  by root callable `functions/resetQuestionAnalyticsData.js` plus
-  `base44/functions/resetQuestionAnalyticsData/function.jsonc`; a 404 from the
-  Settings admin action indicates the root callable function was not deployed
-  or the function name/path is mismatched.
-* if any reset target is capped or has delete failures,
-  `resetQuestionAnalyticsData` returns `analytics_reset_incomplete` rather than
-  reporting a false success
-* question analytics reset must not delete questions, categories, category
-  preferences, score/progress/economy rows, leaderboard rows, Daily Wheel rows,
-  or gameplay records
+* function-based question analytics reset is currently not used because the
+  callable reset path was not reliable in the current Base44 setup
+* after a question pool replacement, question analytics reset is a manual DB
+  maintenance operation: clear only `QuestionAttemptEvent`,
+  `QuestionStatsProjection`, and `CategoryStatsProjection`
+* manual question analytics reset must not delete questions, categories,
+  subcategories, category preferences, user stats, score/progress/economy rows,
+  leaderboard rows, Daily Wheel rows, gameplay records, users, or `AdminUser`
+  rows
 * question analytics reports must handle stale/deleted question references with
   a diagnostic count, section-level warnings, and bounded tables instead of
   crashing, rendering partially, or producing unbounded email content
-* admin reset retains question analytics rows because the report is
-  question-focused aggregate data, not a progress/economy balance; identity
-  cleanup belongs to account deletion
+* unrelated progress/economy/admin resets retain question analytics rows; the
+  manual question analytics DB reset is the explicit maintenance operation for
+  clearing the three analytics entities after a question pool replacement
 * user-owned `QuestionAttemptEvent` analytics rows must be deleted or
   anonymized during account deletion; retained analytics rows must no longer
   contain the deleted user's email/key

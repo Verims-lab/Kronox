@@ -558,7 +558,7 @@ retention approval.
 | `expirePushSubscriptions` | Daily plus push-error immediate | `PushSubscription` | 404/410 or old disabled rows -> `expired`; archive after retention. | Endpoint + status. | Keep in-app invite unaffected. | Immediate marking exists in push; recurring archive needed. |
 | `refreshLeaderboardProjection` | On score write plus hourly/daily reconciliation | `User`, projection | Recompute unified score rows, dedupe owner keys. | Owner key. | Keep old row if recompute fails; log. | Partially exists via score writers and leaderboard function. |
 | `aggregateQuestionStats` | Hourly/daily | events, projections | Roll up shown/correct/wrong/time/difficulty signals. | Date window + projection key. | Re-run same window safely. | New. |
-| `resetQuestionAnalyticsData` | Manual/admin only | `QuestionAttemptEvent`, `QuestionStatsProjection`, `CategoryStatsProjection` | Reset question analytics after replacing the question pool. | Admin confirmation + audit log. | Deletes analytics history/projections only; never deletes questions, categories, preferences, progress, economy, or leaderboard data. | New. |
+| Manual DB question analytics reset | Manual DB maintenance | `QuestionAttemptEvent`, `QuestionStatsProjection`, `CategoryStatsProjection` | Reset question analytics after replacing the question pool. | Admin console/operator proof. | Clears analytics history/projections only; never deletes questions, categories, preferences, progress, economy, users, admin rows, Daily Wheel, gameplay, or leaderboard data. | Manual only; function reset path is not used. |
 | `cleanupAdminMaintenanceLog` | Monthly/quarterly | `AdminMaintenanceLog` | Archive/trim older than retention. | Log id/date. | Never delete recent logs. | New. |
 | `archiveOldLobbyMessages` | Monthly | `LobbyMessage` | Archive/delete chat rows after policy. | Lobby id + date. | Skip active lobbies. | New, only if chat used. |
 
@@ -740,15 +740,16 @@ No deletion should happen in this task.
   root callable `functions/sendQuestionAnalyticsReportEmail.js` plus
   `base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc`. No
   scheduled report exists in this version.
-- Admin-only analytics reset. `resetQuestionAnalyticsData` clears
-  `QuestionAttemptEvent`, `QuestionStatsProjection`, and
-  `CategoryStatsProjection` after a question pool replacement. It does not
-  delete `Question`, `Category`, `UserCategoryPreference`, score, diamond,
-  progress, leaderboard, Daily Wheel, or gameplay rows. The function is
-  registered by root callable `functions/resetQuestionAnalyticsData.js` plus
-  `base44/functions/resetQuestionAnalyticsData/function.jsonc`; a Settings
-  reset 404 indicates the root callable function was not deployed or the
-  function name/path is mismatched.
+- Manual DB reset path after question pool replacement. The function-based
+  reset path is currently not used. To restart analytics from zero, manually
+  clear only `QuestionAttemptEvent`, `QuestionStatsProjection`, and
+  `CategoryStatsProjection`. Do not delete `Question`, `Category`,
+  `SubCategory`, `UserCategoryPreference`, `UserSubCategoryPreference`,
+  `UserStatsProjection`, Solo progress, `GameRecord`, `OnlineMatchResult`,
+  `Lobby`, leaderboard rows, score/Kronox Puan rows, `DiamondTransaction`,
+  `DailyWheelSpin`, users, or `AdminUser` rows. After reset, the report should
+  still show current active question/category pool counts with zero exposure
+  events.
 
 ### Phase 4 - Backend idempotency hardening
 

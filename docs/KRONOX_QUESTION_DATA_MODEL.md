@@ -145,14 +145,11 @@ Rules:
   category preference counts, category exposure counts, category-internal
   most/least/never-shown analysis, and category fairness signals; preference
   counts must stay aggregate-only and must not expose user IDs or emails
-* after a full question pool replacement, admins may run the admin-only
-  `resetQuestionAnalyticsData` maintenance function to clear
-  `QuestionAttemptEvent`, `QuestionStatsProjection`, and
-  `CategoryStatsProjection`; the callable function lives at
-  `functions/resetQuestionAnalyticsData.js` and is mirrored by
-  `base44/functions/resetQuestionAnalyticsData/function.jsonc`, and this does
-  not delete questions, categories, preferences, scores, diamonds, progress, or
-  leaderboard rows
+* after a full question pool replacement, question analytics reset is currently
+  a manual DB maintenance operation: clear `QuestionAttemptEvent`,
+  `QuestionStatsProjection`, and `CategoryStatsProjection` only; do not delete
+  questions, categories, preferences, scores, diamonds, progress, users, admin
+  rows, Daily Wheel rows, gameplay rows, or leaderboard rows
 * report generation must skip stale/deleted `question_id` analytics references
   with a diagnostic count and must cap large question/category sections for
   email readability
