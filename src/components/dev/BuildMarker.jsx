@@ -1024,6 +1024,12 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps manual DB reset as the supported analytics cleanup path and
 //     refreshes guardrails for Category preferences plus Solo 70/30 difficulty.
 //
+// Codex262 — Strict VAPID push config:
+//   • Removes empty/default VAPID fallbacks from sendGameInvitePush and
+//     requires backend public key, private key, and subject validation.
+//   • Missing/invalid VAPID config now returns explicit push diagnostics while
+//     leaving persisted in-app invites functional.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1327,7 +1333,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex261';
+const BUILD_MARKER = 'Codex262';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
