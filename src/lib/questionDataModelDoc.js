@@ -109,6 +109,11 @@ longer stored on the entity — they are derived at fetch time by
 - Admin question analytics reports label all-active question pool,
   Solo-eligible pool, runtime projection diagnostics, unique shown questions,
   and never-shown counts separately when those metrics are available.
+- Admins may run resetQuestionAnalyticsData after a question pool replacement;
+  it clears QuestionAttemptEvent, QuestionStatsProjection, and
+  CategoryStatsProjection only.
+- Report generation skips stale/deleted question_id analytics references with
+  a diagnostic count and caps large sections for email readability.
 - Top-question/category/subcategory concentration flags are guardrails, not
   equal-count category requirements; they are interpreted against
   Solo-eligible/runtime pool proportions.

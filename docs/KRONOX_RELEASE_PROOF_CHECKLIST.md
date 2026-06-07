@@ -434,6 +434,16 @@ Checklist:
   must render as HTML/table/bar formatted email with readable empty states and
   a plain-text fallback. Verify deployed SendEmail delivery and Gmail desktop/
   mobile rendering with an admin account.
+* `resetQuestionAnalyticsData` is admin-only, requires explicit confirmation,
+  logs the operation, and clears only `QuestionAttemptEvent`,
+  `QuestionStatsProjection`, and `CategoryStatsProjection` after a question
+  pool replacement.
+* Question analytics reset must not delete `Question`, `Category`,
+  `UserCategoryPreference`, scores, diamonds, progress, leaderboard, Daily
+  Wheel, or gameplay/economy data.
+* Question Analytics report handles stale/deleted question IDs, unknown
+  categories, and empty analytics state without truncating the email; large
+  sections remain capped.
 * `cleanupAdminMaintenanceLog` dry-run archives by retention marker only and
   does not hard delete.
 * Admin-only maintenance functions return 401 unauthenticated and 403 for

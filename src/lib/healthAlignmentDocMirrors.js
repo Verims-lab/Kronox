@@ -52,7 +52,10 @@ Status: Active product contract.
 - admin-only maintenance functions verify AdminUser-backed authorization server-side.
 - account deletion is a destructive, NOT_AUTOMATABLE manual proof gate.
 - sendQuestionAnalyticsReportEmail is manual/admin-triggered only and sends HTML/table/bar formatted question analytics with text fallback.
-- admin reset retains question analytics rows; account deletion anonymizes user-owned analytics identity.
+- resetQuestionAnalyticsData is manual/admin-triggered only, requires explicit confirmation, clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection, and logs AdminMaintenanceLog.
+- question analytics reset does not delete Question, Category, UserCategoryPreference, score/progress/economy, leaderboard, Daily Wheel, or gameplay rows.
+- sendQuestionAnalyticsReportEmail handles stale/deleted question references with diagnostics and bounded sections.
+- user progress admin reset retains question analytics rows; account deletion anonymizes user-owned analytics identity.
 - retained QuestionAttemptEvent analytics rows no longer contain deleted user identity after account deletion.
 - UserCategoryPreference rows are user-scoped Settings data.
 - normal users can read/update only their own preference rows.
@@ -149,6 +152,8 @@ Status: Implementation tracking doc.
 - Runtime uniqueness proof remains manual/NOT_AUTOMATABLE.
 - Solo QuestionAttemptEvent runtime writes are enabled best-effort; Online analytics remains deferred.
 - Manual admin question analytics HTML/table/bar email report exists with no scheduled trigger.
+- Admin-only resetQuestionAnalyticsData can reset question analytics history/projections after replacing the question pool.
+- Question analytics reports handle empty analytics state and stale/deleted question IDs safely.
 - Legacy candidates kept without deletion: Friendship, GameRecord, LobbyMessage.
 - Raw Question remains protected.
 - UserCategoryPreference stores app-open popup and Settings Category preferences per user; minimum 3 selections. There is no maximum selection.

@@ -13,9 +13,11 @@ import questionAnalyticsReportToolSource from '../admin/QuestionAnalyticsReportT
 import deleteAccountSource from '../../../base44/functions/deleteAccount/entry.ts?raw';
 import questionAttemptEventEntitySource from '../../../base44/entities/QuestionAttemptEvent.jsonc?raw';
 import questionStatsProjectionEntitySource from '../../../base44/entities/QuestionStatsProjection.jsonc?raw';
+import categoryStatsProjectionEntitySource from '../../../base44/entities/CategoryStatsProjection.jsonc?raw';
 import adminAuthSource from '../../../base44/functions/_shared/adminAuth.ts?raw';
 import aggregateQuestionStatsSource from '../../../base44/functions/aggregateQuestionStats/entry.ts?raw';
 import reportFunctionSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts?raw';
+import resetQuestionAnalyticsDataSource from '../../../base44/functions/resetQuestionAnalyticsData/entry.ts?raw';
 import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
 import {
   QUESTION_ANALYTICS_REPORT_SECTIONS,
@@ -396,6 +398,8 @@ export const EXTRA_TESTS = [
         'sub_category',
         'tags',
         'answer_year',
+        'Question.list',
+        'staleQuestionReferenceEvents',
         "eventType === 'shown' || eventType === 'replacement_shown'",
         "eventType === 'answered'",
         "eventType === 'swapped_out'",
@@ -408,6 +412,93 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Projection refresh counts shown/answered/swapped events separately.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('admin_only_question_analytics_reset_exists',
+    'Admin-only question analytics reset clears analytics history without deleting gameplay data',
+    () => {
+      const combined = `${resetQuestionAnalyticsDataSource}\n${adminAuthSource}\n${questionAttemptEventEntitySource}\n${questionStatsProjectionEntitySource}\n${categoryStatsProjectionEntitySource}`;
+      const missing = missingTokens(combined, [
+        'resetQuestionAnalyticsData',
+        'requireAdmin',
+        '../_shared/adminAuth.ts',
+        'entities.AdminUser',
+        'RESET_QUESTION_ANALYTICS',
+        'ANALYTICS_RESET_ENTITIES',
+        'QuestionAttemptEvent',
+        'QuestionStatsProjection',
+        'CategoryStatsProjection',
+        'entity.delete',
+        'AdminMaintenanceLog.create',
+        'UNTOUCHED_ENTITIES',
+        'Question',
+        'Category',
+        'UserCategoryPreference',
+        'UserStatsProjection',
+        'SoloLeaderboardEntry',
+        'DiamondTransaction',
+        'DailyWheelSpin',
+        'OnlineMatchResult',
+        'destructiveAnalyticsReset',
+      ]);
+      const forbidden = forbiddenTokens(resetQuestionAnalyticsDataSource, [
+        'entities.Question.delete',
+        'entities.Category.delete',
+        'entities.UserCategoryPreference.delete',
+        'entities.UserStatsProjection.delete',
+        'entities.SoloLeaderboardEntry.delete',
+        'entities.DiamondTransaction.delete',
+        'entities.DailyWheelSpin.delete',
+        'entities.OnlineMatchResult.delete',
+        'entities.User.delete',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Admin-only analytics reset is missing, unsafe, or too broad.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['base44/functions/resetQuestionAnalyticsData/entry.ts'],
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('Question analytics reset is admin-gated, confirmation-protected, logged, and limited to QuestionAttemptEvent plus analytics projections.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('analytics_report_handles_stale_question_ids_and_empty_state',
+    'Question Analytics report handles deleted question IDs and empty analytics safely',
+    () => {
+      const missing = missingTokens(reportFunctionSource, [
+        'deleted_or_missing_question',
+        'staleQuestionIds',
+        'STALE_REFERENCE_SAMPLE_LIMIT',
+        'Bazı eski analiz kayıtları artık mevcut olmayan sorulara referans verdiği için rapora dahil edilmedi',
+        'Deleted / missing question events ignored',
+        'staleQuestionReferenceEvents',
+        'staleQuestionReferenceHandling',
+        'ignored_with_diagnostic_count',
+        'shownEvents === 0',
+        'Bu dönem için yeterli oynanış verisi yok',
+        'Unknown / unmapped',
+        'QUESTION_TABLE_LIMIT',
+        'CATEGORY_DISTRIBUTION_LIMIT',
+        'CATEGORY_ANALYTICS_ROW_LIMIT',
+        'categoryAnalyticsForReport',
+        'NEVER_SHOWN_SAMPLE_LIMIT',
+        'CATEGORY_QUESTION_SAMPLE_LIMIT',
+        'neverShown.slice(0, NEVER_SHOWN_SAMPLE_LIMIT)',
+        'slice(0, QUESTION_TABLE_LIMIT)',
+        'slice(0, CATEGORY_DISTRIBUTION_LIMIT)',
+      ]);
+      if (missing.length) {
+        return fail('Report can still break, mislead, or grow unbounded when analytics references deleted questions.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
+          missing,
+        });
+      }
+      return pass('Report skips stale/deleted question references with diagnostics, renders empty analytics states, and limits large tables.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

@@ -425,6 +425,7 @@ expirePushSubscriptions
 refreshLeaderboardProjection
 aggregateQuestionStats
 sendQuestionAnalyticsReportEmail
+resetQuestionAnalyticsData
 cleanupAdminMaintenanceLog
 ```
 
@@ -444,6 +445,16 @@ Security contract:
   question-focused aggregate HTML/table/bar formatted report to the
   authenticated admin email, and must not expose user-level surveillance data
   to normal users
+* `resetQuestionAnalyticsData` is manual/admin-triggered only, requires explicit
+  confirmation, logs to `AdminMaintenanceLog`, and clears only
+  `QuestionAttemptEvent`, `QuestionStatsProjection`, and
+  `CategoryStatsProjection` after a question pool replacement
+* question analytics reset must not delete questions, categories, category
+  preferences, score/progress/economy rows, leaderboard rows, Daily Wheel rows,
+  or gameplay records
+* question analytics reports must handle stale/deleted question references with
+  a diagnostic count and bounded tables instead of crashing or rendering
+  unbounded email content
 * admin reset retains question analytics rows because the report is
   question-focused aggregate data, not a progress/economy balance; identity
   cleanup belongs to account deletion
