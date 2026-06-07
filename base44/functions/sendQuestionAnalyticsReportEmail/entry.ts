@@ -15,7 +15,7 @@ const CATEGORY_QUESTION_SAMPLE_LIMIT = 5;
 const CATEGORY_ANALYTICS_ROW_LIMIT = 50;
 const STALE_REFERENCE_SAMPLE_LIMIT = 20;
 const PERIOD_OPTIONS = new Set([1, 7, 30]);
-const REPORT_BUILD_MARKER = 'Codex252';
+const REPORT_BUILD_MARKER = 'Codex253';
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });

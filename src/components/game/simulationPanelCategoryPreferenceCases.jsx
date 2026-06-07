@@ -229,12 +229,12 @@ export const EXTRA_TESTS = [
     () => {
       const missing = missingTokens(`${preferenceHelperSource}\n${preferenceSectionSource}`, [
         'sanitizeSelectedCategoryIds',
-        'activeIds',
-        '.filter((id) => activeIds.has(id))',
+        'activeIdSet',
+        '.filter((id) => activeIdSet.has(id))',
         'normalizeActiveIdSet',
         'activeIdSet.has(id)',
         'const activeSelectedIds = useMemo',
-        'saveUserCategoryPreferences(user, activeSelectedIds, activeCategories)',
+        'saveUserCategoryPreferences(user, selectedIds, activeCategories)',
         'status: CATEGORY_STATUS_PASSIVE',
       ]);
       if (missing.length) {
@@ -277,10 +277,10 @@ export const EXTRA_TESTS = [
     () => {
       const missing = missingTokens(`${preferenceHelperSource}\n${preferenceSectionSource}`, [
         'MIN_CATEGORY_SELECTION_COUNT = 3',
+        'saveUserCategoryPreferences(user, selectedIds, activeCategories)',
         'selectedSet.size < MIN_CATEGORY_SELECTION_COUNT',
         'selectedCount >= MIN_CATEGORY_SELECTION_COUNT',
         'En az 3 kategori seçmelisin.',
-        'saveUserCategoryPreferences(user, selectedIds, activeCategories)',
       ]);
       if (missing.length) {
         return fail('Minimum 3 Category preference selection rule is incomplete.', {
@@ -786,7 +786,7 @@ export const EXTRA_TESTS = [
         'getValidActiveSelectedCategoryIds',
         'filter(isActiveCategoryPreference)',
         'getActiveCategoryIdSet(activeCategories)',
-        '.filter((id) => activeIds.has(id))',
+        '.filter((id) => activeIdSet.has(id))',
         'normalizeCategoryId(row?.category_id)',
         'filter(isActiveCategory)',
       ]);

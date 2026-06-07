@@ -115,7 +115,7 @@ export default function CategoryPreferenceOnboardingModal({ user, disabled = fal
     }
     setSaving(true);
     try {
-      const result = await saveUserCategoryPreferences(user, activeSelectedIds, activeCategories);
+      const result = await saveUserCategoryPreferences(user, selectedIds, activeCategories);
       setSelectedIds(toIdSet(result.selectedIds));
       await markCategoryPreferenceOnboardingCompleted(user);
       setNeedsOnboarding(false);

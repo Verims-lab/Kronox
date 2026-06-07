@@ -967,6 +967,12 @@ import React, { useEffect, useState } from 'react';
 //   • Report generation skips stale/deleted question IDs with diagnostics,
 //     handles empty analytics state, and keeps large sections bounded.
 //
+// Codex253 — Category preference shared save contract:
+//   • Settings and onboarding both call saveUserCategoryPreferences(user,
+//     selectedIds, activeCategories).
+//   • The shared helper filters raw selectedIds through activeIdSet.has(id),
+//     enforces minimum 3, and excludes passive/removed categories from saves.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1270,7 +1276,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex252';
+const BUILD_MARKER = 'Codex253';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

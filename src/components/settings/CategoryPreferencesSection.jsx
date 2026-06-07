@@ -95,7 +95,7 @@ export default function CategoryPreferencesSection({ user }) {
     }
     setSaving(true);
     try {
-      const result = await saveUserCategoryPreferences(user, activeSelectedIds, activeCategories);
+      const result = await saveUserCategoryPreferences(user, selectedIds, activeCategories);
       const next = toIdSet(result.selectedIds);
       setSelectedIds(next);
       setSavedSelectedIds(new Set(next));
