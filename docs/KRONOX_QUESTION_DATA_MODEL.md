@@ -265,7 +265,7 @@ Rules:
 * Settings shows active `Category.status = A/a` options and hides passive
   `Category.status = P/p` rows.
 * Minimum selection count is 3.
-* There is no maximum selection count.
+* There is no maximum selection.
 * Any authenticated user with fewer than 3 active valid Category preferences
   sees the popup; this applies to new and existing users.
 * The source of truth is active valid `UserCategoryPreference` count.

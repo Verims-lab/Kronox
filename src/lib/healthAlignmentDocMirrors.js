@@ -112,7 +112,7 @@ Do not mark this complete from static Health alone.
 ## Settings Category Preferences
 Settings shows İlgi Alanlarım for authenticated users. Active Category
 rows load as selectable interests, passive rows are hidden, users must select
-at least 3 Category interests, there is no maximum selection limit, preferences are
+at least 3 Category interests. There is no maximum selection. Preferences are
 persisted per user in UserCategoryPreference, and preferences do not affect
 Solo/Online question selection yet. Any user with fewer than 3 active valid
 Category preferences sees the popup, including new and existing users. The
@@ -147,7 +147,7 @@ Status: Implementation tracking doc.
 - Manual admin question analytics HTML/table/bar email report exists with no scheduled trigger.
 - Legacy candidates kept without deletion: Friendship, GameRecord, LobbyMessage.
 - Raw Question remains protected.
-- UserCategoryPreference stores app-open popup and Settings Category preferences per user; minimum 3 selections, no maximum, no gameplay filtering yet.
+- UserCategoryPreference stores app-open popup and Settings Category preferences per user; minimum 3 selections. There is no maximum selection. No gameplay filtering yet.
 - Any user with fewer than 3 active valid Category preferences sees the popup; this applies to new and existing users.
 - The source of truth is active valid UserCategoryPreference count.
 - Only active categories are selectable and count.
