@@ -452,7 +452,10 @@ Checklist:
   `base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc`
   (`name: "sendQuestionAnalyticsReportEmail"`, `entry: "entry.ts"`). Verify
   deployed SendEmail delivery and Gmail desktop/mobile rendering with an admin
-  account.
+  account. `functions/sendQuestionAnalyticsReportEmail.js` is a root deploy
+  compatibility entrypoint that delegates to the same canonical Base44
+  implementation so older flat-function deployment paths cannot serve a stale
+  report body.
 * Question Analytics report must include these actual sent-body sections:
   `Rapor Bölümleri`,
   `Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı`,

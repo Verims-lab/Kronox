@@ -17,7 +17,7 @@ const REGISTERED_QUESTION_POOL_ROW_LIMIT = 250;
 const CATEGORY_FAIRNESS_SIGNAL_LIMIT = 20;
 const STALE_REFERENCE_SAMPLE_LIMIT = 20;
 const PERIOD_OPTIONS = /* @__PURE__ */ new Set([1, 7, 30]);
-const REPORT_BUILD_MARKER = "Codex270";
+const REPORT_BUILD_MARKER = "Codex271";
 const DIFFICULTY_CHART_BUCKETS = [
   ["1", "Zorluk 1", "#2563eb"],
   ["2", "Zorluk 2", "#16a34a"],
