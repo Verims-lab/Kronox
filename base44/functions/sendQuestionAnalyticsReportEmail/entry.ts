@@ -17,7 +17,7 @@ const REGISTERED_QUESTION_POOL_ROW_LIMIT = 250;
 const CATEGORY_FAIRNESS_SIGNAL_LIMIT = 20;
 const STALE_REFERENCE_SAMPLE_LIMIT = 20;
 const PERIOD_OPTIONS = /* @__PURE__ */ new Set([1, 7, 30]);
-const REPORT_BUILD_MARKER = "Codex269";
+const REPORT_BUILD_MARKER = "Codex270";
 const DIFFICULTY_CHART_BUCKETS = [
   ["1", "Zorluk 1", "#2563eb"],
   ["2", "Zorluk 2", "#16a34a"],
@@ -878,7 +878,6 @@ function buildReport({
     "Key Insights / Risk Flags",
     "Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı",
     "Rapor Bölümleri",
-    "Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı",
     "Kategori Bazında Soru Havuzu",
     "Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı",
     "Kategori Bazında Yıl Aralığı",
@@ -917,16 +916,6 @@ function buildReport({
       reportChecklistRows,
       "Rapor bölüm listesi hazırlanamadı."
     )),
-    safeSectionHtml("Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı", () => `
-      <p style="margin:0 0 12px;color:#334155;font-size:13px;line-height:20px;font-family:Arial,Helvetica,sans-serif;">
-        Kategori Bazında Soru Havuzu grafiğidir. Kaynak doğrudan Question tablosundaki aktif kayıtlar; gösterilmiş ve hiç gösterilmemiş sorular birlikte sayılır. Dağılım sütunu e-posta uyumlu inline HTML/CSS stacked bar kullanır; JavaScript chart içermez.
-      </p>
-      ${tableHtml(
-        ["Kategori", "Toplam", "Zorluk 1", "Zorluk 2", "Zorluk 3", "Zorluk 4", "Zorluk 5", "Bilinmiyor", "Dağılım"],
-        categoryDifficultyChartRows,
-        "Question tablosunda aktif soru yok."
-      )}
-    `),
     safeSectionHtml("Kategori Bazında Soru Havuzu", () => tableHtml(
       ["Kategori", "Toplam Soru", "Zorluk 1", "Zorluk 2", "Zorluk 3", "Zorluk 4", "Zorluk 5", "Zorluk Bilinmiyor", "En Eski Yıl", "En Yeni Yıl"],
       categoryPoolRows,
@@ -1087,10 +1076,6 @@ function buildReport({
     "--- Rapor Bölümleri ---",
     ...reportChecklistTextRows,
     "",
-    "--- Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı ---",
-    "Kaynak: Question tablosundaki aktif kayıtlar; gösterilmiş ve hiç gösterilmemiş sorular birlikte sayılır. HTML gövdede Dağılım sütunu email-safe stacked bar olarak render edilir.",
-    ...categoryDifficultyChartTextRows,
-    "",
     "--- Kategori Bazında Soru Havuzu ---",
     ...categoryPoolTextRows,
     "",
@@ -1187,7 +1172,6 @@ function buildReport({
         "Key Insights / Risk Flags",
         "Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı",
         "Rapor Bölümleri",
-        "Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı",
         "Kategori Bazında Soru Havuzu",
         "Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı",
         "Kategori Bazında Kayıtlı Soru Havuzu",

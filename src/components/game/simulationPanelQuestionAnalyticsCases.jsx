@@ -568,11 +568,16 @@ export const EXTRA_TESTS = [
         if (firstIndex < 0 || secondIndex < 0) return true;
         return first === 'safeSectionHtml("Rapor Tamamlandı"' ? firstIndex <= secondIndex : firstIndex >= secondIndex;
       });
-      if (missing.length || orderFailures.length) {
+      const htmlChartSectionCount = (src.match(/safeSectionHtml\("Sistemdeki Soru Havuzu: Kategori \/ Zorluk Dağılımı"/g) || []).length;
+      const textChartSectionCount = (src.match(/--- Sistemdeki Soru Havuzu: Kategori \/ Zorluk Dağılımı ---/g) || []).length;
+      const duplicateFailures = [];
+      if (htmlChartSectionCount !== 1) duplicateFailures.push(`htmlChartSectionCount:${htmlChartSectionCount}`);
+      if (textChartSectionCount !== 1) duplicateFailures.push(`textChartSectionCount:${textChartSectionCount}`);
+      if (missing.length || orderFailures.length || duplicateFailures.length) {
         return fail('Static report sections may still be hidden behind long event details or lack a completion marker.', {
           verification: 'STATIC_CONTRACT',
           file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
-          actual: { missing, orderFailures },
+          actual: { missing, orderFailures, duplicateFailures },
         });
       }
       return pass('Static DB pool sections render before long event details, and Rapor Tamamlandı marks the end of the actual email body.', {

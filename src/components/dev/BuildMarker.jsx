@@ -1072,6 +1072,12 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps the existing event-based category/showing distribution separate
 //     from the static Question-table category/difficulty chart.
 //
+// Codex270 — Branch audit report chart dedupe:
+//   • Removes a merge-created duplicate Sistemdeki Soru Havuzu chart section
+//     from the actual Question Analytics email HTML/text/report metadata.
+//   • Health now checks that the static chart appears exactly once before long
+//     event-based sections.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1375,7 +1381,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex269';
+const BUILD_MARKER = 'Codex270';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
