@@ -182,11 +182,14 @@ export const EXTRA_TESTS = [
         'QuestionAttemptEvent.list',
         'Question.list',
         'Category.list',
+        'UserCategoryPreference.list',
         'SendEmail',
         'Kronox Soru Analiz Raporu —',
         'Kronox Soru Analiz Raporu',
         'Executive Summary',
         'Key Insights / Risk Flags',
+        'Kategori Özet Analizi',
+        'Kategori İçi Soru Analizi',
         'En Çok Gösterilen Sorular',
         'Az veya Hiç Gösterilmeyen Sorular',
         'En Çok Yanlış Yapılan Sorular',
@@ -268,6 +271,46 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Report can flag generic top subcategory concentration while preserving pool-proportional interpretation.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('analytics_report_includes_category_level_question_and_preference_analysis',
+    'Question Analytics report includes category-level pool, preference, exposure, and internal question analysis',
+    () => {
+      const missing = missingTokens(reportFunctionSource, [
+        'MAX_USER_CATEGORY_PREFERENCES',
+        'CATEGORY_QUESTION_SAMPLE_LIMIT',
+        'UserCategoryPreference.list',
+        'buildCategoryAnalytics',
+        'isActiveCategoryPreference',
+        'getPreferenceOwnerKey',
+        'selectedUserCount',
+        'totalQuestionCount',
+        'activeQuestionCount',
+        'soloEligibleQuestionCount',
+        'uniqueShownQuestionCount',
+        'neverShownActiveCount',
+        'neverShownSoloEligibleCount',
+        'Kategori Özet Analizi',
+        'Kategori İçi Soru Analizi',
+        'Tercih eden kullanıcı',
+        'Fazla sorulan',
+        'Az sorulan',
+        'Hiç sorulmayan örnek',
+        'categoryAnalytics',
+      ]);
+      const forbidden = forbiddenTokens(reportFunctionSource, [
+        'user_email</',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Category-level question/preference analytics are missing or leak user-level preference details.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('Report summarizes per-category question pool size, preference users, shown counts, and over/low/never-shown question samples.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

@@ -950,6 +950,11 @@ import React, { useEffect, useState } from 'react';
 //   • First-five spacing, exposure cooldown, diversity scoring, prebuilt
 //     reserve behavior, and Online question selection stay intact.
 //
+// Codex250 — Question Analytics category breakdown:
+//   • Admin report now shows per-category question pool counts, selected-user
+//     preference counts, shown counts, and category-internal over/low/never
+//     shown question samples.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1253,7 +1258,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex249';
+const BUILD_MARKER = 'Codex250';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

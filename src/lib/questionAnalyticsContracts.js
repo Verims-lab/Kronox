@@ -31,6 +31,8 @@ export const QUESTION_ANALYTICS_REPORT_SECTIONS = Object.freeze([
   'Kronox Soru Analiz Raporu',
   'Executive Summary',
   'Key Insights / Risk Flags',
+  'Kategori Özet Analizi',
+  'Kategori İçi Soru Analizi',
   'En Çok Gösterilen Sorular',
   'Az veya Hiç Gösterilmeyen Sorular',
   'En Çok Yanlış Yapılan Sorular',
