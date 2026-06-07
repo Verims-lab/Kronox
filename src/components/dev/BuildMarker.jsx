@@ -1030,6 +1030,12 @@ import React, { useEffect, useState } from 'react';
 //   • Missing/invalid VAPID config now returns explicit push diagnostics while
 //     leaving persisted in-app invites functional.
 //
+// Codex263 — Registered question pool report:
+//   • Adds Kategori Bazında Kayıtlı Soru Havuzu to the actual sent Question
+//     Analytics email body.
+//   • The new static section groups active Question rows by Category and
+//     difficulty with count plus oldest/newest year, independent of analytics.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1333,7 +1339,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex262';
+const BUILD_MARKER = 'Codex263';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
