@@ -4,6 +4,9 @@
 // - Spotify/external music-provider import functions are removed because
 //   Kronox does not use them now.
 // - VAPID keys are read from deployment secrets/config, never hardcoded.
+// - VAPID_PRIVATE_KEY is backend-env-only; scanner findings about the env var
+//   name are deployment-secret management notes when no key material is
+//   committed, logged, returned, or exposed through VITE_ config.
 // - Missing VAPID config skips push only; the persisted in-app invite flow
 //   remains available.
 // - Admin access is DB-backed through the private AdminUser source-of-truth;
@@ -170,6 +173,7 @@ export const EXTRA_TESTS = [
         'vapid_config_missing',
         'missingConfig: config.missing',
         'invalidConfig: config.invalid',
+        'webpush.setVapidDetails(config.subject, config.publicKey, config.privateKey)',
       ];
       const forbidden = [
         /privateKey\s*:\s*['"][^'"]{12,}['"]/,
@@ -179,6 +183,8 @@ export const EXTRA_TESTS = [
         /Deno\.env\.get\('(?:KRONOX_)?VAPID_SUBJECT'\)\s*\|\|\s*['"][^'"]+['"]/,
         /Deno\.env\.get\('VITE_[^']*VAPID[^']*'\)/,
         /Deno\.env\.get\('VITE_[^']*(?:PRIVATE|SECRET|TOKEN)[^']*'\)/,
+        /console\.(?:log|warn|error)\([^;]*(?:config\.privateKey|privateKey|KRONOX_VAPID_PRIVATE_KEY)/,
+        /return\s+json\(\{[\s\S]{0,500}privateKey\s*:/,
         privateKeyBlockPattern,
       ].filter((pattern) => pattern.test(sendGameInvitePushSource));
       const missing = missingTokens(sendGameInvitePushSource, required);
@@ -192,8 +198,50 @@ export const EXTRA_TESTS = [
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('VAPID keys are loaded from server env/config names, strict validation rejects missing/blank values, and no empty/default/VITE private-key fallback is present.', {
+      return pass('VAPID keys are loaded from server env/config names, strict validation rejects missing/blank values, no empty/default/VITE private-key fallback is present, and private key values are not logged or returned.', {
         verification: 'STATIC_CONTRACT',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('vapid_private_key_backend_secret_only',
+    'VAPID_PRIVATE_KEY is backend-env-only and never exposed to frontend/logs/responses',
+    () => {
+      const required = [
+        "canonicalName: 'VAPID_PRIVATE_KEY'",
+        "envNames: ['VAPID_PRIVATE_KEY', 'KRONOX_VAPID_PRIVATE_KEY']",
+        'Deno.env.get(envName)',
+        'config.privateKey',
+        'webpush.setVapidDetails(config.subject, config.publicKey, config.privateKey)',
+        'vapid_config_missing',
+        'missingConfig: config.missing',
+        'invalidConfig: config.invalid',
+        'acceptedEnvNames: config.acceptedEnvNames',
+      ];
+      const forbidden = [
+        /VITE_[A-Z0-9_]*VAPID_PRIVATE_KEY/,
+        /VITE_[A-Z0-9_]*PRIVATE_KEY/,
+        /Deno\.env\.get\('VITE_[^']*(?:VAPID|PRIVATE|SECRET|TOKEN)[^']*'\)/,
+        /import\.meta\.env\.[A-Z0-9_]*VAPID_PRIVATE_KEY/,
+        /console\.(?:log|warn|error)\([^;]*(?:config\.privateKey|privateKey|KRONOX_VAPID_PRIVATE_KEY)/,
+        /return\s+json\(\{[\s\S]{0,500}privateKey\s*:/,
+        /privateKey\s*:\s*['"][^'"]{12,}['"]/,
+        privateKeyBlockPattern,
+      ].filter((pattern) => pattern.test(sendGameInvitePushSource));
+      const missing = missingTokens(sendGameInvitePushSource, required);
+      if (missing.length || forbidden.length) {
+        return fail('VAPID private key handling may expose backend secret material.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'base44/functions/sendGameInvitePush/entry.ts',
+          expected: 'VAPID_PRIVATE_KEY is read only from backend env, used only for webpush signing, never logged/returned/client-exposed',
+          actual: { missing, forbidden: forbidden.map(String) },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('VAPID_PRIVATE_KEY remains backend-env-only; scanner env-name findings are deployment-secret management notes when no value is committed.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
       });
     }),
@@ -322,10 +370,10 @@ export const EXTRA_TESTS = [
 
   makeCase('security_runtime_secret_scan_needed',
     'Runtime security scan should be rerun after deploy',
-    () => notAutomatable('Static Health can verify source contracts, but the external security scanner must rerun against the deployed function bundle.', {
+    () => notAutomatable('Static Health can verify source contracts, but the external security scanner must rerun against the deployed function bundle; VAPID_PRIVATE_KEY env-var-name-only findings are deployment-secret management notes unless real key material is exposed.', {
       verification: 'NOT_AUTOMATABLE',
       classification: 'STATIC_CHECK_LIMITATION',
-      expected: 'Security scan reports no exposed Spotify/VAPID/admin-email findings',
+      expected: 'Security scan reports no exposed Spotify/VAPID/admin-email findings, or classifies backend VAPID_PRIVATE_KEY env usage as deployment-secret management only',
       actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE,
     }),
     { critical: true, runtimeProofRequired: true, actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE }),

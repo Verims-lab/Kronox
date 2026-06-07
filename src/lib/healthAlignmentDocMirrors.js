@@ -41,7 +41,9 @@ Status: Active product contract.
 - Service-role usage is scoped to admin/maintenance backend functions.
 - VAPID private key remains a real secret and must stay secret-managed.
 - Backend push config requires VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, and VAPID_SUBJECT or their KRONOX_ compatibility names.
+- VAPID_PRIVATE_KEY is read from backend deployment secret/env only; scanner findings that only flag the env var name are deployment-secret management notes unless real key material is present.
 - Missing, blank, whitespace-only, placeholder, empty-string, hardcoded, dummy, or VITE_ backend VAPID fallbacks are forbidden.
+- VAPID private key values are never logged, returned, printed in Health, or exposed through frontend VITE_ variables.
 - Missing VAPID config is reported explicitly as vapid_config_missing / missing_vapid_config and does not break in-app invite flow.
 - Current source of truth for admin authorization is the private AdminUser entity.
 - Shared backend guard: base44/functions/_shared/adminAuth.ts.
@@ -116,6 +118,7 @@ Push subscription works on real installed device if supported. (manual)
 sendGameInvitePush requires backend VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, and VAPID_SUBJECT.
 Missing or blank VAPID config returns explicit vapid_config_missing / missing_vapid_config diagnostics.
 No empty-string, dummy, hardcoded, or VITE_ private-key fallback is allowed.
+VAPID_PRIVATE_KEY remains backend-env-only and is never logged or returned; env-var-name scanner findings are deployment-secret management notes unless real key material is exposed.
 In-app invites remain functional if push is not configured.
 
 ## Android 15 Edge-To-Edge
