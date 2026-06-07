@@ -434,6 +434,11 @@ Checklist:
   must render as HTML/table/bar formatted email with readable empty states and
   a plain-text fallback. Verify deployed SendEmail delivery and Gmail desktop/
   mobile rendering with an admin account.
+* Question Analytics report must include these actual sent-body sections:
+  `Kategori Bazında Soru Havuzu`, `Kategori Tercihleri`,
+  `Kategori Bazında Gösterim`, `Kategori İçi Soru Analizi`, and
+  `Kategori Denge Sinyalleri`. Category preference counts are aggregate
+  distinct-user counts only; no user IDs or emails appear in the report.
 * `resetQuestionAnalyticsData` is admin-only, requires explicit confirmation,
   logs the operation, and clears only `QuestionAttemptEvent`,
   `QuestionStatsProjection`, and `CategoryStatsProjection` after a question
@@ -442,8 +447,8 @@ Checklist:
   `UserCategoryPreference`, scores, diamonds, progress, leaderboard, Daily
   Wheel, or gameplay/economy data.
 * Question Analytics report handles stale/deleted question IDs, unknown
-  categories, and empty analytics state without truncating the email; large
-  sections remain capped.
+  categories, section-level render failures, and empty analytics state without
+  truncating the email; large sections remain capped.
 * `cleanupAdminMaintenanceLog` dry-run archives by retention marker only and
   does not hard delete.
 * Admin-only maintenance functions return 401 unauthenticated and 403 for

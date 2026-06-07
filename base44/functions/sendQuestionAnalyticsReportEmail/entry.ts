@@ -13,9 +13,10 @@ const QUESTION_TABLE_LIMIT = 20;
 const CATEGORY_DISTRIBUTION_LIMIT = 30;
 const CATEGORY_QUESTION_SAMPLE_LIMIT = 5;
 const CATEGORY_ANALYTICS_ROW_LIMIT = 50;
+const CATEGORY_FAIRNESS_SIGNAL_LIMIT = 20;
 const STALE_REFERENCE_SAMPLE_LIMIT = 20;
 const PERIOD_OPTIONS = new Set([1, 7, 30]);
-const REPORT_BUILD_MARKER = 'Codex253';
+const REPORT_BUILD_MARKER = 'Codex254';
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });
@@ -120,7 +121,12 @@ function isActiveCategory(category: any) {
 }
 
 function getCategoryId(question: any) {
-  const raw = question?.main_category_id ?? question?.category_id ?? question?.categoryId ?? question?.categoryid;
+  const raw = question?.main_category_id
+    ?? question?.category_id
+    ?? question?.categoryId
+    ?? question?.categoryid
+    ?? question?.category
+    ?? question?.cat;
   const numeric = Number(raw);
   if (Number.isFinite(numeric) && numeric > 0) return String(Math.trunc(numeric));
   const text = String(raw ?? '').trim();
@@ -234,8 +240,9 @@ function buildCategoryMap(categories: any[]) {
   const map = new Map<string, string>();
   for (const category of categories || []) {
     const id = String(category?.category_id ?? category?.id ?? '').trim();
-    if (!id) continue;
-    map.set(id, String(category?.name || `Kategori ID: ${id}`));
+    const name = String(category?.name || (id ? `Kategori ID: ${id}` : '')).trim();
+    if (id) map.set(id, name || `Kategori ID: ${id}`);
+    if (name) map.set(name, name);
   }
   return map;
 }
@@ -255,7 +262,7 @@ function categoryLabel(categoryId: unknown, categoryMap: Map<string, string>) {
 
 function questionCategoryLabel(bucket: any, categoryMap: Map<string, string>) {
   const q = bucket?.question || {};
-  return categoryLabel(q.main_category_id ?? bucket?.category_id, categoryMap);
+  return categoryLabel(getCategoryId(q) ?? bucket?.category_id, categoryMap);
 }
 
 function questionSubCategoryLabel(bucket: any) {
@@ -320,6 +327,20 @@ function emptyStateHtml(message: string) {
   return `<p style="margin:0;padding:12px 14px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;color:#475569;font-size:13px;line-height:20px;font-family:Arial,Helvetica,sans-serif;">${escapeHtml(message)}</p>`;
 }
 
+function sectionWarningHtml(message: string) {
+  return `<p style="margin:0;padding:12px 14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;color:#9a3412;font-size:13px;line-height:20px;font-family:Arial,Helvetica,sans-serif;">${escapeHtml(message)}</p>`;
+}
+
+function safeSectionHtml(title: string, renderBody: () => string) {
+  try {
+    return sectionHtml(title, renderBody());
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : 'section_render_failed';
+    console.error(`[${JOB_NAME}] section_render_failed`, title, reason);
+    return sectionHtml(title, sectionWarningHtml(`${title} bölümü oluşturulamadı; raporun kalan bölümleri devam ediyor.`));
+  }
+}
+
 function tableHtml(headers: string[], rows: string[][], emptyMessage: string) {
   if (!rows.length) return emptyStateHtml(emptyMessage);
   const headerHtml = headers.map((header) => `<th align="left" style="padding:9px 8px;border-bottom:1px solid #dbe3ef;background:#f1f5f9;color:#334155;font-size:11px;line-height:15px;text-transform:uppercase;letter-spacing:.04em;font-family:Arial,Helvetica,sans-serif;">${escapeHtml(header)}</th>`).join('');
@@ -366,6 +387,9 @@ function buildCategoryAnalytics({
   const soloEligibleByCategory = new Map<string, any[]>();
   const bucketsByCategory = new Map<string, any[]>();
   const selectedUsersByCategory = new Map<string, Set<string>>();
+  const activeCategoryIds = buildActiveCategoryIdSet(categories);
+  const seenActivePreferenceKeys = new Set<string>();
+  const duplicateActivePreferenceKeys = new Set<string>();
   const categoryIds = new Set<string>();
 
   for (const category of categories || []) {
@@ -396,7 +420,7 @@ function buildCategoryAnalytics({
   }
 
   for (const bucket of bucketList || []) {
-    const id = String(bucket?.category_id ?? bucket?.question?.main_category_id ?? 'unknown').trim() || 'unknown';
+    const id = getCategoryId(bucket?.question) || String(bucket?.category_id ?? 'unknown').trim() || 'unknown';
     categoryIds.add(id);
     const rows = bucketsByCategory.get(id) || [];
     rows.push(bucket);
@@ -408,6 +432,10 @@ function buildCategoryAnalytics({
     const categoryId = getPreferenceCategoryId(preference);
     const ownerKey = getPreferenceOwnerKey(preference);
     if (!categoryId || !ownerKey) continue;
+    if (!activeCategoryIds.has(categoryId)) continue;
+    const preferenceKey = `${ownerKey}:${categoryId}`;
+    if (seenActivePreferenceKeys.has(preferenceKey)) duplicateActivePreferenceKeys.add(preferenceKey);
+    seenActivePreferenceKeys.add(preferenceKey);
     categoryIds.add(categoryId);
     const users = selectedUsersByCategory.get(categoryId) || new Set<string>();
     users.add(ownerKey);
@@ -431,6 +459,8 @@ function buildCategoryAnalytics({
       const shownCount = shownBuckets.reduce((sum, bucket) => sum + (Number(bucket?.shown_count) || 0), 0);
       const answeredCount = buckets.reduce((sum, bucket) => sum + (Number(bucket?.correct_count) || 0) + (Number(bucket?.wrong_count) || 0), 0);
       const correctCount = buckets.reduce((sum, bucket) => sum + (Number(bucket?.correct_count) || 0), 0);
+      const totalResponseMs = buckets.reduce((sum, bucket) => sum + (Number(bucket?.total_response_time_ms) || 0), 0);
+      const responseCount = buckets.reduce((sum, bucket) => sum + (Number(bucket?.response_count) || 0), 0);
       return {
         categoryId,
         categoryName: categoryLabel(categoryId, categoryMap),
@@ -444,11 +474,68 @@ function buildCategoryAnalytics({
         neverShownActiveCount: neverShownActive.length,
         neverShownSoloEligibleCount: neverShownSoloEligible.length,
         correctRate: answeredCount ? correctCount / answeredCount : null,
+        avgResponseTimeMs: responseCount ? Math.round(totalResponseMs / responseCount) : 0,
         topShown,
         lowShown,
         neverShownSample: neverShownActive.slice(0, CATEGORY_QUESTION_SAMPLE_LIMIT),
+        duplicateActivePreferenceCount: duplicateActivePreferenceKeys.size,
       };
     });
+}
+
+function buildCategoryFairnessSignals(categoryAnalytics: any[], totalShownEvents: number) {
+  const signals: Array<{ tone: string; categoryId: string; categoryName: string; value: string; note: string }> = [];
+
+  for (const row of categoryAnalytics || []) {
+    if (row.activeQuestionCount >= 5 && row.shownCount === 0) {
+      signals.push({
+        tone: 'Dikkat',
+        categoryId: row.categoryId,
+        categoryName: row.categoryName,
+        value: `${row.activeQuestionCount} aktif soru / 0 gösterim`,
+        note: 'Kategori havuzda var ama bu dönemde gösterim almamış.',
+      });
+    }
+    if (row.selectedUserCount > 0 && row.shownCount === 0) {
+      signals.push({
+        tone: 'Dikkat',
+        categoryId: row.categoryId,
+        categoryName: row.categoryName,
+        value: `${row.selectedUserCount} tercih eden kullanıcı / 0 gösterim`,
+        note: 'Tercih edilen kategori bu dönemde hiç gösterim almamış.',
+      });
+    }
+    if (row.activeQuestionCount >= 5 && row.neverShownActiveCount >= Math.max(5, Math.ceil(row.activeQuestionCount * 0.5))) {
+      signals.push({
+        tone: 'Sinyal',
+        categoryId: row.categoryId,
+        categoryName: row.categoryName,
+        value: `${row.neverShownActiveCount}/${row.activeQuestionCount} hiç gösterilmeyen aktif soru`,
+        note: 'Kategori içinde geniş bir bölüm bu dönemde hiç dolaşıma girmemiş.',
+      });
+    }
+    const topShown = row.topShown?.[0]?.shown_count || 0;
+    if (row.shownCount >= 5 && topShown / Math.max(1, row.shownCount) >= 0.5) {
+      signals.push({
+        tone: 'Sinyal',
+        categoryId: row.categoryId,
+        categoryName: row.categoryName,
+        value: `${percent(topShown, row.shownCount)} tek soru payı`,
+        note: 'Kategori gösterimi birkaç soruda yoğunlaşmış olabilir.',
+      });
+    }
+    if (row.activeQuestionCount >= 10 && totalShownEvents > 0 && row.shownCount / totalShownEvents < 0.02) {
+      signals.push({
+        tone: 'Sinyal',
+        categoryId: row.categoryId,
+        categoryName: row.categoryName,
+        value: `${percent(row.shownCount, totalShownEvents)} gösterim payı`,
+        note: 'Aktif soru sayısı olan kategori düşük gösterim payı almış.',
+      });
+    }
+  }
+
+  return signals.slice(0, CATEGORY_FAIRNESS_SIGNAL_LIMIT);
 }
 
 function buildReport({
@@ -512,7 +599,13 @@ function buildReport({
     const isShown = type === 'shown' || type === 'replacement_shown';
     const isAnswered = type === 'answered';
     const isSwap = type === 'swapped_out' || event?.was_swapped_out === true;
-    const categoryId = event?.category_id ?? q?.main_category_id ?? 'unknown';
+    const eventCategoryId = getCategoryId({
+      main_category_id: event?.category_id,
+      category_id: event?.category_id,
+      category: event?.category,
+      cat: event?.cat,
+    });
+    const categoryId = getCategoryId(q) || eventCategoryId || 'unknown';
     const subCategory = event?.sub_category || q?.sub_category || 'unknown';
     const tag = event?.tags || q?.tag || '';
     const answerYear = safeNumber(event?.answer_year ?? getQuestionYear(q), NaN);
@@ -598,6 +691,7 @@ function buildReport({
     categoryMap,
   });
   const categoryAnalyticsForReport = categoryAnalytics.slice(0, CATEGORY_ANALYTICS_ROW_LIMIT);
+  const categoryFairnessSignals = buildCategoryFairnessSignals(categoryAnalytics, shownEvents);
   const totalCorrect = bucketList.reduce((sum, bucket) => sum + (Number(bucket.correct_count) || 0), 0);
   const totalWrong = bucketList.reduce((sum, bucket) => sum + (Number(bucket.wrong_count) || 0), 0);
   const answeredTotal = totalCorrect + totalWrong;
@@ -674,7 +768,7 @@ function buildReport({
     escapeHtml(`#${questionKey(question?.id ?? question?.question_id)}`),
     escapeHtml(shortText(question?.question, 100)),
     escapeHtml(getQuestionYear(question) ?? 'Yok'),
-    escapeHtml(categoryLabel(question?.main_category_id, categoryMap)),
+    escapeHtml(categoryLabel(getCategoryId(question), categoryMap)),
     escapeHtml(displayValue(question?.sub_category)),
     'Yok',
   ]);
@@ -727,24 +821,50 @@ function buildReport({
     ];
   });
 
-  const categoryOverviewRows = categoryAnalyticsForReport.map((row) => [
+  const categoryPoolRows = categoryAnalyticsForReport.map((row) => [
+    escapeHtml(row.categoryId),
     escapeHtml(row.categoryName),
-    escapeHtml(row.totalQuestionCount),
     escapeHtml(row.activeQuestionCount),
+    escapeHtml(row.totalQuestionCount),
+    escapeHtml(Math.max(0, row.totalQuestionCount - row.activeQuestionCount)),
     escapeHtml(row.soloEligibleQuestionCount),
+  ]);
+
+  const totalPreferenceSelections = categoryAnalytics.reduce((sum, row) => sum + (Number(row.selectedUserCount) || 0), 0);
+  const categoryPreferenceRows = categoryAnalyticsForReport.map((row) => [
+    escapeHtml(row.categoryId),
+    escapeHtml(row.categoryName),
     escapeHtml(row.selectedUserCount),
+    escapeHtml(totalPreferenceSelections ? percent(row.selectedUserCount, totalPreferenceSelections) : '0%'),
+  ]);
+
+  const categoryExposureRows = categoryAnalyticsForReport.map((row) => [
+    escapeHtml(row.categoryId),
+    escapeHtml(row.categoryName),
+    escapeHtml(row.activeQuestionCount),
     escapeHtml(row.shownCount),
     escapeHtml(row.uniqueShownQuestionCount),
-    escapeHtml(row.neverShownActiveCount),
+    escapeHtml(row.answeredCount),
     escapeHtml(row.correctRate === null ? 'Yeterli veri yok' : percent(row.correctRate, 1)),
+    escapeHtml(formatMs(row.avgResponseTimeMs)),
+    escapeHtml(percent(row.shownCount, shownEvents)),
   ]);
 
   const categoryInternalRows = categoryAnalyticsForReport.map((row) => [
+    escapeHtml(row.categoryId),
     escapeHtml(row.categoryName),
     htmlLineList(row.topShown.map(formatQuestionBucket), 'Bu kategoride gösterim yok.'),
     htmlLineList(row.lowShown.map(formatQuestionBucket), 'Bu kategoride az gösterilmiş soru yok.'),
     htmlLineList(row.neverShownSample.map(formatQuestionSample), row.neverShownActiveCount ? 'Örnek yok.' : 'Hiç gösterilmeyen aktif soru yok.'),
     escapeHtml(row.neverShownActiveCount),
+  ]);
+
+  const categoryFairnessSignalRows = categoryFairnessSignals.map((signal) => [
+    escapeHtml(signal.tone),
+    escapeHtml(signal.categoryId),
+    escapeHtml(signal.categoryName),
+    escapeHtml(signal.value),
+    escapeHtml(signal.note),
   ]);
 
   const warningRows = [
@@ -770,6 +890,71 @@ function buildReport({
     </tr>`).join('')}
   </table>`;
 
+  const htmlSections = [
+    safeSectionHtml('Executive Summary', () => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr>${summaryCards.slice(0, 3).join('')}</tr>
+      <tr>${summaryCards.slice(3, 6).join('')}</tr>
+      <tr>${summaryCards.slice(6, 9).join('')}</tr>
+      <tr>${summaryCards.slice(9).join('')}</tr>
+    </table>`),
+    safeSectionHtml('Key Insights / Risk Flags', () => insightHtml),
+    safeSectionHtml('Kategori Bazında Soru Havuzu', () => tableHtml(
+      ['Kategori ID', 'Kategori', 'Aktif soru', 'Toplam soru', 'Pasif/toplam dışı', 'Solo-eligible'],
+      categoryPoolRows,
+      'Kategori bazında soru havuzu için veri yok.',
+    )),
+    safeSectionHtml('Kategori Tercihleri', () => tableHtml(
+      ['Kategori ID', 'Kategori', 'Tercih eden kullanıcı', 'Tercih payı'],
+      categoryPreferenceRows,
+      'Kategori tercih verisi henüz yok.',
+    )),
+    safeSectionHtml('Kategori Bazında Gösterim', () => tableHtml(
+      ['Kategori ID', 'Kategori', 'Aktif soru', 'Gösterim', 'Benzersiz gösterilen', 'Cevaplanan', 'Doğru %', 'Ort. süre', 'Gösterim payı'],
+      categoryExposureRows,
+      'Kategori bazında gösterim verisi yok.',
+    )),
+    safeSectionHtml('Kategori İçi Soru Analizi', () => tableHtml(
+      ['Kategori ID', 'Kategori', 'Fazla sorulan', 'Az sorulan', 'Hiç sorulmayan örnek', 'Hiç sorulmayan sayı'],
+      categoryInternalRows,
+      'Kategori içi soru analizi için veri yok.',
+    )),
+    safeSectionHtml('Kategori Denge Sinyalleri', () => tableHtml(
+      ['Sinyal', 'Kategori ID', 'Kategori', 'Değer', 'Not'],
+      categoryFairnessSignalRows,
+      'Belirgin kategori denge sinyali yok.',
+    )),
+    safeSectionHtml('En Çok Gösterilen Sorular', () => tableHtml(
+      ['#', 'Question ID', 'Soru', 'Yıl', 'Kategori', 'Alt kategori', 'Gösterim', 'Doğru %', 'Ort. süre', 'Swap'],
+      topShownRows,
+      'Bu dönemde gösterilen soru verisi yok.',
+    )),
+    safeSectionHtml('Az veya Hiç Gösterilmeyen Sorular', () => `
+      <p style="margin:0 0 12px;color:#334155;font-size:13px;line-height:20px;font-family:Arial,Helvetica,sans-serif;">Toplam ${escapeHtml(neverShown.length)} aktif soru bu dönemde hiç gösterilmedi. Aktif soru havuzu tüm aktif satırları ifade eder; Solo-eligible hiç gösterilmeyen sayı ${escapeHtml(neverShownSoloEligible.length)}. Runtime projection boyutu getQuestions Health/admin diagnostics ile ayrıca ölçülür. ${neverShown.length > NEVER_SHOWN_SAMPLE_LIMIT ? 'İlk 20 örnek aşağıdadır.' : ''}</p>
+      ${tableHtml(['Question ID', 'Soru', 'Yıl', 'Kategori', 'Alt kategori', 'Son gösterim'], neverShownRows, 'Hiç gösterilmeyen aktif soru bulunmadı.')}
+    `),
+    safeSectionHtml('En Çok Yanlış Yapılan Sorular', () => tableHtml(
+      ['Question ID', 'Soru', 'Yıl', 'Gösterim', 'Yanlış', 'Doğru %', 'Ort. süre', 'Not'],
+      wrongRows,
+      'Yeterli örneklem yok.',
+    )),
+    safeSectionHtml('Çok Kolay Görünen Sorular', () => tableHtml(
+      ['Question ID', 'Soru', 'Yıl', 'Gösterim', 'Doğru %', 'Ort. süre', 'Not'],
+      easyRows,
+      'Yeterli örneklem yok.',
+    )),
+    safeSectionHtml('En Uzun Sürede Cevaplanan Sorular', () => tableHtml(
+      ['Question ID', 'Soru', 'Yıl', 'Gösterim', 'Ort. süre', 'Doğru %'],
+      slowRows,
+      'Cevap süresi verisi yok.',
+    )),
+    safeSectionHtml('Kategori ve Alt Kategori Dağılımı', () => tableHtml(
+      ['Kategori', 'Alt kategori', 'Gösterim', 'Pay', 'Doğru %', 'Dağılım'],
+      categoryTableRows,
+      'Kategori / alt kategori dağılım verisi yok.',
+    )),
+    safeSectionHtml('Veri Kalitesi Uyarıları', () => tableHtml(['Kontrol', 'Durum'], warningRows, 'Veri kalitesi uyarısı yok.')),
+  ].join('');
+
   const html = `<!doctype html>
 <html>
 <body style="margin:0;padding:0;background:#eef2f7;color:#111827;">
@@ -786,53 +971,7 @@ function buildReport({
           </tr>
           <tr>
             <td style="padding:18px;background:#ffffff;">
-              ${sectionHtml('Executive Summary', `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                <tr>${summaryCards.slice(0, 3).join('')}</tr>
-                <tr>${summaryCards.slice(3, 6).join('')}</tr>
-                <tr>${summaryCards.slice(6, 9).join('')}</tr>
-                <tr>${summaryCards.slice(9).join('')}</tr>
-              </table>`)}
-              ${sectionHtml('Key Insights / Risk Flags', insightHtml)}
-              ${sectionHtml('Kategori Özet Analizi', tableHtml(
-    ['Kategori', 'Toplam soru', 'Aktif soru', 'Solo-eligible', 'Tercih eden kullanıcı', 'Gösterim', 'Benzersiz gösterilen', 'Hiç gösterilmeyen aktif', 'Doğru %'],
-    categoryOverviewRows,
-    'Kategori özeti için veri yok.',
-  ))}
-              ${sectionHtml('Kategori İçi Soru Analizi', tableHtml(
-    ['Kategori', 'Fazla sorulan', 'Az sorulan', 'Hiç sorulmayan örnek', 'Hiç sorulmayan sayı'],
-    categoryInternalRows,
-    'Kategori içi soru analizi için veri yok.',
-  ))}
-              ${sectionHtml('En Çok Gösterilen Sorular', tableHtml(
-    ['#', 'Question ID', 'Soru', 'Yıl', 'Kategori', 'Alt kategori', 'Gösterim', 'Doğru %', 'Ort. süre', 'Swap'],
-    topShownRows,
-    'Bu dönemde gösterilen soru verisi yok.',
-  ))}
-              ${sectionHtml('Az veya Hiç Gösterilmeyen Sorular', `
-                <p style="margin:0 0 12px;color:#334155;font-size:13px;line-height:20px;font-family:Arial,Helvetica,sans-serif;">Toplam ${escapeHtml(neverShown.length)} aktif soru bu dönemde hiç gösterilmedi. Aktif soru havuzu tüm aktif satırları ifade eder; Solo-eligible hiç gösterilmeyen sayı ${escapeHtml(neverShownSoloEligible.length)}. Runtime projection boyutu getQuestions Health/admin diagnostics ile ayrıca ölçülür. ${neverShown.length > NEVER_SHOWN_SAMPLE_LIMIT ? 'İlk 20 örnek aşağıdadır.' : ''}</p>
-                ${tableHtml(['Question ID', 'Soru', 'Yıl', 'Kategori', 'Alt kategori', 'Son gösterim'], neverShownRows, 'Hiç gösterilmeyen aktif soru bulunmadı.')}
-              `)}
-              ${sectionHtml('En Çok Yanlış Yapılan Sorular', tableHtml(
-    ['Question ID', 'Soru', 'Yıl', 'Gösterim', 'Yanlış', 'Doğru %', 'Ort. süre', 'Not'],
-    wrongRows,
-    'Yeterli örneklem yok.',
-  ))}
-              ${sectionHtml('Çok Kolay Görünen Sorular', tableHtml(
-    ['Question ID', 'Soru', 'Yıl', 'Gösterim', 'Doğru %', 'Ort. süre', 'Not'],
-    easyRows,
-    'Yeterli örneklem yok.',
-  ))}
-              ${sectionHtml('En Uzun Sürede Cevaplanan Sorular', tableHtml(
-    ['Question ID', 'Soru', 'Yıl', 'Gösterim', 'Ort. süre', 'Doğru %'],
-    slowRows,
-    'Cevap süresi verisi yok.',
-  ))}
-              ${sectionHtml('Kategori ve Alt Kategori Dağılımı', tableHtml(
-    ['Kategori', 'Alt kategori', 'Gösterim', 'Pay', 'Doğru %', 'Dağılım'],
-    categoryTableRows,
-    'Kategori / alt kategori dağılım verisi yok.',
-  ))}
-              ${sectionHtml('Veri Kalitesi Uyarıları', tableHtml(['Kontrol', 'Durum'], warningRows, 'Veri kalitesi uyarısı yok.'))}
+              ${htmlSections}
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:18px;background:#f8fafc;border-radius:12px;border:1px solid #e5e7eb;">
                 <tr><td style="padding:16px 18px;">
                   <p style="margin:0 0 6px;color:#334155;font-size:12px;line-height:18px;font-family:Arial,Helvetica,sans-serif;">Bu rapor yalnızca admin kullanımı içindir.</p>
@@ -853,19 +992,28 @@ function buildReport({
     ? topShown.map((bucket, index) => `${index + 1}. #${bucket.question_id} | ${shortText(bucket.question?.question, 100)} | yıl=${questionYearLabel(bucket)} | kategori=${questionCategoryLabel(bucket, categoryMap)} | gösterim=${bucket.shown_count} | doğru=${correctRateLabel(bucket)} | süre=${formatMs(avgResponseMs(bucket))}`)
     : ['Bu dönemde gösterilen soru verisi yok.'];
   const neverTextRows = neverShownSample.length
-    ? neverShownSample.map((question, index) => `${index + 1}. #${questionKey(question?.id ?? question?.question_id)} | ${shortText(question?.question, 100)} | yıl=${getQuestionYear(question) ?? 'Yok'} | kategori=${categoryLabel(question?.main_category_id, categoryMap)} | alt=${displayValue(question?.sub_category)}`)
+    ? neverShownSample.map((question, index) => `${index + 1}. #${questionKey(question?.id ?? question?.question_id)} | ${shortText(question?.question, 100)} | yıl=${getQuestionYear(question) ?? 'Yok'} | kategori=${categoryLabel(getCategoryId(question), categoryMap)} | alt=${displayValue(question?.sub_category)}`)
     : ['Hiç gösterilmeyen aktif soru bulunmadı.'];
-  const categoryOverviewTextRows = categoryAnalytics.length
-    ? categoryAnalyticsForReport.map((row) => `${row.categoryName}: toplam=${row.totalQuestionCount}, aktif=${row.activeQuestionCount}, Solo-eligible=${row.soloEligibleQuestionCount}, tercih eden kullanıcı=${row.selectedUserCount}, gösterim=${row.shownCount}, benzersiz gösterilen=${row.uniqueShownQuestionCount}, hiç gösterilmeyen aktif=${row.neverShownActiveCount}, doğru=${row.correctRate === null ? 'Yeterli veri yok' : percent(row.correctRate, 1)}`)
-    : ['Kategori özeti için veri yok.'];
+  const categoryPoolTextRows = categoryAnalytics.length
+    ? categoryAnalyticsForReport.map((row) => `${row.categoryId} | ${row.categoryName}: aktif=${row.activeQuestionCount}, toplam=${row.totalQuestionCount}, pasif/toplam dışı=${Math.max(0, row.totalQuestionCount - row.activeQuestionCount)}, Solo-eligible=${row.soloEligibleQuestionCount}`)
+    : ['Kategori bazında soru havuzu için veri yok.'];
+  const categoryPreferenceTextRows = categoryAnalytics.length
+    ? categoryAnalyticsForReport.map((row) => `${row.categoryId} | ${row.categoryName}: tercih eden kullanıcı=${row.selectedUserCount}, tercih payı=${totalPreferenceSelections ? percent(row.selectedUserCount, totalPreferenceSelections) : '0%'}`)
+    : ['Kategori tercih verisi henüz yok.'];
+  const categoryExposureTextRows = categoryAnalytics.length
+    ? categoryAnalyticsForReport.map((row) => `${row.categoryId} | ${row.categoryName}: aktif=${row.activeQuestionCount}, gösterim=${row.shownCount}, benzersiz gösterilen=${row.uniqueShownQuestionCount}, cevaplanan=${row.answeredCount}, doğru=${row.correctRate === null ? 'Yeterli veri yok' : percent(row.correctRate, 1)}, ortalama süre=${formatMs(row.avgResponseTimeMs)}, gösterim payı=${percent(row.shownCount, shownEvents)}`)
+    : ['Kategori bazında gösterim verisi yok.'];
   const categoryInternalTextRows = categoryAnalytics.length
     ? categoryAnalyticsForReport.map((row) => [
-      `${row.categoryName}:`,
+      `${row.categoryId} | ${row.categoryName}:`,
       `  Fazla sorulan: ${row.topShown.map(formatQuestionBucket).join(' | ') || 'Bu kategoride gösterim yok.'}`,
       `  Az sorulan: ${row.lowShown.map(formatQuestionBucket).join(' | ') || 'Bu kategoride az gösterilmiş soru yok.'}`,
       `  Hiç sorulmayan (${row.neverShownActiveCount}): ${row.neverShownSample.map(formatQuestionSample).join(' | ') || (row.neverShownActiveCount ? 'Örnek yok.' : 'Hiç gösterilmeyen aktif soru yok.')}`,
     ].join('\n'))
     : ['Kategori içi soru analizi için veri yok.'];
+  const categoryFairnessSignalTextRows = categoryFairnessSignals.length
+    ? categoryFairnessSignals.map((signal) => `${signal.tone} | ${signal.categoryId} | ${signal.categoryName}: ${signal.value} — ${signal.note}`)
+    : ['Belirgin kategori denge sinyali yok.'];
   const textLines = [
     'Kronox Soru Analiz Raporu',
     `Dönem: ${period}`,
@@ -888,11 +1036,20 @@ function buildReport({
     '--- Key Insights / Risk Flags ---',
     ...insightRows.map(([label, _tone, message]) => `${label}: ${message}`),
     '',
-    '--- Kategori Özet Analizi ---',
-    ...categoryOverviewTextRows,
+    '--- Kategori Bazında Soru Havuzu ---',
+    ...categoryPoolTextRows,
+    '',
+    '--- Kategori Tercihleri ---',
+    ...categoryPreferenceTextRows,
+    '',
+    '--- Kategori Bazında Gösterim ---',
+    ...categoryExposureTextRows,
     '',
     '--- Kategori İçi Soru Analizi ---',
     ...categoryInternalTextRows,
+    '',
+    '--- Kategori Denge Sinyalleri ---',
+    ...categoryFairnessSignalTextRows,
     '',
     '--- En Çok Gösterilen Sorular ---',
     ...topTextRows,
@@ -944,6 +1101,17 @@ function buildReport({
       runtimeProjectionSizeSource: 'getQuestions projectionDiagnostics admin/Health path',
       topShownSubcategory: topSubcategoryConcentration.topShownSubcategory,
       topShownSubcategoryShare: topSubcategoryConcentration.topShownSubcategoryShare,
+      categoryPoolRowsRendered: categoryPoolRows.length,
+      categoryPreferenceRowsRendered: categoryPreferenceRows.length,
+      categoryExposureRowsRendered: categoryExposureRows.length,
+      categoryFairnessSignalCount: categoryFairnessSignals.length,
+      reportSections: [
+        'Kategori Bazında Soru Havuzu',
+        'Kategori Tercihleri',
+        'Kategori Bazında Gösterim',
+        'Kategori İçi Soru Analizi',
+        'Kategori Denge Sinyalleri',
+      ],
       categoryAnalytics: categoryAnalytics.map((row) => ({
         categoryId: row.categoryId,
         categoryName: row.categoryName,
@@ -952,9 +1120,11 @@ function buildReport({
         soloEligibleQuestionCount: row.soloEligibleQuestionCount,
         selectedUserCount: row.selectedUserCount,
         shownCount: row.shownCount,
+        answeredCount: row.answeredCount,
         uniqueShownQuestionCount: row.uniqueShownQuestionCount,
         neverShownActiveCount: row.neverShownActiveCount,
         neverShownSoloEligibleCount: row.neverShownSoloEligibleCount,
+        avgResponseTimeMs: row.avgResponseTimeMs,
       })),
       sportsShown,
     },

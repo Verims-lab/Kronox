@@ -973,6 +973,13 @@ import React, { useEffect, useState } from 'react';
 //   • The shared helper filters raw selectedIds through activeIdSet.has(id),
 //     enforces minimum 3, and excludes passive/removed categories from saves.
 //
+// Codex254 — Question Analytics report completion:
+//   • The actual sent report body now includes category pool, preference,
+//     exposure, within-category, and fairness-signal sections.
+//   • Report sections render through a safe wrapper, stale/deleted question
+//     IDs stay diagnostic-only, and the admin report tool exposes the
+//     confirmation-gated analytics reset action.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1276,7 +1283,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex253';
+const BUILD_MARKER = 'Codex254';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

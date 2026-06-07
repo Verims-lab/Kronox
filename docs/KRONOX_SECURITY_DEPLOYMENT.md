@@ -445,6 +445,9 @@ Security contract:
   question-focused aggregate HTML/table/bar formatted report to the
   authenticated admin email, and must not expose user-level surveillance data
   to normal users
+* sent question analytics reports include category pool, aggregate preference,
+  category exposure, within-category analysis, and category fairness signal
+  sections; preference counts are aggregate distinct-user counts only
 * `resetQuestionAnalyticsData` is manual/admin-triggered only, requires explicit
   confirmation, logs to `AdminMaintenanceLog`, and clears only
   `QuestionAttemptEvent`, `QuestionStatsProjection`, and
@@ -453,8 +456,8 @@ Security contract:
   preferences, score/progress/economy rows, leaderboard rows, Daily Wheel rows,
   or gameplay records
 * question analytics reports must handle stale/deleted question references with
-  a diagnostic count and bounded tables instead of crashing or rendering
-  unbounded email content
+  a diagnostic count, section-level warnings, and bounded tables instead of
+  crashing, rendering partially, or producing unbounded email content
 * admin reset retains question analytics rows because the report is
   question-focused aggregate data, not a progress/economy balance; identity
   cleanup belongs to account deletion

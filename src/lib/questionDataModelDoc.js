@@ -109,6 +109,10 @@ longer stored on the entity — they are derived at fetch time by
 - Admin question analytics reports label all-active question pool,
   Solo-eligible pool, runtime projection diagnostics, unique shown questions,
   and never-shown counts separately when those metrics are available.
+- Admin question analytics reports include category pool counts, aggregate user
+  category preference counts, category exposure counts, within-category
+  most/least/never-shown analysis, and category fairness signals. Preference
+  counts are aggregate only and do not expose user IDs or emails.
 - Admins may run resetQuestionAnalyticsData after a question pool replacement;
   it clears QuestionAttemptEvent, QuestionStatsProjection, and
   CategoryStatsProjection only.
