@@ -454,7 +454,9 @@ Checklist:
   deployed SendEmail delivery and Gmail desktop/mobile rendering with an admin
   account.
 * Question Analytics report must include these actual sent-body sections:
-  `Rapor Bölümleri`, `Kategori Bazında Soru Havuzu`,
+  `Rapor Bölümleri`,
+  `Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı`,
+  `Kategori Bazında Soru Havuzu`,
   `Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı`,
   `Kategori Bazında Kayıtlı Soru Havuzu`, `Kategori Bazında Yıl Aralığı`,
   `Kategori Tercihleri`, `Kategori Bazında Gösterim`,
@@ -466,6 +468,11 @@ Checklist:
   the top proves included sections, and the final `Rapor Tamamlandı` marker
   proves the generated report completed. If the received email lacks the final
   marker, suspect email clipping/truncation.
+* `Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı` must render as an
+  email-safe inline HTML/CSS stacked-bar table with numeric counts for
+  `Zorluk 1`, `Zorluk 2`, `Zorluk 3`, `Zorluk 4`, `Zorluk 5`, and
+  `Bilinmiyor`. It is sourced from active `Question` rows, includes asked and
+  never-asked questions, and must not use JavaScript charts.
 * Long event-based detail sections must remain bounded: top shown, never/least
   shown, wrong, easy, slow, and per-category samples should show counts plus
   limited rows instead of dumping the full question pool.

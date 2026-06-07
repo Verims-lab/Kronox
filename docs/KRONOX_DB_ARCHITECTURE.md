@@ -758,6 +758,11 @@ No deletion should happen in this task.
   included sections near the top, and `Rapor Tamamlandı` at the end indicates
   generation completed; if the marker is missing in a received email, suspect
   clipping/truncation.
+- Email-safe registered-pool chart. `Sistemdeki Soru Havuzu: Kategori /
+  Zorluk Dağılımı` is sourced from active `Question` rows and renders a numeric
+  category/difficulty table plus inline HTML/CSS stacked bars. It includes
+  asked and never-asked questions, counts Zorluk 1-5 plus Bilinmiyor, and does
+  not use JavaScript chart libraries.
 - Manual DB reset path after question pool replacement. The function-based
   reset path is currently not used. To restart analytics from zero, manually
   clear only `QuestionAttemptEvent`, `QuestionStatsProjection`, and
