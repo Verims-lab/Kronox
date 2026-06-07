@@ -450,8 +450,10 @@ Checklist:
   deployed SendEmail delivery and Gmail desktop/mobile rendering with an admin
   account.
 * Question Analytics report must include these actual sent-body sections:
-  `Kategori Bazında Soru Havuzu`, `Kategori Bazında Kayıtlı Soru Havuzu`,
-  `Kategori Tercihleri`, `Kategori Bazında Gösterim`,
+  `Kategori Bazında Soru Havuzu`,
+  `Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı`,
+  `Kategori Bazında Kayıtlı Soru Havuzu`, `Kategori Tercihleri`,
+  `Kategori Bazında Gösterim`,
   `Kategori İçi Soru Analizi`, and `Kategori Denge Sinyalleri`. Category
   preference counts are aggregate distinct-user counts only; no user IDs or
   emails appear in the report.
@@ -460,10 +462,12 @@ Checklist:
   oldest year, and newest year. It must render when `QuestionAttemptEvent`,
   `QuestionStatsProjection`, and `CategoryStatsProjection` are empty.
   Unknown/unmapped categories are diagnostic rows, not silently dropped.
-* `Kategori Bazında Kayıtlı Soru Havuzu` must also render from active
-  `Question` rows and show category, difficulty level, question count, oldest
-  year, and newest year. It must remain separate from shown/asked analytics.
-  `Kategori Bazında Gösterim` is separate report-period exposure data.
+* `Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı` /
+  `Kategori Bazında Kayıtlı Soru Havuzu` must also render from active
+  `Question` rows and show category, difficulty level, registered question
+  count, oldest year, and newest year. It includes asked and never-asked active
+  questions. It must remain separate from shown/asked analytics. `Kategori
+  Bazında Gösterim` is separate report-period exposure data.
 * Question analytics reset is currently a manual DB maintenance operation; the
   function-based reset path is not used. After replacing the question pool,
   manually clear only `QuestionAttemptEvent`, `QuestionStatsProjection`, and

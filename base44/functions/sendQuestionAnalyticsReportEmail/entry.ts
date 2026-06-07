@@ -16,7 +16,7 @@ const REGISTERED_QUESTION_POOL_ROW_LIMIT = 250;
 const CATEGORY_FAIRNESS_SIGNAL_LIMIT = 20;
 const STALE_REFERENCE_SAMPLE_LIMIT = 20;
 const PERIOD_OPTIONS = /* @__PURE__ */ new Set([1, 7, 30]);
-const REPORT_BUILD_MARKER = "Codex264";
+const REPORT_BUILD_MARKER = "Codex265";
 function json(payload, status = 200) {
   return Response.json(payload, { status });
 }
@@ -819,11 +819,16 @@ function buildReport({
       categoryPoolRows,
       "Question tablosunda soru yok."
     )),
-    safeSectionHtml("Kategori Bazında Kayıtlı Soru Havuzu", () => tableHtml(
-      ["Kategori", "Zorluk Seviyesi", "Soru Sayısı", "En Eski Yıl", "En Yeni Yıl"],
-      registeredQuestionPoolRows,
-      "Question tablosunda aktif soru yok."
-    )),
+    safeSectionHtml("Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı", () => `
+      <p style="margin:0 0 12px;color:#334155;font-size:13px;line-height:20px;font-family:Arial,Helvetica,sans-serif;">
+        Kategori Bazında Kayıtlı Soru Havuzu detayıdır. Kaynak doğrudan Question tablosundaki aktif kayıtlar; gösterilmiş ve hiç gösterilmemiş sorular birlikte sayılır.
+      </p>
+      ${tableHtml(
+        ["Kategori", "Zorluk Seviyesi", "Sistemdeki Soru Sayısı", "En Eski Yıl", "En Yeni Yıl"],
+        registeredQuestionPoolRows,
+        "Question tablosunda aktif soru yok."
+      )}
+    `),
     safeSectionHtml("Kategori Tercihleri", () => tableHtml(
       ["Kategori ID", "Kategori", "Tercih eden kullanıcı", "Tercih payı"],
       categoryPreferenceRows,
@@ -906,7 +911,7 @@ function buildReport({
   const neverTextRows = neverShownSample.length ? neverShownSample.map((question, index) => `${index + 1}. #${questionKey(question?.id ?? question?.question_id)} | ${shortText(question?.question, 100)} | yıl=${getQuestionYear(question) ?? "Yok"} | kategori=${categoryLabel(getCategoryId(question), categoryMap)} | alt=${displayValue(question?.sub_category)}`) : ["Hiç gösterilmeyen aktif soru bulunmadı."];
   const categoryPoolTextRows = hasQuestionRows ? categoryAnalyticsForReport.map((row) => `${row.categoryId} | ${row.categoryName}: aktif=${row.activeQuestionCount}, zorluk1=${row.difficultyCounts?.["1"] || 0}, zorluk2=${row.difficultyCounts?.["2"] || 0}, zorluk3=${row.difficultyCounts?.["3"] || 0}, zorluk4=${row.difficultyCounts?.["4"] || 0}, zorluk5=${row.difficultyCounts?.["5"] || 0}, zorluk_bilinmiyor=${row.difficultyCounts?.unknown || 0}, en_eski_yıl=${row.oldestYear ?? "-"}, en_yeni_yıl=${row.newestYear ?? "-"}`) : ["Question tablosunda soru yok."];
   const registeredQuestionPoolTextRows = hasQuestionRows ? categoryAnalytics
-    .flatMap((row) => row.registeredQuestionPoolRows.map((detail) => `${row.categoryId} | ${row.categoryName} | zorluk=${detail.difficultyLevel} | soru=${detail.questionCount} | en_eski_yıl=${detail.oldestYear ?? "Yok"} | en_yeni_yıl=${detail.newestYear ?? "Yok"}`))
+    .flatMap((row) => row.registeredQuestionPoolRows.map((detail) => `${row.categoryId} | ${row.categoryName} | zorluk=${detail.difficultyLevel} | sistemdeki_soru=${detail.questionCount} | en_eski_yıl=${detail.oldestYear ?? "Yok"} | en_yeni_yıl=${detail.newestYear ?? "Yok"}`))
     .slice(0, REGISTERED_QUESTION_POOL_ROW_LIMIT) : ["Question tablosunda aktif soru yok."];
   const categoryPreferenceTextRows = categoryAnalytics.length ? categoryAnalyticsForReport.map((row) => `${row.categoryId} | ${row.categoryName}: tercih eden kullanıcı=${row.selectedUserCount}, tercih payı=${totalPreferenceSelections ? percent(row.selectedUserCount, totalPreferenceSelections) : "0%"}`) : ["Kategori tercih verisi henüz yok."];
   const categoryExposureTextRows = categoryAnalytics.length ? categoryAnalyticsForReport.map((row) => `${row.categoryId} | ${row.categoryName}: aktif=${row.activeQuestionCount}, gösterim=${row.shownCount}, benzersiz gösterilen=${row.uniqueShownQuestionCount}, cevaplanan=${row.answeredCount}, doğru=${row.correctRate === null ? "Yeterli veri yok" : percent(row.correctRate, 1)}, ortalama süre=${formatMs(row.avgResponseTimeMs)}, gösterim payı=${percent(row.shownCount, shownEvents)}`) : ["Kategori bazında gösterim verisi yok."];
@@ -942,7 +947,8 @@ function buildReport({
     "--- Kategori Bazında Soru Havuzu ---",
     ...categoryPoolTextRows,
     "",
-    "--- Kategori Bazında Kayıtlı Soru Havuzu ---",
+    "--- Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı ---",
+    "Kategori Bazında Kayıtlı Soru Havuzu | Kaynak: Question tablosundaki aktif kayıtlar; gösterilmiş ve hiç gösterilmemiş sorular birlikte sayılır.",
     ...registeredQuestionPoolTextRows,
     "",
     "--- Kategori Tercihleri ---",
@@ -1012,6 +1018,7 @@ function buildReport({
       categoryFairnessSignalCount: categoryFairnessSignals.length,
       reportSections: [
         "Kategori Bazında Soru Havuzu",
+        "Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı",
         "Kategori Bazında Kayıtlı Soru Havuzu",
         "Kategori Tercihleri",
         "Kategori Bazında Gösterim",

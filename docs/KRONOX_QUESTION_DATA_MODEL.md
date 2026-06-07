@@ -149,9 +149,11 @@ Rules:
   event/projection data; it renders even when analytics events are zero and
   includes category, active question count, difficulty 1-5/unknown
   distribution, oldest year, newest year, and Unknown/unmapped diagnostics
-* `Kategori Bazında Kayıtlı Soru Havuzu` is a separate registered-pool detail
-  section sourced from active `Question` rows; it shows category, difficulty
-  level, question count, oldest year, and newest year
+* `Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı` /
+  `Kategori Bazında Kayıtlı Soru Havuzu` is a separate registered-pool detail
+  section sourced from active `Question` rows; it counts asked and never-asked
+  active registered questions by category and difficulty level, with oldest and
+  newest year where available
 * category exposure analysis is separate report-period data sourced from
   `QuestionAttemptEvent` rows
 * after a full question pool replacement, question analytics reset is currently

@@ -33,6 +33,7 @@ export const QUESTION_ANALYTICS_REPORT_SECTIONS = Object.freeze([
   'Executive Summary',
   'Key Insights / Risk Flags',
   'Kategori Bazında Soru Havuzu',
+  'Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı',
   'Kategori Bazında Kayıtlı Soru Havuzu',
   'Kategori Tercihleri',
   'Kategori Bazında Gösterim',
