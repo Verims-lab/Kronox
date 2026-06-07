@@ -63,7 +63,7 @@ Status: Active product contract.
 - Manual reset must not delete Question, Category, SubCategory, UserCategoryPreference, UserStatsProjection, progress/economy/leaderboard data, Daily Wheel rows, users, or AdminUser.
 - manual question analytics reset does not delete Question, Category, SubCategory, UserCategoryPreference, UserStatsProjection, score/progress/economy, leaderboard, Daily Wheel, users, AdminUser, or gameplay rows.
 - sendQuestionAnalyticsReportEmail handles stale/deleted question references with diagnostics and bounded sections.
-- sendQuestionAnalyticsReportEmail actual sent body includes Kategori Bazında Soru Havuzu, Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı, Kategori Bazında Kayıtlı Soru Havuzu, Kategori Tercihleri, Kategori Bazında Gösterim, Kategori İçi Soru Analizi, and Kategori Denge Sinyalleri.
+- sendQuestionAnalyticsReportEmail actual sent body includes Rapor Bölümleri, Kategori Bazında Soru Havuzu, Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı, Kategori Bazında Kayıtlı Soru Havuzu, Kategori Bazında Yıl Aralığı, Kategori Tercihleri, Kategori Bazında Gösterim, Kategori İçi Soru Analizi, Kategori Denge Sinyalleri, and Rapor Tamamlandı.
 - Category preference report counts are aggregate distinct-user counts only and do not expose user IDs or emails.
 - Question analytics report sections render with section-level warnings instead of truncating the whole email.
 - unrelated user progress admin reset retains question analytics rows; account deletion anonymizes user-owned analytics identity.
@@ -175,6 +175,8 @@ Status: Implementation tracking doc.
 - Question analytics reports include category pool counts, registered category/difficulty/year-range pool detail, aggregate category preference counts, category exposure counts, within-category most/least/never-shown analysis, and category fairness signals.
 - Kategori Bazında Soru Havuzu is static Question table data, not event/projection data, and includes active question count, difficulty 1-5/unknown distribution, oldest year, newest year, and Unknown/unmapped category diagnostics even when analytics tables are empty.
 - Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı / Kategori Bazında Kayıtlı Soru Havuzu is static active Question table data grouped by category and difficulty level with registered question count, oldest year, and newest year, including asked and never-asked active questions.
+- Static Question DB pool sections appear near the top before long event detail tables; Rapor Bölümleri proves included sections and Rapor Tamamlandı at the end diagnoses clipping/truncation if missing.
+- Long event-based detail sections are row-limited for email readability.
 - Legacy candidates kept without deletion: Friendship, GameRecord, LobbyMessage.
 - Raw Question remains protected.
 - UserCategoryPreference stores app-open popup and Settings Category preferences per user; minimum 3 selections. There is no maximum selection.

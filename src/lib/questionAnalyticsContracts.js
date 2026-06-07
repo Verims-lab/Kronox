@@ -31,10 +31,12 @@ export const QUESTION_ANALYTICS_MANUAL_RESET_MODE = 'manual_db_reset_only';
 export const QUESTION_ANALYTICS_REPORT_SECTIONS = Object.freeze([
   'Kronox Soru Analiz Raporu',
   'Executive Summary',
+  'Rapor Bölümleri',
   'Key Insights / Risk Flags',
   'Kategori Bazında Soru Havuzu',
   'Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı',
   'Kategori Bazında Kayıtlı Soru Havuzu',
+  'Kategori Bazında Yıl Aralığı',
   'Kategori Tercihleri',
   'Kategori Bazında Gösterim',
   'Kategori İçi Soru Analizi',
@@ -45,6 +47,7 @@ export const QUESTION_ANALYTICS_REPORT_SECTIONS = Object.freeze([
   'Çok Kolay Görünen Sorular',
   'En Uzun Sürede Cevaplanan Sorular',
   'Veri Kalitesi Uyarıları',
+  'Rapor Tamamlandı',
 ]);
 
 export const QUESTION_ANALYTICS_SECURITY_CONTRACT = Object.freeze({

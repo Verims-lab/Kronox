@@ -753,6 +753,11 @@ No deletion should happen in this task.
   question count, oldest year, and newest year. It includes asked and
   never-asked active questions, is independent of analytics events, and remains
   distinct from shown/asked distribution.
+- Report ordering and clipping diagnostics. Static `Question` DB pool sections
+  render near the top before long event detail tables. `Rapor Bölümleri` lists
+  included sections near the top, and `Rapor Tamamlandı` at the end indicates
+  generation completed; if the marker is missing in a received email, suspect
+  clipping/truncation.
 - Manual DB reset path after question pool replacement. The function-based
   reset path is currently not used. To restart analytics from zero, manually
   clear only `QuestionAttemptEvent`, `QuestionStatsProjection`, and

@@ -196,13 +196,16 @@ export const EXTRA_TESTS = [
         'safeSectionHtml',
         'htmlSections',
         'section_render_failed',
+        'Rapor Bölümleri',
         'Kategori Bazında Soru Havuzu',
         'Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı',
         'Kategori Bazında Kayıtlı Soru Havuzu',
+        'Kategori Bazında Yıl Aralığı',
         'Kategori Tercihleri',
         'Kategori Bazında Gösterim',
         'Kategori İçi Soru Analizi',
         'Kategori Denge Sinyalleri',
+        'Rapor Tamamlandı',
         'En Çok Gösterilen Sorular',
         'Az veya Hiç Gösterilmeyen Sorular',
         'En Çok Yanlış Yapılan Sorular',
@@ -327,6 +330,8 @@ export const EXTRA_TESTS = [
         'neverShownSoloEligibleCount',
         'categoryPoolRows',
         'registeredQuestionPoolRows',
+        'categoryYearRangeRows',
+        'reportChecklistRows',
         'registeredQuestionPoolSource',
         'REGISTERED_QUESTION_POOL_ROW_LIMIT',
         'categoryPreferenceRows',
@@ -334,13 +339,18 @@ export const EXTRA_TESTS = [
         'categoryFairnessSignalRows',
         'buildCategoryFairnessSignals',
         'CATEGORY_FAIRNESS_SIGNAL_LIMIT',
+        'Rapor Bölümleri',
         'Kategori Bazında Soru Havuzu',
         'Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı',
         'Kategori Bazında Kayıtlı Soru Havuzu',
+        'Kategori Bazında Yıl Aralığı',
         'Kategori Tercihleri',
         'Kategori Bazında Gösterim',
         'Kategori İçi Soru Analizi',
         'Kategori Denge Sinyalleri',
+        'Rapor Tamamlandı',
+        'Bu rapor tüm bölümleriyle tamamlandı',
+        'clipping/truncation',
         'Tercih eden kullanıcı',
         'Zorluk Seviyesi',
         'Sistemdeki Soru Sayısı',
@@ -411,9 +421,12 @@ export const EXTRA_TESTS = [
         'newestYear',
         'oldestYear ?? "Yok"',
         'newestYear ?? "Yok"',
+        'reportChecklistRows',
+        'Rapor Bölümleri',
         'Kategori Bazında Soru Havuzu',
         'Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı',
         'Kategori Bazında Kayıtlı Soru Havuzu',
+        'Kategori Bazında Yıl Aralığı',
         'Toplam Soru',
         'Toplam',
         'Zorluk Seviyesi',
@@ -454,6 +467,8 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(actualReportBody, [
         'Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı',
         'Kategori Bazında Kayıtlı Soru Havuzu',
+        'Kategori Bazında Yıl Aralığı',
+        'categoryYearRangeRows',
         'registeredQuestionPoolRows',
         'registeredQuestionPoolRowsRendered',
         'registeredQuestionPoolSource',
@@ -500,6 +515,49 @@ export const EXTRA_TESTS = [
       });
     }),
 
+  makeCase('email_report_static_sections_before_long_details_and_completion_marker',
+    'Static pool sections appear near top and report has a final completion marker',
+    () => {
+      const src = reportFunctionSource;
+      const orderedPairs = [
+        ['safeSectionHtml("Rapor Bölümleri"', 'safeSectionHtml("En Çok Gösterilen Sorular"'],
+        ['safeSectionHtml("Kategori Bazında Soru Havuzu"', 'safeSectionHtml("En Çok Gösterilen Sorular"'],
+        ['safeSectionHtml("Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı"', 'safeSectionHtml("En Çok Gösterilen Sorular"'],
+        ['safeSectionHtml("Kategori Bazında Yıl Aralığı"', 'safeSectionHtml("En Çok Gösterilen Sorular"'],
+        ['safeSectionHtml("Rapor Tamamlandı"', 'safeSectionHtml("Veri Kalitesi Uyarıları"'],
+      ];
+      const missing = missingTokens(src, [
+        'reportSectionNames',
+        'Rapor Bölümleri',
+        'Kategori Bazında Soru Havuzu',
+        'Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı',
+        'Kategori Bazında Yıl Aralığı',
+        'Rapor Tamamlandı',
+        'Bu rapor tüm bölümleriyle tamamlandı',
+        'clipping/truncation',
+        'reportCompletionMarker: "Rapor Tamamlandı"',
+        'clippingDiagnosis',
+        '--- Rapor Bölümleri ---',
+        '--- Rapor Tamamlandı ---',
+      ]);
+      const orderFailures = orderedPairs.filter(([first, second]) => {
+        const firstIndex = src.indexOf(first);
+        const secondIndex = src.indexOf(second);
+        if (firstIndex < 0 || secondIndex < 0) return true;
+        return first === 'safeSectionHtml("Rapor Tamamlandı"' ? firstIndex <= secondIndex : firstIndex >= secondIndex;
+      });
+      if (missing.length || orderFailures.length) {
+        return fail('Static report sections may still be hidden behind long event details or lack a completion marker.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
+          actual: { missing, orderFailures },
+        });
+      }
+      return pass('Static DB pool sections render before long event details, and Rapor Tamamlandı marks the end of the actual email body.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
   makeCase('email_report_is_html_formatted',
     'Question analytics email renders as HTML tables/cards/bars with text fallback',
     () => {
@@ -520,9 +578,17 @@ export const EXTRA_TESTS = [
         'html: report.html',
         'text: report.text',
         "textLines.join('\\n')",
+        '--- Rapor Bölümleri ---',
+        '--- Kategori Bazında Soru Havuzu ---',
+        '--- Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı ---',
+        '--- Kategori Bazında Yıl Aralığı ---',
         '--- En Çok Gösterilen Sorular ---',
-        'NEVER_SHOWN_SAMPLE_LIMIT = 20',
+        '--- Rapor Tamamlandı ---',
+        'NEVER_SHOWN_SAMPLE_LIMIT = 15',
+        'QUESTION_TABLE_LIMIT = 15',
+        'EASY_QUESTION_TABLE_LIMIT = 10',
         'neverShown.slice(0, NEVER_SHOWN_SAMPLE_LIMIT)',
+        'slice(0, EASY_QUESTION_TABLE_LIMIT)',
         'Bu dönemde gösterilen soru verisi yok.',
         'Yeterli örneklem yok.',
         'Cevap süresi verisi yok.',
@@ -683,6 +749,7 @@ export const EXTRA_TESTS = [
         'sectionWarningHtml',
         'htmlSections',
         'QUESTION_TABLE_LIMIT',
+        'EASY_QUESTION_TABLE_LIMIT',
         'CATEGORY_ANALYTICS_ROW_LIMIT',
         'CATEGORY_FAIRNESS_SIGNAL_LIMIT',
         'categoryAnalyticsForReport',
@@ -690,10 +757,13 @@ export const EXTRA_TESTS = [
         'registeredQuestionPoolSource: "Question.list active registered rows by category difficulty year range"',
         'Question tablosunda soru yok.',
         'Question tablosunda aktif soru yok.',
-        'NEVER_SHOWN_SAMPLE_LIMIT',
+        'NEVER_SHOWN_SAMPLE_LIMIT = 15',
+        'QUESTION_TABLE_LIMIT = 15',
+        'EASY_QUESTION_TABLE_LIMIT = 10',
         'CATEGORY_QUESTION_SAMPLE_LIMIT',
         'neverShown.slice(0, NEVER_SHOWN_SAMPLE_LIMIT)',
         'slice(0, QUESTION_TABLE_LIMIT)',
+        'slice(0, EASY_QUESTION_TABLE_LIMIT)',
         'slice(0, CATEGORY_ANALYTICS_ROW_LIMIT)',
       ]);
       if (missing.length) {
