@@ -148,7 +148,7 @@ Checklist:
 * Existing current-user selections load as selected.
 * Saving fewer than 3 category selections is blocked with clear copy.
 * Saving 3 or more category selections works.
-* There is no maximum selection limit.
+* There is no maximum selection.
 * Preferences are persisted per user in `UserCategoryPreference`.
 * Category preference popup appears for any authenticated user with fewer than
   3 active valid Category preferences, including existing users.

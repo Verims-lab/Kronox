@@ -934,6 +934,14 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Settings editable, no maximum selection cap, and no question
 //     selection connection.
 //
+// Codex248 — Category preference Health coverage cleanup:
+//   • Updates Health guardrails to assert Category preferences, the below-3
+//     popup count matrix, active/passive Category filtering, and no max cap.
+//   • Keeps SubCategory as future metadata only and removes stale minimum-5
+//     SubCategory preference assumptions from active Settings coverage.
+//   • Leaves question selection, Settings behavior, and onboarding behavior
+//     unchanged.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1237,7 +1245,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex247';
+const BUILD_MARKER = 'Codex248';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

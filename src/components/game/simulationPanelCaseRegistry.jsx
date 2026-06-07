@@ -186,7 +186,7 @@ import * as questionAnalyticsCases from './simulationPanelQuestionAnalyticsCases
 // Codex240 — Numeric typography readability: timeline years use Bebas Neue,
 // all other major numeric UI values use the shared Inter SemiBold token.
 import * as numericTypographyCases from './simulationPanelNumericTypographyCases';
-// Codex247 — Settings + below-3 popup main Category interest preferences.
+// Codex248 — Settings + below-3 popup main Category preference Health cleanup.
 import * as categoryPreferenceCases from './simulationPanelCategoryPreferenceCases';
 
 const MODULES = [

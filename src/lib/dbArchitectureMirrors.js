@@ -29,7 +29,7 @@ Analytics/statistics entities implemented now:
 Category preference status:
 - Settings İlgi Alanlarım reads active Category rows.
 - Category interests are stored in UserCategoryPreference rows scoped to user_email.
-- Minimum selection count is 3 and there is no maximum selection count.
+- Minimum selection count is 3. There is no maximum selection.
 - Any user with fewer than 3 active valid Category preferences sees the popup; this applies to new and existing users.
 - The source of truth is active valid UserCategoryPreference count.
 - Only active categories are selectable and count.

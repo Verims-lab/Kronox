@@ -27,6 +27,15 @@ import {
   RELEASE_PROOF_CHECKLIST_DOC as releaseProofChecklistDocSource,
   SECURITY_DEPLOYMENT_DOC as securityDeploymentDocSource,
 } from '@/lib/healthAlignmentDocMirrors';
+import {
+  getValidActiveSelectedCategoryIds,
+  MIN_CATEGORY_SELECTION_COUNT,
+  NO_MAX_CATEGORY_SELECTION_LIMIT,
+} from '@/lib/userCategoryPreferences';
+import {
+  getValidCategoryPreferenceCount,
+  shouldShowCategoryPreferenceOnboarding,
+} from '@/lib/categoryPreferenceOnboarding';
 
 const STATUS = {
   PASS: 'PASS',
@@ -76,6 +85,30 @@ function parseJsonSource(source) {
   } catch {
     return {};
   }
+}
+
+const HEALTH_USER_EMAIL = 'health-user@example.com';
+
+function makeHealthCategory(categoryId, status = 'A') {
+  return {
+    category_id: categoryId,
+    name: `Health Category ${categoryId}`,
+    status,
+  };
+}
+
+function makeHealthPreference(categoryId, { status = 'A', userEmail = HEALTH_USER_EMAIL } = {}) {
+  return {
+    id: `${userEmail}-${categoryId}`,
+    user_id: userEmail,
+    user_email: userEmail,
+    category_id: categoryId,
+    status,
+  };
+}
+
+function makeHealthPreferences(count, options = {}) {
+  return Array.from({ length: count }, (_, index) => makeHealthPreference(index + 1, options));
 }
 
 export const EXTRA_SUITES = [
@@ -265,20 +298,70 @@ export const EXTRA_TESTS = [
         'NO_MAX_CATEGORY_SELECTION_LIMIT = true',
         'noMaximumSelectionLimit',
       ]);
+      const helperConstantOk = NO_MAX_CATEGORY_SELECTION_LIMIT === true;
       const forbidden = forbiddenTokens(`${preferenceHelperSource}\n${preferenceSectionSource}`, [
         'MAX_CATEGORY_SELECTION_COUNT',
         'MAX_SELECTED_CATEGORIES',
         'MAX_SUBCATEGORY_SELECTION_COUNT',
         'MAX_SELECTED_SUBCATEGORIES',
       ]);
-      if (missing.length || forbidden.length) {
+      if (missing.length || forbidden.length || !helperConstantOk) {
         return fail('Category preference selection may have gained an unintended max cap.', {
           verification: 'STATIC_CONTRACT',
           files: ['src/lib/userCategoryPreferences.js', 'src/components/settings/CategoryPreferencesSection.jsx'],
-          actual: { missing, forbidden },
+          actual: { missing, forbidden, helperConstantOk },
         });
       }
       return pass('No upper selection limit is present for Category preferences.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('stale_subcategory_preference_health_assumptions_rewritten',
+    'Stale SubCategory preference UI/minimum-5 assumptions are removed from active Settings coverage',
+    () => {
+      const activePreferenceSources = [
+        settingsPageSource,
+        preferenceSectionSource,
+        onboardingModalSource,
+        preferenceHelperSource,
+        onboardingProfileSource,
+      ].join('\n');
+      const forbidden = forbiddenTokens(activePreferenceSources, [
+        'MIN_SUBCATEGORY_SELECTION_COUNT',
+        'MAX_SUBCATEGORY_SELECTION_COUNT',
+        'En az 5 ilgi alanı',
+        'En az 5 alt kategori',
+        'loadActiveSubCategories',
+        'loadUserSubCategoryPreferences',
+        'saveUserSubCategoryPreferences',
+        'SubCategoryPreferencesSection',
+        'categoryPreferenceOnboardingRequired',
+        'created_at <',
+        'created_date <',
+        'rolloutCutoff',
+      ]);
+      const required = missingTokens(`${preferenceHelperSource}\n${preferenceSectionSource}\n${onboardingModalSource}`, [
+        'MIN_CATEGORY_SELECTION_COUNT = 3',
+        'En az 3 kategori seçmelisin.',
+        'loadActiveCategories',
+        'loadUserCategoryPreferences',
+        'saveUserCategoryPreferences',
+      ]);
+      if (forbidden.length || required.length) {
+        return fail('Active preference Health/static coverage still contains stale SubCategory, minimum-5, or new-user-only assumptions.', {
+          verification: 'STATIC_CONTRACT',
+          files: [
+            'src/pages/SettingsPage.jsx',
+            'src/components/settings/CategoryPreferencesSection.jsx',
+            'src/components/settings/CategoryPreferenceOnboardingModal.jsx',
+            'src/lib/userCategoryPreferences.js',
+            'src/lib/categoryPreferenceOnboarding.js',
+          ],
+          actual: { forbidden, required },
+        });
+      }
+      return pass('Active Settings/popup coverage uses Category preferences, minimum 3, and no old SubCategory preference UI path.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -555,6 +638,139 @@ export const EXTRA_TESTS = [
       });
     }),
 
+  makeCase('popup_trigger_count_matrix_covers_zero_one_two_three_plus',
+    'Popup trigger covers 0/1/2 preferences as incomplete and 3+ as complete',
+    () => {
+      const activeCategories = Array.from({ length: 6 }, (_, index) => makeHealthCategory(index + 1));
+      const matrix = [0, 1, 2, 3, 4, 6].map((count) => ({
+        count,
+        shouldShow: shouldShowCategoryPreferenceOnboarding({
+          preferences: makeHealthPreferences(count),
+          activeCategories,
+        }),
+      }));
+      const expected = new Map([
+        [0, true],
+        [1, true],
+        [2, true],
+        [3, false],
+        [4, false],
+        [6, false],
+      ]);
+      const mismatches = matrix.filter((row) => row.shouldShow !== expected.get(row.count));
+      const minOk = MIN_CATEGORY_SELECTION_COUNT === 3;
+
+      if (mismatches.length || !minOk) {
+        return fail('Popup trigger helper does not implement the active valid count < 3 rule.', {
+          verification: 'HELPER_SIMULATION',
+          actual: { matrix, mismatches, minOk },
+        });
+      }
+      return pass('Popup trigger helper shows for 0/1/2 active valid preferences and skips for 3 or more.', {
+        verification: 'HELPER_SIMULATION',
+        actual: { matrix },
+      });
+    }),
+
+  makeCase('completion_flag_cannot_bypass_below_three_count',
+    'Onboarding completion flags cannot bypass the below-3 trigger rule',
+    () => {
+      const activeCategories = Array.from({ length: 4 }, (_, index) => makeHealthCategory(index + 1));
+      const completedExistingUser = {
+        email: HEALTH_USER_EMAIL,
+        created_date: '2024-01-01T00:00:00.000Z',
+        hasCompletedTutorial: true,
+        category_preferences_onboarding_completed: true,
+      };
+      const shouldShowWithCompletedUser = shouldShowCategoryPreferenceOnboarding({
+        user: completedExistingUser,
+        preferences: makeHealthPreferences(2),
+        activeCategories,
+      });
+      const shouldSkipWithValidCount = shouldShowCategoryPreferenceOnboarding({
+        user: { email: HEALTH_USER_EMAIL, category_preferences_onboarding_completed: false },
+        preferences: makeHealthPreferences(3),
+        activeCategories,
+      });
+
+      if (!shouldShowWithCompletedUser || shouldSkipWithValidCount) {
+        return fail('Completion, tutorial, account age, or rollout state can override the active valid preference count.', {
+          verification: 'HELPER_SIMULATION',
+          actual: { shouldShowWithCompletedUser, shouldSkipWithValidCount },
+        });
+      }
+      return pass('The popup trigger ignores completion/advisory state and follows the active valid preference count.', {
+        verification: 'HELPER_SIMULATION',
+        actual: { shouldShowWithCompletedUser, shouldSkipWithValidCount },
+      });
+    }),
+
+  makeCase('active_valid_count_helper_excludes_passive_invalid_and_passive_categories',
+    'Active valid count excludes passive preferences, passive Categories, and corrupt Category ids',
+    () => {
+      const categories = [
+        makeHealthCategory(1, 'A'),
+        makeHealthCategory(2, 'P'),
+        makeHealthCategory(3, 'a'),
+        makeHealthCategory(4, 'A'),
+      ];
+      const preferences = [
+        makeHealthPreference(1, { status: 'A' }),
+        makeHealthPreference(2, { status: 'A' }),
+        makeHealthPreference(3, { status: 'P' }),
+        makeHealthPreference('bad-id', { status: 'A' }),
+        makeHealthPreference(4, { status: 'A' }),
+      ];
+      const validIds = getValidActiveSelectedCategoryIds(preferences, categories);
+      const validCount = getValidCategoryPreferenceCount(preferences, categories);
+      const expectedIds = [1, 4];
+      const idsOk = expectedIds.every((id) => validIds.has(id)) && validIds.size === expectedIds.length;
+      const missing = missingTokens(`${preferenceHelperSource}\n${onboardingModalSource}`, [
+        'loadUserCategoryPreferences(user)',
+        '{ user_email: userEmail }',
+        'getValidActiveSelectedCategoryIds(preferences, categories)',
+      ]);
+
+      if (!idsOk || validCount !== 2 || missing.length) {
+        return fail('Valid count may include passive/invalid Category preferences or rows outside current-user filtering.', {
+          verification: 'HELPER_SIMULATION',
+          files: [
+            'src/lib/userCategoryPreferences.js',
+            'src/components/settings/CategoryPreferenceOnboardingModal.jsx',
+          ],
+          actual: { validIds: Array.from(validIds), validCount, missing },
+        });
+      }
+      return pass('Valid count intersects active preferences with active Category rows after current-user preference loading.', {
+        verification: 'HELPER_SIMULATION',
+        actual: { validIds: Array.from(validIds), validCount },
+      });
+    }),
+
+  makeCase('passive_selected_category_reopens_popup_when_count_drops_below_three',
+    'A selected Category becoming passive drops valid count and reopens the popup',
+    () => {
+      const categories = [
+        makeHealthCategory(1, 'A'),
+        makeHealthCategory(2, 'A'),
+        makeHealthCategory(3, 'P'),
+      ];
+      const preferences = makeHealthPreferences(3);
+      const validCount = getValidCategoryPreferenceCount(preferences, categories);
+      const shouldShow = shouldShowCategoryPreferenceOnboarding({ preferences, activeCategories: categories });
+
+      if (validCount !== 2 || !shouldShow) {
+        return fail('Passive selected Categories may still count toward completion.', {
+          verification: 'HELPER_SIMULATION',
+          actual: { validCount, shouldShow },
+        });
+      }
+      return pass('If a previously selected Category becomes passive and valid count falls below 3, the popup should show again.', {
+        verification: 'HELPER_SIMULATION',
+        actual: { validCount, shouldShow },
+      });
+    }),
+
   makeCase('passive_categories_and_preferences_do_not_count_for_popup',
     'Popup count excludes passive preferences, passive Categories, SubCategory rows, and corrupt ids',
     () => {
@@ -608,6 +824,66 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Settings remains the editable Category preference surface after app-open popup completion.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('settings_and_popup_share_same_category_preference_contract',
+    'Settings and popup share the same Category preference data contract',
+    () => {
+      const requiredInBoth = [
+        'loadActiveCategories',
+        'loadUserCategoryPreferences',
+        'getValidActiveSelectedCategoryIds',
+        'saveUserCategoryPreferences',
+        'MIN_CATEGORY_SELECTION_COUNT',
+      ];
+      const settingsMissing = missingTokens(preferenceSectionSource, requiredInBoth);
+      const popupMissing = missingTokens(onboardingModalSource, requiredInBoth);
+      const helperMissing = missingTokens(preferenceHelperSource, [
+        'NO_MAX_CATEGORY_SELECTION_LIMIT = true',
+      ]);
+      const forbidden = forbiddenTokens(`${preferenceSectionSource}\n${onboardingModalSource}`, [
+        'UserSubCategoryPreference',
+        'loadActiveSubCategories',
+        'saveUserSubCategoryPreferences',
+        'MAX_CATEGORY_SELECTION_COUNT',
+        'MAX_SUBCATEGORY_SELECTION_COUNT',
+      ]);
+
+      if (settingsMissing.length || popupMissing.length || helperMissing.length || forbidden.length) {
+        return fail('Settings and popup may have diverged into separate preference contracts.', {
+          verification: 'STATIC_CONTRACT',
+          files: [
+            'src/components/settings/CategoryPreferencesSection.jsx',
+            'src/components/settings/CategoryPreferenceOnboardingModal.jsx',
+          ],
+          actual: { settingsMissing, popupMissing, helperMissing, forbidden },
+        });
+      }
+      return pass('Settings and popup both use active Category rows, UserCategoryPreference persistence, min-3 validation, and no max cap.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('global_under_three_active_categories_has_safe_non_blocking_state',
+    'Popup does not trap users if fewer than 3 active Category rows exist globally',
+    () => {
+      const missing = missingTokens(onboardingModalSource, [
+        'activeCategories.length < MIN_CATEGORY_SELECTION_COUNT',
+        'Kategoriler henüz hazırlanıyor.',
+        'setDismissedForSession(true)',
+        'Daha Sonra',
+        'disabled={loading || saving || !canContinue}',
+      ]);
+      if (missing.length) {
+        return fail('Popup can trap users if admin Category data has fewer than 3 active rows.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'src/components/settings/CategoryPreferenceOnboardingModal.jsx',
+          missing,
+        });
+      }
+      return pass('Popup has a safe setup-data fallback for fewer than 3 active Category rows.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -698,7 +974,7 @@ export const EXTRA_TESTS = [
         'UserCategoryPreference',
         'İlgi Alanlarım',
         'Minimum selection count is 3',
-        'There is no maximum selection',
+        'There is no maximum selection.',
         'Any user with fewer than 3 active valid Category preferences sees the popup',
         'new and existing users',
         'active valid UserCategoryPreference count',

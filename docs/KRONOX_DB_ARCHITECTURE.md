@@ -308,7 +308,7 @@ Rules:
 * The Settings UI shows only active `Category.status = A/a` rows.
 * Passive `Category.status = P/p` rows are not selectable.
 * Users must select at least 3 categories before saving.
-* There is no maximum selection limit.
+* There is no maximum selection.
 * Rows are scoped to the authenticated user.
 * Any authenticated user with fewer than 3 active valid Category preferences
   sees the popup; this applies to new and existing users.
