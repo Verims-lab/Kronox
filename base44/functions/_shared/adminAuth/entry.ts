@@ -1,3 +1,4 @@
+/* global Response */
 export function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
 }
@@ -60,6 +61,7 @@ export async function getAdminAuthorization(base44, user) {
     };
   }
 
+  // Static contract: DB-backed admin guard reads base44.asServiceRole.entities.AdminUser.
   const adminEntity = base44?.asServiceRole?.entities?.AdminUser;
   if (!adminEntity?.filter) {
     return {
@@ -131,6 +133,11 @@ export async function getAdminAuthorization(base44, user) {
       reason,
     }),
   };
+}
+
+export async function isAuthorizedAdmin(base44, user) {
+  const authorization = await getAdminAuthorization(base44, user);
+  return authorization.isAdmin;
 }
 
 export async function requireAdmin(base44) {
