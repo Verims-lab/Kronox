@@ -20,6 +20,9 @@ import reportFunctionSource from '../../../base44/functions/sendQuestionAnalytic
 import reportFunctionManifestSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc?raw';
 import resetQuestionAnalyticsDataSource from '../../../base44/functions/resetQuestionAnalyticsData/entry.ts?raw';
 import resetQuestionAnalyticsDataManifestSource from '../../../base44/functions/resetQuestionAnalyticsData/function.jsonc?raw';
+import deployedAdminAuthSource from '../../../functions/_shared/adminAuth.js?raw';
+import deployedReportFunctionSource from '../../../functions/sendQuestionAnalyticsReportEmail.js?raw';
+import deployedResetQuestionAnalyticsDataSource from '../../../functions/resetQuestionAnalyticsData.js?raw';
 import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
 import {
   QUESTION_ANALYTICS_REPORT_SECTIONS,
@@ -176,11 +179,17 @@ export const EXTRA_TESTS = [
   makeCase('manual_admin_email_report_function_exists',
     'Manual admin email report function is admin-only and question-focused',
     () => {
-      const sectionMissing = QUESTION_ANALYTICS_REPORT_SECTIONS.filter((section) => !reportFunctionSource.includes(section));
-      const combined = `${reportFunctionSource}\n${adminAuthSource}`;
+      const sectionMissing = QUESTION_ANALYTICS_REPORT_SECTIONS.filter((section) => (
+        !reportFunctionSource.includes(section) || !deployedReportFunctionSource.includes(section)
+      ));
+      const combined = `${reportFunctionSource}\n${deployedReportFunctionSource}\n${adminAuthSource}\n${deployedAdminAuthSource}`;
       const missing = missingTokens(combined, [
         'sendQuestionAnalyticsReportEmail',
+        'functions/sendQuestionAnalyticsReportEmail.js',
+        'Deno.serve',
+        'createClientFromRequest',
         'requireAdmin',
+        './_shared/adminAuth.js',
         '../_shared/adminAuth.ts',
         'entities.AdminUser',
         'QuestionAttemptEvent.list',
@@ -216,7 +225,7 @@ export const EXTRA_TESTS = [
       if (missing.length || sectionMissing.length || manifestMissing.length) {
         return fail('Manual question analytics report backend contract is incomplete.', {
           verification: 'STATIC_CONTRACT',
-          file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
+          files: ['functions/sendQuestionAnalyticsReportEmail.js', 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts'],
           missing: [...missing, ...sectionMissing, ...manifestMissing],
         });
       }
@@ -292,7 +301,9 @@ export const EXTRA_TESTS = [
   makeCase('analytics_report_includes_category_level_question_and_preference_analysis',
     'Question Analytics report includes category-level pool, preference, exposure, and internal question analysis',
     () => {
-      const missing = missingTokens(reportFunctionSource, [
+      const actualReportBody = `${deployedReportFunctionSource}\n${reportFunctionSource}`;
+      const missing = missingTokens(actualReportBody, [
+        'functions/sendQuestionAnalyticsReportEmail.js',
         'MAX_USER_CATEGORY_PREFERENCES',
         'CATEGORY_QUESTION_SAMPLE_LIMIT',
         'UserCategoryPreference.list',
@@ -325,13 +336,13 @@ export const EXTRA_TESTS = [
         'Hiç sorulmayan örnek',
         'categoryAnalytics',
       ]);
-      const forbidden = forbiddenTokens(reportFunctionSource, [
+      const forbidden = forbiddenTokens(actualReportBody, [
         'user_email</',
       ]);
       if (missing.length || forbidden.length) {
         return fail('Category-level question/preference analytics are missing or leak user-level preference details.', {
           verification: 'STATIC_CONTRACT',
-          file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
+          files: ['functions/sendQuestionAnalyticsReportEmail.js', 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts'],
           actual: { missing, forbidden },
         });
       }
@@ -397,6 +408,8 @@ export const EXTRA_TESTS = [
         "callAdminFunction('sendQuestionAnalyticsReportEmail'",
         'Soru Analitik Verilerini Sıfırla',
         "callAdminFunction('resetQuestionAnalyticsData'",
+        'confirmation: RESET_CONFIRMATION',
+        'confirmText: RESET_CONFIRMATION',
         "headers: { 'Content-Type': 'application/json' }",
         'errorMessageFromBody',
         'missingFunctionMessage',
@@ -408,6 +421,7 @@ export const EXTRA_TESTS = [
         'Rapor hazırlanıyor...',
         'Soru analiz raporu e-posta olarak gönderildi.',
         'Soru analitik verileri sıfırlandı.',
+        'Yeni raporlar mevcut soru havuzundan sıfırdan oluşacak',
       ]);
       if (missing.length) {
         return fail('Admin Settings report trigger is missing or not admin-scoped.', {
@@ -453,15 +467,21 @@ export const EXTRA_TESTS = [
   makeCase('admin_only_question_analytics_reset_exists',
     'Admin-only question analytics reset clears analytics history without deleting gameplay data',
     () => {
-      const combined = `${resetQuestionAnalyticsDataSource}\n${resetQuestionAnalyticsDataManifestSource}\n${adminAuthSource}\n${questionAttemptEventEntitySource}\n${questionStatsProjectionEntitySource}\n${categoryStatsProjectionEntitySource}`;
+      const combined = `${deployedResetQuestionAnalyticsDataSource}\n${deployedAdminAuthSource}\n${resetQuestionAnalyticsDataSource}\n${resetQuestionAnalyticsDataManifestSource}\n${adminAuthSource}\n${questionAttemptEventEntitySource}\n${questionStatsProjectionEntitySource}\n${categoryStatsProjectionEntitySource}`;
       const missing = missingTokens(combined, [
         'resetQuestionAnalyticsData',
+        'functions/resetQuestionAnalyticsData.js',
+        'Deno.serve',
+        'createClientFromRequest',
         '"name": "resetQuestionAnalyticsData"',
         '"entry": "entry.ts"',
         'requireAdmin',
+        './_shared/adminAuth.js',
         '../_shared/adminAuth.ts',
         'entities.AdminUser',
         'RESET_QUESTION_ANALYTICS',
+        'confirmation',
+        'confirmText',
         'ANALYTICS_RESET_ENTITIES',
         'QuestionAttemptEvent',
         'QuestionStatsProjection',
@@ -469,6 +489,11 @@ export const EXTRA_TESTS = [
         'entity.delete',
         'AdminMaintenanceLog.create',
         'UNTOUCHED_ENTITIES',
+        'entitiesTouched',
+        'entitiesUntouched',
+        'deletedCounts',
+        'resetAt',
+        'resetBy',
         'unavailableEntities',
         'analytics_reset_incomplete',
         'anyCapped',
@@ -483,7 +508,7 @@ export const EXTRA_TESTS = [
         'OnlineMatchResult',
         'destructiveAnalyticsReset',
       ]);
-      const forbidden = forbiddenTokens(resetQuestionAnalyticsDataSource, [
+      const forbidden = forbiddenTokens(deployedResetQuestionAnalyticsDataSource, [
         'entities.Question.delete',
         'entities.Category.delete',
         'entities.UserCategoryPreference.delete',
@@ -497,7 +522,7 @@ export const EXTRA_TESTS = [
       if (missing.length || forbidden.length) {
         return fail('Admin-only analytics reset is missing, unsafe, or too broad.', {
           verification: 'STATIC_CONTRACT',
-          files: ['base44/functions/resetQuestionAnalyticsData/entry.ts'],
+          files: ['functions/resetQuestionAnalyticsData.js', 'base44/functions/resetQuestionAnalyticsData/entry.ts'],
           actual: { missing, forbidden },
         });
       }
@@ -509,7 +534,9 @@ export const EXTRA_TESTS = [
   makeCase('analytics_report_handles_stale_question_ids_and_empty_state',
     'Question Analytics report handles deleted question IDs and empty analytics safely',
     () => {
-      const missing = missingTokens(reportFunctionSource, [
+      const actualReportBody = `${deployedReportFunctionSource}\n${reportFunctionSource}`;
+      const missing = missingTokens(actualReportBody, [
+        'functions/sendQuestionAnalyticsReportEmail.js',
         'deleted_or_missing_question',
         'staleQuestionIds',
         'STALE_REFERENCE_SAMPLE_LIMIT',
@@ -541,7 +568,7 @@ export const EXTRA_TESTS = [
       if (missing.length) {
         return fail('Report can still break, mislead, or grow unbounded when analytics references deleted questions.', {
           verification: 'STATIC_CONTRACT',
-          file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
+          files: ['functions/sendQuestionAnalyticsReportEmail.js', 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts'],
           missing,
         });
       }

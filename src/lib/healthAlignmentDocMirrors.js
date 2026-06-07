@@ -52,10 +52,10 @@ Status: Active product contract.
 - admin-only maintenance functions verify AdminUser-backed authorization server-side.
 - account deletion is a destructive, NOT_AUTOMATABLE manual proof gate.
 - sendQuestionAnalyticsReportEmail is manual/admin-triggered only and sends HTML/table/bar formatted question analytics with text fallback.
-- sendQuestionAnalyticsReportEmail is registered by base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc with name sendQuestionAnalyticsReportEmail and entry entry.ts.
+- sendQuestionAnalyticsReportEmail is callable from functions/sendQuestionAnalyticsReportEmail.js and mirrored by base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc with name sendQuestionAnalyticsReportEmail and entry entry.ts.
 - resetQuestionAnalyticsData is manual/admin-triggered only, requires explicit confirmation, clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection, and logs AdminMaintenanceLog.
-- resetQuestionAnalyticsData is registered by base44/functions/resetQuestionAnalyticsData/function.jsonc with name resetQuestionAnalyticsData and entry entry.ts; a Settings reset 404 means function-name/path/deployment mismatch.
-- resetQuestionAnalyticsData returns analytics_reset_incomplete instead of false success when a reset target is unavailable, capped, or has delete failures.
+- resetQuestionAnalyticsData is callable from functions/resetQuestionAnalyticsData.js and mirrored by base44/functions/resetQuestionAnalyticsData/function.jsonc with name resetQuestionAnalyticsData and entry entry.ts; a Settings reset 404 means the root callable function was not deployed or the function name/path is mismatched.
+- resetQuestionAnalyticsData returns analytics_reset_incomplete instead of false success when a reset target is capped or has delete failures.
 - question analytics reset does not delete Question, Category, UserCategoryPreference, score/progress/economy, leaderboard, Daily Wheel, or gameplay rows.
 - sendQuestionAnalyticsReportEmail handles stale/deleted question references with diagnostics and bounded sections.
 - sendQuestionAnalyticsReportEmail actual sent body includes Kategori Bazında Soru Havuzu, Kategori Tercihleri, Kategori Bazında Gösterim, Kategori İçi Soru Analizi, and Kategori Denge Sinyalleri.

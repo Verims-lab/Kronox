@@ -115,7 +115,8 @@ longer stored on the entity — they are derived at fetch time by
   counts are aggregate only and do not expose user IDs or emails.
 - Admins may run resetQuestionAnalyticsData after a question pool replacement;
   it clears QuestionAttemptEvent, QuestionStatsProjection, and
-  CategoryStatsProjection only. The function is registered by
+  CategoryStatsProjection only. The callable function lives at
+  functions/resetQuestionAnalyticsData.js and is mirrored by
   base44/functions/resetQuestionAnalyticsData/function.jsonc with name
   resetQuestionAnalyticsData and entry entry.ts.
 - Report generation skips stale/deleted question_id analytics references with

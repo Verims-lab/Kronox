@@ -445,6 +445,7 @@ Security contract:
   question-focused aggregate HTML/table/bar formatted report to the
   authenticated admin email, and must not expose user-level surveillance data
   to normal users. It is registered by
+  root callable `functions/sendQuestionAnalyticsReportEmail.js` plus
   `base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc`.
 * sent question analytics reports include category pool, aggregate preference,
   category exposure, within-category analysis, and category fairness signal
@@ -453,9 +454,11 @@ Security contract:
   confirmation, logs to `AdminMaintenanceLog`, and clears only
   `QuestionAttemptEvent`, `QuestionStatsProjection`, and
   `CategoryStatsProjection` after a question pool replacement. It is registered
-  by `base44/functions/resetQuestionAnalyticsData/function.jsonc`; a 404 from
-  the Settings admin action indicates a function-name/path/deployment mismatch.
-* if any reset target is unavailable, capped, or has delete failures,
+  by root callable `functions/resetQuestionAnalyticsData.js` plus
+  `base44/functions/resetQuestionAnalyticsData/function.jsonc`; a 404 from the
+  Settings admin action indicates the root callable function was not deployed
+  or the function name/path is mismatched.
+* if any reset target is capped or has delete failures,
   `resetQuestionAnalyticsData` returns `analytics_reset_incomplete` rather than
   reporting a false success
 * question analytics reset must not delete questions, categories, category
