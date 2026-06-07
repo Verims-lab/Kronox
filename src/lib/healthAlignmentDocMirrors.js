@@ -65,7 +65,9 @@ Status: Active product contract.
 - Local proof HTML / helper output is not enough if the deployed function is stale.
 - Flat-root functions/ functions must NOT use local imports that resolve outside the deployed path. The broken pattern from './_shared/adminAuth.js' resolved to file:///src/_shared/adminAuth.js (module not found) and broke deployment, leaving Base44 serving a stale build. Flat-root admin functions inline a DB-backed AdminUser guard instead.
 - base44/functions/<name>/entry.ts mirrors may use ../_shared/adminAuth.ts (proven deployable); the flat-root deploy mirror must not depend on a local _shared import.
-- Critical report/admin functions should include safe template/function markers (e.g. templateVersion static-pool-v2 and bodyContains* diagnostics). If real output lacks the marker, the function deployment is stale.
+- Critical report/admin functions should include safe template/function markers (e.g. templateVersion static-pool-v2, REPORT_BUILD_MARKER, and bodyContains* diagnostics). If real output lacks the marker, the function deployment is stale.
+- sendQuestionAnalyticsReportEmail live deploy is proven by triggering the function and reading reportBuildMarker (current: Codex276), templateVersion static-pool-v2, and bodyContainsStaticPoolSection/Template/QuestionSource = true. A published frontend that does not change reportBuildMarker means the executed flat-root backend function did not redeploy.
+- A prior Codex275 marker bump was never proven deployed because the executed flat-root function still imported the broken local _shared guard; the recovery inlined the AdminUser guard and bumped to Codex276 as the unambiguous live marker.
 - Function-based question analytics reset is currently not used.
 - Manual DB reset path after question pool replacement clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection.
 - Manual reset must not delete Question, Category, SubCategory, UserCategoryPreference, UserStatsProjection, progress/economy/leaderboard data, Daily Wheel rows, users, or AdminUser.
