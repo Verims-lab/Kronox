@@ -455,7 +455,8 @@ Checklist:
   account. `functions/sendQuestionAnalyticsReportEmail.js` is a complete root
   flat-function deploy mirror of the same report implementation, with a local
   shared AdminUser guard, so root-only function packaging cannot serve a stale
-  event-detail-first report body.
+  event-detail-first report body. `npm run build` is a Vite frontend build and
+  is not, by itself, proof that Base44 backend functions were redeployed.
 * Question Analytics report must include these actual sent-body sections:
   `Rapor Bölümleri`,
   `Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı`,
@@ -478,7 +479,10 @@ Checklist:
   never-asked questions, must not use JavaScript charts, and must appear right
   after `Key Insights / Risk Flags` before long event-based detail sections.
   The section must visibly include `Kaynak: Question tablosu` and
-  `Toplam aktif kayıtlı soru`.
+  `Toplam aktif kayıtlı soru`. The email must also show
+  `Rapor Şablonu: static-pool-v2` near the top; if that marker is missing, the
+  deployed function/template is stale even if local proof files contain the
+  section.
 * Long event-based detail sections must remain bounded: top shown, never/least
   shown, wrong, easy, slow, and per-category samples should show counts plus
   limited rows instead of dumping the full question pool.

@@ -464,7 +464,9 @@ Security contract:
   `base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc`; the root
   flat-function mirror `functions/sendQuestionAnalyticsReportEmail.js` carries
   the same implementation and local shared AdminUser guard for root-only
-  function packaging.
+  function packaging. Frontend build success does not prove the Base44 backend
+  function was redeployed; live email proof must show `Rapor Şablonu:
+  static-pool-v2`.
 * sent question analytics reports include category pool, aggregate preference,
   category exposure, within-category analysis, and category fairness signal
   sections; preference counts are aggregate distinct-user counts only

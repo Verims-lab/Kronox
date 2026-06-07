@@ -18,7 +18,9 @@ const REGISTERED_QUESTION_POOL_ROW_LIMIT = 250;
 const CATEGORY_FAIRNESS_SIGNAL_LIMIT = 20;
 const STALE_REFERENCE_SAMPLE_LIMIT = 20;
 const PERIOD_OPTIONS = /* @__PURE__ */ new Set([1, 7, 30]);
-const REPORT_BUILD_MARKER = "Codex273";
+const REPORT_BUILD_MARKER = "Codex274";
+const REPORT_TEMPLATE_VERSION = "static-pool-v2";
+const REPORT_TEMPLATE_LABEL = "Rapor Şablonu: static-pool-v2";
 const DIFFICULTY_CHART_BUCKETS = [
   ["1", "Zorluk 1", "#2563eb"],
   ["2", "Zorluk 2", "#16a34a"],
@@ -902,6 +904,14 @@ function buildReport({
       <tr>${summaryCards.slice(9).join("")}</tr>
     </table>`),
     safeSectionHtml("Key Insights / Risk Flags", () => insightHtml),
+    safeSectionHtml("Rapor Şablonu", () => `
+      <p style="margin:0;color:#334155;font-size:13px;line-height:20px;font-family:Arial,Helvetica,sans-serif;">
+        ${escapeHtml(REPORT_TEMPLATE_LABEL)} · Build marker: ${escapeHtml(buildMarker || "Bilinmiyor")}
+      </p>
+      <p style="margin:8px 0 0;color:#64748b;font-size:12px;line-height:18px;font-family:Arial,Helvetica,sans-serif;">
+        Bu işaret görünmüyorsa gerçek e-posta eski/deploy edilmemiş bir report template kullanıyor demektir.
+      </p>
+    `),
     safeSectionHtml("Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı", () => `
       <p style="margin:0 0 12px;color:#334155;font-size:13px;line-height:20px;font-family:Arial,Helvetica,sans-serif;">
         Bu bölüm gösterim dağılımı değildir; doğrudan Question tablosundaki aktif kayıtları sayan statik soru havuzu grafiğidir. Gösterilmiş ve hiç gösterilmemiş sorular birlikte sayılır. Dağılım sütunu e-posta uyumlu inline HTML/CSS stacked bar kullanır; JavaScript chart içermez.
@@ -1073,6 +1083,10 @@ function buildReport({
     "--- Key Insights / Risk Flags ---",
     ...insightRows.map(([label, _tone, message]) => `${label}: ${message}`),
     "",
+    "--- Rapor Şablonu ---",
+    REPORT_TEMPLATE_LABEL,
+    `Build marker: ${buildMarker || "Bilinmiyor"}`,
+    "",
     "--- Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı ---",
     "Kaynak: Question tablosundaki aktif kayıtlar; gösterilmiş ve hiç gösterilmemiş sorular birlikte sayılır. Bu bölüm gösterim dağılımı değildir; HTML gövdede Dağılım sütunu email-safe stacked bar olarak render edilir.",
     `Toplam aktif kayıtlı soru: ${activeQuestions.length}`,
@@ -1158,6 +1172,8 @@ function buildReport({
       runtimeProjectionSizeSource: "getQuestions projectionDiagnostics admin/Health path",
       topShownSubcategory: topSubcategoryConcentration.topShownSubcategory,
       topShownSubcategoryShare: topSubcategoryConcentration.topShownSubcategoryShare,
+      templateVersion: REPORT_TEMPLATE_VERSION,
+      reportTemplateMarker: REPORT_TEMPLATE_LABEL,
       categoryDifficultyChartRowsRendered: categoryDifficultyChartRows.length,
       categoryDifficultyChartSource: "Question.list static active rows by category and difficulty",
       categoryDifficultyChartRenderer: "email_safe_inline_html_css_stacked_bar",
@@ -1175,6 +1191,7 @@ function buildReport({
       reportSections: [
         "Executive Summary",
         "Key Insights / Risk Flags",
+        "Rapor Şablonu",
         "Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı",
         "Rapor Bölümleri",
         "Kategori Bazında Soru Havuzu",
@@ -1248,16 +1265,32 @@ Deno.serve(async (req) => {
       categoryPreferences: rawCategoryPreferences,
       buildMarker: String(body?.buildMarker || REPORT_BUILD_MARKER)
     });
+    const emailHtml = report.html;
+    const emailText = report.text;
+    const sentAt = (/* @__PURE__ */ new Date()).toISOString();
+    const bodyDiagnostics = {
+      templateVersion: REPORT_TEMPLATE_VERSION,
+      bodyContainsStaticPoolSection: emailHtml.includes("Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı"),
+      bodyContainsTemplateMarker: emailHtml.includes(REPORT_TEMPLATE_LABEL),
+      bodyContainsQuestionSourceMarker: emailHtml.includes("Kaynak: Question tablosu"),
+      bodyContainsActiveQuestionCountMarker: emailHtml.includes("Toplam aktif kayıtlı soru"),
+      bodyLength: emailHtml.length,
+      sentAt
+    };
+    if (!bodyDiagnostics.bodyContainsStaticPoolSection || !bodyDiagnostics.bodyContainsTemplateMarker || !bodyDiagnostics.bodyContainsQuestionSourceMarker) {
+      await writeJobLog(base44, admin.user, "body_validation_failed", { periodDays, recipient, ...bodyDiagnostics });
+      return json({ ok: false, error: "report_body_missing_static_pool_section", ...bodyDiagnostics }, 500);
+    }
     const subject = `Kronox Soru Analiz Raporu — ${periodLabel(periodDays)}`;
     try {
       await base44.integrations.Core.SendEmail({
         from_name: "Kronox",
         to: recipient,
         subject,
-        body: report.html,
-        html: report.html,
-        text: report.text,
-        body_text: report.text
+        body: emailHtml,
+        html: emailHtml,
+        text: emailText,
+        body_text: emailText
       });
     } catch (mailError) {
       const reason = mailError instanceof Error ? mailError.message : "send failed";
@@ -1269,6 +1302,7 @@ Deno.serve(async (req) => {
       jobName: JOB_NAME,
       periodDays,
       recipient,
+      ...bodyDiagnostics,
       ...report.summary
     };
     await writeJobLog(base44, admin.user, "success", summary);

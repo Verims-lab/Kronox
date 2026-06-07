@@ -76,8 +76,10 @@ export default function QuestionAnalyticsReportTool() {
     setMessage('Rapor hazırlanıyor...');
     setError('');
     try {
-      await callAdminFunction('sendQuestionAnalyticsReportEmail', { periodDays });
-      setMessage('Soru analiz raporu e-posta olarak gönderildi.');
+      const result = await callAdminFunction('sendQuestionAnalyticsReportEmail', { periodDays });
+      const template = result?.templateVersion ? ` Şablon: ${result.templateVersion}.` : '';
+      const staticPool = result?.bodyContainsStaticPoolSection ? ' Statik soru havuzu bölümü üretildi.' : '';
+      setMessage(`Soru analiz raporu e-posta olarak gönderildi.${template}${staticPool}`);
     } catch (err) {
       setMessage('');
       setError(err?.message || 'Rapor gönderilemedi. Lütfen tekrar dene.');
