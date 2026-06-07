@@ -23,13 +23,17 @@ Analytics/statistics entities implemented now:
 - UserStatsProjection
 - CategoryStatsProjection
 - LobbyMatchStats
-- UserCategoryPreference stores Settings-only main Category interest choices per user.
+- UserCategoryPreference stores first-login onboarding and Settings main Category interest choices per user.
 - UserSubCategoryPreference is retained legacy data from the earlier SubCategory preference phase and is not used by current Settings preferences.
 
 Category preference status:
 - Settings İlgi Alanlarım reads active Category rows.
 - Category interests are stored in UserCategoryPreference rows scoped to user_email.
 - Minimum selection count is 3 and there is no maximum selection count.
+- First-login Category preference popup prompts new users to choose at least 3 active Category interests.
+- Existing users are not hard-blocked solely because preferences are empty.
+- The rollout gate uses profile creation time and does not force users when creation time is unavailable.
+- Users can later change selections under Profile / Settings / İlgi Alanlarım.
 - Preferences do not affect Solo, Online, getQuestions, or analytics selection logic yet.
 - Future gameplay application should be soft weighting, not hard filtering.
 - UserCategoryPreference should have a user_email + category_id unique key where Base44 supports it.

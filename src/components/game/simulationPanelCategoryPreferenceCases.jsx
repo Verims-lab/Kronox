@@ -1,20 +1,21 @@
-// Kronox Health Center — Settings Category preference contracts.
+// Kronox Health Center — Category preference contracts.
 //
-// Scope: Settings-only main Category interest preferences. These cases do not
-// prove runtime RLS with another account and do not connect preferences to
-// question selection.
+// Scope: Settings + first-login main Category interest preferences. These
+// cases do not prove runtime RLS with another account and do not connect
+// preferences to question selection.
 
 import categoryEntitySource from '../../../base44/entities/Category.jsonc?raw';
 import subCategoryEntitySource from '../../../base44/entities/SubCategory.jsonc?raw';
+import userEntitySource from '../../../base44/entities/User.jsonc?raw';
 import userCategoryPreferenceEntitySource from '../../../base44/entities/UserCategoryPreference.jsonc?raw';
 import userSubCategoryPreferenceEntitySource from '../../../base44/entities/UserSubCategoryPreference.jsonc?raw';
 import questionEntitySource from '../../../base44/entities/Question.jsonc?raw';
 import appSource from '../../App.jsx?raw';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
-import playerSetupSource from '../../pages/PlayerSetup.jsx?raw';
 import preferenceSectionSource from '../settings/CategoryPreferencesSection.jsx?raw';
-import tutorialSource from '../tutorial/KronoxTutorial.jsx?raw';
+import onboardingModalSource from '../settings/CategoryPreferenceOnboardingModal.jsx?raw';
 import preferenceHelperSource from '../../lib/userCategoryPreferences.js?raw';
+import onboardingProfileSource from '../../lib/categoryPreferenceOnboarding.js?raw';
 import gamePageSource from '../../pages/Game.jsx?raw';
 import soloQuestionEngineSource from '../../lib/soloQuestionEngine.js?raw';
 import onlineGameStartSource from '../../lib/onlineGameStart.js?raw';
@@ -429,25 +430,149 @@ export const EXTRA_TESTS = [
       });
     }),
 
-  makeCase('onboarding_preference_gate_not_implemented',
-    'First-time onboarding is not gated by Category preferences yet',
+  makeCase('first_login_category_preference_popup_exists',
+    'First-login Category preference popup is wired after auth bootstrap',
     () => {
-      const onboardingSource = `${appSource}\n${playerSetupSource}\n${tutorialSource}`;
-      const forbidden = forbiddenTokens(onboardingSource, [
-        'UserCategoryPreference',
-        'CategoryPreferencesSection',
-        'İlgi Alanlarım',
-        'loadUserCategoryPreferences',
-        'MIN_CATEGORY_SELECTION_COUNT',
+      const missing = missingTokens(`${appSource}\n${onboardingModalSource}\n${onboardingProfileSource}`, [
+        'CategoryPreferenceOnboardingModal',
+        'shouldShowCategoryPreferenceOnboarding(user)',
+        'İlgi Alanlarını Seç',
+        'Kronox deneyimini kişiselleştirmek için en az 3 kategori seç.',
+        'Devam Et',
+        'onCompleted={handleCategoryPreferenceOnboardingComplete}',
+        'disabled={showProfileTutorial}',
       ]);
-      if (forbidden.length) {
-        return fail('Category preference onboarding appears to have been introduced too early.', {
+      if (missing.length) {
+        return fail('First-login Category preference popup is not clearly wired or sequenced after auth/tutorial.', {
           verification: 'STATIC_CONTRACT',
-          files: ['src/App.jsx', 'src/pages/PlayerSetup.jsx', 'src/components/tutorial/KronoxTutorial.jsx'],
-          forbidden,
+          files: [
+            'src/App.jsx',
+            'src/components/settings/CategoryPreferenceOnboardingModal.jsx',
+            'src/lib/categoryPreferenceOnboarding.js',
+          ],
+          missing,
         });
       }
-      return pass('First-open/tutorial/onboarding flow is not blocked by missing Category preferences.', {
+      return pass('First-login Category preference popup exists and is sequenced away from the tutorial modal.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('first_login_popup_loads_active_categories_and_minimum_three',
+    'First-login popup loads active Category rows, hides passive rows, and requires 3 selections',
+    () => {
+      const missing = missingTokens(`${preferenceHelperSource}\n${onboardingModalSource}`, [
+        'loadActiveCategories()',
+        'loadUserCategoryPreferences(user)',
+        'filter(isActiveCategory)',
+        'activeCategories.length < MIN_CATEGORY_SELECTION_COUNT',
+        'selectedCount >= MIN_CATEGORY_SELECTION_COUNT',
+        'En az 3 kategori seçmelisin.',
+        'Kategoriler henüz hazırlanıyor.',
+        'Daha Sonra',
+      ]);
+      if (missing.length) {
+        return fail('First-login popup no longer proves active-only loading, min-3 validation, or safe empty-state fallback.', {
+          verification: 'STATIC_CONTRACT',
+          files: [
+            'src/components/settings/CategoryPreferenceOnboardingModal.jsx',
+            'src/lib/userCategoryPreferences.js',
+          ],
+          missing,
+        });
+      }
+      return pass('First-login popup uses the same active Category source, min-3 rule, and guarded empty-state fallback as Settings.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('first_login_popup_persists_preferences_and_completion_flag',
+    'First-login popup saves UserCategoryPreference rows before marking onboarding complete',
+    () => {
+      const userSchema = parseJsonSource(userEntitySource);
+      const userProps = userSchema?.properties || {};
+      const missingUserFields = [
+        'category_preferences_onboarding_completed',
+        'category_preferences_onboarding_completed_at',
+        'category_preferences_onboarding_rollout_at',
+        'category_preferences_onboarding_required',
+      ].filter((field) => !Object.prototype.hasOwnProperty.call(userProps, field));
+      const missing = missingTokens(`${onboardingModalSource}\n${onboardingProfileSource}\n${appSource}`, [
+        'saveUserCategoryPreferences(user, selectedIds, activeCategories)',
+        'markCategoryPreferenceOnboardingCompleted(user)',
+        'base44.auth.updateMe(payload)',
+        'category_preferences_onboarding_completed',
+        'category_preferences_onboarding_completed_at',
+        'setCompletedForSession(true)',
+        'checkUserAuth?.()',
+      ]);
+      if (missing.length || missingUserFields.length) {
+        return fail('Onboarding completion can drift from saved preferences or lacks profile completion fields.', {
+          verification: 'STATIC_CONTRACT',
+          files: [
+            'src/components/settings/CategoryPreferenceOnboardingModal.jsx',
+            'src/lib/categoryPreferenceOnboarding.js',
+            'base44/entities/User.jsonc',
+            'src/App.jsx',
+          ],
+          actual: { missing, missingUserFields },
+        });
+      }
+      return pass('Popup saves Category preferences, then sets a user profile completion flag and refreshes auth state.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('existing_users_without_preferences_not_hard_blocked',
+    'Existing users are not hard-blocked solely because Category preferences are empty',
+    () => {
+      const missing = missingTokens(onboardingProfileSource, [
+        'CATEGORY_PREFERENCE_ONBOARDING_ROLLOUT_AT',
+        'getCategoryPreferenceOnboardingCreatedAt',
+        'isNewUserForCategoryPreferenceOnboarding',
+        'if (!createdAt || !rolloutTime) return false',
+        'hasCompletedCategoryPreferenceOnboarding',
+        'CATEGORY_PREFERENCE_ONBOARDING_REQUIRED_FIELD',
+      ]);
+      const forbidden = forbiddenTokens(onboardingProfileSource, [
+        'loadUserCategoryPreferences',
+        'getSelectedCategoryIds',
+        'UserCategoryPreference',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Onboarding gate may infer missing preferences as mandatory onboarding for existing users.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'src/lib/categoryPreferenceOnboarding.js',
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('Onboarding gate uses completion/rollout/new-user profile signals, not empty preference rows alone.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('settings_remains_editable_after_onboarding',
+    'Settings İlgi Alanlarım remains editable using the same Category preference storage',
+    () => {
+      const missing = missingTokens(`${settingsPageSource}\n${preferenceSectionSource}\n${onboardingModalSource}`, [
+        'CategoryPreferencesSection',
+        'loadUserCategoryPreferences(user)',
+        'saveUserCategoryPreferences(user, selectedIds, activeCategories)',
+        'Kaydet',
+        'Devam Et',
+      ]);
+      if (missing.length) {
+        return fail('Settings no longer proves the same Category preference storage remains editable after onboarding.', {
+          verification: 'STATIC_CONTRACT',
+          files: [
+            'src/pages/SettingsPage.jsx',
+            'src/components/settings/CategoryPreferencesSection.jsx',
+            'src/components/settings/CategoryPreferenceOnboardingModal.jsx',
+          ],
+          missing,
+        });
+      }
+      return pass('Settings remains the editable Category preference surface after first-login onboarding.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -500,8 +625,32 @@ export const EXTRA_TESTS = [
       });
     }),
 
+  makeCase('first_login_popup_mobile_ui_static_guardrails',
+    'First-login Category preference popup has mobile-safe modal guardrails',
+    () => {
+      const missing = missingTokens(onboardingModalSource, [
+        'max-h-full w-full max-w-md overflow-y-auto',
+        'flex flex-wrap',
+        'break-words',
+        'min-h-12 w-full',
+        'env(safe-area-inset-bottom)',
+        'Devam Et',
+        'Daha Sonra',
+      ]);
+      if (missing.length) {
+        return fail('First-login Category popup lost static mobile-safe wrapping/scroll guardrails.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'src/components/settings/CategoryPreferenceOnboardingModal.jsx',
+          missing,
+        });
+      }
+      return pass('Popup uses safe-area padding, scrollable modal bounds, wrapping chips/list rows, and reachable actions.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
   makeCase('docs_align_category_preference_phase',
-    'Docs align on Settings-only Category preferences and deferred soft-weighting future',
+    'Docs align on Category preference onboarding, Settings editability, and deferred soft-weighting future',
     () => {
       const combinedDocs = [
         questionDataModelDocSource,
@@ -515,9 +664,11 @@ export const EXTRA_TESTS = [
         'İlgi Alanlarım',
         'Minimum selection count is 3',
         'There is no maximum selection',
+        'First-login Category preference popup',
+        'Existing users are not hard-blocked solely because preferences are empty',
+        'Users can later change selections under Profile / Settings',
         'Preferences do not yet affect question selection',
         'soft weighting, not hard filtering',
-        'Onboarding preference selection is deferred',
         'SubCategory entity still exists',
         'RLS',
       ]);
@@ -533,7 +684,7 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      return pass('Docs/mirrors state Settings-only Category preferences, minimum/no-max rules, deferred onboarding, no gameplay filtering, retained SubCategory, and RLS proof needs.', {
+      return pass('Docs/mirrors state first-login Category onboarding, Settings editability, minimum/no-max rules, no gameplay filtering, retained SubCategory, and RLS proof needs.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

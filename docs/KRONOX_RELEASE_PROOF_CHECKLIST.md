@@ -150,10 +150,18 @@ Checklist:
 * Saving 3 or more category selections works.
 * There is no maximum selection limit.
 * Preferences are persisted per user in `UserCategoryPreference`.
+* First-login Category preference popup appears for safely identified new
+  users and prompts for at least 3 active Category interests.
+* Completing the popup saves preferences and prevents the popup from showing
+  again for that user.
+* Existing users are not hard-blocked solely because preferences are empty.
+* Users without a trustworthy profile creation timestamp are not forced into
+  the popup by static client inference.
+* Users can later change selections under Profile / Settings /
+  `İlgi Alanlarım`.
 * Preferences do not affect Solo/Online question selection yet.
 * Settings no longer shows SubCategory preference options; old
   `UserSubCategoryPreference` rows are left untouched.
-* First-time onboarding preference selection is not implemented in this phase.
 * Two-account preference RLS proof remains manual/runtime proof.
 
 ---

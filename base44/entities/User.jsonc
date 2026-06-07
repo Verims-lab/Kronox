@@ -138,6 +138,24 @@
       "type": "boolean",
       "description": "Per-user tutorial completion flag. Tutorial source of truth is profile/user state, not device-local tutorial storage."
     },
+    "category_preferences_onboarding_completed": {
+      "type": "boolean",
+      "description": "Codex246 — Per-user Category preference onboarding completion flag. New users created after the Category-preference rollout are prompted once to select at least 3 active Category interests; existing users are not hard-blocked solely because preferences are empty."
+    },
+    "category_preferences_onboarding_completed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the first-login Category preference onboarding popup was completed successfully after UserCategoryPreference rows were saved."
+    },
+    "category_preferences_onboarding_rollout_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Rollout timestamp used by the client gate so existing users without preferences are not forced into the onboarding popup."
+    },
+    "category_preferences_onboarding_required": {
+      "type": "boolean",
+      "description": "Optional explicit admin/profile flag to require Category preference onboarding for a user even when created-date rollout detection is unavailable. Completion still prevents the popup from repeating."
+    },
     "game_invite_notifications_enabled": {
       "type": "boolean",
       "description": "User preference for game-invite push notifications. sendGameInvitePush skips delivery when explicitly false."
