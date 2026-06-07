@@ -199,6 +199,8 @@ export const EXTRA_TESTS = [
         'section_render_failed',
         'Rapor Bölümleri',
         'Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı',
+        'Kaynak: Question tablosu',
+        'Toplam aktif kayıtlı soru',
         'Kategori Bazında Soru Havuzu',
         'Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı',
         'Kategori Bazında Kayıtlı Soru Havuzu',
@@ -233,25 +235,48 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('manual_admin_email_report_deployed_root_entrypoint',
-    'Root deploy entrypoint delegates to the canonical report implementation',
+    'Root deploy entrypoint contains the complete current report implementation',
     () => {
       const missing = missingTokens(deployedRootReportFunctionSource, [
         'sendQuestionAnalyticsReportEmail',
+        './_shared/adminAuth.js',
+        'requireAdmin',
+        'Question.list',
+        'Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı',
+        'Kaynak: Question tablosu',
+        'Toplam aktif kayıtlı soru',
+        'Zorluk 1',
+        'Zorluk 2',
+        'Zorluk 3',
+        'Zorluk 4',
+        'Zorluk 5',
+        'Bilinmiyor',
+        'Dağılım',
+        'safeSectionHtml("Key Insights / Risk Flags"',
+        'safeSectionHtml("Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı"',
+        'safeSectionHtml("En Çok Gösterilen Sorular"',
+        'textLines.join(\'\\n\')',
+      ]);
+      const orderFailures = [
+        ['safeSectionHtml("Key Insights / Risk Flags"', 'safeSectionHtml("Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı"'],
+        ['safeSectionHtml("Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı"', 'safeSectionHtml("En Çok Gösterilen Sorular"'],
+        ['safeSectionHtml("Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı"', 'safeSectionHtml("Az veya Hiç Gösterilmeyen Sorular"'],
+      ].filter(([first, second]) => {
+        const firstIndex = deployedRootReportFunctionSource.indexOf(first);
+        const secondIndex = deployedRootReportFunctionSource.indexOf(second);
+        return firstIndex < 0 || secondIndex < 0 || firstIndex >= secondIndex;
+      });
+      const forbidden = forbiddenTokens(deployedRootReportFunctionSource, [
         '../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
       ]);
-      const forbidden = forbiddenTokens(deployedRootReportFunctionSource, [
-        'QuestionAttemptEvent.list',
-        'Kategori ve Alt Kategori Dağılımı',
-        'En Çok Gösterilen Sorular',
-      ]);
-      if (missing.length || forbidden.length) {
-        return fail('Root deploy entrypoint can drift into an old flat report implementation.', {
+      if (missing.length || orderFailures.length || forbidden.length) {
+        return fail('Root deploy entrypoint can drift into an old flat report implementation or wrapper-only package.', {
           verification: 'STATIC_CONTRACT',
           file: 'functions/sendQuestionAnalyticsReportEmail.js',
-          actual: { missing, forbidden },
+          actual: { missing, orderFailures, forbidden },
         });
       }
-      return pass('Root deploy entrypoint loads the canonical Base44 report implementation instead of an old flat template.', {
+      return pass('Root deploy entrypoint contains the current static Question-table chart before long event sections.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -384,6 +409,8 @@ export const EXTRA_TESTS = [
         'email_safe_inline_html_css_stacked_bar',
         'role="presentation"',
         'background-color',
+        'Kaynak: Question tablosu',
+        'Toplam aktif kayıtlı soru',
         'Bu rapor tüm bölümleriyle tamamlandı',
         'clipping/truncation',
         'Dağılım',

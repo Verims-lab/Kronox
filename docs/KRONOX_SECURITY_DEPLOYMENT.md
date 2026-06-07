@@ -462,8 +462,9 @@ Security contract:
   to normal users. It is registered at
   `base44/functions/sendQuestionAnalyticsReportEmail/entry.ts` with
   `base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc`; the root
-  compatibility entrypoint `functions/sendQuestionAnalyticsReportEmail.js`
-  delegates to the same implementation for flat-function deployments.
+  flat-function mirror `functions/sendQuestionAnalyticsReportEmail.js` carries
+  the same implementation and local shared AdminUser guard for root-only
+  function packaging.
 * sent question analytics reports include category pool, aggregate preference,
   category exposure, within-category analysis, and category fairness signal
   sections; preference counts are aggregate distinct-user counts only

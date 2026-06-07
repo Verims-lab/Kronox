@@ -739,10 +739,11 @@ No deletion should happen in this task.
   IDs or emails. The function is registered at
   `base44/functions/sendQuestionAnalyticsReportEmail/entry.ts` with
   `base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc`.
-  `functions/sendQuestionAnalyticsReportEmail.js` delegates root flat-function
-  deployments to that same canonical implementation so the actual invoked body
-  includes the static Question DB pool chart. No scheduled report exists in
-  this version.
+  `functions/sendQuestionAnalyticsReportEmail.js` is a complete root
+  flat-function deploy mirror of the same implementation, including a local
+  shared AdminUser guard, so the actual invoked body includes the static
+  Question DB pool chart even for root-only function packaging. No scheduled
+  report exists in this version.
 - Static category pool reporting. `Kategori Bazında Soru Havuzu` is sourced
   directly from current `Question` rows and `Category` lookup rows, not from
   `QuestionAttemptEvent`, `QuestionStatsProjection`, or
@@ -767,7 +768,8 @@ No deletion should happen in this task.
   asked and never-asked questions, counts Zorluk 1-5 plus Bilinmiyor, and does
   not use JavaScript chart libraries. It appears directly after
   `Key Insights / Risk Flags` in the sent email body, before every long
-  event-based detail table.
+  event-based detail table, and displays `Kaynak: Question tablosu` plus
+  `Toplam aktif kayıtlı soru` inside the section.
 - Manual DB reset path after question pool replacement. The function-based
   reset path is currently not used. To restart analytics from zero, manually
   clear only `QuestionAttemptEvent`, `QuestionStatsProjection`, and
