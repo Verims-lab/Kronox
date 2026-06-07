@@ -72,7 +72,7 @@ Status: Active product contract.
 - Passive or removed Category selections are filtered from UI/save state and are not resaved as active preferences.
 - completing the popup saves UserCategoryPreference rows before marking the user profile onboarding flag complete.
 - Users can later change selections under Profile / Settings / İlgi Alanlarım.
-- Solo question selection reads current-user active valid Category preferences before attempt start and targets 70% selected categories / 30% full eligible pool as soft weighting with fallback.
+- Solo question selection reads current-user active valid Category preferences before attempt start and targets 70% selected categories / 30% full eligible pool as soft weighting with fallback. The selected-category 70% lane is not difficulty-1 restricted; the global 30% lane prefers difficulty 1 from the full eligible pool where possible and safely falls back when difficulty-1 global candidates are insufficient.
 - Online question selection, getQuestions, and analytics do not read preferences for question selection.
 - two-account preference RLS proof remains manual/NOT_AUTOMATABLE.
 - old UserSubCategoryPreference rows are retained but not used by the current Settings preference UI.
@@ -125,8 +125,10 @@ Settings shows İlgi Alanlarım for authenticated users. Active Category
 rows load as selectable interests, passive rows are hidden, users must select
 at least 3 Category interests. There is no maximum selection. Preferences are
 persisted per user in UserCategoryPreference. Solo question selection targets
-70% selected user categories and 30% full eligible pool; Online question
-selection is not affected. Any user with fewer than 3 active valid
+70% selected user categories and 30% full eligible pool. The selected-category
+70% lane is not difficulty-1 restricted; the global 30% lane prefers
+difficulty 1 where possible with safe fallback. Online question selection is
+not affected. Any user with fewer than 3 active valid
 Category preferences sees the popup, including new and existing users. The
 source of truth is active valid UserCategoryPreference count, only active
 categories are selectable and count, passive or removed Category selections are
@@ -165,7 +167,7 @@ Status: Implementation tracking doc.
 - Raw Question remains protected.
 - UserCategoryPreference stores app-open popup and Settings Category preferences per user; minimum 3 selections. There is no maximum selection.
 - Solo question selection targets 70% selected user categories and 30% full eligible pool when at least 3 active valid preferences are available.
-- This is a soft weighting target with fallback, not hard filtering.
+- This is a soft weighting target with fallback, not hard filtering. The selected-category 70% lane is not difficulty-1 restricted; the global 30% lane prefers difficulty 1 from the full eligible pool where possible and safely falls back when difficulty-1 global candidates are insufficient.
 - Online question selection is not affected.
 - Any user with fewer than 3 active valid Category preferences sees the popup; this applies to new and existing users.
 - The source of truth is active valid UserCategoryPreference count.

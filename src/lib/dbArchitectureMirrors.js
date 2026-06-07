@@ -36,7 +36,7 @@ Category preference status:
 - Passive or removed Category selections are ignored in UI/save state and must not be resaved as active preferences.
 - Users can later change selections under Profile / Settings / İlgi Alanlarım.
 - Solo question selection targets 70% selected user categories and 30% full eligible pool when at least 3 active valid preferences are available.
-- This is a soft weighting target with fallback, not hard filtering.
+- This is a soft weighting target with fallback, not hard filtering. The selected-category 70% lane is not difficulty-1 restricted; the global 30% lane prefers difficulty 1 from the full eligible pool where possible and safely falls back when difficulty-1 global candidates are insufficient.
 - Online question selection is not affected.
 - UserCategoryPreference should have a user_email + category_id unique key where Base44 supports it.
 - The save helper collapses duplicate active preference rows by passivating duplicateRows.

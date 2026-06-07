@@ -76,6 +76,9 @@ const USER_CATEGORY_PREFERENCE_RATIO = 0.7;
 const USER_CATEGORY_PREFERENCE_MIN_VALID_COUNT = 3;
 const USER_CATEGORY_PREFERENCE_SELECTED_WEIGHT = 520;
 const USER_CATEGORY_PREFERENCE_GLOBAL_WEIGHT = 260;
+const USER_CATEGORY_GLOBAL_DIFFICULTY_TARGET = 1;
+const USER_CATEGORY_GLOBAL_DIFFICULTY_WEIGHT = 360;
+const USER_CATEGORY_GLOBAL_DIFFICULTY_FALLBACK_PENALTY = 260;
 const SPORTS_CLUSTER_TOKENS = [
   'arena', 'spor', 'sport', 'football', 'futbol', 'soccer', 'basket',
   'tenis', 'tennis', 'olimpiyat', 'olympic', 'messi', 'serena',
@@ -344,11 +347,75 @@ function isQuestionInUserSelectedCategory(question, preferenceContext) {
   return Boolean(categoryId && preferenceContext.selectedCategoryIds.has(categoryId));
 }
 
+function enrichPreferenceContextForGlobalDifficulty(preferenceContext = {}, candidates = []) {
+  const context = {
+    ...preferenceContext,
+    globalDifficultyTarget: USER_CATEGORY_GLOBAL_DIFFICULTY_TARGET,
+    globalDifficultyTargetLabel: `difficulty:${USER_CATEGORY_GLOBAL_DIFFICULTY_TARGET}`,
+    globalDifficultyRuleAppliesOnlyToGlobal30: true,
+    selectedCategoryDifficultyUnrestricted: true,
+    globalPoolHardFilteredToSelectedCategories: false,
+  };
+  const globalCandidates = (candidates || [])
+    .filter((question) => !isQuestionInUserSelectedCategory(question, context));
+  const globalDifficultyCandidates = globalCandidates.filter(isGlobalDifficultyTargetQuestion);
+  const globalDifficultyYears = new Set(globalDifficultyCandidates
+    .map((question) => Number(question?.year))
+    .filter(Number.isFinite));
+  const globalTargetCount = Math.max(0, Number(context.globalTargetCount) || 0);
+  const globalDifficulty1TargetCount = Math.min(globalTargetCount, globalDifficultyYears.size);
+  return {
+    ...context,
+    globalCandidateCount: globalCandidates.length,
+    globalDifficulty1CandidateCount: globalDifficultyCandidates.length,
+    globalDifficulty1CandidateYears: globalDifficultyYears.size,
+    globalDifficulty1TargetCount,
+    globalDifficultyFallbackExpected: Boolean(context.enabled && globalDifficulty1TargetCount < globalTargetCount),
+    globalDifficultyFallbackReason: context.enabled && globalDifficulty1TargetCount < globalTargetCount
+      ? 'insufficient_global_difficulty_1_candidates'
+      : null,
+  };
+}
+
 function countPreferredCategoryCards(items = [], preferenceContext) {
   return (items || []).reduce(
     (count, question) => count + (isQuestionInUserSelectedCategory(question, preferenceContext) ? 1 : 0),
     0,
   );
+}
+
+function countGlobalCandidateCards(items = [], preferenceContext) {
+  return (items || []).reduce(
+    (count, question) => count + (isQuestionInUserSelectedCategory(question, preferenceContext) ? 0 : 1),
+    0,
+  );
+}
+
+function countGlobalDifficultyTargetCards(items = [], preferenceContext) {
+  return (items || []).reduce((count, question) => {
+    if (isQuestionInUserSelectedCategory(question, preferenceContext)) return count;
+    return count + (isGlobalDifficultyTargetQuestion(question) ? 1 : 0);
+  }, 0);
+}
+
+function scoreGlobalDifficultyTarget(question, selected, options = {}) {
+  const context = options.preferenceContext;
+  if (!context?.enabled) return 0;
+  if (isQuestionInUserSelectedCategory(question, context)) return 0;
+
+  const selectedGlobalCount = countGlobalCandidateCards(selected, context);
+  const globalTargetCount = Math.max(0, Number(context.globalTargetCount) || 0);
+  if (selectedGlobalCount >= globalTargetCount) return 0;
+
+  const difficultyTargetCount = Math.max(0, Number(context.globalDifficulty1TargetCount) || 0);
+  const selectedDifficultyCount = countGlobalDifficultyTargetCards(selected, context);
+  if (selectedDifficultyCount >= difficultyTargetCount) return 0;
+
+  const missing = Math.max(0, difficultyTargetCount - selectedDifficultyCount);
+  if (isGlobalDifficultyTargetQuestion(question)) {
+    return -USER_CATEGORY_GLOBAL_DIFFICULTY_WEIGHT - Math.min(180, missing * 22);
+  }
+  return USER_CATEGORY_GLOBAL_DIFFICULTY_FALLBACK_PENALTY + Math.min(220, missing * 32);
 }
 
 function scoreUserCategoryPreferenceTarget(question, selected, options = {}) {
@@ -866,11 +933,15 @@ function countMissingMetadata(items, selector, missingKey) {
 }
 
 function normalizeDifficultyValue(question) {
-  const raw = question?.difficulty;
+  const raw = question?.difficulty ?? question?.Difficulty;
   if (raw === undefined || raw === null || raw === '') return null;
   const value = Number(raw);
   if (!Number.isInteger(value) || value < 1 || value > 5) return null;
   return value;
+}
+
+function isGlobalDifficultyTargetQuestion(question) {
+  return normalizeDifficultyValue(question) === USER_CATEGORY_GLOBAL_DIFFICULTY_TARGET;
 }
 
 function getDifficultyKey(question) {
@@ -1155,6 +1226,7 @@ function scoreCandidateForBalance(question, selected, sourceOrder = [], options 
   let score = 0;
 
   score += scoreQuestionExposure(question, options);
+  score += scoreGlobalDifficultyTarget(question, selected, options);
   score += scoreUserCategoryPreferenceTarget(question, selected, options);
   score += scoreProportionalBucket({
     key: categoryKey,
@@ -1464,6 +1536,15 @@ function buildCategoryPreferenceDiagnostics(candidates = [], selectedDeck = [], 
     .filter(Number.isFinite)).size;
   const selectedCategoryActualCount = countPreferredCategoryCards(selectedDeck, preferenceContext);
   const globalActualCount = Math.max(0, selectedDeck.length - selectedCategoryActualCount);
+  const globalDifficulty1ActualCount = countGlobalDifficultyTargetCards(selectedDeck, preferenceContext);
+  const selectedCategoryDifficultyDistribution = buildDistribution(
+    selectedDeck.filter((question) => isQuestionInUserSelectedCategory(question, preferenceContext)),
+    getDifficultyKey,
+  );
+  const globalDifficultyDistribution = buildDistribution(
+    selectedDeck.filter((question) => !isQuestionInUserSelectedCategory(question, preferenceContext)),
+    getDifficultyKey,
+  );
   const firstFivePreferenceCount = countPreferredCategoryCards(
     selectedDeck.slice(0, FIRST_FIVE_SPACING_TARGET_COUNT),
     preferenceContext,
@@ -1486,6 +1567,23 @@ function buildCategoryPreferenceDiagnostics(candidates = [], selectedDeck = [], 
     minimumValidCategoryPreferenceCount: preferenceContext.minimumValidCategoryPreferenceCount || USER_CATEGORY_PREFERENCE_MIN_VALID_COUNT,
     selectedCategoryTargetCount: preferenceContext.selectedCategoryTargetCount || 0,
     globalTargetCount: preferenceContext.globalTargetCount || 0,
+    globalDifficultyTarget: preferenceContext.globalDifficultyTarget || USER_CATEGORY_GLOBAL_DIFFICULTY_TARGET,
+    globalDifficultyTargetLabel: preferenceContext.globalDifficultyTargetLabel || `difficulty:${USER_CATEGORY_GLOBAL_DIFFICULTY_TARGET}`,
+    globalDifficulty1CandidateCount: preferenceContext.globalDifficulty1CandidateCount || 0,
+    globalDifficulty1CandidateYears: preferenceContext.globalDifficulty1CandidateYears || 0,
+    globalDifficulty1TargetCount: preferenceContext.globalDifficulty1TargetCount || 0,
+    globalDifficulty1ActualCount,
+    globalFallbackUsed: Boolean(
+      preferenceContext.globalDifficultyFallbackExpected
+      || (preferenceContext.enabled && globalDifficulty1ActualCount < (preferenceContext.globalDifficulty1TargetCount || 0)),
+    ),
+    globalFallbackReason: preferenceContext.globalDifficultyFallbackReason
+      || (preferenceContext.enabled && globalDifficulty1ActualCount < (preferenceContext.globalDifficulty1TargetCount || 0)
+        ? 'hard_rules_or_spacing_prevented_exact_global_difficulty_1_target'
+        : null),
+    selectedCategoryDifficultyUnrestricted: preferenceContext.selectedCategoryDifficultyUnrestricted !== false,
+    globalDifficultyRuleAppliesOnlyToGlobal30: preferenceContext.globalDifficultyRuleAppliesOnlyToGlobal30 !== false,
+    globalPoolHardFilteredToSelectedCategories: false,
     selectedCategoryActualCount,
     globalActualCount,
     selectedCategoryCandidateCount,
@@ -1499,6 +1597,13 @@ function buildCategoryPreferenceDiagnostics(candidates = [], selectedDeck = [], 
       globalShare: Number((1 - ratioActual).toFixed(4)),
     },
     firstFivePreferenceCount,
+    deckDifficultyDistribution: buildDistribution(selectedDeck, getDifficultyKey),
+    firstFiveDifficultyDistribution: buildDistribution(
+      selectedDeck.slice(0, FIRST_FIVE_SPACING_TARGET_COUNT),
+      getDifficultyKey,
+    ),
+    selectedCategoryDifficultyDistribution,
+    globalDifficultyDistribution,
     deckCategoryDistribution: buildDistribution(selectedDeck, getCategoryKey),
     kartDegistirReservePreferenceAware: true,
     noBackendFetchMidAttempt: true,
@@ -1584,7 +1689,10 @@ export function buildSoloAttemptDeck(args = {}) {
   const years = Array.from(new Set(candidates.map((q) => Number(q.year)).filter(Number.isFinite)));
   const earlyVisibleTargetCount = Math.min(deckSize, FIRST_FIVE_SPACING_TARGET_COUNT + seedCount);
   const firstFiveSpacingPossible = canPickSpacedYears(years, earlyVisibleTargetCount);
-  const preferenceContext = buildUserCategoryPreferenceContext(args, deckSize);
+  const preferenceContext = enrichPreferenceContextForGlobalDifficulty(
+    buildUserCategoryPreferenceContext(args, deckSize),
+    candidates,
+  );
 
   if (distinctYears >= deckSize && !firstFiveSpacingPossible) {
     return {
