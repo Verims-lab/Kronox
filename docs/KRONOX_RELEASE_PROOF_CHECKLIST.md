@@ -306,8 +306,10 @@ Checklist:
 * Admin-only functions reject unauthenticated users with 401.
 * Admin-only functions reject non-admin users with 403.
 * Authorized admins can still use admin tools.
-* Admin source-of-truth is the DB-backed `AdminUser` entity and shared backend
-  guard `base44/functions/_shared/adminAuth.ts`.
+* Admin source-of-truth is the DB-backed `AdminUser` entity. The shared
+  backend guard `base44/functions/_shared/adminAuth.ts` is preferred wherever
+  the function deployment supports it; runtime-sensitive Base44 callable/flat
+  functions may inline the same AdminUser role/status contract.
 * Frontend admin UI visibility is based on the backend current-user
   `getAdminStatus` route. `getQuestions` must never be used as the admin-status
   source; `AdminUser` rows are not read/listed directly by the client.
@@ -458,9 +460,12 @@ Checklist:
   deployed SendEmail delivery and Gmail desktop/mobile rendering with an admin
   account. The callable report function inlines the DB-backed AdminUser guard
   for the current Base44 function runtime so a local `_shared` import cannot
-  break deploy and leave a stale event-detail-first report body. `npm run
-  build` is a Vite frontend build and is not, by itself, proof that Base44
-  backend functions were redeployed.
+  break deploy and leave a stale event-detail-first report body. Shared
+  AdminUser guard imports remain preferred for functions where they deploy
+  cleanly; the inline report guard must enforce the same normalized email,
+  active status, and `owner`/`admin` role contract with no hardcoded admin
+  allowlist. `npm run build` is a Vite frontend build and is not, by itself,
+  proof that Base44 backend functions were redeployed.
 * Any active `AdminUser` with role `admin` or `owner` can trigger the report.
   The recipient defaults to the requesting authenticated admin's normalized
   email; mismatched recipient overrides are rejected, and `created_by` is not

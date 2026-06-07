@@ -103,10 +103,16 @@ The following must still work without push:
 Current source of truth:
 
 * Backend admin authority is the `AdminUser` entity.
-* Shared backend guard: `base44/functions/_shared/adminAuth.ts`.
+* Shared backend guard: `base44/functions/_shared/adminAuth.ts`, preferred
+  wherever the Base44 function deployment supports it.
+* Base44 callable/flat functions may inline the same AdminUser-backed guard
+  only when local shared imports are known to break deployment. This is a
+  runtime deployability exception, not a security exception.
 * A caller is admin only when their authenticated email matches an
   `AdminUser.email` row with `status === "active"` and `role` of `owner` or
   `admin`.
+* Inline guards must enforce the same normalized email, active status, and
+  `owner`/`admin` role contract. Hardcoded admin allowlists are forbidden.
 * Admin email allowlists are not read from environment variables for
   authorization. Legacy admin email env allowlists must not be used as admin
   authorization secrets.

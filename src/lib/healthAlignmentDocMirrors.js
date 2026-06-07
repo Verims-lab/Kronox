@@ -46,8 +46,10 @@ Status: Active product contract.
 - VAPID private key values are never logged, returned, printed in Health, or exposed through frontend VITE_ variables.
 - Missing VAPID config is reported explicitly as vapid_config_missing / missing_vapid_config and does not break in-app invite flow.
 - Current source of truth for admin authorization is the private AdminUser entity.
-- Shared backend guard: base44/functions/_shared/adminAuth.ts.
+- Shared backend guard: base44/functions/_shared/adminAuth.ts, preferred wherever the Base44 function deployment supports it.
+- Base44 callable/flat functions may inline the same AdminUser-backed guard only when local shared imports are known to break deployment. This is a runtime deployability exception, not a security exception.
 - Active AdminUser rows require normalized lowercase email, role: "admin" or owner, and status: "active".
+- Inline guards must enforce the same normalized email, active status, and owner/admin role contract. Hardcoded admin allowlists are forbidden.
 - disabled/missing AdminUser rows are denied.
 - There is no unsafe "if no admin exists, everyone is admin" fallback.
 - Do not commit the personal admin emails to source.
@@ -66,8 +68,8 @@ Status: Active product contract.
 - Report/admin functions must NOT use local imports that resolve outside the deployed path. The broken './_shared/adminAuth.js' pattern resolved to a file URL under /src/_shared (module not found) and broke deployment, leaving Base44 serving a stale build. The callable report function now inlines a DB-backed AdminUser guard instead.
 - base44/functions/<name>/entry.ts shared imports remain allowed where proven deployable; sendQuestionAnalyticsReportEmail intentionally uses an inline guard for this runtime-sensitive path.
 - Critical report/admin functions should include safe template/function markers (e.g. templateVersion static-pool-v2, REPORT_BUILD_MARKER, and bodyContains* diagnostics). If real output lacks the marker, the function deployment is stale.
-- sendQuestionAnalyticsReportEmail live deploy is proven by triggering the function and reading reportBuildMarker (current: Codex277), templateVersion static-pool-v2, and bodyContainsStaticPoolSection/Template/QuestionSource = true. A published frontend that does not change reportBuildMarker means the executed backend function did not redeploy.
-- A prior Codex275 marker bump was never proven deployed because the runtime function still imported the broken local _shared guard; the recovery inlined the AdminUser guard and now uses Codex277 as the unambiguous live marker.
+- sendQuestionAnalyticsReportEmail live deploy is proven by triggering the function and reading reportBuildMarker (current: Codex278), templateVersion static-pool-v2, and bodyContainsStaticPoolSection/Template/QuestionSource = true. A published frontend that does not change reportBuildMarker means the executed backend function did not redeploy.
+- A prior Codex275 marker bump was never proven deployed because the runtime function still imported the broken local _shared guard; the recovery inlined the AdminUser guard and now uses Codex278 as the unambiguous live marker.
 - Function-based question analytics reset is currently not used.
 - Manual DB reset path after question pool replacement clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection.
 - Manual reset must not delete Question, Category, SubCategory, UserCategoryPreference, UserStatsProjection, progress/economy/leaderboard data, Daily Wheel rows, users, or AdminUser.

@@ -3,7 +3,10 @@
 // This suite makes the regression detectable from Health Center:
 //   • No literal admin email string remains in the admin-only functions.
 //   • Admin authorization source-of-truth is the private AdminUser entity.
-//   • Backend admin-only functions use the shared AdminUser guard.
+//   • Backend admin-only functions use AdminUser-backed authorization.
+//   • Shared guard imports are preferred where deployable; the Base44 callable
+//     analytics report is the known flat-runtime exception and must use a
+//     verified inline AdminUser guard instead.
 //   • Admin email env allowlists are not used for authorization.
 //   • Runtime active/disabled AdminUser proof remains NOT_AUTOMATABLE.
 //
@@ -241,32 +244,68 @@ export const EXTRA_TESTS = [
     },
   ),
 
-  // 4) Affected functions use the shared guard.
+  // 4) Affected functions use AdminUser-backed guards.
   makeCase(
     'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
     'admin_functions_use_shared_admin_guard',
-    'Admin-only functions import the shared AdminUser guard instead of local allowlists',
+    'Admin-only functions use AdminUser-backed authorization; shared guard is preferred where deployable and Base44 flat runtime exceptions must inline the same guard contract',
     () => {
       const missing = [];
       const allowedAlternatives = new Map([
         ['getQuestions', 'isAuthorizedAdmin'],
         ['getAdminStatus', 'getAdminAuthorization'],
       ]);
+      const inlineGuardExceptions = new Map([
+        ['sendQuestionAnalyticsReportEmail', [
+          'function requireAdmin(base44)',
+          'getAdminAuthorization',
+          'entities?.AdminUser',
+          "value === 'owner' || value === 'admin'",
+          'isActiveStatus',
+          'Admin access required',
+          'requireAdmin(base44)',
+          'if (admin.response) return admin.response',
+        ]],
+      ]);
+      const brokenLocalImportTokens = [
+        "from './_shared/adminAuth.js'",
+        "from './_shared/adminAuth.ts'",
+        "from '../_shared/adminAuth.js'",
+        "from '../_shared/adminAuth.ts'",
+        "from '/src/_shared/adminAuth",
+        'file://' + '/src/_shared/adminAuth',
+      ];
       for (const fn of TARGET_FUNCTIONS) {
         const src = safeStr(fn.source);
+        const inlineRequired = inlineGuardExceptions.get(fn.name);
+        if (inlineRequired) {
+          const missingInline = inlineRequired.filter((token) => !src.includes(token));
+          const brokenLocalImports = brokenLocalImportTokens.filter((token) => src.includes(token));
+          if (missingInline.length || brokenLocalImports.length) {
+            missing.push({
+              function: fn.name,
+              mode: 'verified_inline_admin_user_guard',
+              missing: missingInline,
+              forbidden: brokenLocalImports,
+            });
+          }
+          continue;
+        }
         const helper = allowedAlternatives.get(fn.name) || 'requireAdmin';
-        if (!src.includes("../_shared/adminAuth.ts") || !src.includes(helper)) missing.push(fn.name);
+        if (!src.includes("../_shared/adminAuth.ts") || !src.includes(helper)) {
+          missing.push({ function: fn.name, mode: 'shared_admin_guard', missing: [helper] });
+        }
       }
       if (missing.length) {
-        return fail('An admin-only function is not using the shared AdminUser guard.', {
+        return fail('An admin-only function is not using accepted AdminUser-backed authorization.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
-          expected: 'Import ../_shared/adminAuth.ts and call requireAdmin/isAuthorizedAdmin',
+          expected: 'Use shared ../_shared/adminAuth.ts guard where deployable, or verified inline AdminUser guard for the sendQuestionAnalyticsReportEmail Base44 flat-runtime exception',
           actual: { missingIn: missing },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Affected admin functions use the shared AdminUser guard.', {
+      return pass('Affected admin functions use accepted AdminUser-backed authorization. Shared guard is preferred; sendQuestionAnalyticsReportEmail uses the verified inline Base44-compatible guard.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,

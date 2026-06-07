@@ -1037,8 +1037,8 @@ import React, { useEffect, useState } from 'react';
 //     difficulty with count plus oldest/newest year, independent of analytics.
 //
 // Codex264 — Question Analytics admin guard + text fallback:
-//   • sendQuestionAnalyticsReportEmail now imports the shared AdminUser guard
-//     through ../_shared/adminAuth.ts, matching admin hardening Health.
+//   • sendQuestionAnalyticsReportEmail gained AdminUser-backed authorization;
+//     later Codex276/Codex278 kept that contract inline for Base44 deployability.
 //   • The rich HTML report remains primary and keeps a bounded plain-text
 //     fallback generated with textLines.join('\n').
 //
@@ -1121,6 +1121,13 @@ import React, { useEffect, useState } from 'react';
 //     and keeps the exact owner/admin inline role guard contract.
 //   • Aligns backend invocation Health with real Daily Wheel and lobby
 //     functions.
+//
+// Codex278 — Base44 admin guard Health alignment:
+//   • General admin authorization Health now accepts the verified inline
+//     AdminUser guard for sendQuestionAnalyticsReportEmail only, because the
+//     shared import path broke Base44 callable deployment.
+//   • Shared AdminUser guard imports remain preferred for functions where they
+//     deploy cleanly; hardcoded admin allowlists remain forbidden.
 //
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
@@ -1425,7 +1432,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex277';
+const BUILD_MARKER = 'Codex278';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
