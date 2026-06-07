@@ -1048,6 +1048,12 @@ import React, { useEffect, useState } from 'react';
 //   • The section counts active asked and never-asked questions by category
 //     and difficulty, with the same bounded HTML and text fallback rows.
 //
+// Codex266 — VAPID private-key scanner classification:
+//   • Health now proves VAPID_PRIVATE_KEY is backend-env-only, not VITE_,
+//     hardcoded, logged, or returned from sendGameInvitePush.
+//   • Docs classify env-var-name-only scanner findings as deployment-secret
+//     management notes unless real key material appears in source/logs.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1351,7 +1357,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex265';
+const BUILD_MARKER = 'Codex266';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

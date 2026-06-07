@@ -71,11 +71,16 @@ Rules:
 * never commit the VAPID private key
 * rotate VAPID keys if exposure is suspected
 * deploy secrets through the secret manager
+* reading `VAPID_PRIVATE_KEY` from backend environment/secret storage is the
+  required secure practice; scanner findings that only identify the env var
+  name are deployment-secret management notes, not source-code exposure
 * VAPID public key, private key, and subject are all required backend config
 * missing, blank, whitespace-only, or placeholder VAPID config must fail
   explicitly as push-not-configured
 * no empty-string, dummy, hardcoded, or client `VITE_` fallback is allowed for
   backend push sending
+* the VAPID private key value must never be logged, returned in API responses,
+  printed in Health reports, or exposed through frontend `VITE_` variables
 * missing VAPID config must not break in-app invite flow
 
 If VAPID config is missing:
@@ -356,6 +361,9 @@ After deployment, verify:
 * no Spotify helper functions are deployed
 * no Spotify credentials are present
 * no VAPID private key is committed
+* `VAPID_PRIVATE_KEY` exists only as a backend deployment secret/env value;
+  env-var-name scanner findings are tracked as deployment-secret management
+  notes unless real key material is found in source or logs
 * no personal admin email is committed
 
 ## Admin

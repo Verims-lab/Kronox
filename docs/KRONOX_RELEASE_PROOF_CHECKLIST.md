@@ -232,6 +232,10 @@ Checklist:
 * `sendGameInvitePush` requires backend `VAPID_PUBLIC_KEY`,
   `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` config; missing/blank values return
   explicit `vapid_config_missing` / `missing_vapid_config` push diagnostics.
+* `VAPID_PRIVATE_KEY` is backend-env-only: it must be stored as a deployment
+  secret, never committed, never read from `VITE_`, and never logged/returned.
+  Scanner findings that only flag the env var name are deployment-secret
+  management notes unless actual key material is found.
 * Backend push config has no empty-string, dummy, hardcoded, or `VITE_`
   private-key fallback; in-app invites remain functional if push is not
   configured.
