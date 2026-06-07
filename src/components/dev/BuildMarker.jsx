@@ -918,6 +918,14 @@ import React, { useEffect, useState } from 'react';
 //   • Leaves SubCategory/UserSubCategoryPreference data untouched and keeps
 //     question selection plus onboarding unconnected.
 //
+// Codex246 — First-login Category preference onboarding:
+//   • Adds a rollout-aware first-login popup for new users to choose at least
+//     3 active main Category interests, with no maximum selection cap.
+//   • Saves UserCategoryPreference rows before marking the user profile
+//     onboarding flag complete so the popup does not repeat.
+//   • Keeps existing users without preferences unblocked and leaves question
+//     selection algorithms untouched.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1221,7 +1229,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex245';
+const BUILD_MARKER = 'Codex246';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

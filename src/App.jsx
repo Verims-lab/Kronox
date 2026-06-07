@@ -18,6 +18,7 @@ import GameInviteNotifier from '@/components/invites/GameInviteNotifier';
 import { appDiagSetBuildMarker, pushAppDiag } from '@/lib/appDiagBus';
 import { base44 } from '@/api/base44Client';
 import KronoxTutorial from '@/components/tutorial/KronoxTutorial';
+import CategoryPreferenceOnboardingModal from '@/components/settings/CategoryPreferenceOnboardingModal';
 import { markTutorialCompleted, shouldShowTutorialForUser } from '@/lib/tutorialProfile';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
 
@@ -60,6 +61,10 @@ const AuthenticatedApp = () => {
   const handleProfileTutorialComplete = async () => {
     await markTutorialCompleted(user).catch(() => null);
     setShowProfileTutorial(false);
+    checkUserAuth?.();
+  };
+
+  const handleCategoryPreferenceOnboardingComplete = () => {
     checkUserAuth?.();
   };
 
@@ -187,6 +192,13 @@ const AuthenticatedApp = () => {
           onSkip={() => setShowProfileTutorial(false)}
         />
       )}
+      {!isAccountDeletionPage && (
+        <CategoryPreferenceOnboardingModal
+          user={user}
+          disabled={showProfileTutorial}
+          onCompleted={handleCategoryPreferenceOnboardingComplete}
+        />
+      )}
       {!isAccountDeletionPage && <BottomNav />}
     </div>
   );
@@ -194,9 +206,9 @@ const AuthenticatedApp = () => {
 
 
 function App() {
-  // Codex245 — push build marker into diag bus once at app boot
+  // Codex246 — push build marker into diag bus once at app boot
   useEffect(() => {
-    appDiagSetBuildMarker('Codex245');
+    appDiagSetBuildMarker('Codex246');
     // Codex176 — App booted successfully, so any prior stale-chunk reload
     // recovered. Clear the one-time reload guards so a future deploy can
     // self-heal again.

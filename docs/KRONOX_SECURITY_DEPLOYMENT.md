@@ -377,8 +377,16 @@ After deployment, verify:
 * `UserCategoryPreference` rows are user-scoped Settings data
 * normal users can read/update only their own preference rows
 * passive `Category.status = P/p` rows are not selectable
+* First-login Category preference popup prompts safely identified new users
+  for at least 3 active Category interests
+* completing the popup saves `UserCategoryPreference` rows before marking the
+  user profile onboarding flag complete
+* existing users are not hard-blocked solely because preferences are empty
+* users without a trustworthy profile creation timestamp are not forced into
+  the popup by static client inference
+* users can later change selections under Profile / Settings /
+  `İlgi Alanlarım`
 * preferences do not affect Solo, Online, `getQuestions`, or analytics yet
-* onboarding preference selection remains deferred
 * two-account preference RLS proof remains manual/NOT_AUTOMATABLE
 * old `UserSubCategoryPreference` rows are retained but not used by the
   current Settings preference UI

@@ -61,10 +61,13 @@ UserCategoryPreference stores preferences per user with fields:
 
 Settings shows active Category.status = A/a options and hides passive
 Category.status = P/p rows. Minimum selection count is 3. There is no maximum
-selection count. Preferences do not yet affect question selection. A future
-task may apply preferences as soft weighting, not hard filtering.
-First-time onboarding preference selection is not implemented yet; Settings is
-the only preference UI in this phase.
+selection count. First-login Category preference popup prompts new users to
+choose at least 3 active Category interests. Existing users are not
+hard-blocked solely because preferences are empty. The rollout gate uses
+profile creation time and does not force users when creation time is
+unavailable. Users can later change selections under Profile / Settings /
+İlgi Alanlarım. Preferences do not yet affect question selection. A future task
+may apply preferences as soft weighting, not hard filtering.
 SubCategory still exists for future normalized question metadata, but Settings
 preference selection currently uses main Category, not SubCategory. Existing
 UserSubCategoryPreference rows, if any, are left untouched until a later

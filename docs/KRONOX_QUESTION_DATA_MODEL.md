@@ -266,10 +266,16 @@ Rules:
   `Category.status = P/p` rows.
 * Minimum selection count is 3.
 * There is no maximum selection count.
+* A First-login Category preference popup prompts new users to choose at least
+  3 active Category interests.
+* Existing users are not hard-blocked solely because preferences are empty.
+* The current rollout gate uses the user profile creation timestamp compared
+  with the documented rollout cutoff, and falls open if creation time is
+  unavailable.
+* Users can later change selections under Profile / Settings /
+  `İlgi Alanlarım`.
 * Preferences do not yet affect question selection.
 * A future task may apply preferences as soft weighting, not hard filtering.
-* First-time onboarding preference selection is not implemented yet; Settings
-  is the only preference UI in this phase.
 * `SubCategory` still exists for future normalized question metadata, but
   Settings preference selection currently uses main `Category`, not
   `SubCategory`.

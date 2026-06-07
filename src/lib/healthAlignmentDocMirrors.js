@@ -57,8 +57,12 @@ Status: Active product contract.
 - UserCategoryPreference rows are user-scoped Settings data.
 - normal users can read/update only their own preference rows.
 - passive Category.status = P/p rows are not selectable.
+- First-login Category preference popup prompts safely identified new users for at least 3 active Category interests.
+- completing the popup saves UserCategoryPreference rows before marking the user profile onboarding flag complete.
+- Existing users are not hard-blocked solely because preferences are empty.
+- The rollout gate uses profile creation time and does not force users when creation time is unavailable.
+- Users can later change selections under Profile / Settings / İlgi Alanlarım.
 - preferences do not affect Solo, Online, getQuestions, or analytics yet.
-- onboarding preference selection remains deferred.
 - two-account preference RLS proof remains manual/NOT_AUTOMATABLE.
 - old UserSubCategoryPreference rows are retained but not used by the current Settings preference UI.
 `;
@@ -110,8 +114,12 @@ Settings shows İlgi Alanlarım for authenticated users. Active Category
 rows load as selectable interests, passive rows are hidden, users must select
 at least 3 Category interests, there is no maximum selection limit, preferences are
 persisted per user in UserCategoryPreference, and preferences do not affect
-Solo/Online question selection yet. Onboarding preference selection is deferred.
-SubCategory entity still exists, but Settings currently uses Category interests.
+Solo/Online question selection yet. First-login Category preference popup prompts
+safely identified new users, completion prevents repeat prompts, Existing users
+are not hard-blocked solely because preferences are empty, the rollout gate uses
+profile creation time and does not force users when creation time is unavailable,
+and Users can later
+change selections under Profile / Settings / İlgi Alanlarım. SubCategory entity still exists, but Settings currently uses Category interests.
 Mobile wrapping/long-name visual proof and two-account preference RLS proof
 remain manual/NOT_AUTOMATABLE.
 `;
@@ -139,7 +147,10 @@ Status: Implementation tracking doc.
 - Manual admin question analytics HTML/table/bar email report exists with no scheduled trigger.
 - Legacy candidates kept without deletion: Friendship, GameRecord, LobbyMessage.
 - Raw Question remains protected.
-- UserCategoryPreference stores Settings-only Category preferences per user; minimum 3 selections, no maximum, no gameplay filtering yet.
+- UserCategoryPreference stores first-login onboarding and Settings Category preferences per user; minimum 3 selections, no maximum, no gameplay filtering yet.
+- First-login Category preference popup prompts new users; Existing users are not hard-blocked solely because preferences are empty.
+- The rollout gate uses profile creation time and does not force users when creation time is unavailable.
+- Users can later change selections under Profile / Settings / İlgi Alanlarım.
 - UserCategoryPreference duplicate active rows are collapsed/passivated by the save helper; platform unique-key proof remains manual.
 - UserCategoryPreference RLS runtime proof remains manual/NOT_AUTOMATABLE.
 - UserSubCategoryPreference rows are retained legacy data and are not the current Settings source-of-truth.
