@@ -193,7 +193,25 @@ Deno.serve(async (req: Request) => {
       totalDeleted: results.reduce((sum, row) => sum + (Number(row.deleted) || 0), 0),
       totalFailed: results.reduce((sum, row) => sum + (Number(row.failed) || 0), 0),
       anyCapped: results.some((row) => row.capped),
+      unavailableEntities: results.filter((row) => !row.available).map((row) => row.entityName),
     };
+
+    const resetIncomplete = !dryRun && (
+      summary.unavailableEntities.length > 0 ||
+      summary.totalFailed > 0 ||
+      summary.anyCapped
+    );
+
+    if (resetIncomplete) {
+      const failedSummary = {
+        ...summary,
+        ok: false,
+        error: 'analytics_reset_incomplete',
+        code: 'analytics_reset_incomplete',
+      };
+      await writeAdminMaintenanceLog(base44, adminUser, 'incomplete', failedSummary);
+      return json(failedSummary, 500);
+    }
 
     await writeAdminMaintenanceLog(base44, adminUser, dryRun ? 'preview_ok' : 'success', summary);
     return json(summary);

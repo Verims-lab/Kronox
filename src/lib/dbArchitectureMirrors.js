@@ -62,6 +62,7 @@ Cleanup/retention jobs implemented now:
 - sendQuestionAnalyticsReportEmail requires admin auth, sends a manual HTML/table/bar formatted question analytics email report, includes a plain-text fallback, and has no scheduled trigger.
 - sendQuestionAnalyticsReportEmail actual sent body includes Kategori Bazında Soru Havuzu, Kategori Tercihleri, Kategori Bazında Gösterim, Kategori İçi Soru Analizi, and Kategori Denge Sinyalleri. Category preference counts are aggregate distinct-user counts only; no user IDs or emails are exposed.
 - resetQuestionAnalyticsData requires admin auth and explicit RESET_QUESTION_ANALYTICS confirmation, clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection after question pool replacement, and writes AdminMaintenanceLog.
+- resetQuestionAnalyticsData returns analytics_reset_incomplete when a target analytics entity is unavailable, capped, or has delete failures.
 - cleanupAdminMaintenanceLog requires admin auth, supports dryRun, marks old logs retention_status archived.
 - Cleanup jobs are status-transition-first and do not hard delete production data.
 

@@ -442,7 +442,9 @@ Checklist:
 * `resetQuestionAnalyticsData` is admin-only, requires explicit confirmation,
   logs the operation, and clears only `QuestionAttemptEvent`,
   `QuestionStatsProjection`, and `CategoryStatsProjection` after a question
-  pool replacement.
+  pool replacement. If any target analytics entity is unavailable, capped, or
+  has delete failures, the reset must return `analytics_reset_incomplete`
+  instead of a false success.
 * Question analytics reset must not delete `Question`, `Category`,
   `UserCategoryPreference`, scores, diamonds, progress, leaderboard, Daily
   Wheel, or gameplay/economy data.
