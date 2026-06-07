@@ -71,12 +71,17 @@ Rules:
 * never commit the VAPID private key
 * rotate VAPID keys if exposure is suspected
 * deploy secrets through the secret manager
+* VAPID public key, private key, and subject are all required backend config
+* missing, blank, whitespace-only, or placeholder VAPID config must fail
+  explicitly as push-not-configured
+* no empty-string, dummy, hardcoded, or client `VITE_` fallback is allowed for
+  backend push sending
 * missing VAPID config must not break in-app invite flow
 
 If VAPID config is missing:
 
 ```text
-sendGameInvitePush -> missing_vapid_config
+sendGameInvitePush -> vapid_config_missing / missing_vapid_config
 ```
 
 The following must still work without push:

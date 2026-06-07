@@ -157,15 +157,26 @@ export const EXTRA_TESTS = [
     'sendGameInvitePush reads VAPID values from env/config only',
     () => {
       const required = [
-        "Deno.env.get('VAPID_PUBLIC_KEY')",
-        "Deno.env.get('VAPID_PRIVATE_KEY')",
-        "Deno.env.get('VAPID_SUBJECT')",
-        "Deno.env.get('KRONOX_VAPID_PUBLIC_KEY')",
-        "Deno.env.get('KRONOX_VAPID_PRIVATE_KEY')",
+        'VAPID_CONFIG_FIELDS',
+        "canonicalName: 'VAPID_PUBLIC_KEY'",
+        "envNames: ['VAPID_PUBLIC_KEY', 'KRONOX_VAPID_PUBLIC_KEY']",
+        "canonicalName: 'VAPID_PRIVATE_KEY'",
+        "envNames: ['VAPID_PRIVATE_KEY', 'KRONOX_VAPID_PRIVATE_KEY']",
+        "canonicalName: 'VAPID_SUBJECT'",
+        "envNames: ['VAPID_SUBJECT', 'KRONOX_VAPID_SUBJECT']",
+        'Deno.env.get(envName)',
+        'readRequiredVapidValue',
+        'isInvalidVapidValue',
+        'vapid_config_missing',
+        'missingConfig: config.missing',
+        'invalidConfig: config.invalid',
       ];
       const forbidden = [
         /privateKey\s*:\s*['"][^'"]{12,}['"]/,
         /publicKey\s*:\s*['"][^'"]{12,}['"]/,
+        /subject\s*:\s*['"]mailto:[^'"]+['"]/,
+        /Deno\.env\.get\('(?:KRONOX_)?VAPID_(?:PUBLIC_KEY|PRIVATE_KEY|SUBJECT)'\)\s*\|\|\s*['"]['"]/,
+        /Deno\.env\.get\('(?:KRONOX_)?VAPID_SUBJECT'\)\s*\|\|\s*['"][^'"]+['"]/,
         /Deno\.env\.get\('VITE_[^']*VAPID[^']*'\)/,
         /Deno\.env\.get\('VITE_[^']*(?:PRIVATE|SECRET|TOKEN)[^']*'\)/,
         privateKeyBlockPattern,
@@ -176,12 +187,12 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'base44/functions/sendGameInvitePush/entry.ts',
-          expected: 'Server VAPID keys read from non-VITE Deno.env names only; no literal key material',
+          expected: 'Server VAPID keys read from non-VITE Deno.env names only, strictly validated, and never empty-string/defaulted',
           actual: { missing, forbidden: forbidden.map(String) },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('VAPID keys are loaded from server env/config names and no literal or VITE-prefixed private-key fallback is present.', {
+      return pass('VAPID keys are loaded from server env/config names, strict validation rejects missing/blank values, and no empty/default/VITE private-key fallback is present.', {
         verification: 'STATIC_CONTRACT',
         actionType: ACTION_TYPES.CODE_FIX,
       });
@@ -192,8 +203,13 @@ export const EXTRA_TESTS = [
     () => {
       const missing = missingTokens(sendGameInvitePushSource, [
         'missing_vapid_config',
+        'vapid_config_missing',
         'attempted: false',
+        'ok: false',
         'push skipped but in-app invite remains available',
+        'missingConfig: config.missing',
+        'invalidConfig: config.invalid',
+        'acceptedEnvNames: config.acceptedEnvNames',
         'console.warn',
       ]);
       if (missing.length) {

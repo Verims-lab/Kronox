@@ -15,6 +15,42 @@ const normalizeEmail = (value: unknown) => String(value || '').trim().toLowerCas
 const json = (body: unknown, status = 200) => Response.json(body, { status });
 // Codex130 — Game invite TTL: 10 minutes (was 5).
 const GAME_INVITE_TTL_MS = 10 * 60 * 1000;
+const VAPID_CONFIG_FIELDS = [
+  { key: 'subject', canonicalName: 'VAPID_SUBJECT', envNames: ['VAPID_SUBJECT', 'KRONOX_VAPID_SUBJECT'] },
+  { key: 'publicKey', canonicalName: 'VAPID_PUBLIC_KEY', envNames: ['VAPID_PUBLIC_KEY', 'KRONOX_VAPID_PUBLIC_KEY'] },
+  { key: 'privateKey', canonicalName: 'VAPID_PRIVATE_KEY', envNames: ['VAPID_PRIVATE_KEY', 'KRONOX_VAPID_PRIVATE_KEY'] },
+] as const;
+
+function isInvalidVapidValue(value: string) {
+  const normalized = value.trim().toLowerCase();
+  return [
+    'changeme',
+    'change_me',
+    'change-me',
+    'placeholder',
+    'dummy',
+    'todo',
+    'test',
+    'your_vapid_key',
+    'your_vapid_public_key',
+    'your_vapid_private_key',
+    'your_vapid_subject',
+  ].includes(normalized);
+}
+
+function readRequiredVapidValue(field: typeof VAPID_CONFIG_FIELDS[number]) {
+  for (const envName of field.envNames) {
+    const raw = Deno.env.get(envName);
+    if (typeof raw !== 'string') continue;
+    const value = raw.trim();
+    if (!value) continue;
+    if (isInvalidVapidValue(value)) {
+      return { value: null, invalid: field.canonicalName };
+    }
+    return { value, invalid: null };
+  }
+  return { value: null, invalid: null };
+}
 // Codex139 — Naive ISO timestamp guard. Base44 sometimes serializes
 // `created_date` / `expires_at` without a timezone suffix; on non-UTC hosts
 // `new Date(naiveStr)` parses as local time and a fresh invite is instantly
@@ -45,10 +81,33 @@ const getInviteExpiry = (invite: any) => {
 };
 
 function getVapidConfig() {
+  const config: Record<string, string> = {};
+  const missing: string[] = [];
+  const invalid: string[] = [];
+
+  for (const field of VAPID_CONFIG_FIELDS) {
+    const result = readRequiredVapidValue(field);
+    if (result.invalid) {
+      invalid.push(result.invalid);
+      continue;
+    }
+    if (!result.value) {
+      missing.push(field.canonicalName);
+      continue;
+    }
+    config[field.key] = result.value;
+  }
+
   return {
-    subject: Deno.env.get('VAPID_SUBJECT') || Deno.env.get('KRONOX_VAPID_SUBJECT') || 'mailto:support@kronox.app',
-    publicKey: Deno.env.get('VAPID_PUBLIC_KEY') || Deno.env.get('KRONOX_VAPID_PUBLIC_KEY') || '',
-    privateKey: Deno.env.get('VAPID_PRIVATE_KEY') || Deno.env.get('KRONOX_VAPID_PRIVATE_KEY') || '',
+    subject: config.subject,
+    publicKey: config.publicKey,
+    privateKey: config.privateKey,
+    missing,
+    invalid,
+    acceptedEnvNames: VAPID_CONFIG_FIELDS.reduce((acc, field) => {
+      acc[field.canonicalName] = [...field.envNames];
+      return acc;
+    }, {} as Record<string, string[]>),
   };
 }
 
@@ -116,22 +175,24 @@ Deno.serve(async (req) => {
     }
 
     const config = getVapidConfig();
-    if (!config.publicKey || !config.privateKey) {
-      console.warn('[sendGameInvitePush] missing VAPID configuration; push skipped but in-app invite remains available.', {
-        missingPublicKey: !config.publicKey,
-        missingPrivateKey: !config.privateKey,
+    if (config.missing.length || config.invalid.length) {
+      console.warn('[sendGameInvitePush] VAPID config missing or invalid; push skipped but in-app invite remains available.', {
+        reason: 'vapid_config_missing',
+        missing: config.missing,
+        invalid: config.invalid,
       });
       return json({
         ok: true,
         push: {
+          ok: false,
           attempted: false,
           sent: 0,
           failed: 0,
           skipped: 'missing_vapid_config',
-          missingConfig: {
-            publicKey: !config.publicKey,
-            privateKey: !config.privateKey,
-          },
+          reason: 'vapid_config_missing',
+          missingConfig: config.missing,
+          invalidConfig: config.invalid,
+          acceptedEnvNames: config.acceptedEnvNames,
         },
       });
     }

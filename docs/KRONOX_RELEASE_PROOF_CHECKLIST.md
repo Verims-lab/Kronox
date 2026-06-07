@@ -229,6 +229,12 @@ Checklist:
 * Keyboard does not crush input flows.
 * PWA manifest/icons work.
 * Push subscription works on real installed device if supported.
+* `sendGameInvitePush` requires backend `VAPID_PUBLIC_KEY`,
+  `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` config; missing/blank values return
+  explicit `vapid_config_missing` / `missing_vapid_config` push diagnostics.
+* Backend push config has no empty-string, dummy, hardcoded, or `VITE_`
+  private-key fallback; in-app invites remain functional if push is not
+  configured.
 
 ## Android 15 Edge-To-Edge / Play Console
 

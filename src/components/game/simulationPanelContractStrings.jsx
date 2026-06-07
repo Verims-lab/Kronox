@@ -183,14 +183,24 @@ export const sendGameInvitePushFnSource = `
   if (recipientRows?.[0]?.game_invite_notifications_enabled === false) {
     return json({ ok: true, push: { attempted: false, skipped: 'recipient_notifications_disabled' } });
   }
-  const config = {
-    subject: Deno.env.get('VAPID_SUBJECT') || Deno.env.get('KRONOX_VAPID_SUBJECT') || 'mailto:support@kronox.app',
-    publicKey: Deno.env.get('VAPID_PUBLIC_KEY') || Deno.env.get('KRONOX_VAPID_PUBLIC_KEY') || '',
-    privateKey: Deno.env.get('VAPID_PRIVATE_KEY') || Deno.env.get('KRONOX_VAPID_PRIVATE_KEY') || '',
-  };
-  if (!config.publicKey || !config.privateKey) {
-    console.warn('[sendGameInvitePush] missing VAPID configuration; push skipped but in-app invite remains available.');
-    return json({ ok: true, push: { attempted: false, skipped: 'missing_vapid_config', missingConfig: { publicKey: !config.publicKey, privateKey: !config.privateKey } } });
+  const VAPID_CONFIG_FIELDS = [
+    { key: 'subject', canonicalName: 'VAPID_SUBJECT', envNames: ['VAPID_SUBJECT', 'KRONOX_VAPID_SUBJECT'] },
+    { key: 'publicKey', canonicalName: 'VAPID_PUBLIC_KEY', envNames: ['VAPID_PUBLIC_KEY', 'KRONOX_VAPID_PUBLIC_KEY'] },
+    { key: 'privateKey', canonicalName: 'VAPID_PRIVATE_KEY', envNames: ['VAPID_PRIVATE_KEY', 'KRONOX_VAPID_PRIVATE_KEY'] },
+  ];
+  function readRequiredVapidValue(field) {
+    for (const envName of field.envNames) {
+      const raw = Deno.env.get(envName);
+      if (typeof raw !== 'string') continue;
+      const value = raw.trim();
+      if (value) return { value, invalid: null };
+    }
+    return { value: null, invalid: null };
+  }
+  const config = getVapidConfig();
+  if (config.missing.length || config.invalid.length) {
+    console.warn('[sendGameInvitePush] VAPID config missing or invalid; push skipped but in-app invite remains available.', { reason: 'vapid_config_missing', missing: config.missing, invalid: config.invalid });
+    return json({ ok: true, push: { ok: false, attempted: false, skipped: 'missing_vapid_config', reason: 'vapid_config_missing', missingConfig: config.missing, invalidConfig: config.invalid, acceptedEnvNames: config.acceptedEnvNames } });
   }
   const subscriptions = await base44.asServiceRole.entities.PushSubscription.filter(
     { user_email: toEmail, status: 'active' },
