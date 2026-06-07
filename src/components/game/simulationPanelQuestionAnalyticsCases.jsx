@@ -182,7 +182,7 @@ export const EXTRA_TESTS = [
         'Deno.serve',
         'createClientFromRequest',
         'requireAdmin',
-        './_shared/adminAuth.js',
+        '../_shared/adminAuth.ts',
         'entities.AdminUser',
         'QuestionAttemptEvent.list',
         'Question.list',
