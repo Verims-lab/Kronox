@@ -389,7 +389,11 @@ After deployment, verify:
   user profile onboarding flag complete
 * users can later change selections under Profile / Settings /
   `İlgi Alanlarım`
-* preferences do not affect Solo, Online, `getQuestions`, or analytics yet
+* Solo question selection reads current-user active valid Category preferences
+  before attempt start and targets 70% selected categories / 30% full eligible
+  pool as soft weighting with fallback
+* Online question selection, `getQuestions`, and analytics do not read
+  preferences for question selection
 * two-account preference RLS proof remains manual/NOT_AUTOMATABLE
 * old `UserSubCategoryPreference` rows are retained but not used by the
   current Settings preference UI

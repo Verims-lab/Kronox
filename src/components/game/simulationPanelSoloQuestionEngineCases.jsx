@@ -20,6 +20,7 @@ import {
   getBeginnerYearSpacingForLevel,
   getKartDegistirDiagnostics,
   getSoloDeckDiagnostics,
+  getSoloCategoryPreferenceTargetCounts,
   getSoloDifficultyStrategy,
   getSoloReplayVarietyDiagnostics,
   shouldShowBeginnerPlacementHint,
@@ -52,6 +53,9 @@ import {
 import gamePageSource from '../../pages/Game.jsx?raw';
 import useGameActionsSource from '../../hooks/useGameActions.js?raw';
 import questionHistorySource from '../../lib/questionHistory.js?raw';
+import userCategoryPreferenceHelperSource from '../../lib/userCategoryPreferences.js?raw';
+import getQuestionsFunctionSource from '../../../base44/functions/getQuestions/entry.ts?raw';
+import onlineGameStartSource from '../../lib/onlineGameStart.js?raw';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
 const ACTION_TYPES = { CODE_FIX: 'CODE_FIX', HUMAN_RUNTIME_PROOF: 'HUMAN_RUNTIME_PROOF' };
@@ -128,6 +132,14 @@ function countKeysWithValue(distribution, minValue = 1) {
 
 function sumDistribution(distribution) {
   return Object.values(distribution || {}).reduce((sum, value) => sum + (Number(value) || 0), 0);
+}
+
+function countSelectedCategoryCards(deck = [], selectedCategoryIds = []) {
+  const selected = new Set(selectedCategoryIds.map((value) => String(Math.trunc(Number(value)))));
+  return (deck || []).filter((question) => {
+    const id = Number(question?.main_category_id ?? question?.category_id ?? question?.categoryId);
+    return Number.isFinite(id) && selected.has(String(Math.trunc(id)));
+  }).length;
 }
 
 function incrementMapCount(map, key, amount = 1) {
@@ -2034,6 +2046,226 @@ export const EXTRA_TESTS = [
           replacementId: replacement.id,
           replacementSource: diagnostics.replacementSource,
         },
+      });
+    },
+  ),
+
+  makeCase(
+    'solo_category_preference_target_counts_70_30',
+    'Solo category preferences target 70% selected categories and 30% global pool',
+    () => {
+      const selectedCategoryIds = [1, 2, 3];
+      const pool = buildSyntheticPool(180, (i) => ({
+        main_category_id: i < 120 ? selectedCategoryIds[i % selectedCategoryIds.length] : ((i % 3) + 4),
+        sub_category: `pref_sub_${i % 18}`,
+        tag: `pref_theme_${i % 12}`,
+      }));
+      const normalTargets = getSoloCategoryPreferenceTargetCounts(16);
+      const specialTargets = getSoloCategoryPreferenceTargetCounts(19);
+      const normal = buildSoloAttemptDeck({
+        pool,
+        levelNumber: 4,
+        seedCount: 2,
+        userSelectedCategoryIds: selectedCategoryIds,
+        userCategoryPreferenceAvailable: true,
+        random: makeSeededRandom(2501),
+      });
+      const special = buildSoloAttemptDeck({
+        pool,
+        levelNumber: 10,
+        seedCount: 2,
+        userSelectedCategoryIds: selectedCategoryIds,
+        userCategoryPreferenceAvailable: true,
+        random: makeSeededRandom(2502),
+      });
+      if (!normal.ok || !special.ok) {
+        return fail('Preference-aware Solo deck failed on a rich eligible pool.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          actual: { normal, special },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+
+      const normalMeta = normal.meta?.categoryPreferenceFairness || {};
+      const specialMeta = special.meta?.categoryPreferenceFairness || {};
+      const normalSelectedCount = countSelectedCategoryCards(normal.deck, selectedCategoryIds);
+      const specialSelectedCount = countSelectedCategoryCards(special.deck, selectedCategoryIds);
+      const firstFiveGap = minAdjacentGap(normal.deck.slice(0, 5).map((question) => question.year));
+      const actual = {
+        normalTargets,
+        specialTargets,
+        normalSelectedCount,
+        specialSelectedCount,
+        normalMeta,
+        specialMeta,
+        firstFiveGap,
+      };
+
+      if (
+        normalTargets.selectedCategoryTargetCount !== 11 ||
+        normalTargets.globalTargetCount !== 5 ||
+        specialTargets.selectedCategoryTargetCount !== 13 ||
+        specialTargets.globalTargetCount !== 6 ||
+        normal.deck.length !== 16 ||
+        special.deck.length !== 19 ||
+        normalSelectedCount !== 11 ||
+        specialSelectedCount !== 13 ||
+        normalMeta.preferenceRatioTarget !== '70/30' ||
+        specialMeta.preferenceRatioTarget !== '70/30' ||
+        normalMeta.hardFilterToSelectedCategories !== false ||
+        firstFiveGap < 5
+      ) {
+        return fail('Solo category preference target counts or hard-rule compatibility drifted.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'normal 11/5, special 13/6, soft 70/30 target, first-five spacing intact',
+          actual,
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Solo builds rich-pool normal/special decks at the 70/30 selected-category target without weakening spacing.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+        actual,
+      });
+    },
+  ),
+
+  makeCase(
+    'solo_category_preference_shortage_fills_from_global_pool',
+    'Selected-category shortage fills from global pool instead of failing',
+    () => {
+      const selectedCategoryIds = [1, 2, 3];
+      const selectedPool = buildSyntheticPool(6, (i) => ({
+        id: 9000 + i,
+        year: 1900 + i * 11,
+        answer: String(1900 + i * 11),
+        main_category_id: selectedCategoryIds[i % selectedCategoryIds.length],
+      }));
+      const globalPool = buildSyntheticPool(80, (i) => ({
+        id: 9100 + i,
+        year: 2000 + i * 7,
+        answer: String(2000 + i * 7),
+        main_category_id: (i % 3) + 4,
+      }));
+      const result = buildSoloAttemptDeck({
+        pool: [...selectedPool, ...globalPool],
+        levelNumber: 5,
+        seedCount: 2,
+        userSelectedCategoryIds: selectedCategoryIds,
+        userCategoryPreferenceAvailable: true,
+        random: makeSeededRandom(2503),
+      });
+      if (!result.ok) {
+        return fail('Selected-category shortage caused Solo deck failure instead of global fill.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          actual: result,
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      const meta = result.meta?.categoryPreferenceFairness || {};
+      const selectedCount = countSelectedCategoryCards(result.deck, selectedCategoryIds);
+      if (
+        result.deck.length !== 16 ||
+        selectedCount > selectedPool.length ||
+        meta.fallbackUsed !== true ||
+        !String(meta.fallbackReason || '').includes('selected_category_shortage')
+      ) {
+        return fail('Selected-category shortage fallback is not clearly global-pool backed.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'ok 16-card deck, selected count capped by available preferred years, fallback reason visible',
+          actual: { selectedCount, meta },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Solo fills missing selected-category quota from the full eligible pool without deck failure.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+        actual: { selectedCount, meta },
+      });
+    },
+  ),
+
+  makeCase(
+    'solo_category_preference_unavailable_safe_global_fallback',
+    'Missing/unavailable preferences fall back to global Solo selection safely',
+    () => {
+      const pool = buildSyntheticPool(90, (i) => ({
+        sub_category: `global_sub_${i % 15}`,
+        tag: `global_theme_${i % 9}`,
+      }));
+      const result = buildSoloAttemptDeck({
+        pool,
+        levelNumber: 6,
+        seedCount: 2,
+        userSelectedCategoryIds: [],
+        userCategoryPreferenceAvailable: false,
+        userCategoryPreferenceFallbackReason: 'preference_load_failed',
+        random: makeSeededRandom(2504),
+      });
+      const meta = result.meta?.categoryPreferenceFairness || {};
+      if (!result.ok || result.deck.length !== 16 || meta.fallbackUsed !== true || meta.fallbackReason !== 'preference_load_failed') {
+        return fail('Unavailable Category preferences no longer fall back to existing global Solo selection.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          actual: { result, meta },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Preference load failure keeps Solo playable through global selection and diagnostic fallback metadata.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+        actual: { deckSize: result.deck.length, meta },
+      });
+    },
+  ),
+
+  makeCase(
+    'solo_category_preference_runtime_wiring_and_boundaries',
+    'Solo reads current-user Category preferences while Online/getQuestions remain unchanged',
+    () => {
+      const gameMissing = missingTokens(gamePageSource, [
+        'loadActiveCategories',
+        'loadUserCategoryPreferences(currentUser)',
+        'getValidActiveSelectedCategoryIds(preferences, activeCategories)',
+        "status: 'loading'",
+        "status: 'unavailable'",
+        'userSelectedCategoryIds: soloCategoryPreferenceState.selectedCategoryIds',
+        "userCategoryPreferenceAvailable: soloCategoryPreferenceState.status === 'ready'",
+        'userCategoryPreferenceFallbackReason: soloCategoryPreferenceState.fallbackReason',
+      ]);
+      const helperMissing = missingTokens(userCategoryPreferenceHelperSource, [
+        '{ user_email: userEmail }',
+        'filter(isActiveCategory)',
+        'filter(isActiveCategoryPreference)',
+      ]);
+      const forbidden = [
+        ...['UserCategoryPreference', 'loadUserCategoryPreferences', 'userSelectedCategoryIds']
+          .filter((token) => getQuestionsFunctionSource.includes(token)),
+        ...['UserCategoryPreference', 'loadUserCategoryPreferences', 'userSelectedCategoryIds']
+          .filter((token) => onlineGameStartSource.includes(token)),
+      ];
+
+      if (gameMissing.length || helperMissing.length || forbidden.length) {
+        return fail('Solo Category preference wiring or Online/getQuestions boundary drifted.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          files: [
+            'src/pages/Game.jsx',
+            'src/lib/userCategoryPreferences.js',
+            'base44/functions/getQuestions/entry.ts',
+            'src/lib/onlineGameStart.js',
+          ],
+          actual: { gameMissing, helperMissing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Game waits for current-user active valid Category preferences before Solo deck build, and Online/getQuestions do not read preference rows.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'RUNTIME_VERIFIED',
       });
     },
   ),

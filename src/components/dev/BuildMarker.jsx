@@ -942,6 +942,14 @@ import React, { useEffect, useState } from 'react';
 //   • Leaves question selection, Settings behavior, and onboarding behavior
 //     unchanged.
 //
+// Codex249 — Solo Category preference weighting:
+//   • Solo deck building now uses current-user active valid Category
+//     preferences as a soft 70% selected / 30% global-pool target.
+//   • Normal decks target 11/5 and special decks target 13/6, with global
+//     fallback when selected categories cannot supply enough valid cards.
+//   • First-five spacing, exposure cooldown, diversity scoring, prebuilt
+//     reserve behavior, and Online question selection stay intact.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1245,7 +1253,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex248';
+const BUILD_MARKER = 'Codex249';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

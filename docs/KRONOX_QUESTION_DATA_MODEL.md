@@ -274,8 +274,10 @@ Rules:
   below-3 rule.
 * Users can later change selections under Profile / Settings /
   `İlgi Alanlarım`.
-* Preferences do not yet affect question selection.
-* A future task may apply preferences as soft weighting, not hard filtering.
+* Solo question selection targets 70% selected user categories and 30% full
+  eligible pool when at least 3 active valid preferences are available.
+* This is a soft weighting target with fallback, not hard filtering.
+* Online question selection is not affected.
 * `SubCategory` still exists for future normalized question metadata, but
   Settings preference selection currently uses main `Category`, not
   `SubCategory`.

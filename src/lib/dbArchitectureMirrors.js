@@ -34,8 +34,9 @@ Category preference status:
 - The source of truth is active valid UserCategoryPreference count.
 - Only active categories are selectable and count.
 - Users can later change selections under Profile / Settings / İlgi Alanlarım.
-- Preferences do not affect Solo, Online, getQuestions, or analytics selection logic yet.
-- Future gameplay application should be soft weighting, not hard filtering.
+- Solo question selection targets 70% selected user categories and 30% full eligible pool when at least 3 active valid preferences are available.
+- This is a soft weighting target with fallback, not hard filtering.
+- Online question selection is not affected.
 - UserCategoryPreference should have a user_email + category_id unique key where Base44 supports it.
 - The save helper collapses duplicate active preference rows by passivating duplicateRows.
 - SubCategory entity still exists for future normalized metadata, but current Settings preferences use Category.

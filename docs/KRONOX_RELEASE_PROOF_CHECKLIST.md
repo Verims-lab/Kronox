@@ -158,7 +158,14 @@ Checklist:
   again while the user still has 3 or more active valid preferences.
 * Users can later change selections under Profile / Settings /
   `İlgi Alanlarım`.
-* Preferences do not affect Solo/Online question selection yet.
+* Solo question selection targets 70% selected user categories and 30% full
+  eligible pool when at least 3 active valid preferences are available.
+* Normal 16-card Solo decks target 11 selected-category and 5 global-pool
+  cards; special 19-card Solo decks target 13 selected-category and 6
+  global-pool cards.
+* Selected-category shortage falls back to the full eligible pool instead of
+  failing the deck.
+* Online question selection is not affected.
 * Settings no longer shows SubCategory preference options; old
   `UserSubCategoryPreference` rows are left untouched.
 * Two-account preference RLS proof remains manual/runtime proof.

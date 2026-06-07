@@ -62,7 +62,8 @@ Status: Active product contract.
 - Only active categories are selectable and count.
 - completing the popup saves UserCategoryPreference rows before marking the user profile onboarding flag complete.
 - Users can later change selections under Profile / Settings / İlgi Alanlarım.
-- preferences do not affect Solo, Online, getQuestions, or analytics yet.
+- Solo question selection reads current-user active valid Category preferences before attempt start and targets 70% selected categories / 30% full eligible pool as soft weighting with fallback.
+- Online question selection, getQuestions, and analytics do not read preferences for question selection.
 - two-account preference RLS proof remains manual/NOT_AUTOMATABLE.
 - old UserSubCategoryPreference rows are retained but not used by the current Settings preference UI.
 `;
@@ -113,8 +114,9 @@ Do not mark this complete from static Health alone.
 Settings shows İlgi Alanlarım for authenticated users. Active Category
 rows load as selectable interests, passive rows are hidden, users must select
 at least 3 Category interests. There is no maximum selection. Preferences are
-persisted per user in UserCategoryPreference, and preferences do not affect
-Solo/Online question selection yet. Any user with fewer than 3 active valid
+persisted per user in UserCategoryPreference. Solo question selection targets
+70% selected user categories and 30% full eligible pool; Online question
+selection is not affected. Any user with fewer than 3 active valid
 Category preferences sees the popup, including new and existing users. The
 source of truth is active valid UserCategoryPreference count, only active
 categories are selectable and count, completion prevents repeat prompts only
@@ -147,7 +149,10 @@ Status: Implementation tracking doc.
 - Manual admin question analytics HTML/table/bar email report exists with no scheduled trigger.
 - Legacy candidates kept without deletion: Friendship, GameRecord, LobbyMessage.
 - Raw Question remains protected.
-- UserCategoryPreference stores app-open popup and Settings Category preferences per user; minimum 3 selections. There is no maximum selection. No gameplay filtering yet.
+- UserCategoryPreference stores app-open popup and Settings Category preferences per user; minimum 3 selections. There is no maximum selection.
+- Solo question selection targets 70% selected user categories and 30% full eligible pool when at least 3 active valid preferences are available.
+- This is a soft weighting target with fallback, not hard filtering.
+- Online question selection is not affected.
 - Any user with fewer than 3 active valid Category preferences sees the popup; this applies to new and existing users.
 - The source of truth is active valid UserCategoryPreference count.
 - Only active categories are selectable and count.

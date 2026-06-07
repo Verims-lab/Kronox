@@ -59,6 +59,10 @@ These are soft balance preferences:
 - recently-seen avoidance
 - exposure cooldown / rotation: prefer never-shown, less-shown, and
   not-recently-shown questions when local or projected stats are available
+- user Category preferences: when at least 3 active valid
+  `UserCategoryPreference` rows are available before the attempt starts, Solo
+  question selection targets 70% selected user categories and 30% full eligible
+  pool. This is a soft target with fallback, not a hard filter.
 
 P1/P2 balancing applies during deck selection and deck ordering where the pool allows:
 - normal and special decks distribute across active categories so one category does not dominate a rich pool
@@ -69,6 +73,10 @@ P1/P2 balancing applies during deck selection and deck ordering where the pool a
   not equal-count. A group that is large in the eligible pool may stay large in
   a deck, while smaller valid groups receive gentle protection from accidental
   starvation where deck size and hard rules allow.
+- normal 16-card Solo decks target 11 selected-category cards and 5 global-pool
+  cards; special 19-card decks target 13 selected-category cards and 6
+  global-pool cards. If selected categories cannot supply enough valid
+  questions, the full eligible pool fills the gap.
 - first 7 active displayed cards avoid 4+ same-category cards where alternatives exist
 - first 5 active displayed cards avoid 3+ same-subcategory or obvious sports-cluster cards where metadata and alternatives allow
 - first 7 active displayed cards avoid 4+ same-subcategory/theme cards where alternatives exist
@@ -81,6 +89,11 @@ The runtime may pass local recent-history exposure stats into the deck builder
 before the attempt starts. This is not a gameplay source of truth and must not
 fetch questions or stats mid-attempt. Corrupt or missing local history is ignored
 safely.
+
+The runtime may also pass active valid current-user Category preference IDs
+into the deck builder before the attempt starts. Missing, corrupt, passive, or
+unavailable preferences fall back to global Solo selection. Online question
+selection is not affected.
 
 P2 adds a helper-only quality layer on top of these rules:
 - deck diagnostics include level number, level type, deck size, correct target, fail threshold, question IDs, answer years, first 5 years, minimum first-5 gap, visible-spacing conflict count, category/subcategory/theme/decade/difficulty distributions, fallback tier, balance score, and warnings
@@ -132,6 +145,11 @@ If no valid deck can be created, the level must not start. The UI should show a 
 ## Runtime Wiring
 
 The Solo start path passes the active category whitelist into `buildSoloAttemptDeck`. The engine enforces active-category filtering on the actual runtime deck, not only in UI.
+
+The Solo start path also loads current-user active valid Category preferences
+before the deck is built and passes them as a soft 70/30 weighting input. This
+must not fetch questions mid-attempt, and it must not hard-filter the deck to
+only selected categories.
 
 Replay and next-level actions clear the current attempt deck and create a new deck. Replay after this change uses the new Solo v2 rules.
 

@@ -72,6 +72,10 @@ const CATEGORY_PROPORTION_WEIGHT = 42;
 const SUBCATEGORY_PROPORTION_WEIGHT = 34;
 const THEME_PROPORTION_WEIGHT = 26;
 const YEAR_BAND_PROPORTION_WEIGHT = 24;
+const USER_CATEGORY_PREFERENCE_RATIO = 0.7;
+const USER_CATEGORY_PREFERENCE_MIN_VALID_COUNT = 3;
+const USER_CATEGORY_PREFERENCE_SELECTED_WEIGHT = 520;
+const USER_CATEGORY_PREFERENCE_GLOBAL_WEIGHT = 260;
 const SPORTS_CLUSTER_TOKENS = [
   'arena', 'spor', 'sport', 'football', 'futbol', 'soccer', 'basket',
   'tenis', 'tennis', 'olimpiyat', 'olympic', 'messi', 'serena',
@@ -267,6 +271,115 @@ function normalizeAllowedCategoryIds(allowedMainCategoryIds) {
   return normalized.length ? new Set(normalized) : null;
 }
 
+function normalizeCategoryIdSet(values) {
+  if (!values) return new Set();
+  const source = values instanceof Set
+    ? Array.from(values)
+    : (Array.isArray(values) ? values : [values]);
+  return new Set(source
+    .map((value) => {
+      const raw = value && typeof value === 'object'
+        ? (value.category_id ?? value.main_category_id ?? value.categoryId ?? value.id)
+        : value;
+      const numeric = Number(raw);
+      if (!Number.isFinite(numeric)) return null;
+      const id = Math.trunc(numeric);
+      return id > 0 ? String(id) : null;
+    })
+    .filter(Boolean));
+}
+
+function getQuestionMainCategoryId(question) {
+  const cid = Number(question?.main_category_id ?? question?.mainCategoryId ?? question?.category_id ?? question?.categoryid ?? question?.categoryId);
+  return Number.isFinite(cid) && cid > 0 ? String(Math.trunc(cid)) : null;
+}
+
+export function getSoloCategoryPreferenceTargetCounts(deckSize = DEFAULT_DECK_SIZE) {
+  const size = Math.max(0, Math.trunc(Number(deckSize) || 0));
+  const selectedCategoryTargetCount = Math.min(size, Math.max(0, Math.round(size * USER_CATEGORY_PREFERENCE_RATIO)));
+  return {
+    preferenceRatioTarget: '70/30',
+    selectedCategoryTargetCount,
+    globalTargetCount: Math.max(0, size - selectedCategoryTargetCount),
+  };
+}
+
+function buildUserCategoryPreferenceContext(args = {}, deckSize = DEFAULT_DECK_SIZE) {
+  const selectedCategoryIds = normalizeCategoryIdSet(
+    args.userSelectedCategoryIds
+      ?? args.selectedCategoryIds
+      ?? args.userCategoryPreferenceIds,
+  );
+  const targets = getSoloCategoryPreferenceTargetCounts(deckSize);
+  const preferenceRowsAvailable = args.userCategoryPreferenceAvailable !== false;
+  const enoughPreferences = selectedCategoryIds.size >= USER_CATEGORY_PREFERENCE_MIN_VALID_COUNT;
+  const enabled = preferenceRowsAvailable && enoughPreferences;
+  const fallbackReason = enabled
+    ? null
+    : (args.userCategoryPreferenceFallbackReason
+      || (!preferenceRowsAvailable
+        ? 'preference_unavailable'
+        : selectedCategoryIds.size > 0
+          ? 'insufficient_valid_user_category_preferences'
+          : 'no_valid_user_category_preferences'));
+
+  return {
+    ...targets,
+    enabled,
+    userCategoryPreferenceAvailable: preferenceRowsAvailable,
+    preferenceWeightingEnabled: enabled,
+    selectedCategoryIds,
+    selectedCategoryIdsCount: selectedCategoryIds.size,
+    minimumValidCategoryPreferenceCount: USER_CATEGORY_PREFERENCE_MIN_VALID_COUNT,
+    softPreferenceOnly: true,
+    hardFilterToSelectedCategories: false,
+    fallbackUsed: !enabled,
+    fallbackReason,
+  };
+}
+
+function isQuestionInUserSelectedCategory(question, preferenceContext) {
+  if (!preferenceContext?.selectedCategoryIds?.size) return false;
+  const categoryId = getQuestionMainCategoryId(question);
+  return Boolean(categoryId && preferenceContext.selectedCategoryIds.has(categoryId));
+}
+
+function countPreferredCategoryCards(items = [], preferenceContext) {
+  return (items || []).reduce(
+    (count, question) => count + (isQuestionInUserSelectedCategory(question, preferenceContext) ? 1 : 0),
+    0,
+  );
+}
+
+function scoreUserCategoryPreferenceTarget(question, selected, options = {}) {
+  const context = options.preferenceContext;
+  if (!context?.enabled) return 0;
+
+  const selectedPreferredCount = countPreferredCategoryCards(selected, context);
+  const selectedGlobalCount = Math.max(0, selected.length - selectedPreferredCount);
+  const preferredCandidate = isQuestionInUserSelectedCategory(question, context);
+  const selectedMissing = Math.max(0, context.selectedCategoryTargetCount - selectedPreferredCount);
+  const globalMissing = Math.max(0, context.globalTargetCount - selectedGlobalCount);
+
+  if (preferredCandidate) {
+    if (selectedPreferredCount < context.selectedCategoryTargetCount) {
+      return -USER_CATEGORY_PREFERENCE_SELECTED_WEIGHT - Math.min(220, selectedMissing * 24);
+    }
+    return USER_CATEGORY_PREFERENCE_SELECTED_WEIGHT * 0.55
+      + Math.max(0, selectedPreferredCount - context.selectedCategoryTargetCount + 1) * 150;
+  }
+
+  if (selectedGlobalCount < context.globalTargetCount) {
+    return -USER_CATEGORY_PREFERENCE_GLOBAL_WEIGHT - Math.min(140, globalMissing * 18);
+  }
+
+  if (selectedPreferredCount < context.selectedCategoryTargetCount) {
+    return USER_CATEGORY_PREFERENCE_SELECTED_WEIGHT * 0.85 + selectedMissing * 36;
+  }
+
+  return 0;
+}
+
 function parseCleanNumericYear(value) {
   if (typeof value === 'number') return Number.isFinite(value) && Number.isInteger(value) ? value : null;
   if (typeof value !== 'string') return null;
@@ -385,7 +498,7 @@ function orderYearsForEraSpread(years, random) {
 
 function orderYearsForExposureFairness(years, buckets, random, options = {}) {
   const eraOrdered = orderYearsForEraSpread(years, random);
-  if (!options.exposureStats?.size && !options.recentIds?.size) return eraOrdered;
+  if (!options.exposureStats?.size && !options.recentIds?.size && !options.preferenceContext?.enabled) return eraOrdered;
 
   return eraOrdered
     .map((year, index) => {
@@ -393,7 +506,10 @@ function orderYearsForExposureFairness(years, buckets, random, options = {}) {
       const exposureScore = bucket.length
         ? Math.min(...bucket.map((question) => scoreQuestionExposure(question, options)))
         : 0;
-      return { year, index, exposureScore };
+      const preferenceScore = bucket.length
+        ? Math.min(...bucket.map((question) => scoreUserCategoryPreferenceTarget(question, [], options)))
+        : 0;
+      return { year, index, exposureScore: exposureScore + preferenceScore * 0.25 };
     })
     .sort((a, b) => {
       if (a.exposureScore !== b.exposureScore) return a.exposureScore - b.exposureScore;
@@ -469,6 +585,7 @@ function orderDeckForBeginnerSpacing(deck, levelNumber, random, options = {}) {
         recentIds: options.recentIds,
         recentRanks: options.recentRanks,
         exposureStats: options.exposureStats,
+        preferenceContext: options.preferenceContext,
       }),
       year: Number(question?.year),
     }))
@@ -544,6 +661,7 @@ function orderDeckForBeginnerSpacing(deck, levelNumber, random, options = {}) {
       recentIds: options.recentIds,
       recentRanks: options.recentRanks,
       exposureStats: options.exposureStats,
+      preferenceContext: options.preferenceContext,
     });
     return [...front, ...orderedMiddle, ...seedTail];
   };
@@ -845,6 +963,7 @@ export function getSoloDeckDiagnostics(resultOrDeck, options = {}) {
     fallbackTier: meta.fallbackTier || 'unknown',
     diversityFairness: meta.diversityFairness || null,
     exposureFairness: meta.exposureFairness || null,
+    categoryPreferenceFairness: meta.categoryPreferenceFairness || null,
     balanceScore: {
       maxCategoryCount: Number(meta.maxCategoryCount) || getMaxDistributionCount(meta.categoryDistribution || buildDistribution(deck, getCategoryKey)),
       maxSubcategoryCount: Number(meta.maxSubcategoryCount) || getMaxDistributionCount(meta.subcategoryDistribution || buildDistribution(deck, getSubcategoryKey)),
@@ -1036,6 +1155,7 @@ function scoreCandidateForBalance(question, selected, sourceOrder = [], options 
   let score = 0;
 
   score += scoreQuestionExposure(question, options);
+  score += scoreUserCategoryPreferenceTarget(question, selected, options);
   score += scoreProportionalBucket({
     key: categoryKey,
     selectedCount: categoryCount,
@@ -1136,6 +1256,7 @@ function selectUniqueYearDeck({
   recentIds,
   recentRanks,
   exposureStats,
+  preferenceContext,
   random,
   levelNumber,
   balanceTargets,
@@ -1149,6 +1270,7 @@ function selectUniqueYearDeck({
       recentIds,
       recentRanks,
       exposureStats,
+      preferenceContext,
     }),
     levelNumber,
     earlyVisibleTargetCount,
@@ -1172,6 +1294,7 @@ function selectUniqueYearDeck({
       recentIds,
       recentRanks,
       exposureStats,
+      preferenceContext,
       targets: balanceTargets || makeBalanceTargets(candidates, deckSize),
     });
     if (!pick) continue;
@@ -1190,6 +1313,7 @@ function selectUniqueYearDeck({
       recentIds,
       recentRanks,
       exposureStats,
+      preferenceContext,
       targets: balanceTargets || makeBalanceTargets(candidates, deckSize),
     });
     if (!pick) break;
@@ -1209,6 +1333,7 @@ function selectUniqueYearDeck({
       recentIds,
       recentRanks,
       exposureStats,
+      preferenceContext,
       targets: balanceTargets || makeBalanceTargets(candidates, deckSize),
     });
     if (!pick) continue;
@@ -1330,6 +1455,56 @@ function buildDiversityDiagnostics(candidates = [], selectedDeck = [], balanceTa
   };
 }
 
+function buildCategoryPreferenceDiagnostics(candidates = [], selectedDeck = [], preferenceContext = {}) {
+  const selectedCategoryCandidateCount = (candidates || [])
+    .filter((question) => isQuestionInUserSelectedCategory(question, preferenceContext)).length;
+  const selectedCategoryCandidateYears = new Set((candidates || [])
+    .filter((question) => isQuestionInUserSelectedCategory(question, preferenceContext))
+    .map((question) => Number(question?.year))
+    .filter(Number.isFinite)).size;
+  const selectedCategoryActualCount = countPreferredCategoryCards(selectedDeck, preferenceContext);
+  const globalActualCount = Math.max(0, selectedDeck.length - selectedCategoryActualCount);
+  const firstFivePreferenceCount = countPreferredCategoryCards(
+    selectedDeck.slice(0, FIRST_FIVE_SPACING_TARGET_COUNT),
+    preferenceContext,
+  );
+  const targetCount = Number(preferenceContext.selectedCategoryTargetCount) || 0;
+  const shortage = preferenceContext.enabled
+    && selectedCategoryCandidateYears < targetCount;
+  const ratioActual = selectedDeck.length ? selectedCategoryActualCount / selectedDeck.length : 0;
+  const fallbackReason = preferenceContext.fallbackReason
+    || (shortage ? 'selected_category_shortage_filled_from_global_pool' : null)
+    || (preferenceContext.enabled && selectedCategoryActualCount < targetCount ? 'hard_rules_or_spacing_prevented_exact_ratio' : null);
+
+  return {
+    strategy: 'solo_user_category_preference_70_selected_30_global_soft_target_v1',
+    softTargetOnly: true,
+    hardFilterToSelectedCategories: false,
+    userCategoryPreferenceAvailable: preferenceContext.userCategoryPreferenceAvailable !== false,
+    preferenceWeightingEnabled: Boolean(preferenceContext.enabled),
+    selectedCategoryIdsCount: preferenceContext.selectedCategoryIdsCount || 0,
+    minimumValidCategoryPreferenceCount: preferenceContext.minimumValidCategoryPreferenceCount || USER_CATEGORY_PREFERENCE_MIN_VALID_COUNT,
+    selectedCategoryTargetCount: preferenceContext.selectedCategoryTargetCount || 0,
+    globalTargetCount: preferenceContext.globalTargetCount || 0,
+    selectedCategoryActualCount,
+    globalActualCount,
+    selectedCategoryCandidateCount,
+    selectedCategoryCandidateYears,
+    fullEligibleCandidateCount: candidates.length,
+    fallbackUsed: Boolean(preferenceContext.fallbackUsed || shortage || (preferenceContext.enabled && selectedCategoryActualCount < targetCount)),
+    fallbackReason,
+    preferenceRatioTarget: preferenceContext.preferenceRatioTarget || '70/30',
+    preferenceRatioActual: {
+      selectedCategoryShare: Number(ratioActual.toFixed(4)),
+      globalShare: Number((1 - ratioActual).toFixed(4)),
+    },
+    firstFivePreferenceCount,
+    deckCategoryDistribution: buildDistribution(selectedDeck, getCategoryKey),
+    kartDegistirReservePreferenceAware: true,
+    noBackendFetchMidAttempt: true,
+  };
+}
+
 /**
  * buildSoloAttemptDeck — Public entry point.
  *
@@ -1352,6 +1527,16 @@ function buildDiversityDiagnostics(candidates = [], selectedDeck = [], balanceTa
  * @param {Map|Object|Array=} args.questionExposureStats
  *                                            Optional shown-count/last-shown
  *                                            stats for soft cooldown scoring.
+ * @param {Iterable<number|string|Object>=} args.userSelectedCategoryIds
+ *                                            Active valid current-user
+ *                                            Category preference IDs. When
+ *                                            at least 3 are present, Solo
+ *                                            softly targets 70% preferred
+ *                                            categories and 30% global pool.
+ * @param {boolean=} args.userCategoryPreferenceAvailable
+ *                                            False means preference read
+ *                                            failed/unavailable; engine falls
+ *                                            back to global Solo selection.
  * @param {number=} args.deckSize             Defaults from the Solo rules:
  *                                            normal 16, special 19. Engine
  *                                            does not relax this; passed in
@@ -1399,6 +1584,7 @@ export function buildSoloAttemptDeck(args = {}) {
   const years = Array.from(new Set(candidates.map((q) => Number(q.year)).filter(Number.isFinite)));
   const earlyVisibleTargetCount = Math.min(deckSize, FIRST_FIVE_SPACING_TARGET_COUNT + seedCount);
   const firstFiveSpacingPossible = canPickSpacedYears(years, earlyVisibleTargetCount);
+  const preferenceContext = buildUserCategoryPreferenceContext(args, deckSize);
 
   if (distinctYears >= deckSize && !firstFiveSpacingPossible) {
     return {
@@ -1420,6 +1606,7 @@ export function buildSoloAttemptDeck(args = {}) {
     recentIds,
     recentRanks,
     exposureStats,
+    preferenceContext,
     random,
     balanceTargets,
     levelNumber: args.levelNumber,
@@ -1434,6 +1621,7 @@ export function buildSoloAttemptDeck(args = {}) {
       recentIds: new Set(),
       recentRanks: new Map(),
       exposureStats,
+      preferenceContext,
       random,
       balanceTargets,
       levelNumber: args.levelNumber,
@@ -1450,6 +1638,7 @@ export function buildSoloAttemptDeck(args = {}) {
       recentIds: new Set(),
       recentRanks: new Map(),
       exposureStats,
+      preferenceContext,
       random,
       balanceTargets: {
         categoryCap: deckSize,
@@ -1485,6 +1674,7 @@ export function buildSoloAttemptDeck(args = {}) {
     recentIds,
     recentRanks,
     exposureStats,
+    preferenceContext,
   });
   if (!finalDeck) {
     return {
@@ -1511,6 +1701,7 @@ export function buildSoloAttemptDeck(args = {}) {
   const firstSevenThemeDistribution = buildDistribution(firstSevenCards, getThemeKey);
   const exposureFairness = buildExposureDiagnostics(candidates, finalDeck, recentIds, exposureStats, recentRanks);
   const diversityFairness = buildDiversityDiagnostics(candidates, finalDeck, balanceTargets);
+  const categoryPreferenceFairness = buildCategoryPreferenceDiagnostics(candidates, finalDeck, preferenceContext);
   return {
     ok: true,
     deck: finalDeck,
@@ -1543,6 +1734,7 @@ export function buildSoloAttemptDeck(args = {}) {
       firstSevenSportsClusterCount: firstSevenCards.filter((q) => getSportsClusterKey(q) === 'sports').length,
       exposureFairness,
       diversityFairness,
+      categoryPreferenceFairness,
       maxCategoryCount: getMaxDistributionCount(categoryDistribution),
       maxSubcategoryCount: getMaxDistributionCount(subcategoryDistribution),
       maxThemeCount: getMaxDistributionCount(themeDistribution),
@@ -1615,5 +1807,6 @@ export const __soloEngineInternals = {
   getSoloDifficultyStrategy,
   getSoloReplayVarietyDiagnostics,
   getKartDegistirDiagnostics,
+  getSoloCategoryPreferenceTargetCounts,
   DEFAULT_DECK_SIZE,
 };
