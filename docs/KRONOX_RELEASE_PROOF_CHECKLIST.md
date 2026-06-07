@@ -138,19 +138,21 @@ Checklist:
 
 ---
 
-# 5. Settings SubCategory Preferences
+# 5. Settings Category Preferences
 
 Checklist:
 
 * Settings shows `İlgi Alanlarım` for authenticated users.
-* Active `SubCategory.status = A` rows load as selectable interests.
-* Passive `SubCategory.status = P` rows are hidden.
+* Active `Category.status = A/a` rows load as selectable interests.
+* Passive `Category.status = P/p` rows are hidden.
 * Existing current-user selections load as selected.
-* Saving fewer than 5 selections is blocked with clear copy.
-* Saving 5 or more selections works.
+* Saving fewer than 3 category selections is blocked with clear copy.
+* Saving 3 or more category selections works.
 * There is no maximum selection limit.
-* Preferences are persisted per user in `UserSubCategoryPreference`.
+* Preferences are persisted per user in `UserCategoryPreference`.
 * Preferences do not affect Solo/Online question selection yet.
+* Settings no longer shows SubCategory preference options; old
+  `UserSubCategoryPreference` rows are left untouched.
 * First-time onboarding preference selection is not implemented in this phase.
 * Two-account preference RLS proof remains manual/runtime proof.
 

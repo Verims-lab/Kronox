@@ -237,14 +237,14 @@ Rules:
 
 ---
 
-# 8. User SubCategory Preferences
+# 8. User Category Preferences
 
-Users can select active `SubCategory` interests under Settings.
+Users can select active main `Category` interests under Settings.
 
 Preference storage:
 
 ```text
-UserSubCategoryPreference
+UserCategoryPreference
 ```
 
 Fields:
@@ -252,7 +252,7 @@ Fields:
 ```text
 id
 user_id
-sub_category_id
+category_id
 status
 created_date
 updated_date
@@ -261,15 +261,20 @@ updated_date
 Rules:
 
 * Preferences are stored per authenticated user.
-* `sub_category_id` stores `SubCategory.id`.
-* Settings shows active `SubCategory.status = A` options and hides passive
-  `SubCategory.status = P` rows.
-* Minimum selection count is 5.
+* `category_id` stores the stable `Category.category_id` value.
+* Settings shows active `Category.status = A/a` options and hides passive
+  `Category.status = P/p` rows.
+* Minimum selection count is 3.
 * There is no maximum selection count.
 * Preferences do not yet affect question selection.
 * A future task may apply preferences as soft weighting, not hard filtering.
 * First-time onboarding preference selection is not implemented yet; Settings
   is the only preference UI in this phase.
+* `SubCategory` still exists for future normalized question metadata, but
+  Settings preference selection currently uses main `Category`, not
+  `SubCategory`.
+* Existing `UserSubCategoryPreference` rows, if any, are left untouched until a
+  later migration decision.
 
 ---
 

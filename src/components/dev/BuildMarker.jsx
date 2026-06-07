@@ -910,6 +910,14 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps user-scoped RLS and mobile visual proof manual/NOT_AUTOMATABLE.
 //   • Locks the no-gameplay/no-onboarding connection boundary for this phase.
 //
+// Codex245 — Settings main Category preferences:
+//   • Replaces the Settings İlgi Alanlarım source from SubCategory rows to
+//     active main Category rows and persists UserCategoryPreference rows.
+//   • Changes the minimum selection rule from 5 SubCategories to 3 Categories
+//     with no maximum selection cap.
+//   • Leaves SubCategory/UserSubCategoryPreference data untouched and keeps
+//     question selection plus onboarding unconnected.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1213,7 +1221,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex244';
+const BUILD_MARKER = 'Codex245';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

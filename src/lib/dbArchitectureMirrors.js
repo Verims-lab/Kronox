@@ -23,16 +23,18 @@ Analytics/statistics entities implemented now:
 - UserStatsProjection
 - CategoryStatsProjection
 - LobbyMatchStats
-- UserSubCategoryPreference stores Settings-only SubCategory interest choices per user.
+- UserCategoryPreference stores Settings-only main Category interest choices per user.
+- UserSubCategoryPreference is retained legacy data from the earlier SubCategory preference phase and is not used by current Settings preferences.
 
-SubCategory preference status:
-- Settings İlgi Alanlarım reads active SubCategory rows.
-- UserSubCategoryPreference rows are scoped to user_email.
-- Minimum selection count is 5 and there is no maximum selection count.
+Category preference status:
+- Settings İlgi Alanlarım reads active Category rows.
+- Category interests are stored in UserCategoryPreference rows scoped to user_email.
+- Minimum selection count is 3 and there is no maximum selection count.
 - Preferences do not affect Solo, Online, getQuestions, or analytics selection logic yet.
 - Future gameplay application should be soft weighting, not hard filtering.
-- UserSubCategoryPreference should have a user_email + sub_category_id unique key where Base44 supports it.
+- UserCategoryPreference should have a user_email + category_id unique key where Base44 supports it.
 - The save helper collapses duplicate active preference rows by passivating duplicateRows.
+- SubCategory entity still exists for future normalized metadata, but current Settings preferences use Category.
 
 SEO/GEO boundary implemented now:
 - QuestionPublicProjection is opt-in public-safe projection.
@@ -67,6 +69,7 @@ Legacy entity status:
 - Friendship is kept as legacy/candidate, no deletion without reference proof.
 - GameRecord is kept as legacy/candidate, no deletion without reference proof.
 - LobbyMessage is kept as legacy/candidate, no deletion without reference proof.
+- UserSubCategoryPreference rows are retained legacy data and are not the current Settings source-of-truth.
 
 Implemented now:
 - QuestionAttemptEvent gateway exists and analytics writes are best-effort.

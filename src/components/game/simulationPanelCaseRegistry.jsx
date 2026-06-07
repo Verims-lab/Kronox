@@ -186,8 +186,8 @@ import * as questionAnalyticsCases from './simulationPanelQuestionAnalyticsCases
 // Codex240 — Numeric typography readability: timeline years use Bebas Neue,
 // all other major numeric UI values use the shared Inter SemiBold token.
 import * as numericTypographyCases from './simulationPanelNumericTypographyCases';
-// Codex243 — Settings-only SubCategory interest preferences.
-import * as subCategoryPreferenceCases from './simulationPanelSubCategoryPreferenceCases';
+// Codex245 — Settings-only main Category interest preferences.
+import * as categoryPreferenceCases from './simulationPanelCategoryPreferenceCases';
 
 const MODULES = [
   soloProgressCases,
@@ -232,7 +232,7 @@ const MODULES = [
   soloJokersCases,
   questionAnalyticsCases,
   numericTypographyCases,
-  subCategoryPreferenceCases,
+  categoryPreferenceCases,
 ];
 
 function flatten(key) {

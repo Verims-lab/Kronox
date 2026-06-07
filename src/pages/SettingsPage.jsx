@@ -13,7 +13,7 @@ import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 import { ACCOUNT_DELETION_ERROR_COPY, requestAccountDeletion } from '@/lib/accountDeletion';
 import ResetUserProgressTool from '@/components/admin/ResetUserProgressTool';
 import QuestionAnalyticsReportTool from '@/components/admin/QuestionAnalyticsReportTool';
-import SubCategoryPreferencesSection from '@/components/settings/SubCategoryPreferencesSection';
+import CategoryPreferencesSection from '@/components/settings/CategoryPreferencesSection';
 import { useAuth } from '@/lib/AuthContext';
 
 export default function SettingsPage() {
@@ -146,7 +146,7 @@ export default function SettingsPage() {
 
         {user && (
           <Section label="İlgi Alanlarım">
-            <SubCategoryPreferencesSection user={user} />
+            <CategoryPreferencesSection user={user} />
           </Section>
         )}
 
