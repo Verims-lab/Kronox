@@ -1,5 +1,5 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.25";
-import { requireAdmin } from "./_shared/adminAuth.js";
+import { requireAdmin } from "../_shared/adminAuth.ts";
 
 // Callable Base44 function: base44/functions/sendQuestionAnalyticsReportEmail/entry.ts
 // Settings invokes functions.invoke("sendQuestionAnalyticsReportEmail", payload).
@@ -16,7 +16,7 @@ const REGISTERED_QUESTION_POOL_ROW_LIMIT = 250;
 const CATEGORY_FAIRNESS_SIGNAL_LIMIT = 20;
 const STALE_REFERENCE_SAMPLE_LIMIT = 20;
 const PERIOD_OPTIONS = /* @__PURE__ */ new Set([1, 7, 30]);
-const REPORT_BUILD_MARKER = "Codex263";
+const REPORT_BUILD_MARKER = "Codex264";
 function json(payload, status = 200) {
   return Response.json(payload, { status });
 }
@@ -984,7 +984,7 @@ function buildReport({
   ];
   return {
     html,
-    text: textLines.join("\n"),
+    text: textLines.join('\n'),
     summary: {
       totalEvents: events.length,
       shownEvents,
