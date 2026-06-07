@@ -159,7 +159,9 @@ Rules:
 * `Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı` is an email-safe
   HTML/CSS stacked-bar chart sourced from active `Question` rows; it includes
   asked and never-asked questions, counts Zorluk 1-5 plus Bilinmiyor, and does
-  not use JavaScript/canvas/external chart libraries
+  not use JavaScript/canvas/external chart libraries. In the actual sent report
+  it appears directly after `Key Insights / Risk Flags`, before every long
+  event-based detail table
 * the report includes a top `Rapor Bölümleri` checklist and a final
   `Rapor Tamamlandı` marker; if the completion marker is missing in a received
   email, suspect email clipping/truncation

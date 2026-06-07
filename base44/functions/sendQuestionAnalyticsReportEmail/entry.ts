@@ -17,7 +17,7 @@ const REGISTERED_QUESTION_POOL_ROW_LIMIT = 250;
 const CATEGORY_FAIRNESS_SIGNAL_LIMIT = 20;
 const STALE_REFERENCE_SAMPLE_LIMIT = 20;
 const PERIOD_OPTIONS = /* @__PURE__ */ new Set([1, 7, 30]);
-const REPORT_BUILD_MARKER = "Codex268";
+const REPORT_BUILD_MARKER = "Codex269";
 const DIFFICULTY_CHART_BUCKETS = [
   ["1", "Zorluk 1", "#2563eb"],
   ["2", "Zorluk 2", "#16a34a"],
@@ -875,6 +875,8 @@ function buildReport({
   </table>`;
   const reportSectionNames = [
     "Executive Summary",
+    "Key Insights / Risk Flags",
+    "Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı",
     "Rapor Bölümleri",
     "Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı",
     "Kategori Bazında Soru Havuzu",
@@ -883,7 +885,6 @@ function buildReport({
     "Kategori Tercihleri",
     "Kategori Bazında Gösterim",
     "Kategori Denge Sinyalleri",
-    "Key Insights / Risk Flags",
     "Kategori İçi Soru Analizi",
     "En Çok Gösterilen Sorular",
     "Az veya Hiç Gösterilmeyen Sorular",
@@ -900,6 +901,17 @@ function buildReport({
       <tr>${summaryCards.slice(6, 9).join("")}</tr>
       <tr>${summaryCards.slice(9).join("")}</tr>
     </table>`),
+    safeSectionHtml("Key Insights / Risk Flags", () => insightHtml),
+    safeSectionHtml("Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı", () => `
+      <p style="margin:0 0 12px;color:#334155;font-size:13px;line-height:20px;font-family:Arial,Helvetica,sans-serif;">
+        Bu bölüm gösterim dağılımı değildir; doğrudan Question tablosundaki aktif kayıtları sayan statik soru havuzu grafiğidir. Gösterilmiş ve hiç gösterilmemiş sorular birlikte sayılır. Dağılım sütunu e-posta uyumlu inline HTML/CSS stacked bar kullanır; JavaScript chart içermez.
+      </p>
+      ${tableHtml(
+        ["Kategori", "Toplam", "Zorluk 1", "Zorluk 2", "Zorluk 3", "Zorluk 4", "Zorluk 5", "Bilinmiyor", "Dağılım"],
+        categoryDifficultyChartRows,
+        "Question tablosunda aktif soru yok."
+      )}
+    `),
     safeSectionHtml("Rapor Bölümleri", () => tableHtml(
       ["Bölüm", "Durum", "Not"],
       reportChecklistRows,
@@ -950,7 +962,6 @@ function buildReport({
       categoryFairnessSignalRows,
       "Belirgin kategori denge sinyali yok."
     )),
-    safeSectionHtml("Key Insights / Risk Flags", () => insightHtml),
     safeSectionHtml("Kategori İçi Soru Analizi", () => tableHtml(
       ["Kategori ID", "Kategori", "Fazla sorulan", "Az sorulan", "Hiç sorulmayan örnek", "Hiç sorulmayan sayı"],
       categoryInternalRows,
@@ -1066,6 +1077,13 @@ function buildReport({
     `Ortalama doğru oranı: ${avgCorrectRate}`,
     `Ortalama cevap süresi: ${avgResponse}`,
     "",
+    "--- Key Insights / Risk Flags ---",
+    ...insightRows.map(([label, _tone, message]) => `${label}: ${message}`),
+    "",
+    "--- Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı ---",
+    "Kaynak: Question tablosundaki aktif kayıtlar; gösterilmiş ve hiç gösterilmemiş sorular birlikte sayılır. Bu bölüm gösterim dağılımı değildir; HTML gövdede Dağılım sütunu email-safe stacked bar olarak render edilir.",
+    ...categoryDifficultyChartTextRows,
+    "",
     "--- Rapor Bölümleri ---",
     ...reportChecklistTextRows,
     "",
@@ -1094,9 +1112,6 @@ function buildReport({
     "",
     "--- Kategori Denge Sinyalleri ---",
     ...categoryFairnessSignalTextRows,
-    "",
-    "--- Key Insights / Risk Flags ---",
-    ...insightRows.map(([label, _tone, message]) => `${label}: ${message}`),
     "",
     "--- En Çok Gösterilen Sorular ---",
     ...topTextRows,
@@ -1168,6 +1183,9 @@ function buildReport({
       categoryExposureRowsRendered: categoryExposureRows.length,
       categoryFairnessSignalCount: categoryFairnessSignals.length,
       reportSections: [
+        "Executive Summary",
+        "Key Insights / Risk Flags",
+        "Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı",
         "Rapor Bölümleri",
         "Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı",
         "Kategori Bazında Soru Havuzu",

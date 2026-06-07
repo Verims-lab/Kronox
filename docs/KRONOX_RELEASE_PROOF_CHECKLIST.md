@@ -472,7 +472,8 @@ Checklist:
   email-safe inline HTML/CSS stacked-bar table with numeric counts for
   `Zorluk 1`, `Zorluk 2`, `Zorluk 3`, `Zorluk 4`, `Zorluk 5`, and
   `Bilinmiyor`. It is sourced from active `Question` rows, includes asked and
-  never-asked questions, and must not use JavaScript charts.
+  never-asked questions, must not use JavaScript charts, and must appear right
+  after `Key Insights / Risk Flags` before long event-based detail sections.
 * Long event-based detail sections must remain bounded: top shown, never/least
   shown, wrong, easy, slow, and per-category samples should show counts plus
   limited rows instead of dumping the full question pool.
