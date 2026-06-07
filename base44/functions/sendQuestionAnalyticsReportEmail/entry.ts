@@ -7,9 +7,11 @@ const JOB_NAME = 'sendQuestionAnalyticsReportEmail';
 const MAX_EVENTS = 5000;
 const MAX_QUESTIONS = 5000;
 const MAX_CATEGORIES = 1000;
+const MAX_USER_CATEGORY_PREFERENCES = 10000;
 const NEVER_SHOWN_SAMPLE_LIMIT = 20;
+const CATEGORY_QUESTION_SAMPLE_LIMIT = 3;
 const PERIOD_OPTIONS = new Set([1, 7, 30]);
-const REPORT_BUILD_MARKER = 'Codex249';
+const REPORT_BUILD_MARKER = 'Codex250';
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });
@@ -142,6 +144,24 @@ function isSoloEligibleQuestion(question: any, activeCategoryIds: Set<string>) {
   return true;
 }
 
+function isActiveCategoryPreference(preference: any) {
+  const status = String(preference?.status ?? 'A').trim().toUpperCase();
+  return status === 'A';
+}
+
+function getPreferenceCategoryId(preference: any) {
+  const raw = preference?.category_id ?? preference?.categoryId;
+  const numeric = Number(raw);
+  if (Number.isFinite(numeric) && numeric > 0) return String(Math.trunc(numeric));
+  const text = String(raw ?? '').trim();
+  return text || null;
+}
+
+function getPreferenceOwnerKey(preference: any) {
+  return normalizeEmail(preference?.user_email)
+    || String(preference?.user_id || preference?.created_by_id || preference?.created_by || '').trim();
+}
+
 function getTopShownSubcategoryConcentration(topShown: any[]) {
   const groups = new Map<string, { key: string; category: string; subCategory: string; shownCount: number }>();
   let total = 0;
@@ -216,6 +236,13 @@ function buildCategoryMap(categories: any[]) {
   return map;
 }
 
+function numericCategorySort(a: string, b: string) {
+  const an = Number(a);
+  const bn = Number(b);
+  if (Number.isFinite(an) && Number.isFinite(bn) && an !== bn) return an - bn;
+  return a.localeCompare(b, 'tr');
+}
+
 function categoryLabel(categoryId: unknown, categoryMap: Map<string, string>) {
   const id = String(categoryId ?? '').trim();
   if (!id || id === 'unknown') return 'Bilinmiyor';
@@ -244,6 +271,17 @@ function correctRateLabel(bucket: any) {
 
 function avgResponseMs(bucket: any) {
   return bucket?.response_count ? Math.round(bucket.total_response_time_ms / bucket.response_count) : 0;
+}
+
+function formatQuestionBucket(bucket: any) {
+  if (!bucket) return 'Yeterli veri yok';
+  const question = bucket.question || {};
+  return `#${bucket.question_id} · ${shortText(question.question, 54)} · ${questionYearLabel(bucket)} · ${bucket.shown_count} gösterim · ${correctRateLabel(bucket)} doğru`;
+}
+
+function formatQuestionSample(question: any) {
+  if (!question) return '';
+  return `#${questionKey(question?.id ?? question?.question_id)} · ${shortText(question?.question, 54)} · ${getQuestionYear(question) ?? 'Yıl yok'}`;
 }
 
 function barHtml(value: number, max: number, color = '#f5b301', width = 120) {
@@ -297,17 +335,131 @@ function summaryCard(label: string, value: string | number, helper: string) {
   </td>`;
 }
 
+function htmlLineList(values: string[], emptyMessage = 'Yeterli veri yok') {
+  if (!values.length) return escapeHtml(emptyMessage);
+  return values.map((value) => escapeHtml(value)).join('<br>');
+}
+
+function buildCategoryAnalytics({
+  categories,
+  questions,
+  activeQuestions,
+  soloEligibleQuestions,
+  bucketList,
+  categoryPreferences,
+  categoryMap,
+}: {
+  categories: any[];
+  questions: any[];
+  activeQuestions: any[];
+  soloEligibleQuestions: any[];
+  bucketList: any[];
+  categoryPreferences: any[];
+  categoryMap: Map<string, string>;
+}) {
+  const totalQuestionsByCategory = new Map<string, number>();
+  const activeQuestionsByCategory = new Map<string, any[]>();
+  const soloEligibleByCategory = new Map<string, any[]>();
+  const bucketsByCategory = new Map<string, any[]>();
+  const selectedUsersByCategory = new Map<string, Set<string>>();
+  const categoryIds = new Set<string>();
+
+  for (const category of categories || []) {
+    const id = String(category?.category_id ?? category?.id ?? '').trim();
+    if (id) categoryIds.add(id);
+  }
+
+  for (const question of questions || []) {
+    const id = getCategoryId(question) || 'unknown';
+    categoryIds.add(id);
+    totalQuestionsByCategory.set(id, (totalQuestionsByCategory.get(id) || 0) + 1);
+  }
+
+  for (const question of activeQuestions || []) {
+    const id = getCategoryId(question) || 'unknown';
+    categoryIds.add(id);
+    const rows = activeQuestionsByCategory.get(id) || [];
+    rows.push(question);
+    activeQuestionsByCategory.set(id, rows);
+  }
+
+  for (const question of soloEligibleQuestions || []) {
+    const id = getCategoryId(question) || 'unknown';
+    categoryIds.add(id);
+    const rows = soloEligibleByCategory.get(id) || [];
+    rows.push(question);
+    soloEligibleByCategory.set(id, rows);
+  }
+
+  for (const bucket of bucketList || []) {
+    const id = String(bucket?.category_id ?? bucket?.question?.main_category_id ?? 'unknown').trim() || 'unknown';
+    categoryIds.add(id);
+    const rows = bucketsByCategory.get(id) || [];
+    rows.push(bucket);
+    bucketsByCategory.set(id, rows);
+  }
+
+  for (const preference of categoryPreferences || []) {
+    if (!isActiveCategoryPreference(preference)) continue;
+    const categoryId = getPreferenceCategoryId(preference);
+    const ownerKey = getPreferenceOwnerKey(preference);
+    if (!categoryId || !ownerKey) continue;
+    categoryIds.add(categoryId);
+    const users = selectedUsersByCategory.get(categoryId) || new Set<string>();
+    users.add(ownerKey);
+    selectedUsersByCategory.set(categoryId, users);
+  }
+
+  return Array.from(categoryIds)
+    .sort(numericCategorySort)
+    .map((categoryId) => {
+      const activeRows = activeQuestionsByCategory.get(categoryId) || [];
+      const soloRows = soloEligibleByCategory.get(categoryId) || [];
+      const buckets = bucketsByCategory.get(categoryId) || [];
+      const shownBuckets = buckets.filter((bucket) => Number(bucket?.shown_count) > 0);
+      const shownQuestionIds = new Set(shownBuckets.map((bucket) => String(bucket.question_id)));
+      const neverShownActive = activeRows.filter((question) => !shownQuestionIds.has(questionKey(question?.id ?? question?.question_id)));
+      const neverShownSoloEligible = soloRows.filter((question) => !shownQuestionIds.has(questionKey(question?.id ?? question?.question_id)));
+      const topShown = [...shownBuckets].sort(sortDesc('shown_count')).slice(0, CATEGORY_QUESTION_SAMPLE_LIMIT);
+      const lowShown = [...shownBuckets]
+        .sort((a, b) => (Number(a?.shown_count) || 0) - (Number(b?.shown_count) || 0) || String(a?.question_id).localeCompare(String(b?.question_id)))
+        .slice(0, CATEGORY_QUESTION_SAMPLE_LIMIT);
+      const shownCount = shownBuckets.reduce((sum, bucket) => sum + (Number(bucket?.shown_count) || 0), 0);
+      const answeredCount = buckets.reduce((sum, bucket) => sum + (Number(bucket?.correct_count) || 0) + (Number(bucket?.wrong_count) || 0), 0);
+      const correctCount = buckets.reduce((sum, bucket) => sum + (Number(bucket?.correct_count) || 0), 0);
+      return {
+        categoryId,
+        categoryName: categoryLabel(categoryId, categoryMap),
+        totalQuestionCount: totalQuestionsByCategory.get(categoryId) || 0,
+        activeQuestionCount: activeRows.length,
+        soloEligibleQuestionCount: soloRows.length,
+        selectedUserCount: selectedUsersByCategory.get(categoryId)?.size || 0,
+        shownCount,
+        answeredCount,
+        uniqueShownQuestionCount: shownBuckets.length,
+        neverShownActiveCount: neverShownActive.length,
+        neverShownSoloEligibleCount: neverShownSoloEligible.length,
+        correctRate: answeredCount ? correctCount / answeredCount : null,
+        topShown,
+        lowShown,
+        neverShownSample: neverShownActive.slice(0, CATEGORY_QUESTION_SAMPLE_LIMIT),
+      };
+    });
+}
+
 function buildReport({
   periodDays,
   events,
   questions,
   categories,
+  categoryPreferences,
   buildMarker,
 }: {
   periodDays: number;
   events: any[];
   questions: any[];
   categories: any[];
+  categoryPreferences: any[];
   buildMarker: string;
 }) {
   const categoryMap = buildCategoryMap(categories);
@@ -425,6 +577,15 @@ function buildReport({
     .sort(sortDesc('shown_count'))
     .slice(0, 30);
   const categoryMax = Math.max(1, ...categoryRows.map((row) => Number(row.shown_count) || 0));
+  const categoryAnalytics = buildCategoryAnalytics({
+    categories,
+    questions,
+    activeQuestions,
+    soloEligibleQuestions,
+    bucketList,
+    categoryPreferences,
+    categoryMap,
+  });
   const totalCorrect = bucketList.reduce((sum, bucket) => sum + (Number(bucket.correct_count) || 0), 0);
   const totalWrong = bucketList.reduce((sum, bucket) => sum + (Number(bucket.wrong_count) || 0), 0);
   const answeredTotal = totalCorrect + totalWrong;
@@ -462,6 +623,9 @@ function buildReport({
   }
   if (questionsMissingMetadata > 0 || missing.answer_year > 0 || missing.sub_category_or_tags > 0) {
     insightRows.push(['Dikkat', 'warn', 'Bazı soru/event satırlarında yıl, kategori, alt kategori veya tag metadata eksik.']);
+  }
+  if (categoryAnalytics.some((row) => row.selectedUserCount > 0)) {
+    insightRows.push(['OK', 'ok', 'Kategori tercih dağılımı aktif UserCategoryPreference satırlarından benzersiz kullanıcı sayısı olarak rapora eklendi.']);
   }
 
   const summaryCards = [
@@ -548,6 +712,26 @@ function buildReport({
     ];
   });
 
+  const categoryOverviewRows = categoryAnalytics.map((row) => [
+    escapeHtml(row.categoryName),
+    escapeHtml(row.totalQuestionCount),
+    escapeHtml(row.activeQuestionCount),
+    escapeHtml(row.soloEligibleQuestionCount),
+    escapeHtml(row.selectedUserCount),
+    escapeHtml(row.shownCount),
+    escapeHtml(row.uniqueShownQuestionCount),
+    escapeHtml(row.neverShownActiveCount),
+    escapeHtml(row.correctRate === null ? 'Yeterli veri yok' : percent(row.correctRate, 1)),
+  ]);
+
+  const categoryInternalRows = categoryAnalytics.map((row) => [
+    escapeHtml(row.categoryName),
+    htmlLineList(row.topShown.map(formatQuestionBucket), 'Bu kategoride gösterim yok.'),
+    htmlLineList(row.lowShown.map(formatQuestionBucket), 'Bu kategoride az gösterilmiş soru yok.'),
+    htmlLineList(row.neverShownSample.map(formatQuestionSample), row.neverShownActiveCount ? 'Örnek yok.' : 'Hiç gösterilmeyen aktif soru yok.'),
+    escapeHtml(row.neverShownActiveCount),
+  ]);
+
   const warningRows = [
     ['Events missing question_id', missing.question_id],
     ['Events missing answer_year', missing.answer_year],
@@ -591,6 +775,16 @@ function buildReport({
                 <tr>${summaryCards.slice(9).join('')}</tr>
               </table>`)}
               ${sectionHtml('Key Insights / Risk Flags', insightHtml)}
+              ${sectionHtml('Kategori Özet Analizi', tableHtml(
+    ['Kategori', 'Toplam soru', 'Aktif soru', 'Solo-eligible', 'Tercih eden kullanıcı', 'Gösterim', 'Benzersiz gösterilen', 'Hiç gösterilmeyen aktif', 'Doğru %'],
+    categoryOverviewRows,
+    'Kategori özeti için veri yok.',
+  ))}
+              ${sectionHtml('Kategori İçi Soru Analizi', tableHtml(
+    ['Kategori', 'Fazla sorulan', 'Az sorulan', 'Hiç sorulmayan örnek', 'Hiç sorulmayan sayı'],
+    categoryInternalRows,
+    'Kategori içi soru analizi için veri yok.',
+  ))}
               ${sectionHtml('En Çok Gösterilen Sorular', tableHtml(
     ['#', 'Question ID', 'Soru', 'Yıl', 'Kategori', 'Alt kategori', 'Gösterim', 'Doğru %', 'Ort. süre', 'Swap'],
     topShownRows,
@@ -643,6 +837,17 @@ function buildReport({
   const neverTextRows = neverShownSample.length
     ? neverShownSample.map((question, index) => `${index + 1}. #${questionKey(question?.id ?? question?.question_id)} | ${shortText(question?.question, 100)} | yıl=${getQuestionYear(question) ?? 'Yok'} | kategori=${categoryLabel(question?.main_category_id, categoryMap)} | alt=${displayValue(question?.sub_category)}`)
     : ['Hiç gösterilmeyen aktif soru bulunmadı.'];
+  const categoryOverviewTextRows = categoryAnalytics.length
+    ? categoryAnalytics.map((row) => `${row.categoryName}: toplam=${row.totalQuestionCount}, aktif=${row.activeQuestionCount}, Solo-eligible=${row.soloEligibleQuestionCount}, tercih eden kullanıcı=${row.selectedUserCount}, gösterim=${row.shownCount}, benzersiz gösterilen=${row.uniqueShownQuestionCount}, hiç gösterilmeyen aktif=${row.neverShownActiveCount}, doğru=${row.correctRate === null ? 'Yeterli veri yok' : percent(row.correctRate, 1)}`)
+    : ['Kategori özeti için veri yok.'];
+  const categoryInternalTextRows = categoryAnalytics.length
+    ? categoryAnalytics.map((row) => [
+      `${row.categoryName}:`,
+      `  Fazla sorulan: ${row.topShown.map(formatQuestionBucket).join(' | ') || 'Bu kategoride gösterim yok.'}`,
+      `  Az sorulan: ${row.lowShown.map(formatQuestionBucket).join(' | ') || 'Bu kategoride az gösterilmiş soru yok.'}`,
+      `  Hiç sorulmayan (${row.neverShownActiveCount}): ${row.neverShownSample.map(formatQuestionSample).join(' | ') || (row.neverShownActiveCount ? 'Örnek yok.' : 'Hiç gösterilmeyen aktif soru yok.')}`,
+    ].join('\n'))
+    : ['Kategori içi soru analizi için veri yok.'];
   const textLines = [
     'Kronox Soru Analiz Raporu',
     `Dönem: ${period}`,
@@ -664,6 +869,12 @@ function buildReport({
     '',
     '--- Key Insights / Risk Flags ---',
     ...insightRows.map(([label, _tone, message]) => `${label}: ${message}`),
+    '',
+    '--- Kategori Özet Analizi ---',
+    ...categoryOverviewTextRows,
+    '',
+    '--- Kategori İçi Soru Analizi ---',
+    ...categoryInternalTextRows,
     '',
     '--- En Çok Gösterilen Sorular ---',
     ...topTextRows,
@@ -710,6 +921,18 @@ function buildReport({
       runtimeProjectionSizeSource: 'getQuestions projectionDiagnostics admin/Health path',
       topShownSubcategory: topSubcategoryConcentration.topShownSubcategory,
       topShownSubcategoryShare: topSubcategoryConcentration.topShownSubcategoryShare,
+      categoryAnalytics: categoryAnalytics.map((row) => ({
+        categoryId: row.categoryId,
+        categoryName: row.categoryName,
+        totalQuestionCount: row.totalQuestionCount,
+        activeQuestionCount: row.activeQuestionCount,
+        soloEligibleQuestionCount: row.soloEligibleQuestionCount,
+        selectedUserCount: row.selectedUserCount,
+        shownCount: row.shownCount,
+        uniqueShownQuestionCount: row.uniqueShownQuestionCount,
+        neverShownActiveCount: row.neverShownActiveCount,
+        neverShownSoloEligibleCount: row.neverShownSoloEligibleCount,
+      })),
       sportsShown,
     },
   };
@@ -747,11 +970,13 @@ Deno.serve(async (req: Request) => {
     const events = rawEvents.filter((event: any) => eventTimestamp(event) >= since);
     const rawQuestions = await base44.asServiceRole.entities.Question.list('-created_date', MAX_QUESTIONS).catch(() => []);
     const rawCategories = await base44.asServiceRole.entities.Category.list('-created_date', MAX_CATEGORIES).catch(() => []);
+    const rawCategoryPreferences = await base44.asServiceRole.entities.UserCategoryPreference.list('-updated_date', MAX_USER_CATEGORY_PREFERENCES).catch(() => []);
     const report = buildReport({
       periodDays,
       events,
       questions: rawQuestions,
       categories: rawCategories,
+      categoryPreferences: rawCategoryPreferences,
       buildMarker: String(body?.buildMarker || REPORT_BUILD_MARKER),
     });
     const subject = `Kronox Soru Analiz Raporu — ${periodLabel(periodDays)}`;
