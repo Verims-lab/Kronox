@@ -141,6 +141,10 @@ Rules:
 * admin question analytics reports must label all-active question pool,
   Solo-eligible pool, runtime projection diagnostics, unique shown questions,
   and never-shown counts separately when those metrics are available
+* admin question analytics reports include category pool counts, aggregate user
+  category preference counts, category exposure counts, category-internal
+  most/least/never-shown analysis, and category fairness signals; preference
+  counts must stay aggregate-only and must not expose user IDs or emails
 * after a full question pool replacement, admins may run the admin-only
   `resetQuestionAnalyticsData` maintenance function to clear
   `QuestionAttemptEvent`, `QuestionStatsProjection`, and

@@ -729,7 +729,11 @@ No deletion should happen in this task.
   as HTML email with summary cards, grouped tables, capped never-shown samples,
   and email-safe visual bars plus a plain-text fallback. The report skips
   stale/deleted question references with a diagnostic count and caps large
-  sections for email readability. No scheduled report exists in this version.
+  sections for email readability. Codex254 makes the actual sent body include
+  category pool counts, aggregate category preference counts, category exposure
+  counts, within-category most/least/never-shown analysis, and category fairness
+  signals. Category preference counts are aggregate only and do not expose user
+  IDs or emails. No scheduled report exists in this version.
 - Admin-only analytics reset. `resetQuestionAnalyticsData` clears
   `QuestionAttemptEvent`, `QuestionStatsProjection`, and
   `CategoryStatsProjection` after a question pool replacement. It does not

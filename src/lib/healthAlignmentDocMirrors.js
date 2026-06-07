@@ -55,6 +55,9 @@ Status: Active product contract.
 - resetQuestionAnalyticsData is manual/admin-triggered only, requires explicit confirmation, clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection, and logs AdminMaintenanceLog.
 - question analytics reset does not delete Question, Category, UserCategoryPreference, score/progress/economy, leaderboard, Daily Wheel, or gameplay rows.
 - sendQuestionAnalyticsReportEmail handles stale/deleted question references with diagnostics and bounded sections.
+- sendQuestionAnalyticsReportEmail actual sent body includes Kategori Bazında Soru Havuzu, Kategori Tercihleri, Kategori Bazında Gösterim, Kategori İçi Soru Analizi, and Kategori Denge Sinyalleri.
+- Category preference report counts are aggregate distinct-user counts only and do not expose user IDs or emails.
+- Question analytics report sections render with section-level warnings instead of truncating the whole email.
 - user progress admin reset retains question analytics rows; account deletion anonymizes user-owned analytics identity.
 - retained QuestionAttemptEvent analytics rows no longer contain deleted user identity after account deletion.
 - UserCategoryPreference rows are user-scoped Settings data.
@@ -154,6 +157,7 @@ Status: Implementation tracking doc.
 - Manual admin question analytics HTML/table/bar email report exists with no scheduled trigger.
 - Admin-only resetQuestionAnalyticsData can reset question analytics history/projections after replacing the question pool.
 - Question analytics reports handle empty analytics state and stale/deleted question IDs safely.
+- Question analytics reports include category pool counts, aggregate category preference counts, category exposure counts, within-category most/least/never-shown analysis, and category fairness signals.
 - Legacy candidates kept without deletion: Friendship, GameRecord, LobbyMessage.
 - Raw Question remains protected.
 - UserCategoryPreference stores app-open popup and Settings Category preferences per user; minimum 3 selections. There is no maximum selection.
