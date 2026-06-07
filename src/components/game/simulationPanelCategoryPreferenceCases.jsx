@@ -458,26 +458,30 @@ export const EXTRA_TESTS = [
       });
     }),
 
-  makeCase('question_selection_algorithm_unchanged',
-    'Category preferences do not affect question selection yet',
+  makeCase('question_selection_algorithm_solo_only_preference_connection',
+    'Category preferences affect Solo only; Online/getQuestions/analytics remain unchanged',
     () => {
-      const combinedGameplaySource = [
-        gamePageSource,
-        soloQuestionEngineSource,
+      const soloMissing = missingTokens(`${gamePageSource}\n${soloQuestionEngineSource}`, [
+        'userSelectedCategoryIds',
+        'categoryPreferenceFairness',
+        'preferenceRatioTarget: \'70/30\'',
+      ]);
+      const nonSoloSource = [
         onlineGameStartSource,
         getQuestionsFunctionSource,
         analyticsGatewaySource,
       ].join('\n');
-      const forbidden = forbiddenTokens(combinedGameplaySource, [
+      const forbidden = forbiddenTokens(nonSoloSource, [
         'UserCategoryPreference',
         'UserSubCategoryPreference',
         'loadUserCategoryPreferences',
         'saveUserCategoryPreferences',
+        'userSelectedCategoryIds',
         'CategoryPreferencesSection',
         'SubCategoryPreferencesSection',
       ]);
-      if (forbidden.length) {
-        return fail('Category/SubCategory preferences leaked into gameplay/question selection too early.', {
+      if (soloMissing.length || forbidden.length) {
+        return fail('Category/SubCategory preferences leaked outside the Solo-only selection boundary.', {
           verification: 'STATIC_CONTRACT',
           files: [
             'src/pages/Game.jsx',
@@ -486,10 +490,10 @@ export const EXTRA_TESTS = [
             'base44/functions/getQuestions/entry.ts',
             'src/lib/dbGateway/analyticsGateway.js',
           ],
-          forbidden,
+          actual: { soloMissing, forbidden },
         });
       }
-      return pass('Solo, Online, getQuestions, and analytics code do not read Category preference rows yet.', {
+      return pass('Category preferences now feed Solo 70/30 weighting only; Online, getQuestions, and analytics do not read preference rows.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -961,7 +965,7 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('docs_align_category_preference_phase',
-    'Docs align on below-3 Category preference popup, Settings editability, and deferred soft-weighting future',
+    'Docs align on below-3 Category preference popup, Settings editability, and Solo-only soft weighting',
     () => {
       const combinedDocs = [
         questionDataModelDocSource,
@@ -980,8 +984,9 @@ export const EXTRA_TESTS = [
         'active valid UserCategoryPreference count',
         'Only active categories are selectable and count',
         'Users can later change selections under Profile / Settings',
-        'Preferences do not yet affect question selection',
-        'soft weighting, not hard filtering',
+        'Solo question selection targets 70% selected user categories and 30% full eligible pool',
+        'Online question selection is not affected',
+        'soft weighting target with fallback, not hard filtering',
         'SubCategory entity still exists',
         'RLS',
       ]);
@@ -997,7 +1002,7 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      return pass('Docs/mirrors state below-3 popup trigger, Settings editability, minimum/no-max rules, no gameplay filtering, retained SubCategory, and RLS proof needs.', {
+      return pass('Docs/mirrors state below-3 popup trigger, Settings editability, minimum/no-max rules, Solo soft weighting, retained SubCategory, and RLS proof needs.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

@@ -54,6 +54,12 @@ import {
   shouldShowBeginnerPlacementHint,
 } from '@/lib/soloQuestionEngine';
 import {
+  MIN_CATEGORY_SELECTION_COUNT,
+  getValidActiveSelectedCategoryIds,
+  loadActiveCategories,
+  loadUserCategoryPreferences,
+} from '@/lib/userCategoryPreferences';
+import {
   getOrderedSoloDeckQuestion,
   getSoloSeedQuestions,
 } from '@/lib/soloDeckRuntime';
@@ -257,14 +263,91 @@ export default function Game() {
   const soloAnalyticsEventIdsRef = useRef(new Set());
   const soloQuestionShownAtRef = useRef(new Map());
   const soloReplacementQuestionIdsRef = useRef(new Set());
+  const [currentUserLoaded, setCurrentUserLoaded] = useState(false);
+  const [soloCategoryPreferenceState, setSoloCategoryPreferenceState] = useState({
+    status: 'idle',
+    selectedCategoryIds: [],
+    available: false,
+    fallbackReason: 'not_loaded',
+  });
 
   useEffect(() => {
     let active = true;
     base44.auth.me()
       .then(u => { if (active) setCurrentUser(u || null); })
-      .catch(() => { if (active) setCurrentUser(null); });
+      .catch(() => { if (active) setCurrentUser(null); })
+      .finally(() => { if (active) setCurrentUserLoaded(true); });
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    if (!isSoloLevelMode) {
+      setSoloCategoryPreferenceState({
+        status: 'idle',
+        selectedCategoryIds: [],
+        available: false,
+        fallbackReason: 'not_solo_mode',
+      });
+      return () => { active = false; };
+    }
+    if (!currentUserLoaded) {
+      setSoloCategoryPreferenceState((previous) => ({
+        ...previous,
+        status: 'loading',
+        fallbackReason: 'user_session_loading',
+      }));
+      return () => { active = false; };
+    }
+    if (!currentUser?.email) {
+      setSoloCategoryPreferenceState({
+        status: 'unavailable',
+        selectedCategoryIds: [],
+        available: false,
+        fallbackReason: 'missing_authenticated_user',
+      });
+      return () => { active = false; };
+    }
+
+    setSoloCategoryPreferenceState((previous) => ({
+      ...previous,
+      status: 'loading',
+      fallbackReason: 'preference_loading',
+    }));
+
+    async function loadSoloCategoryPreferences() {
+      try {
+        const [activeCategories, preferences] = await Promise.all([
+          loadActiveCategories(),
+          loadUserCategoryPreferences(currentUser),
+        ]);
+        if (!active) return;
+        const selectedIds = Array.from(getValidActiveSelectedCategoryIds(preferences, activeCategories));
+        const available = selectedIds.length >= MIN_CATEGORY_SELECTION_COUNT;
+        setSoloCategoryPreferenceState({
+          status: 'ready',
+          selectedCategoryIds: selectedIds,
+          available,
+          fallbackReason: available
+            ? null
+            : selectedIds.length > 0
+              ? 'insufficient_valid_user_category_preferences'
+              : 'no_valid_user_category_preferences',
+        });
+      } catch {
+        if (!active) return;
+        setSoloCategoryPreferenceState({
+          status: 'unavailable',
+          selectedCategoryIds: [],
+          available: false,
+          fallbackReason: 'preference_load_failed',
+        });
+      }
+    }
+
+    loadSoloCategoryPreferences();
+    return () => { active = false; };
+  }, [isSoloLevelMode, currentUserLoaded, currentUser?.email]);
 
   // ─── Data fetching — offline-first (Repository layer) ───────────
   const {
@@ -735,6 +818,9 @@ export default function Game() {
     // and clean error when the pool can't supply the required unique years.
     let shuffled;
     if (isSoloLevelMode) {
+      const preferenceReady = soloCategoryPreferenceState.status === 'ready'
+        || soloCategoryPreferenceState.status === 'unavailable';
+      if (!currentUserLoaded || !preferenceReady) return;
       resetSoloJokers();
       // Base candidate pool: legacy year-window + non-music filter (same
       // as the non-Solo branch). The engine then enforces the HARD rules.
@@ -750,6 +836,9 @@ export default function Game() {
         allowedMainCategoryIds: activeCategoryIds,
         recentlySeenQuestionIds: loadRecentHistory(),
         questionExposureStats: loadRecentQuestionExposureStats(),
+        userSelectedCategoryIds: soloCategoryPreferenceState.selectedCategoryIds,
+        userCategoryPreferenceAvailable: soloCategoryPreferenceState.status === 'ready',
+        userCategoryPreferenceFallbackReason: soloCategoryPreferenceState.fallbackReason,
         levelNumber: soloLevel?.levelNumber,
         deckSize: getSoloAttemptDeckSizeForLevel(soloLevel?.levelNumber),
         seedCount: playerNames.length * 2,
@@ -815,7 +904,7 @@ export default function Game() {
       current_question_id: firstQ.id,
       used_question_ids: [...used]
     });
-  }, [playerNames, questionPool, allQuestions, activeCategoryIds, yearStart, yearEnd, isLoading, isOnline, isSoloLevelMode, resetSoloJokers, setLobbyData, setError]);
+  }, [playerNames, questionPool, allQuestions, activeCategoryIds, yearStart, yearEnd, isLoading, isOnline, isSoloLevelMode, currentUserLoaded, soloCategoryPreferenceState, resetSoloJokers, setLobbyData, setError]);
 
   // Overall timer başlatma
   useEffect(() => {

@@ -52,6 +52,7 @@ Soft deck preferences:
 - era/year spread.
 - recently-seen avoidance.
 - exposure cooldown / rotation prefers never-shown, less-shown, and not-recently-shown questions when local or projected stats are available.
+- user Category preferences target 70% selected user categories and 30% full eligible pool when at least 3 active valid UserCategoryPreference rows are available before the attempt starts.
 
 The P0 first-five guardrail avoids more than 2 same-subcategory or obvious
 sports-cluster cards when metadata and alternatives allow. P1/P2 balance
@@ -63,11 +64,18 @@ weighting is soft only and cannot make a deck fail by itself; and diagnostics
 expose categoryDistribution, subcategoryDistribution, themeDistribution,
 decadeDistribution, yearBandDistribution, diversityFairness,
 firstSevenCategoryDistribution, and fallbackTier for Health/admin/debug only.
+Normal 16-card decks target 11 selected-category cards and 5 global-pool
+cards; special 19-card decks target 13 selected-category cards and 6
+global-pool cards. Selected-category shortage fills from the full eligible pool
+instead of failing the deck.
 
 The runtime may pass local recent-history exposure stats into the deck builder
 before the attempt starts. This is not a gameplay source of truth and must not
 fetch questions or stats mid-attempt. Corrupt or missing local history is
 ignored safely, and sparse metadata must not block deck creation by itself.
+The runtime may also pass active valid current-user Category preference IDs
+before the attempt starts. Missing, corrupt, passive, or unavailable preferences
+fall back to global Solo selection. Online question selection is not affected.
 
 P2 diagnostics are Health/admin/helper-only. Deck diagnostics include level
 number, level type, deck size, correct target, fail threshold, question IDs,
