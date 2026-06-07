@@ -377,13 +377,15 @@ After deployment, verify:
 * `UserCategoryPreference` rows are user-scoped Settings data
 * normal users can read/update only their own preference rows
 * passive `Category.status = P/p` rows are not selectable
-* First-login Category preference popup prompts safely identified new users
-  for at least 3 active Category interests
+* Category preference popup prompts any authenticated user with fewer than 3
+  active valid Category preferences, including existing users
+* active valid `UserCategoryPreference` count is the popup source of truth
+* passive Category rows and passive preference rows do not count toward the
+  minimum
+* onboarding/completion profile flags are advisory only and cannot bypass the
+  below-3 rule
 * completing the popup saves `UserCategoryPreference` rows before marking the
   user profile onboarding flag complete
-* existing users are not hard-blocked solely because preferences are empty
-* users without a trustworthy profile creation timestamp are not forced into
-  the popup by static client inference
 * users can later change selections under Profile / Settings /
   `İlgi Alanlarım`
 * preferences do not affect Solo, Online, `getQuestions`, or analytics yet

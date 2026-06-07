@@ -926,6 +926,14 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps existing users without preferences unblocked and leaves question
 //     selection algorithms untouched.
 //
+// Codex247 — Category preference popup below-3 trigger:
+//   • Replaces the new-user rollout gate with a count-based check for any
+//     authenticated user with fewer than 3 active valid Category preferences.
+//   • Completion flags remain advisory only; active UserCategoryPreference rows
+//     that reference active Category rows are the popup source of truth.
+//   • Keeps Settings editable, no maximum selection cap, and no question
+//     selection connection.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1229,7 +1237,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex246';
+const BUILD_MARKER = 'Codex247';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

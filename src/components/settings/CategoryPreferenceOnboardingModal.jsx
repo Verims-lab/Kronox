@@ -3,10 +3,9 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Check, Loader2, RefreshCw, Sparkles } from 'lucide-react';
 import {
   MIN_CATEGORY_SELECTION_COUNT,
-  getSelectedCategoryIds,
+  getValidActiveSelectedCategoryIds,
   loadActiveCategories,
   loadUserCategoryPreferences,
-  normalizeCategoryId,
   saveUserCategoryPreferences,
 } from '@/lib/userCategoryPreferences';
 import {
@@ -25,17 +24,30 @@ export default function CategoryPreferenceOnboardingModal({ user, disabled = fal
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [validation, setValidation] = useState('');
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [dismissedForSession, setDismissedForSession] = useState(false);
   const [completedForSession, setCompletedForSession] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
-  const shouldShow = !disabled
+  const userEmail = String(user?.email || '').trim().toLowerCase();
+  const shouldCheck = !disabled
     && !dismissedForSession
     && !completedForSession
-    && shouldShowCategoryPreferenceOnboarding(user);
+    && Boolean(userEmail);
+  const shouldShow = shouldCheck && needsOnboarding;
 
   useEffect(() => {
-    if (!shouldShow) return undefined;
+    setActiveCategories([]);
+    setSelectedIds(new Set());
+    setError('');
+    setValidation('');
+    setNeedsOnboarding(false);
+    setDismissedForSession(false);
+    setCompletedForSession(false);
+  }, [userEmail]);
+
+  useEffect(() => {
+    if (!shouldCheck) return undefined;
     let cancelled = false;
     async function load() {
       setLoading(true);
@@ -47,17 +59,18 @@ export default function CategoryPreferenceOnboardingModal({ user, disabled = fal
           loadUserCategoryPreferences(user),
         ]);
         if (cancelled) return;
-        const activeIds = new Set(categories
-          .map((item) => normalizeCategoryId(item?.category_id))
-          .filter((id) => id !== null));
-        const selected = new Set(Array.from(getSelectedCategoryIds(preferences))
-          .filter((id) => activeIds.has(id)));
+        const selected = getValidActiveSelectedCategoryIds(preferences, categories);
         setActiveCategories(categories);
         setSelectedIds(selected);
+        setNeedsOnboarding(shouldShowCategoryPreferenceOnboarding({
+          preferences,
+          activeCategories: categories,
+        }));
       } catch {
         if (!cancelled) {
           setActiveCategories([]);
           setSelectedIds(new Set());
+          setNeedsOnboarding(true);
           setError('Kategoriler yüklenemedi. Lütfen tekrar dene.');
         }
       } finally {
@@ -66,7 +79,7 @@ export default function CategoryPreferenceOnboardingModal({ user, disabled = fal
     }
     load();
     return () => { cancelled = true; };
-  }, [shouldShow, user, reloadKey]);
+  }, [shouldCheck, user, reloadKey]);
 
   const selectedCategories = useMemo(() => {
     return activeCategories.filter((item) => selectedIds.has(Number(item.category_id)));
@@ -100,6 +113,7 @@ export default function CategoryPreferenceOnboardingModal({ user, disabled = fal
       const result = await saveUserCategoryPreferences(user, selectedIds, activeCategories);
       setSelectedIds(toIdSet(result.selectedIds));
       await markCategoryPreferenceOnboardingCompleted(user);
+      setNeedsOnboarding(false);
       setCompletedForSession(true);
       onCompleted?.();
     } catch (err) {

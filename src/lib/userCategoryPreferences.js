@@ -62,6 +62,19 @@ export function getSelectedCategoryIds(preferences) {
     .filter((id) => id !== null));
 }
 
+export function getActiveCategoryIdSet(activeCategories) {
+  return new Set((Array.isArray(activeCategories) ? activeCategories : [])
+    .filter(isActiveCategory)
+    .map((row) => normalizeCategoryId(row?.category_id))
+    .filter((id) => id !== null));
+}
+
+export function getValidActiveSelectedCategoryIds(preferences, activeCategories) {
+  const activeIdSet = getActiveCategoryIdSet(activeCategories);
+  return new Set(Array.from(getSelectedCategoryIds(preferences))
+    .filter((id) => activeIdSet.has(id)));
+}
+
 function makeValidationError(message) {
   const error = new Error(message);
   error.code = 'category_preference_validation';
@@ -69,10 +82,7 @@ function makeValidationError(message) {
 }
 
 function normalizeActiveIdSet(activeCategories) {
-  return new Set((Array.isArray(activeCategories) ? activeCategories : [])
-    .filter(isActiveCategory)
-    .map((row) => normalizeCategoryId(row?.category_id))
-    .filter((id) => id !== null));
+  return getActiveCategoryIdSet(activeCategories);
 }
 
 export async function saveUserCategoryPreferences(user, selectedCategoryIds, activeCategories) {

@@ -266,12 +266,12 @@ Rules:
   `Category.status = P/p` rows.
 * Minimum selection count is 3.
 * There is no maximum selection count.
-* A First-login Category preference popup prompts new users to choose at least
-  3 active Category interests.
-* Existing users are not hard-blocked solely because preferences are empty.
-* The current rollout gate uses the user profile creation timestamp compared
-  with the documented rollout cutoff, and falls open if creation time is
-  unavailable.
+* Any authenticated user with fewer than 3 active valid Category preferences
+  sees the popup; this applies to new and existing users.
+* The source of truth is active valid `UserCategoryPreference` count.
+* Only active Categories are selectable and count toward the minimum.
+* Onboarding/completion profile flags are advisory only and cannot bypass the
+  below-3 rule.
 * Users can later change selections under Profile / Settings /
   `İlgi Alanlarım`.
 * Preferences do not yet affect question selection.

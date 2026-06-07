@@ -127,7 +127,7 @@ Current entities audited:
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `Category` | Stable question category lookup. | Online category UI, Solo active category whitelist, `getQuestions`, `startLobbyGame`, seed function. | Yes for category metadata and active/passive state. | `OnlineChallengeScreen`, `seedQuestionCategories`, `getQuestions`, `startLobbyGame`. | Read is public, write/delete admin. Public read is acceptable if only category metadata. | Unique `category_id`; `status`; `status + category_id`. | No routine deletion. Passive instead of delete. | Keep. | None. |
 | `SubCategory` | Future normalized subcategory lookup. | No current Settings preference UI usage; no runtime question mapping yet. | Future lookup source for normalized subcategory metadata. | Manual/admin row management expected later. | Read can be public like `Category`; create/update/delete stay admin-only. Rows store only subcategory metadata and `Category.category_id` references. | Unique `id`; `status`; `main_category_1`; `main_category_2`. | No routine deletion. Passive instead of delete. | Keep as additive prep. | Future proof needed before mapping `Question.sub_category` text to `SubCategory.id`. |
-| `UserCategoryPreference` | Per-user interest preference rows for active main `Category` selections. | First-login Category preference popup and Settings `İlgi Alanlarım` section load/save current user's selected categories. | Yes for user preference persistence; not a gameplay question source yet. | `src/lib/userCategoryPreferences.js`, `src/lib/categoryPreferenceOnboarding.js`, `src/components/settings/CategoryPreferenceOnboardingModal.jsx`, `src/components/settings/CategoryPreferencesSection.jsx`. | Rows are user-scoped by owner email; normal users can read/update only their own rows, admin can inspect. Existing users are not hard-blocked solely because preferences are empty. Preferences must not leak other users. | `user_email + category_id` unique where platform supports it; `user_email + status`; `category_id`. | Unselected preferences become `status = P`; no hard delete needed for routine settings edits. | Keep. | Runtime two-account RLS proof needed before applying preferences to gameplay. |
+| `UserCategoryPreference` | Per-user interest preference rows for active main `Category` selections. | App-open Category preference popup and Settings `İlgi Alanlarım` section load/save current user's selected categories. | Yes for user preference persistence; not a gameplay question source yet. | `src/lib/userCategoryPreferences.js`, `src/lib/categoryPreferenceOnboarding.js`, `src/components/settings/CategoryPreferenceOnboardingModal.jsx`, `src/components/settings/CategoryPreferencesSection.jsx`. | Rows are user-scoped by owner email; normal users can read/update only their own rows, admin can inspect. Any user below 3 active valid preferences is prompted; completion flags cannot bypass that rule. Preferences must not leak other users. | `user_email + category_id` unique where platform supports it; `user_email + status`; `category_id`. | Unselected preferences become `status = P`; no hard delete needed for routine settings edits. | Keep. | Runtime two-account RLS proof needed before applying preferences to gameplay. |
 | `UserSubCategoryPreference` | Legacy retained per-user SubCategory preference rows from the earlier Settings phase. | Not used by the current Settings preference UI. Existing rows are left untouched. | Historical data only until a later migration decision. | No active Settings read/write path. | Keep user-scoped if accessed in future; do not expose globally. | `user_email + sub_category_id` if retained. | Leave existing rows untouched for now. | Retain/legacy. | Future migration/deletion proof needed before removing. |
 | `Question` | Protected gameplay question bank. | Authenticated `getQuestions`, `startLobbyGame`, test/sim functions, admin paths. | Yes for question content, but runtime projection derives `year` from `answer`. | Service-role backend functions; direct entity read admin-only by RLS. | Must remain protected. Normal users must not get full bank or admin metadata. | `state`; `main_category_id`; `state + main_category_id`; `difficulty`; future `answer_year`; `state + main_category_id + answer_year`. | No hard delete by default. Use `state = P`; archive old invalid rows only after export. | Keep but refactor. | N/A. |
 | `AdminUser` | DB-backed admin authorization source-of-truth. | Shared backend admin guard, Settings admin status check, admin-only functions, Health/test-suite gating. | Yes for admin authorization. Active rows with role `owner`/`admin` pass; disabled rows fail. | `functions/getAdminStatus.js`, `base44/functions/_shared/adminAuth.ts`, `base44/functions/getAdminStatus/entry.ts`, `base44/functions/getAdminStatus/function.jsonc`, admin-only backend functions. | Must remain private/admin-only. Normal users cannot list global admins. No env email allowlist for authorization. `getQuestions` must not be used as an admin status source. | Unique `email`; `status`; `role + status`; `updated_at`. | Disable rows to remove access. Account deletion should disable/anonymize the row only through explicit owner/admin action. | Keep. | Prove unauthenticated 401, non-admin 403, active admin allowed, disabled admin blocked, and current Base44 functions version resolves `getAdminStatus`. |
@@ -284,7 +284,7 @@ values. Do not duplicate Category names or migrate Question rows in this phase.
 
 ### P0 - `UserCategoryPreference`
 
-Purpose: First-login onboarding and Settings persistence for user-selected main
+Purpose: App-open popup and Settings persistence for user-selected main
 Category interests.
 
 Current status: onboarding + Settings only. The preference rows do not affect
@@ -310,11 +310,12 @@ Rules:
 * Users must select at least 3 categories before saving.
 * There is no maximum selection limit.
 * Rows are scoped to the authenticated user.
-* First-login Category preference popup prompts new users to choose active
-  Category interests.
-* Existing users are not hard-blocked solely because preferences are empty.
-* The rollout gate compares user profile creation time with the documented
-  rollout cutoff and does not prompt when creation time is unavailable.
+* Any authenticated user with fewer than 3 active valid Category preferences
+  sees the popup; this applies to new and existing users.
+* The source of truth is active valid `UserCategoryPreference` count.
+* Only active Categories are selectable and count toward the minimum.
+* Onboarding/completion profile flags are advisory only and cannot bypass the
+  below-3 rule.
 * Users can later change selections under Profile / Settings /
   `İlgi Alanlarım`.
 * A future task may apply preferences as soft weighting, not hard filtering.
