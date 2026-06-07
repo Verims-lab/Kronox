@@ -20,8 +20,22 @@ function unwrapFunctionResponse(response) {
 
 function errorMessageFromBody(body, fallback) {
   const code = String(body?.code || body?.error || '').trim();
+  if (code === 'confirmation_required') return 'RESET_QUESTION_ANALYTICS onayı gerekli.';
+  if (code === 'Admin access required') return 'Admin yetkisi gerekli.';
+  if (code === 'Authentication required') return 'Oturum doğrulaması gerekli.';
+  if (code === 'analytics_reset_incomplete') return 'Soru analitik reseti tamamlanamadı. Analytics hedef tabloları veya silme sayıları kontrol edilmeli.';
   if (code) return `${fallback} (${code})`;
   return fallback;
+}
+
+function missingFunctionMessage(name) {
+  return `${name} fonksiyonu bulunamadı veya deploy edilmemiş. Function name/path kontrol edilmeli.`;
+}
+
+function isNotFoundError(error) {
+  const status = Number(error?.status || error?.response?.status || error?.statusCode);
+  const message = String(error?.message || '').toLowerCase();
+  return status === 404 || message.includes('status code 404') || message.includes('not found');
 }
 
 async function callAdminFunction(name, payload) {
@@ -31,16 +45,26 @@ async function callAdminFunction(name, payload) {
     if (body?.ok === false) throw new Error(errorMessageFromBody(body, 'İşlem başarısız oldu.'));
     return body;
   } catch (invokeError) {
-    const response = await base44.functions.fetch(`/${name}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok || body?.ok === false) {
-      throw new Error(errorMessageFromBody(body, invokeError?.message || 'İşlem başarısız oldu.'));
+    try {
+      const response = await base44.functions.fetch(`/${name}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (response.status === 404) throw new Error(missingFunctionMessage(name));
+      if (response.status === 403) throw new Error('Admin yetkisi gerekli.');
+      if (response.status === 401) throw new Error('Oturum doğrulaması gerekli.');
+      if (!response.ok || body?.ok === false) {
+        throw new Error(errorMessageFromBody(body, invokeError?.message || 'İşlem başarısız oldu.'));
+      }
+      return body;
+    } catch (fetchError) {
+      if (isNotFoundError(fetchError) || isNotFoundError(invokeError)) {
+        throw new Error(missingFunctionMessage(name));
+      }
+      throw fetchError;
     }
-    return body;
   }
 }
 

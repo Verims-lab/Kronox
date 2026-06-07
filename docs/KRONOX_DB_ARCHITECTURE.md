@@ -733,12 +733,16 @@ No deletion should happen in this task.
   category pool counts, aggregate category preference counts, category exposure
   counts, within-category most/least/never-shown analysis, and category fairness
   signals. Category preference counts are aggregate only and do not expose user
-  IDs or emails. No scheduled report exists in this version.
+  IDs or emails. The function is registered by
+  `base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc`. No
+  scheduled report exists in this version.
 - Admin-only analytics reset. `resetQuestionAnalyticsData` clears
   `QuestionAttemptEvent`, `QuestionStatsProjection`, and
   `CategoryStatsProjection` after a question pool replacement. It does not
   delete `Question`, `Category`, `UserCategoryPreference`, score, diamond,
-  progress, leaderboard, Daily Wheel, or gameplay rows.
+  progress, leaderboard, Daily Wheel, or gameplay rows. The function is
+  registered by `base44/functions/resetQuestionAnalyticsData/function.jsonc`;
+  a Settings reset 404 indicates a function-name/path/deployment mismatch.
 
 ### Phase 4 - Backend idempotency hardening
 

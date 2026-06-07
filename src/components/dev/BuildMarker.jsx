@@ -990,6 +990,13 @@ import React, { useEffect, useState } from 'react';
 //     false success when a target analytics entity is unavailable, capped, or
 //     has delete failures.
 //
+// Codex256 — Question Analytics function registration:
+//   • Adds function.jsonc manifests for resetQuestionAnalyticsData and
+//     sendQuestionAnalyticsReportEmail so Base44 can resolve the exact
+//     functions.invoke names used by the Settings admin tool.
+//   • The admin tool now maps 404/missing function responses to a clear
+//     function-name/deployment mismatch message.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1293,7 +1300,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex255';
+const BUILD_MARKER = 'Codex256';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

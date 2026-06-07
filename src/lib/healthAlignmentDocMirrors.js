@@ -52,7 +52,9 @@ Status: Active product contract.
 - admin-only maintenance functions verify AdminUser-backed authorization server-side.
 - account deletion is a destructive, NOT_AUTOMATABLE manual proof gate.
 - sendQuestionAnalyticsReportEmail is manual/admin-triggered only and sends HTML/table/bar formatted question analytics with text fallback.
+- sendQuestionAnalyticsReportEmail is registered by base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc with name sendQuestionAnalyticsReportEmail and entry entry.ts.
 - resetQuestionAnalyticsData is manual/admin-triggered only, requires explicit confirmation, clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection, and logs AdminMaintenanceLog.
+- resetQuestionAnalyticsData is registered by base44/functions/resetQuestionAnalyticsData/function.jsonc with name resetQuestionAnalyticsData and entry entry.ts; a Settings reset 404 means function-name/path/deployment mismatch.
 - resetQuestionAnalyticsData returns analytics_reset_incomplete instead of false success when a reset target is unavailable, capped, or has delete failures.
 - question analytics reset does not delete Question, Category, UserCategoryPreference, score/progress/economy, leaderboard, Daily Wheel, or gameplay rows.
 - sendQuestionAnalyticsReportEmail handles stale/deleted question references with diagnostics and bounded sections.
