@@ -9,6 +9,7 @@ const QUEST_TYPES = [
 ] as const;
 const DAILY_QUEST_RUNTIME_VERSION = 'daily-quest-runtime-v1';
 const DAY_MS = 24 * 60 * 60 * 1000;
+const DAILY_QUESTS_PER_DAY = 1;
 const DEFAULT_DEFINITIONS = [
   {
     quest_key: 'start_1_solo_attempt',
@@ -268,11 +269,13 @@ async function createProgressRow(base44: any, email: string, dateKey: string, de
 async function ensureTodayDailyQuests(base44: any, email: string, dateKey: string) {
   const seedResult = await ensureDefaultDefinitions(base44);
   const definitions = await readActiveDefinitions(base44);
+  const selectedDefinitions = definitions.slice(0, DAILY_QUESTS_PER_DAY);
+  const selectedQuestKeys = new Set(selectedDefinitions.map((definition) => definition.quest_key));
   let rows = await readTodayRows(base44, email, dateKey);
   const existingQuestKeys = new Set(rows.map((row: any) => String(row?.quest_key || '')));
 
-  for (const definition of definitions) {
-    if (rows.length >= 3) break;
+  for (const definition of selectedDefinitions) {
+    if (rows.filter((row: any) => selectedQuestKeys.has(String(row?.quest_key || ''))).length >= DAILY_QUESTS_PER_DAY) break;
     if (existingQuestKeys.has(definition.quest_key)) continue;
     const created = await createProgressRow(base44, email, dateKey, definition);
     if (created?.id) {
@@ -285,12 +288,14 @@ async function ensureTodayDailyQuests(base44: any, email: string, dateKey: strin
   const refreshedRows = await readTodayRows(base44, email, dateKey);
   rows = refreshedRows.length ? refreshedRows : ensuredRows;
   return {
-    definitions,
+    definitions: selectedDefinitions,
+    activeDefinitionCount: definitions.length,
     seededDefaultKeys: seedResult.seededDefaultKeys,
     seedMode: seedResult.seedMode,
     rows: rows
+      .filter((row: any) => selectedQuestKeys.has(String(row?.quest_key || '')))
       .sort((a: any, b: any) => String(a?.quest_key || '').localeCompare(String(b?.quest_key || ''), 'tr'))
-      .slice(0, 3),
+      .slice(0, DAILY_QUESTS_PER_DAY),
   };
 }
 
@@ -323,7 +328,7 @@ Deno.serve(async (req: Request) => {
 
     const ensured = await ensureTodayDailyQuests(base44, email, serverDate);
     const quests = ensured.rows.map(publicProgress);
-    const activeDefinitionCount = ensured.definitions.length;
+    const activeDefinitionCount = ensured.activeDefinitionCount;
 
     return json({
       ok: true,
@@ -333,6 +338,7 @@ Deno.serve(async (req: Request) => {
       nextAvailableAt,
       quests,
       questCount: quests.length,
+      dailyQuestLimit: DAILY_QUESTS_PER_DAY,
       activeDefinitionCount,
       seededDefaultKeys: ensured.seededDefaultKeys,
       seedMode: ensured.seedMode,
@@ -340,7 +346,7 @@ Deno.serve(async (req: Request) => {
       emptyStateReason: quests.length
         ? ''
         : (activeDefinitionCount > 0 ? 'progress_rows_missing_after_ensure' : 'no_active_definitions'),
-      adminWarning: activeDefinitionCount < 3 ? 'insufficient_active_definitions' : null,
+      adminWarning: activeDefinitionCount < 1 ? 'insufficient_active_definitions' : null,
       noRewardDuringEnsure: true,
       grantsDiamondsOnly: true,
       doesNotGrantKronoxPuan: true,

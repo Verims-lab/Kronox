@@ -1213,7 +1213,7 @@ import React, { useEffect, useState } from 'react';
 //   • Adds UserDailyQuestProgress plus getDailyQuestStatus,
 //     recordDailyQuestProgress, and claimDailyQuestReward backend functions.
 //   • Wires Solo-only Daily Quest progress events and the Günlük Ödüller /
-//     Bugünkü Görevler claim UI while keeping rewards Diamonds-only, no
+//     Günlük Görev claim UI while keeping rewards Diamonds-only, no
 //     Kronox Puan, no leaderboard impact, and Daily Wheel separate.
 //
 // Codex293 — Günlük Ödüller text contract:
@@ -1223,7 +1223,7 @@ import React, { useEffect, useState } from 'react';
 // Codex294 — Daily Quest runtime seed/empty-state fix:
 //   • getDailyQuestStatus and recordDailyQuestProgress seed fixed default
 //     DailyQuestDefinition templates only when no definition rows exist.
-//   • Bugünkü Görevler now shows a real no-active-definition empty state
+//   • Günlük Görev now shows a real no-active-definition empty state
 //     instead of a permanent hazırlanan fallback; ensure still grants no
 //     Diamonds and claimDailyQuestReward remains the only reward path.
 //
@@ -1232,6 +1232,12 @@ import React, { useEffect, useState } from 'react';
 //     authenticated user-owned UserDailyQuestProgress entity for runtime rows.
 //   • ensureTodayDailyQuests preserves newly created rows when the immediate
 //     Base44 refresh is stale, preventing a false "Görevler yenilenemedi" state.
+//
+// Codex296 — Daily Quest Runtime v1 one-quest simplification:
+//   • getDailyQuestStatus and recordDailyQuestProgress now select 1 active
+//     DailyQuestDefinition per UTC day, ordered by sort_order/created_at/quest_key.
+//   • Günlük Ödüller renders one compact Günlük Görev while retaining older
+//     same-day extra progress rows without displaying a crowded list.
 //
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
@@ -1537,7 +1543,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex295';
+const BUILD_MARKER = 'Codex296';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

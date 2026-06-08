@@ -8,6 +8,7 @@ const QUEST_TYPES = [
   'use_joker',
 ] as const;
 const DAILY_QUEST_RUNTIME_VERSION = 'daily-quest-runtime-v1';
+const DAILY_QUESTS_PER_DAY = 1;
 const DEFAULT_DEFINITIONS = [
   {
     quest_key: 'start_1_solo_attempt',
@@ -125,6 +126,11 @@ async function readActiveDefinitions(base44: any) {
       const orderA = normalizeNumber(a?.sort_order, 0);
       const orderB = normalizeNumber(b?.sort_order, 0);
       if (orderA !== orderB) return orderA - orderB;
+      const createdA = Date.parse(String(a?.created_at || a?.created_date || ''));
+      const createdB = Date.parse(String(b?.created_at || b?.created_date || ''));
+      if (Number.isFinite(createdA) && Number.isFinite(createdB) && createdA !== createdB) {
+        return createdA - createdB;
+      }
       return String(a?.quest_key || '').localeCompare(String(b?.quest_key || ''), 'tr');
     });
 }
@@ -236,10 +242,12 @@ async function createProgressRow(base44: any, email: string, dateKey: string, de
 async function ensureTodayDailyQuests(base44: any, email: string, dateKey: string) {
   await ensureDefaultDefinitions(base44);
   const definitions = await readActiveDefinitions(base44);
+  const selectedDefinitions = definitions.slice(0, DAILY_QUESTS_PER_DAY);
+  const selectedQuestKeys = new Set(selectedDefinitions.map((definition: any) => String(definition.quest_key || '')));
   let rows = await readTodayRows(base44, email, dateKey);
   const keys = new Set(rows.map((row: any) => String(row?.quest_key || '')));
-  for (const definition of definitions) {
-    if (rows.length >= 3) break;
+  for (const definition of selectedDefinitions) {
+    if (rows.filter((row: any) => selectedQuestKeys.has(String(row?.quest_key || ''))).length >= DAILY_QUESTS_PER_DAY) break;
     if (keys.has(String(definition.quest_key || ''))) continue;
     const created = await createProgressRow(base44, email, dateKey, definition);
     if (created?.id) {
@@ -248,7 +256,9 @@ async function ensureTodayDailyQuests(base44: any, email: string, dateKey: strin
     }
   }
   const refreshedRows = await readTodayRows(base44, email, dateKey);
-  return (refreshedRows.length ? refreshedRows : rows).slice(0, 3);
+  return (refreshedRows.length ? refreshedRows : rows)
+    .filter((row: any) => selectedQuestKeys.has(String(row?.quest_key || '')))
+    .slice(0, DAILY_QUESTS_PER_DAY);
 }
 
 Deno.serve(async (req: Request) => {
@@ -327,7 +337,7 @@ Deno.serve(async (req: Request) => {
       updates.push(publicProgress(updated));
     }
 
-    const refreshedRows = await readTodayRows(base44, email, dateKey);
+    const refreshedRows = await ensureTodayDailyQuests(base44, email, dateKey);
     const responseRows = refreshedRows.length ? refreshedRows : rows;
     return json({
       ok: true,
@@ -336,7 +346,8 @@ Deno.serve(async (req: Request) => {
       serverDate: dateKey,
       progressEntitySource: progressEntitySource(base44),
       updated: updates,
-      quests: responseRows.slice(0, 3).map(publicProgress),
+      dailyQuestLimit: DAILY_QUESTS_PER_DAY,
+      quests: responseRows.slice(0, DAILY_QUESTS_PER_DAY).map(publicProgress),
       noDiamondGrantDuringProgress: true,
       grantsDiamondsOnlyOnClaim: true,
       noKronoxPuan: true,

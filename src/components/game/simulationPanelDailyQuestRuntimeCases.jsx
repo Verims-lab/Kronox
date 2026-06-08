@@ -1,6 +1,6 @@
 // Kronox Health Center — Daily Quest Runtime v1 contracts.
 //
-// Scope: user-owned daily progress rows, UTC-day quest assignment, Solo-only
+// Scope: one user-owned daily progress row, UTC-day quest assignment, Solo-only
 // progress events, server-backed Diamond claim, Günlük Ödüller panel, and
 // strict no Kronox Puan / no leaderboard impact boundaries.
 
@@ -102,14 +102,19 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('utc_day_and_today_ensure_contract',
-    'Daily Quest uses UTC quest_date and ensureTodayDailyQuests creates up to 3 rows idempotently',
+    'Daily Quest uses UTC quest_date and ensureTodayDailyQuests creates 1 row idempotently',
     () => {
       const missing = missingTokens(getDailyQuestStatusSource, [
         'utcDateKey',
         "toISOString().slice(0, 10)",
         'nextUtcMidnightIso',
         'ensureTodayDailyQuests',
-        'rows.length >= 3',
+        'DAILY_QUESTS_PER_DAY = 1',
+        'definitions.slice(0, DAILY_QUESTS_PER_DAY)',
+        'selectedQuestKeys',
+        'selectedQuestKeys.has',
+        'slice(0, DAILY_QUESTS_PER_DAY)',
+        'dailyQuestLimit: DAILY_QUESTS_PER_DAY',
         "filter({ status: 'active' }",
         'ensureDefaultDefinitions',
         'DEFAULT_DEFINITIONS',
@@ -131,7 +136,7 @@ export const EXTRA_TESTS = [
         file: 'base44/functions/getDailyQuestStatus/entry.ts',
         missing,
       });
-      return pass('getDailyQuestStatus uses UTC, excludes passive definitions, and idempotently ensures up to 3 rows.', { verification: 'STATIC_CONTRACT' });
+      return pass('getDailyQuestStatus uses UTC, excludes passive definitions, and idempotently ensures exactly 1 selected row.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('home_empty_state_and_seed_contract',
@@ -149,8 +154,9 @@ export const EXTRA_TESTS = [
         'created_by: \'system:daily_quest_runtime_seed\'',
         'emptyStateReason',
         'no_active_definitions',
-        'Bugünkü görevler yakında hazır olacak.',
+        'Günlük görev yakında hazır olacak.',
         'Görevler yükleniyor...',
+        'Older same-day 3-quest rows are retained but Home displays only the selected',
         'Aktif günlük görev tanımı yok. Ayarlar &gt; Günlük Görev Yönetimi bölümünden aktif görev ekleyin.',
         '`claimDailyQuestReward` remains the only reward path',
       ]);
@@ -314,28 +320,30 @@ export const EXTRA_TESTS = [
       return pass('Daily Quest runtime is Diamond-only and disconnected from Puan, leaderboard, Solo score, and Online score writes.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('daily_rewards_panel_includes_wheel_and_today_quests',
-    'Günlük Ödüller panel includes Daily Wheel and Bugünkü Görevler claim UI',
+  makeCase('daily_rewards_panel_includes_wheel_and_daily_quest',
+    'Günlük Ödüller panel includes Daily Wheel and one compact Günlük Görev claim UI',
     () => {
       const missing = missingTokens(dailyRewardsPanelSource, [
         'Günlük Ödüller',
         'DailyWheelCard',
-        'Bugünkü Görevler',
+        'Günlük Görev',
         'useDailyQuests',
+        'dailyQuests.quests.slice(0, 1)',
         'progressValue',
         'targetValue',
         'rewardDiamonds',
+        'Ödül',
         'Al',
         'Alındı',
         'Devam Et',
-        'Bugünkü görevler hazırlanıyor.',
+        'Günlük görev yakında hazır olacak.',
       ]);
       if (missing.length) return fail('Günlük Ödüller panel does not include the runtime Daily Quest UI.', {
         verification: 'STATIC_CONTRACT',
         file: 'src/components/dailyWheel/DailyRewardsPanel.jsx',
         missing,
       });
-      return pass('Günlük Ödüller combines Daily Wheel and Bugünkü Görevler with progress and claim states.', { verification: 'STATIC_CONTRACT' });
+      return pass('Günlük Ödüller combines Daily Wheel and one compact Günlük Görev with progress and claim states.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_separation_contract',

@@ -203,7 +203,7 @@ Checklist:
 * If ledger recovery exists, partial states self-heal.
 * Two-device duplicate prevention is manually probed unless backend unique transaction support exists.
 * `Günlük Ödüller` panel appears on Home above `SOLO MEYDAN OKUMA` and includes
-  Daily Wheel plus `Bugünkü Görevler`.
+  Daily Wheel plus one compact `Günlük Görev`.
 * Daily Wheel claim requires authenticated user.
 * Daily Wheel grants Diamonds only and never Kronox Puan.
 * Daily Quest Runtime v1 grants diamonds only through the server-backed
@@ -304,15 +304,19 @@ Checklist:
 * Daily Quest definitions are Diamond-only templates: no Kronox Puan field,
   no leaderboard impact, and no Solo/Online scoring changes.
 * `UserDailyQuestProgress` exists as the user-owned per-day progress table.
-* `getDailyQuestStatus` ensures up to 3 Daily Quests per UTC day and excludes
-  passive definitions from new daily sets.
-* Bugünkü Görevler requires active `DailyQuestDefinition` rows. Fresh DBs seed
+* `getDailyQuestStatus` ensures 1 Daily Quest per UTC day and excludes passive
+  definitions from new daily sets.
+* Admins can manage multiple `DailyQuestDefinition` rows; runtime selects the
+  first active definition by `sort_order`, `created_at`, then `quest_key`.
+* Günlük Görev requires active `DailyQuestDefinition` rows. Fresh DBs seed
   the default Solo-focused definitions idempotently when no definitions exist;
   if no active definitions remain, Home shows
-  `Bugünkü görevler yakında hazır olacak.` instead of a permanent loading state.
+  `Günlük görev yakında hazır olacak.` instead of a permanent loading state.
 * `getDailyQuestStatus` is authenticated and user-owned, not admin-only. It
   creates/fetches current-user `UserDailyQuestProgress` rows and preserves
   newly created rows if an immediate Base44 refresh is stale.
+* Older same-day 3-quest rows are retained but Home displays only the selected
+  current primary quest.
 * Loading or ensuring today’s quests does not grant Diamonds;
   `claimDailyQuestReward` remains the only reward path.
 * `recordDailyQuestProgress` updates Solo-only events:
@@ -332,9 +336,9 @@ Checklist:
   `use_1_joker`.
 * Daily Wheel remains separate from Daily Quest definitions, and Mağaza /
   Joker Inventory / Solo joker spending remain unaffected.
-* Manual proof: open Home, see `Günlük Ödüller`, confirm Daily Wheel and
-  `Bugünkü Görevler`, start a Solo attempt, correctly place cards, complete a
-  Solo level, successfully use a joker, claim a completed quest, confirm
+* Manual proof: open Home, see `Günlük Ödüller`, confirm Daily Wheel and one
+  `Günlük Görev`, start a Solo attempt, correctly place cards, complete a Solo
+  level, successfully use a joker, claim the completed quest, confirm
   Diamonds increase, confirm one `daily_quest_reward` DiamondTransaction exists,
   retry duplicate claim, confirm no Kronox Puan/leaderboard change, and confirm
   Online mode does not progress quests.

@@ -160,11 +160,14 @@ One claim per quest per UTC day is enforced by `UserDailyQuestProgress` status
 and the `daily_quest_reward` ledger idempotency key.
 
 Daily Quest Runtime v1 is active. `DailyQuestDefinition` remains admin-managed
-system templates. `title` and `description` are display-only; they are never
-parsed by regex, AI/NLP, free text, or scripts. The executable contract is
-strictly `quest_type + target_value`, with v1 `quest_type` limited to
-`start_solo_attempt`, `correct_cards`, `complete_solo_level`, and `use_joker`.
-Bugünkü Görevler requires active `DailyQuestDefinition` rows. On a fresh DB, the
+system templates, and admins may keep multiple active/passive definitions.
+Runtime shows 1 daily quest per UTC day by selecting the first active definition
+ordered by `sort_order`, `created_at`, and `quest_key`. `title` and
+`description` are display-only; they are never parsed by regex, AI/NLP, free
+text, or scripts. The executable contract is strictly `quest_type +
+target_value`, with v1 `quest_type` limited to `start_solo_attempt`,
+`correct_cards`, `complete_solo_level`, and `use_joker`.
+Günlük Görev requires active `DailyQuestDefinition` rows. On a fresh DB, the
 runtime status/progress functions seed the four default Solo-focused
 definitions idempotently only when no definition rows exist; if admins have
 passivated definitions, Home shows a safe empty state instead of granting or
@@ -175,13 +178,16 @@ newly created rows as the response fallback if Base44 read-after-write refresh
 lags. No active definitions is an empty state, not a function failure.
 Loading or ensuring today’s quests does not grant Diamonds;
 `claimDailyQuestReward` remains the only reward path.
-`UserDailyQuestProgress` tracks user/day progress, copied `target_value`, copied
-`reward_diamonds`, `status`, `completed_at`, and `claimed_at`. Claim grants
+`UserDailyQuestProgress` tracks the selected user/day progress row, copied
+`target_value`, copied `reward_diamonds`, `status`, `completed_at`, and
+`claimed_at`. Older same-day extra rows from the previous 3-quest design are
+retained but UI/runtime display only the selected primary quest. Claim grants
 diamonds only through `DiamondTransaction.source = daily_quest_reward`; Daily
-Quest does not grant Kronox Puan and has no leaderboard impact.
+Quest does not grant Kronox Puan and has no leaderboard impact. Future versions
+may expand to multiple quests again if Home UI is redesigned.
 | `DailyWheelSpin` | Daily Reward Wheel claim ledger and streak audit. | `getDailyWheelStatus` reads current day; `claimDailyWheelReward` creates server-backed claim and updates `User.diamonds`. | Audit/idempotency for Daily Wheel; `User.diamonds` is balance source. | Backend service-role functions only for claim; user/admin read by RLS. | Unique idempotency is not guaranteed in repo schema; race proof needs platform unique key or live probe. | Unique `idempotency_key`; unique `user_email + spin_date`; `user_email + claimed_at`; `spin_date`. | Retain/anonymize on account deletion; admin reset removes target test rows; archive old rows after retention policy. | Keep. | N/A. |
 | `DailyQuestDefinition` | Admin-managed Daily Quest v1 templates. | Profile / Settings / `Günlük Görev Yönetimi` lists definitions and creates new templates through `createDailyQuestDefinition`. | Yes for system quest templates only; not user progress. | `base44/functions/createDailyQuestDefinition/entry.ts`, `src/lib/dbGateway/dailyQuestGateway.js`, `DailyQuestDefinitionManager`. | Admin-only. Backend guard uses `AdminUser` active owner/admin. Normal users cannot view the Settings UI section and cannot create definitions. | Unique `quest_key` where platform supports it; `status`; `sort_order`. | Passive instead of delete for routine removal. | Keep/additive. | Prove active admin can list/create, non-admin and disabled admin receive 403. |
-| `UserDailyQuestProgress` | User-owned Daily Quest Runtime v1 per-day progress. | `getDailyQuestStatus` ensures up to 3 UTC-day rows; `recordDailyQuestProgress` increments Solo-only events; `claimDailyQuestReward` marks rows claimed and grants Diamonds. | Yes for daily quest progress/claim state. | `base44/functions/getDailyQuestStatus`, `recordDailyQuestProgress`, `claimDailyQuestReward`, `src/lib/dbGateway/dailyQuestGateway.js`, `DailyRewardsPanel`, `Game.jsx`. | User-owned by `user_email`; service functions derive identity from auth context. User cannot claim another user's progress or control reward amount. | Unique `idempotency_key`; `user_email + quest_date + quest_key`; `user_email + quest_date`; `status + quest_date`. | Retain for audit; archive old rows after retention policy. | Keep/additive. | Runtime two-account/RLS and duplicate-claim race proof remain manual. |
+| `UserDailyQuestProgress` | User-owned Daily Quest Runtime v1 per-day progress. | `getDailyQuestStatus` ensures 1 selected UTC-day row; `recordDailyQuestProgress` increments Solo-only events for that selected quest; `claimDailyQuestReward` marks rows claimed and grants Diamonds. | Yes for daily quest progress/claim state. | `base44/functions/getDailyQuestStatus`, `recordDailyQuestProgress`, `claimDailyQuestReward`, `src/lib/dbGateway/dailyQuestGateway.js`, `DailyRewardsPanel`, `Game.jsx`. | User-owned by `user_email`; service functions derive identity from auth context. User cannot claim another user's progress or control reward amount. | Unique `idempotency_key`; `user_email + quest_date + quest_key`; `user_email + quest_date`; `status + quest_date`. | Retain for audit; archive old rows after retention policy. | Keep/additive. | Runtime two-account/RLS and duplicate-claim race proof remain manual. |
 | `OnlineMatchResult` | Per-user online score audit/idempotency. | `applyOnlineResult` creates/checks row before visible score write. | Audit/idempotency; `User.online_progress` is visible score source. | Client helper creates via entity SDK; reads own rows; admin can update/delete. | Logical idempotency key not declared unique in repo. Client-side per-user application means opponent disconnect recovery is limited. | Unique `idempotency_key`; unique `lobby_id + player_email`; `lobby_id`; `player_email + applied_at`. | Retain for audit/reconciliation. Archive after long retention. | Keep but move write authority backend-side. | N/A. |
 | `Lobby` | Authoritative online lobby/game state. | Lobby create/join/start, realtime sync, waiting room, online game state updates. | Yes for online match state. | `LobbyRoom`, `useLobbySync`, `useWaitingRoomSync`, service functions (`findLobbyByCode`, `startLobbyGame`, `updateLobbyGameState`, `acceptGameInvite`). | RLS lets host update; backend service functions also validate host/player. Embedded `players` array makes member lookup hard. | Unique `code`; `host_email + status`; `status + last_activity_at`; `status + updated_at`; `started_at`; `completed_at`; possible `players.email` limitation. | Mark stale waiting lobbies `cancelled`; preserve finished/audit rows. | Keep but refactor projections. | N/A. |
 | `GameInvite` | Pending/actionable online invite lifecycle. | Notification center, header, in-app toast, Online pending list, accept/decline/open, push function. | Yes for invite lifecycle. | `inviteApi`, `useNotificationCenter`, `acceptGameInvite`, `sendGameInvitePush`, `dataRetention`. | Read/update by sender/recipient/admin. Toast dismissal must not mutate row. | `to_email + status + expires_at`; `from_email + status`; `lobby_id`; `status + expires_at`; `to_email + status`. | Pending past `expires_at` -> `expired`; completed/cancelled retained then archived. | Keep. | N/A. |

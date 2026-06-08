@@ -60,7 +60,7 @@ function DailyQuestV1Card({ user, onUserUpdated, onLogin }) {
   );
   const emptyCopy = dailyQuests.emptyStateReason === 'progress_rows_missing_after_ensure'
     ? 'Görevler yenilenemedi. Tekrar dene.'
-    : 'Bugünkü görevler yakında hazır olacak.';
+    : 'Günlük görev yakında hazır olacak.';
 
   const handleLogin = () => {
     sounds.tap();
@@ -75,7 +75,7 @@ function DailyQuestV1Card({ user, onUserUpdated, onLogin }) {
         background:
           'linear-gradient(135deg, rgba(14,165,233,0.11), rgba(15,23,42,0.60))',
       }}
-      aria-label="Bugünkü Görevler"
+      aria-label="Günlük Görev"
     >
       <div className="mb-2 flex items-center gap-2">
         <span
@@ -90,7 +90,7 @@ function DailyQuestV1Card({ user, onUserUpdated, onLogin }) {
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className="truncate text-xs font-black text-sky-100">Bugünkü Görevler</p>
+            <p className="truncate text-xs font-black text-sky-100">Günlük Görev</p>
             <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-200" />
           </div>
           <p className="truncate text-[10px] font-bold text-slate-300">Ödüller Elmas verir; Kronox Puan yok.</p>
@@ -104,7 +104,7 @@ function DailyQuestV1Card({ user, onUserUpdated, onLogin }) {
           className="w-full rounded-xl px-3 py-2 text-left text-[11px] font-black text-sky-100"
           style={{ background: 'rgba(14,165,233,0.14)', boxShadow: 'inset 0 0 0 1px rgba(125,211,252,0.18)' }}
         >
-          Görevleri görmek için giriş yap.
+          Günlük görevi görmek için giriş yap.
         </button>
       )}
 
@@ -140,7 +140,7 @@ function DailyQuestV1Card({ user, onUserUpdated, onLogin }) {
 
       {dailyQuests.isSignedIn && dailyQuests.quests.length > 0 && (
         <div className="grid gap-2">
-          {dailyQuests.quests.map((quest) => (
+          {dailyQuests.quests.slice(0, 1).map((quest) => (
             <DailyQuestRow
               key={quest.id || quest.questKey}
               quest={quest}
@@ -173,6 +173,7 @@ function DailyQuestRow({ quest, claiming, onClaim }) {
           <p className="truncate text-[10px] font-semibold text-slate-300">{quest.description}</p>
         </div>
         <span className="kronox-number inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black text-amber-100"
+          aria-label={`Ödül ${quest.rewardDiamonds} Elmas`}
           style={{ background: 'rgba(250,204,21,0.12)', boxShadow: 'inset 0 0 0 1px rgba(250,204,21,0.20)' }}>
           <Gem className="h-3 w-3" />
           {quest.rewardDiamonds}
