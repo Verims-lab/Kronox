@@ -21,10 +21,10 @@ const DAILY_QUEST_DISPLAY_ONLY_CONTRACT = Object.freeze({
   noKronoxPuan: true,
   noLeaderboardImpact: true,
 });
-const FUTURE_PROGRESS_CONTRACT = Object.freeze({
-  futureEntity: 'UserDailyQuestProgress',
-  futureStatusValues: ['active', 'completed', 'claimed'],
-  futureRewardSource: 'daily_quest_reward',
+const RUNTIME_PROGRESS_CONTRACT = Object.freeze({
+  runtimeEntity: 'UserDailyQuestProgress',
+  runtimeStatusValues: ['active', 'completed', 'claimed'],
+  rewardSource: 'daily_quest_reward',
   oneClaimPerQuestPerUtcDay: true,
 });
 const DEFAULT_DEFINITIONS = [
@@ -322,7 +322,7 @@ Deno.serve(async (req: Request) => {
         questTypes: QUEST_TYPES,
         statuses: STATUSES,
         displayOnlyContract: DAILY_QUEST_DISPLAY_ONLY_CONTRACT,
-        futureProgressContract: FUTURE_PROGRESS_CONTRACT,
+        runtimeProgressContract: RUNTIME_PROGRESS_CONTRACT,
       });
     }
 

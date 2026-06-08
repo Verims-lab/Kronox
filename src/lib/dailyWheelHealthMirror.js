@@ -60,7 +60,7 @@ daily_wheel_last_spin_date
 daily_wheel_next_available_at
 daily_wheel_streak
 daily_wheel_spin_count
-daily_quest:<normalizedEmail>:<YYYY-MM-DD>
+daily_quest_reward:<normalizedEmail>:<YYYY-MM-DD>:<questKey>
 daily_quest_last_claim_date
 daily_quest_next_available_at
 daily_wheel_request_failed

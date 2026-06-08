@@ -1,0 +1,137 @@
+{
+  "name": "UserDailyQuestProgress",
+  "type": "object",
+  "description": "Daily Quest Runtime v1 user-owned per-day progress rows. Up to 3 rows are ensured per authenticated user per UTC quest_date from active DailyQuestDefinition templates. Claim grants diamonds only through claimDailyQuestReward / DiamondTransaction source daily_quest_reward; Daily Quest does not grant Kronox Puan and has no leaderboard impact.",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Lowercased owner email for this daily quest progress row."
+    },
+    "quest_definition_id": {
+      "type": "string",
+      "description": "DailyQuestDefinition id copied when the row is assigned."
+    },
+    "quest_key": {
+      "type": "string",
+      "description": "Stable quest key copied from DailyQuestDefinition."
+    },
+    "quest_date": {
+      "type": "string",
+      "description": "UTC YYYY-MM-DD quest date. Client local date is not the source of truth."
+    },
+    "title": {
+      "type": "string",
+      "description": "Display-only title copied from DailyQuestDefinition at assignment time."
+    },
+    "description": {
+      "type": "string",
+      "description": "Display-only description copied from DailyQuestDefinition at assignment time; never parsed into logic."
+    },
+    "quest_type": {
+      "type": "string",
+      "enum": [
+        "start_solo_attempt",
+        "correct_cards",
+        "complete_solo_level",
+        "use_joker"
+      ],
+      "description": "Executable progress type. Only quest_type plus target_value drives runtime progress."
+    },
+    "progress_value": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Current user progress for this UTC day. Display clamps at target_value."
+    },
+    "target_value": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Target copied from DailyQuestDefinition when assigned."
+    },
+    "reward_diamonds": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Diamond reward copied from DailyQuestDefinition when assigned. Daily Quest grants diamonds only."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "completed",
+        "claimed"
+      ],
+      "default": "active",
+      "description": "Current claim lifecycle state."
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when progress first reached target_value."
+    },
+    "claimed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when claimDailyQuestReward granted the Diamond reward."
+    },
+    "idempotency_key": {
+      "type": "string",
+      "description": "daily_quest:<email>:<YYYY-MM-DD>:<quest_key> assignment key."
+    },
+    "last_event_key": {
+      "type": "string",
+      "description": "Latest processed progress event key for diagnostics."
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Debug-safe metadata including bounded processed event keys. Must not contain secrets or other users' data."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the progress row was created."
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the progress row was last updated."
+    }
+  },
+  "required": [
+    "user_email",
+    "quest_definition_id",
+    "quest_key",
+    "quest_date",
+    "quest_type",
+    "progress_value",
+    "target_value",
+    "reward_diamonds",
+    "status",
+    "idempotency_key",
+    "created_at",
+    "updated_at"
+  ],
+  "rls": {
+    "create": {
+      "data.user_email": "{{user.email}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "data.user_email": "{{user.email}}"
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

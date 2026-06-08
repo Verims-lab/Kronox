@@ -189,20 +189,20 @@
     "daily_quest_last_claim_at": {
       "type": "string",
       "format": "date-time",
-      "description": "Reserved ISO timestamp for future server-backed Daily Quest v1 reward claims. Separate from Daily Wheel guard fields so quest rewards cannot conflict with wheel spins."
+      "description": "ISO timestamp for the latest server-backed Daily Quest Runtime v1 reward claim. Separate from Daily Wheel guard fields so quest rewards cannot conflict with wheel spins."
     },
     "daily_quest_last_claim_date": {
       "type": "string",
-      "description": "Reserved UTC YYYY-MM-DD key for future Daily Quest v1 reward idempotency. Use daily_quest:<normalizedEmail>:<YYYY-MM-DD>, not daily_wheel:*."
+      "description": "UTC YYYY-MM-DD key for the latest Daily Quest Runtime v1 reward claim. Actual duplicate-claim idempotency uses UserDailyQuestProgress + DiamondTransaction daily_quest_reward keys, not this field alone."
     },
     "daily_quest_next_available_at": {
       "type": "string",
       "format": "date-time",
-      "description": "Reserved ISO UTC timestamp for future Daily Quest v1 availability. Daily Quest must not grant Kronox Puan."
+      "description": "ISO UTC timestamp for next Daily Quest availability/reset. Daily Quest grants diamonds only, does not grant Kronox Puan, and has no leaderboard impact."
     },
     "daily_quest_claim_count": {
       "type": "number",
-      "description": "Reserved future Daily Quest claim count. The current v1 Home panel does not grant rewards until a server-backed claim path is added."
+      "description": "Count of successful server-backed Daily Quest reward claims. Daily Quest claims write DiamondTransaction source daily_quest_reward."
     },
     "economy_updated_at": {
       "type": "string",

@@ -218,29 +218,30 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('daily_rewards_panel_quest_v1_no_client_grant',
-    'Daily Quest v1 is visible but does not grant rewards client-side',
+    'Daily Quest Runtime v1 is visible and claims through backend only',
     () => {
       const combined = `${dailyRewardsPanelSource}\n${economyRulesSource}\n${economyGatewaySource}`;
       const missing = missingTokens(combined, [
         'DailyQuestV1Card',
-        'Günlük Görev',
-        'daily_quest:<normalizedEmail>:<YYYY-MM-DD>',
+        'Bugünkü Görevler',
+        'claimDailyQuestReward',
+        'daily_quest_reward',
         'User.daily_quest_*',
-        'does not grant Diamonds or Kronox Puan yet',
+        'does not grant Kronox Puan',
+        'no leaderboard impact',
       ]);
       const forbidden = forbiddenTokens(dailyRewardsPanelSource, [
-        'base44.functions.invoke',
         'DiamondTransaction',
         'diamonds:',
         'kronox_puan_total',
       ]);
       if (missing.length || forbidden.length) {
-        return fail('Daily Quest v1 can grant rewards client-side or lacks separate future backend contract.', {
+        return fail('Daily Quest Runtime v1 can grant rewards client-side or lacks separate backend claim contract.', {
           verification: 'STATIC_CONTRACT',
           actual: { missing, forbidden },
         });
       }
-      return pass('Daily Quest v1 is panel-visible, reward-inactive, and reserved for a separate server-backed quest lane.', { verification: 'STATIC_CONTRACT' });
+      return pass('Daily Quest Runtime v1 is panel-visible and Diamond claims are backend-owned, not client-mutated.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_diamonds_only_no_puan',

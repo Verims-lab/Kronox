@@ -16,7 +16,11 @@ export const DAILY_QUEST_TYPE_LABELS = Object.freeze({
 
 export const DAILY_QUEST_DEFINITION_CONTRACT = Object.freeze({
   entity: 'DailyQuestDefinition',
+  progressEntity: 'UserDailyQuestProgress',
   adminFunction: 'createDailyQuestDefinition',
+  statusFunction: 'getDailyQuestStatus',
+  progressFunction: 'recordDailyQuestProgress',
+  claimFunction: 'claimDailyQuestReward',
   displayOnlyFields: ['title', 'description'],
   executableLogicFields: ['quest_type', 'target_value'],
   rewardField: 'reward_diamonds',
@@ -24,7 +28,9 @@ export const DAILY_QUEST_DEFINITION_CONTRACT = Object.freeze({
   noKronoxPuan: true,
   noLeaderboardImpact: true,
   noFreeTextParser: true,
-  futureProgressEntity: 'UserDailyQuestProgress',
+  runtimeVersion: 'daily-quest-runtime-v1',
+  transactionSource: 'daily_quest_reward',
+  dayBoundary: 'UTC',
 });
 
 function unwrapFunctionResponse(response) {
@@ -67,4 +73,35 @@ export function updateDailyQuestDefinitionStatus(id, status) {
 
 export function seedDailyQuestDefinitions() {
   return callDailyQuestDefinitionAdmin({ action: 'seed' });
+}
+
+export async function getDailyQuestStatus(payload = {}) {
+  const response = await base44.functions.invoke('getDailyQuestStatus', payload);
+  const body = unwrapFunctionResponse(response);
+  if (body?.ok === false) {
+    throw new Error(body?.error || 'Günlük görevler yüklenemedi.');
+  }
+  return body;
+}
+
+export async function recordDailyQuestProgress(payload = {}) {
+  const response = await base44.functions.invoke('recordDailyQuestProgress', payload);
+  const body = unwrapFunctionResponse(response);
+  if (body?.ok === false) {
+    const error = new Error(body?.error || 'Günlük görev ilerlemesi kaydedilemedi.');
+    error.body = body;
+    throw error;
+  }
+  return body;
+}
+
+export async function claimDailyQuestReward(payload = {}) {
+  const response = await base44.functions.invoke('claimDailyQuestReward', payload);
+  const body = unwrapFunctionResponse(response);
+  if (body?.ok === false) {
+    const error = new Error(body?.error || 'Günlük görev ödülü alınamadı.');
+    error.body = body;
+    throw error;
+  }
+  return body;
 }

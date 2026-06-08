@@ -1,8 +1,8 @@
-// Kronox Health Center — Daily Quest Definition Phase 1 contracts.
+// Kronox Health Center — Daily Quest Definition and Runtime boundary contracts.
 //
 // Scope: DailyQuestDefinition schema, admin-only Settings management, strict
 // quest_type enum logic, display-only admin copy, idempotent starter templates,
-// and future user-progress/reward boundaries.
+// and separation from the active UserDailyQuestProgress reward runtime.
 
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
 import dailyQuestManagerSource from '../admin/DailyQuestDefinitionManager.jsx?raw';
@@ -424,21 +424,21 @@ export const EXTRA_TESTS = [
       return pass('Initial Daily Quest definitions are the requested Solo-focused templates.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('future_progress_contract_documented_not_active',
-    'Future UserDailyQuestProgress contract is documented but not active',
+  makeCase('runtime_progress_contract_documented_separate',
+    'UserDailyQuestProgress runtime contract is documented separately from definitions',
     () => {
       const missing = missingTokens(`${definitionSources}\n${docsCombined}`, [
         'UserDailyQuestProgress',
-        'later phases',
+        'Daily Quest Runtime v1 is active',
         'daily_quest_reward',
         'one claim per quest per UTC day',
       ]);
       const activeProgressEntity = safeStr(dailyQuestEntitySource).includes('"name": "UserDailyQuestProgress"');
-      if (missing.length || activeProgressEntity) return fail('Future progress/claim contract is missing or active too early.', {
+      if (missing.length || activeProgressEntity) return fail('Runtime progress/claim contract is missing or mixed into DailyQuestDefinition.', {
         verification: 'STATIC_CONTRACT',
         actual: { missing, activeProgressEntity },
       });
-      return pass('User progress/claim is documented for a later phase and no active progress entity was added.', { verification: 'STATIC_CONTRACT' });
+      return pass('User progress/claim is active in UserDailyQuestProgress and remains separate from DailyQuestDefinition templates.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_remains_separate',
@@ -447,7 +447,7 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(`${docsCombined}\n${createDailyQuestDefinitionSource}`, [
         'Daily Wheel remains separate from Daily Quest definitions',
         'daily_wheel:<email>:<YYYY-MM-DD>',
-        'daily_quest:<email>:<YYYY-MM-DD>',
+        'daily_quest_reward:<email>:<YYYY-MM-DD>:<quest_key>',
       ]);
       const forbidden = forbiddenTokens(createDailyQuestDefinitionSource, [
         'DailyWheelSpin',
@@ -483,20 +483,27 @@ export const EXTRA_TESTS = [
       return pass('Daily Quest definition function does not touch Mağaza or Joker inventory paths.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('solo_runtime_unaffected',
-    'Solo runtime progression is not implemented in Phase 1',
+  makeCase('solo_runtime_uses_separate_progress_function',
+    'Solo runtime progress uses the separate Daily Quest runtime function',
     () => {
+      const missing = missingTokens(gameSource, [
+        'recordDailyQuestProgress',
+        "eventType: 'start_solo_attempt'",
+        "recordDailyQuestSoloEvent('correct_cards'",
+        "recordDailyQuestSoloEvent('complete_solo_level'",
+        "recordDailyQuestSoloEvent('use_joker'",
+      ]);
       const forbidden = forbiddenTokens(gameSource, [
         'DailyQuestDefinition',
         'createDailyQuestDefinition',
         'daily_quest_reward',
       ]);
-      if (forbidden.length) return fail('Daily Quest definition phase touched Solo runtime/progress too early.', {
+      if (missing.length || forbidden.length) return fail('Solo runtime Daily Quest wiring can mix definition/admin/claim concerns.', {
         verification: 'STATIC_CONTRACT',
         file: 'src/pages/Game.jsx',
-        forbidden,
+        actual: { missing, forbidden },
       });
-      return pass('Solo runtime does not read or write Daily Quest progress in Phase 1.', { verification: 'STATIC_CONTRACT' });
+      return pass('Solo runtime records progress through recordDailyQuestProgress and does not touch definition/admin/claim internals.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_function_unaffected',

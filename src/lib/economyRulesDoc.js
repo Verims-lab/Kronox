@@ -46,15 +46,14 @@ also shows 7 günlük seri bonusu: +150 elmas and Toplam: +Y elmas. The Home
 claimed-state countdown uses Yarın hazır or compact time text such as 11 sa
 24 dk without a Diamond icon.
 
-Günlük Ödüller panel contains Daily Wheel and Daily Quest v1 readiness/status.
-Daily Quest Definition Phase 1 adds admin-managed DailyQuestDefinition
-templates with reward_diamonds, but no user claim or Diamond grant yet.
-Daily Quest does not grant Diamonds or Kronox Puan yet.
-title/description are display-only; quest_type + target_value drive future
-logic. Future Daily Quest rewards must be server-backed, use
-daily_quest:<normalizedEmail>:<YYYY-MM-DD>, write a separate
-DiamondTransaction source/direction, and use User.daily_quest_* fields instead
-of Daily Wheel fields. Daily Quest does not grant Kronox Puan and has no leaderboard impact.
+Günlük Ödüller panel contains Daily Wheel and Daily Quest Runtime v1 Bugünkü
+Görevler. DailyQuestDefinition templates are admin-managed and
+title/description are display-only; quest_type + target_value drive runtime
+logic. UserDailyQuestProgress stores up to 3 UTC-day user quests.
+claimDailyQuestReward grants diamonds only, writes DiamondTransaction.source =
+daily_quest_reward with direction = earn, uses
+daily_quest_reward:<normalizedEmail>:<YYYY-MM-DD>:<questKey>, and uses
+User.daily_quest_* fields instead of Daily Wheel fields. Daily Quest does not grant Kronox Puan and has no leaderboard impact.
 
 First authenticated entry grants +100 once. Same-day daily login grants +20 once.
 

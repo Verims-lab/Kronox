@@ -86,7 +86,7 @@ Status: Active product contract.
 - Report/admin functions must NOT use local imports that resolve outside the deployed path. The broken './_shared/adminAuth.js' pattern resolved to a file URL under /src/_shared (module not found) and broke deployment, leaving Base44 serving a stale build. The callable report function now inlines a DB-backed AdminUser guard instead.
 - base44/functions/<name>/entry.ts shared imports remain allowed where proven deployable; sendQuestionAnalyticsReportEmail intentionally uses an inline guard for this runtime-sensitive path.
 - Critical report/admin functions should include safe template/function markers (e.g. templateVersion static-pool-v2, REPORT_BUILD_MARKER, and bodyContains* diagnostics). If real output lacks the marker, the function deployment is stale.
-- sendQuestionAnalyticsReportEmail live deploy is proven by triggering the function and reading reportBuildMarker (current: Codex291), templateVersion static-pool-v2, and bodyContainsStaticPoolSection/Template/QuestionSource = true. A published frontend that does not change reportBuildMarker means the executed backend function did not redeploy.
+- sendQuestionAnalyticsReportEmail live deploy is proven by triggering the function and reading reportBuildMarker (current: Codex292), templateVersion static-pool-v2, and bodyContainsStaticPoolSection/Template/QuestionSource = true. A published frontend that does not change reportBuildMarker means the executed backend function did not redeploy.
 - A prior Codex275 marker bump was never proven deployed because the runtime function still imported the broken local _shared guard; the recovery inlined the AdminUser guard and uses current reportBuildMarker values as the unambiguous live marker.
 - Function-based question analytics reset is currently not used.
 - Manual DB reset path after question pool replacement clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection.
@@ -150,19 +150,22 @@ purchase is a Diamond sink; Daily Wheel remains a Diamond source. Profile
 Joker Çantası and Solo joker bar must show the purchased balance; Online mode
 is unaffected and Daily Wheel remains Diamond-only.
 
-## Daily Quest Definition Phase 1
+## Daily Quest Runtime v1
 DailyQuestDefinition stores admin-managed system templates. Günlük Görev
 Yönetimi lives under Profile / Settings / Ayarlar and is visible only to active
 AdminUser owner/admin users. Active admins can list definitions and create new
 definitions through createDailyQuestDefinition. title and description are
-display-only; quest_type + target_value drive future logic. Supported v1 types
-are start_solo_attempt, correct_cards, complete_solo_level, and use_joker.
-reward_diamonds is Diamonds-only, with no Kronox Puan and no leaderboard
-impact. Daily Quest does not grant Diamonds or Kronox Puan yet. Daily Quest
-does not grant Kronox Puan and has no leaderboard impact.
-Reserved future User fields are daily_quest_last_claim_date and
-daily_quest_next_available_at. Initial definitions seed idempotently by quest_key. UserDailyQuestProgress
-and daily_quest_reward claims are future phases.
+display-only; quest_type + target_value drive runtime progress logic. Supported
+v1 types are start_solo_attempt, correct_cards, complete_solo_level, and
+use_joker. UserDailyQuestProgress stores up to 3 UTC-day user quests from active
+definitions. recordDailyQuestProgress increments Solo-only progress events, and
+Online mode does not increment Daily Quest progress. claimDailyQuestReward
+grants diamonds only through DiamondTransaction.source = daily_quest_reward,
+using the reward copied into the progress row rather than a client-provided
+amount. Daily Quest does not grant Kronox Puan and has no leaderboard impact.
+One claim per quest per UTC day is enforced by UserDailyQuestProgress and
+daily_quest_reward idempotency keys. User fields daily_quest_last_claim_date
+and daily_quest_next_available_at track claim summary/reset availability only.
 
 ## Online Scoring Persistence
 Two-account invite + scoring proof, OnlineMatchResult idempotency.

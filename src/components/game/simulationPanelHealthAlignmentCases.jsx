@@ -27,6 +27,7 @@ import securityCleanupCasesSource from './simulationPanelSecurityCleanupCases.js
 import backendSecurityCasesSource from './simulationPanelBackendSecurityCases.jsx?raw';
 import marketCasesSource from './simulationPanelMarketCases.jsx?raw';
 import dailyQuestDefinitionCasesSource from './simulationPanelDailyQuestDefinitionCases.jsx?raw';
+import dailyQuestRuntimeCasesSource from './simulationPanelDailyQuestRuntimeCases.jsx?raw';
 import diamondEconomyCasesSource from './simulationPanelDiamondEconomyCases.jsx?raw';
 import jokerInventoryCasesSource from './simulationPanelJokerInventoryCases.jsx?raw';
 import soloJokersCasesSource from './simulationPanelSoloJokersCases.jsx?raw';
@@ -383,10 +384,11 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('daily_quest_definition_health_registered',
-    'Health registers Daily Quest Definition Phase 1 coverage',
+    'Health registers Daily Quest Definition and Runtime v1 coverage',
     () => {
       const combined = [
         dailyQuestDefinitionCasesSource,
+        dailyQuestRuntimeCasesSource,
         releaseChecklistSource,
         securityDocsSource,
         dbArchitectureDocsSource,
@@ -395,7 +397,12 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(combined, [
         'daily_quest_definition_health',
         'Daily Quest Definition Health Suite',
+        'daily_quest_runtime_health',
+        'Daily Quest Runtime Health Suite',
         'DailyQuestDefinition',
+        'UserDailyQuestProgress',
+        'claimDailyQuestReward',
+        'daily_quest_reward',
         'Günlük Görev Yönetimi',
         'createDailyQuestDefinition',
         'title and description are display-only',
@@ -407,13 +414,14 @@ export const EXTRA_TESTS = [
         'reward_diamonds',
         'no Kronox Puan',
         'no leaderboard impact',
-        'UserDailyQuestProgress',
+        'Günlük Ödüller',
       ]);
       if (missing.length) {
-        return fail('Daily Quest Definition Phase 1 Health/docs coverage is incomplete.', {
+        return fail('Daily Quest Definition/Runtime Health/docs coverage is incomplete.', {
           verification: 'STATIC_CONTRACT',
           files: [
             'src/components/game/simulationPanelDailyQuestDefinitionCases.jsx',
+            'src/components/game/simulationPanelDailyQuestRuntimeCases.jsx',
             'docs/KRONOX_RELEASE_PROOF_CHECKLIST.md',
             'docs/KRONOX_SECURITY_DEPLOYMENT.md',
             'docs/KRONOX_DB_ARCHITECTURE.md',
@@ -422,7 +430,7 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      return pass('Daily Quest Definition Phase 1 Health covers schema, admin UI/auth, enum logic, display-only text, seed definitions, and future progress boundaries.', {
+      return pass('Daily Quest Health covers admin definitions plus runtime progress, claim, panel, and no-Puan/leaderboard boundaries.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

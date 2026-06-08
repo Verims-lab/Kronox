@@ -7,6 +7,8 @@ import generateTechDocSource from '../../../base44/functions/generateTechDoc/ent
 import adminAuthSource from '../../../base44/functions/_shared/adminAuth.ts?raw';
 import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
 import purchaseJokerWithDiamondsSource from '../../../base44/functions/purchaseJokerWithDiamonds/entry.ts?raw';
+import recordDailyQuestProgressSource from '../../../base44/functions/recordDailyQuestProgress/entry.ts?raw';
+import claimDailyQuestRewardSource from '../../../base44/functions/claimDailyQuestReward/entry.ts?raw';
 import sendGameInvitePushSource from '../../../base44/functions/sendGameInvitePush/entry.ts?raw';
 import questionEntitySource from '../../../base44/entities/Question.jsonc?raw';
 import useOfflineQuestionsSource from '../../hooks/useOfflineQuestions.js?raw';
@@ -600,6 +602,53 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Market purchase returns controlled Turkish error copy and logs details server-side only.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('daily_quest_runtime_claim_is_user_bound_and_server_rewarded',
+    'Daily Quest runtime claim is user-bound, server-rewarded, and Diamond-only',
+    () => {
+      const combined = `${recordDailyQuestProgressSource}\n${claimDailyQuestRewardSource}`;
+      const required = [
+        'base44.auth.me()',
+        'normalizeEmail(user?.email)',
+        'normalizeEmail(row?.user_email) === email',
+        'mode !== \'solo\'',
+        'non_solo_mode',
+        'rewardDiamonds = Math.max(1, normalizeNumber(progress.reward_diamonds, 1))',
+        'findDiamondTransaction',
+        'daily_quest_reward',
+        "direction: 'earn'",
+        'clientRewardIgnored: true',
+        'noKronoxPuan: true',
+        'noLeaderboardImpact: true',
+      ];
+      const forbidden = presentTokens(claimDailyQuestRewardSource, [
+        'body?.user_email',
+        'body?.email',
+        'body?.reward',
+        'body?.reward_diamonds',
+        'body?.amount',
+        'body?.diamondAmount',
+        'kronox_puan_total',
+        'total_kronox_score',
+        'SoloLeaderboardEntry',
+      ]);
+      const missing = missingTokens(combined, required);
+      if (missing.length || forbidden.length) {
+        return fail('Daily Quest runtime can trust client identity/reward values or affect Puan/leaderboard.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          files: [
+            'base44/functions/recordDailyQuestProgress/entry.ts',
+            'base44/functions/claimDailyQuestReward/entry.ts',
+          ],
+          actual: { missing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Daily Quest progress/claim uses authenticated ownership, server-row rewards, daily_quest_reward ledger, and no Puan/leaderboard writes.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

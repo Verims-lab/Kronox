@@ -299,6 +299,7 @@ export const EXTRA_TESTS = [
     'Future Diamond sources are supported by generic transaction model',
     () => {
       const missing = missingTokens(`${diamondEconomySource}\n${diamondTransactionEntitySource}`, [
+        'daily_quest_reward',
         'wheel_spin_future',
         'daily_quest_future',
         'rewarded_ad_future',
@@ -331,25 +332,26 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('daily_quest_v1_no_client_grants',
-    'Daily Quest v1 is visible but not an active client-side Diamond grant',
+    'Daily Quest Runtime v1 uses server-backed Diamond claim, not client grant',
     () => {
       const activeRuntimeSources = `${diamondEconomySource}\n${userEntitySource}\n${diamondTransactionEntitySource}\n${dailyRewardsPanelSource}`;
-      const accidentalGrant = dailyRewardsPanelSource.includes('base44.functions.invoke')
-        || dailyRewardsPanelSource.includes('DiamondTransaction')
+      const accidentalGrant = dailyRewardsPanelSource.includes('DiamondTransaction')
         || dailyRewardsPanelSource.includes('diamonds:');
       const missing = missingTokens(`${activeRuntimeSources}\n${economyRulesSource}`, [
         'DailyQuestV1Card',
-        'daily_quest_future',
+        'daily_quest_reward',
         'daily_quest_last_claim_date',
-        'does not grant Diamonds or Kronox Puan yet',
+        'claimDailyQuestReward',
+        'does not grant Kronox Puan',
+        'no leaderboard impact',
       ]);
       if (accidentalGrant || missing.length) {
-        return fail('Daily Quest v1 can grant Diamonds client-side or lacks the separate future-source contract.', {
+        return fail('Daily Quest Runtime v1 can grant Diamonds client-side or lacks the separate backend source contract.', {
           verification: 'STATIC_CONTRACT',
           actual: { accidentalGrant, missing },
         });
       }
-      return pass('Daily Quest v1 is visible in Günlük Ödüller, reward-inactive, and reserved for a separate server-backed source.', { verification: 'STATIC_CONTRACT' });
+      return pass('Daily Quest Runtime v1 is visible in Günlük Ödüller and claims Diamonds through daily_quest_reward backend source.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('market_purchase_is_diamond_sink',
