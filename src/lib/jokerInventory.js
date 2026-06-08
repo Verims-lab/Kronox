@@ -45,6 +45,7 @@ export const PHASE2_SOLO_JOKER_CONSUMPTION_CONTRACT = [
   'Any number of jokers may be used across a level if the user owns them.',
   'A joker spend writes JokerTransaction reason solo_use after the effect is validated.',
   'used jokers are not refunded on fail, timeout, or exit.',
+  'Used jokers are not refunded on fail/exit.',
 ].join(' ');
 
 export function normalizeJokerEmail(value) {

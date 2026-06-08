@@ -298,10 +298,15 @@ export const TESTS = [
   sourceHas('mobile_viewport', 'fixed_overlays_dvh_bound', 'Fixed overlays do not exceed viewport height by design token', 'App/GameLayout/SimulationPanel', `${SRC.App}\n${SRC.GameLayout}`, ['100dvh', 'env(safe-area-inset-bottom)']),
   sourceHas('mobile_viewport', 'overscroll_rules_intentional', 'Pull-to-refresh/overscroll risk check based on computed styles', 'index.css/App', `${SRC.IndexCss}\n${SRC.App}`, ['overscroll-behavior-x: none', 'overscroll-behavior-y: auto', 'data-kx-route-locked']),
   makeCase('mobile_viewport', 'body_html_overflow_not_contradictory', 'Body/html overflow rules are not contradictory for gameplay routes', () => {
-    const hasGlobalHidden = /html[^{]*{[^}]*overflow:\s*hidden|body[^{]*{[^}]*overflow:\s*hidden/.test(SRC.IndexCss);
-    const scopedLock = SRC.App.includes('data-kx-route-locked') && SRC.IndexCss.includes('[data-kx-route-locked="true"]');
+    const hasGlobalHidden = /(^|[}\n\r])\s*(html|body|html\s*,\s*body|body\s*,\s*html)\s*\{[^}]*overflow:\s*hidden/.test(SRC.IndexCss);
+    const routeLock = SRC.App.includes('data-kx-route-locked') && SRC.IndexCss.includes('[data-kx-route-locked="true"]');
+    const dragLock = SRC.IndexCss.includes('html.kronox-game-drag-lock')
+      && SRC.IndexCss.includes('body.kronox-game-drag-lock')
+      && SRC.IndexCss.includes('.kronox-gameplay-root.kronox-game-drag-lock');
     if (hasGlobalHidden) return fail('Global overflow hidden found; this can break settings/admin/test scroll.', { actual: 'global hidden' });
-    return scopedLock ? pass('Overflow lock is scoped by route attribute.', { actual: 'scoped route lock' }) : warning('No scoped route lock detected.', { actual: 'missing scoped lock' });
+    return routeLock && dragLock
+      ? pass('Overflow locks are scoped by route attribute or active gameplay drag class.', { actual: 'scoped route/gameplay locks' })
+      : warning('No scoped route/drag lock detected.', { actual: { routeLock, dragLock } });
   }),
 
   sourceHas('timeline_hit_testing', 'timeline_renders_drop_zones', 'Timeline renders with valid drop zones', 'Timeline.jsx', SRC.Timeline, ['function DropZone', 'totalZones', 'groupedCards.length + 1', 'dropZoneRefs.current[i]']),
