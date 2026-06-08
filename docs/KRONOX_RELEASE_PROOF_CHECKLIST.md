@@ -203,14 +203,14 @@ Checklist:
 * If ledger recovery exists, partial states self-heal.
 * Two-device duplicate prevention is manually probed unless backend unique transaction support exists.
 * `Günlük Ödüller` panel appears on Home above `SOLO MEYDAN OKUMA` and includes
-  Daily Wheel plus Daily Quest v1 readiness/status.
+  Daily Wheel plus `Bugünkü Görevler`.
 * Daily Wheel claim requires authenticated user.
 * Daily Wheel grants Diamonds only and never Kronox Puan.
-* Daily Quest v1 does not grant Diamonds or Kronox Puan until a server-backed
-  quest claim path is specified.
+* Daily Quest Runtime v1 grants diamonds only through the server-backed
+  `claimDailyQuestReward` path.
 * Daily Wheel and Daily Quest use separate guard fields/idempotency keys:
-  `daily_wheel:<email>:<YYYY-MM-DD>` and reserved
-  `daily_quest:<email>:<YYYY-MM-DD>` / `User.daily_quest_*`.
+  `daily_wheel:<email>:<YYYY-MM-DD>` and
+  `daily_quest_reward:<email>:<YYYY-MM-DD>:<quest_key>` / `User.daily_quest_*`.
 * Daily Wheel is separate from the existing +20 daily login reward.
 * Daily Wheel can be claimed at most once per UTC server day.
 * Daily Wheel reward is selected server-side by `claimDailyWheelReward`.
@@ -284,7 +284,7 @@ Checklist:
 * Home diamond count updates immediately after a successful wheel claim.
 * Multi-device Daily Wheel duplicate prevention remains a live backend/platform probe unless unique idempotency constraints are configured.
 
-## Daily Quest Definition Phase 1
+## Daily Quest Runtime v1
 
 * `DailyQuestDefinition` exists as the admin-managed template table.
 * Profile / Settings / `Ayarlar` shows `Günlük Görev Yönetimi` only to active
@@ -303,18 +303,32 @@ Checklist:
   NLP, regex, scripts, or any free-text executable condition.
 * Daily Quest definitions are Diamond-only templates: no Kronox Puan field,
   no leaderboard impact, and no Solo/Online scoring changes.
-* Daily Quest does not grant Diamonds or Kronox Puan yet.
+* `UserDailyQuestProgress` exists as the user-owned per-day progress table.
+* `getDailyQuestStatus` ensures up to 3 Daily Quests per UTC day and excludes
+  passive definitions from new daily sets.
+* `recordDailyQuestProgress` updates Solo-only events:
+  `start_solo_attempt`, `correct_cards`, `complete_solo_level`, and `use_joker`.
+* `claimDailyQuestReward` requires completed status, uses the reward copied in
+  the progress row, writes `DiamondTransaction.source = daily_quest_reward`,
+  and marks the row claimed.
+* One claim per quest per UTC day is enforced by `UserDailyQuestProgress` status
+  plus the `daily_quest_reward:<email>:<YYYY-MM-DD>:<quest_key>` idempotency
+  key; duplicate claim must not grant Diamonds twice.
 * Daily Quest does not grant Kronox Puan and has no leaderboard impact.
-* Reserved future User fields are `daily_quest_last_claim_date` and
+* Daily Quest grants diamonds only.
+* Active User summary fields are `daily_quest_last_claim_date` and
   `daily_quest_next_available_at`.
 * Initial definitions are seeded idempotently by `quest_key`:
   `start_1_solo_attempt`, `correct_5_cards`, `complete_1_solo_level`, and
   `use_1_joker`.
-* `UserDailyQuestProgress` assignment/progress/claim and
-  `daily_quest_reward` DiamondTransaction claims are future phases and must
-  remain server-backed with one claim per quest per UTC day.
 * Daily Wheel remains separate from Daily Quest definitions, and Mağaza /
   Joker Inventory / Solo joker spending remain unaffected.
+* Manual proof: open Home, see `Günlük Ödüller`, confirm Daily Wheel and
+  `Bugünkü Görevler`, start a Solo attempt, correctly place cards, complete a
+  Solo level, successfully use a joker, claim a completed quest, confirm
+  Diamonds increase, confirm one `daily_quest_reward` DiamondTransaction exists,
+  retry duplicate claim, confirm no Kronox Puan/leaderboard change, and confirm
+  Online mode does not progress quests.
 
 ---
 

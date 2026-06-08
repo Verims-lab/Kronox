@@ -78,6 +78,7 @@ import {
   getQuestionAnalyticsMetadata,
   recordSoloQuestionAnalyticsEvent as writeSoloQuestionAnalyticsEvent,
 } from '@/lib/dbGateway/analyticsGateway';
+import { recordDailyQuestProgress } from '@/lib/dbGateway/dailyQuestGateway';
 import {
   QUESTION_ANALYTICS_EVENT_TYPES,
   QUESTION_ANALYTICS_SOURCES,
@@ -296,6 +297,8 @@ export default function Game() {
   const soloAnalyticsEventIdsRef = useRef(new Set());
   const soloQuestionShownAtRef = useRef(new Map());
   const soloReplacementQuestionIdsRef = useRef(new Set());
+  const soloDailyQuestAttemptRecordedRef = useRef(null);
+  const soloDailyQuestCompletionRecordedRef = useRef(null);
   const [currentUserLoaded, setCurrentUserLoaded] = useState(false);
   const [soloCategoryPreferenceState, setSoloCategoryPreferenceState] = useState({
     status: 'idle',
@@ -532,6 +535,8 @@ export default function Game() {
     soloAnalyticsEventIdsRef.current = new Set();
     soloQuestionShownAtRef.current = new Map();
     soloReplacementQuestionIdsRef.current = new Set();
+    soloDailyQuestAttemptRecordedRef.current = null;
+    soloDailyQuestCompletionRecordedRef.current = null;
     setUsedJokerType(null);
     setJokerSpendPendingType(null);
     setMistakeShieldActive(false);
@@ -676,6 +681,24 @@ export default function Game() {
     usedJokerType,
   ]);
 
+  const recordDailyQuestSoloEvent = useCallback((eventType, eventId, metadata = {}) => {
+    if (!isSoloLevelMode || !currentUser?.email) return;
+    recordDailyQuestProgress({
+      eventType,
+      mode: 'solo',
+      amount: 1,
+      eventId,
+      metadata: {
+        ...metadata,
+        soloAttemptId,
+        soloLevelNumber: soloLevel?.levelNumber,
+        source: 'Game.jsx',
+      },
+    }).catch((error) => {
+      debugLog('[Game] daily quest progress failed:', error?.message || error);
+    });
+  }, [currentUser?.email, isSoloLevelMode, soloAttemptId, soloLevel?.levelNumber]);
+
   useEffect(() => {
     if (!isSoloLevelMode || !currentQuestion || !isMyTurn || winner || soloLevelResult) return;
     recordSoloQuestionAnalyticsEvent(currentQuestion, QUESTION_ANALYTICS_EVENT_TYPES.SHOWN);
@@ -707,11 +730,20 @@ export default function Game() {
         hasWon: Boolean(event.hasWon),
       },
     });
+    if (event.isCorrect) {
+      recordDailyQuestSoloEvent('correct_cards', `${soloAttemptId || 'solo_attempt'}:correct:${event.question.id}:${event.zone}`, {
+        questionId: event.question.id,
+        zone: event.zone,
+        questType: 'correct_cards',
+      });
+    }
   }, [
     isSoloLevelMode,
     mistakeCount,
     mistakeShieldActive,
     recordSoloQuestionAnalyticsEvent,
+    recordDailyQuestSoloEvent,
+    soloAttemptId,
   ]);
 
   useEffect(() => {
@@ -945,6 +977,27 @@ export default function Game() {
       }
       setSoloAttemptDeck(engineResult.deck);
       setSoloAttemptId(engineResult.attemptId);
+      if (
+        currentUser?.email &&
+        engineResult.attemptId &&
+        soloDailyQuestAttemptRecordedRef.current !== engineResult.attemptId
+      ) {
+        soloDailyQuestAttemptRecordedRef.current = engineResult.attemptId;
+        recordDailyQuestProgress({
+          eventType: 'start_solo_attempt',
+          mode: 'solo',
+          amount: 1,
+          eventId: engineResult.attemptId,
+          metadata: {
+            soloAttemptId: engineResult.attemptId,
+            soloLevelNumber: soloLevel?.levelNumber,
+            questType: 'start_solo_attempt',
+            source: 'Game.jsx',
+          },
+        }).catch((error) => {
+          debugLog('[Game] daily quest start progress failed:', error?.message || error);
+        });
+      }
       shuffled = engineResult.deck;
     } else {
       // Legacy non-Solo offline path — exclude recently used cross-game
@@ -999,7 +1052,7 @@ export default function Game() {
       current_question_id: firstQ.id,
       used_question_ids: [...used]
     });
-  }, [playerNames, questionPool, allQuestions, activeCategoryIds, yearStart, yearEnd, isLoading, isOnline, isSoloLevelMode, currentUserLoaded, soloCategoryPreferenceState, resetSoloJokers, setLobbyData, setError]);
+  }, [playerNames, questionPool, allQuestions, activeCategoryIds, yearStart, yearEnd, isLoading, isOnline, isSoloLevelMode, currentUserLoaded, currentUser?.email, soloCategoryPreferenceState, resetSoloJokers, setLobbyData, setError, soloLevel?.levelNumber]);
 
   // Overall timer başlatma
   useEffect(() => {
@@ -1210,6 +1263,12 @@ export default function Game() {
       }
       setJokerBalances(normalizeJokerBalances(response?.balances));
       setJokerError('');
+      recordDailyQuestSoloEvent('use_joker', idempotencyKey, {
+        jokerType: inventoryType,
+        uiJokerType: jokerType,
+        relatedQuestionId,
+        questType: 'use_joker',
+      });
       return true;
     } catch (error) {
       setJokerError(error?.message || 'Joker kullanılamadı.');
@@ -1224,6 +1283,7 @@ export default function Game() {
     jokerInventoryLoading,
     soloAttemptId,
     soloLevel?.levelNumber,
+    recordDailyQuestSoloEvent,
   ]);
 
   const handleUseSoloJoker = useCallback(async (jokerType) => {
@@ -1419,6 +1479,16 @@ export default function Game() {
         failReason: attempt.failReason,
         soloRulesVersion: SOLO_RULES_VERSION,
       });
+      const completionEventId = `${soloAttemptId || 'solo_attempt'}:complete_solo_level:${soloLevel?.levelNumber || 1}`;
+      if (soloDailyQuestCompletionRecordedRef.current !== completionEventId) {
+        soloDailyQuestCompletionRecordedRef.current = completionEventId;
+        recordDailyQuestSoloEvent('complete_solo_level', completionEventId, {
+          questType: 'complete_solo_level',
+          passed: true,
+          cardsCompleted: cardTarget,
+          elapsedSeconds: elapsed,
+        });
+      }
       return;
     }
 
@@ -1484,6 +1554,8 @@ export default function Game() {
     soloCardsRequired,
     winCardCount,
     setGameStarted,
+    recordDailyQuestSoloEvent,
+    soloAttemptId,
   ]);
 
   // Persist the level attempt once when the result first lands.

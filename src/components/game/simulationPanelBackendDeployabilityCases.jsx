@@ -28,6 +28,12 @@ import purchaseJokerWithDiamondsSource from '../../../base44/functions/purchaseJ
 import purchaseJokerWithDiamondsManifestSource from '../../../base44/functions/purchaseJokerWithDiamonds/function.jsonc?raw';
 import createDailyQuestDefinitionSource from '../../../base44/functions/createDailyQuestDefinition/entry.ts?raw';
 import createDailyQuestDefinitionManifestSource from '../../../base44/functions/createDailyQuestDefinition/function.jsonc?raw';
+import getDailyQuestStatusSource from '../../../base44/functions/getDailyQuestStatus/entry.ts?raw';
+import getDailyQuestStatusManifestSource from '../../../base44/functions/getDailyQuestStatus/function.jsonc?raw';
+import recordDailyQuestProgressSource from '../../../base44/functions/recordDailyQuestProgress/entry.ts?raw';
+import recordDailyQuestProgressManifestSource from '../../../base44/functions/recordDailyQuestProgress/function.jsonc?raw';
+import claimDailyQuestRewardSource from '../../../base44/functions/claimDailyQuestReward/entry.ts?raw';
+import claimDailyQuestRewardManifestSource from '../../../base44/functions/claimDailyQuestReward/function.jsonc?raw';
 import cleanupGatewaySource from '../../lib/dbGateway/cleanupGateway.js?raw';
 import scoringGatewaySource from '../../lib/dbGateway/scoringGateway.js?raw';
 import economyGatewaySource from '../../lib/dbGateway/economyGateway.js?raw';
@@ -65,6 +71,9 @@ const KNOWN_BACKEND_FUNCTIONS = new Set([
   'claimDailyWheelReward',
   'purchaseJokerWithDiamonds',
   'createDailyQuestDefinition',
+  'getDailyQuestStatus',
+  'recordDailyQuestProgress',
+  'claimDailyQuestReward',
   'findLobbyByCode',
   'startLobbyGame',
   'updateLobbyGameState',
@@ -396,6 +405,59 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('createDailyQuestDefinition authorizes active owner/admin AdminUser rows before list/create/status writes.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    }),
+
+  makeCase('daily_quest_runtime_backend_functions_deployable_contract',
+    'Daily Quest runtime backend functions are registered and deployable',
+    () => {
+      const combined = [
+        getDailyQuestStatusSource,
+        getDailyQuestStatusManifestSource,
+        recordDailyQuestProgressSource,
+        recordDailyQuestProgressManifestSource,
+        claimDailyQuestRewardSource,
+        claimDailyQuestRewardManifestSource,
+        dailyQuestGatewaySource,
+      ].join('\n');
+      const missing = missingTokens(combined, [
+        '"name": "getDailyQuestStatus"',
+        '"name": "recordDailyQuestProgress"',
+        '"name": "claimDailyQuestReward"',
+        "base44.functions.invoke('getDailyQuestStatus'",
+        "base44.functions.invoke('recordDailyQuestProgress'",
+        "base44.functions.invoke('claimDailyQuestReward'",
+        'createClientFromRequest',
+        'Deno.serve',
+        'base44.auth.me()',
+        'entities.UserDailyQuestProgress',
+        'entities.DailyQuestDefinition',
+        'entities.DiamondTransaction',
+        'daily_quest_reward',
+      ]);
+      const forbidden = forbiddenTokens(`${getDailyQuestStatusSource}\n${recordDailyQuestProgressSource}\n${claimDailyQuestRewardSource}`, [
+        "from './_shared",
+        "from '../_shared",
+        'file://' + '/src/_shared',
+        'kronox_puan_total',
+        'SoloLeaderboardEntry',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Daily Quest runtime functions are not clearly registered/deployable or can drift into score/leaderboard writes.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          files: [
+            'base44/functions/getDailyQuestStatus/entry.ts',
+            'base44/functions/recordDailyQuestProgress/entry.ts',
+            'base44/functions/claimDailyQuestReward/entry.ts',
+            'src/lib/dbGateway/dailyQuestGateway.js',
+          ],
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('Daily Quest runtime functions are registered callable Base44 functions with no broken local imports and Diamond-only claim source.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });

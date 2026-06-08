@@ -1,0 +1,240 @@
+/* global Deno */
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+
+const QUEST_TYPES = [
+  'start_solo_attempt',
+  'correct_cards',
+  'complete_solo_level',
+  'use_joker',
+] as const;
+const DAILY_QUEST_RUNTIME_VERSION = 'daily-quest-runtime-v1';
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function json(payload: unknown, status = 200) {
+  return Response.json(payload, { status });
+}
+
+function normalizeEmail(value: unknown) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function normalizeNumber(value: unknown, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.floor(number) : fallback;
+}
+
+function normalizeQuestType(value: unknown) {
+  const text = String(value || '').trim();
+  return QUEST_TYPES.includes(text as typeof QUEST_TYPES[number]) ? text : '';
+}
+
+function utcDateKey(now = new Date()) {
+  return now.toISOString().slice(0, 10);
+}
+
+function nextUtcMidnightIso(dateKey: string) {
+  const start = Date.parse(`${dateKey}T00:00:00.000Z`);
+  return new Date(start + DAY_MS).toISOString();
+}
+
+function buildAssignmentKey(email: string, dateKey: string, questKey: string) {
+  return `daily_quest:${email}:${dateKey}:${questKey}`;
+}
+
+function clampProgress(value: unknown, target: unknown) {
+  const normalizedTarget = Math.max(1, normalizeNumber(target, 1));
+  return Math.max(0, Math.min(normalizedTarget, normalizeNumber(value, 0)));
+}
+
+function publicProgress(row: any) {
+  const targetValue = Math.max(1, normalizeNumber(row?.target_value, 1));
+  const progressValue = clampProgress(row?.progress_value, targetValue);
+  const status = ['active', 'completed', 'claimed'].includes(String(row?.status || ''))
+    ? String(row.status)
+    : (progressValue >= targetValue ? 'completed' : 'active');
+  return {
+    id: row?.id || null,
+    questDefinitionId: row?.quest_definition_id || null,
+    questKey: String(row?.quest_key || ''),
+    questDate: String(row?.quest_date || ''),
+    title: String(row?.title || row?.quest_key || ''),
+    description: String(row?.description || ''),
+    questType: normalizeQuestType(row?.quest_type),
+    progressValue,
+    targetValue,
+    rewardDiamonds: Math.max(1, normalizeNumber(row?.reward_diamonds, 1)),
+    status,
+    completedAt: row?.completed_at || null,
+    claimedAt: row?.claimed_at || null,
+    idempotencyKey: row?.idempotency_key || null,
+  };
+}
+
+function publicDefinition(row: any) {
+  return {
+    id: row?.id || null,
+    quest_key: String(row?.quest_key || ''),
+    title: String(row?.title || ''),
+    description: String(row?.description || ''),
+    quest_type: normalizeQuestType(row?.quest_type),
+    target_value: Math.max(1, normalizeNumber(row?.target_value, 1)),
+    reward_diamonds: Math.max(1, normalizeNumber(row?.reward_diamonds, 1)),
+    sort_order: normalizeNumber(row?.sort_order, 0),
+    created_at: row?.created_at || row?.created_date || '',
+  };
+}
+
+function sortDefinitions(rows: any[] = []) {
+  return rows
+    .map(publicDefinition)
+    .filter((row) => row.id && row.quest_key && row.quest_type)
+    .sort((a, b) => {
+      if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
+      const aCreated = Date.parse(a.created_at || '');
+      const bCreated = Date.parse(b.created_at || '');
+      if (Number.isFinite(aCreated) && Number.isFinite(bCreated) && aCreated !== bCreated) {
+        return aCreated - bCreated;
+      }
+      return a.quest_key.localeCompare(b.quest_key, 'tr');
+    });
+}
+
+async function readActiveDefinitions(base44: any) {
+  const entity = base44.asServiceRole.entities.DailyQuestDefinition;
+  const rows = await entity.filter({ status: 'active' }, 'sort_order', 100).catch(() => []);
+  return sortDefinitions(Array.isArray(rows) ? rows : []);
+}
+
+async function readTodayRows(base44: any, email: string, dateKey: string) {
+  const rows = await base44.asServiceRole.entities.UserDailyQuestProgress
+    .filter({ user_email: email, quest_date: dateKey }, 'created_at', 20)
+    .catch(() => []);
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function findProgressByAssignment(base44: any, email: string, dateKey: string, questKey: string, idempotencyKey: string) {
+  const [byKey, byQuest] = await Promise.all([
+    base44.asServiceRole.entities.UserDailyQuestProgress
+      .filter({ user_email: email, idempotency_key: idempotencyKey }, '-created_at', 1)
+      .catch(() => []),
+    base44.asServiceRole.entities.UserDailyQuestProgress
+      .filter({ user_email: email, quest_date: dateKey, quest_key: questKey }, '-created_at', 1)
+      .catch(() => []),
+  ]);
+  const rows = [...(Array.isArray(byKey) ? byKey : []), ...(Array.isArray(byQuest) ? byQuest : [])];
+  return rows.find((row: any) => row?.id) || null;
+}
+
+async function createProgressRow(base44: any, email: string, dateKey: string, definition: any) {
+  const timestamp = new Date().toISOString();
+  const idempotencyKey = buildAssignmentKey(email, dateKey, definition.quest_key);
+  const existing = await findProgressByAssignment(base44, email, dateKey, definition.quest_key, idempotencyKey);
+  if (existing) return existing;
+  try {
+    return await base44.asServiceRole.entities.UserDailyQuestProgress.create({
+      user_email: email,
+      quest_definition_id: definition.id,
+      quest_key: definition.quest_key,
+      quest_date: dateKey,
+      title: definition.title,
+      description: definition.description,
+      quest_type: definition.quest_type,
+      progress_value: 0,
+      target_value: definition.target_value,
+      reward_diamonds: definition.reward_diamonds,
+      status: 'active',
+      completed_at: null,
+      claimed_at: null,
+      idempotency_key: idempotencyKey,
+      metadata: {
+        runtimeVersion: DAILY_QUEST_RUNTIME_VERSION,
+        sourceDefinitionStatus: 'active',
+        selectionOrder: definition.sort_order,
+        serverDayBoundary: 'UTC',
+      },
+      created_at: timestamp,
+      updated_at: timestamp,
+    });
+  } catch (_error) {
+    return await findProgressByAssignment(base44, email, dateKey, definition.quest_key, idempotencyKey);
+  }
+}
+
+async function ensureTodayDailyQuests(base44: any, email: string, dateKey: string) {
+  const definitions = await readActiveDefinitions(base44);
+  let rows = await readTodayRows(base44, email, dateKey);
+  const existingQuestKeys = new Set(rows.map((row: any) => String(row?.quest_key || '')));
+
+  for (const definition of definitions) {
+    if (rows.length >= 3) break;
+    if (existingQuestKeys.has(definition.quest_key)) continue;
+    const created = await createProgressRow(base44, email, dateKey, definition);
+    if (created?.id) {
+      rows.push(created);
+      existingQuestKeys.add(definition.quest_key);
+    }
+  }
+
+  rows = await readTodayRows(base44, email, dateKey);
+  return {
+    definitions,
+    rows: rows
+      .sort((a: any, b: any) => String(a?.quest_key || '').localeCompare(String(b?.quest_key || ''), 'tr'))
+      .slice(0, 3),
+  };
+}
+
+Deno.serve(async (req: Request) => {
+  try {
+    if (req.method !== 'POST') {
+      return json({ ok: false, code: 'method_not_allowed', error: 'Bu işlem desteklenmiyor.' }, 405);
+    }
+
+    const base44 = createClientFromRequest(req);
+    let user: any = null;
+    try {
+      user = await base44.auth.me();
+    } catch {
+      return json({ ok: false, code: 'unauthenticated', error: 'Günlük görevler için giriş yapmalısın.' }, 401);
+    }
+
+    const email = normalizeEmail(user?.email);
+    if (!email) {
+      return json({ ok: false, code: 'unauthenticated', error: 'Günlük görevler için giriş yapmalısın.' }, 401);
+    }
+
+    const serverDate = utcDateKey();
+    const nextAvailableAt = nextUtcMidnightIso(serverDate);
+    const entity = base44.asServiceRole.entities.UserDailyQuestProgress;
+    const definitionEntity = base44.asServiceRole.entities.DailyQuestDefinition;
+    if (!entity?.filter || !entity?.create || !definitionEntity?.filter) {
+      return json({ ok: false, code: 'daily_quest_entities_missing', error: 'Günlük görev kayıtları hazır değil.' }, 500);
+    }
+
+    const ensured = await ensureTodayDailyQuests(base44, email, serverDate);
+    const quests = ensured.rows.map(publicProgress);
+    const activeDefinitionCount = ensured.definitions.length;
+
+    return json({
+      ok: true,
+      runtimeVersion: DAILY_QUEST_RUNTIME_VERSION,
+      serverDate,
+      dayBoundary: 'UTC',
+      nextAvailableAt,
+      quests,
+      questCount: quests.length,
+      activeDefinitionCount,
+      adminWarning: activeDefinitionCount < 3 ? 'insufficient_active_definitions' : null,
+      grantsDiamondsOnly: true,
+      doesNotGrantKronoxPuan: true,
+      noLeaderboardImpact: true,
+    });
+  } catch (error) {
+    console.error('[getDailyQuestStatus] failed', error?.message || error);
+    return json({
+      ok: false,
+      code: 'daily_quest_status_failed',
+      error: 'Günlük görevler yüklenemedi. Lütfen tekrar dene.',
+    }, 500);
+  }
+});

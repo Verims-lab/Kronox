@@ -330,10 +330,10 @@ export const userEntitySource = `
     "last_daily_diamond_reward_date": {},
     "economy_updated_at": {},
     "daily_quest_last_claim_date": {
-      "description": "Reserved UTC YYYY-MM-DD key for future Daily Quest v1 reward idempotency. Daily Quest does not grant Diamonds or Kronox Puan yet."
+      "description": "UTC YYYY-MM-DD key for latest Daily Quest Runtime v1 reward claim. Daily Quest grants diamonds only, does not grant Kronox Puan, and has no leaderboard impact."
     },
     "daily_quest_next_available_at": {
-      "description": "Reserved ISO UTC timestamp for future Daily Quest v1 availability. Daily Quest does not grant Kronox Puan and has no leaderboard impact."
+      "description": "ISO UTC timestamp for Daily Quest Runtime v1 reset/availability. Daily Quest grants diamonds only and uses daily_quest_reward."
     },
     "solo_progress": {
       "properties": {
@@ -392,6 +392,8 @@ export const diamondTransactionEntitySource = `
         "daily_login",
         "daily_wheel",
         "market_purchase",
+        "daily_quest_reward",
+        "daily_quest_future",
         "wheel_spin_future",
         "rewarded_ad_future",
         "quest_reward_future",

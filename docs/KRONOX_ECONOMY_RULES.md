@@ -78,6 +78,7 @@ starter_bonus
 daily_login
 daily_wheel
 market_purchase
+daily_quest_reward
 ```
 
 Future schema-ready sources are intentionally inactive:
@@ -91,29 +92,22 @@ achievement_future
 special_event_future
 ```
 
-Daily Quest / Günün Görevi v1 is visible inside the Home `Günlük Ödüller`
-panel as a readiness/status row. Phase 1 also adds admin-managed
-`DailyQuestDefinition` templates with `reward_diamonds`, but those definitions
-do not claim or grant Diamonds to users yet and never grant Kronox Puan.
-Daily Quest does not grant Diamonds or Kronox Puan yet.
-Daily Quest does not grant Kronox Puan and has no leaderboard impact.
-Admin-entered title/description copy is display-only; future progress logic is
-defined only by `quest_type + target_value`. Any future Daily Quest reward must
-be server-backed, use a separate
-`daily_quest:<normalizedEmail>:<YYYY-MM-DD>` idempotency key, write
-`DiamondTransaction.source = daily_quest_future` or its final active source with
-`direction = earn`, and use `User.daily_quest_*` guard fields instead of Daily
-Wheel fields.
+Daily Quest / Günün Görevi Runtime v1 is active inside the Home `Günlük
+Ödüller` panel. `DailyQuestDefinition` templates remain admin-managed and
+display-only for title/description; `quest_type + target_value` drives runtime
+progress. `UserDailyQuestProgress` stores up to 3 UTC-day quests per user,
+copied targets/rewards, progress, completion, and claim state.
 
-Do not implement:
+Daily Quest grants diamonds only through the server-backed
+`claimDailyQuestReward` callable. Claims write
+`DiamondTransaction.source = daily_quest_reward` with `direction = earn` and an
+idempotency key shaped like
+`daily_quest_reward:<normalizedEmail>:<YYYY-MM-DD>:<questKey>`. The client must
+not control reward amount. Daily Quest does not grant Kronox Puan and has no
+leaderboard impact.
 
-```text
-UserDailyQuestProgress as an active runtime table before the next phase
-client-side quest rewards
-client-side quest reward diamond grants
-```
-
-until assignment, progress, completion, and backend claim paths are specified.
+Do not implement client-side quest reward diamond grants, Kronox Puan rewards,
+Online quest progress, or leaderboard scoring from Daily Quest.
 
 ---
 

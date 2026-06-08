@@ -34,10 +34,11 @@ Analytics/statistics entities implemented now:
 - Daily Wheel is a Diamond source; Mağaza purchase is a Diamond sink. purchaseJokerWithDiamonds is server-authoritative, ignores client price/cost, writes both ledgers with the same idempotency key, and uses best-effort rollback if ledger creation fails. Runtime duplicate-request and partial-failure consistency proof remains manual.
 - Profile displays balances under Joker Çantası and does not expose the JokerTransaction ledger.
 - Mağaza Phase 1 has no bundles, subscriptions, cosmetics, random boxes, ads, external payments, or Online joker usage.
-- DailyQuestDefinition stores admin-managed Daily Quest v1 templates; title/description are display-only and quest_type + target_value drive future logic.
+- DailyQuestDefinition stores admin-managed Daily Quest v1 templates; title/description are display-only and quest_type + target_value drive runtime progress logic through UserDailyQuestProgress.
 - createDailyQuestDefinition lists, seeds, creates, and status-updates definitions through an AdminUser-backed owner/admin guard.
 - Supported Daily Quest v1 types are start_solo_attempt, correct_cards, complete_solo_level, and use_joker.
 - Daily Quest definitions use reward_diamonds only, never Kronox Puan, and do not affect leaderboard.
+- UserDailyQuestProgress stores active Daily Quest Runtime v1 user/day rows. getDailyQuestStatus ensures up to 3 UTC-day quests idempotently from active definitions, recordDailyQuestProgress increments Solo-only events, and claimDailyQuestReward grants diamonds only with DiamondTransaction source daily_quest_reward. Daily Quest has no leaderboard impact, does not grant Kronox Puan, and one claim per quest per UTC day is enforced by progress/ledger idempotency keys.
 
 Category preference status:
 - Settings İlgi Alanlarım reads active Category rows.

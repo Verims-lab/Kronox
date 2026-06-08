@@ -9,6 +9,7 @@ import soloLevelsSource from '../../lib/soloLevels.js?raw';
 import leaderboardSource from '../../lib/leaderboard.js?raw';
 import applyOnlineResultSource from '../../lib/applyOnlineResult.js?raw';
 import dataRetentionSource from '../../lib/dataRetention.js?raw';
+import userDailyQuestProgressEntitySource from '../../../base44/entities/UserDailyQuestProgress.jsonc?raw';
 // Vite `?raw` cannot reach outside `src/` on this host, so the canonical
 // scoring/economy docs are mirrored into JS modules the runtime can import.
 import { SCORING_RULES_DOC as scoringDocsSource } from '@/lib/scoringRulesDoc';
@@ -216,11 +217,12 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX, nextStep: 'Restore safe retention helpers and rerun cleanup_retention_health/data_model_health.' }),
 
-  makeCase('db_architecture_health', 'daily_quest_v1_uses_reserved_fields_only',
-    'Daily Quest v1 uses reserved User fields, not an active progress schema',
+  makeCase('db_architecture_health', 'daily_quest_runtime_progress_schema_active',
+    'Daily Quest Runtime v1 uses UserDailyQuestProgress plus reserved User guard fields',
     () => {
       const scannedSources = [
         userEntitySource,
+        userDailyQuestProgressEntitySource,
         gameInviteEntitySource,
         lobbyEntitySource,
         onlineMatchResultEntitySource,
@@ -230,16 +232,21 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(scannedSources, [
         'daily_quest_last_claim_date',
         'daily_quest_next_available_at',
+        '"name": "UserDailyQuestProgress"',
+        '"quest_date"',
+        '"progress_value"',
+        '"target_value"',
+        '"reward_diamonds"',
+        '"claimed_at"',
       ]);
-      const accidentalRuntimeDependency = scannedSources.includes('DailyQuestProgress');
-      if (accidentalRuntimeDependency || missing.length) {
-        return fail('Daily Quest v1 should use reserved User fields without an active DailyQuestProgress schema.', {
+      if (missing.length) {
+        return fail('Daily Quest Runtime v1 progress schema or reserved User guard fields are incomplete.', {
           verification: 'STATIC_CONTRACT',
           actionType: ACTION_TYPES.CODE_FIX,
-          actual: { accidentalRuntimeDependency, missing },
+          actual: { missing },
         });
       }
-      return pass('Daily Quest v1 has separate reserved User fields and no active DailyQuestProgress dependency.', {
+      return pass('Daily Quest Runtime v1 has UserDailyQuestProgress rows plus separate daily_quest_* User guard fields.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });

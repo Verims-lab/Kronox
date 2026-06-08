@@ -1187,7 +1187,7 @@ import React, { useEffect, useState } from 'react';
 //   • Updates Daily Wheel rewards to 30/40/50/60/75/100/150/250 with +150
 //     seven-day streak bonus, keeping server-side selection and idempotency.
 //   • Replaces the standalone Home wheel row with a Günlük Ödüller panel that
-//     includes Daily Wheel plus Daily Quest v1 readiness/status.
+//     sets up Daily Wheel plus Daily Quest v1 placement.
 //
 // Codex289 — Daily Quest Definition Phase 1:
 //   • Adds DailyQuestDefinition templates plus admin-only Settings management
@@ -1208,6 +1208,13 @@ import React, { useEffect, useState } from 'react';
 //     no Diamond/Puan grant yet, no Kronox Puan, and no leaderboard impact.
 //   • createDailyQuestDefinition exposes the exact inline requireAdmin(base44)
 //     guard contract; push summaries include safe missingConfig diagnostics.
+//
+// Codex292 — Daily Quest Runtime v1:
+//   • Adds UserDailyQuestProgress plus getDailyQuestStatus,
+//     recordDailyQuestProgress, and claimDailyQuestReward backend functions.
+//   • Wires Solo-only Daily Quest progress events and the Günlük Ödüller /
+//     Bugünkü Görevler claim UI while keeping rewards Diamonds-only, no
+//     Kronox Puan, no leaderboard impact, and Daily Wheel separate.
 //
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
@@ -1513,7 +1520,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex291';
+const BUILD_MARKER = 'Codex292';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -15,5 +15,6 @@ export const dbGatewayArchitectureContract = Object.freeze({
   analyticsRuntimeGateway: 'analyticsGateway -> QuestionAttemptEvent',
   marketPurchaseGateway: 'economyGateway -> purchaseJokerWithDiamonds',
   dailyQuestDefinitionGateway: 'dailyQuestGateway -> createDailyQuestDefinition',
+  dailyQuestRuntimeGateway: 'dailyQuestGateway -> getDailyQuestStatus / recordDailyQuestProgress / claimDailyQuestReward',
   cleanupJobs: 'cleanupGateway -> admin backend functions',
 });

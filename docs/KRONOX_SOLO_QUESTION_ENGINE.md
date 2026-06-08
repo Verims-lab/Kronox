@@ -217,25 +217,33 @@ Inventory foundation:
   balances that Solo already reads; using them in Solo still spends through
   `spendUserJoker` and writes `JokerTransaction.reason = solo_use`
 
-## Daily Quest Definition V1
+## Daily Quest Runtime V1
 
-Daily Quest v1 is Solo-focused but definition-only in this phase:
+Daily Quest Runtime v1 is Solo-focused:
 - admin-managed `DailyQuestDefinition` rows define system quest templates
+- `UserDailyQuestProgress` tracks up to 3 user/day quests per UTC day
 - supported v1 quest types are `start_solo_attempt`, `correct_cards`,
   `complete_solo_level`, and `use_joker`
 - `title` and `description` are display-only Turkish copy and are never parsed
   into logic
-- future Solo progress will be measured only by `quest_type + target_value`
+- Solo progress is measured only by `quest_type + target_value`
+- `start_solo_attempt` increments when a Solo attempt starts
+- `correct_cards` increments after correct Solo card placement
+- `complete_solo_level` increments only after a successful Solo level
+- `use_joker` increments only after a Solo joker is successfully consumed
 - `reward_diamonds` is the only reward field; Daily Quest does not grant
   Kronox Puan and does not affect leaderboard
-- Daily Quest does not grant Diamonds or Kronox Puan yet
 - Daily Quest does not grant Kronox Puan and has no leaderboard impact
-- `daily_quest_last_claim_date` and `daily_quest_next_available_at` are
-  reserved future User fields only
-- user assignment, progress tracking, claim flow, and DiamondTransaction
-  `daily_quest_reward` writes are later phases
+- Daily Quest grants diamonds only through `claimDailyQuestReward`
+- `claimDailyQuestReward` writes `DiamondTransaction.source = daily_quest_reward`
+  and blocks duplicate claims
+- one claim per quest per UTC day is enforced by progress status and the
+  `daily_quest_reward` idempotency key
+- `daily_quest_last_claim_date` and `daily_quest_next_available_at` are User
+  summary/availability fields, not the sole idempotency source
+- Online mode does not increment Daily Quest progress
 - Daily Wheel, Mağaza, Solo joker inventory, scoring, timer, and question
-  selection remain unchanged by definition management
+  selection remain separate from Daily Quest rewards
 
 Joker behavior:
 - `Kronokalkan`: activates one-time protection. The next wrong placement does not count as a mistake; correct placements do not consume it.

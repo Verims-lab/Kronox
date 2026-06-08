@@ -195,14 +195,21 @@ Daily Quest Definition management:
 * no hardcoded admin email allowlists are allowed
 * admin-entered `title` and `description` are display-only; free text, AI/NLP,
   regex, or scripts must never become executable quest logic
-* only supported `quest_type` enum values plus `target_value` define future
+* only supported `quest_type` enum values plus `target_value` define runtime
   progress logic
 * rewards are Diamonds only; Daily Quest definitions must not grant Kronox
   Puan and must not affect leaderboard
-* Daily Quest does not grant Diamonds or Kronox Puan yet
+* Daily Quest Runtime v1 grants diamonds only through `claimDailyQuestReward`
+  and `DiamondTransaction.source = daily_quest_reward`
 * Daily Quest does not grant Kronox Puan and has no leaderboard impact
 * `daily_quest_last_claim_date` and `daily_quest_next_available_at` are
-  reserved future User fields only; Phase 1 does not activate claims
+  active summary/availability fields; duplicate-claim prevention is enforced
+  by `UserDailyQuestProgress` and `DiamondTransaction` idempotency
+* One claim per quest per UTC day is the runtime contract; duplicate claim
+  attempts return a safe already-claimed result without another Diamond grant
+* `getDailyQuestStatus`, `recordDailyQuestProgress`, and
+  `claimDailyQuestReward` derive the user from backend auth context; the client
+  cannot choose another user, set reward amount, or grant Kronox Puan
 
 Admin-only maintenance helpers must also fail closed. The legacy one-off
 test-account progress reset helper requires both admin authorization and a
@@ -505,11 +512,13 @@ Joker inventory is user-owned data:
 * Mağaza purchase idempotency keys protect double-tap and retry flows; real
   two-device/backend race proof remains manual unless Base44 uniqueness is
   proven
-* Home `Günlük Ödüller` includes Daily Wheel and Daily Quest v1 readiness/status;
-  Daily Quest must not grant Diamonds or Kronox Puan until a server-backed,
-  user-bound claim path exists
-* Daily Wheel and future Daily Quest rewards must use separate guard fields and
-  idempotency keys so a quest claim cannot unlock or duplicate a wheel spin
+* Home `Günlük Ödüller` includes Daily Wheel and Daily Quest Runtime v1
+  `Bugünkü Görevler`; Daily Quest claims grant diamonds only through
+  server-backed, user-bound `claimDailyQuestReward`
+* Daily Wheel and Daily Quest rewards use separate guard fields and
+  idempotency keys so a quest claim cannot unlock or duplicate a wheel spin:
+  `daily_wheel:<email>:<YYYY-MM-DD>` vs
+  `daily_quest_reward:<email>:<YYYY-MM-DD>:<quest_key>`
 * normal users must not be able to arbitrarily grant themselves jokers
 * Profile shows only `Joker Çantası` balances, not ledger rows
 * Mağaza Phase 1 must not expose bundles, subscriptions, cosmetics, random

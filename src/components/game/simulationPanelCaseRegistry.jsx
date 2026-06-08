@@ -204,6 +204,9 @@ import * as marketCases from './simulationPanelMarketCases';
 // Daily Quest Definition Phase 1: admin-managed template rows, enum-only
 // quest logic, display-only copy, and future progress/reward boundaries.
 import * as dailyQuestDefinitionCases from './simulationPanelDailyQuestDefinitionCases';
+// Daily Quest Runtime v1: user-owned UTC daily progress, Solo-only events,
+// Diamond-only claim flow, and unified Günlük Ödüller panel.
+import * as dailyQuestRuntimeCases from './simulationPanelDailyQuestRuntimeCases';
 
 const MODULES = [
   soloProgressCases,
@@ -254,6 +257,7 @@ const MODULES = [
   mobileGameplayGestureCases,
   marketCases,
   dailyQuestDefinitionCases,
+  dailyQuestRuntimeCases,
 ];
 
 function flatten(key) {
