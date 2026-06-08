@@ -75,13 +75,25 @@ Rules:
   required secure practice; scanner findings that only identify the env var
   name are deployment-secret management notes, not source-code exposure
 * VAPID public key, private key, and subject are all required backend config
+* `VAPID_PUBLIC_KEY` is public by design for browser subscriptions, but it
+  should still be deployment/config managed rather than hardcoded in source
+* `VAPID_SUBJECT` is deployment-controlled metadata and must be a valid
+  configured contact subject, not a source fallback
+* `VAPID_SUBJECT` should use a `mailto:` or `https://` subject; VAPID key
+  values must be non-empty base64url-style deployment values
 * missing, blank, whitespace-only, or placeholder VAPID config must fail
   explicitly as push-not-configured
 * no empty-string, dummy, hardcoded, or client `VITE_` fallback is allowed for
   backend push sending
 * the VAPID private key value must never be logged, returned in API responses,
   printed in Health reports, or exposed through frontend `VITE_` variables
+* safe push-skip diagnostics may return `vapid_config_missing`,
+  `missing_vapid_config`, `pushSent: false`, `pushSkipped: true`, and counts,
+  but never VAPID values or private-key material
 * missing VAPID config must not break in-app invite flow
+* `npm run build` validates the frontend bundle only; it does not prove backend
+  VAPID secrets are configured in deployment
+* real push delivery requires a subscribed device plus deployed backend secrets
 
 If VAPID config is missing:
 

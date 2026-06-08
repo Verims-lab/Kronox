@@ -193,14 +193,17 @@ export const sendGameInvitePushFnSource = `
       const raw = Deno.env.get(envName);
       if (typeof raw !== 'string') continue;
       const value = raw.trim();
+      if (field.key === 'subject' && !isValidVapidSubject(value)) return { value: null, invalid: field.canonicalName };
+      if ((field.key === 'publicKey' || field.key === 'privateKey') && !isLikelyVapidKey(value)) return { value: null, invalid: field.canonicalName };
       if (value) return { value, invalid: null };
     }
     return { value: null, invalid: null };
   }
   const config = getVapidConfig();
   if (config.missing.length || config.invalid.length) {
-    console.warn('[sendGameInvitePush] VAPID config missing or invalid; push skipped but in-app invite remains available.', { reason: 'vapid_config_missing', missing: config.missing, invalid: config.invalid });
-    return json({ ok: true, push: { ok: false, attempted: false, skipped: 'missing_vapid_config', reason: 'vapid_config_missing', missingConfig: config.missing, invalidConfig: config.invalid, acceptedEnvNames: config.acceptedEnvNames } });
+    const configState = summarizeVapidConfigState(config);
+    console.warn('[sendGameInvitePush] VAPID config missing or invalid; push skipped but in-app invite remains available.', { reason: 'vapid_config_missing', ...configState });
+    return json({ ok: true, pushSent: false, pushSkipped: true, reason: 'vapid_config_missing', push: { ok: false, attempted: false, skipped: 'missing_vapid_config', reason: 'vapid_config_missing', missingCount: configState.missingCount, invalidCount: configState.invalidCount } });
   }
   const subscriptions = await base44.asServiceRole.entities.PushSubscription.filter(
     { user_email: toEmail, status: 'active' },
@@ -217,7 +220,8 @@ export const sendGameInvitePushFnSource = `
     data: { inviteId: invite.id, lobbyId: invite.lobby_id || null, lobbyCode: invite.lobby_code || null, targetUrl, expiresAt },
   });
   await webpush.sendNotification({ endpoint: row.endpoint, keys: { p256dh: row.keys_p256dh, auth: row.keys_auth } }, notificationPayload, { TTL: 60 * 20 });
-  failedReasons.push({ statusCode, reason: error?.message || 'push_failed' });
+  const safeReason = sanitizePushErrorReason(error);
+  failedReasons.push({ statusCode, reason: safeReason });
   return json({ ok: true, push: { attempted: true, sent, failed, expired, failedReasons, subscriptionCount: subscriptions.length } });
   await base44.asServiceRole.entities.PushSubscription.update(row.id, { status: 'expired' });
 `;

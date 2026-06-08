@@ -1196,6 +1196,13 @@ import React, { useEffect, useState } from 'react';
 //     Solo progress, reward_diamonds is Diamond-only, and no Kronox Puan,
 //     leaderboard, Daily Wheel, Mağaza, or Solo runtime path is changed.
 //
+// Codex290 — VAPID push secret hardening:
+//   • sendGameInvitePush keeps VAPID_PRIVATE_KEY backend-env-only, removes
+//     env-name diagnostics from client responses, and returns safe
+//     pushSent:false / pushSkipped:true config-missing status.
+//   • Push provider failures are summarized without returning raw provider
+//     messages; in-app GameInvite flow remains best-effort when push skips.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1500,7 +1507,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex289';
+const BUILD_MARKER = 'Codex290';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

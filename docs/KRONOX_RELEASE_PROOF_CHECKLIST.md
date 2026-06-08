@@ -339,9 +339,21 @@ Checklist:
   secret, never committed, never read from `VITE_`, and never logged/returned.
   Scanner findings that only flag the env var name are deployment-secret
   management notes unless actual key material is found.
+* `VAPID_PUBLIC_KEY` may be used by browser subscription code through
+  `VITE_KRONOX_VAPID_PUBLIC_KEY`, but backend push signing must use only
+  deployment-managed non-`VITE_` config.
+* `VAPID_SUBJECT` is deployment configured and validated; it is not hardcoded
+  as a source fallback.
+* `VAPID_SUBJECT` uses a `mailto:` or `https://` subject and VAPID keys use
+  non-empty base64url-style deployment values.
 * Backend push config has no empty-string, dummy, hardcoded, or `VITE_`
   private-key fallback; in-app invites remain functional if push is not
   configured.
+* Missing VAPID config returns safe skip diagnostics such as `pushSent: false`,
+  `pushSkipped: true`, and `reason: vapid_config_missing`; it must not return
+  VAPID values, private keys, push auth secrets, or raw provider stack traces.
+* `npm run build` is not backend-secret proof. Real push delivery remains a
+  manual runtime proof on a subscribed device with deployed backend secrets.
 
 ## Android 15 Edge-To-Edge / Play Console
 

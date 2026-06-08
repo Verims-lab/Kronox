@@ -7,8 +7,10 @@ import generateTechDocSource from '../../../base44/functions/generateTechDoc/ent
 import adminAuthSource from '../../../base44/functions/_shared/adminAuth.ts?raw';
 import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
 import purchaseJokerWithDiamondsSource from '../../../base44/functions/purchaseJokerWithDiamonds/entry.ts?raw';
+import sendGameInvitePushSource from '../../../base44/functions/sendGameInvitePush/entry.ts?raw';
 import questionEntitySource from '../../../base44/entities/Question.jsonc?raw';
 import useOfflineQuestionsSource from '../../hooks/useOfflineQuestions.js?raw';
+import notificationApiSource from '../../lib/notificationApi.js?raw';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
 
 const STATUS = {
@@ -201,6 +203,60 @@ export const EXTRA_TESTS = [
       actual: 'runtime auth contexts not available in static Health',
     }),
     { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, critical: true, runtimeProofRequired: true }),
+
+  makeCase('send_game_invite_push_vapid_secret_contract',
+    'sendGameInvitePush keeps VAPID private key backend-only and push best-effort',
+    () => {
+      const requiredBackend = [
+        'VAPID_CONFIG_FIELDS',
+        "canonicalName: 'VAPID_PRIVATE_KEY'",
+        "envNames: ['VAPID_PRIVATE_KEY', 'KRONOX_VAPID_PRIVATE_KEY']",
+        'Deno.env.get(envName)',
+        'webpush.setVapidDetails(config.subject, config.publicKey, config.privateKey)',
+        'vapid_config_missing',
+        'pushSent: false',
+        'pushSkipped: true',
+        'isValidVapidSubject',
+        'isLikelyVapidKey',
+        'summarizeVapidConfigState',
+        'sanitizePushErrorReason',
+      ];
+      const requiredFrontend = [
+        'VITE_KRONOX_VAPID_PUBLIC_KEY',
+        'missing_vapid_public_key',
+        'registerKronoxServiceWorker',
+      ];
+      const forbiddenBackend = presentTokens(sendGameInvitePushSource, [
+        "Deno.env.get('VITE_",
+        'acceptedEnvNames',
+        'missingConfig: config.missing',
+        'invalidConfig: config.invalid',
+        'return json({ ok: false, error: (error as Error)?.message',
+      ]);
+      const forbiddenFrontend = presentTokens(notificationApiSource, [
+        'VAPID_PRIVATE_KEY',
+        'VITE_KRONOX_VAPID_PRIVATE_KEY',
+      ]);
+      const missing = [
+        ...missingTokens(sendGameInvitePushSource, requiredBackend),
+        ...missingTokens(notificationApiSource, requiredFrontend),
+      ];
+      if (missing.length || forbiddenBackend.length || forbiddenFrontend.length) {
+        return fail('Game invite push can expose or mishandle VAPID config.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          files: ['base44/functions/sendGameInvitePush/entry.ts', 'src/lib/notificationApi.js'],
+          expected: 'Backend-only VAPID_PRIVATE_KEY, public client key only, explicit safe push skip when config is missing',
+          actual: { missing, forbiddenBackend, forbiddenFrontend },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('sendGameInvitePush uses backend-only VAPID private-key config and preserves in-app invites when push is skipped.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
 
   makeCase('get_questions_requires_auth',
     'getQuestions requires authentication before returning playable questions',
