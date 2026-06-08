@@ -1,7 +1,7 @@
 {
   "name": "UserJokerInventory",
   "type": "object",
-  "description": "User-owned joker balance rows. One logical row should exist per user_email + joker_type. Balances are initialized by ensureUserJokerInventory, read by Profile Joker Çantası, and spent by Solo through spendUserJoker.",
+  "description": "User-owned joker balance rows. One logical row should exist per user_email + joker_type. Balances are initialized by ensureUserJokerInventory, read by Profile Joker \u00c7antas\u0131, and spent by Solo through spendUserJoker.",
   "properties": {
     "user_email": {
       "type": "string",
@@ -47,9 +47,7 @@
   ],
   "rls": {
     "create": {
-      "user_condition": {
-        "role": "admin"
-      }
+      "data.user_email": "{{user.email}}"
     },
     "read": {
       "$or": [
@@ -64,9 +62,16 @@
       ]
     },
     "update": {
-      "user_condition": {
-        "role": "admin"
-      }
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     },
     "delete": {
       "user_condition": {
