@@ -60,6 +60,16 @@ import {
   loadUserCategoryPreferences,
 } from '@/lib/userCategoryPreferences';
 import {
+  SOLO_UI_JOKER_TYPES,
+  buildSoloJokerUseIdempotencyKey,
+  emptyJokerBalances,
+  getUserJokerBalances,
+  normalizeJokerBalances,
+  normalizeJokerQuantity,
+  soloUiJokerTypeToInventoryType,
+  spendUserJoker,
+} from '@/lib/jokerInventory';
+import {
   getOrderedSoloDeckQuestion,
   getSoloSeedQuestions,
 } from '@/lib/soloDeckRuntime';
@@ -248,6 +258,9 @@ export default function Game() {
   const [soloAttemptId, setSoloAttemptId] = useState(null);
   const [soloCorrectStreak, setSoloCorrectStreak] = useState(0);
   const [usedJokerType, setUsedJokerType] = useState(null);
+  const [jokerBalances, setJokerBalances] = useState(() => emptyJokerBalances());
+  const [jokerInventoryLoading, setJokerInventoryLoading] = useState(false);
+  const [jokerSpendPendingType, setJokerSpendPendingType] = useState(null);
   const [mistakeShieldActive, setMistakeShieldActive] = useState(false);
   const [jokerMessage, setJokerMessage] = useState('');
   const [jokerError, setJokerError] = useState('');
@@ -259,6 +272,9 @@ export default function Game() {
   const timerFreezeTimeoutRef = useRef(null);
   const timerFreezeIntervalRef = useRef(null);
   const jokerUsedRef = useRef(false);
+  const jokerSpendPendingRef = useRef(false);
+  const soloJokerDecisionKeyByQuestionIdRef = useRef(new Map());
+  const soloJokerUsedByDecisionKeyRef = useRef(new Map());
   const soloSkippedQuestionIdsRef = useRef(new Set());
   const soloAnalyticsEventIdsRef = useRef(new Set());
   const soloQuestionShownAtRef = useRef(new Map());
@@ -346,6 +362,41 @@ export default function Game() {
     }
 
     loadSoloCategoryPreferences();
+    return () => { active = false; };
+  }, [isSoloLevelMode, currentUserLoaded, currentUser?.email]);
+
+  useEffect(() => {
+    let active = true;
+    if (!isSoloLevelMode) {
+      setJokerBalances(emptyJokerBalances());
+      setJokerInventoryLoading(false);
+      return () => { active = false; };
+    }
+    if (!currentUserLoaded) {
+      setJokerInventoryLoading(true);
+      return () => { active = false; };
+    }
+    if (!currentUser?.email) {
+      setJokerBalances(emptyJokerBalances());
+      setJokerInventoryLoading(false);
+      return () => { active = false; };
+    }
+
+    setJokerInventoryLoading(true);
+    getUserJokerBalances(currentUser, { ensureStarter: true })
+      .then((result) => {
+        if (!active) return;
+        setJokerBalances(normalizeJokerBalances(result?.balances || result?.items));
+        setJokerError('');
+      })
+      .catch(() => {
+        if (!active) return;
+        setJokerBalances(emptyJokerBalances());
+        setJokerError('Joker Çantası yüklenemedi.');
+      })
+      .finally(() => {
+        if (active) setJokerInventoryLoading(false);
+      });
     return () => { active = false; };
   }, [isSoloLevelMode, currentUserLoaded, currentUser?.email]);
 
@@ -457,11 +508,15 @@ export default function Game() {
   const resetSoloJokers = useCallback(() => {
     clearSoloTimerFreeze(false);
     jokerUsedRef.current = false;
+    jokerSpendPendingRef.current = false;
+    soloJokerDecisionKeyByQuestionIdRef.current = new Map();
+    soloJokerUsedByDecisionKeyRef.current = new Map();
     soloSkippedQuestionIdsRef.current = new Set();
     soloAnalyticsEventIdsRef.current = new Set();
     soloQuestionShownAtRef.current = new Map();
     soloReplacementQuestionIdsRef.current = new Set();
     setUsedJokerType(null);
+    setJokerSpendPendingType(null);
     setMistakeShieldActive(false);
     setJokerMessage('');
     setJokerError('');
@@ -519,6 +574,29 @@ export default function Game() {
     const index = soloAttemptDeck.findIndex((item) => String(item?.id) === String(question.id));
     return index >= 0 ? index + 1 : 0;
   }, [soloAttemptDeck]);
+
+  const getCurrentSoloJokerDecisionKey = useCallback((question = currentQuestion) => {
+    if (!isSoloLevelMode || !question?.id) return '';
+    const questionId = String(question.id);
+    const mappedKey = soloJokerDecisionKeyByQuestionIdRef.current.get(questionId);
+    if (mappedKey) return mappedKey;
+    const placementIndex = getSoloQuestionAnalyticsPlacementIndex(question) || 'current';
+    const key = `${soloAttemptId || 'solo_attempt'}:${placementIndex}:${questionId}`;
+    soloJokerDecisionKeyByQuestionIdRef.current.set(questionId, key);
+    return key;
+  }, [currentQuestion, getSoloQuestionAnalyticsPlacementIndex, isSoloLevelMode, soloAttemptId]);
+
+  useEffect(() => {
+    if (!isSoloLevelMode || !currentQuestion?.id) {
+      jokerUsedRef.current = false;
+      setUsedJokerType(null);
+      return;
+    }
+    const decisionKey = getCurrentSoloJokerDecisionKey(currentQuestion);
+    const currentCardJoker = soloJokerUsedByDecisionKeyRef.current.get(decisionKey) || null;
+    jokerUsedRef.current = Boolean(currentCardJoker);
+    setUsedJokerType(currentCardJoker);
+  }, [currentQuestion, getCurrentSoloJokerDecisionKey, isSoloLevelMode]);
 
   const getSoloQuestionAnalyticsEventId = useCallback((question, eventType, placementIndexOverride = null) => buildQuestionAttemptEventId({
     attemptId: soloAttemptId,
@@ -968,38 +1046,140 @@ export default function Game() {
     if (!isMyTurn) return;
     skipCurrentQuestion(currentQuestion?.id);
   }, [currentQuestion?.id, isMyTurn, skipCurrentQuestion]);
-  const handleUseSoloJoker = useCallback((jokerType) => {
-    if (!isSoloLevelMode || jokerUsedRef.current || usedJokerType || soloLevelResult || winner || feedback || !isMyTurn) return;
+
+  const markSoloJokerUsedForDecision = useCallback((decisionKey, jokerType) => {
+    if (!decisionKey || !jokerType) return;
+    soloJokerUsedByDecisionKeyRef.current.set(decisionKey, jokerType);
+    jokerUsedRef.current = true;
+    setUsedJokerType(jokerType);
+  }, []);
+
+  const startSoloTimerFreeze = useCallback(() => {
+    const start = Date.now();
+    timerFreezeStartRef.current = start;
+    timerFreezeElapsedAtStartRef.current = soloEffectiveElapsedSecondsRef.current;
+    setTimerFreezeUntil(start + 10000);
+    setTimerFreezeTick(start);
+    if (timerFreezeIntervalRef.current) window.clearInterval(timerFreezeIntervalRef.current);
+    timerFreezeIntervalRef.current = window.setInterval(() => setTimerFreezeTick(Date.now()), 250);
+    if (timerFreezeTimeoutRef.current) window.clearTimeout(timerFreezeTimeoutRef.current);
+    timerFreezeTimeoutRef.current = window.setTimeout(() => {
+      clearSoloTimerFreeze(true);
+      setJokerMessage('Zaman Dondur tamamlandı.');
+    }, 10000);
+  }, [clearSoloTimerFreeze]);
+
+  const spendSoloJokerForCurrentCard = useCallback(async (jokerType, decisionKey, relatedQuestionId) => {
+    const inventoryType = soloUiJokerTypeToInventoryType(jokerType);
+    if (!inventoryType) {
+      setJokerError('Joker türü geçersiz.');
+      return false;
+    }
+    if (!currentUser?.email) {
+      setJokerError('Joker kullanmak için giriş yapmalısın.');
+      return false;
+    }
+    if (jokerInventoryLoading) {
+      setJokerError('Joker Çantası hazırlanıyor.');
+      return false;
+    }
+    const balance = normalizeJokerQuantity(jokerBalances[inventoryType]);
+    if (balance <= 0) {
+      setJokerError('Bu jokerden kalmadı.');
+      return false;
+    }
+    if (jokerSpendPendingRef.current) return false;
+
+    const idempotencyKey = buildSoloJokerUseIdempotencyKey(
+      currentUser.email,
+      soloAttemptId,
+      decisionKey,
+      jokerType,
+    );
+    if (!idempotencyKey) {
+      setJokerError('Joker işlemi doğrulanamadı.');
+      return false;
+    }
+
+    jokerSpendPendingRef.current = true;
+    setJokerSpendPendingType(jokerType);
+    try {
+      const response = await spendUserJoker(currentUser, {
+        jokerType: inventoryType,
+        idempotencyKey,
+        relatedEntityType: 'solo_question',
+        relatedEntityId: relatedQuestionId,
+        metadata: {
+          soloAttemptId,
+          soloLevelNumber: soloLevel?.levelNumber,
+          questionId: relatedQuestionId,
+          decisionKey,
+          uiJokerType: jokerType,
+          effect: 'solo_joker_use',
+        },
+      });
+      if (response?.ok === false) {
+        setJokerBalances(normalizeJokerBalances(response?.balances));
+        setJokerError(response?.error || 'Joker kullanılamadı.');
+        return false;
+      }
+      setJokerBalances(normalizeJokerBalances(response?.balances));
+      setJokerError('');
+      return true;
+    } catch (error) {
+      setJokerError(error?.message || 'Joker kullanılamadı.');
+      return false;
+    } finally {
+      jokerSpendPendingRef.current = false;
+      setJokerSpendPendingType(null);
+    }
+  }, [
+    currentUser,
+    jokerBalances,
+    jokerInventoryLoading,
+    soloAttemptId,
+    soloLevel?.levelNumber,
+  ]);
+
+  const handleUseSoloJoker = useCallback(async (jokerType) => {
+    if (!isSoloLevelMode || soloLevelResult || winner || feedback || !isMyTurn || jokerSpendPendingRef.current) return;
+    if (!currentQuestion?.id) return;
     setJokerError('');
 
-    if (jokerType === 'mistakeShield') {
-      jokerUsedRef.current = true;
-      setUsedJokerType('mistakeShield');
+    const decisionKey = getCurrentSoloJokerDecisionKey(currentQuestion);
+    if (!decisionKey) return;
+    if (soloJokerUsedByDecisionKeyRef.current.has(decisionKey)) {
+      setJokerError('Bu kartta zaten joker kullandın.');
+      return;
+    }
+
+    if (jokerType === SOLO_UI_JOKER_TYPES.MISTAKE_SHIELD) {
+      if (mistakeShieldActive) {
+        setJokerError('Kronokalkan zaten aktif.');
+        return;
+      }
+      const spent = await spendSoloJokerForCurrentCard(jokerType, decisionKey, currentQuestion.id);
+      if (!spent) return;
+      markSoloJokerUsedForDecision(decisionKey, jokerType);
       setMistakeShieldActive(true);
       setJokerMessage('Kronokalkan aktif: Bir sonraki hata sayılmayacak.');
       return;
     }
 
-    if (jokerType === 'freezeTime') {
-      jokerUsedRef.current = true;
-      setUsedJokerType('freezeTime');
+    if (jokerType === SOLO_UI_JOKER_TYPES.TIME_FREEZE) {
+      if (isSoloTimerFrozen || timerFreezeStartRef.current) {
+        setJokerError('Zaman Dondur zaten aktif.');
+        return;
+      }
+      const spent = await spendSoloJokerForCurrentCard(jokerType, decisionKey, currentQuestion.id);
+      if (!spent) return;
+      markSoloJokerUsedForDecision(decisionKey, jokerType);
       setJokerMessage('Zaman Dondur aktif: Süre 10 sn durduruldu.');
-      const start = Date.now();
-      timerFreezeStartRef.current = start;
-      timerFreezeElapsedAtStartRef.current = soloEffectiveElapsedSecondsRef.current;
-      setTimerFreezeUntil(start + 10000);
-      setTimerFreezeTick(start);
-      if (timerFreezeIntervalRef.current) window.clearInterval(timerFreezeIntervalRef.current);
-      timerFreezeIntervalRef.current = window.setInterval(() => setTimerFreezeTick(Date.now()), 250);
-      if (timerFreezeTimeoutRef.current) window.clearTimeout(timerFreezeTimeoutRef.current);
-      timerFreezeTimeoutRef.current = window.setTimeout(() => {
-        clearSoloTimerFreeze(true);
-        setJokerMessage('Zaman Dondur tamamlandı.');
-      }, 10000);
+      startSoloTimerFreeze();
       return;
     }
 
-    if (jokerType === 'swapCard') {
+    if (jokerType === SOLO_UI_JOKER_TYPES.CARD_SWAP) {
       if (!Array.isArray(soloAttemptDeck) || !currentQuestion || !currentPlayer) {
         setJokerError('Bu kart şu anda değiştirilemiyor.');
         return;
@@ -1021,8 +1201,10 @@ export default function Game() {
         return;
       }
 
-      jokerUsedRef.current = true;
-      setUsedJokerType('swapCard');
+      const spent = await spendSoloJokerForCurrentCard(jokerType, decisionKey, currentQuestion.id);
+      if (!spent) return;
+      soloJokerDecisionKeyByQuestionIdRef.current.set(String(replacement.id), decisionKey);
+      markSoloJokerUsedForDecision(decisionKey, jokerType);
       setJokerMessage('Kart Değiştir aktif: Kart değiştirildi.');
       setSelectedZone(null);
       soloSkippedQuestionIdsRef.current = skippedIds;
@@ -1054,16 +1236,20 @@ export default function Game() {
     }
   }, [
     isSoloLevelMode,
-    usedJokerType,
+    currentQuestion,
+    getCurrentSoloJokerDecisionKey,
     soloLevelResult,
     winner,
     feedback,
     isMyTurn,
+    mistakeShieldActive,
+    isSoloTimerFrozen,
+    spendSoloJokerForCurrentCard,
+    markSoloJokerUsedForDecision,
+    startSoloTimerFreeze,
     soloAttemptDeck,
-    currentQuestion,
     currentPlayer,
     usedQuestionIds,
-    clearSoloTimerFreeze,
     recordSoloQuestionAnalyticsEvent,
     setSelectedZone,
     setLobbyData,
@@ -1691,11 +1877,14 @@ export default function Game() {
         soloJokers={isSoloLevelMode ? {
           enabled: true,
           usedJokerType,
+          balances: jokerBalances,
+          loading: jokerInventoryLoading,
+          pendingType: jokerSpendPendingType,
           mistakeShieldActive,
           timerFrozen: isSoloTimerFrozen,
           message: jokerMessage,
           error: jokerError,
-          disabled: Boolean(soloLevelResult || winner),
+          disabled: Boolean(soloLevelResult || winner || jokerInventoryLoading || jokerSpendPendingType),
           onUseJoker: handleUseSoloJoker,
         } : null}
         beginnerPlacementHintZone={beginnerPlacementHintZone}

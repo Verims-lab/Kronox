@@ -399,6 +399,9 @@ export default function GameLayout({
       <SoloJokerBar
         enabled={Boolean(soloJokers?.enabled) && !winner && !isOnline && Boolean(currentQuestion)}
         usedJokerType={soloJokers?.usedJokerType || null}
+        balances={soloJokers?.balances || null}
+        loading={Boolean(soloJokers?.loading)}
+        pendingType={soloJokers?.pendingType || null}
         mistakeShieldActive={Boolean(soloJokers?.mistakeShieldActive)}
         timerFrozen={Boolean(soloJokers?.timerFrozen)}
         message={soloJokers?.message || ''}

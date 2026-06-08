@@ -129,18 +129,21 @@ Checklist:
 * Result screen does not scroll unexpectedly.
 * Result screen does not clip on small phones.
 * Solo Joker bar appears below the timeline and above `KARTI YERLEŞTİR`.
-* Each new Solo attempt starts with `Kronokalkan`, `Kart Değiştir`, and `Zaman Dondur`.
-* Only 1 joker can be used per attempt; used/disabled states are clear.
+* Solo Joker bar reads `UserJokerInventory` and shows current owned counts for
+  `Kronokalkan`, `Kart Değiştir`, and `Zaman Dondur`.
+* A joker with balance 0 is disabled and cannot apply an effect.
+* Multiple jokers can be used across one Solo level when the player owns them.
+* Only one joker can be used for the current question/card; the guard resets on
+  the next card and survives `Kart Değiştir` replacement for the same decision.
 * `Kronokalkan` forgives the next wrong placement without incrementing mistakes.
 * `Kart Değiştir` replaces the current card from the prebuilt deck/reserve, does not fetch mid-attempt, does not immediately re-show the swapped-out card, respects visible timeline spacing, prefers a balanced replacement, and has helper-only diagnostics for replacement source/no-safe-replacement state.
 * `Zaman Dondur` freezes the Solo timer for 10 seconds and cleans up after result/replay.
-* Phase 1 user-owned joker inventory exists, but Solo gameplay spending remains
-  v1/backward-compatible until Phase 2.
-* Jokers do not spend Diamonds and do not grant Kronox Puan in Phase 1.
-* Phase 2 must change Solo joker buttons to read owned balances, allow one
-  joker per question/card, allow multiple jokers per level when owned, consume
-  only after successful effect application, and not refund used jokers on
-  fail/timeout/exit.
+* Successful Solo joker use writes a `JokerTransaction` row with
+  `reason: solo_use`, `quantity_delta: -1`, and a stable idempotency key.
+* Joker spend must not make balance negative and double tap must not duplicate
+  the spend/ledger row.
+* Used jokers are not refunded on fail, timeout, replay, browser close, or exit.
+* Jokers do not spend Diamonds and do not grant Kronox Puan.
 
 ---
 
@@ -210,7 +213,7 @@ Checklist:
 * Daily Wheel 7-day streak bonus grants `+100` Diamonds on every 7th consecutive daily spin.
 * Missing a UTC day resets the Daily Wheel streak gracefully to 1 on next spin.
 
-## Joker Inventory Phase 1
+## Joker Inventory
 
 * `UserJokerInventory` exists as the current user-owned joker balance entity.
 * `JokerTransaction` exists as the append-only joker ledger/idempotency audit.
@@ -226,8 +229,10 @@ Checklist:
   ledger rows to normal users.
 * Runtime two-account proof must verify users cannot read/mutate other users'
   joker balances or create arbitrary grant rows.
-* Market / Diamond-to-joker purchase is intentionally not implemented in Phase
-  1. Future Market purchase must validate Diamonds server-side.
+* Solo use spends one owned joker through `spendUserJoker` and writes
+  `JokerTransaction.reason = solo_use`.
+* Market / Diamond-to-joker purchase is intentionally not implemented yet.
+  Future Market purchase must validate Diamonds server-side.
 * Daily Wheel remains Diamond-only and must not grant jokers.
 * Daily Wheel result shows `+X Elmas kazandın`; when the 7-day streak bonus applies it also shows `7 günlük seri bonusu: +100 elmas` and `Toplam: +Y elmas`.
 * Daily Wheel claimed countdown shows `Yarın hazır` or compact time text without a Diamond icon.

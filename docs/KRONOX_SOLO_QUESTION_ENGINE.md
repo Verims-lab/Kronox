@@ -168,15 +168,21 @@ The subtle placement hint remains visual-only for levels 1-3:
 - no hit-testing, drag behavior, or validation changes
 - disabled for level 4+ and Online mode
 
-## Solo Jokers v1 / Inventory Phase 1
+## Solo Jokers / User Inventory
 
-Solo jokers are first-version, attempt-local helpers:
-- Solo-only; Online mode has no joker UI or joker effects
-- every new Solo level attempt starts with 3 options: `Kronokalkan`, `Kart Değiştir`, `Zaman Dondur`
-- only 1 joker total may be used per attempt
-- after one joker is used, the other two stay visible but disabled/passive
-- Phase 1 adds user-owned joker inventory rows, but Solo gameplay consumption
-  still behaves like v1 until Phase 2 integrates spending
+Solo jokers are user-owned and Solo-only:
+- Online mode has no joker UI or joker effects
+- Solo joker buttons read `UserJokerInventory` balances and show the owned
+  counts for `Kronokalkan`, `Kart Değiştir`, and `Zaman Dondur`
+- a player may use multiple jokers across one Solo level when they own enough
+  balance
+- only one joker may be used for the current question/card decision
+- `Kart Değiştir` keeps the same current-card joker guard for the replacement
+  card, so a swap cannot reset the guard for a second joker on the same
+  decision
+- balance is spent through the server-backed joker inventory path with a
+  `JokerTransaction` reason of `solo_use`
+- used jokers are not refunded on fail, timeout, replay, browser close, or exit
 - jokers do not grant Kronox Puan directly and do not change Solo scoring values
 
 Inventory foundation:
@@ -187,14 +193,6 @@ Inventory foundation:
 - starter grant keys are idempotent (`starter_jokers:<email>:<joker_type>`)
 - Profile displays balances under `Joker Çantası`
 - Market purchase and Diamond-to-joker pricing are later phases
-
-Phase 2 Solo consumption target:
-- Solo joker buttons read user-owned balances instead of showing the v1
-  attempt-local count
-- one joker may be used per question/card
-- multiple jokers may be used across a level if the user owns them
-- a joker is consumed only after its effect is successfully applied
-- used jokers are not refunded on fail, timeout, or exit
 
 Joker behavior:
 - `Kronokalkan`: activates one-time protection. The next wrong placement does not count as a mistake; correct placements do not consume it.

@@ -111,9 +111,15 @@ valid spaced deck exists at all.
 Replay creates a new deck. Old completed results are not retroactively
 recalculated. New attempts may carry soloRulesVersion: 2.
 
-Solo Jokers v1 are Solo-only, free, attempt-local helpers. Every new Solo
-attempt starts with Kronokalkan, Kart Değiştir, and Zaman Dondur. Only 1 joker
-total may be used per attempt. Jokers do not use Diamonds, do not grant Kronox Puan, and do not affect Online mode.
+Solo jokers are user-owned and Solo-only. Solo joker buttons read
+UserJokerInventory and show owned counts for Kronokalkan, Kart Değiştir, and
+Zaman Dondur. A player may use multiple jokers across a Solo level when they
+own enough balance, but only one joker may be used for the current
+question/card decision. Kart Değiştir keeps the same current-card guard for
+the replacement card. Successful Solo use writes a JokerTransaction row with
+reason solo_use and quantity_delta -1. Used jokers are not refunded on fail,
+timeout, replay, browser close, or exit. Jokers do not use Diamonds, do not
+grant Kronox Puan, and do not affect Online mode.
 
 Kronokalkan forgives the next wrong placement without counting a mistake.
 Kart Değiştir replaces the current card from the already prepared Solo deck

@@ -1,7 +1,7 @@
 {
   "name": "JokerTransaction",
   "type": "object",
-  "description": "Append-only user joker ledger. Phase 1 writes starter_grant rows; future phases will add solo_use and market_purchase through server-side validation.",
+  "description": "Append-only user joker ledger. Starter grants write starter_grant rows; Solo joker usage writes solo_use rows; future Market purchase will add market_purchase through server-side validation.",
   "properties": {
     "user_email": {
       "type": "string",

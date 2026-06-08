@@ -68,6 +68,7 @@ const KNOWN_BACKEND_FUNCTIONS = new Set([
   'expireOldGameInvites',
   'expirePushSubscriptions',
   'ensureUserJokerInventory',
+  'spendUserJoker',
   'sendQuestionAnalyticsReportEmail',
 ]);
 

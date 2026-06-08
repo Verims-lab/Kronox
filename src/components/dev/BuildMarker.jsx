@@ -1136,6 +1136,12 @@ import React, { useEffect, useState } from 'react';
 //   • Profile shows owned balances under Joker Çantası; Market and Solo
 //     joker spending remain later phases.
 //
+// Codex280 — Solo joker inventory spend:
+//   • Solo joker buttons read UserJokerInventory balances and display owned
+//     counts instead of attempt-local free counts.
+//   • Adds spendUserJoker for Solo solo_use ledger rows, one-joker-per-card
+//     guard, no refunds on fail/exit, and keeps Market future-only.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1439,7 +1445,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex279';
+const BUILD_MARKER = 'Codex280';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
