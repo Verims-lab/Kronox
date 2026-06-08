@@ -12,6 +12,7 @@ Implemented now:
 - src/lib/dbGateway/lobbyGateway.js
 - src/lib/dbGateway/scoringGateway.js
 - src/lib/dbGateway/economyGateway.js
+- src/lib/dbGateway/dailyQuestGateway.js
 - src/lib/dbGateway/leaderboardGateway.js
 - src/lib/dbGateway/analyticsGateway.js
 - src/lib/dbGateway/cleanupGateway.js
@@ -33,6 +34,10 @@ Analytics/statistics entities implemented now:
 - Daily Wheel is a Diamond source; Mağaza purchase is a Diamond sink. purchaseJokerWithDiamonds is server-authoritative, ignores client price/cost, writes both ledgers with the same idempotency key, and uses best-effort rollback if ledger creation fails. Runtime duplicate-request and partial-failure consistency proof remains manual.
 - Profile displays balances under Joker Çantası and does not expose the JokerTransaction ledger.
 - Mağaza Phase 1 has no bundles, subscriptions, cosmetics, random boxes, ads, external payments, or Online joker usage.
+- DailyQuestDefinition stores admin-managed Daily Quest v1 templates; title/description are display-only and quest_type + target_value drive future logic.
+- createDailyQuestDefinition lists, seeds, creates, and status-updates definitions through an AdminUser-backed owner/admin guard.
+- Supported Daily Quest v1 types are start_solo_attempt, correct_cards, complete_solo_level, and use_joker.
+- Daily Quest definitions use reward_diamonds only, never Kronox Puan, and do not affect leaderboard.
 
 Category preference status:
 - Settings İlgi Alanlarım reads active Category rows.

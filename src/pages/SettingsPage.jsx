@@ -13,6 +13,7 @@ import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 import { ACCOUNT_DELETION_ERROR_COPY, requestAccountDeletion } from '@/lib/accountDeletion';
 import ResetUserProgressTool from '@/components/admin/ResetUserProgressTool';
 import QuestionAnalyticsReportTool from '@/components/admin/QuestionAnalyticsReportTool';
+import DailyQuestDefinitionManager from '@/components/admin/DailyQuestDefinitionManager';
 import CategoryPreferencesSection from '@/components/settings/CategoryPreferencesSection';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -131,6 +132,7 @@ export default function SettingsPage() {
               onClick={() => setShowSim(true)}
             />
             <QuestionAnalyticsReportTool />
+            <DailyQuestDefinitionManager />
             <ResetUserProgressTool />
           </Section>
         )}

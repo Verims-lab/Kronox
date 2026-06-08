@@ -217,6 +217,22 @@ Inventory foundation:
   balances that Solo already reads; using them in Solo still spends through
   `spendUserJoker` and writes `JokerTransaction.reason = solo_use`
 
+## Daily Quest Definition V1
+
+Daily Quest v1 is Solo-focused but definition-only in this phase:
+- admin-managed `DailyQuestDefinition` rows define system quest templates
+- supported v1 quest types are `start_solo_attempt`, `correct_cards`,
+  `complete_solo_level`, and `use_joker`
+- `title` and `description` are display-only Turkish copy and are never parsed
+  into logic
+- future Solo progress will be measured only by `quest_type + target_value`
+- `reward_diamonds` is the only reward field; Daily Quest does not grant
+  Kronox Puan and does not affect leaderboard
+- user assignment, progress tracking, claim flow, and DiamondTransaction
+  `daily_quest_reward` writes are later phases
+- Daily Wheel, Mağaza, Solo joker inventory, scoring, timer, and question
+  selection remain unchanged by definition management
+
 Joker behavior:
 - `Kronokalkan`: activates one-time protection. The next wrong placement does not count as a mistake; correct placements do not consume it.
 - `Kart Değiştir`: replaces the current active card using the already prepared Solo attempt deck/reserve. It must not fetch a new question, rebuild the deck, or rerandomize the attempt mid-game, and the swapped-out card should not reappear later in the same attempt while unused deck cards are available. Replacement must respect visible timeline spacing and prefers a balanced reserve card that does not worsen category/subcategory/theme repetition. If no safe replacement exists, the joker is not consumed and the player sees `Bu kart şu anda değiştirilemiyor.`

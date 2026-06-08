@@ -47,10 +47,13 @@ claimed-state countdown uses Yarın hazır or compact time text such as 11 sa
 24 dk without a Diamond icon.
 
 Günlük Ödüller panel contains Daily Wheel and Daily Quest v1 readiness/status.
-Daily Quest v1 does not grant Diamonds or Kronox Puan yet. Future Daily Quest
-rewards must be server-backed, use daily_quest:<normalizedEmail>:<YYYY-MM-DD>,
-write a separate DiamondTransaction source/direction, and use User.daily_quest_*
-fields instead of Daily Wheel fields.
+Daily Quest Definition Phase 1 adds admin-managed DailyQuestDefinition
+templates with reward_diamonds, but no user claim or Diamond grant yet.
+title/description are display-only; quest_type + target_value drive future
+logic. Future Daily Quest rewards must be server-backed, use
+daily_quest:<normalizedEmail>:<YYYY-MM-DD>, write a separate
+DiamondTransaction source/direction, and use User.daily_quest_* fields instead
+of Daily Wheel fields. Daily Quest never grants Kronox Puan.
 
 First authenticated entry grants +100 once. Same-day daily login grants +20 once.
 

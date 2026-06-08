@@ -4,6 +4,7 @@ export * as inviteGateway from './inviteGateway';
 export * as lobbyGateway from './lobbyGateway';
 export * as scoringGateway from './scoringGateway';
 export * as economyGateway from './economyGateway';
+export * as dailyQuestGateway from './dailyQuestGateway';
 export * as leaderboardGateway from './leaderboardGateway';
 export * as analyticsGateway from './analyticsGateway';
 export * as cleanupGateway from './cleanupGateway';
@@ -13,5 +14,6 @@ export const dbGatewayArchitectureContract = Object.freeze({
   publicLeaderboardProjection: 'leaderboardGateway -> SoloLeaderboardEntry',
   analyticsRuntimeGateway: 'analyticsGateway -> QuestionAttemptEvent',
   marketPurchaseGateway: 'economyGateway -> purchaseJokerWithDiamonds',
+  dailyQuestDefinitionGateway: 'dailyQuestGateway -> createDailyQuestDefinition',
   cleanupJobs: 'cleanupGateway -> admin backend functions',
 });

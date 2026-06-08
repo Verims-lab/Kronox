@@ -1189,6 +1189,13 @@ import React, { useEffect, useState } from 'react';
 //   • Replaces the standalone Home wheel row with a Günlük Ödüller panel that
 //     includes Daily Wheel plus Daily Quest v1 readiness/status.
 //
+// Codex289 — Daily Quest Definition Phase 1:
+//   • Adds DailyQuestDefinition templates plus admin-only Settings management
+//     for listing, creating, status toggling, and idempotent seed definitions.
+//   • Keeps admin copy display-only: quest_type + target_value drive future
+//     Solo progress, reward_diamonds is Diamond-only, and no Kronox Puan,
+//     leaderboard, Daily Wheel, Mağaza, or Solo runtime path is changed.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1493,7 +1500,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex288';
+const BUILD_MARKER = 'Codex289';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -10,6 +10,7 @@ import categoryGatewaySource from '../../lib/dbGateway/categoryGateway.js?raw';
 import analyticsGatewaySource from '../../lib/dbGateway/analyticsGateway.js?raw';
 import cleanupGatewaySource from '../../lib/dbGateway/cleanupGateway.js?raw';
 import leaderboardGatewaySource from '../../lib/dbGateway/leaderboardGateway.js?raw';
+import dailyQuestGatewaySource from '../../lib/dbGateway/dailyQuestGateway.js?raw';
 import { DB_ARCHITECTURE_IMPLEMENTATION_MIRROR } from '@/lib/dbArchitectureMirrors';
 
 const STATUS = {
@@ -92,6 +93,7 @@ export const EXTRA_TESTS = [
         analyticsGatewaySource,
         cleanupGatewaySource,
         leaderboardGatewaySource,
+        dailyQuestGatewaySource,
       ].map(text).join('\n');
       const missing = missingTokens(combined, [
         'questionGateway',
@@ -103,6 +105,7 @@ export const EXTRA_TESTS = [
         'leaderboardGateway',
         'analyticsGateway',
         'cleanupGateway',
+        'dailyQuestGateway',
       ]);
       if (missing.length) {
         return fail('DB gateway exports are incomplete.', {
@@ -113,6 +116,33 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('DB gateway module foundation is present and exported.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('daily_quest_definition_entity_registered',
+    'DailyQuestDefinition template entity is registered in DB architecture',
+    () => {
+      const combined = `${dailyQuestGatewaySource}\n${DB_ARCHITECTURE_IMPLEMENTATION_MIRROR}`;
+      const missing = missingTokens(combined, [
+        'DailyQuestDefinition',
+        'createDailyQuestDefinition',
+        'quest_type + target_value',
+        'reward_diamonds only',
+        'never Kronox Puan',
+        'start_solo_attempt',
+        'correct_cards',
+        'complete_solo_level',
+        'use_joker',
+      ]);
+      if (missing.length) {
+        return fail('DailyQuestDefinition DB architecture contract is incomplete.', {
+          verification: 'STATIC_CONTRACT',
+          missing,
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('DailyQuestDefinition is documented as an admin-managed template entity with enum logic and Diamond-only rewards.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

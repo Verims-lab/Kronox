@@ -26,6 +26,7 @@ import soloProgressCasesSource from './simulationPanelSoloProgressCases.jsx?raw'
 import securityCleanupCasesSource from './simulationPanelSecurityCleanupCases.jsx?raw';
 import backendSecurityCasesSource from './simulationPanelBackendSecurityCases.jsx?raw';
 import marketCasesSource from './simulationPanelMarketCases.jsx?raw';
+import dailyQuestDefinitionCasesSource from './simulationPanelDailyQuestDefinitionCases.jsx?raw';
 import diamondEconomyCasesSource from './simulationPanelDiamondEconomyCases.jsx?raw';
 import jokerInventoryCasesSource from './simulationPanelJokerInventoryCases.jsx?raw';
 import soloJokersCasesSource from './simulationPanelSoloJokersCases.jsx?raw';
@@ -377,6 +378,51 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Market Phase 1 Health covers UI placement, server validation, dual ledgers, idempotency, and Diamond/Joker/Solo/Daily Wheel/Online boundaries.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('daily_quest_definition_health_registered',
+    'Health registers Daily Quest Definition Phase 1 coverage',
+    () => {
+      const combined = [
+        dailyQuestDefinitionCasesSource,
+        releaseChecklistSource,
+        securityDocsSource,
+        dbArchitectureDocsSource,
+        soloEngineDocsSource,
+      ].map(text).join('\n');
+      const missing = missingTokens(combined, [
+        'daily_quest_definition_health',
+        'Daily Quest Definition Health Suite',
+        'DailyQuestDefinition',
+        'Günlük Görev Yönetimi',
+        'createDailyQuestDefinition',
+        'title and description are display-only',
+        'quest_type + target_value',
+        'start_solo_attempt',
+        'correct_cards',
+        'complete_solo_level',
+        'use_joker',
+        'reward_diamonds',
+        'no Kronox Puan',
+        'no leaderboard impact',
+        'UserDailyQuestProgress',
+      ]);
+      if (missing.length) {
+        return fail('Daily Quest Definition Phase 1 Health/docs coverage is incomplete.', {
+          verification: 'STATIC_CONTRACT',
+          files: [
+            'src/components/game/simulationPanelDailyQuestDefinitionCases.jsx',
+            'docs/KRONOX_RELEASE_PROOF_CHECKLIST.md',
+            'docs/KRONOX_SECURITY_DEPLOYMENT.md',
+            'docs/KRONOX_DB_ARCHITECTURE.md',
+            'docs/KRONOX_SOLO_QUESTION_ENGINE.md',
+          ],
+          missing,
+        });
+      }
+      return pass('Daily Quest Definition Phase 1 Health covers schema, admin UI/auth, enum logic, display-only text, seed definitions, and future progress boundaries.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

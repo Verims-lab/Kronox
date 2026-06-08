@@ -71,8 +71,9 @@ Daily Wheel result shows \`+X Elmas kazandın\`; when the 7-day streak bonus
 applies it also shows \`7 günlük seri bonusu: +150 elmas\` and
 \`Toplam: +Y elmas\`.
 Günlük Ödüller panel contains Daily Wheel plus Daily Quest v1 readiness/status;
-Daily Quest v1 does not grant Diamonds or Kronox Puan until a server-backed
-claim path and reward rule are specified.
+Daily Quest Definition Phase 1 adds admin-managed DailyQuestDefinition
+templates with reward_diamonds, but Daily Quest v1 does not grant Diamonds or
+Kronox Puan until a server-backed claim path is specified.
 Daily Wheel claimed countdown shows \`Yarın hazır\` or compact time text
 without a Diamond icon.
 Admin reset sets \`daily_wheel_last_spin_date\` to the current UTC day, clears Daily Wheel guard fields, and removes target \`DailyWheelSpin\` rows. Retained OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the deleted user.

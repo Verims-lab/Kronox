@@ -1,0 +1,104 @@
+{
+  "name": "DailyQuestDefinition",
+  "type": "object",
+  "description": "Admin-managed Daily Quest v1 template definitions. title and description are display-only; quest_type plus target_value drive future progress logic. Rewards are Diamonds only and must not grant Kronox Puan or affect leaderboard.",
+  "properties": {
+    "quest_key": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$",
+      "description": "Stable unique machine-readable key such as start_1_solo_attempt, correct_5_cards, complete_1_solo_level, or use_1_joker."
+    },
+    "title": {
+      "type": "string",
+      "maxLength": 120,
+      "description": "Short Turkish user-facing title. Display-only; never parsed into executable quest logic."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 500,
+      "description": "Turkish user-facing description. Display-only; never parsed with regex, AI, NLP, or arbitrary scripts."
+    },
+    "quest_type": {
+      "type": "string",
+      "enum": [
+        "start_solo_attempt",
+        "correct_cards",
+        "complete_solo_level",
+        "use_joker"
+      ],
+      "description": "System-supported quest logic type. This enum, together with target_value, is the executable progress contract."
+    },
+    "target_value": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Required positive integer target for quest_type progress measurement."
+    },
+    "reward_diamonds": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Required positive Diamond reward amount. Daily Quest rewards are Diamonds only; no Kronox Puan field exists."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "passive"
+      ],
+      "default": "active",
+      "description": "Definition visibility/availability status."
+    },
+    "sort_order": {
+      "type": "integer",
+      "description": "Optional admin ordering value."
+    },
+    "created_by": {
+      "type": "string",
+      "description": "Normalized admin email or system actor that created this definition."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the definition was created."
+    },
+    "updated_by": {
+      "type": "string",
+      "description": "Normalized admin email or system actor that last updated this definition."
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the definition was last updated."
+    }
+  },
+  "required": [
+    "quest_key",
+    "title",
+    "description",
+    "quest_type",
+    "target_value",
+    "reward_diamonds",
+    "status"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

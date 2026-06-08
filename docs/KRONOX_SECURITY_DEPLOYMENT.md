@@ -169,6 +169,24 @@ Rules:
   `recipientEmail`, template version, and email dispatch status; it must not
   return report body content, secrets, or stack traces
 
+Daily Quest Definition management:
+
+* Profile / Settings / `Ayarlar` may show `Günlük Görev Yönetimi` only after
+  the current user is enriched by `getAdminStatus` as active `AdminUser`
+  `owner`/`admin`
+* definition writes go through `createDailyQuestDefinition`, a Base44 callable
+  with an inline AdminUser-backed guard so flat function deployment does not
+  depend on a local shared import
+* normal users and disabled/passive admins must receive 401/403 before list,
+  seed, create, or status updates
+* no hardcoded admin email allowlists are allowed
+* admin-entered `title` and `description` are display-only; free text, AI/NLP,
+  regex, or scripts must never become executable quest logic
+* only supported `quest_type` enum values plus `target_value` define future
+  progress logic
+* rewards are Diamonds only; Daily Quest definitions must not grant Kronox
+  Puan and must not affect leaderboard
+
 Admin-only maintenance helpers must also fail closed. The legacy one-off
 test-account progress reset helper requires both admin authorization and a
 deployment allowlist:
