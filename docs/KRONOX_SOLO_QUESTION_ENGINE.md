@@ -168,6 +168,20 @@ The subtle placement hint remains visual-only for levels 1-3:
 - no hit-testing, drag behavior, or validation changes
 - disabled for level 4+ and Online mode
 
+## Mobile Browser Drag Guard
+
+Solo card dragging on mobile web uses a gameplay-scoped pull-to-refresh guard:
+- the drag lock is active only while the question card is being dragged
+- native touchmove prevention must use `passive:false` where needed
+- the timeline keeps horizontal `scrollLeft` auto-scroll and drop-zone
+  hit-testing intact
+- Profile, Settings, and other non-game screens must keep normal scrolling
+- iOS Safari, Android Chrome, and PWA/standalone require real-device proof
+- if a full browser refresh still happens, current-attempt restore remains a
+  separate release risk unless proven by runtime testing
+- used jokers are not refunded if refresh/close happens after a joker effect
+  was successfully applied
+
 ## Solo Jokers / User Inventory
 
 Solo jokers are user-owned and Solo-only:

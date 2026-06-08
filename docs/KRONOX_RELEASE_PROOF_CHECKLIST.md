@@ -285,6 +285,18 @@ Checklist:
 * Fixed screens remain no-scroll where intended.
 * Scroll screens scroll only their intended content area.
 * Gameplay drag/drop does not trigger page overscroll.
+* Mobile browser gameplay uses a scoped card-drag overscroll guard: the guard
+  is active only during gameplay/card drag, uses a `passive:false` touchmove
+  prevention path where needed, and must not disable Profile/Settings scrolling.
+* Real-device proof is required on iOS Safari, Android Chrome, and PWA/standalone
+  before release: start Solo, drag the question card vertically/diagonally,
+  confirm pull-to-refresh does not fire, then confirm placement, drop-zone
+  hit-testing, and horizontal timeline auto-scroll still work.
+* If the browser is refreshed anyway, full current-attempt restore is not proven
+  by this guard; treat refresh resume as a separate follow-up risk unless a
+  runtime restore proof exists.
+* Used jokers are not refunded if the browser is refreshed or closed after
+  the joker effect was applied.
 * Review the Play Console warning after uploading the new AAB.
 * If the warning still lists `android.view.Window.setStatusBarColor`, `android.view.Window.getStatusBarColor`, or `android.view.Window.setNavigationBarColor` under React Native / native-wrapper call sites, update the Android wrapper/dependencies rather than adding web-app workarounds.
 * Do not mark this complete from static Health alone; it requires an Android 15 runtime proof and Play Console review.

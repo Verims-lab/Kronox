@@ -424,7 +424,7 @@ export default function Timeline({
       <div className="relative w-full">
         <div
           ref={scrollRef}
-          className="w-full overflow-x-auto"
+          className="kronox-timeline-horizontal-scroll w-full overflow-x-auto"
           style={{
             scrollbarWidth: 'none',
             msOverflowStyle: 'none',

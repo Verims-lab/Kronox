@@ -111,6 +111,16 @@ valid spaced deck exists at all.
 Replay creates a new deck. Old completed results are not retroactively
 recalculated. New attempts may carry soloRulesVersion: 2.
 
+Mobile browser Solo card dragging uses a gameplay-scoped pull-to-refresh
+guard. The lock is active only while the question card is dragged, native
+touchmove prevention uses passive:false where needed, timeline scrollLeft
+auto-scroll and drop-zone hit-testing remain intact, and Profile/Settings
+scrolling must stay normal. iOS Safari, Android Chrome, and PWA standalone
+still require real-device proof. If a full browser refresh happens anyway,
+current-attempt restore remains separate future work unless proven at runtime.
+Used jokers are not refunded if refresh/close happens after the effect is
+successfully applied.
+
 Solo jokers are user-owned and Solo-only. Solo joker buttons read
 UserJokerInventory and show owned counts for Kronokalkan, Kart Değiştir, and
 Zaman Dondur. A player may use multiple jokers across a Solo level when they
