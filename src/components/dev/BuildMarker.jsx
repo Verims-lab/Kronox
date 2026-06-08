@@ -1216,6 +1216,10 @@ import React, { useEffect, useState } from 'react';
 //     Bugünkü Görevler claim UI while keeping rewards Diamonds-only, no
 //     Kronox Puan, no leaderboard impact, and Daily Wheel separate.
 //
+// Codex293 — Günlük Ödüller text contract:
+//   • MainMenu passes an accessible label that explicitly includes Günlük Çark
+//     and Günlük Görev while keeping the panel above Solo/Online CTAs.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1520,7 +1524,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex292';
+const BUILD_MARKER = 'Codex293';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

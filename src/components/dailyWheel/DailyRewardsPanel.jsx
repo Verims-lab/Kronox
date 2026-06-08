@@ -4,7 +4,7 @@ import DailyWheelCard from './DailyWheelCard';
 import { useDailyQuests } from '@/hooks/useDailyQuests';
 import { sounds } from '@/lib/gameSounds';
 
-export default function DailyRewardsPanel({ user, onUserUpdated, onLogin }) {
+export default function DailyRewardsPanel({ user, onUserUpdated, onLogin, ariaLabel = 'Günlük Ödüller' }) {
   return (
     <section
       className="w-full overflow-hidden rounded-[20px] px-3 py-3 font-inter"
@@ -15,7 +15,7 @@ export default function DailyRewardsPanel({ user, onUserUpdated, onLogin }) {
         boxShadow:
           '0 14px 34px rgba(0,0,0,0.28), inset 0 0 0 1px rgba(255,255,255,0.05)',
       }}
-      aria-label="Günlük Ödüller"
+      aria-label={ariaLabel}
     >
       <div className="mb-2 flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
