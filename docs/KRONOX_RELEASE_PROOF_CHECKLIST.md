@@ -142,7 +142,8 @@ Checklist:
   `reason: solo_use`, `quantity_delta: -1`, and a stable idempotency key.
 * Joker spend must not make balance negative and double tap must not duplicate
   the spend/ledger row.
-* Used jokers are not refunded on fail, timeout, replay, browser close, or exit.
+* used jokers are not refunded on fail, timeout, or exit.
+* No refund also applies to replay, browser close, or abandoned attempts.
 * Jokers do not spend Diamonds and do not grant Kronox Puan.
 
 ---

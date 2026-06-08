@@ -182,7 +182,8 @@ Solo jokers are user-owned and Solo-only:
   decision
 - balance is spent through the server-backed joker inventory path with a
   `JokerTransaction` reason of `solo_use`
-- used jokers are not refunded on fail, timeout, replay, browser close, or exit
+- used jokers are not refunded on fail, timeout, or exit
+- no refund also applies to replay, browser close, or abandoned attempts
 - jokers do not grant Kronox Puan directly and do not change Solo scoring values
 
 Inventory foundation:

@@ -118,8 +118,9 @@ own enough balance, but only one joker may be used for the current
 question/card decision. Kart Değiştir keeps the same current-card guard for
 the replacement card. Successful Solo use writes a JokerTransaction row with
 reason solo_use and quantity_delta -1. Used jokers are not refunded on fail,
-timeout, replay, browser close, or exit. Jokers do not use Diamonds, do not
-grant Kronox Puan, and do not affect Online mode.
+timeout, or exit. No refund also applies to replay, browser close, or
+abandoned attempts. Jokers do not use Diamonds, do not grant Kronox Puan, and
+do not affect Online mode.
 
 Kronokalkan forgives the next wrong placement without counting a mistake.
 Kart Değiştir replaces the current card from the already prepared Solo deck

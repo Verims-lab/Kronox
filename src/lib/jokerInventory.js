@@ -8,6 +8,9 @@ export const JOKER_TYPES = Object.freeze({
 
 export const STARTER_JOKER_QUANTITY = 3;
 export const JOKER_STARTER_SOURCE = 'starter_jokers';
+export const JOKER_NON_NEGATIVE_BALANCE_CONTRACT = Object.freeze({
+  "minimum": 0,
+});
 export const JOKER_TRANSACTION_REASONS = Object.freeze({
   STARTER_GRANT: 'starter_grant',
   ADMIN_ADJUSTMENT: 'admin_adjustment',
@@ -41,7 +44,7 @@ export const PHASE2_SOLO_JOKER_CONSUMPTION_CONTRACT = [
   'One joker may be used per question/card.',
   'Any number of jokers may be used across a level if the user owns them.',
   'A joker spend writes JokerTransaction reason solo_use after the effect is validated.',
-  'Used jokers are not refunded on fail/exit.',
+  'used jokers are not refunded on fail, timeout, or exit.',
 ].join(' ');
 
 export function normalizeJokerEmail(value) {
@@ -50,8 +53,8 @@ export function normalizeJokerEmail(value) {
 
 export function normalizeJokerQuantity(value) {
   const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return 0;
-  return Math.max(0, Math.floor(numeric));
+  if (!Number.isFinite(numeric)) return JOKER_NON_NEGATIVE_BALANCE_CONTRACT["minimum"];
+  return Math.max(JOKER_NON_NEGATIVE_BALANCE_CONTRACT["minimum"], Math.floor(numeric));
 }
 
 export function emptyJokerBalances(fill = 0) {

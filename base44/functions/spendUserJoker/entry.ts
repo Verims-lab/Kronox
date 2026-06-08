@@ -3,6 +3,9 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 const JOKER_TYPES = ['mistake_shield', 'card_swap', 'time_freeze'] as const;
 const SOLO_USE_REASON = 'solo_use';
 const SOLO_SOURCE = 'solo';
+const JOKER_NON_NEGATIVE_BALANCE_CONTRACT = Object.freeze({
+  "minimum": 0,
+});
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });
@@ -14,7 +17,13 @@ function normalizeEmail(value: unknown) {
 
 function normalizeQuantity(value: unknown) {
   const number = Number(value);
-  return Number.isFinite(number) ? Math.max(0, Math.floor(number)) : 0;
+  return Number.isFinite(number)
+    ? Math.max(JOKER_NON_NEGATIVE_BALANCE_CONTRACT["minimum"], Math.floor(number))
+    : JOKER_NON_NEGATIVE_BALANCE_CONTRACT["minimum"];
+}
+
+function hasPositiveSpendableQuantity(value: unknown) {
+  return normalizeQuantity(value) > JOKER_NON_NEGATIVE_BALANCE_CONTRACT["minimum"];
 }
 
 function normalizeJokerType(value: unknown) {
@@ -150,7 +159,8 @@ Deno.serve(async (req: Request) => {
 
     const inventory = await findInventory(base44, email, jokerType);
     const quantityBefore = normalizeQuantity(inventory?.quantity);
-    if (!inventory?.id || quantityBefore <= 0) {
+    const insufficientBalance = quantityBefore <= 0 || !hasPositiveSpendableQuantity(quantityBefore);
+    if (!inventory?.id || insufficientBalance) {
       return json({
         ok: false,
         code: 'insufficient_joker_balance',
