@@ -52,6 +52,15 @@ export default function DailyRewardsPanel({ user, onUserUpdated, onLogin, ariaLa
 
 function DailyQuestV1Card({ user, onUserUpdated, onLogin }) {
   const dailyQuests = useDailyQuests({ user, onUserUpdated });
+  const canSeeAdminQuestHint = Boolean(
+    user?.is_admin === true ||
+    user?.role === 'admin' ||
+    user?.role === 'owner' ||
+    user?.admin_status_debug?.parsedIsAdmin === true
+  );
+  const emptyCopy = dailyQuests.emptyStateReason === 'progress_rows_missing_after_ensure'
+    ? 'Görevler yenilenemedi. Tekrar dene.'
+    : 'Bugünkü görevler yakında hazır olacak.';
 
   const handleLogin = () => {
     sounds.tap();
@@ -118,10 +127,15 @@ function DailyQuestV1Card({ user, onUserUpdated, onLogin }) {
       )}
 
       {dailyQuests.isSignedIn && dailyQuests.status === 'empty' && (
-        <p className="rounded-xl px-3 py-2 text-[11px] font-bold text-slate-300"
+        <div className="rounded-xl px-3 py-2 text-[11px] font-bold text-slate-300"
           style={{ background: 'rgba(15,23,42,0.45)' }}>
-          Bugünkü görevler hazırlanıyor.
-        </p>
+          <p>{emptyCopy}</p>
+          {canSeeAdminQuestHint && dailyQuests.adminWarning === 'insufficient_active_definitions' && (
+            <p className="mt-1 text-[10px] font-semibold text-amber-100">
+              Aktif günlük görev tanımı yok. Ayarlar &gt; Günlük Görev Yönetimi bölümünden aktif görev ekleyin.
+            </p>
+          )}
+        </div>
       )}
 
       {dailyQuests.isSignedIn && dailyQuests.quests.length > 0 && (

@@ -27,6 +27,8 @@ export function useDailyQuests({ user, onUserUpdated } = {}) {
   const [quests, setQuests] = useState([]);
   const [serverDate, setServerDate] = useState(null);
   const [adminWarning, setAdminWarning] = useState(null);
+  const [activeDefinitionCount, setActiveDefinitionCount] = useState(0);
+  const [emptyStateReason, setEmptyStateReason] = useState('');
   const [error, setError] = useState('');
   const [claimingId, setClaimingId] = useState(null);
   const claimPendingRef = useRef(new Set());
@@ -40,6 +42,8 @@ export function useDailyQuests({ user, onUserUpdated } = {}) {
       setQuests([]);
       setServerDate(null);
       setAdminWarning(null);
+      setActiveDefinitionCount(0);
+      setEmptyStateReason('');
       return null;
     }
     setStatus('loading');
@@ -49,12 +53,15 @@ export function useDailyQuests({ user, onUserUpdated } = {}) {
       setQuests(nextQuests);
       setServerDate(body?.serverDate || null);
       setAdminWarning(body?.adminWarning || null);
+      setActiveDefinitionCount(Math.max(0, Math.floor(Number(body?.activeDefinitionCount) || 0)));
+      setEmptyStateReason(body?.emptyStateReason || (nextQuests.length ? '' : 'no_active_definitions'));
       setStatus(nextQuests.length ? 'ready' : 'empty');
       return body;
     } catch (err) {
       setStatus('error');
       setError(err?.message || 'Günlük görevler yüklenemedi.');
       setQuests([]);
+      setEmptyStateReason('fetch_error');
       return null;
     }
   }, [isSignedIn]);
@@ -99,6 +106,8 @@ export function useDailyQuests({ user, onUserUpdated } = {}) {
     quests,
     serverDate,
     adminWarning,
+    activeDefinitionCount,
+    emptyStateReason,
     error,
     claimingId,
     isSignedIn,
@@ -109,6 +118,8 @@ export function useDailyQuests({ user, onUserUpdated } = {}) {
     quests,
     serverDate,
     adminWarning,
+    activeDefinitionCount,
+    emptyStateReason,
     error,
     claimingId,
     isSignedIn,

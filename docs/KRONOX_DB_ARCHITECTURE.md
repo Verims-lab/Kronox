@@ -164,6 +164,13 @@ system templates. `title` and `description` are display-only; they are never
 parsed by regex, AI/NLP, free text, or scripts. The executable contract is
 strictly `quest_type + target_value`, with v1 `quest_type` limited to
 `start_solo_attempt`, `correct_cards`, `complete_solo_level`, and `use_joker`.
+Bugünkü Görevler requires active `DailyQuestDefinition` rows. On a fresh DB, the
+runtime status/progress functions seed the four default Solo-focused
+definitions idempotently only when no definition rows exist; if admins have
+passivated definitions, Home shows a safe empty state instead of granting or
+recreating rewards.
+Loading or ensuring today’s quests does not grant Diamonds;
+`claimDailyQuestReward` remains the only reward path.
 `UserDailyQuestProgress` tracks user/day progress, copied `target_value`, copied
 `reward_diamonds`, `status`, `completed_at`, and `claimed_at`. Claim grants
 diamonds only through `DiamondTransaction.source = daily_quest_reward`; Daily
