@@ -195,6 +195,9 @@ import * as categoryPreferenceCases from './simulationPanelCategoryPreferenceCas
 // against the stale-deploy/broken-local-import incident, verifies the
 // frontend invoke() map, and keeps backend deploy proof an honest manual step.
 import * as backendDeployabilityCases from './simulationPanelBackendDeployabilityCases';
+// Mobile gameplay browser drag guard: scoped pull-to-refresh prevention,
+// passive:false touchmove contract, and timeline auto-scroll preservation.
+import * as mobileGameplayGestureCases from './simulationPanelMobileGameplayGestureCases';
 
 const MODULES = [
   soloProgressCases,
@@ -242,6 +245,7 @@ const MODULES = [
   numericTypographyCases,
   categoryPreferenceCases,
   backendDeployabilityCases,
+  mobileGameplayGestureCases,
 ];
 
 function flatten(key) {

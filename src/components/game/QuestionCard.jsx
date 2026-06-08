@@ -76,6 +76,7 @@ export default function QuestionCard({
   onDragEnd,
   onTouchDragMove,
   onTouchDragEnd,
+  onTouchDragCancel,
   soloReadableCard = false,
 }) {
   const [playing, setPlaying] = useState(false);
@@ -141,6 +142,22 @@ export default function QuestionCard({
     if (onDragEnd) onDragEnd();
   };
 
+  const handleTouchCancel = () => {
+    if (!draggable || !touchDragging.current) return;
+    touchDragging.current = false;
+    if (onTouchDragCancel) onTouchDragCancel();
+    if (onDragEnd) onDragEnd();
+  };
+
+  const handlePointerDown = (e) => {
+    if (!draggable || e.pointerType !== 'touch') return;
+    if (onDragStart) onDragStart();
+  };
+
+  const handlePointerCancel = () => {
+    handleTouchCancel();
+  };
+
   const neon = categoryNeon[question?.category] || defaultNeon;
   const QuestionIcon = soloReadableCard ? null : getQuestionIcon(question?.question, question?.category);
 
@@ -166,6 +183,11 @@ export default function QuestionCard({
     setIsDraggingNow(false);
     handleTouchEnd(e);
   };
+  const handleTouchCancelWrapped = () => {
+    if (!draggable) return;
+    setIsDraggingNow(false);
+    handleTouchCancel();
+  };
 
   return (
     <motion.div
@@ -180,10 +202,15 @@ export default function QuestionCard({
       draggable={draggable}
       onDragStart={draggable ? onDragStart : undefined}
       onDragEnd={draggable ? onDragEnd : undefined}
+      onPointerDown={draggable ? handlePointerDown : undefined}
+      onPointerUp={draggable ? onDragEnd : undefined}
+      onPointerCancel={draggable ? handlePointerCancel : undefined}
       onTouchStart={handleTouchStartWrapped}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEndWrapped}
+      onTouchCancel={handleTouchCancelWrapped}
       className={`relative flex flex-col rounded-2xl overflow-hidden select-none mx-auto
+        ${draggable ? 'kronox-question-card-drag-surface' : ''}
         ${draggable ? 'cursor-grab active:cursor-grabbing' : ''}
       `}
       style={{

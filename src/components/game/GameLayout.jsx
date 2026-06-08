@@ -113,6 +113,7 @@ export default function GameLayout({
   onDragEnd,
   onTouchDragMove,
   onTouchDragEnd,
+  onTouchDragCancel,
   onTimeUp,
 }) {
   // Ghost card follows the raw finger position (viewport coords) — no scroll correction needed
@@ -156,7 +157,11 @@ export default function GameLayout({
   }, [visibleProgressCount]);
 
   return (
-    <div className="kx-viewport-lock flex flex-col" style={{ background: 'linear-gradient(to bottom, #0B1F3A 0%, #1E3A8A 100%)' }}>
+    <div
+      className={`kx-viewport-lock kronox-gameplay-root flex flex-col ${isDragging ? 'kronox-game-drag-lock' : ''}`}
+      data-kronox-gameplay-root="true"
+      style={{ background: 'linear-gradient(to bottom, #0B1F3A 0%, #1E3A8A 100%)' }}
+    >
       {/* TOP BAR */}
       <div
         className="relative flex-shrink-0 px-4 pt-2 pb-1"
@@ -328,6 +333,7 @@ export default function GameLayout({
               onDragEnd={isMyTurn ? onDragEnd : undefined}
               onTouchDragMove={isMyTurn ? onTouchDragMove : undefined}
               onTouchDragEnd={isMyTurn ? onTouchDragEnd : undefined}
+              onTouchDragCancel={isMyTurn ? onTouchDragCancel : undefined}
               soloReadableCard={!isOnline}
             />
             {isSpectatingQuestion && (

@@ -222,6 +222,25 @@
     }
   }
 
+  html.kronox-game-drag-lock,
+  body.kronox-game-drag-lock,
+  .kronox-gameplay-root.kronox-game-drag-lock {
+    overflow: hidden;
+    overscroll-behavior: none;
+    touch-action: none;
+  }
+
+  .kronox-question-card-drag-surface {
+    overscroll-behavior: none;
+    touch-action: none;
+  }
+
+  .kronox-timeline-horizontal-scroll {
+    overscroll-behavior-x: contain;
+    overscroll-behavior-y: none;
+    touch-action: pan-x;
+  }
+
   .kx-contained-scroll {
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;

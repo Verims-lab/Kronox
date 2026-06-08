@@ -89,6 +89,8 @@ import { applyOnlineMatchToCurrentUser } from '@/lib/applyOnlineResult';
 // time bonus AND result popup time display. Same source = no inconsistency.
 import { getOnlinePlayerElapsedSeconds } from '@/lib/onlinePlayerElapsed';
 
+const GAMEPLAY_DRAG_LOCK_CLASS = 'kronox-game-drag-lock';
+
 const normalizeOnlineEmail = (value) => String(value || '').trim().toLowerCase();
 
 const getOpponentEmailForOnlineResult = (players = [], localEmail = null) => {
@@ -232,6 +234,21 @@ export default function Game() {
   } = useGameState({ playerNames, initialPlayers, currentQuestionIdFromState, lobbyId, isOnlineMode: isOnlineFromState });
 
   const winTimerRef = useRef(null);
+  const gameplayDragLockRef = useRef(false);
+
+  const releaseGameplayDragLock = useCallback(() => {
+    gameplayDragLockRef.current = false;
+    if (typeof document === 'undefined') return;
+    document.documentElement.classList.remove(GAMEPLAY_DRAG_LOCK_CLASS);
+    document.body.classList.remove(GAMEPLAY_DRAG_LOCK_CLASS);
+  }, []);
+
+  const engageGameplayDragLock = useCallback(() => {
+    gameplayDragLockRef.current = true;
+    if (typeof document === 'undefined') return;
+    document.documentElement.classList.add(GAMEPLAY_DRAG_LOCK_CLASS);
+    document.body.classList.add(GAMEPLAY_DRAG_LOCK_CLASS);
+  }, []);
 
   // Codex106 — Solo Level attempt state. All gated by `isSoloLevelMode`,
   // so other modes (online, legacy solo) are unaffected.
@@ -997,21 +1014,63 @@ export default function Game() {
     setIsTimeUp(false);
   }, [currentPlayerIndex, setTimerKey, setIsTimeUp]);
 
+  // Codex282 — Mobile web gameplay drag guard. Browsers may treat card
+  // movement as pull-to-refresh unless a native touchmove listener is
+  // registered with passive:false while the card is actively dragged.
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const preventPullToRefreshDuringDrag = (event) => {
+      if (!gameplayDragLockRef.current) return;
+      if ('pointerType' in event && event.pointerType && event.pointerType !== 'touch') return;
+      if (event.cancelable) event.preventDefault();
+    };
+
+    const cleanupCancelledDrag = () => {
+      releaseGameplayDragLock();
+      setIsDragging(false);
+      setTouchDragPos(null);
+    };
+
+    window.addEventListener('touchmove', preventPullToRefreshDuringDrag, { passive: false });
+    window.addEventListener('pointermove', preventPullToRefreshDuringDrag, { passive: false });
+    window.addEventListener('touchend', cleanupCancelledDrag, { passive: true });
+    window.addEventListener('pointerup', cleanupCancelledDrag, { passive: true });
+    window.addEventListener('touchcancel', cleanupCancelledDrag, { passive: true });
+    window.addEventListener('pointercancel', cleanupCancelledDrag, { passive: true });
+
+    return () => {
+      window.removeEventListener('touchmove', preventPullToRefreshDuringDrag);
+      window.removeEventListener('pointermove', preventPullToRefreshDuringDrag);
+      window.removeEventListener('touchend', cleanupCancelledDrag);
+      window.removeEventListener('pointerup', cleanupCancelledDrag);
+      window.removeEventListener('touchcancel', cleanupCancelledDrag);
+      window.removeEventListener('pointercancel', cleanupCancelledDrag);
+      releaseGameplayDragLock();
+    };
+  }, [releaseGameplayDragLock, setIsDragging, setTouchDragPos]);
+
+  useEffect(() => {
+    if (!isDragging) releaseGameplayDragLock();
+  }, [isDragging, releaseGameplayDragLock]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       clearTimeout(winTimerRef.current);
       clearSoloTimerFreeze(false, false);
+      releaseGameplayDragLock();
     };
-  }, [clearSoloTimerFreeze]);
+  }, [clearSoloTimerFreeze, releaseGameplayDragLock]);
 
   // Browser close uyarısı
   useEffect(() => {
-    if (winner || soloLevelResult) return;
+    const activeGameplayAttempt = Boolean(gameStarted && currentQuestion && !winner && !soloLevelResult);
+    if (!activeGameplayAttempt) return;
     const handleBeforeUnload = (e) => { e.preventDefault(); e.returnValue = ''; };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [winner, soloLevelResult]);
+  }, [gameStarted, currentQuestion, winner, soloLevelResult]);
 
   // Geri tuşu yakalama
   useEffect(() => {
@@ -1046,6 +1105,32 @@ export default function Game() {
     if (!isMyTurn) return;
     skipCurrentQuestion(currentQuestion?.id);
   }, [currentQuestion?.id, isMyTurn, skipCurrentQuestion]);
+  const handleGameplayCardDragStart = useCallback(() => {
+    engageGameplayDragLock();
+    setIsDragging(true);
+  }, [engageGameplayDragLock, setIsDragging]);
+  const handleGameplayCardDragEnd = useCallback(() => {
+    releaseGameplayDragLock();
+    setIsDragging(false);
+    setTouchDragPos(null);
+  }, [releaseGameplayDragLock, setIsDragging, setTouchDragPos]);
+  const handleGameplayCardTouchMove = useCallback((x, y) => {
+    engageGameplayDragLock();
+    setIsDragging(true);
+    setTouchDragPos({ x, y });
+  }, [engageGameplayDragLock, setIsDragging, setTouchDragPos]);
+  const handleGameplayCardTouchEnd = useCallback((x, y) => {
+    releaseGameplayDragLock();
+    setIsDragging(false);
+    setTouchDragPos(null);
+    setTouchDragEnd({ x, y });
+    setTimeout(() => setTouchDragEnd(null), 100);
+  }, [releaseGameplayDragLock, setIsDragging, setTouchDragEnd, setTouchDragPos]);
+  const handleGameplayCardTouchCancel = useCallback(() => {
+    releaseGameplayDragLock();
+    setIsDragging(false);
+    setTouchDragPos(null);
+  }, [releaseGameplayDragLock, setIsDragging, setTouchDragPos]);
 
   const markSoloJokerUsedForDecision = useCallback((decisionKey, jokerType) => {
     if (!decisionKey || !jokerType) return;
@@ -1863,10 +1948,11 @@ export default function Game() {
         onConfirmPlacement={handleConfirmPlacement}
         onImageError={handleImageError}
         onAudioError={handleAudioError}
-        onDragStart={() => { setIsDragging(true); }}
-        onDragEnd={() => { setIsDragging(false); setTouchDragPos(null); }}
-        onTouchDragMove={(x, y) => { setIsDragging(true); setTouchDragPos({ x, y }); }}
-        onTouchDragEnd={(x, y) => { setIsDragging(false); setTouchDragPos(null); setTouchDragEnd({ x, y }); setTimeout(() => setTouchDragEnd(null), 100); }}
+        onDragStart={handleGameplayCardDragStart}
+        onDragEnd={handleGameplayCardDragEnd}
+        onTouchDragMove={handleGameplayCardTouchMove}
+        onTouchDragEnd={handleGameplayCardTouchEnd}
+        onTouchDragCancel={handleGameplayCardTouchCancel}
         onTimeUp={handleTimeUp}
         isTimeUp={isTimeUp}
         progressCardCount={isSoloLevelMode ? cardsCompletedSolo : undefined}
