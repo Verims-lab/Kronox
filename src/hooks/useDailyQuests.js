@@ -10,6 +10,7 @@ function normalizeQuest(row) {
   return {
     id: row?.id || null,
     questKey: String(row?.questKey || row?.quest_key || ''),
+    questDate: String(row?.questDate || row?.quest_date || ''),
     title: String(row?.title || ''),
     description: String(row?.description || ''),
     questType: String(row?.questType || row?.quest_type || ''),
@@ -20,6 +21,13 @@ function normalizeQuest(row) {
     completedAt: row?.completedAt || row?.completed_at || null,
     claimedAt: row?.claimedAt || row?.claimed_at || null,
   };
+}
+
+function buildClaimKey(quest, serverDate) {
+  if (quest?.id) return quest.id;
+  const questKey = String(quest?.questKey || '').trim();
+  const questDate = String(quest?.questDate || serverDate || '').trim();
+  return questKey ? `${questKey}:${questDate}` : '';
 }
 
 export function useDailyQuests({ user, onUserUpdated } = {}) {
@@ -77,17 +85,25 @@ export function useDailyQuests({ user, onUserUpdated } = {}) {
   }, [refresh, onUserUpdated]);
 
   const claim = useCallback(async (quest) => {
-    const progressId = quest?.id;
-    if (!progressId || claimPendingRef.current.has(progressId)) return null;
+    const claimKey = buildClaimKey(quest, serverDate);
+    if (!claimKey) {
+      setError('Günlük görev ödülü doğrulanamadı. Tekrar dene.');
+      return null;
+    }
+    if (claimPendingRef.current.has(claimKey)) return null;
     setError('');
-    claimPendingRef.current.add(progressId);
-    setClaimingId(progressId);
+    claimPendingRef.current.add(claimKey);
+    setClaimingId(claimKey);
     try {
-      const body = await claimDailyQuestReward({ progressId });
+      const body = await claimDailyQuestReward({
+        progressId: quest?.id || undefined,
+        questKey: quest?.questKey,
+        questDate: quest?.questDate || serverDate,
+      });
       if (body?.userPatch && typeof onUserUpdated === 'function') onUserUpdated(body.userPatch);
       if (body?.quest) {
         setQuests((current) => current.map((item) => (
-          item.id === progressId ? normalizeQuest(body.quest) : item
+          buildClaimKey(item, serverDate) === claimKey ? normalizeQuest(body.quest) : item
         )));
       }
       await refresh();
@@ -96,10 +112,12 @@ export function useDailyQuests({ user, onUserUpdated } = {}) {
       setError(err?.message || 'Günlük görev ödülü alınamadı.');
       return null;
     } finally {
-      claimPendingRef.current.delete(progressId);
+      claimPendingRef.current.delete(claimKey);
       setClaimingId(null);
     }
-  }, [onUserUpdated, refresh]);
+  }, [onUserUpdated, refresh, serverDate]);
+
+  const getClaimKey = useCallback((quest) => buildClaimKey(quest, serverDate), [serverDate]);
 
   return useMemo(() => ({
     status,
@@ -113,6 +131,7 @@ export function useDailyQuests({ user, onUserUpdated } = {}) {
     isSignedIn,
     refresh,
     claim,
+    getClaimKey,
   }), [
     status,
     quests,
@@ -125,5 +144,6 @@ export function useDailyQuests({ user, onUserUpdated } = {}) {
     isSignedIn,
     refresh,
     claim,
+    getClaimKey,
   ]);
 }

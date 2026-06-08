@@ -31,11 +31,19 @@ function buildClaimIdempotencyKey(email: string, dateKey: string, questKey: stri
   return `daily_quest_reward:${email}:${dateKey}:${questKey}`;
 }
 
+function rowId(row: any) {
+  return row?.id || row?._id || null;
+}
+
+function progressEntity(base44: any) {
+  return base44?.asServiceRole?.entities?.UserDailyQuestProgress;
+}
+
 function publicProgress(row: any) {
   const targetValue = Math.max(1, normalizeNumber(row?.target_value, 1));
   const progressValue = Math.min(targetValue, normalizeNumber(row?.progress_value, 0));
   return {
-    id: row?.id || null,
+    id: rowId(row),
     questKey: String(row?.quest_key || ''),
     questDate: String(row?.quest_date || ''),
     title: String(row?.title || row?.quest_key || ''),
@@ -50,16 +58,33 @@ function publicProgress(row: any) {
   };
 }
 
+async function findProgressById(base44: any, email: string, progressId: string) {
+  const entity = progressEntity(base44);
+  if (!entity || !progressId) return null;
+  if (typeof entity.get === 'function') {
+    const row = await entity.get(progressId).catch(() => null);
+    if (rowId(row) && normalizeEmail(row?.user_email) === email) return row;
+  }
+  if (typeof entity.filter === 'function') {
+    for (const field of ['id', '_id']) {
+      const rows = await entity.filter({ [field]: progressId }, '-created_at', 1).catch(() => []);
+      const row = Array.isArray(rows) && rows.length ? rows[0] : null;
+      if (rowId(row) && normalizeEmail(row?.user_email) === email) return row;
+    }
+  }
+  return null;
+}
+
 async function findProgress(base44: any, email: string, body: any) {
   const progressId = String(body?.progressId || body?.progress_id || '').trim();
   if (progressId) {
-    const row = await base44.asServiceRole.entities.UserDailyQuestProgress.get(progressId).catch(() => null);
-    return normalizeEmail(row?.user_email) === email ? row : null;
+    const row = await findProgressById(base44, email, progressId);
+    if (rowId(row)) return row;
   }
   const questKey = String(body?.questKey || body?.quest_key || '').trim();
   const questDate = String(body?.questDate || body?.quest_date || utcDateKey()).slice(0, 10);
   if (!questKey) return null;
-  const rows = await base44.asServiceRole.entities.UserDailyQuestProgress
+  const rows = await progressEntity(base44)
     .filter({ user_email: email, quest_date: questDate, quest_key: questKey }, '-created_at', 1)
     .catch(() => []);
   return Array.isArray(rows) && rows.length ? rows[0] : null;
@@ -79,9 +104,10 @@ async function createDiamondTransaction(base44: any, payload: Record<string, unk
 }
 
 async function markProgressClaimed(base44: any, row: any, claimedAt: string, tx: any) {
-  if (!row?.id) return row;
+  const id = rowId(row);
+  if (!id) return row;
   if (String(row?.status || '') === 'claimed' && row?.claimed_at) return row;
-  return base44.asServiceRole.entities.UserDailyQuestProgress.update(row.id, {
+  return progressEntity(base44).update(id, {
     status: 'claimed',
     claimed_at: claimedAt,
     updated_at: claimedAt,
@@ -93,6 +119,18 @@ async function markProgressClaimed(base44: any, row: any, claimedAt: string, tx:
       noLeaderboardImpact: true,
     },
   });
+}
+
+async function reconcileVisibleDiamondBalance(base44: any, user: any, balanceAfter: number, timestamp: string) {
+  const currentBalance = normalizeNumber(user?.diamonds, 0);
+  const nextBalance = Math.max(currentBalance, balanceAfter);
+  if (user?.id && nextBalance !== currentBalance) {
+    await base44.asServiceRole.entities.User.update(user.id, {
+      diamonds: nextBalance,
+      economy_updated_at: timestamp,
+    }).catch(() => null);
+  }
+  return nextBalance;
 }
 
 Deno.serve(async (req: Request) => {
@@ -114,8 +152,12 @@ Deno.serve(async (req: Request) => {
     }
 
     const body = await req.json().catch(() => ({}));
+    const progressStore = progressEntity(base44);
+    if (!progressStore?.filter || !progressStore?.update) {
+      return json({ ok: false, code: 'daily_quest_entities_missing', error: 'Günlük görev kayıtları hazır değil.' }, 500);
+    }
     const progress = await findProgress(base44, email, body);
-    if (!progress?.id) {
+    if (!rowId(progress)) {
       return json({ ok: false, code: 'daily_quest_not_found', error: 'Günlük görev bulunamadı.' }, 404);
     }
 
@@ -132,7 +174,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const rewardDiamonds = Math.max(1, normalizeNumber(progress.reward_diamonds, 1));
-    const idempotencyKey = buildClaimIdempotencyKey(email, questDate, String(progress.quest_key || progress.id));
+    const idempotencyKey = buildClaimIdempotencyKey(email, questDate, String(progress.quest_key || rowId(progress)));
     const existingTx = await findDiamondTransaction(base44, email, idempotencyKey);
     const timestamp = new Date().toISOString();
     const nextAvailableAt = nextUtcMidnightIso(todayKey);
@@ -140,17 +182,24 @@ Deno.serve(async (req: Request) => {
     if (existingTx) {
       const claimedProgress = await markProgressClaimed(base44, progress, progress.claimed_at || existingTx.created_at || timestamp, existingTx);
       const latestUser = await base44.auth.me().catch(() => user);
+      const diamondBalanceAfter = await reconcileVisibleDiamondBalance(
+        base44,
+        latestUser,
+        normalizeNumber(existingTx.balance_after ?? latestUser?.diamonds),
+        timestamp,
+      );
       return json({
         ok: true,
         alreadyClaimed: true,
         source: DAILY_QUEST_REWARD_SOURCE,
         quest: publicProgress(claimedProgress),
         rewardDiamonds: normalizeNumber(existingTx.amount, rewardDiamonds),
-        diamondBalanceAfter: normalizeNumber(existingTx.balance_after ?? latestUser?.diamonds),
+        diamondBalanceAfter,
+        questStatus: 'claimed',
         idempotencyKey,
         transactionId: existingTx.id || null,
         userPatch: {
-          diamonds: normalizeNumber(existingTx.balance_after ?? latestUser?.diamonds),
+          diamonds: diamondBalanceAfter,
           daily_quest_last_claim_at: claimedProgress.claimed_at || existingTx.created_at || timestamp,
           daily_quest_last_claim_date: questDate,
           daily_quest_next_available_at: nextAvailableAt,
@@ -187,10 +236,10 @@ Deno.serve(async (req: Request) => {
         source: DAILY_QUEST_REWARD_SOURCE,
         direction: 'earn',
         related_entity_type: RELATED_ENTITY_TYPE,
-        related_entity_id: progress.id,
+        related_entity_id: rowId(progress),
         idempotency_key: idempotencyKey,
         metadata: {
-          questProgressId: progress.id,
+          questProgressId: rowId(progress),
           questKey: progress.quest_key,
           questDate,
           questType: progress.quest_type,
@@ -222,6 +271,7 @@ Deno.serve(async (req: Request) => {
       rewardDiamonds,
       diamondBalanceBefore: balanceBefore,
       diamondBalanceAfter: balanceAfter,
+      questStatus: 'claimed',
       idempotencyKey,
       transactionId: tx?.id || null,
       userPatch,
