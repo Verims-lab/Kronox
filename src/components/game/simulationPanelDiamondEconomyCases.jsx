@@ -8,6 +8,8 @@ import authContextSource from '../../lib/AuthContext.jsx?raw';
 import diamondEconomySource from '../../lib/diamondEconomy.js?raw';
 import leaderboardSource from '../../lib/leaderboard.js?raw';
 import mainMenuSource from '../../pages/MainMenu.jsx?raw';
+import marketPageSource from '../../pages/MarketPage.jsx?raw';
+import purchaseJokerWithDiamondsSource from '../../../base44/functions/purchaseJokerWithDiamonds/entry.ts?raw';
 import profilePageSource from '../../pages/ProfilePage.jsx?raw';
 import leaderboardPageSource from '../../pages/LeaderboardPage.jsx?raw';
 import soloChallengeSource from '../../pages/SoloChallenge.jsx?raw';
@@ -339,5 +341,88 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Daily Quest is documented as paused; active Diamond sources are starter_bonus, daily_login, daily_wheel, and market_purchase.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('market_purchase_is_diamond_sink',
+    'Mağaza purchase is a controlled Diamond sink',
+    () => {
+      const missing = missingTokens(`${purchaseJokerWithDiamondsSource}\n${diamondEconomySource}\n${economyRulesSource}`, [
+        "MARKET_PURCHASE: 'market_purchase'",
+        'const diamondCost = product.price * quantity',
+        'const diamondAfter = diamondBefore - diamondCost',
+        "direction: 'spend'",
+        'Mağaza purchase is a Diamond sink',
+      ]);
+      const forbidden = findForbidden({ purchaseJokerWithDiamondsSource }, [
+        'diamondAfter = diamondBefore +',
+        "direction: 'earn'",
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Mağaza purchase does not clearly remove Diamonds as a controlled sink.', {
+          verification: 'STATIC_CONTRACT',
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('Mağaza purchases remove Diamonds only through the server-backed spend path.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('market_purchase_updates_visible_diamond_balances',
+    'Home and Mağaza Diamond displays can update after purchase',
+    () => {
+      const missing = missingTokens(`${mainMenuSource}\n${marketPageSource}\n${purchaseJokerWithDiamondsSource}`, [
+        'getLeaderboardDiamondValue(user)',
+        'aria-label={`Elmas: ${diamonds}`}',
+        'setUser((current) => ({',
+        'diamonds: normalizeJokerQuantity(result.diamondBalanceAfter)',
+        'diamondBalanceAfter',
+      ]);
+      if (missing.length) {
+        return fail('Market purchase cannot clearly refresh visible Diamond totals.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['src/pages/MainMenu.jsx', 'src/pages/MarketPage.jsx', 'base44/functions/purchaseJokerWithDiamonds/entry.ts'],
+          missing,
+        });
+      }
+      return pass('Home and Mağaza Diamond displays use User.diamonds and Mağaza patches the post-purchase total.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('diamond_ledger_differentiates_daily_and_market_sources',
+    'DiamondTransaction differentiates Daily Wheel grants and Market spends',
+    () => {
+      const missing = missingTokens(`${diamondTransactionEntitySource}\n${diamondEconomySource}\n${economyRulesSource}`, [
+        '"starter_bonus"',
+        '"daily_login"',
+        '"daily_wheel"',
+        '"market_purchase"',
+        'earn for granted Diamonds, spend for Mağaza purchases/costs',
+        'Daily Wheel remains a Diamond source',
+        'Mağaza purchase is a Diamond sink',
+      ]);
+      if (missing.length) {
+        return fail('DiamondTransaction source/direction model no longer distinguishes grants from market spends.', {
+          verification: 'STATIC_CONTRACT',
+          missing,
+        });
+      }
+      return pass('Diamond ledger source/direction contracts distinguish starter/daily/wheel grants from Mağaza market_purchase spends.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('market_partial_failure_reconciliation_is_documented',
+    'Market partial-failure rollback/reconciliation risk is visible',
+    () => {
+      const missing = missingTokens(`${purchaseJokerWithDiamondsSource}\n${economyRulesSource}`, [
+        'rollbackState',
+        'market_ledger_write_failed',
+        'Partial failure reconciliation',
+        'best-effort rollback',
+      ]);
+      if (missing.length) {
+        return fail('Market partial failure handling or documentation is incomplete.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['base44/functions/purchaseJokerWithDiamonds/entry.ts', 'docs/KRONOX_ECONOMY_RULES.md'],
+          missing,
+        });
+      }
+      return pass('Market ledger write failure uses best-effort rollback and documents remaining reconciliation risk.', { verification: 'STATIC_CONTRACT' });
     }),
 ];

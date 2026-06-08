@@ -25,6 +25,10 @@ import soloQuestionEngineCasesSource from './simulationPanelSoloQuestionEngineCa
 import soloProgressCasesSource from './simulationPanelSoloProgressCases.jsx?raw';
 import securityCleanupCasesSource from './simulationPanelSecurityCleanupCases.jsx?raw';
 import backendSecurityCasesSource from './simulationPanelBackendSecurityCases.jsx?raw';
+import marketCasesSource from './simulationPanelMarketCases.jsx?raw';
+import diamondEconomyCasesSource from './simulationPanelDiamondEconomyCases.jsx?raw';
+import jokerInventoryCasesSource from './simulationPanelJokerInventoryCases.jsx?raw';
+import soloJokersCasesSource from './simulationPanelSoloJokersCases.jsx?raw';
 import accountDeletionCasesSource from './simulationPanelAccountDeletionCases.jsx?raw';
 import dbArchitectureCasesSource from './simulationPanelDbArchitectureImplementationCases.jsx?raw';
 import healthStatusSource from './health/healthStatus.jsx?raw';
@@ -328,6 +332,51 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Security Health keeps auth/authz, service-role, secret, question access, and account deletion risks visible.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('market_phase_1_health_registered',
+    'Health registers comprehensive Mağaza Phase 1 economy coverage',
+    () => {
+      const combined = [
+        marketCasesSource,
+        diamondEconomyCasesSource,
+        jokerInventoryCasesSource,
+        soloJokersCasesSource,
+        backendSecurityCasesSource,
+        releaseChecklistSource,
+        securityDocsSource,
+        economyDocsSource,
+      ].map(text).join('\n');
+      const missing = missingTokens(combined, [
+        'market_health',
+        'Mağaza / Market Health Suite',
+        'purchaseJokerWithDiamonds',
+        'Client does not control trusted purchase price',
+        'Successful purchase decreases Diamonds, increases joker balance, and writes both ledgers',
+        'Retry/idempotency contract prevents double-charge and double-grant drift',
+        'Mağaza purchase is a controlled Diamond sink',
+        'Market purchase increases the correct UserJokerInventory joker type only',
+        'Solo joker bar can reflect purchased Market balances',
+        'Market purchase does not trust client price or client identity',
+        'Daily Wheel remains Diamond-only',
+        'Online does not use market/joker purchases',
+      ]);
+      if (missing.length) {
+        return fail('Market Phase 1 Health coverage is not registered across economy/security/cross-mode suites.', {
+          verification: 'STATIC_CONTRACT',
+          files: [
+            'src/components/game/simulationPanelMarketCases.jsx',
+            'src/components/game/simulationPanelDiamondEconomyCases.jsx',
+            'src/components/game/simulationPanelJokerInventoryCases.jsx',
+            'src/components/game/simulationPanelSoloJokersCases.jsx',
+            'docs/KRONOX_RELEASE_PROOF_CHECKLIST.md',
+          ],
+          missing,
+        });
+      }
+      return pass('Market Phase 1 Health covers UI placement, server validation, dual ledgers, idempotency, and Diamond/Joker/Solo/Daily Wheel/Online boundaries.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

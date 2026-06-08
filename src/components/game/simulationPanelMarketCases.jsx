@@ -7,12 +7,15 @@ import mainMenuSource from '../../pages/MainMenu.jsx?raw';
 import appSource from '../../App.jsx?raw';
 import marketPageSource from '../../pages/MarketPage.jsx?raw';
 import standardTopBarSource from '../layout/StandardTopBar.jsx?raw';
+import bottomNavSource from '../layout/BottomNav.jsx?raw';
 import marketSource from '../../lib/market.js?raw';
 import economyGatewaySource from '../../lib/dbGateway/economyGateway.js?raw';
 import purchaseJokerWithDiamondsSource from '../../../base44/functions/purchaseJokerWithDiamonds/entry.ts?raw';
 import purchaseJokerWithDiamondsManifestSource from '../../../base44/functions/purchaseJokerWithDiamonds/function.jsonc?raw';
 import diamondTransactionEntitySource from '../../../base44/entities/DiamondTransaction.jsonc?raw';
 import jokerTransactionEntitySource from '../../../base44/entities/JokerTransaction.jsonc?raw';
+import { RELEASE_PROOF_CHECKLIST_DOC } from '@/lib/package2DocMirrors';
+import { ECONOMY_RULES_DOC } from '@/lib/economyRulesDoc';
 import profilePageSource from '../../pages/ProfilePage.jsx?raw';
 import gameSource from '../../pages/Game.jsx?raw';
 import claimDailyWheelRewardSource from '../../../base44/functions/claimDailyWheelReward/entry.ts?raw';
@@ -23,7 +26,7 @@ import { MARKET_JOKER_PRODUCTS } from '@/lib/market';
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL', NOT_AUTOMATABLE: 'NOT_AUTOMATABLE' };
 const ACTION_TYPES = { CODE_FIX: 'CODE_FIX', MANUAL_VERIFY: 'MANUAL_VERIFY' };
 const SUITE_ID = 'market_health';
-const SUITE_NAME = 'Mağaza Phase 1 Suite';
+const SUITE_NAME = 'Mağaza / Market Health Suite';
 
 function safeStr(source) {
   if (source == null) return '';
@@ -106,6 +109,32 @@ export const EXTRA_TESTS = [
       return pass('Mağaza page and purchaseJokerWithDiamonds backend invocation are present.', { verification: 'STATIC_CONTRACT' });
     }),
 
+  makeCase('market_mobile_page_navigation_contract',
+    'Mağaza is a mobile-safe page with consistent navigation',
+    () => {
+      const missing = missingTokens(`${marketPageSource}\n${bottomNavSource}\n${appSource}`, [
+        'min-h-screen',
+        'max-w-md',
+        'flex flex-col gap-3',
+        'showBack',
+        "navigate('/')",
+        'aria-label="Mağaza ürünleri"',
+        "const HIDDEN_ROUTES = ['/game']",
+        'path="/market"',
+      ]);
+      const forbidden = forbiddenTokens(marketPageSource, [
+        '<Dialog',
+        '<Modal',
+        'fixed inset-0 overflow-y-auto',
+      ]);
+      if (missing.length || forbidden.length) return fail('Mağaza is not clearly a mobile-safe top-level page or has fragile modal/nested-scroll tokens.', {
+        verification: 'STATIC_CONTRACT',
+        files: ['src/pages/MarketPage.jsx', 'src/components/layout/BottomNav.jsx', 'src/App.jsx'],
+        actual: { missing, forbidden },
+      });
+      return pass('Mağaza is a full page with back navigation and follows the existing bottom-nav hide-by-route rules.', { verification: 'STATIC_CONTRACT' });
+    }),
+
   makeCase('market_shows_exact_three_phase_1_joker_products',
     'Mağaza shows exactly the 3 Phase 1 joker products',
     () => {
@@ -169,6 +198,32 @@ export const EXTRA_TESTS = [
       return pass('Client displays prices but backend computes trusted Diamond cost from its own product table.', { verification: 'STATIC_CONTRACT' });
     }),
 
+  makeCase('market_product_cards_include_price_cta_owned_count_feedback',
+    'Product cards include price, owned count, CTA, and safe feedback',
+    () => {
+      const missing = missingTokens(marketPageSource, [
+        'ownedCount',
+        'x{ownedCount}',
+        '{product.price}',
+        'Satın Al',
+        'İşleniyor',
+        'Yeterli elmas yok',
+        "setNotice({ type: 'success'",
+        "setNotice({ type: 'error'",
+        '${product.name} alındı.',
+      ]);
+      const forbidden = forbiddenTokens(marketPageSource, [
+        'error?.message',
+        'stack',
+      ]);
+      if (missing.length || forbidden.length) return fail('Market cards lack price/CTA/count/feedback contract or can expose raw errors.', {
+        verification: 'STATIC_CONTRACT',
+        file: 'src/pages/MarketPage.jsx',
+        actual: { missing, forbidden },
+      });
+      return pass('Product cards show owned counts, prices, reachable purchase CTAs, and controlled success/failure feedback.', { verification: 'STATIC_CONTRACT' });
+    }),
+
   makeCase('purchase_requires_auth_and_self_owned_backend',
     'Purchase requires authenticated self-owned user context',
     () => {
@@ -186,6 +241,34 @@ export const EXTRA_TESTS = [
         missing,
       });
       return pass('Purchase function requires auth and writes user-owned rows for the requesting user.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('purchase_validates_joker_type_quantity_and_safe_errors',
+    'Purchase validates joker type/quantity and returns safe errors',
+    () => {
+      const missing = missingTokens(purchaseJokerWithDiamondsSource, [
+        'normalizeJokerType',
+        'invalid_joker_type',
+        'parsePurchaseQuantity',
+        'number <= 0',
+        'invalid_quantity',
+        'missing_idempotency_key',
+        'market_purchase_failed',
+        'Satın alma tamamlanamadı. Lütfen tekrar dene.',
+      ]);
+      const forbidden = forbiddenTokens(purchaseJokerWithDiamondsSource, [
+        'body?.price',
+        'body?.diamondCost',
+        'stack: error',
+        'error: error.message',
+        'user_email: body',
+      ]);
+      if (missing.length || forbidden.length) return fail('Purchase validation/safe-error contract is incomplete.', {
+        verification: 'STATIC_CONTRACT',
+        file: 'base44/functions/purchaseJokerWithDiamonds/entry.ts',
+        actual: { missing, forbidden },
+      });
+      return pass('Purchase rejects invalid joker types, zero/negative quantities, missing idempotency, and avoids raw error/secret exposure.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('insufficient_diamonds_blocks_purchase',
@@ -206,6 +289,25 @@ export const EXTRA_TESTS = [
         actual: { missing, guardedBeforeWrites },
       });
       return pass('Purchase rejects insufficient Diamonds before balance or ledger writes.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('purchase_cannot_make_negative_balances',
+    'Purchase cannot reduce Diamonds below zero or create negative joker balances',
+    () => {
+      const missing = missingTokens(`${purchaseJokerWithDiamondsSource}\n${diamondTransactionEntitySource}\n${jokerTransactionEntitySource}`, [
+        'diamondBefore < diamondCost',
+        'const diamondAfter = diamondBefore - diamondCost',
+        'const jokerAfter = jokerBefore + quantity',
+        'JOKER_NON_NEGATIVE_BALANCE_CONTRACT',
+        '"minimum": 0',
+        'normalizeDiamondBalance',
+        'normalizeQuantity',
+      ]);
+      if (missing.length) return fail('Purchase non-negative economy contract is incomplete.', {
+        verification: 'STATIC_CONTRACT',
+        missing,
+      });
+      return pass('Purchase has a pre-spend Diamond guard and non-negative balance normalization contracts.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('successful_purchase_updates_balances_and_ledgers',
@@ -234,6 +336,29 @@ export const EXTRA_TESTS = [
       return pass('Successful purchase updates Diamond balance, joker balance, DiamondTransaction, and JokerTransaction.', { verification: 'STATIC_CONTRACT' });
     }),
 
+  makeCase('purchase_result_and_ledgers_share_purchase_key',
+    'Purchase result exposes safe summary and both ledgers share purchase id',
+    () => {
+      const missing = missingTokens(purchaseJokerWithDiamondsSource, [
+        'related_entity_type: RELATED_ENTITY_TYPE',
+        'related_entity_id: idempotencyKey',
+        'idempotency_key: idempotencyKey',
+        'diamondBalanceAfter',
+        'jokerBalanceAfter',
+        'jokerType',
+        'diamondCost',
+        'purchaseId: idempotencyKey',
+        'diamondTransactionId',
+        'jokerTransactionId',
+      ]);
+      if (missing.length) return fail('Purchase result/ledger correlation contract is incomplete.', {
+        verification: 'STATIC_CONTRACT',
+        file: 'base44/functions/purchaseJokerWithDiamonds/entry.ts',
+        missing,
+      });
+      return pass('DiamondTransaction, JokerTransaction, and safe response diagnostics all carry the same purchase/idempotency key.', { verification: 'STATIC_CONTRACT' });
+    }),
+
   makeCase('purchase_has_double_tap_idempotency_guard',
     'Purchase uses client pending state and backend idempotency guards',
     () => {
@@ -253,6 +378,28 @@ export const EXTRA_TESTS = [
         missing,
       });
       return pass('Client disables pending purchases and backend checks purchase idempotency keys.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('retry_cannot_double_charge_or_double_grant',
+    'Retry/idempotency contract prevents double-charge and double-grant drift',
+    () => {
+      const missing = missingTokens(purchaseJokerWithDiamondsSource, [
+        'if (existingDiamondTx && existingJokerTx)',
+        'alreadyApplied: true',
+        'if (existingDiamondTx || existingJokerTx)',
+        'purchase_idempotency_partial',
+        'secondExistingDiamondTx',
+        'secondExistingJokerTx',
+        'duplicate_purchase_in_progress',
+        'rollbackState',
+        'market_ledger_write_failed',
+      ]);
+      if (missing.length) return fail('Retry/partial-failure idempotency handling is incomplete.', {
+        verification: 'STATIC_CONTRACT',
+        file: 'base44/functions/purchaseJokerWithDiamonds/entry.ts',
+        missing,
+      });
+      return pass('Retries return an already-applied result only when both ledgers exist, partial idempotency states fail closed, and ledger write failure rolls back best-effort.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('profile_and_solo_can_reflect_purchased_balances',
@@ -292,6 +439,27 @@ export const EXTRA_TESTS = [
       return pass('Online does not use market/joker purchases; Daily Wheel remains Diamond-only.', { verification: 'STATIC_CONTRACT' });
     }),
 
+  makeCase('economy_docs_capture_source_sink_and_research_principles',
+    'Docs lock source/sink, server-authoritative pricing, ledgers, and idempotency principles',
+    () => {
+      const missing = missingTokens(`${ECONOMY_RULES_DOC}\n${RELEASE_PROOF_CHECKLIST_DOC}`, [
+        'Diamond source/sink balance',
+        'server-authoritative',
+        'Client is not trusted for price',
+        'idempotency key',
+        'double-tap',
+        'network retry',
+        'both `DiamondTransaction` and `JokerTransaction`',
+        'two tabs/devices',
+      ]);
+      if (missing.length) return fail('Market economy/docs do not capture the researched purchase-integrity principles.', {
+        verification: 'STATIC_CONTRACT',
+        files: ['docs/KRONOX_ECONOMY_RULES.md', 'docs/KRONOX_RELEASE_PROOF_CHECKLIST.md'],
+        missing,
+      });
+      return pass('Docs cover Mağaza as a Diamond sink with server-authoritative price, dual ledgers, idempotency, and manual race proof.', { verification: 'STATIC_CONTRACT' });
+    }),
+
   makeCase('phase_1_has_no_extra_market_products',
     'No bundles/subscriptions/cosmetics/random boxes are active in Phase 1',
     () => {
@@ -323,7 +491,9 @@ export const EXTRA_TESTS = [
         'Buy Zaman Dondur with enough Diamonds and confirm -40 Diamonds and +1 time_freeze.',
         'Confirm DiamondTransaction and JokerTransaction both exist with market_purchase and the same idempotency key.',
         'Double tap Satın Al and confirm a single charge/grant.',
+        'Retry the same request after a network interruption and confirm no double-charge or double-grant.',
         'Attempt purchase with insufficient Diamonds and confirm no state or successful ledger rows change.',
+        'Repeat from two tabs/devices if possible; this is the real backend race proof static Health cannot automate.',
       ],
     }), { critical: false, actionType: ACTION_TYPES.MANUAL_VERIFY }),
 ];

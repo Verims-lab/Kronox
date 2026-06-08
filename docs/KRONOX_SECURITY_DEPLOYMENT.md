@@ -464,6 +464,12 @@ Joker inventory is user-owned data:
 * successful Mağaza purchases write both `DiamondTransaction` and
   `JokerTransaction` with `market_purchase`; insufficient Diamonds must not
   change balances or write successful purchase ledgers
+* Mağaza purchases are server-authoritative economy actions: the client is not
+  trusted for price, cost, user identity, or target account; service-role writes
+  stay scoped to the authenticated user
+* Mağaza purchase idempotency keys protect double-tap and retry flows; real
+  two-device/backend race proof remains manual unless Base44 uniqueness is
+  proven
 * normal users must not be able to arbitrarily grant themselves jokers
 * Profile shows only `Joker Çantası` balances, not ledger rows
 * Mağaza Phase 1 must not expose bundles, subscriptions, cosmetics, random

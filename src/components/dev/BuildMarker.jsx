@@ -1158,6 +1158,13 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Online and Daily Wheel unaffected; no bundles, subscriptions,
 //     cosmetics, random boxes, ads, or external payments.
 //
+// Codex284 — Mağaza Health hardening:
+//   • Expands Market, Diamond, Joker, Solo, Daily Wheel, backend security,
+//     deployability, and alignment Health around server-authoritative prices,
+//     dual ledgers, idempotency, and cross-mode economy boundaries.
+//   • Documents source/sink balance, double-tap/network retry/manual race
+//     proof, and partial-failure reconciliation for Market Phase 1.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1461,7 +1468,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex283';
+const BUILD_MARKER = 'Codex284';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

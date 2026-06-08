@@ -6,6 +6,7 @@
 import generateTechDocSource from '../../../base44/functions/generateTechDoc/entry.ts?raw';
 import adminAuthSource from '../../../base44/functions/_shared/adminAuth.ts?raw';
 import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
+import purchaseJokerWithDiamondsSource from '../../../base44/functions/purchaseJokerWithDiamonds/entry.ts?raw';
 import questionEntitySource from '../../../base44/entities/Question.jsonc?raw';
 import useOfflineQuestionsSource from '../../hooks/useOfflineQuestions.js?raw';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
@@ -449,6 +450,99 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Normal gameplay uses authenticated getQuestions and direct Question read is admin-only.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('market_purchase_is_server_authoritative',
+    'Market purchase does not trust client price or client identity',
+    () => {
+      const required = [
+        'base44.auth.me()',
+        'const email = normalizeEmail(user?.email)',
+        'JOKER_MARKET_PRODUCTS',
+        'const diamondCost = product.price * quantity',
+        'clientPriceIgnored: true',
+        'user_email: email',
+      ];
+      const forbidden = presentTokens(purchaseJokerWithDiamondsSource, [
+        'body?.email',
+        'body?.user_email',
+        'body?.userId',
+        'body?.price',
+        'body?.diamondCost',
+        'clientPrice',
+      ]).filter((token) => token !== 'clientPrice');
+      const missing = missingTokens(purchaseJokerWithDiamondsSource, required);
+      if (missing.length || forbidden.length) {
+        return fail('purchaseJokerWithDiamonds can trust client-controlled price or identity.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'base44/functions/purchaseJokerWithDiamonds/entry.ts',
+          expected: 'authenticated user context + backend price table only',
+          actual: { missing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Market purchase uses authenticated user context and backend-owned prices only.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    }),
+
+  makeCase('market_purchase_rejects_bad_inputs_and_insufficient_diamonds',
+    'Market purchase validates joker type, quantity, and sufficient Diamonds',
+    () => {
+      const required = [
+        'invalid_joker_type',
+        'parsePurchaseQuantity',
+        'number <= 0',
+        'invalid_quantity',
+        'diamondBefore < diamondCost',
+        'insufficient_diamonds',
+        'Yeterli elmas yok.',
+      ];
+      const missing = missingTokens(purchaseJokerWithDiamondsSource, required);
+      if (missing.length) {
+        return fail('Market purchase input and sufficient-balance validation is incomplete.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'base44/functions/purchaseJokerWithDiamonds/entry.ts',
+          missing,
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Market purchase rejects invalid joker types, zero/negative quantities, and insufficient Diamonds before successful writes.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('market_purchase_errors_do_not_leak_secrets_or_stacks',
+    'Market purchase errors are controlled and do not expose secrets or stack traces',
+    () => {
+      const required = [
+        'market_purchase_failed',
+        'Satın alma tamamlanamadı. Lütfen tekrar dene.',
+        "console.error('[purchaseJokerWithDiamonds] failed'",
+      ];
+      const forbidden = presentTokens(purchaseJokerWithDiamondsSource, [
+        'stack: error',
+        'error.stack',
+        'error: error.message',
+        'token',
+        'secret',
+      ]);
+      const missing = missingTokens(purchaseJokerWithDiamondsSource, required);
+      if (missing.length || forbidden.length) {
+        return fail('Market purchase can expose raw backend error details or secrets.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'base44/functions/purchaseJokerWithDiamonds/entry.ts',
+          actual: { missing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Market purchase returns controlled Turkish error copy and logs details server-side only.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

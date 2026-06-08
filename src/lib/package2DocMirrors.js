@@ -87,6 +87,17 @@ QuestionAttemptEvent rows so retained analytics rows no longer contain the
 deleted user email/key.
 
 PWA push, mobile safe-area, and other runtime proofs remain manual.
+
+## Mağaza Phase 1 Manual Proof
+Home shows Mağaza top-left, Diamonds center, notifications right. Mağaza title
+is Mağaza and prices are Zaman Dondur 40, Kart Değiştir 50, Kronokalkan 60.
+Client is not trusted for price; purchase validation is server-authoritative.
+Successful purchases write both \`DiamondTransaction\` and \`JokerTransaction\`
+with market_purchase and the same idempotency key. Double-tap, network retry,
+insufficient Diamonds, and two tabs/devices proof remains manual. Market
+purchase is a Diamond sink; Daily Wheel remains a Diamond source. Profile
+Joker Çantası and Solo joker bar must show the purchased balance; Online mode
+is unaffected and Daily Wheel remains Diamond-only.
 `;
 
 // ─── Out-of-/src backend sources (token mirrors) ───────────────────────

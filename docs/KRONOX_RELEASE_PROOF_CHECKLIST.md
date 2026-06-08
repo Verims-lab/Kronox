@@ -246,6 +246,29 @@ Checklist:
   configured.
 * Insufficient Diamonds must not decrease Diamonds, increase joker balance, or
   write successful purchase ledger rows.
+* Both `DiamondTransaction` and `JokerTransaction` must be present for a
+  completed Mağaza purchase; partial ledger states fail closed and require
+  reconciliation.
+* Client is not trusted for price; purchase validation is server-authoritative.
+* Manual Mağaza Phase 1 proof:
+  1. Open Home on mobile browser/PWA.
+  2. Confirm Mağaza top-left, Diamonds center, notifications right.
+  3. Open Mağaza and confirm title `Mağaza`.
+  4. Confirm prices: Zaman Dondur 40, Kart Değiştir 50, Kronokalkan 60.
+  5. Buy Zaman Dondur with sufficient Diamonds.
+  6. Confirm Diamonds decrease by 40 and Zaman Dondur increases by 1.
+  7. Confirm both `DiamondTransaction` and `JokerTransaction` exist with
+     `market_purchase` and the same idempotency key.
+  8. Return to Profile and confirm `Joker Çantası` updated.
+  9. Start Solo and confirm the purchased joker count appears in the joker bar.
+  10. Try insufficient Diamonds and confirm no balance changes.
+  11. Double-tap purchase and confirm no duplicate charge/grant.
+  12. Retry after a simulated network failure if possible and confirm no
+      double-charge or double-grant.
+  13. Repeat from two tabs/devices if possible; this is the live race proof.
+  14. Verify Online mode remains unaffected.
+  15. Verify Daily Wheel still grants Diamonds only.
+* Market purchase is a Diamond sink; Daily Wheel remains a Diamond source.
 * Daily Wheel remains Diamond-only and must not grant jokers.
 * Daily Wheel result shows `+X Elmas kazandın`; when the 7-day streak bonus applies it also shows `7 günlük seri bonusu: +100 elmas` and `Toplam: +Y elmas`.
 * Daily Wheel claimed countdown shows `Yarın hazır` or compact time text without a Diamond icon.

@@ -49,8 +49,10 @@ First authenticated entry grants +100 once. Same-day daily login grants +20 once
 ## Mağaza / Joker purchases
 Mağaza Phase 1 sells only Solo jokers for Diamonds:
 Zaman Dondur = 40 Diamonds, Kart Değiştir = 50 Diamonds, Kronokalkan = 60 Diamonds.
-purchaseJokerWithDiamonds owns the trusted price table, ignores client-provided price/cost, validates authenticated self-owned user context and sufficient User.diamonds server-side, writes DiamondTransaction.source = market_purchase with direction = spend, and writes JokerTransaction.reason = market_purchase.
-Insufficient Diamonds do not decrease Diamonds, increase joker balance, or write successful purchase ledgers. Purchase uses an idempotency key; live double-tap/race proof remains manual.
+Diamond source/sink balance: Daily Wheel remains a Diamond source and Daily Wheel remains Diamond-only, while Mağaza purchase is a Diamond sink.
+purchaseJokerWithDiamonds owns the trusted price table, purchase validation is server-authoritative, Client is not trusted for price, client-provided price/cost is ignored, validates authenticated self-owned user context and sufficient User.diamonds server-side, writes DiamondTransaction.source = market_purchase with direction = spend, and writes JokerTransaction.reason = market_purchase.
+Insufficient Diamonds do not decrease Diamonds, increase joker balance, or write successful purchase ledgers. Purchase uses an idempotency key; double-tap, network retry, and two tabs/devices live race proof remains manual.
+Partial failure reconciliation: ledger write failure uses best-effort rollback of the Diamond and joker balances, but live provider/backend consistency proof remains manual.
 
 ## Admin reset and account deletion
 Admin reset sets \`daily_wheel_last_spin_date\` to the current UTC day, clears Daily Wheel guard fields, and removes target \`DailyWheelSpin\` rows. Retained OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the deleted user.

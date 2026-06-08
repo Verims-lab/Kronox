@@ -42,10 +42,15 @@ function normalizeJokerType(value: unknown) {
   return JOKER_TYPES.includes(type as typeof JOKER_TYPES[number]) ? type : '';
 }
 
-function normalizePurchaseQuantity(value: unknown) {
-  const number = Number(value ?? 1);
-  if (!Number.isFinite(number)) return 1;
-  return Math.min(25, Math.max(1, Math.floor(number)));
+function parsePurchaseQuantity(value: unknown) {
+  if (value == null || value === '') {
+    return { quantity: 1, error: '' };
+  }
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= 0) {
+    return { quantity: 0, error: 'invalid_quantity' };
+  }
+  return { quantity: Math.min(25, Math.floor(number)), error: '' };
 }
 
 function safeText(value: unknown, fallback = '') {
@@ -259,7 +264,11 @@ Deno.serve(async (req: Request) => {
       return json({ ok: false, code: 'invalid_joker_type', error: 'Joker türü geçersiz.' }, 400);
     }
 
-    const quantity = normalizePurchaseQuantity(body?.quantity);
+    const quantityResult = parsePurchaseQuantity(body?.quantity);
+    if (quantityResult.error || quantityResult.quantity <= 0) {
+      return json({ ok: false, code: 'invalid_quantity', error: 'Satın alma adedi geçersiz.' }, 400);
+    }
+    const quantity = quantityResult.quantity;
     const idempotencyKey = safeText(body?.idempotencyKey || body?.idempotency_key);
     if (!idempotencyKey) {
       return json({ ok: false, code: 'missing_idempotency_key', error: 'Satın alma doğrulanamadı.' }, 400);

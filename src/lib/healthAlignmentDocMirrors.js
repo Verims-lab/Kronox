@@ -64,6 +64,8 @@ Status: Active product contract.
 - spendUserJoker spends one owned Solo joker using authenticated user context, positive-balance validation, reason solo_use, source solo, quantity_delta -1, and an idempotency key.
 - Profile shows only Joker Çantası balances; normal users must not see other users' balances or transaction ledger rows.
 - Mağaza Phase 1 purchases use purchaseJokerWithDiamonds; users purchase only for themselves, backend owns trusted joker prices, sufficient Diamonds are validated server-side, and successful purchases write DiamondTransaction plus JokerTransaction with market_purchase.
+- Mağaza purchases are server-authoritative economy actions: the client is not trusted for price, cost, user identity, or target account; service-role writes stay scoped to the authenticated user.
+- Mağaza purchase idempotency keys protect double-tap and retry flows; real two-device/backend race proof remains manual unless Base44 uniqueness is proven.
 - Mağaza Phase 1 does not expose bundles, subscriptions, cosmetics, random boxes, ads, external payments, or Online-mode joker purchases.
 - sendQuestionAnalyticsReportEmail is manual/admin-triggered only and sends HTML/table/bar formatted question analytics with text fallback.
 - sendQuestionAnalyticsReportEmail is callable from base44/functions/sendQuestionAnalyticsReportEmail/entry.ts with base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc name sendQuestionAnalyticsReportEmail and entry entry.ts; the callable report function INLINES a DB-backed AdminUser guard (no local _shared import) so it deploys cleanly under the Base44 function runtime.
@@ -75,7 +77,7 @@ Status: Active product contract.
 - Report/admin functions must NOT use local imports that resolve outside the deployed path. The broken './_shared/adminAuth.js' pattern resolved to a file URL under /src/_shared (module not found) and broke deployment, leaving Base44 serving a stale build. The callable report function now inlines a DB-backed AdminUser guard instead.
 - base44/functions/<name>/entry.ts shared imports remain allowed where proven deployable; sendQuestionAnalyticsReportEmail intentionally uses an inline guard for this runtime-sensitive path.
 - Critical report/admin functions should include safe template/function markers (e.g. templateVersion static-pool-v2, REPORT_BUILD_MARKER, and bodyContains* diagnostics). If real output lacks the marker, the function deployment is stale.
-- sendQuestionAnalyticsReportEmail live deploy is proven by triggering the function and reading reportBuildMarker (current: Codex283), templateVersion static-pool-v2, and bodyContainsStaticPoolSection/Template/QuestionSource = true. A published frontend that does not change reportBuildMarker means the executed backend function did not redeploy.
+- sendQuestionAnalyticsReportEmail live deploy is proven by triggering the function and reading reportBuildMarker (current: Codex284), templateVersion static-pool-v2, and bodyContainsStaticPoolSection/Template/QuestionSource = true. A published frontend that does not change reportBuildMarker means the executed backend function did not redeploy.
 - A prior Codex275 marker bump was never proven deployed because the runtime function still imported the broken local _shared guard; the recovery inlined the AdminUser guard and uses current reportBuildMarker values as the unambiguous live marker.
 - Function-based question analytics reset is currently not used.
 - Manual DB reset path after question pool replacement clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection.
@@ -127,6 +129,17 @@ question analytics email delivery plus Gmail rendering remains deployed/backend 
 Same-score replay does not add points. Lower-score replay does not add points.
 Better replay adds only the positive score delta. Old completed Solo results
 are not retroactively recalculated.
+
+## Mağaza Phase 1
+Home shows Mağaza top-left, Diamonds center, notifications right. Mağaza title
+is Mağaza and prices are Zaman Dondur 40, Kart Değiştir 50, Kronokalkan 60.
+Client is not trusted for price; purchase validation is server-authoritative.
+Successful purchase writes both DiamondTransaction and JokerTransaction with
+market_purchase and the same idempotency key. Double-tap, network retry,
+insufficient Diamonds, and two tabs/devices proof remains manual. Market
+purchase is a Diamond sink; Daily Wheel remains a Diamond source. Profile
+Joker Çantası and Solo joker bar must show the purchased balance; Online mode
+is unaffected and Daily Wheel remains Diamond-only.
 
 ## Online Scoring Persistence
 Two-account invite + scoring proof, OnlineMatchResult idempotency.
