@@ -1,7 +1,7 @@
 {
   "name": "DiamondTransaction",
   "type": "object",
-  "description": "Codex152 \u2014 User-owned Diamond economy ledger. One logical row should exist per idempotency_key. Base44 uniqueness is not assumed, so runtime helpers check idempotency_key and User guard fields before granting.",
+  "description": "Codex152/Codex283 \u2014 User-owned Diamond economy ledger. One logical row should exist per idempotency_key. Base44 uniqueness is not assumed, so runtime helpers check idempotency_key and User guard fields before grants/spends.",
   "properties": {
     "user_email": {
       "type": "string",
@@ -25,6 +25,7 @@
         "starter_bonus",
         "daily_login",
         "daily_wheel",
+        "market_purchase",
         "wheel_spin_future",
         "rewarded_ad_future",
         "quest_reward_future",
@@ -33,7 +34,7 @@
         "special_event_future",
         "admin_adjustment"
       ],
-      "description": "Economy source. Active sources include starter_bonus, daily_login, daily_wheel, and admin_adjustment. Future sources remain schema-ready but inactive."
+      "description": "Economy source. Active sources include starter_bonus, daily_login, daily_wheel, market_purchase, and admin_adjustment. Future sources remain schema-ready but inactive."
     },
     "direction": {
       "type": "string",
@@ -41,7 +42,7 @@
         "earn",
         "spend"
       ],
-      "description": "earn for granted Diamonds, spend for future purchases/costs."
+      "description": "earn for granted Diamonds, spend for Mağaza purchases/costs."
     },
     "idempotency_key": {
       "type": "string",
@@ -50,6 +51,14 @@
     "metadata": {
       "type": "object",
       "description": "Debug-safe metadata such as dateKey/dayBoundary. Must not contain secrets, push data, or private profile fields."
+    },
+    "related_entity_type": {
+      "type": "string",
+      "description": "Optional related economy entity type, e.g. joker_purchase."
+    },
+    "related_entity_id": {
+      "type": "string",
+      "description": "Optional related economy entity id or idempotency key."
     },
     "created_at": {
       "type": "string",

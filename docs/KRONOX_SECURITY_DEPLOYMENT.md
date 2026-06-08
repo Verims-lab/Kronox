@@ -458,10 +458,16 @@ Joker inventory is user-owned data:
 * Solo joker usage is spent by `spendUserJoker` using authenticated user
   context, positive-balance validation, `solo_use` ledger rows, and
   idempotency keys
+* Mağaza Phase 1 purchases use `purchaseJokerWithDiamonds`; users purchase
+  only for themselves, the backend owns the trusted joker price table, and
+  sufficient Diamonds are validated server-side
+* successful Mağaza purchases write both `DiamondTransaction` and
+  `JokerTransaction` with `market_purchase`; insufficient Diamonds must not
+  change balances or write successful purchase ledgers
 * normal users must not be able to arbitrarily grant themselves jokers
 * Profile shows only `Joker Çantası` balances, not ledger rows
-* Market purchase is a later phase and must validate Diamonds server-side when
-  added
+* Mağaza Phase 1 must not expose bundles, subscriptions, cosmetics, random
+  boxes, ads, external payments, or Online-mode joker purchases
 
 ## Admin Maintenance Jobs
 

@@ -55,6 +55,10 @@ export default function MainMenu() {
     else navigate('/lobby');
   };
 
+  const handleMarket = () => {
+    navigate('/market');
+  };
+
   const handleLogin = () => {
     sounds.tap();
     base44.auth.redirectToLogin('/');
@@ -86,8 +90,8 @@ export default function MainMenu() {
           'radial-gradient(ellipse at 50% 40%, #0f2657 0%, #0a1b3f 45%, #060f2b 75%, #03081a 100%)',
       }}
     >
-      {/* ───── Top bar (Diamond + count • Bell) — shared StandardTopBar ───── */}
-      <StandardTopBar diamonds={diamonds} user={user} />
+      {/* ───── Top bar (Mağaza • Diamond + count • Bell) — shared StandardTopBar ───── */}
+      <StandardTopBar diamonds={diamonds} user={user} showMarket onMarket={handleMarket} />
 
       {/* ───── Center stack (logo + tagline + CTAs) ─────
            Flex column fills between top safe-area and bottom-nav reserved

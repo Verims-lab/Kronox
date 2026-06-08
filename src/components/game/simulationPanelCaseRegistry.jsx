@@ -198,6 +198,9 @@ import * as backendDeployabilityCases from './simulationPanelBackendDeployabilit
 // Mobile gameplay browser drag guard: scoped pull-to-refresh prevention,
 // passive:false touchmove contract, and timeline auto-scroll preservation.
 import * as mobileGameplayGestureCases from './simulationPanelMobileGameplayGestureCases';
+// Mağaza Phase 1: Home entry, server-backed Diamond-to-Solo-joker purchases,
+// ledger writes, idempotency guard, and no Online/Daily Wheel impact.
+import * as marketCases from './simulationPanelMarketCases';
 
 const MODULES = [
   soloProgressCases,
@@ -246,6 +249,7 @@ const MODULES = [
   categoryPreferenceCases,
   backendDeployabilityCases,
   mobileGameplayGestureCases,
+  marketCases,
 ];
 
 function flatten(key) {

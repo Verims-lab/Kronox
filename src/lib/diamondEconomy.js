@@ -13,6 +13,7 @@ export const DIAMOND_REWARD_SOURCES = Object.freeze({
   STARTER_BONUS: 'starter_bonus',
   DAILY_LOGIN: 'daily_login',
   DAILY_WHEEL: 'daily_wheel',
+  MARKET_PURCHASE: 'market_purchase',
   WHEEL_SPIN_FUTURE: 'wheel_spin_future',
   REWARDED_AD_FUTURE: 'rewarded_ad_future',
   QUEST_REWARD_FUTURE: 'quest_reward_future',
@@ -21,6 +22,7 @@ export const DIAMOND_REWARD_SOURCES = Object.freeze({
   SPECIAL_EVENT_FUTURE: 'special_event_future',
   ADMIN_ADJUSTMENT: 'admin_adjustment',
 });
+export const DIAMOND_MARKET_PURCHASE_RELATED_ENTITY_TYPE = 'joker_purchase';
 
 const EARN_DIRECTION = 'earn';
 

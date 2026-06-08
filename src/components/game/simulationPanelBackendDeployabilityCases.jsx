@@ -58,6 +58,7 @@ const KNOWN_BACKEND_FUNCTIONS = new Set([
   'getSoloLeaderboard',
   'getDailyWheelStatus',
   'claimDailyWheelReward',
+  'purchaseJokerWithDiamonds',
   'findLobbyByCode',
   'startLobbyGame',
   'updateLobbyGameState',

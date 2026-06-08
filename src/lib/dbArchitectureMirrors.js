@@ -25,12 +25,13 @@ Analytics/statistics entities implemented now:
 - LobbyMatchStats
 - UserCategoryPreference stores app-open popup and Settings main Category interest choices per user.
 - UserSubCategoryPreference is retained legacy data from the earlier SubCategory preference phase and is not used by current Settings preferences.
-- UserJokerInventory stores current user-owned joker balances per user_email + joker_type and is used by Profile plus Solo joker balance display/spend.
-- JokerTransaction stores joker ledger/idempotency rows; starter_grant and Solo solo_use rows are active, while market_purchase remains future.
+- UserJokerInventory stores current user-owned joker balances per user_email + joker_type and is used by Profile, Solo joker balance display/spend, and Mağaza joker purchases.
+- JokerTransaction stores joker ledger/idempotency rows; starter_grant, Solo solo_use, and Mağaza market_purchase rows are active.
 - ensureUserJokerInventory grants exactly 3 mistake_shield, 3 card_swap, and 3 time_freeze once per authenticated user with starter_jokers:<email>:<joker_type> idempotency keys.
 - spendUserJoker spends one owned Solo joker with reason solo_use, source solo, quantity_delta -1, balance_after, and an idempotency key.
+- purchaseJokerWithDiamonds sells only Zaman Dondur for 40 Diamonds, Kart Değiştir for 50 Diamonds, and Kronokalkan for 60 Diamonds; it validates authenticated user context, trusted backend price, sufficient User.diamonds, and writes DiamondTransaction + JokerTransaction market_purchase rows with a per-action idempotency key.
 - Profile displays balances under Joker Çantası and does not expose the JokerTransaction ledger.
-- Market/Diamond purchases are later phases.
+- Mağaza Phase 1 has no bundles, subscriptions, cosmetics, random boxes, ads, external payments, or Online joker usage.
 
 Category preference status:
 - Settings İlgi Alanlarım reads active Category rows.
@@ -77,7 +78,7 @@ Cleanup/retention jobs implemented now:
 - Manual DB reset path after question pool replacement is documented because the function reset path is currently not used.
 - manual_db_reset_only clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection by DB maintenance.
 - Manual reset must not delete Question, Category, SubCategory, UserCategoryPreference, UserSubCategoryPreference, UserStatsProjection, Solo progress, GameRecord, OnlineMatchResult, Lobby, SoloLeaderboardEntry, Kronox Puan, DiamondTransaction, DailyWheelSpin, UserJokerInventory, JokerTransaction, users, or AdminUser.
-- Joker inventory is separate from Diamonds: UserJokerInventory is the joker balance source, JokerTransaction is the joker ledger, Solo spends create solo_use rows, and Daily Wheel remains Diamond-only.
+- Joker inventory is separate from Diamonds: UserJokerInventory is the joker balance source, JokerTransaction is the joker ledger, Solo spends create solo_use rows, Mağaza purchases create market_purchase rows while spending Diamonds, and Daily Wheel remains Diamond-only.
 - cleanupAdminMaintenanceLog requires admin auth, supports dryRun, marks old logs retention_status archived.
 - Cleanup jobs are status-transition-first and do not hard delete production data.
 

@@ -232,8 +232,20 @@ Checklist:
   joker balances or create arbitrary grant rows.
 * Solo use spends one owned joker through `spendUserJoker` and writes
   `JokerTransaction.reason = solo_use`.
-* Market / Diamond-to-joker purchase is intentionally not implemented yet.
-  Future Market purchase must validate Diamonds server-side.
+* Home shows the Mağaza entry at top-left, Diamond count top-center, and
+  notifications top-right.
+* Mağaza Phase 1 sells only three Solo jokers:
+  `Zaman Dondur = 40` Diamonds, `Kart Değiştir = 50` Diamonds,
+  `Kronokalkan = 60` Diamonds.
+* Mağaza purchase uses `purchaseJokerWithDiamonds`; the client displays price
+  but the backend owns the trusted price table and sufficient-Diamond check.
+* Successful purchase writes both `DiamondTransaction.source = market_purchase`
+  with `direction = spend` and `JokerTransaction.reason = market_purchase`.
+* Purchase uses a per-action idempotency key and pending UI guard; live
+  double-tap/race proof remains manual unless Base44 unique constraints are
+  configured.
+* Insufficient Diamonds must not decrease Diamonds, increase joker balance, or
+  write successful purchase ledger rows.
 * Daily Wheel remains Diamond-only and must not grant jokers.
 * Daily Wheel result shows `+X Elmas kazandın`; when the 7-day streak bonus applies it also shows `7 günlük seri bonusu: +100 elmas` and `Toplam: +Y elmas`.
 * Daily Wheel claimed countdown shows `Yarın hazır` or compact time text without a Diamond icon.
