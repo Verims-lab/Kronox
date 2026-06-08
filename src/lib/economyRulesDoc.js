@@ -32,17 +32,25 @@ exist per idempotency_key.
 Daily Wheel is separate from the existing +20 daily login reward, grants once
 per UTC server day, uses idempotency_key daily_wheel:<normalizedEmail>:<YYYY-MM-DD>,
 records a DailyWheelSpin row plus DiamondTransaction.source = daily_wheel, and
-grants a 7-day streak bonus: +100 diamonds. It grants no Kronox Puan and does
+grants a 7-day streak bonus: +150 diamonds. It grants no Kronox Puan and does
 not affect leaderboard sorting or rank.
 
 Daily Wheel reward is selected server-side by claimDailyWheelReward and the UI
-animates to the backend-selected reward. Reward weights are 10=25%, 15=22%,
-20=18%, 25=13%, 30=10%, 40=6%, 50=4%, 100=2%.
+animates to the backend-selected reward. Reward weights are 30 high weight 24,
+40 high weight 22, 50 high weight 20, 60 medium weight 12,
+75 medium weight 10, 100 low weight 7, 150 rare weight 4,
+250 very_rare weight 1.
 
 Result copy shows +X Elmas kazandın. When the 7-day streak bonus applies it
-also shows 7 günlük seri bonusu: +100 elmas and Toplam: +Y elmas. The Home
+also shows 7 günlük seri bonusu: +150 elmas and Toplam: +Y elmas. The Home
 claimed-state countdown uses Yarın hazır or compact time text such as 11 sa
 24 dk without a Diamond icon.
+
+Günlük Ödüller panel contains Daily Wheel and Daily Quest v1 readiness/status.
+Daily Quest v1 does not grant Diamonds or Kronox Puan yet. Future Daily Quest
+rewards must be server-backed, use daily_quest:<normalizedEmail>:<YYYY-MM-DD>,
+write a separate DiamondTransaction source/direction, and use User.daily_quest_*
+fields instead of Daily Wheel fields.
 
 First authenticated entry grants +100 once. Same-day daily login grants +20 once.
 
@@ -59,6 +67,7 @@ Admin reset sets \`daily_wheel_last_spin_date\` to the current UTC day, clears D
 Admin reset remains admin-only, previewed, confirmed, and logged; it prevents stale Daily Wheel availability/countdown state without granting duplicate Diamonds, changing Kronox Puan, or affecting leaderboard sorting or rank.
 Retained economy/gameplay rows do not expose the deleted user identity.
 
-Future sources (wheel_spin, rewarded_ad, quest_reward, real-money purchase,
-achievement, special_event) are schema-ready but not active yet.
+Future sources (daily_quest_future, wheel_spin, rewarded_ad, quest_reward,
+real-money purchase, achievement, special_event) are schema-ready but not active
+yet.
 `;

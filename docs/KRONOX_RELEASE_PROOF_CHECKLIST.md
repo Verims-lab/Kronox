@@ -202,16 +202,24 @@ Checklist:
 * Ledger row is created when available.
 * If ledger recovery exists, partial states self-heal.
 * Two-device duplicate prevention is manually probed unless backend unique transaction support exists.
-* Daily Wheel appears on Home above `SOLO MEYDAN OKUMA`.
+* `Günlük Ödüller` panel appears on Home above `SOLO MEYDAN OKUMA` and includes
+  Daily Wheel plus Daily Quest v1 readiness/status.
 * Daily Wheel claim requires authenticated user.
 * Daily Wheel grants Diamonds only and never Kronox Puan.
+* Daily Quest v1 does not grant Diamonds or Kronox Puan until a server-backed
+  quest claim path is specified.
+* Daily Wheel and Daily Quest use separate guard fields/idempotency keys:
+  `daily_wheel:<email>:<YYYY-MM-DD>` and reserved
+  `daily_quest:<email>:<YYYY-MM-DD>` / `User.daily_quest_*`.
 * Daily Wheel is separate from the existing +20 daily login reward.
 * Daily Wheel can be claimed at most once per UTC server day.
 * Daily Wheel reward is selected server-side by `claimDailyWheelReward`.
-* Daily Wheel reward weights are `10=25%`, `15=22%`, `20=18%`, `25=13%`, `30=10%`, `40=6%`, `50=4%`, `100=2%`.
+* Daily Wheel reward table is `30 high weight 24`, `40 high weight 22`,
+  `50 high weight 20`, `60 medium weight 12`, `75 medium weight 10`,
+  `100 low weight 7`, `150 rare weight 4`, `250 very_rare weight 1`.
 * Daily Wheel UI animates to the backend-selected reward.
 * Daily Wheel duplicate tap/refresh returns the same claimed result or claimed status without a duplicate grant.
-* Daily Wheel 7-day streak bonus grants `+100` Diamonds on every 7th consecutive daily spin.
+* Daily Wheel 7-day streak bonus grants `+150` Diamonds on every 7th consecutive daily spin.
 * Missing a UTC day resets the Daily Wheel streak gracefully to 1 on next spin.
 
 ## Joker Inventory
@@ -270,7 +278,7 @@ Checklist:
   15. Verify Daily Wheel still grants Diamonds only.
 * Market purchase is a Diamond sink; Daily Wheel remains a Diamond source.
 * Daily Wheel remains Diamond-only and must not grant jokers.
-* Daily Wheel result shows `+X Elmas kazandın`; when the 7-day streak bonus applies it also shows `7 günlük seri bonusu: +100 elmas` and `Toplam: +Y elmas`.
+* Daily Wheel result shows `+X Elmas kazandın`; when the 7-day streak bonus applies it also shows `7 günlük seri bonusu: +150 elmas` and `Toplam: +Y elmas`.
 * Daily Wheel claimed countdown shows `Yarın hazır` or compact time text without a Diamond icon.
 * Admin hard-zero / maintenance reset clears Daily Wheel guard fields without granting duplicate Diamonds, changing Kronox Puan, or affecting leaderboard sorting or rank.
 * Home diamond count updates immediately after a successful wheel claim.

@@ -216,8 +216,8 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX, nextStep: 'Restore safe retention helpers and rerun cleanup_retention_health/data_model_health.' }),
 
-  makeCase('db_architecture_health', 'no_paused_daily_quest_schema_required',
-    'Daily Quest is paused, so DailyQuestProgress schema is not required now',
+  makeCase('db_architecture_health', 'daily_quest_v1_uses_reserved_fields_only',
+    'Daily Quest v1 uses reserved User fields, not an active progress schema',
     () => {
       const scannedSources = [
         userEntitySource,
@@ -227,19 +227,24 @@ export const EXTRA_TESTS = [
         leaderboardSource,
         soloLevelsSource,
       ].join('\n');
-      const accidentalRuntimeDependency = scannedSources.includes('DailyQuestProgress') || scannedSources.includes('Günün Görevi');
-      if (accidentalRuntimeDependency) {
-        return fail('Paused Daily Quest leaked into active schema/runtime contracts.', {
+      const missing = missingTokens(scannedSources, [
+        'daily_quest_last_claim_date',
+        'daily_quest_next_available_at',
+      ]);
+      const accidentalRuntimeDependency = scannedSources.includes('DailyQuestProgress');
+      if (accidentalRuntimeDependency || missing.length) {
+        return fail('Daily Quest v1 should use reserved User fields without an active DailyQuestProgress schema.', {
           verification: 'STATIC_CONTRACT',
           actionType: ACTION_TYPES.CODE_FIX,
+          actual: { accidentalRuntimeDependency, missing },
         });
       }
-      return pass('Daily Quest remains paused; no active DailyQuestProgress schema dependency is required.', {
+      return pass('Daily Quest v1 has separate reserved User fields and no active DailyQuestProgress dependency.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });
     },
-    { actionType: ACTION_TYPES.CODE_FIX, nextStep: 'Keep Daily Quest out of active schemas until the product work resumes.' }),
+    { actionType: ACTION_TYPES.CODE_FIX, nextStep: 'Keep Daily Quest rewards server-backed and separate from Daily Wheel fields.' }),
 
   makeCase('db_architecture_health', 'schema_docs_exist',
     'Data model and scoring docs are registered as architecture references',

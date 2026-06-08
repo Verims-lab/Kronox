@@ -34,17 +34,17 @@ claimDailyWheelReward
 base44.auth.me()
 DAILY_WHEEL_SOURCE = 'daily_wheel'
 REWARD_TABLE
-10 common weight 25
-15 common weight 22
-20 common weight 18
-25 uncommon weight 13
-30 uncommon weight 10
-40 rare weight 6
-50 rare weight 4
-100 very_rare weight 2
+30 high weight 24
+40 high weight 22
+50 high weight 20
+60 medium weight 12
+75 medium weight 10
+100 low weight 7
+150 rare weight 4
+250 very_rare weight 1
 selectReward
 randomUnit
-STREAK_BONUS_AMOUNT = 100
+STREAK_BONUS_AMOUNT = 150
 streakAfter % 7 === 0
 createDailyWheelSpin
 DailyWheelSpin.create
@@ -60,6 +60,9 @@ daily_wheel_last_spin_date
 daily_wheel_next_available_at
 daily_wheel_streak
 daily_wheel_spin_count
+daily_quest:<normalizedEmail>:<YYYY-MM-DD>
+daily_quest_last_claim_date
+daily_quest_next_available_at
 daily_wheel_request_failed
 Çark ödülü alınamadı.
 Base44 uniqueness is platform/manual proof

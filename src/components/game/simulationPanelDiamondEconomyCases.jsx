@@ -8,6 +8,7 @@ import authContextSource from '../../lib/AuthContext.jsx?raw';
 import diamondEconomySource from '../../lib/diamondEconomy.js?raw';
 import leaderboardSource from '../../lib/leaderboard.js?raw';
 import mainMenuSource from '../../pages/MainMenu.jsx?raw';
+import dailyRewardsPanelSource from '../dailyWheel/DailyRewardsPanel.jsx?raw';
 import marketPageSource from '../../pages/MarketPage.jsx?raw';
 import purchaseJokerWithDiamondsSource from '../../../base44/functions/purchaseJokerWithDiamonds/entry.ts?raw';
 import profilePageSource from '../../pages/ProfilePage.jsx?raw';
@@ -299,6 +300,7 @@ export const EXTRA_TESTS = [
     () => {
       const missing = missingTokens(`${diamondEconomySource}\n${diamondTransactionEntitySource}`, [
         'wheel_spin_future',
+        'daily_quest_future',
         'rewarded_ad_future',
         'quest_reward_future',
         'purchase_future',
@@ -328,19 +330,26 @@ export const EXTRA_TESTS = [
       return pass('DiamondTransaction ledger exists and the grant helper writes audit rows.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('daily_quest_not_implemented',
-    'Daily Quest remains paused and is not implemented by Diamond economy',
+  makeCase('daily_quest_v1_no_client_grants',
+    'Daily Quest v1 is visible but not an active client-side Diamond grant',
     () => {
-      const activeRuntimeSources = `${diamondEconomySource}\n${userEntitySource}\n${diamondTransactionEntitySource}`;
-      const accidentalEntity = activeRuntimeSources.includes('DailyQuestProgress') || activeRuntimeSources.includes('base44.entities.DailyQuest');
-      const docsOk = economyRulesSource.includes('Daily Quest / Günün Görevi remains paused');
-      if (accidentalEntity || !docsOk) {
-        return fail('Daily Quest leaked into active Diamond economy implementation.', {
+      const activeRuntimeSources = `${diamondEconomySource}\n${userEntitySource}\n${diamondTransactionEntitySource}\n${dailyRewardsPanelSource}`;
+      const accidentalGrant = dailyRewardsPanelSource.includes('base44.functions.invoke')
+        || dailyRewardsPanelSource.includes('DiamondTransaction')
+        || dailyRewardsPanelSource.includes('diamonds:');
+      const missing = missingTokens(`${activeRuntimeSources}\n${economyRulesSource}`, [
+        'DailyQuestV1Card',
+        'daily_quest_future',
+        'daily_quest_last_claim_date',
+        'does not grant Diamonds or Kronox Puan yet',
+      ]);
+      if (accidentalGrant || missing.length) {
+        return fail('Daily Quest v1 can grant Diamonds client-side or lacks the separate future-source contract.', {
           verification: 'STATIC_CONTRACT',
-          actual: { accidentalEntity, docsOk },
+          actual: { accidentalGrant, missing },
         });
       }
-      return pass('Daily Quest is documented as paused; active Diamond sources are starter_bonus, daily_login, daily_wheel, and market_purchase.', { verification: 'STATIC_CONTRACT' });
+      return pass('Daily Quest v1 is visible in Günlük Ödüller, reward-inactive, and reserved for a separate server-backed source.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('market_purchase_is_diamond_sink',

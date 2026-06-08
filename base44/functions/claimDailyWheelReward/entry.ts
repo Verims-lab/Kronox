@@ -1,18 +1,18 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
 const DAILY_WHEEL_SOURCE = 'daily_wheel';
-const STREAK_BONUS_AMOUNT = 100;
+const STREAK_BONUS_AMOUNT = 150;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const REWARD_TABLE = [
-  { amount: 10, rarity: 'common', weight: 25 },
-  { amount: 15, rarity: 'common', weight: 22 },
-  { amount: 20, rarity: 'common', weight: 18 },
-  { amount: 25, rarity: 'uncommon', weight: 13 },
-  { amount: 30, rarity: 'uncommon', weight: 10 },
-  { amount: 40, rarity: 'rare', weight: 6 },
-  { amount: 50, rarity: 'rare', weight: 4 },
-  { amount: 100, rarity: 'very_rare', weight: 2 },
+  { amount: 30, rarity: 'high', weight: 24 },
+  { amount: 40, rarity: 'high', weight: 22 },
+  { amount: 50, rarity: 'high', weight: 20 },
+  { amount: 60, rarity: 'medium', weight: 12 },
+  { amount: 75, rarity: 'medium', weight: 10 },
+  { amount: 100, rarity: 'low', weight: 7 },
+  { amount: 150, rarity: 'rare', weight: 4 },
+  { amount: 250, rarity: 'very_rare', weight: 1 },
 ];
 
 function json(payload: unknown, status = 200) {

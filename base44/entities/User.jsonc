@@ -186,6 +186,24 @@
       "type": "number",
       "description": "Total Daily Wheel spin count for retention/economy diagnostics."
     },
+    "daily_quest_last_claim_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Reserved ISO timestamp for future server-backed Daily Quest v1 reward claims. Separate from Daily Wheel guard fields so quest rewards cannot conflict with wheel spins."
+    },
+    "daily_quest_last_claim_date": {
+      "type": "string",
+      "description": "Reserved UTC YYYY-MM-DD key for future Daily Quest v1 reward idempotency. Use daily_quest:<normalizedEmail>:<YYYY-MM-DD>, not daily_wheel:*."
+    },
+    "daily_quest_next_available_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Reserved ISO UTC timestamp for future Daily Quest v1 availability. Daily Quest must not grant Kronox Puan."
+    },
+    "daily_quest_claim_count": {
+      "type": "number",
+      "description": "Reserved future Daily Quest claim count. The current v1 Home panel does not grant rewards until a server-backed claim path is added."
+    },
     "economy_updated_at": {
       "type": "string",
       "format": "date-time",

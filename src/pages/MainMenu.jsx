@@ -5,7 +5,7 @@ import { ChevronRight, Crosshair, Swords } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 import StandardTopBar from '@/components/layout/StandardTopBar';
-import DailyWheelCard from '@/components/dailyWheel/DailyWheelCard';
+import DailyRewardsPanel from '@/components/dailyWheel/DailyRewardsPanel';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 
 /**
@@ -143,7 +143,7 @@ export default function MainMenu() {
             className="mt-auto flex w-full flex-col items-center"
             style={{ gap: '0.75rem', paddingTop: 'clamp(0.75rem, 3vh, 1.8rem)', paddingBottom: 'clamp(1.35rem, 5.8vh, 3.2rem)' }}
           >
-            <DailyWheelCard
+            <DailyRewardsPanel
               user={user}
               onUserUpdated={handleDailyWheelUserPatch}
               onLogin={handleLogin}

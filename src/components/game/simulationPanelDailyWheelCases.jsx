@@ -6,6 +6,7 @@
 
 import mainMenuSource from '../../pages/MainMenu.jsx?raw';
 import dailyWheelCardSource from '../dailyWheel/DailyWheelCard.jsx?raw';
+import dailyRewardsPanelSource from '../dailyWheel/DailyRewardsPanel.jsx?raw';
 import dailyWheelHookSource from '../../hooks/useDailyWheel.js?raw';
 import economyGatewaySource from '../../lib/dbGateway/economyGateway.js?raw';
 import diamondEconomySource from '../../lib/diamondEconomy.js?raw';
@@ -68,28 +69,32 @@ export const EXTRA_SUITES = [
 ];
 
 export const EXTRA_TESTS = [
-  makeCase('daily_wheel_home_card_above_solo_cta',
-    'Daily Wheel card exists on Home above Solo CTA',
+  makeCase('daily_rewards_panel_above_solo_cta',
+    'Günlük Ödüller panel exists on Home above Solo CTA',
     () => {
       const src = safeStr(mainMenuSource);
-      const dailyWheelIndex = src.indexOf('<DailyWheelCard');
+      const panelIndex = src.indexOf('<DailyRewardsPanel');
       const soloIndex = src.indexOf('label="SOLO MEYDAN OKUMA"');
-      const missing = missingTokens(src, [
+      const missing = missingTokens(`${src}\n${dailyRewardsPanelSource}`, [
+        'DailyRewardsPanel',
+        'Günlük Ödüller',
         'DailyWheelCard',
+        'DailyQuestV1Card',
+        'Günlük Görev',
         'onUserUpdated={handleDailyWheelUserPatch}',
         'onLogin={handleLogin}',
         "paddingBottom: 'clamp(1.35rem, 5.8vh, 3.2rem)'",
         'label="SOLO MEYDAN OKUMA"',
         'label="ONLINE KAPIŞMA"',
       ]);
-      if (missing.length || dailyWheelIndex < 0 || soloIndex < 0 || dailyWheelIndex > soloIndex) {
-        return fail('Home does not place DailyWheelCard directly before the Solo CTA while preserving Solo/Online buttons.', {
+      if (missing.length || panelIndex < 0 || soloIndex < 0 || panelIndex > soloIndex) {
+        return fail('Home does not place Günlük Ödüller before the Solo CTA while preserving Solo/Online buttons.', {
           verification: 'STATIC_CONTRACT',
           file: 'src/pages/MainMenu.jsx',
-          actual: { missing, dailyWheelIndex, soloIndex },
+          actual: { missing, panelIndex, soloIndex },
         });
       }
-      return pass('DailyWheelCard is wired above Solo CTA and Solo/Online CTAs remain present.', { verification: 'STATIC_CONTRACT' });
+      return pass('Günlük Ödüller is wired above Solo CTA and Solo/Online CTAs remain present.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_icon_polished_not_asset_dependent',
@@ -188,14 +193,14 @@ export const EXTRA_TESTS = [
     () => {
       const missing = missingTokens(DAILY_WHEEL_BACKEND_HEALTH_SOURCE, [
         'REWARD_TABLE',
-        '10 common weight 25',
-        '15 common weight 22',
-        '20 common weight 18',
-        '25 uncommon weight 13',
-        '30 uncommon weight 10',
-        '40 rare weight 6',
-        '50 rare weight 4',
-        '100 very_rare weight 2',
+        '30 high weight 24',
+        '40 high weight 22',
+        '50 high weight 20',
+        '60 medium weight 12',
+        '75 medium weight 10',
+        '100 low weight 7',
+        '150 rare weight 4',
+        '250 very_rare weight 1',
         'selectReward',
         'randomUnit',
       ]);
@@ -208,8 +213,34 @@ export const EXTRA_TESTS = [
       }
       return pass('Daily Wheel v1 reward weights are documented in the backend mirror and selected server-side.', {
         verification: 'STATIC_CONTRACT',
-        actual: { rewards: [10, 15, 20, 25, 30, 40, 50, 100], weights: [25, 22, 18, 13, 10, 6, 4, 2] },
+        actual: { rewards: [30, 40, 50, 60, 75, 100, 150, 250], weights: [24, 22, 20, 12, 10, 7, 4, 1] },
       });
+    }),
+
+  makeCase('daily_rewards_panel_quest_v1_no_client_grant',
+    'Daily Quest v1 is visible but does not grant rewards client-side',
+    () => {
+      const combined = `${dailyRewardsPanelSource}\n${economyRulesSource}\n${economyGatewaySource}`;
+      const missing = missingTokens(combined, [
+        'DailyQuestV1Card',
+        'Günlük Görev',
+        'daily_quest:<normalizedEmail>:<YYYY-MM-DD>',
+        'User.daily_quest_*',
+        'does not grant Diamonds or Kronox Puan yet',
+      ]);
+      const forbidden = forbiddenTokens(dailyRewardsPanelSource, [
+        'base44.functions.invoke',
+        'DiamondTransaction',
+        'diamonds:',
+        'kronox_puan_total',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Daily Quest v1 can grant rewards client-side or lacks separate future backend contract.', {
+          verification: 'STATIC_CONTRACT',
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('Daily Quest v1 is panel-visible, reward-inactive, and reserved for a separate server-backed quest lane.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_diamonds_only_no_puan',
@@ -308,10 +339,10 @@ export const EXTRA_TESTS = [
     () => {
       const combined = `${DAILY_WHEEL_BACKEND_HEALTH_SOURCE}\n${dailyWheelCardSource}\n${economyRulesSource}`;
       const missing = missingTokens(combined, [
-        'STREAK_BONUS_AMOUNT = 100',
+        'STREAK_BONUS_AMOUNT = 150',
         'streakAfter % 7 === 0',
-        '7 günlük seri bonusu: +100 elmas',
-        '7-day streak bonus: +100 diamonds',
+        '7 günlük seri bonusu: +150 elmas',
+        '7-day streak bonus: +150 diamonds',
       ]);
       if (missing.length) {
         return fail('Daily Wheel 7-day streak bonus contract is incomplete.', {
@@ -319,7 +350,7 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      return pass('Daily Wheel grants/document a +100 Diamond bonus on every 7th consecutive daily spin.', { verification: 'STATIC_CONTRACT' });
+      return pass('Daily Wheel grants/document a +150 Diamond bonus on every 7th consecutive daily spin.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_claimed_passive_countdown',
@@ -392,7 +423,7 @@ export const EXTRA_TESTS = [
     () => {
       const missing = missingTokens(dailyWheelCardSource, [
         'RewardWheel',
-        'WHEEL_REWARD_SLICES = [10, 15, 20, 25, 30, 40, 50, 100]',
+        'WHEEL_REWARD_SLICES = [30, 40, 50, 60, 75, 100, 150, 250]',
         'WHEEL_SLICE_COLORS',
         'conic-gradient',
         'Günlük Çark ödül seçenekleri',
@@ -444,7 +475,7 @@ export const EXTRA_TESTS = [
         'highlightAmount={revealReady ? result.rewardAmount : null}',
         'result.totalRewardAmount',
         'result.rewardAmount',
-        '7 günlük seri bonusu: +100 elmas',
+        '7 günlük seri bonusu: +150 elmas',
       ]);
       if (missing.length) {
         return fail('Daily Wheel visual result can drift from the backend reward payload.', {
