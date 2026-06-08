@@ -1151,6 +1151,13 @@ import React, { useEffect, useState } from 'react';
 //     touchmove prevention, cancellation cleanup, and Health/docs coverage
 //     while preserving Timeline scrollLeft auto-scroll and hit-testing.
 //
+// Codex283 — Mağaza Phase 1:
+//   • Adds Home top-left Mağaza entry, /market page, and server-backed
+//     Diamond-to-Solo-joker purchases for Zaman Dondur, Kart Değiştir, and
+//     Kronokalkan with DiamondTransaction + JokerTransaction ledgers.
+//   • Keeps Online and Daily Wheel unaffected; no bundles, subscriptions,
+//     cosmetics, random boxes, ads, or external payments.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1454,7 +1461,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex282';
+const BUILD_MARKER = 'Codex283';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

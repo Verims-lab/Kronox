@@ -12,5 +12,6 @@ export const dbGatewayArchitectureContract = Object.freeze({
   protectedQuestionReads: 'questionGateway -> getQuestions',
   publicLeaderboardProjection: 'leaderboardGateway -> SoloLeaderboardEntry',
   analyticsRuntimeGateway: 'analyticsGateway -> QuestionAttemptEvent',
+  marketPurchaseGateway: 'economyGateway -> purchaseJokerWithDiamonds',
   cleanupJobs: 'cleanupGateway -> admin backend functions',
 });

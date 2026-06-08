@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Gem } from 'lucide-react';
+import { ArrowLeft, Gem, ShoppingBag } from 'lucide-react';
 import { sounds } from '@/lib/gameSounds';
 import HeaderNotificationBell from '@/components/notifications/HeaderNotificationBell';
 
@@ -8,7 +8,7 @@ import HeaderNotificationBell from '@/components/notifications/HeaderNotificatio
  * StandardTopBar — single shared top bar for app-shell screens.
  *
  * Layout (matches the new Home/Solo design language):
- *   [optional back ←]   [💎 diamondCount]              [🔔 bell]
+ *   [optional back ← / Mağaza]   [💎 diamondCount]      [🔔 bell]
  *
  * Fixed to the top, safe-area aware, 100% width. The diamond chip is
  * centered horizontally regardless of whether the back button is shown so
@@ -26,6 +26,8 @@ export default function StandardTopBar({
   user = null,
   showBack = false,
   onBack,
+  showMarket = false,
+  onMarket,
 }) {
   const navigate = useNavigate();
 
@@ -34,6 +36,12 @@ export default function StandardTopBar({
     if (onBack) { onBack(); return; }
     if (typeof window !== 'undefined' && window.history.length > 1) navigate(-1);
     else navigate('/');
+  };
+
+  const handleMarket = () => {
+    sounds.tap();
+    if (onMarket) { onMarket(); return; }
+    navigate('/market');
   };
 
   return (
@@ -64,6 +72,23 @@ export default function StandardTopBar({
           }}
         >
           <ArrowLeft className="h-5 w-5" strokeWidth={2.4} />
+        </button>
+      )}
+
+      {!showBack && showMarket && (
+        <button
+          type="button"
+          onClick={handleMarket}
+          aria-label="Mağaza"
+          className="absolute flex h-10 w-10 items-center justify-center rounded-full text-amber-200 active:scale-95 transition-transform"
+          style={{
+            left: 'calc(env(safe-area-inset-left) + 0.75rem)',
+            top: 'calc(env(safe-area-inset-top) + 0.5rem)',
+            background: 'rgba(250,204,21,0.10)',
+            boxShadow: 'inset 0 0 0 1px rgba(250,204,21,0.35), 0 0 18px rgba(250,204,21,0.10)',
+          }}
+        >
+          <ShoppingBag className="h-5 w-5" strokeWidth={2.5} />
         </button>
       )}
 

@@ -338,6 +338,6 @@ export const EXTRA_TESTS = [
           actual: { accidentalEntity, docsOk },
         });
       }
-      return pass('Daily Quest is documented as paused; active Diamond sources are starter_bonus, daily_login, and daily_wheel only.', { verification: 'STATIC_CONTRACT' });
+      return pass('Daily Quest is documented as paused; active Diamond sources are starter_bonus, daily_login, daily_wheel, and market_purchase.', { verification: 'STATIC_CONTRACT' });
     }),
 ];

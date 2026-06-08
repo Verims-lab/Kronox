@@ -207,7 +207,12 @@ Inventory foundation:
   `card_swap` / Kart Değiştir, and 3 `time_freeze` / Zaman Dondur once
 - starter grant keys are idempotent (`starter_jokers:<email>:<joker_type>`)
 - Profile displays balances under `Joker Çantası`
-- Market purchase and Diamond-to-joker pricing are later phases
+- Mağaza Phase 1 sells only Solo jokers with Diamonds:
+  `Zaman Dondur = 40`, `Kart Değiştir = 50`, `Kronokalkan = 60`
+- Mağaza purchase validates price and sufficient Diamonds server-side through
+  `purchaseJokerWithDiamonds`, writes both Diamond and Joker ledgers with
+  `market_purchase`, and does not change Solo scoring, timer, question
+  selection, or Online mode
 
 Joker behavior:
 - `Kronokalkan`: activates one-time protection. The next wrong placement does not count as a mistake; correct placements do not consume it.

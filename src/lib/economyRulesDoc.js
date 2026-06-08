@@ -27,6 +27,7 @@ exist per idempotency_key.
 - starter_bonus (one-time, guarded by User.starter_bonus_granted_at)
 - daily_login (guarded by User.last_daily_diamond_reward_date)
 - daily_wheel (server-backed Daily Wheel claim; Diamonds only, no Kronox Puan)
+- market_purchase (server-backed Mağaza joker purchase; Diamond spend only)
 
 Daily Wheel is separate from the existing +20 daily login reward, grants once
 per UTC server day, uses idempotency_key daily_wheel:<normalizedEmail>:<YYYY-MM-DD>,
@@ -45,11 +46,17 @@ claimed-state countdown uses Yarın hazır or compact time text such as 11 sa
 
 First authenticated entry grants +100 once. Same-day daily login grants +20 once.
 
+## Mağaza / Joker purchases
+Mağaza Phase 1 sells only Solo jokers for Diamonds:
+Zaman Dondur = 40 Diamonds, Kart Değiştir = 50 Diamonds, Kronokalkan = 60 Diamonds.
+purchaseJokerWithDiamonds owns the trusted price table, ignores client-provided price/cost, validates authenticated self-owned user context and sufficient User.diamonds server-side, writes DiamondTransaction.source = market_purchase with direction = spend, and writes JokerTransaction.reason = market_purchase.
+Insufficient Diamonds do not decrease Diamonds, increase joker balance, or write successful purchase ledgers. Purchase uses an idempotency key; live double-tap/race proof remains manual.
+
 ## Admin reset and account deletion
 Admin reset sets \`daily_wheel_last_spin_date\` to the current UTC day, clears Daily Wheel guard fields, and removes target \`DailyWheelSpin\` rows. Retained OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the deleted user.
 Admin reset remains admin-only, previewed, confirmed, and logged; it prevents stale Daily Wheel availability/countdown state without granting duplicate Diamonds, changing Kronox Puan, or affecting leaderboard sorting or rank.
 Retained economy/gameplay rows do not expose the deleted user identity.
 
-Future sources (wheel_spin, rewarded_ad, quest_reward, purchase, achievement,
-special_event) are schema-ready but not active yet.
+Future sources (wheel_spin, rewarded_ad, quest_reward, real-money purchase,
+achievement, special_event) are schema-ready but not active yet.
 `;

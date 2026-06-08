@@ -477,16 +477,16 @@ export const EXTRA_TESTS = [
       return pass('Solo joker actions do not write score/progress or mention Kronox Puan.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('market_still_not_active_phase_2',
-    'Market purchase is still not active in Phase 2',
+  makeCase('market_stays_outside_solo_gameplay',
+    'Mağaza purchase UI stays outside Solo gameplay',
     () => {
-      const uiForbidden = ['Joker Market', 'Joker Pazarı', 'diamond-to-joker', 'Satın Al'].filter((token) => safeStr(soloJokerBarSource).includes(token));
+      const uiForbidden = ['Joker Market', 'Joker Pazarı', 'diamond-to-joker', 'Satın Al', 'Mağaza'].filter((token) => safeStr(soloJokerBarSource).includes(token));
       const helperMissing = missingTokens(jokerInventorySource, ['MARKET_PURCHASE']);
       if (uiForbidden.length || helperMissing.length) return fail('A joker market UI appears active or future market reason drifted.', {
         verification: 'STATIC_CONTRACT',
         actual: { uiForbidden, helperMissing },
       });
-      return pass('Market purchase remains future-only; Solo spending does not add a purchase surface.', { verification: 'STATIC_CONTRACT' });
+      return pass('Mağaza purchase exists outside Solo; Solo gameplay keeps only owned-count joker usage controls.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_remains_diamond_only_in_solo_phase_2',

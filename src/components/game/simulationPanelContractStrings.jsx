@@ -381,6 +381,7 @@ export const diamondTransactionEntitySource = `
         "starter_bonus",
         "daily_login",
         "daily_wheel",
+        "market_purchase",
         "wheel_spin_future",
         "rewarded_ad_future",
         "quest_reward_future",
@@ -393,6 +394,8 @@ export const diamondTransactionEntitySource = `
     "direction": { "enum": ["earn","spend"] },
     "idempotency_key": {},
     "metadata": {},
+    "related_entity_type": {},
+    "related_entity_id": {},
     "created_at": {}
   },
   "required": ["user_email","amount","balance_before","balance_after","source","direction","idempotency_key","created_at"],

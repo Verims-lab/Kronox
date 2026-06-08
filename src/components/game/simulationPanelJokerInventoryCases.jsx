@@ -1,7 +1,7 @@
 // Kronox Health Center — Joker Inventory contracts.
 //
 // Scope: user-owned joker balance foundation, starter grant idempotency,
-// Profile Joker Çantası display, Phase 2 Solo spending, and Market boundaries.
+// Profile Joker Çantası display, Phase 2 Solo spending, and Mağaza Phase 1 boundaries.
 
 import userJokerInventoryEntitySource from '../../../base44/entities/UserJokerInventory.jsonc?raw';
 import jokerTransactionEntitySource from '../../../base44/entities/JokerTransaction.jsonc?raw';
@@ -13,6 +13,9 @@ import jokerInventorySource from '../../lib/jokerInventory.js?raw';
 import authContextSource from '../../lib/AuthContext.jsx?raw';
 import profilePageSource from '../../pages/ProfilePage.jsx?raw';
 import mainMenuSource from '../../pages/MainMenu.jsx?raw';
+import marketPageSource from '../../pages/MarketPage.jsx?raw';
+import marketSource from '../../lib/market.js?raw';
+import purchaseJokerWithDiamondsSource from '../../../base44/functions/purchaseJokerWithDiamonds/entry.ts?raw';
 import soloJokerBarSource from './SoloJokerBar.jsx?raw';
 import gameSource from '../../pages/Game.jsx?raw';
 import claimDailyWheelRewardSource from '../../../base44/functions/claimDailyWheelReward/entry.ts?raw';
@@ -51,7 +54,7 @@ function makeCase(id, name, run, options = {}) {
     name,
     critical: options.critical ?? true,
     actionType: options.actionType || ACTION_TYPES.CODE_FIX,
-    nextStep: options.nextStep || 'Keep joker inventory user-owned, idempotent, ledger-backed, Solo-only for usage, and separate from Market until that phase ships.',
+    nextStep: options.nextStep || 'Keep joker inventory user-owned, idempotent, ledger-backed, Solo-only for usage, and Mağaza limited to Phase 1 joker purchases.',
     ...options,
     run,
   };
@@ -312,20 +315,35 @@ export const EXTRA_TESTS = [
       return pass('Daily Wheel still grants Diamonds only and does not touch joker inventory.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('market_not_active_in_current_phase',
-    'Market purchase UI is not implemented in this phase',
+  makeCase('market_phase_1_joker_only_boundary',
+    'Mağaza Phase 1 is active only for Solo joker purchases',
     () => {
-      const forbidden = forbiddenTokens(`${mainMenuSource}\n${profilePageSource}`, [
-        'Joker Market',
-        'Joker Pazarı',
+      const missing = missingTokens(`${mainMenuSource}\n${marketPageSource}\n${marketSource}\n${purchaseJokerWithDiamondsSource}`, [
+        'showMarket',
+        'Mağaza',
+        'MARKET_JOKER_PRODUCTS',
+        'Kronokalkan',
+        'Kart Değiştir',
+        'Zaman Dondur',
         'market_purchase',
-        'diamond-to-joker',
+        'purchaseJokerWithDiamonds',
+        'DiamondTransaction',
+        'JokerTransaction',
       ]);
-      if (forbidden.length) return fail('A joker market/purchase surface appears active before the Market phase.', {
+      const forbidden = forbiddenTokens(marketPageSource, [
+        'subscription',
+        'abonelik',
+        'avatar',
+        'cosmetic',
+        'random_box',
+        'loot',
+        'external payment',
+      ]);
+      if (missing.length || forbidden.length) return fail('Mağaza Phase 1 boundary is missing or includes non-joker products.', {
         verification: 'STATIC_CONTRACT',
-        forbidden,
+        actual: { missing, forbidden },
       });
-      return pass('Market purchase remains future-only; no active joker market UI is present.', { verification: 'STATIC_CONTRACT' });
+      return pass('Mağaza is active only for the three Solo joker purchases and remains separate from Profile ledger details.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('solo_joker_behavior_uses_inventory_in_phase_2',

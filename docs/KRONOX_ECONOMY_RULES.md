@@ -69,7 +69,7 @@ Purpose:
 
 ---
 
-# 3. Active Reward Sources
+# 3. Active Sources
 
 Current active sources:
 
@@ -77,6 +77,7 @@ Current active sources:
 starter_bonus
 daily_login
 daily_wheel
+market_purchase
 ```
 
 Future schema-ready sources are intentionally inactive:
@@ -87,7 +88,6 @@ quest_reward_future
 purchase_future
 achievement_future
 special_event_future
-admin_adjustment
 ```
 
 Daily Quest / Günün Görevi remains paused.
@@ -429,16 +429,41 @@ Daily Wheel admin reset cleanup contract:
 
 ---
 
+# 3B. Mağaza / Joker Purchases
+
+Mağaza Phase 1 sells only Solo jokers for Diamonds:
+
+```text
+Zaman Dondur = 40 Diamonds
+Kart Değiştir = 50 Diamonds
+Kronokalkan = 60 Diamonds
+```
+
+Purchase rules:
+
+* `purchaseJokerWithDiamonds` owns the trusted price table
+* client-provided price/cost is ignored
+* authenticated user can purchase only for self
+* sufficient `User.diamonds` is validated server-side
+* successful purchase writes `DiamondTransaction.source = market_purchase`
+  with `direction = spend`
+* successful purchase writes `JokerTransaction.reason = market_purchase`
+* insufficient Diamonds do not decrease Diamonds, increase joker balance, or
+  write successful purchase ledgers
+* purchase uses an idempotency key; live double-tap/race proof remains manual
+
+---
+
 # 12. Not Implemented Yet
 
 The following are not implemented:
 
 * Rewarded ads
 * Daily Quest / Günün Görevi
-* Purchases
+* Real-money purchases
 * Achievement rewards
 * Special event rewards
-* Spending/cost flows
+* Non-joker spending/cost flows
 
 Do not implement these without explicit product approval.
 

@@ -23,6 +23,7 @@ import { markTutorialCompleted, shouldShowTutorialForUser } from '@/lib/tutorial
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
 
 const MainMenu = lazyWithRetry(() => import('./pages/MainMenu'), 'MainMenu');
+const MarketPage = lazyWithRetry(() => import('./pages/MarketPage'), 'MarketPage');
 const SoloChallenge = lazyWithRetry(() => import('./pages/SoloChallenge'), 'SoloChallenge');
 const Game = lazyWithRetry(() => import('./pages/Game'), 'Game');
 const LobbyRoom = lazyWithRetry(() => import('./pages/LobbyRoom'), 'LobbyRoom');
@@ -84,7 +85,7 @@ const AuthenticatedApp = () => {
 
   // Determine transition direction: push (right-to-left) or pop (left-to-right)
   const getTransitionDirection = () => {
-    const routeOrder = ['/', '/game', '/lobby', '/profile', '/settings', '/test-suite'];
+    const routeOrder = ['/', '/market', '/game', '/lobby', '/profile', '/settings', '/test-suite'];
     const currIdx = routeOrder.indexOf(location.pathname);
     const prevIdx = routeOrder.indexOf(prevPathRef.current);
     const direction = currIdx > prevIdx ? 'push' : 'pop';
@@ -169,6 +170,7 @@ const AuthenticatedApp = () => {
               <AppErrorBoundary>
                 <Routes location={location}>
                   <Route path="/" element={<MainMenu />} />
+                  <Route path="/market" element={<MarketPage />} />
                   <Route path="/solo" element={<SoloChallenge />} />
                   <Route path="/setup" element={<Navigate to="/solo" replace />} />
                   <Route path="/settings" element={<SettingsPage />} />
@@ -206,9 +208,9 @@ const AuthenticatedApp = () => {
 
 
 function App() {
-  // Codex282 — push build marker into diag bus once at app boot
+  // Codex283 — push build marker into diag bus once at app boot
   useEffect(() => {
-    appDiagSetBuildMarker('Codex282');
+    appDiagSetBuildMarker('Codex283');
     // Codex176 — App booted successfully, so any prior stale-chunk reload
     // recovered. Clear the one-time reload guards so a future deploy can
     // self-heal again.

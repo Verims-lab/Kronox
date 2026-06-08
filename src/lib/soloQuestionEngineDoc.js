@@ -132,6 +132,12 @@ timeout, or exit. No refund also applies to replay, browser close, or
 abandoned attempts. Jokers do not use Diamonds, do not grant Kronox Puan, and
 do not affect Online mode.
 
+Mağaza Phase 1 sells only Solo jokers with Diamonds: Zaman Dondur = 40,
+Kart Değiştir = 50, Kronokalkan = 60. Mağaza purchase validates price and
+sufficient Diamonds server-side through purchaseJokerWithDiamonds, writes both
+Diamond and Joker ledgers with market_purchase, and does not change Solo
+scoring, timer, question selection, or Online mode.
+
 Kronokalkan forgives the next wrong placement without counting a mistake.
 Kart Değiştir replaces the current card from the already prepared Solo deck
 or reserve without fetching or re-randomizing mid-attempt. The swapped-out card
