@@ -38,6 +38,15 @@ function isInvalidVapidValue(value: string) {
   ].includes(normalized);
 }
 
+function isValidVapidSubject(value: string) {
+  const normalized = value.trim().toLowerCase();
+  return normalized.startsWith('mailto:') || normalized.startsWith('https://');
+}
+
+function isLikelyVapidKey(value: string) {
+  return /^[A-Za-z0-9_-]{20,}$/.test(value.trim());
+}
+
 function readRequiredVapidValue(field: typeof VAPID_CONFIG_FIELDS[number]) {
   for (const envName of field.envNames) {
     const raw = Deno.env.get(envName);
@@ -45,6 +54,12 @@ function readRequiredVapidValue(field: typeof VAPID_CONFIG_FIELDS[number]) {
     const value = raw.trim();
     if (!value) continue;
     if (isInvalidVapidValue(value)) {
+      return { value: null, invalid: field.canonicalName };
+    }
+    if (field.key === 'subject' && !isValidVapidSubject(value)) {
+      return { value: null, invalid: field.canonicalName };
+    }
+    if ((field.key === 'publicKey' || field.key === 'privateKey') && !isLikelyVapidKey(value)) {
       return { value: null, invalid: field.canonicalName };
     }
     return { value, invalid: null };
@@ -104,11 +119,22 @@ function getVapidConfig() {
     privateKey: config.privateKey,
     missing,
     invalid,
-    acceptedEnvNames: VAPID_CONFIG_FIELDS.reduce((acc, field) => {
-      acc[field.canonicalName] = [...field.envNames];
-      return acc;
-    }, {} as Record<string, string[]>),
   };
+}
+
+function summarizeVapidConfigState(config: ReturnType<typeof getVapidConfig>) {
+  return {
+    missingCount: config.missing.length,
+    invalidCount: config.invalid.length,
+  };
+}
+
+function sanitizePushErrorReason(error: unknown) {
+  const statusCode = Number((error as any)?.statusCode || (error as any)?.status || 0);
+  if (statusCode === 404 || statusCode === 410) return 'subscription_expired';
+  if (statusCode === 401 || statusCode === 403) return 'push_provider_rejected';
+  if (statusCode >= 500) return 'push_provider_unavailable';
+  return 'push_failed';
 }
 
 function buildTargetUrl(invite: any) {
@@ -176,13 +202,16 @@ Deno.serve(async (req) => {
 
     const config = getVapidConfig();
     if (config.missing.length || config.invalid.length) {
+      const configState = summarizeVapidConfigState(config);
       console.warn('[sendGameInvitePush] VAPID config missing or invalid; push skipped but in-app invite remains available.', {
         reason: 'vapid_config_missing',
-        missing: config.missing,
-        invalid: config.invalid,
+        ...configState,
       });
       return json({
         ok: true,
+        pushSent: false,
+        pushSkipped: true,
+        reason: 'vapid_config_missing',
         push: {
           ok: false,
           attempted: false,
@@ -190,9 +219,7 @@ Deno.serve(async (req) => {
           failed: 0,
           skipped: 'missing_vapid_config',
           reason: 'vapid_config_missing',
-          missingConfig: config.missing,
-          invalidConfig: config.invalid,
-          acceptedEnvNames: config.acceptedEnvNames,
+          ...configState,
         },
       });
     }
@@ -244,9 +271,10 @@ Deno.serve(async (req) => {
       } catch (error) {
         failed += 1;
         const statusCode = Number((error as any)?.statusCode || (error as any)?.status || 0);
+        const safeReason = sanitizePushErrorReason(error);
         failedReasons.push({
           statusCode,
-          reason: (error as Error)?.message || 'push_failed',
+          reason: safeReason,
         });
         if (statusCode === 404 || statusCode === 410) {
           expired += 1;
@@ -259,7 +287,7 @@ Deno.serve(async (req) => {
           inviteId,
           subscriptionId: row.id,
           statusCode,
-          message: (error as Error)?.message || 'push_failed',
+          reason: safeReason,
         });
       }
     }
@@ -277,6 +305,6 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     console.error('[sendGameInvitePush] error:', (error as Error)?.message || error);
-    return json({ ok: false, error: (error as Error)?.message || 'Push notification failed' }, 500);
+    return json({ ok: false, error: 'Push notification failed' }, 500);
   }
 });

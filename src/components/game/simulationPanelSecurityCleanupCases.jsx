@@ -170,9 +170,15 @@ export const EXTRA_TESTS = [
         'Deno.env.get(envName)',
         'readRequiredVapidValue',
         'isInvalidVapidValue',
+        'isValidVapidSubject',
+        'isLikelyVapidKey',
+        'summarizeVapidConfigState',
         'vapid_config_missing',
-        'missingConfig: config.missing',
-        'invalidConfig: config.invalid',
+        'pushSent: false',
+        'pushSkipped: true',
+        'missingCount',
+        'invalidCount',
+        'sanitizePushErrorReason',
         'webpush.setVapidDetails(config.subject, config.publicKey, config.privateKey)',
       ];
       const forbidden = [
@@ -185,6 +191,9 @@ export const EXTRA_TESTS = [
         /Deno\.env\.get\('VITE_[^']*(?:PRIVATE|SECRET|TOKEN)[^']*'\)/,
         /console\.(?:log|warn|error)\([^;]*(?:config\.privateKey|privateKey|KRONOX_VAPID_PRIVATE_KEY)/,
         /return\s+json\(\{[\s\S]{0,500}privateKey\s*:/,
+        /acceptedEnvNames/,
+        /missingConfig:\s*config\.missing/,
+        /invalidConfig:\s*config\.invalid/,
         privateKeyBlockPattern,
       ].filter((pattern) => pattern.test(sendGameInvitePushSource));
       const missing = missingTokens(sendGameInvitePushSource, required);
@@ -214,9 +223,10 @@ export const EXTRA_TESTS = [
         'config.privateKey',
         'webpush.setVapidDetails(config.subject, config.publicKey, config.privateKey)',
         'vapid_config_missing',
-        'missingConfig: config.missing',
-        'invalidConfig: config.invalid',
-        'acceptedEnvNames: config.acceptedEnvNames',
+        'pushSent: false',
+        'pushSkipped: true',
+        'missingCount',
+        'invalidCount',
       ];
       const forbidden = [
         /VITE_[A-Z0-9_]*VAPID_PRIVATE_KEY/,
@@ -226,6 +236,9 @@ export const EXTRA_TESTS = [
         /console\.(?:log|warn|error)\([^;]*(?:config\.privateKey|privateKey|KRONOX_VAPID_PRIVATE_KEY)/,
         /return\s+json\(\{[\s\S]{0,500}privateKey\s*:/,
         /privateKey\s*:\s*['"][^'"]{12,}['"]/,
+        /acceptedEnvNames/,
+        /missingConfig:\s*config\.missing/,
+        /invalidConfig:\s*config\.invalid/,
         privateKeyBlockPattern,
       ].filter((pattern) => pattern.test(sendGameInvitePushSource));
       const missing = missingTokens(sendGameInvitePushSource, required);
@@ -254,10 +267,12 @@ export const EXTRA_TESTS = [
         'vapid_config_missing',
         'attempted: false',
         'ok: false',
+        'pushSent: false',
+        'pushSkipped: true',
         'push skipped but in-app invite remains available',
-        'missingConfig: config.missing',
-        'invalidConfig: config.invalid',
-        'acceptedEnvNames: config.acceptedEnvNames',
+        'summarizeVapidConfigState',
+        'missingCount',
+        'invalidCount',
         'console.warn',
       ]);
       if (missing.length) {

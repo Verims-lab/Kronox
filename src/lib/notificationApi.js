@@ -2,7 +2,7 @@ import { base44 } from '@/api/base44Client';
 import { normalizeEmail } from '@/lib/friendsApi';
 
 const SERVICE_WORKER_URL = '/kronox-sw.js';
-const VAPID_PUBLIC_KEY = import.meta.env.VITE_KRONOX_VAPID_PUBLIC_KEY || '';
+const VAPID_PUBLIC_KEY = String(import.meta.env.VITE_KRONOX_VAPID_PUBLIC_KEY ?? '').trim();
 
 export function getNotificationPermission() {
   if (typeof window === 'undefined' || !('Notification' in window)) return 'unsupported';
