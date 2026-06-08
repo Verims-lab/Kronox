@@ -223,7 +223,7 @@ export const EXTRA_TESTS = [
       const combined = `${dailyRewardsPanelSource}\n${economyRulesSource}\n${economyGatewaySource}`;
       const missing = missingTokens(combined, [
         'DailyQuestV1Card',
-        'Bugünkü Görevler',
+        'Günlük Görev',
         'claimDailyQuestReward',
         'daily_quest_reward',
         'User.daily_quest_*',

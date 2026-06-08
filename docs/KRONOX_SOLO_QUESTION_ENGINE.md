@@ -221,10 +221,12 @@ Inventory foundation:
 
 Daily Quest Runtime v1 is Solo-focused:
 - admin-managed `DailyQuestDefinition` rows define system quest templates
-- `UserDailyQuestProgress` tracks up to 3 user/day quests per UTC day
-- Bugünkü Görevler requires active `DailyQuestDefinition` rows; the runtime
-  seeds the default Solo-focused templates idempotently only when no definition
-  rows exist
+- `UserDailyQuestProgress` tracks 1 selected user/day quest per UTC day
+- Günlük Görev requires active `DailyQuestDefinition` rows; the runtime selects
+  the first active definition by `sort_order`, `created_at`, and `quest_key`,
+  while admins may still manage multiple definitions
+- the runtime seeds the default Solo-focused templates idempotently only when no
+  definition rows exist
 - `getDailyQuestStatus` is authenticated but not admin-only, and preserves
   newly created progress rows if an immediate Base44 refresh is stale
 - loading or ensuring today’s quests does not grant Diamonds;

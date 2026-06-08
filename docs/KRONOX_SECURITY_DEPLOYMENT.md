@@ -202,9 +202,10 @@ Daily Quest Definition management:
 * Daily Quest Runtime v1 grants diamonds only through `claimDailyQuestReward`
   and `DiamondTransaction.source = daily_quest_reward`
 * Daily Quest does not grant Kronox Puan and has no leaderboard impact
-* Home `getDailyQuestStatus` ensures today’s `UserDailyQuestProgress` rows and
-  may seed fixed default `DailyQuestDefinition` templates only when the
-  definition table is empty. This idempotent seed does not grant Diamonds.
+* Home `getDailyQuestStatus` ensures 1 selected `UserDailyQuestProgress` row
+  per UTC day and may seed fixed default `DailyQuestDefinition` templates only
+  when the definition table is empty. This idempotent seed does not grant
+  Diamonds.
 * `getDailyQuestStatus` is authenticated runtime, not admin-only; it derives
   the user from backend auth context, writes only that user's progress rows,
   and treats no active definitions as a safe empty state.
@@ -521,7 +522,7 @@ Joker inventory is user-owned data:
   two-device/backend race proof remains manual unless Base44 uniqueness is
   proven
 * Home `Günlük Ödüller` includes Daily Wheel and Daily Quest Runtime v1
-  `Bugünkü Görevler`; Daily Quest claims grant diamonds only through
+  `Günlük Görev`; Daily Quest claims grant diamonds only through
   server-backed, user-bound `claimDailyQuestReward`
 * Daily Wheel and Daily Quest rewards use separate guard fields and
   idempotency keys so a quest claim cannot unlock or duplicate a wheel spin:

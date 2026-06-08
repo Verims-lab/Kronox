@@ -70,14 +70,14 @@ Daily Wheel UI animates to the backend-selected reward.
 Daily Wheel result shows \`+X Elmas kazandın\`; when the 7-day streak bonus
 applies it also shows \`7 günlük seri bonusu: +150 elmas\` and
 \`Toplam: +Y elmas\`.
-Günlük Ödüller panel contains Daily Wheel plus Bugünkü Görevler for active
+Günlük Ödüller panel contains Daily Wheel plus one Günlük Görev for active
 Daily Quest Runtime v1. DailyQuestDefinition remains admin-managed, while
-UserDailyQuestProgress tracks up to 3 UTC-day quests per user. Progress is
+UserDailyQuestProgress tracks 1 selected UTC-day quest per user. Progress is
 Solo-only in v1 and claimDailyQuestReward grants diamonds only through
 DiamondTransaction.source = daily_quest_reward. Daily Quest does not grant
 Kronox Puan and has no leaderboard impact. One claim per quest per UTC day is
 enforced by UserDailyQuestProgress plus daily_quest_reward idempotency keys.
-Bugünkü Görevler requires active DailyQuestDefinition rows; fresh DBs seed the
+Günlük Görev requires active DailyQuestDefinition rows; fresh DBs seed the
 default Solo-focused definitions idempotently when no definitions exist, and
 getDailyQuestStatus preserves newly created rows if immediate refresh is stale;
 loading today’s quests does not grant Diamonds.

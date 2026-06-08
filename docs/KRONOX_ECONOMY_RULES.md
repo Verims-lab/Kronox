@@ -95,8 +95,8 @@ special_event_future
 Daily Quest / Günün Görevi Runtime v1 is active inside the Home `Günlük
 Ödüller` panel. `DailyQuestDefinition` templates remain admin-managed and
 display-only for title/description; `quest_type + target_value` drives runtime
-progress. `UserDailyQuestProgress` stores up to 3 UTC-day quests per user,
-copied targets/rewards, progress, completion, and claim state.
+progress. `UserDailyQuestProgress` stores 1 selected UTC-day quest per user,
+with copied target/reward, progress, completion, and claim state.
 
 Daily Quest grants diamonds only through the server-backed
 `claimDailyQuestReward` callable. Claims write
