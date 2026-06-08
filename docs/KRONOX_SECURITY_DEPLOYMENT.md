@@ -214,9 +214,15 @@ Daily Quest Definition management:
   `claimDailyQuestReward` remains the only reward path.
 * Completing progress alone does not grant Diamonds; completed and unclaimed
   quests expose an `Al` claim action.
+* User-facing Daily Quest copy is
+  `Günlük Görevleri Yap, Elmasları Kazan!`; the security contract remains
+  Diamonds-only, no Kronox Puan, and no leaderboard impact.
 * Successful `claimDailyQuestReward` writes `daily_quest_reward`, updates
   visible `User.diamonds`, returns `diamondBalanceAfter`, and only then marks
   the progress row claimed.
+* Daily Quest runtime functions explicitly bind `UserDailyQuestProgress` for
+  status, progress, and claim; `claimDailyQuestReward` must not fall back to a
+  missing progress entity registry or expose raw HTTP 500 text to users.
 * `daily_quest_last_claim_date` and `daily_quest_next_available_at` are
   active summary/availability fields; duplicate-claim prevention is enforced
   by `UserDailyQuestProgress` and `DiamondTransaction` idempotency

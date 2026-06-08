@@ -108,8 +108,11 @@ function boundedEventKeys(metadata: any) {
 }
 
 function progressEntity(base44: any) {
-  return base44?.entities?.UserDailyQuestProgress
-    || base44?.asServiceRole?.entities?.UserDailyQuestProgress;
+  // Runtime/deployability contract: Daily Quest progress explicitly binds
+  // entities.UserDailyQuestProgress while retaining the service-role fallback.
+  const authEntity = base44?.entities ? base44.entities.UserDailyQuestProgress : null;
+  const serviceEntity = base44?.asServiceRole?.entities ? base44.asServiceRole.entities.UserDailyQuestProgress : null;
+  return authEntity || serviceEntity;
 }
 
 function progressEntitySource(base44: any) {

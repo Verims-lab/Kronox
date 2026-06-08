@@ -36,7 +36,13 @@ function rowId(row: any) {
 }
 
 function progressEntity(base44: any) {
-  return base44?.asServiceRole?.entities?.UserDailyQuestProgress;
+  // Runtime/deployability contract: Daily Quest claim must explicitly bind
+  // entities.UserDailyQuestProgress. Some Base44 deployments expose new
+  // user-owned entities on the authenticated client before the service-role
+  // registry catches up, so claim uses the same fallback as status/progress.
+  const authEntity = base44?.entities ? base44.entities.UserDailyQuestProgress : null;
+  const serviceEntity = base44?.asServiceRole?.entities ? base44.asServiceRole.entities.UserDailyQuestProgress : null;
+  return serviceEntity || authEntity;
 }
 
 function publicProgress(row: any) {
@@ -284,7 +290,7 @@ Deno.serve(async (req: Request) => {
     return json({
       ok: false,
       code: 'daily_quest_claim_failed',
-      error: 'Günlük görev ödülü alınamadı. Lütfen tekrar dene.',
+      error: 'Ödül alınamadı. Tekrar dene.',
     }, 500);
   }
 });

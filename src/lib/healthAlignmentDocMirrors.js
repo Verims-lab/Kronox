@@ -170,7 +170,10 @@ amount. Completed progress alone does not grant Diamonds; completed and
 unclaimed quests expose an Al claim action. Successful claimDailyQuestReward
 updates visible User.diamonds, returns diamondBalanceAfter and questStatus:
 claimed, and only then marks the progress row claimed. Daily Quest does not
-grant Kronox Puan and has no leaderboard impact.
+grant Kronox Puan and has no leaderboard impact. Home Daily Quest copy is
+"Günlük Görevleri Yap, Elmasları Kazan!" and the runtime backend functions
+explicitly bind UserDailyQuestProgress for status, progress, and claim
+deployability.
 Günlük Görev requires active DailyQuestDefinition rows; getDailyQuestStatus and
 recordDailyQuestProgress seed fixed default templates idempotently only when no
 definition rows exist. Runtime selects the first active definition by

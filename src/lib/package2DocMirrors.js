@@ -75,8 +75,10 @@ Daily Quest Runtime v1. DailyQuestDefinition remains admin-managed, while
 UserDailyQuestProgress tracks 1 selected UTC-day quest per user. Progress is
 Solo-only in v1 and claimDailyQuestReward grants diamonds only through
 DiamondTransaction.source = daily_quest_reward. Daily Quest does not grant
-Kronox Puan and has no leaderboard impact. One claim per quest per UTC day is
-enforced by UserDailyQuestProgress plus daily_quest_reward idempotency keys.
+Kronox Puan and has no leaderboard impact. Home copy says "Günlük Görevleri Yap,
+Elmasları Kazan!" and runtime backend functions explicitly bind
+UserDailyQuestProgress. One claim per quest per UTC day is enforced by
+UserDailyQuestProgress plus daily_quest_reward idempotency keys.
 Günlük Görev requires active DailyQuestDefinition rows; fresh DBs seed the
 default Solo-focused definitions idempotently when no definitions exist, and
 getDailyQuestStatus preserves newly created rows if immediate refresh is stale;

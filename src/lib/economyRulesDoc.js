@@ -58,7 +58,10 @@ immediate refresh is stale.
 claimDailyQuestReward grants diamonds only, writes DiamondTransaction.source =
 daily_quest_reward with direction = earn, uses
 daily_quest_reward:<normalizedEmail>:<YYYY-MM-DD>:<questKey>, and uses
-User.daily_quest_* fields instead of Daily Wheel fields. Daily Quest does not grant Kronox Puan and has no leaderboard impact.
+User.daily_quest_* fields instead of Daily Wheel fields. Home copy says
+"Günlük Görevleri Yap, Elmasları Kazan!" and runtime backend functions
+explicitly bind UserDailyQuestProgress. Daily Quest does not grant Kronox Puan
+and has no leaderboard impact.
 
 First authenticated entry grants +100 once. Same-day daily login grants +20 once.
 

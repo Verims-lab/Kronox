@@ -1255,11 +1255,16 @@ import React, { useEffect, useState } from 'react';
 //     reconcile visible User.diamonds for idempotent retries, and surface
 //     claim errors in the Günlük Ödüller panel.
 //
-// Codex299 — Profile Admin Ekranı split:
+// Codex299 — Profile Admin Ekranı split + Daily Quest claim deployability:
 //   • Adds a Profile-only Admin Ekranı action for active AdminUser owner/admin
 //     users and keeps normal users on the two standard Profile actions.
 //   • Moves Settings maintenance tools into the guarded /admin screen while
 //     preserving AdminUser-backed backend guards for the actual admin actions.
+//   • Daily Quest runtime functions explicitly bind entities.UserDailyQuestProgress
+//     so getDailyQuestStatus, recordDailyQuestProgress, and claimDailyQuestReward
+//     are deployable against the progress entity.
+//   • Günlük Görev claim errors use "Ödül alınamadı. Tekrar dene." instead of
+//     raw HTTP status text, and Home copy says "Günlük Görevleri Yap, Elmasları Kazan!".
 //
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
@@ -1495,7 +1500,7 @@ import React, { useEffect, useState } from 'react';
 //     optional DailyWheelSpin ledger create is unavailable; User.diamonds is
 //     still updated and DiamondTransaction recovery is used where possible.
 //   • Daily Wheel UI sanitizes rejected function calls into Turkish retry
-//     copy instead of exposing raw "Request failed with status code 500".
+//     copy instead of exposing raw HTTP 500 status text.
 //
 // Codex192 — Solo success popup text simplification:
 //   • Success popup now shows "SÜRE" instead of "TOPLAM SÜRE".

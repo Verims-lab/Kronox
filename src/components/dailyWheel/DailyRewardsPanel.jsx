@@ -93,7 +93,7 @@ function DailyQuestV1Card({ user, onUserUpdated, onLogin }) {
             <p className="truncate text-xs font-black text-sky-100">Günlük Görev</p>
             <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-200" />
           </div>
-          <p className="truncate text-[10px] font-bold text-slate-300">Ödüller Elmas verir; Kronox Puan yok.</p>
+          <p className="truncate text-[10px] font-bold text-slate-300">Günlük Görevleri Yap, Elmasları Kazan!</p>
         </div>
       </div>
 
@@ -143,7 +143,7 @@ function DailyQuestV1Card({ user, onUserUpdated, onLogin }) {
           <p>{emptyCopy}</p>
           {canSeeAdminQuestHint && dailyQuests.adminWarning === 'insufficient_active_definitions' && (
             <p className="mt-1 text-[10px] font-semibold text-amber-100">
-              Aktif günlük görev tanımı yok. Ayarlar &gt; Günlük Görev Yönetimi bölümünden aktif görev ekleyin.
+              Aktif günlük görev tanımı yok. Admin Ekranı &gt; Günlük Görev Yönetimi bölümünden aktif görev ekleyin.
             </p>
           )}
         </div>
