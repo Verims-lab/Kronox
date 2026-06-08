@@ -203,7 +203,7 @@ export const sendGameInvitePushFnSource = `
   if (config.missing.length || config.invalid.length) {
     const configState = summarizeVapidConfigState(config);
     console.warn('[sendGameInvitePush] VAPID config missing or invalid; push skipped but in-app invite remains available.', { reason: 'vapid_config_missing', ...configState });
-    return json({ ok: true, pushSent: false, pushSkipped: true, missingConfig: true, reason: 'vapid_config_missing', push: { ok: false, attempted: false, skipped: 'missing_vapid_config', reason: 'vapid_config_missing', missingConfig: true, missingCount: configState.missingCount, invalidCount: configState.invalidCount } });
+    return json({ ok: true, pushSent: false, pushSkipped: true, missingConfig: true, reason: 'vapid_config_missing', push: { ok: false, attempted: false, sent: 0, failed: 0, expired: 0, skipped: 'missing_vapid_config', skippedReasons: { missing_vapid_config: 1 }, failedReasons: [], subscriptionCount: 0, reason: 'vapid_config_missing', missingConfig: true, missingCount: configState.missingCount, invalidCount: configState.invalidCount } });
   }
   const subscriptions = await base44.asServiceRole.entities.PushSubscription.filter(
     { user_email: toEmail, status: 'active' },
@@ -211,7 +211,7 @@ export const sendGameInvitePushFnSource = `
     25,
   );
   if (!subscriptions?.length) {
-    return json({ ok: true, push: { attempted: false, sent: 0, failed: 0, skipped: 'no_active_subscriptions' } });
+    return json({ ok: true, push: { attempted: false, sent: 0, failed: 0, expired: 0, skipped: 'no_active_subscriptions', skippedReasons: { no_active_subscriptions: 1 }, failedReasons: [], subscriptionCount: 0 } });
   }
   const targetUrl = buildTargetUrl(invite); // /lobby?inviteId=...&lobbyId=...&lobbyCode=...
   const notificationPayload = JSON.stringify({
