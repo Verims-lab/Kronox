@@ -444,6 +444,22 @@ After deployment, verify:
 * retained score/economy rows no longer contain the deleted user's email
 * public `/account-deletion` copy matches the in-app deletion flow
 
+## Joker Inventory
+
+Phase 1 joker inventory is user-owned data:
+
+* `UserJokerInventory` stores current balances for `mistake_shield`,
+  `card_swap`, and `time_freeze`
+* `JokerTransaction` stores the append-only grant/spend ledger
+* users may read only their own balances; other-user reads/mutations require
+  runtime two-account proof
+* starter grants are created by `ensureUserJokerInventory` using authenticated
+  user context and per-joker idempotency keys
+* normal users must not be able to arbitrarily grant themselves jokers
+* Profile shows only `Joker Çantası` balances, not ledger rows
+* Market purchase and Solo spend validation are later phases and must remain
+  server-side when added
+
 ## Admin Maintenance Jobs
 
 Codex183 adds protected maintenance/cleanup backend functions:

@@ -106,6 +106,8 @@ Current entities audited:
 - `SubCategory`
 - `UserCategoryPreference`
 - `UserSubCategoryPreference`
+- `UserJokerInventory`
+- `JokerTransaction`
 - `DiamondTransaction`
 - `DailyWheelSpin`
 - `FriendRequest`
@@ -129,6 +131,8 @@ Current entities audited:
 | `SubCategory` | Future normalized subcategory lookup. | No current Settings preference UI usage; no runtime question mapping yet. | Future lookup source for normalized subcategory metadata. | Manual/admin row management expected later. | Read can be public like `Category`; create/update/delete stay admin-only. Rows store only subcategory metadata and `Category.category_id` references. | Unique `id`; `status`; `main_category_1`; `main_category_2`. | No routine deletion. Passive instead of delete. | Keep as additive prep. | Future proof needed before mapping `Question.sub_category` text to `SubCategory.id`. |
 | `UserCategoryPreference` | Per-user interest preference rows for active main `Category` selections. | App-open Category preference popup, Settings `İlgi Alanlarım`, and Solo-only soft 70/30 question weighting load current user's selected categories. | Yes for user preference persistence and Solo soft weighting; not a hard question filter. | `src/lib/userCategoryPreferences.js`, `src/lib/categoryPreferenceOnboarding.js`, `src/components/settings/CategoryPreferenceOnboardingModal.jsx`, `src/components/settings/CategoryPreferencesSection.jsx`, `src/pages/Game.jsx`, `src/lib/soloQuestionEngine.js`. | Rows are user-scoped by owner email; normal users can read/update only their own rows, admin can inspect. Any user below 3 active valid preferences is prompted; completion flags cannot bypass that rule. Preferences must not leak other users or affect Online/getQuestions selection. | `user_email + category_id` unique where platform supports it; `user_email + status`; `category_id`. | Unselected preferences become `status = P`; no hard delete needed for routine settings edits. | Keep. | Runtime two-account RLS proof remains needed for preference isolation. |
 | `UserSubCategoryPreference` | Legacy retained per-user SubCategory preference rows from the earlier Settings phase. | Not used by the current Settings preference UI. Existing rows are left untouched. | Historical data only until a later migration decision. | No active Settings read/write path. | Keep user-scoped if accessed in future; do not expose globally. | `user_email + sub_category_id` if retained. | Leave existing rows untouched for now. | Retain/legacy. | Future migration/deletion proof needed before removing. |
+| `UserJokerInventory` | Per-user current joker balances. | Phase 1 lazy starter initialization and Profile `Joker Çantası` display. | Yes for current owned joker counts. | `ensureUserJokerInventory`, `src/lib/jokerInventory.js`, `ProfilePage`. | User can read own balances; create/update/delete should stay backend/admin/service-role only so normal users cannot grant themselves jokers. Runtime two-account RLS proof remains manual. | Unique `user_email + joker_type`; `joker_type`; `updated_at`. | Keep active rows with user account; anonymize/delete with account deletion in a later cleanup phase. | Keep/additive. | Prove Account A cannot read/mutate Account B inventory and normal users cannot create arbitrary grants. |
+| `JokerTransaction` | Joker ledger/idempotency audit. | Phase 1 `starter_grant` rows; future `solo_use` and `market_purchase`. | Audit/ledger; `UserJokerInventory.quantity` is balance source. | `ensureUserJokerInventory` writes starter rows with `starter_jokers:<email>:<joker_type>` keys. | Append-only where possible; normal Profile does not expose ledger rows; writes stay backend/admin/service-role. | Unique `idempotency_key`; `user_email + created_at`; `user_email + joker_type`; `reason + created_at`. | Retain for audit; archive old rows after economy retention policy. | Keep/additive. | Two-account RLS and duplicate starter grant proof remain manual/runtime. |
 | `Question` | Protected gameplay question bank. | Authenticated `getQuestions`, `startLobbyGame`, test/sim functions, admin paths. | Yes for question content, but runtime projection derives `year` from `answer`. | Service-role backend functions; direct entity read admin-only by RLS. | Must remain protected. Normal users must not get full bank or admin metadata. | `state`; `main_category_id`; `state + main_category_id`; `difficulty`; future `answer_year`; `state + main_category_id + answer_year`. | No hard delete by default. Use `state = P`; archive old invalid rows only after export. | Keep but refactor. | N/A. |
 | `AdminUser` | DB-backed admin authorization source-of-truth. | Shared backend admin guard, Settings admin status check, admin-only functions, Health/test-suite gating. | Yes for admin authorization. Active rows with role `owner`/`admin` pass; disabled rows fail. | `functions/getAdminStatus.js`, `base44/functions/_shared/adminAuth.ts`, `base44/functions/getAdminStatus/entry.ts`, `base44/functions/getAdminStatus/function.jsonc`, admin-only backend functions. | Must remain private/admin-only. Normal users cannot list global admins. No env email allowlist for authorization. `getQuestions` must not be used as an admin status source. | Unique `email`; `status`; `role + status`; `updated_at`. | Disable rows to remove access. Account deletion should disable/anonymize the row only through explicit owner/admin action. | Keep. | Prove unauthenticated 401, non-admin 403, active admin allowed, disabled admin blocked, and current Base44 functions version resolves `getAdminStatus`. |
 | `User` | Auth profile plus progress/economy/projections. | Auth bootstrap, Solo progress, Online score, Diamonds, tutorial, reset marker, leaderboard service projection. | Yes for account, Solo progress, Online progress, Diamonds, `kronox_puan_total`. | `base44.auth.me/updateMe`, admin reset, delete account, leaderboard service role. | Private user row must not leak. Admin writes must stay server-side. JSON fields make partial race handling hard. | Unique auth id/email platform-managed; `kronox_puan_total desc`; maybe `progress_reset_at`. | Account deletion deletes/anonymizes; no general retention job. | Keep but reduce overload with projections/events. | N/A. |
@@ -211,8 +215,8 @@ Current entities audited:
 
 | Layer | Purpose | Examples |
 | --- | --- | --- |
-| Source entities | Canonical current state. | `User`, `Question`, `Category`, `Lobby`, `GameInvite`. |
-| Ledgers/audit | Durable idempotency and audit trail. | `DiamondTransaction`, `DailyWheelSpin`, `OnlineMatchResult`, `AdminMaintenanceLog`. |
+| Source entities | Canonical current state. | `User`, `Question`, `Category`, `Lobby`, `GameInvite`, `UserJokerInventory`. |
+| Ledgers/audit | Durable idempotency and audit trail. | `DiamondTransaction`, `JokerTransaction`, `DailyWheelSpin`, `OnlineMatchResult`, `AdminMaintenanceLog`. |
 | Append-only events | High-volume behavior/statistics. | `QuestionAttemptEvent`, `MatchLifecycleEvent`, `InviteLifecycleEvent`. |
 | Projections | Fast public-safe read models. | `LeaderboardProjection`, `QuestionStatsProjection`, `UserStatsProjection`, `CategoryStatsProjection`. |
 | Gateways/functions | Auth, ownership, projection, query narrowing. | `getQuestions`, `startLobbyGame`, future `applyOnlineResult`, future cleanup jobs. |
@@ -534,6 +538,9 @@ idempotency.
 | `OnlineMatchResult` | `lobby_id`, `player_email + applied_at` | P1 | reconciliation/history. |
 | `DiamondTransaction` | unique `idempotency_key` | P0 | Prevent duplicate rewards/spends. |
 | `DiamondTransaction` | `user_email + created_at`, `user_email + source` | P1 | audit/history. |
+| `UserJokerInventory` | unique `user_email + joker_type` | P0 | One current balance per user per joker type. |
+| `JokerTransaction` | unique `idempotency_key` | P0 | Prevent duplicate starter grants and future spends/purchases. |
+| `JokerTransaction` | `user_email + created_at`, `user_email + joker_type` | P1 | audit/history. |
 | `DailyWheelSpin` | unique `idempotency_key`, unique `user_email + spin_date` | P0 | one spin per user per server day. |
 | `DailyWheelSpin` | `user_email + claimed_at`, `spin_date` | P1 | wheel history/status queries. |
 | `SoloLeaderboardEntry`/`LeaderboardProjection` | unique `owner_key` | P0 | Dedupe public rows. |
@@ -786,7 +793,8 @@ No deletion should happen in this task.
   `SubCategory`, `UserCategoryPreference`, `UserSubCategoryPreference`,
   `UserStatsProjection`, Solo progress, `GameRecord`, `OnlineMatchResult`,
   `Lobby`, leaderboard rows, score/Kronox Puan rows, `DiamondTransaction`,
-  `DailyWheelSpin`, users, or `AdminUser` rows. After reset, the report should
+  `DailyWheelSpin`, `UserJokerInventory`, `JokerTransaction`, users, or
+  `AdminUser` rows. After reset, the report should
   still show current active question/category pool counts with zero exposure
   events.
 

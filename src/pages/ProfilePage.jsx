@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Users, Trophy, Sparkles, Gem, Settings, ChevronRight, LogOut, UserRound, LogIn } from 'lucide-react';
+import { Users, Trophy, Sparkles, Gem, Settings, ChevronRight, LogOut, UserRound, LogIn, Shield, RefreshCw, Snowflake } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 import { isAdminUser, withAdminStatus } from '@/lib/admin';
@@ -19,6 +19,7 @@ import { ensureSoloProgressBackfill, readSoloProgress, getSoloLevelCount } from 
 import { getCurrentPlayableLevel } from '@/lib/soloProgressHelpers';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 import { getKronoxVisibleScore } from '@/lib/kronoxScore';
+import { JOKER_DEFINITIONS, emptyJokerBalances, getUserJokerBalances } from '@/lib/jokerInventory';
 // Phase 3 — Codex123 UI consolidation. Profile + Leaderboard now share
 // one StatTile to keep Puan/Seviye/Elmas visually aligned across both
 // surfaces. The shared component is presentational only — the data
@@ -57,6 +58,11 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [jokerState, setJokerState] = useState({
+    loading: false,
+    error: '',
+    balances: emptyJokerBalances(),
+  });
 
   useEffect(() => {
     base44.auth.me()
@@ -72,6 +78,36 @@ export default function ProfilePage() {
       .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    let alive = true;
+    const email = String(user?.email || user?.user_email || '').trim().toLowerCase();
+    if (!email) {
+      setJokerState({ loading: false, error: '', balances: emptyJokerBalances() });
+      return () => { alive = false; };
+    }
+
+    setJokerState((prev) => ({ ...prev, loading: true, error: '' }));
+    getUserJokerBalances(user, { ensureStarter: true })
+      .then((result) => {
+        if (!alive) return;
+        setJokerState({
+          loading: false,
+          error: '',
+          balances: result?.balances || emptyJokerBalances(),
+        });
+      })
+      .catch((error) => {
+        if (!alive) return;
+        setJokerState({
+          loading: false,
+          error: error?.message || 'Joker Çantası yüklenemedi.',
+          balances: emptyJokerBalances(),
+        });
+      });
+
+    return () => { alive = false; };
+  }, [user]);
 
   const isAdmin = isAdminUser(user);
 
@@ -144,6 +180,15 @@ export default function ProfilePage() {
           </div>
         </Section>
 
+        <Section label="Joker Çantası">
+          <JokerPocketSection
+            loading={loading || jokerState.loading}
+            user={user}
+            balances={jokerState.balances}
+            error={jokerState.error}
+          />
+        </Section>
+
         {/* Arkadaşlarım */}
         <Section label="Sosyal">
           <RowCard
@@ -177,7 +222,89 @@ function getProfileDiamondValue(user) {
   return getLeaderboardDiamondValue(user);
 }
 
+const JOKER_ICON_BY_TYPE = {
+  mistake_shield: Shield,
+  card_swap: RefreshCw,
+  time_freeze: Snowflake,
+};
+
 /* ---------------- Internal components ---------------- */
+
+function JokerPocketSection({ loading, user, balances, error }) {
+  if (loading) {
+    return (
+      <div className="grid grid-cols-3 gap-2">
+        {JOKER_DEFINITIONS.map((joker) => (
+          <div
+            key={joker.type}
+            className="h-[74px] rounded-2xl bg-white/5 animate-pulse"
+            style={{ boxShadow: 'inset 0 0 0 1px rgba(120,170,255,0.20)' }}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div
+        className="rounded-2xl px-4 py-3 font-inter text-[12px] font-semibold text-blue-100/75"
+        style={{
+          background: 'linear-gradient(180deg, rgba(30,41,75,0.72), rgba(10,16,36,0.82))',
+          boxShadow: 'inset 0 0 0 1px rgba(120,170,255,0.22)',
+        }}
+      >
+        Giriş yaptığında başlangıç jokerlerin burada görünür.
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div
+        className="rounded-2xl px-4 py-3 font-inter text-[12px] font-semibold text-amber-100"
+        style={{
+          background: 'linear-gradient(180deg, rgba(120,53,15,0.35), rgba(10,16,36,0.88))',
+          boxShadow: 'inset 0 0 0 1px rgba(251,191,36,0.35)',
+        }}
+      >
+        Joker Çantası şu anda yüklenemedi.
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      {JOKER_DEFINITIONS.map((joker) => {
+        const Icon = JOKER_ICON_BY_TYPE[joker.type] || Sparkles;
+        const count = Number(balances?.[joker.type]) || 0;
+        return (
+          <div
+            key={joker.type}
+            className="min-w-0 rounded-2xl px-2.5 py-3 text-center"
+            style={{
+              background: 'linear-gradient(180deg, rgba(30,41,75,0.92), rgba(10,16,36,0.96))',
+              boxShadow:
+                'inset 0 0 0 1.5px rgba(120,170,255,0.30), inset 0 1px 0 rgba(255,255,255,0.08), 0 0 14px rgba(59,130,246,0.14)',
+            }}
+          >
+            <div
+              className="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full text-amber-200"
+              style={{
+                background: 'linear-gradient(180deg, rgba(250,204,21,0.16), rgba(14,165,233,0.12))',
+                boxShadow: 'inset 0 0 0 1px rgba(250,204,21,0.38), 0 0 12px rgba(14,165,233,0.20)',
+              }}
+            >
+              <Icon className="h-4 w-4" strokeWidth={2.4} />
+            </div>
+            <p className="truncate font-inter text-[10px] font-black text-white">{joker.label}</p>
+            <p className="kronox-number mt-0.5 text-lg font-black leading-none text-amber-200">x{count}</p>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 function IdentityCard({ loading, user, isAdmin, onLogin, onLogout }) {
   const displayName = user?.full_name || (user?.email ? user.email.split('@')[0] : 'Misafir Oyuncu');

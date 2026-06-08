@@ -1,0 +1,114 @@
+{
+  "name": "JokerTransaction",
+  "type": "object",
+  "description": "Append-only user joker ledger. Phase 1 writes starter_grant rows; future phases will add solo_use and market_purchase through server-side validation.",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Lowercased owner email for this transaction."
+    },
+    "joker_type": {
+      "type": "string",
+      "enum": [
+        "mistake_shield",
+        "card_swap",
+        "time_freeze"
+      ],
+      "description": "Stable internal joker type."
+    },
+    "quantity_delta": {
+      "type": "number",
+      "description": "Positive for grants/purchases/refunds, negative for future spends. Runtime must reject a resulting negative balance."
+    },
+    "reason": {
+      "type": "string",
+      "enum": [
+        "starter_grant",
+        "admin_adjustment",
+        "solo_use",
+        "market_purchase",
+        "refund",
+        "correction"
+      ],
+      "description": "Business reason for this balance change."
+    },
+    "source": {
+      "type": "string",
+      "description": "Subsystem that produced the transaction, e.g. starter_jokers, solo, market, admin."
+    },
+    "related_entity_type": {
+      "type": "string",
+      "description": "Optional future reference type such as solo_attempt, market_order, or admin_adjustment."
+    },
+    "related_entity_id": {
+      "type": "string",
+      "description": "Optional future related entity id."
+    },
+    "idempotency_key": {
+      "type": "string",
+      "description": "Durable idempotency key such as starter_jokers:<email>:mistake_shield. Configure unique constraints in Base44 if available."
+    },
+    "balance_before": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Balance before this transaction."
+    },
+    "balance_after": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Balance after this transaction."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the transaction row was created."
+    },
+    "created_by": {
+      "type": "string",
+      "description": "Actor email or system label that created the transaction."
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Debug-safe metadata. Must not contain secrets, raw auth tokens, or private user profile data."
+    }
+  },
+  "required": [
+    "user_email",
+    "joker_type",
+    "quantity_delta",
+    "reason",
+    "source",
+    "idempotency_key",
+    "balance_after",
+    "created_at"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

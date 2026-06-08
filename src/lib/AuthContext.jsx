@@ -2,6 +2,7 @@ import React, { createContext, useState, useContext, useEffect, useRef } from 'r
 import { base44 } from '@/api/base44Client';
 import { withAdminStatus } from '@/lib/admin';
 import { ensureDiamondEconomyForUser, getDiamondDailyKey } from '@/lib/diamondEconomy';
+import { ensureStarterJokers, normalizeJokerEmail } from '@/lib/jokerInventory';
 import { applyUserProgressResetMarker } from '@/lib/progressResetCache';
 
 const AuthContext = createContext();
@@ -50,6 +51,8 @@ export const AuthProvider = ({ children }) => {
   const [authChecked, setAuthChecked] = useState(false);
   const economyEnsurePromiseRef = useRef(null);
   const economyEnsureKeyRef = useRef('');
+  const jokerEnsurePromiseRef = useRef(null);
+  const jokerEnsureKeyRef = useRef('');
 
   useEffect(() => {
     checkAppState();
@@ -100,6 +103,21 @@ export const AuthProvider = ({ children }) => {
             console.warn('[diamondEconomy] bootstrap grant skipped:', economyError?.message || economyError);
           }
         }
+        const jokerKey = normalizeJokerEmail(currentUser.email);
+        if (jokerKey && jokerEnsureKeyRef.current !== jokerKey) {
+          try {
+            if (!jokerEnsurePromiseRef.current) {
+              jokerEnsurePromiseRef.current = ensureStarterJokers(currentUser)
+                .finally(() => {
+                  jokerEnsurePromiseRef.current = null;
+                });
+            }
+            const jokerInit = await jokerEnsurePromiseRef.current;
+            if (jokerInit?.ok !== false) jokerEnsureKeyRef.current = jokerKey;
+          } catch (jokerError) {
+            console.warn('[jokerInventory] starter grant skipped:', jokerError?.message || jokerError);
+          }
+        }
         setAdminStatus(makePendingAdminStatus(currentUser));
         currentUser = await withAdminStatus(currentUser, { onStatus: setAdminStatus });
       } else {
@@ -145,6 +163,8 @@ export const AuthProvider = ({ children }) => {
     setAdminStatus(EMPTY_ADMIN_STATUS);
     economyEnsureKeyRef.current = '';
     economyEnsurePromiseRef.current = null;
+    jokerEnsureKeyRef.current = '';
+    jokerEnsurePromiseRef.current = null;
     
     if (shouldRedirect) {
       // Use the SDK's logout method which handles token cleanup and redirect

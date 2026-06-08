@@ -33,6 +33,7 @@ import leaderboardGatewaySource from '../../lib/dbGateway/leaderboardGateway.js?
 import questionGatewaySource from '../../lib/dbGateway/questionGateway.js?raw';
 import categoryGatewaySource from '../../lib/dbGateway/categoryGateway.js?raw';
 import analyticsGatewaySource from '../../lib/dbGateway/analyticsGateway.js?raw';
+import jokerInventorySource from '../../lib/jokerInventory.js?raw';
 
 const STATUS = {
   PASS: 'PASS',
@@ -66,6 +67,7 @@ const KNOWN_BACKEND_FUNCTIONS = new Set([
   'cancelStaleLobbies',
   'expireOldGameInvites',
   'expirePushSubscriptions',
+  'ensureUserJokerInventory',
   'sendQuestionAnalyticsReportEmail',
 ]);
 
@@ -237,6 +239,7 @@ export const EXTRA_TESTS = [
         questionGatewaySource,
         categoryGatewaySource,
         analyticsGatewaySource,
+        jokerInventorySource,
       ];
       const invoked = new Set();
       for (const src of gatewaySources) {

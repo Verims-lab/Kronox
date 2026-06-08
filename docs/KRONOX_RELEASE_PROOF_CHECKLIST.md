@@ -134,7 +134,13 @@ Checklist:
 * `Kronokalkan` forgives the next wrong placement without incrementing mistakes.
 * `Kart Değiştir` replaces the current card from the prebuilt deck/reserve, does not fetch mid-attempt, does not immediately re-show the swapped-out card, respects visible timeline spacing, prefers a balanced replacement, and has helper-only diagnostics for replacement source/no-safe-replacement state.
 * `Zaman Dondur` freezes the Solo timer for 10 seconds and cleans up after result/replay.
-* Jokers remain free in v1, do not spend Diamonds, and do not grant Kronox Puan.
+* Phase 1 user-owned joker inventory exists, but Solo gameplay spending remains
+  v1/backward-compatible until Phase 2.
+* Jokers do not spend Diamonds and do not grant Kronox Puan in Phase 1.
+* Phase 2 must change Solo joker buttons to read owned balances, allow one
+  joker per question/card, allow multiple jokers per level when owned, consume
+  only after successful effect application, and not refund used jokers on
+  fail/timeout/exit.
 
 ---
 
@@ -203,6 +209,26 @@ Checklist:
 * Daily Wheel duplicate tap/refresh returns the same claimed result or claimed status without a duplicate grant.
 * Daily Wheel 7-day streak bonus grants `+100` Diamonds on every 7th consecutive daily spin.
 * Missing a UTC day resets the Daily Wheel streak gracefully to 1 on next spin.
+
+## Joker Inventory Phase 1
+
+* `UserJokerInventory` exists as the current user-owned joker balance entity.
+* `JokerTransaction` exists as the append-only joker ledger/idempotency audit.
+* Every authenticated user receives exactly 3 `mistake_shield` / Kronokalkan,
+  3 `card_swap` / Kart Değiştir, and 3 `time_freeze` / Zaman Dondur once.
+* Starter grants use idempotency keys shaped like
+  `starter_jokers:<email>:<joker_type>` and do not repeat on refresh, login,
+  app reopen, or Profile reopen.
+* Existing users are lazily initialized; no manual DB backfill is required for
+  normal rollout.
+* Profile displays balances under `Joker Çantası`, not `Envanter`.
+* Profile shows only current balances and does not expose `JokerTransaction`
+  ledger rows to normal users.
+* Runtime two-account proof must verify users cannot read/mutate other users'
+  joker balances or create arbitrary grant rows.
+* Market / Diamond-to-joker purchase is intentionally not implemented in Phase
+  1. Future Market purchase must validate Diamonds server-side.
+* Daily Wheel remains Diamond-only and must not grant jokers.
 * Daily Wheel result shows `+X Elmas kazandın`; when the 7-day streak bonus applies it also shows `7 günlük seri bonusu: +100 elmas` and `Toplam: +Y elmas`.
 * Daily Wheel claimed countdown shows `Yarın hazır` or compact time text without a Diamond icon.
 * Admin hard-zero / maintenance reset clears Daily Wheel guard fields without granting duplicate Diamonds, changing Kronox Puan, or affecting leaderboard sorting or rank.
@@ -519,8 +545,8 @@ Checklist:
   `CategoryStatsProjection`.
 * Manual question analytics reset must not delete `Question`, `Category`,
   `SubCategory`, `UserCategoryPreference`, `UserStatsProjection`, scores,
-  diamonds, progress, leaderboard rows, users, admin rows, Daily Wheel, or
-  gameplay/economy data.
+  diamonds, progress, leaderboard rows, `UserJokerInventory`,
+  `JokerTransaction`, users, admin rows, Daily Wheel, or gameplay/economy data.
 * Question Analytics report handles stale/deleted question IDs, unknown
   categories, section-level render failures, and empty analytics state without
   truncating the email; large sections remain capped.

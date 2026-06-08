@@ -168,15 +168,33 @@ The subtle placement hint remains visual-only for levels 1-3:
 - no hit-testing, drag behavior, or validation changes
 - disabled for level 4+ and Online mode
 
-## Solo Jokers v1
+## Solo Jokers v1 / Inventory Phase 1
 
 Solo jokers are first-version, attempt-local helpers:
 - Solo-only; Online mode has no joker UI or joker effects
 - every new Solo level attempt starts with 3 options: `Kronokalkan`, `Kart Değiştir`, `Zaman Dondur`
 - only 1 joker total may be used per attempt
 - after one joker is used, the other two stay visible but disabled/passive
-- jokers are free in v1; there is no inventory, earning, spending, shop, ad, or Diamond cost
+- Phase 1 adds user-owned joker inventory rows, but Solo gameplay consumption
+  still behaves like v1 until Phase 2 integrates spending
 - jokers do not grant Kronox Puan directly and do not change Solo scoring values
+
+Inventory foundation:
+- `UserJokerInventory` stores current owned balances per user and joker type
+- `JokerTransaction` stores the joker ledger/idempotency audit
+- every authenticated user receives 3 `mistake_shield` / Kronokalkan, 3
+  `card_swap` / Kart Değiştir, and 3 `time_freeze` / Zaman Dondur once
+- starter grant keys are idempotent (`starter_jokers:<email>:<joker_type>`)
+- Profile displays balances under `Joker Çantası`
+- Market purchase and Diamond-to-joker pricing are later phases
+
+Phase 2 Solo consumption target:
+- Solo joker buttons read user-owned balances instead of showing the v1
+  attempt-local count
+- one joker may be used per question/card
+- multiple jokers may be used across a level if the user owns them
+- a joker is consumed only after its effect is successfully applied
+- used jokers are not refunded on fail, timeout, or exit
 
 Joker behavior:
 - `Kronokalkan`: activates one-time protection. The next wrong placement does not count as a mistake; correct placements do not consume it.

@@ -1129,6 +1129,13 @@ import React, { useEffect, useState } from 'react';
 //   • Shared AdminUser guard imports remain preferred for functions where they
 //     deploy cleanly; hardcoded admin allowlists remain forbidden.
 //
+// Codex279 — Joker inventory Phase 1 foundation:
+//   • Adds UserJokerInventory and JokerTransaction plus a backend starter
+//     grant function that gives 3 Kronokalkan, 3 Kart Değiştir, and 3 Zaman
+//     Dondur once per authenticated user.
+//   • Profile shows owned balances under Joker Çantası; Market and Solo
+//     joker spending remain later phases.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1432,7 +1439,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex278';
+const BUILD_MARKER = 'Codex279';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

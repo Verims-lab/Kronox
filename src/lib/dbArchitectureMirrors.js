@@ -25,6 +25,11 @@ Analytics/statistics entities implemented now:
 - LobbyMatchStats
 - UserCategoryPreference stores app-open popup and Settings main Category interest choices per user.
 - UserSubCategoryPreference is retained legacy data from the earlier SubCategory preference phase and is not used by current Settings preferences.
+- UserJokerInventory stores current user-owned joker balances per user_email + joker_type.
+- JokerTransaction stores joker ledger/idempotency rows; Phase 1 writes starter_grant and future phases will add solo_use / market_purchase.
+- ensureUserJokerInventory grants exactly 3 mistake_shield, 3 card_swap, and 3 time_freeze once per authenticated user with starter_jokers:<email>:<joker_type> idempotency keys.
+- Profile displays balances under Joker Çantası and does not expose the JokerTransaction ledger.
+- Solo joker spending and Market/Diamond purchases are later phases.
 
 Category preference status:
 - Settings İlgi Alanlarım reads active Category rows.
@@ -70,12 +75,15 @@ Cleanup/retention jobs implemented now:
 - sendQuestionAnalyticsReportEmail can be triggered by any active AdminUser role admin/owner. The recipient defaults to the requesting authenticated admin's normalized email; mismatched recipient overrides are rejected; created_by and hardcoded owner addresses are not used as recipients. The function and Settings UI return safe requestedBy, recipientEmail, template, body-marker, and emailDispatchStatus diagnostics.
 - Manual DB reset path after question pool replacement is documented because the function reset path is currently not used.
 - manual_db_reset_only clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection by DB maintenance.
-- Manual reset must not delete Question, Category, SubCategory, UserCategoryPreference, UserSubCategoryPreference, UserStatsProjection, Solo progress, GameRecord, OnlineMatchResult, Lobby, SoloLeaderboardEntry, Kronox Puan, DiamondTransaction, DailyWheelSpin, users, or AdminUser.
+- Manual reset must not delete Question, Category, SubCategory, UserCategoryPreference, UserSubCategoryPreference, UserStatsProjection, Solo progress, GameRecord, OnlineMatchResult, Lobby, SoloLeaderboardEntry, Kronox Puan, DiamondTransaction, DailyWheelSpin, UserJokerInventory, JokerTransaction, users, or AdminUser.
+- Joker inventory is separate from Diamonds: UserJokerInventory is the joker balance source, JokerTransaction is the joker ledger, and Daily Wheel remains Diamond-only.
 - cleanupAdminMaintenanceLog requires admin auth, supports dryRun, marks old logs retention_status archived.
 - Cleanup jobs are status-transition-first and do not hard delete production data.
 
 Idempotency/platform limitations documented:
 - DiamondTransaction.idempotency_key unique is required where Base44 supports unique constraints.
+- UserJokerInventory user_email + joker_type unique is required where Base44 supports unique constraints.
+- JokerTransaction.idempotency_key unique is required where Base44 supports unique constraints.
 - OnlineMatchResult.idempotency_key unique is required where Base44 supports unique constraints.
 - OnlineMatchResult lobby_id + player_email unique is required where Base44 supports unique constraints.
 - PushSubscription user_email + endpoint unique is required where Base44 supports unique constraints.

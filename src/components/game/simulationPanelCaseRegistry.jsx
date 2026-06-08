@@ -180,6 +180,9 @@ import * as healthAlignmentCases from './simulationPanelHealthAlignmentCases';
 // Codex189 — Solo Jokers v1: free, attempt-local Solo helpers with one
 // total use per attempt, no Online impact, no Diamond spend, no Puan grant.
 import * as soloJokersCases from './simulationPanelSoloJokersCases';
+// Joker Inventory Phase 1: user-owned balance schemas, starter grants,
+// Profile Joker Çantası display, and Phase 2 Solo/Market boundaries.
+import * as jokerInventoryCases from './simulationPanelJokerInventoryCases';
 // Codex197 — Question analytics P3: private QuestionAttemptEvent runtime
 // writes for Solo, manual admin email report, and account-deletion cleanup.
 import * as questionAnalyticsCases from './simulationPanelQuestionAnalyticsCases';
@@ -234,6 +237,7 @@ const MODULES = [
   dbArchitectureImplementationCases,
   healthAlignmentCases,
   soloJokersCases,
+  jokerInventoryCases,
   questionAnalyticsCases,
   numericTypographyCases,
   categoryPreferenceCases,

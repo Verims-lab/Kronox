@@ -58,6 +58,11 @@ Status: Active product contract.
 - AdminUser rows remain private and are not listed by normal users.
 - admin-only maintenance functions verify AdminUser-backed authorization server-side.
 - account deletion is a destructive, NOT_AUTOMATABLE manual proof gate.
+- UserJokerInventory stores current balances for mistake_shield, card_swap, and time_freeze.
+- JokerTransaction stores the append-only joker grant/spend ledger.
+- ensureUserJokerInventory grants 3 Kronokalkan, 3 Kart Değiştir, and 3 Zaman Dondur once per authenticated user using starter_jokers:<email>:<joker_type> idempotency keys.
+- Profile shows only Joker Çantası balances; normal users must not see other users' balances or transaction ledger rows.
+- Market purchase and Solo joker spending are later phases and must be server-side when added.
 - sendQuestionAnalyticsReportEmail is manual/admin-triggered only and sends HTML/table/bar formatted question analytics with text fallback.
 - sendQuestionAnalyticsReportEmail is callable from base44/functions/sendQuestionAnalyticsReportEmail/entry.ts with base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc name sendQuestionAnalyticsReportEmail and entry entry.ts; the callable report function INLINES a DB-backed AdminUser guard (no local _shared import) so it deploys cleanly under the Base44 function runtime.
 
@@ -68,11 +73,11 @@ Status: Active product contract.
 - Report/admin functions must NOT use local imports that resolve outside the deployed path. The broken './_shared/adminAuth.js' pattern resolved to a file URL under /src/_shared (module not found) and broke deployment, leaving Base44 serving a stale build. The callable report function now inlines a DB-backed AdminUser guard instead.
 - base44/functions/<name>/entry.ts shared imports remain allowed where proven deployable; sendQuestionAnalyticsReportEmail intentionally uses an inline guard for this runtime-sensitive path.
 - Critical report/admin functions should include safe template/function markers (e.g. templateVersion static-pool-v2, REPORT_BUILD_MARKER, and bodyContains* diagnostics). If real output lacks the marker, the function deployment is stale.
-- sendQuestionAnalyticsReportEmail live deploy is proven by triggering the function and reading reportBuildMarker (current: Codex278), templateVersion static-pool-v2, and bodyContainsStaticPoolSection/Template/QuestionSource = true. A published frontend that does not change reportBuildMarker means the executed backend function did not redeploy.
-- A prior Codex275 marker bump was never proven deployed because the runtime function still imported the broken local _shared guard; the recovery inlined the AdminUser guard and now uses Codex278 as the unambiguous live marker.
+- sendQuestionAnalyticsReportEmail live deploy is proven by triggering the function and reading reportBuildMarker (current: Codex279), templateVersion static-pool-v2, and bodyContainsStaticPoolSection/Template/QuestionSource = true. A published frontend that does not change reportBuildMarker means the executed backend function did not redeploy.
+- A prior Codex275 marker bump was never proven deployed because the runtime function still imported the broken local _shared guard; the recovery inlined the AdminUser guard and now uses Codex279 as the unambiguous live marker.
 - Function-based question analytics reset is currently not used.
 - Manual DB reset path after question pool replacement clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection.
-- Manual reset must not delete Question, Category, SubCategory, UserCategoryPreference, UserStatsProjection, progress/economy/leaderboard data, Daily Wheel rows, users, or AdminUser.
+- Manual reset must not delete Question, Category, SubCategory, UserCategoryPreference, UserStatsProjection, UserJokerInventory, JokerTransaction, progress/economy/leaderboard data, Daily Wheel rows, users, or AdminUser.
 - manual question analytics reset does not delete Question, Category, SubCategory, UserCategoryPreference, UserStatsProjection, score/progress/economy, leaderboard, Daily Wheel, users, AdminUser, or gameplay rows.
 - sendQuestionAnalyticsReportEmail handles stale/deleted question references with diagnostics and bounded sections.
 - sendQuestionAnalyticsReportEmail actual sent body includes Rapor Bölümleri, Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı, Kategori Bazında Soru Havuzu, Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı, Kategori Bazında Kayıtlı Soru Havuzu, Kategori Bazında Yıl Aralığı, Kategori Tercihleri, Kategori Bazında Gösterim, Kategori İçi Soru Analizi, Kategori Denge Sinyalleri, and Rapor Tamamlandı.

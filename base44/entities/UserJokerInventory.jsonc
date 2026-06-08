@@ -1,0 +1,77 @@
+{
+  "name": "UserJokerInventory",
+  "type": "object",
+  "description": "Phase 1 user-owned joker balance rows. One logical row should exist per user_email + joker_type. Balances are initialized by ensureUserJokerInventory and read by Profile Joker Çantası.",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Lowercased owner email for this joker balance."
+    },
+    "joker_type": {
+      "type": "string",
+      "enum": [
+        "mistake_shield",
+        "card_swap",
+        "time_freeze"
+      ],
+      "description": "Stable internal joker type."
+    },
+    "quantity": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Current non-negative balance for this joker type."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the inventory row was created."
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the balance was last reconciled."
+    },
+    "last_transaction_id": {
+      "type": "string",
+      "description": "Latest JokerTransaction id that established this balance, when available."
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Debug-safe metadata. Must not contain secrets or private profile data."
+    }
+  },
+  "required": [
+    "user_email",
+    "joker_type",
+    "quantity"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
