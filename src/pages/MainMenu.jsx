@@ -147,6 +147,7 @@ export default function MainMenu() {
               user={user}
               onUserUpdated={handleDailyWheelUserPatch}
               onLogin={handleLogin}
+              ariaLabel="Günlük Ödüller: Günlük Çark ve Günlük Görev"
             />
             <HomeCTA
               icon={Crosshair}
