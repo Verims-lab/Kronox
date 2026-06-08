@@ -1,7 +1,7 @@
 /* global Deno */
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.25";
 
-// Settings invokes functions.invoke("sendQuestionAnalyticsReportEmail", payload).
+// Admin Ekranı invokes functions.invoke("sendQuestionAnalyticsReportEmail", payload).
 //
 // IMPORTANT (stale-deploy incident): this callable report function must NOT
 // use a local shared admin-auth import. That broken runtime path can fail
@@ -23,7 +23,7 @@ const REGISTERED_QUESTION_POOL_ROW_LIMIT = 250;
 const CATEGORY_FAIRNESS_SIGNAL_LIMIT = 20;
 const STALE_REFERENCE_SAMPLE_LIMIT = 20;
 const PERIOD_OPTIONS = /* @__PURE__ */ new Set([1, 7, 30]);
-const REPORT_BUILD_MARKER = "Codex298";
+const REPORT_BUILD_MARKER = "Codex299";
 const REPORT_TEMPLATE_VERSION = "static-pool-v2";
 const REPORT_TEMPLATE_LABEL = "Rapor Şablonu: static-pool-v2";
 const DIFFICULTY_CHART_BUCKETS = [

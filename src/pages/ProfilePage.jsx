@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Users, Trophy, Sparkles, Gem, Settings, ChevronRight, LogOut, UserRound, LogIn, Shield, RefreshCw, Snowflake } from 'lucide-react';
+import { Users, Trophy, Sparkles, Gem, Settings, ChevronRight, LogOut, UserRound, LogIn, Shield, RefreshCw, Snowflake, ShieldAlert } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 import { isAdminUser, withAdminStatus } from '@/lib/admin';
@@ -112,6 +112,7 @@ export default function ProfilePage() {
   const isAdmin = isAdminUser(user);
 
   const goSettings = () => { sounds.tap(); navigate('/settings'); };
+  const goAdmin = () => { sounds.tap(); navigate('/admin'); };
   const handleLogin = () => { sounds.tap(); base44.auth.redirectToLogin('/profile'); };
   const handleLogout = () => { sounds.tap(); base44.auth.logout('/'); };
 
@@ -204,10 +205,21 @@ export default function ProfilePage() {
           <RowCard
             icon={<Settings className="w-4 h-4" />}
             title="Ayarlar"
-            desc={isAdmin ? 'Hesap, yardım ve admin araçları' : 'Hesap ve yardım'}
+            desc="Hesap ve yardım"
             onClick={goSettings}
           />
         </Section>
+
+        {isAdmin && (
+          <Section label="Admin">
+            <RowCard
+              icon={<ShieldAlert className="w-4 h-4" />}
+              title="Admin Ekranı"
+              desc="Bakım, rapor ve yönetim araçları"
+              onClick={goAdmin}
+            />
+          </Section>
+        )}
       </div>
     </div>
   );

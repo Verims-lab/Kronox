@@ -9,6 +9,7 @@ import useGameActionsSource from '../../hooks/useGameActions.js?raw';
 import analyticsGatewaySource from '../../lib/dbGateway/analyticsGateway.js?raw';
 import questionAnalyticsContractsSource from '../../lib/questionAnalyticsContracts.js?raw';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
+import adminPageSource from '../../pages/AdminPage.jsx?raw';
 import questionAnalyticsReportToolSource from '../admin/QuestionAnalyticsReportTool.jsx?raw';
 import deleteAccountSource from '../../../base44/functions/deleteAccount/entry.ts?raw';
 import questionAttemptEventEntitySource from '../../../base44/entities/QuestionAttemptEvent.jsonc?raw';
@@ -776,11 +777,13 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('admin_only_settings_trigger_exists',
-    'Settings admin tools expose report trigger and manual-only analytics reset guidance',
+    'Admin Ekranı exposes report trigger and manual-only analytics reset guidance',
     () => {
-      const combined = `${settingsPageSource}\n${questionAnalyticsReportToolSource}`;
+      const combined = `${adminPageSource}\n${questionAnalyticsReportToolSource}`;
       const missing = missingTokens(combined, [
-        'isAdmin &&',
+        'Admin Ekranı',
+        'const isAdmin = parsedAdminStatus',
+        'if (!isAdmin)',
         'QuestionAnalyticsReportTool',
         'Soru Analiz Raporu Gönder',
         'callAdminFunction',
@@ -802,6 +805,10 @@ export const EXTRA_TESTS = [
         'adresine',
         'Gönderim:',
       ]);
+      const settingsForbidden = forbiddenTokens(settingsPageSource, [
+        'QuestionAnalyticsReportTool',
+        'Soru Analiz Raporu Gönder',
+      ]);
       const forbidden = forbiddenTokens(questionAnalyticsReportToolSource, [
         "callAdminFunction('resetQuestionAnalyticsData'",
         'RESET_QUESTION_ANALYTICS',
@@ -810,14 +817,14 @@ export const EXTRA_TESTS = [
         'confirmText: RESET_CONFIRMATION',
         'confirmation: RESET_CONFIRMATION',
       ]);
-      if (missing.length || forbidden.length) {
-        return fail('Admin Settings report trigger is missing or still exposes the broken reset function path.', {
+      if (missing.length || forbidden.length || settingsForbidden.length) {
+        return fail('Admin Ekranı report trigger is missing, Settings still hosts it, or the broken reset function path returned.', {
           verification: 'STATIC_CONTRACT',
-          files: ['src/pages/SettingsPage.jsx', 'src/components/admin/QuestionAnalyticsReportTool.jsx'],
-          actual: { missing, forbidden },
+          files: ['src/pages/AdminPage.jsx', 'src/pages/SettingsPage.jsx', 'src/components/admin/QuestionAnalyticsReportTool.jsx'],
+          actual: { missing, forbidden, settingsForbidden },
         });
       }
-      return pass('Question analytics email report has a minimal admin-only Settings trigger, while reset is manual DB guidance only.', {
+      return pass('Question analytics email report has a minimal admin-only Admin Ekranı trigger, while reset is manual DB guidance only.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

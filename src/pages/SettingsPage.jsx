@@ -1,35 +1,24 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trash2, AlertTriangle, FileDown, Loader2, FlaskConical, ChevronRight, HelpCircle } from 'lucide-react';
+import { Trash2, AlertTriangle, Loader2, ChevronRight, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
-import SimulationPanel from '@/components/game/SimulationPanel';
-import SimulationPanelErrorBoundary from '@/components/game/SimulationPanelErrorBoundary';
 import TopScores from '@/components/game/TopScores';
 import KronoxTutorial from '@/components/tutorial/KronoxTutorial';
 import { markTutorialCompleted } from '@/lib/tutorialProfile';
 import StandardTopBar from '@/components/layout/StandardTopBar';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 import { ACCOUNT_DELETION_ERROR_COPY, requestAccountDeletion } from '@/lib/accountDeletion';
-import ResetUserProgressTool from '@/components/admin/ResetUserProgressTool';
-import QuestionAnalyticsReportTool from '@/components/admin/QuestionAnalyticsReportTool';
-import DailyQuestDefinitionManager from '@/components/admin/DailyQuestDefinitionManager';
 import CategoryPreferencesSection from '@/components/settings/CategoryPreferencesSection';
 import { useAuth } from '@/lib/AuthContext';
 
 export default function SettingsPage() {
-  const { user, isLoadingAuth, adminStatus } = useAuth();
+  const { user, isLoadingAuth } = useAuth();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [downloadingDoc, setDownloadingDoc] = useState(false);
-  const [downloadingWorkflow, setDownloadingWorkflow] = useState(false);
-  const [docError, setDocError] = useState('');
   const [deleteError, setDeleteError] = useState('');
-  const [showSim, setShowSim] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
 
-  const parsedAdminStatus = adminStatus?.parsedIsAdmin === true || user?.admin_status_debug?.parsedIsAdmin === true;
-  const isAdmin = parsedAdminStatus;
   const diamondValue = getLeaderboardDiamondValue(user);
 
   const handleDeleteAccount = async () => {
@@ -43,38 +32,6 @@ export default function SettingsPage() {
       setDeleting(false);
       setDeleteError(error?.message || ACCOUNT_DELETION_ERROR_COPY);
     }
-  };
-
-  const handleDownloadDoc = async () => {
-    setDownloadingDoc(true);
-    setDocError('');
-    try {
-      const res = await base44.functions.fetch('/generateTechDoc', { method: 'POST' });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        setDocError(body?.error || 'Teknik doküman indirilemedi.');
-        return;
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = 'kronox-teknik-dokuman.pdf'; a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      setDocError('Teknik doküman indirilemedi.');
-    } finally { setDownloadingDoc(false); }
-  };
-
-  const handleDownloadWorkflow = async () => {
-    setDownloadingWorkflow(true);
-    try {
-      const res = await base44.functions.fetch('/generateWorkflowDoc', { method: 'POST' });
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = 'kronox-is-akisi.pdf'; a.click();
-      URL.revokeObjectURL(url);
-    } finally { setDownloadingWorkflow(false); }
   };
 
   if (isLoadingAuth) {
@@ -103,40 +60,6 @@ export default function SettingsPage() {
       </div>
 
       <div className="px-4 space-y-5">
-        {/* Admin araçları — yalnızca admin. */}
-        {isAdmin && (
-          <Section label="Araçlar">
-            <ToolCard
-              icon={<FileDown className="w-4 h-4" />}
-              title="Teknik Döküman"
-              desc="Sistem mimarisi ve veri modeli"
-              loading={downloadingDoc}
-              onClick={handleDownloadDoc}
-            />
-            {docError && (
-              <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-100">
-                {docError}
-              </p>
-            )}
-            <ToolCard
-              icon={<FileDown className="w-4 h-4" />}
-              title="İş Akışı Dökümanı"
-              desc="Use case'ler ve süreç adımları"
-              loading={downloadingWorkflow}
-              onClick={handleDownloadWorkflow}
-            />
-            <ToolCard
-              icon={<FlaskConical className="w-4 h-4" />}
-              title="Kronox Health Simulator"
-              desc="Brutally honest mobile, gameplay, sync, and release-risk checks"
-              onClick={() => setShowSim(true)}
-            />
-            <QuestionAnalyticsReportTool />
-            <DailyQuestDefinitionManager />
-            <ResetUserProgressTool />
-          </Section>
-        )}
-
         {/* Top 5 — giriş yapmış tüm kullanıcılar */}
         {user && (
           <Section label="En İyi 5 Rekorun">
@@ -216,14 +139,6 @@ export default function SettingsPage() {
           </AnimatePresence>
         </Section>
       </div>
-
-      <AnimatePresence>
-        {showSim && (
-          <SimulationPanelErrorBoundary onClose={() => setShowSim(false)}>
-            <SimulationPanel onClose={() => setShowSim(false)} />
-          </SimulationPanelErrorBoundary>
-        )}
-      </AnimatePresence>
 
       <AnimatePresence>
         {showTutorial && (

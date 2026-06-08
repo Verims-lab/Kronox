@@ -12,6 +12,7 @@ import userSubCategoryPreferenceEntitySource from '../../../base44/entities/User
 import questionEntitySource from '../../../base44/entities/Question.jsonc?raw';
 import appSource from '../../App.jsx?raw';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
+import adminPageSource from '../../pages/AdminPage.jsx?raw';
 import preferenceSectionSource from '../settings/CategoryPreferencesSection.jsx?raw';
 import onboardingModalSource from '../settings/CategoryPreferenceOnboardingModal.jsx?raw';
 import preferenceHelperSource from '../../lib/userCategoryPreferences.js?raw';
@@ -898,26 +899,32 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('settings_admin_visibility_unchanged',
-    'Settings admin tools remain AdminUser-gated and no debug panel returns',
+    'Admin tools remain AdminUser-gated in Admin Ekranı and Settings stays preference-focused',
     () => {
-      const missing = missingTokens(settingsPageSource, [
+      const missing = missingTokens(`${settingsPageSource}\n${adminPageSource}`, [
+        'CategoryPreferencesSection',
+        'Admin Ekranı',
         'const isAdmin = parsedAdminStatus',
-        '{isAdmin && (',
+        'if (!isAdmin)',
         'QuestionAnalyticsReportTool',
         'ResetUserProgressTool',
       ]);
       const forbidden = forbiddenTokens(settingsPageSource, [
         'AdminDebug-v4',
         'AdminDebug',
+        'QuestionAnalyticsReportTool',
+        'ResetUserProgressTool',
+        'DailyQuestDefinitionManager',
+        'SimulationPanel',
       ]);
       if (missing.length || forbidden.length) {
-        return fail('Settings admin visibility changed while adding Category preferences.', {
+        return fail('Admin visibility or clean Settings contract changed while preserving Category preferences.', {
           verification: 'STATIC_CONTRACT',
-          file: 'src/pages/SettingsPage.jsx',
+          file: 'src/pages/SettingsPage.jsx + src/pages/AdminPage.jsx',
           actual: { missing, forbidden },
         });
       }
-      return pass('Settings admin tools remain gated by backend AdminUser status and debug UI stays absent.', {
+      return pass('Settings stays preference-focused and Admin Ekranı tools remain gated by backend AdminUser status.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

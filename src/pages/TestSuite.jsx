@@ -34,8 +34,8 @@ export default function TestSuite() {
                 Giriş Yap
               </Button>
             )}
-            <Button className="flex-1" variant="outline" onClick={() => navigate('/settings')}>
-              Ayarlara Dön
+            <Button className="flex-1" variant="outline" onClick={() => navigate('/admin')}>
+              Admin Ekranı
             </Button>
           </div>
         </div>
@@ -50,7 +50,7 @@ export default function TestSuite() {
         background: 'radial-gradient(ellipse at top, #12063a 0%, #0a0e2e 50%, #050716 100%)',
       }}
     >
-      <SimulationPanel onClose={() => navigate('/settings')} />
+      <SimulationPanel onClose={() => navigate('/admin')} />
     </div>
   );
 }

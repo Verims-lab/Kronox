@@ -8,7 +8,7 @@ import simulationPanelSource from './SimulationPanel.jsx?raw';
 import simulationReportActionsSource from './health/SimulationReportActions.jsx?raw';
 import simulationRunnerSource from './health/simulationRunner.jsx?raw';
 import simulationSuiteSummarySource from './health/SimulationSuiteSummary.jsx?raw';
-import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
+import adminPageSource from '../../pages/AdminPage.jsx?raw';
 
 const STATUS = {
   PASS: 'PASS',
@@ -72,15 +72,15 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('health_admin_panel_has_safe_top_padding',
-    'Settings/Admin host page and Health overlay both reserve top safe area',
+    'Admin Ekranı host page and Health overlay both reserve top safe area',
     () => {
-      const source = `${safeStr(settingsPageSource)}\n${safeStr(simulationPanelSource)}`;
+      const source = `${safeStr(adminPageSource)}\n${safeStr(simulationPanelSource)}`;
       const missing = missingTokens(source, [
         "paddingTop: 'calc(4.5rem + env(safe-area-inset-top))'",
         "paddingTop: 'calc(1rem + env(safe-area-inset-top))'",
       ]);
       if (missing.length) return fail('Admin/Health top padding can still overlap fixed headers or safe areas.', { verification: 'STATIC_CONTRACT', actionType: ACTION_TYPES.CODE_FIX, missing });
-      return pass('Settings host and Health overlay both reserve safe top padding.', { verification: 'STATIC_CONTRACT', actionType: ACTION_TYPES.CODE_FIX });
+      return pass('Admin Ekranı host and Health overlay both reserve safe top padding.', { verification: 'STATIC_CONTRACT', actionType: ACTION_TYPES.CODE_FIX });
     }),
 
   makeCase('health_admin_panel_uses_scroll_container',
