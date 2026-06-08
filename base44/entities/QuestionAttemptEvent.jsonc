@@ -1,7 +1,7 @@
 {
   "name": "QuestionAttemptEvent",
   "type": "object",
-  "description": "Codex183 — Append-only analytics event for question exposure/answer outcomes. Gameplay must treat writes as best-effort and non-blocking; rows are private to the owner/admin and are aggregated into projections by maintenance jobs.",
+  "description": "Codex183 \u2014 Append-only analytics event for question exposure/answer outcomes. Gameplay must treat writes as best-effort and non-blocking; rows are private to the owner/admin and are aggregated into projections by maintenance jobs.",
   "properties": {
     "event_id": {
       "type": "string",
@@ -105,7 +105,7 @@
     },
     "was_swapped_out": {
       "type": "boolean",
-      "description": "True when this row records a card removed by Kart Değiştir."
+      "description": "True when this row records a card removed by Kart De\u011fi\u015ftir."
     },
     "replacement_for_question_id": {
       "type": "string",
@@ -136,6 +136,11 @@
       "type": "string",
       "format": "date-time",
       "description": "ISO timestamp when the event row was created."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this question attempt event (up to 1000 characters)."
     }
   },
   "required": [

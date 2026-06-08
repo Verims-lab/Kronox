@@ -32,6 +32,26 @@ Runtime adapter: src/lib/questionRuntimeAdapter.js
 - region
 - difficulty (1-5)
 - state (A = Active, P = Passive)
+- description
+
+### 1.0 Question.description (approved SEO/content metadata)
+Question.description is intentionally retained as an approved Question field.
+- Purpose: SEO behavior and metadata / content description for question pages
+  or future public SEO surfaces.
+- It is optional/nullable. Existing question rows without a description remain
+  valid and safe.
+- It is NOT part of gameplay answer validation.
+- It must not affect Solo or Online question selection.
+- It must not affect difficulty, scoring, the timeline year logic, category
+  selection, or the leaderboard.
+- It is not required for any existing gameplay logic unless explicitly needed
+  later.
+- It may be used by SEO / meta / content surfaces. If exposed publicly later,
+  sanitize/escape it like normal user-facing content.
+- Question analytics, import, and export must preserve description when present
+  and must not fail when it is missing or blank.
+- Health treats description as an approved field; unknown/unapproved fields
+  beyond the approved list still fail the Question schema drift check.
 
 ## 1a. SubCategory lookup preparation
 SubCategory exists as a future normalized lookup table with fields:

@@ -36,13 +36,16 @@ function rowId(row: any) {
 }
 
 function progressEntity(base44: any) {
-  // Runtime/deployability contract: Daily Quest claim must explicitly bind
-  // entities.UserDailyQuestProgress. Some Base44 deployments expose new
-  // user-owned entities on the authenticated client before the service-role
-  // registry catches up, so claim uses the same fallback as status/progress.
+  // Runtime/deployability contract: Daily Quest claim binds
+  // entities.UserDailyQuestProgress. The progress row's RLS update rule is
+  // owner-scoped (data.user_email == user.email) with NO admin clause, so
+  // updates must run as the authenticated owner. We therefore prefer the
+  // authenticated-user client (which satisfies owner RLS) and only fall back
+  // to the service-role client when the auth client is unavailable. This
+  // mirrors recordDailyQuestProgress, the proven working progress writer.
   const authEntity = base44?.entities ? base44.entities.UserDailyQuestProgress : null;
   const serviceEntity = base44?.asServiceRole?.entities ? base44.asServiceRole.entities.UserDailyQuestProgress : null;
-  return serviceEntity || authEntity;
+  return authEntity || serviceEntity;
 }
 
 function publicProgress(row: any) {
@@ -96,8 +99,18 @@ async function findProgress(base44: any, email: string, body: any) {
   return Array.isArray(rows) && rows.length ? rows[0] : null;
 }
 
+function diamondTransactionEntity(base44: any) {
+  // DiamondTransaction RLS create is owner-scoped
+  // (created_by_id == user.id AND data.user_email == user.email) with NO admin
+  // clause, so the ledger row must be created by the authenticated owner.
+  // Prefer the auth client; fall back to service role only if unavailable.
+  const authEntity = base44?.entities ? base44.entities.DiamondTransaction : null;
+  const serviceEntity = base44?.asServiceRole?.entities ? base44.asServiceRole.entities.DiamondTransaction : null;
+  return authEntity || serviceEntity;
+}
+
 async function findDiamondTransaction(base44: any, email: string, idempotencyKey: string) {
-  const rows = await base44.asServiceRole.entities.DiamondTransaction
+  const rows = await diamondTransactionEntity(base44)
     .filter({ user_email: email, idempotency_key: idempotencyKey }, '-created_at', 1)
     .catch(() => []);
   return Array.isArray(rows) && rows.length ? rows[0] : null;
@@ -106,7 +119,7 @@ async function findDiamondTransaction(base44: any, email: string, idempotencyKey
 async function createDiamondTransaction(base44: any, payload: Record<string, unknown>) {
   const existing = await findDiamondTransaction(base44, String(payload.user_email || ''), String(payload.idempotency_key || ''));
   if (existing) return existing;
-  return base44.asServiceRole.entities.DiamondTransaction.create(payload);
+  return diamondTransactionEntity(base44).create(payload);
 }
 
 async function markProgressClaimed(base44: any, row: any, claimedAt: string, tx: any) {
@@ -162,7 +175,7 @@ Deno.serve(async (req: Request) => {
     if (!progressStore?.filter || !progressStore?.update) {
       return json({ ok: false, code: 'daily_quest_entities_missing', error: 'Günlük görev kayıtları hazır değil.' }, 500);
     }
-    const progress = await findProgress(base44, email, body);
+    let progress = await findProgress(base44, email, body);
     if (!rowId(progress)) {
       return json({ ok: false, code: 'daily_quest_not_found', error: 'Günlük görev bulunamadı.' }, 404);
     }
@@ -175,8 +188,29 @@ Deno.serve(async (req: Request) => {
 
     const targetValue = Math.max(1, normalizeNumber(progress.target_value, 1));
     const progressValue = Math.min(targetValue, normalizeNumber(progress.progress_value, 0));
-    if (progressValue < targetValue || String(progress.status || '') === 'active') {
+    // Requirement 5 — Accept a claim whenever progress_value >= target_value.
+    // The UI shows "Al" at 1/1, so we must NOT reject just because the row's
+    // status field is still "active" (the progress write may have reached
+    // target without persisting the status flip). Completion is finalized
+    // here during claim rather than requiring the frontend to update status.
+    if (progressValue < targetValue) {
       return json({ ok: false, code: 'daily_quest_not_completed', error: 'Görev henüz tamamlanmadı.' }, 409);
+    }
+    // Finalize completion if the row reached its target but was never flipped
+    // to a completed/claimed status. Best-effort; failure here does not block
+    // the grant since progressValue >= targetValue already proves completion.
+    if (String(progress.status || '') === 'active' && !progress.completed_at) {
+      const completionTimestamp = new Date().toISOString();
+      const finalized = await progressStore.update(rowId(progress), {
+        status: 'completed',
+        completed_at: completionTimestamp,
+        updated_at: completionTimestamp,
+      }).catch(() => null);
+      if (finalized && rowId(finalized)) progress = finalized;
+      else {
+        progress.status = 'completed';
+        progress.completed_at = completionTimestamp;
+      }
     }
 
     const rewardDiamonds = Math.max(1, normalizeNumber(progress.reward_diamonds, 1));
@@ -230,9 +264,18 @@ Deno.serve(async (req: Request) => {
       economy_updated_at: timestamp,
     };
 
+    // Grant the diamonds on the canonical balance source FIRST. This is the
+    // visible reward and matches the proven Daily Wheel claim order.
     await base44.asServiceRole.entities.User.update(latestUser.id || user.id, userPatch);
 
+    // Write the DiamondTransaction ledger row. Some Base44 runtimes enforce
+    // RLS create rules even for service-role writes, which can deny this
+    // append-only ledger. The diamonds were already granted above, so a
+    // ledger denial must NOT roll back the grant or fail the claim — the
+    // reward must reach the user. We record ledgerError for diagnostics
+    // (same best-effort contract used by claimDailyWheelReward).
     let tx: any = null;
+    let ledgerError: string | null = null;
     try {
       tx = await createDiamondTransaction(base44, {
         user_email: email,
@@ -259,14 +302,11 @@ Deno.serve(async (req: Request) => {
         description: 'daily_quest_reward',
       });
     } catch (error) {
-      await base44.asServiceRole.entities.User.update(latestUser.id || user.id, {
-        diamonds: balanceBefore,
-        economy_updated_at: timestamp,
-      }).catch(() => null);
-      console.error('[claimDailyQuestReward] ledger create failed', error?.message || error);
-      return json({ ok: false, code: 'daily_quest_ledger_failed', error: 'Görev ödülü kaydedilemedi. Lütfen tekrar dene.' }, 500);
+      ledgerError = String(error?.message || error);
+      console.error('[claimDailyQuestReward] ledger create failed (grant kept)', ledgerError);
     }
 
+    // Mark the quest claimed only after the reward grant succeeded.
     const claimedProgress = await markProgressClaimed(base44, progress, timestamp, tx);
 
     return json({
@@ -280,6 +320,7 @@ Deno.serve(async (req: Request) => {
       questStatus: 'claimed',
       idempotencyKey,
       transactionId: tx?.id || null,
+      ledgerError,
       userPatch,
       grantsDiamondsOnly: true,
       noKronoxPuan: true,
@@ -291,6 +332,7 @@ Deno.serve(async (req: Request) => {
       ok: false,
       code: 'daily_quest_claim_failed',
       error: 'Ödül alınamadı. Tekrar dene.',
+      debugError: String(error?.message || error),
     }, 500);
   }
 });

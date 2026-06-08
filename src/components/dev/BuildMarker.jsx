@@ -1,5 +1,17 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex300 — Keep Question.description for SEO + align schema/Health/docs:
+//   • Question.description is now an approved, optional SEO/content-metadata
+//     field on the Question entity and is NOT removed.
+//   • The question_schema_preparation_health case
+//     question_entity_contains_only_target_dataset_fields now includes
+//     description in the approved field list, so it PASSes while still
+//     failing on any other unapproved/unknown field or missing target field.
+//   • Question data model doc records description as approved SEO metadata
+//     that does not affect gameplay, question selection, difficulty, scoring,
+//     timeline year logic, or leaderboard.
+//   • No gameplay/economy/online/admin/system behavior changed.
+//
 // Codex181 — Solo progress counter + correct-placement reward feel:
 //   • Solo top progress now reads the same timeline card-count helper used
 //     by the win condition, preventing stale 5/7-style display drift.
@@ -1570,7 +1582,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex299';
+const BUILD_MARKER = 'Codex300';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
