@@ -92,8 +92,12 @@ special_event_future
 ```
 
 Daily Quest / Günün Görevi v1 is visible inside the Home `Günlük Ödüller`
-panel as a readiness/status row. It does not grant Diamonds or Kronox Puan yet.
-Any future Daily Quest reward must be server-backed, use a separate
+panel as a readiness/status row. Phase 1 also adds admin-managed
+`DailyQuestDefinition` templates with `reward_diamonds`, but those definitions
+do not claim or grant Diamonds to users yet and never grant Kronox Puan.
+Admin-entered title/description copy is display-only; future progress logic is
+defined only by `quest_type + target_value`. Any future Daily Quest reward must
+be server-backed, use a separate
 `daily_quest:<normalizedEmail>:<YYYY-MM-DD>` idempotency key, write
 `DiamondTransaction.source = daily_quest_future` or its final active source with
 `direction = earn`, and use `User.daily_quest_*` guard fields instead of Daily
@@ -102,13 +106,12 @@ Wheel fields.
 Do not implement:
 
 ```text
-DailyQuestProgress
+UserDailyQuestProgress as an active runtime table before the next phase
 client-side quest rewards
 client-side quest reward diamond grants
 ```
 
-until the Daily Quest reward amount, completion rule, and backend claim path are
-specified.
+until assignment, progress, completion, and backend claim paths are specified.
 
 ---
 

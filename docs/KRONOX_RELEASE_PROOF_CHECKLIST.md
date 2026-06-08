@@ -284,6 +284,34 @@ Checklist:
 * Home diamond count updates immediately after a successful wheel claim.
 * Multi-device Daily Wheel duplicate prevention remains a live backend/platform probe unless unique idempotency constraints are configured.
 
+## Daily Quest Definition Phase 1
+
+* `DailyQuestDefinition` exists as the admin-managed template table.
+* Profile / Settings / `Ayarlar` shows `Günlük Görev Yönetimi` only to active
+  `AdminUser` role `owner`/`admin`.
+* Active admins can list definitions and create new definitions through the
+  server-backed `createDailyQuestDefinition` callable.
+* Normal users and disabled/passive admins cannot view the management UI and
+  must receive 401/403 if they call the backend directly.
+* Required definition fields are `quest_key`, `title`, `description`,
+  `quest_type`, `target_value`, `reward_diamonds`, and `status`.
+* Supported v1 `quest_type` values are `start_solo_attempt`, `correct_cards`,
+  `complete_solo_level`, and `use_joker`.
+* `quest_type` is a dropdown/enum, not arbitrary admin free text.
+* `target_value` and `reward_diamonds` must be integers of at least 1.
+* `title` and `description` are display-only; text is not parsed with AI,
+  NLP, regex, scripts, or any free-text executable condition.
+* Daily Quest definitions are Diamond-only templates: no Kronox Puan field,
+  no leaderboard impact, and no Solo/Online scoring changes.
+* Initial definitions are seeded idempotently by `quest_key`:
+  `start_1_solo_attempt`, `correct_5_cards`, `complete_1_solo_level`, and
+  `use_1_joker`.
+* `UserDailyQuestProgress` assignment/progress/claim and
+  `daily_quest_reward` DiamondTransaction claims are future phases and must
+  remain server-backed with one claim per quest per UTC day.
+* Daily Wheel remains separate from Daily Quest definitions, and Mağaza /
+  Joker Inventory / Solo joker spending remain unaffected.
+
 ---
 
 # 6. Mobile / PWA

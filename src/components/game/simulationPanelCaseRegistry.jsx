@@ -201,6 +201,9 @@ import * as mobileGameplayGestureCases from './simulationPanelMobileGameplayGest
 // Mağaza Phase 1: Home entry, server-backed Diamond-to-Solo-joker purchases,
 // ledger writes, idempotency guard, and no Online/Daily Wheel impact.
 import * as marketCases from './simulationPanelMarketCases';
+// Daily Quest Definition Phase 1: admin-managed template rows, enum-only
+// quest logic, display-only copy, and future progress/reward boundaries.
+import * as dailyQuestDefinitionCases from './simulationPanelDailyQuestDefinitionCases';
 
 const MODULES = [
   soloProgressCases,
@@ -250,6 +253,7 @@ const MODULES = [
   backendDeployabilityCases,
   mobileGameplayGestureCases,
   marketCases,
+  dailyQuestDefinitionCases,
 ];
 
 function flatten(key) {

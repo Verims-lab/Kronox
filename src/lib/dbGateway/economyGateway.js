@@ -27,7 +27,7 @@ export const economyGatewayContract = Object.freeze({
   marketPurchaseFunction: 'purchaseJokerWithDiamonds',
   marketPurchase: 'server-backed Mağaza spends Diamonds for Solo jokers; client never supplies trusted price',
   dailyWheel: 'server-backed Daily Wheel grants Diamonds only, no Kronox Puan; rewards 30/40/50 high, 60/75 medium, 100 low, 150 rare, 250 very rare; +150 seven-day streak bonus',
-  dailyQuestV1: 'Günlük Ödüller includes Daily Quest v1 readiness UI; future quest rewards must use daily_quest:<email>:<YYYY-MM-DD> and separate daily_quest_* fields, never Daily Wheel fields',
+  dailyQuestV1: 'Günlük Ödüller includes Daily Quest v1 readiness UI; DailyQuestDefinition templates are admin-managed but user rewards remain future server-backed daily_quest:<email>:<YYYY-MM-DD> claims with separate daily_quest_* fields, never Daily Wheel fields',
   idempotency: 'one claim per user per UTC server day; DiamondTransaction.idempotency_key and DailyWheelSpin.idempotency_key logical guard; unique constraint platform/manual',
   rewardAmountsChanged: true,
 });

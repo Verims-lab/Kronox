@@ -26,9 +26,12 @@
 import deployedReportSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts?raw';
 import purchaseJokerWithDiamondsSource from '../../../base44/functions/purchaseJokerWithDiamonds/entry.ts?raw';
 import purchaseJokerWithDiamondsManifestSource from '../../../base44/functions/purchaseJokerWithDiamonds/function.jsonc?raw';
+import createDailyQuestDefinitionSource from '../../../base44/functions/createDailyQuestDefinition/entry.ts?raw';
+import createDailyQuestDefinitionManifestSource from '../../../base44/functions/createDailyQuestDefinition/function.jsonc?raw';
 import cleanupGatewaySource from '../../lib/dbGateway/cleanupGateway.js?raw';
 import scoringGatewaySource from '../../lib/dbGateway/scoringGateway.js?raw';
 import economyGatewaySource from '../../lib/dbGateway/economyGateway.js?raw';
+import dailyQuestGatewaySource from '../../lib/dbGateway/dailyQuestGateway.js?raw';
 import inviteGatewaySource from '../../lib/dbGateway/inviteGateway.js?raw';
 import lobbyGatewaySource from '../../lib/dbGateway/lobbyGateway.js?raw';
 import leaderboardGatewaySource from '../../lib/dbGateway/leaderboardGateway.js?raw';
@@ -61,6 +64,7 @@ const KNOWN_BACKEND_FUNCTIONS = new Set([
   'getDailyWheelStatus',
   'claimDailyWheelReward',
   'purchaseJokerWithDiamonds',
+  'createDailyQuestDefinition',
   'findLobbyByCode',
   'startLobbyGame',
   'updateLobbyGameState',
@@ -237,6 +241,7 @@ export const EXTRA_TESTS = [
         cleanupGatewaySource,
         scoringGatewaySource,
         economyGatewaySource,
+        dailyQuestGatewaySource,
         inviteGatewaySource,
         lobbyGatewaySource,
         leaderboardGatewaySource,
@@ -325,6 +330,72 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('purchaseJokerWithDiamonds scopes service-role economy writes to the authenticated user and backend price table.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    }),
+
+  makeCase('daily_quest_definition_backend_function_deployable_contract',
+    'createDailyQuestDefinition backend function is registered and deployable',
+    () => {
+      const missing = missingTokens(`${createDailyQuestDefinitionSource}\n${createDailyQuestDefinitionManifestSource}\n${dailyQuestGatewaySource}`, [
+        '"name": "createDailyQuestDefinition"',
+        '"entry": "entry.ts"',
+        "base44.functions.invoke('createDailyQuestDefinition'",
+        'createClientFromRequest',
+        'Deno.serve',
+        'base44.auth.me()',
+        'entities?.AdminUser',
+        'entities?.DailyQuestDefinition',
+      ]);
+      const forbidden = forbiddenTokens(createDailyQuestDefinitionSource, [
+        "from './_shared",
+        "from '../_shared",
+        'file://' + '/src/_shared',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('createDailyQuestDefinition is not clearly registered/deployable or has broken local imports.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          files: ['base44/functions/createDailyQuestDefinition/entry.ts', 'base44/functions/createDailyQuestDefinition/function.jsonc', 'src/lib/dbGateway/dailyQuestGateway.js'],
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('createDailyQuestDefinition is a registered Base44 callable function with no broken local imports.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    }),
+
+  makeCase('daily_quest_definition_backend_admin_scope',
+    'createDailyQuestDefinition uses AdminUser-backed admin authorization',
+    () => {
+      const missing = missingTokens(createDailyQuestDefinitionSource, [
+        'function requireAdmin(base44)',
+        'getAdminAuthorization',
+        'entities?.AdminUser',
+        "value === 'owner' || value === 'admin'",
+        'isActiveStatus',
+        'Admin yetkisi gerekli.',
+        'requireAdmin(base44)',
+        'if (admin.response) return admin.response',
+        'created_by: admin.adminEmail',
+        'updated_by: admin.adminEmail',
+      ]);
+      const forbidden = forbiddenTokens(createDailyQuestDefinitionSource, [
+        'body?.adminEmail',
+        'body?.user_email',
+        'hardcoded',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('createDailyQuestDefinition admin guard can drift from the AdminUser-backed contract.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'base44/functions/createDailyQuestDefinition/entry.ts',
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('createDailyQuestDefinition authorizes active owner/admin AdminUser rows before list/create/status writes.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });

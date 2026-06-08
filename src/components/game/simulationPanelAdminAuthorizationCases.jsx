@@ -5,8 +5,9 @@
 //   • Admin authorization source-of-truth is the private AdminUser entity.
 //   • Backend admin-only functions use AdminUser-backed authorization.
 //   • Shared guard imports are preferred where deployable; the Base44 callable
-//     analytics report is the known flat-runtime exception and must use a
-//     verified inline AdminUser guard instead.
+//     analytics report and Daily Quest definition manager are known
+//     flat-runtime exceptions and must use verified inline AdminUser guards
+//     instead.
 //   • Admin email env allowlists are not used for authorization.
 //   • Runtime active/disabled AdminUser proof remains NOT_AUTOMATABLE.
 //
@@ -27,6 +28,7 @@ import expirePushSubscriptionsSource from '../../../base44/functions/expirePushS
 import refreshLeaderboardProjectionSource from '../../../base44/functions/refreshLeaderboardProjection/entry.ts?raw';
 import resetTestAccountProgressSource from '../../../base44/functions/resetTestAccountProgress/entry.ts?raw';
 import sendQuestionAnalyticsReportEmailSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts?raw';
+import createDailyQuestDefinitionSource from '../../../base44/functions/createDailyQuestDefinition/entry.ts?raw';
 import aggregateQuestionStatsSource from '../../../base44/functions/aggregateQuestionStats/entry.ts?raw';
 import cancelStaleLobbiesSource from '../../../base44/functions/cancelStaleLobbies/entry.ts?raw';
 import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
@@ -124,6 +126,7 @@ const TARGET_FUNCTIONS = [
   { name: 'refreshLeaderboardProjection', source: refreshLeaderboardProjectionSource },
   { name: 'resetTestAccountProgress', source: resetTestAccountProgressSource },
   { name: 'sendQuestionAnalyticsReportEmail', source: sendQuestionAnalyticsReportEmailSource },
+  { name: 'createDailyQuestDefinition', source: createDailyQuestDefinitionSource },
   { name: 'aggregateQuestionStats', source: aggregateQuestionStatsSource },
   { name: 'cancelStaleLobbies', source: cancelStaleLobbiesSource },
   { name: 'getAdminStatus', source: getAdminStatusSource },
@@ -266,6 +269,16 @@ export const EXTRA_TESTS = [
           'requireAdmin(base44)',
           'if (admin.response) return admin.response',
         ]],
+        ['createDailyQuestDefinition', [
+          'function requireAdmin(base44)',
+          'getAdminAuthorization',
+          'entities?.AdminUser',
+          "value === 'owner' || value === 'admin'",
+          'isActiveStatus',
+          'Admin yetkisi gerekli.',
+          'requireAdmin(base44)',
+          'if (admin.response) return admin.response',
+        ]],
       ]);
       const brokenLocalImportTokens = [
         "from './_shared/adminAuth.js'",
@@ -300,12 +313,12 @@ export const EXTRA_TESTS = [
         return fail('An admin-only function is not using accepted AdminUser-backed authorization.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
-          expected: 'Use shared ../_shared/adminAuth.ts guard where deployable, or verified inline AdminUser guard for the sendQuestionAnalyticsReportEmail Base44 flat-runtime exception',
+          expected: 'Use shared ../_shared/adminAuth.ts guard where deployable, or verified inline AdminUser guard for Base44 flat-runtime exceptions such as sendQuestionAnalyticsReportEmail/createDailyQuestDefinition',
           actual: { missingIn: missing },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Affected admin functions use accepted AdminUser-backed authorization. Shared guard is preferred; sendQuestionAnalyticsReportEmail uses the verified inline Base44-compatible guard.', {
+      return pass('Affected admin functions use accepted AdminUser-backed authorization. Shared guard is preferred; flat Base44 callable exceptions use verified inline AdminUser guards.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
