@@ -12,6 +12,7 @@ import recordDailyQuestProgressSource from '../../../base44/functions/recordDail
 import claimDailyQuestRewardSource from '../../../base44/functions/claimDailyQuestReward/entry.ts?raw';
 import claimDailyWheelRewardSource from '../../../base44/functions/claimDailyWheelReward/entry.ts?raw';
 import dailyQuestGatewaySource from '../../lib/dbGateway/dailyQuestGateway.js?raw';
+import useDailyQuestsSource from '../../hooks/useDailyQuests.js?raw';
 import dailyRewardsPanelSource from '../dailyWheel/DailyRewardsPanel.jsx?raw';
 import gameSource from '../../pages/Game.jsx?raw';
 import releaseProofSource from '../../../docs/KRONOX_RELEASE_PROOF_CHECKLIST.md?raw';
@@ -65,6 +66,7 @@ const runtimeSources = [
   recordDailyQuestProgressSource,
   claimDailyQuestRewardSource,
   dailyQuestGatewaySource,
+  useDailyQuestsSource,
   dailyRewardsPanelSource,
   gameSource,
 ].join('\n');
@@ -259,8 +261,10 @@ export const EXTRA_TESTS = [
         'DiamondTransaction',
         'daily_quest_reward',
         'related_entity_type: RELATED_ENTITY_TYPE',
-        'related_entity_id: progress.id',
+        'related_entity_id: rowId(progress)',
         'balance_after',
+        'diamondBalanceAfter',
+        "questStatus: 'claimed'",
       ]);
       if (missing.length) return fail('Daily Quest claim does not prove completed-status validation and DiamondTransaction write.', {
         verification: 'STATIC_CONTRACT',
@@ -293,6 +297,33 @@ export const EXTRA_TESTS = [
         actual: { missing, forbidden },
       });
       return pass('Claim idempotency uses DiamondTransaction keys and reward amount comes from the progress row.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('completed_quest_claim_action_grants_visible_diamonds',
+    'Completed Daily Quest exposes a claim action and refreshes visible Diamonds',
+    () => {
+      const combined = `${useDailyQuestsSource}\n${dailyRewardsPanelSource}\n${claimDailyQuestRewardSource}`;
+      const missing = missingTokens(combined, [
+        'const body = await claimDailyQuestReward({',
+        'progressId: quest?.id || undefined',
+        'questKey: quest?.questKey',
+        'questDate: quest?.questDate || serverDate',
+        'buildClaimKey(quest, serverDate)',
+        'body?.userPatch',
+        'onUserUpdated(body.userPatch)',
+        "setError(err?.message || 'Günlük görev ödülü alınamadı.')",
+        'dailyQuests.error',
+        'Al',
+        'Alındı',
+        'diamondBalanceAfter',
+        "questStatus: 'claimed'",
+      ]);
+      if (missing.length) return fail('Completed Daily Quest claim can fail silently or skip visible Diamond refresh.', {
+        verification: 'STATIC_CONTRACT',
+        files: ['src/hooks/useDailyQuests.js', 'src/components/dailyWheel/DailyRewardsPanel.jsx', 'base44/functions/claimDailyQuestReward/entry.ts'],
+        missing,
+      });
+      return pass('Completed quests call claimDailyQuestReward with id or quest fallback, surface claim errors, and apply returned diamond userPatch.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('diamonds_only_no_puan_no_leaderboard',

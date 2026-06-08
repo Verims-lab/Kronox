@@ -126,6 +126,17 @@ function DailyQuestV1Card({ user, onUserUpdated, onLogin }) {
         </button>
       )}
 
+      {dailyQuests.isSignedIn && dailyQuests.status !== 'error' && dailyQuests.error && (
+        <button
+          type="button"
+          onClick={dailyQuests.refresh}
+          className="mb-2 w-full rounded-xl px-3 py-2 text-left text-[11px] font-black text-rose-100"
+          style={{ background: 'rgba(248,113,113,0.12)', boxShadow: 'inset 0 0 0 1px rgba(248,113,113,0.22)' }}
+        >
+          {dailyQuests.error}
+        </button>
+      )}
+
       {dailyQuests.isSignedIn && dailyQuests.status === 'empty' && (
         <div className="rounded-xl px-3 py-2 text-[11px] font-bold text-slate-300"
           style={{ background: 'rgba(15,23,42,0.45)' }}>
@@ -144,7 +155,7 @@ function DailyQuestV1Card({ user, onUserUpdated, onLogin }) {
             <DailyQuestRow
               key={quest.id || quest.questKey}
               quest={quest}
-              claiming={dailyQuests.claimingId === quest.id}
+              claiming={dailyQuests.claimingId === dailyQuests.getClaimKey(quest)}
               onClaim={() => dailyQuests.claim(quest)}
             />
           ))}

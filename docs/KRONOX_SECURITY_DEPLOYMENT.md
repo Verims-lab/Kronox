@@ -212,6 +212,11 @@ Daily Quest Definition management:
   and treats no active definitions as a safe empty state.
 * Loading or ensuring today’s quests does not grant Diamonds;
   `claimDailyQuestReward` remains the only reward path.
+* Completing progress alone does not grant Diamonds; completed and unclaimed
+  quests expose an `Al` claim action.
+* Successful `claimDailyQuestReward` writes `daily_quest_reward`, updates
+  visible `User.diamonds`, returns `diamondBalanceAfter`, and only then marks
+  the progress row claimed.
 * `daily_quest_last_claim_date` and `daily_quest_next_available_at` are
   active summary/availability fields; duplicate-claim prevention is enforced
   by `UserDailyQuestProgress` and `DiamondTransaction` idempotency

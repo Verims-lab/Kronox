@@ -231,6 +231,8 @@ Daily Quest Runtime v1 is Solo-focused:
   newly created progress rows if an immediate Base44 refresh is stale
 - loading or ensuring today’s quests does not grant Diamonds;
   `claimDailyQuestReward` remains the only reward path
+- completing progress alone does not grant Diamonds; completed and unclaimed
+  quests expose the `Al` claim action
 - supported v1 quest types are `start_solo_attempt`, `correct_cards`,
   `complete_solo_level`, and `use_joker`
 - `title` and `description` are display-only Turkish copy and are never parsed
@@ -245,7 +247,8 @@ Daily Quest Runtime v1 is Solo-focused:
 - Daily Quest does not grant Kronox Puan and has no leaderboard impact
 - Daily Quest grants diamonds only through `claimDailyQuestReward`
 - `claimDailyQuestReward` writes `DiamondTransaction.source = daily_quest_reward`
-  and blocks duplicate claims
+  updates visible `User.diamonds`, returns `diamondBalanceAfter`, marks the row
+  claimed, and blocks duplicate claims
 - one claim per quest per UTC day is enforced by progress status and the
   `daily_quest_reward` idempotency key
 - `daily_quest_last_claim_date` and `daily_quest_next_available_at` are User

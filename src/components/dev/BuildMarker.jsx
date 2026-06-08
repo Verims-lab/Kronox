@@ -1247,6 +1247,14 @@ import React, { useEffect, useState } from 'react';
 //     failedReasons, missingConfig, missing_vapid_config, and subscriptionCount
 //     while keeping VAPID_PRIVATE_KEY backend-env-only.
 //
+// Codex298 — Daily Quest claim reward fix:
+//   • Completed Günlük Görev claims now call claimDailyQuestReward with an id
+//     or questKey/questDate fallback so a missing progress id cannot silently
+//     skip the Diamond reward.
+//   • Claim responses return diamondBalanceAfter and questStatus: claimed,
+//     reconcile visible User.diamonds for idempotent retries, and surface
+//     claim errors in the Günlük Ödüller panel.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1551,7 +1559,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex297';
+const BUILD_MARKER = 'Codex298';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
