@@ -47,7 +47,7 @@ Status: Active product contract.
 - VAPID_SUBJECT uses a mailto: or https:// subject and VAPID keys are non-empty base64url-style deployment values.
 - Missing, blank, whitespace-only, placeholder, empty-string, hardcoded, dummy, or VITE_ backend VAPID fallbacks are forbidden.
 - VAPID private key values are never logged, returned, printed in Health, or exposed through frontend VITE_ variables.
-- Missing VAPID config is reported explicitly as vapid_config_missing / missing_vapid_config with pushSent:false, pushSkipped:true, and safe counts; it does not return VAPID values and does not break in-app invite flow.
+- Missing VAPID config is reported explicitly as vapid_config_missing / missing_vapid_config with pushSent:false, pushSkipped:true, missingConfig:true, and safe counts; it does not return VAPID values and does not break in-app invite flow.
 - Current source of truth for admin authorization is the private AdminUser entity.
 - Shared backend guard: base44/functions/_shared/adminAuth.ts, preferred wherever the Base44 function deployment supports it.
 - Base44 callable/flat functions may inline the same AdminUser-backed guard only when local shared imports are known to break deployment. This is a runtime deployability exception, not a security exception.
@@ -86,7 +86,7 @@ Status: Active product contract.
 - Report/admin functions must NOT use local imports that resolve outside the deployed path. The broken './_shared/adminAuth.js' pattern resolved to a file URL under /src/_shared (module not found) and broke deployment, leaving Base44 serving a stale build. The callable report function now inlines a DB-backed AdminUser guard instead.
 - base44/functions/<name>/entry.ts shared imports remain allowed where proven deployable; sendQuestionAnalyticsReportEmail intentionally uses an inline guard for this runtime-sensitive path.
 - Critical report/admin functions should include safe template/function markers (e.g. templateVersion static-pool-v2, REPORT_BUILD_MARKER, and bodyContains* diagnostics). If real output lacks the marker, the function deployment is stale.
-- sendQuestionAnalyticsReportEmail live deploy is proven by triggering the function and reading reportBuildMarker (current: Codex290), templateVersion static-pool-v2, and bodyContainsStaticPoolSection/Template/QuestionSource = true. A published frontend that does not change reportBuildMarker means the executed backend function did not redeploy.
+- sendQuestionAnalyticsReportEmail live deploy is proven by triggering the function and reading reportBuildMarker (current: Codex291), templateVersion static-pool-v2, and bodyContainsStaticPoolSection/Template/QuestionSource = true. A published frontend that does not change reportBuildMarker means the executed backend function did not redeploy.
 - A prior Codex275 marker bump was never proven deployed because the runtime function still imported the broken local _shared guard; the recovery inlined the AdminUser guard and uses current reportBuildMarker values as the unambiguous live marker.
 - Function-based question analytics reset is currently not used.
 - Manual DB reset path after question pool replacement clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection.
@@ -158,7 +158,10 @@ definitions through createDailyQuestDefinition. title and description are
 display-only; quest_type + target_value drive future logic. Supported v1 types
 are start_solo_attempt, correct_cards, complete_solo_level, and use_joker.
 reward_diamonds is Diamonds-only, with no Kronox Puan and no leaderboard
-impact. Initial definitions seed idempotently by quest_key. UserDailyQuestProgress
+impact. Daily Quest does not grant Diamonds or Kronox Puan yet. Daily Quest
+does not grant Kronox Puan and has no leaderboard impact.
+Reserved future User fields are daily_quest_last_claim_date and
+daily_quest_next_available_at. Initial definitions seed idempotently by quest_key. UserDailyQuestProgress
 and daily_quest_reward claims are future phases.
 
 ## Online Scoring Persistence
@@ -172,7 +175,7 @@ Push subscription works on real installed device if supported. (manual)
 sendGameInvitePush requires backend VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, and VAPID_SUBJECT.
 Missing or blank VAPID config returns explicit vapid_config_missing / missing_vapid_config diagnostics.
 No empty-string, dummy, hardcoded, or VITE_ private-key fallback is allowed.
-Safe VAPID-missing diagnostics use pushSent:false, pushSkipped:true, reason:vapid_config_missing, and counts only.
+Safe VAPID-missing diagnostics use pushSent:false, pushSkipped:true, missingConfig:true, reason:vapid_config_missing, and counts only.
 VAPID_PRIVATE_KEY remains backend-env-only and is never logged or returned; env-var-name scanner findings are deployment-secret management notes unless real key material is exposed.
 In-app invites remain functional if push is not configured.
 npm run build does not prove backend VAPID secret deployment; real push delivery requires a subscribed device and deployed backend secrets.

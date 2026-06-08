@@ -176,6 +176,7 @@ export const EXTRA_TESTS = [
         'vapid_config_missing',
         'pushSent: false',
         'pushSkipped: true',
+        'missingConfig: true',
         'missingCount',
         'invalidCount',
         'sanitizePushErrorReason',
@@ -225,6 +226,7 @@ export const EXTRA_TESTS = [
         'vapid_config_missing',
         'pushSent: false',
         'pushSkipped: true',
+        'missingConfig: true',
         'missingCount',
         'invalidCount',
       ];
@@ -269,6 +271,7 @@ export const EXTRA_TESTS = [
         'ok: false',
         'pushSent: false',
         'pushSkipped: true',
+        'missingConfig: true',
         'push skipped but in-app invite remains available',
         'summarizeVapidConfigState',
         'missingCount',

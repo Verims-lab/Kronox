@@ -211,6 +211,7 @@ Deno.serve(async (req) => {
         ok: true,
         pushSent: false,
         pushSkipped: true,
+        missingConfig: true,
         reason: 'vapid_config_missing',
         push: {
           ok: false,
@@ -219,6 +220,7 @@ Deno.serve(async (req) => {
           failed: 0,
           skipped: 'missing_vapid_config',
           reason: 'vapid_config_missing',
+          missingConfig: true,
           ...configState,
         },
       });

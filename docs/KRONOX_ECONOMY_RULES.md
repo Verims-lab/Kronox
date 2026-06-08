@@ -95,6 +95,8 @@ Daily Quest / Günün Görevi v1 is visible inside the Home `Günlük Ödüller`
 panel as a readiness/status row. Phase 1 also adds admin-managed
 `DailyQuestDefinition` templates with `reward_diamonds`, but those definitions
 do not claim or grant Diamonds to users yet and never grant Kronox Puan.
+Daily Quest does not grant Diamonds or Kronox Puan yet.
+Daily Quest does not grant Kronox Puan and has no leaderboard impact.
 Admin-entered title/description copy is display-only; future progress logic is
 defined only by `quest_type + target_value`. Any future Daily Quest reward must
 be server-backed, use a separate

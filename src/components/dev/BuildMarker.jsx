@@ -1203,6 +1203,12 @@ import React, { useEffect, useState } from 'react';
 //   • Push provider failures are summarized without returning raw provider
 //     messages; in-app GameInvite flow remains best-effort when push skips.
 //
+// Codex291 — Daily Quest / push Health contract cleanup:
+//   • Mirrors reserved Daily Quest User fields and exact non-runtime wording:
+//     no Diamond/Puan grant yet, no Kronox Puan, and no leaderboard impact.
+//   • createDailyQuestDefinition exposes the exact inline requireAdmin(base44)
+//     guard contract; push summaries include safe missingConfig diagnostics.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1507,7 +1513,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex290';
+const BUILD_MARKER = 'Codex291';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

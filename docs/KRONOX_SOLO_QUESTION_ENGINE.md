@@ -228,6 +228,10 @@ Daily Quest v1 is Solo-focused but definition-only in this phase:
 - future Solo progress will be measured only by `quest_type + target_value`
 - `reward_diamonds` is the only reward field; Daily Quest does not grant
   Kronox Puan and does not affect leaderboard
+- Daily Quest does not grant Diamonds or Kronox Puan yet
+- Daily Quest does not grant Kronox Puan and has no leaderboard impact
+- `daily_quest_last_claim_date` and `daily_quest_next_available_at` are
+  reserved future User fields only
 - user assignment, progress tracking, claim flow, and DiamondTransaction
   `daily_quest_reward` writes are later phases
 - Daily Wheel, Mağaza, Solo joker inventory, scoring, timer, and question
