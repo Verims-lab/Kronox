@@ -1171,6 +1171,12 @@ import React, { useEffect, useState } from 'react';
 //     and mirrors Diamond earn/spend direction wording for Health.
 //   • Makes the Solo joker no-refund contract exact in docs/helper mirrors.
 //
+// Codex286 — Solo joker balance wiring cleanup:
+//   • Restores the direct SoloJokerBar balance prop contract
+//     balances={soloJokers?.balances || null} in the render path.
+//   • Makes Game.jsx visibly pass soloJokers only for Solo level mode so
+//     Online never receives joker inventory wiring.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1474,7 +1480,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex285';
+const BUILD_MARKER = 'Codex286';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

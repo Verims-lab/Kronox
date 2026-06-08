@@ -101,7 +101,6 @@ export default function GameLayout({
   soloLevelElapsedSeconds,
   soloLevelTimerFrozen = false,
   soloJokers = null,
-  soloJokerBarBalances = null,
   beginnerPlacementHintZone,
   correctStreak = 0,
   // Handlers
@@ -406,7 +405,7 @@ export default function GameLayout({
       <SoloJokerBar
         enabled={Boolean(soloJokers?.enabled) && !winner && !isOnline && Boolean(currentQuestion)}
         usedJokerType={soloJokers?.usedJokerType || null}
-        balances={soloJokerBarBalances || soloJokers?.balances || null}
+        balances={soloJokers?.balances || null}
         loading={Boolean(soloJokers?.loading)}
         pendingType={soloJokers?.pendingType || null}
         mistakeShieldActive={Boolean(soloJokers?.mistakeShieldActive)}
