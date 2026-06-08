@@ -111,8 +111,14 @@ export const EXTRA_TESTS = [
         'ensureTodayDailyQuests',
         'rows.length >= 3',
         "filter({ status: 'active' }",
+        'ensureDefaultDefinitions',
+        'DEFAULT_DEFINITIONS',
+        'definitions_present',
+        'default_seed_created',
+        'seededDefaultKeys',
         'findProgressByAssignment',
         'daily_quest:${email}:${dateKey}:${questKey}',
+        'noRewardDuringEnsure: true',
       ]);
       if (missing.length) return fail('UTC daily ensure/idempotency/active-definition contract is incomplete.', {
         verification: 'STATIC_CONTRACT',
@@ -120,6 +126,38 @@ export const EXTRA_TESTS = [
         missing,
       });
       return pass('getDailyQuestStatus uses UTC, excludes passive definitions, and idempotently ensures up to 3 rows.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('home_empty_state_and_seed_contract',
+    'Home Daily Quest load seeds fresh DB defaults and has a clear no-active-definition state',
+    () => {
+      const combined = `${getDailyQuestStatusSource}\n${recordDailyQuestProgressSource}\n${dailyRewardsPanelSource}\n${docsCombined}`;
+      const missing = missingTokens(combined, [
+        'DEFAULT_DEFINITIONS',
+        'Solo’ya Başla',
+        'correct_5_cards',
+        'complete_1_solo_level',
+        'use_1_joker',
+        'readAllDefinitions',
+        'allDefinitions.length > 0',
+        'created_by: \'system:daily_quest_runtime_seed\'',
+        'emptyStateReason',
+        'no_active_definitions',
+        'Bugünkü görevler yakında hazır olacak.',
+        'Aktif günlük görev tanımı yok. Ayarlar &gt; Günlük Görev Yönetimi bölümünden aktif görev ekleyin.',
+        '`claimDailyQuestReward` remains the only reward path',
+      ]);
+      const forbidden = forbiddenTokens(`${getDailyQuestStatusSource}\n${recordDailyQuestProgressSource}`, [
+        'DiamondTransaction.create',
+        'source: \'daily_quest_reward\'',
+        'kronox_puan_total',
+        'SoloLeaderboardEntry',
+      ]);
+      if (missing.length || forbidden.length) return fail('Daily Quest Home load can remain empty/stuck or can grant rewards during ensure.', {
+        verification: 'STATIC_CONTRACT',
+        actual: { missing, forbidden },
+      });
+      return pass('Home status load idempotently seeds fresh DB defaults, reports no-active-definition state, and never grants during ensure.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('definition_copy_and_logic_boundary',

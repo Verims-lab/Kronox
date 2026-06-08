@@ -306,6 +306,12 @@ Checklist:
 * `UserDailyQuestProgress` exists as the user-owned per-day progress table.
 * `getDailyQuestStatus` ensures up to 3 Daily Quests per UTC day and excludes
   passive definitions from new daily sets.
+* Bugünkü Görevler requires active `DailyQuestDefinition` rows. Fresh DBs seed
+  the default Solo-focused definitions idempotently when no definitions exist;
+  if no active definitions remain, Home shows
+  `Bugünkü görevler yakında hazır olacak.` instead of a permanent loading state.
+* Loading or ensuring today’s quests does not grant Diamonds;
+  `claimDailyQuestReward` remains the only reward path.
 * `recordDailyQuestProgress` updates Solo-only events:
   `start_solo_attempt`, `correct_cards`, `complete_solo_level`, and `use_joker`.
 * `claimDailyQuestReward` requires completed status, uses the reward copied in

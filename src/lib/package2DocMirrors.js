@@ -77,6 +77,9 @@ Solo-only in v1 and claimDailyQuestReward grants diamonds only through
 DiamondTransaction.source = daily_quest_reward. Daily Quest does not grant
 Kronox Puan and has no leaderboard impact. One claim per quest per UTC day is
 enforced by UserDailyQuestProgress plus daily_quest_reward idempotency keys.
+Bugünkü Görevler requires active DailyQuestDefinition rows; fresh DBs seed the
+default Solo-focused definitions idempotently when no definitions exist, and
+loading today’s quests does not grant Diamonds.
 Daily Wheel claimed countdown shows \`Yarın hazır\` or compact time text
 without a Diamond icon.
 Admin reset sets \`daily_wheel_last_spin_date\` to the current UTC day, clears Daily Wheel guard fields, and removes target \`DailyWheelSpin\` rows. Retained OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the deleted user.
