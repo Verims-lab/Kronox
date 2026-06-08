@@ -382,8 +382,10 @@ Checklist:
   configured.
 * Missing VAPID config returns safe skip diagnostics such as `pushSent: false`,
   `pushSkipped: true`, `missingConfig: true`, and
-  `reason: vapid_config_missing`; it must not return VAPID values, private
-  keys, push auth secrets, or raw provider stack traces.
+  `reason: vapid_config_missing`; push summaries preserve `skippedReasons`,
+  `failedReasons`, `missing_vapid_config`, `no_active_subscriptions`, and
+  `subscriptionCount` without returning VAPID values, private keys, push auth
+  secrets, or raw provider stack traces.
 * `npm run build` is not backend-secret proof. Real push delivery remains a
   manual runtime proof on a subscribed device with deployed backend secrets.
 

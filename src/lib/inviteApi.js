@@ -220,9 +220,17 @@ export async function createGameInvites({ host, lobby, toEmails, playerCount }) 
     acc.failed += Number(item.failed || 0);
     acc.expired += Number(item.expired || 0);
     acc.subscriptionCount += Number(item.subscriptionCount || 0);
+    const itemSkippedReasons = item.skippedReasons && typeof item.skippedReasons === 'object' ? item.skippedReasons : null;
     if (item.skipped) {
       acc.skipped += 1;
-      acc.skippedReasons[item.skipped] = (acc.skippedReasons[item.skipped] || 0) + 1;
+      if (!itemSkippedReasons) {
+        acc.skippedReasons[item.skipped] = (acc.skippedReasons[item.skipped] || 0) + 1;
+      }
+    }
+    if (itemSkippedReasons) {
+      Object.entries(itemSkippedReasons).forEach(([reason, count]) => {
+        acc.skippedReasons[reason] = (acc.skippedReasons[reason] || 0) + Number(count || 0);
+      });
     }
     if (item.missingConfig) acc.missingConfig += 1;
     if (item.error) acc.errors.push(item.error);

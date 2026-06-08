@@ -89,7 +89,8 @@ Rules:
   printed in Health reports, or exposed through frontend `VITE_` variables
 * safe push-skip diagnostics may return `vapid_config_missing`,
   `missing_vapid_config`, `pushSent: false`, `pushSkipped: true`,
-  `missingConfig: true`, and counts, but never VAPID values or private-key
+  `missingConfig: true`, `skippedReasons`, `failedReasons`,
+  `subscriptionCount`, and counts, but never VAPID values or private-key
   material
 * missing VAPID config must not break in-app invite flow
 * `npm run build` validates the frontend bundle only; it does not prove backend

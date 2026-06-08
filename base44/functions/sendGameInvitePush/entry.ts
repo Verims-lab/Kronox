@@ -137,6 +137,20 @@ function sanitizePushErrorReason(error: unknown) {
   return 'push_failed';
 }
 
+function skippedPushSummary(skipped: string, extra: Record<string, unknown> = {}) {
+  return {
+    attempted: false,
+    sent: 0,
+    failed: 0,
+    expired: 0,
+    skipped,
+    skippedReasons: { [skipped]: 1 },
+    failedReasons: [],
+    subscriptionCount: 0,
+    ...extra,
+  };
+}
+
 function buildTargetUrl(invite: any) {
   const params = new URLSearchParams();
   if (invite?.id) params.set('inviteId', invite.id);
@@ -172,7 +186,7 @@ Deno.serve(async (req) => {
     if (invite.status !== 'pending') {
       return json({
         ok: true,
-        push: { attempted: false, sent: 0, failed: 0, skipped: `invite_${invite.status}` },
+        push: skippedPushSummary(`invite_${invite.status}`),
       });
     }
     const expiresAt = getInviteExpiry(invite);
@@ -183,7 +197,7 @@ Deno.serve(async (req) => {
       }).catch(() => null);
       return json({
         ok: true,
-        push: { attempted: false, sent: 0, failed: 0, skipped: 'invite_expired' },
+        push: skippedPushSummary('invite_expired'),
       });
     }
 
@@ -196,7 +210,7 @@ Deno.serve(async (req) => {
     if (recipient?.game_invite_notifications_enabled === false) {
       return json({
         ok: true,
-        push: { attempted: false, sent: 0, failed: 0, skipped: 'recipient_notifications_disabled' },
+        push: skippedPushSummary('recipient_notifications_disabled'),
       });
     }
 
@@ -214,14 +228,15 @@ Deno.serve(async (req) => {
         missingConfig: true,
         reason: 'vapid_config_missing',
         push: {
+          ...skippedPushSummary('missing_vapid_config', {
+            ok: false,
+            reason: 'vapid_config_missing',
+            missingConfig: true,
+            ...configState,
+          }),
           ok: false,
-          attempted: false,
-          sent: 0,
-          failed: 0,
-          skipped: 'missing_vapid_config',
           reason: 'vapid_config_missing',
           missingConfig: true,
-          ...configState,
         },
       });
     }
@@ -235,7 +250,7 @@ Deno.serve(async (req) => {
     if (!subscriptions?.length) {
       return json({
         ok: true,
-        push: { attempted: false, sent: 0, failed: 0, skipped: 'no_active_subscriptions' },
+        push: skippedPushSummary('no_active_subscriptions'),
       });
     }
 

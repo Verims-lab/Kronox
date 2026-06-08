@@ -1239,6 +1239,14 @@ import React, { useEffect, useState } from 'react';
 //   • Günlük Ödüller renders one compact Günlük Görev while retaining older
 //     same-day extra progress rows without displaying a crowded list.
 //
+// Codex297 — Daily rewards / economy alignment audit:
+//   • Confirms Daily Quest Runtime v1 stays singular at 1 selected UTC-day
+//     quest, claim remains the only Diamond reward path, and no Kronox Puan or
+//     leaderboard writes are introduced.
+//   • Normalizes game-invite push skip summaries with skippedReasons,
+//     failedReasons, missingConfig, missing_vapid_config, and subscriptionCount
+//     while keeping VAPID_PRIVATE_KEY backend-env-only.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1543,7 +1551,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex296';
+const BUILD_MARKER = 'Codex297';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
