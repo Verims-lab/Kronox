@@ -224,10 +224,11 @@ export async function createGameInvites({ host, lobby, toEmails, playerCount }) 
       acc.skipped += 1;
       acc.skippedReasons[item.skipped] = (acc.skippedReasons[item.skipped] || 0) + 1;
     }
+    if (item.missingConfig) acc.missingConfig += 1;
     if (item.error) acc.errors.push(item.error);
     if (Array.isArray(item.failedReasons)) acc.failedReasons.push(...item.failedReasons);
     return acc;
-  }, { attempted: 0, sent: 0, failed: 0, expired: 0, skipped: 0, subscriptionCount: 0, skippedReasons: {}, errors: [], failedReasons: [] });
+  }, { attempted: 0, sent: 0, failed: 0, expired: 0, skipped: 0, missingConfig: 0, subscriptionCount: 0, skippedReasons: {}, errors: [], failedReasons: [] });
 
   return { created, failed, attempted: unique.length, push };
 }

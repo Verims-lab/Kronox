@@ -1,7 +1,7 @@
 {
   "name": "DailyQuestDefinition",
   "type": "object",
-  "description": "Admin-managed Daily Quest v1 template definitions. title and description are display-only; quest_type plus target_value drive future progress logic. Rewards are Diamonds only and must not grant Kronox Puan or affect leaderboard.",
+  "description": "Admin-managed Daily Quest v1 template definitions. title and description are display-only; quest_type plus target_value drive future progress logic. Daily Quest does not grant Diamonds or Kronox Puan yet; future rewards are Diamonds only. Daily Quest does not grant Kronox Puan and has no leaderboard impact.",
   "properties": {
     "quest_key": {
       "type": "string",

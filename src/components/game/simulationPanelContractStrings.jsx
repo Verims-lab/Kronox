@@ -203,7 +203,7 @@ export const sendGameInvitePushFnSource = `
   if (config.missing.length || config.invalid.length) {
     const configState = summarizeVapidConfigState(config);
     console.warn('[sendGameInvitePush] VAPID config missing or invalid; push skipped but in-app invite remains available.', { reason: 'vapid_config_missing', ...configState });
-    return json({ ok: true, pushSent: false, pushSkipped: true, reason: 'vapid_config_missing', push: { ok: false, attempted: false, skipped: 'missing_vapid_config', reason: 'vapid_config_missing', missingCount: configState.missingCount, invalidCount: configState.invalidCount } });
+    return json({ ok: true, pushSent: false, pushSkipped: true, missingConfig: true, reason: 'vapid_config_missing', push: { ok: false, attempted: false, skipped: 'missing_vapid_config', reason: 'vapid_config_missing', missingConfig: true, missingCount: configState.missingCount, invalidCount: configState.invalidCount } });
   }
   const subscriptions = await base44.asServiceRole.entities.PushSubscription.filter(
     { user_email: toEmail, status: 'active' },
@@ -329,6 +329,12 @@ export const userEntitySource = `
     "starter_bonus_granted_at": {},
     "last_daily_diamond_reward_date": {},
     "economy_updated_at": {},
+    "daily_quest_last_claim_date": {
+      "description": "Reserved UTC YYYY-MM-DD key for future Daily Quest v1 reward idempotency. Daily Quest does not grant Diamonds or Kronox Puan yet."
+    },
+    "daily_quest_next_available_at": {
+      "description": "Reserved ISO UTC timestamp for future Daily Quest v1 availability. Daily Quest does not grant Kronox Puan and has no leaderboard impact."
+    },
     "solo_progress": {
       "properties": {
         "currentLevel": {},

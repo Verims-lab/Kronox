@@ -88,8 +88,9 @@ Rules:
 * the VAPID private key value must never be logged, returned in API responses,
   printed in Health reports, or exposed through frontend `VITE_` variables
 * safe push-skip diagnostics may return `vapid_config_missing`,
-  `missing_vapid_config`, `pushSent: false`, `pushSkipped: true`, and counts,
-  but never VAPID values or private-key material
+  `missing_vapid_config`, `pushSent: false`, `pushSkipped: true`,
+  `missingConfig: true`, and counts, but never VAPID values or private-key
+  material
 * missing VAPID config must not break in-app invite flow
 * `npm run build` validates the frontend bundle only; it does not prove backend
   VAPID secrets are configured in deployment
@@ -198,6 +199,10 @@ Daily Quest Definition management:
   progress logic
 * rewards are Diamonds only; Daily Quest definitions must not grant Kronox
   Puan and must not affect leaderboard
+* Daily Quest does not grant Diamonds or Kronox Puan yet
+* Daily Quest does not grant Kronox Puan and has no leaderboard impact
+* `daily_quest_last_claim_date` and `daily_quest_next_available_at` are
+  reserved future User fields only; Phase 1 does not activate claims
 
 Admin-only maintenance helpers must also fail closed. The legacy one-off
 test-account progress reset helper requires both admin authorization and a

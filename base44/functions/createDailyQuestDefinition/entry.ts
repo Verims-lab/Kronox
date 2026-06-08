@@ -197,7 +197,7 @@ async function getAdminAuthorization(base44: any, user: any) {
   };
 }
 
-async function requireAdmin(base44: any) {
+async function requireAdmin(base44) {
   try {
     const user = await base44.auth.me();
     if (!user?.email) return { response: json({ ok: false, code: 'unauthenticated', error: 'Oturum doğrulaması gerekli.' }, 401) };

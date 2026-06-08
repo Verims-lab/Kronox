@@ -216,6 +216,7 @@ export const EXTRA_TESTS = [
         'vapid_config_missing',
         'pushSent: false',
         'pushSkipped: true',
+        'missingConfig: true',
         'isValidVapidSubject',
         'isLikelyVapidKey',
         'summarizeVapidConfigState',

@@ -154,18 +154,23 @@ Daily Quest v1 readiness/status; Daily Quest does not grant Diamonds or Kronox
 Puan yet. Reserved `daily_quest_*` User fields keep future quest rewards
 separate from wheel spins and must only be used by a future server-backed claim
 path.
+Reserved future User fields are `daily_quest_last_claim_date` and
+`daily_quest_next_available_at`; Daily Quest does not grant Diamonds or Kronox
+Puan yet.
+Daily Quest does not grant Diamonds or Kronox Puan yet.
 
 Daily Quest Definition Phase 1 adds `DailyQuestDefinition` for admin-managed
 system templates. `title` and `description` are display-only; they are never
 parsed by regex, AI/NLP, free text, or scripts. The executable contract is
 strictly `quest_type + target_value`, with v1 `quest_type` limited to
 `start_solo_attempt`, `correct_cards`, `complete_solo_level`, and `use_joker`.
-`reward_diamonds` is the only reward field: Daily Quest definitions do not
-grant Kronox Puan and do not affect leaderboard. User assignment, progress, and
+`reward_diamonds` is the only reward field: Daily Quest does not grant Kronox
+Puan and has no leaderboard impact. User assignment, progress, and
 claim are later phases; the planned future table is `UserDailyQuestProgress`
 with `user_email`, `quest_definition_id`, `quest_date`, `progress_value`,
 `target_value`, `status`, `completed_at`, `claimed_at`, and UTC-day
 idempotent Diamond reward claims.
+Daily Quest does not grant Kronox Puan and has no leaderboard impact.
 | `DailyWheelSpin` | Daily Reward Wheel claim ledger and streak audit. | `getDailyWheelStatus` reads current day; `claimDailyWheelReward` creates server-backed claim and updates `User.diamonds`. | Audit/idempotency for Daily Wheel; `User.diamonds` is balance source. | Backend service-role functions only for claim; user/admin read by RLS. | Unique idempotency is not guaranteed in repo schema; race proof needs platform unique key or live probe. | Unique `idempotency_key`; unique `user_email + spin_date`; `user_email + claimed_at`; `spin_date`. | Retain/anonymize on account deletion; admin reset removes target test rows; archive old rows after retention policy. | Keep. | N/A. |
 | `DailyQuestDefinition` | Admin-managed Daily Quest v1 templates. | Profile / Settings / `Günlük Görev Yönetimi` lists definitions and creates new templates through `createDailyQuestDefinition`. | Yes for system quest templates only; not user progress. | `base44/functions/createDailyQuestDefinition/entry.ts`, `src/lib/dbGateway/dailyQuestGateway.js`, `DailyQuestDefinitionManager`. | Admin-only. Backend guard uses `AdminUser` active owner/admin. Normal users cannot view the Settings UI section and cannot create definitions. | Unique `quest_key` where platform supports it; `status`; `sort_order`. | Passive instead of delete for routine removal. | Keep/additive. | Prove active admin can list/create, non-admin and disabled admin receive 403. |
 | `OnlineMatchResult` | Per-user online score audit/idempotency. | `applyOnlineResult` creates/checks row before visible score write. | Audit/idempotency; `User.online_progress` is visible score source. | Client helper creates via entity SDK; reads own rows; admin can update/delete. | Logical idempotency key not declared unique in repo. Client-side per-user application means opponent disconnect recovery is limited. | Unique `idempotency_key`; unique `lobby_id + player_email`; `lobby_id`; `player_email + applied_at`. | Retain for audit/reconciliation. Archive after long retention. | Keep but move write authority backend-side. | N/A. |

@@ -303,6 +303,10 @@ Checklist:
   NLP, regex, scripts, or any free-text executable condition.
 * Daily Quest definitions are Diamond-only templates: no Kronox Puan field,
   no leaderboard impact, and no Solo/Online scoring changes.
+* Daily Quest does not grant Diamonds or Kronox Puan yet.
+* Daily Quest does not grant Kronox Puan and has no leaderboard impact.
+* Reserved future User fields are `daily_quest_last_claim_date` and
+  `daily_quest_next_available_at`.
 * Initial definitions are seeded idempotently by `quest_key`:
   `start_1_solo_attempt`, `correct_5_cards`, `complete_1_solo_level`, and
   `use_1_joker`.
@@ -350,8 +354,9 @@ Checklist:
   private-key fallback; in-app invites remain functional if push is not
   configured.
 * Missing VAPID config returns safe skip diagnostics such as `pushSent: false`,
-  `pushSkipped: true`, and `reason: vapid_config_missing`; it must not return
-  VAPID values, private keys, push auth secrets, or raw provider stack traces.
+  `pushSkipped: true`, `missingConfig: true`, and
+  `reason: vapid_config_missing`; it must not return VAPID values, private
+  keys, push auth secrets, or raw provider stack traces.
 * `npm run build` is not backend-secret proof. Real push delivery remains a
   manual runtime proof on a subscribed device with deployed backend secrets.
 
