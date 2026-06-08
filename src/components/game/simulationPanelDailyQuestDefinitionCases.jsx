@@ -1,10 +1,12 @@
 // Kronox Health Center — Daily Quest Definition and Runtime boundary contracts.
 //
-// Scope: DailyQuestDefinition schema, admin-only Settings management, strict
+// Scope: DailyQuestDefinition schema, admin-only Admin Ekranı management, strict
 // quest_type enum logic, display-only admin copy, idempotent starter templates,
 // and separation from the active UserDailyQuestProgress reward runtime.
 
-import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
+import profilePageSource from '../../pages/ProfilePage.jsx?raw';
+import adminPageSource from '../../pages/AdminPage.jsx?raw';
+import appSource from '../../App.jsx?raw';
 import dailyQuestManagerSource from '../admin/DailyQuestDefinitionManager.jsx?raw';
 import dailyQuestGatewaySource from '../../lib/dbGateway/dailyQuestGateway.js?raw';
 import dailyQuestEntitySource from '../../../base44/entities/DailyQuestDefinition.jsonc?raw';
@@ -58,7 +60,7 @@ function makeCase(id, name, run, options = {}) {
 }
 
 const docsCombined = `${releaseProofSource}\n${dbArchitectureSource}\n${securitySource}\n${soloEngineDocSource}`;
-const adminSources = `${settingsPageSource}\n${dailyQuestManagerSource}\n${dailyQuestGatewaySource}\n${createDailyQuestDefinitionSource}`;
+const adminSources = `${profilePageSource}\n${adminPageSource}\n${appSource}\n${dailyQuestManagerSource}\n${dailyQuestGatewaySource}\n${createDailyQuestDefinitionSource}`;
 const definitionSources = `${dailyQuestEntitySource}\n${dailyQuestGatewaySource}\n${createDailyQuestDefinitionSource}\n${docsCombined}`;
 
 export const EXTRA_SUITES = [
@@ -271,36 +273,40 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('admin_ui_under_profile_settings',
-    'Admin-only management UI exists under Profile/Settings',
+    'Admin-only management UI exists under Profile/Admin Ekranı',
     () => {
-      const missing = missingTokens(`${settingsPageSource}\n${dailyQuestManagerSource}`, [
+      const missing = missingTokens(`${profilePageSource}\n${adminPageSource}\n${appSource}\n${dailyQuestManagerSource}`, [
+        'Admin Ekranı',
+        "navigate('/admin')",
+        'path="/admin"',
         "import DailyQuestDefinitionManager",
         '<DailyQuestDefinitionManager />',
         'Günlük Görev Yönetimi',
         'Tanımlı Görevler',
         'Yeni Görev Ekle',
       ]);
-      if (missing.length) return fail('Daily Quest management UI is not mounted under Settings admin tools.', { verification: 'STATIC_CONTRACT', missing });
-      return pass('Settings admin tools include Günlük Görev Yönetimi.', { verification: 'STATIC_CONTRACT' });
+      if (missing.length) return fail('Daily Quest management UI is not mounted under Admin Ekranı.', { verification: 'STATIC_CONTRACT', missing });
+      return pass('Profile Admin Ekranı includes Günlük Görev Yönetimi.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('normal_users_cannot_see_admin_ui',
     'Normal users cannot see Daily Quest management UI',
     () => {
-      const settingsIdx = safeStr(settingsPageSource).indexOf('<DailyQuestDefinitionManager />');
-      const adminBlockIdx = safeStr(settingsPageSource).lastIndexOf('{isAdmin &&', settingsIdx);
-      const missing = missingTokens(`${settingsPageSource}\n${createDailyQuestDefinitionSource}`, [
+      const managerIdx = safeStr(adminPageSource).indexOf('<DailyQuestDefinitionManager />');
+      const deniedIdx = safeStr(adminPageSource).indexOf('if (!isAdmin)');
+      const missing = missingTokens(`${profilePageSource}\n${adminPageSource}\n${createDailyQuestDefinitionSource}`, [
         'const isAdmin = parsedAdminStatus',
+        'if (!isAdmin)',
         '{isAdmin &&',
         'requireAdmin(base44)',
         'Admin yetkisi gerekli.',
       ]);
-      const gated = settingsIdx >= 0 && adminBlockIdx >= 0 && adminBlockIdx < settingsIdx;
+      const gated = managerIdx >= 0 && deniedIdx >= 0 && deniedIdx < managerIdx;
       if (missing.length || !gated) return fail('Daily Quest management may be visible without active admin status.', {
         verification: 'STATIC_CONTRACT',
         actual: { missing, gated },
       });
-      return pass('Daily Quest management is inside the existing admin-only Settings block and backend guarded.', { verification: 'STATIC_CONTRACT' });
+      return pass('Daily Quest management is inside the admin-only Admin Ekranı and backend guarded.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('admin_can_list_definitions',
@@ -529,11 +535,11 @@ export const EXTRA_TESTS = [
   makeCase('admin_runtime_proof_manual',
     'Runtime admin authorization proof remains manual',
     () => notAutomatable(
-      'Static Health can verify the AdminUser-backed function contract and Settings visibility. Runtime proof still requires calling createDailyQuestDefinition as an active admin, a normal user, and a disabled/passive admin, then confirming 200/403 behavior in the deployed backend.',
+      'Static Health can verify the AdminUser-backed function contract and Admin Ekranı visibility. Runtime proof still requires calling createDailyQuestDefinition as an active admin, a normal user, and a disabled/passive admin, then confirming 200/403 behavior in the deployed backend.',
       {
         verification: 'BACKEND_RUNTIME_PROBE',
         actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE,
-        nextStep: 'As active admin, open Settings / Günlük Görev Yönetimi and create a test passive definition; as normal user verify the UI is hidden and backend returns 403.',
+        nextStep: 'As active admin, open Admin Ekranı / Günlük Görev Yönetimi and create a test passive definition; as normal user verify the UI is hidden and backend returns 403.',
       },
     ),
     { critical: true, actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),

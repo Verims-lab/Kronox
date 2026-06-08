@@ -41,6 +41,7 @@ import {
   RELEASE_PROOF_CHECKLIST_DOC as releaseProofChecklistSource,
 } from '@/lib/healthAlignmentDocMirrors';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
+import adminPageSource from '../../pages/AdminPage.jsx?raw';
 import testSuitePageSource from '../../pages/TestSuite.jsx?raw';
 import resetUserProgressToolSource from '../../components/admin/ResetUserProgressTool.jsx?raw';
 import authContextSource from '../../lib/AuthContext.jsx?raw';
@@ -394,9 +395,9 @@ export const EXTRA_TESTS = [
   makeCase(
     'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
     'admin_ui_uses_backend_status_hint',
-    'Settings and test-suite admin UI consume backend AdminUser status without exposing AdminUser rows',
+    'Admin Ekranı and test-suite admin UI consume backend AdminUser status without exposing AdminUser rows',
     () => {
-      const combined = `${getAdminStatusSource}\n${getAdminStatusConfigSource}\n${rootGetAdminStatusSource}\n${authContextSource}\n${adminSource}\n${settingsPageSource}\n${testSuitePageSource}`;
+      const combined = `${getAdminStatusSource}\n${getAdminStatusConfigSource}\n${rootGetAdminStatusSource}\n${authContextSource}\n${adminSource}\n${adminPageSource}\n${testSuitePageSource}`;
       const required = [
         '"name": "getAdminStatus"',
         '"entry": "entry.ts"',
@@ -419,10 +420,12 @@ export const EXTRA_TESTS = [
         'useAuth()',
         'const parsedAdminStatus',
         'const isAdmin = parsedAdminStatus',
-        '{isAdmin &&',
+        'if (!isAdmin)',
         'isAdminUser(user)',
+        'Admin Ekranı',
         'QuestionAnalyticsReportTool',
         'ResetUserProgressTool',
+        'DailyQuestDefinitionManager',
         'Regression Test Panel',
       ].filter((token) => !combined.includes(token));
       const forbidden = [
@@ -437,7 +440,7 @@ export const EXTRA_TESTS = [
         return fail('Admin UI status is not clearly backed by the AdminUser status function.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
-          expected: 'AuthContext enriches current user through getAdminStatus; Settings/TestSuite use that user for UI gating.',
+          expected: 'AuthContext enriches current user through getAdminStatus; Admin Ekranı/TestSuite use that user for UI gating.',
           actual: { missing: required, forbidden },
           actionType: ACTION_TYPES.CODE_FIX,
         });
@@ -476,7 +479,7 @@ export const EXTRA_TESTS = [
         return fail('Admin status can still call getQuestions or parse non-admin payloads.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
-          expected: 'Only getAdminStatus/AdminUser status payloads can drive Settings admin UI.',
+          expected: 'Only getAdminStatus/AdminUser status payloads can drive Admin Ekranı admin UI.',
           actual: { forbiddenAdminSource, missing: required },
           actionType: ACTION_TYPES.CODE_FIX,
         });
@@ -524,17 +527,19 @@ export const EXTRA_TESTS = [
   makeCase(
     'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
     'settings_admin_debug_v4_removed_from_production',
-    'Settings removes the temporary AdminDebug-v4 panel while keeping admin-only tools gated',
+    'Settings removes AdminDebug-v4 and admin-only tools move to gated Admin Ekranı',
     () => {
       const required = [
         'adminStatus',
         'const parsedAdminStatus',
         'const isAdmin = parsedAdminStatus',
-        '{isAdmin &&',
+        'if (!isAdmin)',
+        'Admin Ekranı',
         'QuestionAnalyticsReportTool',
         'ResetUserProgressTool',
+        'DailyQuestDefinitionManager',
         'SimulationPanel',
-      ].filter((token) => !safeStr(settingsPageSource).includes(token));
+      ].filter((token) => !safeStr(adminPageSource).includes(token));
       const forbidden = [
         'SETTINGS_ADMIN_DEBUG_VERSION',
         'AdminDebug-v4',
@@ -548,16 +553,23 @@ export const EXTRA_TESTS = [
         'AdminUser lookup source',
         'Admin tools actually mounted',
       ].filter((token) => safeStr(settingsPageSource).includes(token));
-      if (required.length || forbidden.length) {
-        return fail('Settings still contains temporary AdminDebug-v4 UI or lost the production admin gate.', {
+      const settingsAdminTools = [
+        'QuestionAnalyticsReportTool',
+        'ResetUserProgressTool',
+        'DailyQuestDefinitionManager',
+        'SimulationPanel',
+        'Kronox Health Simulator',
+      ].filter((token) => safeStr(settingsPageSource).includes(token));
+      if (required.length || forbidden.length || settingsAdminTools.length) {
+        return fail('Settings still contains temporary/admin tooling or Admin Ekranı lost the production admin gate.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
-          expected: 'No AdminDebug-v4 strings in Settings; admin tools remain behind parsed backend AdminUser status.',
-          actual: { missing: required, forbidden },
+          expected: 'No AdminDebug-v4/admin-tool strings in Settings; admin tools remain behind parsed backend AdminUser status in Admin Ekranı.',
+          actual: { missing: required, forbidden, settingsAdminTools },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Settings no longer renders AdminDebug-v4 and still gates admin tools by backend status.', {
+      return pass('Settings no longer renders AdminDebug-v4 or admin tools; Admin Ekranı gates them by backend status.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -610,7 +622,7 @@ export const EXTRA_TESTS = [
     'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
     'new_admin_accounts_runtime_proof_needed',
     'New admin accounts must be manually inserted and verified in AdminUser',
-    () => notAutomatable('Repo code cannot create deployed AdminUser rows. Manually create active AdminUser rows for the two requested admin emails, then verify active admins can access Settings admin tools, /test-suite / Health Simulator, and the admin question analytics trigger while normal and disabled-admin accounts remain blocked.', {
+    () => notAutomatable('Repo code cannot create deployed AdminUser rows. Manually create active AdminUser rows for the requested admin emails, then verify active admins can access Admin Ekranı, /test-suite / Health Simulator, and the admin question analytics trigger while normal and disabled-admin accounts remain blocked.', {
       verification: 'NOT_AUTOMATABLE',
       classification: 'DEPLOYMENT_RUNTIME_REQUIRED',
       verificationLabels: ['NOT_AUTOMATABLE', 'BACKEND_RUNTIME_PROBE', 'MANUAL_REQUIRED'],
@@ -627,7 +639,7 @@ export const EXTRA_TESTS = [
     'admin_reset_user_progress_contract',
     'Reset User Progress is admin-only, previewed before execution, exact-email confirmed, logged, and never deletes the user account',
     () => {
-      const combined = `${adminResetUserProgressSource}\n${resetUserProgressToolSource}\n${settingsPageSource}\n${adminMaintenanceLogSchemaSource}\n${userSchemaSource}\n${authContextSource}\n${progressResetCacheSource}`;
+      const combined = `${adminResetUserProgressSource}\n${resetUserProgressToolSource}\n${adminPageSource}\n${adminMaintenanceLogSchemaSource}\n${userSchemaSource}\n${authContextSource}\n${progressResetCacheSource}`;
       const required = [
         'adminResetUserProgress',
         'Reset User Progress',

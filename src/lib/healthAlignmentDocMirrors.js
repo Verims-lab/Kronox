@@ -59,6 +59,10 @@ Status: Active product contract.
 - Admin email env allowlists are not used for authorization.
 - Client admin UI consumes the backend getAdminStatus status hint; /getAdminStatus is the callable status path.
 - AdminUser rows remain private and are not listed by normal users.
+- Profile normal-user actions are Sosyal / Arkadaşlarım and Hesap / Ayarlar.
+- Active AdminUser owner/admin users additionally see Admin Ekranı on Profile.
+- Admin Ekranı contains admin-only maintenance/report tools; Settings remains account/help/preferences focused.
+- Direct /admin access by normal users is blocked or redirected safely.
 - admin-only maintenance functions verify AdminUser-backed authorization server-side.
 - account deletion is a destructive, NOT_AUTOMATABLE manual proof gate.
 - UserJokerInventory stores current balances for mistake_shield, card_swap, and time_freeze.
@@ -70,7 +74,7 @@ Status: Active product contract.
 - Mağaza purchases are server-authoritative economy actions: the client is not trusted for price, cost, user identity, or target account; service-role writes stay scoped to the authenticated user.
 - Mağaza purchase idempotency keys protect double-tap and retry flows; real two-device/backend race proof remains manual unless Base44 uniqueness is proven.
 - Mağaza Phase 1 does not expose bundles, subscriptions, cosmetics, random boxes, ads, external payments, or Online-mode joker purchases.
-- Daily Quest Definition management is admin-only under Profile / Settings / Ayarlar as Günlük Görev Yönetimi.
+- Daily Quest Definition management is admin-only under Profile / Admin Ekranı as Günlük Görev Yönetimi.
 - createDailyQuestDefinition is a Base44 callable with an inline AdminUser-backed guard for active owner/admin rows; normal users and disabled admins are rejected.
 - DailyQuestDefinition title and description are display-only; quest_type plus target_value are the executable logic contract.
 - Supported Daily Quest v1 quest_type values are start_solo_attempt, correct_cards, complete_solo_level, and use_joker.
@@ -86,7 +90,7 @@ Status: Active product contract.
 - Report/admin functions must NOT use local imports that resolve outside the deployed path. The broken './_shared/adminAuth.js' pattern resolved to a file URL under /src/_shared (module not found) and broke deployment, leaving Base44 serving a stale build. The callable report function now inlines a DB-backed AdminUser guard instead.
 - base44/functions/<name>/entry.ts shared imports remain allowed where proven deployable; sendQuestionAnalyticsReportEmail intentionally uses an inline guard for this runtime-sensitive path.
 - Critical report/admin functions should include safe template/function markers (e.g. templateVersion static-pool-v2, REPORT_BUILD_MARKER, and bodyContains* diagnostics). If real output lacks the marker, the function deployment is stale.
-- sendQuestionAnalyticsReportEmail live deploy is proven by triggering the function and reading reportBuildMarker (current: Codex298), templateVersion static-pool-v2, and bodyContainsStaticPoolSection/Template/QuestionSource = true. A published frontend that does not change reportBuildMarker means the executed backend function did not redeploy.
+- sendQuestionAnalyticsReportEmail live deploy is proven by triggering the function and reading reportBuildMarker (current: Codex299), templateVersion static-pool-v2, and bodyContainsStaticPoolSection/Template/QuestionSource = true. A published frontend that does not change reportBuildMarker means the executed backend function did not redeploy.
 - A prior Codex275 marker bump was never proven deployed because the runtime function still imported the broken local _shared guard; the recovery inlined the AdminUser guard and uses current reportBuildMarker values as the unambiguous live marker.
 - Function-based question analytics reset is currently not used.
 - Manual DB reset path after question pool replacement clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection.
@@ -95,7 +99,7 @@ Status: Active product contract.
 - sendQuestionAnalyticsReportEmail handles stale/deleted question references with diagnostics and bounded sections.
 - sendQuestionAnalyticsReportEmail actual sent body includes Rapor Bölümleri, Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı, Kategori Bazında Soru Havuzu, Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı, Kategori Bazında Kayıtlı Soru Havuzu, Kategori Bazında Yıl Aralığı, Kategori Tercihleri, Kategori Bazında Gösterim, Kategori İçi Soru Analizi, Kategori Denge Sinyalleri, and Rapor Tamamlandı.
 - sendQuestionAnalyticsReportEmail actual sent body includes Rapor Şablonu: static-pool-v2 near the top; absence of that marker in real email indicates stale/not-redeployed backend function template.
-- sendQuestionAnalyticsReportEmail accepts any active AdminUser role admin/owner, sends by default to the requesting authenticated admin's normalized email, rejects mismatched recipient overrides, and returns safe requestedBy, recipientEmail, template, body-marker, and emailDispatchStatus diagnostics.
+- sendQuestionAnalyticsReportEmail accepts any active AdminUser role admin/owner, sends by default to the requesting authenticated admin's normalized email, rejects mismatched recipient overrides, and the Admin Ekranı UI returns safe requestedBy, recipientEmail, template, body-marker, and emailDispatchStatus diagnostics.
 - Category preference report counts are aggregate distinct-user counts only and do not expose user IDs or emails.
 - Question analytics report sections render with section-level warnings instead of truncating the whole email.
 - unrelated user progress admin reset retains question analytics rows; account deletion anonymizes user-owned analytics identity.
@@ -152,7 +156,7 @@ is unaffected and Daily Wheel remains Diamond-only.
 
 ## Daily Quest Runtime v1
 DailyQuestDefinition stores admin-managed system templates. Günlük Görev
-Yönetimi lives under Profile / Settings / Ayarlar and is visible only to active
+Yönetimi lives under Profile / Admin Ekranı and is visible only to active
 AdminUser owner/admin users. Active admins can list definitions and create new
 definitions through createDailyQuestDefinition. title and description are
 display-only; quest_type + target_value drive runtime progress logic. Supported

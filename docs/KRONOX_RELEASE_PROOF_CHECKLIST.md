@@ -287,7 +287,7 @@ Checklist:
 ## Daily Quest Runtime v1
 
 * `DailyQuestDefinition` exists as the admin-managed template table.
-* Profile / Settings / `Ayarlar` shows `Günlük Görev Yönetimi` only to active
+* Profile / `Admin Ekranı` shows `Günlük Görev Yönetimi` only to active
   `AdminUser` role `owner`/`admin`.
 * Active admins can list definitions and create new definitions through the
   server-backed `createDailyQuestDefinition` callable.
@@ -470,6 +470,11 @@ Checklist:
 * Admin-only functions reject unauthenticated users with 401.
 * Admin-only functions reject non-admin users with 403.
 * Authorized admins can still use admin tools.
+* Profile normal-user actions are `Sosyal / Arkadaşlarım` and `Hesap / Ayarlar`.
+* Active `AdminUser` role `owner`/`admin` users additionally see `Admin Ekranı`.
+* `Admin Ekranı` contains admin-only maintenance/report tools; Settings remains
+  account/help/preferences focused.
+* Direct `/admin` access by normal users is blocked or redirected safely.
 * Admin source-of-truth is the DB-backed `AdminUser` entity. The shared
   backend guard `base44/functions/_shared/adminAuth.ts` is preferred wherever
   the function deployment supports it; runtime-sensitive Base44 callable/flat
@@ -491,7 +496,7 @@ Checklist:
 * Add the requested new admins by creating `AdminUser` rows in Base44 Data:
   normalized lowercase `email`, `role: "admin"`, `status: "active"`. Do not
   commit the personal admin emails to source.
-* Runtime proof: both new admin accounts can open Settings admin tools,
+* Runtime proof: both new admin accounts can open Profile / `Admin Ekranı`,
   `/test-suite` / Health Simulator, and the admin question analytics trigger;
   a normal account remains blocked from those surfaces and receives 403 from
   backend admin-only functions; a disabled `AdminUser` row also receives 403.
@@ -571,7 +576,7 @@ Use an admin account and a disposable target user.
 
 Checklist:
 
-* Normal users cannot see the `Reset User Progress` Settings tool.
+* Normal users cannot see `Admin Ekranı` or the `Reset User Progress` tool.
 * Unauthenticated `/adminResetUserProgress` calls return 401.
 * Authenticated non-admin `/adminResetUserProgress` calls return 403.
 * Admin preview by target email shows only safe summary values.

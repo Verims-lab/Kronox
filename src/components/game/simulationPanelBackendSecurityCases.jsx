@@ -13,7 +13,7 @@ import sendGameInvitePushSource from '../../../base44/functions/sendGameInvitePu
 import questionEntitySource from '../../../base44/entities/Question.jsonc?raw';
 import useOfflineQuestionsSource from '../../hooks/useOfflineQuestions.js?raw';
 import notificationApiSource from '../../lib/notificationApi.js?raw';
-import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
+import adminPageSource from '../../pages/AdminPage.jsx?raw';
 
 const STATUS = {
   PASS: 'PASS',
@@ -167,7 +167,7 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('generate_tech_doc_client_handles_401_403',
-    'Settings direct caller checks generateTechDoc response status before downloading',
+    'Admin Ekranı direct caller checks generateTechDoc response status before downloading',
     () => {
       const required = [
         "base44.functions.fetch('/generateTechDoc'",
@@ -176,18 +176,18 @@ export const EXTRA_TESTS = [
         'await res.json().catch',
         'Teknik doküman indirilemedi.',
       ];
-      const missing = missingTokens(settingsPageSource, required);
+      const missing = missingTokens(adminPageSource, required);
       if (missing.length) {
-        return fail('Settings would still download 401/403 JSON as a PDF.', {
+        return fail('Admin Ekranı would still download 401/403 JSON as a PDF.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
-          file: 'src/pages/SettingsPage.jsx',
+          file: 'src/pages/AdminPage.jsx',
           expected: 'res.ok guard + controlled admin-facing error copy',
           actual: { missing },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Settings handles generateTechDoc 401/403 responses gracefully.', {
+      return pass('Admin Ekranı handles generateTechDoc 401/403 responses gracefully.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,

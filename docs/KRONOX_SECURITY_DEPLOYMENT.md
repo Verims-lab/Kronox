@@ -185,7 +185,7 @@ Rules:
 
 Daily Quest Definition management:
 
-* Profile / Settings / `Ayarlar` may show `Günlük Görev Yönetimi` only after
+* Profile / `Admin Ekranı` may show `Günlük Görev Yönetimi` only after
   the current user is enriched by `getAdminStatus` as active `AdminUser`
   `owner`/`admin`
 * definition writes go through `createDailyQuestDefinition`, a Base44 callable
@@ -442,10 +442,15 @@ After deployment, verify:
 * unauthenticated admin-only calls return 401
 * authenticated non-admin admin-only calls return 403
 * authorized admins can still use intended admin tools
+* Profile shows normal users only `Sosyal / Arkadaşlarım` and `Hesap / Ayarlar`
+* active `AdminUser` role `owner`/`admin` users additionally see `Admin Ekranı`
+* `Admin Ekranı` contains admin-only maintenance/report tools; Settings remains
+  normal-user account/help/preferences UI
+* direct `/admin` access by normal users is blocked or redirected safely
 * newly added admins can access the intended admin tools after active
   `AdminUser` rows are created
 * disabled `AdminUser` rows cannot access admin tools
-* normal users still cannot access Settings admin tools, `/test-suite`, Health
+* normal users still cannot access Profile / `Admin Ekranı`, `/test-suite`, Health
   Simulator, admin maintenance functions, or the question analytics report
   trigger by direct route
 
@@ -579,7 +584,7 @@ Security contract:
 * every active `AdminUser` row with role `admin` or `owner` can request the
   report; the recipient is the requesting admin's authenticated normalized
   email, not a hardcoded owner address or `created_by`
-* the function response and Settings UI surface safe `requestedBy`,
+* the function response and Admin Ekranı UI surface safe `requestedBy`,
   `recipientEmail`, `emailDispatchStatus`, template, and body-marker
   diagnostics so a failed dispatch is not shown as generic success
 * sent question analytics reports include category pool, aggregate preference,

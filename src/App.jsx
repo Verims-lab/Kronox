@@ -29,6 +29,7 @@ const Game = lazyWithRetry(() => import('./pages/Game'), 'Game');
 const LobbyRoom = lazyWithRetry(() => import('./pages/LobbyRoom'), 'LobbyRoom');
 const SettingsPage = lazyWithRetry(() => import('./pages/SettingsPage'), 'SettingsPage');
 const ProfilePage = lazyWithRetry(() => import('./pages/ProfilePage'), 'ProfilePage');
+const AdminPage = lazyWithRetry(() => import('./pages/AdminPage'), 'AdminPage');
 const FriendsPage = lazyWithRetry(() => import('./pages/FriendsPage'), 'FriendsPage');
 const LeaderboardPage = lazyWithRetry(() => import('./pages/LeaderboardPage'), 'LeaderboardPage');
 const TestSuite = lazyWithRetry(() => import('./pages/TestSuite'), 'TestSuite');
@@ -85,7 +86,7 @@ const AuthenticatedApp = () => {
 
   // Determine transition direction: push (right-to-left) or pop (left-to-right)
   const getTransitionDirection = () => {
-    const routeOrder = ['/', '/market', '/game', '/lobby', '/profile', '/settings', '/test-suite'];
+    const routeOrder = ['/', '/market', '/game', '/lobby', '/profile', '/settings', '/admin', '/test-suite'];
     const currIdx = routeOrder.indexOf(location.pathname);
     const prevIdx = routeOrder.indexOf(prevPathRef.current);
     const direction = currIdx > prevIdx ? 'push' : 'pop';
@@ -175,6 +176,7 @@ const AuthenticatedApp = () => {
                   <Route path="/setup" element={<Navigate to="/solo" replace />} />
                   <Route path="/settings" element={<SettingsPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/admin" element={<AdminPage />} />
                   <Route path="/friends" element={<FriendsPage />} />
                   <Route path="/leaderboard" element={<LeaderboardPage />} />
                   <Route path="/lobby" element={<LobbyRoom />} />
@@ -208,9 +210,9 @@ const AuthenticatedApp = () => {
 
 
 function App() {
-  // Codex298 — push build marker into diag bus once at app boot
+  // Codex299 — push build marker into diag bus once at app boot
   useEffect(() => {
-    appDiagSetBuildMarker('Codex298');
+    appDiagSetBuildMarker('Codex299');
     // Codex176 — App booted successfully, so any prior stale-chunk reload
     // recovered. Clear the one-time reload guards so a future deploy can
     // self-heal again.

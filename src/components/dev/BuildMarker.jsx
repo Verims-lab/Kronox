@@ -1255,6 +1255,12 @@ import React, { useEffect, useState } from 'react';
 //     reconcile visible User.diamonds for idempotent retries, and surface
 //     claim errors in the Günlük Ödüller panel.
 //
+// Codex299 — Profile Admin Ekranı split:
+//   • Adds a Profile-only Admin Ekranı action for active AdminUser owner/admin
+//     users and keeps normal users on the two standard Profile actions.
+//   • Moves Settings maintenance tools into the guarded /admin screen while
+//     preserving AdminUser-backed backend guards for the actual admin actions.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1559,7 +1565,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex298';
+const BUILD_MARKER = 'Codex299';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

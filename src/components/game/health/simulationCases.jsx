@@ -20,6 +20,7 @@ import mainMenuSource from '../../../pages/MainMenu.jsx?raw';
 import gamePageSource from '../../../pages/Game.jsx?raw';
 import lobbyRoomSource from '../../../pages/LobbyRoom.jsx?raw';
 import settingsPageSource from '../../../pages/SettingsPage.jsx?raw';
+import adminPageSource from '../../../pages/AdminPage.jsx?raw';
 import soloChallengeSource from '../../../pages/SoloChallenge.jsx?raw';
 import testSuiteSource from '../../../pages/TestSuite.jsx?raw';
 import lobbyCreateJoinPanelSource from '../../lobby/LobbyCreateJoinPanel.jsx?raw';
@@ -135,6 +136,7 @@ export const SUITES = [...BASE_SUITES, ...EXTRA_SUITES];
 
 export const SRC = {
   App: appSource,
+  AdminPage: adminPageSource,
   BuildMarker: buildMarkerSource,
   DebugLog: debugLogSource,
   FindLobbyByCode: findLobbyByCodeSource,
@@ -411,12 +413,12 @@ export const TESTS = [
   makeCase('media_audio', 'audio_errors_visible_as_risk', 'audio errors appear in report as WARNING or FAIL depending severity', () => warning('This simulator reports media uncertainty as a visible warning; full audio failure requires device/browser execution.')),
 
   sourceHas('debug_hygiene', 'debug_hidden_prod', 'debug panels are hidden in production mode', 'GameDebugLog/debugLog', `${SRC.GameDebugLog}\n${SRC.DebugLog}`, ['import.meta.env.DEV', 'localStorage', 'kronox_debug']),
-  sourceHas('debug_hygiene', 'test_controls_gated', 'console/test controls are gated behind dev/debug flag', 'Settings/TestSuite', `${SRC.SettingsPage}\n${SRC.TestSuite}`, ['isAdmin', 'isAdminUser', 'SimulationPanel']),
+  sourceHas('debug_hygiene', 'test_controls_gated', 'console/test controls are gated behind admin route/status', 'AdminPage/TestSuite', `${SRC.AdminPage}\n${SRC.TestSuite}`, ['isAdmin', 'isAdminUser', 'SimulationPanel']),
   makeCase('debug_hygiene', 'build_marker_intentional', 'build marker is visible only as intended', () => extractBuildMarker() !== 'unknown'
     ? warning('Build marker is intentionally visible briefly; verify this remains acceptable for production.', { actual: extractBuildMarker() })
     : fail('Build marker token missing.')),
-  sourceHas('debug_hygiene', 'raw_imports_gated_route', 'raw source imports used by SimulationPanel are not exposed in gameplay unless intentionally gated', 'App/TestSuite/Settings', `${SRC.App}\n${SRC.TestSuite}\n${SRC.SettingsPage}`, ['path="/test-suite"', 'isAdminUser', 'setShowSim(true)']),
-  sourceLacks('debug_hygiene', 'simulator_not_gameplay_accessible', 'simulator itself is accessible only from Settings/Admin/Test path, not gameplay', 'Game/GameLayout', `${SRC.Game}\n${SRC.GameLayout}`, ['SimulationPanel']),
+  sourceHas('debug_hygiene', 'raw_imports_gated_route', 'raw source imports used by SimulationPanel are not exposed in gameplay unless intentionally gated', 'App/TestSuite/Admin', `${SRC.App}\n${SRC.TestSuite}\n${SRC.AdminPage}`, ['path="/test-suite"', 'path="/admin"', 'isAdminUser', 'setShowSim(true)']),
+  sourceLacks('debug_hygiene', 'simulator_not_gameplay_accessible', 'simulator itself is accessible only from Admin/Test path, not gameplay', 'Game/GameLayout', `${SRC.Game}\n${SRC.GameLayout}`, ['SimulationPanel']),
 
   makeCase('performance_ux', 'run_duration_measured', 'measure simulator run duration', () => pass('Per-case and total run durations are recorded by executeCase/buildReport.', { actual: 'durationMs fields' })),
   makeCase('performance_ux', 'long_tasks_support', 'detect long tasks if PerformanceObserver supports it', () => perfTypeAvailable('longtask') ? warning('LongTask observer is supported but only live observation can produce real task data.') : notAutomatable('LongTask PerformanceObserver entry type is not supported here.')),

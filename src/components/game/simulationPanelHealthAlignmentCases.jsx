@@ -18,6 +18,7 @@ import { SOLO_QUESTION_ENGINE_DOC as soloEngineDocsSource } from '@/lib/soloQues
 import { QUESTION_DATA_MODEL_DOC as questionModelDocsSource } from '@/lib/questionDataModelDoc';
 import { ECONOMY_RULES_DOC as economyDocsSource } from '@/lib/economyRulesDoc';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
+import adminPageSource from '../../pages/AdminPage.jsx?raw';
 import standardTopBarSource from '../layout/StandardTopBar.jsx?raw';
 import notificationApiSource from '../../lib/notificationApi.js?raw';
 import placementFeedbackCasesSource from './simulationPanelPlacementFeedbackCases.jsx?raw';
@@ -190,7 +191,7 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('removed_settings_sections_not_expected',
-    'Settings Health no longer expects removed question-management or app-settings UI',
+    'Settings Health expects normal settings while Admin Ekranı owns admin tools',
     () => {
       const forbidden = forbiddenTokens(settingsPageSource, [
         'Soru Yönetimi',
@@ -199,28 +200,42 @@ export const EXTRA_TESTS = [
         'App Settings',
         'NotificationSettingsCard',
         'AppPreferencesCard',
+        'ResetUserProgressTool',
+        'QuestionAnalyticsReportTool',
+        'DailyQuestDefinitionManager',
+        'SimulationPanel',
+        'Kronox Health Simulator',
       ]);
       const settingsMissing = missingTokens(settingsPageSource, [
         'StandardTopBar',
         'diamonds={diamondValue}',
         'user={user}',
         'showBack',
-        'ResetUserProgressTool',
         'Hesabı Sil',
+        'CategoryPreferencesSection',
+      ]);
+      const adminMissing = missingTokens(adminPageSource, [
+        'Admin Ekranı',
+        'const isAdmin = parsedAdminStatus',
+        'if (!isAdmin)',
+        'ResetUserProgressTool',
+        'QuestionAnalyticsReportTool',
+        'DailyQuestDefinitionManager',
+        'SimulationPanel',
       ]);
       const topBarMissing = missingTokens(standardTopBarSource, [
         'HeaderNotificationBell',
         '<HeaderNotificationBell user={user} />',
         'aria-label={`Elmas: ${diamonds}`}',
       ]);
-      if (forbidden.length || settingsMissing.length || topBarMissing.length) {
-        return fail('Settings page has stale removed UI or lost the current top/admin/deletion contract.', {
+      if (forbidden.length || settingsMissing.length || adminMissing.length || topBarMissing.length) {
+        return fail('Settings/Admin split has stale removed UI or lost the current top/admin/deletion contract.', {
           verification: 'STATIC_CONTRACT',
-          files: ['src/pages/SettingsPage.jsx', 'src/components/layout/StandardTopBar.jsx'],
-          actual: { forbidden, settingsMissing, topBarMissing },
+          files: ['src/pages/SettingsPage.jsx', 'src/pages/AdminPage.jsx', 'src/components/layout/StandardTopBar.jsx'],
+          actual: { forbidden, settingsMissing, adminMissing, topBarMissing },
         });
       }
-      return pass('Settings uses StandardTopBar with centered Elmas, right-side notification bell, admin maintenance, account deletion, and removed UI stays absent.', {
+      return pass('Settings uses StandardTopBar and normal settings; Admin Ekranı owns admin maintenance; removed UI stays absent.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
