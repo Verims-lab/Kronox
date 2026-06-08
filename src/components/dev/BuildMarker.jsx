@@ -1177,6 +1177,12 @@ import React, { useEffect, useState } from 'react';
 //   • Makes Game.jsx visibly pass soloJokers only for Solo level mode so
 //     Online never receives joker inventory wiring.
 //
+// Codex287 — Explicit Solo joker balance prop contract:
+//   • Makes Game.jsx pass balances={soloJokers?.balances || null} through
+//     GameLayout so Health can statically prove Mağaza purchases flow into
+//     the persistent SoloJokerBar inventory display.
+//   • Keeps the Solo-only joker gate and Online null wiring intact.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1480,7 +1486,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex286';
+const BUILD_MARKER = 'Codex287';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

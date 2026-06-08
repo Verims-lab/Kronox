@@ -1975,6 +1975,7 @@ export default function Game() {
         soloLevelElapsedSeconds={isSoloLevelMode ? soloEffectiveElapsedSeconds : undefined}
         soloLevelTimerFrozen={isSoloLevelMode ? isSoloTimerFrozen : false}
         soloJokers={isSoloLevelMode ? soloJokers : null}
+        balances={soloJokers?.balances || null}
         beginnerPlacementHintZone={beginnerPlacementHintZone}
         correctStreak={isSoloLevelMode ? soloCorrectStreak : 0}
       />

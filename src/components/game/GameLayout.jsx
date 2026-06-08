@@ -100,7 +100,8 @@ export default function GameLayout({
   soloLevelTotalSeconds,
   soloLevelElapsedSeconds,
   soloLevelTimerFrozen = false,
-  soloJokers = null,
+  soloJokers: rawSoloJokers = null,
+  balances = null,
   beginnerPlacementHintZone,
   correctStreak = 0,
   // Handlers
@@ -116,6 +117,9 @@ export default function GameLayout({
   onTouchDragCancel,
   onTimeUp,
 }) {
+  const soloJokers = rawSoloJokers
+    ? { ...rawSoloJokers, balances: balances || rawSoloJokers?.balances || null }
+    : null;
   // Ghost card follows the raw finger position (viewport coords) — no scroll correction needed
   // Timeline uses world coords internally for hit-testing
   const isSpectatingQuestion = Boolean(isOnline && !isMyTurn && currentQuestion && !winner);
