@@ -1165,6 +1165,12 @@ import React, { useEffect, useState } from 'react';
 //   • Documents source/sink balance, double-tap/network retry/manual race
 //     proof, and partial-failure reconciliation for Market Phase 1.
 //
+// Codex285 — Health fail cleanup:
+//   • Aligns the mobile overflow guard Health rule with scoped gameplay drag
+//     locks, keeps the explicit SoloJokerBar persistent-balance pass-through,
+//     and mirrors Diamond earn/spend direction wording for Health.
+//   • Makes the Solo joker no-refund contract exact in docs/helper mirrors.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1468,7 +1474,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex284';
+const BUILD_MARKER = 'Codex285';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

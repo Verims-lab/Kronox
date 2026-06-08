@@ -391,7 +391,10 @@ export const diamondTransactionEntitySource = `
         "admin_adjustment"
       ]
     },
-    "direction": { "enum": ["earn","spend"] },
+    "direction": {
+      "enum": ["earn","spend"],
+      "description": "earn for granted Diamonds, spend for Mağaza purchases/costs."
+    },
     "idempotency_key": {},
     "metadata": {},
     "related_entity_type": {},

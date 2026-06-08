@@ -131,6 +131,7 @@ reason solo_use and quantity_delta -1. Used jokers are not refunded on fail,
 timeout, or exit. No refund also applies to replay, browser close, or
 abandoned attempts. Jokers do not use Diamonds, do not grant Kronox Puan, and
 do not affect Online mode.
+used jokers are not refunded on fail, timeout, or exit.
 
 Mağaza Phase 1 sells only Solo jokers with Diamonds: Zaman Dondur = 40,
 Kart Değiştir = 50, Kronokalkan = 60. Mağaza purchase validates price and

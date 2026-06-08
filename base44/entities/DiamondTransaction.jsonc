@@ -1,7 +1,7 @@
 {
   "name": "DiamondTransaction",
   "type": "object",
-  "description": "Codex152/Codex284 \u2014 User-owned Diamond economy ledger. One logical row should exist per idempotency_key. Base44 uniqueness is not assumed, so runtime helpers check idempotency_key and User guard fields before grants/spends.",
+  "description": "Codex152/Codex285 \u2014 User-owned Diamond economy ledger. One logical row should exist per idempotency_key. Base44 uniqueness is not assumed, so runtime helpers check idempotency_key and User guard fields before grants/spends.",
   "properties": {
     "user_email": {
       "type": "string",

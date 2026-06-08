@@ -1887,6 +1887,20 @@ export default function Game() {
   );
 
   // ─── Render ───────────────────────────────────────────────────────
+  const soloJokers = isSoloLevelMode ? {
+    enabled: true,
+    usedJokerType,
+    balances: jokerBalances,
+    loading: jokerInventoryLoading,
+    pendingType: jokerSpendPendingType,
+    mistakeShieldActive,
+    timerFrozen: isSoloTimerFrozen,
+    message: jokerMessage,
+    error: jokerError,
+    disabled: Boolean(soloLevelResult || winner || jokerInventoryLoading || jokerSpendPendingType),
+    onUseJoker: handleUseSoloJoker,
+  } : null;
+
   return (
     <GameRenderErrorBoundary
       onError={(err) => {
@@ -1960,19 +1974,8 @@ export default function Game() {
         soloLevelTotalSeconds={isSoloLevelMode ? (soloLevel?.totalTimeSeconds ?? SOLO_LEVEL_TIME_SECONDS) : undefined}
         soloLevelElapsedSeconds={isSoloLevelMode ? soloEffectiveElapsedSeconds : undefined}
         soloLevelTimerFrozen={isSoloLevelMode ? isSoloTimerFrozen : false}
-        soloJokers={isSoloLevelMode ? {
-          enabled: true,
-          usedJokerType,
-          balances: jokerBalances,
-          loading: jokerInventoryLoading,
-          pendingType: jokerSpendPendingType,
-          mistakeShieldActive,
-          timerFrozen: isSoloTimerFrozen,
-          message: jokerMessage,
-          error: jokerError,
-          disabled: Boolean(soloLevelResult || winner || jokerInventoryLoading || jokerSpendPendingType),
-          onUseJoker: handleUseSoloJoker,
-        } : null}
+        soloJokers={soloJokers}
+        soloJokerBarBalances={soloJokers?.balances || null}
         beginnerPlacementHintZone={beginnerPlacementHintZone}
         correctStreak={isSoloLevelMode ? soloCorrectStreak : 0}
       />
