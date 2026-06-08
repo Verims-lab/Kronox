@@ -52,7 +52,9 @@ title/description are display-only; quest_type + target_value drive runtime
 logic. UserDailyQuestProgress stores up to 3 UTC-day user quests.
 Fresh DBs seed the four default Solo-focused DailyQuestDefinition rows
 idempotently when no definitions exist; if no active definitions remain, Home
-shows a safe empty state and does not grant Diamonds.
+shows a safe empty state and does not grant Diamonds. getDailyQuestStatus is
+authenticated but not admin-only and preserves newly created progress rows if
+immediate refresh is stale.
 claimDailyQuestReward grants diamonds only, writes DiamondTransaction.source =
 daily_quest_reward with direction = earn, uses
 daily_quest_reward:<normalizedEmail>:<YYYY-MM-DD>:<questKey>, and uses

@@ -116,8 +116,14 @@ export const EXTRA_TESTS = [
         'definitions_present',
         'default_seed_created',
         'seededDefaultKeys',
+        'function progressEntity(base44',
+        'base44?.entities?.UserDailyQuestProgress',
+        'progressEntitySource',
+        'auth_user',
         'findProgressByAssignment',
         'daily_quest:${email}:${dateKey}:${questKey}',
+        'const ensuredRows = rows',
+        'refreshedRows.length ? refreshedRows : ensuredRows',
         'noRewardDuringEnsure: true',
       ]);
       if (missing.length) return fail('UTC daily ensure/idempotency/active-definition contract is incomplete.', {
@@ -144,6 +150,7 @@ export const EXTRA_TESTS = [
         'emptyStateReason',
         'no_active_definitions',
         'Bugünkü görevler yakında hazır olacak.',
+        'Görevler yükleniyor...',
         'Aktif günlük görev tanımı yok. Ayarlar &gt; Günlük Görev Yönetimi bölümünden aktif görev ekleyin.',
         '`claimDailyQuestReward` remains the only reward path',
       ]);

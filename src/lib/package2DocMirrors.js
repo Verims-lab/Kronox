@@ -79,6 +79,7 @@ Kronox Puan and has no leaderboard impact. One claim per quest per UTC day is
 enforced by UserDailyQuestProgress plus daily_quest_reward idempotency keys.
 Bugünkü Görevler requires active DailyQuestDefinition rows; fresh DBs seed the
 default Solo-focused definitions idempotently when no definitions exist, and
+getDailyQuestStatus preserves newly created rows if immediate refresh is stale;
 loading today’s quests does not grant Diamonds.
 Daily Wheel claimed countdown shows \`Yarın hazır\` or compact time text
 without a Diamond icon.

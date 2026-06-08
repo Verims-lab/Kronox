@@ -86,7 +86,7 @@ Status: Active product contract.
 - Report/admin functions must NOT use local imports that resolve outside the deployed path. The broken './_shared/adminAuth.js' pattern resolved to a file URL under /src/_shared (module not found) and broke deployment, leaving Base44 serving a stale build. The callable report function now inlines a DB-backed AdminUser guard instead.
 - base44/functions/<name>/entry.ts shared imports remain allowed where proven deployable; sendQuestionAnalyticsReportEmail intentionally uses an inline guard for this runtime-sensitive path.
 - Critical report/admin functions should include safe template/function markers (e.g. templateVersion static-pool-v2, REPORT_BUILD_MARKER, and bodyContains* diagnostics). If real output lacks the marker, the function deployment is stale.
-- sendQuestionAnalyticsReportEmail live deploy is proven by triggering the function and reading reportBuildMarker (current: Codex294), templateVersion static-pool-v2, and bodyContainsStaticPoolSection/Template/QuestionSource = true. A published frontend that does not change reportBuildMarker means the executed backend function did not redeploy.
+- sendQuestionAnalyticsReportEmail live deploy is proven by triggering the function and reading reportBuildMarker (current: Codex295), templateVersion static-pool-v2, and bodyContainsStaticPoolSection/Template/QuestionSource = true. A published frontend that does not change reportBuildMarker means the executed backend function did not redeploy.
 - A prior Codex275 marker bump was never proven deployed because the runtime function still imported the broken local _shared guard; the recovery inlined the AdminUser guard and uses current reportBuildMarker values as the unambiguous live marker.
 - Function-based question analytics reset is currently not used.
 - Manual DB reset path after question pool replacement clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection.
@@ -165,8 +165,10 @@ using the reward copied into the progress row rather than a client-provided
 amount. Daily Quest does not grant Kronox Puan and has no leaderboard impact.
 Bugünkü Görevler requires active DailyQuestDefinition rows; getDailyQuestStatus
 and recordDailyQuestProgress seed fixed default templates idempotently only when
-no definition rows exist. Loading or ensuring today’s quests does not grant
-Diamonds; claimDailyQuestReward remains the only reward path.
+no definition rows exist. getDailyQuestStatus is authenticated but not admin-only
+and preserves newly created rows if immediate Base44 refresh is stale. Loading
+or ensuring today’s quests does not grant Diamonds; claimDailyQuestReward
+remains the only reward path.
 One claim per quest per UTC day is enforced by UserDailyQuestProgress and
 daily_quest_reward idempotency keys. User fields daily_quest_last_claim_date
 and daily_quest_next_available_at track claim summary/reset availability only.
