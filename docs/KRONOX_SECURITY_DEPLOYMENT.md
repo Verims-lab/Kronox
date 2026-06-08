@@ -446,7 +446,7 @@ After deployment, verify:
 
 ## Joker Inventory
 
-Phase 1 joker inventory is user-owned data:
+Joker inventory is user-owned data:
 
 * `UserJokerInventory` stores current balances for `mistake_shield`,
   `card_swap`, and `time_freeze`
@@ -455,10 +455,13 @@ Phase 1 joker inventory is user-owned data:
   runtime two-account proof
 * starter grants are created by `ensureUserJokerInventory` using authenticated
   user context and per-joker idempotency keys
+* Solo joker usage is spent by `spendUserJoker` using authenticated user
+  context, positive-balance validation, `solo_use` ledger rows, and
+  idempotency keys
 * normal users must not be able to arbitrarily grant themselves jokers
 * Profile shows only `Joker Çantası` balances, not ledger rows
-* Market purchase and Solo spend validation are later phases and must remain
-  server-side when added
+* Market purchase is a later phase and must validate Diamonds server-side when
+  added
 
 ## Admin Maintenance Jobs
 
@@ -472,6 +475,7 @@ refreshLeaderboardProjection
 aggregateQuestionStats
 sendQuestionAnalyticsReportEmail
 cleanupAdminMaintenanceLog
+spendUserJoker
 ```
 
 Security contract:

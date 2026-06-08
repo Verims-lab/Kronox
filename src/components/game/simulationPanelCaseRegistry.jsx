@@ -177,11 +177,11 @@ import * as dbArchitectureImplementationCases from './simulationPanelDbArchitect
 // coverage, removed Settings UI, PWA/Android manual gates, public asset docs,
 // and Health status taxonomy honesty.
 import * as healthAlignmentCases from './simulationPanelHealthAlignmentCases';
-// Codex189 — Solo Jokers v1: free, attempt-local Solo helpers with one
-// total use per attempt, no Online impact, no Diamond spend, no Puan grant.
+// Solo Jokers: user-owned inventory counts, Solo-only spend, one joker per
+// current card, no Online impact, no Diamond spend, no Puan grant.
 import * as soloJokersCases from './simulationPanelSoloJokersCases';
-// Joker Inventory Phase 1: user-owned balance schemas, starter grants,
-// Profile Joker Çantası display, and Phase 2 Solo/Market boundaries.
+// Joker Inventory: user-owned balance schemas, starter grants, Solo spend,
+// Profile Joker Çantası display, and Market boundaries.
 import * as jokerInventoryCases from './simulationPanelJokerInventoryCases';
 // Codex197 — Question analytics P3: private QuestionAttemptEvent runtime
 // writes for Solo, manual admin email report, and account-deletion cleanup.

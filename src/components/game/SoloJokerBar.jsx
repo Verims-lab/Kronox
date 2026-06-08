@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RefreshCw, Shield, Snowflake } from 'lucide-react';
+import { JOKER_TYPES, normalizeJokerQuantity } from '@/lib/jokerInventory';
 
 const JOKERS = [
   {
     type: 'mistakeShield',
+    inventoryType: JOKER_TYPES.MISTAKE_SHIELD,
     label: 'Kronokalkan',
     icon: Shield,
     accent: '#60a5fa',
@@ -12,6 +14,7 @@ const JOKERS = [
   },
   {
     type: 'swapCard',
+    inventoryType: JOKER_TYPES.CARD_SWAP,
     label: 'Kart Değiştir',
     icon: RefreshCw,
     accent: '#8bd85d',
@@ -19,6 +22,7 @@ const JOKERS = [
   },
   {
     type: 'freezeTime',
+    inventoryType: JOKER_TYPES.TIME_FREEZE,
     label: 'Zaman Dondur',
     icon: Snowflake,
     accent: '#facc15',
@@ -29,6 +33,9 @@ const JOKERS = [
 export default function SoloJokerBar({
   enabled = false,
   usedJokerType = null,
+  balances = null,
+  loading = false,
+  pendingType = null,
   mistakeShieldActive = false,
   timerFrozen = false,
   message = '',
@@ -51,16 +58,17 @@ export default function SoloJokerBar({
 
   if (!enabled) return null;
 
-  const jokerConsumed = Boolean(usedJokerType);
-  const remainingUses = jokerConsumed ? 0 : 1;
+  const jokerUsedOnCurrentCard = Boolean(usedJokerType);
 
   return (
     <div className="flex-shrink-0 px-4 pt-0.5">
       <div className="mx-auto grid grid-cols-3 w-full max-w-[280px] gap-0">
-        {JOKERS.map(({ type, label, icon: Icon, accent, glow }) => {
+        {JOKERS.map(({ type, inventoryType, label, icon: Icon, accent, glow }) => {
           const isRecentlyUsed = recentlyUsedType === type;
-          const isLocked = disabled || jokerConsumed;
-          const active = !disabled && !jokerConsumed;
+          const balance = normalizeJokerQuantity(balances?.[inventoryType]);
+          const isPending = pendingType === type;
+          const isLocked = disabled || loading || jokerUsedOnCurrentCard || isPending || balance <= 0;
+          const active = !isLocked;
           const dimmed = isLocked && !isRecentlyUsed;
           const circleSize = 'clamp(38px, 10.8vw, 44px)';
           return (
@@ -69,7 +77,8 @@ export default function SoloJokerBar({
               type="button"
               disabled={isLocked}
               aria-pressed={isRecentlyUsed}
-              aria-label={`${label}, kalan hak ${remainingUses}`}
+              aria-busy={isPending}
+              aria-label={`${label}, kalan ${balance}`}
               onClick={() => {
                 if (!active || !onUseJoker) return;
                 onUseJoker(type);
@@ -116,7 +125,7 @@ export default function SoloJokerBar({
                       : '0 0 10px rgba(250,204,21,0.32), 0 2px 8px rgba(0,0,0,0.45)',
                   }}
                 >
-                  {remainingUses}
+                  {balance}
                 </span>
               </span>
               <span
@@ -134,7 +143,7 @@ export default function SoloJokerBar({
       </div>
 
       <AnimatePresence mode="wait">
-        {(message || error || jokerConsumed || mistakeShieldActive || timerFrozen) && (
+        {(message || error || loading || jokerUsedOnCurrentCard || mistakeShieldActive || timerFrozen) && (
           <motion.div
             key={error || message || usedJokerType || String(mistakeShieldActive) || String(timerFrozen)}
             initial={{ opacity: 0, y: -4 }}
@@ -148,7 +157,9 @@ export default function SoloJokerBar({
               ? 'Kronokalkan aktif.'
               : timerFrozen
                 ? 'Süre donduruldu.'
-                : 'Bu level’da joker hakkımı kullandım.')}
+                : loading
+                  ? 'Joker Çantası hazırlanıyor.'
+                  : 'Bu kartta joker kullandın.')}
           </motion.div>
         )}
       </AnimatePresence>

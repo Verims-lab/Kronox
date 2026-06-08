@@ -23,12 +23,24 @@ export const JOKER_DEFINITIONS = Object.freeze([
   { type: JOKER_TYPES.TIME_FREEZE, label: 'Zaman Dondur', shortLabel: 'Dondur' },
 ]);
 
-export const PHASE2_SOLO_JOKER_CONSUMPTION_TODO = [
-  'Solo joker buttons should read user-owned balances.',
-  'The number currently shown as 1 should later show actual balance.',
+export const SOLO_UI_JOKER_TYPES = Object.freeze({
+  MISTAKE_SHIELD: 'mistakeShield',
+  CARD_SWAP: 'swapCard',
+  TIME_FREEZE: 'freezeTime',
+});
+
+export const SOLO_UI_TO_INVENTORY_JOKER_TYPE = Object.freeze({
+  [SOLO_UI_JOKER_TYPES.MISTAKE_SHIELD]: JOKER_TYPES.MISTAKE_SHIELD,
+  [SOLO_UI_JOKER_TYPES.CARD_SWAP]: JOKER_TYPES.CARD_SWAP,
+  [SOLO_UI_JOKER_TYPES.TIME_FREEZE]: JOKER_TYPES.TIME_FREEZE,
+});
+
+export const PHASE2_SOLO_JOKER_CONSUMPTION_CONTRACT = [
+  'Solo joker buttons read user-owned balances.',
+  'The count badge shows actual owned balance.',
   'One joker may be used per question/card.',
   'Any number of jokers may be used across a level if the user owns them.',
-  'A joker is consumed only after its effect is successfully applied.',
+  'A joker spend writes JokerTransaction reason solo_use after the effect is validated.',
   'Used jokers are not refunded on fail/exit.',
 ].join(' ');
 
@@ -57,6 +69,11 @@ export function buildStarterJokerIdempotencyKey(userEmail, jokerType) {
 
 export function isKnownJokerType(jokerType) {
   return JOKER_DEFINITIONS.some((joker) => joker.type === jokerType);
+}
+
+export function soloUiJokerTypeToInventoryType(jokerType) {
+  const mapped = SOLO_UI_TO_INVENTORY_JOKER_TYPE[jokerType];
+  return isKnownJokerType(mapped) ? mapped : '';
 }
 
 export function canApplyJokerTransaction(currentQuantity, quantityDelta) {
@@ -148,6 +165,45 @@ export async function getUserJokerBalances(user, options = {}) {
   };
 }
 
-export async function applyJokerTransaction() {
-  throw new Error('joker_transaction_server_only_phase_1');
+export function buildSoloJokerUseIdempotencyKey(userEmail, attemptId, questionKey, jokerType) {
+  const email = normalizeJokerEmail(userEmail);
+  const type = soloUiJokerTypeToInventoryType(jokerType) || jokerType;
+  if (!email || !isKnownJokerType(type)) return '';
+  const attempt = String(attemptId || 'solo_attempt').trim() || 'solo_attempt';
+  const key = String(questionKey || 'question').trim() || 'question';
+  return `solo_use:${email}:${attempt}:${key}:${type}`.replace(/[^a-zA-Z0-9_.:@-]/g, '_');
+}
+
+export async function spendUserJoker(user, options = {}) {
+  const email = normalizeJokerEmail(user?.email || user?.user_email);
+  const jokerType = soloUiJokerTypeToInventoryType(options.jokerType) || options.jokerType;
+  if (!email) {
+    return { ok: false, code: 'missing_user_email', error: 'Joker kullanmak için giriş yapmalısın.', balances: emptyJokerBalances() };
+  }
+  if (!isKnownJokerType(jokerType)) {
+    return { ok: false, code: 'invalid_joker_type', error: 'Joker türü geçersiz.', balances: emptyJokerBalances() };
+  }
+
+  const response = await base44.functions.invoke('spendUserJoker', {
+    jokerType,
+    idempotencyKey: options.idempotencyKey,
+    relatedEntityType: options.relatedEntityType,
+    relatedEntityId: options.relatedEntityId,
+    metadata: options.metadata,
+  });
+  const body = unwrapFunctionResponse(response);
+  return {
+    ...body,
+    ok: body?.ok !== false,
+    jokerType,
+    balances: normalizeJokerBalances(body?.balances),
+    balanceAfter: normalizeJokerQuantity(body?.balanceAfter ?? body?.inventory?.quantity),
+  };
+}
+
+export async function applyJokerTransaction(user, jokerType, quantityDelta, reason, options = {}) {
+  if (Number(quantityDelta) === -1 && reason === JOKER_TRANSACTION_REASONS.SOLO_USE) {
+    return spendUserJoker(user, { ...options, jokerType });
+  }
+  throw new Error('joker_transaction_server_only_for_non_solo_spends');
 }

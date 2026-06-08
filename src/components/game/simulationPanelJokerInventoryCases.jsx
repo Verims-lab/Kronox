@@ -1,12 +1,14 @@
-// Kronox Health Center — Joker Inventory Phase 1 contracts.
+// Kronox Health Center — Joker Inventory contracts.
 //
 // Scope: user-owned joker balance foundation, starter grant idempotency,
-// Profile Joker Çantası display, and Phase 2 Solo/Market boundaries.
+// Profile Joker Çantası display, Phase 2 Solo spending, and Market boundaries.
 
 import userJokerInventoryEntitySource from '../../../base44/entities/UserJokerInventory.jsonc?raw';
 import jokerTransactionEntitySource from '../../../base44/entities/JokerTransaction.jsonc?raw';
 import ensureUserJokerInventorySource from '../../../base44/functions/ensureUserJokerInventory/entry.ts?raw';
 import ensureUserJokerInventoryManifestSource from '../../../base44/functions/ensureUserJokerInventory/function.jsonc?raw';
+import spendUserJokerSource from '../../../base44/functions/spendUserJoker/entry.ts?raw';
+import spendUserJokerManifestSource from '../../../base44/functions/spendUserJoker/function.jsonc?raw';
 import jokerInventorySource from '../../lib/jokerInventory.js?raw';
 import authContextSource from '../../lib/AuthContext.jsx?raw';
 import profilePageSource from '../../pages/ProfilePage.jsx?raw';
@@ -18,7 +20,7 @@ import claimDailyWheelRewardSource from '../../../base44/functions/claimDailyWhe
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL', NOT_AUTOMATABLE: 'NOT_AUTOMATABLE' };
 const ACTION_TYPES = { CODE_FIX: 'CODE_FIX', MANUAL_VERIFY: 'MANUAL_VERIFY' };
 const SUITE_ID = 'joker_inventory_health';
-const SUITE_NAME = 'Joker Inventory Phase 1 Suite';
+const SUITE_NAME = 'Joker Inventory Suite';
 
 function safeStr(source) {
   if (source == null) return '';
@@ -49,7 +51,7 @@ function makeCase(id, name, run, options = {}) {
     name,
     critical: options.critical ?? true,
     actionType: options.actionType || ACTION_TYPES.CODE_FIX,
-    nextStep: options.nextStep || 'Keep joker inventory Phase 1 limited to balances, starter grants, Profile display, and docs/Health contracts.',
+    nextStep: options.nextStep || 'Keep joker inventory user-owned, idempotent, ledger-backed, Solo-only for usage, and separate from Market until that phase ships.',
     ...options,
     run,
   };
@@ -74,7 +76,7 @@ export const EXTRA_TESTS = [
         '"time_freeze"',
         '"data.user_email": "{{user.email}}"',
       ]);
-      if (missing.length) return fail('UserJokerInventory schema is missing the Phase 1 balance contract.', {
+      if (missing.length) return fail('UserJokerInventory schema is missing the user-owned balance contract.', {
         verification: 'STATIC_CONTRACT',
         file: 'base44/entities/UserJokerInventory.jsonc',
         missing,
@@ -310,8 +312,8 @@ export const EXTRA_TESTS = [
       return pass('Daily Wheel still grants Diamonds only and does not touch joker inventory.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('market_not_active_in_phase_1',
-    'Market purchase UI is not implemented in Phase 1',
+  makeCase('market_not_active_in_current_phase',
+    'Market purchase UI is not implemented in this phase',
     () => {
       const forbidden = forbiddenTokens(`${mainMenuSource}\n${profilePageSource}`, [
         'Joker Market',
@@ -319,39 +321,44 @@ export const EXTRA_TESTS = [
         'market_purchase',
         'diamond-to-joker',
       ]);
-      if (forbidden.length) return fail('A joker market/purchase surface appears active in Phase 1 UI.', {
+      if (forbidden.length) return fail('A joker market/purchase surface appears active before the Market phase.', {
         verification: 'STATIC_CONTRACT',
         forbidden,
       });
       return pass('Market purchase remains future-only; no active joker market UI is present.', { verification: 'STATIC_CONTRACT' });
     }),
 
-  makeCase('solo_joker_behavior_not_replaced_in_phase_1',
-    'Existing Solo joker behavior remains backward-compatible in Phase 1',
+  makeCase('solo_joker_behavior_uses_inventory_in_phase_2',
+    'Solo joker behavior uses user-owned inventory in Phase 2',
     () => {
-      const missing = missingTokens(`${soloJokerBarSource}\n${gameSource}`, [
-        'usedJokerType',
-        'jokerUsedRef.current',
+      const missing = missingTokens(`${soloJokerBarSource}\n${gameSource}\n${jokerInventorySource}`, [
+        'getUserJokerBalances(currentUser, { ensureStarter: true })',
+        'spendSoloJokerForCurrentCard',
+        'spendUserJoker(currentUser',
+        'soloJokerUsedByDecisionKeyRef',
+        'const balance = normalizeJokerQuantity(balances?.[inventoryType])',
+      ]);
+      const forbidden = forbiddenTokens(`${soloJokerBarSource}\n${gameSource}`, [
         'remainingUses = jokerConsumed ? 0 : 1',
         'if (!isSoloLevelMode || jokerUsedRef.current || usedJokerType',
       ]);
-      if (missing.length) return fail('Phase 1 accidentally removed or rewired existing Solo joker attempt-local behavior.', {
+      if (missing.length || forbidden.length) return fail('Phase 2 Solo joker inventory wiring is missing or old attempt-local limits remain.', {
         verification: 'STATIC_CONTRACT',
         files: ['src/pages/Game.jsx', 'src/components/game/SoloJokerBar.jsx'],
-        missing,
+        actual: { missing, forbidden },
       });
-      return pass('Existing Solo joker behavior remains intact; spending integration is deferred.', { verification: 'STATIC_CONTRACT' });
+      return pass('Solo joker runtime reads inventory balances and spends through the backend ledger path.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('phase_2_solo_consumption_contract_exists',
-    'Phase 2 Solo joker consumption TODO contract exists',
+    'Phase 2 Solo joker consumption contract exists',
     () => {
       const missing = missingTokens(jokerInventorySource, [
-        'PHASE2_SOLO_JOKER_CONSUMPTION_TODO',
-        'Solo joker buttons should read user-owned balances',
+        'PHASE2_SOLO_JOKER_CONSUMPTION_CONTRACT',
+        'Solo joker buttons read user-owned balances',
         'One joker may be used per question/card',
         'Any number of jokers may be used across a level if the user owns them',
-        'A joker is consumed only after its effect is successfully applied',
+        'JokerTransaction reason solo_use',
         'Used jokers are not refunded on fail/exit',
       ]);
       if (missing.length) return fail('Phase 2 Solo joker consumption contract is missing.', {
@@ -392,6 +399,60 @@ export const EXTRA_TESTS = [
         missing,
       });
       return pass('ensureUserJokerInventory function is registered and used by the helper.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('spend_function_is_registered',
+    'spendUserJoker backend function is registered and invoked',
+    () => {
+      const missing = missingTokens(`${spendUserJokerManifestSource}\n${jokerInventorySource}`, [
+        '"name": "spendUserJoker"',
+        '"entry": "entry.ts"',
+        "base44.functions.invoke('spendUserJoker'",
+      ]);
+      if (missing.length) return fail('spendUserJoker is not registered/invoked clearly.', {
+        verification: 'STATIC_CONTRACT',
+        files: ['base44/functions/spendUserJoker/function.jsonc', 'src/lib/jokerInventory.js'],
+        missing,
+      });
+      return pass('spendUserJoker function is registered and used by the helper.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('solo_spend_records_ledger',
+    'Solo spend records JokerTransaction reason solo_use',
+    () => {
+      const missing = missingTokens(`${spendUserJokerSource}\n${jokerInventorySource}`, [
+        "const SOLO_USE_REASON = 'solo_use'",
+        'quantity_delta: -1',
+        'source: SOLO_SOURCE',
+        'idempotency_key: idempotencyKey',
+        'balance_before: quantityBefore',
+        'balance_after: balanceAfter',
+        'created_by: email',
+      ]);
+      if (missing.length) return fail('Solo joker spend ledger write contract is incomplete.', {
+        verification: 'STATIC_CONTRACT',
+        files: ['base44/functions/spendUserJoker/entry.ts', 'src/lib/jokerInventory.js'],
+        missing,
+      });
+      return pass('Solo joker spend writes append-only ledger rows with reason solo_use and quantity_delta -1.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('solo_spend_is_idempotent_and_non_negative',
+    'Solo spend is idempotent and balance cannot go negative',
+    () => {
+      const missing = missingTokens(`${spendUserJokerSource}\n${jokerInventorySource}`, [
+        'findTransaction(base44, email, jokerType, idempotencyKey)',
+        'alreadyApplied',
+        'quantityBefore <= 0',
+        'insufficient_joker_balance',
+        'const balanceAfter = quantityBefore - 1',
+        'buildSoloJokerUseIdempotencyKey',
+      ]);
+      if (missing.length) return fail('Solo joker spend no longer clearly prevents duplicate or negative spends.', {
+        verification: 'STATIC_CONTRACT',
+        missing,
+      });
+      return pass('Solo spend uses idempotency and positive-balance checks before writing balanceAfter.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('joker_inventory_rls_runtime_proof_manual',
