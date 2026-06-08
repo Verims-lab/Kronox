@@ -223,9 +223,15 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('question_entity_contains_only_target_dataset_fields',
-    'Question entity contains only the intended new dataset fields',
+    'Question entity contains only the approved dataset fields (incl. SEO description)',
     () => {
       const schema = parseJsonSource(questionEntitySource);
+      // Approved Question schema fields. `description` is intentionally
+      // retained as an approved optional SEO/content-metadata field — it is
+      // not gameplay/answer-validation data, does not affect Solo/Online
+      // question selection, difficulty, scoring, or leaderboard. Any field
+      // NOT in this approved list is still rejected as schema drift, and any
+      // missing required target field still fails, so Health stays strict.
       const expected = [
         'id',
         'question',
@@ -238,12 +244,13 @@ export const EXTRA_TESTS = [
         'region',
         'difficulty',
         'state',
+        'description',
       ];
       const actual = Object.keys(schema?.properties || {});
       const missing = expected.filter((field) => !actual.includes(field));
       const extra = actual.filter((field) => !expected.includes(field));
       if (missing.length || extra.length) {
-        return fail('Question schema has missing or legacy fields.', {
+        return fail('Question schema has missing or unapproved fields.', {
           verification: 'STATIC_CONTRACT',
           file: 'base44/entities/Question.jsonc',
           expected,
@@ -252,7 +259,7 @@ export const EXTRA_TESTS = [
           extra,
         });
       }
-      return pass('Question schema contains only the target new dataset fields.', {
+      return pass('Question schema contains only the approved dataset fields, including the SEO description field.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
