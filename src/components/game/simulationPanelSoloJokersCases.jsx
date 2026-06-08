@@ -115,7 +115,7 @@ export const EXTRA_TESTS = [
   makeCase('solo_jokers_read_inventory_balances',
     'Solo joker buttons read UserJokerInventory balances',
     () => {
-      const missing = missingTokens(`${gameSource}\n${soloJokerBarSource}\n${jokerInventorySource}`, [
+      const missing = missingTokens(`${gameSource}\n${gameLayoutSource}\n${soloJokerBarSource}\n${jokerInventorySource}`, [
         'getUserJokerBalances(currentUser, { ensureStarter: true })',
         'setJokerBalances(normalizeJokerBalances',
         'balances={soloJokers?.balances || null}',
@@ -124,7 +124,7 @@ export const EXTRA_TESTS = [
       ]);
       if (missing.length) return fail('Solo joker UI is not clearly reading persistent user balances.', {
         verification: 'STATIC_CONTRACT',
-        files: ['pages/Game.jsx', 'components/game/SoloJokerBar.jsx', 'src/lib/jokerInventory.js'],
+        files: ['pages/Game.jsx', 'components/game/GameLayout.jsx', 'components/game/SoloJokerBar.jsx', 'src/lib/jokerInventory.js'],
         missing,
       });
       return pass('Solo joker buttons load and display UserJokerInventory balances.', { verification: 'STATIC_CONTRACT' });
