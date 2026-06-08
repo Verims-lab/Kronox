@@ -1,7 +1,7 @@
 {
   "name": "SubCategory",
   "type": "object",
-  "description": "Codex241 — Future normalized subcategory lookup table. id is the stable numeric subcategory ID that Question rows may reference in a later migration. main_category_1 and main_category_2 store Category.category_id values; Question.sub_category remains unchanged until that future mapping task.",
+  "description": "Codex241 \u2014 Future normalized subcategory lookup table. id is the stable numeric subcategory ID that Question rows may reference in a later migration. main_category_1 and main_category_2 store Category.category_id values; Question.sub_category remains unchanged until that future mapping task.",
   "properties": {
     "id": {
       "type": "number",
