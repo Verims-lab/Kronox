@@ -126,6 +126,15 @@ function publicDefinition(row: any) {
   };
 }
 
+function progressEntity(base44: any) {
+  return base44?.entities?.UserDailyQuestProgress
+    || base44?.asServiceRole?.entities?.UserDailyQuestProgress;
+}
+
+function progressEntitySource(base44: any) {
+  return base44?.entities?.UserDailyQuestProgress ? 'auth_user' : 'service_role_fallback';
+}
+
 function sortDefinitions(rows: any[] = []) {
   return rows
     .map(publicDefinition)
@@ -191,18 +200,22 @@ async function ensureDefaultDefinitions(base44: any) {
 }
 
 async function readTodayRows(base44: any, email: string, dateKey: string) {
-  const rows = await base44.asServiceRole.entities.UserDailyQuestProgress
+  const entity = progressEntity(base44);
+  if (!entity?.filter) return [];
+  const rows = await entity
     .filter({ user_email: email, quest_date: dateKey }, 'created_at', 20)
     .catch(() => []);
   return Array.isArray(rows) ? rows : [];
 }
 
 async function findProgressByAssignment(base44: any, email: string, dateKey: string, questKey: string, idempotencyKey: string) {
+  const entity = progressEntity(base44);
+  if (!entity?.filter) return null;
   const [byKey, byQuest] = await Promise.all([
-    base44.asServiceRole.entities.UserDailyQuestProgress
+    entity
       .filter({ user_email: email, idempotency_key: idempotencyKey }, '-created_at', 1)
       .catch(() => []),
-    base44.asServiceRole.entities.UserDailyQuestProgress
+    entity
       .filter({ user_email: email, quest_date: dateKey, quest_key: questKey }, '-created_at', 1)
       .catch(() => []),
   ]);
@@ -211,12 +224,14 @@ async function findProgressByAssignment(base44: any, email: string, dateKey: str
 }
 
 async function createProgressRow(base44: any, email: string, dateKey: string, definition: any) {
+  const entity = progressEntity(base44);
+  if (!entity?.create) return null;
   const timestamp = new Date().toISOString();
   const idempotencyKey = buildAssignmentKey(email, dateKey, definition.quest_key);
   const existing = await findProgressByAssignment(base44, email, dateKey, definition.quest_key, idempotencyKey);
   if (existing) return existing;
   try {
-    return await base44.asServiceRole.entities.UserDailyQuestProgress.create({
+    return await entity.create({
       user_email: email,
       quest_definition_id: definition.id,
       quest_key: definition.quest_key,
@@ -240,7 +255,12 @@ async function createProgressRow(base44: any, email: string, dateKey: string, de
       created_at: timestamp,
       updated_at: timestamp,
     });
-  } catch (_error) {
+  } catch (error) {
+    console.error('[getDailyQuestStatus] progress create failed', {
+      code: error?.code || 'progress_create_failed',
+      questKey: definition.quest_key,
+      message: error?.message || 'unknown',
+    });
     return await findProgressByAssignment(base44, email, dateKey, definition.quest_key, idempotencyKey);
   }
 }
@@ -261,7 +281,9 @@ async function ensureTodayDailyQuests(base44: any, email: string, dateKey: strin
     }
   }
 
-  rows = await readTodayRows(base44, email, dateKey);
+  const ensuredRows = rows;
+  const refreshedRows = await readTodayRows(base44, email, dateKey);
+  rows = refreshedRows.length ? refreshedRows : ensuredRows;
   return {
     definitions,
     seededDefaultKeys: seedResult.seededDefaultKeys,
@@ -293,7 +315,7 @@ Deno.serve(async (req: Request) => {
 
     const serverDate = utcDateKey();
     const nextAvailableAt = nextUtcMidnightIso(serverDate);
-    const entity = base44.asServiceRole.entities.UserDailyQuestProgress;
+    const entity = progressEntity(base44);
     const definitionEntity = base44.asServiceRole.entities.DailyQuestDefinition;
     if (!entity?.filter || !entity?.create || !definitionEntity?.filter) {
       return json({ ok: false, code: 'daily_quest_entities_missing', error: 'Günlük görev kayıtları hazır değil.' }, 500);
@@ -314,6 +336,7 @@ Deno.serve(async (req: Request) => {
       activeDefinitionCount,
       seededDefaultKeys: ensured.seededDefaultKeys,
       seedMode: ensured.seedMode,
+      progressEntitySource: progressEntitySource(base44),
       emptyStateReason: quests.length
         ? ''
         : (activeDefinitionCount > 0 ? 'progress_rows_missing_after_ensure' : 'no_active_definitions'),

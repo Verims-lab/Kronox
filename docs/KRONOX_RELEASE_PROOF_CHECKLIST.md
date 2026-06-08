@@ -310,6 +310,9 @@ Checklist:
   the default Solo-focused definitions idempotently when no definitions exist;
   if no active definitions remain, Home shows
   `Bugünkü görevler yakında hazır olacak.` instead of a permanent loading state.
+* `getDailyQuestStatus` is authenticated and user-owned, not admin-only. It
+  creates/fetches current-user `UserDailyQuestProgress` rows and preserves
+  newly created rows if an immediate Base44 refresh is stale.
 * Loading or ensuring today’s quests does not grant Diamonds;
   `claimDailyQuestReward` remains the only reward path.
 * `recordDailyQuestProgress` updates Solo-only events:

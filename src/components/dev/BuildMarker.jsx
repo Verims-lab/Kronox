@@ -1227,6 +1227,12 @@ import React, { useEffect, useState } from 'react';
 //     instead of a permanent hazırlanan fallback; ensure still grants no
 //     Diamonds and claimDailyQuestReward remains the only reward path.
 //
+// Codex295 — Daily Quest runtime progress ensure fix:
+//   • getDailyQuestStatus and recordDailyQuestProgress now prefer the
+//     authenticated user-owned UserDailyQuestProgress entity for runtime rows.
+//   • ensureTodayDailyQuests preserves newly created rows when the immediate
+//     Base44 refresh is stale, preventing a false "Görevler yenilenemedi" state.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1531,7 +1537,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex294';
+const BUILD_MARKER = 'Codex295';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

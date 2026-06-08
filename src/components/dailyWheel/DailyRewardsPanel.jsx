@@ -111,7 +111,7 @@ function DailyQuestV1Card({ user, onUserUpdated, onLogin }) {
       {dailyQuests.isSignedIn && dailyQuests.status === 'loading' && (
         <div className="flex items-center gap-2 rounded-xl px-3 py-2 text-[11px] font-bold text-slate-300">
           <Loader2 className="h-3.5 w-3.5 animate-spin text-sky-200" />
-          Görevler hazırlanıyor.
+          Görevler yükleniyor...
         </div>
       )}
 

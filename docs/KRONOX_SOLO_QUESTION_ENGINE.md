@@ -225,6 +225,8 @@ Daily Quest Runtime v1 is Solo-focused:
 - Bugünkü Görevler requires active `DailyQuestDefinition` rows; the runtime
   seeds the default Solo-focused templates idempotently only when no definition
   rows exist
+- `getDailyQuestStatus` is authenticated but not admin-only, and preserves
+  newly created progress rows if an immediate Base44 refresh is stale
 - loading or ensuring today’s quests does not grant Diamonds;
   `claimDailyQuestReward` remains the only reward path
 - supported v1 quest types are `start_solo_attempt`, `correct_cards`,

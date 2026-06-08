@@ -106,6 +106,15 @@ function boundedEventKeys(metadata: any) {
   return Array.isArray(keys) ? keys.map((key) => String(key)).slice(-80) : [];
 }
 
+function progressEntity(base44: any) {
+  return base44?.entities?.UserDailyQuestProgress
+    || base44?.asServiceRole?.entities?.UserDailyQuestProgress;
+}
+
+function progressEntitySource(base44: any) {
+  return base44?.entities?.UserDailyQuestProgress ? 'auth_user' : 'service_role_fallback';
+}
+
 async function readActiveDefinitions(base44: any) {
   const rows = await base44.asServiceRole.entities.DailyQuestDefinition
     .filter({ status: 'active' }, 'sort_order', 100)
@@ -164,18 +173,22 @@ async function ensureDefaultDefinitions(base44: any) {
 }
 
 async function readTodayRows(base44: any, email: string, dateKey: string) {
-  const rows = await base44.asServiceRole.entities.UserDailyQuestProgress
+  const entity = progressEntity(base44);
+  if (!entity?.filter) return [];
+  const rows = await entity
     .filter({ user_email: email, quest_date: dateKey }, 'created_at', 20)
     .catch(() => []);
   return Array.isArray(rows) ? rows : [];
 }
 
 async function findProgressByAssignment(base44: any, email: string, dateKey: string, questKey: string, idempotencyKey: string) {
+  const entity = progressEntity(base44);
+  if (!entity?.filter) return null;
   const [byKey, byQuest] = await Promise.all([
-    base44.asServiceRole.entities.UserDailyQuestProgress
+    entity
       .filter({ user_email: email, idempotency_key: idempotencyKey }, '-created_at', 1)
       .catch(() => []),
-    base44.asServiceRole.entities.UserDailyQuestProgress
+    entity
       .filter({ user_email: email, quest_date: dateKey, quest_key: questKey }, '-created_at', 1)
       .catch(() => []),
   ]);
@@ -184,12 +197,14 @@ async function findProgressByAssignment(base44: any, email: string, dateKey: str
 }
 
 async function createProgressRow(base44: any, email: string, dateKey: string, definition: any) {
+  const entity = progressEntity(base44);
+  if (!entity?.create) return null;
   const timestamp = new Date().toISOString();
   const idempotencyKey = buildAssignmentKey(email, dateKey, String(definition.quest_key || ''));
   const existing = await findProgressByAssignment(base44, email, dateKey, String(definition.quest_key || ''), idempotencyKey);
   if (existing) return existing;
   try {
-    return await base44.asServiceRole.entities.UserDailyQuestProgress.create({
+    return await entity.create({
       user_email: email,
       quest_definition_id: definition.id,
       quest_key: String(definition.quest_key || ''),
@@ -208,7 +223,12 @@ async function createProgressRow(base44: any, email: string, dateKey: string, de
       created_at: timestamp,
       updated_at: timestamp,
     });
-  } catch (_error) {
+  } catch (error) {
+    console.error('[recordDailyQuestProgress] progress create failed', {
+      code: error?.code || 'progress_create_failed',
+      questKey: definition.quest_key,
+      message: error?.message || 'unknown',
+    });
     return await findProgressByAssignment(base44, email, dateKey, String(definition.quest_key || ''), idempotencyKey);
   }
 }
@@ -227,7 +247,8 @@ async function ensureTodayDailyQuests(base44: any, email: string, dateKey: strin
       keys.add(String(definition.quest_key || ''));
     }
   }
-  return (await readTodayRows(base44, email, dateKey)).slice(0, 3);
+  const refreshedRows = await readTodayRows(base44, email, dateKey);
+  return (refreshedRows.length ? refreshedRows : rows).slice(0, 3);
 }
 
 Deno.serve(async (req: Request) => {
@@ -283,7 +304,12 @@ Deno.serve(async (req: Request) => {
       const completedNow = currentProgress < targetValue && nextProgress >= targetValue;
       const timestamp = new Date().toISOString();
       const nextStatus = nextProgress >= targetValue ? 'completed' : 'active';
-      const updated = await base44.asServiceRole.entities.UserDailyQuestProgress.update(row.id, {
+      const entity = progressEntity(base44);
+      if (!entity?.update) {
+        updates.push({ questKey: row?.quest_key, skipped: true, reason: 'progress_update_unavailable' });
+        continue;
+      }
+      const updated = await entity.update(row.id, {
         progress_value: nextProgress,
         status: nextStatus,
         completed_at: row?.completed_at || (completedNow ? timestamp : null),
@@ -301,13 +327,16 @@ Deno.serve(async (req: Request) => {
       updates.push(publicProgress(updated));
     }
 
+    const refreshedRows = await readTodayRows(base44, email, dateKey);
+    const responseRows = refreshedRows.length ? refreshedRows : rows;
     return json({
       ok: true,
       eventType,
       mode: 'solo',
       serverDate: dateKey,
+      progressEntitySource: progressEntitySource(base44),
       updated: updates,
-      quests: (await readTodayRows(base44, email, dateKey)).slice(0, 3).map(publicProgress),
+      quests: responseRows.slice(0, 3).map(publicProgress),
       noDiamondGrantDuringProgress: true,
       grantsDiamondsOnlyOnClaim: true,
       noKronoxPuan: true,

@@ -205,6 +205,9 @@ Daily Quest Definition management:
 * Home `getDailyQuestStatus` ensures today’s `UserDailyQuestProgress` rows and
   may seed fixed default `DailyQuestDefinition` templates only when the
   definition table is empty. This idempotent seed does not grant Diamonds.
+* `getDailyQuestStatus` is authenticated runtime, not admin-only; it derives
+  the user from backend auth context, writes only that user's progress rows,
+  and treats no active definitions as a safe empty state.
 * Loading or ensuring today’s quests does not grant Diamonds;
   `claimDailyQuestReward` remains the only reward path.
 * `daily_quest_last_claim_date` and `daily_quest_next_available_at` are

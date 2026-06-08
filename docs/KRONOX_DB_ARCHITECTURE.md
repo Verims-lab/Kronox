@@ -169,6 +169,10 @@ runtime status/progress functions seed the four default Solo-focused
 definitions idempotently only when no definition rows exist; if admins have
 passivated definitions, Home shows a safe empty state instead of granting or
 recreating rewards.
+`getDailyQuestStatus` is authenticated user-owned runtime, not admin-only. It
+creates/fetches only the current user's `UserDailyQuestProgress` rows and keeps
+newly created rows as the response fallback if Base44 read-after-write refresh
+lags. No active definitions is an empty state, not a function failure.
 Loading or ensuring today’s quests does not grant Diamonds;
 `claimDailyQuestReward` remains the only reward path.
 `UserDailyQuestProgress` tracks user/day progress, copied `target_value`, copied
