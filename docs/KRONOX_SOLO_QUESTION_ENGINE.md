@@ -233,6 +233,7 @@ Daily Quest Runtime v1 is Solo-focused:
   `claimDailyQuestReward` remains the only reward path
 - completing progress alone does not grant Diamonds; completed and unclaimed
   quests expose the `Al` claim action
+- Home Daily Quest copy is `Günlük Görevleri Yap, Elmasları Kazan!`
 - supported v1 quest types are `start_solo_attempt`, `correct_cards`,
   `complete_solo_level`, and `use_joker`
 - `title` and `description` are display-only Turkish copy and are never parsed
@@ -249,6 +250,9 @@ Daily Quest Runtime v1 is Solo-focused:
 - `claimDailyQuestReward` writes `DiamondTransaction.source = daily_quest_reward`
   updates visible `User.diamonds`, returns `diamondBalanceAfter`, marks the row
   claimed, and blocks duplicate claims
+- `getDailyQuestStatus`, `recordDailyQuestProgress`, and
+  `claimDailyQuestReward` explicitly bind `UserDailyQuestProgress` in their
+  Base44 runtime functions
 - one claim per quest per UTC day is enforced by progress status and the
   `daily_quest_reward` idempotency key
 - `daily_quest_last_claim_date` and `daily_quest_next_available_at` are User

@@ -321,12 +321,17 @@ Checklist:
   `claimDailyQuestReward` remains the only reward path.
 * Completing progress alone does not grant Diamonds; completed and unclaimed
   quests must show an `Al` claim action.
+* The Home Daily Quest copy is
+  `Günlük Görevleri Yap, Elmasları Kazan!`.
 * `recordDailyQuestProgress` updates Solo-only events:
   `start_solo_attempt`, `correct_cards`, `complete_solo_level`, and `use_joker`.
 * `claimDailyQuestReward` requires completed status, uses the reward copied in
   the progress row, writes `DiamondTransaction.source = daily_quest_reward`,
   updates the visible `User.diamonds` balance, returns `diamondBalanceAfter`,
   and marks the row claimed.
+* `getDailyQuestStatus`, `recordDailyQuestProgress`, and
+  `claimDailyQuestReward` explicitly bind `UserDailyQuestProgress` in their
+  Base44 runtime functions for deployability.
 * One claim per quest per UTC day is enforced by `UserDailyQuestProgress` status
   plus the `daily_quest_reward:<email>:<YYYY-MM-DD>:<quest_key>` idempotency
   key; duplicate claim must not grant Diamonds twice.

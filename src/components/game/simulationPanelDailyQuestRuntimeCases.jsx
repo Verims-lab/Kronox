@@ -159,7 +159,7 @@ export const EXTRA_TESTS = [
         'Günlük görev yakında hazır olacak.',
         'Görevler yükleniyor...',
         'Older same-day 3-quest rows are retained but Home displays only the selected',
-        'Aktif günlük görev tanımı yok. Ayarlar &gt; Günlük Görev Yönetimi bölümünden aktif görev ekleyin.',
+        'Aktif günlük görev tanımı yok. Admin Ekranı &gt; Günlük Görev Yönetimi bölümünden aktif görev ekleyin.',
         '`claimDailyQuestReward` remains the only reward path',
       ]);
       const forbidden = forbiddenTokens(`${getDailyQuestStatusSource}\n${recordDailyQuestProgressSource}`, [
@@ -302,7 +302,7 @@ export const EXTRA_TESTS = [
   makeCase('completed_quest_claim_action_grants_visible_diamonds',
     'Completed Daily Quest exposes a claim action and refreshes visible Diamonds',
     () => {
-      const combined = `${useDailyQuestsSource}\n${dailyRewardsPanelSource}\n${claimDailyQuestRewardSource}`;
+      const combined = `${useDailyQuestsSource}\n${dailyRewardsPanelSource}\n${dailyQuestGatewaySource}\n${claimDailyQuestRewardSource}`;
       const missing = missingTokens(combined, [
         'const body = await claimDailyQuestReward({',
         'progressId: quest?.id || undefined',
@@ -311,7 +311,10 @@ export const EXTRA_TESTS = [
         'buildClaimKey(quest, serverDate)',
         'body?.userPatch',
         'onUserUpdated(body.userPatch)',
-        "setError(err?.message || 'Günlük görev ödülü alınamadı.')",
+        "setError(err?.message || 'Ödül alınamadı. Tekrar dene.')",
+        'Ödül alınamadı. Tekrar dene.',
+        'safeRuntimeError(error, \'Ödül alınamadı. Tekrar dene.\')',
+        'Günlük Görevleri Yap, Elmasları Kazan!',
         'dailyQuests.error',
         'Al',
         'Alındı',
@@ -322,6 +325,12 @@ export const EXTRA_TESTS = [
         verification: 'STATIC_CONTRACT',
         files: ['src/hooks/useDailyQuests.js', 'src/components/dailyWheel/DailyRewardsPanel.jsx', 'base44/functions/claimDailyQuestReward/entry.ts'],
         missing,
+      });
+      const forbidden = forbiddenTokens(combined, ['Request failed with status code']);
+      if (forbidden.length) return fail('Completed Daily Quest claim can expose raw HTTP status text.', {
+        verification: 'STATIC_CONTRACT',
+        files: ['src/hooks/useDailyQuests.js', 'src/lib/dbGateway/dailyQuestGateway.js', 'src/components/dailyWheel/DailyRewardsPanel.jsx'],
+        forbidden,
       });
       return pass('Completed quests call claimDailyQuestReward with id or quest fallback, surface claim errors, and apply returned diamond userPatch.', { verification: 'STATIC_CONTRACT' });
     }),
@@ -358,6 +367,7 @@ export const EXTRA_TESTS = [
         'Günlük Ödüller',
         'DailyWheelCard',
         'Günlük Görev',
+        'Günlük Görevleri Yap, Elmasları Kazan!',
         'useDailyQuests',
         'dailyQuests.quests.slice(0, 1)',
         'progressValue',

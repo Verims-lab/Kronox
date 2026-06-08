@@ -180,13 +180,17 @@ Loading or ensuring today’s quests does not grant Diamonds;
 `claimDailyQuestReward` remains the only reward path.
 Completing progress alone does not grant Diamonds; completed and unclaimed
 quests expose the `Al` claim action.
+The Home user-facing Daily Quest line is
+`Günlük Görevleri Yap, Elmasları Kazan!`.
 `UserDailyQuestProgress` tracks the selected user/day progress row, copied
 `target_value`, copied `reward_diamonds`, `status`, `completed_at`, and
 `claimed_at`. Older same-day extra rows from the previous 3-quest design are
 retained but UI/runtime display only the selected primary quest. Claim grants
 diamonds only through `DiamondTransaction.source = daily_quest_reward`, updates
 visible `User.diamonds`, returns `diamondBalanceAfter`, and then marks the row
-claimed; Daily Quest does not grant Kronox Puan and has no leaderboard impact.
+claimed. The runtime backend functions explicitly bind `UserDailyQuestProgress`
+for status, progress, and claim deployability; Daily Quest does not grant
+Kronox Puan and has no leaderboard impact.
 Future versions may expand to multiple quests again if Home UI is redesigned.
 | `DailyWheelSpin` | Daily Reward Wheel claim ledger and streak audit. | `getDailyWheelStatus` reads current day; `claimDailyWheelReward` creates server-backed claim and updates `User.diamonds`. | Audit/idempotency for Daily Wheel; `User.diamonds` is balance source. | Backend service-role functions only for claim; user/admin read by RLS. | Unique idempotency is not guaranteed in repo schema; race proof needs platform unique key or live probe. | Unique `idempotency_key`; unique `user_email + spin_date`; `user_email + claimed_at`; `spin_date`. | Retain/anonymize on account deletion; admin reset removes target test rows; archive old rows after retention policy. | Keep. | N/A. |
 | `DailyQuestDefinition` | Admin-managed Daily Quest v1 templates. | Profile / `Admin Ekranı` / `Günlük Görev Yönetimi` lists definitions and creates new templates through `createDailyQuestDefinition`. | Yes for system quest templates only; not user progress. | `base44/functions/createDailyQuestDefinition/entry.ts`, `src/lib/dbGateway/dailyQuestGateway.js`, `DailyQuestDefinitionManager`. | Admin-only. Backend guard uses `AdminUser` active owner/admin. Normal users cannot view `Admin Ekranı` and cannot create definitions. | Unique `quest_key` where platform supports it; `status`; `sort_order`. | Passive instead of delete for routine removal. | Keep/additive. | Prove active admin can list/create, non-admin and disabled admin receive 403. |

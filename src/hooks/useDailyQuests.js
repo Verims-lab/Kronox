@@ -109,7 +109,7 @@ export function useDailyQuests({ user, onUserUpdated } = {}) {
       await refresh();
       return body;
     } catch (err) {
-      setError(err?.message || 'Günlük görev ödülü alınamadı.');
+      setError(err?.message || 'Ödül alınamadı. Tekrar dene.');
       return null;
     } finally {
       claimPendingRef.current.delete(claimKey);

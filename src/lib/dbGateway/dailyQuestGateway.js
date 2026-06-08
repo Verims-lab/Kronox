@@ -50,6 +50,24 @@ function safeError(body, fallback) {
   return body?.error || fallback;
 }
 
+function unwrapInvokeError(error) {
+  if (error?.body && typeof error.body === 'object') return error.body;
+  if (error?.response) return unwrapFunctionResponse(error.response);
+  if (error?.data) return unwrapFunctionResponse({ data: error.data });
+  return {};
+}
+
+function safeRuntimeError(errorOrBody, fallback) {
+  const body = errorOrBody?.response || errorOrBody?.body || errorOrBody?.data
+    ? unwrapInvokeError(errorOrBody)
+    : errorOrBody;
+  const code = String(body?.code || '').trim();
+  if (code === 'unauthenticated') return 'Oturum doğrulaması gerekli.';
+  if (code === 'daily_quest_not_completed') return 'Görev henüz tamamlanmadı.';
+  if (code === 'daily_quest_already_claimed') return 'Bu görev ödülü zaten alındı.';
+  return fallback;
+}
+
 export async function callDailyQuestDefinitionAdmin(payload = {}) {
   const response = await base44.functions.invoke('createDailyQuestDefinition', payload);
   const body = unwrapFunctionResponse(response);
@@ -76,19 +94,34 @@ export function seedDailyQuestDefinitions() {
 }
 
 export async function getDailyQuestStatus(payload = {}) {
-  const response = await base44.functions.invoke('getDailyQuestStatus', payload);
+  let response;
+  try {
+    response = await base44.functions.invoke('getDailyQuestStatus', payload);
+  } catch (error) {
+    const safe = safeRuntimeError(error, 'Görevler yenilenemedi. Tekrar dene.');
+    const wrapped = new Error(safe);
+    wrapped.body = unwrapInvokeError(error);
+    throw wrapped;
+  }
   const body = unwrapFunctionResponse(response);
   if (body?.ok === false) {
-    throw new Error(body?.error || 'Günlük görevler yüklenemedi.');
+    throw new Error(safeRuntimeError(body, 'Görevler yenilenemedi. Tekrar dene.'));
   }
   return body;
 }
 
 export async function recordDailyQuestProgress(payload = {}) {
-  const response = await base44.functions.invoke('recordDailyQuestProgress', payload);
+  let response;
+  try {
+    response = await base44.functions.invoke('recordDailyQuestProgress', payload);
+  } catch (error) {
+    const wrapped = new Error(safeRuntimeError(error, 'Günlük görev ilerlemesi kaydedilemedi.'));
+    wrapped.body = unwrapInvokeError(error);
+    throw wrapped;
+  }
   const body = unwrapFunctionResponse(response);
   if (body?.ok === false) {
-    const error = new Error(body?.error || 'Günlük görev ilerlemesi kaydedilemedi.');
+    const error = new Error(safeRuntimeError(body, 'Günlük görev ilerlemesi kaydedilemedi.'));
     error.body = body;
     throw error;
   }
@@ -96,10 +129,17 @@ export async function recordDailyQuestProgress(payload = {}) {
 }
 
 export async function claimDailyQuestReward(payload = {}) {
-  const response = await base44.functions.invoke('claimDailyQuestReward', payload);
+  let response;
+  try {
+    response = await base44.functions.invoke('claimDailyQuestReward', payload);
+  } catch (error) {
+    const wrapped = new Error(safeRuntimeError(error, 'Ödül alınamadı. Tekrar dene.'));
+    wrapped.body = unwrapInvokeError(error);
+    throw wrapped;
+  }
   const body = unwrapFunctionResponse(response);
   if (body?.ok === false) {
-    const error = new Error(body?.error || 'Günlük görev ödülü alınamadı.');
+    const error = new Error(safeRuntimeError(body, 'Ödül alınamadı. Tekrar dene.'));
     error.body = body;
     throw error;
   }
