@@ -470,6 +470,11 @@ Joker inventory is user-owned data:
 * Mağaza purchase idempotency keys protect double-tap and retry flows; real
   two-device/backend race proof remains manual unless Base44 uniqueness is
   proven
+* Home `Günlük Ödüller` includes Daily Wheel and Daily Quest v1 readiness/status;
+  Daily Quest must not grant Diamonds or Kronox Puan until a server-backed,
+  user-bound claim path exists
+* Daily Wheel and future Daily Quest rewards must use separate guard fields and
+  idempotency keys so a quest claim cannot unlock or duplicate a wheel spin
 * normal users must not be able to arbitrarily grant themselves jokers
 * Profile shows only `Joker Çantası` balances, not ledger rows
 * Mağaza Phase 1 must not expose bundles, subscriptions, cosmetics, random

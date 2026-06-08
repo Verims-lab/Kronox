@@ -1,7 +1,7 @@
 {
   "name": "DiamondTransaction",
   "type": "object",
-  "description": "Codex152/Codex287 \u2014 User-owned Diamond economy ledger. One logical row should exist per idempotency_key. Base44 uniqueness is not assumed, so runtime helpers check idempotency_key and User guard fields before grants/spends.",
+  "description": "Codex152/Codex288 \u2014 User-owned Diamond economy ledger. One logical row should exist per idempotency_key. Base44 uniqueness is not assumed, so runtime helpers check idempotency_key and User guard fields before grants/spends.",
   "properties": {
     "user_email": {
       "type": "string",
@@ -26,6 +26,7 @@
         "daily_login",
         "daily_wheel",
         "market_purchase",
+        "daily_quest_future",
         "wheel_spin_future",
         "rewarded_ad_future",
         "quest_reward_future",
@@ -34,7 +35,7 @@
         "special_event_future",
         "admin_adjustment"
       ],
-      "description": "Economy source. Active sources include starter_bonus, daily_login, daily_wheel, market_purchase, and admin_adjustment. Future sources remain schema-ready but inactive."
+      "description": "Economy source. Active sources include starter_bonus, daily_login, daily_wheel, market_purchase, and admin_adjustment. Daily Quest v1 uses separate reserved user fields; daily_quest_future remains schema-ready but inactive until a server-backed claim path is defined."
     },
     "direction": {
       "type": "string",

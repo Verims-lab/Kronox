@@ -1183,6 +1183,12 @@ import React, { useEffect, useState } from 'react';
 //     the persistent SoloJokerBar inventory display.
 //   • Keeps the Solo-only joker gate and Online null wiring intact.
 //
+// Codex288 — Günlük Ödüller panel and Daily Wheel rebalance:
+//   • Updates Daily Wheel rewards to 30/40/50/60/75/100/150/250 with +150
+//     seven-day streak bonus, keeping server-side selection and idempotency.
+//   • Replaces the standalone Home wheel row with a Günlük Ödüller panel that
+//     includes Daily Wheel plus Daily Quest v1 readiness/status.
+//
 // Codex201 — AdminUser UI status invocation fix:
 //   • withAdminStatus now calls getAdminStatus through Base44 functions.invoke
 //     first, matching the project JSON function convention, with direct fetch
@@ -1454,8 +1460,9 @@ import React, { useEffect, useState } from 'react';
 // Codex185 — Daily Reward Wheel:
 //   • Adds server-backed getDailyWheelStatus / claimDailyWheelReward
 //     functions plus DailyWheelSpin ledger and User wheel guard fields.
-//   • Adds a compact Home DailyWheelCard above Solo, once-per-session prompt,
-//     result modal, passive claimed state, and immediate Home Elmas refresh.
+//   • Originally added a compact Home DailyWheelCard above Solo; Codex288
+//     moves it into the Günlük Ödüller panel while keeping prompt/result,
+//     passive claimed state, and immediate Home Elmas refresh.
 //   • Grants Diamonds only, keeps daily login +20 separate, adds +100
 //     seven-day streak bonus, and documents Base44 race proof as manual.
 //
@@ -1486,7 +1493,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex287';
+const BUILD_MARKER = 'Codex288';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

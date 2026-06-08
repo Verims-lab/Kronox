@@ -146,6 +146,13 @@ sufficient `User.diamonds`, writes both Diamond and Joker ledgers with the same
 idempotency key, and uses best-effort rollback if ledger creation fails. True
 duplicate-request and partial-failure consistency proof remains a live backend
 manual gate.
+
+Daily Reward Wheel uses active `daily_wheel_*` User guard fields plus
+`daily_wheel:<email>:<YYYY-MM-DD>`. The Home `Günlük Ödüller` panel also shows
+Daily Quest v1 readiness/status; Daily Quest does not grant Diamonds or Kronox
+Puan yet. Reserved `daily_quest_*` User fields keep future quest rewards
+separate from wheel spins and must only be used by a future server-backed claim
+path.
 | `DailyWheelSpin` | Daily Reward Wheel claim ledger and streak audit. | `getDailyWheelStatus` reads current day; `claimDailyWheelReward` creates server-backed claim and updates `User.diamonds`. | Audit/idempotency for Daily Wheel; `User.diamonds` is balance source. | Backend service-role functions only for claim; user/admin read by RLS. | Unique idempotency is not guaranteed in repo schema; race proof needs platform unique key or live probe. | Unique `idempotency_key`; unique `user_email + spin_date`; `user_email + claimed_at`; `spin_date`. | Retain/anonymize on account deletion; admin reset removes target test rows; archive old rows after retention policy. | Keep. | N/A. |
 | `OnlineMatchResult` | Per-user online score audit/idempotency. | `applyOnlineResult` creates/checks row before visible score write. | Audit/idempotency; `User.online_progress` is visible score source. | Client helper creates via entity SDK; reads own rows; admin can update/delete. | Logical idempotency key not declared unique in repo. Client-side per-user application means opponent disconnect recovery is limited. | Unique `idempotency_key`; unique `lobby_id + player_email`; `lobby_id`; `player_email + applied_at`. | Retain for audit/reconciliation. Archive after long retention. | Keep but move write authority backend-side. | N/A. |
 | `Lobby` | Authoritative online lobby/game state. | Lobby create/join/start, realtime sync, waiting room, online game state updates. | Yes for online match state. | `LobbyRoom`, `useLobbySync`, `useWaitingRoomSync`, service functions (`findLobbyByCode`, `startLobbyGame`, `updateLobbyGameState`, `acceptGameInvite`). | RLS lets host update; backend service functions also validate host/player. Embedded `players` array makes member lookup hard. | Unique `code`; `host_email + status`; `status + last_activity_at`; `status + updated_at`; `started_at`; `completed_at`; possible `players.email` limitation. | Mark stale waiting lobbies `cancelled`; preserve finished/audit rows. | Keep but refactor projections. | N/A. |

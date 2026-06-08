@@ -83,6 +83,7 @@ market_purchase
 Future schema-ready sources are intentionally inactive:
 
 ```text
+daily_quest_future
 rewarded_ad_future
 quest_reward_future
 purchase_future
@@ -90,17 +91,24 @@ achievement_future
 special_event_future
 ```
 
-Daily Quest / Günün Görevi remains paused.
+Daily Quest / Günün Görevi v1 is visible inside the Home `Günlük Ödüller`
+panel as a readiness/status row. It does not grant Diamonds or Kronox Puan yet.
+Any future Daily Quest reward must be server-backed, use a separate
+`daily_quest:<normalizedEmail>:<YYYY-MM-DD>` idempotency key, write
+`DiamondTransaction.source = daily_quest_future` or its final active source with
+`direction = earn`, and use `User.daily_quest_*` guard fields instead of Daily
+Wheel fields.
 
 Do not implement:
 
 ```text
 DailyQuestProgress
-quest rewards
-quest reward diamond grants
+client-side quest rewards
+client-side quest reward diamond grants
 ```
 
-until Daily Quest product work resumes.
+until the Daily Quest reward amount, completion rule, and backend claim path are
+specified.
 
 ---
 
@@ -123,20 +131,20 @@ Rules:
 Reward table and weights:
 
 ```text
-10 diamonds — common — 25%
-15 diamonds — common — 22%
-20 diamonds — common — 18%
-25 diamonds — uncommon — 13%
-30 diamonds — uncommon — 10%
-40 diamonds — rare — 6%
-50 diamonds — rare — 4%
-100 diamonds — very rare — 2%
+30 diamonds — high — weight 24
+40 diamonds — high — weight 22
+50 diamonds — high — weight 20
+60 diamonds — medium — weight 12
+75 diamonds — medium — weight 10
+100 diamonds — low — weight 7
+150 diamonds — rare — weight 4
+250 diamonds — very rare — weight 1
 ```
 
 7-day streak:
 
 ```text
-7-day streak bonus: +100 diamonds
+7-day streak bonus: +150 diamonds
 ```
 
 If the user misses a UTC day, the next successful spin resets the streak to 1.
@@ -145,8 +153,8 @@ Result copy:
 
 ```text
 +25 Elmas kazandın
-7 günlük seri bonusu: +100 elmas
-Toplam: +125 elmas
+7 günlük seri bonusu: +150 elmas
+Toplam: +200 elmas
 ```
 
 The Home claimed-state countdown must not show a Diamond icon next to the

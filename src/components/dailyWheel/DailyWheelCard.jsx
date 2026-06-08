@@ -4,7 +4,7 @@ import { Gem, Gift, Loader2, RotateCw, Sparkles, X } from 'lucide-react';
 import { useDailyWheel } from '@/hooks/useDailyWheel';
 import { sounds } from '@/lib/gameSounds';
 
-const WHEEL_REWARD_SLICES = [10, 15, 20, 25, 30, 40, 50, 100];
+const WHEEL_REWARD_SLICES = [30, 40, 50, 60, 75, 100, 150, 250];
 const WHEEL_SLICE_DEGREES = 360 / WHEEL_REWARD_SLICES.length;
 const WHEEL_SPIN_DURATION_MS = 4600;
 const WHEEL_REDUCED_MOTION_DURATION_MS = 900;
@@ -44,7 +44,7 @@ function formatDiamondCount(value) {
   return n.toLocaleString('tr-TR');
 }
 
-export default function DailyWheelCard({ user, onUserUpdated, onLogin }) {
+export default function DailyWheelCard({ user, onUserUpdated, onLogin, compact = false }) {
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const wheel = useDailyWheel({ user, onUserUpdated });
   const claimedLabel = useMemo(
@@ -79,7 +79,7 @@ export default function DailyWheelCard({ user, onUserUpdated, onLogin }) {
         whileTap={{ y: 1, scale: 0.99 }}
         className="relative flex w-full items-center justify-center overflow-hidden font-inter text-left"
         style={{
-          minHeight: 'clamp(72px, 17vw, 88px)',
+          minHeight: compact ? 'clamp(58px, 14.5vw, 70px)' : 'clamp(72px, 17vw, 88px)',
           borderRadius: 18,
           border: '1px solid rgba(250,204,21,0.38)',
           background:
@@ -104,7 +104,7 @@ export default function DailyWheelCard({ user, onUserUpdated, onLogin }) {
           />
         )}
 
-        <div className="relative flex w-full items-center gap-3 px-4 py-3">
+        <div className={`relative flex w-full items-center ${compact ? 'gap-2 px-3 py-2' : 'gap-3 px-4 py-3'}`}>
           <WheelEmblem spinning={wheel.claiming} muted={wheel.status === 'claimed'} />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
@@ -503,8 +503,8 @@ function DailyWheelResultModal({ status, error, claiming, result, onSpin, onClos
   const alreadyClaimed = Boolean(result?.alreadyClaimedToday || result?.alreadyClaimed);
   const updatedDiamondTotal = Number(result?.updatedDiamondTotal);
   const streakBonusAmount = Number(result?.streakBonusAmount) || 0;
-  const streakBonusText = streakBonusAmount === 100
-    ? '7 günlük seri bonusu: +100 elmas'
+  const streakBonusText = streakBonusAmount === 150
+    ? '7 günlük seri bonusu: +150 elmas'
     : `7 günlük seri bonusu: +${formatDiamondCount(streakBonusAmount)} elmas`;
   const [revealReady, setRevealReady] = useState(false);
   const prefersReducedMotion = useReducedMotion();
