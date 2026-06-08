@@ -1,7 +1,7 @@
 {
   "name": "QuestionStatsProjection",
   "type": "object",
-  "description": "Codex183 — Aggregated question-level analytics projection derived from QuestionAttemptEvent. This is not a gameplay source of truth and must not expose raw protected question-bank metadata publicly.",
+  "description": "Codex183 \u2014 Aggregated question-level analytics projection derived from QuestionAttemptEvent. This is not a gameplay source of truth and must not expose raw protected question-bank metadata publicly.",
   "properties": {
     "question_id": {
       "type": "string",
@@ -74,6 +74,11 @@
     "updated_at": {
       "type": "string",
       "format": "date-time"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this question stats projection (up to 1000 characters)."
     }
   },
   "required": [
