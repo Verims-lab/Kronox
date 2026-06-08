@@ -237,6 +237,32 @@ export const EXTRA_TESTS = [
       return pass('Daily Wheel source is Diamond-only and has no Puan/leaderboard writes.', { verification: 'STATIC_CONTRACT' });
     }),
 
+  makeCase('daily_wheel_does_not_grant_market_jokers',
+    'Daily Wheel remains a Diamond source only after Mağaza launch',
+    () => {
+      const combined = `${DAILY_WHEEL_BACKEND_HEALTH_SOURCE}\n${economyRulesSource}`;
+      const missing = missingTokens(combined, [
+        'Daily Wheel remains a Diamond source',
+        'Daily Wheel remains Diamond-only',
+        'Mağaza purchase is a Diamond sink',
+      ]);
+      const forbidden = forbiddenTokens(DAILY_WHEEL_BACKEND_HEALTH_SOURCE, [
+        'JokerTransaction',
+        'UserJokerInventory',
+        'mistake_shield',
+        'card_swap',
+        'time_freeze',
+        'market_purchase',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Daily Wheel can drift into joker rewards or Market purchase sources.', {
+          verification: 'STATIC_CONTRACT',
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('Daily Wheel remains Diamond-only and Mağaza remains the separate Diamond sink for joker purchases.', { verification: 'STATIC_CONTRACT' });
+    }),
+
   makeCase('daily_wheel_one_spin_per_server_day',
     'Daily Wheel has one-spin-per-UTC-server-day idempotency contract',
     () => {

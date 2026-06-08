@@ -97,8 +97,8 @@ export default function MarketPage() {
         diamonds: normalizeJokerQuantity(result.diamondBalanceAfter),
       }));
       setNotice({ type: 'success', text: `${product.name} alındı.` });
-    } catch (error) {
-      setNotice({ type: 'error', text: error?.message || 'Satın alma tamamlanamadı.' });
+    } catch {
+      setNotice({ type: 'error', text: 'Satın alma tamamlanamadı.' });
     } finally {
       setPendingType('');
     }

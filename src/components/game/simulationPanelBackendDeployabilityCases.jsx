@@ -24,6 +24,8 @@
 //     runtime step — represented here as a NOT_AUTOMATABLE case.
 
 import deployedReportSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts?raw';
+import purchaseJokerWithDiamondsSource from '../../../base44/functions/purchaseJokerWithDiamonds/entry.ts?raw';
+import purchaseJokerWithDiamondsManifestSource from '../../../base44/functions/purchaseJokerWithDiamonds/function.jsonc?raw';
 import cleanupGatewaySource from '../../lib/dbGateway/cleanupGateway.js?raw';
 import scoringGatewaySource from '../../lib/dbGateway/scoringGateway.js?raw';
 import economyGatewaySource from '../../lib/dbGateway/economyGateway.js?raw';
@@ -262,6 +264,69 @@ export const EXTRA_TESTS = [
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actual: { invoked: Array.from(invoked) },
+      });
+    }),
+
+  makeCase('purchase_joker_backend_function_deployable_contract',
+    'purchaseJokerWithDiamonds backend function is registered and deployable',
+    () => {
+      const missing = missingTokens(`${purchaseJokerWithDiamondsSource}\n${purchaseJokerWithDiamondsManifestSource}\n${economyGatewaySource}`, [
+        '"name": "purchaseJokerWithDiamonds"',
+        '"entry": "entry.ts"',
+        "base44.functions.invoke('purchaseJokerWithDiamonds'",
+        'createClientFromRequest',
+        'Deno.serve',
+        'base44.auth.me()',
+      ]);
+      const forbidden = forbiddenTokens(purchaseJokerWithDiamondsSource, [
+        "from './_shared",
+        "from '../_shared",
+        'file://' + '/src/_shared',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('purchaseJokerWithDiamonds is not clearly registered/deployable or has broken local imports.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          files: ['base44/functions/purchaseJokerWithDiamonds/entry.ts', 'base44/functions/purchaseJokerWithDiamonds/function.jsonc', 'src/lib/dbGateway/economyGateway.js'],
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('purchaseJokerWithDiamonds is a registered Base44 callable function with no broken local imports.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    }),
+
+  makeCase('purchase_joker_backend_auth_service_role_scope',
+    'purchaseJokerWithDiamonds validates auth and keeps service-role writes user-bound',
+    () => {
+      const missing = missingTokens(purchaseJokerWithDiamondsSource, [
+        'base44.auth.me()',
+        'const email = normalizeEmail(user?.email)',
+        'user_email: email',
+        'asServiceRole.entities.UserJokerInventory',
+        'asServiceRole.entities.DiamondTransaction',
+        'asServiceRole.entities.JokerTransaction',
+        'userEntity.update(latestUser.id || user.id',
+      ]);
+      const forbidden = forbiddenTokens(purchaseJokerWithDiamondsSource, [
+        'body?.email',
+        'body?.user_email',
+        'body?.userId',
+        'body?.price',
+        'body?.diamondCost',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('purchaseJokerWithDiamonds service-role/auth scope can drift from authenticated-user-owned writes.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'base44/functions/purchaseJokerWithDiamonds/entry.ts',
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('purchaseJokerWithDiamonds scopes service-role economy writes to the authenticated user and backend price table.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
       });
     }),
 

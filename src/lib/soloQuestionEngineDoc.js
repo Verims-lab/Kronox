@@ -136,7 +136,10 @@ Mağaza Phase 1 sells only Solo jokers with Diamonds: Zaman Dondur = 40,
 Kart Değiştir = 50, Kronokalkan = 60. Mağaza purchase validates price and
 sufficient Diamonds server-side through purchaseJokerWithDiamonds, writes both
 Diamond and Joker ledgers with market_purchase, and does not change Solo
-scoring, timer, question selection, or Online mode.
+scoring, timer, question selection, or Online mode. Purchased jokers appear
+through the same persistent UserJokerInventory balances that Solo already
+reads; using them in Solo still spends through spendUserJoker and writes
+JokerTransaction.reason = solo_use.
 
 Kronokalkan forgives the next wrong placement without counting a mistake.
 Kart Değiştir replaces the current card from the already prepared Solo deck

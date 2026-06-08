@@ -346,6 +346,91 @@ export const EXTRA_TESTS = [
       return pass('Mağaza is active only for the three Solo joker purchases and remains separate from Profile ledger details.', { verification: 'STATIC_CONTRACT' });
     }),
 
+  makeCase('market_purchase_increases_correct_joker_type_only',
+    'Market purchase increases the correct UserJokerInventory joker type only',
+    () => {
+      const missing = missingTokens(purchaseJokerWithDiamondsSource, [
+        'const jokerType = normalizeJokerType(body?.jokerType || body?.joker_type)',
+        'const inventory = await findInventory(base44, email, jokerType)',
+        'const jokerAfter = jokerBefore + quantity',
+        'joker_type: jokerType',
+        'quantity: jokerAfter',
+        'quantity_delta: quantity',
+      ]);
+      const forbidden = forbiddenTokens(purchaseJokerWithDiamondsSource, [
+        'for (const jokerType of JOKER_TYPES) {\n    const inventory',
+        'quantity: jokerAfter,\n      mistake_shield',
+        'quantity: jokerAfter,\n      card_swap',
+        'quantity: jokerAfter,\n      time_freeze',
+      ]);
+      if (missing.length || forbidden.length) return fail('Market purchase may not be scoped to the purchased joker type.', {
+        verification: 'STATIC_CONTRACT',
+        file: 'base44/functions/purchaseJokerWithDiamonds/entry.ts',
+        actual: { missing, forbidden },
+      });
+      return pass('Market purchase finds/upserts only the purchased joker_type and writes a matching positive ledger delta.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('joker_transaction_reasons_remain_distinct',
+    'Starter, Solo use, and Market purchase ledger reasons remain distinct',
+    () => {
+      const missing = missingTokens(`${jokerInventorySource}\n${ensureUserJokerInventorySource}\n${spendUserJokerSource}\n${purchaseJokerWithDiamondsSource}`, [
+        "STARTER_GRANT: 'starter_grant'",
+        "const STARTER_REASON = 'starter_grant'",
+        "SOLO_USE: 'solo_use'",
+        "const SOLO_USE_REASON = 'solo_use'",
+        "MARKET_PURCHASE: 'market_purchase'",
+        "const MARKET_PURCHASE_REASON = 'market_purchase'",
+      ]);
+      if (missing.length) return fail('JokerTransaction reason contracts drifted between starter, Solo, and Market paths.', {
+        verification: 'STATIC_CONTRACT',
+        missing,
+      });
+      return pass('Starter grants, Solo spends, and Market purchases write separate reason values.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('market_purchase_does_not_rerun_starter_or_allow_client_grant',
+    'Market purchase cannot rerun starter grants or grant arbitrary jokers by client mutation',
+    () => {
+      const missing = missingTokens(`${purchaseJokerWithDiamondsSource}\n${marketSource}`, [
+        'findStarterTransaction',
+        'existingTransaction',
+        'market_phase_1_lazy_starter_repair',
+        'normalizeJokerType',
+        'invalid_joker_type',
+        'getMarketJokerProduct',
+        'buildJokerPurchaseIdempotencyKey',
+      ]);
+      const forbidden = forbiddenTokens(marketSource, [
+        'UserJokerInventory.create',
+        'UserJokerInventory.update',
+        'JokerTransaction.create',
+      ]);
+      if (missing.length || forbidden.length) return fail('Market purchase can bypass the server-backed inventory grant contract or duplicate starter grants.', {
+        verification: 'STATIC_CONTRACT',
+        actual: { missing, forbidden },
+      });
+      return pass('Market uses server-backed validated joker types, idempotent lazy starter repair, and no client-side inventory/ledger mutation.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('market_purchase_visible_in_profile_and_solo',
+    'Market-purchased jokers can appear in Profile and Solo joker bar',
+    () => {
+      const missing = missingTokens(`${marketPageSource}\n${profilePageSource}\n${soloJokerBarSource}\n${gameSource}`, [
+        'setBalances(nextBalances)',
+        'Joker Çantası',
+        'getUserJokerBalances(user, { ensureStarter: true })',
+        'balances?.[joker.type]',
+        'balances={soloJokers?.balances || null}',
+        'balances?.[inventoryType]',
+      ]);
+      if (missing.length) return fail('Purchased joker balances are not visible through Profile/Solo balance paths.', {
+        verification: 'STATIC_CONTRACT',
+        missing,
+      });
+      return pass('Purchased balances update Market locally and Profile/Solo reread UserJokerInventory counts.', { verification: 'STATIC_CONTRACT' });
+    }),
+
   makeCase('solo_joker_behavior_uses_inventory_in_phase_2',
     'Solo joker behavior uses user-owned inventory in Phase 2',
     () => {

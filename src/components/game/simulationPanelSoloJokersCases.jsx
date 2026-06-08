@@ -9,6 +9,8 @@ import soloJokerBarSource from './SoloJokerBar.jsx?raw';
 import soloTimerSource from './SoloLevelTimer.jsx?raw';
 import jokerInventorySource from '../../lib/jokerInventory.js?raw';
 import spendUserJokerSource from '../../../base44/functions/spendUserJoker/entry.ts?raw';
+import marketPageSource from '../../pages/MarketPage.jsx?raw';
+import purchaseJokerWithDiamondsSource from '../../../base44/functions/purchaseJokerWithDiamonds/entry.ts?raw';
 import { SOLO_QUESTION_ENGINE_DOC } from '@/lib/soloQuestionEngineDoc';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL', NOT_AUTOMATABLE: 'NOT_AUTOMATABLE' };
@@ -438,6 +440,68 @@ export const EXTRA_TESTS = [
         missing,
       });
       return pass('Profile uses getUserJokerBalances on mount, so returning from Solo reads latest balances.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('solo_bar_can_reflect_market_purchased_balances',
+    'Solo joker bar can reflect purchased Market balances',
+    () => {
+      const missing = missingTokens(`${marketPageSource}\n${gameSource}\n${soloJokerBarSource}\n${jokerInventorySource}`, [
+        'setBalances(nextBalances)',
+        'getUserJokerBalances(currentUser, { ensureStarter: true })',
+        'balances={soloJokers?.balances || null}',
+        'const balance = normalizeJokerQuantity(balances?.[inventoryType])',
+        'UserJokerInventory',
+      ]);
+      if (missing.length) return fail('Purchased joker balances cannot clearly flow into Solo joker display.', {
+        verification: 'STATIC_CONTRACT',
+        files: ['src/pages/MarketPage.jsx', 'src/pages/Game.jsx', 'src/components/game/SoloJokerBar.jsx'],
+        missing,
+      });
+      return pass('Market purchase refreshes owned balances and Solo rereads/passes UserJokerInventory balances into SoloJokerBar.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('market_purchase_does_not_bypass_solo_spend_ledger',
+    'Market purchase does not bypass Solo spend ledger',
+    () => {
+      const missing = missingTokens(`${purchaseJokerWithDiamondsSource}\n${spendUserJokerSource}\n${gameSource}`, [
+        "reason: MARKET_PURCHASE_REASON",
+        "const SOLO_USE_REASON = 'solo_use'",
+        'spendUserJoker(currentUser',
+        'quantity_delta: -1',
+        'quantity_delta: quantity',
+      ]);
+      const gameForbidden = forbiddenTokens(gameSource, [
+        "reason: 'market_purchase'",
+        'MARKET_PURCHASE_REASON',
+        'purchaseJokerWithDiamonds',
+      ]);
+      if (missing.length || gameForbidden.length) return fail('Solo gameplay can bypass the Solo spend path or Market can write Solo-use ledgers.', {
+        verification: 'STATIC_CONTRACT',
+        actual: { missing, gameForbidden },
+      });
+      return pass('Market only grants purchased inventory; Solo still spends through spendUserJoker and solo_use ledger rows.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('market_purchase_does_not_restore_attempt_local_free_jokers',
+    'Market purchase does not restore attempt-local free joker counts',
+    () => {
+      const combined = `${gameSource}\n${soloJokerBarSource}\n${jokerInventorySource}`;
+      const forbidden = forbiddenTokens(combined, [
+        'remainingUses = jokerConsumed ? 0 : 1',
+        'Jokerler • 1 hak',
+        'defaultBalance = 1',
+        'attemptLocalJoker',
+        'free joker',
+      ]);
+      const missing = missingTokens(combined, [
+        'balances={soloJokers?.balances || null}',
+        'normalizeJokerQuantity(balances?.[inventoryType])',
+      ]);
+      if (forbidden.length || missing.length) return fail('Solo can regress to free attempt-local joker counts instead of persistent balances.', {
+        verification: 'STATIC_CONTRACT',
+        actual: { forbidden, missing },
+      });
+      return pass('Solo count display remains persistent-balance-based with no attempt-local free count source.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('solo_jokers_do_not_affect_online',

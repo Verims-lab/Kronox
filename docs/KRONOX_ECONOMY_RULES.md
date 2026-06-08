@@ -441,8 +441,11 @@ Kronokalkan = 60 Diamonds
 
 Purchase rules:
 
+* Diamond source/sink balance: Daily Wheel remains a Diamond source and Daily
+  Wheel remains Diamond-only, while Mağaza purchase is a Diamond sink
 * `purchaseJokerWithDiamonds` owns the trusted price table
-* client-provided price/cost is ignored
+* purchase validation is server-authoritative; Client is not trusted for price
+  and client-provided price/cost is ignored
 * authenticated user can purchase only for self
 * sufficient `User.diamonds` is validated server-side
 * successful purchase writes `DiamondTransaction.source = market_purchase`
@@ -450,7 +453,11 @@ Purchase rules:
 * successful purchase writes `JokerTransaction.reason = market_purchase`
 * insufficient Diamonds do not decrease Diamonds, increase joker balance, or
   write successful purchase ledgers
-* purchase uses an idempotency key; live double-tap/race proof remains manual
+* purchase uses an idempotency key; double-tap, network retry, and two
+  tabs/devices live race proof remains manual
+* Partial failure reconciliation: ledger write failure uses best-effort rollback
+  of the Diamond and joker balances, but live provider/backend consistency proof
+  remains manual
 
 ---
 
