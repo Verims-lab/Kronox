@@ -314,3 +314,5 @@ if (warnings.length) {
 }
 
 console.log(`iOS icon validation passed: ${checkedCatalogIcons} AppIcon catalog PNGs, ${checkedSourceIcons} source/final PNGs, and ${checkedManifestIcons} manifest icon PNGs contain no alpha channel.`);
+console.log('Base44 App logo can regenerate WixOneApp.app AppIcon assets; upload public/assets/icons/base44-app-logo-1024-no-alpha.png, click Generate Files again, and never reuse an old IPA/archive after changing the logo.');
+console.log('Manual final archive gate: validate the final `WixOneApp.app` icon asset or exported IPA before App Store upload. App Store 90717 means alpha still exists in the final app icon asset; source-only checks do not prove App Store Connect acceptance.');

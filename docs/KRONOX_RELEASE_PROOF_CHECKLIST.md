@@ -436,6 +436,13 @@ Checklist:
   click Base44 **Generate Files** again, rebuild/archive, and inspect the final
   exported IPA or `Payload/WixOneApp.app`. Old IPA/archive files must not be
   reused after replacing the Base44 App logo.
+* Final release gate: validate the final `WixOneApp.app` icon asset from the
+  regenerated archive/exported IPA before upload. Source PNG checks are a
+  pre-upload guard, but the final `WixOneApp.app` icon asset is the object App
+  Store Connect rejects for App Store 90717 if any alpha channel remains.
+* Release execution: archive/export the iOS build after Base44 regenerates the
+  files, then re-upload or validate in App Store Connect. Do not treat a web
+  deploy or old local archive as proof for App Store 90717.
   If icons are compiled into `Assets.car`, use Xcode/`assetutil` or App Store
   Connect validation as the final proof; source-only checks must not claim the
   90717 fix is proven. Real App Store Connect re-upload validation remains

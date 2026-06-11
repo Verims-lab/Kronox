@@ -1311,6 +1311,12 @@ import React, { useEffect, useState } from 'react';
 //   • Aligns mobile navigation Health wording with the current three-tab
 //     BottomNav contract: Ana Sayfa, Liderlik, Profil.
 //
+// Codex311 — iOS AppIcon 90717 release gate alignment:
+//   • Makes the release checklist and Health mirror explicitly name the final
+//     `WixOneApp.app` icon asset as the App Store 90717 validation target.
+//   • Updates npm run check:ios-icons output to document Base44 App logo
+//     regeneration and the manual final archive/IPA proof boundary.
+//
 // Codex303 — Joker Çantası user-specific self-heal:
 //   • ensureUserJokerInventory now repairs missing/partial/mixed-owner
 //     UserJokerInventory rows for the authenticated user without overwriting
@@ -1650,7 +1656,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex310';
+const BUILD_MARKER = 'Codex311';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
