@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-const LOGO_URL = 'https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/56ee45626_Kronoxuygulamaikon.png';
+const LOGO_URL = '/assets/icons/kronox-app-icon-1024.png';
 
 export default function SplashScreen() {
   return (

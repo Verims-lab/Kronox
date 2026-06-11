@@ -410,16 +410,28 @@ Checklist:
   bottom-sheet selectors instead of raw native HTML selects in the targeted
   surfaces. The sheets must support Escape/backdrop close, focus return,
   dark-mode readability, safe-area bottom padding, and reduced-motion behavior.
-* PWA manifest/icons work.
+* PWA manifest/icons work. PWA/web icons may be separate from native iOS
+  AppIcon assets, but any icon source consumed by Wix/native wrapper generation
+  must be a local opaque PNG.
 * iOS AppIcon PNGs must be fully opaque before App Store upload. No alpha
   channel, no `tRNS` transparency chunk, and no transparent corners are allowed.
 * The 1024x1024 `ios-marketing` / large app icon must be RGB/opaque. App Store
   Connect error 90717 means a transparent or alpha-channel icon remains in the
-  native asset catalog.
+  final `WixOneApp.app` icon asset, not merely that source files look wrong.
+* `index.html`, `public/manifest.json`, `src/manifest.json`, and the splash
+  screen must point at local opaque `/assets/icons/kronox-app-icon-*` PNGs so
+  wrapper/icon regeneration cannot reintroduce the old transparent remote icon.
 * Run `npm run check:ios-icons` before native archive upload; it validates
   `ios/App/App/Assets.xcassets/AppIcon.appiconset/Contents.json`, referenced
-  PNG dimensions, and no-alpha PNG metadata. Real App Store Connect re-upload
-  validation remains manual.
+  PNG dimensions, manifest icon PNGs, forbidden transparent source references,
+  and no-alpha PNG metadata.
+* After any icon change, clean the native/iOS build folder, delete stale
+  archives, regenerate wrapper/native assets if that toolchain caches icons,
+  rebuild/archive, and inspect the final exported IPA or `Payload/WixOneApp.app`.
+  If icons are compiled into `Assets.car`, use Xcode/`assetutil` or App Store
+  Connect validation as the final proof; source-only checks must not claim the
+  90717 fix is proven. Real App Store Connect re-upload validation remains
+  manual.
 * Push subscription works on real installed device if supported.
 * `sendGameInvitePush` requires backend `VAPID_PUBLIC_KEY`,
   `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` config; missing/blank values return
