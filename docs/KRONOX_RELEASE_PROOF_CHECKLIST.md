@@ -421,13 +421,21 @@ Checklist:
 * `index.html`, `public/manifest.json`, `src/manifest.json`, and the splash
   screen must point at local opaque `/assets/icons/kronox-app-icon-*` PNGs so
   wrapper/icon regeneration cannot reintroduce the old transparent remote icon.
+* Base44's **Generate App Store files → App logo** upload is also an iOS icon
+  source. Upload `public/assets/icons/base44-app-logo-1024-no-alpha.png` there:
+  a 1024x1024 RGB/no-alpha PNG on an opaque Kronox navy/black background. App
+  Store Connect 90717 can persist if Base44 regenerates `WixOneApp.app`
+  AppIcon assets from a transparent uploaded logo, even when repo icons are
+  alpha-free.
 * Run `npm run check:ios-icons` before native archive upload; it validates
   `ios/App/App/Assets.xcassets/AppIcon.appiconset/Contents.json`, referenced
   PNG dimensions, manifest icon PNGs, forbidden transparent source references,
-  and no-alpha PNG metadata.
+  the Base44 upload logo PNG, and no-alpha PNG metadata.
 * After any icon change, clean the native/iOS build folder, delete stale
   archives, regenerate wrapper/native assets if that toolchain caches icons,
-  rebuild/archive, and inspect the final exported IPA or `Payload/WixOneApp.app`.
+  click Base44 **Generate Files** again, rebuild/archive, and inspect the final
+  exported IPA or `Payload/WixOneApp.app`. Old IPA/archive files must not be
+  reused after replacing the Base44 App logo.
   If icons are compiled into `Assets.car`, use Xcode/`assetutil` or App Store
   Connect validation as the final proof; source-only checks must not claim the
   90717 fix is proven. Real App Store Connect re-upload validation remains

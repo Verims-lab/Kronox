@@ -15,6 +15,7 @@ const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 const ALPHA_COLOR_TYPES = new Set([4, 6]);
 const DEFAULT_SEARCH_ROOTS = ['ios', 'public/assets/icons'];
 const REQUIRED_ICON_SOURCES = [
+  { path: 'public/assets/icons/base44-app-logo-1024-no-alpha.png', width: 1024, height: 1024 },
   { path: 'public/assets/icons/kronox-app-icon-1024.png', width: 1024, height: 1024 },
   { path: 'public/assets/icons/kronox-app-icon-512.png', width: 512, height: 512 },
   { path: 'public/assets/icons/kronox-app-icon-192.png', width: 192, height: 192 },
