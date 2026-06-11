@@ -466,6 +466,8 @@ After deployment, verify:
 * active `AdminUser` role `owner`/`admin` users additionally see `Admin Ekranı`
 * `Admin Ekranı` contains admin-only maintenance/report tools; Settings remains
   normal-user account/help/preferences UI
+* BottomNav visible items are `Ana Sayfa`, `Liderlik`, and `Profil`; Online is
+  launched from Home through `Online Kapışma`, not exposed as a bottom tab
 * direct `/admin` access by normal users is blocked or redirected safely
 * newly added admins can access the intended admin tools after active
   `AdminUser` rows are created

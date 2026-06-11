@@ -10,6 +10,7 @@ import QuestionAnalyticsReportTool from '@/components/admin/QuestionAnalyticsRep
 import DailyQuestDefinitionManager from '@/components/admin/DailyQuestDefinitionManager';
 import StandardTopBar from '@/components/layout/StandardTopBar';
 import PullToRefresh from '@/components/mobile/PullToRefresh';
+import { AdminRefreshContext } from '@/lib/AdminRefreshContext';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -130,34 +131,36 @@ export default function AdminPage() {
       <PullToRefresh onRefresh={refreshAdminMaintenanceLists}>
         <div className="px-4 space-y-5">
           <Section label="Araçlar">
-            <ToolCard
-              icon={<FileDown className="w-4 h-4" />}
-              title="Teknik Döküman"
-              desc="Sistem mimarisi ve veri modeli"
-              loading={downloadingDoc}
-              onClick={handleDownloadDoc}
-            />
-            {docError && (
-              <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-100">
-                {docError}
-              </p>
-            )}
-            <ToolCard
-              icon={<FileDown className="w-4 h-4" />}
-              title="İş Akışı Dökümanı"
-              desc="Use case'ler ve süreç adımları"
-              loading={downloadingWorkflow}
-              onClick={handleDownloadWorkflow}
-            />
-            <ToolCard
-              icon={<FlaskConical className="w-4 h-4" />}
-              title="Kronox Health Simulator"
-              desc="Brutally honest mobile, gameplay, sync, and release-risk checks"
-              onClick={() => setShowSim(true)}
-            />
-            <QuestionAnalyticsReportTool />
-            <DailyQuestDefinitionManager onRegisterRefresh={registerAdminRefresh} />
-            <ResetUserProgressTool />
+            <AdminRefreshContext.Provider value={registerAdminRefresh}>
+              <ToolCard
+                icon={<FileDown className="w-4 h-4" />}
+                title="Teknik Döküman"
+                desc="Sistem mimarisi ve veri modeli"
+                loading={downloadingDoc}
+                onClick={handleDownloadDoc}
+              />
+              {docError && (
+                <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-100">
+                  {docError}
+                </p>
+              )}
+              <ToolCard
+                icon={<FileDown className="w-4 h-4" />}
+                title="İş Akışı Dökümanı"
+                desc="Use case'ler ve süreç adımları"
+                loading={downloadingWorkflow}
+                onClick={handleDownloadWorkflow}
+              />
+              <ToolCard
+                icon={<FlaskConical className="w-4 h-4" />}
+                title="Kronox Health Simulator"
+                desc="Brutally honest mobile, gameplay, sync, and release-risk checks"
+                onClick={() => setShowSim(true)}
+              />
+              <QuestionAnalyticsReportTool />
+              <DailyQuestDefinitionManager />
+              <ResetUserProgressTool />
+            </AdminRefreshContext.Provider>
           </Section>
         </div>
       </PullToRefresh>

@@ -395,10 +395,11 @@ Checklist:
 * Gameplay does not page-scroll during drag.
 * Timeline horizontal scroll still works.
 * Bottom nav does not collide with home indicator.
-* BottomNav keeps independent tab stacks for Home, Online, Liderlik, and
-  Profile. Switching tabs preserves the previous subroute/scroll state; tapping
-  the active tab resets that tab to its root. `/game` remains outside tab stacks
-  and full-screen according to existing gameplay rules.
+* BottomNav visible tabs are Ana Sayfa, Liderlik, and Profil only. Online is
+  launched from Home through Online Kapışma, not from BottomNav. Switching
+  visible tabs preserves the previous subroute/scroll state; tapping the active
+  tab resets that tab to its root. `/game` remains outside tab stacks and
+  full-screen according to existing gameplay rules.
 * Top bar does not clip under notch/status bar.
 * Popups fit small screens.
 * Keyboard does not crush input flows.

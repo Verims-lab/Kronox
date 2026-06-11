@@ -1,19 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, Swords, Trophy, UserRound } from 'lucide-react';
-import { TAB_ROOTS, getTabRootForPathname, useNavigationStack } from '@/lib/NavigationStackContext';
+import { Home, Trophy, UserRound } from 'lucide-react';
+import { getTabRootForPathname, useNavigationStack } from '@/lib/NavigationStackContext';
 import { getBottomNavHidden, subscribeBottomNavHidden } from '@/lib/bottomNavVisibility';
 
-// Codex304 — Bottom nav keeps independent tab stacks per product brief:
+// Codex305 — BottomNav has exactly three visible tabs. Online remains reachable
+// from the Home "Online Kapışma" CTA and is not a bottom-nav tab.
 // - Ana Sayfa (Home)
-// - Online (Lobby selection/root)
 // - Liderlik (Trophy)
 // - Profil  (User)
 const TABS = [
-  { label: 'Ana Sayfa', icon: Home, path: TAB_ROOTS.home },
-  { label: 'Online', icon: Swords, path: TAB_ROOTS.online },
-  { label: 'Liderlik', icon: Trophy, path: TAB_ROOTS.leaderboard },
-  { label: 'Profil', icon: UserRound, path: TAB_ROOTS.profile },
+  { label: 'Ana Sayfa', icon: Home, path: '/' },
+  { label: 'Liderlik', icon: Trophy, path: '/leaderboard' },
+  { label: 'Profil', icon: UserRound, path: '/profile' },
 ];
 
 // Codex103 — Only fully-immersive / commitment-critical flows hide the bar by
