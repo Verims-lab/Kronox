@@ -1290,6 +1290,18 @@ import React, { useEffect, useState } from 'react';
 //     onto the shared AdminUser active owner/admin guard before service-role writes.
 //   • Adds Health/docs coverage for the en_core_news_sm scanner regression.
 //
+// Codex308 — final WixOneApp AppIcon source hardening:
+//   • Moves manifest/head/splash app-icon references off the old transparent
+//     remote PNG and onto local opaque RGB PNG sources under /assets/icons.
+//   • Expands npm run check:ios-icons to validate manifest icon sources,
+//     forbidden transparent icon references, and final archive/IPA proof limits.
+//
+// Codex309 — Base44 App logo no-alpha upload source:
+//   • Adds public/assets/icons/base44-app-logo-1024-no-alpha.png for the
+//     Base44 Generate App Store files App logo upload field.
+//   • Documents that Base44 must regenerate files after replacing the upload
+//     logo, because old IPA/archive files can preserve App Store 90717.
+//
 // Codex303 — Joker Çantası user-specific self-heal:
 //   • ensureUserJokerInventory now repairs missing/partial/mixed-owner
 //     UserJokerInventory rows for the authenticated user without overwriting
@@ -1629,7 +1641,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex307';
+const BUILD_MARKER = 'Codex309';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

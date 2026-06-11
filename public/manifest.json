@@ -9,22 +9,27 @@
   "scope": "/",
   "icons": [
     {
-      "src": "https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/56ee45626_Kronoxuygulamaikon.png",
+      "src": "/assets/icons/kronox-app-icon-192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/56ee45626_Kronoxuygulamaikon.png",
+      "src": "/assets/icons/kronox-app-icon-512.png",
       "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/icons/kronox-app-icon-1024.png",
+      "sizes": "1024x1024",
       "type": "image/png"
     }
   ],
   "categories": ["games"],
   "screenshots": [
     {
-      "src": "https://media.base44.com/images/public/69e753d5ab4c08a7c4287c25/56ee45626_Kronoxuygulamaikon.png",
-      "sizes": "540x720",
-      "type": "image/png",
+      "src": "/assets/ui/home-screen-final.webp",
+      "sizes": "1080x1920",
+      "type": "image/webp",
       "form_factor": "narrow"
     }
   ]
