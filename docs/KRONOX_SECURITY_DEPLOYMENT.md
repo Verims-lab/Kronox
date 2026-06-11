@@ -480,6 +480,14 @@ After deployment, verify:
   the current user from auth and enforce active `AdminUser` owner/admin status
 * Admin Ekranı list refresh uses scoped Pull-to-Refresh only after the admin UI
   gate has passed; it must not expose admin maintenance data to normal users
+* `simulateOnlineGame` and `runTestSuite` are admin-only backend tools. They
+  must call the shared AdminUser guard before any service-role simulation/test
+  writes; `user.role`, request-body role fields, hardcoded admin emails, and
+  typo role strings such as `en_core_news_sm` are not valid authorization.
+* Runtime auth proof for `simulateOnlineGame` must verify unauthenticated,
+  normal user, and disabled/passive admin calls are blocked, while active
+  `owner`/`admin` AdminUser rows succeed. `npm run build` does not prove this
+  deployed backend behavior.
 
 ## Questions
 

@@ -31,6 +31,7 @@ import sendQuestionAnalyticsReportEmailSource from '../../../base44/functions/se
 import createDailyQuestDefinitionSource from '../../../base44/functions/createDailyQuestDefinition/entry.ts?raw';
 import aggregateQuestionStatsSource from '../../../base44/functions/aggregateQuestionStats/entry.ts?raw';
 import cancelStaleLobbiesSource from '../../../base44/functions/cancelStaleLobbies/entry.ts?raw';
+import simulateOnlineGameSource from '../../../base44/functions/simulateOnlineGame/entry.ts?raw';
 import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
 import adminMaintenanceLogSchemaSource from '../../../base44/entities/AdminMaintenanceLog.jsonc?raw';
 import userSchemaSource from '../../../base44/entities/User.jsonc?raw';
@@ -130,6 +131,7 @@ const TARGET_FUNCTIONS = [
   { name: 'createDailyQuestDefinition', source: createDailyQuestDefinitionSource },
   { name: 'aggregateQuestionStats', source: aggregateQuestionStatsSource },
   { name: 'cancelStaleLobbies', source: cancelStaleLobbiesSource },
+  { name: 'simulateOnlineGame', source: simulateOnlineGameSource },
   { name: 'getAdminStatus', source: getAdminStatusSource },
   { name: 'getQuestions', source: getQuestionsSource },
 ];
@@ -320,6 +322,44 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Affected admin functions use accepted AdminUser-backed authorization. Shared guard is preferred; flat Base44 callable exceptions use verified inline AdminUser guards.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+  ),
+
+  makeCase(
+    'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
+    'simulate_online_game_admin_guard_typo_removed',
+    'simulateOnlineGame rejects scanner typo role checks and uses AdminUser-backed authorization',
+    () => {
+      const src = safeStr(simulateOnlineGameSource);
+      const missing = [
+        "import { requireAdmin } from '../_shared/adminAuth.ts'",
+        'const admin = await requireAdmin(base44)',
+        'if (admin.response) return admin.response',
+        'base44.asServiceRole.entities.Lobby.create',
+        'base44.asServiceRole.entities.Lobby.delete',
+      ].filter((token) => !src.includes(token));
+      const forbidden = [
+        'en_core_news_sm',
+        'user.role',
+        'body.role',
+        'requestRole',
+        'admin_email',
+        'ADMIN_EMAIL',
+      ].filter((token) => src.includes(token));
+      if (missing.length || forbidden.length) {
+        return fail('simulateOnlineGame admin authorization is not clearly hardened.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'AdminUser-backed requireAdmin guard before service-role simulation writes; no typo/client/profile role trust.',
+          actual: { missing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('simulateOnlineGame uses the shared AdminUser guard and contains no scanner typo/client-role authorization tokens.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,

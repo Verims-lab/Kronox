@@ -14,6 +14,7 @@
  */
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { requireAdmin } from '../_shared/adminAuth.ts';
 
 function sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
@@ -27,7 +28,7 @@ function makeLobby(playerCount, extra = {}) {
   const players = Array.from({ length: playerCount }, (_, i) => makePlayer(playerCount, i + 1));
   return {
     code: 'SIM' + Math.random().toString(36).substring(2, 5).toUpperCase(),
-    host_email: 'sim_p1@test.local',
+    host_email: players[0]?.email,
     host_name: 'SimP1',
     players,
     status: 'in_game',
@@ -80,10 +81,8 @@ async function doTurn(base44, lobbyId, playerIndex, cardId, cardYear, nextPlayer
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user || user.role !== 'admin') {
-      return Response.json({ error: 'Admin access required' }, { status: 403 });
-    }
+    const admin = await requireAdmin(base44);
+    if (admin.response) return admin.response;
 
     const body = await req.json().catch(() => ({}));
     const scenario = body.scenario || 'all';
