@@ -27,7 +27,7 @@ Analytics/statistics entities implemented now:
 - UserCategoryPreference stores app-open popup and Settings main Category interest choices per user.
 - UserSubCategoryPreference is retained legacy data from the earlier SubCategory preference phase and is not used by current Settings preferences.
 - Question loading for Game first attempts authenticated online getQuestions when online or network state is unknown. Empty local question cache is not offline; offline/no-cache is reserved for known offline plus failed fetch plus no usable cache. Question-set replacements invalidate stale local cache by question-runtime-v3-online-first version.
-- UserJokerInventory stores current user-owned joker balances per user_email + joker_type and is used by Profile, Solo joker balance display/spend, and Mağaza joker purchases.
+- UserJokerInventory stores current user-owned joker balances per normalized user_email + joker_type and is used by Profile, Solo joker balance display/spend, and Mağaza joker purchases. Missing or partial UserJokerInventory rows self-heal for authenticated users; duplicate or malformed rows do not crash Joker Çantası, and repair preserves existing balances.
 - JokerTransaction stores joker ledger/idempotency rows; starter_grant, Solo solo_use, and Mağaza market_purchase rows are active.
 - ensureUserJokerInventory grants exactly 3 mistake_shield, 3 card_swap, and 3 time_freeze once per authenticated user with starter_jokers:<email>:<joker_type> idempotency keys.
 - spendUserJoker spends one owned Solo joker with reason solo_use, source solo, quantity_delta -1, balance_after, and an idempotency key.

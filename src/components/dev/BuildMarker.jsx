@@ -1267,6 +1267,14 @@ import React, { useEffect, useState } from 'react';
 //     reconcile visible User.diamonds for idempotent retries, and surface
 //     claim errors in the Günlük Ödüller panel.
 //
+// Codex303 — Joker Çantası user-specific self-heal:
+//   • ensureUserJokerInventory now repairs missing/partial/mixed-owner
+//     UserJokerInventory rows for the authenticated user without overwriting
+//     valid balances or refunding spent jokers.
+//   • Profile Joker Çantası adds retry-safe loading/error handling, and the
+//     shared helper can still display readable own balances if ensure has a
+//     transient backend failure.
+//
 // Codex302 — False offline/no-cache question bootstrap fix:
 //   • First Solo start and refreshed question sets now attempt authenticated
 //     online getQuestions before any no-cache fallback; empty cache alone is
@@ -1598,7 +1606,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex302';
+const BUILD_MARKER = 'Codex303';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

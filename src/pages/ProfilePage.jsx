@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Users, Trophy, Sparkles, Gem, Settings, ChevronRight, LogOut, UserRound, LogIn, Shield, RefreshCw, Snowflake, ShieldAlert } from 'lucide-react';
@@ -63,6 +63,7 @@ export default function ProfilePage() {
     error: '',
     balances: emptyJokerBalances(),
   });
+  const [jokerReloadKey, setJokerReloadKey] = useState(0);
 
   useEffect(() => {
     base44.auth.me()
@@ -97,17 +98,22 @@ export default function ProfilePage() {
           balances: result?.balances || emptyJokerBalances(),
         });
       })
-      .catch((error) => {
+      .catch(() => {
         if (!alive) return;
         setJokerState({
           loading: false,
-          error: error?.message || 'Joker Çantası yüklenemedi.',
+          error: 'Joker Çantası şu anda yüklenemedi.',
           balances: emptyJokerBalances(),
         });
       });
 
     return () => { alive = false; };
-  }, [user]);
+  }, [user, jokerReloadKey]);
+
+  const retryJokerPocket = useCallback(() => {
+    sounds.tap();
+    setJokerReloadKey((value) => value + 1);
+  }, []);
 
   const isAdmin = isAdminUser(user);
 
@@ -187,6 +193,7 @@ export default function ProfilePage() {
             user={user}
             balances={jokerState.balances}
             error={jokerState.error}
+            onRetry={retryJokerPocket}
           />
         </Section>
 
@@ -242,7 +249,7 @@ const JOKER_ICON_BY_TYPE = {
 
 /* ---------------- Internal components ---------------- */
 
-function JokerPocketSection({ loading, user, balances, error }) {
+function JokerPocketSection({ loading, user, balances, error, onRetry }) {
   if (loading) {
     return (
       <div className="grid grid-cols-3 gap-2">
@@ -280,7 +287,14 @@ function JokerPocketSection({ loading, user, balances, error }) {
           boxShadow: 'inset 0 0 0 1px rgba(251,191,36,0.35)',
         }}
       >
-        Joker Çantası şu anda yüklenemedi.
+        <p>Joker Çantası şu anda yüklenemedi.</p>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="mt-2 rounded-full border border-amber-300/35 px-3 py-1 text-[11px] font-black text-amber-100"
+        >
+          Tekrar Dene
+        </button>
       </div>
     );
   }

@@ -245,6 +245,14 @@ Checklist:
   app reopen, or Profile reopen.
 * Existing users are lazily initialized; no manual DB backfill is required for
   normal rollout.
+* Missing or partial `UserJokerInventory` rows self-heal for authenticated
+  users without overwriting existing balances.
+* If inventory rows are missing but `JokerTransaction` rows exist, repair uses
+  the latest ledger `balance_after` and must not refund spent jokers.
+* Duplicate, unknown, or malformed inventory rows do not crash `Joker Çantası`;
+  valid known joker balances still render.
+* Starter grant, Mağaza purchase, Solo spend, Profile, and Solo bar all use the
+  same normalized lowercase `user_email` owner convention.
 * Profile displays balances under `Joker Çantası`, not `Envanter`.
 * Profile shows only current balances and does not expose `JokerTransaction`
   ledger rows to normal users.
@@ -286,9 +294,11 @@ Checklist:
      `Satın alma tamamlanamadı. Tekrar dene.`
   9. Return to Profile and confirm `Joker Çantası` updated.
   10. Start Solo and confirm the purchased joker count appears in the joker bar.
-  11. Try insufficient Diamonds and confirm no balance changes.
-  12. Double-tap purchase and confirm no duplicate charge/grant.
-  13. Retry after a simulated network failure if possible and confirm no
+  11. Test an existing account with missing/partial joker rows and confirm
+      `Joker Çantası` self-heals without duplicate starter grants.
+  12. Try insufficient Diamonds and confirm no balance changes.
+  13. Double-tap purchase and confirm no duplicate charge/grant.
+  14. Retry after a simulated network failure if possible and confirm no
       double-charge or double-grant.
   14. Repeat from two tabs/devices if possible; this is the live race proof.
   14. Verify Online mode remains unaffected.

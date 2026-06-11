@@ -141,6 +141,11 @@ reason solo_use and quantity_delta -1. Used jokers are not refunded on fail,
 timeout, or exit. No refund also applies to replay, browser close, or
 abandoned attempts. Jokers do not use Diamonds, do not grant Kronox Puan, and
 do not affect Online mode.
+Missing or partial UserJokerInventory rows self-heal for authenticated users
+through ensureUserJokerInventory. Repair preserves existing balances, uses the
+same normalized user_email owner convention across Profile/Solo/Market/ledger
+paths, and reconstructs missing rows from latest JokerTransaction balance_after
+without refunding spent jokers.
 used jokers are not refunded on fail, timeout, or exit.
 
 Mağaza Phase 1 sells only Solo jokers with Diamonds: Zaman Dondur = 40,

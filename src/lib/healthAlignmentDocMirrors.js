@@ -67,7 +67,7 @@ Status: Active product contract.
 - account deletion is a destructive, NOT_AUTOMATABLE manual proof gate.
 - UserJokerInventory stores current balances for mistake_shield, card_swap, and time_freeze.
 - JokerTransaction stores the append-only joker grant/spend ledger.
-- ensureUserJokerInventory grants 3 Kronokalkan, 3 Kart Değiştir, and 3 Zaman Dondur once per authenticated user using starter_jokers:<email>:<joker_type> idempotency keys.
+- ensureUserJokerInventory grants 3 Kronokalkan, 3 Kart Değiştir, and 3 Zaman Dondur once per authenticated user using starter_jokers:<email>:<joker_type> idempotency keys; missing or partial UserJokerInventory rows self-heal, existing balances are preserved, owner email is normalized, and duplicate/malformed rows do not crash Joker Çantası.
 - spendUserJoker spends one owned Solo joker using authenticated user context, positive-balance validation, reason solo_use, source solo, quantity_delta -1, and an idempotency key.
 - Profile shows only Joker Çantası balances; normal users must not see other users' balances or transaction ledger rows.
 - Mağaza Phase 1 purchases use purchaseJokerWithDiamonds; users purchase only for themselves, backend owns trusted joker prices, sufficient Diamonds are validated server-side, and successful purchases write DiamondTransaction plus JokerTransaction with market_purchase.

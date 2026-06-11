@@ -224,6 +224,15 @@ Inventory foundation:
 - every authenticated user receives 3 `mistake_shield` / Kronokalkan, 3
   `card_swap` / Kart Değiştir, and 3 `time_freeze` / Zaman Dondur once
 - starter grant keys are idempotent (`starter_jokers:<email>:<joker_type>`)
+- missing inventory for existing users self-heals through the authenticated
+  `ensureUserJokerInventory` path; partial missing joker-type rows are repaired
+  without overwriting existing balances
+- identity is normalized through lowercase `user_email` across starter grant,
+  Profile, Solo spend, Mağaza purchase, and ledger rows
+- if inventory rows are missing but ledger rows exist, repair uses the latest
+  `JokerTransaction.balance_after` so spent jokers are not refunded
+- duplicate, unknown, or malformed inventory rows must not crash Profile or
+  Solo loading; valid known balances are still displayed
 - Profile displays balances under `Joker Çantası`
 - Mağaza Phase 1 sells only Solo jokers with Diamonds:
   `Zaman Dondur = 40`, `Kart Değiştir = 50`, `Kronokalkan = 60`

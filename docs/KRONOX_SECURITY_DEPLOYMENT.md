@@ -537,6 +537,11 @@ Joker inventory is user-owned data:
   runtime two-account proof
 * starter grants are created by `ensureUserJokerInventory` using authenticated
   user context and per-joker idempotency keys
+* missing or partial `UserJokerInventory` rows self-heal for authenticated
+  users; repair preserves existing balances, normalizes owner email, and uses
+  latest `JokerTransaction.balance_after` when rows must be reconstructed
+* duplicate, unknown, or malformed inventory rows must not expose raw errors or
+  crash Profile/Solo `Joker Çantası` loading
 * Solo joker usage is spent by `spendUserJoker` using authenticated user
   context, positive-balance validation, `solo_use` ledger rows, and
   idempotency keys
