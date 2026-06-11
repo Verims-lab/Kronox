@@ -20,6 +20,7 @@ import AddFriendForm from '@/components/friends/AddFriendForm';
 import IncomingInvitesPanel from '@/components/invites/IncomingInvitesPanel';
 import useFriendsRealtimeRefresh from '@/hooks/useFriendsRealtimeRefresh';
 import StandardTopBar from '@/components/layout/StandardTopBar';
+import PullToRefresh from '@/components/mobile/PullToRefresh';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 
 /**
@@ -170,75 +171,79 @@ export default function FriendsPage() {
 
   return (
     <PageShell>
-      <StandardTopBar showBack onBack={() => navigate('/')} diamonds={getLeaderboardDiamondValue(user)} user={user} />
-      {/* Header subtitle */}
-      <p className="font-inter text-xs text-blue-100/60 px-1">
-        Arkadaşlarını yönet, davet et, isteklerini gör.
-      </p>
+      <PullToRefresh onRefresh={() => refresh(user.email)} disabled={!user?.email}>
+        <div className="space-y-5">
+          <StandardTopBar showBack onBack={() => navigate('/')} diamonds={getLeaderboardDiamondValue(user)} user={user} />
+          {/* Header subtitle */}
+          <p className="font-inter text-xs text-blue-100/60 px-1">
+            Arkadaşlarını yönet, davet et, isteklerini gör.
+          </p>
 
-      {loadError && (
-        <p className="rounded-xl px-3 py-2 font-inter text-xs text-rose-100/90"
-          style={{ background: 'rgba(244,63,94,0.10)', boxShadow: 'inset 0 0 0 1px rgba(244,63,94,0.35)' }}>
-          {loadError}
-        </p>
-      )}
+          {loadError && (
+            <p className="rounded-xl px-3 py-2 font-inter text-xs text-rose-100/90"
+              style={{ background: 'rgba(244,63,94,0.10)', boxShadow: 'inset 0 0 0 1px rgba(244,63,94,0.35)' }}>
+              {loadError}
+            </p>
+          )}
 
-      {successMsg && (
-        <p className="rounded-xl px-3 py-2 font-inter text-xs font-bold text-emerald-100"
-          style={{ background: 'rgba(16,185,129,0.12)', boxShadow: 'inset 0 0 0 1px rgba(16,185,129,0.45)' }}>
-          {successMsg}
-        </p>
-      )}
+          {successMsg && (
+            <p className="rounded-xl px-3 py-2 font-inter text-xs font-bold text-emerald-100"
+              style={{ background: 'rgba(16,185,129,0.12)', boxShadow: 'inset 0 0 0 1px rgba(16,185,129,0.45)' }}>
+              {successMsg}
+            </p>
+          )}
 
-      {/* Pending GAME invites (separate from friend requests) */}
-      <IncomingInvitesPanel user={user} />
+          {/* Pending GAME invites (separate from friend requests) */}
+          <IncomingInvitesPanel user={user} />
 
-      {/* Incoming */}
-      <Section icon={Inbox} label="Gelen İstekler" badge={incoming.length}>
-        {loading ? <RowSkeleton /> : incoming.length === 0 ? (
-          <EmptyHint text="Şu an bekleyen istek yok." />
-        ) : (
-          <div className="space-y-2">
-            {incoming.map((req) => (
-              <IncomingRequestItem
-                key={req.id}
-                request={req}
-                onAccept={handleAccept}
-                onReject={handleReject}
-              />
-            ))}
-          </div>
-        )}
-      </Section>
+          {/* Incoming */}
+          <Section icon={Inbox} label="Gelen İstekler" badge={incoming.length}>
+            {loading ? <RowSkeleton /> : incoming.length === 0 ? (
+              <EmptyHint text="Şu an bekleyen istek yok." />
+            ) : (
+              <div className="space-y-2">
+                {incoming.map((req) => (
+                  <IncomingRequestItem
+                    key={req.id}
+                    request={req}
+                    onAccept={handleAccept}
+                    onReject={handleReject}
+                  />
+                ))}
+              </div>
+            )}
+          </Section>
 
-      {/* My Friends */}
-      <Section icon={Users} label="Arkadaşlarım" badge={friends.length}>
-        {loading ? <RowSkeleton /> : friends.length === 0 ? (
-          <EmptyHint text="Henüz arkadaşın yok. Aşağıdan e-posta ile ekleyebilirsin." />
-        ) : (
-          <div className="space-y-2">
-            {friends.map((f) => (
-              <FriendListItem key={f.id} friend={f} onRemove={handleRemove} />
-            ))}
-          </div>
-        )}
-      </Section>
+          {/* My Friends */}
+          <Section icon={Users} label="Arkadaşlarım" badge={friends.length}>
+            {loading ? <RowSkeleton /> : friends.length === 0 ? (
+              <EmptyHint text="Henüz arkadaşın yok. Aşağıdan e-posta ile ekleyebilirsin." />
+            ) : (
+              <div className="space-y-2">
+                {friends.map((f) => (
+                  <FriendListItem key={f.id} friend={f} onRemove={handleRemove} />
+                ))}
+              </div>
+            )}
+          </Section>
 
-      {/* Add Friend */}
-      <Section icon={UserPlus} label="Arkadaş Ekle">
-        <AddFriendForm onSubmit={handleSend} />
-      </Section>
+          {/* Add Friend */}
+          <Section icon={UserPlus} label="Arkadaş Ekle">
+            <AddFriendForm onSubmit={handleSend} />
+          </Section>
 
-      {/* Outgoing (only when present) */}
-      {outgoing.length > 0 && (
-        <Section icon={Send} label="Giden İstekler" badge={outgoing.length}>
-          <div className="space-y-2">
-            {outgoing.map((req) => (
-              <OutgoingRequestItem key={req.id} request={req} onCancel={handleCancel} />
-            ))}
-          </div>
-        </Section>
-      )}
+          {/* Outgoing (only when present) */}
+          {outgoing.length > 0 && (
+            <Section icon={Send} label="Giden İstekler" badge={outgoing.length}>
+              <div className="space-y-2">
+                {outgoing.map((req) => (
+                  <OutgoingRequestItem key={req.id} request={req} onCancel={handleCancel} />
+                ))}
+              </div>
+            </Section>
+          )}
+        </div>
+      </PullToRefresh>
     </PageShell>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { ChevronRight, FileDown, FlaskConical, Loader2, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import ResetUserProgressTool from '@/components/admin/ResetUserProgressTool';
 import QuestionAnalyticsReportTool from '@/components/admin/QuestionAnalyticsReportTool';
 import DailyQuestDefinitionManager from '@/components/admin/DailyQuestDefinitionManager';
 import StandardTopBar from '@/components/layout/StandardTopBar';
+import PullToRefresh from '@/components/mobile/PullToRefresh';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -18,6 +19,7 @@ export default function AdminPage() {
   const [downloadingWorkflow, setDownloadingWorkflow] = useState(false);
   const [docError, setDocError] = useState('');
   const [showSim, setShowSim] = useState(false);
+  const adminRefreshersRef = useRef(new Set());
 
   const parsedAdminStatus = adminStatus?.parsedIsAdmin === true || user?.admin_status_debug?.parsedIsAdmin === true;
   const isAdmin = parsedAdminStatus;
@@ -54,6 +56,19 @@ export default function AdminPage() {
       URL.revokeObjectURL(url);
     } finally { setDownloadingWorkflow(false); }
   };
+
+  const registerAdminRefresh = useCallback((refreshFn) => {
+    if (typeof refreshFn !== 'function') return undefined;
+    adminRefreshersRef.current.add(refreshFn);
+    return () => {
+      adminRefreshersRef.current.delete(refreshFn);
+    };
+  }, []);
+
+  const refreshAdminMaintenanceLists = useCallback(async () => {
+    const refreshers = Array.from(adminRefreshersRef.current);
+    await Promise.all(refreshers.map((refreshFn) => refreshFn()));
+  }, []);
 
   if (isLoadingAuth || adminStatus?.loading || adminStatus?.statusCall === 'pending') {
     return (
@@ -112,38 +127,40 @@ export default function AdminPage() {
         </p>
       </div>
 
-      <div className="px-4 space-y-5">
-        <Section label="Araçlar">
-          <ToolCard
-            icon={<FileDown className="w-4 h-4" />}
-            title="Teknik Döküman"
-            desc="Sistem mimarisi ve veri modeli"
-            loading={downloadingDoc}
-            onClick={handleDownloadDoc}
-          />
-          {docError && (
-            <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-100">
-              {docError}
-            </p>
-          )}
-          <ToolCard
-            icon={<FileDown className="w-4 h-4" />}
-            title="İş Akışı Dökümanı"
-            desc="Use case'ler ve süreç adımları"
-            loading={downloadingWorkflow}
-            onClick={handleDownloadWorkflow}
-          />
-          <ToolCard
-            icon={<FlaskConical className="w-4 h-4" />}
-            title="Kronox Health Simulator"
-            desc="Brutally honest mobile, gameplay, sync, and release-risk checks"
-            onClick={() => setShowSim(true)}
-          />
-          <QuestionAnalyticsReportTool />
-          <DailyQuestDefinitionManager />
-          <ResetUserProgressTool />
-        </Section>
-      </div>
+      <PullToRefresh onRefresh={refreshAdminMaintenanceLists}>
+        <div className="px-4 space-y-5">
+          <Section label="Araçlar">
+            <ToolCard
+              icon={<FileDown className="w-4 h-4" />}
+              title="Teknik Döküman"
+              desc="Sistem mimarisi ve veri modeli"
+              loading={downloadingDoc}
+              onClick={handleDownloadDoc}
+            />
+            {docError && (
+              <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-100">
+                {docError}
+              </p>
+            )}
+            <ToolCard
+              icon={<FileDown className="w-4 h-4" />}
+              title="İş Akışı Dökümanı"
+              desc="Use case'ler ve süreç adımları"
+              loading={downloadingWorkflow}
+              onClick={handleDownloadWorkflow}
+            />
+            <ToolCard
+              icon={<FlaskConical className="w-4 h-4" />}
+              title="Kronox Health Simulator"
+              desc="Brutally honest mobile, gameplay, sync, and release-risk checks"
+              onClick={() => setShowSim(true)}
+            />
+            <QuestionAnalyticsReportTool />
+            <DailyQuestDefinitionManager onRegisterRefresh={registerAdminRefresh} />
+            <ResetUserProgressTool />
+          </Section>
+        </div>
+      </PullToRefresh>
 
       <AnimatePresence>
         {showSim && (

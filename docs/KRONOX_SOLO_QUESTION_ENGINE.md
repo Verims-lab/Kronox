@@ -25,6 +25,24 @@ Deck size formula:
 - normal: `7 + 9 = 16 questions`
 - special: `10 + 9 = 19 questions`
 
+## Question Loading Bootstrap
+
+Game entry first attempts an authenticated online `getQuestions` fetch whenever
+the browser is online or network state is unknown. Empty local question cache is
+not an offline condition by itself. While the first fetch is pending, the user
+sees a loading state such as `Sorular hazırlanıyor...`.
+
+The offline/no-cache screen is reserved for known offline state, a failed online
+fetch, and no usable local cache. Online data failures use a question-load retry
+message instead of `İnternet bağlantısı yok`. `Tekrar Dene` clears the
+transient error and re-fetches online before using cache fallback.
+
+Question-set replacements invalidate old local question cache through a cache
+version. Stale or deleted cached question IDs must not block a fresh DB fetch or
+crash deck creation. Direct `/game` access without Solo launch state is handled
+as missing game state and sends the user back to Home/Solo entry instead of
+showing a false offline screen.
+
 ## Hard Deck Rules
 
 The full attempt deck is built before gameplay starts. Gameplay consumes that prebuilt deck in order. There is no live question fetch, no per-card randomization, and no mid-attempt re-randomization.
@@ -176,6 +194,9 @@ Solo card dragging on mobile web uses a gameplay-scoped pull-to-refresh guard:
 - the timeline keeps horizontal `scrollLeft` auto-scroll and drop-zone
   hit-testing intact
 - Profile, Settings, and other non-game screens must keep normal scrolling
+- Friends, Liderlik, and Admin Ekranı may use app-provided Pull-to-Refresh
+  wrappers for list reloads; those wrappers are container-scoped and separate
+  from the gameplay drag guard
 - iOS Safari, Android Chrome, and PWA/standalone require real-device proof
 - if a full browser refresh still happens, current-attempt restore remains a
   separate release risk unless proven by runtime testing
@@ -206,6 +227,15 @@ Inventory foundation:
 - every authenticated user receives 3 `mistake_shield` / Kronokalkan, 3
   `card_swap` / Kart Değiştir, and 3 `time_freeze` / Zaman Dondur once
 - starter grant keys are idempotent (`starter_jokers:<email>:<joker_type>`)
+- missing inventory for existing users self-heals through the authenticated
+  `ensureUserJokerInventory` path; partial missing joker-type rows are repaired
+  without overwriting existing balances
+- identity is normalized through lowercase `user_email` across starter grant,
+  Profile, Solo spend, Mağaza purchase, and ledger rows
+- if inventory rows are missing but ledger rows exist, repair uses the latest
+  `JokerTransaction.balance_after` so spent jokers are not refunded
+- duplicate, unknown, or malformed inventory rows must not crash Profile or
+  Solo loading; valid known balances are still displayed
 - Profile displays balances under `Joker Çantası`
 - Mağaza Phase 1 sells only Solo jokers with Diamonds:
   `Zaman Dondur = 40`, `Kart Değiştir = 50`, `Kronokalkan = 60`
@@ -242,7 +272,9 @@ Daily Quest Runtime v1 is Solo-focused:
 - `title` and `description` are display-only Turkish copy and are never parsed
   into logic
 - Solo progress is measured only by `quest_type + target_value`
-- `start_solo_attempt` increments when a Solo attempt starts
+- `start_solo_attempt` increments only after the Solo deck is built, the first
+  question is selected, and the attempt actually starts; failed question loading
+  must not count
 - `correct_cards` increments after correct Solo card placement
 - `complete_solo_level` increments only after a successful Solo level
 - `use_joker` increments only after a Solo joker is successfully consumed

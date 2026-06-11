@@ -165,6 +165,63 @@ export const EXTRA_TESTS = [
       return pass('Starter grants use per-user/per-joker idempotency and existing transaction checks.', { verification: 'STATIC_CONTRACT' });
     }),
 
+  makeCase('missing_inventory_self_heals',
+    'Missing or partial UserJokerInventory self-heals for authenticated users',
+    () => {
+      const missing = missingTokens(`${jokerInventorySource}\n${ensureUserJokerInventorySource}`, [
+        'JOKER_INVENTORY_SELF_HEAL_CONTRACT',
+        'Missing UserJokerInventory self-heals for authenticated users.',
+        'Partial inventory rows self-heal missing joker types.',
+        'selfHealedMissingOrPartialInventory',
+        'findInventoryRows',
+        'findLatestJokerTransaction',
+        'selfHealed',
+      ]);
+      if (missing.length) return fail('Missing/partial joker inventory self-heal contract is incomplete.', {
+        verification: 'STATIC_CONTRACT',
+        files: ['src/lib/jokerInventory.js', 'base44/functions/ensureUserJokerInventory/entry.ts'],
+        missing,
+      });
+      return pass('Missing/partial UserJokerInventory rows are repaired through the authenticated ensure path.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('existing_balances_preserved_during_ensure',
+    'Ensure preserves existing balances and avoids duplicate-row crashes',
+    () => {
+      const missing = missingTokens(`${jokerInventorySource}\n${ensureUserJokerInventorySource}`, [
+        'Existing joker balances are preserved',
+        'Duplicate or malformed UserJokerInventory rows do not crash Joker Çantası.',
+        'maxKnownInventoryQuantity',
+        'duplicateRowsIgnored',
+        'ledgerRecoveredQuantity',
+        'balances[type] = Math.max(balances[type], normalizeJokerQuantity',
+      ]);
+      if (missing.length) return fail('Ensure can overwrite balances or let duplicate/corrupt rows break the loader.', {
+        verification: 'STATIC_CONTRACT',
+        files: ['src/lib/jokerInventory.js', 'base44/functions/ensureUserJokerInventory/entry.ts'],
+        missing,
+      });
+      return pass('Ensure keeps the highest known balance, ignores duplicates safely, and reconstructs from ledger when needed.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('profile_joker_cantasi_waits_and_retries',
+    'Profile Joker Çantası waits for auth/user and offers retry on real error',
+    () => {
+      const missing = missingTokens(profilePageSource, [
+        'loading || jokerState.loading',
+        'getUserJokerBalances(user, { ensureStarter: true })',
+        'Joker Çantası şu anda yüklenemedi.',
+        'setJokerReloadKey',
+        'Tekrar Dene',
+      ]);
+      if (missing.length) return fail('Profile Joker Çantası can show a permanent error before retryable ensure/load completes.', {
+        verification: 'STATIC_CONTRACT',
+        file: 'src/pages/ProfilePage.jsx',
+        missing,
+      });
+      return pass('Profile waits for user/inventory loading, retries safely, and uses generic Turkish error copy.', { verification: 'STATIC_CONTRACT' });
+    }),
+
   makeCase('starter_grant_requires_authenticated_user',
     'Starter grant function rejects unauthenticated users',
     () => {
@@ -202,7 +259,8 @@ export const EXTRA_TESTS = [
     'Starter grants write JokerTransaction rows with starter_grant and idempotency_key',
     () => {
       const missing = missingTokens(ensureUserJokerInventorySource, [
-        'JokerTransaction.create',
+        "entityStore(base44, 'JokerTransaction')",
+        '.create(payload)',
         'quantity_delta',
         'reason: STARTER_REASON',
         'source: STARTER_SOURCE',

@@ -207,6 +207,9 @@ import * as dailyQuestDefinitionCases from './simulationPanelDailyQuestDefinitio
 // Daily Quest Runtime v1: user-owned UTC daily progress, Solo-only events,
 // Diamond-only claim flow, and unified Günlük Ödüller panel.
 import * as dailyQuestRuntimeCases from './simulationPanelDailyQuestRuntimeCases';
+// iOS/mobile compatibility: scoped pull-to-refresh, independent tab stacks,
+// and Kronox bottom-sheet selectors for preference/admin selection controls.
+import * as mobileCompatibilityCases from './simulationPanelMobileCompatibilityCases';
 
 const MODULES = [
   soloProgressCases,
@@ -258,6 +261,7 @@ const MODULES = [
   marketCases,
   dailyQuestDefinitionCases,
   dailyQuestRuntimeCases,
+  mobileCompatibilityCases,
 ];
 
 function flatten(key) {

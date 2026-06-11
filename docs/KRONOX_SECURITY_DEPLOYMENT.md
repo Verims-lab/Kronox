@@ -165,6 +165,20 @@ Accepted admin indicators:
 Backend admin-only functions must still enforce authorization server-side with
 the shared AdminUser guard.
 
+Question loading / offline fallback:
+
+* gameplay question content remains protected behind authenticated backend
+  `getQuestions`; normal users receive only the minimal runtime projection, not
+  the raw admin question bank
+* Game startup must attempt authenticated online question fetch when the
+  browser is online or network state is unknown
+* empty local question cache alone is not an offline condition
+* stale question cache is versioned and invalidated after question-set/runtime
+  changes
+* the offline/no-cache screen is reserved for known offline state or failed
+  online fetch with no usable cache; retry re-fetches online and does not
+  require back navigation
+
 Rules:
 
 * do not commit personal admin emails to source code
@@ -459,6 +473,11 @@ After deployment, verify:
 * normal users still cannot access Profile / `Admin Ekranı`, `/test-suite`, Health
   Simulator, admin maintenance functions, or the question analytics report
   trigger by direct route
+* admin selection controls may use Kronox bottom-sheet selectors, but UI
+  controls are not authorization; backend admin functions must still derive
+  the current user from auth and enforce active `AdminUser` owner/admin status
+* Admin Ekranı list refresh uses scoped Pull-to-Refresh only after the admin UI
+  gate has passed; it must not expose admin maintenance data to normal users
 
 ## Questions
 
@@ -472,6 +491,9 @@ After deployment, verify:
 * `UserCategoryPreference` rows are user-scoped Settings data
 * normal users can read/update only their own preference rows
 * passive `Category.status = P/p` rows are not selectable
+* Category preference selection UI is a custom touch selector; raw native
+  selects are not required for the targeted Settings surface, and save
+  validation remains server/user scoped
 * Category preference popup prompts any authenticated user with fewer than 3
   active valid Category preferences, including existing users
 * active valid `UserCategoryPreference` count is the popup source of truth
@@ -523,6 +545,11 @@ Joker inventory is user-owned data:
   runtime two-account proof
 * starter grants are created by `ensureUserJokerInventory` using authenticated
   user context and per-joker idempotency keys
+* missing or partial `UserJokerInventory` rows self-heal for authenticated
+  users; repair preserves existing balances, normalizes owner email, and uses
+  latest `JokerTransaction.balance_after` when rows must be reconstructed
+* duplicate, unknown, or malformed inventory rows must not expose raw errors or
+  crash Profile/Solo `Joker Çantası` loading
 * Solo joker usage is spent by `spendUserJoker` using authenticated user
   context, positive-balance validation, `solo_use` ledger rows, and
   idempotency keys

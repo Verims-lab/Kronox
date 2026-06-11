@@ -64,10 +64,11 @@ Status: Active product contract.
 - Admin Ekranı contains admin-only maintenance/report tools; Settings remains account/help/preferences focused.
 - Direct /admin access by normal users is blocked or redirected safely.
 - admin-only maintenance functions verify AdminUser-backed authorization server-side.
+- Admin Ekranı list refresh uses scoped Pull-to-Refresh only after the admin gate has passed; bottom-sheet selectors do not replace backend AdminUser authorization.
 - account deletion is a destructive, NOT_AUTOMATABLE manual proof gate.
 - UserJokerInventory stores current balances for mistake_shield, card_swap, and time_freeze.
 - JokerTransaction stores the append-only joker grant/spend ledger.
-- ensureUserJokerInventory grants 3 Kronokalkan, 3 Kart Değiştir, and 3 Zaman Dondur once per authenticated user using starter_jokers:<email>:<joker_type> idempotency keys.
+- ensureUserJokerInventory grants 3 Kronokalkan, 3 Kart Değiştir, and 3 Zaman Dondur once per authenticated user using starter_jokers:<email>:<joker_type> idempotency keys; missing or partial UserJokerInventory rows self-heal, existing balances are preserved, owner email is normalized, and duplicate/malformed rows do not crash Joker Çantası.
 - spendUserJoker spends one owned Solo joker using authenticated user context, positive-balance validation, reason solo_use, source solo, quantity_delta -1, and an idempotency key.
 - Profile shows only Joker Çantası balances; normal users must not see other users' balances or transaction ledger rows.
 - Mağaza Phase 1 purchases use purchaseJokerWithDiamonds; users purchase only for themselves, backend owns trusted joker prices, sufficient Diamonds are validated server-side, and successful purchases write DiamondTransaction plus JokerTransaction with market_purchase.
@@ -90,7 +91,7 @@ Status: Active product contract.
 - Report/admin functions must NOT use local imports that resolve outside the deployed path. The broken './_shared/adminAuth.js' pattern resolved to a file URL under /src/_shared (module not found) and broke deployment, leaving Base44 serving a stale build. The callable report function now inlines a DB-backed AdminUser guard instead.
 - base44/functions/<name>/entry.ts shared imports remain allowed where proven deployable; sendQuestionAnalyticsReportEmail intentionally uses an inline guard for this runtime-sensitive path.
 - Critical report/admin functions should include safe template/function markers (e.g. templateVersion static-pool-v2, REPORT_BUILD_MARKER, and bodyContains* diagnostics). If real output lacks the marker, the function deployment is stale.
-- sendQuestionAnalyticsReportEmail live deploy is proven by triggering the function and reading reportBuildMarker (current: Codex299), templateVersion static-pool-v2, and bodyContainsStaticPoolSection/Template/QuestionSource = true. A published frontend that does not change reportBuildMarker means the executed backend function did not redeploy.
+- sendQuestionAnalyticsReportEmail live deploy is proven by triggering the function and reading reportBuildMarker (current: Codex304), templateVersion static-pool-v2, and bodyContainsStaticPoolSection/Template/QuestionSource = true. A published frontend that does not change reportBuildMarker means the executed backend function did not redeploy.
 - A prior Codex275 marker bump was never proven deployed because the runtime function still imported the broken local _shared guard; the recovery inlined the AdminUser guard and uses current reportBuildMarker values as the unambiguous live marker.
 - Function-based question analytics reset is currently not used.
 - Manual DB reset path after question pool replacement clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection.
@@ -113,6 +114,7 @@ Status: Active product contract.
 - Passive or removed Category selections are filtered from UI/save state and are not resaved as active preferences.
 - completing the popup saves UserCategoryPreference rows before marking the user profile onboarding flag complete.
 - Users can later change selections under Profile / Settings / İlgi Alanlarım.
+- Game question loading first attempts authenticated online getQuestions when online or network state is unknown; empty local cache is not offline, stale cache is invalidated by question-runtime-v3-online-first, Retry re-fetches online, and false offline/no-cache is reserved for known offline plus failed fetch plus no usable cache.
 - Solo question selection reads current-user active valid Category preferences before attempt start and targets 70% selected categories / 30% full eligible pool as soft weighting with fallback. The selected-category 70% lane is not difficulty-1 restricted; the global 30% lane prefers difficulty 1 from the full eligible pool where possible and safely falls back when difficulty-1 global candidates are insufficient.
 - Online question selection, getQuestions, and analytics do not read preferences for question selection.
 - two-account preference RLS proof remains manual/NOT_AUTOMATABLE.
@@ -193,6 +195,9 @@ Two-account invite + scoring proof, OnlineMatchResult idempotency.
 Two/three-account RLS probe matrix, service-role scoping.
 
 ## PWA / Push
+BottomNav keeps independent tab stacks for Home, Online, Liderlik, and Profile; switching tabs preserves subroute/scroll state and re-tapping the active tab resets that tab to its root while /game remains full-screen.
+Friends, Liderlik, and Admin Ekranı maintenance lists use scoped Pull-to-Refresh wrappers that call real reload paths, respect reduced motion, and do not affect gameplay drag.
+Category/Admin selection controls use Kronox bottom-sheet selectors instead of raw native HTML selects in the targeted surfaces; sheets support Escape/backdrop close, focus return, safe-area bottom padding, dark mode, and reduced motion.
 Push subscription works on real installed device if supported. (manual)
 sendGameInvitePush requires backend VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, and VAPID_SUBJECT.
 Missing or blank VAPID config returns explicit vapid_config_missing / missing_vapid_config diagnostics.
@@ -226,6 +231,7 @@ categories are selectable and count, passive or removed Category selections are
 filtered from active UI/save state, completion prevents repeat prompts only while
 the user still has 3 or more active valid preferences, and Users can later change
 selections under Profile / Settings / İlgi Alanlarım. SubCategory entity still exists, but Settings currently uses Category interests.
+The Settings Category preference surface is custom touch UI with no raw native select in the targeted section; save validation and user scoping remain unchanged.
 Mobile wrapping/long-name visual proof and two-account preference RLS proof
 remain manual/NOT_AUTOMATABLE.
 `;

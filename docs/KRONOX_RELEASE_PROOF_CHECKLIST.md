@@ -95,6 +95,18 @@ Checklist:
 * P2 deck diagnostics expose level type, correct target, fail threshold, question IDs, answer years, difficulty distribution, balance score, and warnings for Health/admin/debug only.
 * Question pool health warns about insufficient unique years, invalid years, sparse/overrepresented categories or subcategories, and missing sub_category/tag/difficulty metadata.
 * `/getQuestions` runtime projection uses deterministic pool-proportional sampling before any gameplay cap; it must not return an ordered newest/category slice.
+* First Solo start in a fresh browser attempts online `getQuestions` before any
+  offline fallback and shows `Sorular hazırlanıyor...` while pending.
+* Empty local question cache alone must not show `İnternet bağlantısı yok`.
+* After a question-set replacement, stale local question cache is invalidated by
+  cache version and the game fetches fresh DB questions before deck build.
+* If online fetch fails while the browser is online, the game shows a retryable
+  question-load message, not a fake offline/no-cache screen.
+* `Tekrar Dene` clears transient question-load errors and re-fetches online
+  without requiring the user to go back.
+* Direct `/game` access without Solo launch state is handled as missing game
+  state and routes back to Home/Solo entry safely.
+* True offline plus no usable cache still shows the offline/no-cache screen.
 * Solo deck selection applies soft exposure cooldown/rotation before the attempt starts: never/low-shown and not-recently-shown cards are preferred, high/recent shown cards are downweighted, and missing/corrupt history must not block deck creation.
 * Solo category, subcategory, theme, and year-band balancing remains pool-proportional rather than equal-count; large eligible groups may stay large while smaller valid groups are protected from accidental starvation where hard rules allow.
 * Question exposure analytics are reviewed after deploy to confirm unique-question coverage and category/subcategory concentration improved.
@@ -233,6 +245,14 @@ Checklist:
   app reopen, or Profile reopen.
 * Existing users are lazily initialized; no manual DB backfill is required for
   normal rollout.
+* Missing or partial `UserJokerInventory` rows self-heal for authenticated
+  users without overwriting existing balances.
+* If inventory rows are missing but `JokerTransaction` rows exist, repair uses
+  the latest ledger `balance_after` and must not refund spent jokers.
+* Duplicate, unknown, or malformed inventory rows do not crash `Joker Çantası`;
+  valid known joker balances still render.
+* Starter grant, Mağaza purchase, Solo spend, Profile, and Solo bar all use the
+  same normalized lowercase `user_email` owner convention.
 * Profile displays balances under `Joker Çantası`, not `Envanter`.
 * Profile shows only current balances and does not expose `JokerTransaction`
   ledger rows to normal users.
@@ -274,9 +294,11 @@ Checklist:
      `Satın alma tamamlanamadı. Tekrar dene.`
   9. Return to Profile and confirm `Joker Çantası` updated.
   10. Start Solo and confirm the purchased joker count appears in the joker bar.
-  11. Try insufficient Diamonds and confirm no balance changes.
-  12. Double-tap purchase and confirm no duplicate charge/grant.
-  13. Retry after a simulated network failure if possible and confirm no
+  11. Test an existing account with missing/partial joker rows and confirm
+      `Joker Çantası` self-heals without duplicate starter grants.
+  12. Try insufficient Diamonds and confirm no balance changes.
+  13. Double-tap purchase and confirm no duplicate charge/grant.
+  14. Retry after a simulated network failure if possible and confirm no
       double-charge or double-grant.
   14. Repeat from two tabs/devices if possible; this is the live race proof.
   14. Verify Online mode remains unaffected.
@@ -330,6 +352,8 @@ Checklist:
   `Günlük Görevleri Yap, Elmasları Kazan!`.
 * `recordDailyQuestProgress` updates Solo-only events:
   `start_solo_attempt`, `correct_cards`, `complete_solo_level`, and `use_joker`.
+  `start_solo_attempt` is recorded only after the Solo deck is built, the first
+  question is selected, and the attempt actually starts.
 * `claimDailyQuestReward` requires completed status, uses the reward copied in
   the progress row, writes `DiamondTransaction.source = daily_quest_reward`,
   updates the visible `User.diamonds` balance, returns `diamondBalanceAfter`,
@@ -371,9 +395,20 @@ Checklist:
 * Gameplay does not page-scroll during drag.
 * Timeline horizontal scroll still works.
 * Bottom nav does not collide with home indicator.
+* BottomNav keeps independent tab stacks for Home, Online, Liderlik, and
+  Profile. Switching tabs preserves the previous subroute/scroll state; tapping
+  the active tab resets that tab to its root. `/game` remains outside tab stacks
+  and full-screen according to existing gameplay rules.
 * Top bar does not clip under notch/status bar.
 * Popups fit small screens.
 * Keyboard does not crush input flows.
+* Friends, Liderlik, and admin maintenance lists use the app-provided scoped
+  Pull-to-Refresh. It must call the real list reload path, respect reduced
+  motion, and must not install global gesture handlers or affect gameplay drag.
+* Category preferences and admin selection controls use Kronox-themed
+  bottom-sheet selectors instead of raw native HTML selects in the targeted
+  surfaces. The sheets must support Escape/backdrop close, focus return,
+  dark-mode readability, safe-area bottom padding, and reduced-motion behavior.
 * PWA manifest/icons work.
 * Push subscription works on real installed device if supported.
 * `sendGameInvitePush` requires backend `VAPID_PUBLIC_KEY`,
@@ -418,6 +453,8 @@ Checklist:
 * Mobile browser gameplay uses a scoped card-drag overscroll guard: the guard
   is active only during gameplay/card drag, uses a `passive:false` touchmove
   prevention path where needed, and must not disable Profile/Settings scrolling.
+* App-provided Pull-to-Refresh is separate from the gameplay drag guard and is
+  scoped only to Friends, Liderlik, and admin list containers.
 * Real-device proof is required on iOS Safari, Android Chrome, and PWA/standalone
   before release: start Solo, drag the question card vertically/diagonally,
   confirm pull-to-refresh does not fire, then confirm placement, drop-zone

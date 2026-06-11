@@ -139,7 +139,8 @@ export const EXTRA_TESTS = [
     'quest_type is enum/dropdown, not arbitrary free text',
     () => {
       const missing = missingTokens(`${dailyQuestManagerSource}\n${createDailyQuestDefinitionSource}`, [
-        '<select',
+        'KronoxSelectSheet',
+        'questTypeOptions',
         'DAILY_QUEST_V1_TYPES.map',
         'normalizeQuestType',
         'QUEST_TYPES.includes',
@@ -154,7 +155,7 @@ export const EXTRA_TESTS = [
         files: ['src/components/admin/DailyQuestDefinitionManager.jsx', 'base44/functions/createDailyQuestDefinition/entry.ts'],
         actual: { missing, forbidden },
       });
-      return pass('quest_type is selected from a dropdown and revalidated by backend enum.', { verification: 'STATIC_CONTRACT' });
+      return pass('quest_type is selected from the Kronox bottom-sheet enum control and revalidated by backend enum.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('positive_target_and_reward_contract',

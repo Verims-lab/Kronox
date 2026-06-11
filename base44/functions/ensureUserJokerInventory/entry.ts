@@ -13,9 +13,32 @@ function normalizeEmail(value: unknown) {
   return String(value || '').trim().toLowerCase();
 }
 
+function normalizeJokerType(value: unknown) {
+  const type = String(value || '').trim();
+  return JOKER_TYPES.includes(type as typeof JOKER_TYPES[number]) ? type : '';
+}
+
 function normalizeQuantity(value: unknown) {
   const number = Number(value);
   return Number.isFinite(number) ? Math.max(0, Math.floor(number)) : 0;
+}
+
+function rowId(row: any) {
+  return row?.id || row?._id || null;
+}
+
+function entityStore(base44: any, entityName: string) {
+  const serviceEntity = base44?.asServiceRole?.entities ? base44.asServiceRole.entities[entityName] : null;
+  const authEntity = base44?.entities ? base44.entities[entityName] : null;
+  return serviceEntity || authEntity;
+}
+
+function emailVariants(email: string, rawEmail = '') {
+  return Array.from(new Set([
+    normalizeEmail(email),
+    String(rawEmail || '').trim(),
+    normalizeEmail(rawEmail),
+  ].filter(Boolean)));
 }
 
 function nowIso() {
@@ -32,25 +55,63 @@ function emptyBalances() {
 
 function publicInventoryRow(row: any) {
   return {
-    id: row?.id || null,
+    id: rowId(row),
     jokerType: row?.joker_type || '',
     quantity: normalizeQuantity(row?.quantity),
     updatedAt: row?.updated_at || row?.created_at || null,
   };
 }
 
-async function findInventory(base44: any, email: string, jokerType: string) {
-  const rows = await base44.asServiceRole.entities.UserJokerInventory
-    .filter({ user_email: email, joker_type: jokerType }, '-updated_at', 10)
-    .catch(() => []);
-  return Array.isArray(rows) && rows.length ? rows[0] : null;
+async function findInventoryRows(base44: any, email: string, jokerType: string, rawEmail = '') {
+  const entity = entityStore(base44, 'UserJokerInventory');
+  if (!entity?.filter) return [];
+  const batches = await Promise.all(emailVariants(email, rawEmail).map((ownerEmail) => entity
+    .filter({ user_email: ownerEmail, joker_type: jokerType }, '-updated_at', 25)
+    .catch(() => [])));
+  const seen = new Set<string>();
+  return batches
+    .flatMap((rows) => (Array.isArray(rows) ? rows : []))
+    .filter((row) => normalizeJokerType(row?.joker_type) === jokerType)
+    .filter((row) => {
+      const id = rowId(row) || `${row?.user_email}:${row?.joker_type}:${row?.created_at}:${row?.quantity}`;
+      if (!id || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
 }
 
-async function findStarterTransaction(base44: any, email: string, jokerType: string, idempotencyKey: string) {
-  const rows = await base44.asServiceRole.entities.JokerTransaction
-    .filter({ user_email: email, joker_type: jokerType, idempotency_key: idempotencyKey }, '-created_at', 1)
-    .catch(() => []);
-  return Array.isArray(rows) && rows.length ? rows[0] : null;
+function selectPrimaryInventoryRow(rows: any[] = []) {
+  return rows.slice().sort((a, b) => {
+    const quantityDiff = normalizeQuantity(b?.quantity) - normalizeQuantity(a?.quantity);
+    if (quantityDiff !== 0) return quantityDiff;
+    return String(b?.updated_at || b?.created_at || '').localeCompare(String(a?.updated_at || a?.created_at || ''));
+  })[0] || null;
+}
+
+function maxKnownInventoryQuantity(rows: any[] = []) {
+  return rows.reduce((max, row) => Math.max(max, normalizeQuantity(row?.quantity)), 0);
+}
+
+async function findStarterTransaction(base44: any, email: string, jokerType: string, idempotencyKey: string, rawEmail = '') {
+  const entity = entityStore(base44, 'JokerTransaction');
+  if (!entity?.filter) return null;
+  for (const ownerEmail of emailVariants(email, rawEmail)) {
+    const rows = await entity
+      .filter({ user_email: ownerEmail, joker_type: jokerType, idempotency_key: idempotencyKey }, '-created_at', 1)
+      .catch(() => []);
+    if (Array.isArray(rows) && rows.length) return rows[0];
+  }
+  return null;
+}
+
+async function findLatestJokerTransaction(base44: any, email: string, jokerType: string, rawEmail = '') {
+  const entity = entityStore(base44, 'JokerTransaction');
+  if (!entity?.filter) return null;
+  const batches = await Promise.all(emailVariants(email, rawEmail).map((ownerEmail) => entity
+    .filter({ user_email: ownerEmail, joker_type: jokerType }, '-created_at', 10)
+    .catch(() => [])));
+  const rows = batches.flatMap((items) => (Array.isArray(items) ? items : []));
+  return rows.sort((a, b) => String(b?.created_at || '').localeCompare(String(a?.created_at || '')))[0] || null;
 }
 
 async function createStarterTransaction(base44: any, payload: Record<string, unknown>) {
@@ -61,39 +122,60 @@ async function createStarterTransaction(base44: any, payload: Record<string, unk
     String(payload.idempotency_key || ''),
   );
   if (existing) return { row: existing, recoveredExisting: true };
-  const row = await base44.asServiceRole.entities.JokerTransaction.create(payload);
+  const row = await entityStore(base44, 'JokerTransaction').create(payload);
   return { row, recoveredExisting: false };
 }
 
 async function upsertInventory(base44: any, existing: any, payload: Record<string, unknown>) {
-  if (existing?.id) {
-    return base44.asServiceRole.entities.UserJokerInventory.update(existing.id, payload);
+  const entity = entityStore(base44, 'UserJokerInventory');
+  const id = rowId(existing);
+  if (id) {
+    return entity.update(id, payload).catch(() => entity.create(payload));
   }
-  return base44.asServiceRole.entities.UserJokerInventory.create(payload);
+  return entity.create(payload);
 }
 
-async function ensureStarterJokerType(base44: any, email: string, jokerType: string) {
+async function ensureStarterJokerType(base44: any, email: string, jokerType: string, rawEmail = '') {
   const timestamp = nowIso();
   const idempotencyKey = buildStarterIdempotencyKey(email, jokerType);
-  const existingTransaction = await findStarterTransaction(base44, email, jokerType, idempotencyKey);
-  const existingInventory = await findInventory(base44, email, jokerType);
-  const currentQuantity = normalizeQuantity(existingInventory?.quantity);
+  const existingTransaction = await findStarterTransaction(base44, email, jokerType, idempotencyKey, rawEmail);
+  const inventoryRows = await findInventoryRows(base44, email, jokerType, rawEmail);
+  const existingInventory = selectPrimaryInventoryRow(inventoryRows);
+  const latestLedgerTransaction = await findLatestJokerTransaction(base44, email, jokerType, rawEmail);
+  const currentQuantity = Math.max(
+    maxKnownInventoryQuantity(inventoryRows),
+    normalizeQuantity(latestLedgerTransaction?.balance_after),
+  );
 
   if (existingTransaction) {
-    const recoveredQuantity = normalizeQuantity(existingTransaction.balance_after) || STARTER_QUANTITY;
-    const row = existingInventory?.id
-      ? existingInventory
-      : await upsertInventory(base44, existingInventory, {
+    const ledgerRecoveredQuantity = latestLedgerTransaction
+      ? normalizeQuantity(latestLedgerTransaction.balance_after)
+      : (normalizeQuantity(existingTransaction.balance_after) || STARTER_QUANTITY);
+    const recoveredQuantity = Math.max(
+      currentQuantity,
+      ledgerRecoveredQuantity,
+    );
+    const shouldRepair = !rowId(existingInventory)
+      || normalizeEmail(existingInventory?.user_email) !== email
+      || normalizeQuantity(existingInventory?.quantity) !== recoveredQuantity
+      || inventoryRows.length > 1;
+    const row = shouldRepair
+      ? await upsertInventory(base44, existingInventory, {
         user_email: email,
         joker_type: jokerType,
         quantity: recoveredQuantity,
-        created_at: timestamp,
+        created_at: existingInventory?.created_at || timestamp,
         updated_at: timestamp,
-        last_transaction_id: existingTransaction.id || null,
+        last_transaction_id: rowId(latestLedgerTransaction) || rowId(existingTransaction),
         metadata: {
+          ...(existingInventory?.metadata && typeof existingInventory.metadata === 'object' ? existingInventory.metadata : {}),
+          selfHealedMissingOrPartialInventory: true,
           starterGrantRecoveredFromLedger: true,
+          duplicateRowsIgnored: Math.max(0, inventoryRows.length - 1),
+          normalizedOwnerKey: email,
         },
-      });
+      })
+      : existingInventory;
     const quantityAfter = normalizeQuantity(row?.quantity);
     return {
       jokerType,
@@ -103,7 +185,8 @@ async function ensureStarterJokerType(base44: any, email: string, jokerType: str
       quantityBefore: currentQuantity,
       quantityAfter,
       inventory: publicInventoryRow(row),
-      transactionId: existingTransaction.id || null,
+      transactionId: rowId(latestLedgerTransaction) || rowId(existingTransaction),
+      selfHealed: shouldRepair,
     };
   }
 
@@ -131,8 +214,9 @@ async function ensureStarterJokerType(base44: any, email: string, jokerType: str
   };
   const createdTransaction = await createStarterTransaction(base44, transactionPayload);
   const latestTransaction = createdTransaction.row;
-  const latestInventory = await findInventory(base44, email, jokerType);
-  const latestQuantity = normalizeQuantity(latestInventory?.quantity ?? currentQuantity);
+  const latestInventoryRows = await findInventoryRows(base44, email, jokerType, rawEmail);
+  const latestInventory = selectPrimaryInventoryRow(latestInventoryRows) || existingInventory;
+  const latestQuantity = Math.max(maxKnownInventoryQuantity(latestInventoryRows), currentQuantity);
   const finalQuantity = Math.max(latestQuantity, normalizeQuantity(latestTransaction?.balance_after), STARTER_QUANTITY);
   const row = await upsertInventory(base44, latestInventory || existingInventory, {
     user_email: email,
@@ -140,10 +224,14 @@ async function ensureStarterJokerType(base44: any, email: string, jokerType: str
     quantity: finalQuantity,
     created_at: (latestInventory || existingInventory)?.created_at || timestamp,
     updated_at: timestamp,
-    last_transaction_id: latestTransaction?.id || null,
+    last_transaction_id: rowId(latestTransaction),
     metadata: {
+      ...(latestInventory?.metadata && typeof latestInventory.metadata === 'object' ? latestInventory.metadata : {}),
       starterGrantInitialized: true,
       recoveredExistingTransaction: Boolean(createdTransaction.recoveredExisting),
+      selfHealedMissingOrPartialInventory: true,
+      duplicateRowsIgnored: Math.max(0, latestInventoryRows.length - 1),
+      normalizedOwnerKey: email,
     },
   });
 
@@ -156,7 +244,8 @@ async function ensureStarterJokerType(base44: any, email: string, jokerType: str
     quantityDelta,
     quantityAfter: finalQuantity,
     inventory: publicInventoryRow(row),
-    transactionId: latestTransaction?.id || null,
+    transactionId: rowId(latestTransaction),
+    selfHealed: true,
   };
 }
 
@@ -174,13 +263,14 @@ Deno.serve(async (req: Request) => {
       return json({ ok: false, code: 'unauthenticated', error: 'Joker Çantası için giriş yapmalısın.' }, 401);
     }
 
-    const email = normalizeEmail(user?.email);
+    const rawEmail = String(user?.email || '').trim();
+    const email = normalizeEmail(rawEmail);
     if (!email) {
       return json({ ok: false, code: 'unauthenticated', error: 'Joker Çantası için giriş yapmalısın.' }, 401);
     }
 
-    const inventoryEntity = base44.asServiceRole.entities.UserJokerInventory;
-    const transactionEntity = base44.asServiceRole.entities.JokerTransaction;
+    const inventoryEntity = entityStore(base44, 'UserJokerInventory');
+    const transactionEntity = entityStore(base44, 'JokerTransaction');
     if (!inventoryEntity?.filter || !inventoryEntity?.create || !inventoryEntity?.update || !transactionEntity?.filter || !transactionEntity?.create) {
       return json({ ok: false, code: 'joker_inventory_entity_missing', error: 'Joker kayıtları hazır değil.' }, 500);
     }
@@ -188,7 +278,7 @@ Deno.serve(async (req: Request) => {
     const grants = [];
     const balances = emptyBalances();
     for (const jokerType of JOKER_TYPES) {
-      const result = await ensureStarterJokerType(base44, email, jokerType);
+      const result = await ensureStarterJokerType(base44, email, jokerType, rawEmail);
       grants.push(result);
       balances[jokerType] = normalizeQuantity(result?.quantityAfter ?? result?.inventory?.quantity);
     }
@@ -205,6 +295,8 @@ Deno.serve(async (req: Request) => {
       idempotencyKeys: grants.map((grant) => grant.idempotencyKey),
       initialized: grants.some((grant) => grant.granted),
       alreadyGranted: grants.every((grant) => grant.alreadyGranted || !grant.granted),
+      selfHealed: grants.some((grant) => grant.selfHealed),
+      normalizedOwnerKey: email,
     });
   } catch (error) {
     console.error('[ensureUserJokerInventory] failed', error?.message || error);

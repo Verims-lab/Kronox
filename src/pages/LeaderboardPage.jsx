@@ -25,6 +25,7 @@ import {
 } from '@/lib/leaderboard';
 import { isAdminUser, withAdminStatus } from '@/lib/admin';
 import KronoxRankingSection from '@/components/leaderboard/KronoxRankingSection';
+import PullToRefresh from '@/components/mobile/PullToRefresh';
 // Phase 3 — Codex123 UI consolidation. Profile + Leaderboard now share
 // one StatTile. Compact variant matches the previous lighter look used
 // inside the Liderlik summary hero card. Data sources unchanged.
@@ -207,47 +208,49 @@ export default function LeaderboardPage() {
     >
       <StandardTopBar diamonds={diamondValue} user={user} />
 
-      <div className="mx-auto w-full max-w-md px-4 mt-2 space-y-3">
-        <div
-          className="rounded-2xl p-5 text-center"
-          style={{
-            background: 'linear-gradient(180deg, rgba(30,41,75,0.9), rgba(10,16,36,0.95))',
-            boxShadow: 'inset 0 0 0 1.5px rgba(120,170,255,0.30), 0 12px 24px rgba(2,6,23,0.5)',
-          }}
-        >
+      <PullToRefresh onRefresh={loadLeaderboard} disabled={!user?.email}>
+        <div className="mx-auto w-full max-w-md px-4 mt-2 space-y-3">
           <div
-            className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full"
+            className="rounded-2xl p-5 text-center"
             style={{
-              background: 'radial-gradient(circle at 35% 28%, #ffe066, #b97a06 70%)',
-              boxShadow: '0 0 18px rgba(250,204,21,0.55), inset 0 1px 0 rgba(255,255,255,0.45)',
+              background: 'linear-gradient(180deg, rgba(30,41,75,0.9), rgba(10,16,36,0.95))',
+              boxShadow: 'inset 0 0 0 1.5px rgba(120,170,255,0.30), 0 12px 24px rgba(2,6,23,0.5)',
             }}
           >
-            <Trophy className="h-7 w-7 text-amber-950" strokeWidth={2.4} />
-          </div>
-          <p className="font-cinzel text-lg tracking-widest text-amber-200">Liderlik Tablosu</p>
-          <p className="mt-2 font-inter text-xs text-blue-100/70 leading-relaxed">
-            Kronox Puanın Solo ve Online sonuçlarınla güncellenir.
-          </p>
+            <div
+              className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full"
+              style={{
+                background: 'radial-gradient(circle at 35% 28%, #ffe066, #b97a06 70%)',
+                boxShadow: '0 0 18px rgba(250,204,21,0.55), inset 0 1px 0 rgba(255,255,255,0.45)',
+              }}
+            >
+              <Trophy className="h-7 w-7 text-amber-950" strokeWidth={2.4} />
+            </div>
+            <p className="font-cinzel text-lg tracking-widest text-amber-200">Liderlik Tablosu</p>
+            <p className="mt-2 font-inter text-xs text-blue-100/70 leading-relaxed">
+              Kronox Puanın Solo ve Online sonuçlarınla güncellenir.
+            </p>
 
-          {/* Codex119 — stat cards always show the user's own values from
-              the shared visible Kronox Puan + Solo level sources,
-              regardless of global ranking state. */}
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            <KronoxStatTile icon={Trophy} label="Puan" value={visibleKronoxPuan} tintHex="#facc15" variant="compact" />
-            <KronoxStatTile icon={Sparkles} label="Seviye" value={summary.currentLevel} tintHex="#60a5fa" variant="compact" />
-            <KronoxStatTile icon={Gem} label="Elmas" value={diamondValue} tintHex="#7dd3fc" variant="compact" />
+            {/* Codex119 — stat cards always show the user's own values from
+                the shared visible Kronox Puan + Solo level sources,
+                regardless of global ranking state. */}
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <KronoxStatTile icon={Trophy} label="Puan" value={visibleKronoxPuan} tintHex="#facc15" variant="compact" />
+              <KronoxStatTile icon={Sparkles} label="Seviye" value={summary.currentLevel} tintHex="#60a5fa" variant="compact" />
+              <KronoxStatTile icon={Gem} label="Elmas" value={diamondValue} tintHex="#7dd3fc" variant="compact" />
+            </div>
           </div>
+
+          <KronoxRankingSection
+            authChecked={authChecked}
+            user={user}
+            leaderboard={leaderboard}
+            soloLeaderboardScore={soloLeaderboardScore}
+            onRetry={loadLeaderboard}
+            isAdmin={isAdmin}
+          />
         </div>
-
-        <KronoxRankingSection
-          authChecked={authChecked}
-          user={user}
-          leaderboard={leaderboard}
-          soloLeaderboardScore={soloLeaderboardScore}
-          onRetry={loadLeaderboard}
-          isAdmin={isAdmin}
-        />
-      </div>
+      </PullToRefresh>
     </div>
   );
 }

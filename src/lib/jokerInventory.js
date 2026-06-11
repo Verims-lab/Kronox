@@ -48,8 +48,26 @@ export const PHASE2_SOLO_JOKER_CONSUMPTION_CONTRACT = [
   'Used jokers are not refunded on fail/exit.',
 ].join(' ');
 
+export const JOKER_INVENTORY_SELF_HEAL_CONTRACT = [
+  'Missing UserJokerInventory self-heals for authenticated users.',
+  'Partial inventory rows self-heal missing joker types.',
+  'Duplicate or malformed UserJokerInventory rows do not crash Joker Çantası.',
+  'Existing joker balances are preserved and not overwritten by ensure.',
+  'Profile and Solo use the same normalized user_email inventory source.',
+].join(' ');
+
 export function normalizeJokerEmail(value) {
   return String(value || '').trim().toLowerCase();
+}
+
+function jokerEmailVariants(userOrEmail) {
+  const raw = typeof userOrEmail === 'string'
+    ? userOrEmail
+    : (userOrEmail?.email || userOrEmail?.user_email || '');
+  return Array.from(new Set([
+    String(raw || '').trim(),
+    normalizeJokerEmail(raw),
+  ].filter(Boolean)));
 }
 
 export function normalizeJokerQuantity(value) {
@@ -92,7 +110,9 @@ export function normalizeJokerBalances(input) {
   if (Array.isArray(input)) {
     input.forEach((row) => {
       const type = row?.joker_type || row?.jokerType || row?.type;
-      if (isKnownJokerType(type)) balances[type] = normalizeJokerQuantity(row?.quantity);
+      if (isKnownJokerType(type)) {
+        balances[type] = Math.max(balances[type], normalizeJokerQuantity(row?.quantity));
+      }
     });
     return balances;
   }
@@ -111,12 +131,23 @@ function unwrapFunctionResponse(response) {
   return {};
 }
 
-async function readOwnInventoryRows(email) {
-  if (!email) return [];
-  const rows = await base44.entities.UserJokerInventory
+async function readOwnInventoryRows(userOrEmail) {
+  const variants = jokerEmailVariants(userOrEmail);
+  if (!variants.length) return [];
+  const entity = base44?.entities?.UserJokerInventory;
+  if (!entity?.filter) return [];
+  const batches = await Promise.all(variants.map((email) => entity
     .filter({ user_email: email }, '-updated_at', 20)
-    .catch(() => []);
-  return Array.isArray(rows) ? rows : [];
+    .catch(() => [])));
+  const seen = new Set();
+  return batches
+    .flatMap((rows) => (Array.isArray(rows) ? rows : []))
+    .filter((row) => {
+      const id = row?.id || row?._id || `${row?.user_email}:${row?.joker_type}:${row?.updated_at}:${row?.quantity}`;
+      if (!id || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
 }
 
 export async function ensureStarterJokers(user) {
@@ -152,10 +183,30 @@ export async function getUserJokerBalances(user, options = {}) {
   }
 
   if (options.ensureStarter !== false) {
-    return ensureStarterJokers(user);
+    try {
+      return await ensureStarterJokers(user);
+    } catch (error) {
+      const rows = await readOwnInventoryRows(user).catch(() => []);
+      if (rows.length > 0) {
+        return {
+          ok: true,
+          initialized: false,
+          ensureFailedButReadable: true,
+          reason: error?.body?.code || error?.message || 'joker_inventory_ensure_failed',
+          balances: normalizeJokerBalances(rows),
+          items: rows.map((row) => ({
+            id: row.id,
+            jokerType: row.joker_type,
+            quantity: normalizeJokerQuantity(row.quantity),
+            updatedAt: row.updated_at || row.created_at || null,
+          })),
+        };
+      }
+      throw error;
+    }
   }
 
-  const rows = await readOwnInventoryRows(email);
+  const rows = await readOwnInventoryRows(user);
   return {
     ok: true,
     initialized: false,

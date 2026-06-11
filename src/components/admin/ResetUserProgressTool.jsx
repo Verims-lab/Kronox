@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Loader2, RotateCcw, Search, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
+import KronoxSelectSheet from '@/components/mobile/KronoxSelectSheet';
 
 const MODE_HARD_ZERO = 'hard_zero';
 const MODE_NEW_PLAYER = 'new_player';
@@ -140,18 +141,18 @@ export default function ResetUserProgressTool() {
 
         <label className="block">
           <span className="font-inter text-[10px] font-black uppercase tracking-[0.18em] text-blue-100/55">Reset mode</span>
-          <select
+          <KronoxSelectSheet
+            label="Reset mode"
             value={mode}
-            onChange={(event) => {
-              setMode(event.target.value);
+            onChange={(nextValue) => {
+              setMode(nextValue);
               setResult(null);
             }}
-            className="mt-1 h-11 w-full rounded-xl border border-blue-200/15 bg-slate-950/50 px-3 font-inter text-sm text-white outline-none transition focus:border-amber-300/60"
-          >
-            {MODE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
+            options={MODE_OPTIONS}
+            disabled={Boolean(loading)}
+            sheetTitle="Reset Modu"
+            className="mt-1 min-h-11"
+          />
           <span className="mt-1 block font-inter text-[11px] leading-relaxed text-blue-100/55">{selectedMode.help}</span>
         </label>
 
