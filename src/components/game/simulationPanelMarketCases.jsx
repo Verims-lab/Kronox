@@ -208,6 +208,7 @@ export const EXTRA_TESTS = [
         'Satın Al',
         'İşleniyor',
         'Yeterli elmas yok',
+        'Satın alma tamamlanamadı. Tekrar dene.',
         "setNotice({ type: 'success'",
         "setNotice({ type: 'error'",
         '${product.name} alındı.',
@@ -233,7 +234,10 @@ export const EXTRA_TESTS = [
         '401',
         'const email = normalizeEmail(user?.email)',
         'user_email: email',
-        'userEntity.update(latestUser.id || user.id',
+        'updateCurrentUser(base44',
+        'entities.UserJokerInventory',
+        'entities.DiamondTransaction',
+        'entities.JokerTransaction',
       ]);
       if (missing.length) return fail('purchaseJokerWithDiamonds does not clearly bind purchase to authenticated user.', {
         verification: 'STATIC_CONTRACT',
@@ -254,7 +258,7 @@ export const EXTRA_TESTS = [
         'invalid_quantity',
         'missing_idempotency_key',
         'market_purchase_failed',
-        'Satın alma tamamlanamadı. Lütfen tekrar dene.',
+        'Satın alma tamamlanamadı. Tekrar dene.',
       ]);
       const forbidden = forbiddenTokens(purchaseJokerWithDiamondsSource, [
         'body?.price',
@@ -281,7 +285,7 @@ export const EXTRA_TESTS = [
         'Yeterli elmas yok.',
       ]);
       const insufficientIdx = source.indexOf('diamondBefore < diamondCost');
-      const updateIdx = source.indexOf('userEntity.update', insufficientIdx);
+      const updateIdx = source.indexOf('updateCurrentUser', insufficientIdx);
       const ledgerIdx = source.indexOf('createDiamondTransaction', insufficientIdx);
       const guardedBeforeWrites = insufficientIdx >= 0 && updateIdx > insufficientIdx && ledgerIdx > insufficientIdx;
       if (missing.length || !guardedBeforeWrites) return fail('Insufficient Diamond guard is missing or appears after writes.', {
@@ -316,10 +320,13 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(`${purchaseJokerWithDiamondsSource}\n${diamondTransactionEntitySource}\n${jokerTransactionEntitySource}`, [
         'const diamondAfter = diamondBefore - diamondCost',
         'const jokerAfter = jokerBefore + quantity',
-        'userEntity.update',
+        'updateCurrentUser',
         'upsertInventory',
         'DiamondTransaction',
         'JokerTransaction',
+        'entities.UserJokerInventory',
+        'entities.DiamondTransaction',
+        'entities.JokerTransaction',
         "source: DIAMOND_MARKET_PURCHASE_SOURCE",
         "direction: 'spend'",
         "reason: MARKET_PURCHASE_REASON",
@@ -367,6 +374,7 @@ export const EXTRA_TESTS = [
         'if (pendingType) return',
         'disabled={disabled}',
         'createMarketClientRequestId',
+        'safeMarketPurchaseError',
         'buildJokerPurchaseIdempotencyKey',
         'idempotencyKey',
         'findDiamondTransaction(base44, email, idempotencyKey)',

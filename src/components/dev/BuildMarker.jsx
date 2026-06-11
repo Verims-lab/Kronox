@@ -1255,6 +1255,14 @@ import React, { useEffect, useState } from 'react';
 //     reconcile visible User.diamonds for idempotent retries, and surface
 //     claim errors in the Günlük Ödüller panel.
 //
+// Codex300 — Mağaza purchase runtime entity binding:
+//   • purchaseJokerWithDiamonds now explicitly binds entities.UserJokerInventory,
+//     entities.DiamondTransaction, and entities.JokerTransaction with service-role
+//     preference plus authenticated current-user fallback for owner-scoped writes.
+//   • Market purchase failures use safe retry copy, while success still spends
+//     Diamonds, grants the selected joker, writes both market_purchase ledgers,
+//     and returns refreshed Diamond/Joker balances.
+//
 // Codex299 — Profile Admin Ekranı split + Daily Quest claim deployability:
 //   • Adds a Profile-only Admin Ekranı action for active AdminUser owner/admin
 //     users and keeps normal users on the two standard Profile actions.
@@ -1570,7 +1578,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex299';
+const BUILD_MARKER = 'Codex300';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

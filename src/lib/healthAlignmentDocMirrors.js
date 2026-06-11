@@ -148,7 +148,8 @@ Home shows Mağaza top-left, Diamonds center, notifications right. Mağaza title
 is Mağaza and prices are Zaman Dondur 40, Kart Değiştir 50, Kronokalkan 60.
 Client is not trusted for price; purchase validation is server-authoritative.
 Successful purchase writes both DiamondTransaction and JokerTransaction with
-market_purchase and the same idempotency key. Double-tap, network retry,
+market_purchase and the same idempotency key. Runtime explicitly binds
+UserJokerInventory, DiamondTransaction, and JokerTransaction. Double-tap, network retry,
 insufficient Diamonds, and two tabs/devices proof remains manual. Market
 purchase is a Diamond sink; Daily Wheel remains a Diamond source. Profile
 Joker Çantası and Solo joker bar must show the purchased balance; Online mode

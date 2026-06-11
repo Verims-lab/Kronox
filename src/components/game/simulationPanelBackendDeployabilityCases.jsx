@@ -291,6 +291,9 @@ export const EXTRA_TESTS = [
         'createClientFromRequest',
         'Deno.serve',
         'base44.auth.me()',
+        'entities.UserJokerInventory',
+        'entities.DiamondTransaction',
+        'entities.JokerTransaction',
       ]);
       const forbidden = forbiddenTokens(purchaseJokerWithDiamondsSource, [
         "from './_shared",
@@ -312,16 +315,17 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('purchase_joker_backend_auth_service_role_scope',
-    'purchaseJokerWithDiamonds validates auth and keeps service-role writes user-bound',
+    'purchaseJokerWithDiamonds validates auth and keeps economy writes user-bound',
     () => {
       const missing = missingTokens(purchaseJokerWithDiamondsSource, [
         'base44.auth.me()',
         'const email = normalizeEmail(user?.email)',
         'user_email: email',
-        'asServiceRole.entities.UserJokerInventory',
-        'asServiceRole.entities.DiamondTransaction',
-        'asServiceRole.entities.JokerTransaction',
-        'userEntity.update(latestUser.id || user.id',
+        'entities.UserJokerInventory',
+        'entities.DiamondTransaction',
+        'entities.JokerTransaction',
+        'updateCurrentUser(base44',
+        'base44.auth.updateMe',
       ]);
       const forbidden = forbiddenTokens(purchaseJokerWithDiamondsSource, [
         'body?.email',
@@ -338,7 +342,7 @@ export const EXTRA_TESTS = [
           actual: { missing, forbidden },
         });
       }
-      return pass('purchaseJokerWithDiamonds scopes service-role economy writes to the authenticated user and backend price table.', {
+      return pass('purchaseJokerWithDiamonds scopes economy writes to the authenticated user and backend price table, with service-role/auth entity fallback.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });

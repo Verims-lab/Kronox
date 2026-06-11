@@ -213,6 +213,9 @@ Inventory foundation:
   `purchaseJokerWithDiamonds`, writes both Diamond and Joker ledgers with
   `market_purchase`, and does not change Solo scoring, timer, question
   selection, or Online mode
+- `purchaseJokerWithDiamonds` explicitly binds `UserJokerInventory`,
+  `DiamondTransaction`, and `JokerTransaction`; deployed runtime proof must
+  confirm the Diamond decrease, joker increase, and both ledgers
 - purchased jokers appear through the same persistent `UserJokerInventory`
   balances that Solo already reads; using them in Solo still spends through
   `spendUserJoker` and writes `JokerTransaction.reason = solo_use`

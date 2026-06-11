@@ -532,6 +532,10 @@ Joker inventory is user-owned data:
 * successful Mağaza purchases write both `DiamondTransaction` and
   `JokerTransaction` with `market_purchase`; insufficient Diamonds must not
   change balances or write successful purchase ledgers
+* `purchaseJokerWithDiamonds` explicitly binds `UserJokerInventory`,
+  `DiamondTransaction`, and `JokerTransaction` in the deployed runtime path,
+  preferring service role while falling back to authenticated current-user
+  entity access for owner-scoped writes
 * Mağaza purchases are server-authoritative economy actions: the client is not
   trusted for price, cost, user identity, or target account; service-role writes
   stay scoped to the authenticated user
