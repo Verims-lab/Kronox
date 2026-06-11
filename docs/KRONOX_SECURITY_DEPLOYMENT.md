@@ -473,6 +473,11 @@ After deployment, verify:
 * normal users still cannot access Profile / `Admin Ekranı`, `/test-suite`, Health
   Simulator, admin maintenance functions, or the question analytics report
   trigger by direct route
+* admin selection controls may use Kronox bottom-sheet selectors, but UI
+  controls are not authorization; backend admin functions must still derive
+  the current user from auth and enforce active `AdminUser` owner/admin status
+* Admin Ekranı list refresh uses scoped Pull-to-Refresh only after the admin UI
+  gate has passed; it must not expose admin maintenance data to normal users
 
 ## Questions
 
@@ -486,6 +491,9 @@ After deployment, verify:
 * `UserCategoryPreference` rows are user-scoped Settings data
 * normal users can read/update only their own preference rows
 * passive `Category.status = P/p` rows are not selectable
+* Category preference selection UI is a custom touch selector; raw native
+  selects are not required for the targeted Settings surface, and save
+  validation remains server/user scoped
 * Category preference popup prompts any authenticated user with fewer than 3
   active valid Category preferences, including existing users
 * active valid `UserCategoryPreference` count is the popup source of truth

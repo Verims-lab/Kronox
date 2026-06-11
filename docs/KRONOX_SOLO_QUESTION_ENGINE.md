@@ -194,6 +194,9 @@ Solo card dragging on mobile web uses a gameplay-scoped pull-to-refresh guard:
 - the timeline keeps horizontal `scrollLeft` auto-scroll and drop-zone
   hit-testing intact
 - Profile, Settings, and other non-game screens must keep normal scrolling
+- Friends, Liderlik, and Admin Ekranı may use app-provided Pull-to-Refresh
+  wrappers for list reloads; those wrappers are container-scoped and separate
+  from the gameplay drag guard
 - iOS Safari, Android Chrome, and PWA/standalone require real-device proof
 - if a full browser refresh still happens, current-attempt restore remains a
   separate release risk unless proven by runtime testing

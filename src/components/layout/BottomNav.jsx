@@ -1,17 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, Trophy, UserRound } from 'lucide-react';
-import { useNavigationStack } from '@/lib/NavigationStackContext';
+import { Home, Swords, Trophy, UserRound } from 'lucide-react';
+import { TAB_ROOTS, getTabRootForPathname, useNavigationStack } from '@/lib/NavigationStackContext';
 import { getBottomNavHidden, subscribeBottomNavHidden } from '@/lib/bottomNavVisibility';
 
-// Codex103 — Bottom nav per product brief:
+// Codex304 — Bottom nav keeps independent tab stacks per product brief:
 // - Ana Sayfa (Home)
+// - Online (Lobby selection/root)
 // - Liderlik (Trophy)
 // - Profil  (User)
 const TABS = [
-  { label: 'Ana Sayfa', icon: Home, path: '/' },
-  { label: 'Liderlik', icon: Trophy, path: '/leaderboard' },
-  { label: 'Profil', icon: UserRound, path: '/profile' },
+  { label: 'Ana Sayfa', icon: Home, path: TAB_ROOTS.home },
+  { label: 'Online', icon: Swords, path: TAB_ROOTS.online },
+  { label: 'Liderlik', icon: Trophy, path: TAB_ROOTS.leaderboard },
+  { label: 'Profil', icon: UserRound, path: TAB_ROOTS.profile },
 ];
 
 // Codex103 — Only fully-immersive / commitment-critical flows hide the bar by
@@ -23,26 +25,59 @@ const HIDDEN_ROUTES = ['/game'];
 export default function BottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { currentTab, switchTab, getStackForTab, resetStack } = useNavigationStack();
+  const {
+    currentTab,
+    switchTab,
+    getStackForTab,
+    resetStack,
+    rememberRoute,
+    getScrollForTab,
+    saveScrollForTab,
+  } = useNavigationStack();
 
   // Codex103 — subscribe to runtime visibility overrides (set by LobbyRoom for
   // mode=create/join/waiting). Static hide-by-route still wins for /game.
   const [runtimeHidden, setRuntimeHidden] = useState(getBottomNavHidden);
   useEffect(() => subscribeBottomNavHidden(setRuntimeHidden), []);
 
+  useEffect(() => {
+    rememberRoute(location);
+  }, [location.pathname, location.search, location.hash, rememberRoute]);
+
   if (HIDDEN_ROUTES.includes(location.pathname)) return null;
   if (runtimeHidden) return null;
 
+  const activeTab = getTabRootForPathname(location.pathname) || currentTab;
+  const saveCurrentTabState = () => {
+    const tabRoot = getTabRootForPathname(location.pathname);
+    if (!tabRoot) return;
+    rememberRoute(location);
+    saveScrollForTab(tabRoot, window.scrollY || document.documentElement.scrollTop || 0);
+  };
+
+  const restoreScrollForTab = (tabRoot) => {
+    const y = getScrollForTab(tabRoot);
+    window.requestAnimationFrame?.(() => {
+      window.requestAnimationFrame?.(() => {
+        window.scrollTo({ top: y, left: 0, behavior: 'auto' });
+      });
+    });
+  };
+
   const handleTabClick = (path) => {
-    if (currentTab === path) {
-      // Re-tapping current tab resets its stack
+    if (activeTab === path) {
+      // Re-tapping current tab resets its stack/root without touching the other tabs.
       resetStack(path);
+      switchTab(path);
       navigate(path, { replace: true });
+      window.requestAnimationFrame?.(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
     } else {
-      // Switching to a different tab
+      saveCurrentTabState();
       switchTab(path);
       const stack = getStackForTab(path);
-      navigate(stack[stack.length - 1], { replace: true });
+      const target = stack[stack.length - 1] || path;
+      navigate(target, { replace: true });
+      restoreScrollForTab(path);
     }
   };
 
@@ -60,7 +95,7 @@ export default function BottomNav() {
       }}
     >
       {TABS.map(({ label, icon: Icon, path }) => {
-        const isActive = location.pathname === path;
+        const isActive = activeTab === path;
         return (
           <button
             key={path}
@@ -68,7 +103,7 @@ export default function BottomNav() {
             className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors"
             style={{ touchAction: 'manipulation', minHeight: '56px' }}
             aria-label={`${label} sekmesi`}
-            aria-current={location.pathname === path ? 'page' : undefined}
+            aria-current={isActive ? 'page' : undefined}
           >
             <Icon
               className={`w-5 h-5 transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground'}`}

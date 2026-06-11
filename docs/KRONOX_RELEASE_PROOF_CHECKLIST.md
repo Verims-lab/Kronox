@@ -395,9 +395,20 @@ Checklist:
 * Gameplay does not page-scroll during drag.
 * Timeline horizontal scroll still works.
 * Bottom nav does not collide with home indicator.
+* BottomNav keeps independent tab stacks for Home, Online, Liderlik, and
+  Profile. Switching tabs preserves the previous subroute/scroll state; tapping
+  the active tab resets that tab to its root. `/game` remains outside tab stacks
+  and full-screen according to existing gameplay rules.
 * Top bar does not clip under notch/status bar.
 * Popups fit small screens.
 * Keyboard does not crush input flows.
+* Friends, Liderlik, and admin maintenance lists use the app-provided scoped
+  Pull-to-Refresh. It must call the real list reload path, respect reduced
+  motion, and must not install global gesture handlers or affect gameplay drag.
+* Category preferences and admin selection controls use Kronox-themed
+  bottom-sheet selectors instead of raw native HTML selects in the targeted
+  surfaces. The sheets must support Escape/backdrop close, focus return,
+  dark-mode readability, safe-area bottom padding, and reduced-motion behavior.
 * PWA manifest/icons work.
 * Push subscription works on real installed device if supported.
 * `sendGameInvitePush` requires backend `VAPID_PUBLIC_KEY`,
@@ -442,6 +453,8 @@ Checklist:
 * Mobile browser gameplay uses a scoped card-drag overscroll guard: the guard
   is active only during gameplay/card drag, uses a `passive:false` touchmove
   prevention path where needed, and must not disable Profile/Settings scrolling.
+* App-provided Pull-to-Refresh is separate from the gameplay drag guard and is
+  scoped only to Friends, Liderlik, and admin list containers.
 * Real-device proof is required on iOS Safari, Android Chrome, and PWA/standalone
   before release: start Solo, drag the question card vertically/diagonally,
   confirm pull-to-refresh does not fire, then confirm placement, drop-zone

@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, ClipboardList, Loader2, Plus, RefreshCw, Save, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import KronoxSelectSheet from '@/components/mobile/KronoxSelectSheet';
 import {
   DAILY_QUEST_TYPE_LABELS,
   DAILY_QUEST_V1_TYPES,
@@ -45,7 +46,7 @@ function statusLabel(status) {
   return status === 'passive' ? 'Pasif' : 'Aktif';
 }
 
-export default function DailyQuestDefinitionManager() {
+export default function DailyQuestDefinitionManager({ onRegisterRefresh }) {
   const [definitions, setDefinitions] = useState([]);
   const [form, setForm] = useState(DEFAULT_FORM);
   const [loading, setLoading] = useState('list');
@@ -57,7 +58,7 @@ export default function DailyQuestDefinitionManager() {
     [definitions],
   );
 
-  const loadDefinitions = async () => {
+  const loadDefinitions = useCallback(async () => {
     setLoading('list');
     setError('');
     setMessage('');
@@ -72,11 +73,16 @@ export default function DailyQuestDefinitionManager() {
     } finally {
       setLoading('');
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadDefinitions();
-  }, []);
+  }, [loadDefinitions]);
+
+  useEffect(() => {
+    if (typeof onRegisterRefresh !== 'function') return undefined;
+    return onRegisterRefresh(loadDefinitions);
+  }, [loadDefinitions, onRegisterRefresh]);
 
   const updateForm = (field, value) => {
     setMessage('');
@@ -162,6 +168,14 @@ export default function DailyQuestDefinitionManager() {
   };
 
   const busy = Boolean(loading);
+  const questTypeOptions = DAILY_QUEST_V1_TYPES.map((type) => ({
+    value: type,
+    label: DAILY_QUEST_TYPE_LABELS[type],
+  }));
+  const statusOptions = [
+    { value: 'active', label: 'Aktif' },
+    { value: 'passive', label: 'Pasif' },
+  ];
 
   return (
     <div className="rounded-2xl border border-sky-300/25 bg-sky-400/5 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
@@ -270,15 +284,14 @@ export default function DailyQuestDefinitionManager() {
             />
           </Field>
           <Field label="Görev Tipi">
-            <select
+            <KronoxSelectSheet
+              label="Görev Tipi"
               value={form.quest_type}
-              onChange={(event) => updateForm('quest_type', event.target.value)}
-              className="h-10 w-full rounded-xl border border-blue-200/15 bg-slate-950/50 px-3 font-inter text-sm text-white outline-none transition focus:border-amber-300/60"
-            >
-              {DAILY_QUEST_V1_TYPES.map((type) => (
-                <option key={type} value={type}>{DAILY_QUEST_TYPE_LABELS[type]}</option>
-              ))}
-            </select>
+              onChange={(nextValue) => updateForm('quest_type', nextValue)}
+              options={questTypeOptions}
+              disabled={busy}
+              sheetTitle="Görev Tipi Seç"
+            />
           </Field>
           <Field label="Başlık">
             <input
@@ -317,14 +330,14 @@ export default function DailyQuestDefinitionManager() {
             />
           </Field>
           <Field label="Durum">
-            <select
+            <KronoxSelectSheet
+              label="Durum"
               value={form.status}
-              onChange={(event) => updateForm('status', event.target.value)}
-              className="h-10 w-full rounded-xl border border-blue-200/15 bg-slate-950/50 px-3 font-inter text-sm text-white outline-none transition focus:border-amber-300/60"
-            >
-              <option value="active">Aktif</option>
-              <option value="passive">Pasif</option>
-            </select>
+              onChange={(nextValue) => updateForm('status', nextValue)}
+              options={statusOptions}
+              disabled={busy}
+              sheetTitle="Görev Durumu"
+            />
           </Field>
           <Field label="Sıra">
             <input

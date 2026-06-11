@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { BarChart3, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
+import KronoxSelectSheet from '@/components/mobile/KronoxSelectSheet';
 
 const PERIOD_OPTIONS = [
   { value: 7, label: 'Son 7 gün' },
@@ -105,16 +106,15 @@ export default function QuestionAnalyticsReportTool() {
             <p className="font-inter text-xs text-muted-foreground">Admin e-postana soru gösterim/başarı özetini gönderir.</p>
           </div>
           <div className="flex items-center gap-2">
-            <select
+            <KronoxSelectSheet
+              label="Rapor dönemi"
               value={periodDays}
               disabled={loading}
-              onChange={(event) => setPeriodDays(Number(event.target.value))}
-              className="h-9 flex-1 rounded-xl border border-border/50 bg-background/70 px-3 font-inter text-xs font-semibold text-foreground outline-none disabled:opacity-60"
-            >
-              {PERIOD_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
+              onChange={(nextValue) => setPeriodDays(Number(nextValue))}
+              options={PERIOD_OPTIONS}
+              sheetTitle="Rapor Dönemi"
+              className="min-h-9 flex-1 text-xs"
+            />
             <Button
               type="button"
               size="sm"

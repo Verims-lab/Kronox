@@ -1267,6 +1267,12 @@ import React, { useEffect, useState } from 'react';
 //     reconcile visible User.diamonds for idempotent retries, and surface
 //     claim errors in the Günlük Ödüller panel.
 //
+// Codex304 — iOS/mobile compatibility polish:
+//   • Adds scoped PullToRefresh for Friends, Liderlik, and Admin Ekranı
+//     maintenance lists without touching gameplay drag/drop surfaces.
+//   • Adds independent BottomNav tab stacks with scroll/subroute restore and
+//     replaces targeted admin native selects with Kronox bottom-sheet selectors.
+//
 // Codex303 — Joker Çantası user-specific self-heal:
 //   • ensureUserJokerInventory now repairs missing/partial/mixed-owner
 //     UserJokerInventory rows for the authenticated user without overwriting
@@ -1606,7 +1612,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex303';
+const BUILD_MARKER = 'Codex304';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
