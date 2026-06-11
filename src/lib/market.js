@@ -71,6 +71,26 @@ function unwrapFunctionResponse(response) {
   return {};
 }
 
+function unwrapInvokeError(error) {
+  if (error?.body && typeof error.body === 'object') return error.body;
+  if (error?.response) return unwrapFunctionResponse(error.response);
+  if (error?.data) return unwrapFunctionResponse({ data: error.data });
+  return {};
+}
+
+function safeMarketPurchaseError(errorOrBody, fallback = 'Satın alma tamamlanamadı. Tekrar dene.') {
+  const body = errorOrBody?.response || errorOrBody?.body || errorOrBody?.data
+    ? unwrapInvokeError(errorOrBody)
+    : errorOrBody;
+  const code = String(body?.code || '').trim();
+  if (code === 'insufficient_diamonds') return 'Yeterli elmas yok.';
+  if (code === 'invalid_joker_type') return 'Joker türü geçersiz.';
+  if (code === 'invalid_quantity') return 'Satın alma adedi geçersiz.';
+  if (code === 'unauthenticated') return 'Mağaza için giriş yapmalısın.';
+  if (code === 'duplicate_purchase_in_progress') return 'Bu satın alma zaten işleniyor.';
+  return fallback;
+}
+
 export async function purchaseMarketJoker(user, options = {}) {
   const email = normalizeJokerEmail(user?.email || user?.user_email);
   const jokerType = options.jokerType;
@@ -86,14 +106,49 @@ export async function purchaseMarketJoker(user, options = {}) {
     return { ok: false, code: 'invalid_joker_type', error: 'Joker türü geçersiz.', balances: emptyJokerBalances() };
   }
 
-  const response = await invokePurchaseJokerWithDiamonds({
-    jokerType,
-    quantity,
-    idempotencyKey,
-    clientRequestId,
-    buildMarker: KRONOX_BUILD_MARKER,
-  });
+  let response;
+  try {
+    response = await invokePurchaseJokerWithDiamonds({
+      jokerType,
+      quantity,
+      idempotencyKey,
+      clientRequestId,
+      buildMarker: KRONOX_BUILD_MARKER,
+    });
+  } catch (error) {
+    const body = unwrapInvokeError(error);
+    return {
+      ok: false,
+      code: body?.code || 'market_purchase_request_failed',
+      error: safeMarketPurchaseError(error),
+      jokerType,
+      quantity,
+      product,
+      clientRequestId,
+      idempotencyKey,
+      diamondCost: product.price * quantity,
+      diamondBalanceAfter: 0,
+      jokerBalanceAfter: 0,
+      balances: normalizeJokerBalances(body?.balances),
+    };
+  }
   const body = unwrapFunctionResponse(response);
+  if (body?.ok === false) {
+    return {
+      ...body,
+      ok: false,
+      error: safeMarketPurchaseError(body),
+      jokerType,
+      quantity,
+      product,
+      clientRequestId,
+      idempotencyKey,
+      diamondCost: normalizeJokerQuantity(body?.diamondCost ?? product.price * quantity),
+      diamondBalanceAfter: normalizeJokerQuantity(body?.diamondBalanceAfter),
+      jokerBalanceAfter: normalizeJokerQuantity(body?.jokerBalanceAfter ?? body?.inventory?.quantity),
+      balances: normalizeJokerBalances(body?.balances),
+    };
+  }
   return {
     ...body,
     ok: body?.ok === true,

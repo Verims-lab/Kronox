@@ -66,13 +66,57 @@ function emptyBalances() {
   return Object.fromEntries(JOKER_TYPES.map((jokerType) => [jokerType, 0]));
 }
 
+function rowId(row: any) {
+  return row?.id || row?._id || null;
+}
+
+function userEntity(base44: any) {
+  // Runtime/deployability contract: Mağaza purchase explicitly binds
+  // entities.User while retaining service-role preference for the balance write.
+  const serviceEntity = base44?.asServiceRole?.entities ? base44.asServiceRole.entities.User : null;
+  const authEntity = base44?.entities ? base44.entities.User : null;
+  return serviceEntity || authEntity;
+}
+
+function inventoryEntity(base44: any) {
+  // Runtime/deployability contract: Mağaza purchase explicitly binds
+  // entities.UserJokerInventory while retaining service-role preference.
+  const serviceEntity = base44?.asServiceRole?.entities ? base44.asServiceRole.entities.UserJokerInventory : null;
+  const authEntity = base44?.entities ? base44.entities.UserJokerInventory : null;
+  return serviceEntity || authEntity;
+}
+
+function diamondTransactionEntity(base44: any) {
+  // Runtime/deployability contract: Mağaza purchase explicitly binds
+  // entities.DiamondTransaction while retaining service-role preference.
+  const serviceEntity = base44?.asServiceRole?.entities ? base44.asServiceRole.entities.DiamondTransaction : null;
+  const authEntity = base44?.entities ? base44.entities.DiamondTransaction : null;
+  return serviceEntity || authEntity;
+}
+
+function jokerTransactionEntity(base44: any) {
+  // Runtime/deployability contract: Mağaza purchase explicitly binds
+  // entities.JokerTransaction while retaining service-role preference.
+  const serviceEntity = base44?.asServiceRole?.entities ? base44.asServiceRole.entities.JokerTransaction : null;
+  const authEntity = base44?.entities ? base44.entities.JokerTransaction : null;
+  return serviceEntity || authEntity;
+}
+
+async function updateCurrentUser(base44: any, user: any, patch: Record<string, unknown>) {
+  const entity = userEntity(base44);
+  const id = rowId(user);
+  if (entity?.update && id) return entity.update(id, patch);
+  if (base44?.auth?.updateMe) return base44.auth.updateMe(patch);
+  throw new Error('market_user_update_unavailable');
+}
+
 function buildStarterIdempotencyKey(email: string, jokerType: string) {
   return `${STARTER_SOURCE}:${email}:${jokerType}`;
 }
 
 function publicInventoryRow(row: any) {
   return {
-    id: row?.id || null,
+    id: rowId(row),
     jokerType: row?.joker_type || '',
     quantity: normalizeQuantity(row?.quantity),
     updatedAt: row?.updated_at || row?.created_at || null,
@@ -80,14 +124,18 @@ function publicInventoryRow(row: any) {
 }
 
 async function findInventory(base44: any, email: string, jokerType: string) {
-  const rows = await base44.asServiceRole.entities.UserJokerInventory
+  const entity = inventoryEntity(base44);
+  if (!entity?.filter) return null;
+  const rows = await entity
     .filter({ user_email: email, joker_type: jokerType }, '-updated_at', 10)
     .catch(() => []);
   return Array.isArray(rows) && rows.length ? rows[0] : null;
 }
 
 async function readBalances(base44: any, email: string) {
-  const rows = await base44.asServiceRole.entities.UserJokerInventory
+  const entity = inventoryEntity(base44);
+  if (!entity?.filter) return emptyBalances();
+  const rows = await entity
     .filter({ user_email: email }, '-updated_at', 20)
     .catch(() => []);
   const balances = emptyBalances();
@@ -101,15 +149,19 @@ async function readBalances(base44: any, email: string) {
 }
 
 async function findStarterTransaction(base44: any, email: string, jokerType: string, idempotencyKey: string) {
-  const rows = await base44.asServiceRole.entities.JokerTransaction
+  const entity = jokerTransactionEntity(base44);
+  if (!entity?.filter) return null;
+  const rows = await entity
     .filter({ user_email: email, joker_type: jokerType, idempotency_key: idempotencyKey }, '-created_at', 1)
     .catch(() => []);
   return Array.isArray(rows) && rows.length ? rows[0] : null;
 }
 
 async function upsertInventory(base44: any, existing: any, payload: Record<string, unknown>) {
-  if (existing?.id) return base44.asServiceRole.entities.UserJokerInventory.update(existing.id, payload);
-  return base44.asServiceRole.entities.UserJokerInventory.create(payload);
+  const entity = inventoryEntity(base44);
+  const id = rowId(existing);
+  if (id) return entity.update(id, payload);
+  return entity.create(payload);
 }
 
 async function ensureStarterJokerType(base44: any, email: string, jokerType: string) {
@@ -120,14 +172,14 @@ async function ensureStarterJokerType(base44: any, email: string, jokerType: str
   const currentQuantity = normalizeQuantity(existingInventory?.quantity);
 
   if (existingTransaction) {
-    if (!existingInventory?.id) {
+    if (!rowId(existingInventory)) {
       await upsertInventory(base44, existingInventory, {
         user_email: email,
         joker_type: jokerType,
         quantity: normalizeQuantity(existingTransaction.balance_after) || STARTER_QUANTITY,
         created_at: timestamp,
         updated_at: timestamp,
-        last_transaction_id: existingTransaction.id || null,
+        last_transaction_id: rowId(existingTransaction),
         metadata: { starterGrantRecoveredFromLedger: true, source: MARKET_SOURCE },
       });
     }
@@ -157,7 +209,7 @@ async function ensureStarterJokerType(base44: any, email: string, jokerType: str
   };
   let transaction: any = null;
   try {
-    transaction = await base44.asServiceRole.entities.JokerTransaction.create(transactionPayload);
+    transaction = await jokerTransactionEntity(base44).create(transactionPayload);
   } catch {
     transaction = await findStarterTransaction(base44, email, jokerType, idempotencyKey);
   }
@@ -170,7 +222,7 @@ async function ensureStarterJokerType(base44: any, email: string, jokerType: str
     quantity: finalQuantity,
     created_at: (latestInventory || existingInventory)?.created_at || timestamp,
     updated_at: timestamp,
-    last_transaction_id: transaction?.id || null,
+    last_transaction_id: rowId(transaction),
     metadata: {
       starterGrantInitialized: true,
       invokedBy: 'purchaseJokerWithDiamonds',
@@ -185,14 +237,18 @@ async function ensureStarterInventory(base44: any, email: string) {
 }
 
 async function findDiamondTransaction(base44: any, email: string, idempotencyKey: string) {
-  const rows = await base44.asServiceRole.entities.DiamondTransaction
+  const entity = diamondTransactionEntity(base44);
+  if (!entity?.filter) return null;
+  const rows = await entity
     .filter({ user_email: email, idempotency_key: idempotencyKey }, '-created_at', 1)
     .catch(() => []);
   return Array.isArray(rows) && rows.length ? rows[0] : null;
 }
 
 async function findJokerTransaction(base44: any, email: string, jokerType: string, idempotencyKey: string) {
-  const rows = await base44.asServiceRole.entities.JokerTransaction
+  const entity = jokerTransactionEntity(base44);
+  if (!entity?.filter) return null;
+  const rows = await entity
     .filter({ user_email: email, joker_type: jokerType, idempotency_key: idempotencyKey }, '-created_at', 1)
     .catch(() => []);
   return Array.isArray(rows) && rows.length ? rows[0] : null;
@@ -201,7 +257,7 @@ async function findJokerTransaction(base44: any, email: string, jokerType: strin
 async function createDiamondTransaction(base44: any, payload: Record<string, unknown>) {
   const existing = await findDiamondTransaction(base44, String(payload.user_email || ''), String(payload.idempotency_key || ''));
   if (existing) return existing;
-  return base44.asServiceRole.entities.DiamondTransaction.create(payload);
+  return diamondTransactionEntity(base44).create(payload);
 }
 
 async function createJokerTransaction(base44: any, payload: Record<string, unknown>) {
@@ -212,16 +268,17 @@ async function createJokerTransaction(base44: any, payload: Record<string, unkno
     String(payload.idempotency_key || ''),
   );
   if (existing) return existing;
-  return base44.asServiceRole.entities.JokerTransaction.create(payload);
+  return jokerTransactionEntity(base44).create(payload);
 }
 
 async function rollbackState(base44: any, user: any, inventory: any, diamondBefore: number, jokerBefore: number, timestamp: string) {
-  await base44.asServiceRole.entities.User.update(user.id, {
+  await updateCurrentUser(base44, user, {
     diamonds: diamondBefore,
     economy_updated_at: timestamp,
   }).catch(() => null);
-  if (inventory?.id) {
-    await base44.asServiceRole.entities.UserJokerInventory.update(inventory.id, {
+  const id = rowId(inventory);
+  if (id) {
+    await inventoryEntity(base44).update(id, {
       quantity: jokerBefore,
       updated_at: timestamp,
       metadata: {
@@ -274,11 +331,12 @@ Deno.serve(async (req: Request) => {
       return json({ ok: false, code: 'missing_idempotency_key', error: 'Satın alma doğrulanamadı.' }, 400);
     }
 
-    const userEntity = base44.asServiceRole.entities.User;
-    const inventoryEntity = base44.asServiceRole.entities.UserJokerInventory;
-    const diamondTransactionEntity = base44.asServiceRole.entities.DiamondTransaction;
-    const jokerTransactionEntity = base44.asServiceRole.entities.JokerTransaction;
-    if (!userEntity?.update || !inventoryEntity?.filter || !inventoryEntity?.create || !inventoryEntity?.update || !diamondTransactionEntity?.filter || !diamondTransactionEntity?.create || !jokerTransactionEntity?.filter || !jokerTransactionEntity?.create) {
+    const userStore = userEntity(base44);
+    const inventoryStore = inventoryEntity(base44);
+    const diamondTransactionStore = diamondTransactionEntity(base44);
+    const jokerTransactionStore = jokerTransactionEntity(base44);
+    const canUpdateCurrentUser = Boolean(userStore?.update || base44?.auth?.updateMe);
+    if (!canUpdateCurrentUser || !inventoryStore?.filter || !inventoryStore?.create || !inventoryStore?.update || !diamondTransactionStore?.filter || !diamondTransactionStore?.create || !jokerTransactionStore?.filter || !jokerTransactionStore?.create) {
       return json({ ok: false, code: 'market_entities_missing', error: 'Mağaza kayıtları hazır değil.' }, 500);
     }
 
@@ -298,8 +356,8 @@ Deno.serve(async (req: Request) => {
         jokerBalanceAfter: normalizeQuantity(existingJokerTx.balance_after),
         idempotencyKey,
         purchaseId: idempotencyKey,
-        diamondTransactionId: existingDiamondTx.id || null,
-        jokerTransactionId: existingJokerTx.id || null,
+        diamondTransactionId: rowId(existingDiamondTx),
+        jokerTransactionId: rowId(existingJokerTx),
         balances: await readBalances(base44, email),
       });
     }
@@ -351,7 +409,7 @@ Deno.serve(async (req: Request) => {
       economy_updated_at: timestamp,
     };
 
-    await userEntity.update(latestUser.id || user.id, userPatch);
+    await updateCurrentUser(base44, rowId(latestUser) ? latestUser : user, userPatch);
     const updatedInventory = await upsertInventory(base44, inventory, {
       user_email: email,
       joker_type: jokerType,
@@ -405,7 +463,7 @@ Deno.serve(async (req: Request) => {
         metadata: {
           diamondCost,
           pricePerUnit: product.price,
-          diamondTransactionId: diamondTransaction?.id || null,
+          diamondTransactionId: rowId(diamondTransaction),
           phase: 'market_phase_1',
         },
       });
@@ -419,10 +477,11 @@ Deno.serve(async (req: Request) => {
       }, 500);
     }
 
-    const finalInventory = await inventoryEntity.update(updatedInventory.id || inventory?.id, {
-      last_transaction_id: jokerTransaction?.id || null,
+    const finalInventoryId = rowId(updatedInventory) || rowId(inventory);
+    const finalInventory = finalInventoryId ? await inventoryStore.update(finalInventoryId, {
+      last_transaction_id: rowId(jokerTransaction),
       updated_at: timestamp,
-    }).catch(() => updatedInventory);
+    }).catch(() => updatedInventory) : updatedInventory;
 
     return json({
       ok: true,
@@ -437,8 +496,8 @@ Deno.serve(async (req: Request) => {
       jokerBalanceAfter: jokerAfter,
       idempotencyKey,
       purchaseId: idempotencyKey,
-      diamondTransactionId: diamondTransaction?.id || null,
-      jokerTransactionId: jokerTransaction?.id || null,
+      diamondTransactionId: rowId(diamondTransaction),
+      jokerTransactionId: rowId(jokerTransaction),
       inventory: publicInventoryRow(finalInventory),
       balances: await readBalances(base44, email),
       userPatch,
@@ -446,6 +505,6 @@ Deno.serve(async (req: Request) => {
     });
   } catch (error) {
     console.error('[purchaseJokerWithDiamonds] failed', error?.message || error);
-    return json({ ok: false, code: 'market_purchase_failed', error: 'Satın alma tamamlanamadı. Lütfen tekrar dene.' }, 500);
+    return json({ ok: false, code: 'market_purchase_failed', error: 'Satın alma tamamlanamadı. Tekrar dene.' }, 500);
   }
 });

@@ -79,7 +79,7 @@ export default function MarketPage() {
         clientRequestId,
       });
       if (!result?.ok) {
-        setNotice({ type: 'error', text: result?.error || 'Satın alma tamamlanamadı.' });
+        setNotice({ type: 'error', text: result?.error || 'Satın alma tamamlanamadı. Tekrar dene.' });
         return;
       }
       const nextBalances = normalizeJokerBalances(result.balances);
@@ -98,7 +98,7 @@ export default function MarketPage() {
       }));
       setNotice({ type: 'success', text: `${product.name} alındı.` });
     } catch {
-      setNotice({ type: 'error', text: 'Satın alma tamamlanamadı.' });
+      setNotice({ type: 'error', text: 'Satın alma tamamlanamadı. Tekrar dene.' });
     } finally {
       setPendingType('');
     }

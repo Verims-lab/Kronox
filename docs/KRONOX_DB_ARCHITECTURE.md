@@ -143,8 +143,9 @@ Current entities audited:
 Mağaza Phase 1 treats Daily Wheel as a Diamond source and Mağaza purchase as a
 Diamond sink. `purchaseJokerWithDiamonds` is server-authoritative: it ignores
 client price/cost, validates authenticated self-owned user context and
-sufficient `User.diamonds`, writes both Diamond and Joker ledgers with the same
-idempotency key, and uses best-effort rollback if ledger creation fails. True
+sufficient `User.diamonds`, explicitly binds `UserJokerInventory`,
+`DiamondTransaction`, and `JokerTransaction`, writes both Diamond and Joker
+ledgers with the same idempotency key, and uses best-effort rollback if ledger creation fails. True
 duplicate-request and partial-failure consistency proof remains a live backend
 manual gate.
 

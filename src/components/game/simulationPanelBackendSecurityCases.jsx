@@ -581,7 +581,7 @@ export const EXTRA_TESTS = [
     () => {
       const required = [
         'market_purchase_failed',
-        'Satın alma tamamlanamadı. Lütfen tekrar dene.',
+        'Satın alma tamamlanamadı. Tekrar dene.',
         "console.error('[purchaseJokerWithDiamonds] failed'",
       ];
       const forbidden = presentTokens(purchaseJokerWithDiamondsSource, [

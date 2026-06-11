@@ -247,6 +247,9 @@ Checklist:
   `Kronokalkan = 60` Diamonds.
 * Mağaza purchase uses `purchaseJokerWithDiamonds`; the client displays price
   but the backend owns the trusted price table and sufficient-Diamond check.
+* `purchaseJokerWithDiamonds` explicitly binds `UserJokerInventory`,
+  `DiamondTransaction`, and `JokerTransaction`; missing deployed entity
+  registries must fail safely rather than exposing raw errors.
 * Successful purchase writes both `DiamondTransaction.source = market_purchase`
   with `direction = spend` and `JokerTransaction.reason = market_purchase`.
 * Purchase uses a per-action idempotency key and pending UI guard; live
@@ -267,13 +270,15 @@ Checklist:
   6. Confirm Diamonds decrease by 40 and Zaman Dondur increases by 1.
   7. Confirm both `DiamondTransaction` and `JokerTransaction` exist with
      `market_purchase` and the same idempotency key.
-  8. Return to Profile and confirm `Joker Çantası` updated.
-  9. Start Solo and confirm the purchased joker count appears in the joker bar.
-  10. Try insufficient Diamonds and confirm no balance changes.
-  11. Double-tap purchase and confirm no duplicate charge/grant.
-  12. Retry after a simulated network failure if possible and confirm no
+  8. Confirm failed purchase copy is safe, e.g.
+     `Satın alma tamamlanamadı. Tekrar dene.`
+  9. Return to Profile and confirm `Joker Çantası` updated.
+  10. Start Solo and confirm the purchased joker count appears in the joker bar.
+  11. Try insufficient Diamonds and confirm no balance changes.
+  12. Double-tap purchase and confirm no duplicate charge/grant.
+  13. Retry after a simulated network failure if possible and confirm no
       double-charge or double-grant.
-  13. Repeat from two tabs/devices if possible; this is the live race proof.
+  14. Repeat from two tabs/devices if possible; this is the live race proof.
   14. Verify Online mode remains unaffected.
   15. Verify Daily Wheel still grants Diamonds only.
 * Market purchase is a Diamond sink; Daily Wheel remains a Diamond source.

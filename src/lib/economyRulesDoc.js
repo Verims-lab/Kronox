@@ -70,6 +70,7 @@ Mağaza Phase 1 sells only Solo jokers for Diamonds:
 Zaman Dondur = 40 Diamonds, Kart Değiştir = 50 Diamonds, Kronokalkan = 60 Diamonds.
 Diamond source/sink balance: Daily Wheel remains a Diamond source and Daily Wheel remains Diamond-only, while Mağaza purchase is a Diamond sink.
 purchaseJokerWithDiamonds owns the trusted price table, purchase validation is server-authoritative, Client is not trusted for price, client-provided price/cost is ignored, validates authenticated self-owned user context and sufficient User.diamonds server-side, writes DiamondTransaction.source = market_purchase with direction = spend, and writes JokerTransaction.reason = market_purchase.
+purchaseJokerWithDiamonds explicitly binds UserJokerInventory, DiamondTransaction, and JokerTransaction in the Base44 runtime path; deployed proof must confirm Diamond decrease, joker increase, both ledgers, insufficient-Diamond block, and duplicate tap guard.
 Insufficient Diamonds do not decrease Diamonds, increase joker balance, or write successful purchase ledgers. Purchase uses an idempotency key; double-tap, network retry, and two tabs/devices live race proof remains manual.
 Partial failure reconciliation: ledger write failure uses best-effort rollback of the Diamond and joker balances, but live provider/backend consistency proof remains manual.
 
