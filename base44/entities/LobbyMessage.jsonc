@@ -37,7 +37,25 @@
   ],
   "rls": {
     "create": {
-      "created_by_id": "{{user.id}}"
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}",
+          "data.lobby_id": {
+            "$in": {
+              "_collection": "Lobby",
+              "_query": {
+                "data.players.email": "{{user.email}}"
+              },
+              "_field": "id"
+            }
+          }
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     },
     "read": {
       "$or": [
