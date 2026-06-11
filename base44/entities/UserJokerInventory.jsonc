@@ -38,6 +38,11 @@
     "metadata": {
       "type": "object",
       "description": "Debug-safe metadata. Must not contain secrets or private profile data."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this joker inventory row (up to 1000 characters)."
     }
   },
   "required": [

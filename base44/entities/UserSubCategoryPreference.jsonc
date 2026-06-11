@@ -1,7 +1,7 @@
 {
   "name": "UserSubCategoryPreference",
   "type": "object",
-  "description": "Codex243 — Per-user SubCategory interest preference rows for Settings. Rows are user-scoped, store SubCategory.id in sub_category_id, and do not affect question selection until a later soft-weighting task.",
+  "description": "Codex243 \u2014 Per-user SubCategory interest preference rows for Settings. Rows are user-scoped, store SubCategory.id in sub_category_id, and do not affect question selection until a later soft-weighting task.",
   "properties": {
     "id": {
       "type": "string",
@@ -37,6 +37,11 @@
       "type": "string",
       "format": "date-time",
       "description": "ISO timestamp when the preference row was last changed."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this sub category preference (up to 1000 characters)."
     }
   },
   "required": [

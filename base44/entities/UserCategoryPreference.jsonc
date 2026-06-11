@@ -1,7 +1,7 @@
 {
   "name": "UserCategoryPreference",
   "type": "object",
-  "description": "Codex245 — Per-user main Category interest preference rows for Settings. Rows are user-scoped, store Category.category_id in category_id, and do not affect question selection until a later soft-weighting task.",
+  "description": "Codex245 \u2014 Per-user main Category interest preference rows for Settings. Rows are user-scoped, store Category.category_id in category_id, and do not affect question selection until a later soft-weighting task.",
   "properties": {
     "id": {
       "type": "string",
@@ -37,6 +37,11 @@
       "type": "string",
       "format": "date-time",
       "description": "ISO timestamp when the preference row was last changed."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this category preference (up to 1000 characters)."
     }
   },
   "required": [

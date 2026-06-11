@@ -1,7 +1,7 @@
 {
   "name": "JokerTransaction",
   "type": "object",
-  "description": "Append-only user joker ledger. Starter grants write starter_grant rows; Solo joker usage writes solo_use rows; Mağaza Phase 1 writes market_purchase rows through server-side validation.",
+  "description": "Append-only user joker ledger. Starter grants write starter_grant rows; Solo joker usage writes solo_use rows; Ma\u011faza Phase 1 writes market_purchase rows through server-side validation.",
   "properties": {
     "user_email": {
       "type": "string",
@@ -70,6 +70,11 @@
     "metadata": {
       "type": "object",
       "description": "Debug-safe metadata. Must not contain secrets, raw auth tokens, or private user profile data."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this joker transaction (up to 1000 characters)."
     }
   },
   "required": [

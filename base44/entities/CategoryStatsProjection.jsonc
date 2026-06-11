@@ -1,7 +1,7 @@
 {
   "name": "CategoryStatsProjection",
   "type": "object",
-  "description": "Codex183 — Aggregated category-level analytics projection derived from QuestionAttemptEvent.",
+  "description": "Codex183 \u2014 Aggregated category-level analytics projection derived from QuestionAttemptEvent.",
   "properties": {
     "category_id": {
       "type": "number",
@@ -29,6 +29,11 @@
     "updated_at": {
       "type": "string",
       "format": "date-time"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this category stats projection (up to 1000 characters)."
     }
   },
   "required": [

@@ -83,6 +83,11 @@
       ],
       "default": "A",
       "description": "Content status. A = Active, P = Passive. Authenticated gameplay fetches only active questions through getQuestions."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this question (up to 1000 characters)."
     }
   },
   "required": [

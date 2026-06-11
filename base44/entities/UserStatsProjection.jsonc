@@ -1,7 +1,7 @@
 {
   "name": "UserStatsProjection",
   "type": "object",
-  "description": "Codex183 — Private/admin user statistics projection separate from overloaded User JSON. Public surfaces should prefer owner_key and avoid raw email.",
+  "description": "Codex183 \u2014 Private/admin user statistics projection separate from overloaded User JSON. Public surfaces should prefer owner_key and avoid raw email.",
   "properties": {
     "owner_key": {
       "type": "string",
@@ -50,6 +50,11 @@
     "updated_at": {
       "type": "string",
       "format": "date-time"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this user stats projection (up to 1000 characters)."
     }
   },
   "required": [

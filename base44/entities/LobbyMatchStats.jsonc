@@ -1,7 +1,7 @@
 {
   "name": "LobbyMatchStats",
   "type": "object",
-  "description": "Codex183 — Lobby/match analytics projection for stuck-flow diagnostics. Lobby remains the authoritative gameplay state; this projection is additive.",
+  "description": "Codex183 \u2014 Lobby/match analytics projection for stuck-flow diagnostics. Lobby remains the authoritative gameplay state; this projection is additive.",
   "properties": {
     "lobby_id": {
       "type": "string",
@@ -39,6 +39,11 @@
     "updated_at": {
       "type": "string",
       "format": "date-time"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional free-text description for this lobby match stats row (up to 1000 characters)."
     }
   },
   "required": [
