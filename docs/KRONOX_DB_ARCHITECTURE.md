@@ -1,10 +1,11 @@
 # Kronox DB Architecture
 
-Status: Codex183 implementation baseline plus target architecture roadmap. This
-document remains non-destructive: it records additive schemas, gateway
-foundation, maintenance job scaffolding, and platform configuration gaps.
+Status: Codex310 architecture audit snapshot plus target architecture roadmap.
+This document remains non-destructive: it records additive schemas, gateway
+foundation, maintenance job scaffolding, runtime economy contracts, and
+platform configuration gaps.
 
-Last reviewed from repo state: Codex183.
+Last reviewed from repo state: Codex310.
 
 ## 1. Executive Summary
 
@@ -31,7 +32,14 @@ Release posture: keep current runtime behavior, but implement gateway,
 projection, event, index, and cleanup phases before scaling user traffic or
 question volume.
 
-## Codex183 Implementation Status
+Codex310 audit principles applied: keep mutable user-owned data server/auth
+scoped, prefer online fetch before offline fallback for question runtime, use
+projection/ledger rows for public and economy surfaces, document Base44
+index/unique constraints as platform configuration when repo schemas cannot
+enforce them, and keep final iOS IPA/icon, two-account RLS, and backend deploy
+proof as explicit manual gates.
+
+## Implementation Status (Codex183 Foundation, Codex310 Review)
 
 Implemented now:
 
@@ -89,14 +97,30 @@ Platform/manual configuration still required:
   unique/index constraints in the Base44/platform admin UI if supported, then
   record proof in release notes.
 - Required unique keys include:
+  - `AdminUser.email`
+  - `Category.category_id`
   - `DiamondTransaction.idempotency_key`
+  - `DailyQuestDefinition.quest_key`
+  - `UserDailyQuestProgress.idempotency_key`
+  - `UserDailyQuestProgress.user_email + quest_date + quest_key`
+  - `DailyWheelSpin.idempotency_key`
+  - `DailyWheelSpin.user_email + spin_date`
+  - `UserJokerInventory.user_email + joker_type`
+  - `JokerTransaction.idempotency_key`
+  - `UserCategoryPreference.user_email + category_id`
+  - `FriendRequest.from_email + to_email + status`
+  - `GameInvite.to_email + status + expires_at`
   - `OnlineMatchResult.idempotency_key`
   - `OnlineMatchResult.lobby_id + player_email`
   - `PushSubscription.user_email + endpoint`
   - `SoloLeaderboardEntry.owner_key`
-  - `Category.category_id`
-- Runtime uniqueness, scheduled jobs, and analytics write volume remain manual
-  proof items.
+- Hot-path indexes should cover `Question.state + main_category_id`,
+  `Question.state + difficulty`, `Question.state + sub_category`,
+  `DiamondTransaction.user_email + created_at/source`,
+  `JokerTransaction.user_email + joker_type + created_at`,
+  `QuestionAttemptEvent.question_id + created_at`, and leaderboard score sort.
+- Runtime uniqueness, scheduled jobs, high-volume analytics writes, and
+  two-account RLS/BOLA probes remain manual proof items.
 
 ## 2. Current Entity Map
 
@@ -581,9 +605,12 @@ idempotency.
 | `Question` | `state` | P0 | Exclude passive rows. |
 | `Question` | `main_category_id` | P0 | Category scoped gameplay. |
 | `Question` | `state + main_category_id` | P0 | `getQuestions` and `startLobbyGame`. |
+| `Question` | `state + difficulty`, `state + sub_category` | P1 | Solo weighting, diagnostics, and admin reporting without broad scans. |
 | `Question` | future `answer_year` | P1 | Unique-year deck selection without parsing every row. |
 | `Question` | `state + main_category_id + answer_year` | P1 | Scalable Solo/Online sampling. |
 | `Question` | `difficulty`, `region`, `public_visibility` | P2 | Content tools/SEO projection. |
+| `AdminUser` | unique `email`; `role + status` | P0 | AdminUser-backed authorization and disabled-admin blocking. |
+| `UserCategoryPreference` | unique `user_email + category_id`; `user_email + status` | P0 | Category preference popup/settings and Solo soft weighting. |
 | `GameInvite` | `to_email + status + expires_at` | P0 | Header/pending invite fetch. |
 | `GameInvite` | `from_email + status`, `lobby_id` | P1 | Host outgoing rows and lobby cleanup. |
 | `Lobby` | unique `code` | P0 | Join by code. |
@@ -598,6 +625,9 @@ idempotency.
 | `UserJokerInventory` | unique `user_email + joker_type` | P0 | One current balance per user per joker type. |
 | `JokerTransaction` | unique `idempotency_key` | P0 | Prevent duplicate starter grants and future spends/purchases. |
 | `JokerTransaction` | `user_email + created_at`, `user_email + joker_type` | P1 | audit/history. |
+| `DailyQuestDefinition` | unique `quest_key`; `status + sort_order` | P0 | Stable admin templates and one selected active quest. |
+| `UserDailyQuestProgress` | unique `idempotency_key`; unique `user_email + quest_date + quest_key` | P0 | One selected user/day quest and duplicate-claim guard. |
+| `UserDailyQuestProgress` | `user_email + quest_date`, `user_email + quest_date + status` | P1 | Home status load and claim/progress queries. |
 | `DailyWheelSpin` | unique `idempotency_key`, unique `user_email + spin_date` | P0 | one spin per user per server day. |
 | `DailyWheelSpin` | `user_email + claimed_at`, `spin_date` | P1 | wheel history/status queries. |
 | `SoloLeaderboardEntry`/`LeaderboardProjection` | unique `owner_key` | P0 | Dedupe public rows. |
@@ -607,7 +637,9 @@ idempotency.
 | `FriendRequest` | `to_email + status`, `from_email + status` | P0 | notifications/friends. |
 | `FriendRequest` | `from_email + to_email + status` | P1 | duplicate request prevention. |
 | `AdminMaintenanceLog` | `created_at`, `action + created_at` | P1 | audit review/retention. |
-| `QuestionAttemptEvent` | `question_id + shown_at`, `user/email + shown_at`, `mode + shown_at` | P1 | aggregate jobs. |
+| `QuestionAttemptEvent` | unique `event_id`; `question_id + created_at`, `user_key + created_at`, `mode + created_at` | P1 | aggregate jobs and duplicate event suppression. |
+| `QuestionStatsProjection` | unique `question_id`; `question_id + updated_at` | P1 | analytics report/detail lookups. |
+| `CategoryStatsProjection` | `category_id + sub_category`; `updated_at` | P1 | category analytics rollups. |
 
 ## 8. Cleanup/Retention Job Strategy
 

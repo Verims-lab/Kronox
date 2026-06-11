@@ -1302,6 +1302,15 @@ import React, { useEffect, useState } from 'react';
 //   • Documents that Base44 must regenerate files after replacing the upload
 //     logo, because old IPA/archive files can preserve App Store 90717.
 //
+// Codex310 — Full architecture audit alignment:
+//   • Refreshes DB architecture docs/Health mirrors from the old Codex183
+//     baseline to current runtime contracts without changing product behavior.
+//   • Expands platform/manual unique-key and hot-path index guardrails for
+//     Daily Quest, Daily Wheel, Joker/Market, social, question analytics, and
+//     admin authorization data.
+//   • Aligns mobile navigation Health wording with the current three-tab
+//     BottomNav contract: Ana Sayfa, Liderlik, Profil.
+//
 // Codex303 — Joker Çantası user-specific self-heal:
 //   • ensureUserJokerInventory now repairs missing/partial/mixed-owner
 //     UserJokerInventory rows for the authenticated user without overwriting
@@ -1641,7 +1650,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex309';
+const BUILD_MARKER = 'Codex310';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
