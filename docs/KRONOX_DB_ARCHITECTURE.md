@@ -828,15 +828,14 @@ No deletion should happen in this task.
   `swapped_out` events separately. Projection refresh skips analytics events
   whose `question_id` no longer exists in the current `Question` pool.
 - Manual admin email report. Codex197 adds `sendQuestionAnalyticsReportEmail`
-  for admin-triggered, question-focused reports. Codex198 formats the report
-  as HTML email with summary cards, grouped tables, capped never-shown samples,
-  and email-safe visual bars plus a plain-text fallback. The report skips
-  stale/deleted question references with a diagnostic count and caps large
-  sections for email readability. Codex254 makes the actual sent body include
-  category pool counts, aggregate category preference counts, category exposure
-  counts, within-category most/least/never-shown analysis, and category fairness
-  signals. Category preference counts are aggregate only and do not expose user
-  IDs or emails. The function is registered at
+  for admin-triggered, question-focused reports. Codex314 makes the actual
+  email body summary-only and attaches the cleaned detailed report as a PDF.
+  The report skips stale/deleted question references with a diagnostic count and
+  caps large sections for readability. The PDF includes category pool counts,
+  aggregate category preference counts, category exposure counts, category
+  fairness signals, and bounded top/low/wrong/easy/slow question lists. Category
+  preference counts are aggregate only and do not expose user IDs or emails. The
+  function is registered at
   `base44/functions/sendQuestionAnalyticsReportEmail/entry.ts` with
   `base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc`.
   The callable report function inlines the DB-backed AdminUser guard for the
@@ -847,9 +846,9 @@ No deletion should happen in this task.
   The report recipient defaults to the requesting authenticated admin's
   normalized email. Mismatched recipient overrides are rejected; `created_by`
   and hardcoded owner addresses are not used as recipients. The function and
-  Admin Ekranı UI return safe `requestedBy`, `recipientEmail`, template, body-marker,
-  and email dispatch diagnostics, while real inbox delivery remains manual
-  provider proof.
+  Admin Ekranı UI return safe `requestedBy`, `recipientEmail`, template,
+  summary-body, PDF-attachment, and email dispatch diagnostics, while real inbox
+  delivery and PDF receipt/opening remain manual provider proof.
 - Static category pool reporting. `Kategori Bazında Soru Havuzu` is sourced
   directly from current `Question` rows and `Category` lookup rows, not from
   `QuestionAttemptEvent`, `QuestionStatsProjection`, or
@@ -857,28 +856,16 @@ No deletion should happen in this task.
   question count, difficulty 1-5/unknown distribution, oldest year, newest
   year, and Unknown/unmapped category diagnostics. `Kategori Bazında Gösterim`
   remains separate report-period exposure analytics.
-- Registered pool detail reporting. `Kategori ve Zorluk Bazında Kayıtlı Soru
-  Sayısı` / `Kategori Bazında Kayıtlı Soru Havuzu` is also sourced from current
-  active `Question` rows and shows category, difficulty level, registered
-  question count, oldest year, and newest year. It includes asked and
-  never-asked active questions, is independent of analytics events, and remains
-  distinct from shown/asked distribution.
-- Report ordering and clipping diagnostics. Static `Question` DB pool sections
-  render near the top before long event detail tables. `Rapor Bölümleri` lists
-  included sections near the top, and `Rapor Tamamlandı` at the end indicates
-  generation completed; if the marker is missing in a received email, suspect
-  clipping/truncation.
-- Email-safe registered-pool chart. `Sistemdeki Soru Havuzu: Kategori /
-  Zorluk Dağılımı` is sourced from active `Question` rows and renders a numeric
-  category/difficulty table plus inline HTML/CSS stacked bars. It includes
-  asked and never-asked questions, counts Zorluk 1-5 plus Bilinmiyor, and does
-  not use JavaScript chart libraries. It appears directly after
-  `Key Insights / Risk Flags` in the sent email body, before every long
-  event-based detail table, and displays `Kaynak: Question tablosu` plus
-  `Toplam aktif kayıtlı soru` inside the section. The near-top
-  `Rapor Şablonu: static-pool-v2` marker identifies the deployed report
-  template; if the marker is absent from a real email, the runtime function is
-  stale or not redeployed.
+- Removed report sections. Generated email and PDF output must not include:
+  `Rapor Şablonu`, `Rapor Bölümleri`,
+  `Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı`,
+  `Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı`,
+  `Kategori Bazında Yıl Aralığı`, or `Kategori İçi Soru Analizi`. The live
+  deploy marker is now the function response diagnostics:
+  `templateVersion: summary-pdf-v1`, `emailBodyMode: summary_only`,
+  `pdfAttachmentGenerated: true`, and PDF filename/content-type fields. Frontend
+  `npm run build` still does not prove Base44 function redeployment or SendEmail
+  attachment delivery.
 - Manual DB reset path after question pool replacement. The function-based
   reset path is currently not used. To restart analytics from zero, manually
   clear only `QuestionAttemptEvent`, `QuestionStatsProjection`, and

@@ -1,5 +1,6 @@
 /* global Deno */
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.25";
+import { PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
 
 // Admin Ekranı invokes functions.invoke("sendQuestionAnalyticsReportEmail", payload).
 //
@@ -23,9 +24,19 @@ const REGISTERED_QUESTION_POOL_ROW_LIMIT = 250;
 const CATEGORY_FAIRNESS_SIGNAL_LIMIT = 20;
 const STALE_REFERENCE_SAMPLE_LIMIT = 20;
 const PERIOD_OPTIONS = /* @__PURE__ */ new Set([1, 7, 30]);
-const REPORT_BUILD_MARKER = "Codex313";
-const REPORT_TEMPLATE_VERSION = "static-pool-v2";
-const REPORT_TEMPLATE_LABEL = "Rapor Şablonu: static-pool-v2";
+const REPORT_BUILD_MARKER = "Codex314";
+const REPORT_TEMPLATE_VERSION = "summary-pdf-v1";
+const REPORT_TEMPLATE_LABEL = "summary-pdf-v1";
+const PDF_ATTACHMENT_CONTENT_TYPE = "application/pdf";
+const REPORT_ATTACHMENT_NOTICE = "Detaylı rapor PDF olarak ekte yer almaktadır.";
+const REMOVED_REPORT_SECTION_TITLES = Object.freeze([
+  "Rapor Şablonu",
+  "Rapor Bölümleri",
+  "Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı",
+  "Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı",
+  "Kategori Bazında Yıl Aralığı",
+  "Kategori İçi Soru Analizi"
+]);
 const DIFFICULTY_CHART_BUCKETS = [
   ["1", "Zorluk 1", "#2563eb"],
   ["2", "Zorluk 2", "#16a34a"],
@@ -113,6 +124,63 @@ function formatIstanbulTimestamp(date = /* @__PURE__ */ new Date()) {
   } catch (_error) {
     return date.toISOString();
   }
+}
+function slugifyFilename(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[ığ]/g, "g")
+    .replace(/[ü]/g, "u")
+    .replace(/[ş]/g, "s")
+    .replace(/[ö]/g, "o")
+    .replace(/[ç]/g, "c")
+    .replace(/[^\w]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "rapor";
+}
+function stripHtml(value) {
+  return String(value ?? "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|tr|li|h1|h2|h3)>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n\s+/g, "\n")
+    .trim();
+}
+function pdfSafeText(value) {
+  return String(value ?? "")
+    .replace(/\u0131/g, "i").replace(/\u0130/g, "I")
+    .replace(/\u015f/g, "s").replace(/\u015e/g, "S")
+    .replace(/\u011f/g, "g").replace(/\u011e/g, "G")
+    .replace(/\u00fc/g, "u").replace(/\u00dc/g, "U")
+    .replace(/\u00f6/g, "o").replace(/\u00d6/g, "O")
+    .replace(/\u00e7/g, "c").replace(/\u00c7/g, "C")
+    .replace(/\u2014/g, "-").replace(/\u2013/g, "-")
+    .replace(/\u2018|\u2019/g, "'")
+    .replace(/\u201c|\u201d/g, '"')
+    .replace(/[^\x20-\x7E\n]/g, " ")
+    .replace(/[ \t]+/g, " ")
+    .trimEnd();
+}
+function bytesToBase64(bytes) {
+  let binary = "";
+  const chunkSize = 8192;
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.slice(index, index + chunkSize));
+  }
+  return btoa(binary);
+}
+function findRemovedReportSections(value) {
+  const text = String(value || "");
+  return REMOVED_REPORT_SECTION_TITLES.filter((title) => text.includes(title));
+}
+function pdfFilenameForPeriod(periodDays) {
+  return `kronox-soru-analiz-raporu-${slugifyFilename(periodLabel(periodDays))}.pdf`;
 }
 function isActiveQuestion(question) {
   return String(question?.state || "A").toUpperCase() === "A";
@@ -350,6 +418,95 @@ function summaryCard(label, value, helper) {
       </td></tr>
     </table>
   </td>`;
+}
+async function buildQuestionAnalyticsPdfAttachment(report) {
+  const pdfDoc = await PDFDocument.create();
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const width = 595;
+  const height = 842;
+  const margin = 46;
+  const maxWidth = width - margin * 2;
+  const ink = rgb(0.06, 0.09, 0.16);
+  const muted = rgb(0.35, 0.40, 0.48);
+  const gold = rgb(0.83, 0.62, 0.12);
+  const navy = rgb(0.05, 0.09, 0.20);
+  let page = pdfDoc.addPage([width, height]);
+  let y = height - 54;
+
+  const addPage = () => {
+    page = pdfDoc.addPage([width, height]);
+    y = height - 54;
+    page.drawLine({ start: { x: margin, y: height - 36 }, end: { x: width - margin, y: height - 36 }, thickness: 0.5, color: gold, opacity: 0.5 });
+    page.drawText("Kronox Soru Analiz Raporu", { x: margin, y: height - 30, size: 8, font: boldFont, color: muted });
+    page.drawText(`Sayfa ${pdfDoc.getPageCount()}`, { x: width - margin - 48, y: height - 30, size: 8, font, color: muted });
+  };
+  const ensureSpace = (needed) => {
+    if (y - needed < 54) addPage();
+  };
+  const wrapLines = (raw, size, activeFont, availableWidth = maxWidth) => {
+    const normalized = pdfSafeText(raw).replace(/\s+/g, " ").trim();
+    if (!normalized) return [""];
+    const words = normalized.split(" ");
+    const lines = [];
+    let line = "";
+    for (const word of words) {
+      const candidate = line ? `${line} ${word}` : word;
+      if (activeFont.widthOfTextAtSize(candidate, size) > availableWidth && line) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = candidate;
+      }
+    }
+    if (line) lines.push(line);
+    return lines;
+  };
+  const drawText = (raw, options = {}) => {
+    const { size = 10, activeFont = font, color = ink, indent = 0, lineGap = 4 } = options;
+    const lines = String(raw ?? "").split("\n").flatMap((line) => wrapLines(line, size, activeFont, maxWidth - indent));
+    for (const line of lines) {
+      ensureSpace(size + lineGap + 3);
+      page.drawText(line, { x: margin + indent, y, size, font: activeFont, color });
+      y -= size + lineGap;
+    }
+  };
+  const drawHeading = (title) => {
+    y -= 12;
+    ensureSpace(34);
+    page.drawRectangle({ x: margin - 4, y: y - 6, width: maxWidth + 8, height: 24, color: navy });
+    page.drawLine({ start: { x: margin - 4, y: y - 6 }, end: { x: margin - 4, y: y + 18 }, thickness: 3, color: gold });
+    page.drawText(pdfSafeText(title).toUpperCase(), { x: margin + 8, y: y + 2, size: 11, font: boldFont, color: gold });
+    y -= 30;
+  };
+  const drawBullet = (line) => {
+    ensureSpace(18);
+    page.drawText("*", { x: margin, y, size: 10, font: boldFont, color: gold });
+    drawText(line, { size: 9.5, indent: 14, lineGap: 3 });
+  };
+
+  page.drawRectangle({ x: 0, y: 0, width, height, color: navy });
+  page.drawText("KRONOX", { x: margin, y: height - 140, size: 42, font: boldFont, color: gold });
+  page.drawText("Soru Analiz Raporu", { x: margin, y: height - 172, size: 18, font, color: rgb(0.92, 0.94, 0.98) });
+  page.drawText(pdfSafeText(`Dönem: ${report.period}`), { x: margin, y: height - 202, size: 11, font, color: rgb(0.82, 0.86, 0.92) });
+  page.drawText(pdfSafeText(`Oluşturma zamanı: ${report.generatedAt}`), { x: margin, y: height - 220, size: 10, font, color: rgb(0.70, 0.75, 0.82) });
+  page.drawText(pdfSafeText(`Build: ${report.buildMarker || "Bilinmiyor"} · Template: ${REPORT_TEMPLATE_VERSION}`), { x: margin, y: height - 238, size: 9, font, color: rgb(0.70, 0.75, 0.82) });
+  addPage();
+
+  for (const section of report.pdfSections || []) {
+    drawHeading(section.title);
+    for (const line of section.lines || []) {
+      drawBullet(stripHtml(line));
+    }
+  }
+
+  const pdfBytes = await pdfDoc.save();
+  return {
+    filename: report.attachmentFilename,
+    contentType: PDF_ATTACHMENT_CONTENT_TYPE,
+    base64: bytesToBase64(pdfBytes),
+    byteLength: pdfBytes.length
+  };
 }
 function htmlLineList(values, emptyMessage = "Yeterli veri yok") {
   if (!values.length) return escapeHtml(emptyMessage);
@@ -845,21 +1002,6 @@ function buildReport({
     escapeHtml(signal.value),
     escapeHtml(signal.note)
   ]);
-  const reportChecklistRows = [
-    ["Soru Havuzu", "Var", `Statik Question tablosu; ${activeQuestions.length} aktif soru.`],
-    ["Kategori/Zorluk Dağılımı Grafiği", "Var", `Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı bölümü ${categoryDifficultyChartRows.length} kategori satırı gösterir.`],
-    ["Kategori/Zorluk Detayı", "Var", `Question tablosundan ${registeredQuestionPoolRows.length} özet satırı.`],
-    ["Kategori Yıl Aralığı", "Var", "En eski/en yeni yıl statik kategori havuzundan hesaplanır."],
-    ["Kategori Tercihleri", "Var", "Aggregate UserCategoryPreference; kullanıcı kimliği gösterilmez."],
-    ["Kategori Gösterimleri", "Var", "Rapor dönemi QuestionAttemptEvent verisi; statik havuzdan ayrıdır."],
-    ["Kategori İçi Analiz", "Var", `Kategori örnekleri ${CATEGORY_QUESTION_SAMPLE_LIMIT} satırla sınırlı.`],
-    ["Detay Sorular", "Var", `Uzun tablolar ${QUESTION_TABLE_LIMIT}/${NEVER_SHOWN_SAMPLE_LIMIT}/${EASY_QUESTION_TABLE_LIMIT} satırla sınırlı.`],
-    ["Tamamlanma İşareti", "Var", "E-postanın sonunda Rapor Tamamlandı görünmelidir; görünmüyorsa clipping/truncation şüphesi oluşur."]
-  ].map(([section, status, note]) => [
-    escapeHtml(section),
-    escapeHtml(status),
-    escapeHtml(note)
-  ]);
   const warningRows = [
     ["Events missing question_id", missing.question_id],
     ["Deleted / missing question events ignored", missing.deleted_or_missing_question],
@@ -879,141 +1021,78 @@ function buildReport({
     ${insightRows.map(([label, tone, message]) => `<tr>
       <td valign="top" style="padding:8px 0;width:86px;">${badgeHtml(String(label), tone)}</td>
       <td valign="top" style="padding:8px 0;color:#111827;font-size:13px;line-height:20px;font-family:Arial,Helvetica,sans-serif;">${escapeHtml(message)}</td>
-    </tr>`).join("")}
-  </table>`;
+	    </tr>`).join("")}
+	  </table>`;
+  const topTextRows = topShown.length ? topShown.map((bucket, index) => `${index + 1}. #${bucket.question_id} | ${shortText(bucket.question?.question, 100)} | yıl=${questionYearLabel(bucket)} | kategori=${questionCategoryLabel(bucket, categoryMap)} | gösterim=${bucket.shown_count} | doğru=${correctRateLabel(bucket)} | süre=${formatMs(avgResponseMs(bucket))}`) : ["Bu dönemde gösterilen soru verisi yok."];
+  const neverTextRows = neverShownSample.length ? neverShownSample.map((question, index) => `${index + 1}. #${questionKey(question?.id ?? question?.question_id)} | ${shortText(question?.question, 100)} | yıl=${getQuestionYear(question) ?? "Yok"} | kategori=${categoryLabel(getCategoryId(question), categoryMap)} | alt=${displayValue(question?.sub_category)}`) : ["Hiç gösterilmeyen aktif soru bulunmadı."];
+  const categoryPoolTextRows = hasQuestionRows ? categoryAnalyticsForReport.map((row) => `${row.categoryId} | ${row.categoryName}: aktif=${row.activeQuestionCount}, zorluk1=${row.difficultyCounts?.["1"] || 0}, zorluk2=${row.difficultyCounts?.["2"] || 0}, zorluk3=${row.difficultyCounts?.["3"] || 0}, zorluk4=${row.difficultyCounts?.["4"] || 0}, zorluk5=${row.difficultyCounts?.["5"] || 0}, zorluk_bilinmiyor=${row.difficultyCounts?.unknown || 0}, en_eski_yıl=${row.oldestYear ?? "-"}, en_yeni_yıl=${row.newestYear ?? "-"}`) : ["Question tablosunda soru yok."];
+  const categoryPreferenceTextRows = categoryAnalytics.length ? categoryAnalyticsForReport.map((row) => `${row.categoryId} | ${row.categoryName}: tercih eden kullanıcı=${row.selectedUserCount}, tercih payı=${totalPreferenceSelections ? percent(row.selectedUserCount, totalPreferenceSelections) : "0%"}`) : ["Kategori tercih verisi henüz yok."];
+  const categoryExposureTextRows = categoryAnalytics.length ? categoryAnalyticsForReport.map((row) => `${row.categoryId} | ${row.categoryName}: aktif=${row.activeQuestionCount}, gösterim=${row.shownCount}, benzersiz gösterilen=${row.uniqueShownQuestionCount}, cevaplanan=${row.answeredCount}, doğru=${row.correctRate === null ? "Yeterli veri yok" : percent(row.correctRate, 1)}, ortalama süre=${formatMs(row.avgResponseTimeMs)}, gösterim payı=${percent(row.shownCount, shownEvents)}`) : ["Kategori bazında gösterim verisi yok."];
+  const categoryFairnessSignalTextRows = categoryFairnessSignals.length ? categoryFairnessSignals.map((signal) => `${signal.tone} | ${signal.categoryId} | ${signal.categoryName}: ${signal.value} - ${signal.note}`) : ["Belirgin kategori denge sinyali yok."];
+  const wrongTextRows = wrongRows.length ? mostWrong.map((bucket) => `#${bucket.question_id} | ${shortText(bucket.question?.question, 100)} | yanlış=${bucket.wrong_count} | doğru=${correctRateLabel(bucket)}`) : ["Yeterli örneklem yok."];
+  const easyTextRows = easyRows.length ? easy.map((bucket) => `#${bucket.question_id} | ${shortText(bucket.question?.question, 100)} | doğru=${correctRateLabel(bucket)}`) : ["Yeterli örneklem yok."];
+  const slowTextRows = slowRows.length ? slow.map((bucket) => `#${bucket.question_id} | ${shortText(bucket.question?.question, 100)} | süre=${formatMs(avgResponseMs(bucket))} | doğru=${correctRateLabel(bucket)}`) : ["Cevap süresi verisi yok."];
+  const executiveSummaryRows = [
+    `Toplam gösterim: ${shownEvents}`,
+    `Cevaplanan soru: ${answeredEvents}`,
+    `Benzersiz gösterilen soru: ${shownQuestionIds.size}`,
+    `Aktif soru havuzu: ${activeQuestions.length}`,
+    `Solo-eligible soru havuzu: ${soloEligibleQuestions.length}`,
+    `Hiç gösterilmeyen aktif soru: ${neverShown.length}`,
+    `Ortalama doğru oranı: ${avgCorrectRate}`,
+    `Ortalama cevap süresi: ${avgResponse}`
+  ];
+  const actionItemRows = insightRows.slice(0, 3).map(([label, _tone, message]) => `${label}: ${message}`);
   const reportSectionNames = [
     "Executive Summary",
     "Key Insights / Risk Flags",
-    "Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı",
-    "Rapor Bölümleri",
     "Kategori Bazında Soru Havuzu",
-    "Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı",
-    "Kategori Bazında Yıl Aralığı",
     "Kategori Tercihleri",
     "Kategori Bazında Gösterim",
     "Kategori Denge Sinyalleri",
-    "Kategori İçi Soru Analizi",
     "En Çok Gösterilen Sorular",
     "Az veya Hiç Gösterilmeyen Sorular",
     "En Çok Yanlış Yapılan Sorular",
     "Çok Kolay Görünen Sorular",
     "En Uzun Sürede Cevaplanan Sorular",
-    "Veri Kalitesi Uyarıları",
-    "Rapor Tamamlandı"
+    "Veri Kalitesi Uyarıları"
   ];
+  const pdfSections = [
+    { title: "Executive Summary", lines: executiveSummaryRows },
+    { title: "Key Insights / Risk Flags", lines: insightRows.map(([label, _tone, message]) => `${label}: ${message}`) },
+    { title: "Action Items", lines: actionItemRows.length ? actionItemRows : ["Bu dönem için belirgin aksiyon sinyali yok."] },
+    { title: "Kategori Bazında Soru Havuzu", lines: categoryPoolTextRows },
+    { title: "Kategori Tercihleri", lines: categoryPreferenceTextRows },
+    { title: "Kategori Bazında Gösterim", lines: categoryExposureTextRows },
+    { title: "Kategori Denge Sinyalleri", lines: categoryFairnessSignalTextRows },
+    { title: "En Çok Gösterilen Sorular", lines: topTextRows },
+    { title: "Az veya Hiç Gösterilmeyen Sorular", lines: [
+      `Toplam hiç gösterilmeyen aktif soru: ${neverShown.length}`,
+      `Toplam hiç gösterilmeyen Solo-eligible soru: ${neverShownSoloEligible.length}`,
+      `Silinmiş/eksik soruya referans veren ve rapordan çıkarılan event sayısı: ${missing.deleted_or_missing_question}`,
+      `Silinmiş/eksik soru örnekleri: ${Array.from(staleQuestionIds).join(", ") || "Yok"}`,
+      ...neverTextRows
+    ] },
+    { title: "En Çok Yanlış Yapılan Sorular", lines: wrongTextRows },
+    { title: "Çok Kolay Görünen Sorular", lines: easyTextRows },
+    { title: "En Uzun Sürede Cevaplanan Sorular", lines: slowTextRows },
+    { title: "Veri Kalitesi Uyarıları", lines: warningRows.map(([label, value]) => `${stripHtml(label)}: ${stripHtml(value)}`) }
+  ];
+  const attachmentFilename = pdfFilenameForPeriod(periodDays);
   const htmlSections = [
     safeSectionHtml("Executive Summary", () => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
       <tr>${summaryCards.slice(0, 3).join("")}</tr>
       <tr>${summaryCards.slice(3, 6).join("")}</tr>
-      <tr>${summaryCards.slice(6, 9).join("")}</tr>
-      <tr>${summaryCards.slice(9).join("")}</tr>
     </table>`),
     safeSectionHtml("Key Insights / Risk Flags", () => insightHtml),
-    safeSectionHtml("Rapor Şablonu", () => `
-      <p style="margin:0;color:#334155;font-size:13px;line-height:20px;font-family:Arial,Helvetica,sans-serif;">
-        ${escapeHtml(REPORT_TEMPLATE_LABEL)} · Build marker: ${escapeHtml(buildMarker || "Bilinmiyor")}
-      </p>
-      <p style="margin:8px 0 0;color:#64748b;font-size:12px;line-height:18px;font-family:Arial,Helvetica,sans-serif;">
-        Bu işaret görünmüyorsa gerçek e-posta eski/deploy edilmemiş bir report template kullanıyor demektir.
-      </p>
+    safeSectionHtml("Action Items", () => `
+      <ul style="margin:0;padding-left:18px;color:#111827;font-size:13px;line-height:20px;font-family:Arial,Helvetica,sans-serif;">
+        ${(actionItemRows.length ? actionItemRows : ["Bu dönem için belirgin aksiyon sinyali yok."]).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+      </ul>
     `),
-    safeSectionHtml("Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı", () => `
-      <p style="margin:0 0 12px;color:#334155;font-size:13px;line-height:20px;font-family:Arial,Helvetica,sans-serif;">
-        Bu bölüm gösterim dağılımı değildir; doğrudan Question tablosundaki aktif kayıtları sayan statik soru havuzu grafiğidir. Gösterilmiş ve hiç gösterilmemiş sorular birlikte sayılır. Dağılım sütunu e-posta uyumlu inline HTML/CSS stacked bar kullanır; JavaScript chart içermez.
-      </p>
-      <p style="margin:0 0 12px;color:#475569;font-size:12px;line-height:18px;font-family:Arial,Helvetica,sans-serif;">
-        Kaynak: Question tablosu, aktif kayıtlar. Gösterim verilerinden bağımsızdır. Toplam aktif kayıtlı soru: ${escapeHtml(activeQuestions.length)}
-      </p>
-      ${tableHtml(
-        ["Kategori", "Toplam", "Zorluk 1", "Zorluk 2", "Zorluk 3", "Zorluk 4", "Zorluk 5", "Bilinmiyor", "Dağılım"],
-        categoryDifficultyChartRows,
-        "Question tablosunda aktif soru yok."
-      )}
-    `),
-    safeSectionHtml("Rapor Bölümleri", () => tableHtml(
-      ["Bölüm", "Durum", "Not"],
-      reportChecklistRows,
-      "Rapor bölüm listesi hazırlanamadı."
-    )),
-    safeSectionHtml("Kategori Bazında Soru Havuzu", () => tableHtml(
-      ["Kategori", "Toplam Soru", "Zorluk 1", "Zorluk 2", "Zorluk 3", "Zorluk 4", "Zorluk 5", "Zorluk Bilinmiyor", "En Eski Yıl", "En Yeni Yıl"],
-      categoryPoolRows,
-      "Question tablosunda soru yok."
-    )),
-    safeSectionHtml("Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı", () => `
-      <p style="margin:0 0 12px;color:#334155;font-size:13px;line-height:20px;font-family:Arial,Helvetica,sans-serif;">
-        Kategori Bazında Kayıtlı Soru Havuzu detayıdır. Kaynak doğrudan Question tablosundaki aktif kayıtlar; gösterilmiş ve hiç gösterilmemiş sorular birlikte sayılır.
-      </p>
-      ${tableHtml(
-        ["Kategori", "Zorluk Seviyesi", "Sistemdeki Soru Sayısı", "En Eski Yıl", "En Yeni Yıl"],
-        registeredQuestionPoolRows,
-        "Question tablosunda aktif soru yok."
-      )}
-    `),
-    safeSectionHtml("Kategori Bazında Yıl Aralığı", () => tableHtml(
-      ["Kategori", "Aktif Soru", "En Eski Yıl", "En Yeni Yıl"],
-      categoryYearRangeRows,
-      "Question tablosunda aktif soru yok."
-    )),
-    safeSectionHtml("Kategori Tercihleri", () => tableHtml(
-      ["Kategori ID", "Kategori", "Tercih eden kullanıcı", "Tercih payı"],
-      categoryPreferenceRows,
-      "Kategori tercih verisi henüz yok."
-    )),
-    safeSectionHtml("Kategori Bazında Gösterim", () => tableHtml(
-      ["Kategori ID", "Kategori", "Aktif soru", "Gösterim", "Benzersiz gösterilen", "Cevaplanan", "Doğru %", "Ort. süre", "Gösterim payı"],
-      categoryExposureRows,
-      "Kategori bazında gösterim verisi yok."
-    )),
-    safeSectionHtml("Kategori Denge Sinyalleri", () => tableHtml(
-      ["Sinyal", "Kategori ID", "Kategori", "Değer", "Not"],
-      categoryFairnessSignalRows,
-      "Belirgin kategori denge sinyali yok."
-    )),
-    safeSectionHtml("Kategori İçi Soru Analizi", () => tableHtml(
-      ["Kategori ID", "Kategori", "Fazla sorulan", "Az sorulan", "Hiç sorulmayan örnek", "Hiç sorulmayan sayı"],
-      categoryInternalRows,
-      "Kategori içi soru analizi için veri yok."
-    )),
-    safeSectionHtml("En Çok Gösterilen Sorular", () => tableHtml(
-      ["#", "Question ID", "Soru", "Yıl", "Kategori", "Alt kategori", "Gösterim", "Doğru %", "Ort. süre", "Swap"],
-      topShownRows,
-      "Bu dönemde gösterilen soru verisi yok."
-    )),
-    safeSectionHtml("Az veya Hiç Gösterilmeyen Sorular", () => `
-      <p style="margin:0 0 12px;color:#334155;font-size:13px;line-height:20px;font-family:Arial,Helvetica,sans-serif;">Toplam ${escapeHtml(neverShown.length)} aktif soru bu dönemde hiç gösterilmedi. Aktif soru havuzu tüm aktif satırları ifade eder; Solo-eligible hiç gösterilmeyen sayı ${escapeHtml(neverShownSoloEligible.length)}. Runtime projection boyutu getQuestions Health/admin diagnostics ile ayrıca ölçülür. ${neverShown.length > NEVER_SHOWN_SAMPLE_LIMIT ? `İlk ${NEVER_SHOWN_SAMPLE_LIMIT} örnek aşağıdadır.` : ""}</p>
-      ${tableHtml(["Question ID", "Soru", "Yıl", "Kategori", "Alt kategori", "Son gösterim"], neverShownRows, "Hiç gösterilmeyen aktif soru bulunmadı.")}
-    `),
-    safeSectionHtml("En Çok Yanlış Yapılan Sorular", () => tableHtml(
-      ["Question ID", "Soru", "Yıl", "Gösterim", "Yanlış", "Doğru %", "Ort. süre", "Not"],
-      wrongRows,
-      "Yeterli örneklem yok."
-    )),
-    safeSectionHtml("Çok Kolay Görünen Sorular", () => tableHtml(
-      ["Question ID", "Soru", "Yıl", "Gösterim", "Doğru %", "Ort. süre", "Not"],
-      easyRows,
-      "Yeterli örneklem yok."
-    )),
-    safeSectionHtml("En Uzun Sürede Cevaplanan Sorular", () => tableHtml(
-      ["Question ID", "Soru", "Yıl", "Gösterim", "Ort. süre", "Doğru %"],
-      slowRows,
-      "Cevap süresi verisi yok."
-    )),
-    safeSectionHtml("Veri Kalitesi Uyarıları", () => tableHtml(["Kontrol", "Durum"], warningRows, "Veri kalitesi uyarısı yok.")),
-    safeSectionHtml("Rapor Tamamlandı", () => `
-      <p style="margin:0 0 12px;color:#065f46;font-size:14px;line-height:22px;font-family:Arial,Helvetica,sans-serif;font-weight:700;">Bu rapor tüm bölümleriyle tamamlandı.</p>
-      <p style="margin:0 0 12px;color:#334155;font-size:13px;line-height:20px;font-family:Arial,Helvetica,sans-serif;">Bu bölümü görmüyorsanız e-posta istemcisi clipping/truncation yapmış olabilir.</p>
-      ${tableHtml(
-        ["Kontrol", "Değer"],
-        [
-          ["Oluşturma zamanı", escapeHtml(generatedAt)],
-          ["Dönem", escapeHtml(period)],
-          ["Build", escapeHtml(buildMarker || "Bilinmiyor")],
-          ["Bölüm sayısı", escapeHtml(reportSectionNames.length)],
-          ["Silinmiş/eksik soru referansları", escapeHtml(missing.deleted_or_missing_question)]
-        ],
-        "Tamamlama bilgisi yok."
-      )}
+    safeSectionHtml("PDF Attachment", () => `
+      <p style="margin:0;color:#334155;font-size:14px;line-height:22px;font-family:Arial,Helvetica,sans-serif;font-weight:700;">${escapeHtml(REPORT_ATTACHMENT_NOTICE)}</p>
+      <p style="margin:8px 0 0;color:#64748b;font-size:12px;line-height:18px;font-family:Arial,Helvetica,sans-serif;">Dosya: ${escapeHtml(attachmentFilename)} · İçerik türü: ${escapeHtml(PDF_ATTACHMENT_CONTENT_TYPE)}</p>
     `)
   ].join("");
   const html = `<!doctype html>
@@ -1037,9 +1116,9 @@ function buildReport({
                 <tr><td style="padding:16px 18px;">
                   <p style="margin:0 0 6px;color:#334155;font-size:12px;line-height:18px;font-family:Arial,Helvetica,sans-serif;">Bu rapor yalnızca admin kullanımı içindir.</p>
                   <p style="margin:0 0 6px;color:#334155;font-size:12px;line-height:18px;font-family:Arial,Helvetica,sans-serif;">Rapor kullanıcı takibi için değil, soru dengesi ve soru kalitesi kontrolü için üretilmiştir.</p>
-                  <p style="margin:0;color:#64748b;font-size:12px;line-height:18px;font-family:Arial,Helvetica,sans-serif;">Canlı e-posta teslimatı, RLS ve yüksek hacimli analytics yazımı manuel doğrulama gerektirir.</p>
-                </td></tr>
-              </table>
+	                  <p style="margin:0;color:#64748b;font-size:12px;line-height:18px;font-family:Arial,Helvetica,sans-serif;">Canlı e-posta teslimatı, PDF ekinin açılması, RLS ve yüksek hacimli analytics yazımı manuel doğrulama gerektirir.</p>
+	                </td></tr>
+	              </table>
             </td>
           </tr>
         </table>
@@ -1048,117 +1127,44 @@ function buildReport({
   </table>
 </body>
 </html>`;
-  const topTextRows = topShown.length ? topShown.map((bucket, index) => `${index + 1}. #${bucket.question_id} | ${shortText(bucket.question?.question, 100)} | yıl=${questionYearLabel(bucket)} | kategori=${questionCategoryLabel(bucket, categoryMap)} | gösterim=${bucket.shown_count} | doğru=${correctRateLabel(bucket)} | süre=${formatMs(avgResponseMs(bucket))}`) : ["Bu dönemde gösterilen soru verisi yok."];
-  const neverTextRows = neverShownSample.length ? neverShownSample.map((question, index) => `${index + 1}. #${questionKey(question?.id ?? question?.question_id)} | ${shortText(question?.question, 100)} | yıl=${getQuestionYear(question) ?? "Yok"} | kategori=${categoryLabel(getCategoryId(question), categoryMap)} | alt=${displayValue(question?.sub_category)}`) : ["Hiç gösterilmeyen aktif soru bulunmadı."];
-  const categoryPoolTextRows = hasQuestionRows ? categoryAnalyticsForReport.map((row) => `${row.categoryId} | ${row.categoryName}: aktif=${row.activeQuestionCount}, zorluk1=${row.difficultyCounts?.["1"] || 0}, zorluk2=${row.difficultyCounts?.["2"] || 0}, zorluk3=${row.difficultyCounts?.["3"] || 0}, zorluk4=${row.difficultyCounts?.["4"] || 0}, zorluk5=${row.difficultyCounts?.["5"] || 0}, zorluk_bilinmiyor=${row.difficultyCounts?.unknown || 0}, en_eski_yıl=${row.oldestYear ?? "-"}, en_yeni_yıl=${row.newestYear ?? "-"}`) : ["Question tablosunda soru yok."];
-  const categoryDifficultyChartTextRows = hasQuestionRows ? categoryAnalyticsForReport.map((row) => `${row.categoryId} | ${row.categoryName}: toplam=${row.activeQuestionCount}, zorluk1=${row.difficultyCounts?.["1"] || 0}, zorluk2=${row.difficultyCounts?.["2"] || 0}, zorluk3=${row.difficultyCounts?.["3"] || 0}, zorluk4=${row.difficultyCounts?.["4"] || 0}, zorluk5=${row.difficultyCounts?.["5"] || 0}, bilinmiyor=${row.difficultyCounts?.unknown || 0}`) : ["Question tablosunda aktif soru yok."];
-  const registeredQuestionPoolTextRows = hasQuestionRows ? categoryAnalytics
-    .flatMap((row) => row.registeredQuestionPoolRows.map((detail) => `${row.categoryId} | ${row.categoryName} | zorluk=${detail.difficultyLevel} | sistemdeki_soru=${detail.questionCount} | en_eski_yıl=${detail.oldestYear ?? "Yok"} | en_yeni_yıl=${detail.newestYear ?? "Yok"}`))
-    .slice(0, REGISTERED_QUESTION_POOL_ROW_LIMIT) : ["Question tablosunda aktif soru yok."];
-  const categoryYearRangeTextRows = hasQuestionRows ? categoryAnalyticsForReport.map((row) => `${row.categoryId} | ${row.categoryName}: aktif=${row.activeQuestionCount}, en_eski_yıl=${row.oldestYear ?? "Yok"}, en_yeni_yıl=${row.newestYear ?? "Yok"}`) : ["Question tablosunda aktif soru yok."];
-  const categoryPreferenceTextRows = categoryAnalytics.length ? categoryAnalyticsForReport.map((row) => `${row.categoryId} | ${row.categoryName}: tercih eden kullanıcı=${row.selectedUserCount}, tercih payı=${totalPreferenceSelections ? percent(row.selectedUserCount, totalPreferenceSelections) : "0%"}`) : ["Kategori tercih verisi henüz yok."];
-  const categoryExposureTextRows = categoryAnalytics.length ? categoryAnalyticsForReport.map((row) => `${row.categoryId} | ${row.categoryName}: aktif=${row.activeQuestionCount}, gösterim=${row.shownCount}, benzersiz gösterilen=${row.uniqueShownQuestionCount}, cevaplanan=${row.answeredCount}, doğru=${row.correctRate === null ? "Yeterli veri yok" : percent(row.correctRate, 1)}, ortalama süre=${formatMs(row.avgResponseTimeMs)}, gösterim payı=${percent(row.shownCount, shownEvents)}`) : ["Kategori bazında gösterim verisi yok."];
-  const categoryInternalTextRows = categoryAnalytics.length ? categoryAnalyticsForReport.map((row) => [
-    `${row.categoryId} | ${row.categoryName}:`,
-    `  Fazla sorulan: ${row.topShown.map(formatQuestionBucket).join(" | ") || "Bu kategoride gösterim yok."}`,
-    `  Az sorulan: ${row.lowShown.map(formatQuestionBucket).join(" | ") || "Bu kategoride az gösterilmiş soru yok."}`,
-    `  Hiç sorulmayan (${row.neverShownActiveCount}): ${row.neverShownSample.map(formatQuestionSample).join(" | ") || (row.neverShownActiveCount ? "Örnek yok." : "Hiç gösterilmeyen aktif soru yok.")}`
-  ].join("\n")) : ["Kategori içi soru analizi için veri yok."];
-  const categoryFairnessSignalTextRows = categoryFairnessSignals.length ? categoryFairnessSignals.map((signal) => `${signal.tone} | ${signal.categoryId} | ${signal.categoryName}: ${signal.value} — ${signal.note}`) : ["Belirgin kategori denge sinyali yok."];
-  const reportChecklistTextRows = reportChecklistRows.map((row) => row.map((cell) => String(cell).replace(/<[^>]+>/g, "")).join(" | "));
   const textLines = [
     "Kronox Soru Analiz Raporu",
     `Dönem: ${period}`,
     `Oluşturma zamanı: ${generatedAt}`,
     `Build: ${buildMarker || "Bilinmiyor"}`,
+    `Template: ${REPORT_TEMPLATE_VERSION}`,
     "",
     "--- Executive Summary ---",
-    `Toplam gösterim: ${shownEvents}`,
-    `Cevaplanan soru: ${answeredEvents}`,
-    `Benzersiz gösterilen soru: ${shownQuestionIds.size}`,
-    `Aktif soru havuzu (tüm aktifler): ${activeQuestions.length}`,
-    `Solo-eligible soru havuzu: ${soloEligibleQuestions.length}`,
-    `Hiç gösterilmeyen aktif soru: ${neverShown.length}`,
-    `Hiç gösterilmeyen Solo-eligible soru: ${neverShownSoloEligible.length}`,
-    "Runtime projection size: Health/admin getQuestions diagnostics ile ölçülür",
-    `Top shown subcategory concentration: ${topSubcategoryConcentration.topShownSubcategory} (${percent(topSubcategoryConcentration.topShownSubcategoryCount, topSubcategoryConcentration.topShownSubcategoryTotal)})`,
-    `Ortalama doğru oranı: ${avgCorrectRate}`,
-    `Ortalama cevap süresi: ${avgResponse}`,
+    ...executiveSummaryRows,
     "",
     "--- Key Insights / Risk Flags ---",
     ...insightRows.map(([label, _tone, message]) => `${label}: ${message}`),
     "",
-    "--- Rapor Şablonu ---",
-    REPORT_TEMPLATE_LABEL,
-    `Build marker: ${buildMarker || "Bilinmiyor"}`,
+    "--- Action Items ---",
+    ...(actionItemRows.length ? actionItemRows : ["Bu dönem için belirgin aksiyon sinyali yok."]),
     "",
-    "--- Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı ---",
-    "Kaynak: Question tablosundaki aktif kayıtlar; gösterilmiş ve hiç gösterilmemiş sorular birlikte sayılır. Bu bölüm gösterim dağılımı değildir; HTML gövdede Dağılım sütunu email-safe stacked bar olarak render edilir.",
-    `Toplam aktif kayıtlı soru: ${activeQuestions.length}`,
-    ...categoryDifficultyChartTextRows,
-    "",
-    "--- Rapor Bölümleri ---",
-    ...reportChecklistTextRows,
-    "",
-    "--- Kategori Bazında Soru Havuzu ---",
-    ...categoryPoolTextRows,
-    "",
-    "--- Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı ---",
-    "Kategori Bazında Kayıtlı Soru Havuzu | Kaynak: Question tablosundaki aktif kayıtlar; gösterilmiş ve hiç gösterilmemiş sorular birlikte sayılır.",
-    ...registeredQuestionPoolTextRows,
-    "",
-    "--- Kategori Bazında Yıl Aralığı ---",
-    ...categoryYearRangeTextRows,
-    "",
-    "--- Kategori Tercihleri ---",
-    ...categoryPreferenceTextRows,
-    "",
-    "--- Kategori Bazında Gösterim ---",
-    ...categoryExposureTextRows,
-    "",
-    "--- Kategori İçi Soru Analizi ---",
-    ...categoryInternalTextRows,
-    "",
-    "--- Kategori Denge Sinyalleri ---",
-    ...categoryFairnessSignalTextRows,
-    "",
-    "--- En Çok Gösterilen Sorular ---",
-    ...topTextRows,
-    "",
-    "--- Az veya Hiç Gösterilmeyen Sorular ---",
-    `Toplam hiç gösterilmeyen aktif soru: ${neverShown.length}`,
-    `Toplam hiç gösterilmeyen Solo-eligible soru: ${neverShownSoloEligible.length}`,
-    `Silinmiş/eksik soruya referans veren ve rapordan çıkarılan event sayısı: ${missing.deleted_or_missing_question}`,
-    `Silinmiş/eksik soru örnekleri: ${Array.from(staleQuestionIds).join(", ") || "Yok"}`,
-    ...neverTextRows,
-    "",
-    "--- En Çok Yanlış Yapılan Sorular ---",
-    ...wrongRows.length ? mostWrong.map((bucket) => `#${bucket.question_id} | ${shortText(bucket.question?.question, 100)} | yanlış=${bucket.wrong_count} | doğru=${correctRateLabel(bucket)}`) : ["Yeterli örneklem yok."],
-    "",
-    "--- Çok Kolay Görünen Sorular ---",
-    ...easyRows.length ? easy.map((bucket) => `#${bucket.question_id} | ${shortText(bucket.question?.question, 100)} | doğru=${correctRateLabel(bucket)}`) : ["Yeterli örneklem yok."],
-    "",
-    "--- En Uzun Sürede Cevaplanan Sorular ---",
-    ...slowRows.length ? slow.map((bucket) => `#${bucket.question_id} | ${shortText(bucket.question?.question, 100)} | süre=${formatMs(avgResponseMs(bucket))} | doğru=${correctRateLabel(bucket)}`) : ["Cevap süresi verisi yok."],
-    "",
-    "--- Veri Kalitesi Uyarıları ---",
-    ...warningRows.map(([label, value]) => `${label}: ${value}`),
-    "",
-    "--- Rapor Tamamlandı ---",
-    "Bu rapor tüm bölümleriyle tamamlandı.",
-    "Bu bölümü görmüyorsanız e-posta istemcisi clipping/truncation yapmış olabilir.",
-    `Oluşturma zamanı: ${generatedAt}`,
-    `Dönem: ${period}`,
-    `Build: ${buildMarker || "Bilinmiyor"}`,
-    `Bölüm sayısı: ${reportSectionNames.length}`,
-    `Silinmiş/eksik soru referansları: ${missing.deleted_or_missing_question}`,
+    "--- PDF Attachment ---",
+    REPORT_ATTACHMENT_NOTICE,
+    `Dosya: ${attachmentFilename}`,
+    `İçerik türü: ${PDF_ATTACHMENT_CONTENT_TYPE}`,
     "",
     "Bu rapor yalnızca admin kullanımı içindir.",
     "Rapor kullanıcı takibi için değil, soru dengesi ve soru kalitesi kontrolü için üretilmiştir."
   ];
+  const pdfText = pdfSections.map((section) => `--- ${section.title} ---\n${section.lines.join("\n")}`).join("\n\n");
+  const bodyRemovedSectionsPresent = findRemovedReportSections(`${html}\n${textLines.join("\n")}`);
+  const pdfRemovedSectionsPresent = findRemovedReportSections(pdfText);
   return {
     html,
     text: textLines.join('\n'),
+    pdfSections,
+    pdfText,
+    period,
+    generatedAt,
+    buildMarker,
+    attachmentFilename,
+    bodyRemovedSectionsPresent,
+    pdfRemovedSectionsPresent,
     summary: {
       totalEvents: events.length,
       shownEvents,
@@ -1179,35 +1185,33 @@ function buildReport({
       topShownSubcategoryShare: topSubcategoryConcentration.topShownSubcategoryShare,
       templateVersion: REPORT_TEMPLATE_VERSION,
       reportTemplateMarker: REPORT_TEMPLATE_LABEL,
-      categoryDifficultyChartRowsRendered: categoryDifficultyChartRows.length,
-      categoryDifficultyChartSource: "Question.list static active rows by category and difficulty",
-      categoryDifficultyChartRenderer: "email_safe_inline_html_css_stacked_bar",
       categoryPoolRowsRendered: categoryPoolRows.length,
       categoryPoolSource: "Question.list static current DB rows",
-      registeredQuestionPoolRowsRendered: registeredQuestionPoolRows.length,
-      registeredQuestionPoolSource: "Question.list active registered rows by category difficulty year range",
-      categoryYearRangeRowsRendered: categoryYearRangeRows.length,
       reportSectionCount: reportSectionNames.length,
-      reportCompletionMarker: "Rapor Tamamlandı",
-      clippingDiagnosis: "If the received email omits Rapor Tamamlandı, suspect email client clipping/truncation.",
+      emailBodyMode: "summary_only",
+      pdfAttachmentRequired: true,
+      pdfAttachmentFilename: attachmentFilename,
+      pdfAttachmentContentType: PDF_ATTACHMENT_CONTENT_TYPE,
+      pdfAttachmentNotice: REPORT_ATTACHMENT_NOTICE,
+      removedReportSections: [...REMOVED_REPORT_SECTION_TITLES],
+      bodyRemovedSectionsPresent,
+      pdfRemovedSectionsPresent,
       categoryPreferenceRowsRendered: categoryPreferenceRows.length,
       categoryExposureRowsRendered: categoryExposureRows.length,
       categoryFairnessSignalCount: categoryFairnessSignals.length,
       reportSections: [
         "Executive Summary",
         "Key Insights / Risk Flags",
-        "Rapor Şablonu",
-        "Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı",
-        "Rapor Bölümleri",
         "Kategori Bazında Soru Havuzu",
-        "Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı",
-        "Kategori Bazında Kayıtlı Soru Havuzu",
-        "Kategori Bazında Yıl Aralığı",
         "Kategori Tercihleri",
         "Kategori Bazında Gösterim",
-        "Kategori İçi Soru Analizi",
         "Kategori Denge Sinyalleri",
-        "Rapor Tamamlandı"
+        "En Çok Gösterilen Sorular",
+        "Az veya Hiç Gösterilmeyen Sorular",
+        "En Çok Yanlış Yapılan Sorular",
+        "Çok Kolay Görünen Sorular",
+        "En Uzun Sürede Cevaplanan Sorular",
+        "Veri Kalitesi Uyarıları"
       ],
       categoryAnalytics: categoryAnalytics.map((row) => ({
         categoryId: row.categoryId,
@@ -1345,38 +1349,77 @@ Deno.serve(async (req) => {
       categories: rawCategories,
       categoryPreferences: rawCategoryPreferences,
       buildMarker: String(body?.buildMarker || REPORT_BUILD_MARKER)
-    });
-    const emailHtml = report.html;
-    const emailText = report.text;
-    const sentAt = (/* @__PURE__ */ new Date()).toISOString();
-    const reportBuildMarker = String(body?.buildMarker || REPORT_BUILD_MARKER);
-    const bodyDiagnostics = {
-      reportBuildMarker,
-      buildMarker: reportBuildMarker,
-      templateVersion: REPORT_TEMPLATE_VERSION,
-      bodyContainsStaticPoolSection: emailHtml.includes("Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı"),
-      bodyContainsTemplateMarker: emailHtml.includes(REPORT_TEMPLATE_LABEL),
-      bodyContainsQuestionSourceMarker: emailHtml.includes("Kaynak: Question tablosu"),
-      bodyContainsActiveQuestionCountMarker: emailHtml.includes("Toplam aktif kayıtlı soru"),
-      bodyLength: emailHtml.length,
-      sentAt
-    };
-    if (!bodyDiagnostics.bodyContainsStaticPoolSection || !bodyDiagnostics.bodyContainsTemplateMarker || !bodyDiagnostics.bodyContainsQuestionSourceMarker) {
-      await writeJobLog(base44, admin.user, "body_validation_failed", { periodDays, requestedBy: requestedByEmail, recipientEmail, adminAuthorized: true, emailDispatchStatus: "not_sent", ...bodyDiagnostics });
-      return json({ ok: false, error: "report_body_missing_static_pool_section", requestedBy: requestedByEmail, recipientEmail, adminAuthorized: true, emailDispatchStatus: "not_sent", ...bodyDiagnostics }, 500);
-    }
-    const subject = `Kronox Soru Analiz Raporu — ${periodLabel(periodDays)}`;
+	    });
+	    const emailHtml = report.html;
+	    const emailText = report.text;
+	    const sentAt = (/* @__PURE__ */ new Date()).toISOString();
+	    const reportBuildMarker = String(body?.buildMarker || REPORT_BUILD_MARKER);
+	    let pdfAttachment = null;
+	    try {
+	      pdfAttachment = await buildQuestionAnalyticsPdfAttachment(report);
+	    } catch (pdfError) {
+	      const reason = safeErrorReason(pdfError);
+	      await writeJobLog(base44, admin.user, "pdf_generation_failed", {
+	        periodDays,
+	        requestedBy: requestedByEmail,
+	        recipientEmail,
+	        adminAuthorized: true,
+	        emailDispatchStatus: "not_sent",
+	        safeErrorReason: reason,
+	        reportBuildMarker,
+	        templateVersion: REPORT_TEMPLATE_VERSION
+	      });
+	      return json({
+	        ok: false,
+	        error: "report_pdf_generation_failed",
+	        requestedBy: requestedByEmail,
+	        recipientEmail,
+	        adminAuthorized: true,
+	        emailDispatchStatus: "not_sent",
+	        safeErrorReason: reason,
+	        reportBuildMarker,
+	        templateVersion: REPORT_TEMPLATE_VERSION
+	      }, 500);
+	    }
+	    const bodyDiagnostics = {
+	      reportBuildMarker,
+	      buildMarker: reportBuildMarker,
+	      templateVersion: REPORT_TEMPLATE_VERSION,
+	      emailBodyMode: "summary_only",
+	      bodyContainsExecutiveSummary: emailHtml.includes("Executive Summary"),
+	      bodyContainsPdfAttachmentNotice: emailHtml.includes(REPORT_ATTACHMENT_NOTICE),
+	      bodyRemovedSectionsPresent: report.bodyRemovedSectionsPresent,
+	      pdfRemovedSectionsPresent: report.pdfRemovedSectionsPresent,
+	      pdfAttachmentGenerated: Boolean(pdfAttachment?.base64),
+	      pdfAttachmentFilename: pdfAttachment?.filename || report.attachmentFilename,
+	      pdfAttachmentContentType: pdfAttachment?.contentType || PDF_ATTACHMENT_CONTENT_TYPE,
+	      pdfAttachmentByteLength: pdfAttachment?.byteLength || 0,
+	      sendEmailAttachmentContract: "attachments[{filename,content,type,disposition}]",
+	      bodyLength: emailHtml.length,
+	      sentAt
+	    };
+	    if (!bodyDiagnostics.bodyContainsExecutiveSummary || !bodyDiagnostics.bodyContainsPdfAttachmentNotice || !bodyDiagnostics.pdfAttachmentGenerated || report.bodyRemovedSectionsPresent.length || report.pdfRemovedSectionsPresent.length) {
+	      await writeJobLog(base44, admin.user, "body_validation_failed", { periodDays, requestedBy: requestedByEmail, recipientEmail, adminAuthorized: true, emailDispatchStatus: "not_sent", ...bodyDiagnostics });
+	      return json({ ok: false, error: "report_body_or_pdf_validation_failed", requestedBy: requestedByEmail, recipientEmail, adminAuthorized: true, emailDispatchStatus: "not_sent", ...bodyDiagnostics }, 500);
+	    }
+	    const subject = `Kronox Soru Analiz Raporu — ${periodLabel(periodDays)}`;
     let emailResult = null;
     try {
       emailResult = await base44.integrations.Core.SendEmail({
         from_name: "Kronox",
         to: recipient,
         subject,
-        body: emailHtml,
-        html: emailHtml,
-        text: emailText,
-        body_text: emailText
-      });
+	        body: emailHtml,
+	        html: emailHtml,
+	        text: emailText,
+	        body_text: emailText,
+	        attachments: [{
+	          filename: pdfAttachment.filename,
+	          content: pdfAttachment.base64,
+	          type: pdfAttachment.contentType,
+	          disposition: "attachment"
+	        }]
+	      });
       if (emailResult?.ok === false) {
         throw new Error(emailResult?.error || emailResult?.message || "send failed");
       }

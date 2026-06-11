@@ -87,7 +87,7 @@ Status: Active product contract.
 - Supported Daily Quest v1 quest_type values are start_solo_attempt, correct_cards, complete_solo_level, and use_joker.
 - Daily Quest definitions use reward_diamonds only, never Kronox Puan, and do not affect leaderboard.
 - Daily Quest text is never parsed by AI, NLP, regex, scripts, or arbitrary free-text executable conditions.
-- sendQuestionAnalyticsReportEmail is manual/admin-triggered only and sends HTML/table/bar formatted question analytics with text fallback.
+- sendQuestionAnalyticsReportEmail is manual/admin-triggered only and sends a summary-only question analytics email with text fallback plus a cleaned PDF attachment.
 - sendQuestionAnalyticsReportEmail is callable from base44/functions/sendQuestionAnalyticsReportEmail/entry.ts with base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc name sendQuestionAnalyticsReportEmail and entry entry.ts; the callable report function INLINES a DB-backed AdminUser guard (no local _shared import) so it deploys cleanly under the Base44 function runtime.
 
 ## Backend function deployability (stale-deploy incident)
@@ -96,16 +96,16 @@ Status: Active product contract.
 - Local proof HTML / helper output is not enough if the deployed function is stale.
 - Report/admin functions must NOT use local imports that resolve outside the deployed path. The broken './_shared/adminAuth.js' pattern resolved to a file URL under /src/_shared (module not found) and broke deployment, leaving Base44 serving a stale build. The callable report function now inlines a DB-backed AdminUser guard instead.
 - base44/functions/<name>/entry.ts shared imports remain allowed where proven deployable; sendQuestionAnalyticsReportEmail intentionally uses an inline guard for this runtime-sensitive path.
-- Critical report/admin functions should include safe template/function markers (e.g. templateVersion static-pool-v2, REPORT_BUILD_MARKER, and bodyContains* diagnostics). If real output lacks the marker, the function deployment is stale.
-- sendQuestionAnalyticsReportEmail live deploy is proven by triggering the function and reading reportBuildMarker (current: Codex313), templateVersion static-pool-v2, and bodyContainsStaticPoolSection/Template/QuestionSource = true. A published frontend that does not change reportBuildMarker means the executed backend function did not redeploy.
+- Critical report/admin functions should include safe template/function markers (e.g. templateVersion summary-pdf-v1, REPORT_BUILD_MARKER, emailBodyMode, and PDF attachment diagnostics). If real output lacks the marker, the function deployment is stale.
+- sendQuestionAnalyticsReportEmail live deploy is proven by triggering the function and reading reportBuildMarker (current: Codex314), templateVersion summary-pdf-v1, emailBodyMode summary_only, bodyContainsPdfAttachmentNotice true, pdfAttachmentGenerated true, pdfAttachmentFilename ending .pdf, and pdfAttachmentContentType application/pdf. A published frontend that does not change reportBuildMarker means the executed backend function did not redeploy.
 - A prior Codex275 marker bump was never proven deployed because the runtime function still imported the broken local _shared guard; the recovery inlined the AdminUser guard and uses current reportBuildMarker values as the unambiguous live marker.
 - Function-based question analytics reset is currently not used.
 - Manual DB reset path after question pool replacement clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection.
 - Manual reset must not delete Question, Category, SubCategory, UserCategoryPreference, UserStatsProjection, UserJokerInventory, JokerTransaction, progress/economy/leaderboard data, Daily Wheel rows, users, or AdminUser.
 - manual question analytics reset does not delete Question, Category, SubCategory, UserCategoryPreference, UserStatsProjection, score/progress/economy, leaderboard, Daily Wheel, users, AdminUser, or gameplay rows.
 - sendQuestionAnalyticsReportEmail handles stale/deleted question references with diagnostics and bounded sections.
-- sendQuestionAnalyticsReportEmail actual sent body includes Rapor Bölümleri, Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı, Kategori Bazında Soru Havuzu, Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı, Kategori Bazında Kayıtlı Soru Havuzu, Kategori Bazında Yıl Aralığı, Kategori Tercihleri, Kategori Bazında Gösterim, Kategori İçi Soru Analizi, Kategori Denge Sinyalleri, and Rapor Tamamlandı.
-- sendQuestionAnalyticsReportEmail actual sent body includes Rapor Şablonu: static-pool-v2 near the top; absence of that marker in real email indicates stale/not-redeployed backend function template.
+- sendQuestionAnalyticsReportEmail actual sent body includes Executive Summary, Key Insights / Risk Flags, Action Items, and a notice that the detailed report PDF is attached.
+- Generated email/PDF output intentionally excludes Rapor Şablonu, Rapor Bölümleri, Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı, Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı, Kategori Bazında Yıl Aralığı, and Kategori İçi Soru Analizi.
 - sendQuestionAnalyticsReportEmail accepts any active AdminUser role admin/owner, sends by default to the requesting authenticated admin's normalized email, rejects mismatched recipient overrides, and the Admin Ekranı UI returns safe requestedBy, recipientEmail, template, body-marker, and emailDispatchStatus diagnostics.
 - Category preference report counts are aggregate distinct-user counts only and do not expose user IDs or emails.
 - Question analytics report sections render with section-level warnings instead of truncating the whole email.
@@ -270,14 +270,12 @@ Status: Implementation tracking doc.
 - Base44 index/unique-key declarations are a platform/manual configuration gap.
 - Runtime uniqueness proof remains manual/NOT_AUTOMATABLE.
 - Solo QuestionAttemptEvent runtime writes are enabled best-effort; Online analytics remains deferred.
-- Manual admin question analytics HTML/table/bar email report exists with no scheduled trigger.
+- Manual admin question analytics summary email plus PDF attachment report exists with no scheduled trigger.
 - Manual DB reset path can reset question analytics history/projections after replacing the question pool.
 - Question analytics reports handle empty analytics state and stale/deleted question IDs safely.
-- Question analytics reports include category pool counts, registered category/difficulty/year-range pool detail, aggregate category preference counts, category exposure counts, within-category most/least/never-shown analysis, and category fairness signals.
+- Question analytics PDF reports include category pool counts, aggregate category preference counts, category exposure counts, category fairness signals, bounded top/low/wrong/easy/slow question lists, and data quality warnings.
 - Kategori Bazında Soru Havuzu is static Question table data, not event/projection data, and includes active question count, difficulty 1-5/unknown distribution, oldest year, newest year, and Unknown/unmapped category diagnostics even when analytics tables are empty.
-- Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı / Kategori Bazında Kayıtlı Soru Havuzu is static active Question table data grouped by category and difficulty level with registered question count, oldest year, and newest year, including asked and never-asked active questions.
-- Static Question DB pool sections appear near the top before long event detail tables; Rapor Bölümleri proves included sections and Rapor Tamamlandı at the end diagnoses clipping/truncation if missing.
-- Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı is an email-safe inline HTML/CSS stacked-bar chart sourced from active Question rows, with numeric Zorluk 1-5/Bilinmiyor counts and no JavaScript chart dependency.
+- Removed legacy report sections stay forbidden in generated email/PDF output: Rapor Şablonu, Rapor Bölümleri, Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı, Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı, Kategori Bazında Yıl Aralığı, and Kategori İçi Soru Analizi.
 - Long event-based detail sections are row-limited for email readability.
 - Legacy candidates kept without deletion: Friendship, GameRecord, LobbyMessage.
 - Raw Question remains protected.

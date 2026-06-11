@@ -1670,7 +1670,13 @@ import React, { useEffect, useState } from 'react';
 //   • No login, no saved preferences, or empty/insufficient preferences use
 //     all active categories; saved preferences remain optional 70/30 weighting.
 //   • Category preference save validation stays separate from gameplay start.
-const BUILD_MARKER = 'Codex313';
+//
+// Codex314 — Question Analytics report cleanup:
+//   • sendQuestionAnalyticsReportEmail now sends a compact executive-summary
+//     email and attaches the cleaned detailed report as a PDF.
+//   • Removed report sections are validated out of generated email/PDF output.
+//   • Health/docs require real admin email delivery and PDF receipt as manual proof.
+const BUILD_MARKER = 'Codex314';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
