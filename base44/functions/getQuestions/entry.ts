@@ -20,13 +20,12 @@ function json(body: unknown, status = 200) {
   return Response.json(body, { status });
 }
 
-async function requireUser(base44: any) {
+async function getOptionalUser(base44: any) {
   try {
     const user = await base44.auth.me();
-    if (!user?.email) return { response: json({ ok: false, error: 'Giris yapmaniz gerekiyor.' }, 401) };
-    return { user };
+    return user?.email ? user : null;
   } catch {
-    return { response: json({ ok: false, error: 'Giris yapmaniz gerekiyor.' }, 401) };
+    return null;
   }
 }
 
@@ -445,14 +444,15 @@ Deno.serve(async (req) => {
     }
 
     const base44 = createClientFromRequest(req);
-    const auth = await requireUser(base44);
-    if (auth.response) return auth.response;
-
     const body = await req.json().catch(() => ({}));
     const wantsAdminBank = body?.scope === 'admin' || body?.fullBank === true || body?.includeInactive === true;
     const wantsDiagnostics = body?.includeDiagnostics === true || body?.debug === true;
     const needsAdmin = wantsAdminBank || wantsDiagnostics;
-    const isAdmin = needsAdmin ? await isAuthorizedAdmin(base44, auth.user) : false;
+    const user = await getOptionalUser(base44);
+    if (needsAdmin && !user?.email) {
+      return json({ ok: false, error: 'Giris yapmaniz gerekiyor.' }, 401);
+    }
+    const isAdmin = needsAdmin ? await isAuthorizedAdmin(base44, user) : false;
     if (needsAdmin && !isAdmin) {
       return json({ ok: false, error: 'Admin yetkisi gerekli.' }, 403);
     }
@@ -478,7 +478,7 @@ Deno.serve(async (req) => {
         ok: true,
         questions: [],
         activeCategoryIds: Array.from(activeMainCategoryIds),
-        source: 'authenticated_minimal_projection',
+        source: 'public_minimal_playable_projection',
         reason: 'no_active_requested_categories',
       });
     }
@@ -495,7 +495,7 @@ Deno.serve(async (req) => {
       ok: true,
       questions: projected,
       activeCategoryIds: Array.from(activeMainCategoryIds),
-      source: 'authenticated_minimal_projection',
+      source: 'public_minimal_playable_projection',
       limit,
       count: projected.length,
       samplingStrategy: PROJECTION_SAMPLING_STRATEGY,

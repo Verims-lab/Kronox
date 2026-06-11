@@ -115,6 +115,19 @@ Rules:
 * Missing status may be treated as active only for backward-compatible seed/backfill.
 * Seeded rows should carry explicit `status: "a"`.
 
+Category preferences are optional personalization, not a gameplay gate:
+
+* no login means Solo uses all active categories
+* signed-in users with no saved `UserCategoryPreference` rows use all active categories
+* signed-in users with fewer than 3 active valid preferences use all active categories
+* saved preferences become a soft Solo 70/30 weighting input only when at least
+  3 active valid preferences exist
+* Settings save validation may still require 3 selections, but that validation
+  must remain separate from Solo question loading
+* empty preferences must not produce an empty question pool or
+  offline/no-cache error
+* Online category selection remains separate and unaffected
+
 ---
 
 # 5. Description

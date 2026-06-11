@@ -4,6 +4,12 @@ export const CATEGORY_STATUS_ACTIVE = 'A';
 export const CATEGORY_STATUS_PASSIVE = 'P';
 export const MIN_CATEGORY_SELECTION_COUNT = 3;
 export const NO_MAX_CATEGORY_SELECTION_LIMIT = true;
+export const GAMEPLAY_CATEGORY_PREFERENCE_FALLBACK = Object.freeze({
+  guestNoAuthUsesAllActiveCategories: true,
+  noSavedPreferencesUsesAllActiveCategories: true,
+  emptyPreferencesAreNotOfflineNoCache: true,
+  saveValidationSeparateFromGameplayStart: true,
+});
 
 export function normalizePreferenceEmail(value) {
   return String(value || '').trim().toLowerCase();
@@ -71,6 +77,22 @@ export function getActiveCategoryIdSet(activeCategories) {
 
 export function getValidActiveSelectedCategoryIds(preferences, activeCategories) {
   return sanitizeSelectedCategoryIds(getSelectedCategoryIds(preferences), activeCategories);
+}
+
+export function resolveGameplayCategoryPreferenceFilter(preferences, activeCategories) {
+  const selected = getValidActiveSelectedCategoryIds(preferences, activeCategories);
+  const selectedCategoryIds = Array.from(selected);
+  const hasPreferenceFilter = selectedCategoryIds.length >= MIN_CATEGORY_SELECTION_COUNT;
+  return {
+    selectedCategoryIds: hasPreferenceFilter ? selectedCategoryIds : [],
+    hasPreferenceFilter,
+    usesAllActiveCategories: !hasPreferenceFilter,
+    fallbackReason: hasPreferenceFilter
+      ? null
+      : selectedCategoryIds.length > 0
+        ? 'insufficient_valid_user_category_preferences'
+        : 'no_valid_user_category_preferences',
+  };
 }
 
 export function sanitizeSelectedCategoryIds(selectedCategoryIds, activeCategories) {

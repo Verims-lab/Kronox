@@ -27,10 +27,12 @@ Deck size formula:
 
 ## Question Loading Bootstrap
 
-Game entry first attempts an authenticated online `getQuestions` fetch whenever
-the browser is online or network state is unknown. Empty local question cache is
-not an offline condition by itself. While the first fetch is pending, the user
-sees a loading state such as `Sorular hazırlanıyor...`.
+Game entry first attempts an online `getQuestions` fetch whenever the browser
+is online or network state is unknown. The default gameplay response is a
+public-safe minimal playable projection so guest Solo can load questions without
+login; admin/full-bank diagnostics still require AdminUser authorization. Empty
+local question cache is not an offline condition by itself. While the first
+fetch is pending, the user sees a loading state such as `Sorular hazırlanıyor...`.
 
 The offline/no-cache screen is reserved for known offline state, a failed online
 fetch, and no usable local cache. Online data failures use a question-load retry
@@ -114,9 +116,14 @@ fetch questions or stats mid-attempt. Corrupt or missing local history is ignore
 safely.
 
 The runtime may also pass active valid current-user Category preference IDs
-into the deck builder before the attempt starts. Missing, corrupt, passive, or
-unavailable preferences fall back to global Solo selection. Online question
-selection is not affected.
+into the deck builder before the attempt starts. Login and Category preferences
+are optional for question selection: guest users, signed-in users with no saved
+preferences, and signed-in users with fewer than 3 active valid preferences use
+all active categories. Missing, corrupt, passive, empty, or unavailable
+preferences fall back to global Solo selection and must not become an empty
+question pool or offline/no-cache error. Saved preferences only become a soft
+70/30 weighting input when at least 3 active valid preferences exist. Online
+question selection is not affected.
 
 P2 adds a helper-only quality layer on top of these rules:
 - deck diagnostics include level number, level type, deck size, correct target, fail threshold, question IDs, answer years, first 5 years, minimum first-5 gap, visible-spacing conflict count, category/subcategory/theme/decade/difficulty distributions, fallback tier, balance score, and warnings
@@ -170,9 +177,11 @@ If no valid deck can be created, the level must not start. The UI should show a 
 The Solo start path passes the active category whitelist into `buildSoloAttemptDeck`. The engine enforces active-category filtering on the actual runtime deck, not only in UI.
 
 The Solo start path also loads current-user active valid Category preferences
-before the deck is built and passes them as a soft 70/30 weighting input. This
-must not fetch questions mid-attempt, and it must not hard-filter the deck to
-only selected categories.
+before the deck is built when a user is signed in. If no user or no qualifying
+preferences are available, the deck builder uses all active categories. When at
+least 3 active valid preferences exist, the runtime passes them as a soft 70/30
+weighting input. This must not fetch questions mid-attempt, block guest play,
+or hard-filter the deck to only selected categories.
 
 Replay and next-level actions clear the current attempt deck and create a new deck. Replay after this change uses the new Solo v2 rules.
 

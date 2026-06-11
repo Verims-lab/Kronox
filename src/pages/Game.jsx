@@ -54,10 +54,9 @@ import {
   shouldShowBeginnerPlacementHint,
 } from '@/lib/soloQuestionEngine';
 import {
-  MIN_CATEGORY_SELECTION_COUNT,
-  getValidActiveSelectedCategoryIds,
   loadActiveCategories,
   loadUserCategoryPreferences,
+  resolveGameplayCategoryPreferenceFilter,
 } from '@/lib/userCategoryPreferences';
 import {
   SOLO_UI_JOKER_TYPES,
@@ -358,17 +357,12 @@ export default function Game() {
           loadUserCategoryPreferences(currentUser),
         ]);
         if (!active) return;
-        const selectedIds = Array.from(getValidActiveSelectedCategoryIds(preferences, activeCategories));
-        const available = selectedIds.length >= MIN_CATEGORY_SELECTION_COUNT;
+        const preferenceFilter = resolveGameplayCategoryPreferenceFilter(preferences, activeCategories);
         setSoloCategoryPreferenceState({
           status: 'ready',
-          selectedCategoryIds: selectedIds,
-          available,
-          fallbackReason: available
-            ? null
-            : selectedIds.length > 0
-              ? 'insufficient_valid_user_category_preferences'
-              : 'no_valid_user_category_preferences',
+          selectedCategoryIds: preferenceFilter.selectedCategoryIds,
+          available: preferenceFilter.hasPreferenceFilter,
+          fallbackReason: preferenceFilter.fallbackReason,
         });
       } catch {
         if (!active) return;
@@ -964,8 +958,11 @@ export default function Game() {
         allowedMainCategoryIds: activeCategoryIds,
         recentlySeenQuestionIds: loadRecentHistory(),
         questionExposureStats: loadRecentQuestionExposureStats(),
+        // No login or no saved Category preferences means all active
+        // categories. Saved preferences are optional personalization, not a
+        // gameplay gate or an empty question-pool filter.
         userSelectedCategoryIds: soloCategoryPreferenceState.selectedCategoryIds,
-        userCategoryPreferenceAvailable: soloCategoryPreferenceState.status === 'ready',
+        userCategoryPreferenceAvailable: soloCategoryPreferenceState.available === true,
         userCategoryPreferenceFallbackReason: soloCategoryPreferenceState.fallbackReason,
         levelNumber: soloLevel?.levelNumber,
         deckSize: getSoloAttemptDeckSizeForLevel(soloLevel?.levelNumber),
@@ -1833,13 +1830,6 @@ export default function Game() {
         icon: 'data',
         title: 'Şu anda aktif soru bulunamadı.',
         body: 'Soru havuzu hazır olduğunda oyun başlayacak.',
-      };
-    }
-    if (questionLoadErrorKind === QUESTION_LOAD_ERROR_KIND.AUTH_SESSION_UNAVAILABLE) {
-      return {
-        icon: 'data',
-        title: 'Oturum hazırlanıyor',
-        body: 'Soruları yüklemek için oturumun hazır olması gerekiyor. Tekrar dene.',
       };
     }
     return {

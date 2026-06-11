@@ -51,6 +51,7 @@ import {
   SOLO_QUESTION_ENGINE_DOC_PATH,
 } from '@/lib/soloQuestionEngineDoc';
 import gamePageSource from '../../pages/Game.jsx?raw';
+import useOfflineQuestionsSource from '../../hooks/useOfflineQuestions.js?raw';
 import useGameActionsSource from '../../hooks/useGameActions.js?raw';
 import questionHistorySource from '../../lib/questionHistory.js?raw';
 import userCategoryPreferenceHelperSource from '../../lib/userCategoryPreferences.js?raw';
@@ -2330,6 +2331,106 @@ export const EXTRA_TESTS = [
   ),
 
   makeCase(
+    'solo_empty_category_preferences_use_all_active_categories',
+    'Guest or no saved Category preferences use all active categories for Solo',
+    () => {
+      const pool = buildSyntheticPool(96, (i) => ({
+        main_category_id: (i % 6) + 1,
+        sub_category: `all_cat_sub_${i % 16}`,
+        tag: `all_cat_theme_${i % 8}`,
+      }));
+      const result = buildSoloAttemptDeck({
+        pool,
+        allowedMainCategoryIds: [1, 2, 3, 4, 5, 6],
+        requireActiveCategoryWhitelist: true,
+        levelNumber: 4,
+        seedCount: 2,
+        userSelectedCategoryIds: [],
+        userCategoryPreferenceAvailable: false,
+        userCategoryPreferenceFallbackReason: 'no_valid_user_category_preferences',
+        random: makeSeededRandom(3130),
+      });
+      const meta = result.meta?.categoryPreferenceFairness || {};
+      const categories = new Set((result.deck || []).map((question) => question.main_category_id));
+      if (
+        !result.ok ||
+        result.deck.length !== 16 ||
+        categories.size < 4 ||
+        meta.fallbackUsed !== true ||
+        meta.fallbackReason !== 'no_valid_user_category_preferences' ||
+        meta.hardFilterToSelectedCategories !== false
+      ) {
+        return fail('No/empty Category preferences may still be acting as an empty Solo filter instead of all active categories.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          actual: {
+            ok: result.ok,
+            deckSize: result.deck?.length || 0,
+            categories: Array.from(categories),
+            meta,
+          },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Empty or unavailable Category preferences keep Solo playable with the full active category pool.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+        actual: {
+          deckSize: result.deck.length,
+          categoryCount: categories.size,
+          fallbackReason: meta.fallbackReason,
+        },
+      });
+    },
+  ),
+
+  makeCase(
+    'solo_guest_fetch_and_preference_fallback_runtime_wiring',
+    'Guest fetch and no-preference fallback are wired without a login gate',
+    () => {
+      const gameMissing = missingTokens(gamePageSource, [
+        "fallbackReason: 'missing_authenticated_user'",
+        'resolveGameplayCategoryPreferenceFilter(preferences, activeCategories)',
+        'userCategoryPreferenceAvailable: soloCategoryPreferenceState.available === true',
+        'no saved Category preferences means all active',
+      ]);
+      const fetchMissing = missingTokens(useOfflineQuestionsSource, [
+        'guest_question_fetch_uses_public_minimal_projection',
+        "base44.functions.invoke('getQuestions'",
+        'Direct Question.list fallback remains removed',
+      ]);
+      const helperMissing = missingTokens(userCategoryPreferenceHelperSource, [
+        'guestNoAuthUsesAllActiveCategories: true',
+        'noSavedPreferencesUsesAllActiveCategories: true',
+        'emptyPreferencesAreNotOfflineNoCache: true',
+        'saveValidationSeparateFromGameplayStart: true',
+        'resolveGameplayCategoryPreferenceFilter',
+      ]);
+      const forbidden = [
+        ...['AUTH_SESSION_UNAVAILABLE', 'Auth session unavailable while loading questions.']
+          .filter((token) => useOfflineQuestionsSource.includes(token)),
+      ];
+      if (gameMissing.length || fetchMissing.length || helperMissing.length || forbidden.length) {
+        return fail('Guest/no-preference Solo loading may still require login or map empty preferences to load failure.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          files: [
+            'src/pages/Game.jsx',
+            'src/hooks/useOfflineQuestions.js',
+            'src/lib/userCategoryPreferences.js',
+          ],
+          actual: { gameMissing, fetchMissing, helperMissing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Guest Solo fetch uses the public-safe projection, and no saved preferences fall back to all active categories.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    },
+  ),
+
+  makeCase(
     'solo_category_preference_runtime_wiring_and_boundaries',
     'Solo reads current-user Category preferences while Online/getQuestions remain unchanged',
     () => {
@@ -2340,7 +2441,7 @@ export const EXTRA_TESTS = [
         "status: 'loading'",
         "status: 'unavailable'",
         'userSelectedCategoryIds: soloCategoryPreferenceState.selectedCategoryIds',
-        "userCategoryPreferenceAvailable: soloCategoryPreferenceState.status === 'ready'",
+        'userCategoryPreferenceAvailable: soloCategoryPreferenceState.available === true',
         'userCategoryPreferenceFallbackReason: soloCategoryPreferenceState.fallbackReason',
       ]);
       const helperMissing = missingTokens(userCategoryPreferenceHelperSource, [
@@ -2369,7 +2470,7 @@ export const EXTRA_TESTS = [
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Game waits for current-user active valid Category preferences before Solo deck build, and Online/getQuestions do not read preference rows.', {
+      return pass('Game waits for preference readiness when signed in, uses all active categories when unavailable/empty, and Online/getQuestions do not read preference rows.', {
         verification: 'STATIC_CONTRACT',
         classification: 'RUNTIME_VERIFIED',
       });

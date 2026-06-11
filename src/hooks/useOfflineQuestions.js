@@ -9,20 +9,18 @@
  * 5. API başarısız + cache yok → yalnızca gerçek offline ise offline ekranı göster
  *
  * Empty cache is not offline. Cold app/PWA starts and question-set refreshes
- * must attempt an authenticated online fetch before any no-cache fallback.
+ * must attempt the public-safe online gameplay projection before any no-cache
+ * fallback.
  */
 import { useCallback, useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { saveQuestionsToCache, loadQuestionsFromCache } from '@/lib/questionCache';
 import { normalizeQuestionsForRuntime } from '@/lib/questionRuntimeAdapter';
 
-const AUTH_SETTLE_RETRY_MS = 650;
-const AUTH_SETTLE_ATTEMPTS = 4;
 const QUESTION_FETCH_RETRY_MS = 850;
 const NO_CACHE_NETWORK_ATTEMPTS = 3;
 
 export const QUESTION_LOAD_ERROR_KIND = {
-  AUTH_SESSION_UNAVAILABLE: 'auth_session_unavailable',
   NO_ACTIVE_QUESTIONS: 'no_active_questions',
   OFFLINE_NO_CACHE: 'offline_no_cache',
   QUESTION_FETCH_FAILED: 'question_fetch_failed',
@@ -32,18 +30,13 @@ export const QUESTION_LOAD_CONTRACTS = {
   EMPTY_CACHE_IS_NOT_OFFLINE: 'empty_cache_is_not_offline_online_fetch_first',
   RETRY_REFETCHES_ONLINE: 'retry_clears_transient_error_and_refetches_online',
   OFFLINE_NO_CACHE_REQUIRES_KNOWN_OFFLINE: 'offline_no_cache_requires_known_offline_and_no_cache',
+  GUEST_QUESTION_FETCH_USES_PUBLIC_PROJECTION: 'guest_question_fetch_uses_public_minimal_projection',
 };
 
 const wait = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
 function isKnownOffline() {
   return typeof navigator !== 'undefined' && navigator.onLine === false;
-}
-
-function makeQuestionLoadError(message, code) {
-  const error = new Error(message);
-  error.code = code;
-  return error;
 }
 
 function deriveActiveCategoryIds(questions = []) {
@@ -88,15 +81,6 @@ export function useOfflineQuestions() {
   const fetchedRef = useRef(false);
   const requestIdRef = useRef(0);
 
-  const waitForAuthSession = useCallback(async () => {
-    for (let attempt = 1; attempt <= AUTH_SETTLE_ATTEMPTS; attempt += 1) {
-      const user = await base44.auth.me().catch(() => null);
-      if (user?.email) return user;
-      if (attempt < AUTH_SETTLE_ATTEMPTS) await wait(AUTH_SETTLE_RETRY_MS);
-    }
-    return null;
-  }, []);
-
   const fetchFromNetwork = useCallback(async ({ attempts = 1, forceLoading = false } = {}) => {
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
@@ -111,19 +95,9 @@ export function useOfflineQuestions() {
 
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
       try {
-        // getQuestions is auth-protected. On a cold app/WebView open, auth
-        // can settle a beat after the game route mounts, so wait once before
-        // treating a no-cache fetch as final failure.
-        const user = await waitForAuthSession();
-        if (!user?.email) {
-          throw makeQuestionLoadError(
-            'Auth session unavailable while loading questions.',
-            QUESTION_LOAD_ERROR_KIND.AUTH_SESSION_UNAVAILABLE,
-          );
-        }
-
-        // Authenticated backend function only. Direct Question.list fallback
-        // was removed so normal users cannot fetch the raw question bank.
+        // Guest/no-auth Solo play is supported through the public-safe
+        // minimal projection. Direct Question.list fallback remains removed
+        // so guests never receive the raw question bank.
         const res = await base44.functions.invoke('getQuestions', {});
         networkReturned = true;
         if (Array.isArray(res.data?.questions) && res.data.questions.length > 0) {
@@ -172,7 +146,7 @@ export function useOfflineQuestions() {
       setIsError(true);
     }
     setIsLoading(false);
-  }, [waitForAuthSession]);
+  }, []);
 
   useEffect(() => {
     if (fetchedRef.current) return;

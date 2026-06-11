@@ -1663,7 +1663,14 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex312';
+//
+// Codex313 — Guest/no-preference Solo question fallback:
+//   • getQuestions now serves a public-safe minimal gameplay projection for
+//     guest Solo while keeping admin/full-bank diagnostics AdminUser-gated.
+//   • No login, no saved preferences, or empty/insufficient preferences use
+//     all active categories; saved preferences remain optional 70/30 weighting.
+//   • Category preference save validation stays separate from gameplay start.
+const BUILD_MARKER = 'Codex313';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

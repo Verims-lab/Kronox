@@ -36,7 +36,7 @@ export const SECURITY_DEPLOYMENT_DOC = `# Kronox Security & Deployment
 
 Status: Active product contract.
 
-- getQuestions requires auth.
+- getQuestions serves a public-safe minimal playable projection for guest Solo; admin/full-bank diagnostics still require active AdminUser owner/admin authorization.
 - startLobbyGame requires authenticated host, no legacy guest, no client identity override.
 - Service-role usage is scoped to admin/maintenance backend functions.
 - VAPID private key remains a real secret and must stay secret-managed.
@@ -97,7 +97,7 @@ Status: Active product contract.
 - Report/admin functions must NOT use local imports that resolve outside the deployed path. The broken './_shared/adminAuth.js' pattern resolved to a file URL under /src/_shared (module not found) and broke deployment, leaving Base44 serving a stale build. The callable report function now inlines a DB-backed AdminUser guard instead.
 - base44/functions/<name>/entry.ts shared imports remain allowed where proven deployable; sendQuestionAnalyticsReportEmail intentionally uses an inline guard for this runtime-sensitive path.
 - Critical report/admin functions should include safe template/function markers (e.g. templateVersion static-pool-v2, REPORT_BUILD_MARKER, and bodyContains* diagnostics). If real output lacks the marker, the function deployment is stale.
-- sendQuestionAnalyticsReportEmail live deploy is proven by triggering the function and reading reportBuildMarker (current: Codex312), templateVersion static-pool-v2, and bodyContainsStaticPoolSection/Template/QuestionSource = true. A published frontend that does not change reportBuildMarker means the executed backend function did not redeploy.
+- sendQuestionAnalyticsReportEmail live deploy is proven by triggering the function and reading reportBuildMarker (current: Codex313), templateVersion static-pool-v2, and bodyContainsStaticPoolSection/Template/QuestionSource = true. A published frontend that does not change reportBuildMarker means the executed backend function did not redeploy.
 - A prior Codex275 marker bump was never proven deployed because the runtime function still imported the broken local _shared guard; the recovery inlined the AdminUser guard and uses current reportBuildMarker values as the unambiguous live marker.
 - Function-based question analytics reset is currently not used.
 - Manual DB reset path after question pool replacement clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection.
@@ -114,14 +114,14 @@ Status: Active product contract.
 - UserCategoryPreference rows are user-scoped Settings data.
 - normal users can read/update only their own preference rows.
 - passive Category.status = P/p rows are not selectable.
-- Any user with fewer than 3 active valid Category preferences sees the popup; this applies to new and existing users.
+- Any authenticated user with fewer than 3 active valid Category preferences sees an optional personalization popup; this applies to new and existing users, can be deferred, and must not block gameplay.
 - The source of truth is active valid UserCategoryPreference count.
 - Only active categories are selectable and count.
 - Passive or removed Category selections are filtered from UI/save state and are not resaved as active preferences.
 - completing the popup saves UserCategoryPreference rows before marking the user profile onboarding flag complete.
 - Users can later change selections under Profile / Settings / İlgi Alanlarım.
-- Game question loading first attempts authenticated online getQuestions when online or network state is unknown; empty local cache is not offline, stale cache is invalidated by question-runtime-v3-online-first, Retry re-fetches online, and false offline/no-cache is reserved for known offline plus failed fetch plus no usable cache.
-- Solo question selection reads current-user active valid Category preferences before attempt start and targets 70% selected categories / 30% full eligible pool as soft weighting with fallback. The selected-category 70% lane is not difficulty-1 restricted; the global 30% lane prefers difficulty 1 from the full eligible pool where possible and safely falls back when difficulty-1 global candidates are insufficient.
+- Game question loading first attempts online getQuestions when online or network state is unknown; guest/no-auth Solo uses the public-safe minimal projection, empty local cache is not offline, stale cache is invalidated by question-runtime-v3-online-first, Retry re-fetches online, and false offline/no-cache is reserved for known offline plus failed fetch plus no usable cache.
+- Solo question selection reads current-user active valid Category preferences before attempt start when signed in. No login/no saved preferences/empty preferences use all active categories. Category preference save validation remains separate from gameplay start. Insufficient preferences also use all active categories. Saved preferences target 70% selected categories / 30% full eligible pool only when at least 3 active valid preferences exist; this is soft weighting with fallback. The selected-category 70% lane is not difficulty-1 restricted; the global 30% lane prefers difficulty 1 from the full eligible pool where possible and safely falls back when difficulty-1 global candidates are insufficient.
 - Online question selection, getQuestions, and analytics do not read preferences for question selection.
 - two-account preference RLS proof remains manual/NOT_AUTOMATABLE.
 - old UserSubCategoryPreference rows are retained but not used by the current Settings preference UI.
@@ -235,12 +235,16 @@ persisted per user in UserCategoryPreference. Solo question selection targets
 70% lane is not difficulty-1 restricted; the global 30% lane prefers
 difficulty 1 where possible with safe fallback. Online question selection is
 not affected. Any user with fewer than 3 active valid
-Category preferences sees the popup, including new and existing users. The
-source of truth is active valid UserCategoryPreference count, only active
+Category preferences sees an optional popup, including new and existing users.
+The source of truth is active valid UserCategoryPreference count, only active
 categories are selectable and count, passive or removed Category selections are
 filtered from active UI/save state, completion prevents repeat prompts only while
 the user still has 3 or more active valid preferences, and Users can later change
-selections under Profile / Settings / İlgi Alanlarım. SubCategory entity still exists, but Settings currently uses Category interests.
+selections under Profile / Settings / İlgi Alanlarım. No login/no saved
+preferences/empty preferences use all active categories for Solo. Category
+preference save validation remains separate from gameplay start. Insufficient
+preferences also use all active categories for Solo.
+SubCategory entity still exists, but Settings currently uses Category interests.
 The Settings Category preference surface is custom touch UI with no raw native select in the targeted section; save validation and user scoping remain unchanged.
 Mobile wrapping/long-name visual proof and two-account preference RLS proof
 remain manual/NOT_AUTOMATABLE.
@@ -278,10 +282,10 @@ Status: Implementation tracking doc.
 - Legacy candidates kept without deletion: Friendship, GameRecord, LobbyMessage.
 - Raw Question remains protected.
 - UserCategoryPreference stores app-open popup and Settings Category preferences per user; minimum 3 selections. There is no maximum selection.
-- Solo question selection targets 70% selected user categories and 30% full eligible pool when at least 3 active valid preferences are available.
+- Solo question selection uses all active categories for guests/no saved preferences and targets 70% selected user categories plus 30% full eligible pool only when at least 3 active valid preferences are available.
 - This is a soft weighting target with fallback, not hard filtering. The selected-category 70% lane is not difficulty-1 restricted; the global 30% lane prefers difficulty 1 from the full eligible pool where possible and safely falls back when difficulty-1 global candidates are insufficient.
 - Online question selection is not affected.
-- Any user with fewer than 3 active valid Category preferences sees the popup; this applies to new and existing users.
+- Any authenticated user with fewer than 3 active valid Category preferences sees an optional personalization popup; this applies to new and existing users, can be deferred, and must not block gameplay.
 - The source of truth is active valid UserCategoryPreference count.
 - Only active categories are selectable and count.
 - Users can later change selections under Profile / Settings / İlgi Alanlarım.

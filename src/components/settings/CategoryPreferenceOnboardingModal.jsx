@@ -166,7 +166,7 @@ export default function CategoryPreferenceOnboardingModal({ user, disabled = fal
                   İlgi Alanlarını Seç
                 </h2>
                 <p className="mt-1 font-inter text-sm leading-relaxed text-muted-foreground">
-                  Kronox deneyimini kişiselleştirmek için en az 3 kategori seç.
+                  Kronox deneyimini kişiselleştirmek için kategori seçebilirsin. Şimdi seçmezsen Solo tüm aktif kategorilerle başlar.
                 </p>
               </div>
             </div>
@@ -282,20 +282,29 @@ export default function CategoryPreferenceOnboardingModal({ user, disabled = fal
                   Daha Sonra
                 </button>
               ) : (
-                <button
-                  type="button"
-                  onClick={handleContinue}
-                  disabled={loading || saving || !canContinue}
-                  className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 py-3 font-inter text-sm font-black transition-transform active:scale-[0.98] disabled:opacity-55"
-                  style={{
-                    background: 'linear-gradient(180deg, #facc15, #d99b05)',
-                    color: '#1a1003',
-                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.55), 0 10px 24px rgba(0,0,0,0.28)',
-                  }}
-                >
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                  Devam Et
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={handleContinue}
+                    disabled={loading || saving || !canContinue}
+                    className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 py-3 font-inter text-sm font-black transition-transform active:scale-[0.98] disabled:opacity-55"
+                    style={{
+                      background: 'linear-gradient(180deg, #facc15, #d99b05)',
+                      color: '#1a1003',
+                      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.55), 0 10px 24px rgba(0,0,0,0.28)',
+                    }}
+                  >
+                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                    Devam Et
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDismissedForSession(true)}
+                    className="min-h-11 w-full rounded-xl border border-border/45 px-4 py-3 font-inter text-sm font-black text-foreground"
+                  >
+                    Daha Sonra
+                  </button>
+                </>
               )}
 
               {error && (

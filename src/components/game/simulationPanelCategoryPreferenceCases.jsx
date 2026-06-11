@@ -528,8 +528,9 @@ export const EXTRA_TESTS = [
         'CategoryPreferenceOnboardingModal',
         'shouldShowCategoryPreferenceOnboarding({',
         'İlgi Alanlarını Seç',
-        'Kronox deneyimini kişiselleştirmek için en az 3 kategori seç.',
+        'Şimdi seçmezsen Solo tüm aktif kategorilerle başlar.',
         'Devam Et',
+        'Daha Sonra',
         'onCompleted={handleCategoryPreferenceOnboardingComplete}',
         'disabled={showProfileTutorial}',
       ]);
@@ -545,6 +546,34 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Category preference popup exists and is sequenced away from the tutorial modal.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('category_preferences_optional_for_gameplay_start',
+    'Category preference save validation is separate from Solo gameplay start',
+    () => {
+      const missing = missingTokens(`${preferenceHelperSource}\n${onboardingModalSource}\n${gamePageSource}`, [
+        'saveValidationSeparateFromGameplayStart: true',
+        'guestNoAuthUsesAllActiveCategories: true',
+        'noSavedPreferencesUsesAllActiveCategories: true',
+        'resolveGameplayCategoryPreferenceFilter(preferences, activeCategories)',
+        'Şimdi seçmezsen Solo tüm aktif kategorilerle başlar.',
+        'Daha Sonra',
+        'userCategoryPreferenceAvailable: soloCategoryPreferenceState.available === true',
+      ]);
+      if (missing.length) {
+        return fail('Category preferences may still be mandatory for Solo question loading instead of optional personalization.', {
+          verification: 'STATIC_CONTRACT',
+          files: [
+            'src/lib/userCategoryPreferences.js',
+            'src/components/settings/CategoryPreferenceOnboardingModal.jsx',
+            'src/pages/Game.jsx',
+          ],
+          missing,
+        });
+      }
+      return pass('Minimum-3 validation remains a save rule, while Solo can start with all active categories when preferences are absent.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -991,12 +1020,15 @@ export const EXTRA_TESTS = [
         'İlgi Alanlarım',
         'Minimum selection count is 3',
         'There is no maximum selection.',
-        'Any user with fewer than 3 active valid Category preferences sees the popup',
+        'optional personalization popup',
         'new and existing users',
+        'can be deferred',
         'active valid UserCategoryPreference count',
         'Only active categories are selectable and count',
         'Users can later change selections under Profile / Settings',
-        'Solo question selection targets 70% selected user categories and 30% full eligible pool',
+        'No login/no saved preferences/empty preferences use all active categories',
+        'Category preference save validation remains separate from gameplay start',
+        'Saved preferences target 70% selected user categories and 30% full eligible pool',
         'Online question selection is not affected',
         'soft weighting target with fallback, not hard filtering',
         'SubCategory entity still exists',

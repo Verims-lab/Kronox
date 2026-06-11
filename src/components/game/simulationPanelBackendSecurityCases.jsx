@@ -261,31 +261,33 @@ export const EXTRA_TESTS = [
       });
     }),
 
-  makeCase('get_questions_requires_auth',
-    'getQuestions requires authentication before returning playable questions',
+  makeCase('get_questions_public_minimal_projection_admin_diagnostics_guarded',
+    'getQuestions allows guest gameplay projection while guarding admin diagnostics',
     () => {
       const required = [
-        'await base44.auth.me()',
-        'Giris yapmaniz gerekiyor.',
-        '}, 401)',
-        'authenticated_minimal_projection',
+        'getOptionalUser',
+        'needsAdmin && !user?.email',
+        'isAuthorizedAdmin(base44, user)',
+        'Admin yetkisi gerekli.',
+        'public_minimal_playable_projection',
       ];
       const forbidden = presentTokens(getQuestionsSource, [
         'auth gerekmez',
         'Service role ile soruları çek',
+        'authenticated_minimal_projection',
       ]);
       const missing = missingTokens(getQuestionsSource, required);
       if (missing.length || forbidden.length) {
-        return fail('getQuestions can still expose questions without authenticated user context.', {
+        return fail('getQuestions guest projection/admin diagnostics boundary drifted.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'base44/functions/getQuestions/entry.ts',
-          expected: 'auth.me guard returning 401 before scoped service-role Question.filter',
+          expected: 'guest-safe minimal playable projection, with admin/full-bank/diagnostics still AdminUser-protected',
           actual: { missing, forbidden },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('getQuestions has an authenticated-user guard and no unauthenticated source contract.', {
+      return pass('getQuestions serves the public-safe minimal playable projection for guests while admin diagnostics remain AdminUser-protected.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });
