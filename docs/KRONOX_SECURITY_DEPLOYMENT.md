@@ -544,6 +544,23 @@ After deployment, verify:
 * retained score/economy rows no longer contain the deleted user's email
 * public `/account-deletion` copy matches the in-app deletion flow
 
+## Privacy Policy
+
+* Public privacy URL is `https://kronoxgame.com/privacy`.
+* `/privacy` must load without login, admin status, backend data, or redirect.
+* The policy is Turkish-first, titled `Gizlilik Politikası`, includes a
+  last-updated date and support contact, and must disclose account/profile,
+  gameplay/progress/leaderboard, friends/invites/social, preferences,
+  optional push subscription, local storage/cache, economy/ledger, and question
+  analytics/reporting data.
+* The policy must state Kronox does not sell personal data for third-party
+  advertising and must not claim that no data is collected.
+* App Store Connect privacy answers must match the `/privacy` page and must be
+  updated when data collection, push notifications, social features, analytics,
+  or economy behavior changes.
+* Account deletion/access/correction requests may use the in-app deletion flow
+  where available or the listed support email.
+
 ## Joker Inventory
 
 Joker inventory is user-owned data:

@@ -68,6 +68,10 @@ Status: Active product contract.
 - Admin Ekranı list refresh uses scoped Pull-to-Refresh only after the admin gate has passed; bottom-sheet selectors do not replace backend AdminUser authorization.
 - simulateOnlineGame and runTestSuite are admin-only backend tools. They must call the shared AdminUser guard before any service-role simulation/test writes; user.role, request-body role fields, hardcoded admin emails, and typo role strings such as en_core_news_sm are not valid authorization. Runtime auth proof for simulateOnlineGame must verify unauthenticated, normal user, and disabled/passive admin calls are blocked, while active owner/admin AdminUser rows succeed. npm run build does not prove this deployed backend behavior.
 - account deletion is a destructive, NOT_AUTOMATABLE manual proof gate.
+- Public privacy URL is https://kronoxgame.com/privacy.
+- /privacy must load without login, admin status, backend data, or redirect.
+- Gizlilik Politikası includes last-updated date, support contact, account/profile data, gameplay/progress/leaderboard data, friends/invites/social data, optional push subscription data, local storage/cache, economy/ledger data, and question analytics/reporting disclosure.
+- App Store Connect privacy answers must match the /privacy page and update when data collection, analytics, push notifications, social features, or economy behavior changes.
 - UserJokerInventory stores current balances for mistake_shield, card_swap, and time_freeze.
 - JokerTransaction stores the append-only joker grant/spend ledger.
 - ensureUserJokerInventory grants 3 Kronokalkan, 3 Kart Değiştir, and 3 Zaman Dondur once per authenticated user using starter_jokers:<email>:<joker_type> idempotency keys; missing or partial UserJokerInventory rows self-heal, existing balances are preserved, owner email is normalized, and duplicate/malformed rows do not crash Joker Çantası.
@@ -93,7 +97,7 @@ Status: Active product contract.
 - Report/admin functions must NOT use local imports that resolve outside the deployed path. The broken './_shared/adminAuth.js' pattern resolved to a file URL under /src/_shared (module not found) and broke deployment, leaving Base44 serving a stale build. The callable report function now inlines a DB-backed AdminUser guard instead.
 - base44/functions/<name>/entry.ts shared imports remain allowed where proven deployable; sendQuestionAnalyticsReportEmail intentionally uses an inline guard for this runtime-sensitive path.
 - Critical report/admin functions should include safe template/function markers (e.g. templateVersion static-pool-v2, REPORT_BUILD_MARKER, and bodyContains* diagnostics). If real output lacks the marker, the function deployment is stale.
-- sendQuestionAnalyticsReportEmail live deploy is proven by triggering the function and reading reportBuildMarker (current: Codex311), templateVersion static-pool-v2, and bodyContainsStaticPoolSection/Template/QuestionSource = true. A published frontend that does not change reportBuildMarker means the executed backend function did not redeploy.
+- sendQuestionAnalyticsReportEmail live deploy is proven by triggering the function and reading reportBuildMarker (current: Codex312), templateVersion static-pool-v2, and bodyContainsStaticPoolSection/Template/QuestionSource = true. A published frontend that does not change reportBuildMarker means the executed backend function did not redeploy.
 - A prior Codex275 marker bump was never proven deployed because the runtime function still imported the broken local _shared guard; the recovery inlined the AdminUser guard and uses current reportBuildMarker values as the unambiguous live marker.
 - Function-based question analytics reset is currently not used.
 - Manual DB reset path after question pool replacement clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection.
@@ -195,6 +199,9 @@ Two-account invite + scoring proof, OnlineMatchResult idempotency.
 
 ## RLS And Backend Security
 Two/three-account RLS probe matrix, service-role scoping.
+
+## Privacy Policy / App Store Privacy
+Public privacy URL is https://kronoxgame.com/privacy. /privacy must be publicly accessible without login, admin status, backend data, or redirect to Home/login. The page title is Gizlilik Politikası, includes a last-updated date, and lists a support contact email. The policy discloses account/profile data, gameplay/progress/leaderboard data, friends/invites/social data, category preferences, optional push subscription/notification data, local storage/cache/IndexedDB use, Daily Wheel/Daily Quest/Mağaza/Joker/Diamond economy records, and question analytics/reporting data. The policy states Kronox does not sell personal data for third-party advertising and must not claim that no data is collected. Account deletion/access/correction requests are covered. App Store Connect privacy answers must match the /privacy policy and be updated whenever data collection, analytics, push notifications, social features, or economy/ledger behavior changes. Manual proof opens https://kronoxgame.com/privacy from a fresh browser without login and confirms Turkish policy content loads on mobile.
 
 ## PWA / Push
 BottomNav visible tabs are Ana Sayfa, Liderlik, and Profil only. Online is launched from Home through Online Kapışma, not from BottomNav. Switching visible tabs preserves subroute/scroll state and re-tapping the active tab resets that tab to its root while /game remains full-screen.

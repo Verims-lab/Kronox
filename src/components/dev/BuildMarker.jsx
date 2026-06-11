@@ -1317,6 +1317,13 @@ import React, { useEffect, useState } from 'react';
 //   • Updates npm run check:ios-icons output to document Base44 App logo
 //     regeneration and the manual final archive/IPA proof boundary.
 //
+// Codex312 — public App Store privacy policy:
+//   • Adds public /privacy with Turkish Gizlilik Politikası content for Apple
+//     App Store review, including data categories, deletion/support, push,
+//     cache, social, gameplay, analytics, and economy disclosures.
+//   • Keeps /privacy outside auth, onboarding, and BottomNav while adding a
+//     Settings link plus docs/Health App Store privacy alignment.
+//
 // Codex303 — Joker Çantası user-specific self-heal:
 //   • ensureUserJokerInventory now repairs missing/partial/mixed-owner
 //     UserJokerInventory rows for the authenticated user without overwriting
@@ -1656,7 +1663,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex311';
+const BUILD_MARKER = 'Codex312';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

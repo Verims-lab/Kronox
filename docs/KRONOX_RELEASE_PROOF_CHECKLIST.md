@@ -382,7 +382,34 @@ Checklist:
 
 ---
 
-# 6. Mobile / PWA
+# 7. Privacy Policy / App Store Privacy
+
+Checklist:
+
+* Public privacy URL is `https://kronoxgame.com/privacy`.
+* `/privacy` must be publicly accessible without login, admin status, backend
+  data, or redirect to Home/login.
+* The page title is `Gizlilik Politikası`, includes a last-updated date, and
+  lists a support contact email.
+* The policy must disclose current Kronox data categories: account/profile
+  data, gameplay/progress/leaderboard data, friends/invites/social data,
+  category preferences, optional push subscription/notification data,
+  local storage/cache/IndexedDB use, Daily Wheel/Daily Quest/Mağaza/Joker/
+  Diamond economy records, and question analytics/reporting data.
+* The policy must state Kronox does not sell personal data for third-party
+  advertising and must not claim that no data is collected.
+* Account deletion/access/correction requests must be covered. If the in-app
+  account deletion flow is available, users may use it; support email remains
+  available for privacy requests.
+* App Store Connect privacy answers must match the `/privacy` policy. Update
+  both whenever data collection, analytics, push notifications, social features,
+  or economy/ledger behavior changes.
+* Manual proof: open `https://kronoxgame.com/privacy` from a fresh browser
+  without login and confirm the Turkish privacy policy loads on mobile.
+
+---
+
+# 8. Mobile / PWA
 
 Test on mobile browser and installed PWA if possible.
 
@@ -520,7 +547,7 @@ Checklist:
 
 ---
 
-# 7. Visual / UI Runtime Proof
+# 9. Visual / UI Runtime Proof
 
 Checklist:
 
@@ -543,7 +570,7 @@ Checklist:
 
 ---
 
-# 8. RLS And Backend Security
+# 10. RLS And Backend Security
 
 Use two-account or three-account probes.
 
@@ -602,7 +629,7 @@ Checklist:
 
 ---
 
-# 9. Account Deletion
+# 11. Account Deletion
 
 Use a disposable test account only.
 
@@ -630,7 +657,7 @@ Do not mark destructive account deletion proof as complete without a safe test a
 
 ---
 
-# 10. Accessibility And Motion
+# 12. Accessibility And Motion
 
 Checklist:
 
@@ -645,7 +672,7 @@ Checklist:
 
 ---
 
-# 11. Leaderboard / Profile Consistency
+# 13. Leaderboard / Profile Consistency
 
 Checklist:
 
@@ -658,7 +685,7 @@ Checklist:
 
 ---
 
-# 12. Admin Maintenance Reset
+# 14. Admin Maintenance Reset
 
 Use an admin account and a disposable target user.
 
@@ -684,7 +711,7 @@ Do not run this proof against production users without explicit approval.
 
 ---
 
-# 13. DB Architecture / Maintenance Jobs
+# 15. DB Architecture / Maintenance Jobs
 
 Use an admin account and non-production data where possible.
 
@@ -805,7 +832,7 @@ verified against the deployed Base44 environment.
 
 ---
 
-# 14. Manual Proof Recording
+# 16. Manual Proof Recording
 
 For every manual test run, record:
 

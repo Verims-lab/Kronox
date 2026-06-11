@@ -36,6 +36,8 @@ import accountDeletionCasesSource from './simulationPanelAccountDeletionCases.js
 import dbArchitectureCasesSource from './simulationPanelDbArchitectureImplementationCases.jsx?raw';
 import healthStatusSource from './health/healthStatus.jsx?raw';
 import { DB_ARCHITECTURE_IMPLEMENTATION_MIRROR } from '@/lib/dbArchitectureMirrors';
+import appSource from '../../App.jsx?raw';
+import privacyPolicySource from '../../pages/PrivacyPolicy.jsx?raw';
 
 const STATUS = {
   PASS: 'PASS',
@@ -477,6 +479,84 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('DB architecture coverage is explicit about implemented scaffolding and manual platform constraints.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('public_privacy_policy_route',
+    'Public /privacy route and App Store privacy policy content are present',
+    () => {
+      const combinedDocs = `${releaseChecklistSource}\n${securityDocsSource}`;
+      const missingRoute = missingTokens(appSource, [
+        "import('./pages/PrivacyPolicy')",
+        "location.pathname === '/privacy'",
+        'isPublicStandalonePage = isAccountDeletionPage || isPrivacyPage',
+        '<Route path="/privacy" element={<PrivacyPolicy />} />',
+        '!isPublicStandalonePage && <BottomNav />',
+      ]);
+      const missingPage = missingTokens(privacyPolicySource, [
+        'Gizlilik Politikası',
+        'Son güncelleme',
+        'sariverim@gmail.com',
+        'Hesap ve profil',
+        'Oynanış bilgileri',
+        'liderlik tablosu',
+        'Sosyal ve davet',
+        'Push bildirimleri isteğe bağlıdır',
+        'local storage, IndexedDB/cache',
+        'Elmas bakiyesi',
+        'Günlük Çark',
+        'Günlük Görev',
+        'Joker Çantası',
+        'Soru dengesi',
+        'Kronox şu anda kişisel verileri üçüncü taraf reklam amacıyla satmaz',
+        'Hesap silme talebi',
+        'App Store gizlilik',
+      ]);
+      const missingLink = missingTokens(settingsPageSource, [
+        'Gizlilik Politikası',
+        "navigate('/privacy')",
+      ]);
+      const missingDocs = missingTokens(combinedDocs, [
+        'https://kronoxgame.com/privacy',
+        '/privacy must be publicly accessible without login',
+        'App Store Connect privacy answers must match',
+        'account/profile data',
+        'gameplay/progress/leaderboard data',
+        'friends/invites/social data',
+        'optional push subscription',
+        'local storage/cache',
+        'economy/ledger',
+        'question analytics/reporting',
+      ]);
+      const forbidden = forbiddenTokens(privacyPolicySource, [
+        'no data is collected',
+        'hiç veri toplanmaz',
+        'veri toplamıyoruz',
+        'Kids Category',
+        'GDPR compliant',
+        'CCPA compliant',
+      ]);
+      const missing = [
+        ...missingRoute.map((token) => `route:${token}`),
+        ...missingPage.map((token) => `page:${token}`),
+        ...missingLink.map((token) => `settings:${token}`),
+        ...missingDocs.map((token) => `docs:${token}`),
+      ];
+      if (missing.length || forbidden.length) {
+        return fail('Public Privacy Policy route/content/App Store alignment is incomplete.', {
+          verification: 'STATIC_CONTRACT',
+          files: [
+            'src/App.jsx',
+            'src/pages/PrivacyPolicy.jsx',
+            'src/pages/SettingsPage.jsx',
+            'docs/KRONOX_RELEASE_PROOF_CHECKLIST.md',
+            'docs/KRONOX_SECURITY_DEPLOYMENT.md',
+          ],
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('/privacy is public, Turkish, linked from Settings, and aligned with App Store privacy disclosures.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

@@ -34,6 +34,7 @@ const FriendsPage = lazyWithRetry(() => import('./pages/FriendsPage'), 'FriendsP
 const LeaderboardPage = lazyWithRetry(() => import('./pages/LeaderboardPage'), 'LeaderboardPage');
 const TestSuite = lazyWithRetry(() => import('./pages/TestSuite'), 'TestSuite');
 const AccountDeletionPage = lazyWithRetry(() => import('./pages/AccountDeletionPage'), 'AccountDeletionPage');
+const PrivacyPolicy = lazyWithRetry(() => import('./pages/PrivacyPolicy'), 'PrivacyPolicy');
 
 function PageLoader() {
   return <SplashScreen />;
@@ -45,6 +46,8 @@ const AuthenticatedApp = () => {
   const prevPathRef = React.useRef(location.pathname);
   const isGamePage = location.pathname === '/game';
   const isAccountDeletionPage = location.pathname === '/account-deletion';
+  const isPrivacyPage = location.pathname === '/privacy';
+  const isPublicStandalonePage = isAccountDeletionPage || isPrivacyPage;
   // Codex102 — Only home + game lock viewport. All other screens scroll
   // normally and host their own ScreenHeader.
   const isViewportLockedPage = location.pathname === '/' || isGamePage;
@@ -86,7 +89,7 @@ const AuthenticatedApp = () => {
 
   // Determine transition direction: push (right-to-left) or pop (left-to-right)
   const getTransitionDirection = () => {
-    const routeOrder = ['/', '/market', '/game', '/lobby', '/profile', '/settings', '/admin', '/test-suite'];
+    const routeOrder = ['/', '/market', '/game', '/lobby', '/profile', '/settings', '/admin', '/test-suite', '/privacy'];
     const currIdx = routeOrder.indexOf(location.pathname);
     const prevIdx = routeOrder.indexOf(prevPathRef.current);
     const direction = currIdx > prevIdx ? 'push' : 'pop';
@@ -111,7 +114,7 @@ const AuthenticatedApp = () => {
   }
 
   // Show loading spinner while checking auth
-  if (isLoadingAuth && !isAccountDeletionPage) {
+  if (isLoadingAuth && !isPublicStandalonePage) {
     return (
       <>
         <AppDiagnostics currentUser={currentUser} />
@@ -121,7 +124,7 @@ const AuthenticatedApp = () => {
   }
 
   // Handle authentication errors
-  if (authError && !isAccountDeletionPage) {
+  if (authError && !isPublicStandalonePage) {
     if (authError.type === 'user_not_registered') {
       return (
         <>
@@ -182,6 +185,7 @@ const AuthenticatedApp = () => {
                   <Route path="/lobby" element={<LobbyRoom />} />
                   <Route path="/test-suite" element={<TestSuite />} />
                   <Route path="/account-deletion" element={<AccountDeletionPage />} />
+                  <Route path="/privacy" element={<PrivacyPolicy />} />
                   <Route path="*" element={<PageNotFound />} />
                 </Routes>
               </AppErrorBoundary>
@@ -196,23 +200,23 @@ const AuthenticatedApp = () => {
           onSkip={() => setShowProfileTutorial(false)}
         />
       )}
-      {!isAccountDeletionPage && (
+      {!isPublicStandalonePage && (
         <CategoryPreferenceOnboardingModal
           user={user}
           disabled={showProfileTutorial}
           onCompleted={handleCategoryPreferenceOnboardingComplete}
         />
       )}
-      {!isAccountDeletionPage && <BottomNav />}
+      {!isPublicStandalonePage && <BottomNav />}
     </div>
   );
 };
 
 
 function App() {
-  // Codex311 — push build marker into diag bus once at app boot
+  // Codex312 — push build marker into diag bus once at app boot
   useEffect(() => {
-    appDiagSetBuildMarker('Codex311');
+    appDiagSetBuildMarker('Codex312');
     // Codex176 — App booted successfully, so any prior stale-chunk reload
     // recovered. Clear the one-time reload guards so a future deploy can
     // self-heal again.

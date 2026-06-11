@@ -18,6 +18,7 @@ function routeKeyFromLocation(locationLike) {
 
 export function getTabRootForPathname(pathname = '/') {
   if (pathname === '/game') return null;
+  if (pathname === '/privacy') return null;
   if (pathname === '/lobby') return TAB_ROOTS.home;
   if (pathname === '/leaderboard') return TAB_ROOTS.leaderboard;
   if (['/profile', '/friends', '/settings', '/admin', '/test-suite', '/account-deletion'].includes(pathname)) {
