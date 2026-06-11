@@ -17,12 +17,14 @@ including seed cards already on the timeline, and use a 19-question deck.
 All new Solo attempts use a 180 seconds timer and fail on 10 mistakes; the
 10th mistake ends the attempt.
 
-Question loading bootstrap first attempts authenticated online getQuestions
-when the browser is online or network state is unknown. Empty local question
-cache is not an offline condition. While the first fetch is pending, the UI
-shows Sorular hazırlanıyor...; the offline/no-cache screen is reserved for
-known offline state plus failed online fetch plus no usable cache. Tekrar Dene
-clears the transient error and re-fetches online before cache fallback.
+Question loading bootstrap first attempts online getQuestions when the browser
+is online or network state is unknown. The default gameplay response is a
+public-safe minimal playable projection so guest Solo can load questions without
+login; admin/full-bank diagnostics still require AdminUser authorization. Empty
+local question cache is not an offline condition. While the first fetch is
+pending, the UI shows Sorular hazırlanıyor...; the offline/no-cache screen is
+reserved for known offline state plus failed online fetch plus no usable cache.
+Tekrar Dene clears the transient error and re-fetches online before cache fallback.
 Question-set replacements invalidate stale local question cache by version, and
 direct /game access without Solo launch state returns the user to Home/Solo
 entry instead of showing a false offline screen.
@@ -86,8 +88,14 @@ before the attempt starts. This is not a gameplay source of truth and must not
 fetch questions or stats mid-attempt. Corrupt or missing local history is
 ignored safely, and sparse metadata must not block deck creation by itself.
 The runtime may also pass active valid current-user Category preference IDs
-before the attempt starts. Missing, corrupt, passive, or unavailable preferences
-fall back to global Solo selection. Online question selection is not affected.
+before the attempt starts. Login and Category preferences are optional for
+question selection: guest users, signed-in users with no saved preferences, and
+signed-in users with fewer than 3 active valid preferences use all active
+categories. Missing, corrupt, passive, empty, or unavailable preferences fall
+back to global Solo selection and must not become an empty question pool or
+offline/no-cache error. Saved preferences only become a soft 70/30 weighting
+input when at least 3 active valid preferences exist. Online question selection
+is not affected.
 
 P2 diagnostics are Health/admin/helper-only. Deck diagnostics include level
 number, level type, deck size, correct target, fail threshold, question IDs,

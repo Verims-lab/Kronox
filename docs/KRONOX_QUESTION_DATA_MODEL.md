@@ -302,7 +302,8 @@ Rules:
 * Minimum selection count is 3.
 * There is no maximum selection.
 * Any authenticated user with fewer than 3 active valid Category preferences
-  sees the popup; this applies to new and existing users.
+  sees the optional personalization popup; this applies to new and existing
+  users, but the popup can be deferred and must not block gameplay.
 * The source of truth is active valid `UserCategoryPreference` count.
 * Only active Categories are selectable and count toward the minimum.
 * Passive or removed Category selections are ignored in UI/save state and must
@@ -311,8 +312,10 @@ Rules:
   below-3 rule.
 * Users can later change selections under Profile / Settings /
   `İlgi Alanlarım`.
-* Solo question selection targets 70% selected user categories and 30% full
-  eligible pool when at least 3 active valid preferences are available.
+* Solo question selection uses all active categories for guests and for signed-in
+  users with no/empty/insufficient preferences. Saved preferences target 70%
+  selected user categories and 30% full eligible pool only when at least 3 active
+  valid preferences are available.
 * This is a soft weighting target with fallback, not hard filtering.
 * The selected-category 70% lane is not difficulty-1 restricted. The global
   30% lane prefers `difficulty = 1` questions from the full eligible pool

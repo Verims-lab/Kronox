@@ -81,18 +81,21 @@ UserCategoryPreference stores preferences per user with fields:
 
 Settings shows active Category.status = A/a options and hides passive
 Category.status = P/p rows. Minimum selection count is 3. There is no maximum
-selection. Any user with fewer than 3 active valid Category preferences
-sees the popup; this applies to new and existing users. The source of truth is
-active valid UserCategoryPreference count. Only active categories are selectable
-and count. Passive or removed Category selections are ignored in UI/save state
-and must not be resaved as active preferences. Users can later change selections
-under Profile / Settings / İlgi Alanlarım. Solo question selection targets 70%
-selected user categories and 30% full eligible pool when at least 3 active
-valid preferences are available. This is a soft weighting target with fallback,
-not hard filtering. The selected-category 70% lane is not difficulty-1
-restricted; the global 30% lane prefers difficulty 1 from the full eligible
-pool where possible, with safe fallback if difficulty-1 global candidates are
-insufficient.
+selection. Any authenticated user with fewer than 3 active valid Category
+preferences sees the optional personalization popup; this applies to new and
+existing users, but it can be deferred and must not block gameplay. The source
+of truth is active valid UserCategoryPreference count. Only active categories
+are selectable and count. Passive or removed Category selections are ignored in
+UI/save state and must not be resaved as active preferences. Users can later
+change selections under Profile / Settings / İlgi Alanlarım. No login/no saved
+preferences/empty preferences use all active categories for Solo. Category
+preference save validation remains separate from gameplay start.
+Saved preferences target 70% selected user categories and 30% full eligible pool
+only when at least 3 active valid preferences are available. This is a soft weighting
+target with fallback, not hard filtering. The selected-category 70% lane is not
+difficulty-1 restricted; the global 30% lane prefers difficulty 1 from the full
+eligible pool where possible, with safe fallback if difficulty-1 global
+candidates are insufficient.
 Online question selection is not affected.
 SubCategory still exists for future normalized question metadata, but Settings
 preference selection currently uses main Category, not SubCategory. Existing

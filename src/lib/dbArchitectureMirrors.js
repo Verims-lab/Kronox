@@ -26,7 +26,7 @@ Analytics/statistics entities implemented now:
 - LobbyMatchStats
 - UserCategoryPreference stores app-open popup and Settings main Category interest choices per user.
 - UserSubCategoryPreference is retained legacy data from the earlier SubCategory preference phase and is not used by current Settings preferences.
-- Question loading for Game first attempts authenticated online getQuestions when online or network state is unknown. Empty local question cache is not offline; offline/no-cache is reserved for known offline plus failed fetch plus no usable cache. Question-set replacements invalidate stale local cache by question-runtime-v3-online-first version.
+- Question loading for Game first attempts online getQuestions when online or network state is unknown. The default gameplay response is a public-safe minimal playable projection so guest Solo can load questions without login; admin/full-bank diagnostics still require AdminUser authorization. Empty local question cache is not offline; offline/no-cache is reserved for known offline plus failed fetch plus no usable cache. Question-set replacements invalidate stale local cache by question-runtime-v3-online-first version.
 - UserJokerInventory stores current user-owned joker balances per normalized user_email + joker_type and is used by Profile, Solo joker balance display/spend, and Mağaza joker purchases. Missing or partial UserJokerInventory rows self-heal for authenticated users; duplicate or malformed rows do not crash Joker Çantası, and repair preserves existing balances.
 - JokerTransaction stores joker ledger/idempotency rows; starter_grant, Solo solo_use, and Mağaza market_purchase rows are active.
 - ensureUserJokerInventory grants exactly 3 mistake_shield, 3 card_swap, and 3 time_freeze once per authenticated user with starter_jokers:<email>:<joker_type> idempotency keys.
@@ -46,12 +46,12 @@ Category preference status:
 - Settings İlgi Alanlarım reads active Category rows.
 - Category interests are stored in UserCategoryPreference rows scoped to user_email.
 - Minimum selection count is 3. There is no maximum selection.
-- Any user with fewer than 3 active valid Category preferences sees the popup; this applies to new and existing users.
+- Any authenticated user with fewer than 3 active valid Category preferences sees an optional personalization popup; this applies to new and existing users, can be deferred, and must not block gameplay.
 - The source of truth is active valid UserCategoryPreference count.
 - Only active categories are selectable and count.
 - Passive or removed Category selections are ignored in UI/save state and must not be resaved as active preferences.
 - Users can later change selections under Profile / Settings / İlgi Alanlarım.
-- Solo question selection targets 70% selected user categories and 30% full eligible pool when at least 3 active valid preferences are available.
+- Solo question selection uses all active categories for guests and signed-in users with no/empty/insufficient preferences. Saved preferences target 70% selected user categories and 30% full eligible pool only when at least 3 active valid preferences are available.
 - This is a soft weighting target with fallback, not hard filtering. The selected-category 70% lane is not difficulty-1 restricted; the global 30% lane prefers difficulty 1 from the full eligible pool where possible and safely falls back when difficulty-1 global candidates are insufficient.
 - Online question selection is not affected.
 - UserCategoryPreference should have a user_email + category_id unique key where Base44 supports it.
