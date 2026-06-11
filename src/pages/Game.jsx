@@ -12,7 +12,7 @@ import { base44 } from '@/api/base44Client';
 import { AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Loader2, WifiOff } from 'lucide-react';
-import { useOfflineQuestions } from '@/hooks/useOfflineQuestions';
+import { QUESTION_LOAD_ERROR_KIND, useOfflineQuestions } from '@/hooks/useOfflineQuestions';
 import { loadRecentHistory, loadRecentQuestionExposureStats, appendToHistory } from '@/lib/questionHistory';
 import { getTimelineCardCount, getTimelineYears, isCorrectPlacement } from '@/lib/gameRules';
 import { debugLog } from '@/lib/debugLog';
@@ -425,6 +425,7 @@ export default function Game() {
     questions: allQuestions,
     isLoading,
     isError,
+    errorKind: questionLoadErrorKind,
     isFromCache,
     activeCategoryIds,
     retry: refetch,
@@ -1775,6 +1776,7 @@ export default function Game() {
       currentQuestionLoaded: !!currentQuestion,
       isLoading,
       isError,
+      questionLoadErrorKind,
       isGameReady: isGameReadyEarly,
     });
   }
@@ -1812,11 +1814,40 @@ export default function Game() {
       isOnline={isOnline}
       isLoading={isLoading}
       isError={isError}
+      lastError={boundaryError?.message || error || questionLoadErrorKind || null}
       isGameReady={isGameReadyEarly}
       renderStage={renderStage}
-      lastError={boundaryError?.message || error || null}
     />
   );
+
+  const questionLoadErrorCopy = (() => {
+    if (questionLoadErrorKind === QUESTION_LOAD_ERROR_KIND.OFFLINE_NO_CACHE) {
+      return {
+        icon: 'offline',
+        title: 'İnternet bağlantısı yok',
+        body: 'Sorular yüklenemedi ve önbellek bulunamadı.',
+      };
+    }
+    if (questionLoadErrorKind === QUESTION_LOAD_ERROR_KIND.NO_ACTIVE_QUESTIONS) {
+      return {
+        icon: 'data',
+        title: 'Şu anda aktif soru bulunamadı.',
+        body: 'Soru havuzu hazır olduğunda oyun başlayacak.',
+      };
+    }
+    if (questionLoadErrorKind === QUESTION_LOAD_ERROR_KIND.AUTH_SESSION_UNAVAILABLE) {
+      return {
+        icon: 'data',
+        title: 'Oturum hazırlanıyor',
+        body: 'Soruları yüklemek için oturumun hazır olması gerekiyor. Tekrar dene.',
+      };
+    }
+    return {
+      icon: 'data',
+      title: 'Sorular yüklenemedi.',
+      body: 'Sorular hazırlanamadı. Lütfen tekrar dene.',
+    };
+  })();
 
   // ─── Render guards ───────────────────────────────────────────────
   // For online games, playerNames may be empty array (non-host joined with just lobbyId)
@@ -1825,8 +1856,8 @@ export default function Game() {
     <div className="min-h-screen flex items-center justify-center bg-background p-6">
       <div className="text-center space-y-4">
         <p className="font-inter text-foreground font-semibold">Oyun bilgisi eksik.</p>
-        <p className="font-inter text-sm text-muted-foreground">Lobi bağlantısı bulunamadı. Lobiye geri dönüp tekrar başlat.</p>
-        <Button onClick={() => navigate('/lobby')} variant="outline">Lobiye Dön</Button>
+        <p className="font-inter text-sm text-muted-foreground">Oyuna başlamak için Ana Sayfa’dan Solo’ya giriş yap.</p>
+        <Button onClick={() => navigate('/')} variant="outline">Ana Sayfa’ya Dön</Button>
       </div>
     </div></>
   );
@@ -1890,7 +1921,7 @@ export default function Game() {
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="text-center space-y-4 px-6">
         <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" />
-        <p className="font-inter text-sm text-muted-foreground">Sorular yükleniyor...</p>
+        <p className="font-inter text-sm text-muted-foreground">Sorular hazırlanıyor...</p>
         <p className="font-inter text-xs text-muted-foreground/60">İlk yüklemede biraz sürebilir...</p>
         <Button onClick={() => navigate('/')} variant="outline" size="sm">Geri Dön</Button>
       </div>
@@ -1901,9 +1932,11 @@ export default function Game() {
     <>{diagnosticsOverlay}
     <div className="min-h-screen flex items-center justify-center bg-background p-6">
       <div className="text-center space-y-4">
-        <WifiOff className="w-10 h-10 text-muted-foreground mx-auto" />
-        <p className="font-inter text-foreground font-semibold">İnternet bağlantısı yok</p>
-        <p className="font-inter text-sm text-muted-foreground">Sorular yüklenemedi ve önbellek bulunamadı.</p>
+        {questionLoadErrorCopy.icon === 'offline'
+          ? <WifiOff className="w-10 h-10 text-muted-foreground mx-auto" />
+          : <Loader2 className="w-10 h-10 text-muted-foreground mx-auto" />}
+        <p className="font-inter text-foreground font-semibold">{questionLoadErrorCopy.title}</p>
+        <p className="font-inter text-sm text-muted-foreground">{questionLoadErrorCopy.body}</p>
         <Button onClick={() => refetch()} className="w-full">Tekrar Dene</Button>
         <Button onClick={() => navigate('/')} variant="outline" className="w-full">Geri Dön</Button>
       </div>

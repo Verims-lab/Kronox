@@ -1267,6 +1267,14 @@ import React, { useEffect, useState } from 'react';
 //     reconcile visible User.diamonds for idempotent retries, and surface
 //     claim errors in the Günlük Ödüller panel.
 //
+// Codex302 — False offline/no-cache question bootstrap fix:
+//   • First Solo start and refreshed question sets now attempt authenticated
+//     online getQuestions before any no-cache fallback; empty cache alone is
+//     not treated as offline.
+//   • Question cache is versioned so stale local question banks are invalidated,
+//     retry clears transient question-load errors, and Daily Quest
+//     start_solo_attempt still records only after the Solo deck actually starts.
+//
 // Codex301 — Mağaza purchase runtime entity binding:
 //   • purchaseJokerWithDiamonds now explicitly binds entities.UserJokerInventory,
 //     entities.DiamondTransaction, and entities.JokerTransaction with service-role
@@ -1590,7 +1598,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex301';
+const BUILD_MARKER = 'Codex302';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

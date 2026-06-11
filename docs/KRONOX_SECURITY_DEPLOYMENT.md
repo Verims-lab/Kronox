@@ -165,6 +165,20 @@ Accepted admin indicators:
 Backend admin-only functions must still enforce authorization server-side with
 the shared AdminUser guard.
 
+Question loading / offline fallback:
+
+* gameplay question content remains protected behind authenticated backend
+  `getQuestions`; normal users receive only the minimal runtime projection, not
+  the raw admin question bank
+* Game startup must attempt authenticated online question fetch when the
+  browser is online or network state is unknown
+* empty local question cache alone is not an offline condition
+* stale question cache is versioned and invalidated after question-set/runtime
+  changes
+* the offline/no-cache screen is reserved for known offline state or failed
+  online fetch with no usable cache; retry re-fetches online and does not
+  require back navigation
+
 Rules:
 
 * do not commit personal admin emails to source code

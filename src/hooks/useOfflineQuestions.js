@@ -6,7 +6,10 @@
  * 2. Arka planda API'den taze veri çek (stale-while-revalidate)
  * 3. API başarılı → cache güncelle
  * 4. API başarısız + cache var → cache'le devam et (offline oynanabilir)
- * 5. API başarısız + cache yok → hata göster
+ * 5. API başarısız + cache yok → yalnızca gerçek offline ise offline ekranı göster
+ *
+ * Empty cache is not offline. Cold app/PWA starts and question-set refreshes
+ * must attempt an authenticated online fetch before any no-cache fallback.
  */
 import { useCallback, useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
@@ -14,10 +17,34 @@ import { saveQuestionsToCache, loadQuestionsFromCache } from '@/lib/questionCach
 import { normalizeQuestionsForRuntime } from '@/lib/questionRuntimeAdapter';
 
 const AUTH_SETTLE_RETRY_MS = 650;
+const AUTH_SETTLE_ATTEMPTS = 4;
 const QUESTION_FETCH_RETRY_MS = 850;
-const NO_CACHE_NETWORK_ATTEMPTS = 2;
+const NO_CACHE_NETWORK_ATTEMPTS = 3;
+
+export const QUESTION_LOAD_ERROR_KIND = {
+  AUTH_SESSION_UNAVAILABLE: 'auth_session_unavailable',
+  NO_ACTIVE_QUESTIONS: 'no_active_questions',
+  OFFLINE_NO_CACHE: 'offline_no_cache',
+  QUESTION_FETCH_FAILED: 'question_fetch_failed',
+};
+
+export const QUESTION_LOAD_CONTRACTS = {
+  EMPTY_CACHE_IS_NOT_OFFLINE: 'empty_cache_is_not_offline_online_fetch_first',
+  RETRY_REFETCHES_ONLINE: 'retry_clears_transient_error_and_refetches_online',
+  OFFLINE_NO_CACHE_REQUIRES_KNOWN_OFFLINE: 'offline_no_cache_requires_known_offline_and_no_cache',
+};
 
 const wait = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
+
+function isKnownOffline() {
+  return typeof navigator !== 'undefined' && navigator.onLine === false;
+}
+
+function makeQuestionLoadError(message, code) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
+}
 
 function deriveActiveCategoryIds(questions = []) {
   return Array.from(new Set(
@@ -48,6 +75,7 @@ export function useOfflineQuestions() {
     return !cached; // cache varsa loading false başlar
   });
   const [isError, setIsError] = useState(false);
+  const [errorKind, setErrorKind] = useState(null);
   const [isFromCache, setIsFromCache] = useState(() => {
     const cached = readUsableCachedQuestions();
     return !!cached;
@@ -61,10 +89,12 @@ export function useOfflineQuestions() {
   const requestIdRef = useRef(0);
 
   const waitForAuthSession = useCallback(async () => {
-    const first = await base44.auth.me().catch(() => null);
-    if (first?.email) return first;
-    await wait(AUTH_SETTLE_RETRY_MS);
-    return base44.auth.me().catch(() => null);
+    for (let attempt = 1; attempt <= AUTH_SETTLE_ATTEMPTS; attempt += 1) {
+      const user = await base44.auth.me().catch(() => null);
+      if (user?.email) return user;
+      if (attempt < AUTH_SETTLE_ATTEMPTS) await wait(AUTH_SETTLE_RETRY_MS);
+    }
+    return null;
   }, []);
 
   const fetchFromNetwork = useCallback(async ({ attempts = 1, forceLoading = false } = {}) => {
@@ -72,22 +102,31 @@ export function useOfflineQuestions() {
     requestIdRef.current = requestId;
     if (forceLoading) setIsLoading(true);
     setIsError(false);
+    setErrorKind(null);
 
     let fetched = [];
     let fetchedActiveCategoryIds = [];
     let lastError = null;
+    let networkReturned = false;
 
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
       try {
         // getQuestions is auth-protected. On a cold app/WebView open, auth
         // can settle a beat after the game route mounts, so wait once before
         // treating a no-cache fetch as final failure.
-        await waitForAuthSession();
+        const user = await waitForAuthSession();
+        if (!user?.email) {
+          throw makeQuestionLoadError(
+            'Auth session unavailable while loading questions.',
+            QUESTION_LOAD_ERROR_KIND.AUTH_SESSION_UNAVAILABLE,
+          );
+        }
 
         // Authenticated backend function only. Direct Question.list fallback
         // was removed so normal users cannot fetch the raw question bank.
         const res = await base44.functions.invoke('getQuestions', {});
-        if (res.data?.questions?.length > 0) {
+        networkReturned = true;
+        if (Array.isArray(res.data?.questions) && res.data.questions.length > 0) {
           fetched = res.data.questions;
           fetchedActiveCategoryIds = Array.isArray(res.data.activeCategoryIds) ? res.data.activeCategoryIds : [];
         }
@@ -123,7 +162,13 @@ export function useOfflineQuestions() {
       setActiveCategoryIds(cached.activeCategoryIds);
       setIsFromCache(true);
       setIsError(false);
-    } else if (lastError || fetched.length === 0) {
+    } else if (lastError || networkReturned) {
+      const nextErrorKind = networkReturned && fetched.length === 0
+        ? QUESTION_LOAD_ERROR_KIND.NO_ACTIVE_QUESTIONS
+        : isKnownOffline()
+          ? QUESTION_LOAD_ERROR_KIND.OFFLINE_NO_CACHE
+          : (lastError?.code || QUESTION_LOAD_ERROR_KIND.QUESTION_FETCH_FAILED);
+      setErrorKind(nextErrorKind);
       setIsError(true);
     }
     setIsLoading(false);
@@ -151,10 +196,19 @@ export function useOfflineQuestions() {
   const retry = () => {
     fetchedRef.current = false;
     setIsError(false);
+    setErrorKind(null);
     setIsLoading(true);
     fetchFromNetwork({ attempts: NO_CACHE_NETWORK_ATTEMPTS, forceLoading: true });
     fetchedRef.current = true;
   };
 
-  return { questions, isLoading, isError, isFromCache, activeCategoryIds, retry };
+  return {
+    questions,
+    isLoading,
+    isError,
+    errorKind,
+    isFromCache,
+    activeCategoryIds,
+    retry,
+  };
 }

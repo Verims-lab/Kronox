@@ -25,6 +25,24 @@ Deck size formula:
 - normal: `7 + 9 = 16 questions`
 - special: `10 + 9 = 19 questions`
 
+## Question Loading Bootstrap
+
+Game entry first attempts an authenticated online `getQuestions` fetch whenever
+the browser is online or network state is unknown. Empty local question cache is
+not an offline condition by itself. While the first fetch is pending, the user
+sees a loading state such as `Sorular hazırlanıyor...`.
+
+The offline/no-cache screen is reserved for known offline state, a failed online
+fetch, and no usable local cache. Online data failures use a question-load retry
+message instead of `İnternet bağlantısı yok`. `Tekrar Dene` clears the
+transient error and re-fetches online before using cache fallback.
+
+Question-set replacements invalidate old local question cache through a cache
+version. Stale or deleted cached question IDs must not block a fresh DB fetch or
+crash deck creation. Direct `/game` access without Solo launch state is handled
+as missing game state and sends the user back to Home/Solo entry instead of
+showing a false offline screen.
+
 ## Hard Deck Rules
 
 The full attempt deck is built before gameplay starts. Gameplay consumes that prebuilt deck in order. There is no live question fetch, no per-card randomization, and no mid-attempt re-randomization.
@@ -242,7 +260,9 @@ Daily Quest Runtime v1 is Solo-focused:
 - `title` and `description` are display-only Turkish copy and are never parsed
   into logic
 - Solo progress is measured only by `quest_type + target_value`
-- `start_solo_attempt` increments when a Solo attempt starts
+- `start_solo_attempt` increments only after the Solo deck is built, the first
+  question is selected, and the attempt actually starts; failed question loading
+  must not count
 - `correct_cards` increments after correct Solo card placement
 - `complete_solo_level` increments only after a successful Solo level
 - `use_joker` increments only after a Solo joker is successfully consumed

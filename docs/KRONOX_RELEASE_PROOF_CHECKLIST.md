@@ -95,6 +95,18 @@ Checklist:
 * P2 deck diagnostics expose level type, correct target, fail threshold, question IDs, answer years, difficulty distribution, balance score, and warnings for Health/admin/debug only.
 * Question pool health warns about insufficient unique years, invalid years, sparse/overrepresented categories or subcategories, and missing sub_category/tag/difficulty metadata.
 * `/getQuestions` runtime projection uses deterministic pool-proportional sampling before any gameplay cap; it must not return an ordered newest/category slice.
+* First Solo start in a fresh browser attempts online `getQuestions` before any
+  offline fallback and shows `Sorular hazırlanıyor...` while pending.
+* Empty local question cache alone must not show `İnternet bağlantısı yok`.
+* After a question-set replacement, stale local question cache is invalidated by
+  cache version and the game fetches fresh DB questions before deck build.
+* If online fetch fails while the browser is online, the game shows a retryable
+  question-load message, not a fake offline/no-cache screen.
+* `Tekrar Dene` clears transient question-load errors and re-fetches online
+  without requiring the user to go back.
+* Direct `/game` access without Solo launch state is handled as missing game
+  state and routes back to Home/Solo entry safely.
+* True offline plus no usable cache still shows the offline/no-cache screen.
 * Solo deck selection applies soft exposure cooldown/rotation before the attempt starts: never/low-shown and not-recently-shown cards are preferred, high/recent shown cards are downweighted, and missing/corrupt history must not block deck creation.
 * Solo category, subcategory, theme, and year-band balancing remains pool-proportional rather than equal-count; large eligible groups may stay large while smaller valid groups are protected from accidental starvation where hard rules allow.
 * Question exposure analytics are reviewed after deploy to confirm unique-question coverage and category/subcategory concentration improved.
@@ -330,6 +342,8 @@ Checklist:
   `Günlük Görevleri Yap, Elmasları Kazan!`.
 * `recordDailyQuestProgress` updates Solo-only events:
   `start_solo_attempt`, `correct_cards`, `complete_solo_level`, and `use_joker`.
+  `start_solo_attempt` is recorded only after the Solo deck is built, the first
+  question is selected, and the attempt actually starts.
 * `claimDailyQuestReward` requires completed status, uses the reward copied in
   the progress row, writes `DiamondTransaction.source = daily_quest_reward`,
   updates the visible `User.diamonds` balance, returns `diamondBalanceAfter`,

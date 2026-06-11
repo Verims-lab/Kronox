@@ -41,6 +41,7 @@ import gameSoundsSource from '../../../lib/gameSounds.js?raw';
 import lobbyUtilsSource from '../../../lib/lobbyUtils.js?raw';
 import onlineGameStartSource from '../../../lib/onlineGameStart.js?raw';
 import onlineGameNavigationSource from '../../../lib/onlineGameNavigation.js?raw';
+import questionCacheSource from '../../../lib/questionCache.js?raw';
 
 import { getNextPlayerIndex, hasPlayerWon, isCorrectPlacement, selectNextQuestion } from '../../../lib/gameRules';
 import { normalizeCode, removePlayerByIdentity, summarizePlayers } from '../../../lib/lobbyUtils';
@@ -152,6 +153,7 @@ export const SRC = {
   MainMenu: mainMenuSource,
   OnlineGameStart: onlineGameStartSource,
   OnlineGameNavigation: onlineGameNavigationSource,
+  QuestionCache: questionCacheSource,
   QuestionCard: questionCardSource,
   SettingsPage: settingsPageSource,
   SoloChallenge: soloChallengeSource,
@@ -341,6 +343,13 @@ export const TESTS = [
 
   sourceHas('offline_solo', 'solo_initialize_source', 'Solo game can initialize', 'SoloChallenge/Game', `${SRC.SoloChallenge}\n${SRC.Game}`, ["navigate('/game'", 'playerNames', 'category', 'turnDuration']),
   sourceHas('offline_solo', 'first_question_loads_source', 'First question loads', 'Game/useOfflineQuestions', `${SRC.Game}\n${SRC.UseOfflineQuestions}`, ['currentQuestion', 'useOfflineQuestions', 'questions']),
+  sourceHas('offline_solo', 'empty_cache_fetches_online_first', 'Empty cache is not treated as offline before online fetch', 'useOfflineQuestions.js', SRC.UseOfflineQuestions, ['empty_cache_is_not_offline_online_fetch_first', 'base44.functions.invoke', 'getQuestions', 'OFFLINE_NO_CACHE']),
+  sourceHas('offline_solo', 'offline_no_cache_requires_known_offline', 'Offline/no-cache screen is reserved for known offline plus no usable cache', 'Game/useOfflineQuestions', `${SRC.Game}\n${SRC.UseOfflineQuestions}`, ['offline_no_cache_requires_known_offline_and_no_cache', 'navigator.onLine === false', 'QUESTION_LOAD_ERROR_KIND.OFFLINE_NO_CACHE', 'İnternet bağlantısı yok']),
+  sourceHas('offline_solo', 'retry_refetches_questions_online', 'Retry clears transient error and refetches questions', 'Game/useOfflineQuestions', `${SRC.Game}\n${SRC.UseOfflineQuestions}`, ['retry_clears_transient_error_and_refetches_online', 'setErrorKind(null)', 'fetchFromNetwork({ attempts: NO_CACHE_NETWORK_ATTEMPTS, forceLoading: true })', 'Tekrar Dene']),
+  sourceHas('offline_solo', 'question_refresh_cache_versioned', 'Question-set refresh invalidates stale local question cache', 'questionCache.js/useOfflineQuestions.js', `${SRC.QuestionCache}\n${SRC.UseOfflineQuestions}\n${SRC.Game}`, ['question-runtime-v3-online-first', 'CACHE_VERSION', 'Sorular hazırlanıyor...', 'Sorular yüklenemedi.']),
+  sourceHas('offline_solo', 'data_empty_not_fake_offline', 'No active questions shows data-empty state instead of fake offline', 'Game/useOfflineQuestions', `${SRC.Game}\n${SRC.UseOfflineQuestions}`, ['NO_ACTIVE_QUESTIONS', 'Şu anda aktif soru bulunamadı.', 'Soru havuzu hazır olduğunda oyun başlayacak.']),
+  sourceHas('offline_solo', 'direct_game_route_safe_message', 'Direct /game route without Solo launch state is handled safely', 'Game.jsx', SRC.Game, ['Oyuna başlamak için Ana Sayfa’dan Solo’ya giriş yap.', "navigate('/')", 'Ana Sayfa’ya Dön']),
+  sourceHas('offline_solo', 'daily_quest_start_after_deck', 'Daily Quest start_solo_attempt is recorded after Solo deck creation', 'Game.jsx', SRC.Game, ['buildSoloAttemptDeck', 'engineResult.ok', "eventType: 'start_solo_attempt'", 'setLobbyData({']),
   valueCase('offline_solo', 'placement_can_be_simulated', 'Placement can be simulated', () => isCorrectPlacement([{ year: 1950 }, { year: 1980 }], 1960, 1), true),
   valueCase('offline_solo', 'correct_placement_resolves', 'Correct placement path advances or resolves as expected', () => isCorrectPlacement([{ year: 1950 }], 1970, 1) && getNextPlayerIndex(0, 1) === 0, true),
   valueCase('offline_solo', 'wrong_placement_resolves', 'Wrong placement path resolves as expected', () => isCorrectPlacement([{ year: 1950 }, { year: 1980 }], 2010, 1), false),

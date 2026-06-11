@@ -113,6 +113,7 @@ Status: Active product contract.
 - Passive or removed Category selections are filtered from UI/save state and are not resaved as active preferences.
 - completing the popup saves UserCategoryPreference rows before marking the user profile onboarding flag complete.
 - Users can later change selections under Profile / Settings / İlgi Alanlarım.
+- Game question loading first attempts authenticated online getQuestions when online or network state is unknown; empty local cache is not offline, stale cache is invalidated by question-runtime-v3-online-first, Retry re-fetches online, and false offline/no-cache is reserved for known offline plus failed fetch plus no usable cache.
 - Solo question selection reads current-user active valid Category preferences before attempt start and targets 70% selected categories / 30% full eligible pool as soft weighting with fallback. The selected-category 70% lane is not difficulty-1 restricted; the global 30% lane prefers difficulty 1 from the full eligible pool where possible and safely falls back when difficulty-1 global candidates are insufficient.
 - Online question selection, getQuestions, and analytics do not read preferences for question selection.
 - two-account preference RLS proof remains manual/NOT_AUTOMATABLE.

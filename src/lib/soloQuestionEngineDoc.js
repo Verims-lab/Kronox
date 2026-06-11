@@ -17,6 +17,16 @@ including seed cards already on the timeline, and use a 19-question deck.
 All new Solo attempts use a 180 seconds timer and fail on 10 mistakes; the
 10th mistake ends the attempt.
 
+Question loading bootstrap first attempts authenticated online getQuestions
+when the browser is online or network state is unknown. Empty local question
+cache is not an offline condition. While the first fetch is pending, the UI
+shows Sorular hazırlanıyor...; the offline/no-cache screen is reserved for
+known offline state plus failed online fetch plus no usable cache. Tekrar Dene
+clears the transient error and re-fetches online before cache fallback.
+Question-set replacements invalidate stale local question cache by version, and
+direct /game access without Solo launch state returns the user to Home/Solo
+entry instead of showing a false offline screen.
+
 The full attempt deck is built before gameplay starts. Gameplay consumes
 the prebuilt deck in order. There is no mid-attempt re-randomization.
 The first active player question card shown to the user must be
