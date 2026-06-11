@@ -1279,6 +1279,12 @@ import React, { useEffect, useState } from 'react';
 //   • Mounts Günlük Görev Yönetimi under active-admin-only Admin Ekranı with the
 //     exact DailyQuestDefinitionManager static contract while preserving list refresh.
 //
+// Codex306 — iOS AppIcon no-alpha release fix:
+//   • Adds an opaque RGB iOS AppIcon asset catalog generated from the existing
+//     Kronox icon flattened onto the approved navy background.
+//   • Adds npm run check:ios-icons to catch App Store Connect 90717
+//     alpha-channel failures before native archive upload.
+//
 // Codex303 — Joker Çantası user-specific self-heal:
 //   • ensureUserJokerInventory now repairs missing/partial/mixed-owner
 //     UserJokerInventory rows for the authenticated user without overwriting
@@ -1618,7 +1624,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex305';
+const BUILD_MARKER = 'Codex306';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
