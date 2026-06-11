@@ -126,8 +126,9 @@ export const EXTRA_TESTS = [
         "import PullToRefresh from '@/components/mobile/PullToRefresh'",
         '<PullToRefresh onRefresh={refreshAdminMaintenanceLists}',
         'registerAdminRefresh',
-        'onRegisterRefresh={registerAdminRefresh}',
-        'onRegisterRefresh(loadDefinitions)',
+        'AdminRefreshContext.Provider',
+        '<DailyQuestDefinitionManager />',
+        'useContext(AdminRefreshContext)',
         'parsedAdminStatus',
         'if (!isAdmin)',
       ]);
@@ -157,11 +158,10 @@ export const EXTRA_TESTS = [
 
   makeCase('route_navigation_resilience', 'Route / Navigation Resilience Suite',
     'bottom_nav_independent_tab_stacks_exist',
-    'BottomNav supports independent tab stacks for Home/Online/Liderlik/Profile',
+    'BottomNav supports independent tab stacks for Home/Liderlik/Profile',
     () => {
       const missing = missingTokens(tabStackSources, [
         'TAB_ROOTS',
-        "online: '/lobby'",
         "leaderboard: '/leaderboard'",
         'getTabRootForPathname',
         'rememberRoute(location)',
@@ -169,8 +169,12 @@ export const EXTRA_TESTS = [
         'saveScrollForTab',
         'getScrollForTab',
       ]);
-      if (missing.length) return fail('BottomNav independent tab stack state is incomplete.', { verification: 'STATIC_CONTRACT', missing });
-      return pass('BottomNav has per-tab route ownership and stored route/scroll state for Home, Online, Liderlik, and Profile.', { verification: 'STATIC_CONTRACT' });
+      const forbidden = forbiddenTokens(bottomNavSource, ["label: 'Online'", 'path: TAB_ROOTS.online']);
+      if (missing.length || forbidden.length) return fail('BottomNav independent tab stack state or visible tab contract is incomplete.', {
+        verification: 'STATIC_CONTRACT',
+        actual: { missing, forbidden },
+      });
+      return pass('BottomNav has stored route/scroll state for Home, Liderlik, and Profile, with no visible Online tab.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('route_navigation_resilience', 'Route / Navigation Resilience Suite',
@@ -190,16 +194,16 @@ export const EXTRA_TESTS = [
 
   makeCase('route_navigation_resilience', 'Route / Navigation Resilience Suite',
     'profile_and_online_route_ownership_preserves_subroutes',
-    'Profile and Online route ownership preserves subroutes across tab switches',
+    'Profile subroutes preserve state and Online remains a Home CTA route',
     () => {
       const missing = missingTokens(navigationStackSource, [
         "['/profile', '/friends', '/settings', '/admin', '/test-suite', '/account-deletion']",
-        "if (pathname === '/lobby') return TAB_ROOTS.online",
+        "if (pathname === '/lobby') return TAB_ROOTS.home",
         "if (['/', '/market', '/solo', '/setup'].includes(pathname)) return TAB_ROOTS.home",
         'routeKeyFromLocation',
       ]);
-      if (missing.length) return fail('Tab route ownership no longer maps Profile/Home/Online subroutes clearly.', { verification: 'STATIC_CONTRACT', missing });
-      return pass('Profile subroutes and the Online lobby root are owned by their tab stacks; direct URL routes remain in App.jsx.', { verification: 'STATIC_CONTRACT' });
+      if (missing.length) return fail('Tab route ownership no longer maps Profile/Home subroutes clearly.', { verification: 'STATIC_CONTRACT', missing });
+      return pass('Profile subroutes are owned by Profile and the Online lobby route stays in the Home CTA flow.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('category_preferences_health', 'Settings Category Preferences Suite',

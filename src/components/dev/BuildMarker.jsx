@@ -1273,6 +1273,12 @@ import React, { useEffect, useState } from 'react';
 //   • Adds independent BottomNav tab stacks with scroll/subroute restore and
 //     replaces targeted admin native selects with Kronox bottom-sheet selectors.
 //
+// Codex305 — BottomNav/Admin Ekranı Health cleanup:
+//   • Restores the three-tab BottomNav contract: Ana Sayfa, Liderlik, Profil.
+//     Online remains reachable from Home via Online Kapışma, not as a bottom tab.
+//   • Mounts Günlük Görev Yönetimi under active-admin-only Admin Ekranı with the
+//     exact DailyQuestDefinitionManager static contract while preserving list refresh.
+//
 // Codex303 — Joker Çantası user-specific self-heal:
 //   • ensureUserJokerInventory now repairs missing/partial/mixed-owner
 //     UserJokerInventory rows for the authenticated user without overwriting
@@ -1612,7 +1618,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex304';
+const BUILD_MARKER = 'Codex305';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

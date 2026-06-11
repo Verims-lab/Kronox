@@ -62,6 +62,7 @@ Status: Active product contract.
 - Profile normal-user actions are Sosyal / Arkadaşlarım and Hesap / Ayarlar.
 - Active AdminUser owner/admin users additionally see Admin Ekranı on Profile.
 - Admin Ekranı contains admin-only maintenance/report tools; Settings remains account/help/preferences focused.
+- BottomNav visible items are Ana Sayfa, Liderlik, and Profil; Online is launched from Home through Online Kapışma, not exposed as a bottom tab.
 - Direct /admin access by normal users is blocked or redirected safely.
 - admin-only maintenance functions verify AdminUser-backed authorization server-side.
 - Admin Ekranı list refresh uses scoped Pull-to-Refresh only after the admin gate has passed; bottom-sheet selectors do not replace backend AdminUser authorization.
@@ -91,7 +92,7 @@ Status: Active product contract.
 - Report/admin functions must NOT use local imports that resolve outside the deployed path. The broken './_shared/adminAuth.js' pattern resolved to a file URL under /src/_shared (module not found) and broke deployment, leaving Base44 serving a stale build. The callable report function now inlines a DB-backed AdminUser guard instead.
 - base44/functions/<name>/entry.ts shared imports remain allowed where proven deployable; sendQuestionAnalyticsReportEmail intentionally uses an inline guard for this runtime-sensitive path.
 - Critical report/admin functions should include safe template/function markers (e.g. templateVersion static-pool-v2, REPORT_BUILD_MARKER, and bodyContains* diagnostics). If real output lacks the marker, the function deployment is stale.
-- sendQuestionAnalyticsReportEmail live deploy is proven by triggering the function and reading reportBuildMarker (current: Codex304), templateVersion static-pool-v2, and bodyContainsStaticPoolSection/Template/QuestionSource = true. A published frontend that does not change reportBuildMarker means the executed backend function did not redeploy.
+- sendQuestionAnalyticsReportEmail live deploy is proven by triggering the function and reading reportBuildMarker (current: Codex305), templateVersion static-pool-v2, and bodyContainsStaticPoolSection/Template/QuestionSource = true. A published frontend that does not change reportBuildMarker means the executed backend function did not redeploy.
 - A prior Codex275 marker bump was never proven deployed because the runtime function still imported the broken local _shared guard; the recovery inlined the AdminUser guard and uses current reportBuildMarker values as the unambiguous live marker.
 - Function-based question analytics reset is currently not used.
 - Manual DB reset path after question pool replacement clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection.
@@ -195,7 +196,7 @@ Two-account invite + scoring proof, OnlineMatchResult idempotency.
 Two/three-account RLS probe matrix, service-role scoping.
 
 ## PWA / Push
-BottomNav keeps independent tab stacks for Home, Online, Liderlik, and Profile; switching tabs preserves subroute/scroll state and re-tapping the active tab resets that tab to its root while /game remains full-screen.
+BottomNav visible tabs are Ana Sayfa, Liderlik, and Profil only. Online is launched from Home through Online Kapışma, not from BottomNav. Switching visible tabs preserves subroute/scroll state and re-tapping the active tab resets that tab to its root while /game remains full-screen.
 Friends, Liderlik, and Admin Ekranı maintenance lists use scoped Pull-to-Refresh wrappers that call real reload paths, respect reduced motion, and do not affect gameplay drag.
 Category/Admin selection controls use Kronox bottom-sheet selectors instead of raw native HTML selects in the targeted surfaces; sheets support Escape/backdrop close, focus return, safe-area bottom padding, dark mode, and reduced motion.
 Push subscription works on real installed device if supported. (manual)

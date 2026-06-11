@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, ClipboardList, Loader2, Plus, RefreshCw, Save, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import KronoxSelectSheet from '@/components/mobile/KronoxSelectSheet';
+import { AdminRefreshContext } from '@/lib/AdminRefreshContext';
 import {
   DAILY_QUEST_TYPE_LABELS,
   DAILY_QUEST_V1_TYPES,
@@ -46,7 +47,8 @@ function statusLabel(status) {
   return status === 'passive' ? 'Pasif' : 'Aktif';
 }
 
-export default function DailyQuestDefinitionManager({ onRegisterRefresh }) {
+export default function DailyQuestDefinitionManager() {
+  const onRegisterRefresh = useContext(AdminRefreshContext);
   const [definitions, setDefinitions] = useState([]);
   const [form, setForm] = useState(DEFAULT_FORM);
   const [loading, setLoading] = useState('list');
