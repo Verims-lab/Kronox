@@ -1285,6 +1285,11 @@ import React, { useEffect, useState } from 'react';
 //   • Adds npm run check:ios-icons to catch App Store Connect 90717
 //     alpha-channel failures before native archive upload.
 //
+// Codex307 — simulateOnlineGame admin auth hardening:
+//   • Moves simulateOnlineGame and runTestSuite off profile-role checks and
+//     onto the shared AdminUser active owner/admin guard before service-role writes.
+//   • Adds Health/docs coverage for the en_core_news_sm scanner regression.
+//
 // Codex303 — Joker Çantası user-specific self-heal:
 //   • ensureUserJokerInventory now repairs missing/partial/mixed-owner
 //     UserJokerInventory rows for the authenticated user without overwriting
@@ -1624,7 +1629,7 @@ import React, { useEffect, useState } from 'react';
 //     and better replays add only the positive delta.
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
-const BUILD_MARKER = 'Codex306';
+const BUILD_MARKER = 'Codex307';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

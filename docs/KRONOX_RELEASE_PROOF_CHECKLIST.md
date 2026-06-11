@@ -557,6 +557,10 @@ Checklist:
   `/test-suite` / Health Simulator, and the admin question analytics trigger;
   a normal account remains blocked from those surfaces and receives 403 from
   backend admin-only functions; a disabled `AdminUser` row also receives 403.
+* Runtime proof: `simulateOnlineGame` blocks unauthenticated callers, normal
+  users, and disabled/passive admins; only active `AdminUser` owner/admin rows
+  may run it. The function must not contain `en_core_news_sm`, trust
+  `user.role`, trust request-body roles, or use hardcoded admin emails.
 * Runtime proof: when each active admin triggers the Question Analytics Report,
   the backend response shows `requestedBy` and `recipientEmail` as that same
   authenticated admin email, plus a safe email dispatch status. The report
