@@ -141,31 +141,20 @@ Rules:
 * admin question analytics reports must label all-active question pool,
   Solo-eligible pool, runtime projection diagnostics, unique shown questions,
   and never-shown counts separately when those metrics are available
-* admin question analytics reports include category pool counts, aggregate user
-  category preference counts, category exposure counts, category-internal
-  most/least/never-shown analysis, and category fairness signals; preference
-  counts must stay aggregate-only and must not expose user IDs or emails
+* admin question analytics email is summary-only and sends the cleaned detailed
+  report as a PDF attachment; preference counts must stay aggregate-only and
+  must not expose user IDs or emails
 * category pool analysis is static current `Question` table data, not analytics
   event/projection data; it renders even when analytics events are zero and
   includes category, active question count, difficulty 1-5/unknown
   distribution, oldest year, newest year, and Unknown/unmapped diagnostics
-* `Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı` /
-  `Kategori Bazında Kayıtlı Soru Havuzu` is a separate registered-pool detail
-  section sourced from active `Question` rows; it counts asked and never-asked
-  active registered questions by category and difficulty level, with oldest and
-  newest year where available
-* static `Question` DB pool sections appear near the top of the admin email
-  report, before long event-based question detail tables
-* `Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı` is an email-safe
-  HTML/CSS stacked-bar chart sourced from active `Question` rows; it includes
-  asked and never-asked questions, counts Zorluk 1-5 plus Bilinmiyor, and does
-  not use JavaScript/canvas/external chart libraries. In the actual sent report
-  it appears directly after `Key Insights / Risk Flags`, before every long
-  event-based detail table
-* the report includes a top `Rapor Bölümleri` checklist and a final
-  `Rapor Tamamlandı` marker; if the completion marker is missing in a received
-  email, suspect email clipping/truncation
-* long event-based detail sections are row-limited for email readability
+* removed legacy report sections must not appear in the generated email or PDF:
+  `Rapor Şablonu`, `Rapor Bölümleri`,
+  `Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı`,
+  `Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı`,
+  `Kategori Bazında Yıl Aralığı`, and `Kategori İçi Soru Analizi`
+* long event-based detail sections are row-limited in the PDF for readability
+  and are not dumped into the email body
 * category exposure analysis is separate report-period data sourced from
   `QuestionAttemptEvent` rows
 * after a full question pool replacement, question analytics reset is currently

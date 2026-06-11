@@ -765,46 +765,29 @@ Checklist:
   `requestedBy`, `recipientEmail`, `emailDispatchStatus`, template version, and
   body-marker booleans. Verify each active admin's real inbox/provider delivery
   manually.
-* Question Analytics report must include these actual sent-body sections:
-  `Rapor Bölümleri`,
+* Question Analytics email body is summary-only: header, period, generated
+  timestamp, `Executive Summary`, `Key Insights / Risk Flags`, top action
+  items, and the notice `Detaylı rapor PDF olarak ekte yer almaktadır.`.
+  Detailed rows are sent as a PDF attachment, not dumped into the email body.
+* Question Analytics PDF attachment must be named with a `.pdf` suffix and sent
+  as `application/pdf`. Runtime proof requires triggering the live
+  `sendQuestionAnalyticsReportEmail` function as an active admin, receiving the
+  email, confirming the PDF attachment exists, opening the PDF, and confirming
+  it is readable. `npm run build` does not prove Base44 SendEmail attachment
+  delivery or backend deployment.
+* These sections are intentionally removed from generated email and PDF output:
+  `Rapor Şablonu`, `Rapor Bölümleri`,
   `Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı`,
-  `Kategori Bazında Soru Havuzu`,
   `Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı`,
-  `Kategori Bazında Kayıtlı Soru Havuzu`, `Kategori Bazında Yıl Aralığı`,
-  `Kategori Tercihleri`, `Kategori Bazında Gösterim`,
-  `Kategori İçi Soru Analizi`, `Kategori Denge Sinyalleri`, and
-  `Rapor Tamamlandı`. Category preference counts are aggregate distinct-user
+  `Kategori Bazında Yıl Aralığı`, and `Kategori İçi Soru Analizi`.
+* The PDF keeps useful cleaned detail sections such as `Kategori Bazında Soru
+  Havuzu`, aggregate `Kategori Tercihleri`, `Kategori Bazında Gösterim`,
+  `Kategori Denge Sinyalleri`, top/low/wrong/easy/slow question lists, and data
+  quality warnings. Category preference counts are aggregate distinct-user
   counts only; no user IDs or emails appear in the report.
-* Static Question DB pool sections must appear near the top of the email,
-  before long event-based detail sections. The `Rapor Bölümleri` checklist near
-  the top proves included sections, and the final `Rapor Tamamlandı` marker
-  proves the generated report completed. If the received email lacks the final
-  marker, suspect email clipping/truncation.
-* `Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı` must render as an
-  email-safe inline HTML/CSS stacked-bar table with numeric counts for
-  `Zorluk 1`, `Zorluk 2`, `Zorluk 3`, `Zorluk 4`, `Zorluk 5`, and
-  `Bilinmiyor`. It is sourced from active `Question` rows, includes asked and
-  never-asked questions, must not use JavaScript charts, and must appear right
-  after `Key Insights / Risk Flags` before long event-based detail sections.
-  The section must visibly include `Kaynak: Question tablosu` and
-  `Toplam aktif kayıtlı soru`. The email must also show
-  `Rapor Şablonu: static-pool-v2` near the top; if that marker is missing, the
-  deployed function/template is stale even if local proof files contain the
-  section.
-* Long event-based detail sections must remain bounded: top shown, never/least
-  shown, wrong, easy, slow, and per-category samples should show counts plus
-  limited rows instead of dumping the full question pool.
-* `Kategori Bazında Soru Havuzu` must be static current `Question` table data:
-  active question count by category, difficulty 1-5/unknown distribution,
-  oldest year, and newest year. It must render when `QuestionAttemptEvent`,
-  `QuestionStatsProjection`, and `CategoryStatsProjection` are empty.
-  Unknown/unmapped categories are diagnostic rows, not silently dropped.
-* `Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı` /
-  `Kategori Bazında Kayıtlı Soru Havuzu` must also render from active
-  `Question` rows and show category, difficulty level, registered question
-  count, oldest year, and newest year. It includes asked and never-asked active
-  questions. It must remain separate from shown/asked analytics. `Kategori
-  Bazında Gösterim` is separate report-period exposure data.
+* Long detail sections remain bounded: top shown, never/least shown, wrong,
+  easy, slow, and category samples show counts plus limited rows instead of
+  dumping the full question pool.
 * Question analytics reset is currently a manual DB maintenance operation; the
   function-based reset path is not used. After replacing the question pool,
   manually clear only `QuestionAttemptEvent`, `QuestionStatsProjection`, and

@@ -13,7 +13,7 @@
 //     • It must not import the local shared admin guard via the broken
 //       './_shared/adminAuth.js' / './_shared/adminAuth.ts' form.
 //     • The analytics report function must inline an AdminUser-backed guard
-//       (proven deployable) and keep the static-pool-v2 markers.
+//       (proven deployable) and keep the summary-email/PDF markers.
 //     • Every frontend gateway invocation name maps to a real backend
 //       function (no missing / stale function names).
 //
@@ -207,36 +207,37 @@ export const EXTRA_TESTS = [
       });
     }),
 
-  makeCase('deployed_report_keeps_static_pool_markers',
-    'Deployed analytics report function keeps static-pool-v2 markers and body diagnostics',
+  makeCase('deployed_report_keeps_summary_pdf_markers',
+    'Deployed analytics report function keeps summary-email/PDF markers and diagnostics',
     () => {
       const required = [
-        'REPORT_TEMPLATE_VERSION = "static-pool-v2"',
-        'REPORT_TEMPLATE_LABEL = "Rapor Şablonu: static-pool-v2"',
-        'Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı',
-        'Kaynak: Question tablosu',
-        'Toplam aktif kayıtlı soru',
-        'bodyContainsStaticPoolSection',
-        'bodyContainsTemplateMarker',
-        'bodyContainsQuestionSourceMarker',
+        'REPORT_TEMPLATE_VERSION = "summary-pdf-v1"',
+        'PDF_ATTACHMENT_CONTENT_TYPE = "application/pdf"',
+        'REPORT_ATTACHMENT_NOTICE',
+        'buildQuestionAnalyticsPdfAttachment',
+        'bodyContainsExecutiveSummary',
+        'bodyContainsPdfAttachmentNotice',
+        'bodyRemovedSectionsPresent',
+        'pdfRemovedSectionsPresent',
+        'pdfAttachmentGenerated',
+        'attachments: [{',
         'body: emailHtml',
         'html: emailHtml',
       ];
       const missing = missingTokens(deployedReportSource, required);
-      const staticIdx = text(deployedReportSource).indexOf('safeSectionHtml("Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı"');
-      const longIdx = text(deployedReportSource).indexOf('safeSectionHtml("En Çok Gösterilen Sorular"');
-      const orderOk = staticIdx >= 0 && longIdx >= 0 && staticIdx < longIdx;
-      if (missing.length || !orderOk) {
-        return fail('Deployed report function lost the static-pool-v2 template markers or the static section ordering.', {
+      const emailOrderOk = text(deployedReportSource).indexOf('safeSectionHtml("Executive Summary"') >= 0
+        && text(deployedReportSource).indexOf('safeSectionHtml("PDF Attachment"') > text(deployedReportSource).indexOf('safeSectionHtml("Executive Summary"');
+      if (missing.length || !emailOrderOk) {
+        return fail('Deployed report function lost the summary/PDF template markers or the compact email ordering.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
-          expected: 'static-pool-v2 markers + body diagnostics + static section before long event sections',
-          actual: { missing, orderOk },
+          expected: 'summary-pdf-v1 markers + PDF attachment diagnostics + compact email sections',
+          actual: { missing, emailOrderOk },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Deployed report function keeps static-pool-v2 markers, body diagnostics, and the static section before long event sections.', {
+      return pass('Deployed report function keeps summary/PDF markers, body diagnostics, and the PDF attachment contract.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
@@ -470,11 +471,11 @@ export const EXTRA_TESTS = [
   makeCase('npm_build_is_not_backend_deploy_proof',
     'Backend deploy proof is manual: npm run build only validates the Vite frontend',
     () => notAutomatable(
-      'npm run build validates only the Vite frontend bundle and does NOT prove Base44 backend functions deployed. Real backend deploy proof requires triggering the function and reading its live response/markers (e.g. sendQuestionAnalyticsReportEmail must return templateVersion: static-pool-v2 and bodyContains* true). Do this manually in a safe/admin context before release.',
+      'npm run build validates only the Vite frontend bundle and does NOT prove Base44 backend functions deployed. Real backend deploy proof requires triggering the function and reading its live response/markers (e.g. sendQuestionAnalyticsReportEmail must return templateVersion: summary-pdf-v1, emailBodyMode: summary_only, pdfAttachmentGenerated true, and PDF attachment diagnostics). Do this manually in a safe/admin context before release.',
       {
         verification: 'BACKEND_RUNTIME_PROBE',
         actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE,
-        nextStep: 'As admin, trigger sendQuestionAnalyticsReportEmail and confirm templateVersion=static-pool-v2 and bodyContainsStaticPoolSection/Template/QuestionSource = true; confirm other changed functions deploy by calling them.',
+        nextStep: 'As admin, trigger sendQuestionAnalyticsReportEmail and confirm templateVersion=summary-pdf-v1, emailBodyMode=summary_only, pdfAttachmentGenerated=true, and the received PDF attachment opens.',
       },
     ),
     { critical: true, actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),

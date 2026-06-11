@@ -1113,15 +1113,15 @@ export const EXTRA_TESTS = [
    *  build and the real email report was missing the new static section.
    *
    *  New contract: the callable report function INLINES a DB-backed AdminUser
-   *  authorization guard (no local import) AND keeps the static-pool-v2
-   *  template + body diagnostics, with the static section before the long
-   *  event sections. We explicitly FORBID any local `_shared/adminAuth`
+   *  authorization guard (no local import) AND keeps the summary-pdf-v1
+   *  template + body/PDF diagnostics, with a compact email body and PDF
+   *  attachment. We explicitly FORBID any local `_shared/adminAuth`
    *  import in the callable report path so the broken pattern cannot return.
    * ================================================================= */
   makeCase(
     'question_analytics_health', 'Question Analytics Health Suite',
     'manual_admin_email_report_deployed_root_entrypoint',
-    'Callable report entrypoint deploys cleanly (inline AdminUser guard, no local import) and keeps the static-pool-v2 contract',
+    'Callable report entrypoint deploys cleanly (inline AdminUser guard, no local import) and keeps the summary/PDF contract',
     () => {
       const src = safeStr(deployedRootReportFunctionSource);
       const required = [
@@ -1134,28 +1134,23 @@ export const EXTRA_TESTS = [
         'Admin access required',
         'requireAdmin(base44)',
         'if (admin.response) return admin.response',
-        // Report template + body markers.
+        // Report template + body/PDF markers.
         'Question.list',
-        'Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı',
-        'REPORT_TEMPLATE_VERSION = "static-pool-v2"',
-        'REPORT_TEMPLATE_LABEL = "Rapor Şablonu: static-pool-v2"',
-        'escapeHtml(REPORT_TEMPLATE_LABEL)',
-        'bodyContainsStaticPoolSection',
-        'bodyContainsTemplateMarker',
-        'bodyContainsQuestionSourceMarker',
-        'emailHtml.includes("Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı")',
-        'emailHtml.includes(REPORT_TEMPLATE_LABEL)',
-        'emailHtml.includes("Kaynak: Question tablosu")',
+        'REPORT_TEMPLATE_VERSION = "summary-pdf-v1"',
+        'PDF_ATTACHMENT_CONTENT_TYPE = "application/pdf"',
+        'REPORT_ATTACHMENT_NOTICE',
+        'buildQuestionAnalyticsPdfAttachment',
+        'bodyContainsExecutiveSummary',
+        'bodyContainsPdfAttachmentNotice',
+        'bodyRemovedSectionsPresent',
+        'pdfRemovedSectionsPresent',
+        'pdfAttachmentGenerated',
         'body: emailHtml',
         'html: emailHtml',
-        'Kaynak: Question tablosu',
-        'Toplam aktif kayıtlı soru',
-        'Zorluk 1',
-        'Zorluk 5',
-        'Bilinmiyor',
-        'Dağılım',
-        'safeSectionHtml("Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı"',
-        'safeSectionHtml("En Çok Gösterilen Sorular"',
+        'attachments: [{',
+        'type: pdfAttachment.contentType',
+        'safeSectionHtml("Executive Summary"',
+        'safeSectionHtml("PDF Attachment"',
       ];
       // The broken import pattern that caused the stale-deploy incident must
       // never come back in the executed report path.
@@ -1167,21 +1162,21 @@ export const EXTRA_TESTS = [
       ];
       const missing = required.filter((t) => !src.includes(t));
       const found = forbidden.filter((t) => src.includes(t));
-      // Static section must render before the long event tables.
-      const staticIdx = src.indexOf('safeSectionHtml("Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı"');
-      const longIdx = src.indexOf('safeSectionHtml("En Çok Gösterilen Sorular"');
-      const orderOk = staticIdx >= 0 && longIdx >= 0 && staticIdx < longIdx;
+      // Compact email must include the PDF notice after the summary.
+      const summaryIdx = src.indexOf('safeSectionHtml("Executive Summary"');
+      const pdfIdx = src.indexOf('safeSectionHtml("PDF Attachment"');
+      const orderOk = summaryIdx >= 0 && pdfIdx > summaryIdx;
       if (missing.length || found.length || !orderOk) {
-        return fail('Callable report entrypoint can regress to a non-deployable local import or lose the static-pool-v2 contract.', {
+        return fail('Callable report entrypoint can regress to a non-deployable local import or lose the summary/PDF contract.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
-          expected: 'inline AdminUser guard (no local import) + static-pool-v2 template + static section before long event sections',
+          expected: 'inline AdminUser guard (no local import) + summary-pdf-v1 template + PDF attachment diagnostics',
           actual: { missing, foundForbidden: found, orderOk },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Callable report entrypoint inlines the AdminUser guard, has no local import, and keeps the static Question-table chart before long event sections.', {
+      return pass('Callable report entrypoint inlines the AdminUser guard, has no local import, and keeps the summary email/PDF attachment contract.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',

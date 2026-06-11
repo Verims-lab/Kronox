@@ -637,24 +637,27 @@ Security contract:
 * automatic scheduling is a deployment/platform decision and is not enabled by
   repo code alone
 * `sendQuestionAnalyticsReportEmail` is manual/admin-triggered only, sends a
-  question-focused aggregate HTML/table/bar formatted report to the
-  authenticated admin email, and must not expose user-level surveillance data
-  to normal users. It is registered at
+  short question-focused summary email to the authenticated admin email, attaches
+  the cleaned detailed report as an `application/pdf` PDF, and must not expose
+  user-level surveillance data to normal users. It is registered at
   `base44/functions/sendQuestionAnalyticsReportEmail/entry.ts` with
   `base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc`. This
   callable report function inlines the DB-backed AdminUser guard for the
   current Base44 function runtime. Frontend build success does not prove the
-  Base44 backend function was redeployed; live email proof must show
-  `Rapor Şablonu: static-pool-v2`.
+  Base44 backend function was redeployed; live proof must trigger the function
+  as an active admin and confirm `templateVersion: summary-pdf-v1`,
+  `emailBodyMode: summary_only`, `pdfAttachmentGenerated: true`, and that the
+  received PDF attachment opens.
 * every active `AdminUser` row with role `admin` or `owner` can request the
   report; the recipient is the requesting admin's authenticated normalized
   email, not a hardcoded owner address or `created_by`
 * the function response and Admin Ekranı UI surface safe `requestedBy`,
-  `recipientEmail`, `emailDispatchStatus`, template, and body-marker
-  diagnostics so a failed dispatch is not shown as generic success
+  `recipientEmail`, `emailDispatchStatus`, template, summary-body,
+  PDF-attachment, and body/PDF validation diagnostics so a failed dispatch is
+  not shown as generic success
 * sent question analytics reports include category pool, aggregate preference,
-  category exposure, within-category analysis, and category fairness signal
-  sections; preference counts are aggregate distinct-user counts only
+  category exposure, and category fairness signal sections in the PDF;
+  preference counts are aggregate distinct-user counts only
 * function-based question analytics reset is currently not used because the
   callable reset path was not reliable in the current Base44 setup
 * after a question pool replacement, question analytics reset is a manual DB

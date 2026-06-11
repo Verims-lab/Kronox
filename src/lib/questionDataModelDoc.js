@@ -135,31 +135,23 @@ longer stored on the entity — they are derived at fetch time by
 - Admin question analytics reports label all-active question pool,
   Solo-eligible pool, runtime projection diagnostics, unique shown questions,
   and never-shown counts separately when those metrics are available.
-- Admin question analytics reports include category pool counts, registered
-  category/difficulty/year-range pool detail, aggregate user category
-  preference counts, category exposure counts, within-category
-  most/least/never-shown analysis, and category fairness signals. Preference
-  counts are aggregate only and do not expose user IDs or emails.
+- Admin question analytics email is summary-only and attaches the cleaned
+  detailed report as a PDF. The PDF includes category pool counts, aggregate
+  user category preference counts, category exposure counts, category fairness
+  signals, bounded top/low/wrong/easy/slow question lists, and data quality
+  warnings. Preference counts are aggregate only and do not expose user IDs or
+  emails.
 - Category pool analysis is static current Question table data, not analytics
   event/projection data. It renders after analytics reset and includes active
   question count, difficulty 1-5/unknown distribution, oldest year, newest
   year, and Unknown/unmapped diagnostics. Category exposure is separate
   report-period QuestionAttemptEvent data.
-- Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı / Kategori Bazında Kayıtlı
-  Soru Havuzu is static active Question table data grouped by category and
-  difficulty level with registered question count, oldest year, and newest year.
-  It includes asked and never-asked active questions.
-- Static Question DB pool sections appear near the top of the admin email
-  before long event detail tables. Rapor Bölümleri near the top lists included
-  sections, and Rapor Tamamlandı at the end indicates the generated report
-  completed; if the marker is missing in an email, suspect clipping/truncation.
-- Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı is an email-safe
-  HTML/CSS stacked-bar chart sourced from active Question rows. It includes
-  asked and never-asked questions, counts Zorluk 1-5 plus Bilinmiyor, and does
-  not use JavaScript/canvas/external chart libraries. In the actual sent report
-  it appears directly after Key Insights / Risk Flags, before every long
-  event-based detail table.
-- Long event-based detail sections are row-limited for email readability.
+- Removed legacy report sections must not appear in generated email or PDF
+  output: Rapor Şablonu, Rapor Bölümleri, Sistemdeki Soru Havuzu: Kategori /
+  Zorluk Dağılımı, Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı, Kategori
+  Bazında Yıl Aralığı, and Kategori İçi Soru Analizi.
+- Long event-based detail sections are row-limited in the PDF and are not dumped
+  into the email body.
 - After a question pool replacement, analytics reset is manual_db_reset_only:
   clear QuestionAttemptEvent, QuestionStatsProjection, and
   CategoryStatsProjection only by DB maintenance. Do not delete Question,

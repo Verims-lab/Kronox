@@ -23,6 +23,7 @@ import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?
 import { DB_ARCHITECTURE_IMPLEMENTATION_MIRROR } from '@/lib/dbArchitectureMirrors';
 import {
   QUESTION_ANALYTICS_REPORT_SECTIONS,
+  QUESTION_ANALYTICS_REMOVED_REPORT_SECTIONS,
   QUESTION_ANALYTICS_SECURITY_CONTRACT,
 } from '@/lib/questionAnalyticsContracts';
 
@@ -177,6 +178,12 @@ export const EXTRA_TESTS = [
     'Manual admin email report function is admin-only and question-focused',
     () => {
       const sectionMissing = QUESTION_ANALYTICS_REPORT_SECTIONS.filter((section) => !reportFunctionSource.includes(section));
+      const removedOutputMissing = missingTokens(reportFunctionSource, [
+        'REMOVED_REPORT_SECTION_TITLES',
+        'bodyRemovedSectionsPresent',
+        'pdfRemovedSectionsPresent',
+        'report_body_or_pdf_validation_failed',
+      ]);
       const combined = `${reportFunctionSource}\n${adminAuthSource}`;
       const missing = missingTokens(combined, [
         'sendQuestionAnalyticsReportEmail',
@@ -194,28 +201,28 @@ export const EXTRA_TESTS = [
         'Kronox Soru Analiz Raporu',
         'Executive Summary',
         'Key Insights / Risk Flags',
+        'Action Items',
+        'PDF Attachment',
         'safeSectionHtml',
         'htmlSections',
         'section_render_failed',
-        'Rapor Bölümleri',
-        'Rapor Şablonu: static-pool-v2',
-        'REPORT_TEMPLATE_VERSION = "static-pool-v2"',
-        'REPORT_TEMPLATE_LABEL = "Rapor Şablonu: static-pool-v2"',
-        'bodyContainsStaticPoolSection',
-        'bodyContainsTemplateMarker',
-        'bodyContainsQuestionSourceMarker',
-        'Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı',
-        'Kaynak: Question tablosu',
-        'Toplam aktif kayıtlı soru',
+        'REPORT_TEMPLATE_VERSION = "summary-pdf-v1"',
+        'PDF_ATTACHMENT_CONTENT_TYPE = "application/pdf"',
+        'REPORT_ATTACHMENT_NOTICE',
+        'buildQuestionAnalyticsPdfAttachment',
+        'PDFDocument.create()',
+        'attachments: [{',
+        'filename: pdfAttachment.filename',
+        'content: pdfAttachment.base64',
+        'type: pdfAttachment.contentType',
+        'disposition: "attachment"',
+        'bodyContainsExecutiveSummary',
+        'bodyContainsPdfAttachmentNotice',
+        'emailBodyMode: "summary_only"',
         'Kategori Bazında Soru Havuzu',
-        'Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı',
-        'Kategori Bazında Kayıtlı Soru Havuzu',
-        'Kategori Bazında Yıl Aralığı',
         'Kategori Tercihleri',
         'Kategori Bazında Gösterim',
-        'Kategori İçi Soru Analizi',
         'Kategori Denge Sinyalleri',
-        'Rapor Tamamlandı',
         'En Çok Gösterilen Sorular',
         'Az veya Hiç Gösterilmeyen Sorular',
         'En Çok Yanlış Yapılan Sorular',
@@ -228,14 +235,14 @@ export const EXTRA_TESTS = [
         '"name": "sendQuestionAnalyticsReportEmail"',
         '"entry": "entry.ts"',
       ]);
-      if (missing.length || sectionMissing.length || manifestMissing.length) {
+      if (missing.length || sectionMissing.length || removedOutputMissing.length || manifestMissing.length) {
         return fail('Manual question analytics report backend contract is incomplete.', {
           verification: 'STATIC_CONTRACT',
           files: ['base44/functions/sendQuestionAnalyticsReportEmail/entry.ts'],
-          missing: [...missing, ...sectionMissing, ...manifestMissing],
+          missing: [...missing, ...sectionMissing, ...removedOutputMissing, ...manifestMissing],
         });
       }
-      return pass('Manual report function is admin-gated and includes the required aggregate sections.', {
+      return pass('Manual report function is admin-gated, summary-only in email, and prepares a PDF attachment for details.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -249,54 +256,47 @@ export const EXTRA_TESTS = [
         'getAdminAuthorization',
         'entities?.AdminUser',
         'Question.list',
-        'Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı',
-        'REPORT_TEMPLATE_VERSION = "static-pool-v2"',
-        'REPORT_TEMPLATE_LABEL = "Rapor Şablonu: static-pool-v2"',
-        'escapeHtml(REPORT_TEMPLATE_LABEL)',
-        'bodyContainsStaticPoolSection',
-        'bodyContainsTemplateMarker',
-        'bodyContainsQuestionSourceMarker',
-        'emailHtml.includes("Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı")',
-        'emailHtml.includes(REPORT_TEMPLATE_LABEL)',
-        'emailHtml.includes("Kaynak: Question tablosu")',
+        'REPORT_TEMPLATE_VERSION = "summary-pdf-v1"',
+        'PDF_ATTACHMENT_CONTENT_TYPE = "application/pdf"',
+        'REPORT_ATTACHMENT_NOTICE',
+        'REMOVED_REPORT_SECTION_TITLES',
+        'buildQuestionAnalyticsPdfAttachment',
+        'pdfAttachmentGenerated',
+        'bodyContainsExecutiveSummary',
+        'bodyContainsPdfAttachmentNotice',
+        'bodyRemovedSectionsPresent',
+        'pdfRemovedSectionsPresent',
+        'report_body_or_pdf_validation_failed',
         'body: emailHtml',
         'html: emailHtml',
-        'Kaynak: Question tablosu',
-        'Toplam aktif kayıtlı soru',
-        'Zorluk 1',
-        'Zorluk 2',
-        'Zorluk 3',
-        'Zorluk 4',
-        'Zorluk 5',
-        'Bilinmiyor',
-        'Dağılım',
+        'attachments: [{',
+        'type: pdfAttachment.contentType',
         'safeSectionHtml("Key Insights / Risk Flags"',
-        'safeSectionHtml("Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı"',
-        'safeSectionHtml("En Çok Gösterilen Sorular"',
+        'safeSectionHtml("PDF Attachment"',
+        'pdfSections',
         'textLines.join(\'\\n\')',
       ]);
-      const orderFailures = [
-        ['safeSectionHtml("Key Insights / Risk Flags"', 'safeSectionHtml("Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı"'],
-        ['safeSectionHtml("Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı"', 'safeSectionHtml("En Çok Gösterilen Sorular"'],
-        ['safeSectionHtml("Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı"', 'safeSectionHtml("Az veya Hiç Gösterilmeyen Sorular"'],
-      ].filter(([first, second]) => {
-        const firstIndex = reportFunctionSource.indexOf(first);
-        const secondIndex = reportFunctionSource.indexOf(second);
-        return firstIndex < 0 || secondIndex < 0 || firstIndex >= secondIndex;
+      const emailForbidden = QUESTION_ANALYTICS_REMOVED_REPORT_SECTIONS.filter((section) => {
+        const sectionIndex = reportFunctionSource.indexOf(`safeSectionHtml("${section}"`);
+        const textIndex = reportFunctionSource.indexOf(`--- ${section} ---`);
+        return sectionIndex >= 0 || textIndex >= 0;
       });
       const forbidden = forbiddenTokens(reportFunctionSource, [
         "from './_shared/adminAuth.js'",
         "from './_shared/adminAuth.ts'",
         '../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
+        'bodyContainsStaticPoolSection',
+        'bodyContainsTemplateMarker',
+        'bodyContainsQuestionSourceMarker',
       ]);
-      if (missing.length || orderFailures.length || forbidden.length) {
+      if (missing.length || emailForbidden.length || forbidden.length) {
         return fail('Callable report entrypoint can drift into an old report implementation or wrapper-only package.', {
           verification: 'STATIC_CONTRACT',
           file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
-          actual: { missing, orderFailures, forbidden },
+          actual: { missing, emailForbidden, forbidden },
         });
       }
-      return pass('Callable report entrypoint contains the current static Question-table chart before long event sections.', {
+      return pass('Callable report entrypoint contains the current summary email plus PDF attachment implementation.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -338,12 +338,14 @@ export const EXTRA_TESTS = [
       const uiMissing = missingTokens(questionAnalyticsReportToolSource, [
         'result?.recipientEmail',
         'result?.emailDispatchStatus',
-        'email_failed',
-        'recipient_override_not_allowed',
-        'report_body_missing_static_pool_section',
-        'adresine',
-        'Gönderim:',
-      ]);
+          'email_failed',
+          'recipient_override_not_allowed',
+          'report_pdf_generation_failed',
+          'report_body_or_pdf_validation_failed',
+          'adresine',
+          'Gönderim:',
+          'PDF eki:',
+        ]);
       if (perFunctionMissing.length || uiMissing.length) {
         return fail('Question Analytics report may still send to a stale/hardcoded recipient or hide SendEmail dispatch failures.', {
           verification: 'STATIC_CONTRACT',
@@ -424,7 +426,7 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('analytics_report_includes_category_level_question_and_preference_analysis',
-    'Question Analytics report includes category-level pool, preference, exposure, and internal question analysis',
+    'Question Analytics PDF includes category-level pool, preference, exposure, and balance analysis',
     () => {
       const actualReportBody = reportFunctionSource;
       const missing = missingTokens(actualReportBody, [
@@ -447,9 +449,6 @@ export const EXTRA_TESTS = [
         'Zorluk 3',
         'Zorluk 4',
         'Zorluk 5',
-        'Zorluk Bilinmiyor',
-        'En Eski Yıl',
-        'En Yeni Yıl',
         'Question tablosunda soru yok.',
         'soloEligibleQuestionCount',
         'uniqueShownQuestionCount',
@@ -458,49 +457,24 @@ export const EXTRA_TESTS = [
         'neverShownActiveCount',
         'neverShownSoloEligibleCount',
         'categoryPoolRows',
-        'categoryDifficultyChartRows',
-        'categoryDifficultyChartSource',
-        'categoryDifficultyChartRenderer',
-        'registeredQuestionPoolRows',
-        'categoryYearRangeRows',
-        'reportChecklistRows',
-        'registeredQuestionPoolSource',
         'REGISTERED_QUESTION_POOL_ROW_LIMIT',
         'categoryPreferenceRows',
         'categoryExposureRows',
         'categoryFairnessSignalRows',
         'buildCategoryFairnessSignals',
         'CATEGORY_FAIRNESS_SIGNAL_LIMIT',
-        'Rapor Bölümleri',
-        'Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı',
+        'pdfSections',
+        'PDF_ATTACHMENT_CONTENT_TYPE',
         'Kategori Bazında Soru Havuzu',
-        'Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı',
-        'Kategori Bazında Kayıtlı Soru Havuzu',
-        'Kategori Bazında Yıl Aralığı',
+        'Kategori Bazında Soru Havuzu',
         'Kategori Tercihleri',
         'Kategori Bazında Gösterim',
-        'Kategori İçi Soru Analizi',
         'Kategori Denge Sinyalleri',
-        'Rapor Tamamlandı',
-        'difficultyDistributionBarHtml',
-        'DIFFICULTY_CHART_BUCKETS',
-        'email_safe_inline_html_css_stacked_bar',
         'role="presentation"',
-        'background-color',
-        'Kaynak: Question tablosu',
-        'Toplam aktif kayıtlı soru',
-        'Bu rapor tüm bölümleriyle tamamlandı',
-        'clipping/truncation',
-        'Dağılım',
+        'Action Items',
+        'PDF Attachment',
+        'REPORT_ATTACHMENT_NOTICE',
         'Tercih eden kullanıcı',
-        'Zorluk Seviyesi',
-        'Sistemdeki Soru Sayısı',
-        'sistemdeki_soru',
-        'gösterilmiş ve hiç gösterilmemiş sorular birlikte sayılır',
-        'Toplam',
-        'Fazla sorulan',
-        'Az sorulan',
-        'Hiç sorulmayan örnek',
         'categoryAnalytics',
       ]);
       const forbidden = forbiddenTokens(actualReportBody, [
@@ -533,12 +507,8 @@ export const EXTRA_TESTS = [
         'const hasQuestionRows = questions.length > 0',
         'categoryPoolRows',
         'categoryPoolSource: "Question.list static current DB rows"',
-        'registeredQuestionPoolRows',
-        'registeredQuestionPoolSource: "Question.list active registered rows by category difficulty year range"',
         'REGISTERED_QUESTION_POOL_ROW_LIMIT',
-        'Question.list active registered rows by category difficulty year range',
         'Question tablosunda soru yok.',
-        'Question tablosunda aktif soru yok.',
         'Unknown / unmapped',
         'pasif kategori',
         'isActiveCategory(category)',
@@ -566,25 +536,13 @@ export const EXTRA_TESTS = [
         'newestYear',
         'oldestYear ?? "Yok"',
         'newestYear ?? "Yok"',
-        'reportChecklistRows',
-        'Rapor Bölümleri',
-        'Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı',
+        'pdfSections',
         'Kategori Bazında Soru Havuzu',
-        'Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı',
-        'Kategori Bazında Kayıtlı Soru Havuzu',
-        'Kategori Bazında Yıl Aralığı',
-        'Toplam Soru',
-        'Toplam',
-        'Zorluk Seviyesi',
-        'Sistemdeki Soru Sayısı',
         'Zorluk 1',
         'Zorluk 2',
         'Zorluk 3',
         'Zorluk 4',
         'Zorluk 5',
-        'Zorluk Bilinmiyor',
-        'En Eski Yıl',
-        'En Yeni Yıl',
         'Kategori Bazında Gösterim',
       ]);
       const forbidden = forbiddenTokens(actualReportBody, [
@@ -606,117 +564,74 @@ export const EXTRA_TESTS = [
       });
     }),
 
-  makeCase('registered_question_pool_by_category_difficulty_year_range',
-    'Registered question pool section shows category/difficulty/count/year ranges from Question rows',
+  makeCase('analytics_report_removed_sections_are_not_rendered',
+    'Removed Question Analytics sections are not rendered in email or PDF output',
     () => {
-      const actualReportBody = reportFunctionSource;
-      const missing = missingTokens(actualReportBody, [
-        'Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı',
-        'Kategori Bazında Kayıtlı Soru Havuzu',
-        'Kategori Bazında Yıl Aralığı',
-        'categoryYearRangeRows',
-        'registeredQuestionPoolRows',
-        'registeredQuestionPoolRowsRendered',
-        'registeredQuestionPoolSource',
-        'Question.list active registered rows by category difficulty year range',
-        'REGISTERED_QUESTION_POOL_ROW_LIMIT',
-        'activeRows',
-        'getQuestionDifficultyBucket(question)',
-        'difficultyLabel(difficultyBucket)',
-        'Bilinmiyor',
-        'pasif kategori',
-        'registeredDifficultyStats',
-        'difficultyStats.questionCount += 1',
-        'difficultyStats.oldestYear',
-        'difficultyStats.newestYear',
-        'oldestYear',
-        'newestYear',
-        'Zorluk Seviyesi',
-        'Sistemdeki Soru Sayısı',
-        'sistemdeki_soru',
-        'gösterilmiş ve hiç gösterilmemiş sorular birlikte sayılır',
-        'En Eski Yıl',
-        'En Yeni Yıl',
-        'Toplam',
-        'Kategori Bazında Gösterim',
-        'QuestionAttemptEvent.list',
-        'events = rawEvents.filter',
+      const missing = missingTokens(reportFunctionSource, [
+        'REMOVED_REPORT_SECTION_TITLES',
+        'findRemovedReportSections',
+        'bodyRemovedSectionsPresent',
+        'pdfRemovedSectionsPresent',
+        'report_body_or_pdf_validation_failed',
+        'removedReportSections',
       ]);
-      const forbidden = forbiddenTokens(actualReportBody, [
-        'registeredQuestionPoolRows = bucketList',
-        'registeredQuestionPoolRows = events',
-        'registeredQuestionPoolRows = categoryExposureRows',
-        'QuestionStatsProjection.list',
-        'CategoryStatsProjection.list',
-      ]);
-      if (missing.length || forbidden.length) {
-        return fail('Registered question pool analysis may be missing, analytics-backed, or mixed with shown/answered distribution.', {
+      const renderedForbidden = QUESTION_ANALYTICS_REMOVED_REPORT_SECTIONS.filter((section) => {
+        const htmlRendered = reportFunctionSource.includes(`safeSectionHtml("${section}"`);
+        const textRendered = reportFunctionSource.includes(`--- ${section} ---`);
+        const pdfRendered = reportFunctionSource.includes(`title: "${section}"`);
+        return htmlRendered || textRendered || pdfRendered;
+      });
+      if (missing.length || renderedForbidden.length) {
+        return fail('Removed report sections can still appear in the generated email/PDF body.', {
           verification: 'STATIC_CONTRACT',
           files: ['base44/functions/sendQuestionAnalyticsReportEmail/entry.ts'],
-          actual: { missing, forbidden },
+          actual: { missing, renderedForbidden },
         });
       }
-      return pass('Registered pool rows are active Question-table aggregates by category, difficulty, count, and year range; shown/answered category distribution stays separate.', {
+      return pass('The report function keeps removed section titles only as forbidden-section validation and does not render them as email/PDF sections.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
 
-  makeCase('email_report_static_sections_before_long_details_and_completion_marker',
-    'Static pool sections appear near top and report has a final completion marker',
+  makeCase('email_report_is_summary_only_with_pdf_attachment_notice',
+    'Question Analytics email is summary-only and points to the PDF attachment',
     () => {
       const src = reportFunctionSource;
       const orderedPairs = [
-        ['safeSectionHtml("Key Insights / Risk Flags"', 'safeSectionHtml("Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı"'],
-        ['safeSectionHtml("Rapor Bölümleri"', 'safeSectionHtml("En Çok Gösterilen Sorular"'],
-        ['safeSectionHtml("Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı"', 'safeSectionHtml("En Çok Gösterilen Sorular"'],
-        ['safeSectionHtml("Kategori Bazında Soru Havuzu"', 'safeSectionHtml("En Çok Gösterilen Sorular"'],
-        ['safeSectionHtml("Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı"', 'safeSectionHtml("En Çok Gösterilen Sorular"'],
-        ['safeSectionHtml("Kategori Bazında Yıl Aralığı"', 'safeSectionHtml("En Çok Gösterilen Sorular"'],
-        ['safeSectionHtml("Rapor Tamamlandı"', 'safeSectionHtml("Veri Kalitesi Uyarıları"'],
+        ['safeSectionHtml("Executive Summary"', 'safeSectionHtml("Key Insights / Risk Flags"'],
+        ['safeSectionHtml("Key Insights / Risk Flags"', 'safeSectionHtml("Action Items"'],
+        ['safeSectionHtml("Action Items"', 'safeSectionHtml("PDF Attachment"'],
       ];
       const missing = missingTokens(src, [
-        'reportSectionNames',
+        'REPORT_ATTACHMENT_NOTICE',
+        'Detaylı rapor PDF olarak ekte yer almaktadır.',
+        'PDF_ATTACHMENT_CONTENT_TYPE = "application/pdf"',
+        'emailBodyMode: "summary_only"',
+        'bodyContainsPdfAttachmentNotice',
+        'pdfAttachmentFilename',
+        'pdfAttachmentContentType',
         'Key Insights / Risk Flags',
-        'Rapor Şablonu',
-        'REPORT_TEMPLATE_LABEL = "Rapor Şablonu: static-pool-v2"',
-        'escapeHtml(REPORT_TEMPLATE_LABEL)',
-        'static-pool-v2',
-        'Rapor Bölümleri',
-        'Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı',
-        'Kategori Bazında Soru Havuzu',
-        'Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı',
-        'Kategori Bazında Yıl Aralığı',
-        'Rapor Tamamlandı',
-        'Bu rapor tüm bölümleriyle tamamlandı',
-        'clipping/truncation',
-        'reportCompletionMarker: "Rapor Tamamlandı"',
-        'clippingDiagnosis',
+        'Action Items',
+        'PDF Attachment',
         '--- Key Insights / Risk Flags ---',
-        '--- Rapor Şablonu ---',
-        'REPORT_TEMPLATE_LABEL',
-        '--- Rapor Bölümleri ---',
-        '--- Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı ---',
-        '--- Rapor Tamamlandı ---',
+        '--- Action Items ---',
+        '--- PDF Attachment ---',
       ]);
       const orderFailures = orderedPairs.filter(([first, second]) => {
         const firstIndex = src.indexOf(first);
         const secondIndex = src.indexOf(second);
         if (firstIndex < 0 || secondIndex < 0) return true;
-        return first === 'safeSectionHtml("Rapor Tamamlandı"' ? firstIndex <= secondIndex : firstIndex >= secondIndex;
+        return firstIndex >= secondIndex;
       });
-      const htmlChartSectionCount = (src.match(/safeSectionHtml\("Sistemdeki Soru Havuzu: Kategori \/ Zorluk Dağılımı"/g) || []).length;
-      const textChartSectionCount = (src.match(/--- Sistemdeki Soru Havuzu: Kategori \/ Zorluk Dağılımı ---/g) || []).length;
-      const duplicateFailures = [];
-      if (htmlChartSectionCount !== 1) duplicateFailures.push(`htmlChartSectionCount:${htmlChartSectionCount}`);
-      if (textChartSectionCount !== 1) duplicateFailures.push(`textChartSectionCount:${textChartSectionCount}`);
-      if (missing.length || orderFailures.length || duplicateFailures.length) {
-        return fail('Static report sections may still be hidden behind long event details or lack a completion marker.', {
+      const renderedForbidden = QUESTION_ANALYTICS_REMOVED_REPORT_SECTIONS.filter((section) => src.includes(`safeSectionHtml("${section}"`) || src.includes(`--- ${section} ---`));
+      if (missing.length || orderFailures.length || renderedForbidden.length) {
+        return fail('Email report may still be long-form or may omit the PDF attachment notice.', {
           verification: 'STATIC_CONTRACT',
           file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
-          actual: { missing, orderFailures, duplicateFailures },
+          actual: { missing, orderFailures, renderedForbidden },
         });
       }
-      return pass('Static DB pool sections render before long event details, and Rapor Tamamlandı marks the end of the actual email body.', {
+      return pass('Email body is short summary/action copy and explicitly points admins to the attached PDF.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -743,13 +658,13 @@ export const EXTRA_TESTS = [
         'const emailText = report.text',
         'text: emailText',
         "textLines.join('\\n')",
-        '--- Rapor Bölümleri ---',
-        '--- Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı ---',
-        '--- Kategori Bazında Soru Havuzu ---',
-        '--- Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı ---',
-        '--- Kategori Bazında Yıl Aralığı ---',
-        '--- En Çok Gösterilen Sorular ---',
-        '--- Rapor Tamamlandı ---',
+        '--- Action Items ---',
+        '--- PDF Attachment ---',
+        'PDFDocument.create()',
+        'buildQuestionAnalyticsPdfAttachment',
+        'attachments: [{',
+        'filename: pdfAttachment.filename',
+        'type: pdfAttachment.contentType',
         'NEVER_SHOWN_SAMPLE_LIMIT = 15',
         'QUESTION_TABLE_LIMIT = 15',
         'EASY_QUESTION_TABLE_LIMIT = 10',
@@ -763,6 +678,7 @@ export const EXTRA_TESTS = [
         'body: report.body',
         'lines.join',
         'neverShown.slice(0, 30)',
+        'bodyContainsStaticPoolSection',
       ]);
       if (missing.length || forbidden.length) {
         return fail('Question analytics email can regress to raw single-line text or unbounded never-shown output.', {
