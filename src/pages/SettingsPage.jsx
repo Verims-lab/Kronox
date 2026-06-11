@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trash2, AlertTriangle, Loader2, ChevronRight, HelpCircle } from 'lucide-react';
+import { Trash2, AlertTriangle, Loader2, ChevronRight, HelpCircle, FileText } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import TopScores from '@/components/game/TopScores';
@@ -13,6 +14,7 @@ import CategoryPreferencesSection from '@/components/settings/CategoryPreference
 import { useAuth } from '@/lib/AuthContext';
 
 export default function SettingsPage() {
+  const navigate = useNavigate();
   const { user, isLoadingAuth } = useAuth();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -82,6 +84,12 @@ export default function SettingsPage() {
             title="Nasıl Oynanır?"
             desc="Tutorial'ı tekrar izle"
             onClick={() => setShowTutorial(true)}
+          />
+          <ToolCard
+            icon={<FileText className="w-4 h-4" />}
+            title="Gizlilik Politikası"
+            desc="Veri kullanımı ve kullanıcı hakları"
+            onClick={() => navigate('/privacy')}
           />
         </Section>
 
