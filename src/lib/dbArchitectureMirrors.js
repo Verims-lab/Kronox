@@ -1,10 +1,10 @@
-// Codex183 — Health mirror for repo-external DB architecture artifacts.
+// Codex310 — Health mirror for repo-external DB architecture artifacts.
 // Vite cannot reliably raw-import Base44 function/schema/docs files from src,
 // so modular Health scans this string while canonical source remains in
 // base44/entities, base44/functions, and docs/KRONOX_DB_ARCHITECTURE.md.
 
 export const DB_ARCHITECTURE_IMPLEMENTATION_MIRROR = `
-docs/KRONOX_DB_ARCHITECTURE.md exists and tracks the Codex183 DB architecture implementation package.
+docs/KRONOX_DB_ARCHITECTURE.md exists and tracks the Codex310 DB architecture audit snapshot and implementation package.
 Implemented now:
 - src/lib/dbGateway/questionGateway.js
 - src/lib/dbGateway/categoryGateway.js
@@ -99,7 +99,19 @@ Idempotency/platform limitations documented:
 - OnlineMatchResult lobby_id + player_email unique is required where Base44 supports unique constraints.
 - PushSubscription user_email + endpoint unique is required where Base44 supports unique constraints.
 - Base44 index/unique-key declarations are a platform/manual configuration gap when not expressible in repo schema.
+- AdminUser.email unique and role + status indexes are required where Base44 supports them.
+- DailyQuestDefinition.quest_key unique and status + sort_order indexes are required where Base44 supports them.
+- UserDailyQuestProgress.idempotency_key unique and user_email + quest_date + quest_key unique are required where Base44 supports them.
+- UserDailyQuestProgress user_email + quest_date + status index is required where Base44 supports it.
+- DailyWheelSpin.idempotency_key unique and user_email + spin_date unique are required where Base44 supports them.
+- UserCategoryPreference user_email + category_id unique is required where Base44 supports it.
+- FriendRequest to_email + status, from_email + status, and from_email + to_email + status indexes are required where Base44 supports them.
+- GameInvite to_email + status + expires_at, from_email + status, and lobby_id indexes are required where Base44 supports them.
+- Question state + main_category_id, state + difficulty, and state + sub_category indexes are required where Base44 supports them.
+- QuestionAttemptEvent.event_id unique and question_id + created_at / user_key + created_at indexes are required where Base44 supports them.
+- QuestionStatsProjection.question_id unique and CategoryStatsProjection category_id + sub_category indexes are required where Base44 supports them.
 - Runtime uniqueness proof remains manual/NOT_AUTOMATABLE until platform constraints are configured.
+- Codex310 audit keeps mutable user-owned data server/auth scoped, prefers online fetch before offline fallback for question runtime, uses projection/ledger rows for public and economy surfaces, and keeps final iOS IPA/icon, two-account RLS, and backend deploy proof as manual gates.
 
 Legacy entity status:
 - Friendship is kept as legacy/candidate, no deletion without reference proof.

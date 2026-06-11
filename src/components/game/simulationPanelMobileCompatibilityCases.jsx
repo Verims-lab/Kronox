@@ -193,8 +193,8 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('route_navigation_resilience', 'Route / Navigation Resilience Suite',
-    'profile_and_online_route_ownership_preserves_subroutes',
-    'Profile subroutes preserve state and Online remains a Home CTA route',
+    'profile_and_home_route_ownership_preserves_subroutes',
+    'Profile subroutes preserve state and Online remains owned by the Home CTA flow',
     () => {
       const missing = missingTokens(navigationStackSource, [
         "['/profile', '/friends', '/settings', '/admin', '/test-suite', '/account-deletion']",

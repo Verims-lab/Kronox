@@ -307,8 +307,19 @@ export const EXTRA_TESTS = [
     () => {
       const missing = missingTokens(DB_ARCHITECTURE_IMPLEMENTATION_MIRROR, [
         'DiamondTransaction.idempotency_key unique',
+        'DailyQuestDefinition.quest_key unique',
+        'UserDailyQuestProgress.idempotency_key unique',
+        'user_email + quest_date + quest_key unique',
+        'DailyWheelSpin.idempotency_key unique',
+        'UserJokerInventory user_email + joker_type unique',
+        'JokerTransaction.idempotency_key unique',
+        'UserCategoryPreference user_email + category_id unique',
+        'FriendRequest to_email + status',
+        'GameInvite to_email + status + expires_at',
+        'Question state + main_category_id',
         'OnlineMatchResult.idempotency_key unique',
         'lobby_id + player_email unique',
+        'QuestionAttemptEvent.event_id unique',
         'Runtime uniqueness proof remains manual/NOT_AUTOMATABLE',
       ]);
       if (missing.length) {
