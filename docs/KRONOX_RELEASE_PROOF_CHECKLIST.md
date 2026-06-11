@@ -411,6 +411,15 @@ Checklist:
   surfaces. The sheets must support Escape/backdrop close, focus return,
   dark-mode readability, safe-area bottom padding, and reduced-motion behavior.
 * PWA manifest/icons work.
+* iOS AppIcon PNGs must be fully opaque before App Store upload. No alpha
+  channel, no `tRNS` transparency chunk, and no transparent corners are allowed.
+* The 1024x1024 `ios-marketing` / large app icon must be RGB/opaque. App Store
+  Connect error 90717 means a transparent or alpha-channel icon remains in the
+  native asset catalog.
+* Run `npm run check:ios-icons` before native archive upload; it validates
+  `ios/App/App/Assets.xcassets/AppIcon.appiconset/Contents.json`, referenced
+  PNG dimensions, and no-alpha PNG metadata. Real App Store Connect re-upload
+  validation remains manual.
 * Push subscription works on real installed device if supported.
 * `sendGameInvitePush` requires backend `VAPID_PUBLIC_KEY`,
   `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` config; missing/blank values return

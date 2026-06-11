@@ -510,6 +510,35 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
+  makeCase('ios_app_icon_90717_release_gate',
+    'iOS AppIcon alpha-channel release gate is documented and checkable',
+    () => {
+      const missing = missingTokens(releaseChecklistSource, [
+        'iOS AppIcon PNGs must be fully opaque',
+        'No alpha channel',
+        '1024x1024',
+        'RGB/opaque',
+        'App Store Connect error 90717',
+        'npm run check:ios-icons',
+        'ios/App/App/Assets.xcassets/AppIcon.appiconset/Contents.json',
+        'Real App Store Connect re-upload validation remains manual',
+      ]);
+      if (missing.length) {
+        return fail('iOS AppIcon no-alpha release gate is missing from the release checklist.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['docs/KRONOX_RELEASE_PROOF_CHECKLIST.md', 'scripts/check-ios-icons-no-alpha.mjs'],
+          missing,
+        });
+      }
+      return pass('iOS AppIcon no-alpha and App Store 90717 release checks are documented with a repo validation command.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    },
+    {
+      actionType: ACTION_TYPES.MANUAL_REVIEW,
+      nextStep: 'Run npm run check:ios-icons, archive/export the iOS build, and re-upload or validate in App Store Connect to prove 90717 is gone.',
+    }),
+
   makeCase('android_wrapper_warnings_are_manual_release_gates',
     'Android 15 edge-to-edge and large-screen/orientation warnings stay manual/platform release gates',
     () => {
