@@ -44,7 +44,7 @@
         "earn",
         "spend"
       ],
-      "description": "earn for granted Diamonds, spend for Mağaza purchases/costs."
+      "description": "earn for granted Diamonds, spend for Ma\u011faza purchases/costs."
     },
     "idempotency_key": {
       "type": "string",
@@ -85,8 +85,9 @@
   ],
   "rls": {
     "create": {
-      "created_by_id": "{{user.id}}",
-      "data.user_email": "{{user.email}}"
+      "user_condition": {
+        "role": "admin"
+      }
     },
     "read": {
       "$or": [
