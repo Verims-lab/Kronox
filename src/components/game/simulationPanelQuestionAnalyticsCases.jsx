@@ -198,26 +198,31 @@ export const EXTRA_TESTS = [
         'SendEmail',
         'Kronox Soru Analiz Raporu —',
         'Kronox Soru Analiz Raporu',
-        'Yönetici Özeti',
         'safeSectionHtml',
         'htmlSections',
         'section_render_failed',
-        'REPORT_TEMPLATE_VERSION = "product-intel-email-v3"',
+        'REPORT_TEMPLATE_VERSION = "nine-section-email-v1"',
         'bodyContainsExecutiveSummary',
-        'bodyContainsProductIntelligenceSections',
-        'emailBodyMode: "full_product_intelligence_email"',
+        'bodyContainsNineRequiredSections',
+        'bodyContainsExactlyRequiredSections',
+        'requiredSectionOrderValid',
+        'renderedSectionHeaderCount',
+        'emailBodyMode: "nine_section_email_body"',
         'reportDeliveryMode: "email_body_only"',
         'missingBodySections',
         'bodyLength',
-        'Genel Kullanım Özeti',
-        'Solo Soru Algoritması İçin Sinyaller',
-        'Doğru Soru Tiplerini Öğrenme / İçerik Kalitesi',
+        'Executive Summary',
+        'Kategori Bazında Soru Havuzu',
+        'Kategori Tercihleri',
+        'Kategori Bazında Gösterim',
+        'En Çok Gösterilen Sorular',
+        'Az ya da Hiç Gösterilmeyen Sorular',
+        'En Çok Yanlış Yapılan Sorular',
         'Joker Kullanımı Analizi',
         'Oynanma Zamanı ve Kullanım Ritmi',
-        'Daha Uzun Oynama / Retention Sinyalleri',
-        'Soru / İçerik Aksiyonları',
-        'Önerilen Aksiyonlar',
-        'Data Quality / Eksik Ölçüm',
+        'Joker Tipi Özeti',
+        'Saat Bazında Oynanma',
+        'UserJokerInventory',
         'AdminMaintenanceLog.create',
       ]);
       const manifestMissing = missingTokens(reportFunctionManifestSource, [
@@ -231,7 +236,7 @@ export const EXTRA_TESTS = [
           missing: [...missing, ...sectionMissing, ...removedOutputMissing, ...manifestMissing],
         });
       }
-      return pass('Manual report function is admin-gated and sends the full product-intelligence report in the email body.', {
+      return pass('Manual report function is admin-gated and sends the exact nine-section report in the email body.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -245,26 +250,29 @@ export const EXTRA_TESTS = [
         'getAdminAuthorization',
         'entities?.AdminUser',
         'Question.list',
-        'REPORT_TEMPLATE_VERSION = "product-intel-email-v3"',
+        'REPORT_TEMPLATE_VERSION = "nine-section-email-v1"',
         'REMOVED_REPORT_SECTION_TITLES',
         'bodyContainsExecutiveSummary',
         'bodyRemovedSectionsPresent',
-        'bodyContainsProductIntelligenceSections',
+        'bodyContainsNineRequiredSections',
+        'bodyContainsExactlyRequiredSections',
+        'requiredSectionOrderValid',
         'report_body_validation_failed',
-        'emailBodyMode: "full_product_intelligence_email"',
+        'emailBodyMode: "nine_section_email_body"',
         'reportDeliveryMode: "email_body_only"',
         'body: emailHtml',
         'html: emailHtml',
-        'safeSectionHtml("Yönetici Özeti"',
-        'safeSectionHtml("Genel Kullanım Özeti"',
-        'safeSectionHtml("Solo Soru Algoritması İçin Sinyaller"',
-        'safeSectionHtml("Doğru Soru Tiplerini Öğrenme / İçerik Kalitesi"',
+        'safeSectionHtml("Executive Summary"',
+        'safeSectionHtml("Kategori Bazında Soru Havuzu"',
+        'safeSectionHtml("Kategori Tercihleri"',
+        'safeSectionHtml("Kategori Bazında Gösterim"',
+        'safeSectionHtml("En Çok Gösterilen Sorular"',
+        'safeSectionHtml("Az ya da Hiç Gösterilmeyen Sorular"',
+        'safeSectionHtml("En Çok Yanlış Yapılan Sorular"',
         'safeSectionHtml("Joker Kullanımı Analizi"',
         'safeSectionHtml("Oynanma Zamanı ve Kullanım Ritmi"',
-        'safeSectionHtml("Daha Uzun Oynama / Retention Sinyalleri"',
-        'safeSectionHtml("Soru / İçerik Aksiyonları"',
-        'safeSectionHtml("Önerilen Aksiyonlar"',
-        'safeSectionHtml("Data Quality / Eksik Ölçüm"',
+        'tableCaptionHtml("Joker Tipi Özeti"',
+        'tableCaptionHtml("Saat Bazında Oynanma"',
         'reportSections',
         'textLines.join(\'\\n\')',
       ]);
@@ -297,7 +305,7 @@ export const EXTRA_TESTS = [
           actual: { missing, emailForbidden, forbidden },
         });
       }
-      return pass('Callable report entrypoint contains the current full email-body report implementation with no attachment requirement.', {
+      return pass('Callable report entrypoint contains the current exact nine-section email-body report implementation with no attachment requirement.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -425,7 +433,7 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('analytics_report_includes_category_level_question_and_preference_analysis',
-    'Question Analytics email keeps aggregate category/question signals without static inventory sections',
+    'Question Analytics email keeps aggregate category/question/preference tables',
     () => {
       const actualReportBody = reportFunctionSource;
       const missing = missingTokens(actualReportBody, [
@@ -445,28 +453,27 @@ export const EXTRA_TESTS = [
         'avgResponseTimeMs',
         'neverShownActiveCount',
         'neverShownSoloEligibleCount',
-        'buildCategoryFairnessSignals',
-        'CATEGORY_FAIRNESS_SIGNAL_LIMIT',
         'reportSections',
-        'productIntelligenceReport',
+        'nineSectionEmailReport',
         'categoryAnalyticsRowsAnalyzed',
         'aggregatePreferenceSelectionsAnalyzed',
-        'Solo Soru Algoritması İçin Sinyaller',
-        'Doğru Soru Tiplerini Öğrenme / İçerik Kalitesi',
+        'safeSectionHtml("Kategori Bazında Soru Havuzu"',
+        'safeSectionHtml("Kategori Tercihleri"',
+        'safeSectionHtml("Kategori Bazında Gösterim"',
+        'Toplam Soru',
+        'Tercih Eden Kullanıcı',
+        'Gösterim Payı',
         'role="presentation"',
-        'Soru / İçerik Aksiyonları',
-        'Önerilen Aksiyonlar',
-        'emailBodyMode: "full_product_intelligence_email"',
+        'emailBodyMode: "nine_section_email_body"',
         'categoryAnalytics',
       ]);
       const forbidden = forbiddenTokens(actualReportBody, [
         'user_email</',
         'Kategori ve Alt Kategori Dağılımı',
         'Kategori / alt kategori dağılım verisi yok.',
-        'title: "Kategori Bazında Soru Havuzu"',
-        'title: "Kategori Tercihleri"',
-        'title: "Kategori Bazında Gösterim"',
-        'title: "Kategori Denge Sinyalleri"',
+        'title: "Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı"',
+        'title: "Kategori Bazında Yıl Aralığı"',
+        'title: "Kategori İçi Soru Analizi"',
       ]);
       if (missing.length || forbidden.length) {
         return fail('Category-level question/preference analytics are missing or leak user-level preference details.', {
@@ -475,32 +482,37 @@ export const EXTRA_TESTS = [
           actual: { missing, forbidden },
         });
       }
-      return pass('Report uses aggregate category/question signals for product decisions without restoring static inventory sections.', {
+      return pass('Report uses aggregate category/question/preference tables without restoring removed legacy sections.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
 
-  makeCase('product_intelligence_email_sections_exist',
-    'Question Analytics email includes product-intelligence sections and rejects legacy inventory sections',
+  makeCase('nine_section_email_sections_exist',
+    'Question Analytics email includes exactly the required nine sections and rejects legacy/PDF sections',
     () => {
       const actualReportBody = reportFunctionSource;
       const missing = missingTokens(actualReportBody, [
         'reportSections',
-        'Yönetici Özeti',
-        'Genel Kullanım Özeti',
-        'Solo Soru Algoritması İçin Sinyaller',
-        'Doğru Soru Tiplerini Öğrenme / İçerik Kalitesi',
+        'Executive Summary',
+        'Kategori Bazında Soru Havuzu',
+        'Kategori Tercihleri',
+        'Kategori Bazında Gösterim',
+        'En Çok Gösterilen Sorular',
+        'Az ya da Hiç Gösterilmeyen Sorular',
+        'En Çok Yanlış Yapılan Sorular',
         'Joker Kullanımı Analizi',
         'Oynanma Zamanı ve Kullanım Ritmi',
-        'Daha Uzun Oynama / Retention Sinyalleri',
-        'Soru / İçerik Aksiyonları',
-        'Önerilen Aksiyonlar',
-        'Data Quality / Eksik Ölçüm',
-        'questionTypeSignalCount',
+        'Joker Tipi Özeti',
+        'Joker Kullanımı - Kategori / Zorluk Kırılımı',
+        'Joker Stok / Ekonomi Sinyali',
+        'Saat Bazında Oynanma',
+        'Gün Bazında Oynanma',
+        'Aktivite Sinyali',
         'jokerLedgerRowsAnalyzed',
-        'peakPlayHourCount',
-        'missingInstrumentation',
-        'bodyContainsProductIntelligenceSections',
+        'userJokerInventoryRowsAnalyzed',
+        'peakPlayHour',
+        'bodyContainsExactlyRequiredSections',
+        'renderedSectionHeaderCount',
         'reportDeliveryMode: "email_body_only"',
       ]);
       const forbidden = forbiddenTokens(actualReportBody, [
@@ -509,19 +521,23 @@ export const EXTRA_TESTS = [
         'QuestionAttemptEvent tablosunda veri yok.',
         'Kategori ve Alt Kategori Dağılımı',
         'Kategori / alt kategori dağılım verisi yok.',
-        'title: "Kategori Bazında Soru Havuzu"',
         'title: "Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı"',
         'title: "Kategori Bazında Yıl Aralığı"',
         'title: "Kategori İçi Soru Analizi"',
+        'safeSectionHtml("Solo Soru Algoritması İçin Sinyaller"',
+        'safeSectionHtml("Doğru Soru Tiplerini Öğrenme',
+        'safeSectionHtml("Daha Uzun Oynama',
+        'safeSectionHtml("Önerilen Aksiyonlar"',
+        'safeSectionHtml("Data Quality / Eksik Ölçüm"',
       ]);
       if (missing.length || forbidden.length) {
-        return fail('Product intelligence email may be missing useful decision sections or may have restored legacy inventory sections.', {
+        return fail('Nine-section email may be missing required sections/tables or may have restored legacy/PDF sections.', {
           verification: 'STATIC_CONTRACT',
           files: ['base44/functions/sendQuestionAnalyticsReportEmail/entry.ts'],
           actual: { missing, forbidden },
         });
       }
-      return pass('Email builder contains product-intelligence sections for algorithm, content quality, jokers, timing, retention, actions, and missing data.', {
+      return pass('Email builder contains exactly the required nine-section structure with table-based Joker and play-rhythm sections.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -555,29 +571,35 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('email_report_is_full_body_without_attachment_notice',
-    'Question Analytics email contains the full product report and no attachment notice',
+    'Question Analytics email contains the exact nine-section body and no attachment notice',
     () => {
       const src = reportFunctionSource;
       const orderedPairs = [
-        ['safeSectionHtml("Yönetici Özeti"', 'safeSectionHtml("Genel Kullanım Özeti"'],
-        ['safeSectionHtml("Genel Kullanım Özeti"', 'safeSectionHtml("Solo Soru Algoritması İçin Sinyaller"'],
-        ['safeSectionHtml("Solo Soru Algoritması İçin Sinyaller"', 'safeSectionHtml("Doğru Soru Tiplerini Öğrenme / İçerik Kalitesi"'],
+        ['safeSectionHtml("Executive Summary"', 'safeSectionHtml("Kategori Bazında Soru Havuzu"'],
+        ['safeSectionHtml("Kategori Bazında Soru Havuzu"', 'safeSectionHtml("Kategori Tercihleri"'],
+        ['safeSectionHtml("Kategori Tercihleri"', 'safeSectionHtml("Kategori Bazında Gösterim"'],
+        ['safeSectionHtml("Kategori Bazında Gösterim"', 'safeSectionHtml("En Çok Gösterilen Sorular"'],
+        ['safeSectionHtml("En Çok Gösterilen Sorular"', 'safeSectionHtml("Az ya da Hiç Gösterilmeyen Sorular"'],
+        ['safeSectionHtml("Az ya da Hiç Gösterilmeyen Sorular"', 'safeSectionHtml("En Çok Yanlış Yapılan Sorular"'],
+        ['safeSectionHtml("En Çok Yanlış Yapılan Sorular"', 'safeSectionHtml("Joker Kullanımı Analizi"'],
+        ['safeSectionHtml("Joker Kullanımı Analizi"', 'safeSectionHtml("Oynanma Zamanı ve Kullanım Ritmi"'],
       ];
       const missing = missingTokens(src, [
-        'emailBodyMode: "full_product_intelligence_email"',
+        'emailBodyMode: "nine_section_email_body"',
         'reportDeliveryMode: "email_body_only"',
-        'bodyContainsProductIntelligenceSections',
+        'bodyContainsNineRequiredSections',
+        'bodyContainsExactlyRequiredSections',
+        'requiredSectionOrderValid',
         'missingBodySections',
-        'Yönetici Özeti',
-        'Genel Kullanım Özeti',
-        'Solo Soru Algoritması İçin Sinyaller',
-        'Doğru Soru Tiplerini Öğrenme / İçerik Kalitesi',
+        'Executive Summary',
+        'Kategori Bazında Soru Havuzu',
+        'Kategori Tercihleri',
+        'Kategori Bazında Gösterim',
+        'En Çok Gösterilen Sorular',
+        'Az ya da Hiç Gösterilmeyen Sorular',
+        'En Çok Yanlış Yapılan Sorular',
         'Joker Kullanımı Analizi',
         'Oynanma Zamanı ve Kullanım Ritmi',
-        'Daha Uzun Oynama / Retention Sinyalleri',
-        'Soru / İçerik Aksiyonları',
-        'Önerilen Aksiyonlar',
-        'Data Quality / Eksik Ölçüm',
       ]);
       const orderFailures = orderedPairs.filter(([first, second]) => {
         const firstIndex = src.indexOf(first);
@@ -595,13 +617,13 @@ export const EXTRA_TESTS = [
         'buildQuestionAnalyticsPdfAttachment',
       ]);
       if (missing.length || orderFailures.length || renderedForbidden.length || attachmentForbidden.length) {
-        return fail('Email report may still be blank/summary-only, may include attachment copy, or may restore removed sections.', {
+        return fail('Email report may still be blank/summary-only, out of order, include attachment copy, or restore removed sections.', {
           verification: 'STATIC_CONTRACT',
           file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
           actual: { missing, orderFailures, renderedForbidden, attachmentForbidden },
         });
       }
-      return pass('Email body contains the full product-intelligence report and has no attachment notice or payload.', {
+      return pass('Email body contains the exact nine-section report and has no attachment notice or payload.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -619,26 +641,29 @@ export const EXTRA_TESTS = [
         '<h2',
         '<p',
         'sectionHtml',
+        'summaryCardGrid',
         'const emailHtml = report.html',
         'body: emailHtml',
         'html: emailHtml',
         'const emailText = report.text',
         'text: emailText',
         "textLines.join('\\n')",
-        '--- Yönetici Özeti ---',
-        '--- Genel Kullanım Özeti ---',
-        '--- Solo Soru Algoritması İçin Sinyaller ---',
-        '--- Doğru Soru Tiplerini Öğrenme / İçerik Kalitesi ---',
+        '--- Executive Summary ---',
+        '--- Kategori Bazında Soru Havuzu ---',
+        '--- Kategori Tercihleri ---',
+        '--- Kategori Bazında Gösterim ---',
+        '--- En Çok Gösterilen Sorular ---',
+        '--- Az ya da Hiç Gösterilmeyen Sorular ---',
+        '--- En Çok Yanlış Yapılan Sorular ---',
         '--- Joker Kullanımı Analizi ---',
         '--- Oynanma Zamanı ve Kullanım Ritmi ---',
-        '--- Daha Uzun Oynama / Retention Sinyalleri ---',
-        '--- Soru / İçerik Aksiyonları ---',
-        '--- Önerilen Aksiyonlar ---',
-        '--- Data Quality / Eksik Ölçüm ---',
-        'questionTypeSignalCount',
+        'Toplam Gösterim',
+        'Kategori ID',
+        'Question ID',
+        'Joker Tipi Özeti',
+        'Saat Bazında Oynanma',
         'jokerLedgerRowsAnalyzed',
-        'missingInstrumentation',
-        'Joker analytics data insufficient',
+        'userJokerInventoryRowsAnalyzed',
         'Yeterli veri yok',
       ]);
       const forbidden = forbiddenTokens(reportFunctionSource, [
@@ -659,7 +684,7 @@ export const EXTRA_TESTS = [
           actual: { missing, forbidden },
         });
       }
-      return pass('Report email is HTML-first, bounded, and includes the full product-intelligence sections plus text fallback.', {
+      return pass('Report email is HTML-first, bounded, and includes the exact nine sections plus text fallback.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -798,13 +823,9 @@ export const EXTRA_TESTS = [
         'deleted_or_missing_question',
         'staleQuestionIds',
         'STALE_REFERENCE_SAMPLE_LIMIT',
-        'Bazı eski analiz kayıtları artık mevcut olmayan sorulara referans verdiği için rapora dahil edilmedi',
-        'Deleted / missing question events ignored',
         'staleQuestionReferenceEvents',
         'staleQuestionReferenceHandling',
         'ignored_with_diagnostic_count',
-        'shownEvents === 0',
-        'Bu dönem için yeterli oynanış verisi yok',
         'Unknown / unmapped',
         'getCategoryId(question)',
         'question?.category',
@@ -814,17 +835,14 @@ export const EXTRA_TESTS = [
         'htmlSections',
         'QUESTION_TABLE_LIMIT',
         'CATEGORY_ANALYTICS_ROW_LIMIT',
-        'CATEGORY_FAIRNESS_SIGNAL_LIMIT',
         'categoryAnalyticsForReport',
-        'productIntelligenceReport',
-        'staticInventorySectionsRemoved',
-        'Data Quality / Eksik Ölçüm',
-        'missingInstrumentationRows',
-        'questionTypeRows',
-        'topMapEntries',
+        'nineSectionEmailReport',
+        'legacyStaticInventorySectionsRemoved',
+        'bodyContainsExactlyRequiredSections',
+        'Az ya da Hiç Gösterilmeyen Sorular',
+        'Yeterli veri yok',
         'filterRowsSince',
         'QUESTION_TABLE_LIMIT = 15',
-        'CATEGORY_QUESTION_SAMPLE_LIMIT',
         'slice(0, QUESTION_TABLE_LIMIT)',
         'slice(0, CATEGORY_ANALYTICS_ROW_LIMIT)',
       ]);

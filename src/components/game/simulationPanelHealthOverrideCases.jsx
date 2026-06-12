@@ -1114,15 +1114,15 @@ export const EXTRA_TESTS = [
    *  build and the real email report was missing the new static section.
    *
    *  New contract: the callable report function INLINES a DB-backed AdminUser
-   *  authorization guard (no local import) AND keeps the product-intel-email-v3
-   *  template + full email-body diagnostics, with no attachment dependency.
+   *  authorization guard (no local import) AND keeps the nine-section-email-v1
+   *  template + exact nine-section email-body diagnostics, with no attachment dependency.
    *  We explicitly FORBID any local `_shared/adminAuth`
    *  import in the callable report path so the broken pattern cannot return.
    * ================================================================= */
   makeCase(
     'question_analytics_health', 'Question Analytics Health Suite',
     'manual_admin_email_report_deployed_root_entrypoint',
-    'Callable report entrypoint deploys cleanly (inline AdminUser guard, no local import) and keeps the full email-body contract',
+    'Callable report entrypoint deploys cleanly (inline AdminUser guard, no local import) and keeps the exact nine-section email-body contract',
     () => {
       const src = safeStr(deployedRootReportFunctionSource);
       const required = [
@@ -1135,29 +1135,33 @@ export const EXTRA_TESTS = [
         'Admin access required',
         'requireAdmin(base44)',
         'if (admin.response) return admin.response',
-        // Report template + body markers.
+        // Report template + exact body markers.
         'Question.list',
-        'REPORT_TEMPLATE_VERSION = "product-intel-email-v3"',
+        'REPORT_TEMPLATE_VERSION = "nine-section-email-v1"',
         'bodyContainsExecutiveSummary',
-        'bodyContainsProductIntelligenceSections',
+        'bodyContainsNineRequiredSections',
+        'bodyContainsExactlyRequiredSections',
+        'requiredSectionOrderValid',
+        'renderedSectionHeaderCount',
         'bodyRemovedSectionsPresent',
         'report_body_validation_failed',
-        'emailBodyMode: "full_product_intelligence_email"',
+        'emailBodyMode: "nine_section_email_body"',
         'reportDeliveryMode: "email_body_only"',
         'missingBodySections',
         'bodyLength',
         'body: emailHtml',
         'html: emailHtml',
-        'safeSectionHtml("Yönetici Özeti"',
-        'safeSectionHtml("Genel Kullanım Özeti"',
-        'safeSectionHtml("Solo Soru Algoritması İçin Sinyaller"',
-        'safeSectionHtml("Doğru Soru Tiplerini Öğrenme / İçerik Kalitesi"',
+        'safeSectionHtml("Executive Summary"',
+        'safeSectionHtml("Kategori Bazında Soru Havuzu"',
+        'safeSectionHtml("Kategori Tercihleri"',
+        'safeSectionHtml("Kategori Bazında Gösterim"',
+        'safeSectionHtml("En Çok Gösterilen Sorular"',
+        'safeSectionHtml("Az ya da Hiç Gösterilmeyen Sorular"',
+        'safeSectionHtml("En Çok Yanlış Yapılan Sorular"',
         'safeSectionHtml("Joker Kullanımı Analizi"',
         'safeSectionHtml("Oynanma Zamanı ve Kullanım Ritmi"',
-        'safeSectionHtml("Daha Uzun Oynama / Retention Sinyalleri"',
-        'safeSectionHtml("Soru / İçerik Aksiyonları"',
-        'safeSectionHtml("Önerilen Aksiyonlar"',
-        'safeSectionHtml("Data Quality / Eksik Ölçüm"',
+        'tableCaptionHtml("Joker Tipi Özeti"',
+        'tableCaptionHtml("Saat Bazında Oynanma"',
       ];
       // The broken import pattern that caused the stale-deploy incident must
       // never come back in the executed report path.
@@ -1175,24 +1179,32 @@ export const EXTRA_TESTS = [
         'application/pdf',
         'pdfGenerated',
         'attachmentCount',
+        'emailBodyMode: "full_product_intelligence_email"',
+        'bodyContainsProductIntelligenceSections',
+        'safeSectionHtml("Solo Soru Algoritması İçin Sinyaller"',
+        'safeSectionHtml("Doğru Soru Tiplerini Öğrenme',
+        'safeSectionHtml("Daha Uzun Oynama',
+        'safeSectionHtml("Önerilen Aksiyonlar"',
+        'safeSectionHtml("Data Quality / Eksik Ölçüm"',
       ];
       const missing = required.filter((t) => !src.includes(t));
       const found = forbidden.filter((t) => src.includes(t));
-      // Full email must start with the executive summary and continue into usage.
-      const summaryIdx = src.indexOf('safeSectionHtml("Yönetici Özeti"');
-      const usageIdx = src.indexOf('safeSectionHtml("Genel Kullanım Özeti"');
-      const orderOk = summaryIdx >= 0 && usageIdx > summaryIdx;
+      const firstIdx = src.indexOf('safeSectionHtml("Executive Summary"');
+      const secondIdx = src.indexOf('safeSectionHtml("Kategori Bazında Soru Havuzu"');
+      const ninthIdx = src.indexOf('safeSectionHtml("Oynanma Zamanı ve Kullanım Ritmi"');
+      const jokerIdx = src.indexOf('safeSectionHtml("Joker Kullanımı Analizi"');
+      const orderOk = firstIdx >= 0 && secondIdx > firstIdx && ninthIdx > jokerIdx;
       if (missing.length || found.length || !orderOk) {
-        return fail('Callable report entrypoint can regress to a non-deployable local import, lose the full email body, or restore the attachment contract.', {
+        return fail('Callable report entrypoint can regress to a non-deployable local import, lose the exact nine-section body, or restore the attachment contract.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
-          expected: 'inline AdminUser guard (no local import) + product-intel-email-v3 template + full email-body diagnostics',
+          expected: 'inline AdminUser guard (no local import) + nine-section-email-v1 template + exact nine-section email-body diagnostics',
           actual: { missing, foundForbidden: found, orderOk },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Callable report entrypoint inlines the AdminUser guard, has no local import, and keeps the full email-body report contract.', {
+      return pass('Callable report entrypoint inlines the AdminUser guard, has no local import, and keeps the exact nine-section email-body report contract.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',

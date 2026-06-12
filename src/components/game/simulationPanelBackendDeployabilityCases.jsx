@@ -208,27 +208,32 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('deployed_report_keeps_full_email_report_markers',
-    'Deployed analytics report function keeps full email-body markers and diagnostics',
+    'Deployed analytics report function keeps exact nine-section email-body markers and diagnostics',
     () => {
       const required = [
-        'REPORT_TEMPLATE_VERSION = "product-intel-email-v3"',
+        'REPORT_TEMPLATE_VERSION = "nine-section-email-v1"',
         'bodyContainsExecutiveSummary',
-        'bodyContainsProductIntelligenceSections',
+        'bodyContainsNineRequiredSections',
+        'bodyContainsExactlyRequiredSections',
+        'requiredSectionOrderValid',
+        'renderedSectionHeaderCount',
         'bodyRemovedSectionsPresent',
         'report_body_validation_failed',
-        'emailBodyMode: "full_product_intelligence_email"',
+        'emailBodyMode: "nine_section_email_body"',
         'reportDeliveryMode: "email_body_only"',
         'missingBodySections',
         'bodyLength',
-        'Genel Kullanım Özeti',
-        'Solo Soru Algoritması İçin Sinyaller',
-        'Doğru Soru Tiplerini Öğrenme / İçerik Kalitesi',
+        'Executive Summary',
+        'Kategori Bazında Soru Havuzu',
+        'Kategori Tercihleri',
+        'Kategori Bazında Gösterim',
+        'En Çok Gösterilen Sorular',
+        'Az ya da Hiç Gösterilmeyen Sorular',
+        'En Çok Yanlış Yapılan Sorular',
         'Joker Kullanımı Analizi',
         'Oynanma Zamanı ve Kullanım Ritmi',
-        'Daha Uzun Oynama / Retention Sinyalleri',
-        'Soru / İçerik Aksiyonları',
-        'Önerilen Aksiyonlar',
-        'Data Quality / Eksik Ölçüm',
+        'Joker Tipi Özeti',
+        'Saat Bazında Oynanma',
         'body: emailHtml',
         'html: emailHtml',
       ];
@@ -243,20 +248,28 @@ export const EXTRA_TESTS = [
         'application/pdf',
         'pdfGenerated',
         'attachmentCount',
+        'emailBodyMode: "full_product_intelligence_email"',
+        'bodyContainsProductIntelligenceSections',
+        'safeSectionHtml("Solo Soru Algoritması İçin Sinyaller"',
+        'safeSectionHtml("Doğru Soru Tiplerini Öğrenme',
+        'safeSectionHtml("Daha Uzun Oynama',
+        'safeSectionHtml("Önerilen Aksiyonlar"',
+        'safeSectionHtml("Data Quality / Eksik Ölçüm"',
       ]);
-      const emailOrderOk = text(deployedReportSource).indexOf('safeSectionHtml("Yönetici Özeti"') >= 0
-        && text(deployedReportSource).indexOf('safeSectionHtml("Genel Kullanım Özeti"') > text(deployedReportSource).indexOf('safeSectionHtml("Yönetici Özeti"');
+      const emailOrderOk = text(deployedReportSource).indexOf('safeSectionHtml("Executive Summary"') >= 0
+        && text(deployedReportSource).indexOf('safeSectionHtml("Kategori Bazında Soru Havuzu"') > text(deployedReportSource).indexOf('safeSectionHtml("Executive Summary"')
+        && text(deployedReportSource).indexOf('safeSectionHtml("Oynanma Zamanı ve Kullanım Ritmi"') > text(deployedReportSource).indexOf('safeSectionHtml("Joker Kullanımı Analizi"');
       if (missing.length || forbidden.length || !emailOrderOk) {
-        return fail('Deployed report function lost the full email-body template markers or restored the attachment contract.', {
+        return fail('Deployed report function lost the exact nine-section email-body markers or restored the attachment/old section contract.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
-          expected: 'product-intel-email-v3 markers + full report sections + no attachment payload',
+          expected: 'nine-section-email-v1 markers + exact nine report sections + no attachment payload',
           actual: { missing, forbidden, emailOrderOk },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Deployed report function keeps full email-body markers, body diagnostics, and no attachment requirement.', {
+      return pass('Deployed report function keeps exact nine-section email-body markers, body diagnostics, and no attachment requirement.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
@@ -490,11 +503,11 @@ export const EXTRA_TESTS = [
   makeCase('npm_build_is_not_backend_deploy_proof',
     'Backend deploy proof is manual: npm run build only validates the Vite frontend',
     () => notAutomatable(
-      'npm run build validates only the Vite frontend bundle and does NOT prove Base44 backend functions deployed. Real backend deploy proof requires triggering the function and reading its live response/markers (e.g. sendQuestionAnalyticsReportEmail must return templateVersion: product-intel-email-v3, emailBodyMode: full_product_intelligence_email, reportDeliveryMode: email_body_only, bodyContainsProductIntelligenceSections true, and bodyLength > 1000). Do this manually in a safe/admin context before release.',
+      'npm run build validates only the Vite frontend bundle and does NOT prove Base44 backend functions deployed. Real backend deploy proof requires triggering the function and reading its live response/markers (e.g. sendQuestionAnalyticsReportEmail must return templateVersion: nine-section-email-v1, emailBodyMode: nine_section_email_body, reportDeliveryMode: email_body_only, bodyContainsExactlyRequiredSections true, requiredSectionOrderValid true, renderedSectionHeaderCount 9, and bodyLength > 1000). Do this manually in a safe/admin context before release.',
       {
         verification: 'BACKEND_RUNTIME_PROBE',
         actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE,
-        nextStep: 'As admin, trigger sendQuestionAnalyticsReportEmail and confirm templateVersion=product-intel-email-v3, emailBodyMode=full_product_intelligence_email, reportDeliveryMode=email_body_only, required sections are present, removed sections are absent, and the received email body is useful without an attachment.',
+        nextStep: 'As admin, trigger sendQuestionAnalyticsReportEmail and confirm templateVersion=nine-section-email-v1, emailBodyMode=nine_section_email_body, reportDeliveryMode=email_body_only, exactly nine required sections are present in order, removed sections are absent, Joker/time sections have tables, and the received email body is useful without an attachment.',
       },
     ),
     { critical: true, actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),

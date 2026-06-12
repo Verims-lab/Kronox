@@ -135,15 +135,14 @@ longer stored on the entity — they are derived at fetch time by
 - Admin question analytics reports label all-active question pool,
   Solo-eligible pool, runtime projection diagnostics, unique shown questions,
   and never-shown counts separately when those metrics are available.
-- Admin question analytics email sends the full product-intel-email-v3 report in
-  the email body. The active report includes product-intelligence sections for
-  Solo algorithm signals, question-type/content quality, joker usage, play-time
-  rhythm, longer-session/retention signals, recommended actions, and missing
-  instrumentation. Preference counts are aggregate only and do not expose user
-  IDs or emails.
-- Static inventory-style category pool sections are intentionally excluded from
-  generated email output. Current Question/Category data may still inform
-  aggregate product signals, but the old category pool appendix must not return.
+- Admin question analytics email sends the full nine-section-email-v1 report in
+  the email body. The active report includes exactly Executive Summary, category
+  pool/preference/exposure tables, top/underused/wrong question tables, Joker
+  Kullanımı Analizi, and Oynanma Zamanı ve Kullanım Ritmi. Preference counts are
+  aggregate only and do not expose user IDs or emails.
+- Joker/time sections must be table-based and use structured Yeterli veri yok
+  rows when exact fields are missing. The removed legacy category appendices
+  must not return under their old headings.
 - Removed legacy report sections must not appear in generated email
   output: Rapor Şablonu, Rapor Bölümleri, Sistemdeki Soru Havuzu: Kategori /
   Zorluk Dağılımı, Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı, Kategori
