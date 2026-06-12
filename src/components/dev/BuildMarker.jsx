@@ -1018,8 +1018,8 @@ import React, { useEffect, useState } from 'react';
 //
 // Codex259 — Manual question analytics reset + report output:
 //   • Removes the broken interactive reset function path from Settings and
-//     documents manual DB reset for QuestionAttemptEvent,
-//     QuestionStatsProjection, and CategoryStatsProjection only.
+//     documents manual DB reset for QuestionAttemptEvent plus any projection
+//     rows that exist at reset time.
 //   • Keeps the actual sent report body on the category pool, preference,
 //     exposure, within-category, and fairness-signal sections with stale-row
 //     and empty-state guards.
@@ -1732,13 +1732,19 @@ import React, { useEffect, useState } from 'react';
 //     avoidance, no global exposure balancing, and no hard low-correct cooldown.
 //
 // Codex322 — Question analytics reset scope audit:
-//   • Admin reset copy clarifies that only QuestionAttemptEvent,
-//     QuestionStatsProjection, and CategoryStatsProjection are cleared.
-//   • Docs/Health now state Joker/economy ledgers and current content/user data
-//     are not question analytics reset tables.
+//   • Admin reset copy moved reset guidance into Admin Ekranı and kept
+//     Joker/economy ledgers plus current content/user data outside reset scope.
 //   • sendQuestionAnalyticsReportEmail now uses the exact getQuestions
 //     diagnostics wording for Runtime Projection while preserving 9 sections.
-const BUILD_MARKER = 'Codex322';
+//
+// Codex323 — Question analytics projection table audit:
+//   • Admin reset copy clarifies QuestionAttemptEvent is the active report
+//     source and the 9-section report computes history from raw events.
+//   • QuestionStatsProjection and CategoryStatsProjection are documented as
+//     optional manual aggregateQuestionStats outputs that may be empty.
+//   • Health/docs now require clearing projection rows only if populated and
+//     keep content/user/economy tables outside question analytics reset.
+const BUILD_MARKER = 'Codex323';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -663,7 +663,7 @@ Security contract:
   `emailBodyMode: nine_section_email_body`, `reportDeliveryMode:
   email_body_only`, `bodyContainsExactlyRequiredSections: true`,
   `requiredSectionOrderValid: true`, `renderedSectionHeaderCount: 9`,
-  `reportBuildMarker: Codex320`, and that the received email body is readable,
+  `reportBuildMarker: Codex323`, and that the received email body is readable,
   non-empty, and does not mention a PDF attachment. Runtime Projection is a
   diagnostic/admin proof concept and must not be faked in email output; top-shown
   concentration notes must be compared with the Solo-eligible pool before any
@@ -683,8 +683,11 @@ Security contract:
 * function-based question analytics reset is currently not used because the
   callable reset path was not reliable in the current Base44 setup
 * after a question pool replacement, question analytics reset is a manual DB
-  maintenance operation: clear only `QuestionAttemptEvent`,
-  `QuestionStatsProjection`, and `CategoryStatsProjection`
+  maintenance operation: clear `QuestionAttemptEvent` and, if populated, the
+  optional manual `aggregateQuestionStats` projection tables
+  `QuestionStatsProjection` and `CategoryStatsProjection`. These projection
+  tables may be empty because the active 9-section report computes history from
+  raw `QuestionAttemptEvent` rows.
 * manual question analytics reset must not delete questions, categories,
   subcategories, category preferences, user stats, score/progress/economy rows,
   leaderboard rows, Daily Wheel rows, gameplay records, users, or `AdminUser`

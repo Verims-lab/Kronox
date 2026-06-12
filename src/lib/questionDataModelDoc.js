@@ -156,8 +156,11 @@ longer stored on the entity — they are derived at fetch time by
 - Long event-based detail sections are row-limited in the email body and must not
   become raw DB dumps.
 - After a question pool replacement, analytics reset is manual_db_reset_only:
-  clear QuestionAttemptEvent, QuestionStatsProjection, and
-  CategoryStatsProjection only by DB maintenance. Do not delete Question,
+  clear QuestionAttemptEvent and, if populated, optional manual
+  QuestionStatsProjection and CategoryStatsProjection aggregate rows by DB
+  maintenance. The active 9-section report computes history from raw
+  QuestionAttemptEvent rows, so empty projection tables are expected until the
+  manual refresh runs. Do not delete Question,
   Category, SubCategory, UserCategoryPreference, UserStatsProjection, scores,
   diamonds, progress, users, AdminUser, Daily Wheel, gameplay, or leaderboard
   rows.

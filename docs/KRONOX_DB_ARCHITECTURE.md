@@ -674,8 +674,8 @@ retention approval.
 | `cancelStaleLobbies` | Every 10-30 min | `Lobby` | `waiting` or `starting` inactive past TTL -> `cancelled`, set `cancelled_at`. | Lobby id + status. | Never cancel `in_game` or `finished`. | Requires scheduler. |
 | `expirePushSubscriptions` | Daily plus push-error immediate | `PushSubscription` | 404/410 or old disabled rows -> `expired`; archive after retention. | Endpoint + status. | Keep in-app invite unaffected. | Immediate marking exists in push; recurring archive needed. |
 | `refreshLeaderboardProjection` | On score write plus hourly/daily reconciliation | `User`, projection | Recompute unified score rows, dedupe owner keys. | Owner key. | Keep old row if recompute fails; log. | Partially exists via score writers and leaderboard function. |
-| `aggregateQuestionStats` | Hourly/daily | events, projections | Roll up shown/correct/wrong/time/difficulty signals. | Date window + projection key. | Re-run same window safely. | New. |
-| Manual DB question analytics reset | Manual DB maintenance | `QuestionAttemptEvent`, `QuestionStatsProjection`, `CategoryStatsProjection` | Reset question/show/answer/play-time analytics after replacing the question pool. | Admin console/operator proof. | Clears question analytics history/projections only; never deletes questions, categories, preferences, progress, economy, users, admin rows, Daily Wheel, gameplay, or leaderboard data. The 9-section report also reads ledger/current-state tables for Joker/economy signals, so `JokerTransaction`, `DiamondTransaction`, `UserJokerInventory`, and Daily Wheel ledger rows are explicitly outside this reset. | Manual only; function reset path is not used. |
+| `aggregateQuestionStats` | Manual/on-demand admin refresh; no scheduler is currently proven | events, projections | Roll up shown/correct/wrong/time/difficulty signals from `QuestionAttemptEvent` into optional projection rows. | Date window + projection key. | Re-run same window safely. | Exists, admin-only, defaults to dry-run; empty projection tables are normal until a non-dry-run refresh writes them. |
+| Manual DB question analytics reset | Manual DB maintenance | `QuestionAttemptEvent`, and `QuestionStatsProjection`/`CategoryStatsProjection` if populated | Reset question/show/answer/play-time history after replacing the question pool. | Admin console/operator proof. | Current 9-section report computes history from `QuestionAttemptEvent`; projection tables are manual/optional summaries and may be empty. Clears question analytics history/projections only; never deletes questions, categories, preferences, progress, economy, users, admin rows, Daily Wheel, gameplay, or leaderboard data. The 9-section report also reads ledger/current-state tables for Joker/economy signals, so `JokerTransaction`, `DiamondTransaction`, `UserJokerInventory`, and Daily Wheel ledger rows are explicitly outside this reset. | Manual only; function reset path is not used. |
 | `cleanupAdminMaintenanceLog` | Monthly/quarterly | `AdminMaintenanceLog` | Archive/trim older than retention. | Log id/date. | Never delete recent logs. | New. |
 | `archiveOldLobbyMessages` | Monthly | `LobbyMessage` | Archive/delete chat rows after policy. | Lobby id + date. | Skip active lobbies. | New, only if chat used. |
 
@@ -844,6 +844,10 @@ No deletion should happen in this task.
   updates it to count `shown`/`replacement_shown`, `answered`, and
   `swapped_out` events separately. Projection refresh skips analytics events
   whose `question_id` no longer exists in the current `Question` pool.
+  This job is an admin/manual projection refresh path, defaults to dry-run
+  unless called with `dryRun: false`, and is not run synchronously during
+  gameplay or report generation. Empty `QuestionStatsProjection` and
+  `CategoryStatsProjection` tables are expected until that refresh is run.
 - Manual admin email report. Codex197 adds `sendQuestionAnalyticsReportEmail`
   for admin-triggered, question-focused reports. Codex322 sends the full
   `nine-section-email-v1` report inside the email body and intentionally
@@ -891,13 +895,18 @@ No deletion should happen in this task.
   nine_section_email_body`, `reportDeliveryMode: email_body_only`,
   `bodyContainsExactlyRequiredSections: true`, `requiredSectionOrderValid: true`,
   `renderedSectionHeaderCount: 9`, `bodyLength > 1000`, and
-  `reportBuildMarker: Codex322`.
+  `reportBuildMarker: Codex323`.
   Frontend `npm run build` still does not prove Base44 function redeployment or
   live SendEmail delivery.
 - Manual DB reset path after question pool replacement. The function-based
-  reset path is currently not used. To restart analytics from zero, manually
-  clear only `QuestionAttemptEvent`, `QuestionStatsProjection`, and
-  `CategoryStatsProjection`. Do not delete `Question`, `Category`,
+  reset path is currently not used. The active source for question
+  show/answer/time history is `QuestionAttemptEvent`; the current 9-section
+  email report calculates those historical sections from raw events, not from
+  projection tables. `QuestionStatsProjection` and `CategoryStatsProjection`
+  are optional manual `aggregateQuestionStats` outputs and may be empty. To
+  restart analytics from zero, manually clear `QuestionAttemptEvent` and, if
+  populated, `QuestionStatsProjection` and `CategoryStatsProjection`. Do not
+  delete `Question`, `Category`,
   `SubCategory`, `UserCategoryPreference`, `UserSubCategoryPreference`,
   `UserStatsProjection`, Solo progress, `GameRecord`, `OnlineMatchResult`,
   `Lobby`, leaderboard rows, score/Kronox Puan rows, `DiamondTransaction`,
