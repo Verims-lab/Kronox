@@ -842,14 +842,15 @@ No deletion should happen in this task.
   `swapped_out` events separately. Projection refresh skips analytics events
   whose `question_id` no longer exists in the current `Question` pool.
 - Manual admin email report. Codex197 adds `sendQuestionAnalyticsReportEmail`
-  for admin-triggered, question-focused reports. Codex318 sends the full useful
-  `product-intel-email-v3` product-intelligence report inside the email body and
-  intentionally disables the PDF attachment flow for now. The report skips
-  stale/deleted question references with a diagnostic count and caps content for
-  readability. It includes Solo algorithm signals, question-type/content
-  quality, joker usage, play-time rhythm, longer-session/retention signals,
-  content actions, recommended actions, and missing instrumentation. Category
-  preference counts are aggregate only and do not expose user IDs or emails. The
+  for admin-triggered, question-focused reports. Codex319 sends the full
+  `nine-section-email-v1` report inside the email body and intentionally
+  disables the PDF attachment flow for now. The report skips stale/deleted
+  question references with a diagnostic count and caps content for readability.
+  It contains exactly: `Executive Summary`, `Kategori Bazında Soru Havuzu`,
+  `Kategori Tercihleri`, `Kategori Bazında Gösterim`, `En Çok Gösterilen
+  Sorular`, `Az ya da Hiç Gösterilmeyen Sorular`, `En Çok Yanlış Yapılan
+  Sorular`, `Joker Kullanımı Analizi`, and `Oynanma Zamanı ve Kullanım Ritmi`.
+  Category preference counts are aggregate only and do not expose user IDs or emails. The
   function is registered at
   `base44/functions/sendQuestionAnalyticsReportEmail/entry.ts` with
   `base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc`.
@@ -863,22 +864,23 @@ No deletion should happen in this task.
   and hardcoded owner addresses are not used as recipients. The function and
   Admin Ekranı UI return safe `requestedBy`, `recipientEmail`, template,
   full-body, body-section, and email dispatch diagnostics including
-  `bodyContainsProductIntelligenceSections`, `bodyLength`, and
+  `bodyContainsExactlyRequiredSections`, `requiredSectionOrderValid`,
+  `renderedSectionHeaderCount`, `bodyLength`, and
   `bodyRemovedSectionsPresent`, while real inbox delivery and body readability
   remain manual provider proof.
-- Product signal reporting. Category/question data may still be used in aggregate
-  to explain Solo algorithm exposure, question-type quality, and content gaps,
-  but static inventory-style sections are intentionally excluded from generated
-  email output.
+- Report table contract. Joker and play-rhythm sections are table-based. Missing
+  joker outcome, session, timezone, or completion fields must be shown as
+  `Yeterli veri yok` or equivalent structured rows instead of invented metrics.
 - Removed report sections. Generated email output must not include:
   `Rapor Şablonu`, `Rapor Bölümleri`,
   `Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı`,
   `Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı`,
   `Kategori Bazında Yıl Aralığı`, or `Kategori İçi Soru Analizi`. The live
   deploy marker is now the function response diagnostics:
-  `templateVersion: product-intel-email-v3`, `emailBodyMode:
-  full_product_intelligence_email`, `reportDeliveryMode: email_body_only`,
-  `bodyContainsProductIntelligenceSections: true`, and `bodyLength > 1000`.
+  `templateVersion: nine-section-email-v1`, `emailBodyMode:
+  nine_section_email_body`, `reportDeliveryMode: email_body_only`,
+  `bodyContainsExactlyRequiredSections: true`, `requiredSectionOrderValid: true`,
+  `renderedSectionHeaderCount: 9`, and `bodyLength > 1000`.
   Frontend `npm run build` still does not prove Base44 function redeployment or
   live SendEmail delivery.
 - Manual DB reset path after question pool replacement. The function-based

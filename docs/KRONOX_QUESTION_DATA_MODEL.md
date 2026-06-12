@@ -142,13 +142,15 @@ Rules:
   Solo-eligible pool, runtime projection diagnostics, unique shown questions,
   and never-shown counts separately when those metrics are available
 * admin question analytics email currently sends the full
-  `product-intel-email-v3` product-intelligence report inside the email body;
-  PDF attachment delivery is intentionally disabled for now. Preference counts
-  must stay aggregate-only and must not expose user IDs or emails
-* generated reports intentionally exclude static inventory-style category pool
-  sections. Current `Question`, `Category`, and `QuestionAttemptEvent` data may
-  still feed aggregate product signals for Solo algorithm tuning, content
-  quality, joker usage, play-time rhythm, retention, and missing instrumentation.
+  `nine-section-email-v1` report inside the email body; PDF attachment delivery
+  is intentionally disabled for now. Preference counts must stay aggregate-only
+  and must not expose user IDs or emails
+* generated reports contain exactly 9 sections: `Executive Summary`, `Kategori
+  Bazında Soru Havuzu`, `Kategori Tercihleri`, `Kategori Bazında Gösterim`, `En
+  Çok Gösterilen Sorular`, `Az ya da Hiç Gösterilmeyen Sorular`, `En Çok Yanlış
+  Yapılan Sorular`, `Joker Kullanımı Analizi`, and `Oynanma Zamanı ve Kullanım
+  Ritmi`. Current `Question`, `Category`, `QuestionAttemptEvent`,
+  `JokerTransaction`, and `UserJokerInventory` data may feed those tables.
 * removed legacy report sections must not appear in the generated email:
   `Rapor Şablonu`, `Rapor Bölümleri`,
   `Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı`,

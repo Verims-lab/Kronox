@@ -1708,7 +1708,15 @@ import React, { useEffect, useState } from 'react';
 //     and missing measurement without restoring removed static inventory sections.
 //   • Health/docs now treat real inbox receipt and body readability as the
 //     manual runtime proof.
-const BUILD_MARKER = 'Codex318';
+//
+// Codex319 — Question Analytics exact nine-section email:
+//   • sendQuestionAnalyticsReportEmail now renders exactly the requested 9
+//     sections in order inside the email body and sends no PDF attachment.
+//   • Executive Summary uses metric cards; category, question, joker, and
+//     play-rhythm sections are table-based with structured no-data rows.
+//   • Health/docs now enforce nine-section-email-v1 diagnostics and manual
+//     live inbox proof.
+const BUILD_MARKER = 'Codex319';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

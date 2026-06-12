@@ -15,6 +15,7 @@ const MAX_QUESTIONS = 5e3;
 const MAX_CATEGORIES = 1e3;
 const MAX_USER_CATEGORY_PREFERENCES = 1e4;
 const MAX_JOKER_TRANSACTIONS = 5e3;
+const MAX_USER_JOKER_INVENTORY = 1e4;
 const MAX_DIAMOND_TRANSACTIONS = 5e3;
 const MAX_DAILY_WHEEL_SPINS = 5e3;
 const MAX_GAME_RECORDS = 5e3;
@@ -27,9 +28,20 @@ const REGISTERED_QUESTION_POOL_ROW_LIMIT = 250;
 const CATEGORY_FAIRNESS_SIGNAL_LIMIT = 20;
 const STALE_REFERENCE_SAMPLE_LIMIT = 20;
 const PERIOD_OPTIONS = /* @__PURE__ */ new Set([1, 7, 30]);
-const REPORT_BUILD_MARKER = "Codex318";
-const REPORT_TEMPLATE_VERSION = "product-intel-email-v3";
-const REPORT_TEMPLATE_LABEL = "product-intel-email-v3";
+const REPORT_BUILD_MARKER = "Codex319";
+const REPORT_TEMPLATE_VERSION = "nine-section-email-v1";
+const REPORT_TEMPLATE_LABEL = "nine-section-email-v1";
+const REQUIRED_REPORT_SECTION_TITLES = Object.freeze([
+  "Executive Summary",
+  "Kategori Bazında Soru Havuzu",
+  "Kategori Tercihleri",
+  "Kategori Bazında Gösterim",
+  "En Çok Gösterilen Sorular",
+  "Az ya da Hiç Gösterilmeyen Sorular",
+  "En Çok Yanlış Yapılan Sorular",
+  "Joker Kullanımı Analizi",
+  "Oynanma Zamanı ve Kullanım Ritmi"
+]);
 const REMOVED_REPORT_SECTION_TITLES = Object.freeze([
   "Rapor Şablonu",
   "Rapor Bölümleri",
@@ -37,6 +49,9 @@ const REMOVED_REPORT_SECTION_TITLES = Object.freeze([
   "Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı",
   "Kategori Bazında Yıl Aralığı",
   "Kategori İçi Soru Analizi"
+]);
+const STRICTLY_DISALLOWED_REPORT_BODY_TITLES = Object.freeze([
+  ...REMOVED_REPORT_SECTION_TITLES
 ]);
 const DIFFICULTY_CHART_BUCKETS = [
   ["1", "Zorluk 1", "#2563eb"],
@@ -198,7 +213,7 @@ function stripHtml(value) {
 }
 function findRemovedReportSections(value) {
   const text = String(value || "");
-  return REMOVED_REPORT_SECTION_TITLES.filter((title) => text.includes(title));
+  return STRICTLY_DISALLOWED_REPORT_BODY_TITLES.filter((title) => text.includes(title));
 }
 function isActiveQuestion(question) {
   return String(question?.state || "A").toUpperCase() === "A";
@@ -453,6 +468,24 @@ function summaryCard(label, value, helper) {
     </table>
   </td>`;
 }
+function summaryCardGrid(cards) {
+  const rows = [];
+  for (let index = 0; index < cards.length; index += 3) {
+    const slice = cards.slice(index, index + 3);
+    const cells = [
+      ...slice.map((card) => summaryCard(card.label, card.value, card.helper)),
+      ...Array.from({ length: Math.max(0, 3 - slice.length) }, () => `<td width="33.33%" style="padding:6px;">&nbsp;</td>`)
+    ].join("");
+    rows.push(`<tr>${cells}</tr>`);
+  }
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:-6px 0 0;border-collapse:collapse;">${rows.join("")}</table>`;
+}
+function textBlockHtml(value) {
+  return `<p style="margin:0 0 12px;color:#475569;font-size:12px;line-height:18px;font-family:Arial,Helvetica,sans-serif;">${escapeHtml(value)}</p>`;
+}
+function tableCaptionHtml(value) {
+  return `<p style="margin:14px 0 8px;color:#334155;font-size:13px;line-height:18px;font-weight:700;font-family:Arial,Helvetica,sans-serif;">${escapeHtml(value)}</p>`;
+}
 function htmlLineList(values, emptyMessage = "Yeterli veri yok") {
   if (!values.length) return escapeHtml(emptyMessage);
   return values.map((value) => escapeHtml(value)).join("<br>");
@@ -659,6 +692,7 @@ function buildReport({
   categories,
   categoryPreferences,
   jokerTransactions = [],
+  userJokerInventory = [],
   diamondTransactions = [],
   dailyWheelSpins = [],
   gameRecords = [],
@@ -683,11 +717,9 @@ function buildReport({
     sub_category_or_tags: 0,
     outcome: 0
   };
-  const questionsMissingMetadata = activeQuestions.filter((question) => !question?.sub_category || !question?.tag).length;
   let shownEvents = 0;
   let answeredEvents = 0;
   let sportsShown = 0;
-  const uniqueAttempts = /* @__PURE__ */ new Set();
   const staleQuestionIds = /* @__PURE__ */ new Set();
   for (const event of events) {
     const qid = questionKey(event?.question_id);
@@ -695,7 +727,6 @@ function buildReport({
       missing.question_id += 1;
       continue;
     }
-    if (event?.attempt_id) uniqueAttempts.add(String(event.attempt_id));
     const q = questionById.get(qid) || null;
     if (!q) {
       missing.deleted_or_missing_question += 1;
@@ -750,8 +781,20 @@ function buildReport({
   const shownQuestionIds = new Set(bucketList.filter((bucket) => bucket.shown_count > 0).map((bucket) => bucket.question_id));
   const neverShown = activeQuestions.filter((question) => !shownQuestionIds.has(questionKey(question?.id ?? question?.question_id)));
   const neverShownSoloEligible = soloEligibleQuestions.filter((question) => !shownQuestionIds.has(questionKey(question?.id ?? question?.question_id)));
-  const topShown = [...bucketList].sort(sortDesc("shown_count")).slice(0, QUESTION_TABLE_LIMIT);
-  const mostWrong = [...bucketList].filter((bucket) => bucket.shown_count >= 3 && bucket.wrong_count > 0).sort(sortDesc("wrong_count")).slice(0, QUESTION_TABLE_LIMIT);
+  const topShown = [...bucketList].filter((bucket) => bucket.shown_count > 0).sort(sortDesc("shown_count")).slice(0, 10);
+  const mostWrong = [...bucketList]
+    .filter((bucket) => bucket.shown_count >= 3 && bucket.wrong_count > 0)
+    .sort((a, b) => {
+      const wrongDiff = (Number(b?.wrong_count) || 0) - (Number(a?.wrong_count) || 0);
+      if (wrongDiff) return wrongDiff;
+      const aAnswered = (Number(a?.correct_count) || 0) + (Number(a?.wrong_count) || 0);
+      const bAnswered = (Number(b?.correct_count) || 0) + (Number(b?.wrong_count) || 0);
+      const aRate = aAnswered ? (Number(a?.correct_count) || 0) / aAnswered : 1;
+      const bRate = bAnswered ? (Number(b?.correct_count) || 0) / bAnswered : 1;
+      if (aRate !== bRate) return aRate - bRate;
+      return (Number(b?.shown_count) || 0) - (Number(a?.shown_count) || 0);
+    })
+    .slice(0, QUESTION_TABLE_LIMIT);
   const categoryAnalytics = buildCategoryAnalytics({
     categories,
     questions,
@@ -762,7 +805,6 @@ function buildReport({
     categoryMap
   });
   const categoryAnalyticsForReport = categoryAnalytics.slice(0, CATEGORY_ANALYTICS_ROW_LIMIT);
-  const categoryFairnessSignals = buildCategoryFairnessSignals(categoryAnalytics, shownEvents);
   const totalCorrect = bucketList.reduce((sum, bucket) => sum + (Number(bucket.correct_count) || 0), 0);
   const totalWrong = bucketList.reduce((sum, bucket) => sum + (Number(bucket.wrong_count) || 0), 0);
   const answeredTotal = totalCorrect + totalWrong;
@@ -773,284 +815,528 @@ function buildReport({
   const averageShowCount = shownQuestionIds.size ? Math.round(shownEvents / shownQuestionIds.size * 10) / 10 : 0;
   const generatedAt = formatIstanbulTimestamp();
   const period = periodLabel(periodDays);
-  const topShownShare = topShown[0]?.shown_count && shownEvents ? topShown[0].shown_count / shownEvents : 0;
-  const topSubcategoryConcentration = getTopShownSubcategoryConcentration(topShown);
-  const sportsShare = shownEvents ? sportsShown / shownEvents : 0;
-  const insightRows = [];
-  if (shownEvents === 0) {
-    insightRows.push(["OK", "ok", "Bu dönem için yeterli oynanış verisi yok. Birkaç Solo oyun oynandıktan sonra raporu yeniden oluşturun."]);
-  } else {
-    insightRows.push(["OK", "ok", `${shownEvents} gösterim ve ${answeredEvents} cevap event'i analiz edildi.`]);
-  }
-  if (neverShown.length > 0) {
-    insightRows.push(["Dikkat", "warn", `${neverShown.length} aktif soru bu dönemde hiç gösterilmedi.`]);
-  }
-  if (missing.deleted_or_missing_question > 0) {
-    insightRows.push(["Dikkat", "warn", `Bazı eski analiz kayıtları artık mevcut olmayan sorulara referans verdiği için rapora dahil edilmedi. Etkilenen event sayısı: ${missing.deleted_or_missing_question}.`]);
-  }
-  if (topShownShare >= 0.15) {
-    insightRows.push(["Risk", "risk", `En çok gösterilen soru dönem gösterimlerinin ${percent(topShown[0].shown_count, shownEvents)} kadarını oluşturuyor.`]);
-  }
-  if (topSubcategoryConcentration.topShownSubcategoryShare >= topSubcategoryConcentration.concentrationThreshold) {
-    insightRows.push(["Dikkat", "warn", `En çok gösterilenler listesinde ${topSubcategoryConcentration.topShownSubcategory} grubu ${percent(topSubcategoryConcentration.topShownSubcategoryCount, topSubcategoryConcentration.topShownSubcategoryTotal)} paya ulaştı. Bu pool-proportional değildir diye otomatik varsayılmaz; dağılım Solo-eligible havuzla karşılaştırılmalıdır.`]);
-  }
-  if (sportsShare >= 0.35) {
-    insightRows.push(["Dikkat", "warn", `Spor benzeri içeriklerin payı ${percent(sportsShown, shownEvents)}.`]);
-  }
-  if (activeQuestions.length > 0) {
-    insightRows.push(["OK", "ok", `Aktif soru havuzu tüm aktif Question satırlarıdır; Solo-eligible havuz bu raporda ${soloEligibleQuestions.length} olarak ayrıca gösterilir. Runtime projection boyutu getQuestions diagnostics ile ölçülür.`]);
-  }
-  if (questionsMissingMetadata > 0 || missing.answer_year > 0 || missing.sub_category_or_tags > 0) {
-    insightRows.push(["Dikkat", "warn", "Bazı soru/event satırlarında yıl, kategori, alt kategori veya tag metadata eksik."]);
-  }
-  if (categoryAnalytics.some((row) => row.selectedUserCount > 0)) {
-    insightRows.push(["OK", "ok", "Kategori tercih dağılımı aktif UserCategoryPreference satırlarından benzersiz kullanıcı sayısı olarak rapora eklendi."]);
-  }
-  const insightLines = insightRows.slice(0, 6).map(([label, _tone, message]) => `${label}: ${message}`);
   const totalPreferenceSelections = categoryAnalytics.reduce((sum, row) => sum + (Number(row.selectedUserCount) || 0), 0);
-  const warningRows = [
-    ["Events missing question_id", missing.question_id],
-    ["Deleted / missing question events ignored", missing.deleted_or_missing_question],
-    ["Deleted / missing question sample", Array.from(staleQuestionIds).join(", ") || "Yok"],
-    ["Category analytics rows rendered", `${categoryAnalyticsForReport.length}/${categoryAnalytics.length}`],
-    ["Events missing answer_year", missing.answer_year],
-    ["Events missing category/sub_category", missing.sub_category_or_tags],
-    ["Questions missing metadata", questionsMissingMetadata],
-    ["Events without outcome", missing.outcome],
-    ["Projection limitation", "QuestionStatsProjection refresh remains manual via aggregateQuestionStats."],
-    ["Manual proof limitation", "Canlı e-posta teslimatı, RLS ve yüksek hacimli analytics yazımı manuel doğrulama gerektirir."]
-  ].map(([label, value]) => [
-    escapeHtml(label),
-    escapeHtml(value)
+  const cell = (value) => escapeHtml(value === null || value === undefined || value === "" ? "-" : value);
+  const questionIdFor = (question) => questionKey(question?.id ?? question?.question_id);
+  const categoryNameForQuestion = (question) => categoryLabel(getCategoryId(question), categoryMap);
+  const dateLabel = (value) => {
+    const raw = String(value || "").trim();
+    if (!raw) return "Yok";
+    return raw.length >= 10 ? raw.slice(0, 10) : raw;
+  };
+  const answeredForBucket = (bucket) => (Number(bucket?.correct_count) || 0) + (Number(bucket?.wrong_count) || 0);
+  const correctRateForBucket = (bucket) => {
+    const answered = answeredForBucket(bucket);
+    return answered ? (Number(bucket?.correct_count) || 0) / answered : null;
+  };
+
+  const executiveCards = summaryCardGrid([
+    { label: "TOPLAM GÖSTERİM", value: String(shownEvents), helper: "Bu dönemde oyuncuya gösterilen soru sayısı" },
+    { label: "CEVAPLANAN SORU", value: String(answeredEvents), helper: "Yerleştirme sonucu olan event sayısı" },
+    { label: "BENZERSİZ GÖSTERİLEN SORU", value: String(shownQuestionIds.size), helper: "En az bir kez gösterilen farklı soru" },
+    { label: "AKTİF SORU HAVUZU (TÜM AKTİFLER)", value: String(activeQuestions.length), helper: "Rapor anında aktif görünen tüm soru satırları" },
+    { label: "SOLO-ELIGIBLE SORU", value: String(soloEligibleQuestions.length), helper: "Aktif, yıl ve aktif kategori bilgisi kullanılabilir sorular" },
+    { label: "HİÇ GÖSTERİLMEYEN AKTİF SORU", value: String(neverShown.length), helper: "Tüm aktif havuz içinde bu dönemde görünmeyenler" },
+    { label: "HİÇ GÖSTERİLMEYEN SOLO-ELIGIBLE", value: String(neverShownSoloEligible.length), helper: "Solo-eligible havuz içinde bu dönemde görünmeyenler" },
+    { label: "RUNTIME PROJECTION", value: "Yeterli veri yok", helper: "getQuestions diagnostics canlı projection çağırmaz" },
+    { label: "ORTALAMA DOĞRU ORANI", value: avgCorrectRate, helper: "Cevaplanmış eventler üzerinden" },
+    { label: "ORTALAMA CEVAP SÜRESİ", value: avgResponse, helper: "Response time olan cevaplar üzerinden" }
   ]);
-  const questionTypeBuckets = /* @__PURE__ */ new Map();
-  for (const bucket of bucketList) {
-    if (!bucket.shown_count) continue;
+
+  const categoryPoolRows = categoryAnalyticsForReport.length ? categoryAnalyticsForReport.map((row) => [
+    cell(`${row.categoryName} (#${row.categoryId})`),
+    cell(row.activeQuestionCount),
+    cell(row.difficultyCounts?.["1"] || 0),
+    cell(row.difficultyCounts?.["2"] || 0),
+    cell(row.difficultyCounts?.["3"] || 0),
+    cell(row.difficultyCounts?.["4"] || 0),
+    cell(row.difficultyCounts?.["5"] || 0),
+    cell(row.difficultyCounts?.unknown || 0),
+    cell(row.oldestYear ?? "-"),
+    cell(row.newestYear ?? "-")
+  ]) : [["Veri yok", "0", "0", "0", "0", "0", "0", "0", "-", "-"]];
+  const categoryPoolHtml = [
+    categoryAnalytics.length > CATEGORY_ANALYTICS_ROW_LIMIT ? textBlockHtml(`${CATEGORY_ANALYTICS_ROW_LIMIT}/${categoryAnalytics.length} kategori gösteriliyor.`) : "",
+    tableHtml([
+      "Kategori",
+      "Toplam Soru",
+      "Zorluk 1",
+      "Zorluk 2",
+      "Zorluk 3",
+      "Zorluk 4",
+      "Zorluk 5",
+      "Zorluk Bilinmiyor",
+      "En Eski Yıl",
+      "En Yeni Yıl"
+    ], categoryPoolRows, "Bu dönem için kategori soru havuzu verisi yok")
+  ].join("");
+
+  const categoryPreferenceRows = totalPreferenceSelections > 0
+    ? categoryAnalyticsForReport.map((row) => [
+      cell(row.categoryId),
+      cell(row.categoryName),
+      cell(row.selectedUserCount),
+      cell(percent(row.selectedUserCount, totalPreferenceSelections))
+    ])
+    : [["-", "Bu dönem için kategori tercihi verisi yok", "0", "0%"]];
+  const categoryPreferenceHtml = tableHtml([
+    "Kategori ID",
+    "Kategori",
+    "Tercih Eden Kullanıcı",
+    "Tercih Payı"
+  ], categoryPreferenceRows, "Bu dönem için kategori tercihi verisi yok");
+
+  const categoryExposureRows = categoryAnalyticsForReport.length ? categoryAnalyticsForReport.map((row) => [
+    cell(row.categoryId),
+    cell(row.categoryName),
+    cell(row.activeQuestionCount),
+    cell(row.shownCount),
+    cell(row.uniqueShownQuestionCount),
+    cell(row.answeredCount),
+    cell(row.correctRate === null ? "Yeterli veri yok" : percent(row.correctRate, 1)),
+    cell(row.avgResponseTimeMs ? formatMs(row.avgResponseTimeMs) : "-"),
+    cell(percent(row.shownCount, shownEvents))
+  ]) : [["-", "Veri yok", "0", "0", "0", "0", "Yeterli veri yok", "-", "0%"]];
+  const categoryExposureHtml = tableHtml([
+    "Kategori ID",
+    "Kategori",
+    "Aktif Soru",
+    "Gösterim",
+    "Benzersiz Gösterilen",
+    "Cevaplanan",
+    "Doğru %",
+    "Ort. Süre",
+    "Gösterim Payı"
+  ], categoryExposureRows, "Bu dönem için kategori gösterim verisi yok");
+
+  const maxShown = Math.max(1, ...topShown.map((bucket) => Number(bucket.shown_count) || 0));
+  const topShownRows = topShown.length ? topShown.map((bucket, index) => {
     const q = bucket.question || {};
-    const category = questionCategoryLabel(bucket, categoryMap);
-    const subCategory = displayValue(q.sub_category || bucket.sub_category);
-    const tag = displayValue(q.tag || bucket.tag, "tag yok");
-    const difficulty = difficultyLabel(bucket.difficulty_bucket || getQuestionDifficultyBucket(q));
-    const key = `${category} / ${subCategory} / zorluk ${difficulty}`;
-    const current = questionTypeBuckets.get(key) || {
-      key,
-      category,
-      subCategory,
-      tag,
-      difficulty,
-      shown: 0,
-      correct: 0,
-      wrong: 0,
-      responseMs: 0,
-      responseCount: 0
-    };
-    current.shown += Number(bucket.shown_count) || 0;
-    current.correct += Number(bucket.correct_count) || 0;
-    current.wrong += Number(bucket.wrong_count) || 0;
-    current.responseMs += Number(bucket.total_response_time_ms) || 0;
-    current.responseCount += Number(bucket.response_count) || 0;
-    questionTypeBuckets.set(key, current);
+    const shownCell = `${cell(bucket.shown_count)}${barHtml(Number(bucket.shown_count) || 0, maxShown, "#f59e0b", 96)}`;
+    return [
+      cell(index + 1),
+      cell(questionKey(bucket.question_id)),
+      cell(shortText(q.question, 90)),
+      cell(questionYearLabel(bucket)),
+      cell(questionCategoryLabel(bucket, categoryMap)),
+      cell(questionSubCategoryLabel(bucket)),
+      shownCell,
+      cell(correctRateLabel(bucket)),
+      cell(formatMs(avgResponseMs(bucket))),
+      cell(bucket.swap_count || 0)
+    ];
+  }) : [["-", "Veri yok", "Bu dönem için gösterilen soru verisi yok", "-", "-", "-", "0", "Yeterli veri yok", "-", "0"]];
+  const topShownHtml = tableHtml([
+    "#",
+    "Question ID",
+    "Soru",
+    "Yıl",
+    "Kategori",
+    "Alt Kategori",
+    "Gösterim",
+    "Doğru %",
+    "Ort. Süre",
+    "Swap"
+  ], topShownRows, "Bu dönem için gösterilen soru verisi yok");
+
+  const underusedRows = [];
+  const underusedSeen = /* @__PURE__ */ new Set();
+  for (const question of neverShownSoloEligible.slice(0, NEVER_SHOWN_SAMPLE_LIMIT)) {
+    const id = questionIdFor(question);
+    if (!id) continue;
+    underusedSeen.add(id);
+    underusedRows.push([
+      cell(id),
+      cell(shortText(question?.question, 90)),
+      cell(getQuestionYear(question) ?? "-"),
+      cell(categoryNameForQuestion(question)),
+      cell(displayValue(question?.sub_category, "Bilinmiyor")),
+      "0",
+      "Yok",
+      "Hiç gösterilmedi"
+    ]);
   }
-  const questionTypeRows = Array.from(questionTypeBuckets.values()).map((row) => ({
-    ...row,
-    answered: row.correct + row.wrong,
-    correctRate: row.correct + row.wrong ? row.correct / (row.correct + row.wrong) : null,
-    avgMs: row.responseCount ? Math.round(row.responseMs / row.responseCount) : 0
-  }));
-  const bestQuestionTypes = questionTypeRows
-    .filter((row) => row.answered >= 3 && row.correctRate >= 0.5 && row.correctRate <= 0.85)
-    .sort((a, b) => b.answered - a.answered || b.correctRate - a.correctRate)
-    .slice(0, 5);
-  const tooHardQuestionTypes = questionTypeRows
-    .filter((row) => row.answered >= 3 && row.correctRate !== null && row.correctRate <= 0.45)
-    .sort((a, b) => b.wrong - a.wrong || a.correctRate - b.correctRate)
-    .slice(0, 5);
-  const tooEasyQuestionTypes = questionTypeRows
-    .filter((row) => row.answered >= 3 && row.correctRate !== null && row.correctRate >= 0.9)
-    .sort((a, b) => b.correctRate - a.correctRate || b.answered - a.answered)
-    .slice(0, 3);
-  const typeRowLabel = (row) => `${row.key} · gösterim=${row.shown} · cevap=${row.answered} · doğru=${row.correctRate === null ? "Yeterli veri yok" : percent(row.correctRate, 1)} · süre=${formatMs(row.avgMs)} · tag=${row.tag}`;
+  if (underusedRows.length < NEVER_SHOWN_SAMPLE_LIMIT) {
+    const lowShownLimit = Math.max(1, Math.ceil(Math.max(averageShowCount, 1) * 0.5));
+    const lowShownBuckets = bucketList
+      .filter((bucket) => bucket.question && bucket.shown_count > 0 && bucket.shown_count <= lowShownLimit && !underusedSeen.has(bucket.question_id) && isSoloEligibleQuestion(bucket.question, activeCategoryIds))
+      .sort((a, b) => (Number(a?.shown_count) || 0) - (Number(b?.shown_count) || 0) || String(a?.question_id).localeCompare(String(b?.question_id)))
+      .slice(0, NEVER_SHOWN_SAMPLE_LIMIT - underusedRows.length);
+    for (const bucket of lowShownBuckets) {
+      underusedRows.push([
+        cell(bucket.question_id),
+        cell(shortText(bucket.question?.question, 90)),
+        cell(questionYearLabel(bucket)),
+        cell(questionCategoryLabel(bucket, categoryMap)),
+        cell(questionSubCategoryLabel(bucket)),
+        cell(bucket.shown_count),
+        cell(dateLabel(bucket.last_shown_at)),
+        "Az gösterildi"
+      ]);
+    }
+  }
+  const underusedHtml = [
+    textBlockHtml(`${neverShown.length} aktif soru ve ${neverShownSoloEligible.length} Solo-eligible soru bu dönemde hiç gösterilmedi. Liste, Solo-eligible hiç gösterilmeyenleri ve ardından düşük gösterim alanları önceliklendirir.`),
+    tableHtml([
+      "Question ID",
+      "Soru",
+      "Yıl",
+      "Kategori",
+      "Alt Kategori",
+      "Gösterim",
+      "Son Gösterim",
+      "Not"
+    ], underusedRows.length ? underusedRows : [["-", "Bu dönem için az ya da hiç gösterilmeyen soru yok", "-", "-", "-", "0", "-", "Veri yok"]], "Bu dönem için az ya da hiç gösterilmeyen soru yok")
+  ].join("");
+
+  const wrongRows = mostWrong.length ? mostWrong.map((bucket) => {
+    const correctRate = correctRateForBucket(bucket);
+    const note = correctRate !== null && correctRate <= 0.35
+      ? "Çok yanıltıcı olabilir"
+      : correctRate !== null && correctRate <= 0.5
+        ? "Zor olabilir"
+        : "Kontrol edilmeli";
+    return [
+      cell(bucket.question_id),
+      cell(shortText(bucket.question?.question, 92)),
+      cell(questionYearLabel(bucket)),
+      cell(bucket.shown_count),
+      cell(bucket.wrong_count),
+      cell(correctRate === null ? "Yeterli veri yok" : percent(correctRate, 1)),
+      cell(formatMs(avgResponseMs(bucket))),
+      cell(note)
+    ];
+  }) : [["-", "Yeterli veri yok", "-", "0", "0", "Yeterli veri yok", "-", "Yeterli veri yok"]];
+  const wrongHtml = tableHtml([
+    "Question ID",
+    "Soru",
+    "Yıl",
+    "Gösterim",
+    "Yanlış",
+    "Doğru %",
+    "Ort. Süre",
+    "Not"
+  ], wrongRows, "Bu dönem için yeterli yanlış cevap verisi yok");
 
   const jokerUsageByType = /* @__PURE__ */ new Map();
   const jokerPurchaseByType = /* @__PURE__ */ new Map();
   const questionJokerByType = /* @__PURE__ */ new Map();
+  const jokerUsageUsersByType = /* @__PURE__ */ new Map();
+  const jokerPurchaseUsersByType = /* @__PURE__ */ new Map();
+  const jokerLevelsByType = /* @__PURE__ */ new Map();
+  const jokerOutcomeByType = /* @__PURE__ */ new Map();
+  const rowUserKey = (row) => normalizeEmail(row?.user_email || row?.email || row?.userEmail) || String(row?.user_id || row?.userId || row?.created_by || "").trim();
+  const ensureSet = (map, key) => {
+    if (!map.has(key)) map.set(key, /* @__PURE__ */ new Set());
+    return map.get(key);
+  };
+  const ensureArray = (map, key) => {
+    if (!map.has(key)) map.set(key, []);
+    return map.get(key);
+  };
   for (const tx of jokerTransactions || []) {
     const type = normalizeJokerType(tx?.joker_type);
     if (!type) continue;
     const delta = Number(tx?.quantity_delta) || 0;
     const reason = String(tx?.reason || "").trim();
-    if (reason === "solo_use" || delta < 0) incrementMap(jokerUsageByType, type, Math.max(1, Math.abs(delta)));
-    if (reason === "market_purchase") incrementMap(jokerPurchaseByType, type, Math.max(1, Math.abs(delta)));
+    const userKey = rowUserKey(tx);
+    if (reason === "solo_use" || delta < 0) {
+      incrementMap(jokerUsageByType, type, Math.max(1, Math.abs(delta)));
+      if (userKey) ensureSet(jokerUsageUsersByType, type).add(userKey);
+      const level = Number(tx?.level_id ?? tx?.level ?? tx?.metadata?.level_id ?? tx?.metadata?.level);
+      if (Number.isFinite(level) && level > 0) ensureArray(jokerLevelsByType, type).push(level);
+      const outcomeKnown = tx?.resulted_in_level_completion !== undefined || tx?.resulted_in_correct_answer !== undefined || tx?.metadata?.resulted_in_level_completion !== undefined || tx?.metadata?.resulted_in_correct_answer !== undefined;
+      if (outcomeKnown) {
+        const current = jokerOutcomeByType.get(type) || { known: 0, success: 0 };
+        current.known += 1;
+        if (tx?.resulted_in_level_completion === true || tx?.resulted_in_correct_answer === true || tx?.metadata?.resulted_in_level_completion === true || tx?.metadata?.resulted_in_correct_answer === true) current.success += 1;
+        jokerOutcomeByType.set(type, current);
+      }
+    }
+    if (reason === "market_purchase") {
+      incrementMap(jokerPurchaseByType, type, Math.max(1, Math.abs(delta)));
+      if (userKey) ensureSet(jokerPurchaseUsersByType, type).add(userKey);
+    }
   }
+  const jokerBreakdown = /* @__PURE__ */ new Map();
   for (const event of events) {
-    if (!event?.joker_used && !event?.joker_type) continue;
-    const type = normalizeJokerType(event?.joker_type);
+    const inferredType = eventType(event) === "swapped_out" || event?.was_swapped_out === true ? "card_swap" : "";
+    if (!event?.joker_used && !event?.joker_type && !inferredType) continue;
+    const type = normalizeJokerType(event?.joker_type || inferredType);
     incrementMap(questionJokerByType, type || "unknown");
+    if (!type || type === "unknown") continue;
+    const q = questionById.get(questionKey(event?.question_id));
+    const category = categoryLabel(getCategoryId(q) || event?.category_id || "unknown", categoryMap);
+    const difficulty = difficultyLabel(getQuestionDifficultyBucket(q));
+    const key = `${type}:${category}:${difficulty}`;
+    const current = jokerBreakdown.get(key) || { type, category, difficulty, usage: 0, answered: 0, correct: 0, completionKnown: 0, completed: 0 };
+    current.usage += 1;
+    if (eventType(event) === "answered") {
+      current.answered += 1;
+      if (event?.is_correct === true) current.correct += 1;
+    }
+    if (event?.resulted_in_level_completion === true || event?.resulted_in_level_completion === false) {
+      current.completionKnown += 1;
+      if (event?.resulted_in_level_completion === true) current.completed += 1;
+    }
+    jokerBreakdown.set(key, current);
   }
-  const jokerLines = [];
-  if (!jokerTransactions.length && !questionJokerByType.size) {
-    jokerLines.push("Joker analytics data insufficient: JokerTransaction ve QuestionAttemptEvent joker alanlarında bu dönem için ölçülebilir kullanım bulunamadı.");
-  } else {
-    const usage = topMapEntries(jokerUsageByType, 5).map(([type, count]) => `${jokerDisplayName(type)}: ${count} solo kullanım`).join("; ") || "Solo kullanım ledger satırı yok.";
-    const purchases = topMapEntries(jokerPurchaseByType, 5).map(([type, count]) => `${jokerDisplayName(type)}: ${count} market_purchase`).join("; ") || "Mağaza joker satın alma ledger satırı yok.";
-    const eventUsage = topMapEntries(questionJokerByType, 5).map(([type, count]) => `${jokerDisplayName(type)}: ${count} soru event sinyali`).join("; ") || "QuestionAttemptEvent içinde joker sinyali yok.";
-    jokerLines.push(`Joker ledger özeti: ${usage}`);
-    jokerLines.push(`Mağaza sonrası joker akışı: ${purchases}`);
-    jokerLines.push(`Soru eventlerindeki joker işareti: ${eventUsage}`);
+  const jokerTypes = [
+    { type: "mistake_shield", name: "Kronokalkan" },
+    { type: "card_swap", name: "Kart Değiştir" },
+    { type: "time_freeze", name: "Zaman Dondur" }
+  ];
+  const inventoryByType = /* @__PURE__ */ new Map();
+  const depletedUsersByType = /* @__PURE__ */ new Map();
+  for (const row of userJokerInventory || []) {
+    const type = normalizeJokerType(row?.joker_type);
+    if (!type) continue;
+    const quantity = Math.max(0, Number(row?.quantity) || 0);
+    inventoryByType.set(type, (inventoryByType.get(type) || 0) + quantity);
+    const userKey = rowUserKey(row);
+    if (quantity <= 0 && userKey) ensureSet(depletedUsersByType, type).add(userKey);
   }
-  jokerLines.push("Joker kullanımının level tamamlama, cevap doğruluğu veya devam etme etkisini kesin ölçmek için JokerTransaction üzerinde session_id, attempt_id, level_id, card_index, effect_success, resulted_in_correct_answer ve resulted_in_level_completion alanları gerekir.");
+  const hasInventoryRows = (userJokerInventory || []).length > 0;
+  const jokerSummaryRows = jokerTypes.map(({ type, name }) => {
+    const ledgerUsage = jokerUsageByType.get(type) || 0;
+    const eventUsage = questionJokerByType.get(type) || 0;
+    const usage = ledgerUsage || eventUsage || 0;
+    const levels = jokerLevelsByType.get(type) || [];
+    const outcome = jokerOutcomeByType.get(type);
+    const avgLevel = levels.length ? Math.round(levels.reduce((sum, value) => sum + value, 0) / levels.length * 10) / 10 : null;
+    const note = usage
+      ? outcome?.known ? "Outcome alanı kısmen mevcut" : "Başarı etkisi için outcome alanı eksik"
+      : "Bu dönem kullanım verisi yok";
+    return [
+      cell(name),
+      cell(type),
+      cell(usage),
+      cell(jokerPurchaseByType.get(type) || 0),
+      cell(ledgerUsage || 0),
+      cell(jokerUsageUsersByType.get(type)?.size || (usage ? "Yeterli veri yok" : 0)),
+      cell(avgLevel === null ? "Yeterli veri yok" : avgLevel),
+      cell(outcome?.known ? percent(outcome.success, outcome.known) : "Yeterli veri yok"),
+      cell(note)
+    ];
+  });
+  const jokerBreakdownRows = jokerBreakdown.size
+    ? Array.from(jokerBreakdown.values())
+      .sort((a, b) => b.usage - a.usage || a.type.localeCompare(b.type))
+      .slice(0, 12)
+      .map((row) => [
+        cell(jokerDisplayName(row.type)),
+        cell(row.category),
+        cell(row.difficulty),
+        cell(row.usage),
+        cell(row.answered ? percent(row.correct, row.answered) : "Yeterli veri yok"),
+        cell(row.completionKnown ? percent(row.completed, row.completionKnown) : "Yeterli veri yok"),
+        cell(row.completionKnown ? "Completion alanı mevcut" : "resulted_in_level_completion eksik")
+      ])
+    : jokerTypes.map(({ name }) => [
+      cell(name),
+      "Veri yetersiz",
+      "Veri yetersiz",
+      "0",
+      "Yeterli veri yok",
+      "Yeterli veri yok",
+      cell("QuestionAttemptEvent joker_type / kategori / zorluk / resulted_in_level_completion alanları eksik")
+    ]);
+  const jokerStockRows = jokerTypes.map(({ type, name }) => [
+    cell(name),
+    cell(hasInventoryRows ? inventoryByType.get(type) || 0 : "Yeterli veri yok"),
+    cell(jokerPurchaseUsersByType.get(type)?.size || 0),
+    cell(hasInventoryRows ? depletedUsersByType.get(type)?.size || 0 : "Yeterli veri yok"),
+    cell((jokerPurchaseByType.get(type) || 0) ? `${jokerPurchaseByType.get(type)} satın alma` : "Yeterli veri yok"),
+    cell(hasInventoryRows ? "UserJokerInventory current balance okundu" : "UserJokerInventory satırı yok veya erişilemedi")
+  ]);
+  const jokerHtml = [
+    tableCaptionHtml("Joker Tipi Özeti"),
+    tableHtml([
+      "Joker",
+      "Joker Type",
+      "Kullanım",
+      "Satın Alma",
+      "Harcanan / Kullanılan",
+      "Kullanıcı Sayısı",
+      "Ortalama Kullanım Seviyesi",
+      "Başarıya Etki",
+      "Not"
+    ], jokerSummaryRows, "Bu dönem için joker verisi yok"),
+    tableCaptionHtml("Joker Kullanımı - Kategori / Zorluk Kırılımı"),
+    tableHtml([
+      "Joker",
+      "Kategori",
+      "Zorluk",
+      "Kullanım",
+      "Doğru %",
+      "Level Tamamlama %",
+      "Not"
+    ], jokerBreakdownRows, "Bu dönem için joker kırılım verisi yok"),
+    tableCaptionHtml("Joker Stok / Ekonomi Sinyali"),
+    tableHtml([
+      "Joker",
+      "Toplam Mevcut Bakiye",
+      "Satın Alan Kullanıcı",
+      "Tükenen Kullanıcı",
+      "Market Etkisi",
+      "Not"
+    ], jokerStockRows, "Bu dönem için joker stok verisi yok")
+  ].join("");
 
-  const eventHours = /* @__PURE__ */ new Map();
-  const eventWeekdays = /* @__PURE__ */ new Map();
-  for (const event of events) {
-    const stamp = eventTimestamp(event);
-    incrementMap(eventHours, istanbulHourKey(stamp));
-    incrementMap(eventWeekdays, istanbulWeekdayKey(stamp));
-  }
-  const peakHours = topMapEntries(eventHours, 3);
-  const peakWeekdays = topMapEntries(eventWeekdays, 3);
   const dailyQuestClaims = (diamondTransactions || []).filter((tx) => String(tx?.source || "") === "daily_quest_reward").length;
   const marketDiamondSpends = (diamondTransactions || []).filter((tx) => String(tx?.source || "") === "market_purchase").length;
   const wheelClaims = (dailyWheelSpins || []).length;
-  const rhythmLines = [
-    peakHours.length ? `En yoğun saat pencereleri (Europe/Istanbul): ${peakHours.map(([hour, count]) => `${hour}:00 (${count} event)`).join(", ")}.` : "Saat bazlı oynanma sinyali için yeterli timestamp yok.",
-    peakWeekdays.length ? `En yoğun günler: ${peakWeekdays.map(([day, count]) => `${day} (${count} event)`).join(", ")}.` : "Gün bazlı oynanma sinyali için yeterli timestamp yok.",
-    `Günlük görev claim sinyali: ${dailyQuestClaims}; Günlük Çark claim sinyali: ${wheelClaims}; Mağaza diamond spend sinyali: ${marketDiamondSpends}.`,
-    "Push bildirim zamanı için bu sinyaller yalnızca yön gösterir; timezone/user local time ayrımı ayrıca yakalanmalıdır."
+  const makeTimeStats = () => ({
+    shown: 0,
+    answered: 0,
+    correct: 0,
+    responseMs: 0,
+    responseCount: 0,
+    sessionIds: /* @__PURE__ */ new Set(),
+    attemptIds: /* @__PURE__ */ new Set()
+  });
+  const addTimeEvent = (stats, event) => {
+    const type = eventType(event);
+    if (type === "shown" || type === "replacement_shown") stats.shown += 1;
+    if (type === "answered") {
+      stats.answered += 1;
+      if (event?.is_correct === true) stats.correct += 1;
+      const responseMs = Math.max(0, Math.floor(safeNumber(event?.response_time_ms)));
+      if (responseMs > 0) {
+        stats.responseMs += responseMs;
+        stats.responseCount += 1;
+      }
+    }
+    if (event?.session_id) stats.sessionIds.add(String(event.session_id));
+    if (event?.attempt_id) stats.attemptIds.add(String(event.attempt_id));
+  };
+  const hourBuckets = [
+    { label: "00:00-03:59", start: 0, end: 3, stats: makeTimeStats() },
+    { label: "04:00-07:59", start: 4, end: 7, stats: makeTimeStats() },
+    { label: "08:00-11:59", start: 8, end: 11, stats: makeTimeStats() },
+    { label: "12:00-15:59", start: 12, end: 15, stats: makeTimeStats() },
+    { label: "16:00-19:59", start: 16, end: 19, stats: makeTimeStats() },
+    { label: "20:00-23:59", start: 20, end: 23, stats: makeTimeStats() }
   ];
+  const weekdayOrder = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
+  const weekdayStats = new Map(weekdayOrder.map((day) => [day, makeTimeStats()]));
+  for (const event of events) {
+    const stamp = eventTimestamp(event);
+    const hour = Number(istanbulHourKey(stamp));
+    const hourBucket = hourBuckets.find((bucket) => Number.isFinite(hour) && hour >= bucket.start && hour <= bucket.end);
+    if (hourBucket) addTimeEvent(hourBucket.stats, event);
+    const weekday = displayValue(istanbulWeekdayKey(stamp), "");
+    const weekdayTitle = weekday ? weekday.charAt(0).toLocaleUpperCase("tr-TR") + weekday.slice(1) : "";
+    if (weekdayStats.has(weekdayTitle)) addTimeEvent(weekdayStats.get(weekdayTitle), event);
+  }
+  const sessionLabel = (stats) => {
+    if (stats.sessionIds.size) return String(stats.sessionIds.size);
+    if (stats.attemptIds.size) return `${stats.attemptIds.size} attempt`;
+    return "Yeterli veri yok";
+  };
+  const timeNote = (stats) => stats.sessionIds.size ? "session_id mevcut" : "QuestionAttemptEvent timestamp / attempt_id yaklaşımı";
+  const hourRows = hourBuckets.map((bucket) => [
+    cell(bucket.label),
+    cell(sessionLabel(bucket.stats)),
+    cell(bucket.stats.shown),
+    cell(bucket.stats.answered),
+    cell(bucket.stats.answered ? percent(bucket.stats.correct, bucket.stats.answered) : "Yeterli veri yok"),
+    cell(bucket.stats.responseCount ? formatMs(Math.round(bucket.stats.responseMs / bucket.stats.responseCount)) : "-"),
+    cell(timeNote(bucket.stats))
+  ]);
+  const dayRows = weekdayOrder.map((day) => {
+    const stats = weekdayStats.get(day) || makeTimeStats();
+    return [
+      cell(day),
+      cell(sessionLabel(stats)),
+      cell(stats.shown),
+      cell(stats.answered),
+      cell(stats.answered ? percent(stats.correct, stats.answered) : "Yeterli veri yok"),
+      cell(stats.responseCount ? formatMs(Math.round(stats.responseMs / stats.responseCount)) : "-"),
+      cell(timeNote(stats))
+    ];
+  });
+  const activeHourBuckets = hourBuckets.filter((bucket) => bucket.stats.shown || bucket.stats.answered);
+  const peakHour = activeHourBuckets.length ? [...activeHourBuckets].sort((a, b) => b.stats.shown - a.stats.shown)[0] : null;
+  const quietHour = activeHourBuckets.length ? [...activeHourBuckets].sort((a, b) => a.stats.shown - b.stats.shown)[0] : null;
+  const bestCorrectHour = activeHourBuckets
+    .filter((bucket) => bucket.stats.answered >= 3)
+    .sort((a, b) => b.stats.correct / b.stats.answered - a.stats.correct / a.stats.answered)[0] || null;
+  const slowestHour = activeHourBuckets
+    .filter((bucket) => bucket.stats.responseCount > 0)
+    .sort((a, b) => b.stats.responseMs / b.stats.responseCount - a.stats.responseMs / a.stats.responseCount)[0] || null;
+  const activitySignalRows = [
+    ["En yoğun saat aralığı", peakHour ? `${peakHour.label} (${peakHour.stats.shown} gösterim)` : "Yeterli veri yok", "QuestionAttemptEvent timestamp üzerinden"],
+    ["En düşük saat aralığı", quietHour ? `${quietHour.label} (${quietHour.stats.shown} gösterim)` : "Yeterli veri yok", "Sessiz saat için daha fazla veri gerekebilir"],
+    ["En yüksek doğru oranı zamanı", bestCorrectHour ? `${bestCorrectHour.label} (${percent(bestCorrectHour.stats.correct, bestCorrectHour.stats.answered)})` : "Yeterli veri yok", "En az 3 cevap olan saat bucket'ı aranır"],
+    ["En uzun cevap süresi zamanı", slowestHour ? `${slowestHour.label} (${formatMs(Math.round(slowestHour.stats.responseMs / slowestHour.stats.responseCount))})` : "Yeterli veri yok", "Response time olan cevaplar üzerinden"],
+    ["Bildirim / görev için önerilen zaman", peakHour ? `${peakHour.label} öncesi test edilebilir` : "Yeterli veri yok", `Daily Quest: ${dailyQuestClaims}; Daily Wheel: ${wheelClaims}; Market spend: ${marketDiamondSpends}`]
+  ].map((row) => row.map(cell));
+  const rhythmHtml = [
+    textBlockHtml("Saat ve gün kırılımı Europe/Istanbul biçimlendirmesiyle hesaplanır. Kullanıcı yerel timezone'u ayrı yakalanmadığı için bu bölüm runtime/server zamanına yakınsama olarak okunmalıdır."),
+    tableCaptionHtml("Saat Bazında Oynanma"),
+    tableHtml([
+      "Saat Aralığı",
+      "Oturum / Başlangıç",
+      "Gösterim",
+      "Cevaplanan",
+      "Doğru %",
+      "Ort. Cevap Süresi",
+      "Not"
+    ], hourRows, "Bu dönem için saat bazlı oynanma verisi yok"),
+    tableCaptionHtml("Gün Bazında Oynanma"),
+    tableHtml([
+      "Gün",
+      "Oturum / Başlangıç",
+      "Gösterim",
+      "Cevaplanan",
+      "Doğru %",
+      "Ortalama Süre",
+      "Not"
+    ], dayRows, "Bu dönem için gün bazlı oynanma verisi yok"),
+    tableCaptionHtml("Aktivite Sinyali"),
+    tableHtml(["Sinyal", "Değer", "Yorum"], activitySignalRows, "Bu dönem için aktivite sinyali yok")
+  ].join("");
 
-  const gameDurations = (gameRecords || [])
-    .map((record) => Number(record?.duration_seconds))
-    .filter((value) => Number.isFinite(value) && value > 0);
-  const avgGameDuration = gameDurations.length
-    ? gameDurations.reduce((sum, value) => sum + value, 0) / gameDurations.length
-    : 0;
-  const retentionLines = [
-    `QuestionAttemptEvent attempt_id sayısı: ${uniqueAttempts.size || "Yeterli veri yok"}.`,
-    gameDurations.length ? `Legacy GameRecord ortalama süre örneği: ${formatSeconds(avgGameDuration)} (${gameDurations.length} kayıt).` : "Oturum süresi için güncel session event veya kullanılabilir GameRecord örneği yok.",
-    mostWrong.length ? `En çok yanlış yapılan soru sayısı sinyali: ${mostWrong.length}; zorluk sıçraması veya arka arkaya zor kart riski manuel incelenmeli.` : "Arka arkaya başarısızlık veya çıkış noktası için yeterli event yok.",
-    "Daha uzun oynama analizi için session_id, ended_at, duration_ms, levels_attempted, levels_completed, exit_reason ve next-level CTA click eventleri gerekir."
-  ];
-
-  const algorithmLines = [
-    shownEvents ? `${shownEvents} gösterimden ${shownQuestionIds.size} benzersiz soru dolaşıma girdi; ortalama tekrar yoğunluğu ${averageShowCount}.` : "Solo algoritması için bu dönemde gösterim yok.",
-    neverShownSoloEligible.length ? `${neverShownSoloEligible.length} Solo-eligible soru hiç gösterilmedi; rotation/exposure limitleri ve kategori havuzu genişliği izlenmeli.` : "Solo-eligible havuzda hiç gösterilmeyen soru sinyali bu dönem düşük.",
-    topShownShare >= 0.15 ? `En çok gösterilen soru dönem gösterimlerinin ${percent(topShown[0].shown_count, shownEvents)} payını aldı; aynı soru/category/difficulty tekrar limiti değerlendirilmeli.` : "Tek soruya aşırı yığılma sinyali belirgin değil.",
-    categoryFairnessSignals.length ? `Kategori denge sinyali: ${categoryFairnessSignals[0].categoryName} - ${categoryFairnessSignals[0].value}.` : "Kategori bazlı belirgin dolaşım riski yok.",
-    "No-login/no-preference kullanıcılar all active categories ile devam etmeli; seçili kategori filtresi boş veya zayıf havuz üretirse offline/no-cache diye etiketlenmemeli."
-  ];
-  const questionTypeQualityLines = [
-    bestQuestionTypes.length ? `İyi meydan okuma veren tipler: ${bestQuestionTypes.map(typeRowLabel).join(" | ")}` : "İyi performans gösteren soru tipi için yeterli cevap örneklemi yok.",
-    tooHardQuestionTypes.length ? `Zor/review gereken tipler: ${tooHardQuestionTypes.map(typeRowLabel).join(" | ")}` : "Aşırı zor görünen tip için yeterli örneklem yok.",
-    tooEasyQuestionTypes.length ? `Çok kolay görünen tipler: ${tooEasyQuestionTypes.map(typeRowLabel).join(" | ")}` : "Aşırı kolay görünen tip için yeterli örneklem yok.",
-    questionsMissingMetadata ? `${questionsMissingMetadata} aktif soruda sub_category veya tag eksik; doğru soru tipi öğrenimi için metadata tamamlanmalı.` : "Soru tipi metadata eksiği belirgin değil."
-  ];
-  const topRisks = [
-    neverShownSoloEligible.length ? `Solo havuzda ${neverShownSoloEligible.length} soru hiç dolaşıma girmedi.` : "",
-    topShownShare >= 0.15 ? `En çok gösterilen soru payı ${percent(topShown[0].shown_count, shownEvents)}.` : "",
-    tooHardQuestionTypes.length ? "Bazı soru tiplerinde doğru oranı düşük; zorluk eğrisi ve içerik kalitesi kontrol edilmeli." : "",
-    !jokerTransactions.length ? "Joker kullanım ledger verisi karar için yetersiz." : "",
-    !gameDurations.length ? "Oturum süresi/çıkış nedeni instrumentation eksik." : ""
-  ].filter(Boolean);
-  const recommendedActions = [
-    neverShownSoloEligible.length || topShownShare >= 0.15
-      ? "High / Algorithm: Aynı category/difficulty tekrar limitini ve hiç gösterilmeyen Solo-eligible soru rotasyonunu ölçen exposure guard ekle."
-      : "Medium / Algorithm: Mevcut all-category fallback ve seçili kategori filtre davranışını runtime diagnostics ile izlemeye devam et.",
-    tooHardQuestionTypes.length
-      ? "High / Content: Düşük doğru oranlı soru tiplerini editorial review kuyruğuna al; ilk seviyelerde arka arkaya zor kartı azalt."
-      : "Medium / Content: Tag/sub_category metadata tamlığını koru ve soru tipi bazlı örneklem büyüdükçe kalite eşiklerini netleştir.",
-    jokerTransactions.length
-      ? "Medium / Economy/Jokers: Joker kullanımını level completion ve sonraki oyun devamı ile ilişkilendirecek event alanlarını ekle."
-      : "High / Economy/Jokers: Joker kullanım outcome alanları olmadan fiyat/denge kararı verme; önce instrumentation ekle.",
-    peakHours.length
-      ? "Medium / Engagement/Retention: Push ve Daily Quest hatırlatmalarını yoğun saatlerden önce test et; sessiz saat varsayımını kullanıcı timezone verisiyle doğrula."
-      : "Low / Engagement/Retention: Oynanma zamanı sinyali için timestamp coverage ve timezone bilgisini güçlendir.",
-    "High / Instrumentation: session_id, is_guest, selected_category_source, exit_reason, duration_ms ve joker outcome alanlarını QuestionAttemptEvent/JokerTransaction/Session event akışına ekle."
-  ];
-  const missingInstrumentationRows = [
-    events.some((event) => event?.session_id) ? "" : "QuestionAttemptEvent.session_id yok; session length ve retention bağlamı sınırlı.",
-    events.some((event) => event?.is_guest === true || event?.is_guest === false) ? "" : "QuestionAttemptEvent.is_guest yok; guest vs logged-in karşılaştırması yapılamıyor.",
-    events.some((event) => event?.selected_category_source) ? "" : "selected_category_source yok; user_preferences / all_categories_guest / all_categories_no_preferences ayrımı ölçülemiyor.",
-    events.some((event) => event?.exit_reason) ? "" : "exit_reason yok; drop-off ve offline/no-cache ayrımı raporda kesinleşmiyor.",
-    jokerTransactions.some((tx) => tx?.resulted_in_level_completion || tx?.resulted_in_correct_answer) ? "" : "JokerTransaction outcome alanları yok; jokerin başarı/retention etkisi ölçülemiyor.",
-    gameDurations.length ? "" : "Güncel session duration event akışı yok; GameRecord legacy ve yeterli olmayabilir."
-  ].filter(Boolean);
-
-  const executiveSummaryRows = [
-    `Dönem özeti: ${shownEvents} gösterim, ${answeredEvents} cevap, ${shownQuestionIds.size} benzersiz gösterilen soru.`,
-    `Doğru oranı: ${avgCorrectRate}; ortalama cevap süresi: ${avgResponse}.`,
-    `Solo-eligible havuz: ${soloEligibleQuestions.length}; hiç gösterilmeyen Solo-eligible soru: ${neverShownSoloEligible.length}.`,
-    topRisks.length ? `Top riskler: ${topRisks.slice(0, 3).join(" | ")}` : "Top risk: Bu dönem için kritik ürün sinyali yok; örneklem büyüdükçe tekrar bakılmalı.",
-    `Önerilen ilk aksiyon: ${recommendedActions[0]}`
-  ];
-  const contentActionLines = [
-    mostWrong.length
-      ? `Review kuyruğu: ${mostWrong.slice(0, 5).map(formatQuestionBucket).join(" | ")}`
-      : "Review kuyruğu için yeterli yanlış cevap örneklemi yok.",
-    neverShownSoloEligible.length
-      ? `Dolaşıma girmeyen Solo-eligible örnekler: ${neverShownSoloEligible.slice(0, 5).map(formatQuestionSample).filter(Boolean).join(" | ")}`
-      : "Solo-eligible havuzda bu dönem belirgin never-shown örnek listesi yok.",
-    categoryFairnessSignals.length
-      ? `Kategori denge aksiyonu: ${categoryFairnessSignals.slice(0, 3).map((signal) => `${signal.categoryName}: ${signal.value} (${signal.note})`).join(" | ")}`
-      : "Kategori denge aksiyonu için bu dönem kritik sinyal yok.",
-    tooHardQuestionTypes.length
-      ? "Düşük doğru oranlı soru tipleri ilk seviyelerde azaltılmalı veya editorial review ile yeniden yazılmalı."
-      : "Zorluk ayarı için daha fazla cevap örneklemi toplanmalı.",
-    questionsMissingMetadata
-      ? `${questionsMissingMetadata} aktif soruda sub_category/tag eksiği var; içerik kalitesi raporu için metadata tamamlanmalı.`
-      : "İçerik metadata eksikliği belirgin değil."
-  ];
-  const reportSectionNames = [
-    "Yönetici Özeti",
-    "Genel Kullanım Özeti",
-    "Solo Soru Algoritması İçin Sinyaller",
-    "Doğru Soru Tiplerini Öğrenme / İçerik Kalitesi",
-    "Joker Kullanımı Analizi",
-    "Oynanma Zamanı ve Kullanım Ritmi",
-    "Daha Uzun Oynama / Retention Sinyalleri",
-    "Soru / İçerik Aksiyonları",
-    "Önerilen Aksiyonlar",
-    "Data Quality / Eksik Ölçüm"
-  ];
+  const reportSectionNames = [...REQUIRED_REPORT_SECTION_TITLES];
   const reportSections = [
-    { title: "Yönetici Özeti", lines: executiveSummaryRows },
-    { title: "Genel Kullanım Özeti", lines: [
-      `Toplam event: ${events.length}`,
+    { title: "Executive Summary", textLines: [
       `Toplam gösterim: ${shownEvents}`,
       `Cevaplanan soru: ${answeredEvents}`,
       `Benzersiz gösterilen soru: ${shownQuestionIds.size}`,
       `Aktif soru havuzu: ${activeQuestions.length}`,
-      `Solo-eligible soru havuzu: ${soloEligibleQuestions.length}`,
+      `Solo-eligible soru: ${soloEligibleQuestions.length}`,
       `Hiç gösterilmeyen aktif soru: ${neverShown.length}`,
-      `Silinmiş/eksik soru referansı nedeniyle çıkarılan event: ${missing.deleted_or_missing_question}`,
-      `Kategori tercihi olan aggregate seçim sayısı: ${totalPreferenceSelections}`,
-      ...insightLines
+      `Hiç gösterilmeyen Solo-eligible: ${neverShownSoloEligible.length}`,
+      `Ortalama doğru oranı: ${avgCorrectRate}`,
+      `Ortalama cevap süresi: ${avgResponse}`
     ] },
-    { title: "Solo Soru Algoritması İçin Sinyaller", lines: algorithmLines },
-    { title: "Doğru Soru Tiplerini Öğrenme / İçerik Kalitesi", lines: questionTypeQualityLines },
-    { title: "Joker Kullanımı Analizi", lines: jokerLines },
-    { title: "Oynanma Zamanı ve Kullanım Ritmi", lines: rhythmLines },
-    { title: "Daha Uzun Oynama / Retention Sinyalleri", lines: retentionLines },
-    { title: "Soru / İçerik Aksiyonları", lines: contentActionLines },
-    { title: "Önerilen Aksiyonlar", lines: recommendedActions },
-    { title: "Data Quality / Eksik Ölçüm", lines: [
-      ...warningRows.map(([label, value]) => `${stripHtml(label)}: ${stripHtml(value)}`),
-      ...(missingInstrumentationRows.length ? missingInstrumentationRows : ["Bu dönem için kritik eksik ölçüm sinyali yok."])
+    { title: "Kategori Bazında Soru Havuzu", textLines: [`${categoryAnalyticsForReport.length}/${categoryAnalytics.length} kategori satırı.`, `Aktif soru havuzu: ${activeQuestions.length}`] },
+    { title: "Kategori Tercihleri", textLines: [`Aggregate tercih seçimi: ${totalPreferenceSelections || "Yeterli veri yok"}`] },
+    { title: "Kategori Bazında Gösterim", textLines: [`Gösterim: ${shownEvents}`, `Kategori satırı: ${categoryAnalyticsForReport.length}`] },
+    { title: "En Çok Gösterilen Sorular", textLines: topShown.length ? topShown.map(formatQuestionBucket) : ["Veri yok"] },
+    { title: "Az ya da Hiç Gösterilmeyen Sorular", textLines: [`Hiç gösterilmeyen aktif soru: ${neverShown.length}`, `Hiç gösterilmeyen Solo-eligible soru: ${neverShownSoloEligible.length}`] },
+    { title: "En Çok Yanlış Yapılan Sorular", textLines: mostWrong.length ? mostWrong.map(formatQuestionBucket) : ["Yeterli veri yok"] },
+    { title: "Joker Kullanımı Analizi", textLines: [
+      `JokerTransaction satırı: ${(jokerTransactions || []).length}`,
+      `UserJokerInventory satırı: ${(userJokerInventory || []).length}`,
+      `Joker event sinyali: ${Array.from(questionJokerByType.values()).reduce((sum, value) => sum + value, 0) || "Yeterli veri yok"}`
+    ] },
+    { title: "Oynanma Zamanı ve Kullanım Ritmi", textLines: [
+      peakHour ? `En yoğun saat aralığı: ${peakHour.label}` : "Saat bazlı veri yetersiz",
+      `Daily Quest: ${dailyQuestClaims}; Daily Wheel: ${wheelClaims}; Market spend: ${marketDiamondSpends}`
     ] }
   ];
-  const htmlList = (items) => `<ul style="margin:0;padding-left:18px;color:#111827;font-size:13px;line-height:20px;font-family:Arial,Helvetica,sans-serif;">
-    ${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
-  </ul>`;
-  const summaryCardsHtml = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 12px;border-collapse:collapse;">
-    <tr>
-      ${summaryCard("Gösterim", String(shownEvents), `${shownQuestionIds.size} benzersiz soru`)}
-      ${summaryCard("Cevap", String(answeredEvents), `Doğru oranı ${avgCorrectRate}`)}
-      ${summaryCard("Solo Havuz", String(soloEligibleQuestions.length), `${neverShownSoloEligible.length} hiç gösterilmedi`)}
-    </tr>
-  </table>`;
   const htmlSections = [
-    summaryCardsHtml,
-    ...reportSections.map((section) => safeSectionHtml(section.title, () => htmlList(section.lines.length ? section.lines : ["Veri yetersiz"])))
+    safeSectionHtml("Executive Summary", () => executiveCards),
+    safeSectionHtml("Kategori Bazında Soru Havuzu", () => categoryPoolHtml),
+    safeSectionHtml("Kategori Tercihleri", () => categoryPreferenceHtml),
+    safeSectionHtml("Kategori Bazında Gösterim", () => categoryExposureHtml),
+    safeSectionHtml("En Çok Gösterilen Sorular", () => topShownHtml),
+    safeSectionHtml("Az ya da Hiç Gösterilmeyen Sorular", () => underusedHtml),
+    safeSectionHtml("En Çok Yanlış Yapılan Sorular", () => wrongHtml),
+    safeSectionHtml("Joker Kullanımı Analizi", () => jokerHtml),
+    safeSectionHtml("Oynanma Zamanı ve Kullanım Ritmi", () => rhythmHtml)
   ].join("");
   const html = `<!doctype html>
 <html>
@@ -1058,12 +1344,12 @@ function buildReport({
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef2f7;padding:22px 0;">
     <tr>
       <td align="center">
-        <table role="presentation" width="720" cellpadding="0" cellspacing="0" style="width:720px;max-width:100%;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #dbe3ef;">
+        <table role="presentation" width="760" cellpadding="0" cellspacing="0" style="width:760px;max-width:100%;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #dbe3ef;">
           <tr>
             <td style="padding:24px;background:#0b1736;color:#ffffff;">
               <h1 style="margin:0 0 8px;font-family:Arial,Helvetica,sans-serif;font-size:26px;line-height:32px;color:#ffffff;">Kronox Soru Analiz Raporu</h1>
               <p style="margin:0;color:#facc15;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:20px;">Dönem: ${escapeHtml(period)}</p>
-              <p style="margin:4px 0 0;color:#cbd5e1;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:18px;">Oluşturma zamanı: ${escapeHtml(generatedAt)} · Build: ${escapeHtml(buildMarker || "Bilinmiyor")} · Template: ${escapeHtml(REPORT_TEMPLATE_VERSION)}</p>
+              <p style="margin:4px 0 0;color:#cbd5e1;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:18px;">Oluşturma zamanı: ${escapeHtml(generatedAt)} · Build: ${escapeHtml(buildMarker || "Bilinmiyor")}</p>
             </td>
           </tr>
           <tr>
@@ -1072,7 +1358,7 @@ function buildReport({
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:18px;background:#f8fafc;border-radius:12px;border:1px solid #e5e7eb;">
                 <tr><td style="padding:16px 18px;">
                   <p style="margin:0 0 6px;color:#334155;font-size:12px;line-height:18px;font-family:Arial,Helvetica,sans-serif;">Bu rapor yalnızca admin kullanımı içindir.</p>
-                  <p style="margin:0 0 6px;color:#334155;font-size:12px;line-height:18px;font-family:Arial,Helvetica,sans-serif;">Rapor kullanıcı takibi için değil, soru dengesi, içerik kalitesi, joker kullanımı ve oynanma ritmi kararları için üretilmiştir.</p>
+                  <p style="margin:0 0 6px;color:#334155;font-size:12px;line-height:18px;font-family:Arial,Helvetica,sans-serif;">Rapor kullanıcı takibi için değil, soru havuzu, kategori tercihi, gösterim dengesi, joker kullanımı ve oynanma ritmi kararları için üretilmiştir.</p>
                   <p style="margin:0;color:#64748b;font-size:12px;line-height:18px;font-family:Arial,Helvetica,sans-serif;">Canlı e-posta teslimatı, RLS ve yüksek hacimli analytics yazımı manuel doğrulama gerektirir.</p>
                 </td></tr>
               </table>
@@ -1089,17 +1375,16 @@ function buildReport({
     `Dönem: ${period}`,
     `Oluşturma zamanı: ${generatedAt}`,
     `Build: ${buildMarker || "Bilinmiyor"}`,
-    `Template: ${REPORT_TEMPLATE_VERSION}`,
     "",
     ...reportSections.flatMap((section) => [
       `--- ${section.title} ---`,
-      ...(section.lines.length ? section.lines : ["Veri yetersiz"]),
+      ...(section.textLines.length ? section.textLines : ["Veri yetersiz"]),
       ""
     ]),
     "Bu rapor yalnızca admin kullanımı içindir.",
-    "Rapor kullanıcı takibi için değil, soru dengesi ve soru kalitesi kontrolü için üretilmiştir."
+    "Rapor kullanıcı takibi için değil, soru havuzu ve oynanma ritmi kontrolü için üretilmiştir."
   ];
-  const reportText = reportSections.map((section) => `--- ${section.title} ---\n${section.lines.join("\n")}`).join("\n\n");
+  const reportText = reportSections.map((section) => `--- ${section.title} ---\n${section.textLines.join("\n")}`).join("\n\n");
   const bodyRemovedSectionsPresent = findRemovedReportSections(`${html}\n${textLines.join("\n")}`);
   return {
     html,
@@ -1126,33 +1411,28 @@ function buildReport({
       runtimeProjectionSizeAvailable: false,
       runtimeProjectionSize: null,
       runtimeProjectionSizeSource: "getQuestions projectionDiagnostics admin/Health path",
-      topShownSubcategory: topSubcategoryConcentration.topShownSubcategory,
-      topShownSubcategoryShare: topSubcategoryConcentration.topShownSubcategoryShare,
       templateVersion: REPORT_TEMPLATE_VERSION,
       reportTemplateMarker: REPORT_TEMPLATE_LABEL,
       categoryAnalyticsRowsAnalyzed: categoryAnalyticsForReport.length,
-      staticInventorySectionsRemoved: true,
-      productIntelligenceReport: true,
+      legacyStaticInventorySectionsRemoved: true,
+      nineSectionEmailReport: true,
       reportSectionCount: reportSectionNames.length,
-      emailBodyMode: "full_product_intelligence_email",
+      emailBodyMode: "nine_section_email_body",
       reportDeliveryMode: "email_body_only",
       removedReportSections: [...REMOVED_REPORT_SECTION_TITLES],
+      disallowedReportSections: [...STRICTLY_DISALLOWED_REPORT_BODY_TITLES],
       bodyRemovedSectionsPresent,
       aggregatePreferenceSelectionsAnalyzed: totalPreferenceSelections,
       categoryExposureRowsAnalyzed: categoryAnalyticsForReport.length,
-      categoryFairnessSignalCount: categoryFairnessSignals.length,
       reportSections: reportSectionNames,
-      productIntelligenceSections: reportSectionNames,
-      questionTypeSignalCount: questionTypeRows.length,
-      bestQuestionTypeSignalCount: bestQuestionTypes.length,
-      difficultQuestionTypeSignalCount: tooHardQuestionTypes.length,
       jokerLedgerRowsAnalyzed: (jokerTransactions || []).length,
+      userJokerInventoryRowsAnalyzed: (userJokerInventory || []).length,
       questionJokerEventSignalCount: Array.from(questionJokerByType.values()).reduce((sum, value) => sum + value, 0),
       diamondEconomyRowsAnalyzed: (diamondTransactions || []).length,
       dailyWheelSpinRowsAnalyzed: (dailyWheelSpins || []).length,
       gameRecordRowsAnalyzed: (gameRecords || []).length,
-      peakPlayHourCount: peakHours.length,
-      missingInstrumentation: missingInstrumentationRows,
+      peakPlayHour: peakHour?.label || null,
+      requiredSectionOrderValid: true,
       categoryAnalytics: categoryAnalytics.map((row) => ({
         categoryId: row.categoryId,
         categoryName: row.categoryName,
@@ -1299,6 +1579,7 @@ Deno.serve(async (req) => {
     const rawCategories = await base44.asServiceRole.entities.Category.list("-created_date", MAX_CATEGORIES).catch(() => []);
     const rawCategoryPreferences = await base44.asServiceRole.entities.UserCategoryPreference.list("-updated_date", MAX_USER_CATEGORY_PREFERENCES).catch(() => []);
     const rawJokerTransactions = await safeListServiceEntity(base44, "JokerTransaction", "-created_at", MAX_JOKER_TRANSACTIONS);
+    const rawUserJokerInventory = await safeListServiceEntity(base44, "UserJokerInventory", "-updated_at", MAX_USER_JOKER_INVENTORY);
     const rawDiamondTransactions = await safeListServiceEntity(base44, "DiamondTransaction", "-created_at", MAX_DIAMOND_TRANSACTIONS);
     const rawDailyWheelSpins = await safeListServiceEntity(base44, "DailyWheelSpin", "-claimed_at", MAX_DAILY_WHEEL_SPINS);
     const rawGameRecords = await safeListServiceEntity(base44, "GameRecord", "-created_date", MAX_GAME_RECORDS);
@@ -1309,6 +1590,7 @@ Deno.serve(async (req) => {
       categories: rawCategories,
       categoryPreferences: rawCategoryPreferences,
       jokerTransactions: filterRowsSince(rawJokerTransactions, since),
+      userJokerInventory: rawUserJokerInventory,
       diamondTransactions: filterRowsSince(rawDiamondTransactions, since),
       dailyWheelSpins: filterRowsSince(rawDailyWheelSpins, since),
       gameRecords: filterRowsSince(rawGameRecords, since),
@@ -1318,33 +1600,32 @@ Deno.serve(async (req) => {
     const emailText = report.text;
     const sentAt = (/* @__PURE__ */ new Date()).toISOString();
     const reportBuildMarker = String(body?.buildMarker || REPORT_BUILD_MARKER);
-    const requiredBodySections = [
-      "Yönetici Özeti",
-      "Genel Kullanım Özeti",
-      "Solo Soru Algoritması İçin Sinyaller",
-      "Doğru Soru Tiplerini Öğrenme / İçerik Kalitesi",
-      "Joker Kullanımı Analizi",
-      "Oynanma Zamanı ve Kullanım Ritmi",
-      "Daha Uzun Oynama / Retention Sinyalleri",
-      "Soru / İçerik Aksiyonları",
-      "Önerilen Aksiyonlar",
-      "Data Quality / Eksik Ölçüm"
-    ];
+    const requiredBodySections = [...REQUIRED_REPORT_SECTION_TITLES];
     const missingBodySections = requiredBodySections.filter((section) => !emailHtml.includes(section));
+    const sectionPositions = requiredBodySections.map((section) => emailHtml.indexOf(section));
+    const requiredSectionOrderValid = sectionPositions.every((position, index) => position >= 0 && (index === 0 || position > sectionPositions[index - 1]));
+    const renderedSectionHeaderCount = (emailHtml.match(/<h2 /g) || []).length;
+    const reportSectionCount = Array.isArray(report.reportSections) ? report.reportSections.length : 0;
+    const bodyContainsExactlyRequiredSections = missingBodySections.length === 0 && requiredSectionOrderValid && renderedSectionHeaderCount === requiredBodySections.length && reportSectionCount === requiredBodySections.length;
     const bodyDiagnostics = {
       reportBuildMarker,
       buildMarker: reportBuildMarker,
       templateVersion: REPORT_TEMPLATE_VERSION,
-      emailBodyMode: "full_product_intelligence_email",
+      emailBodyMode: "nine_section_email_body",
       reportDeliveryMode: "email_body_only",
-      bodyContainsExecutiveSummary: emailHtml.includes("Yönetici Özeti"),
-      bodyContainsProductIntelligenceSections: missingBodySections.length === 0,
+      bodyContainsExecutiveSummary: emailHtml.includes("Executive Summary"),
+      bodyContainsNineRequiredSections: missingBodySections.length === 0,
+      bodyContainsExactlyRequiredSections,
+      requiredSectionOrderValid,
+      renderedSectionHeaderCount,
+      reportSectionCount,
+      requiredBodySections,
       missingBodySections,
       bodyRemovedSectionsPresent: report.bodyRemovedSectionsPresent,
       bodyLength: emailHtml.length,
       sentAt
     };
-    if (!bodyDiagnostics.bodyContainsExecutiveSummary || missingBodySections.length || emailHtml.length < 1000 || report.bodyRemovedSectionsPresent.length) {
+    if (!bodyDiagnostics.bodyContainsExecutiveSummary || !bodyContainsExactlyRequiredSections || emailHtml.length < 1000 || report.bodyRemovedSectionsPresent.length) {
       await writeJobLog(base44, admin.user, "body_validation_failed", { periodDays, requestedBy: requestedByEmail, recipientEmail, adminAuthorized: true, emailDispatchStatus: "not_sent", ...bodyDiagnostics });
       return json({ ok: false, error: "report_body_validation_failed", requestedBy: requestedByEmail, recipientEmail, adminAuthorized: true, emailDispatchStatus: "not_sent", ...bodyDiagnostics }, 500);
     }

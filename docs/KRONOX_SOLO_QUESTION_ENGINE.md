@@ -142,13 +142,13 @@ P3 adds question analytics without changing question selection:
   result popups, or deck progression.
 - events are private/admin analytics data and must not expose a public full
   question bank.
-- manual admin email reports currently send the full `product-intel-email-v3`
-  product-intelligence report inside the email body, with no PDF attachment
-  requirement. The report turns aggregate exposure/outcome data into Solo
-  algorithm, question-type quality, joker, play-time, retention, and
-  missing-instrumentation signals. This report informs future tuning but does
-  not change runtime question selection by itself; no scheduled report exists in
-  this version.
+- manual admin email reports currently send the full `nine-section-email-v1`
+  report inside the email body, with no PDF attachment requirement. The report
+  uses exactly 9 table/card sections, including category pool, category
+  preference, category exposure, top/underused/wrong question, joker, and
+  play-rhythm views. This report informs future tuning but does not change
+  runtime question selection by itself; no scheduled report exists in this
+  version.
 - `QuestionStatsProjection` refresh remains an admin/manual aggregate path and
   is not updated synchronously during gameplay.
 - Health guardrails must detect projection narrowing, repeated-deck low

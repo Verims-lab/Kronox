@@ -651,17 +651,18 @@ Security contract:
 * automatic scheduling is a deployment/platform decision and is not enabled by
   repo code alone
 * `sendQuestionAnalyticsReportEmail` is manual/admin-triggered only, sends the
-  full useful question/product intelligence report inside the authenticated
-  admin email body, does not send or claim a PDF attachment for now, and must
-  not expose user-level surveillance data to normal users. It is registered at
+  full 9-section question analytics report inside the authenticated admin email
+  body, does not send or claim a PDF attachment for now, and must not expose
+  user-level surveillance data to normal users. It is registered at
   `base44/functions/sendQuestionAnalyticsReportEmail/entry.ts` with
   `base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc`. This
   callable report function inlines the DB-backed AdminUser guard for the
   current Base44 function runtime. Frontend build success does not prove the
   Base44 backend function was redeployed; live proof must trigger the function
-  as an active admin and confirm `templateVersion: product-intel-email-v3`,
-  `emailBodyMode: full_product_intelligence_email`, `reportDeliveryMode:
-  email_body_only`, `bodyContainsProductIntelligenceSections: true`, and that
+  as an active admin and confirm `templateVersion: nine-section-email-v1`,
+  `emailBodyMode: nine_section_email_body`, `reportDeliveryMode:
+  email_body_only`, `bodyContainsExactlyRequiredSections: true`,
+  `requiredSectionOrderValid: true`, `renderedSectionHeaderCount: 9`, and that
   the received email body is readable, non-empty, and does not mention a PDF
   attachment.
 * every active `AdminUser` row with role `admin` or `owner` can request the
@@ -670,10 +671,12 @@ Security contract:
 * the function response and Admin Ekranı UI surface safe `requestedBy`,
   `recipientEmail`, `emailDispatchStatus`, template, full-body section, and body
   validation diagnostics so a failed dispatch is not shown as generic success
-* sent question analytics reports include product-intelligence sections for Solo
-  algorithm signals, question-type/content quality, joker usage, play-time
-  rhythm, longer-session/retention signals, recommended actions, and missing
-  instrumentation; preference/user data stays aggregate-only
+* sent question analytics reports contain exactly: `Executive Summary`,
+  `Kategori Bazında Soru Havuzu`, `Kategori Tercihleri`, `Kategori Bazında
+  Gösterim`, `En Çok Gösterilen Sorular`, `Az ya da Hiç Gösterilmeyen Sorular`,
+  `En Çok Yanlış Yapılan Sorular`, `Joker Kullanımı Analizi`, and `Oynanma
+  Zamanı ve Kullanım Ritmi`; Joker/time sections must be table-based and
+  preference/user data stays aggregate-only
 * function-based question analytics reset is currently not used because the
   callable reset path was not reliable in the current Base44 setup
 * after a question pool replacement, question analytics reset is a manual DB

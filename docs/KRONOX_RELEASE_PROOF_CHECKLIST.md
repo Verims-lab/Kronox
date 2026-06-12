@@ -799,9 +799,10 @@ Checklist:
   `PDF ekte` or otherwise claim an attachment exists.
 * Runtime proof requires triggering the live `sendQuestionAnalyticsReportEmail`
   function as an active admin and confirming `templateVersion:
-  product-intel-email-v3`, `emailBodyMode: full_product_intelligence_email`,
-  `reportDeliveryMode: email_body_only`, `bodyContainsProductIntelligenceSections:
-  true`, `bodyLength > 1000`, the email arrives, and the received email body is
+  nine-section-email-v1`, `emailBodyMode: nine_section_email_body`,
+  `reportDeliveryMode: email_body_only`, `bodyContainsExactlyRequiredSections:
+  true`, `requiredSectionOrderValid: true`, `renderedSectionHeaderCount: 9`,
+  `bodyLength > 1000`, the email arrives, and the received email body is
   readable/useful without an attachment. `npm run build` does not prove Base44
   backend function deployment or live SendEmail output.
 * These sections are intentionally removed from generated email output:
@@ -809,13 +810,13 @@ Checklist:
   `Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı`,
   `Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı`,
   `Kategori Bazında Yıl Aralığı`, and `Kategori İçi Soru Analizi`.
-* The email body keeps product-intelligence sections: `Yönetici Özeti`, `Genel
-  Kullanım Özeti`, `Solo Soru Algoritması İçin Sinyaller`, `Doğru Soru
-  Tiplerini Öğrenme / İçerik Kalitesi`, `Joker Kullanımı Analizi`, `Oynanma
-  Zamanı ve Kullanım Ritmi`, `Daha Uzun Oynama / Retention Sinyalleri`, `Soru /
-  İçerik Aksiyonları`, `Önerilen Aksiyonlar`, and `Data Quality / Eksik Ölçüm`. The
-  report should help improve the Solo question algorithm, content quality,
-  joker economy, play-time patterns, and session length.
+* The email body must contain exactly these 9 sections in this order:
+  `Executive Summary`, `Kategori Bazında Soru Havuzu`, `Kategori Tercihleri`,
+  `Kategori Bazında Gösterim`, `En Çok Gösterilen Sorular`, `Az ya da Hiç
+  Gösterilmeyen Sorular`, `En Çok Yanlış Yapılan Sorular`, `Joker Kullanımı
+  Analizi`, and `Oynanma Zamanı ve Kullanım Ritmi`. Joker and play-rhythm
+  sections must be table-based and must show structured `Yeterli veri yok` rows
+  when exact metrics are not captured.
 * The report must not invent analytics. If joker outcomes, session duration,
   guest/preference source, exit reason, or local timezone are not captured, the
   email report must mark the data as insufficient and recommend exact
