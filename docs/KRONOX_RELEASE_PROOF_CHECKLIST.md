@@ -847,6 +847,14 @@ Checklist:
   `SubCategory`, `UserCategoryPreference`, `UserStatsProjection`, scores,
   diamonds, progress, leaderboard rows, `UserJokerInventory`,
   `JokerTransaction`, users, admin rows, Daily Wheel, or gameplay/economy data.
+* Static pool and category preference report sections remain based on current
+  `Question`, `Category`, and `UserCategoryPreference` rows after reset.
+* `JokerTransaction`, `DiamondTransaction`, `UserJokerInventory`, and
+  `DailyWheelSpin` are ledger/current-state sources and are not cleared by a
+  question analytics reset. If `Joker Kullanımı Analizi` is ledger-derived, it
+  may continue to show historical economy signals until a separate analytics
+  event source exists. `Oynanma Zamanı` hour/day metrics reset with
+  `QuestionAttemptEvent` timestamps.
 * Question Analytics report handles stale/deleted question IDs, unknown
   categories, section-level render failures, and empty analytics state without
   truncating the email; large sections remain capped.

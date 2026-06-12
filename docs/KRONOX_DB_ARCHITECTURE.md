@@ -675,7 +675,7 @@ retention approval.
 | `expirePushSubscriptions` | Daily plus push-error immediate | `PushSubscription` | 404/410 or old disabled rows -> `expired`; archive after retention. | Endpoint + status. | Keep in-app invite unaffected. | Immediate marking exists in push; recurring archive needed. |
 | `refreshLeaderboardProjection` | On score write plus hourly/daily reconciliation | `User`, projection | Recompute unified score rows, dedupe owner keys. | Owner key. | Keep old row if recompute fails; log. | Partially exists via score writers and leaderboard function. |
 | `aggregateQuestionStats` | Hourly/daily | events, projections | Roll up shown/correct/wrong/time/difficulty signals. | Date window + projection key. | Re-run same window safely. | New. |
-| Manual DB question analytics reset | Manual DB maintenance | `QuestionAttemptEvent`, `QuestionStatsProjection`, `CategoryStatsProjection` | Reset question analytics after replacing the question pool. | Admin console/operator proof. | Clears analytics history/projections only; never deletes questions, categories, preferences, progress, economy, users, admin rows, Daily Wheel, gameplay, or leaderboard data. | Manual only; function reset path is not used. |
+| Manual DB question analytics reset | Manual DB maintenance | `QuestionAttemptEvent`, `QuestionStatsProjection`, `CategoryStatsProjection` | Reset question/show/answer/play-time analytics after replacing the question pool. | Admin console/operator proof. | Clears question analytics history/projections only; never deletes questions, categories, preferences, progress, economy, users, admin rows, Daily Wheel, gameplay, or leaderboard data. The 9-section report also reads ledger/current-state tables for Joker/economy signals, so `JokerTransaction`, `DiamondTransaction`, `UserJokerInventory`, and Daily Wheel ledger rows are explicitly outside this reset. | Manual only; function reset path is not used. |
 | `cleanupAdminMaintenanceLog` | Monthly/quarterly | `AdminMaintenanceLog` | Archive/trim older than retention. | Log id/date. | Never delete recent logs. | New. |
 | `archiveOldLobbyMessages` | Monthly | `LobbyMessage` | Archive/delete chat rows after policy. | Lobby id + date. | Skip active lobbies. | New, only if chat used. |
 
@@ -901,7 +901,13 @@ No deletion should happen in this task.
   `UserStatsProjection`, Solo progress, `GameRecord`, `OnlineMatchResult`,
   `Lobby`, leaderboard rows, score/Kronox Puan rows, `DiamondTransaction`,
   `DailyWheelSpin`, `UserJokerInventory`, `JokerTransaction`, users, or
-  `AdminUser` rows. After reset, the report should
+  `AdminUser` rows. Static content-pool and category-preference report sections
+  keep using current `Question`, `Category`, and `UserCategoryPreference` rows.
+  Joker Kullanımı Analizi may continue to show ledger-derived history from
+  `JokerTransaction`/`UserJokerInventory`, and activity notes may continue to
+  show `DiamondTransaction`/`DailyWheelSpin` counts; those are economy/audit
+  records, not question analytics reset tables. Oynanma Zamanı hour/day metrics
+  reset through `QuestionAttemptEvent` timestamps. After reset, the report should
   still show current active question/category pool counts with zero exposure
   events.
 

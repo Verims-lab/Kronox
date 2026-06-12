@@ -88,6 +88,8 @@ Cleanup/retention jobs implemented now:
 - Manual DB reset path after question pool replacement is documented because the function reset path is currently not used.
 - manual_db_reset_only clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection by DB maintenance.
 - Manual reset must not delete Question, Category, SubCategory, UserCategoryPreference, UserSubCategoryPreference, UserStatsProjection, Solo progress, GameRecord, OnlineMatchResult, Lobby, SoloLeaderboardEntry, Kronox Puan, DiamondTransaction, DailyWheelSpin, UserJokerInventory, JokerTransaction, users, or AdminUser.
+- Static pool and category preference report sections still use current Question, Category, and UserCategoryPreference rows after analytics cleanup.
+- Joker Kullanımı Analizi may continue to show ledger-derived history from JokerTransaction and current-state UserJokerInventory after question analytics reset. DiamondTransaction and DailyWheelSpin activity signals are economy/audit rows and are not question analytics reset tables. Oynanma Zamanı hour/day metrics reset through QuestionAttemptEvent timestamps.
 - Joker inventory is separate from Diamonds: UserJokerInventory is the joker balance source, JokerTransaction is the joker ledger, Solo spends create solo_use rows, Mağaza purchases create market_purchase rows while spending Diamonds, and Daily Wheel remains Diamond-only.
 - cleanupAdminMaintenanceLog requires admin auth, supports dryRun, marks old logs retention_status archived.
 - Cleanup jobs are status-transition-first and do not hard delete production data.
@@ -127,6 +129,7 @@ Implemented now:
 - aggregateQuestionStats and sendQuestionAnalyticsReportEmail ignore stale analytics rows that reference deleted/missing Question IDs with diagnostics.
 - Question analytics reset is manual_db_reset_only and clears only QuestionAttemptEvent, QuestionStatsProjection, and CategoryStatsProjection.
 - Question analytics reset does not delete Question, Category, SubCategory, UserCategoryPreference, UserSubCategoryPreference, UserStatsProjection, score/progress/economy, leaderboard, Daily Wheel, users, AdminUser, or gameplay rows.
+- Question analytics reset does not clear JokerTransaction, DiamondTransaction, UserJokerInventory, or DailyWheelSpin; ledger-derived Joker/economy report signals may remain visible.
 
 Scaffolded now:
 - Online gameplay analytics write coverage is documented/scaffolded only; no Online runtime QuestionAttemptEvent write point is enabled yet.

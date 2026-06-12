@@ -58,4 +58,8 @@ export const QUESTION_ANALYTICS_SECURITY_CONTRACT = Object.freeze({
   gameplayBlockingWrites: false,
   accountDeletionHandling: 'delete_or_anonymize_user_owned_QuestionAttemptEvent_rows',
   adminResetHandling: 'manual_db_clear_QuestionAttemptEvent_QuestionStatsProjection_CategoryStatsProjection_only',
+  adminResetExcludes: 'content_preferences_user_profile_economy_ledgers_inventory_progress_leaderboard_social_data',
+  jokerLedgerResetHandling: 'JokerTransaction_and_DiamondTransaction_are_not_question_analytics_reset_tables',
+  jokerReportLedgerLimitation: 'Joker_Kullanimi_Analizi_ledger_verisinden_besleniyorsa_question_analytics_resetinden_etkilenmez',
+  playRhythmResetHandling: 'Oynanma_Zamani_metrics_reset_with_QuestionAttemptEvent_timestamps',
 });

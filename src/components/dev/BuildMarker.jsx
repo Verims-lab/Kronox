@@ -1730,7 +1730,13 @@ import React, { useEffect, useState } from 'react';
 //     runtime category boundary; active Category rows drive the projection.
 //   • Health/docs record the remaining explicit risks: local-only repeat
 //     avoidance, no global exposure balancing, and no hard low-correct cooldown.
-const BUILD_MARKER = 'Codex321';
+//
+// Codex322 — Question analytics reset scope audit:
+//   • Admin reset copy clarifies that only QuestionAttemptEvent,
+//     QuestionStatsProjection, and CategoryStatsProjection are cleared.
+//   • Docs/Health now state Joker/economy ledgers and current content/user data
+//     are not question analytics reset tables.
+const BUILD_MARKER = 'Codex322';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
