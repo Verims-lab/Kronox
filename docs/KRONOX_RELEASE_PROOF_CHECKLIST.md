@@ -777,10 +777,12 @@ Checklist:
 * `cancelStaleLobbies` dry-run targets only waiting/starting lobbies and
   protects active/in_game/finished lobbies.
 * `expirePushSubscriptions` dry-run does not delete active subscriptions.
-* `aggregateQuestionStats` dry-run updates projected counts from
-  `QuestionAttemptEvent` without changing gameplay source rows. Verify
-  `shown`/`replacement_shown`, `answered`, and `swapped_out` event types are
-  counted separately.
+* `aggregateQuestionStats` dry-run reports projected counts from
+  `QuestionAttemptEvent` without changing gameplay source rows. A non-dry-run
+  admin call writes optional `QuestionStatsProjection` and
+  `CategoryStatsProjection` summaries. These projection tables may be empty if
+  the manual refresh has not been run, and the current 9-section email report
+  does not require them.
 * `sendQuestionAnalyticsReportEmail` sends the manual admin question analytics
   report to the authenticated admin email for the selected period. The report
   must render as HTML/table/bar formatted email with readable empty states and
@@ -813,7 +815,7 @@ Checklist:
   nine-section-email-v1`, `emailBodyMode: nine_section_email_body`,
   `reportDeliveryMode: email_body_only`, `bodyContainsExactlyRequiredSections:
   true`, `requiredSectionOrderValid: true`, `renderedSectionHeaderCount: 9`,
-  `bodyLength > 1000`, `reportBuildMarker: Codex322`, the email arrives, and the received email body is
+  `bodyLength > 1000`, `reportBuildMarker: Codex323`, the email arrives, and the received email body is
   readable/useful without an attachment. `npm run build` does not prove Base44
   backend function deployment or live SendEmail output.
 * Runtime Projection wording is diagnostic only and must include
@@ -844,9 +846,12 @@ Checklist:
   Gmail receipt with an openable attachment before docs/Health can make it
   mandatory again.
 * Question analytics reset is currently a manual DB maintenance operation; the
-  function-based reset path is not used. After replacing the question pool,
-  manually clear only `QuestionAttemptEvent`, `QuestionStatsProjection`, and
-  `CategoryStatsProjection`.
+  function-based reset path is not used. The active source for question
+  show/answer/time history is `QuestionAttemptEvent`, and the current
+  9-section email report computes those sections from raw events. After
+  replacing the question pool, manually clear `QuestionAttemptEvent` and, if
+  populated, the optional manual projection tables `QuestionStatsProjection`
+  and `CategoryStatsProjection`.
 * Manual question analytics reset must not delete `Question`, `Category`,
   `SubCategory`, `UserCategoryPreference`, `UserStatsProjection`, scores,
   diamonds, progress, leaderboard rows, `UserJokerInventory`,

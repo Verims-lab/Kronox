@@ -128,7 +128,9 @@ export default function QuestionAnalyticsReportTool() {
             <p className="mb-2 font-inter text-xs font-semibold text-amber-100">Soru Analitik Verilerini Sıfırla</p>
             <p className="font-inter text-xs leading-5 text-amber-100/85">
               Bu işlem şu anda manuel DB temizliği ile yapılır. Function reset yolu devre dışı.
-              Soru gösterim/cevap/zaman geçmişini sıfırlamak için yalnızca QuestionAttemptEvent, QuestionStatsProjection ve CategoryStatsProjection temizlenir.
+              Soru gösterim/cevap/zaman geçmişinin aktif kaynağı QuestionAttemptEvent tablosudur; mevcut 9 bölümlü rapor ham olaylardan hesaplanır.
+              QuestionStatsProjection ve CategoryStatsProjection manuel aggregateQuestionStats refresh ile oluşan opsiyonel özet tablolardır; boş olmaları normal olabilir.
+              Tam analitik reset için QuestionAttemptEvent ve varsa bu iki projection tablosu temizlenir.
               Soru havuzu, kategori tercihleri, kullanıcı/profil verileri, elmas/joker bakiyeleri ve JokerTransaction/DiamondTransaction gibi ekonomi ledger kayıtları silinmez.
               Not: Joker Kullanımı Analizi ledger verisinden besleniyorsa bu resetten etkilenmez; Oynanma Zamanı metrikleri QuestionAttemptEvent temizliğiyle sıfırlanır.
             </p>

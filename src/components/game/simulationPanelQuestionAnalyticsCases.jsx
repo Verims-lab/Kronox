@@ -709,8 +709,11 @@ export const EXTRA_TESTS = [
         'fonksiyonu bulunamadı veya deploy edilmemiş. Function name/path kontrol edilmeli.',
         'Soru Analitik Verilerini Sıfırla',
         'Bu işlem şu anda manuel DB temizliği ile yapılır. Function reset yolu devre dışı.',
-        'QuestionAttemptEvent, QuestionStatsProjection ve CategoryStatsProjection',
-        'Soru gösterim/cevap/zaman geçmişini sıfırlamak',
+        'Soru gösterim/cevap/zaman geçmişinin aktif kaynağı QuestionAttemptEvent',
+        'mevcut 9 bölümlü rapor ham olaylardan hesaplanır',
+        'QuestionStatsProjection ve CategoryStatsProjection manuel aggregateQuestionStats refresh',
+        'boş olmaları normal olabilir',
+        'Tam analitik reset için QuestionAttemptEvent ve varsa bu iki projection tablosu',
         'Soru havuzu, kategori tercihleri, kullanıcı/profil verileri',
         'elmas/joker bakiyeleri',
         'JokerTransaction/DiamondTransaction gibi ekonomi ledger kayıtları silinmez',
@@ -783,9 +786,14 @@ export const EXTRA_TESTS = [
       const combined = `${DB_ARCHITECTURE_IMPLEMENTATION_MIRROR}\n${questionAnalyticsContractsSource}\n${questionAnalyticsReportToolSource}\n${questionAttemptEventEntitySource}\n${questionStatsProjectionEntitySource}\n${categoryStatsProjectionEntitySource}`;
       const missing = missingTokens(combined, [
         'manual_db_reset_only',
-        'manual_db_clear_QuestionAttemptEvent_QuestionStatsProjection_CategoryStatsProjection_only',
+        'QuestionAttemptEvent_raw_events_active_report_source',
+        'QuestionStatsProjection_and_CategoryStatsProjection_are_manual_aggregateQuestionStats_outputs_and_may_be_empty',
+        'nine_section_report_does_not_require_projection_tables',
+        'manual_db_clear_QuestionAttemptEvent_and_if_populated_QuestionStatsProjection_CategoryStatsProjection',
         'manuel DB temizliği',
         'Function reset yolu devre dışı',
+        'boş olmaları normal olabilir',
+        'aggregateQuestionStats',
         'Manual DB reset path after question pool replacement',
         'QuestionAttemptEvent',
         'QuestionStatsProjection',
@@ -823,7 +831,7 @@ export const EXTRA_TESTS = [
           actual: { missing, forbidden },
         });
       }
-      return pass('Manual reset clears only QuestionAttemptEvent/QuestionStatsProjection/CategoryStatsProjection by documented DB maintenance; Settings no longer calls resetQuestionAnalyticsData and warns that economy ledgers are outside scope.', {
+      return pass('Manual reset clears QuestionAttemptEvent and any populated manual projection rows by documented DB maintenance; Settings no longer calls resetQuestionAnalyticsData and warns that economy ledgers are outside scope.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

@@ -165,8 +165,11 @@ Rules:
 * category exposure analysis is separate report-period data sourced from
   `QuestionAttemptEvent` rows
 * after a full question pool replacement, question analytics reset is currently
-  a manual DB maintenance operation: clear `QuestionAttemptEvent`,
-  `QuestionStatsProjection`, and `CategoryStatsProjection` only; do not delete
+  a manual DB maintenance operation. The active report source for
+  show/answer/time history is `QuestionAttemptEvent`; `QuestionStatsProjection`
+  and `CategoryStatsProjection` are optional manual `aggregateQuestionStats`
+  summaries and may be empty if the refresh has not been run. Clear
+  `QuestionAttemptEvent` and, if populated, those projection tables; do not delete
   questions, categories, preferences, scores, diamonds, progress, users, admin
   rows, Daily Wheel rows, gameplay rows, or leaderboard rows
 * report generation must skip stale/deleted `question_id` analytics references

@@ -166,8 +166,12 @@ P3 adds question analytics without changing question selection:
   driven by active `Category` rows, not a stale hardcoded seed-category list.
   The fallback list is only for Category read failure; normal runtime must not
   accidentally hardcode active categories 7+ out of the Solo-eligible pool.
-- `QuestionStatsProjection` refresh remains an admin/manual aggregate path and
-  is not updated synchronously during gameplay.
+- `QuestionStatsProjection` and `CategoryStatsProjection` refresh remains an
+  admin/manual `aggregateQuestionStats` path, defaults to dry-run unless
+  explicitly run for write, and is not updated synchronously during gameplay.
+  The current 9-section Question Analytics email report reads
+  `QuestionAttemptEvent` directly, so empty projection tables are not by
+  themselves a report bug.
 - Health guardrails must detect projection narrowing, repeated-deck low
   unique coverage, high/recent exposure reuse, category/subcategory/year-band
   concentration, and active-pool versus runtime-projection mismatch.
