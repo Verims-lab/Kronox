@@ -1769,7 +1769,15 @@ import React, { useEffect, useState } from 'react';
 //     after every case.
 //   • Health contracts were kept aligned with the split; no product rules,
 //     gameplay, scoring, economy, or Base44 function deploy paths changed.
-const BUILD_MARKER = 'Codex326';
+//
+// Codex327 — Health Center result-state batching fix:
+//   • Health run state now tracks unpublished result count and avoids
+//     publishing full growing result snapshots after every single slow case.
+//   • Final Health report JSON shape, localStorage persistence, export/copy
+//     behavior, and report batching/yield timing remain unchanged.
+//   • Health architecture static checks now guard both report batching and
+//     result-state snapshot batching without running Health suites.
+const BUILD_MARKER = 'Codex327';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

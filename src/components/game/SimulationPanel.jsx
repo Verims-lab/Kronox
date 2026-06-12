@@ -116,6 +116,7 @@ const HEALTH_REPORT_UPDATE_BATCH_SIZE = 25;
 const HEALTH_REPORT_UPDATE_MIN_INTERVAL_MS = 250;
 const HEALTH_RESULT_STATE_UPDATE_BATCH_SIZE = 10;
 const HEALTH_RESULT_STATE_UPDATE_MIN_INTERVAL_MS = 120;
+const HEALTH_RESULT_STATE_UPDATE_MIN_PENDING = 3;
 
 function healthNowMs() {
   return typeof performance !== 'undefined' && typeof performance.now === 'function'
@@ -181,6 +182,10 @@ function persistCompletedReport(report) {
   return normalized;
 }
 
+function publishResultStateSnapshot(setResultsByKey, resultsAccumulator) {
+  setResultsByKey({ ...resultsAccumulator });
+}
+
 export default function SimulationPanel({ onClose }) {
   const [selectedSuiteId, setSelectedSuiteId] = useState(SUITES[0].id);
   const [resultsByKey, setResultsByKey] = useState({});
@@ -217,6 +222,7 @@ export default function SimulationPanel({ onClose }) {
     let lastYieldAt = healthNowMs();
     let lastReportAt = lastYieldAt;
     let lastResultStateAt = lastYieldAt;
+    let pendingResultStateCount = 0;
     setResultsByKey({});
     setPlannedKeys(cases.map(item => item.key));
     setCopyState('');
@@ -226,19 +232,27 @@ export default function SimulationPanel({ onClose }) {
       setRunningKey(testCase.key);
       const caseResult = await executeCase(testCase);
       nextResults[testCase.key] = caseResult;
+      pendingResultStateCount += 1;
 
       const now = healthNowMs();
       const completedCount = index + 1;
+      const isFinalCase = completedCount === cases.length;
       const shouldRefreshResultState =
-        completedCount === cases.length ||
-        completedCount % HEALTH_RESULT_STATE_UPDATE_BATCH_SIZE === 0 ||
-        now - lastResultStateAt >= HEALTH_RESULT_STATE_UPDATE_MIN_INTERVAL_MS;
+        !isFinalCase && (
+          pendingResultStateCount >= HEALTH_RESULT_STATE_UPDATE_BATCH_SIZE ||
+          (
+            pendingResultStateCount >= HEALTH_RESULT_STATE_UPDATE_MIN_PENDING &&
+            now - lastResultStateAt >= HEALTH_RESULT_STATE_UPDATE_MIN_INTERVAL_MS
+          )
+        );
       const shouldRefreshReport =
-        completedCount === cases.length ||
-        completedCount % HEALTH_REPORT_UPDATE_BATCH_SIZE === 0 ||
-        now - lastReportAt >= HEALTH_REPORT_UPDATE_MIN_INTERVAL_MS;
+        !isFinalCase && (
+          completedCount % HEALTH_REPORT_UPDATE_BATCH_SIZE === 0 ||
+          now - lastReportAt >= HEALTH_REPORT_UPDATE_MIN_INTERVAL_MS
+        );
       if (shouldRefreshResultState) {
-        setResultsByKey({ ...nextResults });
+        publishResultStateSnapshot(setResultsByKey, nextResults);
+        pendingResultStateCount = 0;
         lastResultStateAt = now;
       }
       if (shouldRefreshReport) {
@@ -252,7 +266,7 @@ export default function SimulationPanel({ onClose }) {
       }
     }
 
-    setResultsByKey({ ...nextResults });
+    publishResultStateSnapshot(setResultsByKey, nextResults);
     updateReport(nextResults, meta, { persist: true });
     setRunningKey(null);
     setPlannedKeys([]);
