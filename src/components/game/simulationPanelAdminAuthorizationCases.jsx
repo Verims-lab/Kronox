@@ -8,7 +8,7 @@
 //     analytics report and Daily Quest definition manager are known
 //     flat-runtime exceptions and must use verified inline AdminUser guards
 //     instead.
-//   • Admin email env allowlists are not used for authorization.
+//   • Admin/test reset email env allowlists are not used for authorization.
 //   • Runtime active/disabled AdminUser proof remains NOT_AUTOMATABLE.
 //
 // PASS proves static source contracts only. Deployed AdminUser rows and RLS
@@ -141,8 +141,13 @@ const LEGACY_ADMIN_ENV_TOKENS = [
   `Deno.env.get("${['ADMIN', 'EMAILS'].join('_')}")`,
   `Deno.env.get('${['KRONOX', 'ADMIN', 'EMAILS'].join('_')}')`,
   `Deno.env.get("${['KRONOX', 'ADMIN', 'EMAILS'].join('_')}")`,
+  `Deno.env.get('${['KRONOX', 'TEST', 'RESET', 'EMAILS'].join('_')}')`,
+  `Deno.env.get("${['KRONOX', 'TEST', 'RESET', 'EMAILS'].join('_')}")`,
+  `Deno.env.get('${['TEST', 'RESET', 'EMAILS'].join('_')}')`,
+  `Deno.env.get("${['TEST', 'RESET', 'EMAILS'].join('_')}")`,
   ['get', 'AdminEmails'].join(''),
   ['get', 'ConfiguredAdminEmails'].join(''),
+  ['get', 'ResettableTestEmails'].join(''),
   ['configured', 'EmailList'].join(''),
 ];
 
@@ -151,7 +156,7 @@ export const EXTRA_TESTS = [
   makeCase(
     'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
     'no_hardcoded_admin_email_literal',
-    'None of the admin-only functions contain a quoted email-shaped literal in source (admin allowlist must come from env/secret only)',
+    'None of the admin-only functions contain a quoted email-shaped literal in source (AdminUser is the admin source of truth)',
     () => {
       const offenders = [];
       for (const fn of TARGET_FUNCTIONS) {
@@ -371,7 +376,7 @@ export const EXTRA_TESTS = [
   makeCase(
     'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
     'admin_email_env_allowlist_not_used',
-    'Admin authorization does not read admin email allowlists from environment variables',
+    'Admin authorization does not read admin/test reset email allowlists from environment variables',
     () => {
       const offenders = [];
       for (const fn of TARGET_FUNCTIONS) {
@@ -394,6 +399,64 @@ export const EXTRA_TESTS = [
         actionType: ACTION_TYPES.CODE_FIX,
       });
     },
+  ),
+
+  makeCase(
+    'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
+    'reset_test_account_progress_adminuser_guard',
+    'resetTestAccountProgress uses AdminUser-backed authorization and exact target confirmation instead of env email allowlists',
+    () => {
+      const src = safeStr(resetTestAccountProgressSource);
+      const required = [
+        "import { requireAdmin } from '../_shared/adminAuth.ts'",
+        'const adminAuth = await requireAdmin(base44)',
+        'if (adminAuth.response) return adminAuth.response',
+        'confirmEmail',
+        'confirmation_mismatch',
+        "source: 'AdminUser'",
+        'role: adminAuth.adminRole',
+        'base44.asServiceRole.entities.User.update',
+        'updateSoloLeaderboardRows',
+      ].filter((token) => !src.includes(token));
+      const forbidden = [
+        'KRONOX_TEST_RESET_EMAILS',
+        'TEST_RESET_EMAILS',
+        'getConfiguredEmails',
+        'getResettableTestEmails',
+        'test_account_not_allowlisted',
+        'body?.role',
+        'user.role',
+      ].filter((token) => src.includes(token));
+      if (required.length || forbidden.length) {
+        return fail('resetTestAccountProgress can still drift from the AdminUser-backed reset contract.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'base44/functions/resetTestAccountProgress/entry.ts',
+          expected: 'AdminUser-backed requireAdmin + exact target-email confirmation + no KRONOX_TEST_RESET_EMAILS/TEST_RESET_EMAILS runtime auth',
+          actual: { missing: required, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('resetTestAccountProgress is AdminUser-gated, exact-email confirmed, and no longer reads test reset email allowlists.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+  ),
+
+  makeCase(
+    'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
+    'reset_test_account_progress_runtime_probe_needed',
+    'Runtime probe: resetTestAccountProgress blocks unauthenticated, normal, and disabled admins',
+    () => notAutomatable('Static Health can verify the AdminUser guard and absence of env allowlist auth, but deployed proof still requires calls as unauthenticated, normal user, disabled/passive admin, and active owner/admin with exact target-email confirmation.', {
+      verification: 'NOT_AUTOMATABLE',
+      classification: 'DEPLOYMENT_RUNTIME_REQUIRED',
+      verificationLabels: ['NOT_AUTOMATABLE', 'BACKEND_RUNTIME_PROBE', 'MANUAL_REQUIRED'],
+      actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE,
+      expected: 'unauthenticated -> 401; normal user -> 403; disabled/passive admin -> 403; active owner/admin + confirmEmail -> success for intended test target',
+    }),
+    { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE },
   ),
 
   // 6) Admin source-of-truth is documented and bootstrapping stays manual.

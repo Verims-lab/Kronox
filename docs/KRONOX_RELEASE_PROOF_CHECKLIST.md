@@ -491,10 +491,12 @@ Checklist:
   Scanner findings that only flag the env var name are deployment-secret
   management notes unless actual key material is found.
 * `VAPID_PUBLIC_KEY` may be used by browser subscription code through
-  `VITE_KRONOX_VAPID_PUBLIC_KEY`, but backend push signing must use only
-  deployment-managed non-`VITE_` config.
+  `VITE_KRONOX_VAPID_PUBLIC_KEY`; it is public-by-design but still
+  config-managed. Backend push signing must use only deployment-managed
+  non-`VITE_` config.
 * `VAPID_SUBJECT` is deployment configured and validated; it is not hardcoded
-  as a source fallback.
+  as a source fallback. It may contain contact/config metadata and must not be
+  logged or returned unnecessarily.
 * `VAPID_SUBJECT` uses a `mailto:` or `https://` subject and VAPID keys use
   non-empty base64url-style deployment values.
 * Backend push config has no empty-string, dummy, hardcoded, or `VITE_`
@@ -623,6 +625,12 @@ Checklist:
   users, and disabled/passive admins; only active `AdminUser` owner/admin rows
   may run it. The function must not contain `en_core_news_sm`, trust
   `user.role`, trust request-body roles, or use hardcoded admin emails.
+* Runtime proof: `resetTestAccountProgress` blocks unauthenticated callers,
+  normal users, and disabled/passive admins; only active `AdminUser`
+  owner/admin rows may reset the intended test target, and the request must
+  include exact target-email confirmation. It must not read
+  `KRONOX_TEST_RESET_EMAILS` or `TEST_RESET_EMAILS`; remove those legacy env vars
+  from deployment after this migration.
 * Runtime proof: when each active admin triggers the Question Analytics Report,
   the backend response shows `requestedBy` and `recipientEmail` as that same
   authenticated admin email, plus a safe email dispatch status. The report
@@ -702,6 +710,10 @@ Checklist:
 * Normal users cannot see `Admin Ekranı` or the `Reset User Progress` tool.
 * Unauthenticated `/adminResetUserProgress` calls return 401.
 * Authenticated non-admin `/adminResetUserProgress` calls return 403.
+* Legacy `/resetTestAccountProgress` calls also use AdminUser-backed
+  authorization, return 401/403 for unauthenticated or non-admin callers, block
+  disabled/passive admins, require exact target-email confirmation, and do not
+  use `KRONOX_TEST_RESET_EMAILS` / `TEST_RESET_EMAILS`.
 * Admin preview by target email shows only safe summary values.
 * Execute requires typing the exact target email again.
 * `Hard zero reset` sets visible Kronox Puan, Solo progress, Online progress, Elmas, Top 5 records, and leaderboard projection to 0 / starting state.

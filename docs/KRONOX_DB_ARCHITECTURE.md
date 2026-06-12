@@ -73,6 +73,11 @@ Implemented now:
   - `refreshLeaderboardProjection`
   - `aggregateQuestionStats`
   - `cleanupAdminMaintenanceLog`
+- Legacy `resetTestAccountProgress` is AdminUser-gated and exact-email
+  confirmed; it must not use `KRONOX_TEST_RESET_EMAILS` / `TEST_RESET_EMAILS`
+  as runtime authorization. Its blast radius is limited to target `User`
+  progress/economy summary fields and matching `SoloLeaderboardEntry`
+  projections; the logged, previewed reset path remains `adminResetUserProgress`.
 - Modular Health coverage for the DB architecture implementation contracts.
 
 Implemented now:

@@ -134,9 +134,9 @@ import * as dailyWheelCases from './simulationPanelDailyWheelCases';
 // longer depends on a committed personal email.
 import * as securityCleanupCases from './simulationPanelSecurityCleanupCases';
 // Codex154 — Security: admin authorization hardening. Locks in that no
-// admin-only backend function contains a hardcoded admin email literal,
-// each reads admin allowlist env/secrets, requires auth, rejects
-// non-admins with 403, and fails closed when config is missing.
+// admin-only backend function contains a hardcoded admin email literal or env
+// email allowlist, each requires auth, rejects non-admins with 403, and fails
+// closed when config is missing.
 import * as adminAuthorizationCases from './simulationPanelAdminAuthorizationCases';
 // Codex154 — Backend function security guard: generateTechDoc must require
 // server-side auth/admin authorization before internal PDF generation.

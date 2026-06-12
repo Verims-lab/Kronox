@@ -74,11 +74,14 @@ Rules:
 * reading `VAPID_PRIVATE_KEY` from backend environment/secret storage is the
   required secure practice; scanner findings that only identify the env var
   name are deployment-secret management notes, not source-code exposure
+* `VAPID_PRIVATE_KEY` is server-only and must never be logged, returned, sent to
+  the client, exposed through `VITE_`, or included in raw error/stack responses
 * VAPID public key, private key, and subject are all required backend config
 * `VAPID_PUBLIC_KEY` is public by design for browser subscriptions, but it
   should still be deployment/config managed rather than hardcoded in source
 * `VAPID_SUBJECT` is deployment-controlled metadata and must be a valid
-  configured contact subject, not a source fallback
+  configured contact subject, not a source fallback; it may contain contact
+  metadata and should not be logged unnecessarily
 * `VAPID_SUBJECT` should use a `mailto:` or `https://` subject; VAPID key
   values must be non-empty base64url-style deployment values
 * missing, blank, whitespace-only, or placeholder VAPID config must fail
@@ -248,15 +251,17 @@ Daily Quest Definition management:
   cannot choose another user, set reward amount, or grant Kronox Puan
 
 Admin-only maintenance helpers must also fail closed. The legacy one-off
-test-account progress reset helper requires both admin authorization and a
-deployment allowlist:
+test-account progress reset helper now uses only the centralized AdminUser
+authorization guard plus exact target-email confirmation. It must not read a
+deployment email allowlist for authorization.
 
 ```text
 KRONOX_TEST_RESET_EMAILS
 TEST_RESET_EMAILS
 ```
 
-Use these only for explicitly approved test accounts. Do not add a normal
+These legacy env vars are deprecated after the AdminUser migration and should
+be removed from deployment environments if present. Do not add a normal
 user-facing reset button and do not commit personal test-account emails to
 source code.
 
@@ -456,6 +461,10 @@ After deployment, verify:
 * `VAPID_PRIVATE_KEY` exists only as a backend deployment secret/env value;
   env-var-name scanner findings are tracked as deployment-secret management
   notes unless real key material is found in source or logs
+* `VAPID_PUBLIC_KEY` is public-by-design for browser subscription and remains
+  config-managed
+* `VAPID_SUBJECT` is contact/config metadata, is not a cryptographic secret,
+  and is not logged or returned unnecessarily
 * no personal admin email is committed
 
 ## Admin
@@ -463,6 +472,11 @@ After deployment, verify:
 * unauthenticated admin-only calls return 401
 * authenticated non-admin admin-only calls return 403
 * authorized admins can still use intended admin tools
+* `resetTestAccountProgress` no longer uses `KRONOX_TEST_RESET_EMAILS` or
+  `TEST_RESET_EMAILS`; remove those legacy env vars after deploy
+* runtime reset proof checks unauthenticated blocked, normal user blocked,
+  disabled admin blocked, and active owner/admin allowed only with exact target
+  email confirmation
 * Profile shows normal users only `Sosyal / Arkadaşlarım` and `Hesap / Ayarlar`
 * active `AdminUser` role `owner`/`admin` users additionally see `Admin Ekranı`
 * `Admin Ekranı` contains admin-only maintenance/report tools; Settings remains

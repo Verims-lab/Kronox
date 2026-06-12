@@ -41,9 +41,9 @@ Status: Active product contract.
 - Service-role usage is scoped to admin/maintenance backend functions.
 - VAPID private key remains a real secret and must stay secret-managed.
 - Backend push config requires VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, and VAPID_SUBJECT or their KRONOX_ compatibility names.
-- VAPID_PRIVATE_KEY is read from backend deployment secret/env only; scanner findings that only flag the env var name are deployment-secret management notes unless real key material is present.
-- VAPID_PUBLIC_KEY is public by design for browser subscription but remains deployment/config managed, not hardcoded.
-- VAPID_SUBJECT is deployment-controlled contact metadata and must not be hardcoded as a source fallback.
+- VAPID_PRIVATE_KEY is server-only and read from backend deployment secret/env only; scanner findings that only flag the env var name are deployment-secret management notes unless real key material is present. It is never logged, returned, sent to the client, exposed through VITE_, or included in raw error/stack responses.
+- VAPID_PUBLIC_KEY is public by design for browser subscription but remains public-by-design/config-managed, not hardcoded.
+- VAPID_SUBJECT is deployment-controlled contact/config metadata and must not be hardcoded as a source fallback or logged unnecessarily.
 - VAPID_SUBJECT uses a mailto: or https:// subject and VAPID keys are non-empty base64url-style deployment values.
 - Missing, blank, whitespace-only, placeholder, empty-string, hardcoded, dummy, or VITE_ backend VAPID fallbacks are forbidden.
 - VAPID private key values are never logged, returned, printed in Health, or exposed through frontend VITE_ variables.
@@ -57,6 +57,7 @@ Status: Active product contract.
 - There is no unsafe "if no admin exists, everyone is admin" fallback.
 - Do not commit the personal admin emails to source.
 - Admin email env allowlists are not used for authorization.
+- resetTestAccountProgress uses AdminUser-backed authorization and exact target-email confirmation; KRONOX_TEST_RESET_EMAILS and TEST_RESET_EMAILS are deprecated and must not control runtime access.
 - Client admin UI consumes the backend getAdminStatus status hint; /getAdminStatus is the callable status path.
 - AdminUser rows remain private and are not listed by normal users.
 - Profile normal-user actions are Sosyal / Arkadaşlarım and Hesap / Ayarlar.
@@ -214,6 +215,7 @@ Missing or blank VAPID config returns explicit vapid_config_missing / missing_va
 No empty-string, dummy, hardcoded, or VITE_ private-key fallback is allowed.
 Safe VAPID-missing diagnostics use pushSent:false, pushSkipped:true, missingConfig:true, reason:vapid_config_missing, skippedReasons, failedReasons, subscriptionCount, and counts only.
 VAPID_PRIVATE_KEY remains backend-env-only and is never logged or returned; env-var-name scanner findings are deployment-secret management notes unless real key material is exposed.
+VAPID_PUBLIC_KEY is public-by-design/config-managed, and VAPID_SUBJECT is contact/config metadata that must not be logged or returned unnecessarily.
 In-app invites remain functional if push is not configured.
 npm run build does not prove backend VAPID secret deployment; real push delivery requires a subscribed device and deployed backend secrets.
 

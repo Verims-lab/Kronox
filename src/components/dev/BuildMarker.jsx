@@ -1676,7 +1676,15 @@ import React, { useEffect, useState } from 'react';
 //     email and attaches the cleaned detailed report as a PDF.
 //   • Removed report sections are validated out of generated email/PDF output.
 //   • Health/docs require real admin email delivery and PDF receipt as manual proof.
-const BUILD_MARKER = 'Codex314';
+//
+// Codex315 — Reset auth + VAPID secret hardening:
+//   • resetTestAccountProgress no longer uses KRONOX_TEST_RESET_EMAILS /
+//     TEST_RESET_EMAILS for runtime authorization.
+//   • The legacy reset path uses AdminUser owner/admin active status plus exact
+//     target-email confirmation.
+//   • VAPID docs/Health distinguish server-only private key handling from
+//     public-by-design key and subject metadata handling.
+const BUILD_MARKER = 'Codex315';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
