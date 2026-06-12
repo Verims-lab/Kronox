@@ -845,7 +845,7 @@ No deletion should happen in this task.
   `swapped_out` events separately. Projection refresh skips analytics events
   whose `question_id` no longer exists in the current `Question` pool.
 - Manual admin email report. Codex197 adds `sendQuestionAnalyticsReportEmail`
-  for admin-triggered, question-focused reports. Codex320 sends the full
+  for admin-triggered, question-focused reports. Codex322 sends the full
   `nine-section-email-v1` report inside the email body and intentionally
   disables the PDF attachment flow for now. The report skips stale/deleted
   question references with a diagnostic count and caps content for readability.
@@ -872,8 +872,9 @@ No deletion should happen in this task.
   `bodyRemovedSectionsPresent`, while real inbox delivery and body readability
   remain manual provider proof.
 - The report keeps active pool, Solo-eligible pool, and Runtime Projection
-  diagnostics separate. Runtime Projection is not fabricated by the email
-  builder; live projection remains Health/admin diagnostic proof.
+  diagnostics separate. Runtime Projection is based on `getQuestions
+  diagnostics`, is not fabricated by the email builder, and live projection
+  remains Health/admin diagnostic proof.
 - Top-shown category/subcategory concentration is reported as a generic
   guardrail and must be compared with the Solo-eligible pool before making
   fairness conclusions.
@@ -890,7 +891,7 @@ No deletion should happen in this task.
   nine_section_email_body`, `reportDeliveryMode: email_body_only`,
   `bodyContainsExactlyRequiredSections: true`, `requiredSectionOrderValid: true`,
   `renderedSectionHeaderCount: 9`, `bodyLength > 1000`, and
-  `reportBuildMarker: Codex320`.
+  `reportBuildMarker: Codex322`.
   Frontend `npm run build` still does not prove Base44 function redeployment or
   live SendEmail delivery.
 - Manual DB reset path after question pool replacement. The function-based

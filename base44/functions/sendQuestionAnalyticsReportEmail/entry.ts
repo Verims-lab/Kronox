@@ -28,7 +28,7 @@ const REGISTERED_QUESTION_POOL_ROW_LIMIT = 250;
 const CATEGORY_FAIRNESS_SIGNAL_LIMIT = 20;
 const STALE_REFERENCE_SAMPLE_LIMIT = 20;
 const PERIOD_OPTIONS = /* @__PURE__ */ new Set([1, 7, 30]);
-const REPORT_BUILD_MARKER = "Codex320";
+const REPORT_BUILD_MARKER = "Codex322";
 const REPORT_TEMPLATE_VERSION = "nine-section-email-v1";
 const REPORT_TEMPLATE_LABEL = "nine-section-email-v1";
 const REQUIRED_REPORT_SECTION_TITLES = Object.freeze([
@@ -854,7 +854,7 @@ function buildReport({
     { label: "Solo-Eligible Soru", value: String(soloEligibleQuestions.length), helper: "Aktif, yıl ve aktif kategori bilgisi kullanılabilir sorular" },
     { label: "Hiç Gösterilmeyen Aktif Soru", value: String(neverShown.length), helper: "Tüm aktif havuz içinde bu dönemde görünmeyenler" },
     { label: "Hiç Gösterilmeyen Solo-Eligible", value: String(neverShownSoloEligible.length), helper: "hiç gösterilmeyen Solo-eligible soru sayısı" },
-    { label: "Runtime Projection", value: "Yeterli veri yok", helper: "Runtime projection: Health/admin diagnostic only; email does not call live projection to avoid gameplay coupling." },
+    { label: "Runtime Projection", value: "Yeterli veri yok", helper: "Runtime projection: getQuestions diagnostics ile ölçülür; e-posta raporu canlı projection çağırmaz." },
     { label: "Ortalama Doğru Oranı", value: avgCorrectRate, helper: "Cevaplanmış eventler üzerinden" },
     { label: "Ortalama Cevap Süresi", value: avgResponse, helper: "Response time olan cevaplar üzerinden" }
   ]);
@@ -1330,7 +1330,7 @@ function buildReport({
       `Solo-eligible soru: ${soloEligibleQuestions.length}`,
       `Hiç gösterilmeyen aktif soru: ${neverShown.length}`,
       `hiç gösterilmeyen Solo-eligible soru: ${neverShownSoloEligible.length}`,
-      "Runtime Projection: Health/admin diagnostic only; email does not call live projection to avoid gameplay coupling.",
+      "Runtime Projection: getQuestions diagnostics ile ölçülür; e-posta raporu canlı projection çağırmaz.",
       `Ortalama doğru oranı: ${avgCorrectRate}`,
       `Ortalama cevap süresi: ${avgResponse}`
     ] },
@@ -1433,7 +1433,7 @@ function buildReport({
       staleQuestionReferenceHandling: "ignored_with_diagnostic_count",
       runtimeProjectionSizeAvailable: false,
       runtimeProjectionSize: null,
-      runtimeProjectionSizeSource: "getQuestions projectionDiagnostics admin/Health path",
+      runtimeProjectionSizeSource: "getQuestions diagnostics / projectionDiagnostics admin/Health path",
       templateVersion: REPORT_TEMPLATE_VERSION,
       reportTemplateMarker: REPORT_TEMPLATE_LABEL,
       categoryAnalyticsRowsAnalyzed: categoryAnalyticsForReport.length,

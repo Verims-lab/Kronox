@@ -1736,6 +1736,8 @@ import React, { useEffect, useState } from 'react';
 //     QuestionStatsProjection, and CategoryStatsProjection are cleared.
 //   • Docs/Health now state Joker/economy ledgers and current content/user data
 //     are not question analytics reset tables.
+//   • sendQuestionAnalyticsReportEmail now uses the exact getQuestions
+//     diagnostics wording for Runtime Projection while preserving 9 sections.
 const BUILD_MARKER = 'Codex322';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 

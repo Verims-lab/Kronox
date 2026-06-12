@@ -157,7 +157,8 @@ P3 adds question analytics without changing question selection:
   version.
 - report wording must keep active pool, Solo-eligible pool, and Runtime
   Projection diagnostics separate. Runtime Projection is diagnostic/admin proof
-  only and must not be faked by the email builder.
+  only, is based on `getQuestions diagnostics`, and must not be faked by the
+  email builder when the report does not call live projection.
 - top-shown category/subcategory concentration is a guardrail only:
   high concentration is not automatically unfair because the distribution must
   be compared with the Solo-eligible pool first.
