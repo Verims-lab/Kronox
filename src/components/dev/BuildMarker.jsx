@@ -1777,7 +1777,13 @@ import React, { useEffect, useState } from 'react';
 //     behavior, and report batching/yield timing remain unchanged.
 //   • Health architecture static checks now guard both report batching and
 //     result-state snapshot batching without running Health suites.
-const BUILD_MARKER = 'Codex327';
+//
+// Codex328 — Daily Quest admin UI Health alignment:
+//   • Daily Quest Definition Health now recognizes the split manager/list UI
+//     path and verifies the visible "Tanımlı Görevler" contract in the list.
+//   • DailyQuestDefinitionManager still mounts DailyQuestDefinitionList under
+//     Profile / Admin Ekranı; duplicate grouping and runtime rules unchanged.
+const BUILD_MARKER = 'Codex328';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
