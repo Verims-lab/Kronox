@@ -659,9 +659,10 @@ Security contract:
   callable report function inlines the DB-backed AdminUser guard for the
   current Base44 function runtime. Frontend build success does not prove the
   Base44 backend function was redeployed; live proof must trigger the function
-  as an active admin and confirm `templateVersion: summary-pdf-v1`,
-  `emailBodyMode: summary_only`, `pdfAttachmentGenerated: true`, and that the
-  received PDF attachment opens.
+  as an active admin and confirm `templateVersion: product-intel-pdf-v2`,
+  `emailBodyMode: summary_only`, `pdfGenerated: true`, `attachmentCount >= 1`,
+  `pdfFilename` ends `.pdf`, `pdfSizeBytes > 0`, and that the received PDF
+  attachment opens. If Gmail does not show the attachment, release proof fails.
 * every active `AdminUser` row with role `admin` or `owner` can request the
   report; the recipient is the requesting admin's authenticated normalized
   email, not a hardcoded owner address or `created_by`
@@ -669,9 +670,10 @@ Security contract:
   `recipientEmail`, `emailDispatchStatus`, template, summary-body,
   PDF-attachment, and body/PDF validation diagnostics so a failed dispatch is
   not shown as generic success
-* sent question analytics reports include category pool, aggregate preference,
-  category exposure, and category fairness signal sections in the PDF;
-  preference counts are aggregate distinct-user counts only
+* sent question analytics reports include product-intelligence sections for Solo
+  algorithm signals, question-type/content quality, joker usage, play-time
+  rhythm, longer-session/retention signals, recommended actions, and missing
+  instrumentation; preference/user data stays aggregate-only
 * function-based question analytics reset is currently not used because the
   callable reset path was not reliable in the current Base44 setup
 * after a question pool replacement, question analytics reset is a manual DB

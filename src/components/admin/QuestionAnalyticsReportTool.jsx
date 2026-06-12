@@ -85,7 +85,8 @@ export default function QuestionAnalyticsReportTool() {
       const recipient = result?.recipientEmail ? ` ${result.recipientEmail} adresine` : '';
       const template = result?.templateVersion ? ` Şablon: ${result.templateVersion}.` : '';
       const dispatch = result?.emailDispatchStatus ? ` Gönderim: ${result.emailDispatchStatus}.` : '';
-      const attachment = result?.pdfAttachmentFilename ? ` PDF eki: ${result.pdfAttachmentFilename}.` : '';
+      const pdfFilename = result?.pdfFilename || result?.pdfAttachmentFilename;
+      const attachment = pdfFilename ? ` PDF eki: ${pdfFilename}.` : '';
       setMessage(`Soru analiz raporu${recipient} gönderildi.${template}${dispatch}${attachment}`);
     } catch (err) {
       setMessage('');
