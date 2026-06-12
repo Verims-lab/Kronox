@@ -160,6 +160,12 @@ longer stored on the entity — they are derived at fetch time by
   Category, SubCategory, UserCategoryPreference, UserStatsProjection, scores,
   diamonds, progress, users, AdminUser, Daily Wheel, gameplay, or leaderboard
   rows.
+- The 9-section email also reads ledger/current-state tables for Joker/economy
+  signals. JokerTransaction, DiamondTransaction, UserJokerInventory, and
+  DailyWheelSpin are not question analytics reset tables; if Joker Kullanımı
+  Analizi is ledger-derived, it may remain visible after question analytics
+  cleanup. Oynanma Zamanı hour/day metrics reset with QuestionAttemptEvent
+  timestamps.
 - Report generation skips stale/deleted question_id analytics references with
   a diagnostic count and caps large sections for email readability.
 - Top-question/category/subcategory concentration flags are guardrails, not

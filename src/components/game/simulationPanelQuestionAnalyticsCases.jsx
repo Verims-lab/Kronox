@@ -710,6 +710,12 @@ export const EXTRA_TESTS = [
         'Soru Analitik Verilerini Sıfırla',
         'Bu işlem şu anda manuel DB temizliği ile yapılır. Function reset yolu devre dışı.',
         'QuestionAttemptEvent, QuestionStatsProjection ve CategoryStatsProjection',
+        'Soru gösterim/cevap/zaman geçmişini sıfırlamak',
+        'Soru havuzu, kategori tercihleri, kullanıcı/profil verileri',
+        'elmas/joker bakiyeleri',
+        'JokerTransaction/DiamondTransaction gibi ekonomi ledger kayıtları silinmez',
+        'Joker Kullanımı Analizi ledger verisinden besleniyorsa bu resetten etkilenmez',
+        'Oynanma Zamanı metrikleri QuestionAttemptEvent temizliğiyle sıfırlanır',
         'Son 7 gün',
         'Rapor hazırlanıyor...',
         'result?.recipientEmail',
@@ -784,6 +790,13 @@ export const EXTRA_TESTS = [
         'QuestionAttemptEvent',
         'QuestionStatsProjection',
         'CategoryStatsProjection',
+        'adminResetExcludes',
+        'jokerLedgerResetHandling',
+        'jokerReportLedgerLimitation',
+        'playRhythmResetHandling',
+        'JokerTransaction_and_DiamondTransaction_are_not_question_analytics_reset_tables',
+        'Joker_Kullanimi_Analizi_ledger_verisinden_besleniyorsa_question_analytics_resetinden_etkilenmez',
+        'Oynanma_Zamani_metrics_reset_with_QuestionAttemptEvent_timestamps',
         'Question',
         'Category',
         'SubCategory',
@@ -810,7 +823,7 @@ export const EXTRA_TESTS = [
           actual: { missing, forbidden },
         });
       }
-      return pass('Manual reset clears only QuestionAttemptEvent/QuestionStatsProjection/CategoryStatsProjection by documented DB maintenance; Settings no longer calls resetQuestionAnalyticsData.', {
+      return pass('Manual reset clears only QuestionAttemptEvent/QuestionStatsProjection/CategoryStatsProjection by documented DB maintenance; Settings no longer calls resetQuestionAnalyticsData and warns that economy ledgers are outside scope.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
