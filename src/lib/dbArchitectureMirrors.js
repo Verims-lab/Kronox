@@ -116,6 +116,11 @@ Idempotency/platform limitations documented:
 - QuestionStatsProjection.question_id unique and CategoryStatsProjection category_id + sub_category indexes are required where Base44 supports them.
 - Runtime uniqueness proof remains manual/NOT_AUTOMATABLE until platform constraints are configured.
 - Codex310 audit keeps mutable user-owned data server/auth scoped, prefers online fetch before offline fallback for question runtime, uses projection/ledger rows for public and economy surfaces, and keeps final iOS IPA/icon, two-account RLS, and backend deploy proof as manual gates.
+- Hot UI paths read current-state tables/projections directly and must not sum append-only ledgers or scan full analytics history during render.
+- Admin/Health/report paths may process larger datasets, but they should batch, paginate, cap output, or yield work so long JavaScript tasks do not block the app shell.
+- Gameplay must not run Health, report, projection refresh, cleanup, or aggregate maintenance jobs.
+- Service-role functions bind every user-owned object to authenticated user/admin context before reading, writing, updating, or deleting it.
+- If Base44 cannot enforce a DB-level unique/index constraint, the service layer remains responsible for idempotency and duplicate detection.
 
 Legacy entity status:
 - Friendship is kept as legacy/candidate, no deletion without reference proof.

@@ -127,6 +127,21 @@ Platform/manual configuration still required:
 - Runtime uniqueness, scheduled jobs, high-volume analytics writes, and
   two-account RLS/BOLA probes remain manual proof items.
 
+Cross-cutting query/performance audit rules:
+
+- Hot UI paths read current-state tables/projections directly. They must not
+  sum append-only ledgers or scan full analytics history during render.
+- Admin/Health/report paths may process larger datasets, but they should batch,
+  paginate, cap output, or yield work so long JavaScript tasks do not block the
+  app shell.
+- Gameplay must not run Health, report, projection refresh, cleanup, or
+  aggregate maintenance jobs.
+- Service-role functions must bind every user-owned object to the authenticated
+  user/admin context before reading, writing, updating, or deleting it.
+- If Base44 cannot enforce a DB-level unique/index constraint, the service
+  layer remains responsible for idempotency and duplicate detection, and the
+  release checklist must keep the manual platform proof visible.
+
 ## 2. Current Entity Map
 
 Current entities audited:

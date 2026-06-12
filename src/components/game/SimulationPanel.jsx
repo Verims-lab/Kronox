@@ -111,6 +111,19 @@ const LEGACY_LAST_RUN_KEYS = [
   'kronox_health_simulator_last_run',
   'kronox_health_last_run_v1',
 ];
+const HEALTH_RUN_YIELD_DEADLINE_MS = 50;
+const HEALTH_REPORT_UPDATE_BATCH_SIZE = 25;
+const HEALTH_REPORT_UPDATE_MIN_INTERVAL_MS = 250;
+
+function healthNowMs() {
+  return typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? performance.now()
+    : Date.now();
+}
+
+function yieldHealthRunToMain() {
+  return new Promise(resolve => window.setTimeout(resolve, 0));
+}
 
 function getReportTime(report) {
   const time = Date.parse(report?.finishedAt || report?.timestamp || report?.startedAt || '');
@@ -199,17 +212,34 @@ export default function SimulationPanel({ onClose }) {
   const runCases = useCallback(async (cases) => {
     const meta = createRunMeta(cases.map(item => item.key));
     let nextResults = {};
+    let lastYieldAt = healthNowMs();
+    let lastReportAt = lastYieldAt;
     setResultsByKey({});
     setPlannedKeys(cases.map(item => item.key));
     setCopyState('');
 
-    for (const testCase of cases) {
+    for (let index = 0; index < cases.length; index += 1) {
+      const testCase = cases[index];
       setRunningKey(testCase.key);
       const caseResult = await executeCase(testCase);
       nextResults = { ...nextResults, [testCase.key]: caseResult };
       setResultsByKey(nextResults);
-      updateReport(nextResults, meta);
-      await new Promise(resolve => window.setTimeout(resolve, 12));
+
+      const now = healthNowMs();
+      const completedCount = index + 1;
+      const shouldRefreshReport =
+        completedCount === cases.length ||
+        completedCount % HEALTH_REPORT_UPDATE_BATCH_SIZE === 0 ||
+        now - lastReportAt >= HEALTH_REPORT_UPDATE_MIN_INTERVAL_MS;
+      if (shouldRefreshReport) {
+        updateReport(nextResults, meta);
+        lastReportAt = now;
+      }
+
+      if (now - lastYieldAt >= HEALTH_RUN_YIELD_DEADLINE_MS) {
+        await yieldHealthRunToMain();
+        lastYieldAt = healthNowMs();
+      }
     }
 
     updateReport(nextResults, meta, { persist: true });

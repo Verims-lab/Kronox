@@ -32,10 +32,41 @@ economy, friends/invites, leaderboard projection, and a Health Center that
 keeps product contracts honest.
 `;
 
+export const MOBILE_VISUAL_GUARDRAILS_DOC = `# Kronox Mobile Visual Guardrails
+
+Status: Active manual visual/platform release gate.
+
+- Verify 320px width, common iPhone widths, Android Chrome widths, tablet, and foldable/resizable layouts.
+- No horizontal page overflow on Home, Game, Solo map, Profile, Settings, Friends, Liderlik, Market, Daily Wheel, Daily Quest Management, Privacy, and Health Center.
+- Use safe-area padding around top bars, bottom CTAs, sheets, and BottomNav.
+- Touch targets stay reachable and readable with system font scaling.
+- Keyboard focus does not hide form actions or trap scroll.
+- Pull-to-refresh/overscroll guards are scoped to the relevant container or active gameplay drag only.
+- Reduced motion keeps functional feedback without relying on long animations.
+- Loading/error/retry states are local to the affected section when possible.
+- Direct URL routes load correctly in installed/standalone and browser modes.
+- Service worker/cache updates do not leave stale question/runtime bundles after a question-set or function contract change.
+- Push notification UI is feature-detected and remains optional.
+- Offline UI is shown only for real offline or failed fetch plus no usable cache.
+- Final App Store icon proof is the exported IPA / WixOneApp.app, not only source PNGs.
+- npm run check:ios-icons is required before archive upload, but App Store Connect validation remains the final proof.
+- Safari/PWA drag, safe-area, keyboard, home-indicator, and back navigation behavior require real-device proof.
+- Privacy URL and App Store privacy answers must match the live app behavior.
+- Android wrapper edge-to-edge behavior, status/navigation bar handling, back button behavior, orientation, tablet/foldable resizability, and Play Console quality warnings require AAB/device/Play proof.
+- Web/PWA source checks do not prove native wrapper behavior.
+- Health may statically verify that guardrails and source hooks exist, but real mobile/device/store validation remains manual or NOT_AUTOMATABLE until runtime proof is captured.
+`;
+
 export const SECURITY_DEPLOYMENT_DOC = `# Kronox Security & Deployment
 
 Status: Active product contract.
 
+- Object-level authorization is a backend contract.
+- Service-role functions derive the actor from trusted backend auth context.
+- User-owned objects are scoped by owner, recipient, participant, host, active admin row, or another documented authority field before return or mutation.
+- Request-body user, email, role, or owner fields are not trusted for authorization.
+- UI hiding is not the authorization boundary.
+- Two-account probes remain mandatory for category preferences, friends, invites, lobbies, Daily Quest progress, Daily Wheel, Diamond/Joker economy, push subscriptions, and analytics cleanup.
 - getQuestions serves a public-safe minimal playable projection for guest Solo; admin/full-bank diagnostics still require active AdminUser owner/admin authorization.
 - startLobbyGame requires authenticated host, no legacy guest, no client identity override.
 - Service-role usage is scoped to admin/maintenance backend functions.
@@ -135,6 +166,9 @@ Status: Active product contract.
 export const RELEASE_PROOF_CHECKLIST_DOC = `# Kronox Release Proof Checklist
 
 Status: Active manual release gate.
+
+## Full Audit Release Gates
+Health Center, Admin Ekranı, reports, and large maintenance lists avoid rebuilding expensive derived output after every row/case. Long admin work is batched or yielded around the 50ms long-task budget. Gameplay paths do not run Health/report/question-analytics calculations. Large email/report/list output stays bounded, paginated, or summarized. User-owned backend operations enforce object-level authorization server-side; UI hiding is not accepted as proof. Two-account probes verify user-owned reads/writes for invites, lobbies, category preferences, Daily Quest progress, Daily Wheel, Diamond/Joker economy, PushSubscription, and analytics cleanup. Base44/manual DB constraints are checked for user+date, user+status, quest_key, question_id, category_id, created_at, endpoint, and idempotency_key. iOS, Android, and PWA wrapper quality remain separate manual gates: safe-area, keyboard, scroll/overscroll, back navigation, orientation, accessibility, reduced motion, 320px layout, push, icon, App Store, and Play Console proof. npm run build does not prove Base44 backend deployment, RLS/BOLA behavior, device gestures, push delivery, final IPA icon state, or Play Console wrapper quality.
 
 ## Solo v2
 Normal levels need 7 correct cards with a 16-question deck; special levels
@@ -276,6 +310,11 @@ Status: Implementation tracking doc.
 - cleanup/retention jobs are status-transition-first.
 - Base44 index/unique-key declarations are a platform/manual configuration gap.
 - Runtime uniqueness proof remains manual/NOT_AUTOMATABLE.
+- Hot UI paths read current-state tables/projections directly and must not sum append-only ledgers or scan full analytics history during render.
+- Admin/Health/report paths may process larger datasets, but they should batch, paginate, cap output, or yield work so long JavaScript tasks do not block the app shell.
+- Gameplay must not run Health, report, projection refresh, cleanup, or aggregate maintenance jobs.
+- Service-role functions bind every user-owned object to authenticated user/admin context before reading, writing, updating, or deleting it.
+- If Base44 cannot enforce a DB-level unique/index constraint, the service layer remains responsible for idempotency and duplicate detection.
 - Solo QuestionAttemptEvent runtime writes are enabled best-effort; Online analytics remains deferred.
 - Manual admin question analytics full email-body report exists with no scheduled trigger and no active PDF attachment requirement.
 - Manual DB reset path can reset question analytics history/projections after replacing the question pool.

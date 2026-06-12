@@ -10,6 +10,26 @@ Client-side UI gating is not enough for protected operations.
 
 ---
 
+# 0. Object-Level Authorization Rule
+
+Kronox treats object-level authorization as a backend contract.
+
+Rules:
+
+* Every service-role function that touches user-owned data must derive the
+  actor from trusted backend auth context.
+* The function must scope each object by owner, recipient, participant, host,
+  active admin row, or another documented authority field before it returns or
+  mutates data.
+* Request-body `user`, `email`, `role`, or owner fields are not trusted for
+  authorization.
+* UI hiding is a convenience only; it is never the authorization boundary.
+* Two-account probes remain mandatory for user-owned surfaces such as
+  category preferences, friends, invites, lobbies, Daily Quest progress, Daily
+  Wheel, Diamond/Joker economy, push subscriptions, and analytics cleanup.
+
+---
+
 # 1. External Integrations
 
 ## Spotify
