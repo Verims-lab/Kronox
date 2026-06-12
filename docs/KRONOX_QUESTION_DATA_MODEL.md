@@ -141,13 +141,13 @@ Rules:
 * admin question analytics reports must label all-active question pool,
   Solo-eligible pool, runtime projection diagnostics, unique shown questions,
   and never-shown counts separately when those metrics are available
-* admin question analytics email is summary-only and sends the cleaned detailed
-  report as a PDF attachment; preference counts must stay aggregate-only and
-  must not expose user IDs or emails
-* category pool analysis is static current `Question` table data, not analytics
-  event/projection data; it renders even when analytics events are zero and
-  includes category, active question count, difficulty 1-5/unknown
-  distribution, oldest year, newest year, and Unknown/unmapped diagnostics
+* admin question analytics email is summary-only and sends the
+  `product-intel-pdf-v2` detailed report as a PDF attachment; preference counts
+  must stay aggregate-only and must not expose user IDs or emails
+* generated reports intentionally exclude static inventory-style category pool
+  sections. Current `Question`, `Category`, and `QuestionAttemptEvent` data may
+  still feed aggregate product signals for Solo algorithm tuning, content
+  quality, joker usage, play-time rhythm, retention, and missing instrumentation.
 * removed legacy report sections must not appear in the generated email or PDF:
   `Rapor Şablonu`, `Rapor Bölümleri`,
   `Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı`,

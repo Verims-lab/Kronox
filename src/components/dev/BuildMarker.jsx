@@ -1684,7 +1684,14 @@ import React, { useEffect, useState } from 'react';
 //     target-email confirmation.
 //   • VAPID docs/Health distinguish server-only private key handling from
 //     public-by-design key and subject metadata handling.
-const BUILD_MARKER = 'Codex315';
+//
+// Codex316 — Question Analytics PDF attachment + product intelligence report:
+//   • sendQuestionAnalyticsReportEmail uses product-intel-pdf-v2, creates a real
+//     PDF payload, and passes it to SendEmail with base64 attachment fields.
+//   • The email remains summary-only while the PDF keeps decision sections for
+//     Solo algorithm, question quality, jokers, play-time, retention, and missing instrumentation.
+//   • Health/docs require live Gmail PDF receipt as manual release proof.
+const BUILD_MARKER = 'Codex316';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

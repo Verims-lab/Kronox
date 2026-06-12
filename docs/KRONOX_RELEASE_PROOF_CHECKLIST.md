@@ -778,28 +778,36 @@ Checklist:
   body-marker booleans. Verify each active admin's real inbox/provider delivery
   manually.
 * Question Analytics email body is summary-only: header, period, generated
-  timestamp, `Executive Summary`, `Key Insights / Risk Flags`, top action
-  items, and the notice `Detaylı rapor PDF olarak ekte yer almaktadır.`.
-  Detailed rows are sent as a PDF attachment, not dumped into the email body.
+  timestamp, `Yönetici Özeti`, `Öne Çıkan Bulgular`, `Öncelikli Aksiyonlar`,
+  and the notice `Detaylı rapor PDF olarak ekte yer almaktadır.`. Detailed
+  product-intelligence content is sent as a PDF attachment, not dumped into the
+  email body.
 * Question Analytics PDF attachment must be named with a `.pdf` suffix and sent
-  as `application/pdf`. Runtime proof requires triggering the live
-  `sendQuestionAnalyticsReportEmail` function as an active admin, receiving the
-  email, confirming the PDF attachment exists, opening the PDF, and confirming
-  it is readable. `npm run build` does not prove Base44 SendEmail attachment
-  delivery or backend deployment.
+  as `application/pdf`; if Gmail does not show the attachment, release proof
+  fails. Runtime proof requires triggering the live
+  `sendQuestionAnalyticsReportEmail` function as an active admin and confirming
+  `templateVersion: product-intel-pdf-v2`, `pdfGenerated: true`,
+  `attachmentCount >= 1`, `pdfFilename` ending `.pdf`, `pdfSizeBytes > 0`,
+  the email arrives, the PDF attachment exists, the PDF opens/readable, and the
+  PDF excludes only the intentionally removed sections. `npm run build` does not
+  prove Base44 SendEmail attachment delivery or backend deployment.
 * These sections are intentionally removed from generated email and PDF output:
   `Rapor Şablonu`, `Rapor Bölümleri`,
   `Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı`,
   `Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı`,
   `Kategori Bazında Yıl Aralığı`, and `Kategori İçi Soru Analizi`.
-* The PDF keeps useful cleaned detail sections such as `Kategori Bazında Soru
-  Havuzu`, aggregate `Kategori Tercihleri`, `Kategori Bazında Gösterim`,
-  `Kategori Denge Sinyalleri`, top/low/wrong/easy/slow question lists, and data
-  quality warnings. Category preference counts are aggregate distinct-user
-  counts only; no user IDs or emails appear in the report.
-* Long detail sections remain bounded: top shown, never/least shown, wrong,
-  easy, slow, and category samples show counts plus limited rows instead of
-  dumping the full question pool.
+* The PDF keeps product-intelligence sections: `Yönetici Özeti`, `Genel
+  Kullanım Özeti`, `Solo Soru Algoritması İçin Sinyaller`, `Doğru Soru Tipi /
+  İçerik Kalitesi`, `Joker Kullanımı Analizi`, `Oynanma Zamanı ve Kullanım
+  Ritmi`, `Daha Uzun Oynama / Retention Sinyalleri`, `Data Quality and Missing
+  Instrumentation`, and `Önerilen Aksiyonlar`. The report should help improve
+  the Solo question algorithm, content quality, joker economy, play-time
+  patterns, and session length.
+* The report must not invent analytics. If joker outcomes, session duration,
+  guest/preference source, exit reason, or local timezone are not captured, the
+  PDF must mark the data as insufficient and recommend exact instrumentation.
+  Category preference counts remain aggregate-only; no user IDs or emails appear
+  in the report.
 * Question analytics reset is currently a manual DB maintenance operation; the
   function-based reset path is not used. After replacing the question pool,
   manually clear only `QuestionAttemptEvent`, `QuestionStatsProjection`, and

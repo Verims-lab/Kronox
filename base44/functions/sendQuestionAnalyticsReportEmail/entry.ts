@@ -15,6 +15,10 @@ const MAX_EVENTS = 5e3;
 const MAX_QUESTIONS = 5e3;
 const MAX_CATEGORIES = 1e3;
 const MAX_USER_CATEGORY_PREFERENCES = 1e4;
+const MAX_JOKER_TRANSACTIONS = 5e3;
+const MAX_DIAMOND_TRANSACTIONS = 5e3;
+const MAX_DAILY_WHEEL_SPINS = 5e3;
+const MAX_GAME_RECORDS = 5e3;
 const NEVER_SHOWN_SAMPLE_LIMIT = 15;
 const QUESTION_TABLE_LIMIT = 15;
 const EASY_QUESTION_TABLE_LIMIT = 10;
@@ -24,9 +28,9 @@ const REGISTERED_QUESTION_POOL_ROW_LIMIT = 250;
 const CATEGORY_FAIRNESS_SIGNAL_LIMIT = 20;
 const STALE_REFERENCE_SAMPLE_LIMIT = 20;
 const PERIOD_OPTIONS = /* @__PURE__ */ new Set([1, 7, 30]);
-const REPORT_BUILD_MARKER = "Codex314";
-const REPORT_TEMPLATE_VERSION = "summary-pdf-v1";
-const REPORT_TEMPLATE_LABEL = "summary-pdf-v1";
+const REPORT_BUILD_MARKER = "Codex316";
+const REPORT_TEMPLATE_VERSION = "product-intel-pdf-v2";
+const REPORT_TEMPLATE_LABEL = "product-intel-pdf-v2";
 const PDF_ATTACHMENT_CONTENT_TYPE = "application/pdf";
 const REPORT_ATTACHMENT_NOTICE = "Detaylı rapor PDF olarak ekte yer almaktadır.";
 const REMOVED_REPORT_SECTION_TITLES = Object.freeze([
@@ -66,6 +70,9 @@ function clampPeriodDays(value) {
 function eventTimestamp(event) {
   return String(event?.answered_at || event?.shown_at || event?.created_at || "");
 }
+function rowTimestamp(row) {
+  return String(row?.claimed_at || row?.created_at || row?.created_date || row?.updated_at || row?.updated_date || "");
+}
 function eventType(event) {
   return String(event?.event_type || (event?.answered_at ? "answered" : "shown")).trim();
 }
@@ -95,6 +102,46 @@ function percent(part, total) {
 function formatMs(ms) {
   if (!ms) return "-";
   return `${Math.round(ms / 100) / 10}s`;
+}
+function formatSeconds(seconds) {
+  const value = Number(seconds);
+  if (!Number.isFinite(value) || value <= 0) return "-";
+  if (value < 60) return `${Math.round(value)} sn`;
+  return `${Math.round(value / 6) / 10} dk`;
+}
+function istanbulHourKey(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  try {
+    return new Intl.DateTimeFormat("tr-TR", {
+      timeZone: "Europe/Istanbul",
+      hour: "2-digit",
+      hour12: false
+    }).format(date);
+  } catch (_error) {
+    return String(date.getUTCHours()).padStart(2, "0");
+  }
+}
+function istanbulWeekdayKey(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  try {
+    return new Intl.DateTimeFormat("tr-TR", {
+      timeZone: "Europe/Istanbul",
+      weekday: "long"
+    }).format(date);
+  } catch (_error) {
+    return ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"][date.getUTCDay()];
+  }
+}
+function incrementMap(map, key, amount = 1) {
+  if (!key) return;
+  map.set(key, (map.get(key) || 0) + amount);
+}
+function topMapEntries(map, limit = 3) {
+  return Array.from(map.entries())
+    .sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]), "tr"))
+    .slice(0, limit);
 }
 function getQuestionYear(question) {
   const year = Number(question?.year ?? question?.answer_year ?? question?.answer);
@@ -230,6 +277,7 @@ function getPreferenceOwnerKey(preference) {
   return normalizeEmail(preference?.user_email) || String(preference?.user_id || preference?.created_by_id || preference?.created_by || "").trim();
 }
 function getTopShownSubcategoryConcentration(topShown) {
+  // Top shown subcategory concentration: generic product signal, not a hardcoded category label.
   const groups = /* @__PURE__ */ new Map();
   let total = 0;
   for (const bucket of topShown || []) {
@@ -322,6 +370,21 @@ function questionSubCategoryLabel(bucket) {
 function questionYearLabel(bucket) {
   const q = bucket?.question || {};
   return getQuestionYear(q) ?? bucket?.answer_year ?? "Yok";
+}
+function normalizeJokerType(value) {
+  const raw = String(value || "").trim();
+  const lower = raw.toLowerCase();
+  if (lower === "swapcard" || lower === "card-swap" || lower === "kart_degis" || lower === "kart-degis") return "card_swap";
+  if (lower === "shield" || lower === "kronokalkan") return "mistake_shield";
+  if (lower === "timefreeze" || lower === "time-freeze" || lower === "zaman_dondur" || lower === "zaman-dondur") return "time_freeze";
+  return lower;
+}
+function jokerDisplayName(value) {
+  const type = normalizeJokerType(value);
+  if (type === "mistake_shield") return "Kronokalkan";
+  if (type === "card_swap") return "Kart Değiştir";
+  if (type === "time_freeze") return "Zaman Dondur";
+  return displayValue(value, "Bilinmeyen joker");
 }
 function correctRateLabel(bucket) {
   const answered = (Number(bucket?.correct_count) || 0) + (Number(bucket?.wrong_count) || 0);
@@ -713,6 +776,10 @@ function buildReport({
   questions,
   categories,
   categoryPreferences,
+  jokerTransactions = [],
+  diamondTransactions = [],
+  dailyWheelSpins = [],
+  gameRecords = [],
   buildMarker
 }) {
   const categoryMap = buildCategoryMap(categories);
@@ -770,6 +837,8 @@ function buildReport({
     const answerYear = safeNumber(event?.answer_year ?? getQuestionYear(q), NaN);
     bucket.category_id = categoryId;
     bucket.sub_category = subCategory;
+    bucket.tag = tag;
+    bucket.difficulty_bucket = getQuestionDifficultyBucket(q);
     bucket.answer_year = Number.isFinite(answerYear) ? answerYear : bucket.answer_year;
     if (!Number.isFinite(answerYear)) missing.answer_year += 1;
     if (!subCategory || subCategory === "unknown" || !tag) missing.sub_category_or_tags += 1;
@@ -800,14 +869,7 @@ function buildReport({
   const neverShown = activeQuestions.filter((question) => !shownQuestionIds.has(questionKey(question?.id ?? question?.question_id)));
   const neverShownSoloEligible = soloEligibleQuestions.filter((question) => !shownQuestionIds.has(questionKey(question?.id ?? question?.question_id)));
   const topShown = [...bucketList].sort(sortDesc("shown_count")).slice(0, QUESTION_TABLE_LIMIT);
-  const topShownMax = Math.max(1, ...topShown.map((bucket) => Number(bucket.shown_count) || 0));
   const mostWrong = [...bucketList].filter((bucket) => bucket.shown_count >= 3 && bucket.wrong_count > 0).sort(sortDesc("wrong_count")).slice(0, QUESTION_TABLE_LIMIT);
-  const easy = [...bucketList].filter((bucket) => bucket.shown_count >= 3 && bucket.correct_count + bucket.wrong_count >= 3).sort((a, b) => {
-    const ar = a.correct_count / Math.max(1, a.correct_count + a.wrong_count);
-    const br = b.correct_count / Math.max(1, b.correct_count + b.wrong_count);
-    return br - ar;
-  }).slice(0, EASY_QUESTION_TABLE_LIMIT);
-  const slow = [...bucketList].filter((bucket) => bucket.response_count > 0).sort((a, b) => b.total_response_time_ms / b.response_count - a.total_response_time_ms / a.response_count).slice(0, QUESTION_TABLE_LIMIT);
   const categoryAnalytics = buildCategoryAnalytics({
     categories,
     questions,
@@ -862,146 +924,7 @@ function buildReport({
   if (categoryAnalytics.some((row) => row.selectedUserCount > 0)) {
     insightRows.push(["OK", "ok", "Kategori tercih dağılımı aktif UserCategoryPreference satırlarından benzersiz kullanıcı sayısı olarak rapora eklendi."]);
   }
-  const summaryCards = [
-    summaryCard("Toplam gösterim", shownEvents, "Bu dönemde oyuncuya gösterilen soru sayısı"),
-    summaryCard("Cevaplanan soru", answeredEvents, "Yerleştirme sonucu olan event sayısı"),
-    summaryCard("Benzersiz gösterilen soru", shownQuestionIds.size, "En az bir kez gösterilen farklı soru"),
-    summaryCard("Aktif soru havuzu (tüm aktifler)", activeQuestions.length, "Rapor anında aktif görünen tüm soru satırları"),
-    summaryCard("Solo-eligible soru", soloEligibleQuestions.length, "Aktif, yıl ve aktif kategori bilgisi kullanılabilir sorular"),
-    summaryCard("Hiç gösterilmeyen aktif soru", neverShown.length, "Tüm aktif havuz içinde bu dönemde görünmeyenler"),
-    summaryCard("Hiç gösterilmeyen Solo-eligible", neverShownSoloEligible.length, "Solo-eligible havuz içinde bu dönemde görünmeyenler"),
-    summaryCard("Runtime projection", "Health/admin", "getQuestions diagnostics ile ölçülür; e-posta raporu canlı projection çağırmaz"),
-    summaryCard("Ortalama doğru oranı", avgCorrectRate, "Cevaplanmış eventler üzerinden"),
-    summaryCard("Ortalama cevap süresi", avgResponse, "Response time olan cevaplar üzerinden")
-  ];
-  const topShownRows = topShown.map((bucket, index) => [
-    escapeHtml(index + 1),
-    escapeHtml(`#${bucket.question_id}`),
-    escapeHtml(shortText(bucket.question?.question, 100)),
-    escapeHtml(questionYearLabel(bucket)),
-    escapeHtml(questionCategoryLabel(bucket, categoryMap)),
-    escapeHtml(questionSubCategoryLabel(bucket)),
-    `${escapeHtml(bucket.shown_count)}<br>${barHtml(bucket.shown_count, topShownMax)}`,
-    escapeHtml(correctRateLabel(bucket)),
-    escapeHtml(formatMs(avgResponseMs(bucket))),
-    escapeHtml(bucket.swap_count)
-  ]);
-  const neverShownSample = neverShown.slice(0, NEVER_SHOWN_SAMPLE_LIMIT);
-  const neverShownRows = neverShownSample.map((question) => [
-    escapeHtml(`#${questionKey(question?.id ?? question?.question_id)}`),
-    escapeHtml(shortText(question?.question, 100)),
-    escapeHtml(getQuestionYear(question) ?? "Yok"),
-    escapeHtml(categoryLabel(getCategoryId(question), categoryMap)),
-    escapeHtml(displayValue(question?.sub_category)),
-    "Yok"
-  ]);
-  const wrongRows = mostWrong.map((bucket) => {
-    const answered = bucket.correct_count + bucket.wrong_count;
-    const correctRate = answered ? bucket.correct_count / answered : 0;
-    const note = correctRate <= 0.5 ? "Zor olabilir" : "Kontrol edilmeli";
-    return [
-      escapeHtml(`#${bucket.question_id}`),
-      escapeHtml(shortText(bucket.question?.question, 100)),
-      escapeHtml(questionYearLabel(bucket)),
-      escapeHtml(bucket.shown_count),
-      escapeHtml(bucket.wrong_count),
-      escapeHtml(correctRateLabel(bucket)),
-      escapeHtml(formatMs(avgResponseMs(bucket))),
-      escapeHtml(note)
-    ];
-  });
-  const easyRows = easy.map((bucket) => [
-    escapeHtml(`#${bucket.question_id}`),
-    escapeHtml(shortText(bucket.question?.question, 100)),
-    escapeHtml(questionYearLabel(bucket)),
-    escapeHtml(bucket.shown_count),
-    escapeHtml(correctRateLabel(bucket)),
-    escapeHtml(formatMs(avgResponseMs(bucket))),
-    "Çok kolay olabilir"
-  ]);
-  const slowRows = slow.map((bucket) => [
-    escapeHtml(`#${bucket.question_id}`),
-    escapeHtml(shortText(bucket.question?.question, 100)),
-    escapeHtml(questionYearLabel(bucket)),
-    escapeHtml(bucket.shown_count),
-    escapeHtml(formatMs(avgResponseMs(bucket))),
-    escapeHtml(correctRateLabel(bucket))
-  ]);
-  const hasQuestionRows = questions.length > 0;
-  const categoryPoolRows = hasQuestionRows ? categoryAnalyticsForReport.map((row) => [
-    escapeHtml(row.categoryId === "unknown" ? row.categoryName : `${row.categoryName} (#${row.categoryId})`),
-    escapeHtml(row.activeQuestionCount),
-    escapeHtml(row.difficultyCounts?.["1"] || 0),
-    escapeHtml(row.difficultyCounts?.["2"] || 0),
-    escapeHtml(row.difficultyCounts?.["3"] || 0),
-    escapeHtml(row.difficultyCounts?.["4"] || 0),
-    escapeHtml(row.difficultyCounts?.["5"] || 0),
-    escapeHtml(row.difficultyCounts?.unknown || 0),
-    escapeHtml(row.oldestYear ?? "-"),
-    escapeHtml(row.newestYear ?? "-")
-  ]) : [];
-  const categoryDifficultyChartRows = hasQuestionRows ? categoryAnalyticsForReport.map((row) => {
-    const difficultyCounts = row.difficultyCounts || {};
-    return [
-      escapeHtml(row.categoryId === "unknown" ? row.categoryName : `${row.categoryName} (#${row.categoryId})`),
-      escapeHtml(row.activeQuestionCount),
-      escapeHtml(difficultyCounts["1"] || 0),
-      escapeHtml(difficultyCounts["2"] || 0),
-      escapeHtml(difficultyCounts["3"] || 0),
-      escapeHtml(difficultyCounts["4"] || 0),
-      escapeHtml(difficultyCounts["5"] || 0),
-      escapeHtml(difficultyCounts.unknown || 0),
-      difficultyDistributionBarHtml(difficultyCounts, row.activeQuestionCount)
-    ];
-  }) : [];
-  const registeredQuestionPoolRows = hasQuestionRows ? categoryAnalytics
-    .flatMap((row) => row.registeredQuestionPoolRows.map((detail) => [
-      escapeHtml(row.categoryId === "unknown" ? row.categoryName : `${row.categoryName} (#${row.categoryId})`),
-      escapeHtml(detail.difficultyLevel),
-      escapeHtml(detail.questionCount),
-      escapeHtml(detail.oldestYear ?? "Yok"),
-      escapeHtml(detail.newestYear ?? "Yok")
-    ]))
-    .slice(0, REGISTERED_QUESTION_POOL_ROW_LIMIT) : [];
-  const categoryYearRangeRows = hasQuestionRows ? categoryAnalyticsForReport.map((row) => [
-    escapeHtml(row.categoryId === "unknown" ? row.categoryName : `${row.categoryName} (#${row.categoryId})`),
-    escapeHtml(row.activeQuestionCount),
-    escapeHtml(row.oldestYear ?? "Yok"),
-    escapeHtml(row.newestYear ?? "Yok")
-  ]) : [];
   const totalPreferenceSelections = categoryAnalytics.reduce((sum, row) => sum + (Number(row.selectedUserCount) || 0), 0);
-  const categoryPreferenceRows = categoryAnalyticsForReport.map((row) => [
-    escapeHtml(row.categoryId),
-    escapeHtml(row.categoryName),
-    escapeHtml(row.selectedUserCount),
-    escapeHtml(totalPreferenceSelections ? percent(row.selectedUserCount, totalPreferenceSelections) : "0%")
-  ]);
-  const categoryExposureRows = categoryAnalyticsForReport.map((row) => [
-    escapeHtml(row.categoryId),
-    escapeHtml(row.categoryName),
-    escapeHtml(row.activeQuestionCount),
-    escapeHtml(row.shownCount),
-    escapeHtml(row.uniqueShownQuestionCount),
-    escapeHtml(row.answeredCount),
-    escapeHtml(row.correctRate === null ? "Yeterli veri yok" : percent(row.correctRate, 1)),
-    escapeHtml(formatMs(row.avgResponseTimeMs)),
-    escapeHtml(percent(row.shownCount, shownEvents))
-  ]);
-  const categoryInternalRows = categoryAnalyticsForReport.map((row) => [
-    escapeHtml(row.categoryId),
-    escapeHtml(row.categoryName),
-    htmlLineList(row.topShown.map(formatQuestionBucket), "Bu kategoride gösterim yok."),
-    htmlLineList(row.lowShown.map(formatQuestionBucket), "Bu kategoride az gösterilmiş soru yok."),
-    htmlLineList(row.neverShownSample.map(formatQuestionSample), row.neverShownActiveCount ? "Örnek yok." : "Hiç gösterilmeyen aktif soru yok."),
-    escapeHtml(row.neverShownActiveCount)
-  ]);
-  const categoryFairnessSignalRows = categoryFairnessSignals.map((signal) => [
-    escapeHtml(signal.tone),
-    escapeHtml(signal.categoryId),
-    escapeHtml(signal.categoryName),
-    escapeHtml(signal.value),
-    escapeHtml(signal.note)
-  ]);
   const warningRows = [
     ["Events missing question_id", missing.question_id],
     ["Deleted / missing question events ignored", missing.deleted_or_missing_question],
@@ -1017,80 +940,214 @@ function buildReport({
     escapeHtml(label),
     escapeHtml(value)
   ]);
-  const insightHtml = `<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-    ${insightRows.map(([label, tone, message]) => `<tr>
-      <td valign="top" style="padding:8px 0;width:86px;">${badgeHtml(String(label), tone)}</td>
-      <td valign="top" style="padding:8px 0;color:#111827;font-size:13px;line-height:20px;font-family:Arial,Helvetica,sans-serif;">${escapeHtml(message)}</td>
-	    </tr>`).join("")}
-	  </table>`;
-  const topTextRows = topShown.length ? topShown.map((bucket, index) => `${index + 1}. #${bucket.question_id} | ${shortText(bucket.question?.question, 100)} | yıl=${questionYearLabel(bucket)} | kategori=${questionCategoryLabel(bucket, categoryMap)} | gösterim=${bucket.shown_count} | doğru=${correctRateLabel(bucket)} | süre=${formatMs(avgResponseMs(bucket))}`) : ["Bu dönemde gösterilen soru verisi yok."];
-  const neverTextRows = neverShownSample.length ? neverShownSample.map((question, index) => `${index + 1}. #${questionKey(question?.id ?? question?.question_id)} | ${shortText(question?.question, 100)} | yıl=${getQuestionYear(question) ?? "Yok"} | kategori=${categoryLabel(getCategoryId(question), categoryMap)} | alt=${displayValue(question?.sub_category)}`) : ["Hiç gösterilmeyen aktif soru bulunmadı."];
-  const categoryPoolTextRows = hasQuestionRows ? categoryAnalyticsForReport.map((row) => `${row.categoryId} | ${row.categoryName}: aktif=${row.activeQuestionCount}, zorluk1=${row.difficultyCounts?.["1"] || 0}, zorluk2=${row.difficultyCounts?.["2"] || 0}, zorluk3=${row.difficultyCounts?.["3"] || 0}, zorluk4=${row.difficultyCounts?.["4"] || 0}, zorluk5=${row.difficultyCounts?.["5"] || 0}, zorluk_bilinmiyor=${row.difficultyCounts?.unknown || 0}, en_eski_yıl=${row.oldestYear ?? "-"}, en_yeni_yıl=${row.newestYear ?? "-"}`) : ["Question tablosunda soru yok."];
-  const categoryPreferenceTextRows = categoryAnalytics.length ? categoryAnalyticsForReport.map((row) => `${row.categoryId} | ${row.categoryName}: tercih eden kullanıcı=${row.selectedUserCount}, tercih payı=${totalPreferenceSelections ? percent(row.selectedUserCount, totalPreferenceSelections) : "0%"}`) : ["Kategori tercih verisi henüz yok."];
-  const categoryExposureTextRows = categoryAnalytics.length ? categoryAnalyticsForReport.map((row) => `${row.categoryId} | ${row.categoryName}: aktif=${row.activeQuestionCount}, gösterim=${row.shownCount}, benzersiz gösterilen=${row.uniqueShownQuestionCount}, cevaplanan=${row.answeredCount}, doğru=${row.correctRate === null ? "Yeterli veri yok" : percent(row.correctRate, 1)}, ortalama süre=${formatMs(row.avgResponseTimeMs)}, gösterim payı=${percent(row.shownCount, shownEvents)}`) : ["Kategori bazında gösterim verisi yok."];
-  const categoryFairnessSignalTextRows = categoryFairnessSignals.length ? categoryFairnessSignals.map((signal) => `${signal.tone} | ${signal.categoryId} | ${signal.categoryName}: ${signal.value} - ${signal.note}`) : ["Belirgin kategori denge sinyali yok."];
-  const wrongTextRows = wrongRows.length ? mostWrong.map((bucket) => `#${bucket.question_id} | ${shortText(bucket.question?.question, 100)} | yanlış=${bucket.wrong_count} | doğru=${correctRateLabel(bucket)}`) : ["Yeterli örneklem yok."];
-  const easyTextRows = easyRows.length ? easy.map((bucket) => `#${bucket.question_id} | ${shortText(bucket.question?.question, 100)} | doğru=${correctRateLabel(bucket)}`) : ["Yeterli örneklem yok."];
-  const slowTextRows = slowRows.length ? slow.map((bucket) => `#${bucket.question_id} | ${shortText(bucket.question?.question, 100)} | süre=${formatMs(avgResponseMs(bucket))} | doğru=${correctRateLabel(bucket)}`) : ["Cevap süresi verisi yok."];
-  const executiveSummaryRows = [
-    `Toplam gösterim: ${shownEvents}`,
-    `Cevaplanan soru: ${answeredEvents}`,
-    `Benzersiz gösterilen soru: ${shownQuestionIds.size}`,
-    `Aktif soru havuzu: ${activeQuestions.length}`,
-    `Solo-eligible soru havuzu: ${soloEligibleQuestions.length}`,
-    `Hiç gösterilmeyen aktif soru: ${neverShown.length}`,
-    `Ortalama doğru oranı: ${avgCorrectRate}`,
-    `Ortalama cevap süresi: ${avgResponse}`
+  const questionTypeBuckets = /* @__PURE__ */ new Map();
+  for (const bucket of bucketList) {
+    if (!bucket.shown_count) continue;
+    const q = bucket.question || {};
+    const category = questionCategoryLabel(bucket, categoryMap);
+    const subCategory = displayValue(q.sub_category || bucket.sub_category);
+    const tag = displayValue(q.tag || bucket.tag, "tag yok");
+    const difficulty = difficultyLabel(bucket.difficulty_bucket || getQuestionDifficultyBucket(q));
+    const key = `${category} / ${subCategory} / zorluk ${difficulty}`;
+    const current = questionTypeBuckets.get(key) || {
+      key,
+      category,
+      subCategory,
+      tag,
+      difficulty,
+      shown: 0,
+      correct: 0,
+      wrong: 0,
+      responseMs: 0,
+      responseCount: 0
+    };
+    current.shown += Number(bucket.shown_count) || 0;
+    current.correct += Number(bucket.correct_count) || 0;
+    current.wrong += Number(bucket.wrong_count) || 0;
+    current.responseMs += Number(bucket.total_response_time_ms) || 0;
+    current.responseCount += Number(bucket.response_count) || 0;
+    questionTypeBuckets.set(key, current);
+  }
+  const questionTypeRows = Array.from(questionTypeBuckets.values()).map((row) => ({
+    ...row,
+    answered: row.correct + row.wrong,
+    correctRate: row.correct + row.wrong ? row.correct / (row.correct + row.wrong) : null,
+    avgMs: row.responseCount ? Math.round(row.responseMs / row.responseCount) : 0
+  }));
+  const bestQuestionTypes = questionTypeRows
+    .filter((row) => row.answered >= 3 && row.correctRate >= 0.5 && row.correctRate <= 0.85)
+    .sort((a, b) => b.answered - a.answered || b.correctRate - a.correctRate)
+    .slice(0, 5);
+  const tooHardQuestionTypes = questionTypeRows
+    .filter((row) => row.answered >= 3 && row.correctRate !== null && row.correctRate <= 0.45)
+    .sort((a, b) => b.wrong - a.wrong || a.correctRate - b.correctRate)
+    .slice(0, 5);
+  const tooEasyQuestionTypes = questionTypeRows
+    .filter((row) => row.answered >= 3 && row.correctRate !== null && row.correctRate >= 0.9)
+    .sort((a, b) => b.correctRate - a.correctRate || b.answered - a.answered)
+    .slice(0, 3);
+  const typeRowLabel = (row) => `${row.key} · gösterim=${row.shown} · cevap=${row.answered} · doğru=${row.correctRate === null ? "Yeterli veri yok" : percent(row.correctRate, 1)} · süre=${formatMs(row.avgMs)} · tag=${row.tag}`;
+
+  const jokerUsageByType = /* @__PURE__ */ new Map();
+  const jokerPurchaseByType = /* @__PURE__ */ new Map();
+  const questionJokerByType = /* @__PURE__ */ new Map();
+  for (const tx of jokerTransactions || []) {
+    const type = normalizeJokerType(tx?.joker_type);
+    if (!type) continue;
+    const delta = Number(tx?.quantity_delta) || 0;
+    const reason = String(tx?.reason || "").trim();
+    if (reason === "solo_use" || delta < 0) incrementMap(jokerUsageByType, type, Math.max(1, Math.abs(delta)));
+    if (reason === "market_purchase") incrementMap(jokerPurchaseByType, type, Math.max(1, Math.abs(delta)));
+  }
+  for (const event of events) {
+    if (!event?.joker_used && !event?.joker_type) continue;
+    const type = normalizeJokerType(event?.joker_type);
+    incrementMap(questionJokerByType, type || "unknown");
+  }
+  const jokerLines = [];
+  if (!jokerTransactions.length && !questionJokerByType.size) {
+    jokerLines.push("Joker analytics data insufficient: JokerTransaction ve QuestionAttemptEvent joker alanlarında bu dönem için ölçülebilir kullanım bulunamadı.");
+  } else {
+    const usage = topMapEntries(jokerUsageByType, 5).map(([type, count]) => `${jokerDisplayName(type)}: ${count} solo kullanım`).join("; ") || "Solo kullanım ledger satırı yok.";
+    const purchases = topMapEntries(jokerPurchaseByType, 5).map(([type, count]) => `${jokerDisplayName(type)}: ${count} market_purchase`).join("; ") || "Mağaza joker satın alma ledger satırı yok.";
+    const eventUsage = topMapEntries(questionJokerByType, 5).map(([type, count]) => `${jokerDisplayName(type)}: ${count} soru event sinyali`).join("; ") || "QuestionAttemptEvent içinde joker sinyali yok.";
+    jokerLines.push(`Joker ledger özeti: ${usage}`);
+    jokerLines.push(`Mağaza sonrası joker akışı: ${purchases}`);
+    jokerLines.push(`Soru eventlerindeki joker işareti: ${eventUsage}`);
+  }
+  jokerLines.push("Joker kullanımının level tamamlama, cevap doğruluğu veya devam etme etkisini kesin ölçmek için JokerTransaction üzerinde session_id, attempt_id, level_id, card_index, effect_success, resulted_in_correct_answer ve resulted_in_level_completion alanları gerekir.");
+
+  const eventHours = /* @__PURE__ */ new Map();
+  const eventWeekdays = /* @__PURE__ */ new Map();
+  for (const event of events) {
+    const stamp = eventTimestamp(event);
+    incrementMap(eventHours, istanbulHourKey(stamp));
+    incrementMap(eventWeekdays, istanbulWeekdayKey(stamp));
+  }
+  const peakHours = topMapEntries(eventHours, 3);
+  const peakWeekdays = topMapEntries(eventWeekdays, 3);
+  const dailyQuestClaims = (diamondTransactions || []).filter((tx) => String(tx?.source || "") === "daily_quest_reward").length;
+  const marketDiamondSpends = (diamondTransactions || []).filter((tx) => String(tx?.source || "") === "market_purchase").length;
+  const wheelClaims = (dailyWheelSpins || []).length;
+  const rhythmLines = [
+    peakHours.length ? `En yoğun saat pencereleri (Europe/Istanbul): ${peakHours.map(([hour, count]) => `${hour}:00 (${count} event)`).join(", ")}.` : "Saat bazlı oynanma sinyali için yeterli timestamp yok.",
+    peakWeekdays.length ? `En yoğun günler: ${peakWeekdays.map(([day, count]) => `${day} (${count} event)`).join(", ")}.` : "Gün bazlı oynanma sinyali için yeterli timestamp yok.",
+    `Günlük görev claim sinyali: ${dailyQuestClaims}; Günlük Çark claim sinyali: ${wheelClaims}; Mağaza diamond spend sinyali: ${marketDiamondSpends}.`,
+    "Push bildirim zamanı için bu sinyaller yalnızca yön gösterir; timezone/user local time ayrımı ayrıca yakalanmalıdır."
   ];
-  const actionItemRows = insightRows.slice(0, 3).map(([label, _tone, message]) => `${label}: ${message}`);
+
+  const gameDurations = (gameRecords || [])
+    .map((record) => Number(record?.duration_seconds))
+    .filter((value) => Number.isFinite(value) && value > 0);
+  const avgGameDuration = gameDurations.length
+    ? gameDurations.reduce((sum, value) => sum + value, 0) / gameDurations.length
+    : 0;
+  const retentionLines = [
+    `QuestionAttemptEvent attempt_id sayısı: ${uniqueAttempts.size || "Yeterli veri yok"}.`,
+    gameDurations.length ? `Legacy GameRecord ortalama süre örneği: ${formatSeconds(avgGameDuration)} (${gameDurations.length} kayıt).` : "Oturum süresi için güncel session event veya kullanılabilir GameRecord örneği yok.",
+    mostWrong.length ? `En çok yanlış yapılan soru sayısı sinyali: ${mostWrong.length}; zorluk sıçraması veya arka arkaya zor kart riski manuel incelenmeli.` : "Arka arkaya başarısızlık veya çıkış noktası için yeterli event yok.",
+    "Daha uzun oynama analizi için session_id, ended_at, duration_ms, levels_attempted, levels_completed, exit_reason ve next-level CTA click eventleri gerekir."
+  ];
+
+  const algorithmLines = [
+    shownEvents ? `${shownEvents} gösterimden ${shownQuestionIds.size} benzersiz soru dolaşıma girdi; ortalama tekrar yoğunluğu ${averageShowCount}.` : "Solo algoritması için bu dönemde gösterim yok.",
+    neverShownSoloEligible.length ? `${neverShownSoloEligible.length} Solo-eligible soru hiç gösterilmedi; rotation/exposure limitleri ve kategori havuzu genişliği izlenmeli.` : "Solo-eligible havuzda hiç gösterilmeyen soru sinyali bu dönem düşük.",
+    topShownShare >= 0.15 ? `En çok gösterilen soru dönem gösterimlerinin ${percent(topShown[0].shown_count, shownEvents)} payını aldı; aynı soru/category/difficulty tekrar limiti değerlendirilmeli.` : "Tek soruya aşırı yığılma sinyali belirgin değil.",
+    categoryFairnessSignals.length ? `Kategori denge sinyali: ${categoryFairnessSignals[0].categoryName} - ${categoryFairnessSignals[0].value}.` : "Kategori bazlı belirgin dolaşım riski yok.",
+    "No-login/no-preference kullanıcılar all active categories ile devam etmeli; seçili kategori filtresi boş veya zayıf havuz üretirse offline/no-cache diye etiketlenmemeli."
+  ];
+  const questionTypeQualityLines = [
+    bestQuestionTypes.length ? `İyi meydan okuma veren tipler: ${bestQuestionTypes.map(typeRowLabel).join(" | ")}` : "İyi performans gösteren soru tipi için yeterli cevap örneklemi yok.",
+    tooHardQuestionTypes.length ? `Zor/review gereken tipler: ${tooHardQuestionTypes.map(typeRowLabel).join(" | ")}` : "Aşırı zor görünen tip için yeterli örneklem yok.",
+    tooEasyQuestionTypes.length ? `Çok kolay görünen tipler: ${tooEasyQuestionTypes.map(typeRowLabel).join(" | ")}` : "Aşırı kolay görünen tip için yeterli örneklem yok.",
+    questionsMissingMetadata ? `${questionsMissingMetadata} aktif soruda sub_category veya tag eksik; doğru soru tipi öğrenimi için metadata tamamlanmalı.` : "Soru tipi metadata eksiği belirgin değil."
+  ];
+  const topRisks = [
+    neverShownSoloEligible.length ? `Solo havuzda ${neverShownSoloEligible.length} soru hiç dolaşıma girmedi.` : "",
+    topShownShare >= 0.15 ? `En çok gösterilen soru payı ${percent(topShown[0].shown_count, shownEvents)}.` : "",
+    tooHardQuestionTypes.length ? "Bazı soru tiplerinde doğru oranı düşük; zorluk eğrisi ve içerik kalitesi kontrol edilmeli." : "",
+    !jokerTransactions.length ? "Joker kullanım ledger verisi karar için yetersiz." : "",
+    !gameDurations.length ? "Oturum süresi/çıkış nedeni instrumentation eksik." : ""
+  ].filter(Boolean);
+  const recommendedActions = [
+    neverShownSoloEligible.length || topShownShare >= 0.15
+      ? "High / Algorithm: Aynı category/difficulty tekrar limitini ve hiç gösterilmeyen Solo-eligible soru rotasyonunu ölçen exposure guard ekle."
+      : "Medium / Algorithm: Mevcut all-category fallback ve seçili kategori filtre davranışını runtime diagnostics ile izlemeye devam et.",
+    tooHardQuestionTypes.length
+      ? "High / Content: Düşük doğru oranlı soru tiplerini editorial review kuyruğuna al; ilk seviyelerde arka arkaya zor kartı azalt."
+      : "Medium / Content: Tag/sub_category metadata tamlığını koru ve soru tipi bazlı örneklem büyüdükçe kalite eşiklerini netleştir.",
+    jokerTransactions.length
+      ? "Medium / Economy/Jokers: Joker kullanımını level completion ve sonraki oyun devamı ile ilişkilendirecek event alanlarını ekle."
+      : "High / Economy/Jokers: Joker kullanım outcome alanları olmadan fiyat/denge kararı verme; önce instrumentation ekle.",
+    peakHours.length
+      ? "Medium / Engagement/Retention: Push ve Daily Quest hatırlatmalarını yoğun saatlerden önce test et; sessiz saat varsayımını kullanıcı timezone verisiyle doğrula."
+      : "Low / Engagement/Retention: Oynanma zamanı sinyali için timestamp coverage ve timezone bilgisini güçlendir.",
+    "High / Instrumentation: session_id, is_guest, selected_category_source, exit_reason, duration_ms ve joker outcome alanlarını QuestionAttemptEvent/JokerTransaction/Session event akışına ekle."
+  ];
+  const missingInstrumentationRows = [
+    events.some((event) => event?.session_id) ? "" : "QuestionAttemptEvent.session_id yok; session length ve retention bağlamı sınırlı.",
+    events.some((event) => event?.is_guest === true || event?.is_guest === false) ? "" : "QuestionAttemptEvent.is_guest yok; guest vs logged-in karşılaştırması yapılamıyor.",
+    events.some((event) => event?.selected_category_source) ? "" : "selected_category_source yok; user_preferences / all_categories_guest / all_categories_no_preferences ayrımı ölçülemiyor.",
+    events.some((event) => event?.exit_reason) ? "" : "exit_reason yok; drop-off ve offline/no-cache ayrımı raporda kesinleşmiyor.",
+    jokerTransactions.some((tx) => tx?.resulted_in_level_completion || tx?.resulted_in_correct_answer) ? "" : "JokerTransaction outcome alanları yok; jokerin başarı/retention etkisi ölçülemiyor.",
+    gameDurations.length ? "" : "Güncel session duration event akışı yok; GameRecord legacy ve yeterli olmayabilir."
+  ].filter(Boolean);
+
+  const executiveSummaryRows = [
+    `Dönem özeti: ${shownEvents} gösterim, ${answeredEvents} cevap, ${shownQuestionIds.size} benzersiz gösterilen soru.`,
+    `Doğru oranı: ${avgCorrectRate}; ortalama cevap süresi: ${avgResponse}.`,
+    `Solo-eligible havuz: ${soloEligibleQuestions.length}; hiç gösterilmeyen Solo-eligible soru: ${neverShownSoloEligible.length}.`,
+    topRisks.length ? `Top riskler: ${topRisks.slice(0, 3).join(" | ")}` : "Top risk: Bu dönem için kritik ürün sinyali yok; örneklem büyüdükçe tekrar bakılmalı.",
+    `Önerilen ilk aksiyon: ${recommendedActions[0]}`
+  ];
+  const emailFindingRows = [
+    ...insightRows.slice(0, 3).map(([label, _tone, message]) => `${label}: ${message}`),
+    topRisks[0] ? `Risk: ${topRisks[0]}` : "Risk: Bu dönem için belirgin kritik risk yok."
+  ].slice(0, 5);
+  const actionItemRows = recommendedActions.slice(0, 3);
   const reportSectionNames = [
-    "Executive Summary",
-    "Key Insights / Risk Flags",
-    "Kategori Bazında Soru Havuzu",
-    "Kategori Tercihleri",
-    "Kategori Bazında Gösterim",
-    "Kategori Denge Sinyalleri",
-    "En Çok Gösterilen Sorular",
-    "Az veya Hiç Gösterilmeyen Sorular",
-    "En Çok Yanlış Yapılan Sorular",
-    "Çok Kolay Görünen Sorular",
-    "En Uzun Sürede Cevaplanan Sorular",
-    "Veri Kalitesi Uyarıları"
+    "Yönetici Özeti",
+    "Genel Kullanım Özeti",
+    "Solo Soru Algoritması İçin Sinyaller",
+    "Doğru Soru Tipi / İçerik Kalitesi",
+    "Joker Kullanımı Analizi",
+    "Oynanma Zamanı ve Kullanım Ritmi",
+    "Daha Uzun Oynama / Retention Sinyalleri",
+    "Data Quality and Missing Instrumentation",
+    "Önerilen Aksiyonlar"
   ];
   const pdfSections = [
-    { title: "Executive Summary", lines: executiveSummaryRows },
-    { title: "Key Insights / Risk Flags", lines: insightRows.map(([label, _tone, message]) => `${label}: ${message}`) },
-    { title: "Action Items", lines: actionItemRows.length ? actionItemRows : ["Bu dönem için belirgin aksiyon sinyali yok."] },
-    { title: "Kategori Bazında Soru Havuzu", lines: categoryPoolTextRows },
-    { title: "Kategori Tercihleri", lines: categoryPreferenceTextRows },
-    { title: "Kategori Bazında Gösterim", lines: categoryExposureTextRows },
-    { title: "Kategori Denge Sinyalleri", lines: categoryFairnessSignalTextRows },
-    { title: "En Çok Gösterilen Sorular", lines: topTextRows },
-    { title: "Az veya Hiç Gösterilmeyen Sorular", lines: [
-      `Toplam hiç gösterilmeyen aktif soru: ${neverShown.length}`,
-      `Toplam hiç gösterilmeyen Solo-eligible soru: ${neverShownSoloEligible.length}`,
-      `Silinmiş/eksik soruya referans veren ve rapordan çıkarılan event sayısı: ${missing.deleted_or_missing_question}`,
-      `Silinmiş/eksik soru örnekleri: ${Array.from(staleQuestionIds).join(", ") || "Yok"}`,
-      ...neverTextRows
+    { title: "Yönetici Özeti", lines: executiveSummaryRows },
+    { title: "Genel Kullanım Özeti", lines: [
+      `Toplam event: ${events.length}`,
+      `Toplam gösterim: ${shownEvents}`,
+      `Cevaplanan soru: ${answeredEvents}`,
+      `Aktif soru havuzu: ${activeQuestions.length}`,
+      `Solo-eligible soru havuzu: ${soloEligibleQuestions.length}`,
+      `Hiç gösterilmeyen aktif soru: ${neverShown.length}`,
+      `Silinmiş/eksik soru referansı nedeniyle çıkarılan event: ${missing.deleted_or_missing_question}`,
+      `Kategori tercihi olan aggregate seçim sayısı: ${totalPreferenceSelections}`
     ] },
-    { title: "En Çok Yanlış Yapılan Sorular", lines: wrongTextRows },
-    { title: "Çok Kolay Görünen Sorular", lines: easyTextRows },
-    { title: "En Uzun Sürede Cevaplanan Sorular", lines: slowTextRows },
-    { title: "Veri Kalitesi Uyarıları", lines: warningRows.map(([label, value]) => `${stripHtml(label)}: ${stripHtml(value)}`) }
+    { title: "Solo Soru Algoritması İçin Sinyaller", lines: algorithmLines },
+    { title: "Doğru Soru Tipi / İçerik Kalitesi", lines: questionTypeQualityLines },
+    { title: "Joker Kullanımı Analizi", lines: jokerLines },
+    { title: "Oynanma Zamanı ve Kullanım Ritmi", lines: rhythmLines },
+    { title: "Daha Uzun Oynama / Retention Sinyalleri", lines: retentionLines },
+    { title: "Data Quality and Missing Instrumentation", lines: [
+      ...warningRows.map(([label, value]) => `${stripHtml(label)}: ${stripHtml(value)}`),
+      ...(missingInstrumentationRows.length ? missingInstrumentationRows : ["Bu dönem için kritik missing instrumentation sinyali yok."])
+    ] },
+    { title: "Önerilen Aksiyonlar", lines: recommendedActions }
   ];
   const attachmentFilename = pdfFilenameForPeriod(periodDays);
+  const htmlList = (items) => `<ul style="margin:0;padding-left:18px;color:#111827;font-size:13px;line-height:20px;font-family:Arial,Helvetica,sans-serif;">
+    ${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+  </ul>`;
   const htmlSections = [
-    safeSectionHtml("Executive Summary", () => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-      <tr>${summaryCards.slice(0, 3).join("")}</tr>
-      <tr>${summaryCards.slice(3, 6).join("")}</tr>
-    </table>`),
-    safeSectionHtml("Key Insights / Risk Flags", () => insightHtml),
-    safeSectionHtml("Action Items", () => `
-      <ul style="margin:0;padding-left:18px;color:#111827;font-size:13px;line-height:20px;font-family:Arial,Helvetica,sans-serif;">
-        ${(actionItemRows.length ? actionItemRows : ["Bu dönem için belirgin aksiyon sinyali yok."]).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
-      </ul>
-    `),
-    safeSectionHtml("PDF Attachment", () => `
+    safeSectionHtml("Yönetici Özeti", () => htmlList(executiveSummaryRows.slice(0, 5))),
+    safeSectionHtml("Öne Çıkan Bulgular", () => htmlList(emailFindingRows)),
+    safeSectionHtml("Öncelikli Aksiyonlar", () => htmlList(actionItemRows.length ? actionItemRows : ["Bu dönem için belirgin aksiyon sinyali yok."])),
+    safeSectionHtml("PDF Eki", () => `
       <p style="margin:0;color:#334155;font-size:14px;line-height:22px;font-family:Arial,Helvetica,sans-serif;font-weight:700;">${escapeHtml(REPORT_ATTACHMENT_NOTICE)}</p>
       <p style="margin:8px 0 0;color:#64748b;font-size:12px;line-height:18px;font-family:Arial,Helvetica,sans-serif;">Dosya: ${escapeHtml(attachmentFilename)} · İçerik türü: ${escapeHtml(PDF_ATTACHMENT_CONTENT_TYPE)}</p>
     `)
@@ -1134,16 +1191,16 @@ function buildReport({
     `Build: ${buildMarker || "Bilinmiyor"}`,
     `Template: ${REPORT_TEMPLATE_VERSION}`,
     "",
-    "--- Executive Summary ---",
+    "--- Yönetici Özeti ---",
     ...executiveSummaryRows,
     "",
-    "--- Key Insights / Risk Flags ---",
-    ...insightRows.map(([label, _tone, message]) => `${label}: ${message}`),
+    "--- Öne Çıkan Bulgular ---",
+    ...emailFindingRows,
     "",
-    "--- Action Items ---",
+    "--- Öncelikli Aksiyonlar ---",
     ...(actionItemRows.length ? actionItemRows : ["Bu dönem için belirgin aksiyon sinyali yok."]),
     "",
-    "--- PDF Attachment ---",
+    "--- PDF Eki ---",
     REPORT_ATTACHMENT_NOTICE,
     `Dosya: ${attachmentFilename}`,
     `İçerik türü: ${PDF_ATTACHMENT_CONTENT_TYPE}`,
@@ -1185,8 +1242,9 @@ function buildReport({
       topShownSubcategoryShare: topSubcategoryConcentration.topShownSubcategoryShare,
       templateVersion: REPORT_TEMPLATE_VERSION,
       reportTemplateMarker: REPORT_TEMPLATE_LABEL,
-      categoryPoolRowsRendered: categoryPoolRows.length,
-      categoryPoolSource: "Question.list static current DB rows",
+      categoryAnalyticsRowsAnalyzed: categoryAnalyticsForReport.length,
+      staticInventorySectionsRemoved: true,
+      productIntelligenceReport: true,
       reportSectionCount: reportSectionNames.length,
       emailBodyMode: "summary_only",
       pdfAttachmentRequired: true,
@@ -1196,23 +1254,21 @@ function buildReport({
       removedReportSections: [...REMOVED_REPORT_SECTION_TITLES],
       bodyRemovedSectionsPresent,
       pdfRemovedSectionsPresent,
-      categoryPreferenceRowsRendered: categoryPreferenceRows.length,
-      categoryExposureRowsRendered: categoryExposureRows.length,
+      aggregatePreferenceSelectionsAnalyzed: totalPreferenceSelections,
+      categoryExposureRowsAnalyzed: categoryAnalyticsForReport.length,
       categoryFairnessSignalCount: categoryFairnessSignals.length,
-      reportSections: [
-        "Executive Summary",
-        "Key Insights / Risk Flags",
-        "Kategori Bazında Soru Havuzu",
-        "Kategori Tercihleri",
-        "Kategori Bazında Gösterim",
-        "Kategori Denge Sinyalleri",
-        "En Çok Gösterilen Sorular",
-        "Az veya Hiç Gösterilmeyen Sorular",
-        "En Çok Yanlış Yapılan Sorular",
-        "Çok Kolay Görünen Sorular",
-        "En Uzun Sürede Cevaplanan Sorular",
-        "Veri Kalitesi Uyarıları"
-      ],
+      reportSections: reportSectionNames,
+      productIntelligenceSections: reportSectionNames,
+      questionTypeSignalCount: questionTypeRows.length,
+      bestQuestionTypeSignalCount: bestQuestionTypes.length,
+      difficultQuestionTypeSignalCount: tooHardQuestionTypes.length,
+      jokerLedgerRowsAnalyzed: (jokerTransactions || []).length,
+      questionJokerEventSignalCount: Array.from(questionJokerByType.values()).reduce((sum, value) => sum + value, 0),
+      diamondEconomyRowsAnalyzed: (diamondTransactions || []).length,
+      dailyWheelSpinRowsAnalyzed: (dailyWheelSpins || []).length,
+      gameRecordRowsAnalyzed: (gameRecords || []).length,
+      peakPlayHourCount: peakHours.length,
+      missingInstrumentation: missingInstrumentationRows,
       categoryAnalytics: categoryAnalytics.map((row) => ({
         categoryId: row.categoryId,
         categoryName: row.categoryName,
@@ -1313,6 +1369,34 @@ function safeErrorReason(error) {
   const raw = error instanceof Error ? error.message : String(error || "send failed");
   return String(raw || "send failed").split("\n")[0].slice(0, 180);
 }
+async function safeListServiceEntity(base44, entityName, order, limit) {
+  try {
+    const entity = base44?.asServiceRole?.entities?.[entityName];
+    if (!entity?.list) return [];
+    const rows = await entity.list(order, limit);
+    return Array.isArray(rows) ? rows : [];
+  } catch (_error) {
+    return [];
+  }
+}
+function filterRowsSince(rows, since) {
+  return (rows || []).filter((row) => {
+    const stamp = rowTimestamp(row);
+    return stamp ? stamp >= since : false;
+  });
+}
+function buildSendEmailAttachmentPayload(pdfAttachment) {
+  return {
+    filename: pdfAttachment.filename,
+    name: pdfAttachment.filename,
+    content: pdfAttachment.base64,
+    contentType: pdfAttachment.contentType,
+    type: pdfAttachment.contentType,
+    mimeType: pdfAttachment.contentType,
+    encoding: "base64",
+    disposition: "attachment"
+  };
+}
 Deno.serve(async (req) => {
   try {
     if (req.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
@@ -1342,14 +1426,22 @@ Deno.serve(async (req) => {
     const rawQuestions = await base44.asServiceRole.entities.Question.list("-created_date", MAX_QUESTIONS).catch(() => []);
     const rawCategories = await base44.asServiceRole.entities.Category.list("-created_date", MAX_CATEGORIES).catch(() => []);
     const rawCategoryPreferences = await base44.asServiceRole.entities.UserCategoryPreference.list("-updated_date", MAX_USER_CATEGORY_PREFERENCES).catch(() => []);
+    const rawJokerTransactions = await safeListServiceEntity(base44, "JokerTransaction", "-created_at", MAX_JOKER_TRANSACTIONS);
+    const rawDiamondTransactions = await safeListServiceEntity(base44, "DiamondTransaction", "-created_at", MAX_DIAMOND_TRANSACTIONS);
+    const rawDailyWheelSpins = await safeListServiceEntity(base44, "DailyWheelSpin", "-claimed_at", MAX_DAILY_WHEEL_SPINS);
+    const rawGameRecords = await safeListServiceEntity(base44, "GameRecord", "-created_date", MAX_GAME_RECORDS);
     const report = buildReport({
       periodDays,
       events,
       questions: rawQuestions,
       categories: rawCategories,
       categoryPreferences: rawCategoryPreferences,
+      jokerTransactions: filterRowsSince(rawJokerTransactions, since),
+      diamondTransactions: filterRowsSince(rawDiamondTransactions, since),
+      dailyWheelSpins: filterRowsSince(rawDailyWheelSpins, since),
+      gameRecords: filterRowsSince(rawGameRecords, since),
       buildMarker: String(body?.buildMarker || REPORT_BUILD_MARKER)
-	    });
+		    });
 	    const emailHtml = report.html;
 	    const emailText = report.text;
 	    const sentAt = (/* @__PURE__ */ new Date()).toISOString();
@@ -1381,45 +1473,48 @@ Deno.serve(async (req) => {
 	        templateVersion: REPORT_TEMPLATE_VERSION
 	      }, 500);
 	    }
-	    const bodyDiagnostics = {
-	      reportBuildMarker,
-	      buildMarker: reportBuildMarker,
-	      templateVersion: REPORT_TEMPLATE_VERSION,
-	      emailBodyMode: "summary_only",
-	      bodyContainsExecutiveSummary: emailHtml.includes("Executive Summary"),
-	      bodyContainsPdfAttachmentNotice: emailHtml.includes(REPORT_ATTACHMENT_NOTICE),
-	      bodyRemovedSectionsPresent: report.bodyRemovedSectionsPresent,
-	      pdfRemovedSectionsPresent: report.pdfRemovedSectionsPresent,
-	      pdfAttachmentGenerated: Boolean(pdfAttachment?.base64),
-	      pdfAttachmentFilename: pdfAttachment?.filename || report.attachmentFilename,
-	      pdfAttachmentContentType: pdfAttachment?.contentType || PDF_ATTACHMENT_CONTENT_TYPE,
-	      pdfAttachmentByteLength: pdfAttachment?.byteLength || 0,
-	      sendEmailAttachmentContract: "attachments[{filename,content,type,disposition}]",
-	      bodyLength: emailHtml.length,
-	      sentAt
-	    };
+		    const bodyDiagnostics = {
+		      reportBuildMarker,
+		      buildMarker: reportBuildMarker,
+		      templateVersion: REPORT_TEMPLATE_VERSION,
+		      emailBodyMode: "summary_only",
+		      bodyContainsExecutiveSummary: emailHtml.includes("Yönetici Özeti"),
+		      bodyContainsPdfAttachmentNotice: emailHtml.includes(REPORT_ATTACHMENT_NOTICE),
+		      bodyRemovedSectionsPresent: report.bodyRemovedSectionsPresent,
+		      pdfRemovedSectionsPresent: report.pdfRemovedSectionsPresent,
+		      pdfGenerated: Boolean(pdfAttachment?.base64 && pdfAttachment?.byteLength > 0),
+		      pdfFilename: pdfAttachment?.filename || report.attachmentFilename,
+		      pdfSizeBytes: pdfAttachment?.byteLength || 0,
+		      attachmentCount: pdfAttachment?.base64 && pdfAttachment?.byteLength > 0 ? 1 : 0,
+		      attachmentContentType: pdfAttachment?.contentType || PDF_ATTACHMENT_CONTENT_TYPE,
+		      pdfAttachmentGenerated: Boolean(pdfAttachment?.base64 && pdfAttachment?.byteLength > 0),
+		      pdfAttachmentFilename: pdfAttachment?.filename || report.attachmentFilename,
+		      pdfAttachmentContentType: pdfAttachment?.contentType || PDF_ATTACHMENT_CONTENT_TYPE,
+		      pdfAttachmentByteLength: pdfAttachment?.byteLength || 0,
+		      sendEmailAttachmentContract: "attachments[{filename,name,content,contentType,type,mimeType,encoding,disposition}]",
+		      sendEmailAttachmentContractVerified: false,
+		      attachmentPayloadPassedToSendEmail: Boolean(pdfAttachment?.base64 && pdfAttachment?.byteLength > 0),
+		      bodyLength: emailHtml.length,
+		      sentAt
+		    };
 	    if (!bodyDiagnostics.bodyContainsExecutiveSummary || !bodyDiagnostics.bodyContainsPdfAttachmentNotice || !bodyDiagnostics.pdfAttachmentGenerated || report.bodyRemovedSectionsPresent.length || report.pdfRemovedSectionsPresent.length) {
 	      await writeJobLog(base44, admin.user, "body_validation_failed", { periodDays, requestedBy: requestedByEmail, recipientEmail, adminAuthorized: true, emailDispatchStatus: "not_sent", ...bodyDiagnostics });
 	      return json({ ok: false, error: "report_body_or_pdf_validation_failed", requestedBy: requestedByEmail, recipientEmail, adminAuthorized: true, emailDispatchStatus: "not_sent", ...bodyDiagnostics }, 500);
 	    }
-	    const subject = `Kronox Soru Analiz Raporu — ${periodLabel(periodDays)}`;
+		    const subject = `Kronox Soru Analiz Raporu — ${periodLabel(periodDays)}`;
     let emailResult = null;
+    const emailAttachments = [buildSendEmailAttachmentPayload(pdfAttachment)];
     try {
       emailResult = await base44.integrations.Core.SendEmail({
         from_name: "Kronox",
         to: recipient,
         subject,
-	        body: emailHtml,
-	        html: emailHtml,
-	        text: emailText,
-	        body_text: emailText,
-	        attachments: [{
-	          filename: pdfAttachment.filename,
-	          content: pdfAttachment.base64,
-	          type: pdfAttachment.contentType,
-	          disposition: "attachment"
-	        }]
-	      });
+		        body: emailHtml,
+		        html: emailHtml,
+		        text: emailText,
+		        body_text: emailText,
+		        attachments: emailAttachments
+		      });
       if (emailResult?.ok === false) {
         throw new Error(emailResult?.error || emailResult?.message || "send failed");
       }
@@ -1447,12 +1542,13 @@ Deno.serve(async (req) => {
       recipientEmail,
       recipientSource,
       adminAuthorized: true,
-      emailDispatchStatus: "sent",
-      sendEmailOk: true,
-      emailProviderMessageId,
-      ...bodyDiagnostics,
-      ...report.summary
-    };
+	      emailDispatchStatus: "sent",
+	      sendEmailOk: true,
+	      sendEmailAcceptedAttachment: Boolean(emailAttachments.length > 0 && emailResult?.ok !== false),
+	      emailProviderMessageId,
+	      ...bodyDiagnostics,
+	      ...report.summary
+	    };
     await writeJobLog(base44, admin.user, "success", summary);
     return json(summary);
   } catch (error) {

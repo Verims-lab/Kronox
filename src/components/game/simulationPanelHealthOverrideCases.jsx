@@ -1113,7 +1113,7 @@ export const EXTRA_TESTS = [
    *  build and the real email report was missing the new static section.
    *
    *  New contract: the callable report function INLINES a DB-backed AdminUser
-   *  authorization guard (no local import) AND keeps the summary-pdf-v1
+   *  authorization guard (no local import) AND keeps the product-intel-pdf-v2
    *  template + body/PDF diagnostics, with a compact email body and PDF
    *  attachment. We explicitly FORBID any local `_shared/adminAuth`
    *  import in the callable report path so the broken pattern cannot return.
@@ -1136,7 +1136,7 @@ export const EXTRA_TESTS = [
         'if (admin.response) return admin.response',
         // Report template + body/PDF markers.
         'Question.list',
-        'REPORT_TEMPLATE_VERSION = "summary-pdf-v1"',
+        'REPORT_TEMPLATE_VERSION = "product-intel-pdf-v2"',
         'PDF_ATTACHMENT_CONTENT_TYPE = "application/pdf"',
         'REPORT_ATTACHMENT_NOTICE',
         'buildQuestionAnalyticsPdfAttachment',
@@ -1144,13 +1144,19 @@ export const EXTRA_TESTS = [
         'bodyContainsPdfAttachmentNotice',
         'bodyRemovedSectionsPresent',
         'pdfRemovedSectionsPresent',
+        'pdfGenerated',
+        'attachmentCount',
+        'pdfFilename',
+        'pdfSizeBytes',
         'pdfAttachmentGenerated',
         'body: emailHtml',
         'html: emailHtml',
-        'attachments: [{',
-        'type: pdfAttachment.contentType',
-        'safeSectionHtml("Executive Summary"',
-        'safeSectionHtml("PDF Attachment"',
+        'buildSendEmailAttachmentPayload',
+        'attachments: emailAttachments',
+        'contentType: pdfAttachment.contentType',
+        'encoding: "base64"',
+        'safeSectionHtml("Yönetici Özeti"',
+        'safeSectionHtml("PDF Eki"',
       ];
       // The broken import pattern that caused the stale-deploy incident must
       // never come back in the executed report path.
@@ -1163,15 +1169,15 @@ export const EXTRA_TESTS = [
       const missing = required.filter((t) => !src.includes(t));
       const found = forbidden.filter((t) => src.includes(t));
       // Compact email must include the PDF notice after the summary.
-      const summaryIdx = src.indexOf('safeSectionHtml("Executive Summary"');
-      const pdfIdx = src.indexOf('safeSectionHtml("PDF Attachment"');
+      const summaryIdx = src.indexOf('safeSectionHtml("Yönetici Özeti"');
+      const pdfIdx = src.indexOf('safeSectionHtml("PDF Eki"');
       const orderOk = summaryIdx >= 0 && pdfIdx > summaryIdx;
       if (missing.length || found.length || !orderOk) {
         return fail('Callable report entrypoint can regress to a non-deployable local import or lose the summary/PDF contract.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
-          expected: 'inline AdminUser guard (no local import) + summary-pdf-v1 template + PDF attachment diagnostics',
+          expected: 'inline AdminUser guard (no local import) + product-intel-pdf-v2 template + PDF attachment diagnostics',
           actual: { missing, foundForbidden: found, orderOk },
           actionType: ACTION_TYPES.CODE_FIX,
         });

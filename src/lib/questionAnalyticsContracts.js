@@ -30,20 +30,18 @@ export const QUESTION_ANALYTICS_MANUAL_RESET_MODE = 'manual_db_reset_only';
 
 export const QUESTION_ANALYTICS_REPORT_SECTIONS = Object.freeze([
   'Kronox Soru Analiz Raporu',
-  'Executive Summary',
-  'Key Insights / Risk Flags',
-  'Action Items',
-  'PDF Attachment',
-  'Kategori Bazında Soru Havuzu',
-  'Kategori Tercihleri',
-  'Kategori Bazında Gösterim',
-  'Kategori Denge Sinyalleri',
-  'En Çok Gösterilen Sorular',
-  'Az veya Hiç Gösterilmeyen Sorular',
-  'En Çok Yanlış Yapılan Sorular',
-  'Çok Kolay Görünen Sorular',
-  'En Uzun Sürede Cevaplanan Sorular',
-  'Veri Kalitesi Uyarıları',
+  'Yönetici Özeti',
+  'Öne Çıkan Bulgular',
+  'Öncelikli Aksiyonlar',
+  'PDF Eki',
+  'Genel Kullanım Özeti',
+  'Solo Soru Algoritması İçin Sinyaller',
+  'Doğru Soru Tipi / İçerik Kalitesi',
+  'Joker Kullanımı Analizi',
+  'Oynanma Zamanı ve Kullanım Ritmi',
+  'Daha Uzun Oynama / Retention Sinyalleri',
+  'Data Quality and Missing Instrumentation',
+  'Önerilen Aksiyonlar',
 ]);
 
 export const QUESTION_ANALYTICS_REMOVED_REPORT_SECTIONS = Object.freeze([

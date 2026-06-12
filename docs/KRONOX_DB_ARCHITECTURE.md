@@ -833,13 +833,14 @@ No deletion should happen in this task.
   `swapped_out` events separately. Projection refresh skips analytics events
   whose `question_id` no longer exists in the current `Question` pool.
 - Manual admin email report. Codex197 adds `sendQuestionAnalyticsReportEmail`
-  for admin-triggered, question-focused reports. Codex314 makes the actual
-  email body summary-only and attaches the cleaned detailed report as a PDF.
+  for admin-triggered, question-focused reports. Codex316 keeps the email body
+  summary-only and attaches the detailed `product-intel-pdf-v2` report as a PDF.
   The report skips stale/deleted question references with a diagnostic count and
-  caps large sections for readability. The PDF includes category pool counts,
-  aggregate category preference counts, category exposure counts, category
-  fairness signals, and bounded top/low/wrong/easy/slow question lists. Category
-  preference counts are aggregate only and do not expose user IDs or emails. The
+  caps content for readability. The PDF is a product-intelligence report for
+  Solo algorithm signals, question-type/content quality, joker usage, play-time
+  rhythm, longer-session/retention signals, recommended actions, and missing
+  instrumentation. Category preference counts are aggregate only and do not
+  expose user IDs or emails. The
   function is registered at
   `base44/functions/sendQuestionAnalyticsReportEmail/entry.ts` with
   `base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc`.
@@ -852,25 +853,23 @@ No deletion should happen in this task.
   normalized email. Mismatched recipient overrides are rejected; `created_by`
   and hardcoded owner addresses are not used as recipients. The function and
   Admin Ekranı UI return safe `requestedBy`, `recipientEmail`, template,
-  summary-body, PDF-attachment, and email dispatch diagnostics, while real inbox
-  delivery and PDF receipt/opening remain manual provider proof.
-- Static category pool reporting. `Kategori Bazında Soru Havuzu` is sourced
-  directly from current `Question` rows and `Category` lookup rows, not from
-  `QuestionAttemptEvent`, `QuestionStatsProjection`, or
-  `CategoryStatsProjection`. It renders after analytics reset, includes active
-  question count, difficulty 1-5/unknown distribution, oldest year, newest
-  year, and Unknown/unmapped category diagnostics. `Kategori Bazında Gösterim`
-  remains separate report-period exposure analytics.
+  summary-body, PDF-attachment, and email dispatch diagnostics including
+  `pdfGenerated`, `attachmentCount`, `pdfFilename`, and `pdfSizeBytes`, while
+  real inbox delivery and PDF receipt/opening remain manual provider proof.
+- Product signal reporting. Category/question data may still be used in aggregate
+  to explain Solo algorithm exposure, question-type quality, and content gaps,
+  but static inventory-style sections are intentionally excluded from generated
+  email/PDF output.
 - Removed report sections. Generated email and PDF output must not include:
   `Rapor Şablonu`, `Rapor Bölümleri`,
   `Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı`,
   `Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı`,
   `Kategori Bazında Yıl Aralığı`, or `Kategori İçi Soru Analizi`. The live
   deploy marker is now the function response diagnostics:
-  `templateVersion: summary-pdf-v1`, `emailBodyMode: summary_only`,
-  `pdfAttachmentGenerated: true`, and PDF filename/content-type fields. Frontend
-  `npm run build` still does not prove Base44 function redeployment or SendEmail
-  attachment delivery.
+  `templateVersion: product-intel-pdf-v2`, `emailBodyMode: summary_only`,
+  `pdfGenerated: true`, `attachmentCount >= 1`, `pdfFilename`, `pdfSizeBytes`,
+  and PDF content-type fields. Frontend `npm run build` still does not prove
+  Base44 function redeployment or SendEmail attachment delivery.
 - Manual DB reset path after question pool replacement. The function-based
   reset path is currently not used. To restart analytics from zero, manually
   clear only `QuestionAttemptEvent`, `QuestionStatsProjection`, and

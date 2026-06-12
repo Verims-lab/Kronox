@@ -211,7 +211,7 @@ export const EXTRA_TESTS = [
     'Deployed analytics report function keeps summary-email/PDF markers and diagnostics',
     () => {
       const required = [
-        'REPORT_TEMPLATE_VERSION = "summary-pdf-v1"',
+        'REPORT_TEMPLATE_VERSION = "product-intel-pdf-v2"',
         'PDF_ATTACHMENT_CONTENT_TYPE = "application/pdf"',
         'REPORT_ATTACHMENT_NOTICE',
         'buildQuestionAnalyticsPdfAttachment',
@@ -219,20 +219,27 @@ export const EXTRA_TESTS = [
         'bodyContainsPdfAttachmentNotice',
         'bodyRemovedSectionsPresent',
         'pdfRemovedSectionsPresent',
+        'pdfGenerated',
+        'attachmentCount',
+        'pdfFilename',
+        'pdfSizeBytes',
         'pdfAttachmentGenerated',
-        'attachments: [{',
+        'buildSendEmailAttachmentPayload',
+        'attachments: emailAttachments',
+        'contentType: pdfAttachment.contentType',
+        'encoding: "base64"',
         'body: emailHtml',
         'html: emailHtml',
       ];
       const missing = missingTokens(deployedReportSource, required);
-      const emailOrderOk = text(deployedReportSource).indexOf('safeSectionHtml("Executive Summary"') >= 0
-        && text(deployedReportSource).indexOf('safeSectionHtml("PDF Attachment"') > text(deployedReportSource).indexOf('safeSectionHtml("Executive Summary"');
+      const emailOrderOk = text(deployedReportSource).indexOf('safeSectionHtml("Yönetici Özeti"') >= 0
+        && text(deployedReportSource).indexOf('safeSectionHtml("PDF Eki"') > text(deployedReportSource).indexOf('safeSectionHtml("Yönetici Özeti"');
       if (missing.length || !emailOrderOk) {
         return fail('Deployed report function lost the summary/PDF template markers or the compact email ordering.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
-          expected: 'summary-pdf-v1 markers + PDF attachment diagnostics + compact email sections',
+          expected: 'product-intel-pdf-v2 markers + PDF attachment diagnostics + compact email sections',
           actual: { missing, emailOrderOk },
           actionType: ACTION_TYPES.CODE_FIX,
         });
@@ -471,11 +478,11 @@ export const EXTRA_TESTS = [
   makeCase('npm_build_is_not_backend_deploy_proof',
     'Backend deploy proof is manual: npm run build only validates the Vite frontend',
     () => notAutomatable(
-      'npm run build validates only the Vite frontend bundle and does NOT prove Base44 backend functions deployed. Real backend deploy proof requires triggering the function and reading its live response/markers (e.g. sendQuestionAnalyticsReportEmail must return templateVersion: summary-pdf-v1, emailBodyMode: summary_only, pdfAttachmentGenerated true, and PDF attachment diagnostics). Do this manually in a safe/admin context before release.',
+      'npm run build validates only the Vite frontend bundle and does NOT prove Base44 backend functions deployed. Real backend deploy proof requires triggering the function and reading its live response/markers (e.g. sendQuestionAnalyticsReportEmail must return templateVersion: product-intel-pdf-v2, emailBodyMode: summary_only, pdfGenerated true, attachmentCount >= 1, pdfFilename ending .pdf, pdfSizeBytes > 0, and PDF attachment diagnostics). Do this manually in a safe/admin context before release.',
       {
         verification: 'BACKEND_RUNTIME_PROBE',
         actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE,
-        nextStep: 'As admin, trigger sendQuestionAnalyticsReportEmail and confirm templateVersion=summary-pdf-v1, emailBodyMode=summary_only, pdfAttachmentGenerated=true, and the received PDF attachment opens.',
+        nextStep: 'As admin, trigger sendQuestionAnalyticsReportEmail and confirm templateVersion=product-intel-pdf-v2, emailBodyMode=summary_only, pdfGenerated=true, attachmentCount>=1, pdfFilename ends .pdf, pdfSizeBytes>0, and the received PDF attachment opens.',
       },
     ),
     { critical: true, actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),
