@@ -1752,7 +1752,15 @@ import React, { useEffect, useState } from 'react';
 //     and selects one canonical active definition.
 //   • Admin UI shows one logical row per quest_key with duplicate warnings and
 //     manual cleanup guidance; no automatic delete is enabled.
-const BUILD_MARKER = 'Codex324';
+//
+// Codex325 — Full audit + performance/DB/platform alignment:
+//   • Health Center long runs batch report rebuilds and yield around the
+//     long-task budget instead of rebuilding the full report after every case.
+//   • Release/DB/security/mobile docs and Health mirrors now lock the
+//     performance, object-authorization, idempotency, and platform manual gates.
+//   • Solo global exposure balancing remains an explicit future architecture
+//     change; no gameplay/scoring/economy rules changed in this pass.
+const BUILD_MARKER = 'Codex325';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

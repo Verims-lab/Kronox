@@ -8,6 +8,7 @@
 import {
   CORE_PROMPT_DOC as corePromptSource,
   KRONOX_DOC as kronoxSource,
+  MOBILE_VISUAL_GUARDRAILS_DOC as mobileVisualGuardrailsSource,
   SECURITY_DEPLOYMENT_DOC as securityDocsSource,
   RELEASE_PROOF_CHECKLIST_DOC as releaseChecklistSource,
   CATEGORY_TAXONOMY_DOC as categoryTaxonomyDocsSource,
@@ -746,6 +747,46 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Manual/two-account/device/destructive proof gates stay explicit.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('full_audit_performance_security_platform_gates_visible',
+    'Full audit gates keep performance, BOLA, DB uniqueness, and platform proof explicit',
+    () => {
+      const combined = [
+        releaseChecklistSource,
+        securityDocsSource,
+        dbArchitectureDocsSource,
+        mobileVisualGuardrailsSource,
+      ].map(text).join('\n');
+      const missing = missingTokens(combined, [
+        '50ms long-task budget',
+        'Gameplay paths do not run Health/report/question-analytics calculations',
+        'object-level authorization',
+        'Request-body user, email, role, or owner fields are not trusted',
+        'Base44/manual DB constraints',
+        'idempotency_key',
+        'safe-area',
+        'keyboard',
+        'Final App Store icon proof',
+        'Android wrapper edge-to-edge',
+        'Play Console',
+        'real mobile/device/store validation remains manual or NOT_AUTOMATABLE',
+      ]);
+      if (missing.length) {
+        return fail('Full audit release gates are missing from docs/mirrors.', {
+          verification: 'STATIC_CONTRACT',
+          files: [
+            'docs/KRONOX_RELEASE_PROOF_CHECKLIST.md',
+            'docs/KRONOX_SECURITY_DEPLOYMENT.md',
+            'docs/KRONOX_DB_ARCHITECTURE.md',
+            'docs/KRONOX_MOBILE_VISUAL_GUARDRAILS.md',
+          ],
+          missing,
+        });
+      }
+      return pass('Performance, object authorization, DB uniqueness/idempotency, and platform manual gates remain visible.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

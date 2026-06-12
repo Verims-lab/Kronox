@@ -184,6 +184,12 @@ P3 adds question analytics without changing question selection:
   soft weighting. It does not yet use a server-side per-user or global exposure
   ledger, and low-correct/high-latency questions are reported for review rather
   than automatically cooled down.
+- Future server-side exposure balancing requires explicit product/architecture
+  approval before implementation. The safe target is additive: per-user recent
+  exclusion, session-level no-repeat, global underexposure boost,
+  overexposure/recency penalty, low-correct cooldown only after a minimum
+  sample threshold, and a fallback ladder that never turns a valid all-category
+  pool into an empty pool.
 
 Fallback order:
 1. active questions/categories, unique years, first 5 minimum 5-year spacing, category/subcategory balance, era spread, not recently seen

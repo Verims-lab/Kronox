@@ -16,6 +16,36 @@ Health PASS does not mean release-ready.
 
 ---
 
+# 0. Full Audit Release Gates
+
+These checks come from the performance/security/platform audit. They are release
+gates, not product features.
+
+Checklist:
+
+* Health Center, Admin Ekranı, reports, and large maintenance lists avoid
+  rebuilding expensive derived output after every row/case. Long admin work is
+  batched or yielded around the 50ms long-task budget.
+* Gameplay paths do not run Health/report/question-analytics calculations.
+* Large email/report/list output stays bounded, paginated, or summarized.
+* User-owned backend operations enforce object-level authorization server-side;
+  UI hiding is not accepted as proof.
+* Two-account probes verify user-owned reads/writes for invites, lobbies,
+  category preferences, Daily Quest progress, Daily Wheel, Diamond/Joker
+  economy, PushSubscription, and analytics cleanup.
+* Base44/manual DB constraints are checked for the documented logical keys:
+  user+date, user+status, quest_key, question_id, category_id, created_at,
+  endpoint, and idempotency_key.
+* iOS, Android, and PWA wrapper quality remain separate manual gates:
+  safe-area, keyboard, scroll/overscroll, back navigation, orientation,
+  accessibility, reduced motion, 320px layout, push, icon, App Store, and Play
+  Console proof.
+* `npm run build` does not prove Base44 backend deployment, RLS/BOLA behavior,
+  device gestures, push delivery, final IPA icon state, or Play Console wrapper
+  quality.
+
+---
+
 # 1. Two-Account Invite And Lobby
 
 Test with two real users/devices.

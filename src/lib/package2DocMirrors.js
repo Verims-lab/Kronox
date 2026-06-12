@@ -37,6 +37,10 @@ and fallbackTier for Health/admin/debug only.
 P2 diagnostics are Health/admin/helper-only and cover deck quality, question
 pool health, difficulty-readiness, replay-variety, and Kart Değiştir
 replacement diagnostics without exposing debug output to normal players.
+Repeat avoidance is currently local/per-device soft weighting. Server-side
+per-user/global exposure balancing, low-correct cooldown, and global
+underexposure boosts are future approved algorithm work, not hidden runtime
+behavior.
 `;
 
 export const CATEGORY_TAXONOMY_DOC = `# Kronox Category Taxonomy

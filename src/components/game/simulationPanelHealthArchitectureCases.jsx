@@ -21,6 +21,7 @@
 //   We now import the modules normally and verify the exported behavior.
 
 import { buildReport } from './health/simulationReportBuilder';
+import simulationPanelSource from './SimulationPanel.jsx?raw';
 import {
   executeCase,
   createRunMeta,
@@ -188,6 +189,38 @@ export const EXTRA_TESTS = [
         verification: 'RUNTIME_VERIFIED',
         classification: 'RUNTIME_VERIFIED',
         actual: { score: report.score.value, rating: report.score.rating },
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('health_panel_architecture', 'health_run_batches_report_updates',
+    'Health Center batches report rebuilds and yields during long runs',
+    () => {
+      const requiredTokens = [
+        'HEALTH_RUN_YIELD_DEADLINE_MS',
+        'HEALTH_REPORT_UPDATE_BATCH_SIZE',
+        'HEALTH_REPORT_UPDATE_MIN_INTERVAL_MS',
+        'yieldHealthRunToMain',
+        'completedCount % HEALTH_REPORT_UPDATE_BATCH_SIZE',
+        'now - lastReportAt >= HEALTH_REPORT_UPDATE_MIN_INTERVAL_MS',
+        'now - lastYieldAt >= HEALTH_RUN_YIELD_DEADLINE_MS',
+      ];
+      const missing = requiredTokens.filter((token) => !simulationPanelSource.includes(token));
+      const forbidden = [
+        'updateReport(nextResults, meta);\n      await new Promise(resolve => window.setTimeout(resolve, 12));',
+      ].filter((token) => simulationPanelSource.includes(token));
+      if (missing.length || forbidden.length) {
+        return fail('Health Center can still rebuild full reports on every case or starve the main thread during long runs.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'components/game/SimulationPanel.jsx',
+          actionType: ACTION_TYPES.CODE_FIX,
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('Health Center throttles report rebuilds and yields long admin runs.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'RUNTIME_GUARDRAIL',
       });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),

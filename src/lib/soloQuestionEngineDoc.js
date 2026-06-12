@@ -127,7 +127,12 @@ counts. Runtime exposure improvement is proven over new gameplay events, so
 historical reports can remain concentrated until fresh events accumulate.
 Repeat avoidance currently uses local per-device history as soft weighting;
 server-side per-user/global exposure balancing and low-correct cooldown remain
-explicit future algorithm work, not hidden behavior.
+explicit future algorithm work, not hidden behavior. Future server-side
+exposure balancing requires explicit product/architecture approval before
+implementation and should remain additive: per-user recent exclusion,
+session-level no-repeat, global underexposure boost, overexposure/recency
+penalty, low-correct cooldown only after a minimum sample threshold, and a
+fallback ladder that never turns a valid all-category pool into an empty pool.
 
 Fallback may relax recently-seen avoidance, category/subcategory/theme balance,
 and era spread. It must not relax required deck size, unique IDs, unique
