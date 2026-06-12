@@ -6,6 +6,7 @@ const MAX_GAMEPLAY_LIMIT = 900;
 const QUESTION_FETCH_PER_CATEGORY_LIMIT = 1000;
 const PROJECTION_SAMPLING_STRATEGY = 'pool_proportional_category_subcategory_daily_sample_v1';
 const DIAGNOSTIC_TOP_LIMIT = 12;
+const CATEGORY_ACTIVE_STATUS_VALUES = new Set(['', 'a', 'active', 'aktif']);
 
 const ONLINE_ID_TO_MAIN_CATEGORY_ID: Record<string, number> = {
   chronicle: 1,
@@ -81,7 +82,7 @@ function getCategoryId(row: any) {
 function isActiveCategory(row: any) {
   if (!row) return false;
   const status = String(row.status ?? '').trim().toLowerCase();
-  return status === '' || status === 'a';
+  return CATEGORY_ACTIVE_STATUS_VALUES.has(status);
 }
 
 function isActiveQuestion(row: any) {
@@ -417,6 +418,10 @@ function buildProjectionDiagnostics({
     strategy: PROJECTION_SAMPLING_STRATEGY,
     projectionSeed: seed,
     projectionLimit: limit,
+    questionFetchPath: 'getQuestions:per_category_question_filter',
+    wasCappedBeforeBalancing: false,
+    queryLimitUsed: QUESTION_FETCH_PER_CATEGORY_LIMIT,
+    queryOrderUsed: '-created_date per active category before pool-proportional projection',
     fetchedActiveTotal: fetchedRows.length,
     eligibleAfterNormalization: normalizedRows.length,
     returnedTotal: projectedRows.length,

@@ -2,6 +2,7 @@ import { base44 } from '@/api/base44Client';
 
 export const CATEGORY_STATUS_ACTIVE = 'A';
 export const CATEGORY_STATUS_PASSIVE = 'P';
+export const CATEGORY_ROW_ACTIVE_STATUSES = Object.freeze(['A', 'ACTIVE', 'AKTIF']);
 export const MIN_CATEGORY_SELECTION_COUNT = 3;
 export const NO_MAX_CATEGORY_SELECTION_LIMIT = true;
 export const GAMEPLAY_CATEGORY_PREFERENCE_FALLBACK = Object.freeze({
@@ -28,7 +29,7 @@ export function normalizeCategoryId(value) {
 
 export function isActiveCategory(row) {
   const status = String(row?.status || '').trim().toUpperCase();
-  return !status || status === CATEGORY_STATUS_ACTIVE;
+  return !status || CATEGORY_ROW_ACTIVE_STATUSES.includes(status);
 }
 
 export function isActiveCategoryPreference(row) {

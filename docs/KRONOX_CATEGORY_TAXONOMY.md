@@ -132,10 +132,15 @@ Category preferences are optional personalization, not a gameplay gate:
 * Online category selection remains separate and unaffected
 * `/getQuestions` must derive its runtime active category whitelist from
   active `Category` rows, not from an obsolete hardcoded seed ID subset
+* runtime active-category checks accept the live status aliases currently seen
+  in DB/report code: blank/missing, `a`, `active`, and `aktif`; passive rows
+  remain excluded
 * fallback category IDs are allowed only when the `Category` read itself fails;
   they must not be treated as the canonical taxonomy
 * a category with active rows and Solo-eligible questions must not be excluded
   merely because its ID was added after the original six seed categories
+* `category_id` normalization accepts any positive live DB category id; seed
+  IDs are not a maximum boundary
 
 ---
 
@@ -244,7 +249,7 @@ Import validation should check:
 
 * category ID exists
 * category ID is numeric
-* category ID maps to a seeded/known category
+* category ID maps to a positive live `Category.category_id`
 * `main_category_id` is valid
 * secondary/tertiary category IDs are valid if present
 * invalid category IDs fail validation

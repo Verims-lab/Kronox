@@ -5,7 +5,8 @@
 //   • Category schema declares `status` (enum: a/p, default a) and
 //     `description` (string, default "").
 //   • Seed path (functions/seedQuestionCategories.js) writes status='a'
-//     and a non-empty description for all six fixed categories.
+//     and a non-empty description for seeded categories; later live
+//     categories must not be rejected by a stale fixed-ID list.
 //   • A shared `lib/categoryFilters.js` helper is the single source of
 //     truth for "is this category active in UI?" so any future Online/
 //     Solo category selection surface that reads the Category DB lookup
@@ -301,14 +302,15 @@ export const EXTRA_TESTS = [
       // not against a live DB. Guards against future regressions where
       // someone inverts the boolean or removes the backward-compat path.
       let isActiveCategory;
+      let normalizeCategoryId;
       try {
         // eslint-disable-next-line no-new-func
         const factory = new Function(
           `${safeStr(categoryFiltersSource)
             .replace(/export\s+const\s+/g, 'const ')
-            .replace(/export\s+function\s+/g, 'function ')}; return { isActiveCategory };`,
+            .replace(/export\s+function\s+/g, 'function ')}; return { isActiveCategory, normalizeCategoryId };`,
         );
-        ({ isActiveCategory } = factory());
+        ({ isActiveCategory, normalizeCategoryId } = factory());
       } catch (err) {
         return fail('Could not evaluate lib/categoryFilters.js in simulator host.', {
           verification: 'STATIC_CONTRACT',
@@ -320,11 +322,25 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
         });
       }
+      if (typeof normalizeCategoryId !== 'function' || normalizeCategoryId(11) !== 11) {
+        return fail('normalizeCategoryId still rejects live category IDs beyond the original seed set.', {
+          verification: 'STATIC_CONTRACT',
+          expected: 'category_id 11 remains valid when present in active Category rows',
+          actual: {
+            normalizeCategoryIdType: typeof normalizeCategoryId,
+            category11: typeof normalizeCategoryId === 'function' ? normalizeCategoryId(11) : null,
+          },
+        });
+      }
       const checks = [
         { input: { status: 'a' }, expected: true, label: 'status=a' },
         { input: { status: 'A' }, expected: true, label: 'status=A (case-insensitive)' },
+        { input: { status: 'active' }, expected: true, label: 'status=active' },
+        { input: { status: 'aktif' }, expected: true, label: 'status=aktif' },
         { input: { status: 'p' }, expected: false, label: 'status=p' },
         { input: { status: 'P' }, expected: false, label: 'status=P (case-insensitive)' },
+        { input: { status: 'passive' }, expected: false, label: 'status=passive' },
+        { input: { status: 'pasif' }, expected: false, label: 'status=pasif' },
         { input: { status: '' }, expected: true, label: 'missing/empty status (backward-compat)' },
         { input: {}, expected: true, label: 'no status field (backward-compat)' },
         { input: null, expected: false, label: 'null row' },

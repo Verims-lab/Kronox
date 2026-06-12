@@ -916,8 +916,17 @@ function buildReport({
   const concentrationGuardrailText = topSubcategoryConcentration.topShownSubcategoryTotal > 0
     ? `Not: En çok gösterilen kategori/subcategory (${topSubcategoryConcentration.topShownSubcategory}, ${percent(topSubcategoryConcentration.topShownSubcategoryCount, topSubcategoryConcentration.topShownSubcategoryTotal)}) dağılımı pool-proportional değildir diye otomatik varsayılmaz; dağılım Solo-eligible havuzla karşılaştırılmalıdır.`
     : "Not: En çok gösterilen kategori/subcategory dağılımı pool-proportional değildir diye otomatik varsayılmaz; dağılım Solo-eligible havuzla karşılaştırılmalıdır.";
+  const zeroDisplayCandidatePoolRisks = categoryAnalyticsForReport.filter((row) => (
+    Number(row?.shownCount) === 0
+    && Number(row?.activeQuestionCount) > 0
+    && (Number(row?.selectedUserCount) > 0 || Number(row?.difficultyCounts?.["1"]) > 0)
+  ));
+  const zeroDisplayCandidatePoolText = zeroDisplayCandidatePoolRisks.length
+    ? `Uyarı: ${zeroDisplayCandidatePoolRisks.slice(0, 6).map((row) => `${row.categoryName} (#${row.categoryId})`).join(", ")} aktif/tercih edilmiş veya zorluk-1 havuzu olan kategori olmasına rağmen 0 gösterim aldı; query/candidate pool audit required.`
+    : "";
   const categoryExposureHtml = [
     textBlockHtml(concentrationGuardrailText),
+    zeroDisplayCandidatePoolText ? textBlockHtml(zeroDisplayCandidatePoolText) : "",
     tableHtml([
     "Kategori ID",
     "Kategori",

@@ -1783,7 +1783,14 @@ import React, { useEffect, useState } from 'react';
 //     path and verifies the visible "Tanımlı Görevler" contract in the list.
 //   • DailyQuestDefinitionManager still mounts DailyQuestDefinitionList under
 //     Profile / Admin Ekranı; duplicate grouping and runtime rules unchanged.
-const BUILD_MARKER = 'Codex328';
+//
+// Codex329 — Solo category projection full-pool fix:
+//   • getQuestions and category helpers accept live active-status aliases and
+//     no longer clamp active category IDs to the original seed set.
+//   • Solo diagnostics/Health now prove categories 6,7,8,9,11 can enter rich
+//     preference pools, and the question cache was bumped to invalidate stale
+//     narrow projections.
+const BUILD_MARKER = 'Codex329';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
