@@ -1691,7 +1691,15 @@ import React, { useEffect, useState } from 'react';
 //   • The email remains summary-only while the PDF keeps decision sections for
 //     Solo algorithm, question quality, jokers, play-time, retention, and missing instrumentation.
 //   • Health/docs require live Gmail PDF receipt as manual release proof.
-const BUILD_MARKER = 'Codex316';
+//
+// Codex317 — Profile Joker Çantası performance path:
+//   • getUserJokerBalances reads complete UserJokerInventory rows through a
+//     fast current-balance path before invoking starter/self-heal.
+//   • Profile Joker Çantası keeps local loading/error/retry state while
+//     Market purchase and Solo spend update the shared user-scoped cache.
+//   • Health/docs lock JokerTransaction as ledger-only for render-time
+//     balances and keep live Profile load timing as manual proof.
+const BUILD_MARKER = 'Codex317';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -208,8 +208,9 @@ export const EXTRA_TESTS = [
     'Profile Joker Çantası waits for auth/user and offers retry on real error',
     () => {
       const missing = missingTokens(profilePageSource, [
-        'loading || jokerState.loading',
-        'getUserJokerBalances(user, { ensureStarter: true })',
+        'authLoading={loading}',
+        'loading={jokerState.loading}',
+        'getUserJokerBalances(user, { ensureStarter: true, forceRefresh: jokerReloadKey > 0 })',
         'Joker Çantası şu anda yüklenemedi.',
         'setJokerReloadKey',
         'Tekrar Dene',
@@ -220,6 +221,108 @@ export const EXTRA_TESTS = [
         missing,
       });
       return pass('Profile waits for user/inventory loading, retries safely, and uses generic Turkish error copy.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('joker_inventory_fast_read_before_self_heal',
+    'Profile/Solo balance helper reads UserJokerInventory before self-heal',
+    () => {
+      const missing = missingTokens(jokerInventorySource, [
+        'JOKER_INVENTORY_FAST_LOAD_CONTRACT',
+        'Profile and Solo read current balances from UserJokerInventory before self-heal.',
+        'JokerTransaction is ledger only and is not scanned during render-time balance reads.',
+        'completeKnownInventoryRows(rows)',
+        'ensureSkipped: true',
+        'queryPath: \'UserJokerInventory.fast_read\'',
+        "base44.functions.invoke('ensureUserJokerInventory'",
+      ]);
+      if (missing.length) return fail('Joker balance helper can still run heavy starter/self-heal before reading current balances.', {
+        verification: 'STATIC_CONTRACT',
+        file: 'src/lib/jokerInventory.js',
+        missing,
+      });
+      return pass('Joker balances now use a fast UserJokerInventory read and only invoke self-heal for missing/partial rows.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('joker_inventory_query_path_is_shared_and_cached',
+    'Profile, Solo, and Market share one cached balance helper path',
+    () => {
+      const missing = missingTokens(`${jokerInventorySource}\n${profilePageSource}\n${gameSource}\n${marketSource}`, [
+        'JOKER_INVENTORY_CACHE_TTL_MS',
+        'jokerBalanceCache',
+        'jokerBalanceInflight',
+        'cacheKeyUserScoped',
+        'clearJokerInventoryCache',
+        'setCachedJokerBalances',
+        'getUserJokerBalances(user, { ensureStarter: true, forceRefresh: jokerReloadKey > 0 })',
+        'getUserJokerBalances(currentUser, { ensureStarter: true })',
+      ]);
+      if (missing.length) return fail('Joker inventory loads are not clearly shared, cached, and user-scoped.', {
+        verification: 'STATIC_CONTRACT',
+        files: ['src/lib/jokerInventory.js', 'src/pages/ProfilePage.jsx', 'src/pages/Game.jsx', 'src/lib/market.js'],
+        missing,
+      });
+      return pass('Profile, Solo, and Market use the shared getUserJokerBalances path with a normalized per-user cache and in-flight de-dupe.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('joker_inventory_render_path_does_not_scan_ledger',
+    'Profile render-time balances do not scan JokerTransaction ledger',
+    () => {
+      const renderSources = `${profilePageSource}\n${jokerInventorySource}`;
+      const forbidden = forbiddenTokens(profilePageSource, [
+        'JokerTransaction',
+        'balance_after',
+        'quantity_delta',
+      ]);
+      const missing = missingTokens(renderSources, [
+        'UserJokerInventory',
+        'readOwnInventoryRows',
+        'JokerTransaction is ledger only and is not scanned during render-time balance reads.',
+      ]);
+      if (missing.length || forbidden.length) return fail('Profile can still calculate balances from ledger rows instead of current inventory rows.', {
+        verification: 'STATIC_CONTRACT',
+        actual: { missing, forbidden },
+      });
+      return pass('Profile render path reads current UserJokerInventory balances and does not expose or scan JokerTransaction.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('joker_inventory_cache_invalidates_after_mutations',
+    'Market purchase and Solo spend refresh the shared joker balance cache',
+    () => {
+      const missing = missingTokens(`${jokerInventorySource}\n${marketSource}\n${authContextSource}`, [
+        'setCachedJokerBalances(email, balances',
+        "invalidatedBy: 'market_purchase'",
+        "invalidatedBy: 'solo_spend'",
+        'invalidateJokerInventoryCache(email)',
+        'clearJokerInventoryCache();',
+      ]);
+      if (missing.length) return fail('Market/Solo mutations or logout do not clearly invalidate/update cached joker balances.', {
+        verification: 'STATIC_CONTRACT',
+        files: ['src/lib/jokerInventory.js', 'src/lib/market.js', 'src/lib/AuthContext.jsx'],
+        missing,
+      });
+      return pass('Market purchase, Solo spend, and logout keep the shared joker balance cache coherent and user-scoped.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('starter_self_heal_not_render_loop',
+    'Starter/self-heal is not called from a render loop',
+    () => {
+      const missing = missingTokens(`${jokerInventorySource}\n${profilePageSource}\n${ensureUserJokerInventorySource}`, [
+        'Self-heal runs only when UserJokerInventory rows are missing or partial, or when forced.',
+        'completeKnownInventoryRows(rows)',
+        'Promise.all(JOKER_TYPES.map',
+        'parallelSelfHeal: true',
+        'useEffect(() => {',
+        'jokerReloadKey',
+      ]);
+      const forbidden = forbiddenTokens(profilePageSource, [
+        'ensureStarterJokers(user)',
+        'ensureUserJokerInventory(',
+      ]);
+      if (missing.length || forbidden.length) return fail('Starter repair may still run on every Profile render or serially block the UI.', {
+        verification: 'STATIC_CONTRACT',
+        actual: { missing, forbidden },
+      });
+      return pass('Profile uses an effect/retry key, while the helper skips repair for complete rows and the backend repairs types in parallel.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('starter_grant_requires_authenticated_user',
@@ -477,7 +580,7 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(`${marketPageSource}\n${profilePageSource}\n${soloJokerBarSource}\n${gameSource}`, [
         'setBalances(nextBalances)',
         'Joker Çantası',
-        'getUserJokerBalances(user, { ensureStarter: true })',
+        'getUserJokerBalances(user, { ensureStarter: true, forceRefresh: jokerReloadKey > 0 })',
         'balances?.[joker.type]',
         'balances={soloJokers?.balances || null}',
         'balances?.[inventoryType]',
@@ -536,7 +639,7 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(`${authContextSource}\n${profilePageSource}`, [
         'ensureStarterJokers(currentUser)',
         'jokerEnsureKeyRef',
-        'getUserJokerBalances(user, { ensureStarter: true })',
+        'getUserJokerBalances(user, { ensureStarter: true, forceRefresh: jokerReloadKey > 0 })',
       ]);
       if (missing.length) return fail('Existing users are not lazily initialized through auth/profile paths.', {
         verification: 'STATIC_CONTRACT',

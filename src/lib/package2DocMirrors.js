@@ -111,8 +111,12 @@ with market_purchase and the same idempotency key. Runtime explicitly binds
 UserJokerInventory, DiamondTransaction, and JokerTransaction. Double-tap, network retry,
 insufficient Diamonds, and two tabs/devices proof remains manual. Market
 purchase is a Diamond sink; Daily Wheel remains a Diamond source. Profile
-Joker Çantası and Solo joker bar must show the purchased balance; Online mode
-is unaffected and Daily Wheel remains Diamond-only.
+Joker Çantası and Solo joker bar must show the purchased balance through the
+shared getUserJokerBalances path. Complete UserJokerInventory rows use a fast
+current-balance read, ensureUserJokerInventory runs only for missing/partial
+rows or explicit retry, Profile does not scan JokerTransaction to render
+balances, and Mağaza purchase/Solo spend update or invalidate the shared cache.
+Online mode is unaffected and Daily Wheel remains Diamond-only.
 `;
 
 // ─── Out-of-/src backend sources (token mirrors) ───────────────────────

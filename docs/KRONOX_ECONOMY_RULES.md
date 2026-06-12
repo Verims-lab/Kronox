@@ -466,6 +466,22 @@ Purchase rules:
   of the Diamond and joker balances, but live provider/backend consistency proof
   remains manual
 
+Joker balance read-performance contract:
+
+* `UserJokerInventory` is the Profile/Solo current-balance source.
+* `JokerTransaction` is the ledger/audit trail and must not be summed on Profile
+  open.
+* Profile, Solo, and Mağaza use the shared `getUserJokerBalances` /
+  mutation-result cache path keyed by normalized user email.
+* Complete inventory rows render through a fast current-balance read; missing or
+  partial rows trigger idempotent starter/self-heal.
+* Mağaza purchase and Solo spend must update or invalidate the shared balance
+  cache so Profile and Solo do not show stale counts.
+* Guest/no-login paths must not query user-owned joker inventory.
+* Live performance proof remains manual: login, open Profile, confirm Joker
+  Çantası loads quickly, purchase/spend a joker, and confirm Profile/Solo counts
+  refresh.
+
 ---
 
 # 12. Not Implemented Yet

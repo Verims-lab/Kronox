@@ -97,7 +97,7 @@ export const EXTRA_SUITES = [
   { id: 'friends_ui',             name: 'Friends UI Suite',                   critical: true,  color: '#fde68a' },
   { id: 'friends_validation',     name: 'Friends Validation Suite',           critical: true,  color: '#fbbf24' },
   { id: 'friends_security',       name: 'Friends Security / RLS Suite',       critical: true,  color: '#f59e0b' },
-  { id: 'profile_economy',        name: 'Profile Economy Placeholder Suite',  critical: false, color: '#fef08a' },
+  { id: 'profile_economy',        name: 'Profile Economy Suite',              critical: false, color: '#fef08a' },
   { id: 'online_lobby_setup',     name: 'Online Lobby Setup Suite',           critical: true,  color: '#a7f3d0' },
   { id: 'create_lobby_invite_gate', name: 'Create Lobby Invite Gate Suite',   critical: true,  color: '#86efac' },
   { id: 'game_invites',           name: 'Game Invite Suite',                  critical: true,  color: '#5eead4' },
@@ -568,7 +568,7 @@ export const EXTRA_TESTS = [
     'Same reasoning: requires a multi-account live probe.'),
 
   /* ============================================================
-   *  PROFILE ECONOMY PLACEHOLDER SUITE
+   *  PROFILE ECONOMY SUITE
    * ============================================================ */
   sourceHas('profile_economy', 'puan_appears',
     'Puan stat tile appears',
@@ -579,17 +579,22 @@ export const EXTRA_TESTS = [
     'Level stat tile appears',
     'ProfilePage.jsx',
     profilePageSource,
-    ["label: 'Level'"]),
+    ["label: 'Seviye'"]),
   sourceHas('profile_economy', 'elmas_appears',
     'Elmas stat tile appears',
     'ProfilePage.jsx',
     profilePageSource,
     ["label: 'Elmas'"]),
-  sourceHas('profile_economy', 'placeholder_disclosed_in_source',
-    'Economy values are marked PLACEHOLDER in source (no real backend integration claim)',
+  sourceHas('profile_economy', 'profile_uses_real_shared_economy_sources',
+    'Profile economy values use shared persisted sources',
     'ProfilePage.jsx',
     profilePageSource,
-    ['PLACEHOLDER', 'no economy yet']),
+    ['getKronoxVisibleScore', 'getProfileDiamondValue', 'JokerPocketSection']),
+  sourceHas('profile_economy', 'joker_pocket_has_local_loading_error_retry',
+    'Profile Joker Çantası has local loading/error/retry state',
+    'ProfilePage.jsx',
+    profilePageSource,
+    ['authLoading={loading}', 'loading={jokerState.loading}', 'Joker Çantası şu anda yüklenemedi.', 'Tekrar Dene']),
   sourceLacks('profile_economy', 'no_purchase_payment_logic',
     'No purchase/payment logic introduced in Profile',
     'ProfilePage.jsx',
@@ -601,11 +606,21 @@ export const EXTRA_TESTS = [
     profilePageSource,
     ['entities.Wallet', 'entities.Economy', 'entities.Coin', 'entities.Diamond']),
   makeCase('profile_economy', 'ui_does_not_crash_when_values_missing',
-    'UI does not crash when economy values are missing (placeholder defaults)',
-    () => warning(
-      'Static check only: ProfilePage uses hard-coded placeholder 0/1 values, so the missing-data path is not exercised in this build.',
-      { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION', actual: 'placeholder defaults present' },
-    )),
+    'UI does not crash when economy values are missing',
+    () => {
+      const missing = missingTokens(profilePageSource, [
+        'getLeaderboardDiamondValue(user)',
+        'emptyJokerBalances()',
+        'Number(balances?.[joker.type]) || 0',
+      ]);
+      if (missing.length) return fail('Profile missing-data fallbacks for economy/joker values drifted.', {
+        verification: 'STATIC_CONTRACT',
+        missing,
+      });
+      return pass('Profile keeps safe missing-data fallbacks for Diamonds and Joker Çantası while using persisted sources.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
 
   /* ============================================================
    *  ONLINE LOBBY SETUP SUITE

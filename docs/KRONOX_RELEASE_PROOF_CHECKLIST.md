@@ -264,6 +264,22 @@ Checklist:
 * Profile displays balances under `Joker Çantası`, not `Envanter`.
 * Profile shows only current balances and does not expose `JokerTransaction`
   ledger rows to normal users.
+* Profile/Solo/Mağaza use the shared `getUserJokerBalances` path; complete
+  `UserJokerInventory` rows render through a fast current-balance read, while
+  `ensureUserJokerInventory` runs only for missing/partial rows or explicit
+  retry.
+* Profile must not scan or sum `JokerTransaction` rows to display balances.
+* Profile Joker Çantası has its own loading/error/retry state and must not
+  block the rest of Profile.
+* Mağaza purchase and Solo spend must refresh/update the shared joker balance
+  cache so Profile and Solo show the same persistent counts.
+* Recommended/manual DB setup remains: unique `UserJokerInventory.user_email +
+  joker_type`, unique `JokerTransaction.idempotency_key`, and indexes for
+  `UserJokerInventory.user_email`, `JokerTransaction.user_email + created_at`,
+  and `JokerTransaction.user_email + joker_type`.
+* Runtime performance proof: after login, Profile Joker Çantası should load
+  quickly; after Mağaza purchase and Solo spend, Profile and Solo counts should
+  refresh without false zero or long blank states.
 * Runtime two-account proof must verify users cannot read/mutate other users'
   joker balances or create arbitrary grant rows.
 * Solo use spends one owned joker through `spendUserJoker` and writes

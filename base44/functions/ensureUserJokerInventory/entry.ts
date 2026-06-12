@@ -250,6 +250,7 @@ async function ensureStarterJokerType(base44: any, email: string, jokerType: str
 }
 
 Deno.serve(async (req: Request) => {
+  const startedAt = Date.now();
   try {
     if (req.method !== 'POST') {
       return json({ ok: false, code: 'method_not_allowed', error: 'Bu işlem desteklenmiyor.' }, 405);
@@ -275,12 +276,11 @@ Deno.serve(async (req: Request) => {
       return json({ ok: false, code: 'joker_inventory_entity_missing', error: 'Joker kayıtları hazır değil.' }, 500);
     }
 
-    const grants = [];
     const balances = emptyBalances();
-    for (const jokerType of JOKER_TYPES) {
-      const result = await ensureStarterJokerType(base44, email, jokerType, rawEmail);
-      grants.push(result);
-      balances[jokerType] = normalizeQuantity(result?.quantityAfter ?? result?.inventory?.quantity);
+    const grants = await Promise.all(JOKER_TYPES.map((jokerType) => ensureStarterJokerType(base44, email, jokerType, rawEmail)));
+    for (const grant of grants) {
+      const jokerType = normalizeJokerType(grant?.jokerType);
+      if (jokerType) balances[jokerType] = normalizeQuantity(grant?.quantityAfter ?? grant?.inventory?.quantity);
     }
 
     return json({
@@ -297,6 +297,11 @@ Deno.serve(async (req: Request) => {
       alreadyGranted: grants.every((grant) => grant.alreadyGranted || !grant.granted),
       selfHealed: grants.some((grant) => grant.selfHealed),
       normalizedOwnerKey: email,
+      performance: {
+        durationMs: Math.max(0, Date.now() - startedAt),
+        jokerTypesChecked: JOKER_TYPES.length,
+        parallelSelfHeal: true,
+      },
     });
   } catch (error) {
     console.error('[ensureUserJokerInventory] failed', error?.message || error);

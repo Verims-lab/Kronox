@@ -29,6 +29,7 @@ Analytics/statistics entities implemented now:
 - Question loading for Game first attempts online getQuestions when online or network state is unknown. The default gameplay response is a public-safe minimal playable projection so guest Solo can load questions without login; admin/full-bank diagnostics still require AdminUser authorization. Empty local question cache is not offline; offline/no-cache is reserved for known offline plus failed fetch plus no usable cache. Question-set replacements invalidate stale local cache by question-runtime-v3-online-first version.
 - UserJokerInventory stores current user-owned joker balances per normalized user_email + joker_type and is used by Profile, Solo joker balance display/spend, and Mağaza joker purchases. Missing or partial UserJokerInventory rows self-heal for authenticated users; duplicate or malformed rows do not crash Joker Çantası, and repair preserves existing balances.
 - JokerTransaction stores joker ledger/idempotency rows; starter_grant, Solo solo_use, and Mağaza market_purchase rows are active.
+- Profile/Solo joker balance reads use the shared getUserJokerBalances helper. Complete UserJokerInventory rows render through a fast current-balance read, JokerTransaction is not scanned during render-time balance display, ensureUserJokerInventory runs only for missing/partial rows or explicit retry, and Mağaza purchase/Solo spend update or invalidate the normalized user-scoped cache.
 - ensureUserJokerInventory grants exactly 3 mistake_shield, 3 card_swap, and 3 time_freeze once per authenticated user with starter_jokers:<email>:<joker_type> idempotency keys.
 - spendUserJoker spends one owned Solo joker with reason solo_use, source solo, quantity_delta -1, balance_after, and an idempotency key.
 - purchaseJokerWithDiamonds sells only Zaman Dondur for 40 Diamonds, Kart Değiştir for 50 Diamonds, and Kronokalkan for 60 Diamonds; it validates authenticated user context, trusted backend price, sufficient User.diamonds, explicitly binds UserJokerInventory, DiamondTransaction, and JokerTransaction, and writes DiamondTransaction + JokerTransaction market_purchase rows with a per-action idempotency key.
@@ -91,7 +92,7 @@ Cleanup/retention jobs implemented now:
 
 Idempotency/platform limitations documented:
 - DiamondTransaction.idempotency_key unique is required where Base44 supports unique constraints.
-- UserJokerInventory user_email + joker_type unique is required where Base44 supports unique constraints.
+- UserJokerInventory user_email + joker_type unique and user_email index are required where Base44 supports unique/index constraints.
 - JokerTransaction.idempotency_key unique is required where Base44 supports unique constraints.
 - OnlineMatchResult.idempotency_key unique is required where Base44 supports unique constraints.
 - OnlineMatchResult lobby_id + player_email unique is required where Base44 supports unique constraints.

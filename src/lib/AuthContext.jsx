@@ -2,7 +2,7 @@ import React, { createContext, useState, useContext, useEffect, useRef } from 'r
 import { base44 } from '@/api/base44Client';
 import { withAdminStatus } from '@/lib/admin';
 import { ensureDiamondEconomyForUser, getDiamondDailyKey } from '@/lib/diamondEconomy';
-import { ensureStarterJokers, normalizeJokerEmail } from '@/lib/jokerInventory';
+import { clearJokerInventoryCache, ensureStarterJokers, normalizeJokerEmail } from '@/lib/jokerInventory';
 import { applyUserProgressResetMarker } from '@/lib/progressResetCache';
 
 const AuthContext = createContext();
@@ -165,6 +165,7 @@ export const AuthProvider = ({ children }) => {
     economyEnsurePromiseRef.current = null;
     jokerEnsureKeyRef.current = '';
     jokerEnsurePromiseRef.current = null;
+    clearJokerInventoryCache();
     
     if (shouldRedirect) {
       // Use the SDK's logout method which handles token cleanup and redirect
