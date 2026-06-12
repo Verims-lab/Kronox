@@ -145,6 +145,10 @@ Rules:
   `nine-section-email-v1` report inside the email body; PDF attachment delivery
   is intentionally disabled for now. Preference counts must stay aggregate-only
   and must not expose user IDs or emails
+* Runtime Projection in the report is diagnostic/admin proof only and must not
+  be fabricated by the email builder
+* top-shown category/subcategory concentration is a guardrail only; distribution
+  must be compared with the Solo-eligible pool before fairness conclusions
 * generated reports contain exactly 9 sections: `Executive Summary`, `Kategori
   Bazında Soru Havuzu`, `Kategori Tercihleri`, `Kategori Bazında Gösterim`, `En
   Çok Gösterilen Sorular`, `Az ya da Hiç Gösterilmeyen Sorular`, `En Çok Yanlış

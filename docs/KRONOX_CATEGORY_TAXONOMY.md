@@ -126,6 +126,9 @@ Category preferences are optional personalization, not a gameplay gate:
   must remain separate from Solo question loading
 * empty preferences must not produce an empty question pool or
   offline/no-cache error
+* `Game.jsx` filters saved preferences through
+  `getValidActiveSelectedCategoryIds(preferences, activeCategories)` before
+  passing them to the Solo deck builder
 * Online category selection remains separate and unaffected
 
 ---

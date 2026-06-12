@@ -662,9 +662,12 @@ Security contract:
   as an active admin and confirm `templateVersion: nine-section-email-v1`,
   `emailBodyMode: nine_section_email_body`, `reportDeliveryMode:
   email_body_only`, `bodyContainsExactlyRequiredSections: true`,
-  `requiredSectionOrderValid: true`, `renderedSectionHeaderCount: 9`, and that
-  the received email body is readable, non-empty, and does not mention a PDF
-  attachment.
+  `requiredSectionOrderValid: true`, `renderedSectionHeaderCount: 9`,
+  `reportBuildMarker: Codex320`, and that the received email body is readable,
+  non-empty, and does not mention a PDF attachment. Runtime Projection is a
+  diagnostic/admin proof concept and must not be faked in email output; top-shown
+  concentration notes must be compared with the Solo-eligible pool before any
+  fairness conclusion.
 * every active `AdminUser` row with role `admin` or `owner` can request the
   report; the recipient is the requesting admin's authenticated normalized
   email, not a hardcoded owner address or `created_by`
