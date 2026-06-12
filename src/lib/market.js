@@ -1,6 +1,6 @@
 import { KRONOX_BUILD_MARKER } from '@/components/dev/BuildMarker';
 import { purchaseJokerWithDiamonds as invokePurchaseJokerWithDiamonds } from '@/lib/dbGateway/economyGateway';
-import { JOKER_TYPES, emptyJokerBalances, normalizeJokerBalances, normalizeJokerEmail, normalizeJokerQuantity } from '@/lib/jokerInventory';
+import { JOKER_TYPES, emptyJokerBalances, normalizeJokerBalances, normalizeJokerEmail, normalizeJokerQuantity, setCachedJokerBalances } from '@/lib/jokerInventory';
 
 export const MARKET_PHASE_1 = 'market_phase_1';
 export const MARKET_PURCHASE_REASON = 'market_purchase';
@@ -149,6 +149,11 @@ export async function purchaseMarketJoker(user, options = {}) {
       balances: normalizeJokerBalances(body?.balances),
     };
   }
+  const balances = normalizeJokerBalances(body?.balances);
+  setCachedJokerBalances(email, balances, {
+    queryPath: 'purchaseJokerWithDiamonds.mutation_result',
+    invalidatedBy: 'market_purchase',
+  });
   return {
     ...body,
     ok: body?.ok === true,
@@ -160,6 +165,6 @@ export async function purchaseMarketJoker(user, options = {}) {
     diamondCost: normalizeJokerQuantity(body?.diamondCost ?? product.price * quantity),
     diamondBalanceAfter: normalizeJokerQuantity(body?.diamondBalanceAfter),
     jokerBalanceAfter: normalizeJokerQuantity(body?.jokerBalanceAfter ?? body?.inventory?.quantity),
-    balances: normalizeJokerBalances(body?.balances),
+    balances,
   };
 }

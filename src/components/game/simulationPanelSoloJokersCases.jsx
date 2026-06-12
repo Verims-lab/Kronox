@@ -433,13 +433,15 @@ export const EXTRA_TESTS = [
         'getUserJokerBalances',
         'options.ensureStarter !== false',
         'readOwnInventoryRows',
+        "invalidatedBy: 'solo_spend'",
+        'setCachedJokerBalances(email, result.balances',
       ]);
       if (missing.length) return fail('Profile/helper path does not clearly reread latest inventory rows.', {
         verification: 'STATIC_CONTRACT',
         file: 'src/lib/jokerInventory.js',
         missing,
       });
-      return pass('Profile uses getUserJokerBalances on mount, so returning from Solo reads latest balances.', { verification: 'STATIC_CONTRACT' });
+      return pass('Solo spend updates the shared joker balance cache and Profile rereads through getUserJokerBalances on mount/retry.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('solo_bar_can_reflect_market_purchased_balances',

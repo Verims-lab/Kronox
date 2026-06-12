@@ -413,17 +413,19 @@ export const EXTRA_TESTS = [
   makeCase('profile_and_solo_can_reflect_purchased_balances',
     'Profile and Solo joker counts can reflect purchased balances',
     () => {
-      const missing = missingTokens(`${marketPageSource}\n${profilePageSource}\n${gameSource}`, [
+      const missing = missingTokens(`${marketPageSource}\n${profilePageSource}\n${gameSource}\n${marketSource}`, [
         'setBalances(nextBalances)',
         'setUser((current) => ({',
-        'getUserJokerBalances(user, { ensureStarter: true })',
+        'setCachedJokerBalances(email, balances',
+        "invalidatedBy: 'market_purchase'",
+        'getUserJokerBalances(user, { ensureStarter: true, forceRefresh: jokerReloadKey > 0 })',
         'getUserJokerBalances(currentUser, { ensureStarter: true })',
       ]);
       if (missing.length) return fail('Purchased balances are not refreshed in Market/Profile/Solo paths.', {
         verification: 'STATIC_CONTRACT',
         missing,
       });
-      return pass('Market updates local counts, and Profile/Solo reread UserJokerInventory on mount.', { verification: 'STATIC_CONTRACT' });
+      return pass('Market updates local counts and the shared cache, while Profile/Solo reread UserJokerInventory through the shared helper.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('online_and_daily_wheel_unaffected',

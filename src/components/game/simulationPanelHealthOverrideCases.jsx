@@ -142,9 +142,9 @@ export const OVERRIDDEN_CASE_KEYS = new Set([
   // subscription rows away. The old cases expected the active-only loader call.
   'game_invites.incoming_invites_visible_to_recipient',
   'invite_contract_drift.incoming_panel_uses_loader',
-  // Codex152 — Elmas is no longer a placeholder-only UI value. The frozen
-  // base suite still expected "PLACEHOLDER" / "no economy yet" markers.
-  'profile_economy.placeholder_disclosed_in_source',
+  // Codex152/Codex317 — Profile economy values are real persisted/shared
+  // sources; the suite no longer expects placeholder-only markers.
+  'profile_economy.profile_uses_real_shared_economy_sources',
   'profile_economy.ui_does_not_crash_when_values_missing',
   // Codex153 cleanup — Profile copy moved from the old English "Level"
   // label to the current Turkish "Seviye" label while keeping the same
@@ -208,26 +208,27 @@ export const EXTRA_SUITES = [];
 
 export const EXTRA_TESTS = [
   /* ------------------------------------------------------------------
-   *  profile_economy — Elmas moved from placeholder to real User.diamonds
-   *  economy balance (Codex152). Keep the old suite id but re-target the
-   *  source contract to the canonical persisted Diamond helper.
+   *  profile_economy — Elmas/Joker values are real persisted/shared economy
+   *  sources. Keep the suite id but target the current Profile contract.
    * ------------------------------------------------------------------ */
   sourceHasReplacement(
-    'profile_economy', 'Profile Economy Placeholder Suite',
-    'placeholder_disclosed_in_source',
-    'Elmas is a real persisted User.diamonds balance with safe loading fallback',
+    'profile_economy', 'Profile Economy Suite',
+    'profile_uses_real_shared_economy_sources',
+    'Profile economy values use persisted/shared Puan, Elmas, and Joker sources',
     'ProfilePage.jsx + lib/diamondEconomy.js + lib/leaderboard.js',
     `${profilePageSource}\n${diamondEconomySource}\n${leaderboardSource}`,
     [
       "DIAMOND_BALANCE_FIELD = 'diamonds'",
       'export function getDiamondBalance',
       'return getDiamondBalance(user)',
+      'getKronoxVisibleScore',
       'getProfileDiamondValue(user)',
+      'JokerPocketSection',
       "label: 'Elmas'",
     ],
   ),
   makeCase(
-    'profile_economy', 'Profile Economy Placeholder Suite',
+    'profile_economy', 'Profile Economy Suite',
     'level_appears',
     'Seviye stat tile appears from the shared Solo progress helper',
     () => {
@@ -256,14 +257,14 @@ export const EXTRA_TESTS = [
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true },
   ),
   makeCase(
-    'profile_economy', 'Profile Economy Placeholder Suite',
+    'profile_economy', 'Profile Economy Suite',
     'ui_does_not_crash_when_values_missing',
-    'Elmas UI falls back safely while auth/economy data is unavailable',
+    'Profile economy/Joker UI falls back safely while auth/economy data is unavailable',
     () => {
       const source = `${safeStr(profilePageSource)}\n${safeStr(diamondEconomySource)}`;
       const required = [
-        'normalizeDiamondBalance',
-        'return 0',
+        'emptyJokerBalances()',
+        'Number(balances?.[joker.type]) || 0',
         'getProfileDiamondValue(user)',
         "label: 'Elmas'",
       ];

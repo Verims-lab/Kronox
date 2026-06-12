@@ -89,7 +89,7 @@ export default function ProfilePage() {
     }
 
     setJokerState((prev) => ({ ...prev, loading: true, error: '' }));
-    getUserJokerBalances(user, { ensureStarter: true })
+    getUserJokerBalances(user, { ensureStarter: true, forceRefresh: jokerReloadKey > 0 })
       .then((result) => {
         if (!alive) return;
         setJokerState({
@@ -189,7 +189,8 @@ export default function ProfilePage() {
 
         <Section label="Joker Çantası">
           <JokerPocketSection
-            loading={loading || jokerState.loading}
+            authLoading={loading}
+            loading={jokerState.loading}
             user={user}
             balances={jokerState.balances}
             error={jokerState.error}
@@ -249,8 +250,8 @@ const JOKER_ICON_BY_TYPE = {
 
 /* ---------------- Internal components ---------------- */
 
-function JokerPocketSection({ loading, user, balances, error, onRetry }) {
-  if (loading) {
+function JokerPocketSection({ authLoading, loading, user, balances, error, onRetry }) {
+  if (authLoading || loading) {
     return (
       <div className="grid grid-cols-3 gap-2">
         {JOKER_DEFINITIONS.map((joker) => (

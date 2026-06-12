@@ -56,6 +56,19 @@ export const JOKER_INVENTORY_SELF_HEAL_CONTRACT = [
   'Profile and Solo use the same normalized user_email inventory source.',
 ].join(' ');
 
+export const JOKER_INVENTORY_FAST_LOAD_CONTRACT = [
+  'Profile and Solo read current balances from UserJokerInventory before self-heal.',
+  'JokerTransaction is ledger only and is not scanned during render-time balance reads.',
+  'Self-heal runs only when UserJokerInventory rows are missing or partial, or when forced.',
+  'Market purchase and Solo spend update the per-user joker balance cache.',
+  'The balance cache is keyed by normalized user email and is cleared on logout.',
+].join(' ');
+
+export const JOKER_INVENTORY_CACHE_TTL_MS = 20000;
+
+const jokerBalanceCache = new Map();
+const jokerBalanceInflight = new Map();
+
 export function normalizeJokerEmail(value) {
   return String(value || '').trim().toLowerCase();
 }
@@ -131,8 +144,120 @@ function unwrapFunctionResponse(response) {
   return {};
 }
 
-async function readOwnInventoryRows(userOrEmail) {
-  const variants = jokerEmailVariants(userOrEmail);
+function nowMs() {
+  if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+    return performance.now();
+  }
+  return Date.now();
+}
+
+function elapsedMs(startedAt) {
+  return Math.max(0, Math.round(nowMs() - startedAt));
+}
+
+function completeKnownInventoryRows(rows) {
+  if (!Array.isArray(rows)) return false;
+  const knownRows = rows.filter((row) => isKnownJokerType(row?.joker_type));
+  if (knownRows.length !== JOKER_DEFINITIONS.length) return false;
+  return JOKER_DEFINITIONS.every((joker) => knownRows.filter((row) => row?.joker_type === joker.type).length === 1);
+}
+
+function missingKnownJokerTypes(rows) {
+  const rowTypes = new Set((Array.isArray(rows) ? rows : [])
+    .map((row) => row?.joker_type)
+    .filter((type) => isKnownJokerType(type)));
+  return JOKER_DEFINITIONS
+    .map((joker) => joker.type)
+    .filter((type) => !rowTypes.has(type));
+}
+
+function publicInventoryRows(rows) {
+  return (Array.isArray(rows) ? rows : [])
+    .filter((row) => isKnownJokerType(row?.joker_type))
+    .map((row) => ({
+      id: row.id,
+      jokerType: row.joker_type,
+      quantity: normalizeJokerQuantity(row.quantity),
+      updatedAt: row.updated_at || row.created_at || null,
+    }));
+}
+
+function cloneInventoryResult(result, metaPatch = {}) {
+  const balances = normalizeJokerBalances(result?.balances || result?.items);
+  return {
+    ...(result || {}),
+    balances,
+    items: Array.isArray(result?.items) ? result.items.map((item) => ({ ...item })) : [],
+    meta: {
+      ...(result?.meta || {}),
+      ...metaPatch,
+    },
+  };
+}
+
+function cacheKeyFor(userOrEmail) {
+  return normalizeJokerEmail(typeof userOrEmail === 'string'
+    ? userOrEmail
+    : (userOrEmail?.email || userOrEmail?.user_email));
+}
+
+function getCachedJokerInventory(email) {
+  const key = cacheKeyFor(email);
+  if (!key) return null;
+  const cached = jokerBalanceCache.get(key);
+  if (!cached || nowMs() - cached.storedAt > JOKER_INVENTORY_CACHE_TTL_MS) {
+    jokerBalanceCache.delete(key);
+    return null;
+  }
+  return cloneInventoryResult(cached.result, {
+    cacheHit: true,
+    cacheTtlMs: JOKER_INVENTORY_CACHE_TTL_MS,
+    queryPath: 'UserJokerInventory.cache',
+  });
+}
+
+function setCachedJokerInventory(email, result) {
+  const key = cacheKeyFor(email);
+  if (!key || !result) return;
+  jokerBalanceCache.set(key, {
+    storedAt: nowMs(),
+    result: cloneInventoryResult(result, {
+      cacheHit: false,
+      cacheKeyUserScoped: true,
+    }),
+  });
+}
+
+export function setCachedJokerBalances(userOrEmail, balances, meta = {}) {
+  const email = cacheKeyFor(userOrEmail);
+  if (!email) return;
+  setCachedJokerInventory(email, {
+    ok: true,
+    initialized: false,
+    balances: normalizeJokerBalances(balances),
+    items: [],
+    meta: {
+      queryPath: meta.queryPath || 'UserJokerInventory.mutation_result',
+      invalidatedBy: meta.invalidatedBy || '',
+      cacheUpdatedByMutation: true,
+      ...meta,
+    },
+  });
+}
+
+export function invalidateJokerInventoryCache(userOrEmail) {
+  const key = cacheKeyFor(userOrEmail);
+  if (key) jokerBalanceCache.delete(key);
+}
+
+export function clearJokerInventoryCache() {
+  jokerBalanceCache.clear();
+  jokerBalanceInflight.clear();
+}
+
+async function readOwnInventoryRows(userOrEmail, options = {}) {
+  const normalized = cacheKeyFor(userOrEmail);
+  const variants = options.includeLegacyVariants ? jokerEmailVariants(userOrEmail) : [normalized].filter(Boolean);
   if (!variants.length) return [];
   const entity = base44?.entities?.UserJokerInventory;
   if (!entity?.filter) return [];
@@ -150,7 +275,27 @@ async function readOwnInventoryRows(userOrEmail) {
     });
 }
 
-export async function ensureStarterJokers(user) {
+function inventoryRowsResult(email, rows, meta = {}) {
+  const rowList = Array.isArray(rows) ? rows : [];
+  return {
+    ok: true,
+    initialized: false,
+    balances: normalizeJokerBalances(rowList),
+    items: publicInventoryRows(rowList),
+    meta: {
+      queryPath: 'UserJokerInventory.fast_read',
+      entityCallCount: 1,
+      inventoryRows: rowList.length,
+      completeInventory: completeKnownInventoryRows(rowList),
+      missingTypes: missingKnownJokerTypes(rowList),
+      selfHealNeeded: !completeKnownInventoryRows(rowList),
+      normalizedOwnerKey: Boolean(email),
+      ...meta,
+    },
+  };
+}
+
+export async function ensureStarterJokers(user, options = {}) {
   const email = normalizeJokerEmail(user?.email || user?.user_email);
   if (!email) {
     return {
@@ -162,62 +307,132 @@ export async function ensureStarterJokers(user) {
     };
   }
 
-  const response = await base44.functions.invoke('ensureUserJokerInventory', {});
-  const body = unwrapFunctionResponse(response);
-  if (body?.ok === false) {
-    const error = new Error(body?.error || body?.code || 'joker_inventory_init_failed');
-    error.body = body;
-    throw error;
+  const startedAt = nowMs();
+  if (!options.forceRefresh) {
+    const cached = getCachedJokerInventory(email);
+    if (cached?.meta?.completeInventory) {
+      return cloneInventoryResult(cached, {
+        ...cached.meta,
+        durationMs: elapsedMs(startedAt),
+        ensureSkipped: true,
+      });
+    }
   }
-  return {
-    ok: true,
-    ...body,
-    balances: normalizeJokerBalances(body?.balances || body?.items),
-  };
+
+  const inflightKey = `ensure:${email}`;
+  if (!options.forceRefresh && jokerBalanceInflight.has(inflightKey)) {
+    const shared = await jokerBalanceInflight.get(inflightKey);
+    return cloneInventoryResult(shared, {
+      ...shared.meta,
+      durationMs: elapsedMs(startedAt),
+      sharedRequest: true,
+    });
+  }
+
+  const promise = (async () => {
+    const rows = await readOwnInventoryRows(email);
+    const missingTypes = missingKnownJokerTypes(rows);
+    if (!options.forceEnsure && completeKnownInventoryRows(rows)) {
+      const result = inventoryRowsResult(email, rows, {
+        durationMs: elapsedMs(startedAt),
+        ensureSkipped: true,
+        selfHealNeeded: false,
+      });
+      setCachedJokerInventory(email, result);
+      return result;
+    }
+
+    const response = await base44.functions.invoke('ensureUserJokerInventory', {});
+    const body = unwrapFunctionResponse(response);
+    if (body?.ok === false) {
+      const error = new Error(body?.error || body?.code || 'joker_inventory_init_failed');
+      error.body = body;
+      throw error;
+    }
+    const result = {
+      ok: true,
+      ...body,
+      balances: normalizeJokerBalances(body?.balances || body?.items),
+      meta: {
+        queryPath: 'ensureUserJokerInventory.self_heal',
+        entityCallCount: 1,
+        inventoryRows: Array.isArray(body?.items) ? body.items.length : 0,
+        completeInventory: true,
+        missingTypes,
+        selfHealNeeded: missingTypes.length > 0,
+        selfHealed: Boolean(body?.selfHealed),
+        initialized: Boolean(body?.initialized),
+        backendDurationMs: body?.performance?.durationMs,
+        parallelSelfHeal: Boolean(body?.performance?.parallelSelfHeal),
+        durationMs: elapsedMs(startedAt),
+      },
+    };
+    setCachedJokerInventory(email, result);
+    return result;
+  })();
+
+  jokerBalanceInflight.set(inflightKey, promise);
+  try {
+    return await promise;
+  } finally {
+    jokerBalanceInflight.delete(inflightKey);
+  }
 }
 
 export async function getUserJokerBalances(user, options = {}) {
   const email = normalizeJokerEmail(user?.email || user?.user_email);
+  const startedAt = nowMs();
   if (!email) {
     return { ok: false, reason: 'missing_user_email', balances: emptyJokerBalances(), items: [] };
   }
 
+  if (!options.forceRefresh) {
+    const cached = getCachedJokerInventory(email);
+    if (cached) {
+      return cloneInventoryResult(cached, {
+        ...cached.meta,
+        durationMs: elapsedMs(startedAt),
+      });
+    }
+  }
+
   if (options.ensureStarter !== false) {
     try {
-      return await ensureStarterJokers(user);
+      return await ensureStarterJokers(user, options);
     } catch (error) {
       const rows = await readOwnInventoryRows(user).catch(() => []);
       if (rows.length > 0) {
-        return {
+        const result = {
           ok: true,
           initialized: false,
           ensureFailedButReadable: true,
           reason: error?.body?.code || error?.message || 'joker_inventory_ensure_failed',
           balances: normalizeJokerBalances(rows),
-          items: rows.map((row) => ({
-            id: row.id,
-            jokerType: row.joker_type,
-            quantity: normalizeJokerQuantity(row.quantity),
-            updatedAt: row.updated_at || row.created_at || null,
-          })),
+          items: publicInventoryRows(rows),
+          meta: {
+            queryPath: 'UserJokerInventory.fast_read_after_ensure_error',
+            entityCallCount: 2,
+            inventoryRows: rows.length,
+            completeInventory: completeKnownInventoryRows(rows),
+            missingTypes: missingKnownJokerTypes(rows),
+            selfHealNeeded: !completeKnownInventoryRows(rows),
+            durationMs: elapsedMs(startedAt),
+          },
         };
+        setCachedJokerInventory(email, result);
+        return result;
       }
       throw error;
     }
   }
 
   const rows = await readOwnInventoryRows(user);
-  return {
-    ok: true,
-    initialized: false,
-    balances: normalizeJokerBalances(rows),
-    items: rows.map((row) => ({
-      id: row.id,
-      jokerType: row.joker_type,
-      quantity: normalizeJokerQuantity(row.quantity),
-      updatedAt: row.updated_at || row.created_at || null,
-    })),
-  };
+  const result = inventoryRowsResult(email, rows, {
+    durationMs: elapsedMs(startedAt),
+    selfHealSkipped: true,
+  });
+  setCachedJokerInventory(email, result);
+  return result;
 }
 
 export function buildSoloJokerUseIdempotencyKey(userEmail, attemptId, questionKey, jokerType) {
@@ -247,13 +462,22 @@ export async function spendUserJoker(user, options = {}) {
     metadata: options.metadata,
   });
   const body = unwrapFunctionResponse(response);
-  return {
+  const result = {
     ...body,
     ok: body?.ok !== false,
     jokerType,
     balances: normalizeJokerBalances(body?.balances),
     balanceAfter: normalizeJokerQuantity(body?.balanceAfter ?? body?.inventory?.quantity),
   };
+  if (result.ok) {
+    setCachedJokerBalances(email, result.balances, {
+      queryPath: 'spendUserJoker.mutation_result',
+      invalidatedBy: 'solo_spend',
+    });
+  } else {
+    invalidateJokerInventoryCache(email);
+  }
+  return result;
 }
 
 export async function applyJokerTransaction(user, jokerType, quantityDelta, reason, options = {}) {
