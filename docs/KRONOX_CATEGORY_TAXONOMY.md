@@ -130,6 +130,12 @@ Category preferences are optional personalization, not a gameplay gate:
   `getValidActiveSelectedCategoryIds(preferences, activeCategories)` before
   passing them to the Solo deck builder
 * Online category selection remains separate and unaffected
+* `/getQuestions` must derive its runtime active category whitelist from
+  active `Category` rows, not from an obsolete hardcoded seed ID subset
+* fallback category IDs are allowed only when the `Category` read itself fails;
+  they must not be treated as the canonical taxonomy
+* a category with active rows and Solo-eligible questions must not be excluded
+  merely because its ID was added after the original six seed categories
 
 ---
 

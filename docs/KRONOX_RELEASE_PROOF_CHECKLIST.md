@@ -95,6 +95,9 @@ Checklist:
 * P2 deck diagnostics expose level type, correct target, fail threshold, question IDs, answer years, difficulty distribution, balance score, and warnings for Health/admin/debug only.
 * Question pool health warns about insufficient unique years, invalid years, sparse/overrepresented categories or subcategories, and missing sub_category/tag/difficulty metadata.
 * `/getQuestions` runtime projection uses deterministic pool-proportional sampling before any gameplay cap; it must not return an ordered newest/category slice.
+* `/getQuestions` derives playable category IDs from active `Category` rows;
+  old hardcoded seed-category lists must not exclude newer active categories
+  from Solo runtime projection.
 * First Solo start in a fresh browser attempts online `getQuestions` before any
   offline fallback and shows `Sorular hazırlanıyor...` while pending.
 * Guest/no-auth Solo starts use the public-safe minimal `getQuestions`
@@ -113,6 +116,10 @@ Checklist:
 * Solo category, subcategory, theme, and year-band balancing remains pool-proportional rather than equal-count; large eligible groups may stay large while smaller valid groups are protected from accidental starvation where hard rules allow.
 * Question exposure analytics are reviewed after deploy to confirm unique-question coverage and category/subcategory concentration improved.
 * Health covers question exposure fairness guardrails: getQuestions projection sampling/metadata, active-vs-runtime pool mismatch diagnostics, repeated Solo deck unique coverage, exposure cooldown/rotation, and category/subcategory/year-band concentration warnings.
+* Health covers the category-boundary audit: guest/no-preference users use all
+  active categories, saved preferences are Solo-only soft weighting, Online
+  remains separate, and no eligible active category is hardcoded out of the
+  `getQuestions` projection.
 * Question Analytics report wording separates all active questions, Solo-eligible questions, runtime projection diagnostics, unique shown questions, and never-shown counts; it must not imply equal category/subcategory counts.
 * Question Analytics report includes the generic top-shown concentration guardrail: high category/subcategory concentration is not automatically unfair and must be compared with the Solo-eligible pool before drawing fairness conclusions.
 * Difficulty progression remains readiness-only and falls back safely when current question data has mostly difficulty 1 or missing difficulty.
