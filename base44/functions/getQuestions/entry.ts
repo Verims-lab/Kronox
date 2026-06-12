@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 import { isAuthorizedAdmin } from '../_shared/adminAuth.ts';
 
-const KNOWN_CATEGORY_IDS = [1, 2, 3, 4, 5, 6];
+const FALLBACK_ACTIVE_CATEGORY_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 11];
 const MAX_GAMEPLAY_LIMIT = 900;
 const QUESTION_FETCH_PER_CATEGORY_LIMIT = 1000;
 const PROJECTION_SAMPLING_STRATEGY = 'pool_proportional_category_subcategory_daily_sample_v1';
@@ -54,7 +54,7 @@ function normalizeCategoryId(value: unknown) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return null;
   const id = Math.trunc(numeric);
-  return KNOWN_CATEGORY_IDS.includes(id) ? id : null;
+  return id > 0 ? id : null;
 }
 
 function normalizeQuestionMainCategoryId(question: Record<string, unknown>) {
@@ -466,7 +466,7 @@ Deno.serve(async (req) => {
     const categoryRows = await base44.asServiceRole.entities.Category.list('category_id', 50).catch(() => []);
     const activeIds = (Array.isArray(categoryRows) && categoryRows.length > 0
       ? categoryRows.filter(isActiveCategory).map(getCategoryId).filter(isKnownCategoryId)
-      : KNOWN_CATEGORY_IDS
+      : FALLBACK_ACTIVE_CATEGORY_IDS
     );
     const activeMainCategoryIds = new Set(activeIds);
     const allowedMainCategoryIds = requestedIds

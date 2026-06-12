@@ -2449,14 +2449,25 @@ export const EXTRA_TESTS = [
         'filter(isActiveCategory)',
         'filter(isActiveCategoryPreference)',
       ]);
+      const getQuestionsMissing = missingTokens(getQuestionsFunctionSource, [
+        'FALLBACK_ACTIVE_CATEGORY_IDS',
+        'return id > 0 ? id : null',
+        "Category.list('category_id', 50)",
+        'filter(isActiveCategory).map(getCategoryId).filter(isKnownCategoryId)',
+      ]);
       const forbidden = [
         ...['UserCategoryPreference', 'loadUserCategoryPreferences', 'userSelectedCategoryIds']
           .filter((token) => getQuestionsFunctionSource.includes(token)),
         ...['UserCategoryPreference', 'loadUserCategoryPreferences', 'userSelectedCategoryIds']
           .filter((token) => onlineGameStartSource.includes(token)),
+        ...[
+          'KNOWN_CATEGORY_IDS',
+          'KNOWN_CATEGORY_IDS.includes(id)',
+          'const KNOWN_CATEGORY_IDS = [1, 2, 3, 4, 5, 6]',
+        ].filter((token) => getQuestionsFunctionSource.includes(token)),
       ];
 
-      if (gameMissing.length || helperMissing.length || forbidden.length) {
+      if (gameMissing.length || helperMissing.length || getQuestionsMissing.length || forbidden.length) {
         return fail('Solo Category preference wiring or Online/getQuestions boundary drifted.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
@@ -2466,7 +2477,7 @@ export const EXTRA_TESTS = [
             'base44/functions/getQuestions/entry.ts',
             'src/lib/onlineGameStart.js',
           ],
-          actual: { gameMissing, helperMissing, forbidden },
+          actual: { gameMissing, helperMissing, getQuestionsMissing, forbidden },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }

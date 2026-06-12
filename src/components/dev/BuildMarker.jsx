@@ -1724,7 +1724,13 @@ import React, { useEffect, useState } from 'react';
 //   • sendQuestionAnalyticsReportEmail adds hidden nine-section markers,
 //     title-case metric labels, Runtime Projection / Solo-eligible wording,
 //     and the generic top-shown concentration guardrail.
-const BUILD_MARKER = 'Codex320';
+//
+// Codex321 — Solo question distribution audit:
+//   • getQuestions no longer treats the original 1-6 seed IDs as the canonical
+//     runtime category boundary; active Category rows drive the projection.
+//   • Health/docs record the remaining explicit risks: local-only repeat
+//     avoidance, no global exposure balancing, and no hard low-correct cooldown.
+const BUILD_MARKER = 'Codex321';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

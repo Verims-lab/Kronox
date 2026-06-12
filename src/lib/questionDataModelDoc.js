@@ -125,6 +125,9 @@ longer stored on the entity — they are derived at fetch time by
   getQuestions uses deterministic pool-proportional sampling before capping:
   category/subcategory shares should follow the active eligible pool rather
   than equal-count balancing, newest-row slicing, or DB/category order.
+- getQuestions derives active playable category IDs from active Category rows;
+  stale hardcoded seed-category ID subsets must not exclude newer active
+  categories from the runtime projection.
 - getQuestions admin/Health diagnostics expose the safe funnel: fetched active
   rows, normalized eligible rows, returned runtime projection,
   category/subcategory/year-band distributions, projection limit, and seed.

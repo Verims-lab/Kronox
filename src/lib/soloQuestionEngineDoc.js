@@ -99,6 +99,9 @@ is not affected.
 Game.jsx explicitly resolves getValidActiveSelectedCategoryIds(preferences,
 activeCategories) in the Solo-only path before passing selected IDs to the deck
 builder.
+getQuestions derives runtime playable category IDs from active Category rows,
+not a stale hardcoded seed-category subset; fallback IDs are only for Category
+read failure and must not permanently exclude newer active category IDs.
 
 P2 diagnostics are Health/admin/helper-only. Deck diagnostics include level
 number, level type, deck size, correct target, fail threshold, question IDs,
@@ -122,6 +125,9 @@ reporting guardrails compare selected/shown distribution to the eligible pool
 proportionally; they must not require equal category, subcategory, or era
 counts. Runtime exposure improvement is proven over new gameplay events, so
 historical reports can remain concentrated until fresh events accumulate.
+Repeat avoidance currently uses local per-device history as soft weighting;
+server-side per-user/global exposure balancing and low-correct cooldown remain
+explicit future algorithm work, not hidden behavior.
 
 Fallback may relax recently-seen avoidance, category/subcategory/theme balance,
 and era spread. It must not relax required deck size, unique IDs, unique

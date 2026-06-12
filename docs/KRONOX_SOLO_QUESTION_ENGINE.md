@@ -161,6 +161,10 @@ P3 adds question analytics without changing question selection:
 - top-shown category/subcategory concentration is a guardrail only:
   high concentration is not automatically unfair because the distribution must
   be compared with the Solo-eligible pool first.
+- Codex321 audit finding: runtime `/getQuestions` category projection must be
+  driven by active `Category` rows, not a stale hardcoded seed-category list.
+  The fallback list is only for Category read failure; normal runtime must not
+  accidentally hardcode active categories 7+ out of the Solo-eligible pool.
 - `QuestionStatsProjection` refresh remains an admin/manual aggregate path and
   is not updated synchronously during gameplay.
 - Health guardrails must detect projection narrowing, repeated-deck low
@@ -171,6 +175,10 @@ P3 adds question analytics without changing question selection:
   subcategory, or era counts.
 - Runtime exposure improvement is proven over new gameplay events; historical
   analytics reports can remain concentrated until enough fresh events exist.
+- Remaining audit risk: repeat avoidance is currently per-device/local-history
+  soft weighting. It does not yet use a server-side per-user or global exposure
+  ledger, and low-correct/high-latency questions are reported for review rather
+  than automatically cooled down.
 
 Fallback order:
 1. active questions/categories, unique years, first 5 minimum 5-year spacing, category/subcategory balance, era spread, not recently seen
