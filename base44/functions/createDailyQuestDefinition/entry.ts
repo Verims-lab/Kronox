@@ -115,7 +115,7 @@ function parsePositiveInteger(value: unknown, fallback = 0) {
 function publicDefinition(row: any) {
   return {
     id: row?.id || null,
-    quest_key: String(row?.quest_key || ''),
+    quest_key: normalizeQuestKey(row?.quest_key),
     title: String(row?.title || ''),
     description: String(row?.description || ''),
     quest_type: normalizeQuestType(row?.quest_type),
@@ -130,15 +130,68 @@ function publicDefinition(row: any) {
   };
 }
 
-function sortDefinitions(rows: any[] = []) {
-  return rows
-    .map(publicDefinition)
-    .sort((a, b) => {
-      const orderA = Number.isFinite(Number(a.sort_order)) ? Number(a.sort_order) : 0;
-      const orderB = Number.isFinite(Number(b.sort_order)) ? Number(b.sort_order) : 0;
-      if (orderA !== orderB) return orderA - orderB;
-      return a.quest_key.localeCompare(b.quest_key, 'tr');
+function createdMillis(row: any) {
+  const millis = Date.parse(String(row?.created_at || row?.created_date || ''));
+  return Number.isFinite(millis) ? millis : Number.MAX_SAFE_INTEGER;
+}
+
+function canonicalDefinitionSort(a: any, b: any) {
+  const activeA = normalizeStatus(a?.status) === 'active' ? 0 : 1;
+  const activeB = normalizeStatus(b?.status) === 'active' ? 0 : 1;
+  if (activeA !== activeB) return activeA - activeB;
+  const orderA = Number.isFinite(Number(a?.sort_order)) ? Number(a.sort_order) : 0;
+  const orderB = Number.isFinite(Number(b?.sort_order)) ? Number(b.sort_order) : 0;
+  if (orderA !== orderB) return orderA - orderB;
+  const createdA = createdMillis(a);
+  const createdB = createdMillis(b);
+  if (createdA !== createdB) return createdA - createdB;
+  return String(a?.id || '').localeCompare(String(b?.id || ''), 'tr');
+}
+
+function displayDefinitionSort(a: any, b: any) {
+  const orderA = Number.isFinite(Number(a?.sort_order)) ? Number(a.sort_order) : 0;
+  const orderB = Number.isFinite(Number(b?.sort_order)) ? Number(b.sort_order) : 0;
+  if (orderA !== orderB) return orderA - orderB;
+  return String(a?.quest_key || '').localeCompare(String(b?.quest_key || ''), 'tr');
+}
+
+function groupDefinitionsByQuestKey(rows: any[] = []) {
+  const groups = new Map<string, any[]>();
+  for (const rawRow of rows || []) {
+    const row = publicDefinition(rawRow);
+    if (!row.quest_key) continue;
+    if (!groups.has(row.quest_key)) groups.set(row.quest_key, []);
+    groups.get(row.quest_key)?.push(row);
+  }
+
+  const definitions: any[] = [];
+  const duplicateGroups: any[] = [];
+  for (const [questKey, groupRows] of groups.entries()) {
+    const sorted = [...groupRows].sort(canonicalDefinitionSort);
+    const primary = sorted[0];
+    const duplicateRows = sorted.slice(1);
+    definitions.push({
+      ...primary,
+      duplicate_count: duplicateRows.length,
+      duplicate_ids: duplicateRows.map((row) => row.id).filter(Boolean),
+      canonical_definition_id: primary.id,
     });
+    if (duplicateRows.length > 0) {
+      duplicateGroups.push({
+        quest_key: questKey,
+        total_count: sorted.length,
+        duplicate_count: duplicateRows.length,
+        canonical_definition_id: primary.id,
+        duplicate_ids: duplicateRows.map((row) => row.id).filter(Boolean),
+        cleanupRecommendation: 'manual_backup_then_deactivate_or_delete_duplicates',
+      });
+    }
+  }
+
+  return {
+    definitions: definitions.sort(displayDefinitionSort),
+    duplicateGroups: duplicateGroups.sort((a, b) => String(a.quest_key).localeCompare(String(b.quest_key), 'tr')),
+  };
 }
 
 async function readBody(req: Request) {
@@ -242,9 +295,19 @@ function validateDefinitionInput(input: any) {
   };
 }
 
+async function findDefinitionsByKey(entity: any, questKey: string) {
+  const normalizedQuestKey = normalizeQuestKey(questKey);
+  if (!normalizedQuestKey) return [];
+  const rows = await entity.filter({ quest_key: normalizedQuestKey }, '-updated_at', 50).catch(() => []);
+  return (Array.isArray(rows) ? rows : [])
+    .map(publicDefinition)
+    .filter((row) => row.quest_key === normalizedQuestKey)
+    .sort(canonicalDefinitionSort);
+}
+
 async function findDefinitionByKey(entity: any, questKey: string) {
-  const rows = await entity.filter({ quest_key: questKey }, '-updated_at', 5).catch(() => []);
-  return Array.isArray(rows) && rows.length ? rows[0] : null;
+  const rows = await findDefinitionsByKey(entity, questKey);
+  return rows.length ? rows[0] : null;
 }
 
 async function listDefinitions(entity: any) {
@@ -255,23 +318,36 @@ async function listDefinitions(entity: any) {
   if (!Array.isArray(rows) || rows.length === 0) {
     rows = await entity.filter({}, 'sort_order', 500).catch(() => []);
   }
-  return sortDefinitions(Array.isArray(rows) ? rows : []);
+  return groupDefinitionsByQuestKey(Array.isArray(rows) ? rows : []);
 }
 
 async function ensureSeedDefinitions(entity: any, adminEmail: string) {
   const timestamp = nowIso();
   const created: string[] = [];
+  const current = await listDefinitions(entity);
+  const existingKeys = new Set(current.definitions.map((definition) => definition.quest_key).filter(Boolean));
   for (const seed of DEFAULT_DEFINITIONS) {
-    const existing = await findDefinitionByKey(entity, seed.quest_key);
-    if (existing) continue;
-    await entity.create({
-      ...seed,
-      created_by: adminEmail || 'system:daily_quest_seed',
-      created_at: timestamp,
-      updated_by: adminEmail || 'system:daily_quest_seed',
-      updated_at: timestamp,
-    });
-    created.push(seed.quest_key);
+    if (existingKeys.has(seed.quest_key)) continue;
+    const existing = await findDefinitionsByKey(entity, seed.quest_key);
+    if (existing.length) {
+      existingKeys.add(seed.quest_key);
+      continue;
+    }
+    try {
+      await entity.create({
+        ...seed,
+        created_by: adminEmail || 'system:daily_quest_seed',
+        created_at: timestamp,
+        updated_by: adminEmail || 'system:daily_quest_seed',
+        updated_at: timestamp,
+      });
+      created.push(seed.quest_key);
+      existingKeys.add(seed.quest_key);
+    } catch (error) {
+      const afterRace = await findDefinitionsByKey(entity, seed.quest_key);
+      if (!afterRace.length) throw error;
+      existingKeys.add(seed.quest_key);
+    }
   }
   return created;
 }
@@ -312,13 +388,15 @@ Deno.serve(async (req: Request) => {
     const action = String(body?.action || 'create').trim().toLowerCase();
 
     if (action === 'list') {
-      const seededKeys = await ensureSeedDefinitions(entity, admin.adminEmail);
-      const definitions = await listDefinitions(entity);
+      const listPayload = await listDefinitions(entity);
       return json({
         ok: true,
         action,
-        definitions,
-        seededKeys,
+        definitions: listPayload.definitions,
+        duplicateGroups: listPayload.duplicateGroups,
+        duplicateDefinitionCount: listPayload.duplicateGroups.reduce((total, group) => total + Number(group.duplicate_count || 0), 0),
+        seededKeys: [],
+        seedMode: 'list_only_no_seed',
         questTypes: QUEST_TYPES,
         statuses: STATUSES,
         displayOnlyContract: DAILY_QUEST_DISPLAY_ONLY_CONTRACT,
@@ -329,7 +407,15 @@ Deno.serve(async (req: Request) => {
     if (action === 'seed') {
       const seededKeys = await ensureSeedDefinitions(entity, admin.adminEmail);
       await writeAdminLog(base44, admin.adminEmail, action, 'success', { seededKeys });
-      return json({ ok: true, action, seededKeys, definitions: await listDefinitions(entity) });
+      const listPayload = await listDefinitions(entity);
+      return json({
+        ok: true,
+        action,
+        seededKeys,
+        definitions: listPayload.definitions,
+        duplicateGroups: listPayload.duplicateGroups,
+        duplicateDefinitionCount: listPayload.duplicateGroups.reduce((total, group) => total + Number(group.duplicate_count || 0), 0),
+      });
     }
 
     if (action === 'update_status') {
@@ -347,7 +433,7 @@ Deno.serve(async (req: Request) => {
         action,
         message: 'Günlük görev güncellendi.',
         definition: publicDefinition(updated),
-        definitions: await listDefinitions(entity),
+        ...(await listDefinitions(entity)),
       });
     }
 
@@ -361,8 +447,8 @@ Deno.serve(async (req: Request) => {
     }
 
     const value = validation.value;
-    const existing = await findDefinitionByKey(entity, value.quest_key);
-    if (existing) {
+    const existing = await findDefinitionsByKey(entity, value.quest_key);
+    if (existing.length) {
       return json({ ok: false, code: 'duplicate_quest_key', error: 'Bu görev anahtarı zaten var.' }, 409);
     }
 
@@ -388,7 +474,7 @@ Deno.serve(async (req: Request) => {
       action,
       message: 'Günlük görev kaydedildi.',
       definition: publicDefinition(created),
-      definitions: await listDefinitions(entity),
+      ...(await listDefinitions(entity)),
       questTypes: QUEST_TYPES,
       statuses: STATUSES,
       displayOnlyContract: DAILY_QUEST_DISPLAY_ONLY_CONTRACT,

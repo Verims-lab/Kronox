@@ -368,8 +368,15 @@ Checklist:
 * `UserDailyQuestProgress` exists as the user-owned per-day progress table.
 * `getDailyQuestStatus` ensures 1 Daily Quest per UTC day and excludes passive
   definitions from new daily sets.
-* Admins can manage multiple `DailyQuestDefinition` rows; runtime selects the
-  first active definition by `sort_order`, `created_at`, then `quest_key`.
+* `DailyQuestDefinition.quest_key` is the logical unique key. Admin create and
+  default seed must reject/skip existing `quest_key` rows; Base44/platform
+  uniqueness is recommended where available.
+* Admin list/refresh is read-only and must not seed default definitions.
+  Existing duplicate `quest_key` rows are grouped into one canonical Admin UI
+  row with a warning; cleanup is manual after backup, not automatic deletion.
+* Runtime groups duplicate active definitions by `quest_key` and selects one
+  canonical definition by `sort_order`, `created_at`, then stable id before
+  selecting the first logical Daily Quest.
 * Günlük Görev requires active `DailyQuestDefinition` rows. Fresh DBs seed
   the default Solo-focused definitions idempotently when no definitions exist;
   if no active definitions remain, Home shows
@@ -406,6 +413,9 @@ Checklist:
 * Initial definitions are seeded idempotently by `quest_key`:
   `start_1_solo_attempt`, `correct_5_cards`, `complete_1_solo_level`, and
   `use_1_joker`.
+* Manual duplicate cleanup recommendation: keep one canonical
+  `DailyQuestDefinition` per `quest_key`; deactivate or delete duplicates only
+  after backup/operator confirmation.
 * Daily Wheel remains separate from Daily Quest definitions, and Mağaza /
   Joker Inventory / Solo joker spending remain unaffected.
 * Manual proof: open Home, see `Günlük Ödüller`, confirm Daily Wheel and one

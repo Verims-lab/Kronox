@@ -37,10 +37,11 @@ Analytics/statistics entities implemented now:
 - Profile displays balances under Joker Çantası and does not expose the JokerTransaction ledger.
 - Mağaza Phase 1 has no bundles, subscriptions, cosmetics, random boxes, ads, external payments, or Online joker usage.
 - DailyQuestDefinition stores admin-managed Daily Quest v1 templates; title/description are display-only and quest_type + target_value drive runtime progress logic through UserDailyQuestProgress.
-- createDailyQuestDefinition lists, seeds, creates, and status-updates definitions through an AdminUser-backed owner/admin guard.
+- createDailyQuestDefinition lists, seeds, creates, and status-updates definitions through an AdminUser-backed owner/admin guard. Admin list is read-only and does not seed defaults on refresh.
 - Supported Daily Quest v1 types are start_solo_attempt, correct_cards, complete_solo_level, and use_joker.
 - Daily Quest definitions use reward_diamonds only, never Kronox Puan, and do not affect leaderboard.
-- Günlük Görev requires active DailyQuestDefinition rows. Runtime functions seed the four default Solo-focused definitions idempotently only when no definition rows exist; getDailyQuestStatus selects the first active definition by sort_order, created_at, and quest_key, is authenticated but not admin-only, preserves newly created rows if immediate refresh is stale, and loading/ensuring today’s quests does not grant Diamonds.
+- DailyQuestDefinition.quest_key is the logical unique key. Create/default seed skip or reject existing keys; existing duplicate rows are grouped by quest_key with Admin warnings and require manual cleanup after backup.
+- Günlük Görev requires active DailyQuestDefinition rows. Runtime functions seed the four default Solo-focused definitions idempotently only when no definition rows exist; getDailyQuestStatus groups duplicate active definitions by quest_key, selects one canonical active definition by sort_order, created_at, and stable id, is authenticated but not admin-only, preserves newly created rows if immediate refresh is stale, and loading/ensuring today’s quests does not grant Diamonds.
 - UserDailyQuestProgress stores the active Daily Quest Runtime v1 selected user/day row. getDailyQuestStatus ensures 1 UTC-day quest idempotently from active definitions, recordDailyQuestProgress increments Solo-only events, and claimDailyQuestReward grants diamonds only with DiamondTransaction source daily_quest_reward. Runtime functions explicitly bind UserDailyQuestProgress, Home copy says Günlük Görevleri Yap, Elmasları Kazan!, Daily Quest has no leaderboard impact, does not grant Kronox Puan, and one claim per quest per UTC day is enforced by progress/ledger idempotency keys.
 
 Category preference status:
@@ -103,7 +104,7 @@ Idempotency/platform limitations documented:
 - PushSubscription user_email + endpoint unique is required where Base44 supports unique constraints.
 - Base44 index/unique-key declarations are a platform/manual configuration gap when not expressible in repo schema.
 - AdminUser.email unique and role + status indexes are required where Base44 supports them.
-- DailyQuestDefinition.quest_key unique and status + sort_order indexes are required where Base44 supports them.
+- DailyQuestDefinition.quest_key unique, status + sort_order, and quest_key + created_at indexes are required where Base44 supports them. If Base44 cannot enforce uniqueness, service-level duplicate guards and manual cleanup proof are required.
 - UserDailyQuestProgress.idempotency_key unique and user_email + quest_date + quest_key unique are required where Base44 supports them.
 - UserDailyQuestProgress user_email + quest_date + status index is required where Base44 supports it.
 - DailyWheelSpin.idempotency_key unique and user_email + spin_date unique are required where Base44 supports them.

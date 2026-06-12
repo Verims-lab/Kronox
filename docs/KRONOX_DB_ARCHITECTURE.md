@@ -199,18 +199,26 @@ One claim per quest per UTC day is enforced by `UserDailyQuestProgress` status
 and the `daily_quest_reward` ledger idempotency key.
 
 Daily Quest Runtime v1 is active. `DailyQuestDefinition` remains admin-managed
-system templates, and admins may keep multiple active/passive definitions.
-Runtime shows 1 daily quest per UTC day by selecting the first active definition
-ordered by `sort_order`, `created_at`, and `quest_key`. `title` and
-`description` are display-only; they are never parsed by regex, AI/NLP, free
-text, or scripts. The executable contract is strictly `quest_type +
-target_value`, with v1 `quest_type` limited to `start_solo_attempt`,
-`correct_cards`, `complete_solo_level`, and `use_joker`.
+system templates. `quest_key` is the logical unique key; the platform/manual DB
+constraint should enforce uniqueness where available, and the backend also
+guards create/seed by normalized `quest_key`. Runtime shows 1 daily quest per
+UTC day by grouping duplicate definitions by `quest_key`, choosing one
+canonical active definition by `sort_order`, `created_at`, and stable id, then
+selecting the first logical definition. `title` and `description` are
+display-only; they are never parsed by regex, AI/NLP, free text, or scripts.
+The executable contract is strictly `quest_type + target_value`, with v1
+`quest_type` limited to `start_solo_attempt`, `correct_cards`,
+`complete_solo_level`, and `use_joker`.
 Günlük Görev requires active `DailyQuestDefinition` rows. On a fresh DB, the
 runtime status/progress functions seed the four default Solo-focused
 definitions idempotently only when no definition rows exist; if admins have
 passivated definitions, Home shows a safe empty state instead of granting or
 recreating rewards.
+Admin list is read-only and does not seed defaults on page load/refresh; the
+explicit seed action is idempotent by `quest_key`. Existing duplicate
+definition rows are not auto-deleted. Admin UI shows one canonical row per
+`quest_key` plus a duplicate warning; manual cleanup should keep one canonical
+row and deactivate/delete duplicate rows only after backup/operator approval.
 `getDailyQuestStatus` is authenticated user-owned runtime, not admin-only. It
 creates/fetches only the current user's `UserDailyQuestProgress` rows and keeps
 newly created rows as the response fallback if Base44 read-after-write refresh
@@ -232,7 +240,7 @@ for status, progress, and claim deployability; Daily Quest does not grant
 Kronox Puan and has no leaderboard impact.
 Future versions may expand to multiple quests again if Home UI is redesigned.
 | `DailyWheelSpin` | Daily Reward Wheel claim ledger and streak audit. | `getDailyWheelStatus` reads current day; `claimDailyWheelReward` creates server-backed claim and updates `User.diamonds`. | Audit/idempotency for Daily Wheel; `User.diamonds` is balance source. | Backend service-role functions only for claim; user/admin read by RLS. | Unique idempotency is not guaranteed in repo schema; race proof needs platform unique key or live probe. | Unique `idempotency_key`; unique `user_email + spin_date`; `user_email + claimed_at`; `spin_date`. | Retain/anonymize on account deletion; admin reset removes target test rows; archive old rows after retention policy. | Keep. | N/A. |
-| `DailyQuestDefinition` | Admin-managed Daily Quest v1 templates. | Profile / `Admin Ekranı` / `Günlük Görev Yönetimi` lists definitions and creates new templates through `createDailyQuestDefinition`. | Yes for system quest templates only; not user progress. | `base44/functions/createDailyQuestDefinition/entry.ts`, `src/lib/dbGateway/dailyQuestGateway.js`, `DailyQuestDefinitionManager`. | Admin-only. Backend guard uses `AdminUser` active owner/admin. Normal users cannot view `Admin Ekranı` and cannot create definitions. | Unique `quest_key` where platform supports it; `status`; `sort_order`. | Passive instead of delete for routine removal. | Keep/additive. | Prove active admin can list/create, non-admin and disabled admin receive 403. |
+| `DailyQuestDefinition` | Admin-managed Daily Quest v1 templates. | Profile / `Admin Ekranı` / `Günlük Görev Yönetimi` lists definitions and creates new templates through `createDailyQuestDefinition`. | Yes for system quest templates only; not user progress. | `base44/functions/createDailyQuestDefinition/entry.ts`, `src/lib/dbGateway/dailyQuestGateway.js`, `DailyQuestDefinitionManager`. | Admin-only. Backend guard uses `AdminUser` active owner/admin. Normal users cannot view `Admin Ekranı` and cannot create definitions. Create/seed/list normalize and dedupe by `quest_key`; Admin list never seeds on refresh. | Unique `quest_key` where platform supports it; `status`; `sort_order`; `created_at`. | Passive instead of delete for routine removal. Existing duplicate `quest_key` rows require manual cleanup after backup; no automatic delete is enabled. | Keep/additive. | Prove active admin can list/create, non-admin and disabled admin receive 403; verify refresh/getDailyQuestStatus does not create duplicates. |
 | `UserDailyQuestProgress` | User-owned Daily Quest Runtime v1 per-day progress. | `getDailyQuestStatus` ensures 1 selected UTC-day row; `recordDailyQuestProgress` increments Solo-only events for that selected quest; `claimDailyQuestReward` marks rows claimed and grants Diamonds. | Yes for daily quest progress/claim state. | `base44/functions/getDailyQuestStatus`, `recordDailyQuestProgress`, `claimDailyQuestReward`, `src/lib/dbGateway/dailyQuestGateway.js`, `DailyRewardsPanel`, `Game.jsx`. | User-owned by `user_email`; service functions derive identity from auth context. User cannot claim another user's progress or control reward amount. | Unique `idempotency_key`; `user_email + quest_date + quest_key`; `user_email + quest_date`; `status + quest_date`. | Retain for audit; archive old rows after retention policy. | Keep/additive. | Runtime two-account/RLS and duplicate-claim race proof remain manual. |
 | `OnlineMatchResult` | Per-user online score audit/idempotency. | `applyOnlineResult` creates/checks row before visible score write. | Audit/idempotency; `User.online_progress` is visible score source. | Client helper creates via entity SDK; reads own rows; admin can update/delete. | Logical idempotency key not declared unique in repo. Client-side per-user application means opponent disconnect recovery is limited. | Unique `idempotency_key`; unique `lobby_id + player_email`; `lobby_id`; `player_email + applied_at`. | Retain for audit/reconciliation. Archive after long retention. | Keep but move write authority backend-side. | N/A. |
 | `Lobby` | Authoritative online lobby/game state. | Lobby create/join/start, realtime sync, waiting room, online game state updates. | Yes for online match state. | `LobbyRoom`, `useLobbySync`, `useWaitingRoomSync`, service functions (`findLobbyByCode`, `startLobbyGame`, `updateLobbyGameState`, `acceptGameInvite`). | RLS lets host update; backend service functions also validate host/player. Embedded `players` array makes member lookup hard. | Unique `code`; `host_email + status`; `status + last_activity_at`; `status + updated_at`; `started_at`; `completed_at`; possible `players.email` limitation. | Mark stale waiting lobbies `cancelled`; preserve finished/audit rows. | Keep but refactor projections. | N/A. |
@@ -646,7 +654,7 @@ idempotency.
 | `UserJokerInventory` | unique `user_email + joker_type`; index `user_email` | P0 | One current balance per user per joker type and fast Profile/Solo balance reads. |
 | `JokerTransaction` | unique `idempotency_key` | P0 | Prevent duplicate starter grants and future spends/purchases. |
 | `JokerTransaction` | `user_email + created_at`, `user_email + joker_type` | P1 | audit/history. |
-| `DailyQuestDefinition` | unique `quest_key`; `status + sort_order` | P0 | Stable admin templates and one selected active quest. |
+| `DailyQuestDefinition` | unique `quest_key`; `status + sort_order`; `quest_key + created_at` | P0 | Stable admin templates and one selected active quest. If Base44 cannot enforce uniqueness, service-level guards plus manual cleanup proof are required. |
 | `UserDailyQuestProgress` | unique `idempotency_key`; unique `user_email + quest_date + quest_key` | P0 | One selected user/day quest and duplicate-claim guard. |
 | `UserDailyQuestProgress` | `user_email + quest_date`, `user_email + quest_date + status` | P1 | Home status load and claim/progress queries. |
 | `DailyWheelSpin` | unique `idempotency_key`, unique `user_email + spin_date` | P0 | one spin per user per server day. |

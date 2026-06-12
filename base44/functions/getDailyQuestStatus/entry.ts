@@ -71,6 +71,17 @@ function normalizeQuestType(value: unknown) {
   return QUEST_TYPES.includes(text as typeof QUEST_TYPES[number]) ? text : '';
 }
 
+function normalizeQuestKey(value: unknown) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_')
+    .replace(/[^a-z0-9_]/g, '')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 80);
+}
+
 function utcDateKey(now = new Date()) {
   return now.toISOString().slice(0, 10);
 }
@@ -116,7 +127,7 @@ function publicProgress(row: any) {
 function publicDefinition(row: any) {
   return {
     id: row?.id || null,
-    quest_key: String(row?.quest_key || ''),
+    quest_key: normalizeQuestKey(row?.quest_key),
     title: String(row?.title || ''),
     description: String(row?.description || ''),
     quest_type: normalizeQuestType(row?.quest_type),
@@ -124,6 +135,53 @@ function publicDefinition(row: any) {
     reward_diamonds: Math.max(1, normalizeNumber(row?.reward_diamonds, 1)),
     sort_order: normalizeNumber(row?.sort_order, 0),
     created_at: row?.created_at || row?.created_date || '',
+  };
+}
+
+function canonicalDefinitionSort(a: any, b: any) {
+  const orderA = normalizeNumber(a?.sort_order, 0);
+  const orderB = normalizeNumber(b?.sort_order, 0);
+  if (orderA !== orderB) return orderA - orderB;
+  const createdA = Date.parse(String(a?.created_at || a?.created_date || ''));
+  const createdB = Date.parse(String(b?.created_at || b?.created_date || ''));
+  if (Number.isFinite(createdA) && Number.isFinite(createdB) && createdA !== createdB) {
+    return createdA - createdB;
+  }
+  return String(a?.id || '').localeCompare(String(b?.id || ''), 'tr');
+}
+
+function dedupeDefinitionsByQuestKey(rows: any[] = []) {
+  const grouped = new Map<string, any[]>();
+  for (const row of rows || []) {
+    const definition = publicDefinition(row);
+    if (!definition.id || !definition.quest_key || !definition.quest_type) continue;
+    if (!grouped.has(definition.quest_key)) grouped.set(definition.quest_key, []);
+    grouped.get(definition.quest_key)?.push(definition);
+  }
+  const definitions: any[] = [];
+  const duplicateGroups: any[] = [];
+  for (const [questKey, groupRows] of grouped.entries()) {
+    const sorted = [...groupRows].sort(canonicalDefinitionSort);
+    const primary = sorted[0];
+    const duplicateRows = sorted.slice(1);
+    definitions.push({
+      ...primary,
+      duplicate_count: duplicateRows.length,
+      duplicate_ids: duplicateRows.map((row) => row.id).filter(Boolean),
+      canonical_definition_id: primary.id,
+    });
+    if (duplicateRows.length > 0) {
+      duplicateGroups.push({
+        quest_key: questKey,
+        duplicate_count: duplicateRows.length,
+        canonical_definition_id: primary.id,
+        duplicate_ids: duplicateRows.map((row) => row.id).filter(Boolean),
+      });
+    }
+  }
+  return {
+    definitions: definitions.sort(canonicalDefinitionSort),
+    duplicateGroups,
   };
 }
 
@@ -157,7 +215,7 @@ function sortDefinitions(rows: any[] = []) {
 async function readActiveDefinitions(base44: any) {
   const entity = base44.asServiceRole.entities.DailyQuestDefinition;
   const rows = await entity.filter({ status: 'active' }, 'sort_order', 100).catch(() => []);
-  return sortDefinitions(Array.isArray(rows) ? rows : []);
+  return dedupeDefinitionsByQuestKey(sortDefinitions(Array.isArray(rows) ? rows : []));
 }
 
 async function readAllDefinitions(base44: any) {
@@ -171,10 +229,12 @@ async function readAllDefinitions(base44: any) {
 }
 
 async function findDefinitionByKey(base44: any, questKey: string) {
+  const normalizedQuestKey = normalizeQuestKey(questKey);
   const rows = await base44.asServiceRole.entities.DailyQuestDefinition
-    .filter({ quest_key: questKey }, '-updated_at', 5)
+    .filter({ quest_key: normalizedQuestKey }, '-updated_at', 50)
     .catch(() => []);
-  return Array.isArray(rows) && rows.length ? rows[0] : null;
+  const grouped = dedupeDefinitionsByQuestKey(Array.isArray(rows) ? rows : []);
+  return grouped.definitions.length ? grouped.definitions[0] : null;
 }
 
 async function ensureDefaultDefinitions(base44: any) {
@@ -188,17 +248,33 @@ async function ensureDefaultDefinitions(base44: any) {
   }
   const timestamp = new Date().toISOString();
   const seededDefaultKeys: string[] = [];
+  const existingKeys = new Set(
+    (allDefinitions || [])
+      .map((definition: any) => normalizeQuestKey(definition?.quest_key))
+      .filter(Boolean),
+  );
   for (const definition of DEFAULT_DEFINITIONS) {
+    if (existingKeys.has(definition.quest_key)) continue;
     const existing = await findDefinitionByKey(base44, definition.quest_key);
-    if (existing) continue;
-    await entity.create({
-      ...definition,
-      created_by: 'system:daily_quest_runtime_seed',
-      created_at: timestamp,
-      updated_by: 'system:daily_quest_runtime_seed',
-      updated_at: timestamp,
-    });
-    seededDefaultKeys.push(definition.quest_key);
+    if (existing) {
+      existingKeys.add(definition.quest_key);
+      continue;
+    }
+    try {
+      await entity.create({
+        ...definition,
+        created_by: 'system:daily_quest_runtime_seed',
+        created_at: timestamp,
+        updated_by: 'system:daily_quest_runtime_seed',
+        updated_at: timestamp,
+      });
+      seededDefaultKeys.push(definition.quest_key);
+      existingKeys.add(definition.quest_key);
+    } catch (error) {
+      const afterRace = await findDefinitionByKey(base44, definition.quest_key);
+      if (!afterRace) throw error;
+      existingKeys.add(definition.quest_key);
+    }
   }
   return { seededDefaultKeys, seedMode: seededDefaultKeys.length ? 'default_seed_created' : 'default_seed_existing' };
 }
@@ -271,7 +347,8 @@ async function createProgressRow(base44: any, email: string, dateKey: string, de
 
 async function ensureTodayDailyQuests(base44: any, email: string, dateKey: string) {
   const seedResult = await ensureDefaultDefinitions(base44);
-  const definitions = await readActiveDefinitions(base44);
+  const activeDefinitionPayload = await readActiveDefinitions(base44);
+  const definitions = activeDefinitionPayload.definitions;
   const selectedDefinitions = definitions.slice(0, DAILY_QUESTS_PER_DAY);
   const selectedQuestKeys = new Set(selectedDefinitions.map((definition) => definition.quest_key));
   let rows = await readTodayRows(base44, email, dateKey);
@@ -293,6 +370,8 @@ async function ensureTodayDailyQuests(base44: any, email: string, dateKey: strin
   return {
     definitions: selectedDefinitions,
     activeDefinitionCount: definitions.length,
+    definitionDuplicateGroups: activeDefinitionPayload.duplicateGroups,
+    duplicateDefinitionCount: activeDefinitionPayload.duplicateGroups.reduce((total, group) => total + Number(group.duplicate_count || 0), 0),
     seededDefaultKeys: seedResult.seededDefaultKeys,
     seedMode: seedResult.seedMode,
     rows: rows
@@ -343,6 +422,8 @@ Deno.serve(async (req: Request) => {
       questCount: quests.length,
       dailyQuestLimit: DAILY_QUESTS_PER_DAY,
       activeDefinitionCount,
+      duplicateDefinitionCount: ensured.duplicateDefinitionCount,
+      definitionDuplicateGroups: ensured.definitionDuplicateGroups,
       seededDefaultKeys: ensured.seededDefaultKeys,
       seedMode: ensured.seedMode,
       progressEntitySource: progressEntitySource(base44),
