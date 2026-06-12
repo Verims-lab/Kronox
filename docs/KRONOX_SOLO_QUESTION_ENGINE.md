@@ -176,6 +176,10 @@ P3 adds question analytics without changing question selection:
   is not capped before category balancing. The local question cache version is
   `question-runtime-v4-active-category-full-pool` so stale narrow projections
   are invalidated.
+- Codex330 fix: the global 30% difficulty-1 candidate diagnostics/scorer use
+  the full eligible Solo pool, not only the non-selected category subset.
+  The separate selected-vs-non-selected 70/30 pressure remains soft and
+  pool-proportional; this does not force equal category counts.
 - `QuestionStatsProjection` and `CategoryStatsProjection` refresh remains an
   admin/manual `aggregateQuestionStats` path, defaults to dry-run unless
   explicitly run for write, and is not updated synchronously during gameplay.

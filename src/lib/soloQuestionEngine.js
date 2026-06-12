@@ -359,8 +359,9 @@ function enrichPreferenceContextForGlobalDifficulty(preferenceContext = {}, cand
   const fullEligibleCandidates = candidates || [];
   const selectedCandidates = fullEligibleCandidates
     .filter((question) => isQuestionInUserSelectedCategory(question, context));
-  const globalCandidates = (candidates || [])
+  const nonSelectedCandidates = fullEligibleCandidates
     .filter((question) => !isQuestionInUserSelectedCategory(question, context));
+  const globalCandidates = fullEligibleCandidates;
   const globalDifficultyCandidates = globalCandidates.filter(isGlobalDifficultyTargetQuestion);
   const fullEligibleDifficultyCandidates = fullEligibleCandidates.filter(isGlobalDifficultyTargetQuestion);
   const globalDifficultyYears = new Set(globalDifficultyCandidates
@@ -377,6 +378,7 @@ function enrichPreferenceContextForGlobalDifficulty(preferenceContext = {}, cand
     fullEligibleCandidateCategoryDistribution: buildDistribution(fullEligibleCandidates, getCategoryKey),
     selectedLaneCandidateCategoryDistribution: buildDistribution(selectedCandidates, getCategoryKey),
     globalLaneCandidateCategoryDistribution: buildDistribution(globalCandidates, getCategoryKey),
+    nonSelectedCandidateCategoryDistribution: buildDistribution(nonSelectedCandidates, getCategoryKey),
     globalCandidateCount: globalCandidates.length,
     fullEligibleDifficulty1CandidateCount: fullEligibleDifficultyCandidates.length,
     fullEligibleDifficulty1CandidateYears: fullEligibleDifficultyYears.size,
@@ -408,7 +410,6 @@ function countGlobalCandidateCards(items = [], preferenceContext) {
 
 function countGlobalDifficultyTargetCards(items = [], preferenceContext) {
   return (items || []).reduce((count, question) => {
-    if (isQuestionInUserSelectedCategory(question, preferenceContext)) return count;
     return count + (isGlobalDifficultyTargetQuestion(question) ? 1 : 0);
   }, 0);
 }
@@ -416,7 +417,6 @@ function countGlobalDifficultyTargetCards(items = [], preferenceContext) {
 function scoreGlobalDifficultyTarget(question, selected, options = {}) {
   const context = options.preferenceContext;
   if (!context?.enabled) return 0;
-  if (isQuestionInUserSelectedCategory(question, context)) return 0;
 
   const selectedGlobalCount = countGlobalCandidateCards(selected, context);
   const globalTargetCount = Math.max(0, Number(context.globalTargetCount) || 0);
@@ -1602,6 +1602,7 @@ function buildCategoryPreferenceDiagnostics(candidates = [], selectedDeck = [], 
     fullEligibleCandidateCategoryDistribution: preferenceContext.fullEligibleCandidateCategoryDistribution || buildDistribution(candidates, getCategoryKey),
     selectedLaneCandidateCategoryDistribution: preferenceContext.selectedLaneCandidateCategoryDistribution || {},
     globalLaneCandidateCategoryDistribution: preferenceContext.globalLaneCandidateCategoryDistribution || {},
+    nonSelectedCandidateCategoryDistribution: preferenceContext.nonSelectedCandidateCategoryDistribution || {},
     fullEligibleDifficulty1CandidateCount: preferenceContext.fullEligibleDifficulty1CandidateCount || 0,
     fullEligibleDifficulty1CandidateYears: preferenceContext.fullEligibleDifficulty1CandidateYears || 0,
     fullEligibleDifficulty1CandidateCategoryDistribution: preferenceContext.fullEligibleDifficulty1CandidateCategoryDistribution || {},

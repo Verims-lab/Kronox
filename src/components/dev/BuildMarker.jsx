@@ -1790,7 +1790,13 @@ import React, { useEffect, useState } from 'react';
 //   • Solo diagnostics/Health now prove categories 6,7,8,9,11 can enter rich
 //     preference pools, and the question cache was bumped to invalidate stale
 //     narrow projections.
-const BUILD_MARKER = 'Codex329';
+//
+// Codex330 — Solo global-lane full eligible correction:
+//   • The global difficulty-1 candidate pool now uses the full eligible Solo
+//     pool, while selected-vs-non-selected 70/30 pressure remains soft.
+//   • Health simulation now fails if categories 6,7,8,9,11 are absent from
+//     selected-lane, global-lane, or full eligible difficulty-1 diagnostics.
+const BUILD_MARKER = 'Codex330';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

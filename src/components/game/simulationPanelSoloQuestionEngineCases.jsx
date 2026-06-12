@@ -2219,31 +2219,39 @@ export const EXTRA_TESTS = [
       const requiredSelected = selectedCategoryIds.map(String);
       const missingFromDecks = requiredSelected.filter((id) => !seenDeckCategoryIds.has(id));
       const fullEligibleDifficultyDistribution = lastMeta?.fullEligibleDifficulty1CandidateCategoryDistribution || {};
+      const globalDifficultyDistribution = lastMeta?.globalDifficulty1CandidateCategoryDistribution || {};
       const selectedLaneDistribution = lastMeta?.selectedLaneCandidateCategoryDistribution || {};
+      const globalLaneDistribution = lastMeta?.globalLaneCandidateCategoryDistribution || {};
       const missingFromFullDifficultyPool = requiredSelected.filter((id) => !fullEligibleDifficultyDistribution[id]);
+      const missingFromGlobalDifficultyPool = requiredSelected.filter((id) => !globalDifficultyDistribution[id]);
       const missingFromSelectedLane = requiredSelected.filter((id) => !selectedLaneDistribution[id]);
+      const missingFromGlobalLane = requiredSelected.filter((id) => !globalLaneDistribution[id]);
       const actual = {
         seenDeckCategoryIds: Array.from(seenDeckCategoryIds).sort((a, b) => Number(a) - Number(b)),
         fullEligibleDifficultyDistribution,
+        globalDifficultyDistribution,
         selectedLaneDistribution,
-        globalLaneCandidateCategoryDistribution: lastMeta?.globalLaneCandidateCategoryDistribution,
+        globalLaneCandidateCategoryDistribution: globalLaneDistribution,
+        nonSelectedCandidateCategoryDistribution: lastMeta?.nonSelectedCandidateCategoryDistribution,
         fullEligibleCandidateCategoryDistribution: lastMeta?.fullEligibleCandidateCategoryDistribution,
         missingFromDecks,
         missingFromFullDifficultyPool,
+        missingFromGlobalDifficultyPool,
         missingFromSelectedLane,
+        missingFromGlobalLane,
       };
 
-      if (missingFromDecks.length || missingFromFullDifficultyPool.length || missingFromSelectedLane.length) {
+      if (missingFromDecks.length || missingFromFullDifficultyPool.length || missingFromGlobalDifficultyPool.length || missingFromSelectedLane.length || missingFromGlobalLane.length) {
         return fail('Solo runtime can still starve categories 6-11 from the candidate pool or selected-preference lane.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
-          expected: 'categories 6,7,8,9,11 appear in rich-pool decks and diagnostics before selection',
+          expected: 'categories 6,7,8,9,11 appear in rich-pool decks, selected lane, global lane, global difficulty-1 pool, and full eligible diagnostics before selection',
           actual,
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
 
-      return pass('Rich-pool simulation proves selected categories 6,7,8,9,11 can enter decks and difficulty-1 candidate diagnostics.', {
+      return pass('Rich-pool simulation proves selected categories 6,7,8,9,11 can enter decks, global lane diagnostics, and difficulty-1 candidate diagnostics.', {
         verification: 'RUNTIME_VERIFIED',
         classification: 'RUNTIME_VERIFIED',
         actual,
