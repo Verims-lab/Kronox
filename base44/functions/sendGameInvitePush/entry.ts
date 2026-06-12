@@ -320,8 +320,8 @@ Deno.serve(async (req) => {
         subscriptionCount: subscriptions.length,
       },
     });
-  } catch (error) {
-    console.error('[sendGameInvitePush] error:', (error as Error)?.message || error);
-    return json({ ok: false, error: 'Push notification failed' }, 500);
+  } catch {
+    console.error('[sendGameInvitePush] error:', { reason: 'push_invite_failed' });
+    return json({ ok: false, error: 'Push notification failed', reason: 'push_invite_failed' }, 500);
   }
 });

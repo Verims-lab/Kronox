@@ -11,20 +11,6 @@ function normalizeEmail(value: unknown) {
   return String(value || '').trim().toLowerCase();
 }
 
-function getConfiguredEmails(name: string) {
-  return String(Deno.env.get(name) || '')
-    .split(',')
-    .map(normalizeEmail)
-    .filter(Boolean);
-}
-
-function getResettableTestEmails() {
-  return [
-    ...getConfiguredEmails('KRONOX_TEST_RESET_EMAILS'),
-    ...getConfiguredEmails('TEST_RESET_EMAILS'),
-  ];
-}
-
 function ownerKeyFromEmail(rawEmail: unknown) {
   const email = normalizeEmail(rawEmail);
   if (!email) return '';
@@ -129,17 +115,23 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     const adminAuth = await requireAdmin(base44);
     if (adminAuth.response) return adminAuth.response;
-    const actor = adminAuth.user;
 
     const body = await req.json().catch(() => ({}));
     const targetEmail = normalizeEmail(body?.targetEmail || body?.email);
-    const resettableEmails = getResettableTestEmails();
-    if (!targetEmail || !resettableEmails.includes(targetEmail)) {
+    const confirmEmail = normalizeEmail(body?.confirmEmail);
+    if (!targetEmail) {
       return json({
         ok: false,
-        code: 'test_account_not_allowlisted',
-        error: 'Bu test hesabı sıfırlama için allowlist içinde değil.',
-      }, 403);
+        code: 'missing_target_email',
+        error: 'Hedef test hesabı e-postası gerekli.',
+      }, 400);
+    }
+    if (confirmEmail !== targetEmail) {
+      return json({
+        ok: false,
+        code: 'confirmation_mismatch',
+        error: 'Onay e-postası hedef test hesabı e-postası ile birebir aynı olmalı.',
+      }, 400);
     }
 
     const users = await safeFilter(base44, 'User', { email: targetEmail }, '-created_date', 5);
@@ -164,14 +156,27 @@ Deno.serve(async (req) => {
 
     return json({
       ok: true,
+      authorization: {
+        source: 'AdminUser',
+        role: adminAuth.adminRole,
+        status: 'active',
+      },
       reset: {
         user: true,
         leaderboard,
         fields: Object.keys(patch),
+        scope: [
+          'User.solo_progress',
+          'User.online_progress',
+          'User.kronox_puan_total',
+          'User.diamonds',
+          'User.daily reward guard fields',
+          'SoloLeaderboardEntry score/progress projection',
+        ],
       },
     });
-  } catch (error) {
-    console.error('[resetTestAccountProgress] failed', error);
+  } catch {
+    console.error('[resetTestAccountProgress] failed', { reason: 'test_account_reset_failed' });
     return json({
       ok: false,
       code: 'test_account_reset_failed',

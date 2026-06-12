@@ -16,10 +16,15 @@ import adminSource from '../../lib/admin.js?raw';
 import gameInviteSelectorsSource from '../../lib/gameInviteSelectors.js?raw';
 import adminAuthSource from '../../../base44/functions/_shared/adminAuth.ts?raw';
 import sendGameInvitePushSource from '../../../base44/functions/sendGameInvitePush/entry.ts?raw';
+import resetTestAccountProgressSource from '../../../base44/functions/resetTestAccountProgress/entry.ts?raw';
 import generateTechDocSource from '../../../base44/functions/generateTechDoc/entry.ts?raw';
 import generateWorkflowDocSource from '../../../base44/functions/generateWorkflowDoc/entry.ts?raw';
 import seedQuestionCategoriesSource from '../../../base44/functions/seedQuestionCategories/entry.ts?raw';
 import caseRegistrySource from './simulationPanelCaseRegistry.jsx?raw';
+import {
+  SECURITY_DEPLOYMENT_DOC as securityDeploymentDocSource,
+  RELEASE_PROOF_CHECKLIST_DOC as releaseProofChecklistSource,
+} from '@/lib/healthAlignmentDocMirrors';
 
 const SUITE_ID = 'security_cleanup_health';
 const SUITE_NAME = 'Security Cleanup Health Suite';
@@ -40,6 +45,7 @@ const LIVE_SOURCES = [
   gameInviteSelectorsSource,
   adminAuthSource,
   sendGameInvitePushSource,
+  resetTestAccountProgressSource,
   generateTechDocSource,
   generateWorkflowDocSource,
   seedQuestionCategoriesSource,
@@ -180,6 +186,7 @@ export const EXTRA_TESTS = [
         'missingCount',
         'invalidCount',
         'sanitizePushErrorReason',
+        'push_invite_failed',
         'webpush.setVapidDetails(config.subject, config.publicKey, config.privateKey)',
       ];
       const forbidden = [
@@ -192,6 +199,7 @@ export const EXTRA_TESTS = [
         /Deno\.env\.get\('VITE_[^']*(?:PRIVATE|SECRET|TOKEN)[^']*'\)/,
         /console\.(?:log|warn|error)\([^;]*(?:config\.privateKey|privateKey|KRONOX_VAPID_PRIVATE_KEY)/,
         /return\s+json\(\{[\s\S]{0,500}privateKey\s*:/,
+        /console\.error\([^;]*(?:\.message|\|\|\s*error|,\s*error)/,
         /acceptedEnvNames/,
         /missingConfig:\s*config\.missing/,
         /invalidConfig:\s*config\.invalid/,
@@ -229,6 +237,7 @@ export const EXTRA_TESTS = [
         'missingConfig: true',
         'missingCount',
         'invalidCount',
+        'push_invite_failed',
       ];
       const forbidden = [
         /VITE_[A-Z0-9_]*VAPID_PRIVATE_KEY/,
@@ -237,6 +246,7 @@ export const EXTRA_TESTS = [
         /import\.meta\.env\.[A-Z0-9_]*VAPID_PRIVATE_KEY/,
         /console\.(?:log|warn|error)\([^;]*(?:config\.privateKey|privateKey|KRONOX_VAPID_PRIVATE_KEY)/,
         /return\s+json\(\{[\s\S]{0,500}privateKey\s*:/,
+        /console\.error\([^;]*(?:\.message|\|\|\s*error|,\s*error)/,
         /privateKey\s*:\s*['"][^'"]{12,}['"]/,
         /acceptedEnvNames/,
         /missingConfig:\s*config\.missing/,
@@ -289,6 +299,75 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Missing VAPID config is handled as a best-effort push skip.', {
+        verification: 'STATIC_CONTRACT',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('reset_test_account_progress_env_allowlist_removed',
+    'resetTestAccountProgress uses AdminUser authorization, not KRONOX_TEST_RESET_EMAILS',
+    () => {
+      const required = [
+        'requireAdmin(base44)',
+        "source: 'AdminUser'",
+        'confirmEmail',
+        'confirmation_mismatch',
+        'base44.asServiceRole.entities.User.update',
+        'updateSoloLeaderboardRows',
+      ];
+      const forbidden = [
+        'KRONOX_TEST_RESET_EMAILS',
+        'TEST_RESET_EMAILS',
+        'getConfiguredEmails',
+        'getResettableTestEmails',
+        'test_account_not_allowlisted',
+        'body?.role',
+        'user.role',
+      ].filter((token) => resetTestAccountProgressSource.includes(token));
+      const missing = missingTokens(resetTestAccountProgressSource, required);
+      if (missing.length || forbidden.length) {
+        return fail('resetTestAccountProgress still has unsafe test-reset authorization markers.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'base44/functions/resetTestAccountProgress/entry.ts',
+          expected: 'AdminUser-backed requireAdmin, exact target confirmation, no KRONOX_TEST_RESET_EMAILS / TEST_RESET_EMAILS runtime authorization',
+          actual: { missing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('resetTestAccountProgress no longer reads env email allowlists and remains AdminUser-gated.', {
+        verification: 'STATIC_CONTRACT',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('vapid_public_and_subject_docs_aligned',
+    'VAPID public key and subject scanner context is documented accurately',
+    () => {
+      const combined = `${securityDeploymentDocSource}\n${releaseProofChecklistSource}`;
+      const required = [
+        'VAPID_PUBLIC_KEY',
+        'public-by-design',
+        'config-managed',
+        'VAPID_SUBJECT',
+        'contact/config metadata',
+        'must not be logged',
+        'VAPID_PRIVATE_KEY',
+        'server-only',
+        'never logged, returned',
+      ];
+      const missing = missingTokens(combined, required);
+      if (missing.length) {
+        return fail('VAPID public/subject scanner context docs are incomplete.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          files: ['docs/KRONOX_SECURITY_DEPLOYMENT.md', 'docs/KRONOX_RELEASE_PROOF_CHECKLIST.md'],
+          expected: 'Private key server-only; public key public-by-design/config-managed; subject contact/config metadata and not logged.',
+          actual: { missing },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('VAPID private/public/subject distinctions are documented for scanner triage and release proof.', {
         verification: 'STATIC_CONTRACT',
         actionType: ACTION_TYPES.CODE_FIX,
       });
