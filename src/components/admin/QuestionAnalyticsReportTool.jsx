@@ -23,8 +23,7 @@ function errorMessageFromBody(body, fallback) {
   if (code === 'Authentication required') return 'Oturum doğrulaması gerekli.';
   if (code === 'email_failed') return `E-posta gönderimi başarısız oldu${body?.safeErrorReason ? `: ${body.safeErrorReason}` : '.'}`;
   if (code === 'recipient_override_not_allowed') return 'Rapor yalnızca isteği yapan aktif adminin e-posta adresine gönderilebilir.';
-  if (code === 'report_pdf_generation_failed') return 'Rapor PDF eki oluşturulamadı; backend template/deploy kontrol edilmeli.';
-  if (code === 'report_body_or_pdf_validation_failed') return 'Rapor gövdesi veya PDF eki doğrulanamadı; backend template/deploy kontrol edilmeli.';
+  if (code === 'report_body_validation_failed') return 'Rapor gövdesi doğrulanamadı; backend template/deploy kontrol edilmeli.';
   if (code) return `${fallback} (${code})`;
   return fallback;
 }
@@ -85,9 +84,7 @@ export default function QuestionAnalyticsReportTool() {
       const recipient = result?.recipientEmail ? ` ${result.recipientEmail} adresine` : '';
       const template = result?.templateVersion ? ` Şablon: ${result.templateVersion}.` : '';
       const dispatch = result?.emailDispatchStatus ? ` Gönderim: ${result.emailDispatchStatus}.` : '';
-      const pdfFilename = result?.pdfFilename || result?.pdfAttachmentFilename;
-      const attachment = pdfFilename ? ` PDF eki: ${pdfFilename}.` : '';
-      setMessage(`Soru analiz raporu${recipient} gönderildi.${template}${dispatch}${attachment}`);
+      setMessage(`Soru analiz raporu${recipient} gönderildi.${template}${dispatch}`);
     } catch (err) {
       setMessage('');
       setError(err?.message || 'Rapor gönderilemedi. Lütfen tekrar dene.');

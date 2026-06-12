@@ -13,7 +13,7 @@
 //     • It must not import the local shared admin guard via the broken
 //       './_shared/adminAuth.js' / './_shared/adminAuth.ts' form.
 //     • The analytics report function must inline an AdminUser-backed guard
-//       (proven deployable) and keep the summary-email/PDF markers.
+//       (proven deployable) and keep the full email-body report markers.
 //     • Every frontend gateway invocation name maps to a real backend
 //       function (no missing / stale function names).
 //
@@ -207,44 +207,56 @@ export const EXTRA_TESTS = [
       });
     }),
 
-  makeCase('deployed_report_keeps_summary_pdf_markers',
-    'Deployed analytics report function keeps summary-email/PDF markers and diagnostics',
+  makeCase('deployed_report_keeps_full_email_report_markers',
+    'Deployed analytics report function keeps full email-body markers and diagnostics',
     () => {
       const required = [
-        'REPORT_TEMPLATE_VERSION = "product-intel-pdf-v2"',
-        'PDF_ATTACHMENT_CONTENT_TYPE = "application/pdf"',
-        'REPORT_ATTACHMENT_NOTICE',
-        'buildQuestionAnalyticsPdfAttachment',
+        'REPORT_TEMPLATE_VERSION = "product-intel-email-v3"',
         'bodyContainsExecutiveSummary',
-        'bodyContainsPdfAttachmentNotice',
+        'bodyContainsProductIntelligenceSections',
         'bodyRemovedSectionsPresent',
-        'pdfRemovedSectionsPresent',
-        'pdfGenerated',
-        'attachmentCount',
-        'pdfFilename',
-        'pdfSizeBytes',
-        'pdfAttachmentGenerated',
-        'buildSendEmailAttachmentPayload',
-        'attachments: emailAttachments',
-        'contentType: pdfAttachment.contentType',
-        'encoding: "base64"',
+        'report_body_validation_failed',
+        'emailBodyMode: "full_product_intelligence_email"',
+        'reportDeliveryMode: "email_body_only"',
+        'missingBodySections',
+        'bodyLength',
+        'Genel Kullanım Özeti',
+        'Solo Soru Algoritması İçin Sinyaller',
+        'Doğru Soru Tiplerini Öğrenme / İçerik Kalitesi',
+        'Joker Kullanımı Analizi',
+        'Oynanma Zamanı ve Kullanım Ritmi',
+        'Daha Uzun Oynama / Retention Sinyalleri',
+        'Soru / İçerik Aksiyonları',
+        'Önerilen Aksiyonlar',
+        'Data Quality / Eksik Ölçüm',
         'body: emailHtml',
         'html: emailHtml',
       ];
       const missing = missingTokens(deployedReportSource, required);
+      const forbidden = forbiddenTokens(deployedReportSource, [
+        'PDF Eki',
+        'Detaylı rapor PDF olarak ekte yer almaktadır',
+        'PDF_ATTACHMENT_CONTENT_TYPE',
+        'buildQuestionAnalyticsPdfAttachment',
+        'buildSendEmailAttachmentPayload',
+        'attachments: emailAttachments',
+        'application/pdf',
+        'pdfGenerated',
+        'attachmentCount',
+      ]);
       const emailOrderOk = text(deployedReportSource).indexOf('safeSectionHtml("Yönetici Özeti"') >= 0
-        && text(deployedReportSource).indexOf('safeSectionHtml("PDF Eki"') > text(deployedReportSource).indexOf('safeSectionHtml("Yönetici Özeti"');
-      if (missing.length || !emailOrderOk) {
-        return fail('Deployed report function lost the summary/PDF template markers or the compact email ordering.', {
+        && text(deployedReportSource).indexOf('safeSectionHtml("Genel Kullanım Özeti"') > text(deployedReportSource).indexOf('safeSectionHtml("Yönetici Özeti"');
+      if (missing.length || forbidden.length || !emailOrderOk) {
+        return fail('Deployed report function lost the full email-body template markers or restored the attachment contract.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
-          expected: 'product-intel-pdf-v2 markers + PDF attachment diagnostics + compact email sections',
-          actual: { missing, emailOrderOk },
+          expected: 'product-intel-email-v3 markers + full report sections + no attachment payload',
+          actual: { missing, forbidden, emailOrderOk },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Deployed report function keeps summary/PDF markers, body diagnostics, and the PDF attachment contract.', {
+      return pass('Deployed report function keeps full email-body markers, body diagnostics, and no attachment requirement.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
@@ -478,11 +490,11 @@ export const EXTRA_TESTS = [
   makeCase('npm_build_is_not_backend_deploy_proof',
     'Backend deploy proof is manual: npm run build only validates the Vite frontend',
     () => notAutomatable(
-      'npm run build validates only the Vite frontend bundle and does NOT prove Base44 backend functions deployed. Real backend deploy proof requires triggering the function and reading its live response/markers (e.g. sendQuestionAnalyticsReportEmail must return templateVersion: product-intel-pdf-v2, emailBodyMode: summary_only, pdfGenerated true, attachmentCount >= 1, pdfFilename ending .pdf, pdfSizeBytes > 0, and PDF attachment diagnostics). Do this manually in a safe/admin context before release.',
+      'npm run build validates only the Vite frontend bundle and does NOT prove Base44 backend functions deployed. Real backend deploy proof requires triggering the function and reading its live response/markers (e.g. sendQuestionAnalyticsReportEmail must return templateVersion: product-intel-email-v3, emailBodyMode: full_product_intelligence_email, reportDeliveryMode: email_body_only, bodyContainsProductIntelligenceSections true, and bodyLength > 1000). Do this manually in a safe/admin context before release.',
       {
         verification: 'BACKEND_RUNTIME_PROBE',
         actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE,
-        nextStep: 'As admin, trigger sendQuestionAnalyticsReportEmail and confirm templateVersion=product-intel-pdf-v2, emailBodyMode=summary_only, pdfGenerated=true, attachmentCount>=1, pdfFilename ends .pdf, pdfSizeBytes>0, and the received PDF attachment opens.',
+        nextStep: 'As admin, trigger sendQuestionAnalyticsReportEmail and confirm templateVersion=product-intel-email-v3, emailBodyMode=full_product_intelligence_email, reportDeliveryMode=email_body_only, required sections are present, removed sections are absent, and the received email body is useful without an attachment.',
       },
     ),
     { critical: true, actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),

@@ -650,26 +650,26 @@ Security contract:
 * job execution is logged to `AdminMaintenanceLog` when not dry-run
 * automatic scheduling is a deployment/platform decision and is not enabled by
   repo code alone
-* `sendQuestionAnalyticsReportEmail` is manual/admin-triggered only, sends a
-  short question-focused summary email to the authenticated admin email, attaches
-  the cleaned detailed report as an `application/pdf` PDF, and must not expose
-  user-level surveillance data to normal users. It is registered at
+* `sendQuestionAnalyticsReportEmail` is manual/admin-triggered only, sends the
+  full useful question/product intelligence report inside the authenticated
+  admin email body, does not send or claim a PDF attachment for now, and must
+  not expose user-level surveillance data to normal users. It is registered at
   `base44/functions/sendQuestionAnalyticsReportEmail/entry.ts` with
   `base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc`. This
   callable report function inlines the DB-backed AdminUser guard for the
   current Base44 function runtime. Frontend build success does not prove the
   Base44 backend function was redeployed; live proof must trigger the function
-  as an active admin and confirm `templateVersion: product-intel-pdf-v2`,
-  `emailBodyMode: summary_only`, `pdfGenerated: true`, `attachmentCount >= 1`,
-  `pdfFilename` ends `.pdf`, `pdfSizeBytes > 0`, and that the received PDF
-  attachment opens. If Gmail does not show the attachment, release proof fails.
+  as an active admin and confirm `templateVersion: product-intel-email-v3`,
+  `emailBodyMode: full_product_intelligence_email`, `reportDeliveryMode:
+  email_body_only`, `bodyContainsProductIntelligenceSections: true`, and that
+  the received email body is readable, non-empty, and does not mention a PDF
+  attachment.
 * every active `AdminUser` row with role `admin` or `owner` can request the
   report; the recipient is the requesting admin's authenticated normalized
   email, not a hardcoded owner address or `created_by`
 * the function response and Admin Ekranı UI surface safe `requestedBy`,
-  `recipientEmail`, `emailDispatchStatus`, template, summary-body,
-  PDF-attachment, and body/PDF validation diagnostics so a failed dispatch is
-  not shown as generic success
+  `recipientEmail`, `emailDispatchStatus`, template, full-body section, and body
+  validation diagnostics so a failed dispatch is not shown as generic success
 * sent question analytics reports include product-intelligence sections for Solo
   algorithm signals, question-type/content quality, joker usage, play-time
   rhythm, longer-session/retention signals, recommended actions, and missing

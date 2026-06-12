@@ -181,8 +181,7 @@ export const EXTRA_TESTS = [
       const removedOutputMissing = missingTokens(reportFunctionSource, [
         'REMOVED_REPORT_SECTION_TITLES',
         'bodyRemovedSectionsPresent',
-        'pdfRemovedSectionsPresent',
-        'report_body_or_pdf_validation_failed',
+        'report_body_validation_failed',
       ]);
       const combined = `${reportFunctionSource}\n${adminAuthSource}`;
       const missing = missingTokens(combined, [
@@ -200,33 +199,25 @@ export const EXTRA_TESTS = [
         'Kronox Soru Analiz Raporu —',
         'Kronox Soru Analiz Raporu',
         'Yönetici Özeti',
-        'Öne Çıkan Bulgular',
-        'Öncelikli Aksiyonlar',
-        'PDF Eki',
         'safeSectionHtml',
         'htmlSections',
         'section_render_failed',
-        'REPORT_TEMPLATE_VERSION = "product-intel-pdf-v2"',
-        'PDF_ATTACHMENT_CONTENT_TYPE = "application/pdf"',
-        'REPORT_ATTACHMENT_NOTICE',
-        'buildQuestionAnalyticsPdfAttachment',
-        'PDFDocument.create()',
-        'buildSendEmailAttachmentPayload',
-        'attachments: emailAttachments',
-        'filename: pdfAttachment.filename',
-        'content: pdfAttachment.base64',
-        'contentType: pdfAttachment.contentType',
-        'encoding: "base64"',
+        'REPORT_TEMPLATE_VERSION = "product-intel-email-v3"',
         'bodyContainsExecutiveSummary',
-        'bodyContainsPdfAttachmentNotice',
-        'emailBodyMode: "summary_only"',
+        'bodyContainsProductIntelligenceSections',
+        'emailBodyMode: "full_product_intelligence_email"',
+        'reportDeliveryMode: "email_body_only"',
+        'missingBodySections',
+        'bodyLength',
+        'Genel Kullanım Özeti',
         'Solo Soru Algoritması İçin Sinyaller',
-        'Doğru Soru Tipi / İçerik Kalitesi',
+        'Doğru Soru Tiplerini Öğrenme / İçerik Kalitesi',
         'Joker Kullanımı Analizi',
         'Oynanma Zamanı ve Kullanım Ritmi',
         'Daha Uzun Oynama / Retention Sinyalleri',
-        'Data Quality and Missing Instrumentation',
+        'Soru / İçerik Aksiyonları',
         'Önerilen Aksiyonlar',
+        'Data Quality / Eksik Ölçüm',
         'AdminMaintenanceLog.create',
       ]);
       const manifestMissing = missingTokens(reportFunctionManifestSource, [
@@ -240,7 +231,7 @@ export const EXTRA_TESTS = [
           missing: [...missing, ...sectionMissing, ...removedOutputMissing, ...manifestMissing],
         });
       }
-      return pass('Manual report function is admin-gated, summary-only in email, and prepares a PDF attachment for details.', {
+      return pass('Manual report function is admin-gated and sends the full product-intelligence report in the email body.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -254,30 +245,27 @@ export const EXTRA_TESTS = [
         'getAdminAuthorization',
         'entities?.AdminUser',
         'Question.list',
-        'REPORT_TEMPLATE_VERSION = "product-intel-pdf-v2"',
-        'PDF_ATTACHMENT_CONTENT_TYPE = "application/pdf"',
-        'REPORT_ATTACHMENT_NOTICE',
+        'REPORT_TEMPLATE_VERSION = "product-intel-email-v3"',
         'REMOVED_REPORT_SECTION_TITLES',
-        'buildQuestionAnalyticsPdfAttachment',
-        'buildSendEmailAttachmentPayload',
-        'pdfGenerated',
-        'attachmentCount',
-        'pdfFilename',
-        'pdfSizeBytes',
-        'pdfAttachmentGenerated',
         'bodyContainsExecutiveSummary',
-        'bodyContainsPdfAttachmentNotice',
         'bodyRemovedSectionsPresent',
-        'pdfRemovedSectionsPresent',
-        'report_body_or_pdf_validation_failed',
+        'bodyContainsProductIntelligenceSections',
+        'report_body_validation_failed',
+        'emailBodyMode: "full_product_intelligence_email"',
+        'reportDeliveryMode: "email_body_only"',
         'body: emailHtml',
         'html: emailHtml',
-        'attachments: emailAttachments',
-        'contentType: pdfAttachment.contentType',
-        'encoding: "base64"',
-        'safeSectionHtml("Öne Çıkan Bulgular"',
-        'safeSectionHtml("PDF Eki"',
-        'pdfSections',
+        'safeSectionHtml("Yönetici Özeti"',
+        'safeSectionHtml("Genel Kullanım Özeti"',
+        'safeSectionHtml("Solo Soru Algoritması İçin Sinyaller"',
+        'safeSectionHtml("Doğru Soru Tiplerini Öğrenme / İçerik Kalitesi"',
+        'safeSectionHtml("Joker Kullanımı Analizi"',
+        'safeSectionHtml("Oynanma Zamanı ve Kullanım Ritmi"',
+        'safeSectionHtml("Daha Uzun Oynama / Retention Sinyalleri"',
+        'safeSectionHtml("Soru / İçerik Aksiyonları"',
+        'safeSectionHtml("Önerilen Aksiyonlar"',
+        'safeSectionHtml("Data Quality / Eksik Ölçüm"',
+        'reportSections',
         'textLines.join(\'\\n\')',
       ]);
       const emailForbidden = QUESTION_ANALYTICS_REMOVED_REPORT_SECTIONS.filter((section) => {
@@ -292,6 +280,15 @@ export const EXTRA_TESTS = [
         'bodyContainsStaticPoolSection',
         'bodyContainsTemplateMarker',
         'bodyContainsQuestionSourceMarker',
+        'PDF Eki',
+        'Detaylı rapor PDF olarak ekte yer almaktadır',
+        'PDF_ATTACHMENT_CONTENT_TYPE',
+        'buildQuestionAnalyticsPdfAttachment',
+        'buildSendEmailAttachmentPayload',
+        'attachments: emailAttachments',
+        'application/pdf',
+        'pdfGenerated',
+        'attachmentCount',
       ]);
       if (missing.length || emailForbidden.length || forbidden.length) {
         return fail('Callable report entrypoint can drift into an old report implementation or wrapper-only package.', {
@@ -300,7 +297,7 @@ export const EXTRA_TESTS = [
           actual: { missing, emailForbidden, forbidden },
         });
       }
-      return pass('Callable report entrypoint contains the current summary email plus PDF attachment implementation.', {
+      return pass('Callable report entrypoint contains the current full email-body report implementation with no attachment requirement.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -344,11 +341,9 @@ export const EXTRA_TESTS = [
         'result?.emailDispatchStatus',
           'email_failed',
           'recipient_override_not_allowed',
-          'report_pdf_generation_failed',
-          'report_body_or_pdf_validation_failed',
+          'report_body_validation_failed',
           'adresine',
           'Gönderim:',
-          'PDF eki:',
         ]);
       if (perFunctionMissing.length || uiMissing.length) {
         return fail('Question Analytics report may still send to a stale/hardcoded recipient or hide SendEmail dispatch failures.', {
@@ -430,7 +425,7 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('analytics_report_includes_category_level_question_and_preference_analysis',
-    'Question Analytics PDF keeps aggregate category/question signals without static inventory sections',
+    'Question Analytics email keeps aggregate category/question signals without static inventory sections',
     () => {
       const actualReportBody = reportFunctionSource;
       const missing = missingTokens(actualReportBody, [
@@ -452,17 +447,16 @@ export const EXTRA_TESTS = [
         'neverShownSoloEligibleCount',
         'buildCategoryFairnessSignals',
         'CATEGORY_FAIRNESS_SIGNAL_LIMIT',
-        'pdfSections',
-        'PDF_ATTACHMENT_CONTENT_TYPE',
+        'reportSections',
         'productIntelligenceReport',
         'categoryAnalyticsRowsAnalyzed',
         'aggregatePreferenceSelectionsAnalyzed',
         'Solo Soru Algoritması İçin Sinyaller',
-        'Doğru Soru Tipi / İçerik Kalitesi',
+        'Doğru Soru Tiplerini Öğrenme / İçerik Kalitesi',
         'role="presentation"',
-        'Öncelikli Aksiyonlar',
-        'PDF Eki',
-        'REPORT_ATTACHMENT_NOTICE',
+        'Soru / İçerik Aksiyonları',
+        'Önerilen Aksiyonlar',
+        'emailBodyMode: "full_product_intelligence_email"',
         'categoryAnalytics',
       ]);
       const forbidden = forbiddenTokens(actualReportBody, [
@@ -486,25 +480,28 @@ export const EXTRA_TESTS = [
       });
     }),
 
-  makeCase('product_intelligence_pdf_sections_exist',
-    'Question Analytics PDF includes product-intelligence sections and rejects legacy inventory sections',
+  makeCase('product_intelligence_email_sections_exist',
+    'Question Analytics email includes product-intelligence sections and rejects legacy inventory sections',
     () => {
       const actualReportBody = reportFunctionSource;
       const missing = missingTokens(actualReportBody, [
-        'pdfSections',
+        'reportSections',
         'Yönetici Özeti',
         'Genel Kullanım Özeti',
         'Solo Soru Algoritması İçin Sinyaller',
-        'Doğru Soru Tipi / İçerik Kalitesi',
+        'Doğru Soru Tiplerini Öğrenme / İçerik Kalitesi',
         'Joker Kullanımı Analizi',
         'Oynanma Zamanı ve Kullanım Ritmi',
         'Daha Uzun Oynama / Retention Sinyalleri',
-        'Data Quality and Missing Instrumentation',
+        'Soru / İçerik Aksiyonları',
         'Önerilen Aksiyonlar',
+        'Data Quality / Eksik Ölçüm',
         'questionTypeSignalCount',
         'jokerLedgerRowsAnalyzed',
         'peakPlayHourCount',
         'missingInstrumentation',
+        'bodyContainsProductIntelligenceSections',
+        'reportDeliveryMode: "email_body_only"',
       ]);
       const forbidden = forbiddenTokens(actualReportBody, [
         'QuestionStatsProjection.list',
@@ -518,70 +515,69 @@ export const EXTRA_TESTS = [
         'title: "Kategori İçi Soru Analizi"',
       ]);
       if (missing.length || forbidden.length) {
-        return fail('Product intelligence PDF may be missing useful decision sections or may have restored legacy inventory sections.', {
+        return fail('Product intelligence email may be missing useful decision sections or may have restored legacy inventory sections.', {
           verification: 'STATIC_CONTRACT',
           files: ['base44/functions/sendQuestionAnalyticsReportEmail/entry.ts'],
           actual: { missing, forbidden },
         });
       }
-      return pass('PDF builder contains product-intelligence sections for algorithm, content quality, jokers, timing, retention, actions, and missing data.', {
+      return pass('Email builder contains product-intelligence sections for algorithm, content quality, jokers, timing, retention, actions, and missing data.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
 
   makeCase('analytics_report_removed_sections_are_not_rendered',
-    'Removed Question Analytics sections are not rendered in email or PDF output',
+    'Removed Question Analytics sections are not rendered in email output',
     () => {
       const missing = missingTokens(reportFunctionSource, [
         'REMOVED_REPORT_SECTION_TITLES',
         'findRemovedReportSections',
         'bodyRemovedSectionsPresent',
-        'pdfRemovedSectionsPresent',
-        'report_body_or_pdf_validation_failed',
+        'report_body_validation_failed',
         'removedReportSections',
       ]);
       const renderedForbidden = QUESTION_ANALYTICS_REMOVED_REPORT_SECTIONS.filter((section) => {
         const htmlRendered = reportFunctionSource.includes(`safeSectionHtml("${section}"`);
         const textRendered = reportFunctionSource.includes(`--- ${section} ---`);
-        const pdfRendered = reportFunctionSource.includes(`title: "${section}"`);
-        return htmlRendered || textRendered || pdfRendered;
+        const sectionRendered = reportFunctionSource.includes(`title: "${section}"`);
+        return htmlRendered || textRendered || sectionRendered;
       });
       if (missing.length || renderedForbidden.length) {
-        return fail('Removed report sections can still appear in the generated email/PDF body.', {
+        return fail('Removed report sections can still appear in the generated email body.', {
           verification: 'STATIC_CONTRACT',
           files: ['base44/functions/sendQuestionAnalyticsReportEmail/entry.ts'],
           actual: { missing, renderedForbidden },
         });
       }
-      return pass('The report function keeps removed section titles only as forbidden-section validation and does not render them as email/PDF sections.', {
+      return pass('The report function keeps removed section titles only as forbidden-section validation and does not render them as email sections.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
 
-  makeCase('email_report_is_summary_only_with_pdf_attachment_notice',
-    'Question Analytics email is summary-only and points to the PDF attachment',
+  makeCase('email_report_is_full_body_without_attachment_notice',
+    'Question Analytics email contains the full product report and no attachment notice',
     () => {
       const src = reportFunctionSource;
       const orderedPairs = [
-        ['safeSectionHtml("Yönetici Özeti"', 'safeSectionHtml("Öne Çıkan Bulgular"'],
-        ['safeSectionHtml("Öne Çıkan Bulgular"', 'safeSectionHtml("Öncelikli Aksiyonlar"'],
-        ['safeSectionHtml("Öncelikli Aksiyonlar"', 'safeSectionHtml("PDF Eki"'],
+        ['safeSectionHtml("Yönetici Özeti"', 'safeSectionHtml("Genel Kullanım Özeti"'],
+        ['safeSectionHtml("Genel Kullanım Özeti"', 'safeSectionHtml("Solo Soru Algoritması İçin Sinyaller"'],
+        ['safeSectionHtml("Solo Soru Algoritması İçin Sinyaller"', 'safeSectionHtml("Doğru Soru Tiplerini Öğrenme / İçerik Kalitesi"'],
       ];
       const missing = missingTokens(src, [
-        'REPORT_ATTACHMENT_NOTICE',
-        'Detaylı rapor PDF olarak ekte yer almaktadır.',
-        'PDF_ATTACHMENT_CONTENT_TYPE = "application/pdf"',
-        'emailBodyMode: "summary_only"',
-        'bodyContainsPdfAttachmentNotice',
-        'pdfFilename',
-        'attachmentContentType',
+        'emailBodyMode: "full_product_intelligence_email"',
+        'reportDeliveryMode: "email_body_only"',
+        'bodyContainsProductIntelligenceSections',
+        'missingBodySections',
         'Yönetici Özeti',
-        'Öne Çıkan Bulgular',
-        'Öncelikli Aksiyonlar',
-        'PDF Eki',
-        '--- Öne Çıkan Bulgular ---',
-        '--- Öncelikli Aksiyonlar ---',
-        '--- PDF Eki ---',
+        'Genel Kullanım Özeti',
+        'Solo Soru Algoritması İçin Sinyaller',
+        'Doğru Soru Tiplerini Öğrenme / İçerik Kalitesi',
+        'Joker Kullanımı Analizi',
+        'Oynanma Zamanı ve Kullanım Ritmi',
+        'Daha Uzun Oynama / Retention Sinyalleri',
+        'Soru / İçerik Aksiyonları',
+        'Önerilen Aksiyonlar',
+        'Data Quality / Eksik Ölçüm',
       ]);
       const orderFailures = orderedPairs.filter(([first, second]) => {
         const firstIndex = src.indexOf(first);
@@ -590,14 +586,22 @@ export const EXTRA_TESTS = [
         return firstIndex >= secondIndex;
       });
       const renderedForbidden = QUESTION_ANALYTICS_REMOVED_REPORT_SECTIONS.filter((section) => src.includes(`safeSectionHtml("${section}"`) || src.includes(`--- ${section} ---`));
-      if (missing.length || orderFailures.length || renderedForbidden.length) {
-        return fail('Email report may still be long-form or may omit the PDF attachment notice.', {
+      const attachmentForbidden = forbiddenTokens(src, [
+        'PDF Eki',
+        'Detaylı rapor PDF olarak ekte yer almaktadır',
+        'attachments: emailAttachments',
+        'application/pdf',
+        'buildSendEmailAttachmentPayload',
+        'buildQuestionAnalyticsPdfAttachment',
+      ]);
+      if (missing.length || orderFailures.length || renderedForbidden.length || attachmentForbidden.length) {
+        return fail('Email report may still be blank/summary-only, may include attachment copy, or may restore removed sections.', {
           verification: 'STATIC_CONTRACT',
           file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
-          actual: { missing, orderFailures, renderedForbidden },
+          actual: { missing, orderFailures, renderedForbidden, attachmentForbidden },
         });
       }
-      return pass('Email body is short summary/action copy and explicitly points admins to the attached PDF.', {
+      return pass('Email body contains the full product-intelligence report and has no attachment notice or payload.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -621,14 +625,16 @@ export const EXTRA_TESTS = [
         'const emailText = report.text',
         'text: emailText',
         "textLines.join('\\n')",
-        '--- Öncelikli Aksiyonlar ---',
-        '--- PDF Eki ---',
-        'PDFDocument.create()',
-        'buildQuestionAnalyticsPdfAttachment',
-        'attachments: emailAttachments',
-        'filename: pdfAttachment.filename',
-        'contentType: pdfAttachment.contentType',
-        'encoding: "base64"',
+        '--- Yönetici Özeti ---',
+        '--- Genel Kullanım Özeti ---',
+        '--- Solo Soru Algoritması İçin Sinyaller ---',
+        '--- Doğru Soru Tiplerini Öğrenme / İçerik Kalitesi ---',
+        '--- Joker Kullanımı Analizi ---',
+        '--- Oynanma Zamanı ve Kullanım Ritmi ---',
+        '--- Daha Uzun Oynama / Retention Sinyalleri ---',
+        '--- Soru / İçerik Aksiyonları ---',
+        '--- Önerilen Aksiyonlar ---',
+        '--- Data Quality / Eksik Ölçüm ---',
         'questionTypeSignalCount',
         'jokerLedgerRowsAnalyzed',
         'missingInstrumentation',
@@ -640,6 +646,11 @@ export const EXTRA_TESTS = [
         'body: lines.join',
         'neverShown.slice(0, 30)',
         'bodyContainsStaticPoolSection',
+        'PDF Eki',
+        'PDFDocument.create()',
+        'buildQuestionAnalyticsPdfAttachment',
+        'attachments: emailAttachments',
+        'application/pdf',
       ]);
       if (missing.length || forbidden.length) {
         return fail('Question analytics email can regress to raw single-line text or unbounded never-shown output.', {
@@ -648,7 +659,7 @@ export const EXTRA_TESTS = [
           actual: { missing, forbidden },
         });
       }
-      return pass('Report email is HTML-first, compact, and paired with bounded product-intelligence PDF sections plus text fallback.', {
+      return pass('Report email is HTML-first, bounded, and includes the full product-intelligence sections plus text fallback.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -807,7 +818,7 @@ export const EXTRA_TESTS = [
         'categoryAnalyticsForReport',
         'productIntelligenceReport',
         'staticInventorySectionsRemoved',
-        'Data Quality and Missing Instrumentation',
+        'Data Quality / Eksik Ölçüm',
         'missingInstrumentationRows',
         'questionTypeRows',
         'topMapEntries',
