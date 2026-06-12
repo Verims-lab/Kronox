@@ -114,6 +114,8 @@ const LEGACY_LAST_RUN_KEYS = [
 const HEALTH_RUN_YIELD_DEADLINE_MS = 50;
 const HEALTH_REPORT_UPDATE_BATCH_SIZE = 25;
 const HEALTH_REPORT_UPDATE_MIN_INTERVAL_MS = 250;
+const HEALTH_RESULT_STATE_UPDATE_BATCH_SIZE = 10;
+const HEALTH_RESULT_STATE_UPDATE_MIN_INTERVAL_MS = 120;
 
 function healthNowMs() {
   return typeof performance !== 'undefined' && typeof performance.now === 'function'
@@ -211,9 +213,10 @@ export default function SimulationPanel({ onClose }) {
 
   const runCases = useCallback(async (cases) => {
     const meta = createRunMeta(cases.map(item => item.key));
-    let nextResults = {};
+    const nextResults = {};
     let lastYieldAt = healthNowMs();
     let lastReportAt = lastYieldAt;
+    let lastResultStateAt = lastYieldAt;
     setResultsByKey({});
     setPlannedKeys(cases.map(item => item.key));
     setCopyState('');
@@ -222,15 +225,22 @@ export default function SimulationPanel({ onClose }) {
       const testCase = cases[index];
       setRunningKey(testCase.key);
       const caseResult = await executeCase(testCase);
-      nextResults = { ...nextResults, [testCase.key]: caseResult };
-      setResultsByKey(nextResults);
+      nextResults[testCase.key] = caseResult;
 
       const now = healthNowMs();
       const completedCount = index + 1;
+      const shouldRefreshResultState =
+        completedCount === cases.length ||
+        completedCount % HEALTH_RESULT_STATE_UPDATE_BATCH_SIZE === 0 ||
+        now - lastResultStateAt >= HEALTH_RESULT_STATE_UPDATE_MIN_INTERVAL_MS;
       const shouldRefreshReport =
         completedCount === cases.length ||
         completedCount % HEALTH_REPORT_UPDATE_BATCH_SIZE === 0 ||
         now - lastReportAt >= HEALTH_REPORT_UPDATE_MIN_INTERVAL_MS;
+      if (shouldRefreshResultState) {
+        setResultsByKey({ ...nextResults });
+        lastResultStateAt = now;
+      }
       if (shouldRefreshReport) {
         updateReport(nextResults, meta);
         lastReportAt = now;
@@ -242,6 +252,7 @@ export default function SimulationPanel({ onClose }) {
       }
     }
 
+    setResultsByKey({ ...nextResults });
     updateReport(nextResults, meta, { persist: true });
     setRunningKey(null);
     setPlannedKeys([]);
