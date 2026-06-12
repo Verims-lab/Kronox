@@ -200,7 +200,12 @@ export const EXTRA_TESTS = [
         'HEALTH_RUN_YIELD_DEADLINE_MS',
         'HEALTH_REPORT_UPDATE_BATCH_SIZE',
         'HEALTH_REPORT_UPDATE_MIN_INTERVAL_MS',
+        'HEALTH_RESULT_STATE_UPDATE_BATCH_SIZE',
+        'HEALTH_RESULT_STATE_UPDATE_MIN_INTERVAL_MS',
         'yieldHealthRunToMain',
+        'nextResults[testCase.key] = caseResult',
+        'completedCount % HEALTH_RESULT_STATE_UPDATE_BATCH_SIZE',
+        'now - lastResultStateAt >= HEALTH_RESULT_STATE_UPDATE_MIN_INTERVAL_MS',
         'completedCount % HEALTH_REPORT_UPDATE_BATCH_SIZE',
         'now - lastReportAt >= HEALTH_REPORT_UPDATE_MIN_INTERVAL_MS',
         'now - lastYieldAt >= HEALTH_RUN_YIELD_DEADLINE_MS',
@@ -208,6 +213,7 @@ export const EXTRA_TESTS = [
       const missing = requiredTokens.filter((token) => !simulationPanelSource.includes(token));
       const forbidden = [
         'updateReport(nextResults, meta);\n      await new Promise(resolve => window.setTimeout(resolve, 12));',
+        'nextResults = { ...nextResults, [testCase.key]: caseResult };',
       ].filter((token) => simulationPanelSource.includes(token));
       if (missing.length || forbidden.length) {
         return fail('Health Center can still rebuild full reports on every case or starve the main thread during long runs.', {

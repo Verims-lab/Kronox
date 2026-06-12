@@ -1760,7 +1760,16 @@ import React, { useEffect, useState } from 'react';
 //     performance, object-authorization, idempotency, and platform manual gates.
 //   • Solo global exposure balancing remains an explicit future architecture
 //     change; no gameplay/scoring/economy rules changed in this pass.
-const BUILD_MARKER = 'Codex325';
+//
+// Codex326 — Runtime refactor and admin performance cleanup:
+//   • DailyQuestDefinitionManager now owns data/form/backend actions while the
+//     repeated definition list/card rendering lives in DailyQuestDefinitionList.
+//   • Health Center stores case results through a mutable local accumulator and
+//     publishes batched state snapshots instead of copying a growing object
+//     after every case.
+//   • Health contracts were kept aligned with the split; no product rules,
+//     gameplay, scoring, economy, or Base44 function deploy paths changed.
+const BUILD_MARKER = 'Codex326';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

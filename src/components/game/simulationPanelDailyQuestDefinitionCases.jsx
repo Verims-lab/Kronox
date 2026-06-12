@@ -8,6 +8,7 @@ import profilePageSource from '../../pages/ProfilePage.jsx?raw';
 import adminPageSource from '../../pages/AdminPage.jsx?raw';
 import appSource from '../../App.jsx?raw';
 import dailyQuestManagerSource from '../admin/DailyQuestDefinitionManager.jsx?raw';
+import dailyQuestDefinitionListSource from '../admin/DailyQuestDefinitionList.jsx?raw';
 import dailyQuestGatewaySource from '../../lib/dbGateway/dailyQuestGateway.js?raw';
 import dailyQuestEntitySource from '../../../base44/entities/DailyQuestDefinition.jsonc?raw';
 import createDailyQuestDefinitionSource from '../../../base44/functions/createDailyQuestDefinition/entry.ts?raw';
@@ -60,7 +61,8 @@ function makeCase(id, name, run, options = {}) {
 }
 
 const docsCombined = `${releaseProofSource}\n${dbArchitectureSource}\n${securitySource}\n${soloEngineDocSource}`;
-const adminSources = `${profilePageSource}\n${adminPageSource}\n${appSource}\n${dailyQuestManagerSource}\n${dailyQuestGatewaySource}\n${createDailyQuestDefinitionSource}`;
+const dailyQuestManagerUiSource = `${dailyQuestManagerSource}\n${dailyQuestDefinitionListSource}`;
+const adminSources = `${profilePageSource}\n${adminPageSource}\n${appSource}\n${dailyQuestManagerUiSource}\n${dailyQuestGatewaySource}\n${createDailyQuestDefinitionSource}`;
 const definitionSources = `${dailyQuestEntitySource}\n${dailyQuestGatewaySource}\n${createDailyQuestDefinitionSource}\n${docsCombined}`;
 
 export const EXTRA_SUITES = [
@@ -416,7 +418,7 @@ export const EXTRA_TESTS = [
   makeCase('duplicate_definitions_grouped_and_warned',
     'Admin UI groups duplicate quest_key rows and warns instead of rendering repeated cards',
     () => {
-      const combined = `${dailyQuestManagerSource}\n${createDailyQuestDefinitionSource}\n${docsCombined}`;
+      const combined = `${dailyQuestManagerUiSource}\n${createDailyQuestDefinitionSource}\n${docsCombined}`;
       const missing = missingTokens(combined, [
         'groupDefinitionsByQuestKey',
         'canonicalDefinitionSort',
