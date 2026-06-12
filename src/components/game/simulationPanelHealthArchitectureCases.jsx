@@ -194,7 +194,7 @@ export const EXTRA_TESTS = [
     { actionType: ACTION_TYPES.CODE_FIX }),
 
   makeCase('health_panel_architecture', 'health_run_batches_report_updates',
-    'Health Center batches report rebuilds and yields during long runs',
+    'Health Center batches report and result-state publishing during long runs',
     () => {
       const requiredTokens = [
         'HEALTH_RUN_YIELD_DEADLINE_MS',
@@ -202,9 +202,13 @@ export const EXTRA_TESTS = [
         'HEALTH_REPORT_UPDATE_MIN_INTERVAL_MS',
         'HEALTH_RESULT_STATE_UPDATE_BATCH_SIZE',
         'HEALTH_RESULT_STATE_UPDATE_MIN_INTERVAL_MS',
+        'HEALTH_RESULT_STATE_UPDATE_MIN_PENDING',
         'yieldHealthRunToMain',
+        'publishResultStateSnapshot',
         'nextResults[testCase.key] = caseResult',
-        'completedCount % HEALTH_RESULT_STATE_UPDATE_BATCH_SIZE',
+        'pendingResultStateCount += 1',
+        'pendingResultStateCount >= HEALTH_RESULT_STATE_UPDATE_BATCH_SIZE',
+        'pendingResultStateCount >= HEALTH_RESULT_STATE_UPDATE_MIN_PENDING',
         'now - lastResultStateAt >= HEALTH_RESULT_STATE_UPDATE_MIN_INTERVAL_MS',
         'completedCount % HEALTH_REPORT_UPDATE_BATCH_SIZE',
         'now - lastReportAt >= HEALTH_REPORT_UPDATE_MIN_INTERVAL_MS',
@@ -214,9 +218,10 @@ export const EXTRA_TESTS = [
       const forbidden = [
         'updateReport(nextResults, meta);\n      await new Promise(resolve => window.setTimeout(resolve, 12));',
         'nextResults = { ...nextResults, [testCase.key]: caseResult };',
+        'setResultsByKey({ ...nextResults });',
       ].filter((token) => simulationPanelSource.includes(token));
       if (missing.length || forbidden.length) {
-        return fail('Health Center can still rebuild full reports on every case or starve the main thread during long runs.', {
+        return fail('Health Center can still rebuild full reports or publish growing result-state objects too eagerly during long runs.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'components/game/SimulationPanel.jsx',
@@ -224,7 +229,7 @@ export const EXTRA_TESTS = [
           actual: { missing, forbidden },
         });
       }
-      return pass('Health Center throttles report rebuilds and yields long admin runs.', {
+      return pass('Health Center throttles report rebuilds, batches result-state snapshots, and yields long admin runs. Static proof does not replace manual runtime profiling.', {
         verification: 'STATIC_CONTRACT',
         classification: 'RUNTIME_GUARDRAIL',
       });
