@@ -1744,7 +1744,15 @@ import React, { useEffect, useState } from 'react';
 //     optional manual aggregateQuestionStats outputs that may be empty.
 //   • Health/docs now require clearing projection rows only if populated and
 //     keep content/user/economy tables outside question analytics reset.
-const BUILD_MARKER = 'Codex323';
+//
+// Codex324 — Daily Quest definition duplicate hardening:
+//   • Admin list is read-only and no longer seeds default definitions on
+//     refresh; explicit seed/create paths skip or reject existing quest_key.
+//   • Backend/runtime groups duplicate DailyQuestDefinition rows by quest_key
+//     and selects one canonical active definition.
+//   • Admin UI shows one logical row per quest_key with duplicate warnings and
+//     manual cleanup guidance; no automatic delete is enabled.
+const BUILD_MARKER = 'Codex324';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

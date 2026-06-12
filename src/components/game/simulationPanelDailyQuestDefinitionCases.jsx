@@ -368,7 +368,7 @@ export const EXTRA_TESTS = [
     'Duplicate quest_key is rejected where possible',
     () => {
       const missing = missingTokens(createDailyQuestDefinitionSource, [
-        'findDefinitionByKey',
+        'findDefinitionsByKey',
         'duplicate_quest_key',
         'Bu görev anahtarı zaten var.',
       ]);
@@ -403,12 +403,43 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(createDailyQuestDefinitionSource, [
         'DEFAULT_DEFINITIONS',
         'ensureSeedDefinitions',
-        'findDefinitionByKey(entity, seed.quest_key)',
-        'if (existing) continue',
+        'findDefinitionsByKey(entity, seed.quest_key)',
+        'if (existing.length)',
+        'existingKeys.has(seed.quest_key)',
+        "seedMode: 'list_only_no_seed'",
         'seededKeys',
       ]);
       if (missing.length) return fail('Initial Daily Quest seed path is missing or not idempotent by quest_key.', { verification: 'STATIC_CONTRACT', missing });
       return pass('Initial definitions seed idempotently by quest_key.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('duplicate_definitions_grouped_and_warned',
+    'Admin UI groups duplicate quest_key rows and warns instead of rendering repeated cards',
+    () => {
+      const combined = `${dailyQuestManagerSource}\n${createDailyQuestDefinitionSource}\n${docsCombined}`;
+      const missing = missingTokens(combined, [
+        'groupDefinitionsByQuestKey',
+        'canonicalDefinitionSort',
+        'duplicateGroups',
+        'duplicateDefinitionCount',
+        'duplicate_count',
+        'canonical_definition_id',
+        'Yinelenen görev tanımı kayıtları var',
+        'yinelenen kayıt',
+        'manuel DB temizliği',
+        'cleanupRecommendation',
+      ]);
+      const forbidden = forbiddenTokens(createDailyQuestDefinitionSource, [
+        'deleteDailyQuestDefinition',
+        '.delete(',
+        'autoDeleteDuplicates',
+      ]);
+      if (missing.length || forbidden.length) return fail('Duplicate DailyQuestDefinition rows can still render as repeated cards or be auto-deleted unsafely.', {
+        verification: 'STATIC_CONTRACT',
+        files: ['src/components/admin/DailyQuestDefinitionManager.jsx', 'base44/functions/createDailyQuestDefinition/entry.ts'],
+        actual: { missing, forbidden },
+      });
+      return pass('Admin list returns one canonical row per quest_key, warns about duplicate rows, and leaves cleanup manual.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('initial_definitions_match_phase_1_examples',

@@ -80,9 +80,12 @@ Elmasları Kazan!" and runtime backend functions explicitly bind
 UserDailyQuestProgress. One claim per quest per UTC day is enforced by
 UserDailyQuestProgress plus daily_quest_reward idempotency keys.
 Günlük Görev requires active DailyQuestDefinition rows; fresh DBs seed the
-default Solo-focused definitions idempotently when no definitions exist, and
-getDailyQuestStatus preserves newly created rows if immediate refresh is stale;
-loading today’s quests does not grant Diamonds.
+default Solo-focused definitions idempotently when no definitions exist.
+DailyQuestDefinition.quest_key is the logical unique key; duplicate rows are
+grouped by quest_key, Admin UI warns instead of auto-deleting, and runtime
+selects one canonical active definition before choosing the first logical
+Daily Quest. getDailyQuestStatus preserves newly created rows if immediate
+refresh is stale; loading today’s quests does not grant Diamonds.
 Daily Wheel claimed countdown shows \`Yarın hazır\` or compact time text
 without a Diamond icon.
 Admin reset sets \`daily_wheel_last_spin_date\` to the current UTC day, clears Daily Wheel guard fields, and removes target \`DailyWheelSpin\` rows. Retained OnlineMatchResult/DiamondTransaction/DailyWheelSpin rows no longer contain the deleted user.

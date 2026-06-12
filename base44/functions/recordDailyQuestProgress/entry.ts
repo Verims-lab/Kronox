@@ -65,6 +65,17 @@ function normalizeQuestType(value: unknown) {
   return QUEST_TYPES.includes(text as typeof QUEST_TYPES[number]) ? text : '';
 }
 
+function normalizeQuestKey(value: unknown) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_')
+    .replace(/[^a-z0-9_]/g, '')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 80);
+}
+
 function normalizeNumber(value: unknown, fallback = 0) {
   const number = Number(value);
   return Number.isFinite(number) ? Math.floor(number) : fallback;
@@ -102,6 +113,54 @@ function publicProgress(row: any) {
   };
 }
 
+function publicDefinition(row: any) {
+  return {
+    id: row?.id || null,
+    quest_key: normalizeQuestKey(row?.quest_key),
+    title: String(row?.title || ''),
+    description: String(row?.description || ''),
+    quest_type: normalizeQuestType(row?.quest_type),
+    target_value: Math.max(1, normalizeNumber(row?.target_value, 1)),
+    reward_diamonds: Math.max(1, normalizeNumber(row?.reward_diamonds, 1)),
+    sort_order: normalizeNumber(row?.sort_order, 0),
+    created_at: row?.created_at || row?.created_date || '',
+  };
+}
+
+function canonicalDefinitionSort(a: any, b: any) {
+  const orderA = normalizeNumber(a?.sort_order, 0);
+  const orderB = normalizeNumber(b?.sort_order, 0);
+  if (orderA !== orderB) return orderA - orderB;
+  const createdA = Date.parse(String(a?.created_at || a?.created_date || ''));
+  const createdB = Date.parse(String(b?.created_at || b?.created_date || ''));
+  if (Number.isFinite(createdA) && Number.isFinite(createdB) && createdA !== createdB) {
+    return createdA - createdB;
+  }
+  return String(a?.id || '').localeCompare(String(b?.id || ''), 'tr');
+}
+
+function dedupeDefinitionsByQuestKey(rows: any[] = []) {
+  const grouped = new Map<string, any[]>();
+  for (const row of rows || []) {
+    const definition = publicDefinition(row);
+    if (!definition.id || !definition.quest_key || !definition.quest_type) continue;
+    if (!grouped.has(definition.quest_key)) grouped.set(definition.quest_key, []);
+    grouped.get(definition.quest_key)?.push(definition);
+  }
+  const definitions: any[] = [];
+  for (const groupRows of grouped.values()) {
+    const sorted = [...groupRows].sort(canonicalDefinitionSort);
+    const primary = sorted[0];
+    definitions.push({
+      ...primary,
+      duplicate_count: sorted.length - 1,
+      duplicate_ids: sorted.slice(1).map((row) => row.id).filter(Boolean),
+      canonical_definition_id: primary.id,
+    });
+  }
+  return definitions.sort(canonicalDefinitionSort);
+}
+
 function boundedEventKeys(metadata: any) {
   const keys = metadata?.progress_event_keys;
   return Array.isArray(keys) ? keys.map((key) => String(key)).slice(-80) : [];
@@ -123,19 +182,7 @@ async function readActiveDefinitions(base44: any) {
   const rows = await base44.asServiceRole.entities.DailyQuestDefinition
     .filter({ status: 'active' }, 'sort_order', 100)
     .catch(() => []);
-  return (Array.isArray(rows) ? rows : [])
-    .filter((row: any) => row?.id && row?.quest_key && normalizeQuestType(row?.quest_type))
-    .sort((a: any, b: any) => {
-      const orderA = normalizeNumber(a?.sort_order, 0);
-      const orderB = normalizeNumber(b?.sort_order, 0);
-      if (orderA !== orderB) return orderA - orderB;
-      const createdA = Date.parse(String(a?.created_at || a?.created_date || ''));
-      const createdB = Date.parse(String(b?.created_at || b?.created_date || ''));
-      if (Number.isFinite(createdA) && Number.isFinite(createdB) && createdA !== createdB) {
-        return createdA - createdB;
-      }
-      return String(a?.quest_key || '').localeCompare(String(b?.quest_key || ''), 'tr');
-    });
+  return dedupeDefinitionsByQuestKey(Array.isArray(rows) ? rows : []);
 }
 
 async function readAllDefinitions(base44: any) {
@@ -149,10 +196,12 @@ async function readAllDefinitions(base44: any) {
 }
 
 async function findDefinitionByKey(base44: any, questKey: string) {
+  const normalizedQuestKey = normalizeQuestKey(questKey);
   const rows = await base44.asServiceRole.entities.DailyQuestDefinition
-    .filter({ quest_key: questKey }, '-updated_at', 5)
+    .filter({ quest_key: normalizedQuestKey }, '-updated_at', 50)
     .catch(() => []);
-  return Array.isArray(rows) && rows.length ? rows[0] : null;
+  const definitions = dedupeDefinitionsByQuestKey(Array.isArray(rows) ? rows : []);
+  return definitions.length ? definitions[0] : null;
 }
 
 async function ensureDefaultDefinitions(base44: any) {
@@ -166,17 +215,33 @@ async function ensureDefaultDefinitions(base44: any) {
   }
   const timestamp = new Date().toISOString();
   const seededDefaultKeys: string[] = [];
+  const existingKeys = new Set(
+    (allDefinitions || [])
+      .map((definition: any) => normalizeQuestKey(definition?.quest_key))
+      .filter(Boolean),
+  );
   for (const definition of DEFAULT_DEFINITIONS) {
+    if (existingKeys.has(definition.quest_key)) continue;
     const existing = await findDefinitionByKey(base44, definition.quest_key);
-    if (existing) continue;
-    await entity.create({
-      ...definition,
-      created_by: 'system:daily_quest_runtime_seed',
-      created_at: timestamp,
-      updated_by: 'system:daily_quest_runtime_seed',
-      updated_at: timestamp,
-    });
-    seededDefaultKeys.push(definition.quest_key);
+    if (existing) {
+      existingKeys.add(definition.quest_key);
+      continue;
+    }
+    try {
+      await entity.create({
+        ...definition,
+        created_by: 'system:daily_quest_runtime_seed',
+        created_at: timestamp,
+        updated_by: 'system:daily_quest_runtime_seed',
+        updated_at: timestamp,
+      });
+      seededDefaultKeys.push(definition.quest_key);
+      existingKeys.add(definition.quest_key);
+    } catch (error) {
+      const afterRace = await findDefinitionByKey(base44, definition.quest_key);
+      if (!afterRace) throw error;
+      existingKeys.add(definition.quest_key);
+    }
   }
   return { seededDefaultKeys, seedMode: seededDefaultKeys.length ? 'default_seed_created' : 'default_seed_existing' };
 }

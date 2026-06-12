@@ -97,6 +97,11 @@ Daily Quest / Günün Görevi Runtime v1 is active inside the Home `Günlük
 display-only for title/description; `quest_type + target_value` drives runtime
 progress. `UserDailyQuestProgress` stores 1 selected UTC-day quest per user,
 with copied target/reward, progress, completion, and claim state.
+`DailyQuestDefinition.quest_key` is the logical unique key. Admin create/default
+seed must not create duplicate keys; Admin UI groups existing duplicates and
+warns that cleanup is manual after backup. Runtime picks one canonical active
+definition per `quest_key`, so duplicate definition rows must not duplicate Home
+quests or rewards.
 
 Daily Quest grants diamonds only through the server-backed
 `claimDailyQuestReward` callable. Claims write

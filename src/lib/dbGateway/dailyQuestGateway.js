@@ -31,6 +31,10 @@ export const DAILY_QUEST_DEFINITION_CONTRACT = Object.freeze({
   runtimeVersion: 'daily-quest-runtime-v1',
   transactionSource: 'daily_quest_reward',
   dayBoundary: 'UTC',
+  logicalUniqueKey: 'quest_key',
+  adminListSeedsDefaults: false,
+  duplicateDefinitionsGrouped: true,
+  duplicateCleanupMode: 'manual_after_backup',
 });
 
 function unwrapFunctionResponse(response) {

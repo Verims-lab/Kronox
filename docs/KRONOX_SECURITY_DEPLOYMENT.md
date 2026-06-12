@@ -216,15 +216,20 @@ Daily Quest Definition management:
   regex, or scripts must never become executable quest logic
 * only supported `quest_type` enum values plus `target_value` define runtime
   progress logic
+* `DailyQuestDefinition.quest_key` is the logical unique key. Admin list is
+  read-only and must not seed definitions on page refresh; explicit default
+  seed and create flows must skip/reject existing keys.
+* duplicate definition rows are surfaced as Admin warnings and require manual
+  cleanup after backup; management must not auto-delete duplicate DB rows
 * rewards are Diamonds only; Daily Quest definitions must not grant Kronox
   Puan and must not affect leaderboard
 * Daily Quest Runtime v1 grants diamonds only through `claimDailyQuestReward`
   and `DiamondTransaction.source = daily_quest_reward`
 * Daily Quest does not grant Kronox Puan and has no leaderboard impact
 * Home `getDailyQuestStatus` ensures 1 selected `UserDailyQuestProgress` row
-  per UTC day and may seed fixed default `DailyQuestDefinition` templates only
-  when the definition table is empty. This idempotent seed does not grant
-  Diamonds.
+  per UTC day, groups duplicate active definitions by `quest_key`, and may seed
+  fixed default `DailyQuestDefinition` templates only when the definition table
+  is empty. This idempotent seed does not grant Diamonds.
 * `getDailyQuestStatus` is authenticated runtime, not admin-only; it derives
   the user from backend auth context, writes only that user's progress rows,
   and treats no active definitions as a safe empty state.

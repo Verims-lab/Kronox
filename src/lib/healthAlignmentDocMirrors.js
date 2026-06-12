@@ -85,6 +85,7 @@ Status: Active product contract.
 - Daily Quest Definition management is admin-only under Profile / Admin Ekranı as Günlük Görev Yönetimi.
 - createDailyQuestDefinition is a Base44 callable with an inline AdminUser-backed guard for active owner/admin rows; normal users and disabled admins are rejected.
 - DailyQuestDefinition title and description are display-only; quest_type plus target_value are the executable logic contract.
+- DailyQuestDefinition.quest_key is the logical unique key. Admin list is read-only and never seeds on refresh; explicit seed/create skip or reject existing keys. Existing duplicate rows are grouped by quest_key with Admin warnings and require manual cleanup after backup, not automatic deletion.
 - Supported Daily Quest v1 quest_type values are start_solo_attempt, correct_cards, complete_solo_level, and use_joker.
 - Daily Quest definitions use reward_diamonds only, never Kronox Puan, and do not affect leaderboard.
 - Daily Quest text is never parsed by AI, NLP, regex, scripts, or arbitrary free-text executable conditions.
@@ -189,8 +190,9 @@ explicitly bind UserDailyQuestProgress for status, progress, and claim
 deployability.
 Günlük Görev requires active DailyQuestDefinition rows; getDailyQuestStatus and
 recordDailyQuestProgress seed fixed default templates idempotently only when no
-definition rows exist. Runtime selects the first active definition by
-sort_order, created_at, and quest_key. getDailyQuestStatus is authenticated but
+definition rows exist. Runtime groups duplicate active definitions by quest_key,
+chooses one canonical definition by sort_order, created_at, and stable id, then
+selects the first logical daily quest. getDailyQuestStatus is authenticated but
 not admin-only and preserves newly created rows if immediate Base44 refresh is
 stale. Loading or ensuring today’s quests does not grant Diamonds;
 claimDailyQuestReward remains the only reward path.
