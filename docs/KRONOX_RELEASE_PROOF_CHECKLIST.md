@@ -813,9 +813,13 @@ Checklist:
   nine-section-email-v1`, `emailBodyMode: nine_section_email_body`,
   `reportDeliveryMode: email_body_only`, `bodyContainsExactlyRequiredSections:
   true`, `requiredSectionOrderValid: true`, `renderedSectionHeaderCount: 9`,
-  `bodyLength > 1000`, `reportBuildMarker: Codex320`, the email arrives, and the received email body is
+  `bodyLength > 1000`, `reportBuildMarker: Codex322`, the email arrives, and the received email body is
   readable/useful without an attachment. `npm run build` does not prove Base44
   backend function deployment or live SendEmail output.
+* Runtime Projection wording is diagnostic only and must include
+  `getQuestions diagnostics` while keeping active pool, Solo-eligible pool,
+  and runtime projection concepts separate. The email report must not fake a
+  live projection if it does not call `/getQuestions`.
 * The active report builder keeps Gmail-safe hidden markers for each exact
   section, for example `--- Executive Summary ---`, while visible headings
   remain clean.

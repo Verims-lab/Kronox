@@ -139,7 +139,8 @@ longer stored on the entity — they are derived at fetch time by
   Solo-eligible pool, runtime projection diagnostics, unique shown questions,
   and never-shown counts separately when those metrics are available.
 - Runtime Projection is diagnostic/admin proof only and is not fabricated by
-  email generation.
+  email generation. It is described as getQuestions diagnostics when the email
+  report does not call live projection.
 - Admin question analytics email sends the full nine-section-email-v1 report in
   the email body. The active report includes exactly Executive Summary, category
   pool/preference/exposure tables, top/underused/wrong question tables, Joker
