@@ -1,6 +1,5 @@
 /* global Deno */
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.25";
-import { PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
 
 // Admin Ekranı invokes functions.invoke("sendQuestionAnalyticsReportEmail", payload).
 //
@@ -28,11 +27,9 @@ const REGISTERED_QUESTION_POOL_ROW_LIMIT = 250;
 const CATEGORY_FAIRNESS_SIGNAL_LIMIT = 20;
 const STALE_REFERENCE_SAMPLE_LIMIT = 20;
 const PERIOD_OPTIONS = /* @__PURE__ */ new Set([1, 7, 30]);
-const REPORT_BUILD_MARKER = "Codex316";
-const REPORT_TEMPLATE_VERSION = "product-intel-pdf-v2";
-const REPORT_TEMPLATE_LABEL = "product-intel-pdf-v2";
-const PDF_ATTACHMENT_CONTENT_TYPE = "application/pdf";
-const REPORT_ATTACHMENT_NOTICE = "Detaylı rapor PDF olarak ekte yer almaktadır.";
+const REPORT_BUILD_MARKER = "Codex318";
+const REPORT_TEMPLATE_VERSION = "product-intel-email-v3";
+const REPORT_TEMPLATE_LABEL = "product-intel-email-v3";
 const REMOVED_REPORT_SECTION_TITLES = Object.freeze([
   "Rapor Şablonu",
   "Rapor Bölümleri",
@@ -199,35 +196,9 @@ function stripHtml(value) {
     .replace(/\n\s+/g, "\n")
     .trim();
 }
-function pdfSafeText(value) {
-  return String(value ?? "")
-    .replace(/\u0131/g, "i").replace(/\u0130/g, "I")
-    .replace(/\u015f/g, "s").replace(/\u015e/g, "S")
-    .replace(/\u011f/g, "g").replace(/\u011e/g, "G")
-    .replace(/\u00fc/g, "u").replace(/\u00dc/g, "U")
-    .replace(/\u00f6/g, "o").replace(/\u00d6/g, "O")
-    .replace(/\u00e7/g, "c").replace(/\u00c7/g, "C")
-    .replace(/\u2014/g, "-").replace(/\u2013/g, "-")
-    .replace(/\u2018|\u2019/g, "'")
-    .replace(/\u201c|\u201d/g, '"')
-    .replace(/[^\x20-\x7E\n]/g, " ")
-    .replace(/[ \t]+/g, " ")
-    .trimEnd();
-}
-function bytesToBase64(bytes) {
-  let binary = "";
-  const chunkSize = 8192;
-  for (let index = 0; index < bytes.length; index += chunkSize) {
-    binary += String.fromCharCode(...bytes.slice(index, index + chunkSize));
-  }
-  return btoa(binary);
-}
 function findRemovedReportSections(value) {
   const text = String(value || "");
   return REMOVED_REPORT_SECTION_TITLES.filter((title) => text.includes(title));
-}
-function pdfFilenameForPeriod(periodDays) {
-  return `kronox-soru-analiz-raporu-${slugifyFilename(periodLabel(periodDays))}.pdf`;
 }
 function isActiveQuestion(question) {
   return String(question?.state || "A").toUpperCase() === "A";
@@ -481,95 +452,6 @@ function summaryCard(label, value, helper) {
       </td></tr>
     </table>
   </td>`;
-}
-async function buildQuestionAnalyticsPdfAttachment(report) {
-  const pdfDoc = await PDFDocument.create();
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-  const width = 595;
-  const height = 842;
-  const margin = 46;
-  const maxWidth = width - margin * 2;
-  const ink = rgb(0.06, 0.09, 0.16);
-  const muted = rgb(0.35, 0.40, 0.48);
-  const gold = rgb(0.83, 0.62, 0.12);
-  const navy = rgb(0.05, 0.09, 0.20);
-  let page = pdfDoc.addPage([width, height]);
-  let y = height - 54;
-
-  const addPage = () => {
-    page = pdfDoc.addPage([width, height]);
-    y = height - 54;
-    page.drawLine({ start: { x: margin, y: height - 36 }, end: { x: width - margin, y: height - 36 }, thickness: 0.5, color: gold, opacity: 0.5 });
-    page.drawText("Kronox Soru Analiz Raporu", { x: margin, y: height - 30, size: 8, font: boldFont, color: muted });
-    page.drawText(`Sayfa ${pdfDoc.getPageCount()}`, { x: width - margin - 48, y: height - 30, size: 8, font, color: muted });
-  };
-  const ensureSpace = (needed) => {
-    if (y - needed < 54) addPage();
-  };
-  const wrapLines = (raw, size, activeFont, availableWidth = maxWidth) => {
-    const normalized = pdfSafeText(raw).replace(/\s+/g, " ").trim();
-    if (!normalized) return [""];
-    const words = normalized.split(" ");
-    const lines = [];
-    let line = "";
-    for (const word of words) {
-      const candidate = line ? `${line} ${word}` : word;
-      if (activeFont.widthOfTextAtSize(candidate, size) > availableWidth && line) {
-        lines.push(line);
-        line = word;
-      } else {
-        line = candidate;
-      }
-    }
-    if (line) lines.push(line);
-    return lines;
-  };
-  const drawText = (raw, options = {}) => {
-    const { size = 10, activeFont = font, color = ink, indent = 0, lineGap = 4 } = options;
-    const lines = String(raw ?? "").split("\n").flatMap((line) => wrapLines(line, size, activeFont, maxWidth - indent));
-    for (const line of lines) {
-      ensureSpace(size + lineGap + 3);
-      page.drawText(line, { x: margin + indent, y, size, font: activeFont, color });
-      y -= size + lineGap;
-    }
-  };
-  const drawHeading = (title) => {
-    y -= 12;
-    ensureSpace(34);
-    page.drawRectangle({ x: margin - 4, y: y - 6, width: maxWidth + 8, height: 24, color: navy });
-    page.drawLine({ start: { x: margin - 4, y: y - 6 }, end: { x: margin - 4, y: y + 18 }, thickness: 3, color: gold });
-    page.drawText(pdfSafeText(title).toUpperCase(), { x: margin + 8, y: y + 2, size: 11, font: boldFont, color: gold });
-    y -= 30;
-  };
-  const drawBullet = (line) => {
-    ensureSpace(18);
-    page.drawText("*", { x: margin, y, size: 10, font: boldFont, color: gold });
-    drawText(line, { size: 9.5, indent: 14, lineGap: 3 });
-  };
-
-  page.drawRectangle({ x: 0, y: 0, width, height, color: navy });
-  page.drawText("KRONOX", { x: margin, y: height - 140, size: 42, font: boldFont, color: gold });
-  page.drawText("Soru Analiz Raporu", { x: margin, y: height - 172, size: 18, font, color: rgb(0.92, 0.94, 0.98) });
-  page.drawText(pdfSafeText(`Dönem: ${report.period}`), { x: margin, y: height - 202, size: 11, font, color: rgb(0.82, 0.86, 0.92) });
-  page.drawText(pdfSafeText(`Oluşturma zamanı: ${report.generatedAt}`), { x: margin, y: height - 220, size: 10, font, color: rgb(0.70, 0.75, 0.82) });
-  page.drawText(pdfSafeText(`Build: ${report.buildMarker || "Bilinmiyor"} · Template: ${REPORT_TEMPLATE_VERSION}`), { x: margin, y: height - 238, size: 9, font, color: rgb(0.70, 0.75, 0.82) });
-  addPage();
-
-  for (const section of report.pdfSections || []) {
-    drawHeading(section.title);
-    for (const line of section.lines || []) {
-      drawBullet(stripHtml(line));
-    }
-  }
-
-  const pdfBytes = await pdfDoc.save();
-  return {
-    filename: report.attachmentFilename,
-    contentType: PDF_ATTACHMENT_CONTENT_TYPE,
-    base64: bytesToBase64(pdfBytes),
-    byteLength: pdfBytes.length
-  };
 }
 function htmlLineList(values, emptyMessage = "Yeterli veri yok") {
   if (!values.length) return escapeHtml(emptyMessage);
@@ -924,6 +806,7 @@ function buildReport({
   if (categoryAnalytics.some((row) => row.selectedUserCount > 0)) {
     insightRows.push(["OK", "ok", "Kategori tercih dağılımı aktif UserCategoryPreference satırlarından benzersiz kullanıcı sayısı olarak rapora eklendi."]);
   }
+  const insightLines = insightRows.slice(0, 6).map(([label, _tone, message]) => `${label}: ${message}`);
   const totalPreferenceSelections = categoryAnalytics.reduce((sum, row) => sum + (Number(row.selectedUserCount) || 0), 0);
   const warningRows = [
     ["Events missing question_id", missing.question_id],
@@ -1100,57 +983,74 @@ function buildReport({
     topRisks.length ? `Top riskler: ${topRisks.slice(0, 3).join(" | ")}` : "Top risk: Bu dönem için kritik ürün sinyali yok; örneklem büyüdükçe tekrar bakılmalı.",
     `Önerilen ilk aksiyon: ${recommendedActions[0]}`
   ];
-  const emailFindingRows = [
-    ...insightRows.slice(0, 3).map(([label, _tone, message]) => `${label}: ${message}`),
-    topRisks[0] ? `Risk: ${topRisks[0]}` : "Risk: Bu dönem için belirgin kritik risk yok."
-  ].slice(0, 5);
-  const actionItemRows = recommendedActions.slice(0, 3);
+  const contentActionLines = [
+    mostWrong.length
+      ? `Review kuyruğu: ${mostWrong.slice(0, 5).map(formatQuestionBucket).join(" | ")}`
+      : "Review kuyruğu için yeterli yanlış cevap örneklemi yok.",
+    neverShownSoloEligible.length
+      ? `Dolaşıma girmeyen Solo-eligible örnekler: ${neverShownSoloEligible.slice(0, 5).map(formatQuestionSample).filter(Boolean).join(" | ")}`
+      : "Solo-eligible havuzda bu dönem belirgin never-shown örnek listesi yok.",
+    categoryFairnessSignals.length
+      ? `Kategori denge aksiyonu: ${categoryFairnessSignals.slice(0, 3).map((signal) => `${signal.categoryName}: ${signal.value} (${signal.note})`).join(" | ")}`
+      : "Kategori denge aksiyonu için bu dönem kritik sinyal yok.",
+    tooHardQuestionTypes.length
+      ? "Düşük doğru oranlı soru tipleri ilk seviyelerde azaltılmalı veya editorial review ile yeniden yazılmalı."
+      : "Zorluk ayarı için daha fazla cevap örneklemi toplanmalı.",
+    questionsMissingMetadata
+      ? `${questionsMissingMetadata} aktif soruda sub_category/tag eksiği var; içerik kalitesi raporu için metadata tamamlanmalı.`
+      : "İçerik metadata eksikliği belirgin değil."
+  ];
   const reportSectionNames = [
     "Yönetici Özeti",
     "Genel Kullanım Özeti",
     "Solo Soru Algoritması İçin Sinyaller",
-    "Doğru Soru Tipi / İçerik Kalitesi",
+    "Doğru Soru Tiplerini Öğrenme / İçerik Kalitesi",
     "Joker Kullanımı Analizi",
     "Oynanma Zamanı ve Kullanım Ritmi",
     "Daha Uzun Oynama / Retention Sinyalleri",
-    "Data Quality and Missing Instrumentation",
-    "Önerilen Aksiyonlar"
+    "Soru / İçerik Aksiyonları",
+    "Önerilen Aksiyonlar",
+    "Data Quality / Eksik Ölçüm"
   ];
-  const pdfSections = [
+  const reportSections = [
     { title: "Yönetici Özeti", lines: executiveSummaryRows },
     { title: "Genel Kullanım Özeti", lines: [
       `Toplam event: ${events.length}`,
       `Toplam gösterim: ${shownEvents}`,
       `Cevaplanan soru: ${answeredEvents}`,
+      `Benzersiz gösterilen soru: ${shownQuestionIds.size}`,
       `Aktif soru havuzu: ${activeQuestions.length}`,
       `Solo-eligible soru havuzu: ${soloEligibleQuestions.length}`,
       `Hiç gösterilmeyen aktif soru: ${neverShown.length}`,
       `Silinmiş/eksik soru referansı nedeniyle çıkarılan event: ${missing.deleted_or_missing_question}`,
-      `Kategori tercihi olan aggregate seçim sayısı: ${totalPreferenceSelections}`
+      `Kategori tercihi olan aggregate seçim sayısı: ${totalPreferenceSelections}`,
+      ...insightLines
     ] },
     { title: "Solo Soru Algoritması İçin Sinyaller", lines: algorithmLines },
-    { title: "Doğru Soru Tipi / İçerik Kalitesi", lines: questionTypeQualityLines },
+    { title: "Doğru Soru Tiplerini Öğrenme / İçerik Kalitesi", lines: questionTypeQualityLines },
     { title: "Joker Kullanımı Analizi", lines: jokerLines },
     { title: "Oynanma Zamanı ve Kullanım Ritmi", lines: rhythmLines },
     { title: "Daha Uzun Oynama / Retention Sinyalleri", lines: retentionLines },
-    { title: "Data Quality and Missing Instrumentation", lines: [
+    { title: "Soru / İçerik Aksiyonları", lines: contentActionLines },
+    { title: "Önerilen Aksiyonlar", lines: recommendedActions },
+    { title: "Data Quality / Eksik Ölçüm", lines: [
       ...warningRows.map(([label, value]) => `${stripHtml(label)}: ${stripHtml(value)}`),
-      ...(missingInstrumentationRows.length ? missingInstrumentationRows : ["Bu dönem için kritik missing instrumentation sinyali yok."])
-    ] },
-    { title: "Önerilen Aksiyonlar", lines: recommendedActions }
+      ...(missingInstrumentationRows.length ? missingInstrumentationRows : ["Bu dönem için kritik eksik ölçüm sinyali yok."])
+    ] }
   ];
-  const attachmentFilename = pdfFilenameForPeriod(periodDays);
   const htmlList = (items) => `<ul style="margin:0;padding-left:18px;color:#111827;font-size:13px;line-height:20px;font-family:Arial,Helvetica,sans-serif;">
     ${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
   </ul>`;
+  const summaryCardsHtml = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 12px;border-collapse:collapse;">
+    <tr>
+      ${summaryCard("Gösterim", String(shownEvents), `${shownQuestionIds.size} benzersiz soru`)}
+      ${summaryCard("Cevap", String(answeredEvents), `Doğru oranı ${avgCorrectRate}`)}
+      ${summaryCard("Solo Havuz", String(soloEligibleQuestions.length), `${neverShownSoloEligible.length} hiç gösterilmedi`)}
+    </tr>
+  </table>`;
   const htmlSections = [
-    safeSectionHtml("Yönetici Özeti", () => htmlList(executiveSummaryRows.slice(0, 5))),
-    safeSectionHtml("Öne Çıkan Bulgular", () => htmlList(emailFindingRows)),
-    safeSectionHtml("Öncelikli Aksiyonlar", () => htmlList(actionItemRows.length ? actionItemRows : ["Bu dönem için belirgin aksiyon sinyali yok."])),
-    safeSectionHtml("PDF Eki", () => `
-      <p style="margin:0;color:#334155;font-size:14px;line-height:22px;font-family:Arial,Helvetica,sans-serif;font-weight:700;">${escapeHtml(REPORT_ATTACHMENT_NOTICE)}</p>
-      <p style="margin:8px 0 0;color:#64748b;font-size:12px;line-height:18px;font-family:Arial,Helvetica,sans-serif;">Dosya: ${escapeHtml(attachmentFilename)} · İçerik türü: ${escapeHtml(PDF_ATTACHMENT_CONTENT_TYPE)}</p>
-    `)
+    summaryCardsHtml,
+    ...reportSections.map((section) => safeSectionHtml(section.title, () => htmlList(section.lines.length ? section.lines : ["Veri yetersiz"])))
   ].join("");
   const html = `<!doctype html>
 <html>
@@ -1163,7 +1063,7 @@ function buildReport({
             <td style="padding:24px;background:#0b1736;color:#ffffff;">
               <h1 style="margin:0 0 8px;font-family:Arial,Helvetica,sans-serif;font-size:26px;line-height:32px;color:#ffffff;">Kronox Soru Analiz Raporu</h1>
               <p style="margin:0;color:#facc15;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:20px;">Dönem: ${escapeHtml(period)}</p>
-              <p style="margin:4px 0 0;color:#cbd5e1;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:18px;">Oluşturma zamanı: ${escapeHtml(generatedAt)} · Build: ${escapeHtml(buildMarker || "Bilinmiyor")}</p>
+              <p style="margin:4px 0 0;color:#cbd5e1;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:18px;">Oluşturma zamanı: ${escapeHtml(generatedAt)} · Build: ${escapeHtml(buildMarker || "Bilinmiyor")} · Template: ${escapeHtml(REPORT_TEMPLATE_VERSION)}</p>
             </td>
           </tr>
           <tr>
@@ -1172,10 +1072,10 @@ function buildReport({
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:18px;background:#f8fafc;border-radius:12px;border:1px solid #e5e7eb;">
                 <tr><td style="padding:16px 18px;">
                   <p style="margin:0 0 6px;color:#334155;font-size:12px;line-height:18px;font-family:Arial,Helvetica,sans-serif;">Bu rapor yalnızca admin kullanımı içindir.</p>
-                  <p style="margin:0 0 6px;color:#334155;font-size:12px;line-height:18px;font-family:Arial,Helvetica,sans-serif;">Rapor kullanıcı takibi için değil, soru dengesi ve soru kalitesi kontrolü için üretilmiştir.</p>
-	                  <p style="margin:0;color:#64748b;font-size:12px;line-height:18px;font-family:Arial,Helvetica,sans-serif;">Canlı e-posta teslimatı, PDF ekinin açılması, RLS ve yüksek hacimli analytics yazımı manuel doğrulama gerektirir.</p>
-	                </td></tr>
-	              </table>
+                  <p style="margin:0 0 6px;color:#334155;font-size:12px;line-height:18px;font-family:Arial,Helvetica,sans-serif;">Rapor kullanıcı takibi için değil, soru dengesi, içerik kalitesi, joker kullanımı ve oynanma ritmi kararları için üretilmiştir.</p>
+                  <p style="margin:0;color:#64748b;font-size:12px;line-height:18px;font-family:Arial,Helvetica,sans-serif;">Canlı e-posta teslimatı, RLS ve yüksek hacimli analytics yazımı manuel doğrulama gerektirir.</p>
+                </td></tr>
+              </table>
             </td>
           </tr>
         </table>
@@ -1191,37 +1091,25 @@ function buildReport({
     `Build: ${buildMarker || "Bilinmiyor"}`,
     `Template: ${REPORT_TEMPLATE_VERSION}`,
     "",
-    "--- Yönetici Özeti ---",
-    ...executiveSummaryRows,
-    "",
-    "--- Öne Çıkan Bulgular ---",
-    ...emailFindingRows,
-    "",
-    "--- Öncelikli Aksiyonlar ---",
-    ...(actionItemRows.length ? actionItemRows : ["Bu dönem için belirgin aksiyon sinyali yok."]),
-    "",
-    "--- PDF Eki ---",
-    REPORT_ATTACHMENT_NOTICE,
-    `Dosya: ${attachmentFilename}`,
-    `İçerik türü: ${PDF_ATTACHMENT_CONTENT_TYPE}`,
-    "",
+    ...reportSections.flatMap((section) => [
+      `--- ${section.title} ---`,
+      ...(section.lines.length ? section.lines : ["Veri yetersiz"]),
+      ""
+    ]),
     "Bu rapor yalnızca admin kullanımı içindir.",
     "Rapor kullanıcı takibi için değil, soru dengesi ve soru kalitesi kontrolü için üretilmiştir."
   ];
-  const pdfText = pdfSections.map((section) => `--- ${section.title} ---\n${section.lines.join("\n")}`).join("\n\n");
+  const reportText = reportSections.map((section) => `--- ${section.title} ---\n${section.lines.join("\n")}`).join("\n\n");
   const bodyRemovedSectionsPresent = findRemovedReportSections(`${html}\n${textLines.join("\n")}`);
-  const pdfRemovedSectionsPresent = findRemovedReportSections(pdfText);
   return {
     html,
     text: textLines.join('\n'),
-    pdfSections,
-    pdfText,
+    reportSections,
+    reportText,
     period,
     generatedAt,
     buildMarker,
-    attachmentFilename,
     bodyRemovedSectionsPresent,
-    pdfRemovedSectionsPresent,
     summary: {
       totalEvents: events.length,
       shownEvents,
@@ -1246,14 +1134,10 @@ function buildReport({
       staticInventorySectionsRemoved: true,
       productIntelligenceReport: true,
       reportSectionCount: reportSectionNames.length,
-      emailBodyMode: "summary_only",
-      pdfAttachmentRequired: true,
-      pdfAttachmentFilename: attachmentFilename,
-      pdfAttachmentContentType: PDF_ATTACHMENT_CONTENT_TYPE,
-      pdfAttachmentNotice: REPORT_ATTACHMENT_NOTICE,
+      emailBodyMode: "full_product_intelligence_email",
+      reportDeliveryMode: "email_body_only",
       removedReportSections: [...REMOVED_REPORT_SECTION_TITLES],
       bodyRemovedSectionsPresent,
-      pdfRemovedSectionsPresent,
       aggregatePreferenceSelectionsAnalyzed: totalPreferenceSelections,
       categoryExposureRowsAnalyzed: categoryAnalyticsForReport.length,
       categoryFairnessSignalCount: categoryFairnessSignals.length,
@@ -1385,18 +1269,6 @@ function filterRowsSince(rows, since) {
     return stamp ? stamp >= since : false;
   });
 }
-function buildSendEmailAttachmentPayload(pdfAttachment) {
-  return {
-    filename: pdfAttachment.filename,
-    name: pdfAttachment.filename,
-    content: pdfAttachment.base64,
-    contentType: pdfAttachment.contentType,
-    type: pdfAttachment.contentType,
-    mimeType: pdfAttachment.contentType,
-    encoding: "base64",
-    disposition: "attachment"
-  };
-}
 Deno.serve(async (req) => {
   try {
     if (req.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
@@ -1441,80 +1313,53 @@ Deno.serve(async (req) => {
       dailyWheelSpins: filterRowsSince(rawDailyWheelSpins, since),
       gameRecords: filterRowsSince(rawGameRecords, since),
       buildMarker: String(body?.buildMarker || REPORT_BUILD_MARKER)
-		    });
-	    const emailHtml = report.html;
-	    const emailText = report.text;
-	    const sentAt = (/* @__PURE__ */ new Date()).toISOString();
-	    const reportBuildMarker = String(body?.buildMarker || REPORT_BUILD_MARKER);
-	    let pdfAttachment = null;
-	    try {
-	      pdfAttachment = await buildQuestionAnalyticsPdfAttachment(report);
-	    } catch (pdfError) {
-	      const reason = safeErrorReason(pdfError);
-	      await writeJobLog(base44, admin.user, "pdf_generation_failed", {
-	        periodDays,
-	        requestedBy: requestedByEmail,
-	        recipientEmail,
-	        adminAuthorized: true,
-	        emailDispatchStatus: "not_sent",
-	        safeErrorReason: reason,
-	        reportBuildMarker,
-	        templateVersion: REPORT_TEMPLATE_VERSION
-	      });
-	      return json({
-	        ok: false,
-	        error: "report_pdf_generation_failed",
-	        requestedBy: requestedByEmail,
-	        recipientEmail,
-	        adminAuthorized: true,
-	        emailDispatchStatus: "not_sent",
-	        safeErrorReason: reason,
-	        reportBuildMarker,
-	        templateVersion: REPORT_TEMPLATE_VERSION
-	      }, 500);
-	    }
-		    const bodyDiagnostics = {
-		      reportBuildMarker,
-		      buildMarker: reportBuildMarker,
-		      templateVersion: REPORT_TEMPLATE_VERSION,
-		      emailBodyMode: "summary_only",
-		      bodyContainsExecutiveSummary: emailHtml.includes("Yönetici Özeti"),
-		      bodyContainsPdfAttachmentNotice: emailHtml.includes(REPORT_ATTACHMENT_NOTICE),
-		      bodyRemovedSectionsPresent: report.bodyRemovedSectionsPresent,
-		      pdfRemovedSectionsPresent: report.pdfRemovedSectionsPresent,
-		      pdfGenerated: Boolean(pdfAttachment?.base64 && pdfAttachment?.byteLength > 0),
-		      pdfFilename: pdfAttachment?.filename || report.attachmentFilename,
-		      pdfSizeBytes: pdfAttachment?.byteLength || 0,
-		      attachmentCount: pdfAttachment?.base64 && pdfAttachment?.byteLength > 0 ? 1 : 0,
-		      attachmentContentType: pdfAttachment?.contentType || PDF_ATTACHMENT_CONTENT_TYPE,
-		      pdfAttachmentGenerated: Boolean(pdfAttachment?.base64 && pdfAttachment?.byteLength > 0),
-		      pdfAttachmentFilename: pdfAttachment?.filename || report.attachmentFilename,
-		      pdfAttachmentContentType: pdfAttachment?.contentType || PDF_ATTACHMENT_CONTENT_TYPE,
-		      pdfAttachmentByteLength: pdfAttachment?.byteLength || 0,
-		      sendEmailAttachmentContract: "attachments[{filename,name,content,contentType,type,mimeType,encoding,disposition}]",
-		      sendEmailAttachmentContractVerified: false,
-		      attachmentPayloadPassedToSendEmail: Boolean(pdfAttachment?.base64 && pdfAttachment?.byteLength > 0),
-		      bodyLength: emailHtml.length,
-		      sentAt
-		    };
-	    if (!bodyDiagnostics.bodyContainsExecutiveSummary || !bodyDiagnostics.bodyContainsPdfAttachmentNotice || !bodyDiagnostics.pdfAttachmentGenerated || report.bodyRemovedSectionsPresent.length || report.pdfRemovedSectionsPresent.length) {
-	      await writeJobLog(base44, admin.user, "body_validation_failed", { periodDays, requestedBy: requestedByEmail, recipientEmail, adminAuthorized: true, emailDispatchStatus: "not_sent", ...bodyDiagnostics });
-	      return json({ ok: false, error: "report_body_or_pdf_validation_failed", requestedBy: requestedByEmail, recipientEmail, adminAuthorized: true, emailDispatchStatus: "not_sent", ...bodyDiagnostics }, 500);
-	    }
-		    const subject = `Kronox Soru Analiz Raporu — ${periodLabel(periodDays)}`;
+    });
+    const emailHtml = report.html;
+    const emailText = report.text;
+    const sentAt = (/* @__PURE__ */ new Date()).toISOString();
+    const reportBuildMarker = String(body?.buildMarker || REPORT_BUILD_MARKER);
+    const requiredBodySections = [
+      "Yönetici Özeti",
+      "Genel Kullanım Özeti",
+      "Solo Soru Algoritması İçin Sinyaller",
+      "Doğru Soru Tiplerini Öğrenme / İçerik Kalitesi",
+      "Joker Kullanımı Analizi",
+      "Oynanma Zamanı ve Kullanım Ritmi",
+      "Daha Uzun Oynama / Retention Sinyalleri",
+      "Soru / İçerik Aksiyonları",
+      "Önerilen Aksiyonlar",
+      "Data Quality / Eksik Ölçüm"
+    ];
+    const missingBodySections = requiredBodySections.filter((section) => !emailHtml.includes(section));
+    const bodyDiagnostics = {
+      reportBuildMarker,
+      buildMarker: reportBuildMarker,
+      templateVersion: REPORT_TEMPLATE_VERSION,
+      emailBodyMode: "full_product_intelligence_email",
+      reportDeliveryMode: "email_body_only",
+      bodyContainsExecutiveSummary: emailHtml.includes("Yönetici Özeti"),
+      bodyContainsProductIntelligenceSections: missingBodySections.length === 0,
+      missingBodySections,
+      bodyRemovedSectionsPresent: report.bodyRemovedSectionsPresent,
+      bodyLength: emailHtml.length,
+      sentAt
+    };
+    if (!bodyDiagnostics.bodyContainsExecutiveSummary || missingBodySections.length || emailHtml.length < 1000 || report.bodyRemovedSectionsPresent.length) {
+      await writeJobLog(base44, admin.user, "body_validation_failed", { periodDays, requestedBy: requestedByEmail, recipientEmail, adminAuthorized: true, emailDispatchStatus: "not_sent", ...bodyDiagnostics });
+      return json({ ok: false, error: "report_body_validation_failed", requestedBy: requestedByEmail, recipientEmail, adminAuthorized: true, emailDispatchStatus: "not_sent", ...bodyDiagnostics }, 500);
+    }
+    const subject = `Kronox Soru Analiz Raporu — ${periodLabel(periodDays)}`;
     let emailResult = null;
-    const emailAttachments = [buildSendEmailAttachmentPayload(pdfAttachment)];
     try {
       emailResult = await base44.integrations.Core.SendEmail({
         from_name: "Kronox",
         to: recipient,
         subject,
-		        body: emailHtml,
-		        html: emailHtml,
-		        text: emailText,
-		        body_text: emailText,
-		        attachments: emailAttachments
-		      });
+        body: emailHtml,
+        html: emailHtml,
+        text: emailText,
+        body_text: emailText
+      });
       if (emailResult?.ok === false) {
         throw new Error(emailResult?.error || emailResult?.message || "send failed");
       }
@@ -1542,13 +1387,12 @@ Deno.serve(async (req) => {
       recipientEmail,
       recipientSource,
       adminAuthorized: true,
-	      emailDispatchStatus: "sent",
-	      sendEmailOk: true,
-	      sendEmailAcceptedAttachment: Boolean(emailAttachments.length > 0 && emailResult?.ok !== false),
-	      emailProviderMessageId,
-	      ...bodyDiagnostics,
-	      ...report.summary
-	    };
+      emailDispatchStatus: "sent",
+      sendEmailOk: true,
+      emailProviderMessageId,
+      ...bodyDiagnostics,
+      ...report.summary
+    };
     await writeJobLog(base44, admin.user, "success", summary);
     return json(summary);
   } catch (error) {

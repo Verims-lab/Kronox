@@ -1699,7 +1699,16 @@ import React, { useEffect, useState } from 'react';
 //     Market purchase and Solo spend update the shared user-scoped cache.
 //   • Health/docs lock JokerTransaction as ledger-only for render-time
 //     balances and keep live Profile load timing as manual proof.
-const BUILD_MARKER = 'Codex317';
+//
+// Codex318 — Question Analytics full email-body report:
+//   • sendQuestionAnalyticsReportEmail no longer generates or sends a PDF
+//     attachment and no longer mentions an attachment in the email body.
+//   • The email body now contains the full useful product-intelligence report
+//     for Solo algorithm, content quality, jokers, play-time, retention, actions,
+//     and missing measurement without restoring removed static inventory sections.
+//   • Health/docs now treat real inbox receipt and body readability as the
+//     manual runtime proof.
+const BUILD_MARKER = 'Codex318';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
