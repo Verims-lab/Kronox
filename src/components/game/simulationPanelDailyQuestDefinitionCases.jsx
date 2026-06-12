@@ -278,18 +278,19 @@ export const EXTRA_TESTS = [
   makeCase('admin_ui_under_profile_settings',
     'Admin-only management UI exists under Profile/Admin Ekranı',
     () => {
-      const missing = missingTokens(`${profilePageSource}\n${adminPageSource}\n${appSource}\n${dailyQuestManagerSource}`, [
+      const missing = missingTokens(`${profilePageSource}\n${adminPageSource}\n${appSource}\n${dailyQuestManagerUiSource}`, [
         'Admin Ekranı',
         "navigate('/admin')",
         'path="/admin"',
         "import DailyQuestDefinitionManager",
         '<DailyQuestDefinitionManager />',
+        'DailyQuestDefinitionList',
         'Günlük Görev Yönetimi',
         'Tanımlı Görevler',
         'Yeni Görev Ekle',
       ]);
       if (missing.length) return fail('Daily Quest management UI is not mounted under Admin Ekranı.', { verification: 'STATIC_CONTRACT', missing });
-      return pass('Profile Admin Ekranı includes Günlük Görev Yönetimi.', { verification: 'STATIC_CONTRACT' });
+      return pass('Profile Admin Ekranı includes Günlük Görev Yönetimi and the split Tanımlı Görevler list.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('normal_users_cannot_see_admin_ui',
