@@ -125,6 +125,12 @@ question pool or offline/no-cache error. Saved preferences only become a soft
 70/30 weighting input when at least 3 active valid preferences exist. Online
 question selection is not affected.
 
+`Game.jsx` must explicitly resolve `getValidActiveSelectedCategoryIds(preferences,
+activeCategories)` in the Solo-only path so stale, passive, or invalid
+preference rows are filtered against active Categories before the deck builder
+receives any selected IDs. This helper is not used by Online category selection
+or by `/getQuestions`.
+
 P2 adds a helper-only quality layer on top of these rules:
 - deck diagnostics include level number, level type, deck size, correct target, fail threshold, question IDs, answer years, first 5 years, minimum first-5 gap, visible-spacing conflict count, category/subcategory/theme/decade/difficulty distributions, fallback tier, balance score, and warnings
 - question pool health can warn about sparse categories, sparse subcategories, overrepresented buckets, invalid years, missing sub_category/tag/difficulty metadata, insufficient unique years, and limited 16/19 deck readiness
@@ -149,6 +155,12 @@ P3 adds question analytics without changing question selection:
   play-rhythm views. This report informs future tuning but does not change
   runtime question selection by itself; no scheduled report exists in this
   version.
+- report wording must keep active pool, Solo-eligible pool, and Runtime
+  Projection diagnostics separate. Runtime Projection is diagnostic/admin proof
+  only and must not be faked by the email builder.
+- top-shown category/subcategory concentration is a guardrail only:
+  high concentration is not automatically unfair because the distribution must
+  be compared with the Solo-eligible pool first.
 - `QuestionStatsProjection` refresh remains an admin/manual aggregate path and
   is not updated synchronously during gameplay.
 - Health guardrails must detect projection narrowing, repeated-deck low

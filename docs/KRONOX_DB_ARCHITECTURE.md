@@ -423,6 +423,9 @@ Rules:
 * No login/no saved preferences/empty preferences use all active categories for
   Solo. Saved preferences target 70% selected user categories and 30% full
   eligible pool only when at least 3 active valid preferences are available.
+  `Game.jsx` explicitly resolves
+  `getValidActiveSelectedCategoryIds(preferences, activeCategories)` before
+  passing Solo preference IDs to the deck builder.
 * Category preference save validation remains separate from gameplay start and
   must not block question loading.
 * This is a soft weighting target with fallback, not hard filtering.
@@ -842,7 +845,7 @@ No deletion should happen in this task.
   `swapped_out` events separately. Projection refresh skips analytics events
   whose `question_id` no longer exists in the current `Question` pool.
 - Manual admin email report. Codex197 adds `sendQuestionAnalyticsReportEmail`
-  for admin-triggered, question-focused reports. Codex319 sends the full
+  for admin-triggered, question-focused reports. Codex320 sends the full
   `nine-section-email-v1` report inside the email body and intentionally
   disables the PDF attachment flow for now. The report skips stale/deleted
   question references with a diagnostic count and caps content for readability.
@@ -868,6 +871,12 @@ No deletion should happen in this task.
   `renderedSectionHeaderCount`, `bodyLength`, and
   `bodyRemovedSectionsPresent`, while real inbox delivery and body readability
   remain manual provider proof.
+- The report keeps active pool, Solo-eligible pool, and Runtime Projection
+  diagnostics separate. Runtime Projection is not fabricated by the email
+  builder; live projection remains Health/admin diagnostic proof.
+- Top-shown category/subcategory concentration is reported as a generic
+  guardrail and must be compared with the Solo-eligible pool before making
+  fairness conclusions.
 - Report table contract. Joker and play-rhythm sections are table-based. Missing
   joker outcome, session, timezone, or completion fields must be shown as
   `Yeterli veri yok` or equivalent structured rows instead of invented metrics.
@@ -880,7 +889,8 @@ No deletion should happen in this task.
   `templateVersion: nine-section-email-v1`, `emailBodyMode:
   nine_section_email_body`, `reportDeliveryMode: email_body_only`,
   `bodyContainsExactlyRequiredSections: true`, `requiredSectionOrderValid: true`,
-  `renderedSectionHeaderCount: 9`, and `bodyLength > 1000`.
+  `renderedSectionHeaderCount: 9`, `bodyLength > 1000`, and
+  `reportBuildMarker: Codex320`.
   Frontend `npm run build` still does not prove Base44 function redeployment or
   live SendEmail delivery.
 - Manual DB reset path after question pool replacement. The function-based

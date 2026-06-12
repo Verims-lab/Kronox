@@ -28,7 +28,7 @@ const REGISTERED_QUESTION_POOL_ROW_LIMIT = 250;
 const CATEGORY_FAIRNESS_SIGNAL_LIMIT = 20;
 const STALE_REFERENCE_SAMPLE_LIMIT = 20;
 const PERIOD_OPTIONS = /* @__PURE__ */ new Set([1, 7, 30]);
-const REPORT_BUILD_MARKER = "Codex319";
+const REPORT_BUILD_MARKER = "Codex320";
 const REPORT_TEMPLATE_VERSION = "nine-section-email-v1";
 const REPORT_TEMPLATE_LABEL = "nine-section-email-v1";
 const REQUIRED_REPORT_SECTION_TITLES = Object.freeze([
@@ -42,6 +42,20 @@ const REQUIRED_REPORT_SECTION_TITLES = Object.freeze([
   "Joker Kullanımı Analizi",
   "Oynanma Zamanı ve Kullanım Ritmi"
 ]);
+const REPORT_SECTION_HTML_MARKERS = Object.freeze([
+  "--- Executive Summary ---",
+  "--- Kategori Bazında Soru Havuzu ---",
+  "--- Kategori Tercihleri ---",
+  "--- Kategori Bazında Gösterim ---",
+  "--- En Çok Gösterilen Sorular ---",
+  "--- Az ya da Hiç Gösterilmeyen Sorular ---",
+  "--- En Çok Yanlış Yapılan Sorular ---",
+  "--- Joker Kullanımı Analizi ---",
+  "--- Oynanma Zamanı ve Kullanım Ritmi ---"
+]);
+const REPORT_SECTION_HTML_MARKER_BY_TITLE = Object.freeze(Object.fromEntries(
+  REQUIRED_REPORT_SECTION_TITLES.map((title, index) => [title, REPORT_SECTION_HTML_MARKERS[index]])
+));
 const REMOVED_REPORT_SECTION_TITLES = Object.freeze([
   "Rapor Şablonu",
   "Rapor Bölümleri",
@@ -443,12 +457,13 @@ function sectionWarningHtml(message) {
   return `<p style="margin:0;padding:12px 14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;color:#9a3412;font-size:13px;line-height:20px;font-family:Arial,Helvetica,sans-serif;">${escapeHtml(message)}</p>`;
 }
 function safeSectionHtml(title, renderBody) {
+  const marker = REPORT_SECTION_HTML_MARKER_BY_TITLE[title] || `--- ${title} ---`;
   try {
-    return sectionHtml(title, renderBody());
+    return `<!-- ${escapeHtml(marker)} -->${sectionHtml(title, renderBody())}`;
   } catch (error) {
     const reason = error instanceof Error ? error.message : "section_render_failed";
     console.error(`[${JOB_NAME}] section_render_failed`, title, reason);
-    return sectionHtml(title, sectionWarningHtml(`${title} bölümü oluşturulamadı; raporun kalan bölümleri devam ediyor.`));
+    return `<!-- ${escapeHtml(marker)} -->${sectionHtml(title, sectionWarningHtml(`${title} bölümü oluşturulamadı; raporun kalan bölümleri devam ediyor.`))}`;
   }
 }
 function tableHtml(headers, rows, emptyMessage) {
@@ -782,6 +797,7 @@ function buildReport({
   const neverShown = activeQuestions.filter((question) => !shownQuestionIds.has(questionKey(question?.id ?? question?.question_id)));
   const neverShownSoloEligible = soloEligibleQuestions.filter((question) => !shownQuestionIds.has(questionKey(question?.id ?? question?.question_id)));
   const topShown = [...bucketList].filter((bucket) => bucket.shown_count > 0).sort(sortDesc("shown_count")).slice(0, 10);
+  const topSubcategoryConcentration = getTopShownSubcategoryConcentration(topShown);
   const mostWrong = [...bucketList]
     .filter((bucket) => bucket.shown_count >= 3 && bucket.wrong_count > 0)
     .sort((a, b) => {
@@ -831,16 +847,16 @@ function buildReport({
   };
 
   const executiveCards = summaryCardGrid([
-    { label: "TOPLAM GÖSTERİM", value: String(shownEvents), helper: "Bu dönemde oyuncuya gösterilen soru sayısı" },
-    { label: "CEVAPLANAN SORU", value: String(answeredEvents), helper: "Yerleştirme sonucu olan event sayısı" },
-    { label: "BENZERSİZ GÖSTERİLEN SORU", value: String(shownQuestionIds.size), helper: "En az bir kez gösterilen farklı soru" },
-    { label: "AKTİF SORU HAVUZU (TÜM AKTİFLER)", value: String(activeQuestions.length), helper: "Rapor anında aktif görünen tüm soru satırları" },
-    { label: "SOLO-ELIGIBLE SORU", value: String(soloEligibleQuestions.length), helper: "Aktif, yıl ve aktif kategori bilgisi kullanılabilir sorular" },
-    { label: "HİÇ GÖSTERİLMEYEN AKTİF SORU", value: String(neverShown.length), helper: "Tüm aktif havuz içinde bu dönemde görünmeyenler" },
-    { label: "HİÇ GÖSTERİLMEYEN SOLO-ELIGIBLE", value: String(neverShownSoloEligible.length), helper: "Solo-eligible havuz içinde bu dönemde görünmeyenler" },
-    { label: "RUNTIME PROJECTION", value: "Yeterli veri yok", helper: "getQuestions diagnostics canlı projection çağırmaz" },
-    { label: "ORTALAMA DOĞRU ORANI", value: avgCorrectRate, helper: "Cevaplanmış eventler üzerinden" },
-    { label: "ORTALAMA CEVAP SÜRESİ", value: avgResponse, helper: "Response time olan cevaplar üzerinden" }
+    { label: "Toplam Gösterim", value: String(shownEvents), helper: "Bu dönemde oyuncuya gösterilen soru sayısı" },
+    { label: "Cevaplanan Soru", value: String(answeredEvents), helper: "Yerleştirme sonucu olan event sayısı" },
+    { label: "Benzersiz Gösterilen Soru", value: String(shownQuestionIds.size), helper: "En az bir kez gösterilen farklı soru" },
+    { label: "Aktif Soru Havuzu (Tüm Aktifler)", value: String(activeQuestions.length), helper: "Rapor anında aktif görünen tüm soru satırları" },
+    { label: "Solo-Eligible Soru", value: String(soloEligibleQuestions.length), helper: "Aktif, yıl ve aktif kategori bilgisi kullanılabilir sorular" },
+    { label: "Hiç Gösterilmeyen Aktif Soru", value: String(neverShown.length), helper: "Tüm aktif havuz içinde bu dönemde görünmeyenler" },
+    { label: "Hiç Gösterilmeyen Solo-Eligible", value: String(neverShownSoloEligible.length), helper: "hiç gösterilmeyen Solo-eligible soru sayısı" },
+    { label: "Runtime Projection", value: "Yeterli veri yok", helper: "Runtime projection: Health/admin diagnostic only; email does not call live projection to avoid gameplay coupling." },
+    { label: "Ortalama Doğru Oranı", value: avgCorrectRate, helper: "Cevaplanmış eventler üzerinden" },
+    { label: "Ortalama Cevap Süresi", value: avgResponse, helper: "Response time olan cevaplar üzerinden" }
   ]);
 
   const categoryPoolRows = categoryAnalyticsForReport.length ? categoryAnalyticsForReport.map((row) => [
@@ -897,7 +913,12 @@ function buildReport({
     cell(row.avgResponseTimeMs ? formatMs(row.avgResponseTimeMs) : "-"),
     cell(percent(row.shownCount, shownEvents))
   ]) : [["-", "Veri yok", "0", "0", "0", "0", "Yeterli veri yok", "-", "0%"]];
-  const categoryExposureHtml = tableHtml([
+  const concentrationGuardrailText = topSubcategoryConcentration.topShownSubcategoryTotal > 0
+    ? `Not: En çok gösterilen kategori/subcategory (${topSubcategoryConcentration.topShownSubcategory}, ${percent(topSubcategoryConcentration.topShownSubcategoryCount, topSubcategoryConcentration.topShownSubcategoryTotal)}) dağılımı pool-proportional değildir diye otomatik varsayılmaz; dağılım Solo-eligible havuzla karşılaştırılmalıdır.`
+    : "Not: En çok gösterilen kategori/subcategory dağılımı pool-proportional değildir diye otomatik varsayılmaz; dağılım Solo-eligible havuzla karşılaştırılmalıdır.";
+  const categoryExposureHtml = [
+    textBlockHtml(concentrationGuardrailText),
+    tableHtml([
     "Kategori ID",
     "Kategori",
     "Aktif Soru",
@@ -907,7 +928,8 @@ function buildReport({
     "Doğru %",
     "Ort. Süre",
     "Gösterim Payı"
-  ], categoryExposureRows, "Bu dönem için kategori gösterim verisi yok");
+    ], categoryExposureRows, "Bu dönem için kategori gösterim verisi yok")
+  ].join("");
 
   const maxShown = Math.max(1, ...topShown.map((bucket) => Number(bucket.shown_count) || 0));
   const topShownRows = topShown.length ? topShown.map((bucket, index) => {
@@ -1307,7 +1329,8 @@ function buildReport({
       `Aktif soru havuzu: ${activeQuestions.length}`,
       `Solo-eligible soru: ${soloEligibleQuestions.length}`,
       `Hiç gösterilmeyen aktif soru: ${neverShown.length}`,
-      `Hiç gösterilmeyen Solo-eligible: ${neverShownSoloEligible.length}`,
+      `hiç gösterilmeyen Solo-eligible soru: ${neverShownSoloEligible.length}`,
+      "Runtime Projection: Health/admin diagnostic only; email does not call live projection to avoid gameplay coupling.",
       `Ortalama doğru oranı: ${avgCorrectRate}`,
       `Ortalama cevap süresi: ${avgResponse}`
     ] },

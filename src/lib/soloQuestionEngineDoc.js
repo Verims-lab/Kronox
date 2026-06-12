@@ -96,6 +96,9 @@ back to global Solo selection and must not become an empty question pool or
 offline/no-cache error. Saved preferences only become a soft 70/30 weighting
 input when at least 3 active valid preferences exist. Online question selection
 is not affected.
+Game.jsx explicitly resolves getValidActiveSelectedCategoryIds(preferences,
+activeCategories) in the Solo-only path before passing selected IDs to the deck
+builder.
 
 P2 diagnostics are Health/admin/helper-only. Deck diagnostics include level
 number, level type, deck size, correct target, fail threshold, question IDs,

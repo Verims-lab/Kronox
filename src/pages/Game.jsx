@@ -54,6 +54,7 @@ import {
   shouldShowBeginnerPlacementHint,
 } from '@/lib/soloQuestionEngine';
 import {
+  getValidActiveSelectedCategoryIds,
   loadActiveCategories,
   loadUserCategoryPreferences,
   resolveGameplayCategoryPreferenceFilter,
@@ -357,12 +358,15 @@ export default function Game() {
           loadUserCategoryPreferences(currentUser),
         ]);
         if (!active) return;
+        const validSelectedCategoryIds = getValidActiveSelectedCategoryIds(preferences, activeCategories);
         const preferenceFilter = resolveGameplayCategoryPreferenceFilter(preferences, activeCategories);
+        const selectedCategoryIds = Array.from(validSelectedCategoryIds);
+        const hasPreferenceFilter = selectedCategoryIds.length > 0;
         setSoloCategoryPreferenceState({
           status: 'ready',
-          selectedCategoryIds: preferenceFilter.selectedCategoryIds,
-          available: preferenceFilter.hasPreferenceFilter,
-          fallbackReason: preferenceFilter.fallbackReason,
+          selectedCategoryIds: hasPreferenceFilter ? selectedCategoryIds : [],
+          available: hasPreferenceFilter,
+          fallbackReason: hasPreferenceFilter ? null : preferenceFilter.fallbackReason,
         });
       } catch {
         if (!active) return;

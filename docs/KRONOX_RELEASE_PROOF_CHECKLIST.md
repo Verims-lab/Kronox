@@ -114,6 +114,7 @@ Checklist:
 * Question exposure analytics are reviewed after deploy to confirm unique-question coverage and category/subcategory concentration improved.
 * Health covers question exposure fairness guardrails: getQuestions projection sampling/metadata, active-vs-runtime pool mismatch diagnostics, repeated Solo deck unique coverage, exposure cooldown/rotation, and category/subcategory/year-band concentration warnings.
 * Question Analytics report wording separates all active questions, Solo-eligible questions, runtime projection diagnostics, unique shown questions, and never-shown counts; it must not imply equal category/subcategory counts.
+* Question Analytics report includes the generic top-shown concentration guardrail: high category/subcategory concentration is not automatically unfair and must be compared with the Solo-eligible pool before drawing fairness conclusions.
 * Difficulty progression remains readiness-only and falls back safely when current question data has mostly difficulty 1 or missing difficulty.
 * Replay variety diagnostics can detect repeated first-5 sequences without weakening hard deck rules.
 * Deck feels category/subcategory/theme balanced where the pool allows.
@@ -188,6 +189,9 @@ Checklist:
 * No login/no saved preferences/empty preferences use all active categories for
   Solo. Saved preferences target 70% selected user categories and 30% full
   eligible pool only when at least 3 active valid preferences are available.
+  `Game.jsx` must explicitly call
+  `getValidActiveSelectedCategoryIds(preferences, activeCategories)` in the
+  Solo-only wiring path; Online category selection remains separate.
 * Category preference save validation remains separate from gameplay start and
   must not block question loading.
 * Empty preferences must not produce an empty candidate pool or fake
@@ -802,9 +806,12 @@ Checklist:
   nine-section-email-v1`, `emailBodyMode: nine_section_email_body`,
   `reportDeliveryMode: email_body_only`, `bodyContainsExactlyRequiredSections:
   true`, `requiredSectionOrderValid: true`, `renderedSectionHeaderCount: 9`,
-  `bodyLength > 1000`, the email arrives, and the received email body is
+  `bodyLength > 1000`, `reportBuildMarker: Codex320`, the email arrives, and the received email body is
   readable/useful without an attachment. `npm run build` does not prove Base44
   backend function deployment or live SendEmail output.
+* The active report builder keeps Gmail-safe hidden markers for each exact
+  section, for example `--- Executive Summary ---`, while visible headings
+  remain clean.
 * These sections are intentionally removed from generated email output:
   `Rapor Şablonu`, `Rapor Bölümleri`,
   `Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı`,

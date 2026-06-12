@@ -1716,7 +1716,15 @@ import React, { useEffect, useState } from 'react';
 //     play-rhythm sections are table-based with structured no-data rows.
 //   • Health/docs now enforce nine-section-email-v1 diagnostics and manual
 //     live inbox proof.
-const BUILD_MARKER = 'Codex319';
+//
+// Codex320 — Solo preference + nine-section report Health contract fix:
+//   • Game.jsx explicitly calls getValidActiveSelectedCategoryIds(preferences,
+//     activeCategories) in the Solo-only preference path while empty/no-auth
+//     preferences continue to use all active categories.
+//   • sendQuestionAnalyticsReportEmail adds hidden nine-section markers,
+//     title-case metric labels, Runtime Projection / Solo-eligible wording,
+//     and the generic top-shown concentration guardrail.
+const BUILD_MARKER = 'Codex320';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
