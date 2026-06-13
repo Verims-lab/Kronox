@@ -136,7 +136,8 @@ longer stored on the entity — they are derived at fetch time by
   Category source/ids, per-category fetch/playable counts, zero-playable
   categories, fallback state, and projectionCappedBeforeCategoryCoverage:false.
 - Missing getQuestionsRuntimeMarker in Solo debug JSON means the deployed
-  callable is stale or the frontend invoked a different function.
+  callable is stale or the frontend invoked a different function. Codex343
+  expects backend marker getQuestions-live-per-category-v7-Codex343.
 - getQuestions admin/Health diagnostics expose the safe funnel: fetched active
   rows, normalized eligible rows, returned runtime projection,
   category/subcategory/year-band distributions, projection limit, and seed.

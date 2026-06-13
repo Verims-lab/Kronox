@@ -50,7 +50,8 @@ Rules:
   zero-playable categories, fallback state, and
   `projectionCappedBeforeCategoryCoverage: false`
 * If Solo debug JSON lacks `getQuestionsRuntimeMarker`, the deployed callable
-  is stale or the frontend is invoking a different function.
+  is stale or the frontend is invoking a different function. Codex343 expects
+  backend marker `getQuestions-live-per-category-v7-Codex343`.
 * raw/admin metadata must not be returned to normal gameplay
 
 ---

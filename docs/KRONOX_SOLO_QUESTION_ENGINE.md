@@ -174,7 +174,7 @@ P3 adds question analytics without changing question selection:
   backward compatibility), fetch candidates per active category before
   pool-proportional projection, and expose diagnostics showing that projection
   is not capped before category balancing. The local question cache version is
-  `question-runtime-v6-backend-marker-per-category` so stale narrow projections
+  `question-runtime-v7-getQuestions-live-marker` so stale narrow projections
   are invalidated.
 - Codex338 fix: gameplay fetches now request the v2 per-category projection
   explicitly instead of relying on an empty default payload. `/getQuestions`
@@ -191,9 +191,9 @@ P3 adds question analytics without changing question selection:
   `projectionCappedBeforeCategoryCoverage: false`, all active Category IDs in
   `activeCategoryIdsFromGetQuestions`, and explicit zero-playable reasons when
   an active category has no playable questions.
-- Codex342 proof marker: `/getQuestions` now returns backend-only
+- Codex343 proof marker: `/getQuestions` now returns backend-only
   `getQuestionsRuntimeMarker` / diagnostics `runtimeMarker`
-  `getQuestions-per-category-projection-v3-Codex342`. If this marker is absent
+  `getQuestions-live-per-category-v7-Codex343`. If this marker is absent
   from Solo debug JSON after deployment, the frontend is invoking stale or
   different deployed function code.
 - Codex330 fix: the global 30% difficulty-1 candidate diagnostics/scorer use

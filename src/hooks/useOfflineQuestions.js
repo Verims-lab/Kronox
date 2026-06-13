@@ -56,6 +56,24 @@ function buildGameplayQuestionRequestPayload({ includeDiagnostics = false } = {}
   };
 }
 
+function getBackendFunctionWiringStatus({ requestPayload, responseData } = {}) {
+  const requestedV2 = requestPayload?.mode === 'gameplay_runtime'
+    || requestPayload?.projectionVersion === GAMEPLAY_QUESTION_REQUEST_VERSION
+    || requestPayload?.requireCategoryCoverage === true;
+  const runtimeMarker = responseData?.getQuestionsRuntimeMarker
+    || responseData?.runtimeMarker
+    || responseData?.projectionDiagnostics?.getQuestionsRuntimeMarker
+    || responseData?.projectionDiagnostics?.runtimeMarker
+    || null;
+  const hasDiagnostics = Boolean(responseData?.projectionDiagnostics);
+
+  if (!requestedV2) return 'not_gameplay_v2_request';
+  if (runtimeMarker && hasDiagnostics) return 'backend_marker_and_projection_diagnostics_present';
+  if (!runtimeMarker && !hasDiagnostics) return 'missing_backend_marker_and_projection_diagnostics';
+  if (!runtimeMarker) return 'missing_backend_marker';
+  return 'missing_projection_diagnostics';
+}
+
 const wait = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
 function isKnownOffline() {
@@ -92,6 +110,7 @@ function buildQuestionFetchDebugSnapshot({
   diagnosticsFallbackError = null,
 } = {}) {
   const normalizedQuestions = normalizeQuestionsForRuntime(questions || []);
+  const backendFunctionWiringStatus = getBackendFunctionWiringStatus({ requestPayload, responseData });
   return {
     source,
     cacheHit: Boolean(cacheHit),
@@ -106,6 +125,8 @@ function buildQuestionFetchDebugSnapshot({
     queryEntity: 'base44.functions.invoke',
     queryFunction: 'getQuestions',
     queryPayload: requestPayload || buildGameplayQuestionRequestPayload({ includeDiagnostics: Boolean(responseData?.projectionDiagnostics) }),
+    backendFunctionWiringStatus,
+    backendFunctionWiringBlocker: backendFunctionWiringStatus.startsWith('missing_'),
     getQuestionsRuntimeMarker: responseData?.getQuestionsRuntimeMarker
       || responseData?.runtimeMarker
       || responseData?.projectionDiagnostics?.getQuestionsRuntimeMarker
