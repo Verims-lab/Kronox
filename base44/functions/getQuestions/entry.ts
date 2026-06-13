@@ -642,15 +642,9 @@ function buildProjectionDiagnostics({
   };
 }
 
-console.log('[getQuestions] Before HANDLER ');
-
-
 Deno.serve(async (req) => 
 {
-  console.log('[getQuestions] HANDLER ENTERED - Before try');
   try {
-    console.log('[getQuestions] HANDLER ENTERED - In try');
-
     if (req.method !== 'POST') {
       return json({ ok: false, error: 'Method not allowed' }, 405);
     }
@@ -842,4 +836,3 @@ Deno.serve(async (req) =>
     return json({ ok: false, error: 'Sorular yuklenemedi.' }, 500);
   }
 });
-console.log('[getQuestions] After HANDLER ');
