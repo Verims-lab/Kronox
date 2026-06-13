@@ -5,7 +5,8 @@ const FALLBACK_ACTIVE_CATEGORY_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 11];
 const MAX_GAMEPLAY_LIMIT = 1200;
 const QUESTION_FETCH_PER_CATEGORY_LIMIT = 1000;
 const GAMEPLAY_PROJECTION_VERSION = 'per_category_projection_v2';
-const GET_QUESTIONS_RUNTIME_CONTRACT_VERSION = 'getQuestions-per-category-v2-Codex340';
+const GET_QUESTIONS_RUNTIME_MARKER = 'getQuestions-per-category-projection-v3-Codex342';
+const GET_QUESTIONS_RUNTIME_CONTRACT_VERSION = GET_QUESTIONS_RUNTIME_MARKER;
 const PROJECTION_SAMPLING_STRATEGY = 'pool_proportional_category_subcategory_per_category_fetch_v2';
 const DIAGNOSTIC_TOP_LIMIT = 12;
 const CATEGORY_ACTIVE_STATUS_VALUES = new Set(['', 'a', 'active', 'aktif']);
@@ -516,6 +517,8 @@ function buildProjectionDiagnostics({
 
   return {
     projectionVersion: GAMEPLAY_PROJECTION_VERSION,
+    runtimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
+    getQuestionsRuntimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
     functionContractVersion: GET_QUESTIONS_RUNTIME_CONTRACT_VERSION,
     strategy: PROJECTION_SAMPLING_STRATEGY,
     requestedLimit,
@@ -641,6 +644,8 @@ Deno.serve(async (req) => {
         activeCategoryIds: Array.from(activeMainCategoryIds),
         activeCategorySource,
         projectionVersion: GAMEPLAY_PROJECTION_VERSION,
+        getQuestionsRuntimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
+        runtimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
         functionContractVersion: GET_QUESTIONS_RUNTIME_CONTRACT_VERSION,
         source: 'public_minimal_playable_projection',
         reason: 'no_active_requested_categories',
@@ -667,6 +672,8 @@ Deno.serve(async (req) => {
       activeCategoryIds: Array.from(activeMainCategoryIds),
       activeCategorySource,
       projectionVersion: GAMEPLAY_PROJECTION_VERSION,
+      getQuestionsRuntimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
+      runtimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
       functionContractVersion: GET_QUESTIONS_RUNTIME_CONTRACT_VERSION,
       source: 'public_minimal_playable_projection',
       limit,

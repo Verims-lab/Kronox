@@ -249,6 +249,10 @@ export function buildSoloQuestionRuntimeDebugPayload({
       ],
       sortOrLimit: {
         projectionVersion: diagnostics?.projectionVersion || questionLoadDebugSnapshot?.projectionVersion || null,
+        getQuestionsRuntimeMarker: diagnostics?.getQuestionsRuntimeMarker
+          || diagnostics?.runtimeMarker
+          || questionLoadDebugSnapshot?.getQuestionsRuntimeMarker
+          || null,
         requestedLimit: diagnostics?.requestedLimit ?? questionLoadDebugSnapshot?.requestedLimit ?? null,
         effectiveLimit: diagnostics?.effectiveLimit ?? questionLoadDebugSnapshot?.effectiveLimit ?? null,
         queryOrderUsed: diagnostics?.queryOrderUsed || questionLoadDebugSnapshot?.queryOrder || 'getQuestions deployed function order',
@@ -271,6 +275,10 @@ export function buildSoloQuestionRuntimeDebugPayload({
       },
     },
     activeCategorySource: diagnostics?.activeCategorySource || questionLoadDebugSnapshot?.activeCategorySource || 'runtime_activeCategoryIds',
+    getQuestionsRuntimeMarker: diagnostics?.getQuestionsRuntimeMarker
+      || diagnostics?.runtimeMarker
+      || questionLoadDebugSnapshot?.getQuestionsRuntimeMarker
+      || null,
     backendProjectionVersion: diagnostics?.projectionVersion || questionLoadDebugSnapshot?.projectionVersion || null,
     backendRequestedLimit: diagnostics?.requestedLimit ?? questionLoadDebugSnapshot?.requestedLimit ?? null,
     backendEffectiveLimit: diagnostics?.effectiveLimit ?? questionLoadDebugSnapshot?.effectiveLimit ?? null,
@@ -336,7 +344,9 @@ export function buildSoloQuestionRuntimeDebugPayload({
     },
     notes: [
       'This payload is assembled from the real Solo runtime fetch/deck path, not a separate diagnostic query.',
-      diagnostics ? 'getQuestions projectionDiagnostics were included.' : 'No getQuestions projectionDiagnostics were present; counts are derived from the runtime returned projection.',
+      diagnostics
+        ? 'getQuestions projectionDiagnostics were included.'
+        : 'backend getQuestions did not return projectionDiagnostics; deployed function may be stale or a different callable may be invoked.',
       'No service token, env secret, auth header, or other user data is included.',
     ],
   };

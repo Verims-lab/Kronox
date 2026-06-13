@@ -1861,7 +1861,13 @@ import React, { useEffect, useState } from 'react';
 //   • Removes committed diagnostic/support email literals, gates Solo query
 //     diagnostics through AdminUser/request-env targeting with generic masking,
 //     and sources public support contact from VITE_KRONOX_SUPPORT_EMAIL.
-const BUILD_MARKER = 'Codex341';
+//
+// Codex342 — getQuestions deployed-runtime marker:
+//   • Adds backend getQuestionsRuntimeMarker
+//     getQuestions-per-category-projection-v3-Codex342, bumps the local
+//     question cache to v6, and surfaces missing projectionDiagnostics as a
+//     stale/different deployed callable warning in Solo debug JSON.
+const BUILD_MARKER = 'Codex342';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

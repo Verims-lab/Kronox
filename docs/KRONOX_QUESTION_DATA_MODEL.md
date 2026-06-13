@@ -45,9 +45,12 @@ Rules:
 * `/getQuestions` gameplay v2 requests (`mode=gameplay_runtime`,
   `projectionVersion=per_category_projection_v2`,
   `requireCategoryCoverage=true`) must return safe projection diagnostics by
-  default: requested/effective limit, active Category source/ids, per-category
-  fetch/playable counts, zero-playable categories, fallback state, and
+  default: backend `getQuestionsRuntimeMarker`, requested/effective limit,
+  active Category source/ids, per-category fetch/playable counts,
+  zero-playable categories, fallback state, and
   `projectionCappedBeforeCategoryCoverage: false`
+* If Solo debug JSON lacks `getQuestionsRuntimeMarker`, the deployed callable
+  is stale or the frontend is invoking a different function.
 * raw/admin metadata must not be returned to normal gameplay
 
 ---

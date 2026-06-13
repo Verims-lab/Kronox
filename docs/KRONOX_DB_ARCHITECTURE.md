@@ -464,10 +464,12 @@ Rules:
   projection.
 * `getQuestions` v2 gameplay requests return safe `projectionDiagnostics`
   without requiring admin-only debug flags. Diagnostics must expose
-  requested/effective limit, active Category source/ids, per-category fetch and
-  playable counts, zero-playable categories, and whether fallback was used.
-  Fallback IDs are allowed only when the Category read fails, not merely when a
-  category has 0 playable questions.
+  backend `getQuestionsRuntimeMarker`, requested/effective limit, active
+  Category source/ids, per-category fetch and playable counts, zero-playable
+  categories, and whether fallback was used. Fallback IDs are allowed only when
+  the Category read fails, not merely when a category has 0 playable questions.
+  Missing `getQuestionsRuntimeMarker` in Solo debug JSON is a stale/different
+  deployed callable blocker.
 * The active category helper accepts any positive live `category_id`; original
   seed IDs are not a category maximum.
 * Online question selection is not affected.

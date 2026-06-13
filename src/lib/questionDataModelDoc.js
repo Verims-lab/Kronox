@@ -132,9 +132,11 @@ longer stored on the entity — they are derived at fetch time by
   main_category_id, second_category_id, and third_category_id must not be
   capped to the original 1-6 seed set.
 - getQuestions gameplay v2 requests return safe projectionDiagnostics by
-  default: requested/effective limit, active Category source/ids, per-category
-  fetch/playable counts, zero-playable categories, fallback state, and
-  projectionCappedBeforeCategoryCoverage:false.
+  default: getQuestionsRuntimeMarker, requested/effective limit, active
+  Category source/ids, per-category fetch/playable counts, zero-playable
+  categories, fallback state, and projectionCappedBeforeCategoryCoverage:false.
+- Missing getQuestionsRuntimeMarker in Solo debug JSON means the deployed
+  callable is stale or the frontend invoked a different function.
 - getQuestions admin/Health diagnostics expose the safe funnel: fetched active
   rows, normalized eligible rows, returned runtime projection,
   category/subcategory/year-band distributions, projection limit, and seed.
