@@ -1927,7 +1927,13 @@ import React, { useEffect, useState } from 'react';
 //   • Removes temporary request/payload/branch/category/candidate info logs
 //     after real payload proof succeeded.
 //   • Keeps ping, runtime marker, and projectionDiagnostics in the response.
-const BUILD_MARKER = 'Codex353';
+//
+// Codex354 — FriendRequest RLS drift guard:
+//   • Syncs local Codex with latest origin/Codex/main state before security
+//     review.
+//   • Adds a parser-backed Health guard for FriendRequest sender/recipient/admin
+//     read/update/delete RLS, including the delete branch.
+const BUILD_MARKER = 'Codex354';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
