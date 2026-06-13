@@ -920,9 +920,12 @@ Checklist:
   `scripts/diagnoseSoloQuestionStartQuery.mjs` with live Base44 service-role
   credentials, or the optional admin-only `diagnoseSoloQuestionStartQuery`
   backend function after it is deployed. Do not expose a production Admin
-  Ekranı button unless the function path is deployed and verified. The
-  read-only diagnostic must include `sariverim@gmail.com`, up to 10 users with
-  active category preferences, the real `getQuestions`-compatible
+  Ekranı button unless the function path is deployed and verified. The script
+  must be run with the app-specific `BASE44_APP_BASE_URL` or
+  `VITE_BASE44_APP_BASE_URL`; do not let Node diagnostics silently default to
+  the generic `base44.app` host. The read-only diagnostic must include
+  `sariverim@gmail.com`, up to 10 users with active category preferences, the
+  real `getQuestions`-compatible
   `Question.filter` query descriptor, cache key/version, per-category
   active/Solo-eligible/difficulty-1 counts, frontend `buildSoloAttemptDeck`
   dry-run output, and category 6/7/8/9/11 presence/removal reasons. Copy the
