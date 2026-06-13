@@ -325,7 +325,7 @@ export const EXTRA_TESTS = [
         "base44.functions.invoke('getQuestions'",
         'GET_QUESTIONS_RUNTIME_CONTRACT_VERSION',
         'GET_QUESTIONS_RUNTIME_MARKER',
-        'getQuestions-per-category-projection-v3-Codex342',
+        'getQuestions-live-per-category-v7-Codex343',
         'getQuestionsRuntimeMarker',
         "GAMEPLAY_PROJECTION_VERSION = 'per_category_projection_v2'",
         'projectionDiagnostics',

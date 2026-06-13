@@ -469,7 +469,8 @@ Rules:
   categories, and whether fallback was used. Fallback IDs are allowed only when
   the Category read fails, not merely when a category has 0 playable questions.
   Missing `getQuestionsRuntimeMarker` in Solo debug JSON is a stale/different
-  deployed callable blocker.
+  deployed callable blocker; Codex343 expects backend marker
+  `getQuestions-live-per-category-v7-Codex343` from the deployed callable.
 * The active category helper accepts any positive live `category_id`; original
   seed IDs are not a category maximum.
 * Online question selection is not affected.

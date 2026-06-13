@@ -180,6 +180,18 @@ export function buildSoloQuestionRuntimeDebugPayload({
 } = {}) {
   const preferenceFairness = engineResult?.meta?.categoryPreferenceFairness || {};
   const diagnostics = questionLoadDebugSnapshot?.projectionDiagnostics || null;
+  const getQuestionsRuntimeMarker = diagnostics?.getQuestionsRuntimeMarker
+    || diagnostics?.runtimeMarker
+    || questionLoadDebugSnapshot?.getQuestionsRuntimeMarker
+    || null;
+  const backendFunctionWiringStatus = questionLoadDebugSnapshot?.backendFunctionWiringStatus
+    || (getQuestionsRuntimeMarker && diagnostics
+      ? 'backend_marker_and_projection_diagnostics_present'
+      : 'missing_backend_marker_and_projection_diagnostics');
+  const backendFunctionWiringBlocker = Boolean(
+    questionLoadDebugSnapshot?.backendFunctionWiringBlocker
+    || backendFunctionWiringStatus.startsWith('missing_'),
+  );
   const activePoolCounts = normalizeDistributionKeys(
     diagnostics?.eligibleByCategory
       || diagnostics?.fetchedByCategory
@@ -249,10 +261,9 @@ export function buildSoloQuestionRuntimeDebugPayload({
       ],
       sortOrLimit: {
         projectionVersion: diagnostics?.projectionVersion || questionLoadDebugSnapshot?.projectionVersion || null,
-        getQuestionsRuntimeMarker: diagnostics?.getQuestionsRuntimeMarker
-          || diagnostics?.runtimeMarker
-          || questionLoadDebugSnapshot?.getQuestionsRuntimeMarker
-          || null,
+        getQuestionsRuntimeMarker,
+        backendFunctionWiringStatus,
+        backendFunctionWiringBlocker,
         requestedLimit: diagnostics?.requestedLimit ?? questionLoadDebugSnapshot?.requestedLimit ?? null,
         effectiveLimit: diagnostics?.effectiveLimit ?? questionLoadDebugSnapshot?.effectiveLimit ?? null,
         queryOrderUsed: diagnostics?.queryOrderUsed || questionLoadDebugSnapshot?.queryOrder || 'getQuestions deployed function order',
@@ -275,10 +286,9 @@ export function buildSoloQuestionRuntimeDebugPayload({
       },
     },
     activeCategorySource: diagnostics?.activeCategorySource || questionLoadDebugSnapshot?.activeCategorySource || 'runtime_activeCategoryIds',
-    getQuestionsRuntimeMarker: diagnostics?.getQuestionsRuntimeMarker
-      || diagnostics?.runtimeMarker
-      || questionLoadDebugSnapshot?.getQuestionsRuntimeMarker
-      || null,
+    getQuestionsRuntimeMarker,
+    backendFunctionWiringStatus,
+    backendFunctionWiringBlocker,
     backendProjectionVersion: diagnostics?.projectionVersion || questionLoadDebugSnapshot?.projectionVersion || null,
     backendRequestedLimit: diagnostics?.requestedLimit ?? questionLoadDebugSnapshot?.requestedLimit ?? null,
     backendEffectiveLimit: diagnostics?.effectiveLimit ?? questionLoadDebugSnapshot?.effectiveLimit ?? null,
@@ -344,6 +354,9 @@ export function buildSoloQuestionRuntimeDebugPayload({
     },
     notes: [
       'This payload is assembled from the real Solo runtime fetch/deck path, not a separate diagnostic query.',
+      backendFunctionWiringBlocker
+        ? 'Backend getQuestions marker/diagnostics are missing from the callable response; treat this as a Base44 function wiring or deployment blocker before tuning the deck builder.'
+        : 'Backend getQuestions marker and projection diagnostics were included.',
       diagnostics
         ? 'getQuestions projectionDiagnostics were included.'
         : 'backend getQuestions did not return projectionDiagnostics; deployed function may be stale or a different callable may be invoked.',

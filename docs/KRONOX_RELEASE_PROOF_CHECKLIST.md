@@ -151,7 +151,7 @@ Checklist:
   remains separate, and no eligible active category is hardcoded out of the
   `getQuestions` projection.
 * After category/query changes, confirm the question cache marker is
-  `question-runtime-v6-backend-marker-per-category`; stale projections from the
+  `question-runtime-v7-getQuestions-live-marker`; stale projections from the
   old cache must not keep feeding categories 1-5/1-6 only.
 * Runtime `getQuestions` proof must show the explicit v2 category-coverage
   request payload, backend `getQuestionsRuntimeMarker`, non-null
@@ -162,6 +162,11 @@ Checklist:
   still absent, verify whether active Category rows are missing/passive or the
   deployed `getQuestions` function manifest/source is stale before treating it
   as a deck-builder bug.
+* Codex343 live callable proof marker is
+  `getQuestions-live-per-category-v7-Codex343`. If Solo debug shows the v7
+  frontend cache/build but this backend marker is still null, redeploy or
+  repair the Base44 `getQuestions` callable for app `69e753d5ab4c08a7c4287c25`
+  before changing the Solo deck builder.
 * Runtime analytics proof after deploy: with active difficulty-1 questions and
   saved preferences in categories 6,7,8,9,11, the next Question Analytics
   report must not show all of those active preferred categories at 0 display.
