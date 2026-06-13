@@ -1922,7 +1922,12 @@ import React, { useEffect, useState } from 'react';
 //     running the full question projection.
 //   • Adds selectedBranch diagnostics so logs distinguish real Solo gameplay
 //     projection from default public projection.
-const BUILD_MARKER = 'Codex352';
+//
+// Codex353 — getQuestions production log cleanup:
+//   • Removes temporary request/payload/branch/category/candidate info logs
+//     after real payload proof succeeded.
+//   • Keeps ping, runtime marker, and projectionDiagnostics in the response.
+const BUILD_MARKER = 'Codex353';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

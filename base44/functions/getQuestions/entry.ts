@@ -77,15 +77,6 @@ async function isAuthorizedAdmin(base44: any, user: any) {
   });
 }
 
-function sanitizeRequestUrl(value: string) {
-  try {
-    const url = new URL(value);
-    return `${url.origin}${url.pathname}`;
-  } catch {
-    return String(value || '').split('?')[0].slice(0, 240);
-  }
-}
-
 async function getOptionalUser(base44: any) {
   try {
     const user = await base44.auth.me();
@@ -642,30 +633,13 @@ function buildProjectionDiagnostics({
 
 Deno.serve(async (req) => {
   try {
-    console.log('[getQuestions] REQUEST RECEIVED', {
-      method: req.method,
-      url: sanitizeRequestUrl(req.url),
-      runtimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
-    });
-
     if (req.method !== 'POST') {
       return json({ ok: false, error: 'Method not allowed' }, 405);
     }
 
     const requestPayload = await req.clone().json().catch(() => ({}));
-    console.log('[getQuestions] PAYLOAD PARSED', {
-      payloadKeys: Object.keys(requestPayload || {}),
-      mode: requestPayload?.mode || null,
-      projectionVersion: requestPayload?.projectionVersion || null,
-      requireCategoryCoverage: requestPayload?.requireCategoryCoverage === true,
-      requestedLimit: requestPayload?.limit ?? null,
-      includeDiagnostics: requestPayload?.includeDiagnostics === true,
-    });
 
     if (requestPayload?.ping === true) {
-      console.log('[getQuestions] PING RESPONSE', {
-        runtimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
-      });
       return json({
         ok: true,
         pong: true,
@@ -678,11 +652,7 @@ Deno.serve(async (req) => {
     let base44: any;
     try {
       base44 = createClientFromRequest(req);
-      console.log('[getQuestions] BASE44 CLIENT CREATED', {
-        hasServiceEntities: Boolean(base44?.asServiceRole?.entities),
-      });
-    } catch (clientError) {
-      console.error('[getQuestions] base44 client init failed:', (clientError as Error)?.message || clientError);
+    } catch {
       return json({
         ok: false,
         error: 'base44_client_create_failed',
@@ -694,16 +664,6 @@ Deno.serve(async (req) => {
     const body = requestPayload;
     const wantsAdminBank = body?.scope === 'admin' || body?.fullBank === true || body?.includeInactive === true;
     const wantsGameplayProjection = isGameplayRuntimeProjectionRequest(body);
-    const branchProbe = {
-      isGameplayRuntime: requestPayload?.mode === 'gameplay_runtime',
-      isPerCategoryProjection: requestPayload?.projectionVersion === GAMEPLAY_PROJECTION_VERSION,
-      requireCategoryCoverage: requestPayload?.requireCategoryCoverage === true,
-    };
-    console.log('[getQuestions] PROJECTION BRANCH', {
-      ...branchProbe,
-      selectedBranch: wantsGameplayProjection ? 'gameplay_runtime_per_category_v2' : 'public_minimal_default_per_category_v2',
-    });
-    console.log('[getQuestions] USING PER CATEGORY PROJECTION V2');
     const wantsAdminDiagnostics = (body?.includeDiagnostics === true || body?.debug === true) && !wantsGameplayProjection;
     const wantsDiagnostics = wantsGameplayProjection || body?.includeDiagnostics === true || body?.debug === true;
     const needsAdmin = wantsAdminBank || wantsAdminDiagnostics;
@@ -748,12 +708,6 @@ Deno.serve(async (req) => {
       ? FALLBACK_ACTIVE_CATEGORY_IDS
       : activeCategoryRows.map(getCategoryId).filter(isKnownCategoryId)
     );
-    console.log('[getQuestions] ACTIVE CATEGORIES RESOLVED', {
-      source: activeCategorySource,
-      count: activeIds.length,
-      fallbackUsed,
-      fallbackReason,
-    });
     const activeMainCategoryIds = new Set(activeIds);
     const allowedMainCategoryIds = requestedIds
       ? new Set(Array.from(requestedIds).filter((id) => activeMainCategoryIds.has(id)))
@@ -801,11 +755,6 @@ Deno.serve(async (req) => {
     const projectionSeed = getProjectionSeed(body, isAdmin);
     const allowedCategoryIds = Array.from(allowedMainCategoryIds);
     const { rows: questions, fetchedByCategory, fetchDescriptorsByCategory, fallbackFetchCategories } = await loadActiveQuestionCandidates(base44, allowedCategoryIds);
-    console.log('[getQuestions] QUESTION CANDIDATES LOADED', {
-      allowedCategoryCount: allowedCategoryIds.length,
-      fetchedTotal: questions.length,
-      fallbackFetchCategoryCount: fallbackFetchCategories.length,
-    });
     const normalizedQuestions = (questions || [])
       .map((question: Record<string, unknown>) => normalizeQuestionForRuntime(question, allowedMainCategoryIds))
       .filter(Boolean);
