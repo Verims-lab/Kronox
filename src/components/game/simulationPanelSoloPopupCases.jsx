@@ -165,25 +165,34 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('solo_result_short_stat_labels',
-    'Solo result popups use short SÜRE/PUAN/HATA stat labels',
+    'Solo result popups use short SÜRE/PUAN/HATA stat labels without repeated unit footers',
     () => {
       const combined = `${successSource}\n${failureSource}`;
-      const oldLabels = ['KAZANILAN<br />PUAN', 'KAZANILAN PUAN', 'TOPLAM SÜRE', 'HATA SAYISI'];
+      const oldLabels = [
+        'KAZANILAN<br />PUAN',
+        'KAZANILAN PUAN',
+        'TOPLAM SÜRE',
+        'HATA SAYISI',
+        '<UnitLabel color="#facc15">Puan</UnitLabel>',
+        '<UnitLabel color="#fca5a5">Hata</UnitLabel>',
+        '<FailureFooter tone="gold">Puan</FailureFooter>',
+        '<FailureFooter tone="red">Hata</FailureFooter>',
+        'function UnitLabel',
+        'function FailureFooter',
+      ];
       const forbidden = forbiddenTokensFound(combined, oldLabels);
       const required = [
         ...missingTokens(successSource, ['label="SÜRE"', 'label="PUAN"', 'label="HATA"']),
         ...missingTokens(failureSource, ['label="SÜRE"', 'label="PUAN"', 'label="HATA"']),
-        ...missingTokens(successSource, ['<UnitLabel color="#facc15">Puan</UnitLabel>', '<UnitLabel color="#fca5a5">Hata</UnitLabel>']),
-        ...missingTokens(failureSource, ['<FailureFooter tone="gold">Puan</FailureFooter>', '<FailureFooter tone="red">Hata</FailureFooter>']),
       ];
       if (forbidden.length || required.length) {
-        return fail('Solo result popup stat labels drifted from the short-label product decision.', {
+        return fail('Solo result popup stat labels drifted from the clean short-label product decision.', {
           verification: 'STATIC_CONTRACT',
           files: ['components/game/SoloSuccessPopup.jsx', 'components/game/SoloFailureCard.jsx'],
           actual: { forbidden, required },
         });
       }
-      return pass('Success and failure popups use SÜRE/PUAN/HATA with compact Puan/Hata unit copy.', { verification: 'STATIC_CONTRACT' });
+      return pass('Success and failure popups use SÜRE/PUAN/HATA without repeated Puan/Hata footer copy.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('time_icon_is_timer_reset_not_clock',

@@ -155,9 +155,6 @@ export default function SoloFailureCard({
               label="PUAN"
               value={String(levelScore)}
               valueColor="#facc15"
-              footer={<FailureFooter tone="gold">Puan</FailureFooter>}
-              valueNudgeY={2}
-              footerMarginTop={0}
             />
             <SoloStatCard
               icon={X}
@@ -166,9 +163,6 @@ export default function SoloFailureCard({
               label="HATA"
               value={String(mistakes)}
               valueColor="#ff4d6d"
-              footer={<FailureFooter tone="red">Hata</FailureFooter>}
-              valueNudgeY={2}
-              footerMarginTop={0}
             />
             <SoloStatCard
               icon={Zap}
@@ -340,33 +334,6 @@ function Shard({ top, bottom, left, right, rotate = 0 }) {
         opacity: 0.9,
       }}
     />
-  );
-}
-
-/**
- * Codex164 — Small tinted footer text shown under the value of each
- * SoloStatCard in the failure popup. Mirrors the success popup's
- * UnitLabel so both popups have the same secondary-text rhythm.
- */
-function FailureFooter({ children, tone = 'muted' }) {
-  const palette = {
-    muted: 'rgba(167,184,219,0.7)',
-    gold: '#facc15',
-    red: '#ff4d6d',
-  };
-  return (
-    <span
-      className="font-inter"
-      style={{
-        color: palette[tone] || palette.muted,
-        fontSize: '11px',
-        fontWeight: 600,
-        letterSpacing: '0.02em',
-        lineHeight: 1.1,
-      }}
-    >
-      {children}
-    </span>
   );
 }
 

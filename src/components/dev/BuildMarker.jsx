@@ -1847,7 +1847,11 @@ import React, { useEffect, useState } from 'react';
 //   • Gameplay question fetches now request the v2 per-category projection,
 //     bumps the runtime cache, and exposes category-source/debug proof so
 //     category 6+ starvation cannot be hidden by a single global 500-row cap.
-const BUILD_MARKER = 'Codex338';
+//
+// Codex339 — Solo end screen stat-card polish:
+//   • Removes repeated Puan/Hata mini footer labels from Solo result stat
+//     cards and keeps the 2x2 card headings aligned without touching scoring.
+const BUILD_MARKER = 'Codex339';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
