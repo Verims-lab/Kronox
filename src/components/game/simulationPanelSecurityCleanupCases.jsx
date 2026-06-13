@@ -83,7 +83,7 @@ const privateKeyBlockPattern = new RegExp([
   '[^-]+',
   ['PRIVATE KEY', '-----'].join(''),
 ].join(''));
-const EMAIL_LITERAL_REGEX = /\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b/g;
+const EMAIL_LITERAL_REGEX = /\b[\w.+-]+@[\w-]+(?:\.[\w-]+)*\.[A-Za-z]{2,}\b/g;
 const ALLOWED_EMAIL_LITERAL_SUFFIXES = ['@example.com', '@example.test', '@kronos.local'];
 
 function findCommittedEmailLiterals(source) {

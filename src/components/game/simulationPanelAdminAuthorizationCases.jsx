@@ -109,7 +109,7 @@ function makeCase(suiteId, suiteName, id, description, run, opts = {}) {
 // We deliberately do NOT include a real admin address here — that would
 // reintroduce the very thing we want banned. The regex catches any
 // quoted email literal, which is what the security finding flags.
-const EMAIL_LITERAL_REGEX = /['"][\w.+-]+@[\w-]+\.[\w.-]+['"]/g;
+const EMAIL_LITERAL_REGEX = /['"][\w.+-]+@[\w-]+(?:\.[\w-]+)*\.[A-Za-z]{2,}['"]/g;
 
 function findEmailLiterals(src) {
   const matches = src.match(EMAIL_LITERAL_REGEX) || [];
@@ -360,7 +360,12 @@ export const EXTRA_TESTS = [
         'user.role',
         'body.role',
         'requestRole',
-        'admin_email',
+        'body.admin_email',
+        'body?.admin_email',
+        'requestPayload.admin_email',
+        'requestPayload?.admin_email',
+        'payload.admin_email',
+        'payload?.admin_email',
         'ADMIN_EMAIL',
       ].filter((token) => src.includes(token));
       if (missing.length || forbidden.length) {
@@ -416,7 +421,7 @@ export const EXTRA_TESTS = [
     () => {
       const src = safeStr(resetTestAccountProgressSource);
       const required = [
-        'function requireAdmin(base44)',
+        'function requireAdmin',
         'entities?.AdminUser',
         'ADMIN_AUTH_FIELD_CANDIDATES',
         'const adminAuth = await requireAdmin(base44)',

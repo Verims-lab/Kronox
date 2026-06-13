@@ -601,7 +601,7 @@ export const TESTS = [
       ? pass('Top blocker includes action metadata.', { actual: { actionType: blocker.actionType, nextStep: blocker.nextStep } })
       : fail('Top blocker action metadata missing.', { actual: blocker });
   }),
-  makeCase('report_integrity', 'manual_required_not_top_blocker', 'Manual-only verification does not inflate top blockers', () => {
+  makeCase('report_integrity', 'manual_required_not_top_blocker', 'manual-only verification does not inflate top blockers', () => {
     const report = buildReport([
       { suiteId: 'mobile_gesture_risk', suiteName: 'Mobile Gesture Risk Suite', id: 'drag', name: 'drag', status: STATUS.NOT_AUTOMATABLE, reason: 'manual device proof', durationMs: 0, critical: true },
     ], SUITES);
@@ -609,8 +609,8 @@ export const TESTS = [
       report.blockerSummary?.blockerCount === 0 &&
       report.blockerSummary?.manualRequiredCount === 1 &&
       report.manualVerificationNeeded?.length === 1
-      ? pass('Manual-only verification is tracked separately from blocker count.', { actual: report.blockerSummary })
-      : fail('Manual-only verification still appears as a blocker.', { actual: { topBlockers: report.topBlockers, blockerSummary: report.blockerSummary } });
+      ? pass('manual-only verification is tracked separately from blocker count.', { actual: report.blockerSummary })
+      : fail('manual-only verification still appears as a blocker.', { actual: { topBlockers: report.topBlockers, blockerSummary: report.blockerSummary } });
   }),
   makeCase('report_integrity', 'manual_verification_sections_exist', 'Manual verification sections exist in JSON report', () => {
     const report = buildReport([
