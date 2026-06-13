@@ -1916,7 +1916,18 @@ import React, { useEffect, useState } from 'react';
 //     failures with marker diagnostics, and guards service-role entity access.
 //   • Adds safe category/candidate step logs without exposing question content,
 //     user data, tokens, or request bodies.
-const BUILD_MARKER = 'Codex351';
+//
+// Codex352 — getQuestions ping branch cleanup:
+//   • Keeps Base44 Test Function ping lightweight and marker-only instead of
+//     running the full question projection.
+//   • Adds selectedBranch diagnostics so logs distinguish real Solo gameplay
+//     projection from default public projection.
+//
+// Codex353 — getQuestions production log cleanup:
+//   • Removes temporary request/payload/branch/category/candidate info logs
+//     after real payload proof succeeded.
+//   • Keeps ping, runtime marker, and projectionDiagnostics in the response.
+const BUILD_MARKER = 'Codex353';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
