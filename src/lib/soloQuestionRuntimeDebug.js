@@ -104,6 +104,20 @@ function sanitizePreferenceRows(rows = []) {
   }));
 }
 
+function mapActiveCategoryRowsById(rows = []) {
+  const out = {};
+  for (const row of rows || []) {
+    const categoryId = normalizeDiagnosticCategoryId(row?.category_id ?? row?.id);
+    if (!categoryId) continue;
+    out[categoryId] = {
+      category_id: categoryId,
+      name: row?.name ?? row?.title ?? row?.category_name ?? null,
+      status: row?.status ?? row?.state ?? null,
+    };
+  }
+  return out;
+}
+
 function sanitizeReturnedQuestions(questions = []) {
   return (questions || []).map((question) => ({
     id: question?.id ?? question?.question_id ?? null,
@@ -119,10 +133,11 @@ function sanitizeReturnedQuestions(questions = []) {
   }));
 }
 
-function buildCategoryProof({ targetCategoryIds, activeCategoryIds, activePoolCounts, candidateCounts, selectedLaneCounts, globalLaneCounts, globalDifficultyCounts, finalCounts }) {
+function buildCategoryProof({ targetCategoryIds, activeCategoryIds, activeCategoryRowsById, activePoolCounts, candidateCounts, selectedLaneCounts, globalLaneCounts, globalDifficultyCounts, finalCounts }) {
   const activeSet = new Set((activeCategoryIds || []).map(normalizeDiagnosticCategoryId).filter(Boolean));
   const proof = {};
   for (const categoryId of targetCategoryIds) {
+    const hasActiveCategoryRow = Boolean(activeCategoryRowsById?.[categoryId] || activeSet.has(categoryId));
     const activeQuestionCount = Number(activePoolCounts?.[categoryId] || 0);
     const candidateCount = Number(candidateCounts?.[categoryId] || 0);
     const selectedLaneCount = Number(selectedLaneCounts?.[categoryId] || 0);
@@ -130,13 +145,15 @@ function buildCategoryProof({ targetCategoryIds, activeCategoryIds, activePoolCo
     const globalDifficulty1Count = Number(globalDifficultyCounts?.[categoryId] || 0);
     const finalCount = Number(finalCounts?.[categoryId] || 0);
     let removalReason = null;
-    if (!activeSet.has(categoryId)) removalReason = 'missing_active_category_row_or_passive';
+    if (!hasActiveCategoryRow) removalReason = 'missing_active_category_row_or_passive';
     else if (activeQuestionCount <= 0) removalReason = 'not_present_in_active_question_pool';
     else if (candidateCount <= 0) removalReason = 'excluded_before_deck_builder_candidate_pool';
     else if (finalCount <= 0) removalReason = 'not_selected_by_current_dry_run_deck_balance_or_year_rules';
 
     proof[categoryId] = {
-      hasActiveCategoryRow: activeSet.has(categoryId),
+      hasActiveCategoryRow,
+      activeCategoryRow: activeCategoryRowsById?.[categoryId] || null,
+      presentInRuntimeActiveWhitelist: activeSet.has(categoryId),
       activeQuestionCount,
       candidatePoolQuestionCount: candidateCount,
       presentInCandidatePool: candidateCount > 0,
@@ -184,6 +201,18 @@ export function buildSoloQuestionRuntimeDebugPayload({
     .map(normalizeDiagnosticCategoryId)
     .filter(Boolean);
   const activeDifficulty1Counts = countDifficultyOneQuestionsByCategory(allQuestions || []);
+  const projectionActiveCategoryIds = (diagnostics?.activeCategoryIdsFromGetQuestions || questionLoadDebugSnapshot?.activeCategoryIds || [])
+    .map(normalizeDiagnosticCategoryId)
+    .filter(Boolean);
+  const runtimeActiveCategoryIds = (activeCategoryIds || []).map(normalizeDiagnosticCategoryId).filter(Boolean);
+  const activeCategoryRowsById = diagnostics?.activeCategoryRowsById
+    || mapActiveCategoryRowsById(soloCategoryPreferenceState?.activeCategoryRows || []);
+  const preferenceIdsRaw = (soloCategoryPreferenceState?.preferenceCategoryIdsRaw || selectedRawRows.map((row) => row.category_id))
+    .map(normalizeDiagnosticCategoryId)
+    .filter(Boolean);
+  const preferenceValidAfterIntersection = (soloCategoryPreferenceState?.preferenceCategoryIdsValidAfterCategoryIntersection || normalizedSelectedIds)
+    .map(normalizeDiagnosticCategoryId)
+    .filter(Boolean);
 
   return {
     debugVersion: SOLO_QUESTION_RUNTIME_DEBUG_VERSION,
@@ -225,6 +254,9 @@ export function buildSoloQuestionRuntimeDebugPayload({
         queryLimitUsed: diagnostics?.queryLimitUsed ?? questionLoadDebugSnapshot?.queryLimit ?? null,
         projectionLimit: diagnostics?.projectionLimit ?? questionLoadDebugSnapshot?.limit ?? null,
         wasCappedBeforeBalancing: diagnostics?.wasCappedBeforeBalancing ?? false,
+        projectionCappedBeforeCategoryCoverage: diagnostics?.projectionCappedBeforeCategoryCoverage
+          ?? questionLoadDebugSnapshot?.projectionCappedBeforeCategoryCoverage
+          ?? false,
       },
       difficultyLane: 'global 30% lane prefers difficulty=1 through buildSoloAttemptDeck metadata when preferences are active',
       activeQuestionPredicate: 'backend projection + runtime adapter expose active playable rows',
@@ -237,7 +269,18 @@ export function buildSoloQuestionRuntimeDebugPayload({
         staleCacheRejected: questionLoadDebugSnapshot?.staleCacheRejected ?? false,
       },
     },
-    activeCategoryIds: (activeCategoryIds || []).map(normalizeDiagnosticCategoryId).filter(Boolean),
+    activeCategorySource: diagnostics?.activeCategorySource || questionLoadDebugSnapshot?.activeCategorySource || 'runtime_activeCategoryIds',
+    activeCategoryRowsById,
+    activeCategoryIdsFromGetQuestions: projectionActiveCategoryIds,
+    activeCategoryIdsFromSoloRuntime: runtimeActiveCategoryIds,
+    activeCategoryIds: runtimeActiveCategoryIds,
+    preferenceCategoryIdsRaw: preferenceIdsRaw,
+    preferenceCategoryIdsValidAfterCategoryIntersection: preferenceValidAfterIntersection,
+    preferenceCategoryIdsRejectedWithReason: soloCategoryPreferenceState?.preferenceCategoryIdsRejectedWithReason || [],
+    perCategoryQuestionFetchCounts: diagnostics?.perCategoryQuestionFetchCounts || questionLoadDebugSnapshot?.rawFetchedCountsByCategory || activePoolCounts,
+    projectionCappedBeforeCategoryCoverage: diagnostics?.projectionCappedBeforeCategoryCoverage
+      ?? questionLoadDebugSnapshot?.projectionCappedBeforeCategoryCoverage
+      ?? false,
     activePoolCountsByCategory: activePoolCounts,
     activeDifficulty1QuestionTotal: Object.values(activeDifficulty1Counts).reduce((sum, value) => sum + Number(value || 0), 0),
     activeDifficulty1QuestionCountsByCategory: activeDifficulty1Counts,
@@ -259,6 +302,7 @@ export function buildSoloQuestionRuntimeDebugPayload({
     category611Proof: buildCategoryProof({
       targetCategoryIds: SOLO_QUESTION_RUNTIME_DEBUG_CATEGORY_IDS,
       activeCategoryIds,
+      activeCategoryRowsById,
       activePoolCounts,
       candidateCounts: candidatePoolCounts,
       selectedLaneCounts,

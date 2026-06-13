@@ -1842,7 +1842,12 @@ import React, { useEffect, useState } from 'react';
 // Codex337 — Health blocker JSON copy:
 //   • Health Center clipboard JSON now exports a compact blocker-only payload;
 //     full report remains available through download/raw preview.
-const BUILD_MARKER = 'Codex337';
+//
+// Codex338 — Solo per-category runtime projection:
+//   • Gameplay question fetches now request the v2 per-category projection,
+//     bumps the runtime cache, and exposes category-source/debug proof so
+//     category 6+ starvation cannot be hidden by a single global 500-row cap.
+const BUILD_MARKER = 'Codex338';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
