@@ -21,8 +21,8 @@ import React from 'react';
  *   • Value sits directly under the label with minimal vertical gap so it
  *     reads as one block (fixes the "value floats away from label"
  *     complaint in the brief).
- *   • Optional footer (e.g. "Puan", "Hata", or the YENİ REKOR badge)
- *     sits right under the value.
+ *   • Optional footer is reserved for contextual badges such as YENİ REKOR,
+ *     not repeated unit labels.
  *
  * Sizing is identical to the previous individual implementations so
  * neither popup grows. Mobile safety:
@@ -79,7 +79,7 @@ export default function SoloStatCard({
       <div
         className="flex-1 min-w-0 flex flex-col"
         style={{
-          minHeight: 50,
+          minHeight: 56,
           justifyContent: 'flex-start',
         }}
       >
@@ -92,6 +92,7 @@ export default function SoloStatCard({
               fontWeight: 700,
               letterSpacing: '0.08em',
               lineHeight: 1.15,
+              minHeight: 12,
               // Allow two-line wrap when needed; never overflow horizontally.
               whiteSpace: 'normal',
               overflowWrap: 'anywhere',
