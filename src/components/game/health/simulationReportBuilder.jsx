@@ -133,7 +133,7 @@ export function buildScoreExplanation({ counts, penalty, mobileViewportPenalty, 
   const manualRequiredCount = counts.MANUAL_REQUIRED || 0;
   const realBlockerCount = counts.REAL_BLOCKER || 0;
   if (failCount === 0 && errorCount === 0 && realBlockerCount === 0 && manualRequiredCount > 0) {
-    return `0 FAIL/ERROR and 0 real code blockers; ${manualRequiredCount} manual verification checks still require device, live DOM, backend, or two-account proof. Penalties: case=${penalty}, mobile=${mobileViewportPenalty}, authority=${authorityPenalty}, social=${socialUncertaintyPenalty}, static-limit=${staticLimitationPenalty}.`;
+    return `0 FAIL does not mean release-ready: 0 FAIL/ERROR and 0 real code blockers; ${manualRequiredCount} manual-only verification checks still require device, live DOM, backend, or two-account proof. Penalties: case=${penalty}, mobile=${mobileViewportPenalty}, authority=${authorityPenalty}, social=${socialUncertaintyPenalty}, static-limit=${staticLimitationPenalty}.`;
   }
   if (failCount === 0 && errorCount === 0 && realBlockerCount > 0) {
     return `0 FAIL/ERROR but ${realBlockerCount} real blocker checks remain. Penalties: case=${penalty}, mobile=${mobileViewportPenalty}, authority=${authorityPenalty}, social=${socialUncertaintyPenalty}, static-limit=${staticLimitationPenalty}.`;

@@ -1939,7 +1939,13 @@ import React, { useEffect, useState } from 'react';
 //     blocker counts and Copy Blocker JSON.
 //   • Hides Solo Query Debug during normal gameplay unless admin/owner also
 //     supplies the explicit soloDebug flag.
-const BUILD_MARKER = 'Codex355';
+//
+// Codex356 — Codex355 Health blocker cleanup:
+//   • Tightens email literal scanning so npm package specifiers are not
+//     reported as personal/admin/support addresses.
+//   • Aligns Health static checks with typed AdminUser guards and the current
+//     getQuestions Category service-entity path.
+const BUILD_MARKER = 'Codex356';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
