@@ -4,17 +4,14 @@
 //   • No literal admin email string remains in the admin-only functions.
 //   • Admin authorization source-of-truth is the private AdminUser entity.
 //   • Backend admin-only functions use AdminUser-backed authorization.
-//   • Shared guard imports are preferred where deployable; the Base44 callable
-//     analytics report and Daily Quest definition manager are known
-//     flat-runtime exceptions and must use verified inline AdminUser guards
-//     instead.
+//   • Base44 functions inline the AdminUser guard because individual function
+//     bundles do not reliably include shared helper modules during deploy.
 //   • Admin/test reset email env allowlists are not used for authorization.
 //   • Runtime active/disabled AdminUser proof remains NOT_AUTOMATABLE.
 //
 // PASS proves static source contracts only. Deployed AdminUser rows and RLS
 // behavior must still be verified with real admin/non-admin accounts.
 
-import adminAuthSource from '../../../base44/functions/_shared/adminAuth.ts?raw';
 import adminUserEntitySource from '../../../base44/entities/AdminUser.jsonc?raw';
 import getAdminStatusSource from '../../../base44/functions/getAdminStatus/entry.ts?raw';
 import getAdminStatusConfigSource from '../../../base44/functions/getAdminStatus/function.jsonc?raw';
@@ -218,28 +215,34 @@ export const EXTRA_TESTS = [
     },
   ),
 
-  // 3) Shared AdminUser guard exists.
+  // 3) Inline AdminUser guards exist in protected Base44 functions.
   makeCase(
     'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
-    'shared_admin_guard_uses_admin_user',
-    'Shared backend admin guard checks active AdminUser rows by normalized authenticated email',
+    'inline_admin_guards_use_admin_user',
+    'Inline backend admin guards check active AdminUser rows by normalized authenticated email',
     () => {
+      const combined = TARGET_FUNCTIONS.map((fn) => fn.source).join('\n');
       const missing = [
         'getAdminAuthorization',
         'requireAdmin',
         'base44.auth.me()',
         'entities?.AdminUser',
-        'FIELD_CANDIDATES',
+        'ADMIN_AUTH_FIELD_CANDIDATES',
         '.filter({ [field]: email }',
         'status',
         'active',
         'owner',
         'admin',
         '403',
-      ].filter((token) => !safeStr(adminAuthSource).includes(token));
-      const forbidden = LEGACY_ADMIN_ENV_TOKENS.filter((token) => safeStr(adminAuthSource).includes(token));
+      ].filter((token) => !safeStr(combined).includes(token));
+      const forbidden = [
+        ...LEGACY_ADMIN_ENV_TOKENS.filter((token) => safeStr(combined).includes(token)),
+        "from '../_shared/adminAuth.ts'",
+        "from './_shared/adminAuth.ts'",
+        'file://' + '/__shared',
+      ].filter((token) => safeStr(combined).includes(token));
       if (missing.length || forbidden.length) {
-        return fail('Shared admin guard does not clearly use AdminUser as the backend source-of-truth.', {
+        return fail('Inline admin guards do not clearly use AdminUser as the backend source-of-truth.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           expected: 'auth.me + service-role AdminUser lookup + active owner/admin role + 401/403 failures; no env email allowlist',
@@ -247,7 +250,7 @@ export const EXTRA_TESTS = [
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Shared admin guard is AdminUser-backed and does not read admin email env allowlists.', {
+      return pass('Inline admin guards are AdminUser-backed and do not read admin email env allowlists.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -258,35 +261,33 @@ export const EXTRA_TESTS = [
   // 4) Affected functions use AdminUser-backed guards.
   makeCase(
     'admin_authorization_hardening', 'Admin Authorization Hardening (Security)',
-    'admin_functions_use_shared_admin_guard',
-    'Admin-only functions use AdminUser-backed authorization; shared guard is preferred where deployable and Base44 flat runtime exceptions must inline the same guard contract',
+    'admin_functions_use_inline_admin_guard',
+    'Admin-only functions inline AdminUser-backed authorization for Base44 deployability',
     () => {
       const missing = [];
       const allowedAlternatives = new Map([
         ['getQuestions', 'isAuthorizedAdmin'],
         ['getAdminStatus', 'getAdminAuthorization'],
       ]);
-      const inlineGuardExceptions = new Map([
-        ['sendQuestionAnalyticsReportEmail', [
-          'function requireAdmin(base44)',
-          'getAdminAuthorization',
-          'entities?.AdminUser',
-          "value === 'owner' || value === 'admin'",
-          'isActiveStatus',
-          'Admin access required',
-          'requireAdmin(base44)',
-          'if (admin.response) return admin.response',
-        ]],
-        ['createDailyQuestDefinition', [
-          'function requireAdmin(base44)',
-          'getAdminAuthorization',
-          'entities?.AdminUser',
-          "value === 'owner' || value === 'admin'",
-          'isActiveStatus',
-          'Admin yetkisi gerekli.',
-          'requireAdmin(base44)',
-          'if (admin.response) return admin.response',
-        ]],
+      const inlineGuardRequirements = [
+        'entities?.AdminUser',
+        'ADMIN_AUTH_FIELD_CANDIDATES',
+        "value === 'owner' || value === 'admin'",
+        "=== 'active'",
+        '.filter({ [field]: email }',
+      ];
+      const legacyInlineGuardRequirements = [
+        'function requireAdmin(base44)',
+        'getAdminAuthorization',
+        'entities?.AdminUser',
+        'ADMIN_EMAIL_FIELDS',
+        "value === 'owner' || value === 'admin'",
+        'isActiveStatus',
+        '.filter({ [field]: email }',
+      ];
+      const perFunctionRequirements = new Map([
+        ['sendQuestionAnalyticsReportEmail', legacyInlineGuardRequirements],
+        ['createDailyQuestDefinition', legacyInlineGuardRequirements],
       ]);
       const brokenLocalImportTokens = [
         "from './_shared/adminAuth.js'",
@@ -298,35 +299,31 @@ export const EXTRA_TESTS = [
       ];
       for (const fn of TARGET_FUNCTIONS) {
         const src = safeStr(fn.source);
-        const inlineRequired = inlineGuardExceptions.get(fn.name);
-        if (inlineRequired) {
-          const missingInline = inlineRequired.filter((token) => !src.includes(token));
-          const brokenLocalImports = brokenLocalImportTokens.filter((token) => src.includes(token));
-          if (missingInline.length || brokenLocalImports.length) {
-            missing.push({
-              function: fn.name,
-              mode: 'verified_inline_admin_user_guard',
-              missing: missingInline,
-              forbidden: brokenLocalImports,
-            });
-          }
-          continue;
-        }
         const helper = allowedAlternatives.get(fn.name) || 'requireAdmin';
-        if (!src.includes("../_shared/adminAuth.ts") || !src.includes(helper)) {
-          missing.push({ function: fn.name, mode: 'shared_admin_guard', missing: [helper] });
+        const required = fn.name === 'getAdminStatus'
+          ? ['getAdminAuthorization', 'entities?.AdminUser', 'ADMIN_AUTH_FIELD_CANDIDATES', 'active_admin_match']
+          : (perFunctionRequirements.get(fn.name) || [helper, ...inlineGuardRequirements]);
+        const missingInline = required.filter((token) => !src.includes(token));
+        const brokenLocalImports = brokenLocalImportTokens.filter((token) => src.includes(token));
+        if (missingInline.length || brokenLocalImports.length) {
+          missing.push({
+            function: fn.name,
+            mode: 'inline_admin_user_guard',
+            missing: missingInline,
+            forbidden: brokenLocalImports,
+          });
         }
       }
       if (missing.length) {
         return fail('An admin-only function is not using accepted AdminUser-backed authorization.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
-          expected: 'Use shared ../_shared/adminAuth.ts guard where deployable, or verified inline AdminUser guard for Base44 flat-runtime exceptions such as sendQuestionAnalyticsReportEmail/createDailyQuestDefinition',
+          expected: 'Inline AdminUser guard in each Base44 function: auth.me + service-role AdminUser lookup + active owner/admin role/status + no shared adminAuth import',
           actual: { missingIn: missing },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Affected admin functions use accepted AdminUser-backed authorization. Shared guard is preferred; flat Base44 callable exceptions use verified inline AdminUser guards.', {
+      return pass('Affected admin functions inline accepted AdminUser-backed authorization for Base44 deployability.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -341,7 +338,9 @@ export const EXTRA_TESTS = [
     () => {
       const src = safeStr(simulateOnlineGameSource);
       const missing = [
-        "import { requireAdmin } from '../_shared/adminAuth.ts'",
+        'function requireAdmin(base44)',
+        'entities?.AdminUser',
+        'ADMIN_AUTH_FIELD_CANDIDATES',
         'const admin = await requireAdmin(base44)',
         'if (admin.response) return admin.response',
         'base44.asServiceRole.entities.Lobby.create',
@@ -364,7 +363,7 @@ export const EXTRA_TESTS = [
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('simulateOnlineGame uses the shared AdminUser guard and contains no scanner typo/client-role authorization tokens.', {
+      return pass('simulateOnlineGame uses an inline AdminUser guard and contains no scanner typo/client-role authorization tokens.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -408,7 +407,9 @@ export const EXTRA_TESTS = [
     () => {
       const src = safeStr(resetTestAccountProgressSource);
       const required = [
-        "import { requireAdmin } from '../_shared/adminAuth.ts'",
+        'function requireAdmin(base44)',
+        'entities?.AdminUser',
+        'ADMIN_AUTH_FIELD_CANDIDATES',
         'const adminAuth = await requireAdmin(base44)',
         'if (adminAuth.response) return adminAuth.response',
         'confirmEmail',
@@ -469,7 +470,7 @@ export const EXTRA_TESTS = [
       const required = [
         'AdminUser',
         'Current source of truth',
-        'Shared backend guard',
+        'Inline backend guard',
         'active',
         'disabled',
         'role: "admin"',
@@ -577,7 +578,7 @@ export const EXTRA_TESTS = [
         'entities?.AdminUser',
         '"name": "getAdminStatus"',
         '"entry": "entry.ts"',
-      ].filter((token) => !`${adminSource}\n${getAdminStatusSource}\n${getAdminStatusConfigSource}\n${rootGetAdminStatusSource}\n${adminAuthSource}`.includes(token));
+      ].filter((token) => !`${adminSource}\n${getAdminStatusSource}\n${getAdminStatusConfigSource}\n${rootGetAdminStatusSource}`.includes(token));
       if (forbiddenAdminSource.length || required.length) {
         return fail('Admin status can still call getQuestions or parse non-admin payloads.', {
           verification: 'STATIC_CONTRACT',
@@ -686,7 +687,7 @@ export const EXTRA_TESTS = [
     'AdminUser lookup normalizes email/role/status and safely handles field-name casing variants',
     () => {
       const required = [
-        'FIELD_CANDIDATES',
+        'ADMIN_AUTH_FIELD_CANDIDATES',
         "'email'",
         "'Email'",
         "'user_email'",
@@ -703,7 +704,7 @@ export const EXTRA_TESTS = [
         'status_not_active',
         'role_not_allowed',
         'admin_user_not_found',
-      ].filter((token) => !safeStr(adminAuthSource).includes(token));
+      ].filter((token) => !safeStr(getAdminStatusSource).includes(token));
       if (required.length) {
         return fail('AdminUser lookup does not clearly handle field casing and normalized active admin checks.', {
           verification: 'STATIC_CONTRACT',

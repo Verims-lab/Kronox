@@ -14,7 +14,6 @@
 
 import adminSource from '../../lib/admin.js?raw';
 import gameInviteSelectorsSource from '../../lib/gameInviteSelectors.js?raw';
-import adminAuthSource from '../../../base44/functions/_shared/adminAuth.ts?raw';
 import sendGameInvitePushSource from '../../../base44/functions/sendGameInvitePush/entry.ts?raw';
 import resetTestAccountProgressSource from '../../../base44/functions/resetTestAccountProgress/entry.ts?raw';
 import diagnoseSoloQuestionStartQuerySource from '../../../base44/functions/diagnoseSoloQuestionStartQuery/entry.ts?raw';
@@ -48,7 +47,6 @@ const ACTION_TYPES = {
 const LIVE_SOURCES = [
   adminSource,
   gameInviteSelectorsSource,
-  adminAuthSource,
   sendGameInvitePushSource,
   resetTestAccountProgressSource,
   diagnoseSoloQuestionStartQuerySource,
@@ -452,8 +450,9 @@ export const EXTRA_TESTS = [
     () => {
       const requiredBackend = [
         'requireAdmin',
-        "../_shared/adminAuth.ts",
-        'entities.AdminUser',
+        'ADMIN_AUTH_FIELD_CANDIDATES',
+        'entities?.AdminUser',
+        'base44.auth.me()',
         'status',
         'active',
         'owner',
@@ -468,7 +467,6 @@ export const EXTRA_TESTS = [
         '/getAdminStatus',
       ];
       const backendSource = [
-        adminAuthSource,
         generateTechDocSource,
         generateWorkflowDocSource,
         seedQuestionCategoriesSource,
@@ -481,7 +479,7 @@ export const EXTRA_TESTS = [
         return fail('Admin authorization is not clearly DB-backed through AdminUser.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
-          expected: 'shared AdminUser guard on backend + client backend-status helper',
+          expected: 'inline AdminUser guard on backend + client backend-status helper',
           actual: { missing },
           actionType: ACTION_TYPES.CODE_FIX,
         });

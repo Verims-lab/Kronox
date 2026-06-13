@@ -1,5 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
-import { isAuthorizedAdmin } from '../_shared/adminAuth.ts';
 
 const FALLBACK_ACTIVE_CATEGORY_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 11];
 const MAX_GAMEPLAY_LIMIT = 1200;
@@ -23,6 +22,59 @@ const ONLINE_ID_TO_MAIN_CATEGORY_ID: Record<string, number> = {
 
 function json(body: unknown, status = 200) {
   return Response.json(body, { status });
+}
+
+function normalizeAdminAuthEmail(value: unknown) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function isActiveAdminRole(role: unknown) {
+  const value = String(role || '').trim().toLowerCase();
+  return value === 'owner' || value === 'admin';
+}
+
+function isActiveAdminStatus(status: unknown) {
+  return String(status || '').trim().toLowerCase() === 'active';
+}
+
+const ADMIN_AUTH_FIELD_CANDIDATES = {
+  email: ['email', 'Email', 'user_email', 'admin_email'],
+  role: ['role', 'Role', 'user_role'],
+  status: ['status', 'Status'],
+};
+
+function readAdminAuthField(row: any, candidates: string[]) {
+  for (const field of candidates) {
+    if (row && Object.prototype.hasOwnProperty.call(row, field)) {
+      return { value: row[field], field };
+    }
+  }
+  return { value: undefined, field: '' };
+}
+
+async function isAuthorizedAdmin(base44: any, user: any) {
+  const email = normalizeAdminAuthEmail(user?.email);
+  if (!email) return false;
+  const adminEntity = base44?.asServiceRole?.entities?.AdminUser;
+  if (!adminEntity?.filter) return false;
+
+  let rows: any[] = [];
+  for (const field of ADMIN_AUTH_FIELD_CANDIDATES.email) {
+    const result = await adminEntity.filter({ [field]: email }, '-updated_at', 10).catch(() => []);
+    if (Array.isArray(result) && result.length > 0) {
+      rows = result;
+      break;
+    }
+  }
+
+  return (rows || []).some((candidate: any) => {
+    const emailField = readAdminAuthField(candidate, ADMIN_AUTH_FIELD_CANDIDATES.email);
+    const roleField = readAdminAuthField(candidate, ADMIN_AUTH_FIELD_CANDIDATES.role);
+    const statusField = readAdminAuthField(candidate, ADMIN_AUTH_FIELD_CANDIDATES.status);
+    return normalizeAdminAuthEmail(emailField.value) === email
+      && isActiveAdminRole(roleField.value)
+      && isActiveAdminStatus(statusField.value);
+  });
 }
 
 function sanitizeRequestUrl(value: string) {

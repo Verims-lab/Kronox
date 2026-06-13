@@ -80,8 +80,8 @@ Status: Active product contract.
 - VAPID private key values are never logged, returned, printed in Health, or exposed through frontend VITE_ variables.
 - Missing VAPID config is reported explicitly as vapid_config_missing / missing_vapid_config with pushSent:false, pushSkipped:true, missingConfig:true, skippedReasons, failedReasons, subscriptionCount, and safe counts; it does not return VAPID values and does not break in-app invite flow.
 - Current source of truth for admin authorization is the private AdminUser entity.
-- Shared backend guard: base44/functions/_shared/adminAuth.ts, preferred wherever the Base44 function deployment supports it.
-- Base44 callable/flat functions may inline the same AdminUser-backed guard only when local shared imports are known to break deployment. This is a runtime deployability exception, not a security exception.
+- Inline backend guard: Base44 functions carry the AdminUser-backed guard locally because individual function deploy bundles do not reliably include shared helper modules.
+- Do not import _shared/adminAuth.ts from Base44 functions. Shared local helpers are a deployability risk, not an authorization source.
 - Active AdminUser rows require normalized lowercase email, role: "admin" or owner, and status: "active".
 - Inline guards must enforce the same normalized email, active status, and owner/admin role contract. Hardcoded admin allowlists are forbidden.
 - disabled/missing AdminUser rows are denied.
@@ -98,7 +98,7 @@ Status: Active product contract.
 - Direct /admin access by normal users is blocked or redirected safely.
 - admin-only maintenance functions verify AdminUser-backed authorization server-side.
 - Admin Ekranı list refresh uses scoped Pull-to-Refresh only after the admin gate has passed; bottom-sheet selectors do not replace backend AdminUser authorization.
-- simulateOnlineGame and runTestSuite are admin-only backend tools. They must call the shared AdminUser guard before any service-role simulation/test writes; user.role, request-body role fields, hardcoded admin emails, and typo role strings such as en_core_news_sm are not valid authorization. Runtime auth proof for simulateOnlineGame must verify unauthenticated, normal user, and disabled/passive admin calls are blocked, while active owner/admin AdminUser rows succeed. npm run build does not prove this deployed backend behavior.
+- simulateOnlineGame and runTestSuite are admin-only backend tools. They must call the inline AdminUser guard before any service-role simulation/test writes; user.role, request-body role fields, hardcoded admin emails, and typo role strings such as en_core_news_sm are not valid authorization. Runtime auth proof for simulateOnlineGame must verify unauthenticated, normal user, and disabled/passive admin calls are blocked, while active owner/admin AdminUser rows succeed. npm run build does not prove this deployed backend behavior.
 - account deletion is a destructive, NOT_AUTOMATABLE manual proof gate.
 - Public privacy URL is https://kronoxgame.com/privacy.
 - /privacy must load without login, admin status, backend data, or redirect.

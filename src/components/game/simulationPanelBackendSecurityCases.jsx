@@ -4,7 +4,6 @@
 // probes still require real unauthenticated/non-admin/admin sessions.
 
 import generateTechDocSource from '../../../base44/functions/generateTechDoc/entry.ts?raw';
-import adminAuthSource from '../../../base44/functions/_shared/adminAuth.ts?raw';
 import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
 import purchaseJokerWithDiamondsSource from '../../../base44/functions/purchaseJokerWithDiamonds/entry.ts?raw';
 import recordDailyQuestProgressSource from '../../../base44/functions/recordDailyQuestProgress/entry.ts?raw';
@@ -71,14 +70,13 @@ export const EXTRA_TESTS = [
     () => {
       const required = [
         'requireAdmin',
-        '../_shared/adminAuth.ts',
         'base44.auth.me()',
+        'entities?.AdminUser',
         '401',
         'if (auth.response) return auth.response',
         'PDFDocument.create()',
       ];
-      const combined = `${generateTechDocSource}\n${adminAuthSource}`;
-      const missing = missingTokens(combined, required);
+      const missing = missingTokens(generateTechDocSource, required);
       const guardBeforePdf = generateTechDocSource.indexOf('if (auth.response) return auth.response') < generateTechDocSource.indexOf('PDFDocument.create()');
       if (missing.length || !guardBeforePdf) {
         return fail('generateTechDoc can generate internal docs before server auth is proven.', {
@@ -102,8 +100,8 @@ export const EXTRA_TESTS = [
     () => {
       const required = [
         'requireAdmin',
-        '../_shared/adminAuth.ts',
-        'entities.AdminUser',
+        'ADMIN_AUTH_FIELD_CANDIDATES',
+        'entities?.AdminUser',
         'status',
         'active',
         'owner',
@@ -111,7 +109,6 @@ export const EXTRA_TESTS = [
         '403',
         'Admin access required',
       ];
-      const combined = `${generateTechDocSource}\n${adminAuthSource}`;
       const forbidden = presentTokens(generateTechDocSource, [
         'req.json()',
         'body.isAdmin',
@@ -119,7 +116,7 @@ export const EXTRA_TESTS = [
         'admin: true',
         ['ADMIN', 'EMAIL ='].join('_'),
       ]);
-      const missing = missingTokens(combined, required);
+      const missing = missingTokens(generateTechDocSource, required);
       if (missing.length || forbidden.length) {
         return fail('generateTechDoc admin authorization contract drifted.', {
           verification: 'STATIC_CONTRACT',

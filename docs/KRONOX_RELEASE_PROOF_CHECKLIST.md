@@ -687,10 +687,9 @@ Checklist:
 * `Admin Ekranı` contains admin-only maintenance/report tools; Settings remains
   account/help/preferences focused.
 * Direct `/admin` access by normal users is blocked or redirected safely.
-* Admin source-of-truth is the DB-backed `AdminUser` entity. The shared
-  backend guard `base44/functions/_shared/adminAuth.ts` is preferred wherever
-  the function deployment supports it; runtime-sensitive Base44 callable/flat
-  functions may inline the same AdminUser role/status contract.
+* Admin source-of-truth is the DB-backed `AdminUser` entity. Base44 functions
+  inline the AdminUser role/status guard locally because per-function deploy
+  bundles do not reliably include `_shared` helper modules.
 * Frontend admin UI visibility is based on the backend current-user
   `getAdminStatus` route. `getQuestions` must never be used as the admin-status
   source; `AdminUser` rows are not read/listed directly by the client.

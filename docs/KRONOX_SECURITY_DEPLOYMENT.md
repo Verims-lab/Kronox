@@ -140,16 +140,16 @@ The following must still work without push:
 Current source of truth:
 
 * Backend admin authority is the `AdminUser` entity.
-* Shared backend guard: `base44/functions/_shared/adminAuth.ts`, preferred
-  wherever the Base44 function deployment supports it.
-* Base44 callable/flat functions may inline the same AdminUser-backed guard
-  only when local shared imports are known to break deployment. This is a
-  runtime deployability exception, not a security exception.
+* Inline backend guard: Base44 functions carry the AdminUser-backed guard
+  locally because individual function deploy bundles do not reliably include
+  shared helper modules.
+* Do not import `_shared/adminAuth.ts` from Base44 functions. Shared local
+  helpers are a deployability risk, not an authorization source.
 * A caller is admin only when their authenticated email matches an
   `AdminUser.email` row with `status === "active"` and `role` of `owner` or
   `admin`.
-* Inline guards must enforce the same normalized email, active status, and
-  `owner`/`admin` role contract. Hardcoded admin allowlists are forbidden.
+* Inline guards must enforce normalized email, active status, and
+  `owner`/`admin` role. Hardcoded admin allowlists are forbidden.
 * Admin email allowlists are not read from environment variables for
   authorization. Legacy admin email env allowlists must not be used as admin
   authorization secrets.
@@ -186,7 +186,7 @@ Accepted admin indicators:
 * `permissions` containing `admin`
 
 Backend admin-only functions must still enforce authorization server-side with
-the shared AdminUser guard.
+their inline AdminUser guard.
 
 Question loading / offline fallback:
 
@@ -521,7 +521,7 @@ After deployment, verify:
 * Admin Ekranı list refresh uses scoped Pull-to-Refresh only after the admin UI
   gate has passed; it must not expose admin maintenance data to normal users
 * `simulateOnlineGame` and `runTestSuite` are admin-only backend tools. They
-  must call the shared AdminUser guard before any service-role simulation/test
+  must call the inline AdminUser guard before any service-role simulation/test
   writes; `user.role`, request-body role fields, hardcoded admin emails, and
   typo role strings such as `en_core_news_sm` are not valid authorization.
 * Runtime auth proof for `simulateOnlineGame` must verify unauthenticated,
