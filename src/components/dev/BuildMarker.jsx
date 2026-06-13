@@ -1833,7 +1833,12 @@ import React, { useEffect, useState } from 'react';
 //     showing app id/base URL/token presence without printing token values.
 //   • The runner mirrors frontend appBaseUrl in createClient and keeps
 //     service-role SDK plus backend-function transports explicit.
-const BUILD_MARKER = 'Codex335';
+//
+// Codex336 — Solo runtime query copy debug:
+//   • Adds owner/admin-gated in-game Solo query debug output assembled from the
+//     real getQuestions -> buildSoloAttemptDeck runtime path, with copyable
+//     JSON for category 6-11 candidate/deck proof.
+const BUILD_MARKER = 'Codex336';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
