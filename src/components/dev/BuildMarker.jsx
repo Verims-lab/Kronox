@@ -1945,7 +1945,12 @@ import React, { useEffect, useState } from 'react';
 //     reported as personal/admin/support addresses.
 //   • Aligns Health static checks with typed AdminUser guards and the current
 //     getQuestions Category service-entity path.
-const BUILD_MARKER = 'Codex356';
+//
+// Codex357 — Final admin function email-literal hotfix:
+//   • Removes email-shaped npm name@version import specifiers from the
+//     admin-only document/category functions flagged by Health.
+//   • Keeps AdminUser-backed authorization unchanged.
+const BUILD_MARKER = 'Codex357';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

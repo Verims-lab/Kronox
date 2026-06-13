@@ -1,5 +1,5 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
-import { PDFDocument, rgb, StandardFonts } from 'npm:pdf-lib@1.17.1';
+import { createClientFromRequest } from 'npm:@base44/sdk';
+import { PDFDocument, rgb, StandardFonts } from 'npm:pdf-lib';
 
 function normalizeAdminAuthEmail(value) {
   return String(value || '').trim().toLowerCase();

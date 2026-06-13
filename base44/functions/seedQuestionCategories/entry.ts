@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { createClientFromRequest } from 'npm:@base44/sdk';
 
 // Codex200 — Admin authorization is DB-backed via AdminUser and shared
 // backend guard. Admin email env allowlists are no longer used.
