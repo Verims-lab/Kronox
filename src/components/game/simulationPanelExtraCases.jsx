@@ -56,6 +56,8 @@ import gameLayoutSource from './GameLayout.jsx?raw';
 import indexCssSource from '../../index.css?raw';
 import questionCardSource from './QuestionCard.jsx?raw';
 import simulationPanelSource from './SimulationPanel.jsx?raw';
+import simulationCasesSource from './health/simulationCases.jsx?raw';
+import simulationReportBuilderSource from './health/simulationReportBuilder.jsx?raw';
 import timelineSource from './Timeline.jsx?raw';
 import useLobbySyncSource from '../../hooks/useLobbySync.js?raw';
 import buildMarkerSource from '../dev/BuildMarker.jsx?raw';
@@ -63,6 +65,7 @@ import onlineCategoriesSource from '../../lib/onlineCategories.js?raw';
 import matchmakingPolicySource from '../../lib/matchmakingPolicy.js?raw';
 import onlineGameBootstrapFallbackSource from './OnlineGameBootstrapFallback.jsx?raw';
 import kronoxTutorialSource from '../tutorial/KronoxTutorial.jsx?raw';
+import friendRequestEntityRawSource from '../../../base44/entities/FriendRequest.jsonc?raw';
 // Codex086 — diagnostic-overlay gate sources, used to assert admin auto-enable is gone.
 import appDiagnosticsAuxSource from '../dev/AppDiagnostics.jsx?raw';
 import gameBootstrapDiagAuxSource from './GameBootstrapDiagnostics.jsx?raw';
@@ -279,6 +282,53 @@ function entityHasShape(suiteId, id, name, label, jsonText, requiredProps, rlsTo
       actual: 'present',
     });
   }, options);
+}
+
+function parseEntityContract(source, label) {
+  try {
+    return { entity: JSON.parse(String(source || '')), error: null };
+  } catch (error) {
+    return {
+      entity: null,
+      error: `${label} could not be parsed: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+}
+
+function rlsOrBranchHas(branches, field, expected) {
+  return Array.isArray(branches)
+    && branches.some((branch) => branch && branch[field] === expected);
+}
+
+function rlsOrBranchHasAdmin(branches) {
+  return Array.isArray(branches)
+    && branches.some((branch) => branch?.user_condition?.role === 'admin');
+}
+
+function auditFriendRequestRls(source) {
+  const { entity, error } = parseEntityContract(source, 'base44/entities/FriendRequest.jsonc');
+  if (error || !entity) return { ok: false, missing: [error || 'missing entity'] };
+
+  const missing = [];
+  const rls = entity.rls || {};
+  if (entity.name !== 'FriendRequest') missing.push('name=FriendRequest');
+  if (rls.create?.created_by_id !== '{{user.id}}') missing.push('create.created_by_id={{user.id}}');
+  if (rls.create?.['data.from_email'] !== '{{user.email}}') missing.push('create.data.from_email={{user.email}}');
+
+  for (const action of ['read', 'update', 'delete']) {
+    const branches = rls[action]?.$or;
+    if (!rlsOrBranchHas(branches, 'data.from_email', '{{user.email}}')) {
+      missing.push(`${action}.data.from_email={{user.email}}`);
+    }
+    if (!rlsOrBranchHas(branches, 'data.to_email', '{{user.email}}')) {
+      missing.push(`${action}.data.to_email={{user.email}}`);
+    }
+    if (!rlsOrBranchHasAdmin(branches)) {
+      missing.push(`${action}.user_condition.role=admin`);
+    }
+  }
+
+  return { ok: missing.length === 0, missing };
 }
 
 function countOccurrences(source, pattern) {
@@ -518,10 +568,30 @@ export const EXTRA_TESTS = [
     ['rls', 'data.user_email', '{{user.email}}']),
   entityHasShape('friends_security', 'friend_request_rls_addressed',
     'FriendRequest rows readable only by sender/recipient',
-    'entities/FriendRequest.json',
-    friendRequestEntitySource,
+    'base44/entities/FriendRequest.jsonc',
+    friendRequestEntityRawSource,
     ['from_email', 'to_email', 'status'],
     ['rls', 'data.from_email', 'data.to_email', '{{user.email}}']),
+  makeCase('friends_security', 'friend_request_manage_delete_rls_sender_recipient_admin',
+    'FriendRequest read/update/delete RLS includes sender, recipient, and admin branches',
+    () => {
+      const audit = auditFriendRequestRls(friendRequestEntityRawSource);
+      if (!audit.ok) {
+        return fail('FriendRequest RLS is missing a sender/recipient/admin branch or the delete rule drifted.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'base44/entities/FriendRequest.jsonc',
+          expected: 'create by sender; read/update/delete by data.from_email, data.to_email, or admin role',
+          actual: { missing: audit.missing },
+        });
+      }
+      return pass('FriendRequest RLS keeps sender/recipient/admin read/update/delete coverage, including delete.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        file: 'base44/entities/FriendRequest.jsonc',
+        actual: 'sender/recipient/admin branches present for read/update/delete',
+      });
+    }),
   sourceHas('friends_security', 'accept_is_receiver_only_server',
     'Server-side acceptFriendRequest is receiver-only',
     'functions/acceptFriendRequest.js',
@@ -1050,11 +1120,11 @@ export const EXTRA_TESTS = [
     simulationPanelSource,
     ['FAIL', 'NOT_AUTOMATABLE', '0 FAIL'],
     { actionType: ACTION_TYPES.CODE_FIX }),
-  sourceHas('research_test_strategy', 'critical_unknowns_remain_blockers',
-    'Critical NOT_AUTOMATABLE remains a release blocker',
-    'ReleaseReadinessExplainer / SimulationPanel',
-    simulationPanelSource,
-    ['critical NOT_AUTOMATABLE', 'zero_fail_with_critical_not_automatable_is_not_release_ready'],
+  sourceHas('research_test_strategy', 'critical_unknowns_remain_manual_proof',
+    'Critical NOT_AUTOMATABLE remains visible as manual proof, not blocker copy',
+    'ReleaseReadinessExplainer / SimulationPanel / simulationReportBuilder',
+    `${simulationPanelSource}\n${simulationCasesSource}\n${simulationReportBuilderSource}`,
+    ['manual_required_not_top_blocker', 'manual-only verification'],
     { actionType: ACTION_TYPES.CODE_FIX }),
   staticInfoCase('research_test_strategy', 'manual_checks_not_passed',
     'Manual checks are not counted as PASS',
@@ -1493,8 +1563,8 @@ export const EXTRA_TESTS = [
    * ============================================================ */
   entityHasShape('social_rls_two_account_risk', 'friend_request_sender_receiver_read_static',
     'FriendRequest can be read only by sender/receiver by static RLS contract',
-    'entities/FriendRequest.json',
-    friendRequestEntitySource,
+    'base44/entities/FriendRequest.jsonc',
+    friendRequestEntityRawSource,
     ['from_email', 'to_email', 'status'],
     ['data.from_email', 'data.to_email', '{{user.email}}'],
     { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, runtimeProofRequired: true }),
@@ -2441,8 +2511,8 @@ export const EXTRA_TESTS = [
 // ---------------------------------------------------------------------------
 //  Optional additive scoring hook used by SimulationPanel.
 //  Adds a small extra penalty when critical social/security suites have any
-//  BLOCKED or NOT_AUTOMATABLE case — they are real release risk and should
-//  not silently pass through.
+//  BLOCKED or NOT_AUTOMATABLE case. These remain release-proof risks, but
+//  manual-only NOT_AUTOMATABLE cases are not copied/counts as code blockers.
 // ---------------------------------------------------------------------------
 const CRITICAL_SOCIAL_SUITE_IDS = new Set([
   'profile_navigation',

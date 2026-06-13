@@ -11,7 +11,7 @@ import { AlertTriangle, Info, ShieldAlert, CheckCircle2, XCircle } from 'lucide-
  *
  * Honesty contract (must not be weakened):
  *  - 0 FAIL ≠ release-ready.
- *  - Critical NOT_AUTOMATABLE cases are explicitly listed as release blockers
+ *  - Critical NOT_AUTOMATABLE cases are explicitly listed as manual proof gaps
  *    until verified on real device / live DOM / two-account backend probe.
  *  - WARNING and BLOCKED are still visible risk states.
  *  - The component never claims a case "passed" if it did not actually pass.
@@ -27,16 +27,13 @@ export default function ReleaseReadinessExplainer({ report }) {
   const notAuto = counts.NOT_AUTOMATABLE || 0;
   const pass = counts.PASS || 0;
 
-  // A case is a release blocker if its status is non-PASS AND it is critical.
-  // We intentionally include NOT_AUTOMATABLE here — the whole point of this
-  // explainer is to make "cannot be proven by simulator" visible as risk.
-  const criticalNotAutomatable = (report.cases || []).filter(
-    (c) => c.critical && c.status === 'NOT_AUTOMATABLE',
-  );
-
+  const manualVerificationNeeded = Array.isArray(report.manualVerificationNeeded)
+    ? report.manualVerificationNeeded
+    : [];
+  const realBlockerCount = Number(report.blockerSummary?.blockerCount || report.topBlockers?.length || 0);
   const score = report.score?.value ?? 0;
   const rating = report.score?.rating || 'Unknown';
-  const isReleaseReady = rating === 'Good' && fail === 0 && error === 0 && criticalNotAutomatable.length === 0;
+  const isReleaseReady = rating === 'Good' && fail === 0 && error === 0 && realBlockerCount === 0 && manualVerificationNeeded.length === 0;
 
   return (
     <section
@@ -61,11 +58,17 @@ export default function ReleaseReadinessExplainer({ report }) {
             Release-Ready Durumu — {rating} ({score}/100)
           </h3>
           <p className="mt-1 text-xs leading-relaxed text-white/75">
-            {fail === 0 && error === 0 ? (
+            {fail === 0 && error === 0 && realBlockerCount === 0 ? (
               <>
-                <span className="font-semibold text-white">FAIL yok, ancak release hazır değil.</span>{' '}
-                Çünkü bazı kritik kontroller otomatik doğrulanamıyor. Gerçek telefon, canlı DOM,
-                gesture ve iki hesaplı backend/RLS testleri tamamlanmadan release-ready sayılmaz.
+                <span className="font-semibold text-white">Kod blocker görünmüyor.</span>{' '}
+                Manuel doğrulama gerektiren cihaz, canlı DOM, gesture veya iki hesaplı backend/RLS
+                kontrolleri ayrı proof listesinde tutulur; bunlar Copy Blocker JSON'a girmez.
+              </>
+            ) : fail === 0 && error === 0 ? (
+              <>
+                <span className="font-semibold text-amber-100">Gerçek blocker var.</span>{' '}
+                {realBlockerCount} BLOCKED/critical static case release öncesi çözülmeli; manuel
+                doğrulama eksikleri ayrı proof listesinde tutulur.
               </>
             ) : (
               <>
@@ -107,7 +110,7 @@ export default function ReleaseReadinessExplainer({ report }) {
           Icon={Info}
           color="#93c5fd"
           label={`NOT_AUTOMATABLE: ${notAuto}`}
-          desc="Simülatör kanıtlayamaz. Manuel / cihaz / backend doğrulaması gerekir."
+          desc="Simülatör kanıtlayamaz. Manual proof; code blocker sayılmaz."
         />
         <LegendRow
           Icon={CheckCircle2}
@@ -122,9 +125,9 @@ export default function ReleaseReadinessExplainer({ report }) {
         style={{ borderColor: 'rgba(147,197,253,0.30)', background: 'rgba(147,197,253,0.06)' }}
       >
         <span className="font-semibold text-blue-200">Kritik NOT_AUTOMATABLE</span>{' '}
-        cases are <span className="font-semibold text-blue-200">release blocker</span> until
-        verified on real device / live DOM / two-account backend probe. 0 FAIL alone does not
-        equal release-ready.
+        cases are <span className="font-semibold text-blue-200">manual proof required</span>,
+        not copied as code blockers. Real device / live DOM / two-account backend proof still
+        must be collected before release confidence.
         {report.score?.explanation && (
           <span className="mt-1 block text-white/60">
             {report.score.explanation}
@@ -132,19 +135,19 @@ export default function ReleaseReadinessExplainer({ report }) {
         )}
       </div>
 
-      {/* Release-blocking verification gaps */}
+      {/* Manual verification gaps */}
       <div className="mt-4">
         <h4 className="text-xs font-bold uppercase tracking-wide text-white/70">
-          Release'i engelleyen doğrulama eksikleri
+          Manuel doğrulama eksikleri
         </h4>
-        {criticalNotAutomatable.length === 0 ? (
+        {manualVerificationNeeded.length === 0 ? (
           <p className="mt-2 text-xs text-white/55">
-            Kritik NOT_AUTOMATABLE case yok. Yine de iki cihazlı multiplayer ve iki hesaplı
-            RLS smoke test'i çıkıştan önce çalıştırılmalı.
+            Manuel doğrulama bekleyen case yok. Yine de iki cihazlı multiplayer ve iki hesaplı
+            RLS smoke test'i release sürecinde korunmalı.
           </p>
         ) : (
           <ul className="mt-2 space-y-1.5">
-            {criticalNotAutomatable.slice(0, 12).map((c) => (
+            {manualVerificationNeeded.slice(0, 12).map((c) => (
               <li
                 key={c.key || `${c.suiteId}.${c.id}`}
                 className="flex items-start gap-2 rounded border border-white/10 bg-black/30 p-2 text-[11px] leading-relaxed text-white/75"
@@ -157,10 +160,10 @@ export default function ReleaseReadinessExplainer({ report }) {
                 </span>
               </li>
             ))}
-            {criticalNotAutomatable.length > 12 && (
+            {manualVerificationNeeded.length > 12 && (
               <li className="text-[11px] text-white/45">
-                + {criticalNotAutomatable.length - 12} more critical NOT_AUTOMATABLE cases —
-                see Top Blockers / Raw JSON.
+                + {manualVerificationNeeded.length - 12} more manual verification cases —
+                see Manual Verification / Raw JSON.
               </li>
             )}
           </ul>

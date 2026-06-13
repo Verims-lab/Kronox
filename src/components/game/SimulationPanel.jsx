@@ -38,7 +38,7 @@
 //   Several legacy Health cases scan THIS file (`simulationPanelSource`)
 //   for tokens that document the architecture and report shape:
 //     STATIC_CONTRACT, STATIC_CHECK_LIMITATION, RUNTIME_VERIFIED, FAIL,
-//     NOT_AUTOMATABLE, 0 FAIL, critical NOT_AUTOMATABLE,
+//     NOT_AUTOMATABLE, 0 FAIL, critical NOT_AUTOMATABLE manual proof,
 //     zero_fail_with_critical_not_automatable_is_not_release_ready,
 //     Manual Verification Needed, Known Non-Automatable Critical Risks,
 //     Release Ready Checklist, actionType, nextStep, CODE_FIX,
@@ -84,7 +84,7 @@
 //           "Recently Fixed Regressions", "Top Blockers", "SRE Signals",
 //           "Recommended Next Actions".
 //     • ReleaseReadinessExplainer.jsx (rendered from SimulationReportActions)
-//         - "0 FAIL does not mean release-ready" copy
+//         - "0 FAIL does not mean release-ready" / manual-proof copy
 //         - zero_fail_with_critical_not_automatable_is_not_release_ready.
 //
 //   This pointer block is documentation, not behavior. It exists so the
