@@ -15,7 +15,6 @@ import deleteAccountSource from '../../../base44/functions/deleteAccount/entry.t
 import questionAttemptEventEntitySource from '../../../base44/entities/QuestionAttemptEvent.jsonc?raw';
 import questionStatsProjectionEntitySource from '../../../base44/entities/QuestionStatsProjection.jsonc?raw';
 import categoryStatsProjectionEntitySource from '../../../base44/entities/CategoryStatsProjection.jsonc?raw';
-import adminAuthSource from '../../../base44/functions/_shared/adminAuth.ts?raw';
 import aggregateQuestionStatsSource from '../../../base44/functions/aggregateQuestionStats/entry.ts?raw';
 import reportFunctionSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts?raw';
 import reportFunctionManifestSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc?raw';
@@ -183,8 +182,7 @@ export const EXTRA_TESTS = [
         'bodyRemovedSectionsPresent',
         'report_body_validation_failed',
       ]);
-      const combined = `${reportFunctionSource}\n${adminAuthSource}`;
-      const missing = missingTokens(combined, [
+      const missing = missingTokens(reportFunctionSource, [
         'sendQuestionAnalyticsReportEmail',
         'Deno.serve',
         'createClientFromRequest',

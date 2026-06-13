@@ -1488,7 +1488,7 @@ function buildReport({
   };
 }
 // ── Inlined DB-backed AdminUser guard (no local _shared import) ──────────
-// Mirrors functions/_shared/adminAuth.ts requireAdmin contract.
+// Mirrors the DB-backed AdminUser requireAdmin contract inline.
 function isActiveAdminRole(role) {
   const value = String(role || "").trim().toLowerCase();
   return value === 'owner' || value === 'admin';

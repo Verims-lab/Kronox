@@ -1872,7 +1872,14 @@ import React, { useEffect, useState } from 'react';
 //   • Adds safe request, payload-shape, and projection-branch logs inside the
 //     getQuestions Deno.serve handler without logging bodies, headers, tokens,
 //     service config, or personal data.
-const BUILD_MARKER = 'Codex344';
+//
+// Codex345 — Inline Base44 admin auth guards:
+//   • Removes the deploy-blocking shared adminAuth dependency from Base44
+//     functions and keeps AdminUser email/role/status authorization local to
+//     each protected function bundle.
+//   • Preserves getQuestions request/branch logs and backend runtime marker
+//     getQuestions-live-per-category-v7-Codex343.
+const BUILD_MARKER = 'Codex345';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

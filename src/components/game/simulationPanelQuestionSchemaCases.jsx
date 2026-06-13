@@ -7,7 +7,6 @@
 import categoryEntitySource from '../../../base44/entities/Category.jsonc?raw';
 import subCategoryEntitySource from '../../../base44/entities/SubCategory.jsonc?raw';
 import questionEntitySource from '../../../base44/entities/Question.jsonc?raw';
-import adminAuthSource from '../../../base44/functions/_shared/adminAuth.ts?raw';
 import seedQuestionCategoriesSource from '../../../base44/functions/seedQuestionCategories/entry.ts?raw';
 import getQuestionsFunctionSource from '../../../base44/functions/getQuestions/entry.ts?raw';
 // Vite `?raw` cannot reach outside `src/` on this host, so the canonical
@@ -197,12 +196,11 @@ export const EXTRA_TESTS = [
   makeCase('category_seed_requires_admin',
     'Category seed function is server-side admin-only',
     () => {
-      const combined = `${seedQuestionCategoriesSource}\n${adminAuthSource}`;
-      const missing = missingTokens(combined, [
+      const missing = missingTokens(seedQuestionCategoriesSource, [
         'requireAdmin',
-        '../_shared/adminAuth.ts',
         'base44.auth.me()',
-        'entities.AdminUser',
+        'entities?.AdminUser',
+        'ADMIN_AUTH_FIELD_CANDIDATES',
         'status',
         'active',
         'owner',
