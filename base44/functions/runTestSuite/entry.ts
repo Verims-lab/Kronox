@@ -92,13 +92,13 @@ Deno.serve(async (req) => {
     }
 
     async function createTestLobby(extraPlayers = 0) {
-      const players = [{ email: 'test_host@kronos.local', name: 'TestHost', ready: true, cards: [] }];
+      const players = [{ email: 'test-host-kronos-local', name: 'TestHost', ready: true, cards: [] }];
       for (let i = 0; i < extraPlayers; i++) {
-        players.push({ email: `test_p${i}@kronos.local`, name: `Player${i}`, ready: true, cards: [] });
+        players.push({ email: `test-p${i}-kronos-local`, name: `Player${i}`, ready: true, cards: [] });
       }
       return base44.asServiceRole.entities.Lobby.create({
         code: generateCode(),
-        host_email: 'test_host@kronos.local',
+        host_email: 'test-host-kronos-local',
         host_name: 'TestHost',
         players,
         status: 'waiting',
@@ -159,7 +159,7 @@ Deno.serve(async (req) => {
       }),
       run('SMK-05: GameRecord entity CRUD çalışıyor', async () => {
         const r = await base44.asServiceRole.entities.GameRecord.create({
-          user_email: 'smoke_test@kronos.local',
+          user_email: 'smoke-test-kronos-local',
           player_name: 'SmokeTest',
           duration_seconds: 10,
           cards_won: 5,
@@ -787,7 +787,7 @@ Deno.serve(async (req) => {
       }),
       run('BB-03: Oyuncu ekleme çalışmalı', async () => {
         const lobby = await createTestLobby();
-        const newPlayer = { email: 'joiner@test.local', name: 'Joiner', ready: true, cards: [] };
+        const newPlayer = { email: 'joiner-test-local', name: 'Joiner', ready: true, cards: [] };
         const updated = await base44.asServiceRole.entities.Lobby.update(lobby.id, {
           players: [...lobby.players, newPlayer]
         });
@@ -1060,7 +1060,7 @@ Deno.serve(async (req) => {
       }),
       run('API-04: GameRecord entity CRUD', async () => {
         const record = await base44.asServiceRole.entities.GameRecord.create({
-          user_email: 'api_test@kronos.local',
+          user_email: 'api-test-kronos-local',
           player_name: 'APITester',
           duration_seconds: 120,
           cards_won: 10,

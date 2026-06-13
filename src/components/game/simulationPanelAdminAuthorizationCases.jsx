@@ -111,35 +111,54 @@ function makeCase(suiteId, suiteName, id, description, run, opts = {}) {
 // quoted email literal, which is what the security finding flags.
 const EMAIL_LITERAL_REGEX = /['"][\w.+-]+@[\w-]+(?:\.[\w-]+)*\.[A-Za-z]{2,}['"]/g;
 
+function maskEmailLiteral(value) {
+  const text = String(value || '').trim().toLowerCase();
+  const [local = '', domain = ''] = text.split('@');
+  const [domainName = '', ...suffixParts] = domain.split('.');
+  const suffix = suffixParts.length ? `.${suffixParts.join('.')}` : '';
+  const localHead = local.slice(0, 1) || '*';
+  const domainHead = domainName.slice(0, 1) || '*';
+  return `${localHead}***@${domainHead}***${suffix}`;
+}
+
 function findEmailLiterals(src) {
+  const lines = String(src || '').split(/\r?\n/);
   const matches = src.match(EMAIL_LITERAL_REGEX) || [];
-  return matches.filter((match) => {
+  const seen = new Set();
+  return matches.map((match) => {
     const value = match.replace(/^['"]|['"]$/g, '').toLowerCase();
+    const line = lines.findIndex((sourceLine) => sourceLine.includes(match) || sourceLine.includes(value)) + 1;
+    return { value, line, maskedLiteral: maskEmailLiteral(value) };
+  }).filter((entry) => {
     // Synthetic fixture addresses used inside admin-only test harnesses are
     // not personal/admin/support contacts and do not grant authorization.
-    return !value.endsWith('@kronos.local') && !value.endsWith('@example.com') && !value.endsWith('@example.test');
+    if (entry.value.endsWith('@kronos.local') || entry.value.endsWith('@example.com') || entry.value.endsWith('@example.test')) return false;
+    const key = `${entry.value}:${entry.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
   });
 }
 
 const TARGET_FUNCTIONS = [
-  { name: 'generateTechDoc', source: generateTechDocSource },
-  { name: 'generateWorkflowDoc', source: generateWorkflowDocSource },
-  { name: 'seedQuestionCategories', source: seedQuestionCategoriesSource },
-  { name: 'adminResetUserProgress', source: adminResetUserProgressSource },
-  { name: 'cleanupAdminMaintenanceLog', source: cleanupAdminMaintenanceLogSource },
-  { name: 'expireOldGameInvites', source: expireOldGameInvitesSource },
-  { name: 'expirePushSubscriptions', source: expirePushSubscriptionsSource },
-  { name: 'refreshLeaderboardProjection', source: refreshLeaderboardProjectionSource },
-  { name: 'resetTestAccountProgress', source: resetTestAccountProgressSource },
-  { name: 'diagnoseSoloQuestionStartQuery', source: diagnoseSoloQuestionStartQuerySource },
-  { name: 'runTestSuite', source: runTestSuiteSource },
-  { name: 'sendQuestionAnalyticsReportEmail', source: sendQuestionAnalyticsReportEmailSource },
-  { name: 'createDailyQuestDefinition', source: createDailyQuestDefinitionSource },
-  { name: 'aggregateQuestionStats', source: aggregateQuestionStatsSource },
-  { name: 'cancelStaleLobbies', source: cancelStaleLobbiesSource },
-  { name: 'simulateOnlineGame', source: simulateOnlineGameSource },
-  { name: 'getAdminStatus', source: getAdminStatusSource },
-  { name: 'getQuestions', source: getQuestionsSource },
+  { name: 'generateTechDoc', file: 'base44/functions/generateTechDoc/entry.ts', source: generateTechDocSource },
+  { name: 'generateWorkflowDoc', file: 'base44/functions/generateWorkflowDoc/entry.ts', source: generateWorkflowDocSource },
+  { name: 'seedQuestionCategories', file: 'base44/functions/seedQuestionCategories/entry.ts', source: seedQuestionCategoriesSource },
+  { name: 'adminResetUserProgress', file: 'base44/functions/adminResetUserProgress/entry.ts', source: adminResetUserProgressSource },
+  { name: 'cleanupAdminMaintenanceLog', file: 'base44/functions/cleanupAdminMaintenanceLog/entry.ts', source: cleanupAdminMaintenanceLogSource },
+  { name: 'expireOldGameInvites', file: 'base44/functions/expireOldGameInvites/entry.ts', source: expireOldGameInvitesSource },
+  { name: 'expirePushSubscriptions', file: 'base44/functions/expirePushSubscriptions/entry.ts', source: expirePushSubscriptionsSource },
+  { name: 'refreshLeaderboardProjection', file: 'base44/functions/refreshLeaderboardProjection/entry.ts', source: refreshLeaderboardProjectionSource },
+  { name: 'resetTestAccountProgress', file: 'base44/functions/resetTestAccountProgress/entry.ts', source: resetTestAccountProgressSource },
+  { name: 'diagnoseSoloQuestionStartQuery', file: 'base44/functions/diagnoseSoloQuestionStartQuery/entry.ts', source: diagnoseSoloQuestionStartQuerySource },
+  { name: 'runTestSuite', file: 'base44/functions/runTestSuite/entry.ts', source: runTestSuiteSource },
+  { name: 'sendQuestionAnalyticsReportEmail', file: 'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts', source: sendQuestionAnalyticsReportEmailSource },
+  { name: 'createDailyQuestDefinition', file: 'base44/functions/createDailyQuestDefinition/entry.ts', source: createDailyQuestDefinitionSource },
+  { name: 'aggregateQuestionStats', file: 'base44/functions/aggregateQuestionStats/entry.ts', source: aggregateQuestionStatsSource },
+  { name: 'cancelStaleLobbies', file: 'base44/functions/cancelStaleLobbies/entry.ts', source: cancelStaleLobbiesSource },
+  { name: 'simulateOnlineGame', file: 'base44/functions/simulateOnlineGame/entry.ts', source: simulateOnlineGameSource },
+  { name: 'getAdminStatus', file: 'base44/functions/getAdminStatus/entry.ts', source: getAdminStatusSource },
+  { name: 'getQuestions', file: 'base44/functions/getQuestions/entry.ts', source: getQuestionsSource },
 ];
 
 const LEGACY_ADMIN_ENV_TOKENS = [
@@ -169,16 +188,24 @@ export const EXTRA_TESTS = [
         const src = safeStr(fn.source);
         const emails = findEmailLiterals(src);
         if (emails.length > 0) {
-          offenders.push({ function: fn.name, count: emails.length });
+          offenders.push({
+            function: fn.name,
+            file: fn.file,
+            count: emails.length,
+            maskedOffenders: emails.map((entry) => `line ${entry.line}: ${entry.maskedLiteral}`),
+          });
         }
       }
       if (offenders.length) {
+        const offenderSummary = offenders.flatMap((offender) => (
+          offender.maskedOffenders || []
+        ).map((masked) => `${offender.file}: ${masked}`));
         return fail('A hardcoded admin email literal is still present in a protected backend function.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'base44/functions/{generateTechDoc,generateWorkflowDoc,seedQuestionCategories}/entry.ts',
           expected: 'No quoted email literal in admin-only function source',
-          actual: { offenders },
+          actual: { offenderCount: offenders.reduce((sum, item) => sum + item.count, 0), offenderSummary },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
