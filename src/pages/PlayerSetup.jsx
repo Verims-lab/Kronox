@@ -10,12 +10,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import KronoxTutorial from '@/components/tutorial/KronoxTutorial';
 import { Input } from '@/components/ui/input';
-import { Users, Play, Globe, LogIn, LogOut, Settings, RefreshCw } from 'lucide-react';
+import { Users, Play, Globe, LogOut, Settings, RefreshCw } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { motion, AnimatePresence } from 'framer-motion';
 import { sounds } from '@/lib/gameSounds';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { markTutorialCompleted, shouldShowTutorialForUser } from '@/lib/tutorialProfile';
+import AuthProviderButtons from '@/components/auth/AuthProviderButtons';
 
 // Floating ambient orbs — pure atmosphere, no layout impact
 function AmbientOrbs() {
@@ -400,14 +401,7 @@ export default function PlayerSetup() {
                   </button>
                 </div>
               ) : (
-                <button
-                  onClick={() => base44.auth.redirectToLogin('/')}
-                  className="w-full font-inter text-sm text-white/50 hover:text-primary flex items-center justify-center gap-2 py-3 transition-colors rounded min-h-[44px]"
-                  aria-label="Google ile giriş yap"
-                >
-                  <LogIn className="w-4 h-4" />
-                  Google ile Giriş Yap
-                </button>
+                <AuthProviderButtons fromUrl="/" onBeforeStart={() => sounds.tap()} />
               )}
             </div>
           </Section>

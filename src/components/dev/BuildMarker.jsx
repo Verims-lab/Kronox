@@ -1879,7 +1879,13 @@ import React, { useEffect, useState } from 'react';
 //     each protected function bundle.
 //   • Preserves getQuestions request/branch logs and backend runtime marker
 //     getQuestions-live-per-category-v7-Codex343.
-const BUILD_MARKER = 'Codex345';
+//
+// Codex346 — App Store Apple sign-in option:
+//   • Adds visible Base44-managed Apple and Google provider buttons to the
+//     unauthenticated login entry while preserving hosted email/other login.
+//   • Uses base44.auth.loginWithProvider('apple'|'google') with safe fallback
+//     error copy and no native iOS code or committed provider secrets.
+const BUILD_MARKER = 'Codex346';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
