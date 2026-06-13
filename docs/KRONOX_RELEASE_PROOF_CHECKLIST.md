@@ -923,7 +923,9 @@ Checklist:
   Ekranı button unless the function path is deployed and verified. The script
   must be run with the app-specific `BASE44_APP_BASE_URL` or
   `VITE_BASE44_APP_BASE_URL`; do not let Node diagnostics silently default to
-  the generic `base44.app` host. The read-only diagnostic must include
+  the generic `base44.app` host. The script prints a safe config summary
+  (app id/base URL/token presence booleans only; never token values) before
+  data access. The read-only diagnostic must include
   `sariverim@gmail.com`, up to 10 users with active category preferences, the
   real `getQuestions`-compatible
   `Question.filter` query descriptor, cache key/version, per-category

@@ -1827,7 +1827,13 @@ import React, { useEffect, useState } from 'react';
 //     token/app-id/base-url mismatch diagnostic.
 //   • Adds backend-function transport support for deployed admin callable
 //     diagnostic runs with an admin access token.
-const BUILD_MARKER = 'Codex334';
+//
+// Codex335 — Solo diagnostic safe config summary:
+//   • The direct diagnostic runner now emits a safe Base44 config summary
+//     showing app id/base URL/token presence without printing token values.
+//   • The runner mirrors frontend appBaseUrl in createClient and keeps
+//     service-role SDK plus backend-function transports explicit.
+const BUILD_MARKER = 'Codex335';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -195,9 +195,10 @@ P3 adds question analytics without changing question selection:
 - Codex334 diagnostic connectivity: `scripts/diagnoseSoloQuestionStartQuery.mjs`
   reports `missing_base44_app_config` when app URL/service credentials are not
   supplied and `token_app_mismatch_or_wrong_app_id` when Base44 returns
-  "App not found". The backend-function transport is available with
-  `BASE44_DIAGNOSTIC_MODE=backend-function` plus an admin access token after
-  the backend function is deployed.
+  "App not found". It prints a safe config summary with app id/base URL/token
+  presence booleans only, never token values. The backend-function transport is
+  available with `BASE44_DIAGNOSTIC_MODE=backend-function` plus an admin access
+  token after the backend function is deployed.
 - `QuestionStatsProjection` and `CategoryStatsProjection` refresh remains an
   admin/manual `aggregateQuestionStats` path, defaults to dry-run unless
   explicitly run for write, and is not updated synchronously during gameplay.

@@ -82,6 +82,7 @@ function isAppNotFoundError(error) {
 }
 
 function serializeError(error, config = {}) {
+  const configSummary = buildConfigSummary(config);
   const message = String(error?.response?.data?.message || error?.response?.data?.error || error?.message || error || 'unknown_error');
   if (isAppNotFoundError(error)) {
     return {
@@ -93,6 +94,7 @@ function serializeError(error, config = {}) {
       dryRun: true,
       attemptedAppId: config.appId || null,
       attemptedBase44ServerUrl: config.serverUrl || null,
+      configSummary,
       message: 'Base44 returned App not found. Check that BASE44_APP_ID points to the Kronox app and BASE44_APP_BASE_URL/VITE_BASE44_APP_BASE_URL points to the same deployed Kronox Base44 backend; also verify the service token belongs to that app/environment.',
       requiredEnv: [
         'BASE44_SERVICE_TOKEN or BASE44_SERVICE_ROLE_TOKEN',
@@ -112,6 +114,7 @@ function serializeError(error, config = {}) {
     dryRun: true,
     attemptedAppId: config.appId || null,
     attemptedBase44ServerUrl: config.serverUrl || null,
+    configSummary,
   };
 }
 
@@ -518,6 +521,25 @@ function getEnv(name) {
   return String(process.env[name] || '').trim();
 }
 
+function buildConfigSummary(config = {}) {
+  return {
+    appIdPresent: Boolean(config.appId),
+    appId: config.appId || null,
+    base44AppBaseUrlPresent: Boolean(config.serverUrl),
+    base44AppBaseUrl: config.serverUrl || null,
+    serviceTokenPresent: Boolean(config.serviceToken),
+    adminAccessTokenPresent: Boolean(config.accessToken),
+    diagnosticMode: config.diagnosticMode || null,
+    loadedEnvFiles: Array.isArray(config.loadedEnvFiles) ? config.loadedEnvFiles : [],
+    tokenValuesPrinted: false,
+  };
+}
+
+function logConfigSummary(config = {}) {
+  if (String(process.env.BASE44_DIAGNOSTIC_QUIET_CONFIG || '').trim() === 'true') return;
+  console.error(`[${JOB_NAME}] safe config summary: ${JSON.stringify(buildConfigSummary(config))}`);
+}
+
 function buildConfig() {
   const loadedEnvFiles = loadEnvFiles();
   const appConfig = readJsonc('base44/.app.jsonc');
@@ -543,6 +565,7 @@ function buildConfig() {
 }
 
 function buildMissingConfigOutput(config) {
+  const configSummary = buildConfigSummary(config);
   const requiredEnv = [];
   if (!config.appId) requiredEnv.push('BASE44_APP_ID or VITE_BASE44_APP_ID');
   if (!config.serverUrl) requiredEnv.push('BASE44_APP_BASE_URL or VITE_BASE44_APP_BASE_URL');
@@ -567,6 +590,7 @@ function buildMissingConfigOutput(config) {
     adminAccessTokenPresent: Boolean(config.accessToken),
     attemptedAppId: config.appId || null,
     attemptedBase44ServerUrl: config.serverUrl || null,
+    configSummary,
     diagnosticMode: config.diagnosticMode,
     loadedEnvFiles: config.loadedEnvFiles,
     requiredEnv,
@@ -602,11 +626,13 @@ async function invokeBackendFunctionDiagnostic(config, { levelNumber, yearStart,
     diagnosticTransport: 'backend-function',
     attemptedAppId: config.appId,
     attemptedBase44ServerUrl: config.serverUrl,
+    configSummary: buildConfigSummary(config),
   };
 }
 
 async function run() {
   const config = buildConfig();
+  logConfigSummary(config);
   const levelNumber = Math.max(1, Math.trunc(Number(getEnv('SOLO_DIAGNOSTIC_LEVEL') || 1)));
   const yearStart = Number.isFinite(Number(getEnv('SOLO_DIAGNOSTIC_YEAR_START')))
     ? Number(getEnv('SOLO_DIAGNOSTIC_YEAR_START'))
@@ -633,6 +659,7 @@ async function run() {
     serverUrl: config.serverUrl,
     token: config.accessToken || undefined,
     serviceToken: config.serviceToken,
+    appBaseUrl: config.serverUrl,
   });
   const { engine, levels } = await loadRuntimeDeckModules();
 
@@ -717,7 +744,7 @@ async function run() {
   const output = {
     ok: true,
     jobName: JOB_NAME,
-    buildMarker: 'Codex334',
+    buildMarker: 'Codex335',
     readOnly: true,
     dryRun: true,
     mutatesGameplay: false,
@@ -727,6 +754,7 @@ async function run() {
     requestedOwnerEmail: OWNER_EMAIL,
     attemptedAppId: config.appId,
     attemptedBase44ServerUrl: config.serverUrl,
+    configSummary: buildConfigSummary(config),
     diagnosticTransport: 'service-role-sdk',
     ownerIncluded: true,
     preferenceUserLimit: MAX_PREFERENCE_USERS,
