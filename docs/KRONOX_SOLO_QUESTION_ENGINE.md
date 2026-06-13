@@ -180,6 +180,14 @@ P3 adds question analytics without changing question selection:
   the full eligible Solo pool, not only the non-selected category subset.
   The separate selected-vs-non-selected 70/30 pressure remains soft and
   pool-proportional; this does not force equal category counts.
+- Codex332 diagnostic: Admin Ekranı includes a read-only
+  `diagnoseSoloQuestionStartQuery` tool for the owner account and up to 10
+  users with active category preferences. It captures the fresh
+  `getQuestions`-compatible per-category `Question.filter` query descriptor,
+  active/Solo-eligible/difficulty-1 counts by category, cache version notes,
+  and category 6/7/8/9/11 presence/removal reasons. The admin UI enriches the
+  response with the actual frontend `buildSoloAttemptDeck` dry-run output.
+  It must not write gameplay, progress, analytics, or economy rows.
 - `QuestionStatsProjection` and `CategoryStatsProjection` refresh remains an
   admin/manual `aggregateQuestionStats` path, defaults to dry-run unless
   explicitly run for write, and is not updated synchronously during gameplay.

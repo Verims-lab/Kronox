@@ -8,6 +8,7 @@ import SimulationPanelErrorBoundary from '@/components/game/SimulationPanelError
 import ResetUserProgressTool from '@/components/admin/ResetUserProgressTool';
 import QuestionAnalyticsReportTool from '@/components/admin/QuestionAnalyticsReportTool';
 import DailyQuestDefinitionManager from '@/components/admin/DailyQuestDefinitionManager';
+import SoloQuestionStartDiagnosticsTool from '@/components/admin/SoloQuestionStartDiagnosticsTool';
 import StandardTopBar from '@/components/layout/StandardTopBar';
 import PullToRefresh from '@/components/mobile/PullToRefresh';
 import { AdminRefreshContext } from '@/lib/AdminRefreshContext';
@@ -158,6 +159,7 @@ export default function AdminPage() {
                 onClick={() => setShowSim(true)}
               />
               <QuestionAnalyticsReportTool />
+              <SoloQuestionStartDiagnosticsTool />
               <DailyQuestDefinitionManager />
               <ResetUserProgressTool />
             </AdminRefreshContext.Provider>

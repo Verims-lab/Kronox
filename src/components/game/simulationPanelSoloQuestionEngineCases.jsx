@@ -56,6 +56,9 @@ import useGameActionsSource from '../../hooks/useGameActions.js?raw';
 import questionHistorySource from '../../lib/questionHistory.js?raw';
 import userCategoryPreferenceHelperSource from '../../lib/userCategoryPreferences.js?raw';
 import getQuestionsFunctionSource from '../../../base44/functions/getQuestions/entry.ts?raw';
+import diagnoseSoloQuestionStartQuerySource from '../../../base44/functions/diagnoseSoloQuestionStartQuery/entry.ts?raw';
+import soloQuestionStartDiagnosticsToolSource from '../../components/admin/SoloQuestionStartDiagnosticsTool.jsx?raw';
+import adminPageSource from '../../pages/AdminPage.jsx?raw';
 import onlineGameStartSource from '../../lib/onlineGameStart.js?raw';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
@@ -2299,6 +2302,95 @@ export const EXTRA_TESTS = [
         verification: 'RUNTIME_VERIFIED',
         classification: 'RUNTIME_VERIFIED',
         actual,
+      });
+    },
+  ),
+
+  makeCase(
+    'solo_level_start_real_query_diagnostic_admin_only',
+    'Admin diagnostic captures real Solo level-start query path for owner and preference users',
+    () => {
+      const functionSource = safeStr(diagnoseSoloQuestionStartQuerySource);
+      const uiSource = safeStr(soloQuestionStartDiagnosticsToolSource);
+      const requiredFunctionTokens = [
+        "const JOB_NAME = 'diagnoseSoloQuestionStartQuery'",
+        'const OWNER_EMAIL = \'sariverim@gmail.com\'',
+        'const MAX_PREFERENCE_USERS = 10',
+        'const TARGET_CATEGORY_IDS = Object.freeze([6, 7, 8, 9, 11])',
+        'const QUESTION_CACHE_KEY',
+        'const QUESTION_CACHE_VERSION',
+        'requireAdmin(base44)',
+        'readOnly: true',
+        'dryRun: true',
+        'mutatesGameplay: false',
+        'mutatesAnalytics: false',
+        'mutatesProgress: false',
+        'mutatesEconomy: false',
+        'UserCategoryPreference',
+        'Question',
+        '.filter(descriptor.filters, descriptor.sort, descriptor.limit)',
+        'QUERY_PER_CATEGORY_LIMIT = 1000',
+        'questionFetchSource',
+        'queryDescriptor',
+        'cacheDescriptor',
+        'actualSoloLevelStartPath',
+        'rawFetchedCountsByCategory',
+        'soloEligibleCountsByCategory',
+        'globalDifficulty1CandidateCountsByCategory',
+        'categoryProof',
+        'presentInGlobalDifficulty1',
+        'removalReason',
+        'runtimeQuestions',
+      ];
+      const requiredUiTokens = [
+        "const FUNCTION_NAME = 'diagnoseSoloQuestionStartQuery'",
+        'Solo Soru Motoru Query Diagnostiği',
+        'Query Diagnostiği Çalıştır',
+        'buildSoloAttemptDeck',
+        'getSoloDeckDiagnostics',
+        'getCacheInfo',
+        'frontendDryRunUsesActualRuntimeDeckBuilder: true',
+        'finalDryRunDeckQuestionIds',
+        'finalDryRunDeckDifficultiesByCategory',
+        'presentInDryRunDeck',
+        'JSON.stringify(diagnostic, null, 2)',
+        'textarea',
+      ];
+      const forbiddenFunctionTokens = [
+        'QuestionAttemptEvent.create',
+        'QuestionAttemptEvent.update',
+        'UserDailyQuestProgress.create',
+        'UserDailyQuestProgress.update',
+        'DiamondTransaction.create',
+        'JokerTransaction.create',
+        'User.update',
+        'recordDailyQuestProgress',
+      ];
+      const missing = [
+        ...missingTokens(functionSource, requiredFunctionTokens).map((token) => `function:${token}`),
+        ...missingTokens(uiSource, requiredUiTokens).map((token) => `ui:${token}`),
+        ...missingTokens(adminPageSource, ['SoloQuestionStartDiagnosticsTool']).map((token) => `adminPage:${token}`),
+      ];
+      const forbidden = forbiddenFunctionTokens.filter((token) => functionSource.includes(token));
+
+      if (missing.length || forbidden.length) {
+        return fail('Solo level-start query diagnostic is missing admin-only/read-only/query-proof contracts.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          files: [
+            'base44/functions/diagnoseSoloQuestionStartQuery/entry.ts',
+            'src/components/admin/SoloQuestionStartDiagnosticsTool.jsx',
+            'src/pages/AdminPage.jsx',
+          ],
+          expected: 'AdminUser-gated dry-run diagnostic with owner + 10 preference users, query/cache descriptors, category 6/7/8/9/11 proof, and frontend buildSoloAttemptDeck dry-run JSON',
+          actual: { missing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+
+      return pass('Admin-only dry-run diagnostic can capture the real Solo query path and frontend deck-builder result without mutating gameplay or analytics.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
       });
     },
   ),
