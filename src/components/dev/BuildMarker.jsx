@@ -1796,7 +1796,13 @@ import React, { useEffect, useState } from 'react';
 //     pool, while selected-vs-non-selected 70/30 pressure remains soft.
 //   • Health simulation now fails if categories 6,7,8,9,11 are absent from
 //     selected-lane, global-lane, or full eligible difficulty-1 diagnostics.
-const BUILD_MARKER = 'Codex330';
+//
+// Codex331 — Solo category coverage Health normalization:
+//   • The categories 6-11 coverage assertion now normalizes distribution keys
+//     like "cat:6" and "category:6" before computing missing-category arrays.
+//   • Runtime Solo selection remains unchanged; this removes contradictory
+//     Health diagnostics when the product candidate pools already include IDs.
+const BUILD_MARKER = 'Codex331';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

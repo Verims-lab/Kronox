@@ -135,6 +135,39 @@ function sumDistribution(distribution) {
   return Object.values(distribution || {}).reduce((sum, value) => sum + (Number(value) || 0), 0);
 }
 
+function normalizeDiagnosticCategoryId(value) {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) return null;
+    const id = Math.trunc(value);
+    return id > 0 ? String(id) : null;
+  }
+  const text = String(value).trim();
+  if (!text) return null;
+  const prefixedMatch = text.match(/(?:^|:)(\d+)$/);
+  const numeric = Number(prefixedMatch ? prefixedMatch[1] : text);
+  if (!Number.isFinite(numeric)) return null;
+  const id = Math.trunc(numeric);
+  return id > 0 ? String(id) : null;
+}
+
+function getDiagnosticCategoryIdSet(source) {
+  const values = source instanceof Set || Array.isArray(source)
+    ? Array.from(source || [])
+    : Object.keys(source || {});
+  return new Set(values
+    .map(normalizeDiagnosticCategoryId)
+    .filter(Boolean));
+}
+
+function getMissingDiagnosticCategoryIds(expectedIds, source) {
+  const actualIds = getDiagnosticCategoryIdSet(source);
+  return (expectedIds || [])
+    .map(normalizeDiagnosticCategoryId)
+    .filter(Boolean)
+    .filter((id) => !actualIds.has(id));
+}
+
 function countSelectedCategoryCards(deck = [], selectedCategoryIds = []) {
   const selected = new Set(selectedCategoryIds.map((value) => String(Math.trunc(Number(value)))));
   return (deck || []).filter((question) => {
@@ -2212,22 +2245,33 @@ export const EXTRA_TESTS = [
         }
         lastMeta = result.meta?.categoryPreferenceFairness || {};
         for (const question of result.deck || []) {
-          seenDeckCategoryIds.add(String(question?.main_category_id ?? question?.category_id));
+          const categoryId = normalizeDiagnosticCategoryId(question?.main_category_id ?? question?.category_id);
+          if (categoryId) seenDeckCategoryIds.add(categoryId);
         }
       }
 
-      const requiredSelected = selectedCategoryIds.map(String);
-      const missingFromDecks = requiredSelected.filter((id) => !seenDeckCategoryIds.has(id));
+      const requiredSelected = selectedCategoryIds.map(normalizeDiagnosticCategoryId).filter(Boolean);
       const fullEligibleDifficultyDistribution = lastMeta?.fullEligibleDifficulty1CandidateCategoryDistribution || {};
       const globalDifficultyDistribution = lastMeta?.globalDifficulty1CandidateCategoryDistribution || {};
       const selectedLaneDistribution = lastMeta?.selectedLaneCandidateCategoryDistribution || {};
       const globalLaneDistribution = lastMeta?.globalLaneCandidateCategoryDistribution || {};
-      const missingFromFullDifficultyPool = requiredSelected.filter((id) => !fullEligibleDifficultyDistribution[id]);
-      const missingFromGlobalDifficultyPool = requiredSelected.filter((id) => !globalDifficultyDistribution[id]);
-      const missingFromSelectedLane = requiredSelected.filter((id) => !selectedLaneDistribution[id]);
-      const missingFromGlobalLane = requiredSelected.filter((id) => !globalLaneDistribution[id]);
+      const normalizationProbeMissing = getMissingDiagnosticCategoryIds(
+        [6, '7', 'cat:8', 'category:9', '11'],
+        { 'cat:6': 1, 7: 1, 'category:8': 1, '9': 1, 'cat:11': 1, 'cat:unknown': 1 },
+      );
+      const missingFromDecks = getMissingDiagnosticCategoryIds(requiredSelected, seenDeckCategoryIds);
+      const missingFromFullDifficultyPool = getMissingDiagnosticCategoryIds(requiredSelected, fullEligibleDifficultyDistribution);
+      const missingFromGlobalDifficultyPool = getMissingDiagnosticCategoryIds(requiredSelected, globalDifficultyDistribution);
+      const missingFromSelectedLane = getMissingDiagnosticCategoryIds(requiredSelected, selectedLaneDistribution);
+      const missingFromGlobalLane = getMissingDiagnosticCategoryIds(requiredSelected, globalLaneDistribution);
       const actual = {
         seenDeckCategoryIds: Array.from(seenDeckCategoryIds).sort((a, b) => Number(a) - Number(b)),
+        normalizedSelectedCategoryIds: requiredSelected,
+        diagnosticNormalizationProbeMissing: normalizationProbeMissing,
+        normalizedFullEligibleDifficultyIds: Array.from(getDiagnosticCategoryIdSet(fullEligibleDifficultyDistribution)).sort((a, b) => Number(a) - Number(b)),
+        normalizedGlobalDifficultyIds: Array.from(getDiagnosticCategoryIdSet(globalDifficultyDistribution)).sort((a, b) => Number(a) - Number(b)),
+        normalizedSelectedLaneIds: Array.from(getDiagnosticCategoryIdSet(selectedLaneDistribution)).sort((a, b) => Number(a) - Number(b)),
+        normalizedGlobalLaneIds: Array.from(getDiagnosticCategoryIdSet(globalLaneDistribution)).sort((a, b) => Number(a) - Number(b)),
         fullEligibleDifficultyDistribution,
         globalDifficultyDistribution,
         selectedLaneDistribution,
@@ -2241,7 +2285,7 @@ export const EXTRA_TESTS = [
         missingFromGlobalLane,
       };
 
-      if (missingFromDecks.length || missingFromFullDifficultyPool.length || missingFromGlobalDifficultyPool.length || missingFromSelectedLane.length || missingFromGlobalLane.length) {
+      if (normalizationProbeMissing.length || missingFromDecks.length || missingFromFullDifficultyPool.length || missingFromGlobalDifficultyPool.length || missingFromSelectedLane.length || missingFromGlobalLane.length) {
         return fail('Solo runtime can still starve categories 6-11 from the candidate pool or selected-preference lane.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
