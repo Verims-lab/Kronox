@@ -1,17 +1,18 @@
-export function normalizeEmail(value: unknown) {
+/* global Response */
+export function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
 }
 
-export function json(payload: unknown, status = 200) {
+export function json(payload, status = 200) {
   return Response.json(payload, { status });
 }
 
-function isActiveAdminRole(role: unknown) {
+function isActiveAdminRole(role) {
   const value = String(role || '').trim().toLowerCase();
   return value === 'owner' || value === 'admin';
 }
 
-function isActiveStatus(status: unknown) {
+function isActiveStatus(status) {
   return String(status || '').trim().toLowerCase() === 'active';
 }
 
@@ -21,7 +22,7 @@ const FIELD_CANDIDATES = {
   status: ['status', 'Status'],
 };
 
-function readField(row: any, candidates: string[]) {
+function readField(row, candidates) {
   for (const field of candidates) {
     if (row && Object.prototype.hasOwnProperty.call(row, field)) {
       return { value: row[field], field };
@@ -30,7 +31,7 @@ function readField(row: any, candidates: string[]) {
   return { value: undefined, field: '' };
 }
 
-function debugBase(email: string, patch: Record<string, unknown> = {}) {
+function debugBase(email, patch = {}) {
   return {
     source: 'AdminUser',
     authEmailPresent: Boolean(email),
@@ -47,7 +48,7 @@ function debugBase(email: string, patch: Record<string, unknown> = {}) {
   };
 }
 
-export async function getAdminAuthorization(base44: any, user: any) {
+export async function getAdminAuthorization(base44, user) {
   const email = normalizeEmail(user?.email);
   if (!email) {
     return {
@@ -73,7 +74,7 @@ export async function getAdminAuthorization(base44: any, user: any) {
     };
   }
 
-  let rows: any[] = [];
+  let rows = [];
   let lookupError = '';
   let lookupAttemptSucceeded = false;
   for (const field of FIELD_CANDIDATES.email) {
@@ -90,7 +91,7 @@ export async function getAdminAuthorization(base44: any, user: any) {
   }
 
   const exactEmailRows = (rows || [])
-    .map((candidate: any) => {
+    .map((candidate) => {
       const emailField = readField(candidate, FIELD_CANDIDATES.email);
       const roleField = readField(candidate, FIELD_CANDIDATES.role);
       const statusField = readField(candidate, FIELD_CANDIDATES.status);
@@ -134,12 +135,12 @@ export async function getAdminAuthorization(base44: any, user: any) {
   };
 }
 
-export async function isAuthorizedAdmin(base44: any, user: any) {
+export async function isAuthorizedAdmin(base44, user) {
   const authorization = await getAdminAuthorization(base44, user);
   return authorization.isAdmin;
 }
 
-export async function requireAdmin(base44: any) {
+export async function requireAdmin(base44) {
   try {
     const user = await base44.auth.me();
     if (!user?.email) return { response: json({ ok: false, error: 'Authentication required' }, 401) };
