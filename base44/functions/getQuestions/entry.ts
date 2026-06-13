@@ -630,20 +630,8 @@ function buildProjectionDiagnostics({
 }
 
 console.log('[getQuestions] Before HANDLER ');
-Deno.serve(() => {
-  console.log('[getQuestions] ABSOLUTE MINIMAL HANDLER HIT');
 
-  return new Response(JSON.stringify({
-    ok: true,
-    source: 'absolute_minimal_handler',
-    marker: 'minimal-handler-test'
-  }), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' },
-  });
-});
 
-/*
 Deno.serve(async (req) => 
 {
   console.log('[getQuestions] HANDLER ENTERED - Before try');
@@ -807,4 +795,4 @@ Deno.serve(async (req) =>
     console.error('[getQuestions] failed:', (error as Error)?.message || error);
     return json({ ok: false, error: 'Sorular yuklenemedi.' }, 500);
   }
-});*/
+});
