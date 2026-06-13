@@ -20,6 +20,8 @@ const ONLINE_ID_TO_MAIN_CATEGORY_ID: Record<string, number> = {
   level_up: 6,
 };
 
+console.log('[getQuestions] MODULE LOADED');
+
 function json(body: unknown, status = 200) {
   return Response.json(body, { status });
 }
@@ -627,13 +629,11 @@ function buildProjectionDiagnostics({
   };
 }
 
+console.log('[getQuestions] Before HANDLER ');
+
 Deno.serve(async (req) => {
   try {
-    console.log('[getQuestions] REQUEST RECEIVED', {
-      method: req.method,
-      url: sanitizeRequestUrl(req.url),
-      runtimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
-    });
+    console.log('[getQuestions] HANDLER ENTERED - 001');
 
     if (req.method !== 'POST') {
       return json({ ok: false, error: 'Method not allowed' }, 405);
