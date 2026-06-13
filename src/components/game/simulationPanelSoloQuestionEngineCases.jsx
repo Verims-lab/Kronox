@@ -57,7 +57,7 @@ import questionHistorySource from '../../lib/questionHistory.js?raw';
 import userCategoryPreferenceHelperSource from '../../lib/userCategoryPreferences.js?raw';
 import getQuestionsFunctionSource from '../../../base44/functions/getQuestions/entry.ts?raw';
 import diagnoseSoloQuestionStartQuerySource from '../../../base44/functions/diagnoseSoloQuestionStartQuery/entry.ts?raw';
-import soloQuestionStartDiagnosticsToolSource from '../../components/admin/SoloQuestionStartDiagnosticsTool.jsx?raw';
+import diagnoseSoloQuestionStartQueryScriptSource from '../../../scripts/diagnoseSoloQuestionStartQuery.mjs?raw';
 import adminPageSource from '../../pages/AdminPage.jsx?raw';
 import onlineGameStartSource from '../../lib/onlineGameStart.js?raw';
 
@@ -2311,7 +2311,7 @@ export const EXTRA_TESTS = [
     'Admin diagnostic captures real Solo level-start query path for owner and preference users',
     () => {
       const functionSource = safeStr(diagnoseSoloQuestionStartQuerySource);
-      const uiSource = safeStr(soloQuestionStartDiagnosticsToolSource);
+      const scriptSource = safeStr(diagnoseSoloQuestionStartQueryScriptSource);
       const requiredFunctionTokens = [
         "const JOB_NAME = 'diagnoseSoloQuestionStartQuery'",
         'const OWNER_EMAIL = \'sariverim@gmail.com\'',
@@ -2342,19 +2342,38 @@ export const EXTRA_TESTS = [
         'removalReason',
         'runtimeQuestions',
       ];
-      const requiredUiTokens = [
-        "const FUNCTION_NAME = 'diagnoseSoloQuestionStartQuery'",
-        'Solo Soru Motoru Query Diagnostiği',
-        'Query Diagnostiği Çalıştır',
-        'buildSoloAttemptDeck',
-        'getSoloDeckDiagnostics',
-        'getCacheInfo',
-        'frontendDryRunUsesActualRuntimeDeckBuilder: true',
+      const requiredScriptTokens = [
+        "const JOB_NAME = 'diagnoseSoloQuestionStartQuery'",
+        "const OWNER_EMAIL = 'sariverim@gmail.com'",
+        'const MAX_PREFERENCE_USERS = 10',
+        'BASE44_SERVICE_TOKEN',
+        'BASE44_SERVICE_ROLE_TOKEN',
+        'missing_live_base44_service_token',
+        'createClient({',
+        'base44.asServiceRole.entities.UserCategoryPreference.list',
+        'base44.asServiceRole.entities.Question.filter',
+        'base44.asServiceRole.entities.Category.list',
+        'createServer({',
+        "server.ssrLoadModule('/src/lib/soloQuestionEngine.js')",
+        'engine.buildSoloAttemptDeck',
+        'engine.getSoloDeckDiagnostics',
+        'readOnly: true',
+        'dryRun: true',
+        'mutatesGameplay: false',
+        'mutatesAnalytics: false',
+        'mutatesProgress: false',
+        'mutatesEconomy: false',
+        'actualSoloLevelStartPath',
+        'queryDescriptor',
+        'cacheDescriptor',
+        'selectedPreferenceRawRowsCount',
+        'globalDifficulty1CandidateCountsByCategory',
+        'categoryProof',
+        'presentInGlobalDifficulty1',
+        'removalReason',
         'finalDryRunDeckQuestionIds',
         'finalDryRunDeckDifficultiesByCategory',
         'presentInDryRunDeck',
-        'JSON.stringify(diagnostic, null, 2)',
-        'textarea',
       ];
       const forbiddenFunctionTokens = [
         'QuestionAttemptEvent.create',
@@ -2368,27 +2387,32 @@ export const EXTRA_TESTS = [
       ];
       const missing = [
         ...missingTokens(functionSource, requiredFunctionTokens).map((token) => `function:${token}`),
-        ...missingTokens(uiSource, requiredUiTokens).map((token) => `ui:${token}`),
-        ...missingTokens(adminPageSource, ['SoloQuestionStartDiagnosticsTool']).map((token) => `adminPage:${token}`),
+        ...missingTokens(scriptSource, requiredScriptTokens).map((token) => `script:${token}`),
       ];
-      const forbidden = forbiddenFunctionTokens.filter((token) => functionSource.includes(token));
+      const forbidden = [
+        ...forbiddenFunctionTokens.filter((token) => functionSource.includes(token)).map((token) => `function:${token}`),
+        ...forbiddenFunctionTokens.filter((token) => scriptSource.includes(token)).map((token) => `script:${token}`),
+        ...(adminPageSource.includes('SoloQuestionStartDiagnosticsTool')
+          ? ['adminPage:SoloQuestionStartDiagnosticsTool']
+          : []),
+      ];
 
       if (missing.length || forbidden.length) {
-        return fail('Solo level-start query diagnostic is missing admin-only/read-only/query-proof contracts.', {
+        return fail('Solo level-start query diagnostic is missing admin-only/read-only/direct-run query-proof contracts.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           files: [
             'base44/functions/diagnoseSoloQuestionStartQuery/entry.ts',
-            'src/components/admin/SoloQuestionStartDiagnosticsTool.jsx',
+            'scripts/diagnoseSoloQuestionStartQuery.mjs',
             'src/pages/AdminPage.jsx',
           ],
-          expected: 'AdminUser-gated dry-run diagnostic with owner + 10 preference users, query/cache descriptors, category 6/7/8/9/11 proof, and frontend buildSoloAttemptDeck dry-run JSON',
+          expected: 'AdminUser-gated backend dry-run plus direct Codex/admin script with owner + 10 preference users, query/cache descriptors, category 6/7/8/9/11 proof, and frontend buildSoloAttemptDeck dry-run JSON; no broken Admin UI button',
           actual: { missing, forbidden },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
 
-      return pass('Admin-only dry-run diagnostic can capture the real Solo query path and frontend deck-builder result without mutating gameplay or analytics.', {
+      return pass('Admin-only backend diagnostic and direct Codex/admin script can capture the real Solo query path and frontend deck-builder result without mutating gameplay or analytics.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });

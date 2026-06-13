@@ -1812,7 +1812,14 @@ import React, { useEffect, useState } from 'react';
 //     JSON tool that enriches the backend query snapshot with the real frontend
 //     buildSoloAttemptDeck dry-run result, including category 6/7/8/9/11
 //     presence/removal proof.
-const BUILD_MARKER = 'Codex332';
+//
+// Codex333 — Solo query diagnostic direct runner:
+//   • Removes the broken production Admin Ekranı diagnostic button so users do
+//     not hit a function-not-found path before Base44 deployment.
+//   • Adds scripts/diagnoseSoloQuestionStartQuery.mjs as the direct
+//     service-role read-only runner for owner + 10 preference users, with Vite
+//     SSR loading of the actual frontend buildSoloAttemptDeck implementation.
+const BUILD_MARKER = 'Codex333';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
