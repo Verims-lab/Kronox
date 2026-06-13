@@ -60,6 +60,7 @@ function accountDeletedDescription(previous: unknown) {
   return `${text} | ${suffix}`.slice(0, 1000);
 }
 
+
 async function safeFilter(base44: any, entityName: string, filter: Record<string, unknown>, sort = '-created_date', limit = MAX_ROWS) {
   try {
     const entity = base44.asServiceRole.entities[entityName];
