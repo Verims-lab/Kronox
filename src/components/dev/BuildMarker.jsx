@@ -1910,7 +1910,13 @@ import React, { useEffect, useState } from 'react';
 //     crashes with a ReferenceError at runtime.
 //   • Leaves Home CTA layout, navigation, BottomNav, and gameplay behavior
 //     unchanged.
-const BUILD_MARKER = 'Codex350';
+//
+// Codex351 — getQuestions runtime guard/log hardening:
+//   • Reads request JSON through req.clone(), catches Base44 client creation
+//     failures with marker diagnostics, and guards service-role entity access.
+//   • Adds safe category/candidate step logs without exposing question content,
+//     user data, tokens, or request bodies.
+const BUILD_MARKER = 'Codex351';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
