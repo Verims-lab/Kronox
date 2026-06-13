@@ -796,3 +796,4 @@ Deno.serve(async (req) =>
     return json({ ok: false, error: 'Sorular yuklenemedi.' }, 500);
   }
 });
+console.log('[getQuestions] After HANDLER ');
