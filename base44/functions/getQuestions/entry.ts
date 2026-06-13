@@ -95,6 +95,10 @@ async function getOptionalUser(base44: any) {
   }
 }
 
+function getServiceEntity(base44: any, entityName: string) {
+  return base44?.asServiceRole?.entities?.[entityName] || null;
+}
+
 function parseExplicitYear(value: unknown) {
   if (typeof value === 'number') return Number.isFinite(value) && Number.isInteger(value) ? value : null;
   if (typeof value !== 'string') return null;
@@ -253,9 +257,18 @@ async function fetchQuestionRowsForCategory(base44: any, categoryId: number, per
   const rows: any[] = [];
   const descriptorCounts: Record<string, number> = {};
   let usedFallback = false;
+  const questionEntity = getServiceEntity(base44, 'Question');
+  if (!questionEntity?.filter) {
+    descriptorCounts.service_entity_unavailable = 0;
+    return {
+      rows: [],
+      descriptorCounts,
+      usedFallback: true,
+    };
+  }
 
   for (const descriptor of buildQuestionCategoryFetchDescriptors(categoryId)) {
-    const batch = await base44.asServiceRole.entities.Question
+    const batch = await questionEntity
       .filter(descriptor.filters, '-created_date', perCategoryLimit)
       .catch(() => []);
     descriptorCounts[descriptor.label] = Array.isArray(batch) ? batch.length : 0;
@@ -265,7 +278,7 @@ async function fetchQuestionRowsForCategory(base44: any, categoryId: number, per
   if (rows.length === 0) {
     usedFallback = true;
     for (const descriptor of buildQuestionCategoryFallbackFetchDescriptors(categoryId)) {
-      const batch = await base44.asServiceRole.entities.Question
+      const batch = await questionEntity
         .filter(descriptor.filters, '-created_date', perCategoryLimit)
         .catch(() => []);
       descriptorCounts[descriptor.label] = Array.isArray(batch) ? batch.length : 0;
@@ -639,8 +652,7 @@ Deno.serve(async (req) => {
       return json({ ok: false, error: 'Method not allowed' }, 405);
     }
 
-    const base44 = createClientFromRequest(req);
-    const requestPayload = await req.json().catch(() => ({}));
+    const requestPayload = await req.clone().json().catch(() => ({}));
     console.log('[getQuestions] PAYLOAD PARSED', {
       payloadKeys: Object.keys(requestPayload || {}),
       mode: requestPayload?.mode || null,
@@ -649,6 +661,22 @@ Deno.serve(async (req) => {
       requestedLimit: requestPayload?.limit ?? null,
       includeDiagnostics: requestPayload?.includeDiagnostics === true,
     });
+
+    let base44: any;
+    try {
+      base44 = createClientFromRequest(req);
+      console.log('[getQuestions] BASE44 CLIENT CREATED', {
+        hasServiceEntities: Boolean(base44?.asServiceRole?.entities),
+      });
+    } catch (clientError) {
+      console.error('[getQuestions] base44 client init failed:', (clientError as Error)?.message || clientError);
+      return json({
+        ok: false,
+        error: 'base44_client_create_failed',
+        getQuestionsRuntimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
+        runtimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
+      }, 500);
+    }
 
     const body = requestPayload;
     const wantsAdminBank = body?.scope === 'admin' || body?.fullBank === true || body?.includeInactive === true;
@@ -679,11 +707,18 @@ Deno.serve(async (req) => {
 
     let categoryReadFailed = false;
     let categoryReadError: string | null = null;
-    const categoryRows = await base44.asServiceRole.entities.Category.list('category_id', 1000).catch((error: Error) => {
+    const categoryEntity = getServiceEntity(base44, 'Category');
+    let categoryRows: any[] = [];
+    if (!categoryEntity?.list) {
       categoryReadFailed = true;
-      categoryReadError = error?.message || String(error);
-      return [];
-    });
+      categoryReadError = 'category_entity_unavailable';
+    } else {
+      categoryRows = await categoryEntity.list('category_id', 1000).catch((error: Error) => {
+        categoryReadFailed = true;
+        categoryReadError = error?.message || String(error);
+        return [];
+      });
+    }
     const activeCategoryRows = Array.isArray(categoryRows)
       ? categoryRows.filter(isActiveCategory).filter((row: any) => isKnownCategoryId(getCategoryId(row)))
       : [];
@@ -696,6 +731,12 @@ Deno.serve(async (req) => {
       ? FALLBACK_ACTIVE_CATEGORY_IDS
       : activeCategoryRows.map(getCategoryId).filter(isKnownCategoryId)
     );
+    console.log('[getQuestions] ACTIVE CATEGORIES RESOLVED', {
+      source: activeCategorySource,
+      count: activeIds.length,
+      fallbackUsed,
+      fallbackReason,
+    });
     const activeMainCategoryIds = new Set(activeIds);
     const allowedMainCategoryIds = requestedIds
       ? new Set(Array.from(requestedIds).filter((id) => activeMainCategoryIds.has(id)))
@@ -743,6 +784,11 @@ Deno.serve(async (req) => {
     const projectionSeed = getProjectionSeed(body, isAdmin);
     const allowedCategoryIds = Array.from(allowedMainCategoryIds);
     const { rows: questions, fetchedByCategory, fetchDescriptorsByCategory, fallbackFetchCategories } = await loadActiveQuestionCandidates(base44, allowedCategoryIds);
+    console.log('[getQuestions] QUESTION CANDIDATES LOADED', {
+      allowedCategoryCount: allowedCategoryIds.length,
+      fetchedTotal: questions.length,
+      fallbackFetchCategoryCount: fallbackFetchCategories.length,
+    });
     const normalizedQuestions = (questions || [])
       .map((question: Record<string, unknown>) => normalizeQuestionForRuntime(question, allowedMainCategoryIds))
       .filter(Boolean);
