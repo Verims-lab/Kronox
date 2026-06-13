@@ -54,7 +54,7 @@ import {
 
 import { STATUS, pass, fail, warning, blocked, notAutomatable } from './healthStatus';
 import { captureEnvironment, extractBuildMarker } from './simulationRunner';
-import { buildReport, buildHumanSummary } from './simulationReportBuilder';
+import { buildBlockerCopyJson, buildReport, buildHumanSummary } from './simulationReportBuilder';
 
 // Backend function files (functions/*.js) live OUTSIDE /src and cannot be
 // imported with `?raw` under the current Vite config — doing so emits an
@@ -476,6 +476,27 @@ export const TESTS = [
   makeCase('report_integrity', 'human_summary_top_blockers', 'human summary includes top blockers', () => {
     const text = buildHumanSummary(buildReport([{ suiteId: 'report_integrity', suiteName: 'Report Integrity Suite', id: 'sample_blocked', name: 'sample blocked', status: STATUS.BLOCKED, reason: 'sample', durationMs: 0, critical: true }], SUITES));
     return text.includes('Top blockers') && text.includes('sample blocked') ? pass('Human summary includes top blockers.') : fail('Human summary omitted blockers.', { actual: text });
+  }),
+  makeCase('report_integrity', 'copy_json_exports_blockers_only', 'Copy JSON exports blocker-only payload', () => {
+    const report = buildReport([
+      { suiteId: 'report_integrity', suiteName: 'Report Integrity Suite', id: 'sample_pass', name: 'sample pass', status: STATUS.PASS, reason: 'sample pass', durationMs: 0, critical: true },
+      { suiteId: 'report_integrity', suiteName: 'Report Integrity Suite', id: 'sample_warning', name: 'sample warning', status: STATUS.WARNING, reason: 'sample warning', durationMs: 0, critical: false },
+      { suiteId: 'report_integrity', suiteName: 'Report Integrity Suite', id: 'sample_fail', name: 'sample fail', status: STATUS.FAIL, reason: 'sample fail', expected: { ok: true }, actual: { ok: false, rows: Array.from({ length: 20 }, (_, index) => index) }, durationMs: 0, critical: false },
+      { suiteId: 'mobile_viewport', suiteName: 'Mobile Viewport Suite', id: 'manual_drag', name: 'manual drag proof', status: STATUS.NOT_AUTOMATABLE, reason: 'manual proof needed', durationMs: 0, critical: true },
+    ], SUITES);
+    const copyPayload = buildBlockerCopyJson(report);
+    const serialized = JSON.stringify(copyPayload);
+    const hasOnlyRelevantShape = copyPayload?.summary?.blockerCount === 2
+      && Array.isArray(copyPayload.blockers)
+      && copyPayload.blockers.some(item => item.caseId.includes('sample_fail'))
+      && copyPayload.blockers.some(item => item.caseId.includes('manual_drag'))
+      && !serialized.includes('sample pass')
+      && !serialized.includes('sample warning')
+      && !Object.prototype.hasOwnProperty.call(copyPayload, 'cases')
+      && !Object.prototype.hasOwnProperty.call(copyPayload, 'suites');
+    return hasOnlyRelevantShape
+      ? pass('Copy JSON is blocker-only and omits PASS/WARNING/full report payload.', { actual: copyPayload.summary })
+      : fail('Copy JSON may still include full Health payload or non-blocker cases.', { actual: copyPayload });
   }),
   makeCase('report_integrity', 'score_changes_on_failures', 'release score changes when failures are injected', () => {
     const good = buildReport([{ suiteId: 'report_integrity', suiteName: 'Report Integrity Suite', id: 'sample_pass', name: 'pass', status: STATUS.PASS, reason: 'sample', durationMs: 0, critical: true }], SUITES);

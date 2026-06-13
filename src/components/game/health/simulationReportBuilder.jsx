@@ -329,6 +329,97 @@ export function buildReport(caseResults, suites, meta = createRunMeta(), environ
   };
 }
 
+const BLOCKER_COPY_STATUSES = new Set([STATUS.FAIL, STATUS.ERROR, STATUS.BLOCKED]);
+
+function isBlockerCopyCase(item) {
+  if (!item || item.status === STATUS.PASS) return false;
+  if (BLOCKER_COPY_STATUSES.has(item.status)) return true;
+  return item.critical === true && item.status !== STATUS.WARNING;
+}
+
+function compactForBlockerCopy(value, depth = 0) {
+  if (value === null || value === undefined) return value;
+  const type = typeof value;
+  if (type === 'string') {
+    return value.length > 1200 ? `${value.slice(0, 1200)}...[truncated ${value.length - 1200} chars]` : value;
+  }
+  if (type === 'number' || type === 'boolean') return value;
+  if (type === 'bigint') return value.toString();
+  if (type !== 'object') return String(value);
+  if (depth >= 2) return '[omitted: nested detail]';
+
+  if (Array.isArray(value)) {
+    const items = value.slice(0, 8).map(item => compactForBlockerCopy(item, depth + 1));
+    if (value.length > 8) items.push(`[omitted ${value.length - 8} items]`);
+    return items;
+  }
+
+  const entries = Object.entries(value).slice(0, 16);
+  const out = {};
+  for (const [key, item] of entries) {
+    out[key] = compactForBlockerCopy(item, depth + 1);
+  }
+  const omitted = Object.keys(value).length - entries.length;
+  if (omitted > 0) out.__omittedKeys = omitted;
+  return out;
+}
+
+function deriveBlockerSeverity(item) {
+  if (item?.critical === true && item.status !== STATUS.PASS) return 'CRITICAL';
+  if ([STATUS.ERROR, STATUS.BLOCKED, STATUS.NOT_AUTOMATABLE].includes(item?.status)) return 'BLOCKER';
+  return 'FAIL';
+}
+
+function deriveRelatedFiles(item) {
+  const candidates = [
+    item?.file,
+    item?.path,
+    item?.sourceFile,
+    item?.source,
+    ...(Array.isArray(item?.files) ? item.files : []),
+    ...(Array.isArray(item?.relatedFiles) ? item.relatedFiles : []),
+  ];
+  return Array.from(new Set(
+    candidates
+      .map(value => String(value || '').trim())
+      .filter(Boolean)
+      .filter(value => !value.includes('\n') && value.length <= 240),
+  ));
+}
+
+export function buildBlockerCopyJson(report) {
+  if (!report) return null;
+  const cases = Array.isArray(report.cases) ? report.cases : [];
+  const blockers = cases
+    .filter(isBlockerCopyCase)
+    .map(item => ({
+      suite: item.suiteName || item.suiteId || '',
+      caseId: item.key || (item.suiteId && item.id ? `${item.suiteId}.${item.id}` : item.id || ''),
+      title: item.name || item.id || '',
+      severity: deriveBlockerSeverity(item),
+      message: item.reason || '',
+      expected: compactForBlockerCopy(item.expected),
+      actual: compactForBlockerCopy(item.actual),
+      hint: item.nextStep || item.hint || '',
+      relatedFiles: deriveRelatedFiles(item),
+    }));
+  const failedSuiteIds = new Set(blockers.map(item => String(item.suite || '').trim()).filter(Boolean));
+  const warningCount = Number(report.counts?.WARNING || 0);
+
+  return {
+    generatedAt: new Date().toISOString(),
+    healthBuildMarker: report.build?.marker || report.buildMarker || '',
+    summary: {
+      status: blockers.length > 0 ? 'FAIL' : (warningCount > 0 ? 'WARN' : 'PASS'),
+      totalSuites: Array.isArray(report.suiteSummary) ? report.suiteSummary.length : (report.suites?.length || 0),
+      failedSuites: failedSuiteIds.size,
+      blockerCount: blockers.length,
+      warningCount,
+    },
+    blockers,
+  };
+}
+
 export function buildHumanSummary(report) {
   if (!report) return 'No Kronox Health Simulator report is available.';
   const counts = Object.entries(report.counts).map(([status, count]) => `${status}: ${count}`).join(', ');
