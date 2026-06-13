@@ -632,8 +632,9 @@ function buildProjectionDiagnostics({
 console.log('[getQuestions] Before HANDLER ');
 
 Deno.serve(async (req) => {
+  console.log('[getQuestions] HANDLER ENTERED - Before try');
   try {
-    console.log('[getQuestions] HANDLER ENTERED - 001');
+    console.log('[getQuestions] HANDLER ENTERED - In try');
 
     if (req.method !== 'POST') {
       return json({ ok: false, error: 'Method not allowed' }, 405);
