@@ -1,5 +1,5 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
-import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1';
+import { createClientFromRequest } from 'npm:@base44/sdk';
+import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib';
 
 // Codex200 — Admin authorization is DB-backed via AdminUser and shared
 // backend guard. Admin email env allowlists are no longer used.
