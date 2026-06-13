@@ -1867,7 +1867,12 @@ import React, { useEffect, useState } from 'react';
 //     getQuestions-live-per-category-v7-Codex343, moves the local question
 //     cache to v7, and surfaces an explicit backendFunctionWiringBlocker when
 //     Base44 serves stale/different deployed getQuestions code.
-const BUILD_MARKER = 'Codex343';
+//
+// Codex344 — getQuestions request handler logging:
+//   • Adds safe request, payload-shape, and projection-branch logs inside the
+//     getQuestions Deno.serve handler without logging bodies, headers, tokens,
+//     service config, or personal data.
+const BUILD_MARKER = 'Codex344';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

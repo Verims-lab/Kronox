@@ -25,6 +25,15 @@ function json(body: unknown, status = 200) {
   return Response.json(body, { status });
 }
 
+function sanitizeRequestUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return `${url.origin}${url.pathname}`;
+  } catch {
+    return String(value || '').split('?')[0].slice(0, 240);
+  }
+}
+
 async function getOptionalUser(base44: any) {
   try {
     const user = await base44.auth.me();
@@ -568,14 +577,36 @@ function buildProjectionDiagnostics({
 
 Deno.serve(async (req) => {
   try {
+    console.log('[getQuestions] REQUEST RECEIVED', {
+      method: req.method,
+      url: sanitizeRequestUrl(req.url),
+      runtimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
+    });
+
     if (req.method !== 'POST') {
       return json({ ok: false, error: 'Method not allowed' }, 405);
     }
 
     const base44 = createClientFromRequest(req);
-    const body = await req.json().catch(() => ({}));
+    const payload = await req.json().catch(() => ({}));
+    console.log('[getQuestions] PAYLOAD PARSED', {
+      payloadKeys: Object.keys(payload || {}),
+      mode: payload?.mode || null,
+      projectionVersion: payload?.projectionVersion || null,
+      requireCategoryCoverage: payload?.requireCategoryCoverage === true,
+      requestedLimit: payload?.limit ?? null,
+      includeDiagnostics: payload?.includeDiagnostics === true,
+    });
+
+    const body = payload;
     const wantsAdminBank = body?.scope === 'admin' || body?.fullBank === true || body?.includeInactive === true;
     const wantsGameplayProjection = isGameplayRuntimeProjectionRequest(body);
+    console.log('[getQuestions] PROJECTION BRANCH', {
+      isGameplayRuntime: payload?.mode === 'gameplay_runtime',
+      isPerCategoryProjection: payload?.projectionVersion === GAMEPLAY_PROJECTION_VERSION,
+      requireCategoryCoverage: payload?.requireCategoryCoverage === true,
+    });
+    console.log('[getQuestions] USING PER CATEGORY PROJECTION V2');
     const wantsAdminDiagnostics = (body?.includeDiagnostics === true || body?.debug === true) && !wantsGameplayProjection;
     const wantsDiagnostics = wantsGameplayProjection || body?.includeDiagnostics === true || body?.debug === true;
     const needsAdmin = wantsAdminBank || wantsAdminDiagnostics;
