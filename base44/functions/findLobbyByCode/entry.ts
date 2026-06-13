@@ -68,6 +68,7 @@ Deno.serve(async (req) => {
     // Service-role bypass — user is not yet a lobby member, RLS would block direct reads
     const lobbies = await base44.asServiceRole.entities.Lobby.filter({ code: normalizedCode });
 
+
     if (!lobbies || lobbies.length === 0) {
       return Response.json({
         found: false,

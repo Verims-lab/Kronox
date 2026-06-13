@@ -61,6 +61,7 @@ function readAdminAuthField(row: any, candidates: string[]) {
   return { value: undefined, field: '' };
 }
 
+
 async function getAdminAuthorization(base44: any, user: any) {
   const email = normalizeAdminAuthEmail(user?.email);
   if (!email) return { isAdmin: false, row: null, role: '', status: '' };

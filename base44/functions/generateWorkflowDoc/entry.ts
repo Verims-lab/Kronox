@@ -48,6 +48,7 @@ async function getAdminAuthorization(base44, user) {
     }
   }
 
+
   const active = (rows || []).map((candidate) => {
     const emailField = readAdminAuthField(candidate, ADMIN_AUTH_FIELD_CANDIDATES.email);
     const roleField = readAdminAuthField(candidate, ADMIN_AUTH_FIELD_CANDIDATES.role);

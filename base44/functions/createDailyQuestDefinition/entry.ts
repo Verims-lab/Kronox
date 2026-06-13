@@ -70,6 +70,7 @@ const DEFAULT_DEFINITIONS = [
   },
 ] as const;
 
+
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });
 }

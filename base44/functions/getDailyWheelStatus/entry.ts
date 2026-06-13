@@ -55,6 +55,7 @@ async function findTodayDiamondTransaction(base44: any, email: string, idempoten
   return Array.isArray(rows) && rows.length ? rows[0] : null;
 }
 
+
 function publicSpinResult(row: any) {
   if (!row) return null;
   return {
