@@ -662,6 +662,19 @@ Deno.serve(async (req) => {
       includeDiagnostics: requestPayload?.includeDiagnostics === true,
     });
 
+    if (requestPayload?.ping === true) {
+      console.log('[getQuestions] PING RESPONSE', {
+        runtimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
+      });
+      return json({
+        ok: true,
+        pong: true,
+        getQuestionsRuntimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
+        runtimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
+        functionContractVersion: GET_QUESTIONS_RUNTIME_CONTRACT_VERSION,
+      });
+    }
+
     let base44: any;
     try {
       base44 = createClientFromRequest(req);
@@ -681,10 +694,14 @@ Deno.serve(async (req) => {
     const body = requestPayload;
     const wantsAdminBank = body?.scope === 'admin' || body?.fullBank === true || body?.includeInactive === true;
     const wantsGameplayProjection = isGameplayRuntimeProjectionRequest(body);
-    console.log('[getQuestions] PROJECTION BRANCH', {
+    const branchProbe = {
       isGameplayRuntime: requestPayload?.mode === 'gameplay_runtime',
       isPerCategoryProjection: requestPayload?.projectionVersion === GAMEPLAY_PROJECTION_VERSION,
       requireCategoryCoverage: requestPayload?.requireCategoryCoverage === true,
+    };
+    console.log('[getQuestions] PROJECTION BRANCH', {
+      ...branchProbe,
+      selectedBranch: wantsGameplayProjection ? 'gameplay_runtime_per_category_v2' : 'public_minimal_default_per_category_v2',
     });
     console.log('[getQuestions] USING PER CATEGORY PROJECTION V2');
     const wantsAdminDiagnostics = (body?.includeDiagnostics === true || body?.debug === true) && !wantsGameplayProjection;
