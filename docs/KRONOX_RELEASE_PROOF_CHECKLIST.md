@@ -43,6 +43,9 @@ Checklist:
 * `npm run build` does not prove Base44 backend deployment, RLS/BOLA behavior,
   device gestures, push delivery, final IPA icon state, or Play Console wrapper
   quality.
+* Health `Copy Blocker JSON` is intentionally blocker-only: it should include
+  FAIL/BLOCKER/CRITICAL/manual release blockers and summary counts, not the full
+  raw PASS payload.
 
 ---
 
@@ -503,6 +506,11 @@ Checklist:
 * App Store Connect privacy answers must match the `/privacy` policy. Update
   both whenever data collection, analytics, push notifications, social features,
   or economy/ledger behavior changes.
+* App Store Guideline 4.8 proof: if Google/third-party login is visible, the
+  login surface must also show `Sign in with Apple` / `Apple ile Giriş Yap`
+  through Base44 provider auth. Enable it manually in Base44 Settings →
+  Authentication → Apple toggle; static Health can only verify the button and
+  provider call pattern.
 * Manual proof: open `https://kronoxgame.com/privacy` from a fresh browser
   without login and confirm the Turkish privacy policy loads on mobile.
 
@@ -690,6 +698,14 @@ Checklist:
 * Admin source-of-truth is the DB-backed `AdminUser` entity. Base44 functions
   inline the AdminUser role/status guard locally because per-function deploy
   bundles do not reliably include `_shared` helper modules.
+* Health statically fails Base44 functions that contain `_shared/adminAuth`,
+  `../_shared`, or `file:///__shared` deploy-risk imports. Manual Base44 Test
+  Function/deploy proof is still required for live runtime markers.
+* Run `npm run check:base44-functions` before Base44 Save & Deploy. This
+  non-destructive gate parses `base44/functions/*/entry.ts`, catches syntax and
+  duplicate declaration errors such as redeclared `payload`, blocks deploy-risk
+  `_shared` imports, scans for committed email literals, and verifies the
+  `getQuestions` runtime marker/projection diagnostics contract.
 * Frontend admin UI visibility is based on the backend current-user
   `getAdminStatus` route. `getQuestions` must never be used as the admin-status
   source; `AdminUser` rows are not read/listed directly by the client.
@@ -878,7 +894,7 @@ Checklist:
   nine-section-email-v1`, `emailBodyMode: nine_section_email_body`,
   `reportDeliveryMode: email_body_only`, `bodyContainsExactlyRequiredSections:
   true`, `requiredSectionOrderValid: true`, `renderedSectionHeaderCount: 9`,
-  `bodyLength > 1000`, `reportBuildMarker: Codex323`, the email arrives, and the received email body is
+  `bodyLength > 1000`, `reportBuildMarker: Codex347`, the email arrives, and the received email body is
   readable/useful without an attachment. `npm run build` does not prove Base44
   backend function deployment or live SendEmail output.
 * Runtime Projection wording is diagnostic only and must include
@@ -899,7 +915,9 @@ Checklist:
   Gösterilmeyen Sorular`, `En Çok Yanlış Yapılan Sorular`, `Joker Kullanımı
   Analizi`, and `Oynanma Zamanı ve Kullanım Ritmi`. Joker and play-rhythm
   sections must be table-based and must show structured `Yeterli veri yok` rows
-  when exact metrics are not captured.
+  when exact metrics are not captured. `Kategori Bazında Soru Havuzu` may carry
+  the category-based Top 10 answer year/count table as subsection content, not
+  as an extra report section.
 * The report must not invent analytics. If joker outcomes, session duration,
   guest/preference source, exit reason, or local timezone are not captured, the
   email report must mark the data as insufficient and recommend exact

@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ChevronRight, Crosshair, Swords } from 'lucide-react';
+import { Crosshair, Swords } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 import StandardTopBar from '@/components/layout/StandardTopBar';
 import DailyRewardsPanel from '@/components/dailyWheel/DailyRewardsPanel';
+import AuthProviderButtons from '@/components/auth/AuthProviderButtons';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 
 /**
@@ -162,21 +163,10 @@ export default function MainMenu() {
               ariaLabel="Online Kapışma"
             />
 
-            {/* Guest CTA — only when no user. Sits just under the two yellow
-                buttons, never breaks the fixed layout. */}
+            {/* Guest auth — App Store compliance requires Apple alongside
+                third-party login. Email/hosted Base44 login stays available. */}
             {!user && (
-              <button
-                type="button"
-                onClick={handleLogin}
-                className="mt-1 flex items-center gap-1 rounded-full px-3 py-1.5 font-inter text-[11px] font-bold text-amber-100/90"
-                style={{
-                  background: 'rgba(250,204,21,0.08)',
-                  boxShadow: 'inset 0 0 0 1px rgba(250,204,21,0.35)',
-                }}
-                aria-label="Giriş yap veya kayıt ol"
-              >
-                Giriş yap veya kayıt ol <ChevronRight className="h-3.5 w-3.5" />
-              </button>
+              <AuthProviderButtons fromUrl="/" onBeforeStart={() => sounds.tap()} className="mt-1" />
             )}
           </div>
         </div>

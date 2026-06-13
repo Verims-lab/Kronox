@@ -26,9 +26,10 @@ const CATEGORY_QUESTION_SAMPLE_LIMIT = 5;
 const CATEGORY_ANALYTICS_ROW_LIMIT = 50;
 const REGISTERED_QUESTION_POOL_ROW_LIMIT = 250;
 const CATEGORY_FAIRNESS_SIGNAL_LIMIT = 20;
+const CATEGORY_TOP_ANSWER_YEAR_LIMIT = 10;
 const STALE_REFERENCE_SAMPLE_LIMIT = 20;
 const PERIOD_OPTIONS = /* @__PURE__ */ new Set([1, 7, 30]);
-const REPORT_BUILD_MARKER = "Codex323";
+const REPORT_BUILD_MARKER = "Codex347";
 const REPORT_TEMPLATE_VERSION = "nine-section-email-v1";
 const REPORT_TEMPLATE_LABEL = "nine-section-email-v1";
 const REQUIRED_REPORT_SECTION_TITLES = Object.freeze([
@@ -348,6 +349,24 @@ function buildCategoryMap(categories) {
   }
   return map;
 }
+function buildTopAnswerYearCounts(questions, limit = CATEGORY_TOP_ANSWER_YEAR_LIMIT) {
+  const counts = /* @__PURE__ */ new Map();
+  for (const question of questions || []) {
+    const year = getQuestionYear(question);
+    if (year === null) continue;
+    incrementMap(counts, String(year));
+  }
+  return Array.from(counts.entries())
+    .sort((a, b) => {
+      const countDiff = b[1] - a[1];
+      if (countDiff) return countDiff;
+      const yearDiff = Number(a[0]) - Number(b[0]);
+      if (Number.isFinite(yearDiff) && yearDiff) return yearDiff;
+      return String(a[0]).localeCompare(String(b[0]), "tr");
+    })
+    .slice(0, limit)
+    .map(([year, count]) => ({ year, count }));
+}
 function numericCategorySort(a, b) {
   const an = Number(a);
   const bn = Number(b);
@@ -644,6 +663,7 @@ function buildCategoryAnalytics({
       topShown,
       lowShown,
       neverShownSample: neverShownActive.slice(0, CATEGORY_QUESTION_SAMPLE_LIMIT),
+      topAnswerYearCounts: buildTopAnswerYearCounts(activeRows),
       duplicateActivePreferenceCount: duplicateActivePreferenceKeys.size
     };
   });
@@ -871,6 +891,18 @@ function buildReport({
     cell(row.oldestYear ?? "-"),
     cell(row.newestYear ?? "-")
   ]) : [["Veri yok", "0", "0", "0", "0", "0", "0", "0", "-", "-"]];
+  const topAnswerYearHeaders = [
+    "Kategori",
+    ...Array.from({ length: CATEGORY_TOP_ANSWER_YEAR_LIMIT }, (_, index) => String(index + 1))
+  ];
+  const topAnswerYearRows = categoryAnalyticsForReport.length ? categoryAnalyticsForReport.map((row) => [
+    cell(`${row.categoryName} (#${row.categoryId})`),
+    ...Array.from({ length: CATEGORY_TOP_ANSWER_YEAR_LIMIT }, (_, index) => {
+      const item = row.topAnswerYearCounts?.[index];
+      if (item) return cell(`${item.year} / ${item.count}`);
+      return cell(index === 0 ? "Yeterli veri yok" : "");
+    })
+  ]) : [["Veri yok", "Yeterli veri yok", "", "", "", "", "", "", "", "", ""]];
   const categoryPoolHtml = [
     categoryAnalytics.length > CATEGORY_ANALYTICS_ROW_LIMIT ? textBlockHtml(`${CATEGORY_ANALYTICS_ROW_LIMIT}/${categoryAnalytics.length} kategori gösteriliyor.`) : "",
     tableHtml([
@@ -884,7 +916,10 @@ function buildReport({
       "Zorluk Bilinmiyor",
       "En Eski Yıl",
       "En Yeni Yıl"
-    ], categoryPoolRows, "Bu dönem için kategori soru havuzu verisi yok")
+    ], categoryPoolRows, "Bu dönem için kategori soru havuzu verisi yok"),
+    tableCaptionHtml("Kategori Bazında Top 10 Cevap Yılı"),
+    textBlockHtml("Her kategori için aktif soru havuzundaki geçerli cevap/yıl değerleri sayılır; boş veya geçersiz yıl değerleri bu kırılıma dahil edilmez."),
+    tableHtml(topAnswerYearHeaders, topAnswerYearRows, "Bu dönem için kategori bazında cevap yılı verisi yok")
   ].join("");
 
   const categoryPreferenceRows = totalPreferenceSelections > 0
@@ -1343,7 +1378,7 @@ function buildReport({
       `Ortalama doğru oranı: ${avgCorrectRate}`,
       `Ortalama cevap süresi: ${avgResponse}`
     ] },
-    { title: "Kategori Bazında Soru Havuzu", textLines: [`${categoryAnalyticsForReport.length}/${categoryAnalytics.length} kategori satırı.`, `Aktif soru havuzu: ${activeQuestions.length}`] },
+    { title: "Kategori Bazında Soru Havuzu", textLines: [`${categoryAnalyticsForReport.length}/${categoryAnalytics.length} kategori satırı.`, `Aktif soru havuzu: ${activeQuestions.length}`, `Top 10 cevap yılı/adet tablosu kategori bazında ${CATEGORY_TOP_ANSWER_YEAR_LIMIT} hücreye kadar gösterilir.`] },
     { title: "Kategori Tercihleri", textLines: [`Aggregate tercih seçimi: ${totalPreferenceSelections || "Yeterli veri yok"}`] },
     { title: "Kategori Bazında Gösterim", textLines: [`Gösterim: ${shownEvents}`, `Kategori satırı: ${categoryAnalyticsForReport.length}`] },
     { title: "En Çok Gösterilen Sorular", textLines: topShown.length ? topShown.map(formatQuestionBucket) : ["Veri yok"] },
@@ -1474,6 +1509,7 @@ function buildReport({
         oldestYear: row.oldestYear,
         newestYear: row.newestYear,
         registeredQuestionPoolRows: row.registeredQuestionPoolRows,
+        topAnswerYearCounts: row.topAnswerYearCounts,
         soloEligibleQuestionCount: row.soloEligibleQuestionCount,
         selectedUserCount: row.selectedUserCount,
         shownCount: row.shownCount,

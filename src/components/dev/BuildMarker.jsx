@@ -1879,7 +1879,32 @@ import React, { useEffect, useState } from 'react';
 //     each protected function bundle.
 //   • Preserves getQuestions request/branch logs and backend runtime marker
 //     getQuestions-live-per-category-v7-Codex343.
-const BUILD_MARKER = 'Codex345';
+//
+// Codex346 — App Store Apple sign-in option:
+//   • Adds visible Base44-managed Apple and Google provider buttons to the
+//     unauthenticated login entry while preserving hosted email/other login.
+//   • Uses base44.auth.loginWithProvider('apple'|'google') with safe fallback
+//     error copy and no native iOS code or committed provider secrets.
+//
+// Codex347 — Question Analytics category/year table:
+//   • Adds a category-based Top 10 answer year/count table inside the existing
+//     Kategori Bazında Soru Havuzu section.
+//   • Keeps the email-body-only, no-PDF, exactly-nine-section report contract.
+//
+// Codex348 — Health deployment/auth/report coverage refresh:
+//   • Adds static Health checks for Base44 deploy-risk imports, getQuestions
+//     runtime markers/diagnostics, blocker-only Health copy JSON, Apple login
+//     compliance, and hardcoded email cleanup.
+//   • Keeps Health execution non-destructive and leaves gameplay/report
+//     business behavior unchanged.
+//
+// Codex349 — Base44 function compile gate:
+//   • Fixes the getQuestions request/response payload redeclaration that
+//     blocked Base44 Save & Deploy.
+//   • Adds npm run check:base44-functions to catch function syntax,
+//     duplicate-declaration, deploy-risk import, email-literal, and
+//     getQuestions marker regressions before manual backend deploy.
+const BUILD_MARKER = 'Codex349';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

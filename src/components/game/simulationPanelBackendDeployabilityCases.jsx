@@ -24,8 +24,25 @@
 //     runtime step — represented here as a NOT_AUTOMATABLE case.
 
 import deployedReportSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts?raw';
+import packageJsonSource from '../../../package.json?raw';
+import base44FunctionCompileScriptSource from '../../../scripts/checkBase44FunctionsCompile.mjs?raw';
+import adminResetUserProgressSource from '../../../base44/functions/adminResetUserProgress/entry.ts?raw';
+import aggregateQuestionStatsSource from '../../../base44/functions/aggregateQuestionStats/entry.ts?raw';
+import cancelStaleLobbiesSource from '../../../base44/functions/cancelStaleLobbies/entry.ts?raw';
+import cleanupAdminMaintenanceLogSource from '../../../base44/functions/cleanupAdminMaintenanceLog/entry.ts?raw';
+import diagnoseSoloQuestionStartQuerySource from '../../../base44/functions/diagnoseSoloQuestionStartQuery/entry.ts?raw';
+import expireOldGameInvitesSource from '../../../base44/functions/expireOldGameInvites/entry.ts?raw';
+import expirePushSubscriptionsSource from '../../../base44/functions/expirePushSubscriptions/entry.ts?raw';
+import generateTechDocSource from '../../../base44/functions/generateTechDoc/entry.ts?raw';
+import generateWorkflowDocSource from '../../../base44/functions/generateWorkflowDoc/entry.ts?raw';
+import getAdminStatusSource from '../../../base44/functions/getAdminStatus/entry.ts?raw';
 import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
 import getQuestionsManifestSource from '../../../base44/functions/getQuestions/function.jsonc?raw';
+import refreshLeaderboardProjectionSource from '../../../base44/functions/refreshLeaderboardProjection/entry.ts?raw';
+import resetTestAccountProgressSource from '../../../base44/functions/resetTestAccountProgress/entry.ts?raw';
+import runTestSuiteSource from '../../../base44/functions/runTestSuite/entry.ts?raw';
+import seedQuestionCategoriesSource from '../../../base44/functions/seedQuestionCategories/entry.ts?raw';
+import simulateOnlineGameSource from '../../../base44/functions/simulateOnlineGame/entry.ts?raw';
 import purchaseJokerWithDiamondsSource from '../../../base44/functions/purchaseJokerWithDiamonds/entry.ts?raw';
 import purchaseJokerWithDiamondsManifestSource from '../../../base44/functions/purchaseJokerWithDiamonds/function.jsonc?raw';
 import createDailyQuestDefinitionSource from '../../../base44/functions/createDailyQuestDefinition/entry.ts?raw';
@@ -90,6 +107,33 @@ const KNOWN_BACKEND_FUNCTIONS = new Set([
   'sendQuestionAnalyticsReportEmail',
 ]);
 
+const DEPLOY_RISK_BASE44_FUNCTIONS = [
+  { name: 'adminResetUserProgress', source: adminResetUserProgressSource },
+  { name: 'aggregateQuestionStats', source: aggregateQuestionStatsSource },
+  { name: 'cancelStaleLobbies', source: cancelStaleLobbiesSource },
+  { name: 'cleanupAdminMaintenanceLog', source: cleanupAdminMaintenanceLogSource },
+  { name: 'diagnoseSoloQuestionStartQuery', source: diagnoseSoloQuestionStartQuerySource },
+  { name: 'expireOldGameInvites', source: expireOldGameInvitesSource },
+  { name: 'expirePushSubscriptions', source: expirePushSubscriptionsSource },
+  { name: 'generateTechDoc', source: generateTechDocSource },
+  { name: 'generateWorkflowDoc', source: generateWorkflowDocSource },
+  { name: 'getAdminStatus', source: getAdminStatusSource },
+  { name: 'getQuestions', source: getQuestionsSource },
+  { name: 'refreshLeaderboardProjection', source: refreshLeaderboardProjectionSource },
+  { name: 'resetTestAccountProgress', source: resetTestAccountProgressSource },
+  { name: 'runTestSuite', source: runTestSuiteSource },
+  { name: 'seedQuestionCategories', source: seedQuestionCategoriesSource },
+  { name: 'simulateOnlineGame', source: simulateOnlineGameSource },
+];
+
+const BASE44_DEPLOY_RISK_IMPORT_TOKENS = [
+  '_shared/adminAuth',
+  '../_shared/adminAuth',
+  './_shared/adminAuth',
+  'file:///__shared',
+  '../_shared',
+];
+
 function text(source) {
   if (source == null) return '';
   if (typeof source === 'string') return source;
@@ -143,6 +187,70 @@ export const EXTRA_SUITES = [
 ];
 
 export const EXTRA_TESTS = [
+  makeCase('base44_function_compile_gate_registered',
+    'Base44 function compile/deploy gate is registered before manual deploy',
+    () => {
+      const missing = missingTokens(`${packageJsonSource}\n${base44FunctionCompileScriptSource}`, [
+        '"check:base44-functions": "node scripts/checkBase44FunctionsCompile.mjs"',
+        'walkEntryFiles(functionsDir)',
+        'ts.createProgram',
+        'getSyntacticDiagnostics',
+        'getSemanticDiagnostics',
+        'DUPLICATE_DECLARATION_CODES',
+        '_shared/adminAuth',
+        '../_shared',
+        'file:///__shared',
+        'hardcoded email literal',
+        'getQuestionsRuntimeMarker',
+        'requestPayload',
+        'responsePayload',
+        'per_category_projection_v2',
+      ]);
+      if (missing.length) {
+        return fail('Base44 function compile/deploy gate is missing or too weak to catch dashboard deploy blockers.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          files: ['package.json', 'scripts/checkBase44FunctionsCompile.mjs'],
+          expected: 'npm run check:base44-functions validates all base44/functions entry.ts files for syntax, duplicate declarations, deploy-risk imports, email literals, and getQuestions marker diagnostics',
+          actual: { missing },
+          actionType: ACTION_TYPES.CODE_FIX,
+          nextStep: 'Wire npm run check:base44-functions into pre-deploy validation before Base44 Save & Deploy.',
+        });
+      }
+      return pass('Base44 function compile/deploy gate is registered and checks function syntax, duplicate declarations, deploy-risk imports, email literals, and getQuestions markers.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        files: ['package.json', 'scripts/checkBase44FunctionsCompile.mjs'],
+      });
+    }),
+
+  makeCase('critical_base44_functions_have_no_shared_admin_auth_imports',
+    'Critical Base44 functions have no deploy-risk shared adminAuth imports',
+    () => {
+      const offenders = DEPLOY_RISK_BASE44_FUNCTIONS
+        .map((fn) => {
+          const found = forbiddenTokens(fn.source, BASE44_DEPLOY_RISK_IMPORT_TOKENS);
+          return found.length ? { function: fn.name, found } : null;
+        })
+        .filter(Boolean);
+      if (offenders.length) {
+        return fail('A critical Base44 function still contains a shared adminAuth import/path that may not be bundled during deploy.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          files: DEPLOY_RISK_BASE44_FUNCTIONS.map((fn) => `base44/functions/${fn.name}/entry.ts`),
+          expected: 'self-contained function bundle or an explicitly proven deploy-safe import; no _shared/adminAuth / ../_shared / file:///__shared references',
+          actual: { offenders },
+          actionType: ACTION_TYPES.CODE_FIX,
+          nextStep: 'Inline the AdminUser guard in the affected function or prove the import is bundled by Base44 before deployment.',
+        });
+      }
+      return pass('Critical Base44 functions are free of shared adminAuth deploy-risk imports.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        files: DEPLOY_RISK_BASE44_FUNCTIONS.map((fn) => `base44/functions/${fn.name}/entry.ts`),
+      });
+    }),
+
   makeCase('deployed_report_has_no_broken_local_import',
     'Deployed analytics report function has no broken local _shared import',
     () => {
@@ -327,14 +435,34 @@ export const EXTRA_TESTS = [
         'GET_QUESTIONS_RUNTIME_MARKER',
         'getQuestions-live-per-category-v7-Codex343',
         'getQuestionsRuntimeMarker',
+        'requestPayload',
+        'responsePayload',
+        "[getQuestions] REQUEST RECEIVED",
+        "[getQuestions] PAYLOAD PARSED",
+        "[getQuestions] PROJECTION BRANCH",
+        "[getQuestions] USING PER CATEGORY PROJECTION V2",
+        'includeDiagnostics',
         "GAMEPLAY_PROJECTION_VERSION = 'per_category_projection_v2'",
         'projectionDiagnostics',
+        'buildProjectionDiagnostics',
+        'Category.list',
+        'loadActiveQuestionCandidates',
+        'fetchQuestionRowsForCategory',
+        'base44.asServiceRole.entities.Question',
+        '.filter(descriptor.filters',
+        'projectionCappedBeforeCategoryCoverage: false',
         'fallbackUsed',
         'categoriesWithZeroPlayableQuestions',
       ]);
       const forbidden = forbiddenTokens(getQuestionsSource, [
         'MAX_GAMEPLAY_LIMIT = 500',
         'const KNOWN_CATEGORY_IDS = [1, 2, 3, 4, 5, 6]',
+        'FALLBACK_ACTIVE_CATEGORY_IDS = [1, 2, 3, 4, 5, 6]',
+        'const payload = await req.json().catch',
+        'const payload: Record<string, unknown>',
+        'Question.list(\'-created_date\', 500)',
+        'Question.list("-created_date", 500)',
+        'projectionCappedBeforeCategoryCoverage: true',
       ]);
       if (missing.length || forbidden.length) {
         return fail('getQuestions is not clearly registered/deployable with the live active-category v2 projection contract.', {

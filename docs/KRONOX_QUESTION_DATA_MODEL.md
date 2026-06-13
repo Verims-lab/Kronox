@@ -168,6 +168,8 @@ Rules:
   Yapılan Sorular`, `Joker Kullanımı Analizi`, and `Oynanma Zamanı ve Kullanım
   Ritmi`. Current `Question`, `Category`, `QuestionAttemptEvent`,
   `JokerTransaction`, and `UserJokerInventory` data may feed those tables.
+  `Kategori Bazında Soru Havuzu` may include the category-based Top 10 answer
+  year/count table as subsection content without changing the section count.
 * removed legacy report sections must not appear in the generated email:
   `Rapor Şablonu`, `Rapor Bölümleri`,
   `Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı`,

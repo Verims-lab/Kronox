@@ -602,6 +602,10 @@ After deployment, verify:
 * App Store Connect privacy answers must match the `/privacy` page and must be
   updated when data collection, push notifications, social features, analytics,
   or economy behavior changes.
+* App Store Guideline 4.8: when third-party login is offered, the login surface
+  must expose `Sign in with Apple` / `Apple ile Giriş Yap` through Base44 auth.
+  Base44 Settings → Authentication → Apple toggle is a manual deployment step;
+  no Apple client secret or native credential belongs in source.
 * Account deletion/access/correction requests may use the in-app deletion flow
   where available or the configured support contact.
 
@@ -692,7 +696,7 @@ Security contract:
   `emailBodyMode: nine_section_email_body`, `reportDeliveryMode:
   email_body_only`, `bodyContainsExactlyRequiredSections: true`,
   `requiredSectionOrderValid: true`, `renderedSectionHeaderCount: 9`,
-  `reportBuildMarker: Codex323`, and that the received email body is readable,
+  `reportBuildMarker: Codex347`, and that the received email body is readable,
   non-empty, and does not mention a PDF attachment. Runtime Projection is a
   diagnostic/admin proof concept and must not be faked in email output; top-shown
   concentration notes must be compared with the Solo-eligible pool before any
@@ -707,8 +711,10 @@ Security contract:
   `Kategori Bazında Soru Havuzu`, `Kategori Tercihleri`, `Kategori Bazında
   Gösterim`, `En Çok Gösterilen Sorular`, `Az ya da Hiç Gösterilmeyen Sorular`,
   `En Çok Yanlış Yapılan Sorular`, `Joker Kullanımı Analizi`, and `Oynanma
-  Zamanı ve Kullanım Ritmi`; Joker/time sections must be table-based and
-  preference/user data stays aggregate-only
+  Zamanı ve Kullanım Ritmi`; `Kategori Bazında Soru Havuzu` includes the
+  category-based Top 10 answer year/count table without adding a tenth report
+  section, Joker/time sections must be table-based, and preference/user data
+  stays aggregate-only
 * function-based question analytics reset is currently not used because the
   callable reset path was not reliable in the current Base44 setup
 * after a question pool replacement, question analytics reset is a manual DB
@@ -754,3 +760,13 @@ Rules:
 * do not fake PASS for runtime security
 * keep RLS/cross-user probes NOT_AUTOMATABLE unless actually executed
 * external scanner findings should be resolved and rechecked
+* Base44 deploy-safety checks are static: `_shared/adminAuth`, `../_shared`,
+  and `file:///__shared` imports in critical functions should fail Health, but
+  live markers still require Base44 Test Function/deploy proof
+* `npm run check:base44-functions` is the pre-deploy static gate for Base44
+  function sources. It catches TypeScript syntax/duplicate-declaration blockers,
+  deploy-risk `_shared` imports, committed email literals, and missing
+  `getQuestions` runtime marker/projection diagnostics before manual Save &
+  Deploy.
+* Health `Copy Blocker JSON` should export blocker/failing/manual-critical
+  items and summary counts only, not the full raw PASS payload

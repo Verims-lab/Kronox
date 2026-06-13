@@ -24,6 +24,8 @@ import expireOldGameInvitesSource from '../../../base44/functions/expireOldGameI
 import expirePushSubscriptionsSource from '../../../base44/functions/expirePushSubscriptions/entry.ts?raw';
 import refreshLeaderboardProjectionSource from '../../../base44/functions/refreshLeaderboardProjection/entry.ts?raw';
 import resetTestAccountProgressSource from '../../../base44/functions/resetTestAccountProgress/entry.ts?raw';
+import diagnoseSoloQuestionStartQuerySource from '../../../base44/functions/diagnoseSoloQuestionStartQuery/entry.ts?raw';
+import runTestSuiteSource from '../../../base44/functions/runTestSuite/entry.ts?raw';
 import sendQuestionAnalyticsReportEmailSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts?raw';
 import createDailyQuestDefinitionSource from '../../../base44/functions/createDailyQuestDefinition/entry.ts?raw';
 import aggregateQuestionStatsSource from '../../../base44/functions/aggregateQuestionStats/entry.ts?raw';
@@ -111,7 +113,12 @@ const EMAIL_LITERAL_REGEX = /['"][\w.+-]+@[\w-]+\.[\w.-]+['"]/g;
 
 function findEmailLiterals(src) {
   const matches = src.match(EMAIL_LITERAL_REGEX) || [];
-  return matches;
+  return matches.filter((match) => {
+    const value = match.replace(/^['"]|['"]$/g, '').toLowerCase();
+    // Synthetic fixture addresses used inside admin-only test harnesses are
+    // not personal/admin/support contacts and do not grant authorization.
+    return !value.endsWith('@kronos.local') && !value.endsWith('@example.com') && !value.endsWith('@example.test');
+  });
 }
 
 const TARGET_FUNCTIONS = [
@@ -124,6 +131,8 @@ const TARGET_FUNCTIONS = [
   { name: 'expirePushSubscriptions', source: expirePushSubscriptionsSource },
   { name: 'refreshLeaderboardProjection', source: refreshLeaderboardProjectionSource },
   { name: 'resetTestAccountProgress', source: resetTestAccountProgressSource },
+  { name: 'diagnoseSoloQuestionStartQuery', source: diagnoseSoloQuestionStartQuerySource },
+  { name: 'runTestSuite', source: runTestSuiteSource },
   { name: 'sendQuestionAnalyticsReportEmail', source: sendQuestionAnalyticsReportEmailSource },
   { name: 'createDailyQuestDefinition', source: createDailyQuestDefinitionSource },
   { name: 'aggregateQuestionStats', source: aggregateQuestionStatsSource },
