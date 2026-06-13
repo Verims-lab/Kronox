@@ -2308,18 +2308,22 @@ export const EXTRA_TESTS = [
 
   makeCase(
     'solo_level_start_real_query_diagnostic_admin_only',
-    'Admin diagnostic captures real Solo level-start query path for owner and preference users',
+    'Admin diagnostic captures real Solo level-start query path for requested and preference users',
     () => {
       const functionSource = safeStr(diagnoseSoloQuestionStartQuerySource);
       const scriptSource = safeStr(diagnoseSoloQuestionStartQueryScriptSource);
       const requiredFunctionTokens = [
         "const JOB_NAME = 'diagnoseSoloQuestionStartQuery'",
-        'const OWNER_EMAIL = \'sariverim@gmail.com\'',
         'const MAX_PREFERENCE_USERS = 10',
         'const TARGET_CATEGORY_IDS = Object.freeze([6, 7, 8, 9, 11])',
         'const QUESTION_CACHE_KEY',
         'const QUESTION_CACHE_VERSION',
         'requireAdmin(base44)',
+        'normalizeRequestedDiagnosticEmail',
+        'requestedUserEmailConfigured',
+        'requestedUserEmailMasked',
+        'requestedUserIncluded',
+        'maskEmail',
         'readOnly: true',
         'dryRun: true',
         'mutatesGameplay: false',
@@ -2344,8 +2348,8 @@ export const EXTRA_TESTS = [
       ];
       const requiredScriptTokens = [
         "const JOB_NAME = 'diagnoseSoloQuestionStartQuery'",
-        "const OWNER_EMAIL = 'sariverim@gmail.com'",
         'const MAX_PREFERENCE_USERS = 10',
+        'SOLO_DIAGNOSTIC_REQUESTED_EMAIL',
         'BASE44_SERVICE_TOKEN',
         'BASE44_SERVICE_ROLE_TOKEN',
         'BASE44_APP_BASE_URL',
@@ -2354,6 +2358,8 @@ export const EXTRA_TESTS = [
         'buildConfigSummary',
         'logConfigSummary',
         'tokenValuesPrinted: false',
+        'requestedUserEmailPresent',
+        'requestedUserEmailMasked',
         'missing_base44_app_config',
         'missing_live_base44_service_token',
         'token_app_mismatch_or_wrong_app_id',
@@ -2385,7 +2391,10 @@ export const EXTRA_TESTS = [
         'finalDryRunDeckDifficultiesByCategory',
         'presentInDryRunDeck',
       ];
+      const hardcodedRequestedAccountEmail = [['sari', 'verim'].join(''), 'gmail.com'].join('@');
       const forbiddenFunctionTokens = [
+        'OWNER_EMAIL',
+        hardcodedRequestedAccountEmail,
         'QuestionAttemptEvent.create',
         'QuestionAttemptEvent.update',
         'UserDailyQuestProgress.create',
@@ -2395,6 +2404,10 @@ export const EXTRA_TESTS = [
         'User.update',
         'recordDailyQuestProgress',
       ];
+      const forbiddenScriptTokens = [
+        'OWNER_EMAIL',
+        hardcodedRequestedAccountEmail,
+      ];
       const missing = [
         ...missingTokens(functionSource, requiredFunctionTokens).map((token) => `function:${token}`),
         ...missingTokens(scriptSource, requiredScriptTokens).map((token) => `script:${token}`),
@@ -2402,6 +2415,7 @@ export const EXTRA_TESTS = [
       const forbidden = [
         ...forbiddenFunctionTokens.filter((token) => functionSource.includes(token)).map((token) => `function:${token}`),
         ...forbiddenFunctionTokens.filter((token) => scriptSource.includes(token)).map((token) => `script:${token}`),
+        ...forbiddenScriptTokens.filter((token) => scriptSource.includes(token)).map((token) => `script:${token}`),
         ...(adminPageSource.includes('SoloQuestionStartDiagnosticsTool')
           ? ['adminPage:SoloQuestionStartDiagnosticsTool']
           : []),
@@ -2416,7 +2430,7 @@ export const EXTRA_TESTS = [
             'scripts/diagnoseSoloQuestionStartQuery.mjs',
             'src/pages/AdminPage.jsx',
           ],
-          expected: 'AdminUser-gated backend dry-run plus direct Codex/admin script with owner + 10 preference users, query/cache descriptors, category 6/7/8/9/11 proof, and frontend buildSoloAttemptDeck dry-run JSON; no broken Admin UI button',
+          expected: 'AdminUser-gated backend dry-run plus direct Codex/admin script with optional requested account + 10 preference users, generic email masking, query/cache descriptors, category 6/7/8/9/11 proof, and frontend buildSoloAttemptDeck dry-run JSON; no broken Admin UI button',
           actual: { missing, forbidden },
           actionType: ACTION_TYPES.CODE_FIX,
         });

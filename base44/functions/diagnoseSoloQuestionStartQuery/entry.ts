@@ -3,7 +3,6 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 import { json, requireAdmin } from '../_shared/adminAuth.ts';
 
 const JOB_NAME = 'diagnoseSoloQuestionStartQuery';
-const OWNER_EMAIL = 'sariverim@gmail.com';
 const MAX_PREFERENCE_USERS = 10;
 const MAX_PREFERENCE_ROWS = 10000;
 const MAX_CATEGORY_ROWS = 1000;
@@ -29,11 +28,15 @@ function normalizeEmail(value: unknown) {
 
 function maskEmail(email: string) {
   const normalized = normalizeEmail(email);
-  if (!normalized || normalized === OWNER_EMAIL) return normalized;
+  if (!normalized) return '';
   const [name, domain] = normalized.split('@');
   if (!domain) return normalized;
   const visible = name.slice(0, 1);
   return `${visible || '*'}***@${domain}`;
+}
+
+function normalizeRequestedDiagnosticEmail(body: any) {
+  return normalizeEmail(body?.requestedUserEmail ?? body?.targetUserEmail ?? body?.diagnosticUserEmail);
 }
 
 function normalizeCategoryId(value: unknown) {
@@ -211,8 +214,10 @@ function groupPreferencesByUser(rows: any[] = []) {
   return grouped;
 }
 
-function buildPreferenceContext(email: string, rows: any[], activeCategoryIds: number[]) {
+function buildPreferenceContext(email: string, rows: any[], activeCategoryIds: number[], requestedEmail = '') {
   const activeSet = new Set(activeCategoryIds.map(String));
+  const normalizedEmail = normalizeEmail(email);
+  const normalizedRequestedEmail = normalizeEmail(requestedEmail);
   const rawActivePreferenceIds = (rows || [])
     .filter(isActivePreference)
     .map((row) => row?.category_id ?? row?.categoryId ?? row?.main_category_id);
@@ -220,9 +225,8 @@ function buildPreferenceContext(email: string, rows: any[], activeCategoryIds: n
   const activeValidSelectedCategoryIds = selectedPreferenceCategoryIdsNormalized
     .filter((id) => activeSet.has(String(id)));
   return {
-    userEmail: email,
-    userEmailMasked: maskEmail(email),
-    isOwnerRequestedAccount: normalizeEmail(email) === OWNER_EMAIL,
+    userEmailMasked: maskEmail(normalizedEmail),
+    isRequestedAccount: Boolean(normalizedRequestedEmail && normalizedEmail === normalizedRequestedEmail),
     selectedPreferenceRawRows: rows.length,
     selectedPreferenceCategoryIdsRaw: rawActivePreferenceIds,
     selectedPreferenceCategoryIdsNormalized,
@@ -231,16 +235,16 @@ function buildPreferenceContext(email: string, rows: any[], activeCategoryIds: n
   };
 }
 
-function selectPreferenceUsers(groupedPreferences: Map<string, any[]>, activeCategoryIds: number[]) {
+function selectPreferenceUsers(groupedPreferences: Map<string, any[]>, activeCategoryIds: number[], requestedEmail = '') {
   const users = Array.from(groupedPreferences.entries())
-    .map(([email, rows]) => buildPreferenceContext(email, rows, activeCategoryIds))
-    .filter((item) => !item.isOwnerRequestedAccount)
+    .map(([email, rows]) => buildPreferenceContext(email, rows, activeCategoryIds, requestedEmail))
+    .filter((item) => !item.isRequestedAccount)
     .filter((item) => item.activeValidSelectedCategoryIds.length >= 3)
     .sort((a, b) => {
       if (b.activeValidSelectedCategoryIds.length !== a.activeValidSelectedCategoryIds.length) {
         return b.activeValidSelectedCategoryIds.length - a.activeValidSelectedCategoryIds.length;
       }
-      return a.userEmail.localeCompare(b.userEmail);
+      return a.userEmailMasked.localeCompare(b.userEmailMasked);
     })
     .slice(0, MAX_PREFERENCE_USERS);
   return users;
@@ -387,6 +391,7 @@ Deno.serve(async (req) => {
     const levelNumber = Math.max(1, Math.trunc(Number(body?.levelNumber) || 1));
     const yearStart = Number.isFinite(Number(body?.yearStart)) ? Number(body.yearStart) : 0;
     const yearEnd = Number.isFinite(Number(body?.yearEnd)) ? Number(body.yearEnd) : new Date().getFullYear();
+    const requestedEmail = normalizeRequestedDiagnosticEmail(body);
 
     const categoryRows = await base44.asServiceRole.entities.Category
       .list('category_id', MAX_CATEGORY_ROWS)
@@ -419,13 +424,16 @@ Deno.serve(async (req) => {
       .list('-updated_date', MAX_PREFERENCE_ROWS)
       .catch(() => []);
     const groupedPreferences = groupPreferencesByUser(Array.isArray(preferenceRows) ? preferenceRows : []);
-    const ownerPreferenceContext = buildPreferenceContext(
-      OWNER_EMAIL,
-      groupedPreferences.get(OWNER_EMAIL) || [],
-      activeCategoryIds,
-    );
-    const preferenceUsers = selectPreferenceUsers(groupedPreferences, activeCategoryIds);
-    const inspectedUsers = [ownerPreferenceContext, ...preferenceUsers];
+    const requestedPreferenceContext = requestedEmail
+      ? buildPreferenceContext(
+        requestedEmail,
+        groupedPreferences.get(requestedEmail) || [],
+        activeCategoryIds,
+        requestedEmail,
+      )
+      : null;
+    const preferenceUsers = selectPreferenceUsers(groupedPreferences, activeCategoryIds, requestedEmail);
+    const inspectedUsers = [requestedPreferenceContext, ...preferenceUsers].filter(Boolean);
 
     const users = inspectedUsers.map((preferenceContext) => {
       const selectedSet = new Set(preferenceContext.activeValidSelectedCategoryIds.map(String));
@@ -455,9 +463,10 @@ Deno.serve(async (req) => {
       mutatesAnalytics: false,
       mutatesProgress: false,
       mutatesEconomy: false,
-      requestedBy: normalizeEmail(admin.user?.email),
-      requestedOwnerEmail: OWNER_EMAIL,
-      ownerIncluded: true,
+      requestedByMasked: maskEmail(normalizeEmail(admin.user?.email)),
+      requestedUserEmailConfigured: Boolean(requestedEmail),
+      requestedUserEmailMasked: requestedEmail ? maskEmail(requestedEmail) : null,
+      requestedUserIncluded: Boolean(requestedPreferenceContext),
       preferenceUserLimit: MAX_PREFERENCE_USERS,
       preferenceUsersIncluded: preferenceUsers.length,
       fewerThanTenPreferenceUsers: preferenceUsers.length < MAX_PREFERENCE_USERS,

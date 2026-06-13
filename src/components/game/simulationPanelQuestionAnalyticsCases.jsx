@@ -340,8 +340,8 @@ export const EXTRA_TESTS = [
         forbidden: forbiddenTokens(item.source, [
           'body?.recipientEmail || admin.user?.email',
           'target_email: normalizeEmail(user?.email),',
-          'to: "sariverim',
-          "to: 'sariverim",
+          `to: "${[['sari', 'verim'].join(''), 'gmail.com'].join('@')}`,
+          `to: '${[['sari', 'verim'].join(''), 'gmail.com'].join('@')}`,
         ]),
       })).filter((item) => item.missing.length || item.forbidden.length);
       const uiMissing = missingTokens(questionAnalyticsReportToolSource, [

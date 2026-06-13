@@ -1,4 +1,6 @@
-export const ACCOUNT_DELETION_SUPPORT_EMAIL = 'support@kronoxgame.com';
+import { getPublicSupportEmail } from './publicContactConfig';
+
+export const ACCOUNT_DELETION_SUPPORT_EMAIL = getPublicSupportEmail();
 export const ACCOUNT_DELETION_ERROR_COPY = 'Hesap silinemedi. Lütfen tekrar dene veya destek ile iletişime geç.';
 
 const KNOWN_USER_CACHE_KEYS = [

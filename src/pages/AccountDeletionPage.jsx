@@ -1,10 +1,10 @@
 import React, { useEffect } from 'react';
 import { ArrowLeft, Mail, ShieldCheck, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { buildPublicSupportMailto, getPublicSupportEmail } from '@/lib/publicContactConfig';
 
-const SUPPORT_EMAIL = 'support@kronoxgame.com';
 const PAGE_TITLE = 'Delete Your Kronox Account | Kronox';
-const PAGE_DESCRIPTION = 'Learn how to delete your Kronox account in the app or request account deletion by email.';
+const PAGE_DESCRIPTION = 'Learn how to delete your Kronox account in the app or request account deletion through the configured support contact.';
 
 function upsertMetaDescription(content) {
   if (typeof document === 'undefined') return;
@@ -18,6 +18,9 @@ function upsertMetaDescription(content) {
 }
 
 export default function AccountDeletionPage() {
+  const supportEmail = getPublicSupportEmail();
+  const accountDeletionMailto = buildPublicSupportMailto({ subject: 'Account Deletion Request' });
+
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const previousTitle = document.title;
@@ -77,14 +80,19 @@ export default function AccountDeletionPage() {
               {' '}<strong className="font-extrabold text-white">“Hesabı Sil” / “Delete Account”</strong>.
             </p>
             <p>
-              If you cannot access the app, you can request account deletion by sending an email to{' '}
-              <a
-                className="font-extrabold text-amber-200 underline decoration-amber-200/40 underline-offset-4"
-                href={`mailto:${SUPPORT_EMAIL}?subject=Account%20Deletion%20Request`}
-              >
-                {SUPPORT_EMAIL}
-              </a>{' '}
-              from the email address linked to your Kronox account.
+              If you cannot access the app, you can request account deletion from the email address linked to your
+              Kronox account through the configured Kronox support contact.
+              {supportEmail && accountDeletionMailto ? (
+                <>
+                  {' '}
+                  <a
+                    className="font-extrabold text-amber-200 underline decoration-amber-200/40 underline-offset-4"
+                    href={accountDeletionMailto}
+                  >
+                    {supportEmail}
+                  </a>
+                </>
+              ) : null}
             </p>
             <p>
               When your deletion request is processed, your Kronox account and associated user data will be deleted.
@@ -109,13 +117,18 @@ export default function AccountDeletionPage() {
               </p>
               <p>
                 Uygulamaya erişemiyorsanız, Kronox hesabınıza bağlı e-posta adresinden{' '}
-                <a
-                  className="font-extrabold text-amber-200 underline decoration-amber-200/40 underline-offset-4"
-                  href={`mailto:${SUPPORT_EMAIL}?subject=Account%20Deletion%20Request`}
-                >
-                  {SUPPORT_EMAIL}
-                </a>{' '}
-                adresine hesap silme talebi gönderebilirsiniz.
+                yapılandırılmış Kronox destek iletişim kanalına hesap silme talebi gönderebilirsiniz.
+                {supportEmail && accountDeletionMailto ? (
+                  <>
+                    {' '}
+                    <a
+                      className="font-extrabold text-amber-200 underline decoration-amber-200/40 underline-offset-4"
+                      href={accountDeletionMailto}
+                    >
+                      {supportEmail}
+                    </a>
+                  </>
+                ) : null}
               </p>
             </div>
           </div>

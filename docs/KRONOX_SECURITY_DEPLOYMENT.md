@@ -589,17 +589,21 @@ After deployment, verify:
 * Public privacy URL is `https://kronoxgame.com/privacy`.
 * `/privacy` must load without login, admin status, backend data, or redirect.
 * The policy is Turkish-first, titled `Gizlilik Politikası`, includes a
-  last-updated date and support contact, and must disclose account/profile,
-  gameplay/progress/leaderboard, friends/invites/social, preferences,
-  optional push subscription, local storage/cache, economy/ledger, and question
-  analytics/reporting data.
+  last-updated date and configured support contact, and must disclose
+  account/profile, gameplay/progress/leaderboard, friends/invites/social,
+  preferences, optional push subscription, local storage/cache, economy/ledger,
+  and question analytics/reporting data.
+* Public support contact email is supplied by `VITE_KRONOX_SUPPORT_EMAIL`.
+  Do not commit personal/admin/support email literals in privacy, account
+  deletion, or diagnostic code. If the env value is missing, public pages must
+  show safe configured-contact copy without exposing an email literal.
 * The policy must state Kronox does not sell personal data for third-party
   advertising and must not claim that no data is collected.
 * App Store Connect privacy answers must match the `/privacy` page and must be
   updated when data collection, push notifications, social features, analytics,
   or economy behavior changes.
 * Account deletion/access/correction requests may use the in-app deletion flow
-  where available or the listed support email.
+  where available or the configured support contact.
 
 ## Joker Inventory
 

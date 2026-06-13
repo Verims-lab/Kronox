@@ -498,7 +498,9 @@ export const EXTRA_TESTS = [
       const missingPage = missingTokens(privacyPolicySource, [
         'Gizlilik Politikası',
         'Son güncelleme',
-        'sariverim@gmail.com',
+        'getPublicSupportEmail',
+        'buildPublicSupportMailto',
+        'Destek e-posta adresi dağıtım yapılandırmasından sağlanır.',
         'Hesap ve profil',
         'Oynanış bilgileri',
         'liderlik tablosu',

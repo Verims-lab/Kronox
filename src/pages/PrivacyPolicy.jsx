@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Mail, ShieldCheck } from 'lucide-react';
+import { buildPublicSupportMailto, getPublicSupportEmail } from '@/lib/publicContactConfig';
 
-const SUPPORT_EMAIL = 'sariverim@gmail.com';
 const UPDATED_AT = '11 Haziran 2026';
 
 const sections = [
@@ -112,6 +112,9 @@ const sections = [
 ];
 
 export default function PrivacyPolicy() {
+  const supportEmail = getPublicSupportEmail();
+  const supportMailto = buildPublicSupportMailto();
+
   useEffect(() => {
     const previousTitle = document.title;
     const description = 'Kronox uygulamasının gizlilik politikası, veri kullanımı, bildirimler ve kullanıcı hakları hakkında bilgiler.';
@@ -164,13 +167,20 @@ export default function PrivacyPolicy() {
             Son güncelleme: <strong className="text-foreground">{UPDATED_AT}</strong>. Bu sayfa Kronox’un hangi verileri topladığını,
             bu verileri nasıl kullandığını ve kullanıcıların hangi haklara sahip olduğunu açıklar.
           </p>
-          <a
-            href={`mailto:${SUPPORT_EMAIL}`}
-            className="mt-5 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-2 font-inter text-sm font-bold text-primary hover:bg-primary/15"
-          >
-            <Mail className="h-4 w-4" aria-hidden="true" />
-            {SUPPORT_EMAIL}
-          </a>
+          {supportEmail && supportMailto ? (
+            <a
+              href={supportMailto}
+              className="mt-5 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-2 font-inter text-sm font-bold text-primary hover:bg-primary/15"
+            >
+              <Mail className="h-4 w-4" aria-hidden="true" />
+              {supportEmail}
+            </a>
+          ) : (
+            <p className="mt-5 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-2 font-inter text-sm font-bold text-primary">
+              <Mail className="h-4 w-4" aria-hidden="true" />
+              Destek e-posta adresi dağıtım yapılandırmasından sağlanır.
+            </p>
+          )}
         </header>
 
         <article className="rounded-2xl border border-white/10 bg-white/[0.045] px-5 py-2 shadow-2xl shadow-black/20 sm:px-8">
