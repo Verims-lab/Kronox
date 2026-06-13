@@ -701,6 +701,11 @@ Checklist:
 * Health statically fails Base44 functions that contain `_shared/adminAuth`,
   `../_shared`, or `file:///__shared` deploy-risk imports. Manual Base44 Test
   Function/deploy proof is still required for live runtime markers.
+* Run `npm run check:base44-functions` before Base44 Save & Deploy. This
+  non-destructive gate parses `base44/functions/*/entry.ts`, catches syntax and
+  duplicate declaration errors such as redeclared `payload`, blocks deploy-risk
+  `_shared` imports, scans for committed email literals, and verifies the
+  `getQuestions` runtime marker/projection diagnostics contract.
 * Frontend admin UI visibility is based on the backend current-user
   `getAdminStatus` route. `getQuestions` must never be used as the admin-status
   source; `AdminUser` rows are not read/listed directly by the client.

@@ -763,5 +763,10 @@ Rules:
 * Base44 deploy-safety checks are static: `_shared/adminAuth`, `../_shared`,
   and `file:///__shared` imports in critical functions should fail Health, but
   live markers still require Base44 Test Function/deploy proof
+* `npm run check:base44-functions` is the pre-deploy static gate for Base44
+  function sources. It catches TypeScript syntax/duplicate-declaration blockers,
+  deploy-risk `_shared` imports, committed email literals, and missing
+  `getQuestions` runtime marker/projection diagnostics before manual Save &
+  Deploy.
 * Health `Copy Blocker JSON` should export blocker/failing/manual-critical
   items and summary counts only, not the full raw PASS payload

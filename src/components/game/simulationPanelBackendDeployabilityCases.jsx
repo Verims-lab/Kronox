@@ -24,6 +24,8 @@
 //     runtime step — represented here as a NOT_AUTOMATABLE case.
 
 import deployedReportSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts?raw';
+import packageJsonSource from '../../../package.json?raw';
+import base44FunctionCompileScriptSource from '../../../scripts/checkBase44FunctionsCompile.mjs?raw';
 import adminResetUserProgressSource from '../../../base44/functions/adminResetUserProgress/entry.ts?raw';
 import aggregateQuestionStatsSource from '../../../base44/functions/aggregateQuestionStats/entry.ts?raw';
 import cancelStaleLobbiesSource from '../../../base44/functions/cancelStaleLobbies/entry.ts?raw';
@@ -185,6 +187,43 @@ export const EXTRA_SUITES = [
 ];
 
 export const EXTRA_TESTS = [
+  makeCase('base44_function_compile_gate_registered',
+    'Base44 function compile/deploy gate is registered before manual deploy',
+    () => {
+      const missing = missingTokens(`${packageJsonSource}\n${base44FunctionCompileScriptSource}`, [
+        '"check:base44-functions": "node scripts/checkBase44FunctionsCompile.mjs"',
+        'walkEntryFiles(functionsDir)',
+        'ts.createProgram',
+        'getSyntacticDiagnostics',
+        'getSemanticDiagnostics',
+        'DUPLICATE_DECLARATION_CODES',
+        '_shared/adminAuth',
+        '../_shared',
+        'file:///__shared',
+        'hardcoded email literal',
+        'getQuestionsRuntimeMarker',
+        'requestPayload',
+        'responsePayload',
+        'per_category_projection_v2',
+      ]);
+      if (missing.length) {
+        return fail('Base44 function compile/deploy gate is missing or too weak to catch dashboard deploy blockers.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          files: ['package.json', 'scripts/checkBase44FunctionsCompile.mjs'],
+          expected: 'npm run check:base44-functions validates all base44/functions entry.ts files for syntax, duplicate declarations, deploy-risk imports, email literals, and getQuestions marker diagnostics',
+          actual: { missing },
+          actionType: ACTION_TYPES.CODE_FIX,
+          nextStep: 'Wire npm run check:base44-functions into pre-deploy validation before Base44 Save & Deploy.',
+        });
+      }
+      return pass('Base44 function compile/deploy gate is registered and checks function syntax, duplicate declarations, deploy-risk imports, email literals, and getQuestions markers.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        files: ['package.json', 'scripts/checkBase44FunctionsCompile.mjs'],
+      });
+    }),
+
   makeCase('critical_base44_functions_have_no_shared_admin_auth_imports',
     'Critical Base44 functions have no deploy-risk shared adminAuth imports',
     () => {
@@ -396,6 +435,8 @@ export const EXTRA_TESTS = [
         'GET_QUESTIONS_RUNTIME_MARKER',
         'getQuestions-live-per-category-v7-Codex343',
         'getQuestionsRuntimeMarker',
+        'requestPayload',
+        'responsePayload',
         "[getQuestions] REQUEST RECEIVED",
         "[getQuestions] PAYLOAD PARSED",
         "[getQuestions] PROJECTION BRANCH",
@@ -417,6 +458,8 @@ export const EXTRA_TESTS = [
         'MAX_GAMEPLAY_LIMIT = 500',
         'const KNOWN_CATEGORY_IDS = [1, 2, 3, 4, 5, 6]',
         'FALLBACK_ACTIVE_CATEGORY_IDS = [1, 2, 3, 4, 5, 6]',
+        'const payload = await req.json().catch',
+        'const payload: Record<string, unknown>',
         'Question.list(\'-created_date\', 500)',
         'Question.list("-created_date", 500)',
         'projectionCappedBeforeCategoryCoverage: true',

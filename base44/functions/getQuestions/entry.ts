@@ -640,23 +640,23 @@ Deno.serve(async (req) => {
     }
 
     const base44 = createClientFromRequest(req);
-    const payload = await req.json().catch(() => ({}));
+    const requestPayload = await req.json().catch(() => ({}));
     console.log('[getQuestions] PAYLOAD PARSED', {
-      payloadKeys: Object.keys(payload || {}),
-      mode: payload?.mode || null,
-      projectionVersion: payload?.projectionVersion || null,
-      requireCategoryCoverage: payload?.requireCategoryCoverage === true,
-      requestedLimit: payload?.limit ?? null,
-      includeDiagnostics: payload?.includeDiagnostics === true,
+      payloadKeys: Object.keys(requestPayload || {}),
+      mode: requestPayload?.mode || null,
+      projectionVersion: requestPayload?.projectionVersion || null,
+      requireCategoryCoverage: requestPayload?.requireCategoryCoverage === true,
+      requestedLimit: requestPayload?.limit ?? null,
+      includeDiagnostics: requestPayload?.includeDiagnostics === true,
     });
 
-    const body = payload;
+    const body = requestPayload;
     const wantsAdminBank = body?.scope === 'admin' || body?.fullBank === true || body?.includeInactive === true;
     const wantsGameplayProjection = isGameplayRuntimeProjectionRequest(body);
     console.log('[getQuestions] PROJECTION BRANCH', {
-      isGameplayRuntime: payload?.mode === 'gameplay_runtime',
-      isPerCategoryProjection: payload?.projectionVersion === GAMEPLAY_PROJECTION_VERSION,
-      requireCategoryCoverage: payload?.requireCategoryCoverage === true,
+      isGameplayRuntime: requestPayload?.mode === 'gameplay_runtime',
+      isPerCategoryProjection: requestPayload?.projectionVersion === GAMEPLAY_PROJECTION_VERSION,
+      requireCategoryCoverage: requestPayload?.requireCategoryCoverage === true,
     });
     console.log('[getQuestions] USING PER CATEGORY PROJECTION V2');
     const wantsAdminDiagnostics = (body?.includeDiagnostics === true || body?.debug === true) && !wantsGameplayProjection;
@@ -749,7 +749,7 @@ Deno.serve(async (req) => {
     const projection = buildPoolProportionalProjection(normalizedQuestions, limit, projectionSeed);
     const projected = projection.projected;
 
-    const payload: Record<string, unknown> = {
+    const responsePayload: Record<string, unknown> = {
       ok: true,
       questions: projected,
       activeCategoryIds: Array.from(activeMainCategoryIds),
@@ -767,7 +767,7 @@ Deno.serve(async (req) => {
       projectionCappedBeforeCategoryCoverage: false,
     };
     if (wantsDiagnostics) {
-      payload.projectionDiagnostics = buildProjectionDiagnostics({
+      responsePayload.projectionDiagnostics = buildProjectionDiagnostics({
         fetchedRows: questions,
         normalizedRows: normalizedQuestions,
         projectedRows: projected,
@@ -787,7 +787,7 @@ Deno.serve(async (req) => {
         fallbackReason,
       });
     }
-    return json(payload);
+    return json(responsePayload);
   } catch (error) {
     console.error('[getQuestions] failed:', (error as Error)?.message || error);
     return json({ ok: false, error: 'Sorular yuklenemedi.' }, 500);
