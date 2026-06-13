@@ -631,7 +631,8 @@ function buildProjectionDiagnostics({
 
 console.log('[getQuestions] Before HANDLER ');
 
-Deno.serve(async (req) => {
+Deno.serve(async (req) => 
+{
   console.log('[getQuestions] HANDLER ENTERED - Before try');
   try {
     console.log('[getQuestions] HANDLER ENTERED - In try');
