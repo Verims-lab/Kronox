@@ -1,7 +1,7 @@
 // Kronox Health Center — Full report panel UI (Codex123 split).
 //
 // SCOPE
-//   Presentational report panel: copy/download actions + every report
+//   Presentational report panel: blocker-copy/full-download actions + every report
 //   section (critical fails, runtime proof, recently changed, environment,
 //   top blockers, score explanation, SRE signals, recommended actions,
 //   release-ready checklist, manual verification, known non-automatable,
@@ -45,7 +45,7 @@ export default function SimulationReportActions({ report, copyJson, copySummary,
           <p className="mt-1 text-xs text-white/55">{report.runId} / {report.timestamp}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <ActionButton icon={ClipboardCopy} label="Copy JSON" onClick={copyJson} />
+          <ActionButton icon={ClipboardCopy} label="Copy Blocker JSON" onClick={copyJson} />
           <ActionButton icon={Download} label="Download JSON" onClick={downloadJson} />
           <ActionButton icon={ClipboardCopy} label="Copy Summary" onClick={copySummary} />
         </div>

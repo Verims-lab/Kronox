@@ -1838,7 +1838,11 @@ import React, { useEffect, useState } from 'react';
 //   • Adds owner/admin-gated in-game Solo query debug output assembled from the
 //     real getQuestions -> buildSoloAttemptDeck runtime path, with copyable
 //     JSON for category 6-11 candidate/deck proof.
-const BUILD_MARKER = 'Codex336';
+//
+// Codex337 — Health blocker JSON copy:
+//   • Health Center clipboard JSON now exports a compact blocker-only payload;
+//     full report remains available through download/raw preview.
+const BUILD_MARKER = 'Codex337';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

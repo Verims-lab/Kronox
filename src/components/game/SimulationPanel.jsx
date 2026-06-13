@@ -29,7 +29,7 @@
 //   - Report JSON shape (every field name and meaning).
 //   - Case status semantics (PASS/FAIL/WARNING/BLOCKED/NOT_AUTOMATABLE/ERROR).
 //   - localStorage persistence key (kronox_health_simulator_last_run_v1).
-//   - All copy/download report actions.
+//   - Full download/raw preview stay complete; clipboard JSON is blocker-only.
 //   - All suite IDs, ordering, and criticality flags.
 //   - All existing case ids and behavior (the cases module is a mechanical
 //     move of the same code; the registry stays the same).
@@ -100,7 +100,7 @@ import { Activity, X } from 'lucide-react';
 
 import { STATUS, LAST_RUN_KEY } from './health/healthStatus';
 import { executeCase, captureEnvironment, createRunMeta, extractBuildMarker } from './health/simulationRunner';
-import { buildReport, buildHumanSummary } from './health/simulationReportBuilder';
+import { buildBlockerCopyJson, buildReport, buildHumanSummary } from './health/simulationReportBuilder';
 import { SUITES, TESTS } from './health/simulationCases';
 import SimulationSuiteSummary from './health/SimulationSuiteSummary';
 import SimulationCaseRow, { StatusBadge } from './health/SimulationCaseRow';
@@ -284,7 +284,7 @@ export default function SimulationPanel({ onClose }) {
     }
   };
 
-  const copyJson = () => report && copyText(JSON.stringify(report, null, 2), 'JSON report');
+  const copyJson = () => report && copyText(JSON.stringify(buildBlockerCopyJson(report), null, 2), 'Blocker JSON');
   const copySummary = () => report && copyText(buildHumanSummary(report), 'Human summary');
   const downloadJson = () => {
     if (!report) return;

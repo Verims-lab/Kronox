@@ -167,6 +167,18 @@ export const EXTRA_TESTS = [
       return pass('Health report puts summary counts before blocker/detail/raw JSON sections.', { verification: 'STATIC_CONTRACT', actionType: ACTION_TYPES.CODE_FIX });
     }),
 
+  makeCase('health_copy_json_button_is_blocker_scoped',
+    'Health Copy JSON button is clearly scoped to blockers',
+    () => {
+      const src = safeStr(simulationReportActionsSource);
+      const missing = missingTokens(src, [
+        'Copy Blocker JSON',
+        'copyJson',
+      ]);
+      if (missing.length) return fail('Health Copy JSON action is not clearly blocker-scoped.', { verification: 'STATIC_CONTRACT', actionType: ACTION_TYPES.CODE_FIX, missing });
+      return pass('Health copy action is labelled as blocker-only JSON.', { verification: 'STATIC_CONTRACT', actionType: ACTION_TYPES.CODE_FIX });
+    }),
+
   makeCase('last_run_card_uses_real_fail_count',
     'Last Run summary card displays report FAIL count instead of score value',
     () => {
