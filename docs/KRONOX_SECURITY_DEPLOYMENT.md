@@ -692,7 +692,7 @@ Security contract:
   `emailBodyMode: nine_section_email_body`, `reportDeliveryMode:
   email_body_only`, `bodyContainsExactlyRequiredSections: true`,
   `requiredSectionOrderValid: true`, `renderedSectionHeaderCount: 9`,
-  `reportBuildMarker: Codex323`, and that the received email body is readable,
+  `reportBuildMarker: Codex347`, and that the received email body is readable,
   non-empty, and does not mention a PDF attachment. Runtime Projection is a
   diagnostic/admin proof concept and must not be faked in email output; top-shown
   concentration notes must be compared with the Solo-eligible pool before any
@@ -707,8 +707,10 @@ Security contract:
   `Kategori Bazında Soru Havuzu`, `Kategori Tercihleri`, `Kategori Bazında
   Gösterim`, `En Çok Gösterilen Sorular`, `Az ya da Hiç Gösterilmeyen Sorular`,
   `En Çok Yanlış Yapılan Sorular`, `Joker Kullanımı Analizi`, and `Oynanma
-  Zamanı ve Kullanım Ritmi`; Joker/time sections must be table-based and
-  preference/user data stays aggregate-only
+  Zamanı ve Kullanım Ritmi`; `Kategori Bazında Soru Havuzu` includes the
+  category-based Top 10 answer year/count table without adding a tenth report
+  section, Joker/time sections must be table-based, and preference/user data
+  stays aggregate-only
 * function-based question analytics reset is currently not used because the
   callable reset path was not reliable in the current Base44 setup
 * after a question pool replacement, question analytics reset is a manual DB

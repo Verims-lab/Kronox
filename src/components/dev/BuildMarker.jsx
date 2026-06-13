@@ -1885,7 +1885,12 @@ import React, { useEffect, useState } from 'react';
 //     unauthenticated login entry while preserving hosted email/other login.
 //   • Uses base44.auth.loginWithProvider('apple'|'google') with safe fallback
 //     error copy and no native iOS code or committed provider secrets.
-const BUILD_MARKER = 'Codex346';
+//
+// Codex347 — Question Analytics category/year table:
+//   • Adds a category-based Top 10 answer year/count table inside the existing
+//     Kategori Bazında Soru Havuzu section.
+//   • Keeps the email-body-only, no-PDF, exactly-nine-section report contract.
+const BUILD_MARKER = 'Codex347';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

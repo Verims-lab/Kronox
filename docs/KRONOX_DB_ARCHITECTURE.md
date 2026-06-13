@@ -898,8 +898,9 @@ No deletion should happen in this task.
   `Kategori Tercihleri`, `Kategori Bazında Gösterim`, `En Çok Gösterilen
   Sorular`, `Az ya da Hiç Gösterilmeyen Sorular`, `En Çok Yanlış Yapılan
   Sorular`, `Joker Kullanımı Analizi`, and `Oynanma Zamanı ve Kullanım Ritmi`.
-  Category preference counts are aggregate only and do not expose user IDs or emails. The
-  function is registered at
+  `Kategori Bazında Soru Havuzu` also contains the category-based Top 10 answer
+  year/count table inside the same section. Category preference counts are
+  aggregate only and do not expose user IDs or emails. The function is registered at
   `base44/functions/sendQuestionAnalyticsReportEmail/entry.ts` with
   `base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc`.
   The callable report function inlines the DB-backed AdminUser guard for the
@@ -936,7 +937,7 @@ No deletion should happen in this task.
   nine_section_email_body`, `reportDeliveryMode: email_body_only`,
   `bodyContainsExactlyRequiredSections: true`, `requiredSectionOrderValid: true`,
   `renderedSectionHeaderCount: 9`, `bodyLength > 1000`, and
-  `reportBuildMarker: Codex323`.
+  `reportBuildMarker: Codex347`.
   Frontend `npm run build` still does not prove Base44 function redeployment or
   live SendEmail delivery.
 - Manual DB reset path after question pool replacement. The function-based

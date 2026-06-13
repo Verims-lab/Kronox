@@ -878,7 +878,7 @@ Checklist:
   nine-section-email-v1`, `emailBodyMode: nine_section_email_body`,
   `reportDeliveryMode: email_body_only`, `bodyContainsExactlyRequiredSections:
   true`, `requiredSectionOrderValid: true`, `renderedSectionHeaderCount: 9`,
-  `bodyLength > 1000`, `reportBuildMarker: Codex323`, the email arrives, and the received email body is
+  `bodyLength > 1000`, `reportBuildMarker: Codex347`, the email arrives, and the received email body is
   readable/useful without an attachment. `npm run build` does not prove Base44
   backend function deployment or live SendEmail output.
 * Runtime Projection wording is diagnostic only and must include
@@ -899,7 +899,9 @@ Checklist:
   Gösterilmeyen Sorular`, `En Çok Yanlış Yapılan Sorular`, `Joker Kullanımı
   Analizi`, and `Oynanma Zamanı ve Kullanım Ritmi`. Joker and play-rhythm
   sections must be table-based and must show structured `Yeterli veri yok` rows
-  when exact metrics are not captured.
+  when exact metrics are not captured. `Kategori Bazında Soru Havuzu` may carry
+  the category-based Top 10 answer year/count table as subsection content, not
+  as an extra report section.
 * The report must not invent analytics. If joker outcomes, session duration,
   guest/preference source, exit reason, or local timezone are not captured, the
   email report must mark the data as insufficient and recommend exact
