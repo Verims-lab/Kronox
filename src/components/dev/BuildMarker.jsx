@@ -1950,7 +1950,12 @@ import React, { useEffect, useState } from 'react';
 //   • Removes email-shaped npm name@version import specifiers from the
 //     admin-only document/category functions flagged by Health.
 //   • Keeps AdminUser-backed authorization unchanged.
-const BUILD_MARKER = 'Codex357';
+//
+// Codex358 — Exact admin email literal offender cleanup:
+//   • Removes the remaining runTestSuite quoted fixture email literal.
+//   • Adds masked file/line offender details to the admin authorization
+//     Health blocker output so future triage is not blind.
+const BUILD_MARKER = 'Codex358';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
