@@ -60,6 +60,7 @@ function safeDisplayName(user: any, ownerKey: string) {
   return suffix ? `Oyuncu ${suffix}` : 'Oyuncu';
 }
 
+
 function initialFromName(displayName: string) {
   return cleanDisplayText(displayName).charAt(0).toLocaleUpperCase('tr-TR') || 'O';
 }

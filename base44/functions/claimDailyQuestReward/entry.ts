@@ -67,6 +67,7 @@ function publicProgress(row: any) {
   };
 }
 
+
 async function findProgressById(base44: any, email: string, progressId: string) {
   const entity = progressEntity(base44);
   if (!entity || !progressId) return null;

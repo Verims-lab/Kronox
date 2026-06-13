@@ -67,6 +67,7 @@ async function getAdminAuthorization(base44, user) {
   return { isAdmin: Boolean(active?.candidate), row: active?.candidate || null, role: active?.role || '', status: active?.status || '' };
 }
 
+
 async function requireAdmin(base44) {
   try {
     const user = await base44.auth.me();

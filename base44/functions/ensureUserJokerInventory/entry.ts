@@ -49,6 +49,7 @@ function buildStarterIdempotencyKey(email: string, jokerType: string) {
   return `${STARTER_SOURCE}:${email}:${jokerType}`;
 }
 
+
 function emptyBalances() {
   return Object.fromEntries(JOKER_TYPES.map((jokerType) => [jokerType, 0]));
 }

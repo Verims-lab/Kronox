@@ -58,6 +58,7 @@ function ownerKeyFromEmail(rawEmail: unknown) {
   return `u_${(hash >>> 0).toString(36)}`;
 }
 
+
 function randomUnit() {
   const bytes = new Uint32Array(1);
   crypto.getRandomValues(bytes);

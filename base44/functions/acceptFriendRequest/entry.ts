@@ -46,6 +46,7 @@ Deno.serve(async (req) => {
     }
     if (!fr) return json({ ok: false, error: 'Friend request not found' }, 404);
 
+
     const myEmail = normalizeEmail(user.email);
     const toEmail = normalizeEmail(fr.to_email);
     const fromEmail = normalizeEmail(fr.from_email);
