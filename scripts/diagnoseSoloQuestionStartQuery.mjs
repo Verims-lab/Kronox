@@ -4,7 +4,6 @@ import { createClient } from '@base44/sdk';
 import { createServer } from 'vite';
 
 const JOB_NAME = 'diagnoseSoloQuestionStartQuery';
-const OWNER_EMAIL = 'sariverim@gmail.com';
 const MAX_PREFERENCE_USERS = 10;
 const MAX_PREFERENCE_ROWS = 10000;
 const MAX_CATEGORY_ROWS = 1000;
@@ -124,10 +123,14 @@ function normalizeEmail(value) {
 
 function maskEmail(email) {
   const normalized = normalizeEmail(email);
-  if (!normalized || normalized === OWNER_EMAIL) return normalized;
+  if (!normalized) return '';
   const [name, domain] = normalized.split('@');
   if (!domain) return normalized;
   return `${name.slice(0, 1) || '*'}***@${domain}`;
+}
+
+function normalizeRequestedDiagnosticEmail(value) {
+  return normalizeEmail(value);
 }
 
 function normalizeCategoryId(value) {
@@ -288,8 +291,10 @@ function groupPreferencesByUser(rows = []) {
   return grouped;
 }
 
-function buildPreferenceContext(email, rows, activeCategoryIds) {
+function buildPreferenceContext(email, rows, activeCategoryIds, requestedEmail = '') {
   const activeSet = new Set(activeCategoryIds.map(String));
+  const normalizedEmail = normalizeEmail(email);
+  const normalizedRequestedEmail = normalizeEmail(requestedEmail);
   const rawActivePreferenceIds = (rows || [])
     .filter(isActivePreference)
     .map((row) => row?.category_id ?? row?.categoryId ?? row?.main_category_id);
@@ -297,9 +302,8 @@ function buildPreferenceContext(email, rows, activeCategoryIds) {
   const activeValidSelectedCategoryIds = selectedPreferenceCategoryIdsNormalized
     .filter((id) => activeSet.has(String(id)));
   return {
-    userEmail: email === OWNER_EMAIL ? email : undefined,
-    userEmailMasked: maskEmail(email),
-    isOwnerRequestedAccount: normalizeEmail(email) === OWNER_EMAIL,
+    userEmailMasked: maskEmail(normalizedEmail),
+    isRequestedAccount: Boolean(normalizedRequestedEmail && normalizedEmail === normalizedRequestedEmail),
     selectedPreferenceRawRowsCount: rows.length,
     selectedPreferenceCategoryIdsRaw: rawActivePreferenceIds,
     selectedPreferenceCategoryIdsNormalized,
@@ -308,10 +312,10 @@ function buildPreferenceContext(email, rows, activeCategoryIds) {
   };
 }
 
-function selectPreferenceUsers(groupedPreferences, activeCategoryIds) {
+function selectPreferenceUsers(groupedPreferences, activeCategoryIds, requestedEmail = '') {
   return Array.from(groupedPreferences.entries())
-    .map(([email, rows]) => buildPreferenceContext(email, rows, activeCategoryIds))
-    .filter((item) => !item.isOwnerRequestedAccount)
+    .map(([email, rows]) => buildPreferenceContext(email, rows, activeCategoryIds, requestedEmail))
+    .filter((item) => !item.isRequestedAccount)
     .filter((item) => item.activeValidSelectedCategoryIds.length >= 3)
     .sort((a, b) => {
       if (b.activeValidSelectedCategoryIds.length !== a.activeValidSelectedCategoryIds.length) {
@@ -529,6 +533,8 @@ function buildConfigSummary(config = {}) {
     base44AppBaseUrl: config.serverUrl || null,
     serviceTokenPresent: Boolean(config.serviceToken),
     adminAccessTokenPresent: Boolean(config.accessToken),
+    requestedUserEmailPresent: Boolean(config.requestedUserEmail),
+    requestedUserEmailMasked: config.requestedUserEmail ? maskEmail(config.requestedUserEmail) : null,
     diagnosticMode: config.diagnosticMode || null,
     loadedEnvFiles: Array.isArray(config.loadedEnvFiles) ? config.loadedEnvFiles : [],
     tokenValuesPrinted: false,
@@ -554,12 +560,16 @@ function buildConfig() {
   const serviceToken = getEnv('BASE44_SERVICE_TOKEN') || getEnv('BASE44_SERVICE_ROLE_TOKEN');
   const accessToken = getEnv('BASE44_ACCESS_TOKEN') || getEnv('BASE44_ADMIN_ACCESS_TOKEN');
   const diagnosticMode = (getEnv('BASE44_DIAGNOSTIC_MODE') || 'service-role').toLowerCase();
+  const requestedUserEmail = normalizeRequestedDiagnosticEmail(
+    getEnv('SOLO_DIAGNOSTIC_REQUESTED_EMAIL') || getEnv('SOLO_DIAGNOSTIC_TARGET_EMAIL'),
+  );
   return {
     appId,
     serverUrl,
     serviceToken,
     accessToken,
     diagnosticMode,
+    requestedUserEmail,
     loadedEnvFiles,
   };
 }
@@ -598,8 +608,8 @@ function buildMissingConfigOutput(config) {
       'BASE44_APP_ID or VITE_BASE44_APP_ID (defaults to base44/.app.jsonc id)',
       'BASE44_DIAGNOSTIC_MODE=service-role or backend-function',
     ],
-    command: 'BASE44_APP_BASE_URL=<deployed-kronox-base44-url> BASE44_SERVICE_TOKEN=<service-token> node scripts/diagnoseSoloQuestionStartQuery.mjs > /tmp/solo-query-diagnostic.json',
-    backendFunctionCommand: 'BASE44_DIAGNOSTIC_MODE=backend-function BASE44_APP_BASE_URL=<deployed-kronox-base44-url> BASE44_ACCESS_TOKEN=<admin-user-access-token> node scripts/diagnoseSoloQuestionStartQuery.mjs > /tmp/solo-query-diagnostic.json',
+    command: 'SOLO_DIAGNOSTIC_REQUESTED_EMAIL=<target-email> BASE44_APP_BASE_URL=<deployed-kronox-base44-url> BASE44_SERVICE_TOKEN=<service-token> node scripts/diagnoseSoloQuestionStartQuery.mjs > /tmp/solo-query-diagnostic.json',
+    backendFunctionCommand: 'SOLO_DIAGNOSTIC_REQUESTED_EMAIL=<target-email> BASE44_DIAGNOSTIC_MODE=backend-function BASE44_APP_BASE_URL=<deployed-kronox-base44-url> BASE44_ACCESS_TOKEN=<admin-user-access-token> node scripts/diagnoseSoloQuestionStartQuery.mjs > /tmp/solo-query-diagnostic.json',
     message: 'Node diagnostics cannot use the frontend same-origin /api proxy. Set BASE44_APP_BASE_URL or VITE_BASE44_APP_BASE_URL to the same deployed Kronox Base44 app URL used by the frontend.',
   };
 }
@@ -612,7 +622,12 @@ async function invokeBackendFunctionDiagnostic(config, { levelNumber, yearStart,
       'Content-Type': 'application/json',
       Authorization: `Bearer ${config.accessToken}`,
     },
-    body: JSON.stringify({ levelNumber, yearStart, yearEnd }),
+    body: JSON.stringify({
+      levelNumber,
+      yearStart,
+      yearEnd,
+      requestedUserEmail: config.requestedUserEmail || undefined,
+    }),
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok || body?.ok === false) {
@@ -693,13 +708,16 @@ async function run() {
 
   const preferenceRows = await base44.asServiceRole.entities.UserCategoryPreference.list('-updated_date', MAX_PREFERENCE_ROWS);
   const groupedPreferences = groupPreferencesByUser(Array.isArray(preferenceRows) ? preferenceRows : []);
-  const ownerPreferenceContext = buildPreferenceContext(
-    OWNER_EMAIL,
-    groupedPreferences.get(OWNER_EMAIL) || [],
-    activeCategoryIds,
-  );
-  const preferenceUsers = selectPreferenceUsers(groupedPreferences, activeCategoryIds);
-  const inspectedUsers = [ownerPreferenceContext, ...preferenceUsers];
+  const requestedPreferenceContext = config.requestedUserEmail
+    ? buildPreferenceContext(
+      config.requestedUserEmail,
+      groupedPreferences.get(config.requestedUserEmail) || [],
+      activeCategoryIds,
+      config.requestedUserEmail,
+    )
+    : null;
+  const preferenceUsers = selectPreferenceUsers(groupedPreferences, activeCategoryIds, config.requestedUserEmail);
+  const inspectedUsers = [requestedPreferenceContext, ...preferenceUsers].filter(Boolean);
 
   const users = inspectedUsers.map((preferenceContext) => {
     const selectedSet = new Set(preferenceContext.activeValidSelectedCategoryIds.map(String));
@@ -751,12 +769,13 @@ async function run() {
     mutatesAnalytics: false,
     mutatesProgress: false,
     mutatesEconomy: false,
-    requestedOwnerEmail: OWNER_EMAIL,
+    requestedUserEmailConfigured: Boolean(config.requestedUserEmail),
+    requestedUserEmailMasked: config.requestedUserEmail ? maskEmail(config.requestedUserEmail) : null,
     attemptedAppId: config.appId,
     attemptedBase44ServerUrl: config.serverUrl,
     configSummary: buildConfigSummary(config),
     diagnosticTransport: 'service-role-sdk',
-    ownerIncluded: true,
+    requestedUserIncluded: Boolean(requestedPreferenceContext),
     preferenceUserLimit: MAX_PREFERENCE_USERS,
     preferenceUsersIncluded: preferenceUsers.length,
     fewerThanTenPreferenceUsers: preferenceUsers.length < MAX_PREFERENCE_USERS,

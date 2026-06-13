@@ -196,12 +196,15 @@ P3 adds question analytics without changing question selection:
   The separate selected-vs-non-selected 70/30 pressure remains soft and
   pool-proportional; this does not force equal category counts.
 - Codex333 diagnostic: the broken production Admin Ekranı diagnostic button
-  was removed. The owner/preference-user Solo query audit is now run directly
+  was removed. The requested-account/preference-user Solo query audit is now run directly
   with `scripts/diagnoseSoloQuestionStartQuery.mjs` or the optional admin-only
   `diagnoseSoloQuestionStartQuery` backend function after deployment. The
   direct runner requires live Base44 service-role credentials and the same
   app-specific `BASE44_APP_BASE_URL` / `VITE_BASE44_APP_BASE_URL` used by the
   deployed frontend; Node must not default to the generic `base44.app` host.
+  A specific account is supplied through `SOLO_DIAGNOSTIC_REQUESTED_EMAIL` or
+  admin request payload, never as a committed literal. Output masks all email
+  addresses generically.
   It captures the fresh `getQuestions`-compatible per-category
   `Question.filter` query descriptor, active/Solo-eligible/difficulty-1 counts
   by category, cache key/version notes, actual frontend `buildSoloAttemptDeck`

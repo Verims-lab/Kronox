@@ -1,5 +1,4 @@
 export const SOLO_QUESTION_RUNTIME_DEBUG_VERSION = 'solo-runtime-query-debug-v1-Codex336';
-export const SOLO_QUESTION_RUNTIME_DEBUG_TARGET_EMAIL = 'sariverim@gmail.com';
 export const SOLO_QUESTION_RUNTIME_DEBUG_CATEGORY_IDS = ['6', '7', '8', '9', '11'];
 
 export function normalizeDebugEmail(value) {
@@ -8,14 +7,13 @@ export function normalizeDebugEmail(value) {
 
 export function isSoloQuestionRuntimeDebugAllowed({ currentUser, authUser, adminStatus } = {}) {
   const currentEmail = normalizeDebugEmail(currentUser?.email || authUser?.email);
-  if (currentEmail !== SOLO_QUESTION_RUNTIME_DEBUG_TARGET_EMAIL) return false;
+  if (!currentEmail) return false;
 
-  const userAdminDebug = authUser?.admin_status_debug || currentUser?.admin_status_debug || {};
-  const adminSourceAllows = adminStatus?.parsedIsAdmin === true || userAdminDebug?.parsedIsAdmin === true;
-  const adminRole = String(adminStatus?.role || userAdminDebug?.role || '').trim().toLowerCase();
-  const adminState = String(adminStatus?.status || userAdminDebug?.status || '').trim().toLowerCase();
+  const adminSourceAllows = adminStatus?.parsedIsAdmin === true;
+  const adminRole = String(adminStatus?.role || '').trim().toLowerCase();
+  const adminState = String(adminStatus?.status || '').trim().toLowerCase();
   const roleAllows = adminRole === 'owner' || adminRole === 'admin';
-  const statusAllows = !adminState || adminState === 'active';
+  const statusAllows = adminState === 'active';
 
   return Boolean(adminSourceAllows && roleAllows && statusAllows);
 }

@@ -482,7 +482,8 @@ Checklist:
 * `/privacy` must be publicly accessible without login, admin status, backend
   data, or redirect to Home/login.
 * The page title is `Gizlilik Politikası`, includes a last-updated date, and
-  lists a support contact email.
+  lists the configured support contact email when `VITE_KRONOX_SUPPORT_EMAIL`
+  is present.
 * The policy must disclose current Kronox data categories: account/profile
   data, gameplay/progress/leaderboard data, friends/invites/social data,
   category preferences, optional push subscription/notification data,
@@ -491,8 +492,8 @@ Checklist:
 * The policy must state Kronox does not sell personal data for third-party
   advertising and must not claim that no data is collected.
 * Account deletion/access/correction requests must be covered. If the in-app
-  account deletion flow is available, users may use it; support email remains
-  available for privacy requests.
+  account deletion flow is available, users may use it; the public support
+  contact must come from `VITE_KRONOX_SUPPORT_EMAIL`, not a committed literal.
 * App Store Connect privacy answers must match the `/privacy` policy. Update
   both whenever data collection, analytics, push notifications, social features,
   or economy/ledger behavior changes.
@@ -933,8 +934,11 @@ Checklist:
   `VITE_BASE44_APP_BASE_URL`; do not let Node diagnostics silently default to
   the generic `base44.app` host. The script prints a safe config summary
   (app id/base URL/token presence booleans only; never token values) before
-  data access. The read-only diagnostic must include
-  `sariverim@gmail.com`, up to 10 users with active category preferences, the
+  data access. A specific account must be supplied through
+  `SOLO_DIAGNOSTIC_REQUESTED_EMAIL` or an admin-only request payload and all
+  diagnostic email output must be generically masked. The read-only diagnostic
+  must include the requested account when configured, up to 10 users with active
+  category preferences, the
   real `getQuestions`-compatible
   `Question.filter` query descriptor, cache key/version, per-category
   active/Solo-eligible/difficulty-1 counts, frontend `buildSoloAttemptDeck`

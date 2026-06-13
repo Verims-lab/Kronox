@@ -84,8 +84,8 @@ import React, { useEffect, useState } from 'react';
 //   • Adds the unauthenticated /account-deletion route for browser access at
 //     kronoxgame.com/account-deletion.
 //   • Keeps the existing in-app "Hesabı Sil" Settings action untouched.
-//   • Uses support@kronoxgame.com because no Kronox support-domain contact
-//     address was present in repo copy beyond deployment placeholder subjects.
+//   • Support contact is now supplied by deployment config rather than a
+//     committed address literal.
 //
 // Codex171 — Technical Audit Package 2 fix pass:
 //   • Moves header, Online pending invites, and foreground invite toasts onto
@@ -1856,7 +1856,12 @@ import React, { useEffect, useState } from 'react';
 //   • Adds the getQuestions function manifest, removes stale 1-6 Question
 //     category schema caps, and makes gameplay v2 projection diagnostics
 //     return with live active Category rows before any final cap.
-const BUILD_MARKER = 'Codex340';
+//
+// Codex341 — hardcoded email security cleanup:
+//   • Removes committed diagnostic/support email literals, gates Solo query
+//     diagnostics through AdminUser/request-env targeting with generic masking,
+//     and sources public support contact from VITE_KRONOX_SUPPORT_EMAIL.
+const BUILD_MARKER = 'Codex341';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

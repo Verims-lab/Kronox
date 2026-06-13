@@ -17,6 +17,11 @@ import gameInviteSelectorsSource from '../../lib/gameInviteSelectors.js?raw';
 import adminAuthSource from '../../../base44/functions/_shared/adminAuth.ts?raw';
 import sendGameInvitePushSource from '../../../base44/functions/sendGameInvitePush/entry.ts?raw';
 import resetTestAccountProgressSource from '../../../base44/functions/resetTestAccountProgress/entry.ts?raw';
+import diagnoseSoloQuestionStartQuerySource from '../../../base44/functions/diagnoseSoloQuestionStartQuery/entry.ts?raw';
+import diagnoseSoloQuestionStartQueryScriptSource from '../../../scripts/diagnoseSoloQuestionStartQuery.mjs?raw';
+import accountDeletionPageSource from '../../pages/AccountDeletionPage.jsx?raw';
+import privacyPolicySource from '../../pages/PrivacyPolicy.jsx?raw';
+import publicContactConfigSource from '../../lib/publicContactConfig.js?raw';
 import generateTechDocSource from '../../../base44/functions/generateTechDoc/entry.ts?raw';
 import generateWorkflowDocSource from '../../../base44/functions/generateWorkflowDoc/entry.ts?raw';
 import seedQuestionCategoriesSource from '../../../base44/functions/seedQuestionCategories/entry.ts?raw';
@@ -46,6 +51,11 @@ const LIVE_SOURCES = [
   adminAuthSource,
   sendGameInvitePushSource,
   resetTestAccountProgressSource,
+  diagnoseSoloQuestionStartQuerySource,
+  diagnoseSoloQuestionStartQueryScriptSource,
+  accountDeletionPageSource,
+  privacyPolicySource,
+  publicContactConfigSource,
   generateTechDocSource,
   generateWorkflowDocSource,
   seedQuestionCategoriesSource,
@@ -389,6 +399,49 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('No personal admin email or legacy admin-email constant appears in active source.', {
+        verification: 'STATIC_CONTRACT',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('diagnostic_and_public_contact_emails_not_hardcoded',
+    'Diagnostics and public contact pages avoid committed email literals',
+    () => {
+      const combined = [
+        diagnoseSoloQuestionStartQuerySource,
+        diagnoseSoloQuestionStartQueryScriptSource,
+        accountDeletionPageSource,
+        privacyPolicySource,
+        publicContactConfigSource,
+      ].join('\n');
+      const personalEmail = [['sari', 'verim'].join(''), 'gmail.com'].join('@');
+      const supportEmail = ['support', 'kronoxgame.com'].join('@');
+      const required = [
+        'VITE_KRONOX_SUPPORT_EMAIL',
+        'getPublicSupportEmail',
+        'buildPublicSupportMailto',
+        'SOLO_DIAGNOSTIC_REQUESTED_EMAIL',
+        'requestedUserEmailMasked',
+        'requireAdmin(base44)',
+      ];
+      const forbidden = presentTokens(combined, [
+        personalEmail,
+        supportEmail,
+        'SOLO_QUESTION_RUNTIME_DEBUG_TARGET_EMAIL',
+        'OWNER_EMAIL',
+        'const SUPPORT_EMAIL =',
+      ]);
+      const missing = missingTokens(combined, required);
+      if (missing.length || forbidden.length) {
+        return fail('Diagnostics or public pages still expose committed email literals.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'AdminUser-backed diagnostics with generic masking and public support email supplied by VITE_KRONOX_SUPPORT_EMAIL',
+          actual: { missing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Diagnostics use AdminUser/request-env targeting with generic masking, and public contact email comes from deployment config.', {
         verification: 'STATIC_CONTRACT',
         actionType: ACTION_TYPES.CODE_FIX,
       });

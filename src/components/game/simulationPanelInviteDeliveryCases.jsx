@@ -64,9 +64,9 @@ export const EXTRA_TESTS = [
     'normalizeEmail trims whitespace and lowercases both sides',
     () => {
       const samples = [
-        ['  Barbarosyasar@gmail.com ', 'barbarosyasar@gmail.com'],
-        ['BARBAROSNYC@GMAIL.COM',       'barbarosnyc@gmail.com'],
-        ['barbarosnyc@gmail.com',       'barbarosnyc@gmail.com'],
+        ['  Example.User@Example.COM ', 'example.user@example.com'],
+        ['INVITE.TEST@EXAMPLE.COM',     'invite.test@example.com'],
+        ['invite.test@example.com',     'invite.test@example.com'],
         ['',                            ''],
         [null,                          ''],
         [undefined,                     ''],
@@ -116,7 +116,7 @@ export const EXTRA_TESTS = [
   makeCase('invite_delivery', 'invite_email_validation_case_insensitive',
     'isValidEmail accepts mixed-case inputs and rejects empty/garbage values',
     () => {
-      const ok = ['Barbarosyasar@gmail.com', 'BARBAROSNYC@GMAIL.COM', 'a@b.co'];
+      const ok = ['Example.User@Example.COM', 'INVITE.TEST@EXAMPLE.COM', 'a@b.co'];
       const bad = ['', '  ', 'not-an-email', 'a@b', '@b.co'];
       const errors = [
         ...ok.filter((v) => !isValidEmail(v)).map((v) => ({ value: v, expected: true, got: false })),

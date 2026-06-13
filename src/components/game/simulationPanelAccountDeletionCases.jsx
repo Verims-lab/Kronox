@@ -275,7 +275,9 @@ export const EXTRA_TESTS = [
         'Delete Your Kronox Account',
         'Profile',
         'Hesabı Sil',
-        'support@kronoxgame.com',
+        'getPublicSupportEmail',
+        'buildPublicSupportMailto',
+        'configured Kronox support contact',
         'associated user data will be deleted',
       ]);
       if (missing.length) {
@@ -285,7 +287,7 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      return pass('Public account deletion page accurately points users to the in-app Hesabı Sil flow and support email fallback.', {
+      return pass('Public account deletion page accurately points users to the in-app Hesabı Sil flow and configured support-contact fallback.', {
         verification: 'STATIC_CONTRACT',
       });
     },
