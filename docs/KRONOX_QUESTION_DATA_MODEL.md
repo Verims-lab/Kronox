@@ -42,6 +42,12 @@ Rules:
 * `/getQuestions` admin/Health diagnostics should expose the safe funnel:
   fetched active rows, normalized eligible rows, returned runtime projection,
   category/subcategory/year-band distributions, projection limit, and seed
+* `/getQuestions` gameplay v2 requests (`mode=gameplay_runtime`,
+  `projectionVersion=per_category_projection_v2`,
+  `requireCategoryCoverage=true`) must return safe projection diagnostics by
+  default: requested/effective limit, active Category source/ids, per-category
+  fetch/playable counts, zero-playable categories, fallback state, and
+  `projectionCappedBeforeCategoryCoverage: false`
 * raw/admin metadata must not be returned to normal gameplay
 
 ---
@@ -133,6 +139,9 @@ Rules:
 * do not remove runtime `year` compatibility until gameplay is intentionally migrated
 * do not re-add stored legacy `year` field without product/data decision
 * invalid, missing, null, non-numeric, or approximate year values must be excluded from playable timeline decks
+* `main_category_id`, `second_category_id`, and `third_category_id` accept any
+  positive live `Category.category_id`; the entity schema must not cap them to
+  the original 1-6 seed IDs
 * runtime projection should include only minimal fields needed for gameplay
 * runtime projection may include `sub_category` and `tag` only as gameplay-balance metadata, not as public full-bank exposure
 * private `QuestionAttemptEvent` analytics may store question id, answer year,

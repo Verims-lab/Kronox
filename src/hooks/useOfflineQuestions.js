@@ -85,6 +85,7 @@ function buildQuestionFetchDebugSnapshot({
   cacheHit = false,
   cacheInfo = null,
   responseData = null,
+  requestPayload = null,
   questions = [],
   activeCategoryIds = [],
   fallbackReason = null,
@@ -104,7 +105,10 @@ function buildQuestionFetchDebugSnapshot({
     activeCategorySource: responseData?.activeCategorySource || responseData?.projectionDiagnostics?.activeCategorySource || null,
     queryEntity: 'base44.functions.invoke',
     queryFunction: 'getQuestions',
-    queryPayload: buildGameplayQuestionRequestPayload({ includeDiagnostics: Boolean(responseData?.projectionDiagnostics) }),
+    queryPayload: requestPayload || buildGameplayQuestionRequestPayload({ includeDiagnostics: Boolean(responseData?.projectionDiagnostics) }),
+    projectionVersion: responseData?.projectionVersion || responseData?.projectionDiagnostics?.projectionVersion || null,
+    requestedLimit: responseData?.requestedLimit ?? responseData?.projectionDiagnostics?.requestedLimit ?? null,
+    effectiveLimit: responseData?.effectiveLimit ?? responseData?.projectionDiagnostics?.effectiveLimit ?? responseData?.limit ?? null,
     queryOrder: responseData?.projectionDiagnostics?.queryOrderUsed || null,
     queryLimit: responseData?.projectionDiagnostics?.queryLimitUsed ?? responseData?.limit ?? null,
     rawFetchedCount: responseData?.projectionDiagnostics?.fetchedActiveTotal ?? responseData?.count ?? normalizedQuestions.length,
@@ -169,6 +173,7 @@ export function useOfflineQuestions({ debugEnabled = false } = {}) {
     let networkReturned = false;
     let responseData = null;
     let diagnosticsFallbackError = null;
+    let requestPayload = buildGameplayQuestionRequestPayload({ includeDiagnostics });
 
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
       try {
@@ -176,12 +181,14 @@ export function useOfflineQuestions({ debugEnabled = false } = {}) {
         // minimal projection. Direct Question.list fallback remains removed
         // so guests never receive the raw question bank.
         let res;
+        requestPayload = buildGameplayQuestionRequestPayload({ includeDiagnostics });
         try {
-          res = await base44.functions.invoke('getQuestions', buildGameplayQuestionRequestPayload({ includeDiagnostics }));
+          res = await base44.functions.invoke('getQuestions', requestPayload);
         } catch (diagnosticError) {
           if (!includeDiagnostics) throw diagnosticError;
           diagnosticsFallbackError = diagnosticError?.message || String(diagnosticError);
-          res = await base44.functions.invoke('getQuestions', buildGameplayQuestionRequestPayload());
+          requestPayload = buildGameplayQuestionRequestPayload();
+          res = await base44.functions.invoke('getQuestions', requestPayload);
         }
         networkReturned = true;
         responseData = res.data || null;
@@ -211,6 +218,7 @@ export function useOfflineQuestions({ debugEnabled = false } = {}) {
           cacheHit: false,
           cacheInfo: getCacheInfo(),
           responseData,
+          requestPayload,
           questions: runtimeQuestions,
           activeCategoryIds: activeIds,
           diagnosticsFallbackError,

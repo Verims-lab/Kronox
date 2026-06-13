@@ -24,6 +24,8 @@
 //     runtime step — represented here as a NOT_AUTOMATABLE case.
 
 import deployedReportSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts?raw';
+import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
+import getQuestionsManifestSource from '../../../base44/functions/getQuestions/function.jsonc?raw';
 import purchaseJokerWithDiamondsSource from '../../../base44/functions/purchaseJokerWithDiamonds/entry.ts?raw';
 import purchaseJokerWithDiamondsManifestSource from '../../../base44/functions/purchaseJokerWithDiamonds/function.jsonc?raw';
 import createDailyQuestDefinitionSource from '../../../base44/functions/createDailyQuestDefinition/entry.ts?raw';
@@ -311,6 +313,40 @@ export const EXTRA_TESTS = [
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actual: { invoked: Array.from(invoked) },
+      });
+    }),
+
+  makeCase('get_questions_backend_function_deployable_contract',
+    'getQuestions backend function is registered and deployable with the v2 projection contract',
+    () => {
+      const missing = missingTokens(`${getQuestionsSource}\n${getQuestionsManifestSource}\n${questionGatewaySource}`, [
+        '"name": "getQuestions"',
+        '"entry": "entry.ts"',
+        "base44.functions.invoke('getQuestions'",
+        'GET_QUESTIONS_RUNTIME_CONTRACT_VERSION',
+        'getQuestions-per-category-v2-Codex340',
+        "GAMEPLAY_PROJECTION_VERSION = 'per_category_projection_v2'",
+        'projectionDiagnostics',
+        'fallbackUsed',
+        'categoriesWithZeroPlayableQuestions',
+      ]);
+      const forbidden = forbiddenTokens(getQuestionsSource, [
+        'MAX_GAMEPLAY_LIMIT = 500',
+        'const KNOWN_CATEGORY_IDS = [1, 2, 3, 4, 5, 6]',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('getQuestions is not clearly registered/deployable with the live active-category v2 projection contract.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          files: ['base44/functions/getQuestions/entry.ts', 'base44/functions/getQuestions/function.jsonc', 'src/lib/dbGateway/questionGateway.js'],
+          expected: 'callable getQuestions manifest plus v2 per-category projection diagnostics and no stale 1-6/500 cap',
+          actual: { missing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('getQuestions is registered with a callable manifest and carries the v2 active-category projection contract.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
       });
     }),
 

@@ -282,12 +282,12 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'base44/functions/getQuestions/entry.ts',
-          expected: 'guest-safe minimal playable projection, with admin/full-bank/diagnostics still AdminUser-protected',
+          expected: 'guest-safe minimal playable projection, with admin/full-bank diagnostics guarded and gameplay v2 safe diagnostics available',
           actual: { missing, forbidden },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('getQuestions serves the public-safe minimal playable projection for guests while admin diagnostics remain AdminUser-protected.', {
+      return pass('getQuestions serves the public-safe minimal playable projection for guests while admin/full-bank diagnostics remain AdminUser-protected.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });
@@ -299,7 +299,7 @@ export const EXTRA_TESTS = [
       const required = [
         'normalizeQuestionForRuntime',
         'isActiveQuestion',
-        "state === 'A'",
+        'QUESTION_ACTIVE_STATUS_VALUES',
         'activeCategoryIds',
         'main_category_id',
         'sub_category:',
@@ -333,8 +333,10 @@ export const EXTRA_TESTS = [
     () => {
       const required = [
         'PROJECTION_SAMPLING_STRATEGY',
-        'pool_proportional_category_subcategory_daily_sample_v1',
-        'MAX_GAMEPLAY_LIMIT = 900',
+        'pool_proportional_category_subcategory_per_category_fetch_v2',
+        'MAX_GAMEPLAY_LIMIT = 1200',
+        "GAMEPLAY_PROJECTION_VERSION = 'per_category_projection_v2'",
+        'isGameplayRuntimeProjectionRequest',
         'QUESTION_FETCH_PER_CATEGORY_LIMIT = 1000',
         'buildPoolProportionalProjection',
         'allocateProportionalSlots',
@@ -343,6 +345,7 @@ export const EXTRA_TESTS = [
         'getProjectionSeed',
         'utc-day:',
         'projectionDiagnostics',
+        'wantsGameplayProjection',
         'poolProportional: true',
         'equalCategoryCounts: false',
         'finalProjectionShuffled: true',
@@ -364,7 +367,7 @@ export const EXTRA_TESTS = [
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('getQuestions uses deterministic pool-proportional sampling and admin-only diagnostics before returning the minimal projection.', {
+      return pass('getQuestions uses deterministic pool-proportional sampling and safe v2 diagnostics before returning the minimal projection.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });
@@ -427,7 +430,16 @@ export const EXTRA_TESTS = [
         'returnedTopSubCategories',
         'returnedByEraBand',
         'projectionLimit',
+        'projectionVersion',
+        'requestedLimit',
+        'effectiveLimit',
         'projectionSeed',
+        'perCategoryFetchCounts',
+        'perCategoryPlayableCounts',
+        'categoriesWithZeroPlayableQuestions',
+        'fallbackUsed',
+        'fallbackReason',
+        'projectionCappedBeforeCategoryCoverage',
         'finalProjectionShuffled: true',
         'poolProportional: true',
         'equalCategoryCounts: false',
@@ -440,7 +452,7 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'base44/functions/getQuestions/entry.ts',
-          expected: 'admin-only diagnostics for fetched active, normalized eligible, returned projection, category/subcategory/year-band distributions',
+          expected: 'safe v2 diagnostics for fetched active, normalized eligible, returned projection, category/subcategory/year-band distributions, and zero-playable category reasons',
           actual: { missing },
           actionType: ACTION_TYPES.CODE_FIX,
         });

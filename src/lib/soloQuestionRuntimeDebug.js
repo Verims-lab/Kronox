@@ -250,6 +250,9 @@ export function buildSoloQuestionRuntimeDebugPayload({
         'buildSoloAttemptDeck active category whitelist',
       ],
       sortOrLimit: {
+        projectionVersion: diagnostics?.projectionVersion || questionLoadDebugSnapshot?.projectionVersion || null,
+        requestedLimit: diagnostics?.requestedLimit ?? questionLoadDebugSnapshot?.requestedLimit ?? null,
+        effectiveLimit: diagnostics?.effectiveLimit ?? questionLoadDebugSnapshot?.effectiveLimit ?? null,
         queryOrderUsed: diagnostics?.queryOrderUsed || questionLoadDebugSnapshot?.queryOrder || 'getQuestions deployed function order',
         queryLimitUsed: diagnostics?.queryLimitUsed ?? questionLoadDebugSnapshot?.queryLimit ?? null,
         projectionLimit: diagnostics?.projectionLimit ?? questionLoadDebugSnapshot?.limit ?? null,
@@ -270,6 +273,11 @@ export function buildSoloQuestionRuntimeDebugPayload({
       },
     },
     activeCategorySource: diagnostics?.activeCategorySource || questionLoadDebugSnapshot?.activeCategorySource || 'runtime_activeCategoryIds',
+    backendProjectionVersion: diagnostics?.projectionVersion || questionLoadDebugSnapshot?.projectionVersion || null,
+    backendRequestedLimit: diagnostics?.requestedLimit ?? questionLoadDebugSnapshot?.requestedLimit ?? null,
+    backendEffectiveLimit: diagnostics?.effectiveLimit ?? questionLoadDebugSnapshot?.effectiveLimit ?? null,
+    backendFallbackUsed: diagnostics?.fallbackUsed ?? null,
+    backendFallbackReason: diagnostics?.fallbackReason ?? null,
     activeCategoryRowsById,
     activeCategoryIdsFromGetQuestions: projectionActiveCategoryIds,
     activeCategoryIdsFromSoloRuntime: runtimeActiveCategoryIds,
@@ -278,6 +286,8 @@ export function buildSoloQuestionRuntimeDebugPayload({
     preferenceCategoryIdsValidAfterCategoryIntersection: preferenceValidAfterIntersection,
     preferenceCategoryIdsRejectedWithReason: soloCategoryPreferenceState?.preferenceCategoryIdsRejectedWithReason || [],
     perCategoryQuestionFetchCounts: diagnostics?.perCategoryQuestionFetchCounts || questionLoadDebugSnapshot?.rawFetchedCountsByCategory || activePoolCounts,
+    perCategoryPlayableCounts: diagnostics?.perCategoryPlayableCounts || questionLoadDebugSnapshot?.activeFilteredCountsByCategory || activePoolCounts,
+    categoriesWithZeroPlayableQuestions: diagnostics?.categoriesWithZeroPlayableQuestions || [],
     projectionCappedBeforeCategoryCoverage: diagnostics?.projectionCappedBeforeCategoryCoverage
       ?? questionLoadDebugSnapshot?.projectionCappedBeforeCategoryCoverage
       ?? false,
@@ -328,7 +338,7 @@ export function buildSoloQuestionRuntimeDebugPayload({
     },
     notes: [
       'This payload is assembled from the real Solo runtime fetch/deck path, not a separate diagnostic query.',
-      diagnostics ? 'getQuestions projectionDiagnostics were included.' : 'No admin projectionDiagnostics were present; counts are derived from the runtime returned projection.',
+      diagnostics ? 'getQuestions projectionDiagnostics were included.' : 'No getQuestions projectionDiagnostics were present; counts are derived from the runtime returned projection.',
       'No service token, env secret, auth header, or other user data is included.',
     ],
   };
