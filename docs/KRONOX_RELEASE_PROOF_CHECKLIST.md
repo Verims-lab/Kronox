@@ -916,6 +916,15 @@ Checklist:
 * Question Analytics report handles stale/deleted question IDs, unknown
   categories, section-level render failures, and empty analytics state without
   truncating the email; large sections remain capped.
+* Solo category-distribution investigations use the Admin Ekranı
+  `Solo Soru Motoru Query Diagnostiği` tool before another blind engine change.
+  The read-only diagnostic must include `sariverim@gmail.com`, up to 10 users
+  with active category preferences, the real `getQuestions`-compatible
+  `Question.filter` query descriptor, cache key/version, per-category
+  active/Solo-eligible/difficulty-1 counts, frontend `buildSoloAttemptDeck`
+  dry-run output, and category 6/7/8/9/11 presence/removal reasons. Copy the
+  JSON output into the release/audit thread; do not treat frontend build proof
+  as live post-deploy analytics proof.
 * `cleanupAdminMaintenanceLog` dry-run archives by retention marker only and
   does not hard delete.
 * Admin-only maintenance functions return 401 unauthenticated and 403 for

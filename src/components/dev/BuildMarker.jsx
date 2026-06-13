@@ -1802,7 +1802,17 @@ import React, { useEffect, useState } from 'react';
 //     like "cat:6" and "category:6" before computing missing-category arrays.
 //   • Runtime Solo selection remains unchanged; this removes contradictory
 //     Health diagnostics when the product candidate pools already include IDs.
-const BUILD_MARKER = 'Codex331';
+//
+// Codex332 — Solo real query diagnostic:
+//   • Adds an AdminUser-gated, read-only diagnoseSoloQuestionStartQuery
+//     function that snapshots the fresh getQuestions-compatible per-category
+//     Question query for the owner account and up to 10 users with active
+//     category preferences.
+//   • Admin Ekranı now renders a copyable "Solo Soru Motoru Query Diagnostiği"
+//     JSON tool that enriches the backend query snapshot with the real frontend
+//     buildSoloAttemptDeck dry-run result, including category 6/7/8/9/11
+//     presence/removal proof.
+const BUILD_MARKER = 'Codex332';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
