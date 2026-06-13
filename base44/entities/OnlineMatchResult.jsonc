@@ -86,9 +86,8 @@
   ],
   "rls": {
     "create": {
-      "user_condition": {
-        "role": "admin"
-      }
+      "data.player_email": "{{user.email}}",
+      "created_by_id": "{{user.id}}"
     },
     "read": {
       "$or": [
