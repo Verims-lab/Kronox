@@ -1933,7 +1933,13 @@ import React, { useEffect, useState } from 'react';
 //     review.
 //   • Adds a parser-backed Health guard for FriendRequest sender/recipient/admin
 //     read/update/delete RLS, including the delete branch.
-const BUILD_MARKER = 'Codex354';
+//
+// Codex355 — Health manual proof cleanup and Solo debug gate:
+//   • Keeps manual-only Health verification visible but removes it from real
+//     blocker counts and Copy Blocker JSON.
+//   • Hides Solo Query Debug during normal gameplay unless admin/owner also
+//     supplies the explicit soloDebug flag.
+const BUILD_MARKER = 'Codex355';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

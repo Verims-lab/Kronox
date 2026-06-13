@@ -41,7 +41,7 @@ export default function SoloQuestionDebugPanel({ payload }) {
           {open ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
           Solo Query Debug
           <span className="rounded-full border border-cyan-300/30 px-2 py-0.5 text-[11px] font-medium text-cyan-200/80">
-            admin/owner
+            admin/owner + flag
           </span>
         </button>
         <div className="flex items-center gap-2">

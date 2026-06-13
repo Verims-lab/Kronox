@@ -56,6 +56,8 @@ import gameLayoutSource from './GameLayout.jsx?raw';
 import indexCssSource from '../../index.css?raw';
 import questionCardSource from './QuestionCard.jsx?raw';
 import simulationPanelSource from './SimulationPanel.jsx?raw';
+import simulationCasesSource from './health/simulationCases.jsx?raw';
+import simulationReportBuilderSource from './health/simulationReportBuilder.jsx?raw';
 import timelineSource from './Timeline.jsx?raw';
 import useLobbySyncSource from '../../hooks/useLobbySync.js?raw';
 import buildMarkerSource from '../dev/BuildMarker.jsx?raw';
@@ -1118,11 +1120,11 @@ export const EXTRA_TESTS = [
     simulationPanelSource,
     ['FAIL', 'NOT_AUTOMATABLE', '0 FAIL'],
     { actionType: ACTION_TYPES.CODE_FIX }),
-  sourceHas('research_test_strategy', 'critical_unknowns_remain_blockers',
-    'Critical NOT_AUTOMATABLE remains a release blocker',
-    'ReleaseReadinessExplainer / SimulationPanel',
-    simulationPanelSource,
-    ['critical NOT_AUTOMATABLE', 'zero_fail_with_critical_not_automatable_is_not_release_ready'],
+  sourceHas('research_test_strategy', 'critical_unknowns_remain_manual_proof',
+    'Critical NOT_AUTOMATABLE remains visible as manual proof, not blocker copy',
+    'ReleaseReadinessExplainer / SimulationPanel / simulationReportBuilder',
+    `${simulationPanelSource}\n${simulationCasesSource}\n${simulationReportBuilderSource}`,
+    ['manual_required_not_top_blocker', 'manual-only verification'],
     { actionType: ACTION_TYPES.CODE_FIX }),
   staticInfoCase('research_test_strategy', 'manual_checks_not_passed',
     'Manual checks are not counted as PASS',
@@ -2509,8 +2511,8 @@ export const EXTRA_TESTS = [
 // ---------------------------------------------------------------------------
 //  Optional additive scoring hook used by SimulationPanel.
 //  Adds a small extra penalty when critical social/security suites have any
-//  BLOCKED or NOT_AUTOMATABLE case — they are real release risk and should
-//  not silently pass through.
+//  BLOCKED or NOT_AUTOMATABLE case. These remain release-proof risks, but
+//  manual-only NOT_AUTOMATABLE cases are not copied/counts as code blockers.
 // ---------------------------------------------------------------------------
 const CRITICAL_SOCIAL_SUITE_IDS = new Set([
   'profile_navigation',

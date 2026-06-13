@@ -44,8 +44,8 @@ Checklist:
   device gestures, push delivery, final IPA icon state, or Play Console wrapper
   quality.
 * Health `Copy Blocker JSON` is intentionally blocker-only: it should include
-  FAIL/BLOCKER/CRITICAL/manual release blockers and summary counts, not the full
-  raw PASS payload.
+  real FAIL/BLOCKER/CRITICAL code/security/static failures and summary counts,
+  not manual-only verification reminders or the full raw PASS payload.
 
 ---
 

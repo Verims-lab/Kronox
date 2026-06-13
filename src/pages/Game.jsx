@@ -195,7 +195,8 @@ export default function Game() {
     authUser,
     adminStatus,
   }), [currentUser, authUser, adminStatus]);
-  const soloQuestionDebugEnabled = isSoloLevelMode && soloQuestionDebugAllowed;
+  const soloQuestionDebugFlagEnabled = routeSearch.get('soloDebug') === '1';
+  const soloQuestionDebugEnabled = isSoloLevelMode && soloQuestionDebugAllowed && soloQuestionDebugFlagEnabled;
   // Codex084 — boundaryError + diagVisible must live at top-level so they
   // share render position with every early-return gate. Previously placed
   // mid-component AFTER several `if (...) return ...` paths, which violated

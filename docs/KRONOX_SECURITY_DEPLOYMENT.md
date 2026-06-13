@@ -768,5 +768,6 @@ Rules:
   deploy-risk `_shared` imports, committed email literals, and missing
   `getQuestions` runtime marker/projection diagnostics before manual Save &
   Deploy.
-* Health `Copy Blocker JSON` should export blocker/failing/manual-critical
-  items and summary counts only, not the full raw PASS payload
+* Health `Copy Blocker JSON` should export real blocker/failing/static-critical
+  items and summary counts only, not manual-only proof reminders or the full raw
+  PASS payload

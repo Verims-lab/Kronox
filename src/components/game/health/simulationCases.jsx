@@ -503,19 +503,21 @@ export const TESTS = [
     ], SUITES);
     const copyPayload = buildBlockerCopyJson(report);
     const serialized = JSON.stringify(copyPayload);
-    const hasOnlyRelevantShape = copyPayload?.summary?.blockerCount === 2
+    const hasOnlyRelevantShape = copyPayload?.summary?.blockerCount === 1
+      && copyPayload?.summary?.manualRequiredCount === 1
       && Array.isArray(copyPayload.blockers)
       && copyPayload.blockers.some(item => item.caseId.includes('sample_fail'))
-      && copyPayload.blockers.some(item => item.caseId.includes('manual_drag'))
+      && !copyPayload.blockers.some(item => item.caseId.includes('manual_drag'))
       && !serialized.includes('sample pass')
       && !serialized.includes('sample warning')
+      && !serialized.includes('manual proof needed')
       && !serialized.includes('secret-token-value')
       && !serialized.includes('raw-auth-token')
       && !serialized.includes('nested-auth-token')
       && !Object.prototype.hasOwnProperty.call(copyPayload, 'cases')
       && !Object.prototype.hasOwnProperty.call(copyPayload, 'suites');
     return hasOnlyRelevantShape
-      ? pass('Copy JSON is blocker-only and omits PASS/WARNING/full report payload.', { actual: copyPayload.summary })
+      ? pass('Copy JSON is blocker-only and omits PASS/WARNING/manual-only/full report payload.', { actual: copyPayload.summary })
       : fail('Copy JSON may still include full Health payload or non-blocker cases.', { actual: copyPayload });
   }),
   makeCase('report_integrity', 'score_changes_on_failures', 'release score changes when failures are injected', () => {
@@ -592,12 +594,23 @@ export const TESTS = [
   }),
   makeCase('report_integrity', 'top_blockers_have_action_metadata', 'Top blockers include action type and next step', () => {
     const report = buildReport([
-      { suiteId: 'mobile_gesture_risk', suiteName: 'Mobile Gesture Risk Suite', id: 'drag', name: 'drag', status: STATUS.NOT_AUTOMATABLE, reason: 'sample', durationMs: 0, critical: true },
+      { suiteId: 'report_integrity', suiteName: 'Report Integrity Suite', id: 'static_contract_fail', name: 'static contract fail', status: STATUS.FAIL, reason: 'sample', durationMs: 0, critical: true },
     ], SUITES);
     const blocker = report.topBlockers[0];
     return blocker?.actionType && blocker?.nextStep
       ? pass('Top blocker includes action metadata.', { actual: { actionType: blocker.actionType, nextStep: blocker.nextStep } })
       : fail('Top blocker action metadata missing.', { actual: blocker });
+  }),
+  makeCase('report_integrity', 'manual_required_not_top_blocker', 'Manual-only verification does not inflate top blockers', () => {
+    const report = buildReport([
+      { suiteId: 'mobile_gesture_risk', suiteName: 'Mobile Gesture Risk Suite', id: 'drag', name: 'drag', status: STATUS.NOT_AUTOMATABLE, reason: 'manual device proof', durationMs: 0, critical: true },
+    ], SUITES);
+    return report.topBlockers.length === 0 &&
+      report.blockerSummary?.blockerCount === 0 &&
+      report.blockerSummary?.manualRequiredCount === 1 &&
+      report.manualVerificationNeeded?.length === 1
+      ? pass('Manual-only verification is tracked separately from blocker count.', { actual: report.blockerSummary })
+      : fail('Manual-only verification still appears as a blocker.', { actual: { topBlockers: report.topBlockers, blockerSummary: report.blockerSummary } });
   }),
   makeCase('report_integrity', 'manual_verification_sections_exist', 'Manual verification sections exist in JSON report', () => {
     const report = buildReport([
