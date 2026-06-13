@@ -2,11 +2,12 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 import { isAuthorizedAdmin } from '../_shared/adminAuth.ts';
 
 const FALLBACK_ACTIVE_CATEGORY_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 11];
-const MAX_GAMEPLAY_LIMIT = 900;
+const MAX_GAMEPLAY_LIMIT = 1200;
 const QUESTION_FETCH_PER_CATEGORY_LIMIT = 1000;
-const PROJECTION_SAMPLING_STRATEGY = 'pool_proportional_category_subcategory_daily_sample_v1';
+const PROJECTION_SAMPLING_STRATEGY = 'pool_proportional_category_subcategory_per_category_fetch_v2';
 const DIAGNOSTIC_TOP_LIMIT = 12;
 const CATEGORY_ACTIVE_STATUS_VALUES = new Set(['', 'a', 'active', 'aktif']);
+const QUESTION_ACTIVE_STATUS_VALUES = new Set(['', 'a', 'active', 'aktif']);
 
 const ONLINE_ID_TO_MAIN_CATEGORY_ID: Record<string, number> = {
   chronicle: 1,
@@ -86,8 +87,8 @@ function isActiveCategory(row: any) {
 }
 
 function isActiveQuestion(row: any) {
-  const state = String(row?.state ?? 'A').trim().toUpperCase();
-  return state === 'A';
+  const state = String(row?.state ?? row?.status ?? 'A').trim().toLowerCase();
+  return QUESTION_ACTIVE_STATUS_VALUES.has(state);
 }
 
 function normalizeRequestedMainCategoryIds(body: any) {
@@ -158,19 +159,75 @@ function dedupeQuestions(rows: any[] = []) {
   return out;
 }
 
+function buildQuestionCategoryFetchDescriptors(categoryId: number) {
+  const idText = String(categoryId);
+  return [
+    { label: 'main_category_id_number_state_A', filters: { main_category_id: categoryId, state: 'A' } },
+    { label: 'main_category_id_string_state_A', filters: { main_category_id: idText, state: 'A' } },
+    { label: 'category_id_number_state_A', filters: { category_id: categoryId, state: 'A' } },
+    { label: 'category_id_string_state_A', filters: { category_id: idText, state: 'A' } },
+  ];
+}
+
+function buildQuestionCategoryFallbackFetchDescriptors(categoryId: number) {
+  const idText = String(categoryId);
+  return [
+    { label: 'main_category_id_number_no_state_fallback', filters: { main_category_id: categoryId } },
+    { label: 'main_category_id_string_no_state_fallback', filters: { main_category_id: idText } },
+    { label: 'category_id_number_no_state_fallback', filters: { category_id: categoryId } },
+    { label: 'category_id_string_no_state_fallback', filters: { category_id: idText } },
+  ];
+}
+
+async function fetchQuestionRowsForCategory(base44: any, categoryId: number, perCategoryLimit: number) {
+  const rows: any[] = [];
+  const descriptorCounts: Record<string, number> = {};
+  let usedFallback = false;
+
+  for (const descriptor of buildQuestionCategoryFetchDescriptors(categoryId)) {
+    const batch = await base44.asServiceRole.entities.Question
+      .filter(descriptor.filters, '-created_date', perCategoryLimit)
+      .catch(() => []);
+    descriptorCounts[descriptor.label] = Array.isArray(batch) ? batch.length : 0;
+    if (Array.isArray(batch) && batch.length > 0) rows.push(...batch);
+  }
+
+  if (rows.length === 0) {
+    usedFallback = true;
+    for (const descriptor of buildQuestionCategoryFallbackFetchDescriptors(categoryId)) {
+      const batch = await base44.asServiceRole.entities.Question
+        .filter(descriptor.filters, '-created_date', perCategoryLimit)
+        .catch(() => []);
+      descriptorCounts[descriptor.label] = Array.isArray(batch) ? batch.length : 0;
+      if (Array.isArray(batch) && batch.length > 0) rows.push(...batch);
+    }
+  }
+
+  return {
+    rows: dedupeQuestions(rows),
+    descriptorCounts,
+    usedFallback,
+  };
+}
+
 async function loadActiveQuestionCandidates(base44: any, categoryIds: number[], perCategoryLimit = QUESTION_FETCH_PER_CATEGORY_LIMIT) {
   const batches: any[] = [];
   const fetchedByCategory: Record<string, number> = {};
+  const fetchDescriptorsByCategory: Record<string, Record<string, number>> = {};
+  const fallbackFetchCategories: number[] = [];
   for (const categoryId of categoryIds) {
-    const activeRows = await base44.asServiceRole.entities.Question
-      .filter({ main_category_id: categoryId, state: 'A' }, '-created_date', perCategoryLimit)
-      .catch(() => []);
+    const result = await fetchQuestionRowsForCategory(base44, categoryId, perCategoryLimit);
+    const activeRows = result.rows.filter(isActiveQuestion);
     fetchedByCategory[String(categoryId)] = Array.isArray(activeRows) ? activeRows.length : 0;
+    fetchDescriptorsByCategory[String(categoryId)] = result.descriptorCounts;
+    if (result.usedFallback) fallbackFetchCategories.push(categoryId);
     if (Array.isArray(activeRows) && activeRows.length > 0) batches.push(...activeRows);
   }
   return {
     rows: dedupeQuestions(batches),
     fetchedByCategory,
+    fetchDescriptorsByCategory,
+    fallbackFetchCategories,
   };
 }
 
@@ -400,34 +457,67 @@ function buildProjectionDiagnostics({
   normalizedRows,
   projectedRows,
   fetchedByCategory,
+  fetchDescriptorsByCategory,
+  fallbackFetchCategories,
   categorySlots,
   limit,
   seed,
   activeCategoryIds,
+  activeCategoryRows,
+  activeCategorySource,
+  requestedCategoryIds,
+  allowedCategoryIds,
 }: {
   fetchedRows: any[];
   normalizedRows: any[];
   projectedRows: any[];
   fetchedByCategory: Record<string, number>;
+  fetchDescriptorsByCategory: Record<string, Record<string, number>>;
+  fallbackFetchCategories: number[];
   categorySlots: Record<string, number>;
   limit: number;
   seed: string;
   activeCategoryIds: number[];
+  activeCategoryRows: any[];
+  activeCategorySource: string;
+  requestedCategoryIds: number[] | null;
+  allowedCategoryIds: number[];
 }) {
+  const activeCategoryRowsById = Object.fromEntries((activeCategoryRows || [])
+    .map((row: any) => {
+      const id = getCategoryId(row);
+      if (!id) return null;
+      return [String(id), {
+        category_id: id,
+        name: row?.name ?? row?.title ?? row?.category_name ?? null,
+        status: row?.status ?? null,
+      }];
+    })
+    .filter(Boolean) as Array<[string, Record<string, unknown>]>);
+
   return {
     strategy: PROJECTION_SAMPLING_STRATEGY,
     projectionSeed: seed,
     projectionLimit: limit,
-    questionFetchPath: 'getQuestions:per_category_question_filter',
+    questionFetchPath: 'getQuestions:per_active_category_question_filter_numeric_string_main_category_category_id',
+    activeCategorySource,
+    activeCategoryRowsById,
+    requestedCategoryIds,
+    allowedCategoryIds,
+    activeCategoryIdsFromGetQuestions: activeCategoryIds,
     wasCappedBeforeBalancing: false,
+    projectionCappedBeforeCategoryCoverage: false,
     queryLimitUsed: QUESTION_FETCH_PER_CATEGORY_LIMIT,
-    queryOrderUsed: '-created_date per active category before pool-proportional projection',
+    queryOrderUsed: '-created_date per active category/query variant before pool-proportional projection',
     fetchedActiveTotal: fetchedRows.length,
     eligibleAfterNormalization: normalizedRows.length,
     returnedTotal: projectedRows.length,
     droppedDuringNormalization: Math.max(0, fetchedRows.length - normalizedRows.length),
     activeCategoryWhitelistSize: activeCategoryIds.length,
     fetchedByCategory,
+    perCategoryQuestionFetchCounts: fetchedByCategory,
+    fetchDescriptorsByCategory,
+    fallbackFetchCategories,
     categorySlots,
     eligibleByCategory: buildDistribution(normalizedRows, getCategoryKey),
     returnedByCategory: buildDistribution(projectedRows, getCategoryKey),
@@ -468,9 +558,15 @@ Deno.serve(async (req) => {
       Math.max(1, Math.floor(Number(body?.limit) || MAX_GAMEPLAY_LIMIT)),
     );
 
-    const categoryRows = await base44.asServiceRole.entities.Category.list('category_id', 50).catch(() => []);
-    const activeIds = (Array.isArray(categoryRows) && categoryRows.length > 0
-      ? categoryRows.filter(isActiveCategory).map(getCategoryId).filter(isKnownCategoryId)
+    const categoryRows = await base44.asServiceRole.entities.Category.list('category_id', 1000).catch(() => []);
+    const activeCategoryRows = Array.isArray(categoryRows)
+      ? categoryRows.filter(isActiveCategory).filter((row: any) => isKnownCategoryId(getCategoryId(row)))
+      : [];
+    const activeCategorySource = activeCategoryRows.length > 0
+      ? 'Category.list(category_id,1000)'
+      : 'fallback_active_category_ids';
+    const activeIds = (activeCategoryRows.length > 0
+      ? activeCategoryRows.map(getCategoryId).filter(isKnownCategoryId)
       : FALLBACK_ACTIVE_CATEGORY_IDS
     );
     const activeMainCategoryIds = new Set(activeIds);
@@ -483,13 +579,16 @@ Deno.serve(async (req) => {
         ok: true,
         questions: [],
         activeCategoryIds: Array.from(activeMainCategoryIds),
+        activeCategorySource,
         source: 'public_minimal_playable_projection',
         reason: 'no_active_requested_categories',
+        projectionCappedBeforeCategoryCoverage: false,
       });
     }
 
     const projectionSeed = getProjectionSeed(body, isAdmin);
-    const { rows: questions, fetchedByCategory } = await loadActiveQuestionCandidates(base44, Array.from(allowedMainCategoryIds));
+    const allowedCategoryIds = Array.from(allowedMainCategoryIds);
+    const { rows: questions, fetchedByCategory, fetchDescriptorsByCategory, fallbackFetchCategories } = await loadActiveQuestionCandidates(base44, allowedCategoryIds);
     const normalizedQuestions = (questions || [])
       .map((question: Record<string, unknown>) => normalizeQuestionForRuntime(question, allowedMainCategoryIds))
       .filter(Boolean);
@@ -500,10 +599,12 @@ Deno.serve(async (req) => {
       ok: true,
       questions: projected,
       activeCategoryIds: Array.from(activeMainCategoryIds),
+      activeCategorySource,
       source: 'public_minimal_playable_projection',
       limit,
       count: projected.length,
       samplingStrategy: PROJECTION_SAMPLING_STRATEGY,
+      projectionCappedBeforeCategoryCoverage: false,
     };
     if (wantsDiagnostics) {
       payload.projectionDiagnostics = buildProjectionDiagnostics({
@@ -511,10 +612,16 @@ Deno.serve(async (req) => {
         normalizedRows: normalizedQuestions,
         projectedRows: projected,
         fetchedByCategory,
+        fetchDescriptorsByCategory,
+        fallbackFetchCategories,
         categorySlots: projection.categorySlots,
         limit,
         seed: projectionSeed,
         activeCategoryIds: Array.from(activeMainCategoryIds),
+        activeCategoryRows,
+        activeCategorySource,
+        requestedCategoryIds: requestedIds ? Array.from(requestedIds) : null,
+        allowedCategoryIds,
       });
     }
     return json(payload);

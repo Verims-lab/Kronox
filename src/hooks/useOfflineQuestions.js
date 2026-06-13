@@ -29,6 +29,8 @@ import {
 
 const QUESTION_FETCH_RETRY_MS = 850;
 const NO_CACHE_NETWORK_ATTEMPTS = 3;
+const GAMEPLAY_QUESTION_PROJECTION_LIMIT = 1200;
+const GAMEPLAY_QUESTION_REQUEST_VERSION = 'per_category_projection_v2';
 
 export const QUESTION_LOAD_ERROR_KIND = {
   NO_ACTIVE_QUESTIONS: 'no_active_questions',
@@ -41,7 +43,18 @@ export const QUESTION_LOAD_CONTRACTS = {
   RETRY_REFETCHES_ONLINE: 'retry_clears_transient_error_and_refetches_online',
   OFFLINE_NO_CACHE_REQUIRES_KNOWN_OFFLINE: 'offline_no_cache_requires_known_offline_and_no_cache',
   GUEST_QUESTION_FETCH_USES_PUBLIC_PROJECTION: 'guest_question_fetch_uses_public_minimal_projection',
+  GAMEPLAY_QUESTION_FETCH_REQUESTS_CATEGORY_COVERAGE: 'gameplay_question_fetch_requests_per_category_projection_v2',
 };
+
+function buildGameplayQuestionRequestPayload({ includeDiagnostics = false } = {}) {
+  return {
+    mode: 'gameplay_runtime',
+    projectionVersion: GAMEPLAY_QUESTION_REQUEST_VERSION,
+    requireCategoryCoverage: true,
+    limit: GAMEPLAY_QUESTION_PROJECTION_LIMIT,
+    ...(includeDiagnostics ? { includeDiagnostics: true } : {}),
+  };
+}
 
 const wait = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
@@ -88,9 +101,10 @@ function buildQuestionFetchDebugSnapshot({
     limit: responseData?.limit ?? null,
     count: responseData?.count ?? normalizedQuestions.length,
     activeCategoryIds,
+    activeCategorySource: responseData?.activeCategorySource || responseData?.projectionDiagnostics?.activeCategorySource || null,
     queryEntity: 'base44.functions.invoke',
     queryFunction: 'getQuestions',
-    queryPayload: responseData?.projectionDiagnostics ? { includeDiagnostics: true } : {},
+    queryPayload: buildGameplayQuestionRequestPayload({ includeDiagnostics: Boolean(responseData?.projectionDiagnostics) }),
     queryOrder: responseData?.projectionDiagnostics?.queryOrderUsed || null,
     queryLimit: responseData?.projectionDiagnostics?.queryLimitUsed ?? responseData?.limit ?? null,
     rawFetchedCount: responseData?.projectionDiagnostics?.fetchedActiveTotal ?? responseData?.count ?? normalizedQuestions.length,
@@ -102,6 +116,7 @@ function buildQuestionFetchDebugSnapshot({
     difficulty1Count: normalizedQuestions.filter((question) => Number(question?.difficulty) === 1).length,
     difficulty1CountsByCategory: countDifficultyOneQuestionsByCategory(normalizedQuestions),
     returnedCountsByCategory: responseData?.projectionDiagnostics?.returnedByCategory || countQuestionsByCategory(normalizedQuestions),
+    projectionCappedBeforeCategoryCoverage: responseData?.projectionCappedBeforeCategoryCoverage ?? responseData?.projectionDiagnostics?.projectionCappedBeforeCategoryCoverage ?? null,
     projectionDiagnostics: responseData?.projectionDiagnostics || null,
     fallbackReason,
     diagnosticsFallbackError,
@@ -162,11 +177,11 @@ export function useOfflineQuestions({ debugEnabled = false } = {}) {
         // so guests never receive the raw question bank.
         let res;
         try {
-          res = await base44.functions.invoke('getQuestions', includeDiagnostics ? { includeDiagnostics: true } : {});
+          res = await base44.functions.invoke('getQuestions', buildGameplayQuestionRequestPayload({ includeDiagnostics }));
         } catch (diagnosticError) {
           if (!includeDiagnostics) throw diagnosticError;
           diagnosticsFallbackError = diagnosticError?.message || String(diagnosticError);
-          res = await base44.functions.invoke('getQuestions', {});
+          res = await base44.functions.invoke('getQuestions', buildGameplayQuestionRequestPayload());
         }
         networkReturned = true;
         responseData = res.data || null;

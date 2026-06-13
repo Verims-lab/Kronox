@@ -174,8 +174,15 @@ P3 adds question analytics without changing question selection:
   backward compatibility), fetch candidates per active category before
   pool-proportional projection, and expose diagnostics showing that projection
   is not capped before category balancing. The local question cache version is
-  `question-runtime-v4-active-category-full-pool` so stale narrow projections
+  `question-runtime-v5-per-category-projection` so stale narrow projections
   are invalidated.
+- Codex338 fix: gameplay fetches now request the v2 per-category projection
+  explicitly instead of relying on an empty default payload. `/getQuestions`
+  reads all active Category rows, fetches Question rows per active category
+  across numeric/string `main_category_id` and `category_id` variants, and only
+  applies the final projection cap after category coverage is known. If
+  categories 7,8,9,11 lack active Category rows in live data, that remains a
+  data/category seeding blocker rather than a deck-builder issue.
 - Codex330 fix: the global 30% difficulty-1 candidate diagnostics/scorer use
   the full eligible Solo pool, not only the non-selected category subset.
   The separate selected-vs-non-selected 70/30 pressure remains soft and

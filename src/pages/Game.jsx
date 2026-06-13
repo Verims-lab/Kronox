@@ -56,6 +56,7 @@ import {
   shouldShowBeginnerPlacementHint,
 } from '@/lib/soloQuestionEngine';
 import {
+  MIN_CATEGORY_SELECTION_COUNT,
   getValidActiveSelectedCategoryIds,
   loadActiveCategories,
   loadUserCategoryPreferences,
@@ -465,6 +466,39 @@ export default function Game() {
     debugSnapshot: questionLoadDebugSnapshot,
     retry: refetch,
   } = useOfflineQuestions({ debugEnabled: soloQuestionDebugEnabled });
+
+  const soloRuntimeCategoryPreferenceState = useMemo(() => {
+    const activeSet = new Set((activeCategoryIds || [])
+      .map((id) => Number(id))
+      .filter((id) => Number.isFinite(id) && id > 0));
+    const selectedIds = (soloCategoryPreferenceState.selectedCategoryIds || [])
+      .map((id) => Number(id))
+      .filter((id) => Number.isFinite(id) && id > 0);
+    const validSelectedIds = selectedIds.filter((id) => activeSet.has(id));
+    const rejectedCategoryIds = selectedIds
+      .filter((id) => !activeSet.has(id))
+      .map((id) => ({
+        category_id: id,
+        reason: 'missing_from_getQuestions_active_category_whitelist',
+      }));
+    const hasRuntimePreferenceFilter = validSelectedIds.length >= MIN_CATEGORY_SELECTION_COUNT;
+
+    return {
+      ...soloCategoryPreferenceState,
+      selectedCategoryIds: hasRuntimePreferenceFilter ? validSelectedIds : [],
+      preferenceCategoryIdsRaw: soloCategoryPreferenceState.selectedCategoryIds || [],
+      preferenceCategoryIdsValidAfterCategoryIntersection: validSelectedIds,
+      preferenceCategoryIdsRejectedWithReason: rejectedCategoryIds,
+      available: soloCategoryPreferenceState.available === true && hasRuntimePreferenceFilter,
+      fallbackReason: hasRuntimePreferenceFilter
+        ? soloCategoryPreferenceState.fallbackReason
+        : (
+          soloCategoryPreferenceState.available === true
+            ? 'insufficient_preferences_after_getQuestions_active_category_intersection'
+            : soloCategoryPreferenceState.fallbackReason
+        ),
+    };
+  }, [activeCategoryIds, soloCategoryPreferenceState]);
 
   // ─── Lobby sync (Repository layer) ───────────────────────────────
   useLobbySync({
@@ -1002,9 +1036,9 @@ export default function Game() {
         // No login or no saved Category preferences means all active
         // categories. Saved preferences are optional personalization, not a
         // gameplay gate or an empty question-pool filter.
-        userSelectedCategoryIds: soloCategoryPreferenceState.selectedCategoryIds,
-        userCategoryPreferenceAvailable: soloCategoryPreferenceState.available === true,
-        userCategoryPreferenceFallbackReason: soloCategoryPreferenceState.fallbackReason,
+        userSelectedCategoryIds: soloRuntimeCategoryPreferenceState.selectedCategoryIds,
+        userCategoryPreferenceAvailable: soloRuntimeCategoryPreferenceState.available === true,
+        userCategoryPreferenceFallbackReason: soloRuntimeCategoryPreferenceState.fallbackReason,
         levelNumber: soloLevel?.levelNumber,
         deckSize: getSoloAttemptDeckSizeForLevel(soloLevel?.levelNumber),
         seedCount: playerNames.length * 2,
@@ -1123,7 +1157,7 @@ export default function Game() {
       current_question_id: firstQ.id,
       used_question_ids: [...used]
     });
-  }, [playerNames, questionPool, allQuestions, activeCategoryIds, yearStart, yearEnd, isLoading, isOnline, isSoloLevelMode, currentUserLoaded, currentUser?.email, soloCategoryPreferenceState, resetSoloJokers, setLobbyData, setError, soloLevel?.levelNumber, soloQuestionDebugEnabled]);
+  }, [playerNames, questionPool, allQuestions, activeCategoryIds, yearStart, yearEnd, isLoading, isOnline, isSoloLevelMode, currentUserLoaded, currentUser?.email, soloCategoryPreferenceState.status, soloRuntimeCategoryPreferenceState, resetSoloJokers, setLobbyData, setError, soloLevel?.levelNumber, soloQuestionDebugEnabled]);
 
   // Overall timer başlatma
   useEffect(() => {
@@ -1919,7 +1953,7 @@ export default function Game() {
       isDebugAllowed: soloQuestionDebugEnabled,
       questionLoadDebugSnapshot,
       soloStartInput: soloQuestionDebugRuntimeState.soloStartInput,
-      soloCategoryPreferenceState,
+      soloCategoryPreferenceState: soloRuntimeCategoryPreferenceState,
       activeCategoryIds,
       allQuestions,
       candidatePool: soloQuestionDebugRuntimeState.candidatePool,
@@ -1933,7 +1967,7 @@ export default function Game() {
     currentUser?.email,
     authUser?.email,
     questionLoadDebugSnapshot,
-    soloCategoryPreferenceState,
+    soloRuntimeCategoryPreferenceState,
     activeCategoryIds,
     allQuestions,
     isFromCache,

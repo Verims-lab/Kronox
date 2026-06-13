@@ -458,6 +458,10 @@ Rules:
 * `getQuestions` fetches question candidates per active category before
   pool-proportional projection; a single ordered/capped `Question.list` must
   not be allowed to drop later categories before balancing.
+* `getQuestions` category fetches must tolerate numeric/string
+  `main_category_id` and `category_id` storage variants, then normalize to the
+  live `Category.category_id` whitelist before returning the gameplay
+  projection.
 * The active category helper accepts any positive live `category_id`; original
   seed IDs are not a category maximum.
 * Online question selection is not affected.

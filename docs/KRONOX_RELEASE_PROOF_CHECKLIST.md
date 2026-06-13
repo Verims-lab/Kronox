@@ -151,8 +151,13 @@ Checklist:
   remains separate, and no eligible active category is hardcoded out of the
   `getQuestions` projection.
 * After category/query changes, confirm the question cache marker is
-  `question-runtime-v4-active-category-full-pool`; stale projections from the
+  `question-runtime-v5-per-category-projection`; stale projections from the
   old cache must not keep feeding categories 1-5/1-6 only.
+* Runtime `getQuestions` proof must show the explicit v2 category-coverage
+  request payload, per-category Question fetch counts, and
+  `projectionCappedBeforeCategoryCoverage: false`. If categories 7,8,9,11 are
+  still absent, verify whether active Category rows are missing/passive before
+  treating it as a deck-builder bug.
 * Runtime analytics proof after deploy: with active difficulty-1 questions and
   saved preferences in categories 6,7,8,9,11, the next Question Analytics
   report must not show all of those active preferred categories at 0 display.

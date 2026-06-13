@@ -560,7 +560,7 @@ export const EXTRA_TESTS = [
         'resolveGameplayCategoryPreferenceFilter(preferences, activeCategories)',
         'Şimdi seçmezsen Solo tüm aktif kategorilerle başlar.',
         'Daha Sonra',
-        'userCategoryPreferenceAvailable: soloCategoryPreferenceState.available === true',
+        'userCategoryPreferenceAvailable: soloRuntimeCategoryPreferenceState.available === true',
       ]);
       if (missing.length) {
         return fail('Category preferences may still be mandatory for Solo question loading instead of optional personalization.', {

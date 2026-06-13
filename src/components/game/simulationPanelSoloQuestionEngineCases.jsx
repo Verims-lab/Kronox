@@ -2655,7 +2655,7 @@ export const EXTRA_TESTS = [
       const gameMissing = missingTokens(gamePageSource, [
         "fallbackReason: 'missing_authenticated_user'",
         'resolveGameplayCategoryPreferenceFilter(preferences, activeCategories)',
-        'userCategoryPreferenceAvailable: soloCategoryPreferenceState.available === true',
+        'userCategoryPreferenceAvailable: soloRuntimeCategoryPreferenceState.available === true',
         'no saved Category preferences means all active',
       ]);
       const fetchMissing = missingTokens(useOfflineQuestionsSource, [
@@ -2704,9 +2704,12 @@ export const EXTRA_TESTS = [
         'getValidActiveSelectedCategoryIds(preferences, activeCategories)',
         "status: 'loading'",
         "status: 'unavailable'",
-        'userSelectedCategoryIds: soloCategoryPreferenceState.selectedCategoryIds',
-        'userCategoryPreferenceAvailable: soloCategoryPreferenceState.available === true',
-        'userCategoryPreferenceFallbackReason: soloCategoryPreferenceState.fallbackReason',
+        'soloRuntimeCategoryPreferenceState',
+        'preferenceCategoryIdsValidAfterCategoryIntersection',
+        'missing_from_getQuestions_active_category_whitelist',
+        'userSelectedCategoryIds: soloRuntimeCategoryPreferenceState.selectedCategoryIds',
+        'userCategoryPreferenceAvailable: soloRuntimeCategoryPreferenceState.available === true',
+        'userCategoryPreferenceFallbackReason: soloRuntimeCategoryPreferenceState.fallbackReason',
       ]);
       const helperMissing = missingTokens(userCategoryPreferenceHelperSource, [
         '{ user_email: userEmail }',
@@ -2720,8 +2723,11 @@ export const EXTRA_TESTS = [
         "'active'",
         "'aktif'",
         'return id > 0 ? id : null',
-        "Category.list('category_id', 50)",
-        'filter(isActiveCategory).map(getCategoryId).filter(isKnownCategoryId)',
+        "Category.list('category_id', 1000)",
+        'activeCategoryRows.map(getCategoryId).filter(isKnownCategoryId)',
+        'main_category_id_number_state_A',
+        'category_id_string_state_A',
+        'projectionCappedBeforeCategoryCoverage: false',
         'questionFetchPath',
         'wasCappedBeforeBalancing: false',
         'queryLimitUsed: QUESTION_FETCH_PER_CATEGORY_LIMIT',

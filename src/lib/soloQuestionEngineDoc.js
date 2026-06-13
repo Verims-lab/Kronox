@@ -104,8 +104,11 @@ not a stale hardcoded seed-category subset; fallback IDs are only for Category
 read failure and must not permanently exclude newer active category IDs.
 Runtime active-category status aliases include a, active, and aktif, and live
 category_id normalization accepts any positive DB category id instead of
-clamping to original seed IDs. question-runtime-v4-active-category-full-pool
-invalidates stale local projections after category/query fixes.
+clamping to original seed IDs. question-runtime-v5-per-category-projection
+invalidates stale local projections after category/query fixes. Gameplay fetches
+request the v2 per-category projection explicitly; getQuestions fetches
+numeric/string main_category_id and category_id variants per active Category
+before any final projection cap.
 
 P2 diagnostics are Health/admin/helper-only. Deck diagnostics include level
 number, level type, deck size, correct target, fail threshold, question IDs,
