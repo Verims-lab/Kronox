@@ -14,8 +14,18 @@
  */
 import { useCallback, useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
-import { saveQuestionsToCache, loadQuestionsFromCache } from '@/lib/questionCache';
+import {
+  QUESTION_CACHE_KEY,
+  QUESTION_CACHE_VERSION,
+  getCacheInfo,
+  saveQuestionsToCache,
+  loadQuestionsFromCache,
+} from '@/lib/questionCache';
 import { normalizeQuestionsForRuntime } from '@/lib/questionRuntimeAdapter';
+import {
+  countDifficultyOneQuestionsByCategory,
+  countQuestionsByCategory,
+} from '@/lib/soloQuestionRuntimeDebug';
 
 const QUESTION_FETCH_RETRY_MS = 850;
 const NO_CACHE_NETWORK_ATTEMPTS = 3;
@@ -57,31 +67,81 @@ function readUsableCachedQuestions() {
   return { ...cached, questions, activeCategoryIds };
 }
 
-export function useOfflineQuestions() {
+function buildQuestionFetchDebugSnapshot({
+  source,
+  cacheHit = false,
+  cacheInfo = null,
+  responseData = null,
+  questions = [],
+  activeCategoryIds = [],
+  fallbackReason = null,
+  diagnosticsFallbackError = null,
+} = {}) {
+  const normalizedQuestions = normalizeQuestionsForRuntime(questions || []);
+  return {
+    source,
+    cacheHit: Boolean(cacheHit),
+    cacheKey: cacheInfo?.key || QUESTION_CACHE_KEY,
+    cacheVersion: cacheInfo?.version || QUESTION_CACHE_VERSION,
+    cacheAgeMinutes: cacheInfo?.ageMinutes ?? null,
+    staleCacheRejected: Boolean(cacheInfo?.isStale === true && !cacheHit),
+    limit: responseData?.limit ?? null,
+    count: responseData?.count ?? normalizedQuestions.length,
+    activeCategoryIds,
+    queryEntity: 'base44.functions.invoke',
+    queryFunction: 'getQuestions',
+    queryPayload: responseData?.projectionDiagnostics ? { includeDiagnostics: true } : {},
+    queryOrder: responseData?.projectionDiagnostics?.queryOrderUsed || null,
+    queryLimit: responseData?.projectionDiagnostics?.queryLimitUsed ?? responseData?.limit ?? null,
+    rawFetchedCount: responseData?.projectionDiagnostics?.fetchedActiveTotal ?? responseData?.count ?? normalizedQuestions.length,
+    rawFetchedCountsByCategory: responseData?.projectionDiagnostics?.fetchedByCategory || countQuestionsByCategory(normalizedQuestions),
+    activeFilteredCount: responseData?.projectionDiagnostics?.eligibleAfterNormalization ?? normalizedQuestions.length,
+    activeFilteredCountsByCategory: responseData?.projectionDiagnostics?.eligibleByCategory || countQuestionsByCategory(normalizedQuestions),
+    soloEligibleCount: responseData?.projectionDiagnostics?.eligibleAfterNormalization ?? normalizedQuestions.length,
+    soloEligibleCountsByCategory: responseData?.projectionDiagnostics?.eligibleByCategory || countQuestionsByCategory(normalizedQuestions),
+    difficulty1Count: normalizedQuestions.filter((question) => Number(question?.difficulty) === 1).length,
+    difficulty1CountsByCategory: countDifficultyOneQuestionsByCategory(normalizedQuestions),
+    returnedCountsByCategory: responseData?.projectionDiagnostics?.returnedByCategory || countQuestionsByCategory(normalizedQuestions),
+    projectionDiagnostics: responseData?.projectionDiagnostics || null,
+    fallbackReason,
+    diagnosticsFallbackError,
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+export function useOfflineQuestions({ debugEnabled = false } = {}) {
+  const initialCached = readUsableCachedQuestions();
   const [questions, setQuestions] = useState(() => {
     // Sync init: cache varsa anında ver — loading göstermeden
-    const cached = readUsableCachedQuestions();
-    return normalizeQuestionsForRuntime(cached?.questions || []);
+    return normalizeQuestionsForRuntime(initialCached?.questions || []);
   });
   const [isLoading, setIsLoading] = useState(() => {
-    const cached = readUsableCachedQuestions();
-    return !cached; // cache varsa loading false başlar
+    return !initialCached; // cache varsa loading false başlar
   });
   const [isError, setIsError] = useState(false);
   const [errorKind, setErrorKind] = useState(null);
   const [isFromCache, setIsFromCache] = useState(() => {
-    const cached = readUsableCachedQuestions();
-    return !!cached;
+    return !!initialCached;
   });
   const [activeCategoryIds, setActiveCategoryIds] = useState(() => {
-    const cached = readUsableCachedQuestions();
-    const fromCache = cached?.activeCategoryIds || [];
-    return fromCache.length ? fromCache : deriveActiveCategoryIds(cached?.questions || []);
+    const fromCache = initialCached?.activeCategoryIds || [];
+    return fromCache.length ? fromCache : deriveActiveCategoryIds(initialCached?.questions || []);
+  });
+  const [debugSnapshot, setDebugSnapshot] = useState(() => {
+    if (!initialCached) return null;
+    return buildQuestionFetchDebugSnapshot({
+      source: 'local cache',
+      cacheHit: true,
+      cacheInfo: getCacheInfo(),
+      questions: initialCached.questions,
+      activeCategoryIds: initialCached.activeCategoryIds,
+    });
   });
   const fetchedRef = useRef(false);
+  const diagnosticsFetchRef = useRef(false);
   const requestIdRef = useRef(0);
 
-  const fetchFromNetwork = useCallback(async ({ attempts = 1, forceLoading = false } = {}) => {
+  const fetchFromNetwork = useCallback(async ({ attempts = 1, forceLoading = false, includeDiagnostics = false } = {}) => {
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
     if (forceLoading) setIsLoading(true);
@@ -92,14 +152,24 @@ export function useOfflineQuestions() {
     let fetchedActiveCategoryIds = [];
     let lastError = null;
     let networkReturned = false;
+    let responseData = null;
+    let diagnosticsFallbackError = null;
 
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
       try {
         // Guest/no-auth Solo play is supported through the public-safe
         // minimal projection. Direct Question.list fallback remains removed
         // so guests never receive the raw question bank.
-        const res = await base44.functions.invoke('getQuestions', {});
+        let res;
+        try {
+          res = await base44.functions.invoke('getQuestions', includeDiagnostics ? { includeDiagnostics: true } : {});
+        } catch (diagnosticError) {
+          if (!includeDiagnostics) throw diagnosticError;
+          diagnosticsFallbackError = diagnosticError?.message || String(diagnosticError);
+          res = await base44.functions.invoke('getQuestions', {});
+        }
         networkReturned = true;
+        responseData = res.data || null;
         if (Array.isArray(res.data?.questions) && res.data.questions.length > 0) {
           fetched = res.data.questions;
           fetchedActiveCategoryIds = Array.isArray(res.data.activeCategoryIds) ? res.data.activeCategoryIds : [];
@@ -121,6 +191,15 @@ export function useOfflineQuestions() {
           ? fetchedActiveCategoryIds
           : deriveActiveCategoryIds(runtimeQuestions);
         saveQuestionsToCache(runtimeQuestions, { activeCategoryIds: activeIds });
+        setDebugSnapshot(buildQuestionFetchDebugSnapshot({
+          source: responseData?.source || 'getQuestions',
+          cacheHit: false,
+          cacheInfo: getCacheInfo(),
+          responseData,
+          questions: runtimeQuestions,
+          activeCategoryIds: activeIds,
+          diagnosticsFallbackError,
+        }));
         setQuestions(runtimeQuestions);
         setActiveCategoryIds(activeIds);
         setIsFromCache(false);
@@ -132,6 +211,15 @@ export function useOfflineQuestions() {
 
     const cached = readUsableCachedQuestions();
     if (cached) {
+      setDebugSnapshot(buildQuestionFetchDebugSnapshot({
+        source: 'local cache fallback',
+        cacheHit: true,
+        cacheInfo: getCacheInfo(),
+        questions: cached.questions,
+        activeCategoryIds: cached.activeCategoryIds,
+        fallbackReason: lastError?.message || (networkReturned ? 'network_returned_empty_questions' : null),
+        diagnosticsFallbackError,
+      }));
       setQuestions(cached.questions);
       setActiveCategoryIds(cached.activeCategoryIds);
       setIsFromCache(true);
@@ -157,22 +245,29 @@ export function useOfflineQuestions() {
     if (cached && !cached.isStale) {
       // Cache taze (< 24 saat) → arka planda yenile, ama UI'ı bloklamaz
       setIsLoading(false);
-      fetchFromNetwork({ attempts: 1 }); // fire-and-forget
+      fetchFromNetwork({ attempts: 1, includeDiagnostics: debugEnabled }); // fire-and-forget
     } else {
       // Cache yok veya bayat → önce göster (varsa), sonra fetch et
       fetchFromNetwork({
         attempts: cached ? 1 : NO_CACHE_NETWORK_ATTEMPTS,
         forceLoading: !cached,
+        includeDiagnostics: debugEnabled,
       });
     }
-  }, [fetchFromNetwork]);
+  }, [fetchFromNetwork, debugEnabled]);
+
+  useEffect(() => {
+    if (!debugEnabled || diagnosticsFetchRef.current) return;
+    diagnosticsFetchRef.current = true;
+    fetchFromNetwork({ attempts: 1, includeDiagnostics: true });
+  }, [debugEnabled, fetchFromNetwork]);
 
   const retry = () => {
     fetchedRef.current = false;
     setIsError(false);
     setErrorKind(null);
     setIsLoading(true);
-    fetchFromNetwork({ attempts: NO_CACHE_NETWORK_ATTEMPTS, forceLoading: true });
+    fetchFromNetwork({ attempts: NO_CACHE_NETWORK_ATTEMPTS, forceLoading: true, includeDiagnostics: debugEnabled });
     fetchedRef.current = true;
   };
 
@@ -183,6 +278,7 @@ export function useOfflineQuestions() {
     errorKind,
     isFromCache,
     activeCategoryIds,
+    debugSnapshot,
     retry,
   };
 }

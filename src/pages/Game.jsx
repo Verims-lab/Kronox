@@ -29,9 +29,11 @@ import SoloLevelResult from '@/components/game/SoloLevelResult';
 import SettingsModal from '@/components/game/SettingsModal';
 import GameOverTimer from '@/components/game/GameOverTimer';
 import GameLayout from '@/components/game/GameLayout';
+import SoloQuestionDebugPanel from '@/components/game/SoloQuestionDebugPanel';
 import OnlineGameBootstrapFallback from '@/components/game/OnlineGameBootstrapFallback';
 import GameBootstrapDiagnostics, { isDiagnosticsEnabled } from '@/components/game/GameBootstrapDiagnostics';
 import GameRenderErrorBoundary from '@/components/game/GameRenderErrorBoundary';
+import { useAuth } from '@/lib/AuthContext';
 import {
   applyLevelAttempt,
   getSoloCardsRequiredForLevel,
@@ -59,6 +61,10 @@ import {
   loadUserCategoryPreferences,
   resolveGameplayCategoryPreferenceFilter,
 } from '@/lib/userCategoryPreferences';
+import {
+  buildSoloQuestionRuntimeDebugPayload,
+  isSoloQuestionRuntimeDebugAllowed,
+} from '@/lib/soloQuestionRuntimeDebug';
 import {
   SOLO_UI_JOKER_TYPES,
   buildSoloJokerUseIdempotencyKey,
@@ -182,6 +188,13 @@ export default function Game() {
   const isSoloLevelMode = Boolean(soloLevel && !isOnlineFromState);
   const currentQuestionIdFromState = routeState.currentQuestionId ?? null;
   const [currentUser, setCurrentUser] = useState(null);
+  const { user: authUser, adminStatus } = useAuth();
+  const soloQuestionDebugAllowed = useMemo(() => isSoloQuestionRuntimeDebugAllowed({
+    currentUser,
+    authUser,
+    adminStatus,
+  }), [currentUser, authUser, adminStatus]);
+  const soloQuestionDebugEnabled = isSoloLevelMode && soloQuestionDebugAllowed;
   // Codex084 — boundaryError + diagVisible must live at top-level so they
   // share render position with every early-return gate. Previously placed
   // mid-component AFTER several `if (...) return ...` paths, which violated
@@ -303,9 +316,12 @@ export default function Game() {
   const [soloCategoryPreferenceState, setSoloCategoryPreferenceState] = useState({
     status: 'idle',
     selectedCategoryIds: [],
+    rawPreferenceRows: [],
+    activeCategoryRows: [],
     available: false,
     fallbackReason: 'not_loaded',
   });
+  const [soloQuestionDebugRuntimeState, setSoloQuestionDebugRuntimeState] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -322,6 +338,8 @@ export default function Game() {
       setSoloCategoryPreferenceState({
         status: 'idle',
         selectedCategoryIds: [],
+        rawPreferenceRows: [],
+        activeCategoryRows: [],
         available: false,
         fallbackReason: 'not_solo_mode',
       });
@@ -339,6 +357,8 @@ export default function Game() {
       setSoloCategoryPreferenceState({
         status: 'unavailable',
         selectedCategoryIds: [],
+        rawPreferenceRows: [],
+        activeCategoryRows: [],
         available: false,
         fallbackReason: 'missing_authenticated_user',
       });
@@ -365,6 +385,15 @@ export default function Game() {
         setSoloCategoryPreferenceState({
           status: 'ready',
           selectedCategoryIds: hasPreferenceFilter ? selectedCategoryIds : [],
+          rawPreferenceRows: Array.isArray(preferences) ? preferences.map((preference) => ({
+            category_id: preference?.category_id ?? preference?.categoryId ?? preference?.main_category_id ?? null,
+            status: preference?.status ?? preference?.state ?? null,
+          })) : [],
+          activeCategoryRows: Array.isArray(activeCategories) ? activeCategories.map((categoryRow) => ({
+            category_id: categoryRow?.category_id ?? categoryRow?.id ?? null,
+            name: categoryRow?.name ?? categoryRow?.title ?? categoryRow?.category_name ?? null,
+            status: categoryRow?.status ?? categoryRow?.state ?? null,
+          })) : [],
           available: hasPreferenceFilter,
           fallbackReason: hasPreferenceFilter ? null : preferenceFilter.fallbackReason,
         });
@@ -373,6 +402,8 @@ export default function Game() {
         setSoloCategoryPreferenceState({
           status: 'unavailable',
           selectedCategoryIds: [],
+          rawPreferenceRows: [],
+          activeCategoryRows: [],
           available: false,
           fallbackReason: 'preference_load_failed',
         });
@@ -382,6 +413,11 @@ export default function Game() {
     loadSoloCategoryPreferences();
     return () => { active = false; };
   }, [isSoloLevelMode, currentUserLoaded, currentUser?.email]);
+
+  useEffect(() => {
+    if (soloQuestionDebugEnabled) return;
+    setSoloQuestionDebugRuntimeState(null);
+  }, [soloQuestionDebugEnabled]);
 
   useEffect(() => {
     let active = true;
@@ -426,8 +462,9 @@ export default function Game() {
     errorKind: questionLoadErrorKind,
     isFromCache,
     activeCategoryIds,
+    debugSnapshot: questionLoadDebugSnapshot,
     retry: refetch,
-  } = useOfflineQuestions();
+  } = useOfflineQuestions({ debugEnabled: soloQuestionDebugEnabled });
 
   // ─── Lobby sync (Repository layer) ───────────────────────────────
   useLobbySync({
@@ -974,8 +1011,40 @@ export default function Game() {
         requireActiveCategoryWhitelist: true,
       });
       if (!engineResult.ok) {
+        if (soloQuestionDebugEnabled) {
+          setSoloQuestionDebugRuntimeState({
+            candidatePool,
+            engineResult,
+            deck: [],
+            soloStartInput: {
+              level: soloLevel?.levelNumber,
+              difficulty: 'level_window',
+              requestedCount: getSoloAttemptDeckSizeForLevel(soloLevel?.levelNumber),
+              yearStart,
+              yearEnd,
+              activeCategoryIds,
+              playerSeedCount: playerNames.length * 2,
+            },
+          });
+        }
         setError(engineResult.message);
         return;
+      }
+      if (soloQuestionDebugEnabled) {
+        setSoloQuestionDebugRuntimeState({
+          candidatePool,
+          engineResult,
+          deck: engineResult.deck,
+          soloStartInput: {
+            level: soloLevel?.levelNumber,
+            difficulty: 'level_window',
+            requestedCount: getSoloAttemptDeckSizeForLevel(soloLevel?.levelNumber),
+            yearStart,
+            yearEnd,
+            activeCategoryIds,
+            playerSeedCount: playerNames.length * 2,
+          },
+        });
       }
       setSoloAttemptDeck(engineResult.deck);
       setSoloAttemptId(engineResult.attemptId);
@@ -1054,7 +1123,7 @@ export default function Game() {
       current_question_id: firstQ.id,
       used_question_ids: [...used]
     });
-  }, [playerNames, questionPool, allQuestions, activeCategoryIds, yearStart, yearEnd, isLoading, isOnline, isSoloLevelMode, currentUserLoaded, currentUser?.email, soloCategoryPreferenceState, resetSoloJokers, setLobbyData, setError, soloLevel?.levelNumber]);
+  }, [playerNames, questionPool, allQuestions, activeCategoryIds, yearStart, yearEnd, isLoading, isOnline, isSoloLevelMode, currentUserLoaded, currentUser?.email, soloCategoryPreferenceState, resetSoloJokers, setLobbyData, setError, soloLevel?.levelNumber, soloQuestionDebugEnabled]);
 
   // Overall timer başlatma
   useEffect(() => {
@@ -1843,6 +1912,33 @@ export default function Game() {
     };
   })();
 
+  const soloQuestionDebugPayload = useMemo(() => {
+    if (!soloQuestionDebugEnabled || !soloQuestionDebugRuntimeState) return null;
+    return buildSoloQuestionRuntimeDebugPayload({
+      currentUserEmail: currentUser?.email || authUser?.email,
+      isDebugAllowed: soloQuestionDebugEnabled,
+      questionLoadDebugSnapshot,
+      soloStartInput: soloQuestionDebugRuntimeState.soloStartInput,
+      soloCategoryPreferenceState,
+      activeCategoryIds,
+      allQuestions,
+      candidatePool: soloQuestionDebugRuntimeState.candidatePool,
+      engineResult: soloQuestionDebugRuntimeState.engineResult,
+      deck: soloQuestionDebugRuntimeState.deck,
+      isFromCache,
+    });
+  }, [
+    soloQuestionDebugEnabled,
+    soloQuestionDebugRuntimeState,
+    currentUser?.email,
+    authUser?.email,
+    questionLoadDebugSnapshot,
+    soloCategoryPreferenceState,
+    activeCategoryIds,
+    allQuestions,
+    isFromCache,
+  ]);
+
   // ─── Render guards ───────────────────────────────────────────────
   // For online games, playerNames may be empty array (non-host joined with just lobbyId)
   if (!playerNames && !isOnline) return (
@@ -1892,6 +1988,7 @@ export default function Game() {
           onNextLevel={handleSoloNextLevel}
           onBackToPath={handleSoloBackToPath}
         />
+        <SoloQuestionDebugPanel payload={soloQuestionDebugPayload} />
       </>
     );
   }
@@ -1907,7 +2004,9 @@ export default function Game() {
         <p className="font-inter text-destructive">Hata: {error}</p>
         <Button onClick={() => navigate('/')} variant="outline">Geri Dön</Button>
       </div>
-    </div></>
+    </div>
+    <SoloQuestionDebugPanel payload={soloQuestionDebugPayload} />
+    </>
   );
 
   if (isLoading) return (
@@ -2078,6 +2177,7 @@ export default function Game() {
         beginnerPlacementHintZone={beginnerPlacementHintZone}
         correctStreak={isSoloLevelMode ? soloCorrectStreak : 0}
       />
+      <SoloQuestionDebugPanel payload={soloQuestionDebugPayload} />
     </GameRenderErrorBoundary>
   );
 }
