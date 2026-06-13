@@ -77,6 +77,7 @@ async function findInventory(base44: any, email: string, jokerType: string) {
   return Array.isArray(rows) && rows.length ? rows[0] : null;
 }
 
+
 async function findTransaction(base44: any, email: string, jokerType: string, idempotencyKey: string) {
   const rows = await base44.asServiceRole.entities.JokerTransaction
     .filter({ user_email: email, joker_type: jokerType, idempotency_key: idempotencyKey }, '-created_at', 1)
