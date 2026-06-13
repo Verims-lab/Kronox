@@ -1,4 +1,4 @@
-/* global Response */
+/* global Response my node */
 export function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
 }
