@@ -1819,7 +1819,21 @@ import React, { useEffect, useState } from 'react';
 //   • Adds scripts/diagnoseSoloQuestionStartQuery.mjs as the direct
 //     service-role read-only runner for owner + 10 preference users, with Vite
 //     SSR loading of the actual frontend buildSoloAttemptDeck implementation.
-const BUILD_MARKER = 'Codex333';
+//
+// Codex334 — Solo diagnostic Base44 app config fix:
+//   • The direct diagnostic runner now requires the app-specific
+//     BASE44_APP_BASE_URL / VITE_BASE44_APP_BASE_URL instead of falling back to
+//     the generic base44.app host, and classifies App-not-found as a safe
+//     token/app-id/base-url mismatch diagnostic.
+//   • Adds backend-function transport support for deployed admin callable
+//     diagnostic runs with an admin access token.
+//
+// Codex335 — Solo diagnostic safe config summary:
+//   • The direct diagnostic runner now emits a safe Base44 config summary
+//     showing app id/base URL/token presence without printing token values.
+//   • The runner mirrors frontend appBaseUrl in createClient and keeps
+//     service-role SDK plus backend-function transports explicit.
+const BUILD_MARKER = 'Codex335';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

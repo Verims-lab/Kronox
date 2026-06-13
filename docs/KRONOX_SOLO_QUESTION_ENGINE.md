@@ -184,12 +184,21 @@ P3 adds question analytics without changing question selection:
   was removed. The owner/preference-user Solo query audit is now run directly
   with `scripts/diagnoseSoloQuestionStartQuery.mjs` or the optional admin-only
   `diagnoseSoloQuestionStartQuery` backend function after deployment. The
-  direct runner requires live Base44 service-role credentials, captures the
-  fresh `getQuestions`-compatible per-category `Question.filter` query
-  descriptor, active/Solo-eligible/difficulty-1 counts by category, cache
-  key/version notes, actual frontend `buildSoloAttemptDeck` dry-run output, and
-  category 6/7/8/9/11 presence/removal reasons. It must not write gameplay,
-  progress, analytics, or economy rows.
+  direct runner requires live Base44 service-role credentials and the same
+  app-specific `BASE44_APP_BASE_URL` / `VITE_BASE44_APP_BASE_URL` used by the
+  deployed frontend; Node must not default to the generic `base44.app` host.
+  It captures the fresh `getQuestions`-compatible per-category
+  `Question.filter` query descriptor, active/Solo-eligible/difficulty-1 counts
+  by category, cache key/version notes, actual frontend `buildSoloAttemptDeck`
+  dry-run output, and category 6/7/8/9/11 presence/removal reasons. It must not
+  write gameplay, progress, analytics, or economy rows.
+- Codex334 diagnostic connectivity: `scripts/diagnoseSoloQuestionStartQuery.mjs`
+  reports `missing_base44_app_config` when app URL/service credentials are not
+  supplied and `token_app_mismatch_or_wrong_app_id` when Base44 returns
+  "App not found". It prints a safe config summary with app id/base URL/token
+  presence booleans only, never token values. The backend-function transport is
+  available with `BASE44_DIAGNOSTIC_MODE=backend-function` plus an admin access
+  token after the backend function is deployed.
 - `QuestionStatsProjection` and `CategoryStatsProjection` refresh remains an
   admin/manual `aggregateQuestionStats` path, defaults to dry-run unless
   explicitly run for write, and is not updated synchronously during gameplay.

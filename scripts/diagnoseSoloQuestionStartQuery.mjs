@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { createClient } from '@base44/sdk';
 import { createServer } from 'vite';
 
@@ -14,6 +14,14 @@ const QUESTION_CACHE_KEY = 'kronox_questions_v4';
 const QUESTION_CACHE_VERSION = 'question-runtime-v4-active-category-full-pool';
 const CATEGORY_ACTIVE_STATUS_VALUES = new Set(['', 'a', 'active', 'aktif']);
 const PREFERENCE_ACTIVE_STATUS_VALUES = new Set(['a', 'active', 'aktif']);
+const ENV_FILE_CANDIDATES = Object.freeze([
+  '.env.local',
+  '.env',
+  '.env.development.local',
+  '.env.development',
+  '.env.production.local',
+  '.env.production',
+]);
 const ONLINE_ID_TO_MAIN_CATEGORY_ID = Object.freeze({
   chronicle: 1,
   flashback: 2,
@@ -28,6 +36,86 @@ function readJsonc(path) {
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/(^|\s)\/\/.*$/gm, '');
   return JSON.parse(raw);
+}
+
+function parseEnvLine(line) {
+  const trimmed = String(line || '').trim();
+  if (!trimmed || trimmed.startsWith('#')) return null;
+  const match = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
+  if (!match) return null;
+  const key = match[1];
+  let value = match[2].trim();
+  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+    value = value.slice(1, -1);
+  }
+  return { key, value };
+}
+
+function loadEnvFiles() {
+  const loaded = [];
+  for (const file of ENV_FILE_CANDIDATES) {
+    if (!existsSync(file)) continue;
+    const raw = readFileSync(file, 'utf8');
+    for (const line of raw.split(/\r?\n/)) {
+      const parsed = parseEnvLine(line);
+      if (!parsed) continue;
+      if (process.env[parsed.key] === undefined) process.env[parsed.key] = parsed.value;
+    }
+    loaded.push(file);
+  }
+  return loaded;
+}
+
+function normalizeBase44ServerUrl(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  const withProtocol = /^https?:\/\//i.test(text) ? text : `https://${text}`;
+  return withProtocol
+    .replace(/\/+$/, '')
+    .replace(/\/api$/i, '');
+}
+
+function isAppNotFoundError(error) {
+  const status = Number(error?.response?.status || error?.status || error?.statusCode || 0);
+  const message = String(error?.response?.data?.message || error?.response?.data?.error || error?.message || error || '').toLowerCase();
+  return status === 404 && message.includes('app not found');
+}
+
+function serializeError(error, config = {}) {
+  const configSummary = buildConfigSummary(config);
+  const message = String(error?.response?.data?.message || error?.response?.data?.error || error?.message || error || 'unknown_error');
+  if (isAppNotFoundError(error)) {
+    return {
+      ok: false,
+      jobName: JOB_NAME,
+      code: 'token_app_mismatch_or_wrong_app_id',
+      error: 'App not found',
+      readOnly: true,
+      dryRun: true,
+      attemptedAppId: config.appId || null,
+      attemptedBase44ServerUrl: config.serverUrl || null,
+      configSummary,
+      message: 'Base44 returned App not found. Check that BASE44_APP_ID points to the Kronox app and BASE44_APP_BASE_URL/VITE_BASE44_APP_BASE_URL points to the same deployed Kronox Base44 backend; also verify the service token belongs to that app/environment.',
+      requiredEnv: [
+        'BASE44_SERVICE_TOKEN or BASE44_SERVICE_ROLE_TOKEN',
+        'BASE44_APP_BASE_URL or VITE_BASE44_APP_BASE_URL',
+      ],
+      optionalEnv: [
+        'BASE44_APP_ID or VITE_BASE44_APP_ID',
+      ],
+    };
+  }
+  return {
+    ok: false,
+    jobName: JOB_NAME,
+    code: 'diagnostic_failed',
+    error: message,
+    readOnly: true,
+    dryRun: true,
+    attemptedAppId: config.appId || null,
+    attemptedBase44ServerUrl: config.serverUrl || null,
+    configSummary,
+  };
 }
 
 function normalizeEmail(value) {
@@ -433,36 +521,118 @@ function getEnv(name) {
   return String(process.env[name] || '').trim();
 }
 
-function buildMissingCredentialOutput(appId) {
+function buildConfigSummary(config = {}) {
+  return {
+    appIdPresent: Boolean(config.appId),
+    appId: config.appId || null,
+    base44AppBaseUrlPresent: Boolean(config.serverUrl),
+    base44AppBaseUrl: config.serverUrl || null,
+    serviceTokenPresent: Boolean(config.serviceToken),
+    adminAccessTokenPresent: Boolean(config.accessToken),
+    diagnosticMode: config.diagnosticMode || null,
+    loadedEnvFiles: Array.isArray(config.loadedEnvFiles) ? config.loadedEnvFiles : [],
+    tokenValuesPrinted: false,
+  };
+}
+
+function logConfigSummary(config = {}) {
+  if (String(process.env.BASE44_DIAGNOSTIC_QUIET_CONFIG || '').trim() === 'true') return;
+  console.error(`[${JOB_NAME}] safe config summary: ${JSON.stringify(buildConfigSummary(config))}`);
+}
+
+function buildConfig() {
+  const loadedEnvFiles = loadEnvFiles();
+  const appConfig = readJsonc('base44/.app.jsonc');
+  const appId = getEnv('BASE44_APP_ID') || getEnv('VITE_BASE44_APP_ID') || appConfig.id || '';
+  const serverUrl = normalizeBase44ServerUrl(
+    getEnv('BASE44_APP_BASE_URL')
+      || getEnv('VITE_BASE44_APP_BASE_URL')
+      || getEnv('BASE44_BASE_URL')
+      || getEnv('BASE44_API_URL')
+      || getEnv('BASE44_SERVER_URL'),
+  );
+  const serviceToken = getEnv('BASE44_SERVICE_TOKEN') || getEnv('BASE44_SERVICE_ROLE_TOKEN');
+  const accessToken = getEnv('BASE44_ACCESS_TOKEN') || getEnv('BASE44_ADMIN_ACCESS_TOKEN');
+  const diagnosticMode = (getEnv('BASE44_DIAGNOSTIC_MODE') || 'service-role').toLowerCase();
+  return {
+    appId,
+    serverUrl,
+    serviceToken,
+    accessToken,
+    diagnosticMode,
+    loadedEnvFiles,
+  };
+}
+
+function buildMissingConfigOutput(config) {
+  const configSummary = buildConfigSummary(config);
+  const requiredEnv = [];
+  if (!config.appId) requiredEnv.push('BASE44_APP_ID or VITE_BASE44_APP_ID');
+  if (!config.serverUrl) requiredEnv.push('BASE44_APP_BASE_URL or VITE_BASE44_APP_BASE_URL');
+  if (config.diagnosticMode === 'backend-function') {
+    if (!config.accessToken) requiredEnv.push('BASE44_ACCESS_TOKEN or BASE44_ADMIN_ACCESS_TOKEN');
+  } else if (!config.serviceToken) {
+    requiredEnv.push('BASE44_SERVICE_TOKEN or BASE44_SERVICE_ROLE_TOKEN');
+  }
   return {
     ok: false,
     jobName: JOB_NAME,
-    code: 'missing_live_base44_service_token',
+    code: requiredEnv.length ? 'missing_base44_app_config' : 'missing_live_base44_service_token',
     readOnly: true,
     dryRun: true,
     mutatesGameplay: false,
     mutatesAnalytics: false,
     mutatesProgress: false,
     mutatesEconomy: false,
-    appIdPresent: Boolean(appId),
-    requiredEnv: [
-      'BASE44_SERVICE_TOKEN or BASE44_SERVICE_ROLE_TOKEN',
-    ],
+    appIdPresent: Boolean(config.appId),
+    base44AppBaseUrlPresent: Boolean(config.serverUrl),
+    serviceTokenPresent: Boolean(config.serviceToken),
+    adminAccessTokenPresent: Boolean(config.accessToken),
+    attemptedAppId: config.appId || null,
+    attemptedBase44ServerUrl: config.serverUrl || null,
+    configSummary,
+    diagnosticMode: config.diagnosticMode,
+    loadedEnvFiles: config.loadedEnvFiles,
+    requiredEnv,
     optionalEnv: [
-      'BASE44_API_URL (defaults to https://base44.app)',
       'BASE44_APP_ID or VITE_BASE44_APP_ID (defaults to base44/.app.jsonc id)',
+      'BASE44_DIAGNOSTIC_MODE=service-role or backend-function',
     ],
-    command: 'BASE44_SERVICE_TOKEN=<service-token> node scripts/diagnoseSoloQuestionStartQuery.mjs > /tmp/solo-query-diagnostic.json',
-    blocker: 'Codex environment does not have live Base44 service-role credentials, so it cannot read UserCategoryPreference/Question/Category rows for real users.',
+    command: 'BASE44_APP_BASE_URL=<deployed-kronox-base44-url> BASE44_SERVICE_TOKEN=<service-token> node scripts/diagnoseSoloQuestionStartQuery.mjs > /tmp/solo-query-diagnostic.json',
+    backendFunctionCommand: 'BASE44_DIAGNOSTIC_MODE=backend-function BASE44_APP_BASE_URL=<deployed-kronox-base44-url> BASE44_ACCESS_TOKEN=<admin-user-access-token> node scripts/diagnoseSoloQuestionStartQuery.mjs > /tmp/solo-query-diagnostic.json',
+    message: 'Node diagnostics cannot use the frontend same-origin /api proxy. Set BASE44_APP_BASE_URL or VITE_BASE44_APP_BASE_URL to the same deployed Kronox Base44 app URL used by the frontend.',
+  };
+}
+
+async function invokeBackendFunctionDiagnostic(config, { levelNumber, yearStart, yearEnd }) {
+  const url = `${config.serverUrl}/api/functions/${JOB_NAME}`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${config.accessToken}`,
+    },
+    body: JSON.stringify({ levelNumber, yearStart, yearEnd }),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok || body?.ok === false) {
+    const error = new Error(body?.error || body?.message || `Backend function returned ${response.status}`);
+    error.status = response.status;
+    error.response = { status: response.status, data: body };
+    throw error;
+  }
+  return {
+    ...body,
+    diagnosticTransport: 'backend-function',
+    attemptedAppId: config.appId,
+    attemptedBase44ServerUrl: config.serverUrl,
+    configSummary: buildConfigSummary(config),
   };
 }
 
 async function run() {
-  const appConfig = readJsonc('base44/.app.jsonc');
-  const appId = getEnv('BASE44_APP_ID') || getEnv('VITE_BASE44_APP_ID') || appConfig.id;
-  const serverUrl = getEnv('BASE44_API_URL') || 'https://base44.app';
-  const serviceToken = getEnv('BASE44_SERVICE_TOKEN') || getEnv('BASE44_SERVICE_ROLE_TOKEN');
-  const accessToken = getEnv('BASE44_ACCESS_TOKEN') || getEnv('BASE44_ADMIN_ACCESS_TOKEN');
+  const config = buildConfig();
+  logConfigSummary(config);
   const levelNumber = Math.max(1, Math.trunc(Number(getEnv('SOLO_DIAGNOSTIC_LEVEL') || 1)));
   const yearStart = Number.isFinite(Number(getEnv('SOLO_DIAGNOSTIC_YEAR_START')))
     ? Number(getEnv('SOLO_DIAGNOSTIC_YEAR_START'))
@@ -471,18 +641,25 @@ async function run() {
     ? Number(getEnv('SOLO_DIAGNOSTIC_YEAR_END'))
     : new Date().getFullYear();
 
-  if (!serviceToken) {
-    const output = buildMissingCredentialOutput(appId);
+  if (!config.appId || !config.serverUrl || (config.diagnosticMode === 'backend-function' ? !config.accessToken : !config.serviceToken)) {
+    const output = buildMissingConfigOutput(config);
     console.log(JSON.stringify(output, null, 2));
     process.exitCode = 2;
     return;
   }
 
+  if (config.diagnosticMode === 'backend-function') {
+    const output = await invokeBackendFunctionDiagnostic(config, { levelNumber, yearStart, yearEnd });
+    console.log(JSON.stringify(output, null, 2));
+    return;
+  }
+
   const base44 = createClient({
-    appId,
-    serverUrl,
-    token: accessToken || undefined,
-    serviceToken,
+    appId: config.appId,
+    serverUrl: config.serverUrl,
+    token: config.accessToken || undefined,
+    serviceToken: config.serviceToken,
+    appBaseUrl: config.serverUrl,
   });
   const { engine, levels } = await loadRuntimeDeckModules();
 
@@ -567,7 +744,7 @@ async function run() {
   const output = {
     ok: true,
     jobName: JOB_NAME,
-    buildMarker: 'Codex333',
+    buildMarker: 'Codex335',
     readOnly: true,
     dryRun: true,
     mutatesGameplay: false,
@@ -575,6 +752,10 @@ async function run() {
     mutatesProgress: false,
     mutatesEconomy: false,
     requestedOwnerEmail: OWNER_EMAIL,
+    attemptedAppId: config.appId,
+    attemptedBase44ServerUrl: config.serverUrl,
+    configSummary: buildConfigSummary(config),
+    diagnosticTransport: 'service-role-sdk',
     ownerIncluded: true,
     preferenceUserLimit: MAX_PREFERENCE_USERS,
     preferenceUsersIncluded: preferenceUsers.length,
@@ -630,13 +811,6 @@ async function run() {
 }
 
 run().catch((error) => {
-  console.error(JSON.stringify({
-    ok: false,
-    jobName: JOB_NAME,
-    code: 'diagnostic_failed',
-    error: error?.message || String(error),
-    readOnly: true,
-    dryRun: true,
-  }, null, 2));
+  console.log(JSON.stringify(serializeError(error, buildConfig()), null, 2));
   process.exitCode = 1;
 });
