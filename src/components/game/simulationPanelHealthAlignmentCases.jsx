@@ -20,6 +20,9 @@ import { QUESTION_DATA_MODEL_DOC as questionModelDocsSource } from '@/lib/questi
 import { ECONOMY_RULES_DOC as economyDocsSource } from '@/lib/economyRulesDoc';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
 import adminPageSource from '../../pages/AdminPage.jsx?raw';
+import mainMenuSource from '../../pages/MainMenu.jsx?raw';
+import playerSetupSource from '../../pages/PlayerSetup.jsx?raw';
+import authProviderButtonsSource from '../auth/AuthProviderButtons.jsx?raw';
 import standardTopBarSource from '../layout/StandardTopBar.jsx?raw';
 import notificationApiSource from '../../lib/notificationApi.js?raw';
 import placementFeedbackCasesSource from './simulationPanelPlacementFeedbackCases.jsx?raw';
@@ -561,6 +564,58 @@ export const EXTRA_TESTS = [
       }
       return pass('/privacy is public, Turkish, linked from Settings, and aligned with App Store privacy disclosures.', {
         verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('apple_login_compliance_static_contract',
+    'Login surfaces include Base44-managed Sign in with Apple option',
+    () => {
+      const uiSource = `${authProviderButtonsSource}\n${mainMenuSource}\n${playerSetupSource}`;
+      const docsSource = `${releaseChecklistSource}\n${securityDocsSource}`;
+      const missingUi = missingTokens(uiSource, [
+        'AuthProviderButtons',
+        'Apple ile Giriş Yap',
+        "startProviderLogin('apple')",
+        "base44.auth.loginWithProvider(provider, fromUrl)",
+        "startProviderLogin('google')",
+        'E-posta ile devam et',
+        'base44.auth.redirectToLogin(fromUrl)',
+        '<AuthProviderButtons fromUrl="/"',
+      ]);
+      const missingDocs = missingTokens(docsSource, [
+        'Sign in with Apple',
+        'Apple ile Giriş Yap',
+        'Base44 Settings',
+        'Authentication',
+        'Apple toggle',
+        'Guideline 4.8',
+      ]);
+      const forbidden = forbiddenTokens(uiSource, [
+        'APPLE_CLIENT_SECRET',
+        'APPLE_TEAM_ID',
+        'APPLE_KEY_ID',
+        'client_secret',
+        'native Apple Sign-In',
+      ]);
+      if (missingUi.length || missingDocs.length || forbidden.length) {
+        return fail('Apple login/App Store Guideline 4.8 static contract is incomplete.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          files: [
+            'src/components/auth/AuthProviderButtons.jsx',
+            'src/pages/MainMenu.jsx',
+            'src/pages/PlayerSetup.jsx',
+            'docs/KRONOX_RELEASE_PROOF_CHECKLIST.md',
+            'docs/KRONOX_SECURITY_DEPLOYMENT.md',
+          ],
+          expected: 'visible Apple button using Base44 provider auth, Google/email preserved, no native secrets, manual Base44 Apple toggle documented',
+          actual: { missingUi, missingDocs, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Login surfaces include Apple, Google, and hosted/email Base44 auth; manual Base44 Apple toggle remains documented.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
       });
     }),
 

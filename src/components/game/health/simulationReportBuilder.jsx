@@ -330,6 +330,8 @@ export function buildReport(caseResults, suites, meta = createRunMeta(), environ
 }
 
 const BLOCKER_COPY_STATUSES = new Set([STATUS.FAIL, STATUS.ERROR, STATUS.BLOCKED]);
+const BLOCKER_COPY_SENSITIVE_KEY_PATTERN = /(?:authorization|auth[_-]?header|token|secret|password|private[_-]?key|api[_-]?key|service[_-]?role|cookie|set-cookie|vapid[_-]?private[_-]?key)/i;
+const BLOCKER_COPY_BEARER_PATTERN = /Bearer\s+[A-Za-z0-9._~+/=-]+/g;
 
 function isBlockerCopyCase(item) {
   if (!item || item.status === STATUS.PASS) return false;
@@ -341,7 +343,8 @@ function compactForBlockerCopy(value, depth = 0) {
   if (value === null || value === undefined) return value;
   const type = typeof value;
   if (type === 'string') {
-    return value.length > 1200 ? `${value.slice(0, 1200)}...[truncated ${value.length - 1200} chars]` : value;
+    const redacted = value.replace(BLOCKER_COPY_BEARER_PATTERN, 'Bearer [redacted]');
+    return redacted.length > 1200 ? `${redacted.slice(0, 1200)}...[truncated ${redacted.length - 1200} chars]` : redacted;
   }
   if (type === 'number' || type === 'boolean') return value;
   if (type === 'bigint') return value.toString();
@@ -357,6 +360,10 @@ function compactForBlockerCopy(value, depth = 0) {
   const entries = Object.entries(value).slice(0, 16);
   const out = {};
   for (const [key, item] of entries) {
+    if (BLOCKER_COPY_SENSITIVE_KEY_PATTERN.test(key)) {
+      out[key] = '[redacted]';
+      continue;
+    }
     out[key] = compactForBlockerCopy(item, depth + 1);
   }
   const omitted = Object.keys(value).length - entries.length;

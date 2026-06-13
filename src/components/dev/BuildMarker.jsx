@@ -1890,7 +1890,14 @@ import React, { useEffect, useState } from 'react';
 //   • Adds a category-based Top 10 answer year/count table inside the existing
 //     Kategori Bazında Soru Havuzu section.
 //   • Keeps the email-body-only, no-PDF, exactly-nine-section report contract.
-const BUILD_MARKER = 'Codex347';
+//
+// Codex348 — Health deployment/auth/report coverage refresh:
+//   • Adds static Health checks for Base44 deploy-risk imports, getQuestions
+//     runtime markers/diagnostics, blocker-only Health copy JSON, Apple login
+//     compliance, and hardcoded email cleanup.
+//   • Keeps Health execution non-destructive and leaves gameplay/report
+//     business behavior unchanged.
+const BUILD_MARKER = 'Codex348';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

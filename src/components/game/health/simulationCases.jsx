@@ -481,7 +481,24 @@ export const TESTS = [
     const report = buildReport([
       { suiteId: 'report_integrity', suiteName: 'Report Integrity Suite', id: 'sample_pass', name: 'sample pass', status: STATUS.PASS, reason: 'sample pass', durationMs: 0, critical: true },
       { suiteId: 'report_integrity', suiteName: 'Report Integrity Suite', id: 'sample_warning', name: 'sample warning', status: STATUS.WARNING, reason: 'sample warning', durationMs: 0, critical: false },
-      { suiteId: 'report_integrity', suiteName: 'Report Integrity Suite', id: 'sample_fail', name: 'sample fail', status: STATUS.FAIL, reason: 'sample fail', expected: { ok: true }, actual: { ok: false, rows: Array.from({ length: 20 }, (_, index) => index) }, durationMs: 0, critical: false },
+      {
+        suiteId: 'report_integrity',
+        suiteName: 'Report Integrity Suite',
+        id: 'sample_fail',
+        name: 'sample fail',
+        status: STATUS.FAIL,
+        reason: 'sample fail',
+        expected: { ok: true },
+        actual: {
+          ok: false,
+          rows: Array.from({ length: 20 }, (_, index) => index),
+          token: 'secret-token-value',
+          Authorization: 'Bearer raw-auth-token',
+          headers: { authorization: 'Bearer nested-auth-token' },
+        },
+        durationMs: 0,
+        critical: false,
+      },
       { suiteId: 'mobile_viewport', suiteName: 'Mobile Viewport Suite', id: 'manual_drag', name: 'manual drag proof', status: STATUS.NOT_AUTOMATABLE, reason: 'manual proof needed', durationMs: 0, critical: true },
     ], SUITES);
     const copyPayload = buildBlockerCopyJson(report);
@@ -492,6 +509,9 @@ export const TESTS = [
       && copyPayload.blockers.some(item => item.caseId.includes('manual_drag'))
       && !serialized.includes('sample pass')
       && !serialized.includes('sample warning')
+      && !serialized.includes('secret-token-value')
+      && !serialized.includes('raw-auth-token')
+      && !serialized.includes('nested-auth-token')
       && !Object.prototype.hasOwnProperty.call(copyPayload, 'cases')
       && !Object.prototype.hasOwnProperty.call(copyPayload, 'suites');
     return hasOnlyRelevantShape

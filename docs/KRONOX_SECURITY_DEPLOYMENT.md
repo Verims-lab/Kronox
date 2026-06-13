@@ -602,6 +602,10 @@ After deployment, verify:
 * App Store Connect privacy answers must match the `/privacy` page and must be
   updated when data collection, push notifications, social features, analytics,
   or economy behavior changes.
+* App Store Guideline 4.8: when third-party login is offered, the login surface
+  must expose `Sign in with Apple` / `Apple ile Giriş Yap` through Base44 auth.
+  Base44 Settings → Authentication → Apple toggle is a manual deployment step;
+  no Apple client secret or native credential belongs in source.
 * Account deletion/access/correction requests may use the in-app deletion flow
   where available or the configured support contact.
 
@@ -756,3 +760,8 @@ Rules:
 * do not fake PASS for runtime security
 * keep RLS/cross-user probes NOT_AUTOMATABLE unless actually executed
 * external scanner findings should be resolved and rechecked
+* Base44 deploy-safety checks are static: `_shared/adminAuth`, `../_shared`,
+  and `file:///__shared` imports in critical functions should fail Health, but
+  live markers still require Base44 Test Function/deploy proof
+* Health `Copy Blocker JSON` should export blocker/failing/manual-critical
+  items and summary counts only, not the full raw PASS payload

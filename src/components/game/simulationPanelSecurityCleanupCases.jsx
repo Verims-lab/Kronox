@@ -83,6 +83,16 @@ const privateKeyBlockPattern = new RegExp([
   '[^-]+',
   ['PRIVATE KEY', '-----'].join(''),
 ].join(''));
+const EMAIL_LITERAL_REGEX = /\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b/g;
+const ALLOWED_EMAIL_LITERAL_SUFFIXES = ['@example.com', '@example.test', '@kronos.local'];
+
+function findCommittedEmailLiterals(source) {
+  return Array.from(new Set(String(source || '').match(EMAIL_LITERAL_REGEX) || []))
+    .filter((value) => {
+      const normalized = value.toLowerCase();
+      return !ALLOWED_EMAIL_LITERAL_SUFFIXES.some((suffix) => normalized.endsWith(suffix));
+    });
+}
 
 function makeCase(id, name, run, options = {}) {
   return {
@@ -429,13 +439,14 @@ export const EXTRA_TESTS = [
         'OWNER_EMAIL',
         'const SUPPORT_EMAIL =',
       ]);
+      const genericEmailLiterals = findCommittedEmailLiterals(combined);
       const missing = missingTokens(combined, required);
-      if (missing.length || forbidden.length) {
+      if (missing.length || forbidden.length || genericEmailLiterals.length) {
         return fail('Diagnostics or public pages still expose committed email literals.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           expected: 'AdminUser-backed diagnostics with generic masking and public support email supplied by VITE_KRONOX_SUPPORT_EMAIL',
-          actual: { missing, forbidden },
+          actual: { missing, forbidden, genericEmailLiterals },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
