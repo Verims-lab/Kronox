@@ -141,6 +141,9 @@ Category preferences are optional personalization, not a gameplay gate:
   merely because its ID was added after the original six seed categories
 * `category_id` normalization accepts any positive live DB category id; seed
   IDs are not a maximum boundary
+* `Question.main_category_id`, `second_category_id`, and `third_category_id`
+  must not declare an enum capped to the original 1-6 seed set; they reference
+  any positive live `Category.category_id`
 
 ---
 

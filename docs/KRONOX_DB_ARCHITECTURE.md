@@ -462,6 +462,12 @@ Rules:
   `main_category_id` and `category_id` storage variants, then normalize to the
   live `Category.category_id` whitelist before returning the gameplay
   projection.
+* `getQuestions` v2 gameplay requests return safe `projectionDiagnostics`
+  without requiring admin-only debug flags. Diagnostics must expose
+  requested/effective limit, active Category source/ids, per-category fetch and
+  playable counts, zero-playable categories, and whether fallback was used.
+  Fallback IDs are allowed only when the Category read fails, not merely when a
+  category has 0 playable questions.
 * The active category helper accepts any positive live `category_id`; original
   seed IDs are not a category maximum.
 * Online question selection is not affected.

@@ -183,6 +183,14 @@ P3 adds question analytics without changing question selection:
   applies the final projection cap after category coverage is known. If
   categories 7,8,9,11 lack active Category rows in live data, that remains a
   data/category seeding blocker rather than a deck-builder issue.
+- Codex340 fix: `/getQuestions` now has an explicit Base44 function manifest,
+  v2 gameplay requests return safe `projectionDiagnostics` by default, Category
+  fallback is used only when the `Category` read fails, and `Question`
+  category-id schema fields are no longer capped to the original 1-6 seed set.
+  Runtime proof should show `projectionVersion: per_category_projection_v2`,
+  `projectionCappedBeforeCategoryCoverage: false`, all active Category IDs in
+  `activeCategoryIdsFromGetQuestions`, and explicit zero-playable reasons when
+  an active category has no playable questions.
 - Codex330 fix: the global 30% difficulty-1 candidate diagnostics/scorer use
   the full eligible Solo pool, not only the non-selected category subset.
   The separate selected-vs-non-selected 70/30 pressure remains soft and

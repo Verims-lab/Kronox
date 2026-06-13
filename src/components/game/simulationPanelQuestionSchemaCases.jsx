@@ -287,6 +287,29 @@ export const EXTRA_TESTS = [
       });
     }),
 
+  makeCase('question_category_ids_are_not_seed_capped',
+    'Question category id fields are not capped to the original 1-6 seed set',
+    () => {
+      const schema = parseJsonSource(questionEntitySource);
+      const props = schema?.properties || {};
+      const checkedFields = ['main_category_id', 'second_category_id', 'third_category_id'];
+      const cappedFields = checkedFields.filter((field) => Array.isArray(props?.[field]?.enum));
+      const descriptionMissing = checkedFields.filter((field) => {
+        const text = String(props?.[field]?.description || '').toLowerCase();
+        return !text.includes('positive live category.category_id') && !text.includes('any positive live category.category_id');
+      });
+      if (cappedFields.length || descriptionMissing.length) {
+        return fail('Question category fields can still look capped to stale seed IDs.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'base44/entities/Question.jsonc',
+          actual: { cappedFields, descriptionMissing },
+        });
+      }
+      return pass('Question category fields accept any positive live Category.category_id instead of a stale 1-6 enum.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
   makeCase('legacy_question_fields_removed_from_schema',
     'Legacy Question fields are removed from the entity schema',
     () => {

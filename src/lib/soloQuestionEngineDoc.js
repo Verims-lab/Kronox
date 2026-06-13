@@ -108,7 +108,10 @@ clamping to original seed IDs. question-runtime-v5-per-category-projection
 invalidates stale local projections after category/query fixes. Gameplay fetches
 request the v2 per-category projection explicitly; getQuestions fetches
 numeric/string main_category_id and category_id variants per active Category
-before any final projection cap.
+before any final projection cap. getQuestions has an explicit Base44 function
+manifest, gameplay v2 requests return safe projectionDiagnostics by default,
+Category fallback is used only when Category read fails, and Question category
+fields are not capped to the original 1-6 seed set.
 
 P2 diagnostics are Health/admin/helper-only. Deck diagnostics include level
 number, level type, deck size, correct target, fail threshold, question IDs,

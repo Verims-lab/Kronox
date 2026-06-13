@@ -5,7 +5,7 @@
   "properties": {
     "category_id": {
       "type": "number",
-      "description": "Stable unique numeric category ID. Seeded values: 1=Chronicle, 2=Flashback, 3=K\u00fclt, 4=Viral, 5=Arena, 6=Level Up."
+      "description": "Stable unique positive numeric category ID. Runtime Solo/getQuestions reads active live rows and does not cap this field to the original seed set."
     },
     "name": {
       "type": "string",

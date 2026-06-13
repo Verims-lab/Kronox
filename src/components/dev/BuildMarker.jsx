@@ -1851,7 +1851,12 @@ import React, { useEffect, useState } from 'react';
 // Codex339 — Solo end screen stat-card polish:
 //   • Removes repeated Puan/Hata mini footer labels from Solo result stat
 //     cards and keeps the 2x2 card headings aligned without touching scoring.
-const BUILD_MARKER = 'Codex339';
+//
+// Codex340 — getQuestions active-category projection fix:
+//   • Adds the getQuestions function manifest, removes stale 1-6 Question
+//     category schema caps, and makes gameplay v2 projection diagnostics
+//     return with live active Category rows before any final cap.
+const BUILD_MARKER = 'Codex340';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
