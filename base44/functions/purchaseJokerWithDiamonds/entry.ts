@@ -70,6 +70,7 @@ function rowId(row: any) {
   return row?.id || row?._id || null;
 }
 
+
 function userEntity(base44: any) {
   // Runtime/deployability contract: Mağaza purchase explicitly binds
   // entities.User while retaining service-role preference for the balance write.
