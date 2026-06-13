@@ -8,8 +8,8 @@ const MAX_PREFERENCE_ROWS = 10000;
 const MAX_CATEGORY_ROWS = 1000;
 const QUERY_PER_CATEGORY_LIMIT = 1000;
 const TARGET_CATEGORY_IDS = Object.freeze([6, 7, 8, 9, 11]);
-const QUESTION_CACHE_KEY = 'kronox_questions_v5';
-const QUESTION_CACHE_VERSION = 'question-runtime-v5-per-category-projection';
+const QUESTION_CACHE_KEY = 'kronox_questions_v6';
+const QUESTION_CACHE_VERSION = 'question-runtime-v6-backend-marker-per-category';
 const CATEGORY_ACTIVE_STATUS_VALUES = new Set(['', 'a', 'active', 'aktif']);
 const PREFERENCE_ACTIVE_STATUS_VALUES = new Set(['a', 'active', 'aktif']);
 

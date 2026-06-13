@@ -106,6 +106,11 @@ function buildQuestionFetchDebugSnapshot({
     queryEntity: 'base44.functions.invoke',
     queryFunction: 'getQuestions',
     queryPayload: requestPayload || buildGameplayQuestionRequestPayload({ includeDiagnostics: Boolean(responseData?.projectionDiagnostics) }),
+    getQuestionsRuntimeMarker: responseData?.getQuestionsRuntimeMarker
+      || responseData?.runtimeMarker
+      || responseData?.projectionDiagnostics?.getQuestionsRuntimeMarker
+      || responseData?.projectionDiagnostics?.runtimeMarker
+      || null,
     projectionVersion: responseData?.projectionVersion || responseData?.projectionDiagnostics?.projectionVersion || null,
     requestedLimit: responseData?.requestedLimit ?? responseData?.projectionDiagnostics?.requestedLimit ?? null,
     effectiveLimit: responseData?.effectiveLimit ?? responseData?.projectionDiagnostics?.effectiveLimit ?? responseData?.limit ?? null,

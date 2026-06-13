@@ -431,6 +431,8 @@ export const EXTRA_TESTS = [
         'returnedByEraBand',
         'projectionLimit',
         'projectionVersion',
+        'runtimeMarker',
+        'getQuestionsRuntimeMarker',
         'requestedLimit',
         'effectiveLimit',
         'projectionSeed',
