@@ -1904,7 +1904,13 @@ import React, { useEffect, useState } from 'react';
 //   • Adds npm run check:base44-functions to catch function syntax,
 //     duplicate-declaration, deploy-risk import, email-literal, and
 //     getQuestions marker regressions before manual backend deploy.
-const BUILD_MARKER = 'Codex349';
+//
+// Codex350 — MainMenu HomeCTA icon import hotfix:
+//   • Imports ChevronRight for the HomeCTA chevron so MainMenu no longer
+//     crashes with a ReferenceError at runtime.
+//   • Leaves Home CTA layout, navigation, BottomNav, and gameplay behavior
+//     unchanged.
+const BUILD_MARKER = 'Codex350';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
