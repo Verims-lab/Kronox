@@ -4,8 +4,8 @@
  * TTL: 24 saat (sorular sık değişmez)
  */
 
-const CACHE_VERSION = 'question-runtime-v3-online-first';
-const CACHE_KEY = 'kronox_questions_v3';
+const CACHE_VERSION = 'question-runtime-v4-active-category-full-pool';
+const CACHE_KEY = 'kronox_questions_v4';
 const TTL_MS = 24 * 60 * 60 * 1000; // 24 saat
 
 export function saveQuestionsToCache(questions, metadata = {}) {

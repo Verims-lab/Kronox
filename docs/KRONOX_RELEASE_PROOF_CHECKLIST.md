@@ -150,6 +150,15 @@ Checklist:
   active categories, saved preferences are Solo-only soft weighting, Online
   remains separate, and no eligible active category is hardcoded out of the
   `getQuestions` projection.
+* After category/query changes, confirm the question cache marker is
+  `question-runtime-v4-active-category-full-pool`; stale projections from the
+  old cache must not keep feeding categories 1-5/1-6 only.
+* Runtime analytics proof after deploy: with active difficulty-1 questions and
+  saved preferences in categories 6,7,8,9,11, the next Question Analytics
+  report must not show all of those active preferred categories at 0 display.
+* Health/simulation must verify categories 6,7,8,9,11 are present in selected
+  preference diagnostics, global-lane diagnostics, and full eligible
+  difficulty-1 diagnostics before the final deck is evaluated.
 * Question Analytics report wording separates all active questions, Solo-eligible questions, runtime projection diagnostics, unique shown questions, and never-shown counts; it must not imply equal category/subcategory counts.
 * Question Analytics report includes the generic top-shown concentration guardrail: high category/subcategory concentration is not automatically unfair and must be compared with the Solo-eligible pool before drawing fairness conclusions.
 * Difficulty progression remains readiness-only and falls back safely when current question data has mostly difficulty 1 or missing difficulty.

@@ -1783,7 +1783,20 @@ import React, { useEffect, useState } from 'react';
 //     path and verifies the visible "Tanımlı Görevler" contract in the list.
 //   • DailyQuestDefinitionManager still mounts DailyQuestDefinitionList under
 //     Profile / Admin Ekranı; duplicate grouping and runtime rules unchanged.
-const BUILD_MARKER = 'Codex328';
+//
+// Codex329 — Solo category projection full-pool fix:
+//   • getQuestions and category helpers accept live active-status aliases and
+//     no longer clamp active category IDs to the original seed set.
+//   • Solo diagnostics/Health now prove categories 6,7,8,9,11 can enter rich
+//     preference pools, and the question cache was bumped to invalidate stale
+//     narrow projections.
+//
+// Codex330 — Solo global-lane full eligible correction:
+//   • The global difficulty-1 candidate pool now uses the full eligible Solo
+//     pool, while selected-vs-non-selected 70/30 pressure remains soft.
+//   • Health simulation now fails if categories 6,7,8,9,11 are absent from
+//     selected-lane, global-lane, or full eligible difficulty-1 diagnostics.
+const BUILD_MARKER = 'Codex330';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -102,6 +102,10 @@ builder.
 getQuestions derives runtime playable category IDs from active Category rows,
 not a stale hardcoded seed-category subset; fallback IDs are only for Category
 read failure and must not permanently exclude newer active category IDs.
+Runtime active-category status aliases include a, active, and aktif, and live
+category_id normalization accepts any positive DB category id instead of
+clamping to original seed IDs. question-runtime-v4-active-category-full-pool
+invalidates stale local projections after category/query fixes.
 
 P2 diagnostics are Health/admin/helper-only. Deck diagnostics include level
 number, level type, deck size, correct target, fail threshold, question IDs,

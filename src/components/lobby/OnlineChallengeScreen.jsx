@@ -53,7 +53,7 @@ export default function OnlineChallengeScreen({
   const [dbCategories, setDbCategories] = useState(null);
 
   // Codex159/Codex160 — Pull categories from the DB lookup table, keep
-  // only status === "a" rows via the shared filter helper, then sort by
+  // only active-status rows via the shared filter helper, then sort by
   // category_id ASC so the visual left-to-right order matches the DB
   // contract (Chronicle=1 → Flashback=2 → Kült=3 → ...). Rows missing
   // status are treated as active for backward compatibility (see

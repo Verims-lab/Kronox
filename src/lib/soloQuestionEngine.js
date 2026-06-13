@@ -356,17 +356,34 @@ function enrichPreferenceContextForGlobalDifficulty(preferenceContext = {}, cand
     selectedCategoryDifficultyUnrestricted: true,
     globalPoolHardFilteredToSelectedCategories: false,
   };
-  const globalCandidates = (candidates || [])
+  const fullEligibleCandidates = candidates || [];
+  const selectedCandidates = fullEligibleCandidates
+    .filter((question) => isQuestionInUserSelectedCategory(question, context));
+  const nonSelectedCandidates = fullEligibleCandidates
     .filter((question) => !isQuestionInUserSelectedCategory(question, context));
+  const globalCandidates = fullEligibleCandidates;
   const globalDifficultyCandidates = globalCandidates.filter(isGlobalDifficultyTargetQuestion);
+  const fullEligibleDifficultyCandidates = fullEligibleCandidates.filter(isGlobalDifficultyTargetQuestion);
   const globalDifficultyYears = new Set(globalDifficultyCandidates
+    .map((question) => Number(question?.year))
+    .filter(Number.isFinite));
+  const fullEligibleDifficultyYears = new Set(fullEligibleDifficultyCandidates
     .map((question) => Number(question?.year))
     .filter(Number.isFinite));
   const globalTargetCount = Math.max(0, Number(context.globalTargetCount) || 0);
   const globalDifficulty1TargetCount = Math.min(globalTargetCount, globalDifficultyYears.size);
   return {
     ...context,
+    fullEligibleCandidateCount: fullEligibleCandidates.length,
+    fullEligibleCandidateCategoryDistribution: buildDistribution(fullEligibleCandidates, getCategoryKey),
+    selectedLaneCandidateCategoryDistribution: buildDistribution(selectedCandidates, getCategoryKey),
+    globalLaneCandidateCategoryDistribution: buildDistribution(globalCandidates, getCategoryKey),
+    nonSelectedCandidateCategoryDistribution: buildDistribution(nonSelectedCandidates, getCategoryKey),
     globalCandidateCount: globalCandidates.length,
+    fullEligibleDifficulty1CandidateCount: fullEligibleDifficultyCandidates.length,
+    fullEligibleDifficulty1CandidateYears: fullEligibleDifficultyYears.size,
+    fullEligibleDifficulty1CandidateCategoryDistribution: buildDistribution(fullEligibleDifficultyCandidates, getCategoryKey),
+    globalDifficulty1CandidateCategoryDistribution: buildDistribution(globalDifficultyCandidates, getCategoryKey),
     globalDifficulty1CandidateCount: globalDifficultyCandidates.length,
     globalDifficulty1CandidateYears: globalDifficultyYears.size,
     globalDifficulty1TargetCount,
@@ -393,7 +410,6 @@ function countGlobalCandidateCards(items = [], preferenceContext) {
 
 function countGlobalDifficultyTargetCards(items = [], preferenceContext) {
   return (items || []).reduce((count, question) => {
-    if (isQuestionInUserSelectedCategory(question, preferenceContext)) return count;
     return count + (isGlobalDifficultyTargetQuestion(question) ? 1 : 0);
   }, 0);
 }
@@ -401,7 +417,6 @@ function countGlobalDifficultyTargetCards(items = [], preferenceContext) {
 function scoreGlobalDifficultyTarget(question, selected, options = {}) {
   const context = options.preferenceContext;
   if (!context?.enabled) return 0;
-  if (isQuestionInUserSelectedCategory(question, context)) return 0;
 
   const selectedGlobalCount = countGlobalCandidateCards(selected, context);
   const globalTargetCount = Math.max(0, Number(context.globalTargetCount) || 0);
@@ -1584,6 +1599,14 @@ function buildCategoryPreferenceDiagnostics(candidates = [], selectedDeck = [], 
     selectedCategoryDifficultyUnrestricted: preferenceContext.selectedCategoryDifficultyUnrestricted !== false,
     globalDifficultyRuleAppliesOnlyToGlobal30: preferenceContext.globalDifficultyRuleAppliesOnlyToGlobal30 !== false,
     globalPoolHardFilteredToSelectedCategories: false,
+    fullEligibleCandidateCategoryDistribution: preferenceContext.fullEligibleCandidateCategoryDistribution || buildDistribution(candidates, getCategoryKey),
+    selectedLaneCandidateCategoryDistribution: preferenceContext.selectedLaneCandidateCategoryDistribution || {},
+    globalLaneCandidateCategoryDistribution: preferenceContext.globalLaneCandidateCategoryDistribution || {},
+    nonSelectedCandidateCategoryDistribution: preferenceContext.nonSelectedCandidateCategoryDistribution || {},
+    fullEligibleDifficulty1CandidateCount: preferenceContext.fullEligibleDifficulty1CandidateCount || 0,
+    fullEligibleDifficulty1CandidateYears: preferenceContext.fullEligibleDifficulty1CandidateYears || 0,
+    fullEligibleDifficulty1CandidateCategoryDistribution: preferenceContext.fullEligibleDifficulty1CandidateCategoryDistribution || {},
+    globalDifficulty1CandidateCategoryDistribution: preferenceContext.globalDifficulty1CandidateCategoryDistribution || {},
     selectedCategoryActualCount,
     globalActualCount,
     selectedCategoryCandidateCount,

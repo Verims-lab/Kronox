@@ -2166,6 +2166,100 @@ export const EXTRA_TESTS = [
   ),
 
   makeCase(
+    'solo_category_preference_categories_6_11_runtime_coverage',
+    'Solo candidate pool can surface preferred categories 6-11 and full-pool difficulty-1 candidates',
+    () => {
+      const activeCategoryIds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 11];
+      const selectedCategoryIds = [6, 7, 8, 9, 11];
+      let cursor = 0;
+      const pool = activeCategoryIds.flatMap((categoryId) => Array.from({ length: 24 }, (_, index) => {
+        cursor += 1;
+        return {
+          id: 46000 + cursor,
+          question: `Category ${categoryId} coverage ${index}`,
+          answer: String(1200 + cursor * 7),
+          year: 1200 + cursor * 7,
+          main_category_id: categoryId,
+          category_id: String(categoryId),
+          sub_category: `coverage_sub_${categoryId}_${index % 4}`,
+          tag: `coverage_tag_${index % 5}`,
+          difficulty: 1,
+          state: 'A',
+          type: 'metin',
+        };
+      }));
+
+      const seenDeckCategoryIds = new Set();
+      let lastMeta = null;
+      for (let seed = 0; seed < 24; seed += 1) {
+        const result = buildSoloAttemptDeck({
+          pool,
+          levelNumber: 4,
+          seedCount: 2,
+          allowedMainCategoryIds: activeCategoryIds,
+          requireActiveCategoryWhitelist: true,
+          userSelectedCategoryIds: selectedCategoryIds,
+          userCategoryPreferenceAvailable: true,
+          random: makeSeededRandom(6200 + seed),
+        });
+        if (!result.ok) {
+          return fail('Rich categories 1-11 pool unexpectedly failed to build a Solo deck.', {
+            verification: 'RUNTIME_VERIFIED',
+            classification: 'REAL_PRODUCT_RISK',
+            actual: result,
+            actionType: ACTION_TYPES.CODE_FIX,
+          });
+        }
+        lastMeta = result.meta?.categoryPreferenceFairness || {};
+        for (const question of result.deck || []) {
+          seenDeckCategoryIds.add(String(question?.main_category_id ?? question?.category_id));
+        }
+      }
+
+      const requiredSelected = selectedCategoryIds.map(String);
+      const missingFromDecks = requiredSelected.filter((id) => !seenDeckCategoryIds.has(id));
+      const fullEligibleDifficultyDistribution = lastMeta?.fullEligibleDifficulty1CandidateCategoryDistribution || {};
+      const globalDifficultyDistribution = lastMeta?.globalDifficulty1CandidateCategoryDistribution || {};
+      const selectedLaneDistribution = lastMeta?.selectedLaneCandidateCategoryDistribution || {};
+      const globalLaneDistribution = lastMeta?.globalLaneCandidateCategoryDistribution || {};
+      const missingFromFullDifficultyPool = requiredSelected.filter((id) => !fullEligibleDifficultyDistribution[id]);
+      const missingFromGlobalDifficultyPool = requiredSelected.filter((id) => !globalDifficultyDistribution[id]);
+      const missingFromSelectedLane = requiredSelected.filter((id) => !selectedLaneDistribution[id]);
+      const missingFromGlobalLane = requiredSelected.filter((id) => !globalLaneDistribution[id]);
+      const actual = {
+        seenDeckCategoryIds: Array.from(seenDeckCategoryIds).sort((a, b) => Number(a) - Number(b)),
+        fullEligibleDifficultyDistribution,
+        globalDifficultyDistribution,
+        selectedLaneDistribution,
+        globalLaneCandidateCategoryDistribution: globalLaneDistribution,
+        nonSelectedCandidateCategoryDistribution: lastMeta?.nonSelectedCandidateCategoryDistribution,
+        fullEligibleCandidateCategoryDistribution: lastMeta?.fullEligibleCandidateCategoryDistribution,
+        missingFromDecks,
+        missingFromFullDifficultyPool,
+        missingFromGlobalDifficultyPool,
+        missingFromSelectedLane,
+        missingFromGlobalLane,
+      };
+
+      if (missingFromDecks.length || missingFromFullDifficultyPool.length || missingFromGlobalDifficultyPool.length || missingFromSelectedLane.length || missingFromGlobalLane.length) {
+        return fail('Solo runtime can still starve categories 6-11 from the candidate pool or selected-preference lane.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: 'categories 6,7,8,9,11 appear in rich-pool decks, selected lane, global lane, global difficulty-1 pool, and full eligible diagnostics before selection',
+          actual,
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+
+      return pass('Rich-pool simulation proves selected categories 6,7,8,9,11 can enter decks, global lane diagnostics, and difficulty-1 candidate diagnostics.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+        actual,
+      });
+    },
+  ),
+
+  makeCase(
     'solo_category_preference_shortage_fills_from_global_pool',
     'Selected-category shortage fills from global pool instead of failing',
     () => {
@@ -2446,14 +2540,21 @@ export const EXTRA_TESTS = [
       ]);
       const helperMissing = missingTokens(userCategoryPreferenceHelperSource, [
         '{ user_email: userEmail }',
+        'CATEGORY_ROW_ACTIVE_STATUSES',
         'filter(isActiveCategory)',
         'filter(isActiveCategoryPreference)',
       ]);
       const getQuestionsMissing = missingTokens(getQuestionsFunctionSource, [
         'FALLBACK_ACTIVE_CATEGORY_IDS',
+        'CATEGORY_ACTIVE_STATUS_VALUES',
+        "'active'",
+        "'aktif'",
         'return id > 0 ? id : null',
         "Category.list('category_id', 50)",
         'filter(isActiveCategory).map(getCategoryId).filter(isKnownCategoryId)',
+        'questionFetchPath',
+        'wasCappedBeforeBalancing: false',
+        'queryLimitUsed: QUESTION_FETCH_PER_CATEGORY_LIMIT',
       ]);
       const forbidden = [
         ...['UserCategoryPreference', 'loadUserCategoryPreferences', 'userSelectedCategoryIds']

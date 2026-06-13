@@ -86,6 +86,9 @@ These are soft balance preferences:
   The global 30% lane prefers `difficulty = 1` questions from the full
   eligible pool where possible. This is a soft target with fallback, not a
   hard filter.
+- live category ids are normalized from `Category.category_id` as any positive
+  id; runtime must not clamp Solo to the original seed IDs or to categories
+  1-6.
 
 P1/P2 balancing applies during deck selection and deck ordering where the pool allows:
 - normal and special decks distribute across active categories so one category does not dominate a rich pool
@@ -166,6 +169,17 @@ P3 adds question analytics without changing question selection:
   driven by active `Category` rows, not a stale hardcoded seed-category list.
   The fallback list is only for Category read failure; normal runtime must not
   accidentally hardcode active categories 7+ out of the Solo-eligible pool.
+- Codex329 fix: `/getQuestions`, Category helpers, and preference helpers
+  accept active status aliases (`a`, `active`, `aktif`, plus missing status for
+  backward compatibility), fetch candidates per active category before
+  pool-proportional projection, and expose diagnostics showing that projection
+  is not capped before category balancing. The local question cache version is
+  `question-runtime-v4-active-category-full-pool` so stale narrow projections
+  are invalidated.
+- Codex330 fix: the global 30% difficulty-1 candidate diagnostics/scorer use
+  the full eligible Solo pool, not only the non-selected category subset.
+  The separate selected-vs-non-selected 70/30 pressure remains soft and
+  pool-proportional; this does not force equal category counts.
 - `QuestionStatsProjection` and `CategoryStatsProjection` refresh remains an
   admin/manual `aggregateQuestionStats` path, defaults to dry-run unless
   explicitly run for write, and is not updated synchronously during gameplay.
