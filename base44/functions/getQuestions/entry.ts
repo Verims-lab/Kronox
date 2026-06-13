@@ -67,6 +67,7 @@ async function isAuthorizedAdmin(base44: any, user: any) {
     }
   }
 
+
   return (rows || []).some((candidate: any) => {
     const emailField = readAdminAuthField(candidate, ADMIN_AUTH_FIELD_CANDIDATES.email);
     const roleField = readAdminAuthField(candidate, ADMIN_AUTH_FIELD_CANDIDATES.role);
