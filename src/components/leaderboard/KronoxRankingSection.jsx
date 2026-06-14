@@ -315,15 +315,12 @@ function LeaderboardRow({ row, compact = false, emphasis = false }) {
       >
         {row.initial}
       </div>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 self-center">
         <div className="flex min-w-0 items-center gap-1.5">
           <p className="truncate font-inter text-xs font-black text-white">{row.displayName}</p>
           {row.isCurrentUser && <Badge text="Sen" tone="gold" />}
           {row.isFriend && <Badge text="Arkadaş" tone="cyan" />}
         </div>
-        <p className="mt-0.5 font-inter text-[10px] text-blue-100/55">
-          Seviye <span className="kronox-number">{row.summary.currentLevel}</span>
-        </p>
       </div>
       <div className="shrink-0 text-right">
         <p className="kronox-number text-lg leading-none text-amber-200">{row.summary.totalKronoxScore}</p>

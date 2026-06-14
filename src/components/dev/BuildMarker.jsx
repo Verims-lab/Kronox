@@ -1993,7 +1993,11 @@ import React, { useEffect, useState } from 'react';
 //     soft weighting.
 //   • Removes guest/raw question-pool wording while preserving getQuestions
 //     authentication and the no raw Question.list gameplay fallback contract.
-const BUILD_MARKER = 'Codex364';
+//
+// Codex365 — Leaderboard row cleanup:
+//   • Removes the row-level "Seviye X" sublabel from Liderlik ranking rows
+//     while preserving rank, avatar, badges, row highlight, and Kronox Puan.
+const BUILD_MARKER = 'Codex365';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
