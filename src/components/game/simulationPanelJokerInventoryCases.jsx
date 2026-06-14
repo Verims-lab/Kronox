@@ -264,6 +264,40 @@ export const EXTRA_TESTS = [
       return pass('A non-destructive helper can compare UserJokerInventory balances against JokerTransaction ledger totals/latest balance.', { verification: 'STATIC_CONTRACT' });
     }),
 
+  makeCase('joker_economy_unique_and_idempotency_guards',
+    'Joker inventory and ledger have logical unique/idempotency guards',
+    () => {
+      const combined = `${userJokerInventoryEntitySource}\n${jokerTransactionEntitySource}\n${jokerInventorySource}\n${ensureUserJokerInventorySource}\n${purchaseJokerWithDiamondsSource}\n${spendUserJokerSource}`;
+      const missing = missingTokens(combined, [
+        'JOKER_ECONOMY_INDEX_GUARD_CONTRACT',
+        'UserJokerInventory logical unique key is user_email + joker_type.',
+        'JokerTransaction logical unique key is idempotency_key when present.',
+        'user_email + joker_type',
+        'idempotency_key is the logical unique duplicate-protection key',
+        'filter({ user_email: email, joker_type: jokerType }',
+        'filter({ user_email: email, joker_type: jokerType, idempotency_key: idempotencyKey }',
+        'findJokerTransaction',
+        'findTransaction',
+        'Math.max(balances[type], normalizeQuantity',
+        'duplicateRowsIgnored',
+      ]);
+      if (missing.length) return fail('Joker balance or ledger duplicate/idempotency protection contract is incomplete.', {
+        verification: 'STATIC_CONTRACT',
+        files: [
+          'base44/entities/UserJokerInventory.jsonc',
+          'base44/entities/JokerTransaction.jsonc',
+          'base44/functions/ensureUserJokerInventory/entry.ts',
+          'base44/functions/purchaseJokerWithDiamonds/entry.ts',
+          'base44/functions/spendUserJoker/entry.ts',
+          'src/lib/jokerInventory.js',
+        ],
+        missing,
+      });
+      return pass('Joker inventory uses user+joker logical uniqueness, ledger writes use idempotency lookup, and duplicate balance rows are tolerated safely.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
   makeCase('joker_inventory_query_path_is_shared_and_cached',
     'Profile, Solo, and Market share one cached balance helper path',
     () => {

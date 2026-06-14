@@ -3,6 +3,7 @@ export {
   getLeaderboardOwnerKey,
   getSafeLeaderboardName,
   loadSoloLeaderboardEntries,
+  loadSoloLeaderboardSnapshot,
   publishSoloLeaderboardEntry,
   rankSoloLeaderboardEntries,
   selectLeaderboardSections,

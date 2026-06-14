@@ -49,17 +49,32 @@ Deno.serve(async (req) => {
   if (!user) return json({ ok: false, error: 'Unauthorized' }, 401);
 
   // Service role used ONLY internally; rows returned are rank-safe.
-  const projectionRows = await base44.asServiceRole.entities.SoloLeaderboardEntry
-    .list('-total_kronox_score', limit);
-  const rows = (projectionRows || []).map((row) => toProjectionLeaderboardRow(row)).filter(Boolean).sort(compareRows);
+  const projectionEntity = base44?.asServiceRole?.entities?.SoloLeaderboardEntry;
+  const projectionRows = await projectionEntity.list('-total_kronox_score', limit);
+  const rankedWindowRows = dedupeProjectionRows((projectionRows || []).map((row) => toProjectionLeaderboardRow(row)).filter(Boolean));
+  const friendUserKeys = await loadAcceptedFriendOwnerKeys(base44, normalizeEmail(user?.email));
+  const topRows = rankedWindowRows.slice(0, topLimit);
+  const currentUserRow = topRows.find((row) => row.isCurrentUser) || null;
+  const currentUserRank = currentUserRow?.rank || null;
+  const friendsOutsideTop = rankedWindowRows.filter((row) => row.isFriend).slice(0, topLimit);
+  const compactResponseRows = compactRows([...topRows, currentUserRow, ...friendsOutsideTop].filter(Boolean));
 
   return json({
     ok: true,
-    source: 'solo_leaderboard_entry_projection',
+    source: 'SoloLeaderboardEntry',
+    projectionSource: 'solo_leaderboard_entry_projection',
     projection: 'solo_leaderboard_entry_total_kronox_score_projection',
     projectionFirst: true,
     broadUserListUsed: false,
-    rows,
+    topRows,
+    currentUserRow,
+    currentUserRank,
+    friendUserKeys,
+    friendsOutsideTop,
+    generatedAt: new Date().toISOString(),
+    rankConfidence: currentUserRank ? 'window_exact' : 'no_projection_row',
+    rankScope: currentUserRank ? 'top_projection_window' : 'not_ranked_until_projection_publish',
+    rows: compactResponseRows,
   });
 });
 

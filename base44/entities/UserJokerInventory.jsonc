@@ -1,11 +1,11 @@
 {
   "name": "UserJokerInventory",
   "type": "object",
-  "description": "User-owned joker balance rows. One logical row should exist per user_email + joker_type. Balances are initialized by ensureUserJokerInventory, read by Profile Joker \u00c7antas\u0131, and spent by Solo through spendUserJoker.",
+  "description": "User-owned joker balance rows. One logical row should exist per user_email + joker_type. Base44/platform index contract: user_email for fast profile loads; user_email + joker_type as the logical unique key. Until platform unique/index proof exists, ensureUserJokerInventory dedupes rows and purchase/spend functions filter by user_email + joker_type before update/create. Balances are initialized by ensureUserJokerInventory, read by Profile Joker \u00c7antas\u0131, and spent by Solo through spendUserJoker.",
   "properties": {
     "user_email": {
       "type": "string",
-      "description": "Lowercased owner email for this joker balance."
+      "description": "Lowercased owner email for this joker balance. Hot lookup field for Profile/Solo/Market inventory reads."
     },
     "joker_type": {
       "type": "string",
@@ -14,7 +14,7 @@
         "card_swap",
         "time_freeze"
       ],
-      "description": "Stable internal joker type."
+      "description": "Stable internal joker type. Combined with user_email as the logical unique balance key."
     },
     "quantity": {
       "type": "number",

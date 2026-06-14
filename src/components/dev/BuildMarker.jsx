@@ -2005,7 +2005,16 @@ import React, { useEffect, useState } from 'react';
 //   • Liderlik no longer waits on own-row publish before first render.
 //   • Profile renders from auth.me first; Joker Çantası reads current
 //     UserJokerInventory rows before background self-heal.
-const BUILD_MARKER = 'Codex366';
+//
+// Codex367 — Leaderboard/Profile performance P1:
+//   • getSoloLeaderboard returns a compact SoloLeaderboardEntry snapshot:
+//     topRows, currentUserRow/rank, friend owner keys, and rankScope metadata.
+//   • Leaderboard consumes the server snapshot directly, without a separate
+//     client friend query or broad User rows in the primary path.
+//   • Entity docs/static guards record logical unique/index contracts for
+//     SoloLeaderboardEntry, UserJokerInventory, JokerTransaction, and
+//     FriendRequest while write paths keep query-before-write protection.
+const BUILD_MARKER = 'Codex367';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

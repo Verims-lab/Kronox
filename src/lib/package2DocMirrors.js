@@ -156,7 +156,13 @@ export const getSoloLeaderboardSource = `
   // Mirror of base44/functions/getSoloLeaderboard/entry.ts — token contract.
   const rows = await base44.asServiceRole.entities.SoloLeaderboardEntry.list('-total_kronox_score', 200);
   const projected = toProjectionLeaderboardRow(rows[0]);
+  const topRows = rows.slice(0, 10);
+  const currentUserRank = projected?.rank || null;
+  const friendUserKeys = await loadAcceptedFriendOwnerKeys(base44, user.email);
+  const rankConfidence = currentUserRank ? 'window_exact' : 'projection_row_found_rank_outside_window';
+  const rankScope = currentUserRank ? 'top_projection_window' : 'outside_top_projection_window';
   // solo_leaderboard_entry_total_kronox_score_projection — persisted public read model.
+  // compact response: topRows, currentUserRow, currentUserRank, friendUserKeys, rankConfidence, rankScope.
   // User.list fallback is reserved only for optional per-level record lookup.
   // Privacy: raw user_email is never returned in leaderboard rows.
 `;

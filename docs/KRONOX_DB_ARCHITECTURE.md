@@ -18,7 +18,7 @@ Highest priority findings:
 | Priority | Finding | Risk | Safe direction |
 | --- | --- | --- | --- |
 | P0 | Question reads are safer now, but still rely on per-category batches and broad in-memory filtering. | Medium | Keep `getQuestions` as the protected gateway; add indexed active question queries or paging. |
-| P1 | Leaderboard now reads `SoloLeaderboardEntry` projection first, but exact global rank/pagination and platform index proof still need scale work. | Medium | Keep `SoloLeaderboardEntry` as the canonical public-safe projection; add indexed rank/current-user endpoints or a dedicated projection when user count grows. |
+| P1 | Leaderboard now reads `SoloLeaderboardEntry` projection first and returns a compact top/current/friend snapshot, but exact rank outside the projection window and platform index proof still need scale work. | Medium | Keep `SoloLeaderboardEntry` as the canonical public-safe projection; add platform score/owner indexes and a rank-safe per-level/current-rank projection when user count grows. |
 | P0 | Analytics are missing. Kronox cannot reliably answer question shown/correct/wrong/easy/hard/category popularity questions. | High | Add append-only events plus projection tables. |
 | P1 | Idempotency relies on logical keys checked in code, but repo schemas do not declare unique constraints. | High | Configure unique keys where Base44 supports them; otherwise gate writes through backend functions. |
 | P1 | Cleanup exists as client-safe helpers, not production recurring jobs. | Medium | Move cleanup to idempotent backend jobs with status transition first, hard delete only after retention approval. |
@@ -123,7 +123,9 @@ Platform/manual configuration still required:
   `Question.state + difficulty`, `Question.state + sub_category`,
   `DiamondTransaction.user_email + created_at/source`,
   `JokerTransaction.user_email + joker_type + created_at`,
-  `QuestionAttemptEvent.question_id + created_at`, and leaderboard score sort.
+  `QuestionAttemptEvent.question_id + created_at`, `FriendRequest.from_email + status`,
+  `FriendRequest.to_email + status`, and leaderboard `total_kronox_score desc`
+  sort.
 - Runtime uniqueness, scheduled jobs, high-volume analytics writes, and
   two-account RLS/BOLA probes remain manual proof items.
 

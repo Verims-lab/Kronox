@@ -592,6 +592,19 @@ export const EXTRA_TESTS = [
         actual: 'sender/recipient/admin branches present for read/update/delete',
       });
     }),
+  sourceHas('friends_security', 'friend_request_lookup_indexes_documented',
+    'FriendRequest lookup/index contract supports friend badge and status reads',
+    'base44/entities/FriendRequest.jsonc',
+    friendRequestEntityRawSource,
+    [
+      'from_email + status',
+      'to_email + status',
+      'from_email + to_email + status',
+      'RLS remains sender, recipient, or admin/owner only',
+    ],
+    {
+      expected: 'FriendRequest documents hot lookup keys without loosening sender/recipient/admin RLS',
+    }),
   sourceHas('friends_security', 'accept_is_receiver_only_server',
     'Server-side acceptFriendRequest is receiver-only',
     'functions/acceptFriendRequest.js',
