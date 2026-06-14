@@ -1376,8 +1376,8 @@ export default function Game() {
         questType: 'use_joker',
       });
       return true;
-    } catch (error) {
-      setJokerError(error?.message || 'Joker kullanılamadı.');
+    } catch {
+      setJokerError('Joker kullanılamadı. Lütfen tekrar dene.');
       return false;
     } finally {
       jokerSpendPendingRef.current = false;

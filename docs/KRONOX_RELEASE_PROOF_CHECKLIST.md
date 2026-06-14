@@ -351,6 +351,8 @@ Checklist:
   joker balances or create arbitrary grant rows.
 * Solo use spends one owned joker through `spendUserJoker` and writes
   `JokerTransaction.reason = solo_use`.
+* `spendUserJoker` must reject non-Solo context, avoid service-role-only deploy
+  assumptions, and map backend invoke failures to safe UI copy.
 * Home shows the Mağaza entry at top-left, Diamond count top-center, and
   notifications top-right.
 * Mağaza Phase 1 sells only three Solo jokers:
@@ -361,6 +363,8 @@ Checklist:
 * `purchaseJokerWithDiamonds` explicitly binds `UserJokerInventory`,
   `DiamondTransaction`, and `JokerTransaction`; missing deployed entity
   registries must fail safely rather than exposing raw errors.
+* Starter inventory self-heal during purchase is best-effort and must not block
+  an otherwise valid purchased joker balance/ledger write.
 * Successful purchase writes both `DiamondTransaction.source = market_purchase`
   with `direction = spend` and `JokerTransaction.reason = market_purchase`.
 * Purchase uses a per-action idempotency key and pending UI guard; live
@@ -371,6 +375,9 @@ Checklist:
 * Both `DiamondTransaction` and `JokerTransaction` must be present for a
   completed Mağaza purchase; partial ledger states fail closed and require
   reconciliation.
+* Non-destructive reconciliation should compare `UserJokerInventory.quantity`
+  with `JokerTransaction` summed deltas/latest `balance_after` and report
+  mismatches without mutating data.
 * Client is not trusted for price; purchase validation is server-authoritative.
 * Manual Mağaza Phase 1 proof:
   1. Open Home on mobile browser/PWA.

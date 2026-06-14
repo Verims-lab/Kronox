@@ -1960,7 +1960,15 @@ import React, { useEffect, useState } from 'react';
 //   • Requires an authenticated user for gameplay question projection while
 //     keeping admin/full-bank diagnostics AdminUser-gated.
 //   • Keeps v2 per-category projection diagnostics and runtime marker intact.
-const BUILD_MARKER = 'Codex359';
+//
+// Codex360 — Joker economy/inventory audit hardening:
+//   • Makes Solo joker spend deploy-safe with UserJokerInventory /
+//     JokerTransaction entity fallback, Solo-context validation, and safe UI
+//     error mapping.
+//   • Keeps Market prices server-owned while making starter self-heal
+//     best-effort during purchase and adding inventory/ledger reconciliation
+//     helper coverage.
+const BUILD_MARKER = 'Codex360';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -118,6 +118,90 @@ export function canApplyJokerTransaction(currentQuantity, quantityDelta) {
   return current + Math.trunc(delta) >= 0;
 }
 
+function normalizeLedgerDelta(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? Math.trunc(numeric) : 0;
+}
+
+function jokerReconciliationKey(userEmail, jokerType) {
+  const email = normalizeJokerEmail(userEmail);
+  return email && isKnownJokerType(jokerType) ? `${email}:${jokerType}` : '';
+}
+
+export function buildJokerInventoryLedgerReconciliation(inventoryRows = [], transactionRows = []) {
+  const inventoryByKey = new Map();
+  const ledgerByKey = new Map();
+
+  (Array.isArray(inventoryRows) ? inventoryRows : []).forEach((row) => {
+    const jokerType = row?.joker_type || row?.jokerType;
+    const key = jokerReconciliationKey(row?.user_email || row?.userEmail, jokerType);
+    if (!key) return;
+    const quantity = normalizeJokerQuantity(row?.quantity);
+    const existing = inventoryByKey.get(key);
+    if (!existing || quantity > existing.quantity) {
+      inventoryByKey.set(key, {
+        userEmail: normalizeJokerEmail(row?.user_email || row?.userEmail),
+        jokerType,
+        quantity,
+        rowId: row?.id || row?._id || null,
+      });
+    }
+  });
+
+  (Array.isArray(transactionRows) ? transactionRows : []).forEach((row) => {
+    const jokerType = row?.joker_type || row?.jokerType;
+    const key = jokerReconciliationKey(row?.user_email || row?.userEmail, jokerType);
+    if (!key) return;
+    const bucket = ledgerByKey.get(key) || {
+      userEmail: normalizeJokerEmail(row?.user_email || row?.userEmail),
+      jokerType,
+      summedDelta: 0,
+      latestBalanceAfter: null,
+      latestCreatedAt: '',
+      transactionCount: 0,
+    };
+    bucket.summedDelta += normalizeLedgerDelta(row?.quantity_delta);
+    bucket.transactionCount += 1;
+    const createdAt = String(row?.created_at || row?.createdAt || '');
+    if (!bucket.latestCreatedAt || createdAt >= bucket.latestCreatedAt) {
+      bucket.latestCreatedAt = createdAt;
+      bucket.latestBalanceAfter = normalizeJokerQuantity(row?.balance_after);
+    }
+    ledgerByKey.set(key, bucket);
+  });
+
+  const rows = Array.from(new Set([...inventoryByKey.keys(), ...ledgerByKey.keys()]))
+    .sort()
+    .map((key) => {
+      const inventory = inventoryByKey.get(key) || null;
+      const ledger = ledgerByKey.get(key) || null;
+      const inventoryQuantity = normalizeJokerQuantity(inventory?.quantity);
+      const ledgerBalanceAfter = ledger?.latestBalanceAfter;
+      const ledgerSummedDelta = normalizeJokerQuantity(ledger?.summedDelta);
+      const matchesLatestLedger = ledgerBalanceAfter === null || inventoryQuantity === ledgerBalanceAfter;
+      const matchesDeltaSum = !ledger || inventoryQuantity === ledgerSummedDelta;
+      return {
+        key,
+        userEmail: inventory?.userEmail || ledger?.userEmail || '',
+        jokerType: inventory?.jokerType || ledger?.jokerType || '',
+        inventoryQuantity,
+        ledgerBalanceAfter,
+        ledgerSummedDelta,
+        transactionCount: ledger?.transactionCount || 0,
+        matchesLatestLedger,
+        matchesDeltaSum,
+        ok: Boolean(inventory) && Boolean(ledger) && matchesLatestLedger && matchesDeltaSum,
+      };
+    });
+
+  return {
+    ok: rows.every((row) => row.ok),
+    checkedCount: rows.length,
+    mismatches: rows.filter((row) => !row.ok),
+    rows,
+  };
+}
+
 export function normalizeJokerBalances(input) {
   const balances = emptyJokerBalances();
   if (Array.isArray(input)) {
@@ -142,6 +226,27 @@ function unwrapFunctionResponse(response) {
   if (response?.data && typeof response.data === 'object') return response.data;
   if (response && typeof response === 'object') return response;
   return {};
+}
+
+function unwrapInvokeError(error) {
+  if (error?.body && typeof error.body === 'object') return error.body;
+  if (error?.response) return unwrapFunctionResponse(error.response);
+  if (error?.data) return unwrapFunctionResponse({ data: error.data });
+  return {};
+}
+
+function safeJokerSpendError(errorOrBody, fallback = 'Joker kullanılamadı. Lütfen tekrar dene.') {
+  const body = errorOrBody?.response || errorOrBody?.body || errorOrBody?.data
+    ? unwrapInvokeError(errorOrBody)
+    : errorOrBody;
+  const code = String(body?.code || '').trim();
+  if (code === 'insufficient_joker_balance') return 'Bu jokerden kalmadı.';
+  if (code === 'invalid_joker_type') return 'Joker türü geçersiz.';
+  if (code === 'invalid_joker_context') return 'Joker yalnızca Solo modda kullanılabilir.';
+  if (code === 'missing_idempotency_key') return 'Joker işlemi doğrulanamadı.';
+  if (code === 'unauthenticated' || code === 'missing_user_email') return 'Joker kullanmak için giriş yapmalısın.';
+  if (code === 'joker_inventory_entity_missing') return 'Joker kayıtları hazır değil.';
+  return fallback;
 }
 
 function nowMs() {
@@ -454,17 +559,33 @@ export async function spendUserJoker(user, options = {}) {
     return { ok: false, code: 'invalid_joker_type', error: 'Joker türü geçersiz.', balances: emptyJokerBalances() };
   }
 
-  const response = await base44.functions.invoke('spendUserJoker', {
-    jokerType,
-    idempotencyKey: options.idempotencyKey,
-    relatedEntityType: options.relatedEntityType,
-    relatedEntityId: options.relatedEntityId,
-    metadata: options.metadata,
-  });
+  let response;
+  try {
+    response = await base44.functions.invoke('spendUserJoker', {
+      mode: 'solo',
+      jokerType,
+      idempotencyKey: options.idempotencyKey,
+      relatedEntityType: options.relatedEntityType,
+      relatedEntityId: options.relatedEntityId,
+      metadata: options.metadata,
+    });
+  } catch (error) {
+    const body = unwrapInvokeError(error);
+    invalidateJokerInventoryCache(email);
+    return {
+      ok: false,
+      code: body?.code || 'joker_spend_request_failed',
+      error: safeJokerSpendError(error),
+      jokerType,
+      balances: normalizeJokerBalances(body?.balances),
+      balanceAfter: normalizeJokerQuantity(body?.balanceAfter),
+    };
+  }
   const body = unwrapFunctionResponse(response);
   const result = {
     ...body,
     ok: body?.ok !== false,
+    error: body?.ok === false ? safeJokerSpendError(body) : body?.error,
     jokerType,
     balances: normalizeJokerBalances(body?.balances),
     balanceAfter: normalizeJokerQuantity(body?.balanceAfter ?? body?.inventory?.quantity),

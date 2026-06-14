@@ -198,9 +198,12 @@ Diamond sink. `purchaseJokerWithDiamonds` is server-authoritative: it ignores
 client price/cost, validates authenticated self-owned user context and
 sufficient `User.diamonds`, explicitly binds `UserJokerInventory`,
 `DiamondTransaction`, and `JokerTransaction`, writes both Diamond and Joker
-ledgers with the same idempotency key, and uses best-effort rollback if ledger creation fails. True
-duplicate-request and partial-failure consistency proof remains a live backend
-manual gate.
+ledgers with the same idempotency key, treats starter inventory self-heal as
+best-effort during purchase, and uses best-effort rollback if ledger creation
+fails. `spendUserJoker` is Solo-context-only and uses the same deploy-safe
+service-role/auth entity fallback for `UserJokerInventory` and
+`JokerTransaction`. True duplicate-request and partial-failure consistency proof
+remains a live backend manual gate.
 
 Daily Reward Wheel uses active `daily_wheel_*` User guard fields plus
 `daily_wheel:<email>:<YYYY-MM-DD>`. The Home `Günlük Ödüller` panel also shows
