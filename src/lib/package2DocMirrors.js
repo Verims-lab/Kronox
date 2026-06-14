@@ -160,7 +160,8 @@ export const getSoloLeaderboardSource = `
   const fallbackReason = findProjectionRepairReason(rows, userRepairRows, 10);
   const fallbackUsed = Boolean(fallbackReason);
   const rankedWindowRows = mergeProjectionAndUserScoreRows(rows, userRepairRows);
-  const backfillResult = fallbackUsed ? await repairSoloLeaderboardProjection(base44, userRepairRows) : { attempted: 0 };
+  const scoreSourceMismatches = scoreSourceMismatchSummary(rows, userRepairRows);
+  const backfillResult = fallbackUsed ? await repairSoloLeaderboardProjection(base44, rows, userRepairRows) : { attempted: 0 };
   const positiveDecoratedRows = rankedWindowRows.filter(isPositiveScoreRow);
   const zeroDecoratedRows = rankedWindowRows.filter((row) => !isPositiveScoreRow(row));
   const topRows = [...positiveDecoratedRows, ...zeroDecoratedRows].slice(0, 10);
@@ -171,7 +172,9 @@ export const getSoloLeaderboardSource = `
   // solo_leaderboard_entry_total_kronox_score_projection — persisted public read model.
   // compact response: topRows, currentUserRow, currentUserRank, friendUserKeys, rankConfidence, rankScope.
   // User.list server-side repair is allowed for projection completeness; broadUserRowsReturned: false.
-  // User.kronox_puan_total wins over stale projection rows for the same owner.
+  // User.kronox_puan_total plus computed solo_progress can reconstruct zeroed scores.
+  // Projection-above-user mismatches are kept for manual audit, not down-written.
+  // sourceScoreRepairMode: non_destructive_positive_user_rows_only; scoreSourceMismatches.
   // projection_score_stale_above_user_score and projection_score_stale_below_user_score both trigger repair.
   // projectionRowsRead, positiveScoreRowsRead, zeroScoreRowsRead, fallbackUsed, fallbackReason, backfillResult.
   // backfillKronoxPuanProjection remains the legacy User.kronox_puan_total fill for per-level fallback rows.

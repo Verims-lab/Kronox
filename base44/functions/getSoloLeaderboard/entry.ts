@@ -184,7 +184,7 @@ function toLeaderboardRow(user: any, levelNumber = 0) {
   const computedTotalKronoxScore = summary.totalSoloScore + onlineScore;
   const persistedTotal = finiteNumber(user?.kronox_puan_total, NaN);
   const totalKronoxScore = Number.isFinite(persistedTotal) && persistedTotal >= 0
-    ? Math.floor(persistedTotal)
+    ? Math.max(Math.floor(persistedTotal), computedTotalKronoxScore)
     : computedTotalKronoxScore;
   const displayName = safeDisplayName(user, ownerKey);
 
@@ -332,9 +332,22 @@ async function upsertSoloLeaderboardProjection(base44: any, row: any) {
   return 'created';
 }
 
-async function repairSoloLeaderboardProjection(base44: any, rows: any[] = []) {
-  const candidates = dedupeProjectionRows(rows)
+function selectNonDestructiveRepairRows(projectionRows: any[] = [], userRows: any[] = []) {
+  const projectionByOwner = new Map(dedupeProjectionRows(projectionRows)
+    .map((row) => [String(row?.owner_key || '').trim(), row]));
+
+  return dedupeProjectionRows(userRows)
     .filter(isPositiveScoreRow)
+    .filter((row) => {
+      const ownerKey = String(row?.owner_key || '').trim();
+      const projected = projectionByOwner.get(ownerKey);
+      if (!projected) return true;
+      return finiteNumber(row?.total_kronox_score, 0) >= finiteNumber(projected?.total_kronox_score, 0);
+    });
+}
+
+async function repairSoloLeaderboardProjection(base44: any, projectionRows: any[] = [], userRows: any[] = []) {
+  const candidates = selectNonDestructiveRepairRows(projectionRows, userRows)
     .slice(0, PROJECTION_REPAIR_UPSERT_LIMIT);
   let created = 0;
   let updated = 0;
@@ -406,15 +419,50 @@ function mergeProjectionAndUserScoreRows(projectionRows: any[], userRows: any[])
     if (ownerKey) byOwnerKey.set(ownerKey, row);
   }
 
-  // User.kronox_puan_total is the persisted score authority. When a user row
-  // exists in the bounded repair window, prefer it over any stale projection
-  // row for the same owner instead of keeping whichever score is higher.
+  // User.kronox_puan_total is a persisted score projection and solo_progress
+  // can reconstruct it when the field was accidentally zeroed. Prefer the
+  // User-derived row only when it is at least as high as the public projection.
+  // If User/Profile data looks reset while SoloLeaderboardEntry still has a
+  // higher score, keep the projection row and surface diagnostics for manual
+  // recovery instead of down-writing a possible recovery signal.
   for (const row of dedupeProjectionRows(userRows)) {
     const ownerKey = String(row?.owner_key || '').trim();
-    if (ownerKey) byOwnerKey.set(ownerKey, row);
+    if (!ownerKey) continue;
+    const projected = byOwnerKey.get(ownerKey);
+    if (!projected || finiteNumber(row?.total_kronox_score, 0) >= finiteNumber(projected?.total_kronox_score, 0)) {
+      byOwnerKey.set(ownerKey, row);
+    }
   }
 
   return Array.from(byOwnerKey.values()).sort(compareRows);
+}
+
+function scoreSourceMismatchSummary(projectionRows: any[], userRows: any[]) {
+  const projectionByOwner = new Map(dedupeProjectionRows(projectionRows)
+    .map((row) => [String(row?.owner_key || '').trim(), row]));
+  const mismatches = dedupeProjectionRows(userRows)
+    .map((row) => {
+      const ownerKey = String(row?.owner_key || '').trim();
+      const projected = projectionByOwner.get(ownerKey);
+      if (!ownerKey || !projected) return null;
+      const userScore = finiteNumber(row?.total_kronox_score, 0);
+      const projectionScore = finiteNumber(projected?.total_kronox_score, 0);
+      if (userScore === projectionScore) return null;
+      return {
+        owner_key: ownerKey,
+        userScore,
+        projectionScore,
+        direction: userScore > projectionScore ? 'user_above_projection' : 'projection_above_user',
+      };
+    })
+    .filter(Boolean) as Array<Record<string, unknown>>;
+
+  return {
+    count: mismatches.length,
+    projectionAboveUserCount: mismatches.filter((row) => row.direction === 'projection_above_user').length,
+    userAboveProjectionCount: mismatches.filter((row) => row.direction === 'user_above_projection').length,
+    sample: mismatches.slice(0, 10),
+  };
 }
 
 function decorateRows(rows: any[] = [], currentOwnerKey = '', friendOwnerKeys = new Set<string>()) {
@@ -504,8 +552,9 @@ Deno.serve(async (req) => {
       const fallbackUsed = Boolean(fallbackReason);
       const rankedWindowRows = mergeProjectionAndUserScoreRows(projectionWindowRows, userScoreRows).slice(0, limit);
       const backfillResult = fallbackUsed
-        ? await repairSoloLeaderboardProjection(base44, userScoreRows)
+        ? await repairSoloLeaderboardProjection(base44, projectionWindowRows, userScoreRows)
         : { attempted: 0, created: 0, updated: 0, failed: 0 };
+      const scoreSourceMismatches = scoreSourceMismatchSummary(projectionWindowRows, userScoreRows);
       const decoratedRows = decorateRows(rankedWindowRows, currentOwnerKey, friendOwnerKeySet);
       const positiveDecoratedRows = decoratedRows.filter(isPositiveScoreRow);
       const zeroDecoratedRows = decoratedRows.filter((row) => !isPositiveScoreRow(row));
@@ -574,6 +623,8 @@ Deno.serve(async (req) => {
         backfillRun: fallbackUsed,
         backfillQueued: false,
         backfillResult,
+        scoreSourceMismatches,
+        sourceScoreRepairMode: 'non_destructive_positive_user_rows_only',
         projectionFreshness: projectionFreshness(projectionWindowRows),
         rows: compactResponseRows,
       });

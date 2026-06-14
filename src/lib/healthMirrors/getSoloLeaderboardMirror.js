@@ -62,9 +62,11 @@ Deno.serve(async (req) => {
     (projectionRows || []).map((row) => toProjectionLeaderboardRow(row)).filter(Boolean),
     userScoreRows,
   );
-  // User.kronox_puan_total wins when the same owner exists in the repair window.
+  const scoreSourceMismatches = scoreSourceMismatchSummary(projectionRows, userScoreRows);
+  // User.kronox_puan_total plus computed solo_progress can reconstruct zeroed scores.
+  // User-derived rows win only when at least as high as projection rows; projection-above-user mismatches need manual audit.
   // projection_score_stale_above_user_score and projection_score_stale_below_user_score both trigger repair.
-  const backfillResult = fallbackUsed ? await repairSoloLeaderboardProjection(base44, userScoreRows) : { attempted: 0 };
+  const backfillResult = fallbackUsed ? await repairSoloLeaderboardProjection(base44, projectionRows, userScoreRows) : { attempted: 0 };
   const friendUserKeys = await loadAcceptedFriendOwnerKeys(base44, normalizeEmail(user?.email));
   const positiveDecoratedRows = rankedWindowRows.filter(isPositiveScoreRow);
   const zeroDecoratedRows = rankedWindowRows.filter((row) => !isPositiveScoreRow(row));
@@ -99,6 +101,8 @@ Deno.serve(async (req) => {
     backfillRun: fallbackUsed,
     backfillQueued: false,
     backfillResult,
+    scoreSourceMismatches,
+    sourceScoreRepairMode: 'non_destructive_positive_user_rows_only',
     projectionFreshness: projectionFreshness(projectionRows),
     rows: compactResponseRows,
   });

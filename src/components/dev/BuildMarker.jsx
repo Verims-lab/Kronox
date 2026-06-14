@@ -2023,7 +2023,13 @@ import React, { useEffect, useState } from 'react';
 //     returning broad User rows to the client.
 //   • Adds rankScope/rankConfidence and projection/score row diagnostics for
 //     manual leaderboard proof.
-const BUILD_MARKER = 'Codex368';
+//
+// Codex369 — Leaderboard score-source safety:
+//   • Treats User.kronox_puan_total as a projection that can be reconstructed
+//     from User.solo_progress + online_progress when the field was zeroed.
+//   • Keeps projection-above-User score mismatches as manual recovery signals
+//     instead of automatically down-writing possible historical score data.
+const BUILD_MARKER = 'Codex369';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
