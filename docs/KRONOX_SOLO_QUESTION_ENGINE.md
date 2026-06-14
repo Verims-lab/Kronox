@@ -28,9 +28,9 @@ Deck size formula:
 ## Question Loading Bootstrap
 
 Game entry first attempts an online `getQuestions` fetch whenever the browser
-is online or network state is unknown. The default gameplay response is a
-public-safe minimal playable projection so guest Solo can load questions without
-login; admin/full-bank diagnostics still require AdminUser authorization. Empty
+is online or network state is unknown. The default gameplay response is an
+authenticated minimal playable projection; admin/full-bank diagnostics still
+require AdminUser authorization. Empty
 local question cache is not an offline condition by itself. While the first
 fetch is pending, the user sees a loading state such as `Sorular hazırlanıyor...`.
 

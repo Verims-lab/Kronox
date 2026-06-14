@@ -671,8 +671,15 @@ Deno.serve(async (req) =>
     const wantsDiagnostics = wantsGameplayProjection || body?.includeDiagnostics === true || body?.debug === true;
     const needsAdmin = wantsAdminBank || wantsAdminDiagnostics;
     const user = await getOptionalUser(base44);
-    if (needsAdmin && !user?.email) {
-      return json({ ok: false, error: 'Giris yapmaniz gerekiyor.' }, 401);
+    if (!user?.email) {
+      return json({
+        ok: false,
+        error: 'Giris yapmaniz gerekiyor.',
+        getQuestionsRuntimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
+        runtimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
+        functionContractVersion: GET_QUESTIONS_RUNTIME_CONTRACT_VERSION,
+        source: 'authenticated_minimal_playable_projection',
+      }, 401);
     }
     const isAdmin = needsAdmin ? await isAuthorizedAdmin(base44, user) : false;
     if (needsAdmin && !isAdmin) {
@@ -745,7 +752,7 @@ Deno.serve(async (req) =>
         getQuestionsRuntimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
         runtimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
         functionContractVersion: GET_QUESTIONS_RUNTIME_CONTRACT_VERSION,
-        source: 'public_minimal_playable_projection',
+        source: 'authenticated_minimal_playable_projection',
         reason: 'no_active_requested_categories',
         limit,
         requestedLimit: Number.isFinite(Number(body?.limit)) ? Number(body.limit) : null,
@@ -773,7 +780,7 @@ Deno.serve(async (req) =>
       getQuestionsRuntimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
       runtimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
       functionContractVersion: GET_QUESTIONS_RUNTIME_CONTRACT_VERSION,
-      source: 'public_minimal_playable_projection',
+      source: 'authenticated_minimal_playable_projection',
       limit,
       requestedLimit: Number.isFinite(Number(body?.limit)) ? Number(body.limit) : null,
       effectiveLimit: limit,

@@ -5,12 +5,12 @@ import {
 } from '@/lib/questionRuntimeAdapter';
 
 export const QUESTION_GATEWAY_CONTRACT = Object.freeze({
-  source: 'public_minimal_getQuestions_function',
+  source: 'authenticated_minimal_getQuestions_function',
   rawQuestionEntityReads: 'admin_only',
   publicFullBankFallback: false,
   minimalPlayableProjection: true,
-  guestGameplayAllowed: true,
-  guestNoPreferenceUsesAllActiveCategories: true,
+  authenticatedGameplayRequired: true,
+  noSavedPreferenceUsesAllActiveCategories: true,
 });
 
 export function normalizeQuestionGatewayYear(answer) {

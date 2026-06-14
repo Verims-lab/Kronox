@@ -1664,9 +1664,9 @@ import React, { useEffect, useState } from 'react';
 //   • Solo v2 docs/mirrors align on deck sizes, 10 mistakes, 180s timer, and
 //     first-5 ordered question spacing.
 //
-// Codex313 — Guest/no-preference Solo question fallback:
-//   • getQuestions now serves a public-safe minimal gameplay projection for
-//     guest Solo while keeping admin/full-bank diagnostics AdminUser-gated.
+// Codex313 — No-preference Solo question fallback:
+//   • getQuestions serves a minimal gameplay projection while keeping
+//     admin/full-bank diagnostics AdminUser-gated.
 //   • No login, no saved preferences, or empty/insufficient preferences use
 //     all active categories; saved preferences remain optional 70/30 weighting.
 //   • Category preference save validation stays separate from gameplay start.
@@ -1955,7 +1955,12 @@ import React, { useEffect, useState } from 'react';
 //   • Removes the remaining runTestSuite quoted fixture email literal.
 //   • Adds masked file/line offender details to the admin authorization
 //     Health blocker output so future triage is not blind.
-const BUILD_MARKER = 'Codex358';
+//
+// Codex359 — getQuestions authentication hardening:
+//   • Requires an authenticated user for gameplay question projection while
+//     keeping admin/full-bank diagnostics AdminUser-gated.
+//   • Keeps v2 per-category projection diagnostics and runtime marker intact.
+const BUILD_MARKER = 'Codex359';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

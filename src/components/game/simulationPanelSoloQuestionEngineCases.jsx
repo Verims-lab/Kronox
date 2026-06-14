@@ -2663,8 +2663,8 @@ export const EXTRA_TESTS = [
   ),
 
   makeCase(
-    'solo_guest_fetch_and_preference_fallback_runtime_wiring',
-    'Guest fetch and no-preference fallback are wired without a login gate',
+    'solo_authenticated_fetch_and_preference_fallback_runtime_wiring',
+    'Authenticated fetch and no-preference fallback are wired without raw Question fallback',
     () => {
       const gameMissing = missingTokens(gamePageSource, [
         "fallbackReason: 'missing_authenticated_user'",
@@ -2673,7 +2673,7 @@ export const EXTRA_TESTS = [
         'no saved Category preferences means all active',
       ]);
       const fetchMissing = missingTokens(useOfflineQuestionsSource, [
-        'guest_question_fetch_uses_public_minimal_projection',
+        'gameplay_question_fetch_requires_authenticated_getQuestions',
         "base44.functions.invoke('getQuestions'",
         'Direct Question.list fallback remains removed',
       ]);

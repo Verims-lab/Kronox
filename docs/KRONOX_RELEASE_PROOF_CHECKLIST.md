@@ -133,8 +133,8 @@ Checklist:
   from Solo runtime projection.
 * First Solo start in a fresh browser attempts online `getQuestions` before any
   offline fallback and shows `Sorular hazırlanıyor...` while pending.
-* Guest/no-auth Solo starts use the public-safe minimal `getQuestions`
-  projection and do not require login before question loading.
+* Solo starts use the authenticated minimal `getQuestions` projection; no-auth
+  gameplay projection calls return 401 before question loading.
 * Empty local question cache alone must not show `İnternet bağlantısı yok`.
 * After a question-set replacement, stale local question cache is invalidated by
   cache version and the game fetches fresh DB questions before deck build.

@@ -555,7 +555,7 @@ Deno.serve(async (req) => {
         'Home/SoloMap navigate("/game", state)',
         'Game.jsx routeState.soloLevel',
         'useOfflineQuestions reads local questionCache first',
-        'useOfflineQuestions invokes getQuestions for fresh public_minimal_playable_projection',
+        'useOfflineQuestions invokes getQuestions for fresh authenticated_minimal_playable_projection',
         'questionRuntimeAdapter normalizes cached/fetched rows',
         'Game.jsx builds candidatePool = allQuestions type=metin within year window',
         'Game.jsx passes activeCategoryIds + selectedCategoryIds into buildSoloAttemptDeck',

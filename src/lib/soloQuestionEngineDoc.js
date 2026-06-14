@@ -18,9 +18,9 @@ All new Solo attempts use a 180 seconds timer and fail on 10 mistakes; the
 10th mistake ends the attempt.
 
 Question loading bootstrap first attempts online getQuestions when the browser
-is online or network state is unknown. The default gameplay response is a
-public-safe minimal playable projection so guest Solo can load questions without
-login; admin/full-bank diagnostics still require AdminUser authorization. Empty
+is online or network state is unknown. The default gameplay response is an
+authenticated minimal playable projection; admin/full-bank diagnostics still
+require AdminUser authorization. Empty
 local question cache is not an offline condition. While the first fetch is
 pending, the UI shows Sorular hazırlanıyor...; the offline/no-cache screen is
 reserved for known offline state plus failed online fetch plus no usable cache.
