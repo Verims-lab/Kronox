@@ -515,9 +515,18 @@ export default function Game() {
 
   // ─── Derived state ─────────────────────────────────────────────────
   const currentQuestion = useMemo(() => {
-    if (!lobbyData?.current_question_id || allQuestions.length === 0) return null;
-    return allQuestions.find(q => q.id === lobbyData.current_question_id);
-  }, [lobbyData?.current_question_id, allQuestions]);
+    const currentQuestionId = lobbyData?.current_question_id;
+    if (!currentQuestionId) return null;
+    // Solo attempts consume a frozen deck. A background getQuestions refresh can
+    // replace allQuestions with a different projection, so the active card must
+    // be resolved from the attempt deck first or gameplay can fall back to the
+    // bootstrap timeout screen mid-attempt.
+    const isSoloDeckReady = isSoloLevelMode && Array.isArray(soloAttemptDeck) && soloAttemptDeck.length > 0;
+    const sourceQuestions = isSoloDeckReady ? soloAttemptDeck : allQuestions;
+    if (!Array.isArray(sourceQuestions) || sourceQuestions.length === 0) return null;
+    const wantedId = String(currentQuestionId);
+    return sourceQuestions.find(q => String(q.id) === wantedId) || null;
+  }, [lobbyData?.current_question_id, allQuestions, isSoloLevelMode, soloAttemptDeck]);
 
   const category = isOnline ? (lobbyData?.category || routeCategory) : routeCategory;
   const yearStart = isOnline ? (lobbyData?.year_start ?? routeYearStart) : routeYearStart;
@@ -1850,9 +1859,9 @@ export default function Game() {
     ? 'render_game_over'
     : error
       ? 'render_error'
-      : isLoading
+      : (isLoading && !isGameReadyEarly)
         ? 'waiting_for_questions'
-        : isError
+        : (isError && !isGameReadyEarly)
           ? 'questions_error'
           : missingOnlineQuestionEarly
             ? 'waiting_for_question'
@@ -1974,6 +1983,89 @@ export default function Game() {
     isFromCache,
   ]);
 
+  const soloCurrentQuestionDeckIndex = useMemo(() => {
+    if (!isSoloLevelMode || !Array.isArray(soloAttemptDeck) || !currentQuestion?.id) return -1;
+    return soloAttemptDeck.findIndex((question) => String(question?.id) === String(currentQuestion.id));
+  }, [currentQuestion?.id, isSoloLevelMode, soloAttemptDeck]);
+
+  useEffect(() => {
+    if (!isSoloLevelMode) return;
+    const soloAttemptSnapshot = {
+      soloAttemptId: soloAttemptId || null,
+      soloLevelNumber: soloLevel?.levelNumber ?? null,
+      soloGamePhase: soloLevelResult
+        ? 'result'
+        : winner
+          ? 'finished'
+          : currentQuestion
+            ? 'active'
+            : isLoading
+              ? 'question_loading'
+              : isError
+                ? 'question_error'
+                : 'bootstrap_wait',
+      soloRoutePath: location.pathname,
+      soloDeckLength: Array.isArray(soloAttemptDeck) ? soloAttemptDeck.length : 0,
+      soloCurrentQuestionId: currentQuestion?.id ? String(currentQuestion.id) : null,
+      soloCurrentQuestionIndex: soloCurrentQuestionDeckIndex >= 0 ? soloCurrentQuestionDeckIndex + 1 : null,
+      soloCurrentLobbyQuestionId: lobbyData?.current_question_id ? String(lobbyData.current_question_id) : null,
+      soloQuestionsLoading: Boolean(isLoading),
+      soloQuestionsError: Boolean(isError),
+      soloQuestionLoadErrorKind: questionLoadErrorKind || null,
+      soloAuthUserPresent: Boolean(currentUser?.email || authUser?.email),
+      soloCurrentUserLoaded: Boolean(currentUserLoaded),
+      soloLoadingDuringActiveAttempt: Boolean(isLoading && currentQuestion && soloAttemptDeck?.length),
+      soloJokerPendingType: jokerSpendPendingType || null,
+      soloDiagAt: new Date().toISOString(),
+    };
+    pushAppDiag(soloAttemptSnapshot);
+    debugLog('[Game.soloAttempt]', soloAttemptSnapshot);
+  }, [
+    currentQuestion,
+    authUser?.email,
+    currentUser?.email,
+    currentUserLoaded,
+    isError,
+    isLoading,
+    isSoloLevelMode,
+    jokerSpendPendingType,
+    lobbyData?.current_question_id,
+    location.pathname,
+    questionLoadErrorKind,
+    soloAttemptId,
+    soloCurrentQuestionDeckIndex,
+    soloLevel?.levelNumber,
+    soloLevelResult,
+    soloAttemptDeck,
+    winner,
+  ]);
+
+  useEffect(() => {
+    if (!isSoloLevelMode) return;
+    const publishBrowserState = (eventType) => {
+      pushAppDiag({
+        soloBrowserEvent: eventType,
+        soloBrowserEventAt: new Date().toISOString(),
+        soloVisibilityState: typeof document !== 'undefined' ? document.visibilityState : null,
+        soloNavigatorOnline: typeof navigator !== 'undefined' ? navigator.onLine : null,
+        soloAttemptId: soloAttemptId || null,
+        soloDeckLength: Array.isArray(soloAttemptDeck) ? soloAttemptDeck.length : 0,
+        soloHasCurrentQuestion: Boolean(currentQuestion),
+      });
+    };
+    const onVisibilityChange = () => publishBrowserState('visibilitychange');
+    const onOnline = () => publishBrowserState('online');
+    const onOffline = () => publishBrowserState('offline');
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
+  }, [currentQuestion, isSoloLevelMode, soloAttemptDeck, soloAttemptId]);
+
   // ─── Render guards ───────────────────────────────────────────────
   // For online games, playerNames may be empty array (non-host joined with just lobbyId)
   if (!playerNames && !isOnline) return (
@@ -2044,7 +2136,7 @@ export default function Game() {
     </>
   );
 
-  if (isLoading) return (
+  if (isLoading && !isGameReadyEarly) return (
     <>{diagnosticsOverlay}
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="text-center space-y-4 px-6">
@@ -2056,7 +2148,7 @@ export default function Game() {
     </div></>
   );
 
-  if (isError) return (
+  if (isError && !isGameReadyEarly) return (
     <>{diagnosticsOverlay}
     <div className="min-h-screen flex items-center justify-center bg-background p-6">
       <div className="text-center space-y-4">
