@@ -91,7 +91,7 @@ export const EXTRA_TESTS = [
         "base44.functions.invoke('getSoloLeaderboard'",
         'solo_leaderboard_entry_projection',
         'solo_leaderboard_entry_total_kronox_score_projection',
-        'loadSoloLeaderboardEntries',
+        'loadSoloLeaderboardSnapshot',
       ]);
       const forbidden = forbiddenTokensFound(leaderboardPageSource, [
         'base44.entities.User.list',
@@ -136,6 +136,35 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('SoloLeaderboardEntry schema exists locally and matches the entity reference used for best-effort publishing.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('leaderboard_health', 'leaderboard_projection_index_and_owner_guard',
+    'SoloLeaderboardEntry declares projection index intent and dedupes owner rows',
+    () => {
+      const required = missingTokens(`${soloLeaderboardEntitySource}\n${leaderboardLibSource}\n${getSoloLeaderboardFunctionSource}`, [
+        'owner_key is the logical unique key',
+        'total_kronox_score desc is the hot leaderboard sort',
+        'publishSoloLeaderboardEntry',
+        '{ owner_key: payload.owner_key }',
+        'dedupeProjectionRows',
+        'byOwnerKey',
+        'SoloLeaderboardEntry.filter',
+        "projectionEntity.list('-total_kronox_score', limit)",
+      ]);
+      if (required.length) {
+        return fail('SoloLeaderboardEntry lacks a clear owner_key uniqueness/sort guard contract.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'owner_key logical uniqueness, total_kronox_score desc sort, write-path filter guard, server-side dedupe',
+          actual: { required },
+        });
+      }
+      return pass('SoloLeaderboardEntry uses owner_key as the logical unique key, total_kronox_score desc as the hot sort, and server-side dedupe/write guards.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -259,7 +288,7 @@ export const EXTRA_TESTS = [
         'base44.asServiceRole.entities.User',
       ]);
       const required = missingTokens(`${leaderboardPageSource}\n${leaderboardLibSource}`, [
-        'loadSoloLeaderboardEntries',
+        'loadSoloLeaderboardSnapshot',
         "base44.functions.invoke('getSoloLeaderboard'",
       ]);
       if (required.length || forbidden.length) {
@@ -267,7 +296,7 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'page calls loadSoloLeaderboardEntries; backend reads SoloLeaderboardEntry projection first',
+          expected: 'page calls loadSoloLeaderboardSnapshot; backend reads SoloLeaderboardEntry projection first',
           actual: { required, forbidden },
         });
       }
@@ -282,8 +311,8 @@ export const EXTRA_TESTS = [
     'Backend leaderboard projection returns only safe ranking fields',
     () => {
       const required = missingTokens(getSoloLeaderboardFunctionSource, [
-        'base44.asServiceRole.entities.SoloLeaderboardEntry',
-        '.list(\'-total_kronox_score\', limit)',
+        'entities?.SoloLeaderboardEntry',
+        'projectionEntity.list(\'-total_kronox_score\', limit)',
         'owner_key',
         'display_name',
         'total_kronox_score',
@@ -309,6 +338,40 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Backend projection reads SoloLeaderboardEntry first and returns only public-safe leaderboard fields.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('leaderboard_health', 'leaderboard_compact_endpoint_returns_rank_snapshot',
+    'Backend leaderboard endpoint returns compact top/current/friend rank snapshot',
+    () => {
+      const required = missingTokens(`${leaderboardPageSource}\n${leaderboardLibSource}\n${getSoloLeaderboardFunctionSource}`, [
+        'loadSoloLeaderboardSnapshot',
+        'topRows',
+        'currentUserRow',
+        'currentUserRank',
+        'friendUserKeys',
+        'friendsOutsideTop',
+        'generatedAt',
+        'rankConfidence',
+        'rankScope',
+        'rows: compactResponseRows',
+      ]);
+      const forbidden = forbiddenTokensFound(leaderboardPageSource, [
+        'loadFriends(user.email)',
+      ]);
+      if (required.length || forbidden.length) {
+        return fail('Leaderboard endpoint/client can still ship broad rows or derive friend badges in a separate client query.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'getSoloLeaderboard compact payload includes top/current/friend/rank metadata; page consumes snapshot directly',
+          actual: { required, forbidden },
+        });
+      }
+      return pass('Leaderboard consumes a compact backend snapshot with top rows, current-user rank metadata, and friend owner keys.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,

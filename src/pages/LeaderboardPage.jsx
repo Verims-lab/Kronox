@@ -9,15 +9,13 @@ import StandardTopBar from '@/components/layout/StandardTopBar';
 import { ensureSoloProgressBackfill, getSoloLevelCount, readSoloProgress } from '@/lib/soloLevels';
 import { summarizeSoloProgress } from '@/lib/soloProgressHelpers';
 import { getKronoxVisibleScore } from '@/lib/kronoxScore';
-import { loadFriends } from '@/lib/friendsApi';
 import {
   getLeaderboardDiamondValue,
   getLeaderboardOwnerKey,
-  getFriendLeaderboardKeys,
   LEADERBOARD_FETCH_LIMIT,
   LEADERBOARD_TOP_LIMIT,
   buildSoloLeaderboardPayload,
-  loadSoloLeaderboardEntries,
+  loadSoloLeaderboardSnapshot,
   publishSoloLeaderboardEntry,
   rankSoloLeaderboardEntries,
   selectLeaderboardSections,
@@ -35,6 +33,19 @@ function publishOwnLeaderboardProjectionInBackground(user, progress) {
   publishSoloLeaderboardEntry(user, progress).catch((error) => {
     console.warn('[leaderboard] background projection publish failed', error?.message || 'unknown');
   });
+}
+
+function hydrateLeaderboardRow(publicRow, friendKeys, currentOwnerKey) {
+  const entry = toSoloLeaderboardEntry(publicRow, friendKeys, currentOwnerKey);
+  const rank = Number.isFinite(Number(publicRow?.rank))
+    ? Math.max(1, Math.floor(Number(publicRow.rank)))
+    : entry.rank;
+  return {
+    ...entry,
+    rank: Number.isFinite(Number(rank)) ? rank : null,
+    isCurrentUser: publicRow?.isCurrentUser === true || entry.isCurrentUser,
+    isFriend: publicRow?.isFriend === true || entry.isFriend,
+  };
 }
 
 /**
@@ -115,18 +126,37 @@ export default function LeaderboardPage() {
 
     setLeaderboard((prev) => ({ ...prev, loading: true, error: '', ownScoreFallback }));
     try {
-      const [rows, friends] = await Promise.all([
-        loadSoloLeaderboardEntries(LEADERBOARD_FETCH_LIMIT),
-        loadFriends(user.email).catch(() => []),
-      ]);
-      const friendEmails = (friends || []).map((friend) => friend.friend_email).filter(Boolean);
-      const friendKeys = getFriendLeaderboardKeys(friendEmails);
-      const readableRows = Array.isArray(rows) ? [...rows] : [];
-      const rankedRows = rankSoloLeaderboardEntries(readableRows, friendKeys, currentOwnerKey);
-      const sections = selectLeaderboardSections(rankedRows, currentOwnerKey, LEADERBOARD_TOP_LIMIT);
+      const snapshot = await loadSoloLeaderboardSnapshot({
+        limit: LEADERBOARD_FETCH_LIMIT,
+        topLimit: LEADERBOARD_TOP_LIMIT,
+      });
+      const friendKeys = new Set(snapshot.friendUserKeys || []);
+      const topRows = (snapshot.topRows || [])
+        .map((row) => hydrateLeaderboardRow(row, friendKeys, currentOwnerKey))
+        .filter((row) => row.id);
+      const currentUserRow = snapshot.currentUserRow
+        ? hydrateLeaderboardRow(snapshot.currentUserRow, friendKeys, currentOwnerKey)
+        : null;
+      const friendsOutsideTop = (snapshot.friendsOutsideTop || [])
+        .map((row) => hydrateLeaderboardRow(row, friendKeys, currentOwnerKey))
+        .filter((row) => row.id);
+      let rankedRows = (snapshot.rows || [])
+        .map((row) => hydrateLeaderboardRow(row, friendKeys, currentOwnerKey))
+        .filter((row) => row.id);
+      let sections = {
+        topRows,
+        currentUserRow,
+        currentUserInTop: Boolean(snapshot.currentUserInTop),
+        friendsOutsideTop,
+      };
+      if (!sections.topRows.length && rankedRows.length) {
+        rankedRows = rankSoloLeaderboardEntries(snapshot.rows, friendKeys, currentOwnerKey);
+        sections = selectLeaderboardSections(rankedRows, currentOwnerKey, LEADERBOARD_TOP_LIMIT);
+      }
       const ownScoreRow = sections.currentUserRow || toSoloLeaderboardEntry(currentPayload, friendKeys, currentOwnerKey);
+      const friendCount = Math.max(snapshot.friendCount || 0, friendKeys.size);
 
-      if (rankedRows.length === 0) {
+      if (sections.topRows.length === 0 && rankedRows.length === 0) {
         const ownPendingRow = ownScoreRow
           ? [{ ...ownScoreRow, rank: null, isCurrentUser: true }]
           : [];
@@ -141,8 +171,10 @@ export default function LeaderboardPage() {
           friendsOutsideTop: [],
           ownScoreRow,
           rankFinalizing: true,
-          friendCount: 0,
+          friendCount,
           ownScoreFallback,
+          rankConfidence: snapshot.rankConfidence || '',
+          rankScope: snapshot.rankScope || '',
         });
         publishOwnLeaderboardProjectionInBackground(user, currentProgress);
         return;
@@ -154,9 +186,11 @@ export default function LeaderboardPage() {
         rankedRows,
         ...sections,
         ownScoreRow,
-        rankFinalizing: false,
-        friendCount: friendEmails.length,
+        rankFinalizing: Boolean(sections.currentUserRow && !Number.isFinite(Number(sections.currentUserRow.rank))),
+        friendCount,
         ownScoreFallback,
+        rankConfidence: snapshot.rankConfidence || '',
+        rankScope: snapshot.rankScope || '',
       });
       publishOwnLeaderboardProjectionInBackground(user, currentProgress);
     } catch (err) {

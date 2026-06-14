@@ -31,7 +31,7 @@ Top risks:
 | DM-04 | Schema drift | `User.jsonc` omits live fields such as `hasCompletedTutorial`, `game_invite_notifications_enabled`, Solo score summary fields, and `online_progress.lastMatchAt`. | P1 |
 | DM-05 | RLS/service-role | FriendRequest and GameInvite entity RLS allow broad sender/recipient updates; business invariants rely on client discipline plus functions. | P1 |
 | DM-06 | Lobby state | Lobby stores roster, turn state, cards, status, selected categories, and result state in one mutable row with no immutable match result table. | P2 |
-| DM-07 | Leaderboard scale | Global leaderboard reads `SoloLeaderboardEntry` projection first. This removes the broad `User.list` primary path, but exact rank/pagination/index proof still needs a scale pass. | P2 |
+| DM-07 | Leaderboard scale | Global leaderboard reads `SoloLeaderboardEntry` projection first and returns compact top/current/friend rows. This removes the broad `User.list` primary payload, but exact rank outside the projection window and platform index proof still need a scale pass. | P2 |
 | DM-08 | Expired/stale row retention | GameInvite, Lobby, PushSubscription, and FriendRequest rows can accumulate without an explicit retention/cleanup plan. | P2 |
 
 Release blocker: no immediate P0 destructive schema blocker was found from static inspection. The main near-term blockers are data-consistency and security-proof issues that need targeted implementation and two-account/runtime probes before broad release.
@@ -500,7 +500,7 @@ Risks:
 - P1: optional per-level fallback recomputes Solo score independently and may drift from `soloProgressHelpers`.
 - P2: optional per-level record fallback still scans `User.list` until per-level best-score data has a rank-safe projection.
 - P2: entity mirror is best-effort; rows can be stale if users never open Leaderboard or never trigger publish after score change.
-- P2: exact current-user global rank beyond the fetched projection cap needs an indexed rank endpoint or dedicated projection.
+- P2: exact current-user global rank beyond the fetched projection window is reported with `rankScope`/`rankConfidence` and still needs an indexed rank endpoint or dedicated projection for scale.
 
 Recommendation:
 - Short term: make `getSoloLeaderboard` match/import the canonical scoring helper logic or keep a Health case that compares boundary examples.
@@ -600,7 +600,7 @@ Recommendation:
 
 | Query / flow | Current pattern | Risk | Recommendation |
 | --- | --- | --- | --- |
-| Global leaderboard | `getSoloLeaderboard` reads `SoloLeaderboardEntry.list('-total_kronox_score', limit)` first | Projection-first is faster, but still capped | Add pagination/current-rank endpoint when user count grows |
+| Global leaderboard | `getSoloLeaderboard` reads `SoloLeaderboardEntry.list('-total_kronox_score', limit)` first and returns compact `topRows`, `currentUserRow`, friend keys, and `rankScope` | Projection-first and compact, but exact off-window rank is scope-limited | Add indexed exact-rank/current-rank projection when user count grows |
 | Optional per-level leaderboard record | `getSoloLeaderboard` service-role `User.list(..., 500)` fallback when `levelNumber` is requested | Not used by main Liderlik table, but still not scalable | Add rank-safe per-level projection or friend-record endpoint |
 | Header notifications | FriendRequest filter + GameInvite load + subscriptions + focus/visibility refresh | Reasonable, but can duplicate work | Keep shared selectors; monitor polling/subscription duplication |
 | Online pending invites | `GameInvite.filter({ to_email })` then selector | Reasonable | Ensure status/email filters stay selective |

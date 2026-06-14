@@ -1,10 +1,11 @@
 {
   "name": "FriendRequest",
   "type": "object",
+  "description": "Friend request and accepted friendship source. Base44/platform lookup contract: from_email + status and to_email + status support friend list and leaderboard badge reads; from_email + to_email + status is the logical duplicate guard. RLS remains sender, recipient, or admin/owner only.",
   "properties": {
     "from_email": {
       "type": "string",
-      "description": "Lowercased email of the sender"
+      "description": "Lowercased email of the sender. Hot lookup with status for outgoing accepted/pending rows."
     },
     "from_name": {
       "type": "string",
@@ -12,7 +13,7 @@
     },
     "to_email": {
       "type": "string",
-      "description": "Lowercased email of the receiver"
+      "description": "Lowercased email of the receiver. Hot lookup with status for incoming accepted/pending rows."
     },
     "status": {
       "type": "string",

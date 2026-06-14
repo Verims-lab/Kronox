@@ -130,7 +130,13 @@ async function findInventory(base44: any, email: string, jokerType: string) {
   const rows = await entity
     .filter({ user_email: email, joker_type: jokerType }, '-updated_at', 10)
     .catch(() => []);
-  return Array.isArray(rows) && rows.length ? rows[0] : null;
+  return Array.isArray(rows) && rows.length
+    ? rows.slice().sort((a, b) => {
+      const quantityDiff = normalizeQuantity(b?.quantity) - normalizeQuantity(a?.quantity);
+      if (quantityDiff !== 0) return quantityDiff;
+      return String(b?.updated_at || b?.created_at || '').localeCompare(String(a?.updated_at || a?.created_at || ''));
+    })[0]
+    : null;
 }
 
 async function readBalances(base44: any, email: string) {
@@ -143,7 +149,7 @@ async function readBalances(base44: any, email: string) {
   if (Array.isArray(rows)) {
     rows.forEach((row) => {
       const type = normalizeJokerType(row?.joker_type);
-      if (type) balances[type] = normalizeQuantity(row?.quantity);
+      if (type) balances[type] = Math.max(balances[type], normalizeQuantity(row?.quantity));
     });
   }
   return balances;

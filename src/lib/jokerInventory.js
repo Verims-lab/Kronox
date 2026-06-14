@@ -65,6 +65,14 @@ export const JOKER_INVENTORY_FAST_LOAD_CONTRACT = [
   'The balance cache is keyed by normalized user email and is cleared on logout.',
 ].join(' ');
 
+export const JOKER_ECONOMY_INDEX_GUARD_CONTRACT = [
+  'UserJokerInventory logical unique key is user_email + joker_type.',
+  'JokerTransaction logical unique key is idempotency_key when present.',
+  'Profile normal display reads UserJokerInventory and does not read JokerTransaction.',
+  'Mutation functions query idempotency_key before JokerTransaction writes.',
+  'Duplicate inventory rows are tolerated by selecting the highest current quantity.',
+].join(' ');
+
 export const JOKER_INVENTORY_CACHE_TTL_MS = 20000;
 
 const jokerBalanceCache = new Map();

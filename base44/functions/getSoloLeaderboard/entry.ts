@@ -12,6 +12,8 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 500;
+const DEFAULT_TOP_LIMIT = 10;
+const MAX_TOP_LIMIT = 50;
 const TOTAL_LEVELS = 20;
 
 function json(payload: unknown, status = 200) {
@@ -276,6 +278,66 @@ function compareRows(a: any, b: any) {
   return String(a.owner_key || '').localeCompare(String(b.owner_key || ''), 'tr');
 }
 
+function dedupeProjectionRows(rows: any[] = []) {
+  const byOwnerKey = new Map<string, any>();
+  for (const row of rows || []) {
+    const ownerKey = String(row?.owner_key || '').trim();
+    if (!ownerKey) continue;
+    const current = byOwnerKey.get(ownerKey);
+    if (!current || compareRows(row, current) < 0) {
+      byOwnerKey.set(ownerKey, row);
+    }
+  }
+  return Array.from(byOwnerKey.values()).sort(compareRows);
+}
+
+function decorateRows(rows: any[] = [], currentOwnerKey = '', friendOwnerKeys = new Set<string>()) {
+  return rows.map((row, index) => {
+    const ownerKey = String(row?.owner_key || '').trim();
+    return {
+      ...row,
+      rank: index + 1,
+      isCurrentUser: Boolean(currentOwnerKey && ownerKey === currentOwnerKey),
+      isFriend: Boolean(ownerKey && friendOwnerKeys.has(ownerKey)),
+    };
+  });
+}
+
+function compactRows(rows: any[] = []) {
+  const byOwnerKey = new Map<string, any>();
+  for (const row of rows || []) {
+    const ownerKey = String(row?.owner_key || '').trim();
+    if (!ownerKey || byOwnerKey.has(ownerKey)) continue;
+    byOwnerKey.set(ownerKey, row);
+  }
+  return Array.from(byOwnerKey.values()).sort((a, b) => finiteNumber(a?.rank, Number.MAX_SAFE_INTEGER) - finiteNumber(b?.rank, Number.MAX_SAFE_INTEGER));
+}
+
+async function loadAcceptedFriendOwnerKeys(base44: any, email: string) {
+  const friendEntity = base44?.asServiceRole?.entities?.FriendRequest || base44?.entities?.FriendRequest;
+  if (!friendEntity?.filter || !email) return [];
+  const [outgoing, incoming] = await Promise.all([
+    friendEntity.filter({ from_email: email, status: 'accepted' }, '-updated_date', 200).catch(() => []),
+    friendEntity.filter({ to_email: email, status: 'accepted' }, '-updated_date', 200).catch(() => []),
+  ]);
+  return Array.from(new Set([
+    ...(Array.isArray(outgoing) ? outgoing : []).map((row: any) => ownerKeyFromEmail(row?.to_email)),
+    ...(Array.isArray(incoming) ? incoming : []).map((row: any) => ownerKeyFromEmail(row?.from_email)),
+  ].filter(Boolean)));
+}
+
+async function loadCurrentProjectionRow(base44: any, currentOwnerKey: string) {
+  const projectionEntity = base44?.asServiceRole?.entities?.SoloLeaderboardEntry;
+  if (!projectionEntity?.filter || !currentOwnerKey) return null;
+  const rows = await projectionEntity
+    .filter({ owner_key: currentOwnerKey }, '-total_kronox_score', 5)
+    .catch(() => []);
+  const normalized = (Array.isArray(rows) ? rows : [])
+    .map((row) => toProjectionLeaderboardRow(row))
+    .filter(Boolean);
+  return dedupeProjectionRows(normalized)[0] || null;
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -287,28 +349,74 @@ Deno.serve(async (req) => {
       MAX_LIMIT,
       Math.max(1, Math.floor(finiteNumber(body?.limit, DEFAULT_LIMIT))),
     );
+    const topLimit = Math.min(
+      MAX_TOP_LIMIT,
+      Math.max(1, Math.floor(finiteNumber(body?.topLimit, DEFAULT_TOP_LIMIT))),
+    );
     // Codex152 — Optional per-level projection request from the Solo
     // success popup. Ignored when 0/absent (default leaderboard usage).
     const levelNumber = Math.max(0, Math.floor(finiteNumber(body?.levelNumber, 0)));
 
     if (!levelNumber) {
+      const currentOwnerKey = ownerKeyFromEmail(user?.email || user?.user_email);
+      const friendUserKeys = await loadAcceptedFriendOwnerKeys(base44, normalizeEmail(user?.email));
+      const friendOwnerKeySet = new Set(friendUserKeys);
       const projectionEntity = base44?.asServiceRole?.entities?.SoloLeaderboardEntry;
       const projectionRows = projectionEntity?.list
         ? await projectionEntity.list('-total_kronox_score', limit).catch(() => [])
         : [];
-      const rows = (Array.isArray(projectionRows) ? projectionRows : [])
+      const rankedWindowRows = dedupeProjectionRows((Array.isArray(projectionRows) ? projectionRows : [])
         .map((row) => toProjectionLeaderboardRow(row))
-        .filter(Boolean)
-        .sort(compareRows)
+        .filter(Boolean))
         .slice(0, limit);
+      const decoratedRows = decorateRows(rankedWindowRows, currentOwnerKey, friendOwnerKeySet);
+      const topRows = decoratedRows.slice(0, topLimit);
+      const topOwnerKeys = new Set(topRows.map((row) => row.owner_key).filter(Boolean));
+      const currentInWindow = decoratedRows.find((row) => row.owner_key === currentOwnerKey) || null;
+      const fetchedCurrentRow = currentInWindow
+        ? null
+        : await loadCurrentProjectionRow(base44, currentOwnerKey);
+      const currentUserRow = currentInWindow || (fetchedCurrentRow
+        ? { ...fetchedCurrentRow, rank: null, isCurrentUser: true, isFriend: false }
+        : null);
+      const friendsOutsideTop = decoratedRows
+        .filter((row) => row.isFriend && !topOwnerKeys.has(row.owner_key))
+        .slice(0, topLimit);
+      const compactResponseRows = compactRows([
+        ...topRows,
+        ...(currentUserRow ? [currentUserRow] : []),
+        ...friendsOutsideTop,
+      ]);
+      const currentUserRank = Number.isFinite(Number(currentUserRow?.rank))
+        ? Math.max(1, Math.floor(Number(currentUserRow.rank)))
+        : null;
+      const rankConfidence = currentUserRank
+        ? 'window_exact'
+        : (currentUserRow ? 'projection_row_found_rank_outside_window' : 'no_projection_row');
+      const rankScope = currentUserRank
+        ? `top_${limit}_projection_window`
+        : (currentUserRow ? `outside_top_${limit}_projection_window` : 'not_ranked_until_projection_publish');
 
       return json({
         ok: true,
-        source: 'solo_leaderboard_entry_projection',
+        source: 'SoloLeaderboardEntry',
+        projectionSource: 'solo_leaderboard_entry_projection',
         projection: 'solo_leaderboard_entry_total_kronox_score_projection',
         projectionFirst: true,
         broadUserListUsed: false,
-        rows,
+        topRows,
+        currentUserRow,
+        currentUserRank,
+        currentUserInTop: Boolean(currentUserRank && currentUserRank <= topLimit),
+        friendUserKeys,
+        friendsOutsideTop,
+        friendCount: friendUserKeys.length,
+        generatedAt: new Date().toISOString(),
+        rankConfidence,
+        rankScope,
+        rankWindowLimit: limit,
+        topLimit,
+        rows: compactResponseRows,
       });
     }
 

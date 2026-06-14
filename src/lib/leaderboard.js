@@ -163,6 +163,61 @@ export async function loadSoloLeaderboardEntries(limit = LEADERBOARD_FETCH_LIMIT
   }
 }
 
+export async function loadSoloLeaderboardSnapshot(options = {}) {
+  const limit = Math.max(1, Math.floor(Number(options.limit) || LEADERBOARD_FETCH_LIMIT));
+  const topLimit = Math.max(1, Math.floor(Number(options.topLimit) || LEADERBOARD_TOP_LIMIT));
+  try {
+    const response = await base44.functions.invoke('getSoloLeaderboard', { limit, topLimit });
+    const payload = response?.data || response || {};
+    const topRows = Array.isArray(payload.topRows) ? payload.topRows : [];
+    const rows = Array.isArray(payload.rows) ? payload.rows : topRows;
+    if (topRows.length || rows.length || payload.source) {
+      return {
+        ok: payload.ok !== false,
+        source: payload.source || 'SoloLeaderboardEntry',
+        projection: payload.projection || '',
+        generatedAt: payload.generatedAt || '',
+        topRows,
+        rows,
+        currentUserRow: payload.currentUserRow || null,
+        currentUserRank: Number.isFinite(Number(payload.currentUserRank))
+          ? Math.max(1, Math.floor(Number(payload.currentUserRank)))
+          : null,
+        currentUserInTop: Boolean(payload.currentUserInTop),
+        friendUserKeys: Array.isArray(payload.friendUserKeys) ? payload.friendUserKeys : [],
+        friendsOutsideTop: Array.isArray(payload.friendsOutsideTop) ? payload.friendsOutsideTop : [],
+        friendCount: Math.max(0, Number(payload.friendCount) || 0),
+        rankConfidence: payload.rankConfidence || '',
+        rankScope: payload.rankScope || '',
+        projectionFirst: payload.projectionFirst === true,
+        broadUserListUsed: payload.broadUserListUsed === true,
+      };
+    }
+  } catch {
+    // Fall through to the legacy compact client fallback for older deployments.
+  }
+
+  const rows = await loadSoloLeaderboardEntries(limit);
+  return {
+    ok: true,
+    source: 'SoloLeaderboardEntry.client_fallback',
+    projection: 'solo_leaderboard_entry_total_kronox_score_projection',
+    generatedAt: new Date().toISOString(),
+    topRows: [],
+    rows,
+    currentUserRow: null,
+    currentUserRank: null,
+    currentUserInTop: false,
+    friendUserKeys: [],
+    friendsOutsideTop: [],
+    friendCount: 0,
+    rankConfidence: 'client_projection_fallback',
+    rankScope: `top_${limit}_client_projection_window`,
+    projectionFirst: true,
+    broadUserListUsed: false,
+  };
+}
+
 export function getFriendLeaderboardKeys(friendEmails = []) {
   return new Set(
     (friendEmails || [])
