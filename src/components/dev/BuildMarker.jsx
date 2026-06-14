@@ -2029,7 +2029,13 @@ import React, { useEffect, useState } from 'react';
 //     from User.solo_progress + online_progress when the field was zeroed.
 //   • Keeps projection-above-User score mismatches as manual recovery signals
 //     instead of automatically down-writing possible historical score data.
-const BUILD_MARKER = 'Codex369';
+//
+// Codex370 — Leaderboard Health contract closure:
+//   • Makes current-user SoloLeaderboardEntry publishing, projection repair
+//     rank-scope diagnostics, accepted friend owner_key matching, and
+//     PullToRefresh reload wiring explicit for static Health without changing
+//     scoring or leaderboard ranking rules.
+const BUILD_MARKER = 'Codex370';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
