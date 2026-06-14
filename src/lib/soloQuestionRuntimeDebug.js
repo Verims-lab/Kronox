@@ -251,7 +251,7 @@ export function buildSoloQuestionRuntimeDebugPayload({
         'Game.jsx candidatePool(type=metin, year range)',
         'buildSoloAttemptDeck',
       ],
-      entity: diagnostics?.questionFetchPath || 'getQuestions public_minimal_playable_projection',
+      entity: diagnostics?.questionFetchPath || 'getQuestions authenticated_minimal_playable_projection',
       filtersApplied: [
         'getQuestions active Category whitelist',
         'getQuestions active playable Question projection',

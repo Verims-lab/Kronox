@@ -42,7 +42,7 @@ export const QUESTION_LOAD_CONTRACTS = {
   EMPTY_CACHE_IS_NOT_OFFLINE: 'empty_cache_is_not_offline_online_fetch_first',
   RETRY_REFETCHES_ONLINE: 'retry_clears_transient_error_and_refetches_online',
   OFFLINE_NO_CACHE_REQUIRES_KNOWN_OFFLINE: 'offline_no_cache_requires_known_offline_and_no_cache',
-  GUEST_QUESTION_FETCH_USES_PUBLIC_PROJECTION: 'guest_question_fetch_uses_public_minimal_projection',
+  GAMEPLAY_QUESTION_FETCH_REQUIRES_AUTH: 'gameplay_question_fetch_requires_authenticated_getQuestions',
   GAMEPLAY_QUESTION_FETCH_REQUESTS_CATEGORY_COVERAGE: 'gameplay_question_fetch_requests_per_category_projection_v2',
 };
 
@@ -203,9 +203,9 @@ export function useOfflineQuestions({ debugEnabled = false } = {}) {
 
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
       try {
-        // Guest/no-auth Solo play is supported through the public-safe
-        // minimal projection. Direct Question.list fallback remains removed
-        // so guests never receive the raw question bank.
+        // Gameplay question fetches require the authenticated Base44 session
+        // and receive a minimal projection. Direct Question.list fallback
+        // remains removed so callers never receive the raw question bank.
         let res;
         requestPayload = buildGameplayQuestionRequestPayload({ includeDiagnostics });
         try {

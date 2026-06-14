@@ -158,6 +158,9 @@ function getQuestionsDiagnostics(entryFiles) {
     'getServiceEntity(base44, \'Question\')',
     'getServiceEntity(base44, \'Category\')',
     'base44_client_create_failed',
+    'if (!user?.email)',
+    'Giris yapmaniz gerekiyor.',
+    'authenticated_minimal_playable_projection',
     'getQuestionsRuntimeMarker',
     'getQuestions-live-per-category-v7-Codex343',
     'per_category_projection_v2',
@@ -173,6 +176,7 @@ function getQuestionsDiagnostics(entryFiles) {
     'FALLBACK_ACTIVE_CATEGORY_IDS = [1, 2, 3, 4, 5, 6]',
     'Question.list(\'-created_date\', 500)',
     'Question.list("-created_date", 500)',
+    'public_minimal_playable_projection',
   ];
   return [
     ...required

@@ -191,9 +191,9 @@ their inline AdminUser guard.
 Question loading / offline fallback:
 
 * gameplay question content remains protected behind the backend `getQuestions`
-  projection; guests/normal users receive only the public-safe minimal runtime
+  projection; authenticated normal users receive only the minimal runtime
   projection, while admin/full-bank diagnostics require active AdminUser
-  owner/admin authorization
+  owner/admin authorization; unauthenticated gameplay projection calls return 401
 * Game startup must attempt online question fetch when the browser is online or
   network state is unknown
 * empty local question cache alone is not an offline condition

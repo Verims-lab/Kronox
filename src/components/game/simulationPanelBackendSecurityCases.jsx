@@ -258,33 +258,34 @@ export const EXTRA_TESTS = [
       });
     }),
 
-  makeCase('get_questions_public_minimal_projection_admin_diagnostics_guarded',
-    'getQuestions allows guest gameplay projection while guarding admin diagnostics',
+  makeCase('get_questions_authenticated_minimal_projection_admin_diagnostics_guarded',
+    'getQuestions requires authenticated gameplay projection while guarding admin diagnostics',
     () => {
       const required = [
         'getOptionalUser',
-        'needsAdmin && !user?.email',
+        'if (!user?.email)',
+        'Giris yapmaniz gerekiyor.',
         'isAuthorizedAdmin(base44, user)',
         'Admin yetkisi gerekli.',
-        'public_minimal_playable_projection',
+        'authenticated_minimal_playable_projection',
       ];
       const forbidden = presentTokens(getQuestionsSource, [
         'auth gerekmez',
         'Service role ile soruları çek',
-        'authenticated_minimal_projection',
+        'public_minimal_playable_projection',
       ]);
       const missing = missingTokens(getQuestionsSource, required);
       if (missing.length || forbidden.length) {
-        return fail('getQuestions guest projection/admin diagnostics boundary drifted.', {
+        return fail('getQuestions authenticated projection/admin diagnostics boundary drifted.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'base44/functions/getQuestions/entry.ts',
-          expected: 'guest-safe minimal playable projection, with admin/full-bank diagnostics guarded and gameplay v2 safe diagnostics available',
+          expected: 'authenticated minimal playable projection, with admin/full-bank diagnostics guarded and gameplay v2 diagnostics available',
           actual: { missing, forbidden },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('getQuestions serves the public-safe minimal playable projection for guests while admin/full-bank diagnostics remain AdminUser-protected.', {
+      return pass('getQuestions requires an authenticated user for gameplay projection while admin/full-bank diagnostics remain AdminUser-protected.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });
