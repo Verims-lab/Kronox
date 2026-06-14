@@ -24,3 +24,16 @@ placeholders after authentication.
 * Logout clears cached joker balances so another user cannot see stale counts.
 * Runtime proof remains manual: login, open Profile, confirm fast Joker Çantası
   load, buy/spend a joker, and confirm Profile/Solo counts stay consistent.
+
+## Category Preferences
+
+* `İlgi Alanlarım` remains editable from Profile / Settings for authenticated
+  users and persists user-owned `UserCategoryPreference` rows.
+* Authenticated users with fewer than 3 active valid Category preferences may
+  see the optional personalization popup; it can be deferred and must not block
+  normal authenticated Solo gameplay.
+* Authenticated users with no saved preferences or empty preferences use all
+  active categories for Solo; missing authentication is an auth-required state
+  and must not expose raw questions.
+* Saved preferences are Solo-only soft 70/30 weighting input, not a hard filter.
+* Online question selection is not affected by Category preferences.

@@ -565,6 +565,11 @@ After deployment, verify:
 * Solo question selection reads current-user active valid Category preferences
   before attempt start and targets 70% selected categories / 30% full eligible
   pool as soft weighting with fallback
+* Authenticated users with no saved preferences or empty preferences use all
+  active categories for Solo; missing authentication is an auth-required state
+  and must not expose raw questions
+* `getQuestions` remains authenticated for gameplay and raw `Question.list`
+  gameplay fallback is not allowed
 * the selected-category 70% lane is not difficulty-1 restricted; the global
   30% lane prefers difficulty 1 from the full eligible pool where possible,
   with safe fallback if difficulty-1 global candidates are insufficient

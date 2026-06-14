@@ -1986,7 +1986,18 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps hardcoded/logged/exposed VAPID private key findings as blockers.
 //   • Reclassifies env-var-name-only VAPID_PRIVATE_KEY findings as manual
 //     deployment secret verification instead of source-code blockers.
-const BUILD_MARKER = 'Codex363';
+//
+// Codex364 — Category preference phase docs alignment:
+//   • Aligns docs/mirrors on authenticated no-preference Solo fallback,
+//     below-3 optional popup, Settings/Profile editability, and Solo-only
+//     soft weighting.
+//   • Removes guest/raw question-pool wording while preserving getQuestions
+//     authentication and the no raw Question.list gameplay fallback contract.
+//
+// Codex365 — Leaderboard row cleanup:
+//   • Removes the row-level "Seviye X" sublabel from Liderlik ranking rows
+//     while preserving rank, avatar, badges, row highlight, and Kronox Puan.
+const BUILD_MARKER = 'Codex365';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

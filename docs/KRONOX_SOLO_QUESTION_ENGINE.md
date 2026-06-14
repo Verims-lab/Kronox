@@ -270,11 +270,12 @@ If no valid deck can be created, the level must not start. The UI should show a 
 The Solo start path passes the active category whitelist into `buildSoloAttemptDeck`. The engine enforces active-category filtering on the actual runtime deck, not only in UI.
 
 The Solo start path also loads current-user active valid Category preferences
-before the deck is built when a user is signed in. If no user or no qualifying
-preferences are available, the deck builder uses all active categories. When at
-least 3 active valid preferences exist, the runtime passes them as a soft 70/30
-weighting input. This must not fetch questions mid-attempt, block guest play,
-or hard-filter the deck to only selected categories.
+before the deck is built when a user is signed in. Authenticated users with no
+saved preferences, empty preferences, or fewer than 3 active valid preferences
+use all active categories. Missing authentication is an auth-required state and
+must not expose raw questions. When at least 3 active valid preferences exist,
+the runtime passes them as a soft 70/30 weighting input. This must not fetch
+questions mid-attempt or hard-filter the deck to only selected categories.
 
 Replay and next-level actions clear the current attempt deck and create a new deck. Replay after this change uses the new Solo v2 rules.
 
