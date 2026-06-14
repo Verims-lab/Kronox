@@ -59,6 +59,7 @@ export const JOKER_INVENTORY_SELF_HEAL_CONTRACT = [
 export const JOKER_INVENTORY_FAST_LOAD_CONTRACT = [
   'Profile and Solo read current balances from UserJokerInventory before self-heal.',
   'JokerTransaction is ledger only and is not scanned during render-time balance reads.',
+  'Profile Joker Çantası renders the fast UserJokerInventory result before background self-heal refresh.',
   'Self-heal runs only when UserJokerInventory rows are missing or partial, or when forced.',
   'Market purchase and Solo spend update the per-user joker balance cache.',
   'The balance cache is keyed by normalized user email and is cleared on logout.',
@@ -464,7 +465,7 @@ export async function ensureStarterJokers(user, options = {}) {
         inventoryRows: Array.isArray(body?.items) ? body.items.length : 0,
         completeInventory: true,
         missingTypes,
-        selfHealNeeded: missingTypes.length > 0,
+        selfHealNeeded: false,
         selfHealed: Boolean(body?.selfHealed),
         initialized: Boolean(body?.initialized),
         backendDurationMs: body?.performance?.durationMs,

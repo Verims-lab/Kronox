@@ -1997,7 +1997,15 @@ import React, { useEffect, useState } from 'react';
 // Codex365 — Leaderboard row cleanup:
 //   • Removes the row-level "Seviye X" sublabel from Liderlik ranking rows
 //     while preserving rank, avatar, badges, row highlight, and Kronox Puan.
-const BUILD_MARKER = 'Codex365';
+//
+// Codex366 — Leaderboard/Profile performance P0:
+//   • getSoloLeaderboard reads SoloLeaderboardEntry projection first for the
+//     main Liderlik table; User.list remains only for optional per-level
+//     record fallback until that data has its own projection.
+//   • Liderlik no longer waits on own-row publish before first render.
+//   • Profile renders from auth.me first; Joker Çantası reads current
+//     UserJokerInventory rows before background self-heal.
+const BUILD_MARKER = 'Codex366';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

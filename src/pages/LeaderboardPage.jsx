@@ -31,6 +31,12 @@ import PullToRefresh from '@/components/mobile/PullToRefresh';
 // inside the Liderlik summary hero card. Data sources unchanged.
 import KronoxStatTile from '@/components/ui/KronoxStatTile';
 
+function publishOwnLeaderboardProjectionInBackground(user, progress) {
+  publishSoloLeaderboardEntry(user, progress).catch((error) => {
+    console.warn('[leaderboard] background projection publish failed', error?.message || 'unknown');
+  });
+}
+
 /**
  * Codex117/Codex119/Codex150 — Public-safe Kronox leaderboard with
  * graceful fallback.
@@ -109,25 +115,16 @@ export default function LeaderboardPage() {
 
     setLeaderboard((prev) => ({ ...prev, loading: true, error: '', ownScoreFallback }));
     try {
-      const [publishedRow, rows, friends] = await Promise.all([
-        publishSoloLeaderboardEntry(user, currentProgress).catch(() => null),
+      const [rows, friends] = await Promise.all([
         loadSoloLeaderboardEntries(LEADERBOARD_FETCH_LIMIT),
         loadFriends(user.email).catch(() => []),
       ]);
       const friendEmails = (friends || []).map((friend) => friend.friend_email).filter(Boolean);
       const friendKeys = getFriendLeaderboardKeys(friendEmails);
       const readableRows = Array.isArray(rows) ? [...rows] : [];
-      if (publishedRow?.owner_key) {
-        const ownIndex = readableRows.findIndex((row) => row?.owner_key === publishedRow.owner_key);
-        if (ownIndex >= 0) {
-          readableRows[ownIndex] = publishedRow;
-        } else {
-          readableRows.push(publishedRow);
-        }
-      }
       const rankedRows = rankSoloLeaderboardEntries(readableRows, friendKeys, currentOwnerKey);
       const sections = selectLeaderboardSections(rankedRows, currentOwnerKey, LEADERBOARD_TOP_LIMIT);
-      const ownScoreRow = sections.currentUserRow || toSoloLeaderboardEntry(publishedRow || currentPayload, friendKeys, currentOwnerKey);
+      const ownScoreRow = sections.currentUserRow || toSoloLeaderboardEntry(currentPayload, friendKeys, currentOwnerKey);
 
       if (rankedRows.length === 0) {
         const ownPendingRow = ownScoreRow
@@ -147,6 +144,7 @@ export default function LeaderboardPage() {
           friendCount: 0,
           ownScoreFallback,
         });
+        publishOwnLeaderboardProjectionInBackground(user, currentProgress);
         return;
       }
       setLeaderboard({
@@ -160,6 +158,7 @@ export default function LeaderboardPage() {
         friendCount: friendEmails.length,
         ownScoreFallback,
       });
+      publishOwnLeaderboardProjectionInBackground(user, currentProgress);
     } catch (err) {
       const ownScoreRow = toSoloLeaderboardEntry(currentPayload, new Set(), currentOwnerKey);
       setLeaderboard({

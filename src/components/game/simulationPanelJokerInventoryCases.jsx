@@ -210,7 +210,8 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(profilePageSource, [
         'authLoading={loading}',
         'loading={jokerState.loading}',
-        'getUserJokerBalances(user, { ensureStarter: true, forceRefresh: jokerReloadKey > 0 })',
+        'getUserJokerBalances(user, { ensureStarter: false, forceRefresh: jokerReloadKey > 0 })',
+        'ensureStarterJokers(user, { forceEnsure: true, forceRefresh: jokerReloadKey > 0 })',
         'Joker Çantası şu anda yüklenemedi.',
         'setJokerReloadKey',
         'Tekrar Dene',
@@ -220,7 +221,7 @@ export const EXTRA_TESTS = [
         file: 'src/pages/ProfilePage.jsx',
         missing,
       });
-      return pass('Profile waits for user/inventory loading, retries safely, and uses generic Turkish error copy.', { verification: 'STATIC_CONTRACT' });
+      return pass('Profile shows fast inventory rows first, self-heals missing rows in the background, retries safely, and uses generic Turkish error copy.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('joker_inventory_fast_read_before_self_heal',
@@ -230,6 +231,7 @@ export const EXTRA_TESTS = [
         'JOKER_INVENTORY_FAST_LOAD_CONTRACT',
         'Profile and Solo read current balances from UserJokerInventory before self-heal.',
         'JokerTransaction is ledger only and is not scanned during render-time balance reads.',
+        'Profile Joker Çantası renders the fast UserJokerInventory result before background self-heal refresh.',
         'completeKnownInventoryRows(rows)',
         'ensureSkipped: true',
         'queryPath: \'UserJokerInventory.fast_read\'',
@@ -272,7 +274,8 @@ export const EXTRA_TESTS = [
         'cacheKeyUserScoped',
         'clearJokerInventoryCache',
         'setCachedJokerBalances',
-        'getUserJokerBalances(user, { ensureStarter: true, forceRefresh: jokerReloadKey > 0 })',
+        'getUserJokerBalances(user, { ensureStarter: false, forceRefresh: jokerReloadKey > 0 })',
+        'ensureStarterJokers(user, { forceEnsure: true, forceRefresh: jokerReloadKey > 0 })',
         'getUserJokerBalances(currentUser, { ensureStarter: true })',
       ]);
       if (missing.length) return fail('Joker inventory loads are not clearly shared, cached, and user-scoped.', {
@@ -600,7 +603,8 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(`${marketPageSource}\n${profilePageSource}\n${soloJokerBarSource}\n${gameSource}`, [
         'setBalances(nextBalances)',
         'Joker Çantası',
-        'getUserJokerBalances(user, { ensureStarter: true, forceRefresh: jokerReloadKey > 0 })',
+        'getUserJokerBalances(user, { ensureStarter: false, forceRefresh: jokerReloadKey > 0 })',
+        'ensureStarterJokers(user, { forceEnsure: true, forceRefresh: jokerReloadKey > 0 })',
         'balances?.[joker.type]',
         'balances={soloJokers?.balances || null}',
         'balances?.[inventoryType]',
@@ -659,7 +663,8 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(`${authContextSource}\n${profilePageSource}`, [
         'ensureStarterJokers(currentUser)',
         'jokerEnsureKeyRef',
-        'getUserJokerBalances(user, { ensureStarter: true, forceRefresh: jokerReloadKey > 0 })',
+        'getUserJokerBalances(user, { ensureStarter: false, forceRefresh: jokerReloadKey > 0 })',
+        'ensureStarterJokers(user, { forceEnsure: true, forceRefresh: jokerReloadKey > 0 })',
       ]);
       if (missing.length) return fail('Existing users are not lazily initialized through auth/profile paths.', {
         verification: 'STATIC_CONTRACT',
