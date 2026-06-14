@@ -31,7 +31,7 @@ Top risks:
 | DM-04 | Schema drift | `User.jsonc` omits live fields such as `hasCompletedTutorial`, `game_invite_notifications_enabled`, Solo score summary fields, and `online_progress.lastMatchAt`. | P1 |
 | DM-05 | RLS/service-role | FriendRequest and GameInvite entity RLS allow broad sender/recipient updates; business invariants rely on client discipline plus functions. | P1 |
 | DM-06 | Lobby state | Lobby stores roster, turn state, cards, status, selected categories, and result state in one mutable row with no immutable match result table. | P2 |
-| DM-07 | Leaderboard scale | Global leaderboard reads `SoloLeaderboardEntry` projection first and returns compact top/current/friend rows. This removes the broad `User.list` primary payload, but exact rank outside the projection window and platform index proof still need a scale pass. | P2 |
+| DM-07 | Leaderboard scale | Global leaderboard reads `SoloLeaderboardEntry` projection first and returns compact top/current/friend rows. A bounded server-side `User.kronox_puan_total` repair window prevents stale/incomplete projection rows from hiding higher-score users, but exact rank outside the repaired window and platform index proof still need a scale pass. | P2 |
 | DM-08 | Expired/stale row retention | GameInvite, Lobby, PushSubscription, and FriendRequest rows can accumulate without an explicit retention/cleanup plan. | P2 |
 
 Release blocker: no immediate P0 destructive schema blocker was found from static inspection. The main near-term blockers are data-consistency and security-proof issues that need targeted implementation and two-account/runtime probes before broad release.
@@ -492,15 +492,15 @@ Recommendation:
 ### Leaderboard
 
 Current source of truth:
-- Display source: `getSoloLeaderboard` function reads `SoloLeaderboardEntry` first; client entity list remains a safe missing-function fallback.
+- Display source: `getSoloLeaderboard` function reads `SoloLeaderboardEntry` first, then uses a bounded server-side `User.kronox_puan_total` repair/backfill window when the projection is stale or incomplete; client entity list remains a safe missing-function fallback.
 - Current user mirror: `publishSoloLeaderboardEntry`.
 - Ranking helper: `rankSoloLeaderboardEntries`.
 
 Risks:
 - P1: optional per-level fallback recomputes Solo score independently and may drift from `soloProgressHelpers`.
 - P2: optional per-level record fallback still scans `User.list` until per-level best-score data has a rank-safe projection.
-- P2: entity mirror is best-effort; rows can be stale if users never open Leaderboard or never trigger publish after score change.
-- P2: exact current-user global rank beyond the fetched projection window is reported with `rankScope`/`rankConfidence` and still needs an indexed rank endpoint or dedicated projection for scale.
+- P2: entity mirror is best-effort; rows can be stale if users never open Leaderboard or never trigger publish after score change. The runtime endpoint repairs top-score projection gaps server-side and returns `rankScope`/`rankConfidence` instead of treating an incomplete projection as exact.
+- P2: exact current-user global rank beyond the fetched projection/User repair window is reported with `rankScope`/`rankConfidence` and still needs an indexed rank endpoint or dedicated projection for scale.
 
 Recommendation:
 - Short term: make `getSoloLeaderboard` match/import the canonical scoring helper logic or keep a Health case that compares boundary examples.
@@ -600,7 +600,7 @@ Recommendation:
 
 | Query / flow | Current pattern | Risk | Recommendation |
 | --- | --- | --- | --- |
-| Global leaderboard | `getSoloLeaderboard` reads `SoloLeaderboardEntry.list('-total_kronox_score', limit)` first and returns compact `topRows`, `currentUserRow`, friend keys, and `rankScope` | Projection-first and compact, but exact off-window rank is scope-limited | Add indexed exact-rank/current-rank projection when user count grows |
+| Global leaderboard | `getSoloLeaderboard` reads `SoloLeaderboardEntry.list('-total_kronox_score', limit)` first, merges a bounded server-side `User.kronox_puan_total` repair window when needed, and returns compact `topRows`, `currentUserRow`, friend keys, and `rankScope` | Projection-first and compact, repaired for stale/missing top projection rows, but exact off-window rank is scope-limited | Add indexed exact-rank/current-rank projection when user count grows |
 | Optional per-level leaderboard record | `getSoloLeaderboard` service-role `User.list(..., 500)` fallback when `levelNumber` is requested | Not used by main Liderlik table, but still not scalable | Add rank-safe per-level projection or friend-record endpoint |
 | Header notifications | FriendRequest filter + GameInvite load + subscriptions + focus/visibility refresh | Reasonable, but can duplicate work | Keep shared selectors; monitor polling/subscription duplication |
 | Online pending invites | `GameInvite.filter({ to_email })` then selector | Reasonable | Ensure status/email filters stay selective |
@@ -718,9 +718,10 @@ None found from static inspection. Do not run destructive migrations.
 
 3. Keep leaderboard authority projection-first.
    - Current main-table authority: `SoloLeaderboardEntry`.
-   - `getSoloLeaderboard` should query the projection first and only use `User`
-     for explicit per-level fallback until per-level rank data has its own
-     projection.
+   - `getSoloLeaderboard` should query the projection first and may use a
+     bounded server-side `User.kronox_puan_total` repair window when projection
+     rows are stale/incomplete. Per-level record requests still use `User`
+     until per-level rank data has its own projection.
    - Next scale step: indexed current-rank/pagination endpoint.
 
 4. Add retention/cleanup functions.

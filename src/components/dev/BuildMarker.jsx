@@ -2014,7 +2014,16 @@ import React, { useEffect, useState } from 'react';
 //   • Entity docs/static guards record logical unique/index contracts for
 //     SoloLeaderboardEntry, UserJokerInventory, JokerTransaction, and
 //     FriendRequest while write paths keep query-before-write protection.
-const BUILD_MARKER = 'Codex367';
+//
+// Codex368 — Leaderboard projection completeness repair:
+//   • getSoloLeaderboard keeps SoloLeaderboardEntry projection-first, but now
+//     compares a bounded server-side User.kronox_puan_total repair window so
+//     incomplete/stale projection rows cannot falsely rank the current user #1.
+//   • Missing/stale high-score projection rows are repaired best-effort without
+//     returning broad User rows to the client.
+//   • Adds rankScope/rankConfidence and projection/score row diagnostics for
+//     manual leaderboard proof.
+const BUILD_MARKER = 'Codex368';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

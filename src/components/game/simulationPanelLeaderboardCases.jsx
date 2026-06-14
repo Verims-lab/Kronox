@@ -102,7 +102,7 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'SoloLeaderboardEntry projection-first Kronox Puan source; no User.list production dependency for the main leaderboard',
+          expected: 'SoloLeaderboardEntry projection-first Kronox Puan source; bounded server-side User repair allowed, no broad User rows shipped to the client',
           actual: { required, forbidden },
         });
       }
@@ -313,6 +313,10 @@ export const EXTRA_TESTS = [
       const required = missingTokens(getSoloLeaderboardFunctionSource, [
         'entities?.SoloLeaderboardEntry',
         'projectionEntity.list(\'-total_kronox_score\', limit)',
+        "User.list('-kronox_puan_total', limit)",
+        'server-side User.list',
+        'broadUserRowsReturned: false',
+        'serverSideUserRepairUsed',
         'owner_key',
         'display_name',
         'total_kronox_score',
@@ -320,7 +324,6 @@ export const EXTRA_TESTS = [
         'online_score',
         'current_level',
         'solo_leaderboard_entry_projection',
-        'broadUserListUsed: false',
       ]);
       const forbidden = forbiddenTokensFound(getSoloLeaderboardFunctionSource, [
         'game_invite_notifications_enabled',
@@ -333,11 +336,55 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'projection-first service-role read returns rank-safe fields only',
+          expected: 'projection-first service-role read plus bounded repair returns rank-safe fields only',
           actual: { required, forbidden },
         });
       }
       return pass('Backend projection reads SoloLeaderboardEntry first and returns only public-safe leaderboard fields.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('leaderboard_health', 'leaderboard_projection_completeness_repair',
+    'Incomplete projection rows cannot claim exact global rank or crowd out positive scores',
+    () => {
+      const required = missingTokens(`${leaderboardLibSource}\n${getSoloLeaderboardFunctionSource}`, [
+        'findProjectionRepairReason',
+        'projection_missing_positive_top_rows',
+        'positive_user_score_missing_from_projection',
+        'projection_score_stale_below_user_score',
+        'projection_score_stale_above_user_score',
+        'mergeProjectionAndUserScoreRows',
+        'User.kronox_puan_total wins',
+        'repairSoloLeaderboardProjection',
+        'positiveDecoratedRows',
+        'zeroDecoratedRows',
+        'rankConfidence',
+        'rankScope',
+        'fallbackUsed',
+        'fallbackReason',
+        'projectionRowsRead',
+        'positiveScoreRowsRead',
+        'zeroScoreRowsRead',
+        'broadUserRowsReturned',
+      ]);
+      const limitedRankBeforeExact = ordered(
+        getSoloLeaderboardFunctionSource,
+        'fallbackUsed',
+        'rankConfidence',
+      );
+      if (required.length || !limitedRankBeforeExact) {
+        return fail('Leaderboard can still treat an incomplete SoloLeaderboardEntry projection as a complete global ranking.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'bounded server-side repair, explicit rank scope/confidence, positive-score rows before zero-score rows, compact-only response',
+          actual: { required, limitedRankBeforeExact },
+        });
+      }
+      return pass('Leaderboard has projection completeness repair and rank diagnostics, and zero-score rows only fill after positive-score rows.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,

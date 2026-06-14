@@ -1,7 +1,7 @@
 {
   "name": "SoloLeaderboardEntry",
   "type": "object",
-  "description": "Codex367 \u2014 Canonical current public-safe leaderboard projection. Despite the historical name, total_kronox_score is unified Kronox Puan (Solo + Online) and public rows must not expose raw email. Base44/platform index contract: owner_key is the logical unique key; total_kronox_score desc is the hot leaderboard sort; updated_at is the projection freshness tie-breaker. Until platform unique/index proof exists, publishSoloLeaderboardEntry filters by owner_key before update/create and getSoloLeaderboard dedupes owner_key rows server-side.",
+  "description": "Codex368 \u2014 Canonical current public-safe leaderboard projection. Despite the historical name, total_kronox_score is unified Kronox Puan (Solo + Online) and public rows must not expose raw email. Base44/platform index contract: owner_key is the logical unique key; total_kronox_score desc is the hot leaderboard sort; updated_at is the projection freshness tie-breaker. Until platform unique/index proof exists, publishSoloLeaderboardEntry filters by owner_key before update/create and getSoloLeaderboard dedupes owner_key rows server-side. getSoloLeaderboard also uses a bounded server-side User.kronox_puan_total repair window so incomplete/stale projection rows cannot claim exact global rank or crowd out positive-score users.",
   "properties": {
     "owner_key": {
       "type": "string",
