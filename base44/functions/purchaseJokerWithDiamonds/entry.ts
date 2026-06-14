@@ -341,7 +341,9 @@ Deno.serve(async (req: Request) => {
       return json({ ok: false, code: 'market_entities_missing', error: 'Mağaza kayıtları hazır değil.' }, 500);
     }
 
-    await ensureStarterInventory(base44, email);
+    await ensureStarterInventory(base44, email).catch((error: Error) => {
+      console.warn('[purchaseJokerWithDiamonds] starter self-heal skipped', error?.message || 'unknown');
+    });
 
     const existingDiamondTx = await findDiamondTransaction(base44, email, idempotencyKey);
     const existingJokerTx = await findJokerTransaction(base44, email, jokerType, idempotencyKey);

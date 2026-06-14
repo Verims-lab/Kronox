@@ -467,6 +467,9 @@ Purchase rules:
   write successful purchase ledgers
 * purchase uses an idempotency key; double-tap, network retry, and two
   tabs/devices live race proof remains manual
+* starter inventory repair during purchase is best-effort; a starter self-heal
+  error must not block a valid purchase that can still write the purchased
+  joker balance and ledgers
 * Partial failure reconciliation: ledger write failure uses best-effort rollback
   of the Diamond and joker balances, but live provider/backend consistency proof
   remains manual
@@ -482,6 +485,11 @@ Joker balance read-performance contract:
   partial rows trigger idempotent starter/self-heal.
 * Mağaza purchase and Solo spend must update or invalidate the shared balance
   cache so Profile and Solo do not show stale counts.
+* `spendUserJoker` validates Solo context, uses deploy-safe entity fallback for
+  `UserJokerInventory`/`JokerTransaction`, and returns safe user-facing errors.
+* Admin/static reconciliation can compare `UserJokerInventory.quantity` against
+  `JokerTransaction` summed deltas and latest `balance_after`; it must report
+  mismatches without auto-fixing.
 * Guest/no-login paths must not query user-owned joker inventory.
 * Live performance proof remains manual: login, open Profile, confirm Joker
   Çantası loads quickly, purchase/spend a joker, and confirm Profile/Solo counts

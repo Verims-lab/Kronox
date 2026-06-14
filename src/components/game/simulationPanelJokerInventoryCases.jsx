@@ -243,6 +243,25 @@ export const EXTRA_TESTS = [
       return pass('Joker balances now use a fast UserJokerInventory read and only invoke self-heal for missing/partial rows.', { verification: 'STATIC_CONTRACT' });
     }),
 
+  makeCase('joker_inventory_reconciliation_helper_exists',
+    'Joker inventory and ledger can be reconciled without mutation',
+    () => {
+      const missing = missingTokens(jokerInventorySource, [
+        'buildJokerInventoryLedgerReconciliation',
+        'ledgerSummedDelta',
+        'latestBalanceAfter',
+        'matchesLatestLedger',
+        'matchesDeltaSum',
+        'mismatches: rows.filter',
+      ]);
+      if (missing.length) return fail('Joker inventory/ledger reconciliation helper is missing or not diagnostic-only.', {
+        verification: 'STATIC_CONTRACT',
+        file: 'src/lib/jokerInventory.js',
+        missing,
+      });
+      return pass('A non-destructive helper can compare UserJokerInventory balances against JokerTransaction ledger totals/latest balance.', { verification: 'STATIC_CONTRACT' });
+    }),
+
   makeCase('joker_inventory_query_path_is_shared_and_cached',
     'Profile, Solo, and Market share one cached balance helper path',
     () => {
@@ -557,6 +576,7 @@ export const EXTRA_TESTS = [
         'findStarterTransaction',
         'existingTransaction',
         'market_phase_1_lazy_starter_repair',
+        'starter self-heal skipped',
         'normalizeJokerType',
         'invalid_joker_type',
         'getMarketJokerProduct',
@@ -571,7 +591,7 @@ export const EXTRA_TESTS = [
         verification: 'STATIC_CONTRACT',
         actual: { missing, forbidden },
       });
-      return pass('Market uses server-backed validated joker types, idempotent lazy starter repair, and no client-side inventory/ledger mutation.', { verification: 'STATIC_CONTRACT' });
+      return pass('Market uses server-backed validated joker types, best-effort idempotent starter repair, and no client-side inventory/ledger mutation.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('market_purchase_visible_in_profile_and_solo',
@@ -679,6 +699,26 @@ export const EXTRA_TESTS = [
         missing,
       });
       return pass('spendUserJoker function is registered and used by the helper.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('solo_spend_uses_deploy_safe_entities_and_solo_context',
+    'Solo spend has deploy-safe entity binding and rejects non-Solo context',
+    () => {
+      const missing = missingTokens(`${spendUserJokerSource}\n${jokerInventorySource}\n${gameSource}`, [
+        "entityStore(base44, 'UserJokerInventory')",
+        "entityStore(base44, 'JokerTransaction')",
+        'invalid_joker_context',
+        'Joker yalnızca Solo modda kullanılabilir.',
+        "mode: 'solo'",
+        'safeJokerSpendError',
+        'joker_spend_request_failed',
+      ]);
+      if (missing.length) return fail('Solo joker spend can regress to service-role-only deployment failures, non-Solo usage, or raw UI errors.', {
+        verification: 'STATIC_CONTRACT',
+        files: ['base44/functions/spendUserJoker/entry.ts', 'src/lib/jokerInventory.js', 'src/pages/Game.jsx'],
+        missing,
+      });
+      return pass('Solo spend uses service-role/auth entity fallback, validates Solo context, and maps Base44 invoke failures to safe UI copy.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('solo_spend_records_ledger',

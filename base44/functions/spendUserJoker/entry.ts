@@ -41,11 +41,24 @@ function emptyBalances() {
 
 function publicInventoryRow(row: any) {
   return {
-    id: row?.id || null,
+    id: rowId(row),
     jokerType: row?.joker_type || '',
     quantity: normalizeQuantity(row?.quantity),
     updatedAt: row?.updated_at || row?.created_at || null,
   };
+}
+
+function rowId(row: any) {
+  return row?.id || row?._id || null;
+}
+
+function entityStore(base44: any, entityName: string) {
+  // Base44 deploy/runtime contract: spendUserJoker explicitly binds
+  // entities.UserJokerInventory and entities.JokerTransaction while retaining
+  // service-role preference. Some function runtimes expose only entities.*.
+  const serviceEntity = base44?.asServiceRole?.entities ? base44.asServiceRole.entities[entityName] : null;
+  const authEntity = base44?.entities ? base44.entities[entityName] : null;
+  return serviceEntity || authEntity;
 }
 
 function safeText(value: unknown, fallback = '') {
@@ -71,7 +84,9 @@ function safeMetadata(value: unknown) {
 }
 
 async function findInventory(base44: any, email: string, jokerType: string) {
-  const rows = await base44.asServiceRole.entities.UserJokerInventory
+  const entity = entityStore(base44, 'UserJokerInventory');
+  if (!entity?.filter) return null;
+  const rows = await entity
     .filter({ user_email: email, joker_type: jokerType }, '-updated_at', 10)
     .catch(() => []);
   return Array.isArray(rows) && rows.length ? rows[0] : null;
@@ -79,14 +94,18 @@ async function findInventory(base44: any, email: string, jokerType: string) {
 
 
 async function findTransaction(base44: any, email: string, jokerType: string, idempotencyKey: string) {
-  const rows = await base44.asServiceRole.entities.JokerTransaction
+  const entity = entityStore(base44, 'JokerTransaction');
+  if (!entity?.filter) return null;
+  const rows = await entity
     .filter({ user_email: email, joker_type: jokerType, idempotency_key: idempotencyKey }, '-created_at', 1)
     .catch(() => []);
   return Array.isArray(rows) && rows.length ? rows[0] : null;
 }
 
 async function readBalances(base44: any, email: string) {
-  const rows = await base44.asServiceRole.entities.UserJokerInventory
+  const entity = entityStore(base44, 'UserJokerInventory');
+  if (!entity?.filter) return emptyBalances();
+  const rows = await entity
     .filter({ user_email: email }, '-updated_at', 20)
     .catch(() => []);
   const balances = emptyBalances();
@@ -135,8 +154,22 @@ Deno.serve(async (req: Request) => {
       return json({ ok: false, code: 'missing_idempotency_key', error: 'Joker işlemi doğrulanamadı.' }, 400);
     }
 
-    const inventoryEntity = base44.asServiceRole.entities.UserJokerInventory;
-    const transactionEntity = base44.asServiceRole.entities.JokerTransaction;
+    const relatedEntityType = safeText(body?.relatedEntityType || body?.related_entity_type, 'solo_question');
+    const relatedEntityId = safeText(body?.relatedEntityId || body?.related_entity_id, '');
+    const mode = safeText(body?.mode || body?.gameMode || body?.source, '');
+    const isSoloContext = relatedEntityType.startsWith('solo') && (!mode || mode === SOLO_SOURCE);
+    if (!isSoloContext) {
+      return json({
+        ok: false,
+        code: 'invalid_joker_context',
+        error: 'Joker yalnızca Solo modda kullanılabilir.',
+        jokerType,
+        balances: await readBalances(base44, email),
+      }, 400);
+    }
+
+    const inventoryEntity = entityStore(base44, 'UserJokerInventory');
+    const transactionEntity = entityStore(base44, 'JokerTransaction');
     if (!inventoryEntity?.filter || !inventoryEntity?.update || !transactionEntity?.filter || !transactionEntity?.create) {
       return json({ ok: false, code: 'joker_inventory_entity_missing', error: 'Joker kayıtları hazır değil.' }, 500);
     }
@@ -152,7 +185,7 @@ Deno.serve(async (req: Request) => {
         reason: SOLO_USE_REASON,
         source: SOLO_SOURCE,
         idempotencyKey,
-        transactionId: existingTransaction.id || null,
+        transactionId: rowId(existingTransaction),
         balanceAfter: normalizeQuantity(existingTransaction.balance_after),
         balances: await readBalances(base44, email),
       });
@@ -161,7 +194,7 @@ Deno.serve(async (req: Request) => {
     const inventory = await findInventory(base44, email, jokerType);
     const quantityBefore = normalizeQuantity(inventory?.quantity);
     const insufficientBalance = quantityBefore <= 0 || !hasPositiveSpendableQuantity(quantityBefore);
-    if (!inventory?.id || insufficientBalance) {
+    if (!rowId(inventory) || insufficientBalance) {
       return json({
         ok: false,
         code: 'insufficient_joker_balance',
@@ -183,7 +216,7 @@ Deno.serve(async (req: Request) => {
         reason: SOLO_USE_REASON,
         source: SOLO_SOURCE,
         idempotencyKey,
-        transactionId: secondExistingTransaction.id || null,
+        transactionId: rowId(secondExistingTransaction),
         balanceAfter: normalizeQuantity(secondExistingTransaction.balance_after),
         balances: await readBalances(base44, email),
       });
@@ -191,10 +224,8 @@ Deno.serve(async (req: Request) => {
 
     const timestamp = nowIso();
     const balanceAfter = quantityBefore - 1;
-    const relatedEntityType = safeText(body?.relatedEntityType || body?.related_entity_type, 'solo_question');
-    const relatedEntityId = safeText(body?.relatedEntityId || body?.related_entity_id, '');
 
-    const updatedInventory = await inventoryEntity.update(inventory.id, {
+    const updatedInventory = await inventoryEntity.update(rowId(inventory), {
       quantity: balanceAfter,
       updated_at: timestamp,
       metadata: {
@@ -226,8 +257,8 @@ Deno.serve(async (req: Request) => {
       });
     } catch (error) {
       const latest = await findInventory(base44, email, jokerType).catch(() => null);
-      if (latest?.id && normalizeQuantity(latest.quantity) === balanceAfter) {
-        await inventoryEntity.update(latest.id, {
+      if (rowId(latest) && normalizeQuantity(latest.quantity) === balanceAfter) {
+        await inventoryEntity.update(rowId(latest), {
           quantity: quantityBefore,
           updated_at: nowIso(),
           metadata: {
@@ -240,8 +271,8 @@ Deno.serve(async (req: Request) => {
       return json({ ok: false, code: 'joker_ledger_write_failed', error: 'Joker işlemi kaydedilemedi.' }, 500);
     }
 
-    const finalInventory = await inventoryEntity.update(updatedInventory.id || inventory.id, {
-      last_transaction_id: transaction?.id || null,
+    const finalInventory = await inventoryEntity.update(rowId(updatedInventory) || rowId(inventory), {
+      last_transaction_id: rowId(transaction),
       updated_at: timestamp,
     }).catch(() => updatedInventory);
 
@@ -253,7 +284,7 @@ Deno.serve(async (req: Request) => {
       reason: SOLO_USE_REASON,
       source: SOLO_SOURCE,
       idempotencyKey,
-      transactionId: transaction?.id || null,
+      transactionId: rowId(transaction),
       balanceBefore: quantityBefore,
       balanceAfter,
       inventory: publicInventoryRow(finalInventory),

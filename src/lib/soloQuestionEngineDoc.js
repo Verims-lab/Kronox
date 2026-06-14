@@ -189,10 +189,11 @@ sufficient Diamonds server-side through purchaseJokerWithDiamonds, writes both
 Diamond and Joker ledgers with market_purchase, and does not change Solo
 scoring, timer, question selection, or Online mode. purchaseJokerWithDiamonds
 explicitly binds UserJokerInventory, DiamondTransaction, and JokerTransaction
-in the deployed runtime path. Purchased jokers appear
-through the same persistent UserJokerInventory balances that Solo already
-reads; using them in Solo still spends through spendUserJoker and writes
-JokerTransaction.reason = solo_use.
+in the deployed runtime path and treats starter self-heal as best-effort.
+Purchased jokers appear through the same persistent UserJokerInventory balances
+that Solo already reads; using them in Solo still spends through spendUserJoker,
+which is Solo-context-only, uses deploy-safe UserJokerInventory/JokerTransaction
+entity fallback, and writes JokerTransaction.reason = solo_use.
 
 Kronokalkan forgives the next wrong placement without counting a mistake.
 Kart Değiştir replaces the current card from the already prepared Solo deck
