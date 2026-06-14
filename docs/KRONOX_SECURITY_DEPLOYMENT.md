@@ -94,6 +94,10 @@ Rules:
 * reading `VAPID_PRIVATE_KEY` from backend environment/secret storage is the
   required secure practice; scanner findings that only identify the env var
   name are deployment-secret management notes, not source-code exposure
+* Health/security triage must classify env-sourced `VAPID_PRIVATE_KEY`
+  deployment verification as `MANUAL_REQUIRED`/warning; it is a blocker only
+  if key material is hardcoded, exposed through `VITE_`, logged, returned, or
+  included in raw errors
 * `VAPID_PRIVATE_KEY` is server-only and must never be logged, returned, sent to
   the client, exposed through `VITE_`, or included in raw error/stack responses
 * VAPID public key, private key, and subject are all required backend config

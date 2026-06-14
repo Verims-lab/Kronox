@@ -73,6 +73,7 @@ Status: Active product contract.
 - VAPID private key remains a real secret and must stay secret-managed.
 - Backend push config requires VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, and VAPID_SUBJECT or their KRONOX_ compatibility names.
 - VAPID_PRIVATE_KEY is server-only and read from backend deployment secret/env only; scanner findings that only flag the env var name are deployment-secret management notes unless real key material is present. It is never logged, returned, sent to the client, exposed through VITE_, or included in raw error/stack responses.
+- Health/security triage classifies env-sourced VAPID_PRIVATE_KEY deployment verification as MANUAL_REQUIRED/warning; it is a blocker only if key material is hardcoded, exposed through VITE_, logged, returned, or included in raw errors.
 - VAPID_PUBLIC_KEY is public by design for browser subscription but remains public-by-design/config-managed, not hardcoded.
 - VAPID_SUBJECT is deployment-controlled contact/config metadata and must not be hardcoded as a source fallback or logged unnecessarily.
 - VAPID_SUBJECT uses a mailto: or https:// subject and VAPID keys are non-empty base64url-style deployment values.

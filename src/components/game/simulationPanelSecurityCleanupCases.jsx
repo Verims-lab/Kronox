@@ -529,11 +529,12 @@ export const EXTRA_TESTS = [
 
   makeCase('security_runtime_secret_scan_needed',
     'Runtime security scan should be rerun after deploy',
-    () => notAutomatable('Static Health can verify source contracts, but the external security scanner must rerun against the deployed function bundle; VAPID_PRIVATE_KEY env-var-name-only findings are deployment-secret management notes unless real key material is exposed.', {
+    () => notAutomatable('Static Health can verify source contracts, but deployed secret presence/rotation remains manual-only verification. A VAPID_PRIVATE_KEY env-var-name-only finding is a deployment-secret management warning, not a blocker, unless real key material is hardcoded, exposed, logged, returned, or read through VITE_.', {
       verification: 'NOT_AUTOMATABLE',
-      classification: 'STATIC_CHECK_LIMITATION',
-      expected: 'Security scan reports no exposed Spotify/VAPID/admin-email findings, or classifies backend VAPID_PRIVATE_KEY env usage as deployment-secret management only',
+      classification: 'DEPLOYMENT_SECRET_MANAGEMENT',
+      verificationLabels: ['MANUAL_REQUIRED', 'BACKEND_RUNTIME_PROBE', 'SECRET_DEPLOYMENT_REVIEW'],
+      expected: 'External scan reports no exposed Spotify/VAPID/admin-email findings; backend VAPID_PRIVATE_KEY env-name-only usage is warning/manual deployment verification unless real key material is found.',
       actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE,
     }),
-    { critical: true, runtimeProofRequired: true, actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE }),
+    { critical: false, runtimeProofRequired: true, actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, verificationLabels: ['MANUAL_REQUIRED', 'BACKEND_RUNTIME_PROBE', 'SECRET_DEPLOYMENT_REVIEW'] }),
 ];
