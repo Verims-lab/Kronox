@@ -1968,7 +1968,14 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps Market prices server-owned while making starter self-heal
 //     best-effort during purchase and adding inventory/ledger reconciliation
 //     helper coverage.
-const BUILD_MARKER = 'Codex360';
+//
+// Codex361 — FriendRequest RLS and Solo preference fallback Health hotfix:
+//   • Adds the FriendRequest create.created_by_id={{user.id}} RLS guard while
+//     preserving sender/recipient/admin read-update-delete branches.
+//   • Aligns Solo Health/docs with authenticated getQuestions fetches: missing
+//     auth is auth-required, while authenticated no-preference users use all
+//     active categories without raw Question.list fallback.
+const BUILD_MARKER = 'Codex361';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -555,7 +555,7 @@ export const EXTRA_TESTS = [
     () => {
       const missing = missingTokens(`${preferenceHelperSource}\n${onboardingModalSource}\n${gamePageSource}`, [
         'saveValidationSeparateFromGameplayStart: true',
-        'guestNoAuthUsesAllActiveCategories: true',
+        'authenticatedNoPreferenceUsesAllActiveCategories: true',
         'noSavedPreferencesUsesAllActiveCategories: true',
         'resolveGameplayCategoryPreferenceFilter(preferences, activeCategories)',
         'Şimdi seçmezsen Solo tüm aktif kategorilerle başlar.',
@@ -1026,7 +1026,9 @@ export const EXTRA_TESTS = [
         'active valid UserCategoryPreference count',
         'Only active categories are selectable and count',
         'Users can later change selections under Profile / Settings',
-        'No login/no saved preferences/empty preferences use all active categories',
+        'Authenticated users with no saved preferences or empty preferences use all',
+        'active categories for Solo; missing authentication is an auth-required state',
+        'must not expose raw questions',
         'Category preference save validation remains separate from gameplay start',
         'Saved preferences target 70% selected user categories and 30% full eligible pool',
         'Online question selection is not affected',

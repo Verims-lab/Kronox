@@ -119,14 +119,15 @@ fetch questions or stats mid-attempt. Corrupt or missing local history is ignore
 safely.
 
 The runtime may also pass active valid current-user Category preference IDs
-into the deck builder before the attempt starts. Login and Category preferences
-are optional for question selection: guest users, signed-in users with no saved
-preferences, and signed-in users with fewer than 3 active valid preferences use
-all active categories. Missing, corrupt, passive, empty, or unavailable
-preferences fall back to global Solo selection and must not become an empty
-question pool or offline/no-cache error. Saved preferences only become a soft
-70/30 weighting input when at least 3 active valid preferences exist. Online
-question selection is not affected.
+into the deck builder before the attempt starts. Category preferences are
+optional for authenticated Solo question selection: signed-in users with no
+saved preferences, empty preferences, or fewer than 3 active valid preferences
+use all active categories. Missing authentication is handled as an auth-required
+state and must not expose raw questions. Missing, corrupt, passive, empty, or
+unavailable preferences fall back to global Solo selection and must not become
+an empty question pool or offline/no-cache error. Saved preferences only become
+a soft 70/30 weighting input when at least 3 active valid preferences exist.
+Online question selection is not affected.
 
 `Game.jsx` must explicitly resolve `getValidActiveSelectedCategoryIds(preferences,
 activeCategories)` in the Solo-only path so stale, passive, or invalid
