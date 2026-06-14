@@ -86,8 +86,7 @@
   ],
   "rls": {
     "create": {
-      "data.player_email": "{{user.email}}",
-      "created_by_id": "{{user.id}}"
+      "data.player_email": "{{user.email}}"
     },
     "read": {
       "$or": [
