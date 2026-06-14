@@ -19,7 +19,12 @@ import { ensureSoloProgressBackfill, readSoloProgress, getSoloLevelCount } from 
 import { getCurrentPlayableLevel } from '@/lib/soloProgressHelpers';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 import { getKronoxVisibleScore } from '@/lib/kronoxScore';
-import { JOKER_DEFINITIONS, emptyJokerBalances, getUserJokerBalances } from '@/lib/jokerInventory';
+import {
+  JOKER_DEFINITIONS,
+  emptyJokerBalances,
+  ensureStarterJokers,
+  getUserJokerBalances,
+} from '@/lib/jokerInventory';
 // Phase 3 — Codex123 UI consolidation. Profile + Leaderboard now share
 // one StatTile to keep Puan/Seviye/Elmas visually aligned across both
 // surfaces. The shared component is presentational only — the data
@@ -66,18 +71,38 @@ export default function ProfilePage() {
   const [jokerReloadKey, setJokerReloadKey] = useState(0);
 
   useEffect(() => {
+    let alive = true;
     base44.auth.me()
-      .then(async (u) => {
+      .then((u) => {
+        if (!alive) return;
         if (!u) {
           setUser(null);
+          setLoading(false);
           return;
         }
-        const adminCheckedUser = await withAdminStatus(u);
-        const normalizedProgress = await ensureSoloProgressBackfill(adminCheckedUser);
-        setUser({ ...adminCheckedUser, solo_progress: normalizedProgress });
+        setUser(u);
+        setLoading(false);
+
+        Promise.resolve()
+          .then(() => withAdminStatus(u))
+          .then(async (adminCheckedUser) => {
+            const normalizedProgress = await ensureSoloProgressBackfill(adminCheckedUser);
+            if (!alive) return;
+            setUser((current) => {
+              const currentEmail = String(current?.email || current?.user_email || '').trim().toLowerCase();
+              const loadedEmail = String(u?.email || u?.user_email || '').trim().toLowerCase();
+              if (!currentEmail || currentEmail !== loadedEmail) return current;
+              return { ...adminCheckedUser, solo_progress: normalizedProgress };
+            });
+          })
+          .catch(() => {});
       })
-      .catch(() => setUser(null))
-      .finally(() => setLoading(false));
+      .catch(() => {
+        if (!alive) return;
+        setUser(null);
+        setLoading(false);
+      });
+    return () => { alive = false; };
   }, []);
 
   useEffect(() => {
@@ -89,14 +114,35 @@ export default function ProfilePage() {
     }
 
     setJokerState((prev) => ({ ...prev, loading: true, error: '' }));
-    getUserJokerBalances(user, { ensureStarter: true, forceRefresh: jokerReloadKey > 0 })
+    getUserJokerBalances(user, { ensureStarter: false, forceRefresh: jokerReloadKey > 0 })
       .then((result) => {
         if (!alive) return;
+        const fastBalances = result?.balances || emptyJokerBalances();
         setJokerState({
           loading: false,
           error: '',
-          balances: result?.balances || emptyJokerBalances(),
+          balances: fastBalances,
         });
+
+        if (result?.meta?.selfHealNeeded !== true) return;
+
+        ensureStarterJokers(user, { forceEnsure: true, forceRefresh: jokerReloadKey > 0 })
+          .then((healed) => {
+            if (!alive) return;
+            setJokerState({
+              loading: false,
+              error: '',
+              balances: healed?.balances || fastBalances,
+            });
+          })
+          .catch(() => {
+            if (!alive) return;
+            setJokerState((prev) => ({
+              loading: false,
+              error: 'Joker Çantası şu anda güncellenemedi.',
+              balances: prev.balances || fastBalances,
+            }));
+          });
       })
       .catch(() => {
         if (!alive) return;

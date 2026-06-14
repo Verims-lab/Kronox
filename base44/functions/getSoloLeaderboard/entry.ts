@@ -2,10 +2,11 @@
  * getSoloLeaderboard
  *
  * Public-safe leaderboard projection for Kronox Puan.
- * Reads User.solo_progress + User.online_progress with service role, but
- * returns only rank-safe fields. No raw email, notification settings,
- * auth/private profile fields, push/device data, or full User rows leave
- * this function.
+ * Reads SoloLeaderboardEntry first and returns only rank-safe fields. The
+ * legacy User scan remains only for the optional per-level record lookup,
+ * because those per-level best times still live in User.solo_progress.
+ * No raw email, notification settings, auth/private profile fields,
+ * push/device data, or full User rows leave this function.
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
@@ -210,6 +211,38 @@ function toLeaderboardRow(user: any, levelNumber = 0) {
   };
 }
 
+function toProjectionLeaderboardRow(row: any) {
+  const ownerKey = String(row?.owner_key || row?.ownerKey || '').trim();
+  if (!ownerKey) return null;
+
+  const displayName = cleanDisplayText(row?.display_name || row?.displayName) || 'Oyuncu';
+  const totalKronoxScore = Math.max(0, Math.floor(finiteNumber(row?.total_kronox_score ?? row?.totalKronoxScore, 0)));
+  const totalSoloScore = Math.max(0, Math.floor(finiteNumber(row?.total_solo_score ?? row?.totalSoloScore, 0)));
+  const onlineScore = Math.max(0, Math.floor(finiteNumber(row?.online_score ?? row?.onlineScore, 0)));
+  const currentLevel = Math.max(1, Math.floor(finiteNumber(row?.current_level ?? row?.currentLevel, 1)));
+  const unlockedLevel = Math.max(currentLevel, Math.floor(finiteNumber(row?.unlocked_level ?? row?.unlockedLevel, currentLevel)));
+  const totalStars = Math.max(0, Math.floor(finiteNumber(row?.total_stars ?? row?.totalStars, 0)));
+  const completedLevelCount = Math.max(0, Math.floor(finiteNumber(row?.completed_level_count ?? row?.completedLevelCount, 0)));
+  const aggregateBestTimeSeconds = Number(row?.aggregate_best_time_seconds ?? row?.aggregateBestTimeSeconds);
+
+  return {
+    owner_key: ownerKey,
+    display_name: displayName,
+    initial: cleanDisplayText(row?.initial) || initialFromName(displayName),
+    total_kronox_score: totalKronoxScore,
+    total_solo_score: totalSoloScore,
+    online_score: onlineScore,
+    current_level: currentLevel,
+    unlocked_level: unlockedLevel,
+    total_stars: totalStars,
+    completed_level_count: completedLevelCount,
+    ...(Number.isFinite(aggregateBestTimeSeconds)
+      ? { aggregate_best_time_seconds: Math.max(0, aggregateBestTimeSeconds) }
+      : {}),
+    updated_at: row?.updated_at || row?.updatedAt || row?.updated_date || row?.created_at || row?.created_date || new Date().toISOString(),
+  };
+}
+
 async function backfillKronoxPuanProjection(base44: any, user: any, row: any) {
   const userId = user?.id || user?._id;
   if (!userId || !row) return false;
@@ -258,9 +291,30 @@ Deno.serve(async (req) => {
     // success popup. Ignored when 0/absent (default leaderboard usage).
     const levelNumber = Math.max(0, Math.floor(finiteNumber(body?.levelNumber, 0)));
 
-    // Codex168 — Query the persisted unified score projection directly.
-    // This avoids ranking whichever 500 users happened to update most
-    // recently and gives production an index-friendly leaderboard field.
+    if (!levelNumber) {
+      const projectionEntity = base44?.asServiceRole?.entities?.SoloLeaderboardEntry;
+      const projectionRows = projectionEntity?.list
+        ? await projectionEntity.list('-total_kronox_score', limit).catch(() => [])
+        : [];
+      const rows = (Array.isArray(projectionRows) ? projectionRows : [])
+        .map((row) => toProjectionLeaderboardRow(row))
+        .filter(Boolean)
+        .sort(compareRows)
+        .slice(0, limit);
+
+      return json({
+        ok: true,
+        source: 'solo_leaderboard_entry_projection',
+        projection: 'solo_leaderboard_entry_total_kronox_score_projection',
+        projectionFirst: true,
+        broadUserListUsed: false,
+        rows,
+      });
+    }
+
+    // Codex366 — Per-level friend-record lookup still needs User.solo_progress
+    // until SoloLeaderboardEntry grows a rank-safe per-level projection. This
+    // fallback is not used by the main Liderlik table.
     const users = await base44.asServiceRole.entities.User.list('-kronox_puan_total', MAX_LIMIT);
     const rowPairs = (users || [])
       .map((u) => ({ user: u, row: toLeaderboardRow(u, levelNumber) }))
@@ -283,13 +337,16 @@ Deno.serve(async (req) => {
       // Codex169 — Public-safe service-role projection signal. Solo +
       // Online are unified server-side into total_kronox_score; only
       // rank-safe fields leave this function.
-      source: 'user_kronox_puan_service_role_projection',
+      source: 'user_kronox_puan_service_role_level_fallback',
       // Codex170 — Named persisted unified projection contract. The rows
       // are sorted by the persisted User.kronox_puan_total field
       // (user_kronox_puan_total_projection) which already represents
       // unified Kronox Puan (Solo component + Online score), so the public
       // leaderboard never ranks/returns raw private User rows or emails.
-      projection: 'user_kronox_puan_total_projection',
+      projection: 'user_kronox_puan_total_projection_level_fallback',
+      projectionFirst: false,
+      broadUserListUsed: true,
+      fallbackReason: 'level_projection_requires_user_solo_progress',
       rows,
     });
   } catch (error) {

@@ -89,7 +89,8 @@ export const EXTRA_TESTS = [
         '"read": {}',
         'base44.entities.SoloLeaderboardEntry',
         "base44.functions.invoke('getSoloLeaderboard'",
-        'user_kronox_puan_service_role_projection',
+        'solo_leaderboard_entry_projection',
+        'solo_leaderboard_entry_total_kronox_score_projection',
         'loadSoloLeaderboardEntries',
       ]);
       const forbidden = forbiddenTokensFound(leaderboardPageSource, [
@@ -101,7 +102,7 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'SoloLeaderboardEntry public-safe Kronox Puan source; no User.list production dependency',
+          expected: 'SoloLeaderboardEntry projection-first Kronox Puan source; no User.list production dependency for the main leaderboard',
           actual: { required, forbidden },
         });
       }
@@ -266,7 +267,7 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'page calls loadSoloLeaderboardEntries; backend projection handles private User reads server-side',
+          expected: 'page calls loadSoloLeaderboardEntries; backend reads SoloLeaderboardEntry projection first',
           actual: { required, forbidden },
         });
       }
@@ -281,14 +282,16 @@ export const EXTRA_TESTS = [
     'Backend leaderboard projection returns only safe ranking fields',
     () => {
       const required = missingTokens(getSoloLeaderboardFunctionSource, [
-        'base44.asServiceRole.entities.User.list',
+        'base44.asServiceRole.entities.SoloLeaderboardEntry',
+        '.list(\'-total_kronox_score\', limit)',
         'owner_key',
         'display_name',
         'total_kronox_score',
         'total_solo_score',
         'online_score',
         'current_level',
-        'user_kronox_puan_service_role_projection',
+        'solo_leaderboard_entry_projection',
+        'broadUserListUsed: false',
       ]);
       const forbidden = forbiddenTokensFound(getSoloLeaderboardFunctionSource, [
         'game_invite_notifications_enabled',
@@ -301,11 +304,11 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'service-role projection returns rank-safe fields only',
+          expected: 'projection-first service-role read returns rank-safe fields only',
           actual: { required, forbidden },
         });
       }
-      return pass('Backend projection uses service role internally but returns only public-safe leaderboard fields.', {
+      return pass('Backend projection reads SoloLeaderboardEntry first and returns only public-safe leaderboard fields.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,

@@ -31,7 +31,7 @@ Top risks:
 | DM-04 | Schema drift | `User.jsonc` omits live fields such as `hasCompletedTutorial`, `game_invite_notifications_enabled`, Solo score summary fields, and `online_progress.lastMatchAt`. | P1 |
 | DM-05 | RLS/service-role | FriendRequest and GameInvite entity RLS allow broad sender/recipient updates; business invariants rely on client discipline plus functions. | P1 |
 | DM-06 | Lobby state | Lobby stores roster, turn state, cards, status, selected categories, and result state in one mutable row with no immutable match result table. | P2 |
-| DM-07 | Leaderboard scale | Global Solo leaderboard is function-projected from `User.list` up to 500 users and entity fallback lists up to 500 rows. This is safe now, not scalable. | P2 |
+| DM-07 | Leaderboard scale | Global leaderboard reads `SoloLeaderboardEntry` projection first. This removes the broad `User.list` primary path, but exact rank/pagination/index proof still needs a scale pass. | P2 |
 | DM-08 | Expired/stale row retention | GameInvite, Lobby, PushSubscription, and FriendRequest rows can accumulate without an explicit retention/cleanup plan. | P2 |
 
 Release blocker: no immediate P0 destructive schema blocker was found from static inspection. The main near-term blockers are data-consistency and security-proof issues that need targeted implementation and two-account/runtime probes before broad release.
@@ -492,19 +492,19 @@ Recommendation:
 ### Leaderboard
 
 Current source of truth:
-- Display source: `getSoloLeaderboard` function if available; otherwise `SoloLeaderboardEntry` entity list.
+- Display source: `getSoloLeaderboard` function reads `SoloLeaderboardEntry` first; client entity list remains a safe missing-function fallback.
 - Current user mirror: `publishSoloLeaderboardEntry`.
 - Ranking helper: `rankSoloLeaderboardEntries`.
 
 Risks:
-- P1: global function recomputes Solo score independently and may drift from `soloProgressHelpers`.
-- P2: service-role `User.list` max 500 is not scalable.
+- P1: optional per-level fallback recomputes Solo score independently and may drift from `soloProgressHelpers`.
+- P2: optional per-level record fallback still scans `User.list` until per-level best-score data has a rank-safe projection.
 - P2: entity mirror is best-effort; rows can be stale if users never open Leaderboard or never trigger publish after score change.
-- P2: two source paths (function projection and public mirror entity) need an explicit authority decision.
+- P2: exact current-user global rank beyond the fetched projection cap needs an indexed rank endpoint or dedicated projection.
 
 Recommendation:
 - Short term: make `getSoloLeaderboard` match/import the canonical scoring helper logic or keep a Health case that compares boundary examples.
-- Medium term: make `SoloLeaderboardEntry` the durable leaderboard source, updated on Solo progress writes and via an idempotent backfill function.
+- Medium term: keep `SoloLeaderboardEntry` as the durable leaderboard source, update it on score writes, and add an idempotent backfill/current-rank function.
 
 ### Friends
 
@@ -600,8 +600,8 @@ Recommendation:
 
 | Query / flow | Current pattern | Risk | Recommendation |
 | --- | --- | --- | --- |
-| Global leaderboard | `getSoloLeaderboard` service-role `User.list(..., 500)` | Does not scale past small user base | Use `SoloLeaderboardEntry` as durable public source, precomputed and sorted |
-| Leaderboard entity fallback | `SoloLeaderboardEntry.list('-total_solo_score', 500)` | Fine now, still capped | Add pagination/rank endpoint when user count grows |
+| Global leaderboard | `getSoloLeaderboard` reads `SoloLeaderboardEntry.list('-total_kronox_score', limit)` first | Projection-first is faster, but still capped | Add pagination/current-rank endpoint when user count grows |
+| Optional per-level leaderboard record | `getSoloLeaderboard` service-role `User.list(..., 500)` fallback when `levelNumber` is requested | Not used by main Liderlik table, but still not scalable | Add rank-safe per-level projection or friend-record endpoint |
 | Header notifications | FriendRequest filter + GameInvite load + subscriptions + focus/visibility refresh | Reasonable, but can duplicate work | Keep shared selectors; monitor polling/subscription duplication |
 | Online pending invites | `GameInvite.filter({ to_email })` then selector | Reasonable | Ensure status/email filters stay selective |
 | Friend list | Two FriendRequest filters for accepted incoming/outgoing | Reasonable | Add uniqueness/normalization runtime probes |
@@ -716,10 +716,12 @@ None found from static inspection. Do not run destructive migrations.
    - `cancelled_at`
    - `completed_at`
 
-3. Decide leaderboard authority.
-   - Option A: function projection from User is authority; SoloLeaderboardEntry is fallback.
-   - Option B: SoloLeaderboardEntry is authority; function only backfills/queries it.
-   - Recommended: Option B for scale.
+3. Keep leaderboard authority projection-first.
+   - Current main-table authority: `SoloLeaderboardEntry`.
+   - `getSoloLeaderboard` should query the projection first and only use `User`
+     for explicit per-level fallback until per-level rank data has its own
+     projection.
+   - Next scale step: indexed current-rank/pagination endpoint.
 
 4. Add retention/cleanup functions.
    - Expired GameInvites.
@@ -856,7 +858,7 @@ Runtime-only cases should stay NOT_AUTOMATABLE:
 ## 11. Open Questions
 
 1. Should future ranking rows also become combined Kronox Puan, or should Solo and Online leaderboards stay separate while stat cards show combined Puan?
-2. Should `SoloLeaderboardEntry` become the authoritative global leaderboard source, or should `getSoloLeaderboard` continue projecting directly from User profiles?
+2. What is the smallest rank-safe projection needed to remove the remaining per-level `User` fallback?
 3. Should authenticated Solo progress ever trust localStorage over server, or only use localStorage as a same-user cache?
 4. Does Base44 support unique constraints/index metadata for entities? If yes, add them for FriendRequest, PushSubscription, SoloLeaderboardEntry, and future result entities.
 5. Should old GameInvite/Lobby rows be retained for audit or cleaned after a fixed window?

@@ -154,10 +154,10 @@ export const startLobbyGameSource = `
 
 export const getSoloLeaderboardSource = `
   // Mirror of base44/functions/getSoloLeaderboard/entry.ts — token contract.
-  const rows = await base44.asServiceRole.entities.User.list('-kronox_puan_total', 200);
-  const computedTotalKronoxScore = summary.totalSoloScore + online_score;
-  const projected = backfillKronoxPuanProjection(user, computedTotalKronoxScore);
-  // user_kronox_puan_total_projection — persisted unified projection field.
+  const rows = await base44.asServiceRole.entities.SoloLeaderboardEntry.list('-total_kronox_score', 200);
+  const projected = toProjectionLeaderboardRow(rows[0]);
+  // solo_leaderboard_entry_total_kronox_score_projection — persisted public read model.
+  // User.list fallback is reserved only for optional per-level record lookup.
   // Privacy: raw user_email is never returned in leaderboard rows.
 `;
 

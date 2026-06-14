@@ -18,7 +18,7 @@ Highest priority findings:
 | Priority | Finding | Risk | Safe direction |
 | --- | --- | --- | --- |
 | P0 | Question reads are safer now, but still rely on per-category batches and broad in-memory filtering. | Medium | Keep `getQuestions` as the protected gateway; add indexed active question queries or paging. |
-| P0 | Leaderboard still depends on `User.kronox_puan_total` service-role projection with a fixed limit. | High | Add/finish a public-safe `LeaderboardProjection` or promote `SoloLeaderboardEntry` into the canonical leaderboard projection. |
+| P1 | Leaderboard now reads `SoloLeaderboardEntry` projection first, but exact global rank/pagination and platform index proof still need scale work. | Medium | Keep `SoloLeaderboardEntry` as the canonical public-safe projection; add indexed rank/current-user endpoints or a dedicated projection when user count grows. |
 | P0 | Analytics are missing. Kronox cannot reliably answer question shown/correct/wrong/easy/hard/category popularity questions. | High | Add append-only events plus projection tables. |
 | P1 | Idempotency relies on logical keys checked in code, but repo schemas do not declare unique constraints. | High | Configure unique keys where Base44 supports them; otherwise gate writes through backend functions. |
 | P1 | Cleanup exists as client-safe helpers, not production recurring jobs. | Medium | Move cleanup to idempotent backend jobs with status transition first, hard delete only after retention approval. |

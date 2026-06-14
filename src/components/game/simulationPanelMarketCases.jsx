@@ -418,7 +418,8 @@ export const EXTRA_TESTS = [
         'setUser((current) => ({',
         'setCachedJokerBalances(email, balances',
         "invalidatedBy: 'market_purchase'",
-        'getUserJokerBalances(user, { ensureStarter: true, forceRefresh: jokerReloadKey > 0 })',
+        'getUserJokerBalances(user, { ensureStarter: false, forceRefresh: jokerReloadKey > 0 })',
+        'ensureStarterJokers(user, { forceEnsure: true, forceRefresh: jokerReloadKey > 0 })',
         'getUserJokerBalances(currentUser, { ensureStarter: true })',
       ]);
       if (missing.length) return fail('Purchased balances are not refreshed in Market/Profile/Solo paths.', {
