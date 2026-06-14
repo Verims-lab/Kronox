@@ -10,6 +10,7 @@ import { ensureSoloProgressBackfill, getSoloLevelCount, readSoloProgress } from 
 import { summarizeSoloProgress } from '@/lib/soloProgressHelpers';
 import { getKronoxVisibleScore } from '@/lib/kronoxScore';
 import {
+  getFriendLeaderboardKeys,
   getLeaderboardDiamondValue,
   getLeaderboardOwnerKey,
   LEADERBOARD_FETCH_LIMIT,
@@ -21,6 +22,7 @@ import {
   selectLeaderboardSections,
   toSoloLeaderboardEntry,
 } from '@/lib/leaderboard';
+import { loadFriends } from '@/lib/friendsApi';
 import { isAdminUser, withAdminStatus } from '@/lib/admin';
 import KronoxRankingSection from '@/components/leaderboard/KronoxRankingSection';
 import PullToRefresh from '@/components/mobile/PullToRefresh';
@@ -29,8 +31,8 @@ import PullToRefresh from '@/components/mobile/PullToRefresh';
 // inside the Liderlik summary hero card. Data sources unchanged.
 import KronoxStatTile from '@/components/ui/KronoxStatTile';
 
-function publishOwnLeaderboardProjectionInBackground(user, progress) {
-  publishSoloLeaderboardEntry(user, progress).catch((error) => {
+function publishOwnLeaderboardProjectionInBackground(user, currentProgress) {
+  publishSoloLeaderboardEntry(user, currentProgress).catch((error) => {
     console.warn('[leaderboard] background projection publish failed', error?.message || 'unknown');
   });
 }
@@ -126,11 +128,21 @@ export default function LeaderboardPage() {
 
     setLeaderboard((prev) => ({ ...prev, loading: true, error: '', ownScoreFallback }));
     try {
-      const snapshot = await loadSoloLeaderboardSnapshot({
-        limit: LEADERBOARD_FETCH_LIMIT,
-        topLimit: LEADERBOARD_TOP_LIMIT,
-      });
-      const friendKeys = new Set(snapshot.friendUserKeys || []);
+      const normalizedUserEmail = String(user.email || user.user_email || '').trim().toLowerCase();
+      const [snapshot, acceptedFriends] = await Promise.all([
+        loadSoloLeaderboardSnapshot({
+          limit: LEADERBOARD_FETCH_LIMIT,
+          topLimit: LEADERBOARD_TOP_LIMIT,
+        }),
+        loadFriends(normalizedUserEmail).catch(() => []),
+      ]);
+      const acceptedFriendKeys = getFriendLeaderboardKeys(
+        (acceptedFriends || []).map((friend) => friend.friend_email),
+      );
+      const friendKeys = new Set([
+        ...(snapshot.friendUserKeys || []),
+        ...acceptedFriendKeys,
+      ]);
       const topRows = (snapshot.topRows || [])
         .map((row) => hydrateLeaderboardRow(row, friendKeys, currentOwnerKey))
         .filter((row) => row.id);

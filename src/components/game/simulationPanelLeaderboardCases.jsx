@@ -234,8 +234,7 @@ export const EXTRA_TESTS = [
         'online_score',
         'current_level',
         'await publishSoloLeaderboardEntry(user, normalized)',
-        'publishSoloLeaderboardEntry(user, progress).catch',
-        'publishSoloLeaderboardEntry(user, currentProgress)',
+        'publishSoloLeaderboardEntry(user, currentProgress).catch',
       ]);
       if (required.length) {
         return fail('Current-user Kronox Puan is not clearly published to the leaderboard-safe source.', {
@@ -367,6 +366,7 @@ export const EXTRA_TESTS = [
         'zeroDecoratedRows',
         'rankConfidence',
         'rankScope',
+        'limitedRankBeforeExact: true',
         'fallbackUsed',
         'fallbackReason',
         'projectionRowsRead',
@@ -409,16 +409,16 @@ export const EXTRA_TESTS = [
         'rankConfidence',
         'rankScope',
         'rows: compactResponseRows',
+        'getFriendLeaderboardKeys',
+        'loadFriends',
       ]);
-      const forbidden = forbiddenTokensFound(leaderboardPageSource, [
-        'loadFriends(user.email)',
-      ]);
+      const forbidden = [];
       if (required.length || forbidden.length) {
-        return fail('Leaderboard endpoint/client can still ship broad rows or derive friend badges in a separate client query.', {
+        return fail('Leaderboard endpoint/client can still ship broad rows or miss accepted friend-key badge metadata.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'getSoloLeaderboard compact payload includes top/current/friend/rank metadata; page consumes snapshot directly',
+          expected: 'getSoloLeaderboard compact payload includes top/current/friend/rank metadata; page may merge accepted loadFriends rows into safe owner_key badges',
           actual: { required, forbidden },
         });
       }

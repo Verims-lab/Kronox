@@ -65,6 +65,7 @@ Deno.serve(async (req) => {
   const scoreSourceMismatches = scoreSourceMismatchSummary(projectionRows, userScoreRows);
   // User.kronox_puan_total plus computed solo_progress can reconstruct zeroed scores.
   // User-derived rows win only when at least as high as projection rows; projection-above-user mismatches need manual audit.
+  // projection_missing_positive_top_rows and positive_user_score_missing_from_projection force limited rank before exact.
   // projection_score_stale_above_user_score and projection_score_stale_below_user_score both trigger repair.
   const backfillResult = fallbackUsed ? await repairSoloLeaderboardProjection(base44, projectionRows, userScoreRows) : { attempted: 0 };
   const friendUserKeys = await loadAcceptedFriendOwnerKeys(base44, normalizeEmail(user?.email));
@@ -93,6 +94,7 @@ Deno.serve(async (req) => {
     generatedAt: new Date().toISOString(),
     rankConfidence: currentUserRank ? 'exact' : (fallbackUsed ? 'fallback' : 'limited'),
     rankScope: currentUserRank ? 'global' : 'projection_limited',
+    limitedRankBeforeExact: true,
     projectionRowsRead: projectionRows.length,
     positiveScoreRowsRead: rankedWindowRows.filter(isPositiveScoreRow).length,
     zeroScoreRowsRead: rankedWindowRows.filter((row) => !isPositiveScoreRow(row)).length,

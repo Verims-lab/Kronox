@@ -611,6 +611,7 @@ Deno.serve(async (req) => {
         generatedAt: new Date().toISOString(),
         rankConfidence,
         rankScope,
+        limitedRankBeforeExact: true,
         rankWindowLimit: limit,
         topLimit,
         projectionRowsRead: Array.isArray(projectionRows) ? projectionRows.length : 0,

@@ -112,7 +112,7 @@ export const EXTRA_TESTS = [
         '<PullToRefresh',
         'onRefresh={loadLeaderboard}',
         'publishSoloLeaderboardEntry',
-        'loadSoloLeaderboardEntries',
+        'loadSoloLeaderboardSnapshot',
       ]);
       if (missing.length) return fail('LeaderboardPage does not wire PullToRefresh to the leaderboard refresh path.', { verification: 'STATIC_CONTRACT', missing });
       return pass('LeaderboardPage pull-to-refresh calls loadLeaderboard and keeps rank/current-user refresh real.', { verification: 'STATIC_CONTRACT' });
