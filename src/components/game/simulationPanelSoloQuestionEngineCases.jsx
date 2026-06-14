@@ -2675,10 +2675,11 @@ export const EXTRA_TESTS = [
       const fetchMissing = missingTokens(useOfflineQuestionsSource, [
         'gameplay_question_fetch_requires_authenticated_getQuestions',
         "base44.functions.invoke('getQuestions'",
-        'Direct Question.list fallback remains removed',
+        'Gameplay question fetches require the authenticated Base44 session',
+        'callers never receive the raw question bank',
       ]);
       const helperMissing = missingTokens(userCategoryPreferenceHelperSource, [
-        'guestNoAuthUsesAllActiveCategories: true',
+        'authenticatedNoPreferenceUsesAllActiveCategories: true',
         'noSavedPreferencesUsesAllActiveCategories: true',
         'emptyPreferencesAreNotOfflineNoCache: true',
         'saveValidationSeparateFromGameplayStart: true',
@@ -2687,9 +2688,11 @@ export const EXTRA_TESTS = [
       const forbidden = [
         ...['AUTH_SESSION_UNAVAILABLE', 'Auth session unavailable while loading questions.']
           .filter((token) => useOfflineQuestionsSource.includes(token)),
+        ...['Question.list(', 'Question.filter(']
+          .filter((token) => useOfflineQuestionsSource.includes(token)),
       ];
       if (gameMissing.length || fetchMissing.length || helperMissing.length || forbidden.length) {
-        return fail('Guest/no-preference Solo loading may still require login or map empty preferences to load failure.', {
+        return fail('Authenticated/no-preference Solo loading may still map empty preferences to load failure or raw Question.list fallback.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           files: [
@@ -2701,7 +2704,7 @@ export const EXTRA_TESTS = [
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Guest Solo fetch uses the public-safe projection, and no saved preferences fall back to all active categories.', {
+      return pass('Authenticated Solo fetch uses getQuestions, no saved preferences fall back to all active categories, and raw Question.list fallback remains removed.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });

@@ -88,10 +88,11 @@ before the attempt starts. This is not a gameplay source of truth and must not
 fetch questions or stats mid-attempt. Corrupt or missing local history is
 ignored safely, and sparse metadata must not block deck creation by itself.
 The runtime may also pass active valid current-user Category preference IDs
-before the attempt starts. Login and Category preferences are optional for
-question selection: guest users, signed-in users with no saved preferences, and
-signed-in users with fewer than 3 active valid preferences use all active
-categories. Missing, corrupt, passive, empty, or unavailable preferences fall
+before the attempt starts. Category preferences are optional for authenticated
+Solo question selection: signed-in users with no saved preferences, empty
+preferences, or fewer than 3 active valid preferences use all active categories.
+Missing authentication is handled as an auth-required state and must not expose
+raw questions. Missing, corrupt, passive, empty, or unavailable preferences fall
 back to global Solo selection and must not become an empty question pool or
 offline/no-cache error. Saved preferences only become a soft 70/30 weighting
 input when at least 3 active valid preferences exist. Online question selection
