@@ -20,7 +20,7 @@ export const SOLO_LEADERBOARD_ENTITY_PATH = 'entities/SoloLeaderboardEntry.json'
 export const SOLO_LEADERBOARD_ENTITY_SOURCE = `{
   "name": "SoloLeaderboardEntry",
   "type": "object",
-  "description": "owner_key is the logical unique key; total_kronox_score desc is the hot leaderboard sort; updated_at is the projection freshness tie-breaker",
+  "description": "owner_key is the logical unique key; total_kronox_score desc is the hot leaderboard sort; updated_at is the projection freshness tie-breaker; bounded server-side User.kronox_puan_total repair prevents incomplete projection rows from claiming exact global rank",
   "properties": {
     "owner_key": { "type": "string", "description": "Logical unique key" },
     "display_name": { "type": "string" },

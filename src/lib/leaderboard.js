@@ -191,6 +191,19 @@ export async function loadSoloLeaderboardSnapshot(options = {}) {
         rankScope: payload.rankScope || '',
         projectionFirst: payload.projectionFirst === true,
         broadUserListUsed: payload.broadUserListUsed === true,
+        broadUserRowsReturned: payload.broadUserRowsReturned === true,
+        serverSideUserRepairUsed: payload.serverSideUserRepairUsed === true,
+        fallbackUsed: payload.fallbackUsed === true,
+        fallbackReason: payload.fallbackReason || null,
+        projectionRowsRead: Number.isFinite(Number(payload.projectionRowsRead))
+          ? Math.max(0, Math.floor(Number(payload.projectionRowsRead)))
+          : null,
+        positiveScoreRowsRead: Number.isFinite(Number(payload.positiveScoreRowsRead))
+          ? Math.max(0, Math.floor(Number(payload.positiveScoreRowsRead)))
+          : null,
+        zeroScoreRowsRead: Number.isFinite(Number(payload.zeroScoreRowsRead))
+          ? Math.max(0, Math.floor(Number(payload.zeroScoreRowsRead)))
+          : null,
       };
     }
   } catch {
@@ -215,6 +228,13 @@ export async function loadSoloLeaderboardSnapshot(options = {}) {
     rankScope: `top_${limit}_client_projection_window`,
     projectionFirst: true,
     broadUserListUsed: false,
+    broadUserRowsReturned: false,
+    serverSideUserRepairUsed: false,
+    fallbackUsed: true,
+    fallbackReason: 'client_projection_entity_fallback',
+    projectionRowsRead: rows.length,
+    positiveScoreRowsRead: null,
+    zeroScoreRowsRead: null,
   };
 }
 

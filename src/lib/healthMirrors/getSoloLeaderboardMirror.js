@@ -11,19 +11,22 @@
 //   function is correct and production-safe.
 //
 //   This mirror is a string snapshot of the REAL projection-first contract:
-//   the main leaderboard reads SoloLeaderboardEntry with service role and
-//   returns ONLY rank-safe fields. User.list is reserved for the optional
-//   per-level record fallback until per-level records have their own
-//   rank-safe projection. It is read ONLY by Health static-contract checks.
-//   Change the real function and this mirror together — Health fails if
-//   any required phrase is missing, so a stale mirror cannot silently pass.
+//   the main leaderboard reads SoloLeaderboardEntry with service role,
+//   compares a bounded server-side User top-score repair window, repairs
+//   missing/stale projection rows best-effort, and returns ONLY rank-safe
+//   compact fields. Full User rows never leave the function. It is read
+//   ONLY by Health static-contract checks. Change the real function and this
+//   mirror together — Health fails if any required phrase is missing, so a
+//   stale mirror cannot silently pass.
 
 export const GET_SOLO_LEADERBOARD_PATH = 'functions/getSoloLeaderboard.js';
 
 export const GET_SOLO_LEADERBOARD_SOURCE = `// getSoloLeaderboard — public-safe Kronox Puan projection.
-// Reads SoloLeaderboardEntry first with service role and returns only
-// rank-safe fields. No email, notification settings, auth/private profile
-// fields, push/device data, or full User rows leave this function.
+// Reads SoloLeaderboardEntry first with service role, then uses a bounded
+// server-side User.list('-kronox_puan_total', limit) repair window so stale
+// or incomplete projection rows cannot claim a false global rank. No email,
+// notification settings, auth/private profile fields, push/device data, or
+// full User rows leave this function.
 
 function toProjectionLeaderboardRow(row) {
   const displayName = cleanDisplayText(row?.display_name || row?.displayName) || 'Oyuncu';
@@ -51,9 +54,23 @@ Deno.serve(async (req) => {
   // Service role used ONLY internally; rows returned are rank-safe.
   const projectionEntity = base44?.asServiceRole?.entities?.SoloLeaderboardEntry;
   const projectionRows = await projectionEntity.list('-total_kronox_score', limit);
-  const rankedWindowRows = dedupeProjectionRows((projectionRows || []).map((row) => toProjectionLeaderboardRow(row)).filter(Boolean));
+  const userRows = await base44.asServiceRole.entities.User.list('-kronox_puan_total', limit);
+  const userScoreRows = dedupeProjectionRows((userRows || []).map((row) => toLeaderboardRow(row, 0)).filter(Boolean));
+  const fallbackReason = findProjectionRepairReason(projectionRows, userScoreRows, topLimit);
+  const fallbackUsed = Boolean(fallbackReason);
+  const rankedWindowRows = mergeProjectionAndUserScoreRows(
+    (projectionRows || []).map((row) => toProjectionLeaderboardRow(row)).filter(Boolean),
+    userScoreRows,
+  );
+  const scoreSourceMismatches = scoreSourceMismatchSummary(projectionRows, userScoreRows);
+  // User.kronox_puan_total plus computed solo_progress can reconstruct zeroed scores.
+  // User-derived rows win only when at least as high as projection rows; projection-above-user mismatches need manual audit.
+  // projection_score_stale_above_user_score and projection_score_stale_below_user_score both trigger repair.
+  const backfillResult = fallbackUsed ? await repairSoloLeaderboardProjection(base44, projectionRows, userScoreRows) : { attempted: 0 };
   const friendUserKeys = await loadAcceptedFriendOwnerKeys(base44, normalizeEmail(user?.email));
-  const topRows = rankedWindowRows.slice(0, topLimit);
+  const positiveDecoratedRows = rankedWindowRows.filter(isPositiveScoreRow);
+  const zeroDecoratedRows = rankedWindowRows.filter((row) => !isPositiveScoreRow(row));
+  const topRows = [...positiveDecoratedRows, ...zeroDecoratedRows].slice(0, topLimit);
   const currentUserRow = topRows.find((row) => row.isCurrentUser) || null;
   const currentUserRank = currentUserRow?.rank || null;
   const friendsOutsideTop = rankedWindowRows.filter((row) => row.isFriend).slice(0, topLimit);
@@ -65,20 +82,34 @@ Deno.serve(async (req) => {
     projectionSource: 'solo_leaderboard_entry_projection',
     projection: 'solo_leaderboard_entry_total_kronox_score_projection',
     projectionFirst: true,
-    broadUserListUsed: false,
+    broadUserListUsed: true,
+    broadUserRowsReturned: false,
+    serverSideUserRepairUsed: fallbackUsed,
     topRows,
     currentUserRow,
     currentUserRank,
     friendUserKeys,
     friendsOutsideTop,
     generatedAt: new Date().toISOString(),
-    rankConfidence: currentUserRank ? 'window_exact' : 'no_projection_row',
-    rankScope: currentUserRank ? 'top_projection_window' : 'not_ranked_until_projection_publish',
+    rankConfidence: currentUserRank ? 'exact' : (fallbackUsed ? 'fallback' : 'limited'),
+    rankScope: currentUserRank ? 'global' : 'projection_limited',
+    projectionRowsRead: projectionRows.length,
+    positiveScoreRowsRead: rankedWindowRows.filter(isPositiveScoreRow).length,
+    zeroScoreRowsRead: rankedWindowRows.filter((row) => !isPositiveScoreRow(row)).length,
+    fallbackUsed,
+    fallbackReason,
+    backfillRun: fallbackUsed,
+    backfillQueued: false,
+    backfillResult,
+    scoreSourceMismatches,
+    sourceScoreRepairMode: 'non_destructive_positive_user_rows_only',
+    projectionFreshness: projectionFreshness(projectionRows),
     rows: compactResponseRows,
   });
 });
 
-// Optional per-level record fallback only:
+// Optional per-level record fallback only also uses the same server-side User
+// source until per-level record rows exist:
 // base44.asServiceRole.entities.User.list('-kronox_puan_total', MAX_LIMIT)
 // source: 'user_kronox_puan_service_role_level_fallback'
 `;

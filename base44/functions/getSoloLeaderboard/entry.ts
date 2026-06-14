@@ -2,9 +2,10 @@
  * getSoloLeaderboard
  *
  * Public-safe leaderboard projection for Kronox Puan.
- * Reads SoloLeaderboardEntry first and returns only rank-safe fields. The
- * legacy User scan remains only for the optional per-level record lookup,
- * because those per-level best times still live in User.solo_progress.
+ * Reads SoloLeaderboardEntry first and returns only rank-safe fields. A
+ * bounded service-role User top-score repair window is used only server-side
+ * to prevent stale/incomplete projection rows from lying about global rank;
+ * full User rows never leave this function.
  * No raw email, notification settings, auth/private profile fields,
  * push/device data, or full User rows leave this function.
  */
@@ -15,6 +16,7 @@ const MAX_LIMIT = 500;
 const DEFAULT_TOP_LIMIT = 10;
 const MAX_TOP_LIMIT = 50;
 const TOTAL_LEVELS = 20;
+const PROJECTION_REPAIR_UPSERT_LIMIT = 50;
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });
@@ -182,7 +184,7 @@ function toLeaderboardRow(user: any, levelNumber = 0) {
   const computedTotalKronoxScore = summary.totalSoloScore + onlineScore;
   const persistedTotal = finiteNumber(user?.kronox_puan_total, NaN);
   const totalKronoxScore = Number.isFinite(persistedTotal) && persistedTotal >= 0
-    ? Math.floor(persistedTotal)
+    ? Math.max(Math.floor(persistedTotal), computedTotalKronoxScore)
     : computedTotalKronoxScore;
   const displayName = safeDisplayName(user, ownerKey);
 
@@ -291,6 +293,178 @@ function dedupeProjectionRows(rows: any[] = []) {
   return Array.from(byOwnerKey.values()).sort(compareRows);
 }
 
+function isPositiveScoreRow(row: any) {
+  return finiteNumber(row?.total_kronox_score, 0) > 0;
+}
+
+function buildProjectionWritePayload(row: any) {
+  return {
+    owner_key: String(row?.owner_key || '').trim(),
+    display_name: cleanDisplayText(row?.display_name) || 'Oyuncu',
+    initial: cleanDisplayText(row?.initial).slice(0, 1) || initialFromName(row?.display_name || 'Oyuncu'),
+    total_kronox_score: Math.max(0, Math.floor(finiteNumber(row?.total_kronox_score, 0))),
+    total_solo_score: Math.max(0, Math.floor(finiteNumber(row?.total_solo_score, 0))),
+    online_score: Math.max(0, Math.floor(finiteNumber(row?.online_score, 0))),
+    current_level: Math.max(1, Math.floor(finiteNumber(row?.current_level, 1))),
+    unlocked_level: Math.max(1, Math.floor(finiteNumber(row?.unlocked_level, row?.current_level || 1))),
+    total_stars: Math.max(0, Math.floor(finiteNumber(row?.total_stars, 0))),
+    completed_level_count: Math.max(0, Math.floor(finiteNumber(row?.completed_level_count, 0))),
+    ...(Number.isFinite(Number(row?.aggregate_best_time_seconds))
+      ? { aggregate_best_time_seconds: Math.max(0, Number(row.aggregate_best_time_seconds)) }
+      : {}),
+    updated_at: new Date().toISOString(),
+  };
+}
+
+async function upsertSoloLeaderboardProjection(base44: any, row: any) {
+  const entity = base44?.asServiceRole?.entities?.SoloLeaderboardEntry;
+  const ownerKey = String(row?.owner_key || '').trim();
+  if (!entity?.filter || !entity?.update || !entity?.create || !ownerKey) return 'skipped';
+
+  const payload = buildProjectionWritePayload(row);
+  const existing = await entity.filter({ owner_key: ownerKey }, '-updated_at', 1).catch(() => []);
+  const existingId = existing?.[0]?.id;
+  if (existingId) {
+    await entity.update(existingId, payload);
+    return 'updated';
+  }
+  await entity.create(payload);
+  return 'created';
+}
+
+function selectNonDestructiveRepairRows(projectionRows: any[] = [], userRows: any[] = []) {
+  const projectionByOwner = new Map(dedupeProjectionRows(projectionRows)
+    .map((row) => [String(row?.owner_key || '').trim(), row]));
+
+  return dedupeProjectionRows(userRows)
+    .filter(isPositiveScoreRow)
+    .filter((row) => {
+      const ownerKey = String(row?.owner_key || '').trim();
+      const projected = projectionByOwner.get(ownerKey);
+      if (!projected) return true;
+      return finiteNumber(row?.total_kronox_score, 0) >= finiteNumber(projected?.total_kronox_score, 0);
+    });
+}
+
+async function repairSoloLeaderboardProjection(base44: any, projectionRows: any[] = [], userRows: any[] = []) {
+  const candidates = selectNonDestructiveRepairRows(projectionRows, userRows)
+    .slice(0, PROJECTION_REPAIR_UPSERT_LIMIT);
+  let created = 0;
+  let updated = 0;
+  let failed = 0;
+
+  await Promise.all(candidates.map(async (row) => {
+    try {
+      const result = await upsertSoloLeaderboardProjection(base44, row);
+      if (result === 'created') created += 1;
+      if (result === 'updated') updated += 1;
+    } catch {
+      failed += 1;
+    }
+  }));
+
+  return {
+    attempted: candidates.length,
+    created,
+    updated,
+    failed,
+  };
+}
+
+function projectionFreshness(rows: any[] = []) {
+  const timestamps = (rows || [])
+    .map((row) => Date.parse(row?.updated_at || row?.updatedAt || row?.updated_date || row?.created_at || row?.created_date || ''))
+    .filter((value) => Number.isFinite(value));
+  if (!timestamps.length) {
+    return {
+      newestUpdatedAt: null,
+      oldestUpdatedAt: null,
+    };
+  }
+  return {
+    newestUpdatedAt: new Date(Math.max(...timestamps)).toISOString(),
+    oldestUpdatedAt: new Date(Math.min(...timestamps)).toISOString(),
+  };
+}
+
+function findProjectionRepairReason(projectionRows: any[], userRows: any[], topLimit: number) {
+  const projectionTop = dedupeProjectionRows(projectionRows).slice(0, topLimit);
+  const userTop = dedupeProjectionRows(userRows).filter(isPositiveScoreRow).slice(0, topLimit);
+  const projectionByOwner = new Map(projectionRows.map((row) => [String(row?.owner_key || '').trim(), row]));
+
+  if (!projectionTop.length && userTop.length) return 'projection_empty_with_positive_user_scores';
+  if (projectionTop.filter(isPositiveScoreRow).length < Math.min(topLimit, userTop.length)) {
+    return 'projection_missing_positive_top_rows';
+  }
+
+  for (const userRow of userTop) {
+    const ownerKey = String(userRow?.owner_key || '').trim();
+    const projected = projectionByOwner.get(ownerKey);
+    if (!projected) return 'positive_user_score_missing_from_projection';
+    if (finiteNumber(userRow?.total_kronox_score, 0) > finiteNumber(projected?.total_kronox_score, 0)) {
+      return 'projection_score_stale_below_user_score';
+    }
+    if (finiteNumber(userRow?.total_kronox_score, 0) < finiteNumber(projected?.total_kronox_score, 0)) {
+      return 'projection_score_stale_above_user_score';
+    }
+  }
+
+  return null;
+}
+
+function mergeProjectionAndUserScoreRows(projectionRows: any[], userRows: any[]) {
+  const byOwnerKey = new Map<string, any>();
+  for (const row of dedupeProjectionRows(projectionRows)) {
+    const ownerKey = String(row?.owner_key || '').trim();
+    if (ownerKey) byOwnerKey.set(ownerKey, row);
+  }
+
+  // User.kronox_puan_total is a persisted score projection and solo_progress
+  // can reconstruct it when the field was accidentally zeroed. Prefer the
+  // User-derived row only when it is at least as high as the public projection.
+  // If User/Profile data looks reset while SoloLeaderboardEntry still has a
+  // higher score, keep the projection row and surface diagnostics for manual
+  // recovery instead of down-writing a possible recovery signal.
+  for (const row of dedupeProjectionRows(userRows)) {
+    const ownerKey = String(row?.owner_key || '').trim();
+    if (!ownerKey) continue;
+    const projected = byOwnerKey.get(ownerKey);
+    if (!projected || finiteNumber(row?.total_kronox_score, 0) >= finiteNumber(projected?.total_kronox_score, 0)) {
+      byOwnerKey.set(ownerKey, row);
+    }
+  }
+
+  return Array.from(byOwnerKey.values()).sort(compareRows);
+}
+
+function scoreSourceMismatchSummary(projectionRows: any[], userRows: any[]) {
+  const projectionByOwner = new Map(dedupeProjectionRows(projectionRows)
+    .map((row) => [String(row?.owner_key || '').trim(), row]));
+  const mismatches = dedupeProjectionRows(userRows)
+    .map((row) => {
+      const ownerKey = String(row?.owner_key || '').trim();
+      const projected = projectionByOwner.get(ownerKey);
+      if (!ownerKey || !projected) return null;
+      const userScore = finiteNumber(row?.total_kronox_score, 0);
+      const projectionScore = finiteNumber(projected?.total_kronox_score, 0);
+      if (userScore === projectionScore) return null;
+      return {
+        owner_key: ownerKey,
+        userScore,
+        projectionScore,
+        direction: userScore > projectionScore ? 'user_above_projection' : 'projection_above_user',
+      };
+    })
+    .filter(Boolean) as Array<Record<string, unknown>>;
+
+  return {
+    count: mismatches.length,
+    projectionAboveUserCount: mismatches.filter((row) => row.direction === 'projection_above_user').length,
+    userAboveProjectionCount: mismatches.filter((row) => row.direction === 'user_above_projection').length,
+    sample: mismatches.slice(0, 10),
+  };
+}
+
 function decorateRows(rows: any[] = [], currentOwnerKey = '', friendOwnerKeys = new Set<string>()) {
   return rows.map((row, index) => {
     const ownerKey = String(row?.owner_key || '').trim();
@@ -365,12 +539,29 @@ Deno.serve(async (req) => {
       const projectionRows = projectionEntity?.list
         ? await projectionEntity.list('-total_kronox_score', limit).catch(() => [])
         : [];
-      const rankedWindowRows = dedupeProjectionRows((Array.isArray(projectionRows) ? projectionRows : [])
+      const projectionWindowRows = dedupeProjectionRows((Array.isArray(projectionRows) ? projectionRows : [])
         .map((row) => toProjectionLeaderboardRow(row))
-        .filter(Boolean))
-        .slice(0, limit);
+        .filter(Boolean));
+      const userRows = await base44.asServiceRole.entities.User
+        .list('-kronox_puan_total', limit)
+        .catch(() => []);
+      const userScoreRows = dedupeProjectionRows((Array.isArray(userRows) ? userRows : [])
+        .map((row) => toLeaderboardRow(row, 0))
+        .filter(Boolean));
+      const fallbackReason = findProjectionRepairReason(projectionWindowRows, userScoreRows, topLimit);
+      const fallbackUsed = Boolean(fallbackReason);
+      const rankedWindowRows = mergeProjectionAndUserScoreRows(projectionWindowRows, userScoreRows).slice(0, limit);
+      const backfillResult = fallbackUsed
+        ? await repairSoloLeaderboardProjection(base44, projectionWindowRows, userScoreRows)
+        : { attempted: 0, created: 0, updated: 0, failed: 0 };
+      const scoreSourceMismatches = scoreSourceMismatchSummary(projectionWindowRows, userScoreRows);
       const decoratedRows = decorateRows(rankedWindowRows, currentOwnerKey, friendOwnerKeySet);
-      const topRows = decoratedRows.slice(0, topLimit);
+      const positiveDecoratedRows = decoratedRows.filter(isPositiveScoreRow);
+      const zeroDecoratedRows = decoratedRows.filter((row) => !isPositiveScoreRow(row));
+      const topRows = [
+        ...positiveDecoratedRows,
+        ...zeroDecoratedRows,
+      ].slice(0, topLimit);
       const topOwnerKeys = new Set(topRows.map((row) => row.owner_key).filter(Boolean));
       const currentInWindow = decoratedRows.find((row) => row.owner_key === currentOwnerKey) || null;
       const fetchedCurrentRow = currentInWindow
@@ -391,19 +582,25 @@ Deno.serve(async (req) => {
         ? Math.max(1, Math.floor(Number(currentUserRow.rank)))
         : null;
       const rankConfidence = currentUserRank
-        ? 'window_exact'
-        : (currentUserRow ? 'projection_row_found_rank_outside_window' : 'no_projection_row');
+        ? 'exact'
+        : (fallbackUsed ? 'fallback' : (currentUserRow ? 'limited' : 'stale_projection'));
       const rankScope = currentUserRank
-        ? `top_${limit}_projection_window`
-        : (currentUserRow ? `outside_top_${limit}_projection_window` : 'not_ranked_until_projection_publish');
+        ? 'global'
+        : (currentUserRow ? 'projection_limited' : (fallbackUsed ? 'fallback' : 'projection_limited'));
+      const positiveScoreRowsRead = rankedWindowRows.filter(isPositiveScoreRow).length;
+      const zeroScoreRowsRead = rankedWindowRows.filter((row) => !isPositiveScoreRow(row)).length;
 
       return json({
         ok: true,
-        source: 'SoloLeaderboardEntry',
+        source: fallbackUsed
+          ? 'SoloLeaderboardEntry_with_user_score_repair'
+          : 'SoloLeaderboardEntry',
         projectionSource: 'solo_leaderboard_entry_projection',
         projection: 'solo_leaderboard_entry_total_kronox_score_projection',
         projectionFirst: true,
-        broadUserListUsed: false,
+        broadUserListUsed: true,
+        broadUserRowsReturned: false,
+        serverSideUserRepairUsed: fallbackUsed,
         topRows,
         currentUserRow,
         currentUserRank,
@@ -416,6 +613,19 @@ Deno.serve(async (req) => {
         rankScope,
         rankWindowLimit: limit,
         topLimit,
+        projectionRowsRead: Array.isArray(projectionRows) ? projectionRows.length : 0,
+        userScoreRowsRead: userScoreRows.length,
+        positiveScoreRowsRead,
+        zeroScoreRowsRead,
+        topRowsCount: topRows.length,
+        fallbackUsed,
+        fallbackReason,
+        backfillRun: fallbackUsed,
+        backfillQueued: false,
+        backfillResult,
+        scoreSourceMismatches,
+        sourceScoreRepairMode: 'non_destructive_positive_user_rows_only',
+        projectionFreshness: projectionFreshness(projectionWindowRows),
         rows: compactResponseRows,
       });
     }
