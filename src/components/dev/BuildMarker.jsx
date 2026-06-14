@@ -1986,7 +1986,14 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps hardcoded/logged/exposed VAPID private key findings as blockers.
 //   • Reclassifies env-var-name-only VAPID_PRIVATE_KEY findings as manual
 //     deployment secret verification instead of source-code blockers.
-const BUILD_MARKER = 'Codex363';
+//
+// Codex364 — Category preference phase docs alignment:
+//   • Aligns docs/mirrors on authenticated no-preference Solo fallback,
+//     below-3 optional popup, Settings/Profile editability, and Solo-only
+//     soft weighting.
+//   • Removes guest/raw question-pool wording while preserving getQuestions
+//     authentication and the no raw Question.list gameplay fallback contract.
+const BUILD_MARKER = 'Codex364';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

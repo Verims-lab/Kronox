@@ -326,10 +326,13 @@ Rules:
   below-3 rule.
 * Users can later change selections under Profile / Settings /
   `İlgi Alanlarım`.
-* Solo question selection uses all active categories for guests and for signed-in
-  users with no/empty/insufficient preferences. Saved preferences target 70%
-  selected user categories and 30% full eligible pool only when at least 3 active
-  valid preferences are available.
+* Authenticated users with no saved preferences or empty preferences use all
+  active categories for Solo; missing authentication is an auth-required state
+  and must not expose raw questions. Insufficient preferences also use all
+  active categories for Solo. Saved preferences target 70% selected user
+  categories and 30% full eligible pool only when at least 3 active valid
+  preferences are available.
+* Category preference save validation remains separate from gameplay start.
 * This is a soft weighting target with fallback, not hard filtering.
 * The selected-category 70% lane is not difficulty-1 restricted. The global
   30% lane prefers `difficulty = 1` questions from the full eligible pool

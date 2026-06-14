@@ -87,9 +87,11 @@ existing users, but it can be deferred and must not block gameplay. The source
 of truth is active valid UserCategoryPreference count. Only active categories
 are selectable and count. Passive or removed Category selections are ignored in
 UI/save state and must not be resaved as active preferences. Users can later
-change selections under Profile / Settings / İlgi Alanlarım. No login/no saved
-preferences/empty preferences use all active categories for Solo. Category
-preference save validation remains separate from gameplay start.
+change selections under Profile / Settings / İlgi Alanlarım. Authenticated users
+with no saved preferences or empty preferences use all active categories for
+Solo; missing authentication is an auth-required state and must not expose raw
+questions. Insufficient preferences also use all active categories for Solo.
+Category preference save validation remains separate from gameplay start.
 Saved preferences target 70% selected user categories and 30% full eligible pool
 only when at least 3 active valid preferences are available. This is a soft weighting
 target with fallback, not hard filtering. The selected-category 70% lane is not

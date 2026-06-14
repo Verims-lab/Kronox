@@ -251,7 +251,8 @@ Checklist:
   `İlgi Alanlarım`.
 * Authenticated users with no saved preferences or empty preferences use all
   active categories for Solo; missing authentication is an auth-required state
-  and must not expose raw questions. Saved preferences target 70% selected user
+  and must not expose raw questions. Insufficient preferences also use all
+  active categories for Solo. Saved preferences target 70% selected user
   categories and 30% full eligible pool only when at least 3 active valid
   preferences are available.
   `Game.jsx` must explicitly call

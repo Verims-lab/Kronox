@@ -160,7 +160,7 @@ Status: Active product contract.
 - completing the popup saves UserCategoryPreference rows before marking the user profile onboarding flag complete.
 - Users can later change selections under Profile / Settings / İlgi Alanlarım.
 - Game question loading first attempts online getQuestions when online or network state is unknown; Solo uses the authenticated minimal projection, empty local cache is not offline, stale cache is invalidated by question-runtime-v7-getQuestions-live-marker, Retry re-fetches online, and false offline/no-cache is reserved for known offline plus failed fetch plus no usable cache. Gameplay fetches request the v2 per-category projection explicitly; getQuestions fetches numeric/string main_category_id and category_id variants per active Category before any final projection cap, returns safe v2 projectionDiagnostics plus getQuestionsRuntimeMarker, uses fallback IDs only when Category read fails, and Question category fields are not capped to the original 1-6 seed set.
-- Solo question selection reads current-user active valid Category preferences before attempt start when signed in. Game.jsx explicitly calls getValidActiveSelectedCategoryIds(preferences, activeCategories) in the Solo-only path. Authenticated users with no saved preferences or empty preferences use all active categories; missing authentication is an auth-required state and must not expose raw questions. Category preference save validation remains separate from gameplay start. Insufficient preferences also use all active categories. Saved preferences target 70% selected categories / 30% full eligible pool only when at least 3 active valid preferences exist; this is soft weighting with fallback. The selected-category 70% lane is not difficulty-1 restricted; the global 30% lane prefers difficulty 1 from the full eligible pool where possible and safely falls back when difficulty-1 global candidates are insufficient.
+- Solo question selection reads current-user active valid Category preferences before attempt start when signed in. Game.jsx explicitly calls getValidActiveSelectedCategoryIds(preferences, activeCategories) in the Solo-only path. Authenticated users with no saved preferences or empty preferences use all active categories for Solo; missing authentication is an auth-required state and must not expose raw questions. Category preference save validation remains separate from gameplay start. Insufficient preferences also use all active categories for Solo. Saved preferences target 70% selected categories / 30% full eligible pool only when at least 3 active valid preferences exist; this is soft weighting with fallback. The selected-category 70% lane is not difficulty-1 restricted; the global 30% lane prefers difficulty 1 from the full eligible pool where possible and safely falls back when difficulty-1 global candidates are insufficient.
 - getQuestions derives active playable category IDs from active Category rows; stale hardcoded seed-category ID subsets must not exclude newer active categories from runtime projection.
 - getQuestions/category helpers accept active status aliases a, active, and aktif, and category_id normalization accepts any positive live DB id so categories added after the original seed set can enter the Solo candidate pool.
 - Online question selection, getQuestions, and analytics do not read preferences for question selection.
@@ -287,10 +287,11 @@ The source of truth is active valid UserCategoryPreference count, only active
 categories are selectable and count, passive or removed Category selections are
 filtered from active UI/save state, completion prevents repeat prompts only while
 the user still has 3 or more active valid preferences, and Users can later change
-selections under Profile / Settings / İlgi Alanlarım. No login/no saved
-preferences/empty preferences use all active categories for Solo. Category
-preference save validation remains separate from gameplay start. Insufficient
-preferences also use all active categories for Solo.
+selections under Profile / Settings / İlgi Alanlarım. Authenticated users with
+no saved preferences or empty preferences use all active categories for Solo;
+missing authentication is an auth-required state and must not expose raw
+questions. Category preference save validation remains separate from gameplay
+start. Insufficient preferences also use all active categories for Solo.
 SubCategory entity still exists, but Settings currently uses Category interests.
 The Settings Category preference surface is custom touch UI with no raw native select in the targeted section; save validation and user scoping remain unchanged.
 Mobile wrapping/long-name visual proof and two-account preference RLS proof
@@ -332,7 +333,7 @@ Status: Implementation tracking doc.
 - Legacy candidates kept without deletion: Friendship, GameRecord, LobbyMessage.
 - Raw Question remains protected.
 - UserCategoryPreference stores app-open popup and Settings Category preferences per user; minimum 3 selections. There is no maximum selection.
-- Solo question selection uses all active categories for guests/no saved preferences and targets 70% selected user categories plus 30% full eligible pool only when at least 3 active valid preferences are available.
+- Authenticated users with no saved preferences or empty preferences use all active categories for Solo; missing authentication is an auth-required state and must not expose raw questions. Insufficient preferences also use all active categories for Solo. Saved preferences target 70% selected user categories plus 30% full eligible pool only when at least 3 active valid preferences are available.
 - This is a soft weighting target with fallback, not hard filtering. The selected-category 70% lane is not difficulty-1 restricted; the global 30% lane prefers difficulty 1 from the full eligible pool where possible and safely falls back when difficulty-1 global candidates are insufficient.
 - Online question selection is not affected.
 - Any authenticated user with fewer than 3 active valid Category preferences sees an optional personalization popup; this applies to new and existing users, can be deferred, and must not block gameplay.

@@ -2610,7 +2610,7 @@ export const EXTRA_TESTS = [
 
   makeCase(
     'solo_empty_category_preferences_use_all_active_categories',
-    'Guest or no saved Category preferences use all active categories for Solo',
+    'Authenticated no saved Category preferences use all active categories for Solo',
     () => {
       const pool = buildSyntheticPool(96, (i) => ({
         main_category_id: (i % 6) + 1,
