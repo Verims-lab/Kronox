@@ -1981,7 +1981,12 @@ import React, { useEffect, useState } from 'react';
 //     refreshed global question projection.
 //   • Keeps full-screen question loading/error fallbacks scoped to bootstrap,
 //     with safe non-visible breadcrumbs for active attempt diagnostics.
-const BUILD_MARKER = 'Codex362';
+//
+// Codex363 — VAPID private-key security triage classification:
+//   • Keeps hardcoded/logged/exposed VAPID private key findings as blockers.
+//   • Reclassifies env-var-name-only VAPID_PRIVATE_KEY findings as manual
+//     deployment secret verification instead of source-code blockers.
+const BUILD_MARKER = 'Codex363';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
