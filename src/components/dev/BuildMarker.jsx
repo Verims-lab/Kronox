@@ -1975,7 +1975,13 @@ import React, { useEffect, useState } from 'react';
 //   • Aligns Solo Health/docs with authenticated getQuestions fetches: missing
 //     auth is auth-required, while authenticated no-preference users use all
 //     active categories without raw Question.list fallback.
-const BUILD_MARKER = 'Codex361';
+//
+// Codex362 — Solo active-attempt loading timeout guard:
+//   • Resolves active Solo questions from the frozen attempt deck before the
+//     refreshed global question projection.
+//   • Keeps full-screen question loading/error fallbacks scoped to bootstrap,
+//     with safe non-visible breadcrumbs for active attempt diagnostics.
+const BUILD_MARKER = 'Codex362';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

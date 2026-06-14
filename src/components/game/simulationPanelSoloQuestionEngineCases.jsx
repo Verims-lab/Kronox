@@ -2712,6 +2712,38 @@ export const EXTRA_TESTS = [
   ),
 
   makeCase(
+    'solo_active_attempt_survives_question_refetch',
+    'Active Solo attempt is not replaced by question loading/error fallback',
+    () => {
+      const missing = missingTokens(gamePageSource, [
+        'const isSoloDeckReady = isSoloLevelMode && Array.isArray(soloAttemptDeck) && soloAttemptDeck.length > 0',
+        'const sourceQuestions = isSoloDeckReady ? soloAttemptDeck : allQuestions',
+        'if (isLoading && !isGameReadyEarly) return',
+        'if (isError && !isGameReadyEarly) return',
+        'soloLoadingDuringActiveAttempt',
+        'soloBrowserEvent',
+      ]);
+      const forbidden = [
+        'if (isLoading) return (',
+        'if (isError) return (',
+      ].filter((token) => gamePageSource.includes(token));
+      if (missing.length || forbidden.length) {
+        return fail('Solo gameplay can still be replaced by bootstrap/loading fallback during an active attempt.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          files: ['src/pages/Game.jsx'],
+          actual: { missing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Solo resolves active cards from the frozen attempt deck and blocks full-screen loading/error fallback once gameplay is ready.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    },
+  ),
+
+  makeCase(
     'solo_category_preference_runtime_wiring_and_boundaries',
     'Solo reads current-user Category preferences while Online/getQuestions remain unchanged',
     () => {

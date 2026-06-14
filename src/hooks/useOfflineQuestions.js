@@ -26,6 +26,7 @@ import {
   countDifficultyOneQuestionsByCategory,
   countQuestionsByCategory,
 } from '@/lib/soloQuestionRuntimeDebug';
+import { pushAppDiag } from '@/lib/appDiagBus';
 
 const QUESTION_FETCH_RETRY_MS = 850;
 const NO_CACHE_NETWORK_ATTEMPTS = 3;
@@ -192,6 +193,13 @@ export function useOfflineQuestions({ debugEnabled = false } = {}) {
     if (forceLoading) setIsLoading(true);
     setIsError(false);
     setErrorKind(null);
+    pushAppDiag({
+      questionFetchStatus: 'started',
+      questionFetchRequestId: requestId,
+      questionFetchIncludeDiagnostics: Boolean(includeDiagnostics),
+      questionFetchAttempts: attempts,
+      questionFetchStartedAt: new Date().toISOString(),
+    });
 
     let fetched = [];
     let fetchedActiveCategoryIds = [];
@@ -222,10 +230,29 @@ export function useOfflineQuestions({ debugEnabled = false } = {}) {
           fetched = res.data.questions;
           fetchedActiveCategoryIds = Array.isArray(res.data.activeCategoryIds) ? res.data.activeCategoryIds : [];
         }
+        pushAppDiag({
+          questionFetchStatus: 'succeeded',
+          questionFetchRequestId: requestId,
+          questionFetchCount: fetched.length,
+          questionFetchBackendMarkerPresent: Boolean(
+            responseData?.getQuestionsRuntimeMarker
+              || responseData?.runtimeMarker
+              || responseData?.projectionDiagnostics?.runtimeMarker,
+          ),
+          questionFetchCompletedAt: new Date().toISOString(),
+        });
         lastError = null;
         break;
       } catch (err) {
         lastError = err;
+        pushAppDiag({
+          questionFetchStatus: 'failed_attempt',
+          questionFetchRequestId: requestId,
+          questionFetchAttempt: attempt,
+          questionFetchErrorCode: err?.code || null,
+          questionFetchErrorMessage: String(err?.message || 'question_fetch_failed').slice(0, 160),
+          questionFetchFailedAt: new Date().toISOString(),
+        });
         if (attempt < attempts) await wait(QUESTION_FETCH_RETRY_MS);
       }
     }
@@ -281,6 +308,12 @@ export function useOfflineQuestions({ debugEnabled = false } = {}) {
           : (lastError?.code || QUESTION_LOAD_ERROR_KIND.QUESTION_FETCH_FAILED);
       setErrorKind(nextErrorKind);
       setIsError(true);
+      pushAppDiag({
+        questionFetchStatus: 'failed',
+        questionFetchRequestId: requestId,
+        questionFetchErrorKind: nextErrorKind,
+        questionFetchCompletedAt: new Date().toISOString(),
+      });
     }
     setIsLoading(false);
   }, []);
