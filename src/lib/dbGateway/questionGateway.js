@@ -10,6 +10,7 @@ export const QUESTION_GATEWAY_CONTRACT = Object.freeze({
   publicFullBankFallback: false,
   minimalPlayableProjection: true,
   authenticatedGameplayRequired: true,
+  guestGameplayMode: 'guest_gameplay_runtime_capped_minimal_projection',
   noSavedPreferenceUsesAllActiveCategories: true,
 });
 

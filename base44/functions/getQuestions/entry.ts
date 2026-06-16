@@ -2,8 +2,12 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
 const FALLBACK_ACTIVE_CATEGORY_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 11];
 const MAX_GAMEPLAY_LIMIT = 1200;
+const MAX_GUEST_GAMEPLAY_LIMIT = 120;
+const DEFAULT_GUEST_GAMEPLAY_LIMIT = 120;
 const QUESTION_FETCH_PER_CATEGORY_LIMIT = 1000;
+const GUEST_QUESTION_FETCH_PER_CATEGORY_LIMIT = 60;
 const GAMEPLAY_PROJECTION_VERSION = 'per_category_projection_v2';
+const GUEST_GAMEPLAY_MODE = 'guest_gameplay_runtime';
 const GET_QUESTIONS_RUNTIME_MARKER = 'getQuestions-live-per-category-v7-Codex343';
 const GET_QUESTIONS_RUNTIME_CONTRACT_VERSION = GET_QUESTIONS_RUNTIME_MARKER;
 const PROJECTION_SAMPLING_STRATEGY = 'pool_proportional_category_subcategory_per_category_fetch_v2';
@@ -176,6 +180,26 @@ function isGameplayRuntimeProjectionRequest(body: any) {
     || body?.requireCategoryCoverage === true;
 }
 
+function isGuestGameplayProjectionRequest(body: any) {
+  return body?.mode === GUEST_GAMEPLAY_MODE;
+}
+
+function isForbiddenGuestQuestionRequest(body: any) {
+  return body?.scope === 'admin'
+    || body?.fullBank === true
+    || body?.includeInactive === true
+    || body?.includeDiagnostics === true
+    || body?.debug === true;
+}
+
+function normalizeGuestGameplayLimit(value: unknown) {
+  const requested = Number(value);
+  const normalized = Number.isFinite(requested) && requested > 0
+    ? Math.floor(requested)
+    : DEFAULT_GUEST_GAMEPLAY_LIMIT;
+  return Math.min(MAX_GUEST_GAMEPLAY_LIMIT, Math.max(1, normalized));
+}
+
 function normalizeQuestionForRuntime(question: Record<string, unknown>, activeMainCategoryIds: Set<number>) {
   const mainCategoryId = normalizeQuestionMainCategoryId(question);
   if (!mainCategoryId || !activeMainCategoryIds.has(mainCategoryId)) return null;
@@ -304,6 +328,43 @@ async function loadActiveQuestionCandidates(base44: any, categoryIds: number[], 
     fetchedByCategory,
     fetchDescriptorsByCategory,
     fallbackFetchCategories,
+  };
+}
+
+async function resolveActiveCategoryContext(base44: any) {
+  let categoryReadFailed = false;
+  let categoryReadError: string | null = null;
+  const categoryEntity = getServiceEntity(base44, 'Category');
+  let categoryRows: any[] = [];
+  if (!categoryEntity?.list) {
+    categoryReadFailed = true;
+    categoryReadError = 'category_entity_unavailable';
+  } else {
+    categoryRows = await categoryEntity.list('category_id', 1000).catch((error: Error) => {
+      categoryReadFailed = true;
+      categoryReadError = error?.message || String(error);
+      return [];
+    });
+  }
+  const activeCategoryRows = Array.isArray(categoryRows)
+    ? categoryRows.filter(isActiveCategory).filter((row: any) => isKnownCategoryId(getCategoryId(row)))
+    : [];
+  const fallbackUsed = categoryReadFailed;
+  const fallbackReason = categoryReadFailed ? `category_read_failed:${categoryReadError || 'unknown'}` : null;
+  const activeCategorySource = fallbackUsed
+    ? 'fallback_active_category_ids'
+    : 'Category.list(category_id,1000)';
+  const activeIds = (fallbackUsed
+    ? FALLBACK_ACTIVE_CATEGORY_IDS
+    : activeCategoryRows.map(getCategoryId).filter(isKnownCategoryId)
+  );
+
+  return {
+    activeCategoryRows,
+    fallbackUsed,
+    fallbackReason,
+    activeCategorySource,
+    activeIds,
   };
 }
 
@@ -665,11 +726,91 @@ Deno.serve(async (req) =>
     }
 
     const body = requestPayload;
+    const wantsGuestGameplayProjection = isGuestGameplayProjectionRequest(body);
     const wantsAdminBank = body?.scope === 'admin' || body?.fullBank === true || body?.includeInactive === true;
     const wantsGameplayProjection = isGameplayRuntimeProjectionRequest(body);
     const wantsAdminDiagnostics = (body?.includeDiagnostics === true || body?.debug === true) && !wantsGameplayProjection;
     const wantsDiagnostics = wantsGameplayProjection || body?.includeDiagnostics === true || body?.debug === true;
     const needsAdmin = wantsAdminBank || wantsAdminDiagnostics;
+
+    if (wantsGuestGameplayProjection) {
+      if (isForbiddenGuestQuestionRequest(body)) {
+        return json({
+          ok: false,
+          error: 'Guest oyun modu sadece sinirli oynanabilir soru destesi alabilir.',
+          getQuestionsRuntimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
+          runtimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
+          functionContractVersion: GET_QUESTIONS_RUNTIME_CONTRACT_VERSION,
+          source: 'guest_minimal_playable_projection',
+        }, 400);
+      }
+
+      const limit = normalizeGuestGameplayLimit(body?.limit);
+      const {
+        activeCategorySource,
+        activeIds,
+      } = await resolveActiveCategoryContext(base44);
+      const activeMainCategoryIds = new Set(activeIds);
+      const allowedCategoryIds = Array.from(activeMainCategoryIds);
+
+      if (allowedCategoryIds.length === 0) {
+        return json({
+          ok: true,
+          questions: [],
+          activeCategoryIds: Array.from(activeMainCategoryIds),
+          activeCategorySource,
+          projectionVersion: GAMEPLAY_PROJECTION_VERSION,
+          getQuestionsRuntimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
+          runtimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
+          functionContractVersion: GET_QUESTIONS_RUNTIME_CONTRACT_VERSION,
+          source: 'guest_minimal_playable_projection',
+          reason: 'no_active_guest_categories',
+          limit,
+          requestedLimit: Number.isFinite(Number(body?.limit)) ? Number(body.limit) : null,
+          effectiveLimit: limit,
+          guest: true,
+          guestLimitCap: MAX_GUEST_GAMEPLAY_LIMIT,
+          projectionCappedBeforeCategoryCoverage: false,
+        });
+      }
+
+      const projectionSeed = getProjectionSeed(body, false);
+      const { rows: questions } = await loadActiveQuestionCandidates(
+        base44,
+        allowedCategoryIds,
+        GUEST_QUESTION_FETCH_PER_CATEGORY_LIMIT,
+      );
+      const normalizedQuestions = (questions || [])
+        .map((question: Record<string, unknown>) => normalizeQuestionForRuntime(question, activeMainCategoryIds))
+        .filter(Boolean);
+      const beginnerQuestions = normalizedQuestions.filter((question: any) => Number(question?.difficulty) <= 2);
+      const guestCandidateQuestions = beginnerQuestions.length >= Math.min(limit, 30)
+        ? beginnerQuestions
+        : normalizedQuestions;
+      const projection = buildPoolProportionalProjection(guestCandidateQuestions, limit, projectionSeed);
+      const projected = projection.projected;
+
+      return json({
+        ok: true,
+        questions: projected,
+        activeCategoryIds: Array.from(activeMainCategoryIds),
+        activeCategorySource,
+        projectionVersion: GAMEPLAY_PROJECTION_VERSION,
+        getQuestionsRuntimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
+        runtimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
+        functionContractVersion: GET_QUESTIONS_RUNTIME_CONTRACT_VERSION,
+        source: 'guest_minimal_playable_projection',
+        limit,
+        requestedLimit: Number.isFinite(Number(body?.limit)) ? Number(body.limit) : null,
+        effectiveLimit: limit,
+        count: projected.length,
+        samplingStrategy: PROJECTION_SAMPLING_STRATEGY,
+        guest: true,
+        guestLimitCap: MAX_GUEST_GAMEPLAY_LIMIT,
+        projectionCappedBeforeCategoryCoverage: false,
+      });
+    }
+
     const user = await getOptionalUser(base44);
     if (!user?.email) {
       return json({
@@ -692,32 +833,13 @@ Deno.serve(async (req) =>
       Math.max(1, Math.floor(Number(body?.limit) || MAX_GAMEPLAY_LIMIT)),
     );
 
-    let categoryReadFailed = false;
-    let categoryReadError: string | null = null;
-    const categoryEntity = getServiceEntity(base44, 'Category');
-    let categoryRows: any[] = [];
-    if (!categoryEntity?.list) {
-      categoryReadFailed = true;
-      categoryReadError = 'category_entity_unavailable';
-    } else {
-      categoryRows = await categoryEntity.list('category_id', 1000).catch((error: Error) => {
-        categoryReadFailed = true;
-        categoryReadError = error?.message || String(error);
-        return [];
-      });
-    }
-    const activeCategoryRows = Array.isArray(categoryRows)
-      ? categoryRows.filter(isActiveCategory).filter((row: any) => isKnownCategoryId(getCategoryId(row)))
-      : [];
-    const fallbackUsed = categoryReadFailed;
-    const fallbackReason = categoryReadFailed ? `category_read_failed:${categoryReadError || 'unknown'}` : null;
-    const activeCategorySource = fallbackUsed
-      ? 'fallback_active_category_ids'
-      : 'Category.list(category_id,1000)';
-    const activeIds = (fallbackUsed
-      ? FALLBACK_ACTIVE_CATEGORY_IDS
-      : activeCategoryRows.map(getCategoryId).filter(isKnownCategoryId)
-    );
+    const {
+      activeCategoryRows,
+      fallbackUsed,
+      fallbackReason,
+      activeCategorySource,
+      activeIds,
+    } = await resolveActiveCategoryContext(base44);
     const activeMainCategoryIds = new Set(activeIds);
     const allowedMainCategoryIds = requestedIds
       ? new Set(Array.from(requestedIds).filter((id) => activeMainCategoryIds.has(id)))

@@ -259,7 +259,7 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('get_questions_authenticated_minimal_projection_admin_diagnostics_guarded',
-    'getQuestions requires authenticated gameplay projection while guarding admin diagnostics',
+    'getQuestions protects authenticated gameplay while allowing only capped guest projection',
     () => {
       const required = [
         'getOptionalUser',
@@ -268,6 +268,10 @@ export const EXTRA_TESTS = [
         'isAuthorizedAdmin(base44, user)',
         'Admin yetkisi gerekli.',
         'authenticated_minimal_playable_projection',
+        'GUEST_GAMEPLAY_MODE',
+        'MAX_GUEST_GAMEPLAY_LIMIT',
+        'isForbiddenGuestQuestionRequest',
+        'guest_minimal_playable_projection',
       ];
       const forbidden = presentTokens(getQuestionsSource, [
         'auth gerekmez',
@@ -280,12 +284,12 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'base44/functions/getQuestions/entry.ts',
-          expected: 'authenticated minimal playable projection, with admin/full-bank diagnostics guarded and gameplay v2 diagnostics available',
+          expected: 'authenticated minimal playable projection, capped guest-only minimal mode, with admin/full-bank diagnostics guarded and gameplay v2 diagnostics available',
           actual: { missing, forbidden },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('getQuestions requires an authenticated user for gameplay projection while admin/full-bank diagnostics remain AdminUser-protected.', {
+      return pass('getQuestions keeps normal gameplay authenticated, limits guest Solo to a capped minimal projection, and keeps admin/full-bank diagnostics AdminUser-protected.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });
@@ -522,7 +526,7 @@ export const EXTRA_TESTS = [
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Normal gameplay uses authenticated getQuestions and direct Question read is admin-only.', {
+      return pass('Gameplay uses getQuestions only: authenticated projection for signed-in users, capped guest projection for first-time Solo, and direct Question read remains admin-only.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

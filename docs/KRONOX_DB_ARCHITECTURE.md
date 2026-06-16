@@ -449,9 +449,9 @@ Rules:
 * Users can later change selections under Profile / Settings /
   `İlgi Alanlarım`.
 * Authenticated users with no saved preferences or empty preferences use all
-  active categories for Solo; missing authentication is an auth-required state
-  and must not expose raw questions. Saved preferences target 70% selected user
-  categories and 30% full eligible pool only when at least 3 active valid
+  active categories for Solo; missing authentication uses the explicit capped
+  guest Solo projection and must not expose raw questions. Saved preferences target
+  70% selected user categories and 30% full eligible pool only when at least 3 active valid
   preferences are available.
   `Game.jsx` explicitly resolves
   `getValidActiveSelectedCategoryIds(preferences, activeCategories)` before

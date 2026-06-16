@@ -29,8 +29,9 @@ Deck size formula:
 
 Game entry first attempts an online `getQuestions` fetch whenever the browser
 is online or network state is unknown. The default gameplay response is an
-authenticated minimal playable projection; admin/full-bank diagnostics still
-require AdminUser authorization. Empty
+authenticated minimal playable projection for signed-in users; first-time guest
+Solo uses only the explicit capped `guest_gameplay_runtime` minimal projection.
+Admin/full-bank diagnostics still require AdminUser authorization. Empty
 local question cache is not an offline condition by itself. While the first
 fetch is pending, the user sees a loading state such as `Sorular hazırlanıyor...`.
 
@@ -120,10 +121,10 @@ safely.
 
 The runtime may also pass active valid current-user Category preference IDs
 into the deck builder before the attempt starts. Category preferences are
-optional for authenticated Solo question selection: signed-in users with no
+optional for Solo question selection: signed-in users with no
 saved preferences, empty preferences, or fewer than 3 active valid preferences
-use all active categories. Missing authentication is handled as an auth-required
-state and must not expose raw questions. Missing, corrupt, passive, empty, or
+use all active categories. Missing authentication uses the explicit capped guest
+Solo projection and must not expose raw questions. Missing, corrupt, passive, empty, or
 unavailable preferences fall back to global Solo selection and must not become
 an empty question pool or offline/no-cache error. Saved preferences only become
 a soft 70/30 weighting input when at least 3 active valid preferences exist.
@@ -272,8 +273,8 @@ The Solo start path passes the active category whitelist into `buildSoloAttemptD
 The Solo start path also loads current-user active valid Category preferences
 before the deck is built when a user is signed in. Authenticated users with no
 saved preferences, empty preferences, or fewer than 3 active valid preferences
-use all active categories. Missing authentication is an auth-required state and
-must not expose raw questions. When at least 3 active valid preferences exist,
+use all active categories. Missing authentication uses the explicit capped guest
+Solo projection and must not expose raw questions. When at least 3 active valid preferences exist,
 the runtime passes them as a soft 70/30 weighting input. This must not fetch
 questions mid-attempt or hard-filter the deck to only selected categories.
 

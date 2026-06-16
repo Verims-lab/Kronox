@@ -31,7 +31,9 @@ import { pushAppDiag } from '@/lib/appDiagBus';
 const QUESTION_FETCH_RETRY_MS = 850;
 const NO_CACHE_NETWORK_ATTEMPTS = 3;
 const GAMEPLAY_QUESTION_PROJECTION_LIMIT = 1200;
+const GUEST_GAMEPLAY_QUESTION_PROJECTION_LIMIT = 120;
 const GAMEPLAY_QUESTION_REQUEST_VERSION = 'per_category_projection_v2';
+const GUEST_GAMEPLAY_QUESTION_MODE = 'guest_gameplay_runtime';
 
 export const QUESTION_LOAD_ERROR_KIND = {
   NO_ACTIVE_QUESTIONS: 'no_active_questions',
@@ -44,6 +46,7 @@ export const QUESTION_LOAD_CONTRACTS = {
   RETRY_REFETCHES_ONLINE: 'retry_clears_transient_error_and_refetches_online',
   OFFLINE_NO_CACHE_REQUIRES_KNOWN_OFFLINE: 'offline_no_cache_requires_known_offline_and_no_cache',
   GAMEPLAY_QUESTION_FETCH_REQUIRES_AUTH: 'gameplay_question_fetch_requires_authenticated_getQuestions',
+  GUEST_GAMEPLAY_QUESTION_FETCH_IS_CAPPED: 'guest_gameplay_question_fetch_uses_capped_minimal_getQuestions_mode',
   GAMEPLAY_QUESTION_FETCH_REQUESTS_CATEGORY_COVERAGE: 'gameplay_question_fetch_requests_per_category_projection_v2',
 };
 
@@ -57,8 +60,28 @@ function buildGameplayQuestionRequestPayload({ includeDiagnostics = false } = {}
   };
 }
 
+function buildGuestGameplayQuestionRequestPayload() {
+  return {
+    mode: GUEST_GAMEPLAY_QUESTION_MODE,
+    projectionVersion: GAMEPLAY_QUESTION_REQUEST_VERSION,
+    requireCategoryCoverage: true,
+    limit: GUEST_GAMEPLAY_QUESTION_PROJECTION_LIMIT,
+  };
+}
+
+async function resolveQuestionAccessMode() {
+  try {
+    const user = await base44.auth.me();
+    return user?.email ? 'authenticated' : 'guest';
+  } catch {
+    return 'guest';
+  }
+}
+
 function getBackendFunctionWiringStatus({ requestPayload, responseData } = {}) {
+  const requestedGuest = requestPayload?.mode === GUEST_GAMEPLAY_QUESTION_MODE;
   const requestedV2 = requestPayload?.mode === 'gameplay_runtime'
+    || requestedGuest
     || requestPayload?.projectionVersion === GAMEPLAY_QUESTION_REQUEST_VERSION
     || requestPayload?.requireCategoryCoverage === true;
   const runtimeMarker = responseData?.getQuestionsRuntimeMarker
@@ -69,6 +92,8 @@ function getBackendFunctionWiringStatus({ requestPayload, responseData } = {}) {
   const hasDiagnostics = Boolean(responseData?.projectionDiagnostics);
 
   if (!requestedV2) return 'not_gameplay_v2_request';
+  if (requestedGuest && runtimeMarker) return 'guest_backend_marker_present';
+  if (requestedGuest && !runtimeMarker) return 'missing_guest_backend_marker';
   if (runtimeMarker && hasDiagnostics) return 'backend_marker_and_projection_diagnostics_present';
   if (!runtimeMarker && !hasDiagnostics) return 'missing_backend_marker_and_projection_diagnostics';
   if (!runtimeMarker) return 'missing_backend_marker';
@@ -126,6 +151,7 @@ function buildQuestionFetchDebugSnapshot({
     queryEntity: 'base44.functions.invoke',
     queryFunction: 'getQuestions',
     queryPayload: requestPayload || buildGameplayQuestionRequestPayload({ includeDiagnostics: Boolean(responseData?.projectionDiagnostics) }),
+    questionAccessMode: requestPayload?.mode === GUEST_GAMEPLAY_QUESTION_MODE ? 'guest' : 'authenticated',
     backendFunctionWiringStatus,
     backendFunctionWiringBlocker: backendFunctionWiringStatus.startsWith('missing_'),
     getQuestionsRuntimeMarker: responseData?.getQuestionsRuntimeMarker
@@ -149,6 +175,7 @@ function buildQuestionFetchDebugSnapshot({
     returnedCountsByCategory: responseData?.projectionDiagnostics?.returnedByCategory || countQuestionsByCategory(normalizedQuestions),
     projectionCappedBeforeCategoryCoverage: responseData?.projectionCappedBeforeCategoryCoverage ?? responseData?.projectionDiagnostics?.projectionCappedBeforeCategoryCoverage ?? null,
     projectionDiagnostics: responseData?.projectionDiagnostics || null,
+    guestLimitCap: responseData?.guestLimitCap ?? null,
     fallbackReason,
     diagnosticsFallbackError,
     generatedAt: new Date().toISOString(),
@@ -207,19 +234,26 @@ export function useOfflineQuestions({ debugEnabled = false } = {}) {
     let networkReturned = false;
     let responseData = null;
     let diagnosticsFallbackError = null;
-    let requestPayload = buildGameplayQuestionRequestPayload({ includeDiagnostics });
+    const questionAccessMode = await resolveQuestionAccessMode();
+    const includeBackendDiagnostics = questionAccessMode === 'authenticated' && includeDiagnostics;
+    let requestPayload = questionAccessMode === 'guest'
+      ? buildGuestGameplayQuestionRequestPayload()
+      : buildGameplayQuestionRequestPayload({ includeDiagnostics: includeBackendDiagnostics });
 
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
       try {
-        // Gameplay question fetches require the authenticated Base44 session
-        // and receive a minimal projection. Direct Question.list fallback
-        // remains removed so callers never receive the raw question bank.
+        // Signed-in gameplay receives the authenticated minimal projection.
+        // Guests use only the explicit, capped minimal guest mode. Direct
+        // Question.list fallback remains removed so callers never receive the
+        // raw question bank.
         let res;
-        requestPayload = buildGameplayQuestionRequestPayload({ includeDiagnostics });
+        requestPayload = questionAccessMode === 'guest'
+          ? buildGuestGameplayQuestionRequestPayload()
+          : buildGameplayQuestionRequestPayload({ includeDiagnostics: includeBackendDiagnostics });
         try {
           res = await base44.functions.invoke('getQuestions', requestPayload);
         } catch (diagnosticError) {
-          if (!includeDiagnostics) throw diagnosticError;
+          if (!includeBackendDiagnostics) throw diagnosticError;
           diagnosticsFallbackError = diagnosticError?.message || String(diagnosticError);
           requestPayload = buildGameplayQuestionRequestPayload();
           res = await base44.functions.invoke('getQuestions', requestPayload);
@@ -233,6 +267,7 @@ export function useOfflineQuestions({ debugEnabled = false } = {}) {
         pushAppDiag({
           questionFetchStatus: 'succeeded',
           questionFetchRequestId: requestId,
+          questionFetchAccessMode: questionAccessMode,
           questionFetchCount: fetched.length,
           questionFetchBackendMarkerPresent: Boolean(
             responseData?.getQuestionsRuntimeMarker
@@ -249,6 +284,7 @@ export function useOfflineQuestions({ debugEnabled = false } = {}) {
           questionFetchStatus: 'failed_attempt',
           questionFetchRequestId: requestId,
           questionFetchAttempt: attempt,
+          questionFetchAccessMode: questionAccessMode,
           questionFetchErrorCode: err?.code || null,
           questionFetchErrorMessage: String(err?.message || 'question_fetch_failed').slice(0, 160),
           questionFetchFailedAt: new Date().toISOString(),
@@ -311,6 +347,7 @@ export function useOfflineQuestions({ debugEnabled = false } = {}) {
       pushAppDiag({
         questionFetchStatus: 'failed',
         questionFetchRequestId: requestId,
+        questionFetchAccessMode: questionAccessMode,
         questionFetchErrorKind: nextErrorKind,
         questionFetchCompletedAt: new Date().toISOString(),
       });

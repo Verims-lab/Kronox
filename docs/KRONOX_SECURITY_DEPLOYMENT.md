@@ -328,7 +328,9 @@ grant starter/daily Diamonds again.
 
 # 4. Question Bank Access
 
-Normal gameplay must load questions through authenticated backend access.
+Signed-in normal gameplay must load questions through authenticated backend
+access. First-time guests may start Solo only through the explicit capped
+`guest_gameplay_runtime` path.
 
 Expected function:
 
@@ -338,13 +340,18 @@ POST /getQuestions
 
 Security contract:
 
-* unauthenticated callers receive 401
+* unauthenticated `gameplay_runtime` callers receive 401
+* unauthenticated `guest_gameplay_runtime` callers receive only a small,
+  minimal mixed Solo deck from active categories
 * normal authenticated callers receive only minimal playable projection
+* guest callers cannot request diagnostics, full-bank/admin scope, inactive
+  rows, or large projection limits
 * gameplay rows must satisfy `Question.state === "A"`
 * passive categories are excluded
 * raw full-bank/admin requests require admin authorization
 * authenticated non-admin users receive 403 for full-bank/admin access
-* client code must not fall back to direct `Question.list` for normal gameplay
+* client code must not fall back to direct `Question.list` for normal or guest
+  gameplay
 
 Normal gameplay response should include only what gameplay needs.
 
@@ -535,7 +542,9 @@ After deployment, verify:
 
 ## Questions
 
-* unauthenticated `/getQuestions` returns 401
+* unauthenticated `/getQuestions` `gameplay_runtime` returns 401
+* unauthenticated `/getQuestions` `guest_gameplay_runtime` returns only a
+  capped minimal mixed Solo deck
 * authenticated normal user receives minimal playable projection
 * normal users cannot fetch raw/full question-bank metadata
 * direct entity reads do not expose full question bank
@@ -566,10 +575,11 @@ After deployment, verify:
   before attempt start and targets 70% selected categories / 30% full eligible
   pool as soft weighting with fallback
 * Authenticated users with no saved preferences or empty preferences use all
-  active categories for Solo; missing authentication is an auth-required state
-  and must not expose raw questions
-* `getQuestions` remains authenticated for gameplay and raw `Question.list`
-  gameplay fallback is not allowed
+  active categories for Solo; missing authentication uses the explicit capped
+  guest Solo projection and must not expose raw questions
+* authenticated `getQuestions` remains required for normal gameplay, the guest
+  mode is small/minimal/no-diagnostics, and raw `Question.list` gameplay
+  fallback is not allowed
 * the selected-category 70% lane is not difficulty-1 restricted; the global
   30% lane prefers difficulty 1 from the full eligible pool where possible,
   with safe fallback if difficulty-1 global candidates are insufficient

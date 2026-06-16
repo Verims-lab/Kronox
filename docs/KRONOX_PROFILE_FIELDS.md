@@ -33,7 +33,7 @@ placeholders after authentication.
   see the optional personalization popup; it can be deferred and must not block
   normal authenticated Solo gameplay.
 * Authenticated users with no saved preferences or empty preferences use all
-  active categories for Solo; missing authentication is an auth-required state
-  and must not expose raw questions.
+  active categories for Solo; missing authentication uses the explicit capped
+  guest Solo projection and must not expose raw questions.
 * Saved preferences are Solo-only soft 70/30 weighting input, not a hard filter.
 * Online question selection is not affected by Category preferences.

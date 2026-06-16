@@ -2035,7 +2035,14 @@ import React, { useEffect, useState } from 'react';
 //     rank-scope diagnostics, accepted friend owner_key matching, and
 //     PullToRefresh reload wiring explicit for static Health without changing
 //     scoring or leaderboard ranking rules.
-const BUILD_MARKER = 'Codex370';
+//
+// Codex371 — Guest Solo capped question deck:
+//   • Adds explicit guest_gameplay_runtime getQuestions mode so first-time
+//     logged-out Solo users get a small mixed active-category deck without
+//     reopening public bulk question-bank access or raw Question.list fallback.
+//   • Keeps signed-in gameplay on the authenticated per_category_projection_v2
+//     path and blocks guest diagnostics/full-bank/admin knobs.
+const BUILD_MARKER = 'Codex371';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -18,7 +18,9 @@ Question content must support:
 
 # 1. Runtime Source
 
-Normal gameplay must load questions through authenticated backend access.
+Signed-in normal gameplay must load questions through authenticated backend
+access. First-time guest Solo may use only the explicit capped
+`guest_gameplay_runtime` backend path.
 
 Expected function:
 
@@ -28,8 +30,10 @@ POST /getQuestions
 
 Rules:
 
-* normal gameplay must not call `Question.list` directly
+* normal and guest gameplay must not call `Question.list` directly
 * unauthenticated access must not expose the question bank
+* guest access returns only a small minimal mixed active-category Solo deck and
+  cannot request diagnostics/full-bank/admin data
 * normal authenticated users receive only minimal playable projection
 * `Question.state === "A"` is required for playable rows
 * passive categories must be excluded from playable decks
@@ -327,8 +331,9 @@ Rules:
 * Users can later change selections under Profile / Settings /
   `İlgi Alanlarım`.
 * Authenticated users with no saved preferences or empty preferences use all
-  active categories for Solo; missing authentication is an auth-required state
-  and must not expose raw questions. Insufficient preferences also use all
+  active categories for Solo; missing authentication uses the explicit capped
+  guest Solo projection and must not expose raw questions. Insufficient
+  preferences also use all
   active categories for Solo. Saved preferences target 70% selected user
   categories and 30% full eligible pool only when at least 3 active valid
   preferences are available.
@@ -485,7 +490,8 @@ No import should create unknown categories silently.
 
 Security rules:
 
-* `getQuestions` requires authenticated user
+* `getQuestions` requires authenticated user for normal gameplay projection
+* explicit `guest_gameplay_runtime` returns only a capped minimal guest deck
 * normal user receives minimal playable projection
 * full-bank/admin access requires admin authorization
 * direct `Question` entity reads should not expose full bank to public users
