@@ -456,6 +456,33 @@ export default function Game() {
     return () => { active = false; };
   }, [isSoloLevelMode, currentUserLoaded, currentUser?.email]);
 
+  const soloCategoryPreferenceReady = !isSoloLevelMode
+    || soloCategoryPreferenceState.status === 'ready'
+    || soloCategoryPreferenceState.status === 'unavailable';
+  const questionFetchEnabled = !isSoloLevelMode || (currentUserLoaded && soloCategoryPreferenceReady);
+  const questionRequestContext = useMemo(() => ({
+    authScope: currentUser?.email ? 'authenticated' : 'guest',
+    requestKind: isSoloLevelMode ? 'solo_attempt' : 'gameplay_runtime',
+    levelNumber: soloLevel?.levelNumber || 1,
+    deckSize: getSoloAttemptDeckSizeForLevel(soloLevel?.levelNumber),
+    seedCount: Array.isArray(playerNames) ? playerNames.length * 2 : 2,
+    yearStart: routeYearStart,
+    yearEnd: routeYearEnd,
+    selectedCategoryIds: soloCategoryPreferenceState.selectedCategoryIds,
+    categoryPreferenceAvailable: soloCategoryPreferenceState.available === true,
+    categoryPreferenceFallbackReason: soloCategoryPreferenceState.fallbackReason,
+  }), [
+    currentUser?.email,
+    isSoloLevelMode,
+    playerNames,
+    routeYearEnd,
+    routeYearStart,
+    soloCategoryPreferenceState.available,
+    soloCategoryPreferenceState.fallbackReason,
+    soloCategoryPreferenceState.selectedCategoryIds,
+    soloLevel?.levelNumber,
+  ]);
+
   // ─── Data fetching — offline-first (Repository layer) ───────────
   const {
     questions: allQuestions,
@@ -466,7 +493,11 @@ export default function Game() {
     activeCategoryIds,
     debugSnapshot: questionLoadDebugSnapshot,
     retry: refetch,
-  } = useOfflineQuestions({ debugEnabled: soloQuestionDebugEnabled });
+  } = useOfflineQuestions({
+    debugEnabled: soloQuestionDebugEnabled,
+    enabled: questionFetchEnabled,
+    requestContext: questionRequestContext,
+  });
 
   const soloRuntimeCategoryPreferenceState = useMemo(() => {
     const activeSet = new Set((activeCategoryIds || [])

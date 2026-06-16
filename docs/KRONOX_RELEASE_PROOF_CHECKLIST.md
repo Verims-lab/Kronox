@@ -154,14 +154,13 @@ Checklist:
   remains separate, and no eligible active category is hardcoded out of the
   `getQuestions` projection.
 * After category/query changes, confirm the question cache marker is
-  `question-runtime-v7-getQuestions-live-marker`; stale projections from the
-  old cache must not keep feeding categories 1-5/1-6 only.
+  `question-runtime-v8-server-attempt-buffer`; stale broad projections from
+  the old cache must not feed Solo attempts.
 * Runtime `getQuestions` proof must show the explicit v2 category-coverage
-  request payload, backend `getQuestionsRuntimeMarker`, non-null
-  `projectionDiagnostics`, requested/effective limit, active Category
-  source/ids, per-category Question fetch/playable counts, zero-playable
-  categories, `fallbackUsed`, and
-  `projectionCappedBeforeCategoryCoverage: false`. If categories 7,8,9,11 are
+  request payload, backend `getQuestionsRuntimeMarker`, small
+  server-attempt-buffer response count, active Category source/ids, and
+  `sourcePoolCapRemoved: true` / `responseCapApplied: true` in admin/debug
+  diagnostics. If categories 7,8,9,11 are
   still absent, verify whether active Category rows are missing/passive or the
   deployed `getQuestions` function manifest/source is stale before treating it
   as a deck-builder bug.

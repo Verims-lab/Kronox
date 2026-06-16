@@ -28,8 +28,8 @@ Deck size formula:
 ## Question Loading Bootstrap
 
 Game entry first attempts an online `getQuestions` fetch whenever the browser
-is online or network state is unknown. The default gameplay response is an
-authenticated minimal playable projection for signed-in users; first-time guest
+is online or network state is unknown. The default signed-in gameplay response
+is an authenticated bounded server attempt candidate buffer; first-time guest
 Solo uses only the explicit capped `guest_gameplay_runtime` minimal projection.
 Admin/full-bank diagnostics still require AdminUser authorization. Empty
 local question cache is not an offline condition by itself. While the first
@@ -174,20 +174,21 @@ P3 adds question analytics without changing question selection:
 - Codex329 fix: `/getQuestions`, Category helpers, and preference helpers
   accept active status aliases (`a`, `active`, `aktif`, plus missing status for
   backward compatibility), fetch candidates per active category before
-  pool-proportional projection, and expose diagnostics showing that projection
-  is not capped before category balancing. The local question cache version is
-  `question-runtime-v7-getQuestions-live-marker` so stale narrow projections
-  are invalidated.
+  pool-proportional server attempt buffers, and expose admin/debug diagnostics
+  showing that source eligibility is not capped before category balancing. The
+  local question cache version is `question-runtime-v8-server-attempt-buffer`
+  so stale broad projections are invalidated.
 - Codex338 fix: gameplay fetches now request the v2 per-category projection
   explicitly instead of relying on an empty default payload. `/getQuestions`
   reads all active Category rows, fetches Question rows per active category
   across numeric/string `main_category_id` and `category_id` variants, and only
-  applies the final projection cap after category coverage is known. If
+  applies the bounded response cap after category coverage is known. If
   categories 7,8,9,11 lack active Category rows in live data, that remains a
   data/category seeding blocker rather than a deck-builder issue.
-- Codex340 fix: `/getQuestions` now has an explicit Base44 function manifest,
-  v2 gameplay requests return safe `projectionDiagnostics` by default, Category
-  fallback is used only when the `Category` read fails, and `Question`
+- Codex340/Codex372 fix: `/getQuestions` now has an explicit Base44 function
+  manifest, v2 gameplay requests return small server-side attempt buffers,
+  safe `projectionDiagnostics` require admin/debug context, Category fallback
+  is used only when the `Category` read fails, and `Question`
   category-id schema fields are no longer capped to the original 1-6 seed set.
   Runtime proof should show `projectionVersion: per_category_projection_v2`,
   `projectionCappedBeforeCategoryCoverage: false`, all active Category IDs in

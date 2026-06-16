@@ -284,19 +284,19 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'base44/functions/getQuestions/entry.ts',
-          expected: 'authenticated minimal playable projection, capped guest-only minimal mode, with admin/full-bank diagnostics guarded and gameplay v2 diagnostics available',
+          expected: 'authenticated bounded minimal attempt buffer, capped guest-only minimal mode, with admin/full-bank/diagnostics guarded',
           actual: { missing, forbidden },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('getQuestions keeps normal gameplay authenticated, limits guest Solo to a capped minimal projection, and keeps admin/full-bank diagnostics AdminUser-protected.', {
+      return pass('getQuestions keeps normal gameplay authenticated, limits signed-in Solo to a bounded attempt buffer, limits guest Solo to a capped minimal projection, and keeps admin/full-bank diagnostics AdminUser-protected.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });
     }),
 
   makeCase('get_questions_returns_minimal_projection',
-    'getQuestions returns minimal playable projection and active-only rows',
+    'getQuestions returns bounded minimal playable rows and active-only data',
     () => {
       const required = [
         'normalizeQuestionForRuntime',
@@ -316,7 +316,7 @@ export const EXTRA_TESTS = [
       ]);
       const missing = missingTokens(getQuestionsSource, required);
       if (missing.length || forbidden.length) {
-        return fail('getQuestions minimal projection or active-only filter drifted.', {
+        return fail('getQuestions bounded minimal response or active-only filter drifted.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'base44/functions/getQuestions/entry.ts',
@@ -331,15 +331,21 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('get_questions_projection_uses_pool_proportional_sampling',
-    'getQuestions projection uses pool-proportional fair sampling before capping',
+    'getQuestions uses full active source eligibility before bounded attempt response',
     () => {
       const required = [
         'PROJECTION_SAMPLING_STRATEGY',
         'pool_proportional_category_subcategory_per_category_fetch_v2',
-        'MAX_GAMEPLAY_LIMIT = 1200',
+        'MAX_AUTH_GAMEPLAY_RESPONSE_LIMIT = 96',
+        'SERVER_ATTEMPT_SELECTION_MODE',
+        'server_attempt_candidate_buffer_v1',
         "GAMEPLAY_PROJECTION_VERSION = 'per_category_projection_v2'",
         'isGameplayRuntimeProjectionRequest',
-        'QUESTION_FETCH_PER_CATEGORY_LIMIT = 1000',
+        'QUESTION_FETCH_PER_CATEGORY_LIMIT = 5000',
+        'sourcePoolCapRemoved',
+        'responseCapApplied',
+        'buildServerAttemptCandidateBuffer',
+        'filterSoloAttemptCandidatePool',
         'buildPoolProportionalProjection',
         'allocateProportionalSlots',
         'sampleWithinCategory',
@@ -354,6 +360,7 @@ export const EXTRA_TESTS = [
         'samplingStrategy: PROJECTION_SAMPLING_STRATEGY',
       ];
       const forbidden = presentTokens(getQuestionsSource, [
+        'MAX_GAMEPLAY_LIMIT = 1200',
         'MAX_GAMEPLAY_LIMIT = 500',
         'QUESTION_FETCH_PER_CATEGORY_LIMIT = 250',
         '.filter(Boolean)\n      .slice(0, limit)',
@@ -364,12 +371,12 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'base44/functions/getQuestions/entry.ts',
-          expected: 'broad active fetch + deterministic pool-proportional category/subcategory sampling before cap',
+          expected: 'full active category source eligibility with server-side bounded attempt candidate response, not a fixed 1200 gameplay pool',
           actual: { missing, forbidden },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('getQuestions uses deterministic pool-proportional sampling and safe v2 diagnostics before returning the minimal projection.', {
+      return pass('getQuestions removes the fixed 1200 source-pool cap, keeps category/subcategory sampling server-side, and returns a bounded minimal attempt buffer.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });
@@ -405,7 +412,7 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           file: 'base44/functions/getQuestions/entry.ts',
-          expected: 'minimal playable projection with year/state/category/subcategory/tag/difficulty fields preserved',
+          expected: 'bounded minimal playable response with year/state/category/subcategory/tag/difficulty fields preserved',
           actual: { missing, forbidden },
           actionType: ACTION_TYPES.CODE_FIX,
         });

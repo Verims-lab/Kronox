@@ -34,24 +34,29 @@ Rules:
 * unauthenticated access must not expose the question bank
 * guest access returns only a small minimal mixed active-category Solo deck and
   cannot request diagnostics/full-bank/admin data
-* normal authenticated users receive only minimal playable projection
+* normal authenticated users receive only a minimal bounded server attempt
+  candidate buffer, not the full active question universe
 * `Question.state === "A"` is required for playable rows
 * passive categories must be excluded from playable decks
 * backend reads should be scoped by active category/status instead of
   reading a newest-row slice and filtering everything in memory
-* when the active pool is larger than the gameplay projection cap,
-  `/getQuestions` must sample before capping with pool-proportional fairness:
+* authenticated gameplay has no fixed 1200 source-pool cap; `/getQuestions`
+  must consider the active eligible universe server-side, then return only a
+  bounded attempt-sized/buffered response with pool-proportional fairness:
   category/subcategory shares should roughly follow the active eligible pool,
-  not equal-count category balancing and not DB/order/newest-row slicing
+  not equal-count category balancing, a fixed global source cap, or
+  DB/order/newest-row slicing
 * `/getQuestions` admin/Health diagnostics should expose the safe funnel:
   fetched active rows, normalized eligible rows, returned runtime projection,
   category/subcategory/year-band distributions, projection limit, and seed
 * `/getQuestions` gameplay v2 requests (`mode=gameplay_runtime`,
   `projectionVersion=per_category_projection_v2`,
-  `requireCategoryCoverage=true`) must return safe projection diagnostics by
-  default: backend `getQuestionsRuntimeMarker`, requested/effective limit,
-  active Category source/ids, per-category fetch/playable counts,
-  zero-playable categories, fallback state, and
+  `requireCategoryCoverage=true`) must return backend
+  `getQuestionsRuntimeMarker` by default. Safe `projectionDiagnostics` are
+  admin/debug-only and include requested/effective limit, active Category
+  source/ids, per-category fetch/playable counts, zero-playable categories,
+  fallback state, `selectionMode: server_attempt_candidate_buffer_v1`,
+  `sourcePoolCapRemoved: true`, `responseCapApplied: true`, and
   `projectionCappedBeforeCategoryCoverage: false`
 * If Solo debug JSON lacks `getQuestionsRuntimeMarker`, the deployed callable
   is stale or the frontend is invoking a different function. Codex343 expects
@@ -458,9 +463,10 @@ Rules:
 * do not expose passive/unpublished rows
 * do not expose admin-only fields
 * enforce auth before returning gameplay data
-* when capping the protected gameplay projection, use deterministic
-  pool-proportional sampling and shuffle the final projection so early DB
-  order, newest rows, or early category IDs cannot dominate runtime play
+* do not fixed-cap the authenticated source pool; use deterministic
+  pool-proportional server attempt-buffer selection and shuffle the bounded
+  response so early DB order, newest rows, or early category IDs cannot
+  dominate runtime play
 * admin/Health diagnostics may expose aggregate projection counts, such as
   fetched/returned totals and category/subcategory/year-band distributions,
   but must not expose the full raw question bank
@@ -492,7 +498,7 @@ Security rules:
 
 * `getQuestions` requires authenticated user for normal gameplay projection
 * explicit `guest_gameplay_runtime` returns only a capped minimal guest deck
-* normal user receives minimal playable projection
+* normal user receives a bounded minimal server attempt candidate buffer
 * full-bank/admin access requires admin authorization
 * direct `Question` entity reads should not expose full bank to public users
 * client must not fall back to direct `Question.list`

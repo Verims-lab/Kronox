@@ -4,8 +4,8 @@
  * TTL: 24 saat (sorular sık değişmez)
  */
 
-export const QUESTION_CACHE_VERSION = 'question-runtime-v7-getQuestions-live-marker';
-export const QUESTION_CACHE_KEY = 'kronox_questions_v7';
+export const QUESTION_CACHE_VERSION = 'question-runtime-v8-server-attempt-buffer';
+export const QUESTION_CACHE_KEY = 'kronox_questions_v8';
 const TTL_MS = 24 * 60 * 60 * 1000; // 24 saat
 
 export function saveQuestionsToCache(questions, metadata = {}) {
@@ -14,6 +14,7 @@ export function saveQuestionsToCache(questions, metadata = {}) {
       version: QUESTION_CACHE_VERSION,
       questions,
       activeCategoryIds: Array.isArray(metadata.activeCategoryIds) ? metadata.activeCategoryIds : [],
+      requestKey: typeof metadata.requestKey === 'string' ? metadata.requestKey : '',
       savedAt: Date.now(),
     }));
   } catch (e) {
@@ -26,13 +27,14 @@ export function loadQuestionsFromCache() {
   try {
     const raw = localStorage.getItem(QUESTION_CACHE_KEY);
     if (!raw) return null;
-    const { version, questions, savedAt, activeCategoryIds } = JSON.parse(raw);
+    const { version, questions, savedAt, activeCategoryIds, requestKey } = JSON.parse(raw);
     if (version !== QUESTION_CACHE_VERSION) return null;
     if (!questions || !Array.isArray(questions) || questions.length === 0) return null;
     return {
       questions,
       version,
       activeCategoryIds: Array.isArray(activeCategoryIds) ? activeCategoryIds : [],
+      requestKey: typeof requestKey === 'string' ? requestKey : '',
       savedAt,
       isStale: Date.now() - savedAt > TTL_MS,
     };
@@ -53,6 +55,7 @@ export function getCacheInfo() {
     count: cached.questions.length,
     key: QUESTION_CACHE_KEY,
     version: cached.version,
+    requestKey: cached.requestKey,
     activeCategoryIds: cached.activeCategoryIds || [],
     ageMinutes,
     isStale: cached.isStale,

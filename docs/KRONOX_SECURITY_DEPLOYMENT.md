@@ -343,7 +343,8 @@ Security contract:
 * unauthenticated `gameplay_runtime` callers receive 401
 * unauthenticated `guest_gameplay_runtime` callers receive only a small,
   minimal mixed Solo deck from active categories
-* normal authenticated callers receive only minimal playable projection
+* normal authenticated callers receive only a bounded minimal server attempt
+  candidate buffer, not the full active question universe
 * guest callers cannot request diagnostics, full-bank/admin scope, inactive
   rows, or large projection limits
 * gameplay rows must satisfy `Question.state === "A"`
@@ -545,7 +546,8 @@ After deployment, verify:
 * unauthenticated `/getQuestions` `gameplay_runtime` returns 401
 * unauthenticated `/getQuestions` `guest_gameplay_runtime` returns only a
   capped minimal mixed Solo deck
-* authenticated normal user receives minimal playable projection
+* authenticated normal user receives a bounded minimal server attempt candidate
+  buffer
 * normal users cannot fetch raw/full question-bank metadata
 * direct entity reads do not expose full question bank
 

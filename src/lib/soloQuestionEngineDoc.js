@@ -19,8 +19,9 @@ All new Solo attempts use a 180 seconds timer and fail on 10 mistakes; the
 
 Question loading bootstrap first attempts online getQuestions when the browser
 is online or network state is unknown. The default gameplay response is an
-authenticated minimal playable projection for signed-in users; first-time guest
-Solo uses only the explicit capped guest_gameplay_runtime minimal projection.
+authenticated bounded server attempt candidate buffer for signed-in users;
+first-time guest Solo uses only the explicit capped guest_gameplay_runtime
+minimal projection.
 Admin/full-bank diagnostics still require AdminUser authorization. Empty
 local question cache is not an offline condition. While the first fetch is
 pending, the UI shows Sorular hazırlanıyor...; the offline/no-cache screen is
@@ -106,14 +107,17 @@ not a stale hardcoded seed-category subset; fallback IDs are only for Category
 read failure and must not permanently exclude newer active category IDs.
 Runtime active-category status aliases include a, active, and aktif, and live
 category_id normalization accepts any positive DB category id instead of
-clamping to original seed IDs. question-runtime-v7-getQuestions-live-marker
-invalidates stale local projections after category/query fixes. Gameplay fetches
-request the v2 per-category projection explicitly; getQuestions fetches
+clamping to original seed IDs. question-runtime-v8-server-attempt-buffer
+invalidates stale local projections after the server-attempt response change.
+Gameplay fetches request the v2 per-category projection and
+server_attempt_candidate_buffer_v1 explicitly; getQuestions fetches
 numeric/string main_category_id and category_id variants per active Category
-before any final projection cap. getQuestions has an explicit Base44 function
-manifest, gameplay v2 requests return safe projectionDiagnostics by default,
-Category fallback is used only when Category read fails, and Question category
-fields are not capped to the original 1-6 seed set.
+before the bounded response cap. getQuestions has an explicit Base44 function
+manifest, signed-in gameplay returns a bounded server attempt candidate buffer,
+projectionDiagnostics are admin/debug-only, Category fallback is used only when
+Category read fails, sourcePoolCapRemoved/responseCapApplied describe the new
+runtime contract, and Question category fields are not capped to the original
+1-6 seed set.
 getQuestionsRuntimeMarker / diagnostics runtimeMarker
 getQuestions-live-per-category-v7-Codex343 must appear in Solo debug
 JSON after deployment; if absent, the deployed callable is stale or different.

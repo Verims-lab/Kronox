@@ -2042,7 +2042,14 @@ import React, { useEffect, useState } from 'react';
 //     reopening public bulk question-bank access or raw Question.list fallback.
 //   • Keeps signed-in gameplay on the authenticated per_category_projection_v2
 //     path and blocks guest diagnostics/full-bank/admin knobs.
-const BUILD_MARKER = 'Codex371';
+//
+// Codex372 — Server-side Solo attempt buffer:
+//   • Removes the fixed 1200 authenticated gameplay source-pool cap from
+//     getQuestions and returns a bounded server attempt candidate buffer.
+//   • Keeps guest Solo on the explicit small guest_gameplay_runtime deck and
+//     keeps diagnostics/full-bank paths AdminUser-gated.
+//   • Bumps question cache to v8 so stale broad projections are ignored.
+const BUILD_MARKER = 'Codex372';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
