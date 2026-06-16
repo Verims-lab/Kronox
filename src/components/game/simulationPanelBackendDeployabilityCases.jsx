@@ -441,8 +441,15 @@ export const EXTRA_TESTS = [
         'functionContractVersion',
         'includeDiagnostics',
         "GAMEPLAY_PROJECTION_VERSION = 'per_category_projection_v2'",
+        'MAX_AUTH_GAMEPLAY_RESPONSE_LIMIT = 96',
+        'SERVER_ATTEMPT_SELECTION_MODE',
+        'server_attempt_candidate_buffer_v1',
+        'sourcePoolCapRemoved',
+        'responseCapApplied',
         'projectionDiagnostics',
         'buildProjectionDiagnostics',
+        'buildServerAttemptCandidateBuffer',
+        'filterSoloAttemptCandidatePool',
         'Category.list',
         'loadActiveQuestionCandidates',
         'fetchQuestionRowsForCategory',
@@ -457,6 +464,7 @@ export const EXTRA_TESTS = [
         'categoriesWithZeroPlayableQuestions',
       ]);
       const forbidden = forbiddenTokens(getQuestionsSource, [
+        'MAX_GAMEPLAY_LIMIT = 1200',
         'MAX_GAMEPLAY_LIMIT = 500',
         'const KNOWN_CATEGORY_IDS = [1, 2, 3, 4, 5, 6]',
         'FALLBACK_ACTIVE_CATEGORY_IDS = [1, 2, 3, 4, 5, 6]',
@@ -471,7 +479,7 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           files: ['base44/functions/getQuestions/entry.ts', 'base44/functions/getQuestions/function.jsonc', 'src/lib/dbGateway/questionGateway.js'],
-          expected: 'callable getQuestions manifest plus v2 per-category projection diagnostics and no stale 1-6/500 cap',
+          expected: 'callable getQuestions manifest plus v2 per-category bounded server attempt response diagnostics and no stale 1-6/500/1200 cap',
           actual: { missing, forbidden },
           actionType: ACTION_TYPES.CODE_FIX,
         });

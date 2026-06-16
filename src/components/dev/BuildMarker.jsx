@@ -2035,7 +2035,29 @@ import React, { useEffect, useState } from 'react';
 //     rank-scope diagnostics, accepted friend owner_key matching, and
 //     PullToRefresh reload wiring explicit for static Health without changing
 //     scoring or leaderboard ranking rules.
-const BUILD_MARKER = 'Codex370';
+//
+// Codex371 — Guest Solo capped question deck:
+//   • Adds explicit guest_gameplay_runtime getQuestions mode so first-time
+//     logged-out Solo users get a small mixed active-category deck without
+//     reopening public bulk question-bank access or raw Question.list fallback.
+//   • Keeps signed-in gameplay on the authenticated per_category_projection_v2
+//     path and blocks guest diagnostics/full-bank/admin knobs.
+//
+// Codex372 — Server-side Solo attempt buffer:
+//   • Removes the fixed 1200 authenticated gameplay source-pool cap from
+//     getQuestions and returns a bounded server attempt candidate buffer.
+//   • Keeps guest Solo on the explicit small guest_gameplay_runtime deck and
+//     keeps diagnostics/full-bank paths AdminUser-gated.
+//   • Bumps question cache to v8 so stale broad projections are ignored.
+//
+// Codex373 — First Solo start question readiness:
+//   • Applies valid cached bounded question buffers immediately when Solo
+//     readiness flips on, while still revalidating through getQuestions.
+//   • Retries empty first getQuestions responses before showing no-question
+//     failure so question-pool refresh/import timing can recover.
+//   • Makes Solo bootstrap retry rebuild the unstarted attempt state without
+//     returning to Main Menu and bumps question cache to v9.
+const BUILD_MARKER = 'Codex373';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

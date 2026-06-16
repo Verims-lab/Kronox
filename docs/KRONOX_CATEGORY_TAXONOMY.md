@@ -119,7 +119,8 @@ Category preferences are optional personalization, not a gameplay gate:
 
 * authenticated users with no saved `UserCategoryPreference` rows use all active categories
 * authenticated users with empty or fewer than 3 active valid preferences use all active categories
-* missing authentication is an auth-required state and must not expose raw questions
+* missing authentication uses the explicit capped `guest_gameplay_runtime`
+  Solo projection and must not expose raw questions
 * raw `Question.list` gameplay fallback is not allowed
 * saved preferences become a soft Solo 70/30 weighting input only when at least
   3 active valid preferences exist

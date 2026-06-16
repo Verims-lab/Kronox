@@ -19,8 +19,10 @@ All new Solo attempts use a 180 seconds timer and fail on 10 mistakes; the
 
 Question loading bootstrap first attempts online getQuestions when the browser
 is online or network state is unknown. The default gameplay response is an
-authenticated minimal playable projection; admin/full-bank diagnostics still
-require AdminUser authorization. Empty
+authenticated bounded server attempt candidate buffer for signed-in users;
+first-time guest Solo uses only the explicit capped guest_gameplay_runtime
+minimal projection.
+Admin/full-bank diagnostics still require AdminUser authorization. Empty
 local question cache is not an offline condition. While the first fetch is
 pending, the UI shows Sorular hazırlanıyor...; the offline/no-cache screen is
 reserved for known offline state plus failed online fetch plus no usable cache.
@@ -88,11 +90,11 @@ before the attempt starts. This is not a gameplay source of truth and must not
 fetch questions or stats mid-attempt. Corrupt or missing local history is
 ignored safely, and sparse metadata must not block deck creation by itself.
 The runtime may also pass active valid current-user Category preference IDs
-before the attempt starts. Category preferences are optional for authenticated
-Solo question selection: signed-in users with no saved preferences, empty
+before the attempt starts. Category preferences are optional for Solo question
+selection: signed-in users with no saved preferences, empty
 preferences, or fewer than 3 active valid preferences use all active categories.
-Missing authentication is handled as an auth-required state and must not expose
-raw questions. Missing, corrupt, passive, empty, or unavailable preferences fall
+Missing authentication uses the explicit capped guest Solo projection and must
+not expose raw questions. Missing, corrupt, passive, empty, or unavailable preferences fall
 back to global Solo selection and must not become an empty question pool or
 offline/no-cache error. Saved preferences only become a soft 70/30 weighting
 input when at least 3 active valid preferences exist. Online question selection
@@ -105,14 +107,17 @@ not a stale hardcoded seed-category subset; fallback IDs are only for Category
 read failure and must not permanently exclude newer active category IDs.
 Runtime active-category status aliases include a, active, and aktif, and live
 category_id normalization accepts any positive DB category id instead of
-clamping to original seed IDs. question-runtime-v7-getQuestions-live-marker
-invalidates stale local projections after category/query fixes. Gameplay fetches
-request the v2 per-category projection explicitly; getQuestions fetches
+clamping to original seed IDs. question-runtime-v9-first-start-readiness
+invalidates stale local projections after the server-attempt/readiness change.
+Gameplay fetches request the v2 per-category projection and
+server_attempt_candidate_buffer_v1 explicitly; getQuestions fetches
 numeric/string main_category_id and category_id variants per active Category
-before any final projection cap. getQuestions has an explicit Base44 function
-manifest, gameplay v2 requests return safe projectionDiagnostics by default,
-Category fallback is used only when Category read fails, and Question category
-fields are not capped to the original 1-6 seed set.
+before the bounded response cap. getQuestions has an explicit Base44 function
+manifest, signed-in gameplay returns a bounded server attempt candidate buffer,
+projectionDiagnostics are admin/debug-only, Category fallback is used only when
+Category read fails, sourcePoolCapRemoved/responseCapApplied describe the new
+runtime contract, and Question category fields are not capped to the original
+1-6 seed set.
 getQuestionsRuntimeMarker / diagnostics runtimeMarker
 getQuestions-live-per-category-v7-Codex343 must appear in Solo debug
 JSON after deployment; if absent, the deployed callable is stale or different.

@@ -27,6 +27,7 @@ export default function OnlineGameBootstrapFallback({
   lobbyCode,
   onRefetchLobby,
   onRetryQuestions,
+  retryQuestionsWhenNotReady = false,
   onBackHome,
 }) {
   const [showRetry, setShowRetry] = useState(false);
@@ -44,6 +45,7 @@ export default function OnlineGameBootstrapFallback({
       : 'Oyun başlatılıyor...';
 
   const canRetryLobby = isOnline && (!!lobbyId || !!lobbyCode);
+  const canRetryQuestions = !hasQuestions || retryQuestionsWhenNotReady;
 
   const handleRetry = async () => {
     if (busy) return;
@@ -52,7 +54,7 @@ export default function OnlineGameBootstrapFallback({
       if (!hasLobbyData && canRetryLobby) {
         await onRefetchLobby?.();
       }
-      if (!hasQuestions) {
+      if (canRetryQuestions) {
         onRetryQuestions?.();
       }
     } finally {
@@ -74,7 +76,7 @@ export default function OnlineGameBootstrapFallback({
             <div className="flex flex-col gap-2">
               <Button
                 onClick={handleRetry}
-                disabled={busy || (!canRetryLobby && hasQuestions)}
+                disabled={busy || (!canRetryLobby && !canRetryQuestions)}
                 className="w-full"
               >
                 {busy ? (

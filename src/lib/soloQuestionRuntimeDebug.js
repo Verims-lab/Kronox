@@ -355,11 +355,11 @@ export function buildSoloQuestionRuntimeDebugPayload({
     notes: [
       'This payload is assembled from the real Solo runtime fetch/deck path, not a separate diagnostic query.',
       backendFunctionWiringBlocker
-        ? 'Backend getQuestions marker/diagnostics are missing from the callable response; treat this as a Base44 function wiring or deployment blocker before tuning the deck builder.'
-        : 'Backend getQuestions marker and projection diagnostics were included.',
+        ? 'Backend getQuestions marker is missing from the callable response; treat this as a Base44 function wiring or deployment blocker before tuning the deck builder.'
+        : 'Backend getQuestions marker was included for the bounded server attempt response.',
       diagnostics
-        ? 'getQuestions projectionDiagnostics were included.'
-        : 'backend getQuestions did not return projectionDiagnostics; deployed function may be stale or a different callable may be invoked.',
+        ? 'getQuestions projectionDiagnostics were included for an admin/debug diagnostics request.'
+        : 'getQuestions projectionDiagnostics are admin/debug-only; normal gameplay responses may omit them.',
       'No service token, env secret, auth header, or other user data is included.',
     ],
   };

@@ -2674,8 +2674,10 @@ export const EXTRA_TESTS = [
       ]);
       const fetchMissing = missingTokens(useOfflineQuestionsSource, [
         'gameplay_question_fetch_requires_authenticated_getQuestions',
+        'authenticated_gameplay_getQuestions_returns_server_attempt_candidate_buffer',
         "base44.functions.invoke('getQuestions'",
-        'Gameplay question fetches require the authenticated Base44 session',
+        'Signed-in gameplay receives the authenticated bounded attempt buffer',
+        'Guests use only the explicit, capped minimal guest mode',
         'callers never receive the raw question bank',
       ]);
       const helperMissing = missingTokens(userCategoryPreferenceHelperSource, [

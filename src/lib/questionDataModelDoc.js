@@ -89,8 +89,8 @@ are selectable and count. Passive or removed Category selections are ignored in
 UI/save state and must not be resaved as active preferences. Users can later
 change selections under Profile / Settings / İlgi Alanlarım. Authenticated users
 with no saved preferences or empty preferences use all active categories for
-Solo; missing authentication is an auth-required state and must not expose raw
-questions. Insufficient preferences also use all active categories for Solo.
+Solo; missing authentication uses the explicit capped guest Solo projection and
+must not expose raw questions. Insufficient preferences also use all active categories for Solo.
 Category preference save validation remains separate from gameplay start.
 Saved preferences target 70% selected user categories and 30% full eligible pool
 only when at least 3 active valid preferences are available. This is a soft weighting
@@ -123,20 +123,25 @@ longer stored on the entity — they are derived at fetch time by
   playable timeline decks.
 - Runtime projection may include sub_category and tag as gameplay-balance
   metadata only, not as public full-bank exposure.
-- When the active pool is larger than the gameplay projection cap,
-  getQuestions uses deterministic pool-proportional sampling before capping:
-  category/subcategory shares should follow the active eligible pool rather
-  than equal-count balancing, newest-row slicing, or DB/category order.
+- Authenticated Solo gameplay has no fixed 1200 source-pool cap. getQuestions
+  considers the active eligible category/question universe server-side and
+  returns only a bounded server attempt candidate buffer; category/subcategory
+  shares should follow the active eligible pool rather than equal-count
+  balancing, newest-row slicing, DB/category order, or a fixed global source
+  cap.
 - getQuestions derives active playable category IDs from active Category rows;
   stale hardcoded seed-category ID subsets must not exclude newer active
   categories from the runtime projection.
 - Question category id fields accept any positive live Category.category_id;
   main_category_id, second_category_id, and third_category_id must not be
   capped to the original 1-6 seed set.
-- getQuestions gameplay v2 requests return safe projectionDiagnostics by
-  default: getQuestionsRuntimeMarker, requested/effective limit, active
-  Category source/ids, per-category fetch/playable counts, zero-playable
-  categories, fallback state, and projectionCappedBeforeCategoryCoverage:false.
+- getQuestions gameplay v2 requests return getQuestionsRuntimeMarker by
+  default. projectionDiagnostics are admin/debug-only and include
+  requested/effective limit, active Category source/ids, per-category
+  fetch/playable counts, zero-playable categories, fallback state,
+  sourcePoolCapRemoved:true, responseCapApplied:true,
+  selectionMode:server_attempt_candidate_buffer_v1, and
+  projectionCappedBeforeCategoryCoverage:false.
 - Missing getQuestionsRuntimeMarker in Solo debug JSON means the deployed
   callable is stale or the frontend invoked a different function. Codex343
   expects backend marker getQuestions-live-per-category-v7-Codex343.
