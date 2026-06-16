@@ -154,8 +154,8 @@ Checklist:
   remains separate, and no eligible active category is hardcoded out of the
   `getQuestions` projection.
 * After category/query changes, confirm the question cache marker is
-  `question-runtime-v9-first-start-readiness`; stale broad projections from
-  the old cache must not feed Solo attempts.
+  `question-runtime-v10-solo-architecture`; stale broad projections or old
+  difficulty-lane buffers from the old cache must not feed Solo attempts.
 * Runtime `getQuestions` proof must show the explicit v2 category-coverage
   request payload, backend `getQuestionsRuntimeMarker`, small
   server-attempt-buffer response count, active Category source/ids, and
@@ -264,13 +264,11 @@ Checklist:
 * Normal 16-card Solo decks target 11 selected-category and 5 global-pool
   cards; special 19-card Solo decks target 13 selected-category and 6
   global-pool cards.
-* The selected-category 70% lane is not difficulty-1 restricted. The global
-  30% lane prefers difficulty 1 questions from the full eligible pool where
-  possible.
-* If the global difficulty-1 pool is insufficient, the broader full eligible
-  global pool fills safely instead of failing the deck.
-* Selected-category shortage falls back to the full eligible pool instead of
-  failing the deck.
+* The selected-category 70% lane uses selected user categories with difficulty
+  1 and 2 eligible. The global 30% lane uses all active categories with
+  difficulty 1 only.
+* Selected-category shortage falls back to the all-active difficulty-1 lane
+  before the deck clean-fails.
 * Online question selection is not affected.
 * Settings no longer shows SubCategory preference options; old
   `UserSubCategoryPreference` rows are left untouched.

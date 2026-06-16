@@ -171,6 +171,11 @@ function getQuestionsDiagnostics(entryFiles) {
     'responseCapApplied',
     'buildServerAttemptCandidateBuffer',
     'filterSoloAttemptCandidatePool',
+    'SELECTED_CATEGORY_LANE_DIFFICULTIES',
+    'GLOBAL_FALLBACK_LANE_DIFFICULTIES',
+    'GUEST_PRIMARY_DIFFICULTIES',
+    'selectedDeckCountsByDifficulty',
+    'eligibleQuestionCountByDifficulty',
     'projectionDiagnostics',
     'buildProjectionDiagnostics',
   ];

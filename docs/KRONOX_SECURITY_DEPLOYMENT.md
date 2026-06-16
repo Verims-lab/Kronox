@@ -582,9 +582,10 @@ After deployment, verify:
 * authenticated `getQuestions` remains required for normal gameplay, the guest
   mode is small/minimal/no-diagnostics, and raw `Question.list` gameplay
   fallback is not allowed
-* the selected-category 70% lane is not difficulty-1 restricted; the global
-  30% lane prefers difficulty 1 from the full eligible pool where possible,
-  with safe fallback if difficulty-1 global candidates are insufficient
+* the selected-category 70% lane uses selected user categories with difficulty
+  1 and 2 eligible; the global 30% lane uses all active categories with
+  difficulty 1 only, with selected-category shortage filled from that
+  all-active fallback lane before clean failure
 * Online question selection, `getQuestions`, and analytics do not read
   preferences for question selection
 * two-account preference RLS proof remains manual/NOT_AUTOMATABLE

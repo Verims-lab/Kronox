@@ -2179,7 +2179,9 @@ export const EXTRA_TESTS = [
         normalMeta.globalDifficultyTarget !== 1 ||
         specialMeta.globalDifficultyTarget !== 1 ||
         normalMeta.globalDifficultyRuleAppliesOnlyToGlobal30 !== true ||
-        normalMeta.selectedCategoryDifficultyUnrestricted !== true ||
+        normalMeta.selectedCategoryDifficultyUnrestricted !== false ||
+        normalMeta.selectedCategoryDifficultyRule !== 'difficulty:1|2' ||
+        normalMeta.globalLaneDifficultyRule !== 'difficulty:1' ||
         normalMeta.preferenceRatioTarget !== '70/30' ||
         specialMeta.preferenceRatioTarget !== '70/30' ||
         normalMeta.hardFilterToSelectedCategories !== false ||
@@ -2188,12 +2190,12 @@ export const EXTRA_TESTS = [
         return fail('Solo category preference target counts or hard-rule compatibility drifted.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
-          expected: 'normal 11/5 and special 13/6; global cards difficulty 1 while selected-category lane is not difficulty-1 restricted',
+          expected: 'normal 11/5 and special 13/6; selected-category lane difficulty 1/2 and global cards difficulty 1',
           actual,
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Solo builds rich-pool normal/special decks with selected-category target unchanged and global slots difficulty 1.', {
+      return pass('Solo builds rich-pool normal/special decks with selected-category difficulty 1/2 and global slots difficulty 1.', {
         verification: 'RUNTIME_VERIFIED',
         classification: 'RUNTIME_VERIFIED',
         actual,

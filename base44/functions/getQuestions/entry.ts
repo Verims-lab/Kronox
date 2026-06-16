@@ -16,6 +16,13 @@ const PROJECTION_SAMPLING_STRATEGY = 'pool_proportional_category_subcategory_per
 const DIAGNOSTIC_TOP_LIMIT = 12;
 const CATEGORY_ACTIVE_STATUS_VALUES = new Set(['', 'a', 'active', 'aktif']);
 const QUESTION_ACTIVE_STATUS_VALUES = new Set(['', 'a', 'active', 'aktif']);
+const SELECTED_CATEGORY_LANE_DIFFICULTIES = new Set([1, 2]);
+const GLOBAL_FALLBACK_LANE_DIFFICULTIES = new Set([1]);
+const GUEST_PRIMARY_DIFFICULTIES = new Set([1]);
+const GUEST_FALLBACK_DIFFICULTIES = new Set([1, 2]);
+const SELECTED_CATEGORY_LANE_DIFFICULTY_RULE = 'selected_category_difficulty_1_2';
+const GLOBAL_FALLBACK_LANE_DIFFICULTY_RULE = 'global_fallback_difficulty_1_only';
+const GUEST_DIFFICULTY_RULE = 'guest_primary_difficulty_1_only';
 
 const ONLINE_ID_TO_MAIN_CATEGORY_ID: Record<string, number> = {
   chronicle: 1,
@@ -483,6 +490,19 @@ function getCategoryKey(question: any) {
   return String(question?.main_category_id ?? 'unknown');
 }
 
+function getQuestionDifficulty(question: any) {
+  const difficulty = Math.trunc(Number(question?.difficulty) || 1);
+  return Number.isFinite(difficulty) && difficulty > 0 ? difficulty : 1;
+}
+
+function getDifficultyKey(question: any) {
+  return String(getQuestionDifficulty(question));
+}
+
+function hasAllowedDifficulty(question: any, difficulties: Set<number>) {
+  return difficulties.has(getQuestionDifficulty(question));
+}
+
 function getSubcategoryKey(question: any) {
   const text = String(question?.sub_category || '').trim().toLowerCase();
   return text || 'unknown_subcategory';
@@ -690,6 +710,8 @@ function buildServerAttemptCandidateBuffer(
       preferenceApplied: false,
       selectedCategoryTarget: 0,
       globalCategoryTarget: 0,
+      selectedLaneDifficultyRule: SELECTED_CATEGORY_LANE_DIFFICULTY_RULE,
+      globalFallbackDifficultyRule: GLOBAL_FALLBACK_LANE_DIFFICULTY_RULE,
     };
   }
 
@@ -703,10 +725,14 @@ function buildServerAttemptCandidateBuffer(
       preferenceApplied: false,
       selectedCategoryTarget: 0,
       globalCategoryTarget: target,
+      selectedLaneDifficultyRule: SELECTED_CATEGORY_LANE_DIFFICULTY_RULE,
+      globalFallbackDifficultyRule: GLOBAL_FALLBACK_LANE_DIFFICULTY_RULE,
     };
   }
 
-  const selectedCandidates = candidates.filter((question) => selectedSet.has(Number(question?.main_category_id)));
+  const selectedCandidates = candidates
+    .filter((question) => selectedSet.has(Number(question?.main_category_id)))
+    .filter((question) => hasAllowedDifficulty(question, SELECTED_CATEGORY_LANE_DIFFICULTIES));
   const selectedTarget = Math.min(selectedCandidates.length, Math.round(target * 0.7));
   const selectedProjection = buildPoolProportionalProjection(
     selectedCandidates,
@@ -714,10 +740,12 @@ function buildServerAttemptCandidateBuffer(
     `${seed}:selected70`,
   ).projected;
   const selectedIds = new Set(selectedProjection.map(getQuestionIdentity).filter(Boolean));
-  const remainingCandidates = candidates.filter((question) => !selectedIds.has(getQuestionIdentity(question)));
+  const globalFallbackCandidates = candidates
+    .filter((question) => hasAllowedDifficulty(question, GLOBAL_FALLBACK_LANE_DIFFICULTIES))
+    .filter((question) => !selectedIds.has(getQuestionIdentity(question)));
   const globalTarget = Math.max(0, target - selectedProjection.length);
   const globalProjection = buildPoolProportionalProjection(
-    remainingCandidates,
+    globalFallbackCandidates,
     globalTarget,
     `${seed}:global30`,
   ).projected;
@@ -729,12 +757,18 @@ function buildServerAttemptCandidateBuffer(
 
   if (merged.length < target) {
     const mergedIds = new Set(merged.map(getQuestionIdentity).filter(Boolean));
-    const fill = stableShuffleQuestions(
-      candidates.filter((question) => !mergedIds.has(getQuestionIdentity(question))),
+    const laneSafeFill = stableShuffleQuestions(
+      candidates
+        .filter((question) => !mergedIds.has(getQuestionIdentity(question)))
+        .filter((question) => (
+          selectedSet.has(Number(question?.main_category_id))
+            ? hasAllowedDifficulty(question, SELECTED_CATEGORY_LANE_DIFFICULTIES)
+            : hasAllowedDifficulty(question, GLOBAL_FALLBACK_LANE_DIFFICULTIES)
+        )),
       seed,
-      'preference-buffer-fill',
+      'preference-buffer-lane-safe-fill',
     );
-    merged.push(...fill.slice(0, target - merged.length));
+    merged.push(...laneSafeFill.slice(0, target - merged.length));
   }
 
   return {
@@ -743,6 +777,10 @@ function buildServerAttemptCandidateBuffer(
     preferenceApplied: true,
     selectedCategoryTarget: selectedTarget,
     globalCategoryTarget: globalTarget,
+    selectedLaneDifficultyRule: SELECTED_CATEGORY_LANE_DIFFICULTY_RULE,
+    globalFallbackDifficultyRule: GLOBAL_FALLBACK_LANE_DIFFICULTY_RULE,
+    selectedLaneCandidateCount: selectedCandidates.length,
+    globalFallbackLaneCandidateCount: globalFallbackCandidates.length,
   };
 }
 
@@ -787,6 +825,8 @@ function buildProjectionDiagnostics({
   responseQuestionCount = null,
   eligibleQuestionCountByCategory = null,
   selectedDeckCountsByCategory = null,
+  eligibleQuestionCountByDifficulty = null,
+  selectedDeckCountsByDifficulty = null,
 }: {
   fetchedRows: any[];
   normalizedRows: any[];
@@ -811,8 +851,12 @@ function buildProjectionDiagnostics({
   responseQuestionCount?: number | null;
   eligibleQuestionCountByCategory?: Record<string, number> | null;
   selectedDeckCountsByCategory?: Record<string, number> | null;
+  eligibleQuestionCountByDifficulty?: Record<string, number> | null;
+  selectedDeckCountsByDifficulty?: Record<string, number> | null;
 }) {
   const playableByCategory = buildFullDistribution(normalizedRows, getCategoryKey);
+  const playableByDifficulty = buildFullDistribution(normalizedRows, getDifficultyKey);
+  const returnedByDifficulty = buildFullDistribution(projectedRows, getDifficultyKey);
   const activeCategoryRowsById = Object.fromEntries((activeCategoryRows || [])
     .map((row: any) => {
       const id = getCategoryId(row);
@@ -862,7 +906,11 @@ function buildProjectionDiagnostics({
     perCategoryFetchCounts: fetchedByCategory,
     perCategoryPlayableCounts: playableByCategory,
     eligibleQuestionCountByCategory: eligibleQuestionCountByCategory || playableByCategory,
+    eligibleQuestionCountByDifficulty: eligibleQuestionCountByDifficulty || playableByDifficulty,
+    eligibleCountsByCategory: eligibleQuestionCountByCategory || playableByCategory,
+    eligibleCountsByDifficulty: eligibleQuestionCountByDifficulty || playableByDifficulty,
     selectedDeckCountsByCategory: selectedDeckCountsByCategory || buildFullDistribution(projectedRows, getCategoryKey),
+    selectedDeckCountsByDifficulty: selectedDeckCountsByDifficulty || returnedByDifficulty,
     categoriesWithZeroPlayableQuestions: activeCategoryIds
       .filter((categoryId) => !Number(playableByCategory[String(categoryId)] || 0))
       .map(String),
@@ -871,6 +919,7 @@ function buildProjectionDiagnostics({
     categorySlots,
     eligibleByCategory: playableByCategory,
     returnedByCategory: buildFullDistribution(projectedRows, getCategoryKey),
+    returnedByDifficulty,
     returnedTopSubCategories: buildDistribution(
       projectedRows,
       (question) => `${getCategoryKey(question)} / ${getSubcategoryKey(question)}`,
@@ -973,10 +1022,21 @@ Deno.serve(async (req) =>
         .map((question: Record<string, unknown>) => normalizeQuestionForRuntime(question, activeMainCategoryIds))
         .filter(Boolean);
       const guestAttemptQuestions = filterSoloAttemptCandidatePool(normalizedQuestions, guestAttemptContext);
-      const beginnerQuestions = guestAttemptQuestions.filter((question: any) => Number(question?.difficulty) <= 2);
-      const guestCandidateQuestions = beginnerQuestions.length >= Math.min(limit, 30)
-        ? beginnerQuestions
-        : guestAttemptQuestions;
+      const primaryEasyQuestions = guestAttemptQuestions
+        .filter((question: any) => hasAllowedDifficulty(question, GUEST_PRIMARY_DIFFICULTIES));
+      const fallbackBeginnerQuestions = guestAttemptQuestions
+        .filter((question: any) => hasAllowedDifficulty(question, GUEST_FALLBACK_DIFFICULTIES));
+      const guestDeckNeed = Math.min(limit, guestAttemptContext.deckSize);
+      const guestCandidateQuestions = primaryEasyQuestions.length >= guestDeckNeed
+        ? primaryEasyQuestions
+        : (fallbackBeginnerQuestions.length >= guestDeckNeed
+          ? fallbackBeginnerQuestions
+          : guestAttemptQuestions);
+      const guestDifficultyRuleApplied = primaryEasyQuestions.length >= guestDeckNeed
+        ? GUEST_DIFFICULTY_RULE
+        : (fallbackBeginnerQuestions.length >= guestDeckNeed
+          ? 'guest_fallback_difficulty_1_2'
+          : 'guest_fallback_all_active_playable');
       const projection = buildPoolProportionalProjection(guestCandidateQuestions, limit, projectionSeed);
       const projected = projection.projected;
 
@@ -997,6 +1057,9 @@ Deno.serve(async (req) =>
         samplingStrategy: PROJECTION_SAMPLING_STRATEGY,
         guest: true,
         guestLimitCap: MAX_GUEST_GAMEPLAY_LIMIT,
+        guestDifficultyRule: guestDifficultyRuleApplied,
+        responseCapApplied: true,
+        responseQuestionCount: projected.length,
         projectionCappedBeforeCategoryCoverage: false,
       });
     }
@@ -1123,6 +1186,10 @@ Deno.serve(async (req) =>
         yearEnd: soloAttemptContext.yearEnd,
         softPreferenceCategoryIds,
         categoryPreferenceApplied: projection.preferenceApplied === true,
+        selectedLaneDifficultyRule: projection.selectedLaneDifficultyRule || SELECTED_CATEGORY_LANE_DIFFICULTY_RULE,
+        globalFallbackDifficultyRule: projection.globalFallbackDifficultyRule || GLOBAL_FALLBACK_LANE_DIFFICULTY_RULE,
+        selectedLaneCandidateCount: projection.selectedLaneCandidateCount ?? null,
+        globalFallbackLaneCandidateCount: projection.globalFallbackLaneCandidateCount ?? null,
       } : null,
       limit,
       requestedLimit: Number.isFinite(Number(body?.limit)) ? Number(body.limit) : null,
@@ -1156,6 +1223,8 @@ Deno.serve(async (req) =>
         responseQuestionCount: projected.length,
         eligibleQuestionCountByCategory: buildFullDistribution(eligibleAttemptQuestions, getCategoryKey),
         selectedDeckCountsByCategory: buildFullDistribution(projected, getCategoryKey),
+        eligibleQuestionCountByDifficulty: buildFullDistribution(eligibleAttemptQuestions, getDifficultyKey),
+        selectedDeckCountsByDifficulty: buildFullDistribution(projected, getDifficultyKey),
       });
     }
     return json(responsePayload);
