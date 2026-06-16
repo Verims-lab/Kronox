@@ -125,7 +125,7 @@ Category preferences are optional personalization, not a gameplay gate:
 * saved preferences become a soft Solo 70/30 weighting input only when at least
   3 active valid preferences exist
 * selected-category preference lane uses difficulty 1 and 2; the all-active
-  global fallback lane uses difficulty 1 only
+  global fallback lane prefers difficulty 1 and broadens safely if short
 * Settings save validation may still require 3 selections, but that validation
   must remain separate from Solo question loading
 * empty preferences must not produce an empty question pool or

@@ -54,6 +54,8 @@ export const QUESTION_LOAD_CONTRACTS = {
   AUTH_PREFERENCE_SELECTED_LANE_DIFFICULTY: 'selected_category_lane_uses_difficulty_1_and_2',
   AUTH_PREFERENCE_GLOBAL_LANE_DIFFICULTY: 'global_fallback_lane_uses_difficulty_1_only',
   GUEST_PRIMARY_DIFFICULTY: 'guest_primary_deck_uses_difficulty_1_only',
+  DIRECT_QUESTION_LIST_FALLBACK_REMOVED: 'Direct Question.list fallback remains removed',
+  CALLERS_NEVER_RECEIVE_RAW_QUESTION_BANK: 'callers never receive the raw question bank',
 };
 
 function normalizeQuestionRequestContext(context = {}) {

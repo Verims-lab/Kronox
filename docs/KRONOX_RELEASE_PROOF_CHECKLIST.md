@@ -265,10 +265,10 @@ Checklist:
   cards; special 19-card Solo decks target 13 selected-category and 6
   global-pool cards.
 * The selected-category 70% lane uses selected user categories with difficulty
-  1 and 2 eligible. The global 30% lane uses all active categories with
-  difficulty 1 only.
-* Selected-category shortage falls back to the all-active difficulty-1 lane
-  before the deck clean-fails.
+  1 and 2 eligible. The global 30% lane first uses all active categories with
+  difficulty 1.
+* Selected-category shortage and global difficulty-1 shortage fall back to the
+  broader active global pool before the deck clean-fails.
 * Online question selection is not affected.
 * Settings no longer shows SubCategory preference options; old
   `UserSubCategoryPreference` rows are left untouched.

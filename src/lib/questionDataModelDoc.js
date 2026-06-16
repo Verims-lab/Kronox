@@ -95,9 +95,10 @@ Category preference save validation remains separate from gameplay start.
 Saved preferences target 70% selected user categories and 30% full eligible pool
 only when at least 3 active valid preferences are available. This is a soft weighting
 target with fallback, not hard filtering. The selected-category 70% lane uses
-selected categories with difficulty 1 and 2 eligible; the global 30% lane uses
-all active categories with difficulty 1 only, with selected-category shortage
-filled from that all-active fallback lane before clean failure.
+selected categories with difficulty 1 and 2 eligible; the global 30% lane first
+uses all active categories with difficulty 1, then selected-category shortage
+or global difficulty-1 shortage fills from the broader active global pool before
+clean failure.
 Online question selection is not affected.
 SubCategory still exists for future normalized question metadata, but Settings
 preference selection currently uses main Category, not SubCategory. Existing

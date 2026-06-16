@@ -970,7 +970,7 @@ function isGlobalDifficultyTargetQuestion(question) {
 
 function isSelectedCategoryLaneDifficultyAllowed(question) {
   const difficulty = normalizeDifficultyValue(question);
-  return difficulty !== null && USER_CATEGORY_SELECTED_LANE_DIFFICULTIES.has(difficulty);
+  return difficulty === null || USER_CATEGORY_SELECTED_LANE_DIFFICULTIES.has(difficulty);
 }
 
 function filterPreferenceLaneCandidatePool(candidates = [], preferenceContext = {}) {
@@ -979,7 +979,7 @@ function filterPreferenceLaneCandidatePool(candidates = [], preferenceContext = 
     if (isQuestionInUserSelectedCategory(question, preferenceContext)) {
       return isSelectedCategoryLaneDifficultyAllowed(question);
     }
-    return isGlobalDifficultyTargetQuestion(question);
+    return true;
   });
 }
 
@@ -1576,6 +1576,7 @@ function buildCategoryPreferenceDiagnostics(candidates = [], selectedDeck = [], 
   const selectedCategoryActualCount = countPreferredCategoryCards(selectedDeck, preferenceContext);
   const globalActualCount = Math.max(0, selectedDeck.length - selectedCategoryActualCount);
   const globalDifficulty1ActualCount = countGlobalDifficultyTargetCards(selectedDeck, preferenceContext);
+  const globalFallbackFillCount = Math.max(0, globalActualCount - globalDifficulty1ActualCount);
   const selectedCategoryDifficultyDistribution = buildDistribution(
     selectedDeck.filter((question) => isQuestionInUserSelectedCategory(question, preferenceContext)),
     getDifficultyKey,
@@ -1612,6 +1613,8 @@ function buildCategoryPreferenceDiagnostics(candidates = [], selectedDeck = [], 
     globalDifficulty1CandidateYears: preferenceContext.globalDifficulty1CandidateYears || 0,
     globalDifficulty1TargetCount: preferenceContext.globalDifficulty1TargetCount || 0,
     globalDifficulty1ActualCount,
+    globalFallbackFillCount,
+    broaderGlobalFallbackUsed: Boolean(preferenceContext.enabled && globalFallbackFillCount > 0),
     globalFallbackUsed: Boolean(
       preferenceContext.globalDifficultyFallbackExpected
       || (preferenceContext.enabled && globalDifficulty1ActualCount < (preferenceContext.globalDifficulty1TargetCount || 0)),
