@@ -52,6 +52,10 @@ const ONLINE_ID_TO_MAIN_CATEGORY_ID: Record<string, number> = {
 
 const KNOWN_MAIN_CATEGORY_IDS = new Set([1, 2, 3, 4, 5, 6]);
 const QUESTION_FETCH_PER_CATEGORY_LIMIT = 250;
+const ONLINE_SHARED_DECK_MAX_QUESTIONS = 96;
+const ONLINE_SHARED_DECK_MIN_QUESTIONS = 32;
+const ONLINE_ALLOWED_DIFFICULTIES = new Set([1, 2]);
+const ONLINE_DECK_SELECTION_SOURCE = 'online_shared_selected_category_deck_v1';
 
 const LEGACY_ONLINE_TO_LEGACY_CATEGORY_MAP: Record<string, string[]> = {
   flashback: ['tarih', 'genel'],
@@ -77,6 +81,17 @@ const canSeeAdminDebug = (user: any) => {
 
 const normalizeEmail = (value: unknown) =>
   String(value ?? '').trim().toLowerCase();
+
+const normalizeDifficulty = (value: unknown): number | null => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return null;
+  return Math.trunc(numeric);
+};
+
+const isOnlineDifficultyEligible = (question: any) => {
+  const difficulty = normalizeDifficulty(question?.difficulty ?? question?.Difficulty);
+  return ONLINE_ALLOWED_DIFFICULTIES.has(difficulty as number);
+};
 
 const resolveMainCategoryIdsFromSelectedIds = (selectedIds: any, activeMainCategoryIds?: Set<number>): Set<number> | null => {
   if (!Array.isArray(selectedIds) || selectedIds.length === 0) return null;
@@ -122,14 +137,38 @@ function normalizeQuestionForRuntime(question: any): any {
   const year = Number.isFinite(legacyYear)
     ? legacyYear
     : getTimelineYearFromAnswer(question?.answer);
+  const mainCategoryId = normalizeMainCategoryId(question?.main_category_id ?? question?.category_id ?? question?.categoryid);
+  const difficulty = normalizeDifficulty(question?.difficulty ?? question?.Difficulty);
   return {
     ...question,
+    id: String(question?.id ?? question?.__id ?? ''),
     year,
+    main_category_id: mainCategoryId ?? question?.main_category_id,
+    difficulty,
     category: question?.category || 'genel',
     type: question?.type || 'metin',
     media_url: question?.media_url || '',
   };
 }
+
+const toOnlineDeckQuestion = (question: any) => ({
+  id: String(question?.id ?? ''),
+  year: Number(question?.year),
+  question: String(question?.question ?? ''),
+  type: question?.type || 'metin',
+  media_url: question?.media_url || '',
+  main_category_id: Number(question?.main_category_id),
+  difficulty: normalizeDifficulty(question?.difficulty),
+});
+
+const countBy = (rows: any[] = [], readKey: (row: any) => unknown) => {
+  const counts: Record<string, number> = {};
+  for (const row of rows || []) {
+    const key = String(readKey(row) ?? 'unknown');
+    counts[key] = (counts[key] || 0) + 1;
+  }
+  return counts;
+};
 
 const isActiveQuestion = (question: any) => {
   const state = String(question?.state ?? 'A').trim().toUpperCase();
@@ -138,7 +177,7 @@ const isActiveQuestion = (question: any) => {
 
 const isActiveCategory = (category: any) => {
   const status = String(category?.status ?? '').trim().toLowerCase();
-  return status === '' || status === 'a';
+  return status === '' || status === 'a' || status === 'active' || status === 'aktif';
 };
 
 const loadActiveMainCategoryIds = async (base44: any): Promise<Set<number>> => {
@@ -219,6 +258,7 @@ const filterQuestionsForLobbySettings = (questions: any[] = [], settings: any = 
     .map(normalizeQuestionForRuntime)
     .filter(isActiveQuestion)
     .filter(q => q?.type === 'metin')
+    .filter(isOnlineDifficultyEligible)
     .filter(q => Number.isFinite(Number(q?.year))
       && Number(q?.year) >= settings.year_start
       && Number(q?.year) <= settings.year_end)
@@ -267,6 +307,23 @@ const buildInitialState = ({ players, questions, settings, activeMainCategoryIds
   const filteredQuestions = filterQuestionsForLobbySettings(questions, settings, activeMainCategoryIds);
   const shuffled = shuffleQuestions(filteredQuestions);
   const neededCount = players.length * 2 + 1;
+  const requestedDeckCount = Math.min(
+    ONLINE_SHARED_DECK_MAX_QUESTIONS,
+    Math.max(
+      ONLINE_SHARED_DECK_MIN_QUESTIONS,
+      neededCount,
+      players.length * Math.max(6, Number(settings.win_card_count) || 10) + players.length + 8,
+    ),
+  );
+  const sharedDeck = shuffled
+    .slice(0, requestedDeckCount)
+    .map(toOnlineDeckQuestion)
+    .filter((question) =>
+      question.id &&
+      Number.isFinite(question.year) &&
+      Number.isFinite(question.main_category_id) &&
+      ONLINE_ALLOWED_DIFFICULTIES.has(question.difficulty as number)
+    );
 
   if (players.length < 2) {
     return {
@@ -274,7 +331,7 @@ const buildInitialState = ({ players, questions, settings, activeMainCategoryIds
       message: 'Oyun baslatmak icin en az 2 oyuncu gerekli',
       reason: 'not_enough_players',
       neededCount,
-      availableCount: shuffled.length,
+      availableCount: sharedDeck.length,
     };
   }
 
@@ -288,13 +345,13 @@ const buildInitialState = ({ players, questions, settings, activeMainCategoryIds
     };
   }
 
-  if (shuffled.length < neededCount) {
+  if (sharedDeck.length < neededCount) {
     return {
       ok: false,
-      message: `Yeterli soru yok. Gerekli: ${neededCount}, mevcut: ${shuffled.length}`,
+      message: `Yeterli soru yok. Gerekli: ${neededCount}, mevcut: ${sharedDeck.length}`,
       reason: 'not_enough_questions',
       neededCount,
-      availableCount: shuffled.length,
+      availableCount: sharedDeck.length,
     };
   }
 
@@ -303,7 +360,7 @@ const buildInitialState = ({ players, questions, settings, activeMainCategoryIds
   const playersWithCards = players.map((player) => {
     const cards = [];
     for (let index = 0; index < 2; index += 1) {
-      const question = shuffled[cursor];
+      const question = sharedDeck[cursor];
       cursor += 1;
       cards.push({
         id: question.id,
@@ -317,7 +374,7 @@ const buildInitialState = ({ players, questions, settings, activeMainCategoryIds
     return { ...player, ready: true, cards };
   });
 
-  const firstQuestion = shuffled[cursor];
+  const firstQuestion = sharedDeck[cursor];
   used.add(firstQuestion.id);
 
   return {
@@ -325,8 +382,24 @@ const buildInitialState = ({ players, questions, settings, activeMainCategoryIds
     playersWithCards,
     firstQuestion,
     usedQuestionIds: [...used],
+    onlineQuestionDeck: sharedDeck,
+    onlineDeckMeta: {
+      source: ONLINE_DECK_SELECTION_SOURCE,
+      selectedCategoryIds: settings.selected_category_ids,
+      queriedMainCategoryIds: getQueryMainCategoryIdsForSettings(settings, activeMainCategoryIds),
+      deckQuestionCount: sharedDeck.length,
+      neededOpeningQuestionCount: neededCount,
+      maxDeckQuestionCount: ONLINE_SHARED_DECK_MAX_QUESTIONS,
+      selectedCategoriesOnly: true,
+      soloPreferenceWeightingApplied: false,
+      guestSoloPathUsed: false,
+      difficultyRule: 'difficulty_1_or_2_only',
+      categoryCounts: countBy(sharedDeck, (question) => question.main_category_id),
+      difficultyCounts: countBy(sharedDeck, (question) => question.difficulty),
+      createdAt: new Date().toISOString(),
+    },
     neededCount,
-    availableCount: shuffled.length,
+    availableCount: sharedDeck.length,
   };
 };
 
@@ -424,6 +497,8 @@ Deno.serve(async (req) => {
       status: 'starting',
       current_question_id: initialState.firstQuestion.id,
       used_question_ids: initialState.usedQuestionIds,
+      online_question_deck: initialState.onlineQuestionDeck,
+      online_deck_meta: initialState.onlineDeckMeta,
       current_player_index: 0,
       players: initialState.playersWithCards,
       winner: null,
@@ -444,6 +519,8 @@ Deno.serve(async (req) => {
         state_revision_after: updateData.state_revision,
         current_question_id: updateData.current_question_id,
         used_question_count: updateData.used_question_ids.length,
+        online_question_deck_count: updateData.online_question_deck.length,
+        online_deck_meta: updateData.online_deck_meta,
         players: summarizePlayers(updateData.players),
         settings,
     }));

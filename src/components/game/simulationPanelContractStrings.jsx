@@ -512,6 +512,25 @@ export const startLobbyGameFnSource = `
   }
   // Codex131 — body.settings is intentionally NOT read here.
   const settings = normalizeSettings(lobby, {});
+  const ONLINE_DECK_SELECTION_SOURCE = 'online_shared_selected_category_deck_v1';
+  const ONLINE_ALLOWED_DIFFICULTIES = new Set([1, 2]);
+  const isOnlineDifficultyEligible = (question) => ONLINE_ALLOWED_DIFFICULTIES.has(Number(question.difficulty));
+  const filteredQuestions = filterQuestionsForLobbySettings(questions, settings).filter(isOnlineDifficultyEligible);
+  const online_question_deck = filteredQuestions.slice(0, 96);
+  const online_deck_meta = {
+    source: ONLINE_DECK_SELECTION_SOURCE,
+    selectedCategoriesOnly: true,
+    soloPreferenceWeightingApplied: false,
+    guestSoloPathUsed: false,
+    difficultyRule: 'difficulty_1_or_2_only',
+  };
+  await base44.asServiceRole.entities.Lobby.update(lobbyId, {
+    status: 'starting',
+    online_question_deck,
+    online_deck_meta,
+    current_question_id: online_question_deck[0]?.id,
+    state_revision: currentRevision + 1,
+  });
 `;
 
 export const sendFriendRequestEmailFnSourceFull = `

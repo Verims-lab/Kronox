@@ -163,7 +163,7 @@ Status: Active product contract.
 - Solo question selection reads current-user active valid Category preferences before attempt start when signed in. Game.jsx explicitly calls getValidActiveSelectedCategoryIds(preferences, activeCategories) in the Solo-only path. Authenticated users with no saved preferences or empty preferences use all active categories for Solo; missing authentication uses the explicit capped guest Solo projection and must not expose raw questions. Category preference save validation remains separate from gameplay start. Insufficient preferences also use all active categories for Solo. Saved preferences target 70% selected categories / 30% full eligible pool only when at least 3 active valid preferences exist; this is soft weighting with fallback. The selected-category 70% lane uses selected user categories with difficulty 1 and 2 eligible; the global 30% lane first uses all active categories with difficulty 1, then selected-category shortage or global difficulty-1 shortage fills from the broader active global pool before clean failure.
 - getQuestions derives active playable category IDs from active Category rows; stale hardcoded seed-category ID subsets must not exclude newer active categories from runtime projection.
 - getQuestions/category helpers accept active status aliases a, active, and aktif, and category_id normalization accepts any positive live DB id so categories added after the original seed set can enter the Solo candidate pool.
-- Online question selection, getQuestions, and analytics do not read preferences for question selection.
+- Online question selection, getQuestions, and analytics do not read preferences for question selection. Online start uses startLobbyGame to persist a bounded shared online_question_deck on Lobby from active lobby-selected categories only; difficulty 1/2 only; Game reads that persisted deck instead of the Solo getQuestions buffer.
 - two-account preference RLS proof remains manual/NOT_AUTOMATABLE.
 - old UserSubCategoryPreference rows are retained but not used by the current Settings preference UI.
 `;
@@ -281,7 +281,9 @@ persisted per user in UserCategoryPreference. Solo question selection targets
 70% selected user categories and 30% full eligible pool. The selected-category
 70% lane uses selected categories with difficulty 1 and 2 eligible; the global
 30% lane prefers all-active difficulty 1 and broadens safely if short. Online question
-selection is not affected. Any user with fewer than 3 active valid
+selection is not affected by preferences and uses startLobbyGame's persisted
+shared online_question_deck from active lobby-selected difficulty-1/2 categories.
+Any user with fewer than 3 active valid
 Category preferences sees an optional popup, including new and existing users.
 The source of truth is active valid UserCategoryPreference count, only active
 categories are selectable and count, passive or removed Category selections are
@@ -335,7 +337,7 @@ Status: Implementation tracking doc.
 - UserCategoryPreference stores app-open popup and Settings Category preferences per user; minimum 3 selections. There is no maximum selection.
 - Authenticated users with no saved preferences or empty preferences use all active categories for Solo; missing authentication uses the explicit capped guest Solo projection and must not expose raw questions. Insufficient preferences also use all active categories for Solo. Saved preferences target 70% selected user categories plus 30% full eligible pool only when at least 3 active valid preferences are available.
 - This is a soft weighting target with fallback, not hard filtering. The selected-category 70% lane uses selected user categories with difficulty 1 and 2 eligible; the global 30% lane first uses all active categories with difficulty 1, then selected-category shortage or global difficulty-1 shortage fills from the broader active global pool before clean failure.
-- Online question selection is not affected.
+- Online question selection is not affected by Solo preferences: startLobbyGame persists a bounded shared online_question_deck on Lobby, selected 100% from active lobby-selected categories with difficulty 1/2 only, and Game reads that persisted deck instead of the Solo getQuestions buffer.
 - Any authenticated user with fewer than 3 active valid Category preferences sees an optional personalization popup; this applies to new and existing users, can be deferred, and must not block gameplay.
 - The source of truth is active valid UserCategoryPreference count.
 - Only active categories are selectable and count.

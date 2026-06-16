@@ -10,13 +10,41 @@ const toNonNegativeInt = (value, fallback = 0) => {
   return number >= 0 ? number : fallback;
 };
 
+const normalizeQuestionId = (value) => {
+  if (value === undefined || value === null || value === '') return null;
+  return String(value);
+};
+
 const normalizeCard = (card) => {
   if (!card || typeof card !== 'object') return null;
+  const id = normalizeQuestionId(card.id);
+  if (!id) return null;
   return {
     ...card,
+    id,
     year: toFiniteNumber(card.year, card.year),
   };
 };
+
+export function normalizeOnlineQuestionDeck(deck = []) {
+  if (!Array.isArray(deck)) return [];
+  return deck
+    .map((question) => {
+      if (!question || typeof question !== 'object') return null;
+      const id = normalizeQuestionId(question.id);
+      const year = toFiniteNumber(question.year, NaN);
+      if (!id || !Number.isFinite(year)) return null;
+      return {
+        ...question,
+        id,
+        year,
+        question: typeof question.question === 'string' ? question.question : String(question.question ?? ''),
+        type: question.type || 'metin',
+        media_url: question.media_url || '',
+      };
+    })
+    .filter(Boolean);
+}
 
 export function normalizeLobbyPlayers(players = []) {
   if (!Array.isArray(players)) return [];
@@ -55,15 +83,20 @@ export function normalizeLobbyState(data, fallback = {}) {
     ? source.used_question_ids
     : (Array.isArray(base.used_question_ids) ? base.used_question_ids : []);
   const status = VALID_STATUSES.has(merged.status) ? merged.status : (base.status || 'waiting');
+  const onlineQuestionDeck = normalizeOnlineQuestionDeck(
+    Array.isArray(source.online_question_deck) ? source.online_question_deck : base.online_question_deck
+  );
 
   return {
     ...merged,
     players,
     current_player_index: currentPlayerIndex,
-    current_question_id: typeof merged.current_question_id === 'string'
-      ? merged.current_question_id
+    current_question_id: normalizeQuestionId(merged.current_question_id),
+    used_question_ids: [...new Set(usedQuestionIds.map(normalizeQuestionId).filter(Boolean))],
+    online_question_deck: onlineQuestionDeck,
+    online_deck_meta: merged.online_deck_meta && typeof merged.online_deck_meta === 'object'
+      ? merged.online_deck_meta
       : null,
-    used_question_ids: [...new Set(usedQuestionIds.filter(id => typeof id === 'string'))],
     status,
     winner: merged.winner ?? null,
     winner_email: merged.winner_email ?? null,

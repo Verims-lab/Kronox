@@ -21,6 +21,7 @@ import { pushAppDiag } from '@/lib/appDiagBus';
 import { useGameState } from '@/hooks/useGameState';
 import { useGameActions } from '@/hooks/useGameActions';
 import { useLobbySync } from '@/hooks/useLobbySync';
+import { normalizeOnlineQuestionDeck } from '@/lib/lobbyState';
 
 import GameDebugLog from '@/components/game/GameDebugLog';
 import FeedbackOverlay from '@/components/game/FeedbackOverlay';
@@ -180,6 +181,8 @@ export default function Game() {
   const routeTurnDuration = routeState.turnDuration ?? 60;
   const routeWinCardCount = routeState.winCardCount ?? 10;
   const routeMyPlayerName = routeState.myPlayerName ?? null;
+  const routeOnlineQuestionDeck = Array.isArray(routeState.onlineQuestionDeck) ? routeState.onlineQuestionDeck : [];
+  const routeOnlineDeckMeta = routeState.onlineDeckMeta || null;
   // Codex106 — Solo Level mode payload. Only present when SoloChallenge
   // launches a level attempt. Null/absent means legacy solo (no level
   // enforcement, current behavior). We keep all level logic gated behind
@@ -462,7 +465,7 @@ export default function Game() {
   const soloCategoryPreferenceReady = !isSoloLevelMode
     || soloCategoryPreferenceState.status === 'ready'
     || soloCategoryPreferenceState.status === 'unavailable';
-  const questionFetchEnabled = !isSoloLevelMode || (currentUserLoaded && soloCategoryPreferenceReady);
+  const questionFetchEnabled = !isOnline && (!isSoloLevelMode || (currentUserLoaded && soloCategoryPreferenceReady));
   const questionRequestContext = useMemo(() => ({
     authScope: currentUser?.email ? 'authenticated' : 'guest',
     requestKind: isSoloLevelMode ? 'solo_attempt' : 'gameplay_runtime',
@@ -545,12 +548,24 @@ export default function Game() {
     setWinner,
     setError,
     onLobbyResolved: setResolvedLobbyId,
+    initialOnlineQuestionDeck: routeOnlineQuestionDeck,
+    initialOnlineDeckMeta: routeOnlineDeckMeta,
   });
 
   // ─── Derived state ─────────────────────────────────────────────────
+  const onlineQuestionDeck = useMemo(
+    () => normalizeOnlineQuestionDeck(lobbyData?.online_question_deck || []),
+    [lobbyData?.online_question_deck],
+  );
+
   const currentQuestion = useMemo(() => {
     const currentQuestionId = lobbyData?.current_question_id;
     if (!currentQuestionId) return null;
+    if (isOnline) {
+      if (!Array.isArray(onlineQuestionDeck) || onlineQuestionDeck.length === 0) return null;
+      const wantedId = String(currentQuestionId);
+      return onlineQuestionDeck.find(q => String(q.id) === wantedId) || null;
+    }
     // Solo attempts consume a frozen deck. A background getQuestions refresh can
     // replace allQuestions with a different projection, so the active card must
     // be resolved from the attempt deck first or gameplay can fall back to the
@@ -560,7 +575,7 @@ export default function Game() {
     if (!Array.isArray(sourceQuestions) || sourceQuestions.length === 0) return null;
     const wantedId = String(currentQuestionId);
     return sourceQuestions.find(q => String(q.id) === wantedId) || null;
-  }, [lobbyData?.current_question_id, allQuestions, isSoloLevelMode, soloAttemptDeck]);
+  }, [lobbyData?.current_question_id, allQuestions, isOnline, isSoloLevelMode, onlineQuestionDeck, soloAttemptDeck]);
 
   const category = isOnline ? (lobbyData?.category || routeCategory) : routeCategory;
   const yearStart = isOnline ? (lobbyData?.year_start ?? routeYearStart) : routeYearStart;
@@ -664,6 +679,9 @@ export default function Game() {
   // never re-randomizes mid-attempt, and can never run out of unique
   // years. Other modes keep the existing year/category/type filter.
   const questionPool = useMemo(() => {
+    if (isOnline) {
+      return onlineQuestionDeck;
+    }
     if (isSoloLevelMode && Array.isArray(soloAttemptDeck)) {
       return soloAttemptDeck;
     }
@@ -672,7 +690,7 @@ export default function Game() {
       .filter(q => q.year >= yearStart && q.year <= yearEnd)
       .filter(q => category === 'karisik' || q.category === category)
       .filter(q => q.type !== 'muzik' || (q.media_url && q.media_url.length > 0));
-  }, [allQuestions, yearStart, yearEnd, category, isSoloLevelMode, soloAttemptDeck]);
+  }, [allQuestions, yearStart, yearEnd, category, isOnline, isSoloLevelMode, onlineQuestionDeck, soloAttemptDeck]);
 
   const pickOrderedSoloQuestion = useCallback((usedIds, questions, usedTimelineYears = new Set()) => {
     if (!isSoloLevelMode) return null;
@@ -1895,17 +1913,19 @@ export default function Game() {
   // Must be computed BEFORE every render guard so we can render it on any
   // gate. All inputs are non-hook derived values; safe to do here.
   const availableQuestionsCount = allQuestions.filter(q => q.year >= yearStart && q.year <= yearEnd).length;
+  const onlineDeckReady = isOnline && onlineQuestionDeck.length > 0;
+  const bootstrapQuestionsReady = isOnline ? onlineDeckReady : allQuestions.length > 0;
   const isGameReadyEarly = isOnline
-    ? players.length > 0 && lobbyData?.current_question_id && currentQuestion != null
+    ? players.length > 0 && onlineDeckReady && lobbyData?.current_question_id && currentQuestion != null
     : players.length > 0 && currentQuestion != null;
-  const missingOnlineQuestionEarly = isOnline && !isLoading && allQuestions.length > 0 && lobbyData?.current_question_id && !currentQuestion;
+  const missingOnlineQuestionEarly = isOnline && onlineDeckReady && lobbyData?.current_question_id && !currentQuestion;
   const renderStage = winner
     ? 'render_game_over'
     : error
       ? 'render_error'
-      : (isLoading && !isGameReadyEarly)
+      : (!isOnline && isLoading && !isGameReadyEarly)
         ? 'waiting_for_questions'
-        : (isError && !isGameReadyEarly)
+        : (!isOnline && isError && !isGameReadyEarly)
           ? 'questions_error'
           : missingOnlineQuestionEarly
             ? 'waiting_for_question'
@@ -1932,6 +1952,8 @@ export default function Game() {
       playersCount: lobbyData?.players?.length || 0,
       currentQuestionId: lobbyData?.current_question_id || null,
       currentQuestionLoaded: !!currentQuestion,
+      onlineDeckCount: onlineQuestionDeck.length,
+      onlineDeckSource: lobbyData?.online_deck_meta?.source || null,
       isLoading,
       isError,
       questionLoadErrorKind,
@@ -2180,7 +2202,7 @@ export default function Game() {
     </>
   );
 
-  if (isLoading && !isGameReadyEarly) return (
+  if (!isOnline && isLoading && !isGameReadyEarly) return (
     <>{diagnosticsOverlay}
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="text-center space-y-4 px-6">
@@ -2192,7 +2214,7 @@ export default function Game() {
     </div></>
   );
 
-  if (isError && !isGameReadyEarly) return (
+  if (!isOnline && isError && !isGameReadyEarly) return (
     <>{diagnosticsOverlay}
     <div className="min-h-screen flex items-center justify-center bg-background p-6">
       <div className="text-center space-y-4">
@@ -2235,7 +2257,7 @@ export default function Game() {
       <OnlineGameBootstrapFallback
       isOnline={isOnline}
       hasLobbyData={!!lobbyData}
-      hasQuestions={allQuestions.length > 0}
+      hasQuestions={bootstrapQuestionsReady}
       lobbyId={lobbyId}
       lobbyCode={routeLobbyCode}
       onRefetchLobby={async () => {
@@ -2249,7 +2271,7 @@ export default function Game() {
           debugLog('[Game] manual refetch failed:', e.message);
         }
       }}
-      onRetryQuestions={handleQuestionBootstrapRetry}
+      onRetryQuestions={isOnline ? null : handleQuestionBootstrapRetry}
       retryQuestionsWhenNotReady={isSoloLevelMode}
       onBackHome={() => navigate('/')}
       />

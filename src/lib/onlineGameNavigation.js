@@ -24,6 +24,8 @@ export function buildOnlineGameState(lobby, { currentUser, playerName } = {}) {
     yearEnd: lobby?.year_end ?? new Date().getFullYear(),
     turnDuration: lobby?.turn_duration ?? 60,
     winCardCount: lobby?.win_card_count ?? 10,
+    onlineQuestionDeck: Array.isArray(lobby?.online_question_deck) ? lobby.online_question_deck : [],
+    onlineDeckMeta: lobby?.online_deck_meta || null,
     myPlayerName: matchedPlayer?.name || playerName || null,
   };
 }

@@ -23,6 +23,11 @@ const readRevision = (value: unknown) => {
   return Number.isFinite(revision) && revision >= 0 ? Math.trunc(revision) : 0;
 };
 
+const normalizeQuestionId = (value: unknown): string | null => {
+  if (value === undefined || value === null || value === '') return null;
+  return String(value);
+};
+
 const normalizeCards = (player: any) => Array.isArray(player?.cards) ? player.cards : [];
 
 const cardsEqual = (a: any[] = [], b: any[] = []) => JSON.stringify(a || []) === JSON.stringify(b || []);
@@ -73,7 +78,10 @@ const validateGameStateUpdate = ({
   const lobbyPlayers = Array.isArray(lobby.players) ? lobby.players : [];
   const activeIndex = lobby.current_player_index ?? 0;
   const activePlayer = lobbyPlayers[activeIndex];
-  const previousUsedIds = Array.isArray(lobby.used_question_ids) ? lobby.used_question_ids : [];
+  const previousUsedIds = Array.isArray(lobby.used_question_ids)
+    ? lobby.used_question_ids.map(normalizeQuestionId).filter(Boolean) as string[]
+    : [];
+  const currentLobbyQuestionId = normalizeQuestionId(lobby.current_question_id);
   const winCardCount = Number(lobby.win_card_count || 10);
 
   if (typeof previousPlayerIndex === 'number' && previousPlayerIndex !== activeIndex) {
@@ -84,9 +92,9 @@ const validateGameStateUpdate = ({
     }, 409, 'stale_write');
   }
 
-  if (previousQuestionId && lobby.current_question_id && previousQuestionId !== lobby.current_question_id) {
+  if (previousQuestionId && currentLobbyQuestionId && previousQuestionId !== currentLobbyQuestionId) {
     return reject('Soru durumu guncel degil. Son durum yukleniyor.', {
-      expected: lobby.current_question_id,
+      expected: currentLobbyQuestionId,
       actual: previousQuestionId,
       lobbyId: lobby.id,
     }, 409, 'stale_write');
@@ -195,6 +203,27 @@ const validateGameStateUpdate = ({
     return reject('Kullanilmis soru IDleri metin olmali.', { incomingUsedIds }, 400);
   }
 
+  const onlineDeckIds = new Set(
+    (Array.isArray(lobby.online_question_deck) ? lobby.online_question_deck : [])
+      .map((question: any) => normalizeQuestionId(question?.id))
+      .filter(Boolean) as string[]
+  );
+  if (onlineDeckIds.size > 0) {
+    const usedOutsideDeck = incomingUsedIds.filter((id) => !onlineDeckIds.has(id));
+    if (usedOutsideDeck.length > 0) {
+      return reject('Online soru gecmisi paylasilan deste disindan olamaz.', {
+        lobbyId: lobby.id,
+        usedOutsideDeck,
+      }, 400);
+    }
+    if (nextQuestionId && !onlineDeckIds.has(nextQuestionId)) {
+      return reject('Siradaki soru paylasilan Online destesinde olmali.', {
+        lobbyId: lobby.id,
+        nextQuestionId,
+      }, 400);
+    }
+  }
+
   const previousUsedSet = new Set(previousUsedIds);
   const addedUsedIds = incomingUsedIds.filter((id) => !previousUsedSet.has(id));
   if (addedUsedIds.length > 2) {
@@ -221,15 +250,15 @@ const validateGameStateUpdate = ({
         actual: nextPlayerIndex,
       }, 400);
     }
-    if (!nextQuestionId || nextQuestionId === lobby.current_question_id) {
+    if (!nextQuestionId || nextQuestionId === currentLobbyQuestionId) {
       return reject('Soru atlama yeni soru gerektirir.', {
-        previousQuestionId: lobby.current_question_id || null,
+        previousQuestionId: currentLobbyQuestionId || null,
         nextQuestionId,
       }, 400);
     }
-    if (lobby.current_question_id && !incomingUsedIds.includes(lobby.current_question_id)) {
+    if (currentLobbyQuestionId && !incomingUsedIds.includes(currentLobbyQuestionId)) {
       return reject('Atlanan soru kullanilmis soru listesinde kalmali.', {
-        skippedQuestionId: lobby.current_question_id,
+        skippedQuestionId: currentLobbyQuestionId,
         incomingUsedIds,
       }, 400);
     }
@@ -322,10 +351,12 @@ Deno.serve(async (req) => {
     const activeIndex = lobby.current_player_index ?? 0;
 
     const incomingPlayers = Array.isArray(body.players) ? body.players : null;
-    const incomingUsedIds = Array.isArray(body.used_question_ids) ? body.used_question_ids : null;
+    const incomingUsedIds = Array.isArray(body.used_question_ids)
+      ? body.used_question_ids.map(normalizeQuestionId).filter(Boolean)
+      : null;
     const nextStatus = body.status || lobby.status || 'in_game';
     const nextPlayerIndex = body.current_player_index;
-    const nextQuestionId = body.current_question_id;
+    const nextQuestionId = normalizeQuestionId(body.current_question_id);
     const action = body.action || 'advance_turn';
 
     if (!incomingPlayers || !incomingUsedIds) {
@@ -342,7 +373,7 @@ Deno.serve(async (req) => {
       actorIndex,
       action,
       previousPlayerIndex: typeof body.previous_player_index === 'number' ? body.previous_player_index : undefined,
-      previousQuestionId: typeof body.previous_question_id === 'string' ? body.previous_question_id : null,
+      previousQuestionId: normalizeQuestionId(body.previous_question_id),
       incomingPlayers,
       incomingUsedIds,
       nextStatus,

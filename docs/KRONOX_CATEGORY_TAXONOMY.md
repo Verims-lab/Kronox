@@ -111,6 +111,11 @@ Rules:
 * Online category UI shows active categories only.
 * Solo question decks use active categories only.
 * Online start uses active selected categories only.
+* Online start is server-authoritative through `startLobbyGame`: it persists a
+  bounded shared `online_question_deck` on `Lobby`, chosen 100% from the
+  selected active categories and difficulty 1/2 questions only. Online must not
+  hydrate questions from Solo user preferences, Solo 70/30 weighting, or guest
+  Solo question mode.
 * Passive category data is preserved but not used in playable decks.
 * Missing status may be treated as active only for backward-compatible seed/backfill.
 * Seeded rows should carry explicit `status: "a"`.

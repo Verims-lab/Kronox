@@ -108,9 +108,23 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
       const startedHasGameState = Boolean(
         startedLobby?.id &&
         startedLobby?.current_question_id &&
+        Array.isArray(startedLobby?.online_question_deck) &&
+        startedLobby.online_question_deck.length > 0 &&
         Array.isArray(startedLobby?.players) &&
         startedLobby.players.length >= 2,
       );
+
+      if (!startedHasGameState) {
+        setStartError('Oyun destesi hazırlanamadı. Lütfen tekrar dene.');
+        debugWarn('[handleStart] started lobby missing shared Online deck:', {
+          lobbyId: startedLobby?.id || startLobby.id,
+          current_question_id: startedLobby?.current_question_id || null,
+          deckCount: startedLobby?.online_question_deck?.length || 0,
+          playerCount: startedLobby?.players?.length || 0,
+          status: startedLobby?.status || null,
+        });
+        return;
+      }
 
       if (startedLobby) {
         setLobby(startedLobby);
@@ -125,6 +139,7 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
         startedHasGameState,
         startedStatus: startedLobby?.status || null,
         startedCurrentQuestionId: startedLobby?.current_question_id || null,
+        startedOnlineDeckCount: startedLobby?.online_question_deck?.length || 0,
         playersWrittenToLobby: summarizePlayers(startedLobby?.players || []),
       });
 

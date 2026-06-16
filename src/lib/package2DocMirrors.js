@@ -144,6 +144,22 @@ export const startLobbyGameSource = `
   const hasSelectedCategoryIds = Array.isArray(selectedCategoryIds) && selectedCategoryIds.length > 0;
   if (!hasSelectedCategoryIds) return [];
   // No all-category last-resort fallback exists here.
+  const ONLINE_DECK_SELECTION_SOURCE = 'online_shared_selected_category_deck_v1';
+  const ONLINE_ALLOWED_DIFFICULTIES = new Set([1, 2]);
+  const sharedDeck = activePool
+    .filter((question) => ONLINE_ALLOWED_DIFFICULTIES.has(Number(question.difficulty)))
+    .slice(0, 96);
+  const updateData = {
+    status: 'starting',
+    online_question_deck: sharedDeck,
+    online_deck_meta: {
+      source: ONLINE_DECK_SELECTION_SOURCE,
+      selectedCategoriesOnly: true,
+      soloPreferenceWeightingApplied: false,
+      guestSoloPathUsed: false,
+      difficultyRule: 'difficulty_1_or_2_only',
+    },
+  };
   if (activePool.length < needed) {
     return json({
       error: 'Seçilen kategoriler için yeterli aktif soru bulunamadı.',

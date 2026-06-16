@@ -54,12 +54,16 @@ export function useLobbySync({
   setWinner,
   setError,
   onLobbyResolved,
+  initialOnlineQuestionDeck = [],
+  initialOnlineDeckMeta = null,
 }) {
   const unsubRef = useRef(null);
   const latestLobbyRef = useRef(null);
   // initialPlayers referansını sabitle — dependency döngüsünü önler
   const initialPlayersRef = useRef(initialPlayers);
   const currentQuestionIdRef = useRef(currentQuestionIdFromState);
+  const initialOnlineQuestionDeckRef = useRef(initialOnlineQuestionDeck);
+  const initialOnlineDeckMetaRef = useRef(initialOnlineDeckMeta);
   const lastSubscriptionAtRef = useRef(0);
 
   useEffect(() => {
@@ -71,6 +75,8 @@ export function useLobbySync({
 
     const initPlayers = initialPlayersRef.current;
     const initQuestionId = currentQuestionIdRef.current;
+    const initOnlineQuestionDeck = initialOnlineQuestionDeckRef.current;
+    const initOnlineDeckMeta = initialOnlineDeckMetaRef.current;
 
     const buildRouteFallback = () => {
       const usedIds = [
@@ -85,6 +91,8 @@ export function useLobbySync({
         current_player_index: 0,
         current_question_id: initQuestionId,
         used_question_ids: usedIds,
+        online_question_deck: Array.isArray(initOnlineQuestionDeck) ? initOnlineQuestionDeck : [],
+        online_deck_meta: initOnlineDeckMeta || null,
         status: 'starting',
       };
     };

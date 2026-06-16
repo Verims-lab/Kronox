@@ -79,8 +79,13 @@ const findLobbyByCodeSource = `
 
 const startLobbyGameSource = `
   // Public contract of functions/startLobbyGame.js — mirrored.
+  const ONLINE_DECK_SELECTION_SOURCE = 'online_shared_selected_category_deck_v1';
+  const ONLINE_ALLOWED_DIFFICULTIES = new Set([1, 2]);
+  const online_question_deck = buildSharedOnlineDeck({ selected_category_ids: lobby.selected_category_ids, difficultyRule: 'difficulty_1_or_2_only' });
   await base44.asServiceRole.entities.Lobby.update(lobby.id, {
     status: 'starting',
+    online_question_deck,
+    online_deck_meta: { source: ONLINE_DECK_SELECTION_SOURCE, selectedCategoriesOnly: true },
     state_revision: (lobby.state_revision || 0) + 1,
   });
   // startLobbyGame

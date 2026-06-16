@@ -477,7 +477,11 @@ export function useOfflineQuestions({ debugEnabled = false, enabled = true, requ
   useEffect(() => {
     if (!enabled) {
       fetchedRequestKeyRef.current = null;
-      setIsLoading(true);
+      setQuestions([]);
+      setActiveCategoryIds([]);
+      setIsFromCache(false);
+      setDebugSnapshot(null);
+      setIsLoading(false);
       setIsError(false);
       setErrorKind(null);
       return;

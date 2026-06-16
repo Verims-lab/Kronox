@@ -2069,7 +2069,13 @@ import React, { useEffect, useState } from 'react';
 //     through to the broader active global pool before clean failure.
 //   • Adds static proof that Direct Question.list fallback remains removed and
 //     callers never receive the raw question bank.
-const BUILD_MARKER = 'Codex375';
+//
+// Codex376 — Online shared deck start fix:
+//   • startLobbyGame persists a bounded selected-category difficulty-1/2
+//     online_question_deck before the lobby enters gameplay.
+//   • Game reads Online current/next questions from the shared Lobby deck
+//     instead of Solo getQuestions buffers, preventing partial starts.
+const BUILD_MARKER = 'Codex376';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

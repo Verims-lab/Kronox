@@ -132,6 +132,40 @@
       },
       "description": "List of already used question IDs"
     },
+    "online_question_deck": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "year": {
+            "type": "number"
+          },
+          "question": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "media_url": {
+            "type": "string"
+          },
+          "main_category_id": {
+            "type": "number"
+          },
+          "difficulty": {
+            "type": "number"
+          }
+        }
+      },
+      "description": "Authoritative bounded Online question deck created by startLobbyGame. All participants read this shared deck/order; Online must not hydrate from Solo getQuestions buffers."
+    },
+    "online_deck_meta": {
+      "type": "object",
+      "description": "Safe Online deck metadata: source marker, selected category ids, deck size, category counts, difficulty counts, and readiness flags. No full bank/admin diagnostics."
+    },
     "max_players": {
       "type": "number",
       "description": "Intended total number of players for this lobby (2, 3 or 4). Informational metadata."
