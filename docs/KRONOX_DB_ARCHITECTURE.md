@@ -459,9 +459,10 @@ Rules:
 * Category preference save validation remains separate from gameplay start and
   must not block question loading.
 * This is a soft weighting target with fallback, not hard filtering.
-* The selected-category 70% lane is not difficulty-1 restricted; the global
-  30% lane prefers difficulty 1 from the full eligible pool where possible,
-  with safe fallback if difficulty-1 global candidates are insufficient.
+* The selected-category 70% lane uses selected user categories with difficulty
+  1 and 2 eligible; the global 30% lane uses all active categories with
+  difficulty 1 only, with selected-category shortage filled from that
+  all-active fallback lane before clean failure.
 * `getQuestions` fetches question candidates per active category before
   server-side attempt-buffer selection; a single ordered/capped `Question.list`
   or fixed global gameplay pool must not drop later categories before balancing.

@@ -66,7 +66,7 @@ Soft deck preferences:
 - era/year spread.
 - recently-seen avoidance.
 - exposure cooldown / rotation prefers never-shown, less-shown, and not-recently-shown questions when local or projected stats are available.
-- user Category preferences target 70% selected user categories and 30% full eligible pool when at least 3 active valid UserCategoryPreference rows are available before the attempt starts. The selected-category lane is not difficulty-1 restricted. The global 30% lane prefers difficulty 1 questions from the full eligible pool where possible, with safe broader-pool fallback when difficulty-1 global candidates are insufficient.
+- user Category preferences target 70% selected user categories and 30% full eligible pool when at least 3 active valid UserCategoryPreference rows are available before the attempt starts. The selected-category lane uses selected categories with difficulty 1 and 2 eligible. The global 30% lane uses all active categories with difficulty 1 only, with selected-category shortage filled from that all-active fallback lane before clean failure.
 
 The P0 first-five guardrail avoids more than 2 same-subcategory or obvious
 sports-cluster cards when metadata and alternatives allow. P1/P2 balance
@@ -80,10 +80,10 @@ decadeDistribution, yearBandDistribution, diversityFairness,
 firstSevenCategoryDistribution, and fallbackTier for Health/admin/debug only.
 Normal 16-card decks target 11 selected-category cards and 5 global-pool
 cards; special 19-card decks target 13 selected-category cards and 6
-global-pool cards. The selected-category lane is not difficulty-1 restricted;
-global-pool cards prefer difficulty 1 where possible and then fall back to the
-broader eligible global pool if needed. Selected-category shortage fills from
-the full eligible pool instead of failing the deck.
+global-pool cards. The selected-category lane uses difficulty 1 and 2.
+Global-pool cards use difficulty 1 from all active categories. Selected-category
+shortage fills from that all-active difficulty-1 fallback lane before clean
+failure.
 
 The runtime may pass local recent-history exposure stats into the deck builder
 before the attempt starts. This is not a gameplay source of truth and must not
@@ -107,8 +107,9 @@ not a stale hardcoded seed-category subset; fallback IDs are only for Category
 read failure and must not permanently exclude newer active category IDs.
 Runtime active-category status aliases include a, active, and aktif, and live
 category_id normalization accepts any positive DB category id instead of
-clamping to original seed IDs. question-runtime-v9-first-start-readiness
-invalidates stale local projections after the server-attempt/readiness change.
+clamping to original seed IDs. question-runtime-v10-solo-architecture
+invalidates stale local projections and old difficulty-lane buffers after the
+server-attempt/readiness change.
 Gameplay fetches request the v2 per-category projection and
 server_attempt_candidate_buffer_v1 explicitly; getQuestions fetches
 numeric/string main_category_id and category_id variants per active Category

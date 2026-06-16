@@ -274,7 +274,7 @@ export function buildSoloQuestionRuntimeDebugPayload({
           ?? questionLoadDebugSnapshot?.projectionCappedBeforeCategoryCoverage
           ?? false,
       },
-      difficultyLane: 'global 30% lane prefers difficulty=1 through buildSoloAttemptDeck metadata when preferences are active',
+      difficultyLane: 'selected 70% lane allows difficulty=1/2; global 30% lane uses difficulty=1 when preferences are active',
       activeQuestionPredicate: 'backend projection + runtime adapter expose active playable rows',
       categoryPredicate: 'normalized main_category_id/category_id compared against activeCategoryIds',
       cache: {

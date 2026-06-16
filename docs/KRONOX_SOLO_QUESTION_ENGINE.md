@@ -83,10 +83,10 @@ These are soft balance preferences:
 - user Category preferences: when at least 3 active valid
   `UserCategoryPreference` rows are available before the attempt starts, Solo
   question selection targets 70% selected user categories and 30% full eligible
-  pool. The selected-category 70% lane keeps the current selection behavior.
-  The global 30% lane prefers `difficulty = 1` questions from the full
-  eligible pool where possible. This is a soft target with fallback, not a
-  hard filter.
+  pool. The selected-category 70% lane uses selected user categories with
+  `difficulty = 1` and `difficulty = 2` eligible. The global 30% lane uses all
+  active categories with `difficulty = 1` only. This is a soft target with
+  fallback, not a hard filter.
 - live category ids are normalized from `Category.category_id` as any positive
   id; runtime must not clamp Solo to the original seed IDs or to categories
   1-6.
@@ -102,10 +102,11 @@ P1/P2 balancing applies during deck selection and deck ordering where the pool a
   starvation where deck size and hard rules allow.
 - normal 16-card Solo decks target 11 selected-category cards and 5 global-pool
   cards; special 19-card decks target 13 selected-category cards and 6
-  global-pool cards. Global-pool cards prefer difficulty 1 when enough usable
-  candidates exist; if the difficulty-1 global pool is too small, the broader
-  full eligible pool fills safely. If selected categories cannot supply enough
-  valid questions, the full eligible pool fills the gap.
+  global-pool cards. Selected-category cards are eligible only at difficulty 1
+  or 2. Global-pool cards come from all active categories and use difficulty 1
+  only. If selected categories cannot supply enough valid questions, the
+  all-active difficulty-1 fallback lane fills the gap before the deck fails
+  cleanly.
 - first 7 active displayed cards avoid 4+ same-category cards where alternatives exist
 - first 5 active displayed cards avoid 3+ same-subcategory or obvious sports-cluster cards where metadata and alternatives allow
 - first 7 active displayed cards avoid 4+ same-subcategory/theme cards where alternatives exist
@@ -176,8 +177,8 @@ P3 adds question analytics without changing question selection:
   backward compatibility), fetch candidates per active category before
   pool-proportional server attempt buffers, and expose admin/debug diagnostics
   showing that source eligibility is not capped before category balancing. The
-  local question cache version is `question-runtime-v9-first-start-readiness`
-  so stale broad projections are invalidated.
+  local question cache version is `question-runtime-v10-solo-architecture`
+  so stale broad projections and old difficulty-lane buffers are invalidated.
 - Codex338 fix: gameplay fetches now request the v2 per-category projection
   explicitly instead of relying on an empty default payload. `/getQuestions`
   reads all active Category rows, fetches Question rows per active category

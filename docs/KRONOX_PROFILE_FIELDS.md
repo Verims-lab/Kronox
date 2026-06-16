@@ -36,4 +36,6 @@ placeholders after authentication.
   active categories for Solo; missing authentication uses the explicit capped
   guest Solo projection and must not expose raw questions.
 * Saved preferences are Solo-only soft 70/30 weighting input, not a hard filter.
+* The selected-category lane uses difficulty 1 and 2; the global fallback lane
+  uses all active categories with difficulty 1 only.
 * Online question selection is not affected by Category preferences.

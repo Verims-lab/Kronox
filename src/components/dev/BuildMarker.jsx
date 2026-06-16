@@ -2057,7 +2057,13 @@ import React, { useEffect, useState } from 'react';
 //     failure so question-pool refresh/import timing can recover.
 //   • Makes Solo bootstrap retry rebuild the unstarted attempt state without
 //     returning to Main Menu and bumps question cache to v9.
-const BUILD_MARKER = 'Codex373';
+//
+// Codex374 — Solo question architecture alignment:
+//   • Enforces the signed-in 70/30 preference lanes as selected categories
+//     difficulty 1/2 plus all-active global fallback difficulty 1.
+//   • Keeps guest Solo capped and difficulty-1-first, bumps question cache to
+//     v10, and extends diagnostics/docs/Health around bounded responses.
+const BUILD_MARKER = 'Codex374';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

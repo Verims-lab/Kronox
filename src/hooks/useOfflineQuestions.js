@@ -51,6 +51,9 @@ export const QUESTION_LOAD_CONTRACTS = {
   GUEST_GAMEPLAY_QUESTION_FETCH_IS_CAPPED: 'guest_gameplay_question_fetch_uses_capped_minimal_getQuestions_mode',
   AUTH_GAMEPLAY_RESPONSE_IS_ATTEMPT_BUFFER: 'authenticated_gameplay_getQuestions_returns_server_attempt_candidate_buffer',
   GAMEPLAY_QUESTION_FETCH_REQUESTS_CATEGORY_COVERAGE: 'gameplay_question_fetch_requests_per_category_projection_v2',
+  AUTH_PREFERENCE_SELECTED_LANE_DIFFICULTY: 'selected_category_lane_uses_difficulty_1_and_2',
+  AUTH_PREFERENCE_GLOBAL_LANE_DIFFICULTY: 'global_fallback_lane_uses_difficulty_1_only',
+  GUEST_PRIMARY_DIFFICULTY: 'guest_primary_deck_uses_difficulty_1_only',
 };
 
 function normalizeQuestionRequestContext(context = {}) {
@@ -251,9 +254,16 @@ function buildQuestionFetchDebugSnapshot({
     difficulty1Count: normalizedQuestions.filter((question) => Number(question?.difficulty) === 1).length,
     difficulty1CountsByCategory: countDifficultyOneQuestionsByCategory(normalizedQuestions),
     returnedCountsByCategory: responseData?.projectionDiagnostics?.returnedByCategory || countQuestionsByCategory(normalizedQuestions),
+    eligibleCountsByDifficulty: responseData?.projectionDiagnostics?.eligibleCountsByDifficulty
+      || responseData?.projectionDiagnostics?.eligibleQuestionCountByDifficulty
+      || null,
+    selectedDeckCountsByDifficulty: responseData?.projectionDiagnostics?.selectedDeckCountsByDifficulty
+      || responseData?.projectionDiagnostics?.returnedByDifficulty
+      || null,
     projectionCappedBeforeCategoryCoverage: responseData?.projectionCappedBeforeCategoryCoverage ?? responseData?.projectionDiagnostics?.projectionCappedBeforeCategoryCoverage ?? null,
     projectionDiagnostics: responseData?.projectionDiagnostics || null,
     guestLimitCap: responseData?.guestLimitCap ?? null,
+    guestDifficultyRule: responseData?.guestDifficultyRule ?? null,
     fallbackReason,
     diagnosticsFallbackError,
     generatedAt: new Date().toISOString(),

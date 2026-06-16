@@ -77,6 +77,9 @@ const USER_CATEGORY_PREFERENCE_MIN_VALID_COUNT = 3;
 const USER_CATEGORY_PREFERENCE_SELECTED_WEIGHT = 520;
 const USER_CATEGORY_PREFERENCE_GLOBAL_WEIGHT = 260;
 const USER_CATEGORY_GLOBAL_DIFFICULTY_TARGET = 1;
+const USER_CATEGORY_SELECTED_LANE_DIFFICULTIES = new Set([1, 2]);
+const USER_CATEGORY_SELECTED_LANE_DIFFICULTY_RULE = 'difficulty:1|2';
+const USER_CATEGORY_GLOBAL_LANE_DIFFICULTY_RULE = 'difficulty:1';
 const USER_CATEGORY_GLOBAL_DIFFICULTY_WEIGHT = 360;
 const USER_CATEGORY_GLOBAL_DIFFICULTY_FALLBACK_PENALTY = 260;
 const SPORTS_CLUSTER_TOKENS = [
@@ -353,7 +356,10 @@ function enrichPreferenceContextForGlobalDifficulty(preferenceContext = {}, cand
     globalDifficultyTarget: USER_CATEGORY_GLOBAL_DIFFICULTY_TARGET,
     globalDifficultyTargetLabel: `difficulty:${USER_CATEGORY_GLOBAL_DIFFICULTY_TARGET}`,
     globalDifficultyRuleAppliesOnlyToGlobal30: true,
-    selectedCategoryDifficultyUnrestricted: true,
+    selectedCategoryDifficultyRule: USER_CATEGORY_SELECTED_LANE_DIFFICULTY_RULE,
+    selectedCategoryDifficultyAllowedValues: Array.from(USER_CATEGORY_SELECTED_LANE_DIFFICULTIES),
+    selectedCategoryDifficultyUnrestricted: false,
+    globalLaneDifficultyRule: USER_CATEGORY_GLOBAL_LANE_DIFFICULTY_RULE,
     globalPoolHardFilteredToSelectedCategories: false,
   };
   const fullEligibleCandidates = candidates || [];
@@ -410,6 +416,9 @@ function countGlobalCandidateCards(items = [], preferenceContext) {
 
 function countGlobalDifficultyTargetCards(items = [], preferenceContext) {
   return (items || []).reduce((count, question) => {
+    if (preferenceContext?.enabled && isQuestionInUserSelectedCategory(question, preferenceContext)) {
+      return count;
+    }
     return count + (isGlobalDifficultyTargetQuestion(question) ? 1 : 0);
   }, 0);
 }
@@ -957,6 +966,21 @@ function normalizeDifficultyValue(question) {
 
 function isGlobalDifficultyTargetQuestion(question) {
   return normalizeDifficultyValue(question) === USER_CATEGORY_GLOBAL_DIFFICULTY_TARGET;
+}
+
+function isSelectedCategoryLaneDifficultyAllowed(question) {
+  const difficulty = normalizeDifficultyValue(question);
+  return difficulty !== null && USER_CATEGORY_SELECTED_LANE_DIFFICULTIES.has(difficulty);
+}
+
+function filterPreferenceLaneCandidatePool(candidates = [], preferenceContext = {}) {
+  if (!preferenceContext?.enabled) return candidates || [];
+  return (candidates || []).filter((question) => {
+    if (isQuestionInUserSelectedCategory(question, preferenceContext)) {
+      return isSelectedCategoryLaneDifficultyAllowed(question);
+    }
+    return isGlobalDifficultyTargetQuestion(question);
+  });
 }
 
 function getDifficultyKey(question) {
@@ -1596,8 +1620,11 @@ function buildCategoryPreferenceDiagnostics(candidates = [], selectedDeck = [], 
       || (preferenceContext.enabled && globalDifficulty1ActualCount < (preferenceContext.globalDifficulty1TargetCount || 0)
         ? 'hard_rules_or_spacing_prevented_exact_global_difficulty_1_target'
         : null),
-    selectedCategoryDifficultyUnrestricted: preferenceContext.selectedCategoryDifficultyUnrestricted !== false,
+    selectedCategoryDifficultyRule: preferenceContext.selectedCategoryDifficultyRule || USER_CATEGORY_SELECTED_LANE_DIFFICULTY_RULE,
+    selectedCategoryDifficultyAllowedValues: preferenceContext.selectedCategoryDifficultyAllowedValues || Array.from(USER_CATEGORY_SELECTED_LANE_DIFFICULTIES),
+    selectedCategoryDifficultyUnrestricted: false,
     globalDifficultyRuleAppliesOnlyToGlobal30: preferenceContext.globalDifficultyRuleAppliesOnlyToGlobal30 !== false,
+    globalLaneDifficultyRule: preferenceContext.globalLaneDifficultyRule || USER_CATEGORY_GLOBAL_LANE_DIFFICULTY_RULE,
     globalPoolHardFilteredToSelectedCategories: false,
     fullEligibleCandidateCategoryDistribution: preferenceContext.fullEligibleCandidateCategoryDistribution || buildDistribution(candidates, getCategoryKey),
     selectedLaneCandidateCategoryDistribution: preferenceContext.selectedLaneCandidateCategoryDistribution || {},
@@ -1707,13 +1734,15 @@ export function buildSoloAttemptDeck(args = {}) {
     };
   }
 
-  const candidates = filterCandidatePool(args.pool, allowedCats);
+  const baseCandidates = filterCandidatePool(args.pool, allowedCats);
+  const basePreferenceContext = buildUserCategoryPreferenceContext(args, deckSize);
+  const candidates = filterPreferenceLaneCandidatePool(baseCandidates, basePreferenceContext);
   const distinctYears = new Set(candidates.map((q) => Number(q.year))).size;
   const years = Array.from(new Set(candidates.map((q) => Number(q.year)).filter(Number.isFinite)));
   const earlyVisibleTargetCount = Math.min(deckSize, FIRST_FIVE_SPACING_TARGET_COUNT + seedCount);
   const firstFiveSpacingPossible = canPickSpacedYears(years, earlyVisibleTargetCount);
   const preferenceContext = enrichPreferenceContextForGlobalDifficulty(
-    buildUserCategoryPreferenceContext(args, deckSize),
+    basePreferenceContext,
     candidates,
   );
 
