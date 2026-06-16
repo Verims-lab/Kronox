@@ -2063,7 +2063,13 @@ import React, { useEffect, useState } from 'react';
 //     difficulty 1/2 plus all-active global fallback difficulty 1.
 //   • Keeps guest Solo capped and difficulty-1-first, bumps question cache to
 //     v10, and extends diagnostics/docs/Health around bounded responses.
-const BUILD_MARKER = 'Codex374';
+//
+// Codex375 — Solo deck fallback and raw-bank proof:
+//   • Selected-category shortage and global difficulty-1 shortage now fall
+//     through to the broader active global pool before clean failure.
+//   • Adds static proof that Direct Question.list fallback remains removed and
+//     callers never receive the raw question bank.
+const BUILD_MARKER = 'Codex375';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

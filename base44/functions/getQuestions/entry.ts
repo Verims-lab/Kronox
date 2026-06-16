@@ -771,6 +771,21 @@ function buildServerAttemptCandidateBuffer(
     merged.push(...laneSafeFill.slice(0, target - merged.length));
   }
 
+  if (merged.length < target) {
+    const mergedIds = new Set(merged.map(getQuestionIdentity).filter(Boolean));
+    const broaderGlobalFill = stableShuffleQuestions(
+      candidates
+        .filter((question) => !mergedIds.has(getQuestionIdentity(question)))
+        .filter((question) => (
+          !selectedSet.has(Number(question?.main_category_id))
+          || hasAllowedDifficulty(question, SELECTED_CATEGORY_LANE_DIFFICULTIES)
+        )),
+      seed,
+      'preference-buffer-broader-global-fill',
+    );
+    merged.push(...broaderGlobalFill.slice(0, target - merged.length));
+  }
+
   return {
     projected: stableShuffleQuestions(merged, seed, 'final-server-attempt-buffer').slice(0, target),
     categorySlots: buildFullDistribution(merged, getCategoryKey),
@@ -781,6 +796,8 @@ function buildServerAttemptCandidateBuffer(
     globalFallbackDifficultyRule: GLOBAL_FALLBACK_LANE_DIFFICULTY_RULE,
     selectedLaneCandidateCount: selectedCandidates.length,
     globalFallbackLaneCandidateCount: globalFallbackCandidates.length,
+    broaderGlobalFallbackUsed: merged.length > selectedProjection.length + globalProjection.length,
+    globalFallbackFillCount: Math.max(0, merged.length - selectedProjection.length - globalProjection.length),
   };
 }
 
@@ -1190,6 +1207,8 @@ Deno.serve(async (req) =>
         globalFallbackDifficultyRule: projection.globalFallbackDifficultyRule || GLOBAL_FALLBACK_LANE_DIFFICULTY_RULE,
         selectedLaneCandidateCount: projection.selectedLaneCandidateCount ?? null,
         globalFallbackLaneCandidateCount: projection.globalFallbackLaneCandidateCount ?? null,
+        broaderGlobalFallbackUsed: projection.broaderGlobalFallbackUsed === true,
+        globalFallbackFillCount: projection.globalFallbackFillCount ?? 0,
       } : null,
       limit,
       requestedLimit: Number.isFinite(Number(body?.limit)) ? Number(body.limit) : null,

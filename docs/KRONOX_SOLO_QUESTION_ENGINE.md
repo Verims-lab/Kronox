@@ -103,10 +103,10 @@ P1/P2 balancing applies during deck selection and deck ordering where the pool a
 - normal 16-card Solo decks target 11 selected-category cards and 5 global-pool
   cards; special 19-card decks target 13 selected-category cards and 6
   global-pool cards. Selected-category cards are eligible only at difficulty 1
-  or 2. Global-pool cards come from all active categories and use difficulty 1
-  only. If selected categories cannot supply enough valid questions, the
-  all-active difficulty-1 fallback lane fills the gap before the deck fails
-  cleanly.
+  or 2. Global-pool cards first use difficulty 1 from all active categories.
+  If selected categories or global difficulty-1 candidates cannot supply enough
+  valid cards/unique years, the broader active global pool fills safely before
+  the deck clean-fails.
 - first 7 active displayed cards avoid 4+ same-category cards where alternatives exist
 - first 5 active displayed cards avoid 3+ same-subcategory or obvious sports-cluster cards where metadata and alternatives allow
 - first 7 active displayed cards avoid 4+ same-subcategory/theme cards where alternatives exist
