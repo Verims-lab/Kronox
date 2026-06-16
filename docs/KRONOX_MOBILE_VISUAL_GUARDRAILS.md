@@ -20,6 +20,10 @@ checks that source code and static Health cannot honestly prove alone.
 * Reduced motion keeps functional feedback without relying on long animations.
 * Loading/error/retry states must be local to the affected section when possible
   so one slow data source does not blank an entire screen.
+* Online gameplay loading must wait on Lobby shared deck readiness
+  (`online_question_deck` + `current_question_id`), not on the Solo
+  `getQuestions`/cache path. A missing Online deck should show retry/back-to-lobby
+  recovery rather than an indefinite question-loading screen.
 
 ## PWA
 

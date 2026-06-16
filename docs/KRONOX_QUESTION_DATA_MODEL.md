@@ -349,7 +349,12 @@ Rules:
   uses all active categories with `difficulty = 1`; selected-category shortage
   or global difficulty-1 shortage then fills from the broader active global
   pool before clean failure.
-* Online question selection is not affected.
+* Online question selection is not affected by Solo preferences or guest
+  question loading. `startLobbyGame` is the Online question authority: it
+  builds a bounded shared `online_question_deck` from selected active lobby
+  categories only, persists it on `Lobby`, and exposes only deck-sized gameplay
+  rows to participants. Online currently accepts difficulty 1 and difficulty 2
+  questions only and must not hydrate from the Solo `getQuestions` buffer.
 * `SubCategory` still exists for future normalized question metadata, but
   Settings preference selection currently uses main `Category`, not
   `SubCategory`.

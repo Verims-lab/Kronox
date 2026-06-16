@@ -588,6 +588,12 @@ After deployment, verify:
   shortage fills from the broader active global pool before clean failure
 * Online question selection, `getQuestions`, and analytics do not read
   preferences for question selection
+* Online game start uses the authenticated `startLobbyGame` path, not Solo
+  `getQuestions`: the function persists a bounded shared `online_question_deck`
+  on the Lobby before clients enter gameplay. The deck is selected 100% from
+  the lobby's selected active categories, allows difficulty 1 and 2 only, and
+  participants must read the same persisted deck/current question. `updateLobbyGameState`
+  must reject next-question IDs outside that shared deck when the deck exists.
 * two-account preference RLS proof remains manual/NOT_AUTOMATABLE
 * old `UserSubCategoryPreference` rows are retained but not used by the
   current Settings preference UI

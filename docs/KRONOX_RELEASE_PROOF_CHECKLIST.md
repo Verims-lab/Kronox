@@ -269,7 +269,10 @@ Checklist:
   difficulty 1.
 * Selected-category shortage and global difficulty-1 shortage fall back to the
   broader active global pool before the deck clean-fails.
-* Online question selection is not affected.
+* Online question selection is not affected by Solo preferences or guest Solo.
+  Online start must prove that `startLobbyGame` persisted a bounded shared
+  `online_question_deck`, selected 100% from lobby-selected active categories,
+  with difficulty 1 and 2 only, before participants enter gameplay.
 * Settings no longer shows SubCategory preference options; old
   `UserSubCategoryPreference` rows are left untouched.
 * Two-account preference RLS proof remains manual/runtime proof.

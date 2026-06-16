@@ -131,6 +131,15 @@ an empty question pool or offline/no-cache error. Saved preferences only become
 a soft 70/30 weighting input when at least 3 active valid preferences exist.
 Online question selection is not affected.
 
+Online game start remains a separate path. `startLobbyGame` creates one
+authoritative bounded `online_question_deck` from the lobby's selected active
+categories only; all participants read that same persisted deck/order from the
+Lobby row. Online does not call the Solo `getQuestions`/guest path, does not
+use user Category preferences or 70/30 weighting, and accepts only difficulty
+1 and difficulty 2 questions for the current Online phase. The game route must
+not become playable until the Lobby has both `current_question_id` and a
+readable shared Online deck.
+
 `Game.jsx` must explicitly resolve `getValidActiveSelectedCategoryIds(preferences,
 activeCategories)` in the Solo-only path so stale, passive, or invalid
 preference rows are filtered against active Categories before the deck builder

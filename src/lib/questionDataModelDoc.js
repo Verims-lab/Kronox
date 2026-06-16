@@ -99,7 +99,11 @@ selected categories with difficulty 1 and 2 eligible; the global 30% lane first
 uses all active categories with difficulty 1, then selected-category shortage
 or global difficulty-1 shortage fills from the broader active global pool before
 clean failure.
-Online question selection is not affected.
+Online question selection is not affected by Solo preferences. Online start is
+authoritative through startLobbyGame, which persists a bounded shared
+online_question_deck on Lobby from active lobby-selected categories only;
+difficulty 1/2 only; Game reads that persisted deck instead of the Solo
+getQuestions buffer.
 SubCategory still exists for future normalized question metadata, but Settings
 preference selection currently uses main Category, not SubCategory. Existing
 UserSubCategoryPreference rows, if any, are left untouched until a later

@@ -75,11 +75,19 @@ export function canStartLobby(lobby, user, playerName) {
   return (isHost(lobby, user) || isGuestHost(lobby, user, playerName)) && lobby?.players?.length >= 2;
 }
 
-export function buildLobbyStartPayload({ firstQuestionId, playersWithCards, usedQuestionIds }) {
+export function buildLobbyStartPayload({
+  firstQuestionId,
+  playersWithCards,
+  usedQuestionIds,
+  onlineQuestionDeck = [],
+  onlineDeckMeta = null,
+}) {
   return {
     status: 'starting',
     current_question_id: firstQuestionId,
     used_question_ids: [...usedQuestionIds],
+    online_question_deck: Array.isArray(onlineQuestionDeck) ? onlineQuestionDeck : [],
+    online_deck_meta: onlineDeckMeta,
     current_player_index: 0,
     players: playersWithCards,
   };

@@ -69,6 +69,9 @@ import friendRequestEntityRawSource from '../../../base44/entities/FriendRequest
 // Codex086 — diagnostic-overlay gate sources, used to assert admin auto-enable is gone.
 import appDiagnosticsAuxSource from '../dev/AppDiagnostics.jsx?raw';
 import gameBootstrapDiagAuxSource from './GameBootstrapDiagnostics.jsx?raw';
+import startLobbyGameEntrySource from '../../../base44/functions/startLobbyGame/entry.ts?raw';
+import updateLobbyGameStateEntrySource from '../../../base44/functions/updateLobbyGameState/entry.ts?raw';
+import lobbyEntityRawSource from '../../../base44/entities/Lobby.jsonc?raw';
 
 // Contract-string mirrors of entities/functions live outside /src are kept
 // in components/game/simulationPanelContractStrings.js so this file stays
@@ -2509,16 +2512,28 @@ export const EXTRA_TESTS = [
     'Runtime random matchmaking flow is not detected in current Online code',
     'Current Online flow is friend-invite/create/join-code based. No bot fallback was found, but a true random opponent queue/loading/cancel flow still needs product implementation or a dedicated backend queue before runtime PASS can be claimed.',
     { actionType: ACTION_TYPES.CODE_FIX, verificationLabels: ['STATIC_CHECK_LIMITATION', 'MANUAL_REQUIRED'] }),
-  sourceLacks('online_question_mode_health', 'no_shared_question_pool_requirement_added',
-    'Online game does not require synchronized/shared question sets',
-    'Game + Online lobby/category sources',
-    `${gameSource}\n${onlineCategoriesSource}\n${lobbyRoomSource}`,
-    ['shared_question_pool', 'synchronized_question_order', 'same_question_set'],
-    { actionType: ACTION_TYPES.CODE_FIX }),
-  warningCase('online_question_mode_health', 'different_random_questions_are_allowed_product_decision',
-    'Online players may receive different/random questions by product decision',
-    'Health should not fail the product for lacking a shared question pool. Any future fairness work must avoid rewriting the existing question generation/random selection mechanics unless explicitly scoped.',
-    { actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW, verificationLabels: ['STATIC_CHECK_LIMITATION'] }),
+  sourceHas('online_question_mode_health', 'online_authoritative_shared_deck_required',
+    'Online uses a server-authored shared question deck, not per-player Solo buffers',
+    'Game + startLobbyGame + Lobby',
+    `${gameSource}\n${startLobbyGameEntrySource}\n${lobbyEntityRawSource}`,
+    ['online_question_deck', 'online_shared_selected_category_deck_v1', 'normalizeOnlineQuestionDeck', 'questionFetchEnabled = !isOnline', 'onlineQuestionDeck', 'selectedCategoriesOnly: true'],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  sourceHas('online_question_mode_health', 'online_selected_categories_difficulty_one_two_only',
+    'Online start uses selected lobby categories only and difficulty 1/2',
+    'startLobbyGame',
+    startLobbyGameEntrySource,
+    ['filterQuestionsForLobbySettings', 'selected_category_ids', 'isOnlineDifficultyEligible', 'ONLINE_ALLOWED_DIFFICULTIES', 'difficulty_1_or_2_only', 'soloPreferenceWeightingApplied: false', 'guestSoloPathUsed: false'],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  sourceHas('online_question_mode_health', 'online_active_state_requires_readable_shared_deck',
+    'Online route/game state waits for deck readiness and rejects non-deck next questions',
+    'WaitingRoom + Game + updateLobbyGameState',
+    `${waitingRoomPanelSource}\n${gameSource}\n${updateLobbyGameStateEntrySource}`,
+    ['startedLobby.online_question_deck.length > 0', 'onlineDeckReady', 'currentQuestion != null', 'Siradaki soru paylasilan Online destesinde olmali'],
+    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
+  warningCase('online_question_mode_health', 'runtime_four_player_online_start_manual_proof',
+    'Four-player Online start still needs live multi-account proof',
+    'Static checks verify shared deck persistence, selected-category filtering, and Online/Solo separation. A real four-player session must still prove realtime delivery and device timing.',
+    { actionType: ACTION_TYPES.TWO_ACCOUNT_TEST, verificationLabels: ['MANUAL_REQUIRED'] }),
 ];
 
 // ---------------------------------------------------------------------------

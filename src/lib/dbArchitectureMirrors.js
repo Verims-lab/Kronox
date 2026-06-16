@@ -55,7 +55,10 @@ Category preference status:
 - Users can later change selections under Profile / Settings / İlgi Alanlarım.
 - Authenticated users with no saved preferences or empty preferences use all active categories for Solo; missing authentication uses the explicit capped guest Solo projection and must not expose raw questions. Insufficient preferences also use all active categories for Solo. Game.jsx explicitly resolves getValidActiveSelectedCategoryIds(preferences, activeCategories) in the Solo-only path before passing selected IDs to the deck builder. Saved preferences target 70% selected user categories and 30% full eligible pool only when at least 3 active valid preferences are available. getQuestions derives active playable category IDs from active Category rows; stale hardcoded seed-category ID subsets must not exclude newer active categories from runtime projection. Active category status aliases accepted by runtime are missing/blank, a, active, and aktif; category_id normalization accepts any positive live DB id.
 - This is a soft weighting target with fallback, not hard filtering. The selected-category 70% lane uses selected user categories with difficulty 1 and 2 eligible; the global 30% lane first uses all active categories with difficulty 1, then selected-category shortage or global difficulty-1 shortage fills from the broader active global pool before clean failure.
-- Online question selection is not affected.
+- Online question selection is not affected by Solo preferences: startLobbyGame
+  persists a bounded shared online_question_deck on Lobby, selected 100% from
+  active lobby-selected categories with difficulty 1/2 only, and Game reads
+  that persisted deck instead of the Solo getQuestions buffer.
 - UserCategoryPreference should have a user_email + category_id unique key where Base44 supports it.
 - The save helper collapses duplicate active preference rows by passivating duplicateRows.
 - SubCategory entity still exists for future normalized metadata, but current Settings preferences use Category.
