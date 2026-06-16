@@ -2049,7 +2049,15 @@ import React, { useEffect, useState } from 'react';
 //   • Keeps guest Solo on the explicit small guest_gameplay_runtime deck and
 //     keeps diagnostics/full-bank paths AdminUser-gated.
 //   • Bumps question cache to v8 so stale broad projections are ignored.
-const BUILD_MARKER = 'Codex372';
+//
+// Codex373 — First Solo start question readiness:
+//   • Applies valid cached bounded question buffers immediately when Solo
+//     readiness flips on, while still revalidating through getQuestions.
+//   • Retries empty first getQuestions responses before showing no-question
+//     failure so question-pool refresh/import timing can recover.
+//   • Makes Solo bootstrap retry rebuild the unstarted attempt state without
+//     returning to Main Menu and bumps question cache to v9.
+const BUILD_MARKER = 'Codex373';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

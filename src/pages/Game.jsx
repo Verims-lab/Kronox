@@ -249,6 +249,9 @@ export default function Game() {
     resetGame,
   } = useGameState({ playerNames, initialPlayers, currentQuestionIdFromState, lobbyId, isOnlineMode: isOnlineFromState });
 
+  const lobbyDataRef = useRef(null);
+  useEffect(() => { lobbyDataRef.current = lobbyData; }, [lobbyData]);
+  const [soloBootstrapRetryNonce, setSoloBootstrapRetryNonce] = useState(0);
   const winTimerRef = useRef(null);
   const gameplayDragLockRef = useRef(false);
 
@@ -1041,9 +1044,19 @@ export default function Game() {
     if (!playerNames && !isOnline) navigate('/');
   }, [playerNames, isOnline, navigate]);
 
-  // Offline: oyun başlatma — lobby yoksa questions gelince init et
-  const lobbyDataRef = useRef(null);
-  useEffect(() => { lobbyDataRef.current = lobbyData; }, [lobbyData]);
+  const handleQuestionBootstrapRetry = useCallback(() => {
+    if (isSoloLevelMode) {
+      lobbyDataRef.current = null;
+      setLobbyData(null);
+      setSoloAttemptDeck(null);
+      setSoloAttemptId(null);
+      setGameStarted(false);
+      setWinner(null);
+      setError(null);
+      setSoloBootstrapRetryNonce((value) => value + 1);
+    }
+    refetch();
+  }, [isSoloLevelMode, refetch, setError, setGameStarted, setLobbyData, setWinner]);
 
   useEffect(() => {
     if (isOnline || !playerNames) return;
@@ -1198,7 +1211,7 @@ export default function Game() {
       current_question_id: firstQ.id,
       used_question_ids: [...used]
     });
-  }, [playerNames, questionPool, allQuestions, activeCategoryIds, yearStart, yearEnd, isLoading, isOnline, isSoloLevelMode, currentUserLoaded, currentUser?.email, soloCategoryPreferenceState.status, soloRuntimeCategoryPreferenceState, resetSoloJokers, setLobbyData, setError, soloLevel?.levelNumber, soloQuestionDebugEnabled]);
+  }, [playerNames, questionPool, allQuestions, activeCategoryIds, yearStart, yearEnd, isLoading, isOnline, isSoloLevelMode, currentUserLoaded, currentUser?.email, soloCategoryPreferenceState.status, soloRuntimeCategoryPreferenceState, resetSoloJokers, setLobbyData, setError, soloLevel?.levelNumber, soloQuestionDebugEnabled, soloBootstrapRetryNonce]);
 
   // Overall timer başlatma
   useEffect(() => {
@@ -2188,7 +2201,7 @@ export default function Game() {
           : <Loader2 className="w-10 h-10 text-muted-foreground mx-auto" />}
         <p className="font-inter text-foreground font-semibold">{questionLoadErrorCopy.title}</p>
         <p className="font-inter text-sm text-muted-foreground">{questionLoadErrorCopy.body}</p>
-        <Button onClick={() => refetch()} className="w-full">Tekrar Dene</Button>
+        <Button onClick={handleQuestionBootstrapRetry} className="w-full">Tekrar Dene</Button>
         <Button onClick={() => navigate('/')} variant="outline" className="w-full">Geri Dön</Button>
       </div>
     </div></>
@@ -2210,7 +2223,7 @@ export default function Game() {
       <div className="text-center space-y-4">
         <p className="font-inter text-foreground font-semibold">Oyun sorusu yüklenemedi.</p>
         <p className="font-inter text-sm text-muted-foreground">Lobi durumu geldi ama aktif soru bulunamadı. Tekrar dene.</p>
-        <Button onClick={() => refetch()} className="w-full">Soruları Yenile</Button>
+        <Button onClick={handleQuestionBootstrapRetry} className="w-full">Soruları Yenile</Button>
         <Button onClick={() => navigate('/lobby')} variant="outline" className="w-full">Lobiye Dön</Button>
       </div>
     </div>
@@ -2236,7 +2249,8 @@ export default function Game() {
           debugLog('[Game] manual refetch failed:', e.message);
         }
       }}
-      onRetryQuestions={refetch}
+      onRetryQuestions={handleQuestionBootstrapRetry}
+      retryQuestionsWhenNotReady={isSoloLevelMode}
       onBackHome={() => navigate('/')}
       />
     </>

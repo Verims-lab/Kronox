@@ -29,6 +29,7 @@ import {
 import { pushAppDiag } from '@/lib/appDiagBus';
 
 const QUESTION_FETCH_RETRY_MS = 850;
+const EMPTY_QUESTION_RESPONSE_RETRY_MS = 900;
 const NO_CACHE_NETWORK_ATTEMPTS = 3;
 const AUTH_GAMEPLAY_QUESTION_RESPONSE_LIMIT = 96;
 const GUEST_GAMEPLAY_QUESTION_RESPONSE_LIMIT = 48;
@@ -136,7 +137,9 @@ function buildGuestGameplayQuestionRequestPayload({ requestContext = {} } = {}) 
   };
 }
 
-async function resolveQuestionAccessMode() {
+async function resolveQuestionAccessMode(preferredMode = 'authenticated') {
+  if (preferredMode === 'guest') return 'guest';
+  if (preferredMode === 'authenticated') return 'authenticated';
   try {
     const user = await base44.auth.me();
     return user?.email ? 'authenticated' : 'guest';
@@ -294,6 +297,25 @@ export function useOfflineQuestions({ debugEnabled = false, enabled = true, requ
   const diagnosticsFetchRef = useRef(false);
   const requestIdRef = useRef(0);
 
+  const applyCachedQuestions = useCallback((cached, { fallbackReason = null } = {}) => {
+    if (!cached) return false;
+    setDebugSnapshot(buildQuestionFetchDebugSnapshot({
+      source: 'local cache',
+      cacheHit: true,
+      cacheInfo: getCacheInfo(),
+      questions: cached.questions,
+      activeCategoryIds: cached.activeCategoryIds,
+      fallbackReason,
+    }));
+    setQuestions(cached.questions);
+    setActiveCategoryIds(cached.activeCategoryIds);
+    setIsFromCache(true);
+    setIsError(false);
+    setErrorKind(null);
+    setIsLoading(false);
+    return true;
+  }, []);
+
   const fetchFromNetwork = useCallback(async ({ attempts = 1, forceLoading = false, includeDiagnostics = false } = {}) => {
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
@@ -314,7 +336,7 @@ export function useOfflineQuestions({ debugEnabled = false, enabled = true, requ
     let networkReturned = false;
     let responseData = null;
     let diagnosticsFallbackError = null;
-    const questionAccessMode = await resolveQuestionAccessMode();
+    const questionAccessMode = await resolveQuestionAccessMode(normalizedRequestContext.authScope);
     const includeBackendDiagnostics = questionAccessMode === 'authenticated' && includeDiagnostics;
     let requestPayload = questionAccessMode === 'guest'
       ? buildGuestGameplayQuestionRequestPayload({ requestContext: normalizedRequestContext })
@@ -356,6 +378,18 @@ export function useOfflineQuestions({ debugEnabled = false, enabled = true, requ
           ),
           questionFetchCompletedAt: new Date().toISOString(),
         });
+        if (fetched.length === 0 && attempt < attempts) {
+          pushAppDiag({
+            questionFetchStatus: 'empty_response_retrying',
+            questionFetchRequestId: requestId,
+            questionFetchAttempt: attempt,
+            questionFetchAccessMode: questionAccessMode,
+            questionFetchRetryDelayMs: EMPTY_QUESTION_RESPONSE_RETRY_MS,
+            questionFetchEmptyResponseAt: new Date().toISOString(),
+          });
+          await wait(EMPTY_QUESTION_RESPONSE_RETRY_MS);
+          continue;
+        }
         lastError = null;
         break;
       } catch (err) {
@@ -403,19 +437,12 @@ export function useOfflineQuestions({ debugEnabled = false, enabled = true, requ
 
     const cached = readUsableCachedQuestions(requestKey);
     if (cached) {
-      setDebugSnapshot(buildQuestionFetchDebugSnapshot({
-        source: 'local cache fallback',
-        cacheHit: true,
-        cacheInfo: getCacheInfo(),
-        questions: cached.questions,
-        activeCategoryIds: cached.activeCategoryIds,
+      applyCachedQuestions(cached, {
         fallbackReason: lastError?.message || (networkReturned ? 'network_returned_empty_questions' : null),
-        diagnosticsFallbackError,
-      }));
-      setQuestions(cached.questions);
-      setActiveCategoryIds(cached.activeCategoryIds);
-      setIsFromCache(true);
-      setIsError(false);
+      });
+      if (diagnosticsFallbackError) {
+        setDebugSnapshot((previous) => previous ? { ...previous, diagnosticsFallbackError } : previous);
+      }
     } else if (lastError || networkReturned) {
       const nextErrorKind = networkReturned && fetched.length === 0
         ? QUESTION_LOAD_ERROR_KIND.NO_ACTIVE_QUESTIONS
@@ -433,14 +460,26 @@ export function useOfflineQuestions({ debugEnabled = false, enabled = true, requ
       });
     }
     setIsLoading(false);
-  }, [requestKey, normalizedRequestContext]);
+  }, [applyCachedQuestions, requestKey, normalizedRequestContext]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) {
+      fetchedRequestKeyRef.current = null;
+      setIsLoading(true);
+      setIsError(false);
+      setErrorKind(null);
+      return;
+    }
     if (fetchedRequestKeyRef.current === requestKey) return;
     fetchedRequestKeyRef.current = requestKey;
 
     const cached = readUsableCachedQuestions(requestKey);
+
+    if (cached) {
+      applyCachedQuestions(cached, {
+        fallbackReason: cached.isStale ? 'stale_cache_revalidating' : null,
+      });
+    }
 
     if (cached && !cached.isStale) {
       // Cache taze (< 24 saat) → arka planda yenile, ama UI'ı bloklamaz
@@ -454,7 +493,7 @@ export function useOfflineQuestions({ debugEnabled = false, enabled = true, requ
         includeDiagnostics: debugEnabled,
       });
     }
-  }, [enabled, fetchFromNetwork, debugEnabled, requestKey]);
+  }, [applyCachedQuestions, enabled, fetchFromNetwork, debugEnabled, requestKey]);
 
   useEffect(() => {
     if (!enabled || !debugEnabled || diagnosticsFetchRef.current === requestKey) return;

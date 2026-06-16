@@ -176,7 +176,7 @@ P3 adds question analytics without changing question selection:
   backward compatibility), fetch candidates per active category before
   pool-proportional server attempt buffers, and expose admin/debug diagnostics
   showing that source eligibility is not capped before category balancing. The
-  local question cache version is `question-runtime-v8-server-attempt-buffer`
+  local question cache version is `question-runtime-v9-first-start-readiness`
   so stale broad projections are invalidated.
 - Codex338 fix: gameplay fetches now request the v2 per-category projection
   explicitly instead of relying on an empty default payload. `/getQuestions`
@@ -185,7 +185,7 @@ P3 adds question analytics without changing question selection:
   applies the bounded response cap after category coverage is known. If
   categories 7,8,9,11 lack active Category rows in live data, that remains a
   data/category seeding blocker rather than a deck-builder issue.
-- Codex340/Codex372 fix: `/getQuestions` now has an explicit Base44 function
+- Codex340/Codex372/Codex373 fix: `/getQuestions` now has an explicit Base44 function
   manifest, v2 gameplay requests return small server-side attempt buffers,
   safe `projectionDiagnostics` require admin/debug context, Category fallback
   is used only when the `Category` read fails, and `Question`

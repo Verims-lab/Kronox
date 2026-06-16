@@ -107,8 +107,8 @@ not a stale hardcoded seed-category subset; fallback IDs are only for Category
 read failure and must not permanently exclude newer active category IDs.
 Runtime active-category status aliases include a, active, and aktif, and live
 category_id normalization accepts any positive DB category id instead of
-clamping to original seed IDs. question-runtime-v8-server-attempt-buffer
-invalidates stale local projections after the server-attempt response change.
+clamping to original seed IDs. question-runtime-v9-first-start-readiness
+invalidates stale local projections after the server-attempt/readiness change.
 Gameplay fetches request the v2 per-category projection and
 server_attempt_candidate_buffer_v1 explicitly; getQuestions fetches
 numeric/string main_category_id and category_id variants per active Category

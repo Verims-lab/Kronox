@@ -154,7 +154,7 @@ Checklist:
   remains separate, and no eligible active category is hardcoded out of the
   `getQuestions` projection.
 * After category/query changes, confirm the question cache marker is
-  `question-runtime-v8-server-attempt-buffer`; stale broad projections from
+  `question-runtime-v9-first-start-readiness`; stale broad projections from
   the old cache must not feed Solo attempts.
 * Runtime `getQuestions` proof must show the explicit v2 category-coverage
   request payload, backend `getQuestionsRuntimeMarker`, small
