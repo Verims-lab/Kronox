@@ -15,10 +15,12 @@ import createDailyQuestDefinitionSource from '../../../base44/functions/createDa
 import dailyWheelFunctionSource from '../../../base44/functions/claimDailyWheelReward/entry.ts?raw';
 import marketFunctionSource from '../../../base44/functions/purchaseJokerWithDiamonds/entry.ts?raw';
 import gameSource from '../../pages/Game.jsx?raw';
-import releaseProofSource from '../../../docs/KRONOX_RELEASE_PROOF_CHECKLIST.md?raw';
-import dbArchitectureSource from '../../../docs/KRONOX_DB_ARCHITECTURE.md?raw';
-import securitySource from '../../../docs/KRONOX_SECURITY_DEPLOYMENT.md?raw';
-import soloEngineDocSource from '../../../docs/KRONOX_SOLO_QUESTION_ENGINE.md?raw';
+import {
+  RELEASE_PROOF_CHECKLIST_DOC as releaseProofSource,
+  SECURITY_DEPLOYMENT_DOC as securitySource,
+} from '@/lib/healthAlignmentDocMirrors';
+import { DB_ARCHITECTURE_IMPLEMENTATION_MIRROR as dbArchitectureSource } from '@/lib/dbArchitectureMirrors';
+import { SOLO_QUESTION_ENGINE_DOC as soloEngineDocSource } from '@/lib/soloQuestionEngineDoc';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL', NOT_AUTOMATABLE: 'NOT_AUTOMATABLE' };
 const ACTION_TYPES = { CODE_FIX: 'CODE_FIX', MANUAL_VERIFY: 'MANUAL_VERIFY', BACKEND_RUNTIME_PROBE: 'BACKEND_RUNTIME_PROBE' };

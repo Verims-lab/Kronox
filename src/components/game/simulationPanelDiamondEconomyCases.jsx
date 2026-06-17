@@ -16,7 +16,7 @@ import leaderboardPageSource from '../../pages/LeaderboardPage.jsx?raw';
 import soloChallengeSource from '../../pages/SoloChallenge.jsx?raw';
 import onlineChallengeSource from '../lobby/OnlineChallengeScreen.jsx?raw';
 import screenHeaderSource from '../layout/ScreenHeader.jsx?raw';
-import economyRulesSource from '../../../docs/KRONOX_ECONOMY_RULES.md?raw';
+import { ECONOMY_RULES_DOC as economyRulesSource } from '@/lib/economyRulesDoc';
 import {
   DIAMOND_DAILY_LOGIN_AMOUNT,
   DIAMOND_STARTER_BONUS_AMOUNT,

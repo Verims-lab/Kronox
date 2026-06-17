@@ -2125,7 +2125,12 @@ import React, { useEffect, useState } from 'react';
 //     keeping GuestProfile username/display_name as guest public identity.
 //   • Keeps Settings Hesabı Sil on the shared confirmed deletion request and
 //     restores the StandardTopBar user={user} contract without moving admin tools.
-const BUILD_MARKER = 'Codex382';
+//
+// Codex383 — Base44/Vite raw Markdown import fix:
+//   • Removes remaining live docs Markdown raw Health imports that crash Base44
+//     import analysis and uses existing in-src doc mirrors instead.
+//   • Leaves vite.config unchanged; no assetsInclude workaround is used.
+const BUILD_MARKER = 'Codex383';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
