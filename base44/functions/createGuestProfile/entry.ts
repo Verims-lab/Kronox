@@ -524,14 +524,17 @@ async function updateGuestOnboarding(base44: any, guestId: string, guestToken: s
     }
     update.username = username;
     update.username_normalized = normalizeUsernameKey(username);
-    if (!Object.prototype.hasOwnProperty.call(patch, 'display_name')) update.display_name = username;
+    update.display_name = username;
     profileSettingsTouched = true;
   }
 
-  if (Object.prototype.hasOwnProperty.call(patch, 'display_name')) {
+  if (
+    Object.prototype.hasOwnProperty.call(patch, 'display_name') &&
+    !Object.prototype.hasOwnProperty.call(patch, 'username')
+  ) {
     const displayName = normalizeDisplayNameInput(patch.display_name);
     if (!displayName) return json({ ok: false, error: 'invalid_display_name' }, 400);
-    update.display_name = displayName;
+    update.display_name = update.username || String(row?.username || displayName);
     profileSettingsTouched = true;
   }
 

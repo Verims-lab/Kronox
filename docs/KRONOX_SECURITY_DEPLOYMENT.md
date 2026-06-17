@@ -819,9 +819,10 @@ Base44-managed, and Apple must remain visible wherever Google login is offered.
 
 Onboarding Phase 2 may update only non-sensitive GuestProfile onboarding fields
 through the same `guest_id + raw guest token` proof. The server path must allow
-only the guided state machine, username/display-name setup, optional age/gender,
-and selected category IDs. It must not trust guest_id alone, request-body role
-claims, auth-provider IDs, or client-provided admin state.
+only the guided state machine, username setup, optional age/gender, and selected
+category IDs. `display_name` is mirrored from username for legacy projections.
+It must not trust guest_id alone, request-body role claims, auth-provider IDs,
+or client-provided admin state.
 
 Profile > Ayarlar post-onboarding edits use `updateProfileSettings`.
 Authenticated users are verified server-side with `base44.auth.me()` and guest

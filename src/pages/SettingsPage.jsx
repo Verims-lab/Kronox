@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import TopScores from '@/components/game/TopScores';
 import StandardTopBar from '@/components/layout/StandardTopBar';
-import { getLeaderboardDiamondValue, getSafeLeaderboardName } from '@/lib/leaderboard';
+import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 import { ACCOUNT_DELETION_ERROR_COPY, requestAccountDeletion } from '@/lib/accountDeletion';
 import CategoryPreferencesSection from '@/components/settings/CategoryPreferencesSection';
 import { useAuth } from '@/lib/AuthContext';
@@ -182,13 +182,11 @@ function ProfileSettingsSection({ user, guestProfile, onSaved }) {
   const fallbackUsername = useMemo(() => (
     isSafeUsername(source?.username)
       ? source.username
+      : isSafeUsername(source?.display_name)
+        ? source.display_name
       : makeKronoxUserFallback(user?.email || user?.id || guestProfile?.guest_id || '')
-  ), [guestProfile?.guest_id, source?.username, user?.email, user?.id]);
-  const fallbackName = useMemo(() => (
-    user ? getSafeLeaderboardName(user) : (guestProfile?.display_name || guestProfile?.username || fallbackUsername)
-  ), [fallbackUsername, guestProfile, user]);
+  ), [guestProfile?.guest_id, source?.display_name, source?.username, user?.email, user?.id]);
   const [username, setUsername] = useState('');
-  const [displayName, setDisplayName] = useState('');
   const [age, setAge] = useState('');
   const [gender, setGender] = useState('');
   const [saving, setSaving] = useState(false);
@@ -196,14 +194,17 @@ function ProfileSettingsSection({ user, guestProfile, onSaved }) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const nextUsername = source?.username || fallbackUsername || '';
+    const nextUsername = isSafeUsername(source?.username)
+      ? source.username
+      : isSafeUsername(source?.display_name)
+        ? source.display_name
+        : fallbackUsername;
     setUsername(nextUsername);
-    setDisplayName(source?.display_name || nextUsername || '');
     setAge(Number.isFinite(Number(source?.age)) ? String(source.age) : '');
     setGender(String(source?.gender || ''));
     setMessage('');
     setError('');
-  }, [fallbackName, source?.age, source?.display_name, source?.gender, source?.username]);
+  }, [fallbackUsername, source?.age, source?.display_name, source?.gender, source?.username]);
 
   const handleSave = async (event) => {
     event.preventDefault();
@@ -211,9 +212,9 @@ function ProfileSettingsSection({ user, guestProfile, onSaved }) {
     setMessage('');
     setError('');
     try {
+      const finalUsername = username.trim() || fallbackUsername;
       const result = await updateProfileSettings({
-        username,
-        display_name: displayName || username,
+        username: finalUsername,
         age: age === '' ? null : age,
         gender,
       });
@@ -252,18 +253,6 @@ function ProfileSettingsSection({ user, guestProfile, onSaved }) {
           autoComplete="nickname"
           className="h-11 w-full rounded-xl border border-border/50 bg-background/70 px-3 font-inter text-sm font-bold text-foreground outline-none transition-colors focus:border-primary"
           placeholder="KronoxUser4827"
-        />
-      </label>
-
-      <label className="block space-y-1.5">
-        <span className="font-inter text-xs font-black text-foreground">Görünen Ad</span>
-        <input
-          value={displayName}
-          onChange={(event) => setDisplayName(event.target.value)}
-          maxLength={32}
-          autoComplete="name"
-          className="h-11 w-full rounded-xl border border-border/50 bg-background/70 px-3 font-inter text-sm font-bold text-foreground outline-none transition-colors focus:border-primary"
-          placeholder="Liderlikte görünecek ad"
         />
       </label>
 

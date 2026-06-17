@@ -403,7 +403,7 @@ function JokerPocketSection({ authLoading, loading, user, balances, error, onRet
 }
 
 function IdentityCard({ loading, user, guestProfile, isAdmin, onLogin, onLogout }) {
-  const guestDisplayName = guestProfile?.display_name || guestProfile?.username || 'Misafir Oyuncu';
+  const guestDisplayName = guestProfile?.username || guestProfile?.display_name || 'Misafir Oyuncu';
   const registeredFullName = String(user?.full_name || '').trim();
   const registeredEmail = String(user?.email || '').trim();
   const displayName = user

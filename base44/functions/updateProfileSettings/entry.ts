@@ -229,8 +229,6 @@ function buildProfilePatch(body: any, fallbackSeed: string) {
   const requestedUsername = normalizeUsernameInput(rawUsername) || makeFallbackUsername(fallbackSeed);
   const username = normalizeUsernameInput(requestedUsername);
   if (!username) return { ok: false, code: 'invalid_username' };
-  const displayName = normalizeDisplayNameInput(body?.display_name, username);
-  if (!displayName) return { ok: false, code: 'invalid_display_name' };
   const age = normalizeAge(body?.age);
   if (age === undefined) return { ok: false, code: 'invalid_age' };
   const gender = normalizeGender(body?.gender);
@@ -240,7 +238,7 @@ function buildProfilePatch(body: any, fallbackSeed: string) {
     patch: {
       username,
       username_normalized: normalizeUsernameKey(username),
-      display_name: displayName,
+      display_name: username,
       age,
       gender,
       profile_settings_updated_at: nowIso(),

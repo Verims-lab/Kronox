@@ -2142,7 +2142,13 @@ import React, { useEffect, useState } from 'react';
 //     limit instead of the stale 20x tutorial override.
 //   • Adds a tutorial-only Zaman Dondur hand/tap demo that waits for one use
 //     without spending UserJokerInventory or writing a solo_use ledger row.
-const BUILD_MARKER = 'Codex385';
+//
+// Codex386 — Onboarding profile username-only fix:
+//   • Removes separate Görünen Ad UI from onboarding/profile settings.
+//   • Mirrors legacy display_name from username for existing projections.
+//   • Lets profile save advance to category setup without stale auth refresh
+//     blocking the Kategorilere Geç transition.
+const BUILD_MARKER = 'Codex386';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

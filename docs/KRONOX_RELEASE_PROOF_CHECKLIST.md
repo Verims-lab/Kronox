@@ -1036,20 +1036,21 @@ login:
 
 * app does not force login
 * `createGuestProfile` creates or verifies a `GuestProfile`
-* DB row contains `guest_id`, `username`/`display_name` in `KronoxUser####` or
-  `KronoxUser#####` format, `guest_token_hash`, and no raw guest token
+* DB row contains `guest_id`, `username` in `KronoxUser####` or
+  `KronoxUser#####` format, mirrored legacy `display_name`,
+  `guest_token_hash`, and no raw guest token
 * local device storage contains the raw guest token and guest id
 * repeating app open verifies the same GuestProfile rather than creating a new
   row
 * Apple, Google, and email login options remain visible/working where offered
 * leaderboard/profile public identity does not show email, Google ID, Apple ID,
   provider UID, or internal `owner_key`
-* Profile > Ayarlar lets guest and authenticated users edit username/display
-  name plus optional age/gender without forcing login for guests
+* Profile > Ayarlar lets guest and authenticated users edit username plus
+  optional age/gender without forcing login for guests
 * username collisions are rejected with a friendly error, including
   case-insensitive conflicts
-* updated username/display name appears in leaderboard projection/display while
-  age/gender remain absent from leaderboard/public payloads
+* updated username appears in leaderboard projection/display while age/gender
+  remain absent from leaderboard/public payloads
 * because optional age/gender collection is profile data, Google Play/App Store
   privacy disclosures should be reviewed before release
 
@@ -1061,8 +1062,8 @@ and actual stored-row shape remain manual runtime proof.
 Before release, manually verify guest-to-account linking:
 
 * guest can finish onboarding and remain in guest mode without forced login
-* guest leaderboard row displays `username` / `display_name`, not email,
-  provider id, or internal `owner_key`
+* guest leaderboard row displays username, with `display_name` only as a legacy
+  mirrored fallback, not email, provider id, or internal `owner_key`
 * Profile shows the "Misafir olarak oynuyorsun" secure-progress card
 * onboarding completion shows Apple / Google / Email secure-progress options
   plus "Şimdilik misafir devam et"
@@ -1075,5 +1076,5 @@ Before release, manually verify guest-to-account linking:
 * guest Solo progress, Kronox Puan, Diamonds, jokers, and category preferences
   are preserved according to user-benefit rules
 * duplicate/retry link request does not duplicate Diamonds or jokers
-* linked leaderboard row displays username/display_name and the old guest row is
-  passivated or no longer ranks above active users
+* linked leaderboard row displays username and the old guest row is passivated
+  or no longer ranks above active users

@@ -18,6 +18,7 @@ import {
   ensureGuestProfile,
   getGuestOnboardingStep,
   isGuestOnboardingComplete,
+  makeKronoxUserFallback,
   prepareGuestAccountLink,
   updateGuestProfileOnboarding,
 } from '@/lib/guestProfile';
@@ -60,6 +61,19 @@ function normalizeStep(profile) {
   return step;
 }
 
+const ONBOARDING_STEP_RANK = {
+  [GUEST_ONBOARDING_STATES.GUEST_CREATED]: 0,
+  [GUEST_ONBOARDING_STATES.TUTORIAL_IN_PROGRESS]: 1,
+  [GUEST_ONBOARDING_STATES.TUTORIAL_COMPLETED]: 2,
+  [GUEST_ONBOARDING_STATES.PROFILE_SETUP_PENDING]: 3,
+  [GUEST_ONBOARDING_STATES.CATEGORY_SETUP_PENDING]: 4,
+  [GUEST_ONBOARDING_STATES.ONBOARDING_COMPLETE]: 5,
+};
+
+function onboardingStepRank(profile) {
+  return ONBOARDING_STEP_RANK[normalizeStep(profile)] ?? 0;
+}
+
 export default function OnboardingPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -77,7 +91,13 @@ export default function OnboardingPage() {
   const guidedCompletionHandledRef = useRef(false);
 
   useEffect(() => {
-    setGuestProfile(authGuestProfile);
+    if (!authGuestProfile) return;
+    setGuestProfile((current) => {
+      if (!current) return authGuestProfile;
+      return onboardingStepRank(authGuestProfile) >= onboardingStepRank(current)
+        ? authGuestProfile
+        : current;
+    });
   }, [authGuestProfile]);
 
   useEffect(() => {
@@ -157,7 +177,7 @@ export default function OnboardingPage() {
       {step === GUEST_ONBOARDING_STATES.GUEST_CREATED && (
         <TutorialStartStep
           busy={busy}
-          username={guestProfile.display_name || guestProfile.username}
+          username={guestProfile.username || guestProfile.display_name}
           onStart={async () => {
             setBusy(true);
             setError('');
@@ -197,7 +217,7 @@ export default function OnboardingPage() {
                 onboarding_status: GUEST_ONBOARDING_STATES.CATEGORY_SETUP_PENDING,
               });
               setGuestProfile(updated);
-              await checkUserAuth?.();
+              void Promise.resolve(checkUserAuth?.()).catch(() => null);
             } catch (profileError) {
               setError(profileError?.code === 'username_taken'
                 ? 'Bu kullanıcı adı alınmış. Başka bir Kronox adı seç.'
@@ -319,13 +339,23 @@ function TutorialResumeStep({ busy, onResume }) {
 }
 
 function ProfileSetupStep({ profile, busy, onSubmit }) {
-  const [username, setUsername] = useState(profile.username || '');
-  const [displayName, setDisplayName] = useState(profile.display_name || profile.username || '');
+  const fallbackUsername = useMemo(
+    () => profile.username || profile.display_name || makeKronoxUserFallback(profile.guest_id || ''),
+    [profile.display_name, profile.guest_id, profile.username]
+  );
+  const [username, setUsername] = useState(fallbackUsername);
   const [age, setAge] = useState(profile.age || '');
   const [gender, setGender] = useState(profile.gender || '');
   const [validation, setValidation] = useState('');
 
-  const canSubmit = username.trim().length >= 3 && displayName.trim().length >= 2;
+  useEffect(() => {
+    setUsername(fallbackUsername);
+    setAge(profile.age || '');
+    setGender(profile.gender || '');
+  }, [fallbackUsername, profile.age, profile.gender]);
+
+  const normalizedUsername = username.trim() || fallbackUsername;
+  const canSubmit = normalizedUsername.trim().length >= 3;
 
   return (
     <form
@@ -334,12 +364,11 @@ function ProfileSetupStep({ profile, busy, onSubmit }) {
         event.preventDefault();
         setValidation('');
         if (!canSubmit) {
-          setValidation('Kullanıcı adı en az 3, görünen ad en az 2 karakter olmalı.');
+          setValidation('Kullanıcı adı en az 3 karakter olmalı.');
           return;
         }
         onSubmit({
-          username: username.trim(),
-          display_name: displayName.trim(),
+          username: normalizedUsername.trim(),
           age,
           gender,
         });
@@ -358,14 +387,6 @@ function ProfileSetupStep({ profile, busy, onSubmit }) {
             className="h-11 w-full rounded-xl border border-white/12 bg-white/[0.06] px-3 font-inter text-sm font-bold text-white outline-none focus:border-primary/70"
             maxLength={24}
             autoComplete="username"
-          />
-        </Field>
-        <Field label="Görünen Ad">
-          <input
-            value={displayName}
-            onChange={(event) => setDisplayName(event.target.value)}
-            className="h-11 w-full rounded-xl border border-white/12 bg-white/[0.06] px-3 font-inter text-sm font-bold text-white outline-none focus:border-primary/70"
-            maxLength={32}
           />
         </Field>
         <div className="grid grid-cols-2 gap-3">

@@ -354,11 +354,15 @@ export const EXTRA_TESTS = [
         'guestTokenProofRequired',
         'authUserVerifiedServerSide',
       ]);
-      if (missing.length) {
+      const forbidden = presentTokens(settingsPageSource, [
+        'Görünen Ad',
+        'setDisplayName',
+      ]);
+      if (missing.length || forbidden.length) {
         return fail('Profile settings edit form or server-authoritative update path is missing.', {
           verification: 'STATIC_CONTRACT',
           files: ['src/pages/SettingsPage.jsx', 'src/lib/profileSettings.js', 'base44/functions/updateProfileSettings/entry.ts'],
-          actual: { missing },
+          actual: { missing, forbidden },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
@@ -478,7 +482,6 @@ export const EXTRA_TESTS = [
         'ProfileSetupStep',
         'CategorySetupStep',
         'username',
-        'display_name',
         'age',
         'gender',
         'loadActiveCategories',
@@ -491,6 +494,18 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           file: 'src/pages/OnboardingPage.jsx',
           actual: { missing },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      const forbidden = presentTokens(onboardingPageSource, [
+        'Görünen Ad',
+        'setDisplayName',
+      ]);
+      if (forbidden.length) {
+        return fail('Onboarding profile setup still exposes the removed display-name field.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'src/pages/OnboardingPage.jsx',
+          actual: { forbidden },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
