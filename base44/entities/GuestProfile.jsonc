@@ -22,6 +22,10 @@
       "type": "string",
       "description": "Public unique username, default format KronoxUser#### or KronoxUser#####. Not derived from email, Google ID, Apple ID, or provider UID."
     },
+    "username_normalized": {
+      "type": "string",
+      "description": "Lowercase username key used by server profile settings/account linking checks to enforce case-insensitive uniqueness."
+    },
     "display_name": {
       "type": "string",
       "description": "Public display name. Initially mirrors username and may be changed later with uniqueness checks."
@@ -126,6 +130,11 @@
     "profile_setup_completed_at": {
       "type": "string",
       "format": "date-time"
+    },
+    "profile_settings_updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Latest token-proven guest profile settings update timestamp for account-link merge decisions."
     },
     "category_setup_completed_at": {
       "type": "string",

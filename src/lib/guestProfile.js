@@ -68,6 +68,7 @@ function normalizePublicProfile(profile) {
     last_seen_at: profile.last_seen_at || null,
     tutorial_completed_at: profile.tutorial_completed_at || null,
     profile_setup_completed_at: profile.profile_setup_completed_at || null,
+    profile_settings_updated_at: profile.profile_settings_updated_at || null,
     category_setup_completed_at: profile.category_setup_completed_at || null,
     onboarding_completed_at: profile.onboarding_completed_at || null,
   };

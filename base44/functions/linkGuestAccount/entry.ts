@@ -6,6 +6,7 @@ const USERNAME_PREFIX = 'KronoxUser';
 const JOKER_TYPES = ['mistake_shield', 'card_swap', 'time_freeze'] as const;
 const ACCOUNT_LINK_SOURCE = 'account_link_merge';
 const ACCOUNT_LINK_RELATED_TYPE = 'account_link';
+const GENDER_VALUES = new Set(['', 'female', 'male', 'non_binary', 'prefer_not_to_say', 'custom']);
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });
@@ -54,6 +55,34 @@ function normalizeNonNegativeInteger(value: unknown) {
 function normalizeJokerType(value: unknown) {
   const type = String(value || '').trim();
   return JOKER_TYPES.includes(type as typeof JOKER_TYPES[number]) ? type : '';
+}
+
+function normalizeUsernameKey(value: unknown) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function normalizeAge(value: unknown) {
+  if (value === '' || value === null || value === undefined) return null;
+  const age = Math.trunc(Number(value));
+  return Number.isFinite(age) && age >= 7 && age <= 120 ? age : null;
+}
+
+function normalizeGender(value: unknown) {
+  const text = String(value || '').trim();
+  return GENDER_VALUES.has(text) ? text : '';
+}
+
+function timestampValue(value: unknown) {
+  const time = Date.parse(String(value || ''));
+  return Number.isFinite(time) ? time : 0;
+}
+
+function preferGuestProfileValue(userValue: unknown, guestValue: unknown, userUpdatedAt: unknown, guestUpdatedAt: unknown) {
+  const hasGuest = guestValue !== null && typeof guestValue !== 'undefined' && String(guestValue).trim() !== '';
+  const hasUser = userValue !== null && typeof userValue !== 'undefined' && String(userValue).trim() !== '';
+  if (!hasGuest) return userValue ?? null;
+  if (!hasUser) return guestValue;
+  return timestampValue(guestUpdatedAt) >= timestampValue(userUpdatedAt) ? guestValue : userValue;
 }
 
 function bytesToBase64Url(bytes: Uint8Array) {
@@ -146,7 +175,11 @@ async function findCurrentUserRow(base44: any, authUser: any, email: string) {
 
 async function usernameTakenByAnotherUser(base44: any, username: string, email: string) {
   if (!username) return false;
-  const rows = await findRows(entityStore(base44, 'User'), { username }, '-updated_date', 5);
+  const usernameKey = normalizeUsernameKey(username);
+  const rows = [
+    ...(await findRows(entityStore(base44, 'User'), { username_normalized: usernameKey }, '-updated_date', 5)),
+    ...(await findRows(entityStore(base44, 'User'), { username }, '-updated_date', 5)),
+  ];
   return rows.some((row) => normalizeEmail(row?.email || row?.user_email) !== email);
 }
 
@@ -515,6 +548,10 @@ Deno.serve(async (req: Request) => {
     const additiveAllowed = !guestAlreadyLinkedToThisUser && !linkedGuestIds.includes(guestId);
     const displayName = cleanPublicName(guest?.display_name || guest?.username || user?.display_name || user?.username || user?.full_name, guestId);
     const username = await resolveUniqueUsername(base44, guest?.username || user?.username || displayName, email, guestId);
+    const userProfileUpdatedAt = user?.profile_settings_updated_at || user?.updated_at || user?.updated_date || user?.created_date;
+    const guestProfileUpdatedAt = guest?.profile_settings_updated_at || guest?.profile_setup_completed_at || guest?.updated_at || guest?.created_at || guest?.created_date;
+    const mergedAge = normalizeAge(preferGuestProfileValue(user?.age, guest?.age, userProfileUpdatedAt, guestProfileUpdatedAt));
+    const mergedGender = normalizeGender(preferGuestProfileValue(user?.gender, guest?.gender, userProfileUpdatedAt, guestProfileUpdatedAt));
     const mergedSoloProgress = mergeSoloProgress(user?.solo_progress, guest?.solo_progress);
     const mergedOnlineProgress = mergeOnlineProgress(user?.online_progress, guest?.online_progress);
     const soloScore = normalizeNonNegativeInteger(mergedSoloProgress.summary?.totalSoloScore);
@@ -566,7 +603,11 @@ Deno.serve(async (req: Request) => {
       kronox_puan_total: bestTotalScore,
       diamonds: diamondBalance,
       username,
+      username_normalized: normalizeUsernameKey(username),
       display_name: displayName,
+      age: mergedAge,
+      gender: mergedGender,
+      profile_settings_updated_at: nowIso(),
       linked_guest_ids: nextLinkedGuestIds,
       category_preferences_onboarding_completed: selectedCategoryIds.length > 0 ? true : user?.category_preferences_onboarding_completed,
       category_preferences_onboarding_completed_at: selectedCategoryIds.length > 0

@@ -12,6 +12,11 @@ Implementation constraints:
 * raw guest token stored only on client/local device
 * DB stores `guest_token_hash`
 * default username uses `KronoxUser####` / `KronoxUser#####`
+* Profile > Ayarlar edits username/display name and optional age/gender through
+  server-authoritative `updateProfileSettings`
+* username uniqueness uses `username_normalized` for case-insensitive checks
+* age/gender are private optional profile fields and never public leaderboard
+  fields
 * existing Google / Apple / Email login remains unchanged
 * full account-link merge is a later phase and must be one-time,
   server-authoritative, idempotent, and audited

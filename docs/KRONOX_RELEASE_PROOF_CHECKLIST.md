@@ -1039,6 +1039,14 @@ login:
 * Apple, Google, and email login options remain visible/working where offered
 * leaderboard/profile public identity does not show email, Google ID, Apple ID,
   provider UID, or internal `owner_key`
+* Profile > Ayarlar lets guest and authenticated users edit username/display
+  name plus optional age/gender without forcing login for guests
+* username collisions are rejected with a friendly error, including
+  case-insensitive conflicts
+* updated username/display name appears in leaderboard projection/display while
+  age/gender remain absent from leaderboard/public payloads
+* because optional age/gender collection is profile data, Google Play/App Store
+  privacy disclosures should be reviewed before release
 
 Static Health can verify source contracts, but deployed Base44 function behavior
 and actual stored-row shape remain manual runtime proof.
