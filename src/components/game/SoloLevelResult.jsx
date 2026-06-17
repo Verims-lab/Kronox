@@ -39,6 +39,9 @@ export default function SoloLevelResult({
   onRetry,
   onNextLevel,
   onBackToPath,
+  successPrimaryActionLabel,
+  successBackToPathLabel,
+  successPrimaryActionEnabled,
 }) {
   // Reference the unused props so lint stays clean without changing the
   // public contract that Game.jsx relies on.
@@ -73,6 +76,9 @@ export default function SoloLevelResult({
         onNextLevel={onNextLevel}
         onRetry={onRetry}
         onBackToPath={onBackToPath}
+        primaryActionLabel={successPrimaryActionLabel}
+        backToPathLabel={successBackToPathLabel}
+        primaryActionEnabled={successPrimaryActionEnabled ?? hasNextLevel}
       />
     );
   }

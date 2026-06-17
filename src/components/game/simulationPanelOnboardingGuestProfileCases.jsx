@@ -10,6 +10,11 @@ import guestProfileClientSource from '../../lib/guestProfile.js?raw';
 import authContextSource from '../../lib/AuthContext.jsx?raw';
 import leaderboardSource from '../../lib/leaderboard.js?raw';
 import authProviderButtonsSource from '../auth/AuthProviderButtons.jsx?raw';
+import appSource from '../../App.jsx?raw';
+import gameSource from '../../pages/Game.jsx?raw';
+import onboardingPageSource from '../../pages/OnboardingPage.jsx?raw';
+import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
+import playerSetupSource from '../../pages/PlayerSetup.jsx?raw';
 
 const STATUS = {
   PASS: 'PASS',
@@ -220,4 +225,117 @@ export const EXTRA_TESTS = [
       actual: 'runtime/deployment proof required',
     }),
     { critical: true, runtimeProofRequired: true, actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE }),
+
+  makeCase('guided_first_solo_replaces_old_standalone_tutorial',
+    'Onboarding Phase 2 uses guided first Solo level instead of old standalone tutorial',
+    () => {
+      const missing = missingTokens(`${appSource}\n${onboardingPageSource}\n${gameSource}`, [
+        'OnboardingPage',
+        'path="/onboarding"',
+        'onboardingTutorial',
+        'guided_first_solo_level',
+        'GuidedSoloTutorialOverlay',
+        'tutorial_in_progress',
+        'guidedTutorialCompleted',
+      ]);
+      const forbidden = presentTokens(`${appSource}\n${settingsPageSource}\n${playerSetupSource}`, [
+        "import KronoxTutorial",
+        'setShowTutorial',
+        'shouldShowTutorialForUser',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Old standalone tutorial can still be reached or guided first Solo wiring is missing.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['src/App.jsx', 'src/pages/OnboardingPage.jsx', 'src/pages/Game.jsx', 'src/pages/SettingsPage.jsx'],
+          actual: { missing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('First-time guest onboarding is routed through a guided Solo level, not the old tutorial modal.', {
+        verification: 'STATIC_CONTRACT',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('guest_onboarding_state_machine_persists_server_side',
+    'GuestProfile onboarding state machine persists tutorial/profile/category progress',
+    () => {
+      const missing = missingTokens(`${guestProfileEntitySource}\n${createGuestProfileSource}\n${guestProfileClientSource}\n${onboardingPageSource}`, [
+        'guest_created',
+        'tutorial_in_progress',
+        'tutorial_completed',
+        'profile_setup_pending',
+        'category_setup_pending',
+        'onboarding_complete',
+        'update_onboarding',
+        'guestTokenProofRequiredForUpdates: true',
+        'updateGuestProfileOnboarding',
+        'getGuestOnboardingStep',
+      ]);
+      if (missing.length) {
+        return fail('Guided onboarding state machine or token-proven update path is missing.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['base44/entities/GuestProfile.jsonc', 'base44/functions/createGuestProfile/entry.ts', 'src/lib/guestProfile.js', 'src/pages/OnboardingPage.jsx'],
+          actual: { missing },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('GuestProfile carries the Phase 2 onboarding state machine and server-authoritative update path.', {
+        verification: 'STATIC_CONTRACT',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('profile_then_category_setup_after_tutorial',
+    'Profile setup and category selection follow guided level completion',
+    () => {
+      const missing = missingTokens(onboardingPageSource, [
+        'ProfileSetupStep',
+        'CategorySetupStep',
+        'username',
+        'display_name',
+        'age',
+        'gender',
+        'loadActiveCategories',
+        'MIN_CATEGORY_SELECTION_COUNT',
+        'Şimdilik Misafir Devam Et',
+        "navigate('/', { replace: true })",
+      ]);
+      if (missing.length) {
+        return fail('Onboarding does not clearly sequence profile setup then category setup after the guided level.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'src/pages/OnboardingPage.jsx',
+          actual: { missing },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Guided level completion moves through profile setup, category setup, then Ana Sayfa.', {
+        verification: 'STATIC_CONTRACT',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('tutorial_joker_concept_does_not_spend_inventory',
+    'Guided tutorial teaches joker concept without spending real inventory',
+    () => {
+      const missing = missingTokens(gameSource, [
+        'isGuidedSoloTutorial',
+        'Jokerleri Tanı',
+        'gerçek çantandan harcanmaz',
+        'disabled: Boolean(isGuidedSoloTutorial',
+        'balances: isGuidedSoloTutorial ? emptyJokerBalances() : jokerBalances',
+      ]);
+      if (missing.length) {
+        return fail('Guided first level no longer proves tutorial-only joker behavior.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'src/pages/Game.jsx',
+          actual: { missing },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Guided first level explains jokers while disabling real UserJokerInventory spend.', {
+        verification: 'STATIC_CONTRACT',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
 ];

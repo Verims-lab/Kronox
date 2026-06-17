@@ -532,10 +532,10 @@ export const EXTRA_TESTS = [
         'Devam Et',
         'Daha Sonra',
         'onCompleted={handleCategoryPreferenceOnboardingComplete}',
-        'disabled={showProfileTutorial}',
+        '!isOnboardingPage',
       ]);
       if (missing.length) {
-        return fail('Category preference popup is not clearly wired or sequenced after auth/tutorial.', {
+        return fail('Category preference popup is not clearly wired or sequenced away from onboarding.', {
           verification: 'STATIC_CONTRACT',
           files: [
             'src/App.jsx',
@@ -545,7 +545,7 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      return pass('Category preference popup exists and is sequenced away from the tutorial modal.', {
+      return pass('Category preference popup exists and is sequenced away from the guided onboarding route.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

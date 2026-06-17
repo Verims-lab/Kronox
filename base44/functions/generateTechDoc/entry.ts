@@ -384,7 +384,7 @@ Deno.serve(async (req) => {
     bullet('components/game/GameOver.jsx -- Kazanma/kaybetme ekrani; solo ve online icin farkli baslik/aciklama.');
     bullet('components/game/TurnTimer.jsx + GameOverTimer.jsx -- Tur sayaci ve toplam sure olcucusu.');
     bullet('components/game/SimulationPanel.jsx -- Test ve regresyon paneli (admin); kategorize testler, Copy Report / Copy Failed Only.');
-    bullet('components/tutorial/KronoxTutorial.jsx -- Yeni oyuncu icin animasyonlu ogretici.');
+    bullet('pages/OnboardingPage.jsx + pages/Game.jsx -- Misafir icin rehberli ilk Solo seviyesi ve profil/kategori onboarding akisi.');
 
     // ══════════════════════════════════════════════════════════════════════════
     // 5. VERI MODELI

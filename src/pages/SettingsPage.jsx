@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trash2, AlertTriangle, Loader2, ChevronRight, HelpCircle, FileText } from 'lucide-react';
+import { Trash2, AlertTriangle, Loader2, ChevronRight, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import TopScores from '@/components/game/TopScores';
-import KronoxTutorial from '@/components/tutorial/KronoxTutorial';
-import { markTutorialCompleted } from '@/lib/tutorialProfile';
 import StandardTopBar from '@/components/layout/StandardTopBar';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 import { ACCOUNT_DELETION_ERROR_COPY, requestAccountDeletion } from '@/lib/accountDeletion';
@@ -19,7 +17,6 @@ export default function SettingsPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
-  const [showTutorial, setShowTutorial] = useState(false);
 
   const diamondValue = getLeaderboardDiamondValue(user);
 
@@ -79,12 +76,6 @@ export default function SettingsPage() {
 
         {/* Yardım */}
         <Section label="Yardım">
-          <ToolCard
-            icon={<HelpCircle className="w-4 h-4" />}
-            title="Nasıl Oynanır?"
-            desc="Tutorial'ı tekrar izle"
-            onClick={() => setShowTutorial(true)}
-          />
           <ToolCard
             icon={<FileText className="w-4 h-4" />}
             title="Gizlilik Politikası"
@@ -148,15 +139,6 @@ export default function SettingsPage() {
         </Section>
       </div>
 
-      <AnimatePresence>
-        {showTutorial && (
-          <KronoxTutorial
-            onComplete={() => markTutorialCompleted(user)}
-            onDone={() => setShowTutorial(false)}
-            onSkip={() => setShowTutorial(false)}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 }

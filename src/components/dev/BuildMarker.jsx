@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex378 — Onboarding Phase 2:
+//   • Replaces the old standalone tutorial entry with `/onboarding` guided
+//     first Solo level flow.
+//   • Adds GuestProfile onboarding state updates for tutorial, profile setup,
+//     category setup, and onboarding completion.
+//   • Tutorial joker guidance is explanation-only and does not spend real
+//     UserJokerInventory.
+
 // Codex300 — Keep Question.description for SEO + align schema/Health/docs:
 //   • Question.description is now an approved, optional SEO/content-metadata
 //     field on the Question entity and is NOT removed.
@@ -2084,7 +2092,7 @@ import React, { useEffect, useState } from 'react';
 //     guest_token_hash and verifies guest_id + token proof server-side.
 //   • Default public guest username uses KronoxUser#### / KronoxUser#####
 //     and is not derived from email, Google ID, Apple ID, or provider UID.
-const BUILD_MARKER = 'Codex377';
+const BUILD_MARKER = 'Codex378';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

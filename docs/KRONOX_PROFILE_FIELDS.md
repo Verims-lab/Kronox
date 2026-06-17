@@ -49,5 +49,18 @@ Firebase and not Base44 anonymous auth. Public guest identity uses `username` an
 Profile and leaderboard surfaces should prefer `display_name` / `username` for
 public identity. Email, Google ID, Apple ID, provider UID, and internal
 `owner_key` values are not public display names. Full account linking and merge
-rules are later-phase work; Phase 1 only creates/verifies the guest identity
-foundation.
+rules are later-phase work.
+
+## Guest Onboarding Phase 2
+
+`GuestProfile.onboarding_status` carries the guided onboarding state machine:
+`guest_created`, `tutorial_in_progress`, `tutorial_completed`,
+`profile_setup_pending`, `category_setup_pending`, and `onboarding_complete`.
+
+The profile setup step follows the guided first Solo level. It may update
+`username`, `display_name`, optional `age`, and optional `gender` through the
+token-proven `createGuestProfile` update path.
+
+The category setup step stores optional guest `selected_category_ids`. Fewer
+than 3 selections should show guidance, but guest play remains possible. Empty
+guest selections mean all active Solo categories are eligible.

@@ -6,6 +6,21 @@ const GUEST_ID_PREFIX = 'guest_';
 const MAX_USERNAME_ATTEMPTS = 18;
 const MAX_GUEST_ID_ATTEMPTS = 8;
 const TOKEN_BYTE_LENGTH = 32;
+const ONBOARDING_STATES = new Set([
+  'guest_created',
+  'tutorial_in_progress',
+  'tutorial_completed',
+  'profile_setup_pending',
+  'category_setup_pending',
+  'onboarding_complete',
+  // Phase 1 compatibility values.
+  'not_started',
+  'in_progress',
+  'completed',
+]);
+const TUTORIAL_STATES = new Set(['not_started', 'in_progress', 'completed', 'skipped']);
+const SETUP_STATES = new Set(['pending', 'completed']);
+const GENDER_VALUES = new Set(['', 'female', 'male', 'non_binary', 'prefer_not_to_say', 'custom']);
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });
@@ -87,11 +102,12 @@ async function findGuestProfile(base44: any, guestId: string) {
   return Array.isArray(rows) && rows.length ? rows[0] : null;
 }
 
-async function usernameExists(base44: any, username: string) {
+async function usernameExists(base44: any, username: string, excludeGuestId = '') {
   const entity = guestProfileEntity(base44);
   if (!entity?.filter || !username) return false;
   const rows = await entity.filter({ username }, '-created_at', 1).catch(() => []);
-  return Array.isArray(rows) && rows.length > 0;
+  if (!Array.isArray(rows) || rows.length === 0) return false;
+  return rows.some((row: any) => String(row?.guest_id || '') !== excludeGuestId);
 }
 
 async function generateUniqueUsername(base44: any) {
@@ -105,17 +121,29 @@ async function generateUniqueUsername(base44: any) {
 }
 
 function publicGuestProfile(row: any) {
+  const selectedCategoryIds = Array.isArray(row?.selected_category_ids)
+    ? row.selected_category_ids
+        .map((value: unknown) => Number(value))
+        .filter((value: number) => Number.isFinite(value) && value > 0)
+    : [];
   return {
     guest_id: String(row?.guest_id || ''),
     username: String(row?.username || ''),
     display_name: String(row?.display_name || row?.username || ''),
     status: String(row?.status || 'guest'),
-    onboarding_status: String(row?.onboarding_status || 'not_started'),
+    onboarding_status: String(row?.onboarding_status || 'guest_created'),
     tutorial_status: String(row?.tutorial_status || 'not_started'),
     profile_setup_status: String(row?.profile_setup_status || 'pending'),
     category_setup_status: String(row?.category_setup_status || 'pending'),
+    age: Number.isFinite(Number(row?.age)) ? Number(row.age) : null,
+    gender: String(row?.gender || ''),
+    selected_category_ids: selectedCategoryIds,
     created_at: row?.created_at || row?.created_date || null,
     last_seen_at: row?.last_seen_at || row?.updated_at || null,
+    tutorial_completed_at: row?.tutorial_completed_at || null,
+    profile_setup_completed_at: row?.profile_setup_completed_at || null,
+    category_setup_completed_at: row?.category_setup_completed_at || null,
+    onboarding_completed_at: row?.onboarding_completed_at || null,
   };
 }
 
@@ -126,14 +154,31 @@ async function updateLastSeen(base44: any, row: any) {
   return entity.update(id, { last_seen_at: nowIso() });
 }
 
-async function verifyExistingGuest(base44: any, guestId: string, guestToken: string) {
+async function getVerifiedGuestRow(base44: any, guestId: string, guestToken: string) {
   const row = await findGuestProfile(base44, guestId);
-  if (!row) return json({ ok: false, error: 'guest_profile_not_found' }, 404);
+  if (!row) {
+    return {
+      ok: false,
+      response: json({ ok: false, error: 'guest_profile_not_found' }, 404),
+      row: null,
+    };
+  }
   const expectedHash = String(row?.guest_token_hash || '');
   const providedHash = await hashGuestToken(guestId, guestToken);
   if (!expectedHash || expectedHash !== providedHash) {
-    return json({ ok: false, error: 'invalid_guest_token' }, 401);
+    return {
+      ok: false,
+      response: json({ ok: false, error: 'invalid_guest_token' }, 401),
+      row: null,
+    };
   }
+  return { ok: true, response: null, row };
+}
+
+async function verifyExistingGuest(base44: any, guestId: string, guestToken: string) {
+  const verified = await getVerifiedGuestRow(base44, guestId, guestToken);
+  if (!verified.ok) return verified.response;
+  const row = verified.row;
   const updated = await updateLastSeen(base44, row).catch(() => row);
   return json({
     ok: true,
@@ -147,6 +192,156 @@ async function verifyExistingGuest(base44: any, guestId: string, guestToken: str
       rawGuestTokenClientOnly: true,
       tokenHashStored: true,
       usernameFormat: `${USERNAME_PREFIX}####`,
+    },
+  });
+}
+
+function normalizeUsernameInput(value: unknown) {
+  const text = String(value || '').trim();
+  if (!text || text.length < 3 || text.length > 24) return '';
+  return /^[A-Za-z0-9_]+$/.test(text) ? text : '';
+}
+
+function normalizeDisplayNameInput(value: unknown) {
+  const text = String(value || '').trim().replace(/\s+/g, ' ');
+  if (!text || text.length < 2 || text.length > 32) return '';
+  // Public display names must not look like direct provider/email identity.
+  if (text.includes('@') || /^apple|google|firebase|auth0|base44/i.test(text)) return '';
+  return text;
+}
+
+function normalizeCategoryIds(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  const ids: number[] = [];
+  const seen = new Set<number>();
+  for (const item of value) {
+    const numeric = Number(item);
+    if (!Number.isFinite(numeric)) continue;
+    const id = Math.trunc(numeric);
+    if (id <= 0 || seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+    if (ids.length >= 100) break;
+  }
+  return ids;
+}
+
+function normalizeAge(value: unknown) {
+  if (value === '' || value === null || value === undefined) return undefined;
+  const age = Math.trunc(Number(value));
+  if (!Number.isFinite(age) || age < 7 || age > 120) return undefined;
+  return age;
+}
+
+function normalizeGender(value: unknown) {
+  const text = String(value || '').trim();
+  return GENDER_VALUES.has(text) ? text : undefined;
+}
+
+async function updateGuestOnboarding(base44: any, guestId: string, guestToken: string, patchInput: any) {
+  const verified = await getVerifiedGuestRow(base44, guestId, guestToken);
+  if (!verified.ok) return verified.response;
+  const row = verified.row;
+  const entity = guestProfileEntity(base44);
+  const id = rowId(row);
+  if (!entity?.update || !id) return json({ ok: false, error: 'guest_profile_update_unavailable' }, 500);
+
+  const patch = patchInput && typeof patchInput === 'object' ? patchInput : {};
+  const update: Record<string, unknown> = { last_seen_at: nowIso() };
+  const timestamp = nowIso();
+
+  const onboardingStatus = String(patch.onboarding_status || '').trim();
+  if (onboardingStatus) {
+    if (!ONBOARDING_STATES.has(onboardingStatus)) return json({ ok: false, error: 'invalid_onboarding_status' }, 400);
+    update.onboarding_status = onboardingStatus;
+    if (onboardingStatus === 'tutorial_completed') {
+      update.tutorial_status = 'completed';
+      update.tutorial_completed_at = timestamp;
+      update.profile_setup_status = String(row?.profile_setup_status || 'pending') === 'completed' ? 'completed' : 'pending';
+    }
+    if (onboardingStatus === 'profile_setup_pending') {
+      update.profile_setup_status = 'pending';
+    }
+    if (onboardingStatus === 'category_setup_pending') {
+      update.profile_setup_status = 'completed';
+      update.profile_setup_completed_at = row?.profile_setup_completed_at || timestamp;
+      update.category_setup_status = 'pending';
+    }
+    if (onboardingStatus === 'onboarding_complete' || onboardingStatus === 'completed') {
+      update.onboarding_status = 'onboarding_complete';
+      update.tutorial_status = 'completed';
+      update.profile_setup_status = 'completed';
+      update.category_setup_status = 'completed';
+      update.onboarding_completed_at = timestamp;
+      update.category_setup_completed_at = row?.category_setup_completed_at || timestamp;
+      update.profile_setup_completed_at = row?.profile_setup_completed_at || timestamp;
+      update.tutorial_completed_at = row?.tutorial_completed_at || timestamp;
+    }
+  }
+
+  const tutorialStatus = String(patch.tutorial_status || '').trim();
+  if (tutorialStatus) {
+    if (!TUTORIAL_STATES.has(tutorialStatus)) return json({ ok: false, error: 'invalid_tutorial_status' }, 400);
+    update.tutorial_status = tutorialStatus;
+    if (tutorialStatus === 'completed') update.tutorial_completed_at = timestamp;
+  }
+
+  const profileSetupStatus = String(patch.profile_setup_status || '').trim();
+  if (profileSetupStatus) {
+    if (!SETUP_STATES.has(profileSetupStatus)) return json({ ok: false, error: 'invalid_profile_setup_status' }, 400);
+    update.profile_setup_status = profileSetupStatus;
+    if (profileSetupStatus === 'completed') update.profile_setup_completed_at = timestamp;
+  }
+
+  const categorySetupStatus = String(patch.category_setup_status || '').trim();
+  if (categorySetupStatus) {
+    if (!SETUP_STATES.has(categorySetupStatus)) return json({ ok: false, error: 'invalid_category_setup_status' }, 400);
+    update.category_setup_status = categorySetupStatus;
+    if (categorySetupStatus === 'completed') update.category_setup_completed_at = timestamp;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(patch, 'username')) {
+    const username = normalizeUsernameInput(patch.username);
+    if (!username) return json({ ok: false, error: 'invalid_username' }, 400);
+    if (await usernameExists(base44, username, guestId)) {
+      return json({ ok: false, error: 'username_taken' }, 409);
+    }
+    update.username = username;
+    if (!Object.prototype.hasOwnProperty.call(patch, 'display_name')) update.display_name = username;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(patch, 'display_name')) {
+    const displayName = normalizeDisplayNameInput(patch.display_name);
+    if (!displayName) return json({ ok: false, error: 'invalid_display_name' }, 400);
+    update.display_name = displayName;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(patch, 'age')) {
+    const age = normalizeAge(patch.age);
+    if (age !== undefined) update.age = age;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(patch, 'gender')) {
+    const gender = normalizeGender(patch.gender);
+    if (gender === undefined) return json({ ok: false, error: 'invalid_gender' }, 400);
+    update.gender = gender;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(patch, 'selected_category_ids')) {
+    update.selected_category_ids = normalizeCategoryIds(patch.selected_category_ids);
+  }
+
+  const updated = await entity.update(id, update);
+  return json({
+    ok: true,
+    updated: true,
+    profile: publicGuestProfile(updated || { ...row, ...update }),
+    contract: {
+      guidedFirstSoloLevel: true,
+      guestTokenProofRequiredForUpdates: true,
+      rawGuestTokenServerStored: false,
+      profileSetupAfterTutorial: true,
+      categorySetupAfterProfile: true,
     },
   });
 }
@@ -175,7 +370,7 @@ async function createGuestProfile(base44: any) {
         username,
         display_name: username,
         status: 'guest',
-        onboarding_status: 'not_started',
+        onboarding_status: 'guest_created',
         tutorial_status: 'not_started',
         profile_setup_status: 'pending',
         category_setup_status: 'pending',
@@ -223,9 +418,13 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const guestId = normalizeGuestId(body?.guest_id);
     const guestToken = normalizeGuestToken(body?.guest_token);
+    const action = String(body?.action || '').trim();
 
     if (guestId || guestToken) {
       if (!guestId || !guestToken) return json({ ok: false, error: 'guest_credentials_required' }, 400);
+      if (action === 'update_onboarding') {
+        return updateGuestOnboarding(base44, guestId, guestToken, body?.patch || {});
+      }
       return verifyExistingGuest(base44, guestId, guestToken);
     }
 

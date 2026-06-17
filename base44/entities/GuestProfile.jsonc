@@ -37,8 +37,14 @@
     },
     "onboarding_status": {
       "type": "string",
-      "description": "High-level onboarding state for future guided onboarding.",
+      "description": "Guided onboarding state machine. Phase 2 replaces the old standalone tutorial with a guided first Solo level, then profile setup, category setup, and Ana Sayfa.",
       "enum": [
+        "guest_created",
+        "tutorial_in_progress",
+        "tutorial_completed",
+        "profile_setup_pending",
+        "category_setup_pending",
+        "onboarding_complete",
         "not_started",
         "in_progress",
         "completed"
@@ -69,6 +75,45 @@
         "pending",
         "completed"
       ]
+    },
+    "age": {
+      "type": "number",
+      "description": "Optional self-reported age from profile setup. Not required for gameplay."
+    },
+    "gender": {
+      "type": "string",
+      "description": "Optional self-reported gender/profile value. Not required for gameplay.",
+      "enum": [
+        "",
+        "female",
+        "male",
+        "non_binary",
+        "prefer_not_to_say",
+        "custom"
+      ]
+    },
+    "selected_category_ids": {
+      "type": "array",
+      "description": "Optional guest onboarding category selections. Empty or missing means all active categories remain eligible for Solo.",
+      "items": {
+        "type": "number"
+      }
+    },
+    "tutorial_completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "profile_setup_completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "category_setup_completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "onboarding_completed_at": {
+      "type": "string",
+      "format": "date-time"
     },
     "linked_user_email": {
       "type": "string",
