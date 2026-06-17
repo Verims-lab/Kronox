@@ -28,6 +28,7 @@ function normalizeEmail(value: unknown) {
   return String(value || '').trim().toLowerCase();
 }
 
+
 function normalizeText(value: unknown, maxLength = 220) {
   const text = String(value || '').trim();
   return text ? text.slice(0, maxLength) : '';
