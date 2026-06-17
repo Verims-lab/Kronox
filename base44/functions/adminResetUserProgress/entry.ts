@@ -61,7 +61,6 @@ async function getAdminAuthorization(base44: any, user: any) {
     }
   }
 
-
   const exactRows = (rows || [])
     .map((candidate: any) => {
       const emailField = readAdminAuthField(candidate, ADMIN_AUTH_FIELD_CANDIDATES.email);
