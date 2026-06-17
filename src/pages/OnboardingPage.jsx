@@ -37,7 +37,6 @@ const GENDER_OPTIONS = [
   { value: 'custom', label: 'Kendim tanımlarım' },
 ];
 
-const GUIDED_FIRST_SOLO_TUTORIAL_IN_PROGRESS = 'tutorial_in_progress';
 const GUIDED_TUTORIAL_TIME_LIMIT_SECONDS = SOLO_LEVEL_TIME_SECONDS;
 const PROFILE_SAVE_TIMEOUT_MS = 15000;
 
@@ -185,6 +184,10 @@ export default function OnboardingPage() {
   const step = normalizeStep(guestProfile);
   const isProfileStep = step === GUEST_ONBOARDING_STATES.TUTORIAL_COMPLETED ||
     step === GUEST_ONBOARDING_STATES.PROFILE_SETUP_PENDING;
+  const isTutorialResumeStep = step === GUEST_ONBOARDING_STATES.TUTORIAL_IN_PROGRESS &&
+    guestProfile?.onboarding_status === GUEST_ONBOARDING_STATES.TUTORIAL_IN_PROGRESS &&
+    guestProfile?.tutorial_status === 'in_progress' &&
+    guestProfile?.profile_setup_status !== 'completed';
 
   return (
     <OnboardingShell>
@@ -216,7 +219,7 @@ export default function OnboardingPage() {
           }}
         />
       )}
-      {(step === GUEST_ONBOARDING_STATES.TUTORIAL_IN_PROGRESS || step === GUIDED_FIRST_SOLO_TUTORIAL_IN_PROGRESS) && (
+      {isTutorialResumeStep && (
         <TutorialResumeStep
           busy={busy}
           onResume={() => navigate('/game', { state: tutorialGameConfig() })}
@@ -233,6 +236,7 @@ export default function OnboardingPage() {
             try {
               const updated = await withTimeout(updateGuestProfileOnboarding({
                 ...patch,
+                tutorial_status: 'completed',
                 profile_setup_status: 'completed',
                 onboarding_status: GUEST_ONBOARDING_STATES.CATEGORY_SETUP_PENDING,
               }), PROFILE_SAVE_TIMEOUT_MS, 'profile_save_timeout');
@@ -242,6 +246,7 @@ export default function OnboardingPage() {
                 display_name: updated?.display_name || updated?.username || patch.username || guestProfile?.display_name,
                 age: updated?.age ?? patch.age ?? guestProfile?.age,
                 gender: updated?.gender ?? patch.gender ?? guestProfile?.gender,
+                tutorial_status: 'completed',
                 profile_setup_status: 'completed',
                 category_setup_status: 'pending',
                 onboarding_status: GUEST_ONBOARDING_STATES.CATEGORY_SETUP_PENDING,
@@ -269,6 +274,8 @@ export default function OnboardingPage() {
             try {
               const updated = await updateGuestProfileOnboarding({
                 selected_category_ids: selectedIds,
+                tutorial_status: 'completed',
+                profile_setup_status: 'completed',
                 category_setup_status: 'completed',
                 onboarding_status: GUEST_ONBOARDING_STATES.ONBOARDING_COMPLETE,
               });
@@ -462,21 +469,37 @@ function CategorySetupStep({ profile, busy, onComplete }) {
   const [selectedIds, setSelectedIds] = useState(() => new Set(profile.selected_category_ids || []));
   const [loading, setLoading] = useState(true);
   const [validation, setValidation] = useState('');
+  const [categoryLoadError, setCategoryLoadError] = useState('');
+  const loadRequestRef = useRef(0);
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadCategories = () => {
+    const requestId = loadRequestRef.current + 1;
+    loadRequestRef.current = requestId;
     setLoading(true);
-    loadActiveCategories()
+    setCategoryLoadError('');
+    loadActiveCategories({ allowSafeFallback: true })
       .then((categories) => {
-        if (!cancelled) setActiveCategories(categories);
+        if (loadRequestRef.current !== requestId) return;
+        setActiveCategories(categories);
+        if (!categories.length) {
+          setCategoryLoadError('Kategori listesi yüklenemedi. Lütfen tekrar dene.');
+        }
       })
       .catch(() => {
-        if (!cancelled) setActiveCategories([]);
+        if (loadRequestRef.current !== requestId) return;
+        setActiveCategories([]);
+        setCategoryLoadError('Kategori listesi yüklenemedi. Lütfen tekrar dene.');
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (loadRequestRef.current === requestId) setLoading(false);
       });
-    return () => { cancelled = true; };
+  };
+
+  useEffect(() => {
+    loadCategories();
+    return () => {
+      loadRequestRef.current += 1;
+    };
   }, []);
 
   const activeSelectedIds = useMemo(() => sanitizeSelectedCategoryIds(selectedIds, activeCategories), [activeCategories, selectedIds]);
@@ -523,9 +546,18 @@ function CategorySetupStep({ profile, busy, onComplete }) {
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
       ) : activeCategories.length === 0 ? (
-        <p className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-5 text-center font-inter text-sm font-bold text-blue-100/78">
-          Kategoriler hazırlanıyor. Ana Sayfa’ya geçip daha sonra Profil içinden seçebilirsin.
-        </p>
+        <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-5 text-center">
+          <p className="font-inter text-sm font-bold text-blue-100/78">
+            {categoryLoadError || 'Kategoriler hazırlanıyor. Ana Sayfa’ya geçip daha sonra Profil içinden seçebilirsin.'}
+          </p>
+          <button
+            type="button"
+            onClick={loadCategories}
+            className="mt-3 min-h-10 rounded-xl border border-white/15 px-4 py-2 font-inter text-xs font-black text-blue-100"
+          >
+            Tekrar Dene
+          </button>
+        </div>
       ) : (
         <div className="max-h-[42vh] space-y-2 overflow-y-auto pr-1">
           {activeCategories.map((category) => {

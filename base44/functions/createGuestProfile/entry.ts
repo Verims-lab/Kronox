@@ -713,6 +713,8 @@ async function updateGuestOnboarding(base44: any, guestId: string, guestToken: s
       update.profile_setup_status = 'pending';
     }
     if (onboardingStatus === 'category_setup_pending') {
+      update.tutorial_status = 'completed';
+      update.tutorial_completed_at = row?.tutorial_completed_at || timestamp;
       update.profile_setup_status = 'completed';
       update.profile_setup_completed_at = row?.profile_setup_completed_at || timestamp;
       update.category_setup_status = 'pending';

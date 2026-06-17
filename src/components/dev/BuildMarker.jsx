@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex393 — Guest onboarding resume/category P0 fix:
+//   • GuestProfile onboarding step resolution is monotonic so stale
+//     tutorial_in_progress cannot send profile/category users back to
+//     Eğitime Devam.
+//   • Guest category onboarding loads safe Category metadata with a
+//     metadata-only fallback and no raw Question.list exposure.
+//   • Category load failures show a retryable UI instead of a silent empty list.
+
 // Codex392 — Onboarding profile category-transition unblock:
 //   • Separates profile-save and category-save loading state from the shared
 //     tutorial/onboarding busy flag so Kategorilere Geç cannot inherit a
@@ -2194,7 +2202,7 @@ import React, { useEffect, useState } from 'react';
 //   • Adds client install id hashing for bloat control without trusting it as
 //     identity proof or storing raw IP/header/token data.
 //   • Blocks public request bodies from setting trusted score/economy/link fields.
-const BUILD_MARKER = 'Codex392';
+const BUILD_MARKER = 'Codex393';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

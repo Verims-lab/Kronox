@@ -5,11 +5,20 @@ export const CATEGORY_STATUS_PASSIVE = 'P';
 export const CATEGORY_ROW_ACTIVE_STATUSES = Object.freeze(['A', 'ACTIVE', 'AKTIF']);
 export const MIN_CATEGORY_SELECTION_COUNT = 3;
 export const NO_MAX_CATEGORY_SELECTION_LIMIT = true;
+export const SAFE_GUEST_CATEGORY_METADATA = Object.freeze([
+  { category_id: 1, name: 'Chronicle', status: CATEGORY_STATUS_ACTIVE, description: 'Tarihin önemli olayları ve dönemleri.' },
+  { category_id: 2, name: 'Flashback', status: CATEGORY_STATUS_ACTIVE, description: 'Geçmişten hafızada kalan kültürel anlar.' },
+  { category_id: 3, name: 'Kült', status: CATEGORY_STATUS_ACTIVE, description: 'Kültleşmiş filmler, diziler, müzikler ve popüler kültür.' },
+  { category_id: 4, name: 'Viral', status: CATEGORY_STATUS_ACTIVE, description: 'İnternette yayılan viral olaylar ve dijital kültür.' },
+  { category_id: 5, name: 'Arena', status: CATEGORY_STATUS_ACTIVE, description: 'Spor, rekabet ve unutulmaz karşılaşmalar.' },
+  { category_id: 6, name: 'Level Up', status: CATEGORY_STATUS_ACTIVE, description: 'Oyun dünyası, teknoloji ve gelişim anları.' },
+]);
 export const GAMEPLAY_CATEGORY_PREFERENCE_FALLBACK = Object.freeze({
   authenticatedNoPreferenceUsesAllActiveCategories: true,
   noSavedPreferencesUsesAllActiveCategories: true,
   emptyPreferencesAreNotOfflineNoCache: true,
   saveValidationSeparateFromGameplayStart: true,
+  guestOnboardingSafeMetadataFallback: true,
 });
 
 export function normalizePreferenceEmail(value) {
@@ -43,12 +52,23 @@ function byCategorySort(a, b) {
   return String(a?.name || '').localeCompare(String(b?.name || ''), 'tr');
 }
 
-export async function loadActiveCategories({ limit = 1000 } = {}) {
-  const rows = await base44.entities.Category.list('category_id', limit);
+function normalizeActiveCategoryRows(rows) {
   return (Array.isArray(rows) ? rows : [])
     .filter(isActiveCategory)
     .filter((row) => normalizeCategoryId(row?.category_id) !== null && String(row?.name || '').trim())
     .sort(byCategorySort);
+}
+
+export async function loadActiveCategories({ limit = 1000, allowSafeFallback = false } = {}) {
+  try {
+    const rows = await base44.entities.Category.list('category_id', limit);
+    const activeRows = normalizeActiveCategoryRows(rows);
+    if (activeRows.length > 0) return activeRows;
+    return allowSafeFallback ? normalizeActiveCategoryRows(SAFE_GUEST_CATEGORY_METADATA) : [];
+  } catch (error) {
+    if (allowSafeFallback) return normalizeActiveCategoryRows(SAFE_GUEST_CATEGORY_METADATA);
+    throw error;
+  }
 }
 
 export async function loadUserCategoryPreferences(user, { limit = 1000 } = {}) {
