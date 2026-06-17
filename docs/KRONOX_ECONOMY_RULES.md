@@ -458,6 +458,7 @@ Solo move interaction:
 * Kart Değiştir does not consume a Solo move; it uses the deck's card-swap buffer.
 * Zaman Dondur does not consume a Solo move and does not require extra deck cards.
 * Kronokalkan does not consume a Solo move when activated; it protects the next wrong valid placement from consuming one move.
+* Kart Değiştir and Kronokalkan are capped by the per-attempt deck buffer; extra use beyond that buffer fails safely before any joker spend.
 * Normal Solo joker use still spends `UserJokerInventory` and writes `JokerTransaction`.
 * Guided tutorial joker demos remain tutorial-only and must not spend real inventory.
 

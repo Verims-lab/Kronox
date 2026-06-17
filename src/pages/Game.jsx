@@ -47,7 +47,13 @@ import {
   readSoloProgress,
   writeSoloProgress,
 } from '@/lib/soloLevels';
-import { calculateSoloAttemptResult, getBestSoloLevelResult, SOLO_RULES_VERSION } from '@/lib/soloProgressHelpers';
+import {
+  calculateSoloAttemptResult,
+  getBestSoloLevelResult,
+  SOLO_CARD_SWAP_BUFFER_CARDS,
+  SOLO_MISTAKE_SHIELD_BUFFER_CARDS,
+  SOLO_RULES_VERSION,
+} from '@/lib/soloProgressHelpers';
 // Codex166/Codex180 — Solo Question Selection Engine. Builds a controlled
 // attempt deck (unique question ids + unique answer/years) once per Solo
 // attempt. Gameplay consumes the deck sequentially — no mid-attempt
@@ -1794,6 +1800,12 @@ export default function Game() {
         setJokerError('Kronokalkan zaten aktif.');
         return;
       }
+      const usedShieldCount = Array.from(soloJokerUsedByDecisionKeyRef.current.values())
+        .filter((usedType) => usedType === SOLO_UI_JOKER_TYPES.MISTAKE_SHIELD).length;
+      if (usedShieldCount >= SOLO_MISTAKE_SHIELD_BUFFER_CARDS) {
+        setJokerError('Bu seviyede Kronokalkan yedek hakkı bitti.');
+        return;
+      }
       const spent = await spendSoloJokerForCurrentCard(jokerType, decisionKey, currentQuestion.id);
       if (!spent) return;
       markSoloJokerUsedForDecision(decisionKey, jokerType);
@@ -1816,6 +1828,12 @@ export default function Game() {
     }
 
     if (jokerType === SOLO_UI_JOKER_TYPES.CARD_SWAP) {
+      const usedSwapCount = Array.from(soloJokerUsedByDecisionKeyRef.current.values())
+        .filter((usedType) => usedType === SOLO_UI_JOKER_TYPES.CARD_SWAP).length;
+      if (usedSwapCount >= SOLO_CARD_SWAP_BUFFER_CARDS) {
+        setJokerError('Bu seviyede Kart Değiştir yedek kart hakkı bitti.');
+        return;
+      }
       if (!Array.isArray(soloAttemptDeck) || !currentQuestion || !currentPlayer) {
         setJokerError('Bu kart şu anda değiştirilemiyor.');
         return;

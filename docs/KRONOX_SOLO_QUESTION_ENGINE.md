@@ -29,6 +29,7 @@ Deck size formula:
 - Zaman Dondur does not require a card buffer
 - Kart Değiştir uses the card-swap buffer and does not consume a move
 - Kronokalkan uses the shield buffer and protects one wrong valid placement from consuming a move
+- If a user owns more jokers than the per-attempt buffer, extra Kart Değiştir/Kronokalkan attempts fail safely before spend; no raw client question list or full-bank fallback is used.
 
 ## Question Loading Bootstrap
 

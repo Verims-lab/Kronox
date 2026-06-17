@@ -19,6 +19,8 @@ All new Solo attempts use a 180 seconds timer and fail when 10 evaluated moves
 are used before the target timeline card count is reached.
 Deck sizing is 2 anchors + 10 playable moves + Kart Değiştir buffer +
 Kronokalkan buffer. Zaman Dondur does not require extra card buffer.
+Extra Kart Değiştir or Kronokalkan use beyond the per-attempt buffer fails
+safely before spend; there is no raw client question list fallback.
 
 Question loading bootstrap first attempts online getQuestions when the browser
 is online or network state is unknown. The default gameplay response is an

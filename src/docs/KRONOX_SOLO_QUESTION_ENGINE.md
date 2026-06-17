@@ -15,6 +15,7 @@ Hard deck rules:
 - 19 questions for special levels
 - 2 anchor cards + 10 playable moves + Kart Değiştir buffer + Kronokalkan buffer
 - Zaman Dondur does not require an extra card
+- Extra Kart Değiştir/Kronokalkan use beyond the per-attempt buffer fails safely before spend; there is no raw client question list fallback.
 - unique question IDs
 - unique years
 - active questions only

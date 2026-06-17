@@ -227,6 +227,8 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(handleSource, [
         "jokerType === SOLO_UI_JOKER_TYPES.MISTAKE_SHIELD",
         'if (mistakeShieldActive)',
+        'SOLO_MISTAKE_SHIELD_BUFFER_CARDS',
+        'Bu seviyede Kronokalkan yedek hakkı bitti.',
         'const spent = await spendSoloJokerForCurrentCard(jokerType, decisionKey, currentQuestion.id)',
         'if (!spent) return',
         'markSoloJokerUsedForDecision(decisionKey, jokerType)',
@@ -267,6 +269,8 @@ export const EXTRA_TESTS = [
       const spendIdx = handleSource.indexOf('spendSoloJokerForCurrentCard(jokerType, decisionKey, currentQuestion.id)', replacementIdx);
       const missing = missingTokens(handleSource, [
         "jokerType === SOLO_UI_JOKER_TYPES.CARD_SWAP",
+        'SOLO_CARD_SWAP_BUFFER_CARDS',
+        'Bu seviyede Kart Değiştir yedek kart hakkı bitti.',
         'getOrderedSoloDeckQuestion',
         'if (!replacement)',
         'Bu kart şu anda değiştirilemiyor.',
