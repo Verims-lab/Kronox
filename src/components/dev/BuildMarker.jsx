@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex391 — Demo/tutorial runtime crash fix:
+//   • Moves the current timeline player derivation before guided tutorial
+//     correct-slot calculation so production builds do not hit a minified
+//     temporal-dead-zone error ("Cannot access 'se' before initialization").
+//   • Tutorial hand guidance, joker demos, timer popup, and profile/category
+//     routing behavior are preserved.
+
 // Codex390 — Guided tutorial/profile transition fix:
 //   • First two guided tutorial cards point the hand hint at the computed
 //     correct timeline slot without moving the real card.
@@ -2179,7 +2186,7 @@ import React, { useEffect, useState } from 'react';
 //   • Adds client install id hashing for bloat control without trusting it as
 //     identity proof or storing raw IP/header/token data.
 //   • Blocks public request bodies from setting trusted score/economy/link fields.
-const BUILD_MARKER = 'Codex390';
+const BUILD_MARKER = 'Codex391';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
