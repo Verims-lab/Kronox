@@ -255,6 +255,7 @@ Daily Quest Definition management:
 * Daily Quest Runtime v1 grants diamonds only through `claimDailyQuestReward`
   and `DiamondTransaction.source = daily_quest_reward`
 * Daily Quest does not grant Kronox Puan and has no leaderboard impact
+* Daily Quest does not affect leaderboard
 * Home `getDailyQuestStatus` ensures 1 selected `UserDailyQuestProgress` row
   per UTC day, groups duplicate active definitions by `quest_key`, and may seed
   fixed default `DailyQuestDefinition` templates only when the definition table
@@ -685,6 +686,8 @@ Joker inventory is user-owned data:
   idempotency keys so a quest claim cannot unlock or duplicate a wheel spin:
   `daily_wheel:<email>:<YYYY-MM-DD>` vs
   `daily_quest_reward:<email>:<YYYY-MM-DD>:<quest_key>`
+* Daily Wheel remains separate from Daily Quest definitions
+* Daily Wheel and Daily Quest are separate
 * normal users must not be able to arbitrarily grant themselves jokers
 * Profile shows only `Joker Çantası` balances, not ledger rows
 * Mağaza Phase 1 must not expose bundles, subscriptions, cosmetics, random

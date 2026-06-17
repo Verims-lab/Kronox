@@ -28,6 +28,9 @@ Visible UI must not create separate player-facing labels such as:
 * Online Puan
 
 Solo and Online score components may remain separate internally for auditability, idempotency, backfill, and rule clarity.
+Technical/internal docs may discuss base score, bonus, streak, accuracy, Solo
+component, Online component, and projection details, but those components must
+not fragment visible UI language into competing score names.
 
 ---
 

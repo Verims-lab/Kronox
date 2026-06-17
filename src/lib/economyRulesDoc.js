@@ -64,6 +64,9 @@ explicitly bind UserDailyQuestProgress. Daily Quest does not grant Kronox Puan
 and has no leaderboard impact.
 
 First authenticated entry grants +100 once. Same-day daily login grants +20 once.
+First-day total: \`120\` Diamonds. This combines starter 100 Diamonds plus
+daily login 20 Diamonds only; it does not imply Kronox Puan and does not affect
+leaderboard rank.
 
 ## Mağaza / Joker purchases
 Mağaza Phase 1 sells only Solo jokers for Diamonds:

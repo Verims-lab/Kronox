@@ -11,6 +11,7 @@ import dailyQuestManagerSource from '../admin/DailyQuestDefinitionManager.jsx?ra
 import dailyQuestDefinitionListSource from '../admin/DailyQuestDefinitionList.jsx?raw';
 import dailyQuestGatewaySource from '../../lib/dbGateway/dailyQuestGateway.js?raw';
 import dailyQuestEntitySource from '../../../base44/entities/DailyQuestDefinition.jsonc?raw';
+import dailyQuestProgressEntitySource from '../../../base44/entities/UserDailyQuestProgress.jsonc?raw';
 import createDailyQuestDefinitionSource from '../../../base44/functions/createDailyQuestDefinition/entry.ts?raw';
 import dailyWheelFunctionSource from '../../../base44/functions/claimDailyWheelReward/entry.ts?raw';
 import marketFunctionSource from '../../../base44/functions/purchaseJokerWithDiamonds/entry.ts?raw';
@@ -470,16 +471,17 @@ export const EXTRA_TESTS = [
   makeCase('runtime_progress_contract_documented_separate',
     'UserDailyQuestProgress runtime contract is documented separately from definitions',
     () => {
-      const missing = missingTokens(`${definitionSources}\n${docsCombined}`, [
+      const missing = missingTokens(`${definitionSources}\n${dailyQuestProgressEntitySource}\n${docsCombined}`, [
         'UserDailyQuestProgress',
         'Daily Quest Runtime v1 is active',
         'daily_quest_reward',
         'one claim per quest per UTC day',
       ]);
-      const activeProgressEntity = safeStr(dailyQuestEntitySource).includes('"name": "UserDailyQuestProgress"');
-      if (missing.length || activeProgressEntity) return fail('Runtime progress/claim contract is missing or mixed into DailyQuestDefinition.', {
+      const activeProgressEntity = safeStr(dailyQuestProgressEntitySource).includes('"name": "UserDailyQuestProgress"');
+      const definitionMixedProgressEntity = safeStr(dailyQuestEntitySource).includes('"name": "UserDailyQuestProgress"');
+      if (missing.length || !activeProgressEntity || definitionMixedProgressEntity) return fail('Runtime progress/claim contract is missing or mixed into DailyQuestDefinition.', {
         verification: 'STATIC_CONTRACT',
-        actual: { missing, activeProgressEntity },
+        actual: { missing, activeProgressEntity, definitionMixedProgressEntity },
       });
       return pass('User progress/claim is active in UserDailyQuestProgress and remains separate from DailyQuestDefinition templates.', { verification: 'STATIC_CONTRACT' });
     }),

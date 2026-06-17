@@ -419,6 +419,7 @@ Checklist:
 
 ## Daily Quest Runtime v1
 
+* Daily Quest Runtime v1 is active.
 * `DailyQuestDefinition` exists as the admin-managed template table.
 * Profile / `Admin Ekranı` shows `Günlük Görev Yönetimi` only to active
   `AdminUser` role `owner`/`admin`.
@@ -489,6 +490,7 @@ Checklist:
   after backup/operator confirmation.
 * Daily Wheel remains separate from Daily Quest definitions, and Mağaza /
   Joker Inventory / Solo joker spending remain unaffected.
+* Daily Wheel and Daily Quest are separate.
 * Manual proof: open Home, see `Günlük Ödüller`, confirm Daily Wheel and one
   `Günlük Görev`, start a Solo attempt, correctly place cards, complete a Solo
   level, successfully use a joker, claim the completed quest, confirm

@@ -225,6 +225,8 @@ idempotency. `daily_quest_last_claim_date` and
 but duplicate-claim prevention is row/transaction based, not field-only.
 One claim per quest per UTC day is enforced by `UserDailyQuestProgress` status
 and the `daily_quest_reward` ledger idempotency key.
+Daily Wheel remains separate from Daily Quest definitions.
+Daily Wheel and Daily Quest are separate.
 
 Daily Quest Runtime v1 is active. `DailyQuestDefinition` remains admin-managed
 system templates. `quest_key` is the logical unique key; the platform/manual DB
@@ -266,6 +268,7 @@ visible `User.diamonds`, returns `diamondBalanceAfter`, and then marks the row
 claimed. The runtime backend functions explicitly bind `UserDailyQuestProgress`
 for status, progress, and claim deployability; Daily Quest does not grant
 Kronox Puan and has no leaderboard impact.
+Daily Quest does not affect leaderboard.
 Future versions may expand to multiple quests again if Home UI is redesigned.
 | `DailyWheelSpin` | Daily Reward Wheel claim ledger and streak audit. | `getDailyWheelStatus` reads current day; `claimDailyWheelReward` creates server-backed claim and updates `User.diamonds`. | Audit/idempotency for Daily Wheel; `User.diamonds` is balance source. | Backend service-role functions only for claim; user/admin read by RLS. | Unique idempotency is not guaranteed in repo schema; race proof needs platform unique key or live probe. | Unique `idempotency_key`; unique `user_email + spin_date`; `user_email + claimed_at`; `spin_date`. | Retain/anonymize on account deletion; admin reset removes target test rows; archive old rows after retention policy. | Keep. | N/A. |
 | `DailyQuestDefinition` | Admin-managed Daily Quest v1 templates. | Profile / `Admin Ekranı` / `Günlük Görev Yönetimi` lists definitions and creates new templates through `createDailyQuestDefinition`. | Yes for system quest templates only; not user progress. | `base44/functions/createDailyQuestDefinition/entry.ts`, `src/lib/dbGateway/dailyQuestGateway.js`, `DailyQuestDefinitionManager`. | Admin-only. Backend guard uses `AdminUser` active owner/admin. Normal users cannot view `Admin Ekranı` and cannot create definitions. Create/seed/list normalize and dedupe by `quest_key`; Admin list never seeds on refresh. | Unique `quest_key` where platform supports it; `status`; `sort_order`; `created_at`. | Passive instead of delete for routine removal. Existing duplicate `quest_key` rows require manual cleanup after backup; no automatic delete is enabled. | Keep/additive. | Prove active admin can list/create, non-admin and disabled admin receive 403; verify refresh/getDailyQuestStatus does not create duplicates. |
