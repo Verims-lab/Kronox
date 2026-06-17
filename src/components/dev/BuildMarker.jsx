@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex390 — Guided tutorial/profile transition fix:
+//   • First two guided tutorial cards point the hand hint at the computed
+//     correct timeline slot without moving the real card.
+//   • Cards 3/4/5 teach Zaman Dondur, Kart Değiştir, and Kronokalkan through
+//     tutorial-only demos, popup pauses, and repeating tap hints.
+//   • Onboarding profile save avoids broad GuestProfile scans and cannot leave
+//     Kategorilere Geç in an indefinite spinner state.
+
 // Codex389 — Scoring/economy/Daily Quest Health alignment:
 //   • Documents the unified visible Puan/Kronox Puan contract in the Health
 //     scoring mirror while preserving internal Solo/Online components.
@@ -2171,7 +2179,7 @@ import React, { useEffect, useState } from 'react';
 //   • Adds client install id hashing for bloat control without trusting it as
 //     identity proof or storing raw IP/header/token data.
 //   • Blocks public request bodies from setting trusted score/economy/link fields.
-const BUILD_MARKER = 'Codex389';
+const BUILD_MARKER = 'Codex390';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

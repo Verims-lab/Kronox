@@ -439,10 +439,15 @@ question source.
 
 The guide must teach drag/drop, before/after placement, between placement,
 chronological year ordering, move/mistake count, and interactive joker usage.
-The guided joker step uses a tutorial-only `Zaman Dondur` demo with a repeating
-hand/tap hint. The user must perform that demo action before continuing, but
+The first two active tutorial cards show a visual hand/finger path toward the
+already-computed correct placement slot; this is a visual-only hint and does not
+move or place the real card. Cards 3, 4, and 5 teach `Zaman Dondur`, `Kart
+Değiştir`, and `Kronokalkan` as tutorial-only demos with repeating hand/tap
+hints. The user must perform each demo action before continuing, but
 `UserJokerInventory` is not consumed, no `JokerTransaction` spend is written,
 and normal Solo joker economy rules remain unchanged outside the tutorial.
+Tutorial timer, joker, and first-mistake explanation popups pause the effective
+tutorial timer while the user reads them.
 
 After success, the result popup returns to GuestProfile onboarding for profile
 setup, then category setup, then Ana Sayfa. Closing the app during onboarding

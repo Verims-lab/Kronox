@@ -98,6 +98,9 @@ and presents account linking as progress protection, not as a mandatory gate.
 The profile setup step follows the guided first Solo level. It shows only
 `username`, optional `age`, and optional `gender`; `display_name` is mirrored
 from `username` through the token-proven `createGuestProfile` update path.
+The `Kategorilere Geç` action must either advance to `category_setup_pending`
+after a successful save or show a visible retryable error; it must not remain in
+an indefinite spinner state.
 
 The category setup step stores optional guest `selected_category_ids`. Fewer
 than 3 selections should show guidance, but guest play remains possible. Empty

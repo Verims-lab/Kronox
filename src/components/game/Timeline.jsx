@@ -15,12 +15,15 @@ function DotSeparator() {
   );
 }
 
-function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, onSelect, isTimeUp }) {
+function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, isGuidedTarget, onSelect, isTimeUp }) {
   const showBeginnerHint = Boolean(isBeginnerHint && isDragMode && !isActive && !isTimeUp);
+  const showGuidedTarget = Boolean(isGuidedTarget && !isActive && !isTimeUp);
   const borderColor = isTimeUp
     ? '#ef4444'
     : isActive
       ? '#facc15'
+      : showGuidedTarget
+        ? 'rgba(250,204,21,0.88)'
       : showBeginnerHint
         ? 'rgba(125,211,252,0.78)'
         : isMagnetic
@@ -30,6 +33,8 @@ function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, onS
     ? 'rgba(239,68,68,0.06)'
     : isActive
       ? 'rgba(250,204,21,0.14)'
+      : showGuidedTarget
+        ? 'rgba(250,204,21,0.10)'
       : showBeginnerHint
         ? 'rgba(56,189,248,0.08)'
         : isMagnetic
@@ -59,9 +64,9 @@ function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, onS
       </AnimatePresence>
       <motion.div
         animate={{
-          scale: isActive ? 1 : (isMagnetic || showBeginnerHint) ? [1, showBeginnerHint ? 1.035 : 1.04, 1] : 1,
+          scale: isActive ? 1 : (isMagnetic || showBeginnerHint || showGuidedTarget) ? [1, showGuidedTarget ? 1.055 : showBeginnerHint ? 1.035 : 1.04, 1] : 1,
         }}
-        transition={(isMagnetic || showBeginnerHint) && !isActive ? { duration: showBeginnerHint ? 1.15 : 0.7, repeat: Infinity, ease: 'easeInOut' } : {}}
+        transition={(isMagnetic || showBeginnerHint || showGuidedTarget) && !isActive ? { duration: showGuidedTarget ? 1.2 : showBeginnerHint ? 1.15 : 0.7, repeat: Infinity, ease: 'easeInOut' } : {}}
         className="rounded-2xl flex items-center justify-center"
         style={{
           width: isActive ? 80 : isMagnetic ? 62 : isDragMode ? 48 : 26,
@@ -71,6 +76,8 @@ function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, onS
           background: bgColor,
           boxShadow: isActive
             ? `0 0 24px rgba(250,204,21,0.5), inset 0 0 16px rgba(250,204,21,0.08)`
+            : showGuidedTarget
+              ? `0 0 20px rgba(250,204,21,0.42), inset 0 0 16px rgba(250,204,21,0.10)`
             : showBeginnerHint
               ? `0 0 16px rgba(56,189,248,0.34), inset 0 0 14px rgba(56,189,248,0.08)`
             : isMagnetic
@@ -93,6 +100,23 @@ function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, onS
                 inset: '-4px',
                 border: '1px solid rgba(125,211,252,0.42)',
                 boxShadow: '0 0 18px rgba(56,189,248,0.26)',
+              }}
+            />
+          )}
+          {showGuidedTarget && (
+            <motion.div
+              aria-hidden="true"
+              data-kronox-guided-correct-target-slot="true"
+              className="pointer-events-none rounded-2xl"
+              initial={{ opacity: 0, scale: 0.86 }}
+              animate={{ opacity: [0.22, 0.58, 0.22], scale: [0.92, 1.14, 0.92] }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+              style={{
+                position: 'absolute',
+                inset: '-5px',
+                border: '1px solid rgba(250,204,21,0.55)',
+                boxShadow: '0 0 20px rgba(250,204,21,0.32)',
               }}
             />
           )}
@@ -142,6 +166,7 @@ export default function Timeline({
   // hit-testing, or which cards are rendered.
   placementFeedback = null,
   beginnerPlacementHintZone = null,
+  guidedTargetZone = null,
   correctStreak = 0,
   soloYearOnlyCards = false,
 }) {
@@ -368,6 +393,10 @@ export default function Timeline({
       && displayActiveZone !== i
       && selectedZone !== i
       && !isTimeUp;
+    const isGuidedTarget = guidedTargetZone === i
+      && displayActiveZone !== i
+      && selectedZone !== i
+      && !isTimeUp;
     cardRowItems.push(
       <div key={`dz-${i}`} ref={el => (dropZoneRefs.current[i] = el)}>
       {isThisActive ? (
@@ -384,6 +413,7 @@ export default function Timeline({
             isDragMode={isDragMode}
             isMagnetic={isDragMode && (activeZone === i - 1 || activeZone === i || activeZone === i + 1) && displayActiveZone !== i}
             isBeginnerHint={isBeginnerHint}
+            isGuidedTarget={isGuidedTarget}
             onSelect={onSelectZone}
             isTimeUp={isTimeUp}
           />
