@@ -119,6 +119,8 @@ Platform/manual configuration still required:
   - `OnlineMatchResult.lobby_id + player_email`
   - `PushSubscription.user_email + endpoint`
   - `SoloLeaderboardEntry.owner_key`
+  - `AccountLinkTransaction.idempotency_key`
+  - `User.username` where platform uniqueness is available
 - Hot-path indexes should cover `Question.state + main_category_id`,
   `Question.state + difficulty`, `Question.state + sub_category`,
   `DiamondTransaction.user_email + created_at/source`,
@@ -151,6 +153,8 @@ Current entities audited:
 - `Category`
 - `SubCategory`
 - `UserCategoryPreference`
+- `GuestProfile`
+- `AccountLinkTransaction`
 - `UserSubCategoryPreference`
 - `UserJokerInventory`
 - `JokerTransaction`
@@ -182,8 +186,10 @@ Current entities audited:
 | `JokerTransaction` | Joker ledger/idempotency audit. | `starter_grant`, Solo `solo_use`, and Mağaza `market_purchase` rows. | Audit/ledger; `UserJokerInventory.quantity` is balance source. | `ensureUserJokerInventory` writes starter rows with `starter_jokers:<email>:<joker_type>` keys and reconstructs missing inventory rows from the latest ledger balance when needed; `spendUserJoker` writes `solo_use` rows with `quantity_delta = -1`; `purchaseJokerWithDiamonds` writes `market_purchase` rows with positive quantity deltas. | Append-only where possible; normal Profile does not expose ledger rows; writes stay backend/admin/service-role. Starter repair must not overwrite existing balances or refund spent jokers. | Unique `idempotency_key`; `user_email + created_at`; `user_email + joker_type`; `reason + created_at`. | Retain for audit; archive old rows after economy retention policy. | Keep/additive. | Two-account RLS and duplicate starter/spend/purchase proof remain manual/runtime. |
 | `Question` | Protected gameplay question bank. | Public-safe bounded `getQuestions` gameplay attempt buffer, `startLobbyGame`, test/sim functions, admin paths. | Yes for question content, but runtime projection derives `year` from `answer`. | Service-role backend functions; direct entity read admin-only by RLS; Game first tries online `getQuestions` before cache fallback. | Must remain protected. Guests/normal users can receive only the minimal bounded gameplay response, not the full bank or admin metadata. Empty local cache is not offline; false offline/no-cache is reserved for known offline plus failed fetch plus no usable cache. | `state`; `main_category_id`; `state + main_category_id`; `difficulty`; future `answer_year`; `state + main_category_id + answer_year`. | No hard delete by default. Use `state = P`; archive old invalid rows only after export. Cache version must be bumped/invalidated on question-set replacement. | Keep but refactor. | N/A. |
 | `AdminUser` | DB-backed admin authorization source-of-truth. | Inline Base44 admin guards, Profile `Admin Ekranı` admin status check, admin-only functions, Health/test-suite gating. | Yes for admin authorization. Active rows with role `owner`/`admin` pass; disabled rows fail. | `functions/getAdminStatus.js`, `base44/functions/getAdminStatus/entry.ts`, `base44/functions/getAdminStatus/function.jsonc`, admin-only backend functions with local inline AdminUser guards. | Must remain private/admin-only. Normal users cannot list global admins. No env email allowlist for authorization. `getQuestions` must not be used as an admin status source. Base44 function deploys must not depend on `_shared/adminAuth.ts` bundling. | Unique `email`; `status`; `role + status`; `updated_at`. | Disable rows to remove access. Account deletion should disable/anonymize the row only through explicit owner/admin action. | Keep. | Prove unauthenticated 401, non-admin 403, active admin allowed, disabled admin blocked, and current Base44 functions version resolves `getAdminStatus`. |
-| `User` | Auth profile plus progress/economy/projections. | Auth bootstrap, Solo progress, Online score, Diamonds, tutorial, reset marker, leaderboard service projection. | Yes for account, Solo progress, Online progress, Diamonds, `kronox_puan_total`. | `base44.auth.me/updateMe`, admin reset, delete account, leaderboard service role. | Private user row must not leak. Admin writes must stay server-side. JSON fields make partial race handling hard. | Unique auth id/email platform-managed; `kronox_puan_total desc`; maybe `progress_reset_at`. | Account deletion deletes/anonymizes; no general retention job. | Keep but reduce overload with projections/events. | N/A. |
+| `User` | Auth profile plus progress/economy/projections. | Auth bootstrap, Solo progress, Online score, Diamonds, tutorial, reset marker, leaderboard service projection, guest account-link target. | Yes for account, Solo progress, Online progress, Diamonds, `kronox_puan_total`, public `username`/`display_name` after linking. | `base44.auth.me/updateMe`, `linkGuestAccount`, admin reset, delete account, leaderboard service role. | Private user row must not leak. Admin writes must stay server-side. JSON fields make partial race handling hard. `linked_guest_ids` is a duplicate-protection guard for additive guest economy merge. | Unique auth id/email platform-managed; `username`; `kronox_puan_total desc`; maybe `progress_reset_at`. | Account deletion deletes/anonymizes; no general retention job. | Keep but reduce overload with projections/events. | N/A. |
 | `SoloLeaderboardEntry` | Public-safe leaderboard row. | Client publish after Solo/Online changes; fallback leaderboard read. | Projection, not primary score source. | `src/lib/leaderboard.js`, admin reset, optional fallback when service function missing. | Public read is OK only because no raw email. Update is admin-only by schema, but client create/update attempts rely on RLS/platform behavior. | Unique `owner_key`; `total_kronox_score desc`; tie-breakers `current_level`, `total_stars`, `updated_at`. | Keep rows; zero/anonymize on reset/delete. | Keep but refactor into canonical `LeaderboardProjection` or rename purpose. | Prove all leaderboard reads use new projection before replacing. |
+| `GuestProfile` | App-owned portable guest identity and pre-link snapshot. | First-open guest identity, guided onboarding state, guest Solo progress sync, guest leaderboard projection, account-link source. | Source for guest identity only; guest progress/economy fields are merge inputs until linked. | `createGuestProfile`, `sync_progress`, `linkGuestAccount`, onboarding/Profile/Login UI. | Raw guest token is client-only; DB stores hash. Server writes require `guest_id + token` proof. Row becomes `linked` once and must not link to another account. | Unique `guest_id`; unique `username`; `status`; `linked_user_email`; `last_seen_at`. | Abandon old guest rows by policy later; never hard-delete active guest progress without retention approval. | Keep/additive. | Manual Base44 proof that raw token is absent and linked row cannot be relinked. |
+| `AccountLinkTransaction` | Guest-to-authenticated account linking audit/idempotency row. | `linkGuestAccount` writes one row per idempotency key and stores compact merge summary. | Audit/read model; not current balance source. | `linkGuestAccount` only. | Admin-only RLS; no raw token, provider secret, auth header, or full request body. | Unique `idempotency_key`; `guest_id`; `linked_user_email`; `created_at`. | Retain for support/audit; archive later by economy/account retention policy. | Keep/additive. | Manual duplicate-link retry proof. |
 | `DiamondTransaction` | Diamond ledger/idempotency audit. | `diamondEconomy` grants starter/daily; Daily Wheel claim writes `daily_wheel`; Mağaza joker purchase writes `market_purchase`; Daily Quest claim writes `daily_quest_reward`; admin reset may reset/delete/adjust rows. | Audit/ledger; `User.diamonds` is balance source. | Client helper writes starter/daily through user RLS; Daily Wheel/admin reset/purchase/Daily Quest claim service-role. `purchaseJokerWithDiamonds` validates price and sufficient Diamonds server-side. `claimDailyQuestReward` reads reward from `UserDailyQuestProgress`, not the client. | Logical idempotency key not declared unique in repo. Multi-device race remains a platform limitation. Client must never be trusted for purchase price/cost or Daily Quest reward amount. | Unique `idempotency_key`; `user_email + created_at`; `user_email + source`; `source + created_at`. | Retain for audit. Archive old rows after finance/economy retention policy. | Keep but harden. | N/A. |
 
 Profile/Solo joker balance reads must use the shared `getUserJokerBalances`
@@ -1069,8 +1075,10 @@ guest identity. First-open guest identity is app-owned through `GuestProfile`.
 
 `GuestProfile` is a portable identity record with `guest_id`, `guest_token_hash`,
 `username`, `display_name`, lifecycle status (`guest`, `linked`, `abandoned`),
-onboarding/tutorial/profile/category setup status fields, optional future
-`linked_user_email` / `linked_auth_user_id`, `created_at`, and `last_seen_at`.
+onboarding/tutorial/profile/category setup status fields, link fields
+(`linked_user_email`, `linked_auth_user_id`, `linked_at`,
+`link_idempotency_key`), pre-link progress/economy snapshots, `created_at`, and
+`last_seen_at`.
 
 Raw guest tokens are client/local-device only. The database stores
 `guest_token_hash` with `guest_token_hash_algorithm=sha256:kronox_guest_v1`.
@@ -1079,5 +1087,30 @@ Guest ownership is never proven by `guest_id` alone; server functions must verif
 
 Default public usernames use `KronoxUser####` / `KronoxUser#####`, are unique at
 creation time, and must not be derived from email, Google ID, Apple ID, or any
-provider UID. Future account linking should mark the guest row `linked` once and
-preserve/migrate progress through an audited merge transaction.
+provider UID.
+
+## Onboarding Phase 3 — Account Linking And Public Identity
+
+`linkGuestAccount` is the server-authoritative guest-to-registered merge path.
+It verifies both guest token proof and `base44.auth.me()`, uses
+`AccountLinkTransaction.idempotency_key`, records the guest id in
+`User.linked_guest_ids`, and marks `GuestProfile.status = linked` once.
+
+Merge is additive only once:
+
+- Solo progress keeps the best per-level score/stars/mistake/time record.
+- Online progress keeps user-beneficial counters without duplicate match reward
+  creation.
+- Diamonds combine once through `DiamondTransaction.source =
+  account_link_merge`.
+- Jokers combine once through `UserJokerInventory` plus
+  `JokerTransaction.reason = account_link_merge`.
+- Guest category selections are written as authenticated
+  `UserCategoryPreference` rows.
+- Guest `SoloLeaderboardEntry` owner key uses an internal `g_` key; linked
+  accounts use the existing `u_` key and display `username` / `display_name`.
+
+`SoloLeaderboardEntry`, `AccountLinkTransaction`, and guest progress snapshots
+are projections/audit/merge inputs. `UserJokerInventory` remains joker balance
+source, `JokerTransaction` remains ledger, and `User` remains authenticated
+account/progress source after linking.

@@ -3,6 +3,7 @@ import { base44 } from '@/api/base44Client';
 const STORAGE_GUEST_ID_KEY = 'kronox.guestProfile.guest_id';
 const STORAGE_GUEST_TOKEN_KEY = 'kronox.guestProfile.guest_token';
 const STORAGE_GUEST_PUBLIC_KEY = 'kronox.guestProfile.public';
+const STORAGE_GUEST_LINK_INTENT_KEY = 'kronox.guestProfile.linkIntent';
 const USERNAME_PREFIX = 'KronoxUser';
 
 export const GUEST_ONBOARDING_STATES = Object.freeze({
@@ -81,10 +82,21 @@ function storeGuestSession(profile, rawToken) {
   return safeProfile;
 }
 
-function clearGuestSession() {
+export function clearGuestSession() {
   removeLocalStorage(STORAGE_GUEST_ID_KEY);
   removeLocalStorage(STORAGE_GUEST_TOKEN_KEY);
   removeLocalStorage(STORAGE_GUEST_PUBLIC_KEY);
+}
+
+function normalizeLinkIntent(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const idempotencyKey = String(raw.idempotency_key || '').trim();
+  if (!idempotencyKey) return null;
+  return {
+    idempotency_key: idempotencyKey,
+    provider: String(raw.provider || '').trim(),
+    created_at: raw.created_at || null,
+  };
 }
 
 export function getStoredGuestCredentials() {
@@ -100,6 +112,30 @@ export function getCachedGuestProfile() {
   } catch {
     return null;
   }
+}
+
+export function getPendingGuestAccountLinkIntent() {
+  try {
+    return normalizeLinkIntent(JSON.parse(readLocalStorage(STORAGE_GUEST_LINK_INTENT_KEY) || 'null'));
+  } catch {
+    return null;
+  }
+}
+
+export function clearPendingGuestAccountLinkIntent() {
+  removeLocalStorage(STORAGE_GUEST_LINK_INTENT_KEY);
+}
+
+export function setPendingGuestAccountLinkIntent(provider = 'email') {
+  const credentials = getStoredGuestCredentials();
+  if (!credentials.guest_id || !credentials.guest_token) return null;
+  const intent = {
+    provider: String(provider || 'email').trim(),
+    idempotency_key: `account_link_merge_${credentials.guest_id}_${Date.now()}`,
+    created_at: new Date().toISOString(),
+  };
+  writeLocalStorage(STORAGE_GUEST_LINK_INTENT_KEY, JSON.stringify(intent));
+  return intent;
 }
 
 export function makeKronoxUserFallback(seed = '') {
@@ -178,6 +214,51 @@ export async function updateGuestProfileOnboarding(patch) {
   return storeGuestSession(updated.profile, updated.guest_token);
 }
 
+export async function syncGuestProfileProgress({ soloProgress = null, onlineProgress = null, diamonds = null, jokerBalances = null } = {}) {
+  const credentials = getStoredGuestCredentials();
+  if (!credentials.guest_id || !credentials.guest_token) return null;
+  const patch = {};
+  if (soloProgress && typeof soloProgress === 'object') patch.solo_progress = soloProgress;
+  if (onlineProgress && typeof onlineProgress === 'object') patch.online_progress = onlineProgress;
+  if (diamonds !== null && typeof diamonds !== 'undefined') patch.diamonds = diamonds;
+  if (jokerBalances && typeof jokerBalances === 'object') patch.joker_balances = jokerBalances;
+  if (Object.keys(patch).length === 0) return null;
+  const updated = await invokeCreateGuestProfile({
+    ...credentials,
+    action: 'sync_progress',
+    patch,
+  });
+  return storeGuestSession(updated.profile, updated.guest_token);
+}
+
+export async function prepareGuestAccountLink({ provider = 'email', soloProgress = null, onlineProgress = null, diamonds = null, jokerBalances = null } = {}) {
+  const intent = setPendingGuestAccountLinkIntent(provider);
+  if (!intent) return null;
+  await syncGuestProfileProgress({ soloProgress, onlineProgress, diamonds, jokerBalances }).catch(() => null);
+  return intent;
+}
+
+export async function linkPendingGuestAccount({ soloProgress = null, onlineProgress = null, diamonds = null, jokerBalances = null } = {}) {
+  const credentials = getStoredGuestCredentials();
+  const intent = getPendingGuestAccountLinkIntent();
+  if (!credentials.guest_id || !credentials.guest_token || !intent?.idempotency_key) return null;
+
+  await syncGuestProfileProgress({ soloProgress, onlineProgress, diamonds, jokerBalances }).catch(() => null);
+  const response = await base44.functions.invoke('linkGuestAccount', {
+    ...credentials,
+    idempotency_key: intent.idempotency_key,
+  });
+  const data = response?.data || response || {};
+  if (data?.ok === false) {
+    const error = new Error(data.code || data.error || 'account_link_failed');
+    error.code = data.code || data.error || 'account_link_failed';
+    throw error;
+  }
+  clearPendingGuestAccountLinkIntent();
+  clearGuestSession();
+  return data;
+}
+
 export const GUEST_PROFILE_IDENTITY_CONTRACT = Object.freeze({
   model: 'GuestProfile',
   firebaseUsed: false,
@@ -186,6 +267,11 @@ export const GUEST_PROFILE_IDENTITY_CONTRACT = Object.freeze({
   serverStoredToken: 'guest_token_hash',
   defaultUsernamePrefix: USERNAME_PREFIX,
   accountLinkingLater: ['google', 'apple', 'email'],
+  accountLinkingPhase3: true,
+  linkFunction: 'linkGuestAccount',
+  mergeTransactionEntity: 'AccountLinkTransaction',
+  mergeIdempotent: true,
+  guestStatusLinkedOnce: true,
   guidedFirstSoloLevelOnboarding: true,
   oldStandaloneTutorialDisabled: true,
 });

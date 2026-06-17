@@ -1,7 +1,7 @@
 {
   "name": "GuestProfile",
   "type": "object",
-  "description": "Codex377 — App-owned portable guest identity foundation. Kronox does not use Firebase or Base44 anonymous auth for guest identity. Raw guest tokens are client-only; the database stores guest_token_hash. GuestProfile rows are created/verified through createGuestProfile, then can later be linked to Google / Apple / Email without losing progress.",
+  "description": "Codex379 — App-owned portable guest identity foundation. Kronox does not use Firebase or Base44 anonymous auth for guest identity. Raw guest tokens are client-only; the database stores guest_token_hash. GuestProfile rows are created/verified through createGuestProfile. Phase 3 account linking verifies guest token plus authenticated user, writes AccountLinkTransaction, marks status linked once, and preserves guest progress/economy without exposing provider ids.",
   "properties": {
     "guest_id": {
       "type": "string",
@@ -99,6 +99,26 @@
         "type": "number"
       }
     },
+    "solo_progress": {
+      "type": "object",
+      "description": "Token-proven guest Solo progress snapshot synced from the device before account linking. Used only as merge input; User.solo_progress remains the authenticated source after link."
+    },
+    "online_progress": {
+      "type": "object",
+      "description": "Optional guest Online progress snapshot for future merge compatibility. Online rewards must not be double-counted."
+    },
+    "kronox_puan_total": {
+      "type": "number",
+      "description": "Best known guest Kronox Puan projection used during one-time account linking. Derived from guest progress when available; never client-trusted without guest token proof."
+    },
+    "diamonds": {
+      "type": "number",
+      "description": "Best known guest Diamond balance to combine once during account linking when guest economy exists."
+    },
+    "joker_balances": {
+      "type": "object",
+      "description": "Best known guest joker balances to combine once through UserJokerInventory plus JokerTransaction during account linking."
+    },
     "tutorial_completed_at": {
       "type": "string",
       "format": "date-time"
@@ -134,6 +154,14 @@
     "linked_at": {
       "type": "string",
       "format": "date-time"
+    },
+    "link_idempotency_key": {
+      "type": "string",
+      "description": "Idempotency key of the one-time AccountLinkTransaction that linked this guest profile."
+    },
+    "merge_summary": {
+      "type": "object",
+      "description": "Debug-safe summary of the completed account link merge. Must not contain raw guest token, auth headers, provider ids, or private full request bodies."
     },
     "metadata": {
       "type": "object",

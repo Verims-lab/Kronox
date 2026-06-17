@@ -2092,7 +2092,21 @@ import React, { useEffect, useState } from 'react';
 //     guest_token_hash and verifies guest_id + token proof server-side.
 //   • Default public guest username uses KronoxUser#### / KronoxUser#####
 //     and is not derived from email, Google ID, Apple ID, or provider UID.
-const BUILD_MARKER = 'Codex378';
+//
+// Codex378 — Guided first Solo onboarding:
+//   • Routes first-time guests through `/onboarding`, starts a forgiving
+//     guided first Solo level, then sequences profile setup and category setup.
+//   • Keeps Apple/Google/email login optional and leaves normal Solo/Online
+//     gameplay rules unchanged.
+//
+// Codex379 — Guest account linking Phase 3:
+//   • Adds linkGuestAccount + AccountLinkTransaction for one-time,
+//     idempotent guest-to-authenticated account merge.
+//   • Syncs token-proven guest Solo progress into GuestProfile, publishes guest
+//     leaderboard projection rows, and migrates/passivates them on link.
+//   • Keeps leaderboard identity username/display_name-first and presents
+//     login as "secure your progress" with guest continue still available.
+const BUILD_MARKER = 'Codex379';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

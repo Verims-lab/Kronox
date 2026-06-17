@@ -4,7 +4,8 @@ import { withAdminStatus } from '@/lib/admin';
 import { ensureDiamondEconomyForUser, getDiamondDailyKey } from '@/lib/diamondEconomy';
 import { clearJokerInventoryCache, ensureStarterJokers, normalizeJokerEmail } from '@/lib/jokerInventory';
 import { applyUserProgressResetMarker } from '@/lib/progressResetCache';
-import { ensureGuestProfile } from '@/lib/guestProfile';
+import { ensureGuestProfile, linkPendingGuestAccount } from '@/lib/guestProfile';
+import { readSoloProgress } from '@/lib/soloLevels';
 
 const AuthContext = createContext();
 
@@ -122,6 +123,18 @@ export const AuthProvider = ({ children }) => {
           } catch (jokerError) {
             console.warn('[jokerInventory] starter grant skipped:', jokerError?.message || jokerError);
           }
+        }
+        try {
+          const guestProgressSnapshot = readSoloProgress(null);
+          const linkResult = await linkPendingGuestAccount({ soloProgress: guestProgressSnapshot });
+          if (linkResult?.user) {
+            currentUser = linkResult.user;
+            applyUserProgressResetMarker(currentUser);
+          }
+        } catch (linkError) {
+          console.warn('[guestProfile] account link merge skipped', {
+            reason: String(linkError?.code || linkError?.message || 'account_link_failed').slice(0, 120),
+          });
         }
         setAdminStatus(makePendingAdminStatus(currentUser));
         currentUser = await withAdminStatus(currentUser, { onStatus: setAdminStatus });

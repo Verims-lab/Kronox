@@ -5,7 +5,9 @@
 // raw token server-side.
 
 import guestProfileEntitySource from '../../../base44/entities/GuestProfile.jsonc?raw';
+import accountLinkTransactionEntitySource from '../../../base44/entities/AccountLinkTransaction.jsonc?raw';
 import createGuestProfileSource from '../../../base44/functions/createGuestProfile/entry.ts?raw';
+import linkGuestAccountSource from '../../../base44/functions/linkGuestAccount/entry.ts?raw';
 import guestProfileClientSource from '../../lib/guestProfile.js?raw';
 import authContextSource from '../../lib/AuthContext.jsx?raw';
 import leaderboardSource from '../../lib/leaderboard.js?raw';
@@ -13,6 +15,7 @@ import authProviderButtonsSource from '../auth/AuthProviderButtons.jsx?raw';
 import appSource from '../../App.jsx?raw';
 import gameSource from '../../pages/Game.jsx?raw';
 import onboardingPageSource from '../../pages/OnboardingPage.jsx?raw';
+import profilePageSource from '../../pages/ProfilePage.jsx?raw';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
 import playerSetupSource from '../../pages/PlayerSetup.jsx?raw';
 
@@ -210,6 +213,126 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Apple, Google, and email/hosted login options remain intact.', {
+        verification: 'STATIC_CONTRACT',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('guest_account_linking_function_is_idempotent',
+    'Guest can link Google/Apple/Email account through server-authoritative idempotent merge',
+    () => {
+      const missing = missingTokens(`${accountLinkTransactionEntitySource}\n${linkGuestAccountSource}\n${guestProfileClientSource}\n${authContextSource}`, [
+        '"name": "AccountLinkTransaction"',
+        "base44.auth.me()",
+        'hashGuestToken',
+        'invalid_guest_token',
+        'idempotency_key',
+        'mergeIdempotent',
+        'guestStatusLinkedOnce',
+        'linked_guest_ids',
+        'linkPendingGuestAccount',
+        "base44.functions.invoke('linkGuestAccount'",
+      ]);
+      const forbidden = presentTokens(linkGuestAccountSource, [
+        'console.log(body',
+        'console.warn(body',
+        'guest_token:',
+        'auth_header',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Account linking no longer proves token verification, authenticated user verification, and idempotent one-time merge.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['base44/functions/linkGuestAccount/entry.ts', 'base44/entities/AccountLinkTransaction.jsonc', 'src/lib/guestProfile.js', 'src/lib/AuthContext.jsx'],
+          actual: { missing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Guest account linking is server-authoritative, token-proven, audited, and idempotent.', {
+        verification: 'STATIC_CONTRACT',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('guest_merge_preserves_progress_economy_preferences',
+    'Account link merge preserves user-benefit progress, diamonds, jokers, and category preferences',
+    () => {
+      const missing = missingTokens(`${guestProfileEntitySource}\n${createGuestProfileSource}\n${linkGuestAccountSource}`, [
+        'sync_progress',
+        'solo_progress',
+        'kronox_puan_total',
+        'mergeSoloProgress',
+        'mergeOnlineProgress',
+        'account_link_merge',
+        'DiamondTransaction',
+        'UserJokerInventory',
+        'JokerTransaction',
+        'UserCategoryPreference',
+        'selected_category_ids',
+        'additiveMergeApplied',
+      ]);
+      if (missing.length) {
+        return fail('Guest-to-account merge no longer proves score/progress/economy/preference preservation.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['base44/functions/createGuestProfile/entry.ts', 'base44/functions/linkGuestAccount/entry.ts', 'base44/entities/GuestProfile.jsonc'],
+          actual: { missing },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Account link merge has explicit user-benefit progress, economy, and category preference preservation.', {
+        verification: 'STATIC_CONTRACT',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('leaderboard_uses_username_not_provider_identity_after_link',
+    'Leaderboard identity is username/display_name first and never provider/email id',
+    () => {
+      const missing = missingTokens(`${leaderboardSource}\n${linkGuestAccountSource}\n${createGuestProfileSource}`, [
+        'getSafeLeaderboardName',
+        'display_name',
+        'username',
+        '!explicitName.includes',
+        'providerIdsDisplayedInLeaderboard: false',
+        'usernameFirstLeaderboardIdentity: true',
+        'publishGuestLeaderboardEntry',
+        'getGuestOwnerKey',
+      ]);
+      if (missing.length) {
+        return fail('Leaderboard public identity is not clearly username-first for guest and linked users.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['src/lib/leaderboard.js', 'base44/functions/linkGuestAccount/entry.ts', 'base44/functions/createGuestProfile/entry.ts'],
+          actual: { missing },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Guest and linked leaderboard rows use username/display_name and keep owner_key/provider ids internal.', {
+        verification: 'STATIC_CONTRACT',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('guest_continue_and_secure_progress_cta_exist',
+    'Login CTA secures progress without blocking guest play',
+    () => {
+      const missing = missingTokens(`${onboardingPageSource}\n${profilePageSource}\n${authProviderButtonsSource}`, [
+        'İlerlemeni Güvenceye Al',
+        'Misafir olarak oynuyorsun',
+        'Şimdilik misafir devam et',
+        'prepareGuestAccountLink',
+        'AuthProviderButtons',
+        'Apple ile Giriş Yap',
+        'Google ile Giriş Yap',
+        'E-posta ile devam et',
+      ]);
+      if (missing.length) {
+        return fail('Secure-progress CTA or guest continue path is missing from onboarding/profile.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['src/pages/OnboardingPage.jsx', 'src/pages/ProfilePage.jsx', 'src/components/auth/AuthProviderButtons.jsx'],
+          actual: { missing },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Login is presented as secure-progress account linking while guest continue remains available.', {
         verification: 'STATIC_CONTRACT',
         actionType: ACTION_TYPES.CODE_FIX,
       });

@@ -27,10 +27,11 @@
         "admin_adjustment",
         "solo_use",
         "market_purchase",
+        "account_link_merge",
         "refund",
         "correction"
       ],
-      "description": "Business reason for this balance change."
+      "description": "Business reason for this balance change. account_link_merge is used only by the one-time GuestProfile link merge."
     },
     "source": {
       "type": "string",

@@ -1042,3 +1042,25 @@ login:
 
 Static Health can verify source contracts, but deployed Base44 function behavior
 and actual stored-row shape remain manual runtime proof.
+
+## Onboarding Phase 3 — Account Linking Manual Proof
+
+Before release, manually verify guest-to-account linking:
+
+* guest can finish onboarding and remain in guest mode without forced login
+* guest leaderboard row displays `username` / `display_name`, not email,
+  provider id, or internal `owner_key`
+* Profile shows the "Misafir olarak oynuyorsun" secure-progress card
+* onboarding completion shows Apple / Google / Email secure-progress options
+  plus "Şimdilik misafir devam et"
+* Apple is visible wherever Google login is offered
+* guest links Google / Apple / Email through `linkGuestAccount`
+* `AccountLinkTransaction` row is created with idempotency key and no raw guest
+  token
+* `GuestProfile.status` becomes `linked` once and cannot link to another
+  account
+* guest Solo progress, Kronox Puan, Diamonds, jokers, and category preferences
+  are preserved according to user-benefit rules
+* duplicate/retry link request does not duplicate Diamonds or jokers
+* linked leaderboard row displays username/display_name and the old guest row is
+  passivated or no longer ranks above active users
