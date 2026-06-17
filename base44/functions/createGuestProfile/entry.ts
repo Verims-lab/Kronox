@@ -27,6 +27,7 @@ function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });
 }
 
+
 function nowIso() {
   return new Date().toISOString();
 }

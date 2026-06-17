@@ -28,6 +28,7 @@ function normalizeEmail(value: unknown) {
   return String(value || '').trim().toLowerCase();
 }
 
+
 function normalizeText(value: unknown, maxLength = 220) {
   const text = String(value || '').trim();
   return text ? text.slice(0, maxLength) : '';
@@ -285,6 +286,7 @@ function betterSoloEntry(a: any, b: any) {
   const bTime = Number.isFinite(Number(b.bestTimeSeconds)) ? Number(b.bestTimeSeconds) : Number.POSITIVE_INFINITY;
   return bTime < aTime ? b : a;
 }
+
 
 function mergeSoloProgress(authProgressRaw: unknown, guestProgressRaw: unknown) {
   const authProgress = normalizeSoloProgress(authProgressRaw);

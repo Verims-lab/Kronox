@@ -322,6 +322,7 @@ Deno.serve(async (req: Request) => {
       body = {};
     }
 
+
     const jokerType = normalizeJokerType(body?.jokerType || body?.joker_type);
     const product = jokerType ? JOKER_MARKET_PRODUCTS[jokerType as keyof typeof JOKER_MARKET_PRODUCTS] : null;
     if (!jokerType || !product) {

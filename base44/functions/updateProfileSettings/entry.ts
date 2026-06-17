@@ -208,6 +208,7 @@ function publicGuestProfile(row: any) {
   };
 }
 
+
 async function refreshLeaderboardIdentity(base44: any, ownerKey: string, displayName: string) {
   const entity = entityStore(base44, 'SoloLeaderboardEntry');
   if (!entity?.filter || !entity?.update || !ownerKey) return false;
