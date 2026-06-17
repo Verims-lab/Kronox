@@ -579,6 +579,13 @@ After deployment, verify:
   user profile onboarding flag complete
 * users can later change selections under Profile / Settings /
   `İlgi Alanlarım`
+* first-time guest onboarding can load category-selection metadata without
+  login; the allowed surface is `Category` id/name/description/status metadata
+  or a metadata-only seed fallback, never raw `Question.list` or full question
+  rows
+* guest onboarding category save uses the token-proven `GuestProfile`
+  `guest_id + guest_token` path and stores `selected_category_ids`; `guest_id`
+  alone is not sufficient
 * Solo question selection reads current-user active valid Category preferences
   before attempt start and targets 70% selected categories / 30% full eligible
   pool as soft weighting with fallback

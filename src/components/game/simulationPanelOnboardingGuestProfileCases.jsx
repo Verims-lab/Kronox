@@ -12,6 +12,7 @@ import linkGuestAccountSource from '../../../base44/functions/linkGuestAccount/e
 import updateProfileSettingsSource from '../../../base44/functions/updateProfileSettings/entry.ts?raw';
 import guestProfileClientSource from '../../lib/guestProfile.js?raw';
 import profileSettingsClientSource from '../../lib/profileSettings.js?raw';
+import userCategoryPreferencesSource from '../../lib/userCategoryPreferences.js?raw';
 import authContextSource from '../../lib/AuthContext.jsx?raw';
 import leaderboardSource from '../../lib/leaderboard.js?raw';
 import authProviderButtonsSource from '../auth/AuthProviderButtons.jsx?raw';
@@ -536,6 +537,10 @@ export const EXTRA_TESTS = [
         'categorySaving',
         'submitError',
         'profile_save_timeout',
+        'isTutorialResumeStep',
+        'allowSafeFallback: true',
+        'categoryLoadError',
+        'Tekrar Dene',
       ]);
       if (missing.length) {
         return fail('Onboarding does not clearly sequence profile setup then category setup after the guided level with retryable profile-save errors.', {
@@ -558,6 +563,43 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Guided level completion moves through profile setup, category setup, then Ana Sayfa without sharing the profile button spinner with background onboarding work.', {
+        verification: 'STATIC_CONTRACT',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('guest_category_setup_loads_without_login',
+    'Guest category setup loads safe category metadata without login and never exposes questions',
+    () => {
+      const missing = missingTokens(`${onboardingPageSource}\n${guestProfileClientSource}\n${userCategoryPreferencesSource}\n${createGuestProfileSource}`, [
+        'isTutorialResumeStep',
+        "guestProfile?.tutorial_status === 'in_progress'",
+        "guestProfile?.profile_setup_status !== 'completed'",
+        "tutorial_status: 'completed'",
+        'profile_setup_status: \'completed\'',
+        'category_setup_status: \'completed\'',
+        'SAFE_GUEST_CATEGORY_METADATA',
+        'guestOnboardingSafeMetadataFallback',
+        'allowSafeFallback = false',
+        'loadActiveCategories({ allowSafeFallback: true })',
+        'categoryLoadError',
+        'selected_category_ids',
+        'guestTokenProofRequiredForUpdates: true',
+      ]);
+      const forbidden = presentTokens(`${onboardingPageSource}\n${userCategoryPreferencesSource}`, [
+        'Question.list',
+        'Question.filter',
+        'base44.auth.me',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Guest onboarding category setup may regress to tutorial resume, require login, or expose question-bank reads.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['src/pages/OnboardingPage.jsx', 'src/lib/guestProfile.js', 'src/lib/userCategoryPreferences.js', 'base44/functions/createGuestProfile/entry.ts'],
+          actual: { missing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Guest category setup uses token-proven GuestProfile save plus safe Category metadata/fallback, with no login or raw question-bank read.', {
         verification: 'STATIC_CONTRACT',
         actionType: ACTION_TYPES.CODE_FIX,
       });

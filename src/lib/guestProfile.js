@@ -219,11 +219,28 @@ export function getGuestOnboardingStep(profile) {
   if (!normalized) return GUEST_ONBOARDING_STATES.GUEST_CREATED;
   if (isGuestOnboardingComplete(normalized)) return GUEST_ONBOARDING_STATES.ONBOARDING_COMPLETE;
   const status = normalized.onboarding_status;
-  if (Object.values(GUEST_ONBOARDING_STATES).includes(status)) return status;
-  if (normalized.tutorial_status !== 'completed') return GUEST_ONBOARDING_STATES.GUEST_CREATED;
-  if (normalized.profile_setup_status !== 'completed') return GUEST_ONBOARDING_STATES.PROFILE_SETUP_PENDING;
-  if (normalized.category_setup_status !== 'completed') return GUEST_ONBOARDING_STATES.CATEGORY_SETUP_PENDING;
-  return GUEST_ONBOARDING_STATES.ONBOARDING_COMPLETE;
+  const tutorialStatus = String(normalized.tutorial_status || '').trim();
+  const profileStatus = String(normalized.profile_setup_status || '').trim();
+  const categoryStatus = String(normalized.category_setup_status || '').trim();
+
+  // Onboarding is monotonic: later setup flags win over a stale
+  // onboarding_status so users cannot regress back to "Eğitime Devam".
+  if (categoryStatus === 'completed') return GUEST_ONBOARDING_STATES.ONBOARDING_COMPLETE;
+  if (profileStatus === 'completed' || status === GUEST_ONBOARDING_STATES.CATEGORY_SETUP_PENDING) {
+    return GUEST_ONBOARDING_STATES.CATEGORY_SETUP_PENDING;
+  }
+  if (
+    tutorialStatus === 'completed' ||
+    status === GUEST_ONBOARDING_STATES.TUTORIAL_COMPLETED ||
+    status === GUEST_ONBOARDING_STATES.PROFILE_SETUP_PENDING
+  ) {
+    return GUEST_ONBOARDING_STATES.PROFILE_SETUP_PENDING;
+  }
+  if (status === GUEST_ONBOARDING_STATES.TUTORIAL_IN_PROGRESS && tutorialStatus === 'in_progress') {
+    return GUEST_ONBOARDING_STATES.TUTORIAL_IN_PROGRESS;
+  }
+  if (status === GUEST_ONBOARDING_STATES.GUEST_CREATED) return GUEST_ONBOARDING_STATES.GUEST_CREATED;
+  return GUEST_ONBOARDING_STATES.GUEST_CREATED;
 }
 
 export async function updateGuestProfileOnboarding(patch) {

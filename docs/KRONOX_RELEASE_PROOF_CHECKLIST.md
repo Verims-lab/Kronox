@@ -260,6 +260,12 @@ Checklist:
   again while the user still has 3 or more active valid preferences.
 * Users can later change selections under Profile / Settings /
   `İlgi Alanlarım`.
+* First-time guest onboarding reaches category selection after profile setup
+  without login, loads safe category metadata (not questions), and can save
+  `selected_category_ids` through token-proven GuestProfile ownership.
+* `Eğitime Devam` appears only for true resumable `tutorial_in_progress`;
+  tutorial-completed/profile-complete/category-pending guests must resume the
+  later onboarding step instead.
 * Authenticated users with no saved preferences or empty preferences use all
   active categories for Solo; missing authentication uses the explicit capped
   guest Solo projection and must not expose raw questions. Insufficient preferences also use all

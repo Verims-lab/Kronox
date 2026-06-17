@@ -94,6 +94,11 @@ and presents account linking as progress protection, not as a mandatory gate.
 `GuestProfile.onboarding_status` carries the guided onboarding state machine:
 `guest_created`, `tutorial_in_progress`, `tutorial_completed`,
 `profile_setup_pending`, `category_setup_pending`, and `onboarding_complete`.
+The `Eğitime Devam` resume screen is valid only for a true resumable
+`tutorial_in_progress` state: `tutorial_status = in_progress` and no later
+profile/category step has been completed. Stale `tutorial_in_progress` values
+must not override `tutorial_completed`, `profile_setup_pending`,
+`category_setup_pending`, or `onboarding_complete`.
 
 The profile setup step follows the guided first Solo level. It shows only
 `username`, optional `age`, and optional `gender`; `display_name` is mirrored
@@ -104,7 +109,10 @@ an indefinite spinner state.
 
 The category setup step stores optional guest `selected_category_ids`. Fewer
 than 3 selections should show guidance, but guest play remains possible. Empty
-guest selections mean all active Solo categories are eligible.
+guest selections mean all active Solo categories are eligible. Guest users do
+not need Google / Apple / Email login to load or save this step; category
+loading uses safe `Category` metadata or a metadata-only fallback, never raw
+question-bank reads.
 
 ## Guest Account Linking Phase 3
 

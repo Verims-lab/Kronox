@@ -147,6 +147,10 @@ Category preferences are optional personalization, not a gameplay gate:
 * runtime active-category checks accept the live status aliases currently seen
   in DB/report code: blank/missing, `a`, `active`, and `aktif`; passive rows
   remain excluded
+* first-time guest onboarding category selection can load this safe category
+  metadata without login; it may use a metadata-only seed fallback if the live
+  `Category` read is unavailable, but it must not read `Question` rows or expose
+  the question bank
 * fallback category IDs are allowed only when the `Category` read itself fails;
   they must not be treated as the canonical taxonomy
 * a category with active rows and Solo-eligible questions must not be excluded
