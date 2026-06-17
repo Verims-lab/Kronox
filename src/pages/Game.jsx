@@ -2280,32 +2280,34 @@ export default function Game() {
     </>
   );
 
-  if (!isOnline && isLoading && !isGameReadyEarly) return (
-    <>{diagnosticsOverlay}
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center space-y-4 px-6">
-        <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" />
-        <p className="font-inter text-sm text-muted-foreground">Sorular hazırlanıyor...</p>
-        <p className="font-inter text-xs text-muted-foreground/60">İlk yüklemede biraz sürebilir...</p>
-        <Button onClick={() => navigate('/')} variant="outline" size="sm">Geri Dön</Button>
-      </div>
-    </div></>
-  );
+  if (!isOnline) {
+    if (isLoading && !isGameReadyEarly) return (
+      <>{diagnosticsOverlay}
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4 px-6">
+          <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" />
+          <p className="font-inter text-sm text-muted-foreground">Sorular hazırlanıyor...</p>
+          <p className="font-inter text-xs text-muted-foreground/60">İlk yüklemede biraz sürebilir...</p>
+          <Button onClick={() => navigate('/')} variant="outline" size="sm">Geri Dön</Button>
+        </div>
+      </div></>
+    );
 
-  if (!isOnline && isError && !isGameReadyEarly) return (
-    <>{diagnosticsOverlay}
-    <div className="min-h-screen flex items-center justify-center bg-background p-6">
-      <div className="text-center space-y-4">
-        {questionLoadErrorCopy.icon === 'offline'
-          ? <WifiOff className="w-10 h-10 text-muted-foreground mx-auto" />
-          : <Loader2 className="w-10 h-10 text-muted-foreground mx-auto" />}
-        <p className="font-inter text-foreground font-semibold">{questionLoadErrorCopy.title}</p>
-        <p className="font-inter text-sm text-muted-foreground">{questionLoadErrorCopy.body}</p>
-        <Button onClick={handleQuestionBootstrapRetry} className="w-full">Tekrar Dene</Button>
-        <Button onClick={() => navigate('/')} variant="outline" className="w-full">Geri Dön</Button>
-      </div>
-    </div></>
-  );
+    if (isError && !isGameReadyEarly) return (
+      <>{diagnosticsOverlay}
+      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <div className="text-center space-y-4">
+          {questionLoadErrorCopy.icon === 'offline'
+            ? <WifiOff className="w-10 h-10 text-muted-foreground mx-auto" />
+            : <Loader2 className="w-10 h-10 text-muted-foreground mx-auto" />}
+          <p className="font-inter text-foreground font-semibold">{questionLoadErrorCopy.title}</p>
+          <p className="font-inter text-sm text-muted-foreground">{questionLoadErrorCopy.body}</p>
+          <Button onClick={handleQuestionBootstrapRetry} className="w-full">Tekrar Dene</Button>
+          <Button onClick={() => navigate('/')} variant="outline" className="w-full">Geri Dön</Button>
+        </div>
+      </div></>
+    );
+  }
 
   if (!isOnline && allQuestions.length > 0 && availableQuestionsCount < 10) return (
     <div className="min-h-screen flex items-center justify-center bg-background p-6">

@@ -616,6 +616,7 @@ After deployment, verify:
 
 * Public privacy URL is `https://kronoxgame.com/privacy`.
 * `/privacy` must load without login, admin status, backend data, or redirect.
+* Static route contract: /privacy must be publicly accessible without login.
 * The policy is Turkish-first, titled `Gizlilik Politikası`, includes a
   last-updated date and configured support contact, and must disclose
   account/profile, gameplay/progress/leaderboard, friends/invites/social,

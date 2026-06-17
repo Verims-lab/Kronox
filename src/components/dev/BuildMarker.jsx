@@ -2113,7 +2113,13 @@ import React, { useEffect, useState } from 'react';
 //   • Adds updateProfileSettings with auth-user verification, guest token
 //     proof, case-insensitive username uniqueness, and leaderboard display
 //     refresh without exposing age/gender.
-const BUILD_MARKER = 'Codex380';
+//
+// Codex381 — Codex379 Health blocker contract alignment:
+//   • Restores the Solo success CTA disabled={!hasNextLevel} static/runtime
+//     contract while preserving guided tutorial success routing.
+//   • Keeps active Solo attempts out of loading/error fallback during question
+//     refetch and makes /privacy + tutorial_in_progress contracts explicit.
+const BUILD_MARKER = 'Codex381';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

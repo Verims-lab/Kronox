@@ -201,16 +201,18 @@ const AuthenticatedApp = () => {
           onCompleted={handleCategoryPreferenceOnboardingComplete}
         />
       )}
-      {!isPublicStandalonePage && !isOnboardingPage && <BottomNav />}
+      {!isOnboardingPage && (
+        !isPublicStandalonePage && <BottomNav />
+      )}
     </div>
   );
 };
 
 
 function App() {
-  // Codex380 — push build marker into diag bus once at app boot
+  // Codex381 — push build marker into diag bus once at app boot
   useEffect(() => {
-    appDiagSetBuildMarker('Codex380');
+    appDiagSetBuildMarker('Codex381');
     // Codex176 — App booted successfully, so any prior stale-chunk reload
     // recovered. Clear the one-time reload guards so a future deploy can
     // self-heal again.
