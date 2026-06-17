@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RefreshCw, Shield, Snowflake } from 'lucide-react';
+import { Hand, RefreshCw, Shield, Snowflake } from 'lucide-react';
 import { JOKER_TYPES, normalizeJokerQuantity } from '@/lib/jokerInventory';
 
 const JOKERS = [
@@ -30,6 +30,58 @@ const JOKERS = [
   },
 ];
 
+function TutorialJokerTapHint({ active }) {
+  if (!active) return null;
+
+  return (
+    <motion.div
+      aria-hidden="true"
+      data-kronox-guided-joker-finger-hint="true"
+      className="pointer-events-none absolute left-1/2 top-0 z-20 flex -translate-x-1/2 flex-col items-center gap-1"
+      initial={{ x: 18, y: 34, opacity: 0, scale: 0.92 }}
+      animate={{
+        x: [18, 0, 0, 0],
+        y: [34, 8, 8, 16],
+        opacity: [0, 1, 1, 0],
+        scale: [0.92, 1, 0.86, 0.94],
+      }}
+      transition={{
+        delay: 0.45,
+        duration: 1.75,
+        repeat: Infinity,
+        repeatDelay: 1.25,
+        ease: 'easeInOut',
+      }}
+      style={{
+        filter: 'drop-shadow(0 8px 14px rgba(0,0,0,0.42))',
+        willChange: 'transform, opacity',
+      }}
+    >
+      <span
+        className="grid h-10 w-10 place-items-center rounded-full border text-amber-950"
+        style={{
+          background: 'linear-gradient(180deg, #fff4b8 0%, #facc15 52%, #d99e00 100%)',
+          borderColor: 'rgba(255,255,255,0.56)',
+          boxShadow:
+            'inset 0 1px 0 rgba(255,255,255,0.62), inset 0 -3px 0 rgba(120,75,0,0.28), 0 0 16px rgba(250,204,21,0.46)',
+        }}
+      >
+        <Hand className="h-5 w-5" strokeWidth={2.7} />
+      </span>
+      <span
+        className="whitespace-nowrap rounded-full px-2 py-0.5 font-inter text-[9px] font-black text-yellow-100"
+        style={{
+          background: 'rgba(7,10,31,0.84)',
+          border: '1px solid rgba(250,204,21,0.36)',
+          boxShadow: '0 0 12px rgba(250,204,21,0.18)',
+        }}
+      >
+        Dokun
+      </span>
+    </motion.div>
+  );
+}
+
 export default function SoloJokerBar({
   enabled = false,
   usedJokerType = null,
@@ -41,6 +93,8 @@ export default function SoloJokerBar({
   message = '',
   error = '',
   disabled = false,
+  tutorialDemoType = null,
+  tutorialDemoHintActive = false,
   onUseJoker,
 }) {
   const [recentlyUsedType, setRecentlyUsedType] = useState(null);
@@ -70,21 +124,24 @@ export default function SoloJokerBar({
           const isLocked = disabled || loading || jokerUsedOnCurrentCard || isPending || balance <= 0;
           const active = !isLocked;
           const dimmed = isLocked && !isRecentlyUsed;
+          const isTutorialDemoTarget = tutorialDemoType === type;
           const circleSize = 'clamp(38px, 10.8vw, 44px)';
           return (
-            <motion.button
+            <div key={type} className="relative flex justify-center">
+              <motion.button
               key={type}
               type="button"
               disabled={isLocked}
               aria-pressed={isRecentlyUsed}
               aria-busy={isPending}
               aria-label={`${label}, kalan ${balance}`}
+              data-kronox-guided-joker-demo-target={isTutorialDemoTarget ? 'true' : undefined}
               onClick={() => {
                 if (!active || !onUseJoker) return;
                 onUseJoker(type);
               }}
               whileTap={active ? { scale: 0.96 } : undefined}
-              className="group flex min-h-[62px] flex-col items-center justify-start gap-1 bg-transparent px-0 py-0.5 font-inter transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/70"
+              className="group flex min-h-[62px] w-full flex-col items-center justify-start gap-1 bg-transparent px-0 py-0.5 font-inter transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/70"
               style={{
                 color: dimmed ? 'rgba(203,213,225,0.44)' : '#f8fafc',
                 cursor: active ? 'pointer' : 'default',
@@ -137,7 +194,9 @@ export default function SoloJokerBar({
               >
                 {label}
               </span>
-            </motion.button>
+              </motion.button>
+              <TutorialJokerTapHint active={Boolean(tutorialDemoHintActive && isTutorialDemoTarget && active)} />
+            </div>
           );
         })}
       </div>

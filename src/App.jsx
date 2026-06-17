@@ -210,9 +210,9 @@ const AuthenticatedApp = () => {
 
 
 function App() {
-  // Codex384 — push build marker into diag bus once at app boot
+  // Codex385 — push build marker into diag bus once at app boot
   useEffect(() => {
-    appDiagSetBuildMarker('Codex384');
+    appDiagSetBuildMarker('Codex385');
     // Codex176 — App booted successfully, so any prior stale-chunk reload
     // recovered. Clear the one-time reload guards so a future deploy can
     // self-heal again.

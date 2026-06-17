@@ -488,6 +488,8 @@ export default function GameLayout({
         message={soloJokers?.message || ''}
         error={soloJokers?.error || ''}
         disabled={Boolean(soloJokers?.disabled) || !isMyTurn || Boolean(feedback)}
+        tutorialDemoType={soloJokers?.tutorialDemoType || null}
+        tutorialDemoHintActive={Boolean(soloJokers?.tutorialDemoHintActive)}
         onUseJoker={soloJokers?.onUseJoker}
       />
 

@@ -5,8 +5,8 @@ import React, { useEffect, useState } from 'react';
 //     first Solo level flow.
 //   • Adds GuestProfile onboarding state updates for tutorial, profile setup,
 //     category setup, and onboarding completion.
-//   • Tutorial joker guidance is explanation-only and does not spend real
-//     UserJokerInventory.
+//   • Tutorial joker guidance uses a tutorial-only demo and does not spend
+//     real UserJokerInventory.
 
 // Codex300 — Keep Question.description for SEO + align schema/Health/docs:
 //   • Question.description is now an approved, optional SEO/content-metadata
@@ -2136,7 +2136,13 @@ import React, { useEffect, useState } from 'react';
 //     drag step, repeating until the player starts dragging or completes it.
 //   • Keeps the cue pointer-events:none so normal drag/drop hit-testing,
 //     Online, and regular Solo gameplay stay untouched.
-const BUILD_MARKER = 'Codex384';
+//
+// Codex385 — Guided tutorial timer and joker demo:
+//   • Restores guided first Solo level timer to the shared 180-second Solo
+//     limit instead of the stale 20x tutorial override.
+//   • Adds a tutorial-only Zaman Dondur hand/tap demo that waits for one use
+//     without spending UserJokerInventory or writing a solo_use ledger row.
+const BUILD_MARKER = 'Codex385';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

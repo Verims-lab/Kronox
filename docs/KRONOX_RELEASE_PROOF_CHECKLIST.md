@@ -110,6 +110,8 @@ Checklist:
 * Special Solo levels win after 10 correct timeline cards, including seed cards already on the timeline.
 * Fail occurs on the 10th mistake.
 * Timeout at 180 seconds fails the level.
+* Guided first Solo tutorial also starts at 180 seconds and displays `03:00`,
+  not `60:00` or a 60-minute timer.
 * Replay creates a new deck.
 * Replay does not duplicate Solo points: same-score and lower-score replays add +0.
 * Better replay adds only the positive score delta.
@@ -215,6 +217,9 @@ Checklist:
 * `Kronokalkan` forgives the next wrong placement without incrementing mistakes.
 * `Kart Değiştir` replaces the current card from the prebuilt deck/reserve, does not fetch mid-attempt, does not immediately re-show the swapped-out card, respects visible timeline spacing, prefers a balanced replacement, and has helper-only diagnostics for replacement source/no-safe-replacement state.
 * `Zaman Dondur` freezes the Solo timer for 10 seconds and cleans up after result/replay.
+* Guided first Solo tutorial teaches `Zaman Dondur` with a tutorial-only
+  interactive demo and repeating hand/tap hint; the demo must not consume real
+  `UserJokerInventory` or write a real `solo_use` `JokerTransaction`.
 * Successful Solo joker use writes a `JokerTransaction` row with
   `reason: solo_use`, `quantity_delta: -1`, and a stable idempotency key.
 * Joker spend must not make balance negative and double tap must not duplicate
