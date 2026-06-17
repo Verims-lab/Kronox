@@ -98,6 +98,11 @@ Rules:
   deployment verification as `MANUAL_REQUIRED`/warning; it is a blocker only
   if key material is hardcoded, exposed through `VITE_`, logged, returned, or
   included in raw errors
+* Required triage wording: `VAPID_PRIVATE_KEY is server-side env/secret sourced.
+  Production secret manager verification is MANUAL_REQUIRED.`
+* Release operators must verify the Base44 production secret manager/env
+  contains the current `VAPID_PRIVATE_KEY`, confirm no default or placeholder
+  value is active, and record any rotation/manual proof before release
 * `VAPID_PRIVATE_KEY` is server-only and must never be logged, returned, sent to
   the client, exposed through `VITE_`, or included in raw error/stack responses
 * VAPID public key, private key, and subject are all required backend config

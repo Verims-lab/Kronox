@@ -20,6 +20,12 @@ const VAPID_CONFIG_FIELDS = [
   { key: 'publicKey', canonicalName: 'VAPID_PUBLIC_KEY', envNames: ['VAPID_PUBLIC_KEY', 'KRONOX_VAPID_PUBLIC_KEY'] },
   { key: 'privateKey', canonicalName: 'VAPID_PRIVATE_KEY', envNames: ['VAPID_PRIVATE_KEY', 'KRONOX_VAPID_PRIVATE_KEY'] },
 ] as const;
+const VAPID_SECRET_HEALTH_CLASSIFICATION = {
+  vapidPrivateKeySource: 'server_env_secret',
+  vapidPrivateKeyProductionSecretManagerVerification: 'MANUAL_REQUIRED',
+  envSourcedVapidPrivateKeyFindingSeverity: 'WARNING',
+  criticalOnlyWhen: 'hardcoded_logged_returned_client_exposed_or_insecure_default',
+} as const;
 
 function isInvalidVapidValue(value: string) {
   const normalized = value.trim().toLowerCase();
@@ -129,6 +135,14 @@ function summarizeVapidConfigState(config: ReturnType<typeof getVapidConfig>) {
   };
 }
 
+function getVapidSecretHealthClassification() {
+  return {
+    vapidPrivateKeySource: VAPID_SECRET_HEALTH_CLASSIFICATION.vapidPrivateKeySource,
+    vapidPrivateKeyProductionSecretManagerVerification: VAPID_SECRET_HEALTH_CLASSIFICATION.vapidPrivateKeyProductionSecretManagerVerification,
+    envSourcedVapidPrivateKeyFindingSeverity: VAPID_SECRET_HEALTH_CLASSIFICATION.envSourcedVapidPrivateKeyFindingSeverity,
+  };
+}
+
 function sanitizePushErrorReason(error: unknown) {
   const statusCode = Number((error as any)?.statusCode || (error as any)?.status || 0);
   if (statusCode === 404 || statusCode === 410) return 'subscription_expired';
@@ -217,6 +231,7 @@ Deno.serve(async (req) => {
     const config = getVapidConfig();
     if (config.missing.length || config.invalid.length) {
       const configState = summarizeVapidConfigState(config);
+      const secretManagement = getVapidSecretHealthClassification();
       console.warn('[sendGameInvitePush] VAPID config missing or invalid; push skipped but in-app invite remains available.', {
         reason: 'vapid_config_missing',
         ...configState,
@@ -237,6 +252,7 @@ Deno.serve(async (req) => {
           ok: false,
           reason: 'vapid_config_missing',
           missingConfig: true,
+          secretManagement,
         },
       });
     }

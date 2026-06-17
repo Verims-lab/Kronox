@@ -197,6 +197,10 @@ export const EXTRA_TESTS = [
         'isValidVapidSubject',
         'isLikelyVapidKey',
         'summarizeVapidConfigState',
+        'VAPID_SECRET_HEALTH_CLASSIFICATION',
+        "vapidPrivateKeyProductionSecretManagerVerification: 'MANUAL_REQUIRED'",
+        "envSourcedVapidPrivateKeyFindingSeverity: 'WARNING'",
+        "criticalOnlyWhen: 'hardcoded_logged_returned_client_exposed_or_insecure_default'",
         'vapid_config_missing',
         'pushSent: false',
         'pushSkipped: true',
@@ -236,6 +240,7 @@ export const EXTRA_TESTS = [
       }
       return pass('VAPID keys are loaded from server env/config names, strict validation rejects missing/blank values, no empty/default/VITE private-key fallback is present, and private key values are not logged or returned.', {
         verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
       });
     }),
@@ -255,6 +260,9 @@ export const EXTRA_TESTS = [
         'missingConfig: true',
         'missingCount',
         'invalidCount',
+        'getVapidSecretHealthClassification',
+        "vapidPrivateKeyProductionSecretManagerVerification: 'MANUAL_REQUIRED'",
+        "envSourcedVapidPrivateKeyFindingSeverity: 'WARNING'",
         'push_invite_failed',
       ];
       const forbidden = [
@@ -282,7 +290,7 @@ export const EXTRA_TESTS = [
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('VAPID_PRIVATE_KEY remains backend-env-only; scanner env-name findings are deployment-secret management notes when no value is committed.', {
+      return pass('VAPID_PRIVATE_KEY remains backend-env-only; scanner env-name findings are deployment-secret management notes when no value is committed. VAPID_PRIVATE_KEY is server-side env/secret sourced. Production secret manager verification is MANUAL_REQUIRED.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -529,7 +537,7 @@ export const EXTRA_TESTS = [
 
   makeCase('security_runtime_secret_scan_needed',
     'Runtime security scan should be rerun after deploy',
-    () => notAutomatable('Static Health can verify source contracts, but deployed secret presence/rotation remains manual-only verification. A VAPID_PRIVATE_KEY env-var-name-only finding is a deployment-secret management warning, not a blocker, unless real key material is hardcoded, exposed, logged, returned, or read through VITE_.', {
+    () => notAutomatable('Static Health can verify source contracts, but deployed secret presence/rotation remains manual-only verification. VAPID_PRIVATE_KEY is server-side env/secret sourced. Production secret manager verification is MANUAL_REQUIRED. A VAPID_PRIVATE_KEY env-var-name-only finding is a deployment-secret management warning, not a blocker, unless real key material is hardcoded, exposed, logged, returned, or read through VITE_.', {
       verification: 'NOT_AUTOMATABLE',
       classification: 'DEPLOYMENT_SECRET_MANAGEMENT',
       verificationLabels: ['MANUAL_REQUIRED', 'BACKEND_RUNTIME_PROBE', 'SECRET_DEPLOYMENT_REVIEW'],

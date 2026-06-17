@@ -604,6 +604,12 @@ Checklist:
   secret, never committed, never read from `VITE_`, and never logged/returned.
   Scanner findings that only flag the env var name are deployment-secret
   management notes unless actual key material is found.
+* Health/security triage wording for env-sourced VAPID secrets:
+  `VAPID_PRIVATE_KEY is server-side env/secret sourced. Production secret
+  manager verification is MANUAL_REQUIRED.`
+* Before release, manually verify Base44 production secret/env configuration
+  has the intended `VAPID_PRIVATE_KEY`, no default/placeholder key is active,
+  and rotation is completed if exposure is suspected.
 * `VAPID_PUBLIC_KEY` may be used by browser subscription code through
   `VITE_KRONOX_VAPID_PUBLIC_KEY`; it is public-by-design but still
   config-managed. Backend push signing must use only deployment-managed

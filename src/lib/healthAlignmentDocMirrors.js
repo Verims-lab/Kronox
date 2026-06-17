@@ -74,6 +74,8 @@ Status: Active product contract.
 - Backend push config requires VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, and VAPID_SUBJECT or their KRONOX_ compatibility names.
 - VAPID_PRIVATE_KEY is server-only and read from backend deployment secret/env only; scanner findings that only flag the env var name are deployment-secret management notes unless real key material is present. It is never logged, returned, sent to the client, exposed through VITE_, or included in raw error/stack responses.
 - Health/security triage classifies env-sourced VAPID_PRIVATE_KEY deployment verification as MANUAL_REQUIRED/warning; it is a blocker only if key material is hardcoded, exposed through VITE_, logged, returned, or included in raw errors.
+- Required triage wording: VAPID_PRIVATE_KEY is server-side env/secret sourced. Production secret manager verification is MANUAL_REQUIRED.
+- Release operators manually verify the Base44 production secret manager/env contains the intended VAPID_PRIVATE_KEY, no default/placeholder key is active, and rotation is completed if exposure is suspected.
 - VAPID_PUBLIC_KEY is public by design for browser subscription but remains public-by-design/config-managed, not hardcoded.
 - VAPID_SUBJECT is deployment-controlled contact/config metadata and must not be hardcoded as a source fallback or logged unnecessarily.
 - VAPID_SUBJECT uses a mailto: or https:// subject and VAPID keys are non-empty base64url-style deployment values.
@@ -260,6 +262,7 @@ Missing or blank VAPID config returns explicit vapid_config_missing / missing_va
 No empty-string, dummy, hardcoded, or VITE_ private-key fallback is allowed.
 Safe VAPID-missing diagnostics use pushSent:false, pushSkipped:true, missingConfig:true, reason:vapid_config_missing, skippedReasons, failedReasons, subscriptionCount, and counts only.
 VAPID_PRIVATE_KEY remains backend-env-only and is never logged or returned; env-var-name scanner findings are deployment-secret management notes unless real key material is exposed.
+VAPID_PRIVATE_KEY is server-side env/secret sourced. Production secret manager verification is MANUAL_REQUIRED.
 VAPID_PUBLIC_KEY is public-by-design/config-managed, and VAPID_SUBJECT is contact/config metadata that must not be logged or returned unnecessarily.
 In-app invites remain functional if push is not configured.
 npm run build does not prove backend VAPID secret deployment; real push delivery requires a subscribed device and deployed backend secrets.

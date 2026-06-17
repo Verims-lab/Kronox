@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex388 — VAPID secret-management classification:
+//   • sendGameInvitePush now carries an explicit static Health marker that
+//     server-env-sourced VAPID_PRIVATE_KEY findings are MANUAL_REQUIRED
+//     deployment secret-manager verification, not CRITICAL source exposure by
+//     themselves.
+//   • CRITICAL remains reserved for hardcoded, logged, returned, client-exposed,
+//     or insecure-default VAPID private-key material.
+
 // Codex378 — Onboarding Phase 2:
 //   • Replaces the old standalone tutorial entry with `/onboarding` guided
 //     first Solo level flow.
@@ -2155,7 +2163,7 @@ import React, { useEffect, useState } from 'react';
 //   • Adds client install id hashing for bloat control without trusting it as
 //     identity proof or storing raw IP/header/token data.
 //   • Blocks public request bodies from setting trusted score/economy/link fields.
-const BUILD_MARKER = 'Codex387';
+const BUILD_MARKER = 'Codex388';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
