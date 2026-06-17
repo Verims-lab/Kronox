@@ -28,7 +28,6 @@ function json(payload, status = 200) {
   return Response.json(payload, { status });
 }
 
-
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
