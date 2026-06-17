@@ -36,6 +36,8 @@ const GENDER_OPTIONS = [
   { value: 'custom', label: 'Kendim tanımlarım' },
 ];
 
+const GUIDED_FIRST_SOLO_TUTORIAL_IN_PROGRESS = 'tutorial_in_progress';
+
 function tutorialGameConfig() {
   const config = buildSoloGameConfigForLevel({ levelNumber: 1 });
   return {
@@ -174,7 +176,7 @@ export default function OnboardingPage() {
           }}
         />
       )}
-      {step === GUEST_ONBOARDING_STATES.TUTORIAL_IN_PROGRESS && (
+      {(step === GUEST_ONBOARDING_STATES.TUTORIAL_IN_PROGRESS || step === GUIDED_FIRST_SOLO_TUTORIAL_IN_PROGRESS) && (
         <TutorialResumeStep
           busy={busy}
           onResume={() => navigate('/game', { state: tutorialGameConfig() })}

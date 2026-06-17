@@ -63,6 +63,7 @@ export default function SoloLevelResult({
   }, []);
 
   if (passed) {
+    const successHasPrimaryAction = successPrimaryActionEnabled ?? hasNextLevel;
     return (
       <SoloSuccessPopup
         levelNumber={levelNumber}
@@ -71,14 +72,13 @@ export default function SoloLevelResult({
         timeSeconds={timeSeconds}
         levelScore={levelScore}
         timeBonus={timeBonus}
-        hasNextLevel={hasNextLevel}
+        hasNextLevel={successHasPrimaryAction}
         userEmail={currentUserEmail}
         onNextLevel={onNextLevel}
         onRetry={onRetry}
         onBackToPath={onBackToPath}
         primaryActionLabel={successPrimaryActionLabel}
         backToPathLabel={successBackToPathLabel}
-        primaryActionEnabled={successPrimaryActionEnabled ?? hasNextLevel}
       />
     );
   }
