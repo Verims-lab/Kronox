@@ -1,7 +1,7 @@
 {
   "name": "GuestProfile",
   "type": "object",
-  "description": "Codex379 — App-owned portable guest identity foundation. Kronox does not use Firebase or Base44 anonymous auth for guest identity. Raw guest tokens are client-only; the database stores guest_token_hash. GuestProfile rows are created/verified through createGuestProfile. Phase 3 account linking verifies guest token plus authenticated user, writes AccountLinkTransaction, marks status linked once, and preserves guest progress/economy without exposing provider ids.",
+  "description": "Codex387 — App-owned portable guest identity foundation. Kronox does not use Firebase or Base44 anonymous auth for guest identity. Raw guest tokens are client-only; the database stores guest_token_hash. GuestProfile rows are created/verified through the public-by-design createGuestProfile function, which uses request allowlists and privacy-safe throttle buckets. Phase 3 account linking verifies guest token plus authenticated user, writes AccountLinkTransaction, marks status linked once, and preserves eligible guest progress/economy without exposing provider ids.",
   "properties": {
     "guest_id": {
       "type": "string",
@@ -28,7 +28,7 @@
     },
     "display_name": {
       "type": "string",
-      "description": "Public display name. Initially mirrors username and may be changed later with uniqueness checks."
+      "description": "Legacy/projection public display field. It mirrors username for current profile UI; users edit username only."
     },
     "status": {
       "type": "string",
@@ -117,11 +117,11 @@
     },
     "diamonds": {
       "type": "number",
-      "description": "Best known guest Diamond balance to combine once during account linking when guest economy exists."
+      "description": "Trusted/admin or future server-authoritative guest Diamond balance to combine once during account linking when guest economy exists. Public createGuestProfile create/sync requests must not set this field."
     },
     "joker_balances": {
       "type": "object",
-      "description": "Best known guest joker balances to combine once through UserJokerInventory plus JokerTransaction during account linking."
+      "description": "Trusted/admin or future server-authoritative guest joker balances to combine once through UserJokerInventory plus JokerTransaction during account linking. Public createGuestProfile create/sync requests must not set this field."
     },
     "tutorial_completed_at": {
       "type": "string",

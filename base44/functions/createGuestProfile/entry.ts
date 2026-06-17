@@ -6,7 +6,9 @@ const GUEST_ID_PREFIX = 'guest_';
 const MAX_USERNAME_ATTEMPTS = 18;
 const MAX_GUEST_ID_ATTEMPTS = 8;
 const TOKEN_BYTE_LENGTH = 32;
-const JOKER_TYPES = ['mistake_shield', 'card_swap', 'time_freeze'] as const;
+const MAX_REQUEST_BODY_BYTES = 128 * 1024;
+const GUEST_CREATION_HOURLY_LIMIT = 12;
+const GUEST_CREATION_DAILY_LIMIT = 40;
 const ONBOARDING_STATES = new Set([
   'guest_created',
   'tutorial_in_progress',
@@ -22,14 +24,88 @@ const ONBOARDING_STATES = new Set([
 const TUTORIAL_STATES = new Set(['not_started', 'in_progress', 'completed', 'skipped']);
 const SETUP_STATES = new Set(['pending', 'completed']);
 const GENDER_VALUES = new Set(['', 'female', 'male', 'non_binary', 'prefer_not_to_say', 'custom']);
+const TOP_LEVEL_FIELDS = new Set(['guest_id', 'guest_token', 'action', 'patch', 'client_install_id']);
+const CREATE_FIELDS = new Set(['client_install_id']);
+const UPDATE_ONBOARDING_PATCH_FIELDS = new Set([
+  'onboarding_status',
+  'tutorial_status',
+  'profile_setup_status',
+  'category_setup_status',
+  'username',
+  'display_name',
+  'age',
+  'gender',
+  'selected_category_ids',
+]);
+const SYNC_PROGRESS_PATCH_FIELDS = new Set([
+  'solo_progress',
+  'online_progress',
+]);
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });
 }
 
+function safeError(code: string, status = 400, extra: Record<string, unknown> = {}) {
+  return json({ ok: false, error: code, ...extra }, status);
+}
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function isPlainObject(value: unknown) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function unexpectedKeys(source: unknown, allowed: Set<string>) {
+  if (!isPlainObject(source)) return [];
+  return Object.keys(source as Record<string, unknown>)
+    .filter((key) => !allowed.has(key))
+    .slice(0, 12);
+}
+
+function byteLength(text: string) {
+  return new TextEncoder().encode(text || '').length;
+}
+
+async function readJsonBody(req: Request) {
+  const contentLength = Number(req.headers.get('content-length') || 0);
+  if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BODY_BYTES) {
+    return {
+      ok: false,
+      response: safeError('request_body_too_large', 413),
+      body: null,
+    };
+  }
+
+  const text = await req.text();
+  if (byteLength(text) > MAX_REQUEST_BODY_BYTES) {
+    return {
+      ok: false,
+      response: safeError('request_body_too_large', 413),
+      body: null,
+    };
+  }
+  if (!text.trim()) return { ok: true, response: null, body: {} };
+
+  try {
+    const body = JSON.parse(text);
+    if (!isPlainObject(body)) {
+      return {
+        ok: false,
+        response: safeError('invalid_request_body', 400),
+        body: null,
+      };
+    }
+    return { ok: true, response: null, body };
+  } catch {
+    return {
+      ok: false,
+      response: safeError('invalid_json_body', 400),
+      body: null,
+    };
+  }
 }
 
 function bytesToBase64Url(bytes: Uint8Array) {
@@ -97,6 +173,19 @@ function safeCredentialText(value: unknown, maxLength = 180) {
   return /^[A-Za-z0-9_-]+$/.test(text) ? text : '';
 }
 
+function safeHeaderFragment(value: unknown, maxLength = 180) {
+  return String(value || '')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxLength);
+}
+
+function normalizeClientInstallId(value: unknown) {
+  const text = safeCredentialText(value, 90);
+  return text.startsWith('install_') ? text : '';
+}
+
 function normalizeGuestId(value: unknown) {
   const text = safeCredentialText(value, 80);
   return text.startsWith(GUEST_ID_PREFIX) ? text : '';
@@ -118,6 +207,10 @@ function soloLeaderboardEntryEntity(base44: any) {
   return base44?.asServiceRole?.entities?.SoloLeaderboardEntry || base44?.entities?.SoloLeaderboardEntry || null;
 }
 
+function guestCreationThrottleEntity(base44: any) {
+  return base44?.asServiceRole?.entities?.GuestCreationThrottle || base44?.entities?.GuestCreationThrottle || null;
+}
+
 async function sha256Base64Url(input: string) {
   const data = new TextEncoder().encode(input);
   const digest = await crypto.subtle.digest('SHA-256', data);
@@ -126,6 +219,114 @@ async function sha256Base64Url(input: string) {
 
 async function hashGuestToken(guestId: string, guestToken: string) {
   return sha256Base64Url(`kronox_guest_v1:${guestId}:${guestToken}`);
+}
+
+function utcBucket(granularity: 'hour' | 'day') {
+  const date = new Date();
+  const yyyy = date.getUTCFullYear();
+  const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(date.getUTCDate()).padStart(2, '0');
+  if (granularity === 'day') return `${yyyy}-${mm}-${dd}`;
+  const hh = String(date.getUTCHours()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}T${hh}`;
+}
+
+function requestSourceMaterial(req: Request, body: any) {
+  const forwardedFor = safeHeaderFragment(req.headers.get('x-forwarded-for') || '').split(',')[0] || '';
+  const ip = safeHeaderFragment(
+    req.headers.get('cf-connecting-ip') ||
+    req.headers.get('x-real-ip') ||
+    forwardedFor ||
+    req.headers.get('true-client-ip') ||
+    'unknown',
+    90
+  );
+  const userAgent = safeHeaderFragment(req.headers.get('user-agent') || 'unknown', 180);
+  const language = safeHeaderFragment(req.headers.get('accept-language') || 'unknown', 80);
+  const installId = normalizeClientInstallId(body?.client_install_id) || 'none';
+  return [
+    `ip:${ip || 'unknown'}`,
+    `ua:${userAgent || 'unknown'}`,
+    `lang:${language || 'unknown'}`,
+    `install:${installId}`,
+  ].join('|');
+}
+
+async function sourceHashFromRequest(req: Request, body: any) {
+  const material = requestSourceMaterial(req, body);
+  return (await sha256Base64Url(`kronox_guest_create_source_v1:${material}`)).slice(0, 48);
+}
+
+async function upsertThrottleBucket(
+  base44: any,
+  sourceHash: string,
+  granularity: 'hour' | 'day',
+  bucket: string,
+  limit: number,
+) {
+  const entity = guestCreationThrottleEntity(base44);
+  if (!entity?.filter || !entity?.create || !entity?.update) {
+    return { available: false, allowed: true, count: 0, blocked: false };
+  }
+  const now = nowIso();
+  const throttleKey = `${sourceHash}:${granularity}:${bucket}`;
+  const rows = await entity.filter({ throttle_key: throttleKey }, '-last_seen_at', 5).catch(() => []);
+  const existing = Array.isArray(rows) && rows[0] ? rows[0] : null;
+  const id = rowId(existing);
+  const currentCount = normalizeNonNegativeInteger(existing?.count);
+  const blocked = currentCount >= limit;
+  const payload = {
+    throttle_key: throttleKey,
+    source_hash: sourceHash,
+    bucket,
+    granularity,
+    count: blocked ? currentCount : currentCount + 1,
+    blocked_count: normalizeNonNegativeInteger(existing?.blocked_count) + (blocked ? 1 : 0),
+    limit,
+    status: blocked ? 'blocked' : 'allowed',
+    first_seen_at: existing?.first_seen_at || now,
+    last_seen_at: now,
+    metadata: {
+      publicCreateGuestProfileIntentional: true,
+      rawIpStored: false,
+      rawHeadersStored: false,
+      sourceHashOnly: true,
+    },
+  };
+  if (id) await entity.update(id, payload).catch(() => null);
+  else await entity.create(payload).catch(() => null);
+  return { available: true, allowed: !blocked, count: payload.count, blocked };
+}
+
+async function checkGuestCreationThrottle(base44: any, req: Request, body: any) {
+  const sourceHash = await sourceHashFromRequest(req, body);
+  const hourBucket = utcBucket('hour');
+  const dayBucket = utcBucket('day');
+  const hourly = await upsertThrottleBucket(base44, sourceHash, 'hour', hourBucket, GUEST_CREATION_HOURLY_LIMIT);
+  const daily = await upsertThrottleBucket(base44, sourceHash, 'day', dayBucket, GUEST_CREATION_DAILY_LIMIT);
+  const throttleAvailable = Boolean(hourly.available && daily.available);
+  const allowed = Boolean(hourly.allowed && daily.allowed);
+  return {
+    allowed,
+    throttleAvailable,
+    sourceHash,
+    hourBucket,
+    dayBucket,
+    response: allowed
+      ? null
+      : json({
+          ok: false,
+          error: 'guest_creation_rate_limited',
+          retry_after_seconds: hourly.blocked ? 60 * 60 : 24 * 60 * 60,
+          contract: {
+            publicCreateGuestProfileIntentional: true,
+            guestCreationThrottle: true,
+            throttleSourceHashStored: true,
+            rawIpStored: false,
+            rawHeadersStored: false,
+          },
+        }, 429),
+  };
 }
 
 async function findGuestProfile(base44: any, guestId: string) {
@@ -277,15 +478,6 @@ function normalizeNonNegativeInteger(value: unknown) {
   return Number.isFinite(numeric) ? Math.max(0, Math.floor(numeric)) : 0;
 }
 
-function normalizeJokerBalances(value: unknown) {
-  const source = value && typeof value === 'object' ? value as Record<string, unknown> : {};
-  const balances: Record<string, number> = {};
-  for (const jokerType of JOKER_TYPES) {
-    balances[jokerType] = normalizeNonNegativeInteger(source[jokerType]);
-  }
-  return balances;
-}
-
 function normalizeSoloProgress(value: unknown) {
   const source = value && typeof value === 'object' ? value as any : {};
   const rawLevels = source?.levels && typeof source.levels === 'object' ? source.levels : {};
@@ -386,16 +578,9 @@ async function syncGuestProgress(base44: any, guestId: string, guestToken: strin
     update.kronox_puan_total = Math.max(
       normalizeNonNegativeInteger(row?.kronox_puan_total),
       normalizeNonNegativeInteger(soloProgress.summary?.totalSoloScore),
-      normalizeNonNegativeInteger(patch.kronox_puan_total),
     );
   }
   if (onlineProgress) update.online_progress = onlineProgress;
-  if (Object.prototype.hasOwnProperty.call(patch, 'diamonds')) {
-    update.diamonds = normalizeNonNegativeInteger(patch.diamonds);
-  }
-  if (Object.prototype.hasOwnProperty.call(patch, 'joker_balances')) {
-    update.joker_balances = normalizeJokerBalances(patch.joker_balances);
-  }
 
   const updated = await entity.update(id, update);
   if (soloProgress) {
@@ -451,6 +636,56 @@ function normalizeAge(value: unknown) {
 function normalizeGender(value: unknown) {
   const text = String(value || '').trim();
   return GENDER_VALUES.has(text) ? text : undefined;
+}
+
+function validatePatchShape(action: string, patch: unknown) {
+  if (patch === undefined || patch === null) return { ok: true, response: null };
+  if (!isPlainObject(patch)) return { ok: false, response: safeError('invalid_patch', 400) };
+  const allowed = action === 'sync_progress'
+    ? SYNC_PROGRESS_PATCH_FIELDS
+    : UPDATE_ONBOARDING_PATCH_FIELDS;
+  const unexpected = unexpectedKeys(patch, allowed);
+  if (unexpected.length) {
+    return {
+      ok: false,
+      response: safeError('unexpected_guest_patch_fields', 400, { fields: unexpected }),
+    };
+  }
+  return { ok: true, response: null };
+}
+
+function validateGuestProfileRequestBody(body: any, hasCredentials: boolean, action: string) {
+  if (!isPlainObject(body)) return { ok: false, response: safeError('invalid_request_body', 400) };
+  const topUnexpected = unexpectedKeys(body, TOP_LEVEL_FIELDS);
+  if (topUnexpected.length) {
+    return {
+      ok: false,
+      response: safeError('unexpected_guest_request_fields', 400, { fields: topUnexpected }),
+    };
+  }
+
+  if (!hasCredentials) {
+    if (action) return { ok: false, response: safeError('guest_credentials_required', 400) };
+    const createUnexpected = unexpectedKeys(body, CREATE_FIELDS);
+    if (createUnexpected.length) {
+      return {
+        ok: false,
+        response: safeError('unexpected_guest_creation_fields', 400, { fields: createUnexpected }),
+      };
+    }
+    return { ok: true, response: null };
+  }
+
+  if (action && action !== 'update_onboarding' && action !== 'sync_progress') {
+    return { ok: false, response: safeError('invalid_guest_action', 400) };
+  }
+  if (!action && Object.prototype.hasOwnProperty.call(body, 'patch')) {
+    return { ok: false, response: safeError('invalid_patch_without_action', 400) };
+  }
+  if (action === 'update_onboarding' || action === 'sync_progress') {
+    return validatePatchShape(action, body?.patch);
+  }
+  return { ok: true, response: null };
 }
 
 async function updateGuestOnboarding(base44: any, guestId: string, guestToken: string, patchInput: any) {
@@ -572,7 +807,7 @@ async function updateGuestOnboarding(base44: any, guestId: string, guestToken: s
   });
 }
 
-async function createGuestProfile(base44: any) {
+async function createGuestProfile(base44: any, throttle: any = {}) {
   const entity = guestProfileEntity(base44);
   if (!entity?.create || !entity?.filter) {
     return json({ ok: false, error: 'guest_profile_entity_unavailable' }, 500);
@@ -611,6 +846,11 @@ async function createGuestProfile(base44: any) {
           firebaseUsed: false,
           base44AnonymousAuthUsed: false,
           rawGuestTokenServerStored: false,
+          publicCreateGuestProfileIntentional: true,
+          requestBodyTrustedForIdentity: false,
+          guestCreationThrottleAvailable: Boolean(throttle?.throttleAvailable),
+          guestCreationSourceHash: String(throttle?.sourceHash || ''),
+          guestCreationDayBucket: String(throttle?.dayBucket || ''),
         },
       });
       return json({
@@ -626,6 +866,12 @@ async function createGuestProfile(base44: any) {
           rawGuestTokenClientOnly: true,
           tokenHashStored: true,
           usernameFormat: `${USERNAME_PREFIX}####`,
+          publicCreateGuestProfileIntentional: true,
+          guestCreationThrottle: true,
+          throttleSourceHashStored: true,
+          rawIpStored: false,
+          rawHeadersStored: false,
+          requestBodyTrustedForIdentity: false,
         },
       }, 201);
     } catch (error) {
@@ -640,12 +886,21 @@ async function createGuestProfile(base44: any) {
 }
 
 Deno.serve(async (req) => {
+  // Public by design: first-open guest onboarding cannot require Google,
+  // Apple, email, Firebase, or Base44 anonymous auth. This entrypoint remains
+  // public but rejects unexpected trusted fields, hashes request source
+  // metadata for throttling, and never stores/logs the raw guest token.
   const base44 = createClientFromRequest(req);
   try {
-    const body = await req.json().catch(() => ({}));
+    const parsed = await readJsonBody(req);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.body || {};
     const guestId = normalizeGuestId(body?.guest_id);
     const guestToken = normalizeGuestToken(body?.guest_token);
     const action = String(body?.action || '').trim();
+    const hasAnyGuestCredential = Boolean(guestId || guestToken);
+    const bodyValidation = validateGuestProfileRequestBody(body, hasAnyGuestCredential, action);
+    if (!bodyValidation.ok) return bodyValidation.response;
 
     if (guestId || guestToken) {
       if (!guestId || !guestToken) return json({ ok: false, error: 'guest_credentials_required' }, 400);
@@ -658,7 +913,9 @@ Deno.serve(async (req) => {
       return verifyExistingGuest(base44, guestId, guestToken);
     }
 
-    return createGuestProfile(base44);
+    const throttle = await checkGuestCreationThrottle(base44, req, body);
+    if (!throttle.allowed) return throttle.response;
+    return createGuestProfile(base44, throttle);
   } catch (error) {
     console.warn('[createGuestProfile] failed', {
       reason: String((error as Error)?.message || 'guest_profile_error').slice(0, 120),

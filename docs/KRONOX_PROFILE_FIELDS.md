@@ -52,6 +52,14 @@ with `display_name` only as a legacy fallback for old rows. Email, Google ID,
 Apple ID, provider UID, and internal `owner_key` values are not public display
 names.
 
+`createGuestProfile` is public by design because unauthenticated players must be
+able to start as guests. It still generates `guest_id`, raw guest token, token
+hash, and default username server-side; request bodies cannot set trusted
+identity, account-link, score/economy, token-hash, role, or admin fields. The
+function also records privacy-safe `GuestCreationThrottle` buckets with hashed
+source metadata for bloat monitoring; raw IP, raw headers, and raw guest tokens
+are not stored in those rows.
+
 ## Editable Profile Settings
 
 Profile > Ayarlar includes editable profile fields for both guest and

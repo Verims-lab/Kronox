@@ -2148,7 +2148,14 @@ import React, { useEffect, useState } from 'react';
 //   • Mirrors legacy display_name from username for existing projections.
 //   • Lets profile save advance to category setup without stale auth refresh
 //     blocking the Kategorilere Geç transition.
-const BUILD_MARKER = 'Codex386';
+//
+// Codex387 — Public createGuestProfile abuse/bloat hardening:
+//   • Keeps guest creation public by design while adding request size/shape
+//     validation, source-hash throttling, and GuestCreationThrottle rows.
+//   • Adds client install id hashing for bloat control without trusting it as
+//     identity proof or storing raw IP/header/token data.
+//   • Blocks public request bodies from setting trusted score/economy/link fields.
+const BUILD_MARKER = 'Codex387';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

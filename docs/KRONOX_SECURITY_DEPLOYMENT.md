@@ -811,6 +811,22 @@ identity.
 `KronoxUser#####` username. The raw guest token is returned to the client once
 and stored only on the local device. The database stores only
 `guest_token_hash` and `guest_token_hash_algorithm=sha256:kronox_guest_v1`.
+The function is public by design because first-open guest onboarding must work
+without Google, Apple, email, Firebase anonymous auth, or Base44 anonymous auth.
+That public access is allowed only with the hardening controls in the deployed
+function: request bodies are size-limited, top-level and patch fields are
+allowlisted, guest ids/tokens/usernames are server-generated, and trusted fields
+such as role/admin state, linked account fields, token hashes, Diamonds, joker
+balances, and direct score totals are rejected rather than copied from public
+requests.
+
+Guest creation also writes privacy-safe `GuestCreationThrottle` rows when the
+runtime exposes enough request metadata. The throttle source key is a server-side
+hash of coarse source metadata plus optional client install id; raw IP, raw
+headers, raw guest token, auth headers, provider credentials, and full request
+bodies must never be stored. Hour/day buckets are used for bloat monitoring and
+rate limiting. If runtime metadata or entity deployment is unavailable, release
+proof must record the limitation and manually monitor GuestProfile growth.
 
 Guest ownership requires `guest_id + raw guest token`; `guest_id` alone must not
 authorize reads/writes. Never log raw guest token, auth headers, provider

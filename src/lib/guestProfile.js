@@ -4,6 +4,7 @@ const STORAGE_GUEST_ID_KEY = 'kronox.guestProfile.guest_id';
 const STORAGE_GUEST_TOKEN_KEY = 'kronox.guestProfile.guest_token';
 const STORAGE_GUEST_PUBLIC_KEY = 'kronox.guestProfile.public';
 const STORAGE_GUEST_LINK_INTENT_KEY = 'kronox.guestProfile.linkIntent';
+const STORAGE_GUEST_INSTALL_ID_KEY = 'kronox.guestProfile.install_id';
 const USERNAME_PREFIX = 'KronoxUser';
 
 export const GUEST_ONBOARDING_STATES = Object.freeze({
@@ -150,8 +151,33 @@ export function makeKronoxUserFallback(seed = '') {
   return `${USERNAME_PREFIX}${suffix}`;
 }
 
+function makeClientInstallId() {
+  try {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    const encoded = btoa(String.fromCharCode(...bytes))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/g, '');
+    return `install_${encoded}`;
+  } catch {
+    return `install_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 12)}`;
+  }
+}
+
+function getOrCreateClientInstallId() {
+  const existing = readLocalStorage(STORAGE_GUEST_INSTALL_ID_KEY);
+  if (/^install_[A-Za-z0-9_-]{12,80}$/.test(existing)) return existing;
+  const created = makeClientInstallId();
+  writeLocalStorage(STORAGE_GUEST_INSTALL_ID_KEY, created);
+  return created;
+}
+
 async function invokeCreateGuestProfile(payload) {
-  const response = await base44.functions.invoke('createGuestProfile', payload || {});
+  const response = await base44.functions.invoke('createGuestProfile', {
+    client_install_id: getOrCreateClientInstallId(),
+    ...(payload || {}),
+  });
   const data = response?.data || response || {};
   if (data?.ok === false) {
     const error = new Error(data.error || 'guest_profile_failed');
@@ -215,14 +241,12 @@ export async function updateGuestProfileOnboarding(patch) {
   return storeGuestSession(updated.profile, updated.guest_token);
 }
 
-export async function syncGuestProfileProgress({ soloProgress = null, onlineProgress = null, diamonds = null, jokerBalances = null } = {}) {
+export async function syncGuestProfileProgress({ soloProgress = null, onlineProgress = null } = {}) {
   const credentials = getStoredGuestCredentials();
   if (!credentials.guest_id || !credentials.guest_token) return null;
   const patch = {};
   if (soloProgress && typeof soloProgress === 'object') patch.solo_progress = soloProgress;
   if (onlineProgress && typeof onlineProgress === 'object') patch.online_progress = onlineProgress;
-  if (diamonds !== null && typeof diamonds !== 'undefined') patch.diamonds = diamonds;
-  if (jokerBalances && typeof jokerBalances === 'object') patch.joker_balances = jokerBalances;
   if (Object.keys(patch).length === 0) return null;
   const updated = await invokeCreateGuestProfile({
     ...credentials,
@@ -232,19 +256,19 @@ export async function syncGuestProfileProgress({ soloProgress = null, onlineProg
   return storeGuestSession(updated.profile, updated.guest_token);
 }
 
-export async function prepareGuestAccountLink({ provider = 'email', soloProgress = null, onlineProgress = null, diamonds = null, jokerBalances = null } = {}) {
+export async function prepareGuestAccountLink({ provider = 'email', soloProgress = null, onlineProgress = null } = {}) {
   const intent = setPendingGuestAccountLinkIntent(provider);
   if (!intent) return null;
-  await syncGuestProfileProgress({ soloProgress, onlineProgress, diamonds, jokerBalances }).catch(() => null);
+  await syncGuestProfileProgress({ soloProgress, onlineProgress }).catch(() => null);
   return intent;
 }
 
-export async function linkPendingGuestAccount({ soloProgress = null, onlineProgress = null, diamonds = null, jokerBalances = null } = {}) {
+export async function linkPendingGuestAccount({ soloProgress = null, onlineProgress = null } = {}) {
   const credentials = getStoredGuestCredentials();
   const intent = getPendingGuestAccountLinkIntent();
   if (!credentials.guest_id || !credentials.guest_token || !intent?.idempotency_key) return null;
 
-  await syncGuestProfileProgress({ soloProgress, onlineProgress, diamonds, jokerBalances }).catch(() => null);
+  await syncGuestProfileProgress({ soloProgress, onlineProgress }).catch(() => null);
   const response = await base44.functions.invoke('linkGuestAccount', {
     ...credentials,
     idempotency_key: intent.idempotency_key,
