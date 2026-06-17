@@ -17,6 +17,7 @@ import authProviderButtonsSource from '../auth/AuthProviderButtons.jsx?raw';
 import appSource from '../../App.jsx?raw';
 import gameSource from '../../pages/Game.jsx?raw';
 import onboardingPageSource from '../../pages/OnboardingPage.jsx?raw';
+import soloJokerBarSource from './SoloJokerBar.jsx?raw';
 import profilePageSource from '../../pages/ProfilePage.jsx?raw';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
 import playerSetupSource from '../../pages/PlayerSetup.jsx?raw';
@@ -416,6 +417,8 @@ export const EXTRA_TESTS = [
         'path="/onboarding"',
         'onboardingTutorial',
         'guided_first_solo_level',
+        'GUIDED_TUTORIAL_TIME_LIMIT_SECONDS = SOLO_LEVEL_TIME_SECONDS',
+        'totalTimeSeconds: GUIDED_TUTORIAL_TIME_LIMIT_SECONDS',
         'GuidedSoloTutorialOverlay',
         'tutorial_in_progress',
         'guidedTutorialCompleted',
@@ -498,24 +501,29 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('tutorial_joker_concept_does_not_spend_inventory',
-    'Guided tutorial teaches joker concept without spending real inventory',
+    'Guided tutorial teaches interactive joker usage without spending real inventory',
     () => {
-      const missing = missingTokens(gameSource, [
+      const missing = missingTokens(`${gameSource}\n${onboardingPageSource}\n${soloJokerBarSource}`, [
         'isGuidedSoloTutorial',
         'Jokerleri Tanı',
-        'gerçek çantandan harcanmaz',
-        'disabled: Boolean(isGuidedSoloTutorial',
-        'balances: isGuidedSoloTutorial ? emptyJokerBalances() : jokerBalances',
+        'GUIDED_TUTORIAL_JOKER_TYPE = SOLO_UI_JOKER_TYPES.TIME_FREEZE',
+        'buildGuidedTutorialJokerBalances',
+        'setGuidedTutorialJokerDemoUsed(true)',
+        'jokerType !== GUIDED_TUTORIAL_JOKER_TYPE',
+        'Zaman Dondur demosu aktif: gerçek çantandan harcanmadı.',
+        'tutorialDemoType',
+        'tutorialDemoHintActive',
+        'data-kronox-guided-joker-finger-hint',
       ]);
       if (missing.length) {
         return fail('Guided first level no longer proves tutorial-only joker behavior.', {
           verification: 'STATIC_CONTRACT',
-          file: 'src/pages/Game.jsx',
+          files: ['src/pages/Game.jsx', 'src/components/game/SoloJokerBar.jsx'],
           actual: { missing },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Guided first level explains jokers while disabling real UserJokerInventory spend.', {
+      return pass('Guided first level requires a tutorial-only Zaman Dondur demo while avoiding real UserJokerInventory spend.', {
         verification: 'STATIC_CONTRACT',
         actionType: ACTION_TYPES.CODE_FIX,
       });

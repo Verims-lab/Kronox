@@ -37,6 +37,7 @@ const GENDER_OPTIONS = [
 ];
 
 const GUIDED_FIRST_SOLO_TUTORIAL_IN_PROGRESS = 'tutorial_in_progress';
+const GUIDED_TUTORIAL_TIME_LIMIT_SECONDS = SOLO_LEVEL_TIME_SECONDS;
 
 function tutorialGameConfig() {
   const config = buildSoloGameConfigForLevel({ levelNumber: 1 });
@@ -46,7 +47,7 @@ function tutorialGameConfig() {
     soloLevel: {
       ...config.soloLevel,
       onboardingTutorial: true,
-      totalTimeSeconds: SOLO_LEVEL_TIME_SECONDS * 20,
+      totalTimeSeconds: GUIDED_TUTORIAL_TIME_LIMIT_SECONDS,
       maxMistakes: SOLO_MAX_MISTAKES * 10,
     },
   };

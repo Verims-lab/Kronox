@@ -68,6 +68,7 @@ import {
   isSoloQuestionRuntimeDebugAllowed,
 } from '@/lib/soloQuestionRuntimeDebug';
 import {
+  JOKER_TYPES,
   SOLO_UI_JOKER_TYPES,
   buildSoloJokerUseIdempotencyKey,
   emptyJokerBalances,
@@ -99,6 +100,8 @@ import { applyOnlineMatchToCurrentUser } from '@/lib/applyOnlineResult';
 import { getOnlinePlayerElapsedSeconds } from '@/lib/onlinePlayerElapsed';
 
 const GAMEPLAY_DRAG_LOCK_CLASS = 'kronox-game-drag-lock';
+const GUIDED_TUTORIAL_TIME_LIMIT_SECONDS = SOLO_LEVEL_TIME_SECONDS;
+const GUIDED_TUTORIAL_JOKER_TYPE = SOLO_UI_JOKER_TYPES.TIME_FREEZE;
 
 const GUIDED_TUTORIAL_MESSAGES = [
   {
@@ -119,14 +122,20 @@ const GUIDED_TUTORIAL_MESSAGES = [
   {
     icon: Clock3,
     title: 'Zaman ve Hamle',
-    body: 'Amaç olayları yıllarına göre sıralamak. Bu eğitimde süre ve hata baskısı yok.',
+    body: 'Amaç olayları yıllarına göre sıralamak. Eğitim süresi de normal Solo gibi 03:00’dan geri sayar.',
   },
   {
     icon: Shield,
     title: 'Jokerleri Tanı',
-    body: 'Jokerler normal Solo’da çantandan harcanır; bu eğitimde yalnızca tanıtılır.',
+    body: 'Şimdi Zaman Dondur’u bir kez dene. Bu eğitim demosu gerçek çantandan harcamaz.',
   },
 ];
+
+function buildGuidedTutorialJokerBalances(demoUsed = false) {
+  const balances = emptyJokerBalances();
+  balances[JOKER_TYPES.TIME_FREEZE] = demoUsed ? 0 : 1;
+  return balances;
+}
 
 function GuidedSoloTutorialOverlay({ cardsCompleted = 0, cardTarget = 7, mistakes = 0 }) {
   const activeIndex = Math.min(
@@ -358,6 +367,7 @@ export default function Game() {
   const [soloAttemptId, setSoloAttemptId] = useState(null);
   const [soloCorrectStreak, setSoloCorrectStreak] = useState(0);
   const [usedJokerType, setUsedJokerType] = useState(null);
+  const [guidedTutorialJokerDemoUsed, setGuidedTutorialJokerDemoUsed] = useState(false);
   const [jokerBalances, setJokerBalances] = useState(() => emptyJokerBalances());
   const [jokerInventoryLoading, setJokerInventoryLoading] = useState(false);
   const [jokerSpendPendingType, setJokerSpendPendingType] = useState(null);
@@ -650,6 +660,14 @@ export default function Game() {
   const soloCardsRequired = isSoloLevelMode
     ? getSoloCardsRequiredForLevel(soloLevel?.levelNumber)
     : null;
+  const cardsCompletedSolo = useMemo(() => {
+    if (!isSoloLevelMode || !players.length) return 0;
+    const me = players[0];
+    // Same source as hasPlayerWon(): the current timeline card count.
+    // This prevents the header counter from subtracting seed cards while
+    // completion uses the full authoritative card set.
+    return getTimelineCardCount(me);
+  }, [isSoloLevelMode, players]);
   const timerFreezeNow = timerFreezeTick || Date.now();
   const isSoloTimerFrozen = Boolean(isSoloLevelMode && timerFreezeUntil > timerFreezeNow && timerFreezeStartRef.current);
   const activeFreezeOffset = isSoloTimerFrozen
@@ -729,6 +747,7 @@ export default function Game() {
     soloDailyQuestAttemptRecordedRef.current = null;
     soloDailyQuestCompletionRecordedRef.current = null;
     setUsedJokerType(null);
+    setGuidedTutorialJokerDemoUsed(false);
     setJokerSpendPendingType(null);
     setMistakeShieldActive(false);
     setJokerMessage('');
@@ -1379,9 +1398,38 @@ export default function Game() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [winner, soloLevelResult, navigate]);
 
+  const guidedTutorialJokerStepActive = Boolean(
+    isGuidedSoloTutorial &&
+    !soloLevelResult &&
+    !winner &&
+    currentQuestion &&
+    cardsCompletedSolo >= Math.max(2, (Number(winCardCount) || 7) - 1)
+  );
+  const guidedTutorialJokerDemoWaiting = Boolean(
+    guidedTutorialJokerStepActive &&
+    !guidedTutorialJokerDemoUsed &&
+    !feedback
+  );
+
   // ─── Handlers (UI event → action delegation) ─────────────────────
-  const handleDropOnZone = useCallback((zoneIndex) => doPlacement(zoneIndex, { category, yearStart, yearEnd }), [doPlacement, category, yearStart, yearEnd]);
-  const handleConfirmPlacement = useCallback(() => { if (selectedZone !== null) doPlacement(selectedZone, { category, yearStart, yearEnd }); }, [doPlacement, selectedZone, category, yearStart, yearEnd]);
+  const handleDropOnZone = useCallback((zoneIndex) => {
+    if (guidedTutorialJokerDemoWaiting) {
+      setSelectedZone(zoneIndex);
+      setJokerError('');
+      setJokerMessage('Önce Zaman Dondur jokerini dene; gerçek çantandan harcanmaz.');
+      return;
+    }
+    doPlacement(zoneIndex, { category, yearStart, yearEnd });
+  }, [doPlacement, category, yearStart, yearEnd, guidedTutorialJokerDemoWaiting, setSelectedZone]);
+  const handleConfirmPlacement = useCallback(() => {
+    if (selectedZone === null) return;
+    if (guidedTutorialJokerDemoWaiting) {
+      setJokerError('');
+      setJokerMessage('Devam etmeden önce Zaman Dondur jokerini bir kez kullan.');
+      return;
+    }
+    doPlacement(selectedZone, { category, yearStart, yearEnd });
+  }, [doPlacement, selectedZone, category, yearStart, yearEnd, guidedTutorialJokerDemoWaiting]);
   const handleTimeUp = useCallback(() => {
     if (feedback !== null || winner) return;
     if (!isMyTurn) return;
@@ -1537,6 +1585,23 @@ export default function Game() {
       return;
     }
 
+    if (isGuidedSoloTutorial) {
+      if (jokerType !== GUIDED_TUTORIAL_JOKER_TYPE) {
+        setJokerError('Eğitimde önce Zaman Dondur jokerini dene.');
+        return;
+      }
+      if (!guidedTutorialJokerStepActive) {
+        setJokerError('Zaman Dondur adımı birazdan açılacak.');
+        return;
+      }
+      markSoloJokerUsedForDecision(decisionKey, jokerType);
+      setGuidedTutorialJokerDemoUsed(true);
+      setJokerError('');
+      setJokerMessage('Zaman Dondur demosu aktif: gerçek çantandan harcanmadı.');
+      startSoloTimerFreeze();
+      return;
+    }
+
     if (jokerType === SOLO_UI_JOKER_TYPES.MISTAKE_SHIELD) {
       if (mistakeShieldActive) {
         setJokerError('Kronokalkan zaten aktif.');
@@ -1620,17 +1685,19 @@ export default function Game() {
     }
   }, [
     isSoloLevelMode,
+    isGuidedSoloTutorial,
     currentQuestion,
     getCurrentSoloJokerDecisionKey,
     soloLevelResult,
     winner,
     feedback,
     isMyTurn,
+    guidedTutorialJokerStepActive,
     mistakeShieldActive,
     isSoloTimerFrozen,
-    spendSoloJokerForCurrentCard,
     markSoloJokerUsedForDecision,
     startSoloTimerFreeze,
+    spendSoloJokerForCurrentCard,
     soloAttemptDeck,
     currentPlayer,
     usedQuestionIds,
@@ -1680,15 +1747,6 @@ export default function Game() {
   //
   // Persistence happens once; SoloChallenge re-reads progress on its
   // location.state.soloResultApplied flag.
-  const cardsCompletedSolo = useMemo(() => {
-    if (!isSoloLevelMode || !players.length) return 0;
-    const me = players[0];
-    // Same source as hasPlayerWon(): the current timeline card count.
-    // This prevents the header counter from subtracting seed cards while
-    // completion uses the full authoritative card set.
-    return getTimelineCardCount(me);
-  }, [isSoloLevelMode, players]);
-
   useEffect(() => {
     if (!isSoloLevelMode || soloLevelResult) return;
     const maxMistakes = isGuidedSoloTutorial ? (soloLevel?.maxMistakes ?? SOLO_MAX_MISTAKES * 10) : (soloLevel?.maxMistakes ?? SOLO_MAX_MISTAKES);
@@ -1877,7 +1935,7 @@ export default function Game() {
           cardCount: getSoloCardsRequiredForLevel(soloLevel.levelNumber),
           deckSize: getSoloAttemptDeckSizeForLevel(soloLevel.levelNumber),
           onboardingTutorial: isGuidedSoloTutorial,
-          totalTimeSeconds: isGuidedSoloTutorial ? SOLO_LEVEL_TIME_SECONDS * 20 : SOLO_LEVEL_TIME_SECONDS,
+          totalTimeSeconds: isGuidedSoloTutorial ? GUIDED_TUTORIAL_TIME_LIMIT_SECONDS : SOLO_LEVEL_TIME_SECONDS,
           maxMistakes: isGuidedSoloTutorial ? SOLO_MAX_MISTAKES * 10 : SOLO_MAX_MISTAKES,
           soloRulesVersion: SOLO_RULES_VERSION,
         },
@@ -2359,17 +2417,38 @@ export default function Game() {
   );
 
   // ─── Render ───────────────────────────────────────────────────────
+  const guidedTutorialJokerBalances = isGuidedSoloTutorial
+    ? buildGuidedTutorialJokerBalances(guidedTutorialJokerDemoUsed || !guidedTutorialJokerStepActive)
+    : null;
+  const guidedJokerDemoHintActive = Boolean(
+    guidedTutorialJokerDemoWaiting &&
+    isMyTurn &&
+    !isDragging &&
+    !jokerSpendPendingType
+  );
   const soloJokers = isSoloLevelMode ? {
     enabled: true,
     usedJokerType,
-    balances: isGuidedSoloTutorial ? emptyJokerBalances() : jokerBalances,
+    balances: isGuidedSoloTutorial ? guidedTutorialJokerBalances : jokerBalances,
     loading: isGuidedSoloTutorial ? false : jokerInventoryLoading,
     pendingType: jokerSpendPendingType,
     mistakeShieldActive: isGuidedSoloTutorial ? false : mistakeShieldActive,
-    timerFrozen: isGuidedSoloTutorial ? false : isSoloTimerFrozen,
-    message: isGuidedSoloTutorial ? 'Eğitimde jokerler sadece tanıtılır; gerçek çantandan harcanmaz.' : jokerMessage,
+    timerFrozen: isSoloTimerFrozen,
+    message: isGuidedSoloTutorial
+      ? (jokerMessage || (guidedTutorialJokerDemoWaiting
+          ? 'Zaman Dondur’a dokun; demo gerçek çantandan harcanmaz.'
+          : 'Joker adımında Zaman Dondur’u bir kez deneyeceksin.'))
+      : jokerMessage,
     error: jokerError,
-    disabled: Boolean(isGuidedSoloTutorial || soloLevelResult || winner || jokerInventoryLoading || jokerSpendPendingType),
+    disabled: Boolean(
+      soloLevelResult ||
+      winner ||
+      jokerInventoryLoading ||
+      jokerSpendPendingType ||
+      (isGuidedSoloTutorial && !guidedTutorialJokerStepActive)
+    ),
+    tutorialDemoType: isGuidedSoloTutorial ? GUIDED_TUTORIAL_JOKER_TYPE : null,
+    tutorialDemoHintActive: guidedJokerDemoHintActive,
     onUseJoker: handleUseSoloJoker,
   } : null;
   const guidedDragHintActive = Boolean(

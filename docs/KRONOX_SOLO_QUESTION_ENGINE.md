@@ -438,10 +438,11 @@ the capped gameplay deck. The tutorial state is a route/context flag, not a new
 question source.
 
 The guide must teach drag/drop, before/after placement, between placement,
-chronological year ordering, move/mistake count, and the joker concept. Joker
-buttons are explanation-only in this mode: the UI says real inventory is not
-spent, `UserJokerInventory` is not consumed, and normal Solo joker economy rules
-remain unchanged outside the tutorial.
+chronological year ordering, move/mistake count, and interactive joker usage.
+The guided joker step uses a tutorial-only `Zaman Dondur` demo with a repeating
+hand/tap hint. The user must perform that demo action before continuing, but
+`UserJokerInventory` is not consumed, no `JokerTransaction` spend is written,
+and normal Solo joker economy rules remain unchanged outside the tutorial.
 
 After success, the result popup returns to GuestProfile onboarding for profile
 setup, then category setup, then Ana Sayfa. Closing the app during onboarding
