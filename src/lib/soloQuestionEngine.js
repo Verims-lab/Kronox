@@ -6,11 +6,11 @@
 //   attempt deck of level-aware size per Solo attempt.
 //
 // CORE RULES (locked in by Health suite solo_question_engine_health):
-//   • Deck size               = normal 16, special 19
+//   • Deck size               = normal 18, special 19
 //   • Win condition           = normal 7 correct timeline cards; special 10
 //                                (seed cards already count on the timeline)
 //   • Special levels          = level 10, then every 5 levels
-//   • Fail condition          = 10th mistake OR 180s time expired
+//   • Fail condition          = 10 evaluated moves without target OR 180s time expired
 //   • Unique question IDs     in the same deck
 //   • Unique answer/year      in the same deck             (HARD rule)
 //   • Active questions only   (state==='A')
@@ -51,6 +51,7 @@ import {
   getSoloAttemptDeckSizeForLevel,
   getSoloCardsRequiredForLevel,
   isSoloSpecialLevel,
+  SOLO_MAX_EVALUATED_MOVES,
   SOLO_SCORE_MAX_MISTAKES,
 } from './soloProgressHelpers';
 
@@ -1057,6 +1058,7 @@ export function getSoloDeckDiagnostics(resultOrDeck, options = {}) {
     levelType: isSoloSpecialLevel(levelNumber) ? 'special' : 'normal',
     deckSize: deck.length || Number(meta.deckSize) || getSoloAttemptDeckSizeForLevel(levelNumber),
     correctTarget: getSoloCardsRequiredForLevel(levelNumber),
+    maxMoveLimit: SOLO_MAX_EVALUATED_MOVES,
     maxMistakeFailThreshold: SOLO_SCORE_MAX_MISTAKES,
     questionIds: deck.map((q) => q?.id).filter((id) => id !== undefined && id !== null),
     answerYears: years,

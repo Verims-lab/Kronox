@@ -453,6 +453,14 @@ Kart Değiştir = 50 Diamonds
 Kronokalkan = 60 Diamonds
 ```
 
+Solo move interaction:
+
+* Kart Değiştir does not consume a Solo move; it uses the deck's card-swap buffer.
+* Zaman Dondur does not consume a Solo move and does not require extra deck cards.
+* Kronokalkan does not consume a Solo move when activated; it protects the next wrong valid placement from consuming one move.
+* Normal Solo joker use still spends `UserJokerInventory` and writes `JokerTransaction`.
+* Guided tutorial joker demos remain tutorial-only and must not spend real inventory.
+
 Purchase rules:
 
 * Diamond source/sink balance: Daily Wheel remains a Diamond source and Daily

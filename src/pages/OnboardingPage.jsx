@@ -22,7 +22,7 @@ import {
   prepareGuestAccountLink,
   updateGuestProfileOnboarding,
 } from '@/lib/guestProfile';
-import { buildSoloGameConfigForLevel, readSoloProgress, SOLO_MAX_MISTAKES, SOLO_LEVEL_TIME_SECONDS } from '@/lib/soloLevels';
+import { buildSoloGameConfigForLevel, readSoloProgress, SOLO_MAX_MOVES, SOLO_LEVEL_TIME_SECONDS } from '@/lib/soloLevels';
 import {
   MIN_CATEGORY_SELECTION_COUNT,
   loadActiveCategories,
@@ -63,7 +63,8 @@ function tutorialGameConfig() {
       ...config.soloLevel,
       onboardingTutorial: true,
       totalTimeSeconds: GUIDED_TUTORIAL_TIME_LIMIT_SECONDS,
-      maxMistakes: SOLO_MAX_MISTAKES * 10,
+      maxMoves: SOLO_MAX_MOVES,
+      maxMistakes: SOLO_MAX_MOVES,
     },
   };
 }

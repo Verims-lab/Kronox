@@ -29,7 +29,16 @@ Normal Solo levels require 7 correct timeline cards, including seed cards
 already on the timeline. Special Solo levels start at level 10 and repeat
 every 5 levels; they require 10 correct timeline cards, including seed cards
 already on the timeline.
-All new Solo attempts use a 180 seconds timer and fail on the 10th mistake.
+All new Solo attempts use a 180 seconds timer, 2 timeline anchor cards, and
+10 evaluated moves. The visible counter is HAMLE / remaining moves. A valid
+evaluated placement consumes one move; touch, drag start, invalid drop, joker
+activation, and tutorial popups do not consume moves. Ten used moves without
+the target card count fails the attempt.
+
+Star thresholds:
+- 5–6 used moves: 3 stars.
+- 7–8 used moves: 2 stars.
+- 9–10 used moves: 1 star.
 
 Star base points:
 - 3 stars: 15 points.
@@ -47,7 +56,7 @@ Solo best score never decreases on replay — only improvements are written.
 Same-score replay does not add points. Lower-score replay does not add points.
 Better replay adds only the positive score delta.
 Old completed Solo results are not retroactively recalculated. New Solo
-attempts use soloRulesVersion: 2.
+attempts use soloRulesVersion: 3.
 
 ## Online scoring
 Online results are recorded per-user in OnlineMatchResult for durable

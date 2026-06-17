@@ -165,7 +165,7 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('solo_result_short_stat_labels',
-    'Solo result popups use short SÜRE/PUAN/HATA stat labels without repeated unit footers',
+    'Solo result popups use short SÜRE/PUAN/HAMLE stat labels without repeated unit footers',
     () => {
       const combined = `${successSource}\n${failureSource}`;
       const oldLabels = [
@@ -173,6 +173,7 @@ export const EXTRA_TESTS = [
         'KAZANILAN PUAN',
         'TOPLAM SÜRE',
         'HATA SAYISI',
+        'label="HATA"',
         '<UnitLabel color="#facc15">Puan</UnitLabel>',
         '<UnitLabel color="#fca5a5">Hata</UnitLabel>',
         '<FailureFooter tone="gold">Puan</FailureFooter>',
@@ -182,8 +183,8 @@ export const EXTRA_TESTS = [
       ];
       const forbidden = forbiddenTokensFound(combined, oldLabels);
       const required = [
-        ...missingTokens(successSource, ['label="SÜRE"', 'label="PUAN"', 'label="HATA"']),
-        ...missingTokens(failureSource, ['label="SÜRE"', 'label="PUAN"', 'label="HATA"']),
+        ...missingTokens(successSource, ['label="SÜRE"', 'label="PUAN"', 'label="HAMLE"', 'usedMoves']),
+        ...missingTokens(failureSource, ['label="SÜRE"', 'label="PUAN"', 'label="HAMLE"', 'usedMoves']),
       ];
       if (forbidden.length || required.length) {
         return fail('Solo result popup stat labels drifted from the clean short-label product decision.', {
@@ -192,7 +193,7 @@ export const EXTRA_TESTS = [
           actual: { forbidden, required },
         });
       }
-      return pass('Success and failure popups use SÜRE/PUAN/HATA without repeated Puan/Hata footer copy.', { verification: 'STATIC_CONTRACT' });
+      return pass('Success and failure popups use SÜRE/PUAN/HAMLE without repeated Puan/Hata footer copy.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('time_icon_is_timer_reset_not_clock',
@@ -222,8 +223,8 @@ export const EXTRA_TESTS = [
     () => {
       // The brief explicitly says: do not change game logic / popup
       // flow / props. Lock the prop names the parent depends on.
-      const successProps = ['levelNumber', 'stars', 'mistakes', 'timeSeconds', 'levelScore', 'timeBonus', 'hasNextLevel', 'onNextLevel', 'onRetry', 'onBackToPath'];
-      const failureProps = ['levelNumber', 'mistakes', 'timeSeconds', 'levelScore', 'failReason', 'onRetry', 'onBackToPath'];
+      const successProps = ['levelNumber', 'stars', 'usedMoves', 'timeSeconds', 'levelScore', 'timeBonus', 'hasNextLevel', 'onNextLevel', 'onRetry', 'onBackToPath'];
+      const failureProps = ['levelNumber', 'usedMoves', 'timeSeconds', 'levelScore', 'failReason', 'onRetry', 'onBackToPath'];
       const successMissing = successProps.filter((p) => !successSource.includes(p));
       const failureMissing = failureProps.filter((p) => !failureSource.includes(p));
       if (successMissing.length || failureMissing.length) {
@@ -233,6 +234,6 @@ export const EXTRA_TESTS = [
           actual: { successMissing, failureMissing },
         });
       }
-      return pass('Public popup props (levelNumber/stars/mistakes/score/...) are intact.', { verification: 'STATIC_CONTRACT' });
+      return pass('Public popup props (levelNumber/stars/usedMoves/score/...) are intact.', { verification: 'STATIC_CONTRACT' });
     }),
 ];

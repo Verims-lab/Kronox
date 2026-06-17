@@ -24,6 +24,11 @@ checks that source code and static Health cannot honestly prove alone.
   guided first level. The guidance overlay must not capture drag/drop touches,
   must fit small portrait screens, and must resume cleanly if the app closes
   during tutorial/profile/category setup.
+* Solo gameplay shows the remaining move counter as `10 HAMLE`, `9 HAMLE`,
+  etc.; result popups show `HAMLE` instead of `HATA`.
+* Manual mobile proof must confirm touch, slight drag, invalid drop, tutorial
+  hand/finger animation, tutorial popups, and joker activation do not decrement
+  the remaining move counter.
 * Online gameplay loading must wait on Lobby shared deck readiness
   (`online_question_deck` + `current_question_id`), not on the Solo
   `getQuestions`/cache path. A missing Online deck should show retry/back-to-lobby

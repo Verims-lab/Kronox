@@ -33,7 +33,7 @@ import {
 import {
   SOLO_CARDS_PER_LEVEL,
   SOLO_SPECIAL_CARDS_PER_LEVEL,
-  SOLO_MAX_MISTAKES,
+  SOLO_MAX_MOVES,
   SOLO_LEVEL_TIME_SECONDS,
   getSoloDeckSizeForLevel,
   getSoloCardsRequiredForLevel,
@@ -319,29 +319,29 @@ export const EXTRA_SUITES = [
 ];
 
 export const EXTRA_TESTS = [
-  /* 1. normal_deck_size_is_16 */
+  /* 1. normal_deck_size_is_18 */
   makeCase(
-    'normal_deck_size_is_16',
-    'Normal Solo levels use a 16-question attempt deck',
+    'normal_deck_size_is_18',
+    'Normal Solo levels use an 18-question attempt deck',
     () => {
       const pool = buildSyntheticPool(60);
       const normal = buildSoloAttemptDeck({ pool, levelNumber: 1 });
       if (!normal.ok) return fail('Engine failed on a 60-row unique-year pool.', {
         verification: 'RUNTIME_VERIFIED',
         classification: 'REAL_PRODUCT_RISK',
-        expected: 'normal ok=true with 16',
+        expected: 'normal ok=true with 18',
         actual: normal,
         actionType: ACTION_TYPES.CODE_FIX,
       });
       const helperSize = getSoloDeckSizeForLevel(1);
-      if (helperSize !== 16 || normal.deck.length !== 16) return fail('Normal Solo deck size helper drifted.', {
+      if (helperSize !== 18 || normal.deck.length !== 18) return fail('Normal Solo deck size helper drifted.', {
         verification: 'RUNTIME_VERIFIED',
         classification: 'REAL_PRODUCT_RISK',
-        expected: 16,
+        expected: 18,
         actual: { helperSize, deckLength: normal.deck.length },
         actionType: ACTION_TYPES.CODE_FIX,
       });
-      return pass('Engine produces 16-question decks for normal Solo levels.', {
+      return pass('Engine produces 18-question decks for normal Solo levels.', {
         verification: 'RUNTIME_VERIFIED', classification: 'RUNTIME_VERIFIED',
         actual: { helperSize, deckLength: normal.deck.length },
       });
@@ -445,19 +445,19 @@ export const EXTRA_TESTS = [
     },
   ),
 
-  /* 5. solo_attempt_fails_on_10th_mistake */
+  /* 5. solo_attempt_fails_on_10th_move */
   makeCase(
-    'solo_attempt_fails_on_10th_mistake',
-    'Fail-on-mistakes threshold is the 10th mistake (SOLO_MAX_MISTAKES)',
+    'solo_attempt_fails_on_10th_move',
+    'Solo move limit is 10 evaluated placements (SOLO_MAX_MOVES)',
     () => {
-      if (SOLO_MAX_MISTAKES !== 10 || SOLO_LEVEL_TIME_SECONDS !== 180) return fail('Solo timer/mistake constants drifted.', {
+      if (SOLO_MAX_MOVES !== 10 || SOLO_LEVEL_TIME_SECONDS !== 180) return fail('Solo timer/move constants drifted.', {
         verification: 'RUNTIME_VERIFIED',
         classification: 'REAL_PRODUCT_RISK',
-        expected: { mistakes: 10, seconds: 180 },
-        actual: { SOLO_MAX_MISTAKES, SOLO_LEVEL_TIME_SECONDS },
+        expected: { moves: 10, seconds: 180 },
+        actual: { SOLO_MAX_MOVES, SOLO_LEVEL_TIME_SECONDS },
         actionType: ACTION_TYPES.CODE_FIX,
       });
-      return pass('Solo v2 fails at 10 mistakes and uses a 180-second timer.', {
+      return pass('Solo v3 uses 10 evaluated moves and a 180-second timer.', {
         verification: 'RUNTIME_VERIFIED', classification: 'RUNTIME_VERIFIED',
       });
     },
@@ -2874,11 +2874,11 @@ export const EXTRA_TESTS = [
       // checks are case-insensitive on the lowercased body.
       const lower = body.toLowerCase();
       const requiredPhrases = [
-        '16 questions',
+        '18 questions',
         '19 questions',
         '7 correct',
         '10 correct',
-        '10 mistakes',
+        '10 evaluated moves',
         '180 seconds',
         'first 5',
         'minimum 5-year',

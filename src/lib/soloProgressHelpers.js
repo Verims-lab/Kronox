@@ -32,7 +32,7 @@
 //     → getCurrentPlayableLevel)
 
 // ─── Solo attempt scoring constants ───────────────────────────────────
-export const SOLO_RULES_VERSION = 2;
+export const SOLO_RULES_VERSION = 3;
 export const SOLO_NORMAL_CARD_TARGET = 7;
 export const SOLO_SPECIAL_CARD_TARGET = 10;
 export const SOLO_SPECIAL_START_LEVEL = 10;
@@ -41,10 +41,19 @@ export const SOLO_SCORE_CARD_TARGET = SOLO_SPECIAL_CARD_TARGET;
 export const SOLO_BEGINNER_CARD_TARGET = SOLO_NORMAL_CARD_TARGET;
 export const SOLO_BEGINNER_CARD_TARGET_MAX_LEVEL = 0;
 export const SOLO_SCORE_TIME_LIMIT_SECONDS = 180;
-export const SOLO_SCORE_MAX_MISTAKES = 10;
-export const SOLO_MAX_NON_FAILING_MISTAKES = SOLO_SCORE_MAX_MISTAKES - 1;
-export const SOLO_NORMAL_DECK_SIZE = SOLO_NORMAL_CARD_TARGET + SOLO_MAX_NON_FAILING_MISTAKES;
-export const SOLO_SPECIAL_DECK_SIZE = SOLO_SPECIAL_CARD_TARGET + SOLO_MAX_NON_FAILING_MISTAKES;
+export const SOLO_INITIAL_TIMELINE_CARDS = 2;
+export const SOLO_MAX_EVALUATED_MOVES = 10;
+export const SOLO_CORRECT_PLACEMENTS_NEEDED = SOLO_NORMAL_CARD_TARGET - SOLO_INITIAL_TIMELINE_CARDS;
+export const SOLO_CARD_SWAP_BUFFER_CARDS = 3;
+export const SOLO_MISTAKE_SHIELD_BUFFER_CARDS = 3;
+export const SOLO_JOKER_BUFFER_CARDS = SOLO_CARD_SWAP_BUFFER_CARDS + SOLO_MISTAKE_SHIELD_BUFFER_CARDS;
+export const SOLO_SCORE_MAX_MISTAKES = SOLO_MAX_EVALUATED_MOVES; // legacy alias for older callers/Health imports
+export const SOLO_MAX_NON_FAILING_MISTAKES = SOLO_SCORE_MAX_MISTAKES - 1; // legacy progress metadata only
+export const SOLO_NORMAL_DECK_SIZE = SOLO_INITIAL_TIMELINE_CARDS + SOLO_MAX_EVALUATED_MOVES + SOLO_JOKER_BUFFER_CARDS;
+export const SOLO_SPECIAL_DECK_SIZE = Math.max(
+  SOLO_SPECIAL_CARD_TARGET + SOLO_MAX_NON_FAILING_MISTAKES,
+  SOLO_INITIAL_TIMELINE_CARDS + SOLO_MAX_EVALUATED_MOVES + SOLO_JOKER_BUFFER_CARDS,
+);
 
 export function isSoloSpecialLevel(levelNumber) {
   const level = Math.trunc(Number(levelNumber) || 0);
@@ -57,7 +66,7 @@ export function getSoloCardsRequiredForLevel(levelNumber) {
 }
 
 export function getSoloAttemptDeckSizeForLevel(levelNumber) {
-  return getSoloCardsRequiredForLevel(levelNumber) + SOLO_MAX_NON_FAILING_MISTAKES;
+  return isSoloSpecialLevel(levelNumber) ? SOLO_SPECIAL_DECK_SIZE : SOLO_NORMAL_DECK_SIZE;
 }
 
 export const SOLO_STAR_BASE_SCORES = Object.freeze({
@@ -68,20 +77,22 @@ export const SOLO_STAR_BASE_SCORES = Object.freeze({
 });
 
 export function calculateSoloStars(
-  mistakes,
+  usedMoves,
   completedCards = SOLO_SCORE_CARD_TARGET,
   elapsedSeconds = 0,
   requiredCards = SOLO_SCORE_CARD_TARGET,
+  maxMoves = SOLO_MAX_EVALUATED_MOVES,
 ) {
-  const m = Math.max(0, Number(mistakes) || 0);
+  const moves = Math.max(0, Number(usedMoves) || 0);
+  const moveLimit = Math.max(1, Number(maxMoves) || SOLO_MAX_EVALUATED_MOVES);
   const cards = Math.max(0, Number(completedCards) || 0);
   const elapsed = Math.max(0, Number(elapsedSeconds) || 0);
   const target = Math.max(1, Number(requiredCards) || SOLO_SCORE_CARD_TARGET);
   const completed = cards >= target;
   const timedOutBeforeCompletion = !completed && elapsed >= SOLO_SCORE_TIME_LIMIT_SECONDS;
 
-  if (m >= SOLO_SCORE_MAX_MISTAKES) {
-    return { stars: 0, passed: false, failReason: 'mistakes' };
+  if (!completed && moves >= moveLimit) {
+    return { stars: 0, passed: false, failReason: 'moves' };
   }
   if (timedOutBeforeCompletion) {
     return { stars: 0, passed: false, failReason: 'timeout' };
@@ -89,10 +100,8 @@ export function calculateSoloStars(
   if (!completed) {
     return { stars: 0, passed: false, failReason: 'incomplete' };
   }
-  if (m <= 2) return { stars: 3, passed: true, failReason: null };
-  // Product requested 0-2 / 4-6 / 7-9; 3 mistakes is treated as 2 stars
-  // to avoid an undefined runtime state.
-  if (m <= 6) return { stars: 2, passed: true, failReason: null };
+  if (moves <= 6) return { stars: 3, passed: true, failReason: null };
+  if (moves <= 8) return { stars: 2, passed: true, failReason: null };
   return { stars: 1, passed: true, failReason: null };
 }
 
@@ -119,14 +128,27 @@ export function calculateSoloLevelScore({ stars, elapsedSeconds, passed }) {
 
 export function calculateSoloAttemptResult({
   mistakes,
+  usedMoves,
+  remainingMoves,
+  maxMoves = SOLO_MAX_EVALUATED_MOVES,
   completedCards,
   elapsedSeconds,
   requiredCards = SOLO_SCORE_CARD_TARGET,
 }) {
+  const safeMaxMoves = Math.max(1, Number(maxMoves) || SOLO_MAX_EVALUATED_MOVES);
   const safeMistakes = Math.max(0, Number(mistakes) || 0);
+  const explicitUsedMoves = Number(usedMoves);
+  const explicitRemainingMoves = Number(remainingMoves);
+  const legacyMistakeMoves = Number(mistakes);
+  const safeUsedMoves = Number.isFinite(explicitUsedMoves)
+    ? Math.max(0, Math.floor(explicitUsedMoves))
+    : Number.isFinite(explicitRemainingMoves)
+      ? Math.max(0, safeMaxMoves - Math.max(0, Math.floor(explicitRemainingMoves)))
+      : Math.max(0, Math.floor(Number.isFinite(legacyMistakeMoves) ? legacyMistakeMoves : 0));
+  const safeRemainingMoves = Math.max(0, safeMaxMoves - safeUsedMoves);
   const safeCards = Math.max(0, Number(completedCards) || 0);
   const safeElapsed = Math.max(0, Number(elapsedSeconds) || 0);
-  const starResult = calculateSoloStars(safeMistakes, safeCards, safeElapsed, requiredCards);
+  const starResult = calculateSoloStars(safeUsedMoves, safeCards, safeElapsed, requiredCards, safeMaxMoves);
   const score = calculateSoloLevelScore({
     stars: starResult.stars,
     elapsedSeconds: safeElapsed,
@@ -137,6 +159,9 @@ export function calculateSoloAttemptResult({
     passed: starResult.passed,
     stars: starResult.stars,
     mistakes: safeMistakes,
+    usedMoves: safeUsedMoves,
+    remainingMoves: safeRemainingMoves,
+    maxMoves: safeMaxMoves,
     cardsCompleted: safeCards,
     elapsedSeconds: safeElapsed,
     timeSeconds: safeElapsed,
@@ -226,6 +251,9 @@ function isAttemptBetterForScore(previous, attempt) {
   const prevTime = finiteNumber(previous?.bestTimeSeconds, Infinity);
   if (attempt.timeSeconds !== prevTime) return attempt.timeSeconds < prevTime;
 
+  const prevUsedMoves = finiteNumber(previous?.bestUsedMoves, Infinity);
+  if (attempt.usedMoves !== prevUsedMoves) return attempt.usedMoves < prevUsedMoves;
+
   const prevMistakes = finiteNumber(previous?.bestMistakes, Infinity);
   return attempt.mistakes < prevMistakes;
 }
@@ -239,6 +267,9 @@ export function getBestSoloLevelResult(previousBest, newAttempt) {
     timeBonus: Number(newAttempt?.timeBonus) || 0,
     stars: Math.max(0, Math.min(3, Number(newAttempt?.stars) || 0)),
     mistakes: Math.max(0, Number(newAttempt?.mistakes) || 0),
+    usedMoves: Math.max(0, Number(newAttempt?.usedMoves) || 0),
+    remainingMoves: Math.max(0, Number(newAttempt?.remainingMoves) || 0),
+    maxMoves: Math.max(1, Number(newAttempt?.maxMoves) || SOLO_MAX_EVALUATED_MOVES),
     timeSeconds: Math.max(0, Number(newAttempt?.timeSeconds ?? newAttempt?.elapsedSeconds) || 0),
     passed: Boolean(newAttempt?.passed),
   };
@@ -269,6 +300,15 @@ export function getBestSoloLevelResult(previousBest, newAttempt) {
     bestMistakes: replaceScoreRecord
       ? attempt.mistakes
       : prev.bestMistakes,
+    bestUsedMoves: replaceScoreRecord
+      ? attempt.usedMoves
+      : prev.bestUsedMoves,
+    bestRemainingMoves: replaceScoreRecord
+      ? attempt.remainingMoves
+      : prev.bestRemainingMoves,
+    bestMaxMoves: replaceScoreRecord
+      ? attempt.maxMoves
+      : prev.bestMaxMoves,
     soloRulesVersion: replaceScoreRecord
       ? (attempt.soloRulesVersion || SOLO_RULES_VERSION)
       : (prev.soloRulesVersion || prev.rulesVersion || 1),
@@ -441,7 +481,7 @@ export function summarizeSoloProgress(progress, totalLevels) {
     }
 
     // Backward-compatible derivation for pre-score progress snapshots.
-    // No soloRulesVersion means legacy scoring; new v2 attempts store
+    // No soloRulesVersion means legacy scoring; new v3 attempts store
     // bestScore directly and are never recalculated from old snapshots.
     const derived = calculateSoloLevelScoreFromBestResult(entry);
     totalSoloScore += derived.totalScore;

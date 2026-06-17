@@ -25,6 +25,7 @@
 
 import profilePageSource from '../../pages/ProfilePage.jsx?raw';
 import leaderboardPageSource from '../../pages/LeaderboardPage.jsx?raw';
+import gamePageSource from '../../pages/Game.jsx?raw';
 import soloChallengeSource from '../../pages/SoloChallenge.jsx?raw';
 import soloLevelsLibSource from '../../lib/soloLevels.js?raw';
 import soloProgressHelpersSource from '../../lib/soloProgressHelpers.js?raw';
@@ -356,21 +357,27 @@ export const EXTRA_TESTS = [
       const mismatches = examples
         .map((item) => ({ ...item, actual: calculateSoloLevelScore(item.input) }))
         .filter((item) => JSON.stringify(item.actual) !== JSON.stringify(item.expected));
-      const attemptTimeout = calculateSoloAttemptResult({ mistakes: 0, completedCards: 6, elapsedSeconds: 180, requiredCards: 7 });
+      const attemptTimeout = calculateSoloAttemptResult({ usedMoves: 4, completedCards: 6, elapsedSeconds: 180, requiredCards: 7 });
       const normalPass = calculateSoloAttemptResult({
-        mistakes: 2,
+        usedMoves: 5,
         completedCards: 7,
         elapsedSeconds: 50,
         requiredCards: 7,
       });
-      const threeMistakesNormalized = calculateSoloAttemptResult({
-        mistakes: 3,
+      const sevenMovePass = calculateSoloAttemptResult({
+        usedMoves: 7,
         completedCards: 7,
         elapsedSeconds: 75,
         requiredCards: 7,
       });
+      const tenMoveFail = calculateSoloAttemptResult({
+        usedMoves: 10,
+        completedCards: 6,
+        elapsedSeconds: 75,
+        requiredCards: 7,
+      });
       const specialStillNeeds10 = calculateSoloAttemptResult({
-        mistakes: 1,
+        usedMoves: 5,
         completedCards: 7,
         elapsedSeconds: 50,
         requiredCards: 10,
@@ -381,7 +388,9 @@ export const EXTRA_TESTS = [
         attemptTimeout.failReason !== 'timeout' ||
         !normalPass.passed ||
         normalPass.stars !== 3 ||
-        threeMistakesNormalized.stars !== 2 ||
+        sevenMovePass.stars !== 2 ||
+        tenMoveFail.passed ||
+        tenMoveFail.failReason !== 'moves' ||
         specialStillNeeds10.passed ||
         specialStillNeeds10.failReason !== 'incomplete'
       ) {
@@ -389,8 +398,8 @@ export const EXTRA_TESTS = [
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'examples match product score table; timeout = 0; normal levels pass at 7 cards while special levels still need 10; 3 mistakes = 2 stars',
-          actual: { mismatches, attemptTimeout, normalPass, threeMistakesNormalized, specialStillNeeds10 },
+          expected: 'examples match product score table; timeout = 0; normal levels pass at 7 cards; 7 used moves = 2 stars; 10 moves without target fails; special levels still need 10',
+          actual: { mismatches, attemptTimeout, normalPass, sevenMovePass, tenMoveFail, specialStillNeeds10 },
         });
       }
       return pass('Solo score helper matches the product score table and exact 60/90/120s boundaries.', {
@@ -414,6 +423,10 @@ export const EXTRA_TESTS = [
         'export function summarizeSoloProgress',
         'export function calculateSoloLevelScoreFromBestResult',
         'export function backfillSoloScores',
+        'SOLO_MAX_EVALUATED_MOVES',
+        'SOLO_CORRECT_PLACEMENTS_NEEDED',
+        'usedMoves',
+        'remainingMoves',
         'scoreDelta',
         'updatedBestLevelResult',
       ]);
@@ -448,6 +461,45 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
+  makeCase('solo_progress_health', 'solo_move_based_runtime_contract',
+    'Solo v3 uses remaining moves: only evaluated placements decrement, popups show HAMLE, Online stays separate',
+    () => {
+      const required = [
+        ...missingTokens(gamePageSource, [
+          'const [usedMoveCount, setUsedMoveCount] = useState(0)',
+          'remainingMoveCount',
+          "feedback.result === 'wrong'",
+          "feedback.result === 'correct'",
+          'setUsedMoveCount((prev) => Math.min(soloMaxMoves, prev + 1))',
+          'Kronokalkan hamle hakkını korudu!',
+          "failReason: attempt.failReason || 'moves'",
+          'remainingMoves={isSoloLevelMode ? remainingMoveCount : undefined}',
+          'maxMoves={isSoloLevelMode ? soloMaxMoves : undefined}',
+        ]),
+        ...missingTokens(`${soloSuccessPopupSource}\n${soloFailureCardSource}`, [
+          'label="HAMLE"',
+          'usedMoves',
+          'MoveHorizontal',
+        ]),
+      ];
+      const dragHandlerConsumesMoves = /handleGameplayCard(?:Drag|Touch)[\s\S]{0,900}setUsedMoveCount/.test(gamePageSource);
+      if (required.length || dragHandlerConsumesMoves) {
+        return fail('Solo move-based runtime contract drifted.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'used moves increment only from evaluated feedback; HAMLE result stats; no drag/touch decrement; Online gated by isSoloLevelMode',
+          actual: { required, dragHandlerConsumesMoves },
+        });
+      }
+      return pass('Solo v3 remaining-move accounting is wired to evaluated feedback and result popups use HAMLE.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
   makeCase('solo_progress_health', 'solo_replay_best_score_preserved',
     'Replay preserves best stars/score on worse attempts and updates on better attempts',
     () => {
@@ -461,12 +513,14 @@ export const EXTRA_TESTS = [
       };
       const worse = getBestSoloLevelResult(previous, calculateSoloAttemptResult({
         mistakes: 7,
+        usedMoves: 9,
         completedCards: 7,
         elapsedSeconds: 150,
         requiredCards: 7,
       }));
       const better = getBestSoloLevelResult(previous, calculateSoloAttemptResult({
         mistakes: 0,
+        usedMoves: 5,
         completedCards: 7,
         elapsedSeconds: 54,
         requiredCards: 7,
@@ -504,6 +558,7 @@ export const EXTRA_TESTS = [
       };
       const replay25 = getBestSoloLevelResult(previous15, calculateSoloAttemptResult({
         mistakes: 1,
+        usedMoves: 5,
         completedCards: 7,
         elapsedSeconds: 75,
         requiredCards: 7,
@@ -511,6 +566,7 @@ export const EXTRA_TESTS = [
       const previous25 = replay25.updatedBestLevelResult;
       const replay5 = getBestSoloLevelResult(previous25, calculateSoloAttemptResult({
         mistakes: 8,
+        usedMoves: 9,
         completedCards: 7,
         elapsedSeconds: 150,
         requiredCards: 7,
@@ -574,6 +630,7 @@ export const EXTRA_TESTS = [
     () => {
       const sameScoreAttempt = calculateSoloAttemptResult({
         mistakes: 4,
+        usedMoves: 7,
         completedCards: 7,
         elapsedSeconds: 110,
         requiredCards: 7,
@@ -805,7 +862,7 @@ export const EXTRA_TESTS = [
     { actionType: ACTION_TYPES.CODE_FIX }),
 
   makeCase('solo_progress_health', 'solo_result_popup_score_visible',
-    'Solo result popups show stars/time/mistakes, earned Puan, speed-bonus state, and current Seviye CTAs',
+    'Solo result popups show stars/time/used moves, earned Puan, speed-bonus state, and current Seviye CTAs',
     () => {
       const combinedPopupSource = `${soloLevelResultSource}\n${soloSuccessPopupSource}\n${soloFailureCardSource}`;
       const required = missingTokens(combinedPopupSource, [
@@ -813,7 +870,8 @@ export const EXTRA_TESTS = [
         '{levelNumber}. SEVİYE GEÇİLEMEDİ!',
         'label="PUAN"',
         'label="SÜRE"',
-        'label="HATA"',
+        'label="HAMLE"',
+        'usedMoves',
         'HIZ BONUSU',
         'value={String(levelScore || 0)}',
         'value={String(levelScore)}',
@@ -831,7 +889,7 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'success/failure Seviye result popups with earned Puan, detail grid, speed bonus, and current CTAs',
+          expected: 'success/failure Seviye result popups with earned Puan, HAMLE detail grid, speed bonus, and current CTAs',
           actual: { required, forbidden },
         });
       }

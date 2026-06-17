@@ -2202,7 +2202,15 @@ import React, { useEffect, useState } from 'react';
 //   • Adds client install id hashing for bloat control without trusting it as
 //     identity proof or storing raw IP/header/token data.
 //   • Blocks public request bodies from setting trusted score/economy/link fields.
-const BUILD_MARKER = 'Codex393';
+//
+// Codex394 — Solo v3 move-based scoring:
+//   • Replaces visible Solo HATA limit with remaining HAMLE counter and
+//     move-based stars, while keeping legacy mistake metadata compatible.
+//   • Counts moves only after evaluated timeline placements; invalid drops,
+//     touch/drag, tutorial hints/popups, and joker activation do not decrement.
+//   • Updates Solo result popups, deck sizing, docs, and Health/static checks
+//     for HAMLE / 10 evaluated moves without changing Online gameplay.
+const BUILD_MARKER = 'Codex394';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
