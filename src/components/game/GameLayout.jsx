@@ -73,16 +73,25 @@ function CTAButton({ active, onClick, disabled }) {
   );
 }
 
-function GuidedDragFingerHint({ active, reducedMotion }) {
+function getGuidedTargetOffset(targetZoneIndex, zoneCount) {
+  const zones = Math.max(1, Number(zoneCount) || 1);
+  const target = Math.max(0, Math.min(zones - 1, Number(targetZoneIndex) || 0));
+  if (zones <= 1) return 0;
+  const normalized = (target / (zones - 1)) - 0.5;
+  return Math.max(-132, Math.min(132, normalized * 260));
+}
+
+function GuidedDragFingerHint({ active, reducedMotion, targetZoneIndex = null, zoneCount = 1 }) {
   if (!active) return null;
 
+  const targetX = getGuidedTargetOffset(targetZoneIndex, zoneCount);
   const pathAnimation = reducedMotion
     ? {
         opacity: [0.72, 1, 0.72],
         scale: [1, 1.04, 1],
       }
     : {
-        x: [0, 0, 24, 24],
+        x: [0, 0, targetX, targetX],
         y: [0, 0, 128, 128],
         opacity: [0, 1, 1, 0],
         scale: [0.92, 1, 1, 0.96],
@@ -132,7 +141,7 @@ function GuidedDragFingerHint({ active, reducedMotion }) {
           boxShadow: '0 0 12px rgba(250,204,21,0.18)',
         }}
       >
-        Kartı sürükle
+        Buraya sürükle
       </span>
     </motion.div>
   );
@@ -170,6 +179,8 @@ export default function GameLayout({
   balances = null,
   beginnerPlacementHintZone,
   guidedDragHintActive = false,
+  guidedDragTargetZone = null,
+  interactionPaused = false,
   correctStreak = 0,
   // Handlers
   onSelectZone,
@@ -397,19 +408,21 @@ export default function GameLayout({
               question={currentQuestion}
               onImageError={onImageError}
               onAudioError={onAudioError}
-              draggable={isMyTurn && !feedback}
-              readOnly={!isMyTurn}
+              draggable={isMyTurn && !feedback && !interactionPaused}
+              readOnly={!isMyTurn || interactionPaused}
               readOnlyLabel={isSpectatingQuestion ? 'İZLEME MODU' : 'KİLİTLİ'}
-              onDragStart={isMyTurn ? onDragStart : undefined}
-              onDragEnd={isMyTurn ? onDragEnd : undefined}
-              onTouchDragMove={isMyTurn ? onTouchDragMove : undefined}
-              onTouchDragEnd={isMyTurn ? onTouchDragEnd : undefined}
-              onTouchDragCancel={isMyTurn ? onTouchDragCancel : undefined}
+              onDragStart={isMyTurn && !interactionPaused ? onDragStart : undefined}
+              onDragEnd={isMyTurn && !interactionPaused ? onDragEnd : undefined}
+              onTouchDragMove={isMyTurn && !interactionPaused ? onTouchDragMove : undefined}
+              onTouchDragEnd={isMyTurn && !interactionPaused ? onTouchDragEnd : undefined}
+              onTouchDragCancel={isMyTurn && !interactionPaused ? onTouchDragCancel : undefined}
               soloReadableCard={!isOnline}
             />
             <GuidedDragFingerHint
-              active={Boolean(guidedDragHintActive && isMyTurn && !isDragging && !feedback && !winner)}
+              active={Boolean(guidedDragHintActive && isMyTurn && !isDragging && !feedback && !winner && !interactionPaused)}
               reducedMotion={prefersReducedMotion}
+              targetZoneIndex={guidedDragTargetZone}
+              zoneCount={(currentPlayer?.cards?.length || 0) + 1}
             />
             {isSpectatingQuestion && (
               <div
@@ -441,12 +454,12 @@ export default function GameLayout({
             <Timeline
               cards={currentPlayer.cards}
               selectedZone={isMyTurn ? selectedZone : null}
-              onSelectZone={isMyTurn ? onSelectZone : undefined}
-              isDragMode={isDragging && isMyTurn}
-              onPlaceCard={isMyTurn ? onDropOnZone : undefined}
-              dragClientX={isMyTurn ? touchDragPos?.x : null}
-              dragClientY={isMyTurn ? touchDragPos?.y : null}
-              dragEndEvent={isMyTurn && touchDragEnd ? { clientX: touchDragEnd.x, clientY: touchDragEnd.y } : null}
+              onSelectZone={isMyTurn && !interactionPaused ? onSelectZone : undefined}
+              isDragMode={isDragging && isMyTurn && !interactionPaused}
+              onPlaceCard={isMyTurn && !interactionPaused ? onDropOnZone : undefined}
+              dragClientX={isMyTurn && !interactionPaused ? touchDragPos?.x : null}
+              dragClientY={isMyTurn && !interactionPaused ? touchDragPos?.y : null}
+              dragEndEvent={isMyTurn && !interactionPaused && touchDragEnd ? { clientX: touchDragEnd.x, clientY: touchDragEnd.y } : null}
               isTimeUp={isTimeUp}
               // Codex163 — Visual-only placement feedback. Timeline
               // forwards this to PlacementFeedbackOverlay; it does not
@@ -457,6 +470,7 @@ export default function GameLayout({
                   : null
               }
               beginnerPlacementHintZone={beginnerPlacementHintZone}
+              guidedTargetZone={guidedDragHintActive ? guidedDragTargetZone : null}
               correctStreak={correctStreak}
               soloYearOnlyCards={!isOnline}
             />
@@ -487,7 +501,7 @@ export default function GameLayout({
         timerFrozen={Boolean(soloJokers?.timerFrozen)}
         message={soloJokers?.message || ''}
         error={soloJokers?.error || ''}
-        disabled={Boolean(soloJokers?.disabled) || !isMyTurn || Boolean(feedback)}
+        disabled={Boolean(soloJokers?.disabled) || !isMyTurn || Boolean(feedback) || interactionPaused}
         tutorialDemoType={soloJokers?.tutorialDemoType || null}
         tutorialDemoHintActive={Boolean(soloJokers?.tutorialDemoHintActive)}
         onUseJoker={soloJokers?.onUseJoker}
@@ -519,9 +533,9 @@ export default function GameLayout({
         >
           {/* Main action */}
           <CTAButton
-            active={isMyTurn && selectedZone !== null && !feedback && !winner}
-            onClick={isMyTurn && selectedZone !== null ? onConfirmPlacement : undefined}
-            disabled={!isMyTurn || selectedZone === null || !!feedback || !!winner}
+            active={isMyTurn && selectedZone !== null && !feedback && !winner && !interactionPaused}
+            onClick={isMyTurn && selectedZone !== null && !interactionPaused ? onConfirmPlacement : undefined}
+            disabled={!isMyTurn || selectedZone === null || !!feedback || !!winner || interactionPaused}
           />
         </div>
       )}

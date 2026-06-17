@@ -39,6 +39,21 @@ const GENDER_OPTIONS = [
 
 const GUIDED_FIRST_SOLO_TUTORIAL_IN_PROGRESS = 'tutorial_in_progress';
 const GUIDED_TUTORIAL_TIME_LIMIT_SECONDS = SOLO_LEVEL_TIME_SECONDS;
+const PROFILE_SAVE_TIMEOUT_MS = 15000;
+
+function withTimeout(promise, timeoutMs, code) {
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = window.setTimeout(() => {
+      const error = new Error(code);
+      error.code = code;
+      reject(error);
+    }, timeoutMs);
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timeoutId) window.clearTimeout(timeoutId);
+  });
+}
 
 function tutorialGameConfig() {
   const config = buildSoloGameConfigForLevel({ levelNumber: 1 });
@@ -211,16 +226,27 @@ export default function OnboardingPage() {
             setBusy(true);
             setError('');
             try {
-              const updated = await updateGuestProfileOnboarding({
+              const updated = await withTimeout(updateGuestProfileOnboarding({
                 ...patch,
                 profile_setup_status: 'completed',
                 onboarding_status: GUEST_ONBOARDING_STATES.CATEGORY_SETUP_PENDING,
+              }), PROFILE_SAVE_TIMEOUT_MS, 'profile_save_timeout');
+              setGuestProfile({
+                ...(updated || guestProfile),
+                username: updated?.username || patch.username || guestProfile?.username,
+                display_name: updated?.display_name || updated?.username || patch.username || guestProfile?.display_name,
+                age: updated?.age ?? patch.age ?? guestProfile?.age,
+                gender: updated?.gender ?? patch.gender ?? guestProfile?.gender,
+                profile_setup_status: 'completed',
+                category_setup_status: 'pending',
+                onboarding_status: GUEST_ONBOARDING_STATES.CATEGORY_SETUP_PENDING,
               });
-              setGuestProfile(updated);
               void Promise.resolve(checkUserAuth?.()).catch(() => null);
             } catch (profileError) {
               setError(profileError?.code === 'username_taken'
                 ? 'Bu kullanıcı adı alınmış. Başka bir Kronox adı seç.'
+                : profileError?.code === 'profile_save_timeout'
+                  ? 'Profil kaydı uzun sürdü. Bağlantını kontrol edip tekrar dene.'
                 : 'Profil bilgilerin kaydedilemedi. Lütfen tekrar dene.');
             } finally {
               setBusy(false);

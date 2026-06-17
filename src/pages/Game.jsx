@@ -68,7 +68,6 @@ import {
   isSoloQuestionRuntimeDebugAllowed,
 } from '@/lib/soloQuestionRuntimeDebug';
 import {
-  JOKER_TYPES,
   SOLO_UI_JOKER_TYPES,
   buildSoloJokerUseIdempotencyKey,
   emptyJokerBalances,
@@ -102,6 +101,29 @@ import { getOnlinePlayerElapsedSeconds } from '@/lib/onlinePlayerElapsed';
 const GAMEPLAY_DRAG_LOCK_CLASS = 'kronox-game-drag-lock';
 const GUIDED_TUTORIAL_TIME_LIMIT_SECONDS = SOLO_LEVEL_TIME_SECONDS;
 const GUIDED_TUTORIAL_JOKER_TYPE = SOLO_UI_JOKER_TYPES.TIME_FREEZE;
+const GUIDED_TUTORIAL_JOKER_SEQUENCE = Object.freeze({
+  3: GUIDED_TUTORIAL_JOKER_TYPE,
+  4: SOLO_UI_JOKER_TYPES.CARD_SWAP,
+  5: SOLO_UI_JOKER_TYPES.MISTAKE_SHIELD,
+});
+
+const GUIDED_TUTORIAL_JOKER_COPY = Object.freeze({
+  [SOLO_UI_JOKER_TYPES.TIME_FREEZE]: {
+    label: 'Zaman Dondur',
+    title: 'Zaman Dondur',
+    body: 'Bu joker normal Solo’da süreyi kısa süreliğine durdurur. Eğitimde gerçek çantandan harcanmaz.',
+  },
+  [SOLO_UI_JOKER_TYPES.CARD_SWAP]: {
+    label: 'Kart Değiştir',
+    title: 'Kart Değiştir',
+    body: 'Bu joker normal Solo’da zorlandığın aktif kartı güvenli bir yedek kartla değiştirir. Eğitimde sadece nasıl kullanılacağını gösterir.',
+  },
+  [SOLO_UI_JOKER_TYPES.MISTAKE_SHIELD]: {
+    label: 'Kronokalkan',
+    title: 'Kronokalkan',
+    body: 'Bu joker normal Solo’da bir hatanı korur. Eğitim demosu gerçek joker bakiyeni azaltmaz.',
+  },
+});
 
 const GUIDED_TUTORIAL_MESSAGES = [
   {
@@ -131,10 +153,81 @@ const GUIDED_TUTORIAL_MESSAGES = [
   },
 ];
 
-function buildGuidedTutorialJokerBalances(demoUsed = false) {
+function getGuidedTutorialJokerTypeForAskedCard(askedCardNumber = 0) {
+  return GUIDED_TUTORIAL_JOKER_SEQUENCE[Math.trunc(Number(askedCardNumber) || 0)] || null;
+}
+
+function getGuidedTutorialJokerCopy(jokerType) {
+  return GUIDED_TUTORIAL_JOKER_COPY[jokerType] || {
+    label: 'Joker',
+    title: 'Joker',
+    body: 'Bu eğitim demosu gerçek joker bakiyeni harcamaz.',
+  };
+}
+
+function buildGuidedTutorialJokerBalances(targetType = null, demoUsed = false) {
   const balances = emptyJokerBalances();
-  balances[JOKER_TYPES.TIME_FREEZE] = demoUsed ? 0 : 1;
+  const inventoryType = soloUiJokerTypeToInventoryType(targetType);
+  if (inventoryType) balances[inventoryType] = demoUsed ? 0 : 1;
   return balances;
+}
+
+function GuidedTutorialPopup({ popup, onContinue }) {
+  if (!popup) return null;
+  const jokerCopy = popup.type === 'joker' ? getGuidedTutorialJokerCopy(popup.jokerType) : null;
+  const content = popup.type === 'timer'
+    ? {
+        title: 'Süreyi Takip Et',
+        body: 'Bu oyunu süre bitmeden tamamlamalısın. Ne kadar hızlı bitirirsen o kadar çok Puan / Kronox Puan kazanırsın.',
+        eyebrow: '03:00',
+      }
+    : popup.type === 'mistake'
+      ? {
+          title: 'Hata Hakkına Dikkat',
+          body: 'Oyunda hata sınırı vardır. Daha az hata yapmak daha fazla Puan / Kronox Puan kazanmanı sağlar.',
+          eyebrow: 'Hamle',
+        }
+      : {
+          title: jokerCopy?.title || 'Joker',
+          body: jokerCopy?.body || 'Bu eğitim demosu gerçek joker bakiyeni harcamaz.',
+          eyebrow: jokerCopy?.label || 'Joker',
+        };
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center px-5"
+      style={{ background: 'rgba(2,6,23,0.72)', backdropFilter: 'blur(3px)' }}
+      data-kronox-guided-tutorial-popup={popup.type}
+    >
+      {popup.type === 'timer' && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none fixed right-4 top-4 rounded-full border border-yellow-300/70 px-3 py-1.5 font-inter text-xs font-black text-yellow-100"
+          style={{
+            top: 'calc(0.85rem + env(safe-area-inset-top))',
+            boxShadow: '0 0 0 9999px rgba(2,6,23,0.18), 0 0 22px rgba(250,204,21,0.46)',
+            background: 'rgba(15,23,42,0.96)',
+          }}
+        >
+          Süre
+        </div>
+      )}
+      <div className="w-full max-w-[340px] rounded-3xl border border-yellow-300/45 bg-slate-950 px-5 py-5 text-center shadow-2xl">
+        <div className="mx-auto mb-3 inline-flex min-h-9 items-center justify-center rounded-full border border-yellow-300/45 bg-yellow-300/12 px-4 font-inter text-xs font-black text-yellow-100">
+          {content.eyebrow}
+        </div>
+        <h2 className="font-cinzel text-xl font-black text-white">{content.title}</h2>
+        <p className="mt-2 font-inter text-sm font-semibold leading-relaxed text-blue-100/82">{content.body}</p>
+        <Button
+          type="button"
+          onClick={onContinue}
+          className="mt-5 min-h-11 w-full rounded-xl font-inter font-black"
+        >
+          Anladım
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 function GuidedSoloTutorialOverlay({ cardsCompleted = 0, cardTarget = 7, mistakes = 0 }) {
@@ -367,7 +460,10 @@ export default function Game() {
   const [soloAttemptId, setSoloAttemptId] = useState(null);
   const [soloCorrectStreak, setSoloCorrectStreak] = useState(0);
   const [usedJokerType, setUsedJokerType] = useState(null);
-  const [guidedTutorialJokerDemoUsed, setGuidedTutorialJokerDemoUsed] = useState(false);
+  const [guidedTutorialJokerDemoUsedByCard, setGuidedTutorialJokerDemoUsedByCard] = useState({});
+  const [guidedTutorialPopup, setGuidedTutorialPopup] = useState(null);
+  const [guidedTutorialTimerIntroShown, setGuidedTutorialTimerIntroShown] = useState(false);
+  const [guidedTutorialMistakePopupShown, setGuidedTutorialMistakePopupShown] = useState(false);
   const [jokerBalances, setJokerBalances] = useState(() => emptyJokerBalances());
   const [jokerInventoryLoading, setJokerInventoryLoading] = useState(false);
   const [jokerSpendPendingType, setJokerSpendPendingType] = useState(null);
@@ -377,10 +473,12 @@ export default function Game() {
   const [timerFreezeUntil, setTimerFreezeUntil] = useState(0);
   const [timerFreezeTick, setTimerFreezeTick] = useState(0);
   const [frozenElapsedOffset, setFrozenElapsedOffset] = useState(0);
+  const [guidedTutorialPauseOffset, setGuidedTutorialPauseOffset] = useState(0);
   const timerFreezeStartRef = useRef(null);
   const timerFreezeElapsedAtStartRef = useRef(null);
   const timerFreezeTimeoutRef = useRef(null);
   const timerFreezeIntervalRef = useRef(null);
+  const guidedTutorialPauseElapsedAtStartRef = useRef(null);
   const jokerUsedRef = useRef(false);
   const jokerSpendPendingRef = useRef(false);
   const soloJokerDecisionKeyByQuestionIdRef = useRef(new Map());
@@ -668,15 +766,41 @@ export default function Game() {
     // completion uses the full authoritative card set.
     return getTimelineCardCount(me);
   }, [isSoloLevelMode, players]);
+  const soloSeedCardCount = isSoloLevelMode ? Math.max(0, (playerNames?.length || 1) * 2) : 0;
+  const guidedTutorialAskedCardNumber = isGuidedSoloTutorial && currentQuestion
+    ? Math.max(1, cardsCompletedSolo - soloSeedCardCount + 1)
+    : 0;
+  const guidedTutorialExpectedJokerType = getGuidedTutorialJokerTypeForAskedCard(guidedTutorialAskedCardNumber);
+  const guidedTutorialCurrentJokerUsed = Boolean(
+    guidedTutorialExpectedJokerType &&
+    guidedTutorialJokerDemoUsedByCard[guidedTutorialAskedCardNumber]
+  );
+  const guidedTutorialCorrectTargetZone = useMemo(() => {
+    if (!isGuidedSoloTutorial || !currentQuestion || !currentPlayer) return null;
+    const questionYear = Number(currentQuestion.year);
+    const cards = Array.isArray(currentPlayer.cards) ? currentPlayer.cards : [];
+    if (!Number.isFinite(questionYear)) return null;
+    for (let zoneIndex = 0; zoneIndex <= cards.length; zoneIndex += 1) {
+      if (isCorrectPlacement(cards, questionYear, zoneIndex)) return zoneIndex;
+    }
+    return null;
+  }, [currentPlayer, currentQuestion, isGuidedSoloTutorial]);
   const timerFreezeNow = timerFreezeTick || Date.now();
   const isSoloTimerFrozen = Boolean(isSoloLevelMode && timerFreezeUntil > timerFreezeNow && timerFreezeStartRef.current);
   const activeFreezeOffset = isSoloTimerFrozen
     ? Math.min(10, Math.max(0, Math.floor((timerFreezeNow - timerFreezeStartRef.current) / 1000)))
     : 0;
+  const guidedTutorialPopupOpen = Boolean(isGuidedSoloTutorial && guidedTutorialPopup);
+  if (guidedTutorialPopupOpen && guidedTutorialPauseElapsedAtStartRef.current === null) {
+    guidedTutorialPauseElapsedAtStartRef.current = Number(overallSecondsRef.current ?? overallSeconds) || 0;
+  }
+  const activeGuidedTutorialPauseOffset = guidedTutorialPopupOpen && Number.isFinite(Number(guidedTutorialPauseElapsedAtStartRef.current))
+    ? Math.max(0, Number(overallSeconds || 0) - Number(guidedTutorialPauseElapsedAtStartRef.current))
+    : 0;
   const soloEffectiveElapsedSeconds = isSoloLevelMode
     ? Math.max(0, isSoloTimerFrozen
       ? (timerFreezeElapsedAtStartRef.current ?? overallSeconds)
-      : overallSeconds - frozenElapsedOffset - activeFreezeOffset)
+      : overallSeconds - frozenElapsedOffset - guidedTutorialPauseOffset - activeFreezeOffset - activeGuidedTutorialPauseOffset)
     : overallSeconds;
   const soloEffectiveElapsedSecondsRef = useRef(0);
 
@@ -747,13 +871,28 @@ export default function Game() {
     soloDailyQuestAttemptRecordedRef.current = null;
     soloDailyQuestCompletionRecordedRef.current = null;
     setUsedJokerType(null);
-    setGuidedTutorialJokerDemoUsed(false);
+    setGuidedTutorialJokerDemoUsedByCard({});
+    setGuidedTutorialPopup(null);
+    setGuidedTutorialTimerIntroShown(false);
+    setGuidedTutorialMistakePopupShown(false);
     setJokerSpendPendingType(null);
     setMistakeShieldActive(false);
     setJokerMessage('');
     setJokerError('');
     setFrozenElapsedOffset(0);
+    setGuidedTutorialPauseOffset(0);
+    guidedTutorialPauseElapsedAtStartRef.current = null;
   }, [clearSoloTimerFreeze]);
+
+  const closeGuidedTutorialPopup = useCallback(() => {
+    const pausedAt = Number(guidedTutorialPauseElapsedAtStartRef.current);
+    const rawElapsed = Number(overallSecondsRef.current ?? overallSeconds);
+    if (Number.isFinite(pausedAt) && Number.isFinite(rawElapsed)) {
+      setGuidedTutorialPauseOffset((previous) => Math.max(previous, rawElapsed - pausedAt));
+    }
+    guidedTutorialPauseElapsedAtStartRef.current = null;
+    setGuidedTutorialPopup(null);
+  }, [overallSeconds, overallSecondsRef]);
 
   // Codex166/Codex180 — Solo mode: the attempt deck IS the question pool.
   // Gameplay (pickQuestion in useGameActions) walks this prebuilt source-of-truth,
@@ -1319,6 +1458,24 @@ export default function Game() {
     }
   }, [players.length, currentQuestion, gameStarted, setGameStarted]);
 
+  useEffect(() => {
+    if (!isGuidedSoloTutorial || guidedTutorialTimerIntroShown || !currentQuestion || winner || soloLevelResult) return;
+    setGuidedTutorialTimerIntroShown(true);
+    setGuidedTutorialPopup({ type: 'timer' });
+  }, [
+    currentQuestion,
+    guidedTutorialTimerIntroShown,
+    isGuidedSoloTutorial,
+    soloLevelResult,
+    winner,
+  ]);
+
+  useEffect(() => {
+    if (!isGuidedSoloTutorial || guidedTutorialMistakePopupShown || !feedback || feedback.result !== 'wrong') return;
+    setGuidedTutorialMistakePopupShown(true);
+    setGuidedTutorialPopup({ type: 'mistake' });
+  }, [feedback, guidedTutorialMistakePopupShown, isGuidedSoloTutorial]);
+
   // Timer reset on player turn change
   useEffect(() => {
     setTimerKey(k => k + 1);
@@ -1403,33 +1560,39 @@ export default function Game() {
     !soloLevelResult &&
     !winner &&
     currentQuestion &&
-    cardsCompletedSolo >= Math.max(2, (Number(winCardCount) || 7) - 1)
+    guidedTutorialExpectedJokerType
   );
   const guidedTutorialJokerDemoWaiting = Boolean(
     guidedTutorialJokerStepActive &&
-    !guidedTutorialJokerDemoUsed &&
-    !feedback
+    !guidedTutorialCurrentJokerUsed &&
+    !feedback &&
+    !guidedTutorialPopup
   );
 
   // ─── Handlers (UI event → action delegation) ─────────────────────
   const handleDropOnZone = useCallback((zoneIndex) => {
+    if (guidedTutorialPopup) {
+      setSelectedZone(zoneIndex);
+      return;
+    }
     if (guidedTutorialJokerDemoWaiting) {
       setSelectedZone(zoneIndex);
       setJokerError('');
-      setJokerMessage('Önce Zaman Dondur jokerini dene; gerçek çantandan harcanmaz.');
+      setJokerMessage(`Önce ${getGuidedTutorialJokerCopy(guidedTutorialExpectedJokerType).label} jokerini dene; gerçek çantandan harcanmaz.`);
       return;
     }
     doPlacement(zoneIndex, { category, yearStart, yearEnd });
-  }, [doPlacement, category, yearStart, yearEnd, guidedTutorialJokerDemoWaiting, setSelectedZone]);
+  }, [doPlacement, category, yearStart, yearEnd, guidedTutorialExpectedJokerType, guidedTutorialJokerDemoWaiting, guidedTutorialPopup, setSelectedZone]);
   const handleConfirmPlacement = useCallback(() => {
     if (selectedZone === null) return;
+    if (guidedTutorialPopup) return;
     if (guidedTutorialJokerDemoWaiting) {
       setJokerError('');
-      setJokerMessage('Devam etmeden önce Zaman Dondur jokerini bir kez kullan.');
+      setJokerMessage(`Devam etmeden önce ${getGuidedTutorialJokerCopy(guidedTutorialExpectedJokerType).label} jokerini bir kez kullan.`);
       return;
     }
     doPlacement(selectedZone, { category, yearStart, yearEnd });
-  }, [doPlacement, selectedZone, category, yearStart, yearEnd, guidedTutorialJokerDemoWaiting]);
+  }, [doPlacement, selectedZone, category, yearStart, yearEnd, guidedTutorialExpectedJokerType, guidedTutorialJokerDemoWaiting, guidedTutorialPopup]);
   const handleTimeUp = useCallback(() => {
     if (feedback !== null || winner) return;
     if (!isMyTurn) return;
@@ -1586,19 +1749,30 @@ export default function Game() {
     }
 
     if (isGuidedSoloTutorial) {
-      if (jokerType !== GUIDED_TUTORIAL_JOKER_TYPE) {
-        setJokerError('Eğitimde önce Zaman Dondur jokerini dene.');
+      if (!guidedTutorialExpectedJokerType) {
+        setJokerError('Joker adımı birazdan açılacak.');
+        return;
+      }
+      const expectedJokerCopy = getGuidedTutorialJokerCopy(guidedTutorialExpectedJokerType);
+      if (jokerType !== guidedTutorialExpectedJokerType) {
+        setJokerError(`Eğitimde şimdi ${expectedJokerCopy.label} jokerini dene.`);
         return;
       }
       if (!guidedTutorialJokerStepActive) {
-        setJokerError('Zaman Dondur adımı birazdan açılacak.');
+        setJokerError('Joker adımı birazdan açılacak.');
         return;
       }
       markSoloJokerUsedForDecision(decisionKey, jokerType);
-      setGuidedTutorialJokerDemoUsed(true);
+      setGuidedTutorialJokerDemoUsedByCard((previous) => ({
+        ...previous,
+        [guidedTutorialAskedCardNumber]: true,
+      }));
       setJokerError('');
-      setJokerMessage('Zaman Dondur demosu aktif: gerçek çantandan harcanmadı.');
-      startSoloTimerFreeze();
+      setJokerMessage(`${expectedJokerCopy.label} demosu aktif: gerçek çantandan harcanmadı.`);
+      if (jokerType === SOLO_UI_JOKER_TYPES.TIME_FREEZE) {
+        startSoloTimerFreeze();
+      }
+      setGuidedTutorialPopup({ type: 'joker', jokerType });
       return;
     }
 
@@ -1692,6 +1866,8 @@ export default function Game() {
     winner,
     feedback,
     isMyTurn,
+    guidedTutorialAskedCardNumber,
+    guidedTutorialExpectedJokerType,
     guidedTutorialJokerStepActive,
     mistakeShieldActive,
     isSoloTimerFrozen,
@@ -2418,14 +2594,16 @@ export default function Game() {
 
   // ─── Render ───────────────────────────────────────────────────────
   const guidedTutorialJokerBalances = isGuidedSoloTutorial
-    ? buildGuidedTutorialJokerBalances(guidedTutorialJokerDemoUsed || !guidedTutorialJokerStepActive)
+    ? buildGuidedTutorialJokerBalances(guidedTutorialExpectedJokerType, guidedTutorialCurrentJokerUsed || !guidedTutorialJokerStepActive)
     : null;
   const guidedJokerDemoHintActive = Boolean(
     guidedTutorialJokerDemoWaiting &&
     isMyTurn &&
     !isDragging &&
-    !jokerSpendPendingType
+    !jokerSpendPendingType &&
+    !guidedTutorialPopup
   );
+  const guidedTutorialJokerLabel = getGuidedTutorialJokerCopy(guidedTutorialExpectedJokerType).label;
   const soloJokers = isSoloLevelMode ? {
     enabled: true,
     usedJokerType,
@@ -2436,8 +2614,8 @@ export default function Game() {
     timerFrozen: isSoloTimerFrozen,
     message: isGuidedSoloTutorial
       ? (jokerMessage || (guidedTutorialJokerDemoWaiting
-          ? 'Zaman Dondur’a dokun; demo gerçek çantandan harcanmaz.'
-          : 'Joker adımında Zaman Dondur’u bir kez deneyeceksin.'))
+          ? `${guidedTutorialJokerLabel} jokerine dokun; demo gerçek çantandan harcanmaz.`
+          : 'Joker adımlarında üç Solo jokerini sırayla deneyeceksin.'))
       : jokerMessage,
     error: jokerError,
     disabled: Boolean(
@@ -2445,15 +2623,19 @@ export default function Game() {
       winner ||
       jokerInventoryLoading ||
       jokerSpendPendingType ||
+      guidedTutorialPopup ||
       (isGuidedSoloTutorial && !guidedTutorialJokerStepActive)
     ),
-    tutorialDemoType: isGuidedSoloTutorial ? GUIDED_TUTORIAL_JOKER_TYPE : null,
+    tutorialDemoType: isGuidedSoloTutorial ? guidedTutorialExpectedJokerType : null,
     tutorialDemoHintActive: guidedJokerDemoHintActive,
     onUseJoker: handleUseSoloJoker,
   } : null;
   const guidedDragHintActive = Boolean(
     isGuidedSoloTutorial &&
-    cardsCompletedSolo <= 2 &&
+    guidedTutorialCorrectTargetZone !== null &&
+    !guidedTutorialPopup &&
+    !guidedTutorialJokerDemoWaiting &&
+    selectedZone === null &&
     !feedback &&
     !winner &&
     currentQuestion
@@ -2483,6 +2665,12 @@ export default function Game() {
           cardsCompleted={cardsCompletedSolo}
           cardTarget={winCardCount}
           mistakes={mistakeCount}
+        />
+      )}
+      {isGuidedSoloTutorial && (
+        <GuidedTutorialPopup
+          popup={guidedTutorialPopup}
+          onContinue={closeGuidedTutorialPopup}
         />
       )}
 
@@ -2543,6 +2731,8 @@ export default function Game() {
         balances={soloJokers?.balances || null}
         beginnerPlacementHintZone={beginnerPlacementHintZone}
         guidedDragHintActive={guidedDragHintActive}
+        guidedDragTargetZone={guidedTutorialCorrectTargetZone}
+        interactionPaused={Boolean(guidedTutorialPopup)}
         correctStreak={isSoloLevelMode ? soloCorrectStreak : 0}
       />
       <SoloQuestionDebugPanel payload={soloQuestionDebugPayload} />

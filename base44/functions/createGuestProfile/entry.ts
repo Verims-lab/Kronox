@@ -343,7 +343,6 @@ async function usernameExists(base44: any, username: string, excludeGuestId = ''
   const rows = [
     ...(await entity.filter({ username_normalized: usernameKey }, '-created_at', 5).catch(() => [])),
     ...(await entity.filter({ username }, '-created_at', 5).catch(() => [])),
-    ...(entity?.list ? await entity.list('-updated_at', 500).catch(() => []) : []),
   ];
   if (!Array.isArray(rows) || rows.length === 0) return false;
   return rows.some((row: any) => (
