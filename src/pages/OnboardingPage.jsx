@@ -101,6 +101,8 @@ export default function OnboardingPage() {
   const [guestProfile, setGuestProfile] = useState(authGuestProfile);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [categorySaving, setCategorySaving] = useState(false);
   const [error, setError] = useState('');
   const [showSecureProgressPrompt, setShowSecureProgressPrompt] = useState(false);
   const guidedCompletionHandledRef = useRef(false);
@@ -147,7 +149,7 @@ export default function OnboardingPage() {
         });
         if (!cancelled) {
           setGuestProfile(updated);
-          await checkUserAuth?.();
+          void Promise.resolve(checkUserAuth?.()).catch(() => null);
           navigate('/onboarding', { replace: true, state: {} });
         }
       } catch {
@@ -181,10 +183,12 @@ export default function OnboardingPage() {
   }
 
   const step = normalizeStep(guestProfile);
+  const isProfileStep = step === GUEST_ONBOARDING_STATES.TUTORIAL_COMPLETED ||
+    step === GUEST_ONBOARDING_STATES.PROFILE_SETUP_PENDING;
 
   return (
     <OnboardingShell>
-      {error && (
+      {error && !isProfileStep && (
         <p className="mb-3 rounded-xl border border-amber-300/35 bg-amber-300/10 px-3 py-2 font-inter text-xs font-bold text-amber-100">
           {error}
         </p>
@@ -221,9 +225,10 @@ export default function OnboardingPage() {
       {(step === GUEST_ONBOARDING_STATES.TUTORIAL_COMPLETED || step === GUEST_ONBOARDING_STATES.PROFILE_SETUP_PENDING) && (
         <ProfileSetupStep
           profile={guestProfile}
-          busy={busy}
+          busy={profileSaving}
+          submitError={error}
           onSubmit={async (patch) => {
-            setBusy(true);
+            setProfileSaving(true);
             setError('');
             try {
               const updated = await withTimeout(updateGuestProfileOnboarding({
@@ -249,7 +254,7 @@ export default function OnboardingPage() {
                   ? 'Profil kaydı uzun sürdü. Bağlantını kontrol edip tekrar dene.'
                 : 'Profil bilgilerin kaydedilemedi. Lütfen tekrar dene.');
             } finally {
-              setBusy(false);
+              setProfileSaving(false);
             }
           }}
         />
@@ -257,9 +262,9 @@ export default function OnboardingPage() {
       {step === GUEST_ONBOARDING_STATES.CATEGORY_SETUP_PENDING && (
         <CategorySetupStep
           profile={guestProfile}
-          busy={busy}
+          busy={categorySaving}
           onComplete={async (selectedIds) => {
-            setBusy(true);
+            setCategorySaving(true);
             setError('');
             try {
               const updated = await updateGuestProfileOnboarding({
@@ -273,7 +278,7 @@ export default function OnboardingPage() {
             } catch {
               setError('Kategori seçimlerin kaydedilemedi. Lütfen tekrar dene.');
             } finally {
-              setBusy(false);
+              setCategorySaving(false);
             }
           }}
         />
@@ -364,7 +369,7 @@ function TutorialResumeStep({ busy, onResume }) {
   );
 }
 
-function ProfileSetupStep({ profile, busy, onSubmit }) {
+function ProfileSetupStep({ profile, busy, submitError, onSubmit }) {
   const fallbackUsername = useMemo(
     () => profile.username || profile.display_name || makeKronoxUserFallback(profile.guest_id || ''),
     [profile.display_name, profile.guest_id, profile.username]
@@ -439,7 +444,11 @@ function ProfileSetupStep({ profile, busy, onSubmit }) {
           </Field>
         </div>
       </div>
-      {validation && <p className="mt-3 rounded-xl border border-amber-300/35 bg-amber-300/10 px-3 py-2 font-inter text-xs font-bold text-amber-100">{validation}</p>}
+      {(validation || submitError) && (
+        <p className="mt-3 rounded-xl border border-amber-300/35 bg-amber-300/10 px-3 py-2 font-inter text-xs font-bold text-amber-100">
+          {validation || submitError}
+        </p>
+      )}
       <Button type="submit" disabled={busy || !canSubmit} className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl font-inter font-black">
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
         Kategorilere Geç
