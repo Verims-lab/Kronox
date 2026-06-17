@@ -211,6 +211,7 @@ Joker Çantası and Solo joker bar must show the purchased balance; Online mode
 is unaffected and Daily Wheel remains Diamond-only.
 
 ## Daily Quest Runtime v1
+Daily Quest Runtime v1 is active.
 DailyQuestDefinition stores admin-managed system templates. Günlük Görev
 Yönetimi lives under Profile / Admin Ekranı and is visible only to active
 AdminUser owner/admin users. Active admins can list definitions and create new
@@ -226,7 +227,8 @@ amount. Completed progress alone does not grant Diamonds; completed and
 unclaimed quests expose an Al claim action. Successful claimDailyQuestReward
 updates visible User.diamonds, returns diamondBalanceAfter and questStatus:
 claimed, and only then marks the progress row claimed. Daily Quest does not
-grant Kronox Puan and has no leaderboard impact. Home Daily Quest copy is
+grant Kronox Puan and has no leaderboard impact. Daily Quest does not affect
+leaderboard. Home Daily Quest copy is
 "Günlük Görevleri Yap, Elmasları Kazan!" and the runtime backend functions
 explicitly bind UserDailyQuestProgress for status, progress, and claim
 deployability.
@@ -236,11 +238,16 @@ definition rows exist. Runtime groups duplicate active definitions by quest_key,
 chooses one canonical definition by sort_order, created_at, and stable id, then
 selects the first logical daily quest. getDailyQuestStatus is authenticated but
 not admin-only and preserves newly created rows if immediate Base44 refresh is
-stale. Loading or ensuring today’s quests does not grant Diamonds;
-claimDailyQuestReward remains the only reward path.
+stale. Older same-day 3-quest rows are retained but Home displays only the selected
+current primary quest. Loading or ensuring today’s quests does not grant Diamonds;
+claimDailyQuestReward remains the only reward path. \`claimDailyQuestReward\` remains the only reward path.
 One claim per quest per UTC day is enforced by UserDailyQuestProgress and
 daily_quest_reward idempotency keys. User fields daily_quest_last_claim_date
 and daily_quest_next_available_at track claim summary/reset availability only.
+Daily Wheel remains separate from Daily Quest definitions.
+Daily Wheel and Daily Quest are separate.
+daily_wheel:<email>:<YYYY-MM-DD>
+daily_quest_reward:<email>:<YYYY-MM-DD>:<quest_key>
 
 ## Online Scoring Persistence
 Two-account invite + scoring proof, OnlineMatchResult idempotency.

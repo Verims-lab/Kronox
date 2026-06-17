@@ -14,6 +14,13 @@ export const SCORING_RULES_DOC = `# Kronox Scoring Rules
 
 Status: Active product contract.
 
+Kronox has one player-facing score language.
+Visible UI must use **Puan** or **Kronox Puan**.
+Internally, two scoring components feed that visible score.
+Technical/internal docs may discuss base score, bonus, streak, accuracy, Solo
+component, Online component, and projection details, but those components must
+not fragment visible UI language into competing score names.
+
 ## Solo scoring
 Per-level best score is stored on User.solo_progress and projected into the
 leaderboard by getSoloLeaderboard.

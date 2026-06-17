@@ -109,7 +109,7 @@ Daily Quest grants diamonds only through the server-backed
 idempotency key shaped like
 `daily_quest_reward:<normalizedEmail>:<YYYY-MM-DD>:<questKey>`. The client must
 not control reward amount. Daily Quest does not grant Kronox Puan and has no
-leaderboard impact.
+leaderboard impact. Daily Quest does not affect leaderboard.
 
 Do not implement client-side quest reward diamond grants, Kronox Puan rewards,
 Online quest progress, or leaderboard scoring from Daily Quest.
@@ -294,7 +294,9 @@ daily login = +20
 first-day total = 120
 ```
 
-First-day total: `120` Diamonds.
+First-day total: `120` Diamonds. This combines starter 100 Diamonds plus daily
+login 20 Diamonds only; it does not imply Kronox Puan and does not affect
+leaderboard rank.
 
 Refreshing the app after that must not grant another starter or daily reward.
 
@@ -502,11 +504,13 @@ Joker balance read-performance contract:
 The following are not implemented:
 
 * Rewarded ads
-* Daily Quest / Günün Görevi
 * Real-money purchases
 * Achievement rewards
 * Special event rewards
 * Non-joker spending/cost flows
+
+Daily Quest / Günün Görevi Runtime v1 is active; only future Daily Quest reward
+sources such as `daily_quest_future` remain inactive until explicitly approved.
 
 Do not implement these without explicit product approval.
 

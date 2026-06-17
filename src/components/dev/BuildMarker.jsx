@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex389 — Scoring/economy/Daily Quest Health alignment:
+//   • Documents the unified visible Puan/Kronox Puan contract in the Health
+//     scoring mirror while preserving internal Solo/Online components.
+//   • Aligns Diamond first-day 100 + 20 = 120 wording without changing economy
+//     grants.
+//   • Fixes Daily Quest runtime entity detection and docs/mirrors for
+//     Diamond-only, no-leaderboard, Daily Wheel-separated reward lanes.
+
 // Codex388 — VAPID secret-management classification:
 //   • sendGameInvitePush now carries an explicit static Health marker that
 //     server-env-sourced VAPID_PRIVATE_KEY findings are MANUAL_REQUIRED
@@ -2163,7 +2171,7 @@ import React, { useEffect, useState } from 'react';
 //   • Adds client install id hashing for bloat control without trusting it as
 //     identity proof or storing raw IP/header/token data.
 //   • Blocks public request bodies from setting trusted score/economy/link fields.
-const BUILD_MARKER = 'Codex388';
+const BUILD_MARKER = 'Codex389';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
