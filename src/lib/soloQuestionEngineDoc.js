@@ -9,13 +9,18 @@ export const SOLO_QUESTION_ENGINE_DOC = `# Kronox Solo Question Engine
 Status: Active product contract for new Solo attempts.
 
 Normal Solo levels end at 7 correct timeline cards, including seed cards
-already on the timeline, and use a 16-question deck.
+already on the timeline, start with 2 timeline anchor cards, use a 10
+evaluated moves limit, and use an 18-question deck.
 Special Solo levels start at level 10 and repeat every 5 levels: 10, 15,
 20, 25, and so on. Special Solo levels end at 10 correct timeline cards,
 including seed cards already on the timeline, and use a 19-question deck.
 
-All new Solo attempts use a 180 seconds timer and fail on 10 mistakes; the
-10th mistake ends the attempt.
+All new Solo attempts use a 180 seconds timer and fail when 10 evaluated moves
+are used before the target timeline card count is reached.
+Deck sizing is 2 anchors + 10 playable moves + Kart Değiştir buffer +
+Kronokalkan buffer. Zaman Dondur does not require extra card buffer.
+Extra Kart Değiştir or Kronokalkan use beyond the per-attempt buffer fails
+safely before spend; there is no raw client question list fallback.
 
 Question loading bootstrap first attempts online getQuestions when the browser
 is online or network state is unknown. The default gameplay response is an
@@ -48,8 +53,9 @@ cards. This avoids player-facing 1-4 year conflicts such as 1996/1997,
 1998/1999, and 1913/1914 where a safe alternative exists.
 
 Hard deck rules:
-- 16 questions for normal levels.
+- 18 questions for normal levels.
 - 19 questions for special levels.
+- 10 evaluated moves.
 - unique question IDs.
 - unique years.
 - active questions only.
@@ -164,7 +170,7 @@ safe alternative exists, or the first 5 minimum 5-year spacing rule unless no
 valid spaced deck exists at all.
 
 Replay creates a new deck. Old completed results are not retroactively
-recalculated. New attempts may carry soloRulesVersion: 2.
+recalculated. New attempts may carry soloRulesVersion: 3.
 
 Mobile browser Solo card dragging uses a gameplay-scoped pull-to-refresh
 guard. The lock is active only while the question card is dragged, native
@@ -205,12 +211,12 @@ that Solo already reads; using them in Solo still spends through spendUserJoker,
 which is Solo-context-only, uses deploy-safe UserJokerInventory/JokerTransaction
 entity fallback, and writes JokerTransaction.reason = solo_use.
 
-Kronokalkan forgives the next wrong placement without counting a mistake.
+Kronokalkan protects the next wrong valid placement from consuming a move.
 Kart Değiştir replaces the current card from the already prepared Solo deck
-or reserve without fetching or re-randomizing mid-attempt. The swapped-out card
+or reserve without consuming a move, fetching, or re-randomizing mid-attempt. The swapped-out card
 should not reappear while unused deck cards are available. Replacement must
 respect visible timeline spacing and prefers a balanced reserve card that does
 not worsen category/subcategory/theme repetition; if no safe replacement
 exists, the joker is not consumed and the player sees Bu kart şu anda
-değiştirilemiyor. Zaman Dondur freezes the Solo timer for 10 seconds.
+değiştirilemiyor. Zaman Dondur freezes the Solo timer for 10 seconds and does not consume a move.
 `;

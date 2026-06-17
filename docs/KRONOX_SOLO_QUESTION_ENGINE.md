@@ -2,28 +2,34 @@
 
 Status: Active product contract for new Solo attempts.
 
-This document describes the Solo question-selection rules used by `src/lib/soloQuestionEngine.js` and the Solo runtime in `src/pages/Game.jsx`. These rules apply only to new attempts after the Solo v2 rules update. Old completed Solo results are not retroactively recalculated or rewritten.
+This document describes the Solo question-selection rules used by `src/lib/soloQuestionEngine.js` and the Solo runtime in `src/pages/Game.jsx`. These rules apply only to new attempts after the Solo v3 move-based rules update. Old completed Solo results are not retroactively recalculated or rewritten.
 
 ## Core Attempt Rules
 
 Normal Solo levels:
 - end successfully at 7 correct timeline cards, including seed cards already on the timeline
-- use a 16-question deck
+- start with 2 timeline anchor cards
+- use a 10 evaluated move limit
+- use an 18-question deck
 - use the 180 seconds timer
 - fail when the timer reaches 180 seconds before completion
-- fail on 10 mistakes; the 10th mistake ends the attempt
+- fail when 10 evaluated moves are used and the 7-card target has not been reached
 
 Special Solo levels:
 - start at level 10 and repeat every 5 levels: 10, 15, 20, 25, ...
 - end successfully at 10 correct timeline cards, including seed cards already on the timeline
 - use a 19-question deck
 - use the 180 seconds timer unless a future explicit config changes it
-- fail on 10 mistakes; the 10th mistake ends the attempt
+- use the same 10 evaluated move limit and 180 seconds timeout
 
 Deck size formula:
-- `deckSize = correctTarget + maxNonFailingMistakes`
-- normal: `7 + 9 = 16 questions`
-- special: `10 + 9 = 19 questions`
+- `deckSize = initialTimelineCards + maxEvaluatedMoves + cardSwapBuffer + kronokalkanBuffer`
+- normal: `2 + 10 + 3 + 3 = 18 questions`
+- special: at least the same move/joker buffer and currently 19 questions for the special target lane
+- Zaman Dondur does not require a card buffer
+- Kart Değiştir uses the card-swap buffer and does not consume a move
+- Kronokalkan uses the shield buffer and protects one wrong valid placement from consuming a move
+- If a user owns more jokers than the per-attempt buffer, extra Kart Değiştir/Kronokalkan attempts fail safely before spend; no raw client question list or full-bank fallback is used.
 
 ## Question Loading Bootstrap
 
@@ -57,7 +63,7 @@ Seed/preplaced timeline cards are still part of the early visible gameplay conte
 Normal Solo also uses a visible timeline spacing guardrail during runtime. Before the next active card is shown, the ordered deck picker prefers an unused prebuilt-deck card whose answer year is at least 5 years away from already visible timeline years, including placed cards and seed/preplaced cards. This avoids player-facing 1-4 year conflicts such as 1996/1997, 1998/1999, and 1913/1914 where a safe alternative exists. If no safe candidate remains, the runtime may choose the least-bad valid deck candidate instead of fetching or randomizing a new question.
 
 Every valid deck must satisfy:
-- required deck size: 16 questions for normal levels, 19 questions for special levels
+- required deck size: 18 questions for normal levels, 19 questions for special levels
 - unique question IDs
 - unique years across the full deck
 - active questions only
@@ -421,13 +427,13 @@ Daily Quest Runtime v1 is Solo-focused:
   selection remain separate from Daily Quest rewards
 
 Joker behavior:
-- `Kronokalkan`: activates one-time protection. The next wrong placement does not count as a mistake; correct placements do not consume it.
-- `Kart Değiştir`: replaces the current active card using the already prepared Solo attempt deck/reserve. It must not fetch a new question, rebuild the deck, or rerandomize the attempt mid-game, and the swapped-out card should not reappear later in the same attempt while unused deck cards are available. Replacement must respect visible timeline spacing and prefers a balanced reserve card that does not worsen category/subcategory/theme repetition. If no safe replacement exists, the joker is not consumed and the player sees `Bu kart şu anda değiştirilemiyor.`
-- `Zaman Dondur`: freezes the Solo level timer for 10 seconds. It does not add score, add extra time, or alter timeout rules beyond pausing the elapsed timer during the freeze window.
+- `Kronokalkan`: activates one-time protection. The next wrong valid placement does not consume a move; correct placements do not consume the shield.
+- `Kart Değiştir`: replaces the current active card using the already prepared Solo attempt deck/reserve and does not consume a move. It must not fetch a raw client question list, rebuild the deck, or rerandomize the attempt mid-game, and the swapped-out card should not reappear later in the same attempt while unused deck cards are available. Replacement must respect visible timeline spacing and prefers a balanced reserve card that does not worsen category/subcategory/theme repetition. If no safe replacement exists, the joker is not consumed and the player sees `Bu kart şu anda değiştirilemiyor.`
+- `Zaman Dondur`: freezes the Solo level timer for 10 seconds and does not consume a move. It does not add score, add extra time, or alter timeout rules beyond pausing the elapsed timer during the freeze window.
 
 ## Backward Compatibility
 
-Do not recalculate old completed Solo results. Do not rewrite old stored `bestScore`, `bestStars`, or `bestTimeSeconds`. New attempts can record `soloRulesVersion: 2` so future audits can distinguish Solo v2 results from legacy stored results.
+Do not recalculate old completed Solo results. Do not rewrite old stored `bestScore`, `bestStars`, or `bestTimeSeconds`. New attempts can record `soloRulesVersion: 3` so future audits can distinguish Solo v3 move-based results from legacy stored results.
 
 ## Guided First Solo Level
 

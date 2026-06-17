@@ -9,12 +9,13 @@
 // ─── Docs ──────────────────────────────────────────────────────────────
 export const SOLO_QUESTION_ENGINE_DOC = `# Kronox Solo Question Engine
 
-Normal Solo levels use a 16-question deck with 16 unique years and need 7 correct
+Normal Solo levels use an 18-question deck with 18 unique years and need 7 correct
 timeline cards, including seed cards already on the timeline, to pass.
 Special Solo levels start at level 10, repeat every 5 levels, use a 19-question deck
 with 19 unique years, and need 10 correct timeline cards, including seed
 cards already on the timeline, to pass. All new Solo attempts use 180
-seconds and fail on 10 mistakes; the 10th mistake ends the attempt.
+seconds and fail when 10 evaluated moves are used before the target card count
+is reached. Live Solo shows HAMLE / remaining moves, not HATA.
 Only active questions (Question.state === "A") from active categories are used.
 Replay rebuilds the deck with no mid-attempt re-randomization. Runtime consumes
 the deck in order: the first active player question card is soloAttemptDeck[0].

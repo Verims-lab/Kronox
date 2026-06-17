@@ -12,8 +12,8 @@ import SoloFailureCard from './SoloFailureCard';
  * Each branch owns its own UI + any branch-specific async lookups (rank
  * for fail, global/friends record for success).
  *
- * Props (unchanged contract — Game.jsx still passes the same fields):
- *   levelNumber, passed, stars, mistakes, timeSeconds,
+ * Props:
+ *   levelNumber, passed, stars, usedMoves, remainingMoves, maxMoves, mistakes, timeSeconds,
  *   baseScore, timeBonus, levelScore, scoreDelta, didImproveScore,
  *   cardsCompleted, cardTarget, failReason,
  *   nextLevelNumber, hasNextLevel, isNextLevelComingSoon,
@@ -24,6 +24,9 @@ export default function SoloLevelResult({
   passed,
   stars,
   mistakes,
+  usedMoves,
+  remainingMoves,
+  maxMoves,
   timeSeconds,
   timeBonus = 0,
   levelScore = 0,
@@ -69,6 +72,9 @@ export default function SoloLevelResult({
         levelNumber={levelNumber}
         stars={stars}
         mistakes={mistakes}
+        usedMoves={usedMoves}
+        remainingMoves={remainingMoves}
+        maxMoves={maxMoves}
         timeSeconds={timeSeconds}
         levelScore={levelScore}
         timeBonus={timeBonus}
@@ -87,6 +93,9 @@ export default function SoloLevelResult({
     <SoloFailureCard
       levelNumber={levelNumber}
       mistakes={mistakes}
+      usedMoves={usedMoves}
+      remainingMoves={remainingMoves}
+      maxMoves={maxMoves}
       timeSeconds={timeSeconds}
       levelScore={levelScore}
       failReason={failReason}

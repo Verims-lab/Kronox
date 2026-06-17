@@ -168,6 +168,8 @@ export default function GameLayout({
   isTimeUp,
   progressCardCount,
   progressCardTarget,
+  remainingMoves,
+  maxMoves,
   // Codex106-24 — Solo Level mode countdown. When provided, GameLayout
   // shows a total-level countdown in the top-right slot instead of the
   // per-question TurnTimer. Other modes (online, legacy solo) pass
@@ -208,6 +210,9 @@ export default function GameLayout({
     ? Math.max(1, Number(progressCardTarget))
     : Math.max(1, Number(winCardCount) || 10);
   const progressPercent = Math.min(100, (visibleProgressCount / visibleProgressTarget) * 100);
+  const showRemainingMoves = Number.isFinite(Number(remainingMoves));
+  const visibleRemainingMoves = Math.max(0, Math.floor(Number(remainingMoves) || 0));
+  const visibleMaxMoves = Math.max(1, Math.floor(Number(maxMoves) || 10));
   const previousProgressCountRef = useRef(visibleProgressCount);
   const [progressPulseKey, setProgressPulseKey] = useState(0);
   const [progressPulseActive, setProgressPulseActive] = useState(false);
@@ -249,6 +254,36 @@ export default function GameLayout({
         className="relative flex-shrink-0 px-4 pt-2 pb-1"
         style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}
       >
+        {showRemainingMoves && !winner && (
+          <div
+            className="absolute left-4 top-2 flex min-w-[64px] items-center justify-center rounded-full border px-2 py-1"
+            style={{
+              top: 'calc(0.5rem + env(safe-area-inset-top))',
+              background: 'rgba(7,10,31,0.82)',
+              borderColor: visibleRemainingMoves <= 2 ? 'rgba(248,113,113,0.64)' : 'rgba(250,204,21,0.48)',
+              boxShadow: visibleRemainingMoves <= 2
+                ? '0 0 16px rgba(248,113,113,0.22)'
+                : '0 0 14px rgba(250,204,21,0.16)',
+            }}
+            aria-label={`${visibleRemainingMoves} hamle kaldı`}
+            data-kronox-solo-remaining-moves={visibleRemainingMoves}
+            data-kronox-solo-max-moves={visibleMaxMoves}
+          >
+            <span
+              className="kronox-number font-bangers tracking-[0.08em]"
+              style={{
+                color: visibleRemainingMoves <= 2 ? '#fca5a5' : '#fde68a',
+                fontSize: 'clamp(13px, 3.7vw, 15px)',
+                textShadow: visibleRemainingMoves <= 2
+                  ? '0 0 10px rgba(248,113,113,0.42)'
+                  : '0 0 10px rgba(250,204,21,0.32)',
+              }}
+            >
+              {visibleRemainingMoves} HAMLE
+            </span>
+          </div>
+        )}
+
         {/* Center: Logo + progress */}
         <div className="mx-auto flex min-w-0 flex-col items-center">
           <img

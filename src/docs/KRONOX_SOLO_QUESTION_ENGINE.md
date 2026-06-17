@@ -4,15 +4,18 @@ Status: Active product contract for new Solo attempts.
 
 This mirror matches `docs/KRONOX_SOLO_QUESTION_ENGINE.md` for in-app Health checks.
 
-Normal Solo levels end at 7 correct timeline cards, including seed cards already on the timeline, use a 16-question deck, use a 180 seconds timer, and fail on the 10th mistake.
+Normal Solo levels end at 7 correct timeline cards, including seed cards already on the timeline, start with 2 timeline anchor cards, use a 10 evaluated move limit, use an 18-question deck, use a 180 seconds timer, and fail when 10 evaluated moves are used before the target is reached.
 
-Special Solo levels start at level 10 and repeat every 5 levels: 10, 15, 20, 25, and so on. Special Solo levels end at 10 correct timeline cards, including seed cards already on the timeline, use a 19-question deck, use the same 180 seconds timer, and fail on the 10th mistake.
+Special Solo levels start at level 10 and repeat every 5 levels: 10, 15, 20, 25, and so on. Special Solo levels end at 10 correct timeline cards, including seed cards already on the timeline, use a 19-question deck, and use the same 10 evaluated move limit and 180 seconds timer.
 
 The full attempt deck is built before gameplay starts and is consumed in order. There is no mid-attempt re-randomization. The first active player question card shown to the user is `soloAttemptDeck[0]`; seed/preplaced timeline cards do not count as the first 5 active player question cards unless they are actual player question cards, but they must not create close-year conflicts with those early active cards. Runtime also uses a visible timeline spacing guardrail: placed/seed timeline years and the current active card avoid 1-4 year conflicts such as 1996/1997, 1998/1999, and 1913/1914 where a safe prebuilt-deck alternative exists.
 
 Hard deck rules:
-- 16 questions for normal levels
+- 18 questions for normal levels
 - 19 questions for special levels
+- 2 anchor cards + 10 playable moves + Kart Değiştir buffer + Kronokalkan buffer
+- Zaman Dondur does not require an extra card
+- Extra Kart Değiştir/Kronokalkan use beyond the per-attempt buffer fails safely before spend; there is no raw client question list fallback.
 - unique question IDs
 - unique years
 - active questions only
@@ -37,4 +40,4 @@ Exposure and diversity weighting are soft only and run before the attempt starts
 
 Fallback may relax recently-seen avoidance, category/subcategory/theme balance, and era spread. It must not relax deck size, unique IDs, unique years, active question/category filtering, visible timeline spacing where a safe alternative exists, or the first 5 minimum 5-year spacing rule unless no valid spaced deck exists at all.
 
-Replay creates a new deck. Old completed results are not retroactively recalculated. New attempts may carry `soloRulesVersion: 2`.
+Replay creates a new deck. Old completed results are not retroactively recalculated. New attempts may carry `soloRulesVersion: 3`.

@@ -178,10 +178,12 @@ Status: Active manual release gate.
 Health Center, Admin Ekranı, reports, and large maintenance lists avoid rebuilding expensive derived output after every row/case. Long admin work is batched or yielded around the 50ms long-task budget. Gameplay paths do not run Health/report/question-analytics calculations. Large email/report/list output stays bounded, paginated, or summarized. Health Copy Blocker JSON is intentionally blocker-only and includes real FAIL/BLOCKER/CRITICAL code/security/static failures plus summary counts, not manual-only verification reminders or the full raw PASS payload. User-owned backend operations enforce object-level authorization server-side; UI hiding is not accepted as proof. Two-account probes verify user-owned reads/writes for invites, lobbies, category preferences, Daily Quest progress, Daily Wheel, Diamond/Joker economy, PushSubscription, and analytics cleanup. Base44/manual DB constraints are checked for user+date, user+status, quest_key, question_id, category_id, created_at, endpoint, and idempotency_key. iOS, Android, and PWA wrapper quality remain separate manual gates: safe-area, keyboard, scroll/overscroll, back navigation, orientation, accessibility, reduced motion, 320px layout, push, icon, App Store, and Play Console proof. npm run build does not prove Base44 backend deployment, RLS/BOLA behavior, device gestures, push delivery, final IPA icon state, or Play Console wrapper quality.
 npm run check:base44-functions must run before Base44 Save & Deploy to catch function syntax, duplicate declarations, deploy-risk _shared imports, committed email literals, and getQuestions marker/projection diagnostics before manual backend publish.
 
-## Solo v2
-Normal levels need 7 correct cards with a 16-question deck; special levels
+## Solo v3
+Normal levels need 7 correct cards with an 18-question deck; special levels
 need 10 correct cards with a 19-question deck. All attempts use a 180 seconds
-timer and fail on the 10th mistake. Runtime consumes the deck in order. The
+timer and fail when 10 evaluated moves are used before the target is reached.
+Runtime consumes the deck in order. The visible in-game limit is HAMLE /
+remaining moves, not HATA. The
 first 5 ordered active player question cards keep a minimum 5-year spacing.
 Seed/preplaced timeline cards avoid close-year conflicts with those early
 active cards.

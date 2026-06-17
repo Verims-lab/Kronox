@@ -227,6 +227,8 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(handleSource, [
         "jokerType === SOLO_UI_JOKER_TYPES.MISTAKE_SHIELD",
         'if (mistakeShieldActive)',
+        'SOLO_MISTAKE_SHIELD_BUFFER_CARDS',
+        'Bu seviyede Kronokalkan yedek hakkı bitti.',
         'const spent = await spendSoloJokerForCurrentCard(jokerType, decisionKey, currentQuestion.id)',
         'if (!spent) return',
         'markSoloJokerUsedForDecision(decisionKey, jokerType)',
@@ -241,20 +243,22 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('kronokalkan_next_wrong_not_counted',
-    'Kronokalkan absorbs the next wrong placement without incrementing mistakes',
+    'Kronokalkan absorbs the next wrong placement without consuming a move',
     () => {
       const missing = missingTokens(gameSource, [
         "feedback.result === 'wrong'",
         'if (mistakeShieldActive)',
-        'Kronokalkan hatayı engelledi!',
+        'Kronokalkan hamle hakkını korudu!',
+        'return;',
+        'setUsedMoveCount((prev) => Math.min(soloMaxMoves, prev + 1))',
         'setMistakeCount((prev) => prev + 1)',
       ]);
-      if (missing.length) return fail('Kronokalkan no longer wraps wrong-feedback mistake counting.', {
+      if (missing.length) return fail('Kronokalkan no longer protects the wrong-feedback move decrement.', {
         verification: 'STATIC_CONTRACT',
         file: 'pages/Game.jsx',
         missing,
       });
-      return pass('Wrong feedback consumes Kronokalkan before mistake count increments.', { verification: 'STATIC_CONTRACT' });
+      return pass('Wrong feedback consumes Kronokalkan before the move counter decrements.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('kart_degistir_spends_only_after_replacement_exists',
@@ -265,6 +269,8 @@ export const EXTRA_TESTS = [
       const spendIdx = handleSource.indexOf('spendSoloJokerForCurrentCard(jokerType, decisionKey, currentQuestion.id)', replacementIdx);
       const missing = missingTokens(handleSource, [
         "jokerType === SOLO_UI_JOKER_TYPES.CARD_SWAP",
+        'SOLO_CARD_SWAP_BUFFER_CARDS',
+        'Bu seviyede Kart Değiştir yedek kart hakkı bitti.',
         'getOrderedSoloDeckQuestion',
         'if (!replacement)',
         'Bu kart şu anda değiştirilemiyor.',

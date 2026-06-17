@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Star, ChevronRight, RotateCcw, ListChecks, TimerReset, Zap, X as XIcon, Check,
+  Star, ChevronRight, RotateCcw, ListChecks, TimerReset, Zap, X as XIcon, Check, MoveHorizontal,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { fetchSoloLevelRecordContext } from '@/lib/soloLevelRecord';
@@ -19,19 +19,22 @@ import { formatCompactDuration } from '@/lib/soloTimeFormat';
  *   • Stat cards are horizontal rectangles: large round icon on the left,
  *     label + value stacked on the right.
  *   • Time uses compact "MM:SS" format ("01:10"), no "dak/saniye".
- *   • Success Puan/Hata cards use compact short labels without repeated
+ *   • Success Puan/Hamle cards use compact short labels without repeated
  *     unit copy under the values.
  *   • All 4 stat icons share the same circle size and placement logic.
  *   • Buttons: primary yellow CTA + two secondary outline buttons, with
  *     icons consistently aligned to the left of the label.
  *
- * Product logic (stars, score, mistakes, speed bonus, record badge,
+ * Product logic (stars, score, used moves, speed bonus, record badge,
  * onNextLevel/onRetry/onBackToPath) is untouched.
  */
 export default function SoloSuccessPopup({
   levelNumber,
   stars,
   mistakes,
+  usedMoves,
+  remainingMoves,
+  maxMoves,
   timeSeconds,
   levelScore,
   timeBonus,
@@ -55,6 +58,10 @@ export default function SoloSuccessPopup({
 
   const speedBonusEarned = Number(timeBonus) > 0;
   const compactTime = formatCompactDuration(timeSeconds);
+  const moveValue = Math.max(0, Math.floor(Number(usedMoves) || 0));
+  void mistakes;
+  void remainingMoves;
+  void maxMoves;
 
   return (
     <motion.div
@@ -123,12 +130,12 @@ export default function SoloSuccessPopup({
               valueColor="#facc15"
             />
             <SoloStatCard
-              icon={XIcon}
-              iconColor="#f87171"
-              iconRingColor="rgba(248,113,113,0.55)"
-              label="HATA"
-              value={String(mistakes || 0)}
-              valueColor="#f87171"
+              icon={MoveHorizontal}
+              iconColor="#38bdf8"
+              iconRingColor="rgba(56,189,248,0.55)"
+              label="HAMLE"
+              value={String(moveValue)}
+              valueColor="#38bdf8"
             />
             <SoloStatCard
               icon={Zap}

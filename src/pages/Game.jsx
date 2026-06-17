@@ -43,11 +43,17 @@ import {
   getSoloLevelCount,
   isSoloSpecialLevel,
   SOLO_LEVEL_TIME_SECONDS,
-  SOLO_MAX_MISTAKES,
+  SOLO_MAX_MOVES,
   readSoloProgress,
   writeSoloProgress,
 } from '@/lib/soloLevels';
-import { calculateSoloAttemptResult, getBestSoloLevelResult, SOLO_RULES_VERSION } from '@/lib/soloProgressHelpers';
+import {
+  calculateSoloAttemptResult,
+  getBestSoloLevelResult,
+  SOLO_CARD_SWAP_BUFFER_CARDS,
+  SOLO_MISTAKE_SHIELD_BUFFER_CARDS,
+  SOLO_RULES_VERSION,
+} from '@/lib/soloProgressHelpers';
 // Codex166/Codex180 — Solo Question Selection Engine. Builds a controlled
 // attempt deck (unique question ids + unique answer/years) once per Solo
 // attempt. Gameplay consumes the deck sequentially — no mid-attempt
@@ -121,7 +127,7 @@ const GUIDED_TUTORIAL_JOKER_COPY = Object.freeze({
   [SOLO_UI_JOKER_TYPES.MISTAKE_SHIELD]: {
     label: 'Kronokalkan',
     title: 'Kronokalkan',
-    body: 'Bu joker normal Solo’da bir hatanı korur. Eğitim demosu gerçek joker bakiyeni azaltmaz.',
+    body: 'Bu joker normal Solo’da bir yanlış yerleştirmede hamle hakkını korur. Eğitim demosu gerçek joker bakiyeni azaltmaz.',
   },
 });
 
@@ -144,7 +150,7 @@ const GUIDED_TUTORIAL_MESSAGES = [
   {
     icon: Clock3,
     title: 'Zaman ve Hamle',
-    body: 'Amaç olayları yıllarına göre sıralamak. Eğitim süresi de normal Solo gibi 03:00’dan geri sayar.',
+    body: 'Her geçerli yerleştirme bir hamledir. 7 kartı 10 hamle içinde tamamla.',
   },
   {
     icon: Shield,
@@ -183,8 +189,10 @@ function GuidedTutorialPopup({ popup, onContinue }) {
       }
     : popup.type === 'mistake'
       ? {
-          title: 'Hata Hakkına Dikkat',
-          body: 'Oyunda hata sınırı vardır. Daha az hata yapmak daha fazla Puan / Kronox Puan kazanmanı sağlar.',
+          title: 'Hamle Hakkına Dikkat',
+          body: popup.protected
+            ? 'Kronokalkan hamle hakkını korudu. Daha az hamleyle bitirirsen daha çok yıldız ve Puan / Kronox Puan kazanırsın.'
+            : 'Bu deneme bir hamle sayıldı. Daha az hamleyle bitirirsen daha çok yıldız ve Puan / Kronox Puan kazanırsın.',
           eyebrow: 'Hamle',
         }
       : {
@@ -230,7 +238,7 @@ function GuidedTutorialPopup({ popup, onContinue }) {
   );
 }
 
-function GuidedSoloTutorialOverlay({ cardsCompleted = 0, cardTarget = 7, mistakes = 0 }) {
+function GuidedSoloTutorialOverlay({ cardsCompleted = 0, cardTarget = 7, remainingMoves = 10 }) {
   const activeIndex = Math.min(
     GUIDED_TUTORIAL_MESSAGES.length - 1,
     Math.max(0, Math.floor(Math.max(0, Number(cardsCompleted) - 2))),
@@ -253,7 +261,7 @@ function GuidedSoloTutorialOverlay({ cardsCompleted = 0, cardTarget = 7, mistake
             <span className="mt-0.5 block font-inter text-[11px] font-semibold leading-snug text-blue-100/82">{item.body}</span>
             <span className="mt-1.5 flex flex-wrap gap-1.5 font-inter text-[10px] font-bold text-blue-100/62">
               <span>{Math.max(0, Number(cardsCompleted) || 0)}/{Math.max(1, Number(cardTarget) || 7)} kart</span>
-              <span>Hamle hatası: {Math.max(0, Number(mistakes) || 0)}</span>
+              <span>{Math.max(0, Number(remainingMoves) || 0)} hamle</span>
             </span>
           </span>
         </div>
@@ -438,14 +446,21 @@ export default function Game() {
   // Codex106 — Solo Level attempt state. All gated by `isSoloLevelMode`,
   // so other modes (online, legacy solo) are unaffected.
   //
-  //   mistakeCount        — incremented every time `feedback.result === 'wrong'`
-  //                         is observed. We use a ref to dedupe within one
-  //                         feedback object (effect runs twice in dev StrictMode).
-  //   soloLevelResult     — { passed, stars, mistakes, timeSeconds,
+  //   usedMoveCount       — incremented only after a valid timeline placement
+  //                         is evaluated (feedback correct/wrong). Dragging,
+  //                         invalid drops, tutorial hints, and joker activation
+  //                         never consume moves.
+  //   mistakeCount        — legacy analytics/progress metadata for wrong
+  //                         placements; no longer drives stars or visible limits.
+  //   soloLevelResult     — { passed, stars, usedMoves, remainingMoves,
+  //                           mistakes, timeSeconds,
   //                           cardsCompleted, failReason } when the attempt
   //                         ends. Triggers the SoloLevelResult overlay.
   //   soloResultPersistedRef — guard so we only call writeSoloProgress once
   //                         per attempt even if effects re-run.
+  const soloMaxMoves = useMemo(() => Math.max(1, Number(soloLevel?.maxMoves) || SOLO_MAX_MOVES), [soloLevel?.maxMoves]);
+  const [usedMoveCount, setUsedMoveCount] = useState(0);
+  const remainingMoveCount = Math.max(0, soloMaxMoves - usedMoveCount);
   const [mistakeCount, setMistakeCount] = useState(0);
   const lastCountedFeedbackRef = useRef(null);
   const [soloLevelResult, setSoloLevelResult] = useState(null);
@@ -1474,8 +1489,8 @@ export default function Game() {
   useEffect(() => {
     if (!isGuidedSoloTutorial || guidedTutorialMistakePopupShown || !feedback || feedback.result !== 'wrong') return;
     setGuidedTutorialMistakePopupShown(true);
-    setGuidedTutorialPopup({ type: 'mistake' });
-  }, [feedback, guidedTutorialMistakePopupShown, isGuidedSoloTutorial]);
+    setGuidedTutorialPopup({ type: 'mistake', protected: Boolean(mistakeShieldActive) });
+  }, [feedback, guidedTutorialMistakePopupShown, isGuidedSoloTutorial, mistakeShieldActive]);
 
   // Timer reset on player turn change
   useEffect(() => {
@@ -1773,6 +1788,9 @@ export default function Game() {
       if (jokerType === SOLO_UI_JOKER_TYPES.TIME_FREEZE) {
         startSoloTimerFreeze();
       }
+      if (jokerType === SOLO_UI_JOKER_TYPES.MISTAKE_SHIELD) {
+        setMistakeShieldActive(true);
+      }
       setGuidedTutorialPopup({ type: 'joker', jokerType });
       return;
     }
@@ -1782,11 +1800,17 @@ export default function Game() {
         setJokerError('Kronokalkan zaten aktif.');
         return;
       }
+      const usedShieldCount = Array.from(soloJokerUsedByDecisionKeyRef.current.values())
+        .filter((usedType) => usedType === SOLO_UI_JOKER_TYPES.MISTAKE_SHIELD).length;
+      if (usedShieldCount >= SOLO_MISTAKE_SHIELD_BUFFER_CARDS) {
+        setJokerError('Bu seviyede Kronokalkan yedek hakkı bitti.');
+        return;
+      }
       const spent = await spendSoloJokerForCurrentCard(jokerType, decisionKey, currentQuestion.id);
       if (!spent) return;
       markSoloJokerUsedForDecision(decisionKey, jokerType);
       setMistakeShieldActive(true);
-      setJokerMessage('Kronokalkan aktif: Bir sonraki hata sayılmayacak.');
+      setJokerMessage('Kronokalkan aktif: Bir sonraki yanlış yerleştirmede hamle hakkın korunacak.');
       return;
     }
 
@@ -1804,6 +1828,12 @@ export default function Game() {
     }
 
     if (jokerType === SOLO_UI_JOKER_TYPES.CARD_SWAP) {
+      const usedSwapCount = Array.from(soloJokerUsedByDecisionKeyRef.current.values())
+        .filter((usedType) => usedType === SOLO_UI_JOKER_TYPES.CARD_SWAP).length;
+      if (usedSwapCount >= SOLO_CARD_SWAP_BUFFER_CARDS) {
+        setJokerError('Bu seviyede Kart Değiştir yedek kart hakkı bitti.');
+        return;
+      }
       if (!Array.isArray(soloAttemptDeck) || !currentQuestion || !currentPlayer) {
         setJokerError('Bu kart şu anda değiştirilemiyor.');
         return;
@@ -1890,9 +1920,10 @@ export default function Game() {
     navigate('/');
   };
 
-  // Codex106 — count wrong placements as mistakes. We watch `feedback`
-  // changes (which doPlacement already sets on every placement) instead of
-  // patching useGameActions, so the placement flow itself stays untouched.
+  // Solo v3 — count evaluated placement moves from feedback. `feedback` is
+  // produced only by the final placement evaluation path, so touch/drag start,
+  // invalid drops, cancelled drags, tutorial hints, popups, and joker buttons
+  // do not consume moves.
   useEffect(() => {
     if (!isSoloLevelMode) return;
     if (!feedback) { lastCountedFeedbackRef.current = null; return; }
@@ -1902,23 +1933,26 @@ export default function Game() {
       setSoloCorrectStreak(0);
       if (mistakeShieldActive) {
         setMistakeShieldActive(false);
-        setJokerMessage('Kronokalkan hatayı engelledi!');
+        setJokerMessage('Kronokalkan hamle hakkını korudu!');
         setJokerError('');
         return;
       }
+      setUsedMoveCount((prev) => Math.min(soloMaxMoves, prev + 1));
       setMistakeCount((prev) => prev + 1);
       return;
     }
     if (feedback.result === 'correct') {
+      setUsedMoveCount((prev) => Math.min(soloMaxMoves, prev + 1));
       setSoloCorrectStreak((prev) => prev + 1);
     }
-  }, [feedback, isSoloLevelMode, mistakeShieldActive]);
+  }, [feedback, isSoloLevelMode, mistakeShieldActive, soloMaxMoves]);
 
   // Codex106 — finalize result when the attempt ends.
   //
   //   PASS  → winner set by doPlacement when the level-aware placed-card
-  //           target is reached. Stars come from current mistakeCount.
-  //   FAIL  → mistakeCount >= maxMistakes (10th mistake) OR overallSeconds >= 180
+  //           target is reached. Stars come from used evaluated moves.
+  //   FAIL  → usedMoveCount >= maxMoves without enough timeline cards OR
+  //           overallSeconds >= 180
   //           before winner exists. We force-stop the timer by setting
   //           gameStarted=false and surface a fail overlay.
   //
@@ -1926,15 +1960,18 @@ export default function Game() {
   // location.state.soloResultApplied flag.
   useEffect(() => {
     if (!isSoloLevelMode || soloLevelResult) return;
-    const maxMistakes = isGuidedSoloTutorial ? (soloLevel?.maxMistakes ?? SOLO_MAX_MISTAKES * 10) : (soloLevel?.maxMistakes ?? SOLO_MAX_MISTAKES);
     const totalTime = soloLevel?.totalTimeSeconds ?? SOLO_LEVEL_TIME_SECONDS;
     const cardTarget = winCardCount || soloCardsRequired || 7;
+    const remainingMoves = Math.max(0, soloMaxMoves - usedMoveCount);
 
     // PASS path — winner was set by the win condition inside doPlacement.
     if (winner) {
       const elapsed = getSoloResultElapsedSeconds(winner.durationSeconds);
       const attempt = calculateSoloAttemptResult({
         mistakes: mistakeCount,
+        usedMoves: usedMoveCount,
+        remainingMoves,
+        maxMoves: soloMaxMoves,
         completedCards: cardTarget,
         elapsedSeconds: elapsed,
         requiredCards: cardTarget,
@@ -1944,6 +1981,9 @@ export default function Game() {
         passed: attempt.passed,
         stars: attempt.stars,
         mistakes: attempt.mistakes,
+        usedMoves: attempt.usedMoves,
+        remainingMoves: attempt.remainingMoves,
+        maxMoves: attempt.maxMoves,
         timeSeconds: elapsed,
         baseScore: attempt.baseScore,
         timeBonus: attempt.timeBonus,
@@ -1966,11 +2006,14 @@ export default function Game() {
       return;
     }
 
-    // FAIL — too many mistakes.
-    if (mistakeCount >= maxMistakes) {
+    // FAIL — no remaining evaluated placement moves and target not reached.
+    if (usedMoveCount >= soloMaxMoves && cardsCompletedSolo < cardTarget) {
       const elapsed = getSoloResultElapsedSeconds(overallSecondsRef.current);
       const attempt = calculateSoloAttemptResult({
         mistakes: mistakeCount,
+        usedMoves: usedMoveCount,
+        remainingMoves,
+        maxMoves: soloMaxMoves,
         completedCards: cardsCompletedSolo,
         elapsedSeconds: elapsed,
         requiredCards: cardTarget,
@@ -1980,13 +2023,16 @@ export default function Game() {
         passed: attempt.passed,
         stars: attempt.stars,
         mistakes: attempt.mistakes,
+        usedMoves: attempt.usedMoves,
+        remainingMoves: attempt.remainingMoves,
+        maxMoves: attempt.maxMoves,
         timeSeconds: elapsed,
         baseScore: attempt.baseScore,
         timeBonus: attempt.timeBonus,
         levelScore: attempt.levelScore,
         cardsCompleted: cardsCompletedSolo,
         cardTarget,
-        failReason: attempt.failReason || 'mistakes',
+        failReason: attempt.failReason || 'moves',
         soloRulesVersion: SOLO_RULES_VERSION,
       });
       return;
@@ -1996,6 +2042,9 @@ export default function Game() {
     if (gameStarted && soloEffectiveElapsedSeconds >= totalTime) {
       const attempt = calculateSoloAttemptResult({
         mistakes: mistakeCount,
+        usedMoves: usedMoveCount,
+        remainingMoves,
+        maxMoves: soloMaxMoves,
         completedCards: cardsCompletedSolo,
         elapsedSeconds: totalTime,
         requiredCards: cardTarget,
@@ -2005,6 +2054,9 @@ export default function Game() {
         passed: attempt.passed,
         stars: attempt.stars,
         mistakes: attempt.mistakes,
+        usedMoves: attempt.usedMoves,
+        remainingMoves: attempt.remainingMoves,
+        maxMoves: attempt.maxMoves,
         timeSeconds: totalTime,
         baseScore: attempt.baseScore,
         timeBonus: attempt.timeBonus,
@@ -2017,11 +2069,12 @@ export default function Game() {
     }
   }, [
     isSoloLevelMode,
-    isGuidedSoloTutorial,
     soloLevelResult,
     soloLevel,
     winner,
     mistakeCount,
+    usedMoveCount,
+    soloMaxMoves,
     getSoloResultElapsedSeconds,
     soloEffectiveElapsedSeconds,
     gameStarted,
@@ -2045,6 +2098,9 @@ export default function Game() {
         const previousEntry = current?.levels?.[String(levelNumber)] || null;
         const attempt = calculateSoloAttemptResult({
           mistakes: soloLevelResult.mistakes,
+          usedMoves: soloLevelResult.usedMoves,
+          remainingMoves: soloLevelResult.remainingMoves,
+          maxMoves: soloLevelResult.maxMoves,
           completedCards: soloLevelResult.cardsCompleted,
           elapsedSeconds: soloLevelResult.timeSeconds,
           requiredCards: soloLevelResult.cardTarget ?? soloCardsRequired ?? 7,
@@ -2054,6 +2110,9 @@ export default function Game() {
           soloRulesVersion: soloLevelResult.soloRulesVersion || SOLO_RULES_VERSION,
           stars: soloLevelResult.stars,
           passed: soloLevelResult.passed,
+          usedMoves: soloLevelResult.usedMoves,
+          remainingMoves: soloLevelResult.remainingMoves,
+          maxMoves: soloLevelResult.maxMoves,
           baseScore: soloLevelResult.baseScore,
           timeBonus: soloLevelResult.timeBonus,
           levelScore: soloLevelResult.levelScore,
@@ -2068,6 +2127,9 @@ export default function Game() {
           levelNumber,
           stars: soloLevelResult.stars,
           mistakes: soloLevelResult.mistakes,
+          usedMoves: soloLevelResult.usedMoves,
+          remainingMoves: soloLevelResult.remainingMoves,
+          maxMoves: soloLevelResult.maxMoves,
           timeSeconds: soloLevelResult.timeSeconds,
           cardsCompleted: soloLevelResult.cardsCompleted,
           cardTarget: soloLevelResult.cardTarget ?? soloCardsRequired ?? 7,
@@ -2088,6 +2150,7 @@ export default function Game() {
     if (!soloLevel) return;
     // Reset all attempt-local state and re-enter the same level.
     setSoloLevelResult(null);
+    setUsedMoveCount(0);
     setMistakeCount(0);
     setSoloCorrectStreak(0);
     lastCountedFeedbackRef.current = null;
@@ -2113,7 +2176,8 @@ export default function Game() {
           deckSize: getSoloAttemptDeckSizeForLevel(soloLevel.levelNumber),
           onboardingTutorial: isGuidedSoloTutorial,
           totalTimeSeconds: isGuidedSoloTutorial ? GUIDED_TUTORIAL_TIME_LIMIT_SECONDS : SOLO_LEVEL_TIME_SECONDS,
-          maxMistakes: isGuidedSoloTutorial ? SOLO_MAX_MISTAKES * 10 : SOLO_MAX_MISTAKES,
+          maxMoves: SOLO_MAX_MOVES,
+          maxMistakes: SOLO_MAX_MOVES,
           soloRulesVersion: SOLO_RULES_VERSION,
         },
         onboardingTutorial: isGuidedSoloTutorial,
@@ -2136,6 +2200,7 @@ export default function Game() {
     if (nextLevelNumber > getSoloLevelCount()) return;
     const nextCardCount = getSoloCardsRequiredForLevel(nextLevelNumber);
     setSoloLevelResult(null);
+    setUsedMoveCount(0);
     setMistakeCount(0);
     setSoloCorrectStreak(0);
     lastCountedFeedbackRef.current = null;
@@ -2160,7 +2225,8 @@ export default function Game() {
           cardCount: nextCardCount,
           deckSize: getSoloAttemptDeckSizeForLevel(nextLevelNumber),
           totalTimeSeconds: SOLO_LEVEL_TIME_SECONDS,
-          maxMistakes: SOLO_MAX_MISTAKES,
+          maxMoves: SOLO_MAX_MOVES,
+          maxMistakes: SOLO_MAX_MOVES,
           soloRulesVersion: SOLO_RULES_VERSION,
         },
       },
@@ -2475,6 +2541,9 @@ export default function Game() {
           passed={soloLevelResult.passed}
           stars={soloLevelResult.stars}
           mistakes={soloLevelResult.mistakes}
+          usedMoves={soloLevelResult.usedMoves}
+          remainingMoves={soloLevelResult.remainingMoves}
+          maxMoves={soloLevelResult.maxMoves}
           timeSeconds={soloLevelResult.timeSeconds}
           baseScore={soloLevelResult.baseScore}
           timeBonus={soloLevelResult.timeBonus}
@@ -2611,7 +2680,7 @@ export default function Game() {
     balances: isGuidedSoloTutorial ? guidedTutorialJokerBalances : jokerBalances,
     loading: isGuidedSoloTutorial ? false : jokerInventoryLoading,
     pendingType: jokerSpendPendingType,
-    mistakeShieldActive: isGuidedSoloTutorial ? false : mistakeShieldActive,
+    mistakeShieldActive,
     timerFrozen: isSoloTimerFrozen,
     message: isGuidedSoloTutorial
       ? (jokerMessage || (guidedTutorialJokerDemoWaiting
@@ -2665,7 +2734,7 @@ export default function Game() {
         <GuidedSoloTutorialOverlay
           cardsCompleted={cardsCompletedSolo}
           cardTarget={winCardCount}
-          mistakes={mistakeCount}
+          remainingMoves={remainingMoveCount}
         />
       )}
       {isGuidedSoloTutorial && (
@@ -2725,6 +2794,8 @@ export default function Game() {
         isTimeUp={isTimeUp}
         progressCardCount={isSoloLevelMode ? cardsCompletedSolo : undefined}
         progressCardTarget={isSoloLevelMode ? winCardCount : undefined}
+        remainingMoves={isSoloLevelMode ? remainingMoveCount : undefined}
+        maxMoves={isSoloLevelMode ? soloMaxMoves : undefined}
         soloLevelTotalSeconds={isSoloLevelMode ? (soloLevel?.totalTimeSeconds ?? SOLO_LEVEL_TIME_SECONDS) : undefined}
         soloLevelElapsedSeconds={isSoloLevelMode ? soloEffectiveElapsedSeconds : undefined}
         soloLevelTimerFrozen={isSoloLevelMode ? isSoloTimerFrozen : false}

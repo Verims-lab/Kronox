@@ -4,7 +4,7 @@
 //   Single source of truth for:
 //     1. The Solo level catalog (level numbers + titles).
 //     2. Reading/writing per-user Solo progress.
-//     3. Computing star count from mistake count.
+//     3. Computing star count from evaluated placement moves.
 //     4. Building the route-state config Game.jsx expects when a level
 //        attempt starts.
 //
@@ -19,7 +19,7 @@
 //       levels: {
 //         "1": {
 //           bestStars, bestScore, bestScoreStars, bestScoreBaseScore,
-//           bestScoreTimeBonus, bestMistakes, bestTimeSeconds, attempts,
+//           bestScoreTimeBonus, bestUsedMoves, bestMistakes, bestTimeSeconds, attempts,
 //           completedAt, lastAttemptAt
 //         }
 //       },
@@ -50,6 +50,8 @@ import {
   getHighestCompletedLevel,
   getLevelStatus,
   isSoloSpecialLevel,
+  SOLO_INITIAL_TIMELINE_CARDS as SOLO_INITIAL_TIMELINE_CARDS_FROM_RULES,
+  SOLO_MAX_EVALUATED_MOVES,
   SOLO_NORMAL_CARD_TARGET,
   SOLO_SPECIAL_CARD_TARGET,
   SOLO_RULES_VERSION,
@@ -65,9 +67,10 @@ const LOCAL_MIRROR_VERSION = 2;
 // ─── Constants surfaced to the rest of the app ─────────────────────────
 export const SOLO_CARDS_PER_LEVEL = SOLO_NORMAL_CARD_TARGET;
 export const SOLO_SPECIAL_CARDS_PER_LEVEL = SOLO_SPECIAL_CARD_TARGET;
-export const SOLO_INITIAL_TIMELINE_CARDS = 2;
+export const SOLO_INITIAL_TIMELINE_CARDS = SOLO_INITIAL_TIMELINE_CARDS_FROM_RULES;
 export const SOLO_LEVEL_TIME_SECONDS = 180;
-export const SOLO_MAX_MISTAKES = 10; // 10th mistake → fail
+export const SOLO_MAX_MOVES = SOLO_MAX_EVALUATED_MOVES;
+export const SOLO_MAX_MISTAKES = SOLO_MAX_MOVES; // legacy alias; visible Solo limit is remaining moves
 
 export function getSoloTimelineWinCardCountForLevel(levelNumber) {
   // The timeline itself is the Solo source of truth: seed cards and
@@ -98,13 +101,13 @@ export function getSoloLevelCount() {
 
 // ─── Star calculation ──────────────────────────────────────────────────
 /**
- * Maps mistake count to stars. Matches the product brief:
- *   0–2 → 3 stars, 3–6 → 2 stars, 7–9 → 1 star, 10+ → 0 (fail).
+ * Maps used evaluated moves to stars. Matches the product brief:
+ *   5–6 → 3 stars, 7–8 → 2 stars, 9–10 → 1 star, 10 without target → fail.
  * Also returns `passed` so the caller doesn't need to re-check.
  */
-export function computeLevelStars(mistakes, levelNumber = null) {
+export function computeLevelStars(usedMoves, levelNumber = null) {
   const requiredCards = getSoloCardsRequiredForLevel(levelNumber);
-  const { stars, passed } = calculateSoloStars(mistakes, requiredCards, 0, requiredCards);
+  const { stars, passed } = calculateSoloStars(usedMoves, requiredCards, 0, requiredCards, SOLO_MAX_MOVES);
   return { stars, passed };
 }
 
@@ -348,7 +351,7 @@ export async function writeSoloProgress(user, progress) {
  * Rules:
  *   - Stars are monotonic: never decrease.
  *   - When the new attempt has equal-or-higher stars, prefer the lower
- *     mistake count and lower time as tiebreakers (better record).
+ *     used move count and lower time as tiebreakers (better record).
  *   - Attempts counter always increments.
  */
 function mergeBetterResult(previous, fresh) {
@@ -361,6 +364,9 @@ function mergeBetterResult(previous, fresh) {
   );
   const attempt = calculateSoloAttemptResult({
     mistakes: fresh.mistakes,
+    usedMoves: fresh.usedMoves,
+    remainingMoves: fresh.remainingMoves,
+    maxMoves: fresh.maxMoves ?? SOLO_MAX_MOVES,
     completedCards: fresh.cardsCompleted ?? (fresh.passed ? requiredCards : 0),
     elapsedSeconds: fresh.timeSeconds,
     requiredCards,
@@ -397,6 +403,9 @@ function mergeBetterResult(previous, fresh) {
     bestScoreBaseScore: best.bestScoreBaseScore,
     bestScoreTimeBonus: best.bestScoreTimeBonus,
     bestMistakes: best.bestMistakes,
+    bestUsedMoves: best.bestUsedMoves,
+    bestRemainingMoves: best.bestRemainingMoves,
+    bestMaxMoves: best.bestMaxMoves,
     bestTimeSeconds: best.bestTimeSeconds,
     soloRulesVersion: best.soloRulesVersion,
     attempts,
@@ -410,7 +419,7 @@ function mergeBetterResult(previous, fresh) {
  * updated progress object. Caller is responsible for persisting it via
  * `writeSoloProgress()`.
  *
- * fresh = { levelNumber, stars, mistakes, timeSeconds, passed,
+ * fresh = { levelNumber, stars, usedMoves, remainingMoves, maxMoves, mistakes, timeSeconds, passed,
  *           baseScore, timeBonus, levelScore }
  */
 export function applyLevelAttempt(progress, fresh) {
@@ -485,6 +494,9 @@ export function getSoloLevels(progress) {
       stars,
       bestScore: typeof entry?.bestScore === 'number' ? entry.bestScore : null,
       bestMistakes: typeof entry?.bestMistakes === 'number' ? entry.bestMistakes : null,
+      bestUsedMoves: typeof entry?.bestUsedMoves === 'number' ? entry.bestUsedMoves : null,
+      bestRemainingMoves: typeof entry?.bestRemainingMoves === 'number' ? entry.bestRemainingMoves : null,
+      bestMaxMoves: typeof entry?.bestMaxMoves === 'number' ? entry.bestMaxMoves : null,
       bestTimeSeconds: typeof entry?.bestTimeSeconds === 'number' ? entry.bestTimeSeconds : null,
       isSpecial: isSoloSpecialLevel(lvl.levelNumber),
       isPlayable: status !== 'locked',
@@ -503,7 +515,7 @@ export { getEffectiveUnlockedLevel, getHighestCompletedLevel } from './soloProgr
  * winCardCount) so question generation and game flow stay untouched.
  *
  * The `soloLevel` field is the new piece: Game.jsx reads it to enforce
- * the 180-second total timer and the 10th-mistake fail rule. When absent
+ * the 180-second total timer and the 10-move limit. When absent
  * (e.g. legacy paths), Game.jsx behaves exactly as before.
  */
 export function buildSoloGameConfigForLevel(level) {
@@ -524,6 +536,7 @@ export function buildSoloGameConfigForLevel(level) {
       isSpecial: isSoloSpecialLevel(levelNumber),
       soloRulesVersion: SOLO_RULES_VERSION,
       totalTimeSeconds: SOLO_LEVEL_TIME_SECONDS,
+      maxMoves: SOLO_MAX_MOVES,
       maxMistakes: SOLO_MAX_MISTAKES,
     },
   };

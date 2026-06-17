@@ -167,16 +167,17 @@ export const EXTRA_TESTS = [
       });
     }),
 
-  makeCase('docs_current_solo_v2_contract',
-    'Docs align with current Solo v2 scoring, timing, deck, and replay rules',
+  makeCase('docs_current_solo_v3_contract',
+    'Docs align with current Solo v3 move-based scoring, timing, deck, and replay rules',
     () => {
       const combined = `${scoringDocsSource}\n${soloEngineDocsSource}\n${releaseChecklistSource}`;
       const missing = missingTokens(combined, [
         '7 correct',
-        '16-question deck',
+        '18-question deck',
         '19-question deck',
         '180 seconds',
-        '10 mistakes',
+        '10 evaluated moves',
+        'HAMLE',
         'first 5 ordered questions',
         'minimum 5-year',
         'Same-score replay does not add points',
@@ -185,13 +186,13 @@ export const EXTRA_TESTS = [
         'Old completed Solo results are not retroactively recalculated',
       ]);
       if (missing.length) {
-        return fail('Solo v2 docs drifted from current product rules.', {
+        return fail('Solo v3 docs drifted from current product rules.', {
           verification: 'STATIC_CONTRACT',
           files: ['docs/KRONOX_SCORING_RULES.md', 'docs/KRONOX_SOLO_QUESTION_ENGINE.md', 'docs/KRONOX_RELEASE_PROOF_CHECKLIST.md'],
           missing,
         });
       }
-      return pass('Solo v2 docs cover targets, decks, timer, mistake fail, spacing, replay, and non-retroactivity.', {
+      return pass('Solo v3 docs cover targets, decks, timer, move fail, spacing, replay, and non-retroactivity.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

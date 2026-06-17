@@ -90,16 +90,20 @@ Each Solo level:
 * has a total time limit of 180 seconds
 * does not have per-question time limits
 * fails if the timer reaches 180 seconds before completion
-* fails on the 10th mistake
+* starts with 2 timeline anchor cards
+* has 10 evaluated placement moves
+* fails when 10 moves are used and the target card count has not been reached
 
 Constants:
 
 ```text
-SOLO_RULES_VERSION = 2
+SOLO_RULES_VERSION = 3
 SOLO_NORMAL_CARD_TARGET = 7
 SOLO_SPECIAL_CARD_TARGET = 10
+SOLO_INITIAL_TIMELINE_CARDS = 2
+SOLO_MAX_EVALUATED_MOVES = 10
+SOLO_CORRECT_PLACEMENTS_NEEDED = 5
 SOLO_SCORE_TIME_LIMIT_SECONDS = 180
-SOLO_SCORE_MAX_MISTAKES = 10
 ```
 
 Helper:
@@ -110,24 +114,21 @@ getSoloCardsRequiredForLevel(level)
 
 ## 2.2 Solo Star Rules
 
-Stars are based on mistake count:
+Stars are based on used evaluated moves, not public error count. The live game UI shows remaining moves as `10 HAMLE`, `9 HAMLE`, and so on. A move is counted only when a valid timeline placement is evaluated as correct or wrong.
 
-| Mistakes | Result  |
-| -------: | ------- |
-|        0 | 3 stars |
-|        1 | 3 stars |
-|        2 | 3 stars |
-|        3 | 2 stars |
-|      4–6 | 2 stars |
-|      7–9 | 1 star  |
-|      10+ | Fail    |
+| Used Moves | Result  |
+| ---------: | ------- |
+|        5–6 | 3 stars |
+|        7–8 | 2 stars |
+|       9–10 | 1 star  |
+| 10 without target | Fail |
 
-The product rule specified 0-2 / 4-6 / 7-9; Kronox treats 3 mistakes as 2 stars to avoid an undefined runtime state.
+Touching a card, drag start, drag movement, cancelled drag, invalid drop, tutorial hand animation, tutorial popup time, or joker activation does not consume a move.
 
 Helper:
 
 ```text
-calculateSoloStars(mistakes, completedCards, elapsedSeconds, requiredCards)
+calculateSoloStars(usedMoves, completedCards, elapsedSeconds, requiredCards, maxMoves)
 ```
 
 For normal Solo levels, `requiredCards` is 7. For special Solo levels, `requiredCards` is 10.
@@ -220,7 +221,7 @@ Rules:
 * total Solo score is derived from per-level best scores
 * total Solo score is not an accumulator that can double-apply
 * old completed Solo results are not retroactively recalculated
-* new Solo attempts use `soloRulesVersion: 2`
+* new Solo attempts use `soloRulesVersion: 3`
 
 Helper:
 
@@ -250,6 +251,9 @@ Expected shape:
       bestScoreBaseScore: number,
       bestScoreTimeBonus: number,
       bestTimeSeconds: number?,
+      bestUsedMoves: number?,
+      bestRemainingMoves: number?,
+      bestMaxMoves: number?,
       bestMistakes: number?,
       attempts: number,
       completedAt: string?,
@@ -601,11 +605,11 @@ Rules:
 
 ## Solo
 
-1. 0 mistakes, 55 sec → 3 stars, 30 points.
-2. 1 mistake, 75 sec → 3 stars, 25 points.
-3. 3 mistakes, 100 sec → 2 stars, 15 points.
-4. 8 mistakes, 150 sec → 1 star, 5 points.
-5. 10 mistakes → fail, 0 points.
+1. 5 used moves, 55 sec → 3 stars, 30 points.
+2. 6 used moves, 75 sec → 3 stars, 25 points.
+3. 7 used moves, 100 sec → 2 stars, 15 points.
+4. 9 used moves, 150 sec → 1 star, 5 points.
+5. 10 moves used without reaching the target → fail, 0 points.
 6. Same-score replay does not add points.
 7. Lower-score replay does not add points.
 8. Better replay adds only the positive score delta.

@@ -99,7 +99,7 @@ Checklist:
 
 Checklist:
 
-* Normal Solo levels start with a 16-question deck.
+* Normal Solo levels start with an 18-question deck.
 * Special Solo levels start with a 19-question deck.
 * The deck has unique question IDs.
 * The deck has unique years.
@@ -108,7 +108,10 @@ Checklist:
 * Normal Solo levels win after 7 correct timeline cards, including seed cards already on the timeline.
 * Special Solo levels start at level 10 and repeat every 5 levels.
 * Special Solo levels win after 10 correct timeline cards, including seed cards already on the timeline.
-* Fail occurs on the 10th mistake.
+* Live Solo shows remaining moves as `10 HAMLE`, `9 HAMLE`, and so on.
+* Touch, slight drag, cancelled drag, invalid drop, tutorial hand animation, and tutorial popup reading do not decrement moves.
+* A valid evaluated timeline placement decrements remaining moves.
+* Fail occurs when 10 evaluated moves are used before the target card count is reached.
 * Timeout at 180 seconds fails the level.
 * Guided first Solo tutorial also starts at 180 seconds and displays `03:00`,
   not `60:00` or a 60-minute timer.
@@ -116,8 +119,10 @@ Checklist:
   pauses effective tutorial time until acknowledged.
 * First two active tutorial cards show a hand/finger animation toward the
   correct placement slot without moving the real card.
-* The first guided tutorial mistake shows the error-limit / Puan impact popup
+* The first guided tutorial wrong placement shows the hamle / Puan impact popup
   once and pauses effective tutorial time while visible.
+* Normal Solo result popups show `HAMLE`, not `HATA`.
+* Online gameplay/result scoring is checked separately and must not inherit Solo move-star rules.
 * Replay creates a new deck.
 * Replay does not duplicate Solo points: same-score and lower-score replays add +0.
 * Better replay adds only the positive score delta.

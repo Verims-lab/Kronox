@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { RotateCcw, ListChecks, TimerReset, Star, X, Zap } from 'lucide-react';
+import { RotateCcw, ListChecks, TimerReset, Star, X, Zap, MoveHorizontal } from 'lucide-react';
 // Codex164 — Solo failure popup now uses the same compact MM:SS time
 // format and the same SoloStatCard layout as the success popup so the
 // two screens stay visually identical. We deliberately keep
@@ -15,11 +15,11 @@ import { formatCompactDuration } from '@/lib/soloTimeFormat';
  *   • Red headline: "N. SEVİYE GEÇİLEMEDİ!"
  *   • Three stone stars (left + right intact, center cracked with red glow)
  *   • Two-line subline: "Üzgünüm, süre bitti." / "Tekrar deneyebilirsin!"
- *     (or "çok fazla hata yaptın." for the mistakes branch)
+ *     (or "hamle hakkın bitti." for the moves branch)
  *   • Red diamond divider
  *   • 2x2 stat grid:
  *       TL: SÜRE (blue clock)   • TR: PUAN (yellow star)
- *       BL: HATA (red X)        • BR: HIZ BONUSU (red ✕)
+ *       BL: HAMLE (blue arrows) • BR: HIZ BONUSU (red ✕)
  *   • Two CTAs: yellow "TEKRAR OYNA", outline "SEVİYELER"
  *
  * Props are unchanged so SoloLevelResult keeps delegating without
@@ -28,6 +28,9 @@ import { formatCompactDuration } from '@/lib/soloTimeFormat';
 export default function SoloFailureCard({
   levelNumber,
   mistakes,
+  usedMoves,
+  remainingMoves,
+  maxMoves,
   timeSeconds,
   levelScore = 0,
   failReason,
@@ -35,10 +38,14 @@ export default function SoloFailureCard({
   onBackToPath,
 }) {
   const formattedTime = formatCompactDuration(timeSeconds);
+  const moveValue = Math.max(0, Math.floor(Number(usedMoves) || 0));
+  void mistakes;
+  void remainingMoves;
+  void maxMoves;
 
   const sublinePrimary = failReason === 'timeout'
     ? 'Üzgünüm, süre bitti.'
-    : 'Üzgünüm, çok fazla hata yaptın.';
+    : 'Üzgünüm, hamle hakkın bitti.';
   const sublineSecondary = 'Tekrar deneyebilirsin!';
 
   return (
@@ -157,12 +164,12 @@ export default function SoloFailureCard({
               valueColor="#facc15"
             />
             <SoloStatCard
-              icon={X}
-              iconColor="#ff4d6d"
-              iconRingColor="rgba(255,77,109,0.55)"
-              label="HATA"
-              value={String(mistakes)}
-              valueColor="#ff4d6d"
+              icon={MoveHorizontal}
+              iconColor="#38bdf8"
+              iconRingColor="rgba(56,189,248,0.55)"
+              label="HAMLE"
+              value={String(moveValue)}
+              valueColor="#38bdf8"
             />
             <SoloStatCard
               icon={Zap}

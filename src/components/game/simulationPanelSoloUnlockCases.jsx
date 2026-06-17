@@ -148,11 +148,11 @@ export const EXTRA_TESTS = [
       const total = getSoloLevelCount();
       // Scenario A: passing Level 8 with stale currentLevel=1.
       const a = applyLevelAttempt({ currentLevel: 1, levels: {} }, {
-        levelNumber: 8, stars: 2, mistakes: 3, timeSeconds: 90, passed: true,
+        levelNumber: 8, stars: 2, mistakes: 3, usedMoves: 7, timeSeconds: 90, passed: true,
       });
       // Scenario B: replaying old Level 2 when already on currentLevel=9.
       const b = applyLevelAttempt(buildProgressForCompleted(8, 9), {
-        levelNumber: 2, stars: 3, mistakes: 0, timeSeconds: 40, passed: true,
+        levelNumber: 2, stars: 3, mistakes: 0, usedMoves: 5, timeSeconds: 40, passed: true,
       });
       if (a.currentLevel < 9 || a.currentLevel > total) {
         return fail('Passing Level 8 did not unlock Level 9 from a stale snapshot.', {
@@ -186,7 +186,7 @@ export const EXTRA_TESTS = [
         '1': { bestStars: 3 }, '2': { bestStars: 3 }, '3': { bestStars: 3 }, '4': { bestStars: 3 },
       } };
       const after = applyLevelAttempt(before, {
-        levelNumber: 5, stars: 0, mistakes: 10, timeSeconds: 180, passed: false,
+        levelNumber: 5, stars: 0, mistakes: 10, usedMoves: 10, timeSeconds: 180, passed: false,
       });
       if (after.currentLevel !== 5) {
         return fail('Failing Level 5 changed the unlock frontier.', {
