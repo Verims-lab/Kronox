@@ -56,6 +56,7 @@ import {
   summarizeSoloProgress,
 } from './soloProgressHelpers';
 import { buildSoloLeaderboardPayload, publishSoloLeaderboardEntry } from './leaderboard';
+import { syncGuestProfileProgress } from './guestProfile';
 
 const STORAGE_KEY = 'kx_solo_progress_v1';
 const GUEST_STORAGE_KEY = `${STORAGE_KEY}:guest`;
@@ -325,7 +326,10 @@ function pickMoreAdvanced(a, b) {
 export async function writeSoloProgress(user, progress) {
   const normalized = normalizeProgressShape(progress);
   safeWriteLocal(user || null, normalized); // same-user mirror so guests + flakey network still see it
-  if (!user || !user.email) return;
+  if (!user || !user.email) {
+    syncGuestProfileProgress({ soloProgress: normalized }).catch(() => {});
+    return;
+  }
   try {
     const leaderboardPayload = buildSoloLeaderboardPayload(user, normalized);
     await base44.auth.updateMe({

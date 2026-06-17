@@ -6,6 +6,7 @@ const GUEST_ID_PREFIX = 'guest_';
 const MAX_USERNAME_ATTEMPTS = 18;
 const MAX_GUEST_ID_ATTEMPTS = 8;
 const TOKEN_BYTE_LENGTH = 32;
+const JOKER_TYPES = ['mistake_shield', 'card_swap', 'time_freeze'] as const;
 const ONBOARDING_STATES = new Set([
   'guest_created',
   'tutorial_in_progress',
@@ -34,6 +35,33 @@ function bytesToBase64Url(bytes: Uint8Array) {
   let binary = '';
   bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function fnvOwnerKey(prefix: 'g', value: string) {
+  const text = String(value || '').trim().toLowerCase();
+  if (!text) return '';
+  let hash = 2166136261;
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `${prefix}_${(hash >>> 0).toString(36)}`;
+}
+
+function cleanPublicName(value: unknown, fallbackSeed = '') {
+  const text = String(value || '').replace(/\s+/g, ' ').trim().slice(0, 28);
+  if (
+    text &&
+    !text.includes('@') &&
+    !/^(apple|google|firebase|auth0|base44|provider|uid)[\w:-]*$/i.test(text)
+  ) {
+    return text;
+  }
+  return `${USERNAME_PREFIX}${1000 + ((fallbackSeed.length * 7919) % 90000)}`;
+}
+
+function initialFromName(value: string) {
+  return cleanPublicName(value).charAt(0).toLocaleUpperCase('tr-TR') || 'K';
 }
 
 function randomBytes(length: number) {
@@ -83,6 +111,10 @@ function rowId(row: any) {
 
 function guestProfileEntity(base44: any) {
   return base44?.asServiceRole?.entities?.GuestProfile || base44?.entities?.GuestProfile || null;
+}
+
+function soloLeaderboardEntryEntity(base44: any) {
+  return base44?.asServiceRole?.entities?.SoloLeaderboardEntry || base44?.entities?.SoloLeaderboardEntry || null;
 }
 
 async function sha256Base64Url(input: string) {
@@ -224,6 +256,175 @@ function normalizeCategoryIds(value: unknown) {
     if (ids.length >= 100) break;
   }
   return ids;
+}
+
+function normalizeNonNegativeInteger(value: unknown) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? Math.max(0, Math.floor(numeric)) : 0;
+}
+
+function normalizeJokerBalances(value: unknown) {
+  const source = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+  const balances: Record<string, number> = {};
+  for (const jokerType of JOKER_TYPES) {
+    balances[jokerType] = normalizeNonNegativeInteger(source[jokerType]);
+  }
+  return balances;
+}
+
+function normalizeSoloProgress(value: unknown) {
+  const source = value && typeof value === 'object' ? value as any : {};
+  const rawLevels = source?.levels && typeof source.levels === 'object' ? source.levels : {};
+  const levels: Record<string, any> = {};
+  for (const [rawLevel, rawEntry] of Object.entries(rawLevels)) {
+    const levelNumber = Math.max(1, Math.floor(Number(rawLevel) || 0));
+    if (!levelNumber) continue;
+    const entry = rawEntry && typeof rawEntry === 'object' ? rawEntry as any : {};
+    levels[String(levelNumber)] = {
+      bestStars: Math.max(0, Math.min(3, normalizeNonNegativeInteger(entry.bestStars))),
+      bestScore: normalizeNonNegativeInteger(entry.bestScore),
+      bestScoreStars: normalizeNonNegativeInteger(entry.bestScoreStars),
+      bestScoreBaseScore: normalizeNonNegativeInteger(entry.bestScoreBaseScore),
+      bestScoreTimeBonus: normalizeNonNegativeInteger(entry.bestScoreTimeBonus),
+      bestMistakes: normalizeNonNegativeInteger(entry.bestMistakes),
+      bestTimeSeconds: normalizeNonNegativeInteger(entry.bestTimeSeconds),
+      attempts: normalizeNonNegativeInteger(entry.attempts),
+      ...(entry.completedAt ? { completedAt: String(entry.completedAt).slice(0, 80) } : {}),
+      ...(entry.lastAttemptAt ? { lastAttemptAt: String(entry.lastAttemptAt).slice(0, 80) } : {}),
+    };
+    if (Object.keys(levels).length >= 1000) break;
+  }
+  const currentLevel = Math.max(1, Math.floor(Number(source?.currentLevel) || 1));
+  const progress = { currentLevel, levels };
+  return {
+    ...progress,
+    summary: summarizeSoloProgress(progress),
+  };
+}
+
+function summarizeSoloProgress(progress: any) {
+  const levels = progress?.levels && typeof progress.levels === 'object' ? progress.levels : {};
+  let totalSoloScore = 0;
+  let completedLevelCount = 0;
+  let totalStars = 0;
+  let totalAttempts = 0;
+  let highestCompleted = 0;
+  for (const [rawLevel, entry] of Object.entries(levels)) {
+    const levelNumber = Math.max(1, Math.floor(Number(rawLevel) || 0));
+    const stars = Math.max(0, Math.min(3, Number((entry as any)?.bestStars) || 0));
+    totalSoloScore += normalizeNonNegativeInteger((entry as any)?.bestScore);
+    totalAttempts += normalizeNonNegativeInteger((entry as any)?.attempts);
+    totalStars += stars;
+    if (stars > 0) {
+      completedLevelCount += 1;
+      highestCompleted = Math.max(highestCompleted, levelNumber);
+    }
+  }
+  const currentLevel = Math.max(1, Math.floor(Number(progress?.currentLevel) || 1));
+  return {
+    totalSoloScore,
+    currentLevel,
+    unlockedLevel: Math.max(currentLevel, highestCompleted + 1),
+    totalStars,
+    completedLevelCount,
+    totalAttempts,
+  };
+}
+
+async function syncGuestProgress(base44: any, guestId: string, guestToken: string, patchInput: any) {
+  const verified = await getVerifiedGuestRow(base44, guestId, guestToken);
+  if (!verified.ok) return verified.response;
+  const row = verified.row;
+  if (String(row?.status || '') === 'linked') {
+    return json({
+      ok: true,
+      synced: false,
+      alreadyLinked: true,
+      profile: publicGuestProfile(row),
+      contract: {
+        linkedGuestProfileNoLongerAcceptsProgressSync: true,
+        rawGuestTokenServerStored: false,
+      },
+    });
+  }
+  const entity = guestProfileEntity(base44);
+  const id = rowId(row);
+  if (!entity?.update || !id) return json({ ok: false, error: 'guest_profile_update_unavailable' }, 500);
+
+  const patch = patchInput && typeof patchInput === 'object' ? patchInput : {};
+  const soloProgress = Object.prototype.hasOwnProperty.call(patch, 'solo_progress')
+    ? normalizeSoloProgress(patch.solo_progress)
+    : null;
+  const onlineProgress = patch.online_progress && typeof patch.online_progress === 'object'
+    ? patch.online_progress
+    : null;
+  const update: Record<string, unknown> = {
+    last_seen_at: nowIso(),
+    metadata: {
+      ...(row?.metadata && typeof row.metadata === 'object' ? row.metadata : {}),
+      guestProgressSyncedAt: nowIso(),
+      rawGuestTokenServerStored: false,
+    },
+  };
+
+  if (soloProgress) {
+    update.solo_progress = soloProgress;
+    update.kronox_puan_total = Math.max(
+      normalizeNonNegativeInteger(row?.kronox_puan_total),
+      normalizeNonNegativeInteger(soloProgress.summary?.totalSoloScore),
+      normalizeNonNegativeInteger(patch.kronox_puan_total),
+    );
+  }
+  if (onlineProgress) update.online_progress = onlineProgress;
+  if (Object.prototype.hasOwnProperty.call(patch, 'diamonds')) {
+    update.diamonds = normalizeNonNegativeInteger(patch.diamonds);
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'joker_balances')) {
+    update.joker_balances = normalizeJokerBalances(patch.joker_balances);
+  }
+
+  const updated = await entity.update(id, update);
+  if (soloProgress) {
+    await publishGuestLeaderboardEntry(base44, updated || { ...row, ...update }, soloProgress).catch(() => null);
+  }
+  return json({
+    ok: true,
+    synced: true,
+    profile: publicGuestProfile(updated || { ...row, ...update }),
+    contract: {
+      guestTokenProofRequiredForProgressSync: true,
+      rawGuestTokenServerStored: false,
+      accountLinkMergeInputReady: true,
+    },
+  });
+}
+
+async function publishGuestLeaderboardEntry(base44: any, row: any, soloProgress: any) {
+  const entity = soloLeaderboardEntryEntity(base44);
+  if (!entity?.filter || !entity?.update || !entity?.create) return null;
+  const guestId = normalizeGuestId(row?.guest_id);
+  const ownerKey = fnvOwnerKey('g', guestId);
+  if (!ownerKey) return null;
+  const summary = summarizeSoloProgress(soloProgress);
+  const displayName = cleanPublicName(row?.display_name || row?.username, guestId);
+  const payload = {
+    owner_key: ownerKey,
+    display_name: displayName,
+    initial: initialFromName(displayName),
+    total_kronox_score: normalizeNonNegativeInteger(row?.kronox_puan_total) || normalizeNonNegativeInteger(summary.totalSoloScore),
+    total_solo_score: normalizeNonNegativeInteger(summary.totalSoloScore),
+    online_score: 0,
+    current_level: Math.max(1, Number(summary.currentLevel) || 1),
+    unlocked_level: Math.max(1, Number(summary.unlockedLevel) || Number(summary.currentLevel) || 1),
+    total_stars: normalizeNonNegativeInteger(summary.totalStars),
+    completed_level_count: normalizeNonNegativeInteger(summary.completedLevelCount),
+    updated_at: nowIso(),
+    description: 'GuestProfile leaderboard projection; owner_key is internal and display_name is username-first.',
+  };
+  const existing = await entity.filter({ owner_key: ownerKey }, '-updated_at', 5).catch(() => []);
+  const rowIdValue = Array.isArray(existing) && existing[0] ? rowId(existing[0]) : null;
+  if (rowIdValue) return entity.update(rowIdValue, payload);
+  return entity.create(payload);
 }
 
 function normalizeAge(value: unknown) {
@@ -424,6 +625,9 @@ Deno.serve(async (req) => {
       if (!guestId || !guestToken) return json({ ok: false, error: 'guest_credentials_required' }, 400);
       if (action === 'update_onboarding') {
         return updateGuestOnboarding(base44, guestId, guestToken, body?.patch || {});
+      }
+      if (action === 'sync_progress') {
+        return syncGuestProgress(base44, guestId, guestToken, body?.patch || {});
       }
       return verifyExistingGuest(base44, guestId, guestToken);
     }

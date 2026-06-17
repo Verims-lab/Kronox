@@ -652,5 +652,9 @@ leaderboard ranking rules.
 The guided first level is intentionally forgiving and instructional. It may
 persist normal guest Solo progress locally after successful completion, but it
 must not create free normal-mode joker fallback or spend real joker inventory.
-Future account linking must preserve the user-beneficial score/progress state
-without double-counting guest and registered sources.
+Account linking preserves the user-beneficial score/progress state without
+double-counting guest and registered sources. `linkGuestAccount` keeps the best
+per-level Solo result, keeps user-beneficial Online progress fields, and stores
+the safest higher `User.kronox_puan_total` projection. It does not change the
+Kronox Puan formula or Solo/Online scoring rules. Guest leaderboard rows use a
+guest internal owner key and are migrated/passivated when the account links.

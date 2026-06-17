@@ -48,8 +48,12 @@ Firebase and not Base44 anonymous auth. Public guest identity uses `username` an
 
 Profile and leaderboard surfaces should prefer `display_name` / `username` for
 public identity. Email, Google ID, Apple ID, provider UID, and internal
-`owner_key` values are not public display names. Full account linking and merge
-rules are later-phase work.
+`owner_key` values are not public display names.
+
+Account linking is implemented through `linkGuestAccount`. Guest users can
+choose Apple / Google / Email to secure progress, while "Şimdilik misafir devam
+et" remains available. The Profile guest card says the user is playing as guest
+and presents account linking as progress protection, not as a mandatory gate.
 
 ## Guest Onboarding Phase 2
 
@@ -64,3 +68,21 @@ token-proven `createGuestProfile` update path.
 The category setup step stores optional guest `selected_category_ids`. Fewer
 than 3 selections should show guidance, but guest play remains possible. Empty
 guest selections mean all active Solo categories are eligible.
+
+## Guest Account Linking Phase 3
+
+`GuestProfile` can be linked once to an authenticated Google / Apple / Email
+account. The link path verifies `guest_id + raw guest token` and the
+authenticated user, then writes `AccountLinkTransaction` with an idempotency key.
+
+Merge rules are user-benefit oriented:
+
+* public `username` / `display_name` is preserved when safe and unique
+* Solo progress keeps the better per-level record
+* Online progress keeps user-beneficial counters without duplicate rewards
+* `User.kronox_puan_total` keeps the safest higher total projection
+* guest category selections become authenticated `UserCategoryPreference` rows
+* guest leaderboard projection migrates to the authenticated owner row and the
+  old guest row is passivated
+
+Provider ids and email are never public leaderboard identity.

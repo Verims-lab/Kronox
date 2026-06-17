@@ -134,6 +134,21 @@
       "type": "number",
       "description": "Codex168 — Persisted/index-friendly visible Kronox Puan projection for leaderboard sorting and display. It mirrors the shared visible score rule: Solo component from solo_progress plus Online component from online_progress.score. Writers update this alongside Solo/Online score changes; runtime helpers still recompute defensively when missing."
     },
+    "username": {
+      "type": "string",
+      "description": "Public Kronox username used for leaderboard/profile identity. Must not be email, Google ID, Apple ID, or provider UID. Account linking preserves guest KronoxUser#### when chosen."
+    },
+    "display_name": {
+      "type": "string",
+      "description": "Public display name preferred by leaderboard/profile surfaces. Should be username-first and provider-id-free."
+    },
+    "linked_guest_ids": {
+      "type": "array",
+      "description": "GuestProfile ids already merged into this authenticated account. linkGuestAccount uses this as a duplicate-protection guard for additive diamonds/jokers.",
+      "items": {
+        "type": "string"
+      }
+    },
     "hasCompletedTutorial": {
       "type": "boolean",
       "description": "Per-user tutorial completion flag. Tutorial source of truth is profile/user state, not device-local tutorial storage."

@@ -47,7 +47,13 @@ export function getSafeLeaderboardName(userOrEntry) {
     userOrEntry?.name,
   ].map(cleanDisplayText).find(Boolean);
 
-  if (explicitName && !explicitName.includes('@')) return explicitName;
+  if (
+    explicitName &&
+    !explicitName.includes('@') &&
+    !/^(apple|google|firebase|auth0|base44|provider|uid)[\w:-]*$/i.test(explicitName)
+  ) {
+    return explicitName;
+  }
 
   const ownerKey = String(userOrEntry?.owner_key || getLeaderboardOwnerKey(userOrEntry?.email || userOrEntry?.user_email));
   return makeKronoxUserFallback(ownerKey || userOrEntry?.id || userOrEntry?._id);

@@ -826,7 +826,13 @@ The guided first Solo level is a guest-safe gameplay route. It must not expose
 diagnostics/full-bank data and must not spend real `UserJokerInventory` while
 teaching the joker concept.
 
-Future account linking must verify both the GuestProfile token proof and the
-authenticated user, mark the guest row `linked` once, and write an audit/merge
-transaction. Phase 2 still does not implement merge rewards or account-link
-mutation.
+Account linking is implemented by `linkGuestAccount`. It must verify both the
+GuestProfile token proof and `base44.auth.me()`, never trust request-body role
+or provider ids, use an idempotency key, mark the guest row `linked` once, and
+write `AccountLinkTransaction`. The merge path must not log raw guest tokens,
+auth headers, provider credentials, or full request bodies.
+
+The link merge preserves user-beneficial progress and combines additive economy
+only once. `User.linked_guest_ids` and `AccountLinkTransaction.idempotency_key`
+are duplicate guards; `UserJokerInventory` remains the current joker balance
+source and `JokerTransaction` remains the immutable ledger.

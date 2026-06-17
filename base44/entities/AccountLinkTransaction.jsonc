@@ -1,0 +1,87 @@
+{
+  "name": "AccountLinkTransaction",
+  "type": "object",
+  "description": "Codex379 — One-time guest-to-authenticated account link audit log. idempotency_key is the logical unique key; linkGuestAccount verifies guest token plus authenticated user, applies user-benefit merge once, marks GuestProfile linked, and records a compact merge summary. This row is an audit/read model, not a source of truth for balances.",
+  "properties": {
+    "idempotency_key": {
+      "type": "string",
+      "description": "Logical unique key for account linking, e.g. account_link:<guest_id>:<email>. linkGuestAccount checks this before writes."
+    },
+    "guest_id": {
+      "type": "string",
+      "description": "GuestProfile.guest_id that was linked. Raw guest token is never stored here."
+    },
+    "guest_owner_key": {
+      "type": "string",
+      "description": "Internal guest leaderboard owner key used for guest leaderboard migration/passivation."
+    },
+    "linked_user_email": {
+      "type": "string",
+      "description": "Normalized authenticated account email receiving the merge."
+    },
+    "linked_auth_user_id": {
+      "type": "string",
+      "description": "Authenticated user id when available. Never used as public leaderboard identity."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "started",
+        "completed",
+        "already_linked",
+        "rejected",
+        "failed"
+      ],
+      "description": "Lifecycle state of the link attempt."
+    },
+    "merge_summary": {
+      "type": "object",
+      "description": "Debug-safe merge result summary: score/progress/economy counts and leaderboard migration state. No raw token, provider secret, auth header, or full personal data."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "error_code": {
+      "type": "string",
+      "description": "Safe machine-readable error code for rejected/failed attempts."
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Non-sensitive metadata for audit and Health proof. Must never contain raw guest token, provider ids, auth headers, or secrets."
+    }
+  },
+  "required": [
+    "idempotency_key",
+    "guest_id",
+    "linked_user_email",
+    "status",
+    "created_at"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

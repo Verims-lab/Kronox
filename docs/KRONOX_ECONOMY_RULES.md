@@ -556,12 +556,18 @@ Manual/release proof should verify:
 * ledger recovery does not double grant
 ## GuestProfile And Economy Boundary
 
-Phase 1 GuestProfile creates portable guest identity only. It does not change
-Daily Quest, Daily Wheel, Market prices, Joker balances, or Diamond reward
-rules.
+Phase 1 GuestProfile creates portable guest identity. Phase 3 account linking
+adds the one-time merge path; it does not change Daily Quest, Daily Wheel,
+Market prices, normal Joker spend/purchase rules, or Diamond reward rules.
 
-Guest account linking is a later phase. When implemented, guest-to-authenticated
-merge must be server-authoritative, one-time, idempotent, and audited. Diamonds
-and jokers may only be combined once, with `UserJokerInventory` remaining the
-current joker balance source and `JokerTransaction` remaining the ledger. Raw
+Guest-to-authenticated merge is server-authoritative, one-time, idempotent, and
+audited through `linkGuestAccount` plus `AccountLinkTransaction`. Guest Diamonds
+may be combined once with the authenticated `User.diamonds` balance through
+`DiamondTransaction.source = account_link_merge`. Guest joker balances may be
+combined once through `UserJokerInventory` current balances and
+`JokerTransaction.reason = account_link_merge`.
+
+`User.linked_guest_ids` prevents repeated additive economy merge if an account
+link request retries after a partial response. `UserJokerInventory` remains the
+current joker balance source and `JokerTransaction` remains the ledger. Raw
 guest token must never be stored server-side or logged.

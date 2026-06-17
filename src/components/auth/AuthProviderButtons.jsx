@@ -15,9 +15,16 @@ function safeErrorReason(error) {
 export default function AuthProviderButtons({ fromUrl = '/', onBeforeStart, className = '' }) {
   const [error, setError] = useState('');
 
-  const startProviderLogin = (provider) => {
+  const startProviderLogin = async (provider) => {
     setError('');
-    onBeforeStart?.();
+    try {
+      await Promise.resolve(onBeforeStart?.({ provider }));
+    } catch (prepareError) {
+      console.warn('[auth] pre-login guest link preparation skipped', {
+        provider,
+        reason: safeErrorReason(prepareError),
+      });
+    }
     try {
       if (typeof base44.auth.loginWithProvider === 'function') {
         base44.auth.loginWithProvider(provider, fromUrl);
@@ -33,9 +40,16 @@ export default function AuthProviderButtons({ fromUrl = '/', onBeforeStart, clas
     }
   };
 
-  const startHostedLogin = () => {
+  const startHostedLogin = async () => {
     setError('');
-    onBeforeStart?.();
+    try {
+      await Promise.resolve(onBeforeStart?.({ provider: 'email' }));
+    } catch (prepareError) {
+      console.warn('[auth] pre-login guest link preparation skipped', {
+        provider: 'email',
+        reason: safeErrorReason(prepareError),
+      });
+    }
     try {
       base44.auth.redirectToLogin(fromUrl);
     } catch (authError) {

@@ -19,7 +19,7 @@ import { ensureSoloProgressBackfill, readSoloProgress, getSoloLevelCount } from 
 import { getCurrentPlayableLevel } from '@/lib/soloProgressHelpers';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 import { getKronoxVisibleScore } from '@/lib/kronoxScore';
-import { ensureGuestProfile, getCachedGuestProfile } from '@/lib/guestProfile';
+import { ensureGuestProfile, getCachedGuestProfile, prepareGuestAccountLink } from '@/lib/guestProfile';
 import {
   JOKER_DEFINITIONS,
   emptyJokerBalances,
@@ -43,6 +43,7 @@ import {
 // #ffe066 (highlight). Approved fonts: font-cinzel + font-bangers for
 // decorative identity, kronox-number for numeric values.
 import KronoxStatTile from '@/components/ui/KronoxStatTile';
+import AuthProviderButtons from '@/components/auth/AuthProviderButtons';
 
 /**
  * ProfilePage — first-pass shell.
@@ -171,7 +172,11 @@ export default function ProfilePage() {
 
   const goSettings = () => { sounds.tap(); navigate('/settings'); };
   const goAdmin = () => { sounds.tap(); navigate('/admin'); };
-  const handleLogin = () => { sounds.tap(); base44.auth.redirectToLogin('/profile'); };
+  const handleLogin = () => {
+    sounds.tap();
+    prepareGuestAccountLink({ provider: 'email', soloProgress: readSoloProgress(null) })
+      .finally(() => base44.auth.redirectToLogin('/profile'));
+  };
   const handleLogout = () => { sounds.tap(); base44.auth.logout('/'); };
 
   // Codex111/Codex146 — Profile stats use shared sources. Level stays
@@ -227,6 +232,17 @@ export default function ProfilePage() {
           onLogin={handleLogin}
           onLogout={handleLogout}
         />
+
+        {!loading && !user && (
+          <Section label="Hesabını Bağla">
+            <SecureGuestProgressCard
+              onBeforeStart={({ provider }) => prepareGuestAccountLink({
+                provider,
+                soloProgress: readSoloProgress(null),
+              })}
+            />
+          </Section>
+        )}
 
         {/* Stats: Puan / Seviye / Elmas — single horizontal row matching
             Liderlik. Puan is visible Kronox score; Seviye is real
@@ -480,6 +496,28 @@ function IdentityCard({ loading, user, guestProfile, isAdmin, onLogin, onLogout 
         ))}
       </div>
     </motion.div>
+  );
+}
+
+function SecureGuestProgressCard({ onBeforeStart }) {
+  return (
+    <div
+      className="rounded-2xl p-4"
+      style={{
+        background: 'linear-gradient(180deg, rgba(30,41,75,0.92), rgba(10,16,36,0.96))',
+        boxShadow: 'inset 0 0 0 1.5px rgba(120,170,255,0.32), 0 0 16px rgba(59,130,246,0.16)',
+      }}
+    >
+      <p className="font-inter text-sm font-black text-white">Misafir olarak oynuyorsun</p>
+      <p className="mt-1 font-inter text-[12px] font-semibold leading-relaxed text-blue-100/72">
+        İlerlemeni kaybetmemek için hesabını bağla. İstersen misafir olarak oynamaya devam edebilirsin.
+      </p>
+      <AuthProviderButtons
+        fromUrl="/profile"
+        onBeforeStart={onBeforeStart}
+        className="mt-3"
+      />
+    </div>
   );
 }
 

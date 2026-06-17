@@ -12,14 +12,16 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/AuthContext';
+import AuthProviderButtons from '@/components/auth/AuthProviderButtons';
 import {
   GUEST_ONBOARDING_STATES,
   ensureGuestProfile,
   getGuestOnboardingStep,
   isGuestOnboardingComplete,
+  prepareGuestAccountLink,
   updateGuestProfileOnboarding,
 } from '@/lib/guestProfile';
-import { buildSoloGameConfigForLevel, SOLO_MAX_MISTAKES, SOLO_LEVEL_TIME_SECONDS } from '@/lib/soloLevels';
+import { buildSoloGameConfigForLevel, readSoloProgress, SOLO_MAX_MISTAKES, SOLO_LEVEL_TIME_SECONDS } from '@/lib/soloLevels';
 import {
   MIN_CATEGORY_SELECTION_COUNT,
   loadActiveCategories,
@@ -68,6 +70,7 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [showSecureProgressPrompt, setShowSecureProgressPrompt] = useState(false);
   const guidedCompletionHandledRef = useRef(false);
 
   useEffect(() => {
@@ -121,7 +124,23 @@ export default function OnboardingPage() {
 
   if (isAuthenticated) return <Navigate to="/" replace />;
   if (isLoadingAuth || loading || !guestProfile) return <OnboardingShell><LoadingState /></OnboardingShell>;
-  if (isGuestOnboardingComplete(guestProfile)) return <Navigate to="/" replace />;
+  if (isGuestOnboardingComplete(guestProfile)) {
+    if (showSecureProgressPrompt) {
+      return (
+        <OnboardingShell>
+          <SecureProgressStep
+            busy={busy}
+            onGuestContinue={() => navigate('/', { replace: true })}
+            onBeforeStart={({ provider }) => prepareGuestAccountLink({
+              provider,
+              soloProgress: readSoloProgress(null),
+            })}
+          />
+        </OnboardingShell>
+      );
+    }
+    return <Navigate to="/" replace />;
+  }
 
   const step = normalizeStep(guestProfile);
 
@@ -201,7 +220,7 @@ export default function OnboardingPage() {
               });
               setGuestProfile(updated);
               await checkUserAuth?.();
-              navigate('/', { replace: true });
+              setShowSecureProgressPrompt(true);
             } catch {
               setError('Kategori seçimlerin kaydedilemedi. Lütfen tekrar dene.');
             } finally {
@@ -497,6 +516,30 @@ function CategorySetupStep({ profile, busy, onComplete }) {
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+function SecureProgressStep({ busy, onGuestContinue, onBeforeStart }) {
+  return (
+    <div className="rounded-2xl border border-primary/25 bg-slate-950/42 p-5 shadow-2xl">
+      <StepHeader
+        icon={ShieldCheck}
+        title="İlerlemeni Güvenceye Al"
+        body="Hesabını bağlarsan misafir ilerlemen, Kronox Puanın, kategori seçimlerin ve ilerideki ödüllerin kaybolmaz. Bu adım zorunlu değil."
+      />
+      <AuthProviderButtons
+        fromUrl="/"
+        onBeforeStart={onBeforeStart}
+      />
+      <button
+        type="button"
+        onClick={onGuestContinue}
+        disabled={busy}
+        className="mt-3 min-h-11 w-full rounded-xl border border-white/15 px-4 py-3 font-inter text-sm font-black text-blue-100"
+      >
+        Şimdilik misafir devam et
+      </button>
     </div>
   );
 }
