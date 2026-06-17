@@ -766,6 +766,7 @@ export default function Game() {
     // completion uses the full authoritative card set.
     return getTimelineCardCount(me);
   }, [isSoloLevelMode, players]);
+  const currentTimelinePlayer = players.length > 0 ? players[currentPlayerIndex] : null;
   const soloSeedCardCount = isSoloLevelMode ? Math.max(0, (playerNames?.length || 1) * 2) : 0;
   const guidedTutorialAskedCardNumber = isGuidedSoloTutorial && currentQuestion
     ? Math.max(1, cardsCompletedSolo - soloSeedCardCount + 1)
@@ -776,15 +777,15 @@ export default function Game() {
     guidedTutorialJokerDemoUsedByCard[guidedTutorialAskedCardNumber]
   );
   const guidedTutorialCorrectTargetZone = useMemo(() => {
-    if (!isGuidedSoloTutorial || !currentQuestion || !currentPlayer) return null;
+    if (!isGuidedSoloTutorial || !currentQuestion || !currentTimelinePlayer) return null;
     const questionYear = Number(currentQuestion.year);
-    const cards = Array.isArray(currentPlayer.cards) ? currentPlayer.cards : [];
+    const cards = Array.isArray(currentTimelinePlayer.cards) ? currentTimelinePlayer.cards : [];
     if (!Number.isFinite(questionYear)) return null;
     for (let zoneIndex = 0; zoneIndex <= cards.length; zoneIndex += 1) {
       if (isCorrectPlacement(cards, questionYear, zoneIndex)) return zoneIndex;
     }
     return null;
-  }, [currentPlayer, currentQuestion, isGuidedSoloTutorial]);
+  }, [currentTimelinePlayer, currentQuestion, isGuidedSoloTutorial]);
   const timerFreezeNow = timerFreezeTick || Date.now();
   const isSoloTimerFrozen = Boolean(isSoloLevelMode && timerFreezeUntil > timerFreezeNow && timerFreezeStartRef.current);
   const activeFreezeOffset = isSoloTimerFrozen
@@ -935,7 +936,7 @@ export default function Game() {
   }, [players, myPlayerName, isOnline]);
   const localPlayerEmail = isOnline ? (myPlayer?.email || currentUser?.email || null) : null;
 
-  const currentPlayer = players.length > 0 ? players[currentPlayerIndex] : null;
+  const currentPlayer = currentTimelinePlayer;
   const isMyTurn = !isOnline || (myPlayerName && currentPlayer?.name === myPlayerName);
   const renderedTurnMessageText = currentQuestion && isMyTurn && !winner
     ? 'KARTI ZAMAN ÇİZGİSİNE YERLEŞTİR!'
