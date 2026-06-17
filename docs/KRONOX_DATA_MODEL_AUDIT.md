@@ -987,3 +987,20 @@ Suites added:
 - `cleanup_retention_health`
 
 No cases were added to `simulationPanelExtraCases.js`.
+## Onboarding Phase 1 — GuestProfile
+
+`GuestProfile` is the app-owned guest identity model. It is intentionally
+portable: Kronox does not use Firebase and does not depend on Base44 anonymous
+auth for guests. The row stores `guest_id`, `guest_token_hash`, public
+`username` / `display_name`, status (`guest`, `linked`, `abandoned`), onboarding
+status fields, future link fields, and last-seen timestamps.
+
+Risk boundary: raw guest token must remain client/local-device only. Server-side
+guest actions must verify `guest_id + token` by hashing with
+`sha256:kronox_guest_v1` and comparing to `guest_token_hash`. `guest_id` alone is
+not authorization.
+
+Scale/uniqueness note: `username` and `guest_id` are logical unique keys. If the
+platform supports unique indexes, configure them; until then, `createGuestProfile`
+must retry collisions and later username-change/linking functions must repeat the
+same uniqueness guard.

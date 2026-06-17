@@ -1062,3 +1062,22 @@ Before release after DB architecture changes:
 - `question_stats_projection_schema_exists`
 - `public_question_projection_does_not_expose_raw_question_bank`
 - `base44_index_capability_documented`
+## Onboarding Phase 1 — GuestProfile Identity Foundation
+
+Kronox does not use Firebase and does not rely on Base44 anonymous auth for
+guest identity. First-open guest identity is app-owned through `GuestProfile`.
+
+`GuestProfile` is a portable identity record with `guest_id`, `guest_token_hash`,
+`username`, `display_name`, lifecycle status (`guest`, `linked`, `abandoned`),
+onboarding/tutorial/profile/category setup status fields, optional future
+`linked_user_email` / `linked_auth_user_id`, `created_at`, and `last_seen_at`.
+
+Raw guest tokens are client/local-device only. The database stores
+`guest_token_hash` with `guest_token_hash_algorithm=sha256:kronox_guest_v1`.
+Guest ownership is never proven by `guest_id` alone; server functions must verify
+`guest_id + raw guest token` against the stored hash.
+
+Default public usernames use `KronoxUser####` / `KronoxUser#####`, are unique at
+creation time, and must not be derived from email, Google ID, Apple ID, or any
+provider UID. Future account linking should mark the guest row `linked` once and
+preserve/migrate progress through an audited merge transaction.

@@ -554,3 +554,14 @@ Manual/release proof should verify:
 * 7th consecutive Daily Wheel spin grants +100 extra Diamonds
 * two-device duplicate prevention is probed
 * ledger recovery does not double grant
+## GuestProfile And Economy Boundary
+
+Phase 1 GuestProfile creates portable guest identity only. It does not change
+Daily Quest, Daily Wheel, Market prices, Joker balances, or Diamond reward
+rules.
+
+Guest account linking is a later phase. When implemented, guest-to-authenticated
+merge must be server-authoritative, one-time, idempotent, and audited. Diamonds
+and jokers may only be combined once, with `UserJokerInventory` remaining the
+current joker balance source and `JokerTransaction` remaining the ledger. Raw
+guest token must never be stored server-side or logged.

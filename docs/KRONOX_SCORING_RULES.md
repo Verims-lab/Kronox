@@ -642,3 +642,10 @@ If product decisions change:
 4. run regression tests
 
 Do not leave historical audit reports inside this file. Historical scoring audits should live in archive docs if needed.
+## GuestProfile Scoring Boundary
+
+Onboarding Phase 1 adds app-owned `GuestProfile` identity only. It does not
+change Solo scoring, Online scoring, Kronox Puan calculation, timers, drag/drop,
+or leaderboard ranking rules. Future account linking must preserve the
+user-beneficial score/progress state without double-counting guest and
+registered sources.

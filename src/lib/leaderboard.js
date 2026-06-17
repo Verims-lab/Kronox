@@ -1,6 +1,7 @@
 import { base44 } from '@/api/base44Client';
 import { backfillSoloScores, summarizeSoloProgress } from './soloProgressHelpers';
 import { getDiamondBalance } from './diamondEconomy';
+import { makeKronoxUserFallback } from './guestProfile';
 
 export const LEADERBOARD_TOP_LIMIT = 10;
 export const LEADERBOARD_FETCH_LIMIT = 500;
@@ -49,8 +50,7 @@ export function getSafeLeaderboardName(userOrEntry) {
   if (explicitName && !explicitName.includes('@')) return explicitName;
 
   const ownerKey = String(userOrEntry?.owner_key || getLeaderboardOwnerKey(userOrEntry?.email || userOrEntry?.user_email));
-  const suffix = ownerKey ? ownerKey.slice(-4).toLocaleUpperCase('tr-TR') : '';
-  return suffix ? `Oyuncu ${suffix}` : 'Oyuncu';
+  return makeKronoxUserFallback(ownerKey || userOrEntry?.id || userOrEntry?._id);
 }
 
 export function getLeaderboardDiamondValue(user) {

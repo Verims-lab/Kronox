@@ -1024,3 +1024,21 @@ If not tested, state clearly:
 Manual/runtime proof: not performed
 Remaining release risk: yes
 ```
+## Onboarding Phase 1 — GuestProfile Manual Proof
+
+Before release, manually verify a fresh app open without Google / Apple / Email
+login:
+
+* app does not force login
+* `createGuestProfile` creates or verifies a `GuestProfile`
+* DB row contains `guest_id`, `username`/`display_name` in `KronoxUser####` or
+  `KronoxUser#####` format, `guest_token_hash`, and no raw guest token
+* local device storage contains the raw guest token and guest id
+* repeating app open verifies the same GuestProfile rather than creating a new
+  row
+* Apple, Google, and email login options remain visible/working where offered
+* leaderboard/profile public identity does not show email, Google ID, Apple ID,
+  provider UID, or internal `owner_key`
+
+Static Health can verify source contracts, but deployed Base44 function behavior
+and actual stored-row shape remain manual runtime proof.

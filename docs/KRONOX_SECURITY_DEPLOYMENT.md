@@ -799,3 +799,23 @@ Rules:
 * Health `Copy Blocker JSON` should export real blocker/failing/static-critical
   items and summary counts only, not manual-only proof reminders or the full raw
   PASS payload
+## GuestProfile Security Boundary
+
+Kronox guest identity is app-owned. Do not add Firebase anonymous auth, do not
+depend on Base44 anonymous auth, and do not treat local-only ids as trusted
+identity.
+
+`createGuestProfile` is the only Phase 1 write/verify path. It generates
+`guest_id`, raw guest token, and a public `KronoxUser####` /
+`KronoxUser#####` username. The raw guest token is returned to the client once
+and stored only on the local device. The database stores only
+`guest_token_hash` and `guest_token_hash_algorithm=sha256:kronox_guest_v1`.
+
+Guest ownership requires `guest_id + raw guest token`; `guest_id` alone must not
+authorize reads/writes. Never log raw guest token, auth headers, provider
+credentials, or full request bodies. Existing Google / Apple / Email login stays
+Base44-managed, and Apple must remain visible wherever Google login is offered.
+
+Future account linking must verify both the GuestProfile token proof and the
+authenticated user, mark the guest row `linked` once, and write an audit/merge
+transaction. Phase 1 does not implement merge rewards or account-link mutation.
