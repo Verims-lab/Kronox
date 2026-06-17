@@ -2119,7 +2119,13 @@ import React, { useEffect, useState } from 'react';
 //     contract while preserving guided tutorial success routing.
 //   • Keeps active Solo attempts out of loading/error fallback during question
 //     refetch and makes /privacy + tutorial_in_progress contracts explicit.
-const BUILD_MARKER = 'Codex381';
+//
+// Codex382 — Codex381 Profile/Settings Health contract alignment:
+//   • Restores ProfilePage authenticated identity fields full_name/email while
+//     keeping GuestProfile username/display_name as guest public identity.
+//   • Keeps Settings Hesabı Sil on the shared confirmed deletion request and
+//     restores the StandardTopBar user={user} contract without moving admin tools.
+const BUILD_MARKER = 'Codex382';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

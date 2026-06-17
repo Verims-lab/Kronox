@@ -404,7 +404,12 @@ function JokerPocketSection({ authLoading, loading, user, balances, error, onRet
 
 function IdentityCard({ loading, user, guestProfile, isAdmin, onLogin, onLogout }) {
   const guestDisplayName = guestProfile?.display_name || guestProfile?.username || 'Misafir Oyuncu';
-  const displayName = user ? getSafeLeaderboardName(user) : guestDisplayName;
+  const registeredFullName = String(user?.full_name || '').trim();
+  const registeredEmail = String(user?.email || '').trim();
+  const displayName = user
+    ? getSafeLeaderboardName({ ...user, full_name: registeredFullName, email: registeredEmail })
+    : guestDisplayName;
+  const privateIdentityLine = registeredEmail || registeredFullName;
   const initial = (displayName || '?').trim().charAt(0).toUpperCase();
 
   return (
@@ -459,8 +464,8 @@ function IdentityCard({ loading, user, guestProfile, isAdmin, onLogin, onLogout 
                   </span>
                 )}
               </div>
-              {user.email && (
-                <p className="truncate font-inter text-[11px] text-blue-100/70">{user.email}</p>
+              {privateIdentityLine && (
+                <p className="truncate font-inter text-[11px] text-blue-100/70">{privateIdentityLine}</p>
               )}
             </>
           ) : (

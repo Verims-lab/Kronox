@@ -34,7 +34,7 @@ export default function SettingsPage() {
     if (!confirmDelete) { setConfirmDelete(true); return; }
     setDeleting(true);
     try {
-      await requestAccountDeletion(base44, effectiveUser);
+      await requestAccountDeletion(base44, user);
       base44.auth.logout('/');
     } catch (error) {
       setDeleting(false);
@@ -61,7 +61,7 @@ export default function SettingsPage() {
         userSelect: 'none',
       }}
     >
-      <StandardTopBar diamonds={diamondValue} user={effectiveUser} showBack />
+      <StandardTopBar diamonds={diamondValue} user={user} showBack />
 
       <div className="px-4 pb-1">
         <h1 className="font-cinzel text-2xl font-black tracking-wide text-foreground">Ayarlar</h1>
