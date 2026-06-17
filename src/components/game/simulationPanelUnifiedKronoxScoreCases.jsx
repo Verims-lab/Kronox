@@ -14,7 +14,7 @@ import profilePageSource from '../../pages/ProfilePage.jsx?raw';
 import soloChallengeSource from '../../pages/SoloChallenge.jsx?raw';
 import onlineChallengeSource from '../lobby/OnlineChallengeScreen.jsx?raw';
 import screenHeaderSource from '../layout/ScreenHeader.jsx?raw';
-import scoringRulesSource from '../../../docs/KRONOX_SCORING_RULES.md?raw';
+import { SCORING_RULES_DOC as scoringRulesSource } from '@/lib/scoringRulesDoc';
 import leaderboardLibSource from '../../lib/leaderboard.js?raw';
 // Codex169 — Read the backend leaderboard projection contract from the
 // src-resident mirror (the real functions/ file is outside src/, so a
