@@ -42,20 +42,22 @@ placeholders after authentication.
 ## GuestProfile Public Identity
 
 Unauthenticated players are represented by app-owned `GuestProfile`, not
-Firebase and not Base44 anonymous auth. Public guest identity uses `username` and
-`display_name`, initially generated as `KronoxUser####` /
-`KronoxUser#####`.
+Firebase and not Base44 anonymous auth. Public guest identity uses `username`,
+initially generated as `KronoxUser####` / `KronoxUser#####`. The stored
+`display_name` field is a legacy/projection mirror of `username`, not a separate
+editable profile field.
 
-Profile and leaderboard surfaces should prefer `display_name` / `username` for
-public identity. Email, Google ID, Apple ID, provider UID, and internal
-`owner_key` values are not public display names.
+Profile and leaderboard surfaces should prefer `username` for public identity,
+with `display_name` only as a legacy fallback for old rows. Email, Google ID,
+Apple ID, provider UID, and internal `owner_key` values are not public display
+names.
 
 ## Editable Profile Settings
 
 Profile > Ayarlar includes editable profile fields for both guest and
 authenticated users:
 
-* `username` / `display_name`
+* `username`
 * optional `age`
 * optional `gender`
 
@@ -64,11 +66,13 @@ users are verified with `base44.auth.me()`. Guest users are verified with
 `guest_id + raw guest token`; `guest_id` alone is not trusted and raw guest
 tokens are never stored server-side.
 
-Username uniqueness is checked case-insensitively through
+The UI exposes only `username`; `display_name` is mirrored from that username by
+the server so existing projections keep working. Username uniqueness is checked
+case-insensitively through
 `username_normalized`, with a `KronoxUser####` / `KronoxUser#####` fallback for
-missing or provider-like public names. Username/display-name changes refresh the
-existing `SoloLeaderboardEntry` public display fields when a row exists. `age`
-and `gender` are private optional profile fields only; they must not appear in
+missing or provider-like public names. Username changes refresh the existing
+`SoloLeaderboardEntry` public display fields when a row exists. `age` and
+`gender` are private optional profile fields only; they must not appear in
 leaderboard rows, public projections, scoring, matchmaking, Solo category
 weighting, or Online game selection.
 
@@ -83,9 +87,9 @@ and presents account linking as progress protection, not as a mandatory gate.
 `guest_created`, `tutorial_in_progress`, `tutorial_completed`,
 `profile_setup_pending`, `category_setup_pending`, and `onboarding_complete`.
 
-The profile setup step follows the guided first Solo level. It may update
-`username`, `display_name`, optional `age`, and optional `gender` through the
-token-proven `createGuestProfile` update path.
+The profile setup step follows the guided first Solo level. It shows only
+`username`, optional `age`, and optional `gender`; `display_name` is mirrored
+from `username` through the token-proven `createGuestProfile` update path.
 
 The category setup step stores optional guest `selected_category_ids`. Fewer
 than 3 selections should show guidance, but guest play remains possible. Empty
@@ -99,7 +103,8 @@ authenticated user, then writes `AccountLinkTransaction` with an idempotency key
 
 Merge rules are user-benefit oriented:
 
-* public `username` / `display_name` is preserved when safe and unique
+* public `username` is preserved when safe and unique, while `display_name`
+  remains a mirrored legacy/projection field
 * optional `age` / `gender` are preserved with a user-friendly preference for
   the more recent non-empty profile value
 * Solo progress keeps the better per-level record

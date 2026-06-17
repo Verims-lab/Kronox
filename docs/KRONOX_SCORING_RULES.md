@@ -659,7 +659,8 @@ the safest higher `User.kronox_puan_total` projection. It does not change the
 Kronox Puan formula or Solo/Online scoring rules. Guest leaderboard rows use a
 guest internal owner key and are migrated/passivated when the account links.
 
-Profile > Ayarlar may update `username` / `display_name` and optional private
-`age` / `gender`. Only username/display-name affect public identity display.
+Profile > Ayarlar may update `username` and optional private `age` / `gender`.
+`display_name` is only a legacy/projection mirror of username. Only username
+affects public identity display.
 Age and gender must not affect scoring, level unlocks, matchmaking, leaderboard
 rank, Solo question weighting, or Online question selection.
