@@ -219,6 +219,11 @@ export const EXTRA_TESTS = [
         'isValidVapidSubject',
         'isLikelyVapidKey',
         'summarizeVapidConfigState',
+        'VAPID_SECRET_HEALTH_CLASSIFICATION',
+        "vapidPrivateKeyProductionSecretManagerVerification: 'MANUAL_REQUIRED'",
+        "envSourcedVapidPrivateKeyFindingSeverity: 'WARNING'",
+        "criticalOnlyWhen: 'hardcoded_logged_returned_client_exposed_or_insecure_default'",
+        'getVapidSecretHealthClassification',
         'sanitizePushErrorReason',
       ];
       const requiredFrontend = [
@@ -246,12 +251,12 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           files: ['base44/functions/sendGameInvitePush/entry.ts', 'src/lib/notificationApi.js'],
-          expected: 'Backend-only VAPID_PRIVATE_KEY, public client key only, explicit safe push skip when config is missing',
+          expected: 'Backend-only VAPID_PRIVATE_KEY, public client key only, explicit safe push skip when config is missing, and env-sourced private-key findings classified as manual secret-manager verification',
           actual: { missing, forbiddenBackend, forbiddenFrontend },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('sendGameInvitePush uses backend-only VAPID private-key config and preserves in-app invites when push is skipped.', {
+      return pass('sendGameInvitePush uses backend-only VAPID private-key config and preserves in-app invites when push is skipped. VAPID_PRIVATE_KEY is server-side env/secret sourced. Production secret manager verification is MANUAL_REQUIRED.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
