@@ -5,6 +5,7 @@
 // raw token server-side.
 
 import guestProfileEntitySource from '../../../base44/entities/GuestProfile.jsonc?raw';
+import guestCreationThrottleEntitySource from '../../../base44/entities/GuestCreationThrottle.jsonc?raw';
 import accountLinkTransactionEntitySource from '../../../base44/entities/AccountLinkTransaction.jsonc?raw';
 import createGuestProfileSource from '../../../base44/functions/createGuestProfile/entry.ts?raw';
 import linkGuestAccountSource from '../../../base44/functions/linkGuestAccount/entry.ts?raw';
@@ -137,6 +138,47 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('createGuestProfile stores only guest_token_hash and verifies guest ownership server-side.', {
+        verification: 'STATIC_CONTRACT',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('create_guest_profile_public_abuse_controls',
+    'Public createGuestProfile has request validation, source-hash throttling, and bloat monitoring',
+    () => {
+      const missing = missingTokens(`${createGuestProfileSource}\n${guestProfileClientSource}\n${guestCreationThrottleEntitySource}`, [
+        'Public by design',
+        'MAX_REQUEST_BODY_BYTES',
+        'readJsonBody',
+        'unexpected_guest_creation_fields',
+        'unexpected_guest_patch_fields',
+        'GUEST_CREATION_HOURLY_LIMIT',
+        'GUEST_CREATION_DAILY_LIMIT',
+        'GuestCreationThrottle',
+        'source_hash',
+        'throttle_key',
+        'guestCreationSourceHash',
+        'client_install_id',
+        'rawIpStored: false',
+        'rawHeadersStored: false',
+      ]);
+      const forbidden = presentTokens(createGuestProfileSource, [
+        'console.log(guestToken',
+        'guest_token_hash: body',
+        'status: body',
+        'linked_user_email: body',
+        'diamonds = normalizeNonNegativeInteger(patch.diamonds)',
+        'joker_balances = normalizeJokerBalances',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Public createGuestProfile lacks hardening proof or still trusts unsafe request fields.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['base44/functions/createGuestProfile/entry.ts', 'base44/entities/GuestCreationThrottle.jsonc', 'src/lib/guestProfile.js'],
+          actual: { missing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('createGuestProfile remains public by design but is size-limited, allowlisted, source-hash throttled, and monitored for bloat.', {
         verification: 'STATIC_CONTRACT',
         actionType: ACTION_TYPES.CODE_FIX,
       });
@@ -404,11 +446,11 @@ export const EXTRA_TESTS = [
 
   makeCase('guest_profile_runtime_proof_manual',
     'Manual: fresh app open creates a GuestProfile row without raw token exposure',
-    () => notAutomatable('Static checks cannot inspect the deployed Base44 row. Manually open a fresh browser/device, confirm GuestProfile row exists with guest_token_hash only, and verify localStorage holds the raw guest token.', {
+    () => notAutomatable('Static checks cannot inspect deployed Base44 rows or real request metadata. Manually open a fresh browser/device, confirm GuestProfile row exists with guest_token_hash only, verify localStorage holds the raw guest token, and probe repeated public create calls for GuestCreationThrottle rows plus safe rate-limit behavior.', {
       verification: 'NOT_AUTOMATABLE',
       classification: 'STATIC_CHECK_LIMITATION',
       actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE,
-      expected: 'Fresh app open -> GuestProfile row with guest_id, username KronoxUser####, guest_token_hash, no raw guest token',
+      expected: 'Fresh app open -> GuestProfile row with guest_id, username KronoxUser####, guest_token_hash, no raw guest token; repeated create spam -> hashed throttle rows or safe rate-limit response',
       actual: 'runtime/deployment proof required',
     }),
     { critical: true, runtimeProofRequired: true, actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE }),

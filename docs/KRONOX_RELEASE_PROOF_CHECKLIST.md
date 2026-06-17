@@ -1042,6 +1042,15 @@ login:
 * local device storage contains the raw guest token and guest id
 * repeating app open verifies the same GuestProfile rather than creating a new
   row
+* `createGuestProfile` remains public but rejects oversized/unexpected request
+  bodies and trusted fields such as role/admin, status, linked user fields,
+  token hash, Diamonds, joker balances, and direct score totals
+* repeated suspicious public create calls produce `GuestCreationThrottle` rows
+  with `source_hash`/bucket counters or a safe `guest_creation_rate_limited`
+  response; no raw IP, raw headers, raw guest token, auth headers, or full
+  request bodies are stored/logged
+* abandoned guest rows and old throttle buckets are reviewed through the
+  documented manual retention/cleanup process until an admin cleanup job exists
 * Apple, Google, and email login options remain visible/working where offered
 * leaderboard/profile public identity does not show email, Google ID, Apple ID,
   provider UID, or internal `owner_key`

@@ -1,0 +1,86 @@
+{
+  "name": "GuestCreationThrottle",
+  "type": "object",
+  "description": "Codex387 — Privacy-safe throttle/monitor rows for public createGuestProfile. Stores hashed source buckets only; never raw IP, raw headers, raw guest token, auth headers, provider secrets, or full request bodies.",
+  "properties": {
+    "throttle_key": {
+      "type": "string",
+      "description": "Logical key: source_hash + granularity + bucket. Treat as unique when the platform supports unique indexes."
+    },
+    "source_hash": {
+      "type": "string",
+      "description": "SHA-256-derived hash of coarse request source metadata and optional client install id. Raw IP and raw headers are not stored."
+    },
+    "bucket": {
+      "type": "string",
+      "description": "UTC hour/day bucket used for throttling."
+    },
+    "granularity": {
+      "type": "string",
+      "enum": [
+        "hour",
+        "day"
+      ]
+    },
+    "count": {
+      "type": "number",
+      "description": "Allowed guest creation attempts observed in this bucket."
+    },
+    "blocked_count": {
+      "type": "number",
+      "description": "Blocked attempts after the bucket limit was reached."
+    },
+    "limit": {
+      "type": "number",
+      "description": "Limit applied for this bucket at write time."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "allowed",
+        "blocked"
+      ]
+    },
+    "first_seen_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_seen_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Debug-safe metadata only. Must not contain raw IP, raw headers, raw guest token, auth headers, provider secrets, personal profile fields, or full request bodies."
+    }
+  },
+  "required": [
+    "throttle_key",
+    "source_hash",
+    "bucket",
+    "granularity",
+    "count"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
