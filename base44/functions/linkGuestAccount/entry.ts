@@ -287,6 +287,7 @@ function betterSoloEntry(a: any, b: any) {
   return bTime < aTime ? b : a;
 }
 
+
 function mergeSoloProgress(authProgressRaw: unknown, guestProgressRaw: unknown) {
   const authProgress = normalizeSoloProgress(authProgressRaw);
   const guestProgress = normalizeSoloProgress(guestProgressRaw);
