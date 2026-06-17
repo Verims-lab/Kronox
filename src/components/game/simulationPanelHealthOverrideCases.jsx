@@ -68,6 +68,10 @@ import levelMapPathSource from '../solo/LevelMapPath.jsx?raw';
 import useHeaderNotificationsSource from '../../hooks/useHeaderNotifications.js?raw';
 import useNotificationCenterSource from '../../hooks/useNotificationCenter.js?raw';
 import gameInviteNotifierSource from '../invites/GameInviteNotifier.jsx?raw';
+import onboardingPageSource from '../../pages/OnboardingPage.jsx?raw';
+import gameSource from '../../pages/Game.jsx?raw';
+import guestProfileSource from '../../lib/guestProfile.js?raw';
+import createGuestProfileSource from '../../../base44/functions/createGuestProfile/entry.ts?raw';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
 const ACTION_TYPES = { CODE_FIX: 'CODE_FIX', HUMAN_VISUAL_REVIEW: 'HUMAN_VISUAL_REVIEW' };
@@ -199,6 +203,12 @@ export const OVERRIDDEN_CASE_KEYS = new Set([
   // the callable function deploys cleanly. The old Health case still required
   // the broken './_shared/adminAuth.js' token, so it is stale and overridden below.
   'question_analytics_health.manual_admin_email_report_deployed_root_entrypoint',
+
+  // Codex378 — Tutorial is no longer a standalone profile-flag modal.
+  // First-time onboarding now runs through GuestProfile state +
+  // `/onboarding` guided first Solo level.
+  'tutorial_profile_health.tutorial_status_is_profile_field',
+  'tutorial_profile_health.tutorial_completion_updates_profile',
 ]);
 
 // No new suite ids — we reuse the existing suite ids defined in the base
@@ -207,6 +217,36 @@ export const OVERRIDDEN_CASE_KEYS = new Set([
 export const EXTRA_SUITES = [];
 
 export const EXTRA_TESTS = [
+  sourceHasReplacement(
+    'tutorial_profile_health', 'Tutorial/Profile Suite',
+    'tutorial_status_is_profile_field',
+    'Tutorial state is now GuestProfile guided onboarding state',
+    'GuestProfile + OnboardingPage + createGuestProfile',
+    `${guestProfileSource}\n${onboardingPageSource}\n${createGuestProfileSource}`,
+    [
+      'GUEST_ONBOARDING_STATES',
+      'tutorial_in_progress',
+      'profile_setup_pending',
+      'category_setup_pending',
+      'onboarding_complete',
+      'update_onboarding',
+    ],
+  ),
+  sourceHasReplacement(
+    'tutorial_profile_health', 'Tutorial/Profile Suite',
+    'tutorial_completion_updates_profile',
+    'Guided first Solo completion advances GuestProfile onboarding',
+    'OnboardingPage.jsx + Game.jsx',
+    `${onboardingPageSource}\n${gameSource}`,
+    [
+      'guidedTutorialCompleted',
+      'GuidedSoloTutorialOverlay',
+      'onboardingTutorial',
+      'tutorial_status: \'completed\'',
+      'PROFİLİNİ TAMAMLA',
+    ],
+  ),
+
   /* ------------------------------------------------------------------
    *  profile_economy — Elmas/Joker values are real persisted/shared economy
    *  sources. Keep the suite id but target the current Profile contract.

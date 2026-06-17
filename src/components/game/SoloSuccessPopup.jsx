@@ -40,6 +40,9 @@ export default function SoloSuccessPopup({
   onNextLevel,
   onRetry,
   onBackToPath,
+  primaryActionLabel = 'SONRAKİ SEVİYE',
+  backToPathLabel = 'SEVİYELER',
+  primaryActionEnabled = hasNextLevel,
 }) {
   // Record context: only computed on mount, silent on error.
   const [recordKind, setRecordKind] = useState('none');
@@ -145,21 +148,21 @@ export default function SoloSuccessPopup({
           <div className="mt-4 flex flex-col gap-2.5">
             <Button
               onClick={onNextLevel}
-              disabled={!hasNextLevel}
+              disabled={!primaryActionEnabled}
               className="w-full h-12 rounded-2xl font-bangers tracking-[0.12em] disabled:opacity-60 flex items-center justify-between px-5"
               style={{
-                background: hasNextLevel
+                background: primaryActionEnabled
                   ? 'linear-gradient(180deg, #ffe066 0%, #facc15 55%, #d99e00 100%)'
                   : 'linear-gradient(180deg, rgba(250,204,21,0.3), rgba(185,122,6,0.2))',
                 color: '#1a0a00',
                 fontSize: 'clamp(15px, 4vw, 17px)',
-                boxShadow: hasNextLevel
+                boxShadow: primaryActionEnabled
                   ? 'inset 0 1px 0 rgba(255,255,255,0.5), inset 0 -3px 0 rgba(120,75,0,0.35), 0 6px 18px rgba(250,204,21,0.35)'
                   : 'inset 0 0 0 1px rgba(250,204,21,0.35)',
               }}
             >
               <span className="w-5" aria-hidden="true" />
-              <span className="flex-1 text-center">SONRAKİ SEVİYE</span>
+              <span className="flex-1 text-center">{primaryActionLabel}</span>
               <ChevronRight className="w-5 h-5" strokeWidth={3} />
             </Button>
 
@@ -188,7 +191,7 @@ export default function SoloSuccessPopup({
               }}
             >
               <ListChecks className="w-4 h-4" strokeWidth={2.6} />
-              SEVİYELER
+              {backToPathLabel}
             </Button>
           </div>
         </div>

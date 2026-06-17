@@ -133,6 +133,9 @@ Category preferences are optional personalization, not a gameplay gate:
   global fallback lane prefers difficulty 1 and broadens safely if short
 * Settings save validation may still require 3 selections, but that validation
   must remain separate from Solo question loading
+* guided guest onboarding recommends at least 3 category selections after the
+  first Solo level, but fewer selections or skip must not block Ana Sayfa; an
+  empty guest category list means all active categories remain eligible
 * empty preferences must not produce an empty question pool or
   offline/no-cache error
 * `Game.jsx` filters saved preferences through

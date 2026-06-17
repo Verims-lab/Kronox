@@ -644,8 +644,13 @@ If product decisions change:
 Do not leave historical audit reports inside this file. Historical scoring audits should live in archive docs if needed.
 ## GuestProfile Scoring Boundary
 
-Onboarding Phase 1 adds app-owned `GuestProfile` identity only. It does not
-change Solo scoring, Online scoring, Kronox Puan calculation, timers, drag/drop,
-or leaderboard ranking rules. Future account linking must preserve the
-user-beneficial score/progress state without double-counting guest and
-registered sources.
+Onboarding Phase 1 adds app-owned `GuestProfile` identity only. Onboarding
+Phase 2 replaces the old tutorial with a guided first Solo level but does not
+change Solo scoring, Online scoring, Kronox Puan calculation, drag/drop, or
+leaderboard ranking rules.
+
+The guided first level is intentionally forgiving and instructional. It may
+persist normal guest Solo progress locally after successful completion, but it
+must not create free normal-mode joker fallback or spend real joker inventory.
+Future account linking must preserve the user-beneficial score/progress state
+without double-counting guest and registered sources.

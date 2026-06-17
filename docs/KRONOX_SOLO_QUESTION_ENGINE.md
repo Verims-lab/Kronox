@@ -425,3 +425,25 @@ Joker behavior:
 ## Backward Compatibility
 
 Do not recalculate old completed Solo results. Do not rewrite old stored `bestScore`, `bestStars`, or `bestTimeSeconds`. New attempts can record `soloRulesVersion: 2` so future audits can distinguish Solo v2 results from legacy stored results.
+
+## Guided First Solo Level
+
+Onboarding Phase 2 replaces the old standalone tutorial modal with a real,
+guided first Solo level. First-time guests enter `/onboarding`, start level 1
+with `onboardingTutorial: true`, and learn on the actual card/timeline surface.
+
+The guided level still uses the safe Solo question runtime: no raw
+`Question.list` fallback, no full question bank, and guest callers only receive
+the capped gameplay deck. The tutorial state is a route/context flag, not a new
+question source.
+
+The guide must teach drag/drop, before/after placement, between placement,
+chronological year ordering, move/mistake count, and the joker concept. Joker
+buttons are explanation-only in this mode: the UI says real inventory is not
+spent, `UserJokerInventory` is not consumed, and normal Solo joker economy rules
+remain unchanged outside the tutorial.
+
+After success, the result popup returns to GuestProfile onboarding for profile
+setup, then category setup, then Ana Sayfa. Closing the app during onboarding
+resumes from the persisted GuestProfile state instead of re-opening the old
+tutorial modal.

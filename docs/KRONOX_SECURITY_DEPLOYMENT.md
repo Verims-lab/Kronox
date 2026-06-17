@@ -816,6 +816,17 @@ authorize reads/writes. Never log raw guest token, auth headers, provider
 credentials, or full request bodies. Existing Google / Apple / Email login stays
 Base44-managed, and Apple must remain visible wherever Google login is offered.
 
+Onboarding Phase 2 may update only non-sensitive GuestProfile onboarding fields
+through the same `guest_id + raw guest token` proof. The server path must allow
+only the guided state machine, username/display-name setup, optional age/gender,
+and selected category IDs. It must not trust guest_id alone, request-body role
+claims, auth-provider IDs, or client-provided admin state.
+
+The guided first Solo level is a guest-safe gameplay route. It must not expose
+diagnostics/full-bank data and must not spend real `UserJokerInventory` while
+teaching the joker concept.
+
 Future account linking must verify both the GuestProfile token proof and the
 authenticated user, mark the guest row `linked` once, and write an audit/merge
-transaction. Phase 1 does not implement merge rewards or account-link mutation.
+transaction. Phase 2 still does not implement merge rewards or account-link
+mutation.

@@ -11,7 +11,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Loader2, WifiOff } from 'lucide-react';
+import { Clock3, Hand, Loader2, MoveHorizontal, Shield, Sparkles, WifiOff } from 'lucide-react';
 import { QUESTION_LOAD_ERROR_KIND, useOfflineQuestions } from '@/hooks/useOfflineQuestions';
 import { loadRecentHistory, loadRecentQuestionExposureStats, appendToHistory } from '@/lib/questionHistory';
 import { getTimelineCardCount, getTimelineYears, isCorrectPlacement } from '@/lib/gameRules';
@@ -99,6 +99,66 @@ import { applyOnlineMatchToCurrentUser } from '@/lib/applyOnlineResult';
 import { getOnlinePlayerElapsedSeconds } from '@/lib/onlinePlayerElapsed';
 
 const GAMEPLAY_DRAG_LOCK_CLASS = 'kronox-game-drag-lock';
+
+const GUIDED_TUTORIAL_MESSAGES = [
+  {
+    icon: Hand,
+    title: 'Kartı Tut ve Sürükle',
+    body: 'Kartı parmağınla tutup zaman çizgisindeki uygun boşluğa bırak.',
+  },
+  {
+    icon: MoveHorizontal,
+    title: 'Önce mi Sonra mı?',
+    body: 'Daha eski olayları sola, daha yeni olayları sağa yerleştir.',
+  },
+  {
+    icon: Sparkles,
+    title: 'Araya Yerleştir',
+    body: 'İki olayın arasındaki boşluk da geçerli bir hamledir.',
+  },
+  {
+    icon: Clock3,
+    title: 'Zaman ve Hamle',
+    body: 'Amaç olayları yıllarına göre sıralamak. Bu eğitimde süre ve hata baskısı yok.',
+  },
+  {
+    icon: Shield,
+    title: 'Jokerleri Tanı',
+    body: 'Jokerler normal Solo’da çantandan harcanır; bu eğitimde yalnızca tanıtılır.',
+  },
+];
+
+function GuidedSoloTutorialOverlay({ cardsCompleted = 0, cardTarget = 7, mistakes = 0 }) {
+  const activeIndex = Math.min(
+    GUIDED_TUTORIAL_MESSAGES.length - 1,
+    Math.max(0, Math.floor(Math.max(0, Number(cardsCompleted) - 2))),
+  );
+  const item = GUIDED_TUTORIAL_MESSAGES[activeIndex] || GUIDED_TUTORIAL_MESSAGES[0];
+  const Icon = item.icon;
+  return (
+    <div
+      className="pointer-events-none fixed inset-x-0 z-[42] px-4"
+      style={{ top: 'calc(6.5rem + env(safe-area-inset-top))' }}
+      data-kronox-guided-first-solo-level="true"
+    >
+      <div className="mx-auto max-w-[340px] rounded-2xl border border-yellow-300/35 bg-slate-950/78 px-3 py-2.5 shadow-2xl backdrop-blur-md">
+        <div className="flex items-start gap-2.5">
+          <span className="mt-0.5 grid h-8 w-8 flex-shrink-0 place-items-center rounded-xl border border-yellow-300/35 bg-yellow-300/12 text-yellow-200">
+            <Icon className="h-4 w-4" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-inter text-xs font-black text-yellow-100">{item.title}</span>
+            <span className="mt-0.5 block font-inter text-[11px] font-semibold leading-snug text-blue-100/82">{item.body}</span>
+            <span className="mt-1.5 flex flex-wrap gap-1.5 font-inter text-[10px] font-bold text-blue-100/62">
+              <span>{Math.max(0, Number(cardsCompleted) || 0)}/{Math.max(1, Number(cardTarget) || 7)} kart</span>
+              <span>Hamle hatası: {Math.max(0, Number(mistakes) || 0)}</span>
+            </span>
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const normalizeOnlineEmail = (value) => String(value || '').trim().toLowerCase();
 
@@ -190,6 +250,7 @@ export default function Game() {
   // identical.
   const soloLevel = routeState.soloLevel || null;
   const isSoloLevelMode = Boolean(soloLevel && !isOnlineFromState);
+  const isGuidedSoloTutorial = Boolean(isSoloLevelMode && (routeState.onboardingTutorial === true || soloLevel?.onboardingTutorial === true));
   const currentQuestionIdFromState = routeState.currentQuestionId ?? null;
   const [currentUser, setCurrentUser] = useState(null);
   const { user: authUser, adminStatus } = useAuth();
@@ -468,7 +529,7 @@ export default function Game() {
   const questionFetchEnabled = !isOnline && (!isSoloLevelMode || (currentUserLoaded && soloCategoryPreferenceReady));
   const questionRequestContext = useMemo(() => ({
     authScope: currentUser?.email ? 'authenticated' : 'guest',
-    requestKind: isSoloLevelMode ? 'solo_attempt' : 'gameplay_runtime',
+    requestKind: isGuidedSoloTutorial ? 'guided_first_solo_level' : (isSoloLevelMode ? 'solo_attempt' : 'gameplay_runtime'),
     levelNumber: soloLevel?.levelNumber || 1,
     deckSize: getSoloAttemptDeckSizeForLevel(soloLevel?.levelNumber),
     seedCount: Array.isArray(playerNames) ? playerNames.length * 2 : 2,
@@ -479,6 +540,7 @@ export default function Game() {
     categoryPreferenceFallbackReason: soloCategoryPreferenceState.fallbackReason,
   }), [
     currentUser?.email,
+    isGuidedSoloTutorial,
     isSoloLevelMode,
     playerNames,
     routeYearEnd,
@@ -1629,7 +1691,7 @@ export default function Game() {
 
   useEffect(() => {
     if (!isSoloLevelMode || soloLevelResult) return;
-    const maxMistakes = soloLevel?.maxMistakes ?? SOLO_MAX_MISTAKES;
+    const maxMistakes = isGuidedSoloTutorial ? (soloLevel?.maxMistakes ?? SOLO_MAX_MISTAKES * 10) : (soloLevel?.maxMistakes ?? SOLO_MAX_MISTAKES);
     const totalTime = soloLevel?.totalTimeSeconds ?? SOLO_LEVEL_TIME_SECONDS;
     const cardTarget = winCardCount || soloCardsRequired || 7;
 
@@ -1720,6 +1782,7 @@ export default function Game() {
     }
   }, [
     isSoloLevelMode,
+    isGuidedSoloTutorial,
     soloLevelResult,
     soloLevel,
     winner,
@@ -1813,19 +1876,27 @@ export default function Game() {
           ...soloLevel,
           cardCount: getSoloCardsRequiredForLevel(soloLevel.levelNumber),
           deckSize: getSoloAttemptDeckSizeForLevel(soloLevel.levelNumber),
-          totalTimeSeconds: SOLO_LEVEL_TIME_SECONDS,
-          maxMistakes: SOLO_MAX_MISTAKES,
+          onboardingTutorial: isGuidedSoloTutorial,
+          totalTimeSeconds: isGuidedSoloTutorial ? SOLO_LEVEL_TIME_SECONDS * 20 : SOLO_LEVEL_TIME_SECONDS,
+          maxMistakes: isGuidedSoloTutorial ? SOLO_MAX_MISTAKES * 10 : SOLO_MAX_MISTAKES,
           soloRulesVersion: SOLO_RULES_VERSION,
         },
+        onboardingTutorial: isGuidedSoloTutorial,
       },
     });
-  }, [soloLevel, resetGame, resetSoloJokers, navigate, routeYearStart, routeYearEnd]);
+  }, [isGuidedSoloTutorial, soloLevel, resetGame, resetSoloJokers, navigate, routeYearStart, routeYearEnd]);
 
   // Codex106-23 — Jump straight into the next level after a passed attempt.
   // We rebuild the route state from the next level number, reusing the same
   // year window so Game.jsx renders identical question generation.
   const handleSoloNextLevel = useCallback(() => {
     if (!soloLevel) return;
+    if (isGuidedSoloTutorial) {
+      resetSoloJokers();
+      resetGame();
+      navigate('/onboarding', { replace: true, state: { guidedTutorialCompleted: true } });
+      return;
+    }
     const nextLevelNumber = soloLevel.levelNumber + 1;
     if (nextLevelNumber > getSoloLevelCount()) return;
     const nextCardCount = getSoloCardsRequiredForLevel(nextLevelNumber);
@@ -1859,13 +1930,17 @@ export default function Game() {
         },
       },
     });
-  }, [soloLevel, resetGame, resetSoloJokers, navigate, routeYearStart, routeYearEnd]);
+  }, [isGuidedSoloTutorial, soloLevel, resetGame, resetSoloJokers, navigate, routeYearStart, routeYearEnd]);
 
   const handleSoloBackToPath = useCallback(() => {
     resetSoloJokers();
     resetGame();
+    if (isGuidedSoloTutorial) {
+      navigate('/onboarding', { state: soloLevelResult?.passed ? { guidedTutorialCompleted: true } : {} });
+      return;
+    }
     navigate('/solo', { state: { soloResultApplied: true } });
-  }, [resetSoloJokers, resetGame, navigate]);
+  }, [isGuidedSoloTutorial, soloLevelResult?.passed, resetSoloJokers, resetGame, navigate]);
 
   const gameOverView = winner ? (
     <>
@@ -2155,7 +2230,7 @@ export default function Game() {
     //     (catalog ends — "Yakında" state).
     // We don't show a next-level CTA on failed attempts at all.
     const nextLevelNumber = soloLevel.levelNumber + 1;
-    const hasNextLevel = soloLevelResult.passed && nextLevelNumber <= getSoloLevelCount();
+    const hasNextLevel = !isGuidedSoloTutorial && soloLevelResult.passed && nextLevelNumber <= getSoloLevelCount();
     const isNextLevelComingSoon = soloLevelResult.passed && nextLevelNumber > getSoloLevelCount();
     return (
       <>
@@ -2180,6 +2255,9 @@ export default function Game() {
           onRetry={handleSoloRetry}
           onNextLevel={handleSoloNextLevel}
           onBackToPath={handleSoloBackToPath}
+          successPrimaryActionLabel={isGuidedSoloTutorial ? 'PROFİLİNİ TAMAMLA' : undefined}
+          successBackToPathLabel={isGuidedSoloTutorial ? 'EĞİTİME DÖN' : undefined}
+          successPrimaryActionEnabled={isGuidedSoloTutorial ? soloLevelResult.passed : undefined}
         />
         <SoloQuestionDebugPanel payload={soloQuestionDebugPayload} />
       </>
@@ -2282,14 +2360,14 @@ export default function Game() {
   const soloJokers = isSoloLevelMode ? {
     enabled: true,
     usedJokerType,
-    balances: jokerBalances,
-    loading: jokerInventoryLoading,
+    balances: isGuidedSoloTutorial ? emptyJokerBalances() : jokerBalances,
+    loading: isGuidedSoloTutorial ? false : jokerInventoryLoading,
     pendingType: jokerSpendPendingType,
-    mistakeShieldActive,
-    timerFrozen: isSoloTimerFrozen,
-    message: jokerMessage,
+    mistakeShieldActive: isGuidedSoloTutorial ? false : mistakeShieldActive,
+    timerFrozen: isGuidedSoloTutorial ? false : isSoloTimerFrozen,
+    message: isGuidedSoloTutorial ? 'Eğitimde jokerler sadece tanıtılır; gerçek çantandan harcanmaz.' : jokerMessage,
     error: jokerError,
-    disabled: Boolean(soloLevelResult || winner || jokerInventoryLoading || jokerSpendPendingType),
+    disabled: Boolean(isGuidedSoloTutorial || soloLevelResult || winner || jokerInventoryLoading || jokerSpendPendingType),
     onUseJoker: handleUseSoloJoker,
   } : null;
 
@@ -2312,6 +2390,13 @@ export default function Game() {
       {diagnosticsOverlay}
       <GameDebugLog />
       <GameOverTimer active={gameStarted && !winner} onTick={(s) => setOverallSeconds(s)} />
+      {isGuidedSoloTutorial && (
+        <GuidedSoloTutorialOverlay
+          cardsCompleted={cardsCompletedSolo}
+          cardTarget={winCardCount}
+          mistakes={mistakeCount}
+        />
+      )}
 
       <AnimatePresence>
         {feedback && (

@@ -8,14 +8,12 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import KronoxTutorial from '@/components/tutorial/KronoxTutorial';
 import { Input } from '@/components/ui/input';
 import { Users, Play, Globe, LogOut, Settings, RefreshCw } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { sounds } from '@/lib/gameSounds';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
-import { markTutorialCompleted, shouldShowTutorialForUser } from '@/lib/tutorialProfile';
 import AuthProviderButtons from '@/components/auth/AuthProviderButtons';
 
 // Floating ambient orbs — pure atmosphere, no layout impact
@@ -87,29 +85,16 @@ export default function PlayerSetup() {
   const [turnDuration, setTurnDuration] = useState(60);
   const [nameErrors, setNameErrors] = useState([]);
   const scrollContainerRef = useRef(null);
-
-  const [showTutorial, setShowTutorial] = useState(false);
-
   const refreshUser = () => {
     base44.auth.me().then((u) => {
       const nextUser = u || null;
       setUser(nextUser);
-      setShowTutorial(shouldShowTutorialForUser(nextUser));
     }).catch(() => setUser(null));
   };
 
   useEffect(() => {
     refreshUser();
   }, []);
-
-  const handleTutorialComplete = async () => {
-    const updatedUser = await markTutorialCompleted(user).catch(() => ({
-      ...(user || {}),
-      hasCompletedTutorial: true,
-    }));
-    setUser(updatedUser || user);
-    setShowTutorial(false);
-  };
 
   const { refreshing: isRefreshing } = usePullToRefresh(() => {
     setTimeout(refreshUser, 300);
@@ -144,16 +129,6 @@ export default function PlayerSetup() {
   ];
 
   return (
-    <>
-    <AnimatePresence>
-      {showTutorial && (
-        <KronoxTutorial
-          onComplete={handleTutorialComplete}
-          onDone={() => setShowTutorial(false)}
-          onSkip={() => setShowTutorial(false)}
-        />
-      )}
-    </AnimatePresence>
     <div
       ref={scrollContainerRef}
       className="min-h-screen flex flex-col items-center justify-start px-5 overflow-y-auto relative"
@@ -409,6 +384,5 @@ export default function PlayerSetup() {
         </div>
       </div>
     </div>
-    </>
   );
 }
