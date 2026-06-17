@@ -210,6 +210,9 @@ import * as dailyQuestRuntimeCases from './simulationPanelDailyQuestRuntimeCases
 // iOS/mobile compatibility: scoped pull-to-refresh, independent tab stacks,
 // and Kronox bottom-sheet selectors for preference/admin selection controls.
 import * as mobileCompatibilityCases from './simulationPanelMobileCompatibilityCases';
+// Onboarding Phase 1: app-owned GuestProfile identity foundation, token hash
+// storage boundary, KronoxUser public username, and login-provider preservation.
+import * as onboardingGuestProfileCases from './simulationPanelOnboardingGuestProfileCases';
 
 const MODULES = [
   soloProgressCases,
@@ -262,6 +265,7 @@ const MODULES = [
   dailyQuestDefinitionCases,
   dailyQuestRuntimeCases,
   mobileCompatibilityCases,
+  onboardingGuestProfileCases,
 ];
 
 function flatten(key) {

@@ -4,6 +4,7 @@ import { withAdminStatus } from '@/lib/admin';
 import { ensureDiamondEconomyForUser, getDiamondDailyKey } from '@/lib/diamondEconomy';
 import { clearJokerInventoryCache, ensureStarterJokers, normalizeJokerEmail } from '@/lib/jokerInventory';
 import { applyUserProgressResetMarker } from '@/lib/progressResetCache';
+import { ensureGuestProfile } from '@/lib/guestProfile';
 
 const AuthContext = createContext();
 
@@ -49,6 +50,7 @@ export const AuthProvider = ({ children }) => {
   const [adminStatus, setAdminStatus] = useState(EMPTY_ADMIN_STATUS);
   const [authError, setAuthError] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
+  const [guestProfile, setGuestProfile] = useState(null);
   const economyEnsurePromiseRef = useRef(null);
   const economyEnsureKeyRef = useRef('');
   const jokerEnsurePromiseRef = useRef(null);
@@ -85,7 +87,10 @@ export const AuthProvider = ({ children }) => {
         currentUser = await base44.auth.me().catch(() => null);
       }
 
+      let currentGuestProfile = null;
+
       if (currentUser?.email) {
+        setGuestProfile(null);
         applyUserProgressResetMarker(currentUser);
         const economyKey = `${String(currentUser.email).trim().toLowerCase()}:${getDiamondDailyKey()}`;
         if (economyEnsureKeyRef.current !== economyKey) {
@@ -122,9 +127,16 @@ export const AuthProvider = ({ children }) => {
         currentUser = await withAdminStatus(currentUser, { onStatus: setAdminStatus });
       } else {
         setAdminStatus(makePendingAdminStatus(currentUser));
+        currentGuestProfile = await ensureGuestProfile().catch((guestError) => {
+          console.warn('[guestProfile] app-owned guest identity unavailable', {
+            reason: String(guestError?.message || 'guest_profile_unavailable').slice(0, 120),
+          });
+          return null;
+        });
       }
 
       setUser(currentUser || null);
+      setGuestProfile(currentUser?.email ? null : currentGuestProfile);
       setIsAuthenticated(!!currentUser);
       setAuthError(null);
 
@@ -147,6 +159,8 @@ export const AuthProvider = ({ children }) => {
       setIsAuthenticated(false);
       setUser(null);
       setAdminStatus(EMPTY_ADMIN_STATUS);
+      const fallbackGuestProfile = await ensureGuestProfile().catch(() => null);
+      setGuestProfile(fallbackGuestProfile);
       // auth_required = uygulama public, login gerektirmiyor — hata değil
       if (error?.message?.includes('user_not_registered')) {
         setAuthError({ type: 'user_not_registered', message: 'User not registered' });
@@ -161,6 +175,7 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setIsAuthenticated(false);
     setAdminStatus(EMPTY_ADMIN_STATUS);
+    setGuestProfile(null);
     economyEnsureKeyRef.current = '';
     economyEnsurePromiseRef.current = null;
     jokerEnsureKeyRef.current = '';
@@ -200,6 +215,8 @@ export const AuthProvider = ({ children }) => {
       authError,
       authChecked,
       adminStatus,
+      guestProfile,
+      isGuest: !isAuthenticated && Boolean(guestProfile),
       refreshAdminStatus,
       logout,
       navigateToLogin,

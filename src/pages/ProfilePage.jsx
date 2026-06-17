@@ -19,6 +19,7 @@ import { ensureSoloProgressBackfill, readSoloProgress, getSoloLevelCount } from 
 import { getCurrentPlayableLevel } from '@/lib/soloProgressHelpers';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 import { getKronoxVisibleScore } from '@/lib/kronoxScore';
+import { ensureGuestProfile, getCachedGuestProfile } from '@/lib/guestProfile';
 import {
   JOKER_DEFINITIONS,
   emptyJokerBalances,
@@ -62,6 +63,7 @@ import KronoxStatTile from '@/components/ui/KronoxStatTile';
 export default function ProfilePage() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
+  const [guestProfile, setGuestProfile] = useState(() => getCachedGuestProfile());
   const [loading, setLoading] = useState(true);
   const [jokerState, setJokerState] = useState({
     loading: false,
@@ -77,9 +79,13 @@ export default function ProfilePage() {
         if (!alive) return;
         if (!u) {
           setUser(null);
+          ensureGuestProfile()
+            .then((profile) => { if (alive) setGuestProfile(profile || getCachedGuestProfile()); })
+            .catch(() => { if (alive) setGuestProfile(getCachedGuestProfile()); });
           setLoading(false);
           return;
         }
+        setGuestProfile(null);
         setUser(u);
         setLoading(false);
 
@@ -216,6 +222,7 @@ export default function ProfilePage() {
         <IdentityCard
           loading={loading}
           user={user}
+          guestProfile={guestProfile}
           isAdmin={isAdmin}
           onLogin={handleLogin}
           onLogout={handleLogout}
@@ -379,8 +386,9 @@ function JokerPocketSection({ authLoading, loading, user, balances, error, onRet
   );
 }
 
-function IdentityCard({ loading, user, isAdmin, onLogin, onLogout }) {
-  const displayName = user?.full_name || (user?.email ? user.email.split('@')[0] : 'Misafir Oyuncu');
+function IdentityCard({ loading, user, guestProfile, isAdmin, onLogin, onLogout }) {
+  const guestDisplayName = guestProfile?.display_name || guestProfile?.username || 'Misafir Oyuncu';
+  const displayName = user?.full_name || user?.display_name || user?.username || (user?.email ? user.email.split('@')[0] : guestDisplayName);
   const initial = (displayName || '?').trim().charAt(0).toUpperCase();
 
   return (
@@ -441,7 +449,7 @@ function IdentityCard({ loading, user, isAdmin, onLogin, onLogout }) {
             </>
           ) : (
             <>
-              <p className="font-cinzel text-base tracking-wider text-white">Misafir Oyuncu</p>
+              <p className="font-cinzel text-base tracking-wider text-white">{guestDisplayName}</p>
               <p className="font-inter text-[11px] text-blue-100/70">Giriş yaparak ilerlemeni kaydet</p>
             </>
           )}

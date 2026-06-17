@@ -39,3 +39,15 @@ placeholders after authentication.
 * The selected-category lane uses difficulty 1 and 2; the global fallback lane
   prefers all-active difficulty 1 and broadens safely if that pool is short.
 * Online question selection is not affected by Category preferences.
+## GuestProfile Public Identity
+
+Unauthenticated players are represented by app-owned `GuestProfile`, not
+Firebase and not Base44 anonymous auth. Public guest identity uses `username` and
+`display_name`, initially generated as `KronoxUser####` /
+`KronoxUser#####`.
+
+Profile and leaderboard surfaces should prefer `display_name` / `username` for
+public identity. Email, Google ID, Apple ID, provider UID, and internal
+`owner_key` values are not public display names. Full account linking and merge
+rules are later-phase work; Phase 1 only creates/verifies the guest identity
+foundation.

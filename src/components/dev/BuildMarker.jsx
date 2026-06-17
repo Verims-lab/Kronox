@@ -2075,7 +2075,16 @@ import React, { useEffect, useState } from 'react';
 //     online_question_deck before the lobby enters gameplay.
 //   • Game reads Online current/next questions from the shared Lobby deck
 //     instead of Solo getQuestions buffers, preventing partial starts.
-const BUILD_MARKER = 'Codex376';
+//
+// Codex377 — GuestProfile identity foundation:
+//   • Adds app-owned GuestProfile entity and createGuestProfile backend
+//     function; Kronox does not use Firebase or Base44 anonymous auth for
+//     guest identity.
+//   • Raw guest token is stored only on the local client/device; DB stores
+//     guest_token_hash and verifies guest_id + token proof server-side.
+//   • Default public guest username uses KronoxUser#### / KronoxUser#####
+//     and is not derived from email, Google ID, Apple ID, or provider UID.
+const BUILD_MARKER = 'Codex377';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
