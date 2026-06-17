@@ -2130,7 +2130,13 @@ import React, { useEffect, useState } from 'react';
 //   • Removes remaining live docs Markdown raw Health imports that crash Base44
 //     import analysis and uses existing in-src doc mirrors instead.
 //   • Leaves vite.config unchanged; no assetsInclude workaround is used.
-const BUILD_MARKER = 'Codex383';
+//
+// Codex384 — Guided tutorial drag hint:
+//   • Adds a tutorial-only animated hand cue on the first Solo onboarding
+//     drag step, repeating until the player starts dragging or completes it.
+//   • Keeps the cue pointer-events:none so normal drag/drop hit-testing,
+//     Online, and regular Solo gameplay stay untouched.
+const BUILD_MARKER = 'Codex384';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

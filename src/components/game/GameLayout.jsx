@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Hand } from 'lucide-react';
 import { sounds } from '@/lib/gameSounds';
 import QuestionCard from './QuestionCard.jsx';
 import Timeline from './Timeline.jsx';
@@ -72,6 +73,71 @@ function CTAButton({ active, onClick, disabled }) {
   );
 }
 
+function GuidedDragFingerHint({ active, reducedMotion }) {
+  if (!active) return null;
+
+  const pathAnimation = reducedMotion
+    ? {
+        opacity: [0.72, 1, 0.72],
+        scale: [1, 1.04, 1],
+      }
+    : {
+        x: [0, 0, 24, 24],
+        y: [0, 0, 128, 128],
+        opacity: [0, 1, 1, 0],
+        scale: [0.92, 1, 1, 0.96],
+      };
+
+  return (
+    <motion.div
+      aria-hidden="true"
+      data-kronox-guided-drag-finger-hint="true"
+      className="pointer-events-none absolute z-40 flex flex-col items-center gap-1"
+      initial={reducedMotion
+        ? { opacity: 0.72, scale: 1 }
+        : { x: 0, y: 0, opacity: 0, scale: 0.92 }}
+      animate={pathAnimation}
+      transition={{
+        delay: 0.55,
+        duration: reducedMotion ? 1.4 : 2.35,
+        repeat: Infinity,
+        repeatDelay: reducedMotion ? 1.6 : 1.15,
+        ease: 'easeInOut',
+      }}
+      style={{
+        left: '50%',
+        top: '58%',
+        marginLeft: -24,
+        marginTop: -24,
+        filter: 'drop-shadow(0 10px 18px rgba(0,0,0,0.48))',
+        willChange: 'transform, opacity',
+      }}
+    >
+      <span
+        className="grid h-12 w-12 place-items-center rounded-full border text-amber-950"
+        style={{
+          background: 'linear-gradient(180deg, #fff4b8 0%, #facc15 52%, #d99e00 100%)',
+          borderColor: 'rgba(255,255,255,0.55)',
+          boxShadow:
+            'inset 0 1px 0 rgba(255,255,255,0.62), inset 0 -4px 0 rgba(120,75,0,0.28), 0 0 18px rgba(250,204,21,0.52)',
+        }}
+      >
+        <Hand className="h-6 w-6" strokeWidth={2.7} />
+      </span>
+      <span
+        className="whitespace-nowrap rounded-full px-2.5 py-1 font-inter text-[10px] font-black text-yellow-100"
+        style={{
+          background: 'rgba(7,10,31,0.84)',
+          border: '1px solid rgba(250,204,21,0.36)',
+          boxShadow: '0 0 12px rgba(250,204,21,0.18)',
+        }}
+      >
+        Kartı sürükle
+      </span>
+    </motion.div>
+  );
+}
+
 export default function GameLayout({
   // Game state
   players,
@@ -103,6 +169,7 @@ export default function GameLayout({
   soloJokers: rawSoloJokers = null,
   balances = null,
   beginnerPlacementHintZone,
+  guidedDragHintActive = false,
   correctStreak = 0,
   // Handlers
   onSelectZone,
@@ -339,6 +406,10 @@ export default function GameLayout({
               onTouchDragEnd={isMyTurn ? onTouchDragEnd : undefined}
               onTouchDragCancel={isMyTurn ? onTouchDragCancel : undefined}
               soloReadableCard={!isOnline}
+            />
+            <GuidedDragFingerHint
+              active={Boolean(guidedDragHintActive && isMyTurn && !isDragging && !feedback && !winner)}
+              reducedMotion={prefersReducedMotion}
             />
             {isSpectatingQuestion && (
               <div

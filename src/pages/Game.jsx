@@ -2372,6 +2372,13 @@ export default function Game() {
     disabled: Boolean(isGuidedSoloTutorial || soloLevelResult || winner || jokerInventoryLoading || jokerSpendPendingType),
     onUseJoker: handleUseSoloJoker,
   } : null;
+  const guidedDragHintActive = Boolean(
+    isGuidedSoloTutorial &&
+    cardsCompletedSolo <= 2 &&
+    !feedback &&
+    !winner &&
+    currentQuestion
+  );
 
   return (
     <GameRenderErrorBoundary
@@ -2456,6 +2463,7 @@ export default function Game() {
         soloJokers={isSoloLevelMode ? soloJokers : null}
         balances={soloJokers?.balances || null}
         beginnerPlacementHintZone={beginnerPlacementHintZone}
+        guidedDragHintActive={guidedDragHintActive}
         correctStreak={isSoloLevelMode ? soloCorrectStreak : 0}
       />
       <SoloQuestionDebugPanel payload={soloQuestionDebugPayload} />
