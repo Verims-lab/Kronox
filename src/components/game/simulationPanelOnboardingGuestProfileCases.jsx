@@ -8,7 +8,9 @@ import guestProfileEntitySource from '../../../base44/entities/GuestProfile.json
 import accountLinkTransactionEntitySource from '../../../base44/entities/AccountLinkTransaction.jsonc?raw';
 import createGuestProfileSource from '../../../base44/functions/createGuestProfile/entry.ts?raw';
 import linkGuestAccountSource from '../../../base44/functions/linkGuestAccount/entry.ts?raw';
+import updateProfileSettingsSource from '../../../base44/functions/updateProfileSettings/entry.ts?raw';
 import guestProfileClientSource from '../../lib/guestProfile.js?raw';
+import profileSettingsClientSource from '../../lib/profileSettings.js?raw';
 import authContextSource from '../../lib/AuthContext.jsx?raw';
 import leaderboardSource from '../../lib/leaderboard.js?raw';
 import authProviderButtonsSource from '../auth/AuthProviderButtons.jsx?raw';
@@ -333,6 +335,63 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Login is presented as secure-progress account linking while guest continue remains available.', {
+        verification: 'STATIC_CONTRACT',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('profile_settings_editable_for_guest_and_registered_users',
+    'Profile > Ayarlar lets guest and registered users edit username, age, and gender',
+    () => {
+      const missing = missingTokens(`${settingsPageSource}\n${profileSettingsClientSource}\n${updateProfileSettingsSource}`, [
+        'Profil Bilgileri',
+        'Kullanıcı Adı',
+        'Yaş',
+        'Cinsiyet',
+        'Kaydet',
+        "base44.functions.invoke('updateProfileSettings'",
+        'guestTokenProofRequired',
+        'authUserVerifiedServerSide',
+      ]);
+      if (missing.length) {
+        return fail('Profile settings edit form or server-authoritative update path is missing.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['src/pages/SettingsPage.jsx', 'src/lib/profileSettings.js', 'base44/functions/updateProfileSettings/entry.ts'],
+          actual: { missing },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Profile > Ayarlar supports token-proven guest updates and authenticated user updates.', {
+        verification: 'STATIC_CONTRACT',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('profile_settings_username_privacy_and_leaderboard_contract',
+    'Profile username remains unique and leaderboard-safe while age/gender stay private',
+    () => {
+      const missing = missingTokens(`${settingsPageSource}\n${profilePageSource}\n${leaderboardSource}\n${updateProfileSettingsSource}`, [
+        'username_normalized',
+        'usernameUniqueCaseInsensitive',
+        'username_taken',
+        'getSafeLeaderboardName',
+        'refreshLeaderboardIdentity',
+        'providerIdsDisplayedPublicly: false',
+        'ageGenderPublicFields: false',
+      ]);
+      const forbidden = presentTokens(leaderboardSource, [
+        'age:',
+        'gender:',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Profile settings privacy or leaderboard identity contract drifted.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['src/pages/SettingsPage.jsx', 'src/pages/ProfilePage.jsx', 'src/lib/leaderboard.js', 'base44/functions/updateProfileSettings/entry.ts'],
+          actual: { missing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Username updates are unique/leaderboard-safe; age and gender are private profile fields only.', {
         verification: 'STATIC_CONTRACT',
         actionType: ACTION_TYPES.CODE_FIX,
       });

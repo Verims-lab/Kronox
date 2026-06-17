@@ -2106,7 +2106,14 @@ import React, { useEffect, useState } from 'react';
 //     leaderboard projection rows, and migrates/passivates them on link.
 //   • Keeps leaderboard identity username/display_name-first and presents
 //     login as "secure your progress" with guest continue still available.
-const BUILD_MARKER = 'Codex379';
+//
+// Codex380 — Editable Profile Settings:
+//   • Adds Profile > Ayarlar editing for username/display_name plus optional
+//     private age/gender for guest and registered users.
+//   • Adds updateProfileSettings with auth-user verification, guest token
+//     proof, case-insensitive username uniqueness, and leaderboard display
+//     refresh without exposing age/gender.
+const BUILD_MARKER = 'Codex380';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

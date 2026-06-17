@@ -822,6 +822,15 @@ only the guided state machine, username/display-name setup, optional age/gender,
 and selected category IDs. It must not trust guest_id alone, request-body role
 claims, auth-provider IDs, or client-provided admin state.
 
+Profile > Ayarlar post-onboarding edits use `updateProfileSettings`.
+Authenticated users are verified server-side with `base44.auth.me()` and guest
+users are verified with `guest_id + raw guest token`. The endpoint enforces
+case-insensitive public username uniqueness via `username_normalized`, rejects
+email/provider-like public names, and never logs raw guest tokens, auth headers,
+provider credentials, or full request bodies. Optional `age` and `gender` are
+private profile fields and must not be returned in public leaderboard/projection
+payloads.
+
 The guided first Solo level is a guest-safe gameplay route. It must not expose
 diagnostics/full-bank data and must not spend real `UserJokerInventory` while
 teaching the joker concept.

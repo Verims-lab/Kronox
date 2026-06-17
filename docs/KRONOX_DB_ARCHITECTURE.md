@@ -1089,6 +1089,15 @@ Default public usernames use `KronoxUser####` / `KronoxUser#####`, are unique at
 creation time, and must not be derived from email, Google ID, Apple ID, or any
 provider UID.
 
+Profile settings are editable after onboarding for guest and authenticated
+users through `updateProfileSettings`. The function stores `username`,
+`username_normalized`, `display_name`, optional private `age`, optional private
+`gender`, and `profile_settings_updated_at`. Authenticated writes verify
+`base44.auth.me()`; guest writes verify `guest_id + raw guest token`. Existing
+leaderboard projection rows update only public display fields
+(`display_name`, `initial`), never `age`, `gender`, email, provider ids, or raw
+guest credentials.
+
 ## Onboarding Phase 3 — Account Linking And Public Identity
 
 `linkGuestAccount` is the server-authoritative guest-to-registered merge path.
@@ -1109,6 +1118,8 @@ Merge is additive only once:
   `UserCategoryPreference` rows.
 - Guest `SoloLeaderboardEntry` owner key uses an internal `g_` key; linked
   accounts use the existing `u_` key and display `username` / `display_name`.
+- Guest `age` / `gender` are retained during linking when they are the more
+  recent non-empty profile values; these remain private User profile fields.
 
 `SoloLeaderboardEntry`, `AccountLinkTransaction`, and guest progress snapshots
 are projections/audit/merge inputs. `UserJokerInventory` remains joker balance

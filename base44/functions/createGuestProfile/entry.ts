@@ -137,9 +137,17 @@ async function findGuestProfile(base44: any, guestId: string) {
 async function usernameExists(base44: any, username: string, excludeGuestId = '') {
   const entity = guestProfileEntity(base44);
   if (!entity?.filter || !username) return false;
-  const rows = await entity.filter({ username }, '-created_at', 1).catch(() => []);
+  const usernameKey = normalizeUsernameKey(username);
+  const rows = [
+    ...(await entity.filter({ username_normalized: usernameKey }, '-created_at', 5).catch(() => [])),
+    ...(await entity.filter({ username }, '-created_at', 5).catch(() => [])),
+    ...(entity?.list ? await entity.list('-updated_at', 500).catch(() => []) : []),
+  ];
   if (!Array.isArray(rows) || rows.length === 0) return false;
-  return rows.some((row: any) => String(row?.guest_id || '') !== excludeGuestId);
+  return rows.some((row: any) => (
+    String(row?.guest_id || '') !== excludeGuestId &&
+    normalizeUsernameKey(row?.username) === usernameKey
+  ));
 }
 
 async function generateUniqueUsername(base44: any) {
@@ -174,6 +182,7 @@ function publicGuestProfile(row: any) {
     last_seen_at: row?.last_seen_at || row?.updated_at || null,
     tutorial_completed_at: row?.tutorial_completed_at || null,
     profile_setup_completed_at: row?.profile_setup_completed_at || null,
+    profile_settings_updated_at: row?.profile_settings_updated_at || null,
     category_setup_completed_at: row?.category_setup_completed_at || null,
     onboarding_completed_at: row?.onboarding_completed_at || null,
   };
@@ -232,6 +241,10 @@ function normalizeUsernameInput(value: unknown) {
   const text = String(value || '').trim();
   if (!text || text.length < 3 || text.length > 24) return '';
   return /^[A-Za-z0-9_]+$/.test(text) ? text : '';
+}
+
+function normalizeUsernameKey(value: unknown) {
+  return normalizeUsernameInput(value).toLowerCase();
 }
 
 function normalizeDisplayNameInput(value: unknown) {
@@ -450,6 +463,7 @@ async function updateGuestOnboarding(base44: any, guestId: string, guestToken: s
   const patch = patchInput && typeof patchInput === 'object' ? patchInput : {};
   const update: Record<string, unknown> = { last_seen_at: nowIso() };
   const timestamp = nowIso();
+  let profileSettingsTouched = false;
 
   const onboardingStatus = String(patch.onboarding_status || '').trim();
   if (onboardingStatus) {
@@ -508,25 +522,32 @@ async function updateGuestOnboarding(base44: any, guestId: string, guestToken: s
       return json({ ok: false, error: 'username_taken' }, 409);
     }
     update.username = username;
+    update.username_normalized = normalizeUsernameKey(username);
     if (!Object.prototype.hasOwnProperty.call(patch, 'display_name')) update.display_name = username;
+    profileSettingsTouched = true;
   }
 
   if (Object.prototype.hasOwnProperty.call(patch, 'display_name')) {
     const displayName = normalizeDisplayNameInput(patch.display_name);
     if (!displayName) return json({ ok: false, error: 'invalid_display_name' }, 400);
     update.display_name = displayName;
+    profileSettingsTouched = true;
   }
 
   if (Object.prototype.hasOwnProperty.call(patch, 'age')) {
     const age = normalizeAge(patch.age);
     if (age !== undefined) update.age = age;
+    profileSettingsTouched = true;
   }
 
   if (Object.prototype.hasOwnProperty.call(patch, 'gender')) {
     const gender = normalizeGender(patch.gender);
     if (gender === undefined) return json({ ok: false, error: 'invalid_gender' }, 400);
     update.gender = gender;
+    profileSettingsTouched = true;
   }
+
+  if (profileSettingsTouched) update.profile_settings_updated_at = timestamp;
 
   if (Object.prototype.hasOwnProperty.call(patch, 'selected_category_ids')) {
     update.selected_category_ids = normalizeCategoryIds(patch.selected_category_ids);
@@ -569,6 +590,7 @@ async function createGuestProfile(base44: any) {
         guest_token_hash: tokenHash,
         guest_token_hash_algorithm: HASH_ALGORITHM,
         username,
+        username_normalized: normalizeUsernameKey(username),
         display_name: username,
         status: 'guest',
         onboarding_status: 'guest_created',

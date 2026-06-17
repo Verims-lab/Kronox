@@ -17,7 +17,7 @@ import { ensureSoloProgressBackfill, readSoloProgress, getSoloLevelCount } from 
 // contract self-evident from the import surface and matches the Health
 // case `profile_level_uses_shared_helper`.
 import { getCurrentPlayableLevel } from '@/lib/soloProgressHelpers';
-import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
+import { getLeaderboardDiamondValue, getSafeLeaderboardName } from '@/lib/leaderboard';
 import { getKronoxVisibleScore } from '@/lib/kronoxScore';
 import { ensureGuestProfile, getCachedGuestProfile, prepareGuestAccountLink } from '@/lib/guestProfile';
 import {
@@ -404,7 +404,7 @@ function JokerPocketSection({ authLoading, loading, user, balances, error, onRet
 
 function IdentityCard({ loading, user, guestProfile, isAdmin, onLogin, onLogout }) {
   const guestDisplayName = guestProfile?.display_name || guestProfile?.username || 'Misafir Oyuncu';
-  const displayName = user?.full_name || user?.display_name || user?.username || (user?.email ? user.email.split('@')[0] : guestDisplayName);
+  const displayName = user ? getSafeLeaderboardName(user) : guestDisplayName;
   const initial = (displayName || '?').trim().charAt(0).toUpperCase();
 
   return (

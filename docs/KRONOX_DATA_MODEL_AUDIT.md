@@ -1004,3 +1004,11 @@ Scale/uniqueness note: `username` and `guest_id` are logical unique keys. If the
 platform supports unique indexes, configure them; until then, `createGuestProfile`
 must retry collisions and later username-change/linking functions must repeat the
 same uniqueness guard.
+
+Post-onboarding Profile > Ayarlar edits use `updateProfileSettings`.
+Authenticated users are verified with `base44.auth.me()` and guest users with
+`guest_id + token`. The editable fields are public `username` / `display_name`
+plus optional private `age` / `gender`. Username uniqueness uses
+`username_normalized` for case-insensitive checks. `age` and `gender` are not
+leaderboard projection fields and must not influence scoring, economy,
+matchmaking, Online selection, or Solo category weighting.

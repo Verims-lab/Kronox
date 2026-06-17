@@ -50,6 +50,28 @@ Profile and leaderboard surfaces should prefer `display_name` / `username` for
 public identity. Email, Google ID, Apple ID, provider UID, and internal
 `owner_key` values are not public display names.
 
+## Editable Profile Settings
+
+Profile > Ayarlar includes editable profile fields for both guest and
+authenticated users:
+
+* `username` / `display_name`
+* optional `age`
+* optional `gender`
+
+`updateProfileSettings` is the server-authoritative update path. Authenticated
+users are verified with `base44.auth.me()`. Guest users are verified with
+`guest_id + raw guest token`; `guest_id` alone is not trusted and raw guest
+tokens are never stored server-side.
+
+Username uniqueness is checked case-insensitively through
+`username_normalized`, with a `KronoxUser####` / `KronoxUser#####` fallback for
+missing or provider-like public names. Username/display-name changes refresh the
+existing `SoloLeaderboardEntry` public display fields when a row exists. `age`
+and `gender` are private optional profile fields only; they must not appear in
+leaderboard rows, public projections, scoring, matchmaking, Solo category
+weighting, or Online game selection.
+
 Account linking is implemented through `linkGuestAccount`. Guest users can
 choose Apple / Google / Email to secure progress, while "Şimdilik misafir devam
 et" remains available. The Profile guest card says the user is playing as guest
@@ -78,6 +100,8 @@ authenticated user, then writes `AccountLinkTransaction` with an idempotency key
 Merge rules are user-benefit oriented:
 
 * public `username` / `display_name` is preserved when safe and unique
+* optional `age` / `gender` are preserved with a user-friendly preference for
+  the more recent non-empty profile value
 * Solo progress keeps the better per-level record
 * Online progress keeps user-beneficial counters without duplicate rewards
 * `User.kronox_puan_total` keeps the safest higher total projection

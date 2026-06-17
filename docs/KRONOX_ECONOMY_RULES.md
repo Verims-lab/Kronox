@@ -571,3 +571,7 @@ combined once through `UserJokerInventory` current balances and
 link request retries after a partial response. `UserJokerInventory` remains the
 current joker balance source and `JokerTransaction` remains the ledger. Raw
 guest token must never be stored server-side or logged.
+
+Profile > Ayarlar optional `age` / `gender` edits are private profile metadata.
+They must not grant Diamonds, affect Daily Quest/Wheel rewards, change Market
+prices, alter joker balances, or appear in economy ledgers.

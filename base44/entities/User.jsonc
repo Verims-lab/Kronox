@@ -138,9 +138,34 @@
       "type": "string",
       "description": "Public Kronox username used for leaderboard/profile identity. Must not be email, Google ID, Apple ID, or provider UID. Account linking preserves guest KronoxUser#### when chosen."
     },
+    "username_normalized": {
+      "type": "string",
+      "description": "Lowercase username key used by server profile settings/account linking checks to enforce case-insensitive uniqueness."
+    },
     "display_name": {
       "type": "string",
       "description": "Public display name preferred by leaderboard/profile surfaces. Should be username-first and provider-id-free."
+    },
+    "age": {
+      "type": "number",
+      "description": "Optional self-reported profile age. Private profile field only; not used for scoring, matchmaking, category weighting, or public leaderboard display."
+    },
+    "gender": {
+      "type": "string",
+      "description": "Optional self-reported profile gender. Private profile field only; not used for scoring, matchmaking, category weighting, or public leaderboard display.",
+      "enum": [
+        "",
+        "female",
+        "male",
+        "non_binary",
+        "prefer_not_to_say",
+        "custom"
+      ]
+    },
+    "profile_settings_updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Latest server-side profile settings update timestamp for username/display_name/age/gender merge decisions."
     },
     "linked_guest_ids": {
       "type": "array",
