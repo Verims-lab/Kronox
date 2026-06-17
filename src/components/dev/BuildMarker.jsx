@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex392 — Onboarding profile category-transition unblock:
+//   • Separates profile-save and category-save loading state from the shared
+//     tutorial/onboarding busy flag so Kategorilere Geç cannot inherit a
+//     background auth/tutorial spinner.
+//   • Guided tutorial completion refreshes auth/GuestProfile state in the
+//     background after moving to profile setup.
+//   • Profile save failures render a retryable in-form error near the button.
+
 // Codex391 — Demo/tutorial runtime crash fix:
 //   • Moves the current timeline player derivation before guided tutorial
 //     correct-slot calculation so production builds do not hit a minified
@@ -2186,7 +2194,7 @@ import React, { useEffect, useState } from 'react';
 //   • Adds client install id hashing for bloat control without trusting it as
 //     identity proof or storing raw IP/header/token data.
 //   • Blocks public request bodies from setting trusted score/economy/link fields.
-const BUILD_MARKER = 'Codex391';
+const BUILD_MARKER = 'Codex392';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

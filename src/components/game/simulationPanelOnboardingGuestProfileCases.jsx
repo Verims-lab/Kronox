@@ -532,9 +532,13 @@ export const EXTRA_TESTS = [
         'MIN_CATEGORY_SELECTION_COUNT',
         'Şimdilik Misafir Devam Et',
         "navigate('/', { replace: true })",
+        'profileSaving',
+        'categorySaving',
+        'submitError',
+        'profile_save_timeout',
       ]);
       if (missing.length) {
-        return fail('Onboarding does not clearly sequence profile setup then category setup after the guided level.', {
+        return fail('Onboarding does not clearly sequence profile setup then category setup after the guided level with retryable profile-save errors.', {
           verification: 'STATIC_CONTRACT',
           file: 'src/pages/OnboardingPage.jsx',
           actual: { missing },
@@ -553,7 +557,7 @@ export const EXTRA_TESTS = [
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Guided level completion moves through profile setup, category setup, then Ana Sayfa.', {
+      return pass('Guided level completion moves through profile setup, category setup, then Ana Sayfa without sharing the profile button spinner with background onboarding work.', {
         verification: 'STATIC_CONTRACT',
         actionType: ACTION_TYPES.CODE_FIX,
       });
