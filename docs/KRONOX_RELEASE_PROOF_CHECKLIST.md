@@ -46,6 +46,12 @@ Checklist:
 * Health `Copy Blocker JSON` is intentionally blocker-only: it should include
   real FAIL/BLOCKER/CRITICAL code/security/static failures and summary counts,
   not manual-only verification reminders or the full raw PASS payload.
+* Health `Copy Warning JSON` is intentionally warning-only: manual proof gates
+  must appear as `NOT_AUTOMATABLE` / manual verification entries, not as generic
+  WARNING rows.
+* Automated score is separate from release readiness. Manual gates do not reduce
+  the automated score, but they keep `releaseReady=false` and prevent a `Good`
+  release-ready rating until proof is attached.
 
 ---
 

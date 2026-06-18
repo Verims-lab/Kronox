@@ -6,8 +6,8 @@ import { AlertTriangle, Info, ShieldAlert, CheckCircle2, XCircle } from 'lucide-
  * -------------------------
  * Visible, human-readable explanation of WHY a Health Simulator run with
  * 0 FAIL can still be "Not release-ready". This is explanation UI ONLY —
- * it does NOT touch the underlying scoring logic in buildReport(), and it
- * does NOT change any case status. It reads `report` and renders text.
+ * it does NOT change any case status. It reads `report.releaseReady` /
+ * `report.manualGateStatus` from buildReport() and renders text.
  *
  * Honesty contract (must not be weakened):
  *  - 0 FAIL ≠ release-ready.
@@ -33,7 +33,7 @@ export default function ReleaseReadinessExplainer({ report }) {
   const realBlockerCount = Number(report.blockerSummary?.blockerCount || report.topBlockers?.length || 0);
   const score = report.score?.value ?? 0;
   const rating = report.score?.rating || 'Unknown';
-  const isReleaseReady = rating === 'Good' && fail === 0 && error === 0 && realBlockerCount === 0 && manualVerificationNeeded.length === 0;
+  const isReleaseReady = report.releaseReady === true && fail === 0 && error === 0 && realBlockerCount === 0;
 
   return (
     <section

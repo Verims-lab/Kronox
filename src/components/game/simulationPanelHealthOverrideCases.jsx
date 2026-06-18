@@ -73,8 +73,15 @@ import gameSource from '../../pages/Game.jsx?raw';
 import guestProfileSource from '../../lib/guestProfile.js?raw';
 import createGuestProfileSource from '../../../base44/functions/createGuestProfile/entry.ts?raw';
 
-const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
-const ACTION_TYPES = { CODE_FIX: 'CODE_FIX', HUMAN_VISUAL_REVIEW: 'HUMAN_VISUAL_REVIEW' };
+const STATUS = { PASS: 'PASS', FAIL: 'FAIL', NOT_AUTOMATABLE: 'NOT_AUTOMATABLE' };
+const ACTION_TYPES = {
+  CODE_FIX: 'CODE_FIX',
+  DEVICE_TEST: 'DEVICE_TEST',
+  TWO_ACCOUNT_TEST: 'TWO_ACCOUNT_TEST',
+  HUMAN_VISUAL_REVIEW: 'HUMAN_VISUAL_REVIEW',
+  CI_ENVIRONMENT: 'CI_ENVIRONMENT',
+  BACKEND_RUNTIME_PROBE: 'BACKEND_RUNTIME_PROBE',
+};
 
 function safeStr(src) {
   if (src == null) return '';
@@ -84,6 +91,7 @@ function safeStr(src) {
 
 function pass(reason, extra) { return { status: STATUS.PASS, reason, ...(extra || {}) }; }
 function fail(reason, extra) { return { status: STATUS.FAIL, reason, ...(extra || {}) }; }
+function notAutomatable(reason, extra) { return { status: STATUS.NOT_AUTOMATABLE, reason, ...(extra || {}) }; }
 
 function makeCase(suiteId, suiteName, id, name, run, options = {}) {
   return {
@@ -209,6 +217,29 @@ export const OVERRIDDEN_CASE_KEYS = new Set([
   // `/onboarding` guided first Solo level.
   'tutorial_profile_health.tutorial_status_is_profile_field',
   'tutorial_profile_health.tutorial_completion_updates_profile',
+
+  // Codex402 — Manual-only warnings are not Warning JSON items. These
+  // replacement cases keep the same suite/id visibility but report the
+  // correct status: NOT_AUTOMATABLE / MANUAL_REQUIRED.
+  'mobile_gesture_risk.scroll_restoration_back_nav_risk',
+  'mobile_gesture_risk.fat_finger_tap_zone_risk',
+  'mobile_gesture_risk.safe_area_collision_bottom_cta',
+  'mobile_gesture_risk.virtual_keyboard_crush_social_inputs',
+  'mobile_gesture_risk.orientation_surprise_landscape',
+  'mobile_gesture_risk.ios_rubber_band_scroll_static_limit',
+  'live_dom_geometry.static_cannot_prove_bounding_rects',
+  'social_rls_two_account_risk.horizontal_privilege_classified',
+  'social_rls_two_account_risk.stale_invite_acceptance_risk',
+  'social_rls_two_account_risk.double_click_duplicate_invite_risk',
+  'social_rls_two_account_risk.service_role_blast_radius_risk',
+  'game_invite_push_notifications.vapid_and_device_runtime_gate_visible',
+  'visual_composition_regression.double_header_smell_detector',
+  'visual_composition_regression.css_redraw_vs_approved_asset_warning',
+  'route_navigation_resilience.direct_url_runtime_not_proven',
+  'sre_release_health_signals.health_dashboard_is_not_observability',
+  'kronox_game_feel.cta_text_overflow_static_heuristic',
+  'random_matchmaking_health.runtime_random_matchmaking_not_detected',
+  'online_question_mode_health.runtime_four_player_online_start_manual_proof',
 ]);
 
 // No new suite ids — we reuse the existing suite ids defined in the base
@@ -216,7 +247,204 @@ export const OVERRIDDEN_CASE_KEYS = new Set([
 // stay identical.
 export const EXTRA_SUITES = [];
 
+const MANUAL_WARNING_RECLASSIFICATIONS = [
+  {
+    suiteId: 'mobile_gesture_risk',
+    suiteName: 'Mobile Gesture Risk Suite',
+    id: 'scroll_restoration_back_nav_risk',
+    name: 'Scroll restoration/back navigation risk is documented',
+    reason: 'Route transitions and browser history need runtime checks because static source cannot prove scroll restoration behavior.',
+    actionType: ACTION_TYPES.DEVICE_TEST,
+    labels: ['EXTERNAL_DEVICE_REQUIRED'],
+  },
+  {
+    suiteId: 'mobile_gesture_risk',
+    suiteName: 'Mobile Gesture Risk Suite',
+    id: 'fat_finger_tap_zone_risk',
+    name: 'Fat-finger tap-zone risk warning for small controls',
+    reason: 'Real tap comfort requires viewport measurement on target devices.',
+    actionType: ACTION_TYPES.DEVICE_TEST,
+    labels: ['EXTERNAL_DEVICE_REQUIRED'],
+  },
+  {
+    suiteId: 'mobile_gesture_risk',
+    suiteName: 'Mobile Gesture Risk Suite',
+    id: 'safe_area_collision_bottom_cta',
+    name: 'Safe-area collision warning for bottom CTAs',
+    reason: 'Only device screenshots can prove no home-indicator collision.',
+    actionType: ACTION_TYPES.DEVICE_TEST,
+    labels: ['EXTERNAL_DEVICE_REQUIRED'],
+  },
+  {
+    suiteId: 'mobile_gesture_risk',
+    suiteName: 'Mobile Gesture Risk Suite',
+    id: 'virtual_keyboard_crush_social_inputs',
+    name: 'Virtual keyboard crush warning for Friends/AddFriend/Profile input flows',
+    reason: 'Email and lobby-code inputs need real virtual-keyboard checks at 320px width.',
+    actionType: ACTION_TYPES.DEVICE_TEST,
+    labels: ['EXTERNAL_DEVICE_REQUIRED'],
+  },
+  {
+    suiteId: 'mobile_gesture_risk',
+    suiteName: 'Mobile Gesture Risk Suite',
+    id: 'orientation_surprise_landscape',
+    name: 'Orientation surprise warning if landscape behavior is undefined',
+    reason: 'Kronox is portrait-first; landscape is a manual device proof item.',
+    actionType: ACTION_TYPES.DEVICE_TEST,
+    labels: ['EXTERNAL_DEVICE_REQUIRED'],
+  },
+  {
+    suiteId: 'mobile_gesture_risk',
+    suiteName: 'Mobile Gesture Risk Suite',
+    id: 'ios_rubber_band_scroll_static_limit',
+    name: 'iOS/WebView rubber-band scroll risk remains visible when only static proof exists',
+    reason: 'CSS overscroll intent is static. iOS/WebView rubber-band behavior must be verified on device.',
+    actionType: ACTION_TYPES.DEVICE_TEST,
+    labels: ['EXTERNAL_DEVICE_REQUIRED'],
+  },
+  {
+    suiteId: 'live_dom_geometry',
+    suiteName: 'Live DOM Geometry / Timeline Suite',
+    id: 'static_cannot_prove_bounding_rects',
+    name: 'Static cannot prove actual bounding rects',
+    reason: 'Bounding boxes are runtime DOM geometry. A source contract cannot prove non-zero rendered widths.',
+    actionType: ACTION_TYPES.DEVICE_TEST,
+    labels: ['EXTERNAL_DEVICE_REQUIRED'],
+  },
+  {
+    suiteId: 'social_rls_two_account_risk',
+    suiteName: 'Social / RLS Two-Account Risk Suite',
+    id: 'horizontal_privilege_classified',
+    name: 'Horizontal privilege risk is classified for cross-user social rows',
+    reason: 'FriendRequest, Friendship, and GameInvite rows require two-account release probes.',
+    actionType: ACTION_TYPES.TWO_ACCOUNT_TEST,
+    labels: ['TWO_ACCOUNT_REQUIRED'],
+  },
+  {
+    suiteId: 'social_rls_two_account_risk',
+    suiteName: 'Social / RLS Two-Account Risk Suite',
+    id: 'stale_invite_acceptance_risk',
+    name: 'Stale invite acceptance risk if lobby is no longer waiting',
+    reason: 'Static expiry contracts exist, but live race behavior needs backend runtime proof.',
+    actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE,
+    labels: ['TWO_ACCOUNT_REQUIRED', 'BACKEND_RUNTIME_PROBE'],
+  },
+  {
+    suiteId: 'social_rls_two_account_risk',
+    suiteName: 'Social / RLS Two-Account Risk Suite',
+    id: 'double_click_duplicate_invite_risk',
+    name: 'Double-click duplicate invite risk if DB-level uniqueness is not proven',
+    reason: 'Client dedupe is not DB-level uniqueness under concurrent taps; prove with backend/two-account runtime checks.',
+    actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE,
+    labels: ['TWO_ACCOUNT_REQUIRED', 'BACKEND_RUNTIME_PROBE'],
+  },
+  {
+    suiteId: 'social_rls_two_account_risk',
+    suiteName: 'Social / RLS Two-Account Risk Suite',
+    id: 'service_role_blast_radius_risk',
+    name: 'Service-role blast-radius risk for functions using asServiceRole',
+    reason: 'Service-role functions must stay scoped and runtime-probed because RLS does not protect inside those writes.',
+    actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE,
+    labels: ['TWO_ACCOUNT_REQUIRED', 'BACKEND_RUNTIME_PROBE'],
+  },
+  {
+    suiteId: 'game_invite_push_notifications',
+    suiteName: 'Game Invite Push Notification Readiness Suite',
+    id: 'vapid_and_device_runtime_gate_visible',
+    name: 'VAPID/device support gate is visible and does not masquerade as push delivery proof',
+    reason: 'Push delivery requires backend VAPID config and a subscribed device; static readiness is manual proof, not a warning.',
+    actionType: ACTION_TYPES.DEVICE_TEST,
+    labels: ['EXTERNAL_DEVICE_REQUIRED', 'BACKEND_RUNTIME_PROBE'],
+    critical: false,
+  },
+  {
+    suiteId: 'visual_composition_regression',
+    suiteName: 'Visual Composition Regression Suite',
+    id: 'double_header_smell_detector',
+    name: 'Double header smell detector for repeated exact title strings in nested components',
+    reason: 'Screenshots are required to catch image-rendered duplicates.',
+    actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW,
+    labels: ['HUMAN_VISUAL_REVIEW'],
+    critical: false,
+  },
+  {
+    suiteId: 'visual_composition_regression',
+    suiteName: 'Visual Composition Regression Suite',
+    id: 'css_redraw_vs_approved_asset_warning',
+    name: 'CSS redraw vs approved asset warning for key image buttons',
+    reason: 'Human visual review must confirm no CSS-only redraw replaced approved art.',
+    actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW,
+    labels: ['HUMAN_VISUAL_REVIEW'],
+    critical: false,
+  },
+  {
+    suiteId: 'route_navigation_resilience',
+    suiteName: 'Route / Navigation Resilience Suite',
+    id: 'direct_url_runtime_not_proven',
+    name: 'Direct URL access does not crash important routes',
+    reason: 'Direct URL hydration and auth transitions require browser runtime checks.',
+    actionType: ACTION_TYPES.CI_ENVIRONMENT,
+    labels: ['CI_ENVIRONMENT'],
+  },
+  {
+    suiteId: 'sre_release_health_signals',
+    suiteName: 'SRE-Style Release Health Signals Suite',
+    id: 'health_dashboard_is_not_observability',
+    name: 'Health report is release-risk intelligence, not production observability',
+    reason: 'Production latency/error/saturation need deployed telemetry.',
+    actionType: ACTION_TYPES.CI_ENVIRONMENT,
+    labels: ['CI_ENVIRONMENT'],
+    critical: false,
+  },
+  {
+    suiteId: 'kronox_game_feel',
+    suiteName: 'Creative Kronox Game-Feel Suite',
+    id: 'cta_text_overflow_static_heuristic',
+    name: 'CTA text does not overflow detected design bounds by static heuristics if possible',
+    reason: 'Localized Turkish CTA text must be verified in phone screenshots.',
+    actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW,
+    labels: ['HUMAN_VISUAL_REVIEW'],
+    critical: false,
+  },
+  {
+    suiteId: 'random_matchmaking_health',
+    suiteName: 'Random Matchmaking Health Suite',
+    id: 'runtime_random_matchmaking_not_detected',
+    name: 'Runtime random matchmaking flow is not detected in current Online code',
+    reason: 'Current Online flow is friend-invite/create/join-code based; a true random queue is product backlog/manual proof, not an active warning.',
+    actionType: ACTION_TYPES.CODE_FIX,
+    labels: ['PRODUCT_BACKLOG'],
+    critical: false,
+  },
+  {
+    suiteId: 'online_question_mode_health',
+    suiteName: 'Online Question Mode Health Suite',
+    id: 'runtime_four_player_online_start_manual_proof',
+    name: 'Four-player Online start still needs live multi-account proof',
+    reason: 'Static checks verify deck contracts; realtime delivery and device timing require live multi-account proof.',
+    actionType: ACTION_TYPES.TWO_ACCOUNT_TEST,
+    labels: ['TWO_ACCOUNT_REQUIRED'],
+  },
+];
+
+function manualRequiredReplacementCase(config) {
+  return makeCase(config.suiteId, config.suiteName, config.id, config.name, () => notAutomatable(config.reason, {
+    verification: 'NOT_AUTOMATABLE',
+    classification: 'MANUAL_REQUIRED',
+    verificationLabels: Array.from(new Set(['NOT_AUTOMATABLE', 'MANUAL_REQUIRED', ...(config.labels || [])])),
+    actionType: config.actionType,
+    expected: 'manual/runtime proof before release claim',
+    actual: 'static Health cannot prove this runtime behavior',
+    nextStep: config.nextStep || 'Attach the required manual/runtime proof, then rerun the affected Health suite.',
+  }), {
+    critical: config.critical,
+    actionType: config.actionType,
+  });
+}
+
 export const EXTRA_TESTS = [
+  ...MANUAL_WARNING_RECLASSIFICATIONS.map(manualRequiredReplacementCase),
+
   sourceHasReplacement(
     'tutorial_profile_health', 'Tutorial/Profile Suite',
     'tutorial_status_is_profile_field',

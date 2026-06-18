@@ -27,7 +27,6 @@ import {
 
 const STATUS = {
   PASS: 'PASS',
-  WARNING: 'WARNING',
   NOT_AUTOMATABLE: 'NOT_AUTOMATABLE',
   FAIL: 'FAIL',
 };
@@ -61,7 +60,6 @@ function makeCase(suiteId, id, name, run, options = {}) {
 
 function pass(reason, extra) { return { status: STATUS.PASS, reason, ...(extra || {}) }; }
 function fail(reason, extra) { return { status: STATUS.FAIL, reason, ...(extra || {}) }; }
-function warning(reason, extra) { return { status: STATUS.WARNING, reason, ...(extra || {}) }; }
 function notAutomatable(reason, extra) {
   return { status: STATUS.NOT_AUTOMATABLE, reason, ...(extra || {}) };
 }
@@ -509,9 +507,9 @@ export const EXTRA_TESTS = [
 
   makeCase('cleanup_retention_health', 'service_role_functions_scoped',
     'Service-role functions remain scoped to authenticated sender/recipient/host contracts',
-    () => warning('Static schema/function contracts look scoped, but service-role enforcement still requires backend probes with multiple accounts.', {
-      verification: 'STATIC_CHECK_LIMITATION',
-      verificationLabels: ['BACKEND_RUNTIME_PROBE', 'TWO_ACCOUNT_REQUIRED'],
+    () => notAutomatable('Static schema/function contracts look scoped, but service-role enforcement still requires backend probes with multiple accounts.', {
+      verification: 'NOT_AUTOMATABLE',
+      verificationLabels: ['NOT_AUTOMATABLE', 'MANUAL_REQUIRED', 'BACKEND_RUNTIME_PROBE', 'TWO_ACCOUNT_REQUIRED'],
       actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE,
       actual: {
         friendRequest: friendRequestEntitySource.includes('data.to_email'),
@@ -522,9 +520,9 @@ export const EXTRA_TESTS = [
 
   makeCase('cleanup_retention_health', 'lifecycle_transitions_function_mediated',
     'Critical lifecycle transitions prefer functions/helpers over direct UI mutation',
-    () => warning('FriendRequest/GameInvite still have some direct client update paths for rejection/cancel/expire. Current UX depends on them; full function mediation is a Phase 2/3 hardening item.', {
-      verification: 'STATIC_CHECK_LIMITATION',
-      verificationLabels: ['MANUAL_REQUIRED'],
+    () => notAutomatable('FriendRequest/GameInvite still have some direct client update paths for rejection/cancel/expire. Current UX depends on them; full function mediation remains a Phase 2/3 hardening item, not Warning JSON noise.', {
+      verification: 'NOT_AUTOMATABLE',
+      verificationLabels: ['NOT_AUTOMATABLE', 'MANUAL_REQUIRED'],
       actionType: ACTION_TYPES.CODE_FIX,
     }), { critical: false }),
 
