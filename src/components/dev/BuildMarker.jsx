@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex406 — Heavy blur/glow static-risk reduction:
+//   • Removes one decorative guided-drag drop shadow and one timeline-swipe rail
+//     glow from gameplay/tutorial surfaces.
+//   • Drops the Health heavy blur/glow static token count from 27 to 24 without
+//     changing the warning threshold or manual Android proof gate.
+
 // Codex405 — P0 guest onboarding completion recovery:
 //   • Category setup CTA is exactly "Ana Sayfa" and successful save routes
 //     directly home instead of staying on the onboarding shell.
@@ -2295,7 +2301,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex405';
+const BUILD_MARKER = 'Codex406';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

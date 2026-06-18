@@ -33,6 +33,8 @@ checks that source code and static Health cannot honestly prove alone.
   low-end Android device or emulator, open Health Center, guided tutorial, and
   gameplay states that use the strongest blur/glow overlays and confirm scroll
   plus animation smoothness.
+* Gameplay/tutorial source should stay within the Health static heavy
+  blur/glow token cap so low-end Android proof starts from a lighter baseline.
 * Online gameplay loading must wait on Lobby shared deck readiness
   (`online_question_deck` + `current_question_id`), not on the Solo
   `getQuestions`/cache path. A missing Online deck should show retry/back-to-lobby

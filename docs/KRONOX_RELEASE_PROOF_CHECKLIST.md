@@ -58,6 +58,8 @@ Checklist:
 * Heavy blur/glow Health output is split: `heavy_blur_glow_scan` may warn on
   static source-token count only, while low-end Android smoothness proof remains
   a `NOT_AUTOMATABLE` manual device gate.
+* Keep gameplay/tutorial heavy blur/glow source tokens at or under the static
+  Health cap; reducing the static count does not replace low-end Android proof.
 
 ---
 
