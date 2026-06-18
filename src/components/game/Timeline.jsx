@@ -23,7 +23,7 @@ function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, isG
     : isActive
       ? '#facc15'
       : showGuidedTarget
-        ? 'rgba(250,204,21,0.88)'
+        ? 'rgba(250,204,21,0.98)'
       : showBeginnerHint
         ? 'rgba(125,211,252,0.78)'
         : isMagnetic
@@ -34,7 +34,7 @@ function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, isG
     : isActive
       ? 'rgba(250,204,21,0.14)'
       : showGuidedTarget
-        ? 'rgba(250,204,21,0.10)'
+        ? 'rgba(250,204,21,0.16)'
       : showBeginnerHint
         ? 'rgba(56,189,248,0.08)'
         : isMagnetic
@@ -77,7 +77,7 @@ function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, isG
           boxShadow: isActive
             ? `0 0 24px rgba(250,204,21,0.5), inset 0 0 16px rgba(250,204,21,0.08)`
             : showGuidedTarget
-              ? `0 0 20px rgba(250,204,21,0.42), inset 0 0 16px rgba(250,204,21,0.10)`
+              ? `0 0 30px rgba(250,204,21,0.66), 0 0 54px rgba(250,204,21,0.28), inset 0 0 18px rgba(250,204,21,0.16)`
             : showBeginnerHint
               ? `0 0 16px rgba(56,189,248,0.34), inset 0 0 14px rgba(56,189,248,0.08)`
             : isMagnetic
@@ -109,14 +109,14 @@ function DropZone({ index, isActive, isDragMode, isMagnetic, isBeginnerHint, isG
               data-kronox-guided-correct-target-slot="true"
               className="pointer-events-none rounded-2xl"
               initial={{ opacity: 0, scale: 0.86 }}
-              animate={{ opacity: [0.22, 0.58, 0.22], scale: [0.92, 1.14, 0.92] }}
+              animate={{ opacity: [0.32, 0.88, 0.32], scale: [0.9, 1.2, 0.9] }}
               exit={{ opacity: 0, scale: 0.9 }}
               transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
               style={{
                 position: 'absolute',
                 inset: '-5px',
-                border: '1px solid rgba(250,204,21,0.55)',
-                boxShadow: '0 0 20px rgba(250,204,21,0.32)',
+                border: '1px solid rgba(250,204,21,0.76)',
+                boxShadow: '0 0 28px rgba(250,204,21,0.52)',
               }}
             />
           )}
@@ -167,6 +167,7 @@ export default function Timeline({
   placementFeedback = null,
   beginnerPlacementHintZone = null,
   guidedTargetZone = null,
+  guidedScrollHintActive = false,
   correctStreak = 0,
   soloYearOnlyCards = false,
 }) {
@@ -228,6 +229,33 @@ export default function Timeline({
     updateCardDistances();
     return () => el.removeEventListener('scroll', updateCardDistances);
   }, [updateCardDistances, groupedCards.length]);
+
+  useEffect(() => {
+    if (!guidedScrollHintActive || isDragMode || reducedMotion) return undefined;
+    const scroller = scrollRef.current;
+    if (!scroller) return undefined;
+
+    const maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+    if (maxScroll < 6) return undefined;
+
+    const originalScroll = Math.max(0, Math.min(maxScroll, scroller.scrollLeft));
+    const amplitude = Math.max(12, Math.min(76, maxScroll / 2.5));
+    const center = Math.max(amplitude, Math.min(maxScroll - amplitude, originalScroll + amplitude));
+    const startTime = performance.now();
+    let frameId = 0;
+
+    const loop = (now) => {
+      const progress = ((now - startTime) % 2400) / 2400;
+      const wave = Math.sin((progress - 0.25) * Math.PI * 2);
+      scroller.scrollLeft = Math.max(0, Math.min(maxScroll, center + wave * amplitude));
+      frameId = requestAnimationFrame(loop);
+    };
+
+    frameId = requestAnimationFrame(loop);
+    return () => {
+      if (frameId) cancelAnimationFrame(frameId);
+    };
+  }, [guidedScrollHintActive, groupedCards.length, isDragMode, reducedMotion]);
 
   // Expose scroll ref to parent (for ghost card offset)
   useEffect(() => {

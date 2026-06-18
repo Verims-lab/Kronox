@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex401 — Guided tutorial Phase 1 visual/text refresh:
+//   • Updates the welcome screen, timer popup, first drag lesson, and
+//     timeline-scroll lesson copy to the requested onboarding wording.
+//   • Replaces the weak guided hand icon with a tutorial-only illustrated
+//     pointer and adds timeline-only swipe motion for the second lesson.
+//   • Keeps scoring, Online, Daily systems, Market, Admin, and analytics
+//     behavior untouched.
+
 // Codex399 — Lazy route syntax recovery:
 //   • Treats lazy chunk `SyntaxError: Invalid or unexpected token` as a
 //     recoverable stale/corrupt route-chunk evaluation signature.
@@ -2259,7 +2267,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex400';
+const BUILD_MARKER = 'Codex401';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
