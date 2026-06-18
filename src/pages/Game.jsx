@@ -114,6 +114,8 @@ import { getOnlinePlayerElapsedSeconds } from '@/lib/onlinePlayerElapsed';
 
 const GAMEPLAY_DRAG_LOCK_CLASS = 'kronox-game-drag-lock';
 const GUIDED_TUTORIAL_TIME_LIMIT_SECONDS = SOLO_LEVEL_TIME_SECONDS;
+const GUIDED_TIMELINE_SWIPE_HINT_MIN_MS = 3000;
+const GUIDED_TIMELINE_SWIPE_HINT_MAX_MS = 10000;
 const GUIDED_TUTORIAL_JOKER_TYPE = SOLO_UI_JOKER_TYPES.TIME_FREEZE;
 const GUIDED_TUTORIAL_JOKER_SEQUENCE = Object.freeze({
   3: GUIDED_TUTORIAL_JOKER_TYPE,
@@ -484,6 +486,8 @@ export default function Game() {
   const [guidedTutorialPopup, setGuidedTutorialPopup] = useState(null);
   const [guidedTutorialTimerIntroShown, setGuidedTutorialTimerIntroShown] = useState(false);
   const [guidedTutorialMistakePopupShown, setGuidedTutorialMistakePopupShown] = useState(false);
+  const [isTimelineSwipeHintActive, setIsTimelineSwipeHintActive] = useState(false);
+  const [hasTimelineSwipeHintMinimumElapsed, setHasTimelineSwipeHintMinimumElapsed] = useState(false);
   const [jokerBalances, setJokerBalances] = useState(() => emptyJokerBalances());
   const [jokerInventoryLoading, setJokerInventoryLoading] = useState(false);
   const [jokerSpendPendingType, setJokerSpendPendingType] = useState(null);
@@ -499,6 +503,12 @@ export default function Game() {
   const timerFreezeTimeoutRef = useRef(null);
   const timerFreezeIntervalRef = useRef(null);
   const guidedTutorialPauseElapsedAtStartRef = useRef(null);
+  const timelineSwipeHintStartedAtRef = useRef(null);
+  const timelineSwipeHintMinimumTimerRef = useRef(null);
+  const timelineSwipeHintAutoStopTimerRef = useRef(null);
+  const timelineSwipeHintActiveRef = useRef(false);
+  const timelineSwipeHintMinimumElapsedRef = useRef(false);
+  const timelineSwipeHintPendingInteractionRef = useRef(false);
   const jokerUsedRef = useRef(false);
   const jokerSpendPendingRef = useRef(false);
   const soloJokerDecisionKeyByQuestionIdRef = useRef(new Map());
@@ -905,6 +915,39 @@ export default function Game() {
     jokerUsedRef.current = Boolean(usedJokerType);
   }, [usedJokerType]);
 
+  const clearTimelineSwipeHintTimers = useCallback(() => {
+    if (timelineSwipeHintMinimumTimerRef.current) {
+      window.clearTimeout(timelineSwipeHintMinimumTimerRef.current);
+      timelineSwipeHintMinimumTimerRef.current = null;
+    }
+    if (timelineSwipeHintAutoStopTimerRef.current) {
+      window.clearTimeout(timelineSwipeHintAutoStopTimerRef.current);
+      timelineSwipeHintAutoStopTimerRef.current = null;
+    }
+  }, []);
+
+  const stopTimelineSwipeHint = useCallback((reason = 'manual_stop', updateState = true) => {
+    clearTimelineSwipeHintTimers();
+    timelineSwipeHintStartedAtRef.current = null;
+    timelineSwipeHintActiveRef.current = false;
+    timelineSwipeHintMinimumElapsedRef.current = false;
+    timelineSwipeHintPendingInteractionRef.current = false;
+    if (updateState) {
+      setIsTimelineSwipeHintActive(false);
+      setHasTimelineSwipeHintMinimumElapsed(false);
+    }
+    debugLog('[Game] guided timeline swipe hint stopped', { reason });
+  }, [clearTimelineSwipeHintTimers]);
+
+  const handleTimelineSwipeHintInteraction = useCallback((reason = 'user_interaction') => {
+    if (!timelineSwipeHintActiveRef.current) return;
+    if (timelineSwipeHintMinimumElapsedRef.current) {
+      stopTimelineSwipeHint(reason);
+      return;
+    }
+    timelineSwipeHintPendingInteractionRef.current = true;
+  }, [stopTimelineSwipeHint]);
+
   const clearSoloTimerFreeze = useCallback((applyElapsed = false, updateState = true) => {
     if (timerFreezeTimeoutRef.current) {
       window.clearTimeout(timerFreezeTimeoutRef.current);
@@ -975,7 +1018,8 @@ export default function Game() {
     setFrozenElapsedOffset(0);
     setGuidedTutorialPauseOffset(0);
     guidedTutorialPauseElapsedAtStartRef.current = null;
-  }, [clearSoloTimerFreeze]);
+    stopTimelineSwipeHint('solo_joker_reset');
+  }, [clearSoloTimerFreeze, stopTimelineSwipeHint]);
 
   const closeGuidedTutorialPopup = useCallback(() => {
     const pausedAt = Number(guidedTutorialPauseElapsedAtStartRef.current);
@@ -986,6 +1030,54 @@ export default function Game() {
     guidedTutorialPauseElapsedAtStartRef.current = null;
     setGuidedTutorialPopup(null);
   }, [overallSeconds, overallSecondsRef]);
+
+  useEffect(() => {
+    const shouldRunTimelineSwipeHint = Boolean(
+      isGuidedSoloTutorial &&
+      guidedTutorialStepMode === 'timeline-scroll' &&
+      currentQuestion &&
+      !winner &&
+      !soloLevelResult
+    );
+
+    if (!shouldRunTimelineSwipeHint) {
+      stopTimelineSwipeHint('tutorial_step_exit');
+      return undefined;
+    }
+
+    clearTimelineSwipeHintTimers();
+    timelineSwipeHintStartedAtRef.current = Date.now();
+    timelineSwipeHintActiveRef.current = true;
+    timelineSwipeHintMinimumElapsedRef.current = false;
+    timelineSwipeHintPendingInteractionRef.current = false;
+    setIsTimelineSwipeHintActive(true);
+    setHasTimelineSwipeHintMinimumElapsed(false);
+
+    timelineSwipeHintMinimumTimerRef.current = window.setTimeout(() => {
+      timelineSwipeHintMinimumTimerRef.current = null;
+      timelineSwipeHintMinimumElapsedRef.current = true;
+      setHasTimelineSwipeHintMinimumElapsed(true);
+      if (timelineSwipeHintPendingInteractionRef.current) {
+        stopTimelineSwipeHint('pending_interaction_after_minimum');
+      }
+    }, GUIDED_TIMELINE_SWIPE_HINT_MIN_MS);
+
+    timelineSwipeHintAutoStopTimerRef.current = window.setTimeout(() => {
+      stopTimelineSwipeHint('auto_stop_10s');
+    }, GUIDED_TIMELINE_SWIPE_HINT_MAX_MS);
+
+    return () => {
+      stopTimelineSwipeHint('timeline_swipe_hint_cleanup', false);
+    };
+  }, [
+    clearTimelineSwipeHintTimers,
+    currentQuestion?.id,
+    guidedTutorialStepMode,
+    isGuidedSoloTutorial,
+    soloLevelResult,
+    stopTimelineSwipeHint,
+    winner,
+  ]);
 
   // Codex166/Codex180 — Solo mode: the attempt deck IS the question pool.
   // Gameplay (pickQuestion in useGameActions) walks this prebuilt source-of-truth,
@@ -1741,19 +1833,21 @@ export default function Game() {
     skipCurrentQuestion(currentQuestion?.id);
   }, [currentQuestion?.id, isMyTurn, skipCurrentQuestion]);
   const handleGameplayCardDragStart = useCallback(() => {
+    handleTimelineSwipeHintInteraction('question_card_drag_start');
     engageGameplayDragLock();
     setIsDragging(true);
-  }, [engageGameplayDragLock, setIsDragging]);
+  }, [engageGameplayDragLock, handleTimelineSwipeHintInteraction, setIsDragging]);
   const handleGameplayCardDragEnd = useCallback(() => {
     releaseGameplayDragLock();
     setIsDragging(false);
     setTouchDragPos(null);
   }, [releaseGameplayDragLock, setIsDragging, setTouchDragPos]);
   const handleGameplayCardTouchMove = useCallback((x, y) => {
+    handleTimelineSwipeHintInteraction('question_card_touch_drag');
     engageGameplayDragLock();
     setIsDragging(true);
     setTouchDragPos({ x, y });
-  }, [engageGameplayDragLock, setIsDragging, setTouchDragPos]);
+  }, [engageGameplayDragLock, handleTimelineSwipeHintInteraction, setIsDragging, setTouchDragPos]);
   const handleGameplayCardTouchEnd = useCallback((x, y) => {
     releaseGameplayDragLock();
     setIsDragging(false);
@@ -2857,6 +2951,7 @@ export default function Game() {
   const guidedTimelineScrollHintActive = Boolean(
     isGuidedSoloTutorial &&
     guidedTutorialStepMode === 'timeline-scroll' &&
+    isTimelineSwipeHintActive &&
     !guidedTutorialPopup &&
     !guidedTutorialJokerDemoWaiting &&
     selectedZone === null &&
@@ -2959,6 +3054,8 @@ export default function Game() {
         guidedDragHintActive={guidedDragHintActive}
         guidedDragTargetZone={guidedTutorialCorrectTargetZone}
         guidedTimelineScrollHintActive={guidedTimelineScrollHintActive}
+        guidedTimelineSwipeHintMinimumElapsed={hasTimelineSwipeHintMinimumElapsed}
+        onTimelineSwipeHintInteraction={handleTimelineSwipeHintInteraction}
         interactionPaused={Boolean(guidedTutorialPopup)}
         correctStreak={isSoloLevelMode ? soloCorrectStreak : 0}
       />

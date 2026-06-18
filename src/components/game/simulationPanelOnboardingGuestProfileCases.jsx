@@ -23,6 +23,7 @@ import onboardingPageSource from '../../pages/OnboardingPage.jsx?raw';
 import gameLayoutSource from './GameLayout.jsx?raw';
 import soloJokerBarSource from './SoloJokerBar.jsx?raw';
 import timelineSource from './Timeline.jsx?raw';
+import mainMenuSource from '../../pages/MainMenu.jsx?raw';
 import profilePageSource from '../../pages/ProfilePage.jsx?raw';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
 import playerSetupSource from '../../pages/PlayerSetup.jsx?raw';
@@ -311,11 +312,11 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('apple_google_email_login_preserved',
-    'Existing Apple, Google, and email login entry points remain visible',
+    'Existing Apple, Google, and email login entry points remain wired',
     () => {
       const missing = missingTokens(authProviderButtonsSource, [
-        'Apple ile Giriş Yap',
-        'Google ile Giriş Yap',
+        'Apple ile devam et',
+        'Google ile devam et',
         'E-posta ile devam et',
         "startProviderLogin('apple')",
         "startProviderLogin('google')",
@@ -428,28 +429,60 @@ export const EXTRA_TESTS = [
       });
     }),
 
-  makeCase('guest_continue_and_secure_progress_cta_exist',
-    'Login CTA secures progress without blocking guest play',
+  makeCase('profile_only_guest_account_link_cta',
+    'Guest account linking CTA is Profile-only and does not block guest play',
     () => {
-      const missing = missingTokens(`${onboardingPageSource}\n${profilePageSource}\n${authProviderButtonsSource}`, [
-        'İlerlemeni Güvenceye Al',
+      const profileMissing = missingTokens(`${profilePageSource}\n${authProviderButtonsSource}`, [
+        '{!loading && !user && (',
         'Misafir olarak oynuyorsun',
-        'Şimdilik misafir devam et',
+        'İlerlemeni kaybetmemek için hesabını bağla',
         'prepareGuestAccountLink',
         'AuthProviderButtons',
-        'Apple ile Giriş Yap',
-        'Google ile Giriş Yap',
+        'fromUrl="/profile"',
+        'Apple ile devam et',
+        'Google ile devam et',
         'E-posta ile devam et',
       ]);
-      if (missing.length) {
-        return fail('Secure-progress CTA or guest continue path is missing from onboarding/profile.', {
+      const guestContinueMissing = missingTokens(`${authContextSource}\n${onboardingPageSource}\n${mainMenuSource}`, [
+        'ensureGuestProfile',
+        "navigate('/', { replace: true })",
+        'SOLO MEYDAN OKUMA',
+      ]);
+      const forbiddenHome = presentTokens(mainMenuSource, [
+        "import AuthProviderButtons from '@/components/auth/AuthProviderButtons'",
+        '<AuthProviderButtons',
+        'Google ile Giriş Yap',
+        'Apple ile Giriş Yap',
+        'Google ile devam et',
+        'Apple ile devam et',
+        'E-posta ile devam et',
+        'İlerlemeni Güvenceye Al',
+        'Hesabını Bağla',
+        'Hesabını bağla',
+      ]);
+      const forbiddenNonProfile = presentTokens(`${onboardingPageSource}\n${playerSetupSource}`, [
+        "import AuthProviderButtons from '@/components/auth/AuthProviderButtons'",
+        '<AuthProviderButtons',
+        'prepareGuestAccountLink',
+        'function SecureProgressStep',
+        'İlerlemeni Güvenceye Al',
+      ]);
+      if (profileMissing.length || guestContinueMissing.length || forbiddenHome.length || forbiddenNonProfile.length) {
+        return fail('Guest account linking placement drifted from the Profile-only contract.', {
           verification: 'STATIC_CONTRACT',
-          files: ['src/pages/OnboardingPage.jsx', 'src/pages/ProfilePage.jsx', 'src/components/auth/AuthProviderButtons.jsx'],
-          actual: { missing },
+          files: [
+            'src/pages/MainMenu.jsx',
+            'src/pages/ProfilePage.jsx',
+            'src/pages/OnboardingPage.jsx',
+            'src/pages/PlayerSetup.jsx',
+            'src/components/auth/AuthProviderButtons.jsx',
+          ],
+          expected: 'Home/onboarding/deprecated setup have no provider buttons or secure-progress card; Profile guest card links with Apple, Google, and email while guest flow can continue to Home/Solo.',
+          actual: { profileMissing, guestContinueMissing, forbiddenHome, forbiddenNonProfile },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Login is presented as secure-progress account linking while guest continue remains available.', {
+      return pass('Guest account linking is Profile-only; Home stays playable without provider buttons, and Apple/Google/email remain together in Profile.', {
         verification: 'STATIC_CONTRACT',
         actionType: ACTION_TYPES.CODE_FIX,
       });
@@ -789,6 +822,48 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Guided first level points to correct slots, teaches all three jokers as tutorial-only demos, pauses popups, and avoids real UserJokerInventory spend.', {
+        verification: 'STATIC_CONTRACT',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('guided_timeline_swipe_hint_lifetime_guard',
+    'Guided question-2 timeline swipe hint has bounded lifetime and interaction stops',
+    () => {
+      const missing = missingTokens(`${gameSource}\n${gameLayoutSource}\n${timelineSource}`, [
+        'GUIDED_TIMELINE_SWIPE_HINT_MIN_MS = 3000',
+        'GUIDED_TIMELINE_SWIPE_HINT_MAX_MS = 10000',
+        'timelineSwipeHintMinimumTimerRef',
+        'timelineSwipeHintAutoStopTimerRef',
+        'timelineSwipeHintPendingInteractionRef',
+        'timelineSwipeHintStartedAtRef',
+        'handleTimelineSwipeHintInteraction',
+        "stopTimelineSwipeHint('auto_stop_10s')",
+        "stopTimelineSwipeHint('timeline_swipe_hint_cleanup', false)",
+        "guidedTutorialStepMode === 'timeline-scroll'",
+        'isTimelineSwipeHintActive',
+        'hasTimelineSwipeHintMinimumElapsed',
+        "handleTimelineSwipeHintInteraction('question_card_drag_start')",
+        "handleTimelineSwipeHintInteraction('question_card_touch_drag')",
+        'guidedTimelineSwipeHintMinimumElapsed',
+        'onTimelineSwipeHintInteraction',
+        'onGuidedScrollHintInteraction',
+        'onPointerDown',
+        'onTouchStart',
+        'onWheel',
+        'data-kronox-guided-timeline-swipe-hint',
+        'pointer-events-none absolute inset-0',
+      ]);
+      if (missing.length) {
+        return fail('Guided question-2 timeline swipe hint can run too long, stop too early, or block interaction.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['src/pages/Game.jsx', 'src/components/game/GameLayout.jsx', 'src/components/game/Timeline.jsx'],
+          expected: '3s minimum timer, 10s auto-stop, timeline/card interaction stop after minimum, timer cleanup, tutorial-only activation, and pointer-events:none visual layer.',
+          actual: { missing },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Guided question-2 timeline swipe hint is tutorial-only, runs at least 3s, auto-stops by 10s, stops on timeline/card interaction after the minimum, and cleans up timers.', {
         verification: 'STATIC_CONTRACT',
         actionType: ACTION_TYPES.CODE_FIX,
       });

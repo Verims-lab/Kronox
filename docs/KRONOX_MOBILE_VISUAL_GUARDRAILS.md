@@ -24,11 +24,17 @@ checks that source code and static Health cannot honestly prove alone.
   guided first level. The guidance overlay must not capture drag/drop touches,
   must fit small portrait screens, and must resume cleanly if the app closes
   during tutorial/profile/category setup.
+* Home / Ana Sayfa stays a clean play surface: no Google / Apple / email login
+  buttons and no `Hesabını bağla` / progress-protection account-link card.
+  Guest account linking belongs under Profile.
 * Solo gameplay shows the remaining move counter as `10 HAMLE`, `9 HAMLE`,
   etc.; result popups show `HAMLE` instead of `HATA`.
 * Manual mobile proof must confirm touch, slight drag, invalid drop, tutorial
   hand/finger animation, tutorial popups, and joker activation do not decrement
   the remaining move counter.
+* Guided tutorial question 2 timeline swipe hand must remain visual-only:
+  visible for at least 3 seconds, stopped by timeline/card interaction after
+  that minimum, and stopped automatically by 10 seconds if ignored.
 * Heavy blur/glow styling is release-gated by real performance proof: on a
   low-end Android device or emulator, open Health Center, guided tutorial, and
   gameplay states that use the strongest blur/glow overlays and confirm scroll

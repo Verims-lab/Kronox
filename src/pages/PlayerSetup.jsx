@@ -14,7 +14,6 @@ import { base44 } from '@/api/base44Client';
 import { motion } from 'framer-motion';
 import { sounds } from '@/lib/gameSounds';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
-import AuthProviderButtons from '@/components/auth/AuthProviderButtons';
 
 // Floating ambient orbs — pure atmosphere, no layout impact
 function AmbientOrbs() {
@@ -375,9 +374,7 @@ export default function PlayerSetup() {
                     Çıkış
                   </button>
                 </div>
-              ) : (
-                <AuthProviderButtons fromUrl="/" onBeforeStart={() => sounds.tap()} />
-              )}
+              ) : null}
             </div>
           </Section>
 
