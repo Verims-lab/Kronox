@@ -17,7 +17,6 @@ import getAdminStatusSource from '../../../base44/functions/getAdminStatus/entry
 import getAdminStatusConfigSource from '../../../base44/functions/getAdminStatus/function.jsonc?raw';
 import generateTechDocSource from '../../../base44/functions/generateTechDoc/entry.ts?raw';
 import generateWorkflowDocSource from '../../../base44/functions/generateWorkflowDoc/entry.ts?raw';
-import seedQuestionCategoriesSource from '../../../base44/functions/seedQuestionCategories/entry.ts?raw';
 import adminResetUserProgressSource from '../../../base44/functions/adminResetUserProgress/entry.ts?raw';
 import cleanupAdminMaintenanceLogSource from '../../../base44/functions/cleanupAdminMaintenanceLog/entry.ts?raw';
 import expireOldGameInvitesSource from '../../../base44/functions/expireOldGameInvites/entry.ts?raw';
@@ -143,7 +142,6 @@ function findEmailLiterals(src) {
 const TARGET_FUNCTIONS = [
   { name: 'generateTechDoc', file: 'base44/functions/generateTechDoc/entry.ts', source: generateTechDocSource },
   { name: 'generateWorkflowDoc', file: 'base44/functions/generateWorkflowDoc/entry.ts', source: generateWorkflowDocSource },
-  { name: 'seedQuestionCategories', file: 'base44/functions/seedQuestionCategories/entry.ts', source: seedQuestionCategoriesSource },
   { name: 'adminResetUserProgress', file: 'base44/functions/adminResetUserProgress/entry.ts', source: adminResetUserProgressSource },
   { name: 'cleanupAdminMaintenanceLog', file: 'base44/functions/cleanupAdminMaintenanceLog/entry.ts', source: cleanupAdminMaintenanceLogSource },
   { name: 'expireOldGameInvites', file: 'base44/functions/expireOldGameInvites/entry.ts', source: expireOldGameInvitesSource },
@@ -203,7 +201,7 @@ export const EXTRA_TESTS = [
         return fail('A hardcoded admin email literal is still present in a protected backend function.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
-          file: 'base44/functions/{generateTechDoc,generateWorkflowDoc,seedQuestionCategories}/entry.ts',
+          file: 'base44/functions/{generateTechDoc,generateWorkflowDoc}/entry.ts',
           expected: 'No quoted email literal in admin-only function source',
           actual: { offenderCount: offenders.reduce((sum, item) => sum + item.count, 0), offenderSummary },
           actionType: ACTION_TYPES.CODE_FIX,

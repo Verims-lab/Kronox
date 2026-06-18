@@ -221,6 +221,7 @@ export const EXTRA_TESTS = [
         'getCategoryMetadata is metadata-only',
         'current active Category rows',
         'stale hardcoded seed fallback',
+        'seedQuestionCategories is removed',
         'Visible UI must use **Puan** or **Kronox Puan**',
         'getQuestions-live-per-category-v7-Codex343',
         'sourcePoolCapRemoved',
@@ -798,12 +799,10 @@ export const EXTRA_TESTS = [
         'Adding a file here does not automatically make it part of the app',
         'Home screen is currently CSS/motion-driven',
         'not a pressed-image swap',
-        'Chronicle',
-        'Flashback',
-        'Kült',
-        'Viral',
-        'Arena',
-        'Level Up',
+        'Legacy Decorative Assets',
+        'not the active category source of truth',
+        'getCategoryMetadata',
+        'hardcoded runtime category list',
         'Current Kronox core gameplay does not require question images',
         'No current gameplay flow should depend on this folder',
       ]);
@@ -818,7 +817,7 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      return pass('Public asset docs distinguish runtime assets, canonical categories, and optional question media.', {
+      return pass('Public asset docs distinguish runtime assets, legacy decorative category images, and optional question media.', {
         verification: 'STATIC_CONTRACT',
       });
     },

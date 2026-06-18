@@ -246,8 +246,10 @@ P3 adds question analytics without changing question selection:
   It captures the fresh `getQuestions`-compatible per-category
   `Question.filter` query descriptor, active/Solo-eligible/difficulty-1 counts
   by category, cache key/version notes, actual frontend `buildSoloAttemptDeck`
-  dry-run output, and category 6/7/8/9/11 presence/removal reasons. It must not
-  write gameplay, progress, analytics, or economy rows.
+  dry-run output, and current active category presence/removal reasons. Focused
+  manual probes may supply `SOLO_DIAGNOSTIC_CATEGORY_IDS` or
+  `diagnosticCategoryIds`, but historical category IDs are not runtime policy.
+  It must not write gameplay, progress, analytics, or economy rows.
 - Codex334 diagnostic connectivity: `scripts/diagnoseSoloQuestionStartQuery.mjs`
   reports `missing_base44_app_config` when app URL/service credentials are not
   supplied and `token_app_mismatch_or_wrong_app_id` when Base44 returns

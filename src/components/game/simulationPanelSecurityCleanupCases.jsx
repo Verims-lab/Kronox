@@ -23,7 +23,6 @@ import privacyPolicySource from '../../pages/PrivacyPolicy.jsx?raw';
 import publicContactConfigSource from '../../lib/publicContactConfig.js?raw';
 import generateTechDocSource from '../../../base44/functions/generateTechDoc/entry.ts?raw';
 import generateWorkflowDocSource from '../../../base44/functions/generateWorkflowDoc/entry.ts?raw';
-import seedQuestionCategoriesSource from '../../../base44/functions/seedQuestionCategories/entry.ts?raw';
 import caseRegistrySource from './simulationPanelCaseRegistry.jsx?raw';
 import {
   SECURITY_DEPLOYMENT_DOC as securityDeploymentDocSource,
@@ -56,7 +55,6 @@ const LIVE_SOURCES = [
   publicContactConfigSource,
   generateTechDocSource,
   generateWorkflowDocSource,
-  seedQuestionCategoriesSource,
   caseRegistrySource,
 ].join('\n');
 
@@ -488,7 +486,6 @@ export const EXTRA_TESTS = [
       const backendSource = [
         generateTechDocSource,
         generateWorkflowDocSource,
-        seedQuestionCategoriesSource,
       ].join('\n');
       const missing = [
         ...missingTokens(backendSource, requiredBackend),

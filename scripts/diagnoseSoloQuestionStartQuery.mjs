@@ -8,7 +8,6 @@ const MAX_PREFERENCE_USERS = 10;
 const MAX_PREFERENCE_ROWS = 10000;
 const MAX_CATEGORY_ROWS = 1000;
 const QUERY_PER_CATEGORY_LIMIT = 1000;
-const TARGET_CATEGORY_IDS = Object.freeze([6, 7, 8, 9, 11]);
 const QUESTION_CACHE_KEY = 'kronox_questions_v10';
 const QUESTION_CACHE_VERSION = 'question-runtime-v10-solo-architecture';
 const CATEGORY_ACTIVE_STATUS_VALUES = new Set(['', 'a', 'active', 'aktif']);
@@ -266,6 +265,20 @@ function sortedUniqueCategoryIds(values = []) {
     .sort((a, b) => a - b);
 }
 
+function parseDiagnosticCategoryIds(value) {
+  return sortedUniqueCategoryIds(String(value || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean));
+}
+
+function normalizeDiagnosticCategoryIds(value, fallbackIds = []) {
+  const explicit = Array.isArray(value)
+    ? sortedUniqueCategoryIds(value)
+    : parseDiagnosticCategoryIds(value);
+  return explicit.length ? explicit : fallbackIds.slice();
+}
+
 function groupPreferencesByUser(rows = []) {
   const grouped = new Map();
   for (const row of rows || []) {
@@ -411,6 +424,7 @@ function buildUserDiagnostic({
   dryRunDeck,
   dryRunResult,
   soloDeckDiagnostics,
+  diagnosticCategoryIds,
 }) {
   const rawFetchedCountsByCategory = countByCategory(rawRows);
   const activeFilteredCountsByCategory = countByCategory(activeRows);
@@ -423,7 +437,7 @@ function buildUserDiagnostic({
   const selectedEnabled = preferenceContext.activeValidSelectedCategoryIds.length >= 3;
   const selectedIds = preferenceContext.activeValidSelectedCategoryIds;
 
-  const categoryProof = Object.fromEntries(TARGET_CATEGORY_IDS.map((id) => {
+  const categoryProof = Object.fromEntries(diagnosticCategoryIds.map((id) => {
     const hasActiveCategoryRow = activeCategoryIds.includes(id);
     const activeQuestionCount = Number(activeFilteredCountsByCategory[String(id)] || 0);
     const soloEligibleQuestionCount = Number(soloEligibleCountsByCategory[String(id)] || 0);
@@ -522,6 +536,8 @@ function buildConfigSummary(config = {}) {
     adminAccessTokenPresent: Boolean(config.accessToken),
     requestedUserEmailPresent: Boolean(config.requestedUserEmail),
     requestedUserEmailMasked: config.requestedUserEmail ? maskEmail(config.requestedUserEmail) : null,
+    diagnosticCategoryIds: Array.isArray(config.diagnosticCategoryIds) ? config.diagnosticCategoryIds : [],
+    diagnosticCategoryIdSource: config.diagnosticCategoryIds?.length ? 'SOLO_DIAGNOSTIC_CATEGORY_IDS' : 'current_active_categories',
     diagnosticMode: config.diagnosticMode || null,
     loadedEnvFiles: Array.isArray(config.loadedEnvFiles) ? config.loadedEnvFiles : [],
     tokenValuesPrinted: false,
@@ -550,6 +566,7 @@ function buildConfig() {
   const requestedUserEmail = normalizeRequestedDiagnosticEmail(
     getEnv('SOLO_DIAGNOSTIC_REQUESTED_EMAIL') || getEnv('SOLO_DIAGNOSTIC_TARGET_EMAIL'),
   );
+  const diagnosticCategoryIds = parseDiagnosticCategoryIds(getEnv('SOLO_DIAGNOSTIC_CATEGORY_IDS'));
   return {
     appId,
     serverUrl,
@@ -557,6 +574,7 @@ function buildConfig() {
     accessToken,
     diagnosticMode,
     requestedUserEmail,
+    diagnosticCategoryIds,
     loadedEnvFiles,
   };
 }
@@ -614,6 +632,7 @@ async function invokeBackendFunctionDiagnostic(config, { levelNumber, yearStart,
       yearStart,
       yearEnd,
       requestedUserEmail: config.requestedUserEmail || undefined,
+      diagnosticCategoryIds: config.diagnosticCategoryIds?.length ? config.diagnosticCategoryIds : undefined,
     }),
   });
   const body = await response.json().catch(() => ({}));
@@ -678,6 +697,7 @@ async function run() {
     .sort((a, b) => a - b);
   const activeCategoryIds = activeCategories.map((row) => Number(row.category_id));
   const activeCategoryIdSet = new Set(activeCategoryIds);
+  const diagnosticCategoryIds = normalizeDiagnosticCategoryIds(config.diagnosticCategoryIds, activeCategoryIds);
 
   const { rows: rawFetchedRows, fetchedByCategory, queryDescriptors } = await loadActiveQuestionCandidates(base44, activeCategoryIds);
   const activeFilteredRows = rawFetchedRows.filter((row) => {
@@ -743,13 +763,14 @@ async function run() {
       dryRunDeck,
       dryRunResult,
       soloDeckDiagnostics,
+      diagnosticCategoryIds,
     });
   });
 
   const output = {
     ok: true,
     jobName: JOB_NAME,
-    buildMarker: 'Codex335',
+    buildMarker: 'Codex410',
     readOnly: true,
     dryRun: true,
     mutatesGameplay: false,
@@ -766,7 +787,10 @@ async function run() {
     preferenceUserLimit: MAX_PREFERENCE_USERS,
     preferenceUsersIncluded: preferenceUsers.length,
     fewerThanTenPreferenceUsers: preferenceUsers.length < MAX_PREFERENCE_USERS,
-    targetCategoryIds: TARGET_CATEGORY_IDS,
+    targetCategoryIds: diagnosticCategoryIds,
+    diagnosticCategoryIds,
+    diagnosticCategoryIdSource: config.diagnosticCategoryIds.length ? 'SOLO_DIAGNOSTIC_CATEGORY_IDS' : 'current_active_categories',
+    historicalRegressionCategoryIdsAreRuntimePolicy: false,
     diagnosticInput: { levelNumber, yearStart, yearEnd },
     actualSoloLevelStartPath: [
       'Home/SoloMap navigate("/game", state)',

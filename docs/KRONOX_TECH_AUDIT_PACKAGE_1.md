@@ -219,9 +219,9 @@ Recommended Package 2 scope:
 
 - current state: canonical field is `category_id`; docs and helpers allow `categoryid` only as import alias. `status` and `description` exist.
 - severity: P2
-- affected files: `base44/entities/Category.jsonc`, `src/lib/categoryFilters.js`, `base44/functions/seedQuestionCategories/entry.ts`, `docs/KRONOX_CATEGORY_TAXONOMY.md`
+- affected files at the time of this historical audit: `base44/entities/Category.jsonc`, `src/lib/categoryFilters.js`, the now-removed category seed helper, `docs/KRONOX_CATEGORY_TAXONOMY.md`
 - why it matters: This is now documented, but active category status still depends on list reads and in-memory filtering in several places.
-- recommended Package 2 fix: keep `category_id` canonical, ensure seed/backfill idempotency is run, and query active categories server-side where Base44 supports it.
+- recommended Package 2 fix at the time: keep `category_id` canonical, ensure category backfill/content management is explicit, and query active categories server-side where Base44 supports it.
 - safe to fix directly in Package 2: yes.
 - manual/runtime proof required: DB seed/status verification.
 
@@ -415,7 +415,7 @@ Recommended Package 2 scope:
 ### Finding: Admin function guards are role/config based
 
 - severity: P2
-- affected files: `base44/functions/generateTechDoc/entry.ts`, `base44/functions/generateWorkflowDoc/entry.ts`, `base44/functions/seedQuestionCategories/entry.ts`
+- affected files at the time of this historical audit: `base44/functions/generateTechDoc/entry.ts`, `base44/functions/generateWorkflowDoc/entry.ts`, and the now-removed category seed helper.
 - why it matters: Hardcoded admin email is removed from the inspected admin functions. Admin config must still be set in deployment secrets for allowlist fallback.
 - recommended Package 2 fix: factor repeated admin guard into shared server helper if Base44 function packaging supports it.
 - safe to fix directly in Package 2: yes.
@@ -675,4 +675,3 @@ Package 2 should not claim release readiness until these are executed:
 7. Should generated PDF docs remain an authoritative artifact?
    - If yes, update them after Package 2.
    - If no, reduce them to links/summaries of markdown docs.
-
