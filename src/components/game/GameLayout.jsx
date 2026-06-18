@@ -143,7 +143,6 @@ function GuidedDragFingerHint({ active, reducedMotion, targetZoneIndex = null, z
         top: '58%',
         marginLeft: -24,
         marginTop: -24,
-        filter: 'drop-shadow(0 10px 18px rgba(0,0,0,0.48))',
         willChange: 'transform, opacity',
       }}
     >
@@ -186,7 +185,6 @@ function GuidedTimelineSwipeHint({ active, reducedMotion }) {
         className="absolute h-2 w-28 rounded-full"
         style={{
           background: 'linear-gradient(90deg, transparent, rgba(250,204,21,0.58), transparent)',
-          boxShadow: '0 0 18px rgba(250,204,21,0.24)',
         }}
         animate={reducedMotion ? { opacity: [0.32, 0.7, 0.32] } : { scaleX: [0.72, 1.08, 0.72], opacity: [0.22, 0.74, 0.22] }}
         transition={{ duration: 1.55, repeat: Infinity, ease: 'easeInOut' }}
