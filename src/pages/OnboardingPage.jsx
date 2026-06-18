@@ -38,6 +38,7 @@ const GENDER_OPTIONS = [
 
 const GUIDED_TUTORIAL_TIME_LIMIT_SECONDS = SOLO_LEVEL_TIME_SECONDS;
 const PROFILE_SAVE_TIMEOUT_MS = 15000;
+const CATEGORY_SAVE_TIMEOUT_MS = 15000;
 
 function withTimeout(promise, timeoutMs, code) {
   let timeoutId;
@@ -104,8 +105,8 @@ export default function OnboardingPage() {
   const [profileSaving, setProfileSaving] = useState(false);
   const [categorySaving, setCategorySaving] = useState(false);
   const [error, setError] = useState('');
-  const [showSecureProgressPrompt, setShowSecureProgressPrompt] = useState(false);
   const guidedCompletionHandledRef = useRef(false);
+  const shouldShowSecureProgressPrompt = Boolean(location.state?.showSecureProgressPrompt);
 
   useEffect(() => {
     if (!authGuestProfile) return;
@@ -165,7 +166,7 @@ export default function OnboardingPage() {
   if (isAuthenticated) return <Navigate to="/" replace />;
   if (isLoadingAuth || loading || !guestProfile) return <OnboardingShell><LoadingState /></OnboardingShell>;
   if (isGuestOnboardingComplete(guestProfile)) {
-    if (showSecureProgressPrompt) {
+    if (shouldShowSecureProgressPrompt) {
       return (
         <OnboardingShell>
           <SecureProgressStep
@@ -183,6 +184,7 @@ export default function OnboardingPage() {
   }
 
   const step = normalizeStep(guestProfile);
+  if (step === GUEST_ONBOARDING_STATES.ONBOARDING_COMPLETE) return <Navigate to="/" replace />;
   const isProfileStep = step === GUEST_ONBOARDING_STATES.TUTORIAL_COMPLETED ||
     step === GUEST_ONBOARDING_STATES.PROFILE_SETUP_PENDING;
   const isTutorialResumeStep = step === TUTORIAL_IN_PROGRESS_STATUS &&
@@ -269,22 +271,30 @@ export default function OnboardingPage() {
         <CategorySetupStep
           profile={guestProfile}
           busy={categorySaving}
+          submitError={error}
           onComplete={async (selectedIds) => {
             setCategorySaving(true);
             setError('');
             try {
-              const updated = await updateGuestProfileOnboarding({
+              const updated = await withTimeout(updateGuestProfileOnboarding({
+                selected_category_ids: selectedIds,
+                tutorial_status: 'completed',
+                profile_setup_status: 'completed',
+                category_setup_status: 'completed',
+                onboarding_status: GUEST_ONBOARDING_STATES.ONBOARDING_COMPLETE,
+              }), CATEGORY_SAVE_TIMEOUT_MS, 'category_save_timeout');
+              setGuestProfile({
+                ...(updated || guestProfile),
                 selected_category_ids: selectedIds,
                 tutorial_status: 'completed',
                 profile_setup_status: 'completed',
                 category_setup_status: 'completed',
                 onboarding_status: GUEST_ONBOARDING_STATES.ONBOARDING_COMPLETE,
               });
-              setGuestProfile(updated);
-              await checkUserAuth?.();
-              setShowSecureProgressPrompt(true);
+              void Promise.resolve(checkUserAuth?.()).catch(() => null);
+              navigate('/', { replace: true });
             } catch {
-              setError('Kategori seçimlerin kaydedilemedi. Lütfen tekrar dene.');
+              setError('Kategoriler kaydedilemedi. Lütfen tekrar dene.');
             } finally {
               setCategorySaving(false);
             }
@@ -481,7 +491,7 @@ function ProfileSetupStep({ profile, busy, submitError, onSubmit }) {
   );
 }
 
-function CategorySetupStep({ profile, busy, onComplete }) {
+function CategorySetupStep({ profile, busy, submitError, onComplete }) {
   const [activeCategories, setActiveCategories] = useState([]);
   const [selectedIds, setSelectedIds] = useState(() => new Set(profile.selected_category_ids || []));
   const [loading, setLoading] = useState(true);
@@ -607,11 +617,15 @@ function CategorySetupStep({ profile, busy, onComplete }) {
           })}
         </div>
       )}
-      {validation && <p className="mt-3 rounded-xl border border-amber-300/35 bg-amber-300/10 px-3 py-2 font-inter text-xs font-bold text-amber-100">{validation}</p>}
+      {(validation || submitError) && (
+        <p className="mt-3 rounded-xl border border-amber-300/35 bg-amber-300/10 px-3 py-2 font-inter text-xs font-bold text-amber-100">
+          {validation || submitError}
+        </p>
+      )}
       <div className="mt-5 flex flex-col gap-2">
         <Button onClick={() => finish(false)} disabled={busy || loading} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl font-inter font-black">
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-          Ana Sayfa’ya Geç
+          Ana Sayfa
         </Button>
         {(validation || selectedCount === 0) && (
           <button

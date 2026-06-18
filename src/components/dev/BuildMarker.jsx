@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex405 — P0 guest onboarding completion recovery:
+//   • Category setup CTA is exactly "Ana Sayfa" and successful save routes
+//     directly home instead of staying on the onboarding shell.
+//   • Completed/category-completed GuestProfile state is treated as complete on
+//     restart and safely repaired to onboarding_complete when needed.
+//   • Adds Health/docs coverage for guest category save, retryable failure, and
+//     blue-screen recovery.
+
 // Codex404 — Final Health blocker/warning classification refresh:
 //   • Adds scarcity-aware Solo exposure cooldown diagnostics for nearly all-recent
 //     candidate pools.
@@ -2287,7 +2295,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex404';
+const BUILD_MARKER = 'Codex405';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

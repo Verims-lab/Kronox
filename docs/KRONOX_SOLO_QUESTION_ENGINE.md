@@ -476,9 +476,13 @@ Tutorial timer, joker, and first-mistake explanation popups pause the effective
 tutorial timer while the user reads them.
 
 After success, the result popup returns to GuestProfile onboarding for profile
-setup, then category setup, then Ana Sayfa. Closing the app during onboarding
-resumes from the persisted GuestProfile state instead of re-opening the old
-tutorial modal.
+setup, then category setup, then Ana Sayfa. The category completion CTA is
+`Ana Sayfa`; a successful token-proven guest category save marks
+`category_setup_status = completed` and
+`onboarding_status = onboarding_complete` before routing home. Closing the app
+during onboarding resumes from the persisted GuestProfile state instead of
+re-opening the old tutorial modal, and restarting after onboarding completion
+opens Ana Sayfa.
 
 ## Per-Player Anti-Repeat Selection
 

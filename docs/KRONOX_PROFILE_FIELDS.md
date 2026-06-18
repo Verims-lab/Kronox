@@ -115,6 +115,12 @@ loading uses current safe `Category` metadata directly or through the
 `getCategoryMetadata` callable, never raw question-bank reads and never a stale
 hardcoded seed fallback. If category metadata cannot be loaded, the UI shows a
 retryable error instead of rendering legacy categories.
+The category completion CTA label is exactly `Ana Sayfa`. A successful guest
+category save writes `category_setup_status = completed` and
+`onboarding_status = onboarding_complete`, then routes directly to Ana Sayfa.
+On app restart, `onboarding_complete` or a safely repairable completed
+category/profile state opens Ana Sayfa instead of returning to the blue
+onboarding shell.
 `getCategoryMetadata` is public by design but metadata-only; it returns
 `category_id`, `name`, `description`, and `status` only. Category preference
 save remains a separate token-proven GuestProfile write and must not trust

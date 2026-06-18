@@ -285,6 +285,13 @@ Checklist:
 * First-time guest onboarding reaches category selection after profile setup
   without login, loads safe category metadata (not questions), and can save
   `selected_category_ids` through token-proven GuestProfile ownership.
+* Category completion CTA text is exactly `Ana Sayfa`; tapping it after a
+  successful guest category save routes directly to Ana Sayfa.
+* Guest category completion writes `category_setup_status = completed` and
+  `onboarding_status = onboarding_complete`; closing and reopening the app after
+  completion opens Ana Sayfa, not the onboarding blue shell.
+* Category save failure shows `Kategoriler kaydedilemedi. Lütfen tekrar dene.`,
+  stops loading, and allows retry.
 * Profile setup accepts blank `age` and blank `gender`; only username is
   required or auto-generated before `Kategorilere Geç`.
 * Guest onboarding category selection uses current `Category` metadata or

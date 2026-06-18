@@ -4,7 +4,7 @@ import { withAdminStatus } from '@/lib/admin';
 import { ensureDiamondEconomyForUser, getDiamondDailyKey } from '@/lib/diamondEconomy';
 import { clearJokerInventoryCache, ensureStarterJokers, normalizeJokerEmail } from '@/lib/jokerInventory';
 import { applyUserProgressResetMarker } from '@/lib/progressResetCache';
-import { ensureGuestProfile, linkPendingGuestAccount } from '@/lib/guestProfile';
+import { ensureGuestProfile, linkPendingGuestAccount, repairGuestOnboardingCompletionIfNeeded } from '@/lib/guestProfile';
 import { readSoloProgress } from '@/lib/soloLevels';
 
 const AuthContext = createContext();
@@ -146,6 +146,10 @@ export const AuthProvider = ({ children }) => {
           });
           return null;
         });
+        if (currentGuestProfile) {
+          currentGuestProfile = await repairGuestOnboardingCompletionIfNeeded(currentGuestProfile)
+            .catch(() => currentGuestProfile);
+        }
       }
 
       setUser(currentUser || null);
