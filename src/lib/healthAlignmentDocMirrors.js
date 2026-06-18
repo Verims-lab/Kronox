@@ -38,16 +38,19 @@ Status: Active product workflow contract.
 
 - First-time guests use app-owned GuestProfile, not Firebase anonymous auth and not Base44 anonymous auth.
 - Guest onboarding runs through the guided first Solo level, then profile setup, then category setup, then Ana Sayfa.
+- Eğitime Devam is only for true tutorial_in_progress; tutorial_completed routes to profile setup, profile complete plus category pending routes to category selection, and onboarding_complete routes to Ana Sayfa.
 - Home / Ana Sayfa must not render Google, Apple, Email, Hesabını bağla, or progress-protection account-link CTAs; account linking belongs under Profile.
 - Public identity is username. display_name / Görünen Ad is a legacy/projection mirror, not a separate public editable identity.
 - Category selection uses current active Category metadata and getCategoryMetadata; stale hardcoded category fallback arrays and old seed category names are forbidden as runtime fallbacks.
 - Authenticated category preference save minimum is 3 active valid categories; guest category selection is advisory and empty guest selections mean all active Solo categories remain eligible.
+- Online category list is sorted by category_id ASC and Online is not a BottomNav item.
 - Current Solo shows HAMLE / remaining moves and Puan / Kronox Puan. HATA is legacy/internal and not current visible Solo result/stat copy.
 - Normal Solo uses 2 anchors, an 18-question attempt deck, 10 evaluated moves, a 180-second timer, and a 7-card target including anchors. Special Solo uses a 19-question attempt deck and a 10-card target.
 - Online uses Lobby.selected_category_ids and a startLobbyGame shared deck selected 100% from active lobby-selected categories with difficulty 1/2 only; Online does not use Solo preferences.
-- Daily Quest and Daily Wheel grant Diamonds only, no Kronox Puan, and no leaderboard impact.
+- Daily Quest and Daily Wheel grant Diamonds only, no Kronox Puan, and no leaderboard impact. DiamondTransaction and DailyWheelSpin have function-level idempotency guards; DB/entity unique constraints are not repo-proven.
 - Question Analytics is an admin/private nine-section email-body report sourced from QuestionAttemptEvent. PlayerQuestionExposure is optional anti-repeat memory reset scope.
 - Health PASS is not release-ready proof; manual NOT_AUTOMATABLE gates remain required.
+- Stale Codex040 PDF references are old structure only; current truth is markdown/source plus current code and Health contracts.
 `;
 
 export const TECHNICAL_FLOW_DOC = `# Kronox Technical Flow
@@ -63,9 +66,12 @@ Status: Active technical flow contract.
 - Solo runtime uses getQuestions bounded projections and buildSoloAttemptDeck; raw Question.list gameplay fallback and full-bank exposure are forbidden.
 - PlayerQuestionExposure is private per-player anti-repeat memory; PlayerQuestionDailyExposure is daily anonymous exposure summary; actual reports source history from QuestionAttemptEvent.
 - UserJokerInventory is the current joker balance source and JokerTransaction is the ledger. purchaseJokerWithDiamonds writes DiamondTransaction plus JokerTransaction.
+- claimDailyWheelReward writes DailyWheelSpin and DiamondTransaction using function-level same-day/idempotency guards; no atomic/upsert guarantee is repo-proven.
 - startLobbyGame owns the Online shared deck. Online does not read Solo preference weighting or guest Solo projection.
 - sendQuestionAnalyticsReportEmail is admin-only, email-body-only, exactly nine sections, with anonymized User0001-style per-player coverage where used.
+- Public assets must not contain secrets, tokens, question bank, answer years, internal IDs, raw guest IDs/tokens, provider IDs, or private user data.
 - Health static alignment can check docs/source contracts, but real device, two-account, Base44 deployment, push, RLS/BOLA, and store-wrapper proof remain manual.
+- Uploaded kronox-teknik-dokuman.pdf and kronox-is-akisi.pdf are stale Codex040-era references unless regenerated from current source.
 `;
 
 export const PROFILE_FIELDS_DOC = `# Kronox Profile Fields
@@ -249,6 +255,7 @@ Status: Active manual release gate.
 ## Canonical Workflow Docs
 Review docs/KRONOX_PRODUCT_WORKFLOW.md for onboarding, identity, Profile, category selection, Solo, Online, economy, leaderboard, analytics, Health, and release proof changes.
 Review docs/KRONOX_TECHNICAL_FLOW.md for route flow, Base44 entities/functions, guest/account-linking state, question runtime, category metadata, exposure analytics, economy ledgers, admin/security boundaries, Health alignment, and deployment validation changes.
+These docs supersede old PDF-style documents such as stale Codex040 kronox-is-akisi.pdf and kronox-teknik-dokuman.pdf references unless those PDFs are regenerated from current source.
 Stale contracts such as Home login CTAs, standalone tutorial onboarding, hardcoded category fallbacks, visible HATA scoring, public display_name identity, raw Question.list gameplay fallback, Daily Quest Puan rewards, Daily Quest leaderboard impact, Online Solo-preference selection, and old fixed 10-card Solo decks must be removed or explicitly marked legacy before release.
 
 ## Full Audit Release Gates
