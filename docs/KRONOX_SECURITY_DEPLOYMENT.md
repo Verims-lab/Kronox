@@ -660,10 +660,11 @@ After deployment, verify:
 * App Store Connect privacy answers must match the `/privacy` page and must be
   updated when data collection, push notifications, social features, analytics,
   or economy behavior changes.
-* App Store Guideline 4.8: when third-party login is offered, the login surface
-  must expose `Sign in with Apple` / `Apple ile Giriş Yap` through Base44 auth.
-  Base44 Settings → Authentication → Apple toggle is a manual deployment step;
-  no Apple client secret or native credential belongs in source.
+* App Store Guideline 4.8: when third-party login is offered, the Profile login
+  surface must expose `Sign in with Apple` / `Apple ile devam et` through
+  Base44 auth alongside Google. Base44 Settings → Authentication → Apple toggle
+  is a manual deployment step; no Apple client secret or native credential
+  belongs in source.
 * Account deletion/access/correction requests may use the in-app deletion flow
   where available or the configured support contact.
 
@@ -880,7 +881,9 @@ must show a retryable error instead of rendering stale fallback categories.
 Guest ownership requires `guest_id + raw guest token`; `guest_id` alone must not
 authorize reads/writes. Never log raw guest token, auth headers, provider
 credentials, or full request bodies. Existing Google / Apple / Email login stays
-Base44-managed, and Apple must remain visible wherever Google login is offered.
+Base44-managed. Account linking is optional and Profile-only after onboarding;
+Home / Ana Sayfa and onboarding completion must not render provider buttons or
+progress-link cards. Apple must remain visible wherever Google login is offered.
 
 Onboarding Phase 2 may update only non-sensitive GuestProfile onboarding fields
 through the same `guest_id + raw guest token` proof. The server path must allow
@@ -907,6 +910,11 @@ GuestProfile token proof and `base44.auth.me()`, never trust request-body role
 or provider ids, use an idempotency key, mark the guest row `linked` once, and
 write `AccountLinkTransaction`. The merge path must not log raw guest tokens,
 auth headers, provider credentials, or full request bodies.
+
+The only guest-facing account-link CTA is the Profile guest card
+(`Misafir olarak oynuyorsun` / `İlerlemeni kaybetmemek için hesabını bağla`)
+with Apple, Google, and email options together. Opening Profile must not run the
+merge by itself; linking starts only when the user chooses a provider.
 
 The link merge preserves user-beneficial progress and combines additive economy
 only once. `User.linked_guest_ids` and `AccountLinkTransaction.idempotency_key`

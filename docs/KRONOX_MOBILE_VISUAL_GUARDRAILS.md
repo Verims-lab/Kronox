@@ -24,6 +24,9 @@ checks that source code and static Health cannot honestly prove alone.
   guided first level. The guidance overlay must not capture drag/drop touches,
   must fit small portrait screens, and must resume cleanly if the app closes
   during tutorial/profile/category setup.
+* Home / Ana Sayfa stays a clean play surface: no Google / Apple / email login
+  buttons and no `Hesabını bağla` / progress-protection account-link card.
+  Guest account linking belongs under Profile.
 * Solo gameplay shows the remaining move counter as `10 HAMLE`, `9 HAMLE`,
   etc.; result popups show `HAMLE` instead of `HATA`.
 * Manual mobile proof must confirm touch, slight drag, invalid drop, tutorial

@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex407 — Profile-only auth CTA placement:
+//   • Removes Google/Apple/email provider buttons from Home and dormant
+//     onboarding/deprecated setup account-link surfaces.
+//   • Keeps guest account linking under Profile with Apple, Google, and email
+//     together, plus Health/docs coverage for Profile-only placement.
+
 // Codex406 — Heavy blur/glow static-risk reduction:
 //   • Removes one decorative guided-drag drop shadow and one timeline-swipe rail
 //     glow from gameplay/tutorial surfaces.
@@ -2301,7 +2307,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex406';
+const BUILD_MARKER = 'Codex407';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

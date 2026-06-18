@@ -20,8 +20,7 @@ import { QUESTION_DATA_MODEL_DOC as questionModelDocsSource } from '@/lib/questi
 import { ECONOMY_RULES_DOC as economyDocsSource } from '@/lib/economyRulesDoc';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
 import adminPageSource from '../../pages/AdminPage.jsx?raw';
-import mainMenuSource from '../../pages/MainMenu.jsx?raw';
-import playerSetupSource from '../../pages/PlayerSetup.jsx?raw';
+import profilePageSource from '../../pages/ProfilePage.jsx?raw';
 import authProviderButtonsSource from '../auth/AuthProviderButtons.jsx?raw';
 import standardTopBarSource from '../layout/StandardTopBar.jsx?raw';
 import notificationApiSource from '../../lib/notificationApi.js?raw';
@@ -575,23 +574,24 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('apple_login_compliance_static_contract',
-    'Login surfaces include Base44-managed Sign in with Apple option',
+    'Profile login surface includes Base44-managed Sign in with Apple option',
     () => {
-      const uiSource = `${authProviderButtonsSource}\n${mainMenuSource}\n${playerSetupSource}`;
+      const uiSource = `${authProviderButtonsSource}\n${profilePageSource}`;
       const docsSource = `${releaseChecklistSource}\n${securityDocsSource}`;
       const missingUi = missingTokens(uiSource, [
         'AuthProviderButtons',
-        'Apple ile Giriş Yap',
+        'Apple ile devam et',
         "startProviderLogin('apple')",
         "base44.auth.loginWithProvider(provider, fromUrl)",
         "startProviderLogin('google')",
+        'Google ile devam et',
         'E-posta ile devam et',
         'base44.auth.redirectToLogin(fromUrl)',
-        '<AuthProviderButtons fromUrl="/"',
+        'fromUrl="/profile"',
       ]);
       const missingDocs = missingTokens(docsSource, [
         'Sign in with Apple',
-        'Apple ile Giriş Yap',
+        'Apple ile devam et',
         'Base44 Settings',
         'Authentication',
         'Apple toggle',
@@ -610,8 +610,7 @@ export const EXTRA_TESTS = [
           classification: 'REAL_PRODUCT_RISK',
           files: [
             'src/components/auth/AuthProviderButtons.jsx',
-            'src/pages/MainMenu.jsx',
-            'src/pages/PlayerSetup.jsx',
+            'src/pages/ProfilePage.jsx',
             'docs/KRONOX_RELEASE_PROOF_CHECKLIST.md',
             'docs/KRONOX_SECURITY_DEPLOYMENT.md',
           ],

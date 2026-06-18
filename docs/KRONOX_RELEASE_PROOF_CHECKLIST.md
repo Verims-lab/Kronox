@@ -585,10 +585,10 @@ Checklist:
   both whenever data collection, analytics, push notifications, social features,
   or economy/ledger behavior changes.
 * App Store Guideline 4.8 proof: if Google/third-party login is visible, the
-  login surface must also show `Sign in with Apple` / `Apple ile Giriş Yap`
-  through Base44 provider auth. Enable it manually in Base44 Settings →
-  Authentication → Apple toggle; static Health can only verify the button and
-  provider call pattern.
+  Profile login surface must also show `Sign in with Apple` /
+  `Apple ile devam et` through Base44 provider auth. Enable it manually in
+  Base44 Settings → Authentication → Apple toggle; static Health can only
+  verify the button and provider call pattern.
 * Manual proof: open `https://kronoxgame.com/privacy` from a fresh browser
   without login and confirm the Turkish privacy policy loads on mobile.
 
@@ -602,6 +602,9 @@ Checklist:
 
 * Home is no-scroll.
 * Home respects safe area.
+* Home / Ana Sayfa does not show Google / Apple / email login buttons or a
+  secure-progress / `Hesabını bağla` account-link card; guest account linking is
+  available from Profile instead.
 * Online main screen is no-scroll where intended.
 * Solo map scrolls only the map/path area.
 * Gameplay does not page-scroll during drag.
@@ -1140,6 +1143,8 @@ login:
   `guest_id + raw guest token`; public metadata read alone is not accepted as
   ownership proof
 * Apple, Google, and email login options remain visible/working where offered
+  under Profile; Home / Ana Sayfa and onboarding completion do not show provider
+  buttons or secure-progress account-link cards
 * leaderboard/profile public identity does not show email, Google ID, Apple ID,
   provider UID, or internal `owner_key`
 * Profile > Ayarlar lets guest and authenticated users edit username plus
@@ -1164,8 +1169,8 @@ Before release, manually verify guest-to-account linking:
 * guest leaderboard row displays username, with `display_name` only as a legacy
   mirrored fallback, not email, provider id, or internal `owner_key`
 * Profile shows the "Misafir olarak oynuyorsun" secure-progress card
-* onboarding completion shows Apple / Google / Email secure-progress options
-  plus "Şimdilik misafir devam et"
+* Profile shows Apple / Google / Email secure-progress options together, and
+  Home/onboarding completion show no provider buttons or account-link card
 * Apple is visible wherever Google login is offered
 * guest links Google / Apple / Email through `linkGuestAccount`
 * `AccountLinkTransaction` row is created with idempotency key and no raw guest

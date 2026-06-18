@@ -70,31 +70,36 @@ export const EXTRA_SUITES = [
 
 export const EXTRA_TESTS = [
   makeCase('daily_rewards_panel_above_solo_cta',
-    'Günlük Ödüller panel exists on Home above Solo CTA',
+    'Günlük Ödüller panel exists for signed-in Home above Solo CTA',
     () => {
       const src = safeStr(mainMenuSource);
       const panelIndex = src.indexOf('<DailyRewardsPanel');
       const soloIndex = src.indexOf('label="SOLO MEYDAN OKUMA"');
       const missing = missingTokens(`${src}\n${dailyRewardsPanelSource}`, [
         'DailyRewardsPanel',
+        '{user && (',
         'Günlük Ödüller',
         'DailyWheelCard',
         'DailyQuestV1Card',
         'Günlük Görev',
         'onUserUpdated={handleDailyWheelUserPatch}',
-        'onLogin={handleLogin}',
         "paddingBottom: 'clamp(1.35rem, 5.8vh, 3.2rem)'",
         'label="SOLO MEYDAN OKUMA"',
         'label="ONLINE KAPIŞMA"',
       ]);
-      if (missing.length || panelIndex < 0 || soloIndex < 0 || panelIndex > soloIndex) {
-        return fail('Home does not place Günlük Ödüller before the Solo CTA while preserving Solo/Online buttons.', {
+      const forbidden = forbiddenTokens(src, [
+        'onLogin={handleLogin}',
+        'function handleLogin',
+        'const handleLogin',
+      ]);
+      if (missing.length || forbidden.length || panelIndex < 0 || soloIndex < 0 || panelIndex > soloIndex) {
+        return fail('Home does not place signed-in Günlük Ödüller before the Solo CTA while avoiding guest login prompts.', {
           verification: 'STATIC_CONTRACT',
           file: 'src/pages/MainMenu.jsx',
-          actual: { missing, panelIndex, soloIndex },
+          actual: { missing, forbidden, panelIndex, soloIndex },
         });
       }
-      return pass('Günlük Ödüller is wired above Solo CTA and Solo/Online CTAs remain present.', { verification: 'STATIC_CONTRACT' });
+      return pass('Signed-in Günlük Ödüller is wired above Solo CTA, guest Home avoids reward login prompts, and Solo/Online CTAs remain present.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_icon_polished_not_asset_dependent',

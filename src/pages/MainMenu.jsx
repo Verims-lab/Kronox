@@ -6,7 +6,6 @@ import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 import StandardTopBar from '@/components/layout/StandardTopBar';
 import DailyRewardsPanel from '@/components/dailyWheel/DailyRewardsPanel';
-import AuthProviderButtons from '@/components/auth/AuthProviderButtons';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 
 /**
@@ -58,11 +57,6 @@ export default function MainMenu() {
 
   const handleMarket = () => {
     navigate('/market');
-  };
-
-  const handleLogin = () => {
-    sounds.tap();
-    base44.auth.redirectToLogin('/');
   };
 
   const handleDailyWheelUserPatch = useCallback((patch) => {
@@ -144,12 +138,13 @@ export default function MainMenu() {
             className="mt-auto flex w-full flex-col items-center"
             style={{ gap: '0.75rem', paddingTop: 'clamp(0.75rem, 3vh, 1.8rem)', paddingBottom: 'clamp(1.35rem, 5.8vh, 3.2rem)' }}
           >
-            <DailyRewardsPanel
-              user={user}
-              onUserUpdated={handleDailyWheelUserPatch}
-              onLogin={handleLogin}
-              ariaLabel="Günlük Ödüller: Günlük Çark ve Günlük Görev"
-            />
+            {user && (
+              <DailyRewardsPanel
+                user={user}
+                onUserUpdated={handleDailyWheelUserPatch}
+                ariaLabel="Günlük Ödüller: Günlük Çark ve Günlük Görev"
+              />
+            )}
             <HomeCTA
               icon={Crosshair}
               label="SOLO MEYDAN OKUMA"
@@ -162,12 +157,6 @@ export default function MainMenu() {
               onClick={handleOnline}
               ariaLabel="Online Kapışma"
             />
-
-            {/* Guest auth — App Store compliance requires Apple alongside
-                third-party login. Email/hosted Base44 login stays available. */}
-            {!user && (
-              <AuthProviderButtons fromUrl="/" onBeforeStart={() => sounds.tap()} className="mt-1" />
-            )}
           </div>
         </div>
       </div>

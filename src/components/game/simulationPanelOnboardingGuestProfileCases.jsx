@@ -23,6 +23,7 @@ import onboardingPageSource from '../../pages/OnboardingPage.jsx?raw';
 import gameLayoutSource from './GameLayout.jsx?raw';
 import soloJokerBarSource from './SoloJokerBar.jsx?raw';
 import timelineSource from './Timeline.jsx?raw';
+import mainMenuSource from '../../pages/MainMenu.jsx?raw';
 import profilePageSource from '../../pages/ProfilePage.jsx?raw';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
 import playerSetupSource from '../../pages/PlayerSetup.jsx?raw';
@@ -311,11 +312,11 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('apple_google_email_login_preserved',
-    'Existing Apple, Google, and email login entry points remain visible',
+    'Existing Apple, Google, and email login entry points remain wired',
     () => {
       const missing = missingTokens(authProviderButtonsSource, [
-        'Apple ile Giriş Yap',
-        'Google ile Giriş Yap',
+        'Apple ile devam et',
+        'Google ile devam et',
         'E-posta ile devam et',
         "startProviderLogin('apple')",
         "startProviderLogin('google')",
@@ -428,28 +429,60 @@ export const EXTRA_TESTS = [
       });
     }),
 
-  makeCase('guest_continue_and_secure_progress_cta_exist',
-    'Login CTA secures progress without blocking guest play',
+  makeCase('profile_only_guest_account_link_cta',
+    'Guest account linking CTA is Profile-only and does not block guest play',
     () => {
-      const missing = missingTokens(`${onboardingPageSource}\n${profilePageSource}\n${authProviderButtonsSource}`, [
-        'İlerlemeni Güvenceye Al',
+      const profileMissing = missingTokens(`${profilePageSource}\n${authProviderButtonsSource}`, [
+        '{!loading && !user && (',
         'Misafir olarak oynuyorsun',
-        'Şimdilik misafir devam et',
+        'İlerlemeni kaybetmemek için hesabını bağla',
         'prepareGuestAccountLink',
         'AuthProviderButtons',
-        'Apple ile Giriş Yap',
-        'Google ile Giriş Yap',
+        'fromUrl="/profile"',
+        'Apple ile devam et',
+        'Google ile devam et',
         'E-posta ile devam et',
       ]);
-      if (missing.length) {
-        return fail('Secure-progress CTA or guest continue path is missing from onboarding/profile.', {
+      const guestContinueMissing = missingTokens(`${authContextSource}\n${onboardingPageSource}\n${mainMenuSource}`, [
+        'ensureGuestProfile',
+        "navigate('/', { replace: true })",
+        'SOLO MEYDAN OKUMA',
+      ]);
+      const forbiddenHome = presentTokens(mainMenuSource, [
+        "import AuthProviderButtons from '@/components/auth/AuthProviderButtons'",
+        '<AuthProviderButtons',
+        'Google ile Giriş Yap',
+        'Apple ile Giriş Yap',
+        'Google ile devam et',
+        'Apple ile devam et',
+        'E-posta ile devam et',
+        'İlerlemeni Güvenceye Al',
+        'Hesabını Bağla',
+        'Hesabını bağla',
+      ]);
+      const forbiddenNonProfile = presentTokens(`${onboardingPageSource}\n${playerSetupSource}`, [
+        "import AuthProviderButtons from '@/components/auth/AuthProviderButtons'",
+        '<AuthProviderButtons',
+        'prepareGuestAccountLink',
+        'function SecureProgressStep',
+        'İlerlemeni Güvenceye Al',
+      ]);
+      if (profileMissing.length || guestContinueMissing.length || forbiddenHome.length || forbiddenNonProfile.length) {
+        return fail('Guest account linking placement drifted from the Profile-only contract.', {
           verification: 'STATIC_CONTRACT',
-          files: ['src/pages/OnboardingPage.jsx', 'src/pages/ProfilePage.jsx', 'src/components/auth/AuthProviderButtons.jsx'],
-          actual: { missing },
+          files: [
+            'src/pages/MainMenu.jsx',
+            'src/pages/ProfilePage.jsx',
+            'src/pages/OnboardingPage.jsx',
+            'src/pages/PlayerSetup.jsx',
+            'src/components/auth/AuthProviderButtons.jsx',
+          ],
+          expected: 'Home/onboarding/deprecated setup have no provider buttons or secure-progress card; Profile guest card links with Apple, Google, and email while guest flow can continue to Home/Solo.',
+          actual: { profileMissing, guestContinueMissing, forbiddenHome, forbiddenNonProfile },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Login is presented as secure-progress account linking while guest continue remains available.', {
+      return pass('Guest account linking is Profile-only; Home stays playable without provider buttons, and Apple/Google/email remain together in Profile.', {
         verification: 'STATIC_CONTRACT',
         actionType: ACTION_TYPES.CODE_FIX,
       });

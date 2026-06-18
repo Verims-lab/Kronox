@@ -85,9 +85,12 @@ leaderboard rows, public projections, scoring, matchmaking, Solo category
 weighting, or Online game selection.
 
 Account linking is implemented through `linkGuestAccount`. Guest users can
-choose Apple / Google / Email to secure progress, while "Şimdilik misafir devam
-et" remains available. The Profile guest card says the user is playing as guest
-and presents account linking as progress protection, not as a mandatory gate.
+choose Apple / Google / Email from Profile to secure progress. Home / Ana Sayfa
+must not render Google, Apple, email, or `Hesabını bağla` / progress-protection
+account-link prompts. The Profile guest card says the user is playing as guest,
+presents account linking as progress protection, and keeps Apple visible
+wherever Google is visible. Guest users can ignore the optional Profile CTA and
+continue playing without login.
 
 ## Guest Onboarding Phase 2
 
@@ -118,6 +121,8 @@ retryable error instead of rendering legacy categories.
 The category completion CTA label is exactly `Ana Sayfa`. A successful guest
 category save writes `category_setup_status = completed` and
 `onboarding_status = onboarding_complete`, then routes directly to Ana Sayfa.
+Onboarding completion must not show Google / Apple / Email account-link buttons;
+guests can later open Profile if they want to secure/link progress.
 On app restart, `onboarding_complete` or a safely repairable completed
 category/profile state opens Ana Sayfa instead of returning to the blue
 onboarding shell.

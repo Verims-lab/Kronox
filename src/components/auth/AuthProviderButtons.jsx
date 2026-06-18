@@ -64,10 +64,10 @@ export default function AuthProviderButtons({ fromUrl = '/', onBeforeStart, clas
         type="button"
         onClick={() => startProviderLogin('apple')}
         className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-white px-4 font-inter text-[12px] font-black text-slate-950 shadow-[0_10px_24px_rgba(0,0,0,0.25)] transition-transform active:scale-[0.98]"
-        aria-label="Apple ile Giriş Yap"
+        aria-label="Apple ile devam et"
       >
         <Apple className="h-4 w-4" />
-        Apple ile Giriş Yap
+        Apple ile devam et
       </button>
 
       <button
@@ -78,10 +78,10 @@ export default function AuthProviderButtons({ fromUrl = '/', onBeforeStart, clas
           background: 'rgba(250,204,21,0.08)',
           boxShadow: 'inset 0 0 0 1px rgba(250,204,21,0.45), 0 10px 24px rgba(250,204,21,0.14)',
         }}
-        aria-label="Google ile Giriş Yap"
+        aria-label="Google ile devam et"
       >
         <Chrome className="h-4 w-4" />
-        Google ile Giriş Yap
+        Google ile devam et
       </button>
 
       <button
