@@ -994,13 +994,19 @@ Checklist:
   function-based reset path is not used. The active source for question
   show/answer/time history is `QuestionAttemptEvent`, and the current
   9-section email report computes those sections from raw events. After
-  replacing the question pool, manually clear `QuestionAttemptEvent` and, if
-  populated, the optional manual projection tables `QuestionStatsProjection`
-  and `CategoryStatsProjection`.
+  replacing the question pool, manually clear `QuestionAttemptEvent`,
+  `PlayerQuestionDailyExposure`, and, if populated, the optional manual
+  projection tables `QuestionStatsProjection` and `CategoryStatsProjection`.
+* `PlayerQuestionExposure` is an optional extra reset table. Clear it only when
+  the player-specific anti-repeat/freshness memory should restart too; clearing
+  it means the system no longer remembers which questions were already shown to
+  each player.
 * Manual question analytics reset must not delete `Question`, `Category`,
-  `SubCategory`, `UserCategoryPreference`, `UserStatsProjection`, scores,
-  diamonds, progress, leaderboard rows, `UserJokerInventory`,
-  `JokerTransaction`, users, admin rows, Daily Wheel, or gameplay/economy data.
+  `SubCategory`, `User`, `GuestProfile`, `PlayerProfile`,
+  `UserCategoryPreference`, `UserStatsProjection`, scores, diamonds, progress,
+  leaderboard rows, `UserJokerInventory`, `JokerTransaction`,
+  `DiamondTransaction`, users, admin rows, Daily Wheel/Daily Quest, or
+  gameplay/economy data.
 * Static pool and category preference report sections remain based on current
   `Question`, `Category`, and `UserCategoryPreference` rows after reset.
 * `JokerTransaction`, `DiamondTransaction`, `UserJokerInventory`, and

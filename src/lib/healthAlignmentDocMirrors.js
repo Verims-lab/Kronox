@@ -140,9 +140,10 @@ Status: Active product contract.
 - The report separates active pool, Solo-eligible pool, and Runtime Projection diagnostics. Runtime Projection is based on getQuestions diagnostics, remains diagnostic/admin proof only, and must not be faked by email generation. Top-shown concentration must be compared with the Solo-eligible pool before fairness conclusions.
 - A prior Codex275 marker bump was never proven deployed because the runtime function still imported the broken local _shared guard; the recovery inlined the AdminUser guard and uses current reportBuildMarker values as the unambiguous live marker.
 - Function-based question analytics reset is currently not used.
-- Manual DB reset path after question pool replacement clears QuestionAttemptEvent and any populated QuestionStatsProjection/CategoryStatsProjection manual aggregate rows. Projection tables may be empty because the active 9-section report computes history from raw QuestionAttemptEvent rows.
-- Manual reset must not delete Question, Category, SubCategory, UserCategoryPreference, UserStatsProjection, UserJokerInventory, JokerTransaction, progress/economy/leaderboard data, Daily Wheel rows, users, or AdminUser.
-- manual question analytics reset does not delete Question, Category, SubCategory, UserCategoryPreference, UserStatsProjection, score/progress/economy, leaderboard, Daily Wheel, users, AdminUser, or gameplay rows.
+- Manual DB reset path after question pool replacement clears QuestionAttemptEvent, PlayerQuestionDailyExposure, and any populated QuestionStatsProjection/CategoryStatsProjection manual aggregate rows. Projection tables may be empty because the active 9-section report computes history from raw QuestionAttemptEvent rows.
+- PlayerQuestionExposure is optional reset scope only when per-player anti-repeat memory should restart; clearing it resets the same-player question freshness memory.
+- Manual reset must not delete Question, Category, SubCategory, User, GuestProfile, PlayerProfile, UserCategoryPreference, UserStatsProjection, UserJokerInventory, JokerTransaction, DiamondTransaction, progress/economy/leaderboard data, Daily Wheel/Daily Quest rows, users, or AdminUser.
+- manual question analytics reset does not delete Question, Category, SubCategory, user/guest/player profiles, UserCategoryPreference, UserStatsProjection, score/progress/economy, leaderboard, Daily Wheel/Daily Quest, users, AdminUser, or gameplay rows.
 - Joker Kullanımı Analizi may be ledger-derived from JokerTransaction/UserJokerInventory and is not fully reset by question analytics cleanup. DiamondTransaction and DailyWheelSpin are economy/audit rows, not question analytics reset tables. Oynanma Zamanı hour/day metrics reset through QuestionAttemptEvent timestamps.
 - sendQuestionAnalyticsReportEmail handles stale/deleted question references with diagnostics and bounded sections.
 - sendQuestionAnalyticsReportEmail actual sent body includes exactly Executive Summary, Kategori Bazında Soru Havuzu, Kategori Tercihleri, Kategori Bazında Gösterim, En Çok Gösterilen Sorular, Az ya da Hiç Gösterilmeyen Sorular, En Çok Yanlış Yapılan Sorular, Joker Kullanımı Analizi, and Oynanma Zamanı ve Kullanım Ritmi. Kategori Bazında Soru Havuzu includes the category-based Top 10 answer year/count table inside the same section.
@@ -341,8 +342,9 @@ export const DB_ARCHITECTURE_DOC = `# Kronox DB Architecture
 Status: Implementation tracking doc.
 
 - DB gateway modules wrap entity access.
-- Analytics entities: QuestionAttemptEvent, QuestionStatsProjection,
-  UserStatsProjection, CategoryStatsProjection.
+- Analytics entities: QuestionAttemptEvent, PlayerQuestionExposure,
+  PlayerQuestionDailyExposure, QuestionStatsProjection, UserStatsProjection,
+  CategoryStatsProjection.
 - Leaderboard projection: SoloLeaderboardEntry.
 - cleanup/retention jobs are status-transition-first.
 - Base44 index/unique-key declarations are a platform/manual configuration gap.

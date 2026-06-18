@@ -178,14 +178,15 @@ longer stored on the entity — they are derived at fetch time by
 - Long event-based detail sections are row-limited in the email body and must not
   become raw DB dumps.
 - After a question pool replacement, analytics reset is manual_db_reset_only:
-  clear QuestionAttemptEvent and, if populated, optional manual
-  QuestionStatsProjection and CategoryStatsProjection aggregate rows by DB
-  maintenance. The active 9-section report computes history from raw
+  clear QuestionAttemptEvent, PlayerQuestionDailyExposure, and, if populated,
+  optional manual QuestionStatsProjection and CategoryStatsProjection aggregate
+  rows by DB maintenance. The active 9-section report computes history from raw
   QuestionAttemptEvent rows, so empty projection tables are expected until the
-  manual refresh runs. Do not delete Question,
-  Category, SubCategory, UserCategoryPreference, UserStatsProjection, scores,
-  diamonds, progress, users, AdminUser, Daily Wheel, gameplay, or leaderboard
-  rows.
+  manual refresh runs. PlayerQuestionExposure is optional reset scope only when
+  per-player anti-repeat/freshness memory should restart. Do not delete
+  Question, Category, SubCategory, User, GuestProfile, PlayerProfile,
+  UserCategoryPreference, UserStatsProjection, scores, diamonds, progress,
+  users, AdminUser, Daily Wheel/Daily Quest, gameplay, or leaderboard rows.
 - The 9-section email also reads ledger/current-state tables for Joker/economy
   signals. JokerTransaction, DiamondTransaction, UserJokerInventory, and
   DailyWheelSpin are not question analytics reset tables; if Joker Kullanımı

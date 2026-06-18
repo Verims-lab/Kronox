@@ -719,12 +719,14 @@ export const EXTRA_TESTS = [
         'Bu işlem şu anda manuel DB temizliği ile yapılır. Function reset yolu devre dışı.',
         'Soru gösterim/cevap/zaman geçmişinin aktif kaynağı QuestionAttemptEvent',
         'mevcut 9 bölümlü rapor ham olaylardan hesaplanır',
+        'Manuel reset için QuestionAttemptEvent, PlayerQuestionDailyExposure, QuestionStatsProjection ve CategoryStatsProjection temizlenir',
         'QuestionStatsProjection ve CategoryStatsProjection manuel aggregateQuestionStats refresh',
         'boş olmaları normal olabilir',
-        'Tam analitik reset için QuestionAttemptEvent ve varsa bu iki projection tablosu',
-        'Soru havuzu, kategori tercihleri, kullanıcı/profil verileri',
-        'elmas/joker bakiyeleri',
-        'JokerTransaction/DiamondTransaction gibi ekonomi ledger kayıtları silinmez',
+        'Oyuncu bazlı soru tekrar hafızasını da sıfırlamak istersen PlayerQuestionExposure ayrıca temizlenir',
+        'aynı oyuncuya aynı soruyu tekrar göstermeme hafızası da sıfırlanır',
+        'Soru havuzu, Category, User/GuestProfile/PlayerProfile, UserCategoryPreference',
+        'UserJokerInventory, JokerTransaction, DiamondTransaction',
+        'Daily Wheel/Daily Quest, leaderboard/skor/seviye ilerleme ve ekonomi kayıtları silinmez',
         'Joker Kullanımı Analizi ledger verisinden besleniyorsa bu resetten etkilenmez',
         'Oynanma Zamanı metrikleri QuestionAttemptEvent temizliğiyle sıfırlanır',
         'Son 7 gün',
@@ -791,19 +793,23 @@ export const EXTRA_TESTS = [
   makeCase('manual_question_analytics_reset_path_documented',
     'Manual DB reset path is documented and Settings no longer depends on resetQuestionAnalyticsData',
     () => {
-      const combined = `${DB_ARCHITECTURE_IMPLEMENTATION_MIRROR}\n${questionAnalyticsContractsSource}\n${questionAnalyticsReportToolSource}\n${questionAttemptEventEntitySource}\n${questionStatsProjectionEntitySource}\n${categoryStatsProjectionEntitySource}`;
+      const combined = `${DB_ARCHITECTURE_IMPLEMENTATION_MIRROR}\n${questionAnalyticsContractsSource}\n${questionAnalyticsReportToolSource}\n${questionAttemptEventEntitySource}\n${playerQuestionDailyExposureEntitySource}\n${playerQuestionExposureEntitySource}\n${questionStatsProjectionEntitySource}\n${categoryStatsProjectionEntitySource}`;
       const missing = missingTokens(combined, [
         'manual_db_reset_only',
         'QuestionAttemptEvent_raw_events_active_report_source',
+        'PlayerQuestionDailyExposure_is_part_of_question_analytics_manual_reset',
         'QuestionStatsProjection_and_CategoryStatsProjection_are_manual_aggregateQuestionStats_outputs_and_may_be_empty',
         'nine_section_report_does_not_require_projection_tables',
-        'manual_db_clear_QuestionAttemptEvent_and_if_populated_QuestionStatsProjection_CategoryStatsProjection',
+        'manual_db_clear_QuestionAttemptEvent_PlayerQuestionDailyExposure_and_if_populated_QuestionStatsProjection_CategoryStatsProjection',
+        'PlayerQuestionExposure_optional_reset_clears_per_player_anti_repeat_memory',
         'manuel DB temizliği',
         'Function reset yolu devre dışı',
         'boş olmaları normal olabilir',
         'aggregateQuestionStats',
         'Manual DB reset path after question pool replacement',
         'QuestionAttemptEvent',
+        'PlayerQuestionDailyExposure',
+        'PlayerQuestionExposure',
         'QuestionStatsProjection',
         'CategoryStatsProjection',
         'adminResetExcludes',
@@ -824,6 +830,8 @@ export const EXTRA_TESTS = [
         'Kronox Puan',
         'DiamondTransaction',
         'DailyWheelSpin',
+        'Daily Quest',
+        'UserJokerInventory',
         'GameRecord',
         'users',
         'AdminUser',
@@ -839,7 +847,7 @@ export const EXTRA_TESTS = [
           actual: { missing, forbidden },
         });
       }
-      return pass('Manual reset clears QuestionAttemptEvent and any populated manual projection rows by documented DB maintenance; Settings no longer calls resetQuestionAnalyticsData and warns that economy ledgers are outside scope.', {
+      return pass('Manual reset clears QuestionAttemptEvent, PlayerQuestionDailyExposure, and any populated manual projection rows by documented DB maintenance; PlayerQuestionExposure is optional anti-repeat memory reset, and Settings no longer calls resetQuestionAnalyticsData.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

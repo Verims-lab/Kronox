@@ -56,6 +56,8 @@ Implemented now:
   - `index.js`
 - Additive analytics/statistics schemas:
   - `QuestionAttemptEvent`
+  - `PlayerQuestionExposure`
+  - `PlayerQuestionDailyExposure`
   - `QuestionStatsProjection`
   - `UserStatsProjection`
   - `CategoryStatsProjection`
@@ -743,7 +745,7 @@ retention approval.
 | `expirePushSubscriptions` | Daily plus push-error immediate | `PushSubscription` | 404/410 or old disabled rows -> `expired`; archive after retention. | Endpoint + status. | Keep in-app invite unaffected. | Immediate marking exists in push; recurring archive needed. |
 | `refreshLeaderboardProjection` | On score write plus hourly/daily reconciliation | `User`, projection | Recompute unified score rows, dedupe owner keys. | Owner key. | Keep old row if recompute fails; log. | Partially exists via score writers and leaderboard function. |
 | `aggregateQuestionStats` | Manual/on-demand admin refresh; no scheduler is currently proven | events, projections | Roll up shown/correct/wrong/time/difficulty signals from `QuestionAttemptEvent` into optional projection rows. | Date window + projection key. | Re-run same window safely. | Exists, admin-only, defaults to dry-run; empty projection tables are normal until a non-dry-run refresh writes them. |
-| Manual DB question analytics reset | Manual DB maintenance | `QuestionAttemptEvent`, and `QuestionStatsProjection`/`CategoryStatsProjection` if populated | Reset question/show/answer/play-time history after replacing the question pool. | Admin console/operator proof. | Current 9-section report computes history from `QuestionAttemptEvent`; projection tables are manual/optional summaries and may be empty. Clears question analytics history/projections only; never deletes questions, categories, preferences, progress, economy, users, admin rows, Daily Wheel, gameplay, or leaderboard data. The 9-section report also reads ledger/current-state tables for Joker/economy signals, so `JokerTransaction`, `DiamondTransaction`, `UserJokerInventory`, and Daily Wheel ledger rows are explicitly outside this reset. | Manual only; function reset path is not used. |
+| Manual DB question analytics reset | Manual DB maintenance | `QuestionAttemptEvent`, `PlayerQuestionDailyExposure`, and `QuestionStatsProjection`/`CategoryStatsProjection` if populated. Optional: `PlayerQuestionExposure` only when per-player anti-repeat memory should restart. | Reset question/show/answer/play-time history, daily player-question analytics summaries, and projection rows after replacing the question pool. | Admin console/operator proof. | Current 9-section report computes history from `QuestionAttemptEvent`; projection tables are manual/optional summaries and may be empty. Clears question analytics history/projections only. `PlayerQuestionExposure` is the fast per-player freshness memory; clearing it means the same-player anti-repeat memory restarts. Never deletes questions, categories, user/guest/player profiles, preferences, progress, economy, users, admin rows, Daily Wheel/Daily Quest, gameplay, or leaderboard data. The 9-section report also reads ledger/current-state tables for Joker/economy signals, so `JokerTransaction`, `DiamondTransaction`, `UserJokerInventory`, and Daily Wheel ledger rows are explicitly outside this reset. | Manual only; function reset path is not used. |
 | `cleanupAdminMaintenanceLog` | Monthly/quarterly | `AdminMaintenanceLog` | Archive/trim older than retention. | Log id/date. | Never delete recent logs. | New. |
 | `archiveOldLobbyMessages` | Monthly | `LobbyMessage` | Archive/delete chat rows after policy. | Lobby id + date. | Skip active lobbies. | New, only if chat used. |
 
@@ -971,16 +973,20 @@ No deletion should happen in this task.
   reset path is currently not used. The active source for question
   show/answer/time history is `QuestionAttemptEvent`; the current 9-section
   email report calculates those historical sections from raw events, not from
-  projection tables. `QuestionStatsProjection` and `CategoryStatsProjection`
-  are optional manual `aggregateQuestionStats` outputs and may be empty. To
-  restart analytics from zero, manually clear `QuestionAttemptEvent` and, if
-  populated, `QuestionStatsProjection` and `CategoryStatsProjection`. Do not
-  delete `Question`, `Category`,
-  `SubCategory`, `UserCategoryPreference`, `UserSubCategoryPreference`,
-  `UserStatsProjection`, Solo progress, `GameRecord`, `OnlineMatchResult`,
-  `Lobby`, leaderboard rows, score/Kronox Puan rows, `DiamondTransaction`,
-  `DailyWheelSpin`, `UserJokerInventory`, `JokerTransaction`, users, or
-  `AdminUser` rows. Static content-pool and category-preference report sections
+  projection tables. `PlayerQuestionDailyExposure` stores daily per-player
+  question exposure summaries. `QuestionStatsProjection` and
+  `CategoryStatsProjection` are optional manual `aggregateQuestionStats`
+  outputs and may be empty. To restart analytics from zero, manually clear
+  `QuestionAttemptEvent`, `PlayerQuestionDailyExposure`, and, if populated,
+  `QuestionStatsProjection` and `CategoryStatsProjection`. Clear
+  `PlayerQuestionExposure` only when the same-player anti-repeat memory should
+  restart too. Do not delete `Question`, `Category`, `SubCategory`, `User`,
+  `GuestProfile`, `PlayerProfile`, `UserCategoryPreference`,
+  `UserSubCategoryPreference`, `UserStatsProjection`, Solo progress,
+  `GameRecord`, `OnlineMatchResult`, `Lobby`, leaderboard rows,
+  score/Kronox Puan rows, `DiamondTransaction`, `DailyWheelSpin`, Daily Quest
+  rows, `UserJokerInventory`, `JokerTransaction`, users, or `AdminUser` rows.
+  Static content-pool and category-preference report sections
   keep using current `Question`, `Category`, and `UserCategoryPreference` rows.
   Joker Kullanımı Analizi may continue to show ledger-derived history from
   `JokerTransaction`/`UserJokerInventory`, and activity notes may continue to

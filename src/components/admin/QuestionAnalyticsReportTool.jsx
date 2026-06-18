@@ -129,9 +129,10 @@ export default function QuestionAnalyticsReportTool() {
             <p className="font-inter text-xs leading-5 text-amber-100/85">
               Bu işlem şu anda manuel DB temizliği ile yapılır. Function reset yolu devre dışı.
               Soru gösterim/cevap/zaman geçmişinin aktif kaynağı QuestionAttemptEvent tablosudur; mevcut 9 bölümlü rapor ham olaylardan hesaplanır.
+              Manuel reset için QuestionAttemptEvent, PlayerQuestionDailyExposure, QuestionStatsProjection ve CategoryStatsProjection temizlenir.
               QuestionStatsProjection ve CategoryStatsProjection manuel aggregateQuestionStats refresh ile oluşan opsiyonel özet tablolardır; boş olmaları normal olabilir.
-              Tam analitik reset için QuestionAttemptEvent ve varsa bu iki projection tablosu temizlenir.
-              Soru havuzu, kategori tercihleri, kullanıcı/profil verileri, elmas/joker bakiyeleri ve JokerTransaction/DiamondTransaction gibi ekonomi ledger kayıtları silinmez.
+              Oyuncu bazlı soru tekrar hafızasını da sıfırlamak istersen PlayerQuestionExposure ayrıca temizlenir; bu tablo silinirse sistemin aynı oyuncuya aynı soruyu tekrar göstermeme hafızası da sıfırlanır.
+              Soru havuzu, Category, User/GuestProfile/PlayerProfile, UserCategoryPreference, UserJokerInventory, JokerTransaction, DiamondTransaction, Daily Wheel/Daily Quest, leaderboard/skor/seviye ilerleme ve ekonomi kayıtları silinmez.
               Not: Joker Kullanımı Analizi ledger verisinden besleniyorsa bu resetten etkilenmez; Oynanma Zamanı metrikleri QuestionAttemptEvent temizliğiyle sıfırlanır.
             </p>
           </div>

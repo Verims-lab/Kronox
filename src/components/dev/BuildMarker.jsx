@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex403 — Question analytics manual reset contract refresh:
+//   • Documents the full manual reset table list including
+//     PlayerQuestionDailyExposure.
+//   • Marks PlayerQuestionExposure as the optional anti-repeat memory reset.
+//   • Keeps question pool, profiles, preferences, economy, Daily systems,
+//     leaderboard, score, and progress tables explicitly out of scope.
+
 // Codex402 — Health blocker/manual-warning reclassification:
 //   • Separates automated score from release readiness/manual proof gates.
 //   • Keeps Last Run/export actions on completed reports only.
@@ -2273,7 +2280,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex402';
+const BUILD_MARKER = 'Codex403';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
