@@ -583,6 +583,13 @@ After deployment, verify:
   login; the allowed surface is current `Category` id/name/description/status
   metadata from entity read or `getCategoryMetadata`, never raw `Question.list`,
   full question rows, or stale hardcoded seed category fallbacks
+* `getCategoryMetadata` is public by design for unauthenticated guest category
+  selection. Its response scope is metadata-only: `category_id`, `name`,
+  `description`, and normalized active `status`. It must not return questions,
+  answers, years, full question-bank rows, user data, admin/internal fields,
+  hidden notes, deleted/passive categories, or stale hardcoded seed arrays.
+  Category preference writes remain separate and still require
+  `guest_id + guest_token` ownership proof.
 * guest onboarding category save uses the token-proven `GuestProfile`
   `guest_id + guest_token` path and stores `selected_category_ids`; `guest_id`
   alone is not sufficient
@@ -842,6 +849,18 @@ headers, raw guest token, auth headers, provider credentials, and full request
 bodies must never be stored. Hour/day buckets are used for bloat monitoring and
 rate limiting. If runtime metadata or entity deployment is unavailable, release
 proof must record the limitation and manually monitor GuestProfile growth.
+
+`getCategoryMetadata` is the public-by-design category metadata companion for
+guest onboarding. It must remain callable without login so new guests can choose
+Solo preferences after profile setup, but it is not an authorization boundary
+for user data. The function reads the current `Category` source of truth and
+returns only active category metadata fields: `category_id`, `name`,
+`description`, and `status`. It rejects oversized or unexpected request bodies,
+does not read `Question`, does not expose answer/year/full-bank data, does not
+return admin/internal fields, and must not fall back to old hardcoded category
+names such as Chronicle, Flashback, or Viral unless those names are active rows
+in the current category source. If category metadata cannot be loaded, the app
+must show a retryable error instead of rendering stale fallback categories.
 
 Guest ownership requires `guest_id + raw guest token`; `guest_id` alone must not
 authorize reads/writes. Never log raw guest token, auth headers, provider

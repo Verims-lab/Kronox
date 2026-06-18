@@ -184,6 +184,74 @@ export const EXTRA_TESTS = [
       }
       return pass('createGuestProfile remains public by design but is size-limited, allowlisted, source-hash throttled, and monitored for bloat.', {
         verification: 'STATIC_CONTRACT',
+        classification: 'PUBLIC_BY_DESIGN_WITH_ABUSE_CONTROLS',
+        publicAccessAllowed: true,
+        remainingRuntimeProof: 'MANUAL_REQUIRED',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('get_category_metadata_public_metadata_only',
+    'Public getCategoryMetadata returns guest-safe category metadata only',
+    () => {
+      const missing = missingTokens(`${getCategoryMetadataSource}\n${userCategoryPreferencesSource}\n${onboardingPageSource}`, [
+        'Public by design',
+        'MAX_REQUEST_BODY_BYTES',
+        'unexpected_category_metadata_fields',
+        'base44.asServiceRole.entities.Category',
+        'publicCategoryMetadata',
+        'responseFields',
+        "'category_id'",
+        "'name'",
+        "'description'",
+        "'status'",
+        'metadataOnly: true',
+        'guestCallableWithoutLogin: true',
+        'rawQuestionRowsExposed: false',
+        'answersExposed: false',
+        'yearsExposed: false',
+        'adminFieldsExposed: false',
+        'legacyHardcodedCategoryFallbackAllowed: false',
+        "base44.functions.invoke('getCategoryMetadata'",
+        'categoryLoadError',
+        'Tekrar Dene',
+      ]);
+      const forbidden = [
+        ...presentTokens(`${getCategoryMetadataSource}\n${userCategoryPreferencesSource}`, [
+          'SAFE_GUEST_CATEGORY_METADATA',
+          'guestOnboardingSafeMetadataFallback',
+          'allowSafeFallback: true',
+          'entities.Question',
+          'Question.list',
+          'Question.filter',
+          'base44.auth.me',
+        ]),
+        ...presentTokens(getCategoryMetadataSource, [
+          'created_by:',
+          'created_date:',
+          'updated_date:',
+          'admin_notes:',
+          'Chronicle',
+          'Flashback',
+          'Viral',
+        ]),
+      ];
+      if (missing.length || forbidden.length) {
+        return fail('Public getCategoryMetadata is not proven to be metadata-only guest category access.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'PUBLIC_METADATA_EXPOSURE_RISK',
+          files: ['base44/functions/getCategoryMetadata/entry.ts', 'src/lib/userCategoryPreferences.js', 'src/pages/OnboardingPage.jsx'],
+          expected: 'Public-by-design category metadata only: category_id/name/description/status, no questions, no auth requirement, no stale fallback.',
+          actual: { missing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('getCategoryMetadata is public by design for guest onboarding and returns only current active category metadata.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'ALLOWED_PUBLIC_METADATA',
+        publicAccessAllowed: true,
+        responseScope: ['category_id', 'name', 'description', 'status'],
+        remainingRuntimeProof: 'MANUAL_REQUIRED',
         actionType: ACTION_TYPES.CODE_FIX,
       });
     }),

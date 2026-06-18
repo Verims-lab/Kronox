@@ -1100,6 +1100,15 @@ identity proof and must be trimmed after operational retention. Abandoned
 `GuestProfile` cleanup remains a manual/admin retention task until a dedicated
 job is added.
 
+`getCategoryMetadata` remains public by design so unauthenticated guests can
+complete category onboarding without Google / Apple / Email login. It is a
+metadata-only `Category` projection: `category_id`, `name`, `description`, and
+active `status`. It must not read or return `Question` rows, answers, years,
+full-bank data, user data, admin/internal category fields, passive/deleted rows,
+or stale hardcoded seed fallback categories. Guest category preference writes
+stay separate and require `guest_id + raw guest token` proof through
+`GuestProfile`.
+
 Default public usernames use `KronoxUser####` / `KronoxUser#####`, are unique at
 creation time, and must not be derived from email, Google ID, Apple ID, or any
 provider UID.

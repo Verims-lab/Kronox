@@ -71,6 +71,13 @@ current `Category` metadata directly or through `getCategoryMetadata`; it must
 not render a stale hardcoded category array when the live read is empty or
 unavailable.
 
+`getCategoryMetadata` is public by design for guest onboarding and returns only
+non-sensitive metadata from current active `Category` rows:
+`category_id`, `name`, `description`, and `status`. It must not expose question
+rows, answers, years, full-bank data, user data, admin/internal fields, passive
+or deleted categories, or any stale hardcoded fallback array. Guest category
+preference saving is a separate token-proven `GuestProfile` write.
+
 The following original seed names are retained only as historical seed-helper
 reference. They are not a UI fallback and must not appear in onboarding unless
 matching active rows truly exist in the current category source of truth:

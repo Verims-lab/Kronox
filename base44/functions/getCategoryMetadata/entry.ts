@@ -1,7 +1,9 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
 const MAX_CATEGORY_LIMIT = 1000;
+const MAX_REQUEST_BODY_BYTES = 16 * 1024;
 const ACTIVE_CATEGORY_STATUSES = new Set(['', 'a', 'active', 'aktif']);
+const REQUEST_FIELDS = new Set(['limit']);
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });
@@ -21,6 +23,52 @@ function isActiveCategory(row: any) {
 
 function safeText(value: unknown, maxLength = 160) {
   return String(value || '').trim().replace(/\s+/g, ' ').slice(0, maxLength);
+}
+
+function isPlainObject(value: unknown) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function unexpectedKeys(source: unknown, allowed: Set<string>) {
+  if (!isPlainObject(source)) return [];
+  return Object.keys(source as Record<string, unknown>)
+    .filter((key) => !allowed.has(key))
+    .slice(0, 12);
+}
+
+function byteLength(text: string) {
+  return new TextEncoder().encode(text || '').length;
+}
+
+async function readMetadataRequestBody(req: Request) {
+  const contentLength = Number(req.headers.get('content-length') || 0);
+  if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BODY_BYTES) {
+    return { ok: false, response: json({ ok: false, error: 'request_body_too_large' }, 413), body: null };
+  }
+
+  const text = await req.text();
+  if (byteLength(text) > MAX_REQUEST_BODY_BYTES) {
+    return { ok: false, response: json({ ok: false, error: 'request_body_too_large' }, 413), body: null };
+  }
+  if (!text.trim()) return { ok: true, response: null, body: {} };
+
+  try {
+    const body = JSON.parse(text);
+    if (!isPlainObject(body)) {
+      return { ok: false, response: json({ ok: false, error: 'invalid_request_body' }, 400), body: null };
+    }
+    const unexpected = unexpectedKeys(body, REQUEST_FIELDS);
+    if (unexpected.length) {
+      return {
+        ok: false,
+        response: json({ ok: false, error: 'unexpected_category_metadata_fields', fields: unexpected }, 400),
+        body: null,
+      };
+    }
+    return { ok: true, response: null, body };
+  } catch {
+    return { ok: false, response: json({ ok: false, error: 'invalid_json_body' }, 400), body: null };
+  }
 }
 
 function publicCategoryMetadata(row: any) {
@@ -43,12 +91,17 @@ function byCategorySort(a: any, b: any) {
 }
 
 Deno.serve(async (req: Request) => {
+  // Public by design: guest onboarding category selection must work before
+  // Google/Apple/email login. The response is metadata-only and intentionally
+  // omits questions, answers, years, user data, and admin/internal fields.
   try {
     if (req.method !== 'POST') {
       return json({ ok: false, error: 'method_not_allowed' }, 405);
     }
 
-    const body = await req.json().catch(() => ({}));
+    const parsed = await readMetadataRequestBody(req);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.body || {};
     const limit = Math.min(
       MAX_CATEGORY_LIMIT,
       Math.max(1, Math.trunc(Number((body as any)?.limit) || MAX_CATEGORY_LIMIT)),
@@ -73,9 +126,13 @@ Deno.serve(async (req: Request) => {
       categories,
       contract: {
         source: 'Category',
+        responseFields: ['category_id', 'name', 'description', 'status'],
         metadataOnly: true,
         guestCallableWithoutLogin: true,
         rawQuestionRowsExposed: false,
+        answersExposed: false,
+        yearsExposed: false,
+        adminFieldsExposed: false,
         legacyHardcodedCategoryFallbackAllowed: false,
       },
     });
