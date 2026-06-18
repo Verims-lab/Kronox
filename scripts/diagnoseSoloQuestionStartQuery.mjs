@@ -21,15 +21,6 @@ const ENV_FILE_CANDIDATES = Object.freeze([
   '.env.production.local',
   '.env.production',
 ]);
-const ONLINE_ID_TO_MAIN_CATEGORY_ID = Object.freeze({
-  chronicle: 1,
-  flashback: 2,
-  kult: 3,
-  viral: 4,
-  arena: 5,
-  level_up: 6,
-});
-
 function readJsonc(path) {
   const raw = readFileSync(path, 'utf8')
     .replace(/\/\*[\s\S]*?\*\//g, '')
@@ -153,11 +144,7 @@ function normalizeQuestionMainCategoryId(question = {}) {
     ?? question.category_id
     ?? question.categoryid
     ?? question.categoryId;
-  const direct = normalizeCategoryId(raw);
-  if (direct !== null) return direct;
-
-  const categoryText = String(question.category || '').trim().toLowerCase();
-  return ONLINE_ID_TO_MAIN_CATEGORY_ID[categoryText] ?? null;
+  return normalizeCategoryId(raw);
 }
 
 function parseExplicitYear(value) {

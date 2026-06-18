@@ -24,53 +24,35 @@ const summarizePlayers = (players: any[] = []) =>
     cardCount: Array.isArray(player?.cards) ? player.cards.length : 0,
   }));
 
-// Codex165 — Online category multi-select wiring.
-//
-// The Online UI offers 6 stable category ids:
-//   chronicle=1, flashback=2, kult=3, viral=4, arena=5, level_up=6
-//
-// The Question dataset evolved in Codex156: rows now carry numeric
-// `main_category_id` (1..6) matching the same Category lookup table the
-// UI uses. They do NOT carry the legacy string `category` / `type` /
-// `year` fields anymore — `year` is encoded inside `answer` (e.g. "2006").
-//
-// So we:
-//   1. Normalize every Question into runtime shape (year extracted from
-//      answer, default type=metin, default category=genel) — same logic
-//      getQuestions already applies for Solo.
-//   2. Filter by `main_category_id` against the host's selected Online
-//      category ids. Legacy string `category` rows are still honored as
-//      a fallback so old content keeps working.
-const ONLINE_ID_TO_MAIN_CATEGORY_ID: Record<string, number> = {
-  chronicle: 1,
-  flashback: 2,
-  kult: 3,
-  viral: 4,
-  arena: 5,
-  level_up: 6,
-};
+const CATEGORY_METADATA_POLICY = Object.freeze({
+  sourceOfTruth: 'Category',
+  legacyHardcodedCategoryFallbackAllowed: false,
+  loadFailureBehavior: 'retryable_error_or_empty_state',
+});
 
-const KNOWN_MAIN_CATEGORY_IDS = new Set([1, 2, 3, 4, 5, 6]);
+const ONLINE_GAME_POLICY = Object.freeze({
+  categorySourceOfTruth: CATEGORY_METADATA_POLICY.sourceOfTruth,
+  selectedCategoryIdsField: 'selected_category_ids',
+  selectedCategoriesOnly: true,
+  selectedCategoryCoverage: '100_percent_selected_active_categories',
+  allowedDifficulties: [1, 2],
+  difficultyRule: 'difficulty_1_or_2_only',
+  soloPreferenceWeightingApplied: false,
+  guestSoloPathUsed: false,
+  legacyHardcodedCategoryFallbackAllowed: false,
+});
+
 const QUESTION_FETCH_PER_CATEGORY_LIMIT = 250;
 const ONLINE_SHARED_DECK_MAX_QUESTIONS = 96;
 const ONLINE_SHARED_DECK_MIN_QUESTIONS = 32;
-const ONLINE_ALLOWED_DIFFICULTIES = new Set([1, 2]);
+const ONLINE_ALLOWED_DIFFICULTIES = new Set(ONLINE_GAME_POLICY.allowedDifficulties);
 const ONLINE_DECK_SELECTION_SOURCE = 'online_shared_selected_category_deck_v1';
-
-const LEGACY_ONLINE_TO_LEGACY_CATEGORY_MAP: Record<string, string[]> = {
-  flashback: ['tarih', 'genel'],
-  kult: ['sanat', 'genel'],
-  viral: ['teknoloji', 'genel'],
-  arena: ['spor'],
-  level_up: ['teknoloji', 'genel'],
-  chronicle: ['tarih', 'genel'],
-};
 
 const normalizeMainCategoryId = (value: unknown): number | null => {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return null;
   const id = Math.trunc(numeric);
-  return KNOWN_MAIN_CATEGORY_IDS.has(id) ? id : null;
+  return id > 0 ? id : null;
 };
 
 const canSeeAdminDebug = (user: any) => {
@@ -97,25 +79,10 @@ const resolveMainCategoryIdsFromSelectedIds = (selectedIds: any, activeMainCateg
   if (!Array.isArray(selectedIds) || selectedIds.length === 0) return null;
   const allowed = new Set<number>();
   for (const id of selectedIds) {
-    const mapped = typeof id === 'string'
-      ? (ONLINE_ID_TO_MAIN_CATEGORY_ID[id] ?? normalizeMainCategoryId(id))
-      : normalizeMainCategoryId(id);
+    const mapped = normalizeMainCategoryId(id);
     if (mapped !== null && Number.isFinite(mapped) && (!activeMainCategoryIds || activeMainCategoryIds.has(mapped))) allowed.add(mapped);
   }
   return allowed.size > 0 ? allowed : null;
-};
-
-const resolveLegacyCategoriesFromSelectedIds = (selectedIds: any): string[] | null => {
-  if (!Array.isArray(selectedIds) || selectedIds.length === 0) return null;
-  const allowed = new Set<string>();
-  for (const id of selectedIds) {
-    if (typeof id !== 'string') continue;
-    const mapped = LEGACY_ONLINE_TO_LEGACY_CATEGORY_MAP[id];
-    if (Array.isArray(mapped)) {
-      for (const legacy of mapped) allowed.add(legacy);
-    }
-  }
-  return allowed.size > 0 ? Array.from(allowed) : null;
 };
 
 // Codex165 — Question runtime normalizer. Mirrors functions/getQuestions
@@ -181,8 +148,8 @@ const isActiveCategory = (category: any) => {
 };
 
 const loadActiveMainCategoryIds = async (base44: any): Promise<Set<number>> => {
-  const rows = await base44.asServiceRole.entities.Category.list('category_id', 50).catch(() => []);
-  if (!Array.isArray(rows) || rows.length === 0) return new Set(KNOWN_MAIN_CATEGORY_IDS);
+  const rows = await base44.asServiceRole.entities.Category.list('category_id', 1000).catch(() => []);
+  if (!Array.isArray(rows) || rows.length === 0) return new Set();
   const active = rows
     .filter(isActiveCategory)
     .map((row: any) => normalizeMainCategoryId(row?.category_id ?? row?.categoryid))
@@ -204,7 +171,7 @@ const dedupeQuestions = (rows: any[] = []) => {
 
 const getQueryMainCategoryIdsForSettings = (settings: any, activeMainCategoryIds: Set<number>) => {
   const hasSelectedCategoryIds = Array.isArray(settings?.selected_category_ids) && settings.selected_category_ids.length > 0;
-  if (!hasSelectedCategoryIds) return Array.from(activeMainCategoryIds);
+  if (!hasSelectedCategoryIds) return [];
   const selected = resolveMainCategoryIdsFromSelectedIds(settings.selected_category_ids, activeMainCategoryIds);
   return selected ? Array.from(selected) : [];
 };
@@ -231,11 +198,9 @@ const normalizeSettings = (lobby: any, incoming: any = {}) => {
   const turnDuration = Math.max(10, Math.trunc(readNumber(incoming.turn_duration, lobby.turn_duration ?? 60)));
   const winCardCount = Math.max(1, Math.trunc(readNumber(incoming.win_card_count, lobby.win_card_count ?? 10)));
 
-  // Codex091 — prefer the Online multi-select selected_category_ids over the
-  // legacy single-`category` field. Fallback chain:
-  //   1. incoming.selected_category_ids (if host changed in waiting room)
-  //   2. lobby.selected_category_ids (persisted at create time)
-  //   3. lobby.category (legacy single-category — old lobbies keep working)
+  // Online category selection is authoritative and must come from the current
+  // lobby-selected Category.category_id values. Missing/invalid selected ids
+  // clean-fail; no stale hardcoded category fallback is allowed.
   const selectedCategoryIds = Array.isArray(incoming.selected_category_ids)
     ? incoming.selected_category_ids
     : (Array.isArray(lobby.selected_category_ids) ? lobby.selected_category_ids : []);
@@ -250,7 +215,7 @@ const normalizeSettings = (lobby: any, incoming: any = {}) => {
   };
 };
 
-const filterQuestionsForLobbySettings = (questions: any[] = [], settings: any = {}, activeMainCategoryIds: Set<number> = new Set(KNOWN_MAIN_CATEGORY_IDS)) => {
+const filterQuestionsForLobbySettings = (questions: any[] = [], settings: any = {}, activeMainCategoryIds: Set<number> = new Set()) => {
   // Codex165 — normalize every Question once so the new Codex156 dataset
   // (year inside `answer`, no legacy `type` field) is honored. Then keep
   // only rows with a usable year inside the host's year window.
@@ -282,16 +247,7 @@ const filterQuestionsForLobbySettings = (questions: any[] = [], settings: any = 
     return [];
   }
 
-  // Legacy single-category path for old lobbies without selected ids.
-  // `karisik` means all active categories; legacy string categories are
-  // still honored only for old content paths.
-  if (settings.category === 'karisik') return baseFiltered;
-  const legacyAllowed = resolveLegacyCategoriesFromSelectedIds([settings.category]);
-  if (legacyAllowed && legacyAllowed.length > 0) {
-    const allowSet = new Set(legacyAllowed);
-    return baseFiltered.filter(q => allowSet.has(q?.category));
-  }
-  return baseFiltered.filter(q => settings.category === 'karisik' || q?.category === settings.category);
+  return [];
 };
 
 const shuffleQuestions = (questions: any[] = []) => {
@@ -390,10 +346,12 @@ const buildInitialState = ({ players, questions, settings, activeMainCategoryIds
       deckQuestionCount: sharedDeck.length,
       neededOpeningQuestionCount: neededCount,
       maxDeckQuestionCount: ONLINE_SHARED_DECK_MAX_QUESTIONS,
-      selectedCategoriesOnly: true,
-      soloPreferenceWeightingApplied: false,
-      guestSoloPathUsed: false,
-      difficultyRule: 'difficulty_1_or_2_only',
+      selectedCategoriesOnly: ONLINE_GAME_POLICY.selectedCategoriesOnly,
+      soloPreferenceWeightingApplied: ONLINE_GAME_POLICY.soloPreferenceWeightingApplied,
+      guestSoloPathUsed: ONLINE_GAME_POLICY.guestSoloPathUsed,
+      difficultyRule: ONLINE_GAME_POLICY.difficultyRule,
+      categorySourceOfTruth: ONLINE_GAME_POLICY.categorySourceOfTruth,
+      legacyHardcodedCategoryFallbackAllowed: ONLINE_GAME_POLICY.legacyHardcodedCategoryFallbackAllowed,
       categoryCounts: countBy(sharedDeck, (question) => question.main_category_id),
       difficultyCounts: countBy(sharedDeck, (question) => question.difficulty),
       createdAt: new Date().toISOString(),

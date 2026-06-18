@@ -178,8 +178,16 @@ function getQuestionsDiagnostics(entryFiles) {
     'eligibleQuestionCountByDifficulty',
     'projectionDiagnostics',
     'buildProjectionDiagnostics',
+    'CATEGORY_METADATA_POLICY',
+    'SOLO_QUESTION_POLICY',
+    'legacyHardcodedCategoryFallbackAllowed: false',
+    'staleCategoryFallbackUsed: false',
   ];
   const forbidden = [
+    'FALLBACK_ACTIVE_CATEGORY_IDS',
+    'fallback_active_category_ids',
+    'ONLINE_ID_TO_MAIN_CATEGORY_ID',
+    'LEGACY_ONLINE_TO_LEGACY_CATEGORY_MAP',
     'const payload = await req.json()',
     'const payload = await req.json().catch',
     'let payload = await req.json()',
@@ -201,6 +209,67 @@ function getQuestionsDiagnostics(entryFiles) {
   ];
 }
 
+function categoryRuntimePolicyDiagnostics(entryFiles) {
+  const diagnostics = [];
+  const files = Object.fromEntries(entryFiles.map((file) => [relativeFile(file), file]));
+  const staleRuntimeTokens = [
+    'ONLINE_ID_TO_MAIN_CATEGORY_ID',
+    'LEGACY_ONLINE_TO_LEGACY_CATEGORY_MAP',
+    'FALLBACK_ACTIVE_CATEGORY_IDS',
+    'fallback_active_category_ids',
+    'Chronicle',
+    'Flashback',
+    'Viral',
+    'chronicle',
+    'flashback',
+    'viral',
+  ];
+  for (const relative of [
+    path.join('base44', 'functions', 'startLobbyGame', 'entry.ts'),
+    path.join('base44', 'functions', 'getQuestions', 'entry.ts'),
+  ]) {
+    const filePath = files[relative];
+    if (!filePath) {
+      diagnostics.push(`${relative}: missing category runtime entry file`);
+      continue;
+    }
+    const source = readText(filePath);
+    diagnostics.push(...staleRuntimeTokens
+      .filter((token) => source.includes(token))
+      .map((token) => `${relative}: stale category runtime fallback token '${token}'`));
+    for (const token of [
+      'CATEGORY_METADATA_POLICY',
+      'legacyHardcodedCategoryFallbackAllowed: false',
+      '\'category_id\', 1000',
+    ]) {
+      if (!source.includes(token)) {
+        diagnostics.push(`${relative}: missing category source-of-truth token '${token}'`);
+      }
+    }
+  }
+
+  const metadataPath = files[path.join('base44', 'functions', 'getCategoryMetadata', 'entry.ts')];
+  if (metadataPath) {
+    const source = readText(metadataPath);
+    for (const token of [
+      'base44.asServiceRole.entities.Category',
+      'publicCategoryMetadata',
+      'metadataOnly: true',
+      'guestCallableWithoutLogin: true',
+      'legacyHardcodedCategoryFallbackAllowed: false',
+    ]) {
+      if (!source.includes(token)) {
+        diagnostics.push(`${relativeFile(metadataPath)}: missing metadata-only category token '${token}'`);
+      }
+    }
+    diagnostics.push(...['Question.list', 'Question.filter', 'Chronicle', 'Flashback', 'Viral']
+      .filter((token) => source.includes(token))
+      .map((token) => `${relativeFile(metadataPath)}: forbidden metadata category token '${token}'`));
+  }
+
+  return diagnostics;
+}
+
 const entryFiles = walkEntryFiles(functionsDir);
 const failures = [];
 
@@ -212,6 +281,7 @@ for (const filePath of entryFiles) {
   failures.push(...emailDiagnostics(filePath, source));
 }
 failures.push(...getQuestionsDiagnostics(entryFiles));
+failures.push(...categoryRuntimePolicyDiagnostics(entryFiles));
 
 if (failures.length) {
   console.error(`Base44 function compile/deploy gate failed with ${failures.length} issue(s):`);

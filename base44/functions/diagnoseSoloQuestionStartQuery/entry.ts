@@ -12,15 +12,6 @@ const QUESTION_CACHE_VERSION = 'question-runtime-v7-getQuestions-live-marker';
 const CATEGORY_ACTIVE_STATUS_VALUES = new Set(['', 'a', 'active', 'aktif']);
 const PREFERENCE_ACTIVE_STATUS_VALUES = new Set(['a', 'active', 'aktif']);
 
-const ONLINE_ID_TO_MAIN_CATEGORY_ID: Record<string, number> = {
-  chronicle: 1,
-  flashback: 2,
-  kult: 3,
-  viral: 4,
-  arena: 5,
-  level_up: 6,
-};
-
 function normalizeEmail(value: unknown) {
   return String(value || '').trim().toLowerCase();
 }
@@ -131,11 +122,7 @@ function normalizeQuestionMainCategoryId(question: Record<string, unknown>) {
     ?? question?.category_id
     ?? question?.categoryid
     ?? question?.categoryId;
-  const direct = normalizeCategoryId(raw);
-  if (direct !== null) return direct;
-
-  const categoryText = String(question?.category || '').trim().toLowerCase();
-  return ONLINE_ID_TO_MAIN_CATEGORY_ID[categoryText] ?? null;
+  return normalizeCategoryId(raw);
 }
 
 function parseExplicitYear(value: unknown) {

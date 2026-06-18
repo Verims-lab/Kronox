@@ -112,8 +112,9 @@ Game.jsx explicitly resolves getValidActiveSelectedCategoryIds(preferences,
 activeCategories) in the Solo-only path before passing selected IDs to the deck
 builder.
 getQuestions derives runtime playable category IDs from active Category rows,
-not a stale hardcoded seed-category subset; fallback IDs are only for Category
-read failure and must not permanently exclude newer active category IDs.
+not a stale hardcoded seed-category subset; Category read failure returns an
+empty/retryable state instead of fallback IDs and must not permanently exclude
+newer active category IDs.
 Runtime active-category status aliases include a, active, and aktif, and live
 category_id normalization accepts any positive DB category id instead of
 clamping to original seed IDs. question-runtime-v10-solo-architecture
@@ -124,8 +125,8 @@ server_attempt_candidate_buffer_v1 explicitly; getQuestions fetches
 numeric/string main_category_id and category_id variants per active Category
 before the bounded response cap. getQuestions has an explicit Base44 function
 manifest, signed-in gameplay returns a bounded server attempt candidate buffer,
-projectionDiagnostics are admin/debug-only, Category fallback is used only when
-Category read fails, sourcePoolCapRemoved/responseCapApplied describe the new
+projectionDiagnostics are admin/debug-only, stale Category fallback IDs are
+forbidden even when Category read fails, sourcePoolCapRemoved/responseCapApplied describe the new
 runtime contract, and Question category fields are not capped to the original
 1-6 seed set.
 getQuestionsRuntimeMarker / diagnostics runtimeMarker

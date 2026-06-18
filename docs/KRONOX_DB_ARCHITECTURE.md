@@ -486,8 +486,9 @@ Rules:
   must expose backend `getQuestionsRuntimeMarker`, requested/effective limit,
   active Category source/ids, per-category fetch and playable counts,
   zero-playable categories, sourcePoolCapRemoved, responseCapApplied, and
-  whether fallback was used. Fallback IDs are allowed only when
-  the Category read fails, not merely when a category has 0 playable questions.
+  whether category metadata was unavailable. Fallback IDs are not allowed when
+  the Category read fails; runtime must return an empty/retryable state instead
+  of manufacturing old seeded category IDs.
   Missing `getQuestionsRuntimeMarker` in Solo debug JSON is a stale/different
   deployed callable blocker; Codex343 expects backend marker
   `getQuestions-live-per-category-v7-Codex343` from the deployed callable.
@@ -497,7 +498,9 @@ Rules:
   is server-authoritative through `startLobbyGame`, which persists a bounded
   shared `online_question_deck` on `Lobby`; all participants use that same deck,
   selected 100% from active lobby-selected categories with difficulty 1 and 2
-  only.
+  only. The selected category IDs are live `Category.category_id` values from
+  current metadata; missing/invalid selections must not fall back to legacy
+  `Lobby.category` strings or stale hardcoded category arrays.
 * The `SubCategory` entity and old `UserSubCategoryPreference` rows remain in
   place for future metadata/migration work, but current Settings preferences
   use main Category rows.
