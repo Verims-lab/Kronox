@@ -23,6 +23,8 @@ Analytics/statistics entities implemented now:
 - QuestionStatsProjection
 - UserStatsProjection
 - CategoryStatsProjection
+- PlayerQuestionExposure
+- PlayerQuestionDailyExposure
 - LobbyMatchStats
 - UserCategoryPreference stores app-open popup and Settings main Category interest choices per user.
 - UserSubCategoryPreference is retained legacy data from the earlier SubCategory preference phase and is not used by current Settings preferences.
@@ -141,6 +143,12 @@ Implemented now:
 - Question analytics reset is manual_db_reset_only and clears QuestionAttemptEvent plus QuestionStatsProjection/CategoryStatsProjection only if those optional projection rows are populated.
 - Question analytics reset does not delete Question, Category, SubCategory, UserCategoryPreference, UserSubCategoryPreference, UserStatsProjection, score/progress/economy, leaderboard, Daily Wheel, users, AdminUser, or gameplay rows.
 - Question analytics reset does not clear JokerTransaction, DiamondTransaction, UserJokerInventory, or DailyWheelSpin; ledger-derived Joker/economy report signals may remain visible.
+- PlayerQuestionExposure is the fast per-player Solo freshness projection keyed logically by player_key + question_id + mode.
+- PlayerQuestionDailyExposure is the daily anonymous coverage projection keyed logically by date_utc + player_key + question_id + mode.
+- player_key is an internal server-derived owner-style key: authenticated users use u_ and guests use GuestProfile owner_key / g_ only after guest_id + raw guest token verification.
+- Exposure rows are written only when an active card, replacement card, or tutorial card is actually shown. Candidate pools, server buffers, unused reserve cards, and never-shown replacement buffers are not counted.
+- linkGuestAccount best-effort merges recent guest exposure projection rows into the registered u_ key so anti-repeat continuity survives Google / Apple / Email linking.
+- Question Analytics report may include anonymous per-player coverage inside the existing nine-section email body only as User0001-style labels; it must not expose email, provider ids, raw guest id/token, owner key, internal player_key, or username.
 
 Scaffolded now:
 - Online gameplay analytics write coverage is documented/scaffolded only; no Online runtime QuestionAttemptEvent write point is enabled yet.

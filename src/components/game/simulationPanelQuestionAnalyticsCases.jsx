@@ -13,12 +13,17 @@ import adminPageSource from '../../pages/AdminPage.jsx?raw';
 import questionAnalyticsReportToolSource from '../admin/QuestionAnalyticsReportTool.jsx?raw';
 import deleteAccountSource from '../../../base44/functions/deleteAccount/entry.ts?raw';
 import questionAttemptEventEntitySource from '../../../base44/entities/QuestionAttemptEvent.jsonc?raw';
+import playerQuestionExposureEntitySource from '../../../base44/entities/PlayerQuestionExposure.jsonc?raw';
+import playerQuestionDailyExposureEntitySource from '../../../base44/entities/PlayerQuestionDailyExposure.jsonc?raw';
 import questionStatsProjectionEntitySource from '../../../base44/entities/QuestionStatsProjection.jsonc?raw';
 import categoryStatsProjectionEntitySource from '../../../base44/entities/CategoryStatsProjection.jsonc?raw';
 import aggregateQuestionStatsSource from '../../../base44/functions/aggregateQuestionStats/entry.ts?raw';
 import reportFunctionSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/entry.ts?raw';
 import reportFunctionManifestSource from '../../../base44/functions/sendQuestionAnalyticsReportEmail/function.jsonc?raw';
+import recordPlayerQuestionExposureSource from '../../../base44/functions/recordPlayerQuestionExposure/entry.ts?raw';
+import getPlayerQuestionExposureStatsSource from '../../../base44/functions/getPlayerQuestionExposureStats/entry.ts?raw';
 import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
+import playerQuestionExposureGatewaySource from '../../lib/dbGateway/playerQuestionExposureGateway.js?raw';
 import { DB_ARCHITECTURE_IMPLEMENTATION_MIRROR } from '@/lib/dbArchitectureMirrors';
 import {
   QUESTION_ANALYTICS_REPORT_SECTIONS,
@@ -934,6 +939,96 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Analytics remains a side-effect only; deck rules, scoring, and jokers stay owned by existing gameplay helpers.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('player_question_exposure_projection_architecture',
+    'Per-player question exposure projections exist and use safe internal keys',
+    () => {
+      const combined = `${playerQuestionExposureEntitySource}\n${playerQuestionDailyExposureEntitySource}\n${recordPlayerQuestionExposureSource}\n${getPlayerQuestionExposureStatsSource}\n${playerQuestionExposureGatewaySource}`;
+      const missing = missingTokens(combined, [
+        'PlayerQuestionExposure',
+        'PlayerQuestionDailyExposure',
+        'exposure_key',
+        'daily_exposure_key',
+        'player_key',
+        'question_id',
+        'mode',
+        'shown_count',
+        'first_shown_at',
+        'last_shown_at',
+        'player_question_exposure:<player_key>:<mode>:<question_id>',
+        'player_question_daily_exposure:<date_utc>:<player_key>:<mode>:<question_id>',
+        'guest_id',
+        'guest_token',
+        'guest_token_hash',
+        'hashGuestToken',
+        'playerKeyReturned: false',
+        'rawGuestTokenStoredServerSide: false',
+      ]);
+      const forbidden = forbiddenTokens(`${playerQuestionExposureEntitySource}\n${playerQuestionDailyExposureEntitySource}`, [
+        'user_email',
+        'provider_uid',
+        'guest_token_hash',
+        'guest_token',
+        'auth_header',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Per-player exposure storage can expose identity or lacks required projection keys.', {
+          verification: 'STATIC_CONTRACT',
+          files: [
+            'base44/entities/PlayerQuestionExposure.jsonc',
+            'base44/entities/PlayerQuestionDailyExposure.jsonc',
+            'base44/functions/recordPlayerQuestionExposure/entry.ts',
+            'base44/functions/getPlayerQuestionExposureStats/entry.ts',
+          ],
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('Per-player exposure projections store internal player_key rows only and expose stats through token/auth-verified functions.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('player_question_exposure_actual_shown_only_and_report_anonymous',
+    'Exposure writes are actual-shown-only and report per-player coverage anonymously inside 9 sections',
+    () => {
+      const combined = `${gamePageSource}\n${recordPlayerQuestionExposureSource}\n${reportFunctionSource}\n${questionAnalyticsContractsSource}`;
+      const missing = missingTokens(combined, [
+        'recordPlayerQuestionExposure',
+        'QUESTION_ANALYTICS_EVENT_TYPES.SHOWN',
+        'QUESTION_ANALYTICS_EVENT_TYPES.REPLACEMENT_SHOWN',
+        'actualShownOnly: true',
+        'bufferedQuestionsCounted: false',
+        'Kişi Bazlı Soru Çeşitliliği — Anonim',
+        'User0001',
+        'En Çok Soru Gören 10 Anonim Kullanıcı',
+        'Tekrar Riski En Yüksek 10 Anonim Kullanıcı',
+        'Aynı sorunun farklı kullanıcılara gösterilmesi tek başına sorun değildir',
+        'Kritik sinyal',
+        'PlayerQuestionDailyExposure',
+        'nine_section_email_body',
+        'QUESTION_ANALYTICS_REPORT_SECTIONS',
+      ]);
+      const forbidden = forbiddenTokens(reportFunctionSource, [
+        'player_key</',
+        'owner_key</',
+        'guest_id</',
+        'user_email</',
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Question exposure write/report contract drifted from actual-shown-only or anonymous 9-section reporting.', {
+          verification: 'STATIC_CONTRACT',
+          files: [
+            'src/pages/Game.jsx',
+            'base44/functions/recordPlayerQuestionExposure/entry.ts',
+            'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
+          ],
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('Gameplay records exposure only for shown/replacement cards, and the nine-section email report includes anonymous per-player coverage without raw identifiers.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

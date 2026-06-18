@@ -96,6 +96,10 @@ import {
   getQuestionAnalyticsMetadata,
   recordSoloQuestionAnalyticsEvent as writeSoloQuestionAnalyticsEvent,
 } from '@/lib/dbGateway/analyticsGateway';
+import {
+  loadPlayerQuestionExposureStats,
+  recordPlayerQuestionExposure,
+} from '@/lib/dbGateway/playerQuestionExposureGateway';
 import { recordDailyQuestProgress } from '@/lib/dbGateway/dailyQuestGateway';
 import {
   QUESTION_ANALYTICS_EVENT_TYPES,
@@ -367,7 +371,7 @@ export default function Game() {
   const isGuidedSoloTutorial = Boolean(isSoloLevelMode && (routeState.onboardingTutorial === true || soloLevel?.onboardingTutorial === true));
   const currentQuestionIdFromState = routeState.currentQuestionId ?? null;
   const [currentUser, setCurrentUser] = useState(null);
-  const { user: authUser, adminStatus } = useAuth();
+  const { user: authUser, adminStatus, guestProfile } = useAuth();
   const soloQuestionDebugAllowed = useMemo(() => isSoloQuestionRuntimeDebugAllowed({
     currentUser,
     authUser,
@@ -504,6 +508,7 @@ export default function Game() {
   const soloJokerUsedByDecisionKeyRef = useRef(new Map());
   const soloSkippedQuestionIdsRef = useRef(new Set());
   const soloAnalyticsEventIdsRef = useRef(new Set());
+  const soloExposureEventIdsRef = useRef(new Set());
   const soloQuestionShownAtRef = useRef(new Map());
   const soloReplacementQuestionIdsRef = useRef(new Set());
   const soloDailyQuestAttemptRecordedRef = useRef(null);
@@ -518,6 +523,12 @@ export default function Game() {
     fallbackReason: 'not_loaded',
   });
   const [soloQuestionDebugRuntimeState, setSoloQuestionDebugRuntimeState] = useState(null);
+  const [soloPlayerExposureState, setSoloPlayerExposureState] = useState({
+    status: 'idle',
+    mode: 'solo',
+    stats: [],
+    fallbackReason: 'not_loaded',
+  });
 
   useEffect(() => {
     let active = true;
@@ -611,6 +622,63 @@ export default function Game() {
   }, [isSoloLevelMode, currentUserLoaded, currentUser?.email]);
 
   useEffect(() => {
+    let active = true;
+    const exposureMode = isGuidedSoloTutorial ? 'tutorial' : 'solo';
+    if (!isSoloLevelMode) {
+      setSoloPlayerExposureState({
+        status: 'idle',
+        mode: exposureMode,
+        stats: [],
+        fallbackReason: 'not_solo_mode',
+      });
+      return () => { active = false; };
+    }
+    if (!currentUserLoaded) {
+      setSoloPlayerExposureState((previous) => ({
+        ...previous,
+        status: 'loading',
+        mode: exposureMode,
+        fallbackReason: 'user_session_loading',
+      }));
+      return () => { active = false; };
+    }
+
+    setSoloPlayerExposureState((previous) => ({
+      ...previous,
+      status: 'loading',
+      mode: exposureMode,
+      fallbackReason: 'player_exposure_loading',
+    }));
+
+    loadPlayerQuestionExposureStats({ mode: exposureMode })
+      .then((stats) => {
+        if (!active) return;
+        setSoloPlayerExposureState({
+          status: 'ready',
+          mode: exposureMode,
+          stats: Array.isArray(stats) ? stats : [],
+          fallbackReason: null,
+        });
+      })
+      .catch(() => {
+        if (!active) return;
+        setSoloPlayerExposureState({
+          status: 'unavailable',
+          mode: exposureMode,
+          stats: [],
+          fallbackReason: 'player_exposure_unavailable',
+        });
+      });
+    return () => { active = false; };
+  }, [
+    currentUserLoaded,
+    currentUser?.email,
+    guestProfile?.guest_id,
+    isGuidedSoloTutorial,
+    isSoloLevelMode,
+  ]);
+
+  useEffect(() => {
     if (soloQuestionDebugEnabled) return;
     setSoloQuestionDebugRuntimeState(null);
   }, [soloQuestionDebugEnabled]);
@@ -653,6 +721,9 @@ export default function Game() {
   const soloCategoryPreferenceReady = !isSoloLevelMode
     || soloCategoryPreferenceState.status === 'ready'
     || soloCategoryPreferenceState.status === 'unavailable';
+  const soloPlayerExposureReady = !isSoloLevelMode
+    || soloPlayerExposureState.status === 'ready'
+    || soloPlayerExposureState.status === 'unavailable';
   const questionFetchEnabled = !isOnline && (!isSoloLevelMode || (currentUserLoaded && soloCategoryPreferenceReady));
   const questionRequestContext = useMemo(() => ({
     authScope: currentUser?.email ? 'authenticated' : 'guest',
@@ -1001,11 +1072,10 @@ export default function Game() {
   }), [getSoloQuestionAnalyticsPlacementIndex, soloAttemptId]);
 
   const recordSoloQuestionAnalyticsEvent = useCallback((question, eventType, extra = {}) => {
-    if (!isSoloLevelMode || !question || !soloAttemptId || !currentUser?.email) return;
+    if (!isSoloLevelMode || !question || !soloAttemptId) return;
     const placementIndex = extra.placement_index ?? getSoloQuestionAnalyticsPlacementIndex(question);
     const eventId = extra.event_id || getSoloQuestionAnalyticsEventId(question, eventType, placementIndex);
-    if (!eventId || soloAnalyticsEventIdsRef.current.has(eventId)) return;
-    soloAnalyticsEventIdsRef.current.add(eventId);
+    if (!eventId) return;
 
     const nowIso = new Date().toISOString();
     if (
@@ -1019,8 +1089,44 @@ export default function Game() {
       if (shownEventId) soloAnalyticsEventIdsRef.current.add(shownEventId);
     }
 
+    const metadata = getQuestionAnalyticsMetadata(question);
+    const source = extra.source || (soloReplacementQuestionIdsRef.current.has(String(question.id))
+      ? QUESTION_ANALYTICS_SOURCES.REPLACEMENT
+      : QUESTION_ANALYTICS_SOURCES.DECK);
+    if (
+      eventType === QUESTION_ANALYTICS_EVENT_TYPES.SHOWN ||
+      eventType === QUESTION_ANALYTICS_EVENT_TYPES.REPLACEMENT_SHOWN
+    ) {
+      const exposureMode = isGuidedSoloTutorial ? 'tutorial' : 'solo';
+      const exposureEventKey = [
+        'player_question_exposure',
+        exposureMode,
+        soloAttemptId,
+        question?.id,
+        eventType === QUESTION_ANALYTICS_EVENT_TYPES.REPLACEMENT_SHOWN ? 'replacement' : 'playable',
+        placementIndex,
+      ].filter(Boolean).join(':');
+      if (!soloExposureEventIdsRef.current.has(exposureEventKey)) {
+        soloExposureEventIdsRef.current.add(exposureEventKey);
+        recordPlayerQuestionExposure({
+          ...metadata,
+          event_key: exposureEventKey,
+          event_id: eventId,
+          attempt_id: soloAttemptId,
+          mode: exposureMode,
+          role: eventType === QUESTION_ANALYTICS_EVENT_TYPES.REPLACEMENT_SHOWN ? 'replacement' : 'playable',
+          source,
+          shown_sequence: placementIndex,
+          shown_at: extra.shown_at || nowIso,
+        }).catch(() => null);
+      }
+    }
+
+    if (!currentUser?.email || soloAnalyticsEventIdsRef.current.has(eventId)) return;
+    soloAnalyticsEventIdsRef.current.add(eventId);
+
     writeSoloQuestionAnalyticsEvent({
-      ...getQuestionAnalyticsMetadata(question),
+      ...metadata,
       ...extra,
       event_id: eventId,
       attempt_id: soloAttemptId,
@@ -1029,9 +1135,7 @@ export default function Game() {
       is_special_level: isSoloSpecialLevel(soloLevel?.levelNumber),
       event_type: eventType,
       placement_index: placementIndex,
-      source: extra.source || (soloReplacementQuestionIdsRef.current.has(String(question.id))
-        ? QUESTION_ANALYTICS_SOURCES.REPLACEMENT
-        : QUESTION_ANALYTICS_SOURCES.DECK),
+      source,
       joker_used: Boolean(usedJokerType || extra.joker_used),
       joker_type: extra.joker_type || usedJokerType || '',
       shown_at: extra.shown_at || (
@@ -1047,6 +1151,7 @@ export default function Game() {
     currentUser,
     getSoloQuestionAnalyticsEventId,
     getSoloQuestionAnalyticsPlacementIndex,
+    isGuidedSoloTutorial,
     isSoloLevelMode,
     soloAttemptId,
     soloLevel?.levelNumber,
@@ -1329,7 +1434,9 @@ export default function Game() {
     if (isSoloLevelMode) {
       const preferenceReady = soloCategoryPreferenceState.status === 'ready'
         || soloCategoryPreferenceState.status === 'unavailable';
-      if (!currentUserLoaded || !preferenceReady) return;
+      const exposureReady = soloPlayerExposureState.status === 'ready'
+        || soloPlayerExposureState.status === 'unavailable';
+      if (!currentUserLoaded || !preferenceReady || !exposureReady) return;
       resetSoloJokers();
       // Base candidate pool: legacy year-window + non-music filter (same
       // as the non-Solo branch). The engine then enforces the HARD rules.
@@ -1344,6 +1451,7 @@ export default function Game() {
         // enter a Solo attempt deck even if stale cached rows exist.
         allowedMainCategoryIds: activeCategoryIds,
         recentlySeenQuestionIds: loadRecentHistory(),
+        playerQuestionExposureStats: soloPlayerExposureState.stats,
         questionExposureStats: loadRecentQuestionExposureStats(),
         // No login or no saved Category preferences means all active
         // categories. Saved preferences are optional personalization, not a
@@ -1469,7 +1577,7 @@ export default function Game() {
       current_question_id: firstQ.id,
       used_question_ids: [...used]
     });
-  }, [playerNames, questionPool, allQuestions, activeCategoryIds, yearStart, yearEnd, isLoading, isOnline, isSoloLevelMode, currentUserLoaded, currentUser?.email, soloCategoryPreferenceState.status, soloRuntimeCategoryPreferenceState, resetSoloJokers, setLobbyData, setError, soloLevel?.levelNumber, soloQuestionDebugEnabled, soloBootstrapRetryNonce]);
+  }, [playerNames, questionPool, allQuestions, activeCategoryIds, yearStart, yearEnd, isLoading, isOnline, isSoloLevelMode, currentUserLoaded, currentUser?.email, soloCategoryPreferenceState.status, soloRuntimeCategoryPreferenceState, soloPlayerExposureState.status, soloPlayerExposureState.stats, resetSoloJokers, setLobbyData, setError, soloLevel?.levelNumber, soloQuestionDebugEnabled, soloBootstrapRetryNonce]);
 
   // Overall timer başlatma
   useEffect(() => {

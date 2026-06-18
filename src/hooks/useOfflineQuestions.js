@@ -27,6 +27,7 @@ import {
   countQuestionsByCategory,
 } from '@/lib/soloQuestionRuntimeDebug';
 import { pushAppDiag } from '@/lib/appDiagBus';
+import { getStoredGuestCredentials } from '@/lib/guestProfile';
 
 const QUESTION_FETCH_RETRY_MS = 850;
 const EMPTY_QUESTION_RESPONSE_RETRY_MS = 900;
@@ -112,6 +113,7 @@ function buildGameplayQuestionRequestPayload({ includeDiagnostics = false, reque
     requireCategoryCoverage: true,
     selectionMode: SERVER_ATTEMPT_SELECTION_MODE,
     responseMode: 'solo_attempt_candidate_buffer',
+    requestKind: context.requestKind,
     levelNumber: context.levelNumber,
     deckSize: context.deckSize,
     seedCount: context.seedCount,
@@ -127,18 +129,24 @@ function buildGameplayQuestionRequestPayload({ includeDiagnostics = false, reque
 
 function buildGuestGameplayQuestionRequestPayload({ requestContext = {} } = {}) {
   const context = normalizeQuestionRequestContext({ ...requestContext, authScope: 'guest' });
+  const credentials = getStoredGuestCredentials();
   return {
     mode: GUEST_GAMEPLAY_QUESTION_MODE,
     projectionVersion: GAMEPLAY_QUESTION_REQUEST_VERSION,
     requireCategoryCoverage: true,
     selectionMode: SERVER_ATTEMPT_SELECTION_MODE,
     responseMode: 'guest_solo_attempt_candidate_buffer',
+    requestKind: context.requestKind,
     levelNumber: context.levelNumber,
     deckSize: context.deckSize,
     seedCount: context.seedCount,
     yearStart: context.yearStart,
     yearEnd: context.yearEnd,
     limit: context.guestLimit,
+    ...(credentials?.guest_id && credentials?.guest_token ? {
+      guest_id: credentials.guest_id,
+      guest_token: credentials.guest_token,
+    } : {}),
   };
 }
 

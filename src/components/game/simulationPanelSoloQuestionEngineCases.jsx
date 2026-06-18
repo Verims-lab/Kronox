@@ -51,6 +51,7 @@ import {
   SOLO_QUESTION_ENGINE_DOC_PATH,
 } from '@/lib/soloQuestionEngineDoc';
 import gamePageSource from '../../pages/Game.jsx?raw';
+import soloQuestionEngineSource from '../../lib/soloQuestionEngine.js?raw';
 import useOfflineQuestionsSource from '../../hooks/useOfflineQuestions.js?raw';
 import useGameActionsSource from '../../hooks/useGameActions.js?raw';
 import questionHistorySource from '../../lib/questionHistory.js?raw';
@@ -2846,6 +2847,96 @@ export const EXTRA_TESTS = [
       }
       return pass('Beginner placement hint helper is limited to levels 1-3.', {
         verification: 'RUNTIME_VERIFIED', classification: 'RUNTIME_VERIFIED',
+      });
+    },
+  ),
+
+  makeCase(
+    'solo_per_player_question_exposure_anti_repeat',
+    'Solo selection prioritizes per-player unseen questions before global freshness',
+    () => {
+      const combined = `${soloQuestionEngineSource}\n${gamePageSource}\n${useOfflineQuestionsSource}\n${getQuestionsFunctionSource}`;
+      const missing = missingTokens(combined, [
+        'playerQuestionExposureStats',
+        'playerExposureStats',
+        'globalExposureStats',
+        'unseen_by_this_player',
+        'lower_player_shown_count',
+        'older_player_last_shown_at',
+        'global_metrics_secondary',
+        'stable_randomization',
+        'loadPlayerQuestionExposureStats',
+        'recordPlayerQuestionExposure',
+        'recordPlayerQuestionExposure({',
+        'QUESTION_ANALYTICS_EVENT_TYPES.SHOWN',
+        'QUESTION_ANALYTICS_EVENT_TYPES.REPLACEMENT_SHOWN',
+        'playerExposureAwareSelection',
+        'PlayerQuestionExposure',
+        'bufferedQuestionsCounted: false',
+      ]);
+      const forbidden = [
+        'Question.list(',
+        'raw Question.list fallback',
+      ].filter((token) => gamePageSource.includes(token));
+      if (missing.length || forbidden.length) {
+        return fail('Solo per-player anti-repeat selection or actual-shown exposure writes are missing.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          files: [
+            'src/lib/soloQuestionEngine.js',
+            'src/pages/Game.jsx',
+            'base44/functions/getQuestions/entry.ts',
+          ],
+          actual: { missing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+
+      const pool = Array.from({ length: 36 }, (_, index) => ({
+        id: `q_${index + 1}`,
+        question: `Question ${index + 1}`,
+        year: 1900 + index * 7,
+        type: 'metin',
+        state: 'A',
+        main_category_id: (index % 6) + 1,
+        category_id: (index % 6) + 1,
+        sub_category: `sub_${index % 4}`,
+        tag: 'health',
+        difficulty: 1,
+      }));
+      const seenStats = pool.slice(0, 18).map((question, index) => ({
+        questionId: question.id,
+        shownCount: 3 + index,
+        lastShownAt: new Date(Date.now() - index * 3600000).toISOString(),
+      }));
+      const result = buildSoloAttemptDeck({
+        pool,
+        allowedMainCategoryIds: [1, 2, 3, 4, 5, 6],
+        playerQuestionExposureStats: seenStats,
+        levelNumber: 1,
+        deckSize: 18,
+        seedCount: 2,
+        random: () => 0.42,
+      });
+      const selectedSeen = result.ok
+        ? result.deck.filter((question) => seenStats.some((stat) => stat.questionId === question.id)).length
+        : 18;
+      if (!result.ok || selectedSeen >= result.deck.length) {
+        return fail('Real deck builder ignored playerQuestionExposureStats or failed with a valid pool.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          actual: { resultOk: result.ok, selectedSeen, deckLength: result.ok ? result.deck.length : 0 },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Solo selection has server/client per-player exposure wiring and the real deck builder accepts player-specific exposure stats.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+        actual: {
+          deckLength: result.deck.length,
+          selectedSeen,
+          selectedUnseen: result.deck.length - selectedSeen,
+        },
       });
     },
   ),

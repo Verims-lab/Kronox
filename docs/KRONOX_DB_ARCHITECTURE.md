@@ -1150,3 +1150,36 @@ Merge is additive only once:
 are projections/audit/merge inputs. `UserJokerInventory` remains joker balance
 source, `JokerTransaction` remains ledger, and `User` remains authenticated
 account/progress source after linking.
+
+## Player Question Exposure Projections
+
+`QuestionAttemptEvent` remains the append-only private analytics event log.
+Per-player Solo anti-repeat selection uses two projection entities:
+
+- `PlayerQuestionExposure`: fast lookup keyed logically by
+  `player_key + question_id + mode`.
+- `PlayerQuestionDailyExposure`: daily analytics keyed logically by
+  `date_utc + player_key + question_id + mode`.
+
+The write helper enforces logical uniqueness through
+`exposure_key = player_question_exposure:<player_key>:<mode>:<question_id>`
+and
+`daily_exposure_key = player_question_daily_exposure:<date_utc>:<player_key>:<mode>:<question_id>`.
+Base44 uniqueness is therefore application-enforced until a platform unique
+index is added.
+
+`player_key` is an internal canonical owner-style key. Registered users use the
+existing `u_` owner key derived server-side from authenticated identity. Guests
+use the `GuestProfile.owner_key` / `g_` key after `guest_id + raw guest token`
+verification. It is not a public username and must not be email, provider UID,
+raw guest id, raw guest token, or public display name.
+
+Exposure rows are written only when a question is actually shown: active card
+shown, replacement card shown, and tutorial card shown with `mode=tutorial`.
+Candidate pools, server buffers, unused deck reserve cards, admin report rows,
+and never-shown replacement buffers are not counted.
+
+`linkGuestAccount` best-effort merges recent guest exposure projection rows into
+the registered `u_` player key so anti-repeat continuity survives account
+linking. Very large historical guest exposure sets are capped and require a
+manual maintenance backfill if the cap is reached.

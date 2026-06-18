@@ -897,3 +897,23 @@ The link merge preserves user-beneficial progress and combines additive economy
 only once. `User.linked_guest_ids` and `AccountLinkTransaction.idempotency_key`
 are duplicate guards; `UserJokerInventory` remains the current joker balance
 source and `JokerTransaction` remains the immutable ledger.
+
+## Player Question Exposure Privacy Boundary
+
+`PlayerQuestionExposure` and `PlayerQuestionDailyExposure` are private
+projections. They may be read/written only through server-side helpers or admin
+maintenance/reporting paths. They store internal `player_key` values and must
+never store or return email, provider UID, raw guest id, raw guest token, auth
+headers, public username, or leaderboard display name.
+
+Guest exposure writes and reads require `guest_id + raw guest token`
+verification against `GuestProfile.guest_token_hash`; `guest_id` alone is not
+enough. Authenticated exposure reads/writes use `base44.auth.me()`. Gameplay
+treats exposure writes as best-effort and non-blocking.
+
+Question Analytics may include anonymized per-player distinct coverage only as
+`User0001` / `User0002` labels scoped to the report period. Reports must not
+print `player_key`, `owner_key`, email, provider ids, raw guest id, raw guest
+token, or username in that subsection. Production release proof should verify
+the projection entities are deployed and RLS/admin access does not make these
+rows public.

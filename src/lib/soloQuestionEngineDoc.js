@@ -154,14 +154,14 @@ reporting guardrails compare selected/shown distribution to the eligible pool
 proportionally; they must not require equal category, subcategory, or era
 counts. Runtime exposure improvement is proven over new gameplay events, so
 historical reports can remain concentrated until fresh events accumulate.
-Repeat avoidance currently uses local per-device history as soft weighting;
-server-side per-user/global exposure balancing and low-correct cooldown remain
-explicit future algorithm work, not hidden behavior. Future server-side
-exposure balancing requires explicit product/architecture approval before
-implementation and should remain additive: per-user recent exclusion,
-session-level no-repeat, global underexposure boost, overexposure/recency
-penalty, low-correct cooldown only after a minimum sample threshold, and a
-fallback ladder that never turns a valid all-category pool into an empty pool.
+Per-player exposure projections are active for Solo freshness. Selection
+prefers questions never shown to the same player in the same mode, then lower
+per-player shown_count, then older per-player last_shown_at. Global exposure
+remains a secondary tie-breaker only. Low-correct/high-latency questions are
+still reported for review rather than automatically cooled down. The additive
+fallback ladder remains mandatory: per-player recent exclusion may relax
+before hard deck rules, but it must never turn a valid all-category pool into
+an empty pool.
 
 Fallback may relax recently-seen avoidance, category/subcategory/theme balance,
 and era spread. It must not relax required deck size, unique IDs, unique
@@ -219,4 +219,32 @@ respect visible timeline spacing and prefers a balanced reserve card that does
 not worsen category/subcategory/theme repetition; if no safe replacement
 exists, the joker is not consumed and the player sees Bu kart şu anda
 değiştirilemiyor. Zaman Dondur freezes the Solo timer for 10 seconds and does not consume a move.
+
+## Per-Player Anti-Repeat Selection
+
+Solo freshness is evaluated per player. The same question shown to different
+players is acceptable; repeating the same question for the same player too soon
+is the problem.
+
+Selection order within the already-selected category/lane:
+
+1. questions never shown to this player in the relevant mode
+2. lower per-player shown_count
+3. older per-player last_shown_at
+4. global shown count / global last shown only as secondary tie-breakers
+5. stable randomization
+
+Normal Solo reads PlayerQuestionExposure with mode=solo. Guided onboarding
+tutorial writes mode=tutorial, so tutorial exposures do not over-penalize
+normal Solo. getQuestions applies exposure-aware ranking before its bounded
+server attempt response cap, and buildSoloAttemptDeck receives
+playerQuestionExposureStats so final ordering and replacement reserve ordering
+keep the same priority.
+
+Exposure is written only after a question becomes visible to the player:
+active card shown or Kart Değiştir replacement shown. Server candidate rows,
+unused deck reserve cards, and never-shown replacement buffers are not exposure.
+Kart Değiştir and Kronokalkan replacement needs must use the existing bounded
+deck/reserve or safe server-side replacement path; raw client Question.list
+fallback and full question bank exposure remain forbidden.
 `;

@@ -102,6 +102,94 @@ async function getOptionalUser(base44: any) {
   }
 }
 
+function normalizeOwnerEmail(value: unknown) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function fnvOwnerKey(prefix: 'u' | 'g', value: unknown) {
+  const text = String(value || '').trim().toLowerCase();
+  if (!text) return '';
+  let hash = 2166136261;
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `${prefix}_${(hash >>> 0).toString(36)}`;
+}
+
+function bytesToBase64Url(bytes: Uint8Array) {
+  let binary = '';
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+async function sha256Base64Url(input: string) {
+  const data = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return bytesToBase64Url(new Uint8Array(digest));
+}
+
+async function hashGuestToken(guestId: string, guestToken: string) {
+  return sha256Base64Url(`kronox_guest_v1:${guestId}:${guestToken}`);
+}
+
+function normalizeExposureMode(body: any) {
+  const requestKind = String(body?.requestKind || body?.request_kind || '').trim();
+  if (requestKind === 'guided_first_solo_level' || body?.onboardingTutorial === true) return 'tutorial';
+  const mode = String(body?.playerExposureMode || body?.exposureMode || '').trim().toLowerCase();
+  return mode === 'tutorial' ? 'tutorial' : 'solo';
+}
+
+async function resolveExposurePlayer(base44: any, body: any, user: any = null) {
+  const email = normalizeOwnerEmail(user?.email || user?.user_email);
+  if (email) {
+    return {
+      playerKey: String(user?.owner_key || fnvOwnerKey('u', email)).trim(),
+      playerType: 'registered',
+    };
+  }
+
+  const guestId = String(body?.guest_id || '').trim();
+  const guestToken = String(body?.guest_token || '').trim();
+  if (!guestId || !guestToken) return null;
+  const entity = getServiceEntity(base44, 'GuestProfile');
+  if (!entity?.filter) return null;
+  const rows = await entity.filter({ guest_id: guestId }, '-updated_at', 5).catch(() => []);
+  const row = Array.isArray(rows) ? rows[0] : null;
+  const expectedHash = String(row?.guest_token_hash || '');
+  if (!row || !expectedHash) return null;
+  const providedHash = await hashGuestToken(guestId, guestToken);
+  if (providedHash !== expectedHash) return null;
+  return {
+    playerKey: String(row?.owner_key || fnvOwnerKey('g', guestId)).trim(),
+    playerType: 'guest',
+  };
+}
+
+function normalizeExposureRow(row: any) {
+  const questionId = getQuestionIdentity({ id: row?.question_id });
+  if (!questionId) return null;
+  return {
+    questionId,
+    shownCount: Math.max(0, Math.trunc(Number(row?.shown_count) || 0)),
+    lastShownAt: String(row?.last_shown_at || ''),
+  };
+}
+
+async function loadPlayerQuestionExposureStats(base44: any, playerKey: string, mode: string) {
+  const entity = getServiceEntity(base44, 'PlayerQuestionExposure');
+  if (!entity?.filter || !playerKey) return new Map<string, any>();
+  const rows = await entity
+    .filter({ player_key: playerKey, mode, status: 'active' }, '-last_shown_at', 2500)
+    .catch(() => []);
+  const stats = new Map<string, any>();
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const normalized = normalizeExposureRow(row);
+    if (normalized) stats.set(normalized.questionId, normalized);
+  }
+  return stats;
+}
+
 function getServiceEntity(base44: any, entityName: string) {
   return base44?.asServiceRole?.entities?.[entityName] || null;
 }
@@ -476,6 +564,61 @@ function stableShuffleQuestions<T extends Record<string, unknown>>(items: T[], s
   });
 }
 
+function timestampMs(value: unknown) {
+  const parsed = Date.parse(String(value || ''));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function globalShownCount(question: any) {
+  const value = Number(question?.solo_shown_count ?? question?.shown_count ?? question?.exposure_count ?? question?.shownCount);
+  return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+function globalLastShownAt(question: any) {
+  return timestampMs(question?.last_solo_shown_at ?? question?.last_shown_at ?? question?.lastShownAt);
+}
+
+function playerExposureRankScore(question: any, exposureStats: Map<string, any>, seed: string, salt: string) {
+  const id = getQuestionIdentity(question);
+  const stat = id ? exposureStats.get(id) : null;
+  const shownCount = Math.max(0, Math.trunc(Number(stat?.shownCount) || 0));
+  const lastShownAt = timestampMs(stat?.lastShownAt);
+  const globalCount = globalShownCount(question);
+  const globalLast = globalLastShownAt(question);
+  const now = Date.now();
+
+  let score = 0;
+  // Per-player signal dominates: unseen first, then lower count.
+  score += shownCount > 0 ? 1000000 + shownCount * 50000 : 0;
+  if (lastShownAt > 0) {
+    const ageDays = Math.max(0, (now - lastShownAt) / (24 * 60 * 60 * 1000));
+    score += Math.max(0, 25000 - Math.min(25000, ageDays * 850));
+  }
+  // Global signals are deliberately secondary tie-breakers.
+  score += Math.min(25000, globalCount * 1200);
+  if (globalLast > 0) {
+    const globalAgeDays = Math.max(0, (now - globalLast) / (24 * 60 * 60 * 1000));
+    score += Math.max(0, 3000 - Math.min(3000, globalAgeDays * 120));
+  }
+  score += stableQuestionScore(question, seed, `player-exposure:${salt}`) / 1e9;
+  return score;
+}
+
+function rankQuestionsByPlayerExposure<T extends Record<string, unknown>>(
+  items: T[],
+  seed: string,
+  salt: string,
+  playerExposureStats: Map<string, any> = new Map(),
+) {
+  if (!playerExposureStats?.size) return stableShuffleQuestions(items, seed, salt);
+  return (items || []).slice().sort((a: any, b: any) => {
+    const scoreDiff = playerExposureRankScore(a, playerExposureStats, seed, salt)
+      - playerExposureRankScore(b, playerExposureStats, seed, salt);
+    if (scoreDiff !== 0) return scoreDiff;
+    return getQuestionIdentity(a).localeCompare(getQuestionIdentity(b));
+  });
+}
+
 function groupQuestions<T>(items: T[], keyFn: (item: T) => string) {
   const groups = new Map<string, T[]>();
   for (const item of items || []) {
@@ -568,11 +711,17 @@ function allocateProportionalSlots<T>(groups: Map<string, T[]>, limit: number) {
   return entries.filter((entry) => entry.slots > 0);
 }
 
-function sampleWithinCategory(candidates: any[], quota: number, seed: string, categoryKey: string) {
+function sampleWithinCategory(
+  candidates: any[],
+  quota: number,
+  seed: string,
+  categoryKey: string,
+  playerExposureStats: Map<string, any> = new Map(),
+) {
   const target = Math.max(0, Math.min(quota, candidates.length));
   if (target === 0) return [];
   if (target >= candidates.length) {
-    return stableShuffleQuestions(candidates, seed, `category:${categoryKey}:all`);
+    return rankQuestionsByPlayerExposure(candidates, seed, `category:${categoryKey}:all`, playerExposureStats);
   }
 
   const subcategoryGroups = groupQuestions(candidates, getSubcategoryKey);
@@ -581,7 +730,7 @@ function sampleWithinCategory(candidates: any[], quota: number, seed: string, ca
   const selectedIds = new Set<string>();
 
   for (const entry of subcategorySlots) {
-    const picks = stableShuffleQuestions(entry.items, seed, `subcategory:${categoryKey}:${entry.key}`)
+    const picks = rankQuestionsByPlayerExposure(entry.items, seed, `subcategory:${categoryKey}:${entry.key}`, playerExposureStats)
       .slice(0, entry.slots);
     for (const pick of picks) {
       const id = getQuestionIdentity(pick);
@@ -592,10 +741,11 @@ function sampleWithinCategory(candidates: any[], quota: number, seed: string, ca
   }
 
   if (selected.length < target) {
-    const fill = stableShuffleQuestions(
+    const fill = rankQuestionsByPlayerExposure(
       candidates.filter((question) => !selectedIds.has(getQuestionIdentity(question))),
       seed,
       `category:${categoryKey}:fill`,
+      playerExposureStats,
     );
     for (const pick of fill) {
       if (selected.length >= target) break;
@@ -606,7 +756,12 @@ function sampleWithinCategory(candidates: any[], quota: number, seed: string, ca
   return selected.slice(0, target);
 }
 
-function buildPoolProportionalProjection(candidates: any[], limit: number, seed: string) {
+function buildPoolProportionalProjection(
+  candidates: any[],
+  limit: number,
+  seed: string,
+  playerExposureStats: Map<string, any> = new Map(),
+) {
   const target = Math.max(0, Math.min(Math.trunc(limit), candidates.length));
   if (target === 0) {
     return {
@@ -617,7 +772,7 @@ function buildPoolProportionalProjection(candidates: any[], limit: number, seed:
 
   if (target >= candidates.length) {
     return {
-      projected: stableShuffleQuestions(candidates, seed, 'full-pool-final'),
+      projected: rankQuestionsByPlayerExposure(candidates, seed, 'full-pool-final', playerExposureStats),
       categorySlots: Object.fromEntries(
         Array.from(groupQuestions(candidates, getCategoryKey).entries()).map(([key, items]) => [key, items.length]),
       ),
@@ -632,7 +787,7 @@ function buildPoolProportionalProjection(candidates: any[], limit: number, seed:
 
   for (const entry of categorySlots) {
     categorySlotSummary[entry.key] = entry.slots;
-    const picks = sampleWithinCategory(entry.items, entry.slots, seed, entry.key);
+    const picks = sampleWithinCategory(entry.items, entry.slots, seed, entry.key, playerExposureStats);
     for (const pick of picks) {
       const id = getQuestionIdentity(pick);
       if (!id || selectedIds.has(id)) continue;
@@ -642,10 +797,11 @@ function buildPoolProportionalProjection(candidates: any[], limit: number, seed:
   }
 
   if (selected.length < target) {
-    const fill = stableShuffleQuestions(
+    const fill = rankQuestionsByPlayerExposure(
       candidates.filter((question) => !selectedIds.has(getQuestionIdentity(question))),
       seed,
       'projection-fill',
+      playerExposureStats,
     );
     for (const pick of fill) {
       if (selected.length >= target) break;
@@ -654,7 +810,7 @@ function buildPoolProportionalProjection(candidates: any[], limit: number, seed:
   }
 
   return {
-    projected: stableShuffleQuestions(selected, seed, 'final-projection').slice(0, target),
+    projected: rankQuestionsByPlayerExposure(selected, seed, 'final-projection', playerExposureStats).slice(0, target),
     categorySlots: categorySlotSummary,
   };
 }
@@ -667,9 +823,14 @@ function filterSoloAttemptCandidatePool(candidates: any[], context: { yearStart:
   });
 }
 
-function keepYearDiverseBuffer(candidates: any[], limit: number, seed: string) {
+function keepYearDiverseBuffer(
+  candidates: any[],
+  limit: number,
+  seed: string,
+  playerExposureStats: Map<string, any> = new Map(),
+) {
   const target = Math.max(0, Math.min(Math.trunc(limit), candidates.length));
-  const shuffled = stableShuffleQuestions(candidates, seed, 'year-diverse-buffer');
+  const shuffled = rankQuestionsByPlayerExposure(candidates, seed, 'year-diverse-buffer', playerExposureStats);
   const seenYears = new Set<number>();
   const selected: any[] = [];
   const selectedIds = new Set<string>();
@@ -702,6 +863,7 @@ function buildServerAttemptCandidateBuffer(
   limit: number,
   seed: string,
   selectedCategoryIds: number[] = [],
+  playerExposureStats: Map<string, any> = new Map(),
 ) {
   const target = Math.max(0, Math.min(Math.trunc(limit), candidates.length));
   if (target === 0) {
@@ -719,9 +881,9 @@ function buildServerAttemptCandidateBuffer(
   const selectedSet = new Set(selectedCategoryIds);
   const preferenceApplied = selectedSet.size >= 3;
   if (!preferenceApplied) {
-    const projection = buildPoolProportionalProjection(candidates, target, seed);
+    const projection = buildPoolProportionalProjection(candidates, target, seed, playerExposureStats);
     return {
-      projected: keepYearDiverseBuffer(projection.projected, target, seed),
+      projected: keepYearDiverseBuffer(projection.projected, target, seed, playerExposureStats),
       categorySlots: projection.categorySlots,
       preferenceApplied: false,
       selectedCategoryTarget: 0,
@@ -739,6 +901,7 @@ function buildServerAttemptCandidateBuffer(
     selectedCandidates,
     selectedTarget,
     `${seed}:selected70`,
+    playerExposureStats,
   ).projected;
   const selectedIds = new Set(selectedProjection.map(getQuestionIdentity).filter(Boolean));
   const globalFallbackCandidates = candidates
@@ -749,16 +912,18 @@ function buildServerAttemptCandidateBuffer(
     globalFallbackCandidates,
     globalTarget,
     `${seed}:global30`,
+    playerExposureStats,
   ).projected;
   const merged = keepYearDiverseBuffer(
     [...selectedProjection, ...globalProjection],
     target,
     `${seed}:merged-preference-buffer`,
+    playerExposureStats,
   );
 
   if (merged.length < target) {
     const mergedIds = new Set(merged.map(getQuestionIdentity).filter(Boolean));
-    const laneSafeFill = stableShuffleQuestions(
+    const laneSafeFill = rankQuestionsByPlayerExposure(
       candidates
         .filter((question) => !mergedIds.has(getQuestionIdentity(question)))
         .filter((question) => (
@@ -768,13 +933,14 @@ function buildServerAttemptCandidateBuffer(
         )),
       seed,
       'preference-buffer-lane-safe-fill',
+      playerExposureStats,
     );
     merged.push(...laneSafeFill.slice(0, target - merged.length));
   }
 
   if (merged.length < target) {
     const mergedIds = new Set(merged.map(getQuestionIdentity).filter(Boolean));
-    const broaderGlobalFill = stableShuffleQuestions(
+    const broaderGlobalFill = rankQuestionsByPlayerExposure(
       candidates
         .filter((question) => !mergedIds.has(getQuestionIdentity(question)))
         .filter((question) => (
@@ -783,12 +949,13 @@ function buildServerAttemptCandidateBuffer(
         )),
       seed,
       'preference-buffer-broader-global-fill',
+      playerExposureStats,
     );
     merged.push(...broaderGlobalFill.slice(0, target - merged.length));
   }
 
   return {
-    projected: stableShuffleQuestions(merged, seed, 'final-server-attempt-buffer').slice(0, target),
+    projected: rankQuestionsByPlayerExposure(merged, seed, 'final-server-attempt-buffer', playerExposureStats).slice(0, target),
     categorySlots: buildFullDistribution(merged, getCategoryKey),
     preferenceApplied: true,
     selectedCategoryTarget: selectedTarget,
@@ -845,6 +1012,9 @@ function buildProjectionDiagnostics({
   selectedDeckCountsByCategory = null,
   eligibleQuestionCountByDifficulty = null,
   selectedDeckCountsByDifficulty = null,
+  playerExposureAwareSelection = false,
+  playerExposureMode = 'solo',
+  playerExposureStatsCount = 0,
 }: {
   fetchedRows: any[];
   normalizedRows: any[];
@@ -871,6 +1041,9 @@ function buildProjectionDiagnostics({
   selectedDeckCountsByCategory?: Record<string, number> | null;
   eligibleQuestionCountByDifficulty?: Record<string, number> | null;
   selectedDeckCountsByDifficulty?: Record<string, number> | null;
+  playerExposureAwareSelection?: boolean;
+  playerExposureMode?: string;
+  playerExposureStatsCount?: number;
 }) {
   const playableByCategory = buildFullDistribution(normalizedRows, getCategoryKey);
   const playableByDifficulty = buildFullDistribution(normalizedRows, getDifficultyKey);
@@ -894,6 +1067,16 @@ function buildProjectionDiagnostics({
     functionContractVersion: GET_QUESTIONS_RUNTIME_CONTRACT_VERSION,
     strategy: PROJECTION_SAMPLING_STRATEGY,
     selectionMode,
+    playerExposureAwareSelection,
+    playerExposureMode,
+    playerExposureStatsCount,
+    playerExposurePriority: [
+      'unseen_by_this_player',
+      'lower_player_shown_count',
+      'older_player_last_shown_at',
+      'global_metrics_secondary',
+      'stable_randomization',
+    ],
     sourcePoolCapRemoved,
     responseCapApplied,
     responseQuestionCount,
@@ -1031,6 +1214,11 @@ Deno.serve(async (req) =>
       }
 
       const projectionSeed = getProjectionSeed(body, false);
+      const exposureMode = normalizeExposureMode(body);
+      const exposurePlayer = await resolveExposurePlayer(base44, body, null).catch(() => null);
+      const playerExposureStats = exposurePlayer?.playerKey
+        ? await loadPlayerQuestionExposureStats(base44, exposurePlayer.playerKey, exposureMode)
+        : new Map<string, any>();
       const { rows: questions } = await loadActiveQuestionCandidates(
         base44,
         allowedCategoryIds,
@@ -1055,7 +1243,7 @@ Deno.serve(async (req) =>
         : (fallbackBeginnerQuestions.length >= guestDeckNeed
           ? 'guest_fallback_difficulty_1_2'
           : 'guest_fallback_all_active_playable');
-      const projection = buildPoolProportionalProjection(guestCandidateQuestions, limit, projectionSeed);
+      const projection = buildPoolProportionalProjection(guestCandidateQuestions, limit, projectionSeed, playerExposureStats);
       const projected = projection.projected;
 
       return json({
@@ -1076,6 +1264,9 @@ Deno.serve(async (req) =>
         guest: true,
         guestLimitCap: MAX_GUEST_GAMEPLAY_LIMIT,
         guestDifficultyRule: guestDifficultyRuleApplied,
+        playerExposureAwareSelection: playerExposureStats.size > 0,
+        playerExposureMode: exposureMode,
+        playerExposureStatsCount: playerExposureStats.size,
         responseCapApplied: true,
         responseQuestionCount: projected.length,
         projectionCappedBeforeCategoryCoverage: false,
@@ -1164,6 +1355,11 @@ Deno.serve(async (req) =>
     }
 
     const projectionSeed = getProjectionSeed(body, isAdmin);
+    const exposureMode = normalizeExposureMode(body);
+    const exposurePlayer = await resolveExposurePlayer(base44, body, user).catch(() => null);
+    const playerExposureStats = exposurePlayer?.playerKey
+      ? await loadPlayerQuestionExposureStats(base44, exposurePlayer.playerKey, exposureMode)
+      : new Map<string, any>();
     const allowedCategoryIds = Array.from(allowedMainCategoryIds);
     const { rows: questions, fetchedByCategory, fetchDescriptorsByCategory, fallbackFetchCategories } = await loadActiveQuestionCandidates(base44, allowedCategoryIds);
     const normalizedQuestions = (questions || [])
@@ -1178,8 +1374,9 @@ Deno.serve(async (req) =>
         limit,
         projectionSeed,
         softPreferenceCategoryIds,
+        playerExposureStats,
       )
-      : buildPoolProportionalProjection(eligibleAttemptQuestions, limit, projectionSeed);
+      : buildPoolProportionalProjection(eligibleAttemptQuestions, limit, projectionSeed, playerExposureStats);
     const projected = projection.projected;
 
     const responsePayload: Record<string, unknown> = {
@@ -1196,6 +1393,9 @@ Deno.serve(async (req) =>
       sourcePoolCapRemoved: wantsGameplayProjection,
       responseCapApplied: true,
       responseQuestionCount: projected.length,
+      playerExposureAwareSelection: playerExposureStats.size > 0,
+      playerExposureMode: exposureMode,
+      playerExposureStatsCount: playerExposureStats.size,
       serverAttemptContext: wantsGameplayProjection ? {
         levelNumber: soloAttemptContext.levelNumber,
         deckSize: soloAttemptContext.deckSize,
@@ -1245,6 +1445,9 @@ Deno.serve(async (req) =>
         selectedDeckCountsByCategory: buildFullDistribution(projected, getCategoryKey),
         eligibleQuestionCountByDifficulty: buildFullDistribution(eligibleAttemptQuestions, getDifficultyKey),
         selectedDeckCountsByDifficulty: buildFullDistribution(projected, getDifficultyKey),
+        playerExposureAwareSelection: playerExposureStats.size > 0,
+        playerExposureMode: exposureMode,
+        playerExposureStatsCount: playerExposureStats.size,
       });
     }
     return json(responsePayload);
