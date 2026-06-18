@@ -5,9 +5,10 @@
 //   Health report JSON. Every report field name and shape is preserved.
 //
 // REPORT SHAPE CONTRACT (DO NOT RENAME / DO NOT REMOVE)
-//   runId, timestamp, startedAt, finishedAt, buildMarker, build,
+//   runId, timestamp, startedAt, finishedAt, runState, buildMarker, build,
 //   environment, route, suites, suiteSummary, counts, totalCases,
-//   totalDurationMs, score, scorePenaltyBreakdown, topBlockers,
+//   totalDurationMs, automatedScore, releaseReady, manualGateStatus,
+//   score, scorePenaltyBreakdown, topBlockers,
 //   currentCriticalFailures, topRegressions, recommendedNextActions,
 //   releaseReadyChecklist, manualVerificationNeeded,
 //   runtimeProofNeededByActionType, knownNonAutomatableCriticalRisks,
@@ -15,7 +16,8 @@
 //
 // SEMANTICS PRESERVED
 //   - STATUS.FAIL/ERROR/BLOCKED/NOT_AUTOMATABLE/WARNING/PASS counts kept.
-//   - Score penalties identical: case+mobile+authority+social+static-limit.
+//   - Automated score excludes manual-only/NOT_AUTOMATABLE proof gaps.
+//   - Release readiness/manual gates are tracked separately from score.
 //   - Critical/top-blockers/manual/runtime-proof sections kept.
 //   - Manual-only NOT_AUTOMATABLE checks stay visible as manual proof gaps,
 //     but they are not copied or counted as code/security blockers.
@@ -127,22 +129,34 @@ export function isRealBlockerCase(item = {}) {
   return [STATUS.FAIL, STATUS.ERROR, STATUS.BLOCKED].includes(item.status);
 }
 
-export function buildScoreExplanation({ counts, penalty, mobileViewportPenalty, authorityPenalty, socialUncertaintyPenalty, staticLimitationPenalty, score, rating }) {
+export function buildScoreExplanation({
+  counts,
+  penalty,
+  mobileViewportPenalty,
+  authorityPenalty,
+  socialUncertaintyPenalty,
+  staticLimitationPenalty,
+  score,
+  rating,
+  releaseReady,
+  manualGateStatus,
+  criticalManualGateCount,
+}) {
   const failCount = counts.FAIL || 0;
   const errorCount = counts.ERROR || 0;
   const manualRequiredCount = counts.MANUAL_REQUIRED || 0;
   const warningCount = counts.WARNING || 0;
   const realBlockerCount = counts.REAL_BLOCKER || 0;
   if (failCount === 0 && errorCount === 0 && realBlockerCount === 0 && manualRequiredCount > 0) {
-    return `0 FAIL does not mean release-ready: 0 FAIL/ERROR and 0 real code blockers; ${manualRequiredCount} manual-only verification checks still require device, live DOM, backend, or two-account proof. Penalties: case=${penalty}, mobile=${mobileViewportPenalty}, authority=${authorityPenalty}, social=${socialUncertaintyPenalty}, static-limit=${staticLimitationPenalty}.`;
+    return `0 FAIL does not mean release-ready: automated score ${score}/100, 0 FAIL/ERROR and 0 real code blockers; ${manualRequiredCount} manual-only verification checks still require device, live DOM, backend, or two-account proof. Critical manual gates=${criticalManualGateCount}; manualGateStatus=${manualGateStatus}; releaseReady=${releaseReady}. Manual-only NOT_AUTOMATABLE cases carry 0 automated-score penalty. Penalties: case=${penalty}, mobile=${mobileViewportPenalty}, authority=${authorityPenalty}, social=${socialUncertaintyPenalty}, static-limit=${staticLimitationPenalty}.`;
   }
   if (failCount === 0 && errorCount === 0 && realBlockerCount === 0 && warningCount > 0) {
-    return `No hard blocker (FAIL/ERROR/BLOCKED) remains, but WARNINGS still need review before release confidence. Penalties: case=${penalty}, mobile=${mobileViewportPenalty}, authority=${authorityPenalty}, social=${socialUncertaintyPenalty}, static-limit=${staticLimitationPenalty}.`;
+    return `No hard blocker (FAIL/ERROR/BLOCKED) remains, but true WARNINGS still need review before release confidence. releaseReady=${releaseReady}. Penalties: case=${penalty}, mobile=${mobileViewportPenalty}, authority=${authorityPenalty}, social=${socialUncertaintyPenalty}, static-limit=${staticLimitationPenalty}.`;
   }
   if (failCount === 0 && errorCount === 0 && realBlockerCount > 0) {
-    return `0 FAIL/ERROR but ${realBlockerCount} real blocker checks remain. Penalties: case=${penalty}, mobile=${mobileViewportPenalty}, authority=${authorityPenalty}, social=${socialUncertaintyPenalty}, static-limit=${staticLimitationPenalty}.`;
+    return `0 FAIL/ERROR but ${realBlockerCount} real blocker checks remain. releaseReady=${releaseReady}. Penalties: case=${penalty}, mobile=${mobileViewportPenalty}, authority=${authorityPenalty}, social=${socialUncertaintyPenalty}, static-limit=${staticLimitationPenalty}.`;
   }
-  return `${rating} score ${score}/100. Penalties: case=${penalty}, mobile=${mobileViewportPenalty}, authority=${authorityPenalty}, social=${socialUncertaintyPenalty}, static-limit=${staticLimitationPenalty}.`;
+  return `${rating} automated score ${score}/100. releaseReady=${releaseReady}; manualGateStatus=${manualGateStatus}. Penalties: case=${penalty}, mobile=${mobileViewportPenalty}, authority=${authorityPenalty}, social=${socialUncertaintyPenalty}, static-limit=${staticLimitationPenalty}.`;
 }
 
 export function buildReleaseReadyChecklist(cases) {
@@ -294,7 +308,8 @@ export function buildReport(caseResults, suites, meta = createRunMeta(), environ
     return { id: suite.id, name: suite.name, critical: suite.critical, total: suiteCases.length, counts: suiteCounts, durationMs };
   });
 
-  const penalty = cases.reduce((sum, item) => {
+  const automatedScoreCases = cases.filter(item => !isManualOnlyVerificationCase(item));
+  const penalty = automatedScoreCases.reduce((sum, item) => {
     const critical = item.critical ? 1 : 0;
     if (item.status === STATUS.FAIL) return sum + (critical ? 12 : 8);
     if (item.status === STATUS.ERROR) return sum + (critical ? 15 : 10);
@@ -303,13 +318,14 @@ export function buildReport(caseResults, suites, meta = createRunMeta(), environ
     return sum;
   }, 0);
 
-  const mobileViewportPenalty = cases.some(item => item.suiteId === 'mobile_viewport' && [STATUS.FAIL, STATUS.ERROR, STATUS.BLOCKED].includes(item.status)) ? 8 : 0;
-  const authorityPenalty = cases.some(item => item.suiteId === 'multiplayer_authority' && item.status !== STATUS.PASS) ? 6 : 0;
-  // Additive penalty for critical social/security uncertainty.
-  const socialUncertaintyPenalty = criticalSocialUncertaintyPenalty(cases);
+  const mobileViewportPenalty = automatedScoreCases.some(item => item.suiteId === 'mobile_viewport' && [STATUS.FAIL, STATUS.ERROR, STATUS.BLOCKED].includes(item.status)) ? 8 : 0;
+  const authorityPenalty = automatedScoreCases.some(item => item.suiteId === 'multiplayer_authority' && item.status !== STATUS.PASS) ? 6 : 0;
+  // Additive penalty for critical social/security uncertainty. Manual-only
+  // NOT_AUTOMATABLE proof gaps are release gates, not automated-score debt.
+  const socialUncertaintyPenalty = criticalSocialUncertaintyPenalty(automatedScoreCases);
   const staticLimitationPenalty = criticalStaticLimitationPenalty(cases);
   const score = Math.max(0, Math.round(100 - penalty - mobileViewportPenalty - authorityPenalty - socialUncertaintyPenalty - staticLimitationPenalty));
-  const rating = score >= 90 ? 'Good' : score >= 70 ? 'Watch' : score >= 50 ? 'Risky' : 'Not release-ready';
+  const automatedRating = score >= 90 ? 'Good' : score >= 70 ? 'Watch' : score >= 50 ? 'Risky' : 'Not release-ready';
 
   const problemCases = cases
     .filter(item => item.status !== STATUS.PASS)
@@ -329,6 +345,11 @@ export function buildReport(caseResults, suites, meta = createRunMeta(), environ
     item.status === STATUS.NOT_AUTOMATABLE,
   );
   const knownNonAutomatableCriticalRisks = cases.filter(item => item.critical && item.status === STATUS.NOT_AUTOMATABLE);
+  const trueWarnings = problemCases.filter(item => item.status === STATUS.WARNING && !isManualOnlyVerificationCase(item));
+  const criticalManualGateCount = manualVerificationNeeded.filter(item => item.critical).length;
+  const manualGateStatus = manualVerificationNeeded.length ? 'pending' : 'clear';
+  const releaseReady = realBlockers.length === 0 && trueWarnings.length === 0 && manualVerificationNeeded.length === 0;
+  const rating = manualVerificationNeeded.length > 0 ? 'Manual proof pending' : automatedRating;
   const recentlyFixedRegressions = cases.filter(item => item.recentlyFixed);
   const runtimeProofNeededByActionType = buildRuntimeProofNeededByActionType(cases);
   const recentlyChangedAreas = buildRecentlyChangedAreas(cases);
@@ -338,6 +359,7 @@ export function buildReport(caseResults, suites, meta = createRunMeta(), environ
       ...counts,
       MANUAL_REQUIRED: manualOnlyVerificationNeeded.length,
       REAL_BLOCKER: realBlockers.length,
+      WARNING: trueWarnings.length,
     },
     penalty,
     mobileViewportPenalty,
@@ -346,11 +368,14 @@ export function buildReport(caseResults, suites, meta = createRunMeta(), environ
     staticLimitationPenalty,
     score,
     rating,
+    releaseReady,
+    manualGateStatus,
+    criticalManualGateCount,
   });
   const blockerSummary = {
     blockerCount: realBlockers.length,
     manualRequiredCount: manualOnlyVerificationNeeded.length,
-    warningCount: counts.WARNING || 0,
+    warningCount: trueWarnings.length,
   };
 
   return {
@@ -358,6 +383,8 @@ export function buildReport(caseResults, suites, meta = createRunMeta(), environ
     timestamp: new Date().toISOString(),
     startedAt: meta.startedAt,
     finishedAt: new Date().toISOString(),
+    runState: meta.runState || 'completed',
+    reportState: meta.reportState || meta.runState || 'completed',
     buildMarker: meta.buildMarker,
     build: meta.build,
     environment,
@@ -367,7 +394,18 @@ export function buildReport(caseResults, suites, meta = createRunMeta(), environ
     counts,
     totalCases: cases.length,
     totalDurationMs,
-    score: { value: score, rating, explanation: scoreExplanation },
+    automatedScore: score,
+    releaseReady,
+    manualGateStatus,
+    score: {
+      value: score,
+      automatedScore: score,
+      rating,
+      automatedRating,
+      releaseReady,
+      manualGateStatus,
+      explanation: scoreExplanation,
+    },
     blockerSummary,
     scorePenaltyBreakdown: {
       casePenalty: penalty,
@@ -375,6 +413,7 @@ export function buildReport(caseResults, suites, meta = createRunMeta(), environ
       authorityPenalty,
       socialUncertaintyPenalty,
       staticLimitationPenalty,
+      manualOnlyNotAutomatablePenalty: 0,
     },
     topBlockers,
     currentCriticalFailures,
@@ -473,7 +512,9 @@ export function buildBlockerCopyJson(report) {
       relatedFiles: deriveRelatedFiles(item),
     }));
   const failedSuiteIds = new Set(blockers.map(item => String(item.suite || '').trim()).filter(Boolean));
-  const warningCount = Number(report.counts?.WARNING || 0);
+  const warningCount = Number(
+    report.blockerSummary?.warningCount ?? cases.filter(item => item.status === STATUS.WARNING && !isManualOnlyVerificationCase(item)).length,
+  );
   const manualRequiredCount = Number(
     report.blockerSummary?.manualRequiredCount ?? cases.filter(isManualOnlyVerificationCase).length,
   );
@@ -498,7 +539,7 @@ export function buildWarningCopyJson(report) {
   if (!report) return null;
   const cases = Array.isArray(report.cases) ? report.cases : [];
   const warnings = cases
-    .filter(item => item.status === STATUS.WARNING)
+    .filter(item => item.status === STATUS.WARNING && !isManualOnlyVerificationCase(item))
     .map(item => ({
       suite: item.suiteName || item.suiteId || '',
       caseId: item.key || (item.suiteId && item.id ? `${item.suiteId}.${item.id}` : item.id || ''),
@@ -511,7 +552,7 @@ export function buildWarningCopyJson(report) {
       relatedFiles: deriveRelatedFiles(item),
     }));
   const warningSuiteIds = new Set(warnings.map(item => String(item.suite || '').trim()).filter(Boolean));
-  const warningCount = Number(report.counts?.WARNING || 0);
+  const warningCount = warnings.length;
   const manualRequiredCount = Number(
     report.blockerSummary?.manualRequiredCount ?? cases.filter(isManualOnlyVerificationCase).length,
   );

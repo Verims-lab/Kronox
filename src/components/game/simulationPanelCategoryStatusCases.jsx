@@ -239,12 +239,13 @@ export const EXTRA_TESTS = [
   makeCase('online_categories_sorted_by_id_asc_on_fetch',
     'Online screen sorts DB-fetched active categories by category_id ASC',
     () => {
-      // Codex161 — The Online screen MUST sort active rows by
-      // category_id ASC right after `filterActiveCategories` so the
+      // Codex402 — The Online screen MUST sort active rows by category_id
+      // ASC right after the current `loadActiveCategories` DB fetch so the
       // leftmost card is always the lowest active id (Chronicle=1).
       const missing = missingTokens(onlineChallengeScreenSource, [
-        'filterActiveCategories',
+        'loadActiveCategories({ limit: 1000 })',
         '.sort((a, b) => (Number(a.category_id) || 0) - (Number(b.category_id) || 0))',
+        'setDbCategories(active)',
       ]);
       if (missing.length) {
         return fail('Online screen no longer sorts active categories by category_id ASC.', {

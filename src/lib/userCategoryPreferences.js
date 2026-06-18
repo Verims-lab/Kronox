@@ -7,7 +7,7 @@ import {
 export const CATEGORY_STATUS_ACTIVE = 'A';
 export const CATEGORY_STATUS_PASSIVE = 'P';
 export const CATEGORY_ROW_ACTIVE_STATUSES = Object.freeze(['A', 'ACTIVE', 'AKTIF']);
-export const MIN_CATEGORY_SELECTION_COUNT = SOLO_QUESTION_POLICY.minimumValidPreferenceCount;
+export const MIN_CATEGORY_SELECTION_COUNT = 3;
 export const NO_MAX_CATEGORY_SELECTION_LIMIT = true;
 export const GAMEPLAY_CATEGORY_PREFERENCE_FALLBACK = Object.freeze({
   authenticatedNoPreferenceUsesAllActiveCategories: true,

@@ -39,11 +39,10 @@ function KeyValue({ label, value }) {
 function RunStateBadge({ runFreshState }) {
   const state = String(runFreshState || '').toLowerCase();
   const isRunning = state === 'running';
-  const isFresh = state === 'fresh';
+  const isCompleted = state === 'completed' || state === 'fresh';
   const isFailed = state === 'failed';
-  const isPrevious = !isRunning && !isFresh && !isFailed;
-  const label = isRunning ? 'Run in progress' : isFresh ? 'Current run (fresh)' : isFailed ? 'Run partially completed (verify)' : 'Previous result';
-  const tone = isFresh ? 'border-emerald-400/35 bg-emerald-400/10' : isFailed ? 'border-rose-400/35 bg-rose-400/10' : 'border-amber-300/35 bg-amber-300/10';
+  const label = isRunning ? 'Run in progress' : isCompleted ? 'Current completed run' : isFailed ? 'Run failed / partial report' : 'Previous completed result';
+  const tone = isCompleted ? 'border-emerald-400/35 bg-emerald-400/10' : isFailed ? 'border-rose-400/35 bg-rose-400/10' : 'border-amber-300/35 bg-amber-300/10';
   return (
     <div className={`self-start rounded-md border px-2 py-1 text-[11px] ${tone}`}>
       {label}

@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex402 — Health blocker/manual-warning reclassification:
+//   • Separates automated score from release readiness/manual proof gates.
+//   • Keeps Last Run/export actions on completed reports only.
+//   • Reclassifies manual-only Health warnings as NOT_AUTOMATABLE and tightens
+//     category/exposure analytics guardrails.
+
 // Codex401 — Guided tutorial Phase 1 visual/text refresh:
 //   • Updates the welcome screen, timer popup, first drag lesson, and
 //     timeline-scroll lesson copy to the requested onboarding wording.
@@ -2267,7 +2273,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex401';
+const BUILD_MARKER = 'Codex402';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

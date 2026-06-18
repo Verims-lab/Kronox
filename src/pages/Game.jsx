@@ -1118,6 +1118,8 @@ export default function Game() {
           mode: exposureMode,
           role: eventType === QUESTION_ANALYTICS_EVENT_TYPES.REPLACEMENT_SHOWN ? 'replacement' : 'playable',
           source,
+          actualShownOnly: true,
+          bufferedQuestionsCounted: false,
           shown_sequence: placementIndex,
           shown_at: extra.shown_at || nowIso,
         }).catch(() => null);

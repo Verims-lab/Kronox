@@ -30,6 +30,7 @@ const CATEGORY_FAIRNESS_SIGNAL_LIMIT = 20;
 const CATEGORY_TOP_ANSWER_YEAR_LIMIT = 10;
 const STALE_REFERENCE_SAMPLE_LIMIT = 20;
 const PERIOD_OPTIONS = /* @__PURE__ */ new Set([1, 7, 30]);
+const ANONYMOUS_PLAYER_LABEL_EXAMPLE = "User0001";
 const REPORT_BUILD_MARKER = "Codex347";
 const REPORT_TEMPLATE_VERSION = "nine-section-email-v1";
 const REPORT_TEMPLATE_LABEL = "nine-section-email-v1";
@@ -809,6 +810,7 @@ function buildAnonymousPerPlayerCoverage(playerDailyExposures = [], categoryMap 
     rows: withLabels,
     mostShown,
     repeatRisk,
+    anonymousLabelExample: ANONYMOUS_PLAYER_LABEL_EXAMPLE,
     minimumActivityThreshold: activeEnough.length ? 30 : 0,
   };
 }

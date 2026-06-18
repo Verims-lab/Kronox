@@ -253,9 +253,12 @@ export const EXTRA_TESTS = [
         'restoreLatestStoredReport',
         'persistCompletedReport',
         'normalizeLastRunReport',
+        'isCompletedHealthReport',
+        'getCurrentCompletedReportForExport',
+        'completedReports',
         'finishedAt || report?.timestamp || report?.startedAt',
-        'withRunId.length ? withRunId : reports',
-        'updateReport(nextResults, meta, { persist: true })',
+        "const runState = options.runState || (options.persist === true ? 'completed' : 'running')",
+        "updateReport(nextResults, meta, { persist: !failedToRun, runState: failedToRun ? 'failed' : 'completed' })",
       ]);
       const forbidden = src.includes('persistReport(nextReport)') ? ['persistReport(nextReport)'] : [];
       if (missing.length || forbidden.length) {

@@ -129,19 +129,37 @@ function yieldHealthRunToMain() {
 }
 
 function getReportTime(report) {
-  const time = Date.parse(report?.finishedAt || report?.timestamp || report?.startedAt || '');
+  const finishedAt = report?.finishedAt;
+  const time = Date.parse(finishedAt || report?.timestamp || report?.startedAt || '');
   return Number.isFinite(time) ? time : 0;
 }
 
-function normalizeLastRunReport(report) {
+function getReportRunState(report) {
+  return String(report?.runState || report?.reportState || report?.state || report?.runStatus || '').trim().toLowerCase();
+}
+
+function isCompletedHealthReport(report) {
+  if (!report || typeof report !== 'object') return false;
+  const runState = getReportRunState(report);
+  if (runState === 'completed') return true;
+  if (['running', 'failed', 'partial'].includes(runState)) return false;
+  return Boolean(report.runId && (report.finishedAt || report.timestamp) && (Array.isArray(report.cases) || report.counts));
+}
+
+function normalizeLastRunReport(report, fallbackRunState = 'previous') {
   if (!report || typeof report !== 'object') return null;
   const currentBuildMarker = extractBuildMarker();
   const storedBuildMarker = String(report?.build?.marker || report?.buildMarker || '').trim();
   const buildMarker = storedBuildMarker || (currentBuildMarker !== 'unknown' ? currentBuildMarker : 'Build marker unavailable');
   const build = report.build && typeof report.build === 'object' ? { ...report.build } : {};
+  const explicitRunState = getReportRunState(report);
+  const completed = isCompletedHealthReport(report);
+  const runState = completed ? 'completed' : (explicitRunState || fallbackRunState);
 
   return {
     ...report,
+    runState,
+    reportState: runState,
     buildMarker,
     build: {
       ...build,
@@ -166,16 +184,16 @@ function restoreLatestStoredReport() {
     .filter(Boolean);
   if (!reports.length) return null;
 
-  const withRunId = reports.filter(item => item.runId);
-  const candidates = withRunId.length ? withRunId : reports;
-  return candidates
+  const completedReports = reports.filter(isCompletedHealthReport);
+  if (!completedReports.length) return null;
+  return completedReports
     .slice()
     .sort((a, b) => getReportTime(b) - getReportTime(a))[0];
 }
 
 function persistCompletedReport(report) {
-  const normalized = normalizeLastRunReport(report);
-  if (!normalized) return null;
+  const normalized = normalizeLastRunReport(report, 'completed');
+  if (!normalized || normalized.runState !== 'completed' || !isCompletedHealthReport(normalized)) return null;
   try {
     localStorage.setItem(LAST_RUN_KEY, JSON.stringify(normalized));
   } catch (_) {}
@@ -213,7 +231,12 @@ export default function SimulationPanel({ onClose }) {
   const progress = plannedKeys.length ? Math.round((allResults.filter(item => plannedKeys.includes(item.key)).length / plannedKeys.length) * 100) : 0;
 
   const updateReport = useCallback((nextResults, meta, options = {}) => {
-    const nextReport = buildReport(Object.values(nextResults), SUITES, meta, captureEnvironment());
+    const runState = options.runState || (options.persist === true ? 'completed' : 'running');
+    const nextReport = buildReport(Object.values(nextResults), SUITES, {
+      ...meta,
+      runState,
+      reportState: runState,
+    }, captureEnvironment());
     setReport(nextReport);
     if (options.persist === true) {
       const completedReport = persistCompletedReport(nextReport);
@@ -268,7 +291,7 @@ export default function SimulationPanel({ onClose }) {
           lastResultStateAt = now;
         }
         if (shouldRefreshReport) {
-          updateReport(nextResults, meta);
+          updateReport(nextResults, meta, { runState: 'running' });
           lastReportAt = now;
         }
 
@@ -284,10 +307,10 @@ export default function SimulationPanel({ onClose }) {
 
     publishResultStateSnapshot(setResultsByKey, nextResults);
     if (Object.keys(nextResults).length) {
-      updateReport(nextResults, meta, { persist: !failedToRun });
+      updateReport(nextResults, meta, { persist: !failedToRun, runState: failedToRun ? 'failed' : 'completed' });
     }
     setCurrentRunMeta(meta);
-    setRunFreshState(failedToRun ? 'failed' : 'fresh');
+    setRunFreshState(failedToRun ? 'failed' : 'completed');
     setPlannedKeys([]);
     setRunningKey(null);
   }, [updateReport]);
@@ -339,23 +362,42 @@ export default function SimulationPanel({ onClose }) {
     }
   };
 
-  const copyJson = () => report
-    ? copyText(JSON.stringify(buildBlockerCopyJson(report), null, 2), 'Blocker JSON')
-    : setCopyState('No current run report to copy');
-  const copyWarning = () => report
-    ? copyText(JSON.stringify(buildWarningCopyJson(report), null, 2), 'Warning JSON')
-    : setCopyState('No current run report to copy');
-  const copySummary = () => report
-    ? copyText(buildHumanSummary(report), 'Human summary')
-    : setCopyState('No current run report to copy');
+  const getCurrentCompletedReportForExport = useCallback(() => {
+    if (isCompletedHealthReport(report)) return normalizeLastRunReport(report, 'completed');
+    if (isCompletedHealthReport(lastRun)) return normalizeLastRunReport(lastRun, 'completed');
+    return null;
+  }, [lastRun, report]);
+
+  const copyJson = () => {
+    const completedReport = getCurrentCompletedReportForExport();
+    return completedReport
+      ? copyText(JSON.stringify(buildBlockerCopyJson(completedReport), null, 2), 'Blocker JSON')
+      : setCopyState('No completed run report to copy');
+  };
+  const copyWarning = () => {
+    const completedReport = getCurrentCompletedReportForExport();
+    return completedReport
+      ? copyText(JSON.stringify(buildWarningCopyJson(completedReport), null, 2), 'Warning JSON')
+      : setCopyState('No completed run report to copy');
+  };
+  const copySummary = () => {
+    const completedReport = getCurrentCompletedReportForExport();
+    return completedReport
+      ? copyText(buildHumanSummary(completedReport), 'Human summary')
+      : setCopyState('No completed run report to copy');
+  };
   const downloadJson = () => {
-    if (!report) return;
+    const completedReport = getCurrentCompletedReportForExport();
+    if (!completedReport) {
+      setCopyState('No completed run report to download');
+      return;
+    }
     try {
-      const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+      const blob = new Blob([JSON.stringify(completedReport, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `kronox-health-${report.runId}.json`;
+      link.download = `kronox-health-${completedReport.runId}.json`;
       link.click();
       URL.revokeObjectURL(url);
       setCopyState('JSON download started');

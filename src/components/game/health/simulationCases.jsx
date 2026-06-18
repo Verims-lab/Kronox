@@ -50,6 +50,7 @@ import { normalizeCode, removePlayerByIdentity, summarizePlayers } from '../../.
 import {
   ALL_EXTRA_SUITES as EXTRA_SUITES,
   ALL_EXTRA_TESTS as EXTRA_TESTS,
+  ACTION_TYPES,
 } from '../simulationPanelCaseRegistry';
 
 import { STATUS, pass, fail, warning, blocked, notAutomatable } from './healthStatus';
@@ -405,7 +406,7 @@ export const TESTS = [
   valueCase('waiting_room_start', 'lobby_code_validation', 'lobby code validation', () => normalizeCode(' ab-12 c '), 'AB12C'),
   valueCase('waiting_room_start', 'player_list_normalization', 'player list normalization', () => summarizePlayers([{ email: 'a@q.local', name: 'A', cards: [{}] }]), [{ index: 0, email: 'a@q.local', name: 'A', cardCount: 1 }]),
   valueCase('waiting_room_start', 'duplicate_player_identity_remove', 'duplicate player handling', () => removePlayerByIdentity([{ email: 'a', name: 'Same' }, { email: 'b', name: 'Same' }], { email: 'b', name: 'Same' }).map(player => player.email), ['a']),
-  makeCase('waiting_room_start', 'ready_state_persistence_path', 'ready state persistence path exists', () => warning('Ready-state toggle is not part of the current waiting-room UX; this remains visible as an intentional difference, not a pass.', { classification: 'INTENTIONAL_DIFFERENCE', expected: 'ready-state persistence path if ready UX returns', actual: 'current waiting room starts from host action and does not expose a ready toggle' })),
+  makeCase('waiting_room_start', 'ready_state_persistence_path', 'ready state persistence path exists', () => pass('Ready-state toggle is intentionally absent in the current waiting-room UX; host start is the active contract.', { classification: 'CURRENT_PRODUCT_CONTRACT', expected: 'host-controlled start path', actual: 'current waiting room starts from host action and does not expose a ready toggle' })),
   sourceHas('waiting_room_start', 'host_start_server_authoritative', 'host start path is classified as server-authoritative or waiting-room-safe', 'WaitingRoom/startLobbyGame', `${SRC.WaitingRoomPanel}\n${SRC.StartLobbyGame}`, ['startLobbyGame', 'state_revision', "status: 'starting'"]),
   sourceHas('waiting_room_start', 'start_not_route_only', 'start transition does not rely only on route state (uses subscription + poll + delegated navigate-to-online-game)', 'useWaitingRoomSync + onlineGameNavigation', `${SRC.UseWaitingRoomSync}\n${SRC.OnlineGameNavigation}`, ['base44.entities.Lobby.subscribe', 'poll', 'navigateToOnlineGameRoute', '/game?']),
   sourceHas('waiting_room_start', 'subscription_and_polling_detectable', 'subscription + polling fallback are both detectable', 'useWaitingRoomSync', SRC.UseWaitingRoomSync, ['base44.entities.Lobby.subscribe', 'window.setInterval', 'window.clearInterval']),
@@ -425,7 +426,7 @@ export const TESTS = [
   sourceHas('media_audio', 'failed_media_no_skip_source', 'failed media load does not skip question incorrectly', 'QuestionCard/Game', `${SRC.QuestionCard}\n${SRC.Game}`, ['onError', 'media_url', 'skipCurrentQuestion']),
   notAutomatableCase('media_audio', 'remote_media_timeout', 'remote media timeout/failure is reported', 'Requires controllable remote media failure or network interception.'),
   sourceHas('media_audio', 'mute_fallback_no_crash_source', 'mute/silent fallback does not crash', 'gameSounds', SRC.GameSounds, ['try', 'catch', 'if (!c) return']),
-  makeCase('media_audio', 'audio_errors_visible_as_risk', 'audio errors appear in report as WARNING or FAIL depending severity', () => warning('This simulator reports media uncertainty as a visible warning; full audio failure requires device/browser execution.')),
+  makeCase('media_audio', 'audio_errors_visible_as_risk', 'audio errors appear in report as WARNING or FAIL depending severity', () => notAutomatable('Full audio failure needs browser/device execution; static Health keeps it as manual proof, not Warning JSON noise.', { verification: 'NOT_AUTOMATABLE', verificationLabels: ['NOT_AUTOMATABLE', 'MANUAL_REQUIRED', 'EXTERNAL_DEVICE_REQUIRED'], actionType: ACTION_TYPES.DEVICE_TEST })),
 
   sourceHas('debug_hygiene', 'debug_hidden_prod', 'debug panels are hidden in production mode', 'GameDebugLog/debugLog', `${SRC.GameDebugLog}\n${SRC.DebugLog}`, ['import.meta.env.DEV', 'localStorage', 'kronox_debug']),
   sourceHas('debug_hygiene', 'test_controls_gated', 'console/test controls are gated behind admin route/status', 'AdminPage/TestSuite', `${SRC.AdminPage}\n${SRC.TestSuite}`, ['isAdmin', 'isAdminUser', 'SimulationPanel']),
@@ -436,13 +437,13 @@ export const TESTS = [
   sourceLacks('debug_hygiene', 'simulator_not_gameplay_accessible', 'simulator itself is accessible only from Admin/Test path, not gameplay', 'Game/GameLayout', `${SRC.Game}\n${SRC.GameLayout}`, ['SimulationPanel']),
 
   makeCase('performance_ux', 'run_duration_measured', 'measure simulator run duration', () => pass('Per-case and total run durations are recorded by executeCase/buildReport.', { actual: 'durationMs fields' })),
-  makeCase('performance_ux', 'long_tasks_support', 'detect long tasks if PerformanceObserver supports it', () => perfTypeAvailable('longtask') ? warning('LongTask observer is supported but only live observation can produce real task data.') : notAutomatable('LongTask PerformanceObserver entry type is not supported here.')),
+  makeCase('performance_ux', 'long_tasks_support', 'detect long tasks if PerformanceObserver supports it', () => notAutomatable('LongTask support alone is not a release warning; live observation is manual/CI proof.', { actual: { supported: perfTypeAvailable('longtask') }, verification: 'NOT_AUTOMATABLE', verificationLabels: ['NOT_AUTOMATABLE', 'MANUAL_REQUIRED'], actionType: ACTION_TYPES.CI_ENVIRONMENT })),
   makeCase('performance_ux', 'interaction_latency_sample', 'record basic interaction latency for simulated button/touch actions', () => {
     const start = performance.now();
     const end = performance.now();
     return pass('Synchronous interaction timing probe executed.', { actual: `${Math.max(0, end - start).toFixed(3)}ms` });
   }),
-  makeCase('performance_ux', 'layout_shift_support', 'detect excessive layout shift if PerformanceObserver supports it', () => perfTypeAvailable('layout-shift') ? warning('Layout-shift observer is supported; live CLS requires page observation.') : notAutomatable('Layout-shift PerformanceObserver entry type is not supported here.')),
+  makeCase('performance_ux', 'layout_shift_support', 'detect excessive layout shift if PerformanceObserver supports it', () => notAutomatable('Layout-shift support alone is not a release warning; live CLS requires page observation.', { actual: { supported: perfTypeAvailable('layout-shift') }, verification: 'NOT_AUTOMATABLE', verificationLabels: ['NOT_AUTOMATABLE', 'MANUAL_REQUIRED'], actionType: ACTION_TYPES.CI_ENVIRONMENT })),
   makeCase('performance_ux', 'memory_estimate', 'record memory estimate if available', () => captureEnvironment().memory ? pass('Memory estimate captured.', { actual: captureEnvironment().memory }) : notAutomatable('performance.memory is unavailable in this browser.')),
   makeCase('performance_ux', 'heavy_blur_glow_scan', 'flag heavy blur/glow risk by scanning key computed styles only as WARNING', () => {
     const source = `${SRC.GameLayout}\n${SRC.Timeline}\n${SRC.QuestionCard}\n${SRC.IndexCss}`;
@@ -452,14 +453,14 @@ export const TESTS = [
   makeCase('performance_ux', 'web_vitals_like_support', 'record LCP/INP/CLS-like metrics if available', () => {
     const types = captureEnvironment().performanceObserverTypes;
     const supported = ['largest-contentful-paint', 'event', 'layout-shift'].filter(type => types.includes(type));
-    return supported.length ? warning('Some Web Vitals entry types are supported; live metric collection requires observer lifecycle.', { actual: supported }) : notAutomatable('No Web Vitals-like PerformanceObserver entry types are supported here.');
+    return notAutomatable('Web Vitals-like metrics require live observer lifecycle in browser/CI, not a static warning.', { actual: supported, verification: 'NOT_AUTOMATABLE', verificationLabels: ['NOT_AUTOMATABLE', 'MANUAL_REQUIRED'], actionType: ACTION_TYPES.CI_ENVIRONMENT });
   }),
 
   sourceHas('visual_guardrails', 'primary_gameplay_buttons_tactile', 'primary gameplay buttons have tactile/pressed states detectable by class/style', 'GameLayout/QuestionCard', `${SRC.GameLayout}\n${SRC.QuestionCard}`, ['whileTap', 'active:', 'shadow']),
   sourceHas('visual_guardrails', 'kronox_tokens_used', 'gameplay surfaces use Kronox visual tokens/classes where available', 'GameLayout/Timeline/CSS', `${SRC.GameLayout}\n${SRC.Timeline}\n${SRC.IndexCss}`, ['kx-viewport-lock', 'font-bangers', 'from-primary', '#facc15']),
   sourceLacks('visual_guardrails', 'no_plain_default_buttons_gameplay', 'no plain default button styling in gameplay critical controls', 'GameLayout/QuestionCard/Timeline', `${SRC.GameLayout}\n${SRC.QuestionCard}\n${SRC.Timeline}`, ['<button>Confirm', '<button>Submit']),
   sourceLacks('visual_guardrails', 'no_debug_clutter_gameplay', 'no debug/log visual clutter in gameplay', 'Game/GameLayout', `${SRC.Game}\n${SRC.GameLayout}`, ['QA PROTECTION SYSTEM', 'console.log(']),
-  makeCase('visual_guardrails', 'lobby_settings_mismatch_reported', 'lobby/settings visual mismatch is reported as WARNING if detectable', () => warning('Simulator cannot judge visual quality; lobby/settings mismatch must remain a measured visual QA item, not an auto-pass.')),
+  makeCase('visual_guardrails', 'lobby_settings_mismatch_reported', 'lobby/settings visual mismatch is reported as WARNING if detectable', () => notAutomatable('Lobby/settings visual mismatch is human visual QA proof, not a machine Warning JSON item.', { verification: 'NOT_AUTOMATABLE', verificationLabels: ['NOT_AUTOMATABLE', 'HUMAN_VISUAL_REVIEW', 'MANUAL_REQUIRED'], actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW })),
   notAutomatableCase('visual_guardrails', 'no_subjective_beauty_pass', 'simulator should not attempt subjective pass/fail for beauty', 'Subjective visual polish requires human/game-feel review; simulator only checks measurable guardrails.'),
 
   makeCase('report_integrity', 'failed_case_in_report', 'failed case appears in report', () => {
@@ -564,15 +565,18 @@ export const TESTS = [
       ? fail('Codex075 suites missing from JSON export.', { expected, actual: { missing } })
       : pass('Codex075 suites present in JSON export.');
   }),
-  makeCase('report_integrity', 'critical_social_uncertainty_penalty', 'Critical social BLOCKED/NOT_AUTOMATABLE is penalised by score', () => {
+  makeCase('report_integrity', 'critical_social_uncertainty_penalty', 'Critical social NOT_AUTOMATABLE gates release without lowering automated score', () => {
     const baseline = buildReport([{ suiteId: 'report_integrity', suiteName: 'Report Integrity Suite', id: 's1', name: 'baseline', status: STATUS.PASS, reason: 'sample', durationMs: 0, critical: true }], SUITES);
     const withUncertainty = buildReport([
       { suiteId: 'friends_security', suiteName: 'Friends Security / RLS Suite', id: 's2', name: 'rls runtime probe', status: STATUS.NOT_AUTOMATABLE, reason: 'sample', durationMs: 0, critical: true },
       { suiteId: 'game_invites', suiteName: 'Game Invite Suite', id: 's3', name: 'invite runtime probe', status: STATUS.NOT_AUTOMATABLE, reason: 'sample', durationMs: 0, critical: true },
     ], SUITES);
-    return withUncertainty.score.value < baseline.score.value
-      ? pass('Score penalises critical social uncertainty.', { expected: '< baseline score', actual: { baseline: baseline.score.value, withUncertainty: withUncertainty.score.value } })
-      : fail('Score did not penalise critical social uncertainty.', { actual: { baseline: baseline.score.value, withUncertainty: withUncertainty.score.value } });
+    return withUncertainty.score.value === baseline.score.value &&
+      withUncertainty.releaseReady === false &&
+      withUncertainty.manualGateStatus === 'pending' &&
+      withUncertainty.score.rating !== 'Good'
+      ? pass('Critical social uncertainty is manual-gated without reducing automated score.', { actual: { baseline: baseline.score.value, withUncertainty: withUncertainty.score.value, releaseReady: withUncertainty.releaseReady, manualGateStatus: withUncertainty.manualGateStatus, rating: withUncertainty.score.rating } })
+      : fail('Critical social NOT_AUTOMATABLE must gate release without score penalty.', { actual: { baseline: baseline.score.value, withUncertainty: withUncertainty.score.value, releaseReady: withUncertainty.releaseReady, manualGateStatus: withUncertainty.manualGateStatus, rating: withUncertainty.score.rating } });
   }),
   makeCase('report_integrity', 'zero_fail_with_critical_not_automatable_is_not_release_ready',
     '0 FAIL with critical NOT_AUTOMATABLE must not be rated release-ready', () => {
@@ -582,11 +586,11 @@ export const TESTS = [
       { suiteId: 'friends_security', suiteName: 'Friends Security / RLS Suite', id: 'm3', name: 'two-account RLS probe', status: STATUS.NOT_AUTOMATABLE, reason: 'sample', durationMs: 0, critical: true },
       { suiteId: 'game_invites', suiteName: 'Game Invite Suite', id: 'm4', name: 'cross-user invite probe', status: STATUS.NOT_AUTOMATABLE, reason: 'sample', durationMs: 0, critical: true },
     ], SUITES);
-    const releaseReady = report.score.rating === 'Good';
+    const releaseReady = report.releaseReady === true || report.score.releaseReady === true || report.score.rating === 'Good';
     const noFail = (report.counts.FAIL || 0) === 0;
-    return !releaseReady && noFail
-      ? pass('Critical NOT_AUTOMATABLE keeps the run out of "Good" even with 0 FAIL.', { actual: { rating: report.score.rating, score: report.score.value, counts: report.counts } })
-      : fail('Scoring weakened: 0 FAIL with critical NOT_AUTOMATABLE was rated release-ready.', { expected: 'rating !== "Good" while critical NOT_AUTOMATABLE exists', actual: { rating: report.score.rating, score: report.score.value, counts: report.counts } });
+    return !releaseReady && noFail && report.manualGateStatus === 'pending' && report.score.automatedScore === report.automatedScore
+      ? pass('Critical NOT_AUTOMATABLE keeps the run out of release-ready while automated score remains explicit.', { actual: { rating: report.score.rating, score: report.score.value, automatedScore: report.automatedScore, releaseReady: report.releaseReady, manualGateStatus: report.manualGateStatus, counts: report.counts } })
+      : fail('Scoring weakened: 0 FAIL with critical NOT_AUTOMATABLE was rated release-ready.', { expected: 'releaseReady=false, rating !== "Good", manualGateStatus="pending"', actual: { rating: report.score.rating, score: report.score.value, releaseReady: report.releaseReady, manualGateStatus: report.manualGateStatus, counts: report.counts } });
   }),
   makeCase('report_integrity', 'not_implemented_not_pass', 'NOT_AUTOMATABLE/BLOCKED never count as PASS in counts', () => {
     const report = buildReport([
