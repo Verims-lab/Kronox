@@ -1,107 +1,34 @@
-# Kronox Question Card Media Assets
+# Kronox Question Media Assets
 
-This directory is reserved for optional static image assets that may be used by Kronox question cards in the future.
+This folder is for optional static media/support files only. Current core
+gameplay must work without public question images.
 
-Current Kronox core gameplay does not require question images.
+## Current Contract
 
----
+- Do not store the full question bank in public assets.
+- Do not store question text, answer years, correct answers, raw answers, or
+  full `Question` rows in public assets.
+- No raw `Question.list` fallback may depend on this folder.
+- Question selection uses server/projection-safe paths, not public asset dumps.
+- No per-player exposure data, PlayerQuestionExposure rows, or
+  PlayerQuestionDailyExposure rows belong in public assets.
+- Question Analytics remains a private/admin email-body report, not a public PDF or public asset.
+- Per-player analytics must be anonymized with User0001-style labels when shown
+  in admin reports.
+- No email, provider UID, raw guest_id, owner_key, internal player_key, tokens,
+  or other PII/internal IDs may appear in public question assets.
 
-## Current Status
+## Media Rules
 
-Question card media is optional.
+- Optional media should use WebP, lowercase hyphenated filenames, and
+  mobile-friendly file sizes.
+- Missing media must fall back gracefully without broken image paths.
+- Media must not obscure question text or hurt drag/drop performance.
+- Do not use hotlinked images, remote placeholder URLs, or generated mockup
+  leftovers for production gameplay.
 
-The current Kronox question data model does not use these legacy fields as primary stored `Question` fields:
+## Security
 
-* `media_url`
-* `year`
-* `category`
-* `type`
-* `icon_url`
-
-Canonical question model is documented in:
-
-```text
-docs/KRONOX_QUESTION_DATA_MODEL.md
-```
-
-Current gameplay must work without question images.
-
-If a question image is missing, the card must use the normal Kronox fallback visual treatment and must not show a broken image path.
-
----
-
-## File Organization
-
-Store optional question card images here with descriptive lowercase filenames.
-
-Example:
-
-```text
-/public/assets/questions/
-  walt-disney-sirketi-kurulus.webp
-  msn-messenger.webp
-  gangnam-style.webp
-  nokia-3310.webp
-```
-
----
-
-## Recommended Specs
-
-* Preferred format: WebP
-* PNG/JPG may be used only if WebP is unavailable
-* Recommended aspect ratio: 16:9
-* Recommended minimum resolution: 640×360px
-* Target file size: under 200KB where possible
-* Naming: lowercase, hyphen-separated, descriptive
-* Avoid remote image URLs for production gameplay cards
-
----
-
-## Future Media Support
-
-If question-card media becomes active again, do not reintroduce legacy schema fields casually.
-
-Do not add these legacy fields back to `Question` without a product/data-model decision:
-
-* `media_url`
-* `year`
-* `category`
-* `type`
-* `icon_url`
-
-Preferred future approach:
-
-* keep the canonical `Question` schema clean
-* add a dedicated optional media field only after product approval
-* or use a separate `QuestionMedia` mapping if richer media support is needed
-* ensure normal gameplay projection remains minimal and secure
-
----
-
-## Runtime Requirements
-
-If media support is enabled later:
-
-* missing images must fall back gracefully
-* broken image paths must not appear in UI
-* images must be mobile/PWA friendly
-* images must not hurt drag/drop performance
-* images must not obscure question text
-* images must follow the Kronox premium fantasy mobile game direction
-
----
-
-## Important Rules
-
-This folder is for static assets only.
-
-Do not use:
-
-* runtime image generation
-* external hotlinked images
-* Unsplash placeholders
-* remote placeholder URLs
-* broken production paths
-
-No current gameplay flow should depend on this folder unless media support is explicitly reintroduced.
+- No secrets, tokens, auth headers, private keys, admin emails,
+  `VAPID_PRIVATE_KEY`, GuestProfile tokens/hashes, service-role details, answer
+  keys, debug exports, or analytics dumps may live here.

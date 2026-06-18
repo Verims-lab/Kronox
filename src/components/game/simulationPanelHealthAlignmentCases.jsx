@@ -807,19 +807,73 @@ export const EXTRA_TESTS = [
         fetchPublicText('/assets/categories/README.md'),
         fetchPublicText('/assets/questions/README.md'),
       ]);
-      const combined = `${uiReadme}\n${categoryReadme}\n${questionReadme}`;
-      const missing = missingTokens(combined, [
+      const uiMissing = missingTokens(uiReadme, [
         'Adding a file here does not automatically make it part of the app',
-        'Home screen is currently CSS/motion-driven',
-        'not a pressed-image swap',
-        'Legacy Decorative Assets',
+        'mobile-first',
+        'guided first Solo level',
+        'Tutorial hand/finger assets are tutorial-only',
+        'must not block touch input',
+        'Heavy blur/glow effects should be limited',
+        'HAMLE',
+        'Puan` / `Kronox Puan',
+        'Kullanıcı Adı',
+        'Do not present `Görünen Ad` / `display_name` as current public identity',
+        'Do not use `HATA` as the current Solo result/stat label',
+        'account linking belongs under Profile',
+        'No secrets, tokens, auth headers, private keys',
+        'VAPID_PRIVATE_KEY',
+      ]).map((token) => `ui:${token}`);
+      const categoryMissing = missingTokens(categoryReadme, [
         'not the active category source of truth',
+        'Current category source of truth is the DB/current canonical taxonomy',
         'getCategoryMetadata',
-        'hardcoded runtime category list',
-        'Current Kronox core gameplay does not require question images',
-        'No current gameplay flow should depend on this folder',
-      ]);
-      if (missing.length) {
+        'metadata only',
+        'Guest users can load categories without login',
+        'Category preferences are Solo-only soft weighting',
+        'Online is separate',
+        'sorted by category_id ASC',
+        'No questions, answers, years, full question bank',
+        'Do not reintroduce stale hardcoded category fallback arrays',
+        'Forbidden stale fallback examples: Chronicle, Flashback, Viral, Arena',
+        'Level Up',
+        'VAPID_PRIVATE_KEY',
+      ]).map((token) => `categories:${token}`);
+      const questionMissing = missingTokens(questionReadme, [
+        'media/support files only',
+        'Do not store the full question bank',
+        'Do not store question text, answer years, correct answers',
+        'No raw `Question.list` fallback',
+        'server/projection-safe paths',
+        'No per-player exposure data',
+        'Question Analytics remains a private/admin email-body report',
+        'not a public PDF',
+        'User0001-style labels',
+        'No email, provider UID, raw guest_id, owner_key, internal player_key, tokens',
+        'No secrets, tokens, auth headers, private keys',
+        'VAPID_PRIVATE_KEY',
+      ]).map((token) => `questions:${token}`);
+      const forbiddenCurrent = [
+        ...forbiddenTokens(uiReadme, [
+          'standalone tutorial',
+          'HATA is current',
+          'display_name is public',
+          'Görünen Ad is public',
+        ]).map((token) => `ui:${token}`),
+        ...forbiddenTokens(categoryReadme, [
+          '## Current Categories',
+          '| File | Category |',
+          'runtime category source of truth unless',
+          'full question bank belongs',
+        ]).map((token) => `categories:${token}`),
+        ...forbiddenTokens(questionReadme, [
+          'question bank may live here',
+          'correct answers may live here',
+          'raw Question.list fallback is allowed',
+          'Question Analytics is public',
+        ]).map((token) => `questions:${token}`),
+      ];
+      const missing = [...uiMissing, ...categoryMissing, ...questionMissing];
+      if (missing.length || forbiddenCurrent.length) {
         return fail('Public asset README contracts are missing or stale.', {
           verification: 'STATIC_CONTRACT',
           files: [
@@ -827,10 +881,10 @@ export const EXTRA_TESTS = [
             'public/assets/categories/README.md',
             'public/assets/questions/README.md',
           ],
-          missing,
+          actual: { missing, forbiddenCurrent },
         });
       }
-      return pass('Public asset docs distinguish runtime assets, legacy decorative category images, and optional question media.', {
+      return pass('Public asset docs distinguish mobile UI assets, category metadata source-of-truth, and private question/media boundaries.', {
         verification: 'STATIC_CONTRACT',
       });
     },
