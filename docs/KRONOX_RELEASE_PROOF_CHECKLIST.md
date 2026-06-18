@@ -55,6 +55,9 @@ Checklist:
 * Automated score is separate from release readiness. Manual gates do not reduce
   the automated score, but they keep `releaseReady=false` and prevent a `Good`
   release-ready rating until proof is attached.
+* Manual Required / NOT_AUTOMATABLE does not reduce automated score; critical
+  manual gates keep `releaseReady=false` until completed or accepted.
+* Last Run and copy/download actions use the newest completed report only.
 * The temporary build marker is a manual release gate, not a Warning JSON item:
   verify marker visibility in a production-like mobile/web build, confirm
   duration and placement, then approve or remove it before release.
@@ -1043,6 +1046,11 @@ Checklist:
   leaderboard rows, `UserJokerInventory`, `JokerTransaction`,
   `DiamondTransaction`, users, admin rows, Daily Wheel/Daily Quest, or
   gameplay/economy data.
+* Do not delete Question, Category, SubCategory, User, GuestProfile,
+  PlayerProfile, UserCategoryPreference, UserStatsProjection,
+  UserJokerInventory, JokerTransaction, DiamondTransaction, progress/economy,
+  leaderboard, Daily Wheel/Daily Quest, users, AdminUser, or gameplay rows
+  during question analytics reset.
 * Static pool and category preference report sections remain based on current
   `Question`, `Category`, and `UserCategoryPreference` rows after reset.
 * `JokerTransaction`, `DiamondTransaction`, `UserJokerInventory`, and

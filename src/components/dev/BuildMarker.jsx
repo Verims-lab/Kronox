@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex411 — Health alignment current-contract freshness:
+//   • Fixes the reset-scope doc/mirror token mismatch that blocked the
+//     Health Center Full Alignment Suite.
+//   • Strengthens the freshness case for current identity, guest, category,
+//     question analytics, Solo scoring, Health readiness, and Online contracts.
+
 // Codex410 — Code hygiene and category constants cleanup:
 //   • Removes the stale hardcoded category seed function and mirror.
 //   • Makes the Solo query diagnostic use current/requested category IDs
@@ -2326,7 +2332,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex410';
+const BUILD_MARKER = 'Codex411';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
