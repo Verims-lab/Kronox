@@ -131,9 +131,13 @@ export function buildScoreExplanation({ counts, penalty, mobileViewportPenalty, 
   const failCount = counts.FAIL || 0;
   const errorCount = counts.ERROR || 0;
   const manualRequiredCount = counts.MANUAL_REQUIRED || 0;
+  const warningCount = counts.WARNING || 0;
   const realBlockerCount = counts.REAL_BLOCKER || 0;
   if (failCount === 0 && errorCount === 0 && realBlockerCount === 0 && manualRequiredCount > 0) {
     return `0 FAIL does not mean release-ready: 0 FAIL/ERROR and 0 real code blockers; ${manualRequiredCount} manual-only verification checks still require device, live DOM, backend, or two-account proof. Penalties: case=${penalty}, mobile=${mobileViewportPenalty}, authority=${authorityPenalty}, social=${socialUncertaintyPenalty}, static-limit=${staticLimitationPenalty}.`;
+  }
+  if (failCount === 0 && errorCount === 0 && realBlockerCount === 0 && warningCount > 0) {
+    return `No hard blocker (FAIL/ERROR/BLOCKED) remains, but WARNINGS still need review before release confidence. Penalties: case=${penalty}, mobile=${mobileViewportPenalty}, authority=${authorityPenalty}, social=${socialUncertaintyPenalty}, static-limit=${staticLimitationPenalty}.`;
   }
   if (failCount === 0 && errorCount === 0 && realBlockerCount > 0) {
     return `0 FAIL/ERROR but ${realBlockerCount} real blocker checks remain. Penalties: case=${penalty}, mobile=${mobileViewportPenalty}, authority=${authorityPenalty}, social=${socialUncertaintyPenalty}, static-limit=${staticLimitationPenalty}.`;
@@ -142,17 +146,26 @@ export function buildScoreExplanation({ counts, penalty, mobileViewportPenalty, 
 }
 
 export function buildReleaseReadyChecklist(cases) {
-  const hasBlocking = (actionType) => cases.some(item =>
+  const hasHardBlocker = (actionType) => cases.some(item =>
     item.actionType === actionType &&
-    [STATUS.FAIL, STATUS.ERROR, STATUS.BLOCKED, STATUS.NOT_AUTOMATABLE, STATUS.WARNING].includes(item.status),
+    [STATUS.FAIL, STATUS.ERROR, STATUS.BLOCKED].includes(item.status),
   );
+  const hasWarning = (actionType) => cases.some(item =>
+    item.actionType === actionType &&
+    item.status === STATUS.WARNING,
+  );
+  const hasManualRequired = (actionType) => cases.some(item =>
+    item.actionType === actionType &&
+    (item.status === STATUS.NOT_AUTOMATABLE || isManualOnlyVerificationCase(item)),
+  );
+
   return [
-    { label: 'No FAIL or ERROR cases', passed: !cases.some(item => [STATUS.FAIL, STATUS.ERROR].includes(item.status)), actionType: ACTION_TYPES.CODE_FIX },
-    { label: 'Real mobile/WebView gesture proof completed', passed: !hasBlocking(ACTION_TYPES.DEVICE_TEST), actionType: ACTION_TYPES.DEVICE_TEST },
-    { label: 'Two-account social/RLS probe completed', passed: !hasBlocking(ACTION_TYPES.TWO_ACCOUNT_TEST), actionType: ACTION_TYPES.TWO_ACCOUNT_TEST },
-    { label: 'Backend/service-role runtime probe completed', passed: !hasBlocking(ACTION_TYPES.BACKEND_RUNTIME_PROBE), actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE },
-    { label: 'Human visual/game-feel review completed', passed: !hasBlocking(ACTION_TYPES.HUMAN_VISUAL_REVIEW), actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW },
-    { label: 'Build/browser harness available', passed: !hasBlocking(ACTION_TYPES.CI_ENVIRONMENT), actionType: ACTION_TYPES.CI_ENVIRONMENT },
+    { label: 'No hard FAIL/ERROR/BLOCKED cases', passed: !cases.some(item => [STATUS.FAIL, STATUS.ERROR, STATUS.BLOCKED].includes(item.status)), actionType: ACTION_TYPES.CODE_FIX },
+    { label: 'Real mobile/WebView gesture proof completed', passed: !hasHardBlocker(ACTION_TYPES.DEVICE_TEST) && !hasWarning(ACTION_TYPES.DEVICE_TEST) && !hasManualRequired(ACTION_TYPES.DEVICE_TEST), actionType: ACTION_TYPES.DEVICE_TEST },
+    { label: 'Two-account social/RLS probe completed', passed: !hasHardBlocker(ACTION_TYPES.TWO_ACCOUNT_TEST) && !hasWarning(ACTION_TYPES.TWO_ACCOUNT_TEST) && !hasManualRequired(ACTION_TYPES.TWO_ACCOUNT_TEST), actionType: ACTION_TYPES.TWO_ACCOUNT_TEST },
+    { label: 'Backend/service-role runtime probe completed', passed: !hasHardBlocker(ACTION_TYPES.BACKEND_RUNTIME_PROBE) && !hasWarning(ACTION_TYPES.BACKEND_RUNTIME_PROBE) && !hasManualRequired(ACTION_TYPES.BACKEND_RUNTIME_PROBE), actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE },
+    { label: 'Human visual/game-feel review completed', passed: !hasHardBlocker(ACTION_TYPES.HUMAN_VISUAL_REVIEW) && !hasWarning(ACTION_TYPES.HUMAN_VISUAL_REVIEW) && !hasManualRequired(ACTION_TYPES.HUMAN_VISUAL_REVIEW), actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW },
+    { label: 'Build/browser harness available', passed: !hasHardBlocker(ACTION_TYPES.CI_ENVIRONMENT) && !hasWarning(ACTION_TYPES.CI_ENVIRONMENT) && !hasManualRequired(ACTION_TYPES.CI_ENVIRONMENT), actionType: ACTION_TYPES.CI_ENVIRONMENT },
   ];
 }
 
@@ -286,7 +299,6 @@ export function buildReport(caseResults, suites, meta = createRunMeta(), environ
     if (item.status === STATUS.FAIL) return sum + (critical ? 12 : 8);
     if (item.status === STATUS.ERROR) return sum + (critical ? 15 : 10);
     if (item.status === STATUS.BLOCKED) return sum + (critical ? 10 : 5);
-    if (item.status === STATUS.NOT_AUTOMATABLE) return sum + (critical ? 8 : 3);
     if (item.status === STATUS.WARNING) return sum + (critical ? 4 : 2);
     return sum;
   }, 0);
@@ -468,6 +480,7 @@ export function buildBlockerCopyJson(report) {
 
   return {
     generatedAt: new Date().toISOString(),
+    runId: report.runId || report?.runMetadata?.runId || '',
     healthBuildMarker: report.build?.marker || report.buildMarker || '',
     summary: {
       status: blockers.length > 0 ? 'FAIL' : (warningCount > 0 || manualRequiredCount > 0 ? 'WARN' : 'PASS'),
@@ -478,6 +491,43 @@ export function buildBlockerCopyJson(report) {
       manualRequiredCount,
     },
     blockers,
+  };
+}
+
+export function buildWarningCopyJson(report) {
+  if (!report) return null;
+  const cases = Array.isArray(report.cases) ? report.cases : [];
+  const warnings = cases
+    .filter(item => item.status === STATUS.WARNING)
+    .map(item => ({
+      suite: item.suiteName || item.suiteId || '',
+      caseId: item.key || (item.suiteId && item.id ? `${item.suiteId}.${item.id}` : item.id || ''),
+      title: item.name || item.id || '',
+      severity: item.critical ? 'CRITICAL_WARNING' : 'WARNING',
+      message: item.reason || '',
+      expected: compactForBlockerCopy(item.expected),
+      actual: compactForBlockerCopy(item.actual),
+      hint: item.nextStep || item.hint || '',
+      relatedFiles: deriveRelatedFiles(item),
+    }));
+  const warningSuiteIds = new Set(warnings.map(item => String(item.suite || '').trim()).filter(Boolean));
+  const warningCount = Number(report.counts?.WARNING || 0);
+  const manualRequiredCount = Number(
+    report.blockerSummary?.manualRequiredCount ?? cases.filter(isManualOnlyVerificationCase).length,
+  );
+
+  return {
+    generatedAt: new Date().toISOString(),
+    runId: report.runId || report?.runMetadata?.runId || '',
+    healthBuildMarker: report.build?.marker || report.buildMarker || '',
+    summary: {
+      status: warnings.length > 0 ? 'WARN' : (manualRequiredCount > 0 ? 'MANUAL_REQUIRED' : 'PASS'),
+      totalSuites: Array.isArray(report.suiteSummary) ? report.suiteSummary.length : (report.suites?.length || 0),
+      warningSuites: warningSuiteIds.size,
+      warningCount,
+      manualRequiredCount,
+    },
+    warnings,
   };
 }
 

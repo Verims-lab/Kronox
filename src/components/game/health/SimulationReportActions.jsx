@@ -36,21 +36,60 @@ function KeyValue({ label, value }) {
   );
 }
 
-export default function SimulationReportActions({ report, copyJson, copySummary, downloadJson, copyState }) {
+function RunStateBadge({ runFreshState }) {
+  const state = String(runFreshState || '').toLowerCase();
+  const isRunning = state === 'running';
+  const isFresh = state === 'fresh';
+  const isFailed = state === 'failed';
+  const isPrevious = !isRunning && !isFresh && !isFailed;
+  const label = isRunning ? 'Run in progress' : isFresh ? 'Current run (fresh)' : isFailed ? 'Run partially completed (verify)' : 'Previous result';
+  const tone = isFresh ? 'border-emerald-400/35 bg-emerald-400/10' : isFailed ? 'border-rose-400/35 bg-rose-400/10' : 'border-amber-300/35 bg-amber-300/10';
+  return (
+    <div className={`self-start rounded-md border px-2 py-1 text-[11px] ${tone}`}>
+      {label}
+    </div>
+  );
+}
+
+export default function SimulationReportActions({
+  report,
+  runFreshState,
+  copyFallback,
+  copyWarning,
+  copyJson,
+  copySummary,
+  downloadJson,
+  copyState,
+}) {
   return (
     <section id="kronox-health-report" data-health-report-panel="true" className="mb-4 rounded-md border border-white/12 bg-white/[0.035] p-3 md:p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="text-base font-bold">Report</h3>
           <p className="mt-1 text-xs text-white/55">{report.runId} / {report.timestamp}</p>
+          <RunStateBadge runFreshState={runFreshState} />
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:w-auto xl:grid-cols-none xl:flex xl:flex-wrap">
           <ActionButton icon={ClipboardCopy} label="Copy Blocker JSON" onClick={copyJson} />
+          <ActionButton icon={ClipboardCopy} label="Copy Warning JSON" onClick={copyWarning} />
           <ActionButton icon={Download} label="Download JSON" onClick={downloadJson} />
           <ActionButton icon={ClipboardCopy} label="Copy Summary" onClick={copySummary} />
         </div>
       </div>
       {copyState && <div className="mt-2 text-xs text-cyan-200">{copyState}</div>}
+      {copyFallback?.text ? (
+        <details className="mt-2 rounded-md border border-white/20">
+          <summary className="cursor-pointer px-3 py-2 text-xs text-white/80">Clipboard copy fallback for "{copyFallback.label}"</summary>
+          <div className="border-t border-white/10 p-3">
+            <textarea
+              readOnly
+              value={copyFallback.text}
+              onFocus={(event) => event.currentTarget.select()}
+              className="h-40 w-full resize-y rounded-md bg-black/60 p-2 text-[11px] leading-relaxed text-white/80"
+            />
+          </div>
+        </details>
+      ) : null}
 
       <ReleaseReadinessExplainer report={report} />
 
