@@ -136,7 +136,7 @@ export default function ReleaseReadinessExplainer({ report }) {
       </div>
 
       {/* Manual verification gaps */}
-      <div className="mt-4">
+      <div data-health-manual-proof-details="true" className="mt-4">
         <h4 className="text-xs font-bold uppercase tracking-wide text-white/70">
           Manuel doğrulama eksikleri
         </h4>
@@ -146,7 +146,7 @@ export default function ReleaseReadinessExplainer({ report }) {
             RLS smoke test'i release sürecinde korunmalı.
           </p>
         ) : (
-          <ul className="mt-2 space-y-1.5">
+          <ul data-health-manual-proof-scroll="true" className="mt-2 max-h-72 space-y-1.5 overflow-y-auto pr-1">
             {manualVerificationNeeded.slice(0, 12).map((c) => (
               <li
                 key={c.key || `${c.suiteId}.${c.id}`}

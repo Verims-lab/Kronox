@@ -32,6 +32,29 @@ economy, friends/invites, leaderboard projection, and a Health Center that
 keeps product contracts honest.
 `;
 
+export const PROFILE_FIELDS_DOC = `# Kronox Profile Fields
+
+Status: Active profile/onboarding contract.
+
+- Puan uses the shared visible Kronox Puan helper.
+- Seviye uses the same Solo progress helper as the Solo level path.
+- Elmas uses persisted User.diamonds through the shared Diamond display helper.
+- Joker Çantası uses UserJokerInventory current balances through getUserJokerBalances; JokerTransaction is ledger/audit only and is not a Profile render-time balance source.
+- User Category preferences are Solo-only soft 70/30 weighting input when at least 3 active valid preferences exist. Empty or fewer-than-3 preferences use all active categories for Solo. Online question selection is not affected.
+- GuestProfile public identity uses username; display_name is only a legacy/projection mirror. Email, Google ID, Apple ID, provider UID, and internal owner_key values are not public display names.
+- Profile > Ayarlar exposes username plus optional private age and gender for guest and authenticated users. age and gender are private optional profile fields only and must not appear in leaderboard rows, public projections, scoring, matchmaking, Solo category weighting, or Online game selection.
+- Guest account linking is implemented through linkGuestAccount and belongs under Profile. Home / Ana Sayfa must not render Google, Apple, email, Hesabını bağla, or progress-protection account-link prompts.
+- Guest onboarding Phase 2 status values include guest_created, tutorial_in_progress, tutorial_completed, profile_setup_pending, category_setup_pending, and onboarding_complete.
+- Eğitime Devam is valid only for true resumable tutorial_in_progress state; stale tutorial_in_progress cannot override tutorial_completed, profile_setup_pending, category_setup_pending, or onboarding_complete.
+- The profile setup step follows the guided first Solo level, shows username plus optional age/gender, and Kategorilere Geç must either advance to category_setup_pending after a successful save or show a visible retryable error.
+- The category setup step stores optional guest selected_category_ids. Fewer than 3 selections show guidance but guest play remains possible. Empty guest selections mean all active Solo categories remain eligible.
+- Guest category loading uses current safe Category metadata directly or through getCategoryMetadata, never raw question-bank reads and never a stale hardcoded seed fallback.
+- getCategoryMetadata is metadata-only and returns category_id, name, description, and status from current active Category rows.
+- The category completion CTA label is exactly Ana Sayfa. A successful guest category save writes category_setup_status = completed and onboarding_status = onboarding_complete, then routes directly to Ana Sayfa.
+- Onboarding completion must not show Google / Apple / Email account-link buttons; guests can later open Profile if they want to secure progress.
+- On app restart, onboarding_complete or safely repairable completed category/profile state opens Ana Sayfa instead of returning to the blue onboarding shell.
+`;
+
 export const MOBILE_VISUAL_GUARDRAILS_DOC = `# Kronox Mobile Visual Guardrails
 
 Status: Active manual visual/platform release gate.
@@ -44,6 +67,7 @@ Status: Active manual visual/platform release gate.
 - Pull-to-refresh/overscroll guards are scoped to the relevant container or active gameplay drag only.
 - Reduced motion keeps functional feedback without relying on long animations.
 - Loading/error/retry states are local to the affected section when possible.
+- Health Center report actions, case details, copy buttons, clipboard fallback textarea, manual proof details, and raw JSON preview must fit narrow mobile widths without horizontal overflow.
 - Direct URL routes load correctly in installed/standalone and browser modes.
 - Service worker/cache updates do not leave stale question/runtime bundles after a question-set or function contract change.
 - Push notification UI is feature-detected and remains optional.
@@ -183,7 +207,7 @@ export const RELEASE_PROOF_CHECKLIST_DOC = `# Kronox Release Proof Checklist
 Status: Active manual release gate.
 
 ## Full Audit Release Gates
-Health Center, Admin Ekranı, reports, and large maintenance lists avoid rebuilding expensive derived output after every row/case. Long admin work is batched or yielded around the 50ms long-task budget. Gameplay paths do not run Health/report/question-analytics calculations. Large email/report/list output stays bounded, paginated, or summarized. Health Copy Blocker JSON is intentionally blocker-only and includes real FAIL/BLOCKER/CRITICAL code/security/static failures plus summary counts, not manual-only verification reminders or the full raw PASS payload. User-owned backend operations enforce object-level authorization server-side; UI hiding is not accepted as proof. Two-account probes verify user-owned reads/writes for invites, lobbies, category preferences, Daily Quest progress, Daily Wheel, Diamond/Joker economy, PushSubscription, and analytics cleanup. Base44/manual DB constraints are checked for user+date, user+status, quest_key, question_id, category_id, created_at, endpoint, and idempotency_key. iOS, Android, and PWA wrapper quality remain separate manual gates: safe-area, keyboard, scroll/overscroll, back navigation, orientation, accessibility, reduced motion, 320px layout, push, icon, App Store, and Play Console proof. npm run build does not prove Base44 backend deployment, RLS/BOLA behavior, device gestures, push delivery, final IPA icon state, or Play Console wrapper quality.
+Health Center, Admin Ekranı, reports, and large maintenance lists avoid rebuilding expensive derived output after every row/case. Long admin work is batched or yielded around the 50ms long-task budget. Gameplay paths do not run Health/report/question-analytics calculations. Large email/report/list output stays bounded, paginated, or summarized. Health Copy Blocker JSON is intentionally blocker-only and includes real FAIL/BLOCKER/CRITICAL code/security/static failures plus summary counts, not manual-only verification reminders or the full raw PASS payload. Health Copy Warning JSON is warning-only. Health mobile report actions, case details, copy buttons, clipboard fallback textarea, manual proof details, and raw JSON preview must fit 320px-class screens without horizontal overflow. User-owned backend operations enforce object-level authorization server-side; UI hiding is not accepted as proof. Two-account probes verify user-owned reads/writes for invites, lobbies, category preferences, Daily Quest progress, Daily Wheel, Diamond/Joker economy, PushSubscription, and analytics cleanup. Base44/manual DB constraints are checked for user+date, user+status, quest_key, question_id, category_id, created_at, endpoint, and idempotency_key. iOS, Android, and PWA wrapper quality remain separate manual gates: safe-area, keyboard, scroll/overscroll, back navigation, orientation, accessibility, reduced motion, 320px layout, push, icon, App Store, and Play Console proof. npm run build does not prove Base44 backend deployment, RLS/BOLA behavior, device gestures, push delivery, final IPA icon state, or Play Console wrapper quality.
 npm run check:base44-functions must run before Base44 Save & Deploy to catch function syntax, duplicate declarations, deploy-risk _shared imports, committed email literals, and getQuestions marker/projection diagnostics before manual backend publish.
 
 ## Solo v3

@@ -5,6 +5,8 @@
 // visibility still need real-device proof before release.
 
 import simulationPanelSource from './SimulationPanel.jsx?raw';
+import releaseReadinessExplainerSource from './ReleaseReadinessExplainer.jsx?raw';
+import simulationCaseRowSource from './health/SimulationCaseRow.jsx?raw';
 import simulationReportActionsSource from './health/SimulationReportActions.jsx?raw';
 import simulationRunnerSource from './health/simulationRunner.jsx?raw';
 import simulationSuiteSummarySource from './health/SimulationSuiteSummary.jsx?raw';
@@ -173,10 +175,86 @@ export const EXTRA_TESTS = [
       const src = safeStr(simulationReportActionsSource);
       const missing = missingTokens(src, [
         'Copy Blocker JSON',
+        'Copy Warning JSON',
+        'data-health-copy-actions="completed-report-only"',
+        'dataHealthAction="copy-blocker-json"',
+        'dataHealthAction="copy-warning-json"',
+        'data-health-copy-scope-note',
+        'Blocker JSON is blocker-only',
+        'Warning JSON is warning-only',
+        'manual proof gaps stay in the report details',
         'copyJson',
       ]);
       if (missing.length) return fail('Health Copy JSON action is not clearly blocker-scoped.', { verification: 'STATIC_CONTRACT', actionType: ACTION_TYPES.CODE_FIX, missing });
-      return pass('Health copy action is labelled as blocker-only JSON.', { verification: 'STATIC_CONTRACT', actionType: ACTION_TYPES.CODE_FIX });
+      return pass('Health copy actions are mobile-readable and explicitly scoped to blocker-only and warning-only exports from the latest completed run.', { verification: 'STATIC_CONTRACT', actionType: ACTION_TYPES.CODE_FIX });
+    }),
+
+  makeCase('health_copy_buttons_have_mobile_fallback',
+    'Health copy buttons remain usable on narrow mobile browsers',
+    () => {
+      const combined = `${safeStr(simulationSuiteSummarySource)}\n${safeStr(simulationReportActionsSource)}`;
+      const missing = missingTokens(combined, [
+        'shortLabel',
+        'min-h-11',
+        'grid-cols-2',
+        'data-health-copy-fallback',
+        'data-health-copy-fallback-textarea',
+        'Mobile browsers may block clipboard access',
+        'onFocus={(event) => event.currentTarget.select()}',
+      ]);
+      if (missing.length) {
+        return fail('Health report copy buttons or fallback textarea can regress on mobile.', {
+          verification: 'STATIC_CONTRACT',
+          actionType: ACTION_TYPES.CODE_FIX,
+          missing,
+        });
+      }
+      return pass('Health report copy buttons use short mobile labels, 44px-class touch targets, and a manual fallback textarea.', { verification: 'STATIC_CONTRACT', actionType: ACTION_TYPES.CODE_FIX });
+    }),
+
+  makeCase('health_case_rows_have_mobile_details_copy',
+    'Health case rows expose compact mobile details and per-case copy',
+    () => {
+      const src = safeStr(simulationCaseRowSource);
+      const missing = missingTokens(src, [
+        'data-health-case-mobile-details',
+        'CaseMeta',
+        'data-health-case-copy',
+        'Copy case detail',
+        'data-health-case-detail-json',
+        'whitespace-pre-wrap',
+        'break-words',
+      ]);
+      if (missing.length) {
+        return fail('Health case detail rows can still force users into raw JSON on mobile.', {
+          verification: 'STATIC_CONTRACT',
+          actionType: ACTION_TYPES.CODE_FIX,
+          missing,
+        });
+      }
+      return pass('Health case rows show compact status/action/verification details plus a per-case copy button with wrapped JSON.', { verification: 'STATIC_CONTRACT', actionType: ACTION_TYPES.CODE_FIX });
+    }),
+
+  makeCase('health_manual_proof_details_are_bounded',
+    'Health manual proof details are bounded inside the mobile report',
+    () => {
+      const combined = `${safeStr(releaseReadinessExplainerSource)}\n${safeStr(simulationReportActionsSource)}`;
+      const missing = missingTokens(combined, [
+        'data-health-manual-proof-details',
+        'data-health-manual-proof-scroll',
+        'max-h-72',
+        'overflow-y-auto',
+        'data-health-raw-json-details',
+        'whitespace-pre-wrap',
+      ]);
+      if (missing.length) {
+        return fail('Health report detail sections can still create unbounded mobile overflow.', {
+          verification: 'STATIC_CONTRACT',
+          actionType: ACTION_TYPES.CODE_FIX,
+          missing,
+        });
+      }
+      return pass('Manual proof and raw JSON details are scroll-bounded/wrapped for small mobile Health runs.', { verification: 'STATIC_CONTRACT', actionType: ACTION_TYPES.CODE_FIX });
     }),
 
   makeCase('last_run_card_uses_real_fail_count',

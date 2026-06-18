@@ -20,6 +20,9 @@ checks that source code and static Health cannot honestly prove alone.
 * Reduced motion keeps functional feedback without relying on long animations.
 * Loading/error/retry states must be local to the affected section when possible
   so one slow data source does not blank an entire screen.
+* Health Center report actions, case details, copy buttons, clipboard fallback
+  textarea, manual proof details, and raw JSON preview must fit 320px-class
+  mobile widths without horizontal page overflow.
 * First-time guest onboarding uses the actual Solo gameplay surface for the
   guided first level. The guidance overlay must not capture drag/drop touches,
   must fit small portrait screens, and must resume cleanly if the app closes

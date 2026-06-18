@@ -10,16 +10,26 @@ import React from 'react';
 import { AlertTriangle, Play, RefreshCw } from 'lucide-react';
 import { STATUS, STATUS_LOOK } from './healthStatus';
 
-export function ActionButton({ icon: Icon, label, onClick, disabled }) {
+export function ActionButton({ icon: Icon, label, shortLabel, onClick, disabled, dataHealthAction }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex min-h-11 items-center justify-center gap-2 rounded-md border border-white/15 bg-white/[0.06] px-3 py-2 text-sm font-semibold text-white transition active:scale-[0.98] disabled:opacity-45"
+      data-health-action={dataHealthAction}
+      aria-label={label}
+      title={label}
+      className="flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-md border border-white/15 bg-white/[0.06] px-3 py-2 text-sm font-semibold leading-tight text-white transition active:scale-[0.98] disabled:opacity-45"
     >
-      <Icon className="h-4 w-4" />
-      {label}
+      <Icon className="h-4 w-4 flex-shrink-0" />
+      <span className="min-w-0 whitespace-normal break-words">
+        {shortLabel ? (
+          <>
+            <span className="hidden sm:inline">{label}</span>
+            <span className="sm:hidden">{shortLabel}</span>
+          </>
+        ) : label}
+      </span>
     </button>
   );
 }
