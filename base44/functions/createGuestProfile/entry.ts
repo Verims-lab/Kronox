@@ -626,7 +626,7 @@ async function publishGuestLeaderboardEntry(base44: any, row: any, soloProgress:
 }
 
 function normalizeAge(value: unknown) {
-  if (value === '' || value === null || value === undefined) return undefined;
+  if (value === '' || value === null || value === undefined) return null;
   const age = Math.trunc(Number(value));
   if (!Number.isFinite(age) || age < 7 || age > 120) return undefined;
   return age;

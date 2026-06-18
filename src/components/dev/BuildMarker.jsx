@@ -4,8 +4,8 @@ import React, { useEffect, useState } from 'react';
 //   • GuestProfile onboarding step resolution is monotonic so stale
 //     tutorial_in_progress cannot send profile/category users back to
 //     Eğitime Devam.
-//   • Guest category onboarding loads safe Category metadata with a
-//     metadata-only fallback and no raw Question.list exposure.
+//   • Superseded by Codex395: guest category onboarding must use current
+//     Category metadata, not stale hardcoded fallback rows.
 //   • Category load failures show a retryable UI instead of a silent empty list.
 
 // Codex392 — Onboarding profile category-transition unblock:
@@ -2203,6 +2203,16 @@ import React, { useEffect, useState } from 'react';
 //     identity proof or storing raw IP/header/token data.
 //   • Blocks public request bodies from setting trusted score/economy/link fields.
 //
+// Codex395 — Onboarding category source/routing P0 fix:
+//   • Guided tutorial success now writes profile_setup_pending from the game
+//     completion handoff before returning to onboarding, while the onboarding
+//     page keeps its route-state fallback.
+//   • Guest category onboarding loads current Category metadata through
+//     getCategoryMetadata and no longer renders the old hardcoded seed
+//     fallback when DB metadata is unavailable.
+//   • Blank age is an explicit optional profile value and cannot block
+//     Kategorilere Geç.
+//
 // Codex394 — Solo v3 move-based scoring:
 //   • Replaces visible Solo HATA limit with remaining HAMLE counter and
 //     move-based stars, while keeping legacy mistake metadata compatible.
@@ -2210,7 +2220,7 @@ import React, { useEffect, useState } from 'react';
 //     touch/drag, tutorial hints/popups, and joker activation do not decrement.
 //   • Updates Solo result popups, deck sizing, docs, and Health/static checks
 //     for HAMLE / 10 evaluated moves without changing Online gameplay.
-const BUILD_MARKER = 'Codex394';
+const BUILD_MARKER = 'Codex395';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

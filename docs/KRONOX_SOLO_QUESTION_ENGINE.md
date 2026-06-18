@@ -292,8 +292,9 @@ before the deck is built when a user is signed in. Authenticated users with no
 saved preferences, empty preferences, or fewer than 3 active valid preferences
 use all active categories. Missing authentication uses the explicit capped guest
 Solo projection and must not expose raw questions. Guest onboarding category
-selection uses only safe Category metadata or metadata-only seed fallback before
-those preferences are saved; it must not call raw `Question.list`. When at
+selection uses only current safe Category metadata before those preferences are
+saved; it must not call raw `Question.list` and must not render stale hardcoded
+category fallbacks. When at
 least 3 active valid preferences exist,
 the runtime passes them as a soft 70/30 weighting input. This must not fetch
 questions mid-attempt or hard-filter the deck to only selected categories.

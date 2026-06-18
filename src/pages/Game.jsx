@@ -70,6 +70,10 @@ import {
   resolveGameplayCategoryPreferenceFilter,
 } from '@/lib/userCategoryPreferences';
 import {
+  GUEST_ONBOARDING_STATES,
+  updateGuestProfileOnboarding,
+} from '@/lib/guestProfile';
+import {
   buildSoloQuestionRuntimeDebugPayload,
   isSoloQuestionRuntimeDebugAllowed,
 } from '@/lib/soloQuestionRuntimeDebug';
@@ -2191,9 +2195,21 @@ export default function Game() {
   const handleSoloNextLevel = useCallback(() => {
     if (!soloLevel) return;
     if (isGuidedSoloTutorial) {
-      resetSoloJokers();
-      resetGame();
-      navigate('/onboarding', { replace: true, state: { guidedTutorialCompleted: true } });
+      (async () => {
+        try {
+          await updateGuestProfileOnboarding({
+            onboarding_status: GUEST_ONBOARDING_STATES.PROFILE_SETUP_PENDING,
+            tutorial_status: 'completed',
+            profile_setup_status: 'pending',
+          });
+        } catch (error) {
+          debugLog('[Game] guided tutorial completion handoff deferred:', error?.message || error);
+        } finally {
+          resetSoloJokers();
+          resetGame();
+          navigate('/onboarding', { replace: true, state: { guidedTutorialCompleted: true } });
+        }
+      })();
       return;
     }
     const nextLevelNumber = soloLevel.levelNumber + 1;
@@ -2234,12 +2250,27 @@ export default function Game() {
   }, [isGuidedSoloTutorial, soloLevel, resetGame, resetSoloJokers, navigate, routeYearStart, routeYearEnd]);
 
   const handleSoloBackToPath = useCallback(() => {
-    resetSoloJokers();
-    resetGame();
     if (isGuidedSoloTutorial) {
-      navigate('/onboarding', { state: soloLevelResult?.passed ? { guidedTutorialCompleted: true } : {} });
+      (async () => {
+        if (soloLevelResult?.passed) {
+          try {
+            await updateGuestProfileOnboarding({
+              onboarding_status: GUEST_ONBOARDING_STATES.PROFILE_SETUP_PENDING,
+              tutorial_status: 'completed',
+              profile_setup_status: 'pending',
+            });
+          } catch (error) {
+            debugLog('[Game] guided tutorial completion back-path handoff deferred:', error?.message || error);
+          }
+        }
+        resetSoloJokers();
+        resetGame();
+        navigate('/onboarding', { state: soloLevelResult?.passed ? { guidedTutorialCompleted: true } : {} });
+      })();
       return;
     }
+    resetSoloJokers();
+    resetGame();
     navigate('/solo', { state: { soloResultApplied: true } });
   }, [isGuidedSoloTutorial, soloLevelResult?.passed, resetSoloJokers, resetGame, navigate]);
 

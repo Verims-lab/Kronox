@@ -63,9 +63,17 @@ Category.category_id
 
 ---
 
-# 3. Seed Categories
+# 3. Current Category Source And Legacy Seeds
 
-Seed categories:
+Runtime category selection source of truth is the live `Category` data exposed
+through safe category metadata reads. First-time guest onboarding must load
+current `Category` metadata directly or through `getCategoryMetadata`; it must
+not render a stale hardcoded category array when the live read is empty or
+unavailable.
+
+The following original seed names are retained only as historical seed-helper
+reference. They are not a UI fallback and must not appear in onboarding unless
+matching active rows truly exist in the current category source of truth:
 
 | category_id | name      | Description                                              |
 | ----------: | --------- | -------------------------------------------------------- |
@@ -76,7 +84,7 @@ Seed categories:
 |           5 | Arena     | Spor, rekabet ve unutulmaz karşılaşmalar.                |
 |           6 | Level Up  | Oyun dünyası, teknoloji ve gelişim anları.               |
 
-Seed path:
+Legacy seed path:
 
 ```text
 POST /seedQuestionCategories
@@ -147,12 +155,13 @@ Category preferences are optional personalization, not a gameplay gate:
 * runtime active-category checks accept the live status aliases currently seen
   in DB/report code: blank/missing, `a`, `active`, and `aktif`; passive rows
   remain excluded
-* first-time guest onboarding category selection can load this safe category
-  metadata without login; it may use a metadata-only seed fallback if the live
-  `Category` read is unavailable, but it must not read `Question` rows or expose
-  the question bank
-* fallback category IDs are allowed only when the `Category` read itself fails;
-  they must not be treated as the canonical taxonomy
+* first-time guest onboarding category selection can load safe category
+  metadata without login through current `Category` rows or the
+  `getCategoryMetadata` callable; it must not read `Question` rows or expose the
+  question bank
+* stale hardcoded category fallbacks are forbidden for onboarding category
+  selection; if the current category source cannot be loaded, the UI must show a
+  visible retry/error state instead of rendering legacy seed names
 * a category with active rows and Solo-eligible questions must not be excluded
   merely because its ID was added after the original six seed categories
 * `category_id` normalization accepts any positive live DB category id; seed

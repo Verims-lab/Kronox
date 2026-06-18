@@ -222,15 +222,19 @@ export function getGuestOnboardingStep(profile) {
   const tutorialStatus = String(normalized.tutorial_status || '').trim();
   const profileStatus = String(normalized.profile_setup_status || '').trim();
   const categoryStatus = String(normalized.category_setup_status || '').trim();
+  const tutorialCompleted = Boolean(normalized.tutorial_completed_at);
+  const profileCompleted = Boolean(normalized.profile_setup_completed_at);
+  const categoryCompleted = Boolean(normalized.category_setup_completed_at || normalized.onboarding_completed_at);
 
   // Onboarding is monotonic: later setup flags win over a stale
   // onboarding_status so users cannot regress back to "Eğitime Devam".
-  if (categoryStatus === 'completed') return GUEST_ONBOARDING_STATES.ONBOARDING_COMPLETE;
-  if (profileStatus === 'completed' || status === GUEST_ONBOARDING_STATES.CATEGORY_SETUP_PENDING) {
+  if (categoryStatus === 'completed' || categoryCompleted) return GUEST_ONBOARDING_STATES.ONBOARDING_COMPLETE;
+  if (profileStatus === 'completed' || profileCompleted || status === GUEST_ONBOARDING_STATES.CATEGORY_SETUP_PENDING) {
     return GUEST_ONBOARDING_STATES.CATEGORY_SETUP_PENDING;
   }
   if (
     tutorialStatus === 'completed' ||
+    tutorialCompleted ||
     status === GUEST_ONBOARDING_STATES.TUTORIAL_COMPLETED ||
     status === GUEST_ONBOARDING_STATES.PROFILE_SETUP_PENDING
   ) {

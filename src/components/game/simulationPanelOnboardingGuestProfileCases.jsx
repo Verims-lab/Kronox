@@ -8,6 +8,7 @@ import guestProfileEntitySource from '../../../base44/entities/GuestProfile.json
 import guestCreationThrottleEntitySource from '../../../base44/entities/GuestCreationThrottle.jsonc?raw';
 import accountLinkTransactionEntitySource from '../../../base44/entities/AccountLinkTransaction.jsonc?raw';
 import createGuestProfileSource from '../../../base44/functions/createGuestProfile/entry.ts?raw';
+import getCategoryMetadataSource from '../../../base44/functions/getCategoryMetadata/entry.ts?raw';
 import linkGuestAccountSource from '../../../base44/functions/linkGuestAccount/entry.ts?raw';
 import updateProfileSettingsSource from '../../../base44/functions/updateProfileSettings/entry.ts?raw';
 import guestProfileClientSource from '../../lib/guestProfile.js?raw';
@@ -505,6 +506,9 @@ export const EXTRA_TESTS = [
         'guestTokenProofRequiredForUpdates: true',
         'updateGuestProfileOnboarding',
         'getGuestOnboardingStep',
+        'tutorial_completed_at',
+        'profile_setup_completed_at',
+        'category_setup_completed_at',
       ]);
       if (missing.length) {
         return fail('Guided onboarding state machine or token-proven update path is missing.', {
@@ -529,6 +533,8 @@ export const EXTRA_TESTS = [
         'username',
         'age',
         'gender',
+        'normalizeOptionalAgeInput',
+        'Yaş alanı boş bırakılabilir',
         'loadActiveCategories',
         'MIN_CATEGORY_SELECTION_COUNT',
         'Şimdilik Misafir Devam Et',
@@ -538,7 +544,7 @@ export const EXTRA_TESTS = [
         'submitError',
         'profile_save_timeout',
         'isTutorialResumeStep',
-        'allowSafeFallback: true',
+        'loadActiveCategories()',
         'categoryLoadError',
         'Tekrar Dene',
       ]);
@@ -571,22 +577,30 @@ export const EXTRA_TESTS = [
   makeCase('guest_category_setup_loads_without_login',
     'Guest category setup loads safe category metadata without login and never exposes questions',
     () => {
-      const missing = missingTokens(`${onboardingPageSource}\n${guestProfileClientSource}\n${userCategoryPreferencesSource}\n${createGuestProfileSource}`, [
+      const missing = missingTokens(`${onboardingPageSource}\n${guestProfileClientSource}\n${userCategoryPreferencesSource}\n${createGuestProfileSource}\n${getCategoryMetadataSource}`, [
         'isTutorialResumeStep',
         "guestProfile?.tutorial_status === 'in_progress'",
         "guestProfile?.profile_setup_status !== 'completed'",
         "tutorial_status: 'completed'",
         'profile_setup_status: \'completed\'',
         'category_setup_status: \'completed\'',
-        'SAFE_GUEST_CATEGORY_METADATA',
-        'guestOnboardingSafeMetadataFallback',
-        'allowSafeFallback = false',
-        'loadActiveCategories({ allowSafeFallback: true })',
+        'getCategoryMetadata',
+        'guestCallableWithoutLogin: true',
+        'metadataOnly: true',
+        'legacyHardcodedCategoryFallbackAllowed: false',
+        'guestOnboardingUsesCurrentCategoryMetadata',
+        'loadActiveCategories()',
         'categoryLoadError',
         'selected_category_ids',
         'guestTokenProofRequiredForUpdates: true',
       ]);
       const forbidden = presentTokens(`${onboardingPageSource}\n${userCategoryPreferencesSource}`, [
+        'SAFE_GUEST_CATEGORY_METADATA',
+        'guestOnboardingSafeMetadataFallback',
+        'allowSafeFallback: true',
+        'Chronicle',
+        'Flashback',
+        'Viral',
         'Question.list',
         'Question.filter',
         'base44.auth.me',
@@ -594,12 +608,12 @@ export const EXTRA_TESTS = [
       if (missing.length || forbidden.length) {
         return fail('Guest onboarding category setup may regress to tutorial resume, require login, or expose question-bank reads.', {
           verification: 'STATIC_CONTRACT',
-          files: ['src/pages/OnboardingPage.jsx', 'src/lib/guestProfile.js', 'src/lib/userCategoryPreferences.js', 'base44/functions/createGuestProfile/entry.ts'],
+          files: ['src/pages/OnboardingPage.jsx', 'src/lib/guestProfile.js', 'src/lib/userCategoryPreferences.js', 'base44/functions/createGuestProfile/entry.ts', 'base44/functions/getCategoryMetadata/entry.ts'],
           actual: { missing, forbidden },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Guest category setup uses token-proven GuestProfile save plus safe Category metadata/fallback, with no login or raw question-bank read.', {
+      return pass('Guest category setup uses token-proven GuestProfile save plus current Category metadata, with no login, legacy fallback, or raw question-bank read.', {
         verification: 'STATIC_CONTRACT',
         actionType: ACTION_TYPES.CODE_FIX,
       });
