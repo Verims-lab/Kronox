@@ -212,6 +212,10 @@ function getQuestionsDiagnostics(entryFiles) {
 function categoryRuntimePolicyDiagnostics(entryFiles) {
   const diagnostics = [];
   const files = Object.fromEntries(entryFiles.map((file) => [relativeFile(file), file]));
+  const removedSeedPath = path.join('base44', 'functions', 'seedQuestionCategories', 'entry.ts');
+  if (fs.existsSync(path.join(rootDir, removedSeedPath))) {
+    diagnostics.push(`${removedSeedPath}: removed stale hardcoded category seed function must not be restored`);
+  }
   const staleRuntimeTokens = [
     'ONLINE_ID_TO_MAIN_CATEGORY_ID',
     'LEGACY_ONLINE_TO_LEGACY_CATEGORY_MAP',
@@ -265,6 +269,28 @@ function categoryRuntimePolicyDiagnostics(entryFiles) {
     diagnostics.push(...['Question.list', 'Question.filter', 'Chronicle', 'Flashback', 'Viral']
       .filter((token) => source.includes(token))
       .map((token) => `${relativeFile(metadataPath)}: forbidden metadata category token '${token}'`));
+  }
+
+  const diagnosticPath = files[path.join('base44', 'functions', 'diagnoseSoloQuestionStartQuery', 'entry.ts')];
+  if (diagnosticPath) {
+    const source = readText(diagnosticPath);
+    for (const token of [
+      'normalizeDiagnosticCategoryIds',
+      'diagnosticCategoryIds',
+      'diagnosticCategoryIdSource',
+      'historicalRegressionCategoryIdsAreRuntimePolicy: false',
+    ]) {
+      if (!source.includes(token)) {
+        diagnostics.push(`${relativeFile(diagnosticPath)}: missing dynamic diagnostic category token '${token}'`);
+      }
+    }
+    diagnostics.push(...[
+      'TARGET_CATEGORY_IDS',
+      '[6, 7, 8, 9, 11]',
+      'QUESTION_CATEGORIES',
+    ]
+      .filter((token) => source.includes(token))
+      .map((token) => `${relativeFile(diagnosticPath)}: stale diagnostic category token '${token}'`));
   }
 
   return diagnostics;

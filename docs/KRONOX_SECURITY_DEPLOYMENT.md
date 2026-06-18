@@ -404,7 +404,6 @@ sendGameInvitePush
 getSoloLeaderboard
 getDailyWheelStatus
 claimDailyWheelReward
-seedQuestionCategories
 ```
 
 `startLobbyGame` must require an authenticated user. Unauthenticated callers
@@ -877,6 +876,10 @@ return admin/internal fields, and must not fall back to old hardcoded category
 names such as Chronicle, Flashback, or Viral unless those names are active rows
 in the current category source. If category metadata cannot be loaded, the app
 must show a retryable error instead of rendering stale fallback categories.
+The old `seedQuestionCategories` deployable seed function has been removed; do
+not restore hardcoded category arrays as runtime fallbacks or admin shortcuts.
+Category creation/backfill is manual/admin content management against the live
+`Category` table followed by runtime proof.
 
 Guest ownership requires `guest_id + raw guest token`; `guest_id` alone must not
 authorize reads/writes. Never log raw guest token, auth headers, provider

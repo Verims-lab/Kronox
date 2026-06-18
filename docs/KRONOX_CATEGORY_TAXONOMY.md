@@ -79,9 +79,10 @@ rows, answers, years, full-bank data, user data, admin/internal fields, passive
 or deleted categories, or any stale hardcoded fallback array. Guest category
 preference saving is a separate token-proven `GuestProfile` write.
 
-The following original seed names are retained only as historical seed-helper
-reference. They are not a UI fallback and must not appear in onboarding unless
-matching active rows truly exist in the current category source of truth:
+The following original seed names are retained only as historical reference.
+They are not a UI fallback, not a runtime whitelist, not a deployable seed
+contract, and must not appear in onboarding unless matching active rows truly
+exist in the current category source of truth:
 
 | category_id | name      | Description                                              |
 | ----------: | --------- | -------------------------------------------------------- |
@@ -92,22 +93,23 @@ matching active rows truly exist in the current category source of truth:
 |           5 | Arena     | Spor, rekabet ve unutulmaz karşılaşmalar.                |
 |           6 | Level Up  | Oyun dünyası, teknoloji ve gelişim anları.               |
 
-Legacy seed path:
+Removed legacy seed path:
 
 ```text
-POST /seedQuestionCategories
+base44/functions/seedQuestionCategories/entry.ts
 ```
 
-Seed function rules:
+Removal rules:
 
-* admin-only
-* repeatable
-* creates missing rows
-* updates missing names/descriptions
-* backfills missing status
-* does not delete rows
-* does not break question/category relationships
-* does not create duplicates intentionally
+* `seedQuestionCategories` was removed because a hardcoded deployable category
+  list can become a stale runtime fallback.
+* Category creation/backfill is a deliberate admin/content operation against
+  the live `Category` table, followed by runtime proof through
+  `getCategoryMetadata` or DB inspection.
+* Runtime code must read active `Category` rows and must fail retryably when
+  metadata is unavailable; it must not recreate the removed seed list.
+* Diagnostic tools may inspect requested category IDs, but historical IDs are
+  not runtime policy.
 
 ---
 
@@ -207,11 +209,18 @@ Rules:
 
 * description is not used for scoring
 * description is not a gameplay filter
-* description may be empty for non-seeded future categories, but seeded categories should have non-empty descriptions
+* description may be empty for future/manual categories, but visible category
+  rows should have useful descriptions where product copy depends on them
 
 ---
 
-# 6. Category Scope
+# 6. Historical Original Seed Scope
+
+This section documents the old first-pass taxonomy only for content migration
+and historical review. The active category source of truth remains the current
+`Category` table and `getCategoryMetadata`; do not copy these names back into
+runtime code, Health fixtures, or fallback arrays unless they also exist as
+current active rows.
 
 ## 1. Chronicle
 

@@ -41,7 +41,6 @@ import getQuestionsManifestSource from '../../../base44/functions/getQuestions/f
 import refreshLeaderboardProjectionSource from '../../../base44/functions/refreshLeaderboardProjection/entry.ts?raw';
 import resetTestAccountProgressSource from '../../../base44/functions/resetTestAccountProgress/entry.ts?raw';
 import runTestSuiteSource from '../../../base44/functions/runTestSuite/entry.ts?raw';
-import seedQuestionCategoriesSource from '../../../base44/functions/seedQuestionCategories/entry.ts?raw';
 import simulateOnlineGameSource from '../../../base44/functions/simulateOnlineGame/entry.ts?raw';
 import purchaseJokerWithDiamondsSource from '../../../base44/functions/purchaseJokerWithDiamonds/entry.ts?raw';
 import purchaseJokerWithDiamondsManifestSource from '../../../base44/functions/purchaseJokerWithDiamonds/function.jsonc?raw';
@@ -122,7 +121,6 @@ const DEPLOY_RISK_BASE44_FUNCTIONS = [
   { name: 'refreshLeaderboardProjection', source: refreshLeaderboardProjectionSource },
   { name: 'resetTestAccountProgress', source: resetTestAccountProgressSource },
   { name: 'runTestSuite', source: runTestSuiteSource },
-  { name: 'seedQuestionCategories', source: seedQuestionCategoriesSource },
   { name: 'simulateOnlineGame', source: simulateOnlineGameSource },
 ];
 

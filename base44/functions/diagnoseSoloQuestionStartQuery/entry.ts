@@ -6,7 +6,6 @@ const MAX_PREFERENCE_USERS = 10;
 const MAX_PREFERENCE_ROWS = 10000;
 const MAX_CATEGORY_ROWS = 1000;
 const QUERY_PER_CATEGORY_LIMIT = 1000;
-const TARGET_CATEGORY_IDS = Object.freeze([6, 7, 8, 9, 11]);
 const QUESTION_CACHE_KEY = 'kronox_questions_v7';
 const QUESTION_CACHE_VERSION = 'question-runtime-v7-getQuestions-live-marker';
 const CATEGORY_ACTIVE_STATUS_VALUES = new Set(['', 'a', 'active', 'aktif']);
@@ -238,6 +237,16 @@ function sortedUniqueCategoryIds(values: unknown[] = []) {
     .sort((a, b) => a - b);
 }
 
+function normalizeDiagnosticCategoryIds(value: unknown, fallbackIds: number[] = []) {
+  const rawValues = Array.isArray(value)
+    ? value
+    : typeof value === 'string'
+      ? value.split(',')
+      : [];
+  const explicit = sortedUniqueCategoryIds(rawValues);
+  return explicit.length ? explicit : fallbackIds.slice();
+}
+
 async function loadActiveQuestionCandidates(base44: any, categoryIds: number[]) {
   const batches: any[] = [];
   const fetchedByCategory: Record<string, number> = {};
@@ -363,6 +372,7 @@ function buildUserDiagnostic({
   selectedLaneRows,
   globalLaneRows,
   globalDifficulty1Rows,
+  diagnosticCategoryIds,
 }: any) {
   const rawFetchedCountsByCategory = countByCategory(rawRows);
   const activeFilteredCountsByCategory = countByCategory(activeRows);
@@ -373,7 +383,7 @@ function buildUserDiagnostic({
   const globalDifficulty1CandidateCountsByCategory = countByCategory(globalDifficulty1Rows);
   const selectedEnabled = preferenceContext.activeValidSelectedCategoryIds.length >= 3;
 
-  const categoryProof = Object.fromEntries(TARGET_CATEGORY_IDS.map((id) => {
+  const categoryProof = Object.fromEntries(diagnosticCategoryIds.map((id: number) => {
     const hasActiveCategoryRow = activeCategoryIds.includes(id);
     const selectedIds = preferenceContext.activeValidSelectedCategoryIds;
     const activeQuestionCount = Number(activeFilteredCountsByCategory[String(id)] || 0);
@@ -474,6 +484,10 @@ Deno.serve(async (req) => {
       .sort((a: number, b: number) => a - b);
     const activeCategoryIds = activeCategories.map((row: any) => Number(row.category_id));
     const activeCategoryIdSet = new Set(activeCategoryIds);
+    const diagnosticCategoryIds = normalizeDiagnosticCategoryIds(
+      body?.diagnosticCategoryIds ?? body?.categoryIds,
+      activeCategoryIds,
+    );
 
     const { rows: rawFetchedRows, fetchedByCategory, queryDescriptors } = await loadActiveQuestionCandidates(base44, activeCategoryIds);
     const activeFilteredRows = rawFetchedRows.filter((row) => {
@@ -516,13 +530,14 @@ Deno.serve(async (req) => {
         selectedLaneRows,
         globalLaneRows,
         globalDifficulty1Rows,
+        diagnosticCategoryIds,
       });
     });
 
     return json({
       ok: true,
       jobName: JOB_NAME,
-      buildMarker: 'Codex335',
+      buildMarker: 'Codex410',
       readOnly: true,
       dryRun: true,
       mutatesGameplay: false,
@@ -536,7 +551,10 @@ Deno.serve(async (req) => {
       preferenceUserLimit: MAX_PREFERENCE_USERS,
       preferenceUsersIncluded: preferenceUsers.length,
       fewerThanTenPreferenceUsers: preferenceUsers.length < MAX_PREFERENCE_USERS,
-      targetCategoryIds: TARGET_CATEGORY_IDS,
+      targetCategoryIds: diagnosticCategoryIds,
+      diagnosticCategoryIds,
+      diagnosticCategoryIdSource: 'request_or_current_active_categories',
+      historicalRegressionCategoryIdsAreRuntimePolicy: false,
       diagnosticInput: { levelNumber, yearStart, yearEnd },
       actualSoloLevelStartPath: [
         'Home/SoloMap navigate("/game", state)',

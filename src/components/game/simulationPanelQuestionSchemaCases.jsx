@@ -7,7 +7,7 @@
 import categoryEntitySource from '../../../base44/entities/Category.jsonc?raw';
 import subCategoryEntitySource from '../../../base44/entities/SubCategory.jsonc?raw';
 import questionEntitySource from '../../../base44/entities/Question.jsonc?raw';
-import seedQuestionCategoriesSource from '../../../base44/functions/seedQuestionCategories/entry.ts?raw';
+import getCategoryMetadataSource from '../../../base44/functions/getCategoryMetadata/entry.ts?raw';
 import getQuestionsFunctionSource from '../../../base44/functions/getQuestions/entry.ts?raw';
 // Vite `?raw` cannot reach outside `src/` on this host, so the canonical
 // markdown at docs/KRONOX_QUESTION_DATA_MODEL.md is mirrored into a JS module
@@ -166,56 +166,68 @@ export const EXTRA_TESTS = [
       });
     }),
 
-  makeCase('category_seed_path_has_six_fixed_records',
-    'Admin-only seed path contains the six fixed Kronox category records',
+  makeCase('category_source_truth_is_current_category_metadata',
+    'Category source of truth is current Category metadata, not fixed seed records',
     () => {
-      const missing = missingTokens(seedQuestionCategoriesSource, [
-        'QUESTION_CATEGORIES',
-        "category_id: 1, name: 'Chronicle'",
-        "category_id: 2, name: 'Flashback'",
-        "category_id: 3, name: 'Kült'",
-        "category_id: 4, name: 'Viral'",
-        "category_id: 5, name: 'Arena'",
-        "category_id: 6, name: 'Level Up'",
-        'base44.asServiceRole.entities.Category.filter',
-        'base44.asServiceRole.entities.Category.create',
-        'base44.asServiceRole.entities.Category.update',
+      const missing = missingTokens([
+        getCategoryMetadataSource,
+        getQuestionsFunctionSource,
+        questionSchemaDocSource,
+      ].join('\n'), [
+        'base44.asServiceRole.entities.Category',
+        'publicCategoryMetadata',
+        'metadataOnly: true',
+        'CATEGORY_METADATA_POLICY',
+        'legacyHardcodedCategoryFallbackAllowed: false',
+        'active Category rows',
       ]);
-      if (missing.length) {
-        return fail('Category seed path is missing fixed records or idempotent create/update behavior.', {
+      const forbidden = [
+        'QUESTION_CATEGORIES',
+        'FALLBACK_ACTIVE_CATEGORY_IDS',
+      ].filter((token) => [
+        getCategoryMetadataSource,
+        getQuestionsFunctionSource,
+      ].join('\n').includes(token));
+      if (missing.length || forbidden.length) {
+        return fail('Category source-of-truth contract can still drift toward seed records or fallback IDs.', {
           verification: 'STATIC_CONTRACT',
-          file: 'base44/functions/seedQuestionCategories/entry.ts',
-          missing,
+          files: [
+            'base44/functions/getCategoryMetadata/entry.ts',
+            'base44/functions/getQuestions/entry.ts',
+            'docs/KRONOX_QUESTION_DATA_MODEL.md',
+          ],
+          actual: { missing, forbidden },
         });
       }
-      return pass('Category seed function is repeatable and contains the six fixed category rows.', {
+      return pass('Current Category metadata and getQuestions policy are the source of truth; fixed seed records are not runtime policy.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
 
-  makeCase('category_seed_requires_admin',
-    'Category seed function is server-side admin-only',
+  makeCase('category_metadata_public_scope_is_safe',
+    'Category metadata callable is public-safe and metadata-only',
     () => {
-      const missing = missingTokens(seedQuestionCategoriesSource, [
-        'requireAdmin',
-        'base44.auth.me()',
-        'entities?.AdminUser',
-        'ADMIN_AUTH_FIELD_CANDIDATES',
-        'status',
-        'active',
-        'owner',
-        'admin',
-        '403',
-        'Response.json(body',
+      const missing = missingTokens(getCategoryMetadataSource, [
+        'guestCallableWithoutLogin: true',
+        'responseFields: [\'category_id\', \'name\', \'description\', \'status\']',
+        'rawQuestionRowsExposed: false',
+        'answersExposed: false',
+        'yearsExposed: false',
+        'adminFieldsExposed: false',
       ]);
-      if (missing.length) {
-        return fail('Category seed path is not protected by the current DB-backed admin authorization pattern.', {
+      const forbidden = [
+        'Question.list',
+        'Question.filter',
+        'AdminUser',
+      ].filter((token) => String(getCategoryMetadataSource || '').includes(token));
+      if (missing.length || forbidden.length) {
+        return fail('Category metadata callable is not locked to public-safe metadata only.', {
           verification: 'STATIC_CONTRACT',
-          file: 'base44/functions/seedQuestionCategories/entry.ts',
-          missing,
+          file: 'base44/functions/getCategoryMetadata/entry.ts',
+          actual: { missing, forbidden },
         });
       }
-      return pass('Category seed path requires authenticated admin context.', {
+      return pass('Category metadata callable returns only current active metadata needed by guest/category UI.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -443,12 +455,12 @@ export const EXTRA_TESTS = [
       });
     }),
 
-  makeCase('category_seed_runtime_verification_required',
-    'Runtime DB probe: verify six Category rows exist after deployment seed',
-    () => notAutomatable('Static checks prove the entity and seed path exist, but live Base44 rows require running POST /seedQuestionCategories as admin and verifying Category rows in the deployed DB.', {
+  makeCase('category_metadata_runtime_verification_required',
+    'Runtime DB probe: verify current active Category rows exist',
+    () => notAutomatable('Static checks prove current metadata and gameplay read from Category, but live Base44 rows require deployed DB proof through getCategoryMetadata or direct admin DB inspection.', {
       verification: 'NOT_AUTOMATABLE',
       actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE,
-      expected: 'Category rows 1..6 exist exactly as Chronicle, Flashback, Kült, Viral, Arena, Level Up',
+      expected: 'Current intended active Category rows exist with category_id/name/description/status and no stale hardcoded seed fallback is used',
       actual: 'No live Base44 DB session in local build',
     }),
     { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, runtimeProofRequired: true }),

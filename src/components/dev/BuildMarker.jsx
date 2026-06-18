@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex410 — Code hygiene and category constants cleanup:
+//   • Removes the stale hardcoded category seed function and mirror.
+//   • Makes the Solo query diagnostic use current/requested category IDs
+//     instead of a fixed historical target list.
+//   • Adds static Health/compile coverage for current Category source-of-truth.
+
 // Codex409 — Health Center mobile UX and coverage freshness:
 //   • Adds short mobile labels, copy scope notes, and clipboard fallback text
 //     area for completed Health report exports.
@@ -278,8 +284,7 @@ import React, { useEffect, useState } from 'react';
 //   • Adds Category entity with stable numeric category_id/name records.
 //   • Adds future Question metadata fields (answer, category ids, region,
 //     tags, 1-5 difficulty, A/P state) without switching gameplay reads.
-//   • Adds admin-only repeatable seedQuestionCategories function and
-//     modular Health coverage for the prep-only contract.
+//   • Added prep-only Health coverage for the original import contract.
 //
 // Codex154 — generateTechDoc backend security hardening:
 //   • generateTechDoc now authenticates with base44.auth.me() server-side
@@ -1950,7 +1955,7 @@ import React, { useEffect, useState } from 'react';
 //     category preferences.
 //   • Admin Ekranı now renders a copyable "Solo Soru Motoru Query Diagnostiği"
 //     JSON tool that enriches the backend query snapshot with the real frontend
-//     buildSoloAttemptDeck dry-run result, including category 6/7/8/9/11
+//     buildSoloAttemptDeck dry-run result, including diagnostic category
 //     presence/removal proof.
 //
 // Codex333 — Solo query diagnostic direct runner:
@@ -2321,7 +2326,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex409';
+const BUILD_MARKER = 'Codex410';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

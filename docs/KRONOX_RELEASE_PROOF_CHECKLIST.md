@@ -306,6 +306,10 @@ Checklist:
   `getCategoryMetadata`; legacy hardcoded names such as Chronicle, Flashback,
   Kült, or Viral must not appear unless they are active rows in the current
   category source.
+* `seedQuestionCategories` is removed. Release proof must confirm category
+  creation/backfill is handled as manual/admin content management and runtime
+  code does not restore stale hardcoded seed arrays, `QUESTION_CATEGORIES`,
+  fixed historical category ID lists, or deployable fallback names.
 * Unauthenticated `getCategoryMetadata` returns only category metadata fields:
   `category_id`, `name`, `description`, and `status`.
 * `getCategoryMetadata` responses do not include question rows, answers, years,
@@ -1067,9 +1071,11 @@ Checklist:
   real `getQuestions`-compatible
   `Question.filter` query descriptor, cache key/version, per-category
   active/Solo-eligible/difficulty-1 counts, frontend `buildSoloAttemptDeck`
-  dry-run output, and category 6/7/8/9/11 presence/removal reasons. Copy the
-  JSON output into the release/audit thread; do not treat frontend build proof
-  as live post-deploy analytics proof.
+  dry-run output, and current/requested diagnostic category presence/removal
+  reasons. `SOLO_DIAGNOSTIC_CATEGORY_IDS` may focus a manual probe, but
+  historical IDs are not runtime policy. Copy the JSON output into the
+  release/audit thread; do not treat frontend build proof as live post-deploy
+  analytics proof.
 * `cleanupAdminMaintenanceLog` dry-run archives by retention marker only and
   does not hard delete.
 * Admin-only maintenance functions return 401 unauthenticated and 403 for

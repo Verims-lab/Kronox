@@ -4,9 +4,9 @@
 // Locks in the new Category entity fields and their UI filtering rule:
 //   • Category schema declares `status` (enum: a/p, default a) and
 //     `description` (string, default "").
-//   • Seed path (functions/seedQuestionCategories.js) writes status='a'
-//     and a non-empty description for seeded categories; later live
-//     categories must not be rejected by a stale fixed-ID list.
+//   • Category rows are live DB content. Runtime/UI surfaces must read
+//     current active Category metadata and must not fall back to stale
+//     hardcoded seed names or fixed historical ID lists.
 //   • A shared `lib/categoryFilters.js` helper is the single source of
 //     truth for "is this category active in UI?" so any future Online/
 //     Solo category selection surface that reads the Category DB lookup
@@ -21,12 +21,8 @@
 //   schema from a mirror in `simulationPanelContractStrings.jsx` and
 //   safe-string everything before token scanning.
 
-// Codex168 — `?raw` cannot reach `functions/` from `src/` on this host's
-// Vite build (returns non-string → token scans falsely FAIL). Mirror the
-// canonical seed contract into a src-resident JS module so token scans
-// run against a guaranteed string. Canonical file:
-//   functions/seedQuestionCategories.js
-import { SEED_QUESTION_CATEGORIES_SOURCE as seedQuestionCategoriesSource } from '@/lib/healthMirrors/seedQuestionCategoriesMirror';
+import getCategoryMetadataSource from '../../../base44/functions/getCategoryMetadata/entry.ts?raw';
+import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
 import categoryFiltersSource from '../../lib/categoryFilters.js?raw';
 // Codex161 — Online carousel must open with the first (lowest categoryid)
 // card visible. We lock in the initial-scroll-left contract via static
@@ -135,80 +131,90 @@ export const EXTRA_TESTS = [
       });
     }),
 
-  makeCase('category_seed_rows_all_active',
-    'Seed path marks all six fixed categories as status="a"',
+  makeCase('category_metadata_live_rows_not_seeded',
+    'Category metadata source is live Category rows, not a stale seed array',
     () => {
-      // Codex159 — Detect each (id,name,status='a') trio independently
-      // instead of matching one exact concatenated literal. The seed
-      // file is JS-formatted, but a future style change (extra prop
-      // between name and status, prettier reflow, etc.) shouldn't make
-      // this case crash or false-fail. We still verify the real
-      // contract: all six fixed categories carry status='a'.
-      const src = safeStr(seedQuestionCategoriesSource);
-      const fixed = [
-        { id: 1, name: 'Chronicle' },
-        { id: 2, name: 'Flashback' },
-        { id: 3, name: 'Kült' },
-        { id: 4, name: 'Viral' },
-        { id: 5, name: 'Arena' },
-        { id: 6, name: 'Level Up' },
-      ];
-      const missing = [];
-      for (const f of fixed) {
-        const rowRegex = new RegExp(
-          `category_id:\\s*${f.id}[^}]*name:\\s*'${f.name.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}'[^}]*status:\\s*'a'`,
-          's',
-        );
-        if (!rowRegex.test(src)) missing.push(`${f.id}:${f.name}`);
-      }
-      if (missing.length) {
-        return fail('Seed path does not mark all six fixed categories as status="a".', {
-          verification: 'STATIC_CONTRACT',
-          file: 'functions/seedQuestionCategories.js',
-          missing,
-        });
-      }
-      return pass('All six seeded categories carry status="a".', {
-        verification: 'STATIC_CONTRACT',
-      });
-    }),
-
-  makeCase('category_seed_rows_have_description',
-    'Seed path supplies a non-empty description for every fixed category',
-    () => {
-      const src = safeStr(seedQuestionCategoriesSource);
-      const matches = src.match(/description:\s*'([^']*)'/g) || [];
-      const nonEmpty = matches.filter((m) => !/description:\s*''/.test(m));
-      if (nonEmpty.length < 6) {
-        return fail('Fewer than six non-empty descriptions found in seed path.', {
-          verification: 'STATIC_CONTRACT',
-          file: 'functions/seedQuestionCategories.js',
-          foundCount: nonEmpty.length,
-        });
-      }
-      return pass('Seed path supplies six non-empty category descriptions.', {
-        verification: 'STATIC_CONTRACT',
-      });
-    }),
-
-  makeCase('category_seed_backfills_missing_status_and_description',
-    'Seed path backfills status/description on existing rows that lack them',
-    () => {
-      const missing = missingTokens(seedQuestionCategoriesSource, [
-        "typeof existing.status !== 'string'",
-        'patch.status = category.status',
-        "typeof existing.description !== 'string'",
-        'patch.description = category.description',
-        'base44.asServiceRole.entities.Category.update(existing.id, patch)',
+      const missing = missingTokens(getCategoryMetadataSource, [
+        'base44.asServiceRole.entities.Category',
+        'publicCategoryMetadata',
+        'metadataOnly: true',
+        'guestCallableWithoutLogin: true',
+        'legacyHardcodedCategoryFallbackAllowed: false',
       ]);
-      if (missing.length) {
-        return fail('Seed path does not backfill missing status/description on pre-Codex158 rows.', {
+      const forbidden = [
+        'QUESTION_CATEGORIES',
+        'Chronicle',
+        'Flashback',
+        'Viral',
+        'Arena',
+        'Level Up',
+      ].filter((token) => safeStr(getCategoryMetadataSource).includes(token));
+      if (missing.length || forbidden.length) {
+        return fail('Category metadata can still look seeded or stale instead of live DB-sourced.', {
           verification: 'STATIC_CONTRACT',
-          file: 'functions/seedQuestionCategories.js',
-          missing,
+          file: 'base44/functions/getCategoryMetadata/entry.ts',
+          actual: { missing, forbidden },
         });
       }
-      return pass('Seed path safely backfills status/description on existing rows.', {
+      return pass('Category metadata is read from live active Category rows and declares stale hardcoded fallbacks forbidden.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('category_metadata_description_scope',
+    'Public category metadata includes descriptions without exposing questions',
+    () => {
+      const missing = missingTokens(getCategoryMetadataSource, [
+        'description: safeText(row?.description, 240)',
+        'responseFields: [\'category_id\', \'name\', \'description\', \'status\']',
+        'rawQuestionRowsExposed: false',
+        'answersExposed: false',
+        'yearsExposed: false',
+      ]);
+      const forbidden = [
+        'Question.list',
+        'Question.filter',
+      ].filter((token) => safeStr(getCategoryMetadataSource).includes(token));
+      if (missing.length || forbidden.length) {
+        return fail('Public category metadata does not keep the metadata-only description contract.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'base44/functions/getCategoryMetadata/entry.ts',
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('Public category metadata exposes category_id/name/description/status only; questions stay hidden.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('category_runtime_uses_active_category_rows',
+    'Gameplay category source of truth is active Category rows, not seed IDs',
+    () => {
+      const source = safeStr(getQuestionsSource);
+      const missing = missingTokens(source, [
+        'CATEGORY_METADATA_POLICY',
+        'getServiceEntity(base44, \'Category\')',
+        'legacyHardcodedCategoryFallbackAllowed: false',
+        'staleCategoryFallbackUsed: false',
+        'category_id\', 1000',
+      ]);
+      const forbidden = [
+        'FALLBACK_ACTIVE_CATEGORY_IDS',
+        'QUESTION_CATEGORIES',
+        'Chronicle',
+        'Flashback',
+        'Viral',
+        'Arena',
+        'Level Up',
+      ].filter((token) => source.includes(token));
+      if (missing.length || forbidden.length) {
+        return fail('Gameplay category policy can still drift toward stale seed IDs.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'base44/functions/getQuestions/entry.ts',
+          actual: { missing, forbidden },
+        });
+      }
+      return pass('getQuestions derives playable category IDs from active Category rows and declares stale seed fallback disabled.', {
         verification: 'STATIC_CONTRACT',
       });
     }),
@@ -241,7 +247,7 @@ export const EXTRA_TESTS = [
     () => {
       // Codex402 — The Online screen MUST sort active rows by category_id
       // ASC right after the current `loadActiveCategories` DB fetch so the
-      // leftmost card is always the lowest active id (Chronicle=1).
+      // leftmost card is always the lowest current active category id.
       const missing = missingTokens(onlineChallengeScreenSource, [
         'loadActiveCategories({ limit: 1000 })',
         '.sort((a, b) => (Number(a.category_id) || 0) - (Number(b.category_id) || 0))',

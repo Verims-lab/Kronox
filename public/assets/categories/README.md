@@ -4,7 +4,12 @@ Static category images for Kronox category cards live here.
 
 These assets are optional. If a category image is missing, the app should fall back to the current UI/icon treatment without broken image paths.
 
-## Current Categories
+## Legacy Decorative Assets
+
+These filenames are historical decorative assets only. They are not the active
+category source of truth and must not be used as a runtime fallback list. The
+app must read current active category metadata from the `Category` table or
+`getCategoryMetadata`.
 
 | File | Category |
 | --- | --- |
@@ -43,7 +48,8 @@ Avoid:
 
 ## Important
 
-Do not add category images that introduce new category names.
+Do not add category images that introduce new category names or imply a
+hardcoded runtime category list.
 
 Canonical category definitions live in:
 
