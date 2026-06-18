@@ -21,7 +21,12 @@ stars, score, or completed levels.
 ## Ledger and idempotency
 Every grant is recorded in DiamondTransaction with balance_before,
 balance_after, source, and a durable idempotency_key. One logical row should
-exist per idempotency_key.
+exist per idempotency_key. DiamondTransaction create helpers re-check
+user_email + idempotency_key before create and confirm by idempotency_key after
+create.
+Base44 schema-level uniqueness is not assumed. DB/entity unique plus
+function-level guard is Low risk; function-level guard only = Medium/P1 hardening;
+neither DB/entity unique nor function-level guard is High.
 
 ## Active sources
 - starter_bonus (one-time, guarded by User.starter_bonus_granted_at)
@@ -33,7 +38,12 @@ Daily Wheel is separate from the existing +20 daily login reward, grants once
 per UTC server day, uses idempotency_key daily_wheel:<normalizedEmail>:<YYYY-MM-DD>,
 records a DailyWheelSpin row plus DiamondTransaction.source = daily_wheel, and
 grants a 7-day streak bonus: +150 diamonds. It grants no Kronox Puan and does
-not affect leaderboard sorting or rank.
+not affect leaderboard sorting or rank. Daily Wheel same-day duplicate
+prevention uses key/date lookup, reserve-first DailyWheelSpin rows, canonical
+same-user/same-day re-read, User guard re-check, and DiamondTransaction
+re-check before balance mutation. This is not an atomic upsert until DB/entity
+unique proof is attached for DailyWheelSpin.idempotency_key,
+DailyWheelSpin.user_email + spin_date, and DiamondTransaction.idempotency_key.
 
 Daily Wheel reward is selected server-side by claimDailyWheelReward and the UI
 animates to the backend-selected reward. Reward weights are 30 high weight 24,

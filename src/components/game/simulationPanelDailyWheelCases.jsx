@@ -310,6 +310,12 @@ export const EXTRA_TESTS = [
         'DailyWheelSpin.idempotency_key',
         'one claim per user per UTC server day',
         'logical guard; unique constraint platform/manual',
+        'postCreateCanonicalSpin',
+        'postReserveSpin',
+        'postReserveUser',
+        'postReserveTransaction',
+        'Base44 schema-level uniqueness is not assumed',
+        'function-level guard only = Medium / P1 hardening',
         'recoveredExistingDailyWheelSpin',
       ]);
       if (missing.length) {
@@ -318,7 +324,7 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      return pass('Daily Wheel is keyed by authenticated user + UTC day with User and ledger guards.', { verification: 'STATIC_CONTRACT' });
+      return pass('Daily Wheel is keyed by authenticated user + UTC day with reserve/canonical, User, and ledger guards.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_daily_login_separate',
@@ -622,12 +628,12 @@ export const EXTRA_TESTS = [
 
   makeCase('daily_wheel_duplicate_race_runtime_probe_required',
     'Daily Wheel duplicate prevention still needs live race proof',
-    () => notAutomatable('Static Health verifies idempotency keys and guards, but Base44 uniqueness/transaction behavior under two simultaneous devices requires a live backend probe.', {
+    () => notAutomatable('Static Health verifies idempotency keys and function-level guards, but Base44 schema uniqueness/transaction behavior under two simultaneous devices requires a live backend probe.', {
       verification: 'NOT_AUTOMATABLE',
       classification: 'BACKEND_RACE_PROOF_REQUIRED',
       actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE,
-      expected: 'Two simultaneous Daily Wheel claims for the same user/day grant Diamonds at most once.',
-      actual: 'No two-device/backend race harness in Health Center.',
+      expected: 'Two simultaneous Daily Wheel claims for the same user/day grant Diamonds at most once; any duplicate rows are documented as a platform uniqueness gap.',
+      actual: 'No two-device/backend race harness or DB/entity unique proof in Health Center.',
     }),
     { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, critical: false }),
 ];

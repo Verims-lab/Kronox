@@ -46,6 +46,33 @@ function buildIdempotencyKey(email: string, dateKey: string) {
   return `daily_wheel:${email}:${dateKey}`;
 }
 
+function rowId(row: any) {
+  return String(row?.id || row?._id || '');
+}
+
+function spinSortValue(row: any) {
+  const timestamp = Date.parse(String(row?.claimed_at || row?.created_at || ''));
+  return Number.isFinite(timestamp) ? timestamp : Number.MAX_SAFE_INTEGER;
+}
+
+function compareSpinRows(a: any, b: any) {
+  const byTime = spinSortValue(a) - spinSortValue(b);
+  if (byTime) return byTime;
+  return rowId(a).localeCompare(rowId(b));
+}
+
+function dedupeSpinRows(rows: any[]) {
+  const seen = new Set<string>();
+  return rows
+    .filter((row) => {
+      const id = rowId(row);
+      if (!id || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    })
+    .sort(compareSpinRows);
+}
+
 function ownerKeyFromEmail(rawEmail: unknown) {
   const email = normalizeEmail(rawEmail);
   if (!email) return '';
@@ -84,15 +111,20 @@ function computeStreak(user: any, todayKey: string) {
   return { streakBefore, streakAfter };
 }
 
-async function findSpin(base44: any, email: string, dateKey: string, idempotencyKey: string) {
+async function findSpinRows(base44: any, email: string, dateKey: string, idempotencyKey: string) {
   const entity = base44.asServiceRole.entities.DailyWheelSpin;
-  if (!entity?.filter) return null;
+  if (!entity?.filter) return [];
   const [byKey, byDate] = await Promise.all([
-    entity.filter({ user_email: email, idempotency_key: idempotencyKey }, '-claimed_at', 1).catch(() => []),
-    entity.filter({ user_email: email, spin_date: dateKey }, '-claimed_at', 1).catch(() => []),
+    entity.filter({ user_email: email, idempotency_key: idempotencyKey }, '-claimed_at', 5).catch(() => []),
+    entity.filter({ user_email: email, spin_date: dateKey }, '-claimed_at', 5).catch(() => []),
   ]);
   const rows = [...(Array.isArray(byKey) ? byKey : []), ...(Array.isArray(byDate) ? byDate : [])];
-  return rows.find((row: any) => row?.id) || null;
+  return dedupeSpinRows(rows);
+}
+
+async function findSpin(base44: any, email: string, dateKey: string, idempotencyKey: string) {
+  const rows = await findSpinRows(base44, email, dateKey, idempotencyKey);
+  return rows[0] || null;
 }
 
 async function findDiamondTransaction(base44: any, email: string, idempotencyKey: string) {
@@ -103,9 +135,18 @@ async function findDiamondTransaction(base44: any, email: string, idempotencyKey
 }
 
 async function createDiamondTransaction(base44: any, payload: Record<string, unknown>) {
-  const existing = await findDiamondTransaction(base44, String(payload.user_email || ''), String(payload.idempotency_key || ''));
+  const email = normalizeEmail(payload.user_email);
+  const idempotencyKey = String(payload.idempotency_key || '').trim();
+  if (!email || !idempotencyKey) return null;
+  const existing = await findDiamondTransaction(base44, email, idempotencyKey);
   if (existing) return existing;
-  return base44.asServiceRole.entities.DiamondTransaction.create(payload);
+  const created = await base44.asServiceRole.entities.DiamondTransaction.create({
+    ...payload,
+    user_email: email,
+    idempotency_key: idempotencyKey,
+  });
+  const confirmed = await findDiamondTransaction(base44, email, idempotencyKey);
+  return confirmed || created;
 }
 
 async function createDailyWheelSpin(base44: any, payload: Record<string, unknown>) {
@@ -115,6 +156,19 @@ async function createDailyWheelSpin(base44: any, payload: Record<string, unknown
   }
   try {
     const row = await entity.create(payload);
+    const postCreateCanonicalSpin = await findSpin(
+      base44,
+      String(payload.user_email || ''),
+      String(payload.spin_date || ''),
+      String(payload.idempotency_key || ''),
+    ).catch(() => null);
+    if (postCreateCanonicalSpin && rowId(postCreateCanonicalSpin) && rowId(row) && rowId(postCreateCanonicalSpin) !== rowId(row)) {
+      return {
+        row: postCreateCanonicalSpin,
+        error: 'daily_wheel_spin_existing_after_create',
+        recoveredExisting: true,
+      };
+    }
     return { row, error: null, recoveredExisting: false };
   } catch (error) {
     const existing = await findSpin(
@@ -340,6 +394,59 @@ Deno.serve(async (req: Request) => {
       return json(publicResult(recovered, normalizeNumber(recovered.balance_after), true));
     }
 
+    const postReserveSpin = await findSpin(base44, email, todayKey, idempotencyKey);
+    if (postReserveSpin && rowId(postReserveSpin) && rowId(spin) && rowId(postReserveSpin) !== rowId(spin)) {
+      const recovered = await recoverExistingSpin(base44, latestUser, postReserveSpin, todayKey, idempotencyKey);
+      return json(publicResult(recovered, normalizeNumber(recovered.balance_after), true));
+    }
+
+    const postReserveUser = await base44.auth.me().catch(() => latestUser);
+    if (String(postReserveUser?.daily_wheel_last_spin_date || '') === todayKey) {
+      const guardSpin = postReserveSpin || await findSpin(base44, email, todayKey, idempotencyKey);
+      if (guardSpin) {
+        return json(publicResult(guardSpin, normalizeNumber(postReserveUser?.diamonds), true));
+      }
+      const guardTransaction = await findDiamondTransaction(base44, email, idempotencyKey);
+      if (guardTransaction) {
+        const syntheticSpin = spinRowFromDiamondTransaction(guardTransaction, postReserveUser, todayKey, nextAvailableAt);
+        return json(publicResult(syntheticSpin, normalizeNumber(postReserveUser?.diamonds), true));
+      }
+      return json({
+        ok: true,
+        available: false,
+        alreadyClaimedToday: true,
+        alreadyClaimed: true,
+        serverDate: todayKey,
+        nextAvailableAt: postReserveUser?.daily_wheel_next_available_at || nextAvailableAt,
+        updatedDiamondTotal: normalizeNumber(postReserveUser?.diamonds),
+        rewardAmount: 0,
+        streakBonusAmount: 0,
+        totalRewardAmount: 0,
+        userPatch: {
+          diamonds: normalizeNumber(postReserveUser?.diamonds),
+          daily_wheel_last_spin_date: todayKey,
+          daily_wheel_next_available_at: postReserveUser?.daily_wheel_next_available_at || nextAvailableAt,
+          daily_wheel_streak: normalizeNumber(postReserveUser?.daily_wheel_streak),
+          daily_wheel_spin_count: normalizeNumber(postReserveUser?.daily_wheel_spin_count),
+        },
+      });
+    }
+
+    const postReserveTransaction = await findDiamondTransaction(base44, email, idempotencyKey);
+    if (postReserveTransaction) {
+      const recoveredBalance = Math.max(
+        normalizeNumber((postReserveUser || latestUser)?.diamonds),
+        normalizeNumber(postReserveTransaction?.balance_after),
+      );
+      const syntheticSpin = spinRowFromDiamondTransaction(
+        postReserveTransaction,
+        { ...(postReserveUser || latestUser || {}), diamonds: recoveredBalance },
+        todayKey,
+        nextAvailableAt,
+      );
+      return json(publicResult(syntheticSpin, recoveredBalance, true));
+    }
+
     const userPatch = {
       diamonds: balanceAfter,
       daily_wheel_last_spin_at: nowIso,
@@ -349,7 +456,7 @@ Deno.serve(async (req: Request) => {
       daily_wheel_spin_count: spinCountAfter,
       economy_updated_at: nowIso,
     };
-    await base44.asServiceRole.entities.User.update(latestUser.id || user.id, userPatch);
+    await base44.asServiceRole.entities.User.update(postReserveUser?.id || latestUser.id || user.id, userPatch);
 
     let ledgerError = null;
     const transactionMetadata: Record<string, unknown> = {

@@ -35,7 +35,9 @@ Analytics/statistics entities implemented now:
 - ensureUserJokerInventory grants exactly 3 mistake_shield, 3 card_swap, and 3 time_freeze once per authenticated user with starter_jokers:<email>:<joker_type> idempotency keys.
 - spendUserJoker spends one owned Solo joker with reason solo_use, source solo, quantity_delta -1, balance_after, and an idempotency key; it rejects non-Solo context, uses deploy-safe UserJokerInventory/JokerTransaction entity fallback, and returns safe user-facing errors.
 - purchaseJokerWithDiamonds sells only Zaman Dondur for 40 Diamonds, Kart Değiştir for 50 Diamonds, and Kronokalkan for 60 Diamonds; it validates authenticated user context, trusted backend price, sufficient User.diamonds, explicitly binds UserJokerInventory, DiamondTransaction, and JokerTransaction, treats starter self-heal as best-effort, and writes DiamondTransaction + JokerTransaction market_purchase rows with a per-action idempotency key.
+- DiamondTransaction helpers re-check user_email + idempotency_key before create and confirm by idempotency_key after create; this is function-level guard only until a DB/entity unique constraint is proven.
 - Daily Wheel is a Diamond source; Mağaza purchase is a Diamond sink. purchaseJokerWithDiamonds is server-authoritative, ignores client price/cost, writes both ledgers with the same idempotency key, and uses best-effort rollback if ledger creation fails. Runtime duplicate-request, partial-failure, and inventory-ledger reconciliation proof remains manual.
+- Daily Wheel same-day duplicate prevention uses daily_wheel:<email>:<YYYY-MM-DD>, DailyWheelSpin key/date lookup, reserve-first spin rows, canonical same-user/same-day re-read, User guard re-check, and DiamondTransaction re-check before balance mutation. This is not an atomic upsert without DB/entity uniqueness.
 - Profile displays balances under Joker Çantası and does not expose the JokerTransaction ledger.
 - Mağaza Phase 1 has no bundles, subscriptions, cosmetics, random boxes, ads, external payments, or Online joker usage.
 - DailyQuestDefinition stores admin-managed Daily Quest v1 templates; title/description are display-only and quest_type + target_value drive runtime progress logic through UserDailyQuestProgress.
@@ -122,6 +124,7 @@ Idempotency/platform limitations documented:
 - QuestionAttemptEvent.event_id unique and question_id + created_at / user_key + created_at indexes are required where Base44 supports them.
 - QuestionStatsProjection.question_id unique and CategoryStatsProjection category_id + sub_category indexes are required where Base44 supports them.
 - Runtime uniqueness proof remains manual/NOT_AUTOMATABLE until platform constraints are configured.
+- DB/entity unique plus function-level guard = Low; function-level guard only = Medium/P1 hardening; neither DB/entity unique nor function-level guard = High.
 - Codex310 audit keeps mutable user-owned data server/auth scoped, prefers online fetch before offline fallback for question runtime, uses projection/ledger rows for public and economy surfaces, and keeps final iOS IPA/icon, two-account RLS, and backend deploy proof as manual gates.
 - Hot UI paths read current-state tables/projections directly and must not sum append-only ledgers or scan full analytics history during render.
 - Admin/Health/report paths may process larger datasets, but they should batch, paginate, cap output, or yield work so long JavaScript tasks do not block the app shell.

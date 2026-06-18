@@ -176,12 +176,17 @@ export const EXTRA_TESTS = [
   makeCase('diamond_rewards_use_idempotency_keys',
     'Diamond reward grants use durable idempotency keys',
     () => {
-      const missing = missingTokens(diamondEconomySource, [
+      const combined = `${diamondEconomySource}\n${economyRulesSource}`;
+      const missing = missingTokens(combined, [
         'buildDiamondIdempotencyKey',
         'idempotencyKey',
         'findDiamondTransaction',
+        'const existing = await findDiamondTransaction(email, idempotencyKey);',
+        'const confirmed = await findDiamondTransaction(email, idempotencyKey);',
         'DIAMOND_STARTER_BONUS_IDEMPOTENCY_PREFIX',
         'DIAMOND_DAILY_LOGIN_IDEMPOTENCY_PREFIX',
+        'Base44 schema-level uniqueness is not assumed',
+        'function-level guard only = Medium/P1 hardening',
         'already_recorded',
       ]);
       if (missing.length) {
@@ -209,12 +214,12 @@ export const EXTRA_TESTS = [
 
   makeCase('diamond_reward_not_regranted_multi_device_contract',
     'Multi-device duplicate prevention requires runtime probe',
-    () => notAutomatable('Static contract verifies durable guards and transaction keys, but two-device Base44 race behavior requires a live runtime probe.', {
+    () => notAutomatable('Static contract verifies durable guards, transaction keys, and post-create confirmation, but two-device Base44 race behavior requires DB unique proof or a live runtime probe.', {
       verification: 'NOT_AUTOMATABLE',
       classification: 'RUNTIME_BACKEND_PROBE_REQUIRED',
       actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE,
-      expected: 'Two simultaneous sessions grant at most one starter and one daily reward; duplicate ledger rows are rejected or harmless.',
-      actual: 'No multi-device harness in Health Center.',
+      expected: 'Two simultaneous sessions grant at most one starter and one daily reward; duplicate ledger rows are rejected by DB uniqueness or harmless under documented function-level guards.',
+      actual: 'No multi-device harness or DB/entity unique proof in Health Center.',
     }),
     { actionType: ACTION_TYPES.BACKEND_RUNTIME_PROBE, critical: false }),
 
