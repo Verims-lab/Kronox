@@ -29,6 +29,10 @@ checks that source code and static Health cannot honestly prove alone.
 * Manual mobile proof must confirm touch, slight drag, invalid drop, tutorial
   hand/finger animation, tutorial popups, and joker activation do not decrement
   the remaining move counter.
+* Heavy blur/glow styling is release-gated by real performance proof: on a
+  low-end Android device or emulator, open Health Center, guided tutorial, and
+  gameplay states that use the strongest blur/glow overlays and confirm scroll
+  plus animation smoothness.
 * Online gameplay loading must wait on Lobby shared deck readiness
   (`online_question_deck` + `current_question_id`), not on the Solo
   `getQuestions`/cache path. A missing Online deck should show retry/back-to-lobby
@@ -68,3 +72,5 @@ checks that source code and static Health cannot honestly prove alone.
 Health may statically verify that the guardrails and source hooks exist, but it
 must keep real mobile/device/store validation as manual or NOT_AUTOMATABLE
 until actual runtime proof is captured.
+Static heavy blur/glow token counts may remain WARNING as source risk only;
+low-end Android smoothness belongs in the manual proof list.

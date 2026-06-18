@@ -1976,19 +1976,29 @@ export const EXTRA_TESTS = [
         ? lastSample.selectedDeckIds.length
         : getSoloDeckSizeForLevel(4);
       const nonRecentCandidateCount = Math.max(0, eligibleCandidateCount - candidateRecentHits);
-      const minimumRecentNeeded = Math.max(0, selectedDeckSize - nonRecentCandidateCount);
+      const minimumRecentNeeded = Number.isFinite(Number(lastSample.minimumRecentHistoryNeeded))
+        ? Number(lastSample.minimumRecentHistoryNeeded)
+        : Math.max(0, selectedDeckSize - nonRecentCandidateCount);
       const selectedRecentRatio = Number(lastSample.selectedRecentHistoryRatio) || 0;
       const candidateRecentRatio = Number(lastSample.candidateRecentHistoryRatio) || 0;
       const ratioImprovement = Number(lastSample.recentHistorySelectionImprovement) || 0;
       const selectedAverageShownCount = Number(lastSample.selectedAverageShownCount) || 0;
       const candidateAverageShownCount = Number(lastSample.candidateAverageShownCount) || 0;
+      const selectedRecentOverMinimum = Number(lastSample.selectedRecentHistoryOverMinimum) || 0;
+      const scarcityReason = String(lastSample.recentHistoryScarcityReason || '');
+      const ratioCooldownProof = selectedRecentRatio < candidateRecentRatio - 0.18
+        && ratioImprovement >= 0.18;
+      const scarcityAwareCooldownProof = lastSample.recentHistoryScarcity === true
+        && scarcityReason.length > 0
+        && selectedRecentHits <= minimumRecentNeeded + 2
+        && selectedRecentOverMinimum <= 2
+        && selectedAverageShownCount <= candidateAverageShownCount;
       if (
         samples.length < 100 ||
         lastSample.softCooldownOnly !== true ||
         lastSample.localRecentHistoryUsed !== true ||
         selectedRecentHits > minimumRecentNeeded + 2 ||
-        selectedRecentRatio >= candidateRecentRatio - 0.18 ||
-        ratioImprovement < 0.18 ||
+        (!ratioCooldownProof && !scarcityAwareCooldownProof) ||
         selectedAverageShownCount > candidateAverageShownCount ||
         Number(lastSample.cooldownPenaltyAppliedCount) <= 0 ||
         Number(lastSample.neverShownCandidateCount) < 0
@@ -2001,9 +2011,16 @@ export const EXTRA_TESTS = [
             sampleCount: samples.length,
             minimumRecentNeeded,
             selectedRecentHits,
+            selectedRecentOverMinimum,
             selectedRecentRatio,
             candidateRecentRatio,
             ratioImprovement,
+            ratioCooldownProof,
+            scarcityAwareCooldownProof,
+            recentHistoryScarcity: lastSample.recentHistoryScarcity,
+            recentHistoryScarcityReason: lastSample.recentHistoryScarcityReason,
+            candidateNonRecentHistoryCount: lastSample.candidateNonRecentHistoryCount,
+            selectedNonRecentHistoryCount: lastSample.selectedNonRecentHistoryCount,
             selectedAverageShownCount,
             candidateAverageShownCount,
             lastSample,
@@ -2018,9 +2035,16 @@ export const EXTRA_TESTS = [
           sampleCount: samples.length,
           selectedRecentHits,
           minimumRecentNeeded,
+          selectedRecentOverMinimum,
           selectedRecentRatio,
           candidateRecentRatio,
           ratioImprovement,
+          ratioCooldownProof,
+          scarcityAwareCooldownProof,
+          recentHistoryScarcity: lastSample.recentHistoryScarcity,
+          recentHistoryScarcityReason: lastSample.recentHistoryScarcityReason,
+          candidateNonRecentHistoryCount: lastSample.candidateNonRecentHistoryCount,
+          selectedNonRecentHistoryCount: lastSample.selectedNonRecentHistoryCount,
           selectedAverageShownCount,
           candidateAverageShownCount,
           highExposurePenaltyAppliedCount: lastSample.highExposurePenaltyAppliedCount,

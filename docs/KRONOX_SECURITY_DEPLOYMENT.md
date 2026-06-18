@@ -773,21 +773,27 @@ Security contract:
 * function-based question analytics reset is currently not used because the
   callable reset path was not reliable in the current Base44 setup
 * after a question pool replacement, question analytics reset is a manual DB
-  maintenance operation: clear `QuestionAttemptEvent` and, if populated, the
+  maintenance operation: clear `QuestionAttemptEvent`,
+  `PlayerQuestionDailyExposure`, and, if populated, the
   optional manual `aggregateQuestionStats` projection tables
   `QuestionStatsProjection` and `CategoryStatsProjection`. These projection
   tables may be empty because the active 9-section report computes history from
   raw `QuestionAttemptEvent` rows.
+* clearing `PlayerQuestionExposure` is optional and should only be done when the
+  per-player anti-repeat/freshness memory should also restart; it resets the
+  system's memory for avoiding the same question for the same player
 * manual question analytics reset must not delete questions, categories,
-  subcategories, category preferences, user stats, score/progress/economy rows,
-  leaderboard rows, Daily Wheel rows, gameplay records, users, or `AdminUser`
-  rows
+  subcategories, user/guest/player profiles, category preferences, joker
+  inventory, joker/diamond ledgers, Daily Wheel/Daily Quest rows, user stats,
+  score/progress/economy rows, leaderboard rows, gameplay records, users, or
+  `AdminUser` rows
 * question analytics reports must handle stale/deleted question references with
   a diagnostic count, section-level warnings, and bounded tables instead of
   crashing, rendering partially, or producing unbounded email content
 * unrelated progress/economy/admin resets retain question analytics rows; the
   manual question analytics DB reset is the explicit maintenance operation for
-  clearing the three analytics entities after a question pool replacement
+  clearing the analytics/history/projection entities after a question pool
+  replacement
 * user-owned `QuestionAttemptEvent` analytics rows must be deleted or
   anonymized during account deletion; retained analytics rows must no longer
   contain the deleted user's email/key

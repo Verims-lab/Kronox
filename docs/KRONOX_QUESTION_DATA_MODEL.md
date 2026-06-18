@@ -193,12 +193,18 @@ Rules:
   `QuestionAttemptEvent` rows
 * after a full question pool replacement, question analytics reset is currently
   a manual DB maintenance operation. The active report source for
-  show/answer/time history is `QuestionAttemptEvent`; `QuestionStatsProjection`
-  and `CategoryStatsProjection` are optional manual `aggregateQuestionStats`
-  summaries and may be empty if the refresh has not been run. Clear
-  `QuestionAttemptEvent` and, if populated, those projection tables; do not delete
-  questions, categories, preferences, scores, diamonds, progress, users, admin
-  rows, Daily Wheel rows, gameplay rows, or leaderboard rows
+  show/answer/time history is `QuestionAttemptEvent`;
+  `PlayerQuestionDailyExposure` stores daily per-player question exposure
+  summaries; `QuestionStatsProjection` and `CategoryStatsProjection` are
+  optional manual `aggregateQuestionStats` summaries and may be empty if the
+  refresh has not been run. Clear `QuestionAttemptEvent`,
+  `PlayerQuestionDailyExposure`, `QuestionStatsProjection`, and
+  `CategoryStatsProjection`. If the per-player anti-repeat memory should also
+  restart, clear `PlayerQuestionExposure` separately; this resets the system's
+  memory for avoiding the same question for the same player. Do not delete
+  questions, categories, user/guest/player profiles, category preferences,
+  joker inventory, joker/diamond ledgers, Daily Wheel/Daily Quest rows, scores,
+  levels/progress, users, admin rows, gameplay rows, or leaderboard rows
 * report generation must skip stale/deleted `question_id` analytics references
   with a diagnostic count and must cap large question/category sections for
   email readability
