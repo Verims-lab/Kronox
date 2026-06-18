@@ -255,15 +255,14 @@ P3 adds question analytics without changing question selection:
   subcategory, or era counts.
 - Runtime exposure improvement is proven over new gameplay events; historical
   analytics reports can remain concentrated until enough fresh events exist.
-- Remaining audit risk: repeat avoidance is currently per-device/local-history
-  soft weighting. It does not yet use a server-side per-user or global exposure
-  ledger, and low-correct/high-latency questions are reported for review rather
-  than automatically cooled down.
-- Future server-side exposure balancing requires explicit product/architecture
-  approval before implementation. The safe target is additive: per-user recent
-  exclusion, session-level no-repeat, global underexposure boost,
-  overexposure/recency penalty, low-correct cooldown only after a minimum
-  sample threshold, and a fallback ladder that never turns a valid all-category
+- Per-player exposure projections are active for Solo freshness. Selection
+  prefers questions never shown to the same player in the same mode, then lower
+  per-player `shown_count`, then older per-player `last_shown_at`. Global
+  exposure remains a secondary tie-breaker only. Low-correct/high-latency
+  questions are still reported for review rather than automatically cooled
+  down.
+- The additive fallback ladder remains mandatory: per-player recent exclusion
+  may relax before hard deck rules, but it must never turn a valid all-category
   pool into an empty pool.
 
 Fallback order:
@@ -463,3 +462,31 @@ After success, the result popup returns to GuestProfile onboarding for profile
 setup, then category setup, then Ana Sayfa. Closing the app during onboarding
 resumes from the persisted GuestProfile state instead of re-opening the old
 tutorial modal.
+
+## Per-Player Anti-Repeat Selection
+
+Solo freshness is evaluated per player. The same question shown to different
+players is acceptable; repeating the same question for the same player too soon
+is the problem.
+
+Selection order within the already-selected category/lane:
+
+1. questions never shown to this player in the relevant mode
+2. lower per-player `shown_count`
+3. older per-player `last_shown_at`
+4. global shown count / global last shown only as secondary tie-breakers
+5. stable randomization
+
+Normal Solo reads `PlayerQuestionExposure` with `mode=solo`. Guided onboarding
+tutorial writes `mode=tutorial`, so tutorial exposures do not over-penalize
+normal Solo. `getQuestions` applies the same exposure-aware ranking before its
+bounded server attempt response cap, and `buildSoloAttemptDeck` receives
+`playerQuestionExposureStats` so final ordering and replacement reserve ordering
+keep the same priority.
+
+Exposure is written only after a question becomes visible to the player:
+active card shown or `Kart Değiştir` replacement shown. Server candidate rows,
+unused deck reserve cards, and never-shown buffered cards are not exposure.
+`Kart Değiştir` and `Kronokalkan` replacement needs must use the existing
+bounded deck/reserve or safe server-side replacement path; raw client
+`Question.list` fallback and full question bank exposure remain forbidden.

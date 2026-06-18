@@ -1,0 +1,139 @@
+{
+  "name": "PlayerQuestionExposure",
+  "type": "object",
+  "description": "Codex390 — Per-player question exposure projection for Solo anti-repeat selection. Logical unique key is player_key + question_id + mode, stored in exposure_key because Base44 uniqueness is enforced by write helpers. player_key is an internal owner-style hash; reports must anonymize it and never display email, provider ids, raw guest ids, raw guest tokens, owner_key, or public username.",
+  "properties": {
+    "exposure_key": {
+      "type": "string",
+      "description": "Logical idempotency key: player_question_exposure:<player_key>:<mode>:<question_id>."
+    },
+    "player_key": {
+      "type": "string",
+      "description": "Internal canonical player key derived server-side from registered owner key or GuestProfile owner key. Not public report output."
+    },
+    "player_type": {
+      "type": "string",
+      "enum": [
+        "guest",
+        "registered",
+        "unknown"
+      ],
+      "description": "Coarse identity class only; no personal identifier."
+    },
+    "question_id": {
+      "type": "string",
+      "description": "Question id that was actually shown to the player."
+    },
+    "category_id": {
+      "type": "number",
+      "description": "Question main_category_id / category_id when known."
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "solo",
+        "tutorial",
+        "online"
+      ],
+      "description": "Gameplay mode that produced the exposure. Normal Solo selection primarily reads mode=solo; guided onboarding writes mode=tutorial."
+    },
+    "shown_count": {
+      "type": "number",
+      "description": "Number of times this question was actually shown to this player in this mode."
+    },
+    "first_shown_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "First actual shown timestamp."
+    },
+    "last_shown_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Most recent actual shown timestamp."
+    },
+    "last_attempt_id": {
+      "type": "string",
+      "description": "Most recent Solo/tutorial attempt id."
+    },
+    "last_role": {
+      "type": "string",
+      "enum": [
+        "anchor",
+        "playable",
+        "replacement",
+        "tutorial",
+        "unknown"
+      ],
+      "description": "Attempt-local role when last shown."
+    },
+    "last_source": {
+      "type": "string",
+      "description": "deck/replacement/etc. Debug-safe source label."
+    },
+    "last_event_key": {
+      "type": "string",
+      "description": "Attempt-local idempotency key for the last actual shown event."
+    },
+    "last_shown_sequence": {
+      "type": "number",
+      "description": "Attempt-local shown sequence when known."
+    },
+    "merged_into_player_key": {
+      "type": "string",
+      "description": "Set only when guest history is passivated/merged into a registered player key."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "merged",
+        "deleted"
+      ],
+      "description": "Projection row status."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Projection creation timestamp."
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Projection update timestamp."
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Debug-safe metadata only. Never store raw guest tokens, auth headers, emails, provider ids, or full question rows."
+    }
+  },
+  "required": [
+    "exposure_key",
+    "player_key",
+    "question_id",
+    "mode",
+    "shown_count",
+    "last_shown_at"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

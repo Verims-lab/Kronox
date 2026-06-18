@@ -149,6 +149,10 @@ Status: Active product contract.
 - Generated email output intentionally excludes Rapor Şablonu, Rapor Bölümleri, Sistemdeki Soru Havuzu: Kategori / Zorluk Dağılımı, Kategori ve Zorluk Bazında Kayıtlı Soru Sayısı, Kategori Bazında Yıl Aralığı, and Kategori İçi Soru Analizi.
 - sendQuestionAnalyticsReportEmail accepts any active AdminUser role admin/owner, sends by default to the requesting authenticated admin's normalized email, rejects mismatched recipient overrides, and the Admin Ekranı UI returns safe requestedBy, recipientEmail, template, body-marker, and emailDispatchStatus diagnostics.
 - Category preference report counts are aggregate distinct-user counts only and do not expose user IDs or emails.
+- PlayerQuestionExposure and PlayerQuestionDailyExposure are private per-player question exposure projections for Solo anti-repeat and anonymous coverage analytics.
+- Guest exposure reads/writes require guest_id + raw guest token verification against GuestProfile.guest_token_hash; guest_id alone is not enough.
+- Exposure writes are best-effort, count only active shown/replacement/tutorial cards, and do not count server candidate pools or unused buffers.
+- Question Analytics may include anonymous per-player coverage only as User0001-style labels inside the existing nine-section email body; it must not print player_key, owner_key, email, provider ids, raw guest ids/tokens, or username.
 - Question analytics report sections render with section-level warnings instead of truncating the whole email.
 - unrelated user progress admin reset retains question analytics rows; account deletion anonymizes user-owned analytics identity.
 - retained QuestionAttemptEvent analytics rows no longer contain deleted user identity after account deletion.

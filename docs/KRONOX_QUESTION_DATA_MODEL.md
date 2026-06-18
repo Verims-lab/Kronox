@@ -565,3 +565,39 @@ KRONOX_CATEGORY_TAXONOMY.md
 KRONOX_SOLO_QUESTION_ENGINE.md
 KRONOX_SECURITY_DEPLOYMENT.md
 ```
+
+---
+
+# 14. Per-Player Exposure Architecture
+
+Question-level freshness is per player, not global. Showing the same question
+to different users is acceptable; the risk signal is one player seeing the same
+question too often or too soon.
+
+Runtime projection tables:
+
+* `PlayerQuestionExposure`
+  * logical unique key: `player_key + question_id + mode`
+  * application key: `player_question_exposure:<player_key>:<mode>:<question_id>`
+  * fields include `shown_count`, `first_shown_at`, `last_shown_at`,
+    `last_attempt_id`, and `last_role`
+* `PlayerQuestionDailyExposure`
+  * logical unique key: `date_utc + player_key + question_id + mode`
+  * application key:
+    `player_question_daily_exposure:<date_utc>:<player_key>:<mode>:<question_id>`
+  * used for last-7/last-30-day anonymous coverage analytics
+
+Write timing:
+
+* count active playable cards when shown
+* count `Kart Değiştir` replacement cards when the replacement becomes active
+* count guided tutorial cards as `mode=tutorial`
+* do not count server candidate pool rows
+* do not count unused deck buffer/reserve cards
+* do not count never-shown joker replacement candidates
+
+Question Analytics report remains email-body-only, no PDF, exactly 9 top-level
+sections. The subsection `Kişi Bazlı Soru Çeşitliliği — Anonim` lives inside
+`Kategori Bazında Gösterim` and labels users as `User0001`, `User0002`, etc.
+The report must not output email, provider ids, raw guest id, raw guest token,
+owner key, internal player key, or username as the per-player coverage label.

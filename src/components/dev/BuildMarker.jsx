@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex397 — Per-player question exposure architecture:
+//   • Adds PlayerQuestionExposure and PlayerQuestionDailyExposure projections
+//     for Solo per-player anti-repeat selection and anonymous coverage reports.
+//   • Records exposure only for actual shown active/replacement/tutorial cards,
+//     never candidate pools or unused deck buffers.
+//   • Keeps guest exposure token-verified, merges recent exposure on account
+//     linking, and keeps Question Analytics at exactly 9 top-level sections.
+
 // Codex393 — Guest onboarding resume/category P0 fix:
 //   • GuestProfile onboarding step resolution is monotonic so stale
 //     tutorial_in_progress cannot send profile/category users back to
@@ -2228,7 +2236,7 @@ import React, { useEffect, useState } from 'react';
 //     metadata-only Category response scope for guest onboarding.
 //   • Adds Health/static proof that public category metadata is allowed only
 //     when it exposes no questions, answers, years, full bank, or stale fallbacks.
-const BUILD_MARKER = 'Codex396';
+const BUILD_MARKER = 'Codex397';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

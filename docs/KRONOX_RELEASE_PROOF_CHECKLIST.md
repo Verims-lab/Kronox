@@ -1138,3 +1138,20 @@ Before release, manually verify guest-to-account linking:
 * duplicate/retry link request does not duplicate Diamonds or jokers
 * linked leaderboard row displays username and the old guest row is passivated
   or no longer ranks above active users
+* `PlayerQuestionExposure` and `PlayerQuestionDailyExposure` entities are
+  deployed before relying on per-player Solo anti-repeat
+* shown-card gameplay writes create/update exposure rows only when active cards
+  or replacement cards are actually shown; unused deck buffers and candidate
+  pools are not counted
+* a fresh guest Solo attempt prefers questions unseen by that guest before
+  lower per-player `shown_count`, older per-player `last_shown_at`, and global
+  metrics
+* guided tutorial exposure uses `mode=tutorial` and normal Solo reads
+  `mode=solo`
+* linking a guest account migrates or aliases recent exposure history so repeat
+  history does not reset after Google / Apple / Email linking
+* Question Analytics email remains email-body-only, no PDF, exactly 9 top-level
+  sections, and includes `Kişi Bazlı Soru Çeşitliliği — Anonim` inside an
+  existing section
+* analytics per-player labels are `User0001` style and do not expose email,
+  provider ids, raw guest id/token, owner key, internal player key, or username

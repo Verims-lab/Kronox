@@ -1,0 +1,120 @@
+{
+  "name": "PlayerQuestionDailyExposure",
+  "type": "object",
+  "description": "Codex390 — Daily per-player question exposure projection for last-7/last-30-day anonymous coverage analytics. Logical unique key is date_utc + player_key + question_id + mode, stored in daily_exposure_key. Rows are written only for actual shown cards, never candidate pools or unused deck buffers.",
+  "properties": {
+    "daily_exposure_key": {
+      "type": "string",
+      "description": "Logical idempotency key: player_question_daily_exposure:<date_utc>:<player_key>:<mode>:<question_id>."
+    },
+    "date_utc": {
+      "type": "string",
+      "description": "UTC day bucket YYYY-MM-DD."
+    },
+    "player_key": {
+      "type": "string",
+      "description": "Internal canonical player key. Must be anonymized in reports and never displayed raw."
+    },
+    "player_type": {
+      "type": "string",
+      "enum": [
+        "guest",
+        "registered",
+        "unknown"
+      ],
+      "description": "Coarse identity class only."
+    },
+    "question_id": {
+      "type": "string",
+      "description": "Question id that was actually shown."
+    },
+    "category_id": {
+      "type": "number",
+      "description": "Question main category id when known."
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "solo",
+        "tutorial",
+        "online"
+      ],
+      "description": "Gameplay mode for the exposure."
+    },
+    "shown_count": {
+      "type": "number",
+      "description": "Number of actual show events for this player/question/mode on this UTC day."
+    },
+    "first_shown_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "First actual shown timestamp on date_utc."
+    },
+    "last_shown_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Most recent actual shown timestamp on date_utc."
+    },
+    "last_attempt_id": {
+      "type": "string",
+      "description": "Most recent attempt id on this day."
+    },
+    "last_role": {
+      "type": "string",
+      "description": "Most recent role on this day."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "merged",
+        "deleted"
+      ],
+      "description": "Projection row status."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Row creation timestamp."
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Row update timestamp."
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Debug-safe metadata only. Never store raw guest tokens, auth headers, emails, provider ids, or full question rows."
+    }
+  },
+  "required": [
+    "daily_exposure_key",
+    "date_utc",
+    "player_key",
+    "question_id",
+    "mode",
+    "shown_count"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

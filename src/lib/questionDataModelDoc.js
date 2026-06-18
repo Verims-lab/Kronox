@@ -200,4 +200,30 @@ longer stored on the entity — they are derived at fetch time by
 
 This keeps the stored schema clean while gameplay keeps consuming runtime
 year/category/type values.
+
+## 14. Per-Player Exposure Architecture
+
+Question-level freshness is per player, not global. Showing the same question
+to different users is acceptable; the risk signal is one player seeing the same
+question too often or too soon.
+
+Runtime projection tables:
+- PlayerQuestionExposure uses logical unique key player_key + question_id + mode
+  and application key player_question_exposure:<player_key>:<mode>:<question_id>.
+- PlayerQuestionDailyExposure uses logical unique key date_utc + player_key +
+  question_id + mode and application key
+  player_question_daily_exposure:<date_utc>:<player_key>:<mode>:<question_id>.
+
+Write timing:
+- count active playable cards when shown
+- count Kart Değiştir replacement cards when the replacement becomes active
+- count guided tutorial cards as mode=tutorial
+- do not count server candidate pool rows, unused deck buffer/reserve cards, or
+  never-shown joker replacement candidates
+
+Question Analytics report remains email-body-only, no PDF, exactly 9 top-level
+sections. Kişi Bazlı Soru Çeşitliliği — Anonim lives inside Kategori Bazında
+Gösterim and labels users as User0001, User0002, etc. The report must not
+output email, provider ids, raw guest id, raw guest token, owner key, internal
+player key, or username as the per-player coverage label.
 `;

@@ -224,21 +224,40 @@ function getQuestionRecentRank(id, stat, options = {}) {
 function scoreQuestionExposure(question, options = {}) {
   const id = normalizeQuestionId(question?.id ?? question?.question_id);
   const recentHit = Boolean(id && options.recentIds?.has(id));
-  const stat = getQuestionExposureStat(question, options.exposureStats);
-  const recentRank = getQuestionRecentRank(id, stat, options);
-  const hasGlobalSignals = Boolean(options.exposureStats?.size);
-  if (!recentHit && !stat && !hasGlobalSignals) return 0;
+  const playerStat = getQuestionExposureStat(question, options.playerExposureStats);
+  const globalStat = getQuestionExposureStat(question, options.globalExposureStats ?? options.exposureStats);
+  const stat = playerStat || globalStat;
+  const recentRank = getQuestionRecentRank(id, playerStat || globalStat, options);
+  const hasPlayerSignals = Boolean(options.playerExposureStats?.size);
+  const hasGlobalSignals = Boolean(options.globalExposureStats?.size || options.exposureStats?.size);
+  if (!recentHit && !playerStat && !globalStat && !hasPlayerSignals && !hasGlobalSignals) return 0;
 
   let score = 0;
+  if (hasPlayerSignals) {
+    if (playerStat?.shownCount > 0) {
+      score += 920 + Math.min(1600, playerStat.shownCount * 260);
+    } else {
+      score -= 420;
+    }
+
+    const playerAgeMs = playerStat?.lastShownAt ? Date.now() - Number(playerStat.lastShownAt) : Infinity;
+    if (Number.isFinite(playerAgeMs) && playerAgeMs >= 0) {
+      const playerAgeDays = playerAgeMs / (24 * 60 * 60 * 1000);
+      if (playerAgeDays < 1) score += 360;
+      else if (playerAgeDays < 7) score += 240;
+      else if (playerAgeDays < 30) score += 120;
+    }
+  }
+
   if (recentHit) {
     score += Number.isFinite(recentRank)
       ? Math.max(24, EXPOSURE_RECENT_RANK_PENALTY - Math.min(EXPOSURE_RECENT_RANK_PENALTY - 24, recentRank * 0.85))
       : EXPOSURE_RECENT_BASE_PENALTY;
   }
-  if (stat?.shownCount > 0) {
+  if (globalStat?.shownCount > 0) {
     score += Math.min(
-      EXPOSURE_MAX_PENALTY,
-      (Math.log2(stat.shownCount + 1) * EXPOSURE_COUNT_PENALTY) + stat.shownCount * 10,
+      Math.round(EXPOSURE_MAX_PENALTY * 0.45),
+      (Math.log2(globalStat.shownCount + 1) * EXPOSURE_COUNT_PENALTY * 0.5) + globalStat.shownCount * 5,
     );
   } else if (hasGlobalSignals) {
     score += EXPOSURE_NEVER_SHOWN_BOOST;
@@ -248,7 +267,7 @@ function scoreQuestionExposure(question, options = {}) {
     score += Math.max(0, 80 - recentRank * 0.35);
   }
 
-  const ageMs = stat?.lastShownAt ? Date.now() - Number(stat.lastShownAt) : Infinity;
+  const ageMs = globalStat?.lastShownAt ? Date.now() - Number(globalStat.lastShownAt) : Infinity;
   if (Number.isFinite(ageMs) && ageMs >= 0) {
     const ageDays = ageMs / (24 * 60 * 60 * 1000);
     if (ageDays < 1) score += 90;
@@ -677,6 +696,8 @@ function orderDeckForBeginnerSpacing(deck, levelNumber, random, options = {}) {
         recentIds: options.recentIds,
         recentRanks: options.recentRanks,
         exposureStats: options.exposureStats,
+        playerExposureStats: options.playerExposureStats,
+        globalExposureStats: options.globalExposureStats,
         preferenceContext: options.preferenceContext,
       }),
       year: Number(question?.year),
@@ -1369,6 +1390,8 @@ function selectUniqueYearDeck({
   recentIds,
   recentRanks,
   exposureStats,
+  playerExposureStats,
+  globalExposureStats,
   preferenceContext,
   random,
   levelNumber,
@@ -1383,6 +1406,8 @@ function selectUniqueYearDeck({
       recentIds,
       recentRanks,
       exposureStats,
+      playerExposureStats,
+      globalExposureStats,
       preferenceContext,
     }),
     levelNumber,
@@ -1407,6 +1432,8 @@ function selectUniqueYearDeck({
       recentIds,
       recentRanks,
       exposureStats,
+      playerExposureStats,
+      globalExposureStats,
       preferenceContext,
       targets: balanceTargets || makeBalanceTargets(candidates, deckSize),
     });
@@ -1426,6 +1453,8 @@ function selectUniqueYearDeck({
       recentIds,
       recentRanks,
       exposureStats,
+      playerExposureStats,
+      globalExposureStats,
       preferenceContext,
       targets: balanceTargets || makeBalanceTargets(candidates, deckSize),
     });
@@ -1446,6 +1475,8 @@ function selectUniqueYearDeck({
       recentIds,
       recentRanks,
       exposureStats,
+      playerExposureStats,
+      globalExposureStats,
       preferenceContext,
       targets: balanceTargets || makeBalanceTargets(candidates, deckSize),
     });
@@ -1685,8 +1716,14 @@ function buildCategoryPreferenceDiagnostics(candidates = [], selectedDeck = [], 
  *                                            Question ids the user has
  *                                            recently seen (cross-attempt).
  * @param {Map|Object|Array=} args.questionExposureStats
- *                                            Optional shown-count/last-shown
- *                                            stats for soft cooldown scoring.
+ *                                            Optional global/local
+ *                                            shown-count/last-shown stats
+ *                                            for secondary cooldown scoring.
+ * @param {Map|Object|Array=} args.playerQuestionExposureStats
+ *                                            Per-player PlayerQuestionExposure
+ *                                            stats. These dominate freshness:
+ *                                            unseen first, then lower shown
+ *                                            count, then older last_shown_at.
  * @param {Iterable<number|string|Object>=} args.userSelectedCategoryIds
  *                                            Active valid current-user
  *                                            Category preference IDs. When
@@ -1728,7 +1765,9 @@ export function buildSoloAttemptDeck(args = {}) {
   const allowedCats = normalizeAllowedCategoryIds(args.allowedMainCategoryIds);
   const recentIds = normalizeRecentIds(args.recentlySeenQuestionIds);
   const recentRanks = normalizeRecentIdRanks(args.recentlySeenQuestionIds);
-  const exposureStats = normalizeQuestionExposureStats(args.questionExposureStats);
+  const playerExposureStats = normalizeQuestionExposureStats(args.playerQuestionExposureStats);
+  const globalExposureStats = normalizeQuestionExposureStats(args.globalQuestionExposureStats ?? args.questionExposureStats);
+  const exposureStats = globalExposureStats;
 
   if (args.requireActiveCategoryWhitelist === true && (!allowedCats || allowedCats.size === 0)) {
     return {
@@ -1768,9 +1807,11 @@ export function buildSoloAttemptDeck(args = {}) {
   let deck = selectUniqueYearDeck({
     candidates,
     deckSize,
-    recentIds,
-    recentRanks,
-    exposureStats,
+      recentIds,
+      recentRanks,
+      exposureStats,
+      playerExposureStats,
+      globalExposureStats,
     preferenceContext,
     random,
     balanceTargets,
@@ -1786,6 +1827,8 @@ export function buildSoloAttemptDeck(args = {}) {
       recentIds: new Set(),
       recentRanks: new Map(),
       exposureStats,
+      playerExposureStats,
+      globalExposureStats,
       preferenceContext,
       random,
       balanceTargets,
@@ -1803,6 +1846,8 @@ export function buildSoloAttemptDeck(args = {}) {
       recentIds: new Set(),
       recentRanks: new Map(),
       exposureStats,
+      playerExposureStats,
+      globalExposureStats,
       preferenceContext,
       random,
       balanceTargets: {
@@ -1839,6 +1884,8 @@ export function buildSoloAttemptDeck(args = {}) {
     recentIds,
     recentRanks,
     exposureStats,
+    playerExposureStats,
+    globalExposureStats,
     preferenceContext,
   });
   if (!finalDeck) {
@@ -1864,7 +1911,7 @@ export function buildSoloAttemptDeck(args = {}) {
   const firstSevenCategoryDistribution = buildDistribution(firstSevenCards, getCategoryKey);
   const firstSevenSubcategoryDistribution = buildDistribution(firstSevenCards, getSubcategoryKey);
   const firstSevenThemeDistribution = buildDistribution(firstSevenCards, getThemeKey);
-  const exposureFairness = buildExposureDiagnostics(candidates, finalDeck, recentIds, exposureStats, recentRanks);
+  const exposureFairness = buildExposureDiagnostics(candidates, finalDeck, recentIds, playerExposureStats.size ? playerExposureStats : exposureStats, recentRanks);
   const diversityFairness = buildDiversityDiagnostics(candidates, finalDeck, balanceTargets);
   const categoryPreferenceFairness = buildCategoryPreferenceDiagnostics(candidates, finalDeck, preferenceContext);
   return {
@@ -1898,6 +1945,15 @@ export function buildSoloAttemptDeck(args = {}) {
       firstFiveSportsClusterCount: firstFiveCards.filter((q) => getSportsClusterKey(q) === 'sports').length,
       firstSevenSportsClusterCount: firstSevenCards.filter((q) => getSportsClusterKey(q) === 'sports').length,
       exposureFairness,
+      playerExposureAwareSelection: playerExposureStats.size > 0,
+      playerExposureStatsCount: playerExposureStats.size,
+      exposurePriority: [
+        'unseen_by_this_player',
+        'lower_player_shown_count',
+        'older_player_last_shown_at',
+        'global_metrics_secondary',
+        'stable_randomization',
+      ],
       diversityFairness,
       categoryPreferenceFairness,
       maxCategoryCount: getMaxDistributionCount(categoryDistribution),

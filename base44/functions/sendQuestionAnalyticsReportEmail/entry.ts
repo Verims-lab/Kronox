@@ -19,6 +19,7 @@ const MAX_USER_JOKER_INVENTORY = 1e4;
 const MAX_DIAMOND_TRANSACTIONS = 5e3;
 const MAX_DAILY_WHEEL_SPINS = 5e3;
 const MAX_GAME_RECORDS = 5e3;
+const MAX_PLAYER_DAILY_EXPOSURES = 2e4;
 const NEVER_SHOWN_SAMPLE_LIMIT = 15;
 const QUESTION_TABLE_LIMIT = 15;
 const EASY_QUESTION_TABLE_LIMIT = 10;
@@ -98,7 +99,7 @@ function eventTimestamp(event) {
   return String(event?.answered_at || event?.shown_at || event?.created_at || "");
 }
 function rowTimestamp(row) {
-  return String(row?.claimed_at || row?.created_at || row?.created_date || row?.updated_at || row?.updated_date || "");
+  return String(row?.last_shown_at || row?.first_shown_at || row?.claimed_at || row?.created_at || row?.created_date || row?.updated_at || row?.updated_date || "");
 }
 function eventType(event) {
   return String(event?.event_type || (event?.answered_at ? "answered" : "shown")).trim();
@@ -720,12 +721,104 @@ function buildCategoryFairnessSignals(categoryAnalytics, totalShownEvents) {
   }
   return signals.slice(0, CATEGORY_FAIRNESS_SIGNAL_LIMIT);
 }
+
+function buildAnonymousPerPlayerCoverage(playerDailyExposures = [], categoryMap = /* @__PURE__ */ new Map()) {
+  const byPlayer = /* @__PURE__ */ new Map();
+  for (const row of playerDailyExposures || []) {
+    const playerKey = String(row?.player_key || "").trim();
+    const questionId = questionKey(row?.question_id);
+    if (!playerKey || !questionId) continue;
+    const mode = String(row?.mode || "solo").trim().toLowerCase();
+    if (mode !== "solo" && mode !== "tutorial") continue;
+    const shownCount = Math.max(0, Math.floor(safeNumber(row?.shown_count)));
+    if (shownCount <= 0) continue;
+    const categoryId = getCategoryId({ category_id: row?.category_id }) || "unknown";
+    const categoryName = categoryLabel(categoryId, categoryMap);
+    const stats = byPlayer.get(playerKey) || {
+      playerKey,
+      totalShown: 0,
+      questions: /* @__PURE__ */ new Map(),
+      categories: /* @__PURE__ */ new Map(),
+    };
+    stats.totalShown += shownCount;
+    stats.questions.set(questionId, (stats.questions.get(questionId) || 0) + shownCount);
+    const category = stats.categories.get(categoryName) || {
+      shown: 0,
+      questions: /* @__PURE__ */ new Set(),
+      repeat: 0,
+    };
+    category.shown += shownCount;
+    category.questions.add(questionId);
+    category.repeat += Math.max(0, shownCount - 1);
+    stats.categories.set(categoryName, category);
+    byPlayer.set(playerKey, stats);
+  }
+
+  const rows = Array.from(byPlayer.values()).map((stats) => {
+    const distinctQuestions = stats.questions.size;
+    const repeatCount = Math.max(0, stats.totalShown - distinctQuestions);
+    const mostRepeatedQuestionCount = Math.max(0, ...Array.from(stats.questions.values()));
+    const categoryEntries = Array.from(stats.categories.entries())
+      .map(([name, category]) => ({
+        name,
+        shown: category.shown,
+        distinct: category.questions.size,
+        repeat: Math.max(0, category.shown - category.questions.size, category.repeat),
+      }))
+      .sort((a, b) => b.shown - a.shown || a.name.localeCompare(b.name, "tr"));
+    const topRepeatCategory = [...categoryEntries]
+      .sort((a, b) => b.repeat - a.repeat || b.shown - a.shown || a.name.localeCompare(b.name, "tr"))[0] || null;
+    return {
+      playerKey: stats.playerKey,
+      totalShown: stats.totalShown,
+      distinctQuestions,
+      repeatCount,
+      distinctRate: stats.totalShown ? distinctQuestions / stats.totalShown : 0,
+      repeatRate: stats.totalShown ? repeatCount / stats.totalShown : 0,
+      mostRepeatedQuestionCount,
+      categoryDistribution: categoryEntries.slice(0, 5).map((entry) => `${entry.name}:${entry.shown}`).join(", "),
+      categoryBreakdown: categoryEntries.slice(0, 4).map((entry) => `${entry.name}: ${entry.shown} shown / ${entry.distinct} distinct`).join("; "),
+      highestRepeatCategory: topRepeatCategory ? topRepeatCategory.name : "Yeterli veri yok",
+    };
+  });
+
+  const labelByPlayer = /* @__PURE__ */ new Map();
+  rows
+    .slice()
+    .sort((a, b) => b.totalShown - a.totalShown || b.repeatRate - a.repeatRate || a.playerKey.localeCompare(b.playerKey))
+    .forEach((row, index) => {
+      labelByPlayer.set(row.playerKey, `User${String(index + 1).padStart(4, "0")}`);
+    });
+  const withLabels = rows.map((row) => ({
+    ...row,
+    anonUser: labelByPlayer.get(row.playerKey) || "User0000",
+  }));
+  const mostShown = withLabels
+    .slice()
+    .sort((a, b) => b.totalShown - a.totalShown || b.distinctQuestions - a.distinctQuestions || a.anonUser.localeCompare(b.anonUser))
+    .slice(0, 10);
+  const activeEnough = withLabels.filter((row) => row.totalShown >= 30);
+  const repeatBase = activeEnough.length ? activeEnough : withLabels;
+  const repeatRisk = repeatBase
+    .slice()
+    .sort((a, b) => b.repeatRate - a.repeatRate || b.repeatCount - a.repeatCount || b.totalShown - a.totalShown || a.anonUser.localeCompare(b.anonUser))
+    .slice(0, 10);
+
+  return {
+    playerCount: withLabels.length,
+    rows: withLabels,
+    mostShown,
+    repeatRisk,
+    minimumActivityThreshold: activeEnough.length ? 30 : 0,
+  };
+}
 function buildReport({
   periodDays,
   events,
   questions,
   categories,
   categoryPreferences,
+  playerDailyExposures = [],
   jokerTransactions = [],
   userJokerInventory = [],
   diamondTransactions = [],
@@ -734,6 +827,7 @@ function buildReport({
   buildMarker
 }) {
   const categoryMap = buildCategoryMap(categories);
+  const anonymousCoverage = buildAnonymousPerPlayerCoverage(playerDailyExposures, categoryMap);
   const activeCategoryIds = buildActiveCategoryIdSet(categories);
   const questionById = /* @__PURE__ */ new Map();
   const activeQuestions = [];
@@ -972,7 +1066,44 @@ function buildReport({
     "Doğru %",
     "Ort. Süre",
     "Gösterim Payı"
-    ], categoryExposureRows, "Bu dönem için kategori gösterim verisi yok")
+    ], categoryExposureRows, "Bu dönem için kategori gösterim verisi yok"),
+    tableCaptionHtml("Kişi Bazlı Soru Çeşitliliği — Anonim"),
+    textBlockHtml("Aynı sorunun farklı kullanıcılara gösterilmesi tek başına sorun değildir. Kritik sinyal, aynı kullanıcının aynı soruları tekrar görme oranıdır. Per-user distinct rate düşükse, kişiye özel anti-repeat seçimi güçlendirilmelidir."),
+    tableCaptionHtml("En Çok Soru Gören 10 Anonim Kullanıcı"),
+    tableHtml([
+      "Anon User",
+      "Total Shown",
+      "Distinct Questions",
+      "Repeat Count",
+      "Distinct Rate",
+      "Category Distribution",
+    ], anonymousCoverage.mostShown.map((row) => [
+      cell(row.anonUser),
+      cell(row.totalShown),
+      cell(row.distinctQuestions),
+      cell(row.repeatCount),
+      cell(percent(row.distinctRate, 1)),
+      cell(row.categoryDistribution || "Yeterli veri yok"),
+    ]), "Bu dönem için kişi bazlı exposure verisi yok"),
+    tableCaptionHtml("Tekrar Riski En Yüksek 10 Anonim Kullanıcı"),
+    tableHtml([
+      "Anon User",
+      "Total Shown",
+      "Distinct Questions",
+      "Repeat Count",
+      "Repeat Rate",
+      "Most Repeated Question Count",
+      "Category With Highest Repeat",
+    ], anonymousCoverage.repeatRisk.map((row) => [
+      cell(row.anonUser),
+      cell(row.totalShown),
+      cell(row.distinctQuestions),
+      cell(row.repeatCount),
+      cell(percent(row.repeatRate, 1)),
+      cell(row.mostRepeatedQuestionCount),
+      cell(row.highestRepeatCategory),
+    ]), "Bu dönem için tekrar riski verisi yok"),
+    textBlockHtml("Öneri: Seçilen kategori içinde önce aynı oyuncuya hiç gösterilmemiş soruları, sonra en düşük per-player shown_count değerini, sonra en eski per-player last_shown_at değerini kullan. Global shown_count / last_shown_at yalnızca ikincil bağ bozucu olsun; aday yetersizse güvenli fallback kullanılmalıdır.")
   ].join("");
 
   const maxShown = Math.max(1, ...topShown.map((bucket) => Number(bucket.shown_count) || 0));
@@ -1380,7 +1511,13 @@ function buildReport({
     ] },
     { title: "Kategori Bazında Soru Havuzu", textLines: [`${categoryAnalyticsForReport.length}/${categoryAnalytics.length} kategori satırı.`, `Aktif soru havuzu: ${activeQuestions.length}`, `Top 10 cevap yılı/adet tablosu kategori bazında ${CATEGORY_TOP_ANSWER_YEAR_LIMIT} hücreye kadar gösterilir.`] },
     { title: "Kategori Tercihleri", textLines: [`Aggregate tercih seçimi: ${totalPreferenceSelections || "Yeterli veri yok"}`] },
-    { title: "Kategori Bazında Gösterim", textLines: [`Gösterim: ${shownEvents}`, `Kategori satırı: ${categoryAnalyticsForReport.length}`] },
+    { title: "Kategori Bazında Gösterim", textLines: [
+      `Gösterim: ${shownEvents}`,
+      `Kategori satırı: ${categoryAnalyticsForReport.length}`,
+      `Anonim kişi bazlı coverage kullanıcı sayısı: ${anonymousCoverage.playerCount}`,
+      "Aynı sorunun farklı kullanıcılara gösterilmesi tek başına sorun değildir; kritik sinyal aynı kullanıcının tekrar oranıdır.",
+      "Anti-repeat önerisi: unseen-by-player, düşük player shown_count, eski player last_shown_at, global metrikler ikincil."
+    ] },
     { title: "En Çok Gösterilen Sorular", textLines: topShown.length ? topShown.map(formatQuestionBucket) : ["Veri yok"] },
     { title: "Az ya da Hiç Gösterilmeyen Sorular", textLines: [`Hiç gösterilmeyen aktif soru: ${neverShown.length}`, `Hiç gösterilmeyen Solo-eligible soru: ${neverShownSoloEligible.length}`] },
     { title: "En Çok Yanlış Yapılan Sorular", textLines: mostWrong.length ? mostWrong.map(formatQuestionBucket) : ["Yeterli veri yok"] },
@@ -1491,6 +1628,8 @@ function buildReport({
       bodyRemovedSectionsPresent,
       aggregatePreferenceSelectionsAnalyzed: totalPreferenceSelections,
       categoryExposureRowsAnalyzed: categoryAnalyticsForReport.length,
+      anonymousPlayerCoverageUserCount: anonymousCoverage.playerCount,
+      anonymousPlayerCoverageSource: 'PlayerQuestionDailyExposure',
       reportSections: reportSectionNames,
       jokerLedgerRowsAnalyzed: (jokerTransactions || []).length,
       userJokerInventoryRowsAnalyzed: (userJokerInventory || []).length,
@@ -1651,12 +1790,14 @@ Deno.serve(async (req) => {
     const rawDiamondTransactions = await safeListServiceEntity(base44, "DiamondTransaction", "-created_at", MAX_DIAMOND_TRANSACTIONS);
     const rawDailyWheelSpins = await safeListServiceEntity(base44, "DailyWheelSpin", "-claimed_at", MAX_DAILY_WHEEL_SPINS);
     const rawGameRecords = await safeListServiceEntity(base44, "GameRecord", "-created_date", MAX_GAME_RECORDS);
+    const rawPlayerDailyExposures = await safeListServiceEntity(base44, "PlayerQuestionDailyExposure", "-last_shown_at", MAX_PLAYER_DAILY_EXPOSURES);
     const report = buildReport({
       periodDays,
       events,
       questions: rawQuestions,
       categories: rawCategories,
       categoryPreferences: rawCategoryPreferences,
+      playerDailyExposures: filterRowsSince(rawPlayerDailyExposures, since),
       jokerTransactions: filterRowsSince(rawJokerTransactions, since),
       userJokerInventory: rawUserJokerInventory,
       diamondTransactions: filterRowsSince(rawDiamondTransactions, since),

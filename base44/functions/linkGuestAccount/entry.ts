@@ -488,6 +488,125 @@ async function upsertLeaderboard(base44: any, email: string, guestId: string, di
   return { updated: true, guestPassivated: Boolean(rowId(guestRow)), guestOwnerKey, authOwnerKey };
 }
 
+function exposureMode(row: any) {
+  const mode = String(row?.mode || 'solo').trim().toLowerCase();
+  return ['solo', 'tutorial', 'online'].includes(mode) ? mode : 'solo';
+}
+
+function exposureQuestionId(row: any) {
+  return String(row?.question_id || '').trim();
+}
+
+function exposureDate(row: any) {
+  return String(row?.date_utc || row?.last_shown_at || row?.created_at || nowIso()).slice(0, 10);
+}
+
+function latestIso(...values: unknown[]) {
+  return String(values.map((value) => String(value || '').trim()).filter(Boolean).sort().pop() || nowIso());
+}
+
+async function mergePlayerQuestionExposureRows(base44: any, email: string, guestId: string) {
+  const guestOwnerKey = getGuestOwnerKey(guestId);
+  const authOwnerKey = getAuthOwnerKey(email);
+  if (!guestOwnerKey || !authOwnerKey) return { mergedExposureRows: 0, mergedDailyRows: 0, capped: false };
+
+  let mergedExposureRows = 0;
+  let mergedDailyRows = 0;
+  let capped = false;
+  const now = nowIso();
+
+  const exposureEntity = entityStore(base44, 'PlayerQuestionExposure');
+  if (exposureEntity?.filter && exposureEntity?.update && exposureEntity?.create) {
+    const rows = await findRows(exposureEntity, { player_key: guestOwnerKey, status: 'active' }, '-updated_at', 2000);
+    capped = capped || rows.length >= 2000;
+    for (const row of rows) {
+      const questionId = exposureQuestionId(row);
+      if (!questionId) continue;
+      const mode = exposureMode(row);
+      const authExposureKey = `player_question_exposure:${authOwnerKey}:${mode}:${questionId}`;
+      const existing = (await findRows(exposureEntity, { exposure_key: authExposureKey }, '-updated_at', 1))[0] || null;
+      const mergedCount = normalizeNonNegativeInteger(row?.shown_count) + normalizeNonNegativeInteger(existing?.shown_count);
+      const payload = {
+        exposure_key: authExposureKey,
+        player_key: authOwnerKey,
+        player_type: 'registered',
+        question_id: questionId,
+        category_id: row?.category_id ?? existing?.category_id ?? null,
+        mode,
+        shown_count: Math.max(1, mergedCount),
+        first_shown_at: String(existing?.first_shown_at || row?.first_shown_at || row?.created_at || now),
+        last_shown_at: latestIso(existing?.last_shown_at, row?.last_shown_at, now),
+        last_attempt_id: row?.last_attempt_id || existing?.last_attempt_id || '',
+        last_role: row?.last_role || existing?.last_role || 'unknown',
+        last_source: row?.last_source || existing?.last_source || '',
+        status: 'active',
+        created_at: existing?.created_at || row?.created_at || now,
+        updated_at: now,
+        metadata: {
+          ...(existing?.metadata && typeof existing.metadata === 'object' ? existing.metadata : {}),
+          guestExposureMerged: true,
+          guestOwnerKeyMerged: guestOwnerKey,
+          rawGuestTokenServerStored: false,
+        },
+      };
+      if (rowId(existing)) await exposureEntity.update(rowId(existing), payload);
+      else await exposureEntity.create(payload);
+      await exposureEntity.update(rowId(row), {
+        status: 'merged',
+        merged_into_player_key: authOwnerKey,
+        updated_at: now,
+      }).catch(() => null);
+      mergedExposureRows += 1;
+    }
+  }
+
+  const dailyEntity = entityStore(base44, 'PlayerQuestionDailyExposure');
+  if (dailyEntity?.filter && dailyEntity?.update && dailyEntity?.create) {
+    const rows = await findRows(dailyEntity, { player_key: guestOwnerKey, status: 'active' }, '-updated_at', 3000);
+    capped = capped || rows.length >= 3000;
+    for (const row of rows) {
+      const questionId = exposureQuestionId(row);
+      if (!questionId) continue;
+      const mode = exposureMode(row);
+      const dateUtc = exposureDate(row);
+      const dailyExposureKey = `player_question_daily_exposure:${dateUtc}:${authOwnerKey}:${mode}:${questionId}`;
+      const existing = (await findRows(dailyEntity, { daily_exposure_key: dailyExposureKey }, '-updated_at', 1))[0] || null;
+      const mergedCount = normalizeNonNegativeInteger(row?.shown_count) + normalizeNonNegativeInteger(existing?.shown_count);
+      const payload = {
+        daily_exposure_key: dailyExposureKey,
+        date_utc: dateUtc,
+        player_key: authOwnerKey,
+        player_type: 'registered',
+        question_id: questionId,
+        category_id: row?.category_id ?? existing?.category_id ?? null,
+        mode,
+        shown_count: Math.max(1, mergedCount),
+        first_shown_at: String(existing?.first_shown_at || row?.first_shown_at || row?.created_at || now),
+        last_shown_at: latestIso(existing?.last_shown_at, row?.last_shown_at, now),
+        last_attempt_id: row?.last_attempt_id || existing?.last_attempt_id || '',
+        last_role: row?.last_role || existing?.last_role || 'unknown',
+        status: 'active',
+        created_at: existing?.created_at || row?.created_at || now,
+        updated_at: now,
+        metadata: {
+          ...(existing?.metadata && typeof existing.metadata === 'object' ? existing.metadata : {}),
+          guestExposureMerged: true,
+          rawGuestTokenServerStored: false,
+        },
+      };
+      if (rowId(existing)) await dailyEntity.update(rowId(existing), payload);
+      else await dailyEntity.create(payload);
+      await dailyEntity.update(rowId(row), {
+        status: 'merged',
+        updated_at: now,
+      }).catch(() => null);
+      mergedDailyRows += 1;
+    }
+  }
+
+  return { mergedExposureRows, mergedDailyRows, capped };
+}
+
 Deno.serve(async (req: Request) => {
   try {
     if (req.method !== 'POST') {
@@ -618,6 +737,11 @@ Deno.serve(async (req: Request) => {
     };
     const updatedUser = await updateCurrentUser(base44, user, userPatch);
     const leaderboard = await upsertLeaderboard(base44, email, guestId, displayName, mergedSoloProgress, mergedOnlineProgress, bestTotalScore);
+    const exposureMerge = await mergePlayerQuestionExposureRows(base44, email, guestId).catch(() => ({
+      mergedExposureRows: 0,
+      mergedDailyRows: 0,
+      capped: true,
+    }));
 
     const mergeSummary = {
       scoreTotal: bestTotalScore,
@@ -627,6 +751,9 @@ Deno.serve(async (req: Request) => {
       jokerMergeCount: jokerMerge.mergedCount,
       categoryPreferenceCount: categoryMerge.selectedCategoryCount,
       leaderboardGuestRowPassivated: leaderboard.guestPassivated,
+      playerQuestionExposureMerged: exposureMerge.mergedExposureRows,
+      playerQuestionDailyExposureMerged: exposureMerge.mergedDailyRows,
+      playerQuestionExposureMergeCapped: exposureMerge.capped,
       usernameDisplayApplied: true,
       additiveMergeApplied: additiveAllowed,
     };
