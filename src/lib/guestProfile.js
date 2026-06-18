@@ -210,8 +210,48 @@ export async function ensureGuestProfile({ forceCreate = false } = {}) {
 }
 
 export function isGuestOnboardingComplete(profile) {
-  const status = String(profile?.onboarding_status || '').trim();
-  return LEGACY_COMPLETE_STATES.has(status);
+  const normalized = normalizePublicProfile(profile);
+  if (!normalized) return false;
+  const status = String(normalized.onboarding_status || '').trim();
+  if (LEGACY_COMPLETE_STATES.has(status)) return true;
+  const profileStatus = String(normalized.profile_setup_status || '').trim();
+  const categoryStatus = String(normalized.category_setup_status || '').trim();
+  const profileCompleted = profileStatus === 'completed' || Boolean(normalized.profile_setup_completed_at);
+  const categoryCompleted = categoryStatus === 'completed' ||
+    Boolean(normalized.category_setup_completed_at || normalized.onboarding_completed_at);
+  return Boolean(profileCompleted && categoryCompleted);
+}
+
+export function getGuestOnboardingCompletionRepairPatch(profile) {
+  const normalized = normalizePublicProfile(profile);
+  if (!normalized) return null;
+  const status = String(normalized.onboarding_status || '').trim();
+  const profileStatus = String(normalized.profile_setup_status || '').trim();
+  const categoryStatus = String(normalized.category_setup_status || '').trim();
+  const profileCompleted = profileStatus === 'completed' || Boolean(normalized.profile_setup_completed_at);
+  const categoryCompleted = categoryStatus === 'completed' ||
+    Boolean(normalized.category_setup_completed_at || normalized.onboarding_completed_at);
+  const statusComplete = LEGACY_COMPLETE_STATES.has(status);
+
+  if (profileCompleted && categoryCompleted && status !== GUEST_ONBOARDING_STATES.ONBOARDING_COMPLETE) {
+    return {
+      tutorial_status: 'completed',
+      profile_setup_status: 'completed',
+      category_setup_status: 'completed',
+      onboarding_status: GUEST_ONBOARDING_STATES.ONBOARDING_COMPLETE,
+    };
+  }
+
+  if (statusComplete && profileCompleted && categoryStatus !== 'completed') {
+    return {
+      tutorial_status: 'completed',
+      profile_setup_status: 'completed',
+      category_setup_status: 'completed',
+      onboarding_status: GUEST_ONBOARDING_STATES.ONBOARDING_COMPLETE,
+    };
+  }
+
+  return null;
 }
 
 export function getGuestOnboardingStep(profile) {
@@ -260,6 +300,12 @@ export async function updateGuestProfileOnboarding(patch) {
     patch: patch || {},
   });
   return storeGuestSession(updated.profile, updated.guest_token);
+}
+
+export async function repairGuestOnboardingCompletionIfNeeded(profile) {
+  const patch = getGuestOnboardingCompletionRepairPatch(profile);
+  if (!patch) return profile || null;
+  return updateGuestProfileOnboarding(patch);
 }
 
 export async function syncGuestProfileProgress({ soloProgress = null, onlineProgress = null } = {}) {

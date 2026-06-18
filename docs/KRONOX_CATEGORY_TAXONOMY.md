@@ -156,6 +156,10 @@ Category preferences are optional personalization, not a gameplay gate:
 * guided guest onboarding recommends at least 3 category selections after the
   first Solo level, but fewer selections or skip must not block Ana Sayfa; an
   empty guest category list means all active categories remain eligible
+* guided guest onboarding category completion uses the CTA label `Ana Sayfa`;
+  after token-proven save it marks category setup and onboarding complete, then
+  routes to Ana Sayfa. Restart after `onboarding_complete` must also open Ana
+  Sayfa.
 * empty preferences must not produce an empty question pool or
   offline/no-cache error
 * `Game.jsx` filters saved preferences through

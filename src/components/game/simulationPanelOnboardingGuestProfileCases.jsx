@@ -661,6 +661,8 @@ export const EXTRA_TESTS = [
         'categoryLoadError',
         'selected_category_ids',
         'guestTokenProofRequiredForUpdates: true',
+        'Kategoriler kaydedilemedi. Lütfen tekrar dene.',
+        "navigate('/', { replace: true })",
       ]);
       const forbidden = presentTokens(`${onboardingPageSource}\n${userCategoryPreferencesSource}`, [
         'SAFE_GUEST_CATEGORY_METADATA',
@@ -682,6 +684,75 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Guest category setup uses token-proven GuestProfile save plus current Category metadata, with no login, legacy fallback, or raw question-bank read.', {
+        verification: 'STATIC_CONTRACT',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('guest_category_completion_cta_copy_and_home_route',
+    'Guest category completion CTA says Ana Sayfa and routes home after save',
+    () => {
+      const categoryStepStart = onboardingPageSource.indexOf('function CategorySetupStep');
+      const secureStepStart = onboardingPageSource.indexOf('function SecureProgressStep');
+      const categoryStepSource = categoryStepStart >= 0 && secureStepStart > categoryStepStart
+        ? onboardingPageSource.slice(categoryStepStart, secureStepStart)
+        : onboardingPageSource;
+      const missing = missingTokens(categoryStepSource, [
+        'Ana Sayfa',
+        'submitError',
+        'Kategoriler kaydedilemedi. Lütfen tekrar dene.',
+      ]);
+      const completionMissing = missingTokens(onboardingPageSource, [
+        'CATEGORY_SAVE_TIMEOUT_MS',
+        'category_save_timeout',
+        'selected_category_ids: selectedIds',
+        "category_setup_status: 'completed'",
+        'onboarding_status: GUEST_ONBOARDING_STATES.ONBOARDING_COMPLETE',
+        "navigate('/', { replace: true })",
+        'setCategorySaving(false)',
+      ]);
+      const forbidden = presentTokens(categoryStepSource, [
+        'Ana Sayfa’ya Geç',
+        'Ana Sayfaya Geç',
+      ]);
+      if (missing.length || completionMissing.length || forbidden.length) {
+        return fail('Guest category completion CTA or home navigation contract drifted.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'src/pages/OnboardingPage.jsx',
+          expected: 'CTA label exactly Ana Sayfa; token-proven category save sets completion flags and replaces route to / with retryable error on failure.',
+          actual: { missing, completionMissing, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Guest category completion CTA is Ana Sayfa and successful save routes directly to Home.', {
+        verification: 'STATIC_CONTRACT',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('guest_onboarding_completion_restart_repairs_to_home',
+    'Completed guest onboarding cannot restart into a blank blue onboarding shell',
+    () => {
+      const missing = missingTokens(`${guestProfileClientSource}\n${authContextSource}\n${onboardingPageSource}\n${appSource}`, [
+        'getGuestOnboardingCompletionRepairPatch',
+        'repairGuestOnboardingCompletionIfNeeded',
+        'profileCompleted && categoryCompleted',
+        'category_setup_completed_at',
+        'onboarding_completed_at',
+        'currentGuestProfile = await repairGuestOnboardingCompletionIfNeeded(currentGuestProfile)',
+        'if (step === GUEST_ONBOARDING_STATES.ONBOARDING_COMPLETE) return <Navigate to="/" replace />',
+        '!isGuestOnboardingComplete(guestProfile)',
+      ]);
+      if (missing.length) {
+        return fail('Completed or category-completed guest onboarding can still route back to /onboarding with no rendered step.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['src/lib/guestProfile.js', 'src/lib/AuthContext.jsx', 'src/pages/OnboardingPage.jsx', 'src/App.jsx'],
+          expected: 'category complete/onboarding_complete guests are treated as complete, repaired when safe, and routed to Ana Sayfa on restart.',
+          actual: { missing },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Completed guest onboarding is monotonic, repaired when safe, and routed to Ana Sayfa on restart.', {
         verification: 'STATIC_CONTRACT',
         actionType: ACTION_TYPES.CODE_FIX,
       });

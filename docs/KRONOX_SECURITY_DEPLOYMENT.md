@@ -593,6 +593,11 @@ After deployment, verify:
 * guest onboarding category save uses the token-proven `GuestProfile`
   `guest_id + guest_token` path and stores `selected_category_ids`; `guest_id`
   alone is not sufficient
+* after a successful guest category save, the server/client state must mark
+  `category_setup_status = completed` and
+  `onboarding_status = onboarding_complete`, and the client routes to `Ana
+  Sayfa`. A completed or safely repairable completed category/profile state on
+  restart must not route back to an empty onboarding shell.
 * Solo question selection reads current-user active valid Category preferences
   before attempt start and targets 70% selected categories / 30% full eligible
   pool as soft weighting with fallback
