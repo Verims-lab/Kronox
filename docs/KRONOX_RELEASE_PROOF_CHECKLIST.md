@@ -21,6 +21,22 @@ Health PASS does not mean release-ready.
 These checks come from the performance/security/platform audit. They are release
 gates, not product features.
 
+Canonical workflow docs:
+
+* Review `docs/KRONOX_PRODUCT_WORKFLOW.md` before approving any release that
+  changes onboarding, identity, Profile, category selection, Solo, Online,
+  economy, leaderboard, analytics, Health, or release proof behavior.
+* Review `docs/KRONOX_TECHNICAL_FLOW.md` before approving any release that
+  changes route flow, Base44 entities/functions, guest/account-linking state,
+  question runtime, category metadata, exposure analytics, economy ledgers,
+  admin/security boundaries, Health alignment, or deployment validation.
+* These docs are current contract maps. Stale contracts such as Home login CTAs,
+  standalone tutorial onboarding, hardcoded category fallbacks, visible `HATA`
+  scoring, public `display_name` identity, raw `Question.list` gameplay
+  fallback, Daily Quest Puan rewards, Daily Quest leaderboard impact, Online
+  Solo-preference selection, and old fixed 10-card Solo decks must be removed or
+  explicitly marked legacy before release.
+
 Checklist:
 
 * Health Center, Admin Ekranı, reports, and large maintenance lists avoid

@@ -1,5 +1,18 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex413 — Product and technical flow documentation refresh:
+//   • Adds canonical product workflow and technical flow docs for onboarding,
+//     identity, categories, Solo, Online, economy, analytics, Health, and
+//     deployment proof.
+//   • Links both docs from the release proof checklist and Health alignment
+//     mirror without changing gameplay/runtime behavior.
+
+// Codex412 — Public asset README contract alignment:
+//   • Refreshes UI/category/question asset README contracts for mobile UI,
+//     category metadata source-of-truth, private question media boundaries,
+//     and public-asset security rules.
+//   • Strengthens Health alignment coverage for public asset README freshness.
+
 // Codex411 — Health alignment current-contract freshness:
 //   • Fixes the reset-scope doc/mirror token mismatch that blocked the
 //     Health Center Full Alignment Suite.
@@ -2332,7 +2345,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex411';
+const BUILD_MARKER = 'Codex413';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -1,57 +1,39 @@
-# Kronox Category Image Assets
+# Kronox Category Assets
 
-Static category images for Kronox category cards live here.
+Optional static category images may live here. This folder is not the active category source of truth and must not be used as a runtime fallback list.
 
-These assets are optional. If a category image is missing, the app should fall back to the current UI/icon treatment without broken image paths.
+## Current Contract
 
-## Legacy Decorative Assets
+- Current category source of truth is the DB/current canonical taxonomy.
+- Runtime category metadata must come from current active `Category` rows or
+  `getCategoryMetadata`.
+- `getCategoryMetadata` returns metadata only: category_id, name, description,
+  and status.
+- Guest users can load categories without login.
+- Category preferences are Solo-only soft weighting when enough active valid
+  preferences exist.
+- Online is separate, does not use Solo preferences, and its category list is
+  sorted by category_id ASC.
+- No questions, answers, years, full question bank, admin-only fields, user data,
+  or analytics data belong in category assets.
 
-These filenames are historical decorative assets only. They are not the active
-category source of truth and must not be used as a runtime fallback list. The
-app must read current active category metadata from the `Category` table or
-`getCategoryMetadata`.
+## Stale Fallback Guard
 
-| File | Category |
-| --- | --- |
-| `chronicle.webp` | Chronicle |
-| `flashback.webp` | Flashback |
-| `kult.webp` | Kült |
-| `viral.webp` | Viral |
-| `arena.webp` | Arena |
-| `level-up.webp` | Level Up |
+- Do not reintroduce stale hardcoded category fallback arrays.
+- Forbidden stale fallback examples: Chronicle, Flashback, Viral, Arena,
+  Level Up.
+- Those names may appear only as explicit historical/forbidden examples or when
+  the current source of truth truly contains matching active rows.
 
-## Specs
+## Asset Rules
 
-- Recommended size: 400×400px or larger
-- Recommended ratio: 1:1 square
-- Preferred format: WebP
-- PNG/JPG may be used only if WebP is unavailable
-- Images should work with `object-fit: cover`
-- Keep file sizes small for mobile/PWA performance
+- Prefer WebP, square images, lowercase hyphenated filenames, and small
+  mobile-friendly files.
+- Missing images must fall back to the current UI/icon treatment without broken
+  image paths.
 
-## Visual Direction
+## Security
 
-Category images should follow the current Kronox visual identity:
-
-- premium fantasy mobile game
-- blue/gold heroic UI
-- magical portal energy
-- tactile collectible-card feeling
-- readable, iconic category mood
-
-Avoid:
-
-- old neon cosmic dominance
-- generic Unsplash/photo placeholders
-- SaaS/dashboard visuals
-- broken remote image URLs
-
-## Important
-
-Do not add category images that introduce new category names or imply a
-hardcoded runtime category list.
-
-Canonical category definitions live in:
-
-```text
-docs/KRONOX_CATEGORY_TAXONOMY.md
+- No secrets, tokens, auth headers, private keys, admin emails, internal IDs,
+  `VAPID_PRIVATE_KEY`, GuestProfile tokens/hashes, service-role details, or
+  private category-management notes may live in public category assets.
