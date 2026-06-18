@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex414 — Economy idempotency race hardening:
+//   • Adds DiamondTransaction pre-check/post-confirm guards across active
+//     Diamond writers and reserve/canonical Daily Wheel same-day re-checks.
+//   • Updates Health/docs to classify remaining parallel race proof as
+//     Medium/P1 until Base44 unique constraints or live proof are attached.
+
 // Codex413 — Product and technical flow documentation refresh:
 //   • Adds canonical product workflow and technical flow docs for onboarding,
 //     identity, categories, Solo, Online, economy, analytics, Health, and
@@ -2345,7 +2351,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex413';
+const BUILD_MARKER = 'Codex414';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

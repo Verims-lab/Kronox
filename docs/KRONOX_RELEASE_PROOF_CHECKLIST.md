@@ -387,6 +387,12 @@ Checklist:
 * Ledger row is created when available.
 * If ledger recovery exists, partial states self-heal.
 * Two-device duplicate prevention is manually probed unless backend unique transaction support exists.
+* No repo DB/entity unique proof exists for `DiamondTransaction.idempotency_key`
+  unless Base44/platform configuration is attached. Current code-level
+  idempotency re-checks before creating the ledger row and confirms by
+  `idempotency_key` after create; this is function-level guard only.
+* DiamondTransaction risk classification is Low only with DB/entity unique plus
+  code guard; Medium/P1 hardening with code guard only; High if neither exists.
 * `Günlük Ödüller` panel appears on Home above `SOLO MEYDAN OKUMA` and includes
   Daily Wheel plus one compact `Günlük Görev`.
 * Daily Wheel claim requires authenticated user.
@@ -404,8 +410,26 @@ Checklist:
   `100 low weight 7`, `150 rare weight 4`, `250 very_rare weight 1`.
 * Daily Wheel UI animates to the backend-selected reward.
 * Daily Wheel duplicate tap/refresh returns the same claimed result or claimed status without a duplicate grant.
+* Daily Wheel same-day duplicate prevention uses `DailyWheelSpin` key/date
+  lookup, reserve-first spin rows, canonical same-user/same-day re-read, User
+  guard re-check, and `DiamondTransaction` re-check before balance mutation.
+  This is not an atomic upsert without DB/entity uniqueness.
+* No repo DB/entity unique proof exists for `DailyWheelSpin.idempotency_key` or
+  `DailyWheelSpin.user_email + spin_date` unless Base44/platform configuration
+  is attached.
 * Daily Wheel 7-day streak bonus grants `+150` Diamonds on every 7th consecutive daily spin.
 * Missing a UTC day resets the Daily Wheel streak gracefully to 1 on next spin.
+* Manual economy idempotency proof:
+  1. Call the same Diamond reward/spend flow twice with the same
+     `DiamondTransaction.idempotency_key` and confirm at most one visible
+     grant/spend is applied.
+  2. Claim Daily Wheel twice on the same UTC day and confirm the second result
+     is already-claimed with no duplicate Diamond increase.
+  3. Repeat the Diamond idempotency key and Daily Wheel same-day claim from two
+     tabs/devices in parallel where possible.
+  4. Confirm one canonical `DailyWheelSpin` for the day and one canonical
+     `DiamondTransaction` for the idempotency key, or document duplicate rows
+     as a platform uniqueness gap with no duplicated visible balance grant.
 
 ## Joker Inventory
 
@@ -506,6 +530,9 @@ Checklist:
 * Admin hard-zero / maintenance reset clears Daily Wheel guard fields without granting duplicate Diamonds, changing Kronox Puan, or affecting leaderboard sorting or rank.
 * Home diamond count updates immediately after a successful wheel claim.
 * Multi-device Daily Wheel duplicate prevention remains a live backend/platform probe unless unique idempotency constraints are configured.
+* Remaining parallel race risk is Medium/P1 while guards are function-level
+  only; attach Base44 unique constraint proof or live parallel-run evidence
+  before marking release-ready.
 
 ## Daily Quest Runtime v1
 
@@ -1108,6 +1135,7 @@ Checklist:
   available:
   * `DiamondTransaction.idempotency_key`
   * `DailyWheelSpin.idempotency_key`
+  * `DailyWheelSpin.user_email + spin_date`
   * `OnlineMatchResult.idempotency_key`
   * `OnlineMatchResult.lobby_id + player_email`
   * `PushSubscription.user_email + endpoint`

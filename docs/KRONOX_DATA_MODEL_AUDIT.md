@@ -480,9 +480,11 @@ Risks:
   explicit so the two concepts do not drift.
 - P1: notification preference is live and should remain documented in
   `User.jsonc`.
-- P2: Diamond multi-device duplicate prevention should be runtime-probed
-  because Base44 uniqueness on `DiamondTransaction.idempotency_key` is not
-  assumed.
+- P2/P1 hardening: Diamond multi-device duplicate prevention should be
+  runtime-probed because Base44 uniqueness on
+  `DiamondTransaction.idempotency_key` is not assumed. Current
+  DiamondTransaction helpers provide function-level pre-check/post-confirm
+  guards, not DB atomic upserts.
 
 Recommendation:
 - Document Profile stat semantics in schema docs and Health cases.

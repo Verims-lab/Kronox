@@ -48,6 +48,10 @@ STREAK_BONUS_AMOUNT = 150
 streakAfter % 7 === 0
 createDailyWheelSpin
 DailyWheelSpin.create
+postCreateCanonicalSpin
+postReserveSpin
+postReserveUser
+postReserveTransaction
 recoveredExistingDailyWheelSpin
 spinRowFromDiamondTransaction
 DiamondTransaction.create
@@ -66,4 +70,7 @@ daily_quest_next_available_at
 daily_wheel_request_failed
 Çark ödülü alınamadı.
 Base44 uniqueness is platform/manual proof
+Base44 schema-level uniqueness is not assumed
+function-level guard only = Medium / P1 hardening
+parallel duplicate calls require manual proof
 `;

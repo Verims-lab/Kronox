@@ -414,7 +414,13 @@ contract.
 
 Daily Wheel functions must require authenticated user context. `claimDailyWheelReward`
 must select rewards server-side, use the authenticated user's email for the
-daily idempotency key, grant Diamonds only, and never grant Kronox Puan.
+daily idempotency key, grant Diamonds only, and never grant Kronox Puan. Before
+mutating `User.diamonds`, the claim path must check existing same-day
+`DailyWheelSpin` rows by `idempotency_key` and `user_email + spin_date`,
+reserve a spin row, re-read the canonical same-user/same-UTC-day spin, re-check
+the User guard, and re-check `DiamondTransaction.idempotency_key`. This is a
+function-level guard, not a DB atomic upsert; parallel two-device proof remains
+manual unless Base44 unique constraints are configured.
 
 ---
 
@@ -702,6 +708,10 @@ Joker inventory is user-owned data:
 * Mağaza purchase idempotency keys protect double-tap and retry flows; real
   two-device/backend race proof remains manual unless Base44 uniqueness is
   proven
+* DiamondTransaction writers must re-check `user_email + idempotency_key` before
+  create and confirm by `idempotency_key` after create. Without a DB/entity
+  unique constraint this remains function-level guard only / Medium P1
+  hardening, not Low risk.
 * Home `Günlük Ödüller` includes Daily Wheel and Daily Quest Runtime v1
   `Günlük Görev`; Daily Quest claims grant diamonds only through
   server-backed, user-bound `claimDailyQuestReward`

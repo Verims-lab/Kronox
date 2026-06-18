@@ -72,6 +72,17 @@ Daily Wheel reward table is \`30 high weight 24\`, \`40 high weight 22\`,
 \`50 high weight 20\`, \`60 medium weight 12\`, \`75 medium weight 10\`,
 \`100 low weight 7\`, \`150 rare weight 4\`, \`250 very_rare weight 1\`.
 Daily Wheel UI animates to the backend-selected reward.
+DiamondTransaction.idempotency_key has function-level pre-check and
+post-create confirmation; no repo DB/entity unique proof exists unless
+Base44/platform configuration is attached.
+Daily Wheel same-day duplicate prevention uses DailyWheelSpin key/date lookup,
+reserve-first spin rows, canonical same-user/same-day re-read, User guard
+re-check, and DiamondTransaction re-check before balance mutation. No repo
+DB/entity unique proof exists for DailyWheelSpin.idempotency_key or
+DailyWheelSpin.user_email + spin_date unless Base44/platform configuration is
+attached.
+DB/entity unique plus code guard is Low risk; code guard only is Medium/P1
+hardening; neither is High. Remaining parallel race risk stays manual proof.
 Daily Wheel result shows \`+X Elmas kazandın\`; when the 7-day streak bonus
 applies it also shows \`7 günlük seri bonusu: +150 elmas\` and
 \`Toplam: +Y elmas\`.

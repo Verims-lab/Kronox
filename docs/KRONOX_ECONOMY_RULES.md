@@ -197,8 +197,12 @@ Concurrency note:
 Base44 schema-level uniqueness is not assumed for `DailyWheelSpin.idempotency_key`
 or `DiamondTransaction.idempotency_key`. The current backend uses
 query-before-write, User guard fields, reserve-first `DailyWheelSpin` rows, and
-recovery from existing spin rows. True two-device duplicate-proofing still
-requires a live runtime/platform unique-key probe.
+recovery from existing spin rows. After reserving a spin row, the claim path
+re-reads the canonical same-user/same-UTC-day spin, re-checks the User guard,
+and re-checks the `DiamondTransaction` idempotency key before mutating
+`User.diamonds`. This is function-level guard only, not an atomic upsert.
+Risk is Medium/P1 hardening until DB/entity unique constraints or a live
+parallel backend proof are attached.
 
 ---
 
@@ -326,7 +330,9 @@ For each reward:
 4. check `DiamondTransaction` by `user_email + idempotency_key`
 5. refresh current user profile before writing
 6. update `User.diamonds` and guard field through `base44.auth.updateMe`
-7. create `DiamondTransaction` ledger row
+7. create `DiamondTransaction` ledger row through a helper that re-checks the
+   idempotency key before create and confirms the row by idempotency key after
+   create
 8. recover ledger if guard exists but ledger is missing
 9. recover guard if ledger exists but guard is missing
 10. do not grant again during recovery
@@ -364,15 +370,31 @@ Current protection is best-effort using:
 * persisted User guard fields
 * transaction query-before-write
 * user profile refresh before update
+* DiamondTransaction create helpers that pre-check and post-confirm by
+  `idempotency_key`
+* Daily Wheel reserve-first `DailyWheelSpin` rows plus canonical same-day
+  re-read before `User.diamonds` is updated
+* Daily Wheel post-reserve User guard and DiamondTransaction re-checks
 * stable idempotency keys
 * recovery paths
 
-True multi-device duplicate-proofing should still be verified with a runtime probe.
+There is no repo-proven atomic upsert or DB/entity unique constraint for
+`DiamondTransaction.idempotency_key`, `DailyWheelSpin.idempotency_key`, or
+`DailyWheelSpin.user_email + spin_date`. Risk classification:
+
+* DB/entity unique plus function-level guard = Low
+* function-level guard only = Medium/P1 hardening
+* neither DB/entity unique nor function-level guard = High
+
+True multi-device duplicate-proofing should still be verified with a runtime
+parallel probe.
 
 If Base44 later supports unique constraints, add a unique constraint on:
 
 ```text
 DiamondTransaction.idempotency_key
+DailyWheelSpin.idempotency_key
+DailyWheelSpin.user_email + spin_date
 ```
 
 ---

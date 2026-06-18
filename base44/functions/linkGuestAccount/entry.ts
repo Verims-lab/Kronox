@@ -359,9 +359,18 @@ async function findDiamondTransaction(base44: any, email: string, idempotencyKey
 }
 
 async function createDiamondTransaction(base44: any, payload: Record<string, unknown>) {
-  const existing = await findDiamondTransaction(base44, String(payload.user_email || ''), String(payload.idempotency_key || ''));
+  const email = normalizeEmail(payload.user_email);
+  const idempotencyKey = String(payload.idempotency_key || '').trim();
+  if (!email || !idempotencyKey) return null;
+  const existing = await findDiamondTransaction(base44, email, idempotencyKey);
   if (existing) return existing;
-  return entityStore(base44, 'DiamondTransaction')?.create?.(payload);
+  const created = await entityStore(base44, 'DiamondTransaction')?.create?.({
+    ...payload,
+    user_email: email,
+    idempotency_key: idempotencyKey,
+  });
+  const confirmed = await findDiamondTransaction(base44, email, idempotencyKey);
+  return confirmed || created;
 }
 
 async function findInventory(base44: any, email: string, jokerType: string) {

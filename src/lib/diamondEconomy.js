@@ -98,7 +98,18 @@ async function findDiamondTransaction(userEmail, idempotencyKey) {
 }
 
 async function createDiamondTransaction(row) {
-  return base44.entities.DiamondTransaction.create(row);
+  const email = normalizeEconomyEmail(row?.user_email);
+  const idempotencyKey = String(row?.idempotency_key || '').trim();
+  if (!email || !idempotencyKey) return null;
+  const existing = await findDiamondTransaction(email, idempotencyKey);
+  if (existing) return existing;
+  const created = await base44.entities.DiamondTransaction.create({
+    ...row,
+    user_email: email,
+    idempotency_key: idempotencyKey,
+  });
+  const confirmed = await findDiamondTransaction(email, idempotencyKey);
+  return confirmed || created;
 }
 
 function buildRecoveryTransactionPayload({ user, amount, source, idempotencyKey, metadata, nowIso, dateKey }) {
