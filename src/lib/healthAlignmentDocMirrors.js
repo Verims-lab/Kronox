@@ -32,6 +32,42 @@ economy, friends/invites, leaderboard projection, and a Health Center that
 keeps product contracts honest.
 `;
 
+export const PRODUCT_WORKFLOW_DOC = `# Kronox Product Workflow
+
+Status: Active product workflow contract.
+
+- First-time guests use app-owned GuestProfile, not Firebase anonymous auth and not Base44 anonymous auth.
+- Guest onboarding runs through the guided first Solo level, then profile setup, then category setup, then Ana Sayfa.
+- Home / Ana Sayfa must not render Google, Apple, Email, Hesabını bağla, or progress-protection account-link CTAs; account linking belongs under Profile.
+- Public identity is username. display_name / Görünen Ad is a legacy/projection mirror, not a separate public editable identity.
+- Category selection uses current active Category metadata and getCategoryMetadata; stale hardcoded category fallback arrays and old seed category names are forbidden as runtime fallbacks.
+- Authenticated category preference save minimum is 3 active valid categories; guest category selection is advisory and empty guest selections mean all active Solo categories remain eligible.
+- Current Solo shows HAMLE / remaining moves and Puan / Kronox Puan. HATA is legacy/internal and not current visible Solo result/stat copy.
+- Normal Solo uses 2 anchors, an 18-question attempt deck, 10 evaluated moves, a 180-second timer, and a 7-card target including anchors. Special Solo uses a 19-question attempt deck and a 10-card target.
+- Online uses Lobby.selected_category_ids and a startLobbyGame shared deck selected 100% from active lobby-selected categories with difficulty 1/2 only; Online does not use Solo preferences.
+- Daily Quest and Daily Wheel grant Diamonds only, no Kronox Puan, and no leaderboard impact.
+- Question Analytics is an admin/private nine-section email-body report sourced from QuestionAttemptEvent. PlayerQuestionExposure is optional anti-repeat memory reset scope.
+- Health PASS is not release-ready proof; manual NOT_AUTOMATABLE gates remain required.
+`;
+
+export const TECHNICAL_FLOW_DOC = `# Kronox Technical Flow
+
+Status: Active technical flow contract.
+
+- App routes are owned by src/App.jsx; BottomNav visible tabs are Ana Sayfa, Liderlik, and Profil.
+- createGuestProfile is public by design but narrow: it creates/verifies GuestProfile and stores guest_token_hash only. Guest mutations require guest_id + raw guest token.
+- linkGuestAccount is Profile-only and verifies guest token proof plus authenticated user before AccountLinkTransaction merge.
+- getCategoryMetadata returns category_id, name, description, and status from current active Category rows only; it must not expose questions, answers, years, user data, admin fields, passive/deleted categories, or stale fallback arrays.
+- UserCategoryPreference is authenticated Settings/Profile data. Fewer than 3 active valid preferences means Solo uses all active categories; 3+ enables Solo-only soft weighting.
+- SubCategory/UserSubCategoryPreference are future/legacy data and not current Settings preference UI.
+- Solo runtime uses getQuestions bounded projections and buildSoloAttemptDeck; raw Question.list gameplay fallback and full-bank exposure are forbidden.
+- PlayerQuestionExposure is private per-player anti-repeat memory; PlayerQuestionDailyExposure is daily anonymous exposure summary; actual reports source history from QuestionAttemptEvent.
+- UserJokerInventory is the current joker balance source and JokerTransaction is the ledger. purchaseJokerWithDiamonds writes DiamondTransaction plus JokerTransaction.
+- startLobbyGame owns the Online shared deck. Online does not read Solo preference weighting or guest Solo projection.
+- sendQuestionAnalyticsReportEmail is admin-only, email-body-only, exactly nine sections, with anonymized User0001-style per-player coverage where used.
+- Health static alignment can check docs/source contracts, but real device, two-account, Base44 deployment, push, RLS/BOLA, and store-wrapper proof remain manual.
+`;
+
 export const PROFILE_FIELDS_DOC = `# Kronox Profile Fields
 
 Status: Active profile/onboarding contract.
@@ -209,6 +245,11 @@ Status: Active product contract.
 export const RELEASE_PROOF_CHECKLIST_DOC = `# Kronox Release Proof Checklist
 
 Status: Active manual release gate.
+
+## Canonical Workflow Docs
+Review docs/KRONOX_PRODUCT_WORKFLOW.md for onboarding, identity, Profile, category selection, Solo, Online, economy, leaderboard, analytics, Health, and release proof changes.
+Review docs/KRONOX_TECHNICAL_FLOW.md for route flow, Base44 entities/functions, guest/account-linking state, question runtime, category metadata, exposure analytics, economy ledgers, admin/security boundaries, Health alignment, and deployment validation changes.
+Stale contracts such as Home login CTAs, standalone tutorial onboarding, hardcoded category fallbacks, visible HATA scoring, public display_name identity, raw Question.list gameplay fallback, Daily Quest Puan rewards, Daily Quest leaderboard impact, Online Solo-preference selection, and old fixed 10-card Solo decks must be removed or explicitly marked legacy before release.
 
 ## Full Audit Release Gates
 Health Center, Admin Ekranı, reports, and large maintenance lists avoid rebuilding expensive derived output after every row/case. Long admin work is batched or yielded around the 50ms long-task budget. Gameplay paths do not run Health/report/question-analytics calculations. Large email/report/list output stays bounded, paginated, or summarized. Health Copy Blocker JSON is intentionally blocker-only and includes real FAIL/BLOCKER/CRITICAL code/security/static failures plus summary counts, not manual-only verification reminders or the full raw PASS payload. Health Copy Warning JSON is warning-only. Manual Required / NOT_AUTOMATABLE does not reduce automated score; critical manual gates keep releaseReady=false until completed or accepted. Last Run and copy/download actions use the newest completed report only. Health mobile report actions, case details, copy buttons, clipboard fallback textarea, manual proof details, and raw JSON preview must fit 320px-class screens without horizontal overflow. User-owned backend operations enforce object-level authorization server-side; UI hiding is not accepted as proof. Two-account probes verify user-owned reads/writes for invites, lobbies, category preferences, Daily Quest progress, Daily Wheel, Diamond/Joker economy, PushSubscription, and analytics cleanup. Base44/manual DB constraints are checked for user+date, user+status, quest_key, question_id, category_id, created_at, endpoint, and idempotency_key. iOS, Android, and PWA wrapper quality remain separate manual gates: safe-area, keyboard, scroll/overscroll, back navigation, orientation, accessibility, reduced motion, 320px layout, push, icon, App Store, and Play Console proof. npm run build does not prove Base44 backend deployment, RLS/BOLA behavior, device gestures, push delivery, final IPA icon state, or Play Console wrapper quality.
