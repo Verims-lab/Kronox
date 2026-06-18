@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex398 — Codex396 Health blocker alignment:
+//   • Updates Solo Health expectations to the move-based 18-card normal deck,
+//     10 evaluated moves, 7-card target, and joker-buffer formula.
+//   • Registers current per-player exposure, category preference fallback,
+//     public Category metadata, and guided tutorial_in_progress contracts.
+//   • Keeps the fixes in Health/docs/static alignment; Online gameplay is not
+//     changed.
+
 // Codex397 — Per-player question exposure architecture:
 //   • Adds PlayerQuestionExposure and PlayerQuestionDailyExposure projections
 //     for Solo per-player anti-repeat selection and anonymous coverage reports.
@@ -2236,7 +2244,7 @@ import React, { useEffect, useState } from 'react';
 //     metadata-only Category response scope for guest onboarding.
 //   • Adds Health/static proof that public category metadata is allowed only
 //     when it exposes no questions, answers, years, full bank, or stale fallbacks.
-const BUILD_MARKER = 'Codex397';
+const BUILD_MARKER = 'Codex398';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

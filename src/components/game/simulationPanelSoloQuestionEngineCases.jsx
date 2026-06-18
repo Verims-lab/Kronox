@@ -378,6 +378,53 @@ export const EXTRA_TESTS = [
     },
   ),
 
+  makeCase(
+    'solo_deck_size_includes_joker_buffers',
+    'Solo deck formula includes anchors, 10 evaluated moves, and joker buffer cards',
+    () => {
+      const normalDeckSize = getSoloDeckSizeForLevel(1);
+      const specialDeckSize = getSoloDeckSizeForLevel(10);
+      const normalTargetCards = getSoloTimelineWinCardCountForLevel(1);
+      const initialTimelineCards = 2;
+      const correctPlacementsNeeded = normalTargetCards - initialTimelineCards;
+      const normalJokerBuffer = normalDeckSize - initialTimelineCards - SOLO_MAX_MOVES;
+      const specialJokerBuffer = specialDeckSize - initialTimelineCards - SOLO_MAX_MOVES;
+      const actual = {
+        initialTimelineCards,
+        maxMoves: SOLO_MAX_MOVES,
+        targetTotalCards: normalTargetCards,
+        correctPlacementsNeeded,
+        normalDeckSize,
+        specialDeckSize,
+        normalJokerBuffer,
+        specialJokerBuffer,
+      };
+      if (
+        initialTimelineCards !== 2 ||
+        SOLO_MAX_MOVES !== 10 ||
+        normalTargetCards !== 7 ||
+        correctPlacementsNeeded !== 5 ||
+        normalDeckSize !== 18 ||
+        specialDeckSize !== 19 ||
+        normalJokerBuffer !== 6 ||
+        specialJokerBuffer !== 7
+      ) {
+        return fail('Solo move-based deck formula drifted.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          expected: '2 anchors + 10 evaluated moves + Kart Değiştir/Kronokalkan buffers; normal 18, special 19',
+          actual,
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Solo move-based deck formula includes joker buffers and keeps the current 18/19 deck sizes.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'RUNTIME_VERIFIED',
+        actual,
+      });
+    },
+  ),
+
   /* 3. normal_level_target_is_7 */
   makeCase(
     'normal_level_target_is_7',
@@ -638,11 +685,12 @@ export const EXTRA_TESTS = [
     'solo_question_engine_fallback_never_relaxes_unique_year',
     'Fallback may relax category balance / recently-seen but must NEVER allow duplicate years',
     () => {
-      // Pool with only 15 distinct years — normal 16-card deck MUST fail clean,
+      const normalDeckSize = getSoloDeckSizeForLevel(1);
+      // Pool with one fewer distinct year than the current normal deck MUST fail clean,
       // not silently produce a deck with duplicate years.
-      const pool = buildSyntheticPool(15);
+      const pool = buildSyntheticPool(Math.max(1, normalDeckSize - 1));
       // Add many duplicates of an existing year so the only way to
-      // reach 16 is to accept a duplicate year.
+      // reach the current deck size is to accept a duplicate year.
       for (let i = 0; i < 20; i += 1) {
         pool.push({
           id: 5000 + i, question: `extra ${i}`, answer: '1900', year: 1900,
@@ -1095,7 +1143,8 @@ export const EXTRA_TESTS = [
     'solo_first_five_spacing_clean_fail_when_impossible',
     'Solo engine clean-fails when no valid first-five 5-year spacing deck exists',
     () => {
-      const clusteredPool = buildSyntheticPool(16, (i) => ({
+      const normalDeckSize = getSoloDeckSizeForLevel(1);
+      const clusteredPool = buildSyntheticPool(normalDeckSize, (i) => ({
         year: 1900 + i,
         answer: String(1900 + i),
       }));
@@ -1430,6 +1479,7 @@ export const EXTRA_TESTS = [
     'solo_p1_exposure_cooldown_prefers_low_shown_candidates',
     'P1 exposure cooldown downweights high/recent shown cards without breaking deck rules',
     () => {
+      const expectedDeckSize = getSoloDeckSizeForLevel(4);
       const pool = buildSyntheticPool(80, (i) => ({
         year: 1500 + i * 5,
         answer: String(1500 + i * 5),
@@ -1464,7 +1514,7 @@ export const EXTRA_TESTS = [
       const firstFiveGap = minAdjacentGap(res.deck.slice(0, 5).map((question) => question.year));
       const exposureMeta = res.meta?.exposureFairness || {};
       if (
-        res.deck.length !== 16 ||
+        res.deck.length !== expectedDeckSize ||
         firstFiveGap < 5 ||
         selectedHighExposureCount > 2 ||
         exposureMeta.softCooldownOnly !== true ||
@@ -1474,7 +1524,7 @@ export const EXTRA_TESTS = [
         return fail('Exposure cooldown did not prefer lower-exposure alternatives or drifted hard deck rules.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
-          expected: '16-card deck, first-five gap >= 5, high/recent shown cards strongly downweighted',
+          expected: `${expectedDeckSize}-card deck, first-five gap >= 5, high/recent shown cards strongly downweighted`,
           actual: {
             deckLength: res.deck.length,
             selectedHighExposureCount,
@@ -1526,6 +1576,7 @@ export const EXTRA_TESTS = [
     'solo_p2_category_distribution_tracks_pool_proportions',
     'P2 category balancing tracks eligible-pool proportions instead of equal category counts',
     () => {
+      const expectedDeckSize = getSoloDeckSizeForLevel(6);
       const pool = buildSyntheticPool(100, (i) => ({
         year: 1200 + i * 5,
         answer: String(1200 + i * 5),
@@ -1545,7 +1596,7 @@ export const EXTRA_TESTS = [
       const cat4Count = Number(categoryDistribution['cat:4'] || 0);
       const diversityMeta = res.meta.diversityFairness || {};
       if (
-        res.deck.length !== 16 ||
+        res.deck.length !== expectedDeckSize ||
         categoryDistribution['cat:1'] < 6 ||
         categoryDistribution['cat:1'] > 10 ||
         cat1Share < 0.35 ||
@@ -1556,7 +1607,7 @@ export const EXTRA_TESTS = [
         return fail('P2 category balancing drifted from pool-proportional fairness.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
-          expected: '50/25/15/10 pool produces a 16-card deck that keeps cat:1 largest without forcing equal category counts',
+          expected: `50/25/15/10 pool produces a ${expectedDeckSize}-card deck that keeps cat:1 largest without forcing equal category counts`,
           actual: { categoryDistribution, cat1Share, cat4Count, diversityMeta },
           actionType: ACTION_TYPES.CODE_FIX,
         });
@@ -1573,6 +1624,7 @@ export const EXTRA_TESTS = [
     'solo_p2_subcategory_dominance_reduced_without_hard_ban',
     'P2 subcategory balancing reduces dominance relative to eligible-pool share without hardcoding labels',
     () => {
+      const expectedDeckSize = getSoloDeckSizeForLevel(7);
       const pool = buildSyntheticPool(90, (i) => ({
         year: 1300 + i * 5,
         answer: String(1300 + i * 5),
@@ -1590,7 +1642,7 @@ export const EXTRA_TESTS = [
       const subcategoryDistribution = res.meta.subcategoryDistribution || {};
       const largeCount = Number(subcategoryDistribution.large_valid_subcategory || 0);
       if (
-        res.deck.length !== 16 ||
+        res.deck.length !== expectedDeckSize ||
         largeCount < 5 ||
         largeCount > 10 ||
         countKeysWithValue(subcategoryDistribution, 1) < 4 ||
@@ -1616,6 +1668,7 @@ export const EXTRA_TESTS = [
     'solo_p2_year_band_distribution_not_starved',
     'P2 year-band balancing avoids starving major eras when valid alternatives exist',
     () => {
+      const expectedDeckSize = getSoloDeckSizeForLevel(8);
       const bands = [
         { start: 1700, count: 40 },
         { start: 1800, count: 30 },
@@ -1644,7 +1697,7 @@ export const EXTRA_TESTS = [
       const majorBandsRepresented = ['year_band:1700-1749', 'year_band:1800-1849', 'year_band:1900-1949']
         .every((key) => Number(yearBandDistribution[key] || 0) >= 1);
       if (
-        res.deck.length !== 16 ||
+        res.deck.length !== expectedDeckSize ||
         !majorBandsRepresented ||
         Number(res.meta.maxYearBandCount) > 9 ||
         res.meta.eraSpread?.poolProportional !== true
@@ -1652,7 +1705,7 @@ export const EXTRA_TESTS = [
         return fail('P2 year-band balance starved a major era or over-clustered one band.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
-          expected: 'major year bands represented, max year band <=9, 16-card deck preserved',
+          expected: `major year bands represented, max year band <=9, ${expectedDeckSize}-card deck preserved`,
           actual: { yearBandDistribution, maxYearBandCount: res.meta.maxYearBandCount, eraSpread: res.meta.eraSpread },
           actionType: ACTION_TYPES.CODE_FIX,
         });
@@ -1669,6 +1722,7 @@ export const EXTRA_TESTS = [
     'solo_p2_missing_subcategory_safe_and_non_dominating',
     'P2 missing subcategory metadata is safe and does not dominate when valid metadata alternatives exist',
     () => {
+      const expectedDeckSize = getSoloDeckSizeForLevel(5);
       const pool = buildSyntheticPool(80, (i) => ({
         year: 1400 + i * 5,
         answer: String(1400 + i * 5),
@@ -1685,7 +1739,7 @@ export const EXTRA_TESTS = [
       });
       const unknownCount = Number(res.meta.subcategoryDistribution?.['sub:unknown'] || 0);
       if (
-        res.deck.length !== 16 ||
+        res.deck.length !== expectedDeckSize ||
         unknownCount > 10 ||
         countKeysWithValue(res.meta.subcategoryDistribution, 1) < 4
       ) {
@@ -1875,17 +1929,18 @@ export const EXTRA_TESTS = [
     'P3 repeated Solo deck builds cover a broad question set with cooldown active',
     () => {
       const simulation = getP3RepeatedDeckSimulation(100);
+      const expectedTotalSelected = 100 * getSoloDeckSizeForLevel(4);
       if (
         simulation.failures.length ||
         simulation.firstFiveGapViolations.length ||
         simulation.uniqueQuestionsSelected < 140 ||
         simulation.topQuestionSelectionCount > 18 ||
-        simulation.totalSelected !== 1600
+        simulation.totalSelected !== expectedTotalSelected
       ) {
         return fail('Repeated deck diversity guardrail detected narrow coverage or hard-rule drift.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
-          expected: '100 normal decks build 1600 cards, cover >=140 unique questions, top question <=18, first-five gap holds',
+          expected: `100 normal decks build ${expectedTotalSelected} cards, cover >=140 unique questions, top question <=18, first-five gap holds`,
           actual: {
             failures: simulation.failures.slice(0, 3),
             firstFiveGapViolations: simulation.firstFiveGapViolations.slice(0, 3),
@@ -1917,7 +1972,9 @@ export const EXTRA_TESTS = [
       const selectedRecentHits = Number(lastSample.selectedRecentHistoryHitCount) || 0;
       const candidateRecentHits = Number(lastSample.recentHistoryHitCount) || 0;
       const eligibleCandidateCount = Number(lastSample.eligibleCandidateCount) || 0;
-      const selectedDeckSize = Array.isArray(lastSample.selectedDeckIds) ? lastSample.selectedDeckIds.length : 16;
+      const selectedDeckSize = Array.isArray(lastSample.selectedDeckIds)
+        ? lastSample.selectedDeckIds.length
+        : getSoloDeckSizeForLevel(4);
       const nonRecentCandidateCount = Math.max(0, eligibleCandidateCount - candidateRecentHits);
       const minimumRecentNeeded = Math.max(0, selectedDeckSize - nonRecentCandidateCount);
       const selectedRecentRatio = Number(lastSample.selectedRecentHistoryRatio) || 0;
@@ -2105,14 +2162,16 @@ export const EXTRA_TESTS = [
     'Solo category preferences target 70% selected categories and 30% global pool',
     () => {
       const selectedCategoryIds = [1, 2, 3];
+      const normalDeckSize = getSoloDeckSizeForLevel(4);
+      const specialDeckSize = getSoloDeckSizeForLevel(10);
       const pool = buildSyntheticPool(180, (i) => ({
         main_category_id: i < 120 ? selectedCategoryIds[i % selectedCategoryIds.length] : ((i % 3) + 4),
         sub_category: `pref_sub_${i % 18}`,
         tag: `pref_theme_${i % 12}`,
         difficulty: i < 120 ? ((i % 4) + 2) : (i % 2 === 0 ? 1 : '1'),
       }));
-      const normalTargets = getSoloCategoryPreferenceTargetCounts(16);
-      const specialTargets = getSoloCategoryPreferenceTargetCounts(19);
+      const normalTargets = getSoloCategoryPreferenceTargetCounts(normalDeckSize);
+      const specialTargets = getSoloCategoryPreferenceTargetCounts(specialDeckSize);
       const normal = buildSoloAttemptDeck({
         pool,
         levelNumber: 4,
@@ -2164,18 +2223,18 @@ export const EXTRA_TESTS = [
       };
 
       if (
-        normalTargets.selectedCategoryTargetCount !== 11 ||
+        normalTargets.selectedCategoryTargetCount !== 13 ||
         normalTargets.globalTargetCount !== 5 ||
         specialTargets.selectedCategoryTargetCount !== 13 ||
         specialTargets.globalTargetCount !== 6 ||
-        normal.deck.length !== 16 ||
-        special.deck.length !== 19 ||
-        normalSelectedCount !== 11 ||
-        specialSelectedCount !== 13 ||
-        normalGlobalCards.length !== 5 ||
-        specialGlobalCards.length !== 6 ||
-        normalGlobalDifficultyOneCount !== 5 ||
-        specialGlobalDifficultyOneCount !== 6 ||
+        normal.deck.length !== normalDeckSize ||
+        special.deck.length !== specialDeckSize ||
+        normalSelectedCount !== normalTargets.selectedCategoryTargetCount ||
+        specialSelectedCount !== specialTargets.selectedCategoryTargetCount ||
+        normalGlobalCards.length !== normalTargets.globalTargetCount ||
+        specialGlobalCards.length !== specialTargets.globalTargetCount ||
+        normalGlobalDifficultyOneCount !== normalTargets.globalTargetCount ||
+        specialGlobalDifficultyOneCount !== specialTargets.globalTargetCount ||
         normalSelectedDifficultyOneCount !== 0 ||
         normalMeta.globalDifficultyTarget !== 1 ||
         specialMeta.globalDifficultyTarget !== 1 ||
@@ -2191,7 +2250,7 @@ export const EXTRA_TESTS = [
         return fail('Solo category preference target counts or hard-rule compatibility drifted.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
-          expected: 'normal 11/5 and special 13/6; selected-category lane difficulty 1/2 and global cards difficulty 1',
+          expected: `normal ${normalTargets.selectedCategoryTargetCount}/${normalTargets.globalTargetCount} and special ${specialTargets.selectedCategoryTargetCount}/${specialTargets.globalTargetCount}; selected-category lane difficulty 1/2 and global cards difficulty 1`,
           actual,
           actionType: ACTION_TYPES.CODE_FIX,
         });
@@ -2451,6 +2510,7 @@ export const EXTRA_TESTS = [
     'Selected-category shortage fills from global pool instead of failing',
     () => {
       const selectedCategoryIds = [1, 2, 3];
+      const expectedDeckSize = getSoloDeckSizeForLevel(5);
       const selectedPool = buildSyntheticPool(6, (i) => ({
         id: 9000 + i,
         year: 1900 + i * 11,
@@ -2482,7 +2542,7 @@ export const EXTRA_TESTS = [
       const meta = result.meta?.categoryPreferenceFairness || {};
       const selectedCount = countSelectedCategoryCards(result.deck, selectedCategoryIds);
       if (
-        result.deck.length !== 16 ||
+        result.deck.length !== expectedDeckSize ||
         selectedCount > selectedPool.length ||
         meta.fallbackUsed !== true ||
         !String(meta.fallbackReason || '').includes('selected_category_shortage')
@@ -2490,7 +2550,7 @@ export const EXTRA_TESTS = [
         return fail('Selected-category shortage fallback is not clearly global-pool backed.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
-          expected: 'ok 16-card deck, selected count capped by available preferred years, fallback reason visible',
+          expected: `ok ${expectedDeckSize}-card deck, selected count capped by available preferred years, fallback reason visible`,
           actual: { selectedCount, meta },
           actionType: ACTION_TYPES.CODE_FIX,
         });
@@ -2508,6 +2568,8 @@ export const EXTRA_TESTS = [
     'Global 30% prefers difficulty 1 and falls back when difficulty-1 global candidates are insufficient',
     () => {
       const selectedCategoryIds = [1, 2, 3];
+      const expectedDeckSize = getSoloDeckSizeForLevel(4);
+      const expectedTargets = getSoloCategoryPreferenceTargetCounts(expectedDeckSize);
       const pool = buildSyntheticPool(180, (i) => {
         const selectedLane = i < 120;
         const globalIndex = i - 120;
@@ -2541,9 +2603,9 @@ export const EXTRA_TESTS = [
         result.deck.filter((question) => !globalCards.includes(question)),
       );
       if (
-        result.deck.length !== 16 ||
-        countSelectedCategoryCards(result.deck, selectedCategoryIds) !== 11 ||
-        globalCards.length !== 5 ||
+        result.deck.length !== expectedDeckSize ||
+        countSelectedCategoryCards(result.deck, selectedCategoryIds) !== expectedTargets.selectedCategoryTargetCount ||
+        globalCards.length !== expectedTargets.globalTargetCount ||
         globalDifficultyOneCount !== 2 ||
         selectedDifficultyOneCount !== 0 ||
         meta.globalDifficulty1TargetCount !== 2 ||
@@ -2555,7 +2617,7 @@ export const EXTRA_TESTS = [
         return fail('Global difficulty-1 fallback metadata or deck composition drifted.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
-          expected: '16-card deck, 11 selected, 5 global, 2 available difficulty-1 global cards used, then safe broader global fallback',
+          expected: `${expectedDeckSize}-card deck, ${expectedTargets.selectedCategoryTargetCount} selected, ${expectedTargets.globalTargetCount} global, 2 available difficulty-1 global cards used, then safe broader global fallback`,
           actual: {
             globalDifficultyOneCount,
             selectedDifficultyOneCount,
@@ -2581,6 +2643,7 @@ export const EXTRA_TESTS = [
     'solo_category_preference_unavailable_safe_global_fallback',
     'Missing/unavailable preferences fall back to global Solo selection safely',
     () => {
+      const expectedDeckSize = getSoloDeckSizeForLevel(6);
       const pool = buildSyntheticPool(90, (i) => ({
         sub_category: `global_sub_${i % 15}`,
         tag: `global_theme_${i % 9}`,
@@ -2595,7 +2658,7 @@ export const EXTRA_TESTS = [
         random: makeSeededRandom(2504),
       });
       const meta = result.meta?.categoryPreferenceFairness || {};
-      if (!result.ok || result.deck.length !== 16 || meta.fallbackUsed !== true || meta.fallbackReason !== 'preference_load_failed') {
+      if (!result.ok || result.deck.length !== expectedDeckSize || meta.fallbackUsed !== true || meta.fallbackReason !== 'preference_load_failed') {
         return fail('Unavailable Category preferences no longer fall back to existing global Solo selection.', {
           verification: 'RUNTIME_VERIFIED',
           classification: 'REAL_PRODUCT_RISK',
@@ -2615,6 +2678,7 @@ export const EXTRA_TESTS = [
     'solo_empty_category_preferences_use_all_active_categories',
     'Authenticated no saved Category preferences use all active categories for Solo',
     () => {
+      const expectedDeckSize = getSoloDeckSizeForLevel(4);
       const pool = buildSyntheticPool(96, (i) => ({
         main_category_id: (i % 6) + 1,
         sub_category: `all_cat_sub_${i % 16}`,
@@ -2635,7 +2699,7 @@ export const EXTRA_TESTS = [
       const categories = new Set((result.deck || []).map((question) => question.main_category_id));
       if (
         !result.ok ||
-        result.deck.length !== 16 ||
+        result.deck.length !== expectedDeckSize ||
         categories.size < 4 ||
         meta.fallbackUsed !== true ||
         meta.fallbackReason !== 'no_valid_user_category_preferences' ||

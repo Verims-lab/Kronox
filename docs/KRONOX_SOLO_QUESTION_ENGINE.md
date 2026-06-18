@@ -106,7 +106,7 @@ P1/P2 balancing applies during deck selection and deck ordering where the pool a
   not equal-count. A group that is large in the eligible pool may stay large in
   a deck, while smaller valid groups receive gentle protection from accidental
   starvation where deck size and hard rules allow.
-- normal 16-card Solo decks target 11 selected-category cards and 5 global-pool
+- normal 18-card Solo decks target 13 selected-category cards and 5 global-pool
   cards; special 19-card decks target 13 selected-category cards and 6
   global-pool cards. Selected-category cards are eligible only at difficulty 1
   or 2. Global-pool cards first use difficulty 1 from all active categories.

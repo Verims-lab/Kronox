@@ -1735,7 +1735,7 @@ function buildCategoryPreferenceDiagnostics(candidates = [], selectedDeck = [], 
  *                                            failed/unavailable; engine falls
  *                                            back to global Solo selection.
  * @param {number=} args.deckSize             Defaults from the Solo rules:
- *                                            normal 16, special 19. Engine
+ *                                            normal 18, special 19. Engine
  *                                            does not relax this; passed in
  *                                            only for tests.
  * @param {number=} args.seedCount            Visible seed/preplaced timeline

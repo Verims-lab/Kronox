@@ -297,7 +297,7 @@ Checklist:
   must not block question loading.
 * Empty preferences must not produce an empty candidate pool or fake
   offline/no-cache error.
-* Normal 16-card Solo decks target 11 selected-category and 5 global-pool
+* Normal 18-card Solo decks target 13 selected-category and 5 global-pool
   cards; special 19-card Solo decks target 13 selected-category and 6
   global-pool cards.
 * The selected-category 70% lane uses selected user categories with difficulty
