@@ -84,7 +84,7 @@ weighting is soft only and cannot make a deck fail by itself; and diagnostics
 expose categoryDistribution, subcategoryDistribution, themeDistribution,
 decadeDistribution, yearBandDistribution, diversityFairness,
 firstSevenCategoryDistribution, and fallbackTier for Health/admin/debug only.
-Normal 16-card decks target 11 selected-category cards and 5 global-pool
+Normal 18-card decks target 13 selected-category cards and 5 global-pool
 cards; special 19-card decks target 13 selected-category cards and 6
 global-pool cards. The selected-category lane uses difficulty 1 and 2.
 Global-pool cards first use difficulty 1 from all active categories. Selected-category

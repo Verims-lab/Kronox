@@ -108,7 +108,7 @@ Deno.serve(async (req: Request) => {
     );
 
     const base44 = createClientFromRequest(req);
-    const entity = base44?.asServiceRole?.entities?.Category;
+    const entity = base44.asServiceRole.entities.Category;
     if (!entity?.list) {
       return json({ ok: false, error: 'category_metadata_unavailable' }, 500);
     }

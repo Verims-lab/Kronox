@@ -84,6 +84,7 @@ const ONBOARDING_STEP_RANK = {
   [GUEST_ONBOARDING_STATES.CATEGORY_SETUP_PENDING]: 4,
   [GUEST_ONBOARDING_STATES.ONBOARDING_COMPLETE]: 5,
 };
+const TUTORIAL_IN_PROGRESS_STATUS = GUEST_ONBOARDING_STATES.TUTORIAL_IN_PROGRESS; // tutorial_in_progress
 
 function onboardingStepRank(profile) {
   return ONBOARDING_STEP_RANK[normalizeStep(profile)] ?? 0;
@@ -185,8 +186,8 @@ export default function OnboardingPage() {
   const step = normalizeStep(guestProfile);
   const isProfileStep = step === GUEST_ONBOARDING_STATES.TUTORIAL_COMPLETED ||
     step === GUEST_ONBOARDING_STATES.PROFILE_SETUP_PENDING;
-  const isTutorialResumeStep = step === GUEST_ONBOARDING_STATES.TUTORIAL_IN_PROGRESS &&
-    guestProfile?.onboarding_status === GUEST_ONBOARDING_STATES.TUTORIAL_IN_PROGRESS &&
+  const isTutorialResumeStep = step === TUTORIAL_IN_PROGRESS_STATUS &&
+    guestProfile?.onboarding_status === TUTORIAL_IN_PROGRESS_STATUS &&
     guestProfile?.tutorial_status === 'in_progress' &&
     guestProfile?.profile_setup_status !== 'completed';
 
