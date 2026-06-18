@@ -100,7 +100,7 @@ import { Activity, X } from 'lucide-react';
 
 import { STATUS, LAST_RUN_KEY } from './health/healthStatus';
 import { executeCase, captureEnvironment, createRunMeta, extractBuildMarker } from './health/simulationRunner';
-import { buildBlockerCopyJson, buildReport, buildHumanSummary } from './health/simulationReportBuilder';
+import { buildBlockerCopyJson, buildReport, buildHumanSummary, buildWarningCopyJson } from './health/simulationReportBuilder';
 import { SUITES, TESTS } from './health/simulationCases';
 import SimulationSuiteSummary from './health/SimulationSuiteSummary';
 import SimulationCaseRow, { StatusBadge } from './health/SimulationCaseRow';
@@ -194,10 +194,16 @@ export default function SimulationPanel({ onClose }) {
   const [runningKey, setRunningKey] = useState(null);
   const [plannedKeys, setPlannedKeys] = useState([]);
   const [copyState, setCopyState] = useState('');
+  const [copyFallback, setCopyFallback] = useState({ text: '', label: '' });
+  const [currentRunMeta, setCurrentRunMeta] = useState(null);
+  const [runFreshState, setRunFreshState] = useState('previous');
 
   useEffect(() => {
     const saved = restoreLatestStoredReport();
-    if (saved) setLastRun(saved);
+    if (saved) {
+      setLastRun(saved);
+      setRunFreshState('previous');
+    }
   }, []);
 
   const selectedSuite = SUITES.find(suite => suite.id === selectedSuiteId) || SUITES[0];
@@ -217,7 +223,10 @@ export default function SimulationPanel({ onClose }) {
   }, []);
 
   const runCases = useCallback(async (cases) => {
+    let failedToRun = false;
     const meta = createRunMeta(cases.map(item => item.key));
+    setCurrentRunMeta(meta);
+    setRunFreshState('running');
     const nextResults = {};
     let lastYieldAt = healthNowMs();
     let lastReportAt = lastYieldAt;
@@ -226,66 +235,119 @@ export default function SimulationPanel({ onClose }) {
     setResultsByKey({});
     setPlannedKeys(cases.map(item => item.key));
     setCopyState('');
+    setCopyFallback({ text: '', label: '' });
+    setReport(null);
 
-    for (let index = 0; index < cases.length; index += 1) {
-      const testCase = cases[index];
-      setRunningKey(testCase.key);
-      const caseResult = await executeCase(testCase);
-      nextResults[testCase.key] = caseResult;
-      pendingResultStateCount += 1;
+    try {
+      for (let index = 0; index < cases.length; index += 1) {
+        const testCase = cases[index];
+        setRunningKey(testCase.key);
+        const caseResult = await executeCase(testCase);
+        nextResults[testCase.key] = caseResult;
+        pendingResultStateCount += 1;
 
-      const now = healthNowMs();
-      const completedCount = index + 1;
-      const isFinalCase = completedCount === cases.length;
-      const shouldRefreshResultState =
-        !isFinalCase && (
-          pendingResultStateCount >= HEALTH_RESULT_STATE_UPDATE_BATCH_SIZE ||
-          (
-            pendingResultStateCount >= HEALTH_RESULT_STATE_UPDATE_MIN_PENDING &&
-            now - lastResultStateAt >= HEALTH_RESULT_STATE_UPDATE_MIN_INTERVAL_MS
-          )
-        );
-      const shouldRefreshReport =
-        !isFinalCase && (
-          completedCount % HEALTH_REPORT_UPDATE_BATCH_SIZE === 0 ||
-          now - lastReportAt >= HEALTH_REPORT_UPDATE_MIN_INTERVAL_MS
-        );
-      if (shouldRefreshResultState) {
-        publishResultStateSnapshot(setResultsByKey, nextResults);
-        pendingResultStateCount = 0;
-        lastResultStateAt = now;
-      }
-      if (shouldRefreshReport) {
-        updateReport(nextResults, meta);
-        lastReportAt = now;
-      }
+        const now = healthNowMs();
+        const completedCount = index + 1;
+        const isFinalCase = completedCount === cases.length;
+        const shouldRefreshResultState =
+          !isFinalCase && (
+            pendingResultStateCount >= HEALTH_RESULT_STATE_UPDATE_BATCH_SIZE ||
+            (
+              pendingResultStateCount >= HEALTH_RESULT_STATE_UPDATE_MIN_PENDING &&
+              now - lastResultStateAt >= HEALTH_RESULT_STATE_UPDATE_MIN_INTERVAL_MS
+            )
+          );
+        const shouldRefreshReport =
+          !isFinalCase && (
+            completedCount % HEALTH_REPORT_UPDATE_BATCH_SIZE === 0 ||
+            now - lastReportAt >= HEALTH_REPORT_UPDATE_MIN_INTERVAL_MS
+          );
+        if (shouldRefreshResultState) {
+          publishResultStateSnapshot(setResultsByKey, nextResults);
+          pendingResultStateCount = 0;
+          lastResultStateAt = now;
+        }
+        if (shouldRefreshReport) {
+          updateReport(nextResults, meta);
+          lastReportAt = now;
+        }
 
-      if (now - lastYieldAt >= HEALTH_RUN_YIELD_DEADLINE_MS) {
-        await yieldHealthRunToMain();
-        lastYieldAt = healthNowMs();
+        if (now - lastYieldAt >= HEALTH_RUN_YIELD_DEADLINE_MS) {
+          await yieldHealthRunToMain();
+          lastYieldAt = healthNowMs();
+        }
       }
+    } catch (error) {
+      failedToRun = true;
+      setCopyState(`Run failed: ${error?.message || 'Unknown error'}`);
     }
 
     publishResultStateSnapshot(setResultsByKey, nextResults);
-    updateReport(nextResults, meta, { persist: true });
-    setRunningKey(null);
+    if (Object.keys(nextResults).length) {
+      updateReport(nextResults, meta, { persist: !failedToRun });
+    }
+    setCurrentRunMeta(meta);
+    setRunFreshState(failedToRun ? 'failed' : 'fresh');
     setPlannedKeys([]);
+    setRunningKey(null);
   }, [updateReport]);
 
   const runAll = () => runCases(TESTS);
   const runSelected = () => runCases(selectedTests);
 
   const copyText = async (text, label) => {
+    setCopyFallback({ text: '', label: '' });
+
+    const safeText = typeof text === 'string' ? text : JSON.stringify(text, null, 2);
     try {
-      await navigator.clipboard.writeText(text);
-      setCopyState(`${label} copied`);
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(safeText);
+        setCopyState(`${label} copied`);
+        return;
+      }
+      throw new Error('Clipboard API unavailable');
     } catch (_) {
-      setCopyState('Copy failed; browser denied clipboard access');
+      try {
+        const fallback = document.createElement('textarea');
+        fallback.value = safeText;
+        fallback.setAttribute('readonly', 'readonly');
+        fallback.style.position = 'fixed';
+        fallback.style.top = '10px';
+        fallback.style.left = '10px';
+        fallback.style.opacity = '0.999';
+        fallback.style.width = '1px';
+        fallback.style.height = '1px';
+        fallback.style.border = '0';
+        document.body.appendChild(fallback);
+        fallback.focus();
+        fallback.select();
+        const copied = document.execCommand('copy');
+        document.body.removeChild(fallback);
+        if (copied) {
+          setCopyState(`${label} copied (fallback)`);
+          return;
+        }
+      } catch (__error) {
+        // fall through
+      }
+
+      setCopyState('Clipboard blocked; use fallback area below and copy manually.');
+      setCopyFallback({
+        label,
+        text: safeText,
+      });
     }
   };
 
-  const copyJson = () => report && copyText(JSON.stringify(buildBlockerCopyJson(report), null, 2), 'Blocker JSON');
-  const copySummary = () => report && copyText(buildHumanSummary(report), 'Human summary');
+  const copyJson = () => report
+    ? copyText(JSON.stringify(buildBlockerCopyJson(report), null, 2), 'Blocker JSON')
+    : setCopyState('No current run report to copy');
+  const copyWarning = () => report
+    ? copyText(JSON.stringify(buildWarningCopyJson(report), null, 2), 'Warning JSON')
+    : setCopyState('No current run report to copy');
+  const copySummary = () => report
+    ? copyText(buildHumanSummary(report), 'Human summary')
+    : setCopyState('No current run report to copy');
   const downloadJson = () => {
     if (!report) return;
     try {
@@ -323,18 +385,21 @@ export default function SimulationPanel({ onClose }) {
         <Header onClose={onClose} report={report} progress={progress} running={Boolean(runningKey)} />
 
         <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden md:grid-cols-[290px_minmax(0,1fr)] md:grid-rows-1">
-          <SimulationSuiteSummary
-            suites={SUITES}
-            tests={TESTS}
-            selectedSuiteId={selectedSuiteId}
-            setSelectedSuiteId={setSelectedSuiteId}
-            allResults={allResults}
-            counts={counts}
-            lastRun={lastRun}
-            running={Boolean(runningKey)}
-            onRunAll={runAll}
-            onRunSuite={runSelected}
-          />
+        <SimulationSuiteSummary
+          suites={SUITES}
+          tests={TESTS}
+          selectedSuiteId={selectedSuiteId}
+          setSelectedSuiteId={setSelectedSuiteId}
+          allResults={allResults}
+          counts={counts}
+          report={report || lastRun}
+          runFreshState={runFreshState}
+          currentReport={report}
+          lastRun={lastRun}
+          running={Boolean(runningKey)}
+          onRunAll={runAll}
+          onRunSuite={runSelected}
+        />
 
           <main
             data-health-scroll-container="true"
@@ -359,6 +424,9 @@ export default function SimulationPanel({ onClose }) {
               <div data-health-report-slot="top">
                 <SimulationReportActions
                   report={report}
+                  runFreshState={runFreshState}
+                  copyFallback={copyFallback}
+                  copyWarning={copyWarning}
                   copyJson={copyJson}
                   copySummary={copySummary}
                   downloadJson={downloadJson}
