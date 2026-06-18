@@ -168,6 +168,7 @@ export default function Timeline({
   beginnerPlacementHintZone = null,
   guidedTargetZone = null,
   guidedScrollHintActive = false,
+  onGuidedScrollHintInteraction,
   correctStreak = 0,
   soloYearOnlyCards = false,
 }) {
@@ -229,6 +230,11 @@ export default function Timeline({
     updateCardDistances();
     return () => el.removeEventListener('scroll', updateCardDistances);
   }, [updateCardDistances, groupedCards.length]);
+
+  const notifyGuidedScrollHintInteraction = useCallback((event) => {
+    if (!onGuidedScrollHintInteraction) return;
+    onGuidedScrollHintInteraction(`timeline_${event?.type || 'interaction'}`);
+  }, [onGuidedScrollHintInteraction]);
 
   useEffect(() => {
     if (!guidedScrollHintActive || isDragMode || reducedMotion) return undefined;
@@ -483,6 +489,9 @@ export default function Timeline({
         <div
           ref={scrollRef}
           className="kronox-timeline-horizontal-scroll w-full overflow-x-auto"
+          onPointerDown={onGuidedScrollHintInteraction ? notifyGuidedScrollHintInteraction : undefined}
+          onTouchStart={onGuidedScrollHintInteraction ? notifyGuidedScrollHintInteraction : undefined}
+          onWheel={onGuidedScrollHintInteraction ? notifyGuidedScrollHintInteraction : undefined}
           style={{
             scrollbarWidth: 'none',
             msOverflowStyle: 'none',

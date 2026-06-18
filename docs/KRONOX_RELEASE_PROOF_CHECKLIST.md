@@ -133,6 +133,9 @@ Checklist:
   pauses effective tutorial time until acknowledged.
 * First two active tutorial cards show a hand/finger animation toward the
   correct placement slot without moving the real card.
+* Guided tutorial question 2 timeline swipe hint remains visible for at least
+  3 seconds, then stops on timeline/card interaction, and auto-stops by 10
+  seconds if ignored.
 * The first guided tutorial wrong placement shows the hamle / Puan impact popup
   once and pauses effective tutorial time while visible.
 * Normal Solo result popups show `HAMLE`, not `HATA`.

@@ -467,9 +467,13 @@ The guide must teach drag/drop, before/after placement, between placement,
 chronological year ordering, move/mistake count, and interactive joker usage.
 The first two active tutorial cards show a visual hand/finger path toward the
 already-computed correct placement slot; this is a visual-only hint and does not
-move or place the real card. Cards 3, 4, and 5 teach `Zaman Dondur`, `Kart
-Değiştir`, and `Kronokalkan` as tutorial-only demos with repeating hand/tap
-hints. The user must perform each demo action before continuing, but
+move or place the real card. On the second active card, the timeline swipe hand
+hint may auto-move the timeline only inside the guided tutorial: it must stay
+visible for at least 3 seconds, stop after timeline or card interaction once
+that minimum has elapsed, and auto-stop by 10 seconds if the user does nothing.
+Cards 3, 4, and 5 teach `Zaman Dondur`, `Kart Değiştir`, and `Kronokalkan` as
+tutorial-only demos with repeating hand/tap hints. The user must perform each
+demo action before continuing, but
 `UserJokerInventory` is not consumed, no `JokerTransaction` spend is written,
 and normal Solo joker economy rules remain unchanged outside the tutorial.
 Tutorial timer, joker, and first-mistake explanation popups pause the effective

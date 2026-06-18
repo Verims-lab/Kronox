@@ -259,6 +259,7 @@ export default function GameLayout({
   guidedDragHintActive = false,
   guidedDragTargetZone = null,
   guidedTimelineScrollHintActive = false,
+  guidedTimelineSwipeHintMinimumElapsed = false,
   interactionPaused = false,
   correctStreak = 0,
   // Handlers
@@ -272,6 +273,7 @@ export default function GameLayout({
   onTouchDragMove,
   onTouchDragEnd,
   onTouchDragCancel,
+  onTimelineSwipeHintInteraction,
   onTimeUp,
 }) {
   const soloJokers = rawSoloJokers
@@ -319,6 +321,16 @@ export default function GameLayout({
     previousProgressCountRef.current = visibleProgressCount;
     return undefined;
   }, [visibleProgressCount]);
+
+  const timelineSwipeHintVisible = Boolean(
+    guidedTimelineScrollHintActive &&
+    isMyTurn &&
+    !feedback &&
+    !winner &&
+    !interactionPaused &&
+    !isTimeUp &&
+    (!isDragging || !guidedTimelineSwipeHintMinimumElapsed)
+  );
 
   return (
     <div
@@ -583,13 +595,14 @@ export default function GameLayout({
               }
               beginnerPlacementHintZone={beginnerPlacementHintZone}
               guidedTargetZone={guidedDragHintActive ? guidedDragTargetZone : null}
-              guidedScrollHintActive={Boolean(guidedTimelineScrollHintActive && isMyTurn && !isDragging && !feedback && !winner && !interactionPaused && !isTimeUp)}
+              guidedScrollHintActive={timelineSwipeHintVisible}
+              onGuidedScrollHintInteraction={guidedTimelineScrollHintActive ? onTimelineSwipeHintInteraction : undefined}
               correctStreak={correctStreak}
               soloYearOnlyCards={!isOnline}
             />
           )}
           <GuidedTimelineSwipeHint
-            active={Boolean(guidedTimelineScrollHintActive && isMyTurn && !isDragging && !feedback && !winner && !interactionPaused && !isTimeUp)}
+            active={timelineSwipeHintVisible}
             reducedMotion={prefersReducedMotion}
           />
         </div>

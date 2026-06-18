@@ -826,4 +826,46 @@ export const EXTRA_TESTS = [
         actionType: ACTION_TYPES.CODE_FIX,
       });
     }),
+
+  makeCase('guided_timeline_swipe_hint_lifetime_guard',
+    'Guided question-2 timeline swipe hint has bounded lifetime and interaction stops',
+    () => {
+      const missing = missingTokens(`${gameSource}\n${gameLayoutSource}\n${timelineSource}`, [
+        'GUIDED_TIMELINE_SWIPE_HINT_MIN_MS = 3000',
+        'GUIDED_TIMELINE_SWIPE_HINT_MAX_MS = 10000',
+        'timelineSwipeHintMinimumTimerRef',
+        'timelineSwipeHintAutoStopTimerRef',
+        'timelineSwipeHintPendingInteractionRef',
+        'timelineSwipeHintStartedAtRef',
+        'handleTimelineSwipeHintInteraction',
+        "stopTimelineSwipeHint('auto_stop_10s')",
+        "stopTimelineSwipeHint('timeline_swipe_hint_cleanup', false)",
+        "guidedTutorialStepMode === 'timeline-scroll'",
+        'isTimelineSwipeHintActive',
+        'hasTimelineSwipeHintMinimumElapsed',
+        "handleTimelineSwipeHintInteraction('question_card_drag_start')",
+        "handleTimelineSwipeHintInteraction('question_card_touch_drag')",
+        'guidedTimelineSwipeHintMinimumElapsed',
+        'onTimelineSwipeHintInteraction',
+        'onGuidedScrollHintInteraction',
+        'onPointerDown',
+        'onTouchStart',
+        'onWheel',
+        'data-kronox-guided-timeline-swipe-hint',
+        'pointer-events-none absolute inset-0',
+      ]);
+      if (missing.length) {
+        return fail('Guided question-2 timeline swipe hint can run too long, stop too early, or block interaction.', {
+          verification: 'STATIC_CONTRACT',
+          files: ['src/pages/Game.jsx', 'src/components/game/GameLayout.jsx', 'src/components/game/Timeline.jsx'],
+          expected: '3s minimum timer, 10s auto-stop, timeline/card interaction stop after minimum, timer cleanup, tutorial-only activation, and pointer-events:none visual layer.',
+          actual: { missing },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Guided question-2 timeline swipe hint is tutorial-only, runs at least 3s, auto-stops by 10s, stops on timeline/card interaction after the minimum, and cleans up timers.', {
+        verification: 'STATIC_CONTRACT',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
 ];
