@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex415 — Documentation rebuild from current product/technical truth:
+//   • Rebuilds product workflow and technical flow markdown around current
+//     guest, onboarding, category, Solo, Online, economy, Health, and security
+//     contracts while marking old Codex040 PDFs as stale references.
+
 // Codex414 — Economy idempotency race hardening:
 //   • Adds DiamondTransaction pre-check/post-confirm guards across active
 //     Diamond writers and reserve/canonical Daily Wheel same-day re-checks.
@@ -2351,7 +2356,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex414';
+const BUILD_MARKER = 'Codex415';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

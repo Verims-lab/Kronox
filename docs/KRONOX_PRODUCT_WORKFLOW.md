@@ -2,14 +2,16 @@
 
 Status: Active product workflow contract.
 
-This document describes the current user-facing Kronox product flow. It is the
-canonical workflow map for onboarding, identity, category selection, Solo,
-Online, economy, leaderboard, analytics, Health, and release proof.
+This document is the current non-technical product flow map for Kronox. It
+supersedes the old PDF-style workflow notes that referenced Codex040-era
+behavior, login-first assumptions, old tutorial flows, old scoring copy, and
+old category models.
 
 Related contracts:
 
 * `KRONOX_CORE_PROMPT.md`
 * `KRONOX.md`
+* `docs/KRONOX_TECHNICAL_FLOW.md`
 * `docs/KRONOX_PROFILE_FIELDS.md`
 * `docs/KRONOX_CATEGORY_TAXONOMY.md`
 * `docs/KRONOX_SOLO_QUESTION_ENGINE.md`
@@ -22,383 +24,412 @@ Related contracts:
 
 ---
 
-# 1. Product Shape
+# 1. Kronox Overview
 
-Kronox is a mobile-first timeline trivia game. The player places dated event
-cards into a timeline, learns ordering by before/after context, earns visible
-`Puan` / `Kronox Puan`, and can keep playing as a guest without forced login.
+Kronox is a mobile-first timeline card game. Players place event cards into the
+right chronological position, learn before/after relationships, earn `Puan` /
+`Kronox Puan`, collect Diamonds, and can play as a guest without a login wall.
 
-The first screen for a new unauthenticated player is not a marketing landing
-page and not a provider-login wall. A portable app-owned guest profile is
-created or verified, then the player enters the guided first Solo level.
-
-Primary player surfaces:
+Current primary surfaces:
 
 * Ana Sayfa
-* Solo
+* Solo Meydan Okuma
 * Online Kapışma
 * Mağaza
 * Liderlik
 * Profil
-* Admin Ekranı for active admin/owner users only
+* Admin Ekranı for active admins only
 * Health Center / simulator for release-risk proof
 
-Bottom navigation remains narrow and stable:
+BottomNav has only:
 
 * Ana Sayfa
 * Liderlik
 * Profil
 
-Online is launched from Home, not from BottomNav.
+Online is launched from Home. Online is not a BottomNav item.
 
 ---
 
-# 2. First-Time Guest Flow
+# 2. User Types
 
-Current first-time flow:
+Guest:
+
+* can start without Google, Apple, or Email login
+* receives an app-owned `GuestProfile`
+* has a public username such as `KronoxUser####`
+* can complete guided tutorial, profile setup, category setup, Solo, Home,
+  Daily systems, and leaderboard projection where allowed
+* can link an account later from Profile
+
+Linked / registered user:
+
+* signs in or links through Profile
+* keeps username as public identity
+* can use Profile account features, friends/invites, Online, Mağaza, Daily
+  rewards, category preferences, and persistent economy/progress
+* must see Apple wherever Google login is offered
+
+Admin:
+
+* is authorized by an active `AdminUser` row
+* must have normalized email, active status, and `owner` or `admin` role
+* can access Admin Ekranı and admin-only reports/tools
+* is not authorized by request-body role, UI visibility, or hardcoded email
+
+---
+
+# 3. First-Time Onboarding Journey
+
+Current first launch flow:
 
 1. App opens.
-2. The app creates or verifies an app-owned `GuestProfile`.
-3. No Google / Apple / Email login is required.
-4. The player sees the guided first Solo level entry.
-5. Starting the tutorial sets onboarding state to `tutorial_in_progress`.
-6. The guided first Solo level teaches timeline placement, timer, moves, and
-   joker concepts.
-7. Completion advances the guest to profile setup.
-8. Profile setup asks for public username plus optional private age/gender.
-9. Category setup loads current safe `Category` metadata and lets the guest
-   choose interests.
-10. Successful category completion marks onboarding complete and routes to Ana
-    Sayfa.
+2. App creates or verifies an app-owned `GuestProfile`.
+3. Raw guest token is returned to the client once and kept client-side.
+4. Server stores only `guest_token_hash`.
+5. User starts the guided first Solo tutorial.
+6. Tutorial completion routes to profile setup.
+7. Profile setup asks for username plus optional private age/gender.
+8. Category selection loads current metadata.
+9. Successful category completion marks onboarding complete.
+10. User lands on Ana Sayfa.
 
-`Eğitime Devam` is valid only for a truly resumable guided level:
+Routing rules:
 
-* `onboarding_status = tutorial_in_progress`
-* tutorial is actually in progress
-* no later profile/category/onboarding-complete state has been reached
+* `Eğitime Devam` appears only for true `tutorial_in_progress`.
+* `tutorial_completed` routes to profile setup.
+* profile complete plus category pending routes to category selection.
+* `onboarding_complete` routes to Ana Sayfa.
+* stale tutorial state must not pull a player back from profile setup,
+  category setup, or Home.
 
-Stale `tutorial_in_progress` must not pull a player back from profile setup,
-category setup, or Ana Sayfa.
+Firebase anonymous auth and Base44 anonymous auth are not the guest identity
+model.
 
 ---
 
-# 3. Guest Identity
+# 4. Guided Tutorial Journey
 
-Guest identity is app-owned through `GuestProfile`. Kronox does not use
-Firebase anonymous auth or Base44 anonymous auth for the guest identity model.
+The old standalone tutorial is removed as the current onboarding product.
+Current onboarding is a guided first Solo level inside the real game shell.
 
-Current public guest identity:
+The guided tutorial teaches:
+
+* dragging a card to the timeline
+* before/after placement
+* horizontal timeline movement
+* time and `HAMLE`
+* joker concepts
+* first mistake / move impact
+
+Tutorial behavior:
+
+* welcome and pre-game explanation are shown before active play
+* effective tutorial time pauses while explanation popups are visible
+* popup reading should not unfairly consume time or moves
+* hand/finger animations are tutorial-only visual hints
+* hand/finger animations do not move the real card, spend inventory, score, or
+  consume moves
+* question 2 timeline swipe hint runs at least 3 seconds
+* after the minimum duration, timeline/card interaction can stop the hint
+* the hint auto-stops after 10 seconds if ignored
+* tutorial joker demos do not spend real `UserJokerInventory`
+
+---
+
+# 5. Profile And Account Linking
+
+Public identity is username only.
+
+Current public identity:
 
 * `username`
-* default `KronoxUser####` / `KronoxUser#####`
+* default format: `KronoxUser####` / `KronoxUser#####`
 
-Private or internal identity values must not be displayed publicly:
+Private profile fields:
 
-* email
-* Google ID
-* Apple ID
-* provider UID
-* raw `guest_id`
-* raw guest token
-* `owner_key`
-* internal player key
+* optional age
+* optional gender
 
-`display_name` is a legacy/projection mirror of `username`. It is not a
-separate public editable identity and must not be presented as current product
-copy such as `Görünen Ad`.
+Age and gender are private. They must not affect scoring, leaderboard,
+matchmaking, category weighting, Online question selection, or public
+projection rows.
 
-Guest account linking is optional and belongs under Profile. Home / Ana Sayfa
-must not show Google, Apple, Email, `Hesabını bağla`, or progress-protection
-account-link CTAs. A guest can keep playing without linking.
+Legacy identity:
 
-When a guest links to Google / Apple / Email from Profile, the merge path
-preserves safe user-beneficial progress, economy, and category choices once,
-without exposing provider IDs as public identity.
+* `display_name` may exist as a compatibility mirror/projection.
+* `display_name` / `Görünen Ad` is not a separate public editable field.
 
----
+Account linking:
 
-# 4. Profile Workflow
-
-Profile is the user's identity, progress, settings, social, and account-linking
-home.
-
-Visible profile stats:
-
-* `Puan` from the shared visible Kronox Puan helper
-* `Seviye` from Solo progress
-* `Elmas` from persisted Diamond balance
-* `Joker Çantası` from `UserJokerInventory`
-
-Editable profile fields:
-
-* `username`
-* optional `age`
-* optional `gender`
-
-`age` and `gender` are private profile fields. They must not affect scoring,
-leaderboard, matchmaking, category weighting, Online question selection, or
-public projections.
-
-Authenticated users can edit `İlgi Alanlarım` under Profile / Settings. Those
-rows are user-owned `UserCategoryPreference` rows and feed only Solo soft
-weighting when enough active valid selections exist.
+* belongs under Profile only
+* Home does not show Google / Apple / Email login buttons
+* Home does not show `Hesabını bağla` or secure-progress account-link cards
+* linking merges safe user-beneficial guest progress/economy/categories once
+* provider IDs, email, raw guest token, raw `guest_id`, and `owner_key` must not
+  become public identity
 
 ---
 
-# 5. Guided First Solo Tutorial
+# 6. Category Selection
 
-The old standalone tutorial is not the current onboarding product. Current
-onboarding is a guided first Solo level launched from `/onboarding` into the
-real game shell.
+Category metadata loads for guests without login.
 
-Current guided tutorial teaches:
+Category source of truth:
 
-* the 3-minute timer
-* remaining `HAMLE`
-* dragging a card into the correct timeline slot
-* before/after ordering
-* timeline swipe/scroll interaction
-* Zaman Dondur
-* Kart Değiştir
-* Kronokalkan
-* how a wrong evaluated placement affects moves/Puan
+* current live `Category` rows
+* current canonical taxonomy
+* public-safe `getCategoryMetadata` for metadata-only reads
 
-Tutorial time is effectively paused while instructional popups are visible.
-Tutorial hand/finger hints are visual guidance only; they must not move the
-real card, consume a move, trigger scoring, spend inventory, or block touch
-input after their intended teaching moment.
-
-Tutorial joker demos do not spend real `UserJokerInventory`.
-
-The timer explanation opens before active play and shows `03:00`, not a
-60-minute timer.
-
----
-
-# 6. Category Selection Workflow
-
-Current category metadata comes from live active `Category` rows, normally
-through `getCategoryMetadata` or safe metadata reads.
+Metadata-only means category IDs, names, descriptions, and active/passive
+status. It must not expose questions, answer years, user data, admin fields, or
+the full question bank.
 
 Guest category setup:
 
-* can load categories without login
-* must use current active category metadata
-* must not read raw `Question` rows
-* must not expose the full question bank
-* must not render stale hardcoded category fallback arrays
-* may allow fewer than 3 selections as advisory guidance
-* treats empty guest selections as all active Solo categories eligible
-* completes with CTA text exactly `Ana Sayfa`
+* loads current active category metadata
+* can be completed without login
+* uses `GuestProfile.selected_category_ids`
+* fewer than 3 selections are advisory for guests
+* empty guest selections mean all active Solo categories remain eligible
+* final CTA routes to Ana Sayfa
 
-Authenticated category preferences:
+Authenticated preferences:
 
 * live under Profile / Settings / `İlgi Alanlarım`
+* persist as `UserCategoryPreference`
 * require at least 3 active valid selections when saving
-* use all active categories for Solo when fewer than 3 valid preferences exist
-* become a Solo-only soft 70/30 weighting input when at least 3 active valid
-  selections exist
-* do not affect Online question selection
+* affect Solo only as soft weighting
+* do not affect Online
 
-Legacy category rules that are not current product behavior:
+Forbidden stale category contracts:
 
-* old seed names such as Chronicle, Flashback, Viral, Arena, and Level Up are
-  historical references only unless they exist as current active DB rows
-* the original 1-6 category ID set is not a runtime maximum
-* stale hardcoded category arrays are forbidden as onboarding, Online, or
-  `getQuestions` fallback
-* old `SubCategory` preference UI is not the current Settings product
-* a "minimum 5 categories" requirement is not current; current authenticated
-  preference save minimum is 3, while guest setup remains advisory
+* hardcoded Chronicle / Flashback / Viral / Arena / Level Up fallback lists
+* old original category IDs as a runtime maximum
+* minimum 5 category preference rule
+* SubCategory preference UI as current Settings product
+* Online reading Solo preferences
+
+Online category list is sorted by `category_id` ascending.
 
 ---
 
-# 7. Home Workflow
+# 7. Home Flow
 
-Ana Sayfa is the main return point after onboarding. It must work for guests
-and authenticated users.
+Ana Sayfa is the main return point after onboarding.
 
-Home can surface:
+Home can show:
 
 * Solo entry
-* Online Kapışma
-* Mağaza
+* Online Kapışma entry
+* Mağaza entry
 * Daily Wheel / Günlük Ödüller
-* Daily Quest panel
+* Daily Quest
 * notification/invite access
 * Diamond balance
 
-Home must not surface provider login/account-link buttons. Account linking is
-Profile-only.
+Home must not show:
+
+* Google login button
+* Apple login button
+* Email login button
+* `Hesabını bağla` card
+* secure-progress account-link card
+
+Account linking remains Profile-only.
 
 ---
 
-# 8. Solo Workflow
+# 8. Solo Gameplay Flow
 
-Solo is the primary single-player timeline game.
+Solo is the primary single-player mode.
 
-Current normal Solo rules:
+Current normal Solo:
 
 * starts with 2 timeline anchor cards
-* uses an 18-question attempt deck
-* target is 7 correct timeline cards including anchors
-* timer is 180 seconds
-* visible limit is remaining `HAMLE`
-* player has 10 evaluated placement moves
-* fail occurs when 10 evaluated moves are used before reaching the target
+* target total timeline cards: 7
+* correct placements needed after anchors: 5
+* max evaluated placement moves: 10
+* timer: 180 seconds
+* live UI shows remaining moves, e.g. `10 HAMLE`
+* used moves = max moves - remaining moves
 
-Current special Solo rules:
+Stars are based on used evaluated moves:
 
-* special levels start at level 10 and repeat every 5 levels
-* use a 19-question attempt deck
-* target is 10 correct timeline cards including anchors
+* 5-6 used moves = 3 stars
+* 7-8 used moves = 2 stars
+* 9-10 used moves = 1 star
 
-Only valid evaluated placements consume a move. These do not consume a move:
+Failure:
 
-* card touch
-* drag start
-* drag movement
-* cancelled drag
-* invalid drop
-* tutorial hand animation
-* popup reading time
-* joker activation
+* 10 moves used and 7 total timeline cards not reached
 
-Visible Solo result language uses `SÜRE`, `PUAN`, and `HAMLE`. `HATA` is a
-legacy/internal term and must not be used as the current Solo result/stat label.
+Move consumption:
 
-Star rules are based on used evaluated moves, not public error count.
+* only valid timeline placement evaluation consumes a move
+* touch, slight drag, cancelled drag, invalid drop, tutorial hand animation,
+  popup reading, and joker activation do not consume a move
+
+Visible scoring language:
+
+* `HAMLE`
+* `Puan`
+* `Kronox Puan`
+
+`HATA` is legacy/internal and is not the current visible Solo scoring driver.
 
 ---
 
-# 9. Solo Joker Workflow
+# 9. Joker Usage Flow
 
 Current Solo jokers:
 
-* Zaman Dondur
 * Kart Değiştir
-* Kronokalkan
+* Zaman Dondur
+* Kronokalkan / Hata Affı
 
-Normal Solo joker use spends owned inventory and writes `JokerTransaction`.
-`UserJokerInventory` is the current balance source. `JokerTransaction` is the
-ledger/audit source.
+Move model:
 
-Joker boundaries:
+* Kart Değiştir does not consume a move
+* Zaman Dondur does not consume a move
+* Kronokalkan protects one wrong valid placement from move decrement
 
-* tutorial demos do not spend inventory
-* Online mode does not use Solo jokers
-* Kart Değiştir replacement must be deck-safe and must not expose the full
-  question bank
-* Kronokalkan protects the next applicable wrong placement according to the
-  Solo joker contract
-* Zaman Dondur is a Solo gameplay effect only
+Normal Solo:
 
-Mağaza sells Solo jokers for Diamonds:
+* uses `UserJokerInventory`
+* writes `JokerTransaction`
+* has no free attempt-local joker fallback
+
+Tutorial:
+
+* joker demos are tutorial-only
+* tutorial demos do not spend real inventory
+
+Mağaza prices:
 
 * Zaman Dondur = 40 Diamonds
 * Kart Değiştir = 50 Diamonds
 * Kronokalkan = 60 Diamonds
 
-Purchases are server-authoritative and write both Diamond and joker ledgers.
+---
+
+# 10. Online Challenge Flow
+
+Online is separate from Solo.
+
+Current Online flow:
+
+1. User opens Online Kapışma from Home.
+2. Category list loads from active current metadata.
+3. Host selects categories.
+4. Selected categories are stored as live `category_id` values.
+5. Lobby is created or joined.
+6. `startLobbyGame` builds one shared authoritative deck.
+7. Game reads the persisted shared Online deck.
+
+Online question rules:
+
+* selected categories = 100% of Online pool
+* difficulty 1 and 2 only
+* no Solo category preferences
+* no Solo 70/30 weighting
+* no guest Solo projection
+* no Solo move/star result model unless explicitly designed later
+
+Online result scoring contributes to visible `Kronox Puan`, while the Online
+component remains internally auditable.
 
 ---
 
-# 10. Online Workflow
+# 11. Economy And Daily Systems
 
-Online is separate from Solo preferences and Solo scoring rules.
+Diamonds / Elmas are separate from Kronox Puan.
 
-Current Online question selection:
+Current Diamond sources and sinks:
 
-* host selects one or more active categories
-* `Lobby.selected_category_ids` stores live `Category.category_id` values
-* `startLobbyGame` creates the authoritative shared deck
-* deck is selected 100% from lobby-selected active categories
-* allowed difficulties are 1 and 2
-* Game reads the persisted `online_question_deck`
-
-Online must not:
-
-* use Solo `UserCategoryPreference` rows
-* use Solo 70/30 preference weighting
-* use guest Solo question mode
-* fall back to old category seed names or `Lobby.category`
-* inherit Solo move/star result rules unless explicitly documented later
-
-Online result scoring contributes to the same visible `Kronox Puan` language,
-but the Online score component remains internally separate for auditability.
-
----
-
-# 11. Economy Workflow
-
-Diamonds / Elmas are separate from `Kronox Puan`.
-
-Diamond sources and sinks:
-
-* starter/login grants are Diamond economy events
-* Daily Wheel grants Diamonds only
-* Daily Quest grants Diamonds only
-* Mağaza purchases spend Diamonds
-
-Daily Quest:
-
-* is active in the Home `Günlük Ödüller` panel
-* uses admin-managed `DailyQuestDefinition`
-* writes user-owned `UserDailyQuestProgress`
-* grants through `claimDailyQuestReward`
-* writes `DiamondTransaction.source = daily_quest_reward`
-* does not grant Kronox Puan
-* does not affect leaderboard sorting or rank
+* starter and login Diamond grants
+* Daily Wheel Diamond-only grants
+* Daily Quest Diamond-only grants
+* Mağaza Diamond spends
 
 Daily Wheel:
 
-* is separate from Daily Quest
 * grants Diamonds only
-* does not grant Kronox Puan
-* does not affect leaderboard sorting or rank
+* grants no Kronox Puan
+* does not affect leaderboard
+* is separate from Daily Quest
+* uses function-level same-day guard through `DailyWheelSpin`
 
-Economy ledgers and current balances must remain separate from question
-analytics reset workflows.
+Daily Quest:
+
+* grants Diamonds only
+* grants no Kronox Puan
+* does not affect leaderboard
+* is separate from Daily Wheel
+* uses `DailyQuestDefinition`, `UserDailyQuestProgress`, and
+  `claimDailyQuestReward`
+
+Economy idempotency:
+
+* `DiamondTransaction` has function-level idempotency guards
+* `DailyWheelSpin` has function-level same-day guards
+* DB/entity unique constraints are not repo-proven
+* economy idempotency race risk is Medium / P1 hardening until platform unique
+  constraints or live parallel proof exist
+
+Economy ledgers and balances must not be cleared by question analytics reset.
 
 ---
 
-# 12. Leaderboard Workflow
+# 12. Leaderboard Flow
 
 Leaderboard displays unified `Kronox Puan`.
 
-Current public-safe identity:
+Public identity:
 
-* `username`
-* safe display projection based on username
-* never email/provider IDs/internal owner keys
+* username
+* safe username-based projection
 
-The historical `SoloLeaderboardEntry` name remains a projection name; visible
-`total_kronox_score` is unified Kronox Puan, not Solo-only public score.
+Never visible in leaderboard:
 
-Profile Puan and current-user leaderboard row Puan must match.
+* email
+* provider IDs
+* raw guest ID
+* raw guest token
+* `owner_key`
+* internal player key
+
+Guest users can appear through safe public username projection where the current
+leaderboard path supports it.
 
 Daily Quest and Daily Wheel do not affect leaderboard.
 
 ---
 
-# 13. Question Analytics Workflow
+# 13. Question Analytics / Reporting Flow
 
-Question Analytics is an admin/private reporting workflow, not a public player
-surface.
+Question Analytics is admin/private reporting, not a public player surface.
 
 Current report contract:
 
 * `sendQuestionAnalyticsReportEmail`
-* manual/admin-triggered
-* email body report
-* no public PDF report
-* exactly 9 top-level report sections
-* active raw history source is `QuestionAttemptEvent`
-* anonymous per-player coverage can use `User0001` style labels
-* no email, provider UID, raw guest ID/token, owner key, internal player key, or
-  username in per-player analytics output
+* email-body-only
+* no PDF report
+* exactly 9 top-level sections when Health enforces the report contract
+* includes global and category coverage
+* includes anonymized per-player coverage with `User0001` style labels
+* no email, provider UID, raw guest ID/token, owner key, internal player key,
+  or username in per-player analytics output
 
-Manual reset clears only question analytics/report history tables:
+Exposure model:
+
+* same question across different players is acceptable
+* same player seeing repeated questions too early is the real issue
+* exposure is actual-shown-only
+* candidate, buffered, reserved, and unused deck cards are not exposure
+* Kart Değiştir replacement counts only when actually shown
+
+Manual analytics reset clears only analytics/history tables:
 
 * `QuestionAttemptEvent`
 * `PlayerQuestionDailyExposure`
@@ -407,65 +438,78 @@ Manual reset clears only question analytics/report history tables:
 
 Optional reset:
 
-* `PlayerQuestionExposure`
-
-Clearing `PlayerQuestionExposure` resets the same-player anti-repeat memory.
-
-Do not delete question pool, categories, users, guest profiles, category
-preferences, joker inventory, economy ledgers, Daily Wheel/Daily Quest rows,
-leaderboard, score, or level progress as part of question analytics reset.
+* `PlayerQuestionExposure`, only when same-player anti-repeat memory should
+  restart
 
 ---
 
-# 14. Health And Release Workflow
+# 14. Health / Release Workflow
 
 Health Center is a release-risk dashboard, not a release stamp.
 
-Health PASS means a static/simulated case executed and verified its limited
-contract. Health PASS does not prove:
+Status meaning:
 
-* real device gestures
-* two-account Online behavior
-* backend Base44 deployment
-* RLS/BOLA behavior
-* push delivery
-* App Store / Play Console wrapper quality
-* low-end Android smoothness
+* blocker/failure/error = must fix before release
+* warning = automated/static risk that requires review
+* manual required / not automatable = human, device, production, or platform
+  proof
+* not automatable does not reduce automated score like a failure
+* critical manual gates keep `releaseReady=false` until accepted or completed
+* 0 blockers alone does not mean release-ready
 
-Manual Required / NOT_AUTOMATABLE gates do not reduce automated score, but they
-keep `releaseReady=false` until proof is collected or accepted.
+Report actions must use the current completed run:
 
-Release operators should use:
+* Copy Blocker JSON
+* Copy Warning JSON
+* Download JSON
+* Copy Summary
+* Last Run
 
-* Copy Blocker JSON for real blockers only
-* Copy Warning JSON for warning-only entries
-* Copy Summary for compact report context
-* Download JSON for the full completed report
-* the newest completed Last Run only
-
-Full Health is intentionally not a substitute for manual proof.
+Full release still requires manual proof for device gestures, two-account
+Online, RLS/BOLA, Base44 deployment, push/VAPID, safe-area, native wrappers, and
+low-end Android smoothness.
 
 ---
 
-# 15. Legacy Contracts That Must Not Return As Current Product Truth
+# 15. Manual Release Proof Checklist
 
-The following are legacy, historical, or forbidden as current product behavior:
+Before release, verify at minimum:
 
-* `HATA` as visible current Solo scoring/result source
-* `display_name` / `Görünen Ad` as separate public editable identity
-* old standalone tutorial as current onboarding
-* Chronicle / Flashback / Viral / Arena / Level Up as hardcoded active fallback
-* original 1-6 categories as a runtime maximum
-* minimum 5 category preferences
-* current Settings `SubCategory` preference UI
-* Google / Apple / Email login CTAs on Home
-* Firebase anonymous auth
-* Base44 anonymous auth as the guest identity model
-* raw client `Question.list` gameplay fallback
-* full question-bank exposure to guest or normal gameplay clients
+* onboarding: guest creation, tutorial, profile setup, category setup, Home
+* identity: username-only public display, Profile-only account linking
+* category: guest metadata load, authenticated minimum 3 save, Online category
+  sorting by `category_id`
+* tutorial: no unfair time/move consumption; question 2 swipe hint timing
+* Solo: 2 anchors, target 7 cards, 10 evaluated moves, HAMLE language, star
+  rules by used moves
+* jokers: inventory spend only in normal Solo, tutorial demos free, Market
+  prices correct
+* Online: selected categories 100%, difficulty 1/2, shared authoritative deck
+* exposure: actual-shown-only writes and anonymized reports
+* economy: Daily Wheel / Daily Quest Diamond-only, idempotency duplicate probes
+* leaderboard: username-only public identity and matching Profile Puan
+* analytics: 9-section email-body report, no PDF, no raw player identifiers
+* security: AdminUser authorization, public function boundaries, VAPID secret
+  handling, account deletion scope
+* Health: blocker/warning/manual separation and newest completed run actions
+
+Legacy/stale contracts that must not return as current truth:
+
+* `HATA` as visible Solo scoring source
+* `display_name` / `Görünen Ad` as public editable profile field
+* old standalone tutorial
+* login-first onboarding
+* Home login buttons
+* hardcoded Chronicle / Flashback / Viral / Arena / Level Up fallbacks
+* minimum 5 category preference rule
+* current SubCategory preference UI
+* full question bank client exposure
+* raw `Question.list` gameplay fallback
 * Daily Quest granting Kronox Puan
-* Daily Quest affecting leaderboard
+* Daily Quest leaderboard impact
 * Online using Solo preferences
-* old fixed 10-card Solo deck without joker buffer
-* public error-count based Solo stars
+* DB unique constraints as repo-proven economy truth
 
+The uploaded `kronox-is-akisi.pdf` is a stale Codex040-era reference artifact.
+It can be used for old document shape only and must be regenerated from current
+source if a PDF deliverable is needed.

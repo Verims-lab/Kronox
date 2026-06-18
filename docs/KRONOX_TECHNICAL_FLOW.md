@@ -2,17 +2,18 @@
 
 Status: Active technical flow contract.
 
-This document describes how the current Kronox product workflow is implemented
-across frontend routes, Base44 entities/functions, runtime selection, economy,
-analytics, Health, and deployment proof.
+This document describes the current implementation shape for engineers. It
+supersedes old PDF-style technical notes that referenced Codex040-era routing,
+login-first assumptions, old tutorial/scoring models, stale category fallbacks,
+and incomplete security/economy contracts.
 
 Related contracts:
 
 * `KRONOX_CORE_PROMPT.md`
 * `KRONOX.md`
+* `docs/KRONOX_PRODUCT_WORKFLOW.md`
 * `docs/KRONOX_DB_ARCHITECTURE.md`
 * `docs/KRONOX_DATA_MODEL_AUDIT.md`
-* `docs/KRONOX_DATA_MODEL_IMPLEMENTATION_PLAN.md`
 * `docs/KRONOX_QUESTION_DATA_MODEL.md`
 * `docs/KRONOX_SOLO_QUESTION_ENGINE.md`
 * `docs/KRONOX_CATEGORY_TAXONOMY.md`
@@ -27,77 +28,192 @@ Related contracts:
 
 # 1. Platform And App Shell
 
-Kronox is a Vite/React app with Tailwind-style UI, Base44 entities/functions,
-and mobile/PWA/WebView release constraints.
+Kronox is a Vite + React app with Tailwind-style UI, Base44 Functions /
+Entities, and mobile-first PWA/WebView constraints.
 
-Runtime route map is owned by `src/App.jsx`.
+Platform rules:
+
+* Base44 owns generated Android/iOS packages.
+* Do not assume native Android/iOS business logic.
+* Frontend build proof is Vite proof only.
+* Base44 function deployment and native wrapper behavior require separate
+  manual proof.
+
+App shell owner:
+
+* `src/App.jsx`
+
+Primary mobile shell constraints:
+
+* Home is fixed/no-scroll where intended.
+* Gameplay avoids page-level vertical scroll where possible.
+* timeline horizontal scroll is intentional and contained.
+* Settings/Admin/Health/report pages may scroll.
+
+---
+
+# 2. Routes / Navigation
 
 Important routes:
 
 * `/` - Ana Sayfa
-* `/onboarding` - guided guest onboarding shell
-* `/game` - Solo / Online game shell
-* `/solo` - Solo level path
+* `/onboarding` - guest onboarding and guided tutorial shell
+* `/game` - Solo / Online gameplay shell
+* `/solo` - Solo level map
 * `/market` - Mağaza
 * `/leaderboard` - Liderlik
 * `/profile` - Profil
-* `/settings` - Profile settings surface
+* `/settings` - Settings
 * `/friends` - Arkadaşlarım
-* `/lobby` - Online lobby flow
+* `/lobby` - Online lobby
 * `/admin` - Admin Ekranı
 * `/test-suite` - Health Center / simulator
 * `/privacy` - public privacy page
-* `/account-deletion` - public account-deletion page
+* `/account-deletion` - public account deletion page
 
-BottomNav is hidden on onboarding, game, and public standalone pages. Visible
-bottom tabs are Ana Sayfa, Liderlik, and Profil.
+BottomNav visible tabs:
+
+* Ana Sayfa
+* Liderlik
+* Profil
+
+Online is not a BottomNav tab. Online starts from Home.
+
+BottomNav is hidden or minimized where the game/onboarding shell requires it.
 
 ---
 
-# 2. Identity And Auth Flow
+# 3. Base44 Functions / Entities Overview
 
-Guest identity is `GuestProfile`, not Firebase anonymous auth and not Base44
-anonymous auth.
+Base44 Entities used by current product areas include:
 
-Core guest fields:
+* `GuestProfile`
+* `GuestCreationThrottle`
+* `AccountLinkTransaction`
+* `User`
+* `AdminUser`
+* `Category`
+* `UserCategoryPreference`
+* `Question`
+* `PlayerQuestionExposure`
+* `PlayerQuestionDailyExposure`
+* `QuestionAttemptEvent`
+* `QuestionStatsProjection`
+* `CategoryStatsProjection`
+* `Lobby`
+* `GameInvite`
+* `OnlineMatchResult`
+* `SoloLeaderboardEntry`
+* `DiamondTransaction`
+* `DailyWheelSpin`
+* `DailyQuestDefinition`
+* `UserDailyQuestProgress`
+* `UserJokerInventory`
+* `JokerTransaction`
+* `PushSubscription`
+* `AdminMaintenanceLog`
+
+Key Base44 Functions include:
+
+* `createGuestProfile`
+* `linkGuestAccount`
+* `getCategoryMetadata`
+* `getQuestions`
+* `startLobbyGame`
+* `getDailyWheelStatus`
+* `claimDailyWheelReward`
+* `getDailyQuestStatus`
+* `recordDailyQuestProgress`
+* `claimDailyQuestReward`
+* `purchaseJokerWithDiamonds`
+* `sendQuestionAnalyticsReportEmail`
+* `getSoloLeaderboard`
+* `getAdminStatus`
+* `deleteAccount`
+* `adminResetUserProgress`
+
+Service-role functions must bind every user-owned object to authenticated user,
+admin, participant, host, recipient, or documented authority fields before read
+or mutation.
+
+---
+
+# 4. Guest Identity Architecture
+
+Guest identity is app-owned through `GuestProfile`.
+
+Not used for guest identity:
+
+* Firebase anonymous auth
+* Base44 anonymous auth
+
+Core fields:
 
 * `guest_id`
 * `guest_token_hash`
 * `guest_token_hash_algorithm`
 * `username`
 * `username_normalized`
-* mirrored legacy `display_name`
-* onboarding status fields
-* optional profile fields
-* optional `selected_category_ids`
+* onboarding fields
+* optional private profile fields
+* optional selected category IDs
 
-`createGuestProfile` is public by design because unauthenticated users must be
-able to start as guests. The function generates `guest_id`, raw guest token,
-token hash, and default username server-side. The raw guest token is returned to
-the client once and remains client-side; the database stores only the hash.
+`createGuestProfile` is public by design. It creates the guest ID, raw token,
+token hash, default username, and monitoring/throttle metadata.
 
-All guest updates that mutate profile/onboarding/category state require
-`guest_id + raw guest token` proof. `guest_id` alone is never an ownership
-proof.
+Security rule:
 
-Public identity source:
+* raw guest token is client-only
+* server stores `guest_token_hash`
+* `guest_id` alone is not enough for writes
+* token-proven writes are required for guest profile/category/onboarding sync
 
-* current: `username`
-* legacy mirror/fallback: `display_name`
-
-`display_name` exists for compatibility/projections only. New UI and docs must
-not present `Görünen Ad` / `display_name` as the current public editable field.
-
-Authenticated account linking is through `linkGuestAccount` from Profile. It
-verifies both guest token proof and `base44.auth.me()`, writes
-`AccountLinkTransaction`, marks the guest linked once, and applies
-user-beneficial merges without exposing provider IDs publicly.
+Because `createGuestProfile` is public, it must stay hardened and monitored
+with throttle rows and safe request handling.
 
 ---
 
-# 3. Onboarding State Machine
+# 5. Account Linking Architecture
 
-`GuestProfile.onboarding_status` is the onboarding source of truth.
+Account linking is Profile-only.
+
+Function:
+
+* `linkGuestAccount`
+
+Inputs/authority:
+
+* authenticated user from `base44.auth.me()`
+* guest proof from `guest_id + raw guest token`
+* idempotency key for link transaction
+
+Writes:
+
+* `AccountLinkTransaction`
+* linked `GuestProfile` status
+* authenticated `User` progress/economy/category merges where safe
+* `User.linked_guest_ids` as duplicate-protection guard
+
+Merge policy:
+
+* keep user-beneficial progress
+* combine Diamonds once through documented ledger/guard paths
+* merge category selections without exposing raw IDs publicly
+* provider IDs and raw guest token never become public identity
+
+Manual proof required:
+
+* duplicate link retry
+* wrong token blocked
+* already-linked guest cannot link to another account
+
+---
+
+# 6. Onboarding State Machine
+
+Source of truth:
+
+* `GuestProfile.onboarding_status`
 
 Current states:
 
@@ -108,80 +224,79 @@ Current states:
 * `category_setup_pending`
 * `onboarding_complete`
 
-`src/pages/OnboardingPage.jsx` owns the visible onboarding shell and uses
-`ensureGuestProfile`, `getGuestOnboardingStep`, and
-`updateGuestProfileOnboarding`.
+Primary modules:
 
-State progression:
+* `src/pages/OnboardingPage.jsx`
+* `src/lib/guestProfile.js`
+* `src/lib/categoryPreferenceOnboarding.js`
+* `src/pages/Game.jsx`
 
-1. guest created or verified
+State flow:
+
+1. ensure guest profile
 2. start guided tutorial
-3. set `tutorial_in_progress`
+3. mark `tutorial_in_progress`
 4. navigate to `/game` with guided Solo config
-5. tutorial completion sets profile setup pending
-6. profile save writes username/age/gender and advances to category setup
-7. category save writes `selected_category_ids`,
-   `category_setup_status = completed`, and
-   `onboarding_status = onboarding_complete`
-8. route to Ana Sayfa
+5. tutorial completion advances to profile setup
+6. profile setup writes username plus optional age/gender
+7. category setup writes selected category IDs
+8. mark `onboarding_complete`
+9. navigate to Ana Sayfa
 
-Repair rule: later completed states outrank stale tutorial state. A stale
-`tutorial_in_progress` value must not override profile setup, category setup, or
-onboarding complete.
+Repair rule:
+
+* later completed states outrank stale tutorial state
+* `Eğitime Devam` is only for true resumable tutorial progress
 
 ---
 
-# 4. Category Metadata And Preferences
+# 7. Category Metadata / Source-Of-Truth
 
-Canonical category source:
+Canonical source:
 
-* live `Category` entity rows
-* safe `getCategoryMetadata` callable
+* live `Category` rows
+* current category taxonomy
+* `getCategoryMetadata` for guest-safe metadata
 
-Safe metadata scope:
+Public metadata fields:
 
 * `category_id`
 * `name`
 * `description`
 * `status`
 
-Forbidden category loading behavior:
+Forbidden runtime behavior:
 
-* stale hardcoded category arrays
-* old deployable seed fallback
-* raw `Question.list` for category onboarding
-* full question-bank exposure
-* treating original seed IDs as a runtime maximum
+* hardcoded Chronicle / Flashback / Viral / Arena / Level Up fallback arrays
+* old seed-category ID boundary as runtime maximum
+* raw `Question.list` for category UI
+* exposing questions, answers, years, or full-bank data to category metadata
 
-`seedQuestionCategories` has been removed. Category creation/backfill is a
-deliberate admin/content operation against the live `Category` table.
-
-Authenticated preference storage:
+Authenticated preferences:
 
 * entity: `UserCategoryPreference`
-* current UI: Profile / Settings / `İlgi Alanlarım`
-* active save minimum: 3 valid active categories
-* fewer than 3 active valid preferences means Solo uses all active categories
-* at least 3 active valid preferences enables Solo-only soft weighting
+* UI: Profile / Settings / `İlgi Alanlarım`
+* save minimum: 3 active valid categories
+* fewer than 3 valid preferences means Solo uses all active categories
+* at least 3 valid preferences enables Solo-only soft weighting
 
-Guest onboarding category storage:
+Online:
 
-* field: `GuestProfile.selected_category_ids`
-* token-proven write
-* fewer than 3 is advisory, not a hard gameplay block
-* empty means all active Solo categories remain eligible
+* loads current active categories
+* sorts by `category_id` ASC
+* does not read Solo preferences
 
-Legacy subcategory rows:
+Legacy:
 
-* `SubCategory` is additive/future lookup preparation
-* `UserSubCategoryPreference` rows are retained legacy data
-* current Settings preference UI does not write SubCategory preferences
+* `SubCategory` is future lookup preparation
+* `UserSubCategoryPreference` is retained legacy data
+* current Settings UI does not write SubCategory preferences
 
 ---
 
-# 5. Solo Question Runtime
+# 8. Solo Engine Architecture
 
-Current Solo frontend entry points:
+Primary files:
 
 * `src/pages/Game.jsx`
 * `src/lib/soloQuestionEngine.js`
@@ -193,79 +308,61 @@ Current constants:
 
 * `SOLO_LEVEL_TIME_SECONDS = 180`
 * `SOLO_MAX_MOVES = 10`
-* normal target = 7 timeline cards including anchors
-* special target = 10 timeline cards including anchors
+* initial anchors = 2
+* normal target = 7 total timeline cards including anchors
+* special target = 10 total timeline cards including anchors
 * normal deck = 18 questions
 * special deck = 19 questions
-* initial anchors = 2
 
-Deck structure:
+Deck formula:
 
-* 2 timeline anchors
-* 10 playable evaluated moves
+* 2 anchors
+* 10 playable placement cards
 * Kart Değiştir replacement buffer
-* Kronokalkan / mistake-shield buffer
+* Kronokalkan / Hata Affı buffer
 
-Runtime consumes `soloAttemptDeck` in order. The first active question shown is
-`soloAttemptDeck[0]` unless a deck-safe joker replacement is explicitly used.
+Zaman Dondur does not add a card requirement.
 
-Solo selection inputs:
-
-* active category whitelist from current `Category` rows
-* authenticated `UserCategoryPreference` soft weighting when valid
-* `PlayerQuestionExposure` anti-repeat stats where available
-* difficulty/category/subcategory/theme/year balancing
-* server attempt candidate buffer from `getQuestions`
-
-Raw client `Question.list` gameplay fallback is forbidden. Guest gameplay uses
-the explicit capped guest projection path; signed-in Solo uses authenticated
-minimal `getQuestions` projection.
-
-Visible scoring:
-
-* remaining moves are shown as `HAMLE`
-* valid evaluated placements consume one move
-* touches/drags/cancelled/invalid drops do not consume moves
-* result popups use `SÜRE`, `PUAN`, and `HAMLE`
-* `HATA` is legacy/internal and not current visible Solo scoring copy
+Runtime consumes `soloAttemptDeck` in order. Active attempts must not be
+replaced by refetch/loading fallback.
 
 ---
 
-# 6. Solo Exposure And Analytics Writes
+# 9. Move-Based Scoring Implementation
 
-Per-player anti-repeat memory:
+Visible Solo scoring is move-based.
 
-* `PlayerQuestionExposure`
-* keyed logically by internal `player_key + question_id + mode`
-* private/internal only
-* not shown in public reports
+UI language:
 
-Daily exposure summary:
+* `HAMLE`
+* `Puan`
+* `Kronox Puan`
 
-* `PlayerQuestionDailyExposure`
-* used for anonymous coverage analytics
+Legacy/internal:
 
-Exposure writes:
+* `HATA` is not current visible Solo scoring copy
 
-* best-effort
-* actual shown active cards only
-* replacement/tutorial cards count when actually shown
-* server candidate pools do not count
-* unused deck buffers do not count
-* guest exposure requires `guest_id + raw guest token`
+Move consumption:
 
-Question attempt events:
+* valid timeline placement evaluation consumes one move
+* touch, slight drag, drag start, cancelled drag, invalid drop, tutorial hand
+  animation, popup reading, and joker activation do not consume a move
 
-* entity: `QuestionAttemptEvent`
-* active raw report history source
-* captures shown/answer/replacement/time metadata according to privacy
-  boundaries
+Star rules:
+
+* 5-6 used moves = 3 stars
+* 7-8 used moves = 2 stars
+* 9-10 used moves = 1 star
+
+Failure:
+
+* 10 evaluated moves used before target timeline count is reached
 
 ---
 
-# 7. Joker Technical Flow
+# 10. Joker Technical Flow
 
-Current inventory source:
+Current inventory:
 
 * `UserJokerInventory`
 
@@ -273,61 +370,170 @@ Ledger:
 
 * `JokerTransaction`
 
-Current joker types:
+Types:
 
 * `time_freeze` - Zaman Dondur
 * `card_swap` - Kart Değiştir
-* `mistake_shield` - Kronokalkan
+* `mistake_shield` - Kronokalkan / Hata Affı
 
-Starter/self-heal grants and normal Solo spends are idempotent. Normal Solo
-spends use authenticated user context, positive-balance validation, and
-Solo-context validation. Tutorial demo paths must not call the real spend path.
+Normal Solo:
 
-Market purchase flow:
-
-* callable: `purchaseJokerWithDiamonds`
-* server owns price table
-* validates authenticated user and sufficient Diamonds
-* updates Diamond balance
-* writes `DiamondTransaction`
-* updates `UserJokerInventory`
+* spends from `UserJokerInventory`
 * writes `JokerTransaction`
-* uses idempotency keys for retry/double-tap safety
+* has no free attempt-local fallback
+
+Tutorial:
+
+* demos are tutorial-only
+* no real inventory spend
+* no real ledger spend
+
+Market:
+
+* function: `purchaseJokerWithDiamonds`
+* prices are server-owned
+* Zaman Dondur 40, Kart Değiştir 50, Kronokalkan 60
+* validates authenticated user and sufficient Diamonds
+* writes `DiamondTransaction` and `JokerTransaction`
 
 ---
 
-# 8. Online Technical Flow
+# 11. Online Engine Architecture
 
-Online lobby/category flow:
+Primary flow:
 
-* `OnlineChallengeScreen` loads current category metadata
+* `OnlineChallengeScreen` loads category metadata
 * host selected categories become `Lobby.selected_category_ids`
-* legacy `Lobby.category` is compatibility only
-* `startLobbyGame` validates host/players/settings server-side
+* `startLobbyGame` validates host/participants/settings server-side
 * `startLobbyGame` builds and persists `online_question_deck`
 * Game reads persisted shared deck
 
 Online deck contract:
 
-* 100% from selected active lobby categories
-* difficulty 1/2 only
-* no Solo category preference weighting
+* selected categories = 100% of Online pool
+* difficulty 1 and 2 only
+* one shared authoritative deck
+* no Solo preferences
+* no Solo 70/30 weighting
 * no guest Solo projection
 * no raw client question bank fallback
-* no old seed name fallback
 
-Online scoring updates the Online component of unified visible Kronox Puan.
-Online result copy uses gained/lost/new Kronox Puan language and must show
-persisted result values, not preview-only state.
+Online scoring updates the Online component of visible `Kronox Puan`.
+Online does not inherit Solo move/star rules unless explicitly designed later.
+
+Manual proof required:
+
+* two-account invite/lobby
+* host start
+* synchronized deck/gameplay
+* persisted result and no duplicate scoring
 
 ---
 
-# 9. Economy Technical Flow
+# 12. Question / Deck Selection
 
-Diamond balance source:
+Backend projection:
+
+* `getQuestions`
+
+Selection inputs:
+
+* active `Category` rows
+* active `Question` rows
+* Solo soft category preferences when valid
+* difficulty/category/subcategory/theme/year balancing
+* per-player exposure stats where available
+
+Solo behavior:
+
+* no raw client `Question.list` fallback
+* full question bank must not be exposed
+* category preferences are soft weighting only
+* empty/unavailable preferences fall back to all active categories
+* categories 6,7,8,9,11 remain eligible if active/playable
+
+Question bank security:
+
+* guest and normal gameplay receive bounded minimal projection only
+* admin/full-bank diagnostics require active AdminUser authorization
+* public assets must not include answer years or full bank data
+
+---
+
+# 13. Per-Player Exposure Architecture
+
+Problem definition:
+
+* same question across different players is acceptable
+* same player seeing repeated questions too early is the issue
+
+Entities:
+
+* `PlayerQuestionExposure`
+* `PlayerQuestionDailyExposure`
+* `QuestionAttemptEvent`
+
+Exposure rules:
+
+* actual-shown-only
+* buffered/candidate/reserved cards are not exposure
+* unused deck cards are not exposure
+* Kart Değiştir replacement counts only when shown
+* reports must not expose internal player identifiers
+
+Privacy:
+
+* per-player reporting uses anonymized labels such as `User0001`
+* no email, provider UID, raw guest ID/token, owner key, internal player key,
+  or username in per-player report output
+
+---
+
+# 14. Question Analytics Report Generation
+
+Callable:
+
+* `sendQuestionAnalyticsReportEmail`
+
+Current delivery:
+
+* email-body-only
+* no PDF
+* text fallback
+* admin-only
+* exactly 9 top-level sections when Health enforces the report contract
+
+Primary raw history:
+
+* `QuestionAttemptEvent`
+
+Projection/summary rows:
+
+* `QuestionStatsProjection`
+* `CategoryStatsProjection`
+
+Manual analytics reset scope:
+
+* `QuestionAttemptEvent`
+* `PlayerQuestionDailyExposure`
+* `QuestionStatsProjection`
+* `CategoryStatsProjection`
+
+Optional reset:
+
+* `PlayerQuestionExposure`, only when same-player anti-repeat memory should
+  restart
+
+Do not reset questions, categories, users, guest profiles, preferences, economy
+ledgers, Daily Wheel/Daily Quest rows, leaderboard, score, or level progress.
+
+---
+
+# 15. Economy / Idempotency Model
+
+Diamond balance:
 
 * `User.diamonds`
-* helpers in `src/lib/diamondEconomy.js` and economy gateways
 
 Diamond ledger:
 
@@ -336,217 +542,250 @@ Diamond ledger:
 Daily Wheel:
 
 * entity: `DailyWheelSpin`
-* callable path: server-backed claim flow
+* function: `claimDailyWheelReward`
+* status function: `getDailyWheelStatus`
 * grants Diamonds only
-* no Kronox Puan
+* grants no Kronox Puan
 * no leaderboard impact
+* separate from Daily Quest
 
 Daily Quest:
 
 * templates: `DailyQuestDefinition`
 * user state: `UserDailyQuestProgress`
-* admin create/list through Admin Ekranı
-* runtime progress from Solo events
-* claim callable: `claimDailyQuestReward`
-* reward ledger: `DiamondTransaction.source = daily_quest_reward`
+* claim function: `claimDailyQuestReward`
+* ledger source: `daily_quest_reward`
 * grants Diamonds only
-* no Kronox Puan
+* grants no Kronox Puan
 * no leaderboard impact
+* separate from Daily Wheel
 
-Question analytics reset must not delete economy ledgers or balances.
+Current hardening:
+
+* `DiamondTransaction` has function-level idempotency
+* active Diamond writers re-check before create and confirm after create by
+  `idempotency_key`
+* `DailyWheelSpin` has function-level same-day guard
+* Daily Wheel re-checks canonical same-user/same-day spin, User guard, and
+  DiamondTransaction before balance mutation
+
+Not repo-proven:
+
+* DB/entity unique constraint for `DiamondTransaction.idempotency_key`
+* DB/entity unique constraint for `DailyWheelSpin.idempotency_key`
+* DB/entity unique constraint for `DailyWheelSpin.user_email + spin_date`
+* atomic/upsert guarantee
+
+Risk classification:
+
+* DB/entity unique plus function-level guard = Low
+* function-level guard only = Medium / P1 hardening
+* neither = High
 
 ---
 
-# 10. Leaderboard Technical Flow
+# 16. Leaderboard Model
 
-Visible leaderboard score is unified Kronox Puan.
+Visible leaderboard score:
 
-Current projection:
+* unified `Kronox Puan`
+
+Projection:
 
 * `SoloLeaderboardEntry`
-* historical entity name, current public-safe unified projection
-* `total_kronox_score` is Solo + Online visible score projection
 
-User projection:
+The entity name is historical. Current visible `total_kronox_score` is the
+public-safe unified score projection, not a promise that only Solo exists.
+
+User summary:
 
 * `User.kronox_puan_total`
-* backend/frontend helpers recompute defensively when needed
 
 Public identity:
 
 * username-first safe name
-* no raw email/provider IDs
-* `display_name` only as legacy/fallback projection
+* no email
+* no provider ID
+* no raw guest ID
+* no `owner_key`
 
-Leaderboard rows must sort and display from the same score source. Profile Puan
-and the current-user leaderboard row must match.
-
----
-
-# 11. Question Analytics Technical Flow
-
-Admin report callable:
-
-* `sendQuestionAnalyticsReportEmail`
-
-Report delivery:
-
-* email body only
-* no current PDF attachment flow
-* exactly 9 top-level sections
-* text fallback
-* admin-only trigger
-
-Active report source:
-
-* `QuestionAttemptEvent`
-
-Optional/manual projections:
-
-* `QuestionStatsProjection`
-* `CategoryStatsProjection`
-
-Manual reset scope:
-
-* `QuestionAttemptEvent`
-* `PlayerQuestionDailyExposure`
-* `QuestionStatsProjection`
-* `CategoryStatsProjection`
-
-Optional anti-repeat memory reset:
-
-* `PlayerQuestionExposure`
-
-Not reset by question analytics cleanup:
-
-* `Question`
-* `Category`
-* `User`
-* `GuestProfile`
-* profile/player identity data
-* `UserCategoryPreference`
-* `UserJokerInventory`
-* `JokerTransaction`
-* `DiamondTransaction`
-* `DailyWheelSpin`
-* `DailyQuestDefinition`
-* `UserDailyQuestProgress`
-* leaderboard rows
-* score/progress/economy rows
-
-Per-player coverage output must be anonymized as `User0001` style labels and
-must not include email, provider UID, raw guest ID/token, owner key, internal
-player key, or username.
+Daily Quest and Daily Wheel do not affect leaderboard.
 
 ---
 
-# 12. Security And Public Function Boundaries
+# 17. Security / Public Functions
 
-Public by design:
+Admin authority:
+
+* `AdminUser`
+* normalized email
+* active status
+* `owner` or `admin` role
+
+Forbidden authorization:
+
+* hardcoded admin emails
+* request-body role trust
+* client-side UI hiding as proof
+
+Public by explicit design:
 
 * `createGuestProfile`
 * `getCategoryMetadata`
 
-Both are intentionally narrow.
+`createGuestProfile` public boundary:
 
-`createGuestProfile` may create/verify portable guest identity but must not
-trust request-body role/identity/economy/progress/admin fields.
+* may create app-owned guest identity
+* must not trust request-body role/progress/economy/admin fields
+* must store token hash, not raw token
 
-`getCategoryMetadata` may return active category metadata only and must not
-return questions, answers, years, full-bank data, user data, admin/internal
-fields, passive/deleted categories, or stale hardcoded fallback arrays.
+`getCategoryMetadata` public boundary:
 
-Admin functions use private `AdminUser` rows and inline deploy-safe guards where
-Base44 function bundling requires it. Request-body role, user-provided admin
-email, hardcoded personal allowlists, or UI hiding are not authorization.
+* metadata-only
+* no question bank
+* no answer years
+* no user data
+* no stale hardcoded fallback arrays
 
-VAPID private key values are server-side secret/env values only. Scanner hits
-on the env var name are manual deployment-secret verification unless actual key
-material is hardcoded, logged, returned, exposed through `VITE_`, or included in
-raw errors.
+VAPID:
+
+* `VAPID_PRIVATE_KEY` is server-side env/secret only
+* no `VITE_` private-key fallback
+* no logging/returning key material
+
+Account deletion:
+
+* visible/scoped/confirmed
+* user-owned destructive path
+* retained rows must not expose deleted identity
 
 ---
 
-# 13. Health Center Technical Flow
+# 18. Health Center Architecture
 
-Health Center is a static/simulated release-risk system.
+Health Center is static/simulated release-risk proof.
 
-Current Health semantics:
+Status model:
 
-* `PASS` means the simulator verified the limited case
-* `FAIL` / `ERROR` are release blockers until fixed
-* `WARNING` is review risk
-* `NOT_AUTOMATABLE` is manual proof required
-* manual gates can keep `releaseReady=false` without reducing automated score
+* `PASS` = limited simulated/static contract verified
+* `FAIL` / `ERROR` = blocker until fixed
+* `WARNING` = automated/static review risk
+* `NOT_AUTOMATABLE` / manual required = human/device/platform proof
 
-Health report actions:
+Manual required does not reduce automated score like a failure, but critical
+manual gates can keep `releaseReady=false`.
+
+Report actions:
 
 * Copy Blocker JSON
 * Copy Warning JSON
 * Download JSON
 * Copy Summary
-* mobile case details/copy buttons
-* clipboard fallback textarea
+* Last Run uses newest completed report
 
-Static Health can prove doc/source alignment for many contracts, but it cannot
-prove:
+Static Health cannot prove:
 
-* real device drag/drop
+* real-device drag/drop
 * low-end Android smoothness
-* push delivery
+* two-account Online
+* RLS/BOLA behavior
 * Base44 production deployment
-* two-account invite/lobby/scoring
-* App Store / Play Console wrapper results
-* actual RLS/BOLA behavior
-
-Release proof remains manual for those gates.
+* push delivery
+* native wrapper quality
 
 ---
 
-# 14. Deployment And Validation Flow
+# 19. Public Asset Contracts
 
-Frontend validation:
+Public assets must not contain:
+
+* secrets
+* tokens
+* VAPID private key
+* question bank
+* answer years
+* internal player IDs
+* raw guest IDs/tokens
+* provider IDs
+* private user data
+
+Public category/question media assets must stay public-safe and must not become
+an alternate source for protected gameplay data.
+
+Icon/native wrapper assets:
+
+* PWA/web icons may be separate from native iOS assets
+* iOS AppIcon sources must be opaque/no-alpha before App Store upload
+* final exported IPA/native wrapper proof remains manual
+
+---
+
+# 20. Deployment / Runtime Parity
+
+Local validation:
 
 * `git diff --check`
 * `npm run lint`
 * `npm run build`
+* `npm run check:base44-functions` when available
 
-Base44 static function validation:
+What local validation does not prove:
 
-* `npm run check:base44-functions`
+* Base44 function Save & Deploy
+* live function marker/runtime parity
+* AdminUser/RLS behavior in production
+* push/VAPID delivery
+* real-device safe-area/notch behavior
+* App Store / Play Console native wrapper results
 
-`npm run build` proves the Vite frontend bundle only. It does not prove Base44
-function deployment, backend auth behavior, push delivery, native wrapper
-quality, or real-device gestures.
+Function changes require live Base44 deployment proof. Editing local source,
+mirrors, or docs is not proof that the deployed function changed.
 
-Function changes require Base44 Save & Deploy / live marker proof in the actual
-executed function path. Editing a helper, stale mirror, or local proof file does
-not prove deployed backend behavior.
+PDF artifacts:
 
-Full Health should be run when release readiness is being evaluated, but this
-documentation refresh does not require a full Health run by itself.
+* Uploaded `kronox-teknik-dokuman.pdf` is a stale Codex040-era reference.
+* Uploaded `kronox-is-akisi.pdf` is a stale Codex040-era reference.
+* Current truth is markdown/source plus current code and Health contracts.
+* If PDF deliverables are required, regenerate them from current source through
+  an explicit safe PDF workflow; do not manually patch old PDFs.
 
 ---
 
-# 15. Current Legacy/Forbidden Runtime Contracts
+# 21. Known Manual Gates / P1 Hardening Items
 
-The following are not current technical truth:
+Manual proof required:
 
-* `HATA` as visible Solo scoring/result label
-* `display_name` / `Görünen Ad` as separate public editable identity
-* old standalone tutorial route as current onboarding
-* hardcoded Chronicle / Flashback / Viral / Arena / Level Up fallback arrays
-* original seed category IDs as maximum runtime category boundary
+* two-account invite/lobby/start/gameplay/scoring
+* RLS/BOLA for user-owned data
+* `createGuestProfile` abuse/throttle monitoring
+* guest token write protection
+* account-link duplicate/wrong-token/relink prevention
+* category metadata public boundary
+* Online category sorting and stale fallback absence after deploy
+* first Solo tutorial timing and gestures on device
+* real-device drag/drop and horizontal timeline scroll
+* low-end Android blur/glow smoothness
+* push/VAPID production secrets and delivery
+* account deletion against a safe test account
+* final iOS/Android wrapper/icon validation
+* Base44 function deployment/runtime markers
+* Diamond/Daily Wheel parallel idempotency race probes
+* DB/entity unique constraints where the platform supports them
+* question analytics email delivery and Gmail rendering
+
+Legacy/stale contracts that must stay removed or explicitly marked legacy:
+
+* `HATA` as visible Solo scoring source
+* `display_name` / `Görünen Ad` as current public profile field
+* old standalone tutorial
+* login-first onboarding
+* Home login buttons
+* hardcoded Chronicle / Flashback / Viral / Arena / Level Up fallbacks
 * minimum 5 category preference rule
-* active SubCategory preference UI
-* Google / Apple / Email login on Home
-* Firebase anonymous auth
-* Base44 anonymous auth as guest identity
-* raw client `Question.list` gameplay fallback
-* full question-bank exposure to guest/normal clients
-* Daily Quest Kronox Puan rewards
+* current SubCategory preference UI
+* full question bank client exposure
+* raw `Question.list` gameplay fallback
+* Daily Quest giving Kronox Puan
 * Daily Quest leaderboard impact
-* Online reading Solo preferences for question selection
-* old fixed 10-card Solo deck without replacement/shield buffer
-* public error-count based Solo star rules
-
+* Online using Solo preferences
+* repo-proven DB unique constraints for economy idempotency

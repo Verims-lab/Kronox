@@ -30,7 +30,11 @@ Canonical workflow docs:
   changes route flow, Base44 entities/functions, guest/account-linking state,
   question runtime, category metadata, exposure analytics, economy ledgers,
   admin/security boundaries, Health alignment, or deployment validation.
-* These docs are current contract maps. Stale contracts such as Home login CTAs,
+* These docs are current contract maps and supersede old PDF-style documents
+  such as stale Codex040 `kronox-is-akisi.pdf` /
+  `kronox-teknik-dokuman.pdf` references unless those PDFs are regenerated
+  from current source.
+* Stale contracts such as Home login CTAs,
   standalone tutorial onboarding, hardcoded category fallbacks, visible `HATA`
   scoring, public `display_name` identity, raw `Question.list` gameplay
   fallback, Daily Quest Puan rewards, Daily Quest leaderboard impact, Online
@@ -323,8 +327,8 @@ Checklist:
   required or auto-generated before `Kategorilere Geç`.
 * Guest onboarding category selection uses current `Category` metadata or
   `getCategoryMetadata`; legacy hardcoded names such as Chronicle, Flashback,
-  Kült, or Viral must not appear unless they are active rows in the current
-  category source.
+  Viral, Arena, or Level Up must not appear unless they are active rows in the
+  current category source.
 * `seedQuestionCategories` is removed. Release proof must confirm category
   creation/backfill is handled as manual/admin content management and runtime
   code does not restore stale hardcoded seed arrays, `QUESTION_CATEGORIES`,
@@ -948,7 +952,9 @@ Checklist:
 * Leaderboard rank uses the same score that is displayed.
 * Elmas is not derived from score.
 * Seviye is displayed consistently.
-* No unintended visible `Level` copy appears except category name `Level Up`.
+* No unintended visible `Level` copy appears; `Level Up` is not a hardcoded
+  category fallback and may appear only if it exists as a current active
+  category row.
 * Leaderboard does not expose unnecessary private user email.
 
 ---
