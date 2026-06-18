@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex409 — Health Center mobile UX and coverage freshness:
+//   • Adds short mobile labels, copy scope notes, and clipboard fallback text
+//     area for completed Health report exports.
+//   • Adds compact per-case mobile details/copy controls and bounded manual
+//     proof/raw JSON report sections.
+//   • Refreshes Health alignment coverage for current Profile/category/question
+//     analytics reset/scoring/security contracts.
+
 // Codex408 — Guided tutorial timeline swipe hint lifetime:
 //   • Adds a 3-second minimum and 10-second auto-stop for the question-2
 //     timeline swipe hand hint.
@@ -2313,7 +2321,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex408';
+const BUILD_MARKER = 'Codex409';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

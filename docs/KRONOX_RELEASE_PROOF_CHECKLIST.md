@@ -49,6 +49,9 @@ Checklist:
 * Health `Copy Warning JSON` is intentionally warning-only: manual proof gates
   must appear as `NOT_AUTOMATABLE` / manual verification entries, not as generic
   WARNING rows.
+* Health mobile report actions, case details, copy buttons, clipboard fallback
+  textarea, manual proof details, and raw JSON preview must fit 320px-class
+  screens without horizontal overflow.
 * Automated score is separate from release readiness. Manual gates do not reduce
   the automated score, but they keep `releaseReady=false` and prevent a `Good`
   release-ready rating until proof is attached.

@@ -68,23 +68,33 @@ export default function SimulationReportActions({
           <p className="mt-1 text-xs text-white/55">{report.runId} / {report.timestamp}</p>
           <RunStateBadge runFreshState={runFreshState} />
         </div>
-        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:w-auto xl:grid-cols-none xl:flex xl:flex-wrap">
-          <ActionButton icon={ClipboardCopy} label="Copy Blocker JSON" onClick={copyJson} />
-          <ActionButton icon={ClipboardCopy} label="Copy Warning JSON" onClick={copyWarning} />
-          <ActionButton icon={Download} label="Download JSON" onClick={downloadJson} />
-          <ActionButton icon={ClipboardCopy} label="Copy Summary" onClick={copySummary} />
+        <div
+          data-health-copy-actions="completed-report-only"
+          className="grid w-full grid-cols-2 gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:w-auto xl:min-w-[520px]"
+        >
+          <ActionButton icon={ClipboardCopy} label="Copy Blocker JSON" shortLabel="Blockers" onClick={copyJson} dataHealthAction="copy-blocker-json" />
+          <ActionButton icon={ClipboardCopy} label="Copy Warning JSON" shortLabel="Warnings" onClick={copyWarning} dataHealthAction="copy-warning-json" />
+          <ActionButton icon={Download} label="Download JSON" shortLabel="Download" onClick={downloadJson} dataHealthAction="download-full-json" />
+          <ActionButton icon={ClipboardCopy} label="Copy Summary" shortLabel="Summary" onClick={copySummary} dataHealthAction="copy-summary" />
         </div>
       </div>
-      {copyState && <div className="mt-2 text-xs text-cyan-200">{copyState}</div>}
+      <p data-health-copy-scope-note="true" className="mt-2 text-[11px] leading-relaxed text-white/50">
+        Copy buttons use the latest completed run. Blocker JSON is blocker-only, Warning JSON is warning-only, and manual proof gaps stay in the report details.
+      </p>
+      {copyState && <div className="mt-2 rounded-md border border-cyan-300/20 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-100">{copyState}</div>}
       {copyFallback?.text ? (
-        <details className="mt-2 rounded-md border border-white/20">
-          <summary className="cursor-pointer px-3 py-2 text-xs text-white/80">Clipboard copy fallback for "{copyFallback.label}"</summary>
+        <details data-health-copy-fallback="true" className="mt-2 rounded-md border border-white/20 bg-black/20">
+          <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-white/85">Clipboard fallback: {copyFallback.label}</summary>
           <div className="border-t border-white/10 p-3">
+            <p className="mb-2 text-[11px] leading-relaxed text-white/55">
+              Mobile browsers may block clipboard access. Tap the text area once to select the prepared export manually.
+            </p>
             <textarea
               readOnly
               value={copyFallback.text}
               onFocus={(event) => event.currentTarget.select()}
-              className="h-40 w-full resize-y rounded-md bg-black/60 p-2 text-[11px] leading-relaxed text-white/80"
+              data-health-copy-fallback-textarea="true"
+              className="h-44 w-full resize-y rounded-md bg-black/60 p-2 text-[11px] leading-relaxed text-white/80"
             />
           </div>
         </details>
@@ -267,9 +277,9 @@ export default function SimulationReportActions({
         </ReportBox>
       </div>
 
-      <details className="mt-3 rounded-md border border-white/10 bg-black/25 p-3">
+      <details data-health-raw-json-details="true" className="mt-3 rounded-md border border-white/10 bg-black/25 p-3">
         <summary className="cursor-pointer text-sm font-semibold">Raw JSON Preview</summary>
-        <pre className="mt-3 max-h-80 overflow-auto rounded-md bg-black/50 p-3 text-[11px] leading-relaxed text-white/70">
+        <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-md bg-black/50 p-3 text-[11px] leading-relaxed text-white/70">
           {JSON.stringify(report, null, 2)}
         </pre>
       </details>

@@ -8,6 +8,7 @@
 import {
   CORE_PROMPT_DOC as corePromptSource,
   KRONOX_DOC as kronoxSource,
+  PROFILE_FIELDS_DOC as profileFieldsDocsSource,
   MOBILE_VISUAL_GUARDRAILS_DOC as mobileVisualGuardrailsSource,
   SECURITY_DEPLOYMENT_DOC as securityDocsSource,
   RELEASE_PROOF_CHECKLIST_DOC as releaseChecklistSource,
@@ -122,6 +123,7 @@ export const EXTRA_TESTS = [
       const combined = [
         corePromptSource,
         kronoxSource,
+        profileFieldsDocsSource,
         scoringDocsSource,
         soloEngineDocsSource,
         securityDocsSource,
@@ -134,6 +136,7 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(combined, [
         'KRONOX Core Prompt',
         'Kronox',
+        'Kronox Profile Fields',
         'Kronox Scoring Rules',
         'Kronox Solo Question Engine',
         'Kronox Security',
@@ -149,6 +152,7 @@ export const EXTRA_TESTS = [
           files: [
             'KRONOX_CORE_PROMPT.md',
             'KRONOX.md',
+            'docs/KRONOX_PROFILE_FIELDS.md',
             'docs/KRONOX_SCORING_RULES.md',
             'docs/KRONOX_SOLO_QUESTION_ENGINE.md',
             'docs/KRONOX_SECURITY_DEPLOYMENT.md',
@@ -193,6 +197,64 @@ export const EXTRA_TESTS = [
       }
       return pass('Solo v3 docs cover targets, decks, timer, move fail, spacing, replay, and non-retroactivity.', {
         verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('current_contract_freshness_profile_category_questions',
+    'Health alignment covers current Profile, Category, Question, Security, and Scoring contracts',
+    () => {
+      const combined = [
+        profileFieldsDocsSource,
+        mobileVisualGuardrailsSource,
+        releaseChecklistSource,
+        securityDocsSource,
+        categoryTaxonomyDocsSource,
+        questionModelDocsSource,
+        scoringDocsSource,
+        soloEngineDocsSource,
+      ].map(text).join('\n');
+      const missing = missingTokens(combined, [
+        'Home / Ana Sayfa must not render Google, Apple, email',
+        'Guest account linking is implemented through linkGuestAccount and belongs under Profile',
+        'The category completion CTA label is exactly Ana Sayfa',
+        'onboarding_status = onboarding_complete',
+        'getCategoryMetadata is metadata-only',
+        'current active Category rows',
+        'stale hardcoded seed fallback',
+        'Visible UI must use **Puan** or **Kronox Puan**',
+        'getQuestions-live-per-category-v7-Codex343',
+        'sourcePoolCapRemoved',
+        'responseCapApplied',
+        'QuestionAttemptEvent',
+        'PlayerQuestionDailyExposure',
+        'QuestionStatsProjection',
+        'CategoryStatsProjection',
+        'PlayerQuestionExposure is optional reset scope',
+        'Do not delete Question, Category, SubCategory, User, GuestProfile, PlayerProfile',
+        'VAPID_PRIVATE_KEY is server-side env/secret sourced. Production secret manager verification is MANUAL_REQUIRED.',
+        'Health Copy Warning JSON is warning-only',
+        'Health Center report actions, case details, copy buttons',
+      ]);
+      if (missing.length) {
+        return fail('Health alignment docs/mirrors are stale against current product/security/question contracts.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          files: [
+            'docs/KRONOX_PROFILE_FIELDS.md',
+            'docs/KRONOX_MOBILE_VISUAL_GUARDRAILS.md',
+            'docs/KRONOX_RELEASE_PROOF_CHECKLIST.md',
+            'docs/KRONOX_SECURITY_DEPLOYMENT.md',
+            'docs/KRONOX_CATEGORY_TAXONOMY.md',
+            'docs/KRONOX_QUESTION_DATA_MODEL.md',
+            'docs/KRONOX_SCORING_RULES.md',
+            'docs/KRONOX_SOLO_QUESTION_ENGINE.md',
+          ],
+          missing,
+        });
+      }
+      return pass('Health alignment covers the current Profile/auth placement, guest category completion, active category runtime, question analytics reset, scoring language, VAPID triage, and Health mobile copy/detail contracts.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
       });
     }),
 
