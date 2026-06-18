@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex399 — Lazy route syntax recovery:
+//   • Treats lazy chunk `SyntaxError: Invalid or unexpected token` as a
+//     recoverable stale/corrupt route-chunk evaluation signature.
+//   • Clears stale service-worker/cache assets before the one-time reload so
+//     Base44/mobile WebView users get the fresh JS chunk graph.
+//   • Keeps true repeated syntax failures surfaced to the app error boundary.
+
 // Codex398 — Codex396 Health blocker alignment:
 //   • Updates Solo Health expectations to the move-based 18-card normal deck,
 //     10 evaluated moves, 7-card target, and joker-buffer formula.
@@ -2244,7 +2251,7 @@ import React, { useEffect, useState } from 'react';
 //     metadata-only Category response scope for guest onboarding.
 //   • Adds Health/static proof that public category metadata is allowed only
 //     when it exposes no questions, answers, years, full bank, or stale fallbacks.
-const BUILD_MARKER = 'Codex398';
+const BUILD_MARKER = 'Codex399';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
