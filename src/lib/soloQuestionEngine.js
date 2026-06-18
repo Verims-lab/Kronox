@@ -1534,8 +1534,22 @@ function buildExposureDiagnostics(candidates = [], selectedDeck = [], recentIds 
   const selectedAverageShownCount = selectedDeck.length ? selectedStats.shownCountTotal / selectedDeck.length : 0;
   const candidateRecentHistoryRatio = candidates.length ? candidateStats.recentHits / candidates.length : 0;
   const selectedRecentHistoryRatio = selectedDeck.length ? selectedStats.recentHits / selectedDeck.length : 0;
+  const selectedDeckSize = selectedDeck.length;
+  const candidateNonRecentHistoryCount = Math.max(0, candidates.length - candidateStats.recentHits);
+  const selectedNonRecentHistoryCount = Math.max(0, selectedDeckSize - selectedStats.recentHits);
+  const minimumRecentHistoryNeeded = Math.max(0, selectedDeckSize - candidateNonRecentHistoryCount);
+  const selectedRecentHistoryOverMinimum = Math.max(0, selectedStats.recentHits - minimumRecentHistoryNeeded);
+  const recentHistoryScarcity = Boolean(
+    selectedDeckSize > 0
+      && (candidateNonRecentHistoryCount < selectedDeckSize || candidateRecentHistoryRatio >= 0.95),
+  );
+  const recentHistoryScarcityReason = recentHistoryScarcity
+    ? (candidateNonRecentHistoryCount < selectedDeckSize
+      ? 'non_recent_alternatives_below_deck_size'
+      : 'candidate_pool_nearly_all_recent')
+    : null;
   return {
-    strategy: 'local_recent_history_and_optional_projection_stats_soft_penalty_v1',
+    strategy: 'local_recent_history_and_optional_projection_stats_soft_penalty_v2_scarcity_aware',
     softCooldownOnly: true,
     localRecentHistoryUsed: recentIds.size > 0 || exposureStats.size > 0,
     exposureStatsAvailable: exposureStats.size > 0,
@@ -1545,6 +1559,7 @@ function buildExposureDiagnostics(candidates = [], selectedDeck = [], recentIds 
     neverShownCandidateCount: exposureStats.size > 0 ? candidateStats.neverShown : null,
     recentHistoryHitCount: candidateStats.recentHits,
     candidateRecentHistoryRatio,
+    candidateNonRecentHistoryCount,
     candidateShownCountTotal: candidateStats.shownCountTotal,
     candidateAverageShownCount,
     candidateAverageRecentRank: candidateStats.averageRecentRank,
@@ -1553,6 +1568,11 @@ function buildExposureDiagnostics(candidates = [], selectedDeck = [], recentIds 
     selectedNeverShownCount: exposureStats.size > 0 ? selectedStats.neverShown : null,
     selectedRecentHistoryHitCount: selectedStats.recentHits,
     selectedRecentHistoryRatio,
+    selectedNonRecentHistoryCount,
+    minimumRecentHistoryNeeded,
+    selectedRecentHistoryOverMinimum,
+    recentHistoryScarcity,
+    recentHistoryScarcityReason,
     selectedShownCountTotal: selectedStats.shownCountTotal,
     selectedAverageShownCount,
     selectedAverageRecentRank: selectedStats.averageRecentRank,

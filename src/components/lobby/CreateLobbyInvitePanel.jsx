@@ -23,9 +23,9 @@ import IncomingInvitesPanel from '@/components/invites/IncomingInvitesPanel';
  * - Player count chooser: 2 / 3 / 4 (default 2). Invite cap = count - 1.
  * - Friends list comes from Friendship entity via loadFriends().
  * - Selected friend count auto-trims (with a visible toast) if user reduces count.
- * - Invite delivery is NOT wired yet — selected emails are passed to LobbyRoom
- *   as informational metadata that the host can use later. The lobby itself is
- *   still created exactly the same way it was before.
+ * - Invite delivery is wired through pending GameInvite rows when LobbyRoom
+ *   creates the lobby. Selected emails are forwarded for current in-app/push
+ *   best-effort delivery while the lobby create path remains host-authoritative.
  *
  * Props:
  *   user             — authenticated user (already loaded by useLobbyRoomState)

@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex404 — Final Health blocker/warning classification refresh:
+//   • Adds scarcity-aware Solo exposure cooldown diagnostics for nearly all-recent
+//     candidate pools.
+//   • Splits build marker and low-end Android blur/glow proof into manual
+//     verification entries while keeping static visual-effect risk as Warning.
+//   • Refreshes stale invite delivery documentation and release proof docs.
+
 // Codex403 — Question analytics manual reset contract refresh:
 //   • Documents the full manual reset table list including
 //     PlayerQuestionDailyExposure.
@@ -2280,7 +2287,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex403';
+const BUILD_MARKER = 'Codex404';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

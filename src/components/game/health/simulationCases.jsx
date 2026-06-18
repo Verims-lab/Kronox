@@ -431,7 +431,13 @@ export const TESTS = [
   sourceHas('debug_hygiene', 'debug_hidden_prod', 'debug panels are hidden in production mode', 'GameDebugLog/debugLog', `${SRC.GameDebugLog}\n${SRC.DebugLog}`, ['import.meta.env.DEV', 'localStorage', 'kronox_debug']),
   sourceHas('debug_hygiene', 'test_controls_gated', 'console/test controls are gated behind admin route/status', 'AdminPage/TestSuite', `${SRC.AdminPage}\n${SRC.TestSuite}`, ['isAdmin', 'isAdminUser', 'SimulationPanel']),
   makeCase('debug_hygiene', 'build_marker_intentional', 'build marker is visible only as intended', () => extractBuildMarker() !== 'unknown'
-    ? warning('Build marker is intentionally visible briefly; verify this remains acceptable for production.', { actual: extractBuildMarker() })
+    ? notAutomatable('Verify temporary build marker visibility in a production-like mobile/web build; confirm duration/placement, then approve/remove before release.', {
+      expected: 'temporary build marker is reviewed in production-like mobile/web output before release',
+      actual: { buildMarker: extractBuildMarker() },
+      verification: 'NOT_AUTOMATABLE',
+      verificationLabels: ['NOT_AUTOMATABLE', 'MANUAL_REQUIRED', 'HUMAN_VISUAL_REVIEW'],
+      actionType: ACTION_TYPES.HUMAN_VISUAL_REVIEW,
+    })
     : fail('Build marker token missing.')),
   sourceHas('debug_hygiene', 'raw_imports_gated_route', 'raw source imports used by SimulationPanel are not exposed in gameplay unless intentionally gated', 'App/TestSuite/Admin', `${SRC.App}\n${SRC.TestSuite}\n${SRC.AdminPage}`, ['path="/test-suite"', 'path="/admin"', 'isAdminUser', 'setShowSim(true)']),
   sourceLacks('debug_hygiene', 'simulator_not_gameplay_accessible', 'simulator itself is accessible only from Admin/Test path, not gameplay', 'Game/GameLayout', `${SRC.Game}\n${SRC.GameLayout}`, ['SimulationPanel']),
@@ -448,8 +454,24 @@ export const TESTS = [
   makeCase('performance_ux', 'heavy_blur_glow_scan', 'flag heavy blur/glow risk by scanning key computed styles only as WARNING', () => {
     const source = `${SRC.GameLayout}\n${SRC.Timeline}\n${SRC.QuestionCard}\n${SRC.IndexCss}`;
     const count = (source.match(/blur|drop-shadow|boxShadow|filter:/g) || []).length;
-    return count > 24 ? warning('Heavy visual effect token count is high; verify low-end Android performance.', { actual: count }) : pass('Heavy visual effect token count is within current guardrail.', { actual: count });
+    return count > 24
+      ? warning('Heavy blur/glow static token count is high; Warning JSON reports static risk only.', {
+        expected: 'static heavy visual effect token count <= 24',
+        actual: { count, threshold: 24 },
+        verification: 'STATIC_SOURCE_SCAN',
+        classification: 'STATIC_RISK',
+        actionType: ACTION_TYPES.CODE_FIX,
+        manualProofCase: 'performance_ux.heavy_blur_glow_low_end_android_manual_proof',
+      })
+      : pass('Heavy visual effect token count is within current guardrail.', { actual: count });
   }),
+  makeCase('performance_ux', 'heavy_blur_glow_low_end_android_manual_proof', 'low-end Android heavy blur/glow performance proof is completed', () => notAutomatable('Run Health Center, tutorial, and gameplay heavy blur/glow screens on low-end Android; verify scroll/animation smoothness before release.', {
+    expected: 'low-end Android manual proof covers Health Center/tutorial/gameplay heavy blur/glow screens and scroll/animation smoothness',
+    actual: { linkedStaticCase: 'performance_ux.heavy_blur_glow_scan' },
+    verification: 'NOT_AUTOMATABLE',
+    verificationLabels: ['NOT_AUTOMATABLE', 'MANUAL_REQUIRED', 'EXTERNAL_DEVICE_REQUIRED'],
+    actionType: ACTION_TYPES.DEVICE_TEST,
+  })),
   makeCase('performance_ux', 'web_vitals_like_support', 'record LCP/INP/CLS-like metrics if available', () => {
     const types = captureEnvironment().performanceObserverTypes;
     const supported = ['largest-contentful-paint', 'event', 'layout-shift'].filter(type => types.includes(type));

@@ -52,6 +52,12 @@ Checklist:
 * Automated score is separate from release readiness. Manual gates do not reduce
   the automated score, but they keep `releaseReady=false` and prevent a `Good`
   release-ready rating until proof is attached.
+* The temporary build marker is a manual release gate, not a Warning JSON item:
+  verify marker visibility in a production-like mobile/web build, confirm
+  duration and placement, then approve or remove it before release.
+* Heavy blur/glow Health output is split: `heavy_blur_glow_scan` may warn on
+  static source-token count only, while low-end Android smoothness proof remains
+  a `NOT_AUTOMATABLE` manual device gate.
 
 ---
 
@@ -165,6 +171,11 @@ Checklist:
   state and routes back to Home/Solo entry safely.
 * True offline plus no usable cache still shows the offline/no-cache screen.
 * Solo deck selection applies soft exposure cooldown/rotation before the attempt starts: never/low-shown and not-recently-shown cards are preferred, high/recent shown cards are downweighted, and missing/corrupt history must not block deck creation.
+* Solo exposure cooldown Health may use scarcity-aware proof only when metadata
+  shows the candidate pool is nearly all recent or non-recent alternatives are
+  below deck size. In that state, selected recent cards must stay at the
+  computed minimum plus small tolerance and average shown count must not worsen;
+  normal pools still require meaningful selected-vs-candidate ratio improvement.
 * Solo category, subcategory, theme, and year-band balancing remains pool-proportional rather than equal-count; large eligible groups may stay large while smaller valid groups are protected from accidental starvation where hard rules allow.
 * Question exposure analytics are reviewed after deploy to confirm unique-question coverage and category/subcategory concentration improved.
 * Health covers question exposure fairness guardrails: getQuestions projection sampling/metadata, active-vs-runtime pool mismatch diagnostics, repeated Solo deck unique coverage, exposure cooldown/rotation, and category/subcategory/year-band concentration warnings.
@@ -696,6 +707,9 @@ Checklist:
   before release: start Solo, drag the question card vertically/diagonally,
   confirm pull-to-refresh does not fire, then confirm placement, drop-zone
   hit-testing, and horizontal timeline auto-scroll still work.
+* Low-end Android proof must include Health Center, guided tutorial, and
+  gameplay screens that use heavy blur/glow styling; verify scroll and animation
+  smoothness rather than treating the static token scan as runtime proof.
 * If the browser is refreshed anyway, full current-attempt restore is not proven
   by this guard; treat refresh resume as a separate follow-up risk unless a
   runtime restore proof exists.

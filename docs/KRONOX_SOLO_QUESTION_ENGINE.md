@@ -102,6 +102,12 @@ P1/P2 balancing applies during deck selection and deck ordering where the pool a
 - exposure weighting is soft only: high/recent shown questions are downweighted,
   never/low-shown questions are preferred, and deck build must not fail solely
   because exposure stats are missing, stale, or concentrated
+- when the candidate pool is nearly all recent, Health must use explicit
+  scarcity metadata instead of demanding an impossible ratio drop. The deck is
+  acceptable only if selected recent cards are at the computed minimum plus
+  small tolerance and selected average shown count does not exceed the candidate
+  pool average. Non-scarce pools still require meaningful recent-ratio
+  improvement.
 - category, subcategory, theme, and year-band balance are pool-proportional,
   not equal-count. A group that is large in the eligible pool may stay large in
   a deck, while smaller valid groups receive gentle protection from accidental
@@ -125,6 +131,13 @@ The runtime may pass local recent-history exposure stats into the deck builder
 before the attempt starts. This is not a gameplay source of truth and must not
 fetch questions or stats mid-attempt. Corrupt or missing local history is ignored
 safely.
+
+Exposure diagnostics expose `candidateNonRecentHistoryCount`,
+`minimumRecentHistoryNeeded`, `selectedRecentHistoryOverMinimum`,
+`recentHistoryScarcity`, and `recentHistoryScarcityReason` for Health/admin
+only. These fields explain fallback states such as
+`candidate_pool_nearly_all_recent` or `non_recent_alternatives_below_deck_size`
+without changing the soft-cooldown behavior.
 
 The runtime may also pass active valid current-user Category preference IDs
 into the deck builder before the attempt starts. Category preferences are
@@ -254,6 +267,9 @@ P3 adds question analytics without changing question selection:
 - Health/reporting guardrails compare selected/shown distribution to the
   eligible pool proportionally. They must not require equal category,
   subcategory, or era counts.
+- Health exposure cooldown guardrails must keep normal-pool ratio improvement
+  strict, while allowing scarcity-aware proof only when the diagnostic metadata
+  shows too few non-recent alternatives for a full deck.
 - Runtime exposure improvement is proven over new gameplay events; historical
   analytics reports can remain concentrated until enough fresh events exist.
 - Per-player exposure projections are active for Solo freshness. Selection
