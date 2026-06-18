@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Hand } from 'lucide-react';
 import { sounds } from '@/lib/gameSounds';
 import QuestionCard from './QuestionCard.jsx';
 import Timeline from './Timeline.jsx';
@@ -81,6 +80,32 @@ function getGuidedTargetOffset(targetZoneIndex, zoneCount) {
   return Math.max(-132, Math.min(132, normalized * 260));
 }
 
+function TutorialPointerHand({ className = '', style = null }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 72 72" className={className} style={style}>
+      <path
+        d="M30.6 9.7c-3.2 0-5.8 2.6-5.8 5.8v22.1l-4.7-4.7c-2.4-2.4-6.2-2.4-8.5 0-2.3 2.4-2.3 6.2 0.1 8.6l13.6 13.8c3.3 3.4 7.8 5.2 12.5 5.2h8.5c8.1 0 14.7-6.6 14.7-14.7V31.2c0-3.1-2.5-5.6-5.6-5.6-1.5 0-2.9 0.6-3.9 1.6-0.8-2.1-2.8-3.6-5.2-3.6-1.6 0-3 0.7-4 1.7-0.8-2.1-2.8-3.7-5.2-3.7-1.3 0-2.5 0.4-3.4 1.2v-7.3c0-3.2-2.6-5.8-5.8-5.8z"
+        fill="#facc15"
+        stroke="#3a2600"
+        strokeWidth="4.2"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M30.6 9.7c-3.2 0-5.8 2.6-5.8 5.8v22.1l-4.7-4.7c-2.4-2.4-6.2-2.4-8.5 0-2.3 2.4-2.3 6.2 0.1 8.6"
+        fill="none"
+        stroke="#fff4bd"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        opacity="0.72"
+      />
+      <path d="M33.9 23.2v16.2" stroke="#a66c00" strokeWidth="2.8" strokeLinecap="round" opacity="0.72" />
+      <path d="M42.6 25.8v14.4" stroke="#a66c00" strokeWidth="2.8" strokeLinecap="round" opacity="0.62" />
+      <path d="M51.6 28.1v13.6" stroke="#a66c00" strokeWidth="2.8" strokeLinecap="round" opacity="0.56" />
+      <path d="M25 14.6c1.8-2.4 6.2-2.4 8.1 0" stroke="#fff4bd" strokeWidth="2.4" strokeLinecap="round" opacity="0.72" />
+    </svg>
+  );
+}
+
 function GuidedDragFingerHint({ active, reducedMotion, targetZoneIndex = null, zoneCount = 1 }) {
   if (!active) return null;
 
@@ -123,7 +148,7 @@ function GuidedDragFingerHint({ active, reducedMotion, targetZoneIndex = null, z
       }}
     >
       <span
-        className="grid h-12 w-12 place-items-center rounded-full border text-amber-950"
+        className="grid h-14 w-14 place-items-center rounded-full border"
         style={{
           background: 'linear-gradient(180deg, #fff4b8 0%, #facc15 52%, #d99e00 100%)',
           borderColor: 'rgba(255,255,255,0.55)',
@@ -131,18 +156,71 @@ function GuidedDragFingerHint({ active, reducedMotion, targetZoneIndex = null, z
             'inset 0 1px 0 rgba(255,255,255,0.62), inset 0 -4px 0 rgba(120,75,0,0.28), 0 0 18px rgba(250,204,21,0.52)',
         }}
       >
-        <Hand className="h-6 w-6" strokeWidth={2.7} />
+        <TutorialPointerHand
+          className="h-11 w-11"
+          style={{
+            transform: 'translate(1px, -2px) rotate(-38deg)',
+            filter: 'drop-shadow(0 2px 0 rgba(255,255,255,0.42))',
+          }}
+        />
       </span>
-      <span
-        className="whitespace-nowrap rounded-full px-2.5 py-1 font-inter text-[10px] font-black text-yellow-100"
+    </motion.div>
+  );
+}
+
+function GuidedTimelineSwipeHint({ active, reducedMotion }) {
+  if (!active) return null;
+
+  return (
+    <motion.div
+      aria-hidden="true"
+      data-kronox-guided-timeline-swipe-hint="true"
+      className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: reducedMotion ? [0.64, 1, 0.64] : 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: reducedMotion ? 1.35 : 0.18, repeat: reducedMotion ? Infinity : 0, ease: 'easeInOut' }}
+    >
+      <motion.span
+        aria-hidden="true"
+        className="absolute h-2 w-28 rounded-full"
         style={{
-          background: 'rgba(7,10,31,0.84)',
-          border: '1px solid rgba(250,204,21,0.36)',
-          boxShadow: '0 0 12px rgba(250,204,21,0.18)',
+          background: 'linear-gradient(90deg, transparent, rgba(250,204,21,0.58), transparent)',
+          boxShadow: '0 0 18px rgba(250,204,21,0.24)',
+        }}
+        animate={reducedMotion ? { opacity: [0.32, 0.7, 0.32] } : { scaleX: [0.72, 1.08, 0.72], opacity: [0.22, 0.74, 0.22] }}
+        transition={{ duration: 1.55, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <motion.span
+        className="grid h-14 w-14 place-items-center rounded-full border"
+        style={{
+          background: 'linear-gradient(180deg, #fff4b8 0%, #facc15 52%, #d99e00 100%)',
+          borderColor: 'rgba(255,255,255,0.55)',
+          boxShadow:
+            'inset 0 1px 0 rgba(255,255,255,0.62), inset 0 -4px 0 rgba(120,75,0,0.28), 0 0 18px rgba(250,204,21,0.52)',
+          filter: 'drop-shadow(0 10px 18px rgba(0,0,0,0.48))',
+          willChange: 'transform, opacity',
+        }}
+        initial={reducedMotion ? { scale: 1 } : { x: -52, y: 0, opacity: 0 }}
+        animate={reducedMotion
+          ? { scale: [1, 1.05, 1] }
+          : { x: [-52, 52, -52], y: [0, -2, 0], opacity: [0, 1, 1, 0] }}
+        transition={{
+          delay: 0.3,
+          duration: reducedMotion ? 1.45 : 2.1,
+          repeat: Infinity,
+          repeatDelay: reducedMotion ? 1.25 : 0.75,
+          ease: 'easeInOut',
         }}
       >
-        Buraya sürükle
-      </span>
+        <TutorialPointerHand
+          className="h-11 w-11"
+          style={{
+            transform: 'translate(1px, -2px) rotate(-38deg)',
+            filter: 'drop-shadow(0 2px 0 rgba(255,255,255,0.42))',
+          }}
+        />
+      </motion.span>
     </motion.div>
   );
 }
@@ -182,6 +260,7 @@ export default function GameLayout({
   beginnerPlacementHintZone,
   guidedDragHintActive = false,
   guidedDragTargetZone = null,
+  guidedTimelineScrollHintActive = false,
   interactionPaused = false,
   correctStreak = 0,
   // Handlers
@@ -478,7 +557,7 @@ export default function GameLayout({
       {/* TIMELINE */}
       <div className="flex-shrink-0 px-2 py-1">
         <div
-          className="rounded-2xl overflow-hidden py-2 transition-all duration-300"
+          className="relative rounded-2xl overflow-hidden py-2 transition-all duration-300"
           style={{
             background: isTimeUp ? 'rgba(239,68,68,0.06)' : 'rgba(255,255,255,0.04)',
             border: isTimeUp ? '1.5px solid rgba(239,68,68,0.5)' : '1px solid rgba(255,255,255,0.08)',
@@ -506,10 +585,15 @@ export default function GameLayout({
               }
               beginnerPlacementHintZone={beginnerPlacementHintZone}
               guidedTargetZone={guidedDragHintActive ? guidedDragTargetZone : null}
+              guidedScrollHintActive={Boolean(guidedTimelineScrollHintActive && isMyTurn && !isDragging && !feedback && !winner && !interactionPaused && !isTimeUp)}
               correctStreak={correctStreak}
               soloYearOnlyCards={!isOnline}
             />
           )}
+          <GuidedTimelineSwipeHint
+            active={Boolean(guidedTimelineScrollHintActive && isMyTurn && !isDragging && !feedback && !winner && !interactionPaused && !isTimeUp)}
+            reducedMotion={prefersReducedMotion}
+          />
         </div>
 
         {/* SÜRE DOLDU uyarısı */}

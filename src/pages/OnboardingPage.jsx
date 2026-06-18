@@ -7,7 +7,6 @@ import {
   Loader2,
   Play,
   ShieldCheck,
-  Sparkles,
   UserRound,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -343,21 +342,22 @@ function StepHeader({ icon: Icon, title, body }) {
 }
 
 function TutorialStartStep({ username, busy, onStart }) {
+  const displayName = username || 'KronoxUser';
+
   return (
     <div className="rounded-2xl border border-primary/25 bg-slate-950/42 p-5 shadow-2xl">
-      <StepHeader
-        icon={Sparkles}
-        title="İlk Seviye Seni Bekliyor"
-        body={`${username || 'KronoxUser'}, önce gerçek oyunun içinde kısa bir rehberli seviye oynayacaksın. Giriş yapmak zorunda değilsin.`}
-      />
-      <div className="space-y-2 rounded-xl border border-white/10 bg-white/[0.04] p-3 font-inter text-xs font-semibold text-blue-100/80">
-        <p>• Kartı zaman çizgisine sürükle.</p>
-        <p>• Önce, sonra ve iki olay arasına yerleştirmeyi öğren.</p>
-        <p>• Hamle sayısı ve jokerleri sadece eğitim amaçlı tanı.</p>
+      <div className="mb-5 text-center">
+        <h1 className="font-cinzel text-2xl font-black text-white">İlk Seviye Seni Bekliyor</h1>
+      </div>
+      <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4 text-center font-inter text-sm font-semibold leading-relaxed text-blue-100/82">
+        <p>Sevgili {displayName}</p>
+        <p className="mt-4">
+          Tek yapman gereken, olay kartını, olayın gerçekleştiğini tahmin ettiğin zaman aralığına sürüklemek. 7 kartı tamamla. Zamana hükmet…
+        </p>
       </div>
       <Button onClick={onStart} disabled={busy} className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl font-inter font-black">
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-        Rehberli İlk Seviyeyi Oyna
+        Seviye 1
       </Button>
     </div>
   );

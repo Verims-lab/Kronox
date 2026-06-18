@@ -11,7 +11,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Clock3, Hand, Loader2, MoveHorizontal, Shield, Sparkles, WifiOff } from 'lucide-react';
+import { Clock3, Loader2, Shield, Sparkles, WifiOff } from 'lucide-react';
 import { QUESTION_LOAD_ERROR_KIND, useOfflineQuestions } from '@/hooks/useOfflineQuestions';
 import { loadRecentHistory, loadRecentQuestionExposureStats, appendToHistory } from '@/lib/questionHistory';
 import { getTimelineCardCount, getTimelineYears, isCorrectPlacement } from '@/lib/gameRules';
@@ -141,14 +141,12 @@ const GUIDED_TUTORIAL_JOKER_COPY = Object.freeze({
 
 const GUIDED_TUTORIAL_MESSAGES = [
   {
-    icon: Hand,
-    title: 'Kartı Tut ve Sürükle',
-    body: 'Kartı parmağınla tutup zaman çizgisindeki uygun boşluğa bırak.',
+    variant: 'sentence',
+    body: 'Kartı tut ve doğru zaman aralığına sürükle.',
   },
   {
-    icon: MoveHorizontal,
-    title: 'Önce mi Sonra mı?',
-    body: 'Daha eski olayları sola, daha yeni olayları sağa yerleştir.',
+    variant: 'sentence',
+    body: 'Zaman çizgisini parmağınla sağa ve sola kaydır.',
   },
   {
     icon: Sparkles,
@@ -191,9 +189,8 @@ function GuidedTutorialPopup({ popup, onContinue }) {
   const jokerCopy = popup.type === 'joker' ? getGuidedTutorialJokerCopy(popup.jokerType) : null;
   const content = popup.type === 'timer'
     ? {
-        title: 'Süreyi Takip Et',
-        body: 'Bu oyunu süre bitmeden tamamlamalısın. Ne kadar hızlı bitirirsen o kadar çok Puan / Kronox Puan kazanırsın.',
-        eyebrow: '03:00',
+        body: 'Oyunu sana verilen süre ve hamle sayısı tamamlanmadan bitirmelisin. Ne kadar hızlı bitirirsen o kadar çok puan kazanırsın',
+        buttonLabel: 'Hadi Başlayalım',
       }
     : popup.type === 'mistake'
       ? {
@@ -202,11 +199,13 @@ function GuidedTutorialPopup({ popup, onContinue }) {
             ? 'Kronokalkan hamle hakkını korudu. Daha az hamleyle bitirirsen daha çok yıldız ve Puan / Kronox Puan kazanırsın.'
             : 'Bu deneme bir hamle sayıldı. Daha az hamleyle bitirirsen daha çok yıldız ve Puan / Kronox Puan kazanırsın.',
           eyebrow: 'Hamle',
+          buttonLabel: 'Anladım',
         }
       : {
           title: jokerCopy?.title || 'Joker',
           body: jokerCopy?.body || 'Bu eğitim demosu gerçek joker bakiyeni harcamaz.',
           eyebrow: jokerCopy?.label || 'Joker',
+          buttonLabel: 'Anladım',
         };
 
   return (
@@ -215,31 +214,22 @@ function GuidedTutorialPopup({ popup, onContinue }) {
       style={{ background: 'rgba(2,6,23,0.72)', backdropFilter: 'blur(3px)' }}
       data-kronox-guided-tutorial-popup={popup.type}
     >
-      {popup.type === 'timer' && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none fixed right-4 top-4 rounded-full border border-yellow-300/70 px-3 py-1.5 font-inter text-xs font-black text-yellow-100"
-          style={{
-            top: 'calc(0.85rem + env(safe-area-inset-top))',
-            boxShadow: '0 0 0 9999px rgba(2,6,23,0.18), 0 0 22px rgba(250,204,21,0.46)',
-            background: 'rgba(15,23,42,0.96)',
-          }}
-        >
-          Süre
-        </div>
-      )}
       <div className="w-full max-w-[340px] rounded-3xl border border-yellow-300/45 bg-slate-950 px-5 py-5 text-center shadow-2xl">
-        <div className="mx-auto mb-3 inline-flex min-h-9 items-center justify-center rounded-full border border-yellow-300/45 bg-yellow-300/12 px-4 font-inter text-xs font-black text-yellow-100">
-          {content.eyebrow}
-        </div>
-        <h2 className="font-cinzel text-xl font-black text-white">{content.title}</h2>
-        <p className="mt-2 font-inter text-sm font-semibold leading-relaxed text-blue-100/82">{content.body}</p>
+        {content.eyebrow && (
+          <div className="mx-auto mb-3 inline-flex min-h-9 items-center justify-center rounded-full border border-yellow-300/45 bg-yellow-300/12 px-4 font-inter text-xs font-black text-yellow-100">
+            {content.eyebrow}
+          </div>
+        )}
+        {content.title && <h2 className="font-cinzel text-xl font-black text-white">{content.title}</h2>}
+        <p className={content.title ? 'mt-2 font-inter text-sm font-semibold leading-relaxed text-blue-100/82' : 'font-inter text-base font-bold leading-relaxed text-blue-100/86'}>
+          {content.body}
+        </p>
         <Button
           type="button"
           onClick={onContinue}
           className="mt-5 min-h-11 w-full rounded-xl font-inter font-black"
         >
-          Anladım
+          {content.buttonLabel || 'Anladım'}
         </Button>
       </div>
     </div>
@@ -253,6 +243,7 @@ function GuidedSoloTutorialOverlay({ cardsCompleted = 0, cardTarget = 7, remaini
   );
   const item = GUIDED_TUTORIAL_MESSAGES[activeIndex] || GUIDED_TUTORIAL_MESSAGES[0];
   const Icon = item.icon;
+  const sentenceOnly = item.variant === 'sentence';
   return (
     <div
       className="pointer-events-none fixed inset-x-0 z-[42] px-4"
@@ -260,19 +251,25 @@ function GuidedSoloTutorialOverlay({ cardsCompleted = 0, cardTarget = 7, remaini
       data-kronox-guided-first-solo-level="true"
     >
       <div className="mx-auto max-w-[340px] rounded-2xl border border-yellow-300/35 bg-slate-950/78 px-3 py-2.5 shadow-2xl backdrop-blur-md">
-        <div className="flex items-start gap-2.5">
-          <span className="mt-0.5 grid h-8 w-8 flex-shrink-0 place-items-center rounded-xl border border-yellow-300/35 bg-yellow-300/12 text-yellow-200">
-            <Icon className="h-4 w-4" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block font-inter text-xs font-black text-yellow-100">{item.title}</span>
-            <span className="mt-0.5 block font-inter text-[11px] font-semibold leading-snug text-blue-100/82">{item.body}</span>
-            <span className="mt-1.5 flex flex-wrap gap-1.5 font-inter text-[10px] font-bold text-blue-100/62">
-              <span>{Math.max(0, Number(cardsCompleted) || 0)}/{Math.max(1, Number(cardTarget) || 7)} kart</span>
-              <span>{Math.max(0, Number(remainingMoves) || 0)} hamle</span>
+        {sentenceOnly ? (
+          <p className="px-1.5 py-1 text-center font-inter text-sm font-black leading-snug text-yellow-50">
+            {item.body}
+          </p>
+        ) : (
+          <div className="flex items-start gap-2.5">
+            <span className="mt-0.5 grid h-8 w-8 flex-shrink-0 place-items-center rounded-xl border border-yellow-300/35 bg-yellow-300/12 text-yellow-200">
+              <Icon className="h-4 w-4" />
             </span>
-          </span>
-        </div>
+            <span className="min-w-0 flex-1">
+              <span className="block font-inter text-xs font-black text-yellow-100">{item.title}</span>
+              <span className="mt-0.5 block font-inter text-[11px] font-semibold leading-snug text-blue-100/82">{item.body}</span>
+              <span className="mt-1.5 flex flex-wrap gap-1.5 font-inter text-[10px] font-bold text-blue-100/62">
+                <span>{Math.max(0, Number(cardsCompleted) || 0)}/{Math.max(1, Number(cardTarget) || 7)} kart</span>
+                <span>{Math.max(0, Number(remainingMoves) || 0)} hamle</span>
+              </span>
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -876,6 +873,11 @@ export default function Game() {
     }
     return null;
   }, [currentTimelinePlayer, currentQuestion, isGuidedSoloTutorial]);
+  const guidedTutorialStepMode = isGuidedSoloTutorial && currentQuestion
+    ? guidedTutorialAskedCardNumber === 2
+      ? 'timeline-scroll'
+      : 'placement'
+    : null;
   const timerFreezeNow = timerFreezeTick || Date.now();
   const isSoloTimerFrozen = Boolean(isSoloLevelMode && timerFreezeUntil > timerFreezeNow && timerFreezeStartRef.current);
   const activeFreezeOffset = isSoloTimerFrozen
@@ -2824,7 +2826,7 @@ export default function Game() {
     message: isGuidedSoloTutorial
       ? (jokerMessage || (guidedTutorialJokerDemoWaiting
           ? `${guidedTutorialJokerLabel} jokerine dokun; demo gerçek çantandan harcanmaz.`
-          : 'Joker adımlarında üç Solo jokerini sırayla deneyeceksin.'))
+          : ''))
       : jokerMessage,
     error: jokerError,
     disabled: Boolean(
@@ -2841,7 +2843,18 @@ export default function Game() {
   } : null;
   const guidedDragHintActive = Boolean(
     isGuidedSoloTutorial &&
+    guidedTutorialStepMode !== 'timeline-scroll' &&
     guidedTutorialCorrectTargetZone !== null &&
+    !guidedTutorialPopup &&
+    !guidedTutorialJokerDemoWaiting &&
+    selectedZone === null &&
+    !feedback &&
+    !winner &&
+    currentQuestion
+  );
+  const guidedTimelineScrollHintActive = Boolean(
+    isGuidedSoloTutorial &&
+    guidedTutorialStepMode === 'timeline-scroll' &&
     !guidedTutorialPopup &&
     !guidedTutorialJokerDemoWaiting &&
     selectedZone === null &&
@@ -2943,6 +2956,7 @@ export default function Game() {
         beginnerPlacementHintZone={beginnerPlacementHintZone}
         guidedDragHintActive={guidedDragHintActive}
         guidedDragTargetZone={guidedTutorialCorrectTargetZone}
+        guidedTimelineScrollHintActive={guidedTimelineScrollHintActive}
         interactionPaused={Boolean(guidedTutorialPopup)}
         correctStreak={isSoloLevelMode ? soloCorrectStreak : 0}
       />
