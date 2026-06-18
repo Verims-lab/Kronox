@@ -58,6 +58,9 @@ Rules:
   fallback state, `selectionMode: server_attempt_candidate_buffer_v1`,
   `sourcePoolCapRemoved: true`, `responseCapApplied: true`, and
   `projectionCappedBeforeCategoryCoverage: false`
+* `/getQuestions` must derive active categories from current active `Category`
+  rows. If Category metadata is unavailable, it must not fall back to legacy
+  category names or old seeded category IDs.
 * If Solo debug JSON lacks `getQuestionsRuntimeMarker`, the deployed callable
   is stale or the frontend is invoking a different function. Codex343 expects
   backend marker `getQuestions-live-per-category-v7-Codex343`.

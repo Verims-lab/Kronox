@@ -2836,7 +2836,11 @@ export const EXTRA_TESTS = [
         'filter(isActiveCategoryPreference)',
       ]);
       const getQuestionsMissing = missingTokens(getQuestionsFunctionSource, [
-        'FALLBACK_ACTIVE_CATEGORY_IDS',
+        'CATEGORY_METADATA_POLICY',
+        'SOLO_QUESTION_POLICY',
+        'legacyHardcodedCategoryFallbackAllowed: false',
+        'staleCategoryFallbackUsed: false',
+        'rawQuestionListFallbackAllowed: false',
         'CATEGORY_ACTIVE_STATUS_VALUES',
         "'active'",
         "'aktif'",
@@ -2862,6 +2866,9 @@ export const EXTRA_TESTS = [
         ...['UserCategoryPreference', 'loadUserCategoryPreferences', 'userSelectedCategoryIds']
           .filter((token) => onlineGameStartSource.includes(token)),
         ...[
+          'FALLBACK_ACTIVE_CATEGORY_IDS',
+          'fallback_active_category_ids',
+          'ONLINE_ID_TO_MAIN_CATEGORY_ID',
           'KNOWN_CATEGORY_IDS',
           'KNOWN_CATEGORY_IDS.includes(id)',
           'const KNOWN_CATEGORY_IDS = [1, 2, 3, 4, 5, 6]',

@@ -94,9 +94,9 @@
     "selected_category_ids": {
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "number"
       },
-      "description": "Codex091 \u2014 stable Online category ids selected by the host (flashback, kult, viral, arena, level_up, chronicle). When present and non-empty, startLobbyGame uses these to filter the question pool. When absent or empty, startLobbyGame falls back to the legacy `category` field (old lobbies keep working)."
+      "description": "Current Online category ids selected by the host. Values are live Category.category_id numbers from current category metadata. startLobbyGame requires at least one valid active selected id and does not fall back to legacy category names or stale hardcoded category arrays."
     },
     "year_start": {
       "type": "number",

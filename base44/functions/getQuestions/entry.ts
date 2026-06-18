@@ -1,6 +1,30 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
-const FALLBACK_ACTIVE_CATEGORY_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 11];
+const CATEGORY_METADATA_POLICY = Object.freeze({
+  sourceOfTruth: 'Category',
+  legacyHardcodedCategoryFallbackAllowed: false,
+  loadFailureBehavior: 'retryable_error_or_empty_state',
+});
+const SOLO_QUESTION_POLICY = Object.freeze({
+  categorySourceOfTruth: CATEGORY_METADATA_POLICY.sourceOfTruth,
+  preferenceScope: 'solo_only',
+  preferenceWeighting: 'soft_70_selected_30_global',
+  minimumValidPreferenceCount: 3,
+  emptyPreferencesUseAllActiveCategories: true,
+  unavailablePreferencesUseAllActiveCategories: true,
+  hardFilterToSelectedCategories: false,
+  selectedLaneDifficulties: [1, 2],
+  globalLaneDifficulties: [1],
+  rawQuestionListFallbackAllowed: false,
+  legacyHardcodedCategoryFallbackAllowed: false,
+});
+const ONLINE_GAME_POLICY = Object.freeze({
+  categorySourceOfTruth: CATEGORY_METADATA_POLICY.sourceOfTruth,
+  selectedCategoriesOnly: true,
+  allowedDifficulties: [1, 2],
+  difficultyRule: 'difficulty_1_or_2_only',
+  soloPreferenceWeightingApplied: false,
+});
 const MAX_AUTH_GAMEPLAY_RESPONSE_LIMIT = 96;
 const DEFAULT_AUTH_GAMEPLAY_RESPONSE_LIMIT = 80;
 const MAX_GUEST_GAMEPLAY_LIMIT = 48;
@@ -16,23 +40,13 @@ const PROJECTION_SAMPLING_STRATEGY = 'pool_proportional_category_subcategory_per
 const DIAGNOSTIC_TOP_LIMIT = 12;
 const CATEGORY_ACTIVE_STATUS_VALUES = new Set(['', 'a', 'active', 'aktif']);
 const QUESTION_ACTIVE_STATUS_VALUES = new Set(['', 'a', 'active', 'aktif']);
-const SELECTED_CATEGORY_LANE_DIFFICULTIES = new Set([1, 2]);
-const GLOBAL_FALLBACK_LANE_DIFFICULTIES = new Set([1]);
+const SELECTED_CATEGORY_LANE_DIFFICULTIES = new Set(SOLO_QUESTION_POLICY.selectedLaneDifficulties);
+const GLOBAL_FALLBACK_LANE_DIFFICULTIES = new Set(SOLO_QUESTION_POLICY.globalLaneDifficulties);
 const GUEST_PRIMARY_DIFFICULTIES = new Set([1]);
 const GUEST_FALLBACK_DIFFICULTIES = new Set([1, 2]);
 const SELECTED_CATEGORY_LANE_DIFFICULTY_RULE = 'selected_category_difficulty_1_2';
 const GLOBAL_FALLBACK_LANE_DIFFICULTY_RULE = 'global_fallback_difficulty_1_only';
 const GUEST_DIFFICULTY_RULE = 'guest_primary_difficulty_1_only';
-
-const ONLINE_ID_TO_MAIN_CATEGORY_ID: Record<string, number> = {
-  chronicle: 1,
-  flashback: 2,
-  kult: 3,
-  viral: 4,
-  arena: 5,
-  level_up: 6,
-};
-
 
 console.log('[getQuestions] MODULE LOADED');
 
@@ -228,11 +242,7 @@ function normalizeQuestionMainCategoryId(question: Record<string, unknown>) {
     ?? question?.category_id
     ?? question?.categoryid
     ?? question?.categoryId;
-  const direct = normalizeCategoryId(raw);
-  if (direct !== null) return direct;
-
-  const categoryText = String(question?.category || '').trim().toLowerCase();
-  return ONLINE_ID_TO_MAIN_CATEGORY_ID[categoryText] ?? null;
+  return normalizeCategoryId(raw);
 }
 
 function isKnownCategoryId(value: number | null): value is number {
@@ -261,12 +271,7 @@ function normalizeRequestedMainCategoryIds(body: any) {
   const fromDirect = direct.map(normalizeCategoryId).filter(isKnownCategoryId);
 
   const selected = Array.isArray(body?.selected_category_ids) ? body.selected_category_ids : [];
-  const fromSelected = selected
-    .map((id: unknown) => typeof id === 'string'
-      ? (ONLINE_ID_TO_MAIN_CATEGORY_ID[id] ?? normalizeCategoryId(id))
-      : normalizeCategoryId(id))
-    .map(normalizeCategoryId)
-    .filter(isKnownCategoryId);
+  const fromSelected = selected.map(normalizeCategoryId).filter(isKnownCategoryId);
 
   const merged = Array.from(new Set([...fromDirect, ...fromSelected]));
   return merged.length ? new Set(merged) : null;
@@ -277,9 +282,6 @@ function normalizeSoftPreferenceCategoryIds(body: any, activeMainCategoryIds: Se
     ? body.selected_category_ids
     : (Array.isArray(body?.preferenceCategoryIds) ? body.preferenceCategoryIds : []);
   const ids = selected
-    .map((id: unknown) => typeof id === 'string'
-      ? (ONLINE_ID_TO_MAIN_CATEGORY_ID[id] ?? normalizeCategoryId(id))
-      : normalizeCategoryId(id))
     .map(normalizeCategoryId)
     .filter(isKnownCategoryId)
     .filter((id: number) => activeMainCategoryIds.has(id));
@@ -508,14 +510,13 @@ async function resolveActiveCategoryContext(base44: any) {
     ? categoryRows.filter(isActiveCategory).filter((row: any) => isKnownCategoryId(getCategoryId(row)))
     : [];
   const fallbackUsed = categoryReadFailed;
-  const fallbackReason = categoryReadFailed ? `category_read_failed:${categoryReadError || 'unknown'}` : null;
-  const activeCategorySource = fallbackUsed
-    ? 'fallback_active_category_ids'
+  const fallbackReason = categoryReadFailed
+    ? `category_read_failed_no_legacy_category_fallback:${categoryReadError || 'unknown'}`
+    : null;
+  const activeCategorySource = categoryReadFailed
+    ? 'Category.list(category_id,1000):unavailable'
     : 'Category.list(category_id,1000)';
-  const activeIds = (fallbackUsed
-    ? FALLBACK_ACTIVE_CATEGORY_IDS
-    : activeCategoryRows.map(getCategoryId).filter(isKnownCategoryId)
-  );
+  const activeIds = activeCategoryRows.map(getCategoryId).filter(isKnownCategoryId);
 
   return {
     activeCategoryRows,
@@ -523,6 +524,7 @@ async function resolveActiveCategoryContext(base44: any) {
     fallbackReason,
     activeCategorySource,
     activeIds,
+    categoryMetadataPolicy: CATEGORY_METADATA_POLICY,
   };
 }
 
@@ -1086,6 +1088,13 @@ function buildProjectionDiagnostics({
     projectionLimit: limit,
     questionFetchPath: 'getQuestions:per_active_category_question_filter_numeric_string_main_category_category_id',
     activeCategorySource,
+    categorySourceOfTruth: CATEGORY_METADATA_POLICY.sourceOfTruth,
+    categoryMetadataPolicy: CATEGORY_METADATA_POLICY,
+    soloQuestionPolicy: SOLO_QUESTION_POLICY,
+    onlineGamePolicy: ONLINE_GAME_POLICY,
+    legacyHardcodedCategoryFallbackAllowed: false,
+    staleCategoryFallbackUsed: false,
+    rawQuestionListFallbackAllowed: false,
     activeCategoryRowsById,
     activeCategoryIds,
     requestedCategoryIds,
@@ -1198,6 +1207,10 @@ Deno.serve(async (req) =>
           questions: [],
           activeCategoryIds: Array.from(activeMainCategoryIds),
           activeCategorySource,
+          categorySourceOfTruth: CATEGORY_METADATA_POLICY.sourceOfTruth,
+          legacyHardcodedCategoryFallbackAllowed: false,
+          staleCategoryFallbackUsed: false,
+          rawQuestionListFallbackAllowed: false,
           projectionVersion: GAMEPLAY_PROJECTION_VERSION,
           getQuestionsRuntimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
           runtimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
@@ -1251,6 +1264,10 @@ Deno.serve(async (req) =>
         questions: projected,
         activeCategoryIds: Array.from(activeMainCategoryIds),
         activeCategorySource,
+        categorySourceOfTruth: CATEGORY_METADATA_POLICY.sourceOfTruth,
+        legacyHardcodedCategoryFallbackAllowed: false,
+        staleCategoryFallbackUsed: false,
+        rawQuestionListFallbackAllowed: false,
         projectionVersion: GAMEPLAY_PROJECTION_VERSION,
         getQuestionsRuntimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
         runtimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
@@ -1339,6 +1356,10 @@ Deno.serve(async (req) =>
         questions: [],
         activeCategoryIds: Array.from(activeMainCategoryIds),
         activeCategorySource,
+        categorySourceOfTruth: CATEGORY_METADATA_POLICY.sourceOfTruth,
+        legacyHardcodedCategoryFallbackAllowed: false,
+        staleCategoryFallbackUsed: false,
+        rawQuestionListFallbackAllowed: false,
         projectionVersion: GAMEPLAY_PROJECTION_VERSION,
         getQuestionsRuntimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
         runtimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
@@ -1384,6 +1405,10 @@ Deno.serve(async (req) =>
       questions: projected,
       activeCategoryIds: Array.from(activeMainCategoryIds),
       activeCategorySource,
+      categorySourceOfTruth: CATEGORY_METADATA_POLICY.sourceOfTruth,
+      legacyHardcodedCategoryFallbackAllowed: false,
+      staleCategoryFallbackUsed: false,
+      rawQuestionListFallbackAllowed: false,
       projectionVersion: GAMEPLAY_PROJECTION_VERSION,
       getQuestionsRuntimeMarker: GET_QUESTIONS_RUNTIME_MARKER,
       runtimeMarker: GET_QUESTIONS_RUNTIME_MARKER,

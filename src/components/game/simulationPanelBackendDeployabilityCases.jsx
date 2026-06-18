@@ -467,11 +467,17 @@ export const EXTRA_TESTS = [
         'projectionCappedBeforeCategoryCoverage: false',
         'fallbackUsed',
         'categoriesWithZeroPlayableQuestions',
+        'CATEGORY_METADATA_POLICY',
+        'legacyHardcodedCategoryFallbackAllowed: false',
+        'staleCategoryFallbackUsed: false',
       ]);
       const forbidden = forbiddenTokens(getQuestionsSource, [
         'MAX_GAMEPLAY_LIMIT = 1200',
         'MAX_GAMEPLAY_LIMIT = 500',
         'const KNOWN_CATEGORY_IDS = [1, 2, 3, 4, 5, 6]',
+        'FALLBACK_ACTIVE_CATEGORY_IDS',
+        'fallback_active_category_ids',
+        'ONLINE_ID_TO_MAIN_CATEGORY_ID',
         'FALLBACK_ACTIVE_CATEGORY_IDS = [1, 2, 3, 4, 5, 6]',
         'const payload = await req.json().catch',
         'const payload: Record<string, unknown>',

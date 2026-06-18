@@ -12,27 +12,18 @@ import { sounds } from '@/lib/gameSounds';
  * bottom. Selected card gets a gold ring + a soft gold halo.
  *
  * Props
- *   categories  : Array<{ id, label, description }>
- *   selectedIds : string[]
+ *   categories  : Array<{ id, label, description, iconKey, color }>
+ *   selectedIds : number[]
  *   onToggle(id): toggle handler — parent owns the selection state.
  */
 
 const CATEGORY_ICONS = {
-  chronicle: Calendar,
-  flashback: Clock,
-  kult: Crown,
-  viral: Radio,
-  arena: Trophy,
-  level_up: Gamepad2,
-};
-
-const ICON_COLOR = {
-  chronicle: '#facc15',
-  flashback: '#60a5fa',
-  kult: '#c084fc',
-  viral: '#f472b6',
-  arena: '#34d399',
-  level_up: '#fb923c',
+  Calendar,
+  Clock,
+  Crown,
+  Radio,
+  Trophy,
+  Gamepad2,
 };
 
 export default function OnlineCategoryCarousel({ categories, selectedIds, onToggle }) {
@@ -54,13 +45,8 @@ export default function OnlineCategoryCarousel({ categories, selectedIds, onTogg
     setActiveDot(Math.min(categories.length - 1, Math.max(0, idx)));
   }, [categories.length]);
 
-  // Codex161 — Pin the carousel to the left edge on first paint so the
-  // first card (ID 1 / Chronicle) is always visible when the Online
-  // screen mounts. useLayoutEffect runs before the browser commits the
-  // initial layout, so the user never sees a flash of a mid-scroll
-  // position. We wrap the reset in requestAnimationFrame as a safety
-  // net for engines that defer scroll-snap calculations until after the
-  // first commit.
+  // Pin the carousel to the left edge on first paint so the first current
+  // active Category row is visible when the Online screen mounts.
   useLayoutEffect(() => {
     if (didInitialScrollRef.current) return;
     if (!categories || categories.length === 0) return;
@@ -96,8 +82,8 @@ export default function OnlineCategoryCarousel({ categories, selectedIds, onTogg
       >
         <style>{`div::-webkit-scrollbar{display:none}`}</style>
         {categories.map((cat) => {
-          const Icon = CATEGORY_ICONS[cat.id] || Calendar;
-          const tint = ICON_COLOR[cat.id] || '#facc15';
+          const Icon = CATEGORY_ICONS[cat.iconKey] || Calendar;
+          const tint = cat.color || '#facc15';
           const isSelected = selectedIds.includes(cat.id);
           return (
             <motion.button

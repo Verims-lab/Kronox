@@ -1,9 +1,10 @@
 import { buildLobbyStartPayload } from '@/lib/lobbyUtils';
+import { ONLINE_GAME_POLICY } from '@/lib/categoryPolicy';
 
 export const ONLINE_SHARED_DECK_MAX_QUESTIONS = 96;
 export const ONLINE_SHARED_DECK_MIN_QUESTIONS = 32;
 export const ONLINE_DECK_SELECTION_SOURCE = 'online_shared_selected_category_deck_v1';
-const ONLINE_ALLOWED_DIFFICULTIES = new Set([1, 2]);
+const ONLINE_ALLOWED_DIFFICULTIES = new Set(ONLINE_GAME_POLICY.allowedDifficulties);
 
 const normalizeNumber = (value) => {
   const number = Number(value);
@@ -130,10 +131,10 @@ export function buildInitialOnlineGameState({
   const onlineDeckMeta = {
     source: ONLINE_DECK_SELECTION_SOURCE,
     selectedCategoryIds: Array.from(getSelectedCategoryIds(settings)),
-    selectedCategoriesOnly: true,
-    soloPreferenceWeightingApplied: false,
-    guestSoloPathUsed: false,
-    difficultyRule: 'difficulty_1_or_2_only',
+    selectedCategoriesOnly: ONLINE_GAME_POLICY.selectedCategoriesOnly,
+    soloPreferenceWeightingApplied: ONLINE_GAME_POLICY.soloPreferenceWeightingApplied,
+    guestSoloPathUsed: ONLINE_GAME_POLICY.guestSoloPathUsed,
+    difficultyRule: ONLINE_GAME_POLICY.difficultyRule,
     deckQuestionCount: onlineQuestionDeck.length,
     maxDeckQuestionCount: ONLINE_SHARED_DECK_MAX_QUESTIONS,
     categoryCounts: countBy(onlineQuestionDeck, question => question.main_category_id),

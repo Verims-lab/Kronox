@@ -2251,7 +2251,15 @@ import React, { useEffect, useState } from 'react';
 //     metadata-only Category response scope for guest onboarding.
 //   • Adds Health/static proof that public category metadata is allowed only
 //     when it exposes no questions, answers, years, full bank, or stale fallbacks.
-const BUILD_MARKER = 'Codex399';
+//
+// Codex400 — Current category metadata runtime policy:
+//   • Removes stale hardcoded category fallback names/IDs from startLobbyGame,
+//     getQuestions, Online category UI helpers, and Solo diagnostic helpers.
+//   • Online category selection now uses live Category.category_id metadata
+//     only, with retry/error instead of static fallback categories.
+//   • Adds centralized category/Online/Solo policy constants plus Health/docs
+//     checks for no legacy category fallback regressions.
+const BUILD_MARKER = 'Codex400';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

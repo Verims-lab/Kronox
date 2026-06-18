@@ -437,20 +437,20 @@ export const EXTRA_TESTS = [
   ),
 
   /* ------------------------------------------------------------------
-   *  online_category_taxonomy — centralized taxonomy import moved to
-   *  the Online challenge screen + carousel; CATEGORY_HITBOX_BY_ID is
-   *  obsolete now (chips, not image hitboxes).
+   *  online_category_taxonomy — current Category metadata moved to the
+   *  Online challenge screen + carousel; static category lists are no
+   *  longer a valid source of truth.
    * ------------------------------------------------------------------ */
   sourceHasReplacement(
     'online_category_taxonomy', 'Online Category Taxonomy Suite',
     'lobby_panel_consumes_centralized_taxonomy',
-    'Online challenge screen imports the centralized ONLINE_CATEGORIES and feeds them to the carousel',
+    'Online challenge screen loads current Category metadata and decorates it for the carousel',
     'components/lobby/OnlineChallengeScreen.jsx + components/lobby/OnlineCategoryCarousel.jsx',
     `${safeStr(onlineChallengeScreenSource)}\n${safeStr(onlineCategoryCarouselSource)}`,
     [
-      "from '@/lib/onlineCategories'",
-      'ONLINE_CATEGORIES',
-      'ONLINE_CATEGORIES.map',
+      'loadActiveCategories({ limit: 1000 })',
+      'decorateOnlineCategory',
+      'categoryLoadError',
       'OnlineCategoryCarousel',
     ],
   ),

@@ -183,10 +183,11 @@ P3 adds question analytics without changing question selection:
 - top-shown category/subcategory concentration is a guardrail only:
   high concentration is not automatically unfair because the distribution must
   be compared with the Solo-eligible pool first.
-- Codex321 audit finding: runtime `/getQuestions` category projection must be
-  driven by active `Category` rows, not a stale hardcoded seed-category list.
-  The fallback list is only for Category read failure; normal runtime must not
-  accidentally hardcode active categories 7+ out of the Solo-eligible pool.
+- Runtime `/getQuestions` category projection must be driven by active
+  `Category` rows, not a stale hardcoded seed-category list. Category read
+  failure must produce an empty/retryable state instead of falling back to old
+  seeded category IDs; normal runtime must not hardcode active categories 7+
+  out of the Solo-eligible pool.
 - Codex329 fix: `/getQuestions`, Category helpers, and preference helpers
   accept active status aliases (`a`, `active`, `aktif`, plus missing status for
   backward compatibility), fetch candidates per active category before
@@ -203,8 +204,8 @@ P3 adds question analytics without changing question selection:
   data/category seeding blocker rather than a deck-builder issue.
 - Codex340/Codex372/Codex373 fix: `/getQuestions` now has an explicit Base44 function
   manifest, v2 gameplay requests return small server-side attempt buffers,
-  safe `projectionDiagnostics` require admin/debug context, Category fallback
-  is used only when the `Category` read fails, and `Question`
+  safe `projectionDiagnostics` require admin/debug context, stale Category
+  fallback IDs are forbidden even when the `Category` read fails, and `Question`
   category-id schema fields are no longer capped to the original 1-6 seed set.
   Runtime proof should show `projectionVersion: per_category_projection_v2`,
   `projectionCappedBeforeCategoryCoverage: false`, all active Category IDs in

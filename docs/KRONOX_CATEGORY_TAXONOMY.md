@@ -10,7 +10,8 @@ Status: active product contract.
 
 This document defines Kronox category taxonomy, category ID rules, status rules, and import boundary rules.
 
-This is the canonical category source of truth.
+The live `Category` entity / current safe category metadata projection is the
+canonical category source of truth for runtime category selection.
 
 Question schema details are defined in:
 
@@ -123,7 +124,8 @@ p = passive
 
 Rules:
 
-* Online category UI shows active categories only.
+* Online category UI shows active categories only from current metadata.
+* Online `selected_category_ids` stores live `Category.category_id` values.
 * Solo question decks use active categories only.
 * Online start uses active selected categories only.
 * Online start is server-authoritative through `startLobbyGame`: it persists a
@@ -131,6 +133,9 @@ Rules:
   selected active categories and difficulty 1/2 questions only. Online must not
   hydrate questions from Solo user preferences, Solo 70/30 weighting, or guest
   Solo question mode.
+* Missing/invalid Online selected categories or failed Category metadata reads
+  must clean-fail with a retryable/user-safe error or empty state; runtime must
+  not substitute legacy category names or old seeded category IDs.
 * Passive category data is preserved but not used in playable decks.
 * Missing status may be treated as active only for backward-compatible seed/backfill.
 * Seeded rows should carry explicit `status: "a"`.
@@ -169,6 +174,9 @@ Category preferences are optional personalization, not a gameplay gate:
 * stale hardcoded category fallbacks are forbidden for onboarding category
   selection; if the current category source cannot be loaded, the UI must show a
   visible retry/error state instead of rendering legacy seed names
+* stale hardcoded category fallbacks are also forbidden for Online category
+  selection and `/getQuestions`; Category read failure must not manufacture
+  seeded IDs
 * a category with active rows and Solo-eligible questions must not be excluded
   merely because its ID was added after the original six seed categories
 * `category_id` normalization accepts any positive live DB category id; seed

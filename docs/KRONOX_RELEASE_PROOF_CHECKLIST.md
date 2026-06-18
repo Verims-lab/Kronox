@@ -281,6 +281,10 @@ Checklist:
   or deleted categories, or old hardcoded fallback arrays.
 * If current category metadata cannot be loaded, onboarding shows a visible
   retry/error state instead of rendering stale fallback categories.
+* Online category selection stores live `Category.category_id` values from
+  current metadata. `startLobbyGame` must clean-fail for missing/invalid
+  selected categories or Category read failures instead of falling back to
+  legacy category names, `Lobby.category`, or old seeded category arrays.
 * `Eğitime Devam` appears only for true resumable `tutorial_in_progress`;
   tutorial-completed/profile-complete/category-pending guests must resume the
   later onboarding step instead.

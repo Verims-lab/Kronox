@@ -38,6 +38,7 @@ import toastUiSource from '../ui/toast.jsx?raw';
 import useToastSource from '../ui/use-toast.jsx?raw';
 import createLobbyInvitePanelSource from '../lobby/CreateLobbyInvitePanel.jsx?raw';
 import lobbyCreateJoinPanelSource from '../lobby/LobbyCreateJoinPanel.jsx?raw';
+import onlineChallengeScreenSource from '../lobby/OnlineChallengeScreen.jsx?raw';
 import waitingRoomPanelSource from '../lobby/WaitingRoomPanel.jsx?raw';
 import lobbyRoomSource from '../../pages/LobbyRoom.jsx?raw';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
@@ -2306,154 +2307,131 @@ export const EXTRA_TESTS = [
     }, { actionType: ACTION_TYPES.CODE_FIX }),
 
   /* ============================================================
-   *  ONLINE CATEGORY TAXONOMY SUITE (Codex078)
-   *  Single-source-of-truth contract for the six Online Game categories.
+   *  ONLINE CATEGORY POLICY SUITE
+   *  Current Category metadata is the source of truth; static code may
+   *  provide only presentation helpers and policy contracts.
    * ============================================================ */
-  makeCase('online_category_taxonomy', 'six_stable_ids_present',
-    'Six Online category ids exist and match the product spec', async () => {
+  makeCase('online_category_taxonomy', 'current_category_metadata_is_source_of_truth',
+    'Online categories come from current Category metadata, not a hardcoded taxonomy', async () => {
       const mod = await import('@/lib/onlineCategories');
-      const expected = ['flashback', 'kult', 'viral', 'arena', 'level_up', 'chronicle'];
-      const actual = mod.ONLINE_CATEGORY_IDS || [];
-      const missing = expected.filter((id) => !actual.includes(id));
-      const extra = actual.filter((id) => !expected.includes(id));
-      if (missing.length || extra.length) {
-        return fail('Online category ids do not match the product spec.', {
-          verification: 'RUNTIME_VERIFIED',
-          classification: 'REAL_PRODUCT_RISK',
-          file: 'lib/onlineCategories.js',
-          expected,
-          actual: { ids: actual, missing, extra },
-        });
-      }
-      return pass('All six Online category ids present and stable.', {
-        verification: 'RUNTIME_VERIFIED',
-        classification: 'STATIC_CHECK_LIMITATION',
-        actual,
-      });
-    }, { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
-  makeCase('online_category_taxonomy', 'every_category_has_required_metadata',
-    'Every category has label, description (Turkish), timeRange, contentScope, and examples', async () => {
-      const mod = await import('@/lib/onlineCategories');
-      const cats = mod.ONLINE_CATEGORIES || [];
-      const broken = cats.filter((c) =>
-        !c.label ||
-        !c.description ||
-        c.description.length < 20 ||
-        !c.timeRange ||
-        !Array.isArray(c.contentScope) || c.contentScope.length === 0 ||
-        !Array.isArray(c.examples) || c.examples.length === 0,
-      );
-      if (broken.length) {
-        return fail('One or more categories are missing required metadata.', {
-          verification: 'RUNTIME_VERIFIED',
-          classification: 'REAL_PRODUCT_RISK',
-          file: 'lib/onlineCategories.js',
-          expected: 'label + description + timeRange + contentScope + examples for each',
-          actual: { brokenIds: broken.map((c) => c.id) },
-        });
-      }
-      return pass('Every category carries the full taxonomy metadata.', {
-        verification: 'RUNTIME_VERIFIED',
-        classification: 'STATIC_CHECK_LIMITATION',
-        actual: { count: cats.length },
-      });
-    }, { actionType: ACTION_TYPES.CODE_FIX }),
-  makeCase('online_category_taxonomy', 'examples_are_year_answerable',
-    'Every category example is a single-year-answerable event', async () => {
-      const mod = await import('@/lib/onlineCategories');
-      const cats = mod.ONLINE_CATEGORIES || [];
-      const bad = [];
-      for (const c of cats) {
-        for (const ex of c.examples || []) {
-          const yearOk = Number.isInteger(ex?.year) && ex.year > 0 && ex.year <= new Date().getFullYear();
-          const eventOk = typeof ex?.event === 'string' && ex.event.trim().length > 0;
-          if (!yearOk || !eventOk) bad.push({ categoryId: c.id, example: ex });
-        }
-      }
-      if (bad.length) {
-        return fail('One or more examples are not year-answerable.', {
-          verification: 'RUNTIME_VERIFIED',
-          classification: 'REAL_PRODUCT_RISK',
-          file: 'lib/onlineCategories.js',
-          expected: 'every example has a finite integer year and a non-empty event string',
-          actual: { bad },
-        });
-      }
-      return pass('All examples are single-year answerable.', {
-        verification: 'RUNTIME_VERIFIED',
-        classification: 'STATIC_CHECK_LIMITATION',
-      });
-    }, { actionType: ACTION_TYPES.CODE_FIX }),
-  sourceHas('online_category_taxonomy', 'boundary_rules_documented',
-    'Category boundary rules are documented in the centralized module',
-    'lib/onlineCategories.js',
-    onlineCategoriesSource,
-    [
-      'ONLINE_CATEGORY_BOUNDARY_RULES',
-      'flashback_vs_chronicle',
-      'kult_vs_viral',
-      'viral_vs_level_up',
-      'arena_vs_flashback',
-      'chronicle_fallback',
-    ],
-    { actionType: ACTION_TYPES.CODE_FIX }),
-  sourceHas('online_category_taxonomy', 'question_style_requirements_documented',
-    'Question style requirements are documented in the centralized module',
-    'lib/onlineCategories.js',
-    onlineCategoriesSource,
-    [
-      'ONLINE_QUESTION_STYLE_REQUIREMENTS',
-      'Year-answerable',
-      'Category must match',
-    ],
-    { actionType: ACTION_TYPES.CODE_FIX }),
-  sourceHas('online_category_taxonomy', 'lobby_panel_consumes_centralized_taxonomy',
-    'Online lobby panel imports category ids/labels from lib/onlineCategories',
-    'components/lobby/LobbyCreateJoinPanel.jsx',
-    lobbyCreateJoinPanelSource,
-    [
-      "from '@/lib/onlineCategories'",
-      'ONLINE_CATEGORIES',
-      'CATEGORY_HITBOX_BY_ID',
-    ],
-    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
-  sourceLacks('online_category_taxonomy', 'no_inline_category_definitions_in_lobby_panel',
-    'Lobby panel must not redeclare category ids/labels inline',
-    'components/lobby/LobbyCreateJoinPanel.jsx',
-    lobbyCreateJoinPanelSource,
-    [
-      // Old inline shape — must not reappear. We check for the literal
-      // shape that was previously hardcoded.
-      "{ id: 'flashback', label: 'FLASHBACK', left:",
-      "{ id: 'kult', label: 'KÜLT', left:",
-    ],
-    { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
-  makeCase('online_category_taxonomy', 'lookup_helpers_work',
-    'getOnlineCategoryById / isValidOnlineCategoryId behave correctly', async () => {
-      const mod = await import('@/lib/onlineCategories');
+      const policy = mod.ONLINE_CATEGORY_POLICY || {};
       const ok =
-        mod.isValidOnlineCategoryId('flashback') === true &&
-        mod.isValidOnlineCategoryId('__nope__') === false &&
-        mod.getOnlineCategoryById('chronicle')?.label === 'CHRONICLE' &&
-        mod.getOnlineCategoryById('__nope__') === null;
+        policy.categorySourceOfTruth === 'Category' &&
+        policy.selectedCategoriesOnly === true &&
+        policy.categoryListFallbackAllowed === false &&
+        policy.legacyHardcodedCategoryFallbackAllowed === false &&
+        !Array.isArray(mod.ONLINE_CATEGORIES) &&
+        !Array.isArray(mod.ONLINE_CATEGORY_IDS);
       return ok
-        ? pass('Lookup helpers verified at runtime.', { verification: 'RUNTIME_VERIFIED' })
-        : fail('Lookup helpers returned unexpected results.', { verification: 'RUNTIME_VERIFIED' });
+        ? pass('Online category policy points to current Category metadata and exposes no static category list.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'STATIC_CHECK_LIMITATION',
+          actual: policy,
+        })
+        : fail('Online category policy still looks like a static category source.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'lib/onlineCategories.js',
+          actual: {
+            policy,
+            hasStaticCategories: Array.isArray(mod.ONLINE_CATEGORIES),
+            hasStaticIds: Array.isArray(mod.ONLINE_CATEGORY_IDS),
+          },
+        });
     }, { actionType: ACTION_TYPES.CODE_FIX }),
+  makeCase('online_category_taxonomy', 'visual_slots_are_not_category_ids',
+    'Online category module provides presentation slots without category ids or labels', async () => {
+      const mod = await import('@/lib/onlineCategories');
+      const slots = mod.ONLINE_CATEGORY_VISUAL_SLOTS || [];
+      const broken = slots.filter((slot) => (
+        !slot.iconKey ||
+        !slot.color ||
+        Object.prototype.hasOwnProperty.call(slot, 'category_id') ||
+        Object.prototype.hasOwnProperty.call(slot, 'id') ||
+        Object.prototype.hasOwnProperty.call(slot, 'label')
+      ));
+      if (!slots.length || broken.length) {
+        return fail('Online visual slots may be acting as category metadata fallback.', {
+          verification: 'RUNTIME_VERIFIED',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'lib/onlineCategories.js',
+          actual: { count: slots.length, broken },
+        });
+      }
+      return pass('Online visual slots are presentation-only and do not define category IDs or labels.', {
+        verification: 'RUNTIME_VERIFIED',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actual: { count: slots.length },
+      });
+    }, { actionType: ACTION_TYPES.CODE_FIX }),
+  makeCase('online_category_taxonomy', 'decorate_online_category_uses_live_metadata',
+    'Online decoration keeps live numeric Category IDs and metadata labels', async () => {
+      const mod = await import('@/lib/onlineCategories');
+      const decorated = mod.decorateOnlineCategory({
+        category_id: 11,
+        name: 'Future Lane',
+        description: 'Current DB row',
+      }, 8);
+      const ok = decorated.id === 11 &&
+        decorated.category_id === 11 &&
+        decorated.label === 'Future Lane' &&
+        decorated.description === 'Current DB row' &&
+        decorated.iconKey &&
+        decorated.color;
+      return ok
+        ? pass('Online category decoration preserves current metadata and adds visuals only.', {
+          verification: 'RUNTIME_VERIFIED',
+          actual: decorated,
+        })
+        : fail('Online category decoration is not preserving live metadata.', {
+          verification: 'RUNTIME_VERIFIED',
+          file: 'lib/onlineCategories.js',
+          actual: decorated,
+        });
+    }, { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceHas('online_category_taxonomy', 'online_screen_uses_current_metadata_and_retry',
+    'Online challenge screen loads current metadata and shows retry/error on failure',
+    'components/lobby/OnlineChallengeScreen.jsx',
+    onlineChallengeScreenSource,
+    [
+      "loadActiveCategories({ limit: 1000 })",
+      'decorateOnlineCategory',
+      'categoryLoadError',
+      'Tekrar Dene',
+      'setSelectedCategories([])',
+      'selectedCategories: [...selectedCategories]',
+    ],
+    { actionType: ACTION_TYPES.CODE_FIX }),
+  sourceLacks('online_category_taxonomy', 'no_stale_category_fallback_names_in_online_runtime',
+    'Online runtime sources do not contain stale category fallback names',
+    'OnlineChallengeScreen + onlineCategories + startLobbyGame',
+    `${onlineChallengeScreenSource}\n${onlineCategoriesSource}\n${startLobbyGameEntrySource}`,
+    [
+      'Chronicle',
+      'Flashback',
+      'Viral',
+      'chronicle',
+      'flashback',
+      'viral',
+      'ONLINE_ID_TO_MAIN_CATEGORY_ID',
+      'LEGACY_ONLINE_TO_LEGACY_CATEGORY_MAP',
+    ],
+    { actionType: ACTION_TYPES.CODE_FIX }),
   makeCase('online_category_taxonomy', 'selected_category_ids_forwarded_to_lobby',
     'Selected Online category ids are forwarded into lobby creation/question filtering contract', () => {
-      // Codex091 — assert end-to-end multi-select handoff:
-      //   landing -> panel -> CreateLobbyInvitePanel.onCreate ->
-      //   LobbyRoom.handleCreate -> lobbyPayload.selected_category_ids ->
-      //   startLobbyGame consumes for question filtering.
-      const selectedExists = lobbyCreateJoinPanelSource.includes('selectedCategories');
+      // Assert end-to-end multi-select handoff:
+      //   OnlineChallengeScreen -> LobbyRoom.handleCreate ->
+      //   lobbyPayload.selected_category_ids -> startLobbyGame current
+      //   Category filtering.
+      const selectedExists = onlineChallengeScreenSource.includes('selectedCategories');
       const createReceivesSelection =
-        createLobbyInvitePanelSource.includes('selectedCategories: Array.isArray(selectedCategories)') ||
-        lobbyCreateJoinPanelSource.includes('onCreate(selectedCategories');
+        onlineChallengeScreenSource.includes('selectedCategories: [...selectedCategories]') ||
+        createLobbyInvitePanelSource.includes('selectedCategories: Array.isArray(selectedCategories)');
       const lobbyStoresSelection = lobbyRoomSource.includes('lobbyPayload.selected_category_ids');
       const filterConsumesSelection =
-        onlineCategoriesSource.includes('ONLINE_CATEGORY_IDS') &&
-        lobbyRoomSource.includes('selected_category_ids');
+        startLobbyGameEntrySource.includes('getQueryMainCategoryIdsForSettings') &&
+        startLobbyGameEntrySource.includes('categorySourceOfTruth') &&
+        startLobbyGameEntrySource.includes('selectedCategoriesOnly');
 
       if (selectedExists && (!createReceivesSelection || !lobbyStoresSelection || !filterConsumesSelection)) {
         return fail('Online category multi-select exists visually, but selected ids are not wired through lobby creation/question filtering.', {
@@ -2484,7 +2462,7 @@ export const EXTRA_TESTS = [
     }, { actionType: ACTION_TYPES.CODE_FIX, runtimeProofRequired: true }),
   notAutomatableCase('online_category_taxonomy', 'multi_select_runtime_unbroken',
     'Online multi-category selection still works at runtime after taxonomy centralization',
-    'Static contract proves the lobby panel imports the centralized list and CATEGORIES is built from it without losing ids; the actual multi-select UX flow (selecting/deselecting cards, min-1 guard, CTA hand-off) needs a real touch session on the mounted Online landing.',
+    'Static contract proves the Online screen loads current Category metadata, keeps a min-1 guard, and forwards numeric selected_category_ids; the actual multi-select UX flow needs a real touch session on the mounted Online landing.',
     { actionType: ACTION_TYPES.DEVICE_TEST, verificationLabels: ['NOT_AUTOMATABLE', 'EXTERNAL_DEVICE_REQUIRED'] }),
 
   /* ============================================================
@@ -2516,13 +2494,13 @@ export const EXTRA_TESTS = [
     'Online uses a server-authored shared question deck, not per-player Solo buffers',
     'Game + startLobbyGame + Lobby',
     `${gameSource}\n${startLobbyGameEntrySource}\n${lobbyEntityRawSource}`,
-    ['online_question_deck', 'online_shared_selected_category_deck_v1', 'normalizeOnlineQuestionDeck', 'questionFetchEnabled = !isOnline', 'onlineQuestionDeck', 'selectedCategoriesOnly: true'],
+    ['online_question_deck', 'online_shared_selected_category_deck_v1', 'normalizeOnlineQuestionDeck', 'questionFetchEnabled = !isOnline', 'onlineQuestionDeck', 'selectedCategoriesOnly: ONLINE_GAME_POLICY.selectedCategoriesOnly'],
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
   sourceHas('online_question_mode_health', 'online_selected_categories_difficulty_one_two_only',
     'Online start uses selected lobby categories only and difficulty 1/2',
     'startLobbyGame',
     startLobbyGameEntrySource,
-    ['filterQuestionsForLobbySettings', 'selected_category_ids', 'isOnlineDifficultyEligible', 'ONLINE_ALLOWED_DIFFICULTIES', 'difficulty_1_or_2_only', 'soloPreferenceWeightingApplied: false', 'guestSoloPathUsed: false'],
+    ['filterQuestionsForLobbySettings', 'selected_category_ids', 'isOnlineDifficultyEligible', 'ONLINE_ALLOWED_DIFFICULTIES', 'difficulty_1_or_2_only', 'soloPreferenceWeightingApplied: ONLINE_GAME_POLICY.soloPreferenceWeightingApplied', 'guestSoloPathUsed: ONLINE_GAME_POLICY.guestSoloPathUsed'],
     { actionType: ACTION_TYPES.CODE_FIX, recentlyFixed: true }),
   sourceHas('online_question_mode_health', 'online_active_state_requires_readable_shared_deck',
     'Online route/game state waits for deck readiness and rejects non-deck next questions',

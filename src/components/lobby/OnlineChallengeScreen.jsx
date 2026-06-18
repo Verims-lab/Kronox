@@ -1,14 +1,13 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronDown, Users, Swords } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
 import StandardTopBar from '@/components/layout/StandardTopBar';
 import OnlineCategoryCarousel from '@/components/lobby/OnlineCategoryCarousel';
 import FriendSelectModal from '@/components/lobby/FriendSelectModal';
 import IncomingInvitesPanel from '@/components/invites/IncomingInvitesPanel';
 import ActiveLobbyCard from '@/components/lobby/ActiveLobbyCard';
-import { ONLINE_CATEGORIES } from '@/lib/onlineCategories';
-import { filterActiveCategories } from '@/lib/categoryFilters';
+import { decorateOnlineCategory } from '@/lib/onlineCategories';
+import { loadActiveCategories } from '@/lib/userCategoryPreferences';
 import { sounds } from '@/lib/gameSounds';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 
@@ -20,9 +19,8 @@ import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
  *   • Title block: sword icon + "ONLINE KAPIŞMA" framed by gold star
  *     accents, with subtitle "Arkadaşlarını davet et, tarihe meydan oku!".
  *   • Compact, horizontally-scrollable category cards driven from the
- *     Category DB lookup table (status === "a" only). Each card shows a
- *     name + small description. Falls back to the static taxonomy if the
- *     DB has not been seeded yet so the screen is never empty.
+ *     current Category metadata. Each card shows a name + small description.
+ *     Load failures show a retryable error instead of stale fallback categories.
  *   • Big "ARKADAŞ SEÇ" panel with a dropdown-style trigger that opens
  *     the friend selection popup.
  *   • Bottom CTA "DAVET ET" — disabled until ≥1 friend selected. CTA
@@ -33,7 +31,7 @@ import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
  * parent React state — neither is dropped before being passed to the
  * lobby start callback.
  */
-const DEFAULT_CATEGORIES = ['chronicle'];
+const DEFAULT_CATEGORIES = [];
 
 export default function OnlineChallengeScreen({
   user,
@@ -51,81 +49,74 @@ export default function OnlineChallengeScreen({
   const [selectedEmails, setSelectedEmails] = useState([]);
   const [friendModalOpen, setFriendModalOpen] = useState(false);
   const [dbCategories, setDbCategories] = useState(null);
+  const [categoryLoading, setCategoryLoading] = useState(true);
+  const [categoryLoadError, setCategoryLoadError] = useState('');
 
-  // Codex159/Codex160 — Pull categories from the DB lookup table, keep
-  // only active-status rows via the shared filter helper, then sort by
-  // category_id ASC so the visual left-to-right order matches the DB
-  // contract (Chronicle=1 → Flashback=2 → Kült=3 → ...). Rows missing
-  // status are treated as active for backward compatibility (see
-  // lib/categoryFilters.js). If the DB query fails or returns nothing,
-  // we fall back to the static taxonomy so the screen never breaks.
-  useEffect(() => {
+  // Online category selection uses current Category metadata only. If metadata
+  // cannot be loaded, the UI shows a retry/error and does not create a lobby
+  // with stale category ids.
+  const loadOnlineCategories = useCallback(() => {
     let cancelled = false;
-    base44.entities.Category
-      .list('category_id', 50)
+    setCategoryLoading(true);
+    setCategoryLoadError('');
+    loadActiveCategories({ limit: 1000 })
       .then((rows) => {
         if (cancelled) return;
-        const active = filterActiveCategories(rows || [])
+        const active = (Array.isArray(rows) ? rows : [])
           .slice()
           .sort((a, b) => (Number(a.category_id) || 0) - (Number(b.category_id) || 0));
-        if (active.length === 0) { setDbCategories(null); return; }
         setDbCategories(active);
+        const activeIds = new Set(active
+          .map((row) => Number(row.category_id))
+          .filter(Number.isFinite));
+        setSelectedCategories((current) => {
+          const valid = (Array.isArray(current) ? current : [])
+            .map((id) => Number(id))
+            .filter((id) => activeIds.has(id));
+          if (valid.length > 0) return valid;
+          const first = active.find((row) => Number.isFinite(Number(row.category_id)));
+          return first ? [Number(first.category_id)] : [];
+        });
+        if (active.length === 0) {
+          setCategoryLoadError('Kategori listesi yüklenemedi. Lütfen tekrar dene.');
+        }
       })
-      .catch(() => { if (!cancelled) setDbCategories(null); });
+      .catch(() => {
+        if (cancelled) return;
+        setDbCategories([]);
+        setSelectedCategories([]);
+        setCategoryLoadError('Kategori listesi yüklenemedi. Lütfen tekrar dene.');
+      })
+      .finally(() => {
+        if (!cancelled) setCategoryLoading(false);
+      });
     return () => { cancelled = true; };
   }, []);
 
-  // Map DB rows → carousel items. We key by the static ONLINE_CATEGORIES
-  // id (Chronicle=1, Flashback=2, Kült=3, Viral=4, Arena=5, Level Up=6)
-  // so existing icons/colors and the downstream `selected_category_ids`
-  // contract in startLobbyGame keep working untouched.
+  useEffect(() => {
+    return loadOnlineCategories();
+  }, [loadOnlineCategories]);
+
   const carouselCategories = useMemo(() => {
-    const STATIC_BY_DB_ID = {
-      1: ONLINE_CATEGORIES.find((c) => c.id === 'chronicle'),
-      2: ONLINE_CATEGORIES.find((c) => c.id === 'flashback'),
-      3: ONLINE_CATEGORIES.find((c) => c.id === 'kult'),
-      4: ONLINE_CATEGORIES.find((c) => c.id === 'viral'),
-      5: ONLINE_CATEGORIES.find((c) => c.id === 'arena'),
-      6: ONLINE_CATEGORIES.find((c) => c.id === 'level_up'),
-    };
     if (Array.isArray(dbCategories) && dbCategories.length > 0) {
-      return dbCategories
-        .map((row) => {
-          const stat = STATIC_BY_DB_ID[row.category_id];
-          if (!stat) return null;
-          return {
-            id: stat.id,
-            label: (row.name || stat.label).toUpperCase(),
-            description: row.description || '',
-          };
-        })
-        .filter(Boolean);
+      return dbCategories.map((row, index) => decorateOnlineCategory(row, index));
     }
-    // Fallback — static taxonomy with short tags.
-    const STATIC_DESC = {
-      chronicle: 'Genel',
-      flashback: 'Yakın tarih',
-      kult: 'Film/Dizi/Pop',
-      viral: 'Sosyal medya',
-      arena: 'Spor',
-      level_up: 'Oyun',
-    };
-    return ONLINE_CATEGORIES.map(({ id, label }) => ({
-      id, label, description: STATIC_DESC[id] || '',
-    }));
+    return [];
   }, [dbCategories]);
 
   const toggleCategory = (id) => {
+    const numericId = Number(id);
+    if (!Number.isFinite(numericId)) return;
     setSelectedCategories((prev) => {
-      if (prev.includes(id)) {
+      if (prev.includes(numericId)) {
         if (prev.length <= 1) return prev; // keep at least one selected
-        return prev.filter((x) => x !== id);
+        return prev.filter((x) => x !== numericId);
       }
-      return [...prev, id];
+      return [...prev, numericId];
     });
   };
 
-  const ctaDisabled = selectedEmails.length === 0 || loading;
+  const ctaDisabled = selectedEmails.length === 0 || loading || categoryLoading || selectedCategories.length === 0;
 
   const handleStart = () => {
     if (ctaDisabled) return;
@@ -192,6 +183,19 @@ export default function OnlineChallengeScreen({
             onToggle={toggleCategory}
           />
         </div>
+        {categoryLoadError && (
+          <div className="mt-2 rounded-xl px-3 py-2 font-inter text-[12px] text-amber-100/90"
+            style={{ background: 'rgba(245,158,11,0.10)', boxShadow: 'inset 0 0 0 1px rgba(245,158,11,0.35)' }}>
+            <p>{categoryLoadError}</p>
+            <button
+              type="button"
+              onClick={loadOnlineCategories}
+              className="mt-2 min-h-8 rounded-lg border border-white/15 px-3 py-1 text-[11px] font-black text-blue-100"
+            >
+              Tekrar Dene
+            </button>
+          </div>
+        )}
 
         {/* Friend select panel — moved closer to the carousel so the
             panel never crowds the bottom CTA. */}

@@ -21,8 +21,9 @@
     "selected_category_ids": {
       "type": "array",
       "items": {
-        "type": "string"
-      }
+        "type": "number"
+      },
+      "description": "Live Category.category_id values selected by the Online host."
     },
     "status": {
       "type": "string",

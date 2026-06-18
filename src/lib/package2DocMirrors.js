@@ -130,6 +130,8 @@ Online mode is unaffected and Daily Wheel remains Diamond-only.
 // ─── Out-of-/src backend sources (token mirrors) ───────────────────────
 export const startLobbyGameSource = `
   // Mirror of base44/functions/startLobbyGame/entry.ts — token contract.
+  const CATEGORY_METADATA_POLICY = { sourceOfTruth: 'Category', legacyHardcodedCategoryFallbackAllowed: false };
+  const ONLINE_GAME_POLICY = { categorySourceOfTruth: 'Category', selectedCategoriesOnly: true, difficultyRule: 'difficulty_1_or_2_only' };
   const user = await base44.auth.me();
   if (!user?.email) {
     return json({ error: 'Oturum gerekli.', code: 'unauthenticated' }, 401);
@@ -141,10 +143,11 @@ export const startLobbyGameSource = `
     return json({ error: 'Sadece host oyunu baslatabilir.' }, 403);
   }
   const activeIds = await loadActiveMainCategoryIds();
+  await base44.asServiceRole.entities.Category.list('category_id', 1000);
   function isActiveQuestion(q) { return String(q?.state || 'A') === 'A'; }
   const hasSelectedCategoryIds = Array.isArray(selectedCategoryIds) && selectedCategoryIds.length > 0;
   if (!hasSelectedCategoryIds) return [];
-  // No all-category last-resort fallback exists here.
+  // No all-category, legacy category-name, or stale hardcoded category fallback exists here.
   const ONLINE_DECK_SELECTION_SOURCE = 'online_shared_selected_category_deck_v1';
   const ONLINE_ALLOWED_DIFFICULTIES = new Set([1, 2]);
   const sharedDeck = activePool
@@ -159,6 +162,8 @@ export const startLobbyGameSource = `
       soloPreferenceWeightingApplied: false,
       guestSoloPathUsed: false,
       difficultyRule: 'difficulty_1_or_2_only',
+      categorySourceOfTruth: ONLINE_GAME_POLICY.categorySourceOfTruth,
+      legacyHardcodedCategoryFallbackAllowed: false,
     },
   };
   if (activePool.length < needed) {
