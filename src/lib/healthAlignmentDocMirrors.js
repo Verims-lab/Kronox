@@ -161,6 +161,9 @@ Status: Active product contract.
 - Passive or removed Category selections are filtered from UI/save state and are not resaved as active preferences.
 - completing the popup saves UserCategoryPreference rows before marking the user profile onboarding flag complete.
 - Users can later change selections under Profile / Settings / İlgi Alanlarım.
+- first-time guest onboarding can load category-selection metadata without login; the allowed public getCategoryMetadata response scope is category_id, name, description, and status from current active Category rows only.
+- getCategoryMetadata is public by design for unauthenticated guest category selection and must not return questions, answers, years, full question-bank rows, user data, admin/internal fields, hidden notes, deleted/passive categories, or stale hardcoded seed arrays.
+- Category preference writes remain separate from public metadata reads and require guest_id + raw guest token ownership proof.
 - Game question loading first attempts online getQuestions when online or network state is unknown; signed-in Solo uses the authenticated bounded minimal server attempt candidate buffer, first-time guest Solo uses only the explicit capped guest_gameplay_runtime minimal projection, empty local cache is not offline, stale cache is invalidated by question-runtime-v10-solo-architecture, Retry re-fetches online, and false offline/no-cache is reserved for known offline plus failed fetch plus no usable cache. Gameplay fetches request the v2 per-category projection and server_attempt_candidate_buffer_v1 explicitly; getQuestions fetches numeric/string main_category_id and category_id variants per active Category before the bounded response cap, returns getQuestionsRuntimeMarker for both authenticated and guest modes, exposes projectionDiagnostics only for admin/debug diagnostics, reports sourcePoolCapRemoved and responseCapApplied in the response/diagnostics contract, uses fallback IDs only when Category read fails, and Question category fields are not capped to the original 1-6 seed set.
 - Solo question selection reads current-user active valid Category preferences before attempt start when signed in. Game.jsx explicitly calls getValidActiveSelectedCategoryIds(preferences, activeCategories) in the Solo-only path. Authenticated users with no saved preferences or empty preferences use all active categories for Solo; missing authentication uses the explicit capped guest Solo projection and must not expose raw questions. Category preference save validation remains separate from gameplay start. Insufficient preferences also use all active categories for Solo. Saved preferences target 70% selected categories / 30% full eligible pool only when at least 3 active valid preferences exist; this is soft weighting with fallback. The selected-category 70% lane uses selected user categories with difficulty 1 and 2 eligible; the global 30% lane first uses all active categories with difficulty 1, then selected-category shortage or global difficulty-1 shortage fills from the broader active global pool before clean failure.
 - getQuestions derives active playable category IDs from active Category rows; stale hardcoded seed-category ID subsets must not exclude newer active categories from runtime projection.
@@ -301,7 +304,14 @@ The source of truth is active valid UserCategoryPreference count, only active
 categories are selectable and count, passive or removed Category selections are
 filtered from active UI/save state, completion prevents repeat prompts only while
 the user still has 3 or more active valid preferences, and Users can later change
-selections under Profile / Settings / İlgi Alanlarım. Authenticated users with
+selections under Profile / Settings / İlgi Alanlarım. First-time guest onboarding
+loads category metadata without login through current Category rows or
+getCategoryMetadata. The public getCategoryMetadata response contains only
+category_id, name, description, and status, and must not include questions,
+answers, years, full question-bank data, user data, admin/internal category
+fields, passive/deleted rows, or stale hardcoded fallback arrays. Guest
+category preference save is a separate guest_id + raw guest token write proof.
+Authenticated users with
 no saved preferences or empty preferences use all active categories for Solo;
 missing authentication uses the explicit capped guest Solo projection and must
 not expose raw questions. Category preference save validation remains separate from gameplay

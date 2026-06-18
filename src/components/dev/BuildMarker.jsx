@@ -2220,7 +2220,15 @@ import React, { useEffect, useState } from 'react';
 //     touch/drag, tutorial hints/popups, and joker activation do not decrement.
 //   • Updates Solo result popups, deck sizing, docs, and Health/static checks
 //     for HAMLE / 10 evaluated moves without changing Online gameplay.
-const BUILD_MARKER = 'Codex395';
+//
+// Codex396 — Public guest/category endpoint classification:
+//   • Keeps createGuestProfile public-by-design with documented throttle and
+//     token-hash proof while classifying runtime monitoring as manual proof.
+//   • Hardens getCategoryMetadata request shape and documents its public,
+//     metadata-only Category response scope for guest onboarding.
+//   • Adds Health/static proof that public category metadata is allowed only
+//     when it exposes no questions, answers, years, full bank, or stale fallbacks.
+const BUILD_MARKER = 'Codex396';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

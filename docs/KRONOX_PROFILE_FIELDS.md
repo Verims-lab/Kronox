@@ -115,6 +115,10 @@ loading uses current safe `Category` metadata directly or through the
 `getCategoryMetadata` callable, never raw question-bank reads and never a stale
 hardcoded seed fallback. If category metadata cannot be loaded, the UI shows a
 retryable error instead of rendering legacy categories.
+`getCategoryMetadata` is public by design but metadata-only; it returns
+`category_id`, `name`, `description`, and `status` only. Category preference
+save remains a separate token-proven GuestProfile write and must not trust
+`guest_id` alone.
 
 ## Guest Account Linking Phase 3
 

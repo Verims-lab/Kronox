@@ -274,6 +274,11 @@ Checklist:
   `getCategoryMetadata`; legacy hardcoded names such as Chronicle, Flashback,
   Kült, or Viral must not appear unless they are active rows in the current
   category source.
+* Unauthenticated `getCategoryMetadata` returns only category metadata fields:
+  `category_id`, `name`, `description`, and `status`.
+* `getCategoryMetadata` responses do not include question rows, answers, years,
+  full question-bank data, user data, admin/internal category fields, passive
+  or deleted categories, or old hardcoded fallback arrays.
 * If current category metadata cannot be loaded, onboarding shows a visible
   retry/error state instead of rendering stale fallback categories.
 * `Eğitime Devam` appears only for true resumable `tutorial_in_progress`;
@@ -1085,6 +1090,16 @@ login:
   request bodies are stored/logged
 * abandoned guest rows and old throttle buckets are reviewed through the
   documented manual retention/cleanup process until an admin cleanup job exists
+* unauthenticated `getCategoryMetadata` remains callable for guest category
+  onboarding and returns only `category_id`, `name`, `description`, and active
+  `status`
+* `getCategoryMetadata` is manually probed to confirm it does not return
+  questions, answers, years, full question-bank rows, user data,
+  admin/internal fields, passive/deleted rows, or stale hardcoded category
+  fallback arrays
+* guest category preference save is tested separately and verifies
+  `guest_id + raw guest token`; public metadata read alone is not accepted as
+  ownership proof
 * Apple, Google, and email login options remain visible/working where offered
 * leaderboard/profile public identity does not show email, Google ID, Apple ID,
   provider UID, or internal `owner_key`
