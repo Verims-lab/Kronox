@@ -377,6 +377,16 @@ function TutorialResumeStep({ busy, onResume }) {
   );
 }
 
+function normalizeOptionalAgeInput(value) {
+  const text = String(value || '').trim();
+  if (!text) return { ok: true, value: null };
+  const age = Math.trunc(Number(text));
+  if (!Number.isFinite(age) || age < 7 || age > 120) {
+    return { ok: false, value: null };
+  }
+  return { ok: true, value: age };
+}
+
 function ProfileSetupStep({ profile, busy, submitError, onSubmit }) {
   const fallbackUsername = useMemo(
     () => profile.username || profile.display_name || makeKronoxUserFallback(profile.guest_id || ''),
@@ -406,9 +416,14 @@ function ProfileSetupStep({ profile, busy, submitError, onSubmit }) {
           setValidation('Kullanıcı adı en az 3 karakter olmalı.');
           return;
         }
+        const normalizedAge = normalizeOptionalAgeInput(age);
+        if (!normalizedAge.ok) {
+          setValidation('Yaş alanı boş bırakılabilir veya 7-120 arasında olmalı.');
+          return;
+        }
         onSubmit({
           username: normalizedUsername.trim(),
-          age,
+          age: normalizedAge.value,
           gender,
         });
       }}
@@ -478,7 +493,7 @@ function CategorySetupStep({ profile, busy, onComplete }) {
     loadRequestRef.current = requestId;
     setLoading(true);
     setCategoryLoadError('');
-    loadActiveCategories({ allowSafeFallback: true })
+    loadActiveCategories()
       .then((categories) => {
         if (loadRequestRef.current !== requestId) return;
         setActiveCategories(categories);

@@ -268,6 +268,14 @@ Checklist:
 * First-time guest onboarding reaches category selection after profile setup
   without login, loads safe category metadata (not questions), and can save
   `selected_category_ids` through token-proven GuestProfile ownership.
+* Profile setup accepts blank `age` and blank `gender`; only username is
+  required or auto-generated before `Kategorilere Geç`.
+* Guest onboarding category selection uses current `Category` metadata or
+  `getCategoryMetadata`; legacy hardcoded names such as Chronicle, Flashback,
+  Kült, or Viral must not appear unless they are active rows in the current
+  category source.
+* If current category metadata cannot be loaded, onboarding shows a visible
+  retry/error state instead of rendering stale fallback categories.
 * `Eğitime Devam` appears only for true resumable `tutorial_in_progress`;
   tutorial-completed/profile-complete/category-pending guests must resume the
   later onboarding step instead.

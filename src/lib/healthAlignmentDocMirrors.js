@@ -316,8 +316,10 @@ export const CATEGORY_TAXONOMY_DOC = `# Kronox Category Taxonomy
 
 Status: Active product contract.
 
-category_id is the single canonical live field. Canonical categories:
-Chronicle, Flashback, Kült, Viral, Arena, Level Up.
+category_id is the single canonical live field. Current active Category rows
+are the category-selection source of truth. Original seed names are historical
+seed-helper references only and must not be rendered as onboarding fallback
+categories when live metadata is unavailable.
 `;
 
 export const DB_ARCHITECTURE_DOC = `# Kronox DB Architecture

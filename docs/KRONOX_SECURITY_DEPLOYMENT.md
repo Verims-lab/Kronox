@@ -580,9 +580,9 @@ After deployment, verify:
 * users can later change selections under Profile / Settings /
   `İlgi Alanlarım`
 * first-time guest onboarding can load category-selection metadata without
-  login; the allowed surface is `Category` id/name/description/status metadata
-  or a metadata-only seed fallback, never raw `Question.list` or full question
-  rows
+  login; the allowed surface is current `Category` id/name/description/status
+  metadata from entity read or `getCategoryMetadata`, never raw `Question.list`,
+  full question rows, or stale hardcoded seed category fallbacks
 * guest onboarding category save uses the token-proven `GuestProfile`
   `guest_id + guest_token` path and stores `selected_category_ids`; `guest_id`
   alone is not sufficient

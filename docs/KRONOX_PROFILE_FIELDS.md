@@ -111,8 +111,10 @@ The category setup step stores optional guest `selected_category_ids`. Fewer
 than 3 selections should show guidance, but guest play remains possible. Empty
 guest selections mean all active Solo categories are eligible. Guest users do
 not need Google / Apple / Email login to load or save this step; category
-loading uses safe `Category` metadata or a metadata-only fallback, never raw
-question-bank reads.
+loading uses current safe `Category` metadata directly or through the
+`getCategoryMetadata` callable, never raw question-bank reads and never a stale
+hardcoded seed fallback. If category metadata cannot be loaded, the UI shows a
+retryable error instead of rendering legacy categories.
 
 ## Guest Account Linking Phase 3
 
