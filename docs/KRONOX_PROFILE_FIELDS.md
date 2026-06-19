@@ -48,10 +48,11 @@ initially generated as `KronoxUser####` / `KronoxUser#####`. The stored
 editable profile field.
 
 Profile and leaderboard surfaces must use `username` for public identity.
-`display_name` may be read only as a sanitized internal migration mirror for
-old rows and must not be returned as the public identity field. Email, Google
-ID, Apple ID, provider UID, raw guest id, internal `owner_key`, and internal
-`player_key` values are not public display names.
+`display_name` may be stored only as an internal compatibility mirror for old
+rows and must not be used as the public fallback identity or returned as the
+public leaderboard identity field. Email, Google ID, Apple ID, provider UID,
+raw guest id, internal `owner_key`, and internal `player_key` values are not
+public display names.
 
 `createGuestProfile` is public by design because unauthenticated players must be
 able to start as guests. It still generates `guest_id`, raw guest token, token

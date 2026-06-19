@@ -48,6 +48,7 @@ import packageJsonSource from '../../../package.json?raw';
 import fullAuditPackageSource from '../../../docs/KRONOX_FULL_AUDIT_PACKAGE_1.md?raw';
 import soloProgressHelpersSource from '../../lib/soloProgressHelpers.js?raw';
 import soloLevelsSource from '../../lib/soloLevels.js?raw';
+import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
 
 const STATUS = {
   PASS: 'PASS',

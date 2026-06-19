@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex418 — Targeted Health blocker fix for Codex417 / KRONOX-MQKO8SE1:
+//   • Aligns the leaderboard friend-marker Health check with the real
+//     getSoloLeaderboard backend/mirror contract.
+//   • Imports getQuestions raw source into the combined P1/P2 alignment case
+//     so it can fail normally instead of throwing ReferenceError.
+//   • Tightens public username fallback semantics so unsafe explicit names and
+//     legacy display_name do not become public leaderboard identity.
+//
 // Codex417 — Combined P1/P2 audit hardening:
 //   • Adds a no-flash AdminRoute guard, lazy-loads admin Health simulator code,
 //     and keeps server-side AdminUser guards as the security boundary.
@@ -2369,7 +2377,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex417';
+const BUILD_MARKER = 'Codex418';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -11,7 +11,7 @@ import { ACCOUNT_DELETION_ERROR_COPY, requestAccountDeletion } from '@/lib/accou
 import CategoryPreferencesSection from '@/components/settings/CategoryPreferencesSection';
 import { useAuth } from '@/lib/AuthContext';
 import { PROFILE_GENDER_OPTIONS, normalizeProfileSettingsError, updateProfileSettings } from '@/lib/profileSettings';
-import { makeKronoxUserFallback } from '@/lib/guestProfile';
+import { normalizeSafePublicUsernameInput, resolveSafePublicUsername } from '@/lib/guestProfile';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -182,10 +182,8 @@ function ProfileSettingsSection({ user, guestProfile, onSaved }) {
   const fallbackUsername = useMemo(() => (
     isSafeUsername(source?.username)
       ? source.username
-      : isSafeUsername(source?.display_name)
-        ? source.display_name
-      : makeKronoxUserFallback(user?.email || user?.id || guestProfile?.guest_id || '')
-  ), [guestProfile?.guest_id, source?.display_name, source?.username, user?.email, user?.id]);
+      : resolveSafePublicUsername('', user?.email || user?.id || guestProfile?.guest_id || '')
+  ), [guestProfile?.guest_id, source?.username, user?.email, user?.id]);
   const [username, setUsername] = useState('');
   const [age, setAge] = useState('');
   const [gender, setGender] = useState('');
@@ -196,15 +194,13 @@ function ProfileSettingsSection({ user, guestProfile, onSaved }) {
   useEffect(() => {
     const nextUsername = isSafeUsername(source?.username)
       ? source.username
-      : isSafeUsername(source?.display_name)
-        ? source.display_name
-        : fallbackUsername;
+      : fallbackUsername;
     setUsername(nextUsername);
     setAge(Number.isFinite(Number(source?.age)) ? String(source.age) : '');
     setGender(String(source?.gender || ''));
     setMessage('');
     setError('');
-  }, [fallbackUsername, source?.age, source?.display_name, source?.gender, source?.username]);
+  }, [fallbackUsername, source?.age, source?.gender, source?.username]);
 
   const handleSave = async (event) => {
     event.preventDefault();
@@ -303,10 +299,7 @@ function ProfileSettingsSection({ user, guestProfile, onSaved }) {
 }
 
 function isSafeUsername(value) {
-  const text = String(value || '').trim();
-  return /^[A-Za-z0-9_]{3,24}$/.test(text) &&
-    !text.includes('@') &&
-    !/^(apple|google|firebase|auth0|base44|provider|uid|owner)[\w:-]*$/i.test(text);
+  return Boolean(normalizeSafePublicUsernameInput(value));
 }
 
 function ToolCard({ icon, title, desc, loading, onClick }) {
