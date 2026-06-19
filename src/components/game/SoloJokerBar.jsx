@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Hand, RefreshCw, Shield, Snowflake } from 'lucide-react';
+import { RefreshCw, Shield, Snowflake } from 'lucide-react';
 import { JOKER_TYPES, normalizeJokerQuantity } from '@/lib/jokerInventory';
 
 const JOKERS = [
@@ -30,6 +30,32 @@ const JOKERS = [
   },
 ];
 
+function TutorialPointerHand({ className = '', style = null }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 72 72" className={className} style={style}>
+      <path
+        d="M30.6 9.7c-3.2 0-5.8 2.6-5.8 5.8v22.1l-4.7-4.7c-2.4-2.4-6.2-2.4-8.5 0-2.3 2.4-2.3 6.2 0.1 8.6l13.6 13.8c3.3 3.4 7.8 5.2 12.5 5.2h8.5c8.1 0 14.7-6.6 14.7-14.7V31.2c0-3.1-2.5-5.6-5.6-5.6-1.5 0-2.9 0.6-3.9 1.6-0.8-2.1-2.8-3.6-5.2-3.6-1.6 0-3 0.7-4 1.7-0.8-2.1-2.8-3.7-5.2-3.7-1.3 0-2.5 0.4-3.4 1.2v-7.3c0-3.2-2.6-5.8-5.8-5.8z"
+        fill="#facc15"
+        stroke="#3a2600"
+        strokeWidth="4.2"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M30.6 9.7c-3.2 0-5.8 2.6-5.8 5.8v22.1l-4.7-4.7c-2.4-2.4-6.2-2.4-8.5 0-2.3 2.4-2.3 6.2 0.1 8.6"
+        fill="none"
+        stroke="#fff4bd"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        opacity="0.72"
+      />
+      <path d="M33.9 23.2v16.2" stroke="#a66c00" strokeWidth="2.8" strokeLinecap="round" opacity="0.72" />
+      <path d="M42.6 25.8v14.4" stroke="#a66c00" strokeWidth="2.8" strokeLinecap="round" opacity="0.62" />
+      <path d="M51.6 28.1v13.6" stroke="#a66c00" strokeWidth="2.8" strokeLinecap="round" opacity="0.56" />
+      <path d="M25 14.6c1.8-2.4 6.2-2.4 8.1 0" stroke="#fff4bd" strokeWidth="2.4" strokeLinecap="round" opacity="0.72" />
+    </svg>
+  );
+}
+
 function TutorialJokerTapHint({ active }) {
   if (!active) return null;
 
@@ -37,11 +63,11 @@ function TutorialJokerTapHint({ active }) {
     <motion.div
       aria-hidden="true"
       data-kronox-guided-joker-finger-hint="true"
-      className="pointer-events-none absolute left-1/2 top-0 z-20 flex -translate-x-1/2 flex-col items-center gap-1"
-      initial={{ x: 18, y: 34, opacity: 0, scale: 0.92 }}
+      className="pointer-events-none absolute left-1/2 top-0 z-30 flex -translate-x-1/2 items-center justify-center"
+      initial={{ x: 22, y: 28, opacity: 0, scale: 0.92 }}
       animate={{
-        x: [18, 0, 0, 0],
-        y: [34, 8, 8, 16],
+        x: [22, 0, 0, 0],
+        y: [28, 2, 2, 10],
         opacity: [0, 1, 1, 0],
         scale: [0.92, 1, 0.86, 0.94],
       }}
@@ -58,7 +84,7 @@ function TutorialJokerTapHint({ active }) {
       }}
     >
       <span
-        className="grid h-10 w-10 place-items-center rounded-full border text-amber-950"
+        className="grid h-14 w-14 place-items-center rounded-full border"
         style={{
           background: 'linear-gradient(180deg, #fff4b8 0%, #facc15 52%, #d99e00 100%)',
           borderColor: 'rgba(255,255,255,0.56)',
@@ -66,17 +92,13 @@ function TutorialJokerTapHint({ active }) {
             'inset 0 1px 0 rgba(255,255,255,0.62), inset 0 -3px 0 rgba(120,75,0,0.28), 0 0 16px rgba(250,204,21,0.46)',
         }}
       >
-        <Hand className="h-5 w-5" strokeWidth={2.7} />
-      </span>
-      <span
-        className="whitespace-nowrap rounded-full px-2 py-0.5 font-inter text-[9px] font-black text-yellow-100"
-        style={{
-          background: 'rgba(7,10,31,0.84)',
-          border: '1px solid rgba(250,204,21,0.36)',
-          boxShadow: '0 0 12px rgba(250,204,21,0.18)',
-        }}
-      >
-        Dokun
+        <TutorialPointerHand
+          className="h-11 w-11"
+          style={{
+            transform: 'translate(1px, -2px) rotate(-18deg)',
+            filter: 'drop-shadow(0 2px 0 rgba(255,255,255,0.42))',
+          }}
+        />
       </span>
     </motion.div>
   );
@@ -95,6 +117,7 @@ export default function SoloJokerBar({
   disabled = false,
   tutorialDemoType = null,
   tutorialDemoHintActive = false,
+  tutorialFocusActive = false,
   onUseJoker,
 }) {
   const [recentlyUsedType, setRecentlyUsedType] = useState(null);
@@ -115,8 +138,21 @@ export default function SoloJokerBar({
   const jokerUsedOnCurrentCard = Boolean(usedJokerType);
 
   return (
-    <div className="flex-shrink-0 px-4 pt-0.5">
-      <div className="mx-auto grid grid-cols-3 w-full max-w-[280px] gap-0">
+    <div className="relative flex-shrink-0 px-4 pt-0.5">
+      <AnimatePresence>
+        {tutorialFocusActive && (
+          <motion.div
+            aria-hidden="true"
+            data-kronox-guided-joker-focus-backdrop="true"
+            className="pointer-events-none fixed inset-0 z-[39] bg-slate-950/72"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+          />
+        )}
+      </AnimatePresence>
+      <div className={`relative mx-auto grid w-full max-w-[280px] grid-cols-3 gap-0 ${tutorialFocusActive ? 'z-[50]' : ''}`}>
         {JOKERS.map(({ type, inventoryType, label, icon: Icon, accent, glow }) => {
           const isRecentlyUsed = recentlyUsedType === type;
           const balance = normalizeJokerQuantity(balances?.[inventoryType]);

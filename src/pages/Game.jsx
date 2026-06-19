@@ -11,7 +11,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Clock3, Loader2, Shield, Sparkles, WifiOff } from 'lucide-react';
+import { Clock3, Loader2, Sparkles, WifiOff } from 'lucide-react';
 import { QUESTION_LOAD_ERROR_KIND, useOfflineQuestions } from '@/hooks/useOfflineQuestions';
 import { loadRecentHistory, loadRecentQuestionExposureStats, appendToHistory } from '@/lib/questionHistory';
 import { getTimelineCardCount, getTimelineYears, isCorrectPlacement } from '@/lib/gameRules';
@@ -116,6 +116,8 @@ const GAMEPLAY_DRAG_LOCK_CLASS = 'kronox-game-drag-lock';
 const GUIDED_TUTORIAL_TIME_LIMIT_SECONDS = SOLO_LEVEL_TIME_SECONDS;
 const GUIDED_TIMELINE_SWIPE_HINT_MIN_MS = 3000;
 const GUIDED_TIMELINE_SWIPE_HINT_MAX_MS = 10000;
+const GUIDED_JOKER_TAP_HINT_MIN_MS = 3000;
+const GUIDED_JOKER_TAP_HINT_MAX_MS = 10000;
 const GUIDED_TUTORIAL_JOKER_TYPE = SOLO_UI_JOKER_TYPES.TIME_FREEZE;
 const GUIDED_TUTORIAL_JOKER_SEQUENCE = Object.freeze({
   3: GUIDED_TUTORIAL_JOKER_TYPE,
@@ -126,18 +128,15 @@ const GUIDED_TUTORIAL_JOKER_SEQUENCE = Object.freeze({
 const GUIDED_TUTORIAL_JOKER_COPY = Object.freeze({
   [SOLO_UI_JOKER_TYPES.TIME_FREEZE]: {
     label: 'Zaman Dondur',
-    title: 'Zaman Dondur',
-    body: 'Bu joker normal Solo’da süreyi kısa süreliğine durdurur. Eğitimde gerçek çantandan harcanmaz.',
+    instruction: 'Zamanı Dondur jokerini kullan. Süreyi 10 saniye boyunca durdurur.',
   },
   [SOLO_UI_JOKER_TYPES.CARD_SWAP]: {
     label: 'Kart Değiştir',
-    title: 'Kart Değiştir',
-    body: 'Bu joker normal Solo’da zorlandığın aktif kartı güvenli bir yedek kartla değiştirir. Eğitimde sadece nasıl kullanılacağını gösterir.',
+    instruction: 'Kart Değiştir jokerini kullan. Olay kartını başka bir olay ile değiştirir',
   },
   [SOLO_UI_JOKER_TYPES.MISTAKE_SHIELD]: {
     label: 'Kronokalkan',
-    title: 'Kronokalkan',
-    body: 'Bu joker normal Solo’da bir yanlış yerleştirmede hamle hakkını korur. Eğitim demosu gerçek joker bakiyeni azaltmaz.',
+    instruction: 'Kronokalkan jokerini kullan. Bu jokeri kullandığında bir sonraki yanlışın, hamle sayısından düşmez.',
   },
 });
 
@@ -161,9 +160,9 @@ const GUIDED_TUTORIAL_MESSAGES = [
     body: 'Her geçerli yerleştirme bir hamledir. 7 kartı 10 hamle içinde tamamla.',
   },
   {
-    icon: Shield,
-    title: 'Jokerleri Tanı',
-    body: 'Şimdi Zaman Dondur’u bir kez dene. Bu eğitim demosu gerçek çantandan harcamaz.',
+    icon: Sparkles,
+    title: 'Seriyi Tamamla',
+    body: 'Kalan kartları doğru sıraya yerleştir.',
   },
 ];
 
@@ -174,8 +173,7 @@ function getGuidedTutorialJokerTypeForAskedCard(askedCardNumber = 0) {
 function getGuidedTutorialJokerCopy(jokerType) {
   return GUIDED_TUTORIAL_JOKER_COPY[jokerType] || {
     label: 'Joker',
-    title: 'Joker',
-    body: 'Bu eğitim demosu gerçek joker bakiyeni harcamaz.',
+    instruction: 'Jokeri kullan. Eğitim demosu gerçek joker bakiyeni harcamaz.',
   };
 }
 
@@ -188,7 +186,6 @@ function buildGuidedTutorialJokerBalances(targetType = null, demoUsed = false) {
 
 function GuidedTutorialPopup({ popup, onContinue }) {
   if (!popup) return null;
-  const jokerCopy = popup.type === 'joker' ? getGuidedTutorialJokerCopy(popup.jokerType) : null;
   const content = popup.type === 'timer'
     ? {
         body: 'Oyunu sana verilen süre ve hamle sayısı tamamlanmadan bitirmelisin. Ne kadar hızlı bitirirsen o kadar çok puan kazanırsın',
@@ -203,12 +200,9 @@ function GuidedTutorialPopup({ popup, onContinue }) {
           eyebrow: 'Hamle',
           buttonLabel: 'Anladım',
         }
-      : {
-          title: jokerCopy?.title || 'Joker',
-          body: jokerCopy?.body || 'Bu eğitim demosu gerçek joker bakiyeni harcamaz.',
-          eyebrow: jokerCopy?.label || 'Joker',
-          buttonLabel: 'Anladım',
-        };
+      : null;
+
+  if (!content) return null;
 
   return (
     <div
@@ -238,7 +232,12 @@ function GuidedTutorialPopup({ popup, onContinue }) {
   );
 }
 
-function GuidedSoloTutorialOverlay({ cardsCompleted = 0, cardTarget = 7, remainingMoves = 10 }) {
+function GuidedSoloTutorialOverlay({
+  cardsCompleted = 0,
+  cardTarget = 7,
+  remainingMoves = 10,
+  jokerInstruction = '',
+}) {
   const activeIndex = Math.min(
     GUIDED_TUTORIAL_MESSAGES.length - 1,
     Math.max(0, Math.floor(Math.max(0, Number(cardsCompleted) - 2))),
@@ -246,6 +245,7 @@ function GuidedSoloTutorialOverlay({ cardsCompleted = 0, cardTarget = 7, remaini
   const item = GUIDED_TUTORIAL_MESSAGES[activeIndex] || GUIDED_TUTORIAL_MESSAGES[0];
   const Icon = item.icon;
   const sentenceOnly = item.variant === 'sentence';
+  const jokerOnly = Boolean(jokerInstruction);
   return (
     <div
       className="pointer-events-none fixed inset-x-0 z-[42] px-4"
@@ -253,7 +253,14 @@ function GuidedSoloTutorialOverlay({ cardsCompleted = 0, cardTarget = 7, remaini
       data-kronox-guided-first-solo-level="true"
     >
       <div className="mx-auto max-w-[340px] rounded-2xl border border-yellow-300/35 bg-slate-950/78 px-3 py-2.5 shadow-2xl backdrop-blur-md">
-        {sentenceOnly ? (
+        {jokerOnly ? (
+          <p
+            className="px-1.5 py-1 text-center font-inter text-sm font-black leading-snug text-yellow-50"
+            data-kronox-guided-joker-single-copy="true"
+          >
+            {jokerInstruction}
+          </p>
+        ) : sentenceOnly ? (
           <p className="px-1.5 py-1 text-center font-inter text-sm font-black leading-snug text-yellow-50">
             {item.body}
           </p>
@@ -488,6 +495,8 @@ export default function Game() {
   const [guidedTutorialMistakePopupShown, setGuidedTutorialMistakePopupShown] = useState(false);
   const [isTimelineSwipeHintActive, setIsTimelineSwipeHintActive] = useState(false);
   const [hasTimelineSwipeHintMinimumElapsed, setHasTimelineSwipeHintMinimumElapsed] = useState(false);
+  const [isGuidedJokerTapHintActive, setIsGuidedJokerTapHintActive] = useState(false);
+  const [hasGuidedJokerTapHintMinimumElapsed, setHasGuidedJokerTapHintMinimumElapsed] = useState(false);
   const [jokerBalances, setJokerBalances] = useState(() => emptyJokerBalances());
   const [jokerInventoryLoading, setJokerInventoryLoading] = useState(false);
   const [jokerSpendPendingType, setJokerSpendPendingType] = useState(null);
@@ -509,6 +518,10 @@ export default function Game() {
   const timelineSwipeHintActiveRef = useRef(false);
   const timelineSwipeHintMinimumElapsedRef = useRef(false);
   const timelineSwipeHintPendingInteractionRef = useRef(false);
+  const guidedJokerTapHintMinimumTimerRef = useRef(null);
+  const guidedJokerTapHintAutoStopTimerRef = useRef(null);
+  const guidedJokerTapHintActiveRef = useRef(false);
+  const guidedJokerTapHintMinimumElapsedRef = useRef(false);
   const jokerUsedRef = useRef(false);
   const jokerSpendPendingRef = useRef(false);
   const soloJokerDecisionKeyByQuestionIdRef = useRef(new Map());
@@ -939,6 +952,26 @@ export default function Game() {
     debugLog('[Game] guided timeline swipe hint stopped', { reason });
   }, [clearTimelineSwipeHintTimers]);
 
+  const clearGuidedJokerTapHintTimers = useCallback(() => {
+    if (guidedJokerTapHintMinimumTimerRef.current) {
+      window.clearTimeout(guidedJokerTapHintMinimumTimerRef.current);
+      guidedJokerTapHintMinimumTimerRef.current = null;
+    }
+    if (guidedJokerTapHintAutoStopTimerRef.current) {
+      window.clearTimeout(guidedJokerTapHintAutoStopTimerRef.current);
+      guidedJokerTapHintAutoStopTimerRef.current = null;
+    }
+  }, []);
+
+  const stopGuidedJokerTapHint = useCallback((reason = 'manual_stop', updateState = true) => {
+    clearGuidedJokerTapHintTimers();
+    guidedJokerTapHintActiveRef.current = false;
+    if (updateState) {
+      setIsGuidedJokerTapHintActive(false);
+    }
+    debugLog('[Game] guided joker tap hint stopped', { reason });
+  }, [clearGuidedJokerTapHintTimers]);
+
   const handleTimelineSwipeHintInteraction = useCallback((reason = 'user_interaction') => {
     if (!timelineSwipeHintActiveRef.current) return;
     if (timelineSwipeHintMinimumElapsedRef.current) {
@@ -1011,6 +1044,7 @@ export default function Game() {
     setGuidedTutorialPopup(null);
     setGuidedTutorialTimerIntroShown(false);
     setGuidedTutorialMistakePopupShown(false);
+    stopGuidedJokerTapHint('solo_joker_reset');
     setJokerSpendPendingType(null);
     setMistakeShieldActive(false);
     setJokerMessage('');
@@ -1019,7 +1053,7 @@ export default function Game() {
     setGuidedTutorialPauseOffset(0);
     guidedTutorialPauseElapsedAtStartRef.current = null;
     stopTimelineSwipeHint('solo_joker_reset');
-  }, [clearSoloTimerFreeze, stopTimelineSwipeHint]);
+  }, [clearSoloTimerFreeze, stopGuidedJokerTapHint, stopTimelineSwipeHint]);
 
   const closeGuidedTutorialPopup = useCallback(() => {
     const pausedAt = Number(guidedTutorialPauseElapsedAtStartRef.current);
@@ -1792,6 +1826,46 @@ export default function Game() {
     !feedback &&
     !guidedTutorialPopup
   );
+  const guidedTutorialJokerRequiresTapBeforePlacement = Boolean(
+    guidedTutorialJokerDemoWaiting &&
+    (isGuidedJokerTapHintActive || !hasGuidedJokerTapHintMinimumElapsed)
+  );
+
+  useEffect(() => {
+    if (!guidedTutorialJokerDemoWaiting) {
+      stopGuidedJokerTapHint('tutorial_joker_step_exit');
+      return undefined;
+    }
+
+    clearGuidedJokerTapHintTimers();
+    guidedJokerTapHintActiveRef.current = true;
+    guidedJokerTapHintMinimumElapsedRef.current = false;
+    setIsGuidedJokerTapHintActive(true);
+    setHasGuidedJokerTapHintMinimumElapsed(false);
+
+    guidedJokerTapHintMinimumTimerRef.current = window.setTimeout(() => {
+      guidedJokerTapHintMinimumTimerRef.current = null;
+      guidedJokerTapHintMinimumElapsedRef.current = true;
+      setHasGuidedJokerTapHintMinimumElapsed(true);
+    }, GUIDED_JOKER_TAP_HINT_MIN_MS);
+
+    guidedJokerTapHintAutoStopTimerRef.current = window.setTimeout(() => {
+      guidedJokerTapHintMinimumElapsedRef.current = true;
+      setHasGuidedJokerTapHintMinimumElapsed(true);
+      stopGuidedJokerTapHint('auto_stop_10s');
+    }, GUIDED_JOKER_TAP_HINT_MAX_MS);
+
+    return () => {
+      stopGuidedJokerTapHint('tutorial_joker_hint_cleanup', false);
+    };
+  }, [
+    currentQuestion?.id,
+    guidedTutorialAskedCardNumber,
+    guidedTutorialExpectedJokerType,
+    guidedTutorialJokerDemoWaiting,
+    clearGuidedJokerTapHintTimers,
+    stopGuidedJokerTapHint,
+  ]);
 
   // ─── Handlers (UI event → action delegation) ─────────────────────
   const handleDropOnZone = useCallback((zoneIndex) => {
@@ -1799,24 +1873,24 @@ export default function Game() {
       setSelectedZone(zoneIndex);
       return;
     }
-    if (guidedTutorialJokerDemoWaiting) {
+    if (guidedTutorialJokerRequiresTapBeforePlacement) {
       setSelectedZone(zoneIndex);
       setJokerError('');
       setJokerMessage(`Önce ${getGuidedTutorialJokerCopy(guidedTutorialExpectedJokerType).label} jokerini dene; gerçek çantandan harcanmaz.`);
       return;
     }
     doPlacement(zoneIndex, { category, yearStart, yearEnd });
-  }, [doPlacement, category, yearStart, yearEnd, guidedTutorialExpectedJokerType, guidedTutorialJokerDemoWaiting, guidedTutorialPopup, setSelectedZone]);
+  }, [doPlacement, category, yearStart, yearEnd, guidedTutorialExpectedJokerType, guidedTutorialJokerRequiresTapBeforePlacement, guidedTutorialPopup, setSelectedZone]);
   const handleConfirmPlacement = useCallback(() => {
     if (selectedZone === null) return;
     if (guidedTutorialPopup) return;
-    if (guidedTutorialJokerDemoWaiting) {
+    if (guidedTutorialJokerRequiresTapBeforePlacement) {
       setJokerError('');
       setJokerMessage(`Devam etmeden önce ${getGuidedTutorialJokerCopy(guidedTutorialExpectedJokerType).label} jokerini bir kez kullan.`);
       return;
     }
     doPlacement(selectedZone, { category, yearStart, yearEnd });
-  }, [doPlacement, selectedZone, category, yearStart, yearEnd, guidedTutorialExpectedJokerType, guidedTutorialJokerDemoWaiting, guidedTutorialPopup]);
+  }, [doPlacement, selectedZone, category, yearStart, yearEnd, guidedTutorialExpectedJokerType, guidedTutorialJokerRequiresTapBeforePlacement, guidedTutorialPopup]);
   const handleTimeUp = useCallback(() => {
     if (feedback !== null || winner) return;
     if (!isMyTurn) return;
@@ -1988,20 +2062,90 @@ export default function Game() {
         setJokerError('Joker adımı birazdan açılacak.');
         return;
       }
-      markSoloJokerUsedForDecision(decisionKey, jokerType);
-      setGuidedTutorialJokerDemoUsedByCard((previous) => ({
-        ...previous,
-        [guidedTutorialAskedCardNumber]: true,
-      }));
+      const markGuidedTutorialJokerDemoUsed = () => {
+        markSoloJokerUsedForDecision(decisionKey, jokerType);
+        setGuidedTutorialJokerDemoUsedByCard((previous) => ({
+          ...previous,
+          [guidedTutorialAskedCardNumber]: true,
+        }));
+        stopGuidedJokerTapHint('joker_pressed');
+      };
       setJokerError('');
-      setJokerMessage(`${expectedJokerCopy.label} demosu aktif: gerçek çantandan harcanmadı.`);
       if (jokerType === SOLO_UI_JOKER_TYPES.TIME_FREEZE) {
+        markGuidedTutorialJokerDemoUsed();
+        setJokerMessage('Süre 10 saniye durdu.');
         startSoloTimerFreeze();
+        return;
       }
       if (jokerType === SOLO_UI_JOKER_TYPES.MISTAKE_SHIELD) {
+        markGuidedTutorialJokerDemoUsed();
+        setJokerMessage('Kronokalkan aktif.');
         setMistakeShieldActive(true);
+        return;
       }
-      setGuidedTutorialPopup({ type: 'joker', jokerType });
+      if (jokerType === SOLO_UI_JOKER_TYPES.CARD_SWAP) {
+        const usedSwapCount = Array.from(soloJokerUsedByDecisionKeyRef.current.values())
+          .filter((usedType) => usedType === SOLO_UI_JOKER_TYPES.CARD_SWAP).length;
+        if (usedSwapCount >= SOLO_CARD_SWAP_BUFFER_CARDS) {
+          stopGuidedJokerTapHint('joker_pressed');
+          setJokerError('Bu seviyede Kart Değiştir yedek kart hakkı bitti.');
+          return;
+        }
+        if (!Array.isArray(soloAttemptDeck) || !currentQuestion || !currentPlayer) {
+          stopGuidedJokerTapHint('joker_pressed');
+          setJokerError('Bu kart şu anda değiştirilemiyor.');
+          return;
+        }
+        const usedIds = new Set([...(usedQuestionIds || [])]);
+        usedIds.delete(currentQuestion.id);
+        const timelineYears = getTimelineYears(currentPlayer.cards || []);
+        const skippedIds = new Set(soloSkippedQuestionIdsRef.current);
+        skippedIds.add(currentQuestion.id);
+        const replacement = getOrderedSoloDeckQuestion(soloAttemptDeck, usedIds, timelineYears, {
+          skippedQuestionIds: skippedIds,
+          excludeQuestionIds: [currentQuestion.id],
+          allowSkippedFallback: false,
+          requireVisibleYearSpacing: true,
+        });
+
+        if (!replacement) {
+          stopGuidedJokerTapHint('joker_pressed');
+          setJokerError('Bu kart şu anda değiştirilemiyor.');
+          return;
+        }
+
+        soloJokerDecisionKeyByQuestionIdRef.current.set(String(replacement.id), decisionKey);
+        markGuidedTutorialJokerDemoUsed();
+        setJokerMessage('Kart değiştirildi.');
+        setSelectedZone(null);
+        soloSkippedQuestionIdsRef.current = skippedIds;
+        soloReplacementQuestionIdsRef.current.add(String(replacement.id));
+        recordSoloQuestionAnalyticsEvent(currentQuestion, QUESTION_ANALYTICS_EVENT_TYPES.SWAPPED_OUT, {
+          was_swapped_out: true,
+          joker_used: true,
+          joker_type: 'swapCard',
+          source: QUESTION_ANALYTICS_SOURCES.DECK,
+        });
+        recordSoloQuestionAnalyticsEvent(replacement, QUESTION_ANALYTICS_EVENT_TYPES.REPLACEMENT_SHOWN, {
+          replacement_for_question_id: String(currentQuestion.id),
+          joker_used: true,
+          joker_type: 'swapCard',
+          source: QUESTION_ANALYTICS_SOURCES.REPLACEMENT,
+        });
+        appendToHistory([currentQuestion.id, replacement.id]);
+        setLobbyData((prev) => {
+          if (!prev) return prev;
+          const nextUsed = new Set(prev.used_question_ids || []);
+          nextUsed.delete(currentQuestion.id);
+          nextUsed.add(replacement.id);
+          return {
+            ...prev,
+            current_question_id: replacement.id,
+            used_question_ids: [...nextUsed],
+          };
+        });
+        return;
+      }
       return;
     }
 
@@ -2114,6 +2258,7 @@ export default function Game() {
     isSoloTimerFrozen,
     markSoloJokerUsedForDecision,
     startSoloTimerFreeze,
+    stopGuidedJokerTapHint,
     spendSoloJokerForCurrentCard,
     soloAttemptDeck,
     currentPlayer,
@@ -2905,12 +3050,15 @@ export default function Game() {
     : null;
   const guidedJokerDemoHintActive = Boolean(
     guidedTutorialJokerDemoWaiting &&
+    isGuidedJokerTapHintActive &&
     isMyTurn &&
     !isDragging &&
     !jokerSpendPendingType &&
     !guidedTutorialPopup
   );
-  const guidedTutorialJokerLabel = getGuidedTutorialJokerCopy(guidedTutorialExpectedJokerType).label;
+  const guidedTutorialJokerInstruction = guidedTutorialJokerStepActive
+    ? getGuidedTutorialJokerCopy(guidedTutorialExpectedJokerType).instruction
+    : '';
   const soloJokers = isSoloLevelMode ? {
     enabled: true,
     usedJokerType,
@@ -2919,11 +3067,7 @@ export default function Game() {
     pendingType: jokerSpendPendingType,
     mistakeShieldActive,
     timerFrozen: isSoloTimerFrozen,
-    message: isGuidedSoloTutorial
-      ? (jokerMessage || (guidedTutorialJokerDemoWaiting
-          ? `${guidedTutorialJokerLabel} jokerine dokun; demo gerçek çantandan harcanmaz.`
-          : ''))
-      : jokerMessage,
+    message: jokerMessage,
     error: jokerError,
     disabled: Boolean(
       soloLevelResult ||
@@ -2935,6 +3079,7 @@ export default function Game() {
     ),
     tutorialDemoType: isGuidedSoloTutorial ? guidedTutorialExpectedJokerType : null,
     tutorialDemoHintActive: guidedJokerDemoHintActive,
+    tutorialFocusActive: guidedJokerDemoHintActive,
     onUseJoker: handleUseSoloJoker,
   } : null;
   const guidedDragHintActive = Boolean(
@@ -2942,7 +3087,7 @@ export default function Game() {
     guidedTutorialStepMode !== 'timeline-scroll' &&
     guidedTutorialCorrectTargetZone !== null &&
     !guidedTutorialPopup &&
-    !guidedTutorialJokerDemoWaiting &&
+    !guidedTutorialJokerRequiresTapBeforePlacement &&
     selectedZone === null &&
     !feedback &&
     !winner &&
@@ -2953,7 +3098,7 @@ export default function Game() {
     guidedTutorialStepMode === 'timeline-scroll' &&
     isTimelineSwipeHintActive &&
     !guidedTutorialPopup &&
-    !guidedTutorialJokerDemoWaiting &&
+    !guidedTutorialJokerRequiresTapBeforePlacement &&
     selectedZone === null &&
     !feedback &&
     !winner &&
@@ -2984,6 +3129,7 @@ export default function Game() {
           cardsCompleted={cardsCompletedSolo}
           cardTarget={winCardCount}
           remainingMoves={remainingMoveCount}
+          jokerInstruction={guidedTutorialJokerInstruction}
         />
       )}
       {isGuidedSoloTutorial && (
