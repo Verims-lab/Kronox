@@ -74,10 +74,10 @@ SEO/GEO boundary implemented now:
 - Raw Question remains protected and must not be exposed as public full question bank.
 
 Leaderboard projection strategy implemented now:
-- SoloLeaderboardEntry is the current canonical public-safe leaderboard projection.
+- SoloLeaderboardEntry is the current internal leaderboard projection source.
 - total_kronox_score is unified Kronox Puan.
 - displayed score and sort score use the same projection value.
-- public rows must not expose raw email.
+- getSoloLeaderboard returns sanitized username plus opaque leaderboard_id and strips raw email, provider ids, raw guest id, owner_key, player_key, and display_name.
 
 Cleanup/retention jobs implemented now:
 - expireOldGameInvites requires admin auth, supports dryRun, marks pending GameInvite as status expired, and writes AdminMaintenanceLog.

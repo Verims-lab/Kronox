@@ -545,8 +545,10 @@ SoloLeaderboardEntry.total_kronox_score
 Rules:
 
 * `User.kronox_puan_total` should match `getKronoxVisibleScore(user)`.
-* `SoloLeaderboardEntry` is the current public-safe leaderboard projection;
+* `SoloLeaderboardEntry` is the current internal leaderboard projection source;
   despite the historical name, `total_kronox_score` is unified Kronox Puan.
+  Public leaderboard rows come from `getSoloLeaderboard` with sanitized
+  `username` and opaque `leaderboard_id`.
 * Leaderboard sort score and displayed score must match.
 * Profile visible Puan and current user Leaderboard row Puan must match.
 * Leaderboard should not expose unnecessary private user fields.
@@ -667,7 +669,8 @@ Kronox Puan formula or Solo/Online scoring rules. Guest leaderboard rows use a
 guest internal owner key and are migrated/passivated when the account links.
 
 Profile > Ayarlar may update `username` and optional private `age` / `gender`.
-`display_name` is only a legacy/projection mirror of username. Only username
-affects public identity display.
+`display_name` is only a legacy/internal projection mirror of username. Only
+username affects public identity display; public leaderboard payloads must not
+return `display_name`.
 Age and gender must not affect scoring, level unlocks, matchmaking, leaderboard
 rank, Solo question weighting, or Online question selection.

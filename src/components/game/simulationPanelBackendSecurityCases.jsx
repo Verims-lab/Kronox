@@ -551,6 +551,48 @@ export const EXTRA_TESTS = [
       });
     }),
 
+  makeCase('get_questions_production_hygiene',
+    'getQuestions has no auth/header logging, raw bank fallback, or public diagnostics path',
+    () => {
+      const required = missingTokens(getQuestionsSource, [
+        'wantsDiagnostics',
+        'needsAdmin',
+        'if (needsAdmin && !isAdmin)',
+        'isForbiddenGuestQuestionRequest',
+        'rawQuestionListFallbackAllowed: false',
+        'sourcePoolCapRemoved',
+        'responseCapApplied',
+        'MAX_AUTH_GAMEPLAY_RESPONSE_LIMIT = 96',
+        'GUEST_QUESTION_FETCH_PER_CATEGORY_LIMIT = 40',
+        'projectionDiagnostics',
+      ]);
+      const forbidden = presentTokens(getQuestionsSource, [
+        'console.log(',
+        'console.warn(',
+        'console.error(',
+        'Authorization',
+        'Bearer',
+        'req.headers',
+        'headers:',
+        'base44.entities.Question.list',
+        'Question.list(',
+      ]);
+      if (required.length || forbidden.length) {
+        return fail('getQuestions can leak production diagnostics/logs or regress to public/raw question-bank access.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'base44/functions/getQuestions/entry.ts',
+          expected: 'no console/header/token logging, diagnostics require admin, guest diagnostics/fullBank forbidden, no direct Question.list fallback',
+          actual: { required, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('getQuestions keeps production logs quiet, gates diagnostics behind AdminUser, and avoids raw Question.list/full-bank public exposure.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    }),
+
   makeCase('market_purchase_is_server_authoritative',
     'Market purchase does not trust client price or client identity',
     () => {

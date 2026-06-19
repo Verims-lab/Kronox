@@ -17,6 +17,7 @@ const DEFAULT_TOP_LIMIT = 10;
 const MAX_TOP_LIMIT = 50;
 const TOTAL_LEVELS = 20;
 const PROJECTION_REPAIR_UPSERT_LIMIT = 50;
+const USERNAME_PREFIX = 'KronoxUser';
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });
@@ -38,6 +39,27 @@ function ownerKeyFromEmail(rawEmail: unknown) {
   return `u_${(hash >>> 0).toString(36)}`;
 }
 
+function publicLeaderboardId(ownerKey: string) {
+  const text = String(ownerKey || '').trim();
+  if (!text) return '';
+  let hash = 2166136261;
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `lb_${(hash >>> 0).toString(36)}`;
+}
+
+function makeKronoxUserFallback(seed: unknown = '') {
+  const text = String(seed || '').trim();
+  let hash = 2166136261;
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `${USERNAME_PREFIX}${1000 + ((hash >>> 0) % 90000)}`;
+}
+
 function finiteNumber(value: unknown, fallback = 0) {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
@@ -51,18 +73,27 @@ function cleanDisplayText(raw: unknown) {
   return String(raw || '').replace(/\s+/g, ' ').trim().slice(0, 28);
 }
 
-function safeDisplayName(user: any, ownerKey: string) {
-  const explicit = [
-    user?.display_name,
-    user?.full_name,
-    user?.displayName,
-    user?.username,
-    user?.name,
-  ].map(cleanDisplayText).find((value) => value && !value.includes('@'));
+function isSafePublicUsername(value: string) {
+  return Boolean(
+    value &&
+    !value.includes('@') &&
+    !/^(apple|google|firebase|auth0|base44|provider|uid)[\w:-]*$/i.test(value),
+  );
+}
 
+function safePublicUsername(source: any, ownerKey: string) {
+  const explicit = [
+    source?.username,
+    source?.public_username,
+  ].map(cleanDisplayText).find(isSafePublicUsername);
   if (explicit) return explicit;
-  const suffix = ownerKey ? ownerKey.slice(-4).toLocaleUpperCase('tr-TR') : '';
-  return suffix ? `Oyuncu ${suffix}` : 'Oyuncu';
+
+  // Legacy projection rows only have display_name. Treat that field as an
+  // internal migration mirror, never as a returned public field.
+  const legacyDisplayNameMigrationSource = cleanDisplayText(source?.display_name || source?.displayName);
+  if (isSafePublicUsername(legacyDisplayNameMigrationSource)) return legacyDisplayNameMigrationSource;
+
+  return makeKronoxUserFallback(ownerKey || source?.id || source?._id);
 }
 
 
@@ -186,7 +217,7 @@ function toLeaderboardRow(user: any, levelNumber = 0) {
   const totalKronoxScore = Number.isFinite(persistedTotal) && persistedTotal >= 0
     ? Math.max(Math.floor(persistedTotal), computedTotalKronoxScore)
     : computedTotalKronoxScore;
-  const displayName = safeDisplayName(user, ownerKey);
+  const username = safePublicUsername(user, ownerKey);
 
   // Codex152 — Optional per-level projection. When the caller passes
   // `levelNumber`, the row carries the user's best time/score/stars for
@@ -198,8 +229,9 @@ function toLeaderboardRow(user: any, levelNumber = 0) {
 
   return {
     owner_key: ownerKey,
-    display_name: displayName,
-    initial: initialFromName(displayName),
+    username,
+    display_name: username,
+    initial: initialFromName(username),
     total_kronox_score: totalKronoxScore,
     total_solo_score: summary.totalSoloScore,
     online_score: onlineScore,
@@ -219,7 +251,7 @@ function toProjectionLeaderboardRow(row: any) {
   const ownerKey = String(row?.owner_key || row?.ownerKey || '').trim();
   if (!ownerKey) return null;
 
-  const displayName = cleanDisplayText(row?.display_name || row?.displayName) || 'Oyuncu';
+  const username = safePublicUsername(row, ownerKey);
   const totalKronoxScore = Math.max(0, Math.floor(finiteNumber(row?.total_kronox_score ?? row?.totalKronoxScore, 0)));
   const totalSoloScore = Math.max(0, Math.floor(finiteNumber(row?.total_solo_score ?? row?.totalSoloScore, 0)));
   const onlineScore = Math.max(0, Math.floor(finiteNumber(row?.online_score ?? row?.onlineScore, 0)));
@@ -231,8 +263,9 @@ function toProjectionLeaderboardRow(row: any) {
 
   return {
     owner_key: ownerKey,
-    display_name: displayName,
-    initial: cleanDisplayText(row?.initial) || initialFromName(displayName),
+    username,
+    display_name: username,
+    initial: cleanDisplayText(row?.initial) || initialFromName(username),
     total_kronox_score: totalKronoxScore,
     total_solo_score: totalSoloScore,
     online_score: onlineScore,
@@ -298,10 +331,12 @@ function isPositiveScoreRow(row: any) {
 }
 
 function buildProjectionWritePayload(row: any) {
+  const ownerKey = String(row?.owner_key || '').trim();
+  const username = safePublicUsername(row, ownerKey);
   return {
-    owner_key: String(row?.owner_key || '').trim(),
-    display_name: cleanDisplayText(row?.display_name) || 'Oyuncu',
-    initial: cleanDisplayText(row?.initial).slice(0, 1) || initialFromName(row?.display_name || 'Oyuncu'),
+    owner_key: ownerKey,
+    display_name: username,
+    initial: cleanDisplayText(row?.initial).slice(0, 1) || initialFromName(username),
     total_kronox_score: Math.max(0, Math.floor(finiteNumber(row?.total_kronox_score, 0))),
     total_solo_score: Math.max(0, Math.floor(finiteNumber(row?.total_solo_score, 0))),
     online_score: Math.max(0, Math.floor(finiteNumber(row?.online_score, 0))),
@@ -449,7 +484,7 @@ function scoreSourceMismatchSummary(projectionRows: any[], userRows: any[]) {
       const projectionScore = finiteNumber(projected?.total_kronox_score, 0);
       if (userScore === projectionScore) return null;
       return {
-        owner_key: ownerKey,
+        leaderboard_id: publicLeaderboardId(ownerKey),
         userScore,
         projectionScore,
         direction: userScore > projectionScore ? 'user_above_projection' : 'projection_above_user',
@@ -475,6 +510,41 @@ function decorateRows(rows: any[] = [], currentOwnerKey = '', friendOwnerKeys = 
       isFriend: Boolean(ownerKey && friendOwnerKeys.has(ownerKey)),
     };
   });
+}
+
+function toPublicLeaderboardRow(row: any) {
+  const ownerKey = String(row?.owner_key || '').trim();
+  const leaderboardId = publicLeaderboardId(ownerKey);
+  if (!leaderboardId) return null;
+  const username = safePublicUsername(row, ownerKey);
+  const rank = Number(row?.rank);
+  const aggregateBestTimeSeconds = Number(row?.aggregate_best_time_seconds);
+  return {
+    id: leaderboardId,
+    leaderboard_id: leaderboardId,
+    username,
+    publicName: username,
+    initial: cleanDisplayText(row?.initial).slice(0, 1) || initialFromName(username),
+    total_kronox_score: Math.max(0, Math.floor(finiteNumber(row?.total_kronox_score, 0))),
+    total_solo_score: Math.max(0, Math.floor(finiteNumber(row?.total_solo_score, 0))),
+    online_score: Math.max(0, Math.floor(finiteNumber(row?.online_score, 0))),
+    current_level: Math.max(1, Math.floor(finiteNumber(row?.current_level, 1))),
+    unlocked_level: Math.max(1, Math.floor(finiteNumber(row?.unlocked_level, row?.current_level || 1))),
+    total_stars: Math.max(0, Math.floor(finiteNumber(row?.total_stars, 0))),
+    completed_level_count: Math.max(0, Math.floor(finiteNumber(row?.completed_level_count, 0))),
+    ...(Number.isFinite(aggregateBestTimeSeconds)
+      ? { aggregate_best_time_seconds: Math.max(0, aggregateBestTimeSeconds) }
+      : {}),
+    ...(row?.level ? { level: row.level } : {}),
+    ...(Number.isFinite(rank) ? { rank: Math.max(1, Math.floor(rank)) } : {}),
+    isCurrentUser: row?.isCurrentUser === true,
+    isFriend: row?.isFriend === true,
+    updated_at: row?.updated_at || row?.updatedAt || row?.updated_date || row?.created_at || row?.created_date || new Date().toISOString(),
+  };
+}
+
+function toPublicLeaderboardRows(rows: any[] = []) {
+  return (rows || []).map((row) => toPublicLeaderboardRow(row)).filter(Boolean);
 }
 
 function compactRows(rows: any[] = []) {
@@ -578,6 +648,10 @@ Deno.serve(async (req) => {
         ...(currentUserRow ? [currentUserRow] : []),
         ...friendsOutsideTop,
       ]);
+      const publicTopRows = toPublicLeaderboardRows(topRows);
+      const publicCurrentUserRow = currentUserRow ? toPublicLeaderboardRow(currentUserRow) : null;
+      const publicFriendsOutsideTop = toPublicLeaderboardRows(friendsOutsideTop);
+      const publicCompactResponseRows = toPublicLeaderboardRows(compactResponseRows);
       const currentUserRank = Number.isFinite(Number(currentUserRow?.rank))
         ? Math.max(1, Math.floor(Number(currentUserRow.rank)))
         : null;
@@ -601,12 +675,11 @@ Deno.serve(async (req) => {
         broadUserListUsed: true,
         broadUserRowsReturned: false,
         serverSideUserRepairUsed: fallbackUsed,
-        topRows,
-        currentUserRow,
+        topRows: publicTopRows,
+        currentUserRow: publicCurrentUserRow,
         currentUserRank,
         currentUserInTop: Boolean(currentUserRank && currentUserRank <= topLimit),
-        friendUserKeys,
-        friendsOutsideTop,
+        friendsOutsideTop: publicFriendsOutsideTop,
         friendCount: friendUserKeys.length,
         generatedAt: new Date().toISOString(),
         rankConfidence,
@@ -627,7 +700,7 @@ Deno.serve(async (req) => {
         scoreSourceMismatches,
         sourceScoreRepairMode: 'non_destructive_positive_user_rows_only',
         projectionFreshness: projectionFreshness(projectionWindowRows),
-        rows: compactResponseRows,
+        rows: publicCompactResponseRows,
       });
     }
 
@@ -666,7 +739,7 @@ Deno.serve(async (req) => {
       projectionFirst: false,
       broadUserListUsed: true,
       fallbackReason: 'level_projection_requires_user_solo_progress',
-      rows,
+      rows: toPublicLeaderboardRows(rows),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown getSoloLeaderboard error';

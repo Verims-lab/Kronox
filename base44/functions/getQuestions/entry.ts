@@ -48,8 +48,6 @@ const SELECTED_CATEGORY_LANE_DIFFICULTY_RULE = 'selected_category_difficulty_1_2
 const GLOBAL_FALLBACK_LANE_DIFFICULTY_RULE = 'global_fallback_difficulty_1_only';
 const GUEST_DIFFICULTY_RULE = 'guest_primary_difficulty_1_only';
 
-console.log('[getQuestions] MODULE LOADED');
-
 function json(body: unknown, status = 200) {
   return Response.json(body, { status });
 }
@@ -1476,8 +1474,7 @@ Deno.serve(async (req) =>
       });
     }
     return json(responsePayload);
-  } catch (error) {
-    console.error('[getQuestions] failed:', (error as Error)?.message || error);
+  } catch {
     return json({ ok: false, error: 'Sorular yuklenemedi.' }, 500);
   }
 });

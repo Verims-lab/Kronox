@@ -47,10 +47,11 @@ initially generated as `KronoxUser####` / `KronoxUser#####`. The stored
 `display_name` field is a legacy/projection mirror of `username`, not a separate
 editable profile field.
 
-Profile and leaderboard surfaces should prefer `username` for public identity,
-with `display_name` only as a legacy fallback for old rows. Email, Google ID,
-Apple ID, provider UID, and internal `owner_key` values are not public display
-names.
+Profile and leaderboard surfaces must use `username` for public identity.
+`display_name` may be read only as a sanitized internal migration mirror for
+old rows and must not be returned as the public identity field. Email, Google
+ID, Apple ID, provider UID, raw guest id, internal `owner_key`, and internal
+`player_key` values are not public display names.
 
 `createGuestProfile` is public by design because unauthenticated players must be
 able to start as guests. It still generates `guest_id`, raw guest token, token
@@ -79,10 +80,12 @@ the server so existing projections keep working. Username uniqueness is checked
 case-insensitively through
 `username_normalized`, with a `KronoxUser####` / `KronoxUser#####` fallback for
 missing or provider-like public names. Username changes refresh the existing
-`SoloLeaderboardEntry` public display fields when a row exists. `age` and
-`gender` are private optional profile fields only; they must not appear in
-leaderboard rows, public projections, scoring, matchmaking, Solo category
-weighting, or Online game selection.
+`SoloLeaderboardEntry` internal projection mirror when a row exists, and
+`getSoloLeaderboard` returns sanitized `username` plus opaque `leaderboard_id`
+instead of `display_name` or `owner_key`. `age` and `gender` are private
+optional profile fields only; they must not appear in leaderboard rows, public
+projections, scoring, matchmaking, Solo category weighting, or Online game
+selection.
 
 Account linking is implemented through `linkGuestAccount`. Guest users can
 choose Apple / Google / Email from Profile to secure progress. Home / Ana Sayfa
@@ -140,7 +143,7 @@ authenticated user, then writes `AccountLinkTransaction` with an idempotency key
 Merge rules are user-benefit oriented:
 
 * public `username` is preserved when safe and unique, while `display_name`
-  remains a mirrored legacy/projection field
+  remains a mirrored legacy/internal projection field only
 * optional `age` / `gender` are preserved with a user-friendly preference for
   the more recent non-empty profile value
 * Solo progress keeps the better per-level record

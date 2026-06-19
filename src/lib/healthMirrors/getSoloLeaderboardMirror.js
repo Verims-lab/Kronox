@@ -14,7 +14,8 @@
 //   the main leaderboard reads SoloLeaderboardEntry with service role,
 //   compares a bounded server-side User top-score repair window, repairs
 //   missing/stale projection rows best-effort, and returns ONLY rank-safe
-//   compact fields. Full User rows never leave the function. It is read
+//   compact fields. Full User rows and internal owner_key/display_name values
+//   never leave the function. It is read
 //   ONLY by Health static-contract checks. Change the real function and this
 //   mirror together — Health fails if any required phrase is missing, so a
 //   stale mirror cannot silently pass.
@@ -26,15 +27,29 @@ export const GET_SOLO_LEADERBOARD_SOURCE = `// getSoloLeaderboard — public-saf
 // server-side User.list('-kronox_puan_total', limit) repair window so stale
 // or incomplete projection rows cannot claim a false global rank. No email,
 // notification settings, auth/private profile fields, push/device data, or
-// full User rows leave this function.
+// full User rows leave this function. Public rows return username and
+// leaderboard_id; owner_key/display_name stay internal only.
+
+function publicLeaderboardId(ownerKey) {
+  return 'lb_' + hash(ownerKey);
+}
+
+function safePublicUsername(source, ownerKey) {
+  const explicit = [source?.username, source?.public_username].find(Boolean);
+  if (explicit) return explicit;
+  const legacyDisplayNameMigrationSource = source?.display_name || source?.displayName;
+  if (legacyDisplayNameMigrationSource) return legacyDisplayNameMigrationSource;
+  return 'KronoxUser0000';
+}
 
 function toProjectionLeaderboardRow(row) {
-  const displayName = cleanDisplayText(row?.display_name || row?.displayName) || 'Oyuncu';
+  const username = safePublicUsername(row, row?.owner_key);
 
   return {
     owner_key: row?.owner_key,
-    display_name: displayName,
-    initial: initialFromName(displayName),
+    username,
+    display_name: username,
+    initial: initialFromName(username),
     total_kronox_score: row?.total_kronox_score,
     total_solo_score: row?.total_solo_score,
     online_score: row?.online_score,
@@ -44,6 +59,28 @@ function toProjectionLeaderboardRow(row) {
     completed_level_count: row?.completed_level_count,
     updated_at: row?.updated_at || new Date().toISOString(),
   };
+}
+
+function toPublicLeaderboardRow(row) {
+  const leaderboardId = publicLeaderboardId(row?.owner_key);
+  const username = safePublicUsername(row, row?.owner_key);
+  return {
+    id: leaderboardId,
+    leaderboard_id: leaderboardId,
+    username,
+    publicName: username,
+    initial: initialFromName(username),
+    total_kronox_score: row?.total_kronox_score,
+    total_solo_score: row?.total_solo_score,
+    online_score: row?.online_score,
+    current_level: row?.current_level,
+    isCurrentUser: row?.isCurrentUser === true,
+    isFriend: row?.isFriend === true,
+  };
+}
+
+function toPublicLeaderboardRows(rows) {
+  return rows.map(toPublicLeaderboardRow).filter(Boolean);
 }
 
 Deno.serve(async (req) => {
@@ -76,6 +113,10 @@ Deno.serve(async (req) => {
   const currentUserRank = currentUserRow?.rank || null;
   const friendsOutsideTop = rankedWindowRows.filter((row) => row.isFriend).slice(0, topLimit);
   const compactResponseRows = compactRows([...topRows, currentUserRow, ...friendsOutsideTop].filter(Boolean));
+  const publicTopRows = toPublicLeaderboardRows(topRows);
+  const publicCurrentUserRow = toPublicLeaderboardRow(currentUserRow);
+  const publicFriendsOutsideTop = toPublicLeaderboardRows(friendsOutsideTop);
+  const publicCompactResponseRows = toPublicLeaderboardRows(compactResponseRows);
 
   return json({
     ok: true,
@@ -86,11 +127,10 @@ Deno.serve(async (req) => {
     broadUserListUsed: true,
     broadUserRowsReturned: false,
     serverSideUserRepairUsed: fallbackUsed,
-    topRows,
-    currentUserRow,
+    topRows: publicTopRows,
+    currentUserRow: publicCurrentUserRow,
     currentUserRank,
-    friendUserKeys,
-    friendsOutsideTop,
+    friendsOutsideTop: publicFriendsOutsideTop,
     generatedAt: new Date().toISOString(),
     rankConfidence: currentUserRank ? 'exact' : (fallbackUsed ? 'fallback' : 'limited'),
     rankScope: currentUserRank ? 'global' : 'projection_limited',
@@ -106,7 +146,7 @@ Deno.serve(async (req) => {
     scoreSourceMismatches,
     sourceScoreRepairMode: 'non_destructive_positive_user_rows_only',
     projectionFreshness: projectionFreshness(projectionRows),
-    rows: compactResponseRows,
+    rows: publicCompactResponseRows,
   });
 });
 

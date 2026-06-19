@@ -38,20 +38,22 @@ function cleanDisplayText(raw) {
     .slice(0, 28);
 }
 
+function isSafePublicUsername(value) {
+  return Boolean(
+    value &&
+    !value.includes('@') &&
+    !/^(apple|google|firebase|auth0|base44|provider|uid)[\w:-]*$/i.test(value),
+  );
+}
+
 export function getSafeLeaderboardName(userOrEntry) {
   const explicitName = [
-    userOrEntry?.display_name,
-    userOrEntry?.full_name,
-    userOrEntry?.displayName,
     userOrEntry?.username,
-    userOrEntry?.name,
-  ].map(cleanDisplayText).find(Boolean);
+    userOrEntry?.public_username,
+    userOrEntry?.publicName,
+  ].map(cleanDisplayText).find(isSafePublicUsername);
 
-  if (
-    explicitName &&
-    !explicitName.includes('@') &&
-    !/^(apple|google|firebase|auth0|base44|provider|uid)[\w:-]*$/i.test(explicitName)
-  ) {
+  if (explicitName) {
     return explicitName;
   }
 
@@ -254,6 +256,13 @@ export function getFriendLeaderboardKeys(friendEmails = []) {
 
 export function toSoloLeaderboardEntry(publicRow, friendKeySet = new Set(), currentOwnerKey = '') {
   const ownerKey = String(publicRow?.owner_key || '').trim();
+  const publicId = String(
+    publicRow?.leaderboard_id ||
+    publicRow?.leaderboardId ||
+    publicRow?.public_id ||
+    publicRow?.id ||
+    '',
+  ).trim();
   const displayName = getSafeLeaderboardName(publicRow);
   const soloScore = Math.max(0, Number(publicRow?.total_solo_score) || 0);
   const onlineScore = getLeaderboardOnlineScore(publicRow);
@@ -266,7 +275,7 @@ export function toSoloLeaderboardEntry(publicRow, friendKeySet = new Set(), curr
   const aggregateBestTimeSeconds = Number(publicRow?.aggregate_best_time_seconds);
 
   return {
-    id: ownerKey || String(publicRow?.id || publicRow?._id || displayName).toLowerCase(),
+    id: publicId || ownerKey || String(publicRow?._id || displayName).toLowerCase(),
     ownerKey,
     displayName,
     initial: cleanDisplayText(publicRow?.initial).slice(0, 1) || initialFromName(displayName),
@@ -281,8 +290,8 @@ export function toSoloLeaderboardEntry(publicRow, friendKeySet = new Set(), curr
     },
     updatedAt: publicRow?.updated_at || publicRow?.updated_date || publicRow?.created_date || '',
     aggregateBestTimeSeconds: Number.isFinite(aggregateBestTimeSeconds) ? aggregateBestTimeSeconds : null,
-    isCurrentUser: Boolean(currentOwnerKey && ownerKey && ownerKey === currentOwnerKey),
-    isFriend: Boolean(ownerKey && friendKeySet.has(ownerKey)),
+    isCurrentUser: publicRow?.isCurrentUser === true || Boolean(currentOwnerKey && ownerKey && ownerKey === currentOwnerKey),
+    isFriend: publicRow?.isFriend === true || Boolean(ownerKey && friendKeySet.has(ownerKey)),
   };
 }
 
@@ -290,7 +299,7 @@ export function rankSoloLeaderboardEntries(publicRows, friendKeys = new Set(), c
   const byOwnerKey = new Map();
 
   (publicRows || []).forEach((row) => {
-    const ownerKey = String(row?.owner_key || '').trim();
+    const ownerKey = String(row?.owner_key || row?.leaderboard_id || row?.leaderboardId || row?.id || '').trim();
     if (!ownerKey) return;
     const current = byOwnerKey.get(ownerKey);
     if (!current || comparePublicLeaderboardRows(row, current) < 0) {
@@ -338,7 +347,7 @@ function compareLeaderboardEntries(a, b) {
 export function selectLeaderboardSections(rankedRows, currentOwnerKey, topLimit = LEADERBOARD_TOP_LIMIT) {
   const topRows = (rankedRows || []).slice(0, topLimit);
   const topIds = new Set(topRows.map((row) => row.id));
-  const currentUserRow = (rankedRows || []).find((row) => row.ownerKey && row.ownerKey === currentOwnerKey) || null;
+  const currentUserRow = (rankedRows || []).find((row) => row.isCurrentUser || (row.ownerKey && row.ownerKey === currentOwnerKey)) || null;
   const currentUserInTop = Boolean(currentUserRow && topIds.has(currentUserRow.id));
   const friendsOutsideTop = (rankedRows || [])
     .filter((row) => row.isFriend && !topIds.has(row.id))

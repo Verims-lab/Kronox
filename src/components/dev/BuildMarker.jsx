@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex416 — Public identity/function auth/getQuestions audit hardening:
+//   • Sanitizes leaderboard public responses to username + leaderboard_id and
+//     keeps owner_key/display_name internal to projection rows.
+//   • Documents Base44 name/entry-only function manifests with entry.ts guards,
+//     removes getQuestions production logs, and refreshes Health/docs coverage.
+
 // Codex415 — Documentation rebuild from current product/technical truth:
 //   • Rebuilds product workflow and technical flow markdown around current
 //     guest, onboarding, category, Solo, Online, economy, Health, and security
@@ -2356,7 +2362,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex415';
+const BUILD_MARKER = 'Codex416';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

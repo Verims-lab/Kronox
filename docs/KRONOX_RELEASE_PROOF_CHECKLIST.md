@@ -36,10 +36,10 @@ Canonical workflow docs:
   from current source.
 * Stale contracts such as Home login CTAs,
   standalone tutorial onboarding, hardcoded category fallbacks, visible `HATA`
-  scoring, public `display_name` identity, raw `Question.list` gameplay
-  fallback, Daily Quest Puan rewards, Daily Quest leaderboard impact, Online
-  Solo-preference selection, and old fixed 10-card Solo decks must be removed or
-  explicitly marked legacy before release.
+  scoring, public `display_name` identity/leaderboard payloads, raw
+  `Question.list` gameplay fallback, Daily Quest Puan rewards, Daily Quest
+  leaderboard impact, Online Solo-preference selection, and old fixed 10-card
+  Solo decks must be removed or explicitly marked legacy before release.
 
 Checklist:
 
@@ -848,6 +848,13 @@ Checklist:
 * Admin source-of-truth is the DB-backed `AdminUser` entity. Base44 functions
   inline the AdminUser role/status guard locally because per-function deploy
   bundles do not reliably include `_shared` helper modules.
+* Base44 `function.jsonc` files are verified to use only the repo-supported
+  `name` + `entry` shape. Do not add unproven `requireAuth`, `authRequired`,
+  `allowUnauthenticated`, `public`, `auth`, or `permissions` fields.
+* Function auth/public scope review is completed: `createGuestProfile` and
+  `getCategoryMetadata` are public-by-design and narrow; guest-token paths
+  require `guest_id + raw guest token`; registered-user paths call
+  `base44.auth.me()`; admin/reporting/maintenance paths use `AdminUser`.
 * Health statically fails Base44 functions that contain `_shared/adminAuth`,
   `../_shared`, or `file:///__shared` deploy-risk imports. Manual Base44 Test
   Function/deploy proof is still required for live runtime markers.
@@ -1216,7 +1223,11 @@ login:
   under Profile; Home / Ana Sayfa and onboarding completion do not show provider
   buttons or secure-progress account-link cards
 * leaderboard/profile public identity does not show email, Google ID, Apple ID,
-  provider UID, or internal `owner_key`
+  provider UID, raw guest id, internal `owner_key`, internal `player_key`, or
+  public `display_name`
+* `getSoloLeaderboard` response rows return sanitized `username` plus opaque
+  `leaderboard_id`; copied JSON does not include email, provider ids,
+  `owner_key`, `player_key`, raw guest id, or `display_name`
 * Profile > Ayarlar lets guest and authenticated users edit username plus
   optional age/gender without forcing login for guests
 * onboarding profile setup uses only `username` plus optional age/gender and
@@ -1236,8 +1247,8 @@ and actual stored-row shape remain manual runtime proof.
 Before release, manually verify guest-to-account linking:
 
 * guest can finish onboarding and remain in guest mode without forced login
-* guest leaderboard row displays username, with `display_name` only as a legacy
-  mirrored fallback, not email, provider id, or internal `owner_key`
+* guest leaderboard row displays username; `display_name` remains only a
+  legacy/internal projection mirror and is not returned as public identity
 * Profile shows the "Misafir olarak oynuyorsun" secure-progress card
 * Profile shows Apple / Google / Email secure-progress options together, and
   Home/onboarding completion show no provider buttons or account-link card

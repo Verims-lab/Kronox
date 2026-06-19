@@ -359,6 +359,9 @@ Security contract:
 * authenticated non-admin users receive 403 for full-bank/admin access
 * client code must not fall back to direct `Question.list` for normal or guest
   gameplay
+* production code must not log request headers, Authorization/Bearer values,
+  guest tokens, or raw request bodies; runtime markers are allowed only as
+  safe scalar diagnostics
 
 Normal gameplay response should include only what gameplay needs.
 
@@ -405,6 +408,22 @@ getSoloLeaderboard
 getDailyWheelStatus
 claimDailyWheelReward
 ```
+
+Base44 function config proof:
+
+* repo `function.jsonc` files currently use the supported `name` + `entry`
+  shape only
+* no repo-supported `requireAuth`, `authRequired`, `allowUnauthenticated`,
+  `public`, `auth`, or `permissions` function declaration format is proven
+* do not add invented manifest auth fields; enforce auth in each `entry.ts`
+  guard and keep public-by-design functions narrow
+* public-by-design: `createGuestProfile`, `getCategoryMetadata`
+* guest-token required: guest profile update/progress/category/exposure paths
+* registered-auth required: `getQuestions` normal gameplay,
+  `updateProfileSettings`, `linkGuestAccount`, economy and Daily Quest/Wheel
+  functions
+* admin-only/internal reporting: AdminUser-guarded report, diagnostic,
+  simulation, maintenance, and reset functions
 
 `startLobbyGame` must require an authenticated user. Unauthenticated callers
 receive 401, authenticated non-host/non-authorized callers receive 403, and
@@ -933,6 +952,20 @@ The link merge preserves user-beneficial progress and combines additive economy
 only once. `User.linked_guest_ids` and `AccountLinkTransaction.idempotency_key`
 are duplicate guards; `UserJokerInventory` remains the current joker balance
 source and `JokerTransaction` remains the immutable ledger.
+
+## Player Question Exposure Privacy Boundary
+
+## Public Identity / Leaderboard Privacy Boundary
+
+Public identity is `username` only. `display_name` is a legacy/internal
+projection mirror and may be used only as a sanitized migration source for old
+rows; it must not be returned as the public leaderboard identity field.
+`getSoloLeaderboard` returns sanitized `username`, opaque `leaderboard_id`,
+score/rank fields, and boolean friend/current-user markers. It must not return
+email, provider ids, raw guest id, internal `owner_key`, internal `player_key`,
+or public `display_name`. Direct `SoloLeaderboardEntry` entity reads are
+admin-only in the repo schema because the projection row stores internal
+`owner_key`.
 
 ## Player Question Exposure Privacy Boundary
 
