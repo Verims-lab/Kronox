@@ -86,7 +86,8 @@ export const EXTRA_TESTS = [
         '"total_solo_score"',
         '"online_score"',
         '"current_level"',
-        '"read": {}',
+        'direct entity reads are admin-only',
+        'public getSoloLeaderboard strips owner_key/display_name',
         'base44.entities.SoloLeaderboardEntry',
         "base44.functions.invoke('getSoloLeaderboard'",
         'solo_leaderboard_entry_projection',
@@ -307,7 +308,7 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('leaderboard_health', 'leaderboard_safe_backend_projection_exists',
-    'Backend leaderboard projection returns only safe ranking fields',
+    'Backend leaderboard projection sanitizes internal owner keys before response',
     () => {
       const required = missingTokens(getSoloLeaderboardFunctionSource, [
         'entities?.SoloLeaderboardEntry',
@@ -316,8 +317,11 @@ export const EXTRA_TESTS = [
         'server-side User.list',
         'broadUserRowsReturned: false',
         'serverSideUserRepairUsed',
-        'owner_key',
-        'display_name',
+        'publicLeaderboardId',
+        'safePublicUsername',
+        'toPublicLeaderboardRow',
+        'leaderboard_id',
+        'username',
         'total_kronox_score',
         'total_solo_score',
         'online_score',
@@ -331,15 +335,15 @@ export const EXTRA_TESTS = [
         'keys_auth',
       ]);
       if (required.length || forbidden.length) {
-        return fail('Backend leaderboard projection is missing or includes unsafe fields.', {
+        return fail('Backend leaderboard projection is missing or may return unsafe identity fields.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'projection-first service-role read plus bounded repair returns rank-safe fields only',
+          expected: 'projection-first service-role read plus bounded repair returns sanitized username/leaderboard_id rows only',
           actual: { required, forbidden },
         });
       }
-      return pass('Backend projection reads SoloLeaderboardEntry first and returns only public-safe leaderboard fields.', {
+      return pass('Backend projection reads SoloLeaderboardEntry first and strips owner_key/display_name before returning public rows.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -403,12 +407,13 @@ export const EXTRA_TESTS = [
         'topRows',
         'currentUserRow',
         'currentUserRank',
-        'friendUserKeys',
         'friendsOutsideTop',
         'generatedAt',
         'rankConfidence',
         'rankScope',
-        'rows: compactResponseRows',
+        'rows: publicCompactResponseRows',
+        'topRows: publicTopRows',
+        'currentUserRow: publicCurrentUserRow',
         'getFriendLeaderboardKeys',
         'loadFriends',
       ]);
@@ -418,11 +423,11 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'getSoloLeaderboard compact payload includes top/current/friend/rank metadata; page may merge accepted loadFriends rows into safe owner_key badges',
+          expected: 'getSoloLeaderboard compact payload includes sanitized top/current/friend/rank metadata; page may still use accepted loadFriends rows for local fallback badges',
           actual: { required, forbidden },
         });
       }
-      return pass('Leaderboard consumes a compact backend snapshot with top rows, current-user rank metadata, and friend owner keys.', {
+      return pass('Leaderboard consumes a compact backend snapshot with sanitized top rows, current-user rank metadata, and friend markers.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -430,12 +435,14 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('leaderboard_health', 'leaderboard_safe_fields_only',
-    'Leaderboard schema/function avoid private notification, push, auth, and full email fields',
+    'Leaderboard public response avoids private notification, push, auth, owner key, and email fields',
     () => {
       const combined = `${soloLeaderboardEntitySource}\n${getSoloLeaderboardFunctionSource}`;
       const required = missingTokens(combined, [
-        'owner_key',
-        'display_name',
+        'direct entity reads are admin-only',
+        'public getSoloLeaderboard strips owner_key/display_name',
+        'leaderboard_id',
+        'username',
         'total_kronox_score',
         'total_solo_score',
         'online_score',
@@ -456,11 +463,11 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'rank-safe fields only; no email/notification/push/auth fields in public leaderboard shape',
+          expected: 'internal entity admin-only; public response uses username/leaderboard_id and no email/notification/push/auth fields',
           actual: { required, forbidden },
         });
       }
-      return pass('Leaderboard public schema/function expose only safe ranking fields.', {
+      return pass('Leaderboard public function response exposes only sanitized ranking fields; internal projection remains admin-only for direct reads.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -589,7 +596,7 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('leaderboard_health', 'leaderboard_friend_markers_safe',
-    'Friend rows are marked by public-safe owner keys from real accepted friends',
+    'Friend rows are marked server-side from real accepted friends without returning owner keys',
     () => {
       // Codex119 — friend marker strings/badges live in the section
       // component; data wiring (loadFriends, friendEmailSet, isFriend)
@@ -599,8 +606,9 @@ export const EXTRA_TESTS = [
         'loadFriends',
         'friend.friend_email',
         'getFriendLeaderboardKeys',
-        'friendKeySet',
-        'owner_key',
+        'loadAcceptedFriendOwnerKeys',
+        'publicFriendsOutsideTop',
+        'leaderboard_id',
         'isFriend',
         'Arkadaş',
         'Arkadaşların',
@@ -614,11 +622,11 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'accepted friends only, matched by safe owner_key, marked in real ranked rows',
+          expected: 'accepted friends only, matched server-side by internal owner keys, returned as sanitized friend badges',
           actual: { required, forbidden },
         });
       }
-      return pass('Friend rows are driven by accepted friend data and safe owner keys; no fake friend rows.', {
+      return pass('Friend rows are driven by accepted friend data and returned with sanitized friend badges; no fake friend rows.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,
@@ -658,16 +666,18 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('leaderboard_health', 'leaderboard_safe_identity_display',
-    'Leaderboard display names avoid exposing private email addresses',
+    'Leaderboard identity is username-only and avoids internal owner keys',
     () => {
       // Codex119 — row rendering now lives in the section component;
       // include it in both the required- and forbidden-token surfaces.
       const combined = `${soloLeaderboardEntitySource}\n${leaderboardPageSource}\n${leaderboardLibSource}\n${kronoxRankingSectionSource}`;
       const required = missingTokens(combined, [
         'getSafeLeaderboardName',
-        'display_name',
-        'owner_key',
+        'isSafePublicUsername',
+        'username',
+        'leaderboard_id',
         'displayName',
+        'direct entity reads are admin-only',
       ]);
       const entityForbidden = forbiddenTokensFound(soloLeaderboardEntitySource, [
         '"user_email"',
@@ -683,11 +693,11 @@ export const EXTRA_TESTS = [
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'display safe names/initials and public owner_key, never raw email rows',
+          expected: 'display username/publicName from sanitized rows, never raw email/provider/internal owner keys',
           actual: { required, forbidden },
         });
       }
-      return pass('Leaderboard rows render safe display names and public owner keys rather than raw private emails.', {
+      return pass('Leaderboard rows render username-only public identity from sanitized rows rather than raw private emails or owner keys.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,

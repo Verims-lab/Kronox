@@ -56,7 +56,7 @@ function normalizePublicProfile(profile) {
   return {
     guest_id: guestId,
     username,
-    display_name: String(profile.display_name || username).trim() || username,
+    display_name: username,
     status: String(profile.status || 'guest').trim() || 'guest',
     onboarding_status: String(profile.onboarding_status || GUEST_ONBOARDING_STATES.GUEST_CREATED).trim() || GUEST_ONBOARDING_STATES.GUEST_CREATED,
     tutorial_status: String(profile.tutorial_status || 'not_started').trim() || 'not_started',

@@ -676,8 +676,8 @@ Deno.serve(async (req: Request) => {
     const linkedGuestIds = Array.isArray(user?.linked_guest_ids) ? user.linked_guest_ids.map(String) : [];
     const guestAlreadyLinkedToThisUser = String(guest?.status || '') === 'linked' && linkedEmail === email;
     const additiveAllowed = !guestAlreadyLinkedToThisUser && !linkedGuestIds.includes(guestId);
-    const displayName = cleanPublicName(guest?.display_name || guest?.username || user?.display_name || user?.username || user?.full_name, guestId);
-    const username = await resolveUniqueUsername(base44, guest?.username || user?.username || displayName, email, guestId);
+    const username = await resolveUniqueUsername(base44, guest?.username || user?.username || guestId, email, guestId);
+    const displayName = username;
     const userProfileUpdatedAt = user?.profile_settings_updated_at || user?.updated_at || user?.updated_date || user?.created_date;
     const guestProfileUpdatedAt = guest?.profile_settings_updated_at || guest?.profile_setup_completed_at || guest?.updated_at || guest?.created_at || guest?.created_date;
     const mergedAge = normalizeAge(preferGuestProfileValue(user?.age, guest?.age, userProfileUpdatedAt, guestProfileUpdatedAt));

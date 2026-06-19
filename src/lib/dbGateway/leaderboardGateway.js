@@ -14,7 +14,9 @@ export const leaderboardGatewayContract = Object.freeze({
   currentProjectionEntity: 'SoloLeaderboardEntry',
   futureAlias: 'LeaderboardProjection',
   publicEmailExposure: false,
+  publicInternalOwnerKeyExposure: false,
   noRawEmail: true,
+  sanitizedPublicResponse: 'username + leaderboard_id via getSoloLeaderboard',
   sortDisplayField: 'total_kronox_score',
   refreshJob: 'refreshLeaderboardProjection',
 });

@@ -224,11 +224,19 @@ P3 adds question analytics without changing question selection:
   `projectionCappedBeforeCategoryCoverage: false`, all active Category IDs in
   `activeCategoryIdsFromGetQuestions`, and explicit zero-playable reasons when
   an active category has no playable questions.
-- Codex343 proof marker: `/getQuestions` now returns backend-only
+- Codex417 proof marker: `/getQuestions` now returns backend-only
   `getQuestionsRuntimeMarker` / diagnostics `runtimeMarker`
-  `getQuestions-live-per-category-v7-Codex343`. If this marker is absent
+  `getQuestions-live-per-category-v8-Codex417`. If this marker is absent
   from Solo debug JSON after deployment, the frontend is invoking stale or
   different deployed function code.
+- Codex417 fetch bound: authenticated gameplay candidate reads use
+  `QUESTION_FETCH_PER_CATEGORY_LIMIT =
+  MAX_AUTH_GAMEPLAY_RESPONSE_LIMIT * AUTH_GAMEPLAY_CANDIDATE_FETCH_MULTIPLIER`
+  (`96 * 3 = 288`) per active category/query variant before the bounded
+  attempt response is selected. This keeps enough buffer for anchors, 10
+  evaluated moves, Kart Değiştir/Kronokalkan replacement pressure, soft
+  category weighting, and exposure-aware rotation without reading thousands of
+  rows per category.
 - Codex330 fix: the global 30% difficulty-1 candidate diagnostics/scorer use
   the full eligible Solo pool, not only the non-selected category subset.
   The separate selected-vs-non-selected 70/30 pressure remains soft and

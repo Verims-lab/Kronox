@@ -603,11 +603,13 @@ User summary:
 
 Public identity:
 
-* username-first safe name
+* username-only safe public name
+* opaque `leaderboard_id` in public responses
 * no email
 * no provider ID
 * no raw guest ID
 * no `owner_key`
+* no public `display_name` field
 
 Daily Quest and Daily Wheel do not affect leaderboard.
 
@@ -632,6 +634,24 @@ Public by explicit design:
 
 * `createGuestProfile`
 * `getCategoryMetadata`
+
+Repo-proven Base44 function manifest format:
+
+* `function.jsonc` files currently declare only `name` and `entry`
+* no supported repo example exists for `requireAuth`, `authRequired`,
+  `allowUnauthenticated`, `public`, `auth`, or `permissions`
+* auth is enforced in `entry.ts`: public-by-design functions are narrow,
+  user-owned functions call `base44.auth.me()`, and admin-only functions use
+  inline `AdminUser` guards
+* configured `function.jsonc` manifests are the platform-published source in
+  this repo; extra `entry.ts` directories are compile-checked but need matching
+  manifest/deploy proof before being classified as published callables
+
+Admin route UX guard:
+
+* `/admin` waits for AuthContext and AdminUser status before mounting AdminPage
+* non-admin/anonymous users are redirected without an admin-tool flash
+* this is not security proof; server-side AdminUser guards remain mandatory
 
 `createGuestProfile` public boundary:
 
@@ -776,7 +796,8 @@ Manual proof required:
 Legacy/stale contracts that must stay removed or explicitly marked legacy:
 
 * `HATA` as visible Solo scoring source
-* `display_name` / `Görünen Ad` as current public profile field
+* `display_name` / `Görünen Ad` as current public profile field or public
+  leaderboard response field
 * old standalone tutorial
 * login-first onboarding
 * Home login buttons

@@ -604,7 +604,7 @@ async function publishGuestLeaderboardEntry(base44: any, row: any, soloProgress:
   const ownerKey = fnvOwnerKey('g', guestId);
   if (!ownerKey) return null;
   const summary = summarizeSoloProgress(soloProgress);
-  const displayName = cleanPublicName(row?.display_name || row?.username, guestId);
+  const displayName = cleanPublicName(row?.username || row?.display_name, guestId);
   const payload = {
     owner_key: ownerKey,
     display_name: displayName,

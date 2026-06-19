@@ -1,10 +1,8 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { Suspense, useCallback, useRef, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { ChevronRight, FileDown, FlaskConical, Loader2, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
-import SimulationPanel from '@/components/game/SimulationPanel';
-import SimulationPanelErrorBoundary from '@/components/game/SimulationPanelErrorBoundary';
 import ResetUserProgressTool from '@/components/admin/ResetUserProgressTool';
 import QuestionAnalyticsReportTool from '@/components/admin/QuestionAnalyticsReportTool';
 import DailyQuestDefinitionManager from '@/components/admin/DailyQuestDefinitionManager';
@@ -13,6 +11,13 @@ import PullToRefresh from '@/components/mobile/PullToRefresh';
 import { AdminRefreshContext } from '@/lib/AdminRefreshContext';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 import { useAuth } from '@/lib/AuthContext';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
+
+const SimulationPanel = lazyWithRetry(() => import('@/components/game/SimulationPanel'), 'SimulationPanel');
+const SimulationPanelErrorBoundary = lazyWithRetry(
+  () => import('@/components/game/SimulationPanelErrorBoundary'),
+  'SimulationPanelErrorBoundary',
+);
 
 export default function AdminPage() {
   const { user, isLoadingAuth, adminStatus } = useAuth();
@@ -167,11 +172,21 @@ export default function AdminPage() {
 
       <AnimatePresence>
         {showSim && (
-          <SimulationPanelErrorBoundary onClose={() => setShowSim(false)}>
-            <SimulationPanel onClose={() => setShowSim(false)} />
-          </SimulationPanelErrorBoundary>
+          <Suspense fallback={<AdminToolLoading />}>
+            <SimulationPanelErrorBoundary onClose={() => setShowSim(false)}>
+              <SimulationPanel onClose={() => setShowSim(false)} />
+            </SimulationPanelErrorBoundary>
+          </Suspense>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+function AdminToolLoading() {
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-background/80">
+      <Loader2 className="h-6 w-6 animate-spin text-primary" />
     </div>
   );
 }

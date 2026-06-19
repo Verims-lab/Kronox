@@ -52,7 +52,6 @@ import {
   getSoloCardsRequiredForLevel,
   isSoloSpecialLevel,
   SOLO_MAX_EVALUATED_MOVES,
-  SOLO_SCORE_MAX_MISTAKES,
 } from './soloProgressHelpers';
 import { SOLO_QUESTION_POLICY } from './categoryPolicy';
 
@@ -1081,7 +1080,7 @@ export function getSoloDeckDiagnostics(resultOrDeck, options = {}) {
     deckSize: deck.length || Number(meta.deckSize) || getSoloAttemptDeckSizeForLevel(levelNumber),
     correctTarget: getSoloCardsRequiredForLevel(levelNumber),
     maxMoveLimit: SOLO_MAX_EVALUATED_MOVES,
-    maxMistakeFailThreshold: SOLO_SCORE_MAX_MISTAKES,
+    maxMistakeFailThreshold: SOLO_MAX_EVALUATED_MOVES,
     questionIds: deck.map((q) => q?.id).filter((id) => id !== undefined && id !== null),
     answerYears: years,
     firstFiveYears,

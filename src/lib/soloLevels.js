@@ -70,7 +70,6 @@ export const SOLO_SPECIAL_CARDS_PER_LEVEL = SOLO_SPECIAL_CARD_TARGET;
 export const SOLO_INITIAL_TIMELINE_CARDS = SOLO_INITIAL_TIMELINE_CARDS_FROM_RULES;
 export const SOLO_LEVEL_TIME_SECONDS = 180;
 export const SOLO_MAX_MOVES = SOLO_MAX_EVALUATED_MOVES;
-export const SOLO_MAX_MISTAKES = SOLO_MAX_MOVES; // legacy alias; visible Solo limit is remaining moves
 
 export function getSoloTimelineWinCardCountForLevel(levelNumber) {
   // The timeline itself is the Solo source of truth: seed cards and
@@ -537,7 +536,7 @@ export function buildSoloGameConfigForLevel(level) {
       soloRulesVersion: SOLO_RULES_VERSION,
       totalTimeSeconds: SOLO_LEVEL_TIME_SECONDS,
       maxMoves: SOLO_MAX_MOVES,
-      maxMistakes: SOLO_MAX_MISTAKES,
+      maxMistakes: SOLO_MAX_MOVES,
     },
   };
 }

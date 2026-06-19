@@ -38,6 +38,14 @@ import generateWorkflowDocSource from '../../../base44/functions/generateWorkflo
 import getAdminStatusSource from '../../../base44/functions/getAdminStatus/entry.ts?raw';
 import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
 import getQuestionsManifestSource from '../../../base44/functions/getQuestions/function.jsonc?raw';
+import createGuestProfileSource from '../../../base44/functions/createGuestProfile/entry.ts?raw';
+import createGuestProfileManifestSource from '../../../base44/functions/createGuestProfile/function.jsonc?raw';
+import getCategoryMetadataSource from '../../../base44/functions/getCategoryMetadata/entry.ts?raw';
+import getCategoryMetadataManifestSource from '../../../base44/functions/getCategoryMetadata/function.jsonc?raw';
+import linkGuestAccountSource from '../../../base44/functions/linkGuestAccount/entry.ts?raw';
+import linkGuestAccountManifestSource from '../../../base44/functions/linkGuestAccount/function.jsonc?raw';
+import updateProfileSettingsSource from '../../../base44/functions/updateProfileSettings/entry.ts?raw';
+import updateProfileSettingsManifestSource from '../../../base44/functions/updateProfileSettings/function.jsonc?raw';
 import refreshLeaderboardProjectionSource from '../../../base44/functions/refreshLeaderboardProjection/entry.ts?raw';
 import resetTestAccountProgressSource from '../../../base44/functions/resetTestAccountProgress/entry.ts?raw';
 import runTestSuiteSource from '../../../base44/functions/runTestSuite/entry.ts?raw';
@@ -249,6 +257,83 @@ export const EXTRA_TESTS = [
       });
     }),
 
+  makeCase('base44_function_auth_model_is_guard_based',
+    'Base44 function auth model is guard-based, not unsupported manifest fields',
+    () => {
+      const manifestCombined = [
+        createGuestProfileManifestSource,
+        getCategoryMetadataManifestSource,
+        getQuestionsManifestSource,
+        linkGuestAccountManifestSource,
+        updateProfileSettingsManifestSource,
+        purchaseJokerWithDiamondsManifestSource,
+        createDailyQuestDefinitionManifestSource,
+        getDailyQuestStatusManifestSource,
+        recordDailyQuestProgressManifestSource,
+        claimDailyQuestRewardManifestSource,
+      ].map(text).join('\n');
+      const sourceCombined = [
+        createGuestProfileSource,
+        getCategoryMetadataSource,
+        getQuestionsSource,
+        linkGuestAccountSource,
+        updateProfileSettingsSource,
+        purchaseJokerWithDiamondsSource,
+        createDailyQuestDefinitionSource,
+        deployedReportSource,
+      ].map(text).join('\n');
+      const manifestMissing = missingTokens(manifestCombined, [
+        '"name": "createGuestProfile"',
+        '"name": "getCategoryMetadata"',
+        '"name": "getQuestions"',
+        '"name": "linkGuestAccount"',
+        '"name": "updateProfileSettings"',
+        '"entry": "entry.ts"',
+      ]);
+      const unsupportedManifestFields = forbiddenTokens(manifestCombined, [
+        'requireAuth',
+        'authRequired',
+        'allowUnauthenticated',
+        '"public"',
+        '"auth"',
+        '"permissions"',
+      ]);
+      const guardMissing = missingTokens(sourceCombined, [
+        'Public by design: first-open guest onboarding',
+        'Public by design: guest onboarding category selection',
+        'guestCallableWithoutLogin: true',
+        'base44.auth.me()',
+        'guest_id',
+        'guest_token',
+        'function requireAdmin(base44)',
+        'entities?.AdminUser',
+        'requestBodyTrustedForIdentity: false',
+        'if (needsAdmin && !isAdmin)',
+      ]);
+      if (manifestMissing.length || unsupportedManifestFields.length || guardMissing.length) {
+        return fail('Base44 function auth/public model is stale or assumes unsupported manifest auth fields.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          files: [
+            'base44/functions/*/function.jsonc',
+            'base44/functions/createGuestProfile/entry.ts',
+            'base44/functions/getCategoryMetadata/entry.ts',
+            'base44/functions/getQuestions/entry.ts',
+            'base44/functions/linkGuestAccount/entry.ts',
+            'base44/functions/updateProfileSettings/entry.ts',
+            'base44/functions/sendQuestionAnalyticsReportEmail/entry.ts',
+          ],
+          expected: 'function.jsonc uses supported name/entry only; public-by-design functions are narrow; user/admin functions enforce auth in entry.ts guards',
+          actual: { manifestMissing, unsupportedManifestFields, guardMissing },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Base44 function manifests stay name/entry-only while public, user-owned, and admin-only boundaries are enforced by entry.ts guards.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    }),
+
   makeCase('deployed_report_has_no_broken_local_import',
     'Deployed analytics report function has no broken local _shared import',
     () => {
@@ -431,7 +516,7 @@ export const EXTRA_TESTS = [
         "base44.functions.invoke('getQuestions'",
         'GET_QUESTIONS_RUNTIME_CONTRACT_VERSION',
         'GET_QUESTIONS_RUNTIME_MARKER',
-        'getQuestions-live-per-category-v7-Codex343',
+        'getQuestions-live-per-category-v8-Codex417',
         'getQuestionsRuntimeMarker',
         'requestPayload',
         'responsePayload',
@@ -440,6 +525,7 @@ export const EXTRA_TESTS = [
         'includeDiagnostics',
         "GAMEPLAY_PROJECTION_VERSION = 'per_category_projection_v2'",
         'MAX_AUTH_GAMEPLAY_RESPONSE_LIMIT = 96',
+        'AUTH_GAMEPLAY_CANDIDATE_FETCH_MULTIPLIER = 3',
         'SERVER_ATTEMPT_SELECTION_MODE',
         'server_attempt_candidate_buffer_v1',
         'sourcePoolCapRemoved',

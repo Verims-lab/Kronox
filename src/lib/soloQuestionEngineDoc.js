@@ -130,8 +130,11 @@ forbidden even when Category read fails, sourcePoolCapRemoved/responseCapApplied
 runtime contract, and Question category fields are not capped to the original
 1-6 seed set.
 getQuestionsRuntimeMarker / diagnostics runtimeMarker
-getQuestions-live-per-category-v7-Codex343 must appear in Solo debug
+getQuestions-live-per-category-v8-Codex417 must appear in Solo debug
 JSON after deployment; if absent, the deployed callable is stale or different.
+Authenticated candidate fetches are bounded to 96 * 3 = 288 rows per active
+category/query variant before projection; 5000-row per-category reads are not
+part of the current contract.
 
 P2 diagnostics are Health/admin/helper-only. Deck diagnostics include level
 number, level type, deck size, correct target, fail threshold, question IDs,

@@ -346,7 +346,9 @@ export const EXTRA_TESTS = [
         'server_attempt_candidate_buffer_v1',
         "GAMEPLAY_PROJECTION_VERSION = 'per_category_projection_v2'",
         'isGameplayRuntimeProjectionRequest',
-        'QUESTION_FETCH_PER_CATEGORY_LIMIT = 5000',
+        'AUTH_GAMEPLAY_CANDIDATE_FETCH_MULTIPLIER = 3',
+        'QUESTION_FETCH_PER_CATEGORY_LIMIT = MAX_AUTH_GAMEPLAY_RESPONSE_LIMIT * AUTH_GAMEPLAY_CANDIDATE_FETCH_MULTIPLIER',
+        'queryLimitRationale',
         'sourcePoolCapRemoved',
         'responseCapApplied',
         'buildServerAttemptCandidateBuffer',
@@ -375,6 +377,7 @@ export const EXTRA_TESTS = [
       const forbidden = presentTokens(getQuestionsSource, [
         'MAX_GAMEPLAY_LIMIT = 1200',
         'MAX_GAMEPLAY_LIMIT = 500',
+        'QUESTION_FETCH_PER_CATEGORY_LIMIT = 5000',
         'QUESTION_FETCH_PER_CATEGORY_LIMIT = 250',
         '.filter(Boolean)\n      .slice(0, limit)',
       ]);
@@ -548,6 +551,48 @@ export const EXTRA_TESTS = [
       }
       return pass('Gameplay uses getQuestions only: authenticated projection for signed-in users, capped guest projection for first-time Solo, and direct Question read remains admin-only.', {
         verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('get_questions_production_hygiene',
+    'getQuestions has no auth/header logging, raw bank fallback, or public diagnostics path',
+    () => {
+      const required = missingTokens(getQuestionsSource, [
+        'wantsDiagnostics',
+        'needsAdmin',
+        'if (needsAdmin && !isAdmin)',
+        'isForbiddenGuestQuestionRequest',
+        'rawQuestionListFallbackAllowed: false',
+        'sourcePoolCapRemoved',
+        'responseCapApplied',
+        'MAX_AUTH_GAMEPLAY_RESPONSE_LIMIT = 96',
+        'GUEST_QUESTION_FETCH_PER_CATEGORY_LIMIT = 40',
+        'projectionDiagnostics',
+      ]);
+      const forbidden = presentTokens(getQuestionsSource, [
+        'console.log(',
+        'console.warn(',
+        'console.error(',
+        'Authorization',
+        'Bearer',
+        'req.headers',
+        'headers:',
+        'base44.entities.Question.list',
+        'Question.list(',
+      ]);
+      if (required.length || forbidden.length) {
+        return fail('getQuestions can leak production diagnostics/logs or regress to public/raw question-bank access.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          file: 'base44/functions/getQuestions/entry.ts',
+          expected: 'no console/header/token logging, diagnostics require admin, guest diagnostics/fullBank forbidden, no direct Question.list fallback',
+          actual: { required, forbidden },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('getQuestions keeps production logs quiet, gates diagnostics behind AdminUser, and avoids raw Question.list/full-bank public exposure.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
       });
     }),
 

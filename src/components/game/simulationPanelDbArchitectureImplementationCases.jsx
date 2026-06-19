@@ -192,7 +192,7 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('leaderboard_projection_strategy_exists',
-    'Leaderboard projection uses current public-safe unified score row',
+    'Leaderboard projection uses internal unified score row plus sanitized public response',
     () => {
       const combined = `${leaderboardGatewaySource}\n${DB_ARCHITECTURE_IMPLEMENTATION_MIRROR}`;
       const missing = missingTokens(combined, [
@@ -200,17 +200,17 @@ export const EXTRA_TESTS = [
         'total_kronox_score',
         'unified Kronox Puan',
         'noRawEmail',
-        'public rows must not expose raw email',
+        'getSoloLeaderboard returns sanitized username plus opaque leaderboard_id',
       ]);
       if (missing.length) {
-        return fail('Leaderboard projection strategy is missing public-safe unified score tokens.', {
+        return fail('Leaderboard projection strategy is missing sanitized unified score tokens.', {
           verification: 'STATIC_CONTRACT',
           file: 'src/lib/dbGateway/leaderboardGateway.js + docs mirror',
           missing,
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Leaderboard projection strategy is explicit and public-safe.', {
+      return pass('Leaderboard projection strategy is explicit: internal projection row, sanitized public function response.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

@@ -36,10 +36,10 @@ Canonical workflow docs:
   from current source.
 * Stale contracts such as Home login CTAs,
   standalone tutorial onboarding, hardcoded category fallbacks, visible `HATA`
-  scoring, public `display_name` identity, raw `Question.list` gameplay
-  fallback, Daily Quest Puan rewards, Daily Quest leaderboard impact, Online
-  Solo-preference selection, and old fixed 10-card Solo decks must be removed or
-  explicitly marked legacy before release.
+  scoring, public `display_name` identity/leaderboard payloads, raw
+  `Question.list` gameplay fallback, Daily Quest Puan rewards, Daily Quest
+  leaderboard impact, Online Solo-preference selection, and old fixed 10-card
+  Solo decks must be removed or explicitly marked legacy before release.
 
 Checklist:
 
@@ -225,8 +225,8 @@ Checklist:
   still absent, verify whether active Category rows are missing/passive or the
   deployed `getQuestions` function manifest/source is stale before treating it
   as a deck-builder bug.
-* Codex343 live callable proof marker is
-  `getQuestions-live-per-category-v7-Codex343`. If Solo debug shows the v7
+* Codex417 live callable proof marker is
+  `getQuestions-live-per-category-v8-Codex417`. If Solo debug shows the v8
   frontend cache/build but this backend marker is still null, redeploy or
   repair the Base44 `getQuestions` callable for app `69e753d5ab4c08a7c4287c25`
   before changing the Solo deck builder.
@@ -845,9 +845,22 @@ Checklist:
 * `Admin Ekranı` contains admin-only maintenance/report tools; Settings remains
   account/help/preferences focused.
 * Direct `/admin` access by normal users is blocked or redirected safely.
+* `/admin` route-level UX guard waits for AuthContext/AdminUser status before
+  mounting AdminPage; normal users must not see an admin UI flash. Server-side
+  AdminUser guards remain the real security boundary.
 * Admin source-of-truth is the DB-backed `AdminUser` entity. Base44 functions
   inline the AdminUser role/status guard locally because per-function deploy
   bundles do not reliably include `_shared` helper modules.
+* Base44 `function.jsonc` files are verified to use only the repo-supported
+  `name` + `entry` shape. Do not add unproven `requireAuth`, `authRequired`,
+  `allowUnauthenticated`, `public`, `auth`, or `permissions` fields.
+* Function auth/public scope review is completed: `createGuestProfile` and
+  `getCategoryMetadata` are public-by-design and narrow; guest-token paths
+  require `guest_id + raw guest token`; registered-user paths call
+  `base44.auth.me()`; admin/reporting/maintenance paths use `AdminUser`.
+* Configured function matrix is reviewed against the current `function.jsonc`
+  set. Additional `entry.ts` helper directories are compile-checked but are not
+  claimed as platform-published without a matching manifest/deploy proof.
 * Health statically fails Base44 functions that contain `_shared/adminAuth`,
   `../_shared`, or `file:///__shared` deploy-risk imports. Manual Base44 Test
   Function/deploy proof is still required for live runtime markers.
@@ -856,6 +869,10 @@ Checklist:
   duplicate declaration errors such as redeclared `payload`, blocks deploy-risk
   `_shared` imports, scans for committed email literals, and verifies the
   `getQuestions` runtime marker/projection diagnostics contract.
+* Dependency cleanup proof: removed unused direct Stripe, Three, React Leaflet,
+  React Quill, Moment, jsPDF, html2canvas, and Lodash packages; retained
+  `recharts` and `embla-carousel-react` because UI primitives still import
+  them. Build/lint must pass with the updated lockfile.
 * Frontend admin UI visibility is based on the backend current-user
   `getAdminStatus` route. `getQuestions` must never be used as the admin-status
   source; `AdminUser` rows are not read/listed directly by the client.
@@ -1216,7 +1233,11 @@ login:
   under Profile; Home / Ana Sayfa and onboarding completion do not show provider
   buttons or secure-progress account-link cards
 * leaderboard/profile public identity does not show email, Google ID, Apple ID,
-  provider UID, or internal `owner_key`
+  provider UID, raw guest id, internal `owner_key`, internal `player_key`, or
+  public `display_name`
+* `getSoloLeaderboard` response rows return sanitized `username` plus opaque
+  `leaderboard_id`; copied JSON does not include email, provider ids,
+  `owner_key`, `player_key`, raw guest id, or `display_name`
 * Profile > Ayarlar lets guest and authenticated users edit username plus
   optional age/gender without forcing login for guests
 * onboarding profile setup uses only `username` plus optional age/gender and
@@ -1236,8 +1257,8 @@ and actual stored-row shape remain manual runtime proof.
 Before release, manually verify guest-to-account linking:
 
 * guest can finish onboarding and remain in guest mode without forced login
-* guest leaderboard row displays username, with `display_name` only as a legacy
-  mirrored fallback, not email, provider id, or internal `owner_key`
+* guest leaderboard row displays username; `display_name` remains only a
+  legacy/internal projection mirror and is not returned as public identity
 * Profile shows the "Misafir olarak oynuyorsun" secure-progress card
 * Profile shows Apple / Google / Email secure-progress options together, and
   Home/onboarding completion show no provider buttons or account-link card

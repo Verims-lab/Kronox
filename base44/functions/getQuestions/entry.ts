@@ -29,12 +29,13 @@ const MAX_AUTH_GAMEPLAY_RESPONSE_LIMIT = 96;
 const DEFAULT_AUTH_GAMEPLAY_RESPONSE_LIMIT = 80;
 const MAX_GUEST_GAMEPLAY_LIMIT = 48;
 const DEFAULT_GUEST_GAMEPLAY_LIMIT = 32;
-const QUESTION_FETCH_PER_CATEGORY_LIMIT = 5000;
+const AUTH_GAMEPLAY_CANDIDATE_FETCH_MULTIPLIER = 3;
+const QUESTION_FETCH_PER_CATEGORY_LIMIT = MAX_AUTH_GAMEPLAY_RESPONSE_LIMIT * AUTH_GAMEPLAY_CANDIDATE_FETCH_MULTIPLIER;
 const GUEST_QUESTION_FETCH_PER_CATEGORY_LIMIT = 40;
 const GAMEPLAY_PROJECTION_VERSION = 'per_category_projection_v2';
 const GUEST_GAMEPLAY_MODE = 'guest_gameplay_runtime';
 const SERVER_ATTEMPT_SELECTION_MODE = 'server_attempt_candidate_buffer_v1';
-const GET_QUESTIONS_RUNTIME_MARKER = 'getQuestions-live-per-category-v7-Codex343';
+const GET_QUESTIONS_RUNTIME_MARKER = 'getQuestions-live-per-category-v8-Codex417';
 const GET_QUESTIONS_RUNTIME_CONTRACT_VERSION = GET_QUESTIONS_RUNTIME_MARKER;
 const PROJECTION_SAMPLING_STRATEGY = 'pool_proportional_category_subcategory_per_category_fetch_v2';
 const DIAGNOSTIC_TOP_LIMIT = 12;
@@ -47,8 +48,6 @@ const GUEST_FALLBACK_DIFFICULTIES = new Set([1, 2]);
 const SELECTED_CATEGORY_LANE_DIFFICULTY_RULE = 'selected_category_difficulty_1_2';
 const GLOBAL_FALLBACK_LANE_DIFFICULTY_RULE = 'global_fallback_difficulty_1_only';
 const GUEST_DIFFICULTY_RULE = 'guest_primary_difficulty_1_only';
-
-console.log('[getQuestions] MODULE LOADED');
 
 function json(body: unknown, status = 200) {
   return Response.json(body, { status });
@@ -1103,6 +1102,7 @@ function buildProjectionDiagnostics({
     wasCappedBeforeBalancing: false,
     projectionCappedBeforeCategoryCoverage: false,
     queryLimitUsed: QUESTION_FETCH_PER_CATEGORY_LIMIT,
+    queryLimitRationale: 'MAX_AUTH_GAMEPLAY_RESPONSE_LIMIT * AUTH_GAMEPLAY_CANDIDATE_FETCH_MULTIPLIER',
     queryOrderUsed: '-created_date per active category/query variant before pool-proportional projection',
     fallbackUsed,
     fallbackReason,
@@ -1476,8 +1476,7 @@ Deno.serve(async (req) =>
       });
     }
     return json(responsePayload);
-  } catch (error) {
-    console.error('[getQuestions] failed:', (error as Error)?.message || error);
+  } catch {
     return json({ ok: false, error: 'Sorular yuklenemedi.' }, 500);
   }
 });

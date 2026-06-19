@@ -403,13 +403,13 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('leaderboard_uses_username_not_provider_identity_after_link',
-    'Leaderboard identity is username/display_name first and never provider/email id',
+    'Leaderboard identity is username-only and never provider/email/internal id',
     () => {
       const missing = missingTokens(`${leaderboardSource}\n${linkGuestAccountSource}\n${createGuestProfileSource}`, [
         'getSafeLeaderboardName',
-        'display_name',
+        'isSafePublicUsername',
         'username',
-        '!explicitName.includes',
+        'const displayName = username',
         'providerIdsDisplayedInLeaderboard: false',
         'usernameFirstLeaderboardIdentity: true',
         'publishGuestLeaderboardEntry',
@@ -423,7 +423,7 @@ export const EXTRA_TESTS = [
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Guest and linked leaderboard rows use username/display_name and keep owner_key/provider ids internal.', {
+      return pass('Guest and linked leaderboard rows use username-only public identity and keep owner_key/provider ids internal.', {
         verification: 'STATIC_CONTRACT',
         actionType: ACTION_TYPES.CODE_FIX,
       });

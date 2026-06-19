@@ -18,7 +18,7 @@ Highest priority findings:
 | Priority | Finding | Risk | Safe direction |
 | --- | --- | --- | --- |
 | P0 | Question reads are safer now, but still rely on per-category batches and broad in-memory filtering. | Medium | Keep `getQuestions` as the protected gateway; add indexed active question queries or paging. |
-| P1 | Leaderboard now reads `SoloLeaderboardEntry` projection first and returns a compact top/current/friend snapshot. If projection rows are stale/incomplete, `getSoloLeaderboard` uses a bounded server-side `User.kronox_puan_total` repair window and does not return broad User rows to the client; exact rank outside the repaired window and platform index proof still need scale work. | Medium | Keep `SoloLeaderboardEntry` as the canonical public-safe projection; keep bounded server repair/backfill until platform score/owner indexes and a rank-safe per-level/current-rank projection exist. |
+| P1 | Leaderboard now reads internal `SoloLeaderboardEntry` projection rows first and returns a sanitized compact top/current/friend snapshot through `getSoloLeaderboard`. If projection rows are stale/incomplete, `getSoloLeaderboard` uses a bounded server-side `User.kronox_puan_total` repair window and does not return broad User rows or internal identity keys to the client; exact rank outside the repaired window and platform index proof still need scale work. | Medium | Keep `SoloLeaderboardEntry` as the internal projection source and `getSoloLeaderboard` as the public sanitizer; keep bounded server repair/backfill until platform score/owner indexes and a rank-safe per-level/current-rank projection exist. |
 | P0 | Analytics are missing. Kronox cannot reliably answer question shown/correct/wrong/easy/hard/category popularity questions. | High | Add append-only events plus projection tables. |
 | P1 | Idempotency relies on logical keys checked in code, but repo schemas do not declare unique constraints. DiamondTransaction and DailyWheelSpin now have function-level pre-check/post-confirm guards, but not atomic DB upserts. | Medium/P1 for guarded flows; High where no guard exists | Configure unique keys where Base44 supports them; otherwise keep backend reserve-first/reconcile flows plus manual parallel proof. |
 | P1 | Cleanup exists as client-safe helpers, not production recurring jobs. | Medium | Move cleanup to idempotent backend jobs with status transition first, hard delete only after retention approval. |
@@ -64,10 +64,12 @@ Implemented now:
   - `LobbyMatchStats`
 - `QuestionPublicProjection` as an opt-in public-safe SEO/GEO projection.
   Raw `Question` remains protected and is not a public content source.
-- `SoloLeaderboardEntry` is promoted as the current canonical public-safe
-  leaderboard projection. Despite the historical name,
-  `total_kronox_score` is unified Kronox Puan and public rows must not expose
-  raw email.
+- `SoloLeaderboardEntry` is the current internal leaderboard projection source.
+  Despite the historical name, `total_kronox_score` is unified Kronox Puan.
+  Public consumption goes through `getSoloLeaderboard`, which returns
+  `username`, opaque `leaderboard_id`, score/rank fields, and friend/current
+  markers while stripping raw email, provider ids, `owner_key`, `player_key`,
+  raw guest id, and public `display_name`.
 - Admin-gated, dry-run capable maintenance functions:
   - `expireOldGameInvites`
   - `cancelStaleLobbies`
@@ -193,7 +195,7 @@ Current entities audited:
 | `Question` | Protected gameplay question bank. | Public-safe bounded `getQuestions` gameplay attempt buffer, `startLobbyGame`, test/sim functions, admin paths. | Yes for question content, but runtime projection derives `year` from `answer`. | Service-role backend functions; direct entity read admin-only by RLS; Game first tries online `getQuestions` before cache fallback. | Must remain protected. Guests/normal users can receive only the minimal bounded gameplay response, not the full bank or admin metadata. Empty local cache is not offline; false offline/no-cache is reserved for known offline plus failed fetch plus no usable cache. | `state`; `main_category_id`; `state + main_category_id`; `difficulty`; future `answer_year`; `state + main_category_id + answer_year`. | No hard delete by default. Use `state = P`; archive old invalid rows only after export. Cache version must be bumped/invalidated on question-set replacement. | Keep but refactor. | N/A. |
 | `AdminUser` | DB-backed admin authorization source-of-truth. | Inline Base44 admin guards, Profile `Admin Ekranı` admin status check, admin-only functions, Health/test-suite gating. | Yes for admin authorization. Active rows with role `owner`/`admin` pass; disabled rows fail. | `functions/getAdminStatus.js`, `base44/functions/getAdminStatus/entry.ts`, `base44/functions/getAdminStatus/function.jsonc`, admin-only backend functions with local inline AdminUser guards. | Must remain private/admin-only. Normal users cannot list global admins. No env email allowlist for authorization. `getQuestions` must not be used as an admin status source. Base44 function deploys must not depend on `_shared/adminAuth.ts` bundling. | Unique `email`; `status`; `role + status`; `updated_at`. | Disable rows to remove access. Account deletion should disable/anonymize the row only through explicit owner/admin action. | Keep. | Prove unauthenticated 401, non-admin 403, active admin allowed, disabled admin blocked, and current Base44 functions version resolves `getAdminStatus`. |
 | `User` | Auth profile plus progress/economy/projections. | Auth bootstrap, Solo progress, Online score, Diamonds, tutorial, reset marker, leaderboard service projection, guest account-link target. | Yes for account, Solo progress, Online progress, Diamonds, `kronox_puan_total`, public `username` after linking; `display_name` is a mirrored legacy/projection field. | `base44.auth.me/updateMe`, `linkGuestAccount`, admin reset, delete account, leaderboard service role. | Private user row must not leak. Admin writes must stay server-side. JSON fields make partial race handling hard. `linked_guest_ids` is a duplicate-protection guard for additive guest economy merge. | Unique auth id/email platform-managed; `username`; `kronox_puan_total desc`; maybe `progress_reset_at`. | Account deletion deletes/anonymizes; no general retention job. | Keep but reduce overload with projections/events. | N/A. |
-| `SoloLeaderboardEntry` | Public-safe leaderboard row. | Client publish after Solo/Online changes; fallback leaderboard read. | Projection, not primary score source. | `src/lib/leaderboard.js`, admin reset, optional fallback when service function missing. | Public read is OK only because no raw email. Update is admin-only by schema, but client create/update attempts rely on RLS/platform behavior. | Unique `owner_key`; `total_kronox_score desc`; tie-breakers `current_level`, `total_stars`, `updated_at`. | Keep rows; zero/anonymize on reset/delete. | Keep but refactor into canonical `LeaderboardProjection` or rename purpose. | Prove all leaderboard reads use new projection before replacing. |
+| `SoloLeaderboardEntry` | Internal leaderboard projection row. | Server-side `getSoloLeaderboard`, repair/backfill, admin reset. | Projection, not primary score source. | `base44/functions/getSoloLeaderboard/entry.ts`, `src/lib/leaderboard.js`, admin reset. | Direct entity read is admin-only because rows store internal `owner_key` and legacy mirrored `display_name`. Public leaderboard/API responses must come from `getSoloLeaderboard` and return sanitized `username` + opaque `leaderboard_id`, never email/provider ids/raw guest id/`owner_key`/`player_key`/`display_name`. Update/create remains backend/admin/service-role. | Unique `owner_key`; `total_kronox_score desc`; tie-breakers `current_level`, `total_stars`, `updated_at`. | Keep rows; zero/anonymize on reset/delete. | Keep but refactor into canonical `LeaderboardProjection` or rename purpose. | Prove all leaderboard reads use sanitized function response before replacing. |
 | `GuestProfile` | App-owned portable guest identity and pre-link snapshot. | First-open guest identity, guided onboarding state, guest Solo progress sync, guest leaderboard projection, account-link source. | Source for guest identity only; guest progress fields are merge inputs until linked. | Public-by-design `createGuestProfile`, token-proven `sync_progress`, `linkGuestAccount`, onboarding/Profile/Login UI. | Raw guest token is client-only; DB stores hash. Public creation rejects trusted request fields and uses throttle monitoring. Server writes require `guest_id + token` proof. Row becomes `linked` once and must not link to another account. | Unique `guest_id`; unique `username`; `status`; `linked_user_email`; `last_seen_at`; monitor `metadata.guestCreationSourceHash`. | Abandon old guest rows by policy later; never hard-delete active guest progress without retention approval. | Keep/additive. | Manual Base44 proof that raw token is absent, public creation throttles abuse, and linked row cannot be relinked. |
 | `GuestCreationThrottle` | Privacy-safe throttle and monitoring rows for public guest creation. | `createGuestProfile` increments hour/day buckets before creating new GuestProfile rows. | Operational bloat-control read model, not identity source. | `createGuestProfile` service-role only; admin review/cleanup later. | Must store only `source_hash`, bucket counters, and debug-safe metadata. No raw IP, raw headers, raw guest token, auth headers, provider credentials, profile fields, or full request bodies. Missing entity/runtime metadata should fail open for onboarding but become manual release risk. | Unique/logical `throttle_key`; `source_hash + bucket`; `granularity + bucket`; `last_seen_at`. | Trim/archive old buckets after short operational retention, e.g. 30-90 days. | Keep/additive. | Manual probe that repeated public create spam writes hashed throttle rows or receives safe 429. |
 | `AccountLinkTransaction` | Guest-to-authenticated account linking audit/idempotency row. | `linkGuestAccount` writes one row per idempotency key and stores compact merge summary. | Audit/read model; not current balance source. | `linkGuestAccount` only. | Admin-only RLS; no raw token, provider secret, auth header, or full request body. | Unique `idempotency_key`; `guest_id`; `linked_user_email`; `created_at`. | Retain for support/audit; archive later by economy/account retention policy. | Keep/additive. | Manual duplicate-link retry proof. |
@@ -498,8 +500,12 @@ Rules:
   the Category read fails; runtime must return an empty/retryable state instead
   of manufacturing old seeded category IDs.
   Missing `getQuestionsRuntimeMarker` in Solo debug JSON is a stale/different
-  deployed callable blocker; Codex343 expects backend marker
-  `getQuestions-live-per-category-v7-Codex343` from the deployed callable.
+  deployed callable blocker; Codex417 expects backend marker
+  `getQuestions-live-per-category-v8-Codex417` from the deployed callable.
+* Authenticated candidate fetches are bounded by
+  `MAX_AUTH_GAMEPLAY_RESPONSE_LIMIT * AUTH_GAMEPLAY_CANDIDATE_FETCH_MULTIPLIER`
+  (`96 * 3 = 288`) per active category/query variant. Do not restore 5000-row
+  per-category reads or a single raw full-bank gameplay fallback.
 * The active category helper accepts any positive live `category_id`; original
   seed IDs are not a category maximum.
 * Online question selection is not affected by Solo preferences. Online start
@@ -730,7 +736,7 @@ Medium/P1 hardening; neither is High.
 | `UserDailyQuestProgress` | `user_email + quest_date`, `user_email + quest_date + status` | P1 | Home status load and claim/progress queries. |
 | `DailyWheelSpin` | unique `idempotency_key`, unique `user_email + spin_date` | P0 | one spin per user per server day. |
 | `DailyWheelSpin` | `user_email + claimed_at`, `spin_date` | P1 | wheel history/status queries. |
-| `SoloLeaderboardEntry`/`LeaderboardProjection` | unique `owner_key` | P0 | Dedupe public rows. |
+| `SoloLeaderboardEntry`/`LeaderboardProjection` | unique `owner_key` | P0 | Dedupe internal projection rows before sanitized public response. |
 | `SoloLeaderboardEntry`/`LeaderboardProjection` | `total_kronox_score desc` or `kronox_puan_total desc` | P0 | top N leaderboard. |
 | `PushSubscription` | unique `user_email + endpoint` | P0 | prevent duplicate endpoints. |
 | `PushSubscription` | `user_email + status`, `status + last_seen_at` | P1 | delivery and cleanup. |
@@ -901,9 +907,10 @@ No deletion should happen in this task.
 
 ### Phase 2 - Projections
 
-- Add or formalize `LeaderboardProjection`. Codex183 uses
-  `SoloLeaderboardEntry` as the current public-safe projection and documents
-  that future rename/migration requires parity proof.
+- Add or formalize `LeaderboardProjection`. Current code uses
+  `SoloLeaderboardEntry` as the internal projection source and
+  `getSoloLeaderboard` as the sanitized public response; future
+  rename/migration requires parity proof.
 - Add backfill/reconcile function. Codex183 added
   `refreshLeaderboardProjection`.
 - Keep existing leaderboard fallback until parity proof.

@@ -200,10 +200,15 @@ export const getSoloLeaderboardSource = `
   const topRows = [...positiveDecoratedRows, ...zeroDecoratedRows].slice(0, 10);
   const currentUserRank = projected?.rank || null;
   const friendUserKeys = await loadAcceptedFriendOwnerKeys(base44, user.email);
+  const publicTopRows = toPublicLeaderboardRows(topRows);
+  const publicCurrentUserRow = toPublicLeaderboardRow(currentUserRow);
+  const publicFriendsOutsideTop = toPublicLeaderboardRows(friendsOutsideTop);
+  const publicCompactResponseRows = toPublicLeaderboardRows(compactRows([...topRows, currentUserRow, ...friendsOutsideTop]));
   const rankConfidence = currentUserRank ? 'exact' : (fallbackUsed ? 'fallback' : 'limited');
   const rankScope = currentUserRank ? 'global' : 'projection_limited';
-  // solo_leaderboard_entry_total_kronox_score_projection — persisted public read model.
-  // compact response: topRows, currentUserRow, currentUserRank, friendUserKeys, rankConfidence, rankScope.
+  // solo_leaderboard_entry_total_kronox_score_projection — internal projection source.
+  // sanitized compact response: publicTopRows, publicCurrentUserRow, publicFriendsOutsideTop, publicCompactResponseRows, currentUserRank, rankConfidence, rankScope.
+  // public rows use username + leaderboard_id and strip owner_key/display_name/email/provider ids.
   // User.list server-side repair is allowed for projection completeness; broadUserRowsReturned: false.
   // User.kronox_puan_total plus computed solo_progress can reconstruct zeroed scores.
   // Projection-above-user mismatches are kept for manual audit, not down-written.

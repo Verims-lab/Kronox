@@ -40,6 +40,21 @@ function PageLoader() {
   return <SplashScreen />;
 }
 
+function AdminRoute({ children }) {
+  const { user, isLoadingAuth, authChecked, adminStatus } = useAuth();
+  const hasAuthEmail = Boolean(user?.email);
+  const parsedAdminStatus = adminStatus?.parsedIsAdmin === true || user?.admin_status_debug?.parsedIsAdmin === true;
+  const isCheckingAdmin = isLoadingAuth
+    || !authChecked
+    || adminStatus?.loading === true
+    || adminStatus?.statusCall === 'pending'
+    || (hasAuthEmail && adminStatus?.called !== true && adminStatus?.statusCall !== 'success');
+
+  if (isCheckingAdmin) return <PageLoader />;
+  if (!parsedAdminStatus) return <Navigate to="/" replace state={{ adminDenied: true }} />;
+  return children;
+}
+
 const AuthenticatedApp = () => {
   const { isLoadingAuth, authError, isAuthenticated, user, guestProfile, checkUserAuth } = useAuth();
   const location = useLocation();
@@ -181,7 +196,7 @@ const AuthenticatedApp = () => {
                   <Route path="/setup" element={<Navigate to="/solo" replace />} />
                   <Route path="/settings" element={<SettingsPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
-                  <Route path="/admin" element={<AdminPage />} />
+                  <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
                   <Route path="/friends" element={<FriendsPage />} />
                   <Route path="/leaderboard" element={<LeaderboardPage />} />
                   <Route path="/lobby" element={<LobbyRoom />} />
@@ -210,9 +225,9 @@ const AuthenticatedApp = () => {
 
 
 function App() {
-  // Codex415 — push current build marker into diag bus once at app boot
+  // Codex417 — push current build marker into diag bus once at app boot
   useEffect(() => {
-    appDiagSetBuildMarker('Codex415');
+    appDiagSetBuildMarker('Codex417');
     // Codex176 — App booted successfully, so any prior stale-chunk reload
     // recovered. Clear the one-time reload guards so a future deploy can
     // self-heal again.

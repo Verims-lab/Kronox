@@ -158,7 +158,8 @@ projection rows.
 Legacy identity:
 
 * `display_name` may exist as a compatibility mirror/projection.
-* `display_name` / `Görünen Ad` is not a separate public editable field.
+* `display_name` / `Görünen Ad` is not a separate public editable field or a
+  public leaderboard/API response identity field.
 
 Account linking:
 
