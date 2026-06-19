@@ -795,34 +795,49 @@ export const EXTRA_TESTS = [
   makeCase('tutorial_joker_concept_does_not_spend_inventory',
     'Guided tutorial teaches correct placement and all three jokers without spending real inventory',
     () => {
-      const missing = missingTokens(`${gameSource}\n${onboardingPageSource}\n${gameLayoutSource}\n${timelineSource}\n${soloJokerBarSource}`, [
+      const tutorialSources = `${gameSource}\n${onboardingPageSource}\n${gameLayoutSource}\n${timelineSource}\n${soloJokerBarSource}`;
+      const missing = missingTokens(tutorialSources, [
         'isGuidedSoloTutorial',
-        'Jokerleri Tanı',
         'GUIDED_TUTORIAL_JOKER_SEQUENCE',
         'SOLO_UI_JOKER_TYPES.TIME_FREEZE',
         'SOLO_UI_JOKER_TYPES.CARD_SWAP',
         'SOLO_UI_JOKER_TYPES.MISTAKE_SHIELD',
+        'Zamanı Dondur jokerini kullan. Süreyi 10 saniye boyunca durdurur.',
+        'Kart Değiştir jokerini kullan. Olay kartını başka bir olay ile değiştirir',
+        'Kronokalkan jokerini kullan. Bu jokeri kullandığında bir sonraki yanlışın, hamle sayısından düşmez.',
         'guidedTutorialCorrectTargetZone',
         'data-kronox-guided-correct-target-slot',
-        'GuidedTutorialPopup',
+        'GUIDED_JOKER_TAP_HINT_MIN_MS = 3000',
+        'GUIDED_JOKER_TAP_HINT_MAX_MS = 10000',
+        'guidedTutorialJokerRequiresTapBeforePlacement',
+        "stopGuidedJokerTapHint('joker_pressed')",
+        "stopGuidedJokerTapHint('auto_stop_10s')",
         'profile_save_timeout',
         'buildGuidedTutorialJokerBalances',
         'setGuidedTutorialJokerDemoUsedByCard',
         'jokerType !== guidedTutorialExpectedJokerType',
-        'gerçek çantandan harcanmadı',
+        'startSoloTimerFreeze()',
+        'setMistakeShieldActive(true)',
+        'current_question_id: replacement.id',
         'tutorialDemoType',
         'tutorialDemoHintActive',
+        'tutorialFocusActive',
+        'data-kronox-guided-joker-single-copy',
+        'data-kronox-guided-joker-focus-backdrop',
         'data-kronox-guided-joker-finger-hint',
       ]);
-      if (missing.length) {
-        return fail('Guided first level no longer proves correct-slot hints, popup pauses, or tutorial-only joker behavior.', {
+      const forbidden = presentTokens(gameSource, [
+        "setGuidedTutorialPopup({ type: 'joker'",
+      ]);
+      if (missing.length || forbidden.length) {
+        return fail('Guided first level no longer proves correct-slot hints, direct no-popup joker demos, or tutorial-only inventory behavior.', {
           verification: 'STATIC_CONTRACT',
           files: ['src/pages/Game.jsx', 'src/components/game/GameLayout.jsx', 'src/components/game/Timeline.jsx', 'src/components/game/SoloJokerBar.jsx', 'src/pages/OnboardingPage.jsx'],
-          actual: { missing },
+          actual: { missing, forbidden },
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Guided first level points to correct slots, teaches all three jokers as tutorial-only demos, pauses popups, and avoids real UserJokerInventory spend.', {
+      return pass('Guided first level points to correct slots, teaches all three jokers as direct tutorial-only demos with no joker popup, and avoids real UserJokerInventory spend.', {
         verification: 'STATIC_CONTRACT',
         actionType: ACTION_TYPES.CODE_FIX,
       });

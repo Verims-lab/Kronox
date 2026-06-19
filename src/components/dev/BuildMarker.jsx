@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex419 — Guided tutorial joker demo flow:
+//   • Replaces the old joker info box copy with one-line joker instructions
+//     on guided cards 3/4/5 and removes the joker explanation popup path.
+//   • Adds bounded joker tap spotlight/finger guidance while keeping real
+//     inventory spend out of the guided tutorial.
+//   • Makes tutorial Time Freeze, Card Swap, and Kronokalkan perform their
+//     actual in-game effects before placement can continue.
+//
 // Codex418 — Targeted Health blocker fix for Codex417 / KRONOX-MQKO8SE1:
 //   • Aligns the leaderboard friend-marker Health check with the real
 //     getSoloLeaderboard backend/mirror contract.
@@ -2377,7 +2385,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex418';
+const BUILD_MARKER = 'Codex419';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
