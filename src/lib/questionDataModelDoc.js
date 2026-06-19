@@ -148,8 +148,11 @@ longer stored on the entity — they are derived at fetch time by
   selectionMode:server_attempt_candidate_buffer_v1, and
   projectionCappedBeforeCategoryCoverage:false.
 - Missing getQuestionsRuntimeMarker in Solo debug JSON means the deployed
-  callable is stale or the frontend invoked a different function. Codex343
-  expects backend marker getQuestions-live-per-category-v7-Codex343.
+  callable is stale or the frontend invoked a different function. Codex417
+  expects backend marker getQuestions-live-per-category-v8-Codex417.
+- Authenticated gameplay candidate reads are bounded to 96 * 3 = 288 rows per
+  active category/query variant before projection; do not restore 5000-row
+  per-category reads.
 - getQuestions admin/Health diagnostics expose the safe funnel: fetched active
   rows, normalized eligible rows, returned runtime projection,
   category/subcategory/year-band distributions, projection limit, and seed.

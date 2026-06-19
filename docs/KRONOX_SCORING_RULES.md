@@ -106,6 +106,10 @@ SOLO_CORRECT_PLACEMENTS_NEEDED = 5
 SOLO_SCORE_TIME_LIMIT_SECONDS = 180
 ```
 
+Legacy `SOLO_SCORE_MAX_MISTAKES` / `SOLO_MAX_MISTAKES` aliases are not current
+runtime constants. Internal historical metadata may still use `mistakes`, but
+the visible Solo limit and failure model are HAMLE / evaluated moves.
+
 Helper:
 
 ```text

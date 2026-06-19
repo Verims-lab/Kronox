@@ -643,6 +643,15 @@ Repo-proven Base44 function manifest format:
 * auth is enforced in `entry.ts`: public-by-design functions are narrow,
   user-owned functions call `base44.auth.me()`, and admin-only functions use
   inline `AdminUser` guards
+* configured `function.jsonc` manifests are the platform-published source in
+  this repo; extra `entry.ts` directories are compile-checked but need matching
+  manifest/deploy proof before being classified as published callables
+
+Admin route UX guard:
+
+* `/admin` waits for AuthContext and AdminUser status before mounting AdminPage
+* non-admin/anonymous users are redirected without an admin-tool flash
+* this is not security proof; server-side AdminUser guards remain mandatory
 
 `createGuestProfile` public boundary:
 

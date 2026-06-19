@@ -62,6 +62,10 @@ Status: Active technical flow contract.
 - linkGuestAccount is Profile-only and verifies guest token proof plus authenticated user before AccountLinkTransaction merge.
 - getCategoryMetadata returns category_id, name, description, and status from current active Category rows only; it must not expose questions, answers, years, user data, admin fields, passive/deleted categories, or stale fallback arrays.
 - Base44 function.jsonc files use the repo-supported name + entry shape only; auth/public scope is enforced in entry.ts guards. createGuestProfile and getCategoryMetadata are public-by-design and narrow, user-owned functions call base44.auth.me(), and admin-only functions use AdminUser guards.
+- configured \`function.jsonc\` manifests are the platform-published source in this repo; extra entry.ts directories are compile-checked but need matching manifest/deploy proof before being classified as published callables.
+- Configured function auth/public matrix covers createGuestProfile, getCategoryMetadata, getQuestions, getPlayerQuestionExposureStats, recordPlayerQuestionExposure, updateProfileSettings, linkGuestAccount, getAdminStatus, ensureUserJokerInventory, spendUserJoker, purchaseJokerWithDiamonds, getDailyQuestStatus, recordDailyQuestProgress, claimDailyQuestReward, createDailyQuestDefinition, diagnoseSoloQuestionStartQuery, and sendQuestionAnalyticsReportEmail.
+- /admin has a route-level UX guard that waits for AuthContext/AdminUser status before mounting AdminPage; non-admin users are redirected without an admin-tool flash, while server-side AdminUser guards remain the real security boundary.
+- Dependency cleanup result: unused direct Stripe, Three, React Leaflet, React Quill, Moment, jsPDF, html2canvas, and Lodash packages were removed; recharts and embla-carousel-react stay because UI primitives import them.
 - UserCategoryPreference is authenticated Settings/Profile data. Fewer than 3 active valid preferences means Solo uses all active categories; 3+ enables Solo-only soft weighting.
 - SubCategory/UserSubCategoryPreference are future/legacy data and not current Settings preference UI.
 - Solo runtime uses getQuestions bounded projections and buildSoloAttemptDeck; raw Question.list gameplay fallback and full-bank exposure are forbidden.
@@ -136,7 +140,7 @@ Status: Active product contract.
 - Request-body user, email, role, or owner fields are not trusted for authorization.
 - UI hiding is not the authorization boundary.
 - Two-account probes remain mandatory for category preferences, friends, invites, lobbies, Daily Quest progress, Daily Wheel, Diamond/Joker economy, push subscriptions, and analytics cleanup.
-- getQuestions serves an authenticated bounded server attempt candidate buffer for signed-in Solo and an explicit capped guest_gameplay_runtime minimal deck for first-time guest Solo; admin/full-bank/diagnostics still require active AdminUser owner/admin authorization.
+- getQuestions serves an authenticated bounded server attempt candidate buffer for signed-in Solo and an explicit capped guest_gameplay_runtime minimal deck for first-time guest Solo; admin/full-bank/diagnostics still require active AdminUser owner/admin authorization. Authenticated candidate reads are bounded to 96 * 3 = 288 rows per active category/query variant before projection.
 - startLobbyGame requires authenticated host, no legacy guest, no client identity override.
 - Service-role usage is scoped to admin/maintenance backend functions.
 - VAPID private key remains a real secret and must stay secret-managed.

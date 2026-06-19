@@ -346,7 +346,9 @@ export const EXTRA_TESTS = [
         'server_attempt_candidate_buffer_v1',
         "GAMEPLAY_PROJECTION_VERSION = 'per_category_projection_v2'",
         'isGameplayRuntimeProjectionRequest',
-        'QUESTION_FETCH_PER_CATEGORY_LIMIT = 5000',
+        'AUTH_GAMEPLAY_CANDIDATE_FETCH_MULTIPLIER = 3',
+        'QUESTION_FETCH_PER_CATEGORY_LIMIT = MAX_AUTH_GAMEPLAY_RESPONSE_LIMIT * AUTH_GAMEPLAY_CANDIDATE_FETCH_MULTIPLIER',
+        'queryLimitRationale',
         'sourcePoolCapRemoved',
         'responseCapApplied',
         'buildServerAttemptCandidateBuffer',
@@ -375,6 +377,7 @@ export const EXTRA_TESTS = [
       const forbidden = presentTokens(getQuestionsSource, [
         'MAX_GAMEPLAY_LIMIT = 1200',
         'MAX_GAMEPLAY_LIMIT = 500',
+        'QUESTION_FETCH_PER_CATEGORY_LIMIT = 5000',
         'QUESTION_FETCH_PER_CATEGORY_LIMIT = 250',
         '.filter(Boolean)\n      .slice(0, limit)',
       ]);

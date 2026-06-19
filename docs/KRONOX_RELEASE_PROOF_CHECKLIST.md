@@ -225,8 +225,8 @@ Checklist:
   still absent, verify whether active Category rows are missing/passive or the
   deployed `getQuestions` function manifest/source is stale before treating it
   as a deck-builder bug.
-* Codex343 live callable proof marker is
-  `getQuestions-live-per-category-v7-Codex343`. If Solo debug shows the v7
+* Codex417 live callable proof marker is
+  `getQuestions-live-per-category-v8-Codex417`. If Solo debug shows the v8
   frontend cache/build but this backend marker is still null, redeploy or
   repair the Base44 `getQuestions` callable for app `69e753d5ab4c08a7c4287c25`
   before changing the Solo deck builder.
@@ -845,6 +845,9 @@ Checklist:
 * `Admin Ekranı` contains admin-only maintenance/report tools; Settings remains
   account/help/preferences focused.
 * Direct `/admin` access by normal users is blocked or redirected safely.
+* `/admin` route-level UX guard waits for AuthContext/AdminUser status before
+  mounting AdminPage; normal users must not see an admin UI flash. Server-side
+  AdminUser guards remain the real security boundary.
 * Admin source-of-truth is the DB-backed `AdminUser` entity. Base44 functions
   inline the AdminUser role/status guard locally because per-function deploy
   bundles do not reliably include `_shared` helper modules.
@@ -855,6 +858,9 @@ Checklist:
   `getCategoryMetadata` are public-by-design and narrow; guest-token paths
   require `guest_id + raw guest token`; registered-user paths call
   `base44.auth.me()`; admin/reporting/maintenance paths use `AdminUser`.
+* Configured function matrix is reviewed against the current `function.jsonc`
+  set. Additional `entry.ts` helper directories are compile-checked but are not
+  claimed as platform-published without a matching manifest/deploy proof.
 * Health statically fails Base44 functions that contain `_shared/adminAuth`,
   `../_shared`, or `file:///__shared` deploy-risk imports. Manual Base44 Test
   Function/deploy proof is still required for live runtime markers.
@@ -863,6 +869,10 @@ Checklist:
   duplicate declaration errors such as redeclared `payload`, blocks deploy-risk
   `_shared` imports, scans for committed email literals, and verifies the
   `getQuestions` runtime marker/projection diagnostics contract.
+* Dependency cleanup proof: removed unused direct Stripe, Three, React Leaflet,
+  React Quill, Moment, jsPDF, html2canvas, and Lodash packages; retained
+  `recharts` and `embla-carousel-react` because UI primitives still import
+  them. Build/lint must pass with the updated lockfile.
 * Frontend admin UI visibility is based on the backend current-user
   `getAdminStatus` route. `getQuestions` must never be used as the admin-status
   source; `AdminUser` rows are not read/listed directly by the client.

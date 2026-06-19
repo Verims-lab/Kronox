@@ -419,11 +419,53 @@ Base44 function config proof:
   guard and keep public-by-design functions narrow
 * public-by-design: `createGuestProfile`, `getCategoryMetadata`
 * guest-token required: guest profile update/progress/category/exposure paths
+  including `updateProfileSettings`, `getPlayerQuestionExposureStats`, and
+  `recordPlayerQuestionExposure` guest mode
 * registered-auth required: `getQuestions` normal gameplay,
   `updateProfileSettings`, `linkGuestAccount`, economy and Daily Quest/Wheel
   functions
 * admin-only/internal reporting: AdminUser-guarded report, diagnostic,
   simulation, maintenance, and reset functions
+* configured manifests currently present for 17 functions; additional
+  `entry.ts` directories are compile-checked but must not be assumed
+  platform-published unless a matching `function.jsonc` or Base44 deploy proof
+  exists
+
+Configured function auth/public matrix:
+
+| Function | Classification | Authority proof |
+| --- | --- | --- |
+| `createGuestProfile` | Public by design | Scope-limited guest create/verify, throttle, token hash, no role/body trust. |
+| `getCategoryMetadata` | Public by design | Metadata-only active categories; no questions/answers/user data. |
+| `getQuestions` | Capped guest gameplay mode + authenticated normal/admin mode | Guest requests forbid diagnostics/full bank; normal gameplay requires auth; diagnostics/full bank require AdminUser. |
+| `getPlayerQuestionExposureStats` | Guest-token or authenticated user | Guest path verifies `guest_id + guest_token`; auth path derives user from `base44.auth.me()`. |
+| `recordPlayerQuestionExposure` | Guest-token or authenticated user | Same player proof model as exposure stats; no request-body identity trust. |
+| `updateProfileSettings` | Guest-token or authenticated user | Guest path verifies token; auth path derives current user. |
+| `linkGuestAccount` | Authenticated user + guest-token | Auth user from `base44.auth.me()` and guest ownership from token hash. |
+| `getAdminStatus` | Authenticated status check | Uses current authenticated email and AdminUser row; normal users receive non-admin status. |
+| `ensureUserJokerInventory` | Authenticated user | Current user from `base44.auth.me()`. |
+| `spendUserJoker` | Authenticated user | Current user from `base44.auth.me()`, Solo joker context enforced. |
+| `purchaseJokerWithDiamonds` | Authenticated user | Current user from `base44.auth.me()`, backend price and balance checks. |
+| `getDailyQuestStatus` | Authenticated user | Current user from `base44.auth.me()`. |
+| `recordDailyQuestProgress` | Authenticated user | Current user from `base44.auth.me()`, Solo-only progress event. |
+| `claimDailyQuestReward` | Authenticated user | Current user from `base44.auth.me()`, reward amount from stored quest progress. |
+| `createDailyQuestDefinition` | Admin-only | Inline AdminUser active owner/admin guard. |
+| `diagnoseSoloQuestionStartQuery` | Admin-only diagnostic | Inline AdminUser active owner/admin guard. |
+| `sendQuestionAnalyticsReportEmail` | Admin-only reporting | Inline AdminUser active owner/admin guard, email-body-only output. |
+
+Frontend route guards are UX only. `/admin` waits for AuthContext plus
+`getAdminStatus`/AdminUser status before mounting `AdminPage`, and redirects
+non-admins without flashing admin tools. Backend AdminUser guards remain the
+security boundary for every admin/report/maintenance callable.
+
+Dependency cleanup result:
+
+* removed unused direct dependencies after source/dynamic-import search:
+  `@stripe/react-stripe-js`, `@stripe/stripe-js`, `three`, `react-leaflet`,
+  `react-quill`, `moment`, `jspdf`, `html2canvas`, and `lodash`
+* retained `recharts` and `embla-carousel-react` because local UI primitives
+  import them directly
+* package-lock changes must remain committed with package.json changes
 
 `startLobbyGame` must require an authenticated user. Unauthenticated callers
 receive 401, authenticated non-host/non-authorized callers receive 403, and

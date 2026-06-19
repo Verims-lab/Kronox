@@ -44,6 +44,10 @@ import healthStatusSource from './health/healthStatus.jsx?raw';
 import { DB_ARCHITECTURE_IMPLEMENTATION_MIRROR } from '@/lib/dbArchitectureMirrors';
 import appSource from '../../App.jsx?raw';
 import privacyPolicySource from '../../pages/PrivacyPolicy.jsx?raw';
+import packageJsonSource from '../../../package.json?raw';
+import fullAuditPackageSource from '../../../docs/KRONOX_FULL_AUDIT_PACKAGE_1.md?raw';
+import soloProgressHelpersSource from '../../lib/soloProgressHelpers.js?raw';
+import soloLevelsSource from '../../lib/soloLevels.js?raw';
 
 const STATUS = {
   PASS: 'PASS',
@@ -178,6 +182,93 @@ export const EXTRA_TESTS = [
       });
     }),
 
+  makeCase('combined_p1_p2_audit_static_contracts',
+    'Combined P1/P2 audit contracts are represented in Health/static docs',
+    () => {
+      const docsCombined = [
+        technicalFlowDocsSource,
+        securityDocsSource,
+        releaseChecklistSource,
+        soloEngineDocsSource,
+        questionModelDocsSource,
+        scoringDocsSource,
+        dbArchitectureDocsSource,
+        fullAuditPackageSource,
+      ].map(text).join('\n');
+      const appAdminCombined = `${appSource}\n${adminPageSource}`;
+      const packageText = text(packageJsonSource);
+      const soloCombined = `${soloProgressHelpersSource}\n${soloLevelsSource}`;
+      const required = [
+        ...missingTokens(appAdminCombined, [
+          'function AdminRoute',
+          'adminStatus?.loading === true',
+          "adminStatus?.statusCall === 'pending'",
+          '<Navigate to="/" replace state={{ adminDenied: true }} />',
+          'lazyWithRetry',
+          'SimulationPanelErrorBoundary',
+          'AdminToolLoading',
+        ]).map((token) => `admin:${token}`),
+        ...missingTokens(docsCombined, [
+          'configured `function.jsonc` manifests',
+          'route-level UX guard',
+          '96 * 3 = 288',
+          'Dependency cleanup result',
+          'Status: current index / redirect, Codex417',
+          'iOS wrapper',
+          'physical Apple parity',
+          'economy parallel',
+          'mobile visual',
+        ]).map((token) => `docs:${token}`),
+        ...missingTokens(`${getQuestionsSource}\n${backendSecurityCasesSource}`, [
+          'AUTH_GAMEPLAY_CANDIDATE_FETCH_MULTIPLIER = 3',
+          'queryLimitRationale',
+          'QUESTION_FETCH_PER_CATEGORY_LIMIT = MAX_AUTH_GAMEPLAY_RESPONSE_LIMIT * AUTH_GAMEPLAY_CANDIDATE_FETCH_MULTIPLIER',
+        ]).map((token) => `getQuestions:${token}`),
+      ];
+      const forbidden = [
+        ...forbiddenTokens(getQuestionsSource, [
+          'QUESTION_FETCH_PER_CATEGORY_LIMIT = 5000',
+        ]).map((token) => `getQuestions:${token}`),
+        ...forbiddenTokens(packageText, [
+          '"@stripe/react-stripe-js"',
+          '"@stripe/stripe-js"',
+          '"three"',
+          '"react-leaflet"',
+          '"react-quill"',
+          '"moment"',
+          '"jspdf"',
+          '"html2canvas"',
+          '"lodash"',
+        ]).map((token) => `package:${token}`),
+        ...forbiddenTokens(soloCombined, [
+          'SOLO_SCORE_MAX_MISTAKES',
+          'SOLO_MAX_MISTAKES',
+        ]).map((token) => `solo:${token}`),
+      ];
+      const retained = missingTokens(packageText, [
+        '"recharts"',
+        '"embla-carousel-react"',
+      ]).map((token) => `retained:${token}`);
+      if (required.length || forbidden.length || retained.length) {
+        return fail('Combined P1/P2 audit static contracts drifted.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          files: [
+            'src/App.jsx',
+            'src/pages/AdminPage.jsx',
+            'base44/functions/getQuestions/entry.ts',
+            'package.json',
+            'docs/KRONOX_FULL_AUDIT_PACKAGE_1.md',
+          ],
+          actual: { missing: required, forbidden, retainedMissing: retained },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Combined P1/P2 audit contracts cover admin guard, dependency cleanup, bounded getQuestions fetch, docs integrity, and legacy alias cleanup.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
   makeCase('docs_current_solo_v3_contract',
     'Docs align with current Solo v3 move-based scoring, timing, deck, and replay rules',
     () => {
@@ -246,7 +337,7 @@ export const EXTRA_TESTS = [
         '5–6 used moves: 3 stars',
         'Deck sizing is 2 anchors + 10 playable moves + Kart Değiştir buffer',
         'Kronokalkan buffer',
-        'getQuestions-live-per-category-v7-Codex343',
+        'getQuestions-live-per-category-v8-Codex417',
         'sourcePoolCapRemoved',
         'responseCapApplied',
         'QuestionAttemptEvent',

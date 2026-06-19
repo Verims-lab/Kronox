@@ -500,8 +500,12 @@ Rules:
   the Category read fails; runtime must return an empty/retryable state instead
   of manufacturing old seeded category IDs.
   Missing `getQuestionsRuntimeMarker` in Solo debug JSON is a stale/different
-  deployed callable blocker; Codex343 expects backend marker
-  `getQuestions-live-per-category-v7-Codex343` from the deployed callable.
+  deployed callable blocker; Codex417 expects backend marker
+  `getQuestions-live-per-category-v8-Codex417` from the deployed callable.
+* Authenticated candidate fetches are bounded by
+  `MAX_AUTH_GAMEPLAY_RESPONSE_LIMIT * AUTH_GAMEPLAY_CANDIDATE_FETCH_MULTIPLIER`
+  (`96 * 3 = 288`) per active category/query variant. Do not restore 5000-row
+  per-category reads or a single raw full-bank gameplay fallback.
 * The active category helper accepts any positive live `category_id`; original
   seed IDs are not a category maximum.
 * Online question selection is not affected by Solo preferences. Online start

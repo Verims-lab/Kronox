@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex417 — Combined P1/P2 audit hardening:
+//   • Adds a no-flash AdminRoute guard, lazy-loads admin Health simulator code,
+//     and keeps server-side AdminUser guards as the security boundary.
+//   • Bounds getQuestions per-category candidate fetches, removes proven-unused
+//     heavy direct dependencies, cleans legacy Solo/display_name remnants, and
+//     refreshes docs/Health coverage.
+
 // Codex416 — Public identity/function auth/getQuestions audit hardening:
 //   • Sanitizes leaderboard public responses to username + leaderboard_id and
 //     keeps owner_key/display_name internal to projection rows.
@@ -2362,7 +2369,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex416';
+const BUILD_MARKER = 'Codex417';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
