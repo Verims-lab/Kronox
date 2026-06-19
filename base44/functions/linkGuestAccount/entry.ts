@@ -7,6 +7,8 @@ const JOKER_TYPES = ['mistake_shield', 'card_swap', 'time_freeze'] as const;
 const ACCOUNT_LINK_SOURCE = 'account_link_merge';
 const ACCOUNT_LINK_RELATED_TYPE = 'account_link';
 const GENDER_VALUES = new Set(['', 'female', 'male', 'non_binary', 'prefer_not_to_say', 'custom']);
+const UNSAFE_PUBLIC_USERNAME_PATTERN = /^(apple|google|firebase|auth0|base44|provider|uid|owner)(?:[\w:-].*)?$/i;
+const INTERNAL_ID_PUBLIC_USERNAME_PATTERN = /^(guest|player|owner|user_key|player_key|g|u)_[A-Za-z0-9_-]{4,}$/i;
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });
@@ -129,13 +131,15 @@ function makeFallbackUsername(seed = '') {
 }
 
 function cleanPublicName(value: unknown, fallbackSeed = '') {
-  const text = String(value || '').replace(/\s+/g, ' ').trim().slice(0, 28);
+  const explicitName = String(value || '').replace(/\s+/g, ' ').trim().slice(0, 28);
   if (
-    text &&
-    !text.includes('@') &&
-    !/^(apple|google|firebase|auth0|base44|provider|uid)[\w:-]*$/i.test(text)
+    explicitName &&
+    /^[A-Za-z0-9_]{3,24}$/.test(explicitName) &&
+    !explicitName.includes('@') &&
+    !UNSAFE_PUBLIC_USERNAME_PATTERN.test(explicitName) &&
+    !INTERNAL_ID_PUBLIC_USERNAME_PATTERN.test(explicitName)
   ) {
-    return text;
+    return explicitName;
   }
   return makeFallbackUsername(fallbackSeed);
 }

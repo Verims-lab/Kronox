@@ -183,7 +183,7 @@ export default function OnboardingPage() {
       {step === GUEST_ONBOARDING_STATES.GUEST_CREATED && (
         <TutorialStartStep
           busy={busy}
-          username={guestProfile.username || guestProfile.display_name}
+          username={guestProfile.username || makeKronoxUserFallback(guestProfile.guest_id || '')}
           onStart={async () => {
             setBusy(true);
             setError('');
@@ -227,7 +227,7 @@ export default function OnboardingPage() {
               setGuestProfile({
                 ...(updated || guestProfile),
                 username: updated?.username || patch.username || guestProfile?.username,
-                display_name: updated?.display_name || updated?.username || patch.username || guestProfile?.display_name,
+                display_name: updated?.username || patch.username || guestProfile?.username,
                 age: updated?.age ?? patch.age ?? guestProfile?.age,
                 gender: updated?.gender ?? patch.gender ?? guestProfile?.gender,
                 tutorial_status: 'completed',
@@ -381,8 +381,8 @@ function normalizeOptionalAgeInput(value) {
 
 function ProfileSetupStep({ profile, busy, submitError, onSubmit }) {
   const fallbackUsername = useMemo(
-    () => profile.username || profile.display_name || makeKronoxUserFallback(profile.guest_id || ''),
-    [profile.display_name, profile.guest_id, profile.username]
+    () => profile.username || makeKronoxUserFallback(profile.guest_id || ''),
+    [profile.guest_id, profile.username]
   );
   const [username, setUsername] = useState(fallbackUsername);
   const [age, setAge] = useState(profile.age || '');

@@ -18,6 +18,8 @@ const MAX_TOP_LIMIT = 50;
 const TOTAL_LEVELS = 20;
 const PROJECTION_REPAIR_UPSERT_LIMIT = 50;
 const USERNAME_PREFIX = 'KronoxUser';
+const UNSAFE_PUBLIC_USERNAME_PATTERN = /^(apple|google|firebase|auth0|base44|provider|uid|owner)(?:[\w:-].*)?$/i;
+const INTERNAL_ID_PUBLIC_USERNAME_PATTERN = /^(guest|player|owner|user_key|player_key|g|u)_[A-Za-z0-9_-]{4,}$/i;
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });
@@ -74,10 +76,13 @@ function cleanDisplayText(raw: unknown) {
 }
 
 function isSafePublicUsername(value: string) {
+  const explicitName = String(value || '').trim();
   return Boolean(
-    value &&
-    !value.includes('@') &&
-    !/^(apple|google|firebase|auth0|base44|provider|uid)[\w:-]*$/i.test(value),
+    explicitName &&
+    /^[A-Za-z0-9_]{3,24}$/.test(explicitName) &&
+    !explicitName.includes('@') &&
+    !UNSAFE_PUBLIC_USERNAME_PATTERN.test(explicitName) &&
+    !INTERNAL_ID_PUBLIC_USERNAME_PATTERN.test(explicitName),
   );
 }
 
@@ -87,11 +92,6 @@ function safePublicUsername(source: any, ownerKey: string) {
     source?.public_username,
   ].map(cleanDisplayText).find(isSafePublicUsername);
   if (explicit) return explicit;
-
-  // Legacy projection rows only have display_name. Treat that field as an
-  // internal migration mirror, never as a returned public field.
-  const legacyDisplayNameMigrationSource = cleanDisplayText(source?.display_name || source?.displayName);
-  if (isSafePublicUsername(legacyDisplayNameMigrationSource)) return legacyDisplayNameMigrationSource;
 
   return makeKronoxUserFallback(ownerKey || source?.id || source?._id);
 }

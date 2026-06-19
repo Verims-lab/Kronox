@@ -28,17 +28,23 @@ export const GET_SOLO_LEADERBOARD_SOURCE = `// getSoloLeaderboard — public-saf
 // or incomplete projection rows cannot claim a false global rank. No email,
 // notification settings, auth/private profile fields, push/device data, or
 // full User rows leave this function. Public rows return username and
-// leaderboard_id; owner_key/display_name stay internal only.
+// leaderboard_id; owner_key/display_name stay internal only and display_name
+// is not used as a public identity fallback.
 
 function publicLeaderboardId(ownerKey) {
   return 'lb_' + hash(ownerKey);
 }
 
 function safePublicUsername(source, ownerKey) {
-  const explicit = [source?.username, source?.public_username].find(Boolean);
+  const explicitName = String([source?.username, source?.public_username].find(Boolean) || '').trim();
+  const explicit = (
+    explicitName &&
+    /^[A-Za-z0-9_]{3,24}$/.test(explicitName) &&
+    !explicitName.includes('@') &&
+    !/^(apple|google|firebase|auth0|base44|provider|uid|owner)(?:[\w:-].*)?$/i.test(explicitName) &&
+    !/^(guest|player|owner|user_key|player_key|g|u)_[A-Za-z0-9_-]{4,}$/i.test(explicitName)
+  ) ? explicitName : '';
   if (explicit) return explicit;
-  const legacyDisplayNameMigrationSource = source?.display_name || source?.displayName;
-  if (legacyDisplayNameMigrationSource) return legacyDisplayNameMigrationSource;
   return 'KronoxUser0000';
 }
 

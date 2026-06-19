@@ -601,7 +601,7 @@ export const EXTRA_TESTS = [
       // Codex119 — friend marker strings/badges live in the section
       // component; data wiring (loadFriends, friendEmailSet, isFriend)
       // stays on the page + lib. Combine all three sources.
-      const combined = `${leaderboardPageSource}\n${leaderboardLibSource}\n${kronoxRankingSectionSource}`;
+      const combined = `${leaderboardPageSource}\n${leaderboardLibSource}\n${kronoxRankingSectionSource}\n${getSoloLeaderboardFunctionSource}`;
       const required = missingTokens(combined, [
         'loadFriends',
         'friend.friend_email',
@@ -613,7 +613,7 @@ export const EXTRA_TESTS = [
         'Arkadaş',
         'Arkadaşların',
       ]);
-      const forbidden = forbiddenTokensFound(`${leaderboardPageSource}\n${kronoxRankingSectionSource}`, [
+      const forbidden = forbiddenTokensFound(`${leaderboardPageSource}\n${kronoxRankingSectionSource}\n${getSoloLeaderboardFunctionSource}`, [
         'mockFriends',
         'fakeFriends',
       ]);

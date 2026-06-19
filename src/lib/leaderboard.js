@@ -1,7 +1,7 @@
 import { base44 } from '@/api/base44Client';
 import { backfillSoloScores, summarizeSoloProgress } from './soloProgressHelpers';
 import { getDiamondBalance } from './diamondEconomy';
-import { makeKronoxUserFallback } from './guestProfile';
+import { resolveSafePublicUsername } from './guestProfile';
 
 export const LEADERBOARD_TOP_LIMIT = 10;
 export const LEADERBOARD_FETCH_LIMIT = 500;
@@ -38,27 +38,14 @@ function cleanDisplayText(raw) {
     .slice(0, 28);
 }
 
-function isSafePublicUsername(value) {
-  return Boolean(
-    value &&
-    !value.includes('@') &&
-    !/^(apple|google|firebase|auth0|base44|provider|uid)[\w:-]*$/i.test(value),
-  );
-}
-
 export function getSafeLeaderboardName(userOrEntry) {
   const explicitName = [
     userOrEntry?.username,
     userOrEntry?.public_username,
     userOrEntry?.publicName,
-  ].map(cleanDisplayText).find(isSafePublicUsername);
-
-  if (explicitName) {
-    return explicitName;
-  }
-
+  ].map(cleanDisplayText).find((candidate) => resolveSafePublicUsername(candidate, '') === candidate);
   const ownerKey = String(userOrEntry?.owner_key || getLeaderboardOwnerKey(userOrEntry?.email || userOrEntry?.user_email));
-  return makeKronoxUserFallback(ownerKey || userOrEntry?.id || userOrEntry?._id);
+  return resolveSafePublicUsername(explicitName, ownerKey || userOrEntry?.id || userOrEntry?._id);
 }
 
 export function getLeaderboardDiamondValue(user) {

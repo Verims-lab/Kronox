@@ -294,6 +294,7 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(`${createGuestProfileSource}\n${guestProfileClientSource}\n${leaderboardSource}`, [
         'KronoxUser',
         'makeKronoxUserFallback',
+        'resolveSafePublicUsername',
         'getSafeLeaderboardName',
         '!explicitName.includes',
       ]);

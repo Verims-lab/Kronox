@@ -1000,7 +1000,7 @@ source and `JokerTransaction` remains the immutable ledger.
 ## Public Identity / Leaderboard Privacy Boundary
 
 Public identity is `username` only. `display_name` is a legacy/internal
-projection mirror and may be used only as a sanitized migration source for old
+projection mirror and must not be used as the public fallback identity for old
 rows; it must not be returned as the public leaderboard identity field.
 `getSoloLeaderboard` returns sanitized `username`, opaque `leaderboard_id`,
 score/rank fields, and boolean friend/current-user markers. It must not return

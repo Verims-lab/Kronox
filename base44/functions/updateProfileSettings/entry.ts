@@ -4,6 +4,8 @@ const HASH_ALGORITHM = 'sha256:kronox_guest_v1';
 const USERNAME_PREFIX = 'KronoxUser';
 const GUEST_ID_PREFIX = 'guest_';
 const GENDER_VALUES = new Set(['', 'female', 'male', 'non_binary', 'prefer_not_to_say', 'custom']);
+const UNSAFE_PUBLIC_USERNAME_PATTERN = /^(apple|google|firebase|auth0|base44|provider|uid|owner)(?:[\w:-].*)?$/i;
+const INTERNAL_ID_PUBLIC_USERNAME_PATTERN = /^(guest|player|owner|user_key|player_key|g|u)_[A-Za-z0-9_-]{4,}$/i;
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });
@@ -41,11 +43,19 @@ function normalizeGuestToken(value: unknown) {
 }
 
 function normalizeUsernameInput(value: unknown) {
-  const text = String(value || '').trim();
-  if (!text || text.length < 3 || text.length > 24) return '';
-  if (text.includes('@')) return '';
-  if (/^(apple|google|firebase|auth0|base44|provider|uid|owner)[\w:-]*$/i.test(text)) return '';
-  return /^[A-Za-z0-9_]+$/.test(text) ? text : '';
+  const explicitName = String(value || '').trim();
+  if (
+    explicitName &&
+    explicitName.length >= 3 &&
+    explicitName.length <= 24 &&
+    /^[A-Za-z0-9_]+$/.test(explicitName) &&
+    !explicitName.includes('@') &&
+    !UNSAFE_PUBLIC_USERNAME_PATTERN.test(explicitName) &&
+    !INTERNAL_ID_PUBLIC_USERNAME_PATTERN.test(explicitName)
+  ) {
+    return explicitName;
+  }
+  return '';
 }
 
 function normalizeUsernameKey(value: unknown) {
@@ -56,7 +66,7 @@ function normalizeDisplayNameInput(value: unknown, fallbackUsername = '') {
   const text = String(value || fallbackUsername || '').trim().replace(/\s+/g, ' ');
   if (!text || text.length < 2 || text.length > 32) return '';
   if (text.includes('@')) return '';
-  if (/^(apple|google|firebase|auth0|base44|provider|uid|owner)[\w:-]*$/i.test(text)) return '';
+  if (UNSAFE_PUBLIC_USERNAME_PATTERN.test(text) || INTERNAL_ID_PUBLIC_USERNAME_PATTERN.test(text)) return '';
   return text;
 }
 
@@ -112,6 +122,10 @@ function makeFallbackUsername(seed = '') {
   let numeric = 0;
   for (let i = 0; i < ownerKey.length; i += 1) numeric += ownerKey.charCodeAt(i) * (i + 1);
   return `${USERNAME_PREFIX}${1000 + (numeric % 90000)}`;
+}
+
+function safePublicUsername(value: unknown, fallbackSeed = '') {
+  return normalizeUsernameInput(value) || makeFallbackUsername(fallbackSeed);
 }
 
 function initialFromName(value: string) {
@@ -190,10 +204,11 @@ async function updateCurrentUser(base44: any, user: any, patch: Record<string, u
 }
 
 function publicGuestProfile(row: any) {
+  const username = safePublicUsername(row?.username, row?.guest_id || rowId(row) || '');
   return {
     guest_id: String(row?.guest_id || ''),
-    username: String(row?.username || ''),
-    display_name: String(row?.display_name || row?.username || ''),
+    username,
+    display_name: username,
     status: String(row?.status || 'guest'),
     onboarding_status: String(row?.onboarding_status || 'guest_created'),
     tutorial_status: String(row?.tutorial_status || 'not_started'),

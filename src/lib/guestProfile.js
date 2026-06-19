@@ -6,6 +6,8 @@ const STORAGE_GUEST_PUBLIC_KEY = 'kronox.guestProfile.public';
 const STORAGE_GUEST_LINK_INTENT_KEY = 'kronox.guestProfile.linkIntent';
 const STORAGE_GUEST_INSTALL_ID_KEY = 'kronox.guestProfile.install_id';
 const USERNAME_PREFIX = 'KronoxUser';
+const UNSAFE_PUBLIC_USERNAME_PATTERN = /^(apple|google|firebase|auth0|base44|provider|uid|owner)(?:[\w:-].*)?$/i;
+const INTERNAL_ID_PUBLIC_USERNAME_PATTERN = /^(guest|player|owner|user_key|player_key|g|u)_[A-Za-z0-9_-]{4,}$/i;
 
 export const GUEST_ONBOARDING_STATES = Object.freeze({
   GUEST_CREATED: 'guest_created',
@@ -46,7 +48,7 @@ function removeLocalStorage(key) {
 function normalizePublicProfile(profile) {
   if (!profile || typeof profile !== 'object') return null;
   const guestId = String(profile.guest_id || '').trim();
-  const username = String(profile.username || '').trim();
+  const username = resolveSafePublicUsername(profile.username, guestId || profile.id || profile._id);
   if (!guestId || !username) return null;
   const selectedCategoryIds = Array.isArray(profile.selected_category_ids)
     ? profile.selected_category_ids
@@ -149,6 +151,24 @@ export function makeKronoxUserFallback(seed = '') {
   }
   const suffix = 1000 + ((hash >>> 0) % 90000);
   return `${USERNAME_PREFIX}${suffix}`;
+}
+
+export function normalizeSafePublicUsernameInput(value) {
+  const explicitName = String(value || '').replace(/\s+/g, ' ').trim().slice(0, 28);
+  if (
+    explicitName &&
+    /^[A-Za-z0-9_]{3,24}$/.test(explicitName) &&
+    !explicitName.includes('@') &&
+    !UNSAFE_PUBLIC_USERNAME_PATTERN.test(explicitName) &&
+    !INTERNAL_ID_PUBLIC_USERNAME_PATTERN.test(explicitName)
+  ) {
+    return explicitName;
+  }
+  return '';
+}
+
+export function resolveSafePublicUsername(explicitName, fallbackSeed = '') {
+  return normalizeSafePublicUsernameInput(explicitName) || makeKronoxUserFallback(fallbackSeed);
 }
 
 function makeClientInstallId() {

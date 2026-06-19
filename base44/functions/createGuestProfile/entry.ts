@@ -41,6 +41,8 @@ const SYNC_PROGRESS_PATCH_FIELDS = new Set([
   'solo_progress',
   'online_progress',
 ]);
+const UNSAFE_PUBLIC_USERNAME_PATTERN = /^(apple|google|firebase|auth0|base44|provider|uid|owner)(?:[\w:-].*)?$/i;
+const INTERNAL_ID_PUBLIC_USERNAME_PATTERN = /^(guest|player|owner|user_key|player_key|g|u)_[A-Za-z0-9_-]{4,}$/i;
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });
@@ -126,13 +128,15 @@ function fnvOwnerKey(prefix: 'g', value: string) {
 }
 
 function cleanPublicName(value: unknown, fallbackSeed = '') {
-  const text = String(value || '').replace(/\s+/g, ' ').trim().slice(0, 28);
+  const explicitName = String(value || '').replace(/\s+/g, ' ').trim().slice(0, 28);
   if (
-    text &&
-    !text.includes('@') &&
-    !/^(apple|google|firebase|auth0|base44|provider|uid)[\w:-]*$/i.test(text)
+    explicitName &&
+    /^[A-Za-z0-9_]{3,24}$/.test(explicitName) &&
+    !explicitName.includes('@') &&
+    !UNSAFE_PUBLIC_USERNAME_PATTERN.test(explicitName) &&
+    !INTERNAL_ID_PUBLIC_USERNAME_PATTERN.test(explicitName)
   ) {
-    return text;
+    return explicitName;
   }
   return `${USERNAME_PREFIX}${1000 + ((fallbackSeed.length * 7919) % 90000)}`;
 }
@@ -362,6 +366,7 @@ async function generateUniqueUsername(base44: any) {
 }
 
 function publicGuestProfile(row: any) {
+  const username = cleanPublicName(row?.username, row?.guest_id || rowId(row) || '');
   const selectedCategoryIds = Array.isArray(row?.selected_category_ids)
     ? row.selected_category_ids
         .map((value: unknown) => Number(value))
@@ -369,8 +374,8 @@ function publicGuestProfile(row: any) {
     : [];
   return {
     guest_id: String(row?.guest_id || ''),
-    username: String(row?.username || ''),
-    display_name: String(row?.display_name || row?.username || ''),
+    username,
+    display_name: username,
     status: String(row?.status || 'guest'),
     onboarding_status: String(row?.onboarding_status || 'guest_created'),
     tutorial_status: String(row?.tutorial_status || 'not_started'),
@@ -439,9 +444,19 @@ async function verifyExistingGuest(base44: any, guestId: string, guestToken: str
 }
 
 function normalizeUsernameInput(value: unknown) {
-  const text = String(value || '').trim();
-  if (!text || text.length < 3 || text.length > 24) return '';
-  return /^[A-Za-z0-9_]+$/.test(text) ? text : '';
+  const explicitName = String(value || '').trim();
+  if (
+    explicitName &&
+    explicitName.length >= 3 &&
+    explicitName.length <= 24 &&
+    /^[A-Za-z0-9_]+$/.test(explicitName) &&
+    !explicitName.includes('@') &&
+    !UNSAFE_PUBLIC_USERNAME_PATTERN.test(explicitName) &&
+    !INTERNAL_ID_PUBLIC_USERNAME_PATTERN.test(explicitName)
+  ) {
+    return explicitName;
+  }
+  return '';
 }
 
 function normalizeUsernameKey(value: unknown) {
@@ -604,7 +619,7 @@ async function publishGuestLeaderboardEntry(base44: any, row: any, soloProgress:
   const ownerKey = fnvOwnerKey('g', guestId);
   if (!ownerKey) return null;
   const summary = summarizeSoloProgress(soloProgress);
-  const displayName = cleanPublicName(row?.username || row?.display_name, guestId);
+  const displayName = cleanPublicName(row?.username, guestId);
   const payload = {
     owner_key: ownerKey,
     display_name: displayName,
