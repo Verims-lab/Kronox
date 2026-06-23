@@ -1,3 +1,4 @@
+// Comment from verims at 23.06.2026
 import React, { memo } from 'react';
 import { AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
