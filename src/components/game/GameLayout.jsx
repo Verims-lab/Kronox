@@ -1,3 +1,4 @@
+// Verims comment-2 23.06.2026
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { sounds } from '@/lib/gameSounds';
