@@ -10,14 +10,15 @@ Status: Active product contract for new Solo attempts.
 
 Normal Solo levels end at 7 correct timeline cards, including seed cards
 already on the timeline, start with 2 timeline anchor cards, use a 10
-evaluated moves limit, and use an 18-question deck.
+evaluated moves limit, and use an internal 18-question deck buffer.
 Special Solo levels start at level 10 and repeat every 5 levels: 10, 15,
 20, 25, and so on. Special Solo levels end at 10 correct timeline cards,
-including seed cards already on the timeline, and use a 19-question deck.
+including seed cards already on the timeline, and use an internal
+19-question deck buffer.
 
 All new Solo attempts use a 180 seconds timer and fail when 10 evaluated moves
 are used before the target timeline card count is reached.
-Deck sizing is 2 anchors + 10 playable moves + Kart Değiştir buffer +
+Internal deck sizing is 2 anchors + 10 playable moves + Kart Değiştir buffer +
 Kronokalkan buffer. Zaman Dondur does not require extra card buffer.
 Extra Kart Değiştir or Kronokalkan use beyond the per-attempt buffer fails
 safely before spend; there is no raw client question list fallback.

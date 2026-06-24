@@ -10,7 +10,7 @@ Normal Solo levels:
 - end successfully at 7 correct timeline cards, including seed cards already on the timeline
 - start with 2 timeline anchor cards
 - use a 10 evaluated move limit
-- use an 18-question deck
+- use an internal 18-question deck buffer for anchors, playable moves, and joker reserve
 - use the 180 seconds timer
 - fail when the timer reaches 180 seconds before completion
 - fail when 10 evaluated moves are used and the 7-card target has not been reached
@@ -18,11 +18,11 @@ Normal Solo levels:
 Special Solo levels:
 - start at level 10 and repeat every 5 levels: 10, 15, 20, 25, ...
 - end successfully at 10 correct timeline cards, including seed cards already on the timeline
-- use a 19-question deck
+- use an internal 19-question deck buffer for the special target lane
 - use the 180 seconds timer unless a future explicit config changes it
 - use the same 10 evaluated move limit and 180 seconds timeout
 
-Deck size formula:
+Internal deck buffer formula:
 - `deckSize = initialTimelineCards + maxEvaluatedMoves + cardSwapBuffer + kronokalkanBuffer`
 - normal: `2 + 10 + 3 + 3 = 18 questions`
 - special: at least the same move/joker buffer and currently 19 questions for the special target lane
@@ -474,7 +474,7 @@ the capped gameplay deck. The tutorial state is a route/context flag, not a new
 question source.
 
 The guide must teach drag/drop, before/after placement, between placement,
-chronological year ordering, move/mistake count, and interactive joker usage.
+chronological year ordering, HAMLE / move impact, and interactive joker usage.
 The first two active tutorial cards show a visual hand/finger path toward the
 already-computed correct placement slot; this is a visual-only hint and does not
 move or place the real card. On the second active card, the timeline swipe hand
@@ -486,7 +486,7 @@ tutorial-only demos with repeating hand/tap hints. The user must perform each
 demo action before continuing, but
 `UserJokerInventory` is not consumed, no `JokerTransaction` spend is written,
 and normal Solo joker economy rules remain unchanged outside the tutorial.
-Tutorial timer, joker, and first-mistake explanation popups pause the effective
+Tutorial timer, joker, and first wrong-placement explanation popups pause the effective
 tutorial timer while the user reads them.
 
 After success, the result popup returns to GuestProfile onboarding for profile

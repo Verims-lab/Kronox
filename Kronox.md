@@ -343,7 +343,7 @@ Numbers must be highly readable across the whole app.
 Important:
 
 * the digit `7` must not look like `1`
-* score, level, timer, rank, mistake count, and diamond values must be clear
+* score, level, timer, rank, HAMLE / move count, and diamond values must be clear
 * stat numbers should use a font/style where digits are distinguishable
 * timer values should remain compact and readable
 
@@ -354,7 +354,7 @@ Use consistent numeric styling for:
 * Seviye
 * leaderboard rank
 * timer
-* mistake count
+* HAMLE / move count
 * speed bonus
 * result popup stats
 
@@ -376,11 +376,7 @@ Preferred visible terms:
 * Online Kapışma
 * Solo Meydan Okuma
 
-Avoid visible user-facing `Level` except where it is part of a category name such as:
-
-```text
-Level Up
-```
+Avoid visible user-facing `Level`; use `Seviye` in player-facing copy.
 
 Internal code identifiers may remain English.
 
@@ -601,7 +597,7 @@ Solo success/failure result popups should have consistent:
 * icons
 * time format
 * score format
-* mistake count format
+* HAMLE / move count format
 * speed bonus format
 * button layout
 
@@ -610,7 +606,7 @@ Result screens should clearly communicate:
 * success/failure
 * earned score
 * time used
-* mistakes
+* used moves
 * speed bonus
 * next action
 
@@ -638,7 +634,7 @@ Important icon groups:
 * profile
 * timer
 * star
-* mistake/error
+* wrong-placement/error
 * speed bonus
 * category icons
 
@@ -1051,7 +1047,7 @@ Every visual, motion, sound, and interaction should support:
 * timeline tension
 * social pressure
 * confident placement
-* dramatic mistakes
+* dramatic wrong-placement moments
 * satisfying success
 * fast replay desire
 

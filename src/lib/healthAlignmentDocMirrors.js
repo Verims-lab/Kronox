@@ -45,7 +45,7 @@ Status: Active product workflow contract.
 - Authenticated category preference save minimum is 3 active valid categories; guest category selection is advisory and empty guest selections mean all active Solo categories remain eligible.
 - Online category list is sorted by category_id ASC and Online is not a BottomNav item.
 - Current Solo shows HAMLE / remaining moves and Puan / Kronox Puan. HATA is legacy/internal and not current visible Solo result/stat copy.
-- Normal Solo uses 2 anchors, an 18-question attempt deck, 10 evaluated moves, a 180-second timer, and a 7-card target including anchors. Special Solo uses a 19-question attempt deck and a 10-card target.
+- Normal Solo uses 2 anchors, an internal 18-question attempt deck buffer, 10 evaluated moves, a 180-second timer, and a 7-card target including anchors. Special Solo uses an internal 19-question attempt deck buffer and a 10-card target.
 - Online uses Lobby.selected_category_ids and a startLobbyGame shared deck selected 100% from active lobby-selected categories with difficulty 1/2 only; Online does not use Solo preferences.
 - Daily Quest and Daily Wheel grant Diamonds only, no Kronox Puan, and no leaderboard impact. DiamondTransaction and DailyWheelSpin have function-level idempotency guards; DB/entity unique constraints are not repo-proven.
 - Question Analytics is an admin/private nine-section email-body report sourced from QuestionAttemptEvent. PlayerQuestionExposure is optional anti-repeat memory reset scope.
@@ -269,8 +269,8 @@ Health Center, Admin Ekranı, reports, and large maintenance lists avoid rebuild
 npm run check:base44-functions must run before Base44 Save & Deploy to catch function syntax, duplicate declarations, deploy-risk _shared imports, committed email literals, and getQuestions marker/projection diagnostics before manual backend publish.
 
 ## Solo v3
-Normal levels need 7 correct cards with an 18-question deck; special levels
-need 10 correct cards with a 19-question deck. All attempts use a 180 seconds
+Normal levels need 7 correct cards with an internal 18-question deck buffer; special levels
+need 10 correct cards with an internal 19-question deck buffer. All attempts use a 180 seconds
 timer and fail when 10 evaluated moves are used before the target is reached.
 Runtime consumes the deck in order. The visible in-game limit is HAMLE /
 remaining moves, not HATA. The
