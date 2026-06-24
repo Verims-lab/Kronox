@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex423 — Health blocker fix for visible Puan/Elmas + Daily Quest claim:
+//   • Re-locks Leaderboard stat/fallback source tokens to the shared visible
+//     Kronox Puan, Solo summary, and Diamond helpers used by Profile.
+//   • Adds explicit authenticated Daily Quest progress-row ownership checks
+//     while keeping rewards server-row, Diamond-only, and leaderboard-neutral.
+//   • Preserves completed guest Daily Quest/Liderlik paths and avoids any
+//     client-trusted reward, Puan, or leaderboard writes.
+//
 // Codex422 — First launch account recovery entry:
 //   • Updates the first-launch guided Solo welcome copy and line breaks.
 //   • Adds a secondary Hesabım Var action that routes to Profile account
@@ -2406,7 +2414,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex422';
+const BUILD_MARKER = 'Codex423';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
