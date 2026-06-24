@@ -1,7 +1,7 @@
 import { base44 } from '@/api/base44Client';
 import { backfillSoloScores, summarizeSoloProgress } from './soloProgressHelpers';
 import { getDiamondBalance } from './diamondEconomy';
-import { resolveSafePublicUsername } from './guestProfile';
+import { isSafePublicUsername, resolveSafePublicUsername } from './guestProfile';
 
 export const LEADERBOARD_TOP_LIMIT = 10;
 export const LEADERBOARD_FETCH_LIMIT = 500;
@@ -43,7 +43,7 @@ export function getSafeLeaderboardName(userOrEntry) {
     userOrEntry?.username,
     userOrEntry?.public_username,
     userOrEntry?.publicName,
-  ].map(cleanDisplayText).find((candidate) => resolveSafePublicUsername(candidate, '') === candidate);
+  ].map(cleanDisplayText).find(isSafePublicUsername);
   const ownerKey = String(userOrEntry?.owner_key || getLeaderboardOwnerKey(userOrEntry?.email || userOrEntry?.user_email));
   return resolveSafePublicUsername(explicitName, ownerKey || userOrEntry?.id || userOrEntry?._id);
 }
@@ -104,6 +104,7 @@ export function buildSoloLeaderboardPayload(user, progress, totalLevels = LEADER
 
   return {
     owner_key: ownerKey,
+    username: displayName,
     display_name: displayName,
     initial: initialFromName(displayName),
     total_kronox_score: totalKronoxScore,

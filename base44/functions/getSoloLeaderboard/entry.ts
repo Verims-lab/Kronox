@@ -335,6 +335,7 @@ function buildProjectionWritePayload(row: any) {
   const username = safePublicUsername(row, ownerKey);
   return {
     owner_key: ownerKey,
+    username,
     display_name: username,
     initial: cleanDisplayText(row?.initial).slice(0, 1) || initialFromName(username),
     total_kronox_score: Math.max(0, Math.floor(finiteNumber(row?.total_kronox_score, 0))),

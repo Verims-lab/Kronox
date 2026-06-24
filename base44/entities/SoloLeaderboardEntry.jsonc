@@ -11,6 +11,10 @@
       "type": "string",
       "description": "Legacy mirrored username for internal projection compatibility. Do not return this field from public leaderboard APIs."
     },
+    "username": {
+      "type": "string",
+      "description": "Sanitized public username mirror used by getSoloLeaderboard; unsafe values fall back to KronoxUser####/##### before any public response."
+    },
     "initial": {
       "type": "string",
       "description": "One-character safe initial for avatar fallback."

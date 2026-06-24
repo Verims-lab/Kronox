@@ -127,18 +127,33 @@ function fnvOwnerKey(prefix: 'g', value: string) {
   return `${prefix}_${(hash >>> 0).toString(36)}`;
 }
 
-function cleanPublicName(value: unknown, fallbackSeed = '') {
-  const explicitName = String(value || '').replace(/\s+/g, ' ').trim().slice(0, 28);
-  if (
+function makeKronoxUserFallback(seed: unknown = '') {
+  const text = String(seed || '').trim();
+  let hash = 2166136261;
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  const suffix = 1000 + ((hash >>> 0) % 90000);
+  return `${USERNAME_PREFIX}${suffix}`;
+}
+
+function isSafePublicUsername(value: unknown) {
+  const explicitName = String(value || '').replace(/\s+/g, ' ').trim();
+  return Boolean(
     explicitName &&
     /^[A-Za-z0-9_]{3,24}$/.test(explicitName) &&
     !explicitName.includes('@') &&
     !UNSAFE_PUBLIC_USERNAME_PATTERN.test(explicitName) &&
-    !INTERNAL_ID_PUBLIC_USERNAME_PATTERN.test(explicitName)
-  ) {
-    return explicitName;
-  }
-  return `${USERNAME_PREFIX}${1000 + ((fallbackSeed.length * 7919) % 90000)}`;
+    !INTERNAL_ID_PUBLIC_USERNAME_PATTERN.test(explicitName),
+  );
+}
+
+function cleanPublicName(value: unknown, fallbackSeed = '') {
+  const explicitName = String(value || '').replace(/\s+/g, ' ').trim();
+  return isSafePublicUsername(explicitName)
+    ? explicitName
+    : makeKronoxUserFallback(fallbackSeed);
 }
 
 function initialFromName(value: string) {
@@ -445,18 +460,7 @@ async function verifyExistingGuest(base44: any, guestId: string, guestToken: str
 
 function normalizeUsernameInput(value: unknown) {
   const explicitName = String(value || '').trim();
-  if (
-    explicitName &&
-    explicitName.length >= 3 &&
-    explicitName.length <= 24 &&
-    /^[A-Za-z0-9_]+$/.test(explicitName) &&
-    !explicitName.includes('@') &&
-    !UNSAFE_PUBLIC_USERNAME_PATTERN.test(explicitName) &&
-    !INTERNAL_ID_PUBLIC_USERNAME_PATTERN.test(explicitName)
-  ) {
-    return explicitName;
-  }
-  return '';
+  return isSafePublicUsername(explicitName) ? explicitName : '';
 }
 
 function normalizeUsernameKey(value: unknown) {
@@ -622,6 +626,7 @@ async function publishGuestLeaderboardEntry(base44: any, row: any, soloProgress:
   const displayName = cleanPublicName(row?.username, guestId);
   const payload = {
     owner_key: ownerKey,
+    username: displayName,
     display_name: displayName,
     initial: initialFromName(displayName),
     total_kronox_score: normalizeNonNegativeInteger(row?.kronox_puan_total) || normalizeNonNegativeInteger(summary.totalSoloScore),

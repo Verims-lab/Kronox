@@ -649,6 +649,10 @@ Checklist:
   `Apple ile devam et` through Base44 provider auth. Enable it manually in
   Base44 Settings → Authentication → Apple toggle; static Health can only
   verify the button and provider call pattern.
+* Manual Required / P0 release gate: physical Apple parity must be proven on a
+  physical iOS/TestFlight/App Store build before iOS/App Store release. `Sign
+  in with Apple` must be visible wherever Google login is offered; static repo
+  checks are not enough and must not be treated as automated proof.
 * Manual proof: open `https://kronoxgame.com/privacy` from a fresh browser
   without login and confirm the Turkish privacy policy loads on mobile.
 

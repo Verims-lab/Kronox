@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex420 — Targeted Health blocker fix for Codex419 / KRONOX-MQRSFRQT:
+//   • Adds a real isSafePublicUsername helper across public identity paths and
+//     keeps leaderboard responses username/publicName-only.
+//   • Documents physical Apple parity as a Manual Required / P0 iOS release
+//     gate and restores the SoloJokerBar grid/circle/badge/label contract.
+//
 // Codex419 — Guided tutorial joker demo flow:
 //   • Replaces the old joker info box copy with one-line joker instructions
 //     on guided cards 3/4/5 and removes the joker explanation popup path.
@@ -2385,7 +2391,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex419';
+const BUILD_MARKER = 'Codex420';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

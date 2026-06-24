@@ -10,8 +10,8 @@
 //
 //   This mirror exposes the schema's internal projection contract as a plain
 //   string so token scans run against a guaranteed value. It declares the
-//   internal rank fields (owner_key, mirrored display_name, scores, level,
-//   stars, updated_at) and admin-only direct read RLS. Public consumption goes
+//   internal rank fields (owner_key, mirrored username/display_name, scores,
+//   level, stars, updated_at) and admin-only direct read RLS. Public consumption goes
 //   through getSoloLeaderboard, which returns username + leaderboard_id and
 //   strips owner_key/display_name/email/provider IDs.
 //   Keep this in sync with entities/SoloLeaderboardEntry.json.
@@ -25,6 +25,7 @@ export const SOLO_LEADERBOARD_ENTITY_SOURCE = `{
   "properties": {
     "owner_key": { "type": "string", "description": "Logical unique key" },
     "display_name": { "type": "string", "description": "Legacy mirrored username; do not return from public leaderboard APIs" },
+    "username": { "type": "string", "description": "Sanitized public username mirror used by getSoloLeaderboard" },
     "initial": { "type": "string" },
     "total_kronox_score": { "type": "number", "description": "Hot sort field: total_kronox_score descending" },
     "total_solo_score": { "type": "number" },
