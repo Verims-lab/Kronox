@@ -46,7 +46,7 @@ export default function FriendListItem({ friend, onRemove }) {
         <div className="min-w-0 flex-1">
           <p className="truncate font-inter text-sm font-bold text-white">{display}</p>
           {friend.friend_name && (
-            <p className="truncate font-inter text-[11px] text-blue-100/60">{friend.friend_email}</p>
+            <p className="truncate font-inter text-[12px] text-blue-100/60">{friend.friend_email}</p>
           )}
         </div>
         {!confirming && (
@@ -104,7 +104,7 @@ export default function FriendListItem({ friend, onRemove }) {
                 Evet, kaldır
               </button>
             </div>
-            {error && <p className="mt-2 font-inter text-[11px] text-rose-200">{error}</p>}
+            {error && <p className="mt-2 font-inter text-[12px] text-rose-200">{error}</p>}
           </motion.div>
         )}
       </AnimatePresence>
