@@ -61,6 +61,9 @@ Guest:
 * can complete guided tutorial, profile setup, category setup, Solo, Home,
   Daily systems, and leaderboard projection where allowed
 * can link an account later from Profile
+* can tap `Hesabım Var` on the first-launch welcome to open the Profile
+  account-connection card without provider buttons appearing on the welcome
+  screen
 
 Linked / registered user:
 
@@ -87,7 +90,8 @@ Current first launch flow:
 2. App creates or verifies an app-owned `GuestProfile`.
 3. Raw guest token is returned to the client once and kept client-side.
 4. Server stores only `guest_token_hash`.
-5. User starts the guided first Solo tutorial.
+5. The first-launch welcome shows `Seviye 1` as the guided first Solo level
+   start and `Hesabım Var` as a secondary route to Profile account connection.
 6. Tutorial completion routes to profile setup.
 7. Profile setup asks for username plus optional private age/gender.
 8. Category selection loads current metadata.
@@ -97,6 +101,9 @@ Current first launch flow:
 Routing rules:
 
 * `Eğitime Devam` appears only for true `tutorial_in_progress`.
+* `Hesabım Var` is allowed only on the first-launch welcome and routes to the
+  Profile account-connection card; Apple / Google / Email buttons stay in the
+  existing Profile flow.
 * `tutorial_completed` routes to profile setup.
 * profile complete plus category pending routes to category selection.
 * `onboarding_complete` routes to Ana Sayfa.
@@ -166,6 +173,8 @@ Account linking:
 * belongs under Profile only
 * Home does not show Google / Apple / Email login buttons
 * Home does not show `Hesabını bağla` or secure-progress account-link cards
+* the first-launch welcome may show `Hesabım Var` only as a route to Profile
+  account connection, not as an inline provider/login surface
 * linking merges safe user-beneficial guest progress/economy/categories once
 * linking preserves guest Diamonds, Daily Wheel/Daily Quest same-day guards and
   reward history, leaderboard username identity, category preferences, and

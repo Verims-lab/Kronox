@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Users, Trophy, Sparkles, Gem, Settings, ChevronRight, LogOut, UserRound, LogIn, Shield, RefreshCw, Snowflake, ShieldAlert } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
@@ -63,6 +63,9 @@ import AuthProviderButtons from '@/components/auth/AuthProviderButtons';
  */
 export default function ProfilePage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const accountLinkRef = useRef(null);
+  const accountLinkIntentHandledRef = useRef('');
   const [user, setUser] = useState(null);
   const [guestProfile, setGuestProfile] = useState(() => getCachedGuestProfile());
   const [loading, setLoading] = useState(true);
@@ -178,6 +181,23 @@ export default function ProfilePage() {
       .finally(() => base44.auth.redirectToLogin('/profile'));
   };
   const handleLogout = () => { sounds.tap(); base44.auth.logout('/'); };
+  const shouldOpenAccountLink = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('open') === 'account-link' || location.state?.openAccountLink === true;
+  }, [location.search, location.state?.openAccountLink]);
+
+  useEffect(() => {
+    if (!shouldOpenAccountLink || loading || user) return undefined;
+    const intentKey = `${location.key || location.search}:account-link`;
+    if (accountLinkIntentHandledRef.current === intentKey) return undefined;
+    accountLinkIntentHandledRef.current = intentKey;
+
+    const frameId = window.requestAnimationFrame(() => {
+      accountLinkRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      accountLinkRef.current?.focus?.({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frameId);
+  }, [loading, location.key, location.search, shouldOpenAccountLink, user]);
 
   // Codex111/Codex146 — Profile stats use shared sources. Level stays
   // identical to Solo's CTA; Puan uses visible Kronox score so Online
@@ -234,14 +254,16 @@ export default function ProfilePage() {
         />
 
         {!loading && !user && (
-          <Section label="Hesabını Bağla">
-            <SecureGuestProgressCard
-              onBeforeStart={({ provider }) => prepareGuestAccountLink({
-                provider,
-                soloProgress: readSoloProgress(null),
-              })}
-            />
-          </Section>
+          <div ref={accountLinkRef} tabIndex={-1} data-kronox-account-link-panel>
+            <Section label="Hesabını Bağla">
+              <SecureGuestProgressCard
+                onBeforeStart={({ provider }) => prepareGuestAccountLink({
+                  provider,
+                  soloProgress: readSoloProgress(null),
+                })}
+              />
+            </Section>
+          </div>
         )}
 
         {/* Stats: Puan / Seviye / Elmas — single horizontal row matching

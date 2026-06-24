@@ -671,7 +671,8 @@ Checklist:
 * Home respects safe area.
 * Home / Ana Sayfa does not show Google / Apple / email login buttons or a
   secure-progress / `Hesabını bağla` account-link card; guest account linking is
-  available from Profile instead.
+  available from Profile instead. The first-launch welcome may show `Hesabım
+  Var` as a secondary route to Profile, but not provider buttons.
 * Online main screen is no-scroll where intended.
 * Solo map scrolls only the map/path area.
 * Gameplay does not page-scroll during drag.
@@ -1238,7 +1239,8 @@ login:
   ownership proof
 * Apple, Google, and email login options remain visible/working where offered
   under Profile; Home / Ana Sayfa and onboarding completion do not show provider
-  buttons or secure-progress account-link cards
+  buttons or secure-progress account-link cards; first-launch `Hesabım Var`
+  routes to Profile account connection without provider buttons inline
 * leaderboard/profile public identity does not show email, Google ID, Apple ID,
   provider UID, raw guest id, internal `owner_key`, internal `player_key`, or
   public `display_name`
@@ -1269,6 +1271,8 @@ Before release, manually verify guest-to-account linking:
 * Profile shows the "Misafir olarak oynuyorsun" secure-progress card
 * Profile shows Apple / Google / Email secure-progress options together, and
   Home/onboarding completion show no provider buttons or account-link card
+* first-launch `Hesabım Var` routes to the Profile secure-progress card and
+  does not duplicate Apple / Google / Email on the welcome screen
 * Apple is visible wherever Google login is offered
 * guest links Google / Apple / Email through `linkGuestAccount`
 * `AccountLinkTransaction` row is created with idempotency key and no raw guest

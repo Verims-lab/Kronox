@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex422 — First launch account recovery entry:
+//   • Updates the first-launch guided Solo welcome copy and line breaks.
+//   • Adds a secondary Hesabım Var action that routes to Profile account
+//     linking without duplicating provider buttons on the welcome screen.
+//   • Refreshes docs/mirrors/Health around the Profile-only provider flow and
+//     Home no-login-CTA contract.
+//
 // Codex421 — Completed guest Daily Diamonds + Liderlik parity:
 //   • Treats profile-completed GuestProfile users as valid Daily Wheel,
 //     Daily Quest, and Liderlik players through token-proven guest payloads.
@@ -2399,7 +2406,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex421';
+const BUILD_MARKER = 'Codex422';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

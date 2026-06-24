@@ -184,6 +184,9 @@ export default function OnboardingPage() {
         <TutorialStartStep
           busy={busy}
           username={guestProfile.username || makeKronoxUserFallback(guestProfile.guest_id || '')}
+          onExistingAccount={() => navigate('/profile?open=account-link', {
+            state: { openAccountLink: true, accountLinkEntry: 'first-launch-welcome' },
+          })}
           onStart={async () => {
             setBusy(true);
             setError('');
@@ -332,7 +335,7 @@ function StepHeader({ icon: Icon, title, body }) {
   );
 }
 
-function TutorialStartStep({ username, busy, onStart }) {
+function TutorialStartStep({ username, busy, onStart, onExistingAccount }) {
   const displayName = username || 'KronoxUser';
 
   return (
@@ -343,13 +346,25 @@ function TutorialStartStep({ username, busy, onStart }) {
       <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4 text-center font-inter text-sm font-semibold leading-relaxed text-blue-100/82">
         <p>Sevgili {displayName}</p>
         <p className="mt-4">
-          Tek yapman gereken, olay kartını, olayın gerçekleştiğini tahmin ettiğin zaman aralığına sürüklemek. 7 kartı tamamla. Zamana hükmet…
+          Tek yapman gereken olay kartını, olayın gerçekleştiğini tahmin ettiğin zaman aralığına sürüklemek.
+          <br />
+          7 kartı tamamla.
+          <br />
+          Zamana hükmet…
         </p>
       </div>
       <Button onClick={onStart} disabled={busy} className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl font-inter font-black">
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
         Seviye 1
       </Button>
+      <button
+        type="button"
+        onClick={onExistingAccount}
+        disabled={busy}
+        className="mt-3 flex min-h-11 w-full items-center justify-center rounded-xl border border-primary/30 bg-white/[0.03] px-4 font-inter text-sm font-black text-blue-100/82 transition-colors hover:bg-white/[0.06] hover:text-white active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        Hesabım Var
+      </button>
     </div>
   );
 }

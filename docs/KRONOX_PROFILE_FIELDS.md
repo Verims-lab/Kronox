@@ -91,10 +91,12 @@ selection.
 Account linking is implemented through `linkGuestAccount`. Guest users can
 choose Apple / Google / Email from Profile to secure progress. Home / Ana Sayfa
 must not render Google, Apple, email, or `Hesabını bağla` / progress-protection
-account-link prompts. The Profile guest card says the user is playing as guest,
-presents account linking as progress protection, and keeps Apple visible
-wherever Google is visible. Guest users can ignore the optional Profile CTA and
-continue playing without login.
+account-link prompts. The first-launch welcome may show only `Hesabım Var` as a
+secondary route into the Profile account-connection card; it must not duplicate
+Apple / Google / Email buttons. The Profile guest card says the user is playing
+as guest, presents account linking as progress protection, and keeps Apple
+visible wherever Google is visible. Guest users can ignore the optional Profile
+CTA and continue playing without login.
 
 ## Guest Onboarding Phase 2
 
@@ -126,7 +128,9 @@ The category completion CTA label is exactly `Ana Sayfa`. A successful guest
 category save writes `category_setup_status = completed` and
 `onboarding_status = onboarding_complete`, then routes directly to Ana Sayfa.
 Onboarding completion must not show Google / Apple / Email account-link buttons;
-guests can later open Profile if they want to secure/link progress.
+guests can later open Profile if they want to secure/link progress. The
+first-launch `Hesabım Var` entry is the only onboarding account-recovery link
+and it routes to Profile instead of starting provider auth inline.
 On app restart, `onboarding_complete` or a safely repairable completed
 category/profile state opens Ana Sayfa instead of returning to the blue
 onboarding shell.

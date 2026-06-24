@@ -29,7 +29,9 @@ checks that source code and static Health cannot honestly prove alone.
   during tutorial/profile/category setup.
 * Home / Ana Sayfa stays a clean play surface: no Google / Apple / email login
   buttons and no `Hesabını bağla` / progress-protection account-link card.
-  Guest account linking belongs under Profile.
+  Guest account linking belongs under Profile. The first-launch welcome may
+  show a secondary `Hesabım Var` route into that Profile flow, but provider
+  buttons must not appear on the welcome screen.
 * Solo gameplay shows the remaining move counter as `10 HAMLE`, `9 HAMLE`,
   etc.; result popups show `HAMLE` instead of `HATA`.
 * Manual mobile proof must confirm touch, slight drag, invalid drop, tutorial
