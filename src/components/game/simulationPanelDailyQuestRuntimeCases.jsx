@@ -7,6 +7,7 @@
 import dailyQuestProgressEntitySource from '../../../base44/entities/UserDailyQuestProgress.jsonc?raw';
 import dailyQuestDefinitionEntitySource from '../../../base44/entities/DailyQuestDefinition.jsonc?raw';
 import diamondTransactionEntitySource from '../../../base44/entities/DiamondTransaction.jsonc?raw';
+import guestProfileEntitySource from '../../../base44/entities/GuestProfile.jsonc?raw';
 import getDailyQuestStatusSource from '../../../base44/functions/getDailyQuestStatus/entry.ts?raw';
 import recordDailyQuestProgressSource from '../../../base44/functions/recordDailyQuestProgress/entry.ts?raw';
 import claimDailyQuestRewardSource from '../../../base44/functions/claimDailyQuestReward/entry.ts?raw';
@@ -134,8 +135,12 @@ export const EXTRA_TESTS = [
         'base44?.entities?.UserDailyQuestProgress',
         'progressEntitySource',
         'auth_user',
+        'service_role_guest',
         'findProgressByAssignment',
-        'daily_quest:${email}:${dateKey}:${questKey}',
+        'buildAssignmentKey(player.playerKey',
+        'user_email: player.playerKey',
+        'owner_key: player.ownerKey',
+        'player_type: player.isGuest',
         'const ensuredRows = rows',
         'refreshedRows.length ? refreshedRows : ensuredRows',
         'noRewardDuringEnsure: true',
@@ -232,6 +237,44 @@ export const EXTRA_TESTS = [
         missing,
       });
       return pass('Game.jsx emits Solo-only start/correct/complete/joker events and recordDailyQuestProgress completes rows at target.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('completed_guest_daily_quest_runtime_contract',
+    'Completed guests can see, progress, and claim Daily Quest Diamonds',
+    () => {
+      const combined = `${guestProfileEntitySource}\n${useDailyQuestsSource}\n${dailyRewardsPanelSource}\n${gameSource}\n${getDailyQuestStatusSource}\n${recordDailyQuestProgressSource}\n${claimDailyQuestRewardSource}\n${docsCombined}`;
+      const missing = missingTokens(combined, [
+        'getCompletedGuestCredentialsPayload',
+        'dailyQuestPayload',
+        'guestProfile',
+        'guestDailyQuestPayload',
+        'resolveDailyQuestPlayer',
+        'guestPlayerKey',
+        'isGuestProfileComplete',
+        'service_role_guest',
+        'GuestProfile.diamonds',
+        'updateDailyQuestPlayer',
+        'playerType',
+        'guestProfileReward',
+        'rawGuestTokenServerStored: false',
+        'daily_quest_last_claim_date',
+      ]);
+      if (missing.length) return fail('Completed guest Daily Quest support is missing client payload, backend actor proof, persistence, or metadata.', {
+        verification: 'STATIC_CONTRACT',
+        files: [
+          'src/hooks/useDailyQuests.js',
+          'src/components/dailyWheel/DailyRewardsPanel.jsx',
+          'src/pages/Game.jsx',
+          'base44/functions/getDailyQuestStatus/entry.ts',
+          'base44/functions/recordDailyQuestProgress/entry.ts',
+          'base44/functions/claimDailyQuestReward/entry.ts',
+          'base44/entities/GuestProfile.jsonc',
+        ],
+        missing,
+      });
+      return pass('Completed guests send token proof for Daily Quest status/progress/claim, persist rewards on GuestProfile.diamonds, and retain guest-safe metadata.', {
+        verification: 'STATIC_CONTRACT',
+      });
     }),
 
   makeCase('online_mode_excluded',
@@ -417,13 +460,16 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('user_ownership_and_runtime_security',
-    'User can only read/update/claim own Daily Quest progress',
+    'Players can only read/update/claim their own Daily Quest progress',
     () => {
       const missing = missingTokens(`${dailyQuestProgressEntitySource}\n${claimDailyQuestRewardSource}\n${recordDailyQuestProgressSource}`, [
         '"data.user_email": "{{user.email}}"',
-        'normalizeEmail(user?.email)',
-        'normalizeEmail(row?.user_email) === email',
-        'user_email: email',
+        'resolveDailyQuestPlayer',
+        'playerKey: email',
+        'normalizeEmail(row?.user_email) === player.playerKey',
+        'user_email: player.playerKey',
+        'guestPlayerKey',
+        'isGuestProfileComplete',
         'base44.auth.me()',
       ]);
       const forbidden = forbiddenTokens(`${claimDailyQuestRewardSource}\n${recordDailyQuestProgressSource}`, [
@@ -435,7 +481,7 @@ export const EXTRA_TESTS = [
         verification: 'STATIC_CONTRACT',
         actual: { missing, forbidden },
       });
-      return pass('Daily Quest runtime derives ownership from authenticated user context and user_email-scoped rows.', { verification: 'STATIC_CONTRACT' });
+      return pass('Daily Quest runtime derives ownership from authenticated user context or completed guest token proof and player_key-scoped rows.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('runtime_manual_rls_and_race_proof',

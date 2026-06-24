@@ -399,13 +399,15 @@ Checklist:
   code guard; Medium/P1 hardening with code guard only; High if neither exists.
 * `Günlük Ödüller` panel appears on Home above `SOLO MEYDAN OKUMA` and includes
   Daily Wheel plus one compact `Günlük Görev`.
-* Daily Wheel claim requires authenticated user.
+* Daily Wheel claim requires authenticated user context or token-proven
+  completed GuestProfile.
 * Daily Wheel grants Diamonds only and never Kronox Puan.
 * Daily Quest Runtime v1 grants diamonds only through the server-backed
   `claimDailyQuestReward` path.
 * Daily Wheel and Daily Quest use separate guard fields/idempotency keys:
-  `daily_wheel:<email>:<YYYY-MM-DD>` and
-  `daily_quest_reward:<email>:<YYYY-MM-DD>:<quest_key>` / `User.daily_quest_*`.
+  `daily_wheel:<playerKey>:<YYYY-MM-DD>` and
+  `daily_quest_reward:<playerKey>:<YYYY-MM-DD>:<quest_key>` /
+  `User.daily_quest_*` or `GuestProfile.daily_quest_*`.
 * Daily Wheel is separate from the existing +20 daily login reward.
 * Daily Wheel can be claimed at most once per UTC server day.
 * Daily Wheel reward is selected server-side by `claimDailyWheelReward`.
@@ -415,8 +417,9 @@ Checklist:
 * Daily Wheel UI animates to the backend-selected reward.
 * Daily Wheel duplicate tap/refresh returns the same claimed result or claimed status without a duplicate grant.
 * Daily Wheel same-day duplicate prevention uses `DailyWheelSpin` key/date
-  lookup, reserve-first spin rows, canonical same-user/same-day re-read, User
-  guard re-check, and `DiamondTransaction` re-check before balance mutation.
+  lookup, reserve-first spin rows, canonical same-player/same-day re-read,
+  User/GuestProfile guard re-check, and `DiamondTransaction` re-check before
+  balance mutation.
   This is not an atomic upsert without DB/entity uniqueness.
 * No repo DB/entity unique proof exists for `DailyWheelSpin.idempotency_key` or
   `DailyWheelSpin.user_email + spin_date` unless Base44/platform configuration
@@ -591,13 +594,13 @@ Checklist:
   question is selected, and the attempt actually starts.
 * `claimDailyQuestReward` requires completed status, uses the reward copied in
   the progress row, writes `DiamondTransaction.source = daily_quest_reward`,
-  updates the visible `User.diamonds` balance, returns `diamondBalanceAfter`,
-  and marks the row claimed.
+  updates the visible `User.diamonds` or completed-guest `GuestProfile.diamonds`
+  balance, returns `diamondBalanceAfter`, and marks the row claimed.
 * `getDailyQuestStatus`, `recordDailyQuestProgress`, and
   `claimDailyQuestReward` explicitly bind `UserDailyQuestProgress` in their
   Base44 runtime functions for deployability.
 * One claim per quest per UTC day is enforced by `UserDailyQuestProgress` status
-  plus the `daily_quest_reward:<email>:<YYYY-MM-DD>:<quest_key>` idempotency
+  plus the `daily_quest_reward:<playerKey>:<YYYY-MM-DD>:<quest_key>` idempotency
   key; duplicate claim must not grant Diamonds twice.
 * Daily Quest does not grant Kronox Puan and has no leaderboard impact.
 * Daily Quest grants diamonds only.

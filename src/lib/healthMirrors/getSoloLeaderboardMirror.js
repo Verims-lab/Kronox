@@ -15,7 +15,10 @@
 //   compares a bounded server-side User top-score repair window, repairs
 //   missing/stale projection rows best-effort, and returns ONLY rank-safe
 //   compact fields. Full User rows and internal owner_key/display_name values
-//   never leave the function. It is read
+//   never leave the function. Completed guests can pass guest_id + guest_token
+//   proof; the function verifies a completed GuestProfile, uses an internal
+//   g_ owner key, and still returns only username plus opaque leaderboard_id.
+//   It is read
 //   ONLY by Health static-contract checks. Change the real function and this
 //   mirror together — Health fails if any required phrase is missing, so a
 //   stale mirror cannot silently pass.
@@ -29,7 +32,30 @@ export const GET_SOLO_LEADERBOARD_SOURCE = `// getSoloLeaderboard — public-saf
 // notification settings, auth/private profile fields, push/device data, or
 // full User rows leave this function. Public rows return username and
 // leaderboard_id; owner_key/display_name stay internal only and display_name
-// is not used as a public identity fallback.
+// is not used as a public identity fallback. Public rows strip raw email,
+// provider ids, raw guest id, owner_key, player_key, guest_id, guest_token,
+// and display_name.
+// Completed guests can pass guest_id + guest_token; resolveLeaderboardActor
+// verifies completed GuestProfile before using an internal g_ owner key.
+
+function ownerKeyFromGuestId(rawGuestId) {
+  const guestId = String(rawGuestId || '').trim().toLowerCase();
+  return guestId ? 'g_' + hash(guestId) : '';
+}
+
+function isGuestProfileComplete(row) {
+  return row?.onboarding_status === 'onboarding_complete'
+    && row?.profile_setup_status === 'completed'
+    && row?.category_setup_status === 'completed';
+}
+
+async function resolveLeaderboardActor(base44, body) {
+  const user = await base44.auth.me().catch(() => null);
+  if (user?.email) return { actorType: 'registered', ownerKey: getOwnerKey(user.email), user };
+  const guest = await verifyGuestToken(base44, body?.guest_id, body?.guest_token);
+  if (!guest || !isGuestProfileComplete(guest)) return null;
+  return { actorType: 'guest', ownerKey: ownerKeyFromGuestId(body?.guest_id), guest };
+}
 
 function publicLeaderboardId(ownerKey) {
   return 'lb_' + hash(ownerKey);
@@ -91,8 +117,9 @@ function toPublicLeaderboardRows(rows) {
 
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
-  const user = await base44.auth.me();
-  if (!user) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const body = await req.json().catch(() => ({}));
+  const actor = await resolveLeaderboardActor(base44, body);
+  if (!actor) return json({ ok: false, error: 'Unauthorized' }, 401);
 
   // Service role used ONLY internally; rows returned are rank-safe.
   const projectionEntity = base44?.asServiceRole?.entities?.SoloLeaderboardEntry;
@@ -111,7 +138,9 @@ Deno.serve(async (req) => {
   // projection_missing_positive_top_rows and positive_user_score_missing_from_projection force limited rank before exact.
   // projection_score_stale_above_user_score and projection_score_stale_below_user_score both trigger repair.
   const backfillResult = fallbackUsed ? await repairSoloLeaderboardProjection(base44, projectionRows, userScoreRows) : { attempted: 0 };
-  const friendUserKeys = await loadAcceptedFriendOwnerKeys(base44, normalizeEmail(user?.email));
+  const friendUserKeys = actor.actorType === 'registered'
+    ? await loadAcceptedFriendOwnerKeys(base44, normalizeEmail(actor.user?.email))
+    : new Set();
   const positiveDecoratedRows = rankedWindowRows.filter(isPositiveScoreRow);
   const zeroDecoratedRows = rankedWindowRows.filter((row) => !isPositiveScoreRow(row));
   const topRows = [...positiveDecoratedRows, ...zeroDecoratedRows].slice(0, topLimit);

@@ -11,6 +11,9 @@ import mainMenuSource from '../../pages/MainMenu.jsx?raw';
 import dailyRewardsPanelSource from '../dailyWheel/DailyRewardsPanel.jsx?raw';
 import marketPageSource from '../../pages/MarketPage.jsx?raw';
 import purchaseJokerWithDiamondsSource from '../../../base44/functions/purchaseJokerWithDiamonds/entry.ts?raw';
+import claimDailyWheelRewardSource from '../../../base44/functions/claimDailyWheelReward/entry.ts?raw';
+import claimDailyQuestRewardSource from '../../../base44/functions/claimDailyQuestReward/entry.ts?raw';
+import guestProfileEntitySource from '../../../base44/entities/GuestProfile.jsonc?raw';
 import profilePageSource from '../../pages/ProfilePage.jsx?raw';
 import leaderboardPageSource from '../../pages/LeaderboardPage.jsx?raw';
 import soloChallengeSource from '../../pages/SoloChallenge.jsx?raw';
@@ -112,6 +115,39 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('User.diamonds is the canonical Diamond balance source.', { verification: 'STATIC_CONTRACT+EXECUTABLE' });
+    }),
+
+  makeCase('completed_guest_diamond_balance_source_exists',
+    'Completed guest Diamond balance persists on GuestProfile.diamonds',
+    () => {
+      const combined = `${guestProfileEntitySource}\n${claimDailyWheelRewardSource}\n${claimDailyQuestRewardSource}\n${mainMenuSource}\n${leaderboardPageSource}\n${economyRulesSource}`;
+      const missing = missingTokens(combined, [
+        'Server-authoritative guest Diamond balance',
+        'GuestProfile.diamonds',
+        'updateDailyWheelPlayer',
+        'updateDailyQuestPlayer',
+        'guestProfileReward',
+        'rawGuestTokenServerStored: false',
+        'getLeaderboardDiamondValue(user || completedGuestProfile)',
+        'completedGuestProfile',
+        'diamondBalanceAfter',
+      ]);
+      if (missing.length) {
+        return fail('Completed guest Diamond persistence can drift from the canonical GuestProfile.diamonds contract.', {
+          verification: 'STATIC_CONTRACT',
+          files: [
+            'base44/entities/GuestProfile.jsonc',
+            'base44/functions/claimDailyWheelReward/entry.ts',
+            'base44/functions/claimDailyQuestReward/entry.ts',
+            'src/pages/MainMenu.jsx',
+            'src/pages/LeaderboardPage.jsx',
+          ],
+          missing,
+        });
+      }
+      return pass('Completed guests persist Daily Wheel and Daily Quest Diamonds on GuestProfile.diamonds, and Home/Liderlik read that balance through the shared helper.', {
+        verification: 'STATIC_CONTRACT',
+      });
     }),
 
   makeCase('starter_bonus_grants_100_once',
@@ -386,7 +422,7 @@ export const EXTRA_TESTS = [
     'Home and Mağaza Diamond displays can update after purchase',
     () => {
       const missing = missingTokens(`${mainMenuSource}\n${marketPageSource}\n${purchaseJokerWithDiamondsSource}`, [
-        'getLeaderboardDiamondValue(user)',
+        'getLeaderboardDiamondValue(user || completedGuestProfile)',
         'aria-label={`Elmas: ${diamonds}`}',
         'setUser((current) => ({',
         'diamonds: normalizeJokerQuantity(result.diamondBalanceAfter)',
@@ -399,7 +435,7 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      return pass('Home and Mağaza Diamond displays use User.diamonds and Mağaza patches the post-purchase total.', { verification: 'STATIC_CONTRACT' });
+      return pass('Home and Mağaza Diamond displays use the shared Diamond helper and Mağaza patches the registered post-purchase total.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('diamond_ledger_differentiates_daily_and_market_sources',

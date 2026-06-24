@@ -403,6 +403,45 @@ export const EXTRA_TESTS = [
       });
     }),
 
+  makeCase('guest_account_link_preserves_daily_rewards_and_identity',
+    'Account link preserves guest daily rewards, same-day guards, history, and leaderboard identity',
+    () => {
+      const combined = `${guestProfileEntitySource}\n${linkGuestAccountSource}\n${leaderboardSource}`;
+      const missing = missingTokens(combined, [
+        'buildDailyRewardLinkPatch',
+        'mergeDailyRewardHistoryRows',
+        'mergeDailyWheelHistoryRows',
+        'mergeDailyQuestHistoryRows',
+        'dailyWheelHistoryMerged',
+        'dailyQuestHistoryMerged',
+        'dailyQuestHistoryUpdated',
+        'dailyRewardSameDayGuardsPreserved',
+        'daily_wheel_last_spin_date',
+        'daily_quest_last_claim_date',
+        'leaderboardGuestRowPassivated',
+        'syncCategoryPreferences',
+        'mergeJokerBalances',
+        'Server-authoritative guest Diamond balance',
+      ]);
+      if (missing.length) {
+        return fail('Guest account linking no longer proves Daily Wheel/Daily Quest guard/history and username leaderboard preservation.', {
+          verification: 'STATIC_CONTRACT',
+          files: [
+            'base44/functions/linkGuestAccount/entry.ts',
+            'base44/entities/GuestProfile.jsonc',
+            'src/lib/leaderboard.js',
+          ],
+          expected: 'linkGuestAccount merges guest Diamonds, Daily Wheel/Daily Quest guard fields/history, leaderboard username row continuity, categories, progress, and inventory where present.',
+          actual: { missing },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Account linking carries guest Diamonds plus Daily Wheel/Daily Quest same-day guards/history into the registered account and preserves username-only leaderboard identity.', {
+        verification: 'STATIC_CONTRACT',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
   makeCase('leaderboard_uses_username_not_provider_identity_after_link',
     'Leaderboard identity is username-only and never provider/email/internal id',
     () => {
@@ -448,6 +487,7 @@ export const EXTRA_TESTS = [
         'ensureGuestProfile',
         "navigate('/', { replace: true })",
         'SOLO MEYDAN OKUMA',
+        'rewardsPlayer &&',
       ]);
       const forbiddenHome = presentTokens(mainMenuSource, [
         "import AuthProviderButtons from '@/components/auth/AuthProviderButtons'",

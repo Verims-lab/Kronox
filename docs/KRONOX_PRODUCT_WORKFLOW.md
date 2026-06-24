@@ -167,6 +167,9 @@ Account linking:
 * Home does not show Google / Apple / Email login buttons
 * Home does not show `Hesabını bağla` or secure-progress account-link cards
 * linking merges safe user-beneficial guest progress/economy/categories once
+* linking preserves guest Diamonds, Daily Wheel/Daily Quest same-day guards and
+  reward history, leaderboard username identity, category preferences, and
+  inventory where applicable
 * provider IDs, email, raw guest token, raw `guest_id`, and `owner_key` must not
   become public identity
 
@@ -359,6 +362,7 @@ Daily Wheel:
 * grants no Kronox Puan
 * does not affect leaderboard
 * is separate from Daily Quest
+* completed guests can claim once per UTC day through token-proven GuestProfile
 * uses function-level same-day guard through `DailyWheelSpin`
 
 Daily Quest:
@@ -367,6 +371,8 @@ Daily Quest:
 * grants no Kronox Puan
 * does not affect leaderboard
 * is separate from Daily Wheel
+* completed guests can see, progress, and claim rewards through token-proven
+  GuestProfile
 * uses `DailyQuestDefinition`, `UserDailyQuestProgress`, and
   `claimDailyQuestReward`
 
@@ -400,8 +406,8 @@ Never visible in leaderboard:
 * `owner_key`
 * internal player key
 
-Guest users can appear through safe public username projection where the current
-leaderboard path supports it.
+Completed guest users can open Liderlik and appear through safe public username
+projection where the current leaderboard path supports it.
 
 Daily Quest and Daily Wheel do not affect leaderboard.
 

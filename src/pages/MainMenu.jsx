@@ -4,9 +4,11 @@ import { motion } from 'framer-motion';
 import { ChevronRight, Crosshair, Swords } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
+import { useAuth } from '@/lib/AuthContext';
 import StandardTopBar from '@/components/layout/StandardTopBar';
 import DailyRewardsPanel from '@/components/dailyWheel/DailyRewardsPanel';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
+import { isGuestOnboardingComplete } from '@/lib/guestProfile';
 
 /**
  * Kronox Home — fixed full-screen mobile game home.
@@ -32,17 +34,22 @@ import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
  */
 export default function MainMenu() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
+  const { user: authUser, guestProfile } = useAuth();
+  const [localUser, setLocalUser] = useState(authUser || null);
+  const [localGuestProfile, setLocalGuestProfile] = useState(guestProfile || null);
+  const user = localUser || authUser || null;
+  const completedGuestProfile = !user && isGuestOnboardingComplete(localGuestProfile || guestProfile)
+    ? (localGuestProfile || guestProfile)
+    : null;
+  const rewardsPlayer = user || completedGuestProfile;
 
-  useEffect(() => {
-    let cancelled = false;
-    base44.auth.me()
-      .then((u) => { if (!cancelled) setUser(u || null); })
-      .catch(() => { if (!cancelled) setUser(null); });
-    return () => { cancelled = true; };
-  }, []);
+  useEffect(() => { setLocalUser(authUser || null); }, [authUser]);
+  useEffect(() => { setLocalGuestProfile(guestProfile || null); }, [guestProfile]);
 
-  const diamonds = useMemo(() => getLeaderboardDiamondValue(user), [user]);
+  const diamonds = useMemo(
+    () => getLeaderboardDiamondValue(user || completedGuestProfile),
+    [completedGuestProfile, user],
+  );
 
   const handleSolo = () => {
     sounds.tap();
@@ -61,11 +68,18 @@ export default function MainMenu() {
 
   const handleDailyWheelUserPatch = useCallback((patch) => {
     if (!patch || typeof patch !== 'object') return;
-    setUser((current) => ({
-      ...(current || {}),
+    if (user) {
+      setLocalUser((current) => ({
+        ...(current || user || {}),
+        ...patch,
+      }));
+      return;
+    }
+    setLocalGuestProfile((current) => ({
+      ...(current || completedGuestProfile || {}),
       ...patch,
     }));
-  }, []);
+  }, [completedGuestProfile, user]);
 
   return (
     <main
@@ -138,9 +152,10 @@ export default function MainMenu() {
             className="mt-auto flex w-full flex-col items-center"
             style={{ gap: '0.75rem', paddingTop: 'clamp(0.75rem, 3vh, 1.8rem)', paddingBottom: 'clamp(1.35rem, 5.8vh, 3.2rem)' }}
           >
-            {user && (
+            {rewardsPlayer && (
               <DailyRewardsPanel
                 user={user}
+                guestProfile={completedGuestProfile}
                 onUserUpdated={handleDailyWheelUserPatch}
                 ariaLabel="Günlük Ödüller: Günlük Çark ve Günlük Görev"
               />

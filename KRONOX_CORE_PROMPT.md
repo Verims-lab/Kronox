@@ -55,6 +55,11 @@ Preserve these current contracts unless a task explicitly changes them:
 * Unified Kronox Puan is the only visible score system.
 * Daily Wheel and Daily Quest grant Diamonds only; Daily Quest does not affect
   Kronox Puan or leaderboard.
+* Completed GuestProfile users are valid players for Daily Wheel, Daily Quest,
+  and Liderlik. Guest rewards persist on GuestProfile.diamonds and account
+  linking preserves guest Diamonds, daily reward guards/history, Solo progress,
+  leaderboard username identity, category preferences, and inventory where
+  applicable.
 * Economy idempotency uses function-level guards. DB/platform unique constraint
   proof remains manual unless explicitly proven.
 

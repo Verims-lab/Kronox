@@ -18,6 +18,7 @@ const MAX_TOP_LIMIT = 50;
 const TOTAL_LEVELS = 20;
 const PROJECTION_REPAIR_UPSERT_LIMIT = 50;
 const USERNAME_PREFIX = 'KronoxUser';
+const GUEST_ID_PREFIX = 'guest_';
 const UNSAFE_PUBLIC_USERNAME_PATTERN = /^(apple|google|firebase|auth0|base44|provider|uid|owner)(?:[\w:-].*)?$/i;
 const INTERNAL_ID_PUBLIC_USERNAME_PATTERN = /^(guest|player|owner|user_key|player_key|g|u)_[A-Za-z0-9_-]{4,}$/i;
 
@@ -39,6 +40,108 @@ function ownerKeyFromEmail(rawEmail: unknown) {
     hash = Math.imul(hash, 16777619);
   }
   return `u_${(hash >>> 0).toString(36)}`;
+}
+
+function ownerKeyFromGuestId(rawGuestId: unknown) {
+  const guestId = String(rawGuestId || '').trim().toLowerCase();
+  if (!guestId) return '';
+
+  let hash = 2166136261;
+  for (let i = 0; i < guestId.length; i += 1) {
+    hash ^= guestId.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `g_${(hash >>> 0).toString(36)}`;
+}
+
+function safeCredentialText(value: unknown, maxLength = 180) {
+  const text = String(value || '').trim();
+  if (!text || text.length > maxLength) return '';
+  return /^[A-Za-z0-9_-]+$/.test(text) ? text : '';
+}
+
+function normalizeGuestId(value: unknown) {
+  const text = safeCredentialText(value, 80);
+  return text.startsWith(GUEST_ID_PREFIX) ? text : '';
+}
+
+function normalizeGuestToken(value: unknown) {
+  return safeCredentialText(value, 220);
+}
+
+function rowId(row: any) {
+  return row?.id || row?._id || null;
+}
+
+function bytesToBase64Url(bytes: Uint8Array) {
+  let binary = '';
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+async function sha256Base64Url(input: string) {
+  const data = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return bytesToBase64Url(new Uint8Array(digest));
+}
+
+async function hashGuestToken(guestId: string, guestToken: string) {
+  return sha256Base64Url(`kronox_guest_v1:${guestId}:${guestToken}`);
+}
+
+function isGuestProfileComplete(row: any) {
+  const status = String(row?.onboarding_status || '').trim();
+  if (status === 'onboarding_complete' || status === 'completed') return true;
+  const profileCompleted = String(row?.profile_setup_status || '').trim() === 'completed' || Boolean(row?.profile_setup_completed_at);
+  const categoryCompleted = String(row?.category_setup_status || '').trim() === 'completed' ||
+    Boolean(row?.category_setup_completed_at || row?.onboarding_completed_at);
+  return Boolean(profileCompleted && categoryCompleted);
+}
+
+async function findGuestProfile(base44: any, guestId: string) {
+  const entity = base44?.asServiceRole?.entities?.GuestProfile || base44?.entities?.GuestProfile;
+  if (!entity?.filter || !guestId) return null;
+  const rows = await entity.filter({ guest_id: guestId }, '-created_at', 5).catch(() => []);
+  return Array.isArray(rows) && rows.length ? rows[0] : null;
+}
+
+async function resolveLeaderboardActor(base44: any, body: any) {
+  const user = await base44.auth.me().catch(() => null);
+  if (user?.email || user?.user_email) {
+    const email = normalizeEmail(user.email || user.user_email);
+    return {
+      ok: true,
+      type: 'registered',
+      user,
+      email,
+      ownerKey: ownerKeyFromEmail(email),
+      response: null,
+    };
+  }
+
+  const guestId = normalizeGuestId(body?.guest_id);
+  const guestToken = normalizeGuestToken(body?.guest_token);
+  if (!guestId || !guestToken) {
+    return { ok: false, response: json({ ok: false, error: 'Unauthorized' }, 401) };
+  }
+  const guest = await findGuestProfile(base44, guestId);
+  const expectedHash = String(guest?.guest_token_hash || '');
+  const providedHash = await hashGuestToken(guestId, guestToken);
+  if (!guest || !expectedHash || expectedHash !== providedHash) {
+    return { ok: false, response: json({ ok: false, error: 'Unauthorized' }, 401) };
+  }
+  if (String(guest?.status || '') === 'linked' || !isGuestProfileComplete(guest)) {
+    return { ok: false, response: json({ ok: false, error: 'Guest profile is not leaderboard-ready' }, 403) };
+  }
+  const ownerKey = ownerKeyFromGuestId(guestId);
+  return {
+    ok: true,
+    type: 'guest',
+    user: guest,
+    email: '',
+    ownerKey,
+    response: null,
+  };
 }
 
 function publicLeaderboardId(ownerKey: string) {
@@ -586,10 +689,10 @@ async function loadCurrentProjectionRow(base44: any, currentOwnerKey: string) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return json({ ok: false, error: 'Unauthorized' }, 401);
-
     const body = await req.json().catch(() => ({}));
+    const actor = await resolveLeaderboardActor(base44, body);
+    if (!actor.ok) return actor.response;
+
     const limit = Math.min(
       MAX_LIMIT,
       Math.max(1, Math.floor(finiteNumber(body?.limit, DEFAULT_LIMIT))),
@@ -603,8 +706,10 @@ Deno.serve(async (req) => {
     const levelNumber = Math.max(0, Math.floor(finiteNumber(body?.levelNumber, 0)));
 
     if (!levelNumber) {
-      const currentOwnerKey = ownerKeyFromEmail(user?.email || user?.user_email);
-      const friendUserKeys = await loadAcceptedFriendOwnerKeys(base44, normalizeEmail(user?.email));
+      const currentOwnerKey = actor.ownerKey;
+      const friendUserKeys = actor.email
+        ? await loadAcceptedFriendOwnerKeys(base44, actor.email)
+        : [];
       const friendOwnerKeySet = new Set(friendUserKeys);
       const projectionEntity = base44?.asServiceRole?.entities?.SoloLeaderboardEntry;
       const projectionRows = projectionEntity?.list

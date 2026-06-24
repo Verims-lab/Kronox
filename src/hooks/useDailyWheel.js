@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { KRONOX_BUILD_MARKER } from '@/components/dev/BuildMarker';
 import { claimDailyWheelReward, getDailyWheelStatus } from '@/lib/dbGateway/economyGateway';
+import { getCompletedGuestCredentialsPayload } from '@/lib/guestProfile';
 
 function normalizeFunctionBody(response) {
   return response?.data || response || {};
@@ -26,7 +27,7 @@ async function invokeDailyWheelFunction(name, payload = {}) {
   try {
     response = isClaim
       ? await claimDailyWheelReward(payload)
-      : await getDailyWheelStatus();
+      : await getDailyWheelStatus(payload);
   } catch (err) {
     const error = new Error(isClaim
       ? 'Çark çevrilemedi. Lütfen tekrar dene.'
@@ -47,7 +48,7 @@ async function invokeDailyWheelFunction(name, payload = {}) {
   return body;
 }
 
-export function useDailyWheel({ user, onUserUpdated } = {}) {
+export function useDailyWheel({ user, guestProfile, onUserUpdated } = {}) {
   const [status, setStatus] = useState('loading');
   const [wheel, setWheel] = useState(null);
   const [error, setError] = useState('');
@@ -57,7 +58,9 @@ export function useDailyWheel({ user, onUserUpdated } = {}) {
   const [showResult, setShowResult] = useState(false);
   const [lastResult, setLastResult] = useState(null);
 
-  const isSignedIn = Boolean(user?.email || user?.user_email);
+  const guestCredentials = useMemo(() => getCompletedGuestCredentialsPayload(guestProfile), [guestProfile]);
+  const dailyWheelPayload = useMemo(() => guestCredentials || {}, [guestCredentials]);
+  const isSignedIn = Boolean(user?.email || user?.user_email || guestCredentials);
   const isAvailable = status === 'available';
   const isClaimed = status === 'claimed';
 
@@ -79,7 +82,7 @@ export function useDailyWheel({ user, onUserUpdated } = {}) {
     }
     setStatus('loading');
     try {
-      const body = await invokeDailyWheelFunction('getDailyWheelStatus', {});
+      const body = await invokeDailyWheelFunction('getDailyWheelStatus', dailyWheelPayload);
       setWheel(body);
       const nextStatus = body.available ? 'available' : 'claimed';
       setStatus(nextStatus);
@@ -105,7 +108,7 @@ export function useDailyWheel({ user, onUserUpdated } = {}) {
       setError(userSafeDailyWheelError(err, 'Günlük Çark durumu alınamadı. Lütfen tekrar dene.'));
       return null;
     }
-  }, [isSignedIn, user]);
+  }, [dailyWheelPayload, isSignedIn, user]);
 
   useEffect(() => {
     let cancelled = false;
@@ -134,6 +137,7 @@ export function useDailyWheel({ user, onUserUpdated } = {}) {
     setClaiming(true);
     try {
       const body = await invokeDailyWheelFunction('claimDailyWheelReward', {
+        ...dailyWheelPayload,
         buildMarker: KRONOX_BUILD_MARKER,
       });
       markPromptSeen(body.serverDate);
@@ -170,7 +174,7 @@ export function useDailyWheel({ user, onUserUpdated } = {}) {
       claimingRef.current = false;
       setClaiming(false);
     }
-  }, [claiming, isSignedIn, markPromptSeen, onUserUpdated]);
+  }, [claiming, dailyWheelPayload, isSignedIn, markPromptSeen, onUserUpdated]);
 
   return useMemo(() => ({
     status,

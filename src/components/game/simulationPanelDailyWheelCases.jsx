@@ -11,6 +11,7 @@ import dailyWheelHookSource from '../../hooks/useDailyWheel.js?raw';
 import economyGatewaySource from '../../lib/dbGateway/economyGateway.js?raw';
 import diamondEconomySource from '../../lib/diamondEconomy.js?raw';
 import gameSoundsSource from '../../lib/gameSounds.js?raw';
+import guestProfileEntitySource from '../../../base44/entities/GuestProfile.jsonc?raw';
 import { ECONOMY_RULES_DOC as economyRulesSource } from '@/lib/economyRulesDoc';
 import { RELEASE_PROOF_CHECKLIST_DOC as releaseChecklistSource } from '@/lib/package2DocMirrors';
 import { DAILY_WHEEL_BACKEND_HEALTH_SOURCE } from '@/lib/dailyWheelHealthMirror';
@@ -70,18 +71,21 @@ export const EXTRA_SUITES = [
 
 export const EXTRA_TESTS = [
   makeCase('daily_rewards_panel_above_solo_cta',
-    'Günlük Ödüller panel exists for signed-in Home above Solo CTA',
+    'Günlük Ödüller panel exists for signed-in or completed-guest Home above Solo CTA',
     () => {
       const src = safeStr(mainMenuSource);
       const panelIndex = src.indexOf('<DailyRewardsPanel');
       const soloIndex = src.indexOf('label="SOLO MEYDAN OKUMA"');
       const missing = missingTokens(`${src}\n${dailyRewardsPanelSource}`, [
         'DailyRewardsPanel',
-        '{user && (',
+        '{rewardsPlayer && (',
+        'completedGuestProfile',
+        'guestProfile={completedGuestProfile}',
         'Günlük Ödüller',
         'DailyWheelCard',
         'DailyQuestV1Card',
         'Günlük Görev',
+        'getLeaderboardDiamondValue(user || completedGuestProfile)',
         'onUserUpdated={handleDailyWheelUserPatch}',
         "paddingBottom: 'clamp(1.35rem, 5.8vh, 3.2rem)'",
         'label="SOLO MEYDAN OKUMA"',
@@ -93,13 +97,13 @@ export const EXTRA_TESTS = [
         'const handleLogin',
       ]);
       if (missing.length || forbidden.length || panelIndex < 0 || soloIndex < 0 || panelIndex > soloIndex) {
-        return fail('Home does not place signed-in Günlük Ödüller before the Solo CTA while avoiding guest login prompts.', {
+        return fail('Home does not place eligible-player Günlük Ödüller before the Solo CTA while avoiding guest login prompts.', {
           verification: 'STATIC_CONTRACT',
           file: 'src/pages/MainMenu.jsx',
           actual: { missing, forbidden, panelIndex, soloIndex },
         });
       }
-      return pass('Signed-in Günlük Ödüller is wired above Solo CTA, guest Home avoids reward login prompts, and Solo/Online CTAs remain present.', { verification: 'STATIC_CONTRACT' });
+      return pass('Signed-in and completed-guest Günlük Ödüller is wired above Solo CTA, guest Home avoids reward login prompts, and Solo/Online CTAs remain present.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_icon_polished_not_asset_dependent',
@@ -173,24 +177,61 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('daily_wheel_claim_requires_auth_and_server_reward',
-    'Daily Wheel claim requires auth and selects rewards server-side',
+    'Daily Wheel claim requires trusted player proof and selects rewards server-side',
     () => {
       const missing = missingTokens(DAILY_WHEEL_BACKEND_HEALTH_SOURCE, [
         'claimDailyWheelReward',
         'base44.auth.me()',
+        'resolveDailyWheelPlayer',
+        'isGuestProfileComplete',
         'unauthenticated',
         'REWARD_TABLE',
         'DailyWheelSpin.create',
         'DiamondTransaction.create',
       ]);
       if (missing.length) {
-        return fail('Daily Wheel backend auth/server reward contract is incomplete.', {
+        return fail('Daily Wheel backend player-proof/server reward contract is incomplete.', {
           verification: 'STATIC_CONTRACT',
           file: 'base44/functions/claimDailyWheelReward/entry.ts',
           missing,
         });
       }
-      return pass('Claim requires authenticated backend context and reward selection is server-side.', { verification: 'STATIC_CONTRACT' });
+      return pass('Claim requires authenticated user context or completed guest token proof, and reward selection is server-side.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('completed_guest_daily_wheel_player_contract',
+    'Completed guest profiles can use Daily Wheel with persisted GuestProfile Diamonds',
+    () => {
+      const combined = `${mainMenuSource}\n${dailyWheelHookSource}\n${dailyRewardsPanelSource}\n${guestProfileEntitySource}\n${DAILY_WHEEL_BACKEND_HEALTH_SOURCE}\n${economyRulesSource}`;
+      const missing = missingTokens(combined, [
+        'getCompletedGuestCredentialsPayload',
+        'guestProfile',
+        'dailyWheelPayload',
+        'completedGuestProfile',
+        'rewardsPlayer',
+        'GuestProfile.diamonds',
+        'daily_wheel_last_spin_date',
+        'daily_wheel_next_available_at',
+        'playerType',
+        'guestProfileReward',
+        'rawGuestTokenServerStored: false',
+      ]);
+      if (missing.length) {
+        return fail('Completed guests can lose Daily Wheel access, balance persistence, or guest reward proof.', {
+          verification: 'STATIC_CONTRACT',
+          files: [
+            'src/pages/MainMenu.jsx',
+            'src/hooks/useDailyWheel.js',
+            'base44/functions/getDailyWheelStatus/entry.ts',
+            'base44/functions/claimDailyWheelReward/entry.ts',
+            'base44/entities/GuestProfile.jsonc',
+          ],
+          missing,
+        });
+      }
+      return pass('Completed guest Daily Wheel path sends guest token proof, persists rewards on GuestProfile.diamonds, and carries guest-safe metadata.', {
+        verification: 'STATIC_CONTRACT',
+      });
     }),
 
   makeCase('daily_wheel_reward_table_weighted_server_side',
@@ -301,18 +342,19 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('daily_wheel_one_spin_per_server_day',
-    'Daily Wheel has one-spin-per-UTC-server-day idempotency contract',
+    'Daily Wheel has one-spin-per-player-UTC-server-day idempotency contract',
     () => {
       const combined = `${DAILY_WHEEL_BACKEND_HEALTH_SOURCE}\n${economyGatewaySource}\n${economyRulesSource}`;
       const missing = missingTokens(combined, [
-        'daily_wheel:<normalizedEmail>:<YYYY-MM-DD>',
+        'daily_wheel:<playerKey>:<YYYY-MM-DD>',
+        'guest:<g_owner_key>',
         'daily_wheel_last_spin_date',
         'DailyWheelSpin.idempotency_key',
-        'one claim per user per UTC server day',
+        'one claim per player per UTC server day',
         'logical guard; unique constraint platform/manual',
         'postCreateCanonicalSpin',
         'postReserveSpin',
-        'postReserveUser',
+        'postReservePlayer',
         'postReserveTransaction',
         'Base44 schema-level uniqueness is not assumed',
         'function-level guard only = Medium / P1 hardening',
@@ -324,7 +366,34 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      return pass('Daily Wheel is keyed by authenticated user + UTC day with reserve/canonical, User, and ledger guards.', { verification: 'STATIC_CONTRACT' });
+      return pass('Daily Wheel is keyed by player + UTC day with reserve/canonical, User/GuestProfile, and ledger guards.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('completed_guest_daily_wheel_same_day_guard',
+    'Completed guest Daily Wheel has same-day duplicate guard parity',
+    () => {
+      const missing = missingTokens(DAILY_WHEEL_BACKEND_HEALTH_SOURCE, [
+        'resolveDailyWheelPlayer',
+        'guestPlayerKey',
+        'updateDailyWheelPlayer',
+        'buildIdempotencyKey',
+        'findSpin',
+        'postReserveSpin',
+        'daily_wheel_last_spin_date',
+        'DiamondTransaction.create',
+        'DailyWheelSpin.create',
+        'guestProfileReward',
+      ]);
+      if (missing.length) {
+        return fail('Completed guest Daily Wheel duplicate prevention does not match the registered-player guard shape.', {
+          verification: 'STATIC_CONTRACT',
+          file: 'base44/functions/claimDailyWheelReward/entry.ts',
+          missing,
+        });
+      }
+      return pass('Completed guest Daily Wheel claims use the same player-key idempotency, spin, profile guard, and ledger re-checks as registered users.', {
+        verification: 'STATIC_CONTRACT',
+      });
     }),
 
   makeCase('daily_wheel_daily_login_separate',
@@ -592,7 +661,8 @@ export const EXTRA_TESTS = [
     () => {
       const missing = missingTokens(`${mainMenuSource}\n${dailyWheelHookSource}`, [
         'handleDailyWheelUserPatch',
-        'setUser((current)',
+        'setLocalUser((current)',
+        'setLocalGuestProfile((current)',
         'onUserUpdated(body.userPatch)',
         'updatedDiamondTotal',
       ]);
@@ -603,7 +673,7 @@ export const EXTRA_TESTS = [
           missing,
         });
       }
-      return pass('Successful wheel claim patches Home user.diamonds immediately.', { verification: 'STATIC_CONTRACT' });
+      return pass('Successful wheel claim patches Home user or completed-guest diamonds immediately.', { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('daily_wheel_admin_delete_cleanup_contract',

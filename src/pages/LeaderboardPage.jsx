@@ -1,16 +1,18 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Gem, Sparkles, Trophy } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
 // Codex167 — Liderlik üst barı Home/Solo standardına hizalandı: ortada
 // gerçek persisted Elmas + sağda notification bell. Profil/avatar üst
 // bardan kaldırıldı (kullanıcı talebi). Title "Liderlik Tablosu" zaten
 // ekran içeriğinde duruyor.
 import StandardTopBar from '@/components/layout/StandardTopBar';
+import { useAuth } from '@/lib/AuthContext';
 import { ensureSoloProgressBackfill, getSoloLevelCount, readSoloProgress } from '@/lib/soloLevels';
 import { summarizeSoloProgress } from '@/lib/soloProgressHelpers';
 import { getKronoxVisibleScore } from '@/lib/kronoxScore';
 import {
+  buildGuestSoloLeaderboardPayload,
   getFriendLeaderboardKeys,
+  getGuestLeaderboardOwnerKey,
   getLeaderboardDiamondValue,
   getLeaderboardOwnerKey,
   LEADERBOARD_FETCH_LIMIT,
@@ -22,6 +24,11 @@ import {
   selectLeaderboardSections,
   toSoloLeaderboardEntry,
 } from '@/lib/leaderboard';
+import {
+  getCompletedGuestCredentialsPayload,
+  isGuestOnboardingComplete,
+  syncGuestProfileProgress,
+} from '@/lib/guestProfile';
 import { loadFriends } from '@/lib/friendsApi';
 import { isAdminUser, withAdminStatus } from '@/lib/admin';
 import KronoxRankingSection from '@/components/leaderboard/KronoxRankingSection';
@@ -32,6 +39,12 @@ import PullToRefresh from '@/components/mobile/PullToRefresh';
 import KronoxStatTile from '@/components/ui/KronoxStatTile';
 
 function publishOwnLeaderboardProjectionInBackground(user, currentProgress) {
+  if (!user?.email) {
+    syncGuestProfileProgress({ soloProgress: currentProgress }).catch((error) => {
+      console.warn('[leaderboard] guest projection sync failed', error?.message || 'unknown');
+    });
+    return;
+  }
   publishSoloLeaderboardEntry(user, currentProgress).catch((error) => {
     console.warn('[leaderboard] background projection publish failed', error?.message || 'unknown');
   });
@@ -75,7 +88,9 @@ function hydrateLeaderboardRow(publicRow, friendKeys, currentOwnerKey) {
  * GameLayout, invite/lobby/notification/tutorial logic — untouched.
  */
 export default function LeaderboardPage() {
+  const { user: authUser, guestProfile, authChecked: contextAuthChecked } = useAuth();
   const [user, setUser] = useState(null);
+  const [localGuestProfile, setLocalGuestProfile] = useState(guestProfile || null);
   const [authChecked, setAuthChecked] = useState(false);
   const [leaderboard, setLeaderboard] = useState({
     loading: false,
@@ -96,45 +111,72 @@ export default function LeaderboardPage() {
   });
 
   useEffect(() => {
-    base44.auth.me()
-      .then(async (u) => {
-        if (!u) {
-          setUser(null);
-          return;
-        }
-        const adminCheckedUser = await withAdminStatus(u);
+    let cancelled = false;
+    if (!contextAuthChecked) {
+      setAuthChecked(false);
+      return () => { cancelled = true; };
+    }
+    if (!authUser?.email) {
+      setUser(null);
+      setAuthChecked(true);
+      return () => { cancelled = true; };
+    }
+    (async () => {
+      try {
+        const adminCheckedUser = await withAdminStatus(authUser);
         const normalizedProgress = await ensureSoloProgressBackfill(adminCheckedUser);
-        setUser({ ...adminCheckedUser, solo_progress: normalizedProgress });
-      })
-      .catch(() => setUser(null))
-      .finally(() => setAuthChecked(true));
-  }, []);
+        if (!cancelled) setUser({ ...adminCheckedUser, solo_progress: normalizedProgress });
+      } catch {
+        if (!cancelled) setUser(authUser || null);
+      } finally {
+        if (!cancelled) setAuthChecked(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [authUser, contextAuthChecked]);
+
+  useEffect(() => {
+    setLocalGuestProfile(guestProfile || null);
+  }, [guestProfile]);
 
   const loadLeaderboard = useCallback(async () => {
-    if (!user?.email) return;
+    const completedGuestProfile = !user && isGuestOnboardingComplete(localGuestProfile || guestProfile)
+      ? (localGuestProfile || guestProfile)
+      : null;
+    if (!user?.email && !completedGuestProfile) return;
 
     // Codex150 — own-score fallback and ranking rows use visible Kronox
     // Puan. Solo and Online storage remain separate, but the row score
     // shown and sorted here must match Profile/Header Puan.
     const currentProgress = readSoloProgress(user);
-    const currentOwnerKey = getLeaderboardOwnerKey(user.email);
-    const currentPayload = buildSoloLeaderboardPayload(user, currentProgress);
+    const currentOwnerKey = user?.email
+      ? getLeaderboardOwnerKey(user.email)
+      : getGuestLeaderboardOwnerKey(completedGuestProfile?.guest_id);
+    const currentPayload = user?.email
+      ? buildSoloLeaderboardPayload(user, currentProgress)
+      : buildGuestSoloLeaderboardPayload(completedGuestProfile, currentProgress);
     const ownSummary = summarizeSoloProgress(currentProgress, getSoloLevelCount());
     const ownScoreFallback = {
-      totalKronoxScore: getKronoxVisibleScore(user, { soloProgress: currentProgress }),
+      totalKronoxScore: user?.email
+        ? getKronoxVisibleScore(user, { soloProgress: currentProgress })
+        : currentPayload.total_kronox_score,
       totalSoloScore: ownSummary.totalSoloScore,
       currentLevel: ownSummary.currentLevel,
     };
 
     setLeaderboard((prev) => ({ ...prev, loading: true, error: '', ownScoreFallback }));
     try {
-      const normalizedUserEmail = String(user.email || user.user_email || '').trim().toLowerCase();
+      const normalizedUserEmail = String(user?.email || user?.user_email || '').trim().toLowerCase();
+      const guestPayload = completedGuestProfile
+        ? getCompletedGuestCredentialsPayload(completedGuestProfile)
+        : null;
       const [snapshot, acceptedFriends] = await Promise.all([
         loadSoloLeaderboardSnapshot({
           limit: LEADERBOARD_FETCH_LIMIT,
           topLimit: LEADERBOARD_TOP_LIMIT,
+          payload: guestPayload || {},
         }),
-        loadFriends(normalizedUserEmail).catch(() => []),
+        normalizedUserEmail ? loadFriends(normalizedUserEmail).catch(() => []) : Promise.resolve([]),
       ]);
       const acceptedFriendKeys = getFriendLeaderboardKeys(
         (acceptedFriends || []).map((friend) => friend.friend_email),
@@ -222,13 +264,16 @@ export default function LeaderboardPage() {
         ownScoreFallback,
       });
     }
-  }, [user]);
+  }, [guestProfile, localGuestProfile, user]);
 
   useEffect(() => {
-    if (authChecked && user?.email) {
+    const completedGuestProfile = !user && isGuestOnboardingComplete(localGuestProfile || guestProfile)
+      ? (localGuestProfile || guestProfile)
+      : null;
+    if (authChecked && (user?.email || completedGuestProfile)) {
       loadLeaderboard();
     }
-  }, [authChecked, user?.email, loadLeaderboard]);
+  }, [authChecked, guestProfile, loadLeaderboard, localGuestProfile, user]);
 
   const progress = readSoloProgress(user);
   const summary = summarizeSoloProgress(progress, getSoloLevelCount());
@@ -237,8 +282,12 @@ export default function LeaderboardPage() {
   // separate for progression and technical Health contracts.
   const soloLeaderboardScore = summary.totalSoloScore;
   const visibleKronoxPuan = getKronoxVisibleScore(user, { soloProgress: progress });
-  const diamondValue = getLeaderboardDiamondValue(user);
+  const completedGuestProfile = !user && isGuestOnboardingComplete(localGuestProfile || guestProfile)
+    ? (localGuestProfile || guestProfile)
+    : null;
+  const diamondValue = getLeaderboardDiamondValue(user || completedGuestProfile);
   const isAdmin = isAdminUser(user);
+  const leaderboardPlayer = user || completedGuestProfile;
 
   return (
     <div
@@ -253,7 +302,7 @@ export default function LeaderboardPage() {
     >
       <StandardTopBar diamonds={diamondValue} user={user} />
 
-      <PullToRefresh onRefresh={loadLeaderboard} disabled={!user?.email}>
+      <PullToRefresh onRefresh={loadLeaderboard} disabled={!leaderboardPlayer}>
         <div className="mx-auto w-full max-w-md px-4 mt-2 space-y-3">
           <div
             className="rounded-2xl p-5 text-center"
@@ -288,7 +337,7 @@ export default function LeaderboardPage() {
 
           <KronoxRankingSection
             authChecked={authChecked}
-            user={user}
+            user={leaderboardPlayer}
             leaderboard={leaderboard}
             soloLeaderboardScore={soloLeaderboardScore}
             onRetry={loadLeaderboard}

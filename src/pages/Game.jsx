@@ -71,6 +71,7 @@ import {
 } from '@/lib/userCategoryPreferences';
 import {
   GUEST_ONBOARDING_STATES,
+  getCompletedGuestCredentialsPayload,
   updateGuestProfileOnboarding,
 } from '@/lib/guestProfile';
 import {
@@ -378,6 +379,10 @@ export default function Game() {
   const currentQuestionIdFromState = routeState.currentQuestionId ?? null;
   const [currentUser, setCurrentUser] = useState(null);
   const { user: authUser, adminStatus, guestProfile } = useAuth();
+  const guestDailyQuestPayload = useMemo(
+    () => getCompletedGuestCredentialsPayload(guestProfile),
+    [guestProfile],
+  );
   const soloQuestionDebugAllowed = useMemo(() => isSoloQuestionRuntimeDebugAllowed({
     currentUser,
     authUser,
@@ -1289,8 +1294,9 @@ export default function Game() {
   ]);
 
   const recordDailyQuestSoloEvent = useCallback((eventType, eventId, metadata = {}) => {
-    if (!isSoloLevelMode || !currentUser?.email) return;
+    if (!isSoloLevelMode || (!currentUser?.email && !guestDailyQuestPayload)) return;
     recordDailyQuestProgress({
+      ...(guestDailyQuestPayload || {}),
       eventType,
       mode: 'solo',
       amount: 1,
@@ -1304,7 +1310,7 @@ export default function Game() {
     }).catch((error) => {
       debugLog('[Game] daily quest progress failed:', error?.message || error);
     });
-  }, [currentUser?.email, isSoloLevelMode, soloAttemptId, soloLevel?.levelNumber]);
+  }, [currentUser?.email, guestDailyQuestPayload, isSoloLevelMode, soloAttemptId, soloLevel?.levelNumber]);
 
   useEffect(() => {
     if (!isSoloLevelMode || !currentQuestion || !isMyTurn || winner || soloLevelResult) return;
@@ -1633,12 +1639,13 @@ export default function Game() {
       setSoloAttemptDeck(engineResult.deck);
       setSoloAttemptId(engineResult.attemptId);
       if (
-        currentUser?.email &&
+        (currentUser?.email || guestDailyQuestPayload) &&
         engineResult.attemptId &&
         soloDailyQuestAttemptRecordedRef.current !== engineResult.attemptId
       ) {
         soloDailyQuestAttemptRecordedRef.current = engineResult.attemptId;
         recordDailyQuestProgress({
+          ...(guestDailyQuestPayload || {}),
           eventType: 'start_solo_attempt',
           mode: 'solo',
           amount: 1,
@@ -2799,6 +2806,7 @@ export default function Game() {
     soloQuestionDebugEnabled,
     soloQuestionDebugRuntimeState,
     currentUser?.email,
+    guestDailyQuestPayload,
     authUser?.email,
     questionLoadDebugSnapshot,
     soloRuntimeCategoryPreferenceState,

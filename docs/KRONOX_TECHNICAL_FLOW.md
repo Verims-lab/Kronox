@@ -192,12 +192,16 @@ Writes:
 * `AccountLinkTransaction`
 * linked `GuestProfile` status
 * authenticated `User` progress/economy/category merges where safe
+* Daily Wheel/Daily Quest guard fields and history copies under the registered
+  owner key
 * `User.linked_guest_ids` as duplicate-protection guard
 
 Merge policy:
 
 * keep user-beneficial progress
 * combine Diamonds once through documented ledger/guard paths
+* preserve same-day Daily Wheel/Daily Quest guards so linking cannot enable a
+  duplicate reward claim
 * merge category selections without exposing raw IDs publicly
 * provider IDs and raw guest token never become public identity
 
@@ -548,6 +552,8 @@ Daily Wheel:
 * grants no Kronox Puan
 * no leaderboard impact
 * separate from Daily Quest
+* completed guests use token-proven `GuestProfile` and `GuestProfile.diamonds`
+  before linking
 
 Daily Quest:
 
@@ -559,6 +565,8 @@ Daily Quest:
 * grants no Kronox Puan
 * no leaderboard impact
 * separate from Daily Wheel
+* completed guests use token-proven `GuestProfile` and `GuestProfile.diamonds`
+  before linking
 
 Current hardening:
 
@@ -566,8 +574,8 @@ Current hardening:
 * active Diamond writers re-check before create and confirm after create by
   `idempotency_key`
 * `DailyWheelSpin` has function-level same-day guard
-* Daily Wheel re-checks canonical same-user/same-day spin, User guard, and
-  DiamondTransaction before balance mutation
+* Daily Wheel re-checks canonical same-player/same-day spin, User/GuestProfile
+  guard, and DiamondTransaction before balance mutation
 
 Not repo-proven:
 
@@ -610,6 +618,8 @@ Public identity:
 * no raw guest ID
 * no `owner_key`
 * no public `display_name` field
+* completed guests can open Liderlik and appear only through username-safe
+  public rows
 
 Daily Quest and Daily Wheel do not affect leaderboard.
 

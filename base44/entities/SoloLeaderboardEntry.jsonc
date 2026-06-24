@@ -5,7 +5,7 @@
   "properties": {
     "owner_key": {
       "type": "string",
-      "description": "Internal deterministic key for the user. Logical unique key for projection dedupe/friend matching without exposing email."
+      "description": "Internal deterministic key for the player (u_... registered, g_... guest). Logical unique key for projection dedupe/friend matching without exposing email or raw guest_id."
     },
     "display_name": {
       "type": "string",

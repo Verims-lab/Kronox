@@ -3,6 +3,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 const DAILY_WHEEL_SOURCE = 'daily_wheel';
 const STREAK_BONUS_AMOUNT = 150;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const GUEST_ID_PREFIX = 'guest_';
 
 const REWARD_TABLE = [
   { amount: 30, rarity: 'high', weight: 24 },
@@ -85,6 +86,125 @@ function ownerKeyFromEmail(rawEmail: unknown) {
   return `u_${(hash >>> 0).toString(36)}`;
 }
 
+function safeCredentialText(value: unknown, maxLength = 180) {
+  const text = String(value || '').trim();
+  if (!text || text.length > maxLength) return '';
+  return /^[A-Za-z0-9_-]+$/.test(text) ? text : '';
+}
+
+function normalizeGuestId(value: unknown) {
+  const text = safeCredentialText(value, 80);
+  return text.startsWith(GUEST_ID_PREFIX) ? text : '';
+}
+
+function normalizeGuestToken(value: unknown) {
+  return safeCredentialText(value, 220);
+}
+
+function ownerKeyFromGuestId(rawGuestId: unknown) {
+  const guestId = String(rawGuestId || '').trim().toLowerCase();
+  if (!guestId) return '';
+  let hash = 2166136261;
+  for (let i = 0; i < guestId.length; i += 1) {
+    hash ^= guestId.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `g_${(hash >>> 0).toString(36)}`;
+}
+
+function guestPlayerKey(guestId: string) {
+  const ownerKey = ownerKeyFromGuestId(guestId);
+  return ownerKey ? `guest:${ownerKey}` : '';
+}
+
+function bytesToBase64Url(bytes: Uint8Array) {
+  let binary = '';
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+async function sha256Base64Url(input: string) {
+  const data = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return bytesToBase64Url(new Uint8Array(digest));
+}
+
+async function hashGuestToken(guestId: string, guestToken: string) {
+  return sha256Base64Url(`kronox_guest_v1:${guestId}:${guestToken}`);
+}
+
+function isGuestProfileComplete(row: any) {
+  const status = String(row?.onboarding_status || '').trim();
+  if (status === 'onboarding_complete' || status === 'completed') return true;
+  const profileCompleted = String(row?.profile_setup_status || '').trim() === 'completed' || Boolean(row?.profile_setup_completed_at);
+  const categoryCompleted = String(row?.category_setup_status || '').trim() === 'completed' ||
+    Boolean(row?.category_setup_completed_at || row?.onboarding_completed_at);
+  return Boolean(profileCompleted && categoryCompleted);
+}
+
+async function findGuestProfile(base44: any, guestId: string) {
+  const entity = base44?.asServiceRole?.entities?.GuestProfile || base44?.entities?.GuestProfile;
+  if (!entity?.filter || !guestId) return null;
+  const rows = await entity.filter({ guest_id: guestId }, '-created_at', 5).catch(() => []);
+  return Array.isArray(rows) && rows.length ? rows[0] : null;
+}
+
+async function resolveDailyWheelPlayer(base44: any, body: any) {
+  const user = await base44.auth.me().catch(() => null);
+  const email = normalizeEmail(user?.email || user?.user_email);
+  if (email && rowId(user)) {
+    return {
+      ok: true,
+      isGuest: false,
+      row: user,
+      rowId: rowId(user),
+      playerKey: email,
+      ownerKey: ownerKeyFromEmail(email),
+      response: null,
+    };
+  }
+
+  const guestId = normalizeGuestId(body?.guest_id);
+  const guestToken = normalizeGuestToken(body?.guest_token);
+  if (!guestId || !guestToken) {
+    return { ok: false, response: json({ ok: false, code: 'unauthenticated', error: 'Günlük Çark için profilini tamamlamalısın.' }, 401) };
+  }
+  const guest = await findGuestProfile(base44, guestId);
+  const expectedHash = String(guest?.guest_token_hash || '');
+  const providedHash = await hashGuestToken(guestId, guestToken);
+  if (!guest || !expectedHash || expectedHash !== providedHash) {
+    return { ok: false, response: json({ ok: false, code: 'invalid_guest_token', error: 'Misafir oturumu doğrulanamadı.' }, 401) };
+  }
+  if (String(guest?.status || '') === 'linked' || !isGuestProfileComplete(guest)) {
+    return { ok: false, response: json({ ok: false, code: 'guest_profile_incomplete', error: 'Günlük Çark için profilini tamamlamalısın.' }, 403) };
+  }
+  return {
+    ok: true,
+    isGuest: true,
+    row: guest,
+    rowId: rowId(guest),
+    playerKey: guestPlayerKey(guestId),
+    ownerKey: ownerKeyFromGuestId(guestId),
+    response: null,
+  };
+}
+
+async function updateDailyWheelPlayer(base44: any, player: any, patch: Record<string, unknown>) {
+  if (!player?.rowId) return null;
+  if (player.isGuest) {
+    const entity = base44?.asServiceRole?.entities?.GuestProfile || base44?.entities?.GuestProfile;
+    return entity?.update?.(player.rowId, {
+      ...patch,
+      last_seen_at: String(patch.economy_updated_at || new Date().toISOString()),
+      metadata: {
+        ...(player.row?.metadata && typeof player.row.metadata === 'object' ? player.row.metadata : {}),
+        guestDailyWheelEnabled: true,
+        rawGuestTokenServerStored: false,
+      },
+    });
+  }
+  return base44.asServiceRole.entities.User.update(player.rowId, patch);
+}
 
 function randomUnit() {
   const bytes = new Uint32Array(1);
@@ -192,15 +312,15 @@ async function createDailyWheelSpin(base44: any, payload: Record<string, unknown
   }
 }
 
-function spinRowFromDiamondTransaction(tx: any, user: any, dateKey: string, nextAvailableAt: string) {
+function spinRowFromDiamondTransaction(tx: any, playerRow: any, playerKey: string, dateKey: string, nextAvailableAt: string) {
   const metadata = tx?.metadata && typeof tx.metadata === 'object' ? tx.metadata : {};
   const totalRewardAmount = normalizeNumber(tx?.amount);
   const streakBonusAmount = normalizeNumber(metadata.streakBonusAmount);
   const rewardAmount = normalizeNumber(metadata.rewardAmount) || Math.max(0, totalRewardAmount - streakBonusAmount);
-  const streakAfter = normalizeNumber(metadata.streakAfter ?? user?.daily_wheel_streak);
+  const streakAfter = normalizeNumber(metadata.streakAfter ?? playerRow?.daily_wheel_streak);
   const streakBefore = normalizeNumber(metadata.streakBefore ?? Math.max(0, streakAfter - 1));
   return {
-    user_email: normalizeEmail(user?.email),
+    user_email: playerKey,
     spin_date: dateKey,
     reward_amount: rewardAmount,
     streak_before: streakBefore,
@@ -208,12 +328,12 @@ function spinRowFromDiamondTransaction(tx: any, user: any, dateKey: string, next
     streak_bonus_amount: streakBonusAmount,
     total_reward_amount: totalRewardAmount,
     balance_before: normalizeNumber(tx?.balance_before),
-    balance_after: normalizeNumber(tx?.balance_after ?? user?.diamonds),
-    idempotency_key: tx?.idempotency_key || buildIdempotencyKey(normalizeEmail(user?.email), dateKey),
-    claimed_at: tx?.created_at || user?.daily_wheel_last_spin_at || new Date().toISOString(),
-    next_available_at: user?.daily_wheel_next_available_at || nextAvailableAt,
+    balance_after: normalizeNumber(tx?.balance_after ?? playerRow?.diamonds),
+    idempotency_key: tx?.idempotency_key || buildIdempotencyKey(playerKey, dateKey),
+    claimed_at: tx?.created_at || playerRow?.daily_wheel_last_spin_at || new Date().toISOString(),
+    next_available_at: playerRow?.daily_wheel_next_available_at || nextAvailableAt,
     metadata: {
-      spinCountAfter: normalizeNumber(user?.daily_wheel_spin_count),
+      spinCountAfter: normalizeNumber(playerRow?.daily_wheel_spin_count),
       recoveredFromDiamondTransaction: true,
     },
   };
@@ -258,17 +378,19 @@ function publicResult(row: any, diamondTotal: number, alreadyClaimed = false) {
   };
 }
 
-async function recoverExistingSpin(base44: any, user: any, row: any, dateKey: string, idempotencyKey: string) {
-  const email = normalizeEmail(user?.email);
+async function recoverExistingSpin(base44: any, player: any, row: any, dateKey: string, idempotencyKey: string) {
+  const playerKey = player.playerKey;
   const nowIso = new Date().toISOString();
-  const balanceAfter = Math.max(normalizeNumber(user?.diamonds), normalizeNumber(row?.balance_after));
+  const balanceAfter = Math.max(normalizeNumber(player?.row?.diamonds), normalizeNumber(row?.balance_after));
   const patch = {
     ...userPatchFromSpin({ ...row, balance_after: balanceAfter }, dateKey),
     diamonds: balanceAfter,
   };
-  await base44.asServiceRole.entities.User.update(user.id, patch).catch(() => null);
+  await updateDailyWheelPlayer(base44, player, patch).catch(() => null);
   await createDiamondTransaction(base44, {
-    user_email: email,
+    user_email: playerKey,
+    owner_key: player.ownerKey,
+    player_type: player.isGuest ? 'guest' : 'registered',
     amount: normalizeNumber(row?.total_reward_amount),
     balance_before: normalizeNumber(row?.balance_before),
     balance_after: balanceAfter,
@@ -296,39 +418,34 @@ Deno.serve(async (req: Request) => {
 
     const base44 = createClientFromRequest(req);
     const body = await req.json().catch(() => ({}));
-    let user: any = null;
-    try {
-      user = await base44.auth.me();
-    } catch {
-      return json({ ok: false, code: 'unauthenticated', error: 'Günlük Çark için giriş yapmalısın.' }, 401);
-    }
-
-    const email = normalizeEmail(user?.email);
-    if (!email || !user?.id) {
-      return json({ ok: false, code: 'unauthenticated', error: 'Günlük Çark için giriş yapmalısın.' }, 401);
-    }
+    const player = await resolveDailyWheelPlayer(base44, body);
+    if (!player.ok) return player.response;
+    const playerKey = player.playerKey;
 
     const todayKey = utcDateKey();
     const nowIso = new Date().toISOString();
     const nextAvailableAt = nextUtcMidnightIso(todayKey);
-    const idempotencyKey = buildIdempotencyKey(email, todayKey);
-    const existingSpin = await findSpin(base44, email, todayKey, idempotencyKey);
+    const idempotencyKey = buildIdempotencyKey(playerKey, todayKey);
+    const existingSpin = await findSpin(base44, playerKey, todayKey, idempotencyKey);
     if (existingSpin) {
-      const recovered = await recoverExistingSpin(base44, user, existingSpin, todayKey, idempotencyKey);
+      const recovered = await recoverExistingSpin(base44, player, existingSpin, todayKey, idempotencyKey);
       return json(publicResult(recovered, normalizeNumber(recovered.balance_after), true));
     }
 
-    const latestUser = await base44.auth.me().catch(() => user);
-    const latestGuardDate = String(latestUser?.daily_wheel_last_spin_date || '');
+    const latestUser = player.isGuest
+      ? (await findGuestProfile(base44, String(player.row?.guest_id || '')).catch(() => player.row)) || player.row
+      : await base44.auth.me().catch(() => player.row);
+    const latestPlayer = { ...player, row: latestUser || player.row, rowId: rowId(latestUser) || player.rowId };
+    const latestGuardDate = String(latestPlayer.row?.daily_wheel_last_spin_date || '');
     if (latestGuardDate === todayKey) {
-      const guardSpin = await findSpin(base44, email, todayKey, idempotencyKey);
+      const guardSpin = await findSpin(base44, playerKey, todayKey, idempotencyKey);
       if (guardSpin) {
-        return json(publicResult(guardSpin, normalizeNumber(latestUser?.diamonds), true));
+        return json(publicResult(guardSpin, normalizeNumber(latestPlayer.row?.diamonds), true));
       }
-      const guardTransaction = await findDiamondTransaction(base44, email, idempotencyKey);
+      const guardTransaction = await findDiamondTransaction(base44, playerKey, idempotencyKey);
       if (guardTransaction) {
-        const syntheticSpin = spinRowFromDiamondTransaction(guardTransaction, latestUser, todayKey, nextAvailableAt);
-        return json(publicResult(syntheticSpin, normalizeNumber(latestUser?.diamonds), true));
+        const syntheticSpin = spinRowFromDiamondTransaction(guardTransaction, latestPlayer.row, playerKey, todayKey, nextAvailableAt);
+        return json(publicResult(syntheticSpin, normalizeNumber(latestPlayer.row?.diamonds), true));
       }
       return json({
         ok: true,
@@ -336,32 +453,33 @@ Deno.serve(async (req: Request) => {
         alreadyClaimedToday: true,
         alreadyClaimed: true,
         serverDate: todayKey,
-        nextAvailableAt: latestUser?.daily_wheel_next_available_at || nextAvailableAt,
-        updatedDiamondTotal: normalizeNumber(latestUser?.diamonds),
+        nextAvailableAt: latestPlayer.row?.daily_wheel_next_available_at || nextAvailableAt,
+        updatedDiamondTotal: normalizeNumber(latestPlayer.row?.diamonds),
         rewardAmount: 0,
         streakBonusAmount: 0,
         totalRewardAmount: 0,
         userPatch: {
-          diamonds: normalizeNumber(latestUser?.diamonds),
+          diamonds: normalizeNumber(latestPlayer.row?.diamonds),
           daily_wheel_last_spin_date: todayKey,
-          daily_wheel_next_available_at: latestUser?.daily_wheel_next_available_at || nextAvailableAt,
-          daily_wheel_streak: normalizeNumber(latestUser?.daily_wheel_streak),
-          daily_wheel_spin_count: normalizeNumber(latestUser?.daily_wheel_spin_count),
+          daily_wheel_next_available_at: latestPlayer.row?.daily_wheel_next_available_at || nextAvailableAt,
+          daily_wheel_streak: normalizeNumber(latestPlayer.row?.daily_wheel_streak),
+          daily_wheel_spin_count: normalizeNumber(latestPlayer.row?.daily_wheel_spin_count),
         },
       });
     }
 
     const selected = selectReward();
-    const { streakBefore, streakAfter } = computeStreak(latestUser, todayKey);
+    const { streakBefore, streakAfter } = computeStreak(latestPlayer.row, todayKey);
     const streakBonusAmount = streakAfter % 7 === 0 ? STREAK_BONUS_AMOUNT : 0;
     const totalRewardAmount = selected.amount + streakBonusAmount;
-    const balanceBefore = normalizeNumber(latestUser?.diamonds);
+    const balanceBefore = normalizeNumber(latestPlayer.row?.diamonds);
     const balanceAfter = balanceBefore + totalRewardAmount;
-    const spinCountAfter = normalizeNumber(latestUser?.daily_wheel_spin_count) + 1;
+    const spinCountAfter = normalizeNumber(latestPlayer.row?.daily_wheel_spin_count) + 1;
 
     const spinPayload = {
-      user_email: email,
-      owner_key: ownerKeyFromEmail(email),
+      user_email: playerKey,
+      owner_key: latestPlayer.ownerKey,
+      player_type: latestPlayer.isGuest ? 'guest' : 'registered',
       spin_date: todayKey,
       reward_amount: selected.amount,
       streak_before: streakBefore,
@@ -379,6 +497,8 @@ Deno.serve(async (req: Request) => {
         spinCountAfter,
         serverDayBoundary: 'UTC',
         source: DAILY_WHEEL_SOURCE,
+        guestProfileReward: latestPlayer.isGuest,
+        rawGuestTokenServerStored: false,
       },
       description: 'daily_wheel_claim',
     };
@@ -390,26 +510,29 @@ Deno.serve(async (req: Request) => {
     } = await createDailyWheelSpin(base44, spinPayload);
 
     if (recoveredExistingDailyWheelSpin && spin) {
-      const recovered = await recoverExistingSpin(base44, latestUser, spin, todayKey, idempotencyKey);
+      const recovered = await recoverExistingSpin(base44, latestPlayer, spin, todayKey, idempotencyKey);
       return json(publicResult(recovered, normalizeNumber(recovered.balance_after), true));
     }
 
-    const postReserveSpin = await findSpin(base44, email, todayKey, idempotencyKey);
+    const postReserveSpin = await findSpin(base44, playerKey, todayKey, idempotencyKey);
     if (postReserveSpin && rowId(postReserveSpin) && rowId(spin) && rowId(postReserveSpin) !== rowId(spin)) {
-      const recovered = await recoverExistingSpin(base44, latestUser, postReserveSpin, todayKey, idempotencyKey);
+      const recovered = await recoverExistingSpin(base44, latestPlayer, postReserveSpin, todayKey, idempotencyKey);
       return json(publicResult(recovered, normalizeNumber(recovered.balance_after), true));
     }
 
-    const postReserveUser = await base44.auth.me().catch(() => latestUser);
-    if (String(postReserveUser?.daily_wheel_last_spin_date || '') === todayKey) {
-      const guardSpin = postReserveSpin || await findSpin(base44, email, todayKey, idempotencyKey);
+    const postReserveRow = latestPlayer.isGuest
+      ? (await findGuestProfile(base44, String(latestPlayer.row?.guest_id || '')).catch(() => latestPlayer.row)) || latestPlayer.row
+      : await base44.auth.me().catch(() => latestPlayer.row);
+    const postReservePlayer = { ...latestPlayer, row: postReserveRow || latestPlayer.row, rowId: rowId(postReserveRow) || latestPlayer.rowId };
+    if (String(postReservePlayer.row?.daily_wheel_last_spin_date || '') === todayKey) {
+      const guardSpin = postReserveSpin || await findSpin(base44, playerKey, todayKey, idempotencyKey);
       if (guardSpin) {
-        return json(publicResult(guardSpin, normalizeNumber(postReserveUser?.diamonds), true));
+        return json(publicResult(guardSpin, normalizeNumber(postReservePlayer.row?.diamonds), true));
       }
-      const guardTransaction = await findDiamondTransaction(base44, email, idempotencyKey);
+      const guardTransaction = await findDiamondTransaction(base44, playerKey, idempotencyKey);
       if (guardTransaction) {
-        const syntheticSpin = spinRowFromDiamondTransaction(guardTransaction, postReserveUser, todayKey, nextAvailableAt);
-        return json(publicResult(syntheticSpin, normalizeNumber(postReserveUser?.diamonds), true));
+        const syntheticSpin = spinRowFromDiamondTransaction(guardTransaction, postReservePlayer.row, playerKey, todayKey, nextAvailableAt);
+        return json(publicResult(syntheticSpin, normalizeNumber(postReservePlayer.row?.diamonds), true));
       }
       return json({
         ok: true,
@@ -417,30 +540,31 @@ Deno.serve(async (req: Request) => {
         alreadyClaimedToday: true,
         alreadyClaimed: true,
         serverDate: todayKey,
-        nextAvailableAt: postReserveUser?.daily_wheel_next_available_at || nextAvailableAt,
-        updatedDiamondTotal: normalizeNumber(postReserveUser?.diamonds),
+        nextAvailableAt: postReservePlayer.row?.daily_wheel_next_available_at || nextAvailableAt,
+        updatedDiamondTotal: normalizeNumber(postReservePlayer.row?.diamonds),
         rewardAmount: 0,
         streakBonusAmount: 0,
         totalRewardAmount: 0,
         userPatch: {
-          diamonds: normalizeNumber(postReserveUser?.diamonds),
+          diamonds: normalizeNumber(postReservePlayer.row?.diamonds),
           daily_wheel_last_spin_date: todayKey,
-          daily_wheel_next_available_at: postReserveUser?.daily_wheel_next_available_at || nextAvailableAt,
-          daily_wheel_streak: normalizeNumber(postReserveUser?.daily_wheel_streak),
-          daily_wheel_spin_count: normalizeNumber(postReserveUser?.daily_wheel_spin_count),
+          daily_wheel_next_available_at: postReservePlayer.row?.daily_wheel_next_available_at || nextAvailableAt,
+          daily_wheel_streak: normalizeNumber(postReservePlayer.row?.daily_wheel_streak),
+          daily_wheel_spin_count: normalizeNumber(postReservePlayer.row?.daily_wheel_spin_count),
         },
       });
     }
 
-    const postReserveTransaction = await findDiamondTransaction(base44, email, idempotencyKey);
+    const postReserveTransaction = await findDiamondTransaction(base44, playerKey, idempotencyKey);
     if (postReserveTransaction) {
       const recoveredBalance = Math.max(
-        normalizeNumber((postReserveUser || latestUser)?.diamonds),
+        normalizeNumber(postReservePlayer.row?.diamonds),
         normalizeNumber(postReserveTransaction?.balance_after),
       );
       const syntheticSpin = spinRowFromDiamondTransaction(
         postReserveTransaction,
-        { ...(postReserveUser || latestUser || {}), diamonds: recoveredBalance },
+        { ...(postReservePlayer.row || {}), diamonds: recoveredBalance },
+        playerKey,
         todayKey,
         nextAvailableAt,
       );
@@ -456,7 +580,7 @@ Deno.serve(async (req: Request) => {
       daily_wheel_spin_count: spinCountAfter,
       economy_updated_at: nowIso,
     };
-    await base44.asServiceRole.entities.User.update(postReserveUser?.id || latestUser.id || user.id, userPatch);
+    await updateDailyWheelPlayer(base44, postReservePlayer, userPatch);
 
     let ledgerError = null;
     const transactionMetadata: Record<string, unknown> = {
@@ -467,13 +591,18 @@ Deno.serve(async (req: Request) => {
       streakBonusAmount,
       streakAfter,
       noKronoxPuan: true,
+      playerType: postReservePlayer.isGuest ? 'guest' : 'registered',
+      guestProfileReward: postReservePlayer.isGuest,
+      rawGuestTokenServerStored: false,
     };
     if (spinLedgerError) {
       transactionMetadata.dailyWheelSpinCreateError = spinLedgerError;
     }
     try {
       await createDiamondTransaction(base44, {
-        user_email: email,
+        user_email: playerKey,
+        owner_key: postReservePlayer.ownerKey,
+        player_type: postReservePlayer.isGuest ? 'guest' : 'registered',
         amount: totalRewardAmount,
         balance_before: balanceBefore,
         balance_after: balanceAfter,

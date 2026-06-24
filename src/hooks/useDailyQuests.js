@@ -3,6 +3,7 @@ import {
   claimDailyQuestReward,
   getDailyQuestStatus,
 } from '@/lib/dbGateway/dailyQuestGateway';
+import { getCompletedGuestCredentialsPayload } from '@/lib/guestProfile';
 
 function normalizeQuest(row) {
   const targetValue = Math.max(1, Math.floor(Number(row?.targetValue ?? row?.target_value) || 1));
@@ -30,7 +31,7 @@ function buildClaimKey(quest, serverDate) {
   return questKey ? `${questKey}:${questDate}` : '';
 }
 
-export function useDailyQuests({ user, onUserUpdated } = {}) {
+export function useDailyQuests({ user, guestProfile, onUserUpdated } = {}) {
   const [status, setStatus] = useState('loading');
   const [quests, setQuests] = useState([]);
   const [serverDate, setServerDate] = useState(null);
@@ -41,7 +42,9 @@ export function useDailyQuests({ user, onUserUpdated } = {}) {
   const [claimingId, setClaimingId] = useState(null);
   const claimPendingRef = useRef(new Set());
 
-  const isSignedIn = Boolean(user?.email || user?.user_email);
+  const guestCredentials = useMemo(() => getCompletedGuestCredentialsPayload(guestProfile), [guestProfile]);
+  const dailyQuestPayload = useMemo(() => guestCredentials || {}, [guestCredentials]);
+  const isSignedIn = Boolean(user?.email || user?.user_email || guestCredentials);
 
   const refresh = useCallback(async () => {
     setError('');
@@ -56,7 +59,7 @@ export function useDailyQuests({ user, onUserUpdated } = {}) {
     }
     setStatus('loading');
     try {
-      const body = await getDailyQuestStatus();
+      const body = await getDailyQuestStatus(dailyQuestPayload);
       const nextQuests = Array.isArray(body?.quests) ? body.quests.map(normalizeQuest) : [];
       setQuests(nextQuests);
       setServerDate(body?.serverDate || null);
@@ -72,7 +75,7 @@ export function useDailyQuests({ user, onUserUpdated } = {}) {
       setEmptyStateReason('fetch_error');
       return null;
     }
-  }, [isSignedIn]);
+  }, [dailyQuestPayload, isSignedIn]);
 
   useEffect(() => {
     let cancelled = false;
@@ -96,6 +99,7 @@ export function useDailyQuests({ user, onUserUpdated } = {}) {
     setClaimingId(claimKey);
     try {
       const body = await claimDailyQuestReward({
+        ...dailyQuestPayload,
         progressId: quest?.id || undefined,
         questKey: quest?.questKey,
         questDate: quest?.questDate || serverDate,
@@ -115,7 +119,7 @@ export function useDailyQuests({ user, onUserUpdated } = {}) {
       claimPendingRef.current.delete(claimKey);
       setClaimingId(null);
     }
-  }, [onUserUpdated, refresh, serverDate]);
+  }, [dailyQuestPayload, onUserUpdated, refresh, serverDate]);
 
   const getClaimKey = useCallback((quest) => buildClaimKey(quest, serverDate), [serverDate]);
 

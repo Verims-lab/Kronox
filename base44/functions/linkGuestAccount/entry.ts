@@ -625,6 +625,183 @@ async function mergePlayerQuestionExposureRows(base44: any, email: string, guest
   return { mergedExposureRows, mergedDailyRows, capped };
 }
 
+function guestPlayerKeyFromGuestId(guestId: string) {
+  const ownerKey = getGuestOwnerKey(guestId);
+  return ownerKey ? `guest:${ownerKey}` : '';
+}
+
+function dailyFieldDateValue(value: unknown) {
+  const text = String(value || '').slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : '';
+}
+
+function shouldPreferGuestDailyDate(userDateRaw: unknown, guestDateRaw: unknown) {
+  const userDate = dailyFieldDateValue(userDateRaw);
+  const guestDate = dailyFieldDateValue(guestDateRaw);
+  if (!guestDate) return false;
+  if (!userDate) return true;
+  return guestDate >= userDate;
+}
+
+function buildDailyRewardLinkPatch(user: any, guest: any) {
+  const patch: Record<string, unknown> = {};
+  if (shouldPreferGuestDailyDate(user?.daily_wheel_last_spin_date, guest?.daily_wheel_last_spin_date)) {
+    patch.daily_wheel_last_spin_at = guest?.daily_wheel_last_spin_at || user?.daily_wheel_last_spin_at || '';
+    patch.daily_wheel_last_spin_date = guest?.daily_wheel_last_spin_date || user?.daily_wheel_last_spin_date || '';
+    patch.daily_wheel_next_available_at = guest?.daily_wheel_next_available_at || user?.daily_wheel_next_available_at || '';
+    patch.daily_wheel_streak = Math.max(normalizeNonNegativeInteger(user?.daily_wheel_streak), normalizeNonNegativeInteger(guest?.daily_wheel_streak));
+    patch.daily_wheel_spin_count = Math.max(normalizeNonNegativeInteger(user?.daily_wheel_spin_count), normalizeNonNegativeInteger(guest?.daily_wheel_spin_count));
+  }
+  if (shouldPreferGuestDailyDate(user?.daily_quest_last_claim_date, guest?.daily_quest_last_claim_date)) {
+    patch.daily_quest_last_claim_at = guest?.daily_quest_last_claim_at || user?.daily_quest_last_claim_at || '';
+    patch.daily_quest_last_claim_date = guest?.daily_quest_last_claim_date || user?.daily_quest_last_claim_date || '';
+    patch.daily_quest_next_available_at = guest?.daily_quest_next_available_at || user?.daily_quest_next_available_at || '';
+    patch.daily_quest_claim_count = Math.max(normalizeNonNegativeInteger(user?.daily_quest_claim_count), normalizeNonNegativeInteger(guest?.daily_quest_claim_count));
+  }
+  if (Object.keys(patch).length) patch.economy_updated_at = nowIso();
+  return patch;
+}
+
+async function mergeDailyWheelHistoryRows(base44: any, email: string, guestId: string) {
+  const entity = entityStore(base44, 'DailyWheelSpin');
+  if (!entity?.filter || !entity?.create) return { merged: 0, skipped: 0 };
+  const guestOwnerKey = getGuestOwnerKey(guestId);
+  const authOwnerKey = getAuthOwnerKey(email);
+  const guestPlayerKey = guestPlayerKeyFromGuestId(guestId);
+  const rows = await findRows(entity, { user_email: guestPlayerKey }, '-claimed_at', 120);
+  let merged = 0;
+  let skipped = 0;
+  for (const row of rows) {
+    const spinDate = dailyFieldDateValue(row?.spin_date);
+    if (!spinDate) {
+      skipped += 1;
+      continue;
+    }
+    const idempotencyKey = `daily_wheel:${email}:${spinDate}`;
+    const existing = (await findRows(entity, { user_email: email, idempotency_key: idempotencyKey }, '-claimed_at', 1))[0] ||
+      (await findRows(entity, { user_email: email, spin_date: spinDate }, '-claimed_at', 1))[0] ||
+      null;
+    if (rowId(existing)) {
+      skipped += 1;
+      continue;
+    }
+    await entity.create({
+      user_email: email,
+      owner_key: authOwnerKey,
+      player_type: 'registered',
+      spin_date: spinDate,
+      reward_amount: normalizeNonNegativeInteger(row?.reward_amount),
+      streak_before: normalizeNonNegativeInteger(row?.streak_before),
+      streak_after: normalizeNonNegativeInteger(row?.streak_after),
+      streak_bonus_amount: normalizeNonNegativeInteger(row?.streak_bonus_amount),
+      total_reward_amount: normalizeNonNegativeInteger(row?.total_reward_amount),
+      balance_before: normalizeNonNegativeInteger(row?.balance_before),
+      balance_after: normalizeNonNegativeInteger(row?.balance_after),
+      idempotency_key: idempotencyKey,
+      claimed_at: row?.claimed_at || nowIso(),
+      next_available_at: row?.next_available_at || '',
+      build_marker: row?.build_marker || '',
+      metadata: {
+        ...(row?.metadata && typeof row.metadata === 'object' ? row.metadata : {}),
+        accountLinkHistoryCopy: true,
+        mergedFromGuestOwnerKey: guestOwnerKey,
+        rawGuestTokenServerStored: false,
+      },
+      description: 'account_link_daily_wheel_history_copy',
+    });
+    merged += 1;
+  }
+  return { merged, skipped };
+}
+
+function claimStatusRank(status: unknown) {
+  const text = String(status || '').trim();
+  if (text === 'claimed') return 3;
+  if (text === 'completed') return 2;
+  if (text === 'active') return 1;
+  return 0;
+}
+
+async function mergeDailyQuestHistoryRows(base44: any, email: string, guestId: string) {
+  const entity = entityStore(base44, 'UserDailyQuestProgress');
+  if (!entity?.filter || !entity?.create || !entity?.update) return { merged: 0, updated: 0, skipped: 0 };
+  const guestOwnerKey = getGuestOwnerKey(guestId);
+  const authOwnerKey = getAuthOwnerKey(email);
+  const guestPlayerKey = guestPlayerKeyFromGuestId(guestId);
+  const rows = await findRows(entity, { user_email: guestPlayerKey }, '-updated_at', 240);
+  let merged = 0;
+  let updated = 0;
+  let skipped = 0;
+  for (const row of rows) {
+    const questDate = dailyFieldDateValue(row?.quest_date);
+    const questKey = String(row?.quest_key || '').trim();
+    if (!questDate || !questKey) {
+      skipped += 1;
+      continue;
+    }
+    const idempotencyKey = `daily_quest:${email}:${questDate}:${questKey}`;
+    const existing = (await findRows(entity, { user_email: email, quest_date: questDate, quest_key: questKey }, '-updated_at', 1))[0] ||
+      (await findRows(entity, { user_email: email, idempotency_key: idempotencyKey }, '-updated_at', 1))[0] ||
+      null;
+    const payload = {
+      user_email: email,
+      owner_key: authOwnerKey,
+      player_type: 'registered',
+      quest_definition_id: row?.quest_definition_id || '',
+      quest_key: questKey,
+      quest_date: questDate,
+      title: row?.title || '',
+      description: row?.description || '',
+      quest_type: row?.quest_type || '',
+      progress_value: normalizeNonNegativeInteger(row?.progress_value),
+      target_value: Math.max(1, normalizeNonNegativeInteger(row?.target_value) || 1),
+      reward_diamonds: Math.max(1, normalizeNonNegativeInteger(row?.reward_diamonds) || 1),
+      status: row?.status || 'active',
+      completed_at: row?.completed_at || null,
+      claimed_at: row?.claimed_at || null,
+      idempotency_key: idempotencyKey,
+      last_event_key: row?.last_event_key || '',
+      metadata: {
+        ...(row?.metadata && typeof row.metadata === 'object' ? row.metadata : {}),
+        accountLinkHistoryCopy: true,
+        mergedFromGuestOwnerKey: guestOwnerKey,
+        rawGuestTokenServerStored: false,
+      },
+      created_at: row?.created_at || nowIso(),
+      updated_at: nowIso(),
+    };
+    if (rowId(existing)) {
+      const shouldUpgrade = claimStatusRank(row?.status) > claimStatusRank(existing?.status) ||
+        normalizeNonNegativeInteger(row?.progress_value) > normalizeNonNegativeInteger(existing?.progress_value);
+      if (shouldUpgrade) {
+        await entity.update(rowId(existing), {
+          ...payload,
+          progress_value: Math.max(normalizeNonNegativeInteger(existing?.progress_value), normalizeNonNegativeInteger(row?.progress_value)),
+          status: claimStatusRank(row?.status) >= claimStatusRank(existing?.status) ? payload.status : existing?.status,
+          completed_at: existing?.completed_at || payload.completed_at,
+          claimed_at: existing?.claimed_at || payload.claimed_at,
+          created_at: existing?.created_at || payload.created_at,
+        });
+        updated += 1;
+      } else {
+        skipped += 1;
+      }
+      continue;
+    }
+    await entity.create(payload);
+    merged += 1;
+  }
+  return { merged, updated, skipped };
+}
+
+async function mergeDailyRewardHistoryRows(base44: any, email: string, guestId: string) {
+  const [wheel, quest] = await Promise.all([
+    mergeDailyWheelHistoryRows(base44, email, guestId).catch(() => ({ merged: 0, skipped: 0, failed: true })),
+    mergeDailyQuestHistoryRows(base44, email, guestId).catch(() => ({ merged: 0, updated: 0, skipped: 0, failed: true })),
+  ]);
+  return { wheel, quest };
+}
+
 Deno.serve(async (req: Request) => {
   try {
     if (req.method !== 'POST') {
@@ -735,6 +912,11 @@ Deno.serve(async (req: Request) => {
 
     const jokerMerge = await mergeJokerBalances(base44, email, guestId, guest?.joker_balances, additiveAllowed);
     const categoryMerge = await syncCategoryPreferences(base44, user, email, selectedCategoryIds);
+    const dailyRewardPatch = buildDailyRewardLinkPatch(user, guest);
+    const dailyRewardHistory = await mergeDailyRewardHistoryRows(base44, email, guestId).catch(() => ({
+      wheel: { merged: 0, skipped: 0, failed: true },
+      quest: { merged: 0, updated: 0, skipped: 0, failed: true },
+    }));
     const nextLinkedGuestIds = Array.from(new Set([...linkedGuestIds, guestId]));
     const userPatch = {
       solo_progress: mergedSoloProgress,
@@ -752,6 +934,7 @@ Deno.serve(async (req: Request) => {
       category_preferences_onboarding_completed_at: selectedCategoryIds.length > 0
         ? (user?.category_preferences_onboarding_completed_at || nowIso())
         : user?.category_preferences_onboarding_completed_at,
+      ...dailyRewardPatch,
     };
     const updatedUser = await updateCurrentUser(base44, user, userPatch);
     const leaderboard = await upsertLeaderboard(base44, email, guestId, displayName, mergedSoloProgress, mergedOnlineProgress, bestTotalScore);
@@ -772,6 +955,10 @@ Deno.serve(async (req: Request) => {
       playerQuestionExposureMerged: exposureMerge.mergedExposureRows,
       playerQuestionDailyExposureMerged: exposureMerge.mergedDailyRows,
       playerQuestionExposureMergeCapped: exposureMerge.capped,
+      dailyWheelHistoryMerged: dailyRewardHistory.wheel.merged,
+      dailyQuestHistoryMerged: dailyRewardHistory.quest.merged,
+      dailyQuestHistoryUpdated: dailyRewardHistory.quest.updated,
+      dailyRewardSameDayGuardsPreserved: Object.keys(dailyRewardPatch).length > 0,
       usernameDisplayApplied: true,
       additiveMergeApplied: additiveAllowed,
     };

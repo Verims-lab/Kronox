@@ -350,6 +350,52 @@ export const EXTRA_TESTS = [
       });
     }),
 
+  makeCase('leaderboard_health', 'completed_guest_leaderboard_access_and_privacy',
+    'Completed guests can open Liderlik and appear as username-only rows',
+    () => {
+      const combined = `${leaderboardPageSource}\n${leaderboardLibSource}\n${soloLeaderboardEntitySource}\n${getSoloLeaderboardFunctionSource}\n${kronoxRankingSectionSource}`;
+      const required = missingTokens(combined, [
+        'resolveLeaderboardActor',
+        'ownerKeyFromGuestId',
+        'isGuestProfileComplete',
+        'getCompletedGuestCredentialsPayload',
+        'getGuestLeaderboardOwnerKey',
+        'buildGuestSoloLeaderboardPayload',
+        'syncGuestProfileProgress',
+        'completedGuestProfile',
+        'leaderboardPlayer',
+        'leaderboard_id',
+        'username',
+        'Completed guests can pass guest_id + guest_token',
+        'raw guest id',
+        'owner_key, player_key',
+        'guest_token',
+        'display_name',
+      ]);
+      const forbidden = forbiddenTokensFound(`${leaderboardPageSource}\n${kronoxRankingSectionSource}`, [
+        '{row.owner_key}',
+        '{row.display_name}',
+        '{row.guest_id}',
+        '{row.player_key}',
+        '{row.email}',
+        'row.email}</',
+      ]);
+      if (required.length || forbidden.length) {
+        return fail('Completed guest leaderboard access or public identity privacy contract drifted.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'completed guest can call getSoloLeaderboard with token proof; public rows show username/leaderboard_id only and never raw guest/internal/provider fields',
+          actual: { required, forbidden },
+        });
+      }
+      return pass('Completed guests can load/publish Liderlik rows with internal g_ owner keys while UI/public payloads stay username-only.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
   makeCase('leaderboard_health', 'leaderboard_projection_completeness_repair',
     'Incomplete projection rows cannot claim exact global rank or crowd out positive scores',
     () => {

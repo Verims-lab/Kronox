@@ -1,5 +1,7 @@
 export {
   buildSoloLeaderboardPayload,
+  buildGuestSoloLeaderboardPayload,
+  getGuestLeaderboardOwnerKey,
   getLeaderboardOwnerKey,
   getSafeLeaderboardName,
   loadSoloLeaderboardEntries,

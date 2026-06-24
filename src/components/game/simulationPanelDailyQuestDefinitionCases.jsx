@@ -491,8 +491,8 @@ export const EXTRA_TESTS = [
     () => {
       const missing = missingTokens(`${docsCombined}\n${createDailyQuestDefinitionSource}`, [
         'Daily Wheel remains separate from Daily Quest definitions',
-        'daily_wheel:<email>:<YYYY-MM-DD>',
-        'daily_quest_reward:<email>:<YYYY-MM-DD>:<quest_key>',
+        'daily_wheel:<playerKey>:<YYYY-MM-DD>',
+        'daily_quest_reward:<playerKey>:<YYYY-MM-DD>:<quest_key>',
       ]);
       const forbidden = forbiddenTokens(createDailyQuestDefinitionSource, [
         'DailyWheelSpin',
