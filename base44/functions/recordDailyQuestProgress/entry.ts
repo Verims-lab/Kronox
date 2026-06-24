@@ -175,7 +175,7 @@ async function findGuestProfile(base44: any, guestId: string) {
 
 async function resolveDailyQuestPlayer(base44: any, body: any) {
   const user = await base44.auth.me().catch(() => null);
-  const email = normalizeEmail(user?.email || user?.user_email);
+  const email = normalizeEmail(user?.email) || normalizeEmail(user?.user_email);
   if (email && rowId(user)) {
     return {
       ok: true,

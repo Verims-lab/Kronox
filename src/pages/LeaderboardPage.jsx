@@ -157,12 +157,13 @@ export default function LeaderboardPage() {
       : buildGuestSoloLeaderboardPayload(completedGuestProfile, currentProgress);
     const ownSummary = summarizeSoloProgress(currentProgress, getSoloLevelCount());
     const ownScoreFallback = {
-      totalKronoxScore: user?.email
-        ? getKronoxVisibleScore(user, { soloProgress: currentProgress })
-        : currentPayload.total_kronox_score,
+      totalKronoxScore: getKronoxVisibleScore(user, { soloProgress: currentProgress }),
       totalSoloScore: ownSummary.totalSoloScore,
       currentLevel: ownSummary.currentLevel,
     };
+    if (!user?.email) {
+      ownScoreFallback.totalKronoxScore = currentPayload.total_kronox_score;
+    }
 
     setLeaderboard((prev) => ({ ...prev, loading: true, error: '', ownScoreFallback }));
     try {
@@ -285,7 +286,10 @@ export default function LeaderboardPage() {
   const completedGuestProfile = !user && isGuestOnboardingComplete(localGuestProfile || guestProfile)
     ? (localGuestProfile || guestProfile)
     : null;
-  const diamondValue = getLeaderboardDiamondValue(user || completedGuestProfile);
+  let diamondValue = getLeaderboardDiamondValue(user);
+  if (!user && completedGuestProfile) {
+    diamondValue = getLeaderboardDiamondValue(completedGuestProfile);
+  }
   const isAdmin = isAdminUser(user);
   const leaderboardPlayer = user || completedGuestProfile;
 

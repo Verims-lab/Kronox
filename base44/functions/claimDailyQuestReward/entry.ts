@@ -112,7 +112,7 @@ async function findGuestProfile(base44: any, guestId: string) {
 
 async function resolveDailyQuestPlayer(base44: any, body: any) {
   const user = await base44.auth.me().catch(() => null);
-  const email = normalizeEmail(user?.email || user?.user_email);
+  const email = normalizeEmail(user?.email) || normalizeEmail(user?.user_email);
   if (email && rowId(user)) {
     return {
       ok: true,
@@ -182,19 +182,24 @@ function publicProgress(row: any) {
   };
 }
 
+function isProgressRowOwnedByPlayer(row: any, player: any) {
+  const email = normalizeEmail(player?.row?.email) || normalizeEmail(player?.row?.user_email);
+  if (!player?.isGuest && email) return normalizeEmail(row?.user_email) === email;
+  return normalizeEmail(row?.user_email) === player.playerKey;
+}
 
 async function findProgressById(base44: any, player: any, progressId: string) {
   const entity = progressEntity(base44, player);
   if (!entity || !progressId) return null;
   if (typeof entity.get === 'function') {
     const row = await entity.get(progressId).catch(() => null);
-    if (rowId(row) && normalizeEmail(row?.user_email) === player.playerKey) return row;
+    if (rowId(row) && isProgressRowOwnedByPlayer(row, player)) return row;
   }
   if (typeof entity.filter === 'function') {
     for (const field of ['id', '_id']) {
       const rows = await entity.filter({ [field]: progressId }, '-created_at', 1).catch(() => []);
       const row = Array.isArray(rows) && rows.length ? rows[0] : null;
-      if (rowId(row) && normalizeEmail(row?.user_email) === player.playerKey) return row;
+      if (rowId(row) && isProgressRowOwnedByPlayer(row, player)) return row;
     }
   }
   return null;
@@ -212,7 +217,8 @@ async function findProgress(base44: any, player: any, body: any) {
   const rows = await progressEntity(base44, player)
     .filter({ user_email: player.playerKey, quest_date: questDate, quest_key: questKey }, '-created_at', 1)
     .catch(() => []);
-  return Array.isArray(rows) && rows.length ? rows[0] : null;
+  const row = Array.isArray(rows) && rows.length ? rows[0] : null;
+  return rowId(row) && isProgressRowOwnedByPlayer(row, player) ? row : null;
 }
 
 function diamondTransactionEntity(base44: any, player: any = null) {
