@@ -1,39 +1,85 @@
-**Welcome to your Kronox project** 
+# Kronox
 
-**About**
+Kronox is a mobile-first timeline trivia game. Players place event cards in
+chronological order, earn Kronox Puan, collect Diamonds, use Solo jokers, and
+can play as a guest before linking an account from Profile.
 
-View and Edit  your app on [Base44.com](http://Base44.com) 
+## What This App Is
 
-This project contains everything you need to run your app locally.
+This repository contains the Kronox web app and Base44 backend source used by
+Base44 Builder. Product behavior is centered on Solo timeline play, Online
+Kapışma, guest onboarding, Profile account linking, Liderlik, Mağaza, Daily
+Wheel, and Daily Quest.
 
-**Edit the code in your local development environment**
+## Stack
 
-Any change pushed to the repo will also be reflected in the Base44 Builder.
+* Vite + React
+* Tailwind-style UI
+* Base44 Functions / Entities
+* GitHub sync into Base44 Builder
+* Android/iOS wrappers generated through Base44
 
-**Prerequisites:** 
+The native iOS/App Store wrapper is not maintained as an Xcode project in this
+repo.
 
-1. Clone the repository using the project's Git URL 
-2. Navigate to the project directory
-3. Install dependencies: `npm install`
-4. Create an `.env.local` file and set the right environment variables
+## Local Development
 
+```bash
+npm install
+touch .env.local
+npm run dev
 ```
+
+Create `.env.local` with project-specific values:
+
+```text
 VITE_BASE44_APP_ID=your_app_id
-VITE_BASE44_APP_BASE_URL=your_backend_url
-
-e.g.
-VITE_BASE44_APP_ID=cbef744a8545c389ef439ea6
-VITE_BASE44_APP_BASE_URL=https://my-to-do-list-81bfaad7.base44.app
+VITE_BASE44_APP_BASE_URL=your_base44_app_url
 ```
 
-Run the app: `npm run dev`
+Do not commit secrets, private keys, service tokens, or personal/admin email
+literals.
 
-**Publish your changes**
+## Base44 / GitHub Workflow
 
-Open [Base44.com](http://Base44.com) and click on Publish.
+Changes pushed to GitHub are reflected in Base44 Builder. Publish production
+changes from Base44 after reviewing the diff and required manual gates.
 
-**Docs & Support**
+Use `Codex` for Codex work unless a task explicitly says otherwise. Do not force
+push.
 
-Documentation: [https://docs.base44.com/Integrations/Using-GitHub](https://docs.base44.com/Integrations/Using-GitHub)
+## Build And Validation
 
-Support: [https://app.base44.com/support](https://app.base44.com/support)
+Useful checks:
+
+```bash
+npm run check:base44-functions
+npm run lint
+npm run build
+npm run check:ios-icons
+```
+
+`npm run build` proves the Vite frontend bundle only. It does not prove Base44
+function deployment, RLS/BOLA behavior, native wrapper quality, push delivery,
+or App Store/TestFlight readiness.
+
+## Important Docs
+
+* `KRONOX_CORE_PROMPT.md` - canonical operational/project rules.
+* `Kronox.md` - product identity, visual language, game feel, and UX principles.
+* `docs/KRONOX_PRODUCT_WORKFLOW.md` - current product flow.
+* `docs/KRONOX_TECHNICAL_FLOW.md` - current implementation flow.
+* `docs/KRONOX_SOLO_QUESTION_ENGINE.md` - Solo question/deck contract.
+* `docs/KRONOX_RELEASE_PROOF_CHECKLIST.md` - manual release proof.
+* `docs/KRONOX_SECURITY_DEPLOYMENT.md` - security/deployment rules.
+* `src/lib/healthAlignmentDocMirrors.js` - runtime doc mirror used by Health.
+
+## Manual Release Gates
+
+Health PASS is not release readiness. Manual proof is still required for
+physical Apple parity, TestFlight/App Store flows, encryption/export compliance
+through Base44/App Store Connect, Android wrapper checks, push/VAPID, real
+device drag/drop, two-account multiplayer/RLS probes, account deletion, and
+parallel economy/idempotency behavior.
+
+Publishing is handled through Base44.
