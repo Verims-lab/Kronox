@@ -150,8 +150,12 @@ Merge rules are user-benefit oriented:
 * Solo progress keeps the better per-level record
 * Online progress keeps user-beneficial counters without duplicate rewards
 * `User.kronox_puan_total` keeps the safest higher total projection
+* guest `GuestProfile.diamonds` is added once to `User.diamonds`
+* guest Daily Wheel and Daily Quest guard fields/history are copied to the
+  registered owner key so same-day rewards cannot be claimed again after link
 * guest category selections become authenticated `UserCategoryPreference` rows
 * guest leaderboard projection migrates to the authenticated owner row and the
   old guest row is passivated
+* guest joker balances merge through inventory/transaction rows where present
 
 Provider ids and email are never public leaderboard identity.

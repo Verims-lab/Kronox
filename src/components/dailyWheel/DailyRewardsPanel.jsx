@@ -4,7 +4,7 @@ import DailyWheelCard from './DailyWheelCard';
 import { useDailyQuests } from '@/hooks/useDailyQuests';
 import { sounds } from '@/lib/gameSounds';
 
-export default function DailyRewardsPanel({ user, onUserUpdated, onLogin, ariaLabel = 'Günlük Ödüller' }) {
+export default function DailyRewardsPanel({ user, guestProfile, onUserUpdated, onLogin, ariaLabel = 'Günlük Ödüller' }) {
   return (
     <section
       className="w-full overflow-hidden rounded-[20px] px-3 py-3 font-inter"
@@ -40,18 +40,19 @@ export default function DailyRewardsPanel({ user, onUserUpdated, onLogin, ariaLa
       <div className="grid gap-2">
         <DailyWheelCard
           user={user}
+          guestProfile={guestProfile}
           onUserUpdated={onUserUpdated}
           onLogin={onLogin}
           compact
         />
-        <DailyQuestV1Card user={user} onUserUpdated={onUserUpdated} onLogin={onLogin} />
+        <DailyQuestV1Card user={user} guestProfile={guestProfile} onUserUpdated={onUserUpdated} onLogin={onLogin} />
       </div>
     </section>
   );
 }
 
-function DailyQuestV1Card({ user, onUserUpdated, onLogin }) {
-  const dailyQuests = useDailyQuests({ user, onUserUpdated });
+function DailyQuestV1Card({ user, guestProfile, onUserUpdated, onLogin }) {
+  const dailyQuests = useDailyQuests({ user, guestProfile, onUserUpdated });
   const canSeeAdminQuestHint = Boolean(
     user?.is_admin === true ||
     user?.role === 'admin' ||

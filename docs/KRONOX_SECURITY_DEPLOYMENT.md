@@ -419,11 +419,12 @@ Base44 function config proof:
   guard and keep public-by-design functions narrow
 * public-by-design: `createGuestProfile`, `getCategoryMetadata`
 * guest-token required: guest profile update/progress/category/exposure paths
-  including `updateProfileSettings`, `getPlayerQuestionExposureStats`, and
-  `recordPlayerQuestionExposure` guest mode
+  including `updateProfileSettings`, Daily Quest/Wheel guest reward paths,
+  `getSoloLeaderboard` guest current-row access, `getPlayerQuestionExposureStats`,
+  and `recordPlayerQuestionExposure` guest mode
 * registered-auth required: `getQuestions` normal gameplay,
-  `updateProfileSettings`, `linkGuestAccount`, economy and Daily Quest/Wheel
-  functions
+  `updateProfileSettings`, `linkGuestAccount`, Mağaza purchases, and registered
+  economy/Daily Quest/Wheel functions
 * admin-only/internal reporting: AdminUser-guarded report, diagnostic,
   simulation, maintenance, and reset functions
 * configured manifests currently present for 17 functions; additional
@@ -442,13 +443,16 @@ Configured function auth/public matrix:
 | `recordPlayerQuestionExposure` | Guest-token or authenticated user | Same player proof model as exposure stats; no request-body identity trust. |
 | `updateProfileSettings` | Guest-token or authenticated user | Guest path verifies token; auth path derives current user. |
 | `linkGuestAccount` | Authenticated user + guest-token | Auth user from `base44.auth.me()` and guest ownership from token hash. |
+| `getSoloLeaderboard` | Authenticated user or completed guest-token | Public-safe rows only; guest path verifies token and strips owner_key/raw guest_id/display_name. |
 | `getAdminStatus` | Authenticated status check | Uses current authenticated email and AdminUser row; normal users receive non-admin status. |
 | `ensureUserJokerInventory` | Authenticated user | Current user from `base44.auth.me()`. |
 | `spendUserJoker` | Authenticated user | Current user from `base44.auth.me()`, Solo joker context enforced. |
 | `purchaseJokerWithDiamonds` | Authenticated user | Current user from `base44.auth.me()`, backend price and balance checks. |
-| `getDailyQuestStatus` | Authenticated user | Current user from `base44.auth.me()`. |
-| `recordDailyQuestProgress` | Authenticated user | Current user from `base44.auth.me()`, Solo-only progress event. |
-| `claimDailyQuestReward` | Authenticated user | Current user from `base44.auth.me()`, reward amount from stored quest progress. |
+| `getDailyWheelStatus` | Authenticated user or completed guest-token | Same player proof model; no reward grant during status read. |
+| `claimDailyWheelReward` | Authenticated user or completed guest-token | Same player proof model; server reward selection and once-per-UTC-day idempotency. |
+| `getDailyQuestStatus` | Authenticated user or completed guest-token | Auth path uses `base44.auth.me()`; guest path verifies `guest_id + guest_token` and completed GuestProfile. |
+| `recordDailyQuestProgress` | Authenticated user or completed guest-token | Same player proof model; Solo-only progress event. |
+| `claimDailyQuestReward` | Authenticated user or completed guest-token | Same player proof model; reward amount from stored quest progress. |
 | `createDailyQuestDefinition` | Admin-only | Inline AdminUser active owner/admin guard. |
 | `diagnoseSoloQuestionStartQuery` | Admin-only diagnostic | Inline AdminUser active owner/admin guard. |
 | `sendQuestionAnalyticsReportEmail` | Admin-only reporting | Inline AdminUser active owner/admin guard, email-body-only output. |
@@ -473,15 +477,17 @@ client-provided email/name fields must never override the authenticated
 identity. Legacy guest-host start fallback is not part of the current product
 contract.
 
-Daily Wheel functions must require authenticated user context. `claimDailyWheelReward`
-must select rewards server-side, use the authenticated user's email for the
-daily idempotency key, grant Diamonds only, and never grant Kronox Puan. Before
-mutating `User.diamonds`, the claim path must check existing same-day
+Daily Wheel functions must require authenticated user context or token-proven
+completed GuestProfile context. `claimDailyWheelReward` must select rewards
+server-side, use the derived player key for the daily idempotency key, grant
+Diamonds only, and never grant Kronox Puan. Before mutating `User.diamonds` or
+`GuestProfile.diamonds`, the claim path must check existing same-day
 `DailyWheelSpin` rows by `idempotency_key` and `user_email + spin_date`,
-reserve a spin row, re-read the canonical same-user/same-UTC-day spin, re-check
-the User guard, and re-check `DiamondTransaction.idempotency_key`. This is a
-function-level guard, not a DB atomic upsert; parallel two-device proof remains
-manual unless Base44 unique constraints are configured.
+reserve a spin row, re-read the canonical same-player/same-UTC-day spin,
+re-check the User/GuestProfile guard, and re-check
+`DiamondTransaction.idempotency_key`. This is a function-level guard, not a DB
+atomic upsert; parallel two-device proof remains manual unless Base44 unique
+constraints are configured.
 
 ---
 
@@ -779,11 +785,11 @@ Joker inventory is user-owned data:
   hardening, not Low risk.
 * Home `Günlük Ödüller` includes Daily Wheel and Daily Quest Runtime v1
   `Günlük Görev`; Daily Quest claims grant diamonds only through
-  server-backed, user-bound `claimDailyQuestReward`
+  server-backed, player-bound `claimDailyQuestReward`
 * Daily Wheel and Daily Quest rewards use separate guard fields and
   idempotency keys so a quest claim cannot unlock or duplicate a wheel spin:
-  `daily_wheel:<email>:<YYYY-MM-DD>` vs
-  `daily_quest_reward:<email>:<YYYY-MM-DD>:<quest_key>`
+  `daily_wheel:<playerKey>:<YYYY-MM-DD>` vs
+  `daily_quest_reward:<playerKey>:<YYYY-MM-DD>:<quest_key>`
 * Daily Wheel remains separate from Daily Quest definitions
 * Daily Wheel and Daily Quest are separate
 * normal users must not be able to arbitrarily grant themselves jokers
@@ -994,8 +1000,10 @@ The only guest-facing account-link CTA is the Profile guest card
 with Apple, Google, and email options together. Opening Profile must not run the
 merge by itself; linking starts only when the user chooses a provider.
 
-The link merge preserves user-beneficial progress and combines additive economy
-only once. `User.linked_guest_ids` and `AccountLinkTransaction.idempotency_key`
+The link merge preserves user-beneficial progress, combines additive economy
+only once, and copies Daily Wheel/Daily Quest guard fields/history to the
+registered owner key so same-day guest rewards cannot be claimed again after
+linking. `User.linked_guest_ids` and `AccountLinkTransaction.idempotency_key`
 are duplicate guards; `UserJokerInventory` remains the current joker balance
 source and `JokerTransaction` remains the immutable ledger.
 

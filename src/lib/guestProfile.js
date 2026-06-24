@@ -74,6 +74,16 @@ function normalizePublicProfile(profile) {
     profile_settings_updated_at: profile.profile_settings_updated_at || null,
     category_setup_completed_at: profile.category_setup_completed_at || null,
     onboarding_completed_at: profile.onboarding_completed_at || null,
+    diamonds: Number.isFinite(Number(profile.diamonds)) ? Math.max(0, Math.floor(Number(profile.diamonds))) : 0,
+    daily_wheel_last_spin_at: profile.daily_wheel_last_spin_at || null,
+    daily_wheel_last_spin_date: profile.daily_wheel_last_spin_date || null,
+    daily_wheel_next_available_at: profile.daily_wheel_next_available_at || null,
+    daily_wheel_streak: Number.isFinite(Number(profile.daily_wheel_streak)) ? Math.max(0, Math.floor(Number(profile.daily_wheel_streak))) : 0,
+    daily_wheel_spin_count: Number.isFinite(Number(profile.daily_wheel_spin_count)) ? Math.max(0, Math.floor(Number(profile.daily_wheel_spin_count))) : 0,
+    daily_quest_last_claim_at: profile.daily_quest_last_claim_at || null,
+    daily_quest_last_claim_date: profile.daily_quest_last_claim_date || null,
+    daily_quest_next_available_at: profile.daily_quest_next_available_at || null,
+    daily_quest_claim_count: Number.isFinite(Number(profile.daily_quest_claim_count)) ? Math.max(0, Math.floor(Number(profile.daily_quest_claim_count))) : 0,
   };
 }
 
@@ -242,6 +252,17 @@ export function isGuestOnboardingComplete(profile) {
   const categoryCompleted = categoryStatus === 'completed' ||
     Boolean(normalized.category_setup_completed_at || normalized.onboarding_completed_at);
   return Boolean(profileCompleted && categoryCompleted);
+}
+
+export function getCompletedGuestCredentialsPayload(profile) {
+  if (!isGuestOnboardingComplete(profile)) return null;
+  const credentials = getStoredGuestCredentials();
+  if (!credentials.guest_id || !credentials.guest_token) return null;
+  return {
+    player_type: 'guest',
+    guest_id: credentials.guest_id,
+    guest_token: credentials.guest_token,
+  };
 }
 
 export function getGuestOnboardingCompletionRepairPatch(profile) {

@@ -15,8 +15,10 @@ export const ECONOMY_RULES_DOC = `# Kronox Diamond Economy Rules
 Status: Active product contract.
 
 ## Canonical balance
-The canonical Diamond balance lives on User.diamonds. It is never derived from
-stars, score, or completed levels.
+The canonical Diamond balance lives on the server-owned player profile.
+Registered users use User.diamonds. Token-proven completed guests use
+GuestProfile.diamonds until account linking combines that balance into the
+registered account. It is never derived from stars, score, or completed levels.
 
 ## Ledger and idempotency
 Every grant is recorded in DiamondTransaction with balance_before,
@@ -35,15 +37,17 @@ neither DB/entity unique nor function-level guard is High.
 - market_purchase (server-backed Mağaza joker purchase; Diamond spend only)
 
 Daily Wheel is separate from the existing +20 daily login reward, grants once
-per UTC server day, uses idempotency_key daily_wheel:<normalizedEmail>:<YYYY-MM-DD>,
+per UTC server day, uses idempotency_key daily_wheel:<playerKey>:<YYYY-MM-DD>,
 records a DailyWheelSpin row plus DiamondTransaction.source = daily_wheel, and
 grants a 7-day streak bonus: +150 diamonds. It grants no Kronox Puan and does
 not affect leaderboard sorting or rank. Daily Wheel same-day duplicate
 prevention uses key/date lookup, reserve-first DailyWheelSpin rows, canonical
-same-user/same-day re-read, User guard re-check, and DiamondTransaction
+same-player/same-day re-read, User/GuestProfile guard re-check, and DiamondTransaction
 re-check before balance mutation. This is not an atomic upsert until DB/entity
 unique proof is attached for DailyWheelSpin.idempotency_key,
 DailyWheelSpin.user_email + spin_date, and DiamondTransaction.idempotency_key.
+Daily Wheel claim requires an authenticated user or a token-proven completed
+GuestProfile, and guest reward rows use internal guest:<g_owner_key> keys.
 
 Daily Wheel reward is selected server-side by claimDailyWheelReward and the UI
 animates to the backend-selected reward. Reward weights are 30 high weight 24,
@@ -59,19 +63,21 @@ claimed-state countdown uses Yarın hazır or compact time text such as 11 sa
 Günlük Ödüller panel contains Daily Wheel and Daily Quest Runtime v1 Günlük
 Görev. DailyQuestDefinition templates are admin-managed and
 title/description are display-only; quest_type + target_value drive runtime
-logic. UserDailyQuestProgress stores 1 selected UTC-day user quest.
+logic. UserDailyQuestProgress stores 1 selected UTC-day player quest.
 Fresh DBs seed the four default Solo-focused DailyQuestDefinition rows
 idempotently when no definitions exist; if no active definitions remain, Home
 shows a safe empty state and does not grant Diamonds. getDailyQuestStatus is
-authenticated but not admin-only and preserves newly created progress rows if
-immediate refresh is stale.
+authenticated-or-completed-guest but not admin-only and preserves newly created
+progress rows if immediate refresh is stale.
 claimDailyQuestReward grants diamonds only, writes DiamondTransaction.source =
 daily_quest_reward with direction = earn, uses
-daily_quest_reward:<normalizedEmail>:<YYYY-MM-DD>:<questKey>, and uses
-User.daily_quest_* fields instead of Daily Wheel fields. Home copy says
+daily_quest_reward:<playerKey>:<YYYY-MM-DD>:<questKey>, and uses
+User.daily_quest_* / GuestProfile.daily_quest_* fields instead of Daily Wheel fields. Home copy says
 "Günlük Görevleri Yap, Elmasları Kazan!" and runtime backend functions
 explicitly bind UserDailyQuestProgress. Daily Quest does not grant Kronox Puan
-and has no leaderboard impact.
+and has no leaderboard impact. Completed guests can see, progress, and claim
+Daily Quest rewards through guest_id + guest_token proof; guest rewards persist
+on GuestProfile.diamonds.
 
 First authenticated entry grants +100 once. Same-day daily login grants +20 once.
 First-day total: \`120\` Diamonds. This combines starter 100 Diamonds plus

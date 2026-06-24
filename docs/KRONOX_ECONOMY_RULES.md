@@ -4,7 +4,11 @@
 
 This document defines the Kronox Diamond / Elmas economy contract.
 
-Diamonds are a persisted user-owned balance.
+Diamonds are a persisted player-owned balance.
+
+Registered users use `User.diamonds`. Token-proven completed guests use
+`GuestProfile.diamonds` until account linking combines that balance into the
+registered account.
 
 Diamonds are separate from Kronox Puan.
 
@@ -12,10 +16,11 @@ Diamonds are separate from Kronox Puan.
 
 # 1. Source Of Truth
 
-Canonical balance field:
+Canonical balance fields:
 
 ```text
 User.diamonds
+GuestProfile.diamonds for completed guests before account linking
 ```
 
 Display helper:
@@ -107,7 +112,9 @@ Daily Quest grants diamonds only through the server-backed
 `claimDailyQuestReward` callable. Claims write
 `DiamondTransaction.source = daily_quest_reward` with `direction = earn` and an
 idempotency key shaped like
-`daily_quest_reward:<normalizedEmail>:<YYYY-MM-DD>:<questKey>`. The client must
+`daily_quest_reward:<playerKey>:<YYYY-MM-DD>:<questKey>`, where `playerKey` is
+the normalized email for registered users or `guest:<g_owner_key>` for a
+token-proven completed guest. The client must
 not control reward amount. Daily Quest does not grant Kronox Puan and has no
 leaderboard impact. Daily Quest does not affect leaderboard.
 
@@ -126,8 +133,8 @@ Rules:
 * grants no Kronox Puan
 * does not affect leaderboard sorting or rank
 * is separate from the existing +20 daily login reward
-* claim requires authenticated user
-* one claim per user per UTC server day
+* claim requires an authenticated user or a token-proven completed GuestProfile
+* one claim per player per UTC server day
 * reward is selected server-side by `claimDailyWheelReward`
 * UI animates to the backend-selected reward
 * localStorage/sessionStorage may only hide the once-per-session popup, never grant rewards
@@ -153,6 +160,13 @@ Reward table and weights:
 
 If the user misses a UTC day, the next successful spin resets the streak to 1.
 
+Completed guests can see and claim the Daily Wheel and Daily Quest from Home.
+Guest Daily Wheel and Daily Quest rows use internal `guest:<g_owner_key>` keys,
+never raw `guest_id` as public identity. Guest balances and same-day guards are
+stored on `GuestProfile`; `linkGuestAccount` copies daily reward history/guards
+to the registered owner key so a guest cannot claim the same UTC-day reward
+again immediately after linking.
+
 Result copy:
 
 ```text
@@ -173,10 +187,10 @@ DailyWheelSpin
 Daily idempotency key:
 
 ```text
-daily_wheel:<normalizedEmail>:<YYYY-MM-DD>
+daily_wheel:<playerKey>:<YYYY-MM-DD>
 ```
 
-User guard fields:
+Player guard fields:
 
 ```text
 daily_wheel_last_spin_at
@@ -196,11 +210,12 @@ Concurrency note:
 
 Base44 schema-level uniqueness is not assumed for `DailyWheelSpin.idempotency_key`
 or `DiamondTransaction.idempotency_key`. The current backend uses
-query-before-write, User guard fields, reserve-first `DailyWheelSpin` rows, and
-recovery from existing spin rows. After reserving a spin row, the claim path
-re-reads the canonical same-user/same-UTC-day spin, re-checks the User guard,
-and re-checks the `DiamondTransaction` idempotency key before mutating
-`User.diamonds`. This is function-level guard only, not an atomic upsert.
+query-before-write, User/GuestProfile guard fields, reserve-first
+`DailyWheelSpin` rows, and recovery from existing spin rows. After reserving a
+spin row, the claim path re-reads the canonical same-player/same-UTC-day spin,
+re-checks the User/GuestProfile guard, and re-checks the
+`DiamondTransaction` idempotency key before mutating `User.diamonds` or
+`GuestProfile.diamonds`. This is function-level guard only, not an atomic upsert.
 Risk is Medium/P1 hardening until DB/entity unique constraints or a live
 parallel backend proof are attached.
 
@@ -586,13 +601,14 @@ Manual/release proof should verify:
 * next UTC day grants once
 * Daily Wheel grants once per UTC server day
 * Daily Wheel does not grant Kronox Puan
-* 7th consecutive Daily Wheel spin grants +100 extra Diamonds
+* 7th consecutive Daily Wheel spin grants +150 extra Diamonds
 * two-device duplicate prevention is probed
 * ledger recovery does not double grant
 ## GuestProfile And Economy Boundary
 
 Phase 1 GuestProfile creates portable guest identity. Phase 3 account linking
-adds the one-time merge path; it does not change Daily Quest, Daily Wheel,
+adds the one-time merge path and preserves completed-guest Daily Quest and
+Daily Wheel balances, guard fields, and history copies; it does not change
 Market prices, normal Joker spend/purchase rules, or Diamond reward rules.
 
 Guest-to-authenticated merge is server-authoritative, one-time, idempotent, and
@@ -600,7 +616,10 @@ audited through `linkGuestAccount` plus `AccountLinkTransaction`. Guest Diamonds
 may be combined once with the authenticated `User.diamonds` balance through
 `DiamondTransaction.source = account_link_merge`. Guest joker balances may be
 combined once through `UserJokerInventory` current balances and
-`JokerTransaction.reason = account_link_merge`.
+`JokerTransaction.reason = account_link_merge`. Guest Daily Wheel and Daily
+Quest same-day guard fields are copied to the linked user, and guest reward
+history rows are copied under the registered internal owner key to prevent
+duplicate same-day claims after account linking.
 
 `User.linked_guest_ids` prevents repeated additive economy merge if an account
 link request retries after a partial response. `UserJokerInventory` remains the

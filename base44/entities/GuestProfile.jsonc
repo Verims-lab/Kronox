@@ -117,7 +117,47 @@
     },
     "diamonds": {
       "type": "number",
-      "description": "Trusted/admin or future server-authoritative guest Diamond balance to combine once during account linking when guest economy exists. Public createGuestProfile create/sync requests must not set this field."
+      "description": "Server-authoritative guest Diamond balance. Completed guest profiles can earn Daily Wheel and Daily Quest Diamonds here; account linking combines this balance once with User.diamonds."
+    },
+    "daily_wheel_last_spin_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Latest completed guest Daily Wheel claim timestamp. Preserved during account linking as a same-day duplicate guard."
+    },
+    "daily_wheel_last_spin_date": {
+      "type": "string",
+      "description": "UTC YYYY-MM-DD guard for completed guest Daily Wheel claims."
+    },
+    "daily_wheel_next_available_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Next UTC availability time for the guest Daily Wheel."
+    },
+    "daily_wheel_streak": {
+      "type": "number",
+      "description": "Completed guest Daily Wheel streak."
+    },
+    "daily_wheel_spin_count": {
+      "type": "number",
+      "description": "Completed guest Daily Wheel lifetime spin count."
+    },
+    "daily_quest_last_claim_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Latest completed guest Daily Quest reward claim timestamp."
+    },
+    "daily_quest_last_claim_date": {
+      "type": "string",
+      "description": "UTC YYYY-MM-DD guard for completed guest Daily Quest reward claims."
+    },
+    "daily_quest_next_available_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Next UTC availability time for guest Daily Quest rewards."
+    },
+    "daily_quest_claim_count": {
+      "type": "number",
+      "description": "Completed guest Daily Quest reward claim count."
     },
     "joker_balances": {
       "type": "object",

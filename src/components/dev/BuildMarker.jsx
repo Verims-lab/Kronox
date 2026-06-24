@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex421 — Completed guest Daily Diamonds + Liderlik parity:
+//   • Treats profile-completed GuestProfile users as valid Daily Wheel,
+//     Daily Quest, and Liderlik players through token-proven guest payloads.
+//   • Persists guest reward Diamonds and same-day guards on GuestProfile, then
+//     preserves balances/history/leaderboard identity during account linking.
+//   • Refreshes docs, mirrors, and targeted Health coverage for guest-player
+//     economy, leaderboard privacy, and no Home login CTA regressions.
+//
 // Codex420 — Targeted Health blocker fix for Codex419 / KRONOX-MQRSFRQT:
 //   • Adds a real isSafePublicUsername helper across public identity paths and
 //     keeps leaderboard responses username/publicName-only.
@@ -2391,7 +2399,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex420';
+const BUILD_MARKER = 'Codex421';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

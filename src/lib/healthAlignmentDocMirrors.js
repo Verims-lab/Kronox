@@ -47,7 +47,7 @@ Status: Active product workflow contract.
 - Current Solo shows HAMLE / remaining moves and Puan / Kronox Puan. HATA is legacy/internal and not current visible Solo result/stat copy.
 - Normal Solo uses 2 anchors, an internal 18-question attempt deck buffer, 10 evaluated moves, a 180-second timer, and a 7-card target including anchors. Special Solo uses an internal 19-question attempt deck buffer and a 10-card target.
 - Online uses Lobby.selected_category_ids and a startLobbyGame shared deck selected 100% from active lobby-selected categories with difficulty 1/2 only; Online does not use Solo preferences.
-- Daily Quest and Daily Wheel grant Diamonds only, no Kronox Puan, and no leaderboard impact. DiamondTransaction and DailyWheelSpin have function-level idempotency guards; DB/entity unique constraints are not repo-proven.
+- Daily Quest and Daily Wheel grant Diamonds only, no Kronox Puan, and no leaderboard impact. Authenticated users and token-proven completed GuestProfile users can use these daily systems. Guest rewards persist on GuestProfile.diamonds with internal guest:<g_owner_key> ledger keys. DiamondTransaction and DailyWheelSpin have function-level idempotency guards; DB/entity unique constraints are not repo-proven.
 - Question Analytics is an admin/private nine-section email-body report sourced from QuestionAttemptEvent. PlayerQuestionExposure is optional anti-repeat memory reset scope.
 - Health PASS is not release-ready proof; manual NOT_AUTOMATABLE gates remain required.
 - Stale Codex040 PDF references are old structure only; current truth is markdown/source plus current code and Health contracts.
@@ -59,9 +59,9 @@ Status: Active technical flow contract.
 
 - App routes are owned by src/App.jsx; BottomNav visible tabs are Ana Sayfa, Liderlik, and Profil.
 - createGuestProfile is public by design but narrow: it creates/verifies GuestProfile and stores guest_token_hash only. Guest mutations require guest_id + raw guest token.
-- linkGuestAccount is Profile-only and verifies guest token proof plus authenticated user before AccountLinkTransaction merge.
+- linkGuestAccount is Profile-only and verifies guest token proof plus authenticated user before AccountLinkTransaction merge. It preserves guest Diamonds, Daily Wheel/Daily Quest same-day guards/history, leaderboard username identity, category preferences, progress, and inventory where applicable.
 - getCategoryMetadata returns category_id, name, description, and status from current active Category rows only; it must not expose questions, answers, years, user data, admin fields, passive/deleted categories, or stale fallback arrays.
-- Base44 function.jsonc files use the repo-supported name + entry shape only; auth/public scope is enforced in entry.ts guards. createGuestProfile and getCategoryMetadata are public-by-design and narrow, user-owned functions call base44.auth.me(), and admin-only functions use AdminUser guards.
+- Base44 function.jsonc files use the repo-supported name + entry shape only; auth/public scope is enforced in entry.ts guards. createGuestProfile and getCategoryMetadata are public-by-design and narrow, user-owned functions call base44.auth.me(), guest daily/leaderboard paths verify guest_id + raw guest token against completed GuestProfile, and admin-only functions use AdminUser guards.
 - configured \`function.jsonc\` manifests are the platform-published source in this repo; extra entry.ts directories are compile-checked but need matching manifest/deploy proof before being classified as published callables.
 - Configured function auth/public matrix covers createGuestProfile, getCategoryMetadata, getQuestions, getPlayerQuestionExposureStats, recordPlayerQuestionExposure, updateProfileSettings, linkGuestAccount, getAdminStatus, ensureUserJokerInventory, spendUserJoker, purchaseJokerWithDiamonds, getDailyQuestStatus, recordDailyQuestProgress, claimDailyQuestReward, createDailyQuestDefinition, diagnoseSoloQuestionStartQuery, and sendQuestionAnalyticsReportEmail.
 - /admin has a route-level UX guard that waits for AuthContext/AdminUser status before mounting AdminPage; non-admin users are redirected without an admin-tool flash, while server-side AdminUser guards remain the real security boundary.
@@ -90,8 +90,8 @@ Status: Active profile/onboarding contract.
 - User Category preferences are Solo-only soft 70/30 weighting input when at least 3 active valid preferences exist. Empty or fewer-than-3 preferences use all active categories for Solo. Online question selection is not affected.
 - GuestProfile public identity uses username; display_name is only a legacy/internal projection mirror and is not a public fallback identity. Email, Google ID, Apple ID, provider UID, raw guest id, internal owner_key, and internal player_key values are not public display names.
 - GuestProfile is app-owned; Firebase anonymous auth and Base44 anonymous auth are not used. Default username format is KronoxUser#### / KronoxUser#####.
-- Profile > Ayarlar exposes username plus optional private age and gender for guest and authenticated users. age and gender are private optional profile fields only and must not appear in leaderboard rows, public projections, scoring, matchmaking, Solo category weighting, or Online game selection. getSoloLeaderboard returns sanitized username plus opaque leaderboard_id and strips owner_key/display_name/email/provider ids.
-- Guest account linking is implemented through linkGuestAccount and belongs under Profile. Home / Ana Sayfa must not render Google, Apple, email, Hesabını bağla, or progress-protection account-link prompts.
+- Profile > Ayarlar exposes username plus optional private age and gender for guest and authenticated users. age and gender are private optional profile fields only and must not appear in leaderboard rows, public projections, scoring, matchmaking, Solo category weighting, or Online game selection. getSoloLeaderboard returns sanitized username plus opaque leaderboard_id and strips owner_key/display_name/email/provider ids/raw guest id/internal player_key; completed guests can open Liderlik and appear only as username.
+- Guest account linking is implemented through linkGuestAccount and belongs under Profile. It preserves guest Diamonds, Daily Wheel/Daily Quest guard fields/history, leaderboard username identity, category preferences, progress, and inventory where applicable. Home / Ana Sayfa must not render Google, Apple, email, Hesabını bağla, or progress-protection account-link prompts.
 - Guest onboarding Phase 2 status values include guest_created, tutorial_in_progress, tutorial_completed, profile_setup_pending, category_setup_pending, and onboarding_complete.
 - Eğitime Devam is valid only for true resumable tutorial_in_progress state; stale tutorial_in_progress cannot override tutorial_completed, profile_setup_pending, category_setup_pending, or onboarding_complete.
 - The profile setup step follows the guided first Solo level, shows username plus optional age/gender, and Kategorilere Geç must either advance to category_setup_pending after a successful save or show a visible retryable error.
@@ -310,14 +310,16 @@ AdminUser owner/admin users. Active admins can list definitions and create new
 definitions through createDailyQuestDefinition. title and description are
 display-only; quest_type + target_value drive runtime progress logic. Supported
 v1 types are start_solo_attempt, correct_cards, complete_solo_level, and
-use_joker. UserDailyQuestProgress stores 1 selected UTC-day user quest from
-active definitions. recordDailyQuestProgress increments Solo-only progress events, and
+use_joker. UserDailyQuestProgress stores 1 selected UTC-day player quest from
+active definitions. Authenticated users use normalized email keys; completed
+guests use token-proven internal guest:<g_owner_key> keys and persist rewards
+on GuestProfile.diamonds. recordDailyQuestProgress increments Solo-only progress events, and
 Online mode does not increment Daily Quest progress. claimDailyQuestReward
 grants diamonds only through DiamondTransaction.source = daily_quest_reward,
 using the reward copied into the progress row rather than a client-provided
 amount. Completed progress alone does not grant Diamonds; completed and
 unclaimed quests expose an Al claim action. Successful claimDailyQuestReward
-updates visible User.diamonds, returns diamondBalanceAfter and questStatus:
+updates visible User.diamonds or GuestProfile.diamonds, returns diamondBalanceAfter and questStatus:
 claimed, and only then marks the progress row claimed. Daily Quest does not
 grant Kronox Puan and has no leaderboard impact. Daily Quest does not affect
 leaderboard. Home Daily Quest copy is
@@ -328,18 +330,18 @@ Günlük Görev requires active DailyQuestDefinition rows; getDailyQuestStatus a
 recordDailyQuestProgress seed fixed default templates idempotently only when no
 definition rows exist. Runtime groups duplicate active definitions by quest_key,
 chooses one canonical definition by sort_order, created_at, and stable id, then
-selects the first logical daily quest. getDailyQuestStatus is authenticated but
-not admin-only and preserves newly created rows if immediate Base44 refresh is
+selects the first logical daily quest. getDailyQuestStatus is authenticated-or-completed-guest
+but not admin-only and preserves newly created rows if immediate Base44 refresh is
 stale. Older same-day 3-quest rows are retained but Home displays only the selected
 current primary quest. Loading or ensuring today’s quests does not grant Diamonds;
 claimDailyQuestReward remains the only reward path. \`claimDailyQuestReward\` remains the only reward path.
 One claim per quest per UTC day is enforced by UserDailyQuestProgress and
-daily_quest_reward idempotency keys. User fields daily_quest_last_claim_date
+daily_quest_reward idempotency keys. User/GuestProfile fields daily_quest_last_claim_date
 and daily_quest_next_available_at track claim summary/reset availability only.
 Daily Wheel remains separate from Daily Quest definitions.
 Daily Wheel and Daily Quest are separate.
-daily_wheel:<email>:<YYYY-MM-DD>
-daily_quest_reward:<email>:<YYYY-MM-DD>:<quest_key>
+daily_wheel:<playerKey>:<YYYY-MM-DD>
+daily_quest_reward:<playerKey>:<YYYY-MM-DD>:<quest_key>
 
 ## Online Scoring Persistence
 Two-account invite + scoring proof, OnlineMatchResult idempotency.

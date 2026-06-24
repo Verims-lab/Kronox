@@ -17,11 +17,18 @@ total_reward_amount
 idempotency_key
 claimed_at
 next_available_at
-daily_wheel:<normalizedEmail>:<YYYY-MM-DD>
-one claim per user per UTC server day
+owner_key
+player_type
+daily_wheel:<playerKey>:<YYYY-MM-DD>
+guest:<g_owner_key>
+one claim per player per UTC server day
 
 getDailyWheelStatus
 base44.auth.me()
+resolveDailyWheelPlayer
+isGuestProfileComplete
+guestPlayerKey
+GuestProfile.diamonds
 unauthenticated
 Günlük Çark için giriş yapmalısın.
 available
@@ -29,9 +36,16 @@ alreadyClaimedToday
 nextAvailableAt
 currentStreak
 lastReward
+playerType
+guestProfile
 
 claimDailyWheelReward
 base44.auth.me()
+resolveDailyWheelPlayer
+updateDailyWheelPlayer
+guestPlayerKey
+buildIdempotencyKey
+findSpin
 DAILY_WHEEL_SOURCE = 'daily_wheel'
 REWARD_TABLE
 30 high weight 24
@@ -50,13 +64,17 @@ createDailyWheelSpin
 DailyWheelSpin.create
 postCreateCanonicalSpin
 postReserveSpin
-postReserveUser
+postReservePlayer
 postReserveTransaction
 recoveredExistingDailyWheelSpin
 spinRowFromDiamondTransaction
 DiamondTransaction.create
+owner_key: player.ownerKey
+player_type: player.isGuest ? 'guest' : 'registered'
 source: DAILY_WHEEL_SOURCE
 direction: 'earn'
+guestProfileReward
+rawGuestTokenServerStored: false
 noKronoxPuan: true
 grants no Kronox Puan
 does not affect leaderboard sorting or rank
@@ -64,7 +82,7 @@ daily_wheel_last_spin_date
 daily_wheel_next_available_at
 daily_wheel_streak
 daily_wheel_spin_count
-daily_quest_reward:<normalizedEmail>:<YYYY-MM-DD>:<questKey>
+daily_quest_reward:<playerKey>:<YYYY-MM-DD>:<questKey>
 daily_quest_last_claim_date
 daily_quest_next_available_at
 daily_wheel_request_failed

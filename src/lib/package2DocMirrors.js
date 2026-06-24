@@ -76,8 +76,9 @@ DiamondTransaction.idempotency_key has function-level pre-check and
 post-create confirmation; no repo DB/entity unique proof exists unless
 Base44/platform configuration is attached.
 Daily Wheel same-day duplicate prevention uses DailyWheelSpin key/date lookup,
-reserve-first spin rows, canonical same-user/same-day re-read, User guard
-re-check, and DiamondTransaction re-check before balance mutation. No repo
+reserve-first spin rows, canonical same-player/same-day re-read,
+User/GuestProfile guard re-check, and DiamondTransaction re-check before
+balance mutation. No repo
 DB/entity unique proof exists for DailyWheelSpin.idempotency_key or
 DailyWheelSpin.user_email + spin_date unless Base44/platform configuration is
 attached.

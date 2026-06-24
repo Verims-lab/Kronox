@@ -44,9 +44,9 @@ function formatDiamondCount(value) {
   return n.toLocaleString('tr-TR');
 }
 
-export default function DailyWheelCard({ user, onUserUpdated, onLogin, compact = false }) {
+export default function DailyWheelCard({ user, guestProfile, onUserUpdated, onLogin, compact = false }) {
   const [statusModalOpen, setStatusModalOpen] = useState(false);
-  const wheel = useDailyWheel({ user, onUserUpdated });
+  const wheel = useDailyWheel({ user, guestProfile, onUserUpdated });
   const claimedLabel = useMemo(
     () => formatCountdown(wheel.wheel?.nextAvailableAt),
     [wheel.wheel?.nextAvailableAt],

@@ -5,7 +5,19 @@
   "properties": {
     "user_email": {
       "type": "string",
-      "description": "Lowercased owner email for this daily quest progress row."
+      "description": "Lowercased owner email for registered users, or internal guest player key guest:<g_owner_key> for token-proven completed guest profiles."
+    },
+    "owner_key": {
+      "type": "string",
+      "description": "Optional internal owner key (u_... or g_...) for account-link/history correlation. Public UI must not expose it."
+    },
+    "player_type": {
+      "type": "string",
+      "enum": [
+        "registered",
+        "guest"
+      ],
+      "description": "Internal daily quest owner type. Completed guest profiles can see, progress, and claim Daily Quest Diamond rewards."
     },
     "quest_definition_id": {
       "type": "string",

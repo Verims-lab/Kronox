@@ -31,6 +31,18 @@ export function getLeaderboardOwnerKey(rawEmail) {
   return `u_${(hash >>> 0).toString(36)}`;
 }
 
+export function getGuestLeaderboardOwnerKey(rawGuestId) {
+  const guestId = String(rawGuestId || '').trim().toLowerCase();
+  if (!guestId) return '';
+
+  let hash = 2166136261;
+  for (let i = 0; i < guestId.length; i += 1) {
+    hash ^= guestId.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `g_${(hash >>> 0).toString(36)}`;
+}
+
 function cleanDisplayText(raw) {
   return String(raw || '')
     .replace(/\s+/g, ' ')
@@ -119,6 +131,34 @@ export function buildSoloLeaderboardPayload(user, progress, totalLevels = LEADER
   };
 }
 
+export function buildGuestSoloLeaderboardPayload(guestProfile, progress, totalLevels = LEADERBOARD_SOLO_LEVEL_COUNT) {
+  const ownerKey = getGuestLeaderboardOwnerKey(guestProfile?.guest_id);
+  const normalizedProgress = normalizeSoloProgressForLeaderboard(progress || guestProfile?.solo_progress, totalLevels);
+  const summary = summarizeSoloProgress(normalizedProgress, totalLevels);
+  const totalSoloScore = Math.max(0, Number(summary.totalSoloScore) || 0);
+  const displayName = getSafeLeaderboardName({
+    ...guestProfile,
+    owner_key: ownerKey,
+  });
+  const aggregateBestTimeSeconds = getAggregateBestTimeSeconds(normalizedProgress);
+
+  return {
+    owner_key: ownerKey,
+    username: displayName,
+    display_name: displayName,
+    initial: initialFromName(displayName),
+    total_kronox_score: totalSoloScore,
+    total_solo_score: totalSoloScore,
+    online_score: 0,
+    current_level: Math.max(1, Number(summary.currentLevel) || 1),
+    unlocked_level: Math.max(1, Number(summary.unlockedLevel) || Number(summary.currentLevel) || 1),
+    total_stars: Math.max(0, Number(summary.totalStars) || 0),
+    completed_level_count: Math.max(0, Number(summary.completedLevelCount) || 0),
+    ...(aggregateBestTimeSeconds !== null ? { aggregate_best_time_seconds: aggregateBestTimeSeconds } : {}),
+    updated_at: new Date().toISOString(),
+  };
+}
+
 export async function publishSoloLeaderboardEntry(user, progress, totalLevels = LEADERBOARD_SOLO_LEVEL_COUNT) {
   const payload = buildSoloLeaderboardPayload(user, progress, totalLevels);
   if (!payload.owner_key) return null;
@@ -162,8 +202,13 @@ export async function loadSoloLeaderboardEntries(limit = LEADERBOARD_FETCH_LIMIT
 export async function loadSoloLeaderboardSnapshot(options = {}) {
   const limit = Math.max(1, Math.floor(Number(options.limit) || LEADERBOARD_FETCH_LIMIT));
   const topLimit = Math.max(1, Math.floor(Number(options.topLimit) || LEADERBOARD_TOP_LIMIT));
+  const requestPayload = {
+    ...(options.payload && typeof options.payload === 'object' ? options.payload : {}),
+    limit,
+    topLimit,
+  };
   try {
-    const response = await base44.functions.invoke('getSoloLeaderboard', { limit, topLimit });
+    const response = await base44.functions.invoke('getSoloLeaderboard', requestPayload);
     const payload = response?.data || response || {};
     const topRows = Array.isArray(payload.topRows) ? payload.topRows : [];
     const rows = Array.isArray(payload.rows) ? payload.rows : topRows;
