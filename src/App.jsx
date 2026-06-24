@@ -61,6 +61,11 @@ const AuthenticatedApp = () => {
   const prevPathRef = React.useRef(location.pathname);
   const isGamePage = location.pathname === '/game';
   const isOnboardingPage = location.pathname === '/onboarding';
+  const isProfilePage = location.pathname === '/profile';
+  const isOnboardingAccountLinkEntry = isProfilePage && (
+    new URLSearchParams(location.search).get('open') === 'account-link' ||
+    location.state?.openAccountLink === true
+  );
   const isAccountDeletionPage = location.pathname === '/account-deletion';
   const isPrivacyPage = location.pathname === '/privacy';
   const isPublicStandalonePage = isAccountDeletionPage || isPrivacyPage;
@@ -146,7 +151,8 @@ const AuthenticatedApp = () => {
     && !isGuestOnboardingComplete(guestProfile)
     && !isPublicStandalonePage
     && !isGamePage
-    && !isOnboardingPage;
+    && !isOnboardingPage
+    && !isOnboardingAccountLinkEntry;
 
   if (shouldRouteGuestOnboarding) {
     return <Navigate to="/onboarding" replace />;

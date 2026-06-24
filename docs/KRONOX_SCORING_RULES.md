@@ -92,6 +92,7 @@ Each Solo level:
 * fails if the timer reaches 180 seconds before completion
 * starts with 2 timeline anchor cards
 * has 10 evaluated placement moves
+* Deck sizing is 2 anchors + 10 playable moves + Kart Değiştir buffer
 * fails when 10 moves are used and the target card count has not been reached
 
 Constants:

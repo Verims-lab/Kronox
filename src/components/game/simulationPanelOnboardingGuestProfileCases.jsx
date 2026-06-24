@@ -529,6 +529,65 @@ export const EXTRA_TESTS = [
       });
     }),
 
+  makeCase('first_launch_existing_account_entry_routes_to_profile',
+    'First-launch Hesabım Var routes to Profile account linking without provider buttons',
+    () => {
+      const welcomeMissing = missingTokens(onboardingPageSource, [
+        'İlk Seviye Seni Bekliyor',
+        'Sevgili {displayName}',
+        'Tek yapman gereken olay kartını, olayın gerçekleştiğini tahmin ettiğin zaman aralığına sürüklemek.',
+        '7 kartı tamamla.',
+        'Zamana hükmet…',
+        'Seviye 1',
+        'Hesabım Var',
+        "navigate('/profile?open=account-link'",
+        'openAccountLink: true',
+        "accountLinkEntry: 'first-launch-welcome'",
+      ]);
+      const profileMissing = missingTokens(`${profilePageSource}\n${authProviderButtonsSource}`, [
+        'useLocation',
+        "params.get('open') === 'account-link'",
+        'data-kronox-account-link-panel',
+        'scrollIntoView',
+        'AuthProviderButtons',
+        'fromUrl="/profile"',
+        'Apple ile devam et',
+        'Google ile devam et',
+        'E-posta ile devam et',
+      ]);
+      const routingMissing = missingTokens(appSource, [
+        'isOnboardingAccountLinkEntry',
+        "new URLSearchParams(location.search).get('open') === 'account-link'",
+        '!isOnboardingAccountLinkEntry',
+      ]);
+      const forbiddenWelcome = presentTokens(onboardingPageSource, [
+        '<AuthProviderButtons',
+        'prepareGuestAccountLink',
+        'Google ile devam et',
+        'Apple ile devam et',
+        'E-posta ile devam et',
+        'Tek yapman gereken, olay kartını',
+      ]);
+      if (welcomeMissing.length || profileMissing.length || routingMissing.length || forbiddenWelcome.length) {
+        return fail('First-launch existing-account entry drifted from the Profile-routed provider contract.', {
+          verification: 'STATIC_CONTRACT',
+          files: [
+            'src/App.jsx',
+            'src/pages/OnboardingPage.jsx',
+            'src/pages/ProfilePage.jsx',
+            'src/components/auth/AuthProviderButtons.jsx',
+          ],
+          expected: 'Welcome shows exact copy and Hesabım Var as a secondary route to Profile account linking; Apple/Google/email remain only in the Profile guest card.',
+          actual: { welcomeMissing, profileMissing, routingMissing, forbiddenWelcome },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('First-launch Hesabım Var is a secondary Profile route and the welcome screen still has no provider buttons.', {
+        verification: 'STATIC_CONTRACT',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
   makeCase('profile_settings_editable_for_guest_and_registered_users',
     'Profile > Ayarlar lets guest and registered users edit username, age, and gender',
     () => {

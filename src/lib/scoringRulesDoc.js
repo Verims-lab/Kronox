@@ -30,7 +30,7 @@ already on the timeline. Special Solo levels start at level 10 and repeat
 every 5 levels; they require 10 correct timeline cards, including seed cards
 already on the timeline.
 All new Solo attempts use a 180 seconds timer, 2 timeline anchor cards, and
-10 evaluated moves. The visible counter is HAMLE / remaining moves. A valid
+10 evaluated moves. Deck sizing is 2 anchors + 10 playable moves + Kart Değiştir buffer. The visible counter is HAMLE / remaining moves. A valid
 evaluated placement consumes one move; touch, drag start, invalid drop, joker
 activation, and tutorial popups do not consume moves. Ten used moves without
 the target card count fails the attempt.

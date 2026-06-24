@@ -967,7 +967,9 @@ authorize reads/writes. Never log raw guest token, auth headers, provider
 credentials, or full request bodies. Existing Google / Apple / Email login stays
 Base44-managed. Account linking is optional and Profile-only after onboarding;
 Home / Ana Sayfa and onboarding completion must not render provider buttons or
-progress-link cards. Apple must remain visible wherever Google login is offered.
+progress-link cards. The first-launch welcome may show `Hesabım Var` only as a
+route to the Profile account-connection card, without inline provider buttons.
+Apple must remain visible wherever Google login is offered.
 
 Onboarding Phase 2 may update only non-sensitive GuestProfile onboarding fields
 through the same `guest_id + raw guest token` proof. The server path must allow
@@ -995,10 +997,12 @@ or provider ids, use an idempotency key, mark the guest row `linked` once, and
 write `AccountLinkTransaction`. The merge path must not log raw guest tokens,
 auth headers, provider credentials, or full request bodies.
 
-The only guest-facing account-link CTA is the Profile guest card
+The only provider-bearing guest account-link CTA is the Profile guest card
 (`Misafir olarak oynuyorsun` / `İlerlemeni kaybetmemek için hesabını bağla`)
-with Apple, Google, and email options together. Opening Profile must not run the
-merge by itself; linking starts only when the user chooses a provider.
+with Apple, Google, and email options together. The first-launch `Hesabım Var`
+entry may route to that Profile card but must not start auth or duplicate
+providers inline. Opening Profile must not run the merge by itself; linking
+starts only when the user chooses a provider.
 
 The link merge preserves user-beneficial progress, combines additive economy
 only once, and copies Daily Wheel/Daily Quest guard fields/history to the

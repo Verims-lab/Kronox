@@ -318,6 +318,9 @@ export const EXTRA_TESTS = [
       const missing = missingTokens(combined, [
         'Home / Ana Sayfa must not render Google, Apple, email',
         'Guest account linking is implemented through linkGuestAccount and belongs under Profile',
+        'Hesabım Var',
+        'secondary route to Profile account connection',
+        'not as an inline provider/login surface',
         'guided first Solo level',
         'GuestProfile is app-owned',
         'Firebase anonymous auth',
