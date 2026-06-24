@@ -26,7 +26,7 @@ function DailyQuestDefinitionCard({ definition, busy, loading, onStatusToggle })
           <div className="flex flex-wrap items-center gap-2">
             <p className="truncate font-inter text-sm font-black text-blue-50">{definition.title}</p>
             {duplicateCount > 0 && (
-              <span className="rounded-full border border-amber-300/25 bg-amber-300/10 px-2 py-0.5 font-inter text-[10px] font-black text-amber-50">
+              <span className="rounded-full border border-amber-300/25 bg-amber-300/10 px-2 py-0.5 font-inter text-[12px] font-black text-amber-50">
                 {duplicateCount} yinelenen kayıt
               </span>
             )}
@@ -38,7 +38,7 @@ function DailyQuestDefinitionCard({ definition, busy, loading, onStatusToggle })
           aria-label={`${definition.title} durumunu ${definition.status === 'active' ? 'Pasif' : 'Aktif'} yap`}
           onClick={() => onStatusToggle(definition)}
           disabled={busy || !definition.id}
-          className={`shrink-0 rounded-full px-2.5 py-1 font-inter text-[10px] font-black uppercase tracking-[0.12em] ${
+          className={`shrink-0 rounded-full px-2.5 py-1 font-inter text-[12px] font-black uppercase tracking-[0.12em] ${
             definition.status === 'active'
               ? 'border border-emerald-300/25 bg-emerald-400/10 text-emerald-100'
               : 'border border-slate-300/20 bg-slate-400/10 text-slate-100'
@@ -47,7 +47,7 @@ function DailyQuestDefinitionCard({ definition, busy, loading, onStatusToggle })
           {loading === `status:${definition.id}` ? '...' : statusLabel(definition.status)}
         </button>
       </div>
-      <div className="mt-2 grid grid-cols-2 gap-2 font-inter text-[11px] text-blue-100/60 sm:grid-cols-5">
+      <div className="mt-2 grid grid-cols-2 gap-2 font-inter text-[12px] text-blue-100/60 sm:grid-cols-5">
         <Meta label="Anahtar" value={definition.quest_key} />
         <Meta label="Görev Tipi" value={DAILY_QUEST_TYPE_LABELS[definition.quest_type] || definition.quest_type} />
         <Meta label="Hedef" value={definition.target_value} />
@@ -55,7 +55,7 @@ function DailyQuestDefinitionCard({ definition, busy, loading, onStatusToggle })
         <Meta label="Sıra" value={definition.sort_order} />
       </div>
       {duplicateCount > 0 && (
-        <p className="mt-2 rounded-lg border border-amber-300/20 bg-amber-300/5 px-2 py-1.5 font-inter text-[11px] leading-relaxed text-amber-50/75">
+        <p className="mt-2 rounded-lg border border-amber-300/20 bg-amber-300/5 px-2 py-1.5 font-inter text-[12px] leading-relaxed text-amber-50/75">
           Bu quest_key için birincil kayıt kullanılıyor. Yinelenen kayıtlar otomatik silinmez; manuel DB temizliği önerilir.
         </p>
       )}

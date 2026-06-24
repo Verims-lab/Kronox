@@ -50,7 +50,7 @@ export default function GameInviteStatusPill({ invite, className = '' }) {
 
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 font-inter text-[10px] font-black uppercase tracking-widest ${className}`}
+      className={`inline-flex items-center rounded-full px-2 py-0.5 font-inter text-[12px] font-black uppercase tracking-widest ${className}`}
       style={{
         background: tone.bg,
         color: tone.fg,
