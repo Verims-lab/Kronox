@@ -130,18 +130,22 @@ function makeFallbackUsername(seed = '') {
   return `${USERNAME_PREFIX}${1000 + (numeric % 90000)}`;
 }
 
-function cleanPublicName(value: unknown, fallbackSeed = '') {
-  const explicitName = String(value || '').replace(/\s+/g, ' ').trim().slice(0, 28);
-  if (
+function isSafePublicUsername(value: unknown) {
+  const explicitName = String(value || '').replace(/\s+/g, ' ').trim();
+  return Boolean(
     explicitName &&
     /^[A-Za-z0-9_]{3,24}$/.test(explicitName) &&
     !explicitName.includes('@') &&
     !UNSAFE_PUBLIC_USERNAME_PATTERN.test(explicitName) &&
-    !INTERNAL_ID_PUBLIC_USERNAME_PATTERN.test(explicitName)
-  ) {
-    return explicitName;
-  }
-  return makeFallbackUsername(fallbackSeed);
+    !INTERNAL_ID_PUBLIC_USERNAME_PATTERN.test(explicitName),
+  );
+}
+
+function cleanPublicName(value: unknown, fallbackSeed = '') {
+  const explicitName = String(value || '').replace(/\s+/g, ' ').trim();
+  return isSafePublicUsername(explicitName)
+    ? explicitName
+    : makeFallbackUsername(fallbackSeed);
 }
 
 function initialFromName(value: string) {
@@ -470,6 +474,7 @@ async function upsertLeaderboard(base44: any, email: string, guestId: string, di
   const onlineScore = normalizeNonNegativeInteger(onlineProgress?.score);
   const payload = {
     owner_key: authOwnerKey,
+    username: displayName,
     display_name: displayName,
     initial: initialFromName(displayName),
     total_kronox_score: Math.max(totalKronoxScore, normalizeNonNegativeInteger(summary.totalSoloScore) + onlineScore),

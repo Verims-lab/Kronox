@@ -731,6 +731,10 @@ After deployment, verify:
   Base44 auth alongside Google. Base44 Settings → Authentication → Apple toggle
   is a manual deployment step; no Apple client secret or native credential
   belongs in source.
+* Manual Required / P0 release gate: physical Apple parity must be proven on a
+  physical iOS/TestFlight/App Store build before iOS/App Store release. `Sign
+  in with Apple` must be visible wherever Google login is offered; static repo
+  checks are not enough and must not be treated as automated proof.
 * Account deletion/access/correction requests may use the in-app deletion flow
   where available or the configured support contact.
 

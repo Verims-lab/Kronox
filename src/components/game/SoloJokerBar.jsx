@@ -152,7 +152,7 @@ export default function SoloJokerBar({
           />
         )}
       </AnimatePresence>
-      <div className={`relative mx-auto grid w-full max-w-[280px] grid-cols-3 gap-0 ${tutorialFocusActive ? 'z-[50]' : ''}`}>
+      <div className={`relative mx-auto grid grid-cols-3 w-full max-w-[280px] gap-0 ${tutorialFocusActive ? 'z-[50]' : ''}`}>
         {JOKERS.map(({ type, inventoryType, label, icon: Icon, accent, glow }) => {
           const isRecentlyUsed = recentlyUsedType === type;
           const balance = normalizeJokerQuantity(balances?.[inventoryType]);

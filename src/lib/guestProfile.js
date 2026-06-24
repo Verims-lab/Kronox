@@ -153,18 +153,20 @@ export function makeKronoxUserFallback(seed = '') {
   return `${USERNAME_PREFIX}${suffix}`;
 }
 
-export function normalizeSafePublicUsernameInput(value) {
-  const explicitName = String(value || '').replace(/\s+/g, ' ').trim().slice(0, 28);
-  if (
+export function isSafePublicUsername(value) {
+  const explicitName = String(value || '').replace(/\s+/g, ' ').trim();
+  return Boolean(
     explicitName &&
     /^[A-Za-z0-9_]{3,24}$/.test(explicitName) &&
     !explicitName.includes('@') &&
     !UNSAFE_PUBLIC_USERNAME_PATTERN.test(explicitName) &&
-    !INTERNAL_ID_PUBLIC_USERNAME_PATTERN.test(explicitName)
-  ) {
-    return explicitName;
-  }
-  return '';
+    !INTERNAL_ID_PUBLIC_USERNAME_PATTERN.test(explicitName),
+  );
+}
+
+export function normalizeSafePublicUsernameInput(value) {
+  const explicitName = String(value || '').replace(/\s+/g, ' ').trim();
+  return isSafePublicUsername(explicitName) ? explicitName : '';
 }
 
 export function resolveSafePublicUsername(explicitName, fallbackSeed = '') {
