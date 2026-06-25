@@ -1,14 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex446 — Health blocker fix:
-//   • Re-pins frontend @base44/sdk exactly to 0.8.34 after main sync.
-//   • Applies kronox-number to the Solo level timer value.
-//   • Restores Health alignment mirror wording for compact DAU/WAU/MAU reporting readiness.
-//
-// Codex445 — Health blocker fix:
-//   • Pins frontend @base44/sdk exactly to 0.8.34 and keeps function imports aligned.
-//   • Tightens Daily Quest claims to require completed progress and a daily_quest_reward DiamondTransaction before visible reward success.
-//   • Refreshes invite/privacy Health source scope plus architecture/reporting/visual readiness mirror tokens.
+// Codex447 — Solo gameplay logo asset swap only: top-center header logo updated from Logo2506 to the new LogoX asset, same sizing/aspect-ratio constraints. No other UI items, gameplay, scoring, or Online behavior changed.
 //
 // Codex444 — Security Pass 3:
 //   • Adds accessible status semantics to protected/page/game/lobby loading states without visual layout changes.
@@ -2541,7 +2533,7 @@ import React, { useEffect, useState } from 'react';
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
 // Verims comment on 25.06.2026
-const BUILD_MARKER = 'Codex446';
+const BUILD_MARKER = 'Codex447';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
@@ -2551,6 +2543,7 @@ const _CODEX087_NOTE = 'Codex087: invite notifications are opt-in and best-effor
 
 export default function BuildMarker() {
   const [visible, setVisible] = useState(true);
+
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => setVisible(false), 1800);
