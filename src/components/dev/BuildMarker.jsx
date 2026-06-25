@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex430 — Online lobby + notification reducer Phase 1:
+//   • Adds pure Online lobby and notification lifecycle reducers.
+//   • Wires waiting-room phase events and notification row lifecycle events
+//     through reducers without changing route or backend payload contracts.
+//   • Adds targeted Health coverage for 4-player lobby start/recovery and
+//     transient-empty notification stability.
+//
 // Codex429 — Solo attempt reducer + DB reporting event plan:
 //   • Adds a pure Solo attempt lifecycle reducer for current HAMLE rules,
 //     persistence status, joker summary, and success-only record context.
@@ -2457,7 +2464,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex429';
+const BUILD_MARKER = 'Codex430';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

@@ -48,7 +48,7 @@ shape when it reduces risk.
 | --- | --- | --- | --- |
 | View | Render-only React surface | `IncomingInvitesPanel`, `WaitingRoomPanel`, `SoloSuccessPopup` | Receives state and commands; no direct protected writes |
 | ViewModel | Hook/state holder for a screen or feature | `useNotificationCenter`, `useWaitingRoomSync`, `useLobbySync` | Owns subscriptions, loading/error state, derived view state |
-| MVI reducer | Deterministic transition layer | not formalized for main pilots yet | Events in, immutable state out, effects described separately |
+| MVI reducer | Deterministic transition layer | `soloAttemptReducer`, `onlineLobbyReducer`, `notificationReducer` | Events in, immutable state out, effects described separately |
 | Service/use case | Domain operation | invite helpers, leaderboard helpers, solo engine helpers | No JSX; owns product rules and payload shaping |
 | Gateway/API | Base44 backend access | `dbGateway/lobbyGateway`, `base44Client` | Single provider-specific boundary per feature |
 | Backend | Base44 function/entity implementation | `base44/functions/**/entry.ts` | Server authority, auth, service role, compact safe response |
@@ -94,12 +94,22 @@ Current:
 
 Target:
 - `onlineLobbyReducer` owns phases: `idle`, `creating`, `waiting`,
-  `joining`, `starting`, `started`, `recovering`, `expired`, `error`.
+  `joining`, `joined`, `starting`, `started`, `recovering`, `expired`,
+  `error`.
 - Service commands: `createLobby`, `joinByCode`, `acceptInvite`,
   `startLobbyGame`, `refreshLobby`, `recoverStartedLobby`.
 - Gateway wraps Base44 entity/function/subscription calls.
 - Backend remains the source of truth for roster, shared deck, current question,
   host authorization, and state revision.
+
+Phase 1 foundation:
+- `src/lib/onlineLobbyReducer.js` defines the pure, effect-free lobby phase
+  state contract for create/join/invite/start/recovery/expired transitions.
+- `useWaitingRoomSync` feeds authoritative subscription and polling events into
+  the reducer while existing fetch/subscription side effects and route payloads
+  stay unchanged.
+- Started state is client-visible only after the backend-owned shared game
+  state is present.
 
 Parity plan:
 - Keep existing route shape and `joinedLobby`/`verifiedLobby` payloads.
@@ -117,9 +127,19 @@ Current:
 Target:
 - `notificationReducer` owns events: `FETCH_STARTED`, `FETCH_SUCCESS`,
   `FETCH_EMPTY_STALE`, `SUBSCRIPTION_ROW`, `TERMINAL_ROW`,
-  `TOAST_DISMISSED`, `INVITE_OPENED`, `INVITE_REJECTED`.
+  `TOAST_DISMISSED`, `INVITE_OPENED`, `INVITE_REJECTED`,
+  `FRIEND_REQUEST_ACCEPTED`, `FRIEND_REQUEST_REJECTED`, `ROW_EXPIRED`, and
+  `ROW_INVALIDATED`.
 - Views read slices: header count, dropdown rows, banner candidates, panel rows.
 - Gateway owns Base44 `FriendRequest`/`GameInvite` queries and subscriptions.
+
+Phase 1 foundation:
+- `src/lib/notificationReducer.js` defines the pure notification lifecycle
+  state contract for fetch, subscription, terminal, dismiss, accept, reject,
+  expiry, and invalidation events.
+- `useNotificationCenter` remains the shared ViewModel/store and delegates row
+  merge/close transitions to the reducer; transient empty fetches preserve
+  valid pending friend requests and game invites.
 
 Parity plan:
 - Preserve exact user-facing behavior: dismissing a toast is visual only;

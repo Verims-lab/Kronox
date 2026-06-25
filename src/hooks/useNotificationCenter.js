@@ -5,17 +5,18 @@ import {
   openGameInvite as openGameInviteAction,
   rejectGameInvite as rejectGameInviteAction,
 } from '@/lib/inviteApi';
-import {
-  getFriendRequestDedupeKey,
-  mergePendingFriendRequests,
-} from '@/lib/headerNotifications';
+import { getFriendRequestDedupeKey } from '@/lib/headerNotifications';
 import { buildNotificationViewModel } from '@/lib/notificationViewModel';
+import {
+  createNotificationInitialState,
+  notificationReducer,
+  NOTIFICATION_ACTIONS,
+  NOTIFICATION_ROW_TYPES,
+} from '@/lib/notificationReducer';
 import {
   getGameInviteActiveFilterReason,
   getInviteRecipientEmail,
   getInviteSenderEmail,
-  isActiveIncomingGameInvite,
-  mergeActiveIncomingGameInvites,
   normalizeEmail,
   traceGameInviteLifecycle,
 } from '@/lib/gameInviteSelectors';
@@ -24,18 +25,10 @@ const POLL_INTERVAL_MS = 20000;
 const REFRESH_DEBOUNCE_MS = 250;
 const ACTIVE_PRUNE_INTERVAL_MS = 30000;
 
-const initialState = {
-  email: '',
-  currentUser: null,
-  friendRequests: [],
-  gameInvites: [],
-  dismissedToastIds: new Set(),
-  acceptedOutgoingInvites: [],
-  loading: false,
-  error: null,
-  bootstrapped: false,
-  lastFetchedAt: 0,
-};
+// Phase 1: notificationReducer owns the mergeActiveIncomingGameInvites and
+// mergePendingFriendRequests lifecycle transitions while this hook remains the
+// shared subscription/fetch ViewModel for header, toast, and Online surfaces.
+const initialState = createNotificationInitialState();
 
 let state = initialState;
 const listeners = new Set();
@@ -59,6 +52,10 @@ function updateState(updater) {
   emit(updater(state));
 }
 
+function dispatchNotification(action) {
+  updateState((prev) => notificationReducer(prev, action));
+}
+
 function stopNotificationCenter() {
   if (stopSubscriptions) {
     try { stopSubscriptions(); } catch { /* ignore cleanup */ }
@@ -73,22 +70,6 @@ function stopNotificationCenter() {
   inFlightFetch = null;
 }
 
-function removeInvite(inviteId) {
-  if (!inviteId) return;
-  updateState((prev) => ({
-    ...prev,
-    gameInvites: prev.gameInvites.filter((invite) => invite.id !== inviteId),
-  }));
-}
-
-function removeFriendRequest(requestId) {
-  if (!requestId) return;
-  updateState((prev) => ({
-    ...prev,
-    friendRequests: prev.friendRequests.filter((request) => request.id !== requestId),
-  }));
-}
-
 async function fetchNotificationCenter({ preserveExisting = true, source = 'fetch' } = {}) {
   const email = state.email;
   if (!email) {
@@ -97,7 +78,7 @@ async function fetchNotificationCenter({ preserveExisting = true, source = 'fetc
   }
   if (inFlightFetch) return inFlightFetch;
 
-  patchState({ loading: true, error: null });
+  dispatchNotification({ type: NOTIFICATION_ACTIONS.FETCH_STARTED, source });
   inFlightFetch = Promise.all([
     base44.entities.FriendRequest.filter(
       { to_email: email },
@@ -109,13 +90,19 @@ async function fetchNotificationCenter({ preserveExisting = true, source = 'fetc
     const now = Date.now();
     updateState((prev) => {
       if (prev.email !== email) return prev;
-      const nextInvites = mergeActiveIncomingGameInvites(
-        preserveExisting ? prev.gameInvites : [],
-        inviteSnapshot?.rows || [],
+      const next = notificationReducer(prev, {
+        type: (inviteSnapshot?.rows || []).length === 0 && (friendRows || []).length === 0 && preserveExisting
+          ? NOTIFICATION_ACTIONS.FETCH_EMPTY_STALE
+          : NOTIFICATION_ACTIONS.FETCH_SUCCESS,
         email,
+        currentUser: prev.currentUser,
+        friendRequestRows: friendRows || [],
+        gameInviteRows: inviteSnapshot?.rows || [],
+        preserveExisting,
         now,
-      );
-      traceGameInviteLifecycle('notification_center_fetch_merged', { id: `count:${nextInvites.length}`, status: 'pending', to_email: email }, {
+        source,
+      });
+      traceGameInviteLifecycle('notification_center_fetch_merged', { id: `count:${next.gameInvites.length}`, status: 'pending', to_email: email }, {
         source: `useNotificationCenter.${source}`,
         user: prev.currentUser,
         userEmail: email,
@@ -123,24 +110,15 @@ async function fetchNotificationCenter({ preserveExisting = true, source = 'fetc
           ? 'stale_empty_fetch_preserved'
           : 'lifecycle_merge',
       });
-      return {
-        ...prev,
-        friendRequests: mergePendingFriendRequests(prev.friendRequests, friendRows || [], email, { preserveExisting }),
-        gameInvites: nextInvites,
-        loading: false,
-        error: null,
-        bootstrapped: true,
-        lastFetchedAt: now,
-      };
+      return next;
     });
     return state;
   }).catch((error) => {
-    updateState((prev) => ({
-      ...prev,
-      loading: false,
+    dispatchNotification({
+      type: NOTIFICATION_ACTIONS.FETCH_FAILED,
       error: error?.message || 'Bildirimler yüklenemedi.',
-      bootstrapped: true,
-    }));
+      source,
+    });
     traceGameInviteLifecycle('notification_center_fetch_failed', { id: 'fetch:error', status: 'pending', to_email: email }, {
       source: `useNotificationCenter.${source}`,
       user: state.currentUser,
@@ -181,12 +159,20 @@ function startSubscriptions(email, currentUser) {
 
       if (toEmail === email) {
         if (eventType === 'delete' && requestId) {
-          removeFriendRequest(requestId);
+          dispatchNotification({
+            type: NOTIFICATION_ACTIONS.TERMINAL_ROW,
+            rowType: NOTIFICATION_ROW_TYPES.FRIEND_REQUEST,
+            rowId: requestId,
+            source: 'friend_request_subscription_delete',
+          });
         } else if (requestId || getFriendRequestDedupeKey(request)) {
-          updateState((prev) => ({
-            ...prev,
-            friendRequests: mergePendingFriendRequests(prev.friendRequests, [request], email, { preserveExisting: true }),
-          }));
+          dispatchNotification({
+            type: NOTIFICATION_ACTIONS.SUBSCRIPTION_ROW,
+            rowType: NOTIFICATION_ROW_TYPES.FRIEND_REQUEST,
+            row: request,
+            email,
+            source: 'friend_request_subscription',
+          });
         }
       }
       scheduleRefresh({ preserveExisting: true, source: 'friend_request_subscription' });
@@ -209,10 +195,11 @@ function startSubscriptions(email, currentUser) {
         && !handledAcceptedOutgoingIds.has(invite.id)
       ) {
         handledAcceptedOutgoingIds.add(invite.id);
-        updateState((prev) => ({
-          ...prev,
-          acceptedOutgoingInvites: [...prev.acceptedOutgoingInvites, invite],
-        }));
+        dispatchNotification({
+          type: NOTIFICATION_ACTIONS.OUTGOING_INVITE_ACCEPTED,
+          invite,
+          source: `game_invite_subscription:${eventType}`,
+        });
         return;
       }
       if (toEmail !== email) return;
@@ -226,13 +213,22 @@ function startSubscriptions(email, currentUser) {
       });
 
       if (reason.startsWith('active')) {
-        updateState((prev) => ({
-          ...prev,
-          gameInvites: mergeActiveIncomingGameInvites(prev.gameInvites, [invite], email),
-        }));
+        dispatchNotification({
+          type: NOTIFICATION_ACTIONS.SUBSCRIPTION_ROW,
+          rowType: NOTIFICATION_ROW_TYPES.GAME_INVITE,
+          row: invite,
+          email,
+          now: Date.now(),
+          source: `game_invite_subscription:${eventType}`,
+        });
         scheduleRefresh({ preserveExisting: true, source: 'game_invite_subscription_followup' });
       } else {
-        removeInvite(invite.id);
+        dispatchNotification({
+          type: NOTIFICATION_ACTIONS.TERMINAL_ROW,
+          rowType: NOTIFICATION_ROW_TYPES.GAME_INVITE,
+          rowId: invite.id,
+          source: `game_invite_subscription:${eventType}`,
+        });
         scheduleRefresh({ preserveExisting: true, source: 'game_invite_terminal_followup' });
       }
     });
@@ -271,7 +267,7 @@ function ensureNotificationCenter(user) {
   stopNotificationCenter();
   handledAcceptedOutgoingIds.clear();
   emit({
-    ...initialState,
+    ...createNotificationInitialState(),
     email,
     currentUser: user || null,
     loading: true,
@@ -283,9 +279,15 @@ function ensureNotificationCenter(user) {
     fetchNotificationCenter({ preserveExisting: true, source: 'poll' });
   }, POLL_INTERVAL_MS);
   pruneTimer = window.setInterval(() => {
-    updateState((prev) => ({
-      ...prev,
-      gameInvites: prev.gameInvites.filter((invite) => isActiveIncomingGameInvite(invite, email)),
+    updateState((prev) => notificationReducer(prev, {
+      type: NOTIFICATION_ACTIONS.FETCH_SUCCESS,
+      email,
+      currentUser: prev.currentUser,
+      friendRequestRows: [],
+      gameInviteRows: [],
+      preserveExisting: true,
+      now: Date.now(),
+      source: 'active_prune',
     }));
   }, ACTIVE_PRUNE_INTERVAL_MS);
 }
@@ -302,9 +304,11 @@ function getSnapshot() {
 export function rememberDismissedInviteToast(inviteId) {
   if (!inviteId) return;
   updateState((prev) => {
-    const dismissedToastIds = new Set(prev.dismissedToastIds);
-    dismissedToastIds.add(inviteId);
-    return { ...prev, dismissedToastIds };
+    return notificationReducer(prev, {
+      type: NOTIFICATION_ACTIONS.TOAST_DISMISSED,
+      inviteId,
+      source: 'toast_dismiss',
+    });
   });
 }
 
@@ -324,7 +328,11 @@ export async function openNotificationCenterGameInvite(invite, {
   onAccepted,
 } = {}) {
   if (!invite?.id) return { ok: false, reason: 'invalid' };
-  removeInvite(invite.id);
+  dispatchNotification({
+    type: NOTIFICATION_ACTIONS.INVITE_OPENED,
+    inviteId: invite.id,
+    source,
+  });
   try {
     const res = await openGameInviteAction(invite, {
       navigate,
@@ -344,7 +352,11 @@ export async function openNotificationCenterGameInvite(invite, {
 
 export async function rejectNotificationCenterGameInvite(inviteId) {
   if (!inviteId) return { ok: false, reason: 'invalid' };
-  removeInvite(inviteId);
+  dispatchNotification({
+    type: NOTIFICATION_ACTIONS.INVITE_REJECTED,
+    inviteId,
+    source: 'reject_invite',
+  });
   try {
     await rejectGameInviteAction(inviteId);
     scheduleRefresh({ preserveExisting: true, source: 'rejected_followup' });

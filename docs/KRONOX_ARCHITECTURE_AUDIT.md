@@ -38,8 +38,8 @@ Mechanical scan from this pass:
 | Area | Current entry points | Data source | State owner | Separation | Deterministic critical state | Direct Base44 spread | Security risks | Performance risks | Health coverage | Recommended action |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Solo | `src/pages/SoloChallenge.jsx`, `src/pages/Game.jsx`, `src/components/game/SoloLevelResult.jsx`, `SoloSuccessPopup.jsx` | `getQuestions`, `User.solo_progress`, guest payload, local engine helpers | Mostly `Game.jsx` hooks/state | Partial MVVM: helpers exist, page still owns much flow state | Phase 1 reducer exists in `src/lib/soloAttemptReducer.js`; runtime effects still live in `Game.jsx` | Yes: `auth.me`, progress writes, question fetch gateway | Raw question bank exposure is controlled by `getQuestions`; guest token proof must stay tight | `Game.jsx` is large; drag/drop must avoid heavy work | Strong static/executable coverage for Solo rules, reducer, question exposure, records | Integrate reducer behind a Solo ViewModel in later small handoffs |
-| Online | `LobbyRoom.jsx`, `WaitingRoomPanel.jsx`, `useWaitingRoomSync`, `useLobbySync`, `Game.jsx` | `Lobby`, `GameInvite`, `startLobbyGame`, `findLobbyByCode`, `updateLobbyGameState` | Mixed route state, lobby hooks, backend functions | Partial MVVM; `dbGateway/lobbyGateway` starts a service boundary | Improved by merge/retry, idempotent start, poll recovery | Yes: lobby page/hooks still read entities directly | Host/participant auth and public identity must stay backend enforced | Subscription plus polling can scale poorly without backoff and unified owner | Online lobby start regression suite exists | Next safe pilot: central Online ViewModel/state machine around lobby phase |
-| Notifications | `useNotificationCenter`, `useHeaderNotifications`, `HeaderNotificationBell`, `GameInviteNotifier`, `IncomingInvitesPanel` | `FriendRequest`, `GameInvite`, push subscription APIs | Shared external store in `useNotificationCenter` | Good ViewModel direction; selectors separated | Merge helpers preserve valid pending rows through stale empty fetches | Yes: reads/subscriptions direct in hook | Public labels must stay username-only; push payloads must remain compact | Multiple subscriptions/focus refreshes need bounded cadence as usage grows | Strong lifecycle suite exists | Keep as MVI pilot; formalize event reducer for fetch/subscription/terminal states |
+| Online | `LobbyRoom.jsx`, `WaitingRoomPanel.jsx`, `useWaitingRoomSync`, `useLobbySync`, `Game.jsx` | `Lobby`, `GameInvite`, `startLobbyGame`, `findLobbyByCode`, `updateLobbyGameState` | Mixed route state, lobby hooks, backend functions | Partial MVVM; `dbGateway/lobbyGateway` starts a service boundary | Phase 1 reducer exists in `src/lib/onlineLobbyReducer.js`; `useWaitingRoomSync` feeds subscription/poll events | Yes: lobby page/hooks still read entities directly | Host/participant auth and public identity must stay backend enforced | Subscription plus polling can scale poorly without backoff and unified owner | Online lobby start regression suite includes reducer simulation | Next safe pilot: route more lobby ViewModel commands through the reducer/gateway boundary |
+| Notifications | `useNotificationCenter`, `useHeaderNotifications`, `HeaderNotificationBell`, `GameInviteNotifier`, `IncomingInvitesPanel` | `FriendRequest`, `GameInvite`, push subscription APIs | Shared external store in `useNotificationCenter` | Good ViewModel direction; selectors separated | Phase 1 reducer exists in `src/lib/notificationReducer.js`; transient empty fetches preserve pending actionable rows | Yes: reads/subscriptions direct in hook | Public labels must stay username-only; push payloads must remain compact | Multiple subscriptions/focus refreshes need bounded cadence as usage grows | Strong lifecycle suite includes reducer simulation | Keep reducer as lifecycle owner while moving backend calls toward a gateway |
 | Profile / Settings / Account linking | `ProfilePage`, `SettingsPage`, `AuthContext`, guest/account helpers | Base44 auth `User`, `GuestProfile`, `linkGuestAccount`, `updateProfileSettings` | Auth context plus page-local state | Partial ViewModel; service helpers exist | Link flow guarded by backend token proof/idempotency | Yes | Account linking and deletion require two-account/manual privacy proof | Profile calls can repeat on mount/focus; acceptable at current scale | Strong onboarding/profile/account Health | Move more page auth/profile logic behind profile service boundary |
 | Leaderboard | `LeaderboardPage`, `src/lib/leaderboard.js`, `getSoloLeaderboard` | `SoloLeaderboardEntry`, bounded server repair from `User`, guest proof | Page state plus leaderboard helpers | Service boundary exists | Public rank confidence/scope explicit | Some direct projection writes remain | Public response must never expose email/owner_key/raw guest id | Top-window list bounded; projection repair can grow cost | Strong public payload/privacy Health | Keep API compact; add DB/index proof later |
 | Economy / Daily / Jokers | Market, Daily Wheel, Daily Quest, joker helpers/functions | `DiamondTransaction`, `DailyWheelSpin`, `UserDailyQuestProgress`, `UserJokerInventory`, `JokerTransaction` | Feature hooks/pages plus backend functions | Mixed; service helpers exist | Function-level idempotency guards; DB unique proof absent | Yes | Client must never set rewards/cost/user identity | Retry/double-tap paths need real parallel proof | Strong static/idempotency Health; race proof manual | Add DB uniqueness proof or transactional backend before scale |
@@ -59,11 +59,14 @@ Mechanical scan from this pass:
 2. `Game.jsx` still owns too much Solo gameplay orchestration. Pure helpers
    exist, and Phase 1 adds `src/lib/soloAttemptReducer.js`, but current
    runtime side effects have not yet been moved behind a Solo ViewModel.
-3. Online lobby state is split across `LobbyRoom`, `useWaitingRoomSync`,
-   `useLobbySync`, route state, and backend functions. Recent fixes reduced
-   race risk, but the state model is still implicit.
+3. Online lobby state is still split across `LobbyRoom`, `useWaitingRoomSync`,
+   `useLobbySync`, route state, and backend functions, but Phase 1 now adds
+   `src/lib/onlineLobbyReducer.js` and wires waiting-room subscription/poll
+   events into it.
 4. Notifications are closest to the desired shape: shared store plus selectors
-   and view model. The next step is to formalize this as an event reducer.
+   and view model. Phase 1 now adds `src/lib/notificationReducer.js` as the
+   lifecycle owner for fetch, subscription, terminal, dismiss, accept, reject,
+   expiry, and invalidation events.
 5. Data model uniqueness, indexes, and live RLS/BOLA behavior cannot be proven
    from repo source alone. They remain manual/platform proof gates.
 6. Health contains many static contract checks. This is useful for drift, but
@@ -78,6 +81,13 @@ Mechanical scan from this pass:
   targeted Health coverage.
 - Added the Phase 1 `SoloLevelAttemptEvent` reporting contract without enabling
   broad analytics or client-owned event writes.
+- Added `src/lib/onlineLobbyReducer.js` as the Phase 1 pure Online lobby
+  lifecycle reducer and wired `useWaitingRoomSync` to feed authoritative
+  subscription/poll events without changing route payloads.
+- Added `src/lib/notificationReducer.js` as the Phase 1 pure notification
+  lifecycle reducer and wired `useNotificationCenter` to preserve pending rows
+  through transient empty fetches while closing only on terminal lifecycle
+  events.
 - Corrected invite navigation Health expectations from the older
   `lobby: updatedLobby` token to the current `verifiedLobby` / `joinedLobby`
   contract.

@@ -6,6 +6,7 @@
 //   fetch/subscription merge does not flicker valid pending invites away.
 
 import gameInviteSelectorsSource from '../../lib/gameInviteSelectors.js?raw';
+import notificationReducerSource from '../../lib/notificationReducer.js?raw';
 import notificationViewModelSource from '../../lib/notificationViewModel.js?raw';
 import inviteApiSource from '../../lib/inviteApi.js?raw';
 import useHeaderNotificationsSource from '../../hooks/useHeaderNotifications.js?raw';
@@ -28,6 +29,12 @@ import {
 } from '@/lib/gameInviteSelectors';
 import { buildNotificationViewModel } from '@/lib/notificationViewModel';
 import { mergePendingFriendRequests } from '@/lib/headerNotifications';
+import {
+  createNotificationInitialState,
+  notificationReducer,
+  NOTIFICATION_ACTIONS,
+  NOTIFICATION_ROW_TYPES,
+} from '@/lib/notificationReducer';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
 const ACTION_TYPES = { CODE_FIX: 'CODE_FIX', MANUAL_VERIFICATION: 'MANUAL_VERIFICATION' };
@@ -96,6 +103,147 @@ export const EXTRA_SUITES = [
 ];
 
 export const EXTRA_TESTS = [
+  makeCase('notification_reducer_phase_1_contract',
+    'Notification reducer preserves pending rows through stale fetches and closes only on lifecycle events',
+    () => {
+      const required = missing(notificationReducerSource, [
+        'export function notificationReducer',
+        'export function createNotificationInitialState',
+        'FETCH_STARTED',
+        'FETCH_SUCCESS',
+        'FETCH_EMPTY_STALE',
+        'SUBSCRIPTION_ROW',
+        'TERMINAL_ROW',
+        'TOAST_DISMISSED',
+        'INVITE_OPENED',
+        'INVITE_REJECTED',
+        'FRIEND_REQUEST_ACCEPTED',
+        'FRIEND_REQUEST_REJECTED',
+        'ROW_EXPIRED',
+        'ROW_INVALIDATED',
+        'mergeActiveIncomingGameInvites',
+        'mergePendingFriendRequests',
+      ]);
+      const reducerForbidden = forbidden(notificationReducerSource, [
+        'base44',
+        'fetch(',
+        'window.',
+        'document.',
+        'navigator.',
+        'localStorage',
+        'Date.now',
+        'new Date(',
+      ]);
+      const integrationRequired = missing(useNotificationCenterSource, [
+        'notificationReducer',
+        'NOTIFICATION_ACTIONS.FETCH_EMPTY_STALE',
+        'NOTIFICATION_ACTIONS.SUBSCRIPTION_ROW',
+        'NOTIFICATION_ACTIONS.TERMINAL_ROW',
+        'NOTIFICATION_ACTIONS.TOAST_DISMISSED',
+        'NOTIFICATION_ACTIONS.INVITE_OPENED',
+        'NOTIFICATION_ACTIONS.INVITE_REJECTED',
+      ]);
+
+      const executableFailures = [];
+      const loaded = notificationReducer(createNotificationInitialState({ email: ME }), {
+        type: NOTIFICATION_ACTIONS.FETCH_SUCCESS,
+        email: ME,
+        friendRequestRows: [freshFriendRequest],
+        gameInviteRows: [freshInvite],
+        preserveExisting: false,
+        now: NOW,
+      });
+      const staleEmpty = notificationReducer(loaded, {
+        type: NOTIFICATION_ACTIONS.FETCH_EMPTY_STALE,
+        email: ME,
+        friendRequestRows: [],
+        gameInviteRows: [],
+        preserveExisting: true,
+        now: NOW + 10_000,
+      });
+      if (staleEmpty.friendRequests.length !== 1 || staleEmpty.gameInvites.length !== 1) executableFailures.push('transient empty fetch cleared valid pending rows');
+
+      const toastDismissed = notificationReducer(staleEmpty, {
+        type: NOTIFICATION_ACTIONS.TOAST_DISMISSED,
+        inviteId: freshInvite.id,
+      });
+      if (toastDismissed.gameInvites.length !== 1 || !toastDismissed.dismissedToastIds.has(freshInvite.id)) executableFailures.push('toast dismiss deleted actionable invite/request');
+
+      const duplicateInvite = { ...freshInvite, from_name: 'Updated Host' };
+      const subscribedInvite = notificationReducer(toastDismissed, {
+        type: NOTIFICATION_ACTIONS.SUBSCRIPTION_ROW,
+        rowType: NOTIFICATION_ROW_TYPES.GAME_INVITE,
+        row: duplicateInvite,
+        email: ME,
+        now: NOW,
+      });
+      if (subscribedInvite.gameInvites.length !== 1 || subscribedInvite.gameInvites[0].from_name !== 'Updated Host') executableFailures.push('duplicate subscription invite was not deduped by stable id');
+
+      const subscribedFriend = notificationReducer(createNotificationInitialState({ email: ME }), {
+        type: NOTIFICATION_ACTIONS.SUBSCRIPTION_ROW,
+        rowType: NOTIFICATION_ROW_TYPES.FRIEND_REQUEST,
+        row: freshFriendRequest,
+        email: ME,
+      });
+      if (subscribedFriend.friendRequests.length !== 1) executableFailures.push('subscription pending friend request did not add/update row');
+
+      const terminalInvite = notificationReducer(subscribedInvite, {
+        type: NOTIFICATION_ACTIONS.TERMINAL_ROW,
+        rowType: NOTIFICATION_ROW_TYPES.GAME_INVITE,
+        rowId: freshInvite.id,
+      });
+      if (terminalInvite.gameInvites.length !== 0) executableFailures.push('terminal invite row did not close actionable notification');
+
+      const openedInvite = notificationReducer(loaded, {
+        type: NOTIFICATION_ACTIONS.INVITE_OPENED,
+        inviteId: freshInvite.id,
+      });
+      const rejectedInvite = notificationReducer(loaded, {
+        type: NOTIFICATION_ACTIONS.INVITE_REJECTED,
+        inviteId: freshInvite.id,
+      });
+      if (openedInvite.gameInvites.length !== 0 || rejectedInvite.gameInvites.length !== 0) executableFailures.push('invite open/reject did not close relevant notification');
+
+      const acceptedFriend = notificationReducer(loaded, {
+        type: NOTIFICATION_ACTIONS.FRIEND_REQUEST_ACCEPTED,
+        requestId: freshFriendRequest.id,
+      });
+      const rejectedFriend = notificationReducer(loaded, {
+        type: NOTIFICATION_ACTIONS.FRIEND_REQUEST_REJECTED,
+        requestId: freshFriendRequest.id,
+      });
+      if (acceptedFriend.friendRequests.length !== 0 || rejectedFriend.friendRequests.length !== 0) executableFailures.push('friend request accept/reject did not close relevant notification');
+
+      const uiSrc = `${safeStr(headerNotificationBellSource)}\n${safeStr(incomingInvitesPanelSource)}\n${safeStr(gameInviteNotifierSource)}\n${safeStr(incomingRequestItemSource)}`;
+      const identityRequired = missing(`${safeStr(notificationIdentitySource)}\n${uiSrc}`, [
+        'getSafeNotificationActorName',
+        'normalizeSafePublicUsernameInput',
+      ]);
+      const leakedUiFallbacks = forbidden(uiSrc, [
+        'row?.from_email ||',
+        'invite?.from_email ||',
+        'invite.from_email',
+        'request.from_email',
+        'owner_key',
+        'provider_id',
+        'guest_id',
+        'player_key',
+      ]);
+
+      if (required.length || reducerForbidden.length || integrationRequired.length || identityRequired.length || leakedUiFallbacks.length || executableFailures.length) {
+        return fail('Notification reducer Phase 1 contract failed.', {
+          verification: 'STATIC_AND_EXECUTABLE_CONTRACT',
+          actionType: ACTION_TYPES.CODE_FIX,
+          missing: { required, integrationRequired, identityRequired },
+          forbidden: { reducerForbidden, leakedUiFallbacks },
+          executableFailures,
+        });
+      }
+
+      return pass('Notification reducer preserves valid pending rows, dedupes subscription rows, keeps toast dismiss visual-only, closes on lifecycle events, and preserves username-safe labels.',
+        { verification: 'STATIC_AND_EXECUTABLE_CONTRACT' });
+    }),
+
   makeCase('toast_dismiss_does_not_mutate_game_invite',
     'Toast/banner dismiss does not update GameInvite status',
     () => {

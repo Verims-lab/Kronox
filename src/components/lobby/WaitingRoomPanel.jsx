@@ -19,6 +19,7 @@ import { pushAppDiag } from '@/lib/appDiagBus';
 export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, isHost, canStart, onLeave, onCopyCode, copied, navigate }) {
   const {
     startDebug,
+    lobbyPhaseState,
     isDebugVisible,
     waitingScrollRef,
     pullY,
@@ -402,6 +403,8 @@ export default function WaitingRoomPanel({ lobby, setLobby, playerName, user, is
               <span className="text-yellow-300/80">current player name</span><span>{startDebug.currentPlayerName || 'null'}</span>
               <span className="text-yellow-300/80">source</span><span>{startDebug.source || 'null'}</span>
               <span className="text-yellow-300/80">error</span><span>{startDebug.error || 'null'}</span>
+              <span className="text-yellow-300/80">phase reducer</span><span>{lobbyPhaseState?.phase || 'null'}</span>
+              <span className="text-yellow-300/80">shared state ready</span><span>{String(Boolean(lobbyPhaseState?.sharedGameStateReady))}</span>
             </div>
           </div>
         )}
