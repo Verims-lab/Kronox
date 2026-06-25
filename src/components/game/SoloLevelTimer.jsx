@@ -52,26 +52,23 @@ export default function SoloLevelTimer({ totalSeconds = 180, elapsedSeconds = 0,
 
   return (
     <div
-      className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-base"
+      className="flex items-center gap-1.5 rounded-full border-[1.5px] px-2.5 py-1 text-base"
       style={{
-        background: danger
-          ? 'linear-gradient(180deg, rgba(220,38,38,0.92), rgba(127,29,29,0.96))'
-          : frozen
-            ? 'linear-gradient(180deg, rgba(14,116,144,0.88), rgba(4,8,22,0.96))'
-          : 'linear-gradient(180deg, rgba(20,30,58,0.92), rgba(4,8,22,0.96))',
-        color: danger ? '#fff5f5' : (frozen ? '#e0f2fe' : '#facc15'),
+        background: 'rgba(6, 18, 37, 0.88)',
+        borderColor: danger ? 'rgba(248,113,113,0.72)' : (frozen ? 'rgba(56,189,248,0.68)' : '#FFC928'),
+        color: danger ? '#fca5a5' : (frozen ? '#7dd3fc' : '#FFC928'),
         boxShadow: danger
-          ? '0 0 0 1px rgba(248,113,113,0.65), 0 0 16px rgba(220,38,38,0.55)'
+          ? '0 0 12px rgba(220,38,38,0.30), inset 0 1px 0 rgba(255,255,255,0.04)'
           : frozen
-            ? '0 0 0 1px rgba(56,189,248,0.68), 0 0 16px rgba(56,189,248,0.32)'
-          : '0 0 0 1px rgba(250,204,21,0.45), 0 0 12px rgba(250,204,21,0.25)',
+            ? '0 0 12px rgba(56,189,248,0.26), inset 0 1px 0 rgba(255,255,255,0.04)'
+          : '0 0 12px rgba(255, 201, 40, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.04)',
         minWidth: frozen ? 118 : 78,
         justifyContent: 'center',
       }}
       aria-label={`Kalan süre ${label}${frozen ? ', donduruldu' : ''}`}
     >
       <Timer className="h-4 w-4" strokeWidth={2.4} />
-      <span className="kronox-number" style={{ letterSpacing: '0.02em' }}>{label}</span>
+      <span className="font-inter font-semibold" style={{ letterSpacing: '0.02em' }}>{label}</span>
       {frozen && (
         <span className="font-inter text-[9px] font-black uppercase tracking-wide text-sky-100">
           Donduruldu
