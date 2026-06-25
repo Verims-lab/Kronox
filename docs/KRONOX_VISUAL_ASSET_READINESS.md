@@ -2,8 +2,7 @@
 
 Status: asset pipeline readiness note.
 
-This document prepares Kronox for higher-quality visual assets without starting
-a visual redesign. This pass makes no full visual redesign.
+This document prepares Kronox for higher-quality visual assets without starting a visual redesign. This pass makes no full visual redesign.
 
 ## Current Direction
 
