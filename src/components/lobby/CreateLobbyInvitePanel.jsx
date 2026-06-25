@@ -12,10 +12,8 @@ import {
 } from 'lucide-react';
 import GoldButton from '@/components/ui/GoldButton';
 import { sounds } from '@/lib/gameSounds';
-import { loadFriends, normalizeEmail } from '@/lib/friendsApi';
 import IncomingInvitesPanel from '@/components/invites/IncomingInvitesPanel';
-import { getSafeFriendDisplayName } from '@/lib/publicIdentity';
-import useFriendPresence from '@/hooks/useFriendPresence';
+import { loadOnlinePlayerSelection } from '@/lib/onlinePlayerSelection';
 
 /**
  * New create-lobby/invite screen shown when the user taps
@@ -23,17 +21,17 @@ import useFriendPresence from '@/hooks/useFriendPresence';
  *
  * - No player-name input. Identity comes from the authenticated user.
  * - Player count chooser: 2 / 3 / 4 (default 2). Invite cap = count - 1.
- * - Friends list comes from Friendship entity via loadFriends().
- * - Selected friend count auto-trims (with a visible toast) if user reduces count.
+ * - Player list comes from backend-owned Online player selection.
+ * - Selected player count auto-trims (with a visible toast) if user reduces count.
  * - Invite delivery is wired through pending GameInvite rows when LobbyRoom
- *   creates the lobby. Selected emails are forwarded for current in-app/push
- *   best-effort delivery while the lobby create path remains host-authoritative.
+ *   creates the lobby. Opaque target refs are forwarded so recipient email
+ *   resolution stays backend-owned.
  *
  * Props:
  *   user             — authenticated user (already loaded by useLobbyRoomState)
  *   loading          — true while the parent is creating the lobby
  *   error            — string error from the parent
- *   onCreate({ maxPlayers, invitedEmails }) — parent creates the lobby
+ *   onCreate({ maxPlayers, inviteTargets }) — parent creates the lobby
  *   onBackMode       — go back to the lobby landing (category screen)
  *   onGoFriends      — navigate to Profile > Friends so the user can add some
  */
@@ -47,22 +45,21 @@ export default function CreateLobbyInvitePanel({
   onGoFriends,
 }) {
   const [maxPlayers, setMaxPlayers] = useState(2);
-  const [selectedEmails, setSelectedEmails] = useState([]);
-  const [friends, setFriends] = useState([]);
-  const [friendsLoading, setFriendsLoading] = useState(true);
-  const [friendsError, setFriendsError] = useState('');
+  const [selectedTargets, setSelectedTargets] = useState([]);
+  const [players, setPlayers] = useState([]);
+  const [playersLoading, setPlayersLoading] = useState(true);
+  const [playersError, setPlayersError] = useState('');
   const [autoTrimNote, setAutoTrimNote] = useState('');
-  const { getPresenceForFriend } = useFriendPresence(friends, { enabled: Boolean(user?.email) });
 
-  /* ---------------- load friends once user is known ---------------- */
+  /* ---------------- load selectable players once user is known ---------------- */
   useEffect(() => {
     let cancelled = false;
-    if (!user?.email) { setFriendsLoading(false); return; }
-    setFriendsLoading(true);
-    loadFriends(user.email)
-      .then((rows) => { if (!cancelled) setFriends(rows || []); })
-      .catch((err) => { if (!cancelled) setFriendsError(err?.message || 'Arkadaşlar yüklenemedi.'); })
-      .finally(() => { if (!cancelled) setFriendsLoading(false); });
+    if (!user?.email) { setPlayersLoading(false); return; }
+    setPlayersLoading(true);
+    loadOnlinePlayerSelection()
+      .then((rows) => { if (!cancelled) setPlayers(rows || []); })
+      .catch((err) => { if (!cancelled) setPlayersError(err?.message || 'Oyuncular yüklenemedi.'); })
+      .finally(() => { if (!cancelled) setPlayersLoading(false); });
     return () => { cancelled = true; };
   }, [user?.email]);
 
@@ -70,38 +67,37 @@ export default function CreateLobbyInvitePanel({
 
   /* ---------------- auto-trim selection when cap decreases ---------------- */
   useEffect(() => {
-    if (selectedEmails.length > inviteCap) {
-      const trimmed = selectedEmails.slice(0, inviteCap);
-      const dropped = selectedEmails.length - trimmed.length;
-      setSelectedEmails(trimmed);
+    if (selectedTargets.length > inviteCap) {
+      const trimmed = selectedTargets.slice(0, inviteCap);
+      const dropped = selectedTargets.length - trimmed.length;
+      setSelectedTargets(trimmed);
       setAutoTrimNote(
         dropped === 1
-          ? '1 arkadaş seçimden çıkarıldı (yeni oyuncu sayısına göre).'
-          : `${dropped} arkadaş seçimden çıkarıldı (yeni oyuncu sayısına göre).`,
+          ? '1 oyuncu seçimden çıkarıldı (yeni oyuncu sayısına göre).'
+          : `${dropped} oyuncu seçimden çıkarıldı (yeni oyuncu sayısına göre).`,
       );
       const timer = window.setTimeout(() => setAutoTrimNote(''), 2400);
       return () => window.clearTimeout(timer);
     }
-  }, [inviteCap, selectedEmails]);
+  }, [inviteCap, selectedTargets]);
 
   /* ---------------- selection helpers ---------------- */
-  const toggleFriend = (email) => {
-    const normalized = normalizeEmail(email);
-    if (!normalized) return;
-    setSelectedEmails((prev) => {
-      if (prev.includes(normalized)) {
+  const togglePlayer = (targetRef) => {
+    if (!targetRef) return;
+    setSelectedTargets((prev) => {
+      if (prev.includes(targetRef)) {
         sounds.tick();
-        return prev.filter((e) => e !== normalized);
+        return prev.filter((ref) => ref !== targetRef);
       }
       if (prev.length >= inviteCap) {
         // cap reached — surface a brief inline message but never throw
         sounds.tick();
-        setAutoTrimNote(`En fazla ${inviteCap} arkadaş seçebilirsin (${maxPlayers} kişi için).`);
+        setAutoTrimNote(`En fazla ${inviteCap} oyuncu seçebilirsin (${maxPlayers} kişi için).`);
         window.setTimeout(() => setAutoTrimNote(''), 2200);
         return prev;
       }
       sounds.tap();
-      return [...prev, normalized];
+      return [...prev, targetRef];
     });
   };
 
@@ -118,15 +114,14 @@ export default function CreateLobbyInvitePanel({
     // the safe default.
     onCreate({
       maxPlayers,
-      invitedEmails: [...selectedEmails],
+      inviteTargets: [...selectedTargets],
       selectedCategories: Array.isArray(selectedCategories) ? [...selectedCategories] : undefined,
     });
   };
 
   const userIdentity = useMemo(() => {
-    const display = user?.full_name?.trim() || user?.email?.split('@')[0] || 'Oyuncu';
-    const email = user?.email || '';
-    return { display, email, initial: (display || '?').charAt(0).toUpperCase() };
+    const display = user?.username?.trim() || user?.public_username?.trim() || user?.full_name?.trim() || 'Oyuncu';
+    return { display, initial: (display || '?').charAt(0).toUpperCase() };
   }, [user]);
 
   /* ---------------- render ---------------- */
@@ -159,34 +154,32 @@ export default function CreateLobbyInvitePanel({
         {/* Friends */}
         <SectionLabel
           icon={UserPlus}
-          text="Arkadaşlarını Davet Et"
+          text="Oyuncu Seç"
           tail={
             <span className="font-inter text-[10px] font-black uppercase tracking-widest text-amber-200/90">
-              {selectedEmails.length} / {inviteCap} seçildi
+              {selectedTargets.length} / {inviteCap} seçildi
             </span>
           }
         />
 
-        {friendsLoading ? (
+        {playersLoading ? (
           <FriendsSkeleton />
-        ) : friendsError ? (
-          <ErrorHint text={friendsError} />
-        ) : friends.length === 0 ? (
-          <EmptyFriends onGoFriends={onGoFriends} />
+        ) : playersError ? (
+          <ErrorHint text={playersError} />
+        ) : players.length === 0 ? (
+          <EmptyPlayers onGoFriends={onGoFriends} />
         ) : (
           <ul className="space-y-2">
-            {friends.map((f) => {
-              const email = normalizeEmail(f.friend_email);
-              const isSelected = selectedEmails.includes(email);
-              const disabled = !isSelected && selectedEmails.length >= inviteCap;
+            {players.map((player) => {
+              const isSelected = selectedTargets.includes(player.target_ref);
+              const disabled = !isSelected && selectedTargets.length >= inviteCap;
               return (
                 <FriendInviteRow
-                  key={f.id}
-                  friend={f}
-                  presence={getPresenceForFriend(f)}
+                  key={player.target_ref}
+                  player={player}
                   selected={isSelected}
                   disabled={disabled}
-                  onToggle={() => toggleFriend(email)}
+                  onToggle={() => togglePlayer(player.target_ref)}
                 />
               );
             })}
@@ -219,9 +212,9 @@ export default function CreateLobbyInvitePanel({
         <div className="pt-1">
           <CreateInviteCta
             loading={loading}
-            disabled={selectedEmails.length === 0}
+            disabled={selectedTargets.length === 0}
             onClick={handleCreate}
-            selectedCount={selectedEmails.length}
+            selectedCount={selectedTargets.length}
             inviteCap={inviteCap}
           />
         </div>
@@ -252,8 +245,8 @@ function CreateInviteCta({ loading, disabled, onClick, selectedCount, inviteCap 
         style={{ color: disabled ? 'rgba(252,211,77,0.85)' : 'rgba(207,224,255,0.55)' }}
       >
         {disabled
-          ? 'Oyuna başlamak için en az 1 arkadaş seç.'
-          : `${selectedCount} / ${inviteCap} arkadaş seçildi — davetler oluşturulacak.`}
+          ? 'Oyuna başlamak için en az 1 oyuncu seç.'
+          : `${selectedCount} / ${inviteCap} oyuncu seçildi — davetler oluşturulacak.`}
       </p>
       {!disabled && (
         <p className="text-center font-inter text-[11px] text-amber-200/75">
@@ -306,7 +299,7 @@ function SectionLabel({ icon: Icon, text, tail }) {
   );
 }
 
-function SelfCard({ display, email, initial }) {
+function SelfCard({ display, initial }) {
   return (
     <div
       className="rounded-2xl p-3 flex items-center gap-3"
@@ -331,7 +324,7 @@ function SelfCard({ display, email, initial }) {
           <Crown className="h-4 w-4 shrink-0 text-amber-300" />
           <p className="truncate font-cinzel text-base tracking-wider text-white">{display}</p>
         </div>
-        {email && <p className="truncate font-inter text-[11px] text-blue-100/65">{email}</p>}
+        <p className="truncate font-inter text-[11px] text-blue-100/65">Sen</p>
       </div>
       <span
         className="rounded-full px-2 py-0.5 font-inter text-[10px] font-black text-amber-950"
@@ -386,9 +379,9 @@ function PlayerCountSelector({ value, onChange }) {
   );
 }
 
-function FriendInviteRow({ friend, presence, selected, disabled, onToggle }) {
-  const display = getSafeFriendDisplayName(friend);
-  const isOnline = Boolean(presence?.online);
+function FriendInviteRow({ player, selected, disabled, onToggle }) {
+  const display = player?.username || player?.display_name || 'Oyuncu';
+  const isOnline = Boolean(player?.online);
   return (
     <motion.li layout>
       <motion.button
@@ -427,17 +420,17 @@ function FriendInviteRow({ friend, presence, selected, disabled, onToggle }) {
             aria-hidden="true"
             className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full"
             style={{
-              background: isOnline ? '#22c55e' : 'rgba(148,163,184,0.75)',
+              background: isOnline ? '#22c55e' : '#ef4444',
               boxShadow: isOnline
                 ? '0 0 6px rgba(34,197,94,0.65), 0 0 0 2px rgba(10,16,36,0.95)'
-                : '0 0 0 2px rgba(10,16,36,0.95)',
+                : '0 0 6px rgba(239,68,68,0.38), 0 0 0 2px rgba(10,16,36,0.95)',
             }}
           />
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate font-inter text-sm font-bold text-white">{display}</p>
-          <p className="truncate font-inter text-[11px]" style={{ color: isOnline ? '#34d399' : 'rgba(148,163,184,0.85)' }}>
-            {presence?.label || 'Çevrim dışı'}
+          <p className="truncate font-inter text-[11px]" style={{ color: isOnline ? '#34d399' : '#f87171' }}>
+            {player?.status_label || (isOnline ? 'Çevrimiçi' : 'Çevrim dışı')} · {player?.badge_label || (player?.relation === 'friend' ? 'Arkadaş' : 'Oyuncu')}
           </p>
         </div>
         <span
@@ -478,7 +471,7 @@ function FriendsSkeleton() {
   );
 }
 
-function EmptyFriends({ onGoFriends }) {
+function EmptyPlayers({ onGoFriends }) {
   return (
     <div
       className="rounded-2xl px-4 py-5 text-center"
@@ -488,9 +481,9 @@ function EmptyFriends({ onGoFriends }) {
       }}
     >
       <UserPlus className="mx-auto h-7 w-7 text-amber-300" />
-      <p className="mt-2 font-cinzel text-base tracking-wider text-white">Henüz arkadaşın yok</p>
+      <p className="mt-2 font-cinzel text-base tracking-wider text-white">Oyuncu bulunamadı</p>
       <p className="mt-1 font-inter text-[12px] text-blue-100/65">
-        Profil → <span className="text-amber-200/90 font-bold">Arkadaşlarım</span> üzerinden e-posta ile arkadaş ekleyebilirsin.
+        Çevrimiçi oyuncu veya arkadaş görünmüyor.
       </p>
       <button
         type="button"

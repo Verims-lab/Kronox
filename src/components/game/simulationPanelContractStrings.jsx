@@ -105,6 +105,9 @@ export const gameInviteEntitySource = `
     "from_email": {},
     "to_email": {},
     "status": { "enum": ["pending","accepted","declined","rejected","cancelled","expired","completed"] },
+    "invite_target_ref": {},
+    "recipient_relation": { "enum": ["friend","not_friend","unknown"] },
+    "created_source": {},
     "created_at": {},
     "expires_at": {},
     "expired_at": {},
@@ -141,9 +144,10 @@ export const pushSubscriptionEntitySource = `
 
 export const playerPresenceEntitySource = `
   "name": "PlayerPresence",
-  "description": "Best-effort Online/social presence rows written only through backend functions. Rows store anonymized owner_key_hash plus session metadata, never email/provider ids/raw guest ids/player keys.",
+  "description": "Best-effort Online/social presence rows written only through backend functions. Rows store anonymized owner_key_hash plus session metadata and a backend-private user_email used only for invite routing. Public responses never return email/provider ids/raw guest ids/player keys.",
   "properties": {
     "owner_key_hash": {},
+    "user_email": {},
     "player_type": { "enum": ["guest", "linked", "unknown"] },
     "username": {},
     "session_id": {},
@@ -169,6 +173,7 @@ export const updatePlayerPresenceFnSource = `
   const ownerKeyHash = makeOwnerKeyHash(myEmail);
   const status = body?.status === 'offline' ? 'offline' : 'online';
   const username = safePublicUsername(user.username || user.public_username || user.display_name || user.full_name, myEmail);
+  const payload = { owner_key_hash: ownerKeyHash, user_email: myEmail, username, status };
   await base44.asServiceRole.entities.PlayerPresence.update(existing[0].id, payload);
   await base44.asServiceRole.entities.PlayerPresence.create(payload);
   return json({ ok: true, presence: { presence_key: ownerKeyHash, username, status } });
@@ -188,6 +193,39 @@ export const getFriendPresenceFnSource = `
   const rows = await base44.asServiceRole.entities.PlayerPresence.filter({ owner_key_hash: presenceKey }, '-last_seen_at', 20);
   presence.push({ presence_key: presenceKey, username, online: Boolean(freshOnline), status: freshOnline ? 'online' : 'offline' });
   return json({ ok: true, presence });
+`;
+
+export const getOnlinePlayerSelectionFnSource = `
+  const user = await base44.auth.me();
+  if (!user?.email) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const friends = await getAcceptedFriends(base44, myEmail);
+  const onlinePresenceRows = await base44.asServiceRole.entities.PlayerPresence.filter({ status: 'online' }, '-last_seen_at', limit);
+  if (!targetEmail || targetEmail === myEmail) continue;
+  buildPublicRow({ targetRef, username, relation: 'friend', online });
+  buildPublicRow({ targetRef, username, relation: 'not_friend', online: true });
+  const order = { online_friend: 0, online_non_friend: 1, offline_friend: 2 };
+  rows.sort((a, b) => (order[a.group] ?? 99) - (order[b.group] ?? 99));
+  return json({ ok: true, players: rows, privacy: { targetEmailReturned: false, publicIdentity: 'username', targetReference: 'opaque_presence_key' } });
+`;
+
+export const createGameInvitesForTargetsFnSource = `
+  const user = await base44.auth.me();
+  if (!user?.email) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const targetRefs = normalizeTargetRefs(body?.target_refs || body?.invite_targets || body?.targets);
+  if (normalizeEmail(lobby.host_email) !== myEmail) return json({ ok: false, error: 'Bu lobi için davet oluşturamazsın.' }, 403);
+  const friendMap = await getAcceptedFriendTargetMap(base44, myEmail);
+  const friend = friendMap.get(targetRef);
+  const freshPresence = (presenceRows || []).find((row) => isOnlinePresence(row, nowMs));
+  const email = normalizeEmail(freshPresence.user_email || freshPresence.backend_recipient_email);
+  if (!email || email === myEmail) return { ok: false, targetRef, code: 'target_not_routable' };
+  const invite = existing?.[0] || await base44.asServiceRole.entities.GameInvite.create({
+    to_email: target.email,
+    to_name: target.username,
+    invite_target_ref: target.targetRef,
+    recipient_relation: target.relation,
+    created_source: 'online_player_selection',
+  });
+  return json({ ok: createErrors.length === 0, invites: created, privacy: { targetEmailReturned: false, targetResolution: 'backend_only' } });
 `;
 
 export const acceptGameInviteFnSource = `

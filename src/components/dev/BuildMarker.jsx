@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex441 — Online player selection expands beyond friends safely:
+//   • Online picker now lists online friends, online non-friends, then offline friends using username + opaque target refs only.
+//   • GameInvite recipient email resolution moved behind backend-owned target functions; public picker payloads never return email.
+//   • Health/docs/mirrors cover ordering, presence freshness, privacy, and backend-only invite target resolution.
+//
 // Codex440 — Friend request validation + invite delivery Health fix:
 //   • AddFriendForm blocks empty target with the exact "E-posta veya kullanıcı adı gir." via canonical parseFriendRequestTarget; backend not called on empty.
 //   • Duplicate pending outgoing request is idempotent (pendingOut + "bekleyen bir isteğin var"); FriendRequest is created before SendEmail so delivery failure cannot lose the invite.
@@ -2510,7 +2515,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex440';
+const BUILD_MARKER = 'Codex441';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

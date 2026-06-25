@@ -21,6 +21,7 @@ import {
   traceGameInviteLifecycle,
 } from '@/lib/gameInviteSelectors';
 import { getSafeNotificationActorName } from '@/lib/notificationIdentity';
+import { normalizeInviteTargetRef } from '@/lib/onlinePlayerSelection';
 
 // Codex130 — Game invite + lobby staleness TTL: 10 minutes.
 // This mirrors the Base44 function constants in acceptGameInvite and
@@ -158,17 +159,95 @@ export async function loadOutgoingInvitesForLobby(myEmail, lobbyId) {
   return settled || [];
 }
 
+function normalizeInviteTargets(value) {
+  return Array.from(new Set(
+    (Array.isArray(value) ? value : [])
+      .map((item) => normalizeInviteTargetRef(item?.target_ref || item?.targetRef || item))
+      .filter(Boolean),
+  )).slice(0, 3);
+}
+
+function summarizePushResults(results) {
+  return results.reduce((acc, result) => {
+    if (result.status !== 'fulfilled') {
+      acc.attempted += 1;
+      acc.failed += 1;
+      acc.errors.push(result.reason?.message || 'push_failed');
+      return acc;
+    }
+    const item = result.value?.push || result.value?.data?.push || result.value?.data || {};
+    acc.attempted += item.attempted ? 1 : 0;
+    acc.sent += Number(item.sent || 0);
+    acc.failed += Number(item.failed || 0);
+    acc.expired += Number(item.expired || 0);
+    acc.subscriptionCount += Number(item.subscriptionCount || 0);
+    const itemSkippedReasons = item.skippedReasons && typeof item.skippedReasons === 'object' ? item.skippedReasons : null;
+    if (item.skipped) {
+      acc.skipped += 1;
+      if (!itemSkippedReasons) {
+        acc.skippedReasons[item.skipped] = (acc.skippedReasons[item.skipped] || 0) + 1;
+      }
+    }
+    if (itemSkippedReasons) {
+      Object.entries(itemSkippedReasons).forEach(([reason, count]) => {
+        acc.skippedReasons[reason] = (acc.skippedReasons[reason] || 0) + Number(count || 0);
+      });
+    }
+    if (item.missingConfig) acc.missingConfig += 1;
+    if (item.error) acc.errors.push(item.error);
+    if (Array.isArray(item.failedReasons)) acc.failedReasons.push(...item.failedReasons);
+    return acc;
+  }, { attempted: 0, sent: 0, failed: 0, expired: 0, skipped: 0, missingConfig: 0, subscriptionCount: 0, skippedReasons: {}, errors: [], failedReasons: [] });
+}
+
+async function pushCreatedInvites(invites) {
+  const inviteIds = (Array.isArray(invites) ? invites : [])
+    .map((invite) => invite?.id)
+    .filter(Boolean);
+  if (!inviteIds.length) {
+    return { attempted: 0, sent: 0, failed: 0, expired: 0, skipped: 0, missingConfig: 0, subscriptionCount: 0, skippedReasons: {}, errors: [], failedReasons: [] };
+  }
+  const results = await Promise.allSettled(inviteIds.map(async (inviteId) => {
+    try {
+      return await base44.functions.invoke('sendGameInvitePush', { inviteId });
+    } catch (error) {
+      return { push: { attempted: true, sent: 0, failed: 1, error: error?.message || 'push_failed' } };
+    }
+  }));
+  return summarizePushResults(results);
+}
+
 /**
- * Create pending invites for the given friend emails. Caller is responsible for
- * ensuring `toEmails` only contains real friends (UI enforces this).
+ * Create pending invites for selected players. New Online player selection
+ * sends opaque inviteTargets and resolves recipient email server-side. The
+ * legacy toEmails path remains for old friend-only callers.
  *
  * Best-effort: a single failed row does NOT abort the rest — we collect errors
  * and return a small summary so the host can be told which invites failed.
  */
-export async function createGameInvites({ host, lobby, toEmails, playerCount }) {
+export async function createGameInvites({ host, lobby, toEmails, inviteTargets, playerCount }) {
   const fromEmail = normalizeEmail(host?.email);
   if (!fromEmail) throw new Error('Önce giriş yapmalısın.');
   if (!lobby?.id) throw new Error('Lobi eksik.');
+
+  const targetRefs = normalizeInviteTargets(inviteTargets);
+  if (targetRefs.length) {
+    const response = await base44.functions.invoke('createGameInvitesForTargets', {
+      lobby_id: lobby.id,
+      target_refs: targetRefs,
+      player_count: typeof playerCount === 'number' ? playerCount : undefined,
+    });
+    const data = response?.data || {};
+    if (data?.error) throw new Error(data.error);
+    const push = await pushCreatedInvites(data.invites || []);
+    return {
+      created: Number(data.created || 0),
+      failed: Array.isArray(data.failed) ? data.failed : [],
+      attempted: Number(data.attempted || targetRefs.length),
+      push,
+      privacy: data.privacy || { targetEmailReturned: false },
+    };
+  }
 
   const unique = Array.from(new Set(
     (toEmails || [])
@@ -191,6 +270,8 @@ export async function createGameInvites({ host, lobby, toEmails, playerCount }) 
       expires_at: expiresAt.toISOString(),
       game_mode: 'online_challenge',
       player_count: typeof playerCount === 'number' ? playerCount : undefined,
+      recipient_relation: 'friend',
+      created_source: 'legacy_friend_email',
     });
     traceGameInviteLifecycle('invite_created', invite, {
       source: 'createGameInvites',

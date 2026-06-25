@@ -65,7 +65,7 @@ Status: Active technical flow contract.
 - getCategoryMetadata returns category_id, name, description, and status from current active Category rows only; it must not expose questions, answers, years, user data, admin fields, passive/deleted categories, or stale fallback arrays.
 - Base44 function.jsonc files use the repo-supported name + entry shape only; auth/public scope is enforced in entry.ts guards. createGuestProfile and getCategoryMetadata are public-by-design and narrow, user-owned functions call base44.auth.me(), guest daily/leaderboard paths verify guest_id + raw guest token against completed GuestProfile, and admin-only functions use AdminUser guards.
 - configured \`function.jsonc\` manifests are the platform-published source in this repo; extra entry.ts directories are compile-checked but need matching manifest/deploy proof before being classified as published callables.
-- Configured function auth/public matrix covers createGuestProfile, getCategoryMetadata, getQuestions, getPlayerQuestionExposureStats, recordPlayerQuestionExposure, updateProfileSettings, linkGuestAccount, sendFriendRequest, updatePlayerPresence, getFriendPresence, getAdminStatus, ensureUserJokerInventory, spendUserJoker, purchaseJokerWithDiamonds, getDailyQuestStatus, recordDailyQuestProgress, claimDailyQuestReward, createDailyQuestDefinition, diagnoseSoloQuestionStartQuery, and sendQuestionAnalyticsReportEmail.
+- Configured function auth/public matrix covers createGuestProfile, getCategoryMetadata, getQuestions, getPlayerQuestionExposureStats, recordPlayerQuestionExposure, updateProfileSettings, linkGuestAccount, sendFriendRequest, updatePlayerPresence, getFriendPresence, getOnlinePlayerSelection, createGameInvitesForTargets, getAdminStatus, ensureUserJokerInventory, spendUserJoker, purchaseJokerWithDiamonds, getDailyQuestStatus, recordDailyQuestProgress, claimDailyQuestReward, createDailyQuestDefinition, diagnoseSoloQuestionStartQuery, and sendQuestionAnalyticsReportEmail.
 - /admin has a route-level UX guard that waits for AuthContext/AdminUser status before mounting AdminPage; non-admin users are redirected without an admin-tool flash, while server-side AdminUser guards remain the real security boundary.
 - Dependency cleanup result: unused direct Stripe, Three, React Leaflet, React Quill, Moment, jsPDF, html2canvas, and Lodash packages were removed; recharts and embla-carousel-react stay because UI primitives import them.
 - UserCategoryPreference is authenticated Settings/Profile data. Fewer than 3 active valid preferences means Solo uses all active categories; 3+ enables Solo-only soft weighting.
@@ -108,10 +108,13 @@ without changing route payloads. useNotificationCenter remains the shared
 ViewModel/store and delegates notification fetch/subscription/terminal
 lifecycle transitions to the notification reducer.
 
-The Online/social presence foundation adds backend-owned PlayerPresence,
-updatePlayerPresence, getFriendPresence, usePresenceHeartbeat, and
-useFriendPresence. Presence writes are current-user-bound, friend reads are
-accepted-friend-scoped, stale/missing presence displays offline, and friend
+The Online/social presence and player-selection foundation adds backend-owned
+PlayerPresence, updatePlayerPresence, getFriendPresence,
+getOnlinePlayerSelection, createGameInvitesForTargets, usePresenceHeartbeat,
+useFriendPresence, and src/lib/onlinePlayerSelection.js. Presence writes are
+current-user-bound, friend reads are accepted-friend-scoped, player selection
+returns online friends, online non-friends, then offline friends as username +
+opaque target_ref only, stale/missing presence displays offline, and public
 surfaces render username-safe labels instead of email/provider/internal id
 fallbacks.
 
@@ -145,15 +148,19 @@ pure, effect-free, preserves valid pending rows through transient empty fetches,
 treats toast dismiss as visual-only, and closes actionable notifications only
 on accepted/rejected/expired/terminal/invalidation lifecycle events.
 
-Presence Phase 1 starts at src/hooks/usePresenceHeartbeat.js,
-src/hooks/useFriendPresence.js, base44/entities/PlayerPresence.jsonc,
-base44/functions/updatePlayerPresence, and base44/functions/getFriendPresence.
-Presence is best-effort and relationship-scoped: users heartbeat only their own
-session, friend lookup is restricted to accepted FriendRequest rows, and
-stale/missing presence displays offline rather than online. Friend, invite,
-lobby, notification, and presence surfaces render username-safe labels only;
-email, provider ID, raw guest ID, owner_key, and internal player_key values are
-never public display fallbacks.
+Presence/player-selection Phase 1 starts at src/hooks/usePresenceHeartbeat.js,
+src/hooks/useFriendPresence.js, src/lib/onlinePlayerSelection.js,
+base44/entities/PlayerPresence.jsonc, base44/functions/updatePlayerPresence,
+base44/functions/getFriendPresence, base44/functions/getOnlinePlayerSelection,
+and base44/functions/createGameInvitesForTargets. Presence is best-effort and
+relationship-scoped for friend reads: users heartbeat only their own session,
+friend lookup is restricted to accepted FriendRequest rows, and stale/missing
+presence displays offline rather than online. Online non-friend discovery is
+fresh-presence-only. Friend, invite, lobby, notification, presence, and player
+selection surfaces render username-safe labels only; email, provider ID, raw
+guest ID, owner_key, and internal player_key values are never public display
+fallbacks. The UI stores opaque target_ref values and backend functions resolve
+recipient email privately for GameInvite creation.
 
 Friends can be added by email address or registered Kronox username. Username
 lookup and duplicate/self checks stay backend-owned, and username-based add
@@ -169,15 +176,17 @@ cover Online join/start/recovery, invite verified lobby, notification
 no-flicker, Solo backend record context, Daily Quest Diamond-only rewards,
 leaderboard username-only payloads, Online category isolation, no raw
 Question.list gameplay fallback, economy idempotency guards, and private
-identifier display. Focused presence and friend-add coverage protects
-PlayerPresence owner binding, accepted-friend lookup, username-only labels,
-offline fallback, current-user heartbeat wiring, email-or-username friend add,
+identifier display. Focused presence, player-selection, and friend-add
+coverage protects PlayerPresence owner binding, accepted-friend lookup, online
+friend / online non-friend / offline friend ordering, opaque target refs,
+username-only labels, offline fallback, current-user heartbeat wiring,
+backend-only invite target resolution, email-or-username friend add,
 server-side username resolution, required username-not-found copy, and no
-target-email return on username add. Executable reducer coverage now protects Online
-4-player representation/start/recovery transitions and notification
-transient-empty, terminal, dismiss, accept/reject, dedupe, and privacy
-transitions. Two-account, realtime, push, RLS/BOLA, device, and store proof
-remain manual/live probes.
+target-email return on username add or player selection. Executable reducer
+coverage now protects Online 4-player representation/start/recovery
+transitions and notification transient-empty, terminal, dismiss, accept/reject,
+dedupe, and privacy transitions. Two-account, realtime, push, RLS/BOLA, device,
+and store proof remain manual/live probes.
 The Online lobby/start/reconnect contract remains an architecture target and
 manual live-proof area even when reducer/static Health checks pass.
 `;
@@ -193,6 +202,12 @@ movement, category preference distribution, question exposure/difficulty,
 Online lobby lifecycle, invite lifecycle, notification lifecycle, platform
 split, retention cohorts, and economy fraud/race anomalies. Missing event
 tables must be backward-compatible and privacy-safe.
+
+Online player selection / invite reporting Phase 1 uses existing GameInvite
+rows with invite_target_ref, recipient_relation, and created_source metadata.
+Public reports may aggregate by day/status/relation/source, but must not
+export from_email, to_email, user_email, raw target_ref, provider ID,
+owner_key, raw guest_id, internal player_key, or full question data.
 
 SoloLevelAttemptEvent Phase 1 defines actor_key_hash, player_type, level,
 rules_version, passed, used_moves, elapsed_seconds, stars,

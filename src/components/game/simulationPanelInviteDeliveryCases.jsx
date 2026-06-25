@@ -18,6 +18,7 @@ import { normalizeEmail, isValidEmail } from '@/lib/friendsApi';
 import friendsApiSource from '../../lib/friendsApi.js?raw';
 import publicIdentitySource from '../../lib/publicIdentity.js?raw';
 import presenceSource from '../../lib/presence.js?raw';
+import onlinePlayerSelectionSource from '../../lib/onlinePlayerSelection.js?raw';
 import useFriendPresenceSource from '../../hooks/useFriendPresence.js?raw';
 import usePresenceHeartbeatSource from '../../hooks/usePresenceHeartbeat.js?raw';
 import friendsPageSource from '../../pages/FriendsPage.jsx?raw';
@@ -29,7 +30,9 @@ import createLobbyInvitePanelSource from '../lobby/CreateLobbyInvitePanel.jsx?ra
 import appSource from '../../App.jsx?raw';
 import {
   getFriendPresenceFnSource,
+  getOnlinePlayerSelectionFnSource,
   playerPresenceEntitySource,
+  createGameInvitesForTargetsFnSource,
   sendFriendRequestFnSource,
   sendFriendRequestEmailFnSourceFull,
   updatePlayerPresenceFnSource,
@@ -353,10 +356,12 @@ export const EXTRA_TESTS = [
       const required = [
         '"name": "PlayerPresence"',
         'owner_key_hash',
-        'never email/provider ids/raw guest ids/player keys',
+        'backend-private user_email used only for invite routing',
+        'Public responses never return email/provider ids/raw guest ids/player keys',
         'const user = await base44.auth.me()',
         'const myEmail = normalizeEmail(user.email)',
         'const ownerKeyHash = makeOwnerKeyHash(myEmail)',
+        'user_email: myEmail',
         "FriendRequest.filter({ to_email: myEmail, status: 'accepted' }",
         "FriendRequest.filter({ from_email: myEmail, status: 'accepted' }",
         'requestedSet.has(friend.email)',
@@ -379,16 +384,19 @@ export const EXTRA_TESTS = [
     { actionType: ACTION_TYPES.CODE_FIX }),
 
   makeCase('invite_delivery', 'friend_presence_not_hardcoded_online',
-    'Friend picker renders real online/offline labels instead of hardcoded Çevrimiçi',
+    'Player picker renders real online/offline labels instead of hardcoded Çevrimiçi',
     () => {
-      const src = `${safeStr(friendSelectModalSource)}\n${safeStr(createLobbyInvitePanelSource)}\n${safeStr(useFriendPresenceSource)}\n${safeStr(presenceSource)}`;
+      const src = `${safeStr(friendSelectModalSource)}\n${safeStr(createLobbyInvitePanelSource)}\n${safeStr(useFriendPresenceSource)}\n${safeStr(presenceSource)}\n${safeStr(onlinePlayerSelectionSource)}\n${safeStr(getOnlinePlayerSelectionFnSource)}`;
       const required = [
-        'useFriendPresence',
-        'getPresenceForFriend',
+        'loadOnlinePlayerSelection',
+        'getOnlinePlayerSelectionStatusLabel',
         'getFriendDisplayPresence',
         'isPresenceOnline',
         'Çevrim dışı',
         'PRESENCE_ONLINE_TTL_MS',
+        'online_friend',
+        'online_non_friend',
+        'offline_friend',
       ];
       const forbidden = [
         'const isOnline = true',
@@ -405,7 +413,7 @@ export const EXTRA_TESTS = [
           foundForbidden,
         });
       }
-      return pass('Friend pickers use presence helper output and include offline display state.', {
+      return pass('Player pickers use backend presence output and include offline display state.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });
@@ -415,7 +423,7 @@ export const EXTRA_TESTS = [
   makeCase('invite_delivery', 'friend_rows_username_only_no_email_display_fallback',
     'Friends UI uses safe username labels and does not display friend_email as a fallback',
     () => {
-      const src = `${safeStr(publicIdentitySource)}\n${safeStr(friendsApiSource)}\n${safeStr(friendListItemSource)}\n${safeStr(outgoingRequestItemSource)}\n${safeStr(friendSelectModalSource)}\n${safeStr(createLobbyInvitePanelSource)}`;
+      const src = `${safeStr(publicIdentitySource)}\n${safeStr(friendsApiSource)}\n${safeStr(friendListItemSource)}\n${safeStr(outgoingRequestItemSource)}\n${safeStr(friendSelectModalSource)}\n${safeStr(createLobbyInvitePanelSource)}\n${safeStr(onlinePlayerSelectionSource)}`;
       const required = [
         'getSafePublicUsernameLabel',
         'normalizeSafePublicUsernameInput',
@@ -424,6 +432,7 @@ export const EXTRA_TESTS = [
         'getSafeRequestTargetName',
         'friend_username',
         'presence_key',
+        'isSafeOnlineSelectionUsername',
       ];
       const forbidden = [
         'friend.friend_name?.trim() || friend.friend_email',
@@ -443,6 +452,85 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Friend-facing UI uses safe username helpers instead of email fallbacks.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('invite_delivery', 'online_player_selection_order_and_scope',
+    'Online player selection orders online friends, online non-friends, then offline friends',
+    () => {
+      const client = `${safeStr(onlinePlayerSelectionSource)}\n${safeStr(friendSelectModalSource)}\n${safeStr(createLobbyInvitePanelSource)}`;
+      const backend = safeStr(getOnlinePlayerSelectionFnSource);
+      const requiredClient = [
+        'ONLINE_PLAYER_SELECTION_ORDER',
+        'ONLINE_PLAYER_SELECTION_GROUPS.ONLINE_FRIEND',
+        'ONLINE_PLAYER_SELECTION_GROUPS.ONLINE_NON_FRIEND',
+        'ONLINE_PLAYER_SELECTION_GROUPS.OFFLINE_FRIEND',
+        'Çevrimiçi Arkadaşlar',
+        'Çevrimiçi Oyuncular',
+        'Çevrim Dışı Arkadaşlar',
+        'Oyuncu seç...',
+      ];
+      const requiredBackend = [
+        "relation: 'friend'",
+        "relation: 'not_friend'",
+        'online_friend',
+        'online_non_friend',
+        'offline_friend',
+        'if (!targetEmail || targetEmail === myEmail) continue',
+      ];
+      const missingClient = requiredClient.filter((token) => !client.includes(token));
+      const missingBackend = requiredBackend.filter((token) => !backend.includes(token));
+      if (missingClient.length || missingBackend.length) {
+        return fail('Online player selection ordering/scope contract is incomplete.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          missingClient,
+          missingBackend,
+        });
+      }
+      return pass('Player selection preserves online friend → online player → offline friend ordering and excludes unroutable/self rows.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('invite_delivery', 'online_non_friend_invites_backend_resolve_opaque_targets',
+    'Online non-friend invites use opaque target refs resolved by backend, not client-visible email',
+    () => {
+      const src = `${safeStr(onlinePlayerSelectionSource)}\n${safeStr(friendSelectModalSource)}\n${safeStr(createLobbyInvitePanelSource)}\n${safeStr(friendsApiSource)}\n${safeStr(createGameInvitesForTargetsFnSource)}`;
+      const required = [
+        'normalizeInviteTargetRef',
+        'target_refs',
+        "functions.invoke('createGameInvitesForTargets'",
+        'targetEmailReturned: false',
+        "targetResolution: 'backend_only'",
+        'freshPresence.user_email',
+        'recipient_relation: target.relation',
+        "created_source: 'online_player_selection'",
+      ];
+      const forbidden = [
+        'User.list(',
+        'selectedEmails',
+        'friend.friend_email',
+        '>{player.email}',
+      ];
+      const missing = required.filter((token) => !src.includes(token));
+      const foundForbidden = forbidden.filter((token) => src.includes(token));
+      if (missing.length || foundForbidden.length) {
+        return fail('Online non-friend invite target routing can still leak or rely on client email.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          missing,
+          foundForbidden,
+        });
+      }
+      return pass('Online non-friend invite creation is backend-resolved from opaque target refs and returns no recipient email.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });
