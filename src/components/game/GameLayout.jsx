@@ -342,12 +342,21 @@ export default function GameLayout({
         )}
 
         {/* Center: Logo + progress */}
-        <div className="mx-auto flex min-w-0 flex-col items-center">
+        <div
+          className="mx-auto flex min-w-0 flex-col items-center"
+          style={{ background: 'transparent', backgroundColor: 'transparent', boxShadow: 'none', border: 'none' }}
+        >
           <img
             src="https://media.base44.com/images/public/6a05b47e401bb23c2f21a522/e310c4fec_generated_image.png"
             alt="Kronox"
             className="mb-1 h-12 w-auto max-w-[52vw] object-contain"
-            style={{ backgroundColor: 'transparent' }}
+            style={{
+              background: 'transparent',
+              backgroundColor: 'transparent',
+              boxShadow: 'none',
+              border: 'none',
+              objectFit: 'contain',
+            }}
           />
           {/* Progress bar */}
           <div className="mt-1 w-28">
