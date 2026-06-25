@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex424 — Solo level record congratulations:
+//   • Restores success-screen congratulations for all-user fastest top-3 and
+//     fewest-HAMLE Solo level records, with a combined message when both apply.
+//   • Moves record evaluation through the backend recordContext path so the
+//     popup receives only the current player's achievement summary.
+//   • Includes GuestProfile players through token-proven guest payloads while
+//     leaving Online mode untouched.
+//
 // Codex423 — Health blocker fix for visible Puan/Elmas + Daily Quest claim:
 //   • Re-locks Leaderboard stat/fallback source tokens to the shared visible
 //     Kronox Puan, Solo summary, and Diamond helpers used by Profile.
