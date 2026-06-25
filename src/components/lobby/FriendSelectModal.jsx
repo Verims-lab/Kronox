@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Check, UserRound, UserPlus, AlertCircle, ChevronDown, Swords } from 'lucide-react';
 import { sounds } from '@/lib/gameSounds';
 import { loadFriends, normalizeEmail } from '@/lib/friendsApi';
+import { getSafeFriendDisplayName } from '@/lib/publicIdentity';
+import useFriendPresence from '@/hooks/useFriendPresence';
 
 /**
  * Kronox Online — Friend Select Modal (Codex159 redesign).
@@ -20,9 +22,8 @@ import { loadFriends, normalizeEmail } from '@/lib/friendsApi';
  *   - Minimum 1 friend required to enable "ONAYLA".
  *   - Maximum 3 friends; extra taps are silent no-ops.
  *
- * Online status: friends list rows do not currently carry presence
- * information, so we treat every friend as "Çevrimiçi" by default. This
- * is purely a visual label and does not affect selection eligibility.
+ * Online status comes from the relationship-scoped presence helper. Presence
+ * is visual only and does not affect selection eligibility.
  */
 const MAX_SELECTION = 3;
 
@@ -38,6 +39,9 @@ export default function FriendSelectModal({
   const [friends, setFriends] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const {
+    getPresenceForFriend,
+  } = useFriendPresence(friends, { enabled: open && Boolean(user?.email) });
 
   useEffect(() => {
     if (open) setSelected(initialSelectedEmails);
@@ -195,6 +199,7 @@ export default function FriendSelectModal({
                       <FriendRow
                         key={f.id}
                         friend={f}
+                        presence={getPresenceForFriend(f)}
                         selected={isSelected}
                         capped={capped}
                         onToggle={() => toggle(email)}
@@ -251,11 +256,10 @@ export default function FriendSelectModal({
 
 /* ----------------------------- Sub-views ----------------------------- */
 
-function FriendRow({ friend, selected, capped, onToggle }) {
-  const display = friend.friend_name?.trim() || friend.friend_email;
+function FriendRow({ friend, presence, selected, capped, onToggle }) {
+  const display = getSafeFriendDisplayName(friend);
   const initial = (display || '?').charAt(0).toUpperCase();
-  // No presence backend yet — treat all friends as online for the label.
-  const isOnline = true;
+  const isOnline = Boolean(presence?.online);
 
   return (
     <li>
@@ -296,7 +300,7 @@ function FriendRow({ friend, selected, capped, onToggle }) {
         <div className="min-w-0 flex-1">
           <p className="truncate font-inter text-[14px] font-bold text-white">{display}</p>
           <p className="truncate font-inter text-[11px]" style={{ color: isOnline ? '#34d399' : 'rgba(148,163,184,0.85)' }}>
-            {isOnline ? 'Çevrimiçi' : 'Çevrimdışı'}
+            {presence?.label || 'Çevrim dışı'}
           </p>
         </div>
 

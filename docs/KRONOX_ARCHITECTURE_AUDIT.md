@@ -26,9 +26,9 @@ Mechanical scan from this pass:
 | Item | Current count / finding |
 | --- | --- |
 | Audited source/doc/script files in requested folders | 416 |
-| Base44 entity schemas | 34 |
-| Base44 function entry files | 41 |
-| Base44 function manifests in repo | 17 |
+| Base44 entity schemas | 35 |
+| Base44 function entry files | 43 |
+| Base44 function manifests in repo | 19 |
 | Files touching `base44.` / SDK calls in source, backend, scripts, or Health | 134 |
 | Existing DB gateway start | `src/lib/dbGateway/*`, plus many direct Base44 calls remain |
 | Health coverage | Broad static and some executable cases; live two-account and device proof remain manual |
@@ -40,6 +40,7 @@ Mechanical scan from this pass:
 | Solo | `src/pages/SoloChallenge.jsx`, `src/pages/Game.jsx`, `src/components/game/SoloLevelResult.jsx`, `SoloSuccessPopup.jsx` | `getQuestions`, `User.solo_progress`, guest payload, local engine helpers | Mostly `Game.jsx` hooks/state | Partial MVVM: helpers exist, page still owns much flow state | Phase 1 reducer exists in `src/lib/soloAttemptReducer.js`; runtime effects still live in `Game.jsx` | Yes: `auth.me`, progress writes, question fetch gateway | Raw question bank exposure is controlled by `getQuestions`; guest token proof must stay tight | `Game.jsx` is large; drag/drop must avoid heavy work | Strong static/executable coverage for Solo rules, reducer, question exposure, records | Integrate reducer behind a Solo ViewModel in later small handoffs |
 | Online | `LobbyRoom.jsx`, `WaitingRoomPanel.jsx`, `useWaitingRoomSync`, `useLobbySync`, `Game.jsx` | `Lobby`, `GameInvite`, `startLobbyGame`, `findLobbyByCode`, `updateLobbyGameState` | Mixed route state, lobby hooks, backend functions | Partial MVVM; `dbGateway/lobbyGateway` starts a service boundary | Phase 1 reducer exists in `src/lib/onlineLobbyReducer.js`; `useWaitingRoomSync` feeds subscription/poll events | Yes: lobby page/hooks still read entities directly | Host/participant auth and public identity must stay backend enforced | Subscription plus polling can scale poorly without backoff and unified owner | Online lobby start regression suite includes reducer simulation | Next safe pilot: route more lobby ViewModel commands through the reducer/gateway boundary |
 | Notifications | `useNotificationCenter`, `useHeaderNotifications`, `HeaderNotificationBell`, `GameInviteNotifier`, `IncomingInvitesPanel` | `FriendRequest`, `GameInvite`, push subscription APIs | Shared external store in `useNotificationCenter` | Good ViewModel direction; selectors separated | Phase 1 reducer exists in `src/lib/notificationReducer.js`; transient empty fetches preserve pending actionable rows | Yes: reads/subscriptions direct in hook | Public labels must stay username-only; push payloads must remain compact | Multiple subscriptions/focus refreshes need bounded cadence as usage grows | Strong lifecycle suite includes reducer simulation | Keep reducer as lifecycle owner while moving backend calls toward a gateway |
+| Social presence | `usePresenceHeartbeat`, `useFriendPresence`, friend picker/list rows | `PlayerPresence`, `updatePlayerPresence`, `getFriendPresence`, accepted `FriendRequest` rows | App heartbeat hook plus friend presence hook | Focused service/helper boundary; UI consumes derived presence only | Presence freshness is TTL-based and best-effort; offline fallback is safe | Backend functions hide direct presence writes/reads from UI | Current user can only mark self online; friend reads are accepted-friend scoped; no email/provider/raw guest/internal keys in rows or UI labels | Polling friend presence is bounded but still periodic; realtime presence can be considered later | Focused invite/friend Health suite covers fake-online and username-only regressions | Keep presence best-effort; add live two-account visibility proof before release claims |
 | Profile / Settings / Account linking | `ProfilePage`, `SettingsPage`, `AuthContext`, guest/account helpers | Base44 auth `User`, `GuestProfile`, `linkGuestAccount`, `updateProfileSettings` | Auth context plus page-local state | Partial ViewModel; service helpers exist | Link flow guarded by backend token proof/idempotency | Yes | Account linking and deletion require two-account/manual privacy proof | Profile calls can repeat on mount/focus; acceptable at current scale | Strong onboarding/profile/account Health | Move more page auth/profile logic behind profile service boundary |
 | Leaderboard | `LeaderboardPage`, `src/lib/leaderboard.js`, `getSoloLeaderboard` | `SoloLeaderboardEntry`, bounded server repair from `User`, guest proof | Page state plus leaderboard helpers | Service boundary exists | Public rank confidence/scope explicit | Some direct projection writes remain | Public response must never expose email/owner_key/raw guest id | Top-window list bounded; projection repair can grow cost | Strong public payload/privacy Health | Keep API compact; add DB/index proof later |
 | Economy / Daily / Jokers | Market, Daily Wheel, Daily Quest, joker helpers/functions | `DiamondTransaction`, `DailyWheelSpin`, `UserDailyQuestProgress`, `UserJokerInventory`, `JokerTransaction` | Feature hooks/pages plus backend functions | Mixed; service helpers exist | Function-level idempotency guards; DB unique proof absent | Yes | Client must never set rewards/cost/user identity | Retry/double-tap paths need real parallel proof | Strong static/idempotency Health; race proof manual | Add DB uniqueness proof or transactional backend before scale |
@@ -88,6 +89,9 @@ Mechanical scan from this pass:
   lifecycle reducer and wired `useNotificationCenter` to preserve pending rows
   through transient empty fetches while closing only on terminal lifecycle
   events.
+- Added backend-owned `PlayerPresence` plus current-user heartbeat and
+  accepted-friend-scoped lookup so friend pickers/lists no longer fake every
+  friend as online and no longer display emails as public names.
 - Corrected invite navigation Health expectations from the older
   `lobby: updatedLobby` token to the current `verifiedLobby` / `joinedLobby`
   contract.

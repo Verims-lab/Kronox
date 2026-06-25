@@ -29,6 +29,7 @@ import {
 import { loadActiveLobbyForUser } from '@/lib/activeLobby';
 import { debugLog, debugWarn } from '@/lib/debugLog';
 import { setBottomNavHidden } from '@/lib/bottomNavVisibility';
+import { getSafeNotificationActorName } from '@/lib/notificationIdentity';
 
 export default function LobbyRoom() {
   const navigate = useNavigate();
@@ -479,7 +480,7 @@ export default function LobbyRoom() {
 }
 
 function DeepLinkedInvitePanel({ user, userChecked, invite, message, busy, onAccept, onDecline, onLogin, onBack }) {
-  const display = invite?.from_name?.trim() || invite?.from_email || 'Bir arkadaşın';
+  const display = getSafeNotificationActorName(invite?.from_name, 'Bir arkadaşın');
   const isPending = invite?.status === 'pending';
   const isExpired = invite?.status === 'expired';
   return (

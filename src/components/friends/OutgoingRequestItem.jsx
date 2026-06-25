@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { UserRound, X, Loader2 } from 'lucide-react';
 import GameInviteStatusPill from '@/components/friends/GameInviteStatusPill';
+import { getSafeRequestTargetName } from '@/lib/publicIdentity';
 
 /**
  * One pending request the current user has sent — can be cancelled.
@@ -14,7 +15,7 @@ export default function OutgoingRequestItem({ request, onCancel }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  const display = request.to_email;
+  const display = getSafeRequestTargetName(request);
   const status = request.status || 'pending';
   const isPending = status === 'pending';
 

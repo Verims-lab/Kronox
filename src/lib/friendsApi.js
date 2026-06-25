@@ -6,6 +6,8 @@
 
 import { base44 } from '@/api/base44Client';
 import { getSafeNotificationActorName } from '@/lib/notificationIdentity';
+import { getSafePublicUsernameLabel } from '@/lib/publicIdentity';
+import { getPresenceLookupKeyForEmail } from '@/lib/presence';
 
 export function normalizeEmail(raw) {
   return String(raw || '').trim().toLowerCase();
@@ -15,6 +17,42 @@ export function isValidEmail(raw) {
   const email = normalizeEmail(raw);
   // Minimal, safe RFC-ish check — good enough for client-side gating.
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+async function loadUserPublicProfileByEmail(email) {
+  const normalized = normalizeEmail(email);
+  if (!normalized) return null;
+  try {
+    const rows = await base44.entities.User.filter({ email: normalized }, '-updated_date', 1);
+    return rows?.[0] || null;
+  } catch {
+    return null;
+  }
+}
+
+async function attachSafeFriendIdentity(rows) {
+  const uniqueEmails = Array.from(new Set(rows.map((row) => normalizeEmail(row.friend_email)).filter(Boolean)));
+  const profiles = await Promise.all(uniqueEmails.map(async (email) => [email, await loadUserPublicProfileByEmail(email)]));
+  const profileByEmail = Object.fromEntries(profiles);
+  return rows.map((row) => {
+    const friendEmail = normalizeEmail(row.friend_email);
+    const profile = profileByEmail[friendEmail] || null;
+    const friendUsername = getSafePublicUsernameLabel(
+      [
+        profile?.username,
+        profile?.public_username,
+        row.friend_name,
+      ],
+      friendEmail || row.id,
+    );
+    return {
+      ...row,
+      friend_email: friendEmail,
+      friend_username: friendUsername,
+      friend_name: friendUsername,
+      presence_key: getPresenceLookupKeyForEmail(friendEmail),
+    };
+  });
 }
 
 export async function loadFriends(myEmail) {
@@ -52,11 +90,12 @@ export async function loadFriends(myEmail) {
   ];
   // Dedupe by friend_email in case the same pair somehow has rows on both sides.
   const seen = new Set();
-  return projected.filter((row) => {
+  const deduped = projected.filter((row) => {
     if (seen.has(row.friend_email)) return false;
     seen.add(row.friend_email);
     return true;
   });
+  return attachSafeFriendIdentity(deduped);
 }
 
 export async function loadIncomingRequests(myEmail) {

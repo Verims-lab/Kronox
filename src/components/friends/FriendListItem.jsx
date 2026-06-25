@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UserRound, Trash2, Loader2, AlertTriangle } from 'lucide-react';
+import { getSafeFriendDisplayName } from '@/lib/publicIdentity';
 
 /**
  * One row of the "My Friends" list. Removal requires explicit confirmation.
  */
-export default function FriendListItem({ friend, onRemove }) {
+export default function FriendListItem({ friend, presence, onRemove }) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  const display = friend.friend_name?.trim() || friend.friend_email;
+  const display = getSafeFriendDisplayName(friend);
+  const isOnline = Boolean(presence?.online);
 
   const handleRemove = async () => {
     setBusy(true);
@@ -34,19 +36,35 @@ export default function FriendListItem({ friend, onRemove }) {
       }}
     >
       <div className="flex items-center gap-3">
-        <div
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
-          style={{
-            background: 'radial-gradient(circle at 35% 28%, #ffe066, #b97a06 70%)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4), 0 0 10px rgba(250,204,21,0.35)',
-          }}
-        >
-          <UserRound className="h-4 w-4 text-amber-950" strokeWidth={2.6} />
+        <div className="relative shrink-0">
+          <div
+            className="flex h-9 w-9 items-center justify-center rounded-full"
+            style={{
+              background: 'radial-gradient(circle at 35% 28%, #ffe066, #b97a06 70%)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4), 0 0 10px rgba(250,204,21,0.35)',
+            }}
+          >
+            <UserRound className="h-4 w-4 text-amber-950" strokeWidth={2.6} />
+          </div>
+          {presence && (
+            <span
+              aria-hidden="true"
+              className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full"
+              style={{
+                background: isOnline ? '#22c55e' : 'rgba(148,163,184,0.75)',
+                boxShadow: isOnline
+                  ? '0 0 6px rgba(34,197,94,0.65), 0 0 0 2px rgba(10,16,36,0.95)'
+                  : '0 0 0 2px rgba(10,16,36,0.95)',
+              }}
+            />
+          )}
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate font-inter text-sm font-bold text-white">{display}</p>
-          {friend.friend_name && (
-            <p className="truncate font-inter text-[12px] text-blue-100/60">{friend.friend_email}</p>
+          {presence && (
+            <p className="truncate font-inter text-[12px]" style={{ color: isOnline ? '#34d399' : 'rgba(148,163,184,0.85)' }}>
+              {presence.label || 'Çevrim dışı'}
+            </p>
           )}
         </div>
         {!confirming && (

@@ -78,6 +78,57 @@ export const pushSubscriptionEntitySource = `
   }
 `;
 
+export const playerPresenceEntitySource = `
+  "name": "PlayerPresence",
+  "description": "Best-effort Online/social presence rows written only through backend functions. Rows store anonymized owner_key_hash plus session metadata, never email/provider ids/raw guest ids/player keys.",
+  "properties": {
+    "owner_key_hash": {},
+    "player_type": { "enum": ["guest", "linked", "unknown"] },
+    "username": {},
+    "session_id": {},
+    "status": { "enum": ["online", "offline"] },
+    "last_seen_at": {},
+    "expires_at": {},
+    "source": {}
+  },
+  "required": ["owner_key_hash", "session_id", "status"],
+  "rls": {
+    "create": { "user_condition": { "role": "admin" } },
+    "read":   { "user_condition": { "role": "admin" } },
+    "update": { "user_condition": { "role": "admin" } },
+    "delete": { "user_condition": { "role": "admin" } }
+  }
+`;
+
+export const updatePlayerPresenceFnSource = `
+  const user = await base44.auth.me();
+  if (!user?.email) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const sessionId = normalizeSessionId(body?.session_id);
+  const myEmail = normalizeEmail(user.email);
+  const ownerKeyHash = makeOwnerKeyHash(myEmail);
+  const status = body?.status === 'offline' ? 'offline' : 'online';
+  const username = safePublicUsername(user.username || user.public_username || user.display_name || user.full_name, myEmail);
+  await base44.asServiceRole.entities.PlayerPresence.update(existing[0].id, payload);
+  await base44.asServiceRole.entities.PlayerPresence.create(payload);
+  return json({ ok: true, presence: { presence_key: ownerKeyHash, username, status } });
+`;
+
+export const getFriendPresenceFnSource = `
+  const user = await base44.auth.me();
+  if (!user?.email) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const requestedEmails = normalizeRequestedEmails(body?.friend_emails);
+  const requestedSet = new Set(requestedEmails);
+  const myEmail = normalizeEmail(user.email);
+  const [incomingAccepted, outgoingAccepted] = await Promise.all([
+    base44.asServiceRole.entities.FriendRequest.filter({ to_email: myEmail, status: 'accepted' }, '-updated_date', 200),
+    base44.asServiceRole.entities.FriendRequest.filter({ from_email: myEmail, status: 'accepted' }, '-updated_date', 200),
+  ]);
+  return !requestedSet.size || requestedSet.has(friend.email);
+  const rows = await base44.asServiceRole.entities.PlayerPresence.filter({ owner_key_hash: presenceKey }, '-last_seen_at', 20);
+  presence.push({ presence_key: presenceKey, username, online: Boolean(freshOnline), status: freshOnline ? 'online' : 'offline' });
+  return json({ ok: true, presence });
+`;
+
 export const acceptGameInviteFnSource = `
   // Public contract of functions/acceptGameInvite.js — mirrored.
   // Codex130: TTL bumped to 10 minutes (was 5). Stale lobby guard added.

@@ -14,6 +14,8 @@ import GoldButton from '@/components/ui/GoldButton';
 import { sounds } from '@/lib/gameSounds';
 import { loadFriends, normalizeEmail } from '@/lib/friendsApi';
 import IncomingInvitesPanel from '@/components/invites/IncomingInvitesPanel';
+import { getSafeFriendDisplayName } from '@/lib/publicIdentity';
+import useFriendPresence from '@/hooks/useFriendPresence';
 
 /**
  * New create-lobby/invite screen shown when the user taps
@@ -50,6 +52,7 @@ export default function CreateLobbyInvitePanel({
   const [friendsLoading, setFriendsLoading] = useState(true);
   const [friendsError, setFriendsError] = useState('');
   const [autoTrimNote, setAutoTrimNote] = useState('');
+  const { getPresenceForFriend } = useFriendPresence(friends, { enabled: Boolean(user?.email) });
 
   /* ---------------- load friends once user is known ---------------- */
   useEffect(() => {
@@ -180,6 +183,7 @@ export default function CreateLobbyInvitePanel({
                 <FriendInviteRow
                   key={f.id}
                   friend={f}
+                  presence={getPresenceForFriend(f)}
                   selected={isSelected}
                   disabled={disabled}
                   onToggle={() => toggleFriend(email)}
@@ -382,8 +386,9 @@ function PlayerCountSelector({ value, onChange }) {
   );
 }
 
-function FriendInviteRow({ friend, selected, disabled, onToggle }) {
-  const display = friend.friend_name?.trim() || friend.friend_email;
+function FriendInviteRow({ friend, presence, selected, disabled, onToggle }) {
+  const display = getSafeFriendDisplayName(friend);
+  const isOnline = Boolean(presence?.online);
   return (
     <motion.li layout>
       <motion.button
@@ -404,24 +409,36 @@ function FriendInviteRow({ friend, selected, disabled, onToggle }) {
         }}
         aria-pressed={selected}
       >
-        <div
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
-          style={{
-            background: selected
-              ? 'radial-gradient(circle at 35% 28%, #93c5fd, #1d4ed8 75%)'
-              : 'radial-gradient(circle at 35% 28%, #ffe066, #b97a06 70%)',
-            boxShadow: selected
-              ? 'inset 0 1px 0 rgba(255,255,255,0.35), 0 0 10px rgba(59,130,246,0.35)'
-              : 'inset 0 1px 0 rgba(255,255,255,0.4), 0 0 10px rgba(250,204,21,0.35)',
-          }}
-        >
-          <UserRound className={selected ? 'h-5 w-5 text-blue-950' : 'h-5 w-5 text-amber-950'} strokeWidth={2.6} />
+        <div className="relative shrink-0">
+          <div
+            className="flex h-10 w-10 items-center justify-center rounded-full"
+            style={{
+              background: selected
+                ? 'radial-gradient(circle at 35% 28%, #93c5fd, #1d4ed8 75%)'
+                : 'radial-gradient(circle at 35% 28%, #ffe066, #b97a06 70%)',
+              boxShadow: selected
+                ? 'inset 0 1px 0 rgba(255,255,255,0.35), 0 0 10px rgba(59,130,246,0.35)'
+                : 'inset 0 1px 0 rgba(255,255,255,0.4), 0 0 10px rgba(250,204,21,0.35)',
+            }}
+          >
+            <UserRound className={selected ? 'h-5 w-5 text-blue-950' : 'h-5 w-5 text-amber-950'} strokeWidth={2.6} />
+          </div>
+          <span
+            aria-hidden="true"
+            className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full"
+            style={{
+              background: isOnline ? '#22c55e' : 'rgba(148,163,184,0.75)',
+              boxShadow: isOnline
+                ? '0 0 6px rgba(34,197,94,0.65), 0 0 0 2px rgba(10,16,36,0.95)'
+                : '0 0 0 2px rgba(10,16,36,0.95)',
+            }}
+          />
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate font-inter text-sm font-bold text-white">{display}</p>
-          {friend.friend_name && (
-            <p className="truncate font-inter text-[11px] text-blue-100/60">{friend.friend_email}</p>
-          )}
+          <p className="truncate font-inter text-[11px]" style={{ color: isOnline ? '#34d399' : 'rgba(148,163,184,0.85)' }}>
+            {presence?.label || 'Çevrim dışı'}
+          </p>
         </div>
         <span
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"

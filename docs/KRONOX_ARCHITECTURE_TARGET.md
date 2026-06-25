@@ -140,6 +140,10 @@ Phase 1 foundation:
 - `useNotificationCenter` remains the shared ViewModel/store and delegates row
   merge/close transitions to the reducer; transient empty fetches preserve
   valid pending friend requests and game invites.
+- `src/hooks/usePresenceHeartbeat.js` and `src/hooks/useFriendPresence.js`
+  provide the focused Online/social presence foundation. Presence writes go
+  through `updatePlayerPresence`, reads go through `getFriendPresence`, and
+  both remain backend-owned instead of letting UI mark arbitrary users online.
 
 Parity plan:
 - Preserve exact user-facing behavior: dismissing a toast is visual only;
@@ -150,6 +154,12 @@ Parity plan:
 ## Cross-Cutting Rules
 
 - Public identity is username only.
+- Friend, invite, lobby, notification, and presence surfaces must render
+  username-safe labels only. Emails, provider IDs, raw guest IDs, owner keys,
+  and internal player keys are never public display fallbacks.
+- Presence is best-effort and relationship-scoped: the current user can only
+  heartbeat their own session, friend lookup is restricted to accepted
+  friendships, and stale/missing presence displays offline rather than online.
 - UI must not trust request-body user/owner/reward/score fields.
 - Service-role writes stay inside Base44 functions.
 - Question bank stays backend-only through compact projections.
