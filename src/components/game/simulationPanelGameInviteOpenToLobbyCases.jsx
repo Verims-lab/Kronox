@@ -169,12 +169,19 @@ export const EXTRA_TESTS = [
     'Successful invite open routes to lobby/waiting room, not Online setup or /game',
     () => {
       const src = `${safeStr(inviteApiSource)}\n${safeStr(lobbyRoomSource)}`;
-      const hasLobby = src.includes("navigate('/lobby'") && src.includes('setLobby(res.lobby)');
+      const hasLobby = [
+        "navigate('/lobby'",
+        'joinedLobby',
+        'verifiedLobby',
+        'lobbyId',
+        'setLobby(joined)',
+      ].every((token) => src.includes(token));
       const badGame = src.includes("navigate('/game'");
       if (!hasLobby || badGame) {
         return fail('Invite open does not clearly land in the lobby-first waiting room path.', {
           verification: 'STATIC_CONTRACT',
           actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'openGameInvite navigates to /lobby with joinedLobby/verifiedLobby state and LobbyRoom seeds that verified lobby into setLobby(joined)',
           actual: { hasLobby, badGame },
           file: 'lib/inviteApi.js + pages/LobbyRoom.jsx',
         });

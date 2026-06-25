@@ -5,6 +5,8 @@ Status: current Health gap audit.
 Health is a contract guard. It is not release proof. Static checks prevent
 common drift, but Online, realtime, push, mobile wrappers, RLS/BOLA, and
 parallel economy behavior still require simulation or live/manual proof.
+The Online lobby/start/reconnect contract remains an architecture target and
+manual live-proof area even when reducer/static Health checks pass.
 
 ## Why Recent Online Failures Escaped
 

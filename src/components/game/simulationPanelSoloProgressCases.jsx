@@ -250,8 +250,18 @@ export const EXTRA_TESTS = [
       const failedRequested = soloAttemptReducer(failed, {
         type: SOLO_ATTEMPT_ACTIONS.RECORD_CONTEXT_REQUESTED,
       });
+      const successReceived = soloAttemptReducer(successRequested, {
+        type: SOLO_ATTEMPT_ACTIONS.RECORD_CONTEXT_RECEIVED,
+        recordAchievement: {
+          fastestRank: 1,
+          fastestTopThree: true,
+          fewestMoves: true,
+          recordScope: 'all_users',
+        },
+      });
 
-      const requiredPopupCopy = missingTokens(soloSuccessPopupSource, [
+      const successRuntimePathSource = `${soloSuccessPopupSource}\n${soloLevelRecordSource}`;
+      const requiredPopupCopy = missingTokens(successRuntimePathSource, [
         'fetchSoloLevelRecordContext',
         'buildSoloLevelRecordCongratulations',
         'Bravo! Bu seviyeyi en hızlı çözen sensin.',
@@ -268,6 +278,11 @@ export const EXTRA_TESTS = [
       const executableFailures = [];
       if (successRequested.recordContextStatus !== SOLO_RECORD_CONTEXT_STATUS.REQUESTED) executableFailures.push('successful attempt could not request backend record context');
       if (failedRequested.recordContextStatus !== SOLO_RECORD_CONTEXT_STATUS.IDLE || failedRequested.recordCongratulationsEligible) executableFailures.push('failed attempt requested record congratulations context');
+      if (
+        successReceived.recordContextStatus !== SOLO_RECORD_CONTEXT_STATUS.RECEIVED ||
+        successReceived.recordAchievement?.fastestTopThree !== true ||
+        successReceived.recordAchievement?.fewestMoves !== true
+      ) executableFailures.push('backend achievement context could not carry fastest/fewest/combined flags');
 
       if (requiredPopupCopy.length || helperRequired.length || executableFailures.length) {
         return fail('Solo record congratulations are no longer success-only and backend-context backed.', {
@@ -1224,11 +1239,12 @@ export const EXTRA_TESTS = [
   makeCase('solo_progress_health', 'solo_level_ranking_placeholder_or_real_data',
     'Solo completion record congratulations use backend achievement context; no fake rank',
     () => {
+      const successRuntimePathSource = `${soloSuccessPopupSource}\n${soloLevelRecordSource}`;
       const required = missingTokens(soloRankingSource, [
         'return { ready: false, rank: null }',
         'server-side aggregation function',
       ]);
-      const popupRequired = missingTokens(soloSuccessPopupSource, [
+      const popupRequired = missingTokens(successRuntimePathSource, [
         'fetchSoloLevelRecordContext',
         'buildSoloLevelRecordCongratulations',
         'Bravo! Bu seviyeyi en hızlı çözen sensin.',

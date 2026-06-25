@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex431 — Health blocker fixes:
+//   • Aligns Solo record-context Health with the real success popup helper path.
+//   • Locks invite open-to-lobby Health to verified/joined lobby route state.
+//   • Restores the exact Online lobby/start/reconnect architecture mirror token.
+//
 // Codex430 — Online lobby + notification reducer Phase 1:
 //   • Adds pure Online lobby and notification lifecycle reducers.
 //   • Wires waiting-room phase events and notification row lifecycle events
@@ -2464,7 +2469,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex430';
+const BUILD_MARKER = 'Codex431';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
