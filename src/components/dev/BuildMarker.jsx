@@ -2535,6 +2535,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
+// Verims comment on 25.06.2026
 const BUILD_MARKER = 'Codex445';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
