@@ -72,6 +72,7 @@ import {
 import {
   GUEST_ONBOARDING_STATES,
   getCompletedGuestCredentialsPayload,
+  getStoredGuestCredentials,
   updateGuestProfileOnboarding,
 } from '@/lib/guestProfile';
 import {
@@ -383,6 +384,16 @@ export default function Game() {
     () => getCompletedGuestCredentialsPayload(guestProfile),
     [guestProfile],
   );
+  const guestRecordPayload = useMemo(() => {
+    if (authUser?.email) return null;
+    const credentials = getStoredGuestCredentials();
+    if (!credentials.guest_id || !credentials.guest_token) return guestDailyQuestPayload;
+    return {
+      player_type: 'guest',
+      guest_id: credentials.guest_id,
+      guest_token: credentials.guest_token,
+    };
+  }, [authUser?.email, guestDailyQuestPayload, guestProfile?.guest_id]);
   const soloQuestionDebugAllowed = useMemo(() => isSoloQuestionRuntimeDebugAllowed({
     currentUser,
     authUser,
@@ -2952,6 +2963,7 @@ export default function Game() {
           successPrimaryActionLabel={isGuidedSoloTutorial ? 'PROFİLİNİ TAMAMLA' : undefined}
           successBackToPathLabel={isGuidedSoloTutorial ? 'EĞİTİME DÖN' : undefined}
           successPrimaryActionEnabled={isGuidedSoloTutorial ? soloLevelResult.passed : undefined}
+          guestRecordPayload={guestRecordPayload}
         />
         <SoloQuestionDebugPanel payload={soloQuestionDebugPayload} />
       </>

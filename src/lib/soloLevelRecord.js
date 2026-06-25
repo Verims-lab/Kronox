@@ -1,73 +1,76 @@
-// Solo success popup — "global rekor / arkadaş rekoru" helper.
+// Solo success popup record context helper.
 //
-// Returns one of:
-//   { kind: 'global_first' }   → player has THE best time globally for this level.
-//   { kind: 'friends_first' }  → player has the best time among accepted friends only.
-//   { kind: 'none' }           → no record-worthy status; popup shows no badge.
-//
-// Strategy
-//   • Reuse the existing `getSoloLeaderboard` backend function with the
-//     optional `levelNumber` projection (added in Codex152). Each row
-//     carries `{ user_email, level: { best_time_seconds } }` when that
-//     user has completed the level.
-//   • The CURRENT attempt's timeSeconds is compared against those rows
-//     — including the player's own previous bestTimeSeconds, so a
-//     replay that did NOT beat their own best is correctly NOT a record.
-//   • Friend set comes from accepted FriendRequests on both sides
-//     (sender/recipient), via `loadFriends()`.
-//   • All comparisons are strict "<" so ties don't claim a record.
-//
-// Failure modes are silent: any thrown error returns { kind: 'none' }
-// so the popup never blocks on backend hiccups.
+// The client never scans User/GuestProfile rows for records. It sends only the
+// completed run metadata to getSoloLeaderboard's recordContext path, and the
+// backend returns the current player's achievement summary.
 
 import { base44 } from '@/api/base44Client';
-import { loadFriends, normalizeEmail } from '@/lib/friendsApi';
+
+function normalizeRank(value) {
+  const rank = Math.floor(Number(value) || 0);
+  return rank >= 1 && rank <= 3 ? rank : null;
+}
+
+export function normalizeSoloLevelRecordAchievement(raw) {
+  const source = raw && typeof raw === 'object' ? raw : {};
+  const fastestRank = normalizeRank(source.fastestRank);
+  return {
+    fastestRank,
+    fastestTopThree: Boolean(source.fastestTopThree) && Boolean(fastestRank),
+    fewestMoves: source.fewestMoves === true,
+    recordScope: 'all_users',
+  };
+}
+
+export function buildSoloLevelRecordCongratulations(achievement) {
+  const normalized = normalizeSoloLevelRecordAchievement(achievement);
+  const hasFastest = normalized.fastestTopThree;
+  const isFastestFirst = normalized.fastestRank === 1;
+  const hasFewestMoves = normalized.fewestMoves;
+
+  if (hasFastest && hasFewestMoves) {
+    return 'Mükemmel! Bu seviyede hem en hızlı oyuncular arasındasın hem de en az hamle rekoru sende.';
+  }
+  if (isFastestFirst) {
+    return 'Bravo! Bu seviyeyi en hızlı çözen sensin.';
+  }
+  if (hasFastest) {
+    return 'Tebrikler! Bu seviyeyi en hızlı çözen ilk 3 oyuncu arasındasın.';
+  }
+  if (hasFewestMoves) {
+    return 'Harika! Bu seviyeyi en az hamleyle çözen sensin.';
+  }
+  return '';
+}
 
 /**
- * @param {{ levelNumber: number, timeSeconds: number, userEmail?: string }} params
- * @returns {Promise<{ kind: 'global_first' | 'friends_first' | 'none' }>}
+ * @param {{ levelNumber: number, timeSeconds: number, usedMoves: number, guestRecordPayload?: object|null }} params
+ * @returns {Promise<{ fastestRank: number|null, fastestTopThree: boolean, fewestMoves: boolean, recordScope: 'all_users' }>}
  */
-export async function fetchSoloLevelRecordContext({ levelNumber, timeSeconds, userEmail }) {
+export async function fetchSoloLevelRecordContext({
+  levelNumber,
+  timeSeconds,
+  usedMoves,
+  guestRecordPayload = null,
+}) {
   const level = Math.max(0, Math.floor(Number(levelNumber) || 0));
-  const attemptTime = Number(timeSeconds);
-  if (!level || !Number.isFinite(attemptTime) || attemptTime <= 0) {
-    return { kind: 'none' };
+  const attemptTimeSeconds = Number(timeSeconds);
+  const attemptUsedMoves = Math.max(0, Math.floor(Number(usedMoves) || 0));
+  if (!level || !Number.isFinite(attemptTimeSeconds) || attemptTimeSeconds <= 0 || attemptUsedMoves <= 0) {
+    return normalizeSoloLevelRecordAchievement(null);
   }
-  const me = normalizeEmail(userEmail);
 
   try {
-    // Pull leaderboard rows with per-level projection.
-    const res = await base44.functions.invoke('getSoloLeaderboard', {
+    const response = await base44.functions.invoke('getSoloLeaderboard', {
+      ...(guestRecordPayload && typeof guestRecordPayload === 'object' ? guestRecordPayload : {}),
       levelNumber: level,
-      limit: 500,
+      recordContext: true,
+      attemptTimeSeconds,
+      usedMoves: attemptUsedMoves,
     });
-    const rows = Array.isArray(res?.data?.rows) ? res.data.rows : [];
-
-    // Collect every OTHER user's best time for this level (skip my own row
-    // so my prior best doesn't beat my current attempt — the new attempt
-    // hasn't been persisted yet when this helper runs).
-    const othersTimes = [];
-    for (const row of rows) {
-      const rowEmail = normalizeEmail(row?.user_email);
-      if (me && rowEmail === me) continue;
-      const t = Number(row?.level?.best_time_seconds);
-      if (Number.isFinite(t) && t > 0) othersTimes.push({ email: rowEmail, time: t });
-    }
-
-    // Global first → strictly faster than every other completed time.
-    const isGlobalFirst = othersTimes.every((o) => attemptTime < o.time);
-    if (isGlobalFirst) return { kind: 'global_first' };
-
-    // Friends-first → faster than every accepted friend's best time.
-    if (!me) return { kind: 'none' };
-    const friends = await loadFriends(me).catch(() => []);
-    if (!Array.isArray(friends) || friends.length === 0) return { kind: 'none' };
-    const friendEmails = new Set(friends.map((f) => normalizeEmail(f?.friend_email)).filter(Boolean));
-    const friendTimes = othersTimes.filter((o) => friendEmails.has(o.email));
-    if (friendTimes.length === 0) return { kind: 'none' };
-    const beatAllFriends = friendTimes.every((f) => attemptTime < f.time);
-    return beatAllFriends ? { kind: 'friends_first' } : { kind: 'none' };
+    const payload = response?.data || response || {};
+    return normalizeSoloLevelRecordAchievement(payload.recordAchievement);
   } catch {
-    return { kind: 'none' };
+    return normalizeSoloLevelRecordAchievement(null);
   }
 }

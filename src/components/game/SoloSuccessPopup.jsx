@@ -4,7 +4,7 @@ import {
   Star, ChevronRight, RotateCcw, ListChecks, TimerReset, Zap, X as XIcon, Check, MoveHorizontal,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { fetchSoloLevelRecordContext } from '@/lib/soloLevelRecord';
+import { buildSoloLevelRecordCongratulations, fetchSoloLevelRecordContext } from '@/lib/soloLevelRecord';
 // Codex164 — shared popup helpers so success + failure stay in lockstep.
 import SoloStatCard from './SoloStatCard';
 import { formatCompactDuration } from '@/lib/soloTimeFormat';
@@ -40,25 +40,33 @@ export default function SoloSuccessPopup({
   timeBonus,
   hasNextLevel,
   userEmail,
+  guestRecordPayload,
   onNextLevel,
   onRetry,
   onBackToPath,
   primaryActionLabel = 'SONRAKİ SEVİYE',
   backToPathLabel = 'SEVİYELER',
 }) {
-  // Record context: only computed on mount, silent on error.
-  const [recordKind, setRecordKind] = useState('none');
+  // Record context: only computed on success, silent on error.
+  const [recordAchievement, setRecordAchievement] = useState(null);
   useEffect(() => {
     let cancelled = false;
-    fetchSoloLevelRecordContext({ levelNumber, timeSeconds, userEmail })
-      .then((res) => { if (!cancelled) setRecordKind(res?.kind || 'none'); })
+    fetchSoloLevelRecordContext({
+      levelNumber,
+      timeSeconds,
+      usedMoves,
+      guestRecordPayload,
+    })
+      .then((res) => { if (!cancelled) setRecordAchievement(res); })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [levelNumber, timeSeconds, userEmail]);
+  }, [guestRecordPayload, levelNumber, timeSeconds, usedMoves]);
 
   const speedBonusEarned = Number(timeBonus) > 0;
   const compactTime = formatCompactDuration(timeSeconds);
   const moveValue = Math.max(0, Math.floor(Number(usedMoves) || 0));
+  const recordCongratulations = buildSoloLevelRecordCongratulations(recordAchievement);
+  void userEmail;
   void mistakes;
   void remainingMoves;
   void maxMoves;
@@ -102,6 +110,22 @@ export default function SoloSuccessPopup({
             Harika! Böyle devam et!
           </p>
 
+          {recordCongratulations ? (
+            <p
+              className="mt-2.5 rounded-xl px-3 py-2 text-center font-inter"
+              style={{
+                color: '#fef3c7',
+                background: 'linear-gradient(180deg, rgba(30,64,175,0.48), rgba(15,23,42,0.38))',
+                boxShadow: 'inset 0 0 0 1px rgba(250,204,21,0.28), 0 0 16px rgba(250,204,21,0.12)',
+                fontSize: 'clamp(12px, 3.4vw, 14px)',
+                fontWeight: 800,
+                lineHeight: 1.35,
+              }}
+            >
+              {recordCongratulations}
+            </p>
+          ) : null}
+
           {/* Divider with diamond accent */}
           <div className="mt-2.5 mb-3 flex items-center justify-center gap-2" aria-hidden="true">
             <span style={{ display: 'block', height: 1, width: 40, background: 'linear-gradient(90deg, transparent, rgba(250,204,21,0.55), transparent)' }} />
@@ -118,7 +142,6 @@ export default function SoloSuccessPopup({
               label="SÜRE"
               value={compactTime}
               valueColor="#ffffff"
-              footer={recordKind !== 'none' ? <RecordBadge kind={recordKind} /> : null}
             />
             <SoloStatCard
               icon={Star}
@@ -346,25 +369,5 @@ function StarsRow({ stars }) {
         );
       })}
     </div>
-  );
-}
-
-function RecordBadge({ kind }) {
-  const label = kind === 'global_first' ? 'YENİ REKOR!' : 'ARKADAŞ REKORU!';
-  return (
-    <span
-      className="inline-flex items-center font-inter font-black"
-      style={{
-        background: 'linear-gradient(180deg, #16a34a, #15803d)',
-        color: '#ffffff',
-        fontSize: '10px',
-        letterSpacing: '0.06em',
-        padding: '2.5px 7px',
-        borderRadius: 5,
-        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.35), 0 0 8px rgba(34,197,94,0.45)',
-      }}
-    >
-      {label}
-    </span>
   );
 }

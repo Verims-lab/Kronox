@@ -30,11 +30,13 @@ import soloChallengeSource from '../../pages/SoloChallenge.jsx?raw';
 import soloLevelsLibSource from '../../lib/soloLevels.js?raw';
 import soloProgressHelpersSource from '../../lib/soloProgressHelpers.js?raw';
 import soloRankingSource from '../../lib/soloRanking.js?raw';
+import soloLevelRecordSource from '../../lib/soloLevelRecord.js?raw';
 import soloLevelResultSource from './SoloLevelResult.jsx?raw';
 import soloSuccessPopupSource from './SoloSuccessPopup.jsx?raw';
 import soloFailureCardSource from './SoloFailureCard.jsx?raw';
 import soloLevelTimerSource from './SoloLevelTimer.jsx?raw';
 import gameSoundsSource from '../../lib/gameSounds.js?raw';
+import { GET_SOLO_LEADERBOARD_SOURCE as getSoloLeaderboardFunctionSource } from '@/lib/healthMirrors/getSoloLeaderboardMirror';
 import {
   backfillSoloScores,
   calculateSoloAttemptResult,
@@ -988,7 +990,7 @@ export const EXTRA_TESTS = [
     { actionType: ACTION_TYPES.CODE_FIX }),
 
   makeCase('solo_progress_health', 'solo_level_ranking_placeholder_or_real_data',
-    'Level result ranking is either real backend data or an explicit safe placeholder; no fake rank',
+    'Solo completion record congratulations use backend achievement context; no fake rank',
     () => {
       const required = missingTokens(soloRankingSource, [
         'return { ready: false, rank: null }',
@@ -996,20 +998,52 @@ export const EXTRA_TESTS = [
       ]);
       const popupRequired = missingTokens(soloSuccessPopupSource, [
         'fetchSoloLevelRecordContext',
-        'RecordBadge',
+        'buildSoloLevelRecordCongratulations',
+        'Bravo! Bu seviyeyi en hızlı çözen sensin.',
+        'Tebrikler! Bu seviyeyi en hızlı çözen ilk 3 oyuncu arasındasın.',
+        'Harika! Bu seviyeyi en az hamleyle çözen sensin.',
+        'Mükemmel! Bu seviyede hem en hızlı oyuncular arasındasın hem de en az hamle rekoru sende.',
+      ]);
+      const helperRequired = missingTokens(soloLevelRecordSource, [
+        'recordContext: true',
+        'attemptTimeSeconds',
+        'usedMoves',
+        'recordAchievement',
+        'fastestTopThree',
+        'fewestMoves',
+      ]);
+      const backendRequired = missingTokens(getSoloLeaderboardFunctionSource, [
+        'user_guest_solo_progress_service_role_level_record_context',
+        'solo_level_record_achievement_context',
+        'recordAchievement: { fastestRank, fastestTopThree, fewestMoves',
+        'broadUserRowsReturned: false',
+      ]);
+      const gameRequired = missingTokens(gamePageSource, [
+        'getStoredGuestCredentials',
+        'guestRecordPayload={guestRecordPayload}',
+        'isSoloLevelMode && soloLevelResult',
+      ]);
+      const forbidden = forbiddenTokensFound(soloSuccessPopupSource, [
         'YENİ REKOR!',
         'ARKADAŞ REKORU!',
       ]);
-      if (required.length || popupRequired.length) {
-        return fail('Solo level rank placeholder/real-data contract drifted.', {
+      if (required.length || popupRequired.length || helperRequired.length || backendRequired.length || gameRequired.length || forbidden.length) {
+        return fail('Solo level record congratulations contract drifted.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
-          expected: 'no fake rank; success popup shows record badge only when backend-backed record context exists',
-          actual: { required, popupRequired },
+          expected: 'success-only Solo completion asks backend for current-player achievement context, supports guest proof, renders fastest top-3/fewest-move/combined copy, and keeps old fake rank placeholder honest',
+          actual: {
+            required,
+            popupRequired,
+            helperRequired,
+            backendRequired,
+            gameRequired,
+            forbidden,
+          },
         });
       }
-      return pass('Level rank remains honest: record badge comes from backend-backed context; no fake rank is rendered.', {
+      return pass('Solo success record congratulations come from backend achievement context, cover fastest top-3 and fewest HAMLE copy, combine both achievements, and keep Online untouched.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,

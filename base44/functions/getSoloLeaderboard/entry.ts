@@ -105,7 +105,7 @@ async function findGuestProfile(base44: any, guestId: string) {
   return Array.isArray(rows) && rows.length ? rows[0] : null;
 }
 
-async function resolveLeaderboardActor(base44: any, body: any) {
+async function resolveLeaderboardActor(base44: any, body: any, options: { allowIncompleteGuest?: boolean } = {}) {
   const user = await base44.auth.me().catch(() => null);
   if (user?.email || user?.user_email) {
     const email = normalizeEmail(user.email || user.user_email);
@@ -130,7 +130,7 @@ async function resolveLeaderboardActor(base44: any, body: any) {
   if (!guest || !expectedHash || expectedHash !== providedHash) {
     return { ok: false, response: json({ ok: false, error: 'Unauthorized' }, 401) };
   }
-  if (String(guest?.status || '') === 'linked' || !isGuestProfileComplete(guest)) {
+  if (String(guest?.status || '') === 'linked' || (!options.allowIncompleteGuest && !isGuestProfileComplete(guest))) {
     return { ok: false, response: json({ ok: false, error: 'Guest profile is not leaderboard-ready' }, 403) };
   }
   const ownerKey = ownerKeyFromGuestId(guestId);
@@ -309,6 +309,106 @@ function levelProjection(progress: any, levelNumber: number) {
   };
 }
 
+function levelRecordProjection(progress: any, levelNumber: number) {
+  if (!levelNumber || levelNumber <= 0) return null;
+  const entry = progress?.levels?.[String(levelNumber)];
+  if (!entry) return null;
+  const stars = Math.max(0, Math.floor(finiteNumber(entry?.bestStars, 0)));
+  if (stars <= 0) return null;
+  const time = Number(entry?.bestTimeSeconds);
+  const usedMoves = Number(entry?.bestUsedMoves);
+  return {
+    bestTimeSeconds: Number.isFinite(time) && time > 0 ? time : null,
+    bestUsedMoves: Number.isFinite(usedMoves) && usedMoves > 0 ? Math.floor(usedMoves) : null,
+  };
+}
+
+function toUserLevelRecordCandidate(user: any, levelNumber: number) {
+  const ownerKey = ownerKeyFromEmail(user?.email || user?.user_email);
+  const level = levelRecordProjection(user?.solo_progress, levelNumber);
+  if (!ownerKey || !level) return null;
+  return { ownerKey, ...level };
+}
+
+function toGuestLevelRecordCandidate(guest: any, levelNumber: number) {
+  if (String(guest?.status || '') === 'linked') return null;
+  if (!isGuestProfileComplete(guest)) return null;
+  const ownerKey = ownerKeyFromGuestId(guest?.guest_id);
+  const level = levelRecordProjection(guest?.solo_progress, levelNumber);
+  if (!ownerKey || !level) return null;
+  return { ownerKey, ...level };
+}
+
+function betterRecordCandidate(existing: any, candidate: any) {
+  if (!existing) return candidate;
+  const existingTime = Number(existing?.bestTimeSeconds);
+  const candidateTime = Number(candidate?.bestTimeSeconds);
+  const existingMoves = Number(existing?.bestUsedMoves);
+  const candidateMoves = Number(candidate?.bestUsedMoves);
+  return {
+    ownerKey: existing.ownerKey || candidate.ownerKey,
+    bestTimeSeconds: Number.isFinite(existingTime) && existingTime > 0
+      ? (Number.isFinite(candidateTime) && candidateTime > 0 ? Math.min(existingTime, candidateTime) : existingTime)
+      : (Number.isFinite(candidateTime) && candidateTime > 0 ? candidateTime : null),
+    bestUsedMoves: Number.isFinite(existingMoves) && existingMoves > 0
+      ? (Number.isFinite(candidateMoves) && candidateMoves > 0 ? Math.min(existingMoves, Math.floor(candidateMoves)) : Math.floor(existingMoves))
+      : (Number.isFinite(candidateMoves) && candidateMoves > 0 ? Math.floor(candidateMoves) : null),
+  };
+}
+
+function dedupeLevelRecordCandidates(candidates: any[] = []) {
+  const byOwnerKey = new Map<string, any>();
+  for (const candidate of candidates || []) {
+    const ownerKey = String(candidate?.ownerKey || '').trim();
+    if (!ownerKey) continue;
+    byOwnerKey.set(ownerKey, betterRecordCandidate(byOwnerKey.get(ownerKey), { ...candidate, ownerKey }));
+  }
+  return Array.from(byOwnerKey.values());
+}
+
+function rankByNumericField(rows: any[], ownerKey: string, field: 'bestTimeSeconds' | 'bestUsedMoves') {
+  const actor = rows.find((row) => row?.ownerKey === ownerKey);
+  const actorValue = Number(actor?.[field]);
+  if (!Number.isFinite(actorValue) || actorValue <= 0) return null;
+  return 1 + rows.filter((row) => {
+    if (row?.ownerKey === ownerKey) return false;
+    const value = Number(row?.[field]);
+    return Number.isFinite(value) && value > 0 && value < actorValue;
+  }).length;
+}
+
+function buildLevelRecordAchievement(candidates: any[], currentOwnerKey: string, body: any) {
+  const actorOwnerKey = String(currentOwnerKey || '').trim();
+  if (!actorOwnerKey) {
+    return {
+      fastestRank: null,
+      fastestTopThree: false,
+      fewestMoves: false,
+      recordScope: 'all_users',
+    };
+  }
+
+  const attemptTimeSeconds = Number(body?.attemptTimeSeconds ?? body?.timeSeconds);
+  const attemptUsedMoves = Number(body?.usedMoves ?? body?.attemptUsedMoves);
+  const withAttempt = dedupeLevelRecordCandidates([
+    ...candidates,
+    {
+      ownerKey: actorOwnerKey,
+      bestTimeSeconds: Number.isFinite(attemptTimeSeconds) && attemptTimeSeconds > 0 ? attemptTimeSeconds : null,
+      bestUsedMoves: Number.isFinite(attemptUsedMoves) && attemptUsedMoves > 0 ? Math.floor(attemptUsedMoves) : null,
+    },
+  ]);
+
+  const fastestRank = rankByNumericField(withAttempt, actorOwnerKey, 'bestTimeSeconds');
+  const fewestMovesRank = rankByNumericField(withAttempt, actorOwnerKey, 'bestUsedMoves');
+  return {
+    fastestRank: fastestRank && fastestRank <= 3 ? fastestRank : null,
+    fastestTopThree: Boolean(fastestRank && fastestRank <= 3),
+    fewestMoves: Boolean(fewestMovesRank === 1),
+    recordScope: 'all_users',
+  };
+}
+
 function toLeaderboardRow(user: any, levelNumber = 0) {
   const ownerKey = ownerKeyFromEmail(user?.email || user?.user_email);
   if (!ownerKey) return null;
@@ -324,10 +424,9 @@ function toLeaderboardRow(user: any, levelNumber = 0) {
 
   // Codex152 — Optional per-level projection. When the caller passes
   // `levelNumber`, the row carries the user's best time/score/stars for
-  // that level (when they have completed it). This powers the Solo
-  // success popup's "YENİ REKOR! / ARKADAŞLAR ARASINDA 1." badge logic
-  // without leaking other private user data. The field is omitted when
-  // the user has not completed that level.
+  // that level when completed. Current success-screen record congratulations
+  // use the recordContext branch below so the frontend receives only the
+  // current player's achievement summary.
   const levelData = levelProjection(user?.solo_progress, levelNumber);
 
   return {
@@ -690,7 +789,9 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const body = await req.json().catch(() => ({}));
-    const actor = await resolveLeaderboardActor(base44, body);
+    const actor = await resolveLeaderboardActor(base44, body, {
+      allowIncompleteGuest: body?.recordContext === true,
+    });
     if (!actor.ok) return actor.response;
 
     const limit = Math.min(
@@ -810,10 +911,42 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Codex366 — Per-level friend-record lookup still needs User.solo_progress
-    // until SoloLeaderboardEntry grows a rank-safe per-level projection. This
-    // fallback is not used by the main Liderlik table.
+    // Per-level record lookup still needs service-role User/GuestProfile
+    // solo_progress until SoloLeaderboardEntry grows a rank-safe per-level
+    // projection. This fallback is not used by the main Liderlik table.
     const users = await base44.asServiceRole.entities.User.list('-kronox_puan_total', MAX_LIMIT);
+    const userRecordCandidates = (users || [])
+      .map((user: any) => toUserLevelRecordCandidate(user, levelNumber))
+      .filter(Boolean);
+    const guestEntity = base44?.asServiceRole?.entities?.GuestProfile || base44?.entities?.GuestProfile;
+    const guests = guestEntity?.list
+      ? await guestEntity.list('-kronox_puan_total', MAX_LIMIT).catch(() => [])
+      : [];
+    const guestRecordCandidates = (Array.isArray(guests) ? guests : [])
+      .map((guest: any) => toGuestLevelRecordCandidate(guest, levelNumber))
+      .filter(Boolean);
+    const actorLevelCandidate = actor.type === 'guest'
+      ? toGuestLevelRecordCandidate(actor.user, levelNumber)
+      : toUserLevelRecordCandidate(actor.user, levelNumber);
+    const recordCandidates = dedupeLevelRecordCandidates([
+      ...userRecordCandidates,
+      ...guestRecordCandidates,
+      ...(actorLevelCandidate ? [actorLevelCandidate] : []),
+    ]);
+
+    if (body?.recordContext === true) {
+      return json({
+        ok: true,
+        source: 'user_guest_solo_progress_service_role_level_record_context',
+        projection: 'solo_level_record_achievement_context',
+        projectionFirst: false,
+        broadUserListUsed: true,
+        broadUserRowsReturned: false,
+        fallbackReason: 'level_record_context_requires_user_and_guest_solo_progress',
+        recordAchievement: buildLevelRecordAchievement(recordCandidates, actor.ownerKey, body),
+      });
+    }
+
     const rowPairs = (users || [])
       .map((u) => ({ user: u, row: toLeaderboardRow(u, levelNumber) }))
       .filter((entry) => Boolean(entry.row));

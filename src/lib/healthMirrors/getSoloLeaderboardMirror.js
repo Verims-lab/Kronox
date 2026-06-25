@@ -189,4 +189,13 @@ Deno.serve(async (req) => {
 // source until per-level record rows exist:
 // base44.asServiceRole.entities.User.list('-kronox_puan_total', MAX_LIMIT)
 // source: 'user_kronox_puan_service_role_level_fallback'
+// Solo success recordContext adds completed GuestProfile progress to the same
+// service-role level lookup, allows verified pre-completion guest token proof
+// for the current attempt, and returns only recordAchievement, never rows:
+// recordContext: true
+// allowIncompleteGuest: body?.recordContext === true
+// source: 'user_guest_solo_progress_service_role_level_record_context'
+// projection: 'solo_level_record_achievement_context'
+// recordAchievement: { fastestRank, fastestTopThree, fewestMoves, recordScope: 'all_users' }
+// broadUserRowsReturned: false
 `;

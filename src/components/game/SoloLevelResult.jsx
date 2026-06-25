@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import React from 'react';
 import SoloSuccessPopup from './SoloSuccessPopup';
 import SoloFailureCard from './SoloFailureCard';
 
@@ -45,6 +44,7 @@ export default function SoloLevelResult({
   successPrimaryActionLabel,
   successBackToPathLabel,
   successPrimaryActionEnabled,
+  guestRecordPayload,
 }) {
   // Reference the unused props so lint stays clean without changing the
   // public contract that Game.jsx relies on.
@@ -52,18 +52,6 @@ export default function SoloLevelResult({
   void didImproveScore;
   void nextLevelNumber;
   void isNextLevelComingSoon;
-
-  // Current user email — needed by the success popup's record-context
-  // lookup. Resolved once on mount regardless of pass/fail so hook order
-  // is stable across renders.
-  const [currentUserEmail, setCurrentUserEmail] = useState(null);
-  useEffect(() => {
-    let cancelled = false;
-    base44.auth.me()
-      .then((u) => { if (!cancelled) setCurrentUserEmail(u?.email || null); })
-      .catch(() => { if (!cancelled) setCurrentUserEmail(null); });
-    return () => { cancelled = true; };
-  }, []);
 
   if (passed) {
     const successHasPrimaryAction = successPrimaryActionEnabled ?? hasNextLevel;
@@ -79,7 +67,7 @@ export default function SoloLevelResult({
         levelScore={levelScore}
         timeBonus={timeBonus}
         hasNextLevel={successHasPrimaryAction}
-        userEmail={currentUserEmail}
+        guestRecordPayload={guestRecordPayload}
         onNextLevel={onNextLevel}
         onRetry={onRetry}
         onBackToPath={onBackToPath}
