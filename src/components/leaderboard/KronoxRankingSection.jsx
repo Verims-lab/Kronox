@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import { Loader2, Medal, RefreshCw, Trophy, UserRound, Users } from 'lucide-react';
+import useLongPress from '@/hooks/useLongPress';
+import LeaderboardRowActionMenu from '@/components/leaderboard/LeaderboardRowActionMenu';
 
 /**
  * Codex119 — "Kronox Sıralaması" section.
@@ -28,6 +30,7 @@ import { Loader2, Medal, RefreshCw, Trophy, UserRound, Users } from 'lucide-reac
  *   onRetry          : () => void
  *   isAdmin          : boolean — gates the technical diagnostic line
  *   onCurrentUserRowOpenSettings : () => void — own row only
+ *   onAddFriend      : async (playerName) => void — long-press friend add
  */
 export default function KronoxRankingSection({
   authChecked,
@@ -36,7 +39,40 @@ export default function KronoxRankingSection({
   onRetry,
   isAdmin,
   onCurrentUserRowOpenSettings,
+  onAddFriend,
 }) {
+  // Long-press friend-add menu. A row is "addable" when it is not the
+  // current user and not already a friend. The menu only ever receives the
+  // safe public displayName — no email or internal identifier.
+  const [menuRow, setMenuRow] = useState(null);
+  const [menuBusy, setMenuBusy] = useState(false);
+
+  const handleLongPress = useCallback((row) => {
+    if (!row || row.isCurrentUser || row.isFriend) return;
+    if (typeof onAddFriend !== 'function') return;
+    setMenuRow(row);
+  }, [onAddFriend]);
+
+  const closeMenu = useCallback(() => {
+    if (menuBusy) return;
+    setMenuRow(null);
+  }, [menuBusy]);
+
+  const handleMenuAddFriend = useCallback(async () => {
+    if (!menuRow || typeof onAddFriend !== 'function') return;
+    setMenuBusy(true);
+    try {
+      await onAddFriend(menuRow.displayName);
+      setMenuRow(null);
+    } finally {
+      setMenuBusy(false);
+    }
+  }, [menuRow, onAddFriend]);
+
+  const canAddFriend = (row) => Boolean(
+    typeof onAddFriend === 'function' && row && !row.isCurrentUser && !row.isFriend,
+  );
+
   const hasRows = leaderboard.topRows.length > 0;
   const showOwnRank = leaderboard.currentUserRow && !leaderboard.currentUserInTop;
   const topRowIds = new Set(leaderboard.topRows.map((row) => row.id));
@@ -103,6 +139,7 @@ export default function KronoxRankingSection({
               key={row.id}
               row={row}
               onOpenSettings={onCurrentUserRowOpenSettings}
+              onLongPress={canAddFriend(row) ? handleLongPress : undefined}
             />
           ))}
 
@@ -145,7 +182,12 @@ export default function KronoxRankingSection({
             {showFriendRows ? (
               <div className="space-y-2">
                 {leaderboard.friendsOutsideTop.map((row) => (
-                  <LeaderboardRow key={`friend-${row.id}`} row={row} compact />
+                  <LeaderboardRow
+                    key={`friend-${row.id}`}
+                    row={row}
+                    compact
+                    onLongPress={canAddFriend(row) ? handleLongPress : undefined}
+                  />
                 ))}
               </div>
             ) : (
@@ -162,6 +204,14 @@ export default function KronoxRankingSection({
           </div>
         </div>
       )}
+
+      <LeaderboardRowActionMenu
+        open={Boolean(menuRow)}
+        playerName={menuRow?.displayName || ''}
+        busy={menuBusy}
+        onAddFriend={handleMenuAddFriend}
+        onClose={closeMenu}
+      />
     </section>
   );
 }
@@ -304,9 +354,11 @@ function EmptyState({ icon: Icon, title, text }) {
   );
 }
 
-function LeaderboardRow({ row, compact = false, emphasis = false, onOpenSettings }) {
+function LeaderboardRow({ row, compact = false, emphasis = false, onOpenSettings, onLongPress }) {
   const isHighlighted = row.isCurrentUser || emphasis;
   const canOpenSettings = row.isCurrentUser && typeof onOpenSettings === 'function';
+  const canLongPress = !row.isCurrentUser && typeof onLongPress === 'function';
+  const longPressProps = useLongPress(canLongPress ? () => onLongPress(row) : null);
   const rankColor = row.rank <= 3 ? '#facc15' : '#93c5fd';
   const rankText = Number.isFinite(Number(row.rank)) ? `#${row.rank}` : '—';
   const className = [
@@ -369,7 +421,11 @@ function LeaderboardRow({ row, compact = false, emphasis = false, onOpenSettings
   }
 
   return (
-    <div className={className} style={style}>
+    <div
+      className={className}
+      style={{ ...style, ...(canLongPress ? { cursor: 'pointer', WebkitUserSelect: 'none', userSelect: 'none' } : {}) }}
+      {...(canLongPress ? longPressProps : {})}
+    >
       {content}
     </div>
   );
