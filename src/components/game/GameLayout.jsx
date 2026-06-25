@@ -343,8 +343,8 @@ export default function GameLayout({
 
         {/* Center: Logo + progress */}
         <div
-          //className="mx-auto flex min-w-0 flex-col items-center"
-          className="bg-transparent p-0"
+          className="mx-auto flex min-w-0 flex-col items-center"
+          //className="bg-transparent p-0"
           style={{ background: 'transparent', backgroundColor: 'transparent', boxShadow: 'none', border: 'none' }}
         >
           <img
