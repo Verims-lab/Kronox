@@ -92,6 +92,13 @@ Leaderboard, Economy/Daily/Jokers, Questions/Categories, Admin/Health, shared
 hooks/components, backend functions, entities/data model, and release/mobile
 constraints. Safe fixes are small, localized, validated, and avoid broad
 runtime rewrites.
+
+Phase 1 adds src/lib/soloAttemptReducer.js as a pure Solo attempt lifecycle
+reducer for HAMLE rules, persistence status, joker usage summary, and
+success-only backend record-context eligibility. Game.jsx still owns active
+runtime side effects until later ViewModel handoffs. The DB reporting plan now
+defines the privacy-safe SoloLevelAttemptEvent contract without broad runtime
+analytics writes.
 `;
 
 export const ARCHITECTURE_TARGET_DOC = `# Kronox Architecture Target
@@ -103,6 +110,11 @@ services/use cases, gateways/API access, and Base44 backend implementation.
 Pilot flows are Solo gameplay completion/records, Online lobby/start/reconnect,
 and friend/game invite notifications. Base44 remains the active backend while
 gateway boundaries reduce direct provider coupling.
+
+Solo Phase 1 starts at src/lib/soloAttemptReducer.js: the reducer is pure,
+effect-free, uses current HAMLE scoring constants, tracks persistence and
+record-context status, and leaves analytics, daily quest, Base44 persistence,
+and record-context requests outside the reducer.
 `;
 
 export const HEALTH_GAP_ANALYSIS_DOC = `# Kronox Health Gap Analysis
@@ -129,6 +141,15 @@ movement, category preference distribution, question exposure/difficulty,
 Online lobby lifecycle, invite lifecycle, notification lifecycle, platform
 split, retention cohorts, and economy fraud/race anomalies. Missing event
 tables must be backward-compatible and privacy-safe.
+
+SoloLevelAttemptEvent Phase 1 defines actor_key_hash, player_type, level,
+rules_version, passed, used_moves, elapsed_seconds, stars,
+correct_placements, evaluated_moves, joker_used_summary, created_at/day, and
+source. Public reports/export must include no email, no provider ID, no
+owner_key, no raw guest_id, no internal player_key, no full question bank, and
+no answer years / correct answers. Runtime writes are deferred until a
+backend-owned best-effort function path with idempotency key handling is
+implemented and Health-covered.
 `;
 
 export const VISUAL_ASSET_READINESS_DOC = `# Kronox Visual Asset Readiness

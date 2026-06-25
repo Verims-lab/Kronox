@@ -28,6 +28,7 @@ import leaderboardPageSource from '../../pages/LeaderboardPage.jsx?raw';
 import gamePageSource from '../../pages/Game.jsx?raw';
 import soloChallengeSource from '../../pages/SoloChallenge.jsx?raw';
 import soloLevelsLibSource from '../../lib/soloLevels.js?raw';
+import soloAttemptReducerSource from '../../lib/soloAttemptReducer.js?raw';
 import soloProgressHelpersSource from '../../lib/soloProgressHelpers.js?raw';
 import soloRankingSource from '../../lib/soloRanking.js?raw';
 import soloLevelRecordSource from '../../lib/soloLevelRecord.js?raw';
@@ -36,7 +37,15 @@ import soloSuccessPopupSource from './SoloSuccessPopup.jsx?raw';
 import soloFailureCardSource from './SoloFailureCard.jsx?raw';
 import soloLevelTimerSource from './SoloLevelTimer.jsx?raw';
 import gameSoundsSource from '../../lib/gameSounds.js?raw';
+import dbReportingReadinessSource from '../../../docs/KRONOX_DB_REPORTING_READINESS.md?raw';
 import { GET_SOLO_LEADERBOARD_SOURCE as getSoloLeaderboardFunctionSource } from '@/lib/healthMirrors/getSoloLeaderboardMirror';
+import {
+  createSoloAttemptInitialState,
+  soloAttemptReducer,
+  SOLO_ATTEMPT_ACTIONS,
+  SOLO_ATTEMPT_PHASES,
+  SOLO_RECORD_CONTEXT_STATUS,
+} from '../../lib/soloAttemptReducer';
 import {
   backfillSoloScores,
   calculateSoloAttemptResult,
@@ -102,6 +111,229 @@ export const EXTRA_SUITES = [
 ];
 
 export const EXTRA_TESTS = [
+  /* ============================================================
+   *  0. SOLO ATTEMPT REDUCER / REPORTING PHASE 1
+   * ============================================================ */
+  makeCase('solo_progress_health', 'solo_attempt_reducer_phase_1_contract',
+    'Solo attempt reducer models HAMLE lifecycle without effects or joker inventory spend',
+    () => {
+      const required = missingTokens(soloAttemptReducerSource, [
+        'export function soloAttemptReducer',
+        'export function createSoloAttemptInitialState',
+        'ATTEMPT_STARTED',
+        'DECK_READY',
+        'CARD_PLACED',
+        'MOVE_EVALUATED',
+        'JOKER_USED',
+        'TARGET_REACHED',
+        'ATTEMPT_FAILED',
+        'ATTEMPT_SUCCEEDED',
+        'PERSIST_REQUESTED',
+        'PERSIST_SUCCEEDED',
+        'PERSIST_FAILED',
+        'RECORD_CONTEXT_REQUESTED',
+        'RECORD_CONTEXT_RECEIVED',
+        'RECORD_CONTEXT_FAILED',
+        'calculateSoloAttemptResult',
+        'SOLO_MAX_EVALUATED_MOVES',
+        'SOLO_CORRECT_PLACEMENTS_NEEDED',
+        'inventorySpendRequested: false',
+      ]);
+      const forbidden = forbiddenTokensFound(soloAttemptReducerSource, [
+        'base44',
+        'fetch(',
+        'localStorage',
+        'window.',
+        'document.',
+        'navigator.',
+        'Date.now',
+        'new Date(',
+        'spendUserJoker',
+        'JokerTransaction',
+      ]);
+
+      const startReducer = () => soloAttemptReducer(createSoloAttemptInitialState(), {
+        type: SOLO_ATTEMPT_ACTIONS.ATTEMPT_STARTED,
+        levelNumber: 1,
+      });
+
+      const started = startReducer();
+      let success = started;
+      for (let i = 0; i < 5; i += 1) {
+        success = soloAttemptReducer(success, {
+          type: SOLO_ATTEMPT_ACTIONS.MOVE_EVALUATED,
+          cardId: `correct-${i}`,
+          correct: true,
+          elapsedSeconds: 42,
+        });
+      }
+
+      let failed = startReducer();
+      for (let i = 0; i < 10; i += 1) {
+        failed = soloAttemptReducer(failed, {
+          type: SOLO_ATTEMPT_ACTIONS.MOVE_EVALUATED,
+          cardId: `wrong-${i}`,
+          correct: false,
+          elapsedSeconds: 90,
+        });
+      }
+
+      const starsForMoves = (usedMoves) => soloAttemptReducer(startReducer(), {
+        type: SOLO_ATTEMPT_ACTIONS.ATTEMPT_SUCCEEDED,
+        usedMoves,
+        correctPlacementCount: 5,
+        elapsedSeconds: 60,
+      }).stars;
+      const normalJoker = soloAttemptReducer(started, {
+        type: SOLO_ATTEMPT_ACTIONS.JOKER_USED,
+        jokerType: 'timeFreeze',
+        source: 'solo',
+      });
+      const guidedJoker = soloAttemptReducer(started, {
+        type: SOLO_ATTEMPT_ACTIONS.JOKER_USED,
+        jokerType: 'timeFreeze',
+        source: 'guided_tutorial',
+      });
+
+      const executableFailures = [];
+      if (success === started || started.usedMoves !== 0) executableFailures.push('reducer mutated or reused the input state');
+      if (success.phase !== SOLO_ATTEMPT_PHASES.SUCCEEDED || !success.passed) executableFailures.push('5 correct placements did not succeed');
+      if (success.usedMoves !== 5 || success.evaluatedMoveCount !== 5 || success.stars !== 3) executableFailures.push('5 HAMLE success did not produce 3 stars');
+      if (failed.phase !== SOLO_ATTEMPT_PHASES.FAILED || !failed.failed || failed.usedMoves !== 10 || failed.evaluatedMoveCount !== 10) executableFailures.push('10 evaluated moves max was not respected');
+      if (starsForMoves(5) !== 3 || starsForMoves(6) !== 3) executableFailures.push('5-6 HAMLE threshold no longer gives 3 stars');
+      if (starsForMoves(7) !== 2 || starsForMoves(8) !== 2) executableFailures.push('7-8 HAMLE threshold no longer gives 2 stars');
+      if (starsForMoves(9) !== 1 || starsForMoves(10) !== 1) executableFailures.push('9-10 HAMLE threshold no longer gives 1 star');
+      if (normalJoker.jokerUsageSummary.inventorySpendRequested !== false || normalJoker.jokerUsageSummary.normalInventoryUses !== 1) executableFailures.push('normal joker reducer path attempted inventory spend or lost summary');
+      if (guidedJoker.jokerUsageSummary.inventorySpendRequested !== false || guidedJoker.jokerUsageSummary.guidedTutorialUses !== 1 || guidedJoker.jokerUsageSummary.normalInventoryUses !== 0) executableFailures.push('guided tutorial joker behaved like inventory spend');
+
+      if (required.length || forbidden.length || executableFailures.length) {
+        return fail('Solo attempt reducer Phase 1 contract failed.', {
+          verification: 'STATIC_AND_EXECUTABLE_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'pure reducer, no Base44/network/browser effects, 5 correct placements pass, 10 evaluated moves cap, HAMLE star thresholds, joker summary without spending inventory',
+          actual: { required, forbidden, executableFailures },
+        });
+      }
+
+      return pass('Solo attempt reducer is pure/effect-free and preserves the current HAMLE success, failure, star, and joker-summary contracts.', {
+        verification: 'STATIC_AND_EXECUTABLE_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('solo_progress_health', 'solo_record_context_reducer_success_only',
+    'Solo reducer allows backend record context only for successful attempts',
+    () => {
+      const started = soloAttemptReducer(createSoloAttemptInitialState(), {
+        type: SOLO_ATTEMPT_ACTIONS.ATTEMPT_STARTED,
+        levelNumber: 1,
+      });
+      const success = soloAttemptReducer(started, {
+        type: SOLO_ATTEMPT_ACTIONS.ATTEMPT_SUCCEEDED,
+        usedMoves: 5,
+        correctPlacementCount: 5,
+        elapsedSeconds: 50,
+      });
+      const successRequested = soloAttemptReducer(success, {
+        type: SOLO_ATTEMPT_ACTIONS.RECORD_CONTEXT_REQUESTED,
+      });
+      const failed = soloAttemptReducer(started, {
+        type: SOLO_ATTEMPT_ACTIONS.ATTEMPT_FAILED,
+        usedMoves: 10,
+        correctPlacementCount: 4,
+        elapsedSeconds: 120,
+        failReason: 'moves',
+      });
+      const failedRequested = soloAttemptReducer(failed, {
+        type: SOLO_ATTEMPT_ACTIONS.RECORD_CONTEXT_REQUESTED,
+      });
+
+      const requiredPopupCopy = missingTokens(soloSuccessPopupSource, [
+        'fetchSoloLevelRecordContext',
+        'buildSoloLevelRecordCongratulations',
+        'Bravo! Bu seviyeyi en hızlı çözen sensin.',
+        'Tebrikler! Bu seviyeyi en hızlı çözen ilk 3 oyuncu arasındasın.',
+        'Harika! Bu seviyeyi en az hamleyle çözen sensin.',
+        'Mükemmel! Bu seviyede hem en hızlı oyuncular arasındasın hem de en az hamle rekoru sende.',
+      ]);
+      const helperRequired = missingTokens(soloLevelRecordSource, [
+        'recordContext: true',
+        'recordAchievement',
+        'fastestTopThree',
+        'fewestMoves',
+      ]);
+      const executableFailures = [];
+      if (successRequested.recordContextStatus !== SOLO_RECORD_CONTEXT_STATUS.REQUESTED) executableFailures.push('successful attempt could not request backend record context');
+      if (failedRequested.recordContextStatus !== SOLO_RECORD_CONTEXT_STATUS.IDLE || failedRequested.recordCongratulationsEligible) executableFailures.push('failed attempt requested record congratulations context');
+
+      if (requiredPopupCopy.length || helperRequired.length || executableFailures.length) {
+        return fail('Solo record congratulations are no longer success-only and backend-context backed.', {
+          verification: 'STATIC_AND_EXECUTABLE_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'failed attempts cannot request record context; successful attempts can request backend achievement context; required copy remains present',
+          actual: { requiredPopupCopy, helperRequired, executableFailures },
+        });
+      }
+
+      return pass('Record congratulations remain success-only, backend-context based, and compatible with fastest top-3/fewest-HAMLE combined copy.', {
+        verification: 'STATIC_AND_EXECUTABLE_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
+  makeCase('solo_progress_health', 'solo_db_reporting_phase_1_contract',
+    'DB reporting readiness defines privacy-safe SoloLevelAttemptEvent Phase 1 without question-bank exposure',
+    () => {
+      const required = missingTokens(dbReportingReadinessSource, [
+        '## SoloLevelAttemptEvent Phase 1 Contract',
+        '`SoloLevelAttemptEvent`',
+        'actor_key_hash',
+        'player_type: `guest` / `linked` / `unknown`',
+        '`level_id` or `level_number`',
+        'rules_version',
+        'passed',
+        'used_moves',
+        'elapsed_seconds',
+        'stars',
+        'correct_placements',
+        'evaluated_moves',
+        'joker_used_summary',
+        'source: `solo_completion` / `solo_attempt`',
+        'no email',
+        'no provider ID',
+        'no owner_key',
+        'no raw guest_id',
+        'no internal player_key in public UI/export',
+        'no full question bank',
+        'no answer years / correct answers in public reports',
+        'idempotency key',
+        'best-effort',
+      ]);
+
+      if (required.length) {
+        return fail('DB reporting readiness is missing the Phase 1 SoloLevelAttemptEvent contract or privacy guardrails.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'privacy-safe SoloLevelAttemptEvent contract, deferred backend-owned write plan, no question bank or answer leakage',
+          actual: { required },
+        });
+      }
+
+      return pass('DB reporting readiness now defines the Phase 1 SoloLevelAttemptEvent contract with anonymized actor keys, non-blocking backend ownership, and public-export privacy bans.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
   /* ============================================================
    *  1. SOLO / PROFILE SOURCE OF TRUTH
    * ============================================================ */
