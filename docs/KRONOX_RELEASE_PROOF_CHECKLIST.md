@@ -999,7 +999,7 @@ Checklist:
   use `KRONOX_TEST_RESET_EMAILS` / `TEST_RESET_EMAILS`.
 * Admin preview by target email shows only safe summary values.
 * Execute requires typing the exact target email again.
-* `Hard zero reset` sets visible Kronox Puan, Solo progress, Online progress, Elmas, Top 5 records, and leaderboard projection to 0 / starting state.
+* `Hard zero reset` sets visible Kronox Puan, Solo progress, Online progress, Elmas, legacy GameRecord rows, and leaderboard projection to 0 / starting state.
 * `Hard zero reset` does not immediately re-grant starter, same-day daily login, or same-day Daily Wheel Diamonds after target refresh.
 * `Hard zero reset` sets `daily_wheel_last_spin_date` to the current UTC day and clears Daily Wheel guard fields.
 * `New player reset` sets visible progress to starting state and allows normal starter/daily Diamond bootstrap plus Daily Wheel availability on next app entry.

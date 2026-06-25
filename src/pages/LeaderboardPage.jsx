@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Gem, Sparkles, Trophy } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 // Codex167 — Liderlik üst barı Home/Solo standardına hizalandı: ortada
 // gerçek persisted Elmas + sağda notification bell. Profil/avatar üst
 // bardan kaldırıldı (kullanıcı talebi). Title "Liderlik Tablosu" zaten
@@ -88,6 +89,7 @@ function hydrateLeaderboardRow(publicRow, friendKeys, currentOwnerKey) {
  * GameLayout, invite/lobby/notification/tutorial logic — untouched.
  */
 export default function LeaderboardPage() {
+  const navigate = useNavigate();
   const { user: authUser, guestProfile, authChecked: contextAuthChecked } = useAuth();
   const [user, setUser] = useState(null);
   const [localGuestProfile, setLocalGuestProfile] = useState(guestProfile || null);
@@ -292,6 +294,14 @@ export default function LeaderboardPage() {
   }
   const isAdmin = isAdminUser(user);
   const leaderboardPlayer = user || completedGuestProfile;
+  const openCurrentUserProfileSettings = useCallback(() => {
+    navigate('/settings?focus=profile', {
+      state: {
+        source: 'leaderboard_self_row',
+        focusProfileSettings: true,
+      },
+    });
+  }, [navigate]);
 
   return (
     <div
@@ -346,6 +356,7 @@ export default function LeaderboardPage() {
             soloLeaderboardScore={soloLeaderboardScore}
             onRetry={loadLeaderboard}
             isAdmin={isAdmin}
+            onCurrentUserRowOpenSettings={openCurrentUserProfileSettings}
           />
         </div>
       </PullToRefresh>

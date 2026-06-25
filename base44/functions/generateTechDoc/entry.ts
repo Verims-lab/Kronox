@@ -568,7 +568,7 @@ Deno.serve(async (req) => {
     bullet('useOfflineQuestions soru havuzunu yukler; secim kategoriye/zorluga gore lib/gameRules helperlari ile filtrelenir.');
     bullet('Tekrarsizlik: oturum-ici used_question_ids (SERT) + cross-game LRU history (questionHistory.js) + ayni oyuncunun timeline\'inda mevcut yillara denk soru TERCIH EDILMEZ.');
     bullet('Yerlestirme kurallari lib/gameRules\'a baglidir: isCorrectPlacement, hasPlayerWon (win_card_count).');
-    bullet('Oyun bitince kazanan oyuncu icin GameRecord.create cagrilir (sadece authenticated). TopScores Settings\'te kullaniciya gosterilir.');
+    bullet('Oyun bitince kazanan oyuncu icin legacy GameRecord.create cagrisi korunur (sadece authenticated); Settings/Profile artik En Iyi 5 listesini gostermez.');
     bullet('SOLO MOD ONLINE STATE\'TEN TAMAMEN IZOLEDIR: useLobbySync ve updateLobbyGameState cagrilmaz.');
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -835,14 +835,14 @@ Deno.serve(async (req) => {
     aiBlock({
       doList: [
         'Yeni rota /profile App.jsx\'e ekle, lazy import.',
-        'Veri GameRecord uzerinden aggregate; AuthContext\'ten user al.',
+        'Kullanici kimligi ve profil alanlari AuthContext\'ten al; legacy GameRecord\'u yeni Profile UI listesi icin kullanma.',
         'BottomNav\'a yeni sekme eklenmeli (mevcut 3 sekme ile uyum).',
       ],
       dontList: [
         'Lobby uzerinden istatistik tutmak (anlik state\'tir, gecmis yok).',
         'Mobile Home stage geometrisini degistirmek.',
       ],
-      files: ['pages/Profile.jsx (yeni)', 'App.jsx', 'components/layout/BottomNav.jsx', 'entities/GameRecord.json'],
+      files: ['pages/Profile.jsx (yeni)', 'App.jsx', 'components/layout/BottomNav.jsx'],
       tests: ['Test Suite -> smoke (profile route)', 'records kategorisini genislet'],
       risk: 'Medium',
     });

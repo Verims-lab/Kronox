@@ -371,10 +371,12 @@ Audit notes:
 ### GameRecord
 
 Schema: `base44/entities/GameRecord.jsonc`
-Helpers/components: `useGameActions.saveGameRecord`, `TopScores`
+Helpers/components: `useGameActions.saveGameRecord`
 
 Purpose:
-- Older single-player game record storage.
+- Older single-player game record storage. The former Settings/Profile
+  "En iyi 5 rekorun" list has been removed from current UI; backend rows remain
+  for legacy/admin/reset/reporting compatibility.
 
 Important fields:
 - `user_email`

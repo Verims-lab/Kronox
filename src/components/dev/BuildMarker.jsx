@@ -1,5 +1,17 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex435 — own leaderboard row opens profile settings:
+//   • Makes only the current user's "Sen" leaderboard row tappable.
+//   • Navigates to the existing Profile Settings / personal information route.
+//   • Keeps other leaderboard rows inert and public identity username-only.
+//
+// Codex434 — Settings/Profile records UI removal:
+//   • Removes the "En İyi 5 Rekorun" Settings/Profile section and its
+//     legacy TopScores renderer.
+//   • Keeps backend Solo record tracking and success-only record
+//     congratulations paths intact.
+//   • Updates stale docs/generator text that claimed Settings showed TopScores.
+//
 // Codex432 — username restore after login/relaunch:
 //   • Hydrates authenticated app/profile state from the saved User row so
 //     username returns with diamonds, level, categories, age, and gender.
@@ -2476,7 +2488,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex432';
+const BUILD_MARKER = 'Codex435';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
