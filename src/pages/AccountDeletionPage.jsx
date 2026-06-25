@@ -34,6 +34,8 @@ export default function AccountDeletionPage() {
     };
   }, []);
 
+
+
   return (
     <main
       className="min-h-screen overflow-x-hidden text-white"
