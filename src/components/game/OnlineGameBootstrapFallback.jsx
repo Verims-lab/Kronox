@@ -66,8 +66,10 @@ export default function OnlineGameBootstrapFallback({
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-6">
       <div className="text-center space-y-4 max-w-sm">
-        <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" />
-        <p className="font-inter text-foreground">{message}</p>
+        <div role="status" aria-live="polite" aria-label={message}>
+          <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" aria-hidden="true" />
+          <p className="font-inter text-foreground">{message}</p>
+        </div>
         {showRetry && (
           <>
             <p className="font-inter text-xs text-muted-foreground">
@@ -81,11 +83,11 @@ export default function OnlineGameBootstrapFallback({
               >
                 {busy ? (
                   <span className="inline-flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" /> Yenileniyor…
+                    <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> Yenileniyor…
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-2">
-                    <RefreshCw className="w-4 h-4" /> Tekrar Dene
+                    <RefreshCw className="w-4 h-4" aria-hidden="true" /> Tekrar Dene
                   </span>
                 )}
               </Button>

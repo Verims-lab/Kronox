@@ -78,8 +78,13 @@ export default function AdminPage() {
 
   if (isLoadingAuth || adminStatus?.loading || adminStatus?.statusCall === 'pending') {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-6 h-6 text-primary animate-spin" />
+      <div
+        className="min-h-screen bg-background flex items-center justify-center"
+        role="status"
+        aria-live="polite"
+        aria-label="Admin yetkisi kontrol ediliyor"
+      >
+        <Loader2 className="w-6 h-6 text-primary animate-spin" aria-hidden="true" />
       </div>
     );
   }
@@ -185,8 +190,13 @@ export default function AdminPage() {
 
 function AdminToolLoading() {
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-background/80">
-      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+    <div
+      className="fixed inset-0 z-[90] flex items-center justify-center bg-background/80"
+      role="status"
+      aria-live="polite"
+      aria-label="Admin aracı yükleniyor"
+    >
+      <Loader2 className="h-6 w-6 animate-spin text-primary" aria-hidden="true" />
     </div>
   );
 }
@@ -208,7 +218,7 @@ function ToolCard({ icon, title, desc, loading, onClick }) {
       className="w-full flex items-center gap-3 p-4 rounded-2xl border border-border/40 bg-secondary/20 hover:bg-secondary/40 hover:border-border/70 transition-all text-left disabled:opacity-60"
     >
       <div className="w-8 h-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0 text-primary">
-        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : icon}
+        {loading ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : icon}
       </div>
       <div className="flex-1">
         <p className="font-inter text-sm font-semibold text-foreground">{title}</p>

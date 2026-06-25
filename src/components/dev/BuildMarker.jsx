@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex444 — Security Pass 3:
+//   • Adds accessible status semantics to protected/page/game/lobby loading states without visual layout changes.
+//   • Adds dialog labels for custom settings/tutorial/player-selection modals and targeted Health/docs coverage.
+//   • Keeps admin auth helper duplication and SimulationPanel source sprawl as documented follow-ups; fixes a UI primitive displayName typo.
+//
 // Codex443 — Security Pass 2:
 //   • Adds EconomyOperationLock TTL/stale recovery for player economy mutations.
 //   • Serializes Market purchase, Solo joker spend, Daily Wheel claim, and Daily Quest claim balance/inventory writes.
@@ -2525,7 +2530,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex443';
+const BUILD_MARKER = 'Codex444';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

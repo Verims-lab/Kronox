@@ -186,8 +186,13 @@ export default function CategoryPreferenceOnboardingModal({ user, disabled = fal
             </div>
 
             {loading ? (
-              <div className="flex min-h-40 items-center justify-center rounded-xl border border-border/30 bg-background/20">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <div
+                className="flex min-h-40 items-center justify-center rounded-xl border border-border/30 bg-background/20"
+                role="status"
+                aria-live="polite"
+                aria-label="Kategori tercihleri yükleniyor"
+              >
+                <Loader2 className="h-6 w-6 animate-spin text-primary" aria-hidden="true" />
               </div>
             ) : setupUnavailable ? (
               <div className="rounded-xl border border-border/35 bg-background/25 px-3 py-5 text-center">

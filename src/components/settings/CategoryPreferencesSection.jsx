@@ -136,8 +136,13 @@ export default function CategoryPreferencesSection({ user }) {
       </div>
 
       {loading ? (
-        <div className="flex min-h-24 items-center justify-center rounded-xl border border-border/30 bg-background/20">
-          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        <div
+          className="flex min-h-24 items-center justify-center rounded-xl border border-border/30 bg-background/20"
+          role="status"
+          aria-live="polite"
+          aria-label="Kategori tercihleri yükleniyor"
+        >
+          <Loader2 className="h-5 w-5 animate-spin text-primary" aria-hidden="true" />
         </div>
       ) : activeCategories.length === 0 ? (
         <p className="rounded-xl border border-border/35 bg-background/25 px-3 py-4 text-center font-inter text-sm font-semibold text-muted-foreground">

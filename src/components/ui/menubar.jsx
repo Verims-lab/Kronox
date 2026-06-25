@@ -178,7 +178,7 @@ const MenubarShortcut = ({
       {...props} />)
   );
 }
-MenubarShortcut.displayname = "MenubarShortcut"
+MenubarShortcut.displayName = "MenubarShortcut"
 
 export {
   Menubar,

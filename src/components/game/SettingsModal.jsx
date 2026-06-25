@@ -43,12 +43,15 @@ export default function SettingsModal({ onClose }) {
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           className="w-full max-w-md bg-card border border-border rounded-t-2xl p-6 space-y-5"
           onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="game-settings-modal-title"
           style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}
         >
           <div className="flex items-center justify-between">
-            <h2 className="font-cinzel text-lg text-foreground font-semibold">Ayarlar</h2>
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <X className="w-5 h-5" />
+            <h2 id="game-settings-modal-title" className="font-cinzel text-lg text-foreground font-semibold">Ayarlar</h2>
+            <Button variant="ghost" size="icon" onClick={onClose} aria-label="Ayarları kapat">
+              <X className="w-5 h-5" aria-hidden="true" />
             </Button>
           </div>
 

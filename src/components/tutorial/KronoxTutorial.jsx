@@ -323,6 +323,9 @@ export default function KronoxTutorial({ onDone, onSkip, onComplete }) {
             boxShadow: '0 -8px 60px rgba(250,204,21,0.12), 0 -2px 20px rgba(0,0,0,0.8)',
             paddingBottom: 'env(safe-area-inset-bottom)',
           }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="kronox-tutorial-title"
         >
           {/* Neon top stripe */}
           <div className="w-full h-0.5" style={{ background: 'linear-gradient(90deg, transparent, rgba(250,204,21,0.7), transparent)' }} />
@@ -342,7 +345,7 @@ export default function KronoxTutorial({ onDone, onSkip, onComplete }) {
 
             {/* Title */}
             <div className="space-y-1.5">
-              <h2 className="font-bangers text-2xl tracking-wider text-white leading-tight"
+              <h2 id="kronox-tutorial-title" className="font-bangers text-2xl tracking-wider text-white leading-tight"
                 style={{ textShadow: '0 0 20px rgba(250,204,21,0.4)' }}>
                 {current.title}
               </h2>

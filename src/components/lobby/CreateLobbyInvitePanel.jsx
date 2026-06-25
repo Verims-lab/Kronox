@@ -453,11 +453,17 @@ function FriendInviteRow({ player, selected, disabled, onToggle }) {
 
 function FriendsSkeleton() {
   return (
-    <div className="space-y-2">
+    <div
+      className="space-y-2"
+      role="status"
+      aria-live="polite"
+      aria-label="Oyuncular yükleniyor"
+    >
       {[0, 1, 2].map((i) => (
         <div
           key={i}
           className="h-14 rounded-2xl"
+          aria-hidden="true"
           style={{
             background:
               'linear-gradient(90deg, rgba(255,255,255,0.04), rgba(255,255,255,0.08), rgba(255,255,255,0.04))',
