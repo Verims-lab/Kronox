@@ -25,6 +25,7 @@ import {
   formatRemaining,
   getGameInviteRemainingMs,
 } from '@/lib/headerNotifications';
+import { getSafeNotificationActorName } from '@/lib/notificationIdentity';
 import { sounds } from '@/lib/gameSounds';
 
 export default function HeaderNotificationBell({ user }) {
@@ -208,7 +209,7 @@ function Section({ title, count, children }) {
 }
 
 function FriendRequestItem({ row, onOpen }) {
-  const display = (row?.from_name || '').trim() || row?.from_email || 'Bir kullanıcı';
+  const display = getSafeNotificationActorName(row?.from_name, 'Bir kullanıcı');
   return (
     <button
       type="button"
@@ -233,7 +234,7 @@ function FriendRequestItem({ row, onOpen }) {
 }
 
 function GameInviteItem({ row, onOpen }) {
-  const display = (row?.from_name || '').trim() || row?.from_email || 'Bir arkadaşın';
+  const display = getSafeNotificationActorName(row?.from_name, 'Bir arkadaşın');
   const remaining = formatRemaining(getGameInviteRemainingMs(row));
   return (
     <button

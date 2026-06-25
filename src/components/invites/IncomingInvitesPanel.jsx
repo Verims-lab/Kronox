@@ -8,6 +8,7 @@ import {
   useNotificationCenter,
 } from '@/hooks/useNotificationCenter';
 import { isGameInviteExpired } from '@/lib/gameInviteSelectors';
+import { getSafeNotificationActorName } from '@/lib/notificationIdentity';
 import { sounds } from '@/lib/gameSounds';
 import InviteCountdown from '@/components/invites/InviteCountdown';
 
@@ -130,7 +131,7 @@ export default function IncomingInvitesPanel({ user, variant = 'fantasy' }) {
 }
 
 function InviteRow({ invite, busy, onAccept, onReject }) {
-  const display = invite.from_name?.trim() || invite.from_email;
+  const display = getSafeNotificationActorName(invite.from_name, 'Bir arkadaşın');
   const expired = invite.status === 'expired' || isGameInviteExpired(invite);
   return (
     <motion.li

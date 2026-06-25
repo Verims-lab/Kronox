@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex426 — Friend/game invite notification stability:
+//   • Removes foreground game-invite auto-dismiss and keeps visible banners
+//     until explicit close/open or confirmed source invalidation.
+//   • Preserves pending FriendRequest notifications through transient empty
+//     refreshes while terminal subscription/fetch rows close them cleanly.
+//   • Uses public username-safe notification labels instead of email fallbacks.
+//
 // Codex425 — Online 4-player lobby start recovery:
 //   • Hardens code/invite lobby joins with merge/retry roster writes so
 //     concurrent accepts do not drop a participant.
@@ -708,9 +715,9 @@ import React, { useEffect, useState } from 'react';
 // this notification fix onto the current Codex branch.
 //
 // Previous note: Codex093 — fixes sticky foreground GameInvite toasts blocking gameplay:
-// invite toasts now auto-dismiss, their close button is wired to the toast
-// store, non-pending invite updates dismiss active invite toasts, and entering
-// /game clears active invite notifications so gameplay stays visible/touchable.
+// invite toasts have a close button wired to the toast store, non-pending invite
+// updates dismiss active invite toasts, and /game temporarily hides foreground
+// invite notifications so gameplay stays visible/touchable.
 //
 // Previous note: Codex092 — hardens real system invite notification routing/copy:
 // Web Push payloads now use the product-specific Turkish invite text, app-open
@@ -2429,7 +2436,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex425';
+const BUILD_MARKER = 'Codex426';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

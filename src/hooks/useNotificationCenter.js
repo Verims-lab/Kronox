@@ -5,7 +5,10 @@ import {
   openGameInvite as openGameInviteAction,
   rejectGameInvite as rejectGameInviteAction,
 } from '@/lib/inviteApi';
-import { isPendingFriendRequestForUser } from '@/lib/headerNotifications';
+import {
+  getFriendRequestDedupeKey,
+  mergePendingFriendRequests,
+} from '@/lib/headerNotifications';
 import { buildNotificationViewModel } from '@/lib/notificationViewModel';
 import {
   getGameInviteActiveFilterReason,
@@ -78,6 +81,14 @@ function removeInvite(inviteId) {
   }));
 }
 
+function removeFriendRequest(requestId) {
+  if (!requestId) return;
+  updateState((prev) => ({
+    ...prev,
+    friendRequests: prev.friendRequests.filter((request) => request.id !== requestId),
+  }));
+}
+
 async function fetchNotificationCenter({ preserveExisting = true, source = 'fetch' } = {}) {
   const email = state.email;
   if (!email) {
@@ -89,8 +100,8 @@ async function fetchNotificationCenter({ preserveExisting = true, source = 'fetc
   patchState({ loading: true, error: null });
   inFlightFetch = Promise.all([
     base44.entities.FriendRequest.filter(
-      { to_email: email, status: 'pending' },
-      '-created_date',
+      { to_email: email },
+      '-updated_date',
       50,
     ).catch(() => []),
     loadIncomingInviteSnapshot(email),
@@ -114,7 +125,7 @@ async function fetchNotificationCenter({ preserveExisting = true, source = 'fetc
       });
       return {
         ...prev,
-        friendRequests: (friendRows || []).filter((row) => isPendingFriendRequestForUser(row, email)),
+        friendRequests: mergePendingFriendRequests(prev.friendRequests, friendRows || [], email, { preserveExisting }),
         gameInvites: nextInvites,
         loading: false,
         error: null,
@@ -155,7 +166,29 @@ function startSubscriptions(email, currentUser) {
   const unsubs = [];
 
   try {
-    const unsubFriend = base44.entities.FriendRequest.subscribe?.(() => {
+    const unsubFriend = base44.entities.FriendRequest.subscribe?.((event) => {
+      const eventType = event?.type || event?.eventType || 'update';
+      const request = event?.data || event;
+      const oldRequest = event?.old_data || event?.oldData || {};
+      const requestId = request?.id || oldRequest?.id;
+      const toEmail = normalizeEmail(request?.to_email || oldRequest?.to_email);
+      const fromEmail = normalizeEmail(request?.from_email || oldRequest?.from_email);
+      if (!toEmail && !fromEmail) {
+        scheduleRefresh({ preserveExisting: true, source: 'friend_request_subscription' });
+        return;
+      }
+      if (toEmail !== email && fromEmail !== email) return;
+
+      if (toEmail === email) {
+        if (eventType === 'delete' && requestId) {
+          removeFriendRequest(requestId);
+        } else if (requestId || getFriendRequestDedupeKey(request)) {
+          updateState((prev) => ({
+            ...prev,
+            friendRequests: mergePendingFriendRequests(prev.friendRequests, [request], email, { preserveExisting: true }),
+          }));
+        }
+      }
       scheduleRefresh({ preserveExisting: true, source: 'friend_request_subscription' });
     });
     if (typeof unsubFriend === 'function') unsubs.push(unsubFriend);

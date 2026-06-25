@@ -567,6 +567,12 @@ Current source of truth:
 - Notification preference: `User.game_invite_notifications_enabled`.
 - Header notifications: derived from `FriendRequest` and `GameInvite`.
 - Toast dismissed ids: local/in-memory only.
+- Friend/game notification labels are public-username-only; missing or unsafe
+  names fall back to generic Turkish labels instead of email/provider/internal
+  ids.
+- Valid pending notifications remain visible through transient empty
+  fetch/subscription gaps and close only on explicit user action, terminal
+  status, expiry, or confirmed source invalidation.
 
 Risks:
 - P1: notification preference field is absent from schema.
@@ -604,7 +610,7 @@ Recommendation:
 | --- | --- | --- | --- |
 | Global leaderboard | `getSoloLeaderboard` reads `SoloLeaderboardEntry.list('-total_kronox_score', limit)` first, merges a bounded server-side `User.kronox_puan_total` repair window when needed, and returns compact `topRows`, `currentUserRow`, friend keys, and `rankScope` | Projection-first and compact, repaired for stale/missing top projection rows, but exact off-window rank is scope-limited | Add indexed exact-rank/current-rank projection when user count grows |
 | Optional per-level leaderboard record | `getSoloLeaderboard` service-role `User.list(..., 500)` fallback when `levelNumber` is requested | Not used by main Liderlik table, but still not scalable | Add rank-safe per-level projection or friend-record endpoint |
-| Header notifications | FriendRequest filter + GameInvite load + subscriptions + focus/visibility refresh | Reasonable, but can duplicate work | Keep shared selectors; monitor polling/subscription duplication |
+| Header notifications | Recent incoming FriendRequest lifecycle rows + GameInvite load + subscriptions + focus/visibility refresh | Reasonable; transient empty fetches are preserved while terminal rows remove actionable notifications | Keep shared selectors; monitor polling/subscription duplication |
 | Online pending invites | `GameInvite.filter({ to_email })` then selector | Reasonable | Ensure status/email filters stay selective |
 | Friend list | Two FriendRequest filters for accepted incoming/outgoing | Reasonable | Add uniqueness/normalization runtime probes |
 | Active lobby return | Host fast path + filter waiting lobbies up to 20 | Reasonable now | Add explicit active lobby index/source if lobby volume grows |

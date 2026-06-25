@@ -705,6 +705,12 @@ After deployment, verify:
 * wrong user cannot mutate another user’s lobby
 * wrong user cannot update another user’s push subscription
 * missing VAPID does not break in-app invite flow
+* friend/game invite notification UI uses public username labels only and must
+  not fall back to email, provider ids, owner keys, raw guest ids, or internal
+  player keys
+* valid pending friend/game invite notifications survive transient empty
+  refreshes and close only on explicit user action, terminal status, expiry, or
+  confirmed source invalidation
 
 ## Account Deletion
 
