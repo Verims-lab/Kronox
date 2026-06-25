@@ -1,10 +1,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Clock } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import GoldButton from '@/components/ui/GoldButton';
 import ScreenHeader from '@/components/layout/ScreenHeader';
+import KronoxWordmark from '@/components/ui/KronoxWordmark';
 
 /**
  * Codex127 — Slimmed-down panel.
@@ -49,21 +50,12 @@ export default function LobbyCreateJoinPanel({
         title="Lobiye Katıl"
         showBack
         user={user}
+        showProfile={false}
         onBack={onBackMode || (() => setMode(null))}
       />
       <div className="w-full max-w-md space-y-7">
-        <div className="text-center space-y-2">
-          <div
-            className="w-16 h-16 mx-auto rounded-full flex items-center justify-center"
-            style={{
-              background:
-                'radial-gradient(circle at 35% 28%, rgba(255,236,140,0.34), rgba(8,18,42,0.85) 62%)',
-              boxShadow:
-                'inset 0 0 0 2px #facc15, inset 0 1px 0 rgba(255,236,140,0.55), 0 0 22px rgba(250,204,21,0.55), 0 0 30px rgba(59,130,246,0.35)',
-            }}
-          >
-            <Clock className="w-7 h-7 text-amber-300" />
-          </div>
+        <div className="flex flex-col items-center text-center space-y-3">
+          <KronoxWordmark fontSize="clamp(30px, 9vw, 46px)" />
           <p className="font-inter text-blue-100/70 text-sm">Lobi koduyla katıl</p>
         </div>
 
