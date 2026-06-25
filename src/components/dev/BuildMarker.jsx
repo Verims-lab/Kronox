@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex427 — Invite verified lobby + Solo record Health lock:
+//   • Returns verifiedLobby/joinedLobby from acceptGameInvite after the
+//     service-role roster append re-reads the lobby.
+//   • Routes notification-center invite accepts to /lobby with verified
+//     lobby state instead of stale invite-local data.
+//   • Re-locks Solo record congratulations to backend achievement context.
+//
 // Codex426 — Friend/game invite notification stability:
 //   • Removes foreground game-invite auto-dismiss and keeps visible banners
 //     until explicit close/open or confirmed source invalidation.
@@ -2436,7 +2443,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex426';
+const BUILD_MARKER = 'Codex427';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars
