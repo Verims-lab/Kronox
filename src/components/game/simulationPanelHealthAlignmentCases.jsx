@@ -229,6 +229,7 @@ export const EXTRA_TESTS = [
         'MVI-style state machines',
         'Base44 production path remains active',
         'Base44 migration',
+        'Online lobby/start/reconnect',
         'DAU/WAU/MAU',
         'private identifiers',
         'full question bank',

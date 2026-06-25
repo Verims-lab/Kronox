@@ -147,6 +147,8 @@ identifier display. Executable reducer coverage now protects Online 4-player
 representation/start/recovery transitions and notification transient-empty,
 terminal, dismiss, accept/reject, dedupe, and privacy transitions. Two-account,
 realtime, push, RLS/BOLA, device, and store proof remain manual/live probes.
+The Online lobby/start/reconnect contract remains an architecture target and
+manual live-proof area even when reducer/static Health checks pass.
 `;
 
 export const DB_REPORTING_READINESS_DOC = `# Kronox DB Reporting Readiness
