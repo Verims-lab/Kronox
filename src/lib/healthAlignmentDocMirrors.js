@@ -130,8 +130,9 @@ Status: target architecture map.
 Feature folders should separate Views, ViewModels, MVI reducers/state machines,
 services/use cases, gateways/API access, and Base44 backend implementation.
 Pilot flows are Solo gameplay completion/records, Online lobby/start/reconnect,
-and friend/game invite notifications. Base44 remains the active backend while
-gateway boundaries reduce direct provider coupling.
+and friend/game invite notifications. Current Base44 production path remains
+active. Base44 migration work is paused while gateway boundaries reduce direct
+provider coupling.
 
 Solo Phase 1 starts at src/lib/soloAttemptReducer.js: the reducer is pure,
 effect-free, uses current HAMLE scoring constants, tracks persistence and
@@ -211,7 +212,7 @@ export const DB_REPORTING_READINESS_DOC = `# Kronox DB Reporting Readiness
 
 Status: reporting-readiness audit.
 
-Future reports include DAU/WAU/MAU, new vs returning users, guest vs linked
+Future reports include DAU / WAU / MAU, new vs returning users, guest vs linked
 users, Solo level funnel/pass/fail/moves/time, Solo record counts, daily reward
 claims, joker earn/spend/purchase, Diamond balance changes, leaderboard
 movement, category preference distribution, question exposure/difficulty,

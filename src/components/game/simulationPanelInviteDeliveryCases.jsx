@@ -161,7 +161,7 @@ export const EXTRA_TESTS = [
     () => {
       const src = safeStr(sendFriendRequestFnSource);
       const createIdx = src.indexOf('FriendRequest.create');
-      const emailIdx = src.indexOf('sendFriendRequestEmail(base44');
+      const emailIdx = src.indexOf('const emailResult = await sendFriendRequestEmail(base44');
       if (createIdx < 0 || emailIdx < 0) {
         return fail('Could not locate create / email send positions in sendFriendRequest backend.', {
           verification: 'STATIC_CONTRACT',
@@ -502,7 +502,7 @@ export const EXTRA_TESTS = [
   makeCase('invite_delivery', 'online_non_friend_invites_backend_resolve_opaque_targets',
     'Online non-friend invites use opaque target refs resolved by backend, not client-visible email',
     () => {
-      const src = `${safeStr(onlinePlayerSelectionSource)}\n${safeStr(friendSelectModalSource)}\n${safeStr(createLobbyInvitePanelSource)}\n${safeStr(friendsApiSource)}\n${safeStr(createGameInvitesForTargetsFnSource)}`;
+      const src = `${safeStr(onlinePlayerSelectionSource)}\n${safeStr(friendSelectModalSource)}\n${safeStr(createLobbyInvitePanelSource)}\n${safeStr(createGameInvitesForTargetsFnSource)}`;
       const required = [
         'normalizeInviteTargetRef',
         'target_refs',

@@ -465,29 +465,12 @@ Deno.serve(async (req: Request) => {
 
     const targetValue = Math.max(1, normalizeNumber(progress.target_value, 1));
     const progressValue = Math.min(targetValue, normalizeNumber(progress.progress_value, 0));
-    // Requirement 5 — Accept a claim whenever progress_value >= target_value.
-    // The UI shows "Al" at 1/1, so we must NOT reject just because the row's
-    // status field is still "active" (the progress write may have reached
-    // target without persisting the status flip). Completion is finalized
-    // here during claim rather than requiring the frontend to update status.
-    if (progressValue < targetValue) {
+    const progressStatus = String(progress.status || '');
+    if (progressStatus !== 'completed' && progressStatus !== 'claimed') {
       return json({ ok: false, code: 'daily_quest_not_completed', error: 'Görev henüz tamamlanmadı.' }, 409);
     }
-    // Finalize completion if the row reached its target but was never flipped
-    // to a completed/claimed status. Best-effort; failure here does not block
-    // the grant since progressValue >= targetValue already proves completion.
-    if (String(progress.status || '') === 'active' && !progress.completed_at) {
-      const completionTimestamp = new Date().toISOString();
-      const finalized = await progressStore.update(rowId(progress), {
-        status: 'completed',
-        completed_at: completionTimestamp,
-        updated_at: completionTimestamp,
-      }).catch(() => null);
-      if (finalized && rowId(finalized)) progress = finalized;
-      else {
-        progress.status = 'completed';
-        progress.completed_at = completionTimestamp;
-      }
+    if (progressValue < targetValue) {
+      return json({ ok: false, code: 'daily_quest_not_completed', error: 'Görev henüz tamamlanmadı.' }, 409);
     }
 
     const rewardDiamonds = Math.max(1, normalizeNumber(progress.reward_diamonds, 1));
@@ -583,6 +566,11 @@ Deno.serve(async (req: Request) => {
     if (String(lockedProgress.status || '') === 'claimed' || lockedProgress.claimed_at) {
       return json({ ok: false, code: 'daily_quest_already_claimed', error: 'Bu görev ödülü zaten alındı.' }, 409);
     }
+    const lockedTargetValue = Math.max(1, normalizeNumber(lockedProgress.target_value, 1));
+    const lockedProgressValue = Math.min(lockedTargetValue, normalizeNumber(lockedProgress.progress_value, 0));
+    if (String(lockedProgress.status || '') !== 'completed' || lockedProgressValue < lockedTargetValue) {
+      return json({ ok: false, code: 'daily_quest_not_completed', error: 'Görev henüz tamamlanmadı.' }, 409);
+    }
 
     const balanceBefore = normalizeNumber(lockedPlayer.row?.diamonds, 0);
     const balanceAfter = balanceBefore + rewardDiamonds;
@@ -596,52 +584,38 @@ Deno.serve(async (req: Request) => {
       economy_updated_at: timestamp,
     };
 
-    // Grant the diamonds on the canonical balance source FIRST. This is the
-    // visible reward and matches the proven Daily Wheel claim order.
-    await updateDailyQuestPlayer(base44, lockedPlayer, userPatch);
-
-    // Write the DiamondTransaction ledger row. Some Base44 runtimes enforce
-    // RLS create rules even for service-role writes, which can deny this
-    // append-only ledger. The diamonds were already granted above, so a
-    // ledger denial must NOT roll back the grant or fail the claim — the
-    // reward must reach the user. We record ledgerError for diagnostics
-    // (same best-effort contract used by claimDailyWheelReward).
-    let tx: any = null;
-    let ledgerError: string | null = null;
-    try {
-      tx = await createDiamondTransaction(base44, lockedPlayer, {
-        user_email: lockedPlayer.playerKey,
-        owner_key: lockedPlayer.ownerKey,
-        player_type: lockedPlayer.isGuest ? 'guest' : 'registered',
-        amount: rewardDiamonds,
-        balance_before: balanceBefore,
-        balance_after: balanceAfter,
+    const tx = await createDiamondTransaction(base44, lockedPlayer, {
+      user_email: lockedPlayer.playerKey,
+      owner_key: lockedPlayer.ownerKey,
+      player_type: lockedPlayer.isGuest ? 'guest' : 'registered',
+      amount: rewardDiamonds,
+      balance_before: balanceBefore,
+      balance_after: balanceAfter,
+      source: DAILY_QUEST_REWARD_SOURCE,
+      direction: 'earn',
+      related_entity_type: RELATED_ENTITY_TYPE,
+      related_entity_id: rowId(lockedProgress),
+      idempotency_key: idempotencyKey,
+      metadata: {
+        questProgressId: rowId(lockedProgress),
+        questKey: lockedProgress.quest_key,
+        questDate,
+        questType: lockedProgress.quest_type,
         source: DAILY_QUEST_REWARD_SOURCE,
-        direction: 'earn',
-        related_entity_type: RELATED_ENTITY_TYPE,
-        related_entity_id: rowId(lockedProgress),
-        idempotency_key: idempotencyKey,
-        metadata: {
-          questProgressId: rowId(lockedProgress),
-          questKey: lockedProgress.quest_key,
-          questDate,
-          questType: lockedProgress.quest_type,
-          source: DAILY_QUEST_REWARD_SOURCE,
-          grantsDiamondsOnly: true,
-          noKronoxPuan: true,
-          noLeaderboardImpact: true,
-          clientRewardIgnored: true,
-          playerType: lockedPlayer.isGuest ? 'guest' : 'registered',
-          guestProfileReward: lockedPlayer.isGuest,
-          rawGuestTokenServerStored: false,
-        },
-        created_at: timestamp,
-        description: 'daily_quest_reward',
-      });
-    } catch (error) {
-      ledgerError = String(error?.message || error);
-      console.error('[claimDailyQuestReward] ledger create failed (grant kept)', ledgerError);
-    }
+        grantsDiamondsOnly: true,
+        noKronoxPuan: true,
+        noLeaderboardImpact: true,
+        clientRewardIgnored: true,
+        playerType: lockedPlayer.isGuest ? 'guest' : 'registered',
+        guestProfileReward: lockedPlayer.isGuest,
+        rawGuestTokenServerStored: false,
+      },
+      created_at: timestamp,
+      description: 'daily_quest_reward',
+    });
+    if (!tx) throw new Error('daily_quest_reward_transaction_missing');
+
+    await updateDailyQuestPlayer(base44, lockedPlayer, userPatch);
 
     // Mark the quest claimed only after the reward grant succeeded.
     const claimedProgress = await markProgressClaimed(base44, lockedPlayer, lockedProgress, timestamp, tx);
@@ -657,7 +631,6 @@ Deno.serve(async (req: Request) => {
       questStatus: 'claimed',
       idempotencyKey,
       transactionId: tx?.id || null,
-      ledgerError,
       userPatch,
       playerType: lockedPlayer.isGuest ? 'guest' : 'registered',
       guestProfile: lockedPlayer.isGuest,
