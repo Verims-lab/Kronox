@@ -615,28 +615,30 @@ export default function GameLayout({
         </div>
       )}
 
-      {/* Ghost drag card */}
+      {/* Ghost drag card — compact, semi-transparent timeline-sized preview so
+          the timeline years/slots stay readable behind it. The full question
+          text is intentionally hidden during drag; it's already visible in the
+          card above. Hit-testing uses the raw finger position (touchDragPos),
+          not this preview's rectangle, so shrinking it never affects placement. */}
       <AnimatePresence>
         {isDragging && touchDragPos && (
           <motion.div
-            initial={{ scale: 0.9, opacity: 0.7 }}
-            animate={{ scale: 1, opacity: 0.9 }}
+            initial={{ scale: 0.85, opacity: 0 }}
+            animate={{ scale: 1, opacity: 0.58 }}
             exit={{ scale: 0.85, opacity: 0 }}
+            transition={{ duration: 0.14, ease: 'easeOut' }}
             className="fixed z-50 pointer-events-none"
-            style={{ left: touchDragPos.x - 80, top: touchDragPos.y - 60, width: 160 }}
+            style={{ left: touchDragPos.x - 36, top: touchDragPos.y - 44, width: 72 }}
           >
             <div
-              className="rounded-2xl px-3 py-3 text-center"
+              className="flex h-[88px] flex-col items-center justify-center rounded-xl"
               style={{
-                background: 'linear-gradient(160deg, #0f1428 0%, #0a0f23 100%)',
-                border: '2px solid #facc15',
-                boxShadow: '0 0 20px rgba(250,204,21,0.4)',
+                background: 'linear-gradient(160deg, rgba(15,20,40,0.72) 0%, rgba(10,15,35,0.72) 100%)',
+                border: '1.5px solid rgba(250,204,21,0.85)',
+                boxShadow: '0 0 12px rgba(250,204,21,0.32)',
               }}
             >
-              <p className="font-inter text-xs text-white font-semibold line-clamp-2 leading-snug">
-                {currentQuestion?.question}
-              </p>
-              <p className="font-bangers text-sm text-yellow-400 mt-1 tracking-wide">↓ BIRAK</p>
+              <p className="font-bangers text-xs text-yellow-400 tracking-wide">↓ BIRAK</p>
             </div>
           </motion.div>
         )}
