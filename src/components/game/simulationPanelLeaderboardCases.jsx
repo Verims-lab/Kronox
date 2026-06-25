@@ -5,7 +5,9 @@
 // User.list reads, placeholder-only UI, fake ranks, or email leakage.
 
 import leaderboardPageSource from '../../pages/LeaderboardPage.jsx?raw';
+import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
 import leaderboardLibSource from '../../lib/leaderboard.js?raw';
+import navigationStackSource from '../../lib/NavigationStackContext.jsx?raw';
 import soloLevelsSource from '../../lib/soloLevels.js?raw';
 // Codex169 — The backend function (functions/) and entity schema
 // (entities/) live OUTSIDE src/, so `?raw` (and the old GitHub-mirror
@@ -16,6 +18,7 @@ import { GET_SOLO_LEADERBOARD_SOURCE as getSoloLeaderboardFunctionSource } from 
 // Codex119 — Section UI moved into a focused component; some state
 // strings now live there instead of the page.
 import kronoxRankingSectionSource from '../leaderboard/KronoxRankingSection.jsx?raw';
+import bottomNavSource from '../layout/BottomNav.jsx?raw';
 
 const STATUS = {
   PASS: 'PASS',
@@ -744,6 +747,50 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Leaderboard rows render username-only public identity from sanitized rows rather than raw private emails or owner keys.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+        actionType: ACTION_TYPES.CODE_FIX,
+      });
+    }),
+
+  makeCase('leaderboard_health', 'own_row_opens_profile_settings_only',
+    'Current user leaderboard row opens Profile Settings without making other rows private links',
+    () => {
+      const required = missingTokens(`${leaderboardPageSource}\n${kronoxRankingSectionSource}\n${settingsPageSource}\n${bottomNavSource}\n${navigationStackSource}`, [
+        'openCurrentUserProfileSettings',
+        "navigate('/settings?focus=profile'",
+        "source: 'leaderboard_self_row'",
+        'focusProfileSettings: true',
+        'onCurrentUserRowOpenSettings',
+        "row.isCurrentUser && typeof onOpenSettings === 'function'",
+        'aria-label="Profil ayarlarını aç"',
+        'Badge text="Sen"',
+        'data-kx-profile-settings-anchor="true"',
+        'shouldFocusProfileSettings',
+        'Profil Bilgileri',
+        'name="username"',
+        "['/profile', '/friends', '/settings', '/admin', '/test-suite', '/account-deletion']",
+        "Ana Sayfa",
+        "Liderlik",
+        "Profil",
+      ]);
+      const forbidden = forbiddenTokensFound(`${leaderboardPageSource}\n${kronoxRankingSectionSource}`, [
+        'row.email',
+        'row.owner_key',
+        'row.ownerKey}</',
+        'raw_guest_id',
+        'internal player_key',
+      ]);
+      if (required.length || forbidden.length) {
+        return fail('Own leaderboard-row Profile Settings navigation contract drifted.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          expected: 'only row.isCurrentUser/Sen row is a button to /settings?focus=profile; Settings anchors Profil Bilgileri; BottomNav remains Ana Sayfa/Liderlik/Profil; no private IDs rendered',
+          actual: { required, forbidden },
+        });
+      }
+      return pass('Only the current-user leaderboard row can open Profile Settings, Settings deep-links to Profil Bilgileri, and BottomNav/public identity contracts stay intact.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
         actionType: ACTION_TYPES.CODE_FIX,

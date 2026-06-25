@@ -27,8 +27,16 @@ import { Loader2, Medal, RefreshCw, Trophy, UserRound, Users } from 'lucide-reac
  *                        totalSoloScore, currentLevel } }
  *   onRetry          : () => void
  *   isAdmin          : boolean — gates the technical diagnostic line
+ *   onCurrentUserRowOpenSettings : () => void — own row only
  */
-export default function KronoxRankingSection({ authChecked, user, leaderboard, onRetry, isAdmin }) {
+export default function KronoxRankingSection({
+  authChecked,
+  user,
+  leaderboard,
+  onRetry,
+  isAdmin,
+  onCurrentUserRowOpenSettings,
+}) {
   const hasRows = leaderboard.topRows.length > 0;
   const showOwnRank = leaderboard.currentUserRow && !leaderboard.currentUserInTop;
   const topRowIds = new Set(leaderboard.topRows.map((row) => row.id));
@@ -91,7 +99,11 @@ export default function KronoxRankingSection({ authChecked, user, leaderboard, o
       ) : (
         <div className="mt-4 space-y-2">
           {leaderboard.topRows.map((row) => (
-            <LeaderboardRow key={row.id} row={row} />
+            <LeaderboardRow
+              key={row.id}
+              row={row}
+              onOpenSettings={onCurrentUserRowOpenSettings}
+            />
           ))}
 
           {showOwnRank && (
@@ -99,7 +111,11 @@ export default function KronoxRankingSection({ authChecked, user, leaderboard, o
               <p className="mb-2 px-1 font-inter text-[10px] font-black uppercase tracking-widest text-amber-200/80">
                 Senin Sıran
               </p>
-              <LeaderboardRow row={leaderboard.currentUserRow} emphasis />
+              <LeaderboardRow
+                row={leaderboard.currentUserRow}
+                emphasis
+                onOpenSettings={onCurrentUserRowOpenSettings}
+              />
             </div>
           )}
 
@@ -108,7 +124,11 @@ export default function KronoxRankingSection({ authChecked, user, leaderboard, o
               <p className="mb-2 px-1 font-inter text-[10px] font-black uppercase tracking-widest text-amber-200/80">
                 Senin Puanın
               </p>
-              <LeaderboardRow row={{ ...leaderboard.ownScoreRow, rank: null, isCurrentUser: true }} emphasis />
+              <LeaderboardRow
+                row={{ ...leaderboard.ownScoreRow, rank: null, isCurrentUser: true }}
+                emphasis
+                onOpenSettings={onCurrentUserRowOpenSettings}
+              />
               <p className="mt-1 px-1 font-inter text-[10px] leading-relaxed text-blue-100/55">
                 Genel sıran public tabloya yazıldığında netleşecek.
               </p>
@@ -284,23 +304,28 @@ function EmptyState({ icon: Icon, title, text }) {
   );
 }
 
-function LeaderboardRow({ row, compact = false, emphasis = false }) {
+function LeaderboardRow({ row, compact = false, emphasis = false, onOpenSettings }) {
   const isHighlighted = row.isCurrentUser || emphasis;
+  const canOpenSettings = row.isCurrentUser && typeof onOpenSettings === 'function';
   const rankColor = row.rank <= 3 ? '#facc15' : '#93c5fd';
   const rankText = Number.isFinite(Number(row.rank)) ? `#${row.rank}` : '—';
-
-  return (
-    <div
-      className={`flex items-center gap-2 rounded-xl ${compact ? 'px-2.5 py-2' : 'px-3 py-2.5'}`}
-      style={{
-        background: isHighlighted
-          ? 'linear-gradient(180deg, rgba(250,204,21,0.16), rgba(37,99,235,0.14))'
-          : 'rgba(255,255,255,0.055)',
-        boxShadow: isHighlighted
-          ? 'inset 0 0 0 1px rgba(250,204,21,0.46), 0 0 14px rgba(250,204,21,0.12)'
-          : 'inset 0 0 0 1px rgba(125,211,252,0.16)',
-      }}
-    >
+  const className = [
+    'flex items-center gap-2 rounded-xl',
+    compact ? 'px-2.5 py-2' : 'px-3 py-2.5',
+    canOpenSettings
+      ? 'w-full cursor-pointer border-0 text-left transition-transform active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/70'
+      : '',
+  ].filter(Boolean).join(' ');
+  const style = {
+    background: isHighlighted
+      ? 'linear-gradient(180deg, rgba(250,204,21,0.16), rgba(37,99,235,0.14))'
+      : 'rgba(255,255,255,0.055)',
+    boxShadow: isHighlighted
+      ? 'inset 0 0 0 1px rgba(250,204,21,0.46), 0 0 14px rgba(250,204,21,0.12)'
+      : 'inset 0 0 0 1px rgba(125,211,252,0.16)',
+  };
+  const content = (
+    <>
       <div className="kronox-number w-8 shrink-0 text-center text-lg leading-none" style={{ color: rankColor }}>
         {rankText}
       </div>
@@ -326,6 +351,26 @@ function LeaderboardRow({ row, compact = false, emphasis = false }) {
         <p className="kronox-number text-lg leading-none text-amber-200">{row.summary.totalKronoxScore}</p>
         <p className="font-inter text-[9px] font-black uppercase tracking-wider text-blue-100/45">Puan</p>
       </div>
+    </>
+  );
+
+  if (canOpenSettings) {
+    return (
+      <button
+        type="button"
+        onClick={onOpenSettings}
+        aria-label="Profil ayarlarını aç"
+        className={className}
+        style={style}
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <div className={className} style={style}>
+      {content}
     </div>
   );
 }

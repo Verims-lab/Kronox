@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trash2, AlertTriangle, Loader2, ChevronRight, FileText, UserRound, Save } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import StandardTopBar from '@/components/layout/StandardTopBar';
@@ -14,7 +14,9 @@ import { normalizeSafePublicUsernameInput, resolveSafePublicUsername } from '@/l
 
 export default function SettingsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, guestProfile, isLoadingAuth, checkUserAuth } = useAuth();
+  const profileSettingsRef = useRef(null);
   const [localUser, setLocalUser] = useState(user);
   const [localGuestProfile, setLocalGuestProfile] = useState(guestProfile);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -27,6 +29,18 @@ export default function SettingsPage() {
   const effectiveUser = localUser || user;
   const effectiveGuestProfile = effectiveUser ? null : (localGuestProfile || guestProfile);
   const diamondValue = getLeaderboardDiamondValue(effectiveUser);
+  const shouldFocusProfileSettings = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('focus') === 'profile' || location.state?.focusProfileSettings === true;
+  }, [location.search, location.state?.focusProfileSettings]);
+
+  useEffect(() => {
+    if (isLoadingAuth || !shouldFocusProfileSettings) return;
+    const frameId = window.requestAnimationFrame(() => {
+      profileSettingsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    return () => window.cancelAnimationFrame(frameId);
+  }, [isLoadingAuth, shouldFocusProfileSettings]);
 
   const handleDeleteAccount = async () => {
     setDeleteError('');
@@ -68,17 +82,19 @@ export default function SettingsPage() {
 
       <div className="px-4 space-y-5">
         {(effectiveUser || effectiveGuestProfile) && (
-          <Section label="Profil Bilgileri">
-            <ProfileSettingsSection
-              user={effectiveUser}
-              guestProfile={effectiveGuestProfile}
-              onSaved={async (result) => {
-                if (result?.mode === 'registered' && result?.user) setLocalUser(result.user);
-                if (result?.mode === 'guest' && result?.profile) setLocalGuestProfile(result.profile);
-                await checkUserAuth?.();
-              }}
-            />
-          </Section>
+          <div ref={profileSettingsRef} data-kx-profile-settings-anchor="true">
+            <Section label="Profil Bilgileri">
+              <ProfileSettingsSection
+                user={effectiveUser}
+                guestProfile={effectiveGuestProfile}
+                onSaved={async (result) => {
+                  if (result?.mode === 'registered' && result?.user) setLocalUser(result.user);
+                  if (result?.mode === 'guest' && result?.profile) setLocalGuestProfile(result.profile);
+                  await checkUserAuth?.();
+                }}
+              />
+            </Section>
+          </div>
         )}
 
         {effectiveUser && (
@@ -233,6 +249,7 @@ function ProfileSettingsSection({ user, guestProfile, onSaved }) {
       <label className="block space-y-1.5">
         <span className="font-inter text-xs font-black text-foreground">Kullanıcı Adı</span>
         <input
+          name="username"
           value={username}
           onChange={(event) => setUsername(event.target.value)}
           maxLength={24}
