@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex428 — Architecture audit + Health gap guardrails:
+//   • Adds architecture target/audit, Health gap, DB reporting readiness,
+//     and visual asset readiness docs.
+//   • Locks the Feature-Based MVVM + MVI target while keeping Base44 active.
+//   • Updates invite Health contracts to require verifiedLobby/joinedLobby.
+//
 // Codex427 — Invite verified lobby + Solo record Health lock:
 //   • Returns verifiedLobby/joinedLobby from acceptGameInvite after the
 //     service-role roster append re-reads the lobby.
@@ -2443,7 +2449,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex427';
+const BUILD_MARKER = 'Codex428';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

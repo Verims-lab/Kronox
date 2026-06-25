@@ -349,18 +349,18 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('invite_open_returns_lobby_payload',
-    'acceptGameInvite returns lobby payload for stable navigation',
+    'acceptGameInvite returns verified lobby payload for stable navigation',
     () => {
       const src = `${safeStr(acceptGameInviteFnSource)}\n${safeStr(inviteApiSource)}`;
-      const m = missing(src, ['lobby: updatedLobby', 'lobbyId', 'lobbyCode', 'joinedLobby']);
+      const m = missing(src, ['verifiedLobby', 'lobbyId', 'lobbyCode', 'joinedLobby']);
       if (m.length) {
-        return fail('Invite accept does not return/consume a precise lobby navigation payload.', {
+        return fail('Invite accept does not return/consume a verified lobby navigation payload.', {
           verification: 'STATIC_CONTRACT',
           actionType: ACTION_TYPES.CODE_FIX,
           missing: m,
         });
       }
-      return pass('Accepted invite returns and consumes joined lobby payload.',
+      return pass('Accepted invite returns and consumes verified/joined lobby payload.',
         { verification: 'STATIC_CONTRACT' });
     }),
 
@@ -380,7 +380,7 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('lobby_route_state_used_as_initial_authoritative_lobby',
-    'Returned updatedLobby is used to stabilize first lobby render',
+    'Returned verified lobby is used to stabilize first lobby render',
     () => {
       const m = missing(lobbyRoomSource, ['location.state?.joinedLobby', 'isLobbyStale(joined) ? null : joined', 'debugLog']);
       if (m.length) {
