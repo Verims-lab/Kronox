@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex425 — Online 4-player lobby start recovery:
+//   • Hardens code/invite lobby joins with merge/retry roster writes so
+//     concurrent accepts do not drop a participant.
+//   • Reconciles accepted invitees before startLobbyGame assigns cards and
+//     persists the shared Online deck/current question.
+//   • Adds idempotent host start and missed-realtime lobby refetch coverage.
+//
 // Codex424 — Solo level record congratulations:
 //   • Restores success-screen congratulations for all-user fastest top-3 and
 //     fewest-HAMLE Solo level records, with a combined message when both apply.
@@ -2422,7 +2429,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex423';
+const BUILD_MARKER = 'Codex425';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

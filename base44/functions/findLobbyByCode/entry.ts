@@ -17,6 +17,85 @@ const normalizeCode = (code) =>
     .replace(/\s+/g, '')
     .replace(/[^\w]/g, '');
 
+const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
+
+const readRevision = (value) => {
+  const revision = Number(value);
+  return Number.isFinite(revision) && revision >= 0 ? Math.trunc(revision) : 0;
+};
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const getPlayerIdentityKey = (player) => {
+  const email = normalizeEmail(player?.email);
+  if (email) return `email:${email}`;
+  const name = String(player?.name || '').trim().toLowerCase();
+  return name ? `name:${name}` : '';
+};
+
+const normalizeLobbyPlayer = (player) => ({
+  ...player,
+  email: player?.email || '',
+  name: String(player?.name || '').trim() || 'Oyuncu',
+  ready: player?.ready ?? true,
+  cards: Array.isArray(player?.cards) ? player.cards : [],
+});
+
+const mergePlayersByIdentity = (players = [], additions = []) => {
+  const seen = new Set();
+  const merged = [];
+  [...(Array.isArray(players) ? players : []), ...(Array.isArray(additions) ? additions : [])]
+    .map(normalizeLobbyPlayer)
+    .forEach((player) => {
+      const key = getPlayerIdentityKey(player);
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      merged.push(player);
+    });
+  return merged;
+};
+
+const hasPlayer = (players = [], player) => {
+  const key = getPlayerIdentityKey(player);
+  return Boolean(key && players.some((candidate) => getPlayerIdentityKey(candidate) === key));
+};
+
+const appendPlayerWithMergeRetry = async (base44, lobby, newPlayer) => {
+  const delays = [0, 120, 260];
+  let latest = lobby;
+  let updatedLobby = lobby;
+  let retryApplied = false;
+
+  for (let attempt = 0; attempt < delays.length; attempt += 1) {
+    if (delays[attempt]) await sleep(delays[attempt]);
+    latest = attempt === 0 ? latest : await base44.asServiceRole.entities.Lobby.get(lobby.id);
+    if (!latest || latest.status !== 'waiting') {
+      return { lobby: latest || updatedLobby || lobby, joined: false, retryApplied, statusChanged: true };
+    }
+
+    const currentPlayers = Array.isArray(latest.players) ? latest.players : [];
+    const mergedPlayers = mergePlayersByIdentity(currentPlayers, [newPlayer]);
+    if (hasPlayer(currentPlayers, newPlayer) && mergedPlayers.length === currentPlayers.length) {
+      return { lobby: latest, joined: true, retryApplied, alreadyIn: true };
+    }
+
+    retryApplied = attempt > 0 || retryApplied;
+    updatedLobby = await base44.asServiceRole.entities.Lobby.update(lobby.id, {
+      players: mergedPlayers,
+      last_activity_at: new Date().toISOString(),
+      state_revision: readRevision(latest.state_revision) + 1,
+    });
+
+    const verified = await base44.asServiceRole.entities.Lobby.get(lobby.id);
+    const verifiedPlayers = Array.isArray(verified?.players) ? verified.players : [];
+    if (hasPlayer(verifiedPlayers, newPlayer)) {
+      return { lobby: verified || updatedLobby, joined: true, retryApplied };
+    }
+  }
+
+  return { lobby: updatedLobby || latest || lobby, joined: hasPlayer(updatedLobby?.players || [], newPlayer), retryApplied: true };
+};
+
 const readTime = (value) => {
   if (value == null) return NaN;
   if (value instanceof Date) {
@@ -123,9 +202,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // --- Perform the join atomically via service role ---
+    // --- Perform the join via service role with merge/retry protection ---
     const currentPlayers = lobby.players || [];
-    const alreadyIn = currentPlayers.some(p => p.email === user.email);
+    const alreadyIn = currentPlayers.some(p => normalizeEmail(p.email) === normalizeEmail(user.email));
 
     if (!alreadyIn) {
       const newPlayer = {
@@ -135,44 +214,21 @@ Deno.serve(async (req) => {
         cards: [],
       };
 
-      const newPlayers = [...currentPlayers, newPlayer];
-
-      const nowIso = new Date().toISOString();
-      const updatedLobby = await base44.asServiceRole.entities.Lobby.update(lobby.id, {
-        players: newPlayers,
-        last_activity_at: nowIso,
-      });
-
-      const verifiedLobby = await base44.asServiceRole.entities.Lobby.get(lobby.id);
-      const verifiedPlayers = Array.isArray(verifiedLobby?.players) ? verifiedLobby.players : [];
-      const joinPersisted = verifiedPlayers.some((p) => p?.email === user.email);
-
-      if (!joinPersisted) {
-        const retryPlayers = [...verifiedPlayers.filter((p) => p?.email !== user.email), newPlayer];
-        console.warn('[findLobbyByCode] join verification failed, retrying merge append:', {
-          lobbyId: lobby.id,
-          verifiedPlayersCount: verifiedPlayers.length,
-          retryPlayersCount: retryPlayers.length,
-        });
-        const retryLobby = await base44.asServiceRole.entities.Lobby.update(lobby.id, {
-          players: retryPlayers,
-          last_activity_at: nowIso,
-        });
-
+      const mergeResult = await appendPlayerWithMergeRetry(base44, lobby, newPlayer);
+      const mergedLobby = mergeResult.lobby || lobby;
+      if (mergeResult.statusChanged) {
         return Response.json({
           found: true,
-          joinable: true,
-          joined: true,
-          lobby: retryLobby,
+          joinable: false,
+          joined: false,
+          error: 'Bu lobi artık katılıma kapalı.',
           debug: {
             rawCode,
             normalizedCode,
             queryResultCount: lobbies.length,
             matchedStatus: lobby.status,
+            latestStatus: mergedLobby?.status || null,
             matchedId: lobby.id,
-            existingPlayersCount: currentPlayers.length,
-            playerCount: retryLobby?.players?.length || retryPlayers.length,
-            retryApplied: true,
           }
         });
       }
@@ -180,8 +236,8 @@ Deno.serve(async (req) => {
       return Response.json({
         found: true,
         joinable: true,
-        joined: true,
-        lobby: verifiedLobby || updatedLobby,
+        joined: Boolean(mergeResult.joined),
+        lobby: mergedLobby,
         debug: {
           rawCode,
           normalizedCode,
@@ -189,8 +245,8 @@ Deno.serve(async (req) => {
           matchedStatus: lobby.status,
           matchedId: lobby.id,
           existingPlayersCount: currentPlayers.length,
-          playerCount: verifiedPlayers.length || newPlayers.length,
-          retryApplied: false,
+          playerCount: mergedLobby?.players?.length || 0,
+          retryApplied: Boolean(mergeResult.retryApplied),
         }
       });
     } else {

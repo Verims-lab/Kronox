@@ -81,10 +81,21 @@ export const pushSubscriptionEntitySource = `
 export const acceptGameInviteFnSource = `
   // Public contract of functions/acceptGameInvite.js — mirrored.
   // Codex130: TTL bumped to 10 minutes (was 5). Stale lobby guard added.
+  // Codex425: accept uses merge/retry roster repair and records to_name.
   const GAME_INVITE_TTL_MS = 10 * 60 * 1000;
   const LOBBY_STALE_AFTER_MS = 10 * 60 * 1000;
   const hasZone = /Z$/i.test(str) || /[+-]\\d{2}:?\\d{2}$/.test(str);
   const t = new Date(hasZone ? str : \`\${str}Z\`).getTime();
+  const appendPlayerWithMergeRetry = async (base44, lobby, newPlayer) => {
+    const mergedPlayers = mergePlayersByIdentity(currentPlayers, [newPlayer]);
+    await base44.asServiceRole.entities.Lobby.update(lobby.id, {
+      players: mergedPlayers,
+      last_activity_at: new Date().toISOString(),
+      state_revision: readRevision(latest.state_revision) + 1,
+    });
+    const verified = await base44.asServiceRole.entities.Lobby.get(lobby.id);
+    if (hasPlayer(verified.players, newPlayer)) return { lobby: verified, joined: true, retryApplied: true };
+  };
   if (toEmail !== myEmail) {
     return Response.json({ code: 'unauthorized', error: 'Bu davet sana ait değil' }, { status: 403 });
   }
@@ -112,13 +123,10 @@ export const acceptGameInviteFnSource = `
     await base44.asServiceRole.entities.GameInvite.update(inviteId, { status: 'expired', expired_at: new Date().toISOString() });
     return Response.json({ error: 'Lobi süresi doldu. Yeni bir meydan okuma başlatabilirsin.' }, { status: 409 });
   }
-  const newPlayer = { email: myEmail, name: displayName, ready: false, cards: [] };
-  const verifiedLobby = await base44.asServiceRole.entities.Lobby.update(lobby.id, {
-    players: [...lobby.players, newPlayer],
-    last_activity_at: new Date().toISOString(),
-  });
-  const updatedLobby = verifiedLobby;
-  const updatedInvite = await base44.asServiceRole.entities.GameInvite.update(inviteId, { status: 'accepted', accepted_at: new Date().toISOString() });
+  const newPlayer = { email: myEmail, name: displayName, ready: true, cards: [] };
+  const mergeResult = await appendPlayerWithMergeRetry(base44, lobby, newPlayer);
+  const updatedLobby = mergeResult.lobby || lobby;
+  const updatedInvite = await base44.asServiceRole.entities.GameInvite.update(inviteId, { status: 'accepted', accepted_at: new Date().toISOString(), to_name: acceptedPlayerName });
   return Response.json({ ok: true, success: true, invite: updatedInvite, lobby: updatedLobby, lobbyId: updatedLobby.id, lobbyCode: updatedLobby.code || invite.lobby_code || '' });
 `;
 
@@ -472,7 +480,18 @@ export const onlineMatchResultEntitySource = `
 export const findLobbyByCodeFnSource = `
   // Public contract of functions/findLobbyByCode.js — mirrored.
   // Codex130: stale-lobby guard added (10 min).
+  // Codex425: code join uses merge/retry roster repair instead of blind array overwrite.
   const LOBBY_STALE_AFTER_MS = 10 * 60 * 1000;
+  const appendPlayerWithMergeRetry = async (base44, lobby, newPlayer) => {
+    const mergedPlayers = mergePlayersByIdentity(currentPlayers, [newPlayer]);
+    await base44.asServiceRole.entities.Lobby.update(lobby.id, {
+      players: mergedPlayers,
+      last_activity_at: new Date().toISOString(),
+      state_revision: readRevision(latest.state_revision) + 1,
+    });
+    const verified = await base44.asServiceRole.entities.Lobby.get(lobby.id);
+    if (hasPlayer(verified.players, newPlayer)) return { lobby: verified, joined: true, retryApplied: true };
+  };
   const hasZone = /Z$/i.test(str) || /[+-]\\d{2}:?\\d{2}$/.test(str);
   const t = new Date(hasZone ? str : \`\${str}Z\`).getTime();
   const lobbyExpiresAt = getLobbyExpiry(lobby, LOBBY_STALE_AFTER_MS);
@@ -483,17 +502,34 @@ export const findLobbyByCodeFnSource = `
       error: 'Lobi süresi doldu. Yeni bir meydan okuma başlatabilirsin.',
     });
   }
-  await base44.asServiceRole.entities.Lobby.update(lobby.id, { players: newPlayers, last_activity_at: new Date().toISOString() });
+  const mergeResult = await appendPlayerWithMergeRetry(base44, lobby, newPlayer);
+  return Response.json({ found: true, joinable: true, joined: Boolean(mergeResult.joined), lobby: mergeResult.lobby });
 `;
 
 export const startLobbyGameFnSource = `
   // Public contract of functions/startLobbyGame.js — mirrored.
   // Codex131: in-lobby settings panel removed; backend ignores body.settings.
   // Codex130: nothing TTL-related here (TTL lives in invite functions).
+  // Codex425: start reconciles accepted invite players and is idempotent once the shared deck exists.
   const user = await base44.auth.me();
   if (!user?.email) {
     return json({ error: 'Oturum gerekli.', code: 'unauthenticated' }, 401);
   }
+  const hasAuthoritativeGamePayload = (lobby) => Boolean(
+    lobby.current_question_id &&
+    Array.isArray(lobby.online_question_deck) &&
+    lobby.online_question_deck.length > 0 &&
+    Array.isArray(lobby.players) &&
+    lobby.players.length >= 2
+  );
+  const reconcileAcceptedInvitePlayers = async (base44, lobby) => {
+    const acceptedInvitePlayers = await loadAcceptedInvitePlayers(base44, lobby.id);
+    const mergedPlayers = mergePlayersByIdentity(lobby.players, acceptedInvitePlayers);
+    if (mergedPlayers.length !== lobby.players.length) {
+      return base44.asServiceRole.entities.Lobby.update(lobby.id, { players: mergedPlayers, state_revision: readRevision(lobby.state_revision) + 1 });
+    }
+    return lobby;
+  };
   const normalizeSettings = (lobby, incoming = {}) => {
     // selected_category_ids preferred over legacy single-category field.
     const selectedCategoryIds = Array.isArray(incoming.selected_category_ids)
@@ -507,6 +543,11 @@ export const startLobbyGameFnSource = `
   if (!authenticatedHost) {
     return json({ error: 'Sadece host oyunu baslatabilir.' }, 403);
   }
+  if ((lobby.status === 'starting' || lobby.status === 'in_game') && hasAuthoritativeGamePayload(lobby)) {
+    return json({ success: true, idempotent: true, lobby });
+  }
+  const startLobby = await reconcileAcceptedInvitePlayers(base44, lobby);
+  const players = startLobby.players;
   if (players.length < 2) {
     return json({ error: 'Oyun baslatmak icin en az 2 oyuncu gerekli' }, 400);
   }
@@ -529,6 +570,7 @@ export const startLobbyGameFnSource = `
     online_question_deck,
     online_deck_meta,
     current_question_id: online_question_deck[0]?.id,
+    started_at: new Date().toISOString(),
     state_revision: currentRevision + 1,
   });
 `;

@@ -16,6 +16,100 @@ const readNumber = (value: unknown, fallback: number) => {
   return Number.isFinite(number) ? number : fallback;
 };
 
+const normalizeEmail = (value: unknown) =>
+  String(value ?? '').trim().toLowerCase();
+
+const getPlayerIdentityKey = (player: any) => {
+  const email = normalizeEmail(player?.email);
+  if (email) return `email:${email}`;
+  const name = String(player?.name || '').trim().toLowerCase();
+  return name ? `name:${name}` : '';
+};
+
+const normalizeLobbyPlayer = (player: any) => ({
+  ...player,
+  email: player?.email || '',
+  name: String(player?.name || '').trim() || 'Oyuncu',
+  ready: player?.ready ?? true,
+  cards: Array.isArray(player?.cards) ? player.cards : [],
+});
+
+const mergePlayersByIdentity = (players: any[] = [], additions: any[] = []) => {
+  const seen = new Set<string>();
+  const merged: any[] = [];
+  [...(Array.isArray(players) ? players : []), ...(Array.isArray(additions) ? additions : [])]
+    .map(normalizeLobbyPlayer)
+    .forEach((player) => {
+      const key = getPlayerIdentityKey(player);
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      merged.push(player);
+    });
+  return merged;
+};
+
+const hasAuthoritativeGamePayload = (lobby: any) => Boolean(
+  lobby?.current_question_id &&
+  Array.isArray(lobby?.online_question_deck) &&
+  lobby.online_question_deck.length > 0 &&
+  Array.isArray(lobby?.players) &&
+  lobby.players.length >= 2
+);
+
+const getInvitePlayerName = (invite: any) =>
+  String(
+    invite?.to_name ||
+    (invite?.to_email || '').split('@')[0] ||
+    'Oyuncu',
+  ).trim().slice(0, 15) || 'Oyuncu';
+
+const loadAcceptedInvitePlayers = async (base44: any, lobbyId: string) => {
+  const invites = await base44.asServiceRole.entities.GameInvite
+    .filter({ lobby_id: lobbyId }, '-accepted_at', 100)
+    .catch(() => []);
+  return (Array.isArray(invites) ? invites : [])
+    .filter((invite: any) => String(invite?.status || '').toLowerCase() === 'accepted')
+    .map((invite: any) => {
+      const email = normalizeEmail(invite?.to_email);
+      if (!email) return null;
+      return {
+        email,
+        name: getInvitePlayerName(invite),
+        ready: true,
+        cards: [],
+      };
+    })
+    .filter(Boolean);
+};
+
+const reconcileAcceptedInvitePlayers = async (base44: any, lobby: any) => {
+  const players = Array.isArray(lobby?.players) ? lobby.players : [];
+  const acceptedInvitePlayers = await loadAcceptedInvitePlayers(base44, lobby.id);
+  const mergedPlayers = mergePlayersByIdentity(players, acceptedInvitePlayers);
+  const changed = mergedPlayers.length !== players.length;
+  if (!changed) {
+    return {
+      lobby,
+      players: mergedPlayers,
+      reconciled: false,
+      acceptedInviteCount: acceptedInvitePlayers.length,
+    };
+  }
+
+  const currentRevision = readRevision(lobby.state_revision);
+  const updatedLobby = await base44.asServiceRole.entities.Lobby.update(lobby.id, {
+    players: mergedPlayers,
+    last_activity_at: new Date().toISOString(),
+    state_revision: currentRevision + 1,
+  });
+  return {
+    lobby: updatedLobby || { ...lobby, players: mergedPlayers, state_revision: currentRevision + 1 },
+    players: Array.isArray(updatedLobby?.players) ? updatedLobby.players : mergedPlayers,
+    reconciled: true,
+    acceptedInviteCount: acceptedInvitePlayers.length,
+  };
+};
+
 const summarizePlayers = (players: any[] = []) =>
   players.map((player, index) => ({
     index,
@@ -60,9 +154,6 @@ const canSeeAdminDebug = (user: any) => {
   if (user.role === 'admin' || user.is_admin === true) return true;
   return Array.isArray(user.permissions) && user.permissions.includes('admin');
 };
-
-const normalizeEmail = (value: unknown) =>
-  String(value ?? '').trim().toLowerCase();
 
 const normalizeDifficulty = (value: unknown): number | null => {
   const numeric = Number(value);
@@ -387,7 +478,6 @@ Deno.serve(async (req) => {
       return json({ error: 'Lobi bulunamadi.' }, 404);
     }
 
-    const players = Array.isArray(lobby.players) ? lobby.players : [];
     const hostEmail = normalizeEmail(lobby.host_email);
     const authenticatedHost = Boolean(hostEmail && actorEmail === hostEmail);
     const canSeeDebug = canSeeAdminDebug(user);
@@ -405,10 +495,28 @@ Deno.serve(async (req) => {
     }
 
     if (lobby.status !== 'waiting') {
+      if ((lobby.status === 'starting' || lobby.status === 'in_game') && hasAuthoritativeGamePayload(lobby)) {
+        return json(withDebug({
+          success: true,
+          idempotent: true,
+          lobby,
+        }, {
+            lobbyId,
+            status: lobby.status,
+            state_revision: readRevision(lobby.state_revision),
+            current_question_id: lobby.current_question_id || null,
+            online_question_deck_count: lobby.online_question_deck?.length || 0,
+            players: summarizePlayers(lobby.players || []),
+        }));
+      }
       return json(withDebug({
         error: 'Lobi bekleme durumunda degil.',
       }, { lobbyId, status: lobby.status }), 409);
     }
+
+    const participantState = await reconcileAcceptedInvitePlayers(base44, lobby);
+    const startLobby = participantState.lobby || lobby;
+    const players = Array.isArray(participantState.players) ? participantState.players : [];
 
     if (players.length < 2) {
       return json({ error: 'Oyun baslatmak icin en az 2 oyuncu gerekli' }, 400);
@@ -419,7 +527,7 @@ Deno.serve(async (req) => {
     // year window, turn duration, win-card count) is sourced from the
     // persisted lobby row only. Old callers that still send settings are
     // silently ignored — RLS already prevents non-host writes elsewhere.
-    const settings = normalizeSettings(lobby, {});
+    const settings = normalizeSettings(startLobby, {});
     const activeMainCategoryIds = await loadActiveMainCategoryIds(base44);
     const queryMainCategoryIds = getQueryMainCategoryIdsForSettings(settings, activeMainCategoryIds);
     const questions = queryMainCategoryIds.length > 0
@@ -449,7 +557,7 @@ Deno.serve(async (req) => {
       }), contentStatus);
     }
 
-    const currentRevision = readRevision(lobby.state_revision);
+    const currentRevision = readRevision(startLobby.state_revision);
     const updateData = {
       ...settings,
       status: 'starting',
@@ -461,6 +569,7 @@ Deno.serve(async (req) => {
       players: initialState.playersWithCards,
       winner: null,
       winner_email: null,
+      started_at: new Date().toISOString(),
       state_revision: currentRevision + 1,
     };
 
@@ -475,6 +584,8 @@ Deno.serve(async (req) => {
         statusAfter: updateData.status,
         state_revision_before: currentRevision,
         state_revision_after: updateData.state_revision,
+        participant_reconciliation_applied: participantState.reconciled,
+        accepted_invite_count: participantState.acceptedInviteCount,
         current_question_id: updateData.current_question_id,
         used_question_count: updateData.used_question_ids.length,
         online_question_deck_count: updateData.online_question_deck.length,
