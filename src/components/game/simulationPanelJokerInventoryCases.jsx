@@ -5,6 +5,7 @@
 
 import userJokerInventoryEntitySource from '../../../base44/entities/UserJokerInventory.jsonc?raw';
 import jokerTransactionEntitySource from '../../../base44/entities/JokerTransaction.jsonc?raw';
+import economyOperationLockEntitySource from '../../../base44/entities/EconomyOperationLock.jsonc?raw';
 import ensureUserJokerInventorySource from '../../../base44/functions/ensureUserJokerInventory/entry.ts?raw';
 import ensureUserJokerInventoryManifestSource from '../../../base44/functions/ensureUserJokerInventory/function.jsonc?raw';
 import spendUserJokerSource from '../../../base44/functions/spendUserJoker/entry.ts?raw';
@@ -294,6 +295,38 @@ export const EXTRA_TESTS = [
         missing,
       });
       return pass('Joker inventory uses user+joker logical uniqueness, ledger writes use idempotency lookup, and duplicate balance rows are tolerated safely.', {
+        verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('solo_joker_spend_uses_economy_lock',
+    'Normal Solo joker spend is protected by the economy operation lock',
+    () => {
+      const combined = `${economyOperationLockEntitySource}\n${spendUserJokerSource}\n${purchaseJokerWithDiamondsSource}\n${jokerTransactionEntitySource}`;
+      const missing = missingTokens(combined, [
+        '"name": "EconomyOperationLock"',
+        '"operation_scope"',
+        'economy_parallel_race_guard_phase_1',
+        'withEconomyOperationLock',
+        'buildEconomyLockKey(email)',
+        "operationScope: 'solo_joker_spend'",
+        'guidedTutorialSpendBypass: false',
+        'const secondExistingTransaction = await findTransaction',
+        'const inventory = await findInventory(base44, email, jokerType)',
+        'const insufficientBalance = quantityBefore <= 0',
+        'const balanceAfter = quantityBefore - 1',
+        'balance_after: balanceAfter',
+      ]);
+      if (missing.length) return fail('Solo joker spend can still race or bypass the non-negative inventory contract.', {
+        verification: 'STATIC_CONTRACT',
+        files: [
+          'base44/entities/EconomyOperationLock.jsonc',
+          'base44/functions/spendUserJoker/entry.ts',
+          'base44/functions/purchaseJokerWithDiamonds/entry.ts',
+        ],
+        missing,
+      });
+      return pass('Normal Solo joker spend uses the shared player economy lock and rechecks idempotency/inventory before decrementing.', {
         verification: 'STATIC_CONTRACT',
       });
     }),

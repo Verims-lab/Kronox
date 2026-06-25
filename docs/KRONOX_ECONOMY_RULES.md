@@ -215,9 +215,12 @@ query-before-write, User/GuestProfile guard fields, reserve-first
 spin row, the claim path re-reads the canonical same-player/same-UTC-day spin,
 re-checks the User/GuestProfile guard, and re-checks the
 `DiamondTransaction` idempotency key before mutating `User.diamonds` or
-`GuestProfile.diamonds`. This is function-level guard only, not an atomic upsert.
-Risk is Medium/P1 hardening until DB/entity unique constraints or a live
-parallel backend proof are attached.
+`GuestProfile.diamonds`. Daily Wheel balance mutation also uses the shared
+function-level `EconomyOperationLock` so a same-player market purchase, Daily
+Quest claim, or second wheel claim cannot overwrite the same Diamond balance
+without first passing the lock and post-lock rechecks. This is function-level
+guard only, not an atomic upsert. DB/entity unique constraints or live parallel
+backend proof remain manual.
 
 ---
 
@@ -387,6 +390,9 @@ Current protection is best-effort using:
 * user profile refresh before update
 * DiamondTransaction create helpers that pre-check and post-confirm by
   `idempotency_key`
+* short-lived `EconomyOperationLock` rows with TTL/stale recovery and
+  deterministic winner selection for player balance/inventory mutations
+* post-lock idempotency and balance/inventory rechecks before write
 * Daily Wheel reserve-first `DailyWheelSpin` rows plus canonical same-day
   re-read before `User.diamonds` is updated
 * Daily Wheel post-reserve User guard and DiamondTransaction re-checks
@@ -410,6 +416,7 @@ If Base44 later supports unique constraints, add a unique constraint on:
 DiamondTransaction.idempotency_key
 DailyWheelSpin.idempotency_key
 DailyWheelSpin.user_email + spin_date
+EconomyOperationLock.lock_key where status = active
 ```
 
 ---
@@ -514,7 +521,8 @@ Purchase rules:
 * insufficient Diamonds do not decrease Diamonds, increase joker balance, or
   write successful purchase ledgers
 * purchase uses an idempotency key; double-tap, network retry, and two
-  tabs/devices live race proof remains manual
+  tabs/devices are guarded by `EconomyOperationLock`, post-lock idempotency
+  rechecks, and a refreshed server balance; live race proof remains manual
 * starter inventory repair during purchase is best-effort; a starter self-heal
   error must not block a valid purchase that can still write the purchased
   joker balance and ledgers
@@ -535,6 +543,9 @@ Joker balance read-performance contract:
   cache so Profile and Solo do not show stale counts.
 * `spendUserJoker` validates Solo context, uses deploy-safe entity fallback for
   `UserJokerInventory`/`JokerTransaction`, and returns safe user-facing errors.
+* Normal Solo joker spend uses `EconomyOperationLock`, rechecks the
+  `JokerTransaction` idempotency key after the lock, then re-reads
+  `UserJokerInventory` and refuses to decrement a zero balance.
 * Admin/static reconciliation can compare `UserJokerInventory.quantity` against
   `JokerTransaction` summed deltas and latest `balance_after`; it must report
   mismatches without auto-fixing.

@@ -49,7 +49,7 @@ Status: Active product workflow contract.
 - Current Solo shows HAMLE / remaining moves and Puan / Kronox Puan. HATA is legacy/internal and not current visible Solo result/stat copy.
 - Normal Solo uses 2 anchors, an internal 18-question attempt deck buffer, 10 evaluated moves, a 180-second timer, and a 7-card target including anchors. Special Solo uses an internal 19-question attempt deck buffer and a 10-card target.
 - Online uses Lobby.selected_category_ids and a startLobbyGame shared deck selected 100% from active lobby-selected categories with difficulty 1/2 only; Online does not use Solo preferences.
-- Daily Quest and Daily Wheel grant Diamonds only, no Kronox Puan, and no leaderboard impact. Authenticated users and token-proven completed GuestProfile users can use these daily systems. Guest rewards persist on GuestProfile.diamonds with internal guest:<g_owner_key> ledger keys. DiamondTransaction and DailyWheelSpin have function-level idempotency guards; DB/entity unique constraints are not repo-proven.
+- Daily Quest and Daily Wheel grant Diamonds only, no Kronox Puan, and no leaderboard impact. Authenticated users and token-proven completed GuestProfile users can use these daily systems. Guest rewards persist on GuestProfile.diamonds with internal guest:<g_owner_key> ledger keys. DiamondTransaction and DailyWheelSpin have function-level idempotency guards plus EconomyOperationLock balance mutation guards; DB/entity unique constraints are not repo-proven.
 - Question Analytics is an admin/private nine-section email-body report sourced from QuestionAttemptEvent. PlayerQuestionExposure is optional anti-repeat memory reset scope.
 - Health PASS is not release-ready proof; manual NOT_AUTOMATABLE gates remain required.
 - Stale Codex040 PDF references are old structure only; current truth is markdown/source plus current code and Health contracts.
@@ -72,8 +72,8 @@ Status: Active technical flow contract.
 - SubCategory/UserSubCategoryPreference are future/legacy data and not current Settings preference UI.
 - Solo runtime uses getQuestions bounded projections and buildSoloAttemptDeck; raw Question.list gameplay fallback and full-bank exposure are forbidden.
 - PlayerQuestionExposure is private per-player anti-repeat memory; PlayerQuestionDailyExposure is daily anonymous exposure summary; actual reports source history from QuestionAttemptEvent.
-- UserJokerInventory is the current joker balance source and JokerTransaction is the ledger. purchaseJokerWithDiamonds writes DiamondTransaction plus JokerTransaction.
-- claimDailyWheelReward writes DailyWheelSpin and DiamondTransaction using function-level same-day/idempotency guards; no atomic/upsert guarantee is repo-proven.
+- UserJokerInventory is the current joker balance source and JokerTransaction is the ledger. purchaseJokerWithDiamonds writes DiamondTransaction plus JokerTransaction under EconomyOperationLock.
+- claimDailyWheelReward writes DailyWheelSpin and DiamondTransaction using function-level same-day/idempotency guards plus EconomyOperationLock; no atomic/upsert guarantee is repo-proven.
 - startLobbyGame owns the Online shared deck. Online does not read Solo preference weighting or guest Solo projection.
 - sendQuestionAnalyticsReportEmail is admin-only, email-body-only, exactly nine sections, with anonymized User0001-style per-player coverage where used.
 - Public assets must not contain secrets, tokens, question bank, answer years, internal IDs, raw guest IDs/tokens, provider IDs, or private user data.
@@ -217,6 +217,16 @@ owner_key, no raw guest_id, no internal player_key, no full question bank, and
 no answer years / correct answers. Runtime writes are deferred until a
 backend-owned best-effort function path with idempotency key handling is
 implemented and Health-covered.
+
+Economy Race Reporting Phase 1 adds EconomyOperationLock as an admin-only
+operational guard. Future EconomyIdempotencyEvent reporting should use
+anonymized actor hash, operation scope, hashed idempotency key, lock result,
+duplicate-attempt counter, ledger consistency result, server-owned
+balance_after, created day, and coarse source. Public reports/export must
+include no email, provider ID, owner_key, raw guest_id, raw guest token, or
+internal player_key. DB unique/index proof remains manual for DiamondTransaction,
+JokerTransaction, DailyWheelSpin, UserJokerInventory, and active
+EconomyOperationLock keys.
 `;
 
 export const VISUAL_ASSET_READINESS_DOC = `# Kronox Visual Asset Readiness
@@ -342,10 +352,11 @@ Status: Active product contract.
 - JokerTransaction stores the append-only joker grant/spend ledger.
 - ensureUserJokerInventory grants 3 Kronokalkan, 3 Kart Değiştir, and 3 Zaman Dondur once per authenticated user using starter_jokers:<email>:<joker_type> idempotency keys; missing or partial UserJokerInventory rows self-heal, existing balances are preserved, owner email is normalized, and duplicate/malformed rows do not crash Joker Çantası.
 - spendUserJoker spends one owned Solo joker using authenticated user context, positive-balance validation, Solo-context validation, deploy-safe UserJokerInventory/JokerTransaction entity fallback, reason solo_use, source solo, quantity_delta -1, safe user-facing errors, and an idempotency key.
+- spendUserJoker uses EconomyOperationLock, post-lock idempotency recheck, and a fresh UserJokerInventory read before decrementing; guided/tutorial joker demos remain tutorial-only and do not spend real inventory.
 - Profile shows only Joker Çantası balances; normal users must not see other users' balances or transaction ledger rows.
 - Mağaza Phase 1 purchases use purchaseJokerWithDiamonds; users purchase only for themselves, backend owns trusted joker prices, sufficient Diamonds are validated server-side, and successful purchases write DiamondTransaction plus JokerTransaction with market_purchase.
 - Mağaza purchases are server-authoritative economy actions: the client is not trusted for price, cost, user identity, or target account; service-role writes stay scoped to the authenticated user.
-- Mağaza purchase idempotency keys protect double-tap and retry flows; real two-device/backend race proof remains manual unless Base44 uniqueness is proven.
+- Mağaza purchase idempotency keys, EconomyOperationLock, refreshed server balance reads, and post-lock ledger rechecks protect double-tap/retry/concurrent request flows; real two-device/backend race proof remains manual unless Base44 uniqueness is proven.
 - Mağaza Phase 1 does not expose bundles, subscriptions, cosmetics, random boxes, ads, external payments, or Online-mode joker purchases.
 - Daily Quest Definition management is admin-only under Profile / Admin Ekranı as Günlük Görev Yönetimi.
 - createDailyQuestDefinition is a Base44 callable with an inline AdminUser-backed guard for active owner/admin rows; normal users and disabled admins are rejected.
@@ -598,6 +609,7 @@ Status: Implementation tracking doc.
 - Gameplay must not run Health, report, projection refresh, cleanup, or aggregate maintenance jobs.
 - Service-role functions bind every user-owned object to authenticated user/admin context before reading, writing, updating, or deleting it.
 - If Base44 cannot enforce a DB-level unique/index constraint, the service layer remains responsible for idempotency and duplicate detection.
+- EconomyOperationLock is a function-level TTL/stale-recovery guard for player economy mutations; it reduces parallel read-modify-write races but does not prove DB-level atomic compare-and-swap.
 - Solo QuestionAttemptEvent runtime writes are enabled best-effort; Online analytics remains deferred.
 - Manual admin question analytics full email-body report exists with no scheduled trigger and no active PDF attachment requirement.
 - Manual DB reset path can reset question analytics history/projections after replacing the question pool.
