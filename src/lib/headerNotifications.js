@@ -33,6 +33,44 @@ export function isPendingFriendRequestForUser(row, myEmail) {
   return normalizeEmail(row.to_email) === me;
 }
 
+export function getFriendRequestDedupeKey(row) {
+  if (!row) return '';
+  if (row.id) return `id:${row.id}`;
+  const from = normalizeEmail(row.from_email);
+  const to = normalizeEmail(row.to_email);
+  return from && to ? `${from}->${to}` : '';
+}
+
+function getFriendRequestCreatedAt(row) {
+  const raw = row?.created_at || row?.createdAt || row?.created_date || row?.createdDate || row?.updated_date;
+  const time = Date.parse(String(raw || ''));
+  return Number.isFinite(time) ? time : 0;
+}
+
+export function mergePendingFriendRequests(existing = [], incoming = [], myEmail, { preserveExisting = true } = {}) {
+  const byKey = new Map();
+
+  if (preserveExisting) {
+    (existing || []).forEach((row) => {
+      if (!isPendingFriendRequestForUser(row, myEmail)) return;
+      const key = getFriendRequestDedupeKey(row);
+      if (key) byKey.set(key, row);
+    });
+  }
+
+  (incoming || []).forEach((row) => {
+    const key = getFriendRequestDedupeKey(row);
+    if (!key) return;
+    if (isPendingFriendRequestForUser(row, myEmail)) {
+      byKey.set(key, row);
+    } else {
+      byKey.delete(key);
+    }
+  });
+
+  return Array.from(byKey.values()).sort((a, b) => getFriendRequestCreatedAt(b) - getFriendRequestCreatedAt(a));
+}
+
 /** Returns true when the GameInvite row is pending, addressed to me, and not yet expired. */
 export function isActiveGameInviteForUser(row, myEmail, now = Date.now()) {
   return isActiveIncomingGameInvite(row, myEmail, now);

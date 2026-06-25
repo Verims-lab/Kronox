@@ -6,9 +6,9 @@
 //     • Stale waiting lobby guard (10 min) on both findLobbyByCode +
 //       acceptGameInvite, plus a client-side `isLobbyStale` helper used by
 //       LobbyRoom deep-link / accept-and-navigate paths.
-//     • GameInviteNotifier: 10-second banner auto-dismiss + focus /
-//       visibilitychange recheck so background-arrived invites surface
-//       when the app is reopened.
+//     • GameInviteNotifier: foreground banner persists until explicit
+//       close/open or confirmed source invalidation; focus / visibilitychange
+//       recheck keeps background-arrived invites available when the app reopens.
 //
 // CODEX132 — Health stability fix:
 //   Previous version did `await import('../../functions/*.js?raw')` and
@@ -249,7 +249,7 @@ export const EXTRA_TESTS = [
       const required = [
         'showInviteToast',
         'Kronox oyun daveti',
-        'INVITE_TOAST_DURATION_MS',
+        'PERSISTENT_INVITE_TOAST_DURATION',
       ];
       const missing = required.filter((t) => !src.includes(t));
       if (missing.length) {
@@ -272,16 +272,32 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
-  /* 9. Banner auto-dismiss: 10 seconds */
-  makeCase('invite_lifecycle', 'in_app_invite_banner_auto_dismiss',
-    'Banner auto-dismisses after 10 seconds; dismiss never deletes invite',
+  /* 9. Banner persists until valid close. */
+  makeCase('invite_lifecycle', 'in_app_invite_banner_persistent_until_valid_close',
+    'Banner does not auto-dismiss; explicit close/open/source invalidation are the close paths',
     () => {
       const src = safeStr(gameInviteNotifierSource);
-      if (!src.includes('INVITE_TOAST_DURATION_MS = 10000')) {
-        return fail('Banner duration is not 10 seconds.', {
+      const required = [
+        'PERSISTENT_INVITE_TOAST_DURATION = Infinity',
+        'duration: PERSISTENT_INVITE_TOAST_DURATION',
+        'toast_close_button',
+        'toast_open_action',
+        'active_invite_removed',
+      ];
+      const missing = required.filter((t) => !src.includes(t));
+      const forbidden = [
+        'INVITE_TOAST_DURATION_MS',
+        'toast_timeout',
+        'timerId',
+        'window.setTimeout',
+      ].filter((t) => src.includes(t));
+      if (missing.length || forbidden.length) {
+        return fail('Foreground invite banner can still close without a valid lifecycle event.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
+          missing,
+          forbidden,
         });
       }
       // Dismiss path must NOT call GameInvite.update/delete.
@@ -292,7 +308,7 @@ export const EXTRA_TESTS = [
           actionType: ACTION_TYPES.CODE_FIX,
         });
       }
-      return pass('Banner auto-dismisses after 10s without deleting the invite.',
+      return pass('Banner stays visible until explicit close/open or confirmed source invalidation.',
         { verification: 'STATIC_CONTRACT', classification: 'STATIC_CHECK_LIMITATION' });
     },
     { actionType: ACTION_TYPES.CODE_FIX }),

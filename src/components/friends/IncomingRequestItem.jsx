@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { UserRound, Check, X, Loader2 } from 'lucide-react';
+import { getSafeNotificationActorName } from '@/lib/notificationIdentity';
 
 /**
  * One pending request addressed to the current user — accept or reject.
@@ -8,7 +9,7 @@ export default function IncomingRequestItem({ request, onAccept, onReject }) {
   const [busy, setBusy] = useState(null); // 'accept' | 'reject' | null
   const [error, setError] = useState('');
 
-  const display = request.from_name?.trim() || request.from_email;
+  const display = getSafeNotificationActorName(request.from_name, 'Bir kullanıcı');
 
   const handle = async (action) => {
     setBusy(action);
@@ -43,9 +44,7 @@ export default function IncomingRequestItem({ request, onAccept, onReject }) {
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate font-inter text-sm font-bold text-white">{display}</p>
-          {request.from_name && (
-            <p className="truncate font-inter text-[11px] text-blue-100/60">{request.from_email}</p>
-          )}
+          <p className="truncate font-inter text-[11px] text-blue-100/60">Arkadaşlık isteği</p>
         </div>
         <button
           type="button"

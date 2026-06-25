@@ -40,6 +40,20 @@ function escapeText(s) {
   return String(s || '').replace(/[\u0000-\u001F\u007F]/g, '').slice(0, 200);
 }
 
+function safePublicActorName(value, fallback = 'Bir oyuncu') {
+  const normalized = String(value || '').replace(/\s+/g, ' ').trim();
+  if (
+    normalized &&
+    /^[A-Za-z0-9_]{3,24}$/.test(normalized) &&
+    !normalized.includes('@') &&
+    !/^(apple|google|firebase|auth0|base44|provider|uid|owner)(?:[\w:-].*)?$/i.test(normalized) &&
+    !/^(guest|player|owner|user_key|player_key|g|u)_[A-Za-z0-9_-]{4,}$/i.test(normalized)
+  ) {
+    return normalized;
+  }
+  return fallback;
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -49,7 +63,7 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const toEmail = normalizeEmail(body?.toEmail);
     const fromEmail = normalizeEmail(user.email);
-    const senderName = escapeText(user.full_name || fromEmail.split('@')[0] || 'Bir oyuncu');
+    const senderName = escapeText(safePublicActorName(user.username || user.public_username || user.full_name, 'Bir oyuncu'));
     const appUrl = sanitizeAppUrl(body?.appUrl) || 'https://kronox.base44.app';
 
     if (!toEmail) return json({ ok: false, error: 'toEmail required' }, 400);

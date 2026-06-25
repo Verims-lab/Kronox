@@ -135,6 +135,13 @@ export const sendFriendRequestEmailFnSource = `
   // Authenticated user only; endpoint must not become an arbitrary email spammer.
   const appUrl = sanitizeAppUrl(body?.appUrl) || 'https://kronox.base44.app';
   if (toEmail === fromEmail) return json({ ok: false, error: 'Cannot email self' }, 400);
+  function safePublicActorName(value, fallback = 'Bir oyuncu') {
+    const normalized = String(value || '').replace(/\\s+/g, ' ').trim();
+    return normalized && /^[A-Za-z0-9_]{3,24}$/.test(normalized) && !normalized.includes('@')
+      ? normalized
+      : fallback;
+  }
+  const senderName = escapeText(safePublicActorName(user.username || user.public_username || user.full_name, 'Bir oyuncu'));
   const pending = await base44.asServiceRole.entities.FriendRequest.filter({
     from_email: fromEmail,
     to_email: toEmail,
@@ -222,6 +229,13 @@ export const sendGameInvitePushFnSource = `
   if (!subscriptions?.length) {
     return json({ ok: true, push: { attempted: false, sent: 0, failed: 0, expired: 0, skipped: 'no_active_subscriptions', skippedReasons: { no_active_subscriptions: 1 }, failedReasons: [], subscriptionCount: 0 } });
   }
+  function safePublicActorName(value, fallback = 'Bir arkadaşın') {
+    const normalized = String(value || '').replace(/\\s+/g, ' ').trim();
+    return normalized && /^[A-Za-z0-9_]{3,24}$/.test(normalized) && !normalized.includes('@')
+      ? normalized
+      : fallback;
+  }
+  const senderName = safePublicActorName(invite.from_name, 'Bir arkadaşın');
   const targetUrl = buildTargetUrl(invite); // /lobby?inviteId=...&lobbyId=...&lobbyCode=...
   const notificationPayload = JSON.stringify({
     title: 'Kronox',

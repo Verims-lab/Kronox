@@ -13,14 +13,21 @@ import useNotificationCenterSource from '../../hooks/useNotificationCenter.js?ra
 import headerNotificationBellSource from '../notifications/HeaderNotificationBell.jsx?raw';
 import incomingInvitesPanelSource from '../invites/IncomingInvitesPanel.jsx?raw';
 import gameInviteNotifierSource from '../invites/GameInviteNotifier.jsx?raw';
+import incomingRequestItemSource from '../friends/IncomingRequestItem.jsx?raw';
+import notificationIdentitySource from '../../lib/notificationIdentity.js?raw';
 import lobbyRoomSource from '../../pages/LobbyRoom.jsx?raw';
-import { acceptGameInviteFnSource } from './simulationPanelContractStrings';
+import {
+  acceptGameInviteFnSource,
+  sendFriendRequestEmailFnSource,
+  sendGameInvitePushFnSource,
+} from './simulationPanelContractStrings';
 import {
   GAME_INVITE_TTL_MS,
   isActiveIncomingGameInvite,
   mergeActiveIncomingGameInvites,
 } from '@/lib/gameInviteSelectors';
 import { buildNotificationViewModel } from '@/lib/notificationViewModel';
+import { mergePendingFriendRequests } from '@/lib/headerNotifications';
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
 const ACTION_TYPES = { CODE_FIX: 'CODE_FIX', MANUAL_VERIFICATION: 'MANUAL_VERIFICATION' };
@@ -36,6 +43,11 @@ function safeStr(src) {
 function missing(src, tokens) {
   const s = safeStr(src);
   return tokens.filter((token) => !s.includes(token));
+}
+
+function forbidden(src, tokens) {
+  const s = safeStr(src);
+  return tokens.filter((token) => s.includes(token));
 }
 
 function makeCase(id, name, run, options = {}) {
@@ -64,6 +76,14 @@ const freshInvite = {
   status: 'pending',
   created_at: new Date(NOW - 30_000).toISOString(),
   expires_at: new Date(NOW + 9 * 60 * 1000).toISOString(),
+};
+const freshFriendRequest = {
+  id: 'friend_request_fresh',
+  from_email: 'sender@example.com',
+  from_name: 'KronoxUser1234',
+  to_email: ME,
+  status: 'pending',
+  created_at: new Date(NOW - 30_000).toISOString(),
 };
 
 export const EXTRA_SUITES = [
@@ -137,6 +157,33 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Lifecycle merge preserves valid pending invite across empty stale fetch.',
+        { verification: 'EXECUTABLE' });
+    }),
+
+  makeCase('friend_request_transient_empty_fetch_preserved',
+    'Valid pending FriendRequest is not cleared by a transient empty fetch',
+    () => {
+      const staleEmpty = mergePendingFriendRequests([freshFriendRequest], [], ME, { preserveExisting: true });
+      const terminal = mergePendingFriendRequests(
+        [freshFriendRequest],
+        [{ ...freshFriendRequest, status: 'accepted' }],
+        ME,
+        { preserveExisting: true },
+      );
+      const m = missing(useNotificationCenterSource, [
+        '{ to_email: email }',
+        'mergePendingFriendRequests',
+        'friend_request_subscription',
+      ]);
+      if (staleEmpty.length !== 1 || terminal.length !== 0 || m.length) {
+        return fail('Friend request notification lifecycle can still flicker empty or ignore terminal updates.', {
+          verification: staleEmpty.length === 1 && terminal.length === 0 ? 'STATIC_CONTRACT' : 'EXECUTABLE',
+          actionType: ACTION_TYPES.CODE_FIX,
+          missing: m,
+          actual: { staleEmptyLength: staleEmpty.length, terminalLength: terminal.length },
+        });
+      }
+      return pass('Friend requests survive transient empty fetches and close on terminal source updates.',
         { verification: 'EXECUTABLE' });
     }),
 
@@ -223,6 +270,48 @@ export const EXTRA_TESTS = [
       }
       return pass('Active invites dedupe by id/fallback key and latest row wins.',
         { verification: 'EXECUTABLE' });
+    }),
+
+  makeCase('notification_public_identity_is_username_safe',
+    'Notification UI/payload labels use safe public username labels, not email/provider/internal ids',
+    () => {
+      const uiSrc = [
+        headerNotificationBellSource,
+        incomingInvitesPanelSource,
+        gameInviteNotifierSource,
+        incomingRequestItemSource,
+      ].map(safeStr).join('\n');
+      const backendMirror = `${safeStr(sendFriendRequestEmailFnSource)}\n${safeStr(sendGameInvitePushFnSource)}`;
+      const required = missing(`${safeStr(notificationIdentitySource)}\n${uiSrc}\n${backendMirror}`, [
+        'normalizeSafePublicUsernameInput',
+        'getSafeNotificationActorName',
+        'safePublicActorName',
+        'Bir arkadaşın',
+        'Bir kullanıcı',
+      ]);
+      const leakedUiFallbacks = forbidden(uiSrc, [
+        'row?.from_email ||',
+        'invite?.from_email ||',
+        'invite.from_email',
+        'request.from_email',
+        'invite.to_email ||',
+      ]);
+      const leakedPayloadFallbacks = forbidden(backendMirror, [
+        "|| fromEmail",
+        "fromEmail.split('@')",
+        'invite.from_name ||',
+      ]);
+      if (required.length || leakedUiFallbacks.length || leakedPayloadFallbacks.length) {
+        return fail('Notification labels may expose private email/provider/internal identifiers.', {
+          verification: 'STATIC_CONTRACT',
+          actionType: ACTION_TYPES.CODE_FIX,
+          missing: required,
+          leakedUiFallbacks,
+          leakedPayloadFallbacks,
+        });
+      }
+      return pass('Notification UI and backend payload mirrors use safe public actor labels only.',
+        { verification: 'STATIC_CONTRACT' });
     }),
 
   makeCase('accepted_invite_removed_only_by_status_change',

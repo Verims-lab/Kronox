@@ -5,6 +5,7 @@
 // because RLS forbids the client from writing rows owned by another user.
 
 import { base44 } from '@/api/base44Client';
+import { getSafeNotificationActorName } from '@/lib/notificationIdentity';
 
 export function normalizeEmail(raw) {
   return String(raw || '').trim().toLowerCase();
@@ -134,7 +135,7 @@ export async function sendFriendRequest({ me, toEmail }) {
 
   await base44.entities.FriendRequest.create({
     from_email: fromEmail,
-    from_name: me?.full_name || '',
+    from_name: getSafeNotificationActorName([me?.username, me?.public_username, me?.full_name], ''),
     to_email: target,
     status: 'pending',
   });

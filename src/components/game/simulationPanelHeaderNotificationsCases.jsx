@@ -159,10 +159,13 @@ export const EXTRA_TESTS = [
         ['completed GI',           isActiveGameInviteForUser({ status: 'completed', to_email: me }, me, now) === false],
       ];
       const failed = cases.filter(([, ok]) => !ok).map(([label]) => label);
-      // Also lock the shared notification center query: must use
-      // { to_email, status: 'pending' }.
+      // Also lock the shared notification center query: it reads recent
+      // incoming lifecycle rows, then the merge helper keeps only pending
+      // rows while preserving active notifications through transient empty
+      // refreshes.
       const m = missing(useNotificationCenterSource, [
-        "{ to_email: email, status: 'pending' }",
+        '{ to_email: email }',
+        'mergePendingFriendRequests',
       ]);
       if (failed.length || m.length) {
         return fail('Resolved/outgoing rows are not properly excluded.', {

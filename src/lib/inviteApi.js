@@ -20,6 +20,7 @@ import {
   parseInviteExpiresAt,
   traceGameInviteLifecycle,
 } from '@/lib/gameInviteSelectors';
+import { getSafeNotificationActorName } from '@/lib/notificationIdentity';
 
 // Codex130 — Game invite + lobby staleness TTL: 10 minutes.
 // This mirrors the Base44 function constants in acceptGameInvite and
@@ -183,7 +184,7 @@ export async function createGameInvites({ host, lobby, toEmails, playerCount }) 
       lobby_id: lobby.id,
       lobby_code: lobby.code || '',
       from_email: fromEmail,
-      from_name: host?.full_name || '',
+      from_name: getSafeNotificationActorName([host?.username, host?.public_username, host?.full_name], ''),
       to_email: toEmail,
       status: 'pending',
       created_at: createdAt.toISOString(),

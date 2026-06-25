@@ -368,6 +368,7 @@ VAPID_PRIVATE_KEY remains backend-env-only and is never logged or returned; env-
 VAPID_PRIVATE_KEY is server-side env/secret sourced. Production secret manager verification is MANUAL_REQUIRED.
 VAPID_PUBLIC_KEY is public-by-design/config-managed, and VAPID_SUBJECT is contact/config metadata that must not be logged or returned unnecessarily.
 In-app invites remain functional if push is not configured.
+Friend/game invite notifications use public username labels only, preserve valid pending rows through transient empty refreshes, and close only on explicit user action, terminal status, expiry, or confirmed source invalidation.
 npm run build does not prove backend VAPID secret deployment; real push delivery requires a subscribed device and deployed backend secrets.
 
 ## Android 15 Edge-To-Edge

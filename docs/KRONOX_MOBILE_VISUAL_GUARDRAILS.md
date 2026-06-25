@@ -58,6 +58,10 @@ checks that source code and static Health cannot honestly prove alone.
   a question-set or function contract change.
 * Push notification UI is feature-detected and remains optional; in-app invite
   flow must work without push.
+* Friend/game invite notifications must stay readable and actionable until the
+  user acts, the row reaches a terminal status, the invite expires, or the
+  source is confirmed invalid; transient empty refreshes must not collapse the
+  visible notification.
 * Offline UI is shown only for real offline or failed fetch plus no usable
   cache, not for an empty cache while online.
 

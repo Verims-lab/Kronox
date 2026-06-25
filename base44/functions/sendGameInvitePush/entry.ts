@@ -53,6 +53,20 @@ function isLikelyVapidKey(value: string) {
   return /^[A-Za-z0-9_-]{20,}$/.test(value.trim());
 }
 
+function safePublicActorName(value: unknown, fallback = 'Bir arkadaşın') {
+  const normalized = String(value || '').replace(/\s+/g, ' ').trim();
+  if (
+    normalized &&
+    /^[A-Za-z0-9_]{3,24}$/.test(normalized) &&
+    !normalized.includes('@') &&
+    !/^(apple|google|firebase|auth0|base44|provider|uid|owner)(?:[\w:-].*)?$/i.test(normalized) &&
+    !/^(guest|player|owner|user_key|player_key|g|u)_[A-Za-z0-9_-]{4,}$/i.test(normalized)
+  ) {
+    return normalized;
+  }
+  return fallback;
+}
+
 function readRequiredVapidValue(field: typeof VAPID_CONFIG_FIELDS[number]) {
   for (const envName of field.envNames) {
     const raw = Deno.env.get(envName);
@@ -272,7 +286,7 @@ Deno.serve(async (req) => {
 
     webpush.setVapidDetails(config.subject, config.publicKey, config.privateKey);
 
-    const senderName = String(invite.from_name || '').trim() || fromEmail;
+    const senderName = safePublicActorName(invite.from_name, 'Bir arkadaşın');
     const targetUrl = buildTargetUrl(invite);
     const notificationPayload = JSON.stringify({
       title: 'Kronox',
