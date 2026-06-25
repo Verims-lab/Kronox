@@ -110,19 +110,19 @@ export const EXTRA_TESTS = [
     }),
 
   makeCase('accept_game_invite_returns_lobby_navigation_target',
-    'Successful accept returns a lobby payload and the client navigates with joinedLobby state',
+    'Successful accept returns a verified lobby payload and the client navigates with joinedLobby state',
     () => {
       const src = `${safeStr(acceptGameInviteFnSource)}\n${safeStr(inviteApiSource)}`;
-      const m = missing(src, ['lobby: updatedLobby', "navigate('/lobby'", 'joinedLobby']);
+      const m = missing(src, ['verifiedLobby', "navigate('/lobby'", 'joinedLobby']);
       if (m.length) {
-        return fail('Accept success does not provide or consume a lobby navigation target.', {
+        return fail('Accept success does not provide or consume a verified lobby navigation target.', {
           verification: 'STATIC_CONTRACT',
           actionType: ACTION_TYPES.CODE_FIX,
           missing: m,
           file: 'acceptGameInvite + lib/inviteApi.js',
         });
       }
-      return pass('Accept returns the joined lobby and the client routes to /lobby with joinedLobby.',
+      return pass('Accept returns the verified/joined lobby and the client routes to /lobby with joinedLobby.',
         { verification: 'STATIC_CONTRACT' });
     }),
 

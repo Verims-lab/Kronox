@@ -1,0 +1,90 @@
+# Kronox Health Gap Analysis
+
+Status: current Health gap audit.
+
+Health is a contract guard. It is not release proof. Static checks prevent
+common drift, but Online, realtime, push, mobile wrappers, RLS/BOLA, and
+parallel economy behavior still require simulation or live/manual proof.
+
+## Why Recent Online Failures Escaped
+
+The recent 4-player lobby/start failure class was not primarily a missing
+string. It was a race and recovery problem:
+
+- concurrent lobby joins could overwrite roster arrays
+- accepted invitees could exist in `GameInvite` rows but not be reconciled into
+  `Lobby.players` before host start
+- host start could freeze a stale roster
+- non-host clients could miss realtime and remain in the waiting room
+
+Earlier Health checks verified pieces of the flow, but did not tie the full
+contract together as a 4-player join/start/recovery path. The current Online
+lobby start regression suite now locks merge/retry joins, accepted-invite
+reconciliation, idempotent start, shared deck/current question writes, and
+fallback polling/refetch.
+
+## Static Checks That Are Not Enough Alone
+
+| Area | Static check value | Gap |
+| --- | --- | --- |
+| Online start | Confirms source has merge/retry/start/recovery markers | Does not simulate four live accounts or Base44 realtime delivery |
+| Invite accept | Confirms `verifiedLobby`/`joinedLobby` contract | Does not prove deployed function freshness |
+| Notifications | Executable merge helpers cover stale empty fetches | Does not prove push delivery or service worker behavior on real devices |
+| Solo records | Confirms backend context and copy | Does not prove production data has multi-user records |
+| Economy | Confirms idempotency guards and Diamond-only rules | Does not prove DB uniqueness or two-device race safety |
+| Leaderboard privacy | Confirms sanitized public payload shape | Does not prove live RLS prevents direct entity reads |
+| Questions | Confirms no raw client `Question.list` gameplay fallback | Does not prove deployed function is current |
+
+## Coverage Closed In This Pass
+
+- Added architecture-audit Health coverage requiring the new audit/target,
+  Health gap, DB reporting readiness, and visual asset readiness docs to stay
+  aligned with the MVVM/MVI target and Base44-active boundary.
+- Updated invite navigation Health expectations to require `verifiedLobby` and
+  `joinedLobby`, not the older `lobby: updatedLobby` token.
+
+## Required Coverage Areas
+
+| Flow / contract | Current coverage | Needed next |
+| --- | --- | --- |
+| 4-player Online lobby join/start | `online_lobby_start_regression` static suite | Add a real or mocked multi-client simulation harness when feasible |
+| Host start shared state | Static source markers for deck/current question/status/revision | Backend runtime probe against deployed `startLobbyGame` |
+| Non-host recovery | Static subscription + poll/refetch markers | Browser automation with delayed/missed subscription event |
+| Invite accept verified lobby | Static `verifiedLobby`/`joinedLobby` contract | Deployed function freshness marker or Base44 test-function proof |
+| Notification no-flicker | Executable merge tests plus static ViewModel guards | Timed UI harness with transient empty fetch injection |
+| Solo record congratulations | Static backend context/copy checks | Production-like multi-user record fixture or backend probe |
+| Daily Quest Diamond-only | Static runtime/backend checks | Two-device claim race proof |
+| Leaderboard username-only | Static public payload checks | RLS/BOLA live probe |
+| Online category isolation | Static start/Game/Health mirror checks | Live lobby start with Solo preferences set differently |
+| No raw Question.list gameplay fallback | Static source checks | Deployed `getQuestions` marker proof |
+| Economy idempotency | Static guard checks | Platform unique/index proof or transactional replacement |
+| Public UI private identifiers | Static forbidden-token checks | Visual/manual walkthrough for lobbies, leaderboard, notifications |
+
+## Health Design Rules
+
+- Keep static checks precise and product-contract oriented.
+- Prefer executable helper tests where pure selectors/reducers exist.
+- Mark real-device, Base44 deployment, RLS/BOLA, push, App Store/Play Store,
+  and two-account runtime proof as manual or NOT_AUTOMATABLE.
+- Do not weaken failing checks by swapping real product requirements for vague
+  text.
+- When a static check uses source tokens, pair it with a doc note explaining
+  what live proof remains.
+
+## Manual / Live Probe Checklist
+
+- Two-account Online: host creates 4-player lobby, three recipients join by
+  code/invite, host starts, every player lands on the same question.
+- Realtime miss: block or delay subscription event for one non-host, confirm
+  poll/refetch transitions to game.
+- Invite accept: expired, accepted, stale lobby, non-recipient, and duplicate
+  accept all return safe states.
+- Notification lifecycle: transient empty fetch does not clear valid pending
+  rows; terminal status does clear them.
+- Solo records: fastest rank 1, fastest top 3, fewest HAMLE, and combined
+  backend context all render only after success.
+- Economy: same user double-taps/refreshes reward and joker purchase across
+  two devices without duplicate grant/spend.
+- Privacy: no email/provider/raw guest/owner/internal player ids visible in
+  leaderboard, lobby, notification, or push text.
+

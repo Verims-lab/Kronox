@@ -80,6 +80,68 @@ Status: Active technical flow contract.
 - Uploaded kronox-teknik-dokuman.pdf and kronox-is-akisi.pdf are stale Codex040-era references unless regenerated from current source.
 `;
 
+export const ARCHITECTURE_AUDIT_DOC = `# Kronox Architecture Audit
+
+Status: current audit and safe-fix record.
+
+Kronox target architecture is Feature-Based MVVM with MVI-style state machines
+for Solo gameplay, Online lobby/start/reconnect, and friend/game invite
+notifications. Current Base44 production path remains active. Base44 migration
+work is paused. The audit inventories Solo, Online, Notifications, Profile,
+Leaderboard, Economy/Daily/Jokers, Questions/Categories, Admin/Health, shared
+hooks/components, backend functions, entities/data model, and release/mobile
+constraints. Safe fixes are small, localized, validated, and avoid broad
+runtime rewrites.
+`;
+
+export const ARCHITECTURE_TARGET_DOC = `# Kronox Architecture Target
+
+Status: target architecture map.
+
+Feature folders should separate Views, ViewModels, MVI reducers/state machines,
+services/use cases, gateways/API access, and Base44 backend implementation.
+Pilot flows are Solo gameplay completion/records, Online lobby/start/reconnect,
+and friend/game invite notifications. Base44 remains the active backend while
+gateway boundaries reduce direct provider coupling.
+`;
+
+export const HEALTH_GAP_ANALYSIS_DOC = `# Kronox Health Gap Analysis
+
+Status: current Health gap audit.
+
+Health protects product contracts, not full release readiness. Static checks
+cover Online join/start/recovery, invite verified lobby, notification
+no-flicker, Solo backend record context, Daily Quest Diamond-only rewards,
+leaderboard username-only payloads, Online category isolation, no raw
+Question.list gameplay fallback, economy idempotency guards, and private
+identifier display. Two-account, realtime, push, RLS/BOLA, device, and store
+proof remain manual/live probes.
+`;
+
+export const DB_REPORTING_READINESS_DOC = `# Kronox DB Reporting Readiness
+
+Status: reporting-readiness audit.
+
+Future reports include DAU/WAU/MAU, new vs returning users, guest vs linked
+users, Solo level funnel/pass/fail/moves/time, Solo record counts, daily reward
+claims, joker earn/spend/purchase, Diamond balance changes, leaderboard
+movement, category preference distribution, question exposure/difficulty,
+Online lobby lifecycle, invite lifecycle, notification lifecycle, platform
+split, retention cohorts, and economy fraud/race anomalies. Missing event
+tables must be backward-compatible and privacy-safe.
+`;
+
+export const VISUAL_ASSET_READINESS_DOC = `# Kronox Visual Asset Readiness
+
+Status: asset pipeline readiness note.
+
+Kronox can add higher-quality card art, backgrounds, store screenshots,
+icons/splash assets, responsive high-density variants, lazy/preload strategy,
+asset naming, fallback behavior, and future CDN/storage planning without a
+full visual redesign. Assets must not include secrets, private identifiers, or
+the full question bank, and must preserve mobile performance.
+`;
+
 export const PROFILE_FIELDS_DOC = `# Kronox Profile Fields
 
 Status: Active profile/onboarding contract.

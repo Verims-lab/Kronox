@@ -10,6 +10,11 @@ import {
   KRONOX_DOC as kronoxSource,
   PRODUCT_WORKFLOW_DOC as productWorkflowDocsSource,
   TECHNICAL_FLOW_DOC as technicalFlowDocsSource,
+  ARCHITECTURE_AUDIT_DOC as architectureAuditMirrorSource,
+  ARCHITECTURE_TARGET_DOC as architectureTargetMirrorSource,
+  HEALTH_GAP_ANALYSIS_DOC as healthGapMirrorSource,
+  DB_REPORTING_READINESS_DOC as dbReportingMirrorSource,
+  VISUAL_ASSET_READINESS_DOC as visualAssetMirrorSource,
   PROFILE_FIELDS_DOC as profileFieldsDocsSource,
   MOBILE_VISUAL_GUARDRAILS_DOC as mobileVisualGuardrailsSource,
   SECURITY_DEPLOYMENT_DOC as securityDocsSource,
@@ -46,6 +51,11 @@ import appSource from '../../App.jsx?raw';
 import privacyPolicySource from '../../pages/PrivacyPolicy.jsx?raw';
 import packageJsonSource from '../../../package.json?raw';
 import fullAuditPackageSource from '../../../docs/KRONOX_FULL_AUDIT_PACKAGE_1.md?raw';
+import architectureAuditSource from '../../../docs/KRONOX_ARCHITECTURE_AUDIT.md?raw';
+import architectureTargetSource from '../../../docs/KRONOX_ARCHITECTURE_TARGET.md?raw';
+import healthGapAnalysisSource from '../../../docs/KRONOX_HEALTH_GAP_ANALYSIS.md?raw';
+import dbReportingReadinessSource from '../../../docs/KRONOX_DB_REPORTING_READINESS.md?raw';
+import visualAssetReadinessSource from '../../../docs/KRONOX_VISUAL_ASSET_READINESS.md?raw';
 import soloProgressHelpersSource from '../../lib/soloProgressHelpers.js?raw';
 import soloLevelsSource from '../../lib/soloLevels.js?raw';
 import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
@@ -180,6 +190,68 @@ export const EXTRA_TESTS = [
       }
       return pass('Active docs are importable and contain current Kronox contract markers.', {
         verification: 'STATIC_CONTRACT',
+      });
+    }),
+
+  makeCase('architecture_audit_target_docs_registered',
+    'Architecture audit docs lock Feature-Based MVVM / MVI target without starting Base44 migration',
+    () => {
+      const docsCombined = [
+        architectureAuditSource,
+        architectureTargetSource,
+        healthGapAnalysisSource,
+        dbReportingReadinessSource,
+        visualAssetReadinessSource,
+      ].map(text).join('\n');
+      const mirrorCombined = [
+        architectureAuditMirrorSource,
+        architectureTargetMirrorSource,
+        healthGapMirrorSource,
+        dbReportingMirrorSource,
+        visualAssetMirrorSource,
+      ].map(text).join('\n');
+      const missingDocs = missingTokens(docsCombined, [
+        'Feature-Based MVVM with MVI-style state machines',
+        'Current Base44 production path remains active',
+        'Base44 migration work is paused',
+        'Online lobby/start/reconnect',
+        'friend/game invite notifications',
+        'Health is a contract guard',
+        '4-player Online lobby join/start',
+        'DB Reporting Readiness',
+        'DAU / WAU / MAU',
+        'Visual Asset Readiness',
+        'higher-quality visual assets without starting',
+        'no full visual redesign',
+      ]).map((token) => `docs:${token}`);
+      const missingMirrors = missingTokens(mirrorCombined, [
+        'Feature-Based MVVM',
+        'MVI-style state machines',
+        'Base44 production path remains active',
+        'Base44 migration',
+        'DAU/WAU/MAU',
+        'private identifiers',
+        'full question bank',
+      ]).map((token) => `mirror:${token}`);
+      if (missingDocs.length || missingMirrors.length) {
+        return fail('Architecture audit docs/mirrors are missing current target or readiness contracts.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          files: [
+            'docs/KRONOX_ARCHITECTURE_AUDIT.md',
+            'docs/KRONOX_ARCHITECTURE_TARGET.md',
+            'docs/KRONOX_HEALTH_GAP_ANALYSIS.md',
+            'docs/KRONOX_DB_REPORTING_READINESS.md',
+            'docs/KRONOX_VISUAL_ASSET_READINESS.md',
+            'src/lib/healthAlignmentDocMirrors.js',
+          ],
+          actual: { missingDocs, missingMirrors },
+          actionType: ACTION_TYPES.CODE_FIX,
+        });
+      }
+      return pass('Architecture docs and mirrors preserve the MVVM/MVI target, Base44-active boundary, Health gap plan, reporting readiness, and visual asset readiness.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
       });
     }),
 
