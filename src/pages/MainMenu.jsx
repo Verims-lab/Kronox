@@ -6,7 +6,7 @@ import { base44 } from '@/api/base44Client';
 import { sounds } from '@/lib/gameSounds';
 import { useAuth } from '@/lib/AuthContext';
 import StandardTopBar from '@/components/layout/StandardTopBar';
-import KronoxWordmark from '@/components/ui/KronoxWordmark';
+import SharedKronoxWordmark from '@/components/ui/KronoxWordmark';
 import DailyRewardsPanel from '@/components/dailyWheel/DailyRewardsPanel';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 import { isGuestOnboardingComplete } from '@/lib/guestProfile';
@@ -225,6 +225,10 @@ function KronoxDivider() {
       />
     </div>
   );
+}
+
+function KronoxWordmark() {
+  return <SharedKronoxWordmark />;
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
