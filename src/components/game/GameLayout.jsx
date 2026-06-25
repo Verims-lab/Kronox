@@ -74,26 +74,24 @@ function CTAButton({ active, onClick, disabled }) {
   );
 }
 
-function getGuidedTargetOffset(targetZoneIndex, zoneCount) {
-  const zones = Math.max(1, Number(zoneCount) || 1);
-  const target = Math.max(0, Math.min(zones - 1, Number(targetZoneIndex) || 0));
-  if (zones <= 1) return 0;
-  const normalized = (target / (zones - 1)) - 0.5;
-  return Math.max(-132, Math.min(132, normalized * 260));
-}
-
 function GuidedDragFingerHint({ active, reducedMotion, targetZoneIndex = null, zoneCount = 1 }) {
   if (!active) return null;
 
-  const targetX = getGuidedTargetOffset(targetZoneIndex, zoneCount);
+  // The Timeline auto-scrolls the correct target slot to its horizontal
+  // centre during the tutorial placement step, so the hand drags straight
+  // DOWN from the card into the centred slot — fully entering it instead of
+  // stopping near the timeline edge. The deeper Y (188) carries the hand
+  // into the drop zone area below the question card.
+  void targetZoneIndex;
+  void zoneCount;
   const pathAnimation = reducedMotion
     ? {
         opacity: [0.72, 1, 0.72],
         scale: [1, 1.04, 1],
       }
     : {
-        x: [0, 0, targetX, targetX],
-        y: [0, 0, 128, 128],
+        x: [0, 0, 0, 0],
+        y: [0, 0, 188, 188],
         opacity: [0, 1, 1, 0],
         scale: [0.92, 1, 1, 0.96],
       };

@@ -206,10 +206,22 @@ function getOrCreateClientInstallId() {
 }
 
 async function invokeCreateGuestProfile(payload) {
-  const response = await base44.functions.invoke('createGuestProfile', {
-    client_install_id: getOrCreateClientInstallId(),
-    ...(payload || {}),
-  });
+  let response;
+  try {
+    response = await base44.functions.invoke('createGuestProfile', {
+      client_install_id: getOrCreateClientInstallId(),
+      ...(payload || {}),
+    });
+  } catch (invokeError) {
+    // Non-2xx responses (e.g. 409 username_taken) reject the invoke call.
+    // Recover the structured error code from the response body so callers
+    // can show precise inline errors instead of a generic failure box.
+    const data = invokeError?.response?.data || invokeError?.data || {};
+    const code = data?.error || invokeError?.code || 'guest_profile_failed';
+    const error = new Error(code);
+    error.code = code;
+    throw error;
+  }
   const data = response?.data || response || {};
   if (data?.ok === false) {
     const error = new Error(data.error || 'guest_profile_failed');

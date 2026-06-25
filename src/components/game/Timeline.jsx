@@ -263,6 +263,36 @@ export default function Timeline({
     };
   }, [guidedScrollHintActive, groupedCards.length, isDragMode, reducedMotion]);
 
+  // Codex — Guided tutorial: make the correct target slot VISIBLE.
+  // During the placement step the correct drop zone may be offscreen on a
+  // narrow timeline. We auto-scroll it horizontally into the centre so the
+  // user (and the animated hand) can clearly see the exact placement
+  // location. Tutorial-only: gated by guidedTargetZone, never runs in
+  // normal play, and never fights an active drag (isDragMode).
+  useEffect(() => {
+    if (guidedTargetZone == null || isDragMode) return undefined;
+    const scroller = scrollRef.current;
+    if (!scroller) return undefined;
+    let frame = 0;
+    const align = () => {
+      const target = dropZoneRefs.current[guidedTargetZone];
+      if (!target) return;
+      const containerRect = scroller.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const targetWorldCX = (targetRect.left + targetRect.right) / 2 - containerRect.left + scroller.scrollLeft;
+      const desired = targetWorldCX - scroller.clientWidth / 2;
+      const maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+      const next = Math.max(0, Math.min(maxScroll, desired));
+      if (Math.abs(next - scroller.scrollLeft) > 2) {
+        scroller.scrollTo({ left: next, behavior: 'smooth' });
+      }
+    };
+    // Defer one frame so refs/layout are settled, then keep aligned if the
+    // timeline reflows (e.g. a card was just placed).
+    frame = requestAnimationFrame(align);
+    return () => { if (frame) cancelAnimationFrame(frame); };
+  }, [guidedTargetZone, isDragMode, groupedCards.length]);
+
   // Expose scroll ref to parent (for ghost card offset)
   useEffect(() => {
     if (scrollRefCallback) scrollRefCallback(scrollRef);

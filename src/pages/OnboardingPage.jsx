@@ -240,8 +240,11 @@ export default function OnboardingPage() {
               });
               void Promise.resolve(checkUserAuth?.()).catch(() => null);
             } catch (profileError) {
+              // Duplicate username is surfaced as a RED INLINE error under the
+              // username field (handled inside ProfileSetupStep via this exact
+              // sentinel), never as the generic save-failure box.
               setError(profileError?.code === 'username_taken'
-                ? 'Bu kullanıcı adı alınmış. Başka bir Kronox adı seç.'
+                ? 'username_taken'
                 : profileError?.code === 'profile_save_timeout'
                   ? 'Profil kaydı uzun sürdü. Bağlantını kontrol edip tekrar dene.'
                 : 'Profil bilgilerin kaydedilemedi. Lütfen tekrar dene.');
@@ -403,6 +406,9 @@ function ProfileSetupStep({ profile, busy, submitError, onSubmit }) {
   const [age, setAge] = useState(profile.age || '');
   const [gender, setGender] = useState(profile.gender || '');
   const [validation, setValidation] = useState('');
+  // The exact username value the backend rejected as taken. While the input
+  // still equals it, the inline red error stays and save is blocked.
+  const [takenUsername, setTakenUsername] = useState('');
 
   useEffect(() => {
     setUsername(fallbackUsername);
@@ -410,8 +416,18 @@ function ProfileSetupStep({ profile, busy, submitError, onSubmit }) {
     setGender(profile.gender || '');
   }, [fallbackUsername, profile.age, profile.gender]);
 
+  // When the parent reports a duplicate username, lock onto the current
+  // typed value so the inline error shows and submit stays blocked until edit.
+  useEffect(() => {
+    if (submitError === 'username_taken') setTakenUsername(username.trim().toLowerCase());
+  }, [submitError]);
+
   const normalizedUsername = username.trim() || fallbackUsername;
-  const canSubmit = normalizedUsername.trim().length >= 3;
+  const isUsernameTaken = Boolean(takenUsername) && username.trim().toLowerCase() === takenUsername;
+  const usernameInlineError = isUsernameTaken ? 'Bu kullanıcı adı kullanılıyor.' : '';
+  // Generic submit box is shown only for non-duplicate errors.
+  const genericSubmitError = submitError === 'username_taken' ? '' : submitError;
+  const canSubmit = normalizedUsername.trim().length >= 3 && !isUsernameTaken;
 
   return (
     <form
@@ -444,11 +460,15 @@ function ProfileSetupStep({ profile, busy, submitError, onSubmit }) {
         <Field label="Kullanıcı Adı">
           <input
             value={username}
-            onChange={(event) => setUsername(event.target.value)}
-            className="h-11 w-full rounded-xl border border-white/12 bg-white/[0.06] px-3 font-inter text-sm font-bold text-white outline-none focus:border-primary/70"
+            onChange={(event) => { setUsername(event.target.value); setValidation(''); }}
+            aria-invalid={isUsernameTaken}
+            className={`h-11 w-full rounded-xl border bg-white/[0.06] px-3 font-inter text-sm font-bold text-white outline-none ${isUsernameTaken ? 'border-red-500 focus:border-red-500' : 'border-white/12 focus:border-primary/70'}`}
             maxLength={24}
             autoComplete="username"
           />
+          {usernameInlineError && (
+            <p className="mt-1.5 font-inter text-xs font-bold text-red-400">{usernameInlineError}</p>
+          )}
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Yaş (opsiyonel)">
@@ -474,9 +494,9 @@ function ProfileSetupStep({ profile, busy, submitError, onSubmit }) {
           </Field>
         </div>
       </div>
-      {(validation || submitError) && (
+      {(validation || genericSubmitError) && (
         <p className="mt-3 rounded-xl border border-amber-300/35 bg-amber-300/10 px-3 py-2 font-inter text-xs font-bold text-amber-100">
-          {validation || submitError}
+          {validation || genericSubmitError}
         </p>
       )}
       <Button type="submit" disabled={busy || !canSubmit} className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl font-inter font-black">
@@ -539,12 +559,19 @@ function CategorySetupStep({ profile, busy, submitError, onComplete }) {
     });
   };
 
-  const finish = (force = false) => {
-    if (!force && selectedCount > 0 && selectedCount < MIN_CATEGORY_SELECTION_COUNT) {
-      setValidation('En iyi deneyim için en az 3 kategori öneriyoruz. Yine de misafir olarak devam edebilirsin.');
+  // Save rules: a valid saved preference is 0 categories OR >= 3 categories.
+  // 1–2 selected categories can never be persisted as active preferences.
+  const finishWithSelection = () => {
+    if (selectedCount > 0 && selectedCount < MIN_CATEGORY_SELECTION_COUNT) {
+      setValidation('En az 3 kategori seçmelisin.');
       return;
     }
     onComplete(Array.from(activeSelectedIds));
+  };
+
+  // Leaving without completing 3 selections continues with 0 categories.
+  const continueWithoutSelection = () => {
+    onComplete([]);
   };
 
   return (
@@ -552,7 +579,7 @@ function CategorySetupStep({ profile, busy, submitError, onComplete }) {
       <StepHeader
         icon={ShieldCheck}
         title="İlgi Alanlarını Seç"
-        body="Solo tercihleri yumuşak ağırlıktır; seçim yapmazsan tüm aktif kategoriler kullanılabilir."
+        body="En az 3 kategori seçiniz."
       />
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 font-inter text-xs font-bold text-primary">
@@ -619,20 +646,18 @@ function CategorySetupStep({ profile, busy, submitError, onComplete }) {
         </p>
       )}
       <div className="mt-5 flex flex-col gap-2">
-        <Button onClick={() => finish(false)} disabled={busy || loading} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl font-inter font-black">
+        <Button onClick={finishWithSelection} disabled={busy || loading} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl font-inter font-black">
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
           Ana Sayfa
         </Button>
-        {(validation || selectedCount === 0) && (
-          <button
-            type="button"
-            onClick={() => finish(true)}
-            disabled={busy}
-            className="min-h-11 w-full rounded-xl border border-white/15 px-4 py-3 font-inter text-sm font-black text-blue-100"
-          >
-            Şimdilik Misafir Devam Et
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={continueWithoutSelection}
+          disabled={busy}
+          className="min-h-11 w-full rounded-xl border border-white/15 px-4 py-3 font-inter text-sm font-black text-blue-100"
+        >
+          Şimdilik Misafir Devam Et
+        </button>
       </div>
     </div>
   );

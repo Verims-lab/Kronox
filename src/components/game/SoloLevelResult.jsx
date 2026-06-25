@@ -55,6 +55,11 @@ export default function SoloLevelResult({
 
   if (passed) {
     const successHasPrimaryAction = successPrimaryActionEnabled ?? hasNextLevel;
+    // Tutorial completion screen uses a dedicated CTA set:
+    //   Primary  → "Profilini tamamla"
+    //   Secondary→ "Seviye 2" (continue without forcing profile)
+    //   "Eğitime dön" is removed entirely.
+    const isTutorialCompletion = successPrimaryActionLabel === 'PROFİLİNİ TAMAMLA';
     return (
       <SoloSuccessPopup
         levelNumber={levelNumber}
@@ -73,6 +78,7 @@ export default function SoloLevelResult({
         onBackToPath={onBackToPath}
         primaryActionLabel={successPrimaryActionLabel}
         backToPathLabel={successBackToPathLabel}
+        tutorialCompletion={isTutorialCompletion}
       />
     );
   }

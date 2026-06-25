@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Star, ChevronRight, RotateCcw, ListChecks, TimerReset, Zap, X as XIcon, Check, MoveHorizontal,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { buildSoloGameConfigForLevel } from '@/lib/soloLevels';
 import { buildSoloLevelRecordCongratulations, fetchSoloLevelRecordContext } from '@/lib/soloLevelRecord';
 // Codex164 — shared popup helpers so success + failure stay in lockstep.
 import SoloStatCard from './SoloStatCard';
@@ -46,7 +48,15 @@ export default function SoloSuccessPopup({
   onBackToPath,
   primaryActionLabel = 'SONRAKİ SEVİYE',
   backToPathLabel = 'SEVİYELER',
+  tutorialCompletion = false,
 }) {
+  const navigate = useNavigate();
+  // Tutorial completion → "Seviye 2" continues into the real Level 2 with
+  // the username already given (guest profile persists). Profile completion
+  // is NOT forced; the user can finish it later from Settings/Profile.
+  const goToLevelTwo = () => {
+    navigate('/game', { replace: true, state: buildSoloGameConfigForLevel({ levelNumber: 2 }) });
+  };
   // Record context: only computed on success, silent on error.
   const [recordAchievement, setRecordAchievement] = useState(null);
   useEffect(() => {
@@ -195,6 +205,22 @@ export default function SoloSuccessPopup({
               <ChevronRight className="w-5 h-5" strokeWidth={3} />
             </Button>
 
+            {tutorialCompletion && (
+              <Button
+                onClick={goToLevelTwo}
+                className="w-full h-11 rounded-2xl font-bangers text-white flex items-center justify-center gap-2"
+                style={{
+                  background: 'linear-gradient(180deg, rgba(20,30,60,0.85), rgba(10,18,40,0.95))',
+                  boxShadow: 'inset 0 0 0 1.5px rgba(96,165,250,0.32)',
+                  fontSize: 'clamp(14px, 3.8vw, 15px)',
+                  letterSpacing: '0.12em',
+                }}
+              >
+                <ChevronRight className="w-4 h-4" strokeWidth={2.6} />
+                SEVİYE 2
+              </Button>
+            )}
+
             <Button
               onClick={onRetry}
               className="w-full h-11 rounded-2xl font-bangers text-white flex items-center justify-center gap-2"
@@ -209,19 +235,22 @@ export default function SoloSuccessPopup({
               TEKRAR OYNA
             </Button>
 
-            <Button
-              onClick={onBackToPath}
-              className="w-full h-11 rounded-2xl font-bangers text-white flex items-center justify-center gap-2"
-              style={{
-                background: 'linear-gradient(180deg, rgba(20,30,60,0.85), rgba(10,18,40,0.95))',
-                boxShadow: 'inset 0 0 0 1.5px rgba(96,165,250,0.32)',
-                fontSize: 'clamp(14px, 3.8vw, 15px)',
-                letterSpacing: '0.12em',
-              }}
-            >
-              <ListChecks className="w-4 h-4" strokeWidth={2.6} />
-              {backToPathLabel}
-            </Button>
+            {/* "Eğitime dön" is removed for the tutorial completion screen. */}
+            {!tutorialCompletion && (
+              <Button
+                onClick={onBackToPath}
+                className="w-full h-11 rounded-2xl font-bangers text-white flex items-center justify-center gap-2"
+                style={{
+                  background: 'linear-gradient(180deg, rgba(20,30,60,0.85), rgba(10,18,40,0.95))',
+                  boxShadow: 'inset 0 0 0 1.5px rgba(96,165,250,0.32)',
+                  fontSize: 'clamp(14px, 3.8vw, 15px)',
+                  letterSpacing: '0.12em',
+                }}
+              >
+                <ListChecks className="w-4 h-4" strokeWidth={2.6} />
+                {backToPathLabel}
+              </Button>
+            )}
           </div>
         </div>
       </motion.div>

@@ -76,6 +76,13 @@ export default function SoloJokerBar({
   tutorialFocusActive = false,
   onUseJoker,
 }) {
+  // Tutorial joker screens must never show completion/status copy
+  // ("Zaman Dondur tamamlandı.", "Kronokalkan aktif.", "Süre donduruldu.",
+  // "Bu kartta joker kullandın.") under the joker buttons. The guided
+  // instruction overlay above the timeline teaches joker use instead. Only
+  // a real error is still surfaced. tutorialDemoType / tutorialFocusActive
+  // are the active tutorial-mode signals already passed by Game.jsx.
+  const tutorialMode = Boolean(tutorialDemoType || tutorialFocusActive);
   const [recentlyUsedType, setRecentlyUsedType] = useState(null);
 
   useEffect(() => {
@@ -194,7 +201,9 @@ export default function SoloJokerBar({
       </div>
 
       <AnimatePresence mode="wait">
-        {(message || error || loading || jokerUsedOnCurrentCard || mistakeShieldActive || timerFrozen) && (
+        {(tutorialMode
+          ? Boolean(error)
+          : (message || error || loading || jokerUsedOnCurrentCard || mistakeShieldActive || timerFrozen)) && (
           <motion.div
             key={error || message || usedJokerType || String(mistakeShieldActive) || String(timerFrozen)}
             initial={{ opacity: 0, y: -4 }}
