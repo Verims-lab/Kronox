@@ -89,10 +89,8 @@ import {
   soloUiJokerTypeToInventoryType,
   spendUserJoker,
 } from '@/lib/jokerInventory';
-import {
-  getOrderedSoloDeckQuestion,
-  getSoloSeedQuestions,
-} from '@/lib/soloDeckRuntime';
+import { getOrderedSoloDeckQuestion, getSoloSeedQuestions } from '@/lib/soloDeckRuntime';
+import KronoxLoadingVideo from '@/components/loading/KronoxLoadingVideo';
 import {
   buildQuestionAttemptEventId,
   getQuestionAnalyticsMetadata,
@@ -2991,7 +2989,7 @@ export default function Game() {
       <>{diagnosticsOverlay}
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4 px-6">
-          <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" />
+          <KronoxLoadingVideo className="mx-auto" maxWidthClassName="max-w-[65%]" style={{ maxWidth: 260 }} />
           <p className="font-inter text-sm text-muted-foreground">Sorular hazırlanıyor...</p>
           <p className="font-inter text-xs text-muted-foreground/60">İlk yüklemede biraz sürebilir...</p>
           <Button onClick={() => navigate('/')} variant="outline" size="sm">Geri Dön</Button>
