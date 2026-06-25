@@ -82,7 +82,6 @@ function readAdminAuthField(row: any, candidates: string[]) {
   return { value: undefined, field: '' };
 }
 
-
 async function isAuthorizedAdmin(base44: any, user: any) {
   const email = normalizeAdminAuthEmail(user?.email);
   if (!email) return false;
