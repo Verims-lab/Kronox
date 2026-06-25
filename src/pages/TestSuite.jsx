@@ -24,6 +24,7 @@ export default function TestSuite() {
     );
   }
 
+
   if (!isAdminUser(user)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center px-6">
