@@ -15,9 +15,16 @@ export default function AddFriendForm({ onSubmit }) {
   const submit = async (event) => {
     event.preventDefault();
     setError('');
-    const parsed = parseFriendRequestTarget(target);
-    if (parsed.error) {
-      setError(parsed.error);
+    // Empty-target client guard: trim, block submit, and show the exact
+    // canonical message without ever calling the backend on empty input.
+    const trimmed = String(target || '').trim();
+    if (!trimmed) {
+      setError('E-posta veya kullanıcı adı gir.');
+      return;
+    }
+    const parsed = parseFriendRequestTarget(trimmed);
+    if (parsed.kind === 'empty' || parsed.error) {
+      setError(parsed.error || 'E-posta veya kullanıcı adı gir.');
       return;
     }
     setBusy(true);

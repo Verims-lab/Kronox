@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex435 — own leaderboard row opens profile settings:
-//   • Makes only the current user's "Sen" leaderboard row tappable.
-//   • Navigates to the existing Profile Settings / personal information route.
-//   • Keeps other leaderboard rows inert and public identity username-only.
+// Codex440 — Friend request validation + invite delivery Health fix:
+//   • AddFriendForm blocks empty target with the exact "E-posta veya kullanıcı adı gir." via canonical parseFriendRequestTarget; backend not called on empty.
+//   • Duplicate pending outgoing request is idempotent (pendingOut + "bekleyen bir isteğin var"); FriendRequest is created before SendEmail so delivery failure cannot lose the invite.
+//   • Username/email add + username-only public identity preserved; no target email returned for username adds.
 //
 // Codex434 — Settings/Profile records UI removal:
 //   • Removes the "En İyi 5 Rekorun" Settings/Profile section and its
@@ -2510,7 +2510,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex438';
+const BUILD_MARKER = 'Codex440';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

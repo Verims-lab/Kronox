@@ -26,6 +26,7 @@ import { SCORING_RULES_DOC as scoringDocsSource } from '@/lib/scoringRulesDoc';
 import { SOLO_QUESTION_ENGINE_DOC as soloEngineDocsSource } from '@/lib/soloQuestionEngineDoc';
 import { QUESTION_DATA_MODEL_DOC as questionModelDocsSource } from '@/lib/questionDataModelDoc';
 import { ECONOMY_RULES_DOC as economyDocsSource } from '@/lib/economyRulesDoc';
+import { FULL_AUDIT_PACKAGE_DOC as fullAuditPackageMirrorSource } from '@/lib/fullAuditPackageMirror';
 import settingsPageSource from '../../pages/SettingsPage.jsx?raw';
 import adminPageSource from '../../pages/AdminPage.jsx?raw';
 import profilePageSource from '../../pages/ProfilePage.jsx?raw';
@@ -50,12 +51,16 @@ import { DB_ARCHITECTURE_IMPLEMENTATION_MIRROR } from '@/lib/dbArchitectureMirro
 import appSource from '../../App.jsx?raw';
 import privacyPolicySource from '../../pages/PrivacyPolicy.jsx?raw';
 import packageJsonSource from '../../../package.json?raw';
-import fullAuditPackageSource from '../../../docs/KRONOX_FULL_AUDIT_PACKAGE_1.md?raw';
-import architectureAuditSource from '../../../docs/KRONOX_ARCHITECTURE_AUDIT.md?raw';
-import architectureTargetSource from '../../../docs/KRONOX_ARCHITECTURE_TARGET.md?raw';
-import healthGapAnalysisSource from '../../../docs/KRONOX_HEALTH_GAP_ANALYSIS.md?raw';
-import dbReportingReadinessSource from '../../../docs/KRONOX_DB_REPORTING_READINESS.md?raw';
-import visualAssetReadinessSource from '../../../docs/KRONOX_VISUAL_ASSET_READINESS.md?raw';
+// Codex383/Codex441 — Markdown ?raw imports of files OUTSIDE /src crash
+// Vite/Base44 import analysis ("invalid JS syntax ... .md?raw"). The active
+// docs are already available as in-/src/ string mirrors, so these cases read
+// the mirrors instead of the raw Markdown files.
+const fullAuditPackageSource = fullAuditPackageMirrorSource;
+const architectureAuditSource = architectureAuditMirrorSource;
+const architectureTargetSource = architectureTargetMirrorSource;
+const healthGapAnalysisSource = healthGapMirrorSource;
+const dbReportingReadinessSource = dbReportingMirrorSource;
+const visualAssetReadinessSource = visualAssetMirrorSource;
 import soloProgressHelpersSource from '../../lib/soloProgressHelpers.js?raw';
 import soloLevelsSource from '../../lib/soloLevels.js?raw';
 import getQuestionsSource from '../../../base44/functions/getQuestions/entry.ts?raw';
