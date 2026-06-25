@@ -33,7 +33,7 @@ function CTAButton({ active, onClick, disabled }) {
       }}
       whileTap={active ? { scale: 0.965, y: 3 } : { scale: 0.99 }}
       transition={active ? { duration: 1.25, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.18 }}
-      className="relative isolate h-12 w-full max-w-[320px] overflow-hidden rounded-2xl font-bangers text-xl tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/70"
+      className="relative isolate h-12 w-full max-w-[320px] overflow-hidden rounded-2xl from-primary font-bangers text-xl tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/70"
       style={{
         background: active
           ? 'linear-gradient(180deg, rgba(255,255,255,0.38) 0%, rgba(255,255,255,0.08) 18%, transparent 19%), linear-gradient(135deg, #fde047 0%, #facc15 42%, #f59e0b 100%)'
@@ -330,7 +330,7 @@ export default function GameLayout({
             data-kronox-solo-max-moves={visibleMaxMoves}
           >
             <span
-              className="font-inter font-semibold"
+              className="kronox-number font-inter font-semibold"
               style={{
                 color: '#F4F7FB',
                 fontSize: 'clamp(13px, 3.6vw, 14px)',
@@ -352,7 +352,7 @@ export default function GameLayout({
           <div className="mt-1 w-28">
             <motion.div
               key={progressPulseKey}
-              className="mb-0.5 text-center font-inter font-semibold"
+              className="kronox-number mb-0.5 text-center font-inter font-semibold"
               style={{ fontSize: 13, color: '#A7C4E5' }}
               initial={progressPulseKey > 0 ? {
                 scale: prefersReducedMotion ? 1 : 1.16,

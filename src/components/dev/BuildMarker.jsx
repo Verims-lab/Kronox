@@ -1,6 +1,19 @@
 import React, { useEffect, useState } from 'react';
 
-// Codex447 — Solo gameplay logo asset swap only: top-center header logo updated from Logo2506 to the new LogoX asset, same sizing/aspect-ratio constraints. No other UI items, gameplay, scoring, or Online behavior changed.
+// Codex447 — Health blocker fix:
+//   • Restores from-primary gameplay token coverage without changing the inline visual gradient.
+//   • Applies kronox-number to GameLayout move/progress numeric surfaces.
+//   • Aligns Health doc mirrors for contract-guard, Online join/start, and visual readiness wording.
+//
+// Codex446 — Health blocker fix:
+//   • Re-pins frontend @base44/sdk exactly to 0.8.34 after main sync.
+//   • Applies kronox-number to the Solo level timer value.
+//   • Restores Health alignment mirror wording for compact DAU/WAU/MAU reporting readiness.
+//
+// Codex445 — Health blocker fix:
+//   • Pins frontend @base44/sdk exactly to 0.8.34 and keeps function imports aligned.
+//   • Tightens Daily Quest claims to require completed progress and a daily_quest_reward DiamondTransaction before visible reward success.
+//   • Refreshes invite/privacy Health source scope plus architecture/reporting/visual readiness mirror tokens.
 //
 // Codex444 — Security Pass 3:
 //   • Adds accessible status semantics to protected/page/game/lobby loading states without visual layout changes.
