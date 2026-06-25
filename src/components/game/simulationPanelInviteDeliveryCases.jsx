@@ -30,6 +30,7 @@ import appSource from '../../App.jsx?raw';
 import {
   getFriendPresenceFnSource,
   playerPresenceEntitySource,
+  sendFriendRequestFnSource,
   sendFriendRequestEmailFnSourceFull,
   updatePlayerPresenceFnSource,
 } from './simulationPanelContractStrings.jsx';
@@ -42,6 +43,7 @@ function safeStr(src) {
 
 const STATUS = { PASS: 'PASS', FAIL: 'FAIL' };
 const ACTION_TYPES = { CODE_FIX: 'CODE_FIX', MANUAL_VERIFICATION: 'MANUAL_VERIFICATION' };
+const USERNAME_NOT_FOUND_MESSAGE = 'Kronox’ta bu kullanıcı adıyla biri yok.';
 
 const SUITE_NAMES = {
   invite_delivery: 'Friend Invite Delivery & Email Honesty Suite',
@@ -103,23 +105,24 @@ export const EXTRA_TESTS = [
 
   /* 2. Recipient lookup is case-insensitive (uses normalizeEmail) */
   makeCase('invite_delivery', 'invite_recipient_lookup_by_normalized_email',
-    'friendsApi.sendFriendRequest uses normalizeEmail before User.filter lookup',
+    'friendsApi.sendFriendRequest normalizes email before backend request',
     () => {
       const src = safeStr(friendsApiSource);
       const required = [
-        "const target = normalizeEmail(toEmail)",
-        "User.filter({ email: target }",
+        'parseFriendRequestTarget',
+        'normalizeEmail(value)',
+        "functions.invoke('sendFriendRequest'",
       ];
       const missing = required.filter((t) => !src.includes(t));
       if (missing.length) {
-        return fail('Recipient lookup is missing or not using normalized email.', {
+        return fail('Recipient normalization/backend handoff is missing.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
           missing,
         });
       }
-      return pass('Recipient lookup uses normalized email.', {
+      return pass('Recipient input is normalized client-side before backend resolution.', {
         verification: 'STATIC_CONTRACT',
         classification: 'STATIC_CHECK_LIMITATION',
       });
@@ -151,13 +154,13 @@ export const EXTRA_TESTS = [
 
   /* 4. FriendRequest row is created BEFORE email is attempted */
   makeCase('invite_delivery', 'invite_entity_created_even_if_push_email_fails',
-    'FriendRequest.create runs before the email invoke so a delivery failure cannot lose the invite',
+    'Backend FriendRequest.create runs before SendEmail so delivery failure cannot lose the invite',
     () => {
-      const src = safeStr(friendsApiSource);
+      const src = safeStr(sendFriendRequestFnSource);
       const createIdx = src.indexOf('FriendRequest.create');
-      const emailIdx = src.indexOf("functions.invoke('sendFriendRequestEmail'");
+      const emailIdx = src.indexOf('sendFriendRequestEmail(base44');
       if (createIdx < 0 || emailIdx < 0) {
-        return fail('Could not locate create / email invoke positions in friendsApi.', {
+        return fail('Could not locate create / email send positions in sendFriendRequest backend.', {
           verification: 'STATIC_CONTRACT',
           classification: 'REAL_PRODUCT_RISK',
           actionType: ACTION_TYPES.CODE_FIX,
@@ -177,15 +180,60 @@ export const EXTRA_TESTS = [
     },
     { actionType: ACTION_TYPES.CODE_FIX }),
 
+  makeCase('invite_delivery', 'friend_add_username_backend_resolution_no_email_return',
+    'Add Friend supports username lookup server-side without returning target email',
+    () => {
+      const backend = safeStr(sendFriendRequestFnSource);
+      const client = `${safeStr(friendsApiSource)}\n${safeStr(addFriendFormSource)}\n${safeStr(friendsPageSource)}`;
+      const requiredBackend = [
+        'findTargetByUsername',
+        'username_normalized',
+        USERNAME_NOT_FOUND_MESSAGE,
+        'targetLabel: target.username',
+        'targetEmailReturned: false',
+        'publicIdentity: \'username\'',
+      ];
+      const requiredClient = [
+        'E-posta veya kullanıcı adı ile arkadaş ekle',
+        'E-posta veya kullanıcı adı',
+        'parseFriendRequestTarget',
+        "functions.invoke('sendFriendRequest'",
+      ];
+      const forbiddenClient = [
+        "User.filter({ username",
+        "User.list(",
+        'targetEmail',
+      ];
+      const missingBackend = requiredBackend.filter((token) => !backend.includes(token));
+      const missingClient = requiredClient.filter((token) => !client.includes(token));
+      const foundForbiddenClient = forbiddenClient.filter((token) => client.includes(token));
+      if (missingBackend.length || missingClient.length || foundForbiddenClient.length) {
+        return fail('Username friend-add path is missing backend privacy guardrails.', {
+          verification: 'STATIC_CONTRACT',
+          classification: 'REAL_PRODUCT_RISK',
+          actionType: ACTION_TYPES.CODE_FIX,
+          missingBackend,
+          missingClient,
+          foundForbiddenClient,
+        });
+      }
+      return pass('Username friend-add resolves server-side and returns only safe public labels.', {
+        verification: 'STATIC_CONTRACT',
+        classification: 'STATIC_CHECK_LIMITATION',
+      });
+    },
+    { actionType: ACTION_TYPES.CODE_FIX }),
+
   /* 5. Soft failure shape: emailSent boolean + recipientRegistered hint */
   makeCase('invite_delivery', 'invite_no_silent_success_on_delivery_failure',
     'sendFriendRequest returns {emailSent, recipientRegistered} so UI can show honest copy',
     () => {
-      const src = safeStr(friendsApiSource);
+      const src = `${safeStr(sendFriendRequestFnSource)}\n${safeStr(friendsApiSource)}`;
       const required = [
         'emailSent: true',
         'emailSent: false',
         'recipientRegistered',
+        'marker=email_failed',
       ];
       const missing = required.filter((t) => !src.includes(t));
       if (missing.length) {

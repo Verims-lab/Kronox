@@ -9,11 +9,23 @@
     },
     "from_name": {
       "type": "string",
-      "description": "Display name of the sender at send time"
+      "description": "Safe public username label of the sender at send time. Must not be email/provider/internal id."
+    },
+    "from_username": {
+      "type": "string",
+      "description": "Safe public username of the sender at send time. Public label only; no email/provider/internal id."
     },
     "to_email": {
       "type": "string",
       "description": "Lowercased email of the receiver. Hot lookup with status for incoming accepted/pending rows."
+    },
+    "to_name": {
+      "type": "string",
+      "description": "Safe public username label of the receiver at send time. Used for sender UI without exposing receiver email."
+    },
+    "to_username": {
+      "type": "string",
+      "description": "Safe public username of the receiver at send time. Public label only; no email/provider/internal id."
     },
     "status": {
       "type": "string",

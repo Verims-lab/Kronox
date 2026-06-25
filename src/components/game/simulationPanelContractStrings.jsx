@@ -25,7 +25,11 @@ export const friendRequestEntitySource = `
   "name": "FriendRequest",
   "properties": {
     "from_email": {},
+    "from_name": {},
+    "from_username": {},
     "to_email": {},
+    "to_name": {},
+    "to_username": {},
     "status": { "enum": ["pending","accepted","rejected","cancelled"] }
   },
   "rls": {
@@ -34,6 +38,63 @@ export const friendRequestEntitySource = `
     "update": { "data.from_email": "{{user.email}}", "data.to_email": "{{user.email}}", "user_condition": { "role": "admin" } },
     "delete": { "data.from_email": "{{user.email}}", "data.to_email": "{{user.email}}", "user_condition": { "role": "admin" } }
   }
+`;
+
+export const sendFriendRequestFnSource = `
+  // Public contract of functions/sendFriendRequest.js — mirrored.
+  const USERNAME_NOT_FOUND_MESSAGE = 'Kronox’ta bu kullanıcı adıyla biri yok.';
+  async function findTargetByUsername(base44, username) {
+    const normalizedRows = await base44.asServiceRole.entities.User.filter({ username_normalized: usernameKey }, '-updated_date', 2);
+    const usernameRows = await base44.asServiceRole.entities.User.filter({ username }, '-updated_date', 2);
+    const publicUsernameRows = await base44.asServiceRole.entities.User.filter({ public_username: username }, '-updated_date', 2);
+    const rows = [...normalizedRows, ...usernameRows, ...publicUsernameRows];
+    if (!exact?.email) return { ok: false, code: 'username_not_found', error: USERNAME_NOT_FOUND_MESSAGE };
+    return { ok: true, target: { email: normalizeEmail(exact.email), username: safePublicUsername(exact.username || exact.public_username || exact.display_name, username), registered: true } };
+  }
+  async function sendFriendRequestEmail(base44, { toEmail, senderName, appUrl }) {
+    try {
+      await base44.integrations.Core.SendEmail({ from_name: 'Kronox', to: toEmail, subject: 'Kronox arkadaşlık isteğin var', body: bodyText });
+      return { emailSent: true, emailError: null };
+    } catch (mailErr) {
+      return { emailSent: false, emailError: 'email_failed' };
+    }
+  }
+  const authUser = await base44.auth.me();
+  const rawInput = String(body?.target || body?.toEmail || '').trim();
+  const inputKind = rawInput.includes('@') ? 'email' : 'username';
+  if (inputKind === 'username') {
+    const result = await findTargetByUsername(base44, rawInput);
+    if (!result.ok) return json({ ok: false, code: result.code, error: result.error }, result.code === 'username_not_found' ? 404 : 400);
+    target = result.target;
+  }
+  const targetEmail = normalizeEmail(target.email);
+  if (targetEmail === fromEmail) return json({ ok: false, code: 'self_add', error: 'Kendini ekleyemezsin.' }, 400);
+  const existingFriend = acceptedOut?.[0] || acceptedIn?.[0] || null;
+  if (existingFriend) return json({ ok: false, code: 'already_friends', error: 'Bu kullanıcı zaten arkadaşın.' }, 409);
+  if (pendingOut?.[0]) return json({ ok: true, alreadyPending: true, requestStatus: 'pending', inputKind, targetLabel: target.username, recipientRegistered: target.registered, emailSent: false, emailError: null, privacy: { targetEmailReturned: false, publicIdentity: 'username' } });
+  if (pendingIn?.[0]) return json({ ok: false, code: 'reverse_pending', error: 'Bu kişi sana zaten istek göndermiş — Gelen İstekler listesinden kabul et.' }, 409);
+  const created = await base44.asServiceRole.entities.FriendRequest.create({
+    from_email: fromEmail,
+    from_name: senderName,
+    from_username: senderName,
+    to_email: targetEmail,
+    to_name: target.username,
+    to_username: target.username,
+    status: 'pending',
+  });
+  const appUrl = sanitizeAppUrl(body?.appUrl) || 'https://kronox.base44.app';
+  const emailResult = await sendFriendRequestEmail(base44, { toEmail: targetEmail, senderName, appUrl });
+  return json({
+    ok: true,
+    requestId: created?.id || created?._id || null,
+    requestStatus: 'pending',
+    inputKind,
+    targetLabel: target.username,
+    recipientRegistered: target.registered,
+    emailSent: emailResult.emailSent,
+    emailError: emailResult.emailError,
+    privacy: { targetEmailReturned: false, publicIdentity: 'username' },
+  });
 `;
 
 export const gameInviteEntitySource = `

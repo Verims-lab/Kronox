@@ -1,26 +1,23 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, UserPlus, Loader2, AlertCircle } from 'lucide-react';
-import { isValidEmail } from '@/lib/friendsApi';
+import { AtSign, UserPlus, Loader2, AlertCircle } from 'lucide-react';
+import { parseFriendRequestTarget } from '@/lib/friendsApi';
 
 /**
- * Add a friend by email. Validates client-side and surfaces server errors clearly.
+ * Add a friend by email or Kronox username. Backend resolves the target and
+ * never returns a username lookup target email to the requester.
  */
 export default function AddFriendForm({ onSubmit }) {
-  const [email, setEmail] = useState('');
+  const [target, setTarget] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
   const submit = async (event) => {
     event.preventDefault();
     setError('');
-    const candidate = email.trim();
-    if (!candidate) {
-      setError('E-posta adresi gir.');
-      return;
-    }
-    if (!isValidEmail(candidate)) {
-      setError('Geçerli bir e-posta adresi gir.');
+    const parsed = parseFriendRequestTarget(target);
+    if (parsed.error) {
+      setError(parsed.error);
       return;
     }
     setBusy(true);
@@ -29,8 +26,8 @@ export default function AddFriendForm({ onSubmit }) {
       // copy because it knows whether the email actually went out and
       // whether the recipient is registered. We just clear our local field
       // on success and let the parent show the honest banner.
-      await onSubmit(candidate);
-      setEmail('');
+      await onSubmit(parsed.value);
+      setTarget('');
     } catch (err) {
       setError(err.message || 'İstek gönderilemedi.');
     } finally {
@@ -50,7 +47,7 @@ export default function AddFriendForm({ onSubmit }) {
     >
       <label className="block">
         <span className="font-inter text-[10px] font-black uppercase tracking-[0.18em] text-amber-100/80">
-          E-posta ile arkadaş ekle
+          E-posta veya kullanıcı adı ile arkadaş ekle
         </span>
         <div
           className="mt-2 flex items-center gap-2 rounded-xl px-3 py-2"
@@ -59,14 +56,14 @@ export default function AddFriendForm({ onSubmit }) {
             boxShadow: 'inset 0 0 0 1px rgba(120,170,255,0.25)',
           }}
         >
-          <Mail className="h-4 w-4 text-blue-100/60 flex-shrink-0" />
+          <AtSign className="h-4 w-4 text-blue-100/60 flex-shrink-0" />
           <input
-            type="email"
-            inputMode="email"
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="arkadas@ornek.com"
+            type="text"
+            inputMode="text"
+            autoComplete="off"
+            value={target}
+            onChange={(e) => setTarget(e.target.value)}
+            placeholder="E-posta veya kullanıcı adı"
             className="min-w-0 flex-1 bg-transparent font-inter text-sm text-white placeholder:text-blue-100/40 focus:outline-none"
             disabled={busy}
           />

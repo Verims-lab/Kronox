@@ -82,7 +82,7 @@ Audit notes:
 ### FriendRequest
 
 Schema: `base44/entities/FriendRequest.jsonc`
-Helpers/functions: `src/lib/friendsApi.js`, `acceptFriendRequest`, `removeFriend`, `sendFriendRequestEmail`
+Helpers/functions: `src/lib/friendsApi.js`, `sendFriendRequest`, `acceptFriendRequest`, `removeFriend`, `sendFriendRequestEmail`
 
 Purpose:
 - Pending friend requests.
@@ -90,8 +90,9 @@ Purpose:
 
 Important fields:
 - `from_email`
-- `from_name`
+- `from_name` / `from_username`
 - `to_email`
+- `to_name` / `to_username`
 - `status`: `pending`, `accepted`, `rejected`, `cancelled`
 
 Owner/access pattern:
@@ -108,9 +109,9 @@ Feature dependencies:
 
 Audit notes:
 - The accepted-request model is simpler than mirrored Friendship rows and fixes reciprocal visibility.
-- Duplicate protection is client/function-query based, not DB-unique.
+- Duplicate protection is function-query based, not DB-unique.
 - RLS allows both sender and recipient to update the row broadly; runtime business invariants depend on functions/UI discipline.
-- `to_name` is read as a fallback in client projection, but not stored in the FriendRequest schema or `sendFriendRequest`.
+- `sendFriendRequest` stores sender/target username snapshots so friend and outgoing-request UI can render username-safe labels without exposing target email.
 
 ### Friendship
 
@@ -739,7 +740,8 @@ None found from static inspection. Do not run destructive migrations.
    - Stale waiting Lobbies.
    - Expired PushSubscriptions.
 
-5. Add `to_name` to FriendRequest only if the UI needs recipient display snapshots.
+5. Keep FriendRequest sender/target username snapshots backend-owned; add DB
+   uniqueness proof before relying on them for hard duplicate prevention.
 
 ### P3 / future architecture
 

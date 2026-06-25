@@ -42,6 +42,7 @@ Status: Active product workflow contract.
 - Eğitime Devam is only for true tutorial_in_progress; tutorial_completed routes to profile setup, profile complete plus category pending routes to category selection, and onboarding_complete routes to Ana Sayfa.
 - Home / Ana Sayfa must not render Google, Apple, Email, Hesabını bağla, or progress-protection account-link CTAs; account linking belongs under Profile. The first-launch welcome may show Hesabım Var only as a route to Profile account connection, not as an inline provider/login surface.
 - Public identity is username. display_name / Görünen Ad is a legacy/internal projection mirror, not a separate public editable identity or public leaderboard response field.
+- Friends can be added by email address or registered Kronox username. Username lookup is backend-owned and username-based add responses must not reveal the target email.
 - Category selection uses current active Category metadata and getCategoryMetadata; stale hardcoded category fallback arrays and old seed category names are forbidden as runtime fallbacks.
 - Authenticated category preference save minimum is 3 active valid categories; guest category selection is advisory and empty guest selections mean all active Solo categories remain eligible.
 - Online category list is sorted by category_id ASC and Online is not a BottomNav item.
@@ -64,7 +65,7 @@ Status: Active technical flow contract.
 - getCategoryMetadata returns category_id, name, description, and status from current active Category rows only; it must not expose questions, answers, years, user data, admin fields, passive/deleted categories, or stale fallback arrays.
 - Base44 function.jsonc files use the repo-supported name + entry shape only; auth/public scope is enforced in entry.ts guards. createGuestProfile and getCategoryMetadata are public-by-design and narrow, user-owned functions call base44.auth.me(), guest daily/leaderboard paths verify guest_id + raw guest token against completed GuestProfile, and admin-only functions use AdminUser guards.
 - configured \`function.jsonc\` manifests are the platform-published source in this repo; extra entry.ts directories are compile-checked but need matching manifest/deploy proof before being classified as published callables.
-- Configured function auth/public matrix covers createGuestProfile, getCategoryMetadata, getQuestions, getPlayerQuestionExposureStats, recordPlayerQuestionExposure, updateProfileSettings, linkGuestAccount, updatePlayerPresence, getFriendPresence, getAdminStatus, ensureUserJokerInventory, spendUserJoker, purchaseJokerWithDiamonds, getDailyQuestStatus, recordDailyQuestProgress, claimDailyQuestReward, createDailyQuestDefinition, diagnoseSoloQuestionStartQuery, and sendQuestionAnalyticsReportEmail.
+- Configured function auth/public matrix covers createGuestProfile, getCategoryMetadata, getQuestions, getPlayerQuestionExposureStats, recordPlayerQuestionExposure, updateProfileSettings, linkGuestAccount, sendFriendRequest, updatePlayerPresence, getFriendPresence, getAdminStatus, ensureUserJokerInventory, spendUserJoker, purchaseJokerWithDiamonds, getDailyQuestStatus, recordDailyQuestProgress, claimDailyQuestReward, createDailyQuestDefinition, diagnoseSoloQuestionStartQuery, and sendQuestionAnalyticsReportEmail.
 - /admin has a route-level UX guard that waits for AuthContext/AdminUser status before mounting AdminPage; non-admin users are redirected without an admin-tool flash, while server-side AdminUser guards remain the real security boundary.
 - Dependency cleanup result: unused direct Stripe, Three, React Leaflet, React Quill, Moment, jsPDF, html2canvas, and Lodash packages were removed; recharts and embla-carousel-react stay because UI primitives import them.
 - UserCategoryPreference is authenticated Settings/Profile data. Fewer than 3 active valid preferences means Solo uses all active categories; 3+ enables Solo-only soft weighting.
@@ -113,6 +114,10 @@ useFriendPresence. Presence writes are current-user-bound, friend reads are
 accepted-friend-scoped, stale/missing presence displays offline, and friend
 surfaces render username-safe labels instead of email/provider/internal id
 fallbacks.
+
+Friend add now uses backend-owned sendFriendRequest so email or username input
+shares one server-side path for target resolution, self/duplicate/pending
+guards, and no target-email return on username add.
 `;
 
 export const ARCHITECTURE_TARGET_DOC = `# Kronox Architecture Target
@@ -149,6 +154,10 @@ stale/missing presence displays offline rather than online. Friend, invite,
 lobby, notification, and presence surfaces render username-safe labels only;
 email, provider ID, raw guest ID, owner_key, and internal player_key values are
 never public display fallbacks.
+
+Friends can be added by email address or registered Kronox username. Username
+lookup and duplicate/self checks stay backend-owned, and username-based add
+responses return only username-safe labels, never the target email.
 `;
 
 export const HEALTH_GAP_ANALYSIS_DOC = `# Kronox Health Gap Analysis
@@ -160,9 +169,11 @@ cover Online join/start/recovery, invite verified lobby, notification
 no-flicker, Solo backend record context, Daily Quest Diamond-only rewards,
 leaderboard username-only payloads, Online category isolation, no raw
 Question.list gameplay fallback, economy idempotency guards, and private
-identifier display. Focused presence coverage protects PlayerPresence owner
-binding, accepted-friend lookup, username-only labels, offline fallback, and
-current-user heartbeat wiring. Executable reducer coverage now protects Online
+identifier display. Focused presence and friend-add coverage protects
+PlayerPresence owner binding, accepted-friend lookup, username-only labels,
+offline fallback, current-user heartbeat wiring, email-or-username friend add,
+server-side username resolution, required username-not-found copy, and no
+target-email return on username add. Executable reducer coverage now protects Online
 4-player representation/start/recovery transitions and notification
 transient-empty, terminal, dismiss, accept/reject, dedupe, and privacy
 transitions. Two-account, realtime, push, RLS/BOLA, device, and store proof
@@ -267,6 +278,7 @@ Status: Active product contract.
 - Two-account probes remain mandatory for category preferences, friends, invites, lobbies, Daily Quest progress, Daily Wheel, Diamond/Joker economy, push subscriptions, and analytics cleanup.
 - getQuestions serves an authenticated bounded server attempt candidate buffer for signed-in Solo and an explicit capped guest_gameplay_runtime minimal deck for first-time guest Solo; admin/full-bank/diagnostics still require active AdminUser owner/admin authorization. Authenticated candidate reads are bounded to 96 * 3 = 288 rows per active category/query variant before projection.
 - startLobbyGame requires authenticated host, no legacy guest, no client identity override.
+- sendFriendRequest requires authenticated user context, resolves email or username targets server-side, stores username-safe labels, and never returns the target email for username-based add.
 - Service-role usage is scoped to admin/maintenance backend functions.
 - VAPID private key remains a real secret and must stay secret-managed.
 - Backend push config requires VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, and VAPID_SUBJECT or their KRONOX_ compatibility names.
