@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 
+// Codex443 — Security Pass 2:
+//   • Adds EconomyOperationLock TTL/stale recovery for player economy mutations.
+//   • Serializes Market purchase, Solo joker spend, Daily Wheel claim, and Daily Quest claim balance/inventory writes.
+//   • Adds targeted Health/docs for post-lock rechecks, duplicate attempts, and manual DB unique/race proof.
+//
 // Codex442 — Security Pass 1:
 //   • Pins frontend/backend Base44 SDK usage to 0.8.34.
 //   • Removes unused react-markdown dependency and closes raw HTML chart style injection.
@@ -2520,7 +2525,7 @@ import React, { useEffect, useState } from 'react';
 //     only, with retry/error instead of static fallback categories.
 //   • Adds centralized category/Online/Solo policy constants plus Health/docs
 //     checks for no legacy category fallback regressions.
-const BUILD_MARKER = 'Codex442';
+const BUILD_MARKER = 'Codex443';
 export const KRONOX_BUILD_MARKER = BUILD_MARKER;
 
 // eslint-disable-next-line no-unused-vars

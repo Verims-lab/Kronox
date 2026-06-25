@@ -4,6 +4,8 @@ const DAILY_WHEEL_SOURCE = 'daily_wheel';
 const STREAK_BONUS_AMOUNT = 150;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const GUEST_ID_PREFIX = 'guest_';
+const ECONOMY_LOCK_TTL_MS = 8_000;
+const ECONOMY_LOCK_SETTLE_MS = 80;
 
 const REWARD_TABLE = [
   { amount: 30, rarity: 'high', weight: 24 },
@@ -49,6 +51,140 @@ function buildIdempotencyKey(email: string, dateKey: string) {
 
 function rowId(row: any) {
   return String(row?.id || row?._id || '');
+}
+
+function currentIso() {
+  return new Date().toISOString();
+}
+
+function safeLockText(value: unknown, maxLength = 220) {
+  const text = String(value || '').trim();
+  return text ? text.slice(0, maxLength) : '';
+}
+
+function isSameRow(a: any, b: any) {
+  const left = rowId(a);
+  const right = rowId(b);
+  if (left && right) return left === right;
+  return Boolean(a?.operation_id && b?.operation_id && a.operation_id === b.operation_id && a.actor_key === b.actor_key);
+}
+
+function economyOperationLockEntity(base44: any) {
+  const serviceEntity = base44?.asServiceRole?.entities ? base44.asServiceRole.entities.EconomyOperationLock : null;
+  const authEntity = base44?.entities ? base44.entities.EconomyOperationLock : null;
+  return serviceEntity || authEntity;
+}
+
+function buildEconomyLockKey(actorKey: string) {
+  return `economy:user:${actorKey}`;
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isActiveEconomyLock(row: any, nowMs: number) {
+  if (String(row?.status || '') !== 'active') return false;
+  const expiresMs = Date.parse(String(row?.expires_at || ''));
+  return Number.isFinite(expiresMs) ? expiresMs > nowMs : true;
+}
+
+function selectCanonicalEconomyLock(rows: any[], nowMs: number) {
+  return rows
+    .filter((row) => isActiveEconomyLock(row, nowMs))
+    .sort((a, b) => {
+      const acquiredDiff = Date.parse(String(a?.acquired_at || '')) - Date.parse(String(b?.acquired_at || ''));
+      if (Number.isFinite(acquiredDiff) && acquiredDiff !== 0) return acquiredDiff;
+      return String(rowId(a) || a?.operation_id || '').localeCompare(String(rowId(b) || b?.operation_id || ''));
+    })[0] || null;
+}
+
+async function findEconomyLocks(base44: any, lockKey: string) {
+  const entity = economyOperationLockEntity(base44);
+  if (!entity?.filter) return [];
+  const rows = await entity.filter({ lock_key: lockKey }, '-acquired_at', 25).catch(() => []);
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function markExpiredEconomyLocks(base44: any, lockKey: string, nowMs: number) {
+  const entity = economyOperationLockEntity(base44);
+  if (!entity?.update) return;
+  const now = new Date(nowMs).toISOString();
+  const rows = await findEconomyLocks(base44, lockKey);
+  await Promise.all(rows
+    .filter((row) => String(row?.status || '') === 'active')
+    .filter((row) => {
+      const expiresMs = Date.parse(String(row?.expires_at || ''));
+      return Number.isFinite(expiresMs) && expiresMs <= nowMs;
+    })
+    .map((row) => entity.update(rowId(row), {
+      status: 'stale',
+      released_at: now,
+      metadata: {
+        ...(row?.metadata && typeof row.metadata === 'object' ? row.metadata : {}),
+        staleRecovery: true,
+      },
+    }).catch(() => null)));
+}
+
+async function releaseEconomyOperationLock(base44: any, lock: any, status = 'released') {
+  const entity = economyOperationLockEntity(base44);
+  const id = rowId(lock);
+  if (!entity?.update || !id) return;
+  await entity.update(id, {
+    status,
+    released_at: currentIso(),
+  }).catch(() => null);
+}
+
+async function acquireEconomyOperationLock(base44: any, lockKey: string, context: Record<string, unknown>) {
+  const entity = economyOperationLockEntity(base44);
+  if (!entity?.filter || !entity?.create || !entity?.update) {
+    return { ok: false, code: 'economy_lock_unavailable', lock: null };
+  }
+  const now = currentIso();
+  const nowMs = Date.parse(now);
+  await markExpiredEconomyLocks(base44, lockKey, nowMs);
+  const existing = selectCanonicalEconomyLock(await findEconomyLocks(base44, lockKey), nowMs);
+  if (existing) return { ok: false, code: 'economy_operation_in_progress', lock: existing };
+
+  const created = await entity.create({
+    lock_key: lockKey,
+    actor_key: safeLockText(context.actorKey),
+    operation_scope: safeLockText(context.operationScope, 80),
+    operation_id: safeLockText(context.operationId),
+    status: 'active',
+    acquired_at: now,
+    expires_at: new Date(nowMs + ECONOMY_LOCK_TTL_MS).toISOString(),
+    metadata: {
+      phase: 'economy_parallel_race_guard_phase_1',
+      ttlMs: ECONOMY_LOCK_TTL_MS,
+      ...(context.metadata && typeof context.metadata === 'object' ? context.metadata : {}),
+    },
+  });
+  await sleep(ECONOMY_LOCK_SETTLE_MS);
+  const canonical = selectCanonicalEconomyLock(await findEconomyLocks(base44, lockKey), Date.now());
+  if (!isSameRow(canonical, created)) {
+    await releaseEconomyOperationLock(base44, created, 'released');
+    return { ok: false, code: 'economy_operation_in_progress', lock: canonical };
+  }
+  return { ok: true, code: 'locked', lock: created };
+}
+
+async function withEconomyOperationLock(base44: any, lockKey: string, context: Record<string, unknown>, callback: () => Promise<Response>) {
+  const lockResult = await acquireEconomyOperationLock(base44, lockKey, context);
+  if (!lockResult.ok) {
+    return json({
+      ok: false,
+      code: lockResult.code,
+      error: 'Ekonomi işlemi işleniyor. Lütfen tekrar dene.',
+    }, 409);
+  }
+  try {
+    return await callback();
+  } finally {
+    await releaseEconomyOperationLock(base44, lockResult.lock);
+  }
 }
 
 function spinSortValue(row: any) {
@@ -468,18 +604,63 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    return await withEconomyOperationLock(base44, buildEconomyLockKey(playerKey), {
+      actorKey: playerKey,
+      operationScope: 'daily_wheel_claim',
+      operationId: idempotencyKey,
+      metadata: {
+        playerType: latestPlayer.isGuest ? 'guest' : 'registered',
+        serverDate: todayKey,
+      },
+    }, async () => {
+    const postLockSpin = await findSpin(base44, playerKey, todayKey, idempotencyKey);
+    if (postLockSpin) {
+      const recovered = await recoverExistingSpin(base44, latestPlayer, postLockSpin, todayKey, idempotencyKey);
+      return json(publicResult(recovered, normalizeNumber(recovered.balance_after), true));
+    }
+    const lockedRow = latestPlayer.isGuest
+      ? (await findGuestProfile(base44, String(latestPlayer.row?.guest_id || '')).catch(() => latestPlayer.row)) || latestPlayer.row
+      : await base44.auth.me().catch(() => latestPlayer.row);
+    const lockedPlayer = { ...latestPlayer, row: lockedRow || latestPlayer.row, rowId: rowId(lockedRow) || latestPlayer.rowId };
+    if (String(lockedPlayer.row?.daily_wheel_last_spin_date || '') === todayKey) {
+      const guardTransaction = await findDiamondTransaction(base44, playerKey, idempotencyKey);
+      if (guardTransaction) {
+        const syntheticSpin = spinRowFromDiamondTransaction(guardTransaction, lockedPlayer.row, playerKey, todayKey, nextAvailableAt);
+        return json(publicResult(syntheticSpin, normalizeNumber(lockedPlayer.row?.diamonds), true));
+      }
+      return json({
+        ok: true,
+        available: false,
+        alreadyClaimedToday: true,
+        alreadyClaimed: true,
+        serverDate: todayKey,
+        nextAvailableAt: lockedPlayer.row?.daily_wheel_next_available_at || nextAvailableAt,
+        updatedDiamondTotal: normalizeNumber(lockedPlayer.row?.diamonds),
+        rewardAmount: 0,
+        streakBonusAmount: 0,
+        totalRewardAmount: 0,
+        userPatch: {
+          diamonds: normalizeNumber(lockedPlayer.row?.diamonds),
+          daily_wheel_last_spin_date: todayKey,
+          daily_wheel_next_available_at: lockedPlayer.row?.daily_wheel_next_available_at || nextAvailableAt,
+          daily_wheel_streak: normalizeNumber(lockedPlayer.row?.daily_wheel_streak),
+          daily_wheel_spin_count: normalizeNumber(lockedPlayer.row?.daily_wheel_spin_count),
+        },
+      });
+    }
+
     const selected = selectReward();
-    const { streakBefore, streakAfter } = computeStreak(latestPlayer.row, todayKey);
+    const { streakBefore, streakAfter } = computeStreak(lockedPlayer.row, todayKey);
     const streakBonusAmount = streakAfter % 7 === 0 ? STREAK_BONUS_AMOUNT : 0;
     const totalRewardAmount = selected.amount + streakBonusAmount;
-    const balanceBefore = normalizeNumber(latestPlayer.row?.diamonds);
+    const balanceBefore = normalizeNumber(lockedPlayer.row?.diamonds);
     const balanceAfter = balanceBefore + totalRewardAmount;
     const spinCountAfter = normalizeNumber(latestPlayer.row?.daily_wheel_spin_count) + 1;
 
     const spinPayload = {
       user_email: playerKey,
-      owner_key: latestPlayer.ownerKey,
-      player_type: latestPlayer.isGuest ? 'guest' : 'registered',
+      owner_key: lockedPlayer.ownerKey,
+      player_type: lockedPlayer.isGuest ? 'guest' : 'registered',
       spin_date: todayKey,
       reward_amount: selected.amount,
       streak_before: streakBefore,
@@ -497,7 +678,7 @@ Deno.serve(async (req: Request) => {
         spinCountAfter,
         serverDayBoundary: 'UTC',
         source: DAILY_WHEEL_SOURCE,
-        guestProfileReward: latestPlayer.isGuest,
+        guestProfileReward: lockedPlayer.isGuest,
         rawGuestTokenServerStored: false,
       },
       description: 'daily_wheel_claim',
@@ -510,20 +691,20 @@ Deno.serve(async (req: Request) => {
     } = await createDailyWheelSpin(base44, spinPayload);
 
     if (recoveredExistingDailyWheelSpin && spin) {
-      const recovered = await recoverExistingSpin(base44, latestPlayer, spin, todayKey, idempotencyKey);
+      const recovered = await recoverExistingSpin(base44, lockedPlayer, spin, todayKey, idempotencyKey);
       return json(publicResult(recovered, normalizeNumber(recovered.balance_after), true));
     }
 
     const postReserveSpin = await findSpin(base44, playerKey, todayKey, idempotencyKey);
     if (postReserveSpin && rowId(postReserveSpin) && rowId(spin) && rowId(postReserveSpin) !== rowId(spin)) {
-      const recovered = await recoverExistingSpin(base44, latestPlayer, postReserveSpin, todayKey, idempotencyKey);
+      const recovered = await recoverExistingSpin(base44, lockedPlayer, postReserveSpin, todayKey, idempotencyKey);
       return json(publicResult(recovered, normalizeNumber(recovered.balance_after), true));
     }
 
-    const postReserveRow = latestPlayer.isGuest
-      ? (await findGuestProfile(base44, String(latestPlayer.row?.guest_id || '')).catch(() => latestPlayer.row)) || latestPlayer.row
-      : await base44.auth.me().catch(() => latestPlayer.row);
-    const postReservePlayer = { ...latestPlayer, row: postReserveRow || latestPlayer.row, rowId: rowId(postReserveRow) || latestPlayer.rowId };
+    const postReserveRow = lockedPlayer.isGuest
+      ? (await findGuestProfile(base44, String(lockedPlayer.row?.guest_id || '')).catch(() => lockedPlayer.row)) || lockedPlayer.row
+      : await base44.auth.me().catch(() => lockedPlayer.row);
+    const postReservePlayer = { ...lockedPlayer, row: postReserveRow || lockedPlayer.row, rowId: rowId(postReserveRow) || lockedPlayer.rowId };
     if (String(postReservePlayer.row?.daily_wheel_last_spin_date || '') === todayKey) {
       const guardSpin = postReserveSpin || await findSpin(base44, playerKey, todayKey, idempotencyKey);
       if (guardSpin) {
@@ -621,6 +802,7 @@ Deno.serve(async (req: Request) => {
       ...publicResult(spin || spinPayload, balanceAfter, false),
       spinLedgerError,
       ledgerError,
+    });
     });
   } catch (error) {
     console.error('[claimDailyWheelReward] failed', error);

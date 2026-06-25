@@ -75,6 +75,42 @@ These can be added later without changing existing product behavior:
 All actor identifiers should be internal hashes or opaque IDs, not public
 emails, provider IDs, raw guest IDs, or owner keys in UI/exported reports.
 
+## Economy Race Reporting Phase 1
+
+Security Pass 2 adds a small backend-owned `EconomyOperationLock` guard for
+same-player economy mutations. The row is operational, not a public analytics
+surface. It may support admin-only diagnostics for race/fraud investigation.
+
+Recommended Phase 1 economy anomaly reporting fields:
+
+- anonymized actor key hash.
+- operation scope: `market_purchase`, `solo_joker_spend`, `daily_wheel_claim`,
+  or `daily_quest_claim`.
+- hashed idempotency key.
+- lock result: acquired / in_progress / stale_recovered / released.
+- duplicate-attempt counter for same actor + scope + day.
+- ledger consistency result: matched / partial / missing / repaired.
+- `balance_before` and server-owned `balance_after` where already present in
+  `DiamondTransaction`, `JokerTransaction`, or `DailyWheelSpin`.
+- created day and coarse source.
+
+Privacy rules:
+
+- no email.
+- no provider ID.
+- no owner_key.
+- no raw guest_id or guest token.
+- no internal player_key in public UI/export.
+- no full question bank or answer data.
+
+DB unique/index proof remains a manual/platform gate for
+`DiamondTransaction.idempotency_key`, `JokerTransaction.idempotency_key`,
+`DailyWheelSpin.idempotency_key`, `DailyWheelSpin.user_email + spin_date`,
+`UserJokerInventory.user_email + joker_type`, and active
+`EconomyOperationLock.lock_key`. Until that proof exists, reports should label
+race diagnostics as function-level guard evidence rather than transactional DB
+proof.
+
 ## Online Player Selection / Invite Reporting Phase 1
 
 Phase 1 does not add a broad invite analytics table. It adds small

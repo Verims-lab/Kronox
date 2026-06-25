@@ -1,0 +1,93 @@
+{
+  "name": "EconomyOperationLock",
+  "type": "object",
+  "description": "Short-lived backend-owned guard for player economy mutations. One logical active row should exist per lock_key while a Diamond/Joker/Daily operation is mutating balance or inventory. Base44/platform uniqueness is not assumed, so functions create a TTL lock, re-read active lock rows, choose one deterministic winner, and mark expired rows stale. Public UI and exports must never expose actor_key or lock_key.",
+  "properties": {
+    "lock_key": {
+      "type": "string",
+      "description": "Internal per-player lock key such as economy:user:<normalized player key>. Logical unique active key."
+    },
+    "actor_key": {
+      "type": "string",
+      "description": "Internal normalized economy actor key. Email for registered users or guest:<g_owner_key> for completed guests. Never public."
+    },
+    "operation_scope": {
+      "type": "string",
+      "enum": [
+        "market_purchase",
+        "solo_joker_spend",
+        "daily_wheel_claim",
+        "daily_quest_claim"
+      ],
+      "description": "Economy operation type guarded by this lock."
+    },
+    "operation_id": {
+      "type": "string",
+      "description": "Debug-safe operation id, usually the idempotency key or derived claim key."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "released",
+        "stale"
+      ],
+      "description": "active while the guarded operation is running, released after normal completion, stale after TTL recovery."
+    },
+    "acquired_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the lock row was created."
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp after which a future operation may mark this lock stale and continue."
+    },
+    "released_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when the lock was released or marked stale."
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Debug-safe operation metadata. Must not contain secrets, provider IDs, raw guest IDs, raw guest tokens, or public question data."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional admin/audit note."
+    }
+  },
+  "required": [
+    "lock_key",
+    "actor_key",
+    "operation_scope",
+    "operation_id",
+    "status",
+    "acquired_at",
+    "expires_at"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -34,7 +34,7 @@ fallback polling/refetch.
 | Notifications | Executable merge helpers cover stale empty fetches | Does not prove push delivery or service worker behavior on real devices |
 | Online presence / player selection | Confirms PlayerPresence owner binding, accepted-friend lookup, backend-owned player selection, username-only labels, opaque target refs, and offline fallback | Does not prove deployed function freshness, two-device heartbeat timing, or live non-friend invite delivery |
 | Solo records | Confirms backend context and copy | Does not prove production data has multi-user records |
-| Economy | Confirms idempotency guards and Diamond-only rules | Does not prove DB uniqueness or two-device race safety |
+| Economy | Confirms idempotency guards, Diamond-only rules, and function-level economy lock/recheck guards | Does not prove DB uniqueness or two-device race safety |
 | Leaderboard privacy | Confirms sanitized public payload shape | Does not prove live RLS prevents direct entity reads |
 | Questions | Confirms no raw client `Question.list` gameplay fallback | Does not prove deployed function is current |
 
@@ -67,6 +67,11 @@ fallback polling/refetch.
   `react-markdown`/`rehype-raw` raw HTML markdown path, guarded chart CSS
   generation without `dangerouslySetInnerHTML`, and Base44 access-token URL
   cleanup/no-token-logging.
+- Added Security Pass 2 coverage for `EconomyOperationLock`, post-lock
+  idempotency/balance/inventory rechecks, Market purchase negative-balance
+  protection, Solo joker non-negative spend protection, and Daily Wheel /
+  Daily Quest Diamond-only claim serialization. DB unique/index proof and live
+  two-device economy races remain manual gates.
 
 ## Required Coverage Areas
 
@@ -85,7 +90,7 @@ fallback polling/refetch.
 | Leaderboard username-only | Static public payload checks | RLS/BOLA live probe |
 | Online category isolation | Static start/Game/Health mirror checks | Live lobby start with Solo preferences set differently |
 | No raw Question.list gameplay fallback | Static source checks | Deployed `getQuestions` marker proof |
-| Economy idempotency | Static guard checks | Platform unique/index proof or transactional replacement |
+| Economy idempotency | Static guard checks plus function-level operation lock/recheck coverage | Platform unique/index proof or transactional replacement |
 | Public UI private identifiers | Static forbidden-token checks | Visual/manual walkthrough for lobbies, leaderboard, notifications |
 
 ## Health Design Rules

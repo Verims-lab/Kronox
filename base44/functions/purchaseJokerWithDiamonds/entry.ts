@@ -8,6 +8,8 @@ const RELATED_ENTITY_TYPE = 'joker_purchase';
 const STARTER_QUANTITY = 3;
 const STARTER_SOURCE = 'starter_jokers';
 const STARTER_REASON = 'starter_grant';
+const ECONOMY_LOCK_TTL_MS = 8_000;
+const ECONOMY_LOCK_SETTLE_MS = 80;
 const JOKER_NON_NEGATIVE_BALANCE_CONTRACT = Object.freeze({
   "minimum": 0,
 });
@@ -70,6 +72,12 @@ function rowId(row: any) {
   return row?.id || row?._id || null;
 }
 
+function isSameRow(a: any, b: any) {
+  const left = rowId(a);
+  const right = rowId(b);
+  if (left && right) return left === right;
+  return Boolean(a?.operation_id && b?.operation_id && a.operation_id === b.operation_id && a.actor_key === b.actor_key);
+}
 
 function userEntity(base44: any) {
   // Runtime/deployability contract: Mağaza purchase explicitly binds
@@ -101,6 +109,126 @@ function jokerTransactionEntity(base44: any) {
   const serviceEntity = base44?.asServiceRole?.entities ? base44.asServiceRole.entities.JokerTransaction : null;
   const authEntity = base44?.entities ? base44.entities.JokerTransaction : null;
   return serviceEntity || authEntity;
+}
+
+function economyOperationLockEntity(base44: any) {
+  // EconomyOperationLock is backend-owned. It is a function-level concurrency
+  // guard, not a replacement for DB unique/transactional proof.
+  const serviceEntity = base44?.asServiceRole?.entities ? base44.asServiceRole.entities.EconomyOperationLock : null;
+  const authEntity = base44?.entities ? base44.entities.EconomyOperationLock : null;
+  return serviceEntity || authEntity;
+}
+
+function buildEconomyLockKey(actorKey: string) {
+  return `economy:user:${actorKey}`;
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isActiveEconomyLock(row: any, nowMs: number) {
+  if (String(row?.status || '') !== 'active') return false;
+  const expiresMs = Date.parse(String(row?.expires_at || ''));
+  return Number.isFinite(expiresMs) ? expiresMs > nowMs : true;
+}
+
+function selectCanonicalEconomyLock(rows: any[], nowMs: number) {
+  return rows
+    .filter((row) => isActiveEconomyLock(row, nowMs))
+    .sort((a, b) => {
+      const acquiredDiff = Date.parse(String(a?.acquired_at || '')) - Date.parse(String(b?.acquired_at || ''));
+      if (Number.isFinite(acquiredDiff) && acquiredDiff !== 0) return acquiredDiff;
+      return String(rowId(a) || a?.operation_id || '').localeCompare(String(rowId(b) || b?.operation_id || ''));
+    })[0] || null;
+}
+
+async function findEconomyLocks(base44: any, lockKey: string) {
+  const entity = economyOperationLockEntity(base44);
+  if (!entity?.filter) return [];
+  const rows = await entity.filter({ lock_key: lockKey }, '-acquired_at', 25).catch(() => []);
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function markExpiredEconomyLocks(base44: any, lockKey: string, nowMs: number) {
+  const entity = economyOperationLockEntity(base44);
+  if (!entity?.update) return;
+  const now = new Date(nowMs).toISOString();
+  const rows = await findEconomyLocks(base44, lockKey);
+  await Promise.all(rows
+    .filter((row) => String(row?.status || '') === 'active')
+    .filter((row) => {
+      const expiresMs = Date.parse(String(row?.expires_at || ''));
+      return Number.isFinite(expiresMs) && expiresMs <= nowMs;
+    })
+    .map((row) => entity.update(rowId(row), {
+      status: 'stale',
+      released_at: now,
+      metadata: {
+        ...(row?.metadata && typeof row.metadata === 'object' ? row.metadata : {}),
+        staleRecovery: true,
+      },
+    }).catch(() => null)));
+}
+
+async function releaseEconomyOperationLock(base44: any, lock: any, status = 'released') {
+  const entity = economyOperationLockEntity(base44);
+  const id = rowId(lock);
+  if (!entity?.update || !id) return;
+  await entity.update(id, {
+    status,
+    released_at: nowIso(),
+  }).catch(() => null);
+}
+
+async function acquireEconomyOperationLock(base44: any, lockKey: string, context: Record<string, unknown>) {
+  const entity = economyOperationLockEntity(base44);
+  if (!entity?.filter || !entity?.create || !entity?.update) {
+    return { ok: false, code: 'economy_lock_unavailable', lock: null };
+  }
+  const now = nowIso();
+  const nowMs = Date.parse(now);
+  await markExpiredEconomyLocks(base44, lockKey, nowMs);
+  const existing = selectCanonicalEconomyLock(await findEconomyLocks(base44, lockKey), nowMs);
+  if (existing) return { ok: false, code: 'economy_operation_in_progress', lock: existing };
+
+  const created = await entity.create({
+    lock_key: lockKey,
+    actor_key: safeText(context.actorKey, ''),
+    operation_scope: safeText(context.operationScope, ''),
+    operation_id: safeText(context.operationId, ''),
+    status: 'active',
+    acquired_at: now,
+    expires_at: new Date(nowMs + ECONOMY_LOCK_TTL_MS).toISOString(),
+    metadata: {
+      phase: 'economy_parallel_race_guard_phase_1',
+      ttlMs: ECONOMY_LOCK_TTL_MS,
+      ...(context.metadata && typeof context.metadata === 'object' ? context.metadata : {}),
+    },
+  });
+  await sleep(ECONOMY_LOCK_SETTLE_MS);
+  const canonical = selectCanonicalEconomyLock(await findEconomyLocks(base44, lockKey), Date.now());
+  if (!isSameRow(canonical, created)) {
+    await releaseEconomyOperationLock(base44, created, 'released');
+    return { ok: false, code: 'economy_operation_in_progress', lock: canonical };
+  }
+  return { ok: true, code: 'locked', lock: created };
+}
+
+async function withEconomyOperationLock(base44: any, lockKey: string, context: Record<string, unknown>, callback: () => Promise<Response>) {
+  const lockResult = await acquireEconomyOperationLock(base44, lockKey, context);
+  if (!lockResult.ok) {
+    return json({
+      ok: false,
+      code: lockResult.code,
+      error: 'Ekonomi işlemi işleniyor. Lütfen tekrar dene.',
+    }, 409);
+  }
+  try {
+    return await callback();
+  } finally {
+    await releaseEconomyOperationLock(base44, lockResult.lock);
+  }
 }
 
 async function updateCurrentUser(base44: any, user: any, patch: Record<string, unknown>) {
@@ -391,6 +519,16 @@ Deno.serve(async (req: Request) => {
       }, 409);
     }
 
+    return await withEconomyOperationLock(base44, buildEconomyLockKey(email), {
+      actorKey: email,
+      operationScope: 'market_purchase',
+      operationId: idempotencyKey,
+      metadata: {
+        jokerType,
+        quantity,
+        pricePerUnit: product.price,
+      },
+    }, async () => {
     const latestUser = await base44.auth.me().catch(() => user);
     const diamondBefore = normalizeDiamondBalance(latestUser?.diamonds);
     const diamondCost = product.price * quantity;
@@ -521,6 +659,7 @@ Deno.serve(async (req: Request) => {
       balances: await readBalances(base44, email),
       userPatch,
       purchasedAt: timestamp,
+    });
     });
   } catch (error) {
     console.error('[purchaseJokerWithDiamonds] failed', error?.message || error);

@@ -5,6 +5,8 @@ const DAILY_QUEST_REWARD_SOURCE = 'daily_quest_reward';
 const RELATED_ENTITY_TYPE = 'daily_quest';
 const DAY_MS = 24 * 60 * 60 * 1000;
 const GUEST_ID_PREFIX = 'guest_';
+const ECONOMY_LOCK_TTL_MS = 8_000;
+const ECONOMY_LOCK_SETTLE_MS = 80;
 
 function json(payload: unknown, status = 200) {
   return Response.json(payload, { status });
@@ -34,6 +36,140 @@ function buildClaimIdempotencyKey(email: string, dateKey: string, questKey: stri
 
 function rowId(row: any) {
   return row?.id || row?._id || null;
+}
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function safeLockText(value: unknown, maxLength = 220) {
+  const text = String(value || '').trim();
+  return text ? text.slice(0, maxLength) : '';
+}
+
+function isSameRow(a: any, b: any) {
+  const left = rowId(a);
+  const right = rowId(b);
+  if (left && right) return left === right;
+  return Boolean(a?.operation_id && b?.operation_id && a.operation_id === b.operation_id && a.actor_key === b.actor_key);
+}
+
+function economyOperationLockEntity(base44: any) {
+  const serviceEntity = base44?.asServiceRole?.entities ? base44.asServiceRole.entities.EconomyOperationLock : null;
+  const authEntity = base44?.entities ? base44.entities.EconomyOperationLock : null;
+  return serviceEntity || authEntity;
+}
+
+function buildEconomyLockKey(actorKey: string) {
+  return `economy:user:${actorKey}`;
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isActiveEconomyLock(row: any, nowMs: number) {
+  if (String(row?.status || '') !== 'active') return false;
+  const expiresMs = Date.parse(String(row?.expires_at || ''));
+  return Number.isFinite(expiresMs) ? expiresMs > nowMs : true;
+}
+
+function selectCanonicalEconomyLock(rows: any[], nowMs: number) {
+  return rows
+    .filter((row) => isActiveEconomyLock(row, nowMs))
+    .sort((a, b) => {
+      const acquiredDiff = Date.parse(String(a?.acquired_at || '')) - Date.parse(String(b?.acquired_at || ''));
+      if (Number.isFinite(acquiredDiff) && acquiredDiff !== 0) return acquiredDiff;
+      return String(rowId(a) || a?.operation_id || '').localeCompare(String(rowId(b) || b?.operation_id || ''));
+    })[0] || null;
+}
+
+async function findEconomyLocks(base44: any, lockKey: string) {
+  const entity = economyOperationLockEntity(base44);
+  if (!entity?.filter) return [];
+  const rows = await entity.filter({ lock_key: lockKey }, '-acquired_at', 25).catch(() => []);
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function markExpiredEconomyLocks(base44: any, lockKey: string, nowMs: number) {
+  const entity = economyOperationLockEntity(base44);
+  if (!entity?.update) return;
+  const now = new Date(nowMs).toISOString();
+  const rows = await findEconomyLocks(base44, lockKey);
+  await Promise.all(rows
+    .filter((row) => String(row?.status || '') === 'active')
+    .filter((row) => {
+      const expiresMs = Date.parse(String(row?.expires_at || ''));
+      return Number.isFinite(expiresMs) && expiresMs <= nowMs;
+    })
+    .map((row) => entity.update(rowId(row), {
+      status: 'stale',
+      released_at: now,
+      metadata: {
+        ...(row?.metadata && typeof row.metadata === 'object' ? row.metadata : {}),
+        staleRecovery: true,
+      },
+    }).catch(() => null)));
+}
+
+async function releaseEconomyOperationLock(base44: any, lock: any, status = 'released') {
+  const entity = economyOperationLockEntity(base44);
+  const id = rowId(lock);
+  if (!entity?.update || !id) return;
+  await entity.update(id, {
+    status,
+    released_at: nowIso(),
+  }).catch(() => null);
+}
+
+async function acquireEconomyOperationLock(base44: any, lockKey: string, context: Record<string, unknown>) {
+  const entity = economyOperationLockEntity(base44);
+  if (!entity?.filter || !entity?.create || !entity?.update) {
+    return { ok: false, code: 'economy_lock_unavailable', lock: null };
+  }
+  const now = nowIso();
+  const nowMs = Date.parse(now);
+  await markExpiredEconomyLocks(base44, lockKey, nowMs);
+  const existing = selectCanonicalEconomyLock(await findEconomyLocks(base44, lockKey), nowMs);
+  if (existing) return { ok: false, code: 'economy_operation_in_progress', lock: existing };
+
+  const created = await entity.create({
+    lock_key: lockKey,
+    actor_key: safeLockText(context.actorKey),
+    operation_scope: safeLockText(context.operationScope, 80),
+    operation_id: safeLockText(context.operationId),
+    status: 'active',
+    acquired_at: now,
+    expires_at: new Date(nowMs + ECONOMY_LOCK_TTL_MS).toISOString(),
+    metadata: {
+      phase: 'economy_parallel_race_guard_phase_1',
+      ttlMs: ECONOMY_LOCK_TTL_MS,
+      ...(context.metadata && typeof context.metadata === 'object' ? context.metadata : {}),
+    },
+  });
+  await sleep(ECONOMY_LOCK_SETTLE_MS);
+  const canonical = selectCanonicalEconomyLock(await findEconomyLocks(base44, lockKey), Date.now());
+  if (!isSameRow(canonical, created)) {
+    await releaseEconomyOperationLock(base44, created, 'released');
+    return { ok: false, code: 'economy_operation_in_progress', lock: canonical };
+  }
+  return { ok: true, code: 'locked', lock: created };
+}
+
+async function withEconomyOperationLock(base44: any, lockKey: string, context: Record<string, unknown>, callback: () => Promise<Response>) {
+  const lockResult = await acquireEconomyOperationLock(base44, lockKey, context);
+  if (!lockResult.ok) {
+    return json({
+      ok: false,
+      code: lockResult.code,
+      error: 'Ekonomi işlemi işleniyor. Lütfen tekrar dene.',
+    }, 409);
+  }
+  try {
+    return await callback();
+  } finally {
+    await releaseEconomyOperationLock(base44, lockResult.lock);
+  }
 }
 
 function safeCredentialText(value: unknown, maxLength = 180) {
@@ -397,9 +533,60 @@ Deno.serve(async (req: Request) => {
       return json({ ok: false, code: 'daily_quest_already_claimed', error: 'Bu görev ödülü zaten alındı.' }, 409);
     }
 
-    const balanceBefore = normalizeNumber(latestPlayer.row?.diamonds, 0);
+    return await withEconomyOperationLock(base44, buildEconomyLockKey(player.playerKey), {
+      actorKey: player.playerKey,
+      operationScope: 'daily_quest_claim',
+      operationId: idempotencyKey,
+      metadata: {
+        questKey: progress.quest_key,
+        questDate,
+        playerType: latestPlayer.isGuest ? 'guest' : 'registered',
+      },
+    }, async () => {
+    const postLockTx = await findDiamondTransaction(base44, latestPlayer, idempotencyKey);
+    if (postLockTx) {
+      const claimedProgress = await markProgressClaimed(base44, latestPlayer, progress, progress.claimed_at || postLockTx.created_at || timestamp, postLockTx);
+      const diamondBalanceAfter = await reconcileVisibleDiamondBalance(
+        base44,
+        latestPlayer,
+        normalizeNumber(postLockTx.balance_after ?? latestPlayer.row?.diamonds),
+        timestamp,
+      );
+      return json({
+        ok: true,
+        alreadyClaimed: true,
+        source: DAILY_QUEST_REWARD_SOURCE,
+        quest: publicProgress(claimedProgress),
+        rewardDiamonds: normalizeNumber(postLockTx.amount, rewardDiamonds),
+        diamondBalanceAfter,
+        questStatus: 'claimed',
+        idempotencyKey,
+        transactionId: postLockTx.id || null,
+        playerType: latestPlayer.isGuest ? 'guest' : 'registered',
+        guestProfile: latestPlayer.isGuest,
+        userPatch: {
+          diamonds: diamondBalanceAfter,
+          daily_quest_last_claim_at: claimedProgress.claimed_at || postLockTx.created_at || timestamp,
+          daily_quest_last_claim_date: questDate,
+          daily_quest_next_available_at: nextAvailableAt,
+        },
+      });
+    }
+
+    const lockedRow = latestPlayer.isGuest
+      ? (await findGuestProfile(base44, String(latestPlayer.row?.guest_id || '')).catch(() => latestPlayer.row)) || latestPlayer.row
+      : await base44.auth.me().catch(() => latestPlayer.row);
+    const lockedPlayer = { ...latestPlayer, row: lockedRow || latestPlayer.row, rowId: rowId(lockedRow) || latestPlayer.rowId };
+    const lockedProgress = rowId(progress)
+      ? (await findProgressById(base44, lockedPlayer, rowId(progress)).catch(() => null)) || progress
+      : progress;
+    if (String(lockedProgress.status || '') === 'claimed' || lockedProgress.claimed_at) {
+      return json({ ok: false, code: 'daily_quest_already_claimed', error: 'Bu görev ödülü zaten alındı.' }, 409);
+    }
+
+    const balanceBefore = normalizeNumber(lockedPlayer.row?.diamonds, 0);
     const balanceAfter = balanceBefore + rewardDiamonds;
-    const claimCount = normalizeNumber(latestPlayer.row?.daily_quest_claim_count, 0) + 1;
+    const claimCount = normalizeNumber(lockedPlayer.row?.daily_quest_claim_count, 0) + 1;
     const userPatch = {
       diamonds: balanceAfter,
       daily_quest_last_claim_at: timestamp,
@@ -411,7 +598,7 @@ Deno.serve(async (req: Request) => {
 
     // Grant the diamonds on the canonical balance source FIRST. This is the
     // visible reward and matches the proven Daily Wheel claim order.
-    await updateDailyQuestPlayer(base44, latestPlayer, userPatch);
+    await updateDailyQuestPlayer(base44, lockedPlayer, userPatch);
 
     // Write the DiamondTransaction ledger row. Some Base44 runtimes enforce
     // RLS create rules even for service-role writes, which can deny this
@@ -422,30 +609,30 @@ Deno.serve(async (req: Request) => {
     let tx: any = null;
     let ledgerError: string | null = null;
     try {
-      tx = await createDiamondTransaction(base44, latestPlayer, {
-        user_email: latestPlayer.playerKey,
-        owner_key: latestPlayer.ownerKey,
-        player_type: latestPlayer.isGuest ? 'guest' : 'registered',
+      tx = await createDiamondTransaction(base44, lockedPlayer, {
+        user_email: lockedPlayer.playerKey,
+        owner_key: lockedPlayer.ownerKey,
+        player_type: lockedPlayer.isGuest ? 'guest' : 'registered',
         amount: rewardDiamonds,
         balance_before: balanceBefore,
         balance_after: balanceAfter,
         source: DAILY_QUEST_REWARD_SOURCE,
         direction: 'earn',
         related_entity_type: RELATED_ENTITY_TYPE,
-        related_entity_id: rowId(progress),
+        related_entity_id: rowId(lockedProgress),
         idempotency_key: idempotencyKey,
         metadata: {
-          questProgressId: rowId(progress),
-          questKey: progress.quest_key,
+          questProgressId: rowId(lockedProgress),
+          questKey: lockedProgress.quest_key,
           questDate,
-          questType: progress.quest_type,
+          questType: lockedProgress.quest_type,
           source: DAILY_QUEST_REWARD_SOURCE,
           grantsDiamondsOnly: true,
           noKronoxPuan: true,
           noLeaderboardImpact: true,
           clientRewardIgnored: true,
-          playerType: latestPlayer.isGuest ? 'guest' : 'registered',
-          guestProfileReward: latestPlayer.isGuest,
+          playerType: lockedPlayer.isGuest ? 'guest' : 'registered',
+          guestProfileReward: lockedPlayer.isGuest,
           rawGuestTokenServerStored: false,
         },
         created_at: timestamp,
@@ -457,7 +644,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // Mark the quest claimed only after the reward grant succeeded.
-    const claimedProgress = await markProgressClaimed(base44, latestPlayer, progress, timestamp, tx);
+    const claimedProgress = await markProgressClaimed(base44, lockedPlayer, lockedProgress, timestamp, tx);
 
     return json({
       ok: true,
@@ -472,11 +659,12 @@ Deno.serve(async (req: Request) => {
       transactionId: tx?.id || null,
       ledgerError,
       userPatch,
-      playerType: latestPlayer.isGuest ? 'guest' : 'registered',
-      guestProfile: latestPlayer.isGuest,
+      playerType: lockedPlayer.isGuest ? 'guest' : 'registered',
+      guestProfile: lockedPlayer.isGuest,
       grantsDiamondsOnly: true,
       noKronoxPuan: true,
       noLeaderboardImpact: true,
+    });
     });
   } catch (error) {
     console.error('[claimDailyQuestReward] failed', error?.message || error);
@@ -484,7 +672,6 @@ Deno.serve(async (req: Request) => {
       ok: false,
       code: 'daily_quest_claim_failed',
       error: 'Ödül alınamadı. Tekrar dene.',
-      debugError: String(error?.message || error),
     }, 500);
   }
 });

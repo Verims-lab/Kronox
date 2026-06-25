@@ -13,6 +13,7 @@ import marketPageSource from '../../pages/MarketPage.jsx?raw';
 import purchaseJokerWithDiamondsSource from '../../../base44/functions/purchaseJokerWithDiamonds/entry.ts?raw';
 import claimDailyWheelRewardSource from '../../../base44/functions/claimDailyWheelReward/entry.ts?raw';
 import claimDailyQuestRewardSource from '../../../base44/functions/claimDailyQuestReward/entry.ts?raw';
+import economyOperationLockEntitySource from '../../../base44/entities/EconomyOperationLock.jsonc?raw';
 import guestProfileEntitySource from '../../../base44/entities/GuestProfile.jsonc?raw';
 import profilePageSource from '../../pages/ProfilePage.jsx?raw';
 import leaderboardPageSource from '../../pages/LeaderboardPage.jsx?raw';
@@ -416,6 +417,45 @@ export const EXTRA_TESTS = [
         });
       }
       return pass('Mağaza purchases remove Diamonds only through the server-backed spend path.', { verification: 'STATIC_CONTRACT' });
+    }),
+
+  makeCase('economy_operation_lock_serializes_balance_mutations',
+    'Economy balance mutations use a TTL operation lock plus post-lock rechecks',
+    () => {
+      const combined = `${economyOperationLockEntitySource}\n${purchaseJokerWithDiamondsSource}\n${claimDailyWheelRewardSource}\n${claimDailyQuestRewardSource}\n${economyRulesSource}`;
+      const missing = missingTokens(combined, [
+        '"name": "EconomyOperationLock"',
+        '"lock_key"',
+        '"expires_at"',
+        '"stale"',
+        'economy_parallel_race_guard_phase_1',
+        'withEconomyOperationLock',
+        'buildEconomyLockKey',
+        "operationScope: 'market_purchase'",
+        "operationScope: 'daily_wheel_claim'",
+        "operationScope: 'daily_quest_claim'",
+        'const secondExistingDiamondTx = await findDiamondTransaction',
+        'const postLockSpin = await findSpin',
+        'const postLockTx = await findDiamondTransaction',
+        'function-level EconomyOperationLock',
+        'DB/entity unique constraints or live parallel backend proof remain manual',
+      ]);
+      if (missing.length) {
+        return fail('Diamond balance mutation paths can still race without the Phase 1 lock/recheck contract.', {
+          verification: 'STATIC_CONTRACT',
+          files: [
+            'base44/entities/EconomyOperationLock.jsonc',
+            'base44/functions/purchaseJokerWithDiamonds/entry.ts',
+            'base44/functions/claimDailyWheelReward/entry.ts',
+            'base44/functions/claimDailyQuestReward/entry.ts',
+            'docs/KRONOX_ECONOMY_RULES.md',
+          ],
+          missing,
+        });
+      }
+      return pass('Market purchase, Daily Wheel, and Daily Quest balance writes use the TTL economy lock with post-lock duplicate/idempotency rechecks.', {
+        verification: 'STATIC_CONTRACT',
+      });
     }),
 
   makeCase('market_purchase_updates_visible_diamond_balances',
