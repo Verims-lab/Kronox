@@ -4,7 +4,6 @@ import { Trash2, AlertTriangle, Loader2, ChevronRight, FileText, UserRound, Save
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
-import TopScores from '@/components/game/TopScores';
 import StandardTopBar from '@/components/layout/StandardTopBar';
 import { getLeaderboardDiamondValue } from '@/lib/leaderboard';
 import { ACCOUNT_DELETION_ERROR_COPY, requestAccountDeletion } from '@/lib/accountDeletion';
@@ -68,15 +67,6 @@ export default function SettingsPage() {
       </div>
 
       <div className="px-4 space-y-5">
-        {/* Top 5 — giriş yapmış tüm kullanıcılar */}
-        {effectiveUser && (
-          <Section label="En İyi 5 Rekorun">
-            <div className="p-4 rounded-2xl border border-border/40 bg-secondary/20">
-              <TopScores user={effectiveUser} />
-            </div>
-          </Section>
-        )}
-
         {(effectiveUser || effectiveGuestProfile) && (
           <Section label="Profil Bilgileri">
             <ProfileSettingsSection

@@ -265,7 +265,7 @@ Deno.serve(async (req) => {
 
   drawHeading2('2.2 Kayitli Kullanici');
   drawBullet('Tum Solo ve Online akislarina erisir.');
-  drawBullet('Hesap silme, kisisel rekor (GameRecord) ve En Iyi 5 listesini gorur.');
+  drawBullet('Hesap silme ve profil ayarlarini gorur; En Iyi 5 rekor listesi Settings/Profile ekranindan kaldirilmistir.');
   drawBullet('Soru/Test/Doc araclarina erisemez.');
 
   drawHeading2('2.3 Admin (AdminUser DB kaydi)');
@@ -541,8 +541,8 @@ Deno.serve(async (req) => {
   // ─── 17. GELECEK GELISTIRMELER ─────────────────────────────────────────────
   drawHeading1('17. GELECEK GELISTIRMELER');
 
-  drawBullet('Profil sayfasi (kismi hazir) -- GameRecord + AuthContext mevcut, /profile rotasi eklenebilir. RISK: Medium.');
-  drawBullet('Skor / istatistik gecmisi -- GameRecord uzerinden aggregate. RISK: Medium.');
+  drawBullet('Profil sayfasi -- AuthContext ve profil ayarlari mevcut; GameRecord En Iyi 5 listesi artik UI hedefi degil. RISK: Medium.');
+  drawBullet('Skor / istatistik gecmisi -- yeni projeksiyon/event kaynaklari gerektirir; legacy GameRecord tek basina yeterli degil. RISK: Medium.');
   drawBullet('Liderlik tablosu (HAZIR DEGIL) -- server-side trust yetersiz. RISK: High.');
   drawBullet('Ranked mod (HAZIR DEGIL) -- anomali tespiti ve anti-cheat eklenmeli. RISK: High.');
   drawBullet('Rematch -- Lobby reset + yeniden dagitim. RISK: Medium.');
