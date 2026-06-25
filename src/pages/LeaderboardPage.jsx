@@ -30,7 +30,8 @@ import {
   isGuestOnboardingComplete,
   syncGuestProfileProgress,
 } from '@/lib/guestProfile';
-import { loadFriends } from '@/lib/friendsApi';
+import { loadFriends, sendFriendRequest } from '@/lib/friendsApi';
+import { useToast } from '@/components/ui/use-toast';
 import { isAdminUser, withAdminStatus } from '@/lib/admin';
 import KronoxRankingSection from '@/components/leaderboard/KronoxRankingSection';
 import PullToRefresh from '@/components/mobile/PullToRefresh';
@@ -90,6 +91,7 @@ function hydrateLeaderboardRow(publicRow, friendKeys, currentOwnerKey) {
  */
 export default function LeaderboardPage() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { user: authUser, guestProfile, authChecked: contextAuthChecked } = useAuth();
   const [user, setUser] = useState(null);
   const [localGuestProfile, setLocalGuestProfile] = useState(guestProfile || null);
@@ -303,6 +305,37 @@ export default function LeaderboardPage() {
     });
   }, [navigate]);
 
+  // Long-press → "Arkadaş ekle". Reuses the existing friend-request flow with
+  // the row's safe public username as the target. The backend resolves the
+  // username server-side; the target email is never exposed to the client.
+  const handleAddFriendFromLeaderboard = useCallback(async (playerName) => {
+    if (!user?.email) {
+      toast({ title: 'Önce giriş yapmalısın.', variant: 'destructive' });
+      throw new Error('auth_required');
+    }
+    const username = String(playerName || '').trim();
+    if (!username) {
+      toast({ title: 'Geçersiz oyuncu.', variant: 'destructive' });
+      throw new Error('invalid_target');
+    }
+    try {
+      const data = await sendFriendRequest({ me: user, target: username });
+      // The backend already returns existing-state outcomes: already-friends /
+      // self-add / not-found come back as thrown errors (handled in catch);
+      // an existing pending request returns ok:true with alreadyPending.
+      if (data?.alreadyPending) {
+        toast({ title: `${username} için istek zaten gönderilmiş.` });
+      } else {
+        toast({ title: `${username} kullanıcısına arkadaşlık isteği gönderildi.` });
+      }
+      // Refresh so the row picks up its "Arkadaş" badge once accepted.
+      loadLeaderboard();
+    } catch (err) {
+      toast({ title: err?.message || 'İstek gönderilemedi.', variant: 'destructive' });
+      throw err;
+    }
+  }, [user, toast, loadLeaderboard]);
+
   return (
     <div
       className="min-h-screen bg-background text-white"
@@ -357,6 +390,7 @@ export default function LeaderboardPage() {
             onRetry={loadLeaderboard}
             isAdmin={isAdmin}
             onCurrentUserRowOpenSettings={openCurrentUserProfileSettings}
+            onAddFriend={handleAddFriendFromLeaderboard}
           />
         </div>
       </PullToRefresh>
