@@ -332,8 +332,10 @@ export async function openNotificationCenterGameInvite(invite, {
       source,
       onAccepted,
     });
+    const verifiedLobby = res?.verifiedLobby || res?.joinedLobby || res?.lobby || null;
+    const joinedLobby = verifiedLobby || null;
     scheduleRefresh({ preserveExisting: true, source: `${source}_accepted_followup` });
-    return { ok: true, lobby: res?.lobby, result: res };
+    return { ok: true, lobby: joinedLobby, joinedLobby, verifiedLobby, result: res };
   } catch (error) {
     scheduleRefresh({ preserveExisting: true, source: `${source}_failed_followup` });
     return { ok: false, reason: error?.message || 'accept_failed', error };

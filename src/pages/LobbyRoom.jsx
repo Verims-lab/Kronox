@@ -34,7 +34,7 @@ export default function LobbyRoom() {
   const navigate = useNavigate();
   const location = useLocation();
   const initialJoinedLobby = useMemo(() => {
-    const joined = location.state?.joinedLobby;
+    const joined = location.state?.verifiedLobby || location.state?.joinedLobby;
     if (!joined?.id) return null;
     return isLobbyStale(joined) ? null : joined;
   }, [location.state]);
@@ -197,7 +197,7 @@ export default function LobbyRoom() {
   // room; we surface a "Lobi süresi doldu" message instead so the user can
   // start a fresh challenge.
   useEffect(() => {
-    const joined = location.state?.joinedLobby;
+    const joined = location.state?.verifiedLobby || location.state?.joinedLobby;
     if (joined?.id && lobby?.id === joined.id) {
       debugLog('[LobbyRoom] route joined lobby used as initial authoritative lobby:', {
         lobbyId: joined.id,
@@ -286,9 +286,10 @@ export default function LobbyRoom() {
         return;
       }
       const res = await acceptGameInvite(deepLinkInvite.id);
-      if (res?.lobby?.id) {
-        setLobby(res.lobby);
-        navigate('/lobby', { replace: true, state: { joinedLobby: res.lobby } });
+      const verifiedLobby = res?.verifiedLobby || res?.joinedLobby || res?.lobby;
+      if (verifiedLobby?.id) {
+        setLobby(verifiedLobby);
+        navigate('/lobby', { replace: true, state: { joinedLobby: verifiedLobby, verifiedLobby } });
       }
     } catch (err) {
       setDeepLinkMessage(err?.message || 'Davet kabul edilemedi.');

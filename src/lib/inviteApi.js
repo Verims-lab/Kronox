@@ -291,17 +291,20 @@ export async function openGameInvite(invite, {
   });
 
   if (typeof navigate === 'function') {
-    if (res?.lobby?.id) {
+    const verifiedLobby = res?.verifiedLobby || res?.joinedLobby || res?.lobby;
+    const joinedLobby = verifiedLobby;
+    if (joinedLobby?.id) {
       traceGameInviteLifecycle('lobby_navigation_started', invite, {
         source,
         userEmail,
-        reason: 'accepted_lobby_payload',
+        reason: res?.verifiedLobby ? 'accepted_verified_lobby_payload' : 'accepted_lobby_payload',
       });
       navigate('/lobby', {
         state: {
-          joinedLobby: res.lobby,
-          lobbyId: res.lobbyId || res.lobby.id,
-          lobbyCode: res.lobbyCode || res.lobby.code || '',
+          joinedLobby,
+          verifiedLobby,
+          lobbyId: res.lobbyId || joinedLobby.id,
+          lobbyCode: res.lobbyCode || joinedLobby.code || '',
         },
       });
     } else {
@@ -313,8 +316,15 @@ export async function openGameInvite(invite, {
       navigate('/lobby');
     }
   }
-  await onAccepted?.(res);
-  return res;
+  const verifiedLobby = res?.verifiedLobby || res?.joinedLobby || res?.lobby || null;
+  const joinedLobby = verifiedLobby || null;
+  const acceptedResult = {
+    ...res,
+    joinedLobby,
+    verifiedLobby,
+  };
+  await onAccepted?.(acceptedResult);
+  return acceptedResult;
 }
 
 /**

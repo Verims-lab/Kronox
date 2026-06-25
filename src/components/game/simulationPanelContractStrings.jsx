@@ -81,7 +81,8 @@ export const pushSubscriptionEntitySource = `
 export const acceptGameInviteFnSource = `
   // Public contract of functions/acceptGameInvite.js — mirrored.
   // Codex130: TTL bumped to 10 minutes (was 5). Stale lobby guard added.
-  // Codex425: accept uses merge/retry roster repair and records to_name.
+  // Codex427: accept uses merge/retry roster repair, records to_name, and
+  // returns the post-mutation verifiedLobby used by notification routing.
   const GAME_INVITE_TTL_MS = 10 * 60 * 1000;
   const LOBBY_STALE_AFTER_MS = 10 * 60 * 1000;
   const hasZone = /Z$/i.test(str) || /[+-]\\d{2}:?\\d{2}$/.test(str);
@@ -93,15 +94,16 @@ export const acceptGameInviteFnSource = `
       last_activity_at: new Date().toISOString(),
       state_revision: readRevision(latest.state_revision) + 1,
     });
-    const verified = await base44.asServiceRole.entities.Lobby.get(lobby.id);
-    if (hasPlayer(verified.players, newPlayer)) return { lobby: verified, joined: true, retryApplied: true };
+    const verifiedLobby = await base44.asServiceRole.entities.Lobby.get(lobby.id);
+    if (hasPlayer(verifiedLobby.players, newPlayer)) return { lobby: verifiedLobby, joinedLobby: verifiedLobby, verifiedLobby, joined: true, retryApplied: true };
   };
   if (toEmail !== myEmail) {
     return Response.json({ code: 'unauthorized', error: 'Bu davet sana ait değil' }, { status: 403 });
   }
   if (!invite) return Response.json({ code: 'invite_not_found', error: 'Davet bulunamadı.' }, { status: 404 });
   if (invite.status === 'accepted') {
-    return Response.json({ ok: true, alreadyAccepted: true, invite, lobby: acceptedLobby, lobbyId: acceptedLobby.id, lobbyCode: acceptedLobby.code || invite.lobby_code || '' });
+    const verifiedLobby = restored.verifiedLobby || restored.joinedLobby || restored.lobby || acceptedLobby;
+    return Response.json({ ok: true, alreadyAccepted: true, invite, lobby: verifiedLobby, joinedLobby: verifiedLobby, verifiedLobby, lobbyId: verifiedLobby.id, lobbyCode: verifiedLobby.code || invite.lobby_code || '' });
   }
   const expiresAt = getInviteExpiry(invite);
   if (Number.isFinite(expiresAt) && expiresAt <= Date.now()) {
@@ -125,9 +127,10 @@ export const acceptGameInviteFnSource = `
   }
   const newPlayer = { email: myEmail, name: displayName, ready: true, cards: [] };
   const mergeResult = await appendPlayerWithMergeRetry(base44, lobby, newPlayer);
-  const updatedLobby = mergeResult.lobby || lobby;
+  const verifiedLobby = mergeResult.verifiedLobby || mergeResult.joinedLobby || mergeResult.lobby || lobby;
+  const joinedLobby = verifiedLobby;
   const updatedInvite = await base44.asServiceRole.entities.GameInvite.update(inviteId, { status: 'accepted', accepted_at: new Date().toISOString(), to_name: acceptedPlayerName });
-  return Response.json({ ok: true, success: true, invite: updatedInvite, lobby: updatedLobby, lobbyId: updatedLobby.id, lobbyCode: updatedLobby.code || invite.lobby_code || '' });
+  return Response.json({ ok: true, success: true, invite: updatedInvite, lobby: joinedLobby, joinedLobby, verifiedLobby, lobbyId: joinedLobby.id, lobbyCode: joinedLobby.code || invite.lobby_code || '' });
 `;
 
 export const sendFriendRequestEmailFnSource = `
